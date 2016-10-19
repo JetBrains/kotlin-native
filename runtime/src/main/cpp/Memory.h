@@ -56,7 +56,17 @@ struct ArenaContainerHeader : public ContainerHeader {
   uint8_t* end_;
 };
 
-// Thos two operations are implemented by translator when storing references
+inline void* AddressOfElementAt(ArrayHeader* obj, int32_t index) {
+  // Instance size is negative.
+  return reinterpret_cast<uint8_t*>(obj + 1) - obj->type_info_->instanceSize_ * index;
+}
+
+// Optimized version not accessing type info.
+inline uint8_t* ByteArrayAddressOfElementAt(ArrayHeader* obj, int32_t index) {
+  return reinterpret_cast<uint8_t*>(obj + 1) + index;
+}
+
+// Those two operations are implemented by translator when storing references
 // to objects.
 inline void AddRef(ContainerHeader* header) {
   // Looking at container type we may want to skip AddRef() totally
