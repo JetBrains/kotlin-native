@@ -5,8 +5,11 @@
 #include "TypeInfo.h"
 
 typedef enum {
+  // Allocation guaranteed to be frame local.
   SCOPE_FRAME = 0,
+  // Allocation is generic global allocation.
   SCOPE_GLOBAL = 1,
+  // Allocation shall take place in current arena.
   SCOPE_ARENA = 2
 } PlacementHint;
 
@@ -37,13 +40,13 @@ struct ObjHeader {
 
 // Header of value type array objects.
 struct ArrayHeader : public ObjHeader {
-  // ELements count. Element size is stored in instance_size_ field of TypeInfo.
+  // Elements count. Element size is stored in instanceSize_ field of TypeInfo, negated.
   uint32_t count_;
 };
 
 // Header of all container objects. Contains reference counter.
 struct ContainerHeader {
-  // Reference counter of container. Maybe use some upper bit of counter for
+  // Reference counter of container. Uses two lower bits of counter for
   // container type (for polymorphism in ::Release()).
   volatile uint32_t ref_count_;
 };

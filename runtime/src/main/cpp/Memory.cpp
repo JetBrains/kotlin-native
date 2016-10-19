@@ -19,8 +19,8 @@ ArenaContainer::ArenaContainer(uint32_t size) {
 
 void ObjectContainer::Init(const TypeInfo* type_info, uint32_t elements) {
   header_ = reinterpret_cast<ContainerHeader*>(
-      calloc(sizeof(ContainerHeader) + sizeof(ObjHeader) +
-             (-type_info->instanceSize_) * elements, 1));
+      calloc(sizeof(ContainerHeader) + sizeof(ObjHeader) -
+             type_info->instanceSize_ * elements, 1));
   header_->ref_count_ = CONTAINER_TAG_INCREMENT;
   SetMeta(GetPlace(), type_info);
 }
