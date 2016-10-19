@@ -22,7 +22,7 @@ typedef enum {
   CONTAINER_TAG_INVALID = 3,
   // Actual value to increment/decrement conatiner by. Tag is in lower bits.
   CONTAINER_TAG_INCREMENT = 1 << 2,
-  //
+  // Mask for container type.
   CONTAINER_TAG_MASK = (CONTAINER_TAG_INCREMENT - 1)
 } ContainerTag;
 
@@ -37,6 +37,7 @@ struct ObjHeader {
 
 // Header of value type array objects.
 struct ArrayHeader : public ObjHeader {
+  // ELements count. Element size is stored in instance_size_ field of TypeInfo.
   uint32_t count_;
 };
 
