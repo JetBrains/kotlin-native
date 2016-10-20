@@ -9,14 +9,14 @@
 extern "C" {
 
 // TODO: those must be compiler intrinsics afterwards.
-KByte Kotlin_ByteArray_get(const ArrayHeader* obj, int32_t index) {
+KByte Kotlin_ByteArray_get(const ArrayHeader* obj, KInt index) {
   if (static_cast<uint32_t>(index) >= obj->count_) {
     ThrowArrayIndexOutOfBoundsException();
   }
   return *ByteArrayAddressOfElementAt(obj, index);
 }
 
-void Kotlin_ByteArray_set(ArrayHeader* obj, int32_t index, KByte value) {
+void Kotlin_ByteArray_set(ArrayHeader* obj, KInt index, KByte value) {
   if (static_cast<uint32_t>(index) >= obj->count_) {
     ThrowArrayIndexOutOfBoundsException();
   }
@@ -37,14 +37,14 @@ KInt Kotlin_ByteArray_getArrayLength(const ArrayHeader* array) {
   return array->count_;
 }
 
-KChar Kotlin_CharArray_get(const ArrayHeader* obj, int32_t index) {
+KChar Kotlin_CharArray_get(const ArrayHeader* obj, KInt index) {
   if (static_cast<uint32_t>(index) >= obj->count_) {
     ThrowArrayIndexOutOfBoundsException();
   }
   return *CharArrayAddressOfElementAt(obj, index);
 }
 
-void Kotlin_CharArray_set(ArrayHeader* obj, int32_t index, KChar value) {
+void Kotlin_CharArray_set(ArrayHeader* obj, KInt index, KChar value) {
   if (static_cast<uint32_t>(index) >= obj->count_) {
     ThrowArrayIndexOutOfBoundsException();
   }
@@ -65,14 +65,14 @@ KInt Kotlin_CharArray_getArrayLength(const ArrayHeader* array) {
   return array->count_;
 }
 
-KInt Kotlin_IntArray_get(const ArrayHeader* obj, int32_t index) {
+KInt Kotlin_IntArray_get(const ArrayHeader* obj, KInt index) {
   if (static_cast<uint32_t>(index) >= obj->count_) {
     ThrowArrayIndexOutOfBoundsException();
   }
   return *IntArrayAddressOfElementAt(obj, index);
 }
 
-void Kotlin_IntArray_set(ArrayHeader* obj, int32_t index, KInt value) {
+void Kotlin_IntArray_set(ArrayHeader* obj, KInt index, KInt value) {
   if (static_cast<uint32_t>(index) >= obj->count_) {
     ThrowArrayIndexOutOfBoundsException();
   }
@@ -99,7 +99,7 @@ KInt Kotlin_String_compareTo(const ArrayHeader* obj, const ArrayHeader* other) {
                 obj->count_ < other->count_ ? obj->count_ : other->count_);
 }
 
-KChar Kotlin_String_get(const ArrayHeader* obj, int32_t index) {
+KChar Kotlin_String_get(const ArrayHeader* obj, KInt index) {
   // TODO: support full UTF-8.
   if (static_cast<uint32_t>(index) >= obj->count_) {
     ThrowArrayIndexOutOfBoundsException();
