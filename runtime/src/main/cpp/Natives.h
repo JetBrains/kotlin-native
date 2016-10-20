@@ -54,8 +54,11 @@ KInt Kotlin_IntArray_get(const ArrayHeader* obj, int32_t index);
 void Kotlin_IntArray_set(ArrayHeader* obj, int32_t index, KInt value);
 KInt Kotlin_IntArray_getArrayLength(const ArrayHeader* obj);
 
+KInt Kotlin_String_compareTo(const ArrayHeader* obj, const ArrayHeader* other);
 KChar Kotlin_String_get(const ArrayHeader* obj, int32_t index);
 ArrayHeader* Kotlin_String_fromUtf8Array(const ArrayHeader* array);
+ArrayHeader* Kotlin_String_plusImpl(const ArrayHeader* obj, const ArrayHeader* other);
+KInt Kotlin_String_getStringLength(const ArrayHeader* obj);
 
 #ifdef __cplusplus
 }

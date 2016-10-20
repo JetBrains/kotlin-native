@@ -93,6 +93,12 @@ KInt Kotlin_IntArray_getArrayLength(const ArrayHeader* array) {
   return array->count_;
 }
 
+KInt Kotlin_String_compareTo(const ArrayHeader* obj, const ArrayHeader* other) {
+  return memcmp(ByteArrayAddressOfElementAt(obj, 0),
+                ByteArrayAddressOfElementAt(other, 0),
+                obj->count_ < other->count_ ? obj->count_ : other->count_);
+}
+
 KChar Kotlin_String_get(const ArrayHeader* obj, int32_t index) {
   // TODO: support full UTF-8.
   if (static_cast<uint32_t>(index) >= obj->count_) {
@@ -101,8 +107,12 @@ KChar Kotlin_String_get(const ArrayHeader* obj, int32_t index) {
   return *ByteArrayAddressOfElementAt(obj, index);
 }
 
+KInt Kotlin_String_getStringLength(const ArrayHeader* array) {
+  return array->count_;
+}
+
 ArrayHeader* Kotlin_String_fromUtf8Array(const ArrayHeader* array) {
-  RuntimeAssert(array->type_info_ == theByteArrayTypeInfo, "Must get a byte array");
+  RuntimeAssert(array->type_info_ == theByteArrayTypeInfo, "Must use a byte array");
   uint32_t length = ArraySizeBytes(array);
   // TODO: support full UTF-8.
   ArrayHeader* result = ArrayContainer(theStringTypeInfo, length).GetPlace();
@@ -110,6 +120,25 @@ ArrayHeader* Kotlin_String_fromUtf8Array(const ArrayHeader* array) {
       ByteArrayAddressOfElementAt(result, 0),
       ByteArrayAddressOfElementAt(array, 0),
       length);
+  return result;
+}
+
+ArrayHeader* Kotlin_String_plusImpl(
+    const ArrayHeader* obj, const ArrayHeader* other) {
+  // TODO: support UTF-8
+  RuntimeAssert(obj->type_info_ == theStringTypeInfo, "Must be a string");
+  RuntimeAssert(other->type_info_ == theStringTypeInfo, "Must be a string");
+  uint32_t result_length = obj->count_ + other->count_;
+  ArrayHeader* result = ArrayContainer(
+      theStringTypeInfo, result_length).GetPlace();
+  memcpy(
+      ByteArrayAddressOfElementAt(result, 0),
+      ByteArrayAddressOfElementAt(obj, 0),
+      obj->count_);
+  memcpy(
+      ByteArrayAddressOfElementAt(result, obj->count_),
+      ByteArrayAddressOfElementAt(other, 0),
+      other->count_);
   return result;
 }
 
