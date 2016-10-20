@@ -47,6 +47,10 @@ const MethodTableRecord implByteArrayTypeInfoMethods[] = {
   { 0, reinterpret_cast<void*>(Kotlin_ByteArray_clone) }
 };
 
+const TypeInfo* implByteArrayTypeInfoIfaces[] = {
+  &implCloneableTypeInfo
+};
+
 const TypeInfo implByteArrayTypeInfo = {
   // kotlin.ByteArray
   { 0x9e, 0x23, 0xa6, 0xa6, 0x91, 0x9b, 0x6b, 0x0a, 0x00, 0xc5,
@@ -55,7 +59,7 @@ const TypeInfo implByteArrayTypeInfo = {
   &implAnyTypeInfo,              // superType_
   nullptr,                       // objOffsets
   0,                             // objOffsetsCount_
-  &implCloneableTypeInfo,        // implementedInterfaces_
+  implByteArrayTypeInfoIfaces,   // implementedInterfaces_
   1,                             // implementedInterfacesCount_
   implByteArrayTypeInfoVTbl,     // vtable_
   implByteArrayTypeInfoMethods,  // openMethods_
@@ -73,6 +77,10 @@ const MethodTableRecord implCharArrayTypeInfoMethods[] = {
   { 0, reinterpret_cast<void*>(Kotlin_CharArray_clone) }
 };
 
+const TypeInfo* implCharArrayTypeInfoIfaces[] = {
+  &implCloneableTypeInfo
+};
+
 const TypeInfo implCharArrayTypeInfo = {
   // kotlin.CharArray
   { 0x70, 0x88, 0xd4, 0x20, 0x91, 0x6e, 0x25, 0x80, 0x33, 0x64,
@@ -81,7 +89,7 @@ const TypeInfo implCharArrayTypeInfo = {
   &implAnyTypeInfo,             // superType_
   nullptr,                      // objOffsets
   0,                            // objOffsetsCount_
-  &implCloneableTypeInfo,       // implementedInterfaces_
+  implCharArrayTypeInfoIfaces,  // implementedInterfaces_
   1,                            // implementedInterfacesCount_
   implCharArrayTypeInfoVTbl,    // vtable_
   implCharArrayTypeInfoMethods, // openMethods_
@@ -99,6 +107,10 @@ const MethodTableRecord implIntArrayTypeInfoMethods[] = {
   { 0, reinterpret_cast<void*>(Kotlin_IntArray_clone) }
 };
 
+const TypeInfo* implIntArrayTypeInfoIfaces[] = {
+  &implCloneableTypeInfo
+};
+
 const TypeInfo implIntArrayTypeInfo = {
   // kotlin.IntArray
   { 0xdd, 0x69, 0x38, 0x31, 0x3e, 0x03, 0xc6, 0xfd, 0x88, 0x8f,
@@ -107,10 +119,10 @@ const TypeInfo implIntArrayTypeInfo = {
   &implAnyTypeInfo,             // superType_
   nullptr,                      // objOffsets
   0,                            // objOffsetsCount_
-  &implCloneableTypeInfo,       // implementedInterfaces_
+  implIntArrayTypeInfoIfaces,   // implementedInterfaces_
   1,                            // implementedInterfacesCount_
   implIntArrayTypeInfoVTbl,     // vtable_
-  implCharArrayTypeInfoMethods, // openMethods_
+  implIntArrayTypeInfoMethods,  // openMethods_
   1,                            // openMethodsCount_
   nullptr,                      // fields_
   0                             // fieldsCount_
