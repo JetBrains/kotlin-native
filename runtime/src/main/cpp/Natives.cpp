@@ -32,12 +32,14 @@ KChar Kotlin_String_get(const ArrayHeader* obj, int32_t index) {
 }
 
 ArrayHeader* Kotlin_String_fromUtf8Array(const ArrayHeader* array) {
-  RuntimeAssert(array->type_info_ == theByteArrayTypeInfo, "Must get an byte array");
+  RuntimeAssert(array->type_info_ == theByteArrayTypeInfo, "Must get a byte array");
   uint32_t length = ArraySizeBytes(array);
   // TODO: support full UTF-8.
   ArrayHeader* result = ArrayContainer(theStringTypeInfo, length).GetPlace();
   memcpy(
-      ByteArrayAddressOfElementAt(result, 0), ByteArrayAddressOfElementAt(array, 0), length);
+      ByteArrayAddressOfElementAt(result, 0),
+      ByteArrayAddressOfElementAt(array, 0),
+      length);
   return result;
 }
 

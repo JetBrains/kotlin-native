@@ -24,7 +24,6 @@ struct FieldTableRecord {
 struct TypeInfo {
     ClassNameHash name_;
     // Negative value marks array class/string, and it is negated element size.
-    // Following fields have no sensible values for array classes.
     int32_t instanceSize_;
     // Must be pointer to Any for array classes, and null for Any.
     const TypeInfo* superType_;
