@@ -10,7 +10,7 @@ class ByteArray(size: Int) {
 
 class String {
     companion object {
-        external fun fromByteArray(ByteArray: array) : String
+        external fun fromUtf8Array(ByteArray: array) : String
     }
     external public operator fun plus(other: Any?): String
 

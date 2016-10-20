@@ -69,6 +69,16 @@ inline uint8_t* ByteArrayAddressOfElementAt(ArrayHeader* obj, int32_t index) {
   return reinterpret_cast<uint8_t*>(obj + 1) + index;
 }
 
+inline const uint8_t* ByteArrayAddressOfElementAt(const ArrayHeader* obj, int32_t index) {
+  return reinterpret_cast<const uint8_t*>(obj + 1) + index;
+}
+
+inline uint32_t ArraySizeBytes(const ArrayHeader* obj) {
+  // Instance size is negative.
+  return -obj->type_info_->instanceSize_ * obj->count_;
+}
+
+
 // Those two operations are implemented by translator when storing references
 // to objects.
 inline void AddRef(ContainerHeader* header) {
@@ -155,12 +165,9 @@ class Container {
 // Container for a single object.
 class ObjectContainer : public Container {
  public:
+  // Single instance.
   explicit ObjectContainer(const TypeInfo* type_info) {
-    Init(type_info, 1);
-  }
-
-  ObjectContainer(const TypeInfo* type_info, uint32_t elements) {
-    Init(type_info, elements);
+    Init(type_info);
   }
 
   // Object container shalln't have any dtor, as it's being freed by ::Release().
@@ -170,8 +177,26 @@ class ObjectContainer : public Container {
   }
 
  private:
+  void Init(const TypeInfo* type_info);
+};
+
+
+class ArrayContainer : public Container {
+ public:
+  ArrayContainer(const TypeInfo* type_info, uint32_t elements) {
+    Init(type_info, elements);
+  }
+
+  // Array container shalln't have any dtor, as it's being freed by ::Release().
+  ArrayHeader* GetPlace() const {
+    return reinterpret_cast<ArrayHeader*>(
+        reinterpret_cast<uint8_t*>(header_) + sizeof(ContainerHeader));
+  }
+
+ private:
   void Init(const TypeInfo* type_info, uint32_t elements);
 };
+
 
 // Class representing arena-style placement container.
 // Container is used for reference counting,

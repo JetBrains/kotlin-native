@@ -17,11 +17,22 @@ ArenaContainer::ArenaContainer(uint32_t size) {
     header->end_ = header->current_ + size;
 }
 
-void ObjectContainer::Init(const TypeInfo* type_info, uint32_t elements) {
+void ObjectContainer::Init(const TypeInfo* type_info) {
+  RuntimeAssert(type_info->instanceSize_ >= 0, "Must be an object");
   header_ = reinterpret_cast<ContainerHeader*>(
-      calloc(sizeof(ContainerHeader) + sizeof(ObjHeader) -
+      calloc(sizeof(ContainerHeader) + sizeof(ObjHeader) +
+             type_info->instanceSize_, 1));
+  header_->ref_count_ = CONTAINER_TAG_INCREMENT;
+  SetMeta(GetPlace(), type_info);
+}
+
+void ArrayContainer::Init(const TypeInfo* type_info, uint32_t elements) {
+  RuntimeAssert(type_info->instanceSize_ < 0, "Must be an array");
+  header_ = reinterpret_cast<ContainerHeader*>(
+      calloc(sizeof(ContainerHeader) + sizeof(ArrayHeader) -
              type_info->instanceSize_ * elements, 1));
   header_->ref_count_ = CONTAINER_TAG_INCREMENT;
+  GetPlace()->count_ = elements;
   SetMeta(GetPlace(), type_info);
 }
 
@@ -38,7 +49,7 @@ ObjHeader* ArenaContainer::PlaceObject(const TypeInfo* type_info) {
 
 ArrayHeader* ArenaContainer::PlaceArray(const TypeInfo* type_info, int count) {
   RuntimeAssert(type_info->instanceSize_ < 0, "must be an array");
-  uint32_t size = sizeof(ArrayHeader) + (-type_info->instanceSize_) * count;
+  uint32_t size = sizeof(ArrayHeader) - type_info->instanceSize_ * count;
   ArrayHeader* result = reinterpret_cast<ArrayHeader*>(Place(size));
   if (!result) {
     return nullptr;
@@ -64,7 +75,7 @@ void* AllocInstance(const TypeInfo* type_info, PlacementHint hint) {
 
 void* AllocArrayInstance(const TypeInfo* type_info, PlacementHint hint, uint32_t elements) {
   RuntimeAssert(type_info->instanceSize_ < 0, "must be an array");
-  return ObjectContainer(type_info, elements).GetPlace();
+  return ArrayContainer(type_info, elements).GetPlace();
 }
 
 #ifdef __cplusplus
