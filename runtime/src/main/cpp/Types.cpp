@@ -20,6 +20,23 @@ const TypeInfo implAnyTypeInfo = {
   0        // fieldsCount_
 };
 
+const TypeInfo implCloneableTypeInfo = {
+  // kotlin.Cloneable
+  { 0x2d, 0x4b, 0x3d, 0x2f, 0x69, 0x0d, 0x1c, 0xb5, 0x6e, 0xc6,
+    0x67, 0xa7, 0x24, 0x57, 0x35, 0x98, 0xa4, 0x23, 0x0b, 0xc5 },
+  0,       // instanceSize_
+  nullptr, // superType_
+  nullptr, // objOffsets
+  0,       // objOffsetsCount_
+  nullptr, // implementedInterfaces_
+  0,       // implementedInterfacesCount_
+  nullptr, // vtable_
+  nullptr, // openMethods_
+  0,       // openMethodsCount_
+  nullptr, // fields_
+  0        // fieldsCount_
+};
+
 const TypeInfo implByteArrayTypeInfo = {
   // kotlin.ByteArray
   { 0x9e, 0x23, 0xa6, 0xa6, 0x91, 0x9b, 0x6b, 0x0a, 0x00, 0xc5,
@@ -28,9 +45,45 @@ const TypeInfo implByteArrayTypeInfo = {
   &implAnyTypeInfo, // superType_
   nullptr,          // objOffsets
   0,                // objOffsetsCount_
-  // TODO: actually, shall implement cloneable, it seems.
-  nullptr,          // implementedInterfaces_
-  0,                // implementedInterfacesCount_
+  &implCloneableTypeInfo,  // implementedInterfaces_
+  1,                // implementedInterfacesCount_
+  // TODO: generate vtable and open methods table.
+  nullptr,          // vtable_
+  nullptr,          // openMethods_
+  0,                // openMethodsCount_
+  nullptr,          // fields_
+  0                 // fieldsCount_
+};
+
+const TypeInfo implCharArrayTypeInfo = {
+  // kotlin.CharArray
+  { 0x70, 0x88, 0xd4, 0x20, 0x91, 0x6e, 0x25, 0x80, 0x33, 0x64,
+    0x5a, 0x8d, 0x56, 0xaf, 0x99, 0x19, 0x14, 0xde, 0x5b, 0x71 },
+  -2,               // instanceSize_, array of 2 byte elements
+  &implAnyTypeInfo, // superType_
+  nullptr,          // objOffsets
+  0,                // objOffsetsCount_
+  &implCloneableTypeInfo,  // implementedInterfaces_
+  1,                // implementedInterfacesCount_
+  // TODO: generate vtable and open methods table.
+  nullptr,          // vtable_
+  nullptr,          // openMethods_
+  0,                // openMethodsCount_
+  nullptr,          // fields_
+  0                 // fieldsCount_
+};
+
+const TypeInfo implIntArrayTypeInfo = {
+  // kotlin.IntArray
+  { 0xdd, 0x69, 0x38, 0x31, 0x3e, 0x03, 0xc6, 0xfd, 0x88, 0x8f,
+    0x1c, 0x83, 0x18, 0x06, 0xcc, 0xcb, 0x8d, 0x71, 0xd1, 0x4c },
+  -4,               // instanceSize_, array of 4 byte elements
+  &implAnyTypeInfo, // superType_
+  nullptr,          // objOffsets
+  0,                // objOffsetsCount_
+  &implCloneableTypeInfo,  // implementedInterfaces_
+  1,                // implementedInterfacesCount_
+  // TODO: generate vtable and open methods table.
   nullptr,          // vtable_
   nullptr,          // openMethods_
   0,                // openMethodsCount_
@@ -61,7 +114,10 @@ extern "C" {
 #endif
 
 const TypeInfo* theAnyTypeInfo = &implAnyTypeInfo;
+const TypeInfo* theCloneableTypeInfo = &implCloneableTypeInfo;
 const TypeInfo* theByteArrayTypeInfo = &implByteArrayTypeInfo;
+const TypeInfo* theCharArrayTypeInfo = &implCharArrayTypeInfo;
+const TypeInfo* theIntArrayTypeInfo = &implIntArrayTypeInfo;
 const TypeInfo* theStringTypeInfo = &implStringTypeInfo;
 
 #ifdef __cplusplus
