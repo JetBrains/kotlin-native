@@ -32,7 +32,7 @@ class CharArray(size: Int) : Cloneable {
     external public operator fun set(index: Int, value: Char): Unit
 
     @SymbolName("Kotlin_CharArray_clone")
-    external public override fun clone(): CharArray
+    external public override fun clone(): Any
 
     @SymbolName("Kotlin_CharArray_getArrayLength")
     external private fun getArrayLength(): Int
@@ -49,21 +49,17 @@ class IntArray(size: Int) : Cloneable {
     external public operator fun set(index: Int, value: Char): Unit
 
     @SymbolName("Kotlin_IntArray_clone")
-    external public override fun clone(): CharArray
+    external public override fun clone(): Any
 
     @SymbolName("Kotlin_IntArray_getArrayLength")
     external private fun getArrayLength(): Int
 }
 
+@SymbolName("Kotlin_String_fromUtf8Array")
+external fun fromUtf8Array(array: ByteArray) : String
 
 class String {
-    companion object {
-        @SymbolName("Kotlin_String_fromUtf8Array")
-        external fun fromUtf8Array(array: ByteArray) : String
-    }
-
     public operator fun plus(other: Any?): String {
-        if (other == null) return plusImpl("null")
         return plusImpl(other.toString())
     }
 
@@ -82,5 +78,5 @@ class String {
     external private fun getStringLength(): Int
 
     @SymbolName("Kotlin_String_plusImpl")
-    external private fun plusImpl(other:String): String
+    external private fun plusImpl(other:Any): String
 }
