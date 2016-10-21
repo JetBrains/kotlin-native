@@ -95,8 +95,8 @@ KInt Kotlin_IntArray_getArrayLength(const ArrayHeader* array) {
   return array->count_;
 }
 
-// Console.kt
-void Kotlin_Console_print(const ArrayHeader* array) {
+// io/Console.kt
+void Kotlin_io_Console_print(const ArrayHeader* array) {
   RuntimeAssert(array->type_info_ == theStringTypeInfo, "Must use a string");
   write(1, ByteArrayAddressOfElementAt(array, 0), array->count_);
 }

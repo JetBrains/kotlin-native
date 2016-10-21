@@ -57,8 +57,8 @@ KInt Kotlin_IntArray_get(const ArrayHeader* obj, KInt index);
 void Kotlin_IntArray_set(ArrayHeader* obj, KInt index, KInt value);
 KInt Kotlin_IntArray_getArrayLength(const ArrayHeader* obj);
 
-// Console.kt
-void Kotlin_Console_print(const ArrayHeader* obj);
+// io/Console.kt
+void Kotlin_io_Console_print(const ArrayHeader* obj);
 
 // String.kt
 KInt Kotlin_String_compareTo(const ArrayHeader* obj, const ArrayHeader* other);
