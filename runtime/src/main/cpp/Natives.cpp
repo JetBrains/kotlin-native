@@ -98,8 +98,8 @@ KInt Kotlin_IntArray_getArrayLength(const ArrayHeader* array) {
 // io/Console.kt
 void Kotlin_io_Console_print(const ArrayHeader* array) {
   RuntimeAssert(array->type_info_ == theStringTypeInfo, "Must use a string");
-  // TODO: system must be aware about UTF-8.
-  write(1, ByteArrayAddressOfElementAt(array, 0), array->count_);
+  // TODO: system stdout must be aware about UTF-8.
+  write(STDOUT_FILENO, ByteArrayAddressOfElementAt(array, 0), array->count_);
 }
 
 // String.kt
