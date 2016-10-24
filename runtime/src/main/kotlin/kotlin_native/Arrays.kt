@@ -2,6 +2,7 @@ package kotlin_native
 
 class ByteArray : Cloneable {
     // Constructors are handled with compiler magic.
+    private constructor() {}
 
     public val size: Int
         get() = getArrayLength()
@@ -21,6 +22,7 @@ class ByteArray : Cloneable {
 
 class CharArray : Cloneable {
     // Constructors are handled with the compiler magic.
+    private constructor() {}
 
     public val size: Int
         get() = getArrayLength()
@@ -38,8 +40,9 @@ class CharArray : Cloneable {
     external private fun getArrayLength(): Int
 }
 
-class IntArray() : Cloneable {
+class IntArray : Cloneable {
     // Constructors are handled with the compiler magic.
+    private constructor() {}
 
     public val size: Int
         get() = getArrayLength()
