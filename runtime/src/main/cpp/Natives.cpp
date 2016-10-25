@@ -9,6 +9,20 @@
 
 extern "C" {
 
+// Any.kt
+KBool Kotlin_Any_equals(const ObjHeader* thiz, const ObjHeader* other) {
+  return thiz == other;
+}
+
+KInt Kotlin_Any_hashCode(const ObjHeader* thiz) {
+  // Here we use different mechanism for
+  return reinterpret_cast<uintptr_t>(thiz);
+}
+
+ArrayHeader* Kotlin_Any_toString(const ObjHeader* thiz) {
+  return nullptr;
+}
+
 // Arrays.kt
 // TODO: those must be compiler intrinsics afterwards.
 KByte Kotlin_ByteArray_get(const ArrayHeader* obj, KInt index) {
@@ -150,6 +164,16 @@ ArrayHeader* Kotlin_String_plusImpl(
       ByteArrayAddressOfElementAt(other, 0),
       other->count_);
   return result;
+}
+
+KBool Kotlin_String_equals(
+    const ArrayHeader* thiz, const ObjHeader* other) {
+  RuntimeAssert(other->type_info_ == theStringTypeInfo, "Must be a string");
+  const ArrayHeader* otherString = reinterpret_cast<const ArrayHeader*>(other);
+  return thiz->count_ == otherString->count_ &&
+      memcmp(ByteArrayAddressOfElementAt(thiz, 0),
+             ByteArrayAddressOfElementAt(otherString, 0),
+             thiz->count_) == 0;
 }
 
 }
