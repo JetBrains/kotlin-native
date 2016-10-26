@@ -48,9 +48,9 @@ struct ObjHeader {
     // TODO: for moving collectors use meta-objects approach:
     //  - store tag in lower bit TypeInfo, which marks if meta-object is in place
     //  - when reading type_info_ check if it is unaligned
-    //  - if it is, pointer points to MetaObject
+    //  - if it is, pointer points to the MetaObject
     //  - otherwise this is direct pointer to TypeInfo
-    // Meta-object allows storing addintional data assotiated with some objects,
+    // Meta-object allows storing additional data associated with some objects,
     // such as stable hash code.
     return type_info_;
   }
