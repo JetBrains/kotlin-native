@@ -74,9 +74,31 @@ void* AllocInstance(const TypeInfo* type_info, PlacementHint hint) {
   return ObjectContainer(type_info).GetPlace();
 }
 
-void* AllocArrayInstance(const TypeInfo* type_info, PlacementHint hint, uint32_t elements) {
+void* AllocArrayInstance(
+    const TypeInfo* type_info, PlacementHint hint, uint32_t elements) {
   RuntimeAssert(type_info->instanceSize_ < 0, "must be an array");
   return ArrayContainer(type_info, elements).GetPlace();
+}
+
+int IsInstance(const ObjHeader* obj, const TypeInfo* type_info) {
+  if (obj == nullptr) {
+    return 1;
+  }
+
+  const TypeInfo* obj_type_info = obj->type_info();
+  // If it is an interface - check in list of implemented interfaces.
+  if (type_info->fieldsCount_ < 0) {
+    for (int i = 0; i < obj_type_info->implementedInterfacesCount_; ++i) {
+      if (obj_type_info->implementedInterfaces_[i] == type_info) {
+        return 1;
+      }
+    }
+    return 0;
+  }
+  while (obj_type_info && obj_type_info != type_info) {
+    obj_type_info = obj_type_info->superType_;
+  }
+  return obj_type_info != nullptr;
 }
 
 #ifdef __cplusplus
