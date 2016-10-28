@@ -81,10 +81,8 @@ void* AllocArrayInstance(
 }
 
 int IsInstance(const ObjHeader* obj, const TypeInfo* type_info) {
-  if (obj == nullptr) {
-    return 1;
-  }
-
+  // We assume null check is handled by caller.
+  RuntimeAssert(obj != nullptr, "must not be null");
   const TypeInfo* obj_type_info = obj->type_info();
   // If it is an interface - check in list of implemented interfaces.
   if (type_info->fieldsCount_ < 0) {
@@ -95,7 +93,7 @@ int IsInstance(const ObjHeader* obj, const TypeInfo* type_info) {
     }
     return 0;
   }
-  while (obj_type_info && obj_type_info != type_info) {
+  while (obj_type_info != nullptr && obj_type_info != type_info) {
     obj_type_info = obj_type_info->superType_;
   }
   return obj_type_info != nullptr;
