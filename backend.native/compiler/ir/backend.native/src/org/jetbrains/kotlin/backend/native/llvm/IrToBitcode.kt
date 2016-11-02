@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
+import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 
 
 fun emitLLVM(module: IrModuleFragment, runtimeFile: String, outFile: String) {
@@ -100,8 +101,14 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         element.acceptChildrenVoid(this)
     }
 
+    val filtered = mapOf(Pair("kotlin.Char", true), Pair("kotlin.Int", true), Pair("kotlin.Byte", true),
+            Pair("kotlin.Short", true),
+            Pair("kotlin.Long", true), Pair("kotlin.Float", true), Pair("kotlin.Double", true),
+            Pair("kotlin.Boolean", true), Pair("kotlin.Number", true), Pair("kotlin.Unit", true))
+
     override fun visitClass(declaration: IrClass) {
-        if (declaration.descriptor.kind == ClassKind.ANNOTATION_CLASS) {
+        if (declaration.descriptor.kind == ClassKind.ANNOTATION_CLASS ||
+                filtered[declaration.descriptor.fqNameSafe.asString()] != null) {
             // do not generate any code for annotation classes as a workaround for NotImplementedError
             return
         }
