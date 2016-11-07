@@ -8,11 +8,15 @@ class String : Comparable<String>/* , CharSequence */ {
     @SymbolName("Kotlin_String_hashCode")
     external public override fun hashCode(): Int
 
-/* TODO: calling to virtual method (plusImpl) results in link error; uncomment after supporting
-calling virtual methods in translator */
-    public operator fun plus(other: String): String {
+    // TODO: make it Any?
+    public operator fun plus(other: Any): String {
         return plusImpl(other.toString())
     }
+
+    /*
+    public fun override toString(): String {
+        return this
+    } */
 
     public /* override */ val length: Int
         get() = getStringLength()
