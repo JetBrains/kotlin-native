@@ -28,8 +28,6 @@ class NativeAnalyzer(val environment: KotlinCoreEnvironment) :
     val sharedTrace =
         CliLightClassGenerationSupport.NoScopeRecordCliBindingTrace()
 
-    TopDownAnalyzerFacadeForJVM.createContextWithSealedModule(
-        environment.project, environment.configuration)
     return TopDownAnalyzerFacadeForJVM.analyzeFilesWithJavaIntegration(
         environment.project,
         environment.getSourceFiles(),
