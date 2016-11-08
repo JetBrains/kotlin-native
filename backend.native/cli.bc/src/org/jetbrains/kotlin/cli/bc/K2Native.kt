@@ -15,12 +15,12 @@ import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.Services
 import org.jetbrains.kotlin.config.addKotlinSourceRoots
 import org.jetbrains.kotlin.ir.util.DumpIrTreeVisitor
+import org.jetbrains.kotlin.load.java.JvmAbi
 import org.jetbrains.kotlin.psi2ir.Psi2IrConfiguration
 import org.jetbrains.kotlin.psi2ir.Psi2IrTranslator
 import org.jetbrains.kotlin.resolve.jvm.TopDownAnalyzerFacadeForJVM
 import java.lang.System.out
 import java.util.*
-import kotlin.reflect.jvm.internal.impl.load.java.JvmAbi
 
 class NativeAnalyzer(val environment: KotlinCoreEnvironment) :
     AnalyzerWithCompilerReport.Analyzer {
