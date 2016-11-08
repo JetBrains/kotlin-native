@@ -12,6 +12,8 @@ import org.jetbrains.kotlin.cli.jvm.compiler.JvmPackagePartProvider
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
+import org.jetbrains.kotlin.config.JVMConfigurationKeys.ADD_BUILT_INS_FROM_COMPILER_TO_DEPENDENCIES
+import org.jetbrains.kotlin.config.JVMConfigurationKeys.CREATE_BUILT_INS_FROM_MODULE_DEPENDENCIES
 import org.jetbrains.kotlin.config.Services
 import org.jetbrains.kotlin.config.addKotlinSourceRoots
 import org.jetbrains.kotlin.ir.util.DumpIrTreeVisitor
@@ -32,7 +34,10 @@ class NativeAnalyzer(val environment: KotlinCoreEnvironment) :
         environment.project,
         environment.getSourceFiles(),
         sharedTrace,
-        environment.configuration,
+        environment.configuration.apply {
+          put(ADD_BUILT_INS_FROM_COMPILER_TO_DEPENDENCIES, true)
+          put(CREATE_BUILT_INS_FROM_MODULE_DEPENDENCIES, true)
+        },
         { scope -> JvmPackagePartProvider(environment, scope) }
     )
   }
