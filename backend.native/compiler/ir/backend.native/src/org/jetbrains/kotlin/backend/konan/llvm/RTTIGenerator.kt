@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.resolve.OverridingUtil
 import org.jetbrains.kotlin.resolve.constants.StringValue
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
+import org.jetbrains.kotlin.resolve.descriptorUtil.getSuperClassNotAny
 import org.jetbrains.kotlin.resolve.descriptorUtil.getSuperClassOrAny
 
 
@@ -160,7 +161,9 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
 
         val size = getInstanceSize(classType, className)
 
-        val superType = classDesc.getSuperClassOrAny().llvmTypeInfoPtr
+        val superTypeOrNull = classDesc.getSuperClassNotAny()
+        val superType = if (superTypeOrNull != null) superTypeOrNull.llvmTypeInfoPtr
+                else NullPointer(runtime.typeInfoType)
 
         val interfaces = classDesc.implementedInterfaces.map { it.llvmTypeInfoPtr }
         val interfacesPtr = staticData.placeGlobalConstArray("kintf:$className",
