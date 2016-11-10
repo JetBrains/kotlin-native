@@ -1,6 +1,5 @@
 package kotlin
 
-@ExportTypeInfo("theArrayTypeInfo")
 class Array<T> : Cloneable {
     // Constructors are handled with compiler magic.
     private constructor() {}

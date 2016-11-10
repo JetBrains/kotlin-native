@@ -28,21 +28,15 @@ inline const KByte* ByteArrayAddressOfElementAt(
   return reinterpret_cast<const KByte*>(obj + 1) + index;
 }
 
-inline KChar* CharArrayAddressOfElementAt(ArrayHeader* obj, KInt index) {
-  return reinterpret_cast<KChar*>(obj + 1) + index;
+template <typename T>
+inline T* PrimitiveArrayAddressOfElementAt(ArrayHeader* obj, KInt index) {
+  return reinterpret_cast<T*>(obj + 1) + index;
 }
 
-inline const KChar* CharArrayAddressOfElementAt(
+template <typename T>
+inline const T* PrimitiveArrayAddressOfElementAt(
     const ArrayHeader* obj, KInt index) {
-  return reinterpret_cast<const KChar*>(obj + 1) + index;
-}
-
-inline KInt* IntArrayAddressOfElementAt(ArrayHeader* obj, KInt index) {
-  return reinterpret_cast<KInt*>(obj + 1) + index;
-}
-
-inline const KInt* IntArrayAddressOfElementAt(const ArrayHeader* obj, KInt index) {
-  return reinterpret_cast<const KInt*>(obj + 1) + index;
+  return reinterpret_cast<const T*>(obj + 1) + index;
 }
 
 inline KRef* ArrayAddressOfElementAt(ArrayHeader* obj, KInt index) {

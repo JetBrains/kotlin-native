@@ -90,7 +90,6 @@ inline uint32_t ArraySizeBytes(const ArrayHeader* obj) {
   return -obj->type_info()->instanceSize_ * obj->count_;
 }
 
-
 // Those two operations are implemented by translator when storing references
 // to objects.
 inline void AddRef(ContainerHeader* header) {
