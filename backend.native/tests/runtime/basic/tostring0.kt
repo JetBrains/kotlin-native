@@ -6,4 +6,6 @@ fun main(args : Array<String>) {
     println(112233445566778899.toString())
     println(1e27.toFloat().toString())
     println(1e-300.toDouble().toString())
+    println(true.toString())
+    println(false.toString())
 }

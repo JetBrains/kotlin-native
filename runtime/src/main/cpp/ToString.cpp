@@ -66,9 +66,8 @@ KString Kotlin_Double_toString(KDouble value) {
   return makeString(cstring);
 }
 
-/*
-KString Kotlin_Boolean_toString(KBoolean value) {
+KString Kotlin_Boolean_toString(KBool value) {
   return  makeString(value ? "true" : "false");
-  } */
+}
 
 } // extern "C"

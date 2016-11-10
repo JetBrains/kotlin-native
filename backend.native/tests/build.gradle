@@ -188,7 +188,7 @@ task hello3(type: RunKonanTest) {
 
 
 task tostring0(type: RunKonanTest) {
-    goldValue = "\\1e\n239\n\\u0041\n1122334455\n112233445566778899\n1e+27\n1e-300\n"
+    goldValue = "\\1e\n239\n\\u0041\n1122334455\n112233445566778899\n1e+27\n1e-300\ntrue\nfalse\n"
     source = "runtime/basic/tostring0.kt"
 }
 
