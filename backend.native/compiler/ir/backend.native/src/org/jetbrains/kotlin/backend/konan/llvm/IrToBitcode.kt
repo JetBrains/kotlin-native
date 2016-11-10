@@ -411,13 +411,15 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             val typeInfo = generator.typeInfoValue(containingClass)
             val allocHint = Int32(1).getLlvmValue()
             val thisValue = if (containingClass.isArray) {
-                assert(args.size == 1 &&  LLVMTypeOf(args[0]) == LLVMInt32Type())
+                assert(args.size == 1 && LLVMTypeOf(args[0]) == LLVMInt32Type())
                 val size = args[0]
                 val params = allocNativeArrayOf(LLVMOpaqueValue, typeInfo, allocHint, size)
-                LLVMBuildCall(context.llvmBuilder, context.allocArrayFunction, params[0], 3, variableName)
+                LLVMBuildCall(
+                        context.llvmBuilder, context.allocArrayFunction, params[0], 3, variableName)
             } else {
                 val params = allocNativeArrayOf(LLVMOpaqueValue, typeInfo, allocHint)
-                LLVMBuildCall(context.llvmBuilder, context.allocInstanceFunction, params[0], 2, variableName)
+                LLVMBuildCall(
+                        context.llvmBuilder, context.allocInstanceFunction, params[0], 2, variableName)
             }
             val constructorParams: MutableList<LLVMOpaqueValue?> = mutableListOf()
             constructorParams += thisValue

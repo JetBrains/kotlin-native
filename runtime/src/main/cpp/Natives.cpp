@@ -78,13 +78,13 @@ KInt Kotlin_String_getStringLength(KString thiz) {
 
 KString Kotlin_String_fromUtf8Array(const ArrayHeader* array) {
   RuntimeAssert(array->type_info() == theByteArrayTypeInfo, "Must use a byte array");
-  uint32_t length = ArraySizeBytes(array);
   // TODO: support full UTF-8.
-  ArrayHeader* result = ArrayContainer(theStringTypeInfo, length).GetPlace();
+  ArrayHeader* result = ArrayContainer(
+      theStringTypeInfo, array->count_).GetPlace();
   memcpy(
       ByteArrayAddressOfElementAt(result, 0),
       ByteArrayAddressOfElementAt(array, 0),
-      length);
+      ArrayDataSizeBytes(array));
   return result;
 }
 

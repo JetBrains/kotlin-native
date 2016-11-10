@@ -85,7 +85,7 @@ inline void* AddressOfElementAt(ArrayHeader* obj, int32_t index) {
       obj->type_info()->instanceSize_ * index;
 }
 
-inline uint32_t ArraySizeBytes(const ArrayHeader* obj) {
+inline uint32_t ArrayDataSizeBytes(const ArrayHeader* obj) {
   // Instance size is negative.
   return -obj->type_info()->instanceSize_ * obj->count_;
 }

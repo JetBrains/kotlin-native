@@ -27,12 +27,12 @@ void Kotlin_Array_set(ArrayHeader* obj, KInt index, KRef value) {
 }
 
 ArrayHeader* Kotlin_Array_clone(const ArrayHeader* array) {
-  uint32_t length = ArraySizeBytes(array);
-  ArrayHeader* result = ArrayContainer(array->type_info(), length).GetPlace();
+  ArrayHeader* result = ArrayContainer(
+      array->type_info(), array->count_).GetPlace();
   memcpy(
       ArrayAddressOfElementAt(result, 0),
       ArrayAddressOfElementAt(array, 0),
-      length);
+      ArrayDataSizeBytes(array));
   return result;
 }
 
@@ -56,12 +56,12 @@ void Kotlin_ByteArray_set(ArrayHeader* obj, KInt index, KByte value) {
 }
 
 ArrayHeader* Kotlin_ByteArray_clone(const ArrayHeader* array) {
-  uint32_t length = ArraySizeBytes(array);
-  ArrayHeader* result = ArrayContainer(theByteArrayTypeInfo, length).GetPlace();
+  ArrayHeader* result = ArrayContainer(
+      theByteArrayTypeInfo, array->count_).GetPlace();
   memcpy(
       ByteArrayAddressOfElementAt(result, 0),
       ByteArrayAddressOfElementAt(array, 0),
-      length);
+      ArrayDataSizeBytes(array));
   return result;
 }
 
@@ -84,12 +84,12 @@ void Kotlin_CharArray_set(ArrayHeader* obj, KInt index, KChar value) {
 }
 
 ArrayHeader* Kotlin_CharArray_clone(const ArrayHeader* array) {
-  uint32_t length = ArraySizeBytes(array);
-  ArrayHeader* result = ArrayContainer(theCharArrayTypeInfo, length).GetPlace();
+  ArrayHeader* result = ArrayContainer(
+      theCharArrayTypeInfo, array->count_).GetPlace();
   memcpy(
       ByteArrayAddressOfElementAt(result, 0),
       ByteArrayAddressOfElementAt(array, 0),
-      length);
+      ArrayDataSizeBytes(array));
   return result;
 }
 
@@ -112,12 +112,12 @@ void Kotlin_ShortArray_set(ArrayHeader* obj, KInt index, KShort value) {
 }
 
 ArrayHeader* Kotlin_ShortArray_clone(const ArrayHeader* array) {
-  uint32_t length = ArraySizeBytes(array);
-  ArrayHeader* result = ArrayContainer(theShortArrayTypeInfo, length).GetPlace();
+  ArrayHeader* result = ArrayContainer(
+      theShortArrayTypeInfo, array->count_).GetPlace();
   memcpy(
       ByteArrayAddressOfElementAt(result, 0),
       ByteArrayAddressOfElementAt(array, 0),
-      length);
+      ArrayDataSizeBytes(array));
   return result;
 }
 
@@ -140,12 +140,12 @@ void Kotlin_IntArray_set(ArrayHeader* obj, KInt index, KInt value) {
 }
 
 ArrayHeader* Kotlin_IntArray_clone(const ArrayHeader* array) {
-  uint32_t length = ArraySizeBytes(array);
-  ArrayHeader* result = ArrayContainer(theIntArrayTypeInfo, length).GetPlace();
+  ArrayHeader* result = ArrayContainer(
+      theIntArrayTypeInfo, array->count_).GetPlace();
   memcpy(
       ByteArrayAddressOfElementAt(result, 0),
       ByteArrayAddressOfElementAt(array, 0),
-      length);
+      ArrayDataSizeBytes(array));
   return result;
 }
 
@@ -168,12 +168,12 @@ void Kotlin_LongArray_set(ArrayHeader* obj, KInt index, KLong value) {
 }
 
 ArrayHeader* Kotlin_LongArray_clone(const ArrayHeader* array) {
-  uint32_t length = ArraySizeBytes(array);
-  ArrayHeader* result = ArrayContainer(theLongArrayTypeInfo, length).GetPlace();
+  ArrayHeader* result = ArrayContainer(
+      theLongArrayTypeInfo, array->count_).GetPlace();
   memcpy(
       ByteArrayAddressOfElementAt(result, 0),
       ByteArrayAddressOfElementAt(array, 0),
-      length);
+      ArrayDataSizeBytes(array));
   return result;
 }
 
@@ -196,12 +196,12 @@ void Kotlin_FloatArray_set(ArrayHeader* obj, KInt index, KFloat value) {
 }
 
 ArrayHeader* Kotlin_FloatArray_clone(const ArrayHeader* array) {
-  uint32_t length = ArraySizeBytes(array);
-  ArrayHeader* result = ArrayContainer(theFloatArrayTypeInfo, length).GetPlace();
+  ArrayHeader* result = ArrayContainer(
+      theFloatArrayTypeInfo, array->count_).GetPlace();
   memcpy(
       ByteArrayAddressOfElementAt(result, 0),
       ByteArrayAddressOfElementAt(array, 0),
-      length);
+      ArrayDataSizeBytes(array));
   return result;
 }
 
@@ -224,12 +224,12 @@ void Kotlin_DoubleArray_set(ArrayHeader* obj, KInt index, KDouble value) {
 }
 
 ArrayHeader* Kotlin_DoubleArray_clone(const ArrayHeader* array) {
-  uint32_t length = ArraySizeBytes(array);
-  ArrayHeader* result = ArrayContainer(theDoubleArrayTypeInfo, length).GetPlace();
+  ArrayHeader* result = ArrayContainer(
+      theDoubleArrayTypeInfo, array->count_).GetPlace();
   memcpy(
       ByteArrayAddressOfElementAt(result, 0),
       ByteArrayAddressOfElementAt(array, 0),
-      length);
+      ArrayDataSizeBytes(array));
   return result;
 }
 
@@ -252,12 +252,12 @@ void Kotlin_BooleanArray_set(ArrayHeader* obj, KInt index, KBoolean value) {
 }
 
 ArrayHeader* Kotlin_BooleanArray_clone(const ArrayHeader* array) {
-  uint32_t length = ArraySizeBytes(array);
-  ArrayHeader* result = ArrayContainer(theBooleanArrayTypeInfo, length).GetPlace();
+  ArrayHeader* result = ArrayContainer(
+      theBooleanArrayTypeInfo, array->count_).GetPlace();
   memcpy(
       ByteArrayAddressOfElementAt(result, 0),
       ByteArrayAddressOfElementAt(array, 0),
-      length);
+      ArrayDataSizeBytes(array));
   return result;
 }
 
