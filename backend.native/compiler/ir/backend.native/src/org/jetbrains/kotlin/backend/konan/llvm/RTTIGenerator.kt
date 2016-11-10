@@ -138,11 +138,16 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
     }
 
     private val arrayClasses = mapOf(
-            "kotlin.Array"      to -pointerSize,
-            "kotlin.ByteArray"  to -1,
-            "kotlin.CharArray"  to -2,
-            "kotlin.IntArray"   to -4,
-            "kotlin.String"     to -1
+            "kotlin.Array"        to -pointerSize,
+            "kotlin.ByteArray"    to -1,
+            "kotlin.CharArray"    to -2,
+            "kotlin.ShortArray"   to -2,
+            "kotlin.IntArray"     to -4,
+            "kotlin.LongArray"    to -8,
+            "kotlin.FloatArray"   to -4,
+            "kotlin.DoubleArray"  to -8,
+            "kotlin.BooleanArray" to -1,
+            "kotlin.String"       to -1
     )
 
     private fun getInstanceSize(classType: LLVMOpaqueType?, className: FqName) : Int {

@@ -12,7 +12,7 @@
 extern "C" {
 
 // Any.kt
-KBool Kotlin_Any_equals(KConstRef thiz, KConstRef other) {
+KBoolean Kotlin_Any_equals(KConstRef thiz, KConstRef other) {
   return thiz == other;
 }
 
@@ -106,7 +106,7 @@ KString Kotlin_String_plusImpl(KString thiz, KString other) {
   return result;
 }
 
-KBool Kotlin_String_equals(KString thiz, KConstRef other) {
+KBoolean Kotlin_String_equals(KString thiz, KConstRef other) {
   if (other == nullptr || other->type_info() != theStringTypeInfo) return 0;
   const ArrayHeader* otherString = reinterpret_cast<const ArrayHeader*>(other);
   return thiz->count_ == otherString->count_ &&

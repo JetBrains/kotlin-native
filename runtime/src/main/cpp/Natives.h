@@ -4,7 +4,7 @@
 #include "Memory.h"
 #include "Types.h"
 
-typedef uint8_t KBool;
+typedef uint8_t KBoolean;
 typedef uint8_t KByte;
 typedef uint16_t KChar;
 // Note that it is signed.
@@ -52,7 +52,7 @@ extern "C" {
 #endif
 
 // Any.kt
-KBool Kotlin_Any_equals(KConstRef thiz, KConstRef other);
+KBoolean Kotlin_Any_equals(KConstRef thiz, KConstRef other);
 KInt Kotlin_Any_hashCode(KConstRef thiz);
 KString Kotlin_Any_toString(KConstRef thiz);
 
@@ -89,7 +89,7 @@ KString Kotlin_Int_toString(KInt value);
 
 // String.kt
 KInt Kotlin_String_hashCode(KString thiz);
-KBool Kotlin_String_equals(KString thiz, KConstRef other);
+KBoolean Kotlin_String_equals(KString thiz, KConstRef other);
 KInt Kotlin_String_compareTo(KString thiz, KString other);
 KChar Kotlin_String_get(KString thiz, KInt index);
 KString Kotlin_String_fromUtf8Array(const ArrayHeader* array);

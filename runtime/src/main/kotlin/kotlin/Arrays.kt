@@ -3,7 +3,7 @@ package kotlin
 @ExportTypeInfo("theByteArrayTypeInfo")
 class ByteArray : Cloneable {
     // Constructors are handled with compiler magic.
-    public constructor(size: Int) {}
+    public constructor(@Suppress("UNUSED_PARAMETER") size: Int) {}
 
     public val size: Int
         get() = getArrayLength()
@@ -24,7 +24,7 @@ class ByteArray : Cloneable {
 @ExportTypeInfo("theCharArrayTypeInfo")
 class CharArray : Cloneable {
     // Constructors are handled with the compiler magic.
-    public constructor(size: Int) {}
+    public constructor(@Suppress("UNUSED_PARAMETER") size: Int) {}
 
     public val size: Int
         get() = getArrayLength()
@@ -45,7 +45,7 @@ class CharArray : Cloneable {
 @ExportTypeInfo("theShortArrayTypeInfo")
 class ShortArray : Cloneable {
     // Constructors are handled with the compiler magic.
-    public constructor(size: Int) {}
+    public constructor(@Suppress("UNUSED_PARAMETER") size: Int) {}
 
     public val size: Int
         get() = getArrayLength()
@@ -66,7 +66,7 @@ class ShortArray : Cloneable {
 @ExportTypeInfo("theIntArrayTypeInfo")
 class IntArray : Cloneable {
     // Constructors are handled with the compiler magic.
-    public constructor(size: Int) {}
+    public constructor(@Suppress("UNUSED_PARAMETER") size: Int) {}
 
     public val size: Int
         get() = getArrayLength()
@@ -87,9 +87,9 @@ class IntArray : Cloneable {
 @ExportTypeInfo("theLongArrayTypeInfo")
 class LongArray : Cloneable {
     // Constructors are handled with the compiler magic.
-    public constructor(size: Int) {}
+    public constructor(@Suppress("UNUSED_PARAMETER") size: Int) {}
 
-    public val size: Long
+    public val size: Int
         get() = getArrayLength()
 
     @SymbolName("Kotlin_LongArray_get")
@@ -108,9 +108,9 @@ class LongArray : Cloneable {
 @ExportTypeInfo("theFloatArrayTypeInfo")
 class FloatArray : Cloneable {
     // Constructors are handled with the compiler magic.
-    public constructor(size: Int) {}
+    public constructor(@Suppress("UNUSED_PARAMETER") size: Int) {}
 
-    public val size: Long
+    public val size: Int
         get() = getArrayLength()
 
     @SymbolName("Kotlin_FloatArray_get")
@@ -129,9 +129,9 @@ class FloatArray : Cloneable {
 @ExportTypeInfo("theDoubleArrayTypeInfo")
 class DoubleArray : Cloneable {
     // Constructors are handled with the compiler magic.
-    public constructor(size: Int) {}
+    public constructor(@Suppress("UNUSED_PARAMETER") size: Int) {}
 
-    public val size: Long
+    public val size: Int
         get() = getArrayLength()
 
     @SymbolName("Kotlin_DoubleArray_get")
@@ -150,9 +150,9 @@ class DoubleArray : Cloneable {
 @ExportTypeInfo("theBooleanArrayTypeInfo")
 class BooleanArray : Cloneable {
     // Constructors are handled with the compiler magic.
-    public constructor(size: Int) {}
+    public constructor(@Suppress("UNUSED_PARAMETER") size: Int) {}
 
-    public val size: Long
+    public val size: Int
         get() = getArrayLength()
 
     @SymbolName("Kotlin_BooleanArray_get")

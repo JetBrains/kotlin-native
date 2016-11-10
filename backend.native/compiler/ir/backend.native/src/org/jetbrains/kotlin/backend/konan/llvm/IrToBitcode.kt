@@ -411,9 +411,9 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             val typeInfo = generator.typeInfoValue(containingClass)
             val allocHint = Int32(1).getLlvmValue()
             val thisValue = if (containingClass.isArray) {
+                assert(args.size == 1 &&  LLVMTypeOf(args[0]) == LLVMInt32Type())
                 val size = args[0]
-                assert(LLVMTypeOf(size) == LLVMInt32Type())
-                val params = allocNativeArrayOf(LLVMOpaqueValue, typeInfo, size, allocHint)
+                val params = allocNativeArrayOf(LLVMOpaqueValue, typeInfo, allocHint, size)
                 LLVMBuildCall(context.llvmBuilder, context.allocArrayFunction, params[0], 3, variableName)
             } else {
                 val params = allocNativeArrayOf(LLVMOpaqueValue, typeInfo, allocHint)

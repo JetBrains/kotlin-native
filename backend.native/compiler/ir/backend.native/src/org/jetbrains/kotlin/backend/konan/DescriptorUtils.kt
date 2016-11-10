@@ -43,6 +43,7 @@ private val intrinsicTypes = setOf(
 )
 
 private val arrayTypes = setOf(
+        "kotlin.Array",
         "kotlin.ByteArray",
         "kotlin.CharArray",
         "kotlin.ShortArray",
@@ -58,7 +59,6 @@ internal val ClassDescriptor.isIntrinsic: Boolean
 
 
 internal val ClassDescriptor.isArray: Boolean
-    // TODO: how shall we handle object arrays?
     get() = this.fqNameSafe.asString() in arrayTypes
 
 

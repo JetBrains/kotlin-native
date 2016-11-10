@@ -143,8 +143,8 @@ ArrayHeader* Kotlin_IntArray_clone(const ArrayHeader* array) {
   uint32_t length = ArraySizeBytes(array);
   ArrayHeader* result = ArrayContainer(theIntArrayTypeInfo, length).GetPlace();
   memcpy(
-      IntArrayAddressOfElementAt(result, 0),
-      IntArrayAddressOfElementAt(array, 0),
+      ByteArrayAddressOfElementAt(result, 0),
+      ByteArrayAddressOfElementAt(array, 0),
       length);
   return result;
 }
@@ -195,6 +195,20 @@ void Kotlin_FloatArray_set(ArrayHeader* obj, KInt index, KFloat value) {
   *PrimitiveArrayAddressOfElementAt<KFloat>(obj, index) = value;
 }
 
+ArrayHeader* Kotlin_FloatArray_clone(const ArrayHeader* array) {
+  uint32_t length = ArraySizeBytes(array);
+  ArrayHeader* result = ArrayContainer(theFloatArrayTypeInfo, length).GetPlace();
+  memcpy(
+      ByteArrayAddressOfElementAt(result, 0),
+      ByteArrayAddressOfElementAt(array, 0),
+      length);
+  return result;
+}
+
+KInt Kotlin_FloatArray_getArrayLength(const ArrayHeader* array) {
+  return array->count_;
+}
+
 KDouble Kotlin_DoubleArray_get(const ArrayHeader* obj, KInt index) {
   if (static_cast<uint32_t>(index) >= obj->count_) {
     ThrowArrayIndexOutOfBoundsException();
@@ -230,7 +244,7 @@ KBoolean Kotlin_BooleanArray_get(const ArrayHeader* obj, KInt index) {
   return *PrimitiveArrayAddressOfElementAt<KBoolean>(obj, index);
 }
 
-void Kotlin_DoubleArray_set(ArrayHeader* obj, KInt index, KBoolean value) {
+void Kotlin_BooleanArray_set(ArrayHeader* obj, KInt index, KBoolean value) {
   if (static_cast<uint32_t>(index) >= obj->count_) {
     ThrowArrayIndexOutOfBoundsException();
   }
