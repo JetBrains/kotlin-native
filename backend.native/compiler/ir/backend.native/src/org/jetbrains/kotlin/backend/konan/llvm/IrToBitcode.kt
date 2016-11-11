@@ -353,7 +353,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
                 true  -> return LLVMConstInt(LLVMInt1Type(), 1, 1)
                 false -> return LLVMConstInt(LLVMInt1Type(), 0, 1)
             }
-            IrConstKind.Char   -> return LLVMConstInt(LLVMInt16Type(), (value.value as Char).toLong(), 1)
+            IrConstKind.Char   -> return LLVMConstInt(LLVMInt16Type(), (value.value as Char).toLong(), 0)
             IrConstKind.Byte   -> return LLVMConstInt(LLVMInt32Type(), (value.value as Byte).toLong(), 1)
             IrConstKind.Short  -> return LLVMConstInt(LLVMInt32Type(), (value.value as Short).toLong(), 1)
             IrConstKind.Int    -> return LLVMConstInt(LLVMInt32Type(), (value.value as Int).toLong(), 1)
