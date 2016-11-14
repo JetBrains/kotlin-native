@@ -94,5 +94,10 @@ task update {
 }
 
 tasks.withType(TgzNativeDep) {
-    rootProject.ext.set("${name}Dir", outputDir.path)
+    def systemProperty = System.properties["${name}Dir"]
+    println "system ${name}Dir: $systemProperty"
+    if ( systemProperty == null)
+      rootProject.ext.set("${name}Dir", outputDir.path)
+    else
+      rootProject.ext.set("${name}Dir", systemProperty)
 }
