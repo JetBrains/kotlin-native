@@ -7,13 +7,6 @@ external public fun print(message: String)
 public fun<T> print(message: T) {
     print(message.toString())
 } */
-
-public fun print(message: Int) {
-    print(message.toString())
-}
-
-// TODO: enable, once override by name is implemented.
-/*
 public fun print(message: Byte) {
     print(message.toString())
 }
@@ -44,17 +37,13 @@ public fun print(message: Double) {
 
 public fun print(message: Boolean) {
     print(message.toString())
-} */
+}
 
 @kotlin.SymbolName("Kotlin_io_Console_println")
 external public fun println(message: String)
 
 // TODO: enable, once override by name is implemented.
-public fun println(message: Int) {
-    println(message.toString())
-}
-
-/* public fun println(message: Byte) {
+public fun println(message: Byte) {
     println(message.toString())
 }
 
@@ -85,7 +74,6 @@ public fun println(message: Double) {
 public fun println(message: Boolean) {
     println(message.toString())
 }
-*/
 /* TODO: use something like that.
 public fun<T> println(message: T) {
     print(message.toString())

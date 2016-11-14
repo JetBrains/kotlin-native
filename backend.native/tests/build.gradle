@@ -189,7 +189,7 @@ task hello2(type: RunKonanTest) {
 }
 
 task hello3(type: RunKonanTest) {
-    goldValue = "239\n"
+    goldValue = "239\ntrue\n3.14159\nA\n"
     source = "runtime/basic/hello3.kt"
 }
 
