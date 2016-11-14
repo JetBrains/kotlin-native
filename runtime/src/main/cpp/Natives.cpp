@@ -124,8 +124,17 @@ KInt Kotlin_String_hashCode(KString thiz) {
 }
 
 KRef Kotlin_String_subSequence(KString thiz, KInt startIndex, KInt endIndex) {
-  RuntimeAssert(false, "Unsupported operation");
-  return nullptr;
+  if (startIndex > endIndex) {
+    // TODO: is it correct exception?
+    ThrowArrayIndexOutOfBoundsException();
+  }
+  // TODO: support UTF-8.
+  KInt length = endIndex - startIndex + 1;
+  ArrayHeader* result = ArrayContainer(theStringTypeInfo, length).GetPlace();
+  memcpy(ByteArrayAddressOfElementAt(result, 0),
+         ByteArrayAddressOfElementAt(thiz, startIndex),
+         length);
+  return result;
 }
 
 }  // extern "C"
