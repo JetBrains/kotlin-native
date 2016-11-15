@@ -51,6 +51,8 @@ inline const KRef* ArrayAddressOfElementAt(const ArrayHeader* obj, KInt index) {
 extern "C" {
 #endif
 
+extern KString theEmptyString;
+
 // Any.kt
 KBoolean Kotlin_Any_equals(KConstRef thiz, KConstRef other);
 KInt Kotlin_Any_hashCode(KConstRef thiz);

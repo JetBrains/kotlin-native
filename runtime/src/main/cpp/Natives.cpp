@@ -11,7 +11,7 @@
 
 extern "C" {
 
-// TODO: generate empty string constant in compile time.
+// TODO: remove, once can generate empty string constant in compile time.
 KString theEmptyString = nullptr;
 
 // Any.kt
@@ -127,7 +127,7 @@ KInt Kotlin_String_hashCode(KString thiz) {
 }
 
 KString Kotlin_String_subSequence(KString thiz, KInt startIndex, KInt endIndex) {
-  if (endIndex >= thiz->count_ || startIndex > endIndex) {
+  if (startIndex < 0 || endIndex >= thiz->count_ || startIndex > endIndex) {
     // TODO: is it correct exception?
     ThrowArrayIndexOutOfBoundsException();
   }
