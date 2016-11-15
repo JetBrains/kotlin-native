@@ -32,7 +32,7 @@ public final class ByteArray : Cloneable {
     }
 }
 
-private class ByteIteratorImpl(val collection: ByteArray) : ByteIterator {
+private class ByteIteratorImpl(val collection: ByteArray) : ByteIterator() {
     var index : Int = 0
 
     public override fun nextByte(): Byte {
