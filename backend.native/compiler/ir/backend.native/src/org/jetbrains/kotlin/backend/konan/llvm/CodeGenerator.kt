@@ -16,6 +16,7 @@ internal class CodeGenerator(override val context:Context) : ContextUtils {
 
     fun function(declaration: IrFunction) {
         if (declaration.body == null) {
+            // Abstract and external methods.
             return
         }
 
