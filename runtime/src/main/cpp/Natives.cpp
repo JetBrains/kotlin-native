@@ -11,6 +11,9 @@
 
 extern "C" {
 
+// TODO: generate empty string constant in compile time.
+KString theEmptyString = nullptr;
+
 // Any.kt
 KBoolean Kotlin_Any_equals(KConstRef thiz, KConstRef other) {
   return thiz == other;
@@ -123,13 +126,16 @@ KInt Kotlin_String_hashCode(KString thiz) {
   return CityHash64(ByteArrayAddressOfElementAt(thiz, 0), thiz->count_);
 }
 
-KRef Kotlin_String_subSequence(KString thiz, KInt startIndex, KInt endIndex) {
-  if (startIndex > endIndex) {
+KString Kotlin_String_subSequence(KString thiz, KInt startIndex, KInt endIndex) {
+  if (endIndex >= thiz->count_ || startIndex > endIndex) {
     // TODO: is it correct exception?
     ThrowArrayIndexOutOfBoundsException();
   }
+  if (startIndex == endIndex) {
+    return theEmptyString;
+  }
   // TODO: support UTF-8.
-  KInt length = endIndex - startIndex + 1;
+  KInt length = endIndex - startIndex;
   ArrayHeader* result = ArrayContainer(theStringTypeInfo, length).GetPlace();
   memcpy(ByteArrayAddressOfElementAt(result, 0),
          ByteArrayAddressOfElementAt(thiz, startIndex),

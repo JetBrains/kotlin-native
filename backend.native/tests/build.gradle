@@ -199,7 +199,7 @@ task tostring0(type: RunKonanTest) {
 }
 
 task tostring1(type: RunKonanTest) {
-    goldValue = "ello \n"
+    goldValue = "ello\n"
     source = "runtime/basic/tostring1.kt"
 }
 
