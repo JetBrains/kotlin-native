@@ -26,13 +26,11 @@ void ThrowArrayIndexOutOfBoundsException() {
   RuntimeAssert(false, "Throwing is unsupported");
 }
 
-void ThrowClassCastException(KString userMessage) {
+void ThrowClassCastException() {
   void* pc = __builtin_return_address(0);
   char message[100];
   snprintf(message, sizeof(message), "ClassCastException at %p", pc);
   write(STDOUT_FILENO, message, strlen(message));
-  write(STDOUT_FILENO, AddressOfElementAt(userMessage, 0),
-        userMessage->count_);
   // TODO: throw it for real.
   RuntimeAssert(false, "Throwing is unsupported");
 }

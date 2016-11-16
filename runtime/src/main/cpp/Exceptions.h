@@ -12,7 +12,7 @@ void ThrowNullPointerException();
 // Context is evaluated from caller's address.
 void ThrowArrayIndexOutOfBoundsException();
 // Throws class cast exception.
-void ThrowNullClassCastException(KString message);
+void ThrowClassCastException();
 
 #ifdef __cplusplus
 } // extern "C"
