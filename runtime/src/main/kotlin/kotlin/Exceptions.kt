@@ -45,7 +45,7 @@ public open class RuntimeException : Exception {
     }
 }
 
-class NullPointerException : RuntimeException {
+public class NullPointerException : RuntimeException {
 
     constructor() : super() {
     }
@@ -126,7 +126,7 @@ public class ClassCastException : RuntimeException {
     }
 }
 
-class AssertionError : Error {
+public class AssertionError : Error {
 
     constructor() {
     }
