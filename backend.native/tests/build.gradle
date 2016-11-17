@@ -218,6 +218,11 @@ task fields(type: UnitKonanTest) {
     source = "codegen/object/fields.kt"
 }
 
+
+task constructor(type: UnitKonanTest) {
+    source = "codegen/object/constructor.kt"
+}
+
 /*task objectInitialization(type: UnitKonanTest) {
     source = "codegen/object/initialization.kt"
 }*/
