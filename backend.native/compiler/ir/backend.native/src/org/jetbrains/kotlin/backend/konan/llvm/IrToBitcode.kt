@@ -153,10 +153,9 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
         val classDescriptor = DescriptorUtils.getContainingClass(declaration.descriptor)
 
-        codegen.currentClass = declaration.descriptor.constructedClass
         val typeOfClass = classDescriptor!!.defaultType
         val names = typeOfClass.memberScope.getVariableNames()
-        val fields = codegen.fields().toSet()
+        val fields = codegen.fields(classDescriptor).toSet()
         declaration.descriptor.valueParameters
                 .filter { names.contains(it.name) }                             // selects only parameters that match with declared class variables
                 .map {                                                          // maps parameter to list descriptors
@@ -522,7 +521,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     */
     private fun fieldPtrOfClass(thisPtr: LLVMOpaqueValue, value: PropertyDescriptor): LLVMOpaqueValue? {
         val objHeaderPtr = codegen.bitcast(kObjHeaderPtr, thisPtr, codegen.newVar())
-        val typePtr = pointerType(codegen.classType(codegen.currentClass!!))
+        val typePtr = pointerType(codegen.classType(value.containingDeclaration as ClassDescriptor))
         memScoped {
             val args = allocNativeArrayOf(LLVMOpaqueValue, kImmOne)
             val objectPtr = LLVMBuildGEP(codegen.context.llvmBuilder, objHeaderPtr,  args[0], 1, codegen.newVar())

@@ -43,10 +43,7 @@ internal class CodeGenerator(override val context:Context) : ContextUtils {
         }
     }
 
-    /* HACK: */
-    var currentClass:ClassDescriptor? = null
-
-    fun  fields():List<PropertyDescriptor> = currentClass!!.fields
+    fun  fields(descriptor: ClassDescriptor):List<PropertyDescriptor> = descriptor.fields
 
     private fun prolog(declaration: IrFunction): LLVMOpaqueValue? {
         variableIndex = 0
@@ -150,7 +147,7 @@ internal class CodeGenerator(override val context:Context) : ContextUtils {
     fun thisVariable() = variable("this")!!
     fun param(fn: FunctionDescriptor?, i: Int): LLVMOpaqueValue? = LLVMGetParam(fn!!.llvmFunction.getLlvmValue(), i)
 
-    fun indexInClass(p:PropertyDescriptor):Int = currentClass!!.fields.indexOf(p)
+    fun indexInClass(p:PropertyDescriptor):Int = (p.containingDeclaration as ClassDescriptor).fields.indexOf(p)
 
 
     fun basicBlock(): LLVMOpaqueBasicBlock? = LLVMAppendBasicBlock(currentFunction!!.llvmFunction.getLlvmValue(), currentFunction!!.bbLabel())
