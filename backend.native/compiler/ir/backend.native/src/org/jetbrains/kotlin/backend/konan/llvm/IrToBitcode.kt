@@ -149,10 +149,8 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
     override fun visitConstructor(declaration: IrConstructor) {
         codegen.function(declaration)
-        val thisPtr = codegen.thisVariable()
-
         val classDescriptor = DescriptorUtils.getContainingClass(declaration.descriptor)
-
+        val thisPtr = codegen.load(codegen.thisVariable(), codegen.newVar())
         val typeOfClass = classDescriptor!!.defaultType
         val names = typeOfClass.memberScope.getVariableNames()
         val fields = codegen.fields(classDescriptor).toSet()
@@ -165,12 +163,13 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
                 .filter {fields.contains(it)}                                   // filter only fields that contains backing store
                 .forEach {                                                      // store parameters to backing storage
                     val fieldPtr = fieldPtrOfClass(thisPtr, it)
-                    val value = codegen.load(codegen.variable(it.name.asString())!!, codegen.newVar())
+                    val variable = codegen.variable(it.name.asString())
+                    val value = codegen.load(variable!!, codegen.newVar())
                     codegen.store(value, fieldPtr!!)
                 }
 
         /* TODO: body */
-        codegen.ret(codegen.load(thisPtr, codegen.newVar()))
+        codegen.ret(thisPtr)
         logger.log("visitConstructor           : ${ir2string(declaration)}")
     }
 
