@@ -35,3 +35,9 @@ public annotation class Suppress(vararg val names: String)
 //@Retention(SOURCE)
 //@MustBeDocumented
 public annotation class UnsafeVariance
+
+/**
+ *  A function or class provides specialization for the 'genricName' for the given type arguments
+ */
+public annotation class Specialization(val genericName: String, vararg val typeSubstitution: String)
+

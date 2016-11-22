@@ -3,6 +3,7 @@ package org.jetbrains.kotlin.cli.bc
 import com.intellij.openapi.Disposable
 import org.jetbrains.kotlin.analyzer.AnalysisResult
 import org.jetbrains.kotlin.backend.konan.llvm.emitLLVM
+import org.jetbrains.kotlin.backend.konan.optimizeIR
 import org.jetbrains.kotlin.cli.common.CLICompiler
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.ExitCode
@@ -73,6 +74,9 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
                                     analyzerWithCompilerReport.analysisResult.moduleDescriptor,
                                     environment.getSourceFiles(),
                                     analyzerWithCompilerReport.analysisResult.bindingContext)
+
+        // Optimization passes IR->IR 
+        optimizeIR(module)
 
         // Emit LLVM code.
         module.accept(DumpIrTreeVisitor(out), "")
