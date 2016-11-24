@@ -1,5 +1,5 @@
 fun main(args : Array<String>) {
-    val arrayList = BaseArrayList<String>(5)
+    val arrayList = kotlin.collections.BaseArrayList<String>(5)
     var index = 0
     while (index < arrayList.size) {
         arrayList[index] = "element " + (++index)
