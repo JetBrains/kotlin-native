@@ -1,204 +1,246 @@
 package kotlin.collections
 
-class BaseArrayListIterator<E>(
-        val view: BaseArrayListView<E>,
-        val fromIndex: Int, val toIndex: Int,
-        var index: Int) : ListIterator<E> {
+class ArrayList<E> private constructor(
+        private var array: Array<E>,
+        private var offset: Int = 0,
+        private var length: Int = 0
+) : MutableList<E> {
 
-    public override operator fun hasNext(): Boolean {
-        return index < toIndex
+    constructor(initialCapacity: Int = 10) : this(arrayOfLateInitElements(initialCapacity))
+
+    constructor(c: Collection<E>) : this(c.size) {
+        addAll(c)
     }
 
-    public override fun hasPrevious(): Boolean {
-        return index > fromIndex && (toIndex - fromIndex) > 0
+    override val size: Int
+        get() = length
+
+    override fun isEmpty(): Boolean = length == 0
+
+    override fun get(index: Int): E {
+        checkIndex(index)
+        return array[offset + index]
     }
 
-    public override operator fun next(): E {
-        return view[index++]
+    override fun set(index: Int, element: E): E {
+        checkIndex(index)
+        val old = array[offset + index]
+        array[offset + index] = element
+        return old
     }
 
-    public override fun nextIndex(): Int {
-        return index
-    }
-
-    public override fun previous(): E {
-        return view[--index]
-    }
-
-    public override fun previousIndex(): Int {
-        return index - 1
-    }
-}
-
-class BaseArrayListView<E>(
-        val storage: Array<E>,
-        val indexFrom: Int, val indexTo: Int) : List<E> {
-
-    // Query Operations
-    public override val size: Int
-        get() = indexTo - indexFrom
-
-    public override fun isEmpty(): Boolean {
-        return indexTo == indexFrom
-    }
-
-    public override fun contains(element: E): Boolean {
-        var index = indexFrom
-        while (index < indexTo) {
-            if (storage[index++] == element) {
-                return true
-            }
+    override fun contains(element: E): Boolean {
+        var i = 0
+        while (i < length) {
+            if (array[i] == element) return true
+            i++
         }
         return false
     }
 
-    public override fun iterator(): Iterator<E> {
-        return BaseArrayListIterator<E>(this, indexFrom, indexTo, indexFrom)
-    }
-
-    // Bulk Operations
-    public override fun containsAll(elements: Collection<E>): Boolean {
-        for (e in elements) {
-            if (!contains(e)) return false
+    override fun containsAll(elements: Collection<E>): Boolean {
+        val it = elements.iterator()
+        while (it.hasNext()) {
+            if (!contains(it.next())) return false
         }
         return true
     }
 
-    // Positional Access Operations
-    /**
-     * Returns the element at the specified index in the list.
-     */
-    public override operator fun get(index: Int): E {
-        return storage[index]
-    }
-
-    public operator fun set(index: Int, value: E) {
-        storage[index] = value
-    }
-
-    // Search Operations
-    /**
-     * Returns the index of the first occurrence of the specified element in the list, or -1 if the specified
-     * element is not contained in the list.
-     */
-    public override fun indexOf(element: E): Int {
-        var index = 0
-        while (index < storage.size) {
-            if (storage[index] == element) {
-                return index
-            }
-            ++index
+    override fun indexOf(element: E): Int {
+        var i = 0
+        while (i < length) {
+            if (array[i] == element) return i
+            i++
         }
         return -1
     }
 
-    /**
-     * Returns the index of the last occurrence of the specified element in the list, or -1 if the specified
-     * element is not contained in the list.
-     */
-    public override fun lastIndexOf(element: E): Int {
-        var index = indexTo - 1
-        while (index >= indexFrom) {
-            if (storage[index] == element) {
-                return index
-            }
-            --index
+    override fun lastIndexOf(element: E): Int {
+        var i = length - 1
+        while (i >= 0) {
+            if (array[i] == element) return i
+            i--
         }
         return -1
     }
 
-    // List Iterators
-    /**
-     * Returns a list iterator over the elements in this list (in proper sequence).
-     */
-    public override fun listIterator(): ListIterator<E> {
-        return BaseArrayListIterator<E>(this, indexFrom, indexTo, indexFrom)
+    override fun iterator(): MutableIterator<E> = Itr()
+    override fun listIterator(): MutableListIterator<E> = Itr()
+
+    override fun listIterator(index: Int): MutableListIterator<E> {
+        checkItrIndex(index)
+        return Itr(index)
     }
 
-    /**
-     * Returns a list iterator over the elements in this list (in proper sequence), starting at the specified [index].
-     */
-    public override fun listIterator(index: Int): ListIterator<E> {
-        return BaseArrayListIterator<E>(this, indexFrom, indexTo, index)
+    override fun add(element: E): Boolean {
+        ensureExtraCapacity()
+        array[offset + length++] = element
+        return true
     }
 
-    // View
-    /**
-     * Returns a view of the portion of this list between the specified [fromIndex] (inclusive) and [toIndex] (exclusive).
-     * The returned list is backed by this list, so non-structural changes in the returned list are reflected in this list, and vice-versa.
-     */
-    public override fun subList(fromIndex: Int, toIndex: Int): List<E> {
-        return BaseArrayListView<E>(storage, fromIndex, toIndex)
-    }
-}
-
-public class BaseArrayList<E> : List<E> {
-
-    private val view: BaseArrayListView<E>
-
-    constructor(size: Int) {
-        val storage = Array<Any>(size) as Array<E>
-        view = BaseArrayListView<E>(storage, 0, size)
+    override fun add(index: Int, element: E) {
+        insertAt(index)
+        array[offset + index] = element
     }
 
-    // Query Operations
-    public override val size: Int
-        get() = view.size
+    override fun addAll(index: Int, elements: Collection<E>): Boolean {
+        val n = elements.size
+        insertAt(index, n)
+        var i = 0
+        val it = elements.iterator()
+        while (i < n) {
+            array[offset + index + i] = it.next()
+            i++
+        }
+        return n > 0
+    }
 
-    public override fun isEmpty(): Boolean = view.isEmpty()
+    override fun addAll(elements: Collection<E>): Boolean = addAll(length, elements)
 
-    public override fun contains(
-            element: E): Boolean = view.contains(element)
+    override fun clear() {
+        array.resetRange(offset, offset + length)
+        length = 0
+    }
 
-    public override fun iterator(): Iterator<E> = view.iterator()
+    override fun removeAt(index: Int): E {
+        checkIndex(index)
+        val old = array[offset + index]
+        array.copyRange(offset + index + 1, offset + length, offset + index)
+        array.resetAt(offset + length - 1)
+        length--
+        return old
+    }
 
-    // Bulk Operations
-    public override fun containsAll(elements: Collection<E>): Boolean =
-            view.containsAll(elements)
+    override fun remove(element: E): Boolean {
+        val i = indexOf(element)
+        if (i >= 0) removeAt(i)
+        return i >= 0
+    }
 
-    // Positional Access Operations
-    /**
-     * Returns the element at the specified index in the list.
-     */
-    public override operator fun get(index: Int): E = view.get(index)
+    override fun removeAll(elements: Collection<E>): Boolean {
+        var changed = false
+        val it = elements.iterator()
+        while (it.hasNext()) {
+            if (remove(it.next())) changed = true
+        }
+        return changed
+    }
 
-    public operator fun set(index: Int, value: E) =
-            view.set(index, value)
+    override fun retainAll(elements: Collection<E>): Boolean {
+        TODO("not implemented")
+        return false
+    }
 
-    // Search Operations
-    /**
-     * Returns the index of the first occurrence of the specified element in the list, or -1 if the specified
-     * element is not contained in the list.
-     */
-    public override fun indexOf(element: E): Int =
-            view.indexOf(element)
+    override fun subList(fromIndex: Int, toIndex: Int): MutableList<E> {
+        checkItrIndex(fromIndex)
+        checkItrIndex(toIndex, fromIndex)
+        return ArrayList(array, offset + fromIndex, toIndex - fromIndex) // todo: mark as sublist...
+    }
 
-    /**
-     * Returns the index of the last occurrence of the specified element in the list, or -1 if the specified
-     * element is not contained in the list.
-     */
-    public override fun lastIndexOf(element: E): Int =
-            view.lastIndexOf(element)
+    fun trimToSize() {
+        if (length < array.size)
+            array = array.copyOfLateInitElements(length)
+    }
 
-    // List Iterators
-    /**
-     * Returns a list iterator over the elements in this list (in proper sequence).
-     */
-    public override fun listIterator(): ListIterator<E> =
-            view.listIterator()
+    fun ensureCapacity(capacity: Int) {
+        if (capacity > array.size) {
+            var newCapacity = array.size * 3 / 2
+            if (newCapacity < capacity) newCapacity = capacity
+            array = array.copyOfLateInitElements(newCapacity)
+        }
 
-    /**
-     * Returns a list iterator over the elements in this list (in proper sequence), starting at the specified [index].
-     */
-    public override fun listIterator(index: Int): ListIterator<E> =
-            view.listIterator(index)
+    }
 
-    // View
-    /**
-     * Returns a view of the portion of this list between the specified [fromIndex] (inclusive) and [toIndex] (exclusive).
-     * The returned list is backed by this list, so non-structural changes in the returned list are reflected in this list, and vice-versa.
-     */
-    public override fun subList(fromIndex: Int, toIndex: Int): List<E> {
-        return BaseArrayListView<E>(view.storage, fromIndex, toIndex)
+    override fun equals(other: Any?): Boolean {
+        return other === this ||
+                (other is List<*>) &&
+                        contentEquals(other)
+    }
+
+    override fun hashCode(): Int {
+        var result = 1
+        var i = 0
+        while (i < length) {
+            result = result * 31 + (array[offset + i]?.hashCode() ?: 0)
+            i++
+        }
+        return result
+    }
+
+    override fun toString(): String {
+        var result = "["
+        var i = 0
+        while (i < length) {
+            if (i > 0) result += ", "
+            result += array[offset + i]
+            i++
+        }
+        result += "]"
+        return result
+    }
+
+    // ---------------------------- private ----------------------------
+
+    private fun ensureExtraCapacity(n: Int = 1) {
+        ensureCapacity(length + n)
+    }
+
+    private fun insertAt(index: Int, n: Int = 1) {
+        ensureExtraCapacity(n)
+        array.copyRange(offset + index, offset + size, offset + index + n)
+        length += n
+    }
+
+    private fun checkIndex(index: Int) {
+        if (index < 0 || index >= length) throw IndexOutOfBoundsException()
+    }
+
+    private fun checkItrIndex(index: Int, fromIndex: Int = 0) {
+        if (index < fromIndex || index > length) throw IndexOutOfBoundsException()
+    }
+
+    private fun contentEquals(other: List<*>): Boolean {
+        if (length != other.size) return false
+        var i = 0
+        while (i < length) {
+            if (array[offset + i] != other[i]) return false
+            i++
+        }
+        return true
+    }
+
+    private inner class Itr(private var index: Int = 0) : MutableListIterator<E> {
+        private var lastIndex: Int = -1
+
+        override fun hasPrevious(): Boolean = index > 0
+        override fun hasNext(): Boolean = index < length
+
+        override fun previousIndex(): Int = index - 1
+        override fun nextIndex(): Int = index
+
+        override fun previous(): E {
+            if (index <= 0) throw IndexOutOfBoundsException()
+            lastIndex = --index
+            return array[offset + lastIndex]
+        }
+
+        override fun next(): E {
+            if (index >= length) throw IndexOutOfBoundsException()
+            lastIndex = index++
+            return array[offset + lastIndex]
+        }
+
+        override fun set(element: E) {
+            checkIndex(lastIndex)
+            array[offset + lastIndex] = element
+        }
+
+        override fun add(element: E) {
+            TODO("not implemented")
+        }
+
+        override fun remove() {
+            TODO("not implemented")
+        }
     }
 }

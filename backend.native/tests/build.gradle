@@ -419,4 +419,8 @@ task array_list0(type: RunKonanTest) {
             "element 5\n"
     source = "runtime/containers/array_list0.kt"
 }
+task array_list1(type: RunKonanTest) {
+    goldValue = "OK\n"
+    source = "runtime/containers/array_list1.kt"
+}
 
