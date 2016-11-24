@@ -209,8 +209,22 @@ class ArrayList<E> private constructor(
         return true
     }
 
-    private class Iterator<E>(
-            private val list: ArrayList<E>, private var index: Int = 0) : MutableListIterator<E> {
+    private class Iterator<E> : MutableListIterator<E> {
+        private val list: ArrayList<E>
+
+        private var index: Int
+
+        constructor(list: ArrayList<E>, index: Int) {
+            this.list = list
+            this.index = index
+        }
+
+        constructor(list: ArrayList<E>) {
+            this.list = list
+            this.index = 0
+        }
+
+
         private var lastIndex: Int = -1
 
         override fun hasPrevious(): Boolean = index > 0
