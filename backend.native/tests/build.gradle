@@ -412,7 +412,11 @@ task interface0(type: RunKonanTest) {
 */
 
 task array_list0(type: RunKonanTest) {
-    goldValue = "Done\n"
+    goldValue = "element 1\n" +
+            "element 2\n" +
+            "element 3\n" +
+            "element 4\n" +
+            "element 5\n"
     source = "runtime/containers/array_list0.kt"
 }
 
