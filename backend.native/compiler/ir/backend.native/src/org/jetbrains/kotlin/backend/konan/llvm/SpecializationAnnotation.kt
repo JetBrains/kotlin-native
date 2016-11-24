@@ -29,3 +29,9 @@ internal val FunctionDescriptor.specializationAnnotation: Pair<String, List<Stri
         return if (specialization != null) valuesToPair(values(specialization!!)) else null
     }
 
+internal val ClassDescriptor.specializationAnnotation: Pair<String, List<String>>?
+    get() {
+        val specialization = this.annotations.findAnnotation(annotationName) 
+        return if (specialization != null) valuesToPair(values(specialization!!)) else null
+    }
+

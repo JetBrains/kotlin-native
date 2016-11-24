@@ -8,6 +8,7 @@ import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.impl.LazyClassReceiverParameterDescriptor
 import org.jetbrains.kotlin.descriptors.impl.LocalVariableDescriptor
+import org.jetbrains.kotlin.descriptors.impl.*
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.*
@@ -20,6 +21,8 @@ import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
 import org.jetbrains.kotlin.ir.visitors.*
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.DescriptorUtils
+import org.jetbrains.kotlin.resolve.scopes.*
+import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.typeUtil.isNullableNothing
@@ -65,27 +68,45 @@ fun specialize(module: IrModuleFragment) {
 
 fun applyUserProvidedBodies(module: IrModuleFragment) {
     val specializations = Specializations()
-    module.acceptVoid(CollectUserProvidedBodiesVisitor(specializations))
 
+    module.acceptVoid(CollectUserProvidedNamesVisitor(specializations))
+    //module.acceptVoid(CollectUserProvidedClassesVisitor(specializations))
 
-
-    if (!specializations.mapping.isEmpty()) {
+    if (!specializations.funcMapping.isEmpty()) {
         rewriteBodies(module, specializations)
-        println("### Module Rewritten: " + ir2string(module))
+        println("### Functions rewritten in module: " + ir2string(module))
     }
-
+    if (!specializations.classMapping.isEmpty()) {
+        rewriteClasses(module, specializations)
+        println("### Classes rewritten in module: " + ir2string(module))
+    }
 }
 
 class Specializations {
-    val mapping = mutableMapOf<Pair<String, List<String>>, FunctionDescriptor>()
+    val funcMapping = mutableMapOf<Pair<String, List<String>>, FunctionDescriptor>()
+
+    val classMapping = mutableMapOf<Pair<String, List<String>>, ClassDescriptor>()
+    val classHazards = mutableMapOf<Pair<String, List<String>>, Boolean>()
 }
 
-class CollectUserProvidedBodiesVisitor(var specializations: Specializations): IrElementVisitorVoid {
+class CollectUserProvidedNamesVisitor(var specializations: Specializations): IrElementVisitorVoid {
 
-    var mapping = specializations.mapping
+    var funcMapping = specializations.funcMapping
+    var classMapping = specializations.classMapping
 
     override fun visitElement(element: IrElement) {
         element.acceptChildrenVoid(this)
+    }
+
+    override fun visitClass(clazz: IrClass) {
+        val descriptor = clazz.descriptor.original as ClassDescriptor
+
+        val annotation = descriptor.specializationAnnotation
+        if (annotation == null) return
+
+        println("specialization class key: " + annotation)
+
+        classMapping[annotation] = descriptor
     }
 
     override fun visitCall(callee: IrCall) {
@@ -94,9 +115,9 @@ class CollectUserProvidedBodiesVisitor(var specializations: Specializations): Ir
         val annotation = descriptor.specializationAnnotation
         if (annotation == null) return
 
-        //println("specialization key: " + annotation)
+        println("specialization func key: " + annotation)
 
-        mapping[annotation] = descriptor
+        funcMapping[annotation] = descriptor
     }
 }
 
@@ -116,6 +137,81 @@ private fun IrCallWithNewDescriptor(call: IrCall, newDescriptor: CallableDescrip
     return newCall
 }
 
+
+// FIXME: shamelessly copied and pasted from RTTI generator
+private fun ClassDescriptor.getContributedMethods(): List<FunctionDescriptor> {
+    val contributedDescriptors = unsubstitutedMemberScope.getContributedDescriptors()
+    // (includes declarations from supers)
+
+    val functions = contributedDescriptors.filterIsInstance<FunctionDescriptor>()
+
+    val properties = contributedDescriptors.filterIsInstance<PropertyDescriptor>()
+    val getters = properties.mapNotNull { it.getter }
+    val setters = properties.mapNotNull { it.setter }
+
+    val allMethods = functions + getters + setters
+    return allMethods
+}
+
+private fun allMembers(clazz: ClassDescriptor): List<DeclarationDescriptor> {
+    val members = clazz.unsubstitutedMemberScope.getContributedDescriptors()
+    val primaryConstructor = clazz.getUnsubstitutedPrimaryConstructor()
+    val constructors = clazz.getConstructors()
+    val getters = members.filterIsInstance<PropertyDescriptor>().map{it -> it.getter }
+    val setters = members.filterIsInstance<PropertyDescriptor>().map{it -> it.setter }
+    val allCombined =  members+listOf(primaryConstructor)+constructors+getters+setters
+    return allCombined.filterNotNull()
+}
+
+
+private fun sameMember(newClassDescriptor: ClassDescriptor, 
+                   calleeDescriptor: DeclarationDescriptor): DeclarationDescriptor {
+    val newMembers =  allMembers(newClassDescriptor)
+    //FIXME remove as
+    val oldMembers = allMembers(calleeDescriptor.getContainingDeclaration() as ClassDescriptor)
+
+    //if (oldMembers.size != newMembers.size) {
+        oldMembers.forEach{ 
+            println(it)
+        }
+        newMembers.forEach{
+            println(it)
+        }
+     //   throw Error("Generic and specializer members differ")
+   // }
+
+
+    oldMembers.zip(newMembers).forEach { (old, new) -> 
+        println("COMPARING " + old.original + " WITH " + calleeDescriptor)
+        if (old.original == calleeDescriptor) {
+            println("REWRITE CALL: " + old + " -> " + new)
+            return new
+        }
+    } 
+
+    throw Error("Could not find matching member")
+
+}
+
+private fun IrCallWithNewClassDescriptor(call: IrCall, newClassDescriptor: ClassDescriptor): IrCall {
+
+// FIXME: remove 'as'
+    val newCalleeDescriptor: FunctionDescriptor = sameMember(newClassDescriptor, call.descriptor.original as FunctionDescriptor) as FunctionDescriptor
+
+    var newCall =  IrCallImpl(call.startOffset, 
+                              call.endOffset, 
+                              call.type, 
+                              newCalleeDescriptor,                                // This one is new
+                              mapOf<TypeParameterDescriptor, KotlinType>(), // And this one is empty
+                              call.origin, 
+                              call.superQualifier)
+
+    newCalleeDescriptor.valueParameters.mapIndexed { i, valueParameterDescriptor ->
+        newCall.putValueArgument(i, call.getValueArgument(i))
+    }
+
+    return newCall
+}
 private fun keyByCallee(callee: IrCall): Pair<String, List<String>> {
     val descriptor = callee.descriptor.original as FunctionDescriptor
 
@@ -123,28 +219,82 @@ private fun keyByCallee(callee: IrCall): Pair<String, List<String>> {
     val typeNames = descriptor.typeParameters.map{callee.getTypeArgument(it).toString()}
     val pair = Pair("$name", typeNames)
 
-    //println("callee key: " + pair)
+    println("callee key: " + pair)
+
+    return pair
+}
+
+
+private fun keyByClassCallee(classDescriptor: ClassDescriptor, callee: IrCall): Pair<String, List<String>> {
+    //val classDescriptor = clazz.descriptor.original as ClassDescriptor
+    val calleeDescriptor = callee.descriptor.original as FunctionDescriptor
+
+    val name = classDescriptor.symbolName
+    val typeNames = calleeDescriptor.typeParameters.map{callee.getTypeArgument(it).toString()}
+    val pair = Pair("$name", typeNames)
+
+    println("class key: " + pair)
 
     return pair
 }
 
 private fun rewriteBodies(module: IrModuleFragment, specializations: Specializations) {
-
     module.transformChildrenVoid(object : IrElementTransformerVoid() {
         override fun visitCall(callee: IrCall): IrExpression {
             callee.transformChildrenVoid(this)
 
             val descriptor = callee.descriptor.original as FunctionDescriptor
-            val oldDescriptor = descriptor
             val key = keyByCallee(callee)
-            val newDescriptor = specializations.mapping[key] 
+            val newDescriptor = specializations.funcMapping[key] 
             if (newDescriptor != null) {
-                println("Specialization match on key" + key)
+                println("Specialization MATCH on key" + key)
                 return IrCallWithNewDescriptor(callee, newDescriptor!!)
             } else {
                 return callee
             }
         }
+    })
+}
+
+private fun rewriteClasses(module: IrModuleFragment, specializations: Specializations) {
+    module.transformChildrenVoid(object : IrElementTransformerVoid() {
+
+
+        override fun visitCall(callee: IrCall): IrExpression {
+            callee.transformChildrenVoid(this)
+
+            println("QQQ: " + callee.descriptor.original)
+
+            val descriptor = callee.descriptor.original as FunctionDescriptor
+/*
+            val descriptor = callee.descriptor
+            when (descriptor) {
+            is FunctionDescriptor -> descriptor = descriptor.original
+            is PropertyDescriptor -> descriptor = descriptor.original
+            }
+*/
+            val clazz = descriptor.getContainingDeclaration()
+            if (clazz !is ClassDescriptor) return callee
+
+            println("")
+            println("DESCRIPTOR: " + descriptor)
+            println("CLASS: " + clazz)
+            println(clazz.getUnsubstitutedMemberScope().getFunctionNames())
+            println(clazz.getUnsubstitutedMemberScope().getVariableNames())
+            println(descriptor.typeParameters)
+            println(descriptor.typeParameters.map{callee.getTypeArgument(it).toString()})
+
+            val key = keyByClassCallee(clazz, callee)
+            val newClassDescriptor = specializations.classMapping[key] 
+            if (newClassDescriptor != null) {
+                println("Specialization MATCH on key" + key)
+                return IrCallWithNewClassDescriptor(callee, newClassDescriptor!!)
+            } else {
+                return callee
+            }
+        }
+
+
     })
 }
 
