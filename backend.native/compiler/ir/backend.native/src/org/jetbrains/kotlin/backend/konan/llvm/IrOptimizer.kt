@@ -121,7 +121,33 @@ class CollectUserProvidedNamesVisitor(var specializations: Specializations): IrE
     }
 }
 
+private fun changeReceiverParameter(oldDescriptor: FunctionDescriptor, receiverParameter: ReceiverParameterDescriptor? ): FunctionDescriptor {
+    val newDescriptor = SimpleFunctionDescriptorImpl.create(
+            oldDescriptor.containingDeclaration,
+            oldDescriptor.annotations,
+            oldDescriptor.name,
+            oldDescriptor.kind,
+            oldDescriptor.source
+    )
+
+    newDescriptor.initialize(
+            receiverParameter?.type,
+            receiverParameter,
+            //oldDescriptor.receiverParameterType, // CHANGE!!!
+            //oldDescriptor.dispatchReceiverParameter, // CHANGE !!!
+            oldDescriptor.typeParameters, // CHANGE?
+            oldDescriptor.valueParameters,
+            oldDescriptor.returnType,
+            oldDescriptor.modality,
+            oldDescriptor.visibility
+    )
+
+    return newDescriptor
+
+}
+
 private fun IrCallWithNewDescriptor(call: IrCall, newDescriptor: CallableDescriptor): IrCall {
+
     var newCall =  IrCallImpl(call.startOffset, 
                               call.endOffset, 
                               call.type, 
@@ -133,6 +159,10 @@ private fun IrCallWithNewDescriptor(call: IrCall, newDescriptor: CallableDescrip
     newDescriptor.valueParameters.mapIndexed { i, valueParameterDescriptor ->
         newCall.putValueArgument(i, call.getValueArgument(i))
     }
+
+    println("HOW COME: " + newDescriptor.dispatchReceiverParameter)
+
+    //newDescriptor.dispatchReceiverParameter = call.descriptor.dispatchReceiverParameter
 
     return newCall
 }
@@ -172,10 +202,10 @@ private fun sameMember(newClassDescriptor: ClassDescriptor,
 
     //if (oldMembers.size != newMembers.size) {
         oldMembers.forEach{ 
-            println(it)
+            println(" From: "+ it)
         }
         newMembers.forEach{
-            println(it)
+            println("   To: "+it)
         }
      //   throw Error("Generic and specializer members differ")
    // }
@@ -193,14 +223,21 @@ private fun sameMember(newClassDescriptor: ClassDescriptor,
 
 }
 
-private fun IrCallWithNewClassDescriptor(call: IrCall, newClassDescriptor: ClassDescriptor): IrCall {
+private fun IrCallWithNewClassDescriptor(call: IrCall, newClassDescriptor: ClassDescriptor, receiver: ReceiverParameterDescriptor?): IrCall {
 
 // FIXME: remove 'as'
-    val newCalleeDescriptor: FunctionDescriptor = sameMember(newClassDescriptor, call.descriptor.original as FunctionDescriptor) as FunctionDescriptor
+    val specializedDescriptor: FunctionDescriptor = sameMember(newClassDescriptor, call.descriptor.original as FunctionDescriptor) as FunctionDescriptor
+
+    val newCalleeDescriptor = if (specializedDescriptor is ConstructorDescriptor)  {
+        specializedDescriptor 
+    } else {
+        changeReceiverParameter(specializedDescriptor, receiver)
+    }
 
     var newCall =  IrCallImpl(call.startOffset, 
                               call.endOffset, 
-                              call.type, 
+                              newCalleeDescriptor.returnType!!,
+                              //call.type, 
                               newCalleeDescriptor,                                // This one is new
                               mapOf<TypeParameterDescriptor, KotlinType>(), // And this one is empty
                               call.origin, 
@@ -209,6 +246,9 @@ private fun IrCallWithNewClassDescriptor(call: IrCall, newClassDescriptor: Class
     newCalleeDescriptor.valueParameters.mapIndexed { i, valueParameterDescriptor ->
         newCall.putValueArgument(i, call.getValueArgument(i))
     }
+
+    newCall.dispatchReceiver = call.dispatchReceiver
+    newCall.extensionReceiver = call.extensionReceiver
 
     return newCall
 }
@@ -238,6 +278,17 @@ private fun keyByClassCallee(classDescriptor: ClassDescriptor, callee: IrCall): 
     return pair
 }
 
+private fun keyByKotlinType(type: KotlinType): Pair<String, List<String>> {
+    val name = "kclass:" + type.constructor
+    val typeNames = type.arguments.map{it -> it.toString()}
+
+    val pair = Pair("$name", typeNames)
+    println("receiver key: " + pair)
+
+    return pair
+
+}
+
 private fun rewriteBodies(module: IrModuleFragment, specializations: Specializations) {
     module.transformChildrenVoid(object : IrElementTransformerVoid() {
         override fun visitCall(callee: IrCall): IrExpression {
@@ -262,33 +313,32 @@ private fun rewriteClasses(module: IrModuleFragment, specializations: Specializa
 
         override fun visitCall(callee: IrCall): IrExpression {
             callee.transformChildrenVoid(this)
+            println("")
 
             println("QQQ: " + callee.descriptor.original)
 
             val descriptor = callee.descriptor.original as FunctionDescriptor
-/*
-            val descriptor = callee.descriptor
-            when (descriptor) {
-            is FunctionDescriptor -> descriptor = descriptor.original
-            is PropertyDescriptor -> descriptor = descriptor.original
+
+            val receiver = callee.descriptor.dispatchReceiverParameter
+            println("reciever: " + callee.descriptor.dispatchReceiverParameter?.type?.arguments ?: "no reciever param")
+            val key = if (receiver!= null) {
+                keyByKotlinType(callee.descriptor.dispatchReceiverParameter?.type!!)
+            } else {
+
+                val clazz = descriptor.getContainingDeclaration()
+                if (clazz !is ClassDescriptor) return callee
+
+                println("DESCRIPTOR: " + descriptor)
+                println("CLASS: " + clazz)
+                println(descriptor.typeParameters.map{callee.getTypeArgument(it).toString()})
+
+                keyByClassCallee(clazz, callee)
             }
-*/
-            val clazz = descriptor.getContainingDeclaration()
-            if (clazz !is ClassDescriptor) return callee
-
-            println("")
-            println("DESCRIPTOR: " + descriptor)
-            println("CLASS: " + clazz)
-            println(clazz.getUnsubstitutedMemberScope().getFunctionNames())
-            println(clazz.getUnsubstitutedMemberScope().getVariableNames())
-            println(descriptor.typeParameters)
-            println(descriptor.typeParameters.map{callee.getTypeArgument(it).toString()})
-
-            val key = keyByClassCallee(clazz, callee)
             val newClassDescriptor = specializations.classMapping[key] 
             if (newClassDescriptor != null) {
                 println("Specialization MATCH on key" + key)
-                return IrCallWithNewClassDescriptor(callee, newClassDescriptor!!)
+                // FIXME: CHANGE receiver should be with a new type
+                return IrCallWithNewClassDescriptor(callee, newClassDescriptor!!, receiver)
             } else {
                 return callee
             }
