@@ -64,12 +64,12 @@ class ArrayList<E> private constructor(
         return -1
     }
 
-    override fun iterator(): MutableIterator<E> = Itr()
-    override fun listIterator(): MutableListIterator<E> = Itr()
+    override fun iterator(): MutableIterator<E> = Iterator<E>(this)
+    override fun listIterator(): MutableListIterator<E> = Iterator<E>(this)
 
     override fun listIterator(index: Int): MutableListIterator<E> {
-        checkItrIndex(index)
-        return Itr(index)
+        checkIteratorIndex(index)
+        return Iterator(this, index)
     }
 
     override fun add(element: E): Boolean {
@@ -132,8 +132,8 @@ class ArrayList<E> private constructor(
     }
 
     override fun subList(fromIndex: Int, toIndex: Int): MutableList<E> {
-        checkItrIndex(fromIndex)
-        checkItrIndex(toIndex, fromIndex)
+        checkIteratorIndex(fromIndex)
+        checkIteratorIndex(toIndex, fromIndex)
         return ArrayList(array, offset + fromIndex, toIndex - fromIndex) // todo: mark as sublist...
     }
 
@@ -195,7 +195,7 @@ class ArrayList<E> private constructor(
         if (index < 0 || index >= length) throw IndexOutOfBoundsException()
     }
 
-    private fun checkItrIndex(index: Int, fromIndex: Int = 0) {
+    private fun checkIteratorIndex(index: Int, fromIndex: Int = 0) {
         if (index < fromIndex || index > length) throw IndexOutOfBoundsException()
     }
 
@@ -209,11 +209,12 @@ class ArrayList<E> private constructor(
         return true
     }
 
-    private inner class Itr(private var index: Int = 0) : MutableListIterator<E> {
+    private class Iterator<E>(
+            private val list: ArrayList<E>, private var index: Int = 0) : MutableListIterator<E> {
         private var lastIndex: Int = -1
 
         override fun hasPrevious(): Boolean = index > 0
-        override fun hasNext(): Boolean = index < length
+        override fun hasNext(): Boolean = index < list.length
 
         override fun previousIndex(): Int = index - 1
         override fun nextIndex(): Int = index
@@ -221,18 +222,18 @@ class ArrayList<E> private constructor(
         override fun previous(): E {
             if (index <= 0) throw IndexOutOfBoundsException()
             lastIndex = --index
-            return array[offset + lastIndex]
+            return list.array[list.offset + lastIndex]
         }
 
         override fun next(): E {
-            if (index >= length) throw IndexOutOfBoundsException()
+            if (index >= list.length) throw IndexOutOfBoundsException()
             lastIndex = index++
-            return array[offset + lastIndex]
+            return list.array[list.offset + lastIndex]
         }
 
         override fun set(element: E) {
-            checkIndex(lastIndex)
-            array[offset + lastIndex] = element
+            list.checkIndex(lastIndex)
+            list.array[list.offset + lastIndex] = element
         }
 
         override fun add(element: E) {
