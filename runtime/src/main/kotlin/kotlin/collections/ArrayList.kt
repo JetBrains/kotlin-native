@@ -2,11 +2,15 @@ package kotlin.collections
 
 class ArrayList<E> private constructor(
         private var array: Array<E>,
-        private var offset: Int = 0,
-        private var length: Int = 0
+        private var offset: Int,
+        private var length: Int
 ) : MutableList<E> {
 
-    constructor(initialCapacity: Int = 10) : this(arrayOfLateInitElements(initialCapacity))
+    constructor() : this(
+            arrayOfLateInitElements(10), 0, 0)
+
+    constructor(initialCapacity: Int) : this(
+            arrayOfLateInitElements(initialCapacity), 0, 0)
 
     constructor(c: Collection<E>) : this(c.size) {
         addAll(c)
@@ -181,11 +185,21 @@ class ArrayList<E> private constructor(
 
     // ---------------------------- private ----------------------------
 
-    private fun ensureExtraCapacity(n: Int = 1) {
+    private fun ensureExtraCapacity() {
+        ensureCapacity(length + 1)
+    }
+
+    private fun ensureExtraCapacity(n: Int) {
         ensureCapacity(length + n)
     }
 
-    private fun insertAt(index: Int, n: Int = 1) {
+    private fun insertAt(index: Int) {
+        ensureExtraCapacity()
+        array.copyRange(offset + index, offset + size, offset + index + 1)
+        length += 1
+    }
+
+    private fun insertAt(index: Int, n: Int) {
         ensureExtraCapacity(n)
         array.copyRange(offset + index, offset + size, offset + index + n)
         length += n
@@ -195,7 +209,11 @@ class ArrayList<E> private constructor(
         if (index < 0 || index >= length) throw IndexOutOfBoundsException()
     }
 
-    private fun checkIteratorIndex(index: Int, fromIndex: Int = 0) {
+    private fun checkIteratorIndex(index: Int) {
+        if (index < 0|| index > length) throw IndexOutOfBoundsException()
+    }
+
+    private fun checkIteratorIndex(index: Int, fromIndex: Int) {
         if (index < fromIndex || index > length) throw IndexOutOfBoundsException()
     }
 
@@ -223,7 +241,6 @@ class ArrayList<E> private constructor(
             this.list = list
             this.index = 0
         }
-
 
         private var lastIndex: Int = -1
 

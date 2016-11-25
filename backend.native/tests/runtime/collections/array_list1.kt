@@ -8,7 +8,7 @@ fun assertFalse(cond: Boolean) {
         println("FAIL")
 }
 
-fun assertEquals(value1: Int, value2: Int) {
+fun assertEquals(value1: Any, value2: Any) {
     if (value1 != value2)
         println("FAIL")
 }
@@ -18,28 +18,28 @@ fun testBasic() {
     assertTrue(a.isEmpty())
     assertEquals(0, a.size)
 
-    assertTrue(a.add(1))
-    assertTrue(a.add(2))
-    assertTrue(a.add(3))
+    assertTrue(a.add("1"))
+    assertTrue(a.add("2"))
+    assertTrue(a.add("3"))
     assertFalse(a.isEmpty())
     assertEquals(3, a.size)
-    assertEquals(1, a[0])
-    assertEquals(2, a[1])
-    assertEquals(3, a[2])
+    assertEquals("1", a[0])
+    assertEquals("2", a[1])
+    assertEquals("3", a[2])
 
-    a[0] = 11
-    assertEquals(11, a[0])
+    a[0] = "11"
+    assertEquals("11", a[0])
 
-    assertEquals(11, a.removeAt(0))
-    assertEquals(2, a.size)
-    assertEquals(2, a[0])
-    assertEquals(3, a[1])
+    assertEquals("11", a.removeAt(0))
+    assertEquals("2", a.size)
+    assertEquals("2", a[0])
+    assertEquals("3", a[1])
 
-    a.add(1, 22)
+    a.add("1", "22")
     assertEquals(3, a.size)
-    assertEquals(2, a[0])
-    assertEquals(22, a[1])
-    assertEquals(3, a[2])
+    assertEquals("2", a[0])
+    assertEquals("22", a[1])
+    assertEquals("3", a[2])
 
     a.clear()
     assertTrue(a.isEmpty())
@@ -47,10 +47,10 @@ fun testBasic() {
 }
 
 fun makeList() {
-    val a = ArrayList<Int>()
-    a.add(1)
-    a.add(2)
-    a.add(3)
+    val a = ArrayList<String>()
+    a.add("1")
+    a.add("2")
+    a.add("3")
     return a
 }
 
@@ -58,24 +58,24 @@ fun testIterator() {
     val a = makeList()
     val it = a.iterator()
     assertTrue(it.hasNext())
-    assertEquals(1, it.next())
+    assertEquals("1", it.next())
     assertTrue(it.hasNext())
-    assertEquals(2, it.next())
+    assertEquals("2", it.next())
     assertTrue(it.hasNext())
-    assertEquals(3, it.next())
+    assertEquals("3", it.next())
     assertFalse(it.hasNext())
 }
 
 fun testRemove() {
     val a = makeList()
-    assertTrue(a.remove(2))
+    assertTrue(a.remove("2"))
     assertEquals(2, a.size)
-    assertEquals(1, a[0])
-    assertEquals(3, a[1])
-    assertFalse(a.remove(2))
+    assertEquals("1", a[0])
+    assertEquals("3", a[1])
+    assertFalse(a.remove("2"))
     assertEquals(2, a.size)
-    assertEquals(1, a[0])
-    assertEquals(3, a[1])
+    assertEquals("1", a[0])
+    assertEquals("3", a[1])
 }
 
 /* Enable with ranges and listOf().
