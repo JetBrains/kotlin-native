@@ -11,7 +11,9 @@ import org.jetbrains.kotlin.descriptors.impl.LocalVariableDescriptor
 import org.jetbrains.kotlin.descriptors.impl.*
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.declarations.impl.*
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltinOperatorDescriptorBase
 import org.jetbrains.kotlin.ir.descriptors.IrTemporaryVariableDescriptor
 import org.jetbrains.kotlin.ir.expressions.*
@@ -298,6 +300,18 @@ private fun IrSetVarWithNewType(value: IrSetVariable, newClassDescriptor: ClassD
 
 }
 
+private fun IrVarWithNewType(value: IrVariable, newClassDescriptor: ClassDescriptor): IrVariable {
+    val newValueDescriptor = changeType(value.descriptor, newClassDescriptor.getDefaultType())
+
+    var newVariable = IrVariableImpl(value.startOffset,
+                                     value.endOffset,
+                                     value.origin,
+                                     newValueDescriptor as VariableDescriptor, // FIXME: remove as
+                                     value.initializer)
+    return newVariable
+
+}
+
 private fun keyByCallee(callee: IrCall): Pair<String, List<String>> {
     val descriptor = callee.descriptor.original as FunctionDescriptor
 
@@ -422,6 +436,23 @@ private fun rewriteClasses(module: IrModuleFragment, specializations: Specializa
             } else {
                 return value
             }
+        }
+
+        override fun visitVariable(value: IrVariable): IrStatement {
+            value.transformChildrenVoid(this)
+            println("")
+
+            val descriptor = value.descriptor
+            val type = descriptor.getType()
+            val key = keyByKotlinType(type)
+            val newClassDescriptor = specializations.classMapping[key]
+            if (newClassDescriptor != null) {
+                println("VARIABLE " + descriptor + " specialization MATCH on key" + key)
+                return IrVarWithNewType(value, newClassDescriptor)
+            } else {
+                return value
+            }
+ 
         }
 
 
