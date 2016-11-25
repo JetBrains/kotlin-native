@@ -449,7 +449,6 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             is IrTemporaryVariableDescriptor,
             is ValueParameterDescriptor -> {
                 val variable = codegen.variable(value.descriptor.name.asString())
-                println(value.descriptor.name.toString())
                 return codegen.load(variable!!, tmpVariableName)
             }
             is LazyClassReceiverParameterDescriptor,
