@@ -1,18 +1,34 @@
 package kotlin.collections
 
-class ArrayList<E> private constructor(
-        private var array: Array<E>,
-        private var offset: Int,
-        private var length: Int
-) : MutableList<E> {
+class ArrayList<E> : MutableList<E> {
+    private var array: Array<E>
+    private var offset: Int
+    private var length: Int
 
-    constructor() : this(
-            arrayOfLateInitElements(10), 0, 0)
+    private constructor(array: Array<E>, offset: Int, lenght: Int) {
+        this.array = array
+        this.offset = offset
+        this.length = lenght
+    }
 
-    constructor(initialCapacity: Int) : this(
-            arrayOfLateInitElements(initialCapacity), 0, 0)
 
-    constructor(c: Collection<E>) : this(c.size) {
+    constructor() {
+        this.array = arrayOfLateInitElements(10)
+        this.offset = 0
+        this.length = 0
+    }
+
+    constructor(initialCapacity: Int) {
+        this.array = arrayOfLateInitElements(initialCapacity)
+        this.offset = 0
+        this.length = 0
+    }
+
+
+    constructor(c: Collection<E>) {
+        this.array = arrayOfLateInitElements(c.size)
+        this.offset = 0
+        this.length = 0
         addAll(c)
     }
 
@@ -161,6 +177,7 @@ class ArrayList<E> private constructor(
                         contentEquals(other)
     }
 
+    /* TODO: fix translator
     override fun hashCode(): Int {
         var result = 1
         var i = 0
@@ -169,7 +186,7 @@ class ArrayList<E> private constructor(
             i++
         }
         return result
-    }
+    } */
 
     override fun toString(): String {
         var result = "["
