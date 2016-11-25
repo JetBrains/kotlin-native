@@ -433,3 +433,7 @@ task box_specialization(type: RunKonanTest) {
     goldValue = "19\n17\n17\n"
     source = "runtime/basic/box_specialization.kt"
 }
+task interface_specialization(type: RunKonanTest) {
+    goldValue = "Specific Float 1.2 3.4\n"
+    source = "runtime/basic/interface_specialization.kt"
+}

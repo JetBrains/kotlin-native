@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.resolve.scopes.*
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
+import org.jetbrains.kotlin.types.*
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.typeUtil.isNullableNothing
@@ -121,6 +122,7 @@ class CollectUserProvidedNamesVisitor(var specializations: Specializations): IrE
     }
 }
 
+/*
 private fun changeReceiverParameter(oldDescriptor: FunctionDescriptor, receiverParameter: ReceiverParameterDescriptor? ): FunctionDescriptor {
     val newDescriptor = SimpleFunctionDescriptorImpl.create(
             oldDescriptor.containingDeclaration,
@@ -145,6 +147,7 @@ private fun changeReceiverParameter(oldDescriptor: FunctionDescriptor, receiverP
     return newDescriptor
 
 }
+*/
 
 private fun IrCallWithNewDescriptor(call: IrCall, newDescriptor: CallableDescriptor): IrCall {
 
@@ -167,21 +170,6 @@ private fun IrCallWithNewDescriptor(call: IrCall, newDescriptor: CallableDescrip
     return newCall
 }
 
-
-// FIXME: shamelessly copied and pasted from RTTI generator
-private fun ClassDescriptor.getContributedMethods(): List<FunctionDescriptor> {
-    val contributedDescriptors = unsubstitutedMemberScope.getContributedDescriptors()
-    // (includes declarations from supers)
-
-    val functions = contributedDescriptors.filterIsInstance<FunctionDescriptor>()
-
-    val properties = contributedDescriptors.filterIsInstance<PropertyDescriptor>()
-    val getters = properties.mapNotNull { it.getter }
-    val setters = properties.mapNotNull { it.setter }
-
-    val allMethods = functions + getters + setters
-    return allMethods
-}
 
 private fun allMembers(clazz: ClassDescriptor): List<DeclarationDescriptor> {
     val members = clazz.unsubstitutedMemberScope.getContributedDescriptors()
@@ -344,7 +332,14 @@ private fun keyByClassCallee(classDescriptor: ClassDescriptor, callee: IrCall): 
 }
 
 private fun keyByKotlinType(type: KotlinType): Pair<String, List<String>> {
-    val name = "kclass:" + type.constructor
+    val typeDeclarationDescriptor = type.constructor.getDeclarationDescriptor()
+
+    if (typeDeclarationDescriptor !is ClassDescriptor) {
+        return Pair("%Irrelevant", listOf())
+    }
+
+    println(typeDeclarationDescriptor as ClassDescriptor)
+    val name = (typeDeclarationDescriptor as ClassDescriptor).symbolName
     val typeNames = type.arguments.map{it -> it.toString()}
 
     val pair = Pair("$name", typeNames)
