@@ -3,7 +3,7 @@ package kotlin.collections
 @SymbolName("Kotlin_Array_emptyArrayImpl")
 external private fun emptyArrayImpl() : Array<Any?>
 
-private val emptyArray: Array<Any?> = emptyArrayImpl()
+// private val emptyArray: Array<Any?> = emptyArrayImpl()
 
 /**
  * Returns an array of objects of the given type with the given [size], initialized with **lateinit** _uninitialized_ values.
@@ -11,7 +11,8 @@ private val emptyArray: Array<Any?> = emptyArrayImpl()
  * either throwing exception or returning some kind of implementation-specific default value.
  */
 fun <E> arrayOfLateInitElements(size: Int): Array<E> {
-    return (if (size == 0) emptyArray else Array<Any>(size)) as Array<E>
+   // return (if (size == 0) emptyArray else Array<Any>(size)) as Array<E>
+   return Array<Any>(size) as Array<E>
 }
 
 /**
