@@ -226,12 +226,17 @@ private fun sameMember(newClassDescriptor: ClassDescriptor,
 private fun IrCallWithNewClassDescriptor(call: IrCall, newClassDescriptor: ClassDescriptor, receiver: ReceiverParameterDescriptor?): IrCall {
 
 // FIXME: remove 'as'
-    val specializedDescriptor: FunctionDescriptor = sameMember(newClassDescriptor, call.descriptor.original as FunctionDescriptor) as FunctionDescriptor
+    val specializedDescriptor = sameMember(newClassDescriptor, call.descriptor.original)
 
-    val newCalleeDescriptor = if (specializedDescriptor is ConstructorDescriptor)  {
-        specializedDescriptor 
-    } else {
-        changeReceiverParameter(specializedDescriptor, receiver)
+
+    val newCalleeDescriptor = 
+    when (specializedDescriptor) {
+        is ConstructorDescriptor -> specializedDescriptor
+        is PropertyGetterDescriptor -> { println("PROPERTY GETTER" + specializedDescriptor); specializedDescriptor}
+        is PropertySetterDescriptor -> { println("PROPERTY SETTER" + specializedDescriptor); specializedDescriptor}
+        //is SimpleFunctionDescriptor -> changeReceiverParameter(specializedDescriptor, receiver)
+        is SimpleFunctionDescriptor -> specializedDescriptor
+        else -> { TODO() }
     }
 
     var newCall =  IrCallImpl(call.startOffset, 
@@ -396,7 +401,7 @@ private fun rewriteClasses(module: IrModuleFragment, specializations: Specializa
             }
             val newClassDescriptor = specializations.classMapping[key] 
             if (newClassDescriptor != null) {
-                println("Specialization MATCH on key" + key)
+                println("CALL specialization MATCH on key" + key)
                 // FIXME: CHANGE receiver should be with a new type
                 return IrCallWithNewClassDescriptor(callee, newClassDescriptor!!, receiver)
             } else {
@@ -415,7 +420,7 @@ private fun rewriteClasses(module: IrModuleFragment, specializations: Specializa
             val key = keyByKotlinType(type)
             val newClassDescriptor = specializations.classMapping[key]
             if (newClassDescriptor != null) {
-                println("VARIABLE " + descriptor + " specialization MATCH on key" + key)
+                println("GET_VAR " + descriptor + " specialization MATCH on key" + key)
                 return IrGetVarWithNewType(value, newClassDescriptor)
             } else {
                 return value
@@ -431,7 +436,7 @@ private fun rewriteClasses(module: IrModuleFragment, specializations: Specializa
             val key = keyByKotlinType(type)
             val newClassDescriptor = specializations.classMapping[key]
             if (newClassDescriptor != null) {
-                println("VARIABLE " + descriptor + " specialization MATCH on key" + key)
+                println("SET_VAR " + descriptor + " specialization MATCH on key" + key)
                 return IrSetVarWithNewType(value, newClassDescriptor)
             } else {
                 return value
@@ -447,7 +452,7 @@ private fun rewriteClasses(module: IrModuleFragment, specializations: Specializa
             val key = keyByKotlinType(type)
             val newClassDescriptor = specializations.classMapping[key]
             if (newClassDescriptor != null) {
-                println("VARIABLE " + descriptor + " specialization MATCH on key" + key)
+                println("VAR" + descriptor + " specialization MATCH on key" + key)
                 return IrVarWithNewType(value, newClassDescriptor)
             } else {
                 return value

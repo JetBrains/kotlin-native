@@ -429,3 +429,7 @@ task specialization0(type: RunKonanTest) {
     source = "codegen/object/specialization0.kt"
 }
 
+task box_specialization(type: RunKonanTest) {
+    goldValue = "19\n17\n17\n"
+    source = "runtime/basic/box_specialization.kt"
+}
