@@ -15,9 +15,7 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltinOperatorDescriptorBase
 import org.jetbrains.kotlin.ir.descriptors.IrTemporaryVariableDescriptor
 import org.jetbrains.kotlin.ir.expressions.*
-import org.jetbrains.kotlin.ir.expressions.impl.IrBinaryPrimitiveImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrSetterCallImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
+import org.jetbrains.kotlin.ir.expressions.impl.*
 import org.jetbrains.kotlin.ir.visitors.*
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.DescriptorUtils
@@ -252,6 +250,54 @@ private fun IrCallWithNewClassDescriptor(call: IrCall, newClassDescriptor: Class
 
     return newCall
 }
+
+private fun changeType(old: ValueDescriptor, type: KotlinType): ValueDescriptor {
+    val new = 
+     when (old) {
+         is LocalVariableDescriptor -> LocalVariableDescriptor(
+                                            old.containingDeclaration,
+                                            old.annotations,
+                                            old.name, /// Shouldn't we introduce a new name?
+                                            type,
+                                            (old as LocalVariableDescriptor).isVar(),
+                                            old.isDelegated(),
+                                            old.source)
+         is ValueParameterDescriptor,
+         is IrTemporaryVariableDescriptor,
+         is LazyClassReceiverParameterDescriptor -> old // CHANGE!!!!
+         else -> {
+             TODO()
+         }
+     }
+
+
+    println("REWRITTEN VALUE: " + old + " -> " + new)
+    return new
+}
+
+private fun IrGetVarWithNewType(value: IrGetValue, newClassDescriptor: ClassDescriptor): IrGetValue {
+    val newValueDescriptor = changeType(value.descriptor, newClassDescriptor.getDefaultType())
+
+    var newGetValue = IrGetValueImpl(value.startOffset,
+                                     value.endOffset,
+                                     newValueDescriptor,
+                                     value.origin)
+    return newGetValue
+
+}
+
+private fun IrSetVarWithNewType(value: IrSetVariable, newClassDescriptor: ClassDescriptor): IrSetVariable {
+    val newValueDescriptor = changeType(value.descriptor, newClassDescriptor.getDefaultType())
+
+    var newSetVariable = IrSetVariableImpl(value.startOffset,
+                                     value.endOffset,
+                                     newValueDescriptor as VariableDescriptor, // FIXME: remove as
+                                     value.value,
+                                     value.origin)
+    return newSetVariable
+
+}
+
 private fun keyByCallee(callee: IrCall): Pair<String, List<String>> {
     val descriptor = callee.descriptor.original as FunctionDescriptor
 
@@ -341,6 +387,40 @@ private fun rewriteClasses(module: IrModuleFragment, specializations: Specializa
                 return IrCallWithNewClassDescriptor(callee, newClassDescriptor!!, receiver)
             } else {
                 return callee
+            }
+        }
+
+
+
+        override fun visitGetValue(value: IrGetValue): IrExpression {
+            value.transformChildrenVoid(this)
+            println("")
+
+            val descriptor = value.descriptor
+            val type = descriptor.getType()
+            val key = keyByKotlinType(type)
+            val newClassDescriptor = specializations.classMapping[key]
+            if (newClassDescriptor != null) {
+                println("VARIABLE " + descriptor + " specialization MATCH on key" + key)
+                return IrGetVarWithNewType(value, newClassDescriptor)
+            } else {
+                return value
+            }
+        }
+
+        override fun visitSetVariable(value: IrSetVariable): IrExpression {
+            value.transformChildrenVoid(this)
+            println("")
+
+            val descriptor = value.descriptor
+            val type = descriptor.getType()
+            val key = keyByKotlinType(type)
+            val newClassDescriptor = specializations.classMapping[key]
+            if (newClassDescriptor != null) {
+                println("VARIABLE " + descriptor + " specialization MATCH on key" + key)
+                return IrSetVarWithNewType(value, newClassDescriptor)
+            } else {
+                return value
             }
         }
 
