@@ -62,18 +62,6 @@ void Kotlin_Array_copyImpl(const ArrayHeader* array, KInt fromIndex,
         ArrayAddressOfElementAt(array, fromIndex), count * sizeof(KRef));
 }
 
-// TODO: reconsider!
-extern const TypeInfo* theArrayTypeInfo;
-
-const ArrayHeader* Kotlin_Array_emptyArrayImpl() {
-    // TODO: do it better.
-    static ArrayHeader* result = nullptr;
-    if (result == nullptr) {
-        result = ArrayContainer(theArrayTypeInfo, 0).GetPlace();
-    }
-    return result;
-}
-
 // Arrays.kt
 KByte Kotlin_ByteArray_get(const ArrayHeader* obj, KInt index) {
   if (static_cast<uint32_t>(index) >= obj->count_) {

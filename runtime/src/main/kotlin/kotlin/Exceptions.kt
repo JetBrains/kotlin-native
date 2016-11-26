@@ -138,6 +138,11 @@ public class AssertionError : Error {
     }
 }
 
+// TODO: does it belong here?
+fun TODO() {
+    throw UnsupportedOperationException()
+}
+
 fun TODO(message: String) {
     throw UnsupportedOperationException(message)
 }

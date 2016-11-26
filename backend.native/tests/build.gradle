@@ -410,17 +410,6 @@ task interface0(type: RunKonanTest) {
     source = "runtime/basic/interface0.kt"
 }
 */
-
-task array_list0(type: RunKonanTest) {
-    goldValue = "element 1\n" +
-            "element 2\n" +
-            "element 3\n" +
-            "element 4\n" +
-            "element 5\n"
-    source = "runtime/collections/array_list0.kt"
-}
-
-// array_list1 fails in frontend.
 task array_list1(type: RunKonanTest) {
     goldValue = "OK\n"
     source = "runtime/collections/array_list1.kt"

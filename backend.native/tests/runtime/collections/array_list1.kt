@@ -273,7 +273,6 @@ fun testIteratorAdd() {
             it.add("-" + next)
         it.next()
     }
-    println(a.toString())
     //assertEquals(listOf("1", "2", "-2", "3", "4", "-4", "5"), a)
 }
 
@@ -293,7 +292,7 @@ fun main(args : Array<String>) {
     testSubListIndexOf()
     testSubListLastIndexOf()
     // Fails due to unknown virtual method call!
-    //testIteratorAdd()
+    // testIteratorAdd()
     // testIteratorRemove()
     println("OK")
 }

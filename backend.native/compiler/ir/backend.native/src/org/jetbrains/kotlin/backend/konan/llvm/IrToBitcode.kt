@@ -851,9 +851,6 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         val arg0Type = callee.argument0.type
         val arg1Type = callee.argument1.type
 
-        // Seems this assert is not correct.
-        // assert(arg0Type == arg1Type || arg0Type.isNullableNothing() || arg1Type.isNullableNothing())
-
         return when {
             KotlinBuiltIns.isPrimitiveType(arg0Type) -> TODO("${ir2string(callee)}")
             else -> codegen.icmpEq(arg0, arg1, tmpVariableName)
