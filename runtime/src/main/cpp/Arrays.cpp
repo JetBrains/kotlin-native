@@ -53,8 +53,8 @@ void Kotlin_Array_fillImpl(ArrayHeader* array, KInt fromIndex,
 
 void Kotlin_Array_copyImpl(const ArrayHeader* array, KInt fromIndex,
                            ArrayHeader* destination, KInt toIndex, KInt count) {
-    if (fromIndex < 0 || fromIndex + count >= array->count_ ||
-        toIndex < 0 || toIndex + count >= destination->count_) {
+    if (fromIndex < 0 || fromIndex + count > array->count_ ||
+        toIndex < 0 || toIndex + count > destination->count_) {
         ThrowArrayIndexOutOfBoundsException();
     }
     // TODO: refcounting!

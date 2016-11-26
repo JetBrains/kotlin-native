@@ -382,6 +382,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             is IrThrow               -> return evaluateThrow              (tmpVariableName, value)
             is IrStringConcatenation -> return evaluateStringConcatenation(tmpVariableName, value)
             is IrBlockBody           -> return evaluateBlock              (                 value as IrStatementContainer)
+            is IrWhileLoop           -> return evaluateWhileLoop          (                 value)
             null                     -> return null
             else                     -> {
                 TODO("${ir2string(value)}")
@@ -437,6 +438,12 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         }
         if  (neitherUnitNorNothing)                                      // If result hasn't Unit type and block doesn't end with return
             return codegen.load(tmpLlvmVariablePtr!!, tmpVariableName)   // load value from variable.
+        return null
+    }
+
+    private fun evaluateWhileLoop(loop: IrWhileLoop): LLVMValueRef? {
+        visitWhileLoop(loop)
+        // TODO: incorrect!
         return null
     }
 

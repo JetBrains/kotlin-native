@@ -102,60 +102,35 @@ class ArrayList<E> : MutableList<E> {
     }
 
     override fun add(element: E): Boolean {
-        if (backing != null) {
-            backing.addAtInternal(offset + length, element)
-            array = backing.array
-            length = length + 1
-        } else {
-            ensureExtraCapacity(1)
-            array[offset + length++] = element
-        }
+        addAtInternal(offset + length, element)
         return true
     }
 
     override fun add(index: Int, element: E) {
         checkInsertIndex(index)
-        if (backing != null) {
-            backing.addAtInternal(offset + index, element)
-            array = backing.array
-            length = length + 1
-        } else {
-            addAtInternal(offset + index, element)
-        }
+        addAtInternal(offset + index, element)
+    }
+
+    override fun addAll(elements: Collection<E>): Boolean {
+        val n = elements.size
+        addAllInternal(offset + length, elements, n)
+        return n > 0
     }
 
     override fun addAll(index: Int, elements: Collection<E>): Boolean {
         checkInsertIndex(index)
         val n = elements.size
-        if (backing != null) {
-            val result = backing.addAllInternal(elements, offset + index, n)
-            array = backing.array
-            length += n
-            return result
-        } else {
-            return addAllInternal(elements, offset + index, n)
-        }
+        addAllInternal(offset + index, elements, n)
+        return n > 0
     }
 
-    override fun addAll(elements: Collection<E>): Boolean = addAll(length, elements)
-
     override fun clear() {
-        if (backing != null)
-            backing.removeRangeInternal(offset, length)
-        else
-            array.resetRange(fromIndex = offset, toIndex = offset + length)
-        length = 0
+        removeRangeInternal(offset, length)
     }
 
     override fun removeAt(index: Int): E {
         checkIndex(index)
-        if (backing != null) {
-            val old = backing.removeAtInternal(offset + index)
-            length--
-            return old
-        } else {
-            return removeAtInternal(offset + index)
-        }
+        return removeAtInternal(offset + index)
     }
 
     override fun remove(element: E): Boolean {
@@ -174,13 +149,7 @@ class ArrayList<E> : MutableList<E> {
     }
 
     override fun retainAll(elements: Collection<E>): Boolean {
-        if (backing != null) {
-            val removed = retainAllInternal(elements)
-            backing.removeRangeInternal(offset + length, removed)
-            return removed > 0
-        } else {
-            return retainAllInternal(elements) > 0
-        }
+        return retainAllInRangeInternal(offset, length, elements) > 0
     }
 
     override fun subList(fromIndex: Int, toIndex: Int): MutableList<E> {
@@ -190,11 +159,13 @@ class ArrayList<E> : MutableList<E> {
     }
 
     fun trimToSize() {
+        if (backing != null) throw IllegalStateException() // just in case somebody casts subList to ArrayList
         if (length < array.size)
             array = array.copyOfLateInitElements(length)
     }
 
     fun ensureCapacity(capacity: Int) {
+        if (backing != null) throw IllegalStateException() // just in case somebody casts subList to ArrayList
         if (capacity > array.size) {
             var newSize = array.size * 3 / 2
             if (capacity > newSize)
@@ -204,9 +175,9 @@ class ArrayList<E> : MutableList<E> {
     }
 
     override fun equals(other: Any?): Boolean {
+        //TODO: rethink instance checks, shall it be other is List<*>?
         return other === this ||
-                (other is List<*>) &&
-                        contentEquals(other)
+                (other is ArrayList<*>) && contentEquals(other)
     }
 
     /*
@@ -218,7 +189,7 @@ class ArrayList<E> : MutableList<E> {
             i++
         }
         return result
-    }*/
+    } */
 
     override fun toString(): String {
         var result = "["
@@ -267,49 +238,79 @@ class ArrayList<E> : MutableList<E> {
     }
 
     private fun addAtInternal(i: Int, element: E) {
-        insertAtInternal(i, 1)
-        array[i] = element
+        if (backing != null) {
+            backing.addAtInternal(i, element)
+            array = backing.array
+            // length++ kills translation
+            length = length + 1
+        } else {
+            insertAtInternal(i, 1)
+            array[i] = element
+        }
     }
 
-    private fun addAllInternal(elements: Collection<E>, i: Int, n: Int): Boolean {
-        insertAtInternal(i, n)
-        var j = 0
-        val it = elements.iterator()
-        while (j < n) {
-            array[i + j] = it.next()
-            j++
+    private fun addAllInternal(i: Int, elements: Collection<E>, n: Int) {
+        if (backing != null) {
+            backing.addAllInternal(i, elements, n)
+            array = backing.array
+            length += n
+        } else {
+            insertAtInternal(i, n)
+            var j = 0
+            val it = elements.iterator()
+            while (j < n) {
+                array[i + j] = it.next()
+                j++
+            }
         }
-        return n > 0
     }
 
     private fun removeAtInternal(i: Int): E {
-        val old = array[i]
-        array.copyRange(fromIndex = i + 1, toIndex = offset + length, destinationIndex = i)
-        array.resetAt(offset + length - 1)
-        length--
-        return old
+        if (backing != null) {
+            val old = backing.removeAtInternal(i)
+            length--
+            return old
+        } else {
+            val old = array[i]
+            array.copyRange(fromIndex = i + 1, toIndex = offset + length, destinationIndex = i)
+            array.resetAt(offset + length - 1)
+            length--
+            return old
+        }
     }
 
     private fun removeRangeInternal(rangeOffset: Int, rangeLength: Int) {
-        array.copyRange(fromIndex = rangeOffset + rangeLength, toIndex = length, destinationIndex = rangeOffset)
-        array.resetRange(fromIndex = length - rangeLength, toIndex = length)
+        if (backing != null) {
+            backing.removeRangeInternal(rangeOffset, rangeLength)
+        } else {
+            array.copyRange(fromIndex = rangeOffset + rangeLength, toIndex = length, destinationIndex = rangeOffset)
+            array.resetRange(fromIndex = length - rangeLength, toIndex = length)
+        }
         length -= rangeLength
     }
 
-    private fun retainAllInternal(elements: Collection<E>): Int {
-        var i = 0
-        var j = 0
-        while (i < length) {
-            if (elements.contains(array[offset + i])) {
-                array[offset + j++] = array[offset + i++]
-            } else {
-                i = i + 1
+    private fun retainAllInRangeInternal(rangeOffset: Int, rangeLength: Int, elements: Collection<E>): Int {
+        if (backing != null) {
+            val removed = backing.retainAllInRangeInternal(rangeOffset, rangeLength, elements)
+            length -= removed
+            return removed
+        } else {
+            var i = 0
+            var j = 0
+            while (i < rangeLength) {
+                if (elements.contains(array[rangeOffset + i])) {
+                    array[rangeOffset + j++] = array[rangeOffset + i++]
+                } else {
+                    // TODO: i++ kills translation.
+                    i = i + 1
+                }
             }
+            val removed = rangeLength - j
+            array.copyRange(fromIndex = rangeOffset + rangeLength, toIndex = length, destinationIndex = rangeOffset + j)
+            array.resetRange(fromIndex = length - removed, toIndex = length)
+            length -= removed
+            return removed
         }
-        array.resetRange(fromIndex = offset + j, toIndex = length)
-        val removed = length - j
-        length = j
-        return removed
     }
 
     private class Itr<E>(

@@ -8,13 +8,23 @@ fun assertFalse(cond: Boolean) {
         println("FAIL")
 }
 
-fun assertEquals(value1: Any, value2: Any) {
+fun assertEquals(value1: String, value2: String) {
+    if (value1 != value2)
+        println("FAIL")
+}
+
+fun assertEquals(value1: ArrayList<String>, value2: ArrayList<String>) {
+    if (value1 != value2)
+        println("FAIL")
+}
+
+fun assertEquals(value1: Int, value2: Int) {
     if (value1 != value2)
         println("FAIL")
 }
 
 fun testBasic() {
-    val a = ArrayList<Int>()
+    val a = ArrayList<String>()
     assertTrue(a.isEmpty())
     assertEquals(0, a.size)
 
@@ -31,11 +41,11 @@ fun testBasic() {
     assertEquals("11", a[0])
 
     assertEquals("11", a.removeAt(0))
-    assertEquals("2", a.size)
+    assertEquals(2, a.size)
     assertEquals("2", a[0])
     assertEquals("3", a[1])
 
-    a.add("1", "22")
+    a.add(1, "22")
     assertEquals(3, a.size)
     assertEquals("2", a[0])
     assertEquals("22", a[1])
@@ -46,7 +56,7 @@ fun testBasic() {
     assertEquals(0, a.size)
 }
 
-fun makeList() {
+fun makeList123() : ArrayList<String> {
     val a = ArrayList<String>()
     a.add("1")
     a.add("2")
@@ -54,8 +64,59 @@ fun makeList() {
     return a
 }
 
+fun makeList12345() : ArrayList<String> {
+    val a = ArrayList<String>()
+    a.add("1")
+    a.add("2")
+    a.add("3")
+    a.add("4")
+    a.add("5")
+    return a
+}
+
+fun makeList01234() : ArrayList<String> {
+    val a = ArrayList<String>()
+    a.add("0")
+    a.add("1")
+    a.add("2")
+    a.add("3")
+    a.add("4")
+    return a
+}
+
+fun makeList678() : ArrayList<String> {
+    val a = ArrayList<String>()
+    a.add("6")
+    a.add("7")
+    a.add("8")
+    return a
+}
+
+fun makeList531() : ArrayList<String> {
+    val a = ArrayList<String>()
+    a.add("5")
+    a.add("3")
+    a.add("1")
+    return a
+}
+
+fun makeList135() : ArrayList<String> {
+    val a = ArrayList<String>()
+    a.add("1")
+    a.add("3")
+    a.add("5")
+    return a
+}
+
+fun makeList24() : ArrayList<String> {
+    val a = ArrayList<String>()
+    a.add("2")
+    a.add("4")
+    return a
+}
+
 fun testIterator() {
-    val a = makeList()
+    val a = makeList123()
     val it = a.iterator()
     assertTrue(it.hasNext())
     assertEquals("1", it.next())
@@ -67,7 +128,7 @@ fun testIterator() {
 }
 
 fun testRemove() {
-    val a = makeList()
+    val a = makeList123()
     assertTrue(a.remove("2"))
     assertEquals(2, a.size)
     assertEquals("1", a[0])
@@ -78,54 +139,80 @@ fun testRemove() {
     assertEquals("3", a[1])
 }
 
-/* Enable with ranges and listOf().
+fun testRemoveAll() {
+    val a = ArrayList(makeList12345())
+    assertFalse(a.removeAll(makeList678()))
+    assertEquals(makeList12345(), a)
+    assertTrue(a.removeAll(makeList531()))
+    assertEquals(makeList24(), a)
+}
+
+fun testRetainAll() {
+    val a = makeList12345()
+    assertFalse(a.retainAll(makeList12345()))
+    assertEquals(makeList12345(), a)
+    assertTrue(a.retainAll(makeList531()))
+    assertEquals(makeList135(), a)
+}
+
 fun testEquals() {
-    val a = makeList(listOf(1, 2, 3))
-    assertTrue(a == listOf(1, 2, 3))
-    assertFalse(a == listOf(1, 2, 4))
-    assertFalse(a == listOf(1, 2))
+    val a = makeList123()
+    assertTrue(a == makeList123())
+    assertFalse(a == makeList135())
+    assertFalse(a == makeList24())
 }
 
 fun testHashCode() {
-    val a = ArrayList(listOf(1, 2, 3))
-    assertTrue(a.hashCode() == listOf(1, 2, 3).hashCode())
+    val a = makeList123()
+    assertTrue(a.hashCode() == makeList123().hashCode())
 }
 
 fun testToString() {
-    val a = ArrayList(listOf(1, 2, 3))
-    assertTrue(a.toString() == listOf(1, 2, 3).toString())
+    val a = makeList123()
+    assertTrue(a.toString() == makeList123().toString())
 }
 
 fun testSubList() {
-    val a0 = ArrayList(listOf(0, 1, 2, 3, 4))
+    val a0 = makeList01234()
     val a = a0.subList(1, 4)
     assertEquals(3, a.size)
-    assertEquals(1, a[0])
-    assertEquals(2, a[1])
-    assertEquals(3, a[2])
-    assertTrue(a == listOf(1, 2, 3))
-    assertTrue(a.hashCode() == listOf(1, 2, 3).hashCode())
-    assertTrue(a.toString() == listOf(1, 2, 3).toString())
+    assertEquals("1", a[0])
+    assertEquals("2", a[1])
+    assertEquals("3", a[2])
+    assertTrue(a == makeList123())
+    // assertTrue(a.hashCode() == makeList123().hashCode())
+    assertTrue(a.toString() == makeList123().toString())
 }
 
 fun testResize() {
-    val a = ArrayList<Int>()
+    val a = ArrayList<String>()
     val n = 10000
-    for (i in 1..n)
-        assertTrue(a.add(i))
+    var i = 0
+    while (i++ < n)
+        assertTrue(a.add(i.toString()))
     assertEquals(n, a.size)
-    for (i in 1..n)
-        assertEquals(i, a[i - 1])
+    i = 0
+    while (i++ < n)
+        assertEquals(i.toString(), a[i - 1])
     a.trimToSize()
     assertEquals(n, a.size)
-    for (i in 1..n)
-        assertEquals(i, a[i - 1])
-} */
-
+    i = 0
+    while (i++ < n)
+        assertEquals(i.toString(), a[i - 1])
+}
 
 fun main(args : Array<String>) {
     testBasic()
     testIterator()
     testRemove()
+    testRemoveAll()
+    // Fails due to unknown virtual method call!
+    // testRetainAll()
+    testEquals()
+    // Fails, as hashCode() is not implemented.
+    // testHashCode()
+    testToString()
+    testSubList()
+    testResize()
     println("OK")
 }

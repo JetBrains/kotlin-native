@@ -22,7 +22,7 @@ fun <E> arrayOfLateInitElements(size: Int): Array<E> {
  */
 fun <E> Array<E>.copyOfLateInitElements(newSize: Int): Array<E> {
     val result = Array<Any>(newSize) as Array<E>
-    this.copyRangeTo(result, 0, this.size, 0)
+    this.copyRangeTo(result, 0, if (newSize > this.size) this.size else newSize, 0)
     return result
 }
 
