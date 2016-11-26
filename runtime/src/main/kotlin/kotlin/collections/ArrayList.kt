@@ -225,7 +225,7 @@ class ArrayList<E> : MutableList<E> {
         var i = 0
         while (i < length) {
             if (i > 0) result += ", "
-            result += array[offset + i]
+            result += array[offset + i].toString()
             i++
         }
         result += "]"
