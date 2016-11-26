@@ -220,7 +220,8 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
     override fun visitBlockBody(body: IrBlockBody) {
         super.visitBlockBody(body)
-        if (KotlinBuiltIns.isUnit(codegen.currentFunction!!.returnType!!)) {
+        if (KotlinBuiltIns.isUnit(codegen.currentFunction!!.returnType!!)
+            && body.statements.lastOrNull() !is IrThrow) {                      // Don't try generate return at the end of the throwing block.
             codegen.ret(null)
         }
         logger.log("visitBlockBody             : ${ir2string(body)}")
