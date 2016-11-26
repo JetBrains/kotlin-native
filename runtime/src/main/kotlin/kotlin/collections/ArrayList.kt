@@ -180,16 +180,17 @@ class ArrayList<E> : MutableList<E> {
                 (other is ArrayList<*>) && contentEquals(other)
     }
 
-    /*
     override fun hashCode(): Int {
         var result = 1
         var i = 0
         while (i < length) {
-            result = result * 31 + (array[offset + i]?.hashCode() ?: 0)
+            val nextElement = array[offset + i]
+            val nextHash = if (nextElement != null) nextElement.hashCode() else 0
+            result = result * 31 + nextHash
             i++
         }
         return result
-    } */
+    }
 
     override fun toString(): String {
         var result = "["
@@ -313,11 +314,16 @@ class ArrayList<E> : MutableList<E> {
         }
     }
 
-    private class Itr<E>(
-            private val list: ArrayList<E>,
-            private var index: Int
-    ) : MutableListIterator<E> {
-        private var lastIndex: Int = -1
+    private class Itr<E> : MutableListIterator<E> {
+        private val list: ArrayList<E>
+        private var index: Int
+        private var lastIndex: Int
+
+        constructor(list: ArrayList<E>, index: Int) {
+            this.list = list
+            this.index = index
+            this.lastIndex = -1
+        }
 
         override fun hasPrevious(): Boolean = index > 0
         override fun hasNext(): Boolean = index < list.length

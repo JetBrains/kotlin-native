@@ -74,6 +74,16 @@ fun makeList12345() : ArrayList<String> {
     return a
 }
 
+fun makeList12341() : ArrayList<String> {
+    val a = ArrayList<String>()
+    a.add("1")
+    a.add("2")
+    a.add("3")
+    a.add("4")
+    a.add("1")
+    return a
+}
+
 fun makeList01234() : ArrayList<String> {
     val a = ArrayList<String>()
     a.add("0")
@@ -180,7 +190,7 @@ fun testSubList() {
     assertEquals("2", a[1])
     assertEquals("3", a[2])
     assertTrue(a == makeList123())
-    // assertTrue(a.hashCode() == makeList123().hashCode())
+    assertTrue(a.hashCode() == makeList123().hashCode())
     assertTrue(a.toString() == makeList123().toString())
 }
 
@@ -201,6 +211,72 @@ fun testResize() {
         assertEquals(i.toString(), a[i - 1])
 }
 
+fun testSubListContains() {
+    val a = makeList12345()
+    val s = a.subList(1, 3)
+    assertTrue(a.contains("1"))
+    assertFalse(s.contains("1"))
+    assertTrue(a.contains("2"))
+    assertTrue(s.contains("2"))
+    assertTrue(a.contains("3"))
+    assertTrue(s.contains("3"))
+    assertTrue(a.contains("4"))
+    assertFalse(s.contains("4"))
+}
+
+fun testSubListIndexOf() {
+    val a = makeList12341()
+    val s = a.subList(1, 3)
+    assertEquals(0, a.indexOf("1"))
+    assertEquals(-1, s.indexOf("1"))
+    assertEquals(1, a.indexOf("2"))
+    assertEquals(0, s.indexOf("2"))
+    assertEquals(2, a.indexOf("3"))
+    assertEquals(1, s.indexOf("3"))
+    assertEquals(3, a.indexOf("4"))
+    assertEquals(-1, s.indexOf("4"))
+}
+
+fun testSubListLastIndexOf() {
+    val a = makeList12341()
+    val s = a.subList(1, 3)
+    assertEquals(4, a.lastIndexOf("1"))
+    assertEquals(-1, s.lastIndexOf("1"))
+    assertEquals(1, a.lastIndexOf("2"))
+    assertEquals(0, s.lastIndexOf("2"))
+    assertEquals(2, a.lastIndexOf("3"))
+    assertEquals(1, s.lastIndexOf("3"))
+    assertEquals(3, a.lastIndexOf("4"))
+    assertEquals(-1, s.lastIndexOf("4"))
+}
+
+fun testIteratorRemove() {
+    val a = makeList12345()
+    val it = a.iterator()
+    var i = 1
+    while (it.hasNext()) {
+        if (i++ % 2 == 0) {
+            it.remove()
+        }
+        it.next()
+    }
+    assertEquals(makeList135(), a)
+}
+
+fun testIteratorAdd() {
+    val a = makeList12345()
+    val it = a.listIterator()
+    var i = 0
+    while (it.hasNext()) {
+        val next = it.next()
+        if (i++ % 2 == 0)
+            it.add("-" + next)
+        it.next()
+    }
+    println(a.toString())
+    //assertEquals(listOf("1", "2", "-2", "3", "4", "-4", "5"), a)
+}
+
 fun main(args : Array<String>) {
     testBasic()
     testIterator()
@@ -209,10 +285,15 @@ fun main(args : Array<String>) {
     // Fails due to unknown virtual method call!
     // testRetainAll()
     testEquals()
-    // Fails, as hashCode() is not implemented.
-    // testHashCode()
+    testHashCode()
     testToString()
     testSubList()
     testResize()
+    testSubListContains()
+    testSubListIndexOf()
+    testSubListLastIndexOf()
+    // Fails due to unknown virtual method call!
+    //testIteratorAdd()
+    // testIteratorRemove()
     println("OK")
 }
