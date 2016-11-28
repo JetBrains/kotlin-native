@@ -11,6 +11,8 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.visitors.*
 import org.jetbrains.kotlin.types.KotlinType
+import org.jetbrains.kotlin.descriptors.ClassKind.*
+
 
 
 //
@@ -173,7 +175,8 @@ internal fun keyByClassCallee(classDescriptor: ClassDescriptor, callee: IrCall):
 internal fun keyByKotlinType(type: KotlinType): Pair<String, List<String>> {
     val typeDeclarationDescriptor = type.constructor.getDeclarationDescriptor()
 
-    if (typeDeclarationDescriptor !is ClassDescriptor) {
+    if (typeDeclarationDescriptor !is ClassDescriptor ||
+        (typeDeclarationDescriptor as ClassDescriptor).kind == ANNOTATION_CLASS) {
         return Pair("%Irrelevant", listOf())
     }
 
