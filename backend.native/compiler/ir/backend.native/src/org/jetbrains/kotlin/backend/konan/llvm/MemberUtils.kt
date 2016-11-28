@@ -1,6 +1,7 @@
 package org.jetbrains.kotlin.backend.konan.optimizer
 
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.backend.konan.llvm.functionName
 
 internal fun allMembers(clazz: ClassDescriptor): List<DeclarationDescriptor> {
     val members = clazz.unsubstitutedMemberScope.getContributedDescriptors()
@@ -12,6 +13,14 @@ internal fun allMembers(clazz: ClassDescriptor): List<DeclarationDescriptor> {
     return allCombined.filterNotNull()
 }
 
+internal fun memberCanonicalName(descriptor: DeclarationDescriptor): String {
+    return when (descriptor) {
+         is FunctionDescriptor -> descriptor.name.asString()
+         is PropertyDescriptor -> descriptor.name.asString()
+         else -> TODO(descriptor.toString())
+        }
+}
+
 
 internal fun sameMember(newClassDescriptor: ClassDescriptor, 
                    calleeDescriptor: DeclarationDescriptor): DeclarationDescriptor {
@@ -19,24 +28,22 @@ internal fun sameMember(newClassDescriptor: ClassDescriptor,
     //FIXME remove as
     val oldMembers = allMembers(calleeDescriptor.getContainingDeclaration() as ClassDescriptor)
 
-    //if (oldMembers.size != newMembers.size) {
         oldMembers.forEach{ 
             println(" From: "+ it)
+            if (it is FunctionDescriptor) println(it.functionName)
         }
         newMembers.forEach{
             println("   To: "+it)
+            if (it is FunctionDescriptor) println(it.functionName)
         }
-     //   throw Error("Generic and specializer members differ")
-   // }
 
-
-    oldMembers.zip(newMembers).forEach { (old, new) -> 
-        println("COMPARING " + old.original + " WITH " + calleeDescriptor)
-        if (old.original == calleeDescriptor) {
-            println("REWRITE CALL: " + old + " -> " + new)
-            return new
+    newMembers.forEach {
+        println("COMPARING " + memberCanonicalName(it) + " WITH " + memberCanonicalName(calleeDescriptor))
+        if (memberCanonicalName(it) == memberCanonicalName(calleeDescriptor)) {
+            println("REWRITE CALL: " + calleeDescriptor + " -> " + it)
+            return it 
         }
-    } 
+    }
 
     throw Error("Could not find matching member")
 

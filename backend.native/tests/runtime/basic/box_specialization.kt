@@ -9,9 +9,9 @@ class AAA<T>(ttt: T) {
 
 @Specialization("kclass:AAA", "Byte")
 class BBB(ttt: Byte) {
-    var xxX = ttt
-    fun yyY(sss: Byte) {
-        xxX = sss
+    var xxx = ttt
+    fun yyy(sss: Byte) {
+        xxx = sss
     }
 }
 

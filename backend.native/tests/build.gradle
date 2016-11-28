@@ -425,7 +425,7 @@ task moderately_large_array(type: RunKonanTest) {
 }
 */
 task specialization0(type: RunKonanTest) {
-    goldValue = "17\n17\n"
+    goldValue = "15\n17\n15\n17\n"
     source = "codegen/object/specialization0.kt"
 }
 
