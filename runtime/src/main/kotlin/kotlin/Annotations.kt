@@ -39,5 +39,6 @@ public annotation class UnsafeVariance
 /**
  *  A function or class provides specialization for the 'genricName' for the given type arguments
  */
+@Repeatable
 public annotation class Specialization(val genericName: String, vararg val typeSubstitution: String)
 
