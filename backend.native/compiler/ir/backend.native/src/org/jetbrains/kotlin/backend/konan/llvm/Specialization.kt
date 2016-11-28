@@ -94,25 +94,22 @@ class CollectUserProvidedNamesVisitor(var context: SpecializationContext): IrEle
     override fun visitClass(clazz: IrClass) {
         clazz.acceptChildrenVoid(this)
 
-        println("SPECIALIZER: visitClass")
         val descriptor = clazz.descriptor.original as ClassDescriptor
 
         val annotation = descriptor.specializationAnnotation
         if (annotation == null) return
 
-        println("specialization class key: " + annotation)
 
         classMapping[annotation] = descriptor
     }
 
     override fun visitCall(callee: IrCall) {
         callee.acceptChildrenVoid(this)
-        println("SPECIALIZER: visitCall")
+
+        // FIXME: remove as
         val descriptor = callee.descriptor.original as FunctionDescriptor
 
         val annotation = descriptor.specializationAnnotation
-        //val annotation = (callee.descriptor as FunctionDescriptor).specializationAnnotation
-        if (annotation == null) { println("NO ANNOTATIONS\n") }
         if (annotation == null) return
 
         println("specialization func key: " + annotation)
