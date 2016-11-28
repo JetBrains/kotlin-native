@@ -3,7 +3,7 @@ package org.jetbrains.kotlin.cli.bc
 import com.intellij.openapi.Disposable
 import org.jetbrains.kotlin.analyzer.AnalysisResult
 import org.jetbrains.kotlin.backend.konan.llvm.emitLLVM
-import org.jetbrains.kotlin.backend.konan.optimizeIR
+import org.jetbrains.kotlin.backend.konan.optimizer.optimizeIR
 import org.jetbrains.kotlin.cli.common.CLICompiler
 import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.ExitCode
