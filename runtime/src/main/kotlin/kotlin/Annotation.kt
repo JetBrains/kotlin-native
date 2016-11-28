@@ -1,4 +1,4 @@
-package kotlin
+package kotlin.annotation
 
 /**
  * Base interface implicitly implemented by all annotation interfaces.
@@ -6,3 +6,7 @@ package kotlin
  * on annotations.
  */
 public interface Annotation
+
+@Target(AnnotationTarget.CLASS)
+public annotation class Repeatable
+
