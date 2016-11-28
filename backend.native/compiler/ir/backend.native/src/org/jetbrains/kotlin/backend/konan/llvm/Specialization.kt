@@ -77,15 +77,12 @@ class SpecializationContext {
 
 
 fun hazards(module: IrModuleFragment): Boolean {
-    // For now we just blindly allow ant specialization
-    // not caring to check for escapes 
+    // For now we just blindly allow any specialization
+    // not caring to check for escapes or incompatibilities
     return false
 }
 
 class CollectUserProvidedNamesVisitor(var context: SpecializationContext): IrElementVisitorVoid {
-
-    var funcMapping = context.funcMapping
-    var classMapping = context.classMapping
 
     override fun visitElement(element: IrElement) {
         element.acceptChildrenVoid(this)
@@ -101,7 +98,7 @@ class CollectUserProvidedNamesVisitor(var context: SpecializationContext): IrEle
 
 
         println("SPECIALIZATION: known key class: " + annotation)
-        classMapping[annotation] = descriptor
+        context.classMapping[annotation] = descriptor
     }
 
     override fun visitCall(callee: IrCall) {
@@ -115,7 +112,7 @@ class CollectUserProvidedNamesVisitor(var context: SpecializationContext): IrEle
 
         println("SPECIALIZATION: known key func: " + annotation)
 
-        funcMapping[annotation] = descriptor
+        context.funcMapping[annotation] = descriptor
 
     }
 
@@ -132,7 +129,7 @@ class CollectUserProvidedNamesVisitor(var context: SpecializationContext): IrEle
         if (annotation == null) return
 
         println("SPECIALIZATION: known key class (from var): " + annotation)
-        classMapping[annotation] = (typeDeclarationDescriptor as ClassDescriptor)
+        context.classMapping[annotation] = (typeDeclarationDescriptor as ClassDescriptor)
     }
 
 
