@@ -52,6 +52,6 @@ internal fun valueDescriptorWithNewType(old: ValueDescriptor, type: KotlinType):
         }
 
 
-    println("REWRITTEN VALUE: " + old + " -> " + new)
+    println("SPECIALIZATION: REWRITTEN VALUE: " + old + " -> " + new)
         return new
 }

@@ -440,6 +440,6 @@ task interface_specialization(type: RunKonanTest) {
 }
 
 task bytearray_specialization(type: RunKonanTest) {
-    goldValue = "0\n1\n2\n3\n4\n"
+    goldValue = "10\n"
     source = "runtime/basic/bytearray_specialization.kt"
 }

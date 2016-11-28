@@ -47,10 +47,6 @@ internal fun IrCallWithNewFunction(call: IrCall, newDescriptor: CallableDescript
         newCall.putValueArgument(i, call.getValueArgument(i))
     }
 
-    //println("HOW COME: " + newDescriptor.dispatchReceiverParameter)
-
-    //newDescriptor.dispatchReceiverParameter = call.descriptor.dispatchReceiverParameter
-
     return newCall
 }
 
@@ -59,18 +55,9 @@ internal fun IrCallWithNewClass(call: IrCall, newClassDescriptor: ClassDescripto
 
     val specializedDescriptor = sameMember(newClassDescriptor, call.descriptor.original)
 
-    val newCalleeDescriptor = 
-    when (specializedDescriptor) {
-        is ConstructorDescriptor -> specializedDescriptor
-        is PropertyGetterDescriptor -> { 
-            println("PROPERTY GETTER" + specializedDescriptor); 
-            specializedDescriptor}
-        is PropertySetterDescriptor -> { 
-            println("PROPERTY SETTER" + specializedDescriptor); 
-            specializedDescriptor}
-        is SimpleFunctionDescriptor -> specializedDescriptor
-        else -> { TODO() }
-    }
+    assert(specializedDescriptor is FunctionDescriptor)
+
+    val newCalleeDescriptor = specializedDescriptor as FunctionDescriptor
 
     var newCall =  IrCallImpl(call.startOffset, 
                               call.endOffset, 

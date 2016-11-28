@@ -64,7 +64,7 @@ fun applyUserProvidedBodies(module: IrModuleFragment) {
     }
 
     if (!context.funcMapping.isEmpty()) {
-        rewriteBodies(module, context)
+        rewriteFunctions(module, context)
         println("### Functions rewritten in module: " + ir2string(module))
     }
 
@@ -100,6 +100,7 @@ class CollectUserProvidedNamesVisitor(var context: SpecializationContext): IrEle
         if (annotation == null) return
 
 
+        println("SPECIALIZATION: known key class: " + annotation)
         classMapping[annotation] = descriptor
     }
 
@@ -112,7 +113,7 @@ class CollectUserProvidedNamesVisitor(var context: SpecializationContext): IrEle
         val annotation = descriptor.specializationAnnotation
         if (annotation == null) return
 
-        println("specialization func key: " + annotation)
+        println("SPECIALIZATION: known key func: " + annotation)
 
         funcMapping[annotation] = descriptor
 
@@ -121,21 +122,16 @@ class CollectUserProvidedNamesVisitor(var context: SpecializationContext): IrEle
     override fun visitVariable(value: IrVariable) {
         value.acceptChildrenVoid(this)
 
-        println(value)
-
         val descriptor = value.descriptor
         val type = descriptor.getType()
         val typeDeclarationDescriptor = type.constructor.getDeclarationDescriptor()
 
-        println(typeDeclarationDescriptor)
         if (typeDeclarationDescriptor !is ClassDescriptor) return
 
-        println((typeDeclarationDescriptor as ClassDescriptor).annotations.getAllAnnotations())
         val annotation = (typeDeclarationDescriptor as ClassDescriptor).specializationAnnotation
-        println(annotation)
         if (annotation == null) return
 
-        println("specialization class (from var) key: " + annotation)
+        println("SPECIALIZATION: known key class (from var): " + annotation)
         classMapping[annotation] = (typeDeclarationDescriptor as ClassDescriptor)
     }
 
@@ -150,13 +146,13 @@ internal fun keyByCallee(callee: IrCall): Pair<String, List<String>> {
     val typeNames = descriptor.typeParameters.map{callee.getTypeArgument(it).toString()}
     val pair = Pair("$name", typeNames)
 
-    println("callee key: " + pair)
+    println("SPECIALIZATION: key by callee: " + pair)
 
     return pair
 }
 
 
-internal fun keyByClassCallee(classDescriptor: ClassDescriptor, callee: IrCall): Pair<String, List<String>> {
+internal fun keyByClassMember(classDescriptor: ClassDescriptor, callee: IrCall): Pair<String, List<String>> {
     //val classDescriptor = clazz.descriptor.original as ClassDescriptor
     val calleeDescriptor = callee.descriptor.original as FunctionDescriptor
 
@@ -164,7 +160,7 @@ internal fun keyByClassCallee(classDescriptor: ClassDescriptor, callee: IrCall):
     val typeNames = calleeDescriptor.typeParameters.map{callee.getTypeArgument(it).toString()}
     val pair = Pair("$name", typeNames)
 
-    println("class key: " + pair)
+    println("SPECIALIZATION: key by class class member: " + pair)
 
     return pair
 }
@@ -177,18 +173,17 @@ internal fun keyByKotlinType(type: KotlinType): Pair<String, List<String>> {
         return Pair("%Irrelevant", listOf())
     }
 
-    println(typeDeclarationDescriptor as ClassDescriptor)
     val name = (typeDeclarationDescriptor as ClassDescriptor).symbolName
     val typeNames = type.arguments.map{it -> it.toString()}
 
     val pair = Pair("$name", typeNames)
-    println("receiver key: " + pair)
+    println("SPECIALIZATION: key by receiver type: " + pair)
 
     return pair
 
 }
 
-internal fun rewriteBodies(module: IrModuleFragment, context: SpecializationContext) {
+internal fun rewriteFunctions(module: IrModuleFragment, context: SpecializationContext) {
     module.transformChildrenVoid(object : IrElementTransformerVoid() {
         override fun visitCall(callee: IrCall): IrExpression {
             callee.transformChildrenVoid(this)
@@ -197,7 +192,7 @@ internal fun rewriteBodies(module: IrModuleFragment, context: SpecializationCont
             val key = keyByCallee(callee)
             val newDescriptor = context.funcMapping[key] 
             if (newDescriptor != null) {
-                println("Specialization MATCH on key" + key)
+                println("SPECIALIZATION: function MATCH on key" + key)
                 return IrCallWithNewFunction(callee, newDescriptor!!)
             } else {
                 return callee
@@ -210,29 +205,21 @@ internal fun rewriteClasses(module: IrModuleFragment, context: SpecializationCon
     module.transformChildrenVoid(object : IrElementTransformerVoid() {
         override fun visitCall(callee: IrCall): IrExpression {
             callee.transformChildrenVoid(this)
-            println("")
 
             val descriptor = callee.descriptor.original as FunctionDescriptor
-            println("QQQ: " + callee.descriptor.original)
 
             val receiver = callee.descriptor.dispatchReceiverParameter
-            println("reciever: " + callee.descriptor.dispatchReceiverParameter?.type?.arguments ?: "no reciever param")
             val key = if (receiver!= null) {
                 keyByKotlinType(callee.descriptor.dispatchReceiverParameter?.type!!)
             } else {
 
                 val clazz = descriptor.getContainingDeclaration()
                 if (clazz !is ClassDescriptor) return callee
-
-                println("DESCRIPTOR: " + descriptor)
-                println("CLASS: " + clazz)
-                println(descriptor.typeParameters.map{callee.getTypeArgument(it).toString()})
-
-                keyByClassCallee(clazz, callee)
+                keyByClassMember(clazz, callee)
             }
             val newClassDescriptor = context.classMapping[key] 
             if (newClassDescriptor != null) {
-                println("CALL specialization MATCH on key" + key)
+                println("SPECIALIZATION: member MATCH on key" + key)
                 // FIXME: CHANGE receiver should be with a new type
                 return IrCallWithNewClass(callee, newClassDescriptor!!, receiver)
             } else {
@@ -244,14 +231,12 @@ internal fun rewriteClasses(module: IrModuleFragment, context: SpecializationCon
 
         override fun visitGetValue(value: IrGetValue): IrExpression {
             value.transformChildrenVoid(this)
-            println("")
 
             val descriptor = value.descriptor
             val type = descriptor.getType()
             val key = keyByKotlinType(type)
             val newClassDescriptor = context.classMapping[key]
             if (newClassDescriptor != null) {
-                println("GET_VAR " + descriptor + " specialization MATCH on key" + key)
                 return IrGetVarWithNewType(value, newClassDescriptor)
             } else {
                 return value
@@ -260,14 +245,12 @@ internal fun rewriteClasses(module: IrModuleFragment, context: SpecializationCon
 
         override fun visitSetVariable(value: IrSetVariable): IrExpression {
             value.transformChildrenVoid(this)
-            println("")
 
             val descriptor = value.descriptor
             val type = descriptor.getType()
             val key = keyByKotlinType(type)
             val newClassDescriptor = context.classMapping[key]
             if (newClassDescriptor != null) {
-                println("SET_VAR " + descriptor + " specialization MATCH on key" + key)
                 return IrSetVarWithNewType(value, newClassDescriptor)
             } else {
                 return value
@@ -276,17 +259,14 @@ internal fun rewriteClasses(module: IrModuleFragment, context: SpecializationCon
 
         override fun visitVariable(value: IrVariable): IrStatement {
             value.transformChildrenVoid(this)
-            println("")
 
             val descriptor = value.descriptor
             val type = descriptor.getType()
             val key = keyByKotlinType(type)
             val newClassDescriptor = context.classMapping[key]
             if (newClassDescriptor != null) {
-                println("VAR" + descriptor + " specialization MATCH on key" + key)
                 return IrVarWithNewType(value, newClassDescriptor)
             } else {
-                println("VAR" + descriptor + " no match " + key)
                 return value
             }
  
