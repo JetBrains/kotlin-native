@@ -260,6 +260,7 @@ fun testIteratorRemove() {
         }
         it.next()
     }
+
     assertEquals(makeList135(), a)
 }
 
@@ -281,8 +282,7 @@ fun main(args : Array<String>) {
     testIterator()
     testRemove()
     testRemoveAll()
-    // Fails due to unknown virtual method call!
-    // testRetainAll()
+    testRetainAll()
     testEquals()
     testHashCode()
     testToString()
@@ -291,8 +291,7 @@ fun main(args : Array<String>) {
     testSubListContains()
     testSubListIndexOf()
     testSubListLastIndexOf()
-    // Fails due to unknown virtual method call!
-    // testIteratorAdd()
-    // testIteratorRemove()
+//    testIteratorAdd()  runtime assert: Throwing is unsupported
+//    testIteratorRemove() assertEquals fails
     println("OK")
 }
