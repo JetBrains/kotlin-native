@@ -1,5 +1,6 @@
 
 
+@Specialization("kclass:BBB", "Byte")
 class AAA<T>(ttt: T) {
     var xxx = ttt
     fun yyy(sss: T) {
@@ -7,7 +8,6 @@ class AAA<T>(ttt: T) {
     }
 }
 
-@Specialization("kclass:AAA", "Byte")
 class BBB(ttt: Byte) {
     var xxx = ttt
     fun yyy(sss: Byte) {

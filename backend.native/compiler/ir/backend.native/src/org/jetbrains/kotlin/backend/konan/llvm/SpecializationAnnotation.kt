@@ -23,15 +23,21 @@ private fun valuesToPair(values: Collection<ConstantValue<*>>): Pair<String, Lis
 
 }
 
-internal val FunctionDescriptor.specializationAnnotation: Pair<String, List<String>>?
+internal val FunctionDescriptor.specializationAnnotations: List<Pair<String, List<String>>>
     get() {
-        val specialization = this.annotations.findAnnotation(annotationName) 
-        return if (specialization != null) valuesToPair(values(specialization!!)) else null
+        //val specialization = this.annotations.findAnnotation(annotationName) 
+        //return if (specialization != null) valuesToPair(values(specialization!!)) else null
+        val annotations = this.annotations.getAllAnnotations().map{ it -> it.annotation}
+        val specializationAnnotations = annotations.filter { checkAnnotationName(it, annotationName) }
+        val specializations = specializationAnnotations.map { it -> valuesToPair(values(it)) }
+        return specializations
     }
 
-internal val ClassDescriptor.specializationAnnotation: Pair<String, List<String>>?
+internal val ClassDescriptor.specializationAnnotations: List<Pair<String, List<String>>>
     get() {
-        val specialization = this.annotations.findAnnotation(annotationName) 
-        return if (specialization != null) valuesToPair(values(specialization!!)) else null
+        val annotations = this.annotations.getAllAnnotations().map{ it -> it.annotation}
+        val specializationAnnotations = annotations.filter { checkAnnotationName(it, annotationName) }
+        val specializations = specializationAnnotations.map { it -> valuesToPair(values(it)) }
+        return specializations
     }
 

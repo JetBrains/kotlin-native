@@ -1,13 +1,14 @@
 
+@Specialization("kinf:III_Float", "Float")
 interface III<T: Number> {
     fun foo(x: T, y: T): T 
 }
 
-@Specialization("kinf:III", "Float")
 interface III_Float {
     fun foo(x: Float, y: Float): Float 
 }
 
+@Specialization("kclass:A_Int", "Float")
 class AAA<T: Number>: III<T> {
     override fun foo(x: T, y: T):T  {
         print("Generic ")
@@ -15,7 +16,6 @@ class AAA<T: Number>: III<T> {
     }
 }
 
-@Specialization("kclass:AAA", "Float")
 class A_Int: III<Float> {
     override fun foo(x: Float, y: Float): Float {
         print("Specific Float ")

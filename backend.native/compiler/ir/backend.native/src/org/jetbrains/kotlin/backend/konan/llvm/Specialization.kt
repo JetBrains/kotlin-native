@@ -1,7 +1,7 @@
 package org.jetbrains.kotlin.backend.konan.optimizer
 
 import org.jetbrains.kotlin.backend.konan.llvm.ir2string
-import org.jetbrains.kotlin.backend.konan.llvm.*
+import org.jetbrains.kotlin.backend.konan.llvm.symbolName
 import org.jetbrains.kotlin.backend.konan.*
 
 import org.jetbrains.kotlin.descriptors.*
@@ -11,9 +11,6 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.visitors.*
 import org.jetbrains.kotlin.types.KotlinType
-import org.jetbrains.kotlin.descriptors.ClassKind.*
-
-
 
 //
 // Specialization is a two step process:
@@ -27,59 +24,128 @@ import org.jetbrains.kotlin.descriptors.ClassKind.*
 // obtaining bodies from the user (== the library author)
 //
 // The idea here is for the user to provide specialized bodies of generic
-// classes/functions and to instruct the compiler useing an annotation:
+// classes/functions and to instruct the compiler using annotations:
 //
+// @Specialization("Array_Byte", "Byte")
 // class Atrray<T> {
 //      ...
 // }
 //
-// @Specialization("Array", "Byte")
 // class Array_Byte {
 //      ...
 // }
 //
-// The ((specialized class) signature) should match 
-// the (specialized (class signature))
+// The ((specialized class) members) should match 
+// the (specialized (class members))
 // that's user's responsibility 
 //
+
 fun specializer(module: IrModuleFragment) {
 
-    // Disabled for now
+    // We don't have automatic specialization yet
     // generateSpecializedBodies()
 
-    applyUserProvidedBodies(module)
+    applyUserProvidedSpecializations(module)
 }
 
-fun applyUserProvidedBodies(module: IrModuleFragment) {
+fun applyUserProvidedSpecializations(module: IrModuleFragment) {
+
     val context = SpecializationContext()
 
     module.acceptVoid(CollectUserProvidedNamesVisitor(context))
-    //module.acceptVoid(CollectUserProvidedClassesVisitor(context))
 
     if (hazards(module)) return;
 
     if (!context.classMapping.isEmpty()) {
         rewriteClasses(module, context)
-        println("### Classes rewritten in module: " + ir2string(module))
+        println("### Classes specialized in module: " + ir2string(module))
     }
 
-    if (!context.funcMapping.isEmpty()) {
+    if (!context.functionMapping.isEmpty()) {
         rewriteFunctions(module, context)
-        println("### Functions rewritten in module: " + ir2string(module))
+        println("### Functions specialized in module: " + ir2string(module))
     }
 
 }
 
+typealias ClassKey = Pair<ClassDescriptor?, List<String>>
+typealias FunctionKey = Pair<FunctionDescriptor, List<String>>
+
 class SpecializationContext {
-    val funcMapping = mutableMapOf<Pair<String, List<String>>, FunctionDescriptor>()
-    val classMapping = mutableMapOf<Pair<String, List<String>>, ClassDescriptor>()
+    val functionMapping = mutableMapOf<FunctionKey, FunctionDescriptor>()
+    val classMapping = mutableMapOf<ClassKey, ClassDescriptor>()
 }
 
 
 fun hazards(module: IrModuleFragment): Boolean {
-    // For now we just blindly allow any specialization
+    // For now we just blindly allow any specialization,
     // not caring to check for escapes or incompatibilities
     return false
+}
+
+fun findSisterFunctionByName(name: String, original: FunctionDescriptor): FunctionDescriptor {
+    val scope = original.getContainingDeclaration() 
+    println("SCOPE: " + scope)
+
+    if (scope !is PackageFragmentDescriptor) {
+        TODO()
+    }
+
+    val memberScope = scope.getMemberScope()
+    memberScope.getContributedDescriptors().forEach{
+        println("SISTER SEARCHING:" + (it as FunctionDescriptor).symbolName)
+        if (it is FunctionDescriptor && 
+            it.symbolName == name) {
+            println("SISTER FOUND:" + it)
+            return it
+        }
+    }
+    throw(Error("Could not find specialization in the scope: " + name ))
+}
+
+fun findSisterClassByName(name: String, original: DeclarationDescriptor): ClassDescriptor {
+    val scope = original.getContainingDeclaration() 
+
+    if (scope !is PackageFragmentDescriptor) {
+        TODO()
+    }
+
+    val memberScope = scope.getMemberScope()
+    memberScope.getContributedDescriptors().forEach{
+        if (it is ClassDescriptor && 
+            it.symbolName == name) {
+            println("SISTER FOUND:" + it)
+            return it
+        }
+    }
+    throw(Error("Could not find specialization in the scope: " + name))
+}
+
+
+private fun collectFunctionSpecializations(context: SpecializationContext, genericDescriptor: FunctionDescriptor) { 
+    val annotations = genericDescriptor.specializationAnnotations
+    if (annotations.isEmpty()) return
+
+        annotations.forEach { 
+            val (specificName, typeSubstitutions) = it
+            val specificDescriptor = findSisterFunctionByName(specificName, genericDescriptor)
+            val key = Pair(genericDescriptor, typeSubstitutions)
+            println("SPECIALIZATION: known key function: " + key)
+            context.functionMapping[key] = specificDescriptor
+        }
+}
+
+private fun collectClassSpecializations(context: SpecializationContext, genericDescriptor: ClassDescriptor) { 
+    val annotations = genericDescriptor.specializationAnnotations
+    if (annotations.isEmpty()) return
+
+        annotations.forEach { 
+            val (specificName, typeSubstitutions) = it
+            val specificDescriptor = findSisterClassByName(specificName, genericDescriptor)
+            val key = Pair(genericDescriptor, typeSubstitutions)
+            println("SPECIALIZATION: known key class: " + key)
+            context.classMapping[key] = specificDescriptor
+        }
 }
 
 class CollectUserProvidedNamesVisitor(var context: SpecializationContext): IrElementVisitorVoid {
@@ -88,35 +154,23 @@ class CollectUserProvidedNamesVisitor(var context: SpecializationContext): IrEle
         element.acceptChildrenVoid(this)
     }
 
-    override fun visitClass(clazz: IrClass) {
-        clazz.acceptChildrenVoid(this)
-
-        val descriptor = clazz.descriptor.original as ClassDescriptor
-
-        val annotation = descriptor.specializationAnnotation
-        if (annotation == null) return
-
-
-        println("SPECIALIZATION: known key class: " + annotation)
-        context.classMapping[annotation] = descriptor
-    }
-
     override fun visitCall(callee: IrCall) {
         callee.acceptChildrenVoid(this)
 
         // FIXME: remove as
         val descriptor = callee.descriptor.original as FunctionDescriptor
 
-        val annotation = descriptor.specializationAnnotation
-        if (annotation == null) return
-
-        println("SPECIALIZATION: known key func: " + annotation)
-
-        context.funcMapping[annotation] = descriptor
-
+        collectFunctionSpecializations(context, descriptor)
     }
 
-    override fun visitVariable(value: IrVariable) {
+    override fun visitClass(clazz: IrClass) {
+        clazz.acceptChildrenVoid(this)
+
+        val genericDescriptor = clazz.descriptor.original as ClassDescriptor
+        collectClassSpecializations(context, genericDescriptor)
+   }
+
+   override fun visitVariable(value: IrVariable) {
         value.acceptChildrenVoid(this)
 
         val descriptor = value.descriptor
@@ -125,23 +179,16 @@ class CollectUserProvidedNamesVisitor(var context: SpecializationContext): IrEle
 
         if (typeDeclarationDescriptor !is ClassDescriptor) return
 
-        val annotation = (typeDeclarationDescriptor as ClassDescriptor).specializationAnnotation
-        if (annotation == null) return
-
-        println("SPECIALIZATION: known key class (from var): " + annotation)
-        context.classMapping[annotation] = (typeDeclarationDescriptor as ClassDescriptor)
+        collectClassSpecializations(context, typeDeclarationDescriptor)
     }
-
-
 }
 
 
-internal fun keyByCallee(callee: IrCall): Pair<String, List<String>> {
+internal fun keyByCallee(callee: IrCall): FunctionKey {
     val descriptor = callee.descriptor.original as FunctionDescriptor
 
-    val name = descriptor.symbolName
     val typeNames = descriptor.typeParameters.map{callee.getTypeArgument(it).toString()}
-    val pair = Pair("$name", typeNames)
+    val pair = Pair(descriptor, typeNames)
 
     println("SPECIALIZATION: key by callee: " + pair)
 
@@ -149,31 +196,27 @@ internal fun keyByCallee(callee: IrCall): Pair<String, List<String>> {
 }
 
 
-internal fun keyByClassMember(classDescriptor: ClassDescriptor, callee: IrCall): Pair<String, List<String>> {
-    //val classDescriptor = clazz.descriptor.original as ClassDescriptor
+internal fun keyByClassMember(classDescriptor: ClassDescriptor, callee: IrCall): ClassKey {
     val calleeDescriptor = callee.descriptor.original as FunctionDescriptor
 
-    val name = classDescriptor.symbolName
     val typeNames = calleeDescriptor.typeParameters.map{callee.getTypeArgument(it).toString()}
-    val pair = Pair("$name", typeNames)
+    val pair = Pair(classDescriptor, typeNames)
 
     println("SPECIALIZATION: key by class class member: " + pair)
 
     return pair
 }
 
-internal fun keyByKotlinType(type: KotlinType): Pair<String, List<String>> {
+internal fun keyByKotlinType(type: KotlinType): ClassKey {
     val typeDeclarationDescriptor = type.constructor.getDeclarationDescriptor()
 
-    if (typeDeclarationDescriptor !is ClassDescriptor ||
-        (typeDeclarationDescriptor as ClassDescriptor).kind == ANNOTATION_CLASS) {
-        return Pair("%Irrelevant", listOf())
+    if (typeDeclarationDescriptor !is ClassDescriptor) {
+        return Pair(null, listOf())
     }
 
-    val name = (typeDeclarationDescriptor as ClassDescriptor).symbolName
     val typeNames = type.arguments.map{it -> it.toString()}
 
-    val pair = Pair("$name", typeNames)
+    val pair = Pair(typeDeclarationDescriptor as ClassDescriptor, typeNames)
     println("SPECIALIZATION: key by receiver type: " + pair)
 
     return pair
@@ -187,7 +230,7 @@ internal fun rewriteFunctions(module: IrModuleFragment, context: SpecializationC
 
             val descriptor = callee.descriptor.original as FunctionDescriptor
             val key = keyByCallee(callee)
-            val newDescriptor = context.funcMapping[key] 
+            val newDescriptor = context.functionMapping[key] 
             if (newDescriptor != null) {
                 println("SPECIALIZATION: function MATCH on key" + key)
                 return IrCallWithNewFunction(callee, newDescriptor!!)
@@ -217,13 +260,11 @@ internal fun rewriteClasses(module: IrModuleFragment, context: SpecializationCon
             val newClassDescriptor = context.classMapping[key] 
             if (newClassDescriptor != null) {
                 println("SPECIALIZATION: member MATCH on key" + key)
-                // FIXME: CHANGE receiver should be with a new type
                 return IrCallWithNewClass(callee, newClassDescriptor!!, receiver)
             } else {
                 return callee
             }
         }
-
 
 
         override fun visitGetValue(value: IrGetValue): IrExpression {

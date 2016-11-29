@@ -1,14 +1,14 @@
 
+@Specialization("kfun:box_Int_Float(Int)", "Int", "Float")
+@Specialization("kfun:box_Short_Double(Short)", "Short", "Double")
 fun <T, S> box(value: T): T {
     return value
 }
 
-@Specialization("kfun:box(T)", "Int", "Float")
 fun box_Int_Float(value: Int): Int {
     return value+2
 }
 
-@Specialization("kfun:box(T)", "Short", "Double")
 fun box_Short_Double(value: Short): Short {
     return value
 }
