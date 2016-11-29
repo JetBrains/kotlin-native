@@ -91,6 +91,30 @@ KString Kotlin_String_fromUtf8Array(const ArrayHeader* array) {
   return result;
 }
 
+KString Kotlin_String_fromCharArray(const ArrayHeader* array) {
+  RuntimeAssert(array->type_info() == theCharArrayTypeInfo, "Must use a byte array");
+  // TODO: support full UTF-8.
+  ArrayHeader* result = ArrayContainer(
+      theStringTypeInfo, array->count_).GetPlace();
+  for (int index = 0; index < array->count_; ++index) {
+    *ByteArrayAddressOfElementAt(result, index) =
+        *PrimitiveArrayAddressOfElementAt<KChar>(array, index);
+  }
+  return result;
+}
+
+ArrayHeader* Kotlin_String_toCharArray(KString string) {
+  // TODO: support full UTF-8.
+  ArrayHeader* result = ArrayContainer(
+      theCharArrayTypeInfo, string->count_).GetPlace();
+  for (int index = 0; index < string->count_; ++index) {
+    *PrimitiveArrayAddressOfElementAt<KChar>(result, index) =
+        *ByteArrayAddressOfElementAt(string, index);
+  }
+  return result;
+}
+
+
 KString Kotlin_String_plusImpl(KString thiz, KString other) {
   // TODO: support UTF-8
   RuntimeAssert(thiz != nullptr, "this cannot be null");
