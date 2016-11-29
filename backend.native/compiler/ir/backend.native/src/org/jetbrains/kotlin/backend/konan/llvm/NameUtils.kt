@@ -7,8 +7,20 @@ import org.jetbrains.kotlin.descriptors.PropertyDescriptor
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.resolve.constants.StringValue
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
+import org.jetbrains.kotlin.types.KotlinType
+import org.jetbrains.kotlin.types.TypeUtils
 
 private val symbolNameAnnotation = FqName("kotlin.SymbolName")
+
+
+fun typeToHashString(type: KotlinType): String {
+    return buildString {
+        append(type.constructor)
+        if (!type.arguments.isEmpty()) type.arguments.joinTo(this, separator = ", ", prefix = "<", postfix = ">")
+        if (type.isMarkedNullable) append("?")
+    }
+}
+
 
 private val FunctionDescriptor.signature: String
     get() {
@@ -16,7 +28,12 @@ private val FunctionDescriptor.signature: String
 
         val extensionReceiverPart = this.extensionReceiverParameter?.let { "${it.type}." } ?: ""
 
-        val argsPart = this.valueParameters.map { it.type }.joinToString(";")
+        val argsPart = this.valueParameters.map {
+            if (TypeUtils.isTypeParameter(it.type))
+                return@map "GENERIC"
+            else
+                return@map typeToHashString(it.type)
+        }.joinToString(";")
 
         // TODO: add return type
         // (it is not simple because return type can be changed when overriding)
