@@ -58,12 +58,12 @@ fun applyUserProvidedSpecializations(module: IrModuleFragment) {
 
     if (!context.classMapping.isEmpty()) {
         rewriteClasses(module, context)
-        println("### Classes specialized in module: " + ir2string(module))
+        println("SPECIALIZATION:  Classes specialized in module: " + ir2string(module))
     }
 
     if (!context.functionMapping.isEmpty()) {
         rewriteFunctions(module, context)
-        println("### Functions specialized in module: " + ir2string(module))
+        println("SPECIALIZATION:  Functions specialized in module: " + ir2string(module))
     }
 
 }
@@ -85,18 +85,14 @@ fun hazards(module: IrModuleFragment): Boolean {
 
 fun findSisterFunctionByName(name: String, original: FunctionDescriptor): FunctionDescriptor {
     val scope = original.getContainingDeclaration() 
-    println("SCOPE: " + scope)
-
     if (scope !is PackageFragmentDescriptor) {
         TODO()
     }
 
     val memberScope = scope.getMemberScope()
     memberScope.getContributedDescriptors().forEach{
-        println("SISTER SEARCHING:" + (it as FunctionDescriptor).symbolName)
         if (it is FunctionDescriptor && 
             it.symbolName == name) {
-            println("SISTER FOUND:" + it)
             return it
         }
     }
@@ -105,7 +101,6 @@ fun findSisterFunctionByName(name: String, original: FunctionDescriptor): Functi
 
 fun findSisterClassByName(name: String, original: DeclarationDescriptor): ClassDescriptor {
     val scope = original.getContainingDeclaration() 
-
     if (scope !is PackageFragmentDescriptor) {
         TODO()
     }
@@ -114,7 +109,6 @@ fun findSisterClassByName(name: String, original: DeclarationDescriptor): ClassD
     memberScope.getContributedDescriptors().forEach{
         if (it is ClassDescriptor && 
             it.symbolName == name) {
-            println("SISTER FOUND:" + it)
             return it
         }
     }

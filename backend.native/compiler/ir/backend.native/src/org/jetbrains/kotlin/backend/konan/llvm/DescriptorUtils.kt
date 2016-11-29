@@ -24,28 +24,24 @@ internal fun valueDescriptorWithNewType(old: ValueDescriptor, type: KotlinType):
 
     val new = 
         when (old) {
-            // OMG: it is private :-(
-            //is IrTemporaryVariableDescriptor -> IrTemporaryVariableDescriptorImpl(old.containingDeclaration, old.name, type)
             is IrTemporaryVariableDescriptor 
                 -> LocalVariableDescriptor(
                         old.containingDeclaration,
                         old.annotations,
-                        old.name, /// Shouldn't we introduce a new name?
+                        old.name, 
                         type,
-                        false,
-                        false,
+                        false, // mutable
+                        false, // isDelegated
                         old.source)
-                is LocalVariableDescriptor 
+            is LocalVariableDescriptor 
                 -> LocalVariableDescriptor(
                         old.containingDeclaration,
                         old.annotations,
-                        old.name, /// Shouldn't we introduce a new name?
+                        old.name,
                         type,
                         old.isVar(),
                         old.isDelegated(),
                         old.source)
-                is ValueParameterDescriptor,
-            is LazyClassReceiverParameterDescriptor -> old // CHANGE!!!!
             else -> {
                     TODO()
             }
@@ -53,5 +49,5 @@ internal fun valueDescriptorWithNewType(old: ValueDescriptor, type: KotlinType):
 
 
     println("SPECIALIZATION: REWRITTEN VALUE: " + old + " -> " + new)
-        return new
+    return new
 }

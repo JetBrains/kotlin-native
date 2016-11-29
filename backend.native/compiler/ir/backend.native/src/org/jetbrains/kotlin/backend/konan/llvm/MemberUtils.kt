@@ -24,23 +24,16 @@ internal fun memberCanonicalName(descriptor: DeclarationDescriptor): String {
 
 internal fun sameMember(newClassDescriptor: ClassDescriptor, 
                    calleeDescriptor: DeclarationDescriptor): DeclarationDescriptor {
+    val oldClassDescriptor = calleeDescriptor.getContainingDeclaration()
+    if (oldClassDescriptor !is ClassDescriptor) {
+        TODO()
+    }
+    val oldMembers = allMembers(oldClassDescriptor)
     val newMembers =  allMembers(newClassDescriptor)
-    //FIXME remove as
-    val oldMembers = allMembers(calleeDescriptor.getContainingDeclaration() as ClassDescriptor)
-
-        oldMembers.forEach{ 
-            println(" From: "+ it)
-            if (it is FunctionDescriptor) println(it.functionName)
-        }
-        newMembers.forEach{
-            println("   To: "+it)
-            if (it is FunctionDescriptor) println(it.functionName)
-        }
 
     newMembers.forEach {
-        println("COMPARING " + memberCanonicalName(it) + " WITH " + memberCanonicalName(calleeDescriptor))
         if (memberCanonicalName(it) == memberCanonicalName(calleeDescriptor)) {
-            println("REWRITE CALL: " + calleeDescriptor + " -> " + it)
+            println("SPECIALIZATION: call rewrite: " + calleeDescriptor + " -> " + it)
             return it 
         }
     }

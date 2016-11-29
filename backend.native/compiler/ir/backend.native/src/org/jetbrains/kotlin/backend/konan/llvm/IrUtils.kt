@@ -11,11 +11,8 @@ internal fun IrCallWithNewFunction(call: IrCall, newDescriptor: CallableDescript
 
     var newCall =  IrCallImpl(call.startOffset, 
                               call.endOffset, 
-                              //call.type, 
                               newDescriptor.returnType!!,
-                              // This one is new
                               newDescriptor,
-                              // And this one is empty
                               mapOf<TypeParameterDescriptor, KotlinType>(), 
                               call.origin, 
                               call.superQualifier)
@@ -39,9 +36,7 @@ internal fun IrCallWithNewClass(call: IrCall, newClassDescriptor: ClassDescripto
     var newCall =  IrCallImpl(call.startOffset, 
                               call.endOffset, 
                               newCalleeDescriptor.returnType!!,
-                              // This one is new
                               newCalleeDescriptor, 
-                              // And this one is empty
                               mapOf<TypeParameterDescriptor, KotlinType>(), 
                               call.origin, 
                               call.superQualifier)
@@ -76,7 +71,8 @@ internal fun IrSetVarWithNewType(value: IrSetVariable, newClassDescriptor: Class
     var newSetVariable = IrSetVariableImpl(
                             value.startOffset,
                             value.endOffset,
-                            // FIXME: remove as
+                            // FIXME: Should I make changeType a generic 
+                            // wrt descriptor type?
                             newValueDescriptor as VariableDescriptor, 
                             value.value,
                             value.origin)
