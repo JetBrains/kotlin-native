@@ -1,14 +1,5 @@
 package kotlin
 
-@SymbolName("Kotlin_String_fromUtf8Array")
-external fun fromUtf8Array(array: ByteArray) : String
-
-// TODO: make it somewhat private?
-@SymbolName("Kotlin_String_fromCharArray")
-external fun fromCharArray(array: CharArray) : String
-
-@SymbolName("Kotlin_String_toCharArray")
-external fun toCharArray(string: String) : CharArray
 
 // TODO: enable, once global variables implemented.
 // @SymbolName("theEmptyString")

@@ -449,6 +449,11 @@ task moderately_large_array(type: RunKonanTest) {
     source = "runtime/collections/moderately_large_array.kt"
 }
 
+task string_builder0(type: RunKonanTest) {
+    goldValue = "OK\n"
+    source = "runtime/text/string_builder0.kt"
+}
+
 task catch1(type: RunKonanTest) {
     goldValue = "Before\nCaught Throwable\nDone\n"
     source = "runtime/exceptions/catch1.kt"

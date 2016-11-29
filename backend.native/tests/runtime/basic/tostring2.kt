@@ -6,5 +6,5 @@ fun main(args : Array<String>) {
         print(" ")
     }
     println()
-    println(fromCharArray(array))
+    println(fromCharArray(array, 0, array.size))
 }
