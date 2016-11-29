@@ -315,7 +315,7 @@ task tostring1(type: RunKonanTest) {
 }
 
 task tostring2(type: RunKonanTest) {
-    goldValue = "H e l l o "
+    goldValue = "H e l l o \nHello\n"
     source = "runtime/basic/tostring2.kt"
 }
 

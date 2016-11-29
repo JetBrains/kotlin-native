@@ -5,4 +5,6 @@ fun main(args : Array<String>) {
         print(ch)
         print(" ")
     }
+    println()
+    println(fromCharArray(array))
 }
