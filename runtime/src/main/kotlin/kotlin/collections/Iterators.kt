@@ -1,11 +1,14 @@
 package kotlin.collections
 
 /** An iterator over a sequence of values of type `Byte`. */
-public abstract class ByteIterator : Iterator<Byte> {
-    override final fun next() = nextByte()
+@Specialization("kinf:kotlin.collections.Iterator", "Byte")
+public abstract class ByteIterator {
+    operator fun next() = nextByte()
+    operator fun hasNext() = hasNextByte()
 
     /** Returns the next value in the sequence without boxing. */
     public abstract fun nextByte(): Byte
+    public abstract fun hasNextByte(): Boolean
 }
 
 /** An iterator over a sequence of values of type `Char`. */

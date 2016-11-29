@@ -4,6 +4,7 @@ package kotlin.collections
  * An iterator over a collection or another entity that can be represented as a sequence of elements.
  * Allows to sequentially access the elements.
  */
+@Specialization("kclass:kotlin.collections.ByteIterator", "Byte")
 public interface Iterator<out T> {
     /**
      * Returns the next element in the iteration.

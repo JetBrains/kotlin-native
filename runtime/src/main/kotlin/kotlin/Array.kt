@@ -2,6 +2,7 @@ package kotlin
 
 // TODO: remove that, as RTTI shall be per instantiation.
 @ExportTypeInfo("theArrayTypeInfo")
+@Specialization("kclass:kotlin.ByteArray","Byte")
 public final class Array<T> : Cloneable {
     // TODO: actual constructor has initializer parameter, implement it once lambdas are implemented.
     // Constructors are handled with compiler magic.

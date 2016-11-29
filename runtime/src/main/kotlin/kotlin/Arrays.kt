@@ -40,7 +40,7 @@ private class ByteIteratorImpl(val collection: ByteArray) : ByteIterator() {
         return collection[index++]
     }
 
-    public override operator fun hasNext(): Boolean {
+    public override fun hasNextByte(): Boolean {
         return index < collection.size
     }
 }
