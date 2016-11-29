@@ -50,6 +50,7 @@ internal val ClassDescriptor.symbolName: String
         CLASS -> "kclass:"
         INTERFACE -> "kinf:"
         OBJECT -> "kclass:"
+        ANNOTATION_CLASS -> "kannotation:"
         else -> TODO("fixme: " + this.kind)
     } + fqNameSafe
 
