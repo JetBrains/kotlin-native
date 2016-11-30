@@ -21,8 +21,7 @@ fun assertEquals(value1: Int, value2: Int) {
 fun testBasic() {
     val sb = StringBuilder()
     assertEquals(0, sb.length)
-    // TODO: enable, once empty string issues fixed.
-    //assertEquals("", sb.toString())
+    assertEquals("", sb.toString())
     sb.append(1)
     assertEquals(1, sb.length)
     assertEquals("1", sb.toString())
@@ -38,8 +37,7 @@ fun testBasic() {
 
     sb.length = 0
     assertEquals(0, sb.length)
-    // TODO: enable, once empty string issues fixed.
-    //assertEquals("", sb.toString())
+    assertEquals("", sb.toString())
 }
 
 fun main(args : Array<String>) {
