@@ -203,6 +203,10 @@ public final class Byte : Number(), Comparable<Byte> {
     // Konan-specific.
     @SymbolName("Kotlin_Byte_toString")
     external public override fun toString(): String
+
+    public override fun hashCode(): Int {
+        return this.toInt()
+    }
 }
 
 /**
@@ -408,6 +412,10 @@ public final class Short : Number(), Comparable<Short> {
     // Konan-specific.
     @SymbolName("Kotlin_Short_toString")
     external public override fun toString(): String
+
+    public override fun hashCode(): Int {
+        return this.toInt()
+    }
 }
 
 /**
@@ -635,6 +643,10 @@ public final class Int : Number(), Comparable<Int> {
     // Konan-specific.
     @SymbolName("Kotlin_Int_toString")
     external public override fun toString(): String
+
+    public override fun hashCode(): Int {
+        return this.toInt()
+    }
 }
 
 /**
@@ -862,6 +874,9 @@ public final class Long : Number(), Comparable<Long> {
     // Konan-specific.
     @SymbolName("Kotlin_Long_toString")
     external public override fun toString(): String
+
+    @SymbolName("Kotlin_Long_hashCode")
+    external public override fun hashCode(): Int
 }
 
 /**
@@ -1047,7 +1062,6 @@ public final class Float : Number(), Comparable<Float> {
     @SymbolName("Kotlin_Float_unaryMinus")
     external public operator fun unaryMinus(): Float
 
-
     @SymbolName("Kotlin_Float_toByte")
     external public override fun toByte(): Byte
     @SymbolName("Kotlin_Float_toChar")
@@ -1066,6 +1080,12 @@ public final class Float : Number(), Comparable<Float> {
     // Konan-specific.
     @SymbolName("Kotlin_Float_toString")
     external public override fun toString(): String
+
+    @SymbolName("Kotlin_Float_hashCode")
+    external public override fun hashCode(): Int
+
+    @SymbolName("Kotlin_Float_bits")
+    external public fun bits(): Int
 }
 
 /**
@@ -1270,4 +1290,10 @@ public final class Double : Number(), Comparable<Double> {
     // Konan-specific.
     @SymbolName("Kotlin_Double_toString")
     external public override fun toString(): String
+
+    @SymbolName("Kotlin_Double_hashCode")
+    external public override fun hashCode(): Int
+
+    @SymbolName("Kotlin_Double_bits")
+    external public fun bits(): Long
 }
