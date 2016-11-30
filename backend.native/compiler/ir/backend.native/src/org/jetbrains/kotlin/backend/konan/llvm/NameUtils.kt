@@ -8,7 +8,7 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.resolve.constants.StringValue
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 
-private val symbolNameAnnotation = FqName("kotlin.SymbolName")
+private val symbolNameAnnotation = FqName("konan.SymbolName")
 
 private val FunctionDescriptor.signature: String
     get() {
