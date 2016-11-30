@@ -342,6 +342,11 @@ task tostring2(type: RunKonanTest) {
     source = "runtime/basic/tostring2.kt"
 }
 
+task tostring3(type: RunKonanTest) {
+    goldValue = "\n"
+    source = "runtime/basic/tostring3.kt"
+}
+
 task empty_substring(type: RunKonanTest) {
     goldValue = "\n"
     source = "runtime/basic/empty_substring.kt"
