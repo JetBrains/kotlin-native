@@ -10,7 +10,13 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.*
 internal val ClassDescriptor.implementedInterfaces: List<ClassDescriptor>
     get() {
         val superClassImplementedInterfaces = this.getSuperClassNotAny()?.implementedInterfaces ?: emptyList()
-        return (superClassImplementedInterfaces + this.getSuperInterfaces()).distinctBy { it.classId }
+        val superInterfaces = this.getSuperInterfaces()
+        //val superInterfacesImplementedInterfaces = mutableListOf<ClassDescriptor>()
+        //superInterfaces.map { superInterfacesImplementedInterfaces.addAll(it.implementedInterfaces) }
+        val superInterfacesImplementedInterfaces = superInterfaces.flatMap { it.implementedInterfaces }
+        return (superClassImplementedInterfaces +
+                superInterfacesImplementedInterfaces +
+                superInterfaces).distinctBy { it.classId }
     }
 
 
@@ -61,6 +67,7 @@ internal val ClassDescriptor.isArray: Boolean
 
 internal val ClassDescriptor.isInterface: Boolean
     get() = (this.kind == ClassKind.INTERFACE)
+
 
 internal val CallableDescriptor.allValueParameters: List<ParameterDescriptor>
     get() {
