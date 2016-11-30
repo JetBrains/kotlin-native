@@ -576,6 +576,6 @@ task unreachable1(type: RunKonanTest) {
 }
 
 task range0(type: RunKonanTest) {
-    goldValue = "1\n2\n3\n"
+    goldValue = "123\nabcd\n"
     source = "runtime/collections/range0.kt"
 }
