@@ -168,6 +168,21 @@ public final class Byte : Number(), Comparable<Byte> {
     @SymbolName("Kotlin_Byte_unaryMinus")
     external public operator fun unaryMinus(): Int
 
+    @SymbolName("Kotlin_Byte_toByte")
+    external public override fun toByte(): Byte
+    @SymbolName("Kotlin_Byte_toChar")
+    external public override fun toChar(): Char
+    @SymbolName("Kotlin_Byte_toShort")
+    external public override fun toShort(): Short
+    @SymbolName("Kotlin_Byte_toInt")
+    external public override fun toInt(): Int
+    @SymbolName("Kotlin_Byte_toLong")
+    external public override fun toLong(): Long
+    @SymbolName("Kotlin_Byte_toFloat")
+    external public override fun toFloat(): Float
+    @SymbolName("Kotlin_Byte_toDouble")
+    external public override fun toDouble(): Double
+
     /** Creates a range from this value to the specified [other] value. */
     public operator fun rangeTo(other: Byte): IntRange {
         return IntRange(this.toInt(), other.toInt())
@@ -184,21 +199,6 @@ public final class Byte : Number(), Comparable<Byte> {
     public operator fun rangeTo(other: Long): LongRange {
         return LongRange(this.toLong(), other.toLong())
     }
-
-    @SymbolName("Kotlin_Byte_toByte")
-    external public override fun toByte(): Byte
-    @SymbolName("Kotlin_Byte_toChar")
-    external public override fun toChar(): Char
-    @SymbolName("Kotlin_Byte_toShort")
-    external public override fun toShort(): Short
-    @SymbolName("Kotlin_Byte_toInt")
-    external public override fun toInt(): Int
-    @SymbolName("Kotlin_Byte_toLong")
-    external public override fun toLong(): Long
-    @SymbolName("Kotlin_Byte_toFloat")
-    external public override fun toFloat(): Float
-    @SymbolName("Kotlin_Byte_toDouble")
-    external public override fun toDouble(): Double
 
     // Konan-specific.
     @SymbolName("Kotlin_Byte_toString")
