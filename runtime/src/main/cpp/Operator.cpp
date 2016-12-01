@@ -263,10 +263,6 @@ KLong   Kotlin_Long_toLong           (KLong a           ) { return a; }
 KFloat  Kotlin_Long_toFloat          (KLong a           ) { return a; }
 KDouble Kotlin_Long_toDouble         (KLong a           ) { return a; }
 
-KInt    Kotlin_Long_hashCode         (KLong a) {
-  return static_cast<KInt>(a >> 32) ^ static_cast<KInt>(a);
-}
-
 //--- Float -------------------------------------------------------------------//
 
 KInt    Kotlin_Float_compareTo_Byte   (KFloat a, KByte   b) { if (a == b) return 0; return (a < b) ? -1 : 1; }
@@ -332,10 +328,6 @@ KInt   Kotlin_Float_bits              (KFloat a) {
   return alias.i;
 }
 
-KInt    Kotlin_Float_hashCode          (KFloat a) {
-  return Kotlin_Float_bits(a);
-}
-
 //--- Double ------------------------------------------------------------------//
 
 KInt    Kotlin_Double_compareTo_Byte   (KDouble a, KByte   b) { if (a == b) return 0; return (a < b) ? -1 : 1; }
@@ -399,10 +391,6 @@ KLong   Kotlin_Double_bits             (KDouble a) {
   } alias;
   alias.d = a;
   return alias.l;
-}
-
-KInt    Kotlin_Double_hashCode         (KDouble a) {
-  return Kotlin_Long_hashCode(Kotlin_Double_bits(a));
 }
 
 }  // extern "C"
