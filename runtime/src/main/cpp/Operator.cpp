@@ -248,8 +248,13 @@ KLong   Kotlin_Long_dec              (KLong a           ) { return --a; }
 KLong   Kotlin_Long_unaryPlus        (KLong a           ) { return  +a; }
 KLong   Kotlin_Long_unaryMinus       (KLong a           ) { return  -a; }
 
-KLong   Kotlin_Long_xor_Long         (KLong a, KLong   b) { return a^b; }
-KLong   Kotlin_Long_ushr_Long        (KLong a, KLong   b) { return a >> b; }
+KLong   Kotlin_Long_xor_Long         (KLong a, KLong   b) { return a ^ b; }
+KLong   Kotlin_Long_shr_Int          (KLong a, KInt    b) {
+  return a >> b;
+}
+KLong   Kotlin_Long_ushr_Int         (KLong a, KInt    b) {
+  return static_cast<uint64_t>(a) >> b;
+}
 
 KByte   Kotlin_Long_toByte           (KLong a           ) { return a; }
 KShort  Kotlin_Long_toShort          (KLong a           ) { return a; }

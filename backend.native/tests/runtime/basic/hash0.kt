@@ -1,5 +1,6 @@
 fun main(args : Array<String>) {
     println(239.hashCode())
+    println((-1L).hashCode())
     println('a'.hashCode())
     println(1.0f.hashCode())
     println(1.0.hashCode())

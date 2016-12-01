@@ -645,7 +645,7 @@ public final class Int : Number(), Comparable<Int> {
     external public override fun toString(): String
 
     public override fun hashCode(): Int {
-        return this.toInt()
+        return this
     }
 }
 
@@ -838,10 +838,10 @@ public final class Long : Number(), Comparable<Long> {
     @SymbolName("Kotlin_Long_shl_Long")
     external public infix fun shl(bitCount: Int): Long
     /** Shifts this value right by [bits], filling the leftmost bits with copies of the sign bit. */
-    @SymbolName("Kotlin_Long_shr_Long")
+    @SymbolName("Kotlin_Long_shr_Int")
     external public infix fun shr(bitCount: Int): Long
     /** Shifts this value right by [bits], filling the leftmost bits with zeros. */
-    @SymbolName("Kotlin_Long_ushr_Long")
+    @SymbolName("Kotlin_Long_ushr_Int")
     external public infix fun ushr(bitCount: Int): Long
     /** Performs a bitwise AND operation between the two values. */
     @SymbolName("Kotlin_Long_and_Long")
@@ -875,8 +875,9 @@ public final class Long : Number(), Comparable<Long> {
     @SymbolName("Kotlin_Long_toString")
     external public override fun toString(): String
 
-    @SymbolName("Kotlin_Long_hashCode")
-    external public override fun hashCode(): Int
+    public override fun hashCode(): Int {
+       return ((this ushr 32) xor this).toInt()
+    }
 }
 
 /**
@@ -1081,8 +1082,9 @@ public final class Float : Number(), Comparable<Float> {
     @SymbolName("Kotlin_Float_toString")
     external public override fun toString(): String
 
-    @SymbolName("Kotlin_Float_hashCode")
-    external public override fun hashCode(): Int
+    public override fun hashCode(): Int {
+        return bits()
+    }
 
     @SymbolName("Kotlin_Float_bits")
     external public fun bits(): Int
@@ -1291,8 +1293,9 @@ public final class Double : Number(), Comparable<Double> {
     @SymbolName("Kotlin_Double_toString")
     external public override fun toString(): String
 
-    @SymbolName("Kotlin_Double_hashCode")
-    external public override fun hashCode(): Int
+    public override fun hashCode(): Int {
+        return bits().hashCode()
+    }
 
     @SymbolName("Kotlin_Double_bits")
     external public fun bits(): Long

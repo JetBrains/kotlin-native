@@ -444,7 +444,7 @@ task interface0(type: RunKonanTest) {
 }
 
 task hash0(type: RunKonanTest) {
-    goldValue = "239\n97\n1065353216\n1072693248\n1\n0\ntrue\ntrue\n"
+    goldValue = "239\n0\n97\n1065353216\n1072693248\n1\n0\ntrue\ntrue\n"
     source = "runtime/basic/hash0.kt"
 }
 
