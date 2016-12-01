@@ -469,7 +469,7 @@ task array_list1(type: RunKonanTest) {
 }
 
 task listof0(type: RunKonanTest) {
-    goldValue = "abc\n"
+    goldValue = "abc\nabcd\nnsa\n"
     source = "runtime/collections/listof0.kt"
 }
 
