@@ -14,3 +14,6 @@ internal fun ThrowArrayIndexOutOfBoundsException() {
 internal fun ThrowClassCastException() {
     throw ClassCastException()
 }
+
+@ExportForCppRuntime
+internal fun TheEmptyString() = ""

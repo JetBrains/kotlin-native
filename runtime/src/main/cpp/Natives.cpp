@@ -11,8 +11,7 @@
 
 extern "C" {
 
-// TODO: remove, once can generate empty string constant in compile time.
-KString theEmptyString = nullptr;
+KString TheEmptyString();
 
 // Any.kt
 KBoolean Kotlin_Any_equals(KConstRef thiz, KConstRef other) {
@@ -162,7 +161,7 @@ KString Kotlin_String_subSequence(KString thiz, KInt startIndex, KInt endIndex) 
     ThrowArrayIndexOutOfBoundsException();
   }
   if (startIndex == endIndex) {
-    return theEmptyString;
+    return TheEmptyString();
   }
   // TODO: support UTF-8.
   KInt length = endIndex - startIndex;
