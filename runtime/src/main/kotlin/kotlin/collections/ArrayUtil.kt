@@ -5,8 +5,7 @@ package kotlin.collections
  * Attempts to read _uninitialized_ values from this array work in implementation-dependent manner,
  * either throwing exception or returning some kind of implementation-specific default value.
  */
-fun <E> arrayOfLateInitElements(size: Int): Array<E> {
-   // TODO: maybe use an empty array.
+fun <E> arrayOfUninitializedElements(size: Int): Array<E> {
    // return (if (size == 0) emptyArray else Array<Any>(size)) as Array<E>
    return Array<E>(size)
 }
@@ -16,7 +15,7 @@ fun <E> arrayOfLateInitElements(size: Int): Array<E> {
  * Attempts to read _uninitialized_ values from this array work in implementation-dependent manner,
  * either throwing exception or returning some kind of implementation-specific default value.
  */
-fun <E> Array<E>.copyOfLateInitElements(newSize: Int): Array<E> {
+fun <E> Array<E>.copyOfUninitializedElements(newSize: Int): Array<E> {
     val result = Array<E>(newSize)
     this.copyRangeTo(result, 0, if (newSize > this.size) this.size else newSize, 0)
     return result
@@ -64,4 +63,19 @@ fun <E> Array<E>.copyRangeTo(destination: Array<E>, fromIndex: Int, toIndex: Int
  */
 fun <E> Array<E>.copyRange(fromIndex: Int, toIndex: Int, destinationIndex: Int = 0) {
     copyRangeTo(this, fromIndex, toIndex, destinationIndex)
+}
+
+internal fun <E> Collection<E>.collectionToString(): String {
+    val sb = StringBuilder(2 + size * 3)
+    sb.append("[")
+    var i = 0
+    val it = iterator()
+    while (it.hasNext()) {
+        if (i > 0) sb.append(", ")
+        val next = it.next()
+        if (next == this) sb.append("(this Collection)") else sb.append(next)
+        i++
+    }
+    sb.append("]")
+    return sb.toString()
 }
