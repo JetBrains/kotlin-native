@@ -11,8 +11,6 @@
 
 extern "C" {
 
-KString TheEmptyString();
-
 // Any.kt
 KBoolean Kotlin_Any_equals(KConstRef thiz, KConstRef other) {
   return thiz == other;
