@@ -25,7 +25,7 @@ public interface MutableIterable<out T> : Iterable<T> {
 
 fun <E> Array<E>.asList(): List<E> {
     // TODO: consider making lighter list over an array.
-    val result = ArrayList<T>(this.size)
+    val result = ArrayList<E>(this.size)
     for (e in this) {
         result.add(e)
     }
