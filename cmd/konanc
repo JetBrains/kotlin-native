@@ -1,0 +1,78 @@
+#!/usr/bin/env bash 
+
+if [ -z "$JAVACMD" -a -n "$JAVA_HOME" -a -x "$JAVA_HOME/bin/java" ]; then
+    JAVACMD="$JAVA_HOME/bin/java"
+else 
+    JAVACMD=java
+fi
+
+declare -a java_args
+declare -a konan_args
+declare -a clang_args
+
+OUTPUT_NAME="out"
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -D*)
+      java_args=("${java_args[@]}" "$1")
+      shift
+      ;;
+    -J*)
+      java_args=("${java_args[@]}" "${1:2}")
+      shift
+      ;;
+    -o)
+      OUTPUT_NAME=$2
+      shift
+      shift
+      ;;
+    -X*)
+      clang_args=("${clang_args[@]}" "${1:2}")
+      shift
+      ;;
+    *)
+      konan_args=("${konan_args[@]}" "$1")
+      shift
+      ;;
+  esac
+done
+
+
+[ -n "$KONAN_COMPILER" ] || KONAN_COMPILER=org.jetbrains.kotlin.cli.bc.K2NativeKt
+[ -n "$JAVACMD" ] || JAVACMD=java
+[ -n "$JAVA_OPTS" ] || JAVA_OPTS="-Xmx256M -Xms32M"
+
+KONAN_HOME="$(cd $(dirname ${BASH_SOURCE[0]})/.. ; pwd)"
+
+KONAN_JAR="${KONAN_HOME}/konan/lib/backend.native.jar"
+KOTLIN_JAR="${KONAN_HOME}/konan/lib/kotlin-compiler.jar"
+INTEROP_JAR="${KONAN_HOME}/konan/lib/Runtime.jar"
+PROTOBUF_JAR="${KONAN_HOME}/konan/lib/protobuf.jar"
+
+KONAN_CLASSPATH="$KOTLIN_JAR:$INTEROP_JAR:$PROTOBUF_JAR:$KONAN_JAR"
+
+NATIVE_LIB="${KONAN_HOME}/konan/nativelib"
+DYLD=$DYLD_LIBRARY_PATH:$NATIVE_LIB
+
+RUNTIME="$KONAN_HOME/lib/runtime.bc"
+STDLIB="$KONAN_HOME/lib/stdlib.kt.bc"
+
+# KONAN BACKEND INVOCATION
+
+java_args=("${java_args[@]}" "-noverify")
+konan_args=("-runtime" $RUNTIME "-library" $STDLIB "${konan_args[@]}")
+
+DYLD_LIBRARY_PATH=$DYLD $JAVACMD $JAVA_OPTS ${java_args[@]} -cp $KONAN_CLASSPATH $KONAN_COMPILER -output ${OUTPUT_NAME}.bc ${konan_args[@]}
+
+# LINK STAGE
+
+DEPENDENCIES="$KONAN_HOME/../dependencies"
+
+CLANG="/Users/jetbrains/kotlin-native/kotlin-native/dependencies/all/clang+llvm-3.8.0-darwin-macos/bin/clang++"
+CLANG_FLAGS=" -xc --sysroot=$DEPENDENCIES/all/target-sysroot-1-darwin-macos -B$DEPENDENCIES/all/target-sysroot-1-darwin-macos/usr/bin"
+LAUNCHER="${KONAN_HOME}/lib/launcher.bc"
+START="${KONAN_HOME}/lib/start.kt.bc"
+
+$CLANG ${clang_args[@]} $LAUNCHER $START $RUNTIME $STDLIB $OUTPUT_NAME.bc -o $OUTPUT_NAME
+

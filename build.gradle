@@ -86,3 +86,43 @@ class PlatformInfo {
         return new Error("unsupported platform: $osName/$osArch")
     }
 }
+
+task dist(type: Copy) {
+
+    destinationDir file('dist')
+
+    from(project(':backend.native').file('build/libs')) {
+        into('konan/lib')
+    }
+
+    from(project('Interop').file('Runtime/build/libs')) {
+        into('konan/lib')
+    }
+
+    from(file('/Users/jetbrains/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-compiler/1.1-20161128.112645-274/2b40e7c541b1f9f937302833b8d04feb9077f63b')) {
+        into('konan/lib')
+        rename('kotlin-compiler-1.1-20161128.112645-274.jar', 'kotlin-compiler.jar')
+    }
+
+    from(file('/Users/jetbrains/.gradle//caches/modules-2/files-2.1/com.google.protobuf/protobuf-java/3.0.0/6d325aa7c921661d84577c0a93d82da4df9fa4c8')) {
+        into('konan/lib/')
+        rename('protobuf-java-3.0.0.jar', 'protobuf.jar')
+    }
+
+    from(project(':backend.native').file('build/nativelibs')) {
+        into('konan/nativelib')
+    }
+
+    from(project(':runtime').file('build')) {
+        include('*.bc')
+        into('lib')
+    }
+
+    from(file('cmd')) {
+        fileMode(0775)
+        include('konanc')
+        include('kotlinc-native')
+        into('bin')
+    }
+}
+
