@@ -21,6 +21,12 @@ fun <E> Array<E>.copyOfUninitializedElements(newSize: Int): Array<E> {
     return result
 }
 
+fun IntArray.copyOfUninitializedElements(newSize: Int): IntArray {
+    val result = IntArray(newSize)
+    this.copyRangeTo(result, 0, if (newSize > this.size) this.size else newSize, 0)
+    return result
+}
+
 /**
  * Resets an array element at a specified index to some implementation-specific _uninitialized_ value.
  * In particular, references stored in this element are released and become available for garbage collection.
@@ -34,6 +40,9 @@ fun <E> Array<E>.resetAt(index: Int) {
 @SymbolName("Kotlin_Array_fillImpl")
 external private fun fillImpl(array: Array<Any>, fromIndex: Int, toIndex: Int, value: Any?)
 
+@SymbolName("Kotlin_IntArray_fillImpl")
+external private fun fillImpl(array: IntArray, fromIndex: Int, toIndex: Int, value: Int)
+
 /**
  * Resets a range of array elements at a specified [fromIndex] (inclusive) to [toIndex] (exclusive) range of indices
  * to some implementation-specific _uninitialized_ value.
@@ -45,9 +54,17 @@ fun <E> Array<E>.resetRange(fromIndex: Int, toIndex: Int) {
     fillImpl(this as Array<Any>, fromIndex, toIndex, null)
 }
 
+fun IntArray.fill(fromIndex: Int, toIndex: Int, value: Int) {
+    fillImpl(this, fromIndex, toIndex, value)
+}
+
 @SymbolName("Kotlin_Array_copyImpl")
 external private fun copyImpl(array: Array<Any>, fromIndex: Int,
                          destination: Array<Any>, toIndex: Int, count: Int)
+
+@SymbolName("Kotlin_IntArray_copyImpl")
+external private fun copyImpl(array: IntArray, fromIndex: Int,
+                              destination: IntArray, toIndex: Int, count: Int)
 
 /**
  * Copies a range of array elements at a specified [fromIndex] (inclusive) to [toIndex] (exclusive) range of indices
@@ -55,6 +72,10 @@ external private fun copyImpl(array: Array<Any>, fromIndex: Int,
  */
 fun <E> Array<E>.copyRangeTo(destination: Array<E>, fromIndex: Int, toIndex: Int, destinationIndex: Int = 0) {
     copyImpl(this as Array<Any>, fromIndex, destination as Array<Any>, destinationIndex, toIndex - fromIndex)
+}
+
+fun IntArray.copyRangeTo(destination: IntArray, fromIndex: Int, toIndex: Int, destinationIndex: Int = 0) {
+    copyImpl(this, fromIndex, destination, destinationIndex, toIndex - fromIndex)
 }
 
 /**

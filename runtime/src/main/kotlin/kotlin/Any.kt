@@ -35,3 +35,5 @@ public open class Any {
     @SymbolName("Kotlin_Any_toString")
     external public open fun toString(): String
 }
+
+public fun Any?.hashCode() = this?.hashCode() ?: 0

@@ -64,7 +64,7 @@ class HashSet<K> internal constructor(
     override fun equals(other: Any?): Boolean {
         return other === this ||
                 (other is Set<*>) &&
-                        contentEquals(other)
+                        contentEquals(other as Set<K>)
     }
 
     override fun hashCode(): Int {
@@ -80,5 +80,5 @@ class HashSet<K> internal constructor(
 
     // ---------------------------- private ----------------------------
 
-    private fun contentEquals(other: Set<*>): Boolean = size == other.size && containsAll(other)
+    private fun contentEquals(other: Set<K>): Boolean = size == other.size && containsAll(other)
 }

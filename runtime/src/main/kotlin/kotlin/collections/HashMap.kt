@@ -188,7 +188,7 @@ class HashMap<K, V> private constructor(
         keysArray.resetRange(j, length)
         valuesArray?.resetRange(j, length)
         length = j
-        check(length == size) { "Internal invariant violated during compact: length=$length != size=$size" }
+        //check(length == size) { "Internal invariant violated during compact: length=$length != size=$size" }
     }
 
     private fun rehash(newHashSize: Int) {
@@ -537,7 +537,7 @@ class HashMap<K, V> private constructor(
             return result
         }
 
-        fun nextAppendString(sb: java.lang.StringBuilder) {
+        fun nextAppendString(sb: StringBuilder) {
             if (index >= map.length) throw IndexOutOfBoundsException()
             lastIndex = index++
             val key = map.keysArray[lastIndex]
