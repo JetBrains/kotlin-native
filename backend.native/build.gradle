@@ -227,11 +227,12 @@ task run(type: JavaExec) {
 
 task jars(type: Jar) {
 
-  from 'build/classes/cli_bc', 
-       'build/classes/compiler', 
-       'build/classes/hashInteropStubs', 
-       'build/classes/llvmInteropStubs'
+    from 'build/classes/cli_bc', 
+         'build/classes/compiler', 
+         'build/classes/hashInteropStubs', 
+         'build/classes/llvmInteropStubs'
 
+    dependsOn ':runtime:build', 'start', 'stdlib'
 }
 
 

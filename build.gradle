@@ -89,6 +89,8 @@ class PlatformInfo {
 
 task dist(type: Copy) {
 
+    dependsOn ':backend.native:jars'
+
     destinationDir file('dist')
 
     from(project(':backend.native').file('build/libs')) {
@@ -124,5 +126,12 @@ task dist(type: Copy) {
         include('kotlinc-native')
         into('bin')
     }
+
+    finalizedBy 'test_hello'
+}
+
+task test_hello(type: Exec) {
+    commandLine './dist/bin/konanc', 'backend.native/tests/runtime/basic/hello0.c', '-o', 'hello'
+    commandLine './hello'
 }
 
