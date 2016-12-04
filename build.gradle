@@ -125,8 +125,10 @@ task dist(type: Copy) {
 }
 
 task test_hello(type: Exec) {
-    commandLine './dist/bin/konanc', 'backend.native/tests/runtime/basic/hello0.c', '-o', 'hello'
-    commandLine './hello'
+    commandLine './dist/bin/konanc', 'backend.native/tests/runtime/basic/hello0.kt', '-o', 'build/hello'
+    doLast {
+        commandLine './build/hello'
+    }
 }
 
 task clean << {

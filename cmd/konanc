@@ -10,7 +10,7 @@ declare -a java_args
 declare -a konan_args
 declare -a clang_args
 
-OUTPUT_NAME="out"
+OUTPUT_NAME="out.kexe"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -43,12 +43,25 @@ done
 [ -n "$JAVACMD" ] || JAVACMD=java
 [ -n "$JAVA_OPTS" ] || JAVA_OPTS="-Xmx256M -Xms32M"
 
-KONAN_HOME="$(cd $(dirname ${BASH_SOURCE[0]})/.. ; pwd)"
+# Based on findScalaHome() from scalac script
+findHome() {
+    local source="${BASH_SOURCE[0]}"
+    while [ -h "$source" ] ; do
+        local linked="$(readlink "$source")"
+        local dir="$(cd -P $(dirname "$source") && cd -P $(dirname "$linked") && pwd)"
+        source="$dir/$(basename "$linked")"
+    done
+    (cd -P "$(dirname "$source")/.." && pwd)
+}
+
+KONAN_HOME="$(findHome)"
+
+echo $KONAN_HOME
 
 KONAN_JAR="${KONAN_HOME}/konan/lib/backend.native.jar"
 KOTLIN_JAR="${KONAN_HOME}/konan/lib/kotlin-compiler.jar"
 INTEROP_JAR="${KONAN_HOME}/konan/lib/Runtime.jar"
-PROTOBUF_JAR="${KONAN_HOME}/konan/lib/protobuf-google-3.0.0.jar"
+PROTOBUF_JAR="${KONAN_HOME}/konan/lib/protobuf-java-3.0.0.jar"
 
 KONAN_CLASSPATH="$KOTLIN_JAR:$INTEROP_JAR:$PROTOBUF_JAR:$KONAN_JAR"
 
