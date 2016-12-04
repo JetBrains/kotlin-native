@@ -198,25 +198,8 @@ task start(type: JavaExec) {
     environment 'LD_LIBRARY_PATH' : "${llvmDir}/lib:${project.buildDir}/nativelibs"
 }
 
-task run(type: JavaExec) {
-   main 'org.jetbrains.kotlin.cli.bc.K2NativeKt'
-   classpath configurations.cli_bc
-
-   args 'tests/codegen/function/sum.kt'
-
-   args '-library', project(':runtime').file('build/stdlib.kt.bc')
-
-   args '-output', "$buildDir/out.bc"
-
-   jvmArgs '-ea', "-Djava.library.path=${project.buildDir}/nativelibs"
-
-   dependsOn ':runtime:build'
-   dependsOn 'stdlib'
-
-   doFirst {
-       args '-runtime', project(':runtime').build.outputs.files.singleFile
-   }
-   environment 'LD_LIBRARY_PATH' : "${llvmDir}/lib:${project.buildDir}/nativelibs"
+task run {
+   logger.quiet("Run the outer project 'demo' target to compile the test source." )
 }
 
 

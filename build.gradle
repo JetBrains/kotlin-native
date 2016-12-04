@@ -131,6 +131,10 @@ task test_hello(type: Exec) {
     }
 }
 
+task demo(type: Exec) {
+    commandLine './dist/bin/konanc', 'backend.native/tests/runtime/collections/moderately_large_array.kt', '-o', 'build/demo.kexe'
+}
+
 task clean << {
         delete dist
 }
