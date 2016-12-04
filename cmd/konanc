@@ -48,7 +48,7 @@ KONAN_HOME="$(cd $(dirname ${BASH_SOURCE[0]})/.. ; pwd)"
 KONAN_JAR="${KONAN_HOME}/konan/lib/backend.native.jar"
 KOTLIN_JAR="${KONAN_HOME}/konan/lib/kotlin-compiler.jar"
 INTEROP_JAR="${KONAN_HOME}/konan/lib/Runtime.jar"
-PROTOBUF_JAR="${KONAN_HOME}/konan/lib/protobuf.jar"
+PROTOBUF_JAR="${KONAN_HOME}/konan/lib/protobuf-google-3.0.0.jar"
 
 KONAN_CLASSPATH="$KOTLIN_JAR:$INTEROP_JAR:$PROTOBUF_JAR:$KONAN_JAR"
 
@@ -67,10 +67,11 @@ DYLD_LIBRARY_PATH=$DYLD $JAVACMD $JAVA_OPTS ${java_args[@]} -cp $KONAN_CLASSPATH
 
 # LINK STAGE
 
-DEPENDENCIES="$KONAN_HOME/../dependencies"
+# TODO: We should probably copy the dependencies into dist.
+DEPENDENCIES="$KONAN_HOME/../dependencies/all"
 
-CLANG="/Users/jetbrains/kotlin-native/kotlin-native/dependencies/all/clang+llvm-3.8.0-darwin-macos/bin/clang++"
-CLANG_FLAGS=" -xc --sysroot=$DEPENDENCIES/all/target-sysroot-1-darwin-macos -B$DEPENDENCIES/all/target-sysroot-1-darwin-macos/usr/bin"
+CLANG="$DEPENDENCIES/clang+llvm-3.8.0-darwin-macos/bin/clang++"
+CLANG_FLAGS=" -xc --sysroot=$DEPENDENCIES/target-sysroot-1-darwin-macos -B$DEPENDENCIES/target-sysroot-1-darwin-macos/usr/bin"
 LAUNCHER="${KONAN_HOME}/lib/launcher.bc"
 START="${KONAN_HOME}/lib/start.kt.bc"
 

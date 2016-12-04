@@ -101,14 +101,8 @@ task dist(type: Copy) {
         into('konan/lib')
     }
 
-    from(file('/Users/jetbrains/.gradle/caches/modules-2/files-2.1/org.jetbrains.kotlin/kotlin-compiler/1.1-20161128.112645-274/2b40e7c541b1f9f937302833b8d04feb9077f63b')) {
+    from(project(':backend.native').file('build/external_jars')) {
         into('konan/lib')
-        rename('kotlin-compiler-1.1-20161128.112645-274.jar', 'kotlin-compiler.jar')
-    }
-
-    from(file('/Users/jetbrains/.gradle//caches/modules-2/files-2.1/com.google.protobuf/protobuf-java/3.0.0/6d325aa7c921661d84577c0a93d82da4df9fa4c8')) {
-        into('konan/lib/')
-        rename('protobuf-java-3.0.0.jar', 'protobuf.jar')
     }
 
     from(project(':backend.native').file('build/nativelibs')) {
@@ -133,5 +127,9 @@ task dist(type: Copy) {
 task test_hello(type: Exec) {
     commandLine './dist/bin/konanc', 'backend.native/tests/runtime/basic/hello0.c', '-o', 'hello'
     commandLine './hello'
+}
+
+task clean << {
+        delete dist
 }
 
