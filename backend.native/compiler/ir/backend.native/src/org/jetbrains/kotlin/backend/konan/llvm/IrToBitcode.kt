@@ -28,6 +28,7 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.resolve.descriptorUtil.getAllSuperclassesWithoutAny
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeUtils
+import org.jetbrains.kotlin.types.typeUtil.isArrayOfNothing
 import org.jetbrains.kotlin.types.typeUtil.isNothing
 import org.jetbrains.kotlin.types.typeUtil.isNullableNothing
 import org.jetbrains.kotlin.types.typeUtil.isUnit
@@ -1618,7 +1619,8 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             val bbExit = codegen.basicBlock()                                   // Exit block for feather generation.
             val result = codegen.alloca(codegen.getLLVMType(callee.type), codegen.newVar())
 
-            val condition = codegen.icmpEq(arg0, codegen.kNullObjHeaderPtr, codegen.newVar())    // Compare arg0 with "null".
+            val condition = codegen.icmpEq(
+                    arg0, codegen.kNullObjHeaderPtr, codegen.newVar())          // Compare arg0 with "null".
             codegen.condBr(condition, bbEq3, bbEq2)                             // If (arg0 == null) bbEq3 else bbEq2.
 
             codegen.positionAtEnd(bbEq3)                                        // Get generation to bbEq3.

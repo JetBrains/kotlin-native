@@ -36,4 +36,4 @@ public open class Any {
     external public open fun toString(): String
 }
 
-public fun Any?.hashCode() = this?.hashCode() ?: 0
+public fun Any?.hashCode() = if (this != null) this.hashCode() else 0
