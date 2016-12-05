@@ -209,6 +209,16 @@ KInt Kotlin_IntArray_getArrayLength(KConstRef thiz) {
   return array->count_;
 }
 
+void Kotlin_IntArray_fillImpl(KRef thiz, KInt fromIndex, KInt toIndex, KInt value) {
+  ArrayHeader* array = static_cast<ArrayHeader*>(thiz);
+  if (fromIndex < 0 || toIndex < fromIndex || toIndex >= array->count_) {
+    ThrowArrayIndexOutOfBoundsException();
+  }
+  for (KInt index = fromIndex; index < toIndex; ++index) {
+    *PrimitiveArrayAddressOfElementAt<KInt>(array, index) = value;
+  }
+}
+
 KLong Kotlin_LongArray_get(KConstRef thiz, KInt index) {
   const ArrayHeader* array = static_cast<const ArrayHeader*>(thiz);
   if (static_cast<uint32_t>(index) >= array->count_) {
