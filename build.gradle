@@ -90,7 +90,7 @@ class PlatformInfo {
 }
 
 task dist_compiler(type: Copy) {
-    dependsOn ':backend.native:jars'
+    dependsOn ':backend.native:jars', 'dist_runtime'
 
     destinationDir file('dist')
 
@@ -119,26 +119,31 @@ task dist_compiler(type: Copy) {
 }
 
 task stdlib(type: Exec) {
-    dependsOn 'dist_compiler'
+    dependsOn 'dist_compiler', 'list_dist'
 
     commandLine './dist/bin/konanc', 
         '-J-ea', '-Djava.library.path=backend.native/build/nativelibs',
-        '-nolink', '-nostdlib', 'runtime/src/main/kotlin', '-o', 'dist/lib/stdlib.kt.bc'
+        '-nolink', '-nostdlib', 'runtime/src/main/kotlin', '-o', 'dist/lib/stdlib'
+
     outputs.file(project.file('dist/lib/stdlib.kt.bc'))
 }
 
+task list_dist(type: Exec) {
+    commandLine 'find', 'dist'
+}
+
 task start(type: Exec) {
-    dependsOn 'dist_compiler'
+    dependsOn 'dist_compiler', 'stdlib'
 
     commandLine './dist/bin/konanc', 
         '-J-ea', '-Djava.library.path=backend.native/build/nativelibs',
-        '-nolink', 'runtime/src/launcher/kotlin', '-o', 'dist/lib/start.kt.bc'
+        '-nolink', 'runtime/src/launcher/kotlin', '-o', 'dist/lib/start'
 
     outputs.file(project.file('dist/lib/start.kt.bc'))
 }
 
 task dist_runtime(type: Copy) {
-    dependsOn 'start', 'stdlib'
+    dependsOn ':runtime:build'
 
     destinationDir file('dist')
 
@@ -149,7 +154,7 @@ task dist_runtime(type: Copy) {
 }
 
 task dist {
-    dependsOn 'dist_compiler', 'dist_runtime'
+    dependsOn 'dist_compiler', 'dist_runtime', 'stdlib','start'
 }
 
 task demo(type: Exec) {

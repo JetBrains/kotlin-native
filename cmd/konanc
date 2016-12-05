@@ -88,7 +88,7 @@ java_args=("${java_args[@]}" "-noverify")
 konan_args=("-runtime" $RUNTIME "${konan_args[@]}")
 [ -z $NOSTDLIB ] && konan_args=("-library" $STDLIB "${konan_args[@]}")
 
-DYLD_LIBRARY_PATH=$DYLD $JAVACMD $JAVA_OPTS ${java_args[@]} -cp $KONAN_CLASSPATH $KONAN_COMPILER -output ${OUTPUT_NAME}.kt.bc ${konan_args[@]}
+DYLD_LIBRARY_PATH=$DYLD LD_LIBRARY_PATH=$DYLD $JAVACMD $JAVA_OPTS ${java_args[@]} -cp $KONAN_CLASSPATH $KONAN_COMPILER -output ${OUTPUT_NAME}.kt.bc ${konan_args[@]}
 
 COMPILER_EXIT_CODE="$?"
 [ -z $NOLINK ] || exit $COMPILER_EXIT_CODE
