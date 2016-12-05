@@ -14,7 +14,9 @@ internal fun ContextUtils.getLLVMType(type: KotlinType): LLVMTypeRef {
         KotlinBuiltIns.isUnit(type) -> LLVMVoidType() // TODO: handle Unit parameter case
         KotlinBuiltIns.isFloat(type) -> LLVMFloatType()
         KotlinBuiltIns.isDouble(type) -> LLVMDoubleType()
-        KotlinBuiltIns.isArray(type) || KotlinBuiltIns.isPrimitiveArray(type)-> this.kArrayHeaderPtr
+        !KotlinBuiltIns.isNullableAny(type) &&
+                (KotlinBuiltIns.isArray(type) || KotlinBuiltIns.isPrimitiveArray(type)) -> this.kArrayHeaderPtr
+        // Nullable arrays also are represented as ObjHeader, otherwise it's hard to represent nullable arrays.
         !KotlinBuiltIns.isPrimitiveType(type) -> this.kObjHeaderPtr
         else -> throw NotImplementedError(type.toString() + " is not supported")
     }!!
