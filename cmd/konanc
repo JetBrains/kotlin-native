@@ -27,6 +27,14 @@ while [ $# -gt 0 ]; do
       shift
       shift
       ;;
+    -nolink)
+      NOLINK=YES
+      shift
+      ;;
+    -nostdlib)
+      NOSTDLIB=YES
+      shift
+      ;;
     -X*)
       clang_args=("${clang_args[@]}" "${1:2}")
       shift
@@ -71,22 +79,37 @@ DYLD=$DYLD_LIBRARY_PATH:$NATIVE_LIB
 RUNTIME="$KONAN_HOME/lib/runtime.bc"
 STDLIB="$KONAN_HOME/lib/stdlib.kt.bc"
 
+#
 # KONAN BACKEND INVOCATION
+#
 
 java_args=("${java_args[@]}" "-noverify")
-konan_args=("-runtime" $RUNTIME "-library" $STDLIB "${konan_args[@]}")
 
-DYLD_LIBRARY_PATH=$DYLD $JAVACMD $JAVA_OPTS ${java_args[@]} -cp $KONAN_CLASSPATH $KONAN_COMPILER -output ${OUTPUT_NAME}.bc ${konan_args[@]}
+konan_args=("-runtime" $RUNTIME "${konan_args[@]}")
+[ -z $NOSTDLIB ] && konan_args=("-library" $STDLIB "${konan_args[@]}")
 
+DYLD_LIBRARY_PATH=$DYLD $JAVACMD $JAVA_OPTS ${java_args[@]} -cp $KONAN_CLASSPATH $KONAN_COMPILER -output ${OUTPUT_NAME}.kt.bc ${konan_args[@]}
+
+COMPILER_EXIT_CODE="$?"
+[ -z $NOLINK ] || exit $COMPILER_EXIT_CODE
+
+#
 # LINK STAGE
+#
 
 # TODO: We should probably copy the dependencies into dist.
 DEPENDENCIES="$KONAN_HOME/../dependencies/all"
 
 CLANG="$DEPENDENCIES/clang+llvm-3.8.0-darwin-macos/bin/clang++"
-CLANG_FLAGS=" -xc --sysroot=$DEPENDENCIES/target-sysroot-1-darwin-macos -B$DEPENDENCIES/target-sysroot-1-darwin-macos/usr/bin"
 LAUNCHER="${KONAN_HOME}/lib/launcher.bc"
 START="${KONAN_HOME}/lib/start.kt.bc"
 
-$CLANG ${clang_args[@]} $LAUNCHER $START $RUNTIME $STDLIB $OUTPUT_NAME.bc -o $OUTPUT_NAME
+# TODO: Compilation without stdlib.kt.bc deons't work as 'start' requires stdlib, for example.
+# Probably, we need a .klib compilation mode.
+# [ -z $NOSTDLIB ] && clang_args=($STDLIB "${clang_args[@]}")
+clang_args=($STDLIB "${clang_args[@]}")
+clang_args=($LAUNCHER $START $RUNTIME "${clang_args[@]}")
+clang_args=("${clang_args[@]}" "-xc --sysroot=$DEPENDENCIES/target-sysroot-1-darwin-macos -B$DEPENDENCIES/target-sysroot-1-darwin-macos/usr/bin")
+
+$CLANG $OUTPUT_NAME.kt.bc -o $OUTPUT_NAME ${clang_args[@]} 
 

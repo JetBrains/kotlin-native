@@ -1,5 +1,7 @@
 //ant.importBuild 'backend.native/kotlin-ir/build.xml'
 
+defaultTasks 'clean', 'demo'
+
 if (new File("$project.rootDir/local.properties").exists()) {
   Properties props = new Properties()
   props.load(new FileInputStream("$project.rootDir/local.properties"))
@@ -87,8 +89,7 @@ class PlatformInfo {
     }
 }
 
-task dist(type: Copy) {
-
+task dist_compiler(type: Copy) {
     dependsOn ':backend.native:jars'
 
     destinationDir file('dist')
@@ -109,29 +110,51 @@ task dist(type: Copy) {
         into('konan/nativelib')
     }
 
-    from(project(':runtime').file('build')) {
-        include('*.bc')
-        into('lib')
-    }
-
     from(file('cmd')) {
         fileMode(0775)
         include('konanc')
         include('kotlinc-native')
         into('bin')
     }
-
-    finalizedBy 'test_hello'
 }
 
-task test_hello(type: Exec) {
-    commandLine './dist/bin/konanc', 'backend.native/tests/runtime/basic/hello0.kt', '-o', 'build/hello'
-    doLast {
-        commandLine './build/hello'
+task stdlib(type: Exec) {
+    dependsOn 'dist_compiler'
+
+    commandLine './dist/bin/konanc', 
+        '-J-ea', '-Djava.library.path=backend.native/build/nativelibs',
+        '-nolink', '-nostdlib', 'runtime/src/main/kotlin', '-o', 'dist/lib/stdlib.kt.bc'
+    outputs.file(project.file('dist/lib/stdlib.kt.bc'))
+}
+
+task start(type: Exec) {
+    dependsOn 'dist_compiler'
+
+    commandLine './dist/bin/konanc', 
+        '-J-ea', '-Djava.library.path=backend.native/build/nativelibs',
+        '-nolink', 'runtime/src/launcher/kotlin', '-o', 'dist/lib/start.kt.bc'
+
+    outputs.file(project.file('dist/lib/start.kt.bc'))
+}
+
+task dist_runtime(type: Copy) {
+    dependsOn 'start', 'stdlib'
+
+    destinationDir file('dist')
+
+    from(project(':runtime').file('build')) {
+        include('*.bc')
+        into('lib')
     }
 }
 
+task dist {
+    dependsOn 'dist_compiler', 'dist_runtime'
+}
+
 task demo(type: Exec) {
+    dependsOn 'dist'
+
     commandLine './dist/bin/konanc', 'backend.native/tests/runtime/collections/moderately_large_array.kt', '-o', 'build/demo.kexe'
 }
 

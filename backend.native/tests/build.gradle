@@ -15,6 +15,7 @@ abstract class KonanTest extends DefaultTask {
     def launcherBc = new File("${runtimeProject.buildDir.canonicalPath}/launcher.bc")
     def startKtBc = new File("${runtimeProject.buildDir.canonicalPath}/start.kt.bc")
     def stdlibKtBc = new File("${runtimeProject.buildDir.canonicalPath}/stdlib.kt.bc")
+    def konanc = project.parent.parent.file('dist/bin/konanc')
     def mainC = 'main.c'
     String goldValue = null
     String testData = null
@@ -27,44 +28,16 @@ abstract class KonanTest extends DefaultTask {
     }
 
     public KonanTest(){
-        dependsOn([project.project(":runtime").tasks['build'],
-                   project.parent.tasks['build'],
-                   project.project(":backend.native").tasks['stdlib'],
-                   project.project(":backend.native").tasks['start']
-        ])
+        // TODO: that's a long reach up the project tree.
+        // May be we should reorganize a little.
+        dependsOn(project.parent.parent.tasks['dist'])
     }
 
-
-
-    abstract void compileTest(File sourceS, File runtimeS, File libraryPath, File out)
-
-    private  File kt2bc(String ktSource) {
-        def sourceKt = project.file(ktSource)
-        def sourceBc = new File("${sourceKt.absolutePath}.bc")
-        println "${runtimeBc}"
-
-        project.javaexec {
-            main = 'org.jetbrains.kotlin.cli.bc.K2NativeKt'
-            classpath = project.configurations.cli_bc
-            jvmArgs "-ea"
-            args "-output", "${sourceBc.absolutePath}",
-                 "-runtime", "${runtimeBc.absolutePath}",
-                 "-library", "${stdlibKtBc.absolutePath}",
-                 "${sourceKt.absolutePath}"
-
-            String libraryPath = "${project.llvmDir}/lib:${backendNative.buildDir.canonicalPath}/nativelibs"
-            environment 'LD_LIBRARY_PATH'   : libraryPath
-            environment 'DYLD_LIBRARY_PATH' : libraryPath
-        }
-        return sourceBc
-    }
+    abstract File konancTest(File source)
 
     @TaskAction
     void executeTest() {
-        def sourceS = bc2s(kt2bc(source))
-        def exe = new File(sourceS.absolutePath.replace(".kt.S", ".kt.exe"))
-        def libraryPath = new File("${runtimeProject.file('src/main/bc').absolutePath}")
-        compileTest(sourceS, bc2s(runtimeBc), stdlibKtBc, exe)
+        def exe = konancTest(project.file(source))
         println "execution :${exe.absolutePath}"
 
         def out = null
@@ -83,17 +56,6 @@ abstract class KonanTest extends DefaultTask {
         }
         if (goldValue != null && goldValue != out.toString())
             throw new RuntimeException("test failed")
-    }
-
-    private File bc2s(File bcFile) {
-        def outputFile = new File("${bcFile.absolutePath.replace(".bc",".S")}")
-        println "${bcFile.absolutePath} -> ${outputFile.absolutePath}"
-        println "tool: ${llvmLlc}"
-        project.exec {
-            commandLine "${llvmLlc}", "-o", "${outputFile.absolutePath}" , "${bcFile}",
-                    '-disable-fp-elim' // currently required for stack traces
-        }
-        return outputFile
     }
 
     private String llvmTool(String tool) {
@@ -134,87 +96,48 @@ abstract class KonanTest extends DefaultTask {
 }
 
 class UnitKonanTest extends KonanTest {
-    void compileTest(File sourceS, File runtimeS, File stdlibKtBc, File exe) {
-        def testC = sourceS.absolutePath.replace(".kt.S", "-test.c")
-        project.execClang {
-            commandLine "clang++", runtimeS.absolutePath, stdlibKtBc.absolutePath, sourceS.absolutePath,
-                    "-o", exe.absolutePath, linkDl(), linkM(), rdynamic(), '-xc', testC, mainC
+    File konancTest(File source) {
+        def testC = source.absolutePath.replace(".kt", "-test.c")
+        def exe = new File(source.absolutePath.replace(".kt", ".kt.exe"))
+        project.exec {
+            commandLine konanc, source.absolutePath, "-nolink", "-o", exe.absolutePath, 
+                '-X'+linkDl(), '-X'+linkM(), '-X'+rdynamic(), '-X-xc', '-X'+testC, '-X'+mainC
         }
+        return exe
     }
 }
 
 class RunKonanTest extends KonanTest {
-    void compileTest(File sourceS, File runtimeS, File libraryPath, File exe) {
-        project.execClang {
-            commandLine "clang++", launcherBc.absolutePath, startKtBc.absolutePath, runtimeS.absolutePath, stdlibKtBc.absolutePath, sourceS.absolutePath,
-                    "-o", exe.absolutePath, linkDl(), linkM(), rdynamic(), '-xc'
+    File konancTest(File source) {
+        def exe = new File(source.absolutePath.replace(".kt", ".kt.exe"))
+        project.exec {
+            commandLine konanc, source.absolutePath, "-o", exe.absolutePath, 
+                '-X'+linkDl(), '-X'+linkM(), '-X'+rdynamic()
         }
+        return exe
     }
 }
 
 class LinkKonanTest extends KonanTest {
     protected String lib
 
-    private File dir2bc(String ktSources) {
-        def sourcesKt = project.file(ktSources)
-        def libBc = new File("${sourcesKt.absolutePath}/libout.kt.bc")
-        def libPath = "${libBc.absolutePath}"
-
-        project.javaexec {
-            main = 'org.jetbrains.kotlin.cli.bc.K2NativeKt'
-            classpath = project.configurations.cli_bc
-            jvmArgs "-ea"
-            args "-output", "${libPath}",
-                 "-runtime", "${runtimeBc.absolutePath}",
-                 sourcesKt
-
-            String libraryPath = "${project.llvmDir}/lib:${backendNative.buildDir.canonicalPath}/nativelibs"
-            environment 'LD_LIBRARY_PATH'   : libraryPath
-            environment 'DYLD_LIBRARY_PATH' : libraryPath
+    File konancTest(File source) {
+        def library = project.file(lib)
+        def libraryKtBc = project.file("${lib}.kt.bc")
+        project.exec {
+            commandLine konanc, library.absolutePath, "-nolink", "-nostdlib", "-o", library.absolutePath
 
         }
-        return libBc
-    }
 
-    private File link(String ktSource, File libBc) {
-        def sourceKt = project.file(ktSource)
-        def outPath = "${sourceKt.absolutePath.replace('.kt', '.kt.bc')}"
-        def outBc = new File(outPath)
-
-        project.javaexec {
-            main = 'org.jetbrains.kotlin.cli.bc.K2NativeKt'
-            classpath = project.configurations.cli_bc
-            jvmArgs "-ea"
-            args "-output", outPath,
-                 "-runtime", "${runtimeBc.absolutePath}",
-                 "-library", "${libBc.absolutePath}",
-                 "${sourceKt.absolutePath}"
-
-            String libraryPath = "${project.llvmDir}/lib:${backendNative.buildDir.canonicalPath}/nativelibs"
-            environment 'LD_LIBRARY_PATH'   : libraryPath
-            environment 'DYLD_LIBRARY_PATH' : libraryPath
-
+        def exe = new File(source.absolutePath.replace(".kt", ".kt.exe"))
+        project.exec {
+            commandLine konanc, source.absolutePath, 
+            // TODO: this requires a klib use flag, which we dont have now, so we use -X.
+            "-library", libraryKtBc.absolutePath,
+            "-X"+libraryKtBc.absolutePath, "-o", exe.absolutePath
         }
-        return outBc
+        return exe
     }
-
-    void compileTest(File sourceS, File runtimeS, File stdlibKtBc, File exe) {
-        def testC = sourceS.absolutePath.replace(".kt.S", "-test.c")
-        project.execClang {
-            commandLine "clang++", runtimeS.absolutePath, stdlibKtBc.absolutePath, sourceS.absolutePath,
-                    "-o", exe.absolutePath, linkDl(), rdynamic(), '-xc', testC, mainC
-        }
-    }
-
-
-    @TaskAction
-    void executeTest() {
-            def libBc = dir2bc(lib)
-            def outBc = link(source, libBc)
-    }
-
-
-
 }
 
 task run() {
@@ -437,6 +360,7 @@ task intrinsic(type: UnitKonanTest) {
 }
 
 task link(type: LinkKonanTest) {
+    goldValue = "0\n"
     source = "link/src/bar.kt"
     lib = "link/lib"
 }

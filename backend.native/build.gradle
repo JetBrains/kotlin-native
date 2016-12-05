@@ -156,66 +156,22 @@ dependencies {
 }
 
 
-build.dependsOn 'compilerClasses','cli_bcClasses','bc_frontendClasses', 'jars'
-
-task stdlib(type: JavaExec) {
-    main 'org.jetbrains.kotlin.cli.bc.K2NativeKt'
-    classpath configurations.cli_bc
-
-    args project(':runtime').file('src/main/kotlin')
-
-    args '-output', project(':runtime').file('build/stdlib.kt.bc')
-
-    jvmArgs '-ea', "-Djava.library.path=${project.buildDir}/nativelibs"
-
-    dependsOn ':runtime:build'
-    outputs.file(project(':runtime').file('build/stdlib.kt.bc'))
-
-    doFirst {
-    args '-runtime', project(':runtime').build.outputs.files.singleFile
-    }
-    environment 'LD_LIBRARY_PATH' : "${llvmDir}/lib:${project.buildDir}/nativelibs"
-}
-
-task start(type: JavaExec) {
-    main 'org.jetbrains.kotlin.cli.bc.K2NativeKt'
-    classpath configurations.cli_bc
-
-    args project(':runtime').file('src/launcher/kotlin')
-
-    args '-library', project(':runtime').file('build/stdlib.kt.bc')
-
-    args '-output', project(':runtime').file('build/start.kt.bc')
-
-    jvmArgs '-ea', "-Djava.library.path=${project.buildDir}/nativelibs"
-
-    dependsOn 'stdlib'
-    outputs.file(project(':runtime').file('build/start.kt.bc'))
-
-    doFirst {
-    args '-runtime', project(':runtime').build.outputs.files.singleFile
-    }
-    environment 'LD_LIBRARY_PATH' : "${llvmDir}/lib:${project.buildDir}/nativelibs"
-}
+build.dependsOn 'compilerClasses','cli_bcClasses','bc_frontendClasses'
 
 task run {
    logger.quiet("Run the outer project 'demo' target to compile the test source." )
 }
 
-
-
 task jars(type: Jar) {
-
     from 'build/classes/cli_bc', 
          'build/classes/compiler', 
          'build/classes/hashInteropStubs', 
          'build/classes/llvmInteropStubs'
 
-    dependsOn ':runtime:build', 'start', 'stdlib', 'external_jars'
+    dependsOn 'build', ':runtime:build', 'external_jars'
 }
 
 task external_jars(type: Copy) {
-
     from configurations.compilerCompile {
 
         include 'protobuf-java-3.0.0.jar'
