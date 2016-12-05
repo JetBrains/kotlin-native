@@ -20,8 +20,9 @@ while [ $# -gt 0 ]; do
       java_args=("${java_args[@]}" "${1:2}")
       shift
       ;;
-    -o)
-      OUTPUT_NAME=$2
+    -library)
+      clang_args=("${libraries[@]}" "$2")
+      konan_args=("${konan_args[@]}" "$1" "$2")
       shift
       shift
       ;;
@@ -33,7 +34,12 @@ while [ $# -gt 0 ]; do
       NOSTDLIB=YES
       shift
       ;;
-    -X*)
+    -o)
+      OUTPUT_NAME=$2
+      shift
+      shift
+      ;;
+   -X*)
       clang_args=("${clang_args[@]}" "${1:2}")
       shift
       ;;

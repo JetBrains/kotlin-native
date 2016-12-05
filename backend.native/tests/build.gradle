@@ -136,9 +136,7 @@ class LinkKonanTest extends KonanTest {
         def exe = new File(source.absolutePath.replace(".kt", ".kt.exe"))
         project.exec {
             commandLine konanc, source.absolutePath, 
-            // TODO: this requires a klib use flag, which we dont have now, so we use -X.
-            "-library", libraryKtBc.absolutePath,
-            "-X${libraryKtBc.absolutePath}", "-o", exe.absolutePath
+            "-library", libraryKtBc.absolutePath, "-o", exe.absolutePath
         }
         return exe
     }
