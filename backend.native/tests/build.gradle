@@ -115,7 +115,7 @@ class RunKonanTest extends KonanTest {
         def exe = new File(source.absolutePath.replace(".kt", ".exe"))
         project.exec {
             commandLine konanc, source.absolutePath, "-o", exe.absolutePath, 
-                '-X'+linkDl(), '-X'+linkM(), '-X'+rdynamic()
+                "-X${linkDl()} ${linkM()} ${rdynamic()}"
         }
         return exe
     }
@@ -128,7 +128,8 @@ class LinkKonanTest extends KonanTest {
         def library = project.file(lib)
         def libraryKtBc = project.file("${lib}.kt.bc")
         project.exec {
-            commandLine konanc, library.absolutePath, "-nolink", "-nostdlib", "-o", libraryKtBc.absolutePath
+            commandLine konanc, library.absolutePath, "-nolink", "-nostdlib", 
+                "-o", libraryKtBc.absolutePath
 
         }
 
@@ -137,7 +138,7 @@ class LinkKonanTest extends KonanTest {
             commandLine konanc, source.absolutePath, 
             // TODO: this requires a klib use flag, which we dont have now, so we use -X.
             "-library", libraryKtBc.absolutePath,
-            "-X"+libraryKtBc.absolutePath, "-o", exe.absolutePath
+            "-X${libraryKtBc.absolutePath}", "-o", exe.absolutePath
         }
         return exe
     }
