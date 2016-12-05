@@ -76,8 +76,7 @@ KInt Kotlin_String_getStringLength(KString thiz) {
   return thiz->count_;
 }
 
-KString Kotlin_String_fromUtf8Array(
-    const ObjHeader* thiz, KInt start, KInt size) {
+KString Kotlin_String_fromUtf8Array(KConstRef thiz, KInt start, KInt size) {
   const ArrayHeader* array = static_cast<const ArrayHeader*>(thiz);
   RuntimeAssert(array->type_info() == theByteArrayTypeInfo, "Must use a byte array");
   if (start < 0 || size < 0 || start + size > array->count_) {
@@ -97,8 +96,7 @@ KString Kotlin_String_fromUtf8Array(
   return result;
 }
 
-KString Kotlin_String_fromCharArray(
-    const ObjHeader* thiz, KInt start, KInt size) {
+KString Kotlin_String_fromCharArray(KConstRef thiz, KInt start, KInt size) {
   const ArrayHeader* array = static_cast<const ArrayHeader*>(thiz);
   RuntimeAssert(array->type_info() == theCharArrayTypeInfo, "Must use a byte array");
   if (start < 0 || size < 0 || start + size > array->count_) {
@@ -118,7 +116,7 @@ KString Kotlin_String_fromCharArray(
   return result;
 }
 
-ArrayHeader* Kotlin_String_toCharArray(KString string) {
+KRef Kotlin_String_toCharArray(KString string) {
   // TODO: support full UTF-8.
   ArrayHeader* result = ArrayContainer(
       theCharArrayTypeInfo, string->count_).GetPlace();
@@ -182,7 +180,7 @@ KString Kotlin_String_subSequence(KString thiz, KInt startIndex, KInt endIndex) 
   return result;
 }
 
-KRef Kotlin_getCurrentStackTrace() {
+KConstRef Kotlin_getCurrentStackTrace() {
   return GetCurrentStackTrace();
 }
 
