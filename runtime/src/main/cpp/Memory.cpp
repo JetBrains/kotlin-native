@@ -102,14 +102,16 @@ ArrayHeader* AllocStringInstance(
 ObjHeader* InitInstance(
     ObjHeader** location, const TypeInfo* type_info, PlacementHint hint,
     void (*ctor)(ObjHeader*)) {
-  static ObjHeader* sentinel = reinterpret_cast<ObjHeader*>(1);
+  ObjHeader* sentinel = reinterpret_cast<ObjHeader*>(1);
   ObjHeader* value;
   // Wait until other initializers.
-  while ((value = __sync_val_compare_and_swap(location, 0, sentinel)) == sentinel) {
+  while ((value = __sync_val_compare_and_swap(
+             location, nullptr, sentinel)) == sentinel) {
+    // TODO: consider yielding.
   }
 
-  if (reinterpret_cast<uintptr_t>(value) > 1) {
-    // OK'ish inited by someone else.
+  if (value != nullptr) {
+    // OK'ish, inited by someone else.
     return value;
   }
 
@@ -120,7 +122,7 @@ ObjHeader* InitInstance(
     return instance;
   } catch (...) {
     Release(instance->container());
-    __sync_val_compare_and_swap(location, sentinel, 0);
+    __sync_val_compare_and_swap(location, sentinel, nullptr);
     return nullptr;
   }
 }
