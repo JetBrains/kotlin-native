@@ -89,7 +89,8 @@ ArrayHeader* AllocArrayInstance(
   return ArrayContainer(type_info, elements).GetPlace();
 }
 
-ArrayHeader* AllocStringInstance(const char* data, uint32_t length) {
+ArrayHeader* AllocStringInstance(
+    PlacementHint hint, const char* data, uint32_t length) {
   ArrayHeader* result = ArrayContainer(theStringTypeInfo, length).GetPlace();
   memcpy(
       ByteArrayAddressOfElementAt(result, 0),
@@ -97,6 +98,28 @@ ArrayHeader* AllocStringInstance(const char* data, uint32_t length) {
       length);
   return result;
 }
+
+ObjHeader* InitInstance(
+    ObjHeader** location, const TypeInfo* type_info, PlacementHint hint,
+    void (*ctor)(ObjHeader*)) {
+  static ObjHeader* sentinel = reinterpret_cast<ObjHeader*>(1);
+  ObjHeader* value = __sync_val_compare_and_swap(location, 0, sentinel);
+  if (reinterpret_cast<uintptr_t>(value) > 1) {
+    return value;
+  }
+
+  ObjHeader* instance = AllocInstance(type_info, hint);
+  try {
+    ctor(instance);
+    __sync_val_compare_and_swap(location, sentinel, instance);
+    return instance;
+  } catch (...) {
+    Release(instance->container());
+    __sync_val_compare_and_swap(location, sentinel, 0);
+    return nullptr;
+  }
+}
+
 #ifdef __cplusplus
 }
 #endif
