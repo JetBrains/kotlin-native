@@ -8,11 +8,6 @@ fun assertFalse(cond: Boolean) {
         println("FAIL")
 }
 
-fun assertEquals(value1: String, value2: String) {
-    if (value1 != value2)
-        println("FAIL")
-}
-
 fun assertEquals(value1: Any?, value2: Any?) {
     if (value1 != value2)
         println("FAIL")

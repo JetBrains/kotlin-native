@@ -219,6 +219,19 @@ void Kotlin_IntArray_fillImpl(KRef thiz, KInt fromIndex, KInt toIndex, KInt valu
   }
 }
 
+void Kotlin_IntArray_copyImpl(KConstRef thiz, KInt fromIndex,
+                              KRef destination, KInt toIndex, KInt count) {
+  const ArrayHeader* array = static_cast<const ArrayHeader*>(thiz);
+  ArrayHeader* destinationArray = static_cast<ArrayHeader*>(destination);
+  if (fromIndex < 0 || fromIndex + count > array->count_ ||
+      toIndex < 0 || toIndex + count > destinationArray->count_) {
+    ThrowArrayIndexOutOfBoundsException();
+  }
+  memmove(PrimitiveArrayAddressOfElementAt<KInt>(destinationArray, toIndex),
+          PrimitiveArrayAddressOfElementAt<KInt>(array, fromIndex),
+          count * sizeof(KInt));
+}
+
 KLong Kotlin_LongArray_get(KConstRef thiz, KInt index) {
   const ArrayHeader* array = static_cast<const ArrayHeader*>(thiz);
   if (static_cast<uint32_t>(index) >= array->count_) {
@@ -226,18 +239,6 @@ KLong Kotlin_LongArray_get(KConstRef thiz, KInt index) {
         ThrowArrayIndexOutOfBoundsException();
   }
   return *PrimitiveArrayAddressOfElementAt<KLong>(array, index);
-}
-
-void Kotlin_IntArray_copyImpl(KConstRef thiz, KInt fromIndex,
-                              ArrayHeader* destination, KInt toIndex, KInt count) {
-  const ArrayHeader* array = static_cast<const ArrayHeader*>(thiz);
-  if (fromIndex < 0 || fromIndex + count > array->count_ ||
-      toIndex < 0 || toIndex + count > destination->count_) {
-    ThrowArrayIndexOutOfBoundsException();
-  }
-  memmove(PrimitiveArrayAddressOfElementAt<KInt>(destination, toIndex),
-          PrimitiveArrayAddressOfElementAt<KInt>(array, fromIndex),
-          count * sizeof(KInt));
 }
 
 void Kotlin_LongArray_set(KRef thiz, KInt index, KLong value) {
