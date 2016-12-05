@@ -103,8 +103,13 @@ ObjHeader* InitInstance(
     ObjHeader** location, const TypeInfo* type_info, PlacementHint hint,
     void (*ctor)(ObjHeader*)) {
   static ObjHeader* sentinel = reinterpret_cast<ObjHeader*>(1);
-  ObjHeader* value = __sync_val_compare_and_swap(location, 0, sentinel);
+  ObjHeader* value;
+  // Wait until other initializers.
+  while ((value = __sync_val_compare_and_swap(location, 0, sentinel)) == sentinel) {
+  }
+
   if (reinterpret_cast<uintptr_t>(value) > 1) {
+    // OK'ish inited by someone else.
     return value;
   }
 
