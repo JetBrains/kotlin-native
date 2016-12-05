@@ -88,7 +88,13 @@ java_args=("${java_args[@]}" "-noverify")
 konan_args=("-runtime" $RUNTIME "${konan_args[@]}")
 [ -z $NOSTDLIB ] && konan_args=("-library" $STDLIB "${konan_args[@]}")
 
-DYLD_LIBRARY_PATH=$DYLD LD_LIBRARY_PATH=$DYLD $JAVACMD $JAVA_OPTS ${java_args[@]} -cp $KONAN_CLASSPATH $KONAN_COMPILER -output ${OUTPUT_NAME}.kt.bc ${konan_args[@]}
+if [ -z $NOLINK ] ; then 
+    KTBC_NAME="$OUTPUT_NAME.kt.bc"
+else 
+    KTBC_NAME="${OUTPUT_NAME}"
+fi
+
+DYLD_LIBRARY_PATH=$DYLD LD_LIBRARY_PATH=$DYLD $JAVACMD $JAVA_OPTS ${java_args[@]} -cp $KONAN_CLASSPATH $KONAN_COMPILER -output ${KTBC_NAME} ${konan_args[@]}
 
 COMPILER_EXIT_CODE="$?"
 [ -z $NOLINK ] || exit $COMPILER_EXIT_CODE
@@ -111,5 +117,5 @@ clang_args=($STDLIB "${clang_args[@]}")
 clang_args=($LAUNCHER $START $RUNTIME "${clang_args[@]}")
 clang_args=("${clang_args[@]}" "-xc --sysroot=$DEPENDENCIES/target-sysroot-1-darwin-macos -B$DEPENDENCIES/target-sysroot-1-darwin-macos/usr/bin")
 
-$CLANG $OUTPUT_NAME.kt.bc -o $OUTPUT_NAME ${clang_args[@]} 
+$CLANG $KTBC_NAME -o $OUTPUT_NAME ${clang_args[@]} 
 

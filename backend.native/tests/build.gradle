@@ -11,11 +11,10 @@ abstract class KonanTest extends DefaultTask {
     def backendNative = project.project(":backend.native")
     def runtimeProject = project.project(":runtime")
     def llvmLlc = llvmTool("llc")
-    def runtimeBc = new File("${runtimeProject.buildDir.canonicalPath}/runtime.bc")
-    def launcherBc = new File("${runtimeProject.buildDir.canonicalPath}/launcher.bc")
-    def startKtBc = new File("${runtimeProject.buildDir.canonicalPath}/start.kt.bc")
-    def stdlibKtBc = new File("${runtimeProject.buildDir.canonicalPath}/stdlib.kt.bc")
-    def konanc = project.parent.parent.file('dist/bin/konanc')
+    def dist = project.parent.parent.file('dist').absolutePath
+    def runtimeBc   = "${dist}/lib/runtime.bc"
+    def stdlibKtBc  = "${dist}/lib/stdlib.kt.bc"
+    def konanc      = "${dist}/bin/konanc"
     def mainC = 'main.c'
     String goldValue = null
     String testData = null
@@ -98,10 +97,14 @@ abstract class KonanTest extends DefaultTask {
 class UnitKonanTest extends KonanTest {
     File konancTest(File source) {
         def testC = source.absolutePath.replace(".kt", "-test.c")
-        def exe = new File(source.absolutePath.replace(".kt", ".kt.exe"))
+        def exe = new File(source.absolutePath.replace(".kt", ".exe"))
+        def outKtBc = new File(source.absolutePath.replace(".kt", ".exe.kt.bc"))
         project.exec {
-            commandLine konanc, source.absolutePath, "-nolink", "-o", exe.absolutePath, 
-                '-X'+linkDl(), '-X'+linkM(), '-X'+rdynamic(), '-X-xc', '-X'+testC, '-X'+mainC
+            commandLine konanc, source.absolutePath, "-o", outKtBc.absolutePath, "-nolink"
+        }
+        project.execClang {
+            commandLine "clang++", outKtBc.absolutePath, runtimeBc, stdlibKtBc, "-o", exe,
+                linkDl(), linkM(), rdynamic(), '-xc', testC, mainC
         }
         return exe
     }
@@ -109,7 +112,7 @@ class UnitKonanTest extends KonanTest {
 
 class RunKonanTest extends KonanTest {
     File konancTest(File source) {
-        def exe = new File(source.absolutePath.replace(".kt", ".kt.exe"))
+        def exe = new File(source.absolutePath.replace(".kt", ".exe"))
         project.exec {
             commandLine konanc, source.absolutePath, "-o", exe.absolutePath, 
                 '-X'+linkDl(), '-X'+linkM(), '-X'+rdynamic()
@@ -125,7 +128,7 @@ class LinkKonanTest extends KonanTest {
         def library = project.file(lib)
         def libraryKtBc = project.file("${lib}.kt.bc")
         project.exec {
-            commandLine konanc, library.absolutePath, "-nolink", "-nostdlib", "-o", library.absolutePath
+            commandLine konanc, library.absolutePath, "-nolink", "-nostdlib", "-o", libraryKtBc.absolutePath
 
         }
 
