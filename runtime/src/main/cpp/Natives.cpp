@@ -77,7 +77,8 @@ KInt Kotlin_String_getStringLength(KString thiz) {
 }
 
 KString Kotlin_String_fromUtf8Array(
-    const ArrayHeader* array, KInt start, KInt size) {
+    const ObjHeader* thiz, KInt start, KInt size) {
+  const ArrayHeader* array = static_cast<const ArrayHeader*>(thiz);
   RuntimeAssert(array->type_info() == theByteArrayTypeInfo, "Must use a byte array");
   if (start < 0 || size < 0 || start + size > array->count_) {
     ThrowArrayIndexOutOfBoundsException();
@@ -97,7 +98,8 @@ KString Kotlin_String_fromUtf8Array(
 }
 
 KString Kotlin_String_fromCharArray(
-    const ArrayHeader* array, KInt start, KInt size) {
+    const ObjHeader* thiz, KInt start, KInt size) {
+  const ArrayHeader* array = static_cast<const ArrayHeader*>(thiz);
   RuntimeAssert(array->type_info() == theCharArrayTypeInfo, "Must use a byte array");
   if (start < 0 || size < 0 || start + size > array->count_) {
     ThrowArrayIndexOutOfBoundsException();
@@ -180,7 +182,7 @@ KString Kotlin_String_subSequence(KString thiz, KInt startIndex, KInt endIndex) 
   return result;
 }
 
-KArrayRef Kotlin_getCurrentStackTrace() {
+KRef Kotlin_getCurrentStackTrace() {
   return GetCurrentStackTrace();
 }
 
