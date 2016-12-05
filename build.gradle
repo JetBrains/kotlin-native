@@ -116,6 +116,7 @@ task dist_compiler(type: Copy) {
         include('kotlinc-native')
 
         filter { line -> line.replaceAll("FILTER_CLANG_PLATFORM_ARGS", clangArgs.join(' ')) }
+        filter { line -> line.replaceAll("FILTER_CLANG_BIN_PATH", "${project.llvmDir}/bin") }
 
         into('bin')
     }

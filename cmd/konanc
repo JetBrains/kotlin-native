@@ -106,13 +106,15 @@ COMPILER_EXIT_CODE="$?"
 # TODO: We should probably copy the dependencies into dist.
 DEPENDENCIES="$KONAN_HOME/../dependencies/all"
 
-CLANG="$DEPENDENCIES/clang+llvm-3.8.0-darwin-macos/bin/clang++"
 LAUNCHER="${KONAN_HOME}/lib/launcher.bc"
 START="${KONAN_HOME}/lib/start.kt.bc"
 
 # We filter this script during installation
 # substituting the proper platform dependent arguments here.
 CLANG_PLATFORM_ARGS="FILTER_CLANG_PLATFORM_ARGS"
+CLANG_BIN_PATH="FILTER_CLANG_BIN_PATH"
+
+CLANG="$CLANG_BIN_PATH/clang++"
 
 # TODO: Compilation without stdlib.kt.bc deons't work as 'start' requires stdlib, for example.
 # Probably, we need a .klib compilation mode.
