@@ -110,12 +110,16 @@ CLANG="$DEPENDENCIES/clang+llvm-3.8.0-darwin-macos/bin/clang++"
 LAUNCHER="${KONAN_HOME}/lib/launcher.bc"
 START="${KONAN_HOME}/lib/start.kt.bc"
 
+# We filter this script during installation
+# substituting the proper platform dependent arguments here.
+CLANG_PLATFORM_ARGS="FILTER_CLANG_PLATFORM_ARGS"
+
 # TODO: Compilation without stdlib.kt.bc deons't work as 'start' requires stdlib, for example.
 # Probably, we need a .klib compilation mode.
 # [ -z $NOSTDLIB ] && clang_args=($STDLIB "${clang_args[@]}")
 clang_args=($STDLIB "${clang_args[@]}")
 clang_args=($LAUNCHER $START $RUNTIME "${clang_args[@]}")
-clang_args=("${clang_args[@]}" "-xc --sysroot=$DEPENDENCIES/target-sysroot-1-darwin-macos -B$DEPENDENCIES/target-sysroot-1-darwin-macos/usr/bin")
+clang_args=("${clang_args[@]}" "-xc $CLANG_PLATFORM_ARGS")
 
 $CLANG $KTBC_NAME -o $OUTPUT_NAME ${clang_args[@]} 
 

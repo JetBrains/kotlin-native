@@ -114,6 +114,9 @@ task dist_compiler(type: Copy) {
         fileMode(0775)
         include('konanc')
         include('kotlinc-native')
+
+        filter { line -> line.replaceAll("FILTER_CLANG_PLATFORM_ARGS", clangArgs.join(' ')) }
+
         into('bin')
     }
 }
@@ -123,7 +126,7 @@ task stdlib(type: Exec) {
 
     commandLine './dist/bin/konanc', 
         '-J-ea', '-Djava.library.path=backend.native/build/nativelibs',
-        '-nolink', '-nostdlib', 'runtime/src/main/kotlin', '-o', 'dist/lib/stdlib'
+        '-nolink', '-nostdlib', 'runtime/src/main/kotlin', '-o', 'dist/lib/stdlib.kt.bc'
 
     outputs.file(project.file('dist/lib/stdlib.kt.bc'))
 }
@@ -137,7 +140,7 @@ task start(type: Exec) {
 
     commandLine './dist/bin/konanc', 
         '-J-ea', '-Djava.library.path=backend.native/build/nativelibs',
-        '-nolink', 'runtime/src/launcher/kotlin', '-o', 'dist/lib/start'
+        '-nolink', 'runtime/src/launcher/kotlin', '-o', 'dist/lib/start.kt.bc'
 
     outputs.file(project.file('dist/lib/start.kt.bc'))
 }
