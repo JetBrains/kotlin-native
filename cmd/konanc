@@ -10,8 +10,6 @@ declare -a java_args
 declare -a konan_args
 declare -a clang_args
 
-OUTPUT_NAME="out.kexe"
-
 while [ $# -gt 0 ]; do
   case "$1" in
     -D*)
@@ -88,10 +86,19 @@ java_args=("${java_args[@]}" "-noverify")
 konan_args=("-runtime" $RUNTIME "${konan_args[@]}")
 [ -z $NOSTDLIB ] && konan_args=("-library" $STDLIB "${konan_args[@]}")
 
-if [ -z $NOLINK ] ; then 
-    KTBC_NAME="$OUTPUT_NAME.kt.bc"
-else 
-    KTBC_NAME="${OUTPUT_NAME}"
+if [ -z $OUTPUT_NAME ] ; then
+    if [ -z $NOLINK ] ; then
+        OUTPUT_NAME="program.kexe"
+        KTBC_NAME="program.kt.bc"
+    else
+        KTBC_NAME="program.kt.bc"
+    fi
+else
+    if [ -z $NOLINK ] ; then
+        KTBC_NAME="${OUTPUT_NAME}.kt.bc"
+    else 
+        KTBC_NAME="${OUTPUT_NAME}"
+    fi
 fi
 
 DYLD_LIBRARY_PATH=$DYLD LD_LIBRARY_PATH=$DYLD $JAVACMD $JAVA_OPTS ${java_args[@]} -cp $KONAN_CLASSPATH $KONAN_COMPILER -output ${KTBC_NAME} ${konan_args[@]}
@@ -116,7 +123,7 @@ CLANG_BIN_PATH="FILTER_CLANG_BIN_PATH"
 
 CLANG="$CLANG_BIN_PATH/clang++"
 
-# TODO: Compilation without stdlib.kt.bc deons't work as 'start' requires stdlib, for example.
+# TODO: Compilation without stdlib.kt.bc doesn't work because 'start' requires stdlib, for example.
 # Probably, we need a .klib compilation mode.
 # [ -z $NOSTDLIB ] && clang_args=($STDLIB "${clang_args[@]}")
 clang_args=($STDLIB "${clang_args[@]}")
