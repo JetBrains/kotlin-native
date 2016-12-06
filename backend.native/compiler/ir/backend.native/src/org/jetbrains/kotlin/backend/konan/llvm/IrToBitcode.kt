@@ -1254,9 +1254,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
     private fun evaluateSetField(value: IrSetField): LLVMValueRef? {
         logger.log("evaluateSetField           : ${ir2string(value)}")
-        val valueOriginal = evaluateExpression(codegen.newVar(), value.value)!!
-        // TODO: hack!
-        val valueToAssign = codegen.bitcast(codegen.getLLVMType(value.value.type), valueOriginal, codegen.newVar())
+        val valueToAssign = evaluateExpression(codegen.newVar(), value.value)!!
         if (value.descriptor.dispatchReceiverParameter != null) {
             val thisPtr = instanceFieldAccessReceiver(value)
             codegen.store(valueToAssign, fieldPtrOfClass(thisPtr, value.descriptor))
@@ -1460,6 +1458,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         }
 
         descriptor.valueParameters.map {
+            //println(it.index)
             res += (it to expression.getValueArgument(it.index)!!)
         }
 
@@ -1564,11 +1563,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             kLteq0    -> return codegen.icmpLe(args[0]!!, kImmZero, tmpVariableName)
             kNot      -> return codegen.icmpNe(args[0]!!, kTrue,    tmpVariableName)
             // TODO: reconsider.
-            kThrowNpe -> {
-                val result = evaluateSimpleFunctionCall(tmpVariableName, getThrowNpe(), listOf())
-                codegen.unreachable()
-                return result
-            }
+            kThrowNpe -> return evaluateOperatorThrowNpe()
             else -> {
                 TODO(descriptor.name.toString())
             }
@@ -1664,6 +1659,12 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             KotlinBuiltIns.isPrimitiveType(arg0Type) -> TODO("${ir2string(callee)}")
             else -> codegen.icmpEq(arg0, arg1, tmpVariableName)
         }
+    }
+
+    private fun evaluateOperatorThrowNpe(): LLVMValueRef {
+        val result = evaluateSimpleFunctionCall("", getThrowNpe(), listOf())
+        codegen.unreachable()
+        return result
     }
 
     //-------------------------------------------------------------------------//

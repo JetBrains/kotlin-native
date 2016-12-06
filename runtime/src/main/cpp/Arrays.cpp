@@ -46,7 +46,7 @@ KInt Kotlin_Array_getArrayLength(KConstRef thiz) {
 
 void Kotlin_Array_fillImpl(KRef thiz, KInt fromIndex, KInt toIndex, KRef value) {
   ArrayHeader* array = static_cast<ArrayHeader*>(thiz);
-  if (fromIndex < 0 || toIndex < fromIndex || toIndex >= array->count_) {
+  if (fromIndex < 0 || toIndex < fromIndex || toIndex > array->count_) {
     ThrowArrayIndexOutOfBoundsException();
   }
   // TODO: refcounting!
