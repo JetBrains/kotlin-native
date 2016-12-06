@@ -464,7 +464,6 @@ class HashMap<K, V> private constructor(
     internal fun valuesIterator() = ValuesItr(this)
     internal fun entriesIterator() = EntriesItr(this)
 
-    // TODO: fix!
     private companion object {
         const val MAGIC = 2654435769L.toInt() // golden ratio
         const val INITIAL_CAPACITY = 8
