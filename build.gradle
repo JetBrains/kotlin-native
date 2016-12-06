@@ -38,6 +38,8 @@ allprojects {
     ext.clangArgs << "-B$binDir"
     ext.clangPath << binDir
 
+    ext.jvmArgs=["-ea"]
+
     convention.plugins.execClang = new org.jetbrains.kotlin.ExecClang(project)
 
     plugins.withType(NativeComponentPlugin) {
@@ -126,7 +128,7 @@ task stdlib(type: Exec) {
     dependsOn 'dist_compiler', 'list_dist'
 
     commandLine './dist/bin/konanc', 
-        '-J-ea', '-Djava.library.path=backend.native/build/nativelibs',
+        "-J${jvmArgs.join(' ')}", '-Djava.library.path=backend.native/build/nativelibs',
         '-nolink', '-nostdlib', 'runtime/src/main/kotlin', '-o', 'dist/lib/stdlib.kt.bc'
 
     outputs.file(project.file('dist/lib/stdlib.kt.bc'))
@@ -140,7 +142,7 @@ task start(type: Exec) {
     dependsOn 'dist_compiler', 'stdlib'
 
     commandLine './dist/bin/konanc', 
-        '-J-ea', '-Djava.library.path=backend.native/build/nativelibs',
+        "-J${jvmArgs.join(' ')}", '-Djava.library.path=backend.native/build/nativelibs',
         '-nolink', 'runtime/src/launcher/kotlin', '-o', 'dist/lib/start.kt.bc'
 
     outputs.file(project.file('dist/lib/start.kt.bc'))
@@ -167,7 +169,7 @@ task demo(type: Exec) {
     commandLine './dist/bin/konanc', 'backend.native/tests/runtime/collections/moderately_large_array.kt', '-o', 'build/demo.kexe'
 }
 
-task clean << {
-        delete dist
+task clean {
+    delete 'dist'
 }
 
