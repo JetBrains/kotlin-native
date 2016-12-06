@@ -92,23 +92,9 @@ public fun <T> listOf(): List<T> = EmptyList
 
 public fun <T> listOf(vararg args: T): List<T> = args.asList()
 
-
-/*
-public fun <T> hashSetOf(vararg args: T): HashSet<T> {
-    val result = HashSet<T>(args.size)
-    for (arg in args) {
-        result.add(arg)
+public fun <T, C : MutableCollection</*in */T>> Iterable<T>.toCollection(destination: C): C {
+    for (item in this) {
+        destination.add(item)
     }
-    return result
+    return destination
 }
-
-// TODO: implement EmptySet and EmptyList objects.
-
-/*
- * TODO: in Big Kotlin this function is following: (see libraries/stdlib/src/kotlin/collections/Collections.kt)
- * public fun <T> listOf(vararg elements: T): List<T> = if (elements.size > 0) elements.asList() else emptyList()
- */
-
-public fun <T> setOf(vararg args: T): Set<T> = args.toSet()
-
-public fun <T> mutableSetOf(vararg args: T): MutableSet<T> = hashSetOf(*args) */

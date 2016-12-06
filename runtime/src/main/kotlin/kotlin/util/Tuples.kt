@@ -18,7 +18,7 @@ package kotlin
 public data class Pair<out A, out B>(
         public val first: A,
         public val second: B
-) : Serializable {
+) {
 
     /**
      * Returns string representation of the [Pair] including its [first] and [second] values.
@@ -58,7 +58,7 @@ public data class Triple<out A, out B, out C>(
         public val first: A,
         public val second: B,
         public val third: C
-) : Serializable {
+) {
 
     /**
      * Returns string representation of the [Triple] including its [first], [second] and [third] values.

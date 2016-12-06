@@ -1,8 +1,8 @@
 package kotlin.internal
 
 
-@Target(AnnotationTarget.TYPE)
+@Target(AnnotationTarget.TYPE, AnnotationTarget.TYPE_PARAMETER)
 public annotation class OnlyInputTypes
 
-@Target(AnnotationTarget.TYPE)
+@Target(AnnotationTarget.TYPE, AnnotationTarget.TYPE_PARAMETER)
 public annotation class OnlyOutputTypes

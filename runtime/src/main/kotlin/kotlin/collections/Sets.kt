@@ -1,7 +1,7 @@
 package kotlin.collections
 
 
-internal object EmptySet : Set<Nothing>, Serializable {
+internal object EmptySet : Set<Nothing> {
     override fun equals(other: Any?): Boolean = other is Set<*> && other.isEmpty()
     override fun hashCode(): Int = 0
     override fun toString(): String = "[]"
@@ -26,17 +26,16 @@ public fun <T> emptySet(): Set<T> = EmptySet
 public fun <T> setOf(vararg elements: T): Set<T> = if (elements.size > 0) elements.toSet() else emptySet()
 
 /** Returns an empty read-only set.  The returned set is serializable (JVM). */
-@kotlin.internal.InlineOnly
 public inline fun <T> setOf(): Set<T> = emptySet()
 
 /**
  * Returns a new [MutableSet] with the given elements.
  * Elements of the set are iterated in the order they were specified.
  */
-public fun <T> mutableSetOf(vararg elements: T): MutableSet<T> = elements.toCollection(LinkedHashSet(mapCapacity(elements.size)))
+public fun <T> mutableSetOf(vararg elements: T): MutableSet<T> = elements.toCollection(HashSet<T>(mapCapacity(elements.size)))
 
 /** Returns a new [HashSet] with the given elements. */
-public fun <T> hashSetOf(vararg elements: T): HashSet<T> = elements.toCollection(HashSet(mapCapacity(elements.size)))
+public fun <T> hashSetOf(vararg elements: T): HashSet<T> = elements.toCollection(HashSet<T>(mapCapacity(elements.size)))
 
 /**
  * Returns a new [LinkedHashSet] with the given elements.
