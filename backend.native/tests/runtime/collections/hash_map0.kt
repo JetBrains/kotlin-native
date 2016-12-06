@@ -134,7 +134,6 @@ fun testClear() {
     }
 }
 // 'to' not yet working.
-/*
 fun testEquals() {
     val expected = mapOf("a" to "1", "b" to "2", "c" to "3")
     val m = HashMap(expected)
@@ -146,7 +145,7 @@ fun testEquals() {
     assertEquals(m.keys, expected.keys)
     assertEquals(m.values, expected.values)
     assertEquals(m.entries, expected.entries)
-} */
+}
 
 fun main(args : Array<String>) {
     testBasic()
