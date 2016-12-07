@@ -47,8 +47,8 @@ public fun <T, C : MutableCollection<in T>> Array<out T>.toCollection(destinatio
     return destination
 }
 
-public inline operator fun <T> Array<out T>.plus(elements: Array<out T>): Array<T> {
-    Array<T> result = this.copyOfUninitializedElements(this.size + elements.size)
+public inline operator fun <T> Array<T>.plus(elements: Array<T>): Array<T> {
+    val result = copyOfUninitializedElements(this.size + elements.size)
     elements.copyRangeTo(result, 0, elements.size, this.size)
     return result
 }
