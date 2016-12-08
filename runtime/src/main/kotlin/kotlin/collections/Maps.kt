@@ -100,7 +100,7 @@ internal fun mapCapacity(expectedSize: Int): Int {
     return Int.MAX_VALUE // any large value
 }
 
-private const val INT_MAX_POWER_OF_TWO: Int = Int.MAX_VALUE / 2 + 1
+private const val INT_MAX_POWER_OF_TWO: Int = 0x40000000 // Int.MAX_VALUE / 2 + 1
 
 /** Returns `true` if this map is not empty. */
 public inline fun <K, V> Map<out K, V>.isNotEmpty(): Boolean = !isEmpty()
@@ -184,14 +184,14 @@ public inline fun <K, V> Map.Entry<K, V>.toPair(): Pair<K, V> = Pair(key, value)
 public inline fun <K, V> Map<K, V>.getOrElse(key: K, defaultValue: () -> V): V = get(key) ?: defaultValue()
 
 
-internal inline fun <K, V> Map<K, V>.getOrElseNullable(key: K, defaultValue: () -> V): V {
-    val value = get(key)
-    if (value == null && !containsKey(key)) {
-        return defaultValue()
-    } else {
-        return value as V
-    }
-}
+//internal inline fun <K, V> Map<K, V>.getOrElseNullable(key: K, defaultValue: () -> V): V {
+//    val value = get(key)
+//    if (value == null && !containsKey(key)) {
+//        return defaultValue()
+//    } else {
+//        return value as V
+//    }
+//}
 
 
 
