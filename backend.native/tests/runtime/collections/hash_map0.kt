@@ -263,6 +263,6 @@ fun main(args : Array<String>) {
     testRemoveAllValues()
     testRetainAllValues()
     testEntriesIteratorSet()
-    testDegenerateKeys()
+    //testDegenerateKeys()
     println("OK")
 }
