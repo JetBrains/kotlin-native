@@ -9,6 +9,7 @@ public abstract class AbstractList<out E> protected constructor() : AbstractColl
     abstract override fun get(index: Int): E
 
     // TODO: fix once have inner classes.
+    @FixmeInner
     override fun iterator(): Iterator<E> =  throw UnsupportedOperationException() // IteratorImpl()
 
     override fun indexOf(element: @UnsafeVariance E): Int = indexOfFirst { it == element }
@@ -16,8 +17,10 @@ public abstract class AbstractList<out E> protected constructor() : AbstractColl
     override fun lastIndexOf(element: @UnsafeVariance E): Int = indexOfLast { it == element }
 
     // TODO: fix once have inner classes.
+    @FixmeInner
     override fun listIterator(): ListIterator<E> = throw UnsupportedOperationException() // ListIteratorImpl(0)
 
+    @FixmeInner
     override fun listIterator(index: Int): ListIterator<E> = throw UnsupportedOperationException() // ListIteratorImpl(index)
 
     override fun subList(fromIndex: Int, toIndex: Int): List<E> = SubList(this, fromIndex, toIndex)

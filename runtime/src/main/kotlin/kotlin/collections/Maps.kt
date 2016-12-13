@@ -463,21 +463,17 @@ public fun <K, V> Map</*out */K, V>.toMutableMap(): MutableMap<K, V> = HashMap(t
 /**
  * Populates and returns the [destination] mutable map with key-value pairs from the given map.
  */
-public fun <K, V, M : MutableMap<in K, in V>> Map<out K, V>.toMap(destination: M): M {
-    for (key in keys) {
-        destination.put(key, get(key)!!)
-    }
-    return destination
-}
-//        = destination.apply { putAll(this@toMap) }
+public fun <K, V, M : MutableMap<in K, in V>> Map<out K, V>.toMap(destination: M): M
+        = destination.apply { putAll(this@toMap) }
 
+// TODO: fix me, once have correct type variance in HashMap.
 /**
  * Creates a new read-only map by replacing or adding an entry to this map from a given key-value [pair].
  *
  * The returned map preserves the entry iteration order of the original map.
  * The [pair] is iterated in the end if it has a unique key.
  */
-//public operator fun <K, V> Map<out K, V>.plus(pair: Pair<K, V>): Map<K, V>
+// public operator fun <K, V> Map<out K, V>.plus(pair: Pair<K, V>): Map<K, V>
 //        = if (this.isEmpty()) mapOf(pair) else HashMap(this).apply { put(pair.first, pair.second) }
 
 /**
@@ -516,7 +512,6 @@ public fun <K, V, M : MutableMap<in K, in V>> Map<out K, V>.toMap(destination: M
 //public operator fun <K, V> Map<out K, V>.plus(map: Map<out K, V>): Map<K, V>
 //        = HashMap(this).apply { putAll(map) }
 
-
 /**
  * Appends or replaces the given [pair] in this mutable map.
  */
@@ -552,7 +547,6 @@ public inline operator fun <K, V> MutableMap<in K, in V>.plusAssign(map: Map<K, 
     putAll(map)
 }
 
-
 // do not expose for now @kotlin.internal.InlineExposed
 internal fun <K, V> Map<K, V>.optimizeReadOnlyMap() = when (size) {
     0 -> emptyMap()
@@ -566,3 +560,119 @@ internal fun <K, V> Map<K, V>.optimizeReadOnlyMap() = when (size) {
 // creates a singleton copy of map
 //internal fun <K, V> Map<out K, V>.toSingletonMap(): Map<K, V>
 //        = with (entries.iterator().next()) { java.util.Collections.singletonMap(key, value) }
+
+// This is from generated _Maps.kt.
+/**
+ * Returns a [List] containing all key-value pairs.
+ */
+public fun <K, V> Map<out K, V>.toList(): List<Pair<K, V>> {
+    if (size == 0)
+        return emptyList()
+    val iterator = entries.iterator()
+    if (!iterator.hasNext())
+        return emptyList()
+    val first = iterator.next()
+    if (!iterator.hasNext())
+        return listOf(first.toPair())
+    val result = ArrayList<Pair<K, V>>(size)
+    result.add(first.toPair())
+    do {
+        result.add(iterator.next().toPair())
+    } while (iterator.hasNext())
+    return result
+}
+
+/**
+ * Returns a single list of all elements yielded from results of [transform] function being invoked on each entry of original map.
+ */
+public inline fun <K, V, R> Map<out K, V>.flatMap(transform: (Map.Entry<K, V>) -> Iterable<R>): List<R> {
+    return flatMapTo(ArrayList<R>(), transform)
+}
+
+/**
+ * Appends all elements yielded from results of [transform] function being invoked on each entry of original map, to the given [destination].
+ */
+public inline fun <K, V, R, C : MutableCollection<in R>> Map<out K, V>.flatMapTo(destination: C, transform: (Map.Entry<K, V>) -> Iterable<R>): C {
+    for (element in this) {
+        val list = transform(element)
+        destination.addAll(list)
+    }
+    return destination
+}
+
+/**
+ * Returns a list containing the results of applying the given [transform] function
+ * to each entry in the original map.
+ */
+public inline fun <K, V, R> Map<out K, V>.map(transform: (Map.Entry<K, V>) -> R): List<R> {
+    return mapTo(ArrayList<R>(size), transform)
+}
+
+/**
+ * Returns a list containing only the non-null results of applying the given [transform] function
+ * to each entry in the original map.
+ */
+public inline fun <K, V, R : Any> Map<out K, V>.mapNotNull(transform: (Map.Entry<K, V>) -> R?): List<R> {
+    return mapNotNullTo(ArrayList<R>(), transform)
+}
+
+/**
+ * Applies the given [transform] function to each entry in the original map
+ * and appends only the non-null results to the given [destination].
+ */
+public inline fun <K, V, R : Any, C : MutableCollection<in R>> Map<out K, V>.mapNotNullTo(destination: C, transform: (Map.Entry<K, V>) -> R?): C {
+    forEach { element -> transform(element)?.let { destination.add(it) } }
+    return destination
+}
+
+/**
+ * Applies the given [transform] function to each entry of the original map
+ * and appends the results to the given [destination].
+ */
+public inline fun <K, V, R, C : MutableCollection<in R>> Map<out K, V>.mapTo(destination: C, transform: (Map.Entry<K, V>) -> R): C {
+    for (item in this)
+        destination.add(transform(item))
+    return destination
+}
+
+/**
+ * Returns `true` if all entries match the given [predicate].
+ */
+public inline fun <K, V> Map<out K, V>.all(predicate: (Map.Entry<K, V>) -> Boolean): Boolean {
+    for (element in this) if (!predicate(element)) return false
+    return true
+}
+
+/**
+ * Returns `true` if map has at least one entry.
+ */
+public fun <K, V> Map<out K, V>.any(): Boolean {
+    for (element in this) return true
+    return false
+}
+
+/**
+ * Returns `true` if at least one entry matches the given [predicate].
+ */
+public inline fun <K, V> Map<out K, V>.any(predicate: (Map.Entry<K, V>) -> Boolean): Boolean {
+    for (element in this) if (predicate(element)) return true
+    return false
+}
+
+/**
+ * Returns the number of entries in this map.
+ */
+@kotlin.internal.InlineOnly
+public inline fun <K, V> Map<out K, V>.count(): Int {
+    return size
+}
+
+/**
+ * Returns the number of entries matching the given [predicate].
+ */
+public inline fun <K, V> Map<out K, V>.count(predicate: (Map.Entry<K, V>) -> Boolean): Int {
+    var count = 0
+    for (element in this) if (predicate(element)) count++
+    return count
+}
+

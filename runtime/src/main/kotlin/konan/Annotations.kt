@@ -23,3 +23,17 @@ annotation class ExportTypeInfo(val name: String)
  */
 public annotation class Used
 
+/**
+ * Need to be fixed because of boxing.
+ */
+public annotation class FixmeBoxing
+
+/**
+ * Need to be fixed because of inner classes.
+ */
+public annotation class FixmeInner
+
+/**
+ * Need to be fixed.
+ */
+public annotation class Fixme

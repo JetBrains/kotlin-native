@@ -110,6 +110,7 @@ public inline fun <@kotlin.internal.OnlyInputTypes T> Collection<T>.containsAll(
 
 // copies typed varargs array to array of objects
 // TODO: generally wrong, wrt specialization.
+@Fixme
 private fun <T> Array<out T>.copyToArrayOfAny(isVarargs: Boolean): Array<Any?> =
         if (isVarargs)
             // if the array came from varargs and already is array of Any, copying isn't required.
