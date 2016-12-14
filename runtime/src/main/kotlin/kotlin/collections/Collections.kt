@@ -54,10 +54,11 @@ private class ArrayAsCollection<T>(val values: Array<out T>, val isVarargs: Bool
 /** Returns an empty read-only list.  */
 public fun <T> emptyList(): List<T> = EmptyList
 
-/** Returns a new read-only list of given elements.  The returned list is serializable (JVM). */
+/** Returns a new read-only list of given elements. */
 public fun <T> listOf(vararg elements: T): List<T> = if (elements.size > 0) elements.asList() else emptyList()
 
 /** Returns an empty read-only list. */
+@kotlin.internal.InlineOnly
 public inline fun <T> listOf(): List<T> = emptyList()
 
 /** Returns a new [MutableList] with the given elements. */
@@ -93,11 +94,14 @@ public val <T> List<T>.lastIndex: Int
     get() = this.size - 1
 
 /** Returns `true` if the collection is not empty. */
+@kotlin.internal.InlineOnly
 public inline fun <T> Collection<T>.isNotEmpty(): Boolean = !isEmpty()
 
 /** Returns this Collection if it's not `null` and the empty list otherwise. */
+@kotlin.internal.InlineOnly
 public inline fun <T> Collection<T>?.orEmpty(): Collection<T> = this ?: emptyList()
 
+@kotlin.internal.InlineOnly
 public inline fun <T> List<T>?.orEmpty(): List<T> = this ?: emptyList()
 
 /**
@@ -105,6 +109,7 @@ public inline fun <T> List<T>?.orEmpty(): List<T> = this ?: emptyList()
  *
  * Allows to overcome type-safety restriction of `containsAll` that requires to pass a collection of type `Collection<E>`.
  */
+@kotlin.internal.InlineOnly
 public inline fun <@kotlin.internal.OnlyInputTypes T> Collection<T>.containsAll(
         elements: Collection<T>): Boolean = this.containsAll(elements)
 

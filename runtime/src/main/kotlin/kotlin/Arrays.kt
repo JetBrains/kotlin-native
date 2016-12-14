@@ -492,6 +492,7 @@ public inline fun <T> Array<out T>.lastOrNull(predicate: (T) -> Boolean): T? {
 /**
  * Returns `true` if the array is empty.
  */
+@kotlin.internal.InlineOnly
 public inline fun <T> Array<out T>.isEmpty(): Boolean {
     return size == 0
 }
