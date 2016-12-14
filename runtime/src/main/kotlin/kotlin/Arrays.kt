@@ -441,7 +441,6 @@ public fun <C : MutableCollection<in T>, T : Any> Array<out T?>.filterNotNullTo(
     return destination
 }
 
-
 /**
  * Returns the first element matching the given [predicate], or `null` if no such element was found.
  */

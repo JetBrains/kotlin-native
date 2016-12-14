@@ -37,10 +37,9 @@ public annotation class FixmeBoxing
 public annotation class FixmeInner
 
 /**
- * Need to be fixed because of bug in lambdas.
+ * Need to be fixed because of lambdas.
  */
 public annotation class FixmeLambda
-
 
 /**
  * Need to be fixed.
