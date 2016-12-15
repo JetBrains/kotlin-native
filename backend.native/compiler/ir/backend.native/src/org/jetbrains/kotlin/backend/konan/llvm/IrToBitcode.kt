@@ -324,10 +324,10 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
                         element.acceptChildrenVoid(this)
                     }
 
-                    override fun visitField(fieldDeclaration: IrField) {
+                    override fun visitField(declaration: IrField) {
 
-                        val fieldDescriptor = fieldDeclaration.descriptor
-                        fieldDeclaration.initializer?.let {
+                        val fieldDescriptor = declaration.descriptor
+                        declaration.initializer?.let {
                             val value = evaluateExpression(codegen.newVar(), it)!!
                             val fieldPtr = fieldPtrOfClass(thisPtr, fieldDescriptor)
                             codegen.store(value, fieldPtr)
@@ -339,6 +339,16 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
                     }
 
                     override fun visitClass(declaration: IrClass) {
+                        /**
+                         * Note:
+                         * To make companion object initialized once on any object access,
+                         * even ones not touching companion, we have to add companion initializer
+                         * to the primary constructor. Alternatives are initialize on program init,
+                         * but it would slow down startup and prevent dead code elimination for
+                         * unused objects.
+                         */
+                        if (DescriptorUtils.isCompanionObject(declaration.descriptor))
+                            generateObjectOnceInitializer(declaration.descriptor)
                         return
                     }
 
@@ -653,7 +663,16 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     //-------------------------------------------------------------------------//
 
     private fun evaluateGetObjectValue(tmpVariableName: String, value: IrGetObjectValue): LLVMValueRef? {
-        var objectPtr = objectPtrByName(value.descriptor)
+        val classDescriptor = value.descriptor
+
+        assert(value.type == classDescriptor.defaultType)
+        return generateObjectOnceInitializer(classDescriptor)
+    }
+
+    //-------------------------------------------------------------------------//
+
+    private fun generateObjectOnceInitializer(classDescriptor: ClassDescriptor): LLVMValueRef {
+        val objectPtr = objectPtrByName(classDescriptor)
         val bbCurrent = codegen.currentBlock
         val bbInit    = codegen.basicBlock("label_init")
         val bbExit    = codegen.basicBlock("label_continue")
@@ -663,17 +682,17 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         codegen.condBr(condition, bbExit, bbInit)
 
         codegen.positionAtEnd(bbInit)
-        val typeInfo = codegen.typeInfoValue(value.descriptor)
-        val allocHint = Int32(1).llvm
-        val initFunction = value.descriptor.constructors.first { it.valueParameters.size == 0 }
-        val ctor = codegen.llvmFunction(initFunction)
-        val args = listOf(objectPtr, typeInfo, allocHint, ctor)
-        val newValue = currentCodeContext.genCall(
-                context.llvm.initInstanceFunction, args, codegen.newVar())
+        val typeInfo     = codegen.typeInfoValue(classDescriptor)
+        val initFunction = classDescriptor.constructors.first { it.valueParameters.size == 0 }
+        val ctor         = codegen.llvmFunction(initFunction)
+        val args         = listOf(objectPtr, typeInfo, kImmInt32One, ctor)
+        val newValue     = currentCodeContext.genCall(
+                           context.llvm.initInstanceFunction, args, codegen.newVar())
         codegen.br(bbExit)
 
         codegen.positionAtEnd(bbExit)
-        val valuePhi = codegen.phi(codegen.getLLVMType(value.type), codegen.newVar())
+        val llvmClassType = codegen.getLLVMType(classDescriptor.defaultType)
+        val valuePhi      = codegen.phi(llvmClassType, codegen.newVar())
         codegen.addPhiIncoming(valuePhi,
                 bbCurrent to objectVal, bbInit to newValue)
 
