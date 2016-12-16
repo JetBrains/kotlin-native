@@ -313,11 +313,6 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
                 constructorDeclaration.acceptChildrenVoid(this)
 
             if (constructorDescriptor.isPrimary) {
-                if (DescriptorUtils.isObject(classDescriptor)) {
-                    val objectPtr = objectPtrByName(classDescriptor)
-
-                    LLVMSetInitializer(objectPtr, codegen.kNullObjHeaderPtr)
-                }
                 val irOfCurrentClass = context.moduleIndex.classes[classDescriptor.classId]
                 irOfCurrentClass!!.acceptChildrenVoid(object : IrElementVisitorVoid {
                     override fun visitElement(element: IrElement) {
@@ -546,6 +541,11 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             // Do not generate any code for Unit.
             // TODO: Unit has toString() operation, which we may want to support.
             return
+        }
+
+        if (DescriptorUtils.isObject(declaration.descriptor)) {
+            val objectPtr = objectPtrByName(declaration.descriptor)
+            LLVMSetInitializer(objectPtr, codegen.kNullObjHeaderPtr)
         }
 
         super.visitClass(declaration)
@@ -1407,7 +1407,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     //-------------------------------------------------------------------------//
 
     private fun objectPtrByName(descriptor: ClassDescriptor): LLVMValueRef? {
-        val objName = descriptor.fqNameSafe.asString()
+        val objName = "${descriptor.fqNameSafe.asString()}.obj"
         var objectPtr = LLVMGetNamedGlobal(context.llvmModule, objName)
         if (objectPtr == null) {
             val llvmType = codegen.getLLVMType(descriptor.defaultType)
