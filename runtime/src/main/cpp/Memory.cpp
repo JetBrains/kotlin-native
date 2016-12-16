@@ -116,15 +116,9 @@ ObjHeader* InitInstance(
   }
 
   ObjHeader* instance = AllocInstance(type_info, hint);
-  try {
-    __sync_val_compare_and_swap(location, sentinel, instance);
-    ctor(instance);
-    return instance;
-  } catch (...) {
-    Release(instance->container());
-    __sync_val_compare_and_swap(location, sentinel, nullptr);
-    return nullptr;
-  }
+  __sync_val_compare_and_swap(location, sentinel, instance);
+  ctor(instance);
+  return instance;
 }
 
 #ifdef __cplusplus
