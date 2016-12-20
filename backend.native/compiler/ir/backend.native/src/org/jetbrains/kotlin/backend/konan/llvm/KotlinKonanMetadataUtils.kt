@@ -32,7 +32,7 @@ class JsBinaryVersion(vararg numbers: Int) : BinaryVersion(*numbers) {
     override fun isCompatible() = this.isCompatibleTo(INSTANCE)
 
     companion object {
-        val INSTANCE = JsBinaryVersion(0, 5, 0)
+        val INSTANCE = JsBinaryVersion(0, 6, 0)
 
         val INVALID_VERSION = JsBinaryVersion()
     }
