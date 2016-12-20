@@ -160,13 +160,6 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         fun genGetValue(descriptor: ValueDescriptor, result: String = ""): LLVMValueRef
 
         /**
-         * Generates name for local llvm variable.
-         *
-         * @return the requested value
-         */
-        fun newVar():String
-
-        /**
          * Returns owning function scope.
          *
          * @return the requested value
@@ -199,7 +192,6 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
         override fun genGetValue(descriptor: ValueDescriptor, result: String) = unsupported(descriptor)
 
-        override fun newVar(): String  = unsupported()
         override fun functionScope(): CodeContext = unsupported()
     }
 
@@ -567,9 +559,6 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         var llvmFunction:LLVMValueRef? = declaration?.let{
             codegen.llvmFunction(declaration.descriptor)
         }
-
-        var tmpVariableCount = 0
-        override fun newVar(): String = "tmp_${tmpVariableCount++}"
 
         override fun genReturn(target: CallableDescriptor, value: LLVMValueRef?) {
             if (declaration == null) {
@@ -2102,8 +2091,6 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
      * removing [Codegenerator.currentFunction] of [FunctionDesctiptor]
      * and working with local variables with [FunctionScope] and other enhancements.
      */
-
-    fun CodeGenerator.newVar() = currentCodeContext.newVar()
 
     fun CodeGenerator.basicBlock(name: String = "label_"): LLVMBasicBlockRef {
         val functionScope:FunctionScope = currentCodeContext.functionScope() as FunctionScope
