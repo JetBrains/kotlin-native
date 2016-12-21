@@ -12,18 +12,17 @@ import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.types.KotlinType
 
 internal class CodeGenerator(override val context: Context) : ContextUtils {
-    var function:LLVMValueRef? = null
-    var returnType:LLVMTypeRef? = null
-    val returns:MutableMap<LLVMBasicBlockRef, LLVMValueRef> = mutableMapOf()
-    var constructedClass:ClassDescriptor? = null
+    var function: LLVMValueRef? = null
+    var returnType: LLVMTypeRef? = null
+    val returns: MutableMap<LLVMBasicBlockRef, LLVMValueRef> = mutableMapOf()
+    // TODO: remove, to make CodeGenerator descriptor-agnostic.
+    var constructedClass: ClassDescriptor? = null
 
-    fun prologue(declaration: IrFunction) {
-        prologue(llvmFunction(declaration.descriptor),
-                LLVMGetReturnType(
-                        getLlvmFunctionType(declaration.descriptor))!!)
-        if (declaration.descriptor is ConstructorDescriptor) {
-            constructedClass =
-                    (declaration.descriptor as ConstructorDescriptor).constructedClass
+    fun prologue(descriptor: FunctionDescriptor) {
+        prologue(llvmFunction(descriptor),
+                LLVMGetReturnType(getLlvmFunctionType(descriptor))!!)
+        if (descriptor is ConstructorDescriptor) {
+            constructedClass = descriptor.constructedClass
         }
     }
 
@@ -185,16 +184,16 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
     }
 
     fun ret(value: LLVMValueRef?): LLVMValueRef {
+        val res = LLVMBuildBr(builder, epilogueBb)!!
+
         if (returns.get(currentBlock) != null) {
             // TODO: enable error throwing.
-            // throw Error("ret() in the same basic block twice!");
-            return kNothingFakeValue
+            throw Error("ret() in the same basic block twice!")
         }
 
         if (value != null)
             returns[currentBlock] = value
 
-        val res = LLVMBuildBr(builder, epilogueBb)!!
         currentPositionHolder.setAfterTerminator()
         return res
     }

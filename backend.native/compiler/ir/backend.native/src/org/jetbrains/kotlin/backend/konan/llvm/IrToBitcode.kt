@@ -372,7 +372,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         }
 
 
-        codegen.prologue(constructorDeclaration)
+        codegen.prologue(constructorDeclaration.descriptor)
 
         val constructorDescriptor = constructorDeclaration.descriptor
         val classDescriptor = constructorDescriptor.constructedClass
@@ -605,7 +605,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             return
 
 
-        codegen.prologue(declaration)
+        codegen.prologue(declaration.descriptor)
 
         using(FunctionScope(declaration)) {
             declaration.acceptChildrenVoid(this)
@@ -613,7 +613,6 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
         codegen.epilogue()
 
-        declaration.descriptor.containingDeclaration
         verifyModule(context.llvmModule!!,
                 "${declaration.descriptor.containingDeclaration}::${ir2string(declaration)}")
     }
