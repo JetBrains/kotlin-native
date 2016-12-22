@@ -1,12 +1,5 @@
 package konan.internal
 
-/**
- * This annotation denotes that the element is intrinsic and its usages require special handling in compiler.
- */
-@Target(AnnotationTarget.FUNCTION)
-@Retention(AnnotationRetention.SOURCE)
-annotation class Intrinsic
-
 @Intrinsic external fun areEqualByValue(first: Boolean, second: Boolean): Boolean
 @Intrinsic external fun areEqualByValue(first: Char, second: Char): Boolean
 @Intrinsic external fun areEqualByValue(first: Byte, second: Byte): Boolean
