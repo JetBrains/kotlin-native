@@ -13,9 +13,9 @@ internal class VariableManager(val codegen: CodeGenerator) {
         fun isRefSlot() : Boolean
     }
 
-    inner class SlotRecord(val address: LLVMValueRef, val refSlot: Boolean) : Record {
+    inner class SlotRecord(val address: LLVMValueRef, val refSlot: Boolean, val isVar: Boolean) : Record {
         override fun load() : LLVMValueRef {
-            return codegen.load(address)
+            return codegen.loadSlot(address, isVar)
         }
         override fun store(value: LLVMValueRef) {
             codegen.storeAnyLocal(value, address)
@@ -55,14 +55,15 @@ internal class VariableManager(val codegen: CodeGenerator) {
     fun createVariable(scoped: Pair<VariableDescriptor, CodeContext>, value: LLVMValueRef? = null) : Int {
         // Note that we always create slot for object references for memory management.
         val descriptor = scoped.first
-        if (descriptor.isVar() || codegen.isObjectType(codegen.getLLVMType(descriptor.type)) || true) {
-            return createMutable(scoped, value)
-        } else {
-            return createImmutable(scoped, value!!)
-        }
+        // Unfortunately, we have to create mutable slots for all variables,
+        // as even vals can be assigned on multiple paths. However, we use varness
+        // knowledge, as anonymous slots are created only for true vars (for vals
+        // their single assigner already have slot).
+        return createMutable(scoped, descriptor.isVar, value)
     }
 
-    fun createMutable(scoped: Pair<VariableDescriptor, CodeContext>, value: LLVMValueRef? = null) : Int {
+    fun createMutable(scoped: Pair<VariableDescriptor, CodeContext>,
+                      isVar: Boolean, value: LLVMValueRef? = null) : Int {
         val descriptor = scoped.first
         assert(descriptors.get(scoped) == null)
         val index = variables.size
@@ -70,7 +71,7 @@ internal class VariableManager(val codegen: CodeGenerator) {
         val slot = codegen.alloca(type, descriptor.name.asString())
         if (value != null)
             codegen.storeAnyLocal(value, slot)
-        variables.add(SlotRecord(slot, codegen.isObjectType(type)))
+        variables.add(SlotRecord(slot, codegen.isObjectType(type), isVar))
         descriptors[scoped] = index
         return index
     }
@@ -91,7 +92,7 @@ internal class VariableManager(val codegen: CodeGenerator) {
         val slot = codegen.alloca(type)
         if (value != null)
             codegen.storeAnyLocal(value, slot)
-        variables.add(SlotRecord(slot, codegen.isObjectType(type)))
+        variables.add(SlotRecord(slot, codegen.isObjectType(type), true))
         return index
     }
 
