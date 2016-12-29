@@ -764,7 +764,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
                 val exp = evaluateExpression(it.expression)
                 val array = codegen.bitcast(codegen.kArrayHeaderPtr, exp)
                 val sizePtr = LLVMBuildStructGEP(codegen.builder, array, 2, "")
-                return@map Element(exp, codegen.loadSlot(sizePtr!!, false), true)
+                return@map Element(exp, codegen.load(sizePtr!!), true)
             } else if (it is IrExpression) {
                 val exp = evaluateExpression(it)
                 oneSizedElementsCount++
@@ -938,7 +938,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
                 val exceptionPtrPtr = bitcast(codegen.kObjHeaderPtrPtr, exceptionRawPtr, "")
 
                 // Pointer to Kotlin exception object:
-                // TODO: do we really need a slot here?
+                // We do need a slot here, as otherwise exception instance could be freed by _cxa_end_catch.
                 val exceptionPtr = loadSlot(exceptionPtrPtr, true, "exception")
 
                 // __cxa_end_catch performs some C++ cleanup, including calling `KotlinException` class destructor.
