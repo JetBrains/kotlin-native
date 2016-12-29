@@ -669,6 +669,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         val bbCurrent = codegen.currentBlock
         val bbInit    = codegen.basicBlock("label_init")
         val bbExit    = codegen.basicBlock("label_continue")
+        // No need to hold a slot here, as objects never released.
         val onePtr    = codegen.intToPtr(kImmInt64One, codegen.kObjHeaderPtr)
         val objectVal = codegen.load(objectPtr)
         val condition = codegen.ucmpGt(objectVal, onePtr)
@@ -716,7 +717,8 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
      *
      * [valuePhi] may be `null`, which would mean `Unit` value is passed.
      */
-    private data class ContinuationBlock(val block: LLVMBasicBlockRef, val valuePhi: LLVMValueRef?)
+    private data class ContinuationBlock(
+            val block: LLVMBasicBlockRef, val valuePhi: LLVMValueRef?, val valueSlot: LLVMValueRef?)
 
     private val ContinuationBlock.value: LLVMValueRef
         get() = this.valuePhi ?: codegen.theUnitInstanceRef.llvm
@@ -726,6 +728,9 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
      */
     private fun jump(target: ContinuationBlock, value: LLVMValueRef?) {
         val entry = target.block
+        if (target.valuePhi != null && codegen.isObjectRef(target.valuePhi)) {
+            codegen.storeAnyLocal(value!!, target.valueSlot!!)
+        }
         codegen.br(entry)
         if (target.valuePhi != null) {
             codegen.assignPhis(target.valuePhi to value!!)
@@ -739,15 +744,21 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     private fun continuationBlock(type: KotlinType,
                                   code: (ContinuationBlock) -> Unit = {}): ContinuationBlock {
         val entry = codegen.basicBlock()
+        val llvmType = codegen.getLLVMType(type)
 
         codegen.appendingTo(entry) {
             val valuePhi = if (type.isUnit()) {
                 null
             } else {
-                codegen.phi(codegen.getLLVMType(type))
+                codegen.phi(llvmType)
+            }
+            val valueSlot = if (valuePhi == null || !codegen.isObjectType(llvmType)) {
+                null
+            } else {
+                codegen.alloca(llvmType)
             }
 
-            val result = ContinuationBlock(entry, valuePhi)
+            val result = ContinuationBlock(entry, valuePhi, valueSlot)
             code(result)
             return result
         }
@@ -1341,14 +1352,19 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
     private fun evaluateGetField(value: IrGetField): LLVMValueRef {
         context.log("evaluateGetField           : ${ir2string(value)}")
-        if (value.descriptor.dispatchReceiverParameter != null) {
+        val result = if (value.descriptor.dispatchReceiverParameter != null) {
             val thisPtr = instanceFieldAccessReceiver(value)
-            return codegen.load(fieldPtrOfClass(thisPtr, value.descriptor))
+            codegen.load(fieldPtrOfClass(thisPtr, value.descriptor))
         }
         else {
             val ptr = LLVMGetNamedGlobal(context.llvmModule, value.descriptor.symbolName)!!
-            return codegen.load(ptr)
+            codegen.load(ptr)
         }
+        if (codegen.isObjectRef(result)) {
+            val slot = codegen.alloca(LLVMTypeOf(result))
+            codegen.storeAnyLocal(result, slot)
+        }
+        return result
     }
 
     //-------------------------------------------------------------------------//

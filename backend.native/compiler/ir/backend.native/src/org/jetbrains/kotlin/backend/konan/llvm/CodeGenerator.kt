@@ -40,10 +40,14 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
         this.returnType = returnType
         this.constructedClass = null
         prologueBb = LLVMAppendBasicBlock(function, "prologue")
+        allocBb = LLVMAppendBasicBlock(function, "alloc")
         entryBb = LLVMAppendBasicBlock(function, "entry")
         epilogueBb = LLVMAppendBasicBlock(function, "epilogue")
         positionAtEnd(entryBb!!)
-        slotsPhi = phi(kObjHeaderPtrPtr)
+
+        appendingTo(allocBb!!) {
+            slotsPhi = phi(kObjHeaderPtrPtr)
+        }
         slotCount = 0
     }
 
@@ -64,6 +68,10 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
                                 Int1(0).llvm))
             }
             addPhiIncoming(slotsPhi!!, prologueBb!! to slots)
+            br(allocBb!!)
+        }
+
+        appendingTo(allocBb!!) {
             br(entryBb!!)
         }
 
@@ -102,6 +110,7 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
     }
 
     private var prologueBb: LLVMBasicBlockRef? = null
+    private var allocBb: LLVMBasicBlockRef? = null
     private var entryBb: LLVMBasicBlockRef? = null
     private var epilogueBb: LLVMBasicBlockRef? = null
 
@@ -131,11 +140,12 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
     fun intToPtr(imm: LLVMValueRef?, DestTy: LLVMTypeRef, Name: String = "") = LLVMBuildIntToPtr(builder, imm, DestTy, Name)!!
 
     fun alloca(type: LLVMTypeRef?, name: String = ""): LLVMValueRef {
-        if (isObjectType(type!!)) {
-            return gep(slotsPhi!!, Int32(slotCount++).llvm)
-        }
-        appendingTo(prologueBb!!) {
-            return LLVMBuildAlloca(builder, type, name)!!
+        appendingTo(allocBb!!) {
+            if (isObjectType(type!!)) {
+                return gep(slotsPhi!!, Int32(slotCount++).llvm)
+            } else {
+                return LLVMBuildAlloca(builder, type, name)!!
+            }
         }
     }
     fun load(value: LLVMValueRef, name: String = ""): LLVMValueRef = LLVMBuildLoad(builder, value, name)!!
