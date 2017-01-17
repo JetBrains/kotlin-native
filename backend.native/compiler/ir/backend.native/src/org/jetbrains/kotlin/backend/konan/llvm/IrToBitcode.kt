@@ -172,6 +172,7 @@ interface CodeContext {
 internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid {
 
     val codegen = CodeGenerator(context)
+    val allocHints = mutableMapOf<IrCall, Int>()
 
     //-------------------------------------------------------------------------//
 
@@ -239,6 +240,8 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     //-------------------------------------------------------------------------//
     override fun visitModuleFragment(module: IrModuleFragment) {
         context.log("visitModule                  : ${ir2string(module)}")
+
+        prepareAllocHints(module, allocHints)
 
         module.acceptChildrenVoid(this)
         appendLlvmUsed(context.llvm.usedFunctions)
@@ -691,10 +694,9 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
         codegen.positionAtEnd(bbInit)
         val typeInfo = codegen.typeInfoValue(value.descriptor)
-        val allocHint = Int32(1).llvm
         val initFunction = value.descriptor.constructors.first { it.valueParameters.size == 0 }
         val ctor = codegen.llvmFunction(initFunction)
-        val args = listOf(objectPtr, typeInfo, allocHint, ctor)
+        val args = listOf(objectPtr, typeInfo, ctor)
         val newValue = call(context.llvm.initInstanceFunction, args)
         val bbInitResult = codegen.currentBlock
         codegen.br(bbExit)
@@ -802,9 +804,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             codegen.plus(sum, size!!)
         }
 
-        val typeInfo = codegen.typeInfoValue(value.type)!!
-        val arrayCreationArgs = listOf(typeInfo, kImmInt32One, finalLength)
-        val array = call(context.llvm.allocArrayFunction, arrayCreationArgs)
+        val array = codegen.allocArray(codegen.typeInfoValue(value.type)!!, SCOPE_GLOBAL, finalLength)
         elements.fold(kImmZero) { sum, (exp, size, isArray) ->
             if (!isArray) {
                 call(context.llvm.setArrayFunction, listOf(array, sum, exp))
@@ -832,6 +832,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     val kStringLength = KonanPlatform.builtIns.string.getter2Descriptor(kNameLength)
     val kStringBuilderToString = kStringBuilder.signature2Descriptor(kNameToString)
 
+    //TODO: make it lowering pass.
     private fun evaluateStringConcatenation(value: IrStringConcatenation): LLVMValueRef {
         data class Element(val string: LLVMValueRef, val llvmLenght: LLVMValueRef?, val length: Int)
 
@@ -857,8 +858,9 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
         val constructor = kStringBuilder!!.constructors
                 .firstOrNull { it -> it.valueParameters.size == 1 && KotlinBuiltIns.isInt(it.valueParameters[0].type) }!!
-        val stringBuilderObj = call(context.llvm.allocInstanceFunction,
-                listOf(codegen.typeInfoValue(kStringBuilder.defaultType)!!, kImmOne))
+        // TODO: properly compute scope.
+        val stringBuilderObj = codegen.allocInstance(codegen.typeInfoValue(kStringBuilder), SCOPE_GLOBAL)
+
         call(codegen.llvmFunction(constructor), listOf(stringBuilderObj, totalLength))
 
         stringsWithLengths.fold(stringBuilderObj) { sum, (string, _, _) ->
@@ -1434,11 +1436,10 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
     */
     private fun fieldPtrOfClass(thisPtr: LLVMValueRef, value: PropertyDescriptor): LLVMValueRef {
-        val objHeaderPtr = codegen.bitcast(codegen.kObjHeaderPtr, thisPtr)
         val typePtr = pointerType(codegen.classType(value.containingDeclaration as ClassDescriptor))
         memScoped {
             val args = allocArrayOf(kImmOne)
-            val objectPtr = LLVMBuildGEP(codegen.builder, objHeaderPtr,  args[0].ptr, 1, "")
+            val objectPtr = LLVMBuildGEP(codegen.builder, thisPtr,  args[0].ptr, 1, "")
             val typedObjPtr = codegen.bitcast(typePtr, objectPtr!!)
             val fieldPtr = LLVMBuildStructGEP(codegen.builder, typedObjPtr, codegen.indexInClass(value), "")
             return fieldPtr!!
@@ -1742,24 +1743,22 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     }
 
     //-------------------------------------------------------------------------//
+    private fun hintForCall(callee: IrCall): Int {
+        return allocHints.getOrElse(callee) { SCOPE_GLOBAL }
+    }
 
     private fun evaluateConstructorCall(callee: IrCall, args: List<LLVMValueRef>): LLVMValueRef {
         context.log("evaluateConstructorCall    : ${ir2string(callee)}")
         memScoped {
             val constructedClass = (callee.descriptor as ConstructorDescriptor).constructedClass
-            val typeInfo = codegen.typeInfoValue(constructedClass)
-            val allocHint = Int32(1).llvm
             val thisValue = if (constructedClass.isArray) {
                 assert(args.size >= 1 && args[0].type == int32Type)
-                val allocArrayInstanceArgs = listOf(typeInfo, allocHint, args[0])
-                call(context.llvm.allocArrayFunction, allocArrayInstanceArgs)
+                codegen.allocArray(codegen.typeInfoValue(constructedClass), hintForCall(callee), args[0])
             } else {
-                call(context.llvm.allocInstanceFunction, listOf(typeInfo, allocHint))
+                codegen.allocInstance(codegen.typeInfoValue(constructedClass), hintForCall(callee))
             }
-            val constructorParams: MutableList<LLVMValueRef> = mutableListOf()
-            constructorParams += thisValue
-            constructorParams += args
-            evaluateSimpleFunctionCall(callee.descriptor as FunctionDescriptor, constructorParams)
+            evaluateSimpleFunctionCall(callee.descriptor as FunctionDescriptor,
+                    listOf(thisValue) + args)
             return thisValue
         }
     }

@@ -45,7 +45,8 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
         cleanupLandingpad = LLVMAppendBasicBlock(function, "cleanup_landingpad")!!
         positionAtEnd(entryBb!!)
         slotsPhi = phi(kObjHeaderPtrPtr)
-        slotCount = 0
+        // First slot is assigned to keep pointer to local container.
+        slotCount = 1
     }
 
     fun epilogue() {
@@ -103,8 +104,8 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
     }
 
     fun releaseVars() {
-        if (slotCount > 0) {
-            call(context.llvm.releaseLocalRefsFunction,
+        if (slotCount > 1) {
+            call(context.llvm.leaveFrameFunction,
                     listOf(slotsPhi!!, Int32(slotCount).llvm))
         }
     }
@@ -148,6 +149,28 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
             return LLVMBuildAlloca(builder, type, name)!!
         }
     }
+
+    fun allocInstance(typeInfo: LLVMValueRef, hint: Int) : LLVMValueRef {
+        val aux = when (hint) {
+            SCOPE_FRAME -> gep(slotsPhi!!, Int32(0).llvm)
+            else -> kNullObjHeaderPtrPtr
+        }
+        // TODO: actually we do not need slots for frame locals.
+        val slot = vars.createAnonymousSlot()
+        return call(context.llvm.allocInstanceFunction, listOf(typeInfo, aux, slot))
+    }
+
+    fun allocArray(
+          typeInfo: LLVMValueRef, hint: Int, count: LLVMValueRef) : LLVMValueRef {
+        val aux = when (hint) {
+            SCOPE_FRAME -> gep(slotsPhi!!, Int32(0).llvm)
+            else -> kNullObjHeaderPtrPtr
+        }
+        // TODO: actually we do not need slots for frame locals.
+        val slot = vars.createAnonymousSlot()
+        return call(context.llvm.allocArrayFunction, listOf(typeInfo, aux, count, slot))
+    }
+
     fun load(value: LLVMValueRef, name: String = ""): LLVMValueRef {
         val result = LLVMBuildLoad(builder, value, name)!!
         // Use loadSlot() API for that.
