@@ -349,6 +349,11 @@ task advanced_when5(type: RunKonanTest) {
     source = "codegen/branching/advanced_when5.kt"
 }
 
+task termination0(type: RunKonanTest) {
+    source = "codegen/branching/termination0.kt"
+    disabled = true
+}
+
 task bool_yes(type: RunKonanTest) {
     source = "codegen/function/boolean.kt"
 }
