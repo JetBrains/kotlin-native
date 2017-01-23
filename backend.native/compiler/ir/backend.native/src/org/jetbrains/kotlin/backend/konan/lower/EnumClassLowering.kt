@@ -303,13 +303,14 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
                     false, false, false, false, false).initialize(valuesArrayType, dispatchReceiverParameter = receiver)
         }
 
-        private val genericArrayOfFun = context.builtIns.builtInsPackageScope.getContributedFunctions(Name.identifier("arrayOf"), NoLookupLocation.FROM_BACKEND).first()
+        private val kotlinPackage = context.irModule!!.descriptor.getPackage(FqName("kotlin"))
+        private val kotlinInternalPackage = context.irModule!!.descriptor.getPackage(FqName.fromSegments(listOf("konan", "internal")))
 
-        private val genericValueOfFun = context.irModule?.descriptor?.getPackage(FqName.fromSegments(listOf("konan", "internal")))
-                ?.memberScope?.getContributedFunctions(Name.identifier("valueOfForEnum"), NoLookupLocation.FROM_BACKEND)?.first()!!
+        private val genericArrayOfFun = kotlinPackage.memberScope.getContributedFunctions(Name.identifier("arrayOf"), NoLookupLocation.FROM_BACKEND).first()
 
-        private val genericArrayType = context.irModule?.descriptor?.getPackage(FqName("kotlin"))
-                ?.memberScope?.getContributedClassifier(Name.identifier("Array"), NoLookupLocation.FROM_BACKEND)!! as ClassDescriptor
+        private val genericValueOfFun = kotlinInternalPackage.memberScope.getContributedFunctions(Name.identifier("valueOfForEnum"), NoLookupLocation.FROM_BACKEND).first()
+
+        private val genericArrayType = kotlinPackage.memberScope.getContributedClassifier(Name.identifier("Array"), NoLookupLocation.FROM_BACKEND) as ClassDescriptor
 
         private fun createArrayOfExpression(arrayElementType: KotlinType, arrayElements: List<IrExpression>): IrExpression {
             val typeParameter0 = genericArrayOfFun.typeParameters[0]
