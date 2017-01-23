@@ -86,13 +86,11 @@ internal interface ContextUtils {
             if (irClass != null) {
                 val declarations = irClass.declarations
 
-                return declarations.mapNotNull {
-                    when (it) {
-                        is IrProperty -> it.backingField?.descriptor
-                        is IrField -> it.descriptor
-                        else -> null
-                    }
-                }
+                return irProperties.mapNotNull {
+                    (it as? IrProperty)?.backingField?.descriptor 
+                } + irProperties.mapNotNull {
+                    (it as? IrField)?.descriptor
+                }.distinct()
             } else {
                 val properties = this.unsubstitutedMemberScope.
                     getContributedDescriptors().

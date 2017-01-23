@@ -26,3 +26,11 @@ internal fun ThrowNoWhenBranchMatchedException(): Nothing {
 
 @ExportForCppRuntime
 internal fun TheEmptyString() = ""
+
+internal fun <T: Enum<T>> valueOfForEnum(name: String, arr: Array<T>) : T
+{
+    for(x in arr)
+        if(x.name == name)
+            return x
+    throw Exception("Invalid enum name: ")
+}

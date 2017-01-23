@@ -89,6 +89,7 @@ internal val ClassDescriptor.symbolName: String
         CLASS -> "kclass:"
         INTERFACE -> "kinf:"
         OBJECT -> "kclass:"
+        ENUM_CLASS -> "kclass:"
         else -> TODO("fixme: " + this.kind)
     } + fqNameSafe
 
