@@ -180,7 +180,7 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
             val memberScope = StupidMemberScope(listOf())
             defaultClassDescriptor.initialize(memberScope, constructors, null)
 
-            context.ir.moduleIndex.addClass(defaultClassDescriptor.classId!!, defaultClass)
+            context.ir.originalModuleIndex.addClass(defaultClassDescriptor.classId!!, defaultClass)
             return defaultClass
         }
 
@@ -241,7 +241,7 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
             implObject.declarations.add(createSyntheticValueOfMethodDeclaration(implObjectDescriptor))
 
             irClass.declarations.add(implObject)
-            context.ir.moduleIndex.addClass(implObjectDescriptor.classId!!, implObject)
+            context.ir.originalModuleIndex.addClass(implObjectDescriptor.classId!!, implObject)
         }
 
         private fun createSimpleDelegatingConstructor(classDescriptor: ClassDescriptor,
