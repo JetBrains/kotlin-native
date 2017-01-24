@@ -6,7 +6,9 @@ import org.jetbrains.kotlin.backend.common.runOnFilePostfix
 import org.jetbrains.kotlin.backend.jvm.descriptors.createValueParameter
 import org.jetbrains.kotlin.backend.jvm.descriptors.initialize
 import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.KonanBuiltIns
 import org.jetbrains.kotlin.backend.konan.KonanPlatform
+import org.jetbrains.kotlin.backend.konan.descriptors.getKonanInternalFunctions
 import org.jetbrains.kotlin.backend.konan.descriptors.synthesizedName
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
@@ -323,13 +325,12 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
         }
 
         private val kotlinPackage = context.irModule!!.descriptor.getPackage(FqName("kotlin"))
-        private val konanInternalPackage = context.irModule!!.descriptor.getPackage(FqName.fromSegments(listOf("konan", "internal")))
 
         private val genericArrayOfFun = kotlinPackage.memberScope.getContributedFunctions(Name.identifier("arrayOf"), NoLookupLocation.FROM_BACKEND).first()
 
-        private val genericValueOfFun = konanInternalPackage.memberScope.getContributedFunctions(Name.identifier("valueOfForEnum"), NoLookupLocation.FROM_BACKEND).first()
+        private val genericValueOfFun = context.builtIns.getKonanInternalFunctions("valueOfForEnum").single()
 
-        private val genericValuesFun = konanInternalPackage.memberScope.getContributedFunctions(Name.identifier("valuesForEnum"), NoLookupLocation.FROM_BACKEND).first()
+        private val genericValuesFun = context.builtIns.getKonanInternalFunctions("valuesForEnum").single()
 
         private val genericArrayType = kotlinPackage.memberScope.getContributedClassifier(Name.identifier("Array"), NoLookupLocation.FROM_BACKEND) as ClassDescriptor
 
