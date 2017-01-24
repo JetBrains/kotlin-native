@@ -3,11 +3,13 @@ package org.jetbrains.kotlin.backend.konan.lower
 import gnu.trove.TObjectIntHashMap
 import org.jetbrains.kotlin.backend.common.BodyLoweringPass
 import org.jetbrains.kotlin.backend.common.ClassLoweringPass
+import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.common.runOnFilePostfix
 import org.jetbrains.kotlin.backend.jvm.descriptors.createValueParameter
 import org.jetbrains.kotlin.backend.jvm.descriptors.initialize
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.KonanPlatform
+import org.jetbrains.kotlin.backend.konan.ir.ir2string
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.descriptors.impl.ClassConstructorDescriptorImpl
@@ -48,12 +50,10 @@ internal data class LoweredEnumEntry(val implObject: ClassDescriptor, val values
 internal class EnumUsageLowering(val context: Context,
                                  val loweredFunctions: Map<FunctionDescriptor, LoweredSyntheticFunction>,
                                  val loweredEnumEntries: Map<ClassDescriptor, LoweredEnumEntry>)
-    : IrElementTransformerVoid(), BodyLoweringPass {
+    : IrElementTransformerVoid(), FileLoweringPass {
 
-    override fun lower(irBody: IrBody) {
-        if (irBody !is IrBlockBody)
-            return
-        visitBlockBody(irBody)
+    override fun lower(irFile: IrFile) {
+        visitFile(irFile)
     }
 
     override fun visitGetEnumValue(expression: IrGetEnumValue): IrExpression {
@@ -98,7 +98,7 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
 
     fun run(irFile: IrFile) {
         runOnFilePostfix(irFile)
-        EnumUsageLowering(context, loweredFunctions, loweredEnumEntries).runOnFilePostfix(irFile)
+        EnumUsageLowering(context, loweredFunctions, loweredEnumEntries).lower(irFile)
     }
 
     override fun lower(irClass: IrClass) {
