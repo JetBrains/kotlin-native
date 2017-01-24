@@ -298,37 +298,37 @@ task empty_substring(type: RunKonanTest) {
 
 task enum0(type: RunKonanTest) {
     goldValue = "VALUE\n"
-    source = "codegen/enum/enum0.kt"
+    source = "codegen/enum/test0.kt"
 }
 
 task enum1(type: RunKonanTest) {
     goldValue = "z12\n"
-    source = "codegen/enum/enum1.kt"
+    source = "codegen/enum/test1.kt"
 }
 
 task enum_valueOf(type: RunKonanTest) {
     goldValue = "E1\n"
-    source = "codegen/enum/enum_valueOf.kt"
+    source = "codegen/enum/valueOf.kt"
 }
 
 task enum_values(type: RunKonanTest) {
     goldValue = "E2\n"
-    source = "codegen/enum/enum_values.kt"
+    source = "codegen/enum/values.kt"
 }
 
 task enum_vCallNoEntryClass(type: RunKonanTest) {
     goldValue = "('z3', 3)\n"
-    source = "codegen/enum/enum_vCallNoEntryClass.kt"
+    source = "codegen/enum/vCallNoEntryClass.kt"
 }
 
 task enum_vCallWithEntryClass(type: RunKonanTest) {
     goldValue = "z1z2\n"
-    source = "codegen/enum/enum_vCallWithEntryClass.kt"
+    source = "codegen/enum/vCallWithEntryClass.kt"
 }
 
 task enum_companionObject(type: RunKonanTest) {
     goldValue = "OK\n"
-    source = "codegen/enum/enum_companionObject.kt"
+    source = "codegen/enum/companionObject.kt"
 }
 
 task array0(type: RunKonanTest) {
