@@ -301,6 +301,36 @@ task enum0(type: RunKonanTest) {
     source = "runtime/basic/enum0.kt"
 }
 
+task enum1(type: RunKonanTest) {
+    goldValue = "z12\n"
+    source = "runtime/basic/enum1.kt"
+}
+
+task enum_valueOf(type: RunKonanTest) {
+    goldValue = "E1\n"
+    source = "runtime/basic/enum_valueOf.kt"
+}
+
+task enum_values(type: RunKonanTest) {
+    goldValue = "E2\n"
+    source = "runtime/basic/enum_values.kt"
+}
+
+task enum_vCallNoEntryClass(type: RunKonanTest) {
+    goldValue = "('z3', 3)\n"
+    source = "runtime/basic/enum_vCallNoEntryClass.kt"
+}
+
+task enum_vCallWithEntryClass(type: RunKonanTest) {
+    goldValue = "z1z2\n"
+    source = "runtime/basic/enum_vCallWithEntryClass.kt"
+}
+
+task enum_companionObject(type: RunKonanTest) {
+    goldValue = "OK\n"
+    source = "runtime/basic/enum_companionObject.kt"
+}
+
 task array0(type: RunKonanTest) {
     goldValue = "5\n6\n7\n8\n9\n10\n11\n12\n13\n"
     source = "runtime/collections/array0.kt"
