@@ -80,6 +80,7 @@ internal class EnumUsageLowering(val context: Context,
     }
 }
 
+// TODO generalize
 class StupidMemberScope(val contributedDescriptors: Collection<DeclarationDescriptor>) : MemberScopeImpl() {
     override fun getContributedDescriptors(kindFilter: DescriptorKindFilter,
                                            nameFilter: (Name) -> Boolean): Collection<DeclarationDescriptor> {
@@ -201,23 +202,16 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
                         delete = true
                     }
                     is IrFunction -> {
-                        if (declaration.body.let { it is IrSyntheticBody && it.kind == IrSyntheticBodyKind.ENUM_VALUES }) {
-                            valuesFunctionDescriptor = (declaration.descriptor)
-                                    .newCopyBuilder()
-                                    .setOwner(implObjectDescriptor)
-                                    .setName(Name.identifier("\$" + declaration.descriptor.name))
-                                    .setDispatchReceiverParameter(implObjectDescriptor.thisAsReceiverParameter)
-                                    .build()!!
-                            loweredFunctions.put(declaration.descriptor, LoweredSyntheticFunction(valuesFunctionDescriptor, implObjectDescriptor))
+                        var copiedDescriptor = tryCopySyntheticBodyDeclaration(implObjectDescriptor, declaration, IrSyntheticBodyKind.ENUM_VALUES)
+                        if(copiedDescriptor != null)
+                        {
+                            valuesFunctionDescriptor = copiedDescriptor
                             delete = true
-                        } else if (declaration.body.let { it is IrSyntheticBody && it.kind == IrSyntheticBodyKind.ENUM_VALUEOF }) {
-                            valueOfFunctionDescriptor = (declaration.descriptor)
-                                    .newCopyBuilder()
-                                    .setOwner(implObjectDescriptor)
-                                    .setName(Name.identifier("\$" + declaration.descriptor.name))
-                                    .setDispatchReceiverParameter(implObjectDescriptor.thisAsReceiverParameter)
-                                    .build()!!
-                            loweredFunctions.put(declaration.descriptor, LoweredSyntheticFunction(valueOfFunctionDescriptor, implObjectDescriptor))
+                        }
+                        copiedDescriptor = tryCopySyntheticBodyDeclaration(implObjectDescriptor, declaration, IrSyntheticBodyKind.ENUM_VALUEOF)
+                        if(copiedDescriptor != null)
+                        {
+                            valueOfFunctionDescriptor = copiedDescriptor
                             delete = true
                         }
                     }
@@ -242,6 +236,21 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
 
             irClass.declarations.add(implObject)
             context.ir.originalModuleIndex.addClass(implObjectDescriptor.classId!!, implObject)
+        }
+
+        private fun tryCopySyntheticBodyDeclaration(implObjectDescriptor: ClassDescriptor,
+                                                    declaration: IrFunction,
+                                                    kind: IrSyntheticBodyKind): FunctionDescriptor? {
+            if (!declaration.body.let { it is IrSyntheticBody && it.kind == kind })
+                return null
+            val newDescriptor = declaration.descriptor
+                    .newCopyBuilder()
+                    .setOwner(implObjectDescriptor)
+                    .setName(Name.identifier("\$" + declaration.descriptor.name))
+                    .setDispatchReceiverParameter(implObjectDescriptor.thisAsReceiverParameter)
+                    .build()!!
+            loweredFunctions.put(declaration.descriptor, LoweredSyntheticFunction(newDescriptor, implObjectDescriptor))
+            return newDescriptor
         }
 
         private fun createSimpleDelegatingConstructor(classDescriptor: ClassDescriptor,
