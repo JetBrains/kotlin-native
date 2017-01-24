@@ -7,6 +7,7 @@ import org.jetbrains.kotlin.backend.jvm.descriptors.createValueParameter
 import org.jetbrains.kotlin.backend.jvm.descriptors.initialize
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.KonanPlatform
+import org.jetbrains.kotlin.backend.konan.descriptors.synthesizedName
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.descriptors.impl.ClassConstructorDescriptorImpl
@@ -27,7 +28,6 @@ import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.psi2ir.findSingleFunction
 import org.jetbrains.kotlin.resolve.descriptorUtil.classId
 import org.jetbrains.kotlin.resolve.descriptorUtil.classValueType
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
@@ -38,7 +38,6 @@ import org.jetbrains.kotlin.types.*
 import org.jetbrains.kotlin.utils.Printer
 import org.jetbrains.kotlin.utils.addToStdlib.singletonList
 import org.jetbrains.kotlin.utils.addToStdlib.singletonOrEmptyList
-import org.jetbrains.kotlin.backend.konan.descriptors.*
 
 internal data class LoweredSyntheticFunction(val functionDescriptor: FunctionDescriptor, val containingClass: ClassDescriptor)
 
@@ -55,16 +54,28 @@ internal class EnumUsageLowering(val context: Context,
     }
 
     override fun visitGetEnumValue(expression: IrGetEnumValue): IrExpression {
-        val loweredEnumEntry = loweredEnumEntries[expression.descriptor.containingDeclaration as ClassDescriptor]!!
+        val enumClassDescriptor = expression.descriptor.containingDeclaration as ClassDescriptor
+        return loadEnumEntry(expression.startOffset, expression.endOffset, enumClassDescriptor, expression.descriptor.name)
+    }
+
+    override fun visitGetObjectValue(expression: IrGetObjectValue): IrExpression {
+        if(expression.descriptor.kind != ClassKind.ENUM_ENTRY)
+            return super.visitGetObjectValue(expression)
+        val enumClassDescriptor = expression.descriptor.containingDeclaration as ClassDescriptor
+        return loadEnumEntry(expression.startOffset, expression.endOffset, enumClassDescriptor, expression.descriptor.name)
+    }
+
+    private fun loadEnumEntry(startOffset: Int, endOffset: Int, enumClassDescriptor: ClassDescriptor, name: Name): IrExpression {
+        val loweredEnumEntry = loweredEnumEntries[enumClassDescriptor]!!
         val implObject = loweredEnumEntry.implObject
         val implObjectGetter = IrGetObjectValueImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, implObject.classValueType!!, implObject)
-        val valuesGetter = IrGetFieldImpl(expression.startOffset, expression.endOffset, loweredEnumEntry.valuesProperty).apply {
+        val valuesGetter = IrGetFieldImpl(startOffset, endOffset, loweredEnumEntry.valuesProperty).apply {
             receiver = implObjectGetter
         }
-        val ordinal = loweredEnumEntry.entriesMap[expression.descriptor.name]!!
-        return IrCallImpl(expression.startOffset, expression.endOffset, loweredEnumEntry.itemGetter).apply {
+        val ordinal = loweredEnumEntry.entriesMap[name]!!
+        return IrCallImpl(startOffset, endOffset, loweredEnumEntry.itemGetter).apply {
             dispatchReceiver = valuesGetter
-            putValueArgument(0, IrConstImpl.int(UNDEFINED_OFFSET, UNDEFINED_OFFSET, expression.descriptor.module.builtIns.intType, ordinal))
+            putValueArgument(0, IrConstImpl.int(startOffset, endOffset, enumClassDescriptor.module.builtIns.intType, ordinal))
         }
     }
 
@@ -280,7 +291,8 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
             return Pair(constructorDescriptor, constructor)
         }
 
-        private fun createSyntheticValuesFieldDeclaration(implObjectDescriptor: ClassDescriptor, enumEntries: List<IrEnumEntry>): IrFieldImpl {
+        private fun createSyntheticValuesFieldDeclaration(implObjectDescriptor: ClassDescriptor,
+                                                          enumEntries: List<IrEnumEntry>): IrFieldImpl {
             val valuesArrayType = context.builtIns.getArrayType(Variance.INVARIANT, irClass.descriptor.defaultType)
             valuesFieldDescriptor = createSyntheticValuesFieldDescriptor(implObjectDescriptor, valuesArrayType)
 
