@@ -23,7 +23,7 @@ internal final class Context(val config: KonanConfig) : KonanBackendContext() {
 
     var moduleDescriptor: ModuleDescriptor? = null
 
-    // todo make lateinit?
+    // TODO: make lateinit?
     var irModule: IrModuleFragment? = null
         set(module: IrModuleFragment?) {
             if (field != null) {

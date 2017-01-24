@@ -315,9 +315,9 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
     fun countParams(fn: FunctionDescriptor) = LLVMCountParams(fn.llvmFunction)
 
     fun indexInClass(p:PropertyDescriptor):Int {
-        val idx = (p.containingDeclaration as ClassDescriptor).fields.indexOf(p)
-        assert(idx >= 0) { "Unable to find property $p" }
-        return idx
+        val index = (p.containingDeclaration as ClassDescriptor).fields.indexOf(p)
+        assert(index >= 0) { "Unable to find property $p" }
+        return index
     }
 
     fun basicBlock(name: String = "label_"): LLVMBasicBlockRef {

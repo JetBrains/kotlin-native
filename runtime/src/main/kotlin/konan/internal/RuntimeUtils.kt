@@ -34,3 +34,8 @@ internal fun <T: Enum<T>> valueOfForEnum(name: String, arr: Array<T>) : T
             return x
     throw Exception("Invalid enum name: ")
 }
+
+internal fun <T: Enum<T>> valuesForEnum(values: Array<T>): Array<T>
+{
+    return values.clone() as Array<T>
+}
