@@ -858,8 +858,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
         val constructor = kStringBuilder!!.constructors
                 .firstOrNull { it -> it.valueParameters.size == 1 && KotlinBuiltIns.isInt(it.valueParameters[0].type) }!!
-        // TODO: properly compute scope.
-        val stringBuilderObj = codegen.allocInstance(codegen.typeInfoValue(kStringBuilder), SCOPE_GLOBAL)
+        val stringBuilderObj = codegen.allocInstance(codegen.typeInfoValue(kStringBuilder), SCOPE_FRAME)
 
         call(codegen.llvmFunction(constructor), listOf(stringBuilderObj, totalLength))
 
@@ -1771,8 +1770,8 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
         return when (name) {
             "konan.internal.areEqualByValue" -> {
-                val arg0 = args[0]!!
-                val arg1 = args[1]!!
+                val arg0 = args[0]
+                val arg1 = args[1]
                 assert (arg0.type == arg1.type)
 
                 when (LLVMGetTypeKind(arg0.type)) {
@@ -1800,12 +1799,12 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         val descriptor = callee.descriptor
         val ib = context.irModule!!.irBuiltins
         when (descriptor) {
-            ib.eqeqeq     -> return codegen.icmpEq(args[0]!!, args[1]!!)
-            ib.gt0        -> return codegen.icmpGt(args[0]!!, kImmZero)
-            ib.gteq0      -> return codegen.icmpGe(args[0]!!, kImmZero)
-            ib.lt0        -> return codegen.icmpLt(args[0]!!, kImmZero)
-            ib.lteq0      -> return codegen.icmpLe(args[0]!!, kImmZero)
-            ib.booleanNot -> return codegen.icmpNe(args[0]!!, kTrue)
+            ib.eqeqeq     -> return codegen.icmpEq(args[0], args[1])
+            ib.gt0        -> return codegen.icmpGt(args[0], kImmZero)
+            ib.gteq0      -> return codegen.icmpGe(args[0], kImmZero)
+            ib.lt0        -> return codegen.icmpLt(args[0], kImmZero)
+            ib.lteq0      -> return codegen.icmpLe(args[0], kImmZero)
+            ib.booleanNot -> return codegen.icmpNe(args[0], kTrue)
             else -> {
                 TODO(descriptor.name.toString())
             }
@@ -1837,7 +1836,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         if (resultPhi != null && !isNothing)
             codegen.assignPhis(resultPhi to brResult)
         if (bbExit != null && !isNothing)
-            codegen.br(bbExit!!)
+            codegen.br(bbExit)
         if (bbNext != null)                                                          // Switch generation to next or exit.
             codegen.positionAtEnd(bbNext)
         else if (bbExit != null)
@@ -1877,7 +1876,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             val slot = codegen.gep(vtable, Int32(index).llvm)
             codegen.load(slot)
         } else {
-            // Otherwise, call via hashtable.
+            // Otherwise, call by hash.
             // TODO: optimize by storing interface number in lower bits of 'this' pointer
             //       when passing object as an interface. This way we can use those bits as index
             //       for an additional per-interface vtable.
@@ -1913,7 +1912,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     private fun call(function: LLVMValueRef, args: List<LLVMValueRef>): LLVMValueRef {
         if (codegen.isObjectReturn(function.type)) {
             // If function returns an object - create slot for the returned value.
-            // This allows appropriate rootset accounting by just looking on stack slots.
+            // This allows appropriate rootset accounting by just looking at the stack slots.
             val resultSlot = codegen.vars.createAnonymousSlot()
             return currentCodeContext.genCall(function, args + resultSlot)
         } else {

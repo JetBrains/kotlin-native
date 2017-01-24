@@ -260,8 +260,8 @@ class ArrayContainer : public Container {
 // whole container can be freed, individual objects are not taken into account.
 class ArenaContainer {
  public:
-  ArenaContainer();
-  ~ArenaContainer();
+  void Init();
+  void Deinit();
 
   // Place individual object in this container.
   ObjHeader* PlaceObject(const TypeInfo* type_info);
@@ -288,7 +288,6 @@ class ArenaContainer {
     obj->set_type_info(type_info);
     RuntimeAssert(obj->container() == currentChunk_->asHeader(), "Placement must match");
   }
-  ContainerChunk* firstChunk_;
   ContainerChunk* currentChunk_;
   uint8_t* current_;
   uint8_t* end_;
@@ -313,18 +312,19 @@ void DeinitMemory();
 // Object allocation.
 //
 // Allocation can happen in either GLOBAL, FRAME or ARENA scope. Depending on that,
-// AllocInstance/AllocArrayInstance is called with different arguments. If auxSlot
-// is null, it means allocation happens in the shared heap, and object gets its
-// individual container. Otherwise, allocator uses aux slot in an implementation-defined
-// manner, current behavior is to store arena pointer there, if it's not initialized,
-// or use arena from aux slot, if it is already initialized.
-// Arena container is not reference counted, and is explicitly freed when leaving
+// Alloc* or ArenaAlloc* is called. Regular alloc means allocation happens in the heap,
+// and each object gets its individual container. Otherwise, allocator uses aux slot in
+// an implementation-defined manner, current behavior is to keep arena pointer there.
+// Arena containers are not reference counted, and is explicitly freed when leaving
 // its owner frame.
 // Escape analysis algorithm is the provider of information for decision on exact aux slot
 // selection, and comes from upper bound esteemation of object lifetime.
-OBJ_GETTER(AllocInstance, const TypeInfo* type_info, ObjHeader** auxSlot) RUNTIME_NOTHROW;
-OBJ_GETTER(AllocArrayInstance,
-           const TypeInfo* type_info, ObjHeader** auxSlot, uint32_t elements) RUNTIME_NOTHROW;
+//
+ObjHeader* ArenaAllocInstance(const TypeInfo* type_info, ObjHeader** auxSlot) RUNTIME_NOTHROW;
+OBJ_GETTER(AllocInstance, const TypeInfo* type_info) RUNTIME_NOTHROW;
+ObjHeader* ArenaAllocArrayInstance(
+    const TypeInfo* type_info, uint32_t elements, ObjHeader** auxSlot) RUNTIME_NOTHROW;
+OBJ_GETTER(AllocArrayInstance, const TypeInfo* type_info, uint32_t elements) RUNTIME_NOTHROW;
 OBJ_GETTER(AllocStringInstance, const char* data, uint32_t length) RUNTIME_NOTHROW;
 OBJ_GETTER(InitInstance,
            ObjHeader** location, const TypeInfo* type_info, void (*ctor)(ObjHeader*)) RUNTIME_NOTHROW;
