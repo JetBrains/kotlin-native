@@ -15,11 +15,17 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.module
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeUtils
 
-// Different scopes/lifetimes of an object, computed by escape analysis.
-const val SCOPE_FRAME = 0
-const val SCOPE_GLOBAL = 1
-const val SCOPE_ARENA = 2
-const val SCOPE_PERMANENT = 3
+// Lifetimes of an object, computed by escape analysis.
+internal enum class Lifetime {
+    // If lifetime estimation on computation result shows it shall be this frame-local.
+    FRAME,
+    // If lifetime shall be controlled by the caller, such as object return.
+    CALLER,
+    // If we cannot guarantee object shall be placed in frame.
+    HEAP,
+    // If we believe no objects shall be produced.
+    NONE
+}
 
 /**
  * Provides utility methods to the implementer.
@@ -207,9 +213,7 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
     var globalInitIndex:Int = 0
 
     val allocInstanceFunction = importRtFunction("AllocInstance")
-    val arenaAllocInstanceFunction = importRtFunction("ArenaAllocInstance")
     val allocArrayFunction = importRtFunction("AllocArrayInstance")
-    val arenaAllocArrayFunction = importRtFunction("ArenaAllocArrayInstance")
     val initInstanceFunction = importRtFunction("InitInstance")
     val setLocalRefFunction = importRtFunction("SetLocalRef")
     val setGlobalRefFunction = importRtFunction("SetGlobalRef")

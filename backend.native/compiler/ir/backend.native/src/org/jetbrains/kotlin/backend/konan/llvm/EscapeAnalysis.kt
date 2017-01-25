@@ -11,14 +11,14 @@ import org.jetbrains.kotlin.ir.visitors.acceptVoid
 // We build graph with the following nodes:
 //    * allocation set, keeping tuple of [local, ctor call, owner function], AS
 //    * local store set, keeping pair [local, stored], LSS
-//    * field store set, keeping tuple [local, stored], FSS
-//    * global store set, [local, stored], GSS
+//    * field store set, keeping tuple [local, object to store, stored field id], FSS
+//    * global store set, [local, stored global address], GSS
 // Function we're trying to compute is the following:
 //   for each element of AS, could it be referred by someone, whose value is
 //   alive on return from function, where element was allocated.
 // Each element in RS is associated with few elements in AS, which it could refer to.
-// TODO: exact algorithm TBD.
-internal class EscapeAnalyzerVisitor(val allocHints: MutableMap<IrCall, Int>) : IrElementVisitorVoid {
+//
+internal class EscapeAnalyzerVisitor(val allocHints: MutableMap<IrCall, Lifetime>) : IrElementVisitorVoid {
 
     override fun visitElement(element: IrElement) {
         element.acceptChildrenVoid(this)
@@ -29,7 +29,7 @@ internal class EscapeAnalyzerVisitor(val allocHints: MutableMap<IrCall, Int>) : 
     }
 }
 
-fun prepareAllocHints(irModule: IrModuleFragment, allocHints: MutableMap<IrCall, Int>) {
+internal fun prepareAllocHints(irModule: IrModuleFragment, allocHints: MutableMap<IrCall, Lifetime>) {
     assert(allocHints.size == 0)
 
     irModule.acceptVoid(EscapeAnalyzerVisitor(allocHints))

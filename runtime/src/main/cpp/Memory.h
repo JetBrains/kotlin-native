@@ -13,7 +13,11 @@ typedef enum {
   // Allocation shall take place in current stack arena.
   SCOPE_ARENA = 2,
   // Allocation is permanent.
-  SCOPE_PERMANENT = 3
+  SCOPE_PERMANENT = 3,
+
+  // Bit or'ed to slot pointer, marking the fact that allocation shall happen
+  // in arena pointed by the slot.
+  ARENA_BIT = 1
 } PlacementHint;
 
 // Must fit in two bits.
