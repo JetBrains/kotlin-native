@@ -2,6 +2,7 @@ package org.jetbrains.kotlin.backend.konan.lower
 
 import org.jetbrains.kotlin.backend.common.ClassLoweringPass
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
+import org.jetbrains.kotlin.backend.common.lower.SimpleMemberScope
 import org.jetbrains.kotlin.backend.common.runOnFilePostfix
 import org.jetbrains.kotlin.backend.jvm.descriptors.createValueParameter
 import org.jetbrains.kotlin.backend.jvm.descriptors.initialize
@@ -57,6 +58,7 @@ internal class EnumUsageLowering(val context: Context,
 
     override fun visitGetEnumValue(expression: IrGetEnumValue): IrExpression {
         val enumClassDescriptor = expression.descriptor.containingDeclaration as ClassDescriptor
+        enumClassDescriptor.companionObjectDescriptor
         return loadEnumEntry(expression.startOffset, expression.endOffset, enumClassDescriptor, expression.descriptor.name)
     }
 
@@ -89,19 +91,6 @@ internal class EnumUsageLowering(val context: Context,
             expression.descriptor.valueParameters.forEach { p -> putValueArgument(p, expression.getValueArgument(p)) }
         }
     }
-}
-
-// TODO: generalize
-class GivenDescriptorsMemberScope(val contributedDescriptors: Collection<DeclarationDescriptor>) : MemberScopeImpl() {
-    override fun getContributedDescriptors(kindFilter: DescriptorKindFilter,
-                                           nameFilter: (Name) -> Boolean): Collection<DeclarationDescriptor> {
-        return contributedDescriptors.filter { kindFilter.accepts(it) && nameFilter(it.name) }
-    }
-
-    override fun printScopeStructure(p: Printer) {
-        TODO("not implemented")
-    }
-
 }
 
 internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
@@ -189,10 +178,9 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
                 defaultEnumEntryConstructors.put(loweredEnumConstructor, constructorDescriptor)
             }
 
-            val memberScope = GivenDescriptorsMemberScope(listOf())
+            val memberScope = SimpleMemberScope(listOf())
             defaultClassDescriptor.initialize(memberScope, constructors, null)
 
-            context.ir.originalModuleIndex.addClass(defaultClassDescriptor.classId!!, defaultClass)
             return defaultClass
         }
 
@@ -233,7 +221,7 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
                     ++i
             }
 
-            val memberScope = GivenDescriptorsMemberScope(listOf(valuesFunctionDescriptor, valueOfFunctionDescriptor))
+            val memberScope = SimpleMemberScope(listOf(valuesFunctionDescriptor, valueOfFunctionDescriptor))
 
             val constructorOfAny = irClass.descriptor.module.builtIns.any.constructors.first()
             val (constructorDescriptor, constructor) = createSimpleDelegatingConstructor(implObjectDescriptor, constructorOfAny)
@@ -246,7 +234,6 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
             implObject.declarations.add(createSyntheticValueOfMethodDeclaration(implObjectDescriptor))
 
             irClass.declarations.add(implObject)
-            context.ir.originalModuleIndex.addClass(implObjectDescriptor.classId!!, implObject)
         }
 
         private fun tryCopySyntheticBodyDeclaration(implObjectDescriptor: ClassDescriptor,

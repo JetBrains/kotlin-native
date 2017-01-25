@@ -51,6 +51,4 @@ class ModuleIndex(val module: IrModuleFragment) {
 
         classes = map
     }
-
-    fun addClass(classId: ClassId, irClass: IrClass) = (classes as MutableMap<ClassId, IrClass>).put(classId, irClass)
 }
