@@ -29,10 +29,10 @@ internal fun TheEmptyString() = ""
 
 internal fun <T: Enum<T>> valueOfForEnum(name: String, arr: Array<T>) : T
 {
-    for(x in arr)
-        if(x.name == name)
+    for (x in arr)
+        if (x.name == name)
             return x
-    throw Exception("Invalid enum name: ")
+    throw Exception("Invalid enum name: $name")
 }
 
 internal fun <T: Enum<T>> valuesForEnum(values: Array<T>): Array<T>
