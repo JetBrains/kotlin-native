@@ -5,6 +5,10 @@ import org.jetbrains.kotlin.backend.konan.llvm.functionName
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.builtins.isFunctionType
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.descriptors.annotations.Annotations
+import org.jetbrains.kotlin.descriptors.impl.PropertyDescriptorImpl
+import org.jetbrains.kotlin.descriptors.impl.PropertyGetterDescriptorImpl
+import org.jetbrains.kotlin.descriptors.impl.PropertySetterDescriptorImpl
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
@@ -12,6 +16,8 @@ import org.jetbrains.kotlin.resolve.OverridingUtil
 import org.jetbrains.kotlin.resolve.descriptorUtil.*
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.types.KotlinType
+import org.jetbrains.kotlin.types.TypeSubstitution
+import org.jetbrains.kotlin.types.TypeSubstitutor
 import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.typeUtil.isUnit
 import org.jetbrains.kotlin.util.OperatorNameConventions
@@ -152,7 +158,7 @@ internal val FunctionDescriptor.isFunctionInvoke: Boolean
 
 internal fun ClassDescriptor.isUnit() = this.defaultType.isUnit()
 
-internal val ClassDescriptor.сontributedMethods: List<FunctionDescriptor>
+internal val ClassDescriptor.contributedMethods: List<FunctionDescriptor>
     get() {
         val contributedDescriptors = unsubstitutedMemberScope.getContributedDescriptors()
         // (includes declarations from supers)
@@ -184,7 +190,7 @@ val ClassDescriptor.vtableEntries: List<FunctionDescriptor>
             this.getSuperClassOrAny().vtableEntries
         }
 
-        val methods = this.сontributedMethods
+        val methods = this.contributedMethods
 
         val inheritedVtableSlots = superVtableEntries.map { superMethod ->
             methods.singleOrNull { OverridingUtil.overrides(it, superMethod) } ?: superMethod
@@ -204,6 +210,53 @@ val ClassDescriptor.methodTableEntries: List<FunctionDescriptor>
     get() {
         assert (!this.isAbstract())
 
-        return this.сontributedMethods.filter { it.isOverridableOrOverrides }
+        return this.contributedMethods.filter { it.isOverridableOrOverrides }
         // TODO: probably method table should contain all accessible methods to improve binary compatibility
     }
+
+fun FunctionDescriptor.getSuperDescriptor(superClassDescriptor: ClassDescriptor): FunctionDescriptor {
+    if (this !is PropertyAccessorDescriptor)
+        return this.newCopyBuilder().setOwner(superClassDescriptor).build()!!
+
+    val property = this.correspondingProperty
+    val propertyDescriptorImpl = PropertyDescriptorImpl.create(
+            superClassDescriptor, Annotations.EMPTY, Modality.OPEN, Visibilities.PUBLIC,
+            property.isVar, property.name, property.kind, SourceElement.NO_SOURCE,
+            property.isLateInit, property.isConst, property.isHeader, property.isImpl, property.isExternal
+    ).apply {
+        setType(property.type, property.typeParameters,
+                superClassDescriptor.thisAsReceiverParameter, property.extensionReceiverParameter?.type)
+    }
+
+    val getter = property.getter
+    if(getter == this) {
+        val newGetter = PropertyGetterDescriptorImpl(
+                propertyDescriptorImpl, Annotations.EMPTY, Modality.OPEN, Visibilities.PUBLIC,
+                getter.isDefault, getter.isExternal, getter.isInline, getter.kind,
+                /* original = */ getter, SourceElement.NO_SOURCE
+        ).apply {
+            initialize(getter.returnType)
+        }
+
+        propertyDescriptorImpl.initialize(newGetter, null)
+        propertyDescriptorImpl.overriddenDescriptors = property.overriddenDescriptors
+        return newGetter
+    }
+    
+    val setter = property.setter
+    if(setter == this) {
+        val newSetter = PropertySetterDescriptorImpl(
+                propertyDescriptorImpl, Annotations.EMPTY, Modality.OPEN, Visibilities.PUBLIC,
+                setter.isDefault, setter.isExternal, setter.isInline, setter.kind,
+                /* original = */ setter, SourceElement.NO_SOURCE
+        ).apply {
+            val parameter = PropertySetterDescriptorImpl.createSetterParameter(this, setter.valueParameters.single().type)
+            initialize(parameter)
+        }
+
+        propertyDescriptorImpl.initialize(null, newSetter)
+        propertyDescriptorImpl.overriddenDescriptors = property.overriddenDescriptors
+        return newSetter
+    }
+    TODO("")
+}
