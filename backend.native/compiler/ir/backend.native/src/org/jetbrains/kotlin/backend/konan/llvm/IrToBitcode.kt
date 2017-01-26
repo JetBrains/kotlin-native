@@ -1723,11 +1723,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
     private fun evaluateSimpleFunctionCall(descriptor: FunctionDescriptor, args: List<LLVMValueRef>, superClass: ClassDescriptor? = null): LLVMValueRef {
         //context.log("evaluateSimpleFunctionCall : $tmpVariableName = ${ir2string(value)}")
-        if(superClass != null) {
-            val superDescriptor = descriptor.getSuperDescriptor(superClass)
-            return callDirect(superDescriptor, args)
-        }
-        if (descriptor.isOverridable)
+        if (descriptor.isOverridable && superClass == null)
             return callVirtual(descriptor, args)
         else
             return callDirect(descriptor, args)
