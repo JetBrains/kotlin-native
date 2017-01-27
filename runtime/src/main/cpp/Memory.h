@@ -5,21 +5,6 @@
 #include "Common.h"
 #include "TypeInfo.h"
 
-typedef enum {
-  // Allocation guaranteed to be frame local.
-  SCOPE_FRAME = 0,
-  // Allocation is generic global allocation.
-  SCOPE_GLOBAL = 1,
-  // Allocation shall take place in current stack arena.
-  SCOPE_ARENA = 2,
-  // Allocation is permanent.
-  SCOPE_PERMANENT = 3,
-
-  // Bit or'ed to slot pointer, marking the fact that allocation shall happen
-  // in arena pointed by the slot.
-  ARENA_BIT = 1
-} PlacementHint;
-
 // Must fit in two bits.
 typedef enum {
   // Container is normal thread local container.
@@ -301,13 +286,24 @@ class ArenaContainer {
 extern "C" {
 #endif
 
+// Bit or'ed to slot pointer, marking the fact that allocation shall happen
+// in arena pointed by the slot.
+#define ARENA_BIT 1
 #define OBJ_RESULT __result__
 #define OBJ_GETTER0(name) ObjHeader* name(ObjHeader** OBJ_RESULT)
 #define OBJ_GETTER(name, ...) ObjHeader* name(__VA_ARGS__, ObjHeader** OBJ_RESULT)
-#define RETURN_OBJ(value) { ObjHeader* obj = value; UpdateLocalRef(OBJ_RESULT, obj); return obj; }
-#define RETURN_OBJ_RESULT() return *OBJ_RESULT;
-#define RETURN_RESULT_OF0(name) name(OBJ_RESULT); return *OBJ_RESULT;
-#define RETURN_RESULT_OF(name, ...) name(__VA_ARGS__, OBJ_RESULT); return *OBJ_RESULT;
+#define RETURN_OBJ(value) { ObjHeader* obj = value;                 \
+    if ((reinterpret_cast<uintptr_t>(OBJ_RESULT) & ARENA_BIT) == 0) \
+      UpdateLocalRef(OBJ_RESULT, obj);                              \
+    return obj; }
+#define RETURN_RESULT_OF0(name) {          \
+    ObjHeader* result = name(OBJ_RESULT);  \
+    return result;                         \
+  }
+#define RETURN_RESULT_OF(name, ...) {                   \
+    ObjHeader* result = name(__VA_ARGS__, OBJ_RESULT);  \
+    return result;                                      \
+  }
 
 void InitMemory();
 void DeinitMemory();
@@ -324,10 +320,7 @@ void DeinitMemory();
 // Escape analysis algorithm is the provider of information for decision on exact aux slot
 // selection, and comes from upper bound esteemation of object lifetime.
 //
-ObjHeader* ArenaAllocInstance(const TypeInfo* type_info, ObjHeader** auxSlot) RUNTIME_NOTHROW;
 OBJ_GETTER(AllocInstance, const TypeInfo* type_info) RUNTIME_NOTHROW;
-ObjHeader* ArenaAllocArrayInstance(
-    const TypeInfo* type_info, uint32_t elements, ObjHeader** auxSlot) RUNTIME_NOTHROW;
 OBJ_GETTER(AllocArrayInstance, const TypeInfo* type_info, uint32_t elements) RUNTIME_NOTHROW;
 OBJ_GETTER(AllocStringInstance, const char* data, uint32_t length) RUNTIME_NOTHROW;
 OBJ_GETTER(InitInstance,

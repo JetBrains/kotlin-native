@@ -2,7 +2,7 @@ package org.jetbrains.kotlin.backend.konan.llvm
 
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
-import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.IrMemberAccessExpression
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
@@ -18,7 +18,8 @@ import org.jetbrains.kotlin.ir.visitors.acceptVoid
 //   alive on return from function, where element was allocated.
 // Each element in RS is associated with few elements in AS, which it could refer to.
 //
-internal class EscapeAnalyzerVisitor(val allocHints: MutableMap<IrCall, Lifetime>) : IrElementVisitorVoid {
+internal class EscapeAnalyzerVisitor(
+        val lifetimes: MutableMap<IrMemberAccessExpression, Lifetime>) : IrElementVisitorVoid {
 
     override fun visitElement(element: IrElement) {
         element.acceptChildrenVoid(this)
@@ -29,8 +30,9 @@ internal class EscapeAnalyzerVisitor(val allocHints: MutableMap<IrCall, Lifetime
     }
 }
 
-internal fun prepareAllocHints(irModule: IrModuleFragment, allocHints: MutableMap<IrCall, Lifetime>) {
-    assert(allocHints.size == 0)
+internal fun computeLifetimes(irModule: IrModuleFragment,
+                              lifetimes: MutableMap<IrMemberAccessExpression, Lifetime>) {
+    assert(lifetimes.size == 0)
 
-    irModule.acceptVoid(EscapeAnalyzerVisitor(allocHints))
+    irModule.acceptVoid(EscapeAnalyzerVisitor(lifetimes))
 }

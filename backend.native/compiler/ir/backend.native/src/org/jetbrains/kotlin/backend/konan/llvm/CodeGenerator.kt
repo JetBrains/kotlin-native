@@ -24,7 +24,7 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
     private var arenaSlot: LLVMValueRef? = null
 
     private val intPtrType = LLVMIntPtrType(llvmTargetData)!!
-    private val immOneIntPtrType = LLVMConstInt(LLVMIntPtrType(llvmTargetData)!!, 1, 1)!!
+    private val immOneIntPtrType = LLVMConstInt(intPtrType, 1, 1)!!
 
     fun prologue(descriptor: FunctionDescriptor) {
         val llvmFunction = llvmFunction(descriptor)
@@ -32,7 +32,7 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
         prologue(llvmFunction,
                 LLVMGetReturnType(getLlvmFunctionType(descriptor))!!)
 
-        if (!descriptor.isExported()) {
+        if (!descriptor.isExported() && !context.debug) {
             LLVMSetLinkage(llvmFunction, LLVMLinkage.LLVMPrivateLinkage)
             // (Cannot do this before the function body is created).
         }
@@ -175,13 +175,13 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
         }
     }
 
-    fun allocInstance(typeInfo: LLVMValueRef, allocHint: Lifetime) : LLVMValueRef {
-        return call(context.llvm.allocInstanceFunction, listOf(typeInfo), allocHint)
+    fun allocInstance(typeInfo: LLVMValueRef, lifetime: Lifetime) : LLVMValueRef {
+        return call(context.llvm.allocInstanceFunction, listOf(typeInfo), lifetime)
     }
 
     fun allocArray(
-          typeInfo: LLVMValueRef, allocHint: Lifetime, count: LLVMValueRef) : LLVMValueRef {
-        return call(context.llvm.allocArrayFunction, listOf(typeInfo, count), allocHint)
+          typeInfo: LLVMValueRef, count: LLVMValueRef, lifetime: Lifetime) : LLVMValueRef {
+        return call(context.llvm.allocArrayFunction, listOf(typeInfo, count), lifetime)
     }
 
     fun load(value: LLVMValueRef, name: String = ""): LLVMValueRef {
@@ -241,26 +241,26 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
     //-------------------------------------------------------------------------//
 
     fun callAtFunctionScope(llvmFunction: LLVMValueRef, args: List<LLVMValueRef>,
-                            allocHint: Lifetime = Lifetime.HEAP) =
-            call(llvmFunction, args, allocHint, this::cleanupLandingpad)
+                            lifetime: Lifetime) =
+            call(llvmFunction, args, lifetime, this::cleanupLandingpad)
 
     fun call(llvmFunction: LLVMValueRef, args: List<LLVMValueRef>,
-             allocHint: Lifetime = Lifetime.HEAP,
+             resultLifetime: Lifetime = Lifetime.IRRELEVANT,
              lazyLandingpad: () -> LLVMBasicBlockRef? = { null }): LLVMValueRef {
         var callArgs = if (isObjectReturn(llvmFunction.type)) {
             // If function returns an object - create slot for the returned value or give local arena.
-            // This allows appropriate rootset accounting by just looking at the stack slots.
-            val resultSlot = when (allocHint) {
-                Lifetime.FRAME -> {
+            // This allows appropriate rootset accounting by just looking at the stack slots,
+            // along with ability to allocate in appropriate arena.
+            val resultSlot = when (resultLifetime.slotType) {
+                SlotType.ARENA -> {
                     localAllocs++
                     arenaSlot!!
                 }
-                Lifetime.CALLER -> {
-                    returnSlot!!
-                }
-                else -> {
-                    vars.createAnonymousSlot()
-                }
+                SlotType.RETURN -> returnSlot!!
+                // TODO: for RETURN_IF_ARENA choose between created slot and arenaSlot
+                // dynamically.
+                SlotType.ANONYMOUS, SlotType.RETURN_IF_ARENA -> vars.createAnonymousSlot()
+                else -> throw Error("Incorrect slot type")
             }
             args + resultSlot
         } else {
@@ -328,7 +328,7 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
     /**
      * Pointer to type info for given type, or `null` if the type doesn't have corresponding type info.
      */
-    fun typeInfoValue(type: KotlinType): LLVMValueRef = type.typeInfoPtr?.llvm!!
+    fun typeInfoValue(type: KotlinType): LLVMValueRef? = type.typeInfoPtr?.llvm
 
     fun param(fn: FunctionDescriptor, i: Int): LLVMValueRef {
         assert (i >= 0 && i < countParams(fn))

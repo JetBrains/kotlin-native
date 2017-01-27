@@ -15,16 +15,40 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.module
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeUtils
 
-// Lifetimes of an object, computed by escape analysis.
-internal enum class Lifetime {
-    // If lifetime estimation on computation result shows it shall be this frame-local.
-    FRAME,
-    // If lifetime shall be controlled by the caller, such as object return.
-    CALLER,
-    // If we cannot guarantee object shall be placed in frame.
-    HEAP,
-    // If we believe no objects shall be produced.
-    NONE
+internal enum class SlotType {
+    // Frame local arena slot can be used.
+    ARENA,
+    // Return slot can be used.
+    RETURN,
+    // Return slot, if it is an arena, can be used.
+    RETURN_IF_ARENA,
+    // Anonymous slot.
+    ANONYMOUS,
+    // Unknown slot type.
+    UNKNOWN
+}
+
+// Lifetimes class of reference, computed by escape analysis.
+internal enum class Lifetime(val slotType: SlotType) {
+    // If reference is frame-local (only obtained from some call and never leaves).
+    LOCAL(SlotType.ARENA),
+    // If reference is only returned.
+    RETURN_VALUE(SlotType.RETURN),
+    // If reference is set as field of references of class RETURN_VALUE or INDIRECT_RETURN_VALUE.
+    INDIRECT_RETURN_VALUE(SlotType.RETURN_IF_ARENA),
+    // If reference is stored to the field of an incoming parameters.
+    PARAMETER_FIELD(SlotType.ANONYMOUS),
+    // If reference refers to the global (either global object or global variable).
+    GLOBAL(SlotType.ANONYMOUS),
+    // If reference used to throw.
+    THROW(SlotType.ANONYMOUS),
+    // If reference used as an argument of outgoing function. Class can be improved by escape analysis
+    // of called function.
+    ARGUMENT(SlotType.ANONYMOUS),
+    // If reference class is unknown.
+    UNKNOWN(SlotType.UNKNOWN),
+    // If reference class is irrelevant.
+    IRRELEVANT(SlotType.UNKNOWN)
 }
 
 /**
