@@ -292,13 +292,12 @@ extern "C" {
 #define OBJ_RESULT __result__
 #define OBJ_GETTER0(name) ObjHeader* name(ObjHeader** OBJ_RESULT)
 #define OBJ_GETTER(name, ...) ObjHeader* name(__VA_ARGS__, ObjHeader** OBJ_RESULT)
-#define RETURN_OBJ(value) { ObjHeader* obj = value;                 \
-    if ((reinterpret_cast<uintptr_t>(OBJ_RESULT) & ARENA_BIT) == 0) \
-      UpdateLocalRef(OBJ_RESULT, obj);                              \
+#define RETURN_OBJ(value) { ObjHeader* obj = value; \
+    UpdateReturnRef(OBJ_RESULT, obj);               \
     return obj; }
-#define RETURN_RESULT_OF0(name) {          \
-    ObjHeader* result = name(OBJ_RESULT);  \
-    return result;                         \
+#define RETURN_RESULT_OF0(name) {       \
+    ObjHeader* obj = name(OBJ_RESULT);  \
+    return obj;                         \
   }
 #define RETURN_RESULT_OF(name, ...) {                   \
     ObjHeader* result = name(__VA_ARGS__, OBJ_RESULT);  \
@@ -356,9 +355,10 @@ void SetGlobalRef(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW
 void UpdateLocalRef(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
 // Update potentially globally visible location.
 void UpdateGlobalRef(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
+// Update reference in return slot.
+void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* object) RUNTIME_NOTHROW;
 // Optimization: release all references in range.
 void ReleaseLocalRefs(ObjHeader** start, int count) RUNTIME_NOTHROW;
-void ReleaseGlobalRefs(ObjHeader** start, int count) RUNTIME_NOTHROW;
 // Called on frame leave, if it has object slots.
 void LeaveFrame(ObjHeader** start, int count) RUNTIME_NOTHROW;
 // Collect garbage, which cannot be found by reference counting (cycles).

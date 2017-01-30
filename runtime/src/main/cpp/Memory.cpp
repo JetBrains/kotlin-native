@@ -601,8 +601,25 @@ void SetGlobalRef(ObjHeader** location, const ObjHeader* object) {
 #endif
 }
 
+void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* object) {
+  if (isArenaSlot(returnSlot)) return;
+  ObjHeader* old = *returnSlot;
+#if TRACE_MEMORY
+  fprintf(stderr, "UpdateReturnRef *%p: %p -> %p\n", returnSlot, old, object);
+#endif
+  if (old != object) {
+    if (object != nullptr) {
+      AddRef(object);
+    }
+    *const_cast<const ObjHeader**>(returnSlot) = object;
+    if (old > reinterpret_cast<ObjHeader*>(1)) {
+      ReleaseRef(old);
+    }
+  }
+}
+
 void UpdateLocalRef(ObjHeader** location, const ObjHeader* object) {
-  if (isArenaSlot(location)) return;
+  RuntimeAssert(!isArenaSlot(location), "must not be a slot");
   ObjHeader* old = *location;
 #if TRACE_MEMORY
   fprintf(stderr, "UpdateLocalRef *%p: %p -> %p\n", location, old, object);

@@ -841,9 +841,10 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
                 return@map Element(codegen.staticData.kotlinStringLiteral(it as IrConst<String>).llvm, null, string.length)
             } else {
                 val toStringDescriptor = getToString(it.type)
-                // TODO: use Lifetime.LOCAL and fix memory management.
-                val string = if (KotlinBuiltIns.isString(it.type)) evaluationResult
-                             else evaluateSimpleFunctionCall(toStringDescriptor, listOf(evaluationResult), Lifetime.LOCAL)
+                val string =
+                        if (KotlinBuiltIns.isString(it.type)) evaluationResult
+                        else evaluateSimpleFunctionCall(
+                                toStringDescriptor, listOf(evaluationResult), Lifetime.LOCAL)
                 val length = call(codegen.llvmFunction(kStringLength!!), listOf(string))
                 return@map Element(string, length, -1)
             }

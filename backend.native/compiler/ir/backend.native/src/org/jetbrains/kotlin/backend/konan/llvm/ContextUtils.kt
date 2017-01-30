@@ -239,6 +239,7 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
     val allocInstanceFunction = importRtFunction("AllocInstance")
     val allocArrayFunction = importRtFunction("AllocArrayInstance")
     val initInstanceFunction = importRtFunction("InitInstance")
+    val updateReturnRefFunction = importRtFunction("UpdateReturnRef")
     val setLocalRefFunction = importRtFunction("SetLocalRef")
     val setGlobalRefFunction = importRtFunction("SetGlobalRef")
     val updateLocalRefFunction = importRtFunction("UpdateLocalRef")

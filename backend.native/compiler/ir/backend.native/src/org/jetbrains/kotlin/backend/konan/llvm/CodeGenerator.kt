@@ -97,7 +97,7 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
                     val returnPhi = phi(returnType!!)
                     addPhiIncoming(returnPhi, *returns.toList().toTypedArray())
                     if (returnSlot != null) {
-                        updateLocalRef(returnPhi, returnSlot!!)
+                        updateReturnRef(returnPhi, returnSlot!!)
                     }
                     releaseVars()
                     LLVMBuildRet(builder, returnPhi)
@@ -223,6 +223,10 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
             val args = allocArrayOf(index)
             return LLVMBuildGEP(builder, base, args[0].ptr, 1, "")!!
         }
+    }
+
+    fun updateReturnRef(value: LLVMValueRef, address: LLVMValueRef) {
+        call(context.llvm.updateReturnRefFunction, listOf(address, value))
     }
 
     // Only use ignoreOld, when sure that memory is freshly inited and have no value.
