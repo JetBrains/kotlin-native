@@ -27,8 +27,21 @@ internal class VariableManager(val codegen: CodeGenerator) {
         override fun toString() = "value of ${value} from ${name}"
     }
 
+    data class ScopedVariable private constructor(val name: Name, val context: CodeContext)
+    {
+        constructor(scoped: Pair<ValueDescriptor, CodeContext>) : this(uniqueName(scoped.first), scoped.second)
+
+        companion object {
+            fun uniqueName(valueDescriptor: ValueDescriptor): Name =
+                    if (valueDescriptor.name.asString() == "<this>")
+                        Name.identifier(valueDescriptor.name.asString() + "$" + valueDescriptor.type)
+                    else
+                        valueDescriptor.name
+        }
+    }
+
     val variables: ArrayList<Record> = arrayListOf()
-    val contextVariablesToIndex: HashMap<Pair<Name, CodeContext>, Int> = hashMapOf()
+    val contextVariablesToIndex: HashMap<ScopedVariable, Int> = hashMapOf()
 
     // Clears inner state of variable manager.
     fun clear() {
@@ -52,11 +65,11 @@ internal class VariableManager(val codegen: CodeGenerator) {
     fun createMutable(scoped: Pair<VariableDescriptor, CodeContext>,
                       isVar: Boolean, value: LLVMValueRef? = null) : Int {
         val descriptor = scoped.first
-        val scopedVariable = scoped.first.name to scoped.second
+        val scopedVariable = ScopedVariable(scoped)
         assert(!contextVariablesToIndex.contains(scopedVariable))
         val index = variables.size
         val type = codegen.getLLVMType(descriptor.type)
-        val slot = codegen.alloca(type, descriptor.name.asString())
+        val slot = codegen.alloca(type, scopedVariable.name.asString())
         if (value != null)
             codegen.storeAnyLocal(value, slot)
         variables.add(SlotRecord(slot, codegen.isObjectType(type), isVar))
@@ -85,21 +98,16 @@ internal class VariableManager(val codegen: CodeGenerator) {
     }
 
     fun createImmutable(scoped: Pair<ValueDescriptor, CodeContext>, value: LLVMValueRef) : Int {
-        val descriptor = scoped.first
-        val scopedVariable = scoped.first.name to scoped.second
+        val scopedVariable = ScopedVariable(scoped)
         assert(!contextVariablesToIndex.containsKey(scopedVariable))
         val index = variables.size
-        variables.add(ValueRecord(value, descriptor.name))
+        variables.add(ValueRecord(value, scopedVariable.name))
         contextVariablesToIndex[scopedVariable] = index
         return index
     }
 
     fun indexOf(scoped: Pair<ValueDescriptor, CodeContext>) : Int {
-        return indexOfNamed(scoped.first.name to scoped.second)
-    }
-
-    private fun indexOfNamed(scoped: Pair<Name, CodeContext>) : Int {
-        return contextVariablesToIndex.getOrElse(scoped) { -1 }
+        return contextVariablesToIndex.getOrElse(ScopedVariable(scoped)) { -1 }
     }
 
     fun addressOf(index: Int): LLVMValueRef {
