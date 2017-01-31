@@ -2,7 +2,6 @@ package org.jetbrains.kotlin.backend.konan
 
 import llvm.LLVMDumpModule
 import llvm.LLVMModuleRef
-import org.jetbrains.kotlin.backend.jvm.descriptors.createValueParameter
 import org.jetbrains.kotlin.backend.jvm.descriptors.initialize
 import org.jetbrains.kotlin.backend.konan.descriptors.deepPrint
 import org.jetbrains.kotlin.backend.konan.descriptors.synthesizedName
@@ -12,7 +11,6 @@ import org.jetbrains.kotlin.backend.konan.llvm.LlvmDeclarations
 import org.jetbrains.kotlin.backend.konan.llvm.verifyModule
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
-import org.jetbrains.kotlin.descriptors.impl.ClassConstructorDescriptorImpl
 import org.jetbrains.kotlin.descriptors.impl.PropertyDescriptorImpl
 import org.jetbrains.kotlin.descriptors.impl.ReceiverParameterDescriptorImpl
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
@@ -23,7 +21,6 @@ import java.lang.System.out
 
 internal class SpecialDescriptorsFactory {
     private val outerThisDescriptors = mutableMapOf<ClassDescriptor, PropertyDescriptor>()
-    private val innerClassConstructors = mutableMapOf<ClassConstructorDescriptor, ClassConstructorDescriptor>()
 
     fun getOuterThisFieldDescriptor(innerClassDescriptor: ClassDescriptor): PropertyDescriptor =
         if (!innerClassDescriptor.isInner) throw AssertionError("Class is not inner: $innerClassDescriptor")
@@ -36,36 +33,6 @@ internal class SpecialDescriptorsFactory {
                 false, "this$0".synthesizedName, CallableMemberDescriptor.Kind.SYNTHESIZED, SourceElement.NO_SOURCE,
                 false, false, false, false, false).initialize(outerClassDescriptor.defaultType, dispatchReceiverParameter = receiver)
         }
-
-    fun getInnerClassConstructorWithOuterThisParameter(innerClassConstructor: ClassConstructorDescriptor): ClassConstructorDescriptor {
-        val innerClass = innerClassConstructor.containingDeclaration
-        assert(innerClass.isInner) { "Class is not inner: $innerClass" }
-
-        return innerClassConstructors.getOrPut(innerClassConstructor.original) {
-            createInnerClassConstructorWithOuterThisParameter(innerClassConstructor)
-        }
-    }
-
-    private fun createInnerClassConstructorWithOuterThisParameter(oldDescriptor: ClassConstructorDescriptor): ClassConstructorDescriptor {
-
-        val classDescriptor = oldDescriptor.containingDeclaration
-        val outerThisType = (classDescriptor.containingDeclaration as ClassDescriptor).defaultType
-
-        val newDescriptor = ClassConstructorDescriptorImpl.createSynthesized(
-                classDescriptor, oldDescriptor.annotations, oldDescriptor.isPrimary, oldDescriptor.source
-        )
-
-        val outerThisValueParameter = newDescriptor.createValueParameter(0, "outer".synthesizedName.identifier, outerThisType)
-
-        val newValueParameters =
-                listOf(outerThisValueParameter) +
-                        oldDescriptor.original.valueParameters.map { it.copy(newDescriptor, it.name, it.index + 1) }
-
-        newDescriptor.initialize(newValueParameters, oldDescriptor.visibility)
-        newDescriptor.returnType = oldDescriptor.returnType
-
-        return newDescriptor
-    }
 }
 
 internal final class Context(val config: KonanConfig) : KonanBackendContext() {

@@ -27,17 +27,9 @@ internal class VariableManager(val codegen: CodeGenerator) {
         override fun toString() = "value of ${value} from ${name}"
     }
 
-    data class ScopedVariable private constructor(val name: Name, val context: CodeContext)
+    data class ScopedVariable private constructor(val descriptor: ValueDescriptor, val context: CodeContext)
     {
-        constructor(scoped: Pair<ValueDescriptor, CodeContext>) : this(uniqueName(scoped.first), scoped.second)
-
-        companion object {
-            fun uniqueName(valueDescriptor: ValueDescriptor): Name =
-                    if (valueDescriptor.name.asString() == "<this>")
-                        Name.identifier(valueDescriptor.name.asString() + "$" + valueDescriptor.type)
-                    else
-                        valueDescriptor.name
-        }
+        constructor(scoped: Pair<ValueDescriptor, CodeContext>) : this(scoped.first, scoped.second)
     }
 
     val variables: ArrayList<Record> = arrayListOf()
@@ -69,7 +61,7 @@ internal class VariableManager(val codegen: CodeGenerator) {
         assert(!contextVariablesToIndex.contains(scopedVariable))
         val index = variables.size
         val type = codegen.getLLVMType(descriptor.type)
-        val slot = codegen.alloca(type, scopedVariable.name.asString())
+        val slot = codegen.alloca(type, scopedVariable.descriptor.name.asString())
         if (value != null)
             codegen.storeAnyLocal(value, slot)
         variables.add(SlotRecord(slot, codegen.isObjectType(type), isVar))
@@ -99,9 +91,11 @@ internal class VariableManager(val codegen: CodeGenerator) {
 
     fun createImmutable(scoped: Pair<ValueDescriptor, CodeContext>, value: LLVMValueRef) : Int {
         val scopedVariable = ScopedVariable(scoped)
+        if(contextVariablesToIndex.containsKey(scopedVariable))
+            throw Error("${scopedVariable.descriptor} is already defined")
         assert(!contextVariablesToIndex.containsKey(scopedVariable))
         val index = variables.size
-        variables.add(ValueRecord(value, scopedVariable.name))
+        variables.add(ValueRecord(value, scopedVariable.descriptor.name))
         contextVariablesToIndex[scopedVariable] = index
         return index
     }
