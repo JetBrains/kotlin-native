@@ -69,7 +69,7 @@ internal class InnerClassLowering(val context: Context) : ClassLoweringPass {
             if (instanceInitializerIndex >= 0) {
                 // Initializing constructor: initialize 'this.this$0' with '$outer'.
                 blockBody.statements.add(
-                        instanceInitializerIndex,
+                        0,
                         IrSetFieldImpl(
                                 startOffset, endOffset, outerThisFieldDescriptor,
                                 IrGetValueImpl(startOffset, endOffset, classDescriptor.thisAsReceiverParameter),

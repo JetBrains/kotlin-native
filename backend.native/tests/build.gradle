@@ -357,6 +357,11 @@ task innerClass_generic(type: RunKonanTest) {
     source = "codegen/innerClass/generic.kt"
 }
 
+task innerClass_doubleInner(type: RunKonanTest) {
+    goldValue = "OK\n"
+    source = "codegen/innerClass/doubleInner.kt"
+}
+
 task innerClass_qualifiedThis(type: RunKonanTest) {
     goldValue = "OK\n"
     source = "codegen/innerClass/qualifiedThis.kt"
