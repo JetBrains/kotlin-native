@@ -6,7 +6,6 @@ import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOriginImpl
-import org.jetbrains.kotlin.ir.declarations.impl.IrConstructorImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrFieldImpl
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.*
@@ -68,7 +67,7 @@ internal class InnerClassLowering(val context: Context) : ClassLoweringPass {
 
             val instanceInitializerIndex = blockBody.statements.indexOfFirst { it is IrInstanceInitializerCall }
             if (instanceInitializerIndex >= 0) {
-                // Initializing constructor: initialize 'this.this$0' with '$outer'
+                // Initializing constructor: initialize 'this.this$0' with '$outer'.
                 blockBody.statements.add(
                         instanceInitializerIndex,
                         IrSetFieldImpl(
@@ -79,7 +78,7 @@ internal class InnerClassLowering(val context: Context) : ClassLoweringPass {
                 )
             }
             else {
-                // Delegating constructor: invoke old constructor with dispatch receiver '$outer'
+                // Delegating constructor: invoke old constructor with dispatch receiver '$outer'.
                 val delegatingConstructorCall = (blockBody.statements.find { it is IrDelegatingConstructorCall } ?:
                         throw AssertionError("Delegating constructor call expected: ${irConstructor.dump()}")
                         ) as IrDelegatingConstructorCall
@@ -88,12 +87,7 @@ internal class InnerClassLowering(val context: Context) : ClassLoweringPass {
                 )
             }
 
-            return IrConstructorImpl(
-                    startOffset, endOffset,
-                    irConstructor.origin, // TODO special origin for lowered inner class constructors?
-                    descriptor,
-                    blockBody
-            )
+            return irConstructor
         }
 
         private fun lowerOuterThisReferences() {

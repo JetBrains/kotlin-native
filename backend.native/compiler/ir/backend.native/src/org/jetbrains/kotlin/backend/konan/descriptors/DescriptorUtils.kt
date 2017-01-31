@@ -140,11 +140,11 @@ internal val CallableDescriptor.allValueParameters: List<ParameterDescriptor>
             receivers.add(this.constructedClass.thisAsReceiverParameter)
 
         val dispatchReceiverParameter = this.dispatchReceiverParameter
-        if(dispatchReceiverParameter != null)
+        if (dispatchReceiverParameter != null)
             receivers.add(dispatchReceiverParameter)
 
         val extensionReceiverParameter = this.extensionReceiverParameter
-        if(extensionReceiverParameter != null)
+        if (extensionReceiverParameter != null)
             receivers.add(extensionReceiverParameter)
 
         return receivers + this.valueParameters
