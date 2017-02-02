@@ -109,12 +109,13 @@ abstract class AbstractClosureAnnotator : IrElementVisitorVoid {
     }
 
     override fun visitVariableAccess(expression: IrValueAccessExpression) {
-        val closureBuilder = closuresStack.peek() ?: return
+        val closureBuilder = closuresStack.peek()
 
-        val variableDescriptor = expression.descriptor
-
-        if (closureBuilder.isExternal(variableDescriptor)) {
-            closureBuilder.capturedValues.add(variableDescriptor)
+        if (closureBuilder != null) {
+            val variableDescriptor = expression.descriptor
+            if (closureBuilder.isExternal(variableDescriptor)) {
+                closureBuilder.capturedValues.add(variableDescriptor)
+            }
         }
 
         expression.acceptChildrenVoid(this)
