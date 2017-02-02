@@ -55,9 +55,11 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
         lambdasCount = 0
 
         irDeclarationContainer.declarations.transformFlat { memberDeclaration ->
+            // TODO: may be do the opposite - specify the list of IR elements which need not to be transformed
             when (memberDeclaration) {
                 is IrFunction -> LocalDeclarationsTransformer(memberDeclaration).lowerLocalDeclarations()
                 is IrProperty -> LocalDeclarationsTransformer(memberDeclaration).lowerLocalDeclarations()
+                is IrAnonymousInitializer -> LocalDeclarationsTransformer(memberDeclaration).lowerLocalDeclarations()
                 else -> null
             }
         }
@@ -171,7 +173,7 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
                         )
                     }
 
-                    localClasses.values.filter { !it.descriptor.isInner }.mapTo(this) {
+                    localClasses.values.mapTo(this) {
                         it.declaration
                     }
                 }
@@ -179,11 +181,11 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
         private inner class FunctionBodiesRewriter(val localContext: LocalContext?) : IrElementTransformerVoid() {
 
             override fun visitClass(declaration: IrClass): IrStatement {
-                if (!declaration.descriptor.isInner) {
+                if (declaration.descriptor in localClasses) {
                     // Replace local class definition with an empty composite.
                     return IrCompositeImpl(declaration.startOffset, declaration.endOffset, context.builtIns.unitType)
                 } else {
-                    // Inner class will be transformed with different traversal (it is in localClasses too).
+                    declaration.transformChildrenVoid(this)
                     return declaration
                 }
             }
@@ -201,10 +203,14 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
             override fun visitConstructor(declaration: IrConstructor): IrStatement {
                 // Body is transformed separately.
 
-                val transformedDescriptor = localClassConstructors[declaration.descriptor]!!.transformedDescriptor
-
-                return IrConstructorImpl(declaration.startOffset, declaration.endOffset, declaration.origin,
-                        transformedDescriptor, declaration.body!!)
+                val transformedDescriptor = localClassConstructors[declaration.descriptor]?.transformedDescriptor
+                if (transformedDescriptor != null) {
+                    return IrConstructorImpl(declaration.startOffset, declaration.endOffset, declaration.origin,
+                            transformedDescriptor, declaration.body!!)
+                } else {
+                    declaration.transformChildrenVoid(this)
+                    return declaration
+                }
             }
 
             override fun visitGetValue(expression: IrGetValue): IrExpression {
@@ -236,7 +242,7 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
                 expression.transformChildrenVoid(this)
 
                 val oldCallee = expression.descriptor.original
-                val newCallee = transformedDescriptors[oldCallee] as? ClassConstructorDescriptor ?: return expression
+                val newCallee = transformedDescriptors[oldCallee] as ClassConstructorDescriptor? ?: return expression
 
                 val newExpression = IrDelegatingConstructorCallImpl(
                         expression.startOffset, expression.endOffset,
@@ -636,7 +642,7 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
                     element.acceptChildrenVoid(this)
                 }
 
-                private fun DeclarationDescriptor.isFunctionMember() = when (this.containingDeclaration) {
+                private fun DeclarationDescriptor.declaredInFunction() = when (this.containingDeclaration) {
                     is CallableDescriptor -> true
                     is ClassDescriptor -> false
                     is PackageFragmentDescriptor -> false
@@ -648,7 +654,7 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
 
                     val descriptor = declaration.descriptor
 
-                    if (descriptor.isFunctionMember()) {
+                    if (descriptor.declaredInFunction()) {
                         val localFunctionContext = LocalFunctionContext(declaration)
 
                         localFunctions[descriptor] = localFunctionContext
@@ -664,7 +670,9 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
                     declaration.acceptChildrenVoid(this)
 
                     val descriptor = declaration.descriptor
-                    assert(!descriptor.isFunctionMember())
+                    assert(!descriptor.declaredInFunction())
+
+                    if (descriptor.constructedClass.isInner) return
 
                     localClassConstructors[descriptor] = LocalClassConstructorContext(declaration)
                 }
@@ -673,6 +681,8 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
                     declaration.acceptChildrenVoid(this)
 
                     val descriptor = declaration.descriptor
+
+                    if (descriptor.isInner) return
 
                     val localClassContext = LocalClassContext(declaration)
                     localClasses[descriptor] = localClassContext

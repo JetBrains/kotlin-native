@@ -367,6 +367,36 @@ task innerClass_qualifiedThis(type: RunKonanTest) {
     source = "codegen/innerClass/qualifiedThis.kt"
 }
 
+task innerClass_superOuter(type: RunKonanTest) {
+    goldValue = "OK\n"
+    source = "codegen/innerClass/superOuter.kt"
+}
+
+task localClass_localHierarchy(type: RunKonanTest) {
+    goldValue = "OK\n"
+    source = "codegen/localClass/localHierarchy.kt"
+}
+
+task localClass_objectExpressionInProperty(type: RunKonanTest) {
+    goldValue = "OK\n"
+    source = "codegen/localClass/objectExpressionInProperty.kt"
+}
+
+task localClass_objectExpressionInInitializer(type: RunKonanTest) {
+    goldValue = "OK\n"
+    source = "codegen/localClass/objectExpressionInInitializer.kt"
+}
+
+task localClass_innerWithCapture(type: RunKonanTest) {
+    goldValue = "OK\n"
+    source = "codegen/localClass/innerWithCapture.kt"
+}
+
+task localClass_innerTakesCapturedFromOuter(type: RunKonanTest) {
+    goldValue = "0\n1\n"
+    source = "codegen/localClass/innerTakesCapturedFromOuter.kt"
+}
+
 task array0(type: RunKonanTest) {
     goldValue = "5\n6\n7\n8\n9\n10\n11\n12\n13\n"
     source = "runtime/collections/array0.kt"
