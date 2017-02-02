@@ -183,6 +183,7 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
                     // Replace local class definition with an empty composite.
                     return IrCompositeImpl(declaration.startOffset, declaration.endOffset, context.builtIns.unitType)
                 } else {
+                    // Inner class will be transformed with different traversal (it is in localClasses too).
                     return declaration
                 }
             }
