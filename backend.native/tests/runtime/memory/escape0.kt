@@ -1,4 +1,4 @@
-/* fun foo1(arg: String) : String = arg + " foo1"
+fun foo1(arg: String) : String = arg + " foo1"
 
 fun foo2(arg: String) : String = arg + " foo2"
 
@@ -25,15 +25,21 @@ fun zoo3() : Node {
         current = Node(current)
     }
     return current
-} */
+}
 
-fun zoo4() : Any {
+fun zoo4(arg: Int) : Any {
     var a = Any()
     var b = Any()
+    var c = Any()
     a = b
+    val x = 3
+    a = when {
+        x < arg -> b
+        else -> c
+    }
     return a
 }
 
 fun main(args : Array<String>) {
-    //println(bar(foo1(foo2("")), foo2(foo1(""))))
+    println(bar(foo1(foo2("")), foo2(foo1(""))))
 }

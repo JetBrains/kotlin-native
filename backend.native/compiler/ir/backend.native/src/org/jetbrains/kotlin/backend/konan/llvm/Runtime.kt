@@ -2,9 +2,15 @@ package org.jetbrains.kotlin.backend.konan.llvm
 
 import kotlinx.cinterop.*
 import llvm.*
+import org.jetbrains.kotlin.types.KotlinType
+import org.jetbrains.kotlin.types.typeUtil.isNothing
+import org.jetbrains.kotlin.types.typeUtil.isUnit
 
 interface RuntimeAware {
     val runtime: Runtime
+
+    fun isObjectType(type: KotlinType) : Boolean =
+            !type.isUnit() && !type.isNothing() && isObjectType(getLLVMType(type))
 }
 
 class Runtime(private val bitcodeFile: String) {
