@@ -2,15 +2,12 @@ package org.jetbrains.kotlin.backend.common.lower
 
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.declarations.IrClass
-import org.jetbrains.kotlin.ir.declarations.IrFunction
-import org.jetbrains.kotlin.ir.declarations.IrLocalDelegatedProperty
+import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrValueAccessExpression
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.resolve.DescriptorUtils
-import java.util.*
 
 // TODO: synchronize with JVM BE
 class Closure(val capturedValues: List<ValueDescriptor>)
@@ -46,6 +43,7 @@ abstract class AbstractClosureAnnotator : IrElementVisitorVoid {
     private class ClassClosureBuilder(override val owner: ClassDescriptor) : ClosureBuilder(owner) {
 
         override fun <T : CallableDescriptor> isExternal(valueDescriptor: T): Boolean {
+            // TODO: replace with 'return valueDescriptor.containingDeclaration != owner' after constructors lowering.
             var declaration: DeclarationDescriptor? = valueDescriptor.containingDeclaration
             while (declaration != null && declaration != owner) {
                 declaration = declaration.containingDeclaration
@@ -55,7 +53,13 @@ abstract class AbstractClosureAnnotator : IrElementVisitorVoid {
 
     }
 
-    private val closuresStack = ArrayDeque<ClosureBuilder>()
+    private val closuresStack = mutableListOf<ClosureBuilder>()
+
+    private fun <E> MutableList<E>.push(element: E) = this.add(element)
+
+    private fun <E> MutableList<E>.pop() = this.removeAt(size - 1)
+
+    private fun <E> MutableList<E>.peek(): E? = if (size == 0) null else this[size - 1]
 
     override fun visitElement(element: IrElement) {
         element.acceptChildrenVoid(this)
