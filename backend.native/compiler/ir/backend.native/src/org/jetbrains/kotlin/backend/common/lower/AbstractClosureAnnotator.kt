@@ -30,30 +30,22 @@ abstract class AbstractClosureAnnotator : IrElementVisitorVoid {
 
         private fun <T : CallableDescriptor> fillInNestedClosure(destination: MutableSet<T>, nested: List<T>) {
             nested.filterTo(destination) {
-                it.containingDeclaration != owner
+                isExternal(it)
             }
         }
 
-        abstract fun isExternal(valueDescriptor: ValueDescriptor): Boolean
+        abstract fun <T : CallableDescriptor> isExternal(valueDescriptor: T): Boolean
     }
 
     private class FunctionClosureBuilder(override val owner: FunctionDescriptor) : ClosureBuilder(owner) {
-        val outerThisParameter =
-                if (owner is ConstructorDescriptor && owner.containingDeclaration.isInner)
-                    (owner.containingDeclaration.containingDeclaration as ClassDescriptor).thisAsReceiverParameter
-                else
-                    null
 
-        override fun isExternal(valueDescriptor: ValueDescriptor): Boolean =
-                valueDescriptor.containingDeclaration != owner
-                        && valueDescriptor != owner.dispatchReceiverParameter
-                        && valueDescriptor != owner.extensionReceiverParameter
-                        && valueDescriptor != outerThisParameter
+        override fun <T : CallableDescriptor> isExternal(valueDescriptor: T): Boolean =
+                valueDescriptor.containingDeclaration != owner && valueDescriptor != owner.dispatchReceiverParameter
     }
 
     private class ClassClosureBuilder(override val owner: ClassDescriptor) : ClosureBuilder(owner) {
 
-        override fun isExternal(valueDescriptor: ValueDescriptor): Boolean {
+        override fun <T : CallableDescriptor> isExternal(valueDescriptor: T): Boolean {
             var declaration: DeclarationDescriptor? = valueDescriptor.containingDeclaration
             while (declaration != null && declaration != owner) {
                 declaration = declaration.containingDeclaration

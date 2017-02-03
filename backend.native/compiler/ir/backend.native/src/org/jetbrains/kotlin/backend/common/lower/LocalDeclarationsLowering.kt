@@ -185,8 +185,7 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
                     // Replace local class definition with an empty composite.
                     return IrCompositeImpl(declaration.startOffset, declaration.endOffset, context.builtIns.unitType)
                 } else {
-                    declaration.transformChildrenVoid(this)
-                    return declaration
+                    return super.visitClass(declaration)
                 }
             }
 
@@ -195,8 +194,7 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
                     // Replace local function definition with an empty composite.
                     return IrCompositeImpl(declaration.startOffset, declaration.endOffset, context.builtIns.unitType)
                 } else {
-                    declaration.transformChildrenVoid(this)
-                    return declaration
+                    return super.visitFunction(declaration)
                 }
             }
 
@@ -208,8 +206,7 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
                     return IrConstructorImpl(declaration.startOffset, declaration.endOffset, declaration.origin,
                             transformedDescriptor, declaration.body!!)
                 } else {
-                    declaration.transformChildrenVoid(this)
-                    return declaration
+                    return super.visitConstructor(declaration)
                 }
             }
 
@@ -683,6 +680,9 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
                     val descriptor = declaration.descriptor
 
                     if (descriptor.isInner) return
+
+                    // Local nested classes can only be inner.
+                    assert(descriptor.declaredInFunction())
 
                     val localClassContext = LocalClassContext(declaration)
                     localClasses[descriptor] = localClassContext
