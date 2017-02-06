@@ -58,5 +58,8 @@ internal class KonanLower(val context: Context) {
         phaser.phase(KonanPhase.LOWER_INTEROP) {
             InteropLowering(context).runOnFilePostfix(irFile)
         }
+        phaser.phase(KonanPhase.LOWER_INITIALIZERS) {
+            InitializersLowering(context).runOnFilePostfix(irFile)
+        }
     }
 }
