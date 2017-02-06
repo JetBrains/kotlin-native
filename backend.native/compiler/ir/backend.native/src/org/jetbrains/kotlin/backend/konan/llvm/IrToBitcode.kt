@@ -486,23 +486,18 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
     override fun visitFunction(declaration: IrFunction) {
         context.log("visitFunction                  : ${ir2string(declaration)}")
-        if (declaration.descriptor.modality == Modality.ABSTRACT)
-            return
-
-        val body = declaration.body
+        val body = declaration.body ?: return
 
         codegen.prologue(declaration.descriptor)
 
-        if (body != null) {
-            using(FunctionScope(declaration)) {
-                using(VariableScope()) {
-                    context.log("generateBlockBody             : ${ir2string(body)}")
-                    when (body) {
-                        is IrBlockBody -> body.statements.forEach { generateStatement(it) }
-                        is IrExpressionBody -> generateStatement(body.expression)
-                        is IrSyntheticBody -> throw AssertionError("Synthetic body ${body.kind} has not been lowered")
-                        else -> TODO(ir2string(body))
-                    }
+        using(FunctionScope(declaration)) {
+            using(VariableScope()) {
+                context.log("generateBlockBody             : ${ir2string(body)}")
+                when (body) {
+                    is IrBlockBody -> body.statements.forEach { generateStatement(it) }
+                    is IrExpressionBody -> generateStatement(body.expression)
+                    is IrSyntheticBody -> throw AssertionError("Synthetic body ${body.kind} has not been lowered")
+                    else -> TODO(ir2string(body))
                 }
             }
         }
