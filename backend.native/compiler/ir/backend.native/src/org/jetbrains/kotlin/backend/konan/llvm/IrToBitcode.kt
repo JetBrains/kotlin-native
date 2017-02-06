@@ -486,7 +486,10 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
     override fun visitFunction(declaration: IrFunction) {
         context.log("visitFunction                  : ${ir2string(declaration)}")
-        val body = declaration.body ?: return
+        val body = declaration.body
+
+        if (declaration.descriptor.modality == Modality.ABSTRACT || declaration.descriptor.isExternal || body == null)
+            return
 
         codegen.prologue(declaration.descriptor)
 
