@@ -4,6 +4,8 @@ import org.jetbrains.kotlin.backend.konan.llvm.Lifetime
 import org.jetbrains.kotlin.backend.konan.llvm.RuntimeAware
 import org.jetbrains.kotlin.backend.konan.ir.getArguments
 import org.jetbrains.kotlin.backend.konan.ir.ir2string
+import org.jetbrains.kotlin.backend.konan.llvm.getLLVMType
+import org.jetbrains.kotlin.backend.konan.llvm.isObjectType
 import org.jetbrains.kotlin.descriptors.ValueDescriptor
 import org.jetbrains.kotlin.descriptors.VariableDescriptor
 import org.jetbrains.kotlin.ir.IrElement
@@ -14,6 +16,8 @@ import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
+import org.jetbrains.kotlin.types.KotlinType
+import org.jetbrains.kotlin.types.typeUtil.isNothing
 import org.jetbrains.kotlin.types.typeUtil.isUnit
 
 val DEBUG = false
@@ -51,6 +55,9 @@ internal open class RoleInfo {
     val entries = mutableListOf<RoleInfoEntry>()
     open fun add(entry: RoleInfoEntry) = entries.add(entry)
 }
+
+private fun RuntimeAware.isInteresting(type: KotlinType) : Boolean =
+        !type.isUnit() && !type.isNothing() && isObjectType(type)
 
 internal class Roles {
     val data = HashMap<Role, RoleInfo>()
@@ -93,8 +100,8 @@ internal class VarValues {
             elementData[variable]
 
     fun computeClosure() {
-        elementData.mapKeys { key ->
-            add(key.key, computeValueClosure(key.key))
+        elementData.forEach { key, _ ->
+            add(key, computeValueClosure(key))
         }
     }
 
@@ -102,13 +109,13 @@ internal class VarValues {
     fun computeValueClosure(value: ValueDescriptor): Set<IrElement> {
         val result = mutableSetOf<IrElement>()
         val workset = mutableSetOf<ValueDescriptor>(value)
-        val seen = mutableSetOf<IrGetField>()
+        val seen = mutableSetOf<IrGetValue>()
         while (!workset.isEmpty()) {
             val value = workset.first()
             workset -= value
             val elements = elementData[value] ?: continue
             for (element in elements) {
-                if (element is IrGetField) {
+                if (element is IrGetValue) {
                     if (!seen.contains(element)) {
                         seen.add(element)
                         workset.add(element.descriptor)
@@ -148,11 +155,11 @@ internal class ElementFinderVisitor(
     : IrElementVisitorVoid {
 
     fun isInteresting(element: IrElement) : Boolean {
-        return element is IrMemberAccessExpression && context.isObjectType(element.type)
+        return element is IrMemberAccessExpression && context.isInteresting(element.type)
     }
 
     fun isInteresting(variable: ValueDescriptor) : Boolean {
-        return context.isObjectType(variable.type)
+        return context.isInteresting(variable.type)
     }
 
     override fun visitElement(element: IrElement) {
@@ -173,10 +180,6 @@ internal class ElementFinderVisitor(
         if (isInteresting(expression.descriptor))
             varValues.addEmpty(expression.descriptor)
         super.visitVariable(expression)
-    }
-
-    override fun visitModuleFragment(module: IrModuleFragment) {
-        module.acceptChildrenVoid(this)
     }
 }
 
@@ -208,64 +211,69 @@ internal class RoleAssignerVisitor(
     }
 
     // Here we handle variable assignment.
-    fun assignVariable(descriptor: ValueDescriptor, value: IrElement) {
+    fun assignVariable(variable: VariableDescriptor, value: IrExpression) {
         if (useVarValues) return
         // Sometimes we can assign value to Unit variable (unit4.kt) - we don't care.
-        if (value is IrExpression && value.type.isUnit()) return
+        if (value.type.isUnit()) return
         when (value) {
-            is IrContainerExpression -> assignVariable(descriptor, value.statements.last())
-            is IrBranch -> assignVariable(descriptor, value.result)
-            is IrVararg -> value.elements.forEach { assignVariable(descriptor, it) }
-            is IrWhen -> value.branches.forEach { assignVariable(descriptor, it) }
-            is IrMemberAccessExpression -> varValues.add(descriptor, value)
-            is IrGetValue -> varValues.add(descriptor, value)
-            is IrGetField -> varValues.add(descriptor, value)
-            is IrConst<*> -> {}
+            is IrContainerExpression -> assignVariable(variable, value.statements.last() as IrExpression)
+            is IrVararg -> value.elements.forEach { assignVariable(variable, it as IrExpression) }
+            is IrWhen -> value.branches.forEach { assignVariable(variable, it.result) }
+            is IrMemberAccessExpression -> varValues.add(variable, value)
+            is IrGetValue -> varValues.add(variable, value)
+            is IrGetField -> varValues.add(variable, value)
+            is IrConst<*> -> { }
             is IrTypeOperatorCall -> {
                 when (value.operator) {
                     IrTypeOperator.IMPLICIT_CAST, IrTypeOperator.CAST ->
-                        assignVariable(descriptor, value.argument)
+                        assignVariable(variable, value.argument)
                     else -> TODO(ir2string(value))
                 }
             }
-            is IrTry -> assignVariable(descriptor, value.tryResult)
-            is IrThrow -> { /* Do nothing, error path in an assignment. */}
-            is IrGetObjectValue -> {}
-            is IrStringConcatenation -> {}
+            is IrTry -> listOfNotNull(value.tryResult, value.finallyExpression).forEach {
+                assignVariable(variable, it)
+            }
+            is IrThrow -> { /* Do nothing, error path in an assignment. */ }
+            is IrGetObjectValue -> { }
+            // TODO: remove once lower will be there.
+            is IrStringConcatenation -> value.arguments.forEach { assignVariable(variable, it) }
+            // TODO: is it correct?
+            is IrReturn -> assignVariable(variable, value.value)
             else -> TODO(ir2string(value))
         }
     }
 
     // Here we assign a role to expression's value.
-    fun assignRole(element: IrElement, role: Role, infoEntry: RoleInfoEntry?) {
-        when (element) {
-            is IrContainerExpression -> assignRole(element.statements.last(), role, infoEntry)
-            is IrVararg -> element.elements.forEach { assignRole(it, role, infoEntry) }
-            is IrWhen -> element.branches.forEach { assignRole(it.result, role, infoEntry) }
-            is IrMemberAccessExpression -> assignElementRole(element, role, infoEntry)
-            is IrGetValue -> assignVariableRole(element.descriptor, role, infoEntry)
+    fun assignRole(expression: IrExpression, role: Role, infoEntry: RoleInfoEntry?) {
+        if (expression.type.isUnit()) return
+        when (expression) {
+            is IrContainerExpression -> assignRole(expression.statements.last() as IrExpression, role, infoEntry)
+            is IrVararg -> expression.elements.forEach { assignRole(it as IrExpression, role, infoEntry) }
+            is IrWhen -> expression.branches.forEach { assignRole(it.result, role, infoEntry) }
+            is IrMemberAccessExpression -> assignElementRole(expression, role, infoEntry)
+            is IrGetValue -> assignVariableRole(expression.descriptor, role, infoEntry)
             // If field plays certain role - we cannot use this info now.
             is IrGetField -> {}
             // If constant plays certain role - this information is useless.
             is IrConst<*> -> {}
             is IrTypeOperatorCall -> {
-                when (element.operator) {
+                when (expression.operator) {
                     IrTypeOperator.IMPLICIT_CAST, IrTypeOperator.CAST ->
-                        assignRole(element.argument, role, infoEntry)
+                        assignRole(expression.argument, role, infoEntry)
                     // No info from those ones.
                     IrTypeOperator.INSTANCEOF, IrTypeOperator.NOT_INSTANCEOF,
                     IrTypeOperator.IMPLICIT_COERCION_TO_UNIT -> {}
-                    else -> TODO(ir2string(element))
+                    else -> TODO(ir2string(expression))
                 }
             }
             is IrGetObjectValue -> { /* Shall we do anything here? */ }
             is IrThrow -> { /* Shall we do anything here? */}
-            is IrWhileLoop -> assert(element.type.isUnit())
-            is IrDoWhileLoop -> assert(element.type.isUnit())
-            is IrExpressionBody -> assignElementRole(element.expression, role, infoEntry)
+            is IrExpressionBody -> assignElementRole(expression.expression, role, infoEntry)
             // TODO: remove once lower will be there.
-            is IrStringConcatenation -> {}
-            else -> TODO(ir2string(element))
+            is IrStringConcatenation -> expression.arguments.forEach { assignRole(it, role, infoEntry) }
+            // TODO: is it correct?
+            is IrReturn -> assignElementRole(expression.value, role, infoEntry)
+            else -> TODO(ir2string(expression))
         }
     }
 
@@ -282,14 +290,15 @@ internal class RoleAssignerVisitor(
     }
 
     override fun visitSetField(expression: IrSetField) {
-        assignRole(expression.value, Role.WRITTEN_TO_FIELD, RoleInfoEntry(expression.receiver))
+        assignRole(expression.value, Role.WRITTEN_TO_FIELD, RoleInfoEntry(expression))
         super.visitSetField(expression)
     }
 
     override fun visitField(declaration: IrField) {
         val initializer = declaration.initializer
         if (initializer != null) {
-            assignRole(initializer, Role.WRITTEN_TO_FIELD, RoleInfoEntry(declaration.descriptor))
+            assignRole(initializer.expression,
+                    Role.WRITTEN_TO_FIELD, RoleInfoEntry(declaration))
         }
         super.visitField(declaration)
     }
@@ -315,10 +324,6 @@ internal class RoleAssignerVisitor(
     override fun visitThrow(expression: IrThrow) {
         assignRole(expression.value, Role.THROW_VALUE, RoleInfoEntry(expression))
         super.visitThrow(expression)
-    }
-
-    override fun visitModuleFragment(module: IrModuleFragment) {
-        module.acceptChildrenVoid(this)
     }
 }
 //

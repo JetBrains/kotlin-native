@@ -8,9 +8,6 @@ import org.jetbrains.kotlin.types.typeUtil.isUnit
 
 interface RuntimeAware {
     val runtime: Runtime
-
-    fun isObjectType(type: KotlinType) : Boolean =
-            !type.isUnit() && !type.isNothing() && isObjectType(getLLVMType(type))
 }
 
 class Runtime(private val bitcodeFile: String) {
