@@ -1,7 +1,7 @@
-fun foo1(arg: String) : String = arg + " foo1"
+fun foo1(arg: String) : String = arg
 
+/*
 fun foo2(arg: String) : String = arg + " foo2"
-
 
 fun bar(arg1: String, arg2: String) : String  = arg1 + " bar " + arg2
 
@@ -38,8 +38,20 @@ fun zoo4(arg: Int) : Any {
         else -> c
     }
     return a
+} */
+
+fun zoo5(arg: String) : String {
+    return arg + foo1(arg)
+}
+
+fun zoo6(arg: String) : String {
+    return zoo7(arg, "foo", 11)
+}
+
+fun zoo7(arg1: String, arg2: String, selector: Int) : String {
+    return if (selector < 2) arg1 else arg2;
 }
 
 fun main(args : Array<String>) {
-    println(bar(foo1(foo2("")), foo2(foo1(""))))
+    //println(bar(foo1(foo2("")), foo2(foo1(""))))
 }

@@ -4,12 +4,14 @@ import org.jetbrains.kotlin.backend.konan.llvm.Lifetime
 import org.jetbrains.kotlin.backend.konan.llvm.RuntimeAware
 import org.jetbrains.kotlin.backend.konan.ir.getArguments
 import org.jetbrains.kotlin.backend.konan.ir.ir2string
-import org.jetbrains.kotlin.backend.konan.llvm.getLLVMType
 import org.jetbrains.kotlin.backend.konan.llvm.isObjectType
+import org.jetbrains.kotlin.descriptors.FunctionDescriptor
+import org.jetbrains.kotlin.descriptors.ParameterDescriptor
 import org.jetbrains.kotlin.descriptors.ValueDescriptor
 import org.jetbrains.kotlin.descriptors.VariableDescriptor
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrField
+import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
@@ -20,7 +22,7 @@ import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.typeUtil.isNothing
 import org.jetbrains.kotlin.types.typeUtil.isUnit
 
-val DEBUG = false
+val DEBUG = true
 
 // Roles in which particular object reference is being used. Lifetime is computed from
 // all roles reference.
@@ -75,28 +77,39 @@ internal class Roles {
         }
     }
 
+    fun remove(role: Role) = data.remove(role)
+
+    fun has(role: Role) : Boolean = data[role] != null
+
+    fun escapes() : Boolean {
+        return has(Role.WRITTEN_TO_FIELD) || has(Role.WRITTEN_TO_GLOBAL) ||
+                has(Role.CALL_ARGUMENT) || has(Role.THROW_VALUE)
+    }
+
+    fun info(role: Role) : RoleInfo? = data[role]
+
     override fun toString() : String {
         val builder = StringBuilder()
         data.forEach { t, u ->
             builder.append(t.name)
             builder.append(": ")
             builder.append(u.entries.joinToString(", "))
-            builder.append("\n")
+            builder.append("; ")
         }
         return builder.toString()
     }
 }
 
-internal class VarValues {
-    val elementData = HashMap<ValueDescriptor, MutableSet<IrElement>>()
+internal class VariableValues {
+    val elementData = HashMap<ValueDescriptor, MutableSet<IrExpression>>()
 
     fun addEmpty(variable: ValueDescriptor) =
-            elementData.getOrPut(variable, { mutableSetOf<IrElement>() })
-    fun add(variable: ValueDescriptor, element: IrElement) =
+            elementData.getOrPut(variable, { mutableSetOf<IrExpression>() })
+    fun add(variable: ValueDescriptor, element: IrExpression) =
             elementData.get(variable)?.add(element)
-    fun add(variable: ValueDescriptor, elements: Set<IrElement>) =
+    fun add(variable: ValueDescriptor, elements: Set<IrExpression>) =
             elementData.get(variable)?.addAll(elements)
-    fun get(variable: ValueDescriptor) : Set<IrElement>? =
+    fun get(variable: ValueDescriptor) : Set<IrExpression>? =
             elementData[variable]
 
     fun computeClosure() {
@@ -106,8 +119,8 @@ internal class VarValues {
     }
 
     // Computes closure of all possible values for given variable.
-    fun computeValueClosure(value: ValueDescriptor): Set<IrElement> {
-        val result = mutableSetOf<IrElement>()
+    fun computeValueClosure(value: ValueDescriptor): Set<IrExpression> {
+        val result = mutableSetOf<IrExpression>()
         val workset = mutableSetOf<ValueDescriptor>(value)
         val seen = mutableSetOf<IrGetValue>()
         while (!workset.isEmpty()) {
@@ -126,6 +139,48 @@ internal class VarValues {
             }
         }
         return result
+    }
+}
+
+internal class ParameterRoles {
+    val elementData = HashMap<ValueDescriptor, Roles>()
+
+    fun addParameter(parameter: ValueDescriptor) {
+        assert(elementData[parameter] == null)
+        elementData[parameter] = Roles()
+    }
+
+    fun add(parameter: ValueDescriptor, role: Role, roleInfoEntry: RoleInfoEntry?) {
+        val roles = elementData.getOrPut(parameter, { Roles() });
+        roles.add(role, roleInfoEntry)
+    }
+
+    fun canEliminateCallArgument(info: RoleInfo): Boolean {
+        for (call in info.entries) {
+            val argument = call.data as ValueDescriptor
+            println("passed as ${argument}")
+            val rolesInCallee = elementData[argument] ?: return false
+            println("In callee is: ${rolesInCallee}")
+            if (rolesInCallee.escapes()) return false
+        }
+        return true
+    }
+
+    fun propagateCallArguments(expressionToRoles: MutableMap<IrExpression, Roles>) {
+        for (entry in expressionToRoles) {
+            var roles = entry.value
+            val info = roles.info(Role.CALL_ARGUMENT) ?: continue
+            if (canEliminateCallArgument(info)) {
+                roles.remove(Role.CALL_ARGUMENT)
+            }
+        }
+        for (entry in elementData) {
+            var roles = entry.value
+            val info = roles.info(Role.CALL_ARGUMENT) ?: continue
+            if (canEliminateCallArgument(info)) {
+                roles.remove(Role.CALL_ARGUMENT)
+            }
+        }
     }
 }
 
@@ -150,12 +205,14 @@ internal fun rolesToLifetime(roles: Roles) : Lifetime {
 
 internal class ElementFinderVisitor(
         val context: RuntimeAware,
-        val elementToRoles: MutableMap<IrElement, Roles>,
-        val varValues: VarValues)
+        val expressionToRoles: MutableMap<IrExpression, Roles>,
+        val variableValues: VariableValues,
+        val parameterRoles: ParameterRoles)
     : IrElementVisitorVoid {
 
     fun isInteresting(element: IrElement) : Boolean {
-        return element is IrMemberAccessExpression && context.isInteresting(element.type)
+        return (element is IrMemberAccessExpression && context.isInteresting(element.type)) ||
+                (element is IrGetValue && context.isInteresting(element.type))
     }
 
     fun isInteresting(variable: ValueDescriptor) : Boolean {
@@ -164,7 +221,7 @@ internal class ElementFinderVisitor(
 
     override fun visitElement(element: IrElement) {
         if (isInteresting(element)) {
-            elementToRoles[element] = Roles()
+            expressionToRoles[element as IrExpression] = Roles()
         }
         element.acceptChildrenVoid(this)
     }
@@ -172,13 +229,21 @@ internal class ElementFinderVisitor(
     override fun visitTypeOperator(expression: IrTypeOperatorCall) {
         super.visitTypeOperator(expression)
         if (expression.operator == IrTypeOperator.IMPLICIT_COERCION_TO_UNIT) {
-            elementToRoles.remove(expression.argument)
+            expressionToRoles.remove(expression.argument)
         }
+    }
+
+    override fun visitFunction(declaration: IrFunction) {
+        declaration.descriptor.valueParameters.forEach {
+            if (isInteresting(it))
+                parameterRoles.addParameter(it)
+        }
+        super.visitFunction(declaration)
     }
 
     override fun visitVariable(expression: IrVariable) {
         if (isInteresting(expression.descriptor))
-            varValues.addEmpty(expression.descriptor)
+            variableValues.addEmpty(expression.descriptor)
         super.visitVariable(expression)
     }
 }
@@ -188,25 +253,28 @@ internal class ElementFinderVisitor(
 // varValues is filled with all possible elements that could be stored in a variable.
 //
 internal class RoleAssignerVisitor(
-        val elementToRoles: MutableMap<IrElement, Roles>,
-        val varValues: VarValues,
+        val expressionRoles: MutableMap<IrExpression, Roles>,
+        val variableValues: VariableValues,
+        val parameterRoles: ParameterRoles,
         val useVarValues: Boolean) : IrElementVisitorVoid {
 
-    fun assignElementRole(element: IrElement, role: Role, infoEntry: RoleInfoEntry?) {
+    fun assignExpressionRole(expression: IrExpression, role: Role, infoEntry: RoleInfoEntry?) {
         if (!useVarValues)
-            elementToRoles[element]?.add(role, infoEntry)
-
+            expressionRoles[expression]?.add(role, infoEntry)
     }
 
-    fun assignVariableRole(descriptor: ValueDescriptor, role: Role, infoEntry: RoleInfoEntry?) {
+    fun assignValueRole(value: ValueDescriptor, role: Role, infoEntry: RoleInfoEntry?) {
         if (!useVarValues) return
         // Whenever we see variable use in certain role - we propagate this role
         // to all possible expression this variable can be assigned to.
-        val possibleValues = varValues.get(descriptor)
+        val possibleValues = variableValues.get(value)
         if (possibleValues != null) {
             for (possibleValue in possibleValues) {
-                elementToRoles[possibleValue]?.add(role, infoEntry)
+                expressionRoles[possibleValue]?.add(role, infoEntry)
             }
+        }
+        if (value is ParameterDescriptor) {
+            parameterRoles.add(value, role, infoEntry)
         }
     }
 
@@ -219,9 +287,9 @@ internal class RoleAssignerVisitor(
             is IrContainerExpression -> assignVariable(variable, value.statements.last() as IrExpression)
             is IrVararg -> value.elements.forEach { assignVariable(variable, it as IrExpression) }
             is IrWhen -> value.branches.forEach { assignVariable(variable, it.result) }
-            is IrMemberAccessExpression -> varValues.add(variable, value)
-            is IrGetValue -> varValues.add(variable, value)
-            is IrGetField -> varValues.add(variable, value)
+            is IrMemberAccessExpression -> variableValues.add(variable, value)
+            is IrGetValue -> variableValues.add(variable, value)
+            is IrGetField -> variableValues.add(variable, value)
             is IrConst<*> -> { }
             is IrTypeOperatorCall -> {
                 when (value.operator) {
@@ -235,8 +303,6 @@ internal class RoleAssignerVisitor(
             }
             is IrThrow -> { /* Do nothing, error path in an assignment. */ }
             is IrGetObjectValue -> { }
-            // TODO: remove once lower will be there.
-            is IrStringConcatenation -> value.arguments.forEach { assignVariable(variable, it) }
             // TODO: is it correct?
             is IrReturn -> assignVariable(variable, value.value)
             else -> TODO(ir2string(value))
@@ -250,8 +316,8 @@ internal class RoleAssignerVisitor(
             is IrContainerExpression -> assignRole(expression.statements.last() as IrExpression, role, infoEntry)
             is IrVararg -> expression.elements.forEach { assignRole(it as IrExpression, role, infoEntry) }
             is IrWhen -> expression.branches.forEach { assignRole(it.result, role, infoEntry) }
-            is IrMemberAccessExpression -> assignElementRole(expression, role, infoEntry)
-            is IrGetValue -> assignVariableRole(expression.descriptor, role, infoEntry)
+            is IrMemberAccessExpression -> assignExpressionRole(expression, role, infoEntry)
+            is IrGetValue -> assignValueRole(expression.descriptor, role, infoEntry)
             // If field plays certain role - we cannot use this info now.
             is IrGetField -> {}
             // If constant plays certain role - this information is useless.
@@ -267,12 +333,9 @@ internal class RoleAssignerVisitor(
                 }
             }
             is IrGetObjectValue -> { /* Shall we do anything here? */ }
-            is IrThrow -> { /* Shall we do anything here? */}
-            is IrExpressionBody -> assignElementRole(expression.expression, role, infoEntry)
-            // TODO: remove once lower will be there.
-            is IrStringConcatenation -> expression.arguments.forEach { assignRole(it, role, infoEntry) }
+            is IrExpressionBody -> assignExpressionRole(expression.expression, role, infoEntry)
             // TODO: is it correct?
-            is IrReturn -> assignElementRole(expression.value, role, infoEntry)
+            is IrReturn -> assignExpressionRole(expression.value, role, infoEntry)
             else -> TODO(ir2string(expression))
         }
     }
@@ -284,7 +347,7 @@ internal class RoleAssignerVisitor(
     override fun visitCall(expression: IrCall) {
         assignRole(expression, Role.CALL_RESULT, RoleInfoEntry(expression))
         for (argument in expression.getArguments()) {
-            assignRole(argument.second, Role.CALL_ARGUMENT, RoleInfoEntry(expression))
+            assignRole(argument.second, Role.CALL_ARGUMENT, RoleInfoEntry(argument.first))
         }
         super.visitCall(expression)
     }
@@ -326,6 +389,7 @@ internal class RoleAssignerVisitor(
         super.visitThrow(expression)
     }
 }
+
 //
 // Analysis we're implementing here is as following.
 //  * compute roles IR value nodes can play
@@ -336,26 +400,36 @@ fun computeLifetimes(irModule: IrModuleFragment, context: RuntimeAware,
                      lifetimes: MutableMap<IrElement, Lifetime>) {
     assert(lifetimes.size == 0)
 
-    val elementToRoles = mutableMapOf<IrElement, Roles>()
-    val varValues = VarValues()
-    irModule.acceptVoid(ElementFinderVisitor(context, elementToRoles, varValues))
+    val expressionToRoles = mutableMapOf<IrExpression, Roles>()
+    val variableValues = VariableValues()
+    val parameterRoles = ParameterRoles()
+    irModule.acceptVoid(ElementFinderVisitor(
+            context, expressionToRoles, variableValues, parameterRoles))
     // On this pass, we collect all possible variable values and assign roles
     // to expressions.
-    irModule.acceptVoid(RoleAssignerVisitor(elementToRoles, varValues, false))
+    irModule.acceptVoid(RoleAssignerVisitor(
+            expressionToRoles, variableValues, parameterRoles, false))
     // Compute transitive closure of possible values for variables.
-    varValues.computeClosure()
+    variableValues.computeClosure()
     // On this pass, we use possible variable values to assign roles to expression.
-    irModule.acceptVoid(RoleAssignerVisitor(elementToRoles, varValues, true))
+    irModule.acceptVoid(RoleAssignerVisitor(
+            expressionToRoles, variableValues, parameterRoles, true))
+    parameterRoles.propagateCallArguments(expressionToRoles)
 
-    elementToRoles.forEach { element, roles ->
+    expressionToRoles.forEach { expression, roles ->
         if (DEBUG)
-            println("for ${element} roles are ${roles.data.keys.joinToString(", ")}")
+            println("for ${expression} roles are ${roles.data.keys.joinToString(", ")}")
         try {
-            lifetimes[element] = rolesToLifetime(roles)
+            lifetimes[expression] = rolesToLifetime(roles)
         } catch (e: Error) {
-            println(ir2string(element))
+            println(ir2string(expression))
         }
     }
-    if (DEBUG) varValues.elementData.forEach { variable, expressions ->
-            println("${variable} could be ${expressions.joinToString(", ")}") }
+    if (DEBUG) {
+        variableValues.elementData.forEach { variable, expressions ->
+            println("var ${variable} could be ${expressions.joinToString(", ")}") }
+        parameterRoles.elementData.forEach { parameter, roles ->
+            //println("param ${parameter} could be ${roles.data.keys.joinToString(", ")}") }
+            println("param ${parameter} could be ${roles.toString()}") }
+    }
 }
