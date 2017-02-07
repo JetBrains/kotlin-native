@@ -44,14 +44,15 @@ fun zoo5(arg: String) : String {
     return arg + foo1(arg)
 }
 
-fun zoo6(arg: String) : String {
+fun zoo6(arg: Any) : Any {
     return zoo7(arg, "foo", 11)
 }
 
-fun zoo7(arg1: String, arg2: String, selector: Int) : String {
+fun zoo7(arg1: Any, arg2: Any, selector: Int) : Any {
     return if (selector < 2) arg1 else arg2;
 }
 
 fun main(args : Array<String>) {
+    val z = zoo7(Any(), Any(), 1)
     //println(bar(foo1(foo2("")), foo2(foo1(""))))
 }
