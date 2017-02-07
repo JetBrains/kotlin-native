@@ -18,6 +18,7 @@ package org.jetbrains.kotlin.backend.common.lower
 
 import org.jetbrains.kotlin.backend.common.BackendContext
 import org.jetbrains.kotlin.backend.common.DeclarationContainerLoweringPass
+import org.jetbrains.kotlin.backend.konan.ir.ir2string
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.descriptors.impl.ClassConstructorDescriptorImpl
@@ -642,6 +643,13 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
 
                 override fun visitElement(element: IrElement) {
                     element.acceptChildrenVoid(this)
+                }
+
+                // TODO: remove as soon as bug in IrSetterCallImpl is fixed.
+                override fun visitCall(expression: IrCall) {
+                    super.visitCall(expression)
+                    if (expression is IrSetterCallImpl)
+                        visitElement(expression.getValueArgument(0)!!)
                 }
 
                 private fun DeclarationDescriptor.declaredInFunction() = when (this.containingDeclaration) {
