@@ -327,6 +327,9 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
         private object DECLARATION_ORIGIN_FIELD_FOR_CAPTURED_VALUE :
                 IrDeclarationOriginImpl("FIELD_FOR_CAPTURED_VALUE") {}
 
+        private object STATEMENT_ORIGIN_INITIALIZER_OF_FIELD_FOR_CAPTURED_VALUE :
+                IrStatementOriginImpl("INITIALIZER_OF_FIELD_FOR_CAPTURED_VALUE") {}
+
         private fun rewriteClassMembers(irClass: IrClass, localClassContext: LocalClassContext) {
             irClass.transformChildrenVoid(FunctionBodiesRewriter(localClassContext))
 
@@ -334,23 +337,25 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
                     TODO("local classes without primary constructor")
 
             val primaryConstructorContext = localClassConstructors[primaryConstructor]!!
+            val primaryConstructorBody = primaryConstructorContext.declaration.body as? IrBlockBody
+                    ?: throw AssertionError("Unexpected constructor body: ${primaryConstructorContext.declaration.body}")
 
             localClassContext.capturedValueToField.forEach { capturedValue, fieldDescriptor ->
-
-                val capturedValueExpression =
-                        primaryConstructorContext.irGet(irClass.startOffset, irClass.endOffset, capturedValue)!!
-
+                val startOffset = irClass.startOffset
+                val endOffset = irClass.endOffset
                 irClass.declarations.add(
                         IrFieldImpl(
-                                irClass.startOffset, irClass.endOffset,
+                                startOffset, endOffset,
                                 DECLARATION_ORIGIN_FIELD_FOR_CAPTURED_VALUE,
-                                fieldDescriptor,
-                                IrExpressionBodyImpl(
-                                        irClass.startOffset, irClass.endOffset,
-                                        capturedValueExpression
-                                )
+                                fieldDescriptor
                         )
                 )
+
+                val capturedValueExpression = primaryConstructorContext.irGet(startOffset, endOffset, capturedValue)!!
+                val capturedValueInitializer = IrSetFieldImpl(startOffset, endOffset, fieldDescriptor,
+                        IrGetValueImpl(startOffset, endOffset, irClass.descriptor.thisAsReceiverParameter),
+                        capturedValueExpression, STATEMENT_ORIGIN_INITIALIZER_OF_FIELD_FOR_CAPTURED_VALUE)
+                primaryConstructorBody.statements.add(0, capturedValueInitializer)
             }
         }
 
