@@ -18,6 +18,7 @@ package org.jetbrains.kotlin.backend.common.lower
 
 import org.jetbrains.kotlin.backend.common.BackendContext
 import org.jetbrains.kotlin.backend.common.DeclarationContainerLoweringPass
+import org.jetbrains.kotlin.backend.konan.descriptors.synthesizedName
 import org.jetbrains.kotlin.backend.konan.ir.ir2string
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
@@ -601,7 +602,7 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
         private fun suggestNameForCapturedValue(valueDescriptor: ValueDescriptor): Name =
                 if (valueDescriptor.name.isSpecial) {
                     val oldNameStr = valueDescriptor.name.asString()
-                    Name.identifier("$" + oldNameStr.substring(1, oldNameStr.length - 1))
+                    oldNameStr.substring(1, oldNameStr.length - 1).synthesizedName
                 } else
                     valueDescriptor.name
 
