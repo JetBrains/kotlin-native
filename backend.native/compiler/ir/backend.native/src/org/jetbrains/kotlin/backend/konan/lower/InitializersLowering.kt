@@ -22,7 +22,6 @@ internal class InitializersLowering(val context: Context) : ClassLoweringPass {
     }
 
     private inner class InitializersTransformer(val irClass: IrClass) {
-        val fieldInitializers = mutableListOf<IrStatement>()
         val initializers = mutableListOf<IrStatement>()
 
         fun lowerInitializers() {
@@ -34,9 +33,16 @@ internal class InitializersLowering(val context: Context) : ClassLoweringPass {
                 IrStatementOriginImpl("ANONYMOUS_INITIALIZER")
 
         private fun collectAndRemoveInitializers() {
+            // Do with one traversal in order to preserve initializers order.
             irClass.transformChildrenVoid(object : IrElementTransformerVoid() {
                 override fun visitClass(declaration: IrClass): IrStatement {
                     // Skip nested.
+                    return declaration
+                }
+
+                override fun visitAnonymousInitializer(declaration: IrAnonymousInitializer): IrStatement {
+                    initializers.add(IrBlockImpl(declaration.startOffset, declaration.endOffset,
+                            context.builtIns.unitType, STATEMENT_ORIGIN_ANONYMOUS_INITIALIZER, declaration.body.statements))
                     return declaration
                 }
 
@@ -45,7 +51,7 @@ internal class InitializersLowering(val context: Context) : ClassLoweringPass {
                     val propertyDescriptor = declaration.descriptor
                     val startOffset = initializer.startOffset
                     val endOffset = initializer.endOffset
-                    fieldInitializers.add(IrBlockImpl(startOffset, endOffset, context.builtIns.unitType, STATEMENT_ORIGIN_ANONYMOUS_INITIALIZER,
+                    initializers.add(IrBlockImpl(startOffset, endOffset, context.builtIns.unitType, STATEMENT_ORIGIN_ANONYMOUS_INITIALIZER,
                             listOf(
                                     IrSetFieldImpl(startOffset, endOffset, propertyDescriptor,
                                             IrGetValueImpl(startOffset, endOffset, irClass.descriptor.thisAsReceiverParameter),
@@ -57,11 +63,7 @@ internal class InitializersLowering(val context: Context) : ClassLoweringPass {
             irClass.declarations.transformFlat {
                 if (it !is IrAnonymousInitializer)
                     null
-                else {
-                    initializers.add(IrBlockImpl(it.startOffset, it.endOffset,
-                            context.builtIns.unitType, STATEMENT_ORIGIN_ANONYMOUS_INITIALIZER, it.body.statements))
-                    listOf()
-                }
+                else listOf()
             }
         }
 
@@ -77,7 +79,7 @@ internal class InitializersLowering(val context: Context) : ClassLoweringPass {
 
                     blockBody.statements.transformFlat {
                         when {
-                            it is IrInstanceInitializerCall -> fieldInitializers + initializers
+                            it is IrInstanceInitializerCall -> initializers
                             /**
                              * IR for kotlin.Any is:
                              * BLOCK_BODY
