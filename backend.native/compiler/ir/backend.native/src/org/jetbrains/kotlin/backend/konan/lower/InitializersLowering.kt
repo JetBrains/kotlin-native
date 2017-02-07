@@ -56,7 +56,8 @@ internal class InitializersLowering(val context: Context) : ClassLoweringPass {
                                     IrSetFieldImpl(startOffset, endOffset, propertyDescriptor,
                                             IrGetValueImpl(startOffset, endOffset, irClass.descriptor.thisAsReceiverParameter),
                                             initializer.expression, STATEMENT_ORIGIN_ANONYMOUS_INITIALIZER))))
-                    return IrFieldImpl(declaration.startOffset, declaration.endOffset, declaration.origin, propertyDescriptor)
+                    declaration.initializer = null
+                    return declaration
                 }
             })
 
