@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.resolve.DescriptorUtils
+import org.jetbrains.kotlin.resolve.descriptorUtil.getSuperClassOrAny
 
 // TODO: synchronize with JVM BE
 class Closure(val capturedValues: List<ValueDescriptor>)
@@ -33,12 +34,12 @@ abstract class AbstractClosureAnnotator : IrElementVisitorVoid {
         }
 
         fun declareVariable(valueDescriptor: ValueDescriptor?) {
-            if(valueDescriptor != null)
+            if (valueDescriptor != null)
                 declaredValues.add(valueDescriptor)
         }
 
         fun seeVariable(valueDescriptor: ValueDescriptor) {
-            if(isExternal(valueDescriptor))
+            if (isExternal(valueDescriptor))
                 capturedValues.add(valueDescriptor)
         }
 
@@ -47,6 +48,7 @@ abstract class AbstractClosureAnnotator : IrElementVisitorVoid {
         }
     }
 
+    private val classClosures = mutableMapOf<ClassDescriptor, Closure>()
     private val closuresStack = mutableListOf<ClosureBuilder>()
 
     private fun <E> MutableList<E>.push(element: E) = this.add(element)
@@ -64,17 +66,25 @@ abstract class AbstractClosureAnnotator : IrElementVisitorVoid {
         val closureBuilder = ClosureBuilder()
 
         closureBuilder.declareVariable(classDescriptor.thisAsReceiverParameter)
-        if(classDescriptor.isInner)
+        if (classDescriptor.isInner)
             closureBuilder.declareVariable((classDescriptor.containingDeclaration as ClassDescriptor).thisAsReceiverParameter)
 
         closuresStack.push(closureBuilder)
         declaration.acceptChildrenVoid(this)
         closuresStack.pop()
 
+        val superClassClosure = classClosures[classDescriptor.getSuperClassOrAny()]
+        if (superClassClosure != null) {
+            // Capture all values from the super class since we need to call constructor of super class
+            // with his captured values.
+            closureBuilder.addNested(superClassClosure)
+        }
+
         val closure = closureBuilder.buildClosure()
 
         if (DescriptorUtils.isLocal(classDescriptor)) {
             recordClassClosure(classDescriptor, closure)
+            classClosures[classDescriptor] = closure
         }
 
         closuresStack.peek()?.addNested(closure)
@@ -87,7 +97,7 @@ abstract class AbstractClosureAnnotator : IrElementVisitorVoid {
         functionDescriptor.valueParameters.forEach { closureBuilder.declareVariable(it) }
         closureBuilder.declareVariable(functionDescriptor.dispatchReceiverParameter)
         closureBuilder.declareVariable(functionDescriptor.extensionReceiverParameter)
-        if(functionDescriptor is ConstructorDescriptor)
+        if (functionDescriptor is ConstructorDescriptor)
             closureBuilder.declareVariable(functionDescriptor.constructedClass.thisAsReceiverParameter)
 
         closuresStack.push(closureBuilder)

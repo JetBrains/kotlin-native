@@ -515,15 +515,7 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
             // Do not substitute type parameters for now.
             val newTypeParameters = oldDescriptor.typeParameters
 
-            val capturedValues = mutableListOf<ValueDescriptor>()
-            var classDescriptor = oldDescriptor.containingDeclaration
-            while (true) {
-                // Capture all values from the hierarchy since we need to call constructor of super class
-                // with his captured values.
-                val context = localClasses[classDescriptor] ?: break
-                capturedValues.addAll(context.closure.capturedValues)
-                classDescriptor = classDescriptor.getSuperClassOrAny()
-            }
+            val capturedValues = localClasses[oldDescriptor.containingDeclaration]!!.closure.capturedValues
 
             val newValueParameters = createTransformedValueParameters(localFunctionContext, capturedValues)
 
