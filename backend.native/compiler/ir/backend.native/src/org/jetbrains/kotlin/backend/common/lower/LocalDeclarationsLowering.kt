@@ -269,7 +269,8 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
                                 capturedValueDescriptor
                         ) ?:
                                 // Captured value is directly available for the caller.
-                                IrGetValueImpl(oldExpression.startOffset, oldExpression.endOffset, capturedValueDescriptor)
+                                IrGetValueImpl(oldExpression.startOffset, oldExpression.endOffset,
+                                        oldParameterToNew[capturedValueDescriptor] ?: capturedValueDescriptor)
                     }
 
                 }
