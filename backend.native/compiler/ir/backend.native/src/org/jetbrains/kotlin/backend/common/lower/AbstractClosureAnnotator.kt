@@ -18,8 +18,9 @@ abstract class AbstractClosureAnnotator : IrElementVisitorVoid {
     protected abstract fun recordFunctionClosure(functionDescriptor: FunctionDescriptor, closure: Closure)
     protected abstract fun recordClassClosure(classDescriptor: ClassDescriptor, closure: Closure)
 
-    private abstract class ClosureBuilder(open val owner: DeclarationDescriptor) {
+    private class ClosureBuilder {
         val capturedValues = mutableSetOf<ValueDescriptor>()
+        private val declaredValues = mutableSetOf<ValueDescriptor>()
 
         fun buildClosure() = Closure(capturedValues.toList())
 
@@ -27,32 +28,23 @@ abstract class AbstractClosureAnnotator : IrElementVisitorVoid {
             fillInNestedClosure(capturedValues, closure.capturedValues)
         }
 
-        private fun <T : CallableDescriptor> fillInNestedClosure(destination: MutableSet<T>, nested: List<T>) {
-            nested.filterTo(destination) {
-                isExternal(it)
-            }
+        private fun fillInNestedClosure(destination: MutableSet<ValueDescriptor>, nested: List<ValueDescriptor>) {
+            nested.filterTo(destination) { isExternal(it) }
         }
 
-        abstract fun <T : CallableDescriptor> isExternal(valueDescriptor: T): Boolean
-    }
-
-    private class FunctionClosureBuilder(override val owner: FunctionDescriptor) : ClosureBuilder(owner) {
-
-        override fun <T : CallableDescriptor> isExternal(valueDescriptor: T): Boolean =
-                valueDescriptor.containingDeclaration != owner && valueDescriptor != owner.dispatchReceiverParameter
-    }
-
-    private class ClassClosureBuilder(override val owner: ClassDescriptor) : ClosureBuilder(owner) {
-
-        override fun <T : CallableDescriptor> isExternal(valueDescriptor: T): Boolean {
-            // TODO: replace with 'return valueDescriptor.containingDeclaration != owner' after constructors lowering.
-            var declaration: DeclarationDescriptor? = valueDescriptor.containingDeclaration
-            while (declaration != null && declaration != owner) {
-                declaration = declaration.containingDeclaration
-            }
-            return declaration != owner
+        fun declareVariable(valueDescriptor: ValueDescriptor?) {
+            if(valueDescriptor != null)
+                declaredValues.add(valueDescriptor)
         }
 
+        fun seeVariable(valueDescriptor: ValueDescriptor) {
+            if(isExternal(valueDescriptor))
+                capturedValues.add(valueDescriptor)
+        }
+
+        fun isExternal(valueDescriptor: ValueDescriptor): Boolean {
+            return !declaredValues.contains(valueDescriptor)
+        }
     }
 
     private val closuresStack = mutableListOf<ClosureBuilder>()
@@ -69,7 +61,11 @@ abstract class AbstractClosureAnnotator : IrElementVisitorVoid {
 
     override fun visitClass(declaration: IrClass) {
         val classDescriptor = declaration.descriptor
-        val closureBuilder = ClassClosureBuilder(classDescriptor)
+        val closureBuilder = ClosureBuilder()
+
+        closureBuilder.declareVariable(classDescriptor.thisAsReceiverParameter)
+        if(classDescriptor.isInner)
+            closureBuilder.declareVariable((classDescriptor.containingDeclaration as ClassDescriptor).thisAsReceiverParameter)
 
         closuresStack.push(closureBuilder)
         declaration.acceptChildrenVoid(this)
@@ -86,7 +82,13 @@ abstract class AbstractClosureAnnotator : IrElementVisitorVoid {
 
     override fun visitFunction(declaration: IrFunction) {
         val functionDescriptor = declaration.descriptor
-        val closureBuilder = FunctionClosureBuilder(functionDescriptor)
+        val closureBuilder = ClosureBuilder()
+
+        functionDescriptor.valueParameters.forEach { closureBuilder.declareVariable(it) }
+        closureBuilder.declareVariable(functionDescriptor.dispatchReceiverParameter)
+        closureBuilder.declareVariable(functionDescriptor.extensionReceiverParameter)
+        if(functionDescriptor is ConstructorDescriptor)
+            closureBuilder.declareVariable(functionDescriptor.constructedClass.thisAsReceiverParameter)
 
         closuresStack.push(closureBuilder)
         declaration.acceptChildrenVoid(this)
@@ -107,16 +109,12 @@ abstract class AbstractClosureAnnotator : IrElementVisitorVoid {
     }
 
     override fun visitVariableAccess(expression: IrValueAccessExpression) {
-        val closureBuilder = closuresStack.peek()
-
-        if (closureBuilder != null) {
-            val variableDescriptor = expression.descriptor
-            if (closureBuilder.isExternal(variableDescriptor)) {
-                closureBuilder.capturedValues.add(variableDescriptor)
-            }
-        }
-
-        expression.acceptChildrenVoid(this)
+        closuresStack.peek()?.seeVariable(expression.descriptor)
+        super.visitVariableAccess(expression)
     }
 
+    override fun visitVariable(declaration: IrVariable) {
+        closuresStack.peek()?.declareVariable(declaration.descriptor)
+        super.visitVariable(declaration)
+    }
 }

@@ -65,8 +65,7 @@ internal class InnerClassLowering(val context: Context) : ClassLoweringPass {
 
             val blockBody = irConstructor.body as? IrBlockBody ?: throw AssertionError("Unexpected constructor body: ${irConstructor.body}")
 
-            val instanceInitializerIndex = blockBody.statements.indexOfFirst { it is IrInstanceInitializerCall }
-            if (instanceInitializerIndex >= 0) {
+            if (descriptor.isPrimary) {
                 // Initializing constructor: initialize 'this.this$0' with '$outer'.
                 blockBody.statements.add(
                         0,
