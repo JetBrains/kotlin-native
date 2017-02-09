@@ -1,6 +1,7 @@
 package org.jetbrains.kotlin.backend.konan.lower
 
 import org.jetbrains.kotlin.backend.common.ClassLoweringPass
+import org.jetbrains.kotlin.backend.common.lower.callsSuper
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.IrElement
@@ -61,42 +62,18 @@ internal class InnerClassLowering(val context: Context) : ClassLoweringPass {
         }
 
         private fun lowerConstructor(irConstructor: IrConstructor): IrConstructor {
-            val descriptor = irConstructor.descriptor
-            val superClass = irClass.descriptor.getSuperClassOrAny()
-            val startOffset = irConstructor.startOffset
-            val endOffset = irConstructor.endOffset
-
-            val dispatchReceiver = descriptor.dispatchReceiverParameter!!
-
-            val blockBody = irConstructor.body as? IrBlockBody ?: throw AssertionError("Unexpected constructor body: ${irConstructor.body}")
-
-            var callsSuper = false
-            blockBody.acceptChildrenVoid(object : IrElementVisitorVoid {
-                override fun visitElement(element: IrElement) {
-                    element.acceptChildrenVoid(this)
-                }
-
-                override fun visitClass(declaration: IrClass) {
-                    // Skip nested
-                }
-
-                override fun visitDelegatingConstructorCall(expression: IrDelegatingConstructorCall) {
-                    if (expression.descriptor.constructedClass == superClass) {
-                        callsSuper = true
-                    } else {
-                        // Delegating constructor: invoke old constructor with dispatch receiver '$outer'.
-                        expression.dispatchReceiver = IrGetValueImpl(expression.startOffset, expression.endOffset, dispatchReceiver)
-                    }
-                }
-            })
-            if (callsSuper) {
+            if (irConstructor.callsSuper()) {
                 // Initializing constructor: initialize 'this.this$0' with '$outer'.
+                val blockBody = irConstructor.body as? IrBlockBody
+                        ?: throw AssertionError("Unexpected constructor body: ${irConstructor.body}")
+                val startOffset = irConstructor.startOffset
+                val endOffset = irConstructor.endOffset
                 blockBody.statements.add(
                         0,
                         IrSetFieldImpl(
                                 startOffset, endOffset, outerThisFieldDescriptor,
                                 IrGetValueImpl(startOffset, endOffset, classDescriptor.thisAsReceiverParameter),
-                                IrGetValueImpl(startOffset, endOffset, dispatchReceiver)
+                                IrGetValueImpl(startOffset, endOffset, irConstructor.descriptor.dispatchReceiverParameter!!)
                         )
                 )
             }

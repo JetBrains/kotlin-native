@@ -336,29 +336,10 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
             irClass.transformChildrenVoid(FunctionBodiesRewriter(localClassContext))
 
             val classDescriptor = irClass.descriptor
-            val superClass = classDescriptor.getSuperClassOrAny()
-            val constructorsCallingSuper = mutableListOf<LocalClassConstructorContext>()
-            for (constructor in classDescriptor.constructors) {
-                val constructorContext = localClassConstructors[constructor]!!
-                var callsSuper = false
-                constructorContext.declaration.body?.acceptChildrenVoid(object : IrElementVisitorVoid {
-                    override fun visitElement(element: IrElement) {
-                        element.acceptChildrenVoid(this)
-                    }
-
-                    override fun visitClass(declaration: IrClass) {
-                        // Skip nested
-                    }
-
-                    override fun visitDelegatingConstructorCall(expression: IrDelegatingConstructorCall) {
-                        callsSuper = callsSuper || expression.descriptor.constructedClass == superClass
-                        super.visitDelegatingConstructorCall(expression)
-                    }
-                })
-
-                if (callsSuper) constructorsCallingSuper.add(constructorContext)
-            }
-            assert(constructorsCallingSuper.any(), { "Expected at least one constructor calling super, class: $classDescriptor" })
+            val constructorsCallingSuper = classDescriptor.constructors
+                    .map { localClassConstructors[it]!! }
+                    .filter { it.declaration.callsSuper() }
+            assert(constructorsCallingSuper.any(), { "Expected at least one constructor calling super; class: $classDescriptor" })
 
             localClassContext.capturedValueToField.forEach { capturedValue, fieldDescriptor ->
                 val startOffset = irClass.startOffset
@@ -372,11 +353,13 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
                 )
 
                 for (constructorContext in constructorsCallingSuper) {
+                    val blockBody = constructorContext.declaration.body as? IrBlockBody
+                            ?: throw AssertionError("Unexpected constructor body: ${constructorContext.declaration.body}")
                     val capturedValueExpression = constructorContext.irGet(startOffset, endOffset, capturedValue)!!
-                    val capturedValueInitializer = IrSetFieldImpl(startOffset, endOffset, fieldDescriptor,
-                            IrGetValueImpl(startOffset, endOffset, classDescriptor.thisAsReceiverParameter),
-                            capturedValueExpression, STATEMENT_ORIGIN_INITIALIZER_OF_FIELD_FOR_CAPTURED_VALUE)
-                    (constructorContext.declaration.body as IrBlockBody).statements.add(0, capturedValueInitializer)
+                    blockBody.statements.add(0,
+                            IrSetFieldImpl(startOffset, endOffset, fieldDescriptor,
+                                    IrGetValueImpl(startOffset, endOffset, classDescriptor.thisAsReceiverParameter),
+                                    capturedValueExpression, STATEMENT_ORIGIN_INITIALIZER_OF_FIELD_FOR_CAPTURED_VALUE))
                 }
             }
         }
