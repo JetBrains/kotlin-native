@@ -122,6 +122,6 @@ fun IrConstructor.callsSuper(): Boolean {
                         " call to super class constructor. But was: ${expression.descriptor.constructedClass}")
         }
     })
-    assert(numberOfCalls == 1, { "Expected delegating constructor call but none encountered: $descriptor" })
+    assert(numberOfCalls == 1, { "Expected exactly one delegating constructor call but none encountered: $descriptor" })
     return callsSuper
 }
