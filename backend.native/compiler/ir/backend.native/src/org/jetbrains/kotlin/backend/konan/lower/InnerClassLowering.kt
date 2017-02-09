@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.ir.util.dump
 import org.jetbrains.kotlin.ir.util.transformFlat
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
+import org.jetbrains.kotlin.resolve.descriptorUtil.getSuperClassOrAny
 import org.jetbrains.kotlin.resolve.scopes.receivers.ImplicitClassReceiver
 import org.jetbrains.kotlin.utils.addToStdlib.singletonList
 
@@ -58,6 +59,7 @@ internal class InnerClassLowering(val context: Context) : ClassLoweringPass {
 
         private fun lowerConstructor(irConstructor: IrConstructor): IrConstructor {
             val descriptor = irConstructor.descriptor
+            val superClass = irClass.descriptor.getSuperClassOrAny()
             val startOffset = irConstructor.startOffset
             val endOffset = irConstructor.endOffset
 
@@ -65,7 +67,7 @@ internal class InnerClassLowering(val context: Context) : ClassLoweringPass {
 
             val blockBody = irConstructor.body as? IrBlockBody ?: throw AssertionError("Unexpected constructor body: ${irConstructor.body}")
 
-            if (descriptor.isPrimary) {
+            if (blockBody.statements.any { it is IrDelegatingConstructorCall && it.descriptor.constructedClass == superClass }) {
                 // Initializing constructor: initialize 'this.this$0' with '$outer'.
                 blockBody.statements.add(
                         0,

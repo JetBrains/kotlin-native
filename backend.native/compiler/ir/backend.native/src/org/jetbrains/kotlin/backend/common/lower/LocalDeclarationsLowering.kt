@@ -335,12 +335,18 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
         private fun rewriteClassMembers(irClass: IrClass, localClassContext: LocalClassContext) {
             irClass.transformChildrenVoid(FunctionBodiesRewriter(localClassContext))
 
-            val primaryConstructor = irClass.descriptor.unsubstitutedPrimaryConstructor ?:
-                    TODO("local classes without primary constructor")
-
-            val primaryConstructorContext = localClassConstructors[primaryConstructor]!!
-            val primaryConstructorBody = primaryConstructorContext.declaration.body as? IrBlockBody
-                    ?: throw AssertionError("Unexpected constructor body: ${primaryConstructorContext.declaration.body}")
+            val classDescriptor = irClass.descriptor
+            val superClass = classDescriptor.getSuperClassOrAny()
+            val constructorsCallingSuper = mutableListOf<LocalClassConstructorContext>()
+            for (constructor in classDescriptor.constructors) {
+                val constructorContext = localClassConstructors[constructor]!!
+                val constructorBody = constructorContext.declaration.body as? IrBlockBody
+                        ?: throw AssertionError("Unexpected constructor body: ${constructorContext.declaration.body}")
+                if (constructorBody.statements.any { it is IrDelegatingConstructorCall && it.descriptor.constructedClass == superClass }) {
+                    constructorsCallingSuper.add(constructorContext)
+                }
+            }
+            assert(constructorsCallingSuper.any(), { "Expected at least one constructor calling super, class: $classDescriptor" })
 
             localClassContext.capturedValueToField.forEach { capturedValue, fieldDescriptor ->
                 val startOffset = irClass.startOffset
@@ -353,11 +359,13 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
                         )
                 )
 
-                val capturedValueExpression = primaryConstructorContext.irGet(startOffset, endOffset, capturedValue)!!
-                val capturedValueInitializer = IrSetFieldImpl(startOffset, endOffset, fieldDescriptor,
-                        IrGetValueImpl(startOffset, endOffset, irClass.descriptor.thisAsReceiverParameter),
-                        capturedValueExpression, STATEMENT_ORIGIN_INITIALIZER_OF_FIELD_FOR_CAPTURED_VALUE)
-                primaryConstructorBody.statements.add(0, capturedValueInitializer)
+                for (constructorContext in constructorsCallingSuper) {
+                    val capturedValueExpression = constructorContext.irGet(startOffset, endOffset, capturedValue)!!
+                    val capturedValueInitializer = IrSetFieldImpl(startOffset, endOffset, fieldDescriptor,
+                            IrGetValueImpl(startOffset, endOffset, classDescriptor.thisAsReceiverParameter),
+                            capturedValueExpression, STATEMENT_ORIGIN_INITIALIZER_OF_FIELD_FOR_CAPTURED_VALUE)
+                    (constructorContext.declaration.body as IrBlockBody).statements.add(0, capturedValueInitializer)
+                }
             }
         }
 

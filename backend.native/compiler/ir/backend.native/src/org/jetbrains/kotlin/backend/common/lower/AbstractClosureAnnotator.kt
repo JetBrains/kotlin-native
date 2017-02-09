@@ -76,7 +76,7 @@ abstract class AbstractClosureAnnotator : IrElementVisitorVoid {
         val superClassClosure = classClosures[classDescriptor.getSuperClassOrAny()]
         if (superClassClosure != null) {
             // Capture all values from the super class since we need to call constructor of super class
-            // with his captured values.
+            // with its captured values.
             closureBuilder.addNested(superClassClosure)
         }
 
