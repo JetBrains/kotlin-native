@@ -340,11 +340,23 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
             val constructorsCallingSuper = mutableListOf<LocalClassConstructorContext>()
             for (constructor in classDescriptor.constructors) {
                 val constructorContext = localClassConstructors[constructor]!!
-                val constructorBody = constructorContext.declaration.body as? IrBlockBody
-                        ?: throw AssertionError("Unexpected constructor body: ${constructorContext.declaration.body}")
-                if (constructorBody.statements.any { it is IrDelegatingConstructorCall && it.descriptor.constructedClass == superClass }) {
-                    constructorsCallingSuper.add(constructorContext)
-                }
+                var callsSuper = false
+                constructorContext.declaration.body?.acceptChildrenVoid(object : IrElementVisitorVoid {
+                    override fun visitElement(element: IrElement) {
+                        element.acceptChildrenVoid(this)
+                    }
+
+                    override fun visitClass(declaration: IrClass) {
+                        // Skip nested
+                    }
+
+                    override fun visitDelegatingConstructorCall(expression: IrDelegatingConstructorCall) {
+                        callsSuper = callsSuper || expression.descriptor.constructedClass == superClass
+                        super.visitDelegatingConstructorCall(expression)
+                    }
+                })
+
+                if (callsSuper) constructorsCallingSuper.add(constructorContext)
             }
             assert(constructorsCallingSuper.any(), { "Expected at least one constructor calling super, class: $classDescriptor" })
 
