@@ -5,19 +5,13 @@
 #include "Exceptions.h"
 #include "Memory.h"
 #include "Natives.h"
+#include "String.h"
 #include "Types.h"
 
 namespace {
 
 OBJ_GETTER(makeString, const char* cstring) {
-  uint32_t length = strlen(cstring);
-  ArrayHeader* result = AllocArrayInstance(
-      theStringTypeInfo, length, OBJ_RESULT)->array();
-  memcpy(
-      ByteArrayAddressOfElementAt(result, 0),
-      cstring,
-      length);
-  RETURN_OBJ(result->obj());
+  RETURN_RESULT_OF(CreateStringFromCString, cstring);
 }
 
 } // namespace
