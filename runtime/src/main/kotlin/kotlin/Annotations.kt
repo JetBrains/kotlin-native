@@ -11,11 +11,26 @@ package kotlin
 //@Retention(SOURCE)
 public annotation class Suppress(vararg val names: String)
 
+
+/**
+ * Signifies that the annotated functional type represents an extension function.
+ */
+@Target(AnnotationTarget.TYPE)
+@MustBeDocumented
+public annotation class ExtensionFunctionType
+
+/**
+ * Annotates type arguments of functional type and holds corresponding parameter name specified by the user in type declaration (if any).
+ */
+@Target(AnnotationTarget.TYPE)
+@MustBeDocumented
+public annotation class ParameterName(val name: String)
+
 /**
  * Suppresses errors about variance conflict
  */
 @Target(AnnotationTarget.TYPE)
 //@Retention(SOURCE)
-//@MustBeDocumented
+@MustBeDocumented
 public annotation class UnsafeVariance
 
