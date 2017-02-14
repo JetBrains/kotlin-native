@@ -133,8 +133,7 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
                     throw AssertionError("Duplicate method table entry: functionName = '$functionName', hash = '${nameSignature.value}', entry1 = $prev, entry2 = $it")
 
                 // TODO: compile-time resolution limits binary compatibility
-                val implementation = it.implementation
-                val methodEntryPoint =  implementation.entryPointAddress
+                val methodEntryPoint =  it.implementation.entryPointAddress
                 MethodTableRecord(nameSignature, methodEntryPoint)
             }.sortedBy { it.nameSignature.value }
         }
@@ -155,10 +154,7 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
             typeInfo
         } else {
             // TODO: compile-time resolution limits binary compatibility
-            val vtableEntries = classDesc.vtableEntries.map {
-                val implementation = it.implementation
-                implementation.entryPointAddress
-            }
+            val vtableEntries = classDesc.vtableEntries.map { it.implementation.entryPointAddress }
             val vtable = ConstArray(int8TypePtr, vtableEntries)
             Struct(typeInfo, vtable)
         }
@@ -171,16 +167,9 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
 
     internal val OverriddenFunctionDescriptor.implementation: FunctionDescriptor
         get() {
-            // TODO: what if target is defined in another module?
-            if (descriptor.modality == Modality.ABSTRACT)
-                return descriptor
-
             val target = descriptor.target
-
             if (!needBridge) return target
             val bridgeOwner = if (descriptor.bridgeDirection != null) descriptor else target
-            val bridge = context.bridges[bridgeOwner]
-                    ?: throw AssertionError("Bridge is not built for $descriptor, bridgeOwner = $bridgeOwner")
-            return bridge
+            return context.specialDescriptorsFactory.getBridgeDescriptor(bridgeOwner)
         }
 }

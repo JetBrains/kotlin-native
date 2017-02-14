@@ -2,14 +2,12 @@ package org.jetbrains.kotlin.backend.konan.lower
 
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.konan.Context
-import org.jetbrains.kotlin.backend.konan.descriptors.BridgeDirection
 import org.jetbrains.kotlin.backend.konan.descriptors.bridgeDirection
-import org.jetbrains.kotlin.backend.konan.descriptors.synthesizedName
+import org.jetbrains.kotlin.backend.konan.descriptors.contributedMethods
 import org.jetbrains.kotlin.backend.konan.descriptors.target
-import org.jetbrains.kotlin.descriptors.*
-import org.jetbrains.kotlin.descriptors.annotations.Annotations
-import org.jetbrains.kotlin.descriptors.impl.SimpleFunctionDescriptorImpl
-import org.jetbrains.kotlin.descriptors.impl.ValueParameterDescriptorImpl
+import org.jetbrains.kotlin.descriptors.ClassDescriptor
+import org.jetbrains.kotlin.descriptors.FunctionDescriptor
+import org.jetbrains.kotlin.descriptors.PropertySetterDescriptor
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.declarations.*
@@ -28,26 +26,20 @@ internal class BridgesBuilding(val context: Context) : FileLoweringPass {
             override fun visitClass(declaration: IrClass): IrStatement {
                 val irClass = super.visitClass(declaration) as IrClass
 
-                val functions = irClass.declarations.filterIsInstance<IrFunction>()
-                val properties = irClass.declarations.filterIsInstance<IrProperty>()
-                functions.forEach { buildBridge(it.descriptor, irClass) }
-                properties.forEach {
-                    buildBridge(it.descriptor.getter, irClass)
-                    buildSetterBridge(it.descriptor.setter, irClass)
-                }
-
-                val contributedDescriptors = irClass.descriptor.unsubstitutedMemberScope.getContributedDescriptors()
-                // (includes declarations from supers)
-
-                contributedDescriptors.forEach {
+                val functions = mutableSetOf<FunctionDescriptor?>()
+                irClass.declarations.forEach {
                     when (it) {
-                        is FunctionDescriptor -> buildBridge(it, irClass)
-                        is PropertyDescriptor -> {
-                            buildBridge(it.getter, irClass)
-                            buildSetterBridge(it.setter, irClass)
+                        is IrFunction -> functions.add(it.descriptor)
+                        is IrProperty -> {
+                            functions.add(it.getter?.descriptor)
+                            functions.add(it.setter?.descriptor)
                         }
                     }
                 }
+
+                irClass.descriptor.contributedMethods.forEach { functions.add(it) }
+
+                functions.forEach { buildBridge(it, irClass) }
 
                 return irClass
             }
@@ -55,39 +47,19 @@ internal class BridgesBuilding(val context: Context) : FileLoweringPass {
 
     }
 
-    object DECLARATION_ORIGIN_BRIDGE_METHOD :
+    private object DECLARATION_ORIGIN_BRIDGE_METHOD :
             IrDeclarationOriginImpl("BRIDGE_METHOD")
 
     private fun buildBridge(descriptor: FunctionDescriptor?, irClass: IrClass) {
-        if (descriptor == null || context.bridges[descriptor] != null) return
+        if (descriptor == null || descriptor.bridgeDirection == null) return
 
         if (descriptor is PropertySetterDescriptor) {
             buildSetterBridge(descriptor, irClass)
             return
         }
 
-        val bridgeDirection = descriptor.bridgeDirection ?: return
+        val bridgeDescriptor = context.specialDescriptorsFactory.getBridgeDescriptor(descriptor)
 
-        val toType = when (bridgeDirection) {
-            BridgeDirection.FROM_VALUE_TYPE -> context.builtIns.anyType
-            BridgeDirection.TO_VALUE_TYPE -> descriptor.returnType!!
-        }
-        val bridgeDescriptor = SimpleFunctionDescriptorImpl.create(
-                irClass.descriptor,
-                Annotations.EMPTY,
-                ("<bridge-to>" + descriptor.name.asString()).synthesizedName,
-                CallableMemberDescriptor.Kind.DECLARATION,
-                SourceElement.NO_SOURCE)
-        bridgeDescriptor.initialize(
-                descriptor.extensionReceiverParameter?.type,
-                descriptor.dispatchReceiverParameter,
-                descriptor.typeParameters,
-                descriptor.valueParameters,
-                toType,
-                Modality.FINAL,
-                Visibilities.PRIVATE)
-
-        context.bridges[descriptor] = bridgeDescriptor
         val delegatingCall = IrCallImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, descriptor.target,
                 superQualifier = descriptor.target.containingDeclaration as ClassDescriptor /* Call non-virtually */).apply {
             val dispatchReceiverParameter = bridgeDescriptor.dispatchReceiverParameter
@@ -107,48 +79,9 @@ internal class BridgesBuilding(val context: Context) : FileLoweringPass {
                 DECLARATION_ORIGIN_BRIDGE_METHOD, bridgeDescriptor, bridgeBody))
     }
 
-    private fun buildSetterBridge(descriptor: PropertySetterDescriptor?, irClass: IrClass) {
-        if (descriptor == null || context.bridges[descriptor] != null) return
-        val bridgeDirection = descriptor.bridgeDirection ?: return
+    private fun buildSetterBridge(descriptor: PropertySetterDescriptor, irClass: IrClass) {
+        val bridgeDescriptor = context.specialDescriptorsFactory.getBridgeDescriptor(descriptor)
 
-        val valueIndex = descriptor.valueParameters.size - 1
-        val toType = when (bridgeDirection) {
-            BridgeDirection.FROM_VALUE_TYPE -> context.builtIns.anyType // TODO
-            BridgeDirection.TO_VALUE_TYPE -> descriptor.valueParameters[valueIndex].type
-        }
-        val bridgeDescriptor = SimpleFunctionDescriptorImpl.create(
-                irClass.descriptor,
-                Annotations.EMPTY,
-                ("<bridge-to>" + descriptor.name.asString()).synthesizedName,
-                CallableMemberDescriptor.Kind.DECLARATION,
-                SourceElement.NO_SOURCE)
-        bridgeDescriptor.initialize(
-                descriptor.extensionReceiverParameter?.type,
-                descriptor.dispatchReceiverParameter,
-                descriptor.typeParameters,
-                descriptor.valueParameters.mapIndexed { index, valueParameterDescriptor ->
-                    if (index != valueIndex)
-                        valueParameterDescriptor
-                    else {
-                        ValueParameterDescriptorImpl(
-                                valueParameterDescriptor.containingDeclaration,
-                                null,
-                                valueIndex,
-                                Annotations.EMPTY,
-                                valueParameterDescriptor.name,
-                                toType,
-                                valueParameterDescriptor.declaresDefaultValue(),
-                                valueParameterDescriptor.isCrossinline,
-                                valueParameterDescriptor.isNoinline,
-                                valueParameterDescriptor.varargElementType,
-                                SourceElement.NO_SOURCE)
-                    }
-                },
-                descriptor.returnType,
-                Modality.FINAL,
-                Visibilities.PRIVATE)
-
-        context.bridges[descriptor] = bridgeDescriptor
         val delegatingCall = IrCallImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, descriptor.target,
                 superQualifier = descriptor.target.containingDeclaration as ClassDescriptor /* Call non-virtually */).apply {
             val dispatchReceiverParameter = bridgeDescriptor.dispatchReceiverParameter

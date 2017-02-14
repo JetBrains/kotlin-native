@@ -165,6 +165,7 @@ internal class OverriddenFunctionDescriptor(val descriptor: FunctionDescriptor, 
 
     val needBridge: Boolean
         get() {
+            if (descriptor.modality == Modality.ABSTRACT) return false
             if (descriptor !is PropertySetterDescriptor) {
                 return descriptor.needBridgeTo(overriddenDescriptor) || descriptor.target.needBridgeTo(overriddenDescriptor)
             } else {
@@ -250,7 +251,7 @@ internal val ClassDescriptor.vtableEntries: List<OverriddenFunctionDescriptor>
             }
         }
 
-        methods.filterNot { method -> inheritedVtableSlots.any { it.descriptor == method } }
+        methods.filterNot { method -> inheritedVtableSlots.any { it.descriptor == method } } // Find newly defined methods.
                 .mapTo(newVtableSlots) { OverriddenFunctionDescriptor(it, it) }
 
         val list = inheritedVtableSlots + newVtableSlots.filter { it.descriptor.isOverridable }.sortedBy {
@@ -263,23 +264,20 @@ internal val ClassDescriptor.vtableEntries: List<OverriddenFunctionDescriptor>
 
 internal fun ClassDescriptor.vtableIndex(function: FunctionDescriptor): Int {
     val target = function.target
-    this.vtableEntries.forEachIndexed { index, entry ->
-        if (entry.overriddenDescriptor == target) return index
-    }
-    throw Error(function.toString() + " not in vtable of " + this.toString())
+    val index = this.vtableEntries.indexOfFirst { it.overriddenDescriptor == target }
+    if (index < 0) throw Error(function.toString() + " not in vtable of " + this.toString())
+    return index
 }
 
 internal val ClassDescriptor.methodTableEntries: List<OverriddenFunctionDescriptor>
     get() {
         assert(!this.isAbstract())
 
-        val allContributedMethods = this.contributedMethodsWithOverridden
-        val result = allContributedMethods.filter {
+        return this.contributedMethodsWithOverridden.filter {
             // We check that either method is open, or one of declarations it overrides
             // is open.
             it.overriddenDescriptor.isOverridable || DescriptorUtils.getAllOverriddenDeclarations(it.overriddenDescriptor).any { it.isOverridable }
         }
-        return result
         // TODO: probably method table should contain all accessible methods to improve binary compatibility
     }
 

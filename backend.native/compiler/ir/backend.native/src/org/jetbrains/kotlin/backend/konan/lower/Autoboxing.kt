@@ -96,7 +96,7 @@ private class AutoboxingTransformer(val context: Context) : AbstractValueUsageTr
 
         val descriptor = irCall.descriptor as? FunctionDescriptor ?: return irCall
         if (descriptor.modality == Modality.ABSTRACT || (irCall.superQualifier == null && descriptor.isOverridable))
-            return irCall  // Virtual call. box/unbox will be in a bridge.
+            return irCall  // A virtual call. box/unbox will be in the corresponding bridge.
 
         if (descriptor is PropertySetterDescriptor)
             return visitSetterCall(irCall)
