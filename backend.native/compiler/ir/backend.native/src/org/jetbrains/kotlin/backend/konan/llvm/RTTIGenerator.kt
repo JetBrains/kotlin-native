@@ -121,11 +121,15 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
         val fieldsPtr = staticData.placeGlobalConstArray("kfields:$className",
                 runtime.fieldTableRecordType, fields)
 
+        println("GEN_TABLES: class = $classDesc")
         val methods = if (!classDesc.isAbstract()) {
             classDesc.methodTableEntries.map {
-                val nameSignature = it.functionName.localHash
+                val nameSignature = it.overriddenDescriptor.functionName.localHash
                 // TODO: compile-time resolution limits binary compatibility
-                val methodEntryPoint = it.resolveFakeOverride().original.entryPointAddress
+                val implementation = getImplementation(it)
+                println("METHOD_TABLE: function = ${it.overriddenDescriptor.functionName}")
+                println("METHOD_TABLE: impl = $implementation")
+                val methodEntryPoint =  implementation.entryPointAddress
                 MethodTableRecord(nameSignature, methodEntryPoint)
             }.sortedBy { it.nameSignature.value }
         } else {
@@ -148,7 +152,11 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
             typeInfo
         } else {
             // TODO: compile-time resolution limits binary compatibility
-            val vtableEntries = classDesc.vtableEntries.map { it.resolveFakeOverride().original.entryPointAddress }
+            val vtableEntries = classDesc.vtableEntries.map {
+                val implementation = getImplementation(it)
+                println("RAW_VTABLE: impl = $implementation")
+                implementation.entryPointAddress
+            }
             val vtable = ConstArray(int8TypePtr, vtableEntries)
             Struct(typeInfo, vtable)
         }
@@ -159,4 +167,44 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
         exportTypeInfoIfRequired(classDesc, classDesc.llvmTypeInfoPtr)
     }
 
+    fun getImplementation(descriptor: OverriddenFunctionDescriptor) : FunctionDescriptor {
+        // TODO: what if target is defined in another module?
+        if (descriptor.descriptor.modality == Modality.ABSTRACT)
+            return descriptor.descriptor
+
+        if (descriptor.descriptor is PropertySetterDescriptor)
+            return getImplementationForSetter(descriptor)
+        val target = descriptor.descriptor.target
+        val needBridge = descriptor.needBridge
+
+        println("IMPLEMENTATION: descriptor = ${descriptor.descriptor}")
+        println("IMPLEMENTATION: target = ${target}")
+        println("IMPLEMENTATION: overriddenDescriptor = ${descriptor.overriddenDescriptor}")
+        println("IMPLEMENTATION: needBridge = $needBridge")
+
+        if (!needBridge) return target
+        val bridgeOwner = if (descriptor.descriptor.bridgeDirection != null) descriptor.descriptor else target
+        val bridge = context.bridges[bridgeOwner]
+                ?: throw AssertionError("Bridge is not built for ${descriptor.descriptor}, bridgeOwner = $bridgeOwner")
+        println("IMPLEMENTATION: bridge = $bridge")
+        return bridge
+    }
+
+    fun getImplementationForSetter(descriptor: OverriddenFunctionDescriptor) : FunctionDescriptor {
+        val property = (descriptor.descriptor as PropertySetterDescriptor).correspondingProperty
+        val target = descriptor.descriptor.target
+        val needBridge = descriptor.needBridge
+
+        println("IMPLEMENTATION: descriptor = ${descriptor}")
+        println("IMPLEMENTATION: target = ${target}")
+        println("IMPLEMENTATION: overriddenDescriptor = ${descriptor.overriddenDescriptor}")
+        println("IMPLEMENTATION: needBridge = $needBridge")
+
+        if (!needBridge) return target
+        val bridgeOwner = if (property.bridgeDirection != null) descriptor.descriptor else target
+        val bridge = context.bridges[bridgeOwner]
+                ?: throw AssertionError("Bridge is not built for ${descriptor.descriptor}, bridgeOwner = $bridgeOwner")
+        println("IMPLEMENTATION: bridge = $bridge")
+        return bridge
+    }
 }

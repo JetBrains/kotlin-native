@@ -41,6 +41,7 @@ internal final class Context(val config: KonanConfig) : KonanBackendContext() {
     var moduleDescriptor: ModuleDescriptor? = null
 
     val specialDescriptorsFactory = SpecialDescriptorsFactory()
+    val bridges = mutableMapOf<FunctionDescriptor, FunctionDescriptor>()
 
     // TODO: make lateinit?
     var irModule: IrModuleFragment? = null

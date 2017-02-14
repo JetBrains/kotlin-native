@@ -1653,7 +1653,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             "konan.internal.areEqualByValue" -> {
                 val arg0 = args[0]
                 val arg1 = args[1]
-                assert (arg0.type == arg1.type)
+                assert (arg0.type == arg1.type, { "Types are different: '${llvmtype2string(arg0.type)}' and '${llvmtype2string(arg1.type)}'" })
 
                 return when (LLVMGetTypeKind(arg0.type)) {
                     LLVMTypeKind.LLVMFloatTypeKind, LLVMTypeKind.LLVMDoubleTypeKind ->
@@ -1748,7 +1748,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
     fun callDirect(descriptor: FunctionDescriptor, args: List<LLVMValueRef>,
                    resultLifetime: Lifetime): LLVMValueRef {
-        val realDescriptor = descriptor.resolveFakeOverride().original
+        val realDescriptor = descriptor.target
         val llvmFunction = codegen.functionLlvmValue(realDescriptor)
         return call(descriptor, llvmFunction, args, resultLifetime)
     }
@@ -1766,6 +1766,9 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         val llvmMethod = if (!owner.isInterface) {
             // If this is a virtual method of the class - we can call via vtable.
             val index = owner.vtableIndex(descriptor)
+
+            println("HASH: ${llvm2string(codegen.functionHash(descriptor))}")
+            println("METHOD: ${(descriptor)}")
 
             val vtablePlace = codegen.gep(typeInfoPtr, Int32(1).llvm) // typeInfoPtr + 1
             val vtable = codegen.bitcast(kInt8PtrPtr, vtablePlace)

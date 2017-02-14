@@ -4,15 +4,12 @@ import org.jetbrains.kotlin.backend.common.AbstractValueUsageTransformer
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.ValueType
-import org.jetbrains.kotlin.backend.konan.descriptors.getKonanInternalClass
-import org.jetbrains.kotlin.backend.konan.descriptors.getKonanInternalFunctions
+import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.backend.konan.ir.isNullConst
 import org.jetbrains.kotlin.backend.konan.notNullableIsRepresentedAs
 import org.jetbrains.kotlin.backend.konan.isRepresentedAs
 import org.jetbrains.kotlin.backend.konan.util.atMostOne
-import org.jetbrains.kotlin.descriptors.CallableDescriptor
-import org.jetbrains.kotlin.descriptors.PropertyDescriptor
-import org.jetbrains.kotlin.descriptors.ValueParameterDescriptor
+import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
@@ -92,6 +89,122 @@ private class AutoboxingTransformer(val context: Context) : AbstractValueUsageTr
                         expression.type, expression.operator, newTypeOperand, expression.argument)
             }
         }
+    }
+
+    override fun visitCall(expression: IrCall): IrExpression {
+        val irCall = super.visitCall(expression) as IrCall
+
+        val descriptor = irCall.descriptor as? FunctionDescriptor ?: return irCall
+        if (descriptor.modality == Modality.ABSTRACT ||
+                (irCall.superQualifier == null && descriptor.isOverridable)) // Virtual call
+            return irCall
+
+        if (descriptor is PropertySetterDescriptor)
+            return tryCallSetterBridge(irCall)
+
+        val target = descriptor.target
+        val needBridge = descriptor.original.returnsValueType() xor target.returnsValueType()
+
+        println("AUTOBOXING_CALL: descriptor = $descriptor")
+        println("AUTOBOXING_CALL: target = $target")
+        println("AUTOBOXING_CALL: needBridge = $needBridge")
+
+        //return irCall
+
+        if (!needBridge) return irCall
+
+//        val bridgeDirection = (descriptor as? FunctionDescriptor)?.bridgeDirection
+//        val needUnbox = descriptor is FunctionDescriptor && descriptor.isOverridable && expression.superQualifier == null // needs to be called via vTable
+//                && descriptor.returnType.let { it != null && it.isValueType() } // returns value type
+//                && descriptor.allOverriddenDescriptors.any { it.original.returnType.let { it != null && !it.isValueType() } } // overrides method returning reference
+//
+//        println("QXX: ${expression.descriptor.containingDeclaration}")
+//        println("QXX: $descriptor")
+//        println("QXX: returnsValueType = ${descriptor.returnType.let { it != null && it.isValueType() }}")
+//        (descriptor as FunctionDescriptor).allOverriddenDescriptors.forEach {
+//            println("QXXQXX: $it")
+//            println("QXXQXX: returnType = ${it.original.returnType}")
+//            println("QXXQXX: returnsValueType = ${it.original.returnType.let { it != null && it.isValueType() }}")
+//        }
+//        println("QXX: needUnbox = $needUnbox")
+//        println()
+//        println()
+
+        val overriddenCall = IrCallImpl(irCall.startOffset, irCall.endOffset, target,
+                remapTypeArguments(irCall, target)).apply {
+            dispatchReceiver = irCall.dispatchReceiver
+            extensionReceiver = irCall.extensionReceiver
+            mapValueParameters { irCall.getValueArgument(it) }
+        }
+
+        if (descriptor.returnsValueType())
+            return overriddenCall.unbox(getValueType(descriptor.returnType!!)!!)
+        return overriddenCall.box(getValueType(target.returnType!!)!!)
+
+    }
+
+    fun tryCallSetterBridge(irCall: IrCall): IrExpression {
+//
+        val descriptor = irCall.descriptor as PropertySetterDescriptor
+        val propertyDescriptor = descriptor.correspondingProperty
+
+        val target = descriptor.target
+        val targetProperty = propertyDescriptor.target
+        val needBridge = propertyDescriptor.original.returnsValueType() xor targetProperty.returnsValueType()
+
+        println("AUTOBOXING_CALL: descriptor = $descriptor")
+        println("AUTOBOXING_CALL: target = $target")
+        println("AUTOBOXING_CALL: needBridge = $needBridge")
+
+        if (!needBridge) return irCall
+
+//        val bridgeDirection = (descriptor as? FunctionDescriptor)?.bridgeDirection
+//        val needUnbox = descriptor is FunctionDescriptor && descriptor.isOverridable && expression.superQualifier == null // needs to be called via vTable
+//                && descriptor.returnType.let { it != null && it.isValueType() } // returns value type
+//                && descriptor.allOverriddenDescriptors.any { it.original.returnType.let { it != null && !it.isValueType() } } // overrides method returning reference
+//
+//        println("QXX: ${expression.descriptor.containingDeclaration}")
+//        println("QXX: $descriptor")
+//        println("QXX: returnsValueType = ${descriptor.returnType.let { it != null && it.isValueType() }}")
+//        (descriptor as FunctionDescriptor).allOverriddenDescriptors.forEach {
+//            println("QXXQXX: $it")
+//            println("QXXQXX: returnType = ${it.original.returnType}")
+//            println("QXXQXX: returnsValueType = ${it.original.returnType.let { it != null && it.isValueType() }}")
+//        }
+//        println("QXX: needUnbox = $needUnbox")
+//        println()
+//        println()
+
+        val overriddenCall = IrCallImpl(irCall.startOffset, irCall.endOffset, target,
+                remapTypeArguments(irCall, target)).apply {
+            dispatchReceiver = irCall.dispatchReceiver
+            extensionReceiver = irCall.extensionReceiver
+            mapValueParameters {
+                val valueArgument = irCall.getValueArgument(it)!!
+                if (it.index != descriptor.valueParameters.size - 1)
+                    valueArgument
+                else {
+                    if (propertyDescriptor.returnsValueType())
+                        valueArgument.box(getValueType(propertyDescriptor.returnType!!)!!)
+                    else
+                        valueArgument.unbox(getValueType(targetProperty.returnType!!)!!)
+                }
+            }
+        }
+
+        return overriddenCall
+    }
+
+
+    private fun remapTypeArguments(oldExpression: IrMemberAccessExpression, newCallee: CallableDescriptor): Map<TypeParameterDescriptor, KotlinType>? {
+        val oldCallee = oldExpression.descriptor
+
+        return if (oldCallee.typeParameters.isEmpty())
+            null
+        else oldCallee.typeParameters.associateBy(
+                { newCallee.typeParameters[it.index] },
+                { oldExpression.getTypeArgument(it)!! }
+        )
     }
 
     /**
