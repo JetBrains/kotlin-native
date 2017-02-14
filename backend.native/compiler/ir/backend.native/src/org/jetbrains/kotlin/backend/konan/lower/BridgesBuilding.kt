@@ -68,9 +68,6 @@ internal class BridgesBuilding(val context: Context) : FileLoweringPass {
 
         val bridgeDirection = descriptor.bridgeDirection ?: return
 
-        println("BUILD_BRIDGE: $descriptor")
-        println("BUILD_BRIDGE: $bridgeDirection")
-
         val toType = when (bridgeDirection) {
             BridgeDirection.FROM_VALUE_TYPE -> context.builtIns.anyType
             BridgeDirection.TO_VALUE_TYPE -> descriptor.returnType!!
@@ -113,9 +110,6 @@ internal class BridgesBuilding(val context: Context) : FileLoweringPass {
     private fun buildSetterBridge(descriptor: PropertySetterDescriptor?, irClass: IrClass) {
         if (descriptor == null || context.bridges[descriptor] != null) return
         val bridgeDirection = descriptor.bridgeDirection ?: return
-
-        println("BUILD_BRIDGE: $descriptor")
-        println("BUILD_BRIDGE: $bridgeDirection")
 
         val valueIndex = descriptor.valueParameters.size - 1
         val toType = when (bridgeDirection) {

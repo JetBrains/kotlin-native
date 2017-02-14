@@ -1767,9 +1767,6 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             // If this is a virtual method of the class - we can call via vtable.
             val index = owner.vtableIndex(descriptor)
 
-            println("HASH: ${llvm2string(codegen.functionHash(descriptor))}")
-            println("METHOD: ${(descriptor)}")
-
             val vtablePlace = codegen.gep(typeInfoPtr, Int32(1).llvm) // typeInfoPtr + 1
             val vtable = codegen.bitcast(kInt8PtrPtr, vtablePlace)
 

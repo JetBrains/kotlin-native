@@ -121,7 +121,6 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
         val fieldsPtr = staticData.placeGlobalConstArray("kfields:$className",
                 runtime.fieldTableRecordType, fields)
 
-        println("GEN_TABLES: class = $classDesc")
         val methods = if (classDesc.isAbstract()) {
             emptyList()
         } else {
@@ -135,8 +134,6 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
 
                 // TODO: compile-time resolution limits binary compatibility
                 val implementation = it.implementation
-                println("METHOD_TABLE: function = $functionName")
-                println("METHOD_TABLE: impl = $implementation")
                 val methodEntryPoint =  implementation.entryPointAddress
                 MethodTableRecord(nameSignature, methodEntryPoint)
             }.sortedBy { it.nameSignature.value }
@@ -160,7 +157,6 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
             // TODO: compile-time resolution limits binary compatibility
             val vtableEntries = classDesc.vtableEntries.map {
                 val implementation = it.implementation
-                println("RAW_VTABLE: impl = $implementation")
                 implementation.entryPointAddress
             }
             val vtable = ConstArray(int8TypePtr, vtableEntries)
@@ -181,16 +177,10 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
 
             val target = descriptor.target
 
-            println("IMPLEMENTATION: descriptor = $descriptor")
-            println("IMPLEMENTATION: target = $target")
-            println("IMPLEMENTATION: overriddenDescriptor = $overriddenDescriptor")
-            println("IMPLEMENTATION: needBridge = $needBridge")
-
             if (!needBridge) return target
             val bridgeOwner = if (descriptor.bridgeDirection != null) descriptor else target
             val bridge = context.bridges[bridgeOwner]
                     ?: throw AssertionError("Bridge is not built for $descriptor, bridgeOwner = $bridgeOwner")
-            println("IMPLEMENTATION: bridge = $bridge")
             return bridge
         }
 }

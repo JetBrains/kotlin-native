@@ -214,12 +214,6 @@ internal val ClassDescriptor.contributedMethodsWithOverridden: List<OverriddenFu
         return contributedMethods.flatMap { method ->
             method.allOverriddenDescriptors.map { OverriddenFunctionDescriptor(method, it) }
         }.distinctBy {
-            println("ALL_CONTRIBUTED_METHODS: descriptor = ${it.descriptor}")
-            println("ALL_CONTRIBUTED_METHODS: descriptor.original = ${it.descriptor.original}")
-            println("ALL_CONTRIBUTED_METHODS: overriddenDescriptor = ${it.overriddenDescriptor}")
-            println("ALL_CONTRIBUTED_METHODS: overriddenDescriptor.original = ${it.overriddenDescriptor.original}")
-            println("ALL_CONTRIBUTED_METHODS: overriddenDescriptor.functionName = ${it.overriddenDescriptor.functionName}")
-            println("ALL_CONTRIBUTED_METHODS: needBridge = ${it.needBridge}")
             Triple(it.overriddenDescriptor.functionName, it.descriptor, it.needBridge)
         }.sortedBy {
             // TODO: use local hash instead, but it needs major refactoring.
@@ -241,8 +235,6 @@ internal val ClassDescriptor.vtableEntries: List<OverriddenFunctionDescriptor>
             this.getSuperClassOrAny().vtableEntries
         }
 
-        println("VTABLE_ENTRIES class: $this")
-
         val methods = this.contributedMethods
         val newVtableSlots = mutableListOf<OverriddenFunctionDescriptor>()
 
@@ -258,20 +250,6 @@ internal val ClassDescriptor.vtableEntries: List<OverriddenFunctionDescriptor>
             }
         }
 
-        println("VTABLE_ENTRIES inherited vtable:")
-        inheritedVtableSlots.forEach {
-            println("   VTABLE_ENTRIES descriptor: ${it.descriptor}")
-            println("   VTABLE_ENTRIES overriddenDescriptor: ${it.overriddenDescriptor}")
-        }
-        println()
-
-        println("VTABLE_ENTRIES new vtable:")
-        newVtableSlots.forEach {
-            println("   VTABLE_ENTRIES descriptor: ${it.descriptor}")
-            println("   VTABLE_ENTRIES overriddenDescriptor: ${it.overriddenDescriptor}")
-        }
-        println()
-
         methods.filterNot { method -> inheritedVtableSlots.any { it.descriptor == method } }
                 .mapTo(newVtableSlots) { OverriddenFunctionDescriptor(it, it) }
 
@@ -280,23 +258,13 @@ internal val ClassDescriptor.vtableEntries: List<OverriddenFunctionDescriptor>
             it.overriddenDescriptor.functionName.hashCode()
         }
 
-        println("VTABLE_ENTRIES vtable:")
-        list.forEach {
-            println("   VTABLE_ENTRIES descriptor: ${it.descriptor}")
-            println("   VTABLE_ENTRIES overriddenDescriptor: ${it.overriddenDescriptor}")
-        }
-        println()
-        println()
-
         return list
     }
 
 internal fun ClassDescriptor.vtableIndex(function: FunctionDescriptor): Int {
     val target = function.target
-    println("VTABLE_INDEX function: $function")
-    println("VTABLE_INDEX target: ${target}")
     this.vtableEntries.forEachIndexed { index, entry ->
-        if (entry.overriddenDescriptor == target) return index.apply { println("VTABLE_INDEX index: $this"); println() }
+        if (entry.overriddenDescriptor == target) return index
     }
     throw Error(function.toString() + " not in vtable of " + this.toString())
 }
@@ -304,24 +272,12 @@ internal fun ClassDescriptor.vtableIndex(function: FunctionDescriptor): Int {
 internal val ClassDescriptor.methodTableEntries: List<OverriddenFunctionDescriptor>
     get() {
         assert(!this.isAbstract())
-        println("METHOD_TABLE_ENTRIES: class = $this")
 
         val allContributedMethods = this.contributedMethodsWithOverridden
-        println("METHOD_TABLE_ENTRIES: contributed methods")
-        allContributedMethods.forEach {
-            println("   METHOD_TABLE_ENTRIES: descriptor = ${it.descriptor}")
-            println("   METHOD_TABLE_ENTRIES: overriddenDescriptor = ${it.overriddenDescriptor}")
-            println("   METHOD_TABLE_ENTRIES: overriddenDescriptor.isOverridable = ${it.overriddenDescriptor.isOverridable}")
-        }
         val result = allContributedMethods.filter {
             // We check that either method is open, or one of declarations it overrides
             // is open.
             it.overriddenDescriptor.isOverridable || DescriptorUtils.getAllOverriddenDeclarations(it.overriddenDescriptor).any { it.isOverridable }
-        }
-        println("METHOD_TABLE_ENTRIES: result")
-        result.forEach {
-            println("   METHOD_TABLE_ENTRIES: descriptor = ${it.descriptor}")
-            println("   METHOD_TABLE_ENTRIES: overriddenDescriptor = ${it.overriddenDescriptor}")
         }
         return result
         // TODO: probably method table should contain all accessible methods to improve binary compatibility

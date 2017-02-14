@@ -104,10 +104,6 @@ private class AutoboxingTransformer(val context: Context) : AbstractValueUsageTr
         val target = descriptor.target
         val needBridge = descriptor.original.needBridgeTo(target)
 
-        println("AUTOBOXING_CALL: descriptor = $descriptor")
-        println("AUTOBOXING_CALL: target = $target")
-        println("AUTOBOXING_CALL: needBridge = $needBridge")
-
         if (!needBridge) return irCall
 
         val overriddenCall = IrCallImpl(irCall.startOffset, irCall.endOffset,
@@ -131,10 +127,6 @@ private class AutoboxingTransformer(val context: Context) : AbstractValueUsageTr
         val targetProperty = propertyDescriptor.target
         val needBridge = propertyDescriptor.original.needBridgeTo(targetProperty)
 
-        println("AUTOBOXING_CALL: descriptor = $descriptor")
-        println("AUTOBOXING_CALL: target = $target")
-        println("AUTOBOXING_CALL: needBridge = $needBridge")
-
         if (!needBridge) return irCall
 
         val overriddenCall = IrCallImpl(irCall.startOffset, irCall.endOffset,
@@ -157,7 +149,6 @@ private class AutoboxingTransformer(val context: Context) : AbstractValueUsageTr
 
         return overriddenCall
     }
-
 
     private fun remapTypeArguments(oldExpression: IrMemberAccessExpression, newCallee: CallableDescriptor): Map<TypeParameterDescriptor, KotlinType>? {
         val oldCallee = oldExpression.descriptor
