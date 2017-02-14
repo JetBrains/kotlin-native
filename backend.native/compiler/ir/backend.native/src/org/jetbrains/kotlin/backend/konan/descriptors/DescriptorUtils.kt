@@ -230,6 +230,12 @@ internal val ClassDescriptor.allContributedMethods: List<OverriddenFunctionDescr
         val allMethods = (functions + getters + setters).flatMap { method ->
             method.allOverriddenDescriptors.map { OverriddenFunctionDescriptor(it, method) }
         }.distinctBy {
+            println("ALL_CONTRIBUTED_METHODS: descriptor = ${it.descriptor}")
+            println("ALL_CONTRIBUTED_METHODS: descriptor.original = ${it.descriptor.original}")
+            println("ALL_CONTRIBUTED_METHODS: overriddenDescriptor = ${it.overriddenDescriptor}")
+            println("ALL_CONTRIBUTED_METHODS: overriddenDescriptor.original = ${it.overriddenDescriptor.original}")
+            println("ALL_CONTRIBUTED_METHODS: overriddenDescriptor.functionName = ${it.overriddenDescriptor.functionName}")
+            println("ALL_CONTRIBUTED_METHODS: needBridge = ${it.needBridge}")
             Triple(it.overriddenDescriptor.functionName, it.descriptor, it.needBridge)
         }.sortedBy {
             // TODO: use local hash instead, but it needs major refactoring.

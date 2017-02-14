@@ -83,9 +83,8 @@ private fun typeToHashString(type: KotlinType): String {
 private val FunctionDescriptor.signature: String
     get() {
         val extensionReceiverPart = this.extensionReceiverParameter?.let { "${it.type}." } ?: ""
-        val actualDescriptor = this.findOriginalTopMostOverriddenDescriptors().firstOrNull() ?: this
 
-        val argsPart = actualDescriptor.valueParameters.map {
+        val argsPart = this.valueParameters.map {
             typeToHashString(it.type)
         }.joinToString(";")
 

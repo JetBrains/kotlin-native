@@ -123,11 +123,16 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
 
         println("GEN_TABLES: class = $classDesc")
         val methods = if (!classDesc.isAbstract()) {
+            val functionNames = mutableMapOf<String, OverriddenFunctionDescriptor>()
             classDesc.methodTableEntries.map {
-                val nameSignature = it.overriddenDescriptor.functionName.localHash
+                val functionName = it.overriddenDescriptor.functionName
+                val prev = functionNames.putIfAbsent(functionName, it)
+                if (prev != null)
+                    throw AssertionError("Duplicate method table entry: $functionName, entry1 = $prev, entry2 = $it")
+                val nameSignature = functionName.localHash
                 // TODO: compile-time resolution limits binary compatibility
                 val implementation = getImplementation(it)
-                println("METHOD_TABLE: function = ${it.overriddenDescriptor.functionName}")
+                println("METHOD_TABLE: function = $functionName")
                 println("METHOD_TABLE: impl = $implementation")
                 val methodEntryPoint =  implementation.entryPointAddress
                 MethodTableRecord(nameSignature, methodEntryPoint)
