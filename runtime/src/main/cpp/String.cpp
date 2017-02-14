@@ -20,81 +20,42 @@
 
 namespace {
 
-// Container with STL-compliant iterator over raw data.
+// Container with STL-like iterator over raw data.
 template <typename T>
 class Raw {
-  class iterator {
-   public:
-    typedef iterator self_type;
-    typedef T value_type;
-    typedef T& reference;
-    typedef T* pointer;
-    typedef std::forward_iterator_tag iterator_category;
-    typedef int difference_type;
-
-    iterator(T* start) : current_(start) {}
-
-    self_type operator++(int) {
-      auto result = *this;
-      current_++;
-      return result;
-    }
-    self_type operator++() {
-      current_++;
-      return *this;
-    }
-    reference operator*() const {
-      return *current_;
-    }
-    pointer operator->() {
-      return current_;
-    }
-    bool operator==(const self_type& other) {
-      return current_ == other.current_;
-    }
-    bool operator!=(const self_type& other) {
-      return current_ != other.current_;
-    }
-    bool operator<(const self_type& other) {
-      return current_ < other.current_;
-    }
-   private:
-    T* current_;
-  };
-
  public:
   Raw(T* start, uint32_t count) : start_(start), end_(start + count) {}
 
-  iterator begin() { return iterator(start_); }
-  iterator end() { return iterator(end_); }
+  T* begin() { return start_; }
+  T* end() { return end_; }
 
  private:
   T* start_;
   T* end_;
 };
 
+
+OBJ_GETTER(utf8ToUtf16, Raw<const char> rawString) {
+  uint32_t charCount = utf8::distance(rawString.begin(), rawString.end());
+  ArrayHeader* result = AllocArrayInstance(
+    theStringTypeInfo, charCount, OBJ_RESULT)->array();
+  Raw<KChar> rawResult(CharArrayAddressOfElementAt(result, 0), charCount);
+  auto convertResult =
+      utf8::utf8to16(rawString.begin(), rawString.end(), rawResult.begin());
+  RuntimeAssert(rawResult.end() == convertResult, "Must properly fit");
+  RETURN_OBJ(result->obj());
+}
+
 } // namespace
 
 extern "C" {
 
 OBJ_GETTER(CreateStringFromCString, const char* cstring) {
-  RETURN_RESULT_OF(CreateStringFromUtf8, cstring, strlen(cstring));
+  RETURN_RESULT_OF(utf8ToUtf16, Raw<const char>(cstring, strlen(cstring)));
 }
 
 OBJ_GETTER(CreateStringFromUtf8, const char* utf8, uint32_t lengthBytes) {
-  Raw<const char> rawString(utf8, lengthBytes);
-  uint32_t charCount = utf8::distance(rawString.begin(), rawString.end());
-  ArrayHeader* result = AllocArrayInstance(
-    theStringTypeInfo, charCount, OBJ_RESULT)->array();
-  Raw<KChar> rawResult(CharArrayAddressOfElementAt(result, 0), charCount);
-  utf8::utf8to16(rawString.begin(), rawString.end(), rawResult.begin());
-  RETURN_OBJ(result->obj());
-}
-
-OBJ_GETTER(CreateString, uint32_t charCount) {
-  ArrayHeader* result = AllocArrayInstance(
-      theStringTypeInfo, charCount, OBJ_RESULT)->array();
-  RETURN_OBJ(result->obj());
+  RETURN_RESULT_OF(utf8ToUtf16, Raw<const char>(utf8, lengthBytes));
 }
 
 // String.kt
@@ -119,25 +80,24 @@ KInt Kotlin_String_getStringLength(KString thiz) {
 OBJ_GETTER(Kotlin_String_fromUtf8Array, KConstRef thiz, KInt start, KInt size) {
   const ArrayHeader* array = thiz->array();
   RuntimeAssert(array->type_info() == theByteArrayTypeInfo, "Must use a byte array");
-  if (start < 0 || size < 0 || start + size > array->count_) {
+  if (start < 0 || size < 0 ||
+      start + size > array->count_ || start + size < start) {
     ThrowArrayIndexOutOfBoundsException();
   }
   if (size == 0) {
     RETURN_RESULT_OF0(TheEmptyString);
   }
-  Raw<const KByte> rawString(ByteArrayAddressOfElementAt(array, start), size);
-  uint32_t charCount = utf8::distance(rawString.begin(), rawString.end());
-  ArrayHeader* result = AllocArrayInstance(
-    theStringTypeInfo, charCount, OBJ_RESULT)->array();
-  Raw<KChar> rawResult(CharArrayAddressOfElementAt(result, 0), charCount);
-  utf8::utf8to16(rawString.begin(), rawString.end(), rawResult.begin());
-  RETURN_OBJ(result->obj());
+  Raw<const char> rawString(
+    reinterpret_cast<const char*>(
+      ByteArrayAddressOfElementAt(array, start)), size);
+  RETURN_RESULT_OF(utf8ToUtf16, rawString);
 }
 
 OBJ_GETTER(Kotlin_String_fromCharArray, KConstRef thiz, KInt start, KInt size) {
   const ArrayHeader* array = thiz->array();
-  RuntimeAssert(array->type_info() == theCharArrayTypeInfo, "Must use a byte array");
-  if (start < 0 || size < 0 || start + size > array->count_) {
+  RuntimeAssert(array->type_info() == theCharArrayTypeInfo, "Must use a char array");
+  if (start < 0 || size < 0 ||
+      start + size > array->count_ || start + size < start) {
     ThrowArrayIndexOutOfBoundsException();
   }
 
@@ -167,7 +127,10 @@ OBJ_GETTER(Kotlin_String_plusImpl, KString thiz, KString other) {
   RuntimeAssert(other != nullptr, "other cannot be null");
   RuntimeAssert(thiz->type_info() == theStringTypeInfo, "Must be a string");
   RuntimeAssert(other->type_info() == theStringTypeInfo, "Must be a string");
-  uint32_t result_length = thiz->count_ + other->count_;
+  KInt result_length = thiz->count_ + other->count_;
+  if (result_length < thiz->count_ || result_length < other->count_) {
+    ThrowArrayIndexOutOfBoundsException();
+  }
   ArrayHeader* result = AllocArrayInstance(
     theStringTypeInfo, result_length, OBJ_RESULT)->array();
   memcpy(
@@ -196,12 +159,11 @@ KInt Kotlin_String_hashCode(KString thiz) {
   // TODO: consider caching strings hashes.
   // TODO: maybe use some simpler hashing algorithm?
   return CityHash64(
-    ByteArrayAddressOfElementAt(thiz, 0),
-    thiz->count_ * sizeof(KChar));
+    CharArrayAddressOfElementAt(thiz, 0), thiz->count_ * sizeof(KChar));
 }
 
 OBJ_GETTER(Kotlin_String_subSequence, KString thiz, KInt startIndex, KInt endIndex) {
-  if (startIndex < 0 || endIndex >= thiz->count_ || startIndex > endIndex) {
+  if (startIndex < 0 || endIndex > thiz->count_ || startIndex > endIndex) {
     // TODO: is it correct exception?
     ThrowArrayIndexOutOfBoundsException();
   }

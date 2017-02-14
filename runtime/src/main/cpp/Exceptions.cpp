@@ -54,10 +54,8 @@ OBJ_GETTER0(GetCurrentStackTrace) {
   ObjHeader* result = AllocArrayInstance(theArrayTypeInfo, size, OBJ_RESULT);
   ArrayHeader* array = result->array();
   for (int index = 0; index < size; ++index) {
-    Kotlin_Array_set(
-      result, index,
-      CreateStringFromCString(symbols[index],
-                              ArrayAddressOfElementAt(array, index)));
+    CreateStringFromCString(
+      symbols[index], ArrayAddressOfElementAt(array, index));
   }
   return result;
 }

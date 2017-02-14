@@ -12,10 +12,8 @@ OBJ_GETTER(setupArgs, int argc, char** argv) {
   ObjHeader* result = AllocArrayInstance(theArrayTypeInfo, argc - 1, OBJ_RESULT);
   ArrayHeader* array = result->array();
   for (int index = 1; index < argc; index++) {
-    Kotlin_Array_set(
-      result, index - 1,
-      CreateStringFromCString(
-        argv[index], ArrayAddressOfElementAt(array, index - 1)));
+    CreateStringFromCString(
+      argv[index], ArrayAddressOfElementAt(array, index - 1));
   }
   return result;
 }
