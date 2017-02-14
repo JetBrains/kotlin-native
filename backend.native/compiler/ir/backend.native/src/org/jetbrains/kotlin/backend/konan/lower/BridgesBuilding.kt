@@ -23,25 +23,31 @@ import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 
 internal class BridgesBuilding(val context: Context) : FileLoweringPass {
     override fun lower(irFile: IrFile) {
-        irFile.transformChildrenVoid(object: IrElementTransformerVoid() {
+        irFile.transformChildrenVoid(object : IrElementTransformerVoid() {
 
             override fun visitClass(declaration: IrClass): IrStatement {
                 val irClass = super.visitClass(declaration) as IrClass
 
-                val declaredFunctions = irClass.declarations.filterIsInstance<IrFunction>()
-                val declaredProperties = irClass.declarations.filterIsInstance<IrProperty>()
-
-                declaredFunctions.forEach { buildBridge(it.descriptor, irClass) }
-                declaredProperties.forEach { buildBridge(it.descriptor, irClass) }
+                val functions = irClass.declarations.filterIsInstance<IrFunction>()
+                val properties = irClass.declarations.filterIsInstance<IrProperty>()
+                functions.forEach { buildBridge(it.descriptor, irClass) }
+                properties.forEach {
+                    buildBridge(it.descriptor.getter, irClass)
+                    buildSetterBridge(it.descriptor.setter, irClass)
+                }
 
                 val contributedDescriptors = irClass.descriptor.unsubstitutedMemberScope.getContributedDescriptors()
                 // (includes declarations from supers)
 
-                val functions = contributedDescriptors.filterIsInstance<FunctionDescriptor>()
-                val properties = contributedDescriptors.filterIsInstance<PropertyDescriptor>()
-
-                functions.forEach { buildBridge(it, irClass) }
-                properties.forEach { buildBridge(it, irClass) }
+                contributedDescriptors.forEach {
+                    when (it) {
+                        is FunctionDescriptor -> buildBridge(it, irClass)
+                        is PropertyDescriptor -> {
+                            buildBridge(it.getter, irClass)
+                            buildSetterBridge(it.setter, irClass)
+                        }
+                    }
+                }
 
                 return irClass
             }
@@ -52,15 +58,21 @@ internal class BridgesBuilding(val context: Context) : FileLoweringPass {
     object DECLARATION_ORIGIN_BRIDGE_METHOD :
             IrDeclarationOriginImpl("BRIDGE_METHOD")
 
-    private fun buildBridge(descriptor: FunctionDescriptor, irClass: IrClass) {
-        if (context.bridges[descriptor] != null) return
+    private fun buildBridge(descriptor: FunctionDescriptor?, irClass: IrClass) {
+        if (descriptor == null || context.bridges[descriptor] != null) return
+
+        if (descriptor is PropertySetterDescriptor) {
+            buildSetterBridge(descriptor, irClass)
+            return
+        }
+
         val bridgeDirection = descriptor.bridgeDirection ?: return
 
         println("BUILD_BRIDGE: $descriptor")
         println("BUILD_BRIDGE: $bridgeDirection")
 
-        val toType = when(bridgeDirection) {
-            BridgeDirection.FROM_VALUE_TYPE -> context.builtIns.anyType // TODO
+        val toType = when (bridgeDirection) {
+            BridgeDirection.FROM_VALUE_TYPE -> context.builtIns.anyType
             BridgeDirection.TO_VALUE_TYPE -> descriptor.returnType!!
         }
         val bridgeDescriptor = SimpleFunctionDescriptorImpl.create(
@@ -88,24 +100,25 @@ internal class BridgesBuilding(val context: Context) : FileLoweringPass {
             if (extensionReceiverParameter != null)
                 extensionReceiver = IrGetValueImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, extensionReceiverParameter)
             bridgeDescriptor.valueParameters.forEach {
-                this.putValueArgument(it.index, org.jetbrains.kotlin.ir.expressions.impl.IrGetValueImpl(org.jetbrains.kotlin.ir.UNDEFINED_OFFSET, org.jetbrains.kotlin.ir.UNDEFINED_OFFSET, it))
+                this.putValueArgument(it.index, IrGetValueImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, it))
             }
         }
         val bridgeBody = IrBlockBodyImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET,
                 listOf(IrReturnImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, bridgeDescriptor, delegatingCall))
         )
-        irClass.declarations.add(IrFunctionImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, DECLARATION_ORIGIN_BRIDGE_METHOD, bridgeDescriptor, bridgeBody))
+        irClass.declarations.add(IrFunctionImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET,
+                DECLARATION_ORIGIN_BRIDGE_METHOD, bridgeDescriptor, bridgeBody))
     }
 
-    private fun buildBridgeForSetter(descriptor: PropertySetterDescriptor, irClass: IrClass) {
-        if (context.bridges[descriptor] != null) return
-        val bridgeDirection = descriptor.correspondingProperty.bridgeDirection ?: return
+    private fun buildSetterBridge(descriptor: PropertySetterDescriptor?, irClass: IrClass) {
+        if (descriptor == null || context.bridges[descriptor] != null) return
+        val bridgeDirection = descriptor.bridgeDirection ?: return
 
         println("BUILD_BRIDGE: $descriptor")
         println("BUILD_BRIDGE: $bridgeDirection")
 
         val valueIndex = descriptor.valueParameters.size - 1
-        val toType = when(bridgeDirection) {
+        val toType = when (bridgeDirection) {
             BridgeDirection.FROM_VALUE_TYPE -> context.builtIns.anyType // TODO
             BridgeDirection.TO_VALUE_TYPE -> descriptor.valueParameters[valueIndex].type
         }
@@ -151,19 +164,11 @@ internal class BridgesBuilding(val context: Context) : FileLoweringPass {
             if (extensionReceiverParameter != null)
                 extensionReceiver = IrGetValueImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, extensionReceiverParameter)
             bridgeDescriptor.valueParameters.forEach {
-                this.putValueArgument(it.index, org.jetbrains.kotlin.ir.expressions.impl.IrGetValueImpl(org.jetbrains.kotlin.ir.UNDEFINED_OFFSET, org.jetbrains.kotlin.ir.UNDEFINED_OFFSET, it))
+                this.putValueArgument(it.index, IrGetValueImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, it))
             }
         }
         val bridgeBody = IrBlockBodyImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, listOf(delegatingCall))
-        irClass.declarations.add(IrFunctionImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, DECLARATION_ORIGIN_BRIDGE_METHOD, bridgeDescriptor, bridgeBody))
-    }
-
-    private fun buildBridge(propertyDescriptor: PropertyDescriptor, irClass: IrClass) {
-        val getter = propertyDescriptor.getter
-        val setter = propertyDescriptor.setter
-        if (getter != null)
-            buildBridge(getter, irClass)
-        if (setter != null)
-            buildBridgeForSetter(setter, irClass)
+        irClass.declarations.add(IrFunctionImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET,
+                DECLARATION_ORIGIN_BRIDGE_METHOD, bridgeDescriptor, bridgeBody))
     }
 }

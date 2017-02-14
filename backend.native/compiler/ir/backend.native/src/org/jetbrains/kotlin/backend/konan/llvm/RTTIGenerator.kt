@@ -122,7 +122,9 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
                 runtime.fieldTableRecordType, fields)
 
         println("GEN_TABLES: class = $classDesc")
-        val methods = if (!classDesc.isAbstract()) {
+        val methods = if (classDesc.isAbstract()) {
+            emptyList()
+        } else {
             val functionNames = mutableMapOf<String, OverriddenFunctionDescriptor>()
             classDesc.methodTableEntries.map {
                 val functionName = it.overriddenDescriptor.functionName
@@ -131,14 +133,12 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
                     throw AssertionError("Duplicate method table entry: $functionName, entry1 = $prev, entry2 = $it")
                 val nameSignature = functionName.localHash
                 // TODO: compile-time resolution limits binary compatibility
-                val implementation = getImplementation(it)
+                val implementation = it.implementation
                 println("METHOD_TABLE: function = $functionName")
                 println("METHOD_TABLE: impl = $implementation")
                 val methodEntryPoint =  implementation.entryPointAddress
                 MethodTableRecord(nameSignature, methodEntryPoint)
             }.sortedBy { it.nameSignature.value }
-        } else {
-            emptyList()
         }
 
         val methodsPtr = staticData.placeGlobalConstArray("kmethods:$className",
@@ -158,7 +158,7 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
         } else {
             // TODO: compile-time resolution limits binary compatibility
             val vtableEntries = classDesc.vtableEntries.map {
-                val implementation = getImplementation(it)
+                val implementation = it.implementation
                 println("RAW_VTABLE: impl = $implementation")
                 implementation.entryPointAddress
             }
@@ -172,44 +172,24 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
         exportTypeInfoIfRequired(classDesc, classDesc.llvmTypeInfoPtr)
     }
 
-    fun getImplementation(descriptor: OverriddenFunctionDescriptor) : FunctionDescriptor {
-        // TODO: what if target is defined in another module?
-        if (descriptor.descriptor.modality == Modality.ABSTRACT)
-            return descriptor.descriptor
+    internal val OverriddenFunctionDescriptor.implementation: FunctionDescriptor
+        get() {
+            // TODO: what if target is defined in another module?
+            if (descriptor.modality == Modality.ABSTRACT)
+                return descriptor
 
-        if (descriptor.descriptor is PropertySetterDescriptor)
-            return getImplementationForSetter(descriptor)
-        val target = descriptor.descriptor.target
-        val needBridge = descriptor.needBridge
+            val target = descriptor.target
 
-        println("IMPLEMENTATION: descriptor = ${descriptor.descriptor}")
-        println("IMPLEMENTATION: target = ${target}")
-        println("IMPLEMENTATION: overriddenDescriptor = ${descriptor.overriddenDescriptor}")
-        println("IMPLEMENTATION: needBridge = $needBridge")
+            println("IMPLEMENTATION: descriptor = $descriptor")
+            println("IMPLEMENTATION: target = $target")
+            println("IMPLEMENTATION: overriddenDescriptor = $overriddenDescriptor")
+            println("IMPLEMENTATION: needBridge = $needBridge")
 
-        if (!needBridge) return target
-        val bridgeOwner = if (descriptor.descriptor.bridgeDirection != null) descriptor.descriptor else target
-        val bridge = context.bridges[bridgeOwner]
-                ?: throw AssertionError("Bridge is not built for ${descriptor.descriptor}, bridgeOwner = $bridgeOwner")
-        println("IMPLEMENTATION: bridge = $bridge")
-        return bridge
-    }
-
-    fun getImplementationForSetter(descriptor: OverriddenFunctionDescriptor) : FunctionDescriptor {
-        val property = (descriptor.descriptor as PropertySetterDescriptor).correspondingProperty
-        val target = descriptor.descriptor.target
-        val needBridge = descriptor.needBridge
-
-        println("IMPLEMENTATION: descriptor = ${descriptor}")
-        println("IMPLEMENTATION: target = ${target}")
-        println("IMPLEMENTATION: overriddenDescriptor = ${descriptor.overriddenDescriptor}")
-        println("IMPLEMENTATION: needBridge = $needBridge")
-
-        if (!needBridge) return target
-        val bridgeOwner = if (property.bridgeDirection != null) descriptor.descriptor else target
-        val bridge = context.bridges[bridgeOwner]
-                ?: throw AssertionError("Bridge is not built for ${descriptor.descriptor}, bridgeOwner = $bridgeOwner")
-        println("IMPLEMENTATION: bridge = $bridge")
-        return bridge
-    }
+            if (!needBridge) return target
+            val bridgeOwner = if (descriptor.bridgeDirection != null) descriptor else target
+            val bridge = context.bridges[bridgeOwner]
+                    ?: throw AssertionError("Bridge is not built for $descriptor, bridgeOwner = $bridgeOwner")
+            println("IMPLEMENTATION: bridge = $bridge")
+            return bridge
+        }
 }
