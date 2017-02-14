@@ -99,10 +99,10 @@ private class AutoboxingTransformer(val context: Context) : AbstractValueUsageTr
             return irCall  // Virtual call. box/unbox will be in a bridge.
 
         if (descriptor is PropertySetterDescriptor)
-            return tryCallSetterBridge(irCall)
+            return visitSetterCall(irCall)
 
         val target = descriptor.target
-        val needBridge = descriptor.original.returnsValueType() xor target.returnsValueType()
+        val needBridge = descriptor.original.needBridgeTo(target)
 
         println("AUTOBOXING_CALL: descriptor = $descriptor")
         println("AUTOBOXING_CALL: target = $target")
@@ -123,13 +123,13 @@ private class AutoboxingTransformer(val context: Context) : AbstractValueUsageTr
             return overriddenCall.box(getValueType(target.returnType!!)!!)
     }
 
-    fun tryCallSetterBridge(irCall: IrCall): IrExpression {
+    fun visitSetterCall(irCall: IrCall): IrExpression {
         val descriptor = irCall.descriptor as PropertySetterDescriptor
         val propertyDescriptor = descriptor.correspondingProperty
 
         val target = descriptor.target
         val targetProperty = propertyDescriptor.target
-        val needBridge = propertyDescriptor.original.returnsValueType() xor targetProperty.returnsValueType()
+        val needBridge = propertyDescriptor.original.needBridgeTo(targetProperty)
 
         println("AUTOBOXING_CALL: descriptor = $descriptor")
         println("AUTOBOXING_CALL: target = $target")

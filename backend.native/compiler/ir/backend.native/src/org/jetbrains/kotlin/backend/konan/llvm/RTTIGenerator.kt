@@ -125,13 +125,14 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
         val methods = if (classDesc.isAbstract()) {
             emptyList()
         } else {
-            val functionNames = mutableMapOf<String, OverriddenFunctionDescriptor>()
+            val functionNames = mutableMapOf<Long, OverriddenFunctionDescriptor>()
             classDesc.methodTableEntries.map {
                 val functionName = it.overriddenDescriptor.functionName
-                val prev = functionNames.putIfAbsent(functionName, it)
-                if (prev != null)
-                    throw AssertionError("Duplicate method table entry: $functionName, entry1 = $prev, entry2 = $it")
                 val nameSignature = functionName.localHash
+                val prev = functionNames.putIfAbsent(nameSignature.value, it)
+                if (prev != null)
+                    throw AssertionError("Duplicate method table entry: functionName = '$functionName', hash = '${nameSignature.value}', entry1 = $prev, entry2 = $it")
+
                 // TODO: compile-time resolution limits binary compatibility
                 val implementation = it.implementation
                 println("METHOD_TABLE: function = $functionName")

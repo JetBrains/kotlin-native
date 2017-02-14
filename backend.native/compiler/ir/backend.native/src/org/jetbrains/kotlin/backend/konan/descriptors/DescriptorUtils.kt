@@ -9,10 +9,6 @@ import org.jetbrains.kotlin.builtins.functions.FunctionClassDescriptor
 import org.jetbrains.kotlin.builtins.getFunctionalClassKind
 import org.jetbrains.kotlin.builtins.isFunctionType
 import org.jetbrains.kotlin.descriptors.*
-import org.jetbrains.kotlin.descriptors.annotations.Annotations
-import org.jetbrains.kotlin.descriptors.impl.PropertyDescriptorImpl
-import org.jetbrains.kotlin.descriptors.impl.PropertyGetterDescriptorImpl
-import org.jetbrains.kotlin.descriptors.impl.PropertySetterDescriptorImpl
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
@@ -21,14 +17,10 @@ import org.jetbrains.kotlin.resolve.OverridingUtil
 import org.jetbrains.kotlin.resolve.descriptorUtil.*
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.types.KotlinType
-import org.jetbrains.kotlin.types.TypeSubstitution
-import org.jetbrains.kotlin.types.TypeSubstitutor
-import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.typeUtil.isBoolean
 import org.jetbrains.kotlin.types.typeUtil.isPrimitiveNumberType
 import org.jetbrains.kotlin.types.typeUtil.isUnit
 import org.jetbrains.kotlin.util.OperatorNameConventions
-import org.jetbrains.kotlin.utils.addToStdlib.singletonList
 
 /**
  * List of all implemented interfaces (including those which implemented by a super class)
@@ -168,21 +160,23 @@ internal val FunctionDescriptor.isFunctionInvoke: Boolean
 
 internal fun ClassDescriptor.isUnit() = this.defaultType.isUnit()
 
-internal data class OverriddenFunctionDescriptor(val descriptor: FunctionDescriptor, val overriddenDescriptor: FunctionDescriptor) {
+internal class OverriddenFunctionDescriptor(val descriptor: FunctionDescriptor, overriddenDescriptor: FunctionDescriptor) {
+    val overriddenDescriptor = overriddenDescriptor.original
+
     val needBridge: Boolean
         get() {
-            if (descriptor is PropertySetterDescriptor) {
+            if (descriptor !is PropertySetterDescriptor) {
+                return descriptor.needBridgeTo(overriddenDescriptor) || descriptor.target.needBridgeTo(overriddenDescriptor)
+            } else {
                 val property = descriptor.correspondingProperty
                 val overriddenProperty = (overriddenDescriptor as PropertySetterDescriptor).correspondingProperty
-                val targetProperty = descriptor.target.correspondingProperty
-                return (property.returnsValueType() xor overriddenProperty.original.returnsValueType())
-                        || (targetProperty.returnsValueType() xor overriddenProperty.original.returnsValueType())
-            } else {
-                val target = descriptor.target
-                return (descriptor.returnsValueType() xor overriddenDescriptor.original.returnsValueType())
-                        || (target.returnsValueType() xor overriddenDescriptor.original.returnsValueType())
+                return property.needBridgeTo(overriddenProperty) || property.target.needBridgeTo(overriddenProperty)
             }
         }
+
+    override fun toString(): String {
+        return "(descriptor=$descriptor, overriddenDescriptor=$overriddenDescriptor)"
+    }
 }
 
 internal val <T : CallableMemberDescriptor> T.allOverriddenDescriptors: List<T>
@@ -257,7 +251,7 @@ internal val ClassDescriptor.vtableEntries: List<OverriddenFunctionDescriptor>
             if (overridingMethod == null) {
                 superMethod
             } else {
-                if (superMethod.descriptor != superMethod.overriddenDescriptor)
+                if (superMethod.descriptor.original != superMethod.overriddenDescriptor)
                     newVtableSlots.add(OverriddenFunctionDescriptor(overridingMethod, superMethod.descriptor))
                 newVtableSlots.add(OverriddenFunctionDescriptor(overridingMethod, overridingMethod))
                 OverriddenFunctionDescriptor(overridingMethod, superMethod.overriddenDescriptor)
@@ -301,8 +295,8 @@ internal fun ClassDescriptor.vtableIndex(function: FunctionDescriptor): Int {
     val target = function.target
     println("VTABLE_INDEX function: $function")
     println("VTABLE_INDEX target: ${target}")
-    this.vtableEntries.forEachIndexed { index, (descriptor, overriddenDescriptor) ->
-        if (overriddenDescriptor.original == target) return index.apply { println("VTABLE_INDEX index: $this"); println() }
+    this.vtableEntries.forEachIndexed { index, entry ->
+        if (entry.overriddenDescriptor == target) return index.apply { println("VTABLE_INDEX index: $this"); println() }
     }
     throw Error(function.toString() + " not in vtable of " + this.toString())
 }
@@ -341,6 +335,9 @@ internal enum class BridgeDirection {
 internal fun KotlinType.isValueType() = this.isPrimitiveNumberType() || this.isBoolean()
 
 internal fun CallableMemberDescriptor.returnsValueType() = returnType.let { it != null && it.isValueType() }
+
+internal fun CallableMemberDescriptor.needBridgeTo(target: CallableMemberDescriptor)
+        = returnsValueType() xor target.returnsValueType()
 
 private fun CallableMemberDescriptor.overridesReturningReference()
         = allOverriddenDescriptors.any { it.original.returnType.let { it != null && !it.isValueType() } }
