@@ -107,25 +107,10 @@ private class AutoboxingTransformer(val context: Context) : AbstractValueUsageTr
                 target, remapTypeArguments(irCall, target)).apply {
             dispatchReceiver = irCall.dispatchReceiver
             extensionReceiver = irCall.extensionReceiver
-            mapValueParameters {
-                val valueArgument = irCall.getValueArgument(it)!!
-                if (!descriptor.original.needBridgeToAt(target, it.index + 1))
-                    valueArgument
-                else {
-                    if (descriptor.hasValueTypeAt(it.index + 1))
-                        valueArgument.box(getValueType(descriptor.valueParameters[it.index].type)!!)
-                    else
-                        valueArgument.unbox(getValueType(target.valueParameters[it.index].type)!!)
-                }
-            }
+            mapValueParameters { irCall.getValueArgument(it)!! }
         }
 
-        if (!descriptor.original.needBridgeToAt(target, 0))
-            return overriddenCall
-        if (descriptor.hasValueTypeAt(0))
-            return overriddenCall.unbox(getValueType(descriptor.returnType!!)!!)
-        else
-            return overriddenCall.box(getValueType(target.returnType!!)!!)
+        return super.visitCall(overriddenCall)
     }
 
     private fun remapTypeArguments(oldExpression: IrMemberAccessExpression, newCallee: CallableDescriptor): Map<TypeParameterDescriptor, KotlinType>? {
