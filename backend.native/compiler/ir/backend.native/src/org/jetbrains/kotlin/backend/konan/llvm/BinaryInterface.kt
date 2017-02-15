@@ -3,7 +3,7 @@ package org.jetbrains.kotlin.backend.konan.llvm
 import llvm.LLVMTypeRef
 import org.jetbrains.kotlin.backend.konan.descriptors.allValueParameters
 import org.jetbrains.kotlin.backend.konan.descriptors.isUnit
-import org.jetbrains.kotlin.backend.konan.descriptors.returnsValueType
+import org.jetbrains.kotlin.backend.konan.isValueType
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor
@@ -91,7 +91,7 @@ private val FunctionDescriptor.signature: String
         // Just distinguish value types and references - it's needed for calling virtual methods through bridges.
         val returnTypePart =
                 when {
-                    returnsValueType() -> "ValueType"
+                    returnType.let { it != null && it.isValueType() } -> "ValueType"
                     returnType.let { it != null && !KotlinBuiltIns.isUnitOrNullableUnit(it) } -> "Reference"
                     else -> ""
                 }

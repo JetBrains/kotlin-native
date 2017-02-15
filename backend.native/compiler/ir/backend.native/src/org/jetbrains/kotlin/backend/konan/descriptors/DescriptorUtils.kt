@@ -5,6 +5,7 @@ import org.jetbrains.kotlin.backend.konan.ValueType
 import org.jetbrains.kotlin.backend.konan.isRepresentedAs
 import org.jetbrains.kotlin.backend.konan.isValueType
 import org.jetbrains.kotlin.backend.konan.llvm.functionName
+import org.jetbrains.kotlin.backend.konan.llvm.localHash
 import org.jetbrains.kotlin.builtins.functions.FunctionClassDescriptor
 import org.jetbrains.kotlin.builtins.getFunctionalClassKind
 import org.jetbrains.kotlin.builtins.isFunctionType
@@ -19,8 +20,6 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.getSuperClassNotAny
 import org.jetbrains.kotlin.resolve.descriptorUtil.getSuperInterfaces
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.types.KotlinType
-import org.jetbrains.kotlin.types.typeUtil.isBoolean
-import org.jetbrains.kotlin.types.typeUtil.isPrimitiveNumberType
 import org.jetbrains.kotlin.types.typeUtil.isUnit
 import org.jetbrains.kotlin.util.OperatorNameConventions
 
@@ -185,8 +184,7 @@ internal val ClassDescriptor.contributedMethods: List<FunctionDescriptor>
         val setters = properties.mapNotNull { it.setter }
 
         val allMethods = (functions + getters + setters).sortedBy {
-            // TODO: use local hash instead, but it needs major refactoring.
-            it.functionName.hashCode()
+            it.functionName.localHash.value
         }
 
         return allMethods
@@ -195,47 +193,72 @@ internal val ClassDescriptor.contributedMethods: List<FunctionDescriptor>
 fun ClassDescriptor.isAbstract() = this.modality == Modality.SEALED || this.modality == Modality.ABSTRACT
         || this.kind == ClassKind.ENUM_CLASS
 
+internal fun FunctionDescriptor.hasValueTypeAt(index: Int): Boolean {
+    if (index == 0)
+        return returnType.let { it != null && it.isValueType() }
+    else
+        return this.valueParameters[index - 1].type.isValueType()
+}
+
+internal fun FunctionDescriptor.hasReferenceAt(index: Int): Boolean {
+    if (index == 0)
+        return returnType.let { it != null && !it.isValueType() }
+    else
+        return !this.valueParameters[index - 1].type.isValueType()
+}
+
+private fun FunctionDescriptor.overridesFunWithReferenceAt(index: Int)
+        = allOverriddenDescriptors.any { it.original.hasReferenceAt(index) }
+
+private fun FunctionDescriptor.overridesFunWithValueTypeAt(index: Int)
+        = allOverriddenDescriptors.any { it.original.hasValueTypeAt(index) }
+
+internal fun FunctionDescriptor.needBridgeTo(target: FunctionDescriptor)
+        = (0..this.valueParameters.size).any { needBridgeToAt(target, it) }
+
+internal fun FunctionDescriptor.needBridgeToAt(target: FunctionDescriptor, index: Int)
+        = hasValueTypeAt(index) xor target.hasValueTypeAt(index)
+
+internal val FunctionDescriptor.target: FunctionDescriptor
+    get() = (if (modality == Modality.ABSTRACT) this else resolveFakeOverride()).original
+
 internal enum class BridgeDirection {
     NOT_NEEDED,
     FROM_VALUE_TYPE,
     TO_VALUE_TYPE
 }
 
-internal fun CallableMemberDescriptor.returnsValueType() = returnType.let { it != null && it.isValueType() }
+private fun FunctionDescriptor.bridgeDirectionAt(index: Int) : BridgeDirection {
+    if (kind.isReal) {
+        if (hasValueTypeAt(index) && overridesFunWithReferenceAt(index))
+            return BridgeDirection.FROM_VALUE_TYPE
+        return BridgeDirection.NOT_NEEDED
+    }
 
-internal fun CallableMemberDescriptor.needBridgeTo(target: CallableMemberDescriptor)
-        = returnsValueType() xor target.returnsValueType()
+    val target = this.target
+    return when {
+        hasValueTypeAt(index) && target.hasValueTypeAt(index) && overridesFunWithReferenceAt(index) -> BridgeDirection.FROM_VALUE_TYPE
+        hasValueTypeAt(index) && target.hasReferenceAt(index) && overridesFunWithValueTypeAt(index) -> BridgeDirection.TO_VALUE_TYPE
+        else -> BridgeDirection.NOT_NEEDED
+    }
+}
 
-private fun CallableMemberDescriptor.overridesReturningReference()
-        = allOverriddenDescriptors.any { it.original.returnType.let { it != null && !it.isValueType() } }
+private fun bridgesEqual(first: Array<BridgeDirection>, second: Array<BridgeDirection>)
+        = first.indices.none { first[it] != second[it] }
 
-private fun CallableMemberDescriptor.overridesReturningValueType()
-        = allOverriddenDescriptors.any { it.original.returnType.let { it != null && it.isValueType() } }
-
-internal val <T : CallableMemberDescriptor> T.target: T
-    get() = (if (modality == Modality.ABSTRACT) this else resolveFakeOverride()).original as T
-
-internal val CallableMemberDescriptor.bridgeDirection: BridgeDirection
+internal val FunctionDescriptor.bridgeDirections: Array<BridgeDirection>
     get() {
-        if (this is PropertySetterDescriptor)
-            return this.correspondingProperty.bridgeDirection
+        val ourDirections = Array<BridgeDirection>(this.valueParameters.size + 1, { BridgeDirection.NOT_NEEDED })
+        if (modality == Modality.ABSTRACT)
+            return ourDirections
+        for (index in ourDirections.indices)
+            ourDirections[index] = this.bridgeDirectionAt(index)
 
-        if (modality == Modality.ABSTRACT) return BridgeDirection.NOT_NEEDED
-        if (kind.isReal) {
-            if (returnsValueType() && overridesReturningReference())
-                return BridgeDirection.FROM_VALUE_TYPE
-            return BridgeDirection.NOT_NEEDED
+        if (!kind.isReal && bridgesEqual(ourDirections, this.target.bridgeDirections)) {
+            // Bridge is inherited from supers
+            for (index in ourDirections.indices)
+                ourDirections[index] = BridgeDirection.NOT_NEEDED
         }
 
-        val target = this.target
-        val ourDirection: BridgeDirection =
-                when {
-                    returnsValueType() && target.returnsValueType() && overridesReturningReference() -> BridgeDirection.FROM_VALUE_TYPE
-                    returnsValueType() && !target.returnsValueType() && overridesReturningValueType() -> BridgeDirection.TO_VALUE_TYPE
-                    else -> BridgeDirection.NOT_NEEDED
-                }
-
-        if (ourDirection == target.bridgeDirection)
-            return BridgeDirection.NOT_NEEDED // Bridge is inherited from supers.
-        return ourDirection
+        return ourDirections
     }

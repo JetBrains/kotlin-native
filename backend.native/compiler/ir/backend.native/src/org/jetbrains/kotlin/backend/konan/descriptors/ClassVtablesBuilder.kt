@@ -15,16 +15,11 @@ internal class OverriddenFunctionDescriptor(val descriptor: FunctionDescriptor, 
     val needBridge: Boolean
         get() {
             if (descriptor.modality == Modality.ABSTRACT) return false
-            val descriptorOwner = descriptor.owner
-            val overriddenDescriptorOwner = overriddenDescriptor.owner
-            return descriptorOwner.needBridgeTo(overriddenDescriptorOwner)
-                    || descriptorOwner.target.needBridgeTo(overriddenDescriptorOwner)
+            return descriptor.needBridgeTo(overriddenDescriptor)
+                    || descriptor.target.needBridgeTo(overriddenDescriptor)
         }
 
     fun trivialOverride() = descriptor.original == overriddenDescriptor
-
-    private val FunctionDescriptor.owner: CallableMemberDescriptor
-        get() = if (this is PropertySetterDescriptor) this.correspondingProperty else this
 
     override fun toString(): String {
         return "(descriptor=$descriptor, overriddenDescriptor=$overriddenDescriptor)"

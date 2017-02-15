@@ -98,9 +98,6 @@ private class AutoboxingTransformer(val context: Context) : AbstractValueUsageTr
         if (descriptor.modality == Modality.ABSTRACT || (irCall.superQualifier == null && descriptor.isOverridable))
             return irCall  // A virtual call. box/unbox will be in the corresponding bridge.
 
-        if (descriptor is PropertySetterDescriptor)
-            return visitSetterCall(irCall)
-
         val target = descriptor.target
         val needBridge = descriptor.original.needBridgeTo(target)
 
@@ -110,44 +107,25 @@ private class AutoboxingTransformer(val context: Context) : AbstractValueUsageTr
                 target, remapTypeArguments(irCall, target)).apply {
             dispatchReceiver = irCall.dispatchReceiver
             extensionReceiver = irCall.extensionReceiver
-            mapValueParameters { irCall.getValueArgument(it) }
-        }
-
-        if (descriptor.returnsValueType())
-            return overriddenCall.unbox(getValueType(descriptor.returnType!!)!!)
-        else
-            return overriddenCall.box(getValueType(target.returnType!!)!!)
-    }
-
-    fun visitSetterCall(irCall: IrCall): IrExpression {
-        val descriptor = irCall.descriptor as PropertySetterDescriptor
-        val propertyDescriptor = descriptor.correspondingProperty
-
-        val target = descriptor.target
-        val targetProperty = propertyDescriptor.target
-        val needBridge = propertyDescriptor.original.needBridgeTo(targetProperty)
-
-        if (!needBridge) return irCall
-
-        val overriddenCall = IrCallImpl(irCall.startOffset, irCall.endOffset,
-                target, remapTypeArguments(irCall, target)).apply {
-            dispatchReceiver = irCall.dispatchReceiver
-            extensionReceiver = irCall.extensionReceiver
             mapValueParameters {
                 val valueArgument = irCall.getValueArgument(it)!!
-                if (it.index != descriptor.valueParameters.size - 1)
+                if (!descriptor.original.needBridgeToAt(target, it.index + 1))
                     valueArgument
                 else {
-                    // The value parameter passed to the setter.
-                    if (propertyDescriptor.returnsValueType())
-                        valueArgument.box(getValueType(propertyDescriptor.returnType!!)!!)
+                    if (descriptor.hasValueTypeAt(it.index + 1))
+                        valueArgument.box(getValueType(descriptor.valueParameters[it.index].type)!!)
                     else
-                        valueArgument.unbox(getValueType(targetProperty.returnType!!)!!)
+                        valueArgument.unbox(getValueType(target.valueParameters[it.index].type)!!)
                 }
             }
         }
 
-        return overriddenCall
+        if (!descriptor.original.needBridgeToAt(target, 0))
+            return overriddenCall
+        if (descriptor.hasValueTypeAt(0))
+            return overriddenCall.unbox(getValueType(descriptor.returnType!!)!!)
+        else
+            return overriddenCall.box(getValueType(target.returnType!!)!!)
     }
 
     private fun remapTypeArguments(oldExpression: IrMemberAccessExpression, newCallee: CallableDescriptor): Map<TypeParameterDescriptor, KotlinType>? {
