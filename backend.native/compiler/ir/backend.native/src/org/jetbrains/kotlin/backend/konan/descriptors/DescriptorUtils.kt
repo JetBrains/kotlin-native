@@ -246,6 +246,8 @@ private fun FunctionDescriptor.bridgeDirectionAt(index: Int) : BridgeDirection {
 private fun bridgesEqual(first: Array<BridgeDirection>, second: Array<BridgeDirection>)
         = first.indices.none { first[it] != second[it] }
 
+internal fun Array<BridgeDirection>.allNotNeeded() = this.all { it == BridgeDirection.NOT_NEEDED }
+
 internal val FunctionDescriptor.bridgeDirections: Array<BridgeDirection>
     get() {
         val ourDirections = Array<BridgeDirection>(this.valueParameters.size + 1, { BridgeDirection.NOT_NEEDED })

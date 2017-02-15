@@ -169,7 +169,7 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
         get() {
             val target = descriptor.target
             if (!needBridge) return target
-            val bridgeOwner = if (descriptor.bridgeDirections.all { it == BridgeDirection.NOT_NEEDED }) target else descriptor
+            val bridgeOwner = if (descriptor.bridgeDirections.allNotNeeded()) target else descriptor
             return context.specialDescriptorsFactory.getBridgeDescriptor(bridgeOwner)
         }
 }

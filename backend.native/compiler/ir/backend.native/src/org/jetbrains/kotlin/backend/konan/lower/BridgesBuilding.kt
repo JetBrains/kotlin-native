@@ -2,10 +2,7 @@ package org.jetbrains.kotlin.backend.konan.lower
 
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.konan.Context
-import org.jetbrains.kotlin.backend.konan.descriptors.BridgeDirection
-import org.jetbrains.kotlin.backend.konan.descriptors.bridgeDirections
-import org.jetbrains.kotlin.backend.konan.descriptors.contributedMethods
-import org.jetbrains.kotlin.backend.konan.descriptors.target
+import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
@@ -54,7 +51,7 @@ internal class BridgesBuilding(val context: Context) : FileLoweringPass {
 
     private fun buildBridge(descriptor: FunctionDescriptor?, irClass: IrClass) {
         if (descriptor == null) return
-        if (descriptor.bridgeDirections.all { it == BridgeDirection.NOT_NEEDED })
+        if (descriptor.bridgeDirections.allNotNeeded())
             return
 
         val bridgeDescriptor = context.specialDescriptorsFactory.getBridgeDescriptor(descriptor)

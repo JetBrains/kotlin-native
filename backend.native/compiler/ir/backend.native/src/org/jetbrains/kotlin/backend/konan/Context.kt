@@ -49,13 +49,13 @@ internal class SpecialDescriptorsFactory(val context: Context) {
 
     private fun initializeBridgeDescriptor(bridgeDescriptor: SimpleFunctionDescriptorImpl, descriptor: FunctionDescriptor) {
         val bridgeDirections = descriptor.bridgeDirections
-        if (bridgeDirections.all { it == BridgeDirection.NOT_NEEDED })
+        if (bridgeDirections.allNotNeeded())
             throw AssertionError("Function $descriptor is not needed in a bridge")
 
         val returnType = when (bridgeDirections[0]) {
-            BridgeDirection.FROM_VALUE_TYPE -> context.builtIns.anyType
             BridgeDirection.TO_VALUE_TYPE -> descriptor.returnType
             BridgeDirection.NOT_NEEDED -> descriptor.returnType
+            BridgeDirection.FROM_VALUE_TYPE -> context.builtIns.anyType
         }
 
         bridgeDescriptor.initialize(
@@ -63,10 +63,10 @@ internal class SpecialDescriptorsFactory(val context: Context) {
                 descriptor.dispatchReceiverParameter,
                 descriptor.typeParameters,
                 descriptor.valueParameters.mapIndexed { index, valueParameterDescriptor ->
-                    if (bridgeDirections[index + 1] != BridgeDirection.FROM_VALUE_TYPE)
-                        valueParameterDescriptor
-                    else {
-                        ValueParameterDescriptorImpl(
+                    when (bridgeDirections[index + 1]) {
+                        BridgeDirection.TO_VALUE_TYPE -> valueParameterDescriptor
+                        BridgeDirection.NOT_NEEDED -> valueParameterDescriptor
+                        BridgeDirection.FROM_VALUE_TYPE -> ValueParameterDescriptorImpl(
                                 valueParameterDescriptor.containingDeclaration,
                                 null,
                                 index,
