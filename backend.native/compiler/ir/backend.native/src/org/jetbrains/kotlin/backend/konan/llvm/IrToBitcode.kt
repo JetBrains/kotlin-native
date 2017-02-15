@@ -1765,7 +1765,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         val owner = descriptor.containingDeclaration as ClassDescriptor
         val llvmMethod = if (!owner.isInterface) {
             // If this is a virtual method of the class - we can call via vtable.
-            val index = owner.vtableIndex(descriptor)
+            val index = context.getVtableBuilder(owner).vtableIndex(descriptor)
 
             val vtablePlace = codegen.gep(typeInfoPtr, Int32(1).llvm) // typeInfoPtr + 1
             val vtable = codegen.bitcast(kInt8PtrPtr, vtablePlace)

@@ -3,14 +3,9 @@ package org.jetbrains.kotlin.backend.konan
 import llvm.LLVMDumpModule
 import llvm.LLVMModuleRef
 import org.jetbrains.kotlin.backend.jvm.descriptors.initialize
-import org.jetbrains.kotlin.backend.konan.descriptors.BridgeDirection
-import org.jetbrains.kotlin.backend.konan.descriptors.bridgeDirection
-import org.jetbrains.kotlin.backend.konan.descriptors.deepPrint
-import org.jetbrains.kotlin.backend.konan.descriptors.synthesizedName
+import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.backend.konan.ir.Ir
-import org.jetbrains.kotlin.backend.konan.llvm.Llvm
-import org.jetbrains.kotlin.backend.konan.llvm.LlvmDeclarations
-import org.jetbrains.kotlin.backend.konan.llvm.verifyModule
+import org.jetbrains.kotlin.backend.konan.llvm.*
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.descriptors.impl.PropertyDescriptorImpl
@@ -40,28 +35,26 @@ internal class SpecialDescriptorsFactory(val context: Context) {
         }
 
     fun getBridgeDescriptor(descriptor: FunctionDescriptor): FunctionDescriptor {
-        val bridgeDirection = descriptor.bridgeDirection ?: throw AssertionError("Function $descriptor is not needed in a bridge")
-
         return bridgesDescriptors.getOrPut(descriptor) {
             SimpleFunctionDescriptorImpl.create(
                     descriptor.containingDeclaration,
                     Annotations.EMPTY,
-                    ("<bridge-to>" + descriptor.name.asString()).synthesizedName,
+                    ("<bridge-to>" + descriptor.functionName).synthesizedName,
                     CallableMemberDescriptor.Kind.DECLARATION,
                     SourceElement.NO_SOURCE).apply {
-                if (descriptor !is PropertySetterDescriptor)
-                    initializeBridgeDescriptor(this, bridgeDirection, descriptor)
+                if (descriptor is PropertySetterDescriptor)
+                    initializeSetterBridgeDescriptor(this, descriptor)
                 else
-                    initializeSetterBridgeDescriptor(this, bridgeDirection, descriptor)
+                    initializeBridgeDescriptor(this, descriptor)
             }
         }
     }
 
-    private fun initializeBridgeDescriptor(bridgeDescriptor: SimpleFunctionDescriptorImpl,
-                                           bridgeDirection: BridgeDirection, descriptor: FunctionDescriptor) {
-        val toType = when (bridgeDirection) {
+    private fun initializeBridgeDescriptor(bridgeDescriptor: SimpleFunctionDescriptorImpl, descriptor: FunctionDescriptor) {
+        val toType = when (descriptor.bridgeDirection) {
             BridgeDirection.FROM_VALUE_TYPE -> context.builtIns.anyType
             BridgeDirection.TO_VALUE_TYPE -> descriptor.returnType!!
+            BridgeDirection.NOT_NEEDED -> throw AssertionError("Function $descriptor is not needed in a bridge")
         }
         bridgeDescriptor.initialize(
                     descriptor.extensionReceiverParameter?.type,
@@ -69,16 +62,16 @@ internal class SpecialDescriptorsFactory(val context: Context) {
                     descriptor.typeParameters,
                     descriptor.valueParameters,
                     toType,
-                    Modality.FINAL,
+                    descriptor.modality,
                     Visibilities.PRIVATE)
     }
 
-    private fun initializeSetterBridgeDescriptor(bridgeDescriptor: SimpleFunctionDescriptorImpl,
-                                                 bridgeDirection: BridgeDirection, descriptor: PropertySetterDescriptor) {
+    private fun initializeSetterBridgeDescriptor(bridgeDescriptor: SimpleFunctionDescriptorImpl, descriptor: PropertySetterDescriptor) {
         val valueIndex = descriptor.valueParameters.size - 1
-        val toType = when (bridgeDirection) {
+        val toType = when (descriptor.bridgeDirection) {
             BridgeDirection.FROM_VALUE_TYPE -> context.builtIns.anyType
             BridgeDirection.TO_VALUE_TYPE -> descriptor.valueParameters[valueIndex].type
+            BridgeDirection.NOT_NEEDED -> throw AssertionError("Function $descriptor is not needed in a bridge")
         }
         bridgeDescriptor.initialize(
                 descriptor.extensionReceiverParameter?.type,
@@ -103,7 +96,7 @@ internal class SpecialDescriptorsFactory(val context: Context) {
                     }
                 },
                 descriptor.returnType,
-                Modality.FINAL,
+                descriptor.modality,
                 Visibilities.PRIVATE)
     }
 }
@@ -113,6 +106,11 @@ internal final class Context(val config: KonanConfig) : KonanBackendContext() {
     var moduleDescriptor: ModuleDescriptor? = null
 
     val specialDescriptorsFactory = SpecialDescriptorsFactory(this)
+    private val vtableBuilders = mutableMapOf<ClassDescriptor, ClassVtablesBuilder>()
+
+    fun getVtableBuilder(classDescriptor: ClassDescriptor) = vtableBuilders.getOrPut(classDescriptor) {
+        ClassVtablesBuilder(classDescriptor, this)
+    }
 
     // TODO: make lateinit?
     var irModule: IrModuleFragment? = null

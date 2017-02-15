@@ -2,6 +2,7 @@ package org.jetbrains.kotlin.backend.konan.lower
 
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.descriptors.BridgeDirection
 import org.jetbrains.kotlin.backend.konan.descriptors.bridgeDirection
 import org.jetbrains.kotlin.backend.konan.descriptors.contributedMethods
 import org.jetbrains.kotlin.backend.konan.descriptors.target
@@ -51,7 +52,7 @@ internal class BridgesBuilding(val context: Context) : FileLoweringPass {
             IrDeclarationOriginImpl("BRIDGE_METHOD")
 
     private fun buildBridge(descriptor: FunctionDescriptor?, irClass: IrClass) {
-        if (descriptor == null || descriptor.bridgeDirection == null) return
+        if (descriptor == null || descriptor.bridgeDirection == BridgeDirection.NOT_NEEDED) return
 
         if (descriptor is PropertySetterDescriptor) {
             buildSetterBridge(descriptor, irClass)

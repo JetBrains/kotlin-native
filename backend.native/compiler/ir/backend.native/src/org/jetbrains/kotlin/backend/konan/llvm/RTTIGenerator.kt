@@ -125,12 +125,12 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
             emptyList()
         } else {
             val functionNames = mutableMapOf<Long, OverriddenFunctionDescriptor>()
-            classDesc.methodTableEntries.map {
+            context.getVtableBuilder(classDesc).methodTableEntries.map {
                 val functionName = it.overriddenDescriptor.functionName
                 val nameSignature = functionName.localHash
-                val prev = functionNames.putIfAbsent(nameSignature.value, it)
-                if (prev != null)
-                    throw AssertionError("Duplicate method table entry: functionName = '$functionName', hash = '${nameSignature.value}', entry1 = $prev, entry2 = $it")
+                val previous = functionNames.putIfAbsent(nameSignature.value, it)
+                if (previous != null)
+                    throw AssertionError("Duplicate method table entry: functionName = '$functionName', hash = '${nameSignature.value}', entry1 = $previous, entry2 = $it")
 
                 // TODO: compile-time resolution limits binary compatibility
                 val methodEntryPoint =  it.implementation.entryPointAddress
@@ -154,7 +154,7 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
             typeInfo
         } else {
             // TODO: compile-time resolution limits binary compatibility
-            val vtableEntries = classDesc.vtableEntries.map { it.implementation.entryPointAddress }
+            val vtableEntries = context.getVtableBuilder(classDesc).vtableEntries.map { it.implementation.entryPointAddress }
             val vtable = ConstArray(int8TypePtr, vtableEntries)
             Struct(typeInfo, vtable)
         }
@@ -169,7 +169,7 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
         get() {
             val target = descriptor.target
             if (!needBridge) return target
-            val bridgeOwner = if (descriptor.bridgeDirection != null) descriptor else target
+            val bridgeOwner = if (descriptor.bridgeDirection == BridgeDirection.NOT_NEEDED) target else descriptor
             return context.specialDescriptorsFactory.getBridgeDescriptor(bridgeOwner)
         }
 }
