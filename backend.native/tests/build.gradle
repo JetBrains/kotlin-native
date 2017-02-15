@@ -486,6 +486,21 @@ task bridges_test9(type: RunKonanTest) {
     source = "codegen/bridges/test9.kt"
 }
 
+task bridges_test10(type: RunKonanTest) {
+    goldValue = "42\n42\n"
+    source = "codegen/bridges/test10.kt"
+}
+
+task bridges_test11(type: RunKonanTest) {
+    goldValue = "42\n42\n42\n"
+    source = "codegen/bridges/test11.kt"
+}
+
+task bridges_test12(type: RunKonanTest) {
+    goldValue = "B: 42\nC: 42\n"
+    source = "codegen/bridges/test12.kt"
+}
+
 task array0(type: RunKonanTest) {
     goldValue = "5\n6\n7\n8\n9\n10\n11\n12\n13\n"
     source = "runtime/collections/array0.kt"
