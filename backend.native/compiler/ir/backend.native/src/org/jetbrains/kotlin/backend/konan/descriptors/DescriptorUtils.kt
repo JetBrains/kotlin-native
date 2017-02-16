@@ -194,17 +194,19 @@ fun ClassDescriptor.isAbstract() = this.modality == Modality.SEALED || this.moda
         || this.kind == ClassKind.ENUM_CLASS
 
 internal fun FunctionDescriptor.hasValueTypeAt(index: Int): Boolean {
-    if (index == 0)
-        return returnType.let { it != null && it.isValueType() }
-    else
-        return this.valueParameters[index - 1].type.isValueType()
+    when (index) {
+        0 -> return returnType.let { it != null && it.isValueType() }
+        1 -> return extensionReceiverParameter.let { it != null && it.type.isValueType() }
+        else -> return this.valueParameters[index - 2].type.isValueType()
+    }
 }
 
 internal fun FunctionDescriptor.hasReferenceAt(index: Int): Boolean {
-    if (index == 0)
-        return returnType.let { it != null && !it.isValueType() }
-    else
-        return !this.valueParameters[index - 1].type.isValueType()
+    when (index) {
+        0 -> return returnType.let { it != null && !it.isValueType() }
+        1 -> return extensionReceiverParameter.let { it != null && !it.type.isValueType() }
+        else -> return !this.valueParameters[index - 2].type.isValueType()
+    }
 }
 
 private fun FunctionDescriptor.overridesFunWithReferenceAt(index: Int)
@@ -213,11 +215,11 @@ private fun FunctionDescriptor.overridesFunWithReferenceAt(index: Int)
 private fun FunctionDescriptor.overridesFunWithValueTypeAt(index: Int)
         = allOverriddenDescriptors.any { it.original.hasValueTypeAt(index) }
 
-internal fun FunctionDescriptor.needBridgeTo(target: FunctionDescriptor)
-        = (0..this.valueParameters.size).any { needBridgeToAt(target, it) }
-
-internal fun FunctionDescriptor.needBridgeToAt(target: FunctionDescriptor, index: Int)
+private fun FunctionDescriptor.needBridgeToAt(target: FunctionDescriptor, index: Int)
         = hasValueTypeAt(index) xor target.hasValueTypeAt(index)
+
+internal fun FunctionDescriptor.needBridgeTo(target: FunctionDescriptor)
+        = (0..this.valueParameters.size + 1).any { needBridgeToAt(target, it) }
 
 internal val FunctionDescriptor.target: FunctionDescriptor
     get() = (if (modality == Modality.ABSTRACT) this else resolveFakeOverride()).original
@@ -250,7 +252,7 @@ internal fun Array<BridgeDirection>.allNotNeeded() = this.all { it == BridgeDire
 
 internal val FunctionDescriptor.bridgeDirections: Array<BridgeDirection>
     get() {
-        val ourDirections = Array<BridgeDirection>(this.valueParameters.size + 1, { BridgeDirection.NOT_NEEDED })
+        val ourDirections = Array<BridgeDirection>(this.valueParameters.size + 2, { BridgeDirection.NOT_NEEDED })
         if (modality == Modality.ABSTRACT)
             return ourDirections
         for (index in ourDirections.indices)

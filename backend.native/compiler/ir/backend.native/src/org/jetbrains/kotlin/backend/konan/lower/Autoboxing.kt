@@ -99,9 +99,8 @@ private class AutoboxingTransformer(val context: Context) : AbstractValueUsageTr
             return irCall  // A virtual call. box/unbox will be in the corresponding bridge.
 
         val target = descriptor.target
-        val needBridge = descriptor.original.needBridgeTo(target)
 
-        if (!needBridge) return irCall
+        if (!descriptor.original.needBridgeTo(target)) return irCall
 
         val overriddenCall = IrCallImpl(irCall.startOffset, irCall.endOffset,
                 target, remapTypeArguments(irCall, target)).apply {
