@@ -310,7 +310,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     override fun visitModuleFragment(declaration: IrModuleFragment) {
         context.log{"visitModule                    : ${ir2string(declaration)}"}
 
-        // computeLifetimes(module, this.codegen, resultLifetimes)
+        computeLifetimes(module, this.codegen, resultLifetimes)
 
         declaration.acceptChildrenVoid(this)
         appendLlvmUsed(context.llvm.usedFunctions)

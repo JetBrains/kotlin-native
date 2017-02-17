@@ -36,7 +36,7 @@ import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.typeUtil.isNothing
 import org.jetbrains.kotlin.types.typeUtil.isUnit
 
-val DEBUG = 0
+val DEBUG = 1
 
 // Roles in which particular object reference is being used. Lifetime is computed from
 // all roles reference.
@@ -95,12 +95,15 @@ internal class Roles {
 
     fun has(role: Role) : Boolean = data[role] != null
 
-    fun escapes() : Boolean {
+    fun escapesSoft() : Boolean {
         return has(Role.WRITTEN_TO_FIELD) || has(Role.WRITTEN_TO_GLOBAL) ||
                 has(Role.CALL_ARGUMENT) || has(Role.THROW_VALUE)
     }
 
-    fun pure() : Boolean = !escapes() && has(Role.RETURN_VALUE)
+    fun escapesHard() : Boolean {
+        return has(Role.WRITTEN_TO_FIELD) || has(Role.WRITTEN_TO_GLOBAL) ||
+               has(Role.THROW_VALUE)
+    }
 
     fun info(role: Role) : RoleInfo? = data[role]
 
@@ -160,6 +163,7 @@ internal class VariableValues {
 
 internal class ParameterRoles {
     val elementData = HashMap<ParameterDescriptor, Roles>()
+    val analyzed = HashMap<CallableDescriptor, Boolean>()
 
     fun addParameter(parameter: ParameterDescriptor) {
         elementData.getOrPut(parameter) { Roles() }
@@ -168,6 +172,11 @@ internal class ParameterRoles {
     fun add(parameter: ParameterDescriptor, role: Role, roleInfoEntry: RoleInfoEntry?) {
         val roles = elementData.getOrPut(parameter, { Roles() });
         roles.add(role, roleInfoEntry)
+    }
+
+    fun analyzeRolesIn(callee: CallableDescriptor, parameter: ParameterDescriptor) {
+        println("analys roles of $parameter in $callee")
+        analyzed[callee] = true
     }
 
     fun canEliminateCallArgument(info: RoleInfo): Boolean {
@@ -186,7 +195,16 @@ internal class ParameterRoles {
             val rolesInCallee = elementData[argument] ?: return false
             if (DEBUG > 1) println("In callee is: $rolesInCallee")
             // TODO: make recursive computation here.
-            if (rolesInCallee.escapes()) return false
+            if (rolesInCallee.escapesSoft()) {
+                if (rolesInCallee.escapesHard()) {
+                    println("escapes hard as $rolesInCallee")
+                    return false
+                }
+                if (analyzed[callee] == null) {
+                    analyzeRolesIn(callee, argument)
+                }
+                return false
+            }
         }
         return true
     }
@@ -216,7 +234,7 @@ internal fun rolesToLifetime(roles: Roles) : Lifetime {
     val roleSetSize = roles.data.keys.size
     return when {
         // If reference is stored to global or generic field - it must be global.
-        roles.escapes() ->
+        roles.escapesHard() ->
             Lifetime.GLOBAL
          // If we pass it to unknown methods or throw - it must be global.
         roles.has(Role.CALL_ARGUMENT) || roles.has(Role.THROW_VALUE) ->
@@ -249,10 +267,14 @@ internal class ElementFinderVisitor(
         return context.isInteresting(variable.type)
     }
 
-    override fun visitElement(element: IrElement) {
-        if (element is IrExpression && isInteresting(element)) {
-            expressionToRoles[element] = Roles()
+    override fun visitExpression(expression: IrExpression) {
+        if (isInteresting(expression)) {
+            expressionToRoles[expression] = Roles()
         }
+        super.visitExpression(expression)
+    }
+
+    override fun visitElement(element: IrElement) {
         element.acceptChildrenVoid(this)
     }
 
@@ -315,7 +337,6 @@ internal class RoleAssignerVisitor(
         if (value.type.isUnit()) return
         when (value) {
             is IrContainerExpression -> assignVariable(variable, value.statements.last() as IrExpression)
-            // is IrVararg -> value.elements.forEach { assignVariable(variable, it as IrExpression) }
             is IrWhen -> value.branches.forEach { assignVariable(variable, it.result) }
             is IrMemberAccessExpression -> variableValues.add(variable, value)
             is IrGetValue -> variableValues.add(variable, value)
@@ -335,6 +356,9 @@ internal class RoleAssignerVisitor(
             is IrGetObjectValue -> { }
             // TODO: is it correct?
             is IrReturn -> { /* Do nothing, return path in an assignment. */ }
+            is IrVararg -> { /* Shalln't be here: workaround for lowering bug. */
+                value.elements.forEach { assignVariable(variable, it as IrExpression) }
+            }
             else -> TODO(ir2string(value))
         }
     }
@@ -361,6 +385,9 @@ internal class RoleAssignerVisitor(
                     IrTypeOperator.IMPLICIT_COERCION_TO_UNIT -> {}
                     else -> TODO(ir2string(expression))
                 }
+            }
+            is IrTry -> (expression.catches + expression.tryResult).forEach {
+                if (it is IrExpression) assignRole(it, role, infoEntry)
             }
             is IrThrow -> { /* Do nothing, error path in an assignment. */ }
             is IrGetObjectValue -> { /* Shall we do anything here? */ }
@@ -498,7 +525,7 @@ fun computeLifetimes(irModule: IrModuleFragment, context: RuntimeAware,
             if (DEBUG > 0)
                 println("arena alloc for ${ir2string(expression)} in ${findContext(irModule, expression)}")
             // Not yet enabled.
-            role = Lifetime.GLOBAL
+            // role = Lifetime.GLOBAL
         }
         lifetimes[expression] = role
     }
