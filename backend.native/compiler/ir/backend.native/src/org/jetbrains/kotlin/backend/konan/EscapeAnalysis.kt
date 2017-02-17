@@ -24,10 +24,7 @@ import org.jetbrains.kotlin.backend.common.ir.ir2string
 import org.jetbrains.kotlin.backend.konan.llvm.isObjectType
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.declarations.IrField
-import org.jetbrains.kotlin.ir.declarations.IrFunction
-import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
-import org.jetbrains.kotlin.ir.declarations.IrVariable
+import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
@@ -36,7 +33,7 @@ import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.typeUtil.isNothing
 import org.jetbrains.kotlin.types.typeUtil.isUnit
 
-val DEBUG = 1
+val DEBUG = 2
 
 // Roles in which particular object reference is being used. Lifetime is computed from
 // all roles reference.
@@ -95,15 +92,16 @@ internal class Roles {
 
     fun has(role: Role) : Boolean = data[role] != null
 
-    fun escapesSoft() : Boolean {
-        return has(Role.WRITTEN_TO_FIELD) || has(Role.WRITTEN_TO_GLOBAL) ||
-                has(Role.CALL_ARGUMENT) || has(Role.THROW_VALUE)
-    }
+    fun escapesSoft() = has(Role.CALL_ARGUMENT) || escapesHard()
 
-    fun escapesHard() : Boolean {
-        return has(Role.WRITTEN_TO_FIELD) || has(Role.WRITTEN_TO_GLOBAL) ||
-               has(Role.THROW_VALUE)
-    }
+    fun escapesHard()  =
+            has(Role.WRITTEN_TO_FIELD) || has(Role.WRITTEN_TO_GLOBAL) || has(Role.THROW_VALUE)
+
+    fun local() = (data.size == 0 ||
+            (data.size == 1) && data[Role.CALL_RESULT] != null)
+
+    fun localOrReturn() = local() ||
+            ((data.size == 2) && has(Role.CALL_RESULT) && has(Role.RETURN_VALUE))
 
     fun info(role: Role) : RoleInfo? = data[role]
 
@@ -112,23 +110,74 @@ internal class Roles {
         data.forEach { t, u ->
             builder.append(t.name)
             builder.append(": ")
-            builder.append(u.entries.joinToString(", "))
+            builder.append(u.entries.joinToString(", ") { it.data.toString() })
             builder.append("; ")
         }
         return builder.toString()
     }
 }
 
-internal class VariableValues {
-    val elementData = HashMap<ValueDescriptor, MutableSet<IrExpression>>()
 
-    fun addEmpty(variable: ValueDescriptor) =
+interface UniqueVariable {
+    val owner: CallableDescriptor
+}
+
+// Somewhat artificial wrapper around ParameterDescriptor allowing to maintain
+// parameter uniqueness ('this' is shared amongst all members of the same class).
+internal class FormalParameter(
+        val descriptor: ParameterDescriptor, val function: CallableDescriptor) : UniqueVariable {
+
+    override fun hashCode(): Int {
+        return descriptor.hashCode() xor function.hashCode()
+    }
+
+    override fun equals(other: Any?): Boolean {
+        return other is FormalParameter && function == other.function &&
+                descriptor == other.descriptor
+    }
+
+    override fun toString() = "$descriptor in $function"
+
+    override val owner
+        get() = function
+}
+
+internal class LocalVariable(
+        val descriptor: VariableDescriptor) : UniqueVariable {
+
+    override fun hashCode(): Int {
+        return descriptor.hashCode()
+    }
+
+    override fun equals(other: Any?): Boolean {
+        return other is LocalVariable && descriptor == other.descriptor
+    }
+
+    override fun toString() = "$descriptor"
+
+    override val owner
+        get() = descriptor.containingDeclaration as CallableDescriptor
+}
+
+private fun unique(
+        descriptor: ValueDescriptor, function: CallableDescriptor) : UniqueVariable {
+    return when (descriptor) {
+        is VariableDescriptor -> LocalVariable(descriptor)
+        is ParameterDescriptor -> FormalParameter(descriptor, function)
+        else -> TODO("unsupported $descriptor")
+    }
+}
+
+internal class VariableValues {
+    val elementData = HashMap<UniqueVariable, MutableSet<IrExpression>>()
+
+    fun addEmpty(variable: UniqueVariable) =
             elementData.getOrPut(variable, { mutableSetOf<IrExpression>() })
-    fun add(variable: ValueDescriptor, element: IrExpression) =
+    fun add(variable: UniqueVariable, element: IrExpression) =
             elementData.get(variable)?.add(element)
-    fun add(variable: ValueDescriptor, elements: Set<IrExpression>) =
+    fun add(variable: UniqueVariable, elements: Set<IrExpression>) =
             elementData.get(variable)?.addAll(elements)
-    fun get(variable: ValueDescriptor) : Set<IrExpression>? =
+    fun get(variable: UniqueVariable) : Set<IrExpression>? =
             elementData[variable]
 
     fun computeClosure() {
@@ -138,9 +187,9 @@ internal class VariableValues {
     }
 
     // Computes closure of all possible values for given variable.
-    fun computeValueClosure(value: ValueDescriptor): Set<IrExpression> {
+    fun computeValueClosure(value: UniqueVariable): Set<IrExpression> {
         val result = mutableSetOf<IrExpression>()
-        val workset = mutableSetOf<ValueDescriptor>(value)
+        val workset = mutableSetOf<UniqueVariable>(value)
         val seen = mutableSetOf<IrGetValue>()
         while (!workset.isEmpty()) {
             val value = workset.first()
@@ -150,7 +199,7 @@ internal class VariableValues {
                 if (element is IrGetValue) {
                     if (!seen.contains(element)) {
                         seen.add(element)
-                        workset.add(element.descriptor)
+                        workset.add(unique(element.descriptor, value.owner))
                     }
                 } else {
                     result.add(element)
@@ -162,26 +211,50 @@ internal class VariableValues {
 }
 
 internal class ParameterRoles {
-    val elementData = HashMap<ParameterDescriptor, Roles>()
-    val analyzed = HashMap<CallableDescriptor, Boolean>()
+    val elementData = HashMap<FormalParameter, Roles>()
+    val analyzed = HashSet<FormalParameter>()
 
-    fun addParameter(parameter: ParameterDescriptor) {
+    fun addParameter(parameter: FormalParameter) {
         elementData.getOrPut(parameter) { Roles() }
     }
 
-    fun add(parameter: ParameterDescriptor, role: Role, roleInfoEntry: RoleInfoEntry?) {
+    fun add(parameter: FormalParameter, role: Role, roleInfoEntry: RoleInfoEntry?) {
         val roles = elementData.getOrPut(parameter, { Roles() });
         roles.add(role, roleInfoEntry)
     }
 
-    fun analyzeRolesIn(callee: CallableDescriptor, parameter: ParameterDescriptor) {
-        println("analys roles of $parameter in $callee")
-        analyzed[callee] = true
+    fun get(parameter: FormalParameter) : Roles? {
+        if (!elementData.contains(parameter))
+            return null
+        if (!analyzed.contains(parameter))
+            analyzeParameterRoles(parameter)
+        return elementData[parameter]
+    }
+
+    // Returns true if role propagation cannot prove value never escapes.
+    fun analyzeParameterRoles(parameter: FormalParameter): Boolean {
+        if (analyzed.contains(parameter))
+            return elementData[parameter]?.escapesSoft() ?: true
+        if (DEBUG > 1) println("analyze roles of $parameter")
+        analyzed.add(parameter)
+        // If we don't have information for this parameter - it's an argument to function
+        // outside of module.
+        val roles = elementData[parameter] ?: return true
+        if (roles.escapesHard()) return true
+        val asArgument = roles.data[Role.CALL_ARGUMENT]
+        if (asArgument != null) {
+            for (entry in asArgument.entries) {
+                val info = entry.data as Pair<FormalParameter, CallableDescriptor>
+                if (analyzeParameterRoles(info.first)) return true
+            }
+            roles.data.remove(Role.CALL_ARGUMENT)
+        }
+        return false
     }
 
     fun canEliminateCallArgument(info: RoleInfo): Boolean {
         for (call in info.entries) {
-            val entry = call.data as Pair<ParameterDescriptor, CallableDescriptor>
+            val entry = call.data as Pair<FormalParameter, CallableDescriptor>
             val argument = entry.first
             val callee = entry.second
             if (callee is FunctionDescriptor) {
@@ -192,18 +265,15 @@ internal class ParameterRoles {
                 if (callee.isExternal) return false
             }
             if (DEBUG > 1) println("passed as ${argument}")
-            val rolesInCallee = elementData[argument] ?: return false
+            val rolesInCallee = get(argument) ?: return false
             if (DEBUG > 1) println("In callee is: $rolesInCallee")
             // TODO: make recursive computation here.
             if (rolesInCallee.escapesSoft()) {
                 if (rolesInCallee.escapesHard()) {
-                    println("escapes hard as $rolesInCallee")
+                    if (DEBUG > 0) println("escapes hard as $rolesInCallee")
                     return false
                 }
-                if (analyzed[callee] == null) {
-                    analyzeRolesIn(callee, argument)
-                }
-                return false
+                if (analyzeParameterRoles(argument)) return false
             }
         }
         return true
@@ -231,23 +301,15 @@ internal class ParameterRoles {
 }
 
 internal fun rolesToLifetime(roles: Roles) : Lifetime {
-    val roleSetSize = roles.data.keys.size
-    return when {
+   return when {
         // If reference is stored to global or generic field - it must be global.
-        roles.escapesHard() ->
-            Lifetime.GLOBAL
-         // If we pass it to unknown methods or throw - it must be global.
-        roles.has(Role.CALL_ARGUMENT) || roles.has(Role.THROW_VALUE) ->
-            Lifetime.GLOBAL
+        roles.escapesHard() -> Lifetime.GLOBAL
         // If reference is only obtained as call result and never used - it can be local.
-        roleSetSize == 1 && roles.has(Role.CALL_RESULT) ->
-            Lifetime.LOCAL  // throw Error()
+        roles.local() -> Lifetime.LOCAL
         // If reference is obtained as some call result and returned - we can use return.
-        roleSetSize == 2 && roles.has(Role.CALL_RESULT) && roles.has(Role.RETURN_VALUE) ->
-            Lifetime.RETURN_VALUE
+        roles.localOrReturn() -> Lifetime.RETURN_VALUE
         // Otherwise, say it is global.
-        else ->
-            Lifetime.GLOBAL
+        else -> Lifetime.GLOBAL
     }
 }
 
@@ -281,6 +343,7 @@ internal class ElementFinderVisitor(
     override fun visitTypeOperator(expression: IrTypeOperatorCall) {
         super.visitTypeOperator(expression)
         if (expression.operator == IrTypeOperator.IMPLICIT_COERCION_TO_UNIT) {
+            println("removing ${expression.argument} due to Unit coercion")
             expressionToRoles.remove(expression.argument)
         }
     }
@@ -288,14 +351,14 @@ internal class ElementFinderVisitor(
     override fun visitFunction(declaration: IrFunction) {
         declaration.descriptor.allParameters.forEach {
             if (isInteresting(it))
-                parameterRoles.addParameter(it)
+                parameterRoles.addParameter(FormalParameter(it, declaration.descriptor))
         }
         super.visitFunction(declaration)
     }
 
     override fun visitVariable(expression: IrVariable) {
         if (isInteresting(expression.descriptor))
-            variableValues.addEmpty(expression.descriptor)
+            variableValues.addEmpty(LocalVariable(expression.descriptor))
         super.visitVariable(expression)
     }
 }
@@ -315,7 +378,7 @@ internal class RoleAssignerVisitor(
             expressionRoles[expression]?.add(role, infoEntry)
     }
 
-    fun assignValueRole(value: ValueDescriptor, role: Role, infoEntry: RoleInfoEntry?) {
+    fun assignValueRole(value: UniqueVariable, role: Role, infoEntry: RoleInfoEntry?) {
         if (!useVarValues) return
         // Whenever we see variable use in certain role - we propagate this role
         // to all possible expression this variable can be assigned to.
@@ -326,7 +389,7 @@ internal class RoleAssignerVisitor(
             }
         }
         if (value is ParameterDescriptor) {
-            parameterRoles.add(value, role, infoEntry)
+            parameterRoles.add(FormalParameter(value, currentFunction!!), role, infoEntry)
         }
     }
 
@@ -338,9 +401,11 @@ internal class RoleAssignerVisitor(
         when (value) {
             is IrContainerExpression -> assignVariable(variable, value.statements.last() as IrExpression)
             is IrWhen -> value.branches.forEach { assignVariable(variable, it.result) }
-            is IrMemberAccessExpression -> variableValues.add(variable, value)
-            is IrGetValue -> variableValues.add(variable, value)
-            is IrGetField -> variableValues.add(variable, value)
+            is IrMemberAccessExpression -> variableValues.add(LocalVariable(variable), value)
+            is IrGetValue -> variableValues.add(LocalVariable(variable), value)
+            is IrGetField -> variableValues.add(LocalVariable(variable), value)
+            is IrVararg -> /* Sometimes, we keep vararg till codegen phase (for constant arrays). */
+                variableValues.add(LocalVariable(variable), value)
             is IrConst<*> -> { }
             is IrTypeOperatorCall -> {
                 when (value.operator) {
@@ -349,16 +414,13 @@ internal class RoleAssignerVisitor(
                     else -> TODO(ir2string(value))
                 }
             }
-            is IrTry -> (value.catches + value.tryResult).forEach {
-                if (it is IrExpression) assignVariable(variable, it)
+            is IrTry -> (value.catches.map { it.result } + value.tryResult).forEach {
+                assignVariable(variable, it)
             }
             is IrThrow -> { /* Do nothing, error path in an assignment. */ }
             is IrGetObjectValue -> { }
             // TODO: is it correct?
             is IrReturn -> { /* Do nothing, return path in an assignment. */ }
-            is IrVararg -> { /* Shalln't be here: workaround for lowering bug. */
-                value.elements.forEach { assignVariable(variable, it as IrExpression) }
-            }
             else -> TODO(ir2string(value))
         }
     }
@@ -368,12 +430,14 @@ internal class RoleAssignerVisitor(
         if (expression.type.isUnit()) return
         when (expression) {
             is IrContainerExpression -> assignRole(expression.statements.last() as IrExpression, role, infoEntry)
-            is IrVararg -> expression.elements.forEach { assignRole(it as IrExpression, role, infoEntry) }
             is IrWhen -> expression.branches.forEach { assignRole(it.result, role, infoEntry) }
             is IrMemberAccessExpression -> assignExpressionRole(expression, role, infoEntry)
-            is IrGetValue -> assignValueRole(expression.descriptor, role, infoEntry)
+            is IrGetValue -> assignValueRole(
+                    unique(expression.descriptor, currentFunction!!), role, infoEntry)
             // If field plays certain role - we cannot use this info now.
             is IrGetField -> {}
+            is IrVararg -> /* Sometimes, we keep vararg till codegen phase (for constant arrays). */
+                assignExpressionRole(expression, role, infoEntry)
             // If constant plays certain role - this information is useless.
             is IrConst<*> -> {}
             is IrTypeOperatorCall -> {
@@ -386,12 +450,12 @@ internal class RoleAssignerVisitor(
                     else -> TODO(ir2string(expression))
                 }
             }
-            is IrTry -> (expression.catches + expression.tryResult).forEach {
-                if (it is IrExpression) assignRole(it, role, infoEntry)
+            is IrTry -> (expression.catches.map { it.result } + expression.tryResult).forEach {
+                assignRole(it, role, infoEntry)
             }
             is IrThrow -> { /* Do nothing, error path in an assignment. */ }
             is IrGetObjectValue -> { /* Shall we do anything here? */ }
-            // TODO: is it correct?
+            // TODO: is it correct, especially for inlines?
             is IrReturn -> { /* Do nothing, return path in an assignment. */ }
             else -> TODO(ir2string(expression))
         }
@@ -405,7 +469,9 @@ internal class RoleAssignerVisitor(
         assignRole(expression, Role.CALL_RESULT, RoleInfoEntry(expression))
         for (argument in expression.getArguments()) {
             assignRole(argument.second, Role.CALL_ARGUMENT,
-                    RoleInfoEntry(Pair(argument.first, expression.descriptor)))
+                    RoleInfoEntry(
+                            FormalParameter(
+                                    argument.first, expression.descriptor) to expression.descriptor))
         }
         super.visitCall(expression)
     }
@@ -413,7 +479,9 @@ internal class RoleAssignerVisitor(
     override fun visitDelegatingConstructorCall(expression: IrDelegatingConstructorCall) {
         for (argument in expression.getArguments()) {
             assignRole(argument.second, Role.CALL_ARGUMENT,
-                    RoleInfoEntry(Pair(argument.first, expression.descriptor)))
+                    RoleInfoEntry(
+                            FormalParameter(
+                                    argument.first, expression.descriptor) to expression.descriptor))
         }
         super.visitDelegatingConstructorCall(expression)
     }
@@ -445,6 +513,16 @@ internal class RoleAssignerVisitor(
         super.visitVariable(expression)
     }
 
+    override fun visitFunction(declaration: IrFunction) {
+        this.currentFunction = declaration.descriptor
+        super.visitFunction(declaration)
+    }
+
+    override fun visitConstructor(declaration: IrConstructor) {
+        this.currentFunction = declaration.descriptor
+        super.visitConstructor(declaration)
+    }
+
     override fun visitReturn(expression: IrReturn) {
         assignRole(expression.value, Role.RETURN_VALUE, RoleInfoEntry(expression))
         super.visitReturn(expression)
@@ -454,6 +532,21 @@ internal class RoleAssignerVisitor(
         assignRole(expression.value, Role.THROW_VALUE, RoleInfoEntry(expression))
         super.visitThrow(expression)
     }
+
+    override fun visitVararg(expression: IrVararg) {
+        expression.elements.forEach {
+            when (it) {
+                is IrExpression ->
+                    assignExpressionRole(it, Role.WRITTEN_TO_FIELD, RoleInfoEntry(expression))
+                is IrSpreadElement ->
+                    assignExpressionRole(it.expression, Role.WRITTEN_TO_FIELD, RoleInfoEntry(expression))
+                else -> TODO("Unsupported vararg element")
+            }
+        }
+        super.visitVararg(expression)
+    }
+
+    private var currentFunction: CallableDescriptor? = null
 }
 
 internal class ContextFinderVisitor(val needle: IrElement) : IrElementVisitorVoid {
@@ -519,19 +612,17 @@ fun computeLifetimes(irModule: IrModuleFragment, context: RuntimeAware,
 
     expressionToRoles.forEach { expression, roles ->
         if (DEBUG > 1)
-            println("for ${expression} roles are ${roles.data.keys.joinToString(", ")}")
+            println("for ${ir2string(expression)} roles are ${roles.data.keys.joinToString(", ")}")
         var role = rolesToLifetime(roles)
         if (role == Lifetime.LOCAL) {
-            if (DEBUG > 0)
+            if (DEBUG > 0 && expression !is IrGetValue)
                 println("arena alloc for ${ir2string(expression)} in ${findContext(irModule, expression)}")
-            // Not yet enabled.
-            // role = Lifetime.GLOBAL
         }
         lifetimes[expression] = role
     }
     if (DEBUG > 1) {
         variableValues.elementData.forEach { variable, expressions ->
-            println("variable $variable could be ${expressions.joinToString(", ")}") }
+            println("variable $variable could be ${expressions.joinToString(", "){ ir2string(it)}}") }
         parameterRoles.elementData.forEach { parameter, roles ->
             println("parameter $parameter could be $roles") }
     }
