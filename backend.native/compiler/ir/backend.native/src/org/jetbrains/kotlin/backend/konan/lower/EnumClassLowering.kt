@@ -169,16 +169,16 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
 
             val constructors = mutableSetOf<ClassConstructorDescriptor>()
 
-            descriptor.constructors.forEach { constructorIterator ->
-                val loweredEnumConstructor = loweredEnumConstructors[constructorIterator]!!
+            descriptor.constructors.forEach { it ->
+                val loweredEnumConstructor = loweredEnumConstructors[it]!!
                 val (constructorDescriptor, constructor) = createSimpleDelegatingConstructor(defaultClassDescriptor, loweredEnumConstructor)
                 constructors.add(constructorDescriptor)
                 defaultClass.declarations.add(constructor)
                 defaultEnumEntryConstructors.put(loweredEnumConstructor, constructorDescriptor)
 
                 val irConstructor = descriptorToIrConstructorWithDefaultArguments[loweredEnumConstructor]
-                irConstructor?.let {
-                    constructorIterator.valueParameters.filter { it.declaresDefaultValue() }.forEach { argument ->
+                if (irConstructor != null) {
+                    it.valueParameters.filter { it.declaresDefaultValue() }.forEach { argument ->
                         val loweredArgument = loweredEnumConstructor.valueParameters[argument.loweredIndex()]
                         val body = irConstructor.getDefault(loweredArgument)!!
                         body.transformChildrenVoid(ParameterMapper(constructorDescriptor))
