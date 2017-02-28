@@ -174,6 +174,23 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
                 constructors.add(constructorDescriptor)
                 defaultClass.declarations.add(constructor)
                 defaultEnumEntryConstructors.put(loweredEnumConstructor, constructorDescriptor)
+
+                val irConstructor:IrConstructor = irClass.declarations.single{ declaration -> declaration is IrConstructor && declaration.descriptor == loweredEnumConstructor} as IrConstructor
+                it.valueParameters.filter { it.declaresDefaultValue() }.forEach { argument ->
+                    val loweredArgument = loweredEnumConstructor.valueParameters[argument.index + 2]
+                    val body = irConstructor.getDefault(loweredArgument)!!
+                    body.transformChildrenVoid(object: IrElementTransformerVoid() {
+                        override fun visitGetValue(expression: IrGetValue): IrExpression {
+                            when(expression.descriptor) {
+                                is ValueParameterDescriptor -> return IrGetValueImpl(expression.startOffset,
+                                        expression.endOffset,
+                                        constructorDescriptor.valueParameters[(expression.descriptor as ValueParameterDescriptor).index])
+                            }
+                            return expression
+                        }
+                    })
+                    constructor.putDefault(constructorDescriptor.valueParameters[loweredArgument.index], body)
+                }
             }
 
             val memberScope = SimpleMemberScope(irClass.descriptor.unsubstitutedMemberScope.getContributedDescriptors().toList())
@@ -274,7 +291,6 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
                     )
             )
             val constructor = IrConstructorImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, IrDeclarationOrigin.DEFINED, constructorDescriptor, body)
-
             return Pair(constructorDescriptor, constructor)
         }
 
@@ -392,6 +408,20 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
                     loweredConstructorDescriptor,
                     enumConstructor.body!! // will be transformed later
             )
+            enumConstructor.descriptor.valueParameters.filter { it.declaresDefaultValue() }.forEach {
+                val body = enumConstructor.getDefault(it)!!
+                body.transformChildrenVoid(object: IrElementTransformerVoid() {
+                    override fun visitGetValue(expression: IrGetValue): IrExpression {
+                        when(expression.descriptor) {
+                            is ValueParameterDescriptor -> return IrGetValueImpl(expression.startOffset,
+                                    expression.endOffset,
+                                    constructorDescriptor.valueParameters[(expression.descriptor as ValueParameterDescriptor).index])
+                        }
+                        return expression
+                    }
+                })
+                loweredEnumConstructor.putDefault(loweredConstructorDescriptor.valueParameters[it.index + 2], body!!)
+            }
             return loweredEnumConstructor
         }
 
