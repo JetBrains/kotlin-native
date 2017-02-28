@@ -29,10 +29,10 @@ import org.jetbrains.kotlin.resolve.TargetPlatform
 import org.jetbrains.kotlin.storage.LockBasedStorageManager
 import org.jetbrains.kotlin.storage.StorageManager
 
-val STDLIB_MODULE_NAME = Name.special("<stdlib>")
+val CORE_MODULE_NAME = Name.special("<core>")
 
-fun ModuleDescriptor.isStdlib(): Boolean {
-    return name == STDLIB_MODULE_NAME
+fun ModuleDescriptor.isCore(): Boolean {
+    return name == CORE_MODULE_NAME
 }
 
 class KonanBuiltIns(storageManager: StorageManager) : KotlinBuiltIns(storageManager) {

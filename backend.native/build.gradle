@@ -200,19 +200,41 @@ targetList.each { target ->
             "-Dkonan.home=${project.parent.file('dist')}",
             "-Djava.library.path=${project.buildDir}/nativelibs"
         args('-output', project(':runtime').file("build/${target}/stdlib.kt.bc"), 
-            '-nolink', '-nostdlib', '-compile_as_stdlib',
+            '-nolink', '-nostdlib', '-nocore',
             '-target', target,
             '-runtime', project(':runtime').file("build/${target}/runtime.bc"),
             '-properties', project(':backend.native').file('konan.properties'),
-        project(':runtime').file('src/main/kotlin'), 
+        project(':runtime').file('src/stdlib/kotlin'), 
         project(':Interop:Runtime').file('src/main/kotlin'),
+        *project.globalArgs)
+
+        inputs.dir(project(':runtime').file('src/stdlib/kotlin'))
+        inputs.dir(project(':Interop:Runtime').file('src/main/kotlin'))
+        outputs.file(project(':runtime').file("build/${target}/stdlib.kt.bc"))
+
+        dependsOn ":runtime:${target}Runtime", "${target}Core"
+    }
+}
+
+targetList.each { target ->
+    task("${target}Core", type: JavaExec) {
+        main = 'org.jetbrains.kotlin.cli.bc.K2NativeKt'
+        classpath = project.configurations.cli_bc
+        jvmArgs "-ea", 
+            "-Dkonan.home=${project.parent.file('dist')}",
+            "-Djava.library.path=${project.buildDir}/nativelibs"
+        args('-output', project(':runtime').file("build/${target}/core.kt.bc"), 
+            '-nolink', '-nostdlib', '-nocore', '-compile_as_core',
+            '-target', target,
+            '-runtime', project(':runtime').file("build/${target}/runtime.bc"),
+            '-properties', project(':backend.native').file('konan.properties'),
+        project(':runtime').file('src/core/kotlin'), 
         project(':Interop:Runtime').file('src/native/kotlin'),
         *project.globalArgs)
 
-        inputs.dir(project(':runtime').file('src/main/kotlin'))
-        inputs.dir(project(':Interop:Runtime').file('src/main/kotlin'))
+        inputs.dir(project(':runtime').file('src/core/kotlin'))
         inputs.dir(project(':Interop:Runtime').file('src/native/kotlin'))
-        outputs.file(project(':runtime').file("build/${target}/stdlib.kt.bc"))
+        outputs.file(project(':runtime').file("build/${target}/core.kt.bc"))
 
         dependsOn ":runtime:${target}Runtime"
     }
@@ -237,7 +259,7 @@ targetList.each { target ->
         inputs.dir(project(':runtime').file('src/launcher/kotlin'))
         outputs.file(project(':runtime').file("build/${target}/start.kt.bc"))
 
-        dependsOn ":runtime:${target}Runtime", "${target}Stdlib"
+        dependsOn ":runtime:${target}Runtime", "${target}Core"
     }
 }
 

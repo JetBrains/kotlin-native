@@ -18,7 +18,7 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
 
     internal val distribution = Distribution(configuration)
 
-    internal val compileAsStdlib = configuration.get(KonanConfigKeys.COMPILE_AS_STDLIB) ?: false
+    internal val compileAsCore = configuration.get(KonanConfigKeys.COMPILE_AS_CORE) ?: false
 
     internal val libraries: List<String>
         get() {
@@ -26,15 +26,17 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
             if (configuration.get(KonanConfigKeys.NOSTDLIB) ?: false) {
                 return fromCommandLine
             }
+
+            // TODO: link Core library
             return fromCommandLine + distribution.stdlib
         }
 
     private val loadedDescriptors = loadLibMetadata(libraries)
 
     init {
-        if (!compileAsStdlib) {
-            val stdlib = loadedDescriptors.single { it.isStdlib() }
-            KonanPlatform.builtIns.createBuiltInsModule(stdlib)
+        if (!compileAsCore) {
+            val core = loadedDescriptors.single { it.isCore() }
+            KonanPlatform.builtIns.createBuiltInsModule(core)
         }
     }
 
