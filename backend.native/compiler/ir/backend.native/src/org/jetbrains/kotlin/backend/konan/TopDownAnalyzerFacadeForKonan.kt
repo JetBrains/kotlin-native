@@ -41,8 +41,8 @@ object TopDownAnalyzerFacadeForKonan {
         // Make sure the compiler produced BuiltIns module comes in last
         context.setDependencies(
                 listOf(context.module) +
-                config.moduleDescriptors +
-                listOf(compilerBuiltInsModule)
+                config.moduleDescriptors //+
+                //listOf(compilerBuiltInsModule)
         )
         return analyzeFilesWithGivenTrace(files, BindingTraceContext(), context, config)
     }
