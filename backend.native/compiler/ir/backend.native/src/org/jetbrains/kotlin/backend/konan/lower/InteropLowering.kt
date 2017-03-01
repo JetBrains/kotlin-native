@@ -36,7 +36,7 @@ internal class InteropLowering(val context: Context) : FileLoweringPass {
 
 private class InteropTransformer(val context: Context) : IrBuildingTransformer(context) {
 
-    val interop = context.interopBuiltIns
+    val interop = context.interopBuiltIns!!
 
     private fun MemberScope.getSingleContributedFunction(name: String,
                                                          predicate: (SimpleFunctionDescriptor) -> Boolean) =

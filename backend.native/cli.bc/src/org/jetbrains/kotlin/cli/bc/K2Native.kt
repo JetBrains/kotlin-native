@@ -55,6 +55,7 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
         with (KonanConfigKeys) { with (configuration) {
 
             put(NOSTDLIB, arguments.nostdlib)
+            put(NOINTEROP, arguments.nointerop)
             put(NOCORE, arguments.nocore)
             put(COMPILE_AS_CORE, arguments.compileAsCore)
             put(NOLINK, arguments.nolink)

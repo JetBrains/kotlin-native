@@ -1658,7 +1658,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             }
         }
 
-        val interop = context.interopBuiltIns
+        val interop = context.interopBuiltIns!!
 
         return when (descriptor) {
             in interop.readPrimitive -> {

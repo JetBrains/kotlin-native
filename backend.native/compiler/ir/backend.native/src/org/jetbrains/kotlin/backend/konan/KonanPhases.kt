@@ -56,6 +56,10 @@ object KonanPhases {
             if (get(NOLINK) ?: false ) {
                 KonanPhase.LINKER.enabled = false
             }
+
+            if (get(NOINTEROP) ?: false ) {
+                KonanPhase.LOWER_INTEROP.enabled = false
+            }
         }}
     }
 

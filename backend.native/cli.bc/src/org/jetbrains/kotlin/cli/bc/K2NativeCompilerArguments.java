@@ -28,6 +28,9 @@ public class K2NativeCompilerArguments extends CommonCompilerArguments {
     @Argument(value = "nolink", description = "Don't link, just produce a bitcode file")
     public boolean nolink;
 
+    @Argument(value = "nointerop", description = "Switch off interop")
+    public boolean nointerop;
+
     @Argument(value = "nostdlib", description = "Don't link with stdlib")
     public boolean nostdlib;
 

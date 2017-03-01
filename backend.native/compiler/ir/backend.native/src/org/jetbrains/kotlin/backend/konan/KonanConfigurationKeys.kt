@@ -23,6 +23,8 @@ class KonanConfigKeys {
                 = CompilerConfigurationKey.create("optimized compilation")
         val NOSTDLIB: CompilerConfigurationKey<Boolean> 
                 = CompilerConfigurationKey.create("don't link with stdlib")
+        val NOINTEROP: CompilerConfigurationKey<Boolean> 
+                = CompilerConfigurationKey.create("switch off interop")
         val NOCORE: CompilerConfigurationKey<Boolean> 
                 = CompilerConfigurationKey.create("don't link with core library")
         val COMPILE_AS_CORE: CompilerConfigurationKey<Boolean>

@@ -103,7 +103,8 @@ private class AutoboxingTransformer(val context: Context) : AbstractValueUsageTr
 
     override fun IrExpression.useAs(type: KotlinType): IrExpression {
         val interop = context.interopBuiltIns
-        if (this.isNullConst() && interop.nullableInteropValueTypes.any { type.isRepresentedAs(it) }) {
+        if (this.isNullConst() && interop != null &&
+            interop.nullableInteropValueTypes.any { type.isRepresentedAs(it) }) {
             return IrCallImpl(startOffset, endOffset, interop.getNativeNullPtr).uncheckedCast(type)
         }
 
