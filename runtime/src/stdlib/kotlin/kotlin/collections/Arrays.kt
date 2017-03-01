@@ -1501,11 +1501,6 @@ public inline fun <reified T> Collection<T>.toTypedArray(): Array<T> {
 }
 
 /**
- * Returns an array containing the specified elements.
- */
-public inline fun <reified @PureReifiable T> arrayOf(vararg elements: T): Array<T> = elements as Array<T>
-
-/**
  * Returns an array containing the specified [Double] numbers.
  */
 public inline fun doubleArrayOf(vararg elements: Double) = elements

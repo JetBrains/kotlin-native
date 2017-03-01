@@ -1,5 +1,6 @@
 package kotlin
 
+import kotlin.internal.PureReifiable
 //import kotlin.collections.*
 // TODO: make all iterator() methods inline.
 
@@ -333,6 +334,11 @@ private class BooleanIteratorImpl(val collection: BooleanArray) : BooleanIterato
         return index < collection.size
     }
 }
+
+/**
+ * Returns an array containing the specified elements.
+ */
+public inline fun <reified @PureReifiable T> arrayOf(vararg elements: T): Array<T> = elements as Array<T>
 
 
 
