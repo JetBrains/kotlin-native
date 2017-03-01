@@ -6,46 +6,11 @@ import kotlin.util.sortArrayComparable
 import kotlin.util.sortArrayWith
 
 /**
- * An array of bytes.
- * @constructor Creates a new array of the specified [size], with all elements initialized to zero.
+ * Returns `true` if all elements match the given [predicate].
  */
-@ExportTypeInfo("theByteArrayTypeInfo")
-public final class ByteArray : Cloneable {
-    // Constructors are handled with compiler magic.
-    public constructor(@Suppress("UNUSED_PARAMETER") size: Int) {}
-
-    public val size: Int
-        get() = getArrayLength()
-
-    @SymbolName("Kotlin_ByteArray_get")
-    external public operator fun get(index: Int): Byte
-
-    @SymbolName("Kotlin_ByteArray_set")
-    external public operator fun set(index: Int, value: Byte): Unit
-
-    @SymbolName("Kotlin_ByteArray_clone")
-    external public override fun clone(): Any
-
-    @SymbolName("Kotlin_ByteArray_getArrayLength")
-    external private fun getArrayLength(): Int
-
-    /** Creates an iterator over the elements of the array. */
-    public operator fun iterator(): ByteIterator {
-        return ByteIteratorImpl(this)
-    }
-}
-
-// TODO: replace with generics, once implemented.
-private class ByteIteratorImpl(val collection: ByteArray) : ByteIterator() {
-    var index : Int = 0
-
-    public override fun nextByte(): Byte {
-        return collection[index++]
-    }
-
-    public override operator fun hasNext(): Boolean {
-        return index < collection.size
-    }
+public inline fun <T> Array<out T>.all(predicate: (T) -> Boolean): Boolean {
+    for (element in this) if (!predicate(element)) return false
+    return true
 }
 
 // This part is from generated _Arrays.kt.

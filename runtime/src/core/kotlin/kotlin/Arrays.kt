@@ -334,12 +334,5 @@ private class BooleanIteratorImpl(val collection: BooleanArray) : BooleanIterato
     }
 }
 
-/**
- * Returns `true` if all elements match the given [predicate].
- */
-public inline fun <T> Array<out T>.all(predicate: (T) -> Boolean): Boolean {
-    for (element in this) if (!predicate(element)) return false
-    return true
-}
 
 
