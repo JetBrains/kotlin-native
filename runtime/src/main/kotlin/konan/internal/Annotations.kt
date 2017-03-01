@@ -12,9 +12,3 @@ package konan.internal
 //@Retention(AnnotationRetention.SOURCE)
 annotation class ExportForCppRuntime(val name: String = "")
 
-/**
- * Exports symbol for compiler needs.
- */
-@Target(AnnotationTarget.FUNCTION, AnnotationTarget.CONSTRUCTOR, AnnotationTarget.CLASS)
-@Retention(AnnotationRetention.BINARY)
-annotation class ExportForCompiler
