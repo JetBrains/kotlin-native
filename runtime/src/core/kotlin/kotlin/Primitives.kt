@@ -196,23 +196,6 @@ public final class Byte : Number(), Comparable<Byte> {
     @SymbolName("Kotlin_Byte_toDouble")
     external public override fun toDouble(): Double
 
-    /** Creates a range from this value to the specified [other] value. */
-    public operator fun rangeTo(other: Byte): IntRange {
-        return IntRange(this.toInt(), other.toInt())
-    }
-    /** Creates a range from this value to the specified [other] value. */
-    public operator fun rangeTo(other: Short): IntRange {
-        return IntRange(this.toInt(), other.toInt())
-    }
-    /** Creates a range from this value to the specified [other] value. */
-    public operator fun rangeTo(other: Int): IntRange {
-        return IntRange(this.toInt(), other.toInt())
-    }
-    /** Creates a range from this value to the specified [other] value. */
-    public operator fun rangeTo(other: Long): LongRange {
-        return LongRange(this.toLong(), other.toLong())
-    }
-
     // Konan-specific.
     public fun equals(other: Byte): Boolean = konan.internal.areEqualByValue(this, other)
 
@@ -407,23 +390,6 @@ public final class Short : Number(), Comparable<Short> {
     /** Inverts the bits in this value/ */
     @SymbolName("Kotlin_Short_inv")
     external public fun inv(): Short
-
-    /** Creates a range from this value to the specified [other] value. */
-    public operator fun rangeTo(other: Byte): IntRange {
-        return IntRange(this.toInt(), other.toInt())
-    }
-    /** Creates a range from this value to the specified [other] value. */
-    public operator fun rangeTo(other: Short): IntRange {
-        return IntRange(this.toInt(), other.toInt())
-    }
-    /** Creates a range from this value to the specified [other] value. */
-    public operator fun rangeTo(other: Int): IntRange {
-        return IntRange(this.toInt(), other.toInt())
-    }
-    /** Creates a range from this value to the specified [other] value. */
-    public operator fun rangeTo(other: Long): LongRange  {
-        return LongRange(this.toLong(), other.toLong())
-    }
 
     @SymbolName("Kotlin_Short_toByte")
     external public override fun toByte(): Byte
@@ -643,23 +609,6 @@ public final class Int : Number(), Comparable<Int> {
     /** Inverts the bits in this value/ */
     @SymbolName("Kotlin_Int_inv")
     external public fun inv(): Int
-
-    /** Creates a range from this value to the specified [other] value. */
-    public operator fun rangeTo(other: Byte): IntRange {
-        return IntRange(this, other.toInt())
-    }
-    /** Creates a range from this value to the specified [other] value. */
-    public operator fun rangeTo(other: Short): IntRange {
-        return IntRange(this, other.toInt())
-    }
-    /** Creates a range from this value to the specified [other] value. */
-    public operator fun rangeTo(other: Int): IntRange  {
-        return IntRange(this, other.toInt())
-    }
-    /** Creates a range from this value to the specified [other] value. */
-    public operator fun rangeTo(other: Long): LongRange {
-        return LongRange(this.toLong(), other.toLong())
-    }
 
     @SymbolName("Kotlin_Int_toByte")
     external public override fun toByte(): Byte
@@ -884,23 +833,6 @@ public final class Long : Number(), Comparable<Long> {
     /** Returns the negative of this value. */
     @SymbolName("Kotlin_Long_unaryMinus")
     external public operator fun unaryMinus(): Long
-
-    /** Creates a range from this value to the specified [other] value. */
-    external public operator fun rangeTo(other: Byte): LongRange {
-        return LongRange(this, other.toLong())
-    }
-    /** Creates a range from this value to the specified [other] value. */
-    public operator fun rangeTo(other: Short): LongRange  {
-        return LongRange(this, other.toLong())
-    }
-    /** Creates a range from this value to the specified [other] value. */
-    public operator fun rangeTo(other: Int): LongRange {
-        return LongRange(this, other.toLong())
-    }
-    /** Creates a range from this value to the specified [other] value. */
-    public operator fun rangeTo(other: Long): LongRange  {
-        return LongRange(this, other.toLong())
-    }
 
     /** Shifts this value left by [bits]. */
     @SymbolName("Kotlin_Long_shl_Int")
