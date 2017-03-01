@@ -189,6 +189,7 @@ internal fun getGlobalType(ptrToGlobal: LLVMValueRef): LLVMTypeRef {
 }
 
 internal fun ContextUtils.externalGlobal(name: String, type: LLVMTypeRef): LLVMValueRef {
+
     val found = LLVMGetNamedGlobal(context.llvmModule, name)
     if (found != null) {
         assert (getGlobalType(found) == type)

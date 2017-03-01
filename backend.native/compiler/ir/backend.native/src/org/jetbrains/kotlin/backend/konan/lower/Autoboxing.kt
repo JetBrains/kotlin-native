@@ -167,11 +167,11 @@ private class AutoboxingTransformer(val context: Context) : AbstractValueUsageTr
         get() = this.classFqName.shortName()
 
     private fun getBoxType(valueType: ValueType) =
-            context.builtIns.getKonanInternalClass("${valueType.shortName}Box").defaultType
+            context.moduleDescriptor!!.getKonanInternalClass("${valueType.shortName}Box").defaultType
 
     private fun IrExpression.box(valueType: ValueType): IrExpression {
         val boxFunctionName = "box${valueType.shortName}"
-        val boxFunction = context.builtIns.getKonanInternalFunctions(boxFunctionName).singleOrNull() ?:
+        val boxFunction = context.moduleDescriptor!!.getKonanInternalFunctions(boxFunctionName).singleOrNull() ?:
                 TODO(valueType.toString())
 
         return IrCallImpl(startOffset, endOffset, boxFunction).apply {
@@ -182,7 +182,7 @@ private class AutoboxingTransformer(val context: Context) : AbstractValueUsageTr
     private fun IrExpression.unbox(valueType: ValueType): IrExpression {
         val unboxFunctionName = "unbox${valueType.shortName}"
 
-        context.builtIns.getKonanInternalFunctions(unboxFunctionName).atMostOne()?.let {
+        context.moduleDescriptor!!.getKonanInternalFunctions(unboxFunctionName).atMostOne()?.let {
             return IrCallImpl(startOffset, endOffset, it).apply {
                 putValueArgument(0, this@unbox.uncheckedCast(it.valueParameters[0].type))
             }.uncheckedCast(this.type)

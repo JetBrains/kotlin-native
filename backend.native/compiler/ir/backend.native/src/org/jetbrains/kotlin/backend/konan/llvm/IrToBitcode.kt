@@ -85,7 +85,9 @@ internal class RTTIGeneratorVisitor(context: Context) : IrElementVisitorVoid {
     }
 
     override fun visitClass(declaration: IrClass) {
+        println(declaration.descriptor)
         super.visitClass(declaration)
+
 
         if (declaration.descriptor.isIntrinsic) {
             // do not generate any code for intrinsic classes as they require special handling
