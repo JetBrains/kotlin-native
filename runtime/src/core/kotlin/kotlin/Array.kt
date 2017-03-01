@@ -14,7 +14,9 @@ public final class Array<T> : Cloneable {
     }
 
     @ExportForCompiler
-    internal constructor(@Suppress("UNUSED_PARAMETER") size: Int) {}
+    public constructor(@Suppress("UNUSED_PARAMETER") size: Int) {}
+    // TOD: This is a puncture
+    //internal constructor(@Suppress("UNUSED_PARAMETER") size: Int) {}
 
     public val size: Int
         get() = getArrayLength()

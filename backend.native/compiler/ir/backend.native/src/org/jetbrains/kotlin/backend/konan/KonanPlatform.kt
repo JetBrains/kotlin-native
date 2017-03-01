@@ -38,7 +38,7 @@ fun ModuleDescriptor.isCore(): Boolean {
 class KonanBuiltIns(storageManager: StorageManager) : KotlinBuiltIns(storageManager) {
     override fun createBuiltInsModule() = throw Error("should not be called")
 
-    fun createBuiltInsModule(stdlib: ModuleDescriptorImpl) {
+    fun createBuiltInsModule(core: ModuleDescriptorImpl) {
         builtInsModule = ModuleDescriptorImpl(BUILTINS_MODULE_NAME, storageManager, this, null)
         val packageFragmentProvider = createBuiltInPackageFragmentProvider(
                 storageManager, builtInsModule, BUILT_INS_PACKAGE_FQ_NAMES,
@@ -53,8 +53,8 @@ class KonanBuiltIns(storageManager: StorageManager) : KotlinBuiltIns(storageMana
         builtInsModule.initialize(packageFragmentProvider)
         // The code above is copy-pasted from super.createBuiltInsModule(); TODO: refactor.
 
-        // stdlib comes first to override declarations from builtIns (even when they are requested from builtIns).
-        builtInsModule.setDependencies(stdlib, builtInsModule)
+        // core comes first to override declarations from builtIns (even when they are requested from builtIns).
+        builtInsModule.setDependencies(core, builtInsModule)
     }
 }
 

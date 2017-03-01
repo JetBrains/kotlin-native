@@ -116,7 +116,12 @@ internal fun KonanBuiltIns.getKonanInternalClass(name: String): ClassDescriptor 
         getKonanInternalClassOrNull(name) ?: TODO(name)
 
 internal fun KonanBuiltIns.getKonanInternalFunctions(name: String): List<FunctionDescriptor> {
-    return konanInternal.getContributedFunctions(Name.identifier(name), NoLookupLocation.FROM_BACKEND).toList()
+    println("konanInternal = ${this.builtInsModule.getPackage(konanInternalPackageName)}")
+    println("scope = $konanInternal")
+    println("looking for $name")
+    val result =  konanInternal.getContributedFunctions(Name.identifier(name), NoLookupLocation.FROM_BACKEND).toList()
+    println("found: $result")
+    return result
 }
 
 internal fun KotlinType.isUnboundCallableReference() = this.isRepresentedAs(ValueType.UNBOUND_CALLABLE_REFERENCE)

@@ -22,13 +22,17 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
 
     internal val libraries: List<String>
         get() {
-            val fromCommandLine = configuration.getList(KonanConfigKeys.LIBRARY_FILES)
-            if (configuration.get(KonanConfigKeys.NOSTDLIB) ?: false) {
-                return fromCommandLine
-            }
+            val result = mutableListOf<String>()
 
-            // TODO: link Core library
-            return fromCommandLine + distribution.stdlib
+            val fromCommandLine = configuration.getList(KonanConfigKeys.LIBRARY_FILES)
+            result.addAll(fromCommandLine)
+
+            if (!(configuration.get(KonanConfigKeys.NOSTDLIB) ?: false)) result.add(distribution.stdlib)
+            if (!(configuration.get(KonanConfigKeys.NOCORE) ?: false)) result.add(distribution.core)
+
+            println("### libraries = $result")
+
+            return result
         }
 
     private val loadedDescriptors = loadLibMetadata(libraries)
@@ -61,6 +65,7 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
                 allMetadata.add(moduleDescriptor)
             }
         }
+            println("### libraries = $allMetadata")
         return allMetadata
     }
 

@@ -43,14 +43,15 @@ object TopDownAnalyzerFacadeForKonan {
         assert (module.isCore() == config.compileAsCore)
 
         if (!module.isCore()) {
+            println("setDependencies: ${listOf(module) + config.moduleDescriptors + KonanPlatform.builtIns.builtInsModule}")
             context.setDependencies(listOf(module) + config.moduleDescriptors + KonanPlatform.builtIns.builtInsModule)
         } else {
             KonanPlatform.builtIns.createBuiltInsModule(module)
             assert (config.moduleDescriptors.isEmpty())
             context.setDependencies(module)
 
-            // TODO: stdlib should probably also depend on builtInsModule.
-            // However this would lead to mutual dependency between stdlib and builtInsModule,
+            // TODO: core should probably also depend on builtInsModule.
+            // However this would lead to mutual dependency between core and builtInsModule,
             // and the compiler can't handle it.
         }
 

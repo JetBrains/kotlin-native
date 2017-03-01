@@ -185,7 +185,7 @@ class HashMap<K, V> private constructor(
 
     private fun allocateValuesArray(): Array<V> {
         val curValuesArray = valuesArray
-        if (curValuesArray != null) return curValuesArray
+        if (!(curValuesArray === null)) return curValuesArray
         val newValuesArray = arrayOfUninitializedElements<V>(capacity)
         valuesArray = newValuesArray
         return newValuesArray
@@ -200,7 +200,7 @@ class HashMap<K, V> private constructor(
         while (i < length) {
             if (presenceArray[i] >= 0) {
                 keysArray[j] = keysArray[i]
-                if (valuesArray != null) valuesArray[j] = valuesArray[i]
+                if (!(valuesArray === null)) valuesArray[j] = valuesArray[i]
                 j++
             }
             i++

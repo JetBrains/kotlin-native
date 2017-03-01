@@ -28,6 +28,7 @@ public class Distribution(val config: CompilerConfiguration) {
     // TODO: Pack all needed things to dist.
     val dependencies = "$konanHome/../dependencies/all" 
 
+    val core = "$lib/core.kt.bc"
     val stdlib = "$lib/stdlib.kt.bc"
     val start = "$lib/start.kt.bc"
     val launcher = "$lib/launcher.bc"
