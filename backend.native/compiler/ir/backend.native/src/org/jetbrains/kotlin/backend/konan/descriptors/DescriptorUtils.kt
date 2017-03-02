@@ -129,11 +129,7 @@ internal fun ModuleDescriptor.getKonanInternalFunctions(name: String): List<Func
 }
 
 internal fun KonanBuiltIns.getKonanInternalFunctions(name: String): List<FunctionDescriptor> {
-    println("konanInternal = ${this.builtInsModule.getPackage(konanInternalPackageName)}")
-    println("scope = $konanInternal")
-    println("looking for $name")
     val result =  konanInternal.getContributedFunctions(Name.identifier(name), NoLookupLocation.FROM_BACKEND).toList()
-    println("found: $result")
     return result
 }
 

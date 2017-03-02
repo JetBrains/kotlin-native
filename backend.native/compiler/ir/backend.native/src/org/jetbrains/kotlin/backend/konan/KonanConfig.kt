@@ -30,8 +30,6 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
             if (!(configuration.get(KonanConfigKeys.NOSTDLIB) ?: false)) result.add(distribution.stdlib)
             if (!(configuration.get(KonanConfigKeys.NOCORE) ?: false)) result.add(distribution.core)
 
-            println("### libraries = $result")
-
             return result
         }
 
@@ -65,7 +63,6 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
                 allMetadata.add(moduleDescriptor)
             }
         }
-            println("### libraries = $allMetadata")
         return allMetadata
     }
 

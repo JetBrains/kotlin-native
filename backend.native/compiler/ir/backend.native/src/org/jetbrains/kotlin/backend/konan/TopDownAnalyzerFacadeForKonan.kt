@@ -43,7 +43,6 @@ object TopDownAnalyzerFacadeForKonan {
         assert (module.isCore() == config.compileAsCore)
 
         if (!module.isCore()) {
-            println("setDependencies: ${listOf(module) + config.moduleDescriptors + KonanPlatform.builtIns.builtInsModule}")
             context.setDependencies(listOf(module) + config.moduleDescriptors + KonanPlatform.builtIns.builtInsModule)
         } else {
             KonanPlatform.builtIns.createBuiltInsModule(module)
