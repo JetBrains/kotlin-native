@@ -127,7 +127,8 @@ internal final class Context(val config: KonanConfig) : KonanBackendContext() {
 
     val interopBuiltIns by lazy {
         if (config.configuration.getBoolean(KonanConfigKeys.NOINTEROP)) null
-        else InteropBuiltIns(this.builtIns)
+        // TODO: make it this.interopModule instead of user's moduleDescriptor
+        else InteropBuiltIns(this.moduleDescriptor!!, this.builtIns)
     }
 
     var llvmModule: LLVMModuleRef? = null

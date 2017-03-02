@@ -2,6 +2,7 @@ package org.jetbrains.kotlin.backend.konan
 
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
+import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
@@ -11,7 +12,7 @@ private val cPointerName = "CPointer"
 private val nativePointedName = "NativePointed"
 private val nativePtrName = "NativePtr"
 
-internal class InteropBuiltIns(builtIns: KonanBuiltIns) {
+internal class InteropBuiltIns(module: ModuleDescriptor, builtIns: KonanBuiltIns) {
 
     object FqNames {
         val packageName = FqName("kotlinx.cinterop")
@@ -21,7 +22,7 @@ internal class InteropBuiltIns(builtIns: KonanBuiltIns) {
         val nativePointed = packageName.child(Name.identifier(nativePointedName)).toUnsafe()
     }
 
-    private val packageScope = builtIns.builtInsModule.getPackage(FqNames.packageName).memberScope
+    private val packageScope = module.getPackage(FqNames.packageName).memberScope
 
     val getNativeNullPtr = packageScope.getContributedFunctions("getNativeNullPtr").single()
 
