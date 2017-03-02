@@ -1,14 +1,6 @@
 package konan
 
 /**
- * Exports the TypeInfo of this class by given name to use it from runtime.
- */
-//@Target(AnnotationTarget.CLASS)
-//@Retention(AnnotationRetention.SOURCE)
-annotation class ExportTypeInfo(val name: String)
-
-
-/**
  * Preserve the function entry point during global optimizations
  */
 public annotation class Used
