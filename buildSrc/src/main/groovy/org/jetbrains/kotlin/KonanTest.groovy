@@ -305,7 +305,8 @@ import kotlin.test.TestFailedException
 
 fun main(args : Array<String>) {
   try { 
-    print(${pkg}box())
+    @Suppress("USELESS_ELVIS")
+    print(${pkg}box()?:"null")
   } catch (e:TestFailedException) {
     print("FAIL")
   }
