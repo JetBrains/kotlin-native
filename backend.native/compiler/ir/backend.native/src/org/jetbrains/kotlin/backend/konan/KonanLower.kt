@@ -16,6 +16,9 @@ internal class KonanLower(val context: Context) {
     fun lower(irFile: IrFile) {
         val phaser = PhaseManager(context)
 
+        phaser.phase(KonanPhase.LOWER_IR_CORRECTOR) {
+            FakeCallableDescriptorReplacer().runOnFilePostfix(irFile)
+        }
         phaser.phase(KonanPhase.LOWER_INLINE) {
             FunctionInlining(context).inline(irFile)
         }
