@@ -186,11 +186,10 @@ class ReflectionTypes(module: ModuleDescriptor) {
 }
 
 internal class Context(config: KonanConfig) : KonanBackendContext(config) {
-
-    var moduleDescriptor: ModuleDescriptor? = null
+    lateinit var moduleDescriptor: ModuleDescriptor
 
     val specialDescriptorsFactory = SpecialDescriptorsFactory(this)
-    val reflectionTypes: ReflectionTypes by lazy { ReflectionTypes(moduleDescriptor!!) }
+    val reflectionTypes: ReflectionTypes by lazy { ReflectionTypes(moduleDescriptor) }
     private val vtableBuilders = mutableMapOf<ClassDescriptor, ClassVtablesBuilder>()
 
     fun getVtableBuilder(classDescriptor: ClassDescriptor) = vtableBuilders.getOrPut(classDescriptor) {
@@ -242,9 +241,11 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     }
 
     fun printDescriptors() {
-        if (moduleDescriptor == null) return
+        // A workaround to check if the lateinit field is assigned, see KT-9327
+        try { moduleDescriptor } catch (e: UninitializedPropertyAccessException) { return }
+
         separator("Descriptors after: ${phase?.description}")
-        moduleDescriptor!!.deepPrint()
+        moduleDescriptor.deepPrint()
     }
 
     fun verifyIr() {
