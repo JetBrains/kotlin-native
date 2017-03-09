@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.ir.expressions.IrStatementOriginImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrBlockImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrGetValueImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrSetFieldImpl
+import org.jetbrains.kotlin.ir.util.DeepCopyIrTree
 import org.jetbrains.kotlin.ir.util.transformFlat
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
@@ -69,6 +70,8 @@ internal class InitializersLowering(val context: Context) : ClassLoweringPass {
 
         private fun lowerConstructors() {
             irClass.transformChildrenVoid(object : IrElementTransformerVoid() {
+                var atLeastOneConstructorVisited = false
+
                 override fun visitClass(declaration: IrClass): IrStatement {
                     // Skip nested.
                     return declaration
@@ -79,15 +82,24 @@ internal class InitializersLowering(val context: Context) : ClassLoweringPass {
 
                     blockBody.statements.transformFlat {
                         when {
-                            it is IrInstanceInitializerCall -> initializers
-                            /**
-                             * IR for kotlin.Any is:
-                             * BLOCK_BODY
-                             *   DELEGATING_CONSTRUCTOR_CALL 'constructor Any()'
-                             *   INSTANCE_INITIALIZER_CALL classDescriptor='Any'
-                             *
-                             *   to avoid possible recursion we manually reject body generation for Any.
-                             */
+                            it is IrInstanceInitializerCall -> {
+                                if (!atLeastOneConstructorVisited) {
+                                    // For the first constructor take original.
+                                    atLeastOneConstructorVisited = true
+                                    initializers
+                                } else {
+                                    // Otherwise clone.
+                                    initializers.map { it.accept(DeepCopyIrTree(), null) as IrStatement }
+                                }
+                            }
+                        /**
+                         * IR for kotlin.Any is:
+                         * BLOCK_BODY
+                         *   DELEGATING_CONSTRUCTOR_CALL 'constructor Any()'
+                         *   INSTANCE_INITIALIZER_CALL classDescriptor='Any'
+                         *
+                         *   to avoid possible recursion we manually reject body generation for Any.
+                         */
                             it is IrDelegatingConstructorCall && irClass.descriptor == context.builtIns.any
                                     && it.descriptor == declaration.descriptor -> listOf()
                             else -> null
