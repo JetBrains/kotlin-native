@@ -31,6 +31,7 @@ import org.jetbrains.kotlin.types.typeUtil.asTypeProjection
 import org.jetbrains.kotlin.utils.addIfNotNull
 import java.lang.System.out
 import java.util.*
+import kotlin.LazyThreadSafetyMode.PUBLICATION
 import kotlin.reflect.KProperty
 
 internal class SpecialDescriptorsFactory(val context: Context) {
@@ -188,8 +189,10 @@ class ReflectionTypes(module: ModuleDescriptor) {
 internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     lateinit var moduleDescriptor: ModuleDescriptor
 
+    override val builtIns: KonanBuiltIns by lazy(PUBLICATION) { moduleDescriptor.builtIns as KonanBuiltIns }
+
     val specialDescriptorsFactory = SpecialDescriptorsFactory(this)
-    val reflectionTypes: ReflectionTypes by lazy { ReflectionTypes(moduleDescriptor) }
+    val reflectionTypes: ReflectionTypes by lazy(PUBLICATION) { ReflectionTypes(moduleDescriptor) }
     private val vtableBuilders = mutableMapOf<ClassDescriptor, ClassVtablesBuilder>()
 
     fun getVtableBuilder(classDescriptor: ClassDescriptor) = vtableBuilders.getOrPut(classDescriptor) {
