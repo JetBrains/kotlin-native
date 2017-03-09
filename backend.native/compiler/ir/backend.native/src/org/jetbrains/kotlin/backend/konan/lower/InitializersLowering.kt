@@ -1,6 +1,7 @@
 package org.jetbrains.kotlin.backend.konan.lower
 
 import org.jetbrains.kotlin.backend.common.ClassLoweringPass
+import org.jetbrains.kotlin.backend.common.DeepCopyIrTreeWithDeclarations
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.*
@@ -11,7 +12,6 @@ import org.jetbrains.kotlin.ir.expressions.IrStatementOriginImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrBlockImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrGetValueImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrSetFieldImpl
-import org.jetbrains.kotlin.ir.util.DeepCopyIrTree
 import org.jetbrains.kotlin.ir.util.transformFlat
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
@@ -89,7 +89,7 @@ internal class InitializersLowering(val context: Context) : ClassLoweringPass {
                                     initializers
                                 } else {
                                     // Otherwise clone.
-                                    initializers.map { it.accept(DeepCopyIrTree(), null) as IrStatement }
+                                    initializers.map { it.accept(DeepCopyIrTreeWithDeclarations(), null) as IrStatement }
                                 }
                             }
                         /**
