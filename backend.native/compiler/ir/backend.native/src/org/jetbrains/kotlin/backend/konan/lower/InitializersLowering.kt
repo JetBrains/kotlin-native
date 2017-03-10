@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.ir.expressions.impl.*
 import org.jetbrains.kotlin.ir.util.transformFlat
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
+import org.jetbrains.kotlin.js.descriptorUtils.hasPrimaryConstructor
 
 internal class InitializersLowering(val context: Context) : ClassLoweringPass {
     override fun lower(irClass: IrClass) {
@@ -78,7 +79,7 @@ internal class InitializersLowering(val context: Context) : ClassLoweringPass {
             val initializerMethodDescriptor = SimpleFunctionDescriptorImpl.create(
                     irClass.descriptor,
                     Annotations.EMPTY,
-                    "<initializer>".synthesizedName,
+                    "INITIALIZER".synthesizedName,
                     CallableMemberDescriptor.Kind.DECLARATION,
                     SourceElement.NO_SOURCE).apply {
                 val parameters = irClass.descriptor.unsubstitutedPrimaryConstructor?.valueParameters ?: listOf()
@@ -117,10 +118,11 @@ internal class InitializersLowering(val context: Context) : ClassLoweringPass {
                             it is IrInstanceInitializerCall -> {
                                 val startOffset = it.startOffset
                                 val endOffset = it.endOffset
+                                val constructorParameters = declaration.descriptor.valueParameters
                                 listOf(IrCallImpl(startOffset, endOffset, initializerMethodDescriptor).apply {
                                     dispatchReceiver = IrGetValueImpl(startOffset, endOffset, irClass.descriptor.thisAsReceiverParameter)
-                                    parameters.forEach {
-                                        putValueArgument(it.index, IrGetValueImpl(startOffset, endOffset, it))
+                                    parameters.forEach { // Here we are sure in the primary constructor - take his parameters.
+                                        putValueArgument(it.index, IrGetValueImpl(startOffset, endOffset, constructorParameters[it.index]))
                                     }
                                 })
                             }
