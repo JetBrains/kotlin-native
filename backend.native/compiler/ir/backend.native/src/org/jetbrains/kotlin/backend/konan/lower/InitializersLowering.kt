@@ -1,17 +1,19 @@
 package org.jetbrains.kotlin.backend.konan.lower
 
 import org.jetbrains.kotlin.backend.common.ClassLoweringPass
-import org.jetbrains.kotlin.backend.common.DeepCopyIrTreeWithDeclarations
 import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.descriptors.synthesizedName
+import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.descriptors.annotations.Annotations
+import org.jetbrains.kotlin.descriptors.impl.SimpleFunctionDescriptorImpl
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.declarations.impl.IrFunctionImpl
 import org.jetbrains.kotlin.ir.expressions.IrBlockBody
 import org.jetbrains.kotlin.ir.expressions.IrDelegatingConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrInstanceInitializerCall
 import org.jetbrains.kotlin.ir.expressions.IrStatementOriginImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrBlockImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrGetValueImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrSetFieldImpl
+import org.jetbrains.kotlin.ir.expressions.impl.*
 import org.jetbrains.kotlin.ir.util.transformFlat
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
@@ -26,11 +28,15 @@ internal class InitializersLowering(val context: Context) : ClassLoweringPass {
 
         fun lowerInitializers() {
             collectAndRemoveInitializers()
-            lowerConstructors()
+            val initializerMethodDescriptor = createInitializerMethod()
+            lowerConstructors(initializerMethodDescriptor)
         }
 
         object STATEMENT_ORIGIN_ANONYMOUS_INITIALIZER :
                 IrStatementOriginImpl("ANONYMOUS_INITIALIZER")
+
+        object DECLARATION_ORIGIN_ANONYMOUS_INITIALIZER :
+                IrDeclarationOriginImpl("ANONYMOUS_INITIALIZER")
 
         private fun collectAndRemoveInitializers() {
             // Do with one traversal in order to preserve initializers order.
@@ -68,9 +74,35 @@ internal class InitializersLowering(val context: Context) : ClassLoweringPass {
             }
         }
 
-        private fun lowerConstructors() {
+        private fun createInitializerMethod(): FunctionDescriptor {
+            val initializerMethodDescriptor = SimpleFunctionDescriptorImpl.create(
+                    irClass.descriptor,
+                    Annotations.EMPTY,
+                    "<initializer>".synthesizedName,
+                    CallableMemberDescriptor.Kind.DECLARATION,
+                    SourceElement.NO_SOURCE).apply {
+                val parameters = irClass.descriptor.unsubstitutedPrimaryConstructor?.valueParameters ?: listOf()
+                initialize(
+                        null,
+                        irClass.descriptor.thisAsReceiverParameter,
+                        listOf(),
+                        parameters,
+                        context.builtIns.unitType,
+                        Modality.FINAL,
+                        Visibilities.PRIVATE)
+            }
+            val startOffset = irClass.startOffset
+            val endOffset = irClass.endOffset
+            val initializer = IrFunctionImpl(startOffset, endOffset, DECLARATION_ORIGIN_ANONYMOUS_INITIALIZER,
+                    initializerMethodDescriptor, IrBlockBodyImpl(startOffset, endOffset, initializers))
+            irClass.declarations.add(initializer)
+
+            return initializerMethodDescriptor
+        }
+
+        private fun lowerConstructors(initializerMethodDescriptor: FunctionDescriptor) {
+            val parameters = irClass.descriptor.unsubstitutedPrimaryConstructor?.valueParameters ?: listOf()
             irClass.transformChildrenVoid(object : IrElementTransformerVoid() {
-                var atLeastOneConstructorVisited = false
 
                 override fun visitClass(declaration: IrClass): IrStatement {
                     // Skip nested.
@@ -83,14 +115,14 @@ internal class InitializersLowering(val context: Context) : ClassLoweringPass {
                     blockBody.statements.transformFlat {
                         when {
                             it is IrInstanceInitializerCall -> {
-                                if (!atLeastOneConstructorVisited) {
-                                    // For the first constructor take original.
-                                    atLeastOneConstructorVisited = true
-                                    initializers
-                                } else {
-                                    // Otherwise clone.
-                                    initializers.map { it.accept(DeepCopyIrTreeWithDeclarations(), null) as IrStatement }
-                                }
+                                val startOffset = it.startOffset
+                                val endOffset = it.endOffset
+                                listOf(IrCallImpl(startOffset, endOffset, initializerMethodDescriptor).apply {
+                                    dispatchReceiver = IrGetValueImpl(startOffset, endOffset, irClass.descriptor.thisAsReceiverParameter)
+                                    parameters.forEach {
+                                        putValueArgument(it.index, IrGetValueImpl(startOffset, endOffset, it))
+                                    }
+                                })
                             }
                         /**
                          * IR for kotlin.Any is:
