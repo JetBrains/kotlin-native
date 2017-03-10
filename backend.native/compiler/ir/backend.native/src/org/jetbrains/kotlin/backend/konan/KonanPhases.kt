@@ -19,7 +19,7 @@ enum class KonanPhase(val description: String,
     /* ... ... */ LOWER_CALLABLES("Callable references Lowering", setOf(
                         LOWER_INTEROP, LOWER_INITIALIZERS, LOWER_DELEGATION)),
     /* ... ... */ LOWER_VARARG("Vararg lowering", setOf(LOWER_CALLABLES)),
-    /* ... ... */ LOWER_LOCAL_FUNCTIONS("Local Function Lowering", setOf(LOWER_INITIALIZERS)),
+    /* ... ... */ LOWER_LOCAL_FUNCTIONS("Local Function Lowering", setOf(LOWER_SHARED_VARIABLES)),
     /* ... ... */ LOWER_TAILREC("tailrec lowering", setOf(LOWER_LOCAL_FUNCTIONS)),
     /* ... ... */ LOWER_DEFAULT_PARAMETER_EXTENT("Default Parameter Extent Lowering", setOf(
                         LOWER_TAILREC, LOWER_ENUMS)),
