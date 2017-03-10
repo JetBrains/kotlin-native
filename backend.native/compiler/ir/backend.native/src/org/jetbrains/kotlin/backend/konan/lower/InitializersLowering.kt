@@ -75,19 +75,20 @@ internal class InitializersLowering(val context: Context) : ClassLoweringPass {
             }
         }
 
-        private fun createInitializerMethod(): FunctionDescriptor {
+        private fun createInitializerMethod(): FunctionDescriptor? {
+            if (irClass.descriptor.hasPrimaryConstructor())
+                return null // Place initializers in the primary constructor.
             val initializerMethodDescriptor = SimpleFunctionDescriptorImpl.create(
                     irClass.descriptor,
                     Annotations.EMPTY,
                     "INITIALIZER".synthesizedName,
                     CallableMemberDescriptor.Kind.DECLARATION,
                     SourceElement.NO_SOURCE).apply {
-                val parameters = irClass.descriptor.unsubstitutedPrimaryConstructor?.valueParameters ?: listOf()
                 initialize(
                         null,
                         irClass.descriptor.thisAsReceiverParameter,
                         listOf(),
-                        parameters,
+                        listOf(),
                         context.builtIns.unitType,
                         Modality.FINAL,
                         Visibilities.PRIVATE)
@@ -101,7 +102,7 @@ internal class InitializersLowering(val context: Context) : ClassLoweringPass {
             return initializerMethodDescriptor
         }
 
-        private fun lowerConstructors(initializerMethodDescriptor: FunctionDescriptor) {
+        private fun lowerConstructors(initializerMethodDescriptor: FunctionDescriptor?) {
             val parameters = irClass.descriptor.unsubstitutedPrimaryConstructor?.valueParameters ?: listOf()
             irClass.transformChildrenVoid(object : IrElementTransformerVoid() {
 
@@ -116,15 +117,16 @@ internal class InitializersLowering(val context: Context) : ClassLoweringPass {
                     blockBody.statements.transformFlat {
                         when {
                             it is IrInstanceInitializerCall -> {
-                                val startOffset = it.startOffset
-                                val endOffset = it.endOffset
-                                val constructorParameters = declaration.descriptor.valueParameters
-                                listOf(IrCallImpl(startOffset, endOffset, initializerMethodDescriptor).apply {
-                                    dispatchReceiver = IrGetValueImpl(startOffset, endOffset, irClass.descriptor.thisAsReceiverParameter)
-                                    parameters.forEach { // Here we are sure in the primary constructor - take his parameters.
-                                        putValueArgument(it.index, IrGetValueImpl(startOffset, endOffset, constructorParameters[it.index]))
-                                    }
-                                })
+                                if (initializerMethodDescriptor == null) {
+                                    assert(declaration.descriptor.isPrimary)
+                                    initializers
+                                } else {
+                                    val startOffset = it.startOffset
+                                    val endOffset = it.endOffset
+                                    listOf(IrCallImpl(startOffset, endOffset, initializerMethodDescriptor).apply {
+                                        dispatchReceiver = IrGetValueImpl(startOffset, endOffset, irClass.descriptor.thisAsReceiverParameter)
+                                    })
+                                }
                             }
                         /**
                          * IR for kotlin.Any is:
