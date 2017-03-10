@@ -79,20 +79,19 @@ internal class InitializersLowering(val context: Context) : ClassLoweringPass {
             if (irClass.descriptor.hasPrimaryConstructor())
                 return null // Place initializers in the primary constructor.
             val initializerMethodDescriptor = SimpleFunctionDescriptorImpl.create(
-                    irClass.descriptor,
-                    Annotations.EMPTY,
-                    "INITIALIZER".synthesizedName,
-                    CallableMemberDescriptor.Kind.DECLARATION,
-                    SourceElement.NO_SOURCE).apply {
-                initialize(
-                        null,
-                        irClass.descriptor.thisAsReceiverParameter,
-                        listOf(),
-                        listOf(),
-                        context.builtIns.unitType,
-                        Modality.FINAL,
-                        Visibilities.PRIVATE)
-            }
+                    /* containingDeclaration        = */ irClass.descriptor,
+                    /* annotations                  = */ Annotations.EMPTY,
+                    /* name                         = */ "INITIALIZER".synthesizedName,
+                    /* kind                         = */ CallableMemberDescriptor.Kind.DECLARATION,
+                    /* source                       = */ SourceElement.NO_SOURCE)
+            initializerMethodDescriptor.initialize(
+                    /* receiverParameterType        = */ null,
+                    /* dispatchReceiverParameter    = */ irClass.descriptor.thisAsReceiverParameter,
+                    /* typeParameters               = */ listOf(),
+                    /* unsubstitutedValueParameters = */ listOf(),
+                    /* returnType                   = */ context.builtIns.unitType,
+                    /* modality                     = */ Modality.FINAL,
+                    /* visibility                   = */ Visibilities.PRIVATE)
             val startOffset = irClass.startOffset
             val endOffset = irClass.endOffset
             val initializer = IrFunctionImpl(startOffset, endOffset, DECLARATION_ORIGIN_ANONYMOUS_INITIALIZER,
@@ -103,7 +102,6 @@ internal class InitializersLowering(val context: Context) : ClassLoweringPass {
         }
 
         private fun lowerConstructors(initializerMethodDescriptor: FunctionDescriptor?) {
-            val parameters = irClass.descriptor.unsubstitutedPrimaryConstructor?.valueParameters ?: listOf()
             irClass.transformChildrenVoid(object : IrElementTransformerVoid() {
 
                 override fun visitClass(declaration: IrClass): IrStatement {
