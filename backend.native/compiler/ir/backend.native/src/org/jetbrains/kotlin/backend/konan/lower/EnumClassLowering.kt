@@ -179,7 +179,9 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
             descriptor.constructors.forEach {
                 val loweredEnumConstructor = loweredEnumConstructors[it]!!
                 val constructorDescriptor = defaultClassDescriptor.createSimpleDelegatingConstructorDescriptor(loweredEnumConstructor)
-                val constructor = defaultClassDescriptor.createSimpleDelegatingConstructor(loweredEnumConstructor, constructorDescriptor)
+                val constructor = defaultClassDescriptor.createSimpleDelegatingConstructor(
+                        loweredEnumConstructor, constructorDescriptor,
+                        startOffset, endOffset, DECLARATION_ORIGIN_ENUM)
                 constructors.add(constructorDescriptor)
                 defaultClass.declarations.add(constructor)
                 defaultEnumEntryConstructors.put(loweredEnumConstructor, constructorDescriptor)
@@ -229,7 +231,9 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
             }
 
             val constructorOfAny = irClass.descriptor.module.builtIns.any.constructors.first()
-            val constructor = implObjectDescriptor.createSimpleDelegatingConstructor(constructorOfAny, implObjectDescriptor.constructors.single())
+            val constructor = implObjectDescriptor.createSimpleDelegatingConstructor(
+                    constructorOfAny, implObjectDescriptor.constructors.single(),
+                    startOffset, endOffset, DECLARATION_ORIGIN_ENUM)
 
             implObject.declarations.add(constructor)
             implObject.declarations.add(createSyntheticValuesPropertyDeclaration(enumEntries))
@@ -240,11 +244,11 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
         }
 
         private fun createSyntheticValuesPropertyDeclaration(enumEntries: List<IrEnumEntry>): IrPropertyImpl {
-            val irValuesInitializer = context.createArrayOfExpression(irClass.descriptor.defaultType,
-                    enumEntries.sortedBy { it.descriptor.name }.map { it.initializerExpression })
-
             val startOffset = irClass.startOffset
             val endOffset = irClass.endOffset
+            val irValuesInitializer = context.createArrayOfExpression(irClass.descriptor.defaultType,
+                    enumEntries.sortedBy { it.descriptor.name }.map { it.initializerExpression }, startOffset, endOffset)
+
             val irField = IrFieldImpl(startOffset, endOffset, DECLARATION_ORIGIN_ENUM,
                     loweredEnum.valuesProperty,
                     IrExpressionBodyImpl(startOffset, endOffset, irValuesInitializer))
