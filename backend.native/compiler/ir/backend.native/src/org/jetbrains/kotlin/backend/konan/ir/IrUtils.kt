@@ -28,12 +28,12 @@ fun ir2stringWhole(ir: IrElement?): String {
   return strWriter.toString()
 }
 
-internal fun ClassDescriptor.createSimpleDelegatingConstructorDescriptor(superConstructorDescriptor: ClassConstructorDescriptor)
+internal fun ClassDescriptor.createSimpleDelegatingConstructorDescriptor(superConstructorDescriptor: ClassConstructorDescriptor, isPrimary: Boolean = false)
         : ClassConstructorDescriptor {
     val constructorDescriptor = ClassConstructorDescriptorImpl.createSynthesized(
             /* containingDeclaration = */ this,
             /* annotations           = */ Annotations.EMPTY,
-            /* isPrimary             = */ false,
+            /* isPrimary             = */ isPrimary,
             /* source                = */ SourceElement.NO_SOURCE)
     val valueParameters = superConstructorDescriptor.valueParameters.map {
         it.copy(constructorDescriptor, it.name, it.index)
