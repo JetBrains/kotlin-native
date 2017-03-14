@@ -1,5 +1,3 @@
-libName = clangbridge
-
 headers = clang-c/Index.h
 
 compiler = clang

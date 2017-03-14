@@ -227,16 +227,15 @@ private fun processLib(konanHome: String,
         }
     }
 
+    File(nativeLibsDir).mkdirs()
 
-    val outCFile = createTempFile(suffix = ".c")
+    val outCFile = File("$nativeLibsDir/$libName.c") // TODO: select the better location.
 
     outCFile.bufferedWriter().use { out ->
         gen.withOutput({ out.appendln(it) }) {
             gen.generateCFile(headerFiles)
         }
     }
-
-    File(nativeLibsDir).mkdirs()
 
     val workDir = defFile?.parentFile ?: File(System.getProperty("java.io.tmpdir"))
 
@@ -269,6 +268,4 @@ private fun processLib(konanHome: String,
 
         runCmd(compilerCmd, workDir, verbose)
     }
-
-    outCFile.delete()
 }
