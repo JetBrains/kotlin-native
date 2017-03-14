@@ -99,6 +99,17 @@ internal fun visitChildren(translationUnit: CXTranslationUnit, visitor: CursorVi
     }
 }
 
+internal fun CXCursor.isLeaf(): Boolean {
+    var hasChildren = false
+
+    visitChildren(this) { _, _ ->
+        hasChildren = true
+        CXChildVisitResult.CXChildVisit_Break
+    }
+
+    return !hasChildren
+}
+
 internal fun List<String>.toNativeStringArray(placement: NativePlacement): CArray<CPointerVar<CInt8Var>> {
     return placement.allocArray(this.size) { index ->
         this.value = this@toNativeStringArray[index].toCString(placement)!!.asCharPtr()

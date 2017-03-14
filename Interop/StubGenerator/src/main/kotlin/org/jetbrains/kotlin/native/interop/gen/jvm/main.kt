@@ -207,9 +207,18 @@ private fun processLib(konanHome: String,
 
     val libName = fqParts.joinToString("") + "stubs"
 
-    val nativeIndex = buildNativeIndex(NativeLibrary(headerFiles, compilerOpts, language))
+    val library = NativeLibrary(headerFiles, compilerOpts, language)
+    val configuration = InteropConfiguration(
+            library = library,
+            pkgName = outKtPkg,
+            excludedFunctions = excludedFunctions,
+            strictEnums = config.getSpaceSeparated("strictEnums").toSet(),
+            nonStrictEnums = config.getSpaceSeparated("nonStrictEnums").toSet()
+    )
 
-    val gen = StubGenerator(nativeIndex, outKtPkg, libName, excludedFunctions, generateShims, platform)
+    val nativeIndex = buildNativeIndex(library)
+
+    val gen = StubGenerator(nativeIndex, configuration, libName, generateShims, platform)
 
     outKtFile.parentFile.mkdirs()
     outKtFile.bufferedWriter().use { out ->
