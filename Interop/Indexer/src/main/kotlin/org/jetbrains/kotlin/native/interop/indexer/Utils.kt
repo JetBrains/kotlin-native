@@ -152,7 +152,7 @@ internal fun NativeLibrary.precompileHeaders(): NativeLibrary {
 
     val index = clang_createIndex(excludeDeclarationsFromPCH = 0, displayDiagnostics = 0)!!
     try {
-        val options = CXTranslationUnit_Flags.CXTranslationUnit_ForSerialization.value
+        val options = CXTranslationUnit_ForSerialization
         val translationUnit = this.parse(index, options).ensureNoCompileErrors()
         try {
             clang_saveTranslationUnit(translationUnit, precompiledHeader.absolutePath, 0)
