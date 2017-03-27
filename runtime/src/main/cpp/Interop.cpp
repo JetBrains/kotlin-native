@@ -3,6 +3,8 @@
 #include <stdint.h>
 #include <ffi.h>
 
+namespace {
+
 typedef int FfiTypeKind;
 // Also declared in Varargs.kt
 const FfiTypeKind FFI_TYPE_KIND_VOID = 0;
@@ -28,6 +30,8 @@ ffi_type* convertFfiTypeKindToType(FfiTypeKind typeKind) {
         default: assert(false);
     }
 }
+
+}  // namespace
 
 extern "C" {
 
