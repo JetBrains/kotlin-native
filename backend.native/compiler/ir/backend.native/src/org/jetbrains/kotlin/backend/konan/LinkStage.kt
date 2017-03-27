@@ -229,6 +229,7 @@ internal class LinkStage(val context: Context) {
     fun link(objectFiles: List<ObjectFile>): ExecutableFile {
         val executable = config.get(KonanConfigKeys.EXECUTABLE_FILE)!!
         val linkCommand = platform.linkCommand(objectFiles, executable, optimize) +
+                distribution.libffi +
                 asLinkerArgs(config.getNotNull(KonanConfigKeys.LINKER_ARGS)) +
                 entryPointSelector
 
