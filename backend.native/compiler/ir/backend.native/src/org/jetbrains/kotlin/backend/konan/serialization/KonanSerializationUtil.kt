@@ -1,6 +1,7 @@
 package org.jetbrains.kotlin.backend.konan.serialization
 
 import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.LinkData
 import org.jetbrains.kotlin.backend.konan.KonanBuiltIns
 import org.jetbrains.kotlin.backend.konan.llvm.base64Decode
 import org.jetbrains.kotlin.backend.konan.llvm.base64Encode
@@ -32,8 +33,27 @@ import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.SimpleType
 import java.util.zip.GZIPInputStream
 import java.util.zip.GZIPOutputStream
+import java.io.InputStream
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+
+typealias Base64 = String
+
+fun byteArrayToBase64(byteArray: ByteArray): Base64 {
+    val gzipped = ByteArrayOutputStream()
+    val gzipStream = GZIPOutputStream(gzipped)
+    gzipStream.write(byteArray)
+    gzipStream.close()
+    val base64 = base64Encode(gzipped.toByteArray())
+    return base64
+}
+
+fun base64ToStream(base64: Base64): InputStream {
+    val gzipped = base64Decode(base64)
+    return GZIPInputStream(ByteArrayInputStream(gzipped))
+
+}
+
 
 /* ------------ Deserializer part ------------------------------------------*/
 
@@ -45,12 +65,13 @@ object NullFlexibleTypeDeserializer : FlexibleTypeDeserializer {
 }
 
 fun createKonanPackageFragmentProvider(
-        fragments: List<KonanLinkData.PackageFragment>, 
+        fragmentNames: List<String>, 
+        packageLoader: (String)->KonanLinkData.PackageFragment,
         storageManager: StorageManager, module: ModuleDescriptor, 
         configuration: DeserializationConfiguration): PackageFragmentProvider {
 
-    val packageFragments = fragments.map { 
-        KonanPackageFragment(it, storageManager, module) 
+    val packageFragments = fragmentNames.map{ 
+        KonanPackageFragment(it, packageLoader, storageManager, module) 
     }
     val provider = PackageFragmentProviderImpl(packageFragments)
 
@@ -75,8 +96,14 @@ fun createKonanPackageFragmentProvider(
     return provider
 }
 
+internal fun deserializePackageFragment(base64: Base64): KonanLinkData.PackageFragment {
+    return KonanLinkData.PackageFragment
+        .parseFrom(base64ToStream(base64), 
+            KonanSerializerProtocol.extensionRegistry)
+}
+
 internal fun deserializeModule(configuration: CompilerConfiguration, 
-    base64: String, moduleName: String): ModuleDescriptorImpl {
+    packageLoader:(String)->Base64, library: Base64,  moduleName: String): ModuleDescriptorImpl {
 
     val storageManager = LockBasedStorageManager()
     val builtIns = KonanBuiltIns(storageManager)
@@ -85,13 +112,14 @@ internal fun deserializeModule(configuration: CompilerConfiguration,
     builtIns.builtInsModule = moduleDescriptor
     val deserializationConfiguration = CompilerDeserializationConfiguration(configuration)
 
-    val gzipped = base64Decode(base64)
-    val libraryAsByteArray = GZIPInputStream(ByteArrayInputStream(gzipped))
-    val libraryProto = KonanLinkData.Library.parseFrom(
-        libraryAsByteArray, KonanSerializerProtocol.extensionRegistry)
+    val libraryProto = KonanLinkData.Library
+        .parseFrom(base64ToStream(library), 
+            KonanSerializerProtocol.extensionRegistry)
 
     val provider = createKonanPackageFragmentProvider(
-        libraryProto.packageFragmentList, storageManager, 
+        libraryProto.packageFragmentNameList,
+        {it -> deserializePackageFragment(packageLoader(it))},
+        storageManager, 
         moduleDescriptor, deserializationConfiguration)
 
     moduleDescriptor.initialize(provider)
@@ -199,24 +227,21 @@ internal class KonanSerializationUtil(val context: Context) {
             }
         }
     }
-
-    internal fun serializeModule(moduleDescriptor: ModuleDescriptor): String {
-        val library = KonanLinkData.Library.newBuilder()
-
+    internal fun serializeModule(moduleDescriptor: ModuleDescriptor): LinkData {
+        val libraryProto = KonanLinkData.Library.newBuilder()
+        val fragments = mutableListOf<String>()
+        val fragmentNames = mutableListOf<String>()
 
         getPackagesFqNames(moduleDescriptor).forEach {
             val packageProto = serializePackage(it, moduleDescriptor)
-            library.addPackageFragment(packageProto)
+            libraryProto.addPackageFragmentName(it.asString())
+            fragments.add(
+                byteArrayToBase64(packageProto.toByteArray()))
+            fragmentNames.add(it.asString())
         }
-
-        val libraryAsByteArray = library.build().toByteArray()
-
-        val gzipped = ByteArrayOutputStream()
-        val gzipStream = GZIPOutputStream(gzipped)
-        gzipStream.write(libraryAsByteArray)
-        gzipStream.close()
-        val base64 = base64Encode(gzipped.toByteArray())
-        return base64
+        val libraryAsByteArray = libraryProto.build().toByteArray()
+        val library = byteArrayToBase64(libraryAsByteArray)
+        return LinkData(library, fragments, fragmentNames)
     }
 
     /* The section below is specific for IR serialization */
