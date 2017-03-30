@@ -53,6 +53,7 @@ private fun detectHost(): String {
 private fun defaultTarget() = detectHost()
 
 private val knownTargets = mapOf(
+    "host" to defaultTarget(),
     "linux" to "linux",
     "macbook" to "osx",
     "iphone" to "osx-ios",
