@@ -394,4 +394,8 @@ private fun processLib(konanHome: String,
 
         runCmd(compilerCmd, workDir, verbose)
     }
+
+    if (!args["-keepcstubs"].isTrue()) {
+        outCFile.delete()
+    }
 }
