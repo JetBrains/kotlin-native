@@ -77,3 +77,170 @@ output of config script with `--cflags` flag (maybe without exact paths).
 
 Output of config script with `--libs` shall be passed as `-linkedArgs`  `kotlinc`
 flag value (quoted) when compiling.
+
+## Using bindings ##
+
+### Basic interop types ###
+
+All supported C types have corresponding representations in Kotlin:
+
+*   Integer and floating-point types are mapped to equal Kotlin primitive types.
+*   Pointers and arrays are mapped to `CPointer<T>?`.
+*   Enums can be mapped to either Kotlin enum or number of integer constants.
+*   Structs are mapped to types having fields available via dot notation,
+    i.e. `someStructInstance.field1`.
+*   `typedef`s are represented as `typealias`es.
+
+Also any C type has the Kotlin type representing the lvalue of this type,
+i.e. the value located in memory rather than simple immutable self-contained
+value.
+For structs (and `typedef`s to structs) this representation is the main one
+and has the same name as the struct itself, for Kotlin enums it is named
+`${type}.Var`, for `CPointer<T>` it is `CPointerVar<T>`, and for most other
+types it is `${type}Var`.
+
+For those types that have both representations, the "lvalue" one has mutable
+`.value` property for accessing value.
+
+#### Pointer types ####
+
+The type argument `T` of `CPointer<T>` must be one of the "lvalue" types
+described above, e.g. the C type `struct S*` is mapped to `CPointer<S>`,
+`int8_t*` is mapped to `CPointer<int_8tVar>`, and `char**` is mapped to
+`CPointer<CPointerVar<ByteVar>>`.
+
+C null pointer is represented as Kotlin's `null`, and the pointer type
+`CPointer<T>` is not nullable, but the `CPointer<T>?` is. The values of this
+type support all Kotlin operations related to handling `null`, e.g. `?:`, `?.`,
+`!!` etc..
+
+Since the arrays are also mapped to `CPointer<T>`, it supports `[]` operator
+for accessing values by index.
+
+The `.pointed` property for `CPointer<T>` returns the lvalue of type `T`,
+pointed by this pointer. The reverse operation is `.ptr`: it takes the lvalue
+and returns the pointer to it.
+
+`void*` is mapped to `COpaquePointer` – the special pointer type which is the
+supertype for any other pointer type. So if the C function takes `void*`, then
+the Kotlin binding accepts any `CPointer`.
+
+Casting any pointer (including `COpaquePointer`) can be done with
+`.reinterpret<T>`, e.g.:
+```
+val intPtr = bytePtr.reinterpret<IntVar>()
+```
+or
+```
+val intPtr: CPointer<IntVar> = bytePtr.reinterpret()
+```
+
+### Memory allocation ###
+
+The native memory can be allocated using `NativePlacement` interface, e.g.
+```
+val byteVar = placement.alloc<ByteVar>()
+```
+or
+```
+val bytePtr = placement.allocArray<ByteVar>(5):
+```
+
+The most "natural" placement is object `nativeHeap`.
+It corresponds to allocating native memory with `malloc` and provides additional
+`.free()` operation to free allocated memory:
+
+```
+val buffer = nativeHeap.allocArray<ByteVar>(size)
+<use buffer>
+nativeHeap.free(buffer)
+```
+
+However the lifetime of allocated memory is often bound to lexical scope.
+It is possible to define such scope with `memScoped { ... }`.
+Inside the braces the temporary placement is available as implicit receiver,
+so it is possible to allocate native memory with `alloc` and `allocArray`,
+and the allocated memory will be automatically freed after leaving the scope.
+
+For example, the C function returning values through pointer parameters can be
+used like
+```
+val fileSize = memScoped {
+    val statBuf = alloc<statStruct>()
+    val error = stat("/", statBuf.ptr)
+    statBuf.st_size
+}
+```
+
+### Passing pointers to bindings ###
+
+Although C pointers are mapped to `CPointer<T>` type, the C function
+pointer-typed parameters are mapped to `CValuesRef<T>`. When passing
+`CPointer<T>` as the value of such parameter, it is passed to C function as is.
+However, the sequence of values can be passed instead of pointer. In this case
+the sequence is passed "by value", i.e. the C function receives the pointer to
+the temporary copy of that sequence, which is valid only until the function returns.
+
+The `CValuesRef<T>` representation of pointer parameters is designed to support
+C array literals without explicit native memory allocation.
+To construct the immutable self-contained sequence of C values, the following
+methods are provided:
+
+*   `${type}Array.toCValues()`, where `type` is the Kotlin primitive type
+*   `Array<CPointer<T>?>.toCValues()`, `List<CPointer<T>?>.toCValues()`
+*   `cValuesOf(vararg elements: ${type})`, where `type` is primitive or pointer
+
+For example:
+
+C:
+```
+void foo(int* elements, int count);
+...
+int elements[] = {1, 2, 3};
+foo(elements, 3);
+```
+
+Kotlin:
+```
+foo(cValuesOf(1, 2, 3), 3)
+```
+
+### Working with strings ###
+
+Unlike other pointers, the parameters of type `const char*` are represented as
+Kotlin `String`. So it is possible to pass any Kotlin string to the binding
+expecting C string.
+
+There are also available some tools to convert between Kotlin and C strings
+manually:
+
+*   `fun CPointer<ByteRef>.toKString(): String`
+*   `val String.cstr: CValuesRef<ByteRef>`.
+
+    To get the pointer, `.cstr` should be allocated in native memory, e.g.
+    ```
+    val cString = kotlinString.cstr.getPointer(nativeHeap)
+    ```
+
+In all cases the C string is supposed to be encoded as UTF-8.
+
+### Passing and receiving structs by value ###
+
+When C function takes or returns a struct `T` by value, the corresponding
+argument type or return type is represented as `CValue<T>`.
+
+### Callbacks ###
+
+To convert Kotlin function to pointer to C function,
+`staticCFunction(::kotlinFunction)` can be used. Currently `staticCFunction`
+heavily relies on type inference, so the expression `staticCFunction(...)`
+should be either assigned to the variable having proper type explicitly
+specified, or passed to the function, e.g.
+
+```
+glutDisplayFunc(staticCFunction(::display))
+```
+
+Note that some function types are not supported currently. For example,
+it is not possible to get pointer to function that receives or returns structs
+by value.
