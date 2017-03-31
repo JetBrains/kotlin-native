@@ -84,16 +84,18 @@ flag value (quoted) when compiling.
 
 All supported C types have corresponding representations in Kotlin:
 
-*   Integer and floating-point types are mapped to equal Kotlin primitive types.
+*   Singed, unsigned integral and floating point types are mapped to their
+    Kotlin counterpart with the same width.
 *   Pointers and arrays are mapped to `CPointer<T>?`.
-*   Enums can be mapped to either Kotlin enum or number of integer constants.
+*   Enums can be mapped to either Kotlin enum or integral values, depending on
+    heuristics and definition file hints (see "Definition file hints" below).
 *   Structs are mapped to types having fields available via dot notation,
     i.e. `someStructInstance.field1`.
 *   `typedef`s are represented as `typealias`es.
 
 Also any C type has the Kotlin type representing the lvalue of this type,
 i.e. the value located in memory rather than simple immutable self-contained
-value.
+value. Think C++ references, as similar concept.
 For structs (and `typedef`s to structs) this representation is the main one
 and has the same name as the struct itself, for Kotlin enums it is named
 `${type}.Var`, for `CPointer<T>` it is `CPointerVar<T>`, and for most other
@@ -112,10 +114,21 @@ described above, e.g. the C type `struct S*` is mapped to `CPointer<S>`,
 C null pointer is represented as Kotlin's `null`, and the pointer type
 `CPointer<T>` is not nullable, but the `CPointer<T>?` is. The values of this
 type support all Kotlin operations related to handling `null`, e.g. `?:`, `?.`,
-`!!` etc..
+`!!` etc:
+```
+val path = getenv("PATH")?.toKString() ?: ""
+```
 
 Since the arrays are also mapped to `CPointer<T>`, it supports `[]` operator
-for accessing values by index.
+for accessing values by index:
+
+```
+fun shift(ptr: CPointer<BytePtr>, length: Int) {
+    for (index in 0 .. length - 2) {
+        ptr[index] = ptr[index + 1]
+    }
+}
+```
 
 The `.pointed` property for `CPointer<T>` returns the lvalue of type `T`,
 pointed by this pointer. The reverse operation is `.ptr`: it takes the lvalue
@@ -134,6 +147,9 @@ or
 ```
 val intPtr: CPointer<IntVar> = bytePtr.reinterpret()
 ```
+
+As in C, those reinterpret casts are unsafe and could potentially lead to
+subtle memory problems in an application.
 
 ### Memory allocation ###
 
@@ -205,7 +221,7 @@ Kotlin:
 foo(cValuesOf(1, 2, 3), 3)
 ```
 
-### Working with strings ###
+### Working with the strings ###
 
 Unlike other pointers, the parameters of type `const char*` are represented as
 Kotlin `String`. So it is possible to pass any Kotlin string to the binding
@@ -244,3 +260,52 @@ glutDisplayFunc(staticCFunction(::display))
 Note that some function types are not supported currently. For example,
 it is not possible to get pointer to function that receives or returns structs
 by value.
+
+### Definition file hints ###
+
+The `.def` file supports several options for adjusting generated bindings.
+
+*   `excludedFunctions` property value specifies a space-separated list of names
+    of functions that should be ignored. This may be required because a function
+    declared in C header is not generally guaranteed to be really callable, and
+    it is often hard or impossible to figure this out automatically. This option
+    can also be used to workaround a bug in the interop itself.
+
+*   `strictEnums` and `nonStrictEnums` properties values are space-separated
+    lists of the enums that should be generated as Kotlin enum or as integral
+    values correspondingly. If the enum is not included into any of these lists,
+    than it is generated according to the heuristics.
+
+### Portability ###
+
+Sometimes the C libraries have function parameters or struct fields of
+platform-dependent type, e.g. `long` or `size_t`. Kotlin itself doesn't provide
+neither implicit integer casts nor C-style integer casts (e.g.
+`(size_t) intValue`), so to make writing portable code in such cases easier,
+the following methods are provided:
+
+*   `fun ${type1}.sizeExtend<${type2}>(): ${type2}`
+*   `fun ${type1}.narrow<${type2}>(): ${type2}`
+
+where each of `type1` and `type2` must be an integral type.
+
+The `signExtend` converts the integer value to more wide, i.e. the result must
+have the same or greater size.
+The `narrow` converts the integer value to smaller one (possibly changing the
+value due to loosing significant bits), so the result must have the same or
+less size.
+
+Any allowed `.signExtend<${type}>` or `.narrow<${type}>` have the same
+semantics as one of the `.toByte`, `.toShort`, `.toInt` or `.toLong` methods,
+depending on `type`.
+
+The example of using `signExtend`:
+
+```
+fun zeroMemory(buffer: COpaquePointer, size: Int) {
+    memset(buffer, 0, size.signExtend<size_t>())
+}
+```
+
+Also the type parameter can be inferred automatically and thus may be omitted
+in some cases.
