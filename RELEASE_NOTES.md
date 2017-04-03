@@ -31,6 +31,8 @@ the following platforms:
 
  ## Compatibility and features ##
 
+To run _Kotlin/Native_ JDK8 or later for the host platform has to be installed.
+
 The language and library version supported by this EAP release mostly match Kotlin 1.1.
 However, there are certain limitations, see section [Known Limitations](#limitations).
 
@@ -79,6 +81,6 @@ Notice that property delegation (including lazy properties) *does* work.
 
 ### Microsoft Windows support ###
 
-   Due to significant differences in exception handling models on MS Windows and
+Due to significant differences in exception handling models on MS Windows and
 other LLVM targets, current _Kotlin/Native_ may not produce executables working on
 MS Windows. This situation could be improved in upcoming releases.

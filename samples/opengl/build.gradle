@@ -1,0 +1,45 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        maven {
+            url  "https://dl.bintray.com/jetbrains/kotlin-native-dependencies"
+        }
+    }
+
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-native-gradle-plugin:0.1"
+    }
+}
+
+apply plugin: 'konan'
+
+konanInterop {
+    opengl {
+        defFile 'opengl.def'
+    }
+}
+
+
+konanArtifacts {
+    OpenGlTeapot {
+        inputFiles project.file("OpenGlTeapot.kt")
+        useInterop 'opengl'
+        def osName = System.getProperty("os.name")
+        if (osName.equals("Mac OS X")) {
+            linkerOpts "-framework OpenGL -framework GLUT"
+        }
+        if (osName.equals("Linux")) {
+            linkerOpts "-L/usr/lib/x86_64-linux-gnu -lglut -lGL -lGLU"
+        }
+    }
+}
+
+
+build {
+    doLast {
+        copy {
+            from compileKonanOpenGlTeapot.artifactPath
+            into projectDir.canonicalPath
+        }
+    }
+}

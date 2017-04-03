@@ -1,0 +1,100 @@
+/**
+ * Use `./gradlew build<target platform>` to build the project.
+ * e.g. ./gradlew buildMacbook
+ */
+
+buildscript {
+    repositories {
+        mavenCentral()
+        maven {
+            url  "https://dl.bintray.com/jetbrains/kotlin-native-dependencies"
+        }
+    }
+
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-native-gradle-plugin:0.1"
+    }
+}
+
+apply plugin: 'konan'
+
+konanInterop {
+    sdlMacbook {
+        defFile 'sdl.def'
+        includeDirs '/Library/Frameworks/SDL2.framework/Headers', '/opt/local/include/SDL2', '/usr/local/include/SDL2', "${System.getProperty("user.home")}/Library/Frameworks/SDL2.framework/Headers"
+
+        target 'macbook'
+    }
+
+    sdlLinux {
+        defFile 'sdl.def'
+        includeDirs '/usr/include/SDL2'
+        target 'linux'
+    }
+
+    sdlIphone {
+        defFile 'sdl.def'
+        includeDirs '../../dist/dependencies/target-sysroot-2-darwin-ios/System/Library/Frameworks/SDL2.framework/Headers'
+        includeDirs '../../dependencies/target-sysroot-2-darwin-ios/System/Library/Frameworks/SDL2.framework/Headers'
+        target 'iphone'
+    }
+
+    sdlRaspberry {
+        defFile 'sdl.def'
+        includeDirs '../../dist/dependencies/target-sysroot-1-raspberrypi/usr/include/SDL2'
+        includeDirs '../../dependencies/target-sysroot-1-raspberrypi/usr/include/SDL2'
+        target 'raspberrypi'
+    }
+}
+
+konanArtifacts {
+    TetrisMacbook {
+        inputFiles project.file('Tetris.kt')
+        useInterop 'sdlMacbook'
+        linkerOpts "-F ${System.getProperty("user.home")}/Library/Frameworks -framework SDL2 -L/usr/local/lib -lSDL2 -F /Library/Frameworks -framework SDL2 -L/opt/local/lib"
+        //linkerOpts "-L/opt/local/lib -L/usr/local/lib -lSDL2"
+        target 'macbook'
+    }
+
+    TetrisLinux {
+        inputFiles project.file('Tetris.kt')
+        useInterop 'sdlLinux'
+
+        linkerOpts '-L/usr/lib/x86_64-linux-gnu -lSDL2'
+        target 'linux'
+    }
+
+    TetrisIphone {
+
+        inputFiles project.file('Tetris.kt')
+        useInterop 'sdlIphone'
+
+        linkerOpts '-framework SDL2 -framework AVFoundation -framework CoreGraphics -framework CoreMotion ' +
+                   '-framework Foundation -framework GameController -framework AudioToolbox -framework OpenGLES ' +
+                   '-framework QuartzCore -framework UIKit'
+        noMain()
+        target 'iphone'
+    }
+
+    TetrisRaspberry {
+        inputFiles project.file('Tetris.kt')
+        useInterop 'sdlRaspberry'
+
+        linkerOpts '-lSDL2'
+        target 'raspberrypi'
+    }
+
+}
+
+build {
+    doLast {
+        getTaskDependencies().getDependencies().forEach() { task ->
+            if (task.name.startsWith("compileKonan")) {
+                copy {
+                    from task.artifactPath
+                    into projectDir.canonicalPath
+                }
+            }
+        }
+    }
+}

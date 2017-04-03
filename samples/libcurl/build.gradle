@@ -1,0 +1,39 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        maven {
+            url  "https://dl.bintray.com/jetbrains/kotlin-native-dependencies"
+        }
+    }
+
+    dependencies {
+        classpath "org.jetbrains.kotlin:kotlin-native-gradle-plugin:0.1"
+    }
+}
+
+apply plugin: 'konan'
+
+konanInterop {
+    libcurl {
+        defFile 'libcurl.def'
+        includeDirs '/usr/include', '/opt/local/include', '/usr/local/opt/curl/include', '.'
+    }
+}
+
+konanArtifacts {
+    Curl {
+        inputFiles project.fileTree('src')
+        useInterop 'libcurl'
+        linkerOpts "-L/opt/local/lib -L/usr/lib/x86_64-linux-gnu -L/usr/local/opt/curl/lib -lcurl"
+    }
+}
+
+
+build {
+    doLast {
+        copy {
+            from compileKonanCurl.artifactPath
+            into projectDir.canonicalPath
+        }
+    }
+}

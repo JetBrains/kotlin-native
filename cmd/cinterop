@@ -1,4 +1,18 @@
 #!/usr/bin/env bash 
+#
+# Copyright 2010-2017 JetBrains s.r.o.
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 
 if [ -z "$JAVACMD" -a -n "$JAVA_HOME" -a -x "$JAVA_HOME/bin/java" ]; then
     JAVACMD="$JAVA_HOME/bin/java"
@@ -10,6 +24,9 @@ fi
 declare -a java_args
 declare -a interop_args
 
+OUTPUT_FILE_NAME=nativelib.kt.bc
+TARGET=host
+
 while [ $# -gt 0 ]; do
   case "$1" in
     -D*)
@@ -20,13 +37,20 @@ while [ $# -gt 0 ]; do
       java_args=("${java_args[@]}" "${1:2}")
       shift
       ;;
+    -o)
+      OUTPUT_FILE_NAME="$2"
+      shift 2
+      ;;
+    -target)
+      TARGET="$2"
+      shift 2
+      ;;
      *)
       interop_args=("${interop_args[@]}" "$1")
       shift
       ;;
   esac
 done
-
 
 findHome() {
     local source="${BASH_SOURCE[0]}"
@@ -52,13 +76,26 @@ HELPERS_JAR="${KONAN_HOME}/konan/lib/helpers.jar"
 INTEROP_CLASSPATH="$STUB_GENERATOR_JAR:$KOTLIN_JAR:$INTEROP_INDEXER_JAR:$INTEROP_RUNTIME_JAR:$HELPERS_JAR"
 INTEROP_TOOL=org.jetbrains.kotlin.native.interop.gen.jvm.MainKt
 
-FLAVOR_ARG=-flavor:native
+FLAVOR_ARG="-flavor native"
+
+GENERATED_DIR="$OUTPUT_FILE_NAME-build/kotlin"
+GENERATED_ARG="-generated $GENERATED_DIR"
+NATIVES_DIR="$OUTPUT_FILE_NAME-build/natives"
+NATIVES_ARG="-natives $NATIVES_DIR"
+CSTUBSNAME=cstubs
+CSTUBSNAME_ARG="-cstubsname $CSTUBSNAME"
 
 LIBCLANG_DISABLE_CRASH_RECOVERY=1 \
 LD_LIBRARY_PATH=${NATIVE_LIB} \
 $JAVACMD $JAVA_OPTS ${java_args[@]} \
     -cp $INTEROP_CLASSPATH \
     $INTEROP_TOOL \
-    $FLAVOR_ARG "${interop_args[@]}" \
+    $GENERATED_ARG $NATIVES_ARG $CSTUBSNAME_ARG \
+    $FLAVOR_ARG -target $TARGET "${interop_args[@]}" \
+    || exit 1
 
+# Stubs may be rather big, so we may need more heap space.
+XMX_ARG=-J-Xmx3G
 
+$KONAN_HOME/bin/konanc $XMX_ARG "$GENERATED_DIR" -nolink -nativelibrary "$NATIVES_DIR/$CSTUBSNAME.bc" \
+    -o "$OUTPUT_FILE_NAME" -target "$TARGET"

@@ -34,7 +34,23 @@ fun main(args: Array<String>) {
             "os" to (System.getenv("TARGET_OS") ?: detectHost())
     )
 
-    processLib(konanHome, substitutions, args.asList())
+    processLib(konanHome, substitutions, parseArgs(args))
+}
+
+private fun parseArgs(args: Array<String>): Map<String, List<String>> {
+    val commandLine = mutableMapOf<String, MutableList<String>>()
+    for(index in 0..args.size-1 step 2) {
+        val key = args[index]
+        if (key[0] != '-') {
+            throw IllegalArgumentException("Expected a flag with initial dash: $key")
+        }
+        if (index+1 == args.size) {
+            throw IllegalArgumentException("Expected an value after $key")
+        }
+        val value = args[index+1]
+        commandLine[key] ?. add(value) ?: commandLine.put(key, mutableListOf(value))
+    }
+    return commandLine
 }
 
 private fun detectHost(): String {
@@ -53,6 +69,7 @@ private fun detectHost(): String {
 private fun defaultTarget() = detectHost()
 
 private val knownTargets = mapOf(
+    "host" to defaultTarget(),
     "linux" to "linux",
     "macbook" to "osx",
     "iphone" to "osx-ios",
@@ -83,27 +100,7 @@ private fun substitute(properties: Properties, substitutions: Map<String, String
     }
 }
 
-private fun getArgPrefix(arg: String): String {
-    val index = arg.indexOf(':')
-    if (index == -1) {
-        return ""
-    } else {
-        return arg.substring(0, index)
-    }
-}
-
-private fun dropPrefix(arg: String): String {
-    val index = arg.indexOf(':')
-    if (index == -1) {
-        return ""
-    } else {
-        return arg.substring(index + 1)
-    }
-}
-
 private fun ProcessBuilder.runExpectingSuccess() {
-    println(this.command().joinToString(" "))
-
     val res = this.start().waitFor()
     if (res != 0) {
         throw Error("Process finished with non-zero exit code: $res")
@@ -112,6 +109,14 @@ private fun ProcessBuilder.runExpectingSuccess() {
 
 private fun Properties.getSpaceSeparated(name: String): List<String> {
     return this.getProperty(name)?.split(' ')?.filter { it.isNotEmpty() } ?: emptyList()
+}
+
+private fun <T> Collection<T>.atMostOne(): T? {
+    return when (this.size) {
+        0 -> null
+        1 -> this.iterator().next()
+        else -> throw IllegalArgumentException("Collection has more than one element.")
+    }
 }
 
 private fun Properties.getOsSpecific(name: String, 
@@ -126,16 +131,41 @@ private fun List<String>?.isTrue(): Boolean {
 }
 
 private fun runCmd(command: Array<String>, workDir: File, verbose: Boolean = false) {
-        if (verbose) println(command)
-        ProcessBuilder(*command)
-                .directory(workDir)
-                .inheritIO()
-                .runExpectingSuccess()
+    val builder = ProcessBuilder(*command)
+            .directory(workDir)
+
+    val logFile: File?
+
+    if (verbose) {
+        println(command.joinToString(" "))
+        builder.inheritIO()
+        logFile = null
+    } else {
+        logFile = createTempFile(suffix = ".log")
+        logFile.deleteOnExit()
+
+        builder.redirectOutput(ProcessBuilder.Redirect.to(logFile))
+                .redirectErrorStream(true)
+    }
+
+    try {
+        builder.runExpectingSuccess()
+    } catch (e: Throwable) {
+        if (!verbose) {
+            println(command.joinToString(" "))
+            logFile!!.useLines {
+                it.forEach { println(it) }
+            }
+        }
+
+        throw e
+    }
 }
 
 private fun maybeExecuteHelper(dependenciesRoot: String, properties: Properties, dependencies: List<String>) {
     try {
         val kClass = Class.forName("org.jetbrains.kotlin.konan.Helper0").kotlin
+        @Suppress("UNCHECKED_CAST")
         val ctor = kClass.constructors.single() as KFunction<Runnable>
         val result = ctor.call(dependenciesRoot, properties, dependencies)
         result.run()
@@ -226,23 +256,21 @@ private fun loadProperties(file: File?, substitutions: Map<String, String>): Pro
 
 private fun usage() {
     println("""
-Run interop tool with -def:<def_file_for_lib>.def
+Run interop tool with -def <def_file_for_lib>.def
 Following flags are supported:
-  -def:<file>.def specifies library definition file
-  -copt:<c compiler flags> specifies flags passed to clang
-  -lopt:<linker flags> specifies flags passed to linker
-  -verbose increases verbosity
-  -shims adds generation of shims tracing native library calls
-  -pkg:<fully qualified package name>
-  -h:<file>.h header files to parse
+  -def <file>.def specifies library definition file
+  -copt <c compiler flags> specifies flags passed to clang
+  -lopt <linker flags> specifies flags passed to linker
+  -verbose <boolean> increases verbosity
+  -shims <boolean> adds generation of shims tracing native library calls
+  -pkg <fully qualified package name> place the resulting definitions into the package
+  -h <file>.h header files to parse
 """)
 }
 
 private fun processLib(konanHome: String,
                        substitutions: Map<String, String>,
-                       commandArgs: List<String>) {
-
-    val args = commandArgs.groupBy ({ getArgPrefix(it) }, { dropPrefix(it) }) // TODO
+                       args: Map<String, List<String>>) {
 
     val userDir = System.getProperty("user.dir")
     val ktGenRoot = args["-generated"]?.single() ?: userDir
@@ -283,14 +311,14 @@ private fun processLib(konanHome: String,
     val language = Language.C
     val excludeSystemLibs = config.getProperty("excludeSystemLibs")?.toBoolean() ?: false
 
-    val entryPoint = config.getSpaceSeparated("entryPoint").singleOrNull()
+    val entryPoint = config.getSpaceSeparated("entryPoint").atMostOne()
     val linkerOpts = 
         config.getSpaceSeparated("linkerOpts").toTypedArray() +
         defaultOpts + additionalLinkerOpts 
-    val linker = args["-linker"]?.singleOrNull() ?: config.getProperty("linker") ?: "clang"
+    val linker = args["-linker"]?.atMostOne() ?: config.getProperty("linker") ?: "clang"
     val excludedFunctions = config.getSpaceSeparated("excludedFunctions").toSet()
 
-    val fqParts = args["-pkg"]?.singleOrNull()?.let {
+    val fqParts = args["-pkg"]?.atMostOne()?.let {
         it.split('.')
     } ?: defFile!!.name.split('.').reversed().drop(1)
 
@@ -300,7 +328,7 @@ private fun processLib(konanHome: String,
     val outKtFileRelative = (fqParts + outKtFileName).joinToString("/")
     val outKtFile = File(ktGenRoot, outKtFileRelative)
 
-    val libName = fqParts.joinToString("") + "stubs"
+    val libName = args["-cstubsname"]?.atMostOne() ?: fqParts.joinToString("") + "stubs"
 
     val library = NativeLibrary(headerFiles, compilerOpts, language, excludeSystemLibs)
     val configuration = InteropConfiguration(
@@ -313,7 +341,7 @@ private fun processLib(konanHome: String,
 
     val nativeIndex = buildNativeIndex(library)
 
-    val gen = StubGenerator(nativeIndex, configuration, libName, generateShims, flavor)
+    val gen = StubGenerator(nativeIndex, configuration, libName, generateShims, verbose, flavor)
 
     outKtFile.parentFile.mkdirs()
     outKtFile.bufferedWriter().use { out ->
@@ -362,5 +390,9 @@ private fun processLib(konanHome: String,
                 "-emit-llvm", "-c", outCFile.path, "-o", outLib)
 
         runCmd(compilerCmd, workDir, verbose)
+    }
+
+    if (!args["-keepcstubs"].isTrue()) {
+        outCFile.delete()
     }
 }

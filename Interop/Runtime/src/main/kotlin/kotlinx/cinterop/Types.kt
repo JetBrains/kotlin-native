@@ -174,7 +174,7 @@ typealias COpaquePointer = CPointer<out CPointed> // FIXME
 /**
  * The variable containing a [COpaquePointer].
  */
-typealias COpaquePointerVar = CPointerVarWithValueMappedTo<COpaquePointer>
+typealias COpaquePointerVar = CPointerVarOf<COpaquePointer>
 
 /**
  * The C data variable located in memory.
@@ -237,77 +237,90 @@ abstract class CEnumVar : CPrimitiveVar()
 // generics below are used for typedef support
 // these classes are not supposed to be used directly, instead the typealiases are provided.
 
-class CInt8VarWithValueMappedTo<T : Byte>(override val rawPtr: NativePtr) : CPrimitiveVar() {
+@Suppress("FINAL_UPPER_BOUND")
+class ByteVarOf<T : Byte>(override val rawPtr: NativePtr) : CPrimitiveVar() {
     companion object : Type(1)
 }
 
-class CInt16VarWithValueMappedTo<T : Short>(override val rawPtr: NativePtr) : CPrimitiveVar() {
+@Suppress("FINAL_UPPER_BOUND")
+class ShortVarOf<T : Short>(override val rawPtr: NativePtr) : CPrimitiveVar() {
     companion object : Type(2)
 }
 
-class CInt32VarWithValueMappedTo<T : Int>(override val rawPtr: NativePtr) : CPrimitiveVar() {
+@Suppress("FINAL_UPPER_BOUND")
+class IntVarOf<T : Int>(override val rawPtr: NativePtr) : CPrimitiveVar() {
     companion object : Type(4)
 }
 
-class CInt64VarWithValueMappedTo<T : Long>(override val rawPtr: NativePtr) : CPrimitiveVar() {
+@Suppress("FINAL_UPPER_BOUND")
+class LongVarOf<T : Long>(override val rawPtr: NativePtr) : CPrimitiveVar() {
     companion object : Type(8)
 }
 
-class CFloat32VarWithValueMappedTo<T : Float>(override val rawPtr: NativePtr) : CPrimitiveVar() {
+@Suppress("FINAL_UPPER_BOUND")
+class FloatVarOf<T : Float>(override val rawPtr: NativePtr) : CPrimitiveVar() {
     companion object : Type(4)
 }
 
-class CFloat64VarWithValueMappedTo<T : Double>(override val rawPtr: NativePtr) : CPrimitiveVar() {
+@Suppress("FINAL_UPPER_BOUND")
+class DoubleVarOf<T : Double>(override val rawPtr: NativePtr) : CPrimitiveVar() {
     companion object : Type(8)
 }
 
-typealias CInt8Var = CInt8VarWithValueMappedTo<Byte>
-typealias CInt16Var = CInt16VarWithValueMappedTo<Short>
-typealias CInt32Var = CInt32VarWithValueMappedTo<Int>
-typealias CInt64Var = CInt64VarWithValueMappedTo<Long>
-typealias CFloat32Var = CFloat32VarWithValueMappedTo<Float>
-typealias CFloat64Var = CFloat64VarWithValueMappedTo<Double>
+typealias ByteVar = ByteVarOf<Byte>
+typealias ShortVar = ShortVarOf<Short>
+typealias IntVar = IntVarOf<Int>
+typealias LongVar = LongVarOf<Long>
+typealias FloatVar = FloatVarOf<Float>
+typealias DoubleVar = DoubleVarOf<Double>
 
-var <T : Byte> CInt8VarWithValueMappedTo<T>.value: T
+@Suppress("FINAL_UPPER_BOUND", "UNCHECKED_CAST")
+var <T : Byte> ByteVarOf<T>.value: T
     get() = nativeMemUtils.getByte(this) as T
     set(value) = nativeMemUtils.putByte(this, value)
 
-var <T : Short> CInt16VarWithValueMappedTo<T>.value: T
+@Suppress("FINAL_UPPER_BOUND", "UNCHECKED_CAST")
+var <T : Short> ShortVarOf<T>.value: T
     get() = nativeMemUtils.getShort(this) as T
     set(value) = nativeMemUtils.putShort(this, value)
 
-var <T : Int> CInt32VarWithValueMappedTo<T>.value: T
+@Suppress("FINAL_UPPER_BOUND", "UNCHECKED_CAST")
+var <T : Int> IntVarOf<T>.value: T
     get() = nativeMemUtils.getInt(this) as T
     set(value) = nativeMemUtils.putInt(this, value)
 
-var <T : Long> CInt64VarWithValueMappedTo<T>.value: T
+@Suppress("FINAL_UPPER_BOUND", "UNCHECKED_CAST")
+var <T : Long> LongVarOf<T>.value: T
     get() = nativeMemUtils.getLong(this) as T
     set(value) = nativeMemUtils.putLong(this, value)
 
 // TODO: ensure native floats have the appropriate binary representation
 
-var <T : Float> CFloat32VarWithValueMappedTo<T>.value: T
+@Suppress("FINAL_UPPER_BOUND", "UNCHECKED_CAST")
+var <T : Float> FloatVarOf<T>.value: T
     get() = nativeMemUtils.getFloat(this) as T
     set(value) = nativeMemUtils.putFloat(this, value)
 
-var <T : Double> CFloat64VarWithValueMappedTo<T>.value: T
+@Suppress("FINAL_UPPER_BOUND", "UNCHECKED_CAST")
+var <T : Double> DoubleVarOf<T>.value: T
     get() = nativeMemUtils.getDouble(this) as T
     set(value) = nativeMemUtils.putDouble(this, value)
 
 
-class CPointerVarWithValueMappedTo<T : CPointer<*>>(override val rawPtr: NativePtr) : CVariable {
+class CPointerVarOf<T : CPointer<*>>(override val rawPtr: NativePtr) : CVariable {
     companion object : CVariable.Type(pointerSize.toLong(), pointerSize)
 }
 
 /**
  * The C data variable containing the pointer to `T`.
  */
-typealias CPointerVar<T> = CPointerVarWithValueMappedTo<CPointer<T>>
+typealias CPointerVar<T> = CPointerVarOf<CPointer<T>>
 
 /**
  * The value of this variable.
  */
-inline var <P : CPointer<*>> CPointerVarWithValueMappedTo<P>.value: P?
+@Suppress("UNCHECKED_CAST")
+inline var <P : CPointer<*>> CPointerVarOf<P>.value: P?
     get() = interpretCPointer<CPointed>(nativeMemUtils.getNativePtr(this)) as P?
     set(value) = nativeMemUtils.putNativePtr(this, value.rawValue)
 
@@ -316,7 +329,7 @@ inline var <P : CPointer<*>> CPointerVarWithValueMappedTo<P>.value: P?
  * 
  * @param T must not be abstract
  */
-inline var <reified T : CPointed, reified P : CPointer<T>> CPointerVarWithValueMappedTo<P>.pointed: T?
+inline var <reified T : CPointed, reified P : CPointer<T>> CPointerVarOf<P>.pointed: T?
     get() = this.value?.pointed
     set(value) {
         this.value = value?.ptr as P?
@@ -332,6 +345,34 @@ inline operator fun <reified T : CVariable> CPointer<T>.get(index: Long): T {
 }
 
 inline operator fun <reified T : CVariable> CPointer<T>.get(index: Int): T = this.get(index.toLong())
+
+@Suppress("NOTHING_TO_INLINE")
+@JvmName("plus\$CPointer")
+inline operator fun <T : CPointerVarOf<*>> CPointer<T>?.plus(index: Long): CPointer<T>? =
+        interpretCPointer(this.rawValue + index * pointerSize)
+
+@Suppress("NOTHING_TO_INLINE")
+@JvmName("plus\$CPointer")
+inline operator fun <T : CPointerVarOf<*>> CPointer<T>?.plus(index: Int): CPointer<T>? =
+        this + index.toLong()
+
+@Suppress("NOTHING_TO_INLINE")
+inline operator fun <T : CPointer<*>> CPointer<CPointerVarOf<T>>.get(index: Int): T? =
+        (this + index)!!.pointed.value
+
+@Suppress("NOTHING_TO_INLINE")
+inline operator fun <T : CPointer<*>> CPointer<CPointerVarOf<T>>.set(index: Int, value: T?) {
+    (this + index)!!.pointed.value = value
+}
+
+@Suppress("NOTHING_TO_INLINE")
+inline operator fun <T : CPointer<*>> CPointer<CPointerVarOf<T>>.get(index: Long): T? =
+        (this + index)!!.pointed.value
+
+@Suppress("NOTHING_TO_INLINE")
+inline operator fun <T : CPointer<*>> CPointer<CPointerVarOf<T>>.set(index: Long, value: T?) {
+    (this + index)!!.pointed.value = value
+}
 
 typealias CArrayPointer<T> = CPointer<T>
 typealias CArrayPointerVar<T> = CPointerVar<T>
@@ -384,4 +425,4 @@ typealias CFunctionPointer<T> = CPointer<CFunction<T>>
  * The variable containing a [CFunctionPointer].
  * TODO: remove.
  */
-typealias CFunctionPointerVar<T> = CPointerVarWithValueMappedTo<CFunctionPointer<T>>
+typealias CFunctionPointerVar<T> = CPointerVarOf<CFunctionPointer<T>>

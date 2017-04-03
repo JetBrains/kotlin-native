@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.descriptors.contributedMethods
 import org.jetbrains.kotlin.backend.konan.llvm.base64Decode
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.ir.expressions.IrLoop
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
@@ -80,7 +81,7 @@ internal class IrDescriptorDeserializer(val context: Context,
 
         val index = proto.getIndex()
         val text = proto.getDebugText()
-        val typeProto = localDeserializer.typeTable!![index]
+        val typeProto = localDeserializer.typeTable[index]
         val type = localDeserializer.deserializeInlineType(typeProto)
         context.log("### deserialized Kotlin Type index=$index, text=$text:\t$type")
 
@@ -124,6 +125,7 @@ internal class IrDescriptorDeserializer(val context: Context,
             KonanIr.KotlinDescriptor.Kind.VARIABLE ->
                 descriptorIndex[index]!!
 
+            KonanIr.KotlinDescriptor.Kind.CLASS,
             KonanIr.KotlinDescriptor.Kind.CONSTRUCTOR,
             KonanIr.KotlinDescriptor.Kind.FUNCTION,
             KonanIr.KotlinDescriptor.Kind.ACCESSOR -> {
@@ -311,7 +313,7 @@ internal class IrDescriptorDeserializer(val context: Context,
     }
 
     fun parentByFqNameIndex(index: Int): DeclarationDescriptor {
-        val module = context.moduleDescriptor!!
+        val module = context.moduleDescriptor
         val parent = nameResolver.getDescriptorByFqNameIndex(module, nameTable, index)
         return parent
 
@@ -322,6 +324,14 @@ internal class IrDescriptorDeserializer(val context: Context,
         val name = proto.name
 
         when (proto.kind) {
+            KotlinDescriptor.Kind.CLASS -> {
+                val parentScope = 
+                    parentMemberScopeByFqNameIndex(classOrPackage)
+                val clazz = parentScope.getContributedClassifier(
+                    Name.identifier(name), NoLookupLocation.FROM_BACKEND)
+                return listOf(clazz!!)
+
+            }
             KotlinDescriptor.Kind.CONSTRUCTOR -> {
                 val parent = parentByFqNameIndex(classOrPackage)
                 assert(parent is ClassDescriptor)
@@ -331,9 +341,9 @@ internal class IrDescriptorDeserializer(val context: Context,
             KotlinDescriptor.Kind.FUNCTION -> {
                 val parentScope = 
                     parentMemberScopeByFqNameIndex(classOrPackage)
-                    return parentScope.contributedMethods.filter{
-                        it.name == Name.guessByFirstCharacter(name)
-                    }
+                return parentScope.contributedMethods.filter{
+                    it.name == Name.guessByFirstCharacter(name)
+                }
             }
             else -> TODO("Can't find matching names for ${proto.kind}")
         }
@@ -341,10 +351,10 @@ internal class IrDescriptorDeserializer(val context: Context,
 
     fun selectFunction(
         functions: Collection<DeclarationDescriptor>,
-        proto: KonanIr.KotlinDescriptor ): 
+        descriptorProto: KonanIr.KotlinDescriptor):
         DeserializedSimpleFunctionDescriptor {
 
-        val originalIndex = proto.originalIndex
+        val originalIndex = descriptorProto.originalIndex
         return functions.single() {
             val proto = (it as DeserializedSimpleFunctionDescriptor).proto
             proto.getExtension(KonanLinkData.functionIndex) == originalIndex
@@ -353,10 +363,10 @@ internal class IrDescriptorDeserializer(val context: Context,
 
     fun selectConstructor(
         constructors: Collection<DeclarationDescriptor>,
-        proto: KonanIr.KotlinDescriptor): 
+        descriptorProto: KonanIr.KotlinDescriptor): 
         DeserializedClassConstructorDescriptor {
 
-        val originalIndex = proto.originalIndex
+        val originalIndex = descriptorProto.originalIndex
         return constructors.single {
             val proto = (it as DeserializedClassConstructorDescriptor).proto
             proto.getExtension(KonanLinkData.constructorIndex) == originalIndex
@@ -393,6 +403,8 @@ internal class IrDescriptorDeserializer(val context: Context,
                 selectAccessor(matching, proto)
             KotlinDescriptor.Kind.CONSTRUCTOR -> 
                 selectConstructor(matching, proto)
+            KotlinDescriptor.Kind.CLASS ->
+                matching.single()
             else -> TODO("don't know how to select ${proto.kind}")
         }
     }
@@ -415,6 +427,11 @@ internal class IrDescriptorDeserializer(val context: Context,
                 substituteAccessor(proto, originalDescriptor)
             is ClassConstructorDescriptor ->
                 substituteConstructor(proto, originalDescriptor)
+            is ClassDescriptor ->
+                // TODO: do we really need to ever substitute
+                // class descriptors here?
+                //substituteClass(proto, originalDescriptor)
+                originalDescriptor
             else -> error("unexpected type of public function")
         }
     }

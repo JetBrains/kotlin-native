@@ -20,9 +20,9 @@ import clang.*
 import kotlinx.cinterop.*
 import java.io.File
 
-internal val CValue<CXType>.kind: CXTypeKind get() = this.useContents { kind.value }
+internal val CValue<CXType>.kind: CXTypeKind get() = this.useContents { kind }
 
-internal val CValue<CXCursor>.kind: CXCursorKind get() = this.useContents { kind.value }
+internal val CValue<CXCursor>.kind: CXCursorKind get() = this.useContents { kind }
 
 internal fun CValue<CXString>.convertAndDispose(): String {
     try {
@@ -117,6 +117,7 @@ internal fun visitChildren(parent: CValue<CXCursor>, visitor: CursorVisitor) {
     val visitorPtr = StableObjPtr.create(visitor)
     val clientData = visitorPtr.value
     clang_visitChildren(parent, staticCFunction { cursor, parent, clientData ->
+        @Suppress("NAME_SHADOWING", "UNCHECKED_CAST")
         val visitor = StableObjPtr.fromValue(clientData!!).get() as CursorVisitor
         visitor(cursor.readValue(), parent.readValue())
     }, clientData)
@@ -136,7 +137,7 @@ internal fun CValue<CXCursor>.isLeaf(): Boolean {
     return !hasChildren
 }
 
-internal fun List<String>.toNativeStringArray(placement: NativePlacement): CArrayPointer<CPointerVar<CInt8Var>> {
+internal fun List<String>.toNativeStringArray(placement: NativePlacement): CArrayPointer<CPointerVar<ByteVar>> {
     return placement.allocArray(this.size) { index ->
         this.value = this@toNativeStringArray[index].cstr.getPointer(placement)
     }

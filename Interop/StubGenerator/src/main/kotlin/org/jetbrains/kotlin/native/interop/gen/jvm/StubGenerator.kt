@@ -31,7 +31,14 @@ class StubGenerator(
         val configuration: InteropConfiguration,
         val libName: String,
         val dumpShims: Boolean,
+        val verbose: Boolean = false,
         val platform: KotlinPlatform = KotlinPlatform.JVM) {
+
+    private fun log(message: String) {
+        if (verbose) {
+            println(message)
+        }
+    }
 
     val pkgName: String
         get() = configuration.pkgName
@@ -305,7 +312,7 @@ class StubGenerator(
             override fun argToJni(name: String) = name
             override fun argFromJni(name: String) = name
 
-            override fun constructPointedType(valueType: String) = "${varTypeName}WithValueMappedTo<$valueType>"
+            override fun constructPointedType(valueType: String) = "${varTypeName}Of<$valueType>"
         }
 
         class Enum(val className: String, val baseType: String) : TypeInfo() {
@@ -328,7 +335,7 @@ class StubGenerator(
             override val jniType: String
                 get() = "NativePtr"
 
-            override fun constructPointedType(valueType: String) = "CPointerVarWithValueMappedTo<$valueType>"
+            override fun constructPointedType(valueType: String) = "CPointerVarOf<$valueType>"
         }
 
         class ByRef(val pointed: String) : TypeInfo() {
@@ -348,17 +355,17 @@ class StubGenerator(
 
     private fun mirror(type: PrimitiveType): TypeMirror.ByValue {
         val varTypeName = when (type) {
-            is CharType -> "CInt8Var"
+            is CharType -> "ByteVar"
             is IntegerType -> when (type.size) {
-                1 -> "CInt8Var"
-                2 -> "CInt16Var"
-                4 -> "CInt32Var"
-                8 -> "CInt64Var"
+                1 -> "ByteVar"
+                2 -> "ShortVar"
+                4 -> "IntVar"
+                8 -> "LongVar"
                 else -> TODO(type.toString())
             }
             is FloatingType -> when (type.size) {
-                4 -> "CFloat32Var"
-                8 -> "CFloat64Var"
+                4 -> "FloatVar"
+                8 -> "DoubleVar"
                 else -> TODO(type.toString())
             }
             else -> TODO(type.toString())
@@ -607,20 +614,24 @@ class StubGenerator(
                     val offset = field.offset / 8
                     val fieldRefType = mirror(field.type)
                     if (field.type.unwrapTypedefs() is ArrayType) {
-                        // FIXME:
-                        val nullableType = fieldRefType.argType
-                        assert (nullableType.endsWith('?'))
-                        val type = nullableType.substring(0, nullableType.length - 1)
+                        val type = (fieldRefType as TypeMirror.ByValue).valueTypeName
 
                         out("val ${field.name.asSimpleName()}: $type")
                         out("    get() = arrayMemberAt($offset)")
                     } else {
-                        out("val ${field.name.asSimpleName()}: ${fieldRefType.pointedTypeName}")
-                        out("    get() = memberAt($offset)")
+                        if (fieldRefType is TypeMirror.ByValue) {
+                            val pointedTypeName = fieldRefType.pointedTypeName
+                            out("var ${field.name.asSimpleName()}: ${fieldRefType.argType}")
+                            out("    get() = memberAt<$pointedTypeName>($offset).value")
+                            out("    set(value) { memberAt<$pointedTypeName>($offset).value = value }")
+                        } else {
+                            out("val ${field.name.asSimpleName()}: ${fieldRefType.pointedTypeName}")
+                            out("    get() = memberAt($offset)")
+                        }
                     }
                     out("")
                 } catch (e: Throwable) {
-                    println("Warning: cannot generate definition for field ${decl.kotlinName}.${field.name}")
+                    log("Warning: cannot generate definition for field ${decl.kotlinName}.${field.name}")
                 }
             }
         }
@@ -1008,7 +1019,10 @@ class StubGenerator(
 
     private fun FunctionType.requiresAdapterOnNative(): Boolean {
         assert (platform == KotlinPlatform.NATIVE)
-        return (parameterTypes + returnType).any { it.unwrapTypedefs() is RecordType }
+        return (parameterTypes + returnType).any {
+            val unwrappedType = it.unwrapTypedefs()
+            unwrappedType is RecordType || (unwrappedType is EnumType && unwrappedType.def.isStrictEnum)
+        }
     }
 
     private fun generateNativeFunctionType(type: FunctionType, name: String) {
@@ -1028,7 +1042,7 @@ class StubGenerator(
                     type.parameterTypes.map { getArgFfiType(it) }
 
         } catch (e: Throwable) {
-            println("Warning: cannot generate definition for function type $name")
+            log("Warning: cannot generate definition for function type $name")
             out("object $name : CFunctionType {}")
             return
         }
@@ -1039,7 +1053,7 @@ class StubGenerator(
             block("override fun invoke(function: $kotlinFunctionType,  args: CArrayPointer<COpaquePointerVar>, ret: COpaquePointer)") {
                 val args = type.parameterTypes.mapIndexed { i, paramType ->
                     val pointedTypeName = mirror(paramType).pointedTypeName
-                    val ref = "args[$i].value!!.reinterpret<$pointedTypeName>().pointed"
+                    val ref = "args[$i]!!.reinterpret<$pointedTypeName>().pointed"
                     when (paramType.unwrapTypedefs()) {
                         is RecordType -> ref
                         else -> "$ref.value"
@@ -1192,7 +1206,7 @@ class StubGenerator(
      * Produces to [out] the contents of file with Kotlin bindings.
      */
     fun generateKotlinFile() {
-        out("@file:Suppress(\"UNUSED_EXPRESSION\")")
+        out("@file:Suppress(\"UNUSED_EXPRESSION\", \"UNUSED_VARIABLE\")")
         if (pkgName != "") {
             out("package $pkgName")
             out("")
@@ -1210,7 +1224,7 @@ class StubGenerator(
                     out("")
                 }
             } catch (e: Throwable) {
-                println("Warning: cannot generate binding definition for function ${it.name}")
+                log("Warning: cannot generate binding definition for function ${it.name}")
             }
         }
 
@@ -1226,7 +1240,7 @@ class StubGenerator(
                     out("")
                 }
             } catch (e: Throwable) {
-                println("Warning: cannot generate definition for struct ${s.kotlinName}")
+                log("Warning: cannot generate definition for struct ${s.kotlinName}")
             }
         }
 
@@ -1242,7 +1256,7 @@ class StubGenerator(
                     out("")
                 }
             } catch (e: Throwable) {
-                println("Warning: cannot generate typedef ${t.name}")
+                log("Warning: cannot generate typedef ${t.name}")
             }
         }
 
@@ -1264,7 +1278,7 @@ class StubGenerator(
                         out("")
                     }
                 } catch (e: Throwable) {
-                    println("Warning: cannot generate external definition for function ${it.name}")
+                    log("Warning: cannot generate external definition for function ${it.name}")
                 }
             }
         }
@@ -1278,7 +1292,7 @@ class StubGenerator(
                     }
                 }
             } catch (e: Throwable) {
-                println("Warning: cannot generate external definition for function ${it.name}")
+                log("Warning: cannot generate external definition for function ${it.name}")
             }
         }
     }
@@ -1338,15 +1352,16 @@ class StubGenerator(
                     generateCJniFunction(func)
                 }
             } catch (e: Throwable) {
-                System.err.println("Warning: cannot generate C JNI function definition ${func.name}")
+                log("Warning: cannot generate C JNI function definition ${func.name}")
             }
         }
 
         if (entryPoint != null) {
             out("extern int Konan_main(int argc, char** argv);")
             out("")
-            out("int $entryPoint(int argc, char** argv) {")
-            out("  return  Konan_main(argc, argv);")
+            out("__attribute__((__used__))")
+            out("int $entryPoint(int argc, char** argv)  {")
+            out("  return Konan_main(argc, argv);")
             out("}")
         }
     }

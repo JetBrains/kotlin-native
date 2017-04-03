@@ -203,18 +203,17 @@ internal class NativeIndexImpl(val library: NativeLibrary) : NativeIndex() {
 
             CXCursorKind.CXCursor_UnionDecl -> return false
 
-            CXCursorKind.CXCursor_StructDecl -> memScoped {
-                val hasAttributes = memScope.alloc<CInt32Var>()
-                hasAttributes.value = 0
-                clang_visitChildren(structDefCursor, staticCFunction { cursor, parent, clientData ->
-                    if (clang_isAttribute(cursor.kind.value) != 0) {
-                        val hasAttributes = clientData!!.reinterpret<CInt32Var>().pointed
-                        hasAttributes.value = 1
+            CXCursorKind.CXCursor_StructDecl -> {
+                var hasAttributes = false
+
+                visitChildren(structDefCursor) { cursor, _ ->
+                    if (clang_isAttribute(cursor.kind) != 0) {
+                        hasAttributes = true
                     }
                     CXChildVisitResult.CXChildVisit_Continue
-                }, hasAttributes.ptr)
+                }
 
-                return hasAttributes.value == 0
+                return !hasAttributes
             }
 
             else -> throw IllegalArgumentException(defKind.toString())
@@ -288,9 +287,9 @@ internal class NativeIndexImpl(val library: NativeLibrary) : NativeIndex() {
 
     fun indexDeclaration(info: CXIdxDeclInfo): Unit {
         val cursor = info.cursor.readValue()
-        val entityInfo = info.entityInfo.pointed!!
-        val entityName = entityInfo.name.value?.toKString()
-        val kind = entityInfo.kind.value
+        val entityInfo = info.entityInfo!!.pointed
+        val entityName = entityInfo.name?.toKString()
+        val kind = entityInfo.kind
 
         if (!this.library.includesDeclaration(cursor)) {
             return
@@ -332,6 +331,10 @@ internal class NativeIndexImpl(val library: NativeLibrary) : NativeIndex() {
             CXIdxEntity_Enum -> {
                 getEnumDefAt(cursor)
             }
+
+            else -> {
+                // Ignore declaration.
+            }
         }
     }
 
@@ -358,17 +361,18 @@ private fun indexDeclarations(library: NativeLibrary, nativeIndex: NativeIndexIm
 
                 try {
                     with(callbacks) {
-                        abortQuery.value = null
-                        diagnostic.value = null
-                        enteredMainFile.value = null
-                        ppIncludedFile.value = null
-                        importedASTFile.value = null
-                        startedTranslationUnit.value = null
-                        indexDeclaration.value = staticCFunction { clientData, info ->
+                        abortQuery = null
+                        diagnostic = null
+                        enteredMainFile = null
+                        ppIncludedFile = null
+                        importedASTFile = null
+                        startedTranslationUnit = null
+                        indexDeclaration = staticCFunction { clientData, info ->
+                            @Suppress("NAME_SHADOWING")
                             val nativeIndex = StableObjPtr.fromValue(clientData!!).get() as NativeIndexImpl
                             nativeIndex.indexDeclaration(info!!.pointed)
                         }
-                        indexEntityReference.value = null
+                        indexEntityReference = null
                     }
 
                     clang_indexTranslationUnit(indexAction, clientData,
