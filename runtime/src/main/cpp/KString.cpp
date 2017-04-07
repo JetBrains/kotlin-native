@@ -309,8 +309,8 @@ KBoolean Kotlin_String_regionMatches(KString thiz, KInt thizOffset,
 KBoolean Kotlin_CharSequence_regionMatches(KString thiz, KInt thizOffset,
                                            KString other, KInt otherOffset,
                                            KInt length, KBoolean ignoreCase) {
-  RuntimeAssert(false, "Kotlin_CharSequence_regionMatches is not implemented");
-  return false;
+  return Kotlin_String_regionMatches(thiz, thizOffset, other, otherOffset,
+                                     length, ignoreCase);
 }
 
 KBoolean Kotlin_Char_isDefined(KChar ch) {
@@ -337,8 +337,7 @@ KBoolean Kotlin_Char_isIdentifierIgnorable(KChar ch) {
 }
 
 KBoolean Kotlin_Char_isISOControl(KChar ch) {
-  RuntimeAssert(false, "Kotlin_Char_isISOControl() is not implemented");
-  return false;
+  return (ch <= 0x1F) || (ch >= 0x7F && ch <= 0x9F);
 }
 
 KBoolean Kotlin_Char_isHighSurrogate(KChar ch) {
