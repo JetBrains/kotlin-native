@@ -128,6 +128,28 @@ WorkersState* getWorkers() {
   return instance;
 }
 
+void copyMessageSteal(Message* destination, Message* source) {
+  destination->kind_ = source->kind_;
+  if (source->data_size_ > 0) {
+    free(destination->data_);
+    destination->data_ = source->data_;
+    destination->data_capacity_ = source->data_capacity_;
+    source->data_ = nullptr;
+  }
+  destination->data_size_ = source->data_size_;
+}
+
+void copyMessageNoSteal(Message* destination, const Message* source) {
+  destination->kind_ = source->kind_;
+  if (destination->data_capacity_ < source->data_size_) {
+    if (destination->data_) free(destination->data_);
+    destination->data_ = malloc(source->data_size_);
+    destination->data_capacity_ = source->data_size_;
+  }
+  memcpy(destination->data_, source->data_, source->data_size_);
+  destination->data_size_ = source->data_size_;
+}
+
 void* ThreadRunner(void* arg) {
   WorkerState* state = reinterpret_cast<WorkerState*>(arg);
   current_worker = state;
@@ -139,47 +161,32 @@ void* ThreadRunner(void* arg) {
 void copyOrEnqueueMessageLocked(WorkerState* sender, WorkerState* receiver, const Message* message) {
   bool use_blocked = receiver->blocked_on_message_ != nullptr &&
                      !receiver->blocked_message_used_;
-  Message* result = use_blocked ? receiver->blocked_on_message_ : new Message();
+  Message* result =
+      use_blocked ? receiver->blocked_on_message_ : CreateMessage(message->data_size_);
   result->source_ = sender->id_;
   result->destination_ = receiver->id_;
-  result->kind_ = message->kind_;
-  if (message->data_size_ > 0) {
-    if (result->data_capacity_ > message->data_size_) {
-      free(result->data_);
-      result->data_ = malloc(message->data_size_);
-      result->data_capacity_ = message->data_size_;
-    }
-    result->data_size_ = message->data_size_;
-    memcpy(result->data_, message->data_, message->data_size_);
-  }
+  copyMessageNoSteal(result, message);
   if (use_blocked)
     receiver->blocked_message_used_ = true;
   else
     receiver->queue_.push_back(result);
 }
 
-int WorkerState::GetMessageNotEmptyLocked(Message* message) {
+int WorkerState::GetMessageNotEmptyLocked(Message* result) {
   bool blocked_used = blocked_on_message_ != nullptr && blocked_message_used_;
   if (blocked_used) {
-    assert(message == blocked_on_message_);
+    assert(result == blocked_on_message_);
     blocked_on_message_ = nullptr;
     blocked_message_used_ = false;
     return 0;
   }
-  Message* result = queue_.front();
-  if (result->data_size_ > message->data_capacity_) {
-    free(message->data_);
-    message->data_ = malloc(result->data_size_);
-    message->data_capacity_ = result->data_size_;
-  }
+  Message* from_queue = queue_.front();
+  result->source_ = from_queue->source_;
+  result->destination_ = from_queue->destination_;
+  copyMessageSteal(result, from_queue);
 
-  message->kind_ = result->kind_;
-  message->data_size_ = result->data_size_;
-  message->source_ = result->source_;
-  message->destination_ = result->destination_;
-  memcpy(message->data_, result->data_, result->data_size_);
   queue_.pop_front();
-  delete result;
+  ReleaseMessage(from_queue);
 
   return 0;
 }
@@ -279,11 +286,16 @@ int GetMessage(Message* message, int timeout_ms) {
       ts.tv_nsec = tp.tv_usec * 1000 + timeout_ms * 1000000;
       ts.tv_sec  += ts.tv_nsec / 1000000000;
       ts.tv_nsec %= 1000000000;
-      int rc = pthread_cond_timedwait(&worker->cond_, &worker->mutex_, &ts);
+      while (!worker->HasMessageLocked()) {
+        int rc = pthread_cond_timedwait(&worker->cond_, &worker->mutex_, &ts);
+        if (rc != 0) break;
+      }
       if (worker->HasMessageLocked()) {
         result = worker->GetMessageNotEmptyLocked(message);
       }
     }
+    worker->blocked_on_message_ = nullptr;
+    worker->blocked_message_used_ = false;
   }
   pthread_mutex_unlock(&worker->mutex_);
   return result;

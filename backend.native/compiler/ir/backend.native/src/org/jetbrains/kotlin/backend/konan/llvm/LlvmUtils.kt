@@ -191,7 +191,7 @@ internal fun ContextUtils.addGlobal(name: String, type: LLVMTypeRef,
     return result
 }
 
-internal fun ContextUtils.exportGlobal(name: String, type: LLVMTypeRef,
+internal fun ContextUtils.importGlobal(name: String, type: LLVMTypeRef,
                                        threadLocal: Boolean = false): LLVMValueRef {
     val found = LLVMGetNamedGlobal(context.llvmModule, name)
     if (found != null) {
