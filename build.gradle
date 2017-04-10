@@ -69,7 +69,7 @@ void setupCompilationFlags() {
     if (isLinux()) {
         ext.targetArgs <<
             ["host": 
-               ["--sysroot=${gccToolchainDir}/${gnuTriplet}/sysroot"],
+               ["--sysroot=${gccToolchainDir}/${gnuTriplet}/sysroot", "-DUSE_LIBUNWIND=1"],
              "raspberrypi":
                ["-target", "armv7-unknown-linux-gnueabihf",
                 "-mfpu=vfp", "-mfloat-abi=hard",
