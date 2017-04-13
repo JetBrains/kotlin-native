@@ -52,7 +52,7 @@ constexpr container_size_t kObjectAlignment = 8;
 
 #if USE_GC
 // Collection threshold default (collect after having so many elements in the
-// release candidates set). Better be a simple number.
+// release candidates set). Better be a prime number.
 constexpr size_t kGcThreshold = 9341;
 #endif
 
@@ -192,9 +192,11 @@ inline void flushFreeableCache(MemoryState* state) {
   for (auto i = 0; i < state->gcThreshold; i++) {
     if ((uintptr_t)state->toFreeCache[i] > 0x1) {
       state->toFree->insert(state->toFreeCache[i]);
-      state->toFreeCache[i] = nullptr;
     }
   }
+  // Mass-clear cache.
+  memset(state->toFreeCache, 0,
+         sizeof(ContainerHeader*) * state->gcThreshold);
   state->cacheSize = 0;
 #endif
 }
@@ -810,10 +812,11 @@ void Kotlin_konan_internal_GC_suspend(KRef) {
 
 void Kotlin_konan_internal_GC_resume(KRef) {
 #if USE_GC
-  if (memoryState->gcSuspendCount > 0) {
-    memoryState->gcSuspendCount--;
-    if (memoryState->toFree != nullptr &&
-        memoryState->toFree->size() >= memoryState->gcThreshold) {
+  MemoryState* state = memoryState;
+  if (state->gcSuspendCount > 0) {
+    state->gcSuspendCount--;
+    if (state->toFree != nullptr &&
+        freeableSize(state) >= state->gcThreshold) {
       GarbageCollect();
     }
   }
