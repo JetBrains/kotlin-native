@@ -57,6 +57,10 @@ public class K2NativeCompilerArguments extends CommonCompilerArguments {
     @Argument(value = "opt", description = "Enable optimizations during compilation")
     public boolean optimization;
 
+    @Argument(value = "g", description = "Enable emitting debug information")
+    public boolean debug;
+
+
     @Argument(value = "target", description = "Set hardware target")
     @ValueDescription("<target>")
     public String target;

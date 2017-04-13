@@ -407,10 +407,24 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
         return config.configuration.getBoolean(KonanConfigKeys.TIME_PHASES) 
     }
 
+    fun shouldContainDebugInfo(): Boolean {
+        return config.configuration.getBoolean(KonanConfigKeys.DEBUG)
+    }
+
     fun log(message: String) {
         if (phase?.verbose ?: false) {
             println(message)
         }
+    }
+
+    val  debugInfo = DebugInfo()
+    class DebugInfo {
+        val files = mutableMapOf<IrFile, debugInfo.DIFileRef>()
+        val subprograms = mutableMapOf<FunctionDescriptor, debugInfo.DISubprogramRef>()
+        var builder: debugInfo.DIBuilderRef? = null
+        var module: debugInfo.DIModuleRef? = null
+        var compilationModule: debugInfo.DICompileUnitRef? = null
+        var types = mutableMapOf<KotlinType, debugInfo.DITypeOpaqueRef>()
     }
 }
 

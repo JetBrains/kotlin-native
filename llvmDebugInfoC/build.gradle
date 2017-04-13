@@ -1,0 +1,52 @@
+apply plugin: "cpp"
+apply plugin: "c"
+
+model {
+  components {
+    debugInfo(NativeLibrarySpec) {
+      sources.cpp.source.srcDirs "src/main/cpp"
+      
+        binaries.all {
+          cppCompiler.args "--std=c++11", "-g", "-fPIC", "-I${llvmDir}/include", "-I${projectDir}/src/main/include"
+          linker.args "-L${llvmDir}/lib", "-lLLVMCore", "-lLLVMSupport"
+        }
+    }
+    
+    demosimple(NativeExecutableSpec) {
+      //dependsOn project("debugInfoStaticLibrary")
+      sources.c.source.srcDirs "src/demo-simple/c"
+      binaries.all {
+         cCompiler.args "-g", "-I${llvmDir}/include",
+                  "-I${projectDir}/src/main/include"
+         linker.args "-L${llvmDir}/lib", "-lLLVMCore", "-lLLVMSupport",
+                     "-lncurses",
+                     "-L${buildDir}/libs/debugInfo/static", "-ldebugInfo"
+      }
+    }
+
+    demogenerated(NativeExecutableSpec) {
+      //dependsOn project("debugInfoStaticLibrary")
+      sources.c.source.srcDirs "src/demo-generated/c"
+      binaries.all {
+         cCompiler.args "-g", "-I${llvmDir}/include",
+                  "-I${projectDir}/src/main/include"
+         linker.args "-L${llvmDir}/lib", "-lLLVMSupport", "-lLLVMAnalysis", "-lLLVMProfileData", "-lLLVMCore",
+                   "-lncurses", "-lz",
+                   "-L${buildDir}/libs/debugInfo/static", "-ldebugInfo"
+      }
+    }
+
+    demolocalvariable(NativeExecutableSpec) {
+      //dependsOn project("debugInfoStaticLibrary")
+      sources.c.source.srcDirs "src/demo-local-variable/c"
+      binaries.all {
+         cCompiler.args "-g", "-I${llvmDir}/include",
+                        "-I${projectDir}/src/main/include",
+                        "--std=c11"
+         linker.args "-L${llvmDir}/lib", "-lLLVMSupport", "-lLLVMAnalysis", "-lLLVMProfileData", "-lLLVMCore",
+                     "-lncurses", "-lz",
+                     "-L${buildDir}/libs/debugInfo/static", "-ldebugInfo"
+      }
+    }
+  }
+}
