@@ -17,12 +17,18 @@
 package org.jetbrains.kotlin.native.interop.gen.jvm
 
 import org.jetbrains.kotlin.native.interop.indexer.Language
-import org.jetbrains.kotlin.native.interop.indexer.NativeIndex
 import org.jetbrains.kotlin.native.interop.indexer.NativeLibrary
 import org.jetbrains.kotlin.native.interop.indexer.buildNativeIndex
 import java.io.File
+import java.lang.Class
+import java.lang.ClassNotFoundException
 import java.lang.IllegalArgumentException
+import java.lang.ProcessBuilder
+import java.lang.Runnable
+import java.lang.System
 import java.util.*
+import kotlin.Error
+import kotlin.IllegalStateException
 import kotlin.reflect.KFunction
 
 fun main(args: Array<String>) {
@@ -354,7 +360,7 @@ private fun processLib(konanHome: String,
         }
     }
 
-    val workDir = defFile?.parentFile ?: File(System.getProperty("java.io.tmpdir"))
+    val workDir = defFile?.absoluteFile?.parentFile ?: File(System.getProperty("java.io.tmpdir"))
 
     if (flavor == KotlinPlatform.JVM) {
 
