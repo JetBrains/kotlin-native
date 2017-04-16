@@ -317,6 +317,7 @@ private fun processLib(konanHome: String,
         defaultOpts + additionalLinkerOpts 
     val linker = args["-linker"]?.atMostOne() ?: config.getProperty("linker") ?: "clang"
     val excludedFunctions = config.getSpaceSeparated("excludedFunctions").toSet()
+    val includedFunctions = config.getSpaceSeparated("includedFunctions").toSet()
 
     val fqParts = args["-pkg"]?.atMostOne()?.let {
         it.split('.')
@@ -335,6 +336,8 @@ private fun processLib(konanHome: String,
             library = library,
             pkgName = outKtPkg,
             excludedFunctions = excludedFunctions,
+            includedFunctions = includedFunctions,
+            useIncludedFunctions = !includedFunctions.isEmpty(),
             strictEnums = config.getSpaceSeparated("strictEnums").toSet(),
             nonStrictEnums = config.getSpaceSeparated("nonStrictEnums").toSet()
     )

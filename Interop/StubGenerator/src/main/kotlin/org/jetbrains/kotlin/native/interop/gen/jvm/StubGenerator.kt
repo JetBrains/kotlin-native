@@ -54,6 +54,12 @@ class StubGenerator(
     val excludedFunctions: Set<String>
         get() = configuration.excludedFunctions
 
+	val includedFunctions: Set<String>
+	    get() = configuration.includedFunctions
+
+    val useIncludedFunctions: Boolean
+        get() = configuration.useIncludedFunctions
+
     val keywords = setOf(
             "as", "break", "class", "continue", "do", "else", "false", "for", "fun", "if", "in",
             "interface", "is", "null", "object", "package", "return", "super", "this", "throw",
@@ -150,7 +156,13 @@ class StubGenerator(
         get() = decl.kotlinName
 
 
-    val functionsToBind = nativeIndex.functions.filter { it.name !in excludedFunctions }
+    val functionsToBind = nativeIndex.functions.filter { 
+       if (useIncludedFunctions) {
+       	  it.name in includedFunctions
+       } else {
+          it.name !in excludedFunctions
+       }
+    }
 
     private val usedFunctionTypes = mutableMapOf<FunctionType, String>()
 
