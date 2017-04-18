@@ -54,6 +54,12 @@ internal tailrec fun DeclarationDescriptor.isExported(): Boolean {
     if (this.annotations.hasAnnotation(exportForCompilerAnnotation)){
         return true
     }
+    if (this.annotations.hasAnnotation(publishedApiAnnotation)){
+        return true
+    }
+    if (this.annotations.hasAnnotation(inlineExposedAnnotation)){
+        return true
+    }
 
 
     if (this is ConstructorDescriptor && constructedClass.kind.isSingleton) {
@@ -81,6 +87,10 @@ private val symbolNameAnnotation = FqName("konan.SymbolName")
 private val exportForCppRuntimeAnnotation = FqName("konan.internal.ExportForCppRuntime")
 
 private val exportForCompilerAnnotation = FqName("konan.internal.ExportForCompiler")
+
+private val publishedApiAnnotation = FqName("kotlin.PublishedApi")
+
+private val inlineExposedAnnotation = FqName("kotlin.internal.InlineExposed")
 
 private fun acyclicTypeMangler(visited: MutableSet<TypeParameterDescriptor>, type: KotlinType): String {
     val descriptor = TypeUtils.getTypeParameterDescriptorOrNull(type)
@@ -161,6 +171,16 @@ internal val FunctionDescriptor.symbolName: String
             if (it.isRoot) "" else "$it."
         }
         return "kfun:$containingDeclarationPart$functionName"
+    }
+
+internal val PropertyDescriptor.symbolName: String
+    get() {
+        val containingDeclarationPart = containingDeclaration.fqNameSafe.let {
+            if (it.isRoot) "" else "$it."
+        }
+        val extensionReceiverPart = this.extensionReceiverParameter?.let { "${it.type}." } ?: ""
+        return "kprop:$containingDeclarationPart$extensionReceiverPart$name"
+
     }
 
 private fun getStringValue(annotation: AnnotationDescriptor): String? {

@@ -96,8 +96,8 @@ public fun <K, V> hashMapOf(vararg pairs: Pair<K, V>): HashMap<K, V>
  *
  * @sample samples.collections.Maps.Instantiation.linkedMapFromPairs
  */
-//public fun <K, V> linkedMapOf(vararg pairs: Pair<K, V>): LinkedHashMap<K, V>
-//        = LinkedHashMap<K, V>(mapCapacity(pairs.size)).apply { putAll(pairs) }
+public fun <K, V> linkedMapOf(vararg pairs: Pair<K, V>): LinkedHashMap<K, V>
+        = LinkedHashMap<K, V>(mapCapacity(pairs.size)).apply { putAll(pairs) }
 
 /**
  * Calculate the initial capacity of a map, based on Guava's com.google.common.collect.Maps approach. This is equivalent
@@ -582,7 +582,7 @@ public inline operator fun <K, V> MutableMap<in K, in V>.plusAssign(map: Map<K, 
     putAll(map)
 }
 
-// do not expose for now @kotlin.internal.InlineExposed
+@kotlin.internal.InlineExposed
 internal fun <K, V> Map<K, V>.optimizeReadOnlyMap() = when (size) {
     0 -> emptyMap()
 //    1 -> toSingletonMapOrSelf()

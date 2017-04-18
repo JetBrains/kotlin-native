@@ -41,8 +41,6 @@ import org.jetbrains.kotlin.backend.common.validateIrFunction
 
 internal class DeserializerDriver(val context: Context) {
 
-    val descriptorIndex = IrDeserializationDescriptorIndex(context.irBuiltIns) 
-
     internal fun deserializeInlineBody(descriptor: FunctionDescriptor): IrDeclaration? {
         if (!descriptor.needsInlining) return null
 
@@ -54,7 +52,7 @@ internal class DeserializerDriver(val context: Context) {
         PhaseManager(context).phase(KonanPhase.DESERIALIZER) {
             context.log("### IR deserialization attempt:\t$descriptor")
             try {
-                deserializedIr = IrDeserializer(context, descriptorIndex, descriptor).decodeDeclaration()
+                deserializedIr = IrDeserializer(context, descriptor).decodeDeclaration()
                 context.log("${deserializedIr!!.descriptor}")
                 context.log(ir2stringWhole(deserializedIr!!))
                 context.log("IR deserialization SUCCESS:\t$descriptor")
@@ -69,7 +67,7 @@ internal class DeserializerDriver(val context: Context) {
     internal fun dumpAllInlineBodies() {
         if (! context.phase!!.verbose) return
         context.log("Now deserializing all inlines for debugging purpose.")
-        context.moduleDescriptor!!.accept(
+        context.moduleDescriptor.accept(
             InlineBodiesPrinterVisitor(InlineBodyPrinter()), Unit)
     }
 
@@ -84,7 +82,6 @@ internal class DeserializerDriver(val context: Context) {
             }
 
             return true
-
         }
     }
 }

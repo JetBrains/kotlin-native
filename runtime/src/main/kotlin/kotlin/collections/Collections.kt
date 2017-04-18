@@ -27,7 +27,7 @@ internal object EmptyIterator : ListIterator<Nothing> {
     override fun previous(): Nothing = throw NoSuchElementException()
 }
 
-internal object EmptyList : List<Nothing>/*, RandomAccess */ {
+internal object EmptyList : List<Nothing>, RandomAccess {
 
     override fun equals(other: Any?): Boolean = other is List<*> && other.isEmpty()
     override fun hashCode(): Int = 1
@@ -96,6 +96,26 @@ public fun <T : Any> listOfNotNull(element: T?): List<T> =
 
 /** Returns a new read-only list only of those given elements, that are not null. */
 public fun <T : Any> listOfNotNull(vararg elements: T?): List<T> = elements.filterNotNull()
+
+/**
+ * Creates a new read-only list with the specified [size], where each element is calculated by calling the specified
+ * [init] function. The [init] function returns a list element given its index.
+ */
+@SinceKotlin("1.1")
+@kotlin.internal.InlineOnly
+public inline fun <T> List(size: Int, init: (index: Int) -> T): List<T> = MutableList(size, init)
+
+/**
+ * Creates a new mutable list with the specified [size], where each element is calculated by calling the specified
+ * [init] function. The [init] function returns a list element given its index.
+ */
+@SinceKotlin("1.1")
+@kotlin.internal.InlineOnly
+public inline fun <T> MutableList(size: Int, init: (index: Int) -> T): MutableList<T> {
+    val list = ArrayList<T>(size)
+    repeat(size) { index -> list.add(init(index)) }
+    return list
+}
 
 /**
  * Returns an [IntRange] of the valid indices for this collection.
@@ -167,7 +187,7 @@ public interface MutableIterable<out T> : Iterable<T> {
 }
 
 public fun <T> Array<out T>.asList(): List<T> {
-    return object : AbstractList<T>() {
+    return object : AbstractList<T>(), RandomAccess {
         override val size: Int get() = this@asList.size
         override fun isEmpty(): Boolean = this@asList.isEmpty()
         override fun contains(element: T): Boolean = this@asList.contains(element)
@@ -932,8 +952,6 @@ public inline fun <T, C : MutableCollection<in T>> Iterable<T>.filterIndexedTo(d
 /**
  * Returns a list containing all elements that are instances of specified type parameter R.
  */
-/*
-@FixmeReified
 public inline fun <reified R> Iterable<*>.filterIsInstance(): List<@kotlin.internal.NoInfer R> {
     return filterIsInstanceTo(ArrayList<R>())
 }
@@ -945,7 +963,7 @@ public inline fun <reified R, C : MutableCollection<in R>> Iterable<*>.filterIsI
     for (element in this) if (element is R) destination.add(element)
     return destination
 }
-*/
+
 
 /**
  * Returns a list containing all elements not matching the given [predicate].
@@ -1270,8 +1288,7 @@ public fun Collection<Short>.toShortArray(): ShortArray {
  * The returned map preserves the entry iteration order of the original collection.
  */
 public inline fun <T, K, V> Iterable<T>.associate(transform: (T) -> Pair<K, V>): Map<K, V> {
-    val capacity = @Suppress("NON_PUBLIC_CALL_FROM_PUBLIC_INLINE")
-        mapCapacity(collectionSizeOrDefault(10)).coerceAtLeast(16)
+    val capacity = mapCapacity(collectionSizeOrDefault(10)).coerceAtLeast(16)
     return associateTo(LinkedHashMap<K, V>(capacity), transform)
 }
 
@@ -1284,8 +1301,7 @@ public inline fun <T, K, V> Iterable<T>.associate(transform: (T) -> Pair<K, V>):
  * The returned map preserves the entry iteration order of the original collection.
  */
 public inline fun <T, K> Iterable<T>.associateBy(keySelector: (T) -> K): Map<K, T> {
-    val capacity = @Suppress("NON_PUBLIC_CALL_FROM_PUBLIC_INLINE")
-            mapCapacity(collectionSizeOrDefault(10)).coerceAtLeast(16)
+    val capacity = mapCapacity(collectionSizeOrDefault(10)).coerceAtLeast(16)
     return associateByTo(LinkedHashMap<K, T>(capacity), keySelector)
 }
 
@@ -1297,8 +1313,7 @@ public inline fun <T, K> Iterable<T>.associateBy(keySelector: (T) -> K): Map<K, 
  * The returned map preserves the entry iteration order of the original collection.
  */
 public inline fun <T, K, V> Iterable<T>.associateBy(keySelector: (T) -> K, valueTransform: (T) -> V): Map<K, V> {
-    val capacity = @Suppress("NON_PUBLIC_CALL_FROM_PUBLIC_INLINE")
-        mapCapacity(collectionSizeOrDefault(10)).coerceAtLeast(16)
+    val capacity = mapCapacity(collectionSizeOrDefault(10)).coerceAtLeast(16)
     return associateByTo(LinkedHashMap<K, V>(capacity), keySelector, valueTransform)
 }
 
@@ -1498,6 +1513,20 @@ public inline fun <T, K, V, M : MutableMap<in K, MutableList<V>>> Iterable<T>.gr
         list.add(valueTransform(element))
     }
     return destination
+}
+
+/**
+ * Creates a [Grouping] source from a collection to be used later with one of group-and-fold operations
+ * using the specified [keySelector] function to extract a key from each element.
+ *
+ * @sample samples.collections.Collections.Transformations.groupingByEachCount
+ */
+@SinceKotlin("1.1")
+public inline fun <T, K> Iterable<T>.groupingBy(crossinline keySelector: (T) -> K): Grouping<T, K> {
+    return object : Grouping<T, K> {
+        override fun sourceIterator(): Iterator<T> = this@groupingBy.iterator()
+        override fun keyOf(element: T): K = keySelector(element)
+    }
 }
 
 /**
@@ -1786,6 +1815,44 @@ public inline fun <T> Iterable<T>.forEachIndexed(action: (Int, T) -> Unit): Unit
 
 /**
  * Returns the largest element or `null` if there are no elements.
+ *
+ * If any of elements is `NaN` returns `NaN`.
+ */
+@SinceKotlin("1.1")
+public fun Iterable<Double>.max(): Double? {
+    val iterator = iterator()
+    if (!iterator.hasNext()) return null
+    var max = iterator.next()
+    if (max.isNaN()) return max
+    while (iterator.hasNext()) {
+        val e = iterator.next()
+        if (e.isNaN()) return e
+        if (max < e) max = e
+    }
+    return max
+}
+
+/**
+ * Returns the largest element or `null` if there are no elements.
+ *
+ * If any of elements is `NaN` returns `NaN`.
+ */
+@SinceKotlin("1.1")
+public fun Iterable<Float>.max(): Float? {
+    val iterator = iterator()
+    if (!iterator.hasNext()) return null
+    var max = iterator.next()
+    if (max.isNaN()) return max
+    while (iterator.hasNext()) {
+        val e = iterator.next()
+        if (e.isNaN()) return e
+        if (max < e) max = e
+    }
+    return max
+}
+
+/**
+ * Returns the largest element or `null` if there are no elements.
  */
 public fun <T : Comparable<T>> Iterable<T>.max(): T? {
     val iterator = iterator()
@@ -1829,6 +1896,44 @@ public fun <T> Iterable<T>.maxWith(comparator: Comparator<in T>): T? {
         if (comparator.compare(max, e) < 0) max = e
     }
     return max
+}
+
+/**
+ * Returns the smallest element or `null` if there are no elements.
+ *
+ * If any of elements is `NaN` returns `NaN`.
+ */
+@SinceKotlin("1.1")
+public fun Iterable<Double>.min(): Double? {
+    val iterator = iterator()
+    if (!iterator.hasNext()) return null
+    var min = iterator.next()
+    if (min.isNaN()) return min
+    while (iterator.hasNext()) {
+        val e = iterator.next()
+        if (e.isNaN()) return e
+        if (min > e) min = e
+    }
+    return min
+}
+
+/**
+ * Returns the smallest element or `null` if there are no elements.
+ *
+ * If any of elements is `NaN` returns `NaN`.
+ */
+@SinceKotlin("1.1")
+public fun Iterable<Float>.min(): Float? {
+    val iterator = iterator()
+    if (!iterator.hasNext()) return null
+    var min = iterator.next()
+    if (min.isNaN()) return min
+    while (iterator.hasNext()) {
+        val e = iterator.next()
+        if (e.isNaN()) return e
+        if (min > e) min = e
+    }
+    return min
 }
 
 /**
@@ -2290,7 +2395,7 @@ public fun Iterable<Byte>.average(): Double {
         sum += element
         count += 1
     }
-    return if (count == 0) 0.0 else sum / count
+    return if (count == 0) Double.NaN else sum / count
 }
 
 /**
@@ -2303,7 +2408,7 @@ public fun Iterable<Short>.average(): Double {
         sum += element
         count += 1
     }
-    return if (count == 0) 0.0 else sum / count
+    return if (count == 0) Double.NaN else sum / count
 }
 
 /**
@@ -2316,7 +2421,7 @@ public fun Iterable<Int>.average(): Double {
         sum += element
         count += 1
     }
-    return if (count == 0) 0.0 else sum / count
+    return if (count == 0) Double.NaN else sum / count
 }
 
 /**
@@ -2329,7 +2434,7 @@ public fun Iterable<Long>.average(): Double {
         sum += element
         count += 1
     }
-    return if (count == 0) 0.0 else sum / count
+    return if (count == 0) Double.NaN else sum / count
 }
 
 /**
@@ -2342,7 +2447,7 @@ public fun Iterable<Float>.average(): Double {
         sum += element
         count += 1
     }
-    return if (count == 0) 0.0 else sum / count
+    return if (count == 0) Double.NaN else sum / count
 }
 
 /**
@@ -2355,7 +2460,7 @@ public fun Iterable<Double>.average(): Double {
         sum += element
         count += 1
     }
-    return if (count == 0) 0.0 else sum / count
+    return if (count == 0) Double.NaN else sum / count
 }
 
 /**

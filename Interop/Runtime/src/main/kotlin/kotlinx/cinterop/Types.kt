@@ -161,6 +161,10 @@ val CPointer<*>?.rawValue: NativePtr
 
 fun <T : CPointed> CPointer<*>.reinterpret(): CPointer<T> = interpretCPointer(this.rawValue)!!
 
+fun <T : CPointed> CPointer<T>?.toLong() = this.rawValue.toLong()
+
+fun <T : CPointed> Long.toCPointer(): CPointer<T>? = interpretCPointer(nativeNullPtr + this)
+
 /**
  * The [CPointed] without any specified interpretation.
  */
@@ -399,15 +403,6 @@ interface CAdaptedFunctionType<F : Function<*>> : CFunctionType {
     fun fromStatic(function: F): NativePtr
 
     companion object
-}
-
-/**
- * Returns a pointer to `T`-typed C function which calls given Kotlin *static* function.
- * @see CAdaptedFunctionType.fromStatic
- */
-inline fun <reified F : Function<*>, reified T : CAdaptedFunctionType<F>> staticCFunction(body: F): CFunctionPointer<T> {
-    val type = CAdaptedFunctionType.getInstanceOf<T>()
-    return interpretPointed<CFunction<T>>(type.fromStatic(body)).ptr
 }
 
 /**

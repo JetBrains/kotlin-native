@@ -49,10 +49,10 @@ class LocalDeclarationDeserializer(val rootFunction: FunctionDescriptor, val mod
     val context = components.createContext(
         pkg, nameResolver, typeTable, SinceKotlinInfoTable.EMPTY, null)
 
-    val typeParameters = (rootFunction as DeserializedSimpleFunctionDescriptor).proto.typeParameterList
-
-    val childContext = context.childContext(rootFunction, typeParameters, nameResolver, typeTable)
+    val typeParameterProtos = (rootFunction as DeserializedSimpleFunctionDescriptor).proto.typeParameterList
+    val childContext = context.childContext(rootFunction, typeParameterProtos, nameResolver, typeTable)
     val typeDeserializer = childContext.typeDeserializer
+
     val memberDeserializer = MemberDeserializer(childContext)
 
     fun deserializeInlineType(type: ProtoBuf.Type): KotlinType {
@@ -72,7 +72,7 @@ class LocalDeclarationDeserializer(val rootFunction: FunctionDescriptor, val mod
                 return module.findClassAcrossModuleDependencies(nameResolver.getClassId(fqNameIndex))!!
             QualifiedName.Kind.PACKAGE ->
                 return module.getPackage(packageName)
-            else -> error("Unexpected descriptor kind.")
+            else -> TODO("Unexpected descriptor kind.")
         }
     }
 
@@ -97,7 +97,6 @@ class LocalDeclarationDeserializer(val rootFunction: FunctionDescriptor, val mod
             memberDeserializerByParentFqNameIndex(containingFqName)
 
        val function = memberDeserializer.loadFunction(proto)
-
         return function
     }
 

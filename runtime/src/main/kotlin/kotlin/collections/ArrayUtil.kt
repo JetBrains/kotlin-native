@@ -21,6 +21,7 @@ package kotlin.collections
  * Attempts to read _uninitialized_ values from this array work in implementation-dependent manner,
  * either throwing exception or returning some kind of implementation-specific default value.
  */
+@kotlin.internal.InlineExposed
 internal fun <E> arrayOfUninitializedElements(size: Int): Array<E> {
     // TODO: special case for size == 0?
     return Array<E>(size)
@@ -54,6 +55,32 @@ fun <E> Array<E>.copyOfNulls(fromIndex: Int, toIndex: Int): Array<E?> {
     copyRangeTo(result, fromIndex, if (toIndex > size) size else toIndex, 0)
     return result
 }
+
+/**
+ * Copies elements of the [collection] into the given [array].
+ * If the array is too small, allocates a new one of collection.size size.
+ * @return [array] with the elements copied from the collection.
+ */
+internal fun <E, T> collectionToArray(collection: Collection<E>, array: Array<T>): Array<T> {
+    val toArray = if (collection.size > array.size) {
+        arrayOfUninitializedElements<T>(collection.size)
+    } else {
+        array
+    }
+    var i = 0
+    for (v in collection) {
+        toArray[i] = v as T
+        i++
+    }
+    return toArray
+}
+
+/**
+ * Creates an array of collection.size size and copies elements of the [collection] into it.
+ * @return [array] with the elements copied from the collection.
+ */
+internal fun <E> collectionToArray(collection: Collection<E>): Array<E>
+        = collectionToArray(collection, arrayOfUninitializedElements(collection.size))
 
 /**
  * Returns new array which is a copy of the original array's range between [fromIndex] (inclusive)

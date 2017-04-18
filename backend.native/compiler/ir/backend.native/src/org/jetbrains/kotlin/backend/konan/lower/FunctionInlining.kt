@@ -64,7 +64,8 @@ internal class FunctionInlining(val context: Context): IrElementTransformerVoidW
 
         val functionDeclaration = getFunctionDeclaration(irCall)                            // Get declaration of the function to be inlined.
         if (functionDeclaration == null) {                                                  // We failed to get the declaration.
-            val message = "Inliner failed to obtain inline function declaration"
+            val message = "Inliner failed to obtain function declaration: " +
+                          functionDescriptor.name.toString()
             context.reportWarning(message, currentFile, irCall)                             // Report warning.
             return irCall
         }
@@ -217,6 +218,7 @@ private class Inliner(val currentScope: ScopeWithIr, val context: Context) {
     private fun argumentNeedsEvaluation(expression: IrExpression): Boolean {
         if (expression is IrGetValue)          return false                                 // Parameter is already GetValue - nothing to evaluate.
         if (expression is IrConst<*>)          return false                                 // Parameter is constant - nothing to evaluate.
+        if (expression is IrCallableReference) return false                                 // Parameter is callable reference - nothing to evaluate.
         if (isLambdaExpression(expression))    return false                                 // Parameter is lambda - will be inlined.
         return true
     }
