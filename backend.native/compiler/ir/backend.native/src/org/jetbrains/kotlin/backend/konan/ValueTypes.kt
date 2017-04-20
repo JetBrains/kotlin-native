@@ -18,6 +18,7 @@ package org.jetbrains.kotlin.backend.konan
 
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.name.FqNameUnsafe
+import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.types.KotlinType
 
 /**
@@ -32,7 +33,6 @@ import org.jetbrains.kotlin.types.KotlinType
 enum class ValueType(val classFqName: FqNameUnsafe, val isNullable: Boolean = false) {
     BOOLEAN(KotlinBuiltIns.FQ_NAMES._boolean),
     CHAR(KotlinBuiltIns.FQ_NAMES._char),
-
     BYTE(KotlinBuiltIns.FQ_NAMES._byte),
     SHORT(KotlinBuiltIns.FQ_NAMES._short),
     INT(KotlinBuiltIns.FQ_NAMES._int),
@@ -40,6 +40,11 @@ enum class ValueType(val classFqName: FqNameUnsafe, val isNullable: Boolean = fa
     FLOAT(KotlinBuiltIns.FQ_NAMES._float),
     DOUBLE(KotlinBuiltIns.FQ_NAMES._double),
 
+    // Konan-specific types.
+    UBYTE(FqNameUnsafe("kotlin.UByte")),
+    USHORT(FqNameUnsafe("kotlin.UShort")),
+    UINT(FqNameUnsafe("kotlin.UInt")),
+    ULONG(FqNameUnsafe("kotlin.ULong")),
     UNBOUND_CALLABLE_REFERENCE(FqNameUnsafe("konan.internal.UnboundCallableReference")),
     NATIVE_PTR(InteropBuiltIns.FqNames.nativePtr),
 
@@ -88,3 +93,11 @@ tailrec fun KotlinType.notNullableIsRepresentedAs(valueType: ValueType): Boolean
 }
 
 internal fun KotlinType.isValueType() = ValueType.values().any { this.isRepresentedAs(it) }
+
+private val unsignedTypes = setOf(
+        ValueType.UBYTE.classFqName, ValueType.USHORT.classFqName,
+        ValueType.UINT.classFqName, ValueType.ULONG.classFqName)
+
+fun KotlinType.isPrimitiveUnsigned(): Boolean {
+    return unsignedTypes.contains(constructor.declarationDescriptor?.fqNameSafe?.toUnsafe())
+}

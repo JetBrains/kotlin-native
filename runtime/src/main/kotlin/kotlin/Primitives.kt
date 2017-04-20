@@ -33,170 +33,6 @@ public final class Byte : Number(), Comparable<Byte> {
         public const val MAX_VALUE: Byte = 127
     }
 
-    /**
-     * Compares this value with the specified value for order.
-     * Returns zero if this value is equal to the specified other value, a negative number if its less than other,
-     * or a positive number if its greater than other.
-     */
-    @SymbolName("Kotlin_Byte_compareTo_Byte")
-    external public override operator fun compareTo(other: Byte): Int
-    /**
-     * Compares this value with the specified value for order.
-     * Returns zero if this value is equal to the specified other value, a negative number if its less than other,
-     * or a positive number if its greater than other.
-     */
-    @SymbolName("Kotlin_Byte_compareTo_Short")
-    external public operator fun compareTo(other: Short): Int
-    /**
-     * Compares this value with the specified value for order.
-     * Returns zero if this value is equal to the specified other value, a negative number if its less than other,
-     * or a positive number if its greater than other.
-     */
-    @SymbolName("Kotlin_Byte_compareTo_Int")
-    external public operator fun compareTo(other: Int): Int
-    /**
-     * Compares this value with the specified value for order.
-     * Returns zero if this value is equal to the specified other value, a negative number if its less than other,
-     * or a positive number if its greater than other.
-     */
-    @SymbolName("Kotlin_Byte_compareTo_Long")
-    external public operator fun compareTo(other: Long): Int
-    /**
-     * Compares this value with the specified value for order.
-     * Returns zero if this value is equal to the specified other value, a negative number if its less than other,
-     * or a positive number if its greater than other.
-     */
-    @SymbolName("Kotlin_Byte_compareTo_Float")
-    external public operator fun compareTo(other: Float): Int
-    /**
-     * Compares this value with the specified value for order.
-     * Returns zero if this value is equal to the specified other value, a negative number if its less than other,
-     * or a positive number if its greater than other.
-     */
-    @SymbolName("Kotlin_Byte_compareTo_Double")
-    external public operator fun compareTo(other: Double): Int
-
-    /** Adds the other value to this value. */
-    @SymbolName("Kotlin_Byte_plus_Byte")
-    external public operator fun plus(other: Byte): Int
-    /** Adds the other value to this value. */
-    @SymbolName("Kotlin_Byte_plus_Short")
-    external public operator fun plus(other: Short): Int
-    /** Adds the other value to this value. */
-    @SymbolName("Kotlin_Byte_plus_Int")
-    external public operator fun plus(other: Int): Int
-    /** Adds the other value to this value. */
-    @SymbolName("Kotlin_Byte_plus_Long")
-    external public operator fun plus(other: Long): Long
-    /** Adds the other value to this value. */
-    @SymbolName("Kotlin_Byte_plus_Float")
-    external public operator fun plus(other: Float): Float
-    /** Adds the other value to this value. */
-    @SymbolName("Kotlin_Byte_plus_Double")
-    external public operator fun plus(other: Double): Double
-
-    /** Subtracts the other value from this value. */
-    @SymbolName("Kotlin_Byte_minus_Byte")
-    external public operator fun minus(other: Byte): Int
-    /** Subtracts the other value from this value. */
-    @SymbolName("Kotlin_Byte_minus_Short")
-    external public operator fun minus(other: Short): Int
-    /** Subtracts the other value from this value. */
-    @SymbolName("Kotlin_Byte_minus_Int")
-    external public operator fun minus(other: Int): Int
-    /** Subtracts the other value from this value. */
-    @SymbolName("Kotlin_Byte_minus_Long")
-    external public operator fun minus(other: Long): Long
-    /** Subtracts the other value from this value. */
-    @SymbolName("Kotlin_Byte_minus_Float")
-    external public operator fun minus(other: Float): Float
-    /** Subtracts the other value from this value. */
-    @SymbolName("Kotlin_Byte_minus_Double")
-    external public operator fun minus(other: Double): Double
-
-    /** Multiplies this value by the other value. */
-    @SymbolName("Kotlin_Byte_times_Byte")
-    external public operator fun times(other: Byte): Int
-    /** Multiplies this value by the other value. */
-    @SymbolName("Kotlin_Byte_times_Short")
-    external public operator fun times(other: Short): Int
-    /** Multiplies this value by the other value. */
-    @SymbolName("Kotlin_Byte_times_Int")
-    external public operator fun times(other: Int): Int
-    /** Multiplies this value by the other value. */
-    @SymbolName("Kotlin_Byte_times_Long")
-    external public operator fun times(other: Long): Long
-    /** Multiplies this value by the other value. */
-    @SymbolName("Kotlin_Byte_times_Float")
-    external public operator fun times(other: Float): Float
-    /** Multiplies this value by the other value. */
-    @SymbolName("Kotlin_Byte_times_Double")
-    external public operator fun times(other: Double): Double
-
-    /** Divides this value by the other value. */
-    @SymbolName("Kotlin_Byte_div_Byte")
-    external public operator fun div(other: Byte): Int
-    /** Divides this value by the other value. */
-    @SymbolName("Kotlin_Byte_div_Short")
-    external public operator fun div(other: Short): Int
-    /** Divides this value by the other value. */
-    @SymbolName("Kotlin_Byte_div_Int")
-    external public operator fun div(other: Int): Int
-    /** Divides this value by the other value. */
-    @SymbolName("Kotlin_Byte_div_Long")
-    external public operator fun div(other: Long): Long
-    /** Divides this value by the other value. */
-    @SymbolName("Kotlin_Byte_div_Float")
-    external public operator fun div(other: Float): Float
-    /** Divides this value by the other value. */
-    @SymbolName("Kotlin_Byte_div_Double")
-    external public operator fun div(other: Double): Double
-
-    /** Calculates the remainder of dividing this value by the other value. */
-    @SymbolName("Kotlin_Byte_mod_Byte")
-    external public operator fun rem(other: Byte): Int
-    /** Calculates the remainder of dividing this value by the other value. */
-    @SymbolName("Kotlin_Byte_mod_Short")
-    external public operator fun rem(other: Short): Int
-    /** Calculates the remainder of dividing this value by the other value. */
-    @SymbolName("Kotlin_Byte_mod_Int")
-    external public operator fun rem(other: Int): Int
-    /** Calculates the remainder of dividing this value by the other value. */
-    @SymbolName("Kotlin_Byte_mod_Long")
-    external public operator fun rem(other: Long): Long
-    /** Calculates the remainder of dividing this value by the other value. */
-    @SymbolName("Kotlin_Byte_mod_Float")
-    external public operator fun rem(other: Float): Float
-    /** Calculates the remainder of dividing this value by the other value. */
-    @SymbolName("Kotlin_Byte_mod_Double")
-    external public operator fun rem(other: Double): Double
-
-    /** Increments this value. */
-    @SymbolName("Kotlin_Byte_inc")
-    external public operator fun inc(): Byte
-    /** Decrements this value. */
-    @SymbolName("Kotlin_Byte_dec")
-    external public operator fun dec(): Byte
-    /** Returns this value. */
-    @SymbolName("Kotlin_Byte_unaryPlus")
-    external public operator fun unaryPlus(): Int
-    /** Returns the negative of this value. */
-    @SymbolName("Kotlin_Byte_unaryMinus")
-    external public operator fun unaryMinus(): Int
-
-    /** Performs a bitwise AND operation between the two values. */
-    @SymbolName("Kotlin_Byte_and_Byte")
-    external public infix fun and(other: Byte): Byte
-    /** Performs a bitwise OR operation between the two values. */
-    @SymbolName("Kotlin_Byte_or_Byte")
-    external public infix fun or(other: Byte): Byte
-    /** Performs a bitwise XOR operation between the two values. */
-    @SymbolName("Kotlin_Byte_xor_Byte")
-    external public infix fun xor(other: Byte): Byte
-    /** Inverts the bits in this value/ */
-    @SymbolName("Kotlin_Byte_inv")
-    external public fun inv(): Byte
-
     @SymbolName("Kotlin_Byte_toByte")
     external public override fun toByte(): Byte
     @SymbolName("Kotlin_Byte_toChar")
@@ -212,22 +48,13 @@ public final class Byte : Number(), Comparable<Byte> {
     @SymbolName("Kotlin_Byte_toDouble")
     external public override fun toDouble(): Double
 
-    /** Creates a range from this value to the specified [other] value. */
-    public operator fun rangeTo(other: Byte): IntRange {
-        return IntRange(this.toInt(), other.toInt())
-    }
-    /** Creates a range from this value to the specified [other] value. */
-    public operator fun rangeTo(other: Short): IntRange {
-        return IntRange(this.toInt(), other.toInt())
-    }
-    /** Creates a range from this value to the specified [other] value. */
-    public operator fun rangeTo(other: Int): IntRange {
-        return IntRange(this.toInt(), other.toInt())
-    }
-    /** Creates a range from this value to the specified [other] value. */
-    public operator fun rangeTo(other: Long): LongRange {
-        return LongRange(this.toLong(), other.toLong())
-    }
+    /**
+     * Compares this value with the specified value for order.
+     * Returns zero if this value is equal to the specified other value, a negative number if its less than other,
+     * or a positive number if its greater than other.
+     */
+    @SymbolName("Kotlin_Byte_compareTo_Byte")
+    external public override operator fun compareTo(other: Byte): Int
 
     // Konan-specific.
     public fun equals(other: Byte): Boolean = konan.internal.areEqualByValue(this, other)
@@ -1380,4 +1207,179 @@ public final class Double : Number(), Comparable<Double> {
 
     @SymbolName("Kotlin_Double_bits")
     external public fun bits(): Long
+}
+
+// OPerations.
+/** Adds the other value to this value. */
+@SymbolName("Kotlin_Byte_plus_Byte")
+external public operator fun Byte.plus(other: Byte): Int
+/** Adds the other value to this value. */
+@SymbolName("Kotlin_Byte_plus_Short")
+external public operator fun Byte.plus(other: Short): Int
+/** Adds the other value to this value. */
+@SymbolName("Kotlin_Byte_plus_Int")
+external public operator fun Byte.plus(other: Int): Int
+/** Adds the other value to this value. */
+@SymbolName("Kotlin_Byte_plus_Long")
+external public operator fun Byte.plus(other: Long): Long
+/** Adds the other value to this value. */
+@SymbolName("Kotlin_Byte_plus_Float")
+external public operator fun Byte.plus(other: Float): Float
+/** Adds the other value to this value. */
+@SymbolName("Kotlin_Byte_plus_Double")
+external public operator fun Byte.plus(other: Double): Double
+
+/**
+ * Compares this value with the specified value for order.
+ * Returns zero if this value is equal to the specified other value, a negative number if its less than other,
+ * or a positive number if its greater than other.
+ */
+@SymbolName("Kotlin_Byte_compareTo_Short")
+external public operator fun Byte.compareTo(other: Short): Int
+/**
+ * Compares this value with the specified value for order.
+ * Returns zero if this value is equal to the specified other value, a negative number if its less than other,
+ * or a positive number if its greater than other.
+ */
+@SymbolName("Kotlin_Byte_compareTo_Int")
+external public operator fun Byte.compareTo(other: Int): Int
+/**
+ * Compares this value with the specified value for order.
+ * Returns zero if this value is equal to the specified other value, a negative number if its less than other,
+ * or a positive number if its greater than other.
+ */
+@SymbolName("Kotlin_Byte_compareTo_Long")
+external public operator fun Byte.compareTo(other: Long): Int
+/**
+ * Compares this value with the specified value for order.
+ * Returns zero if this value is equal to the specified other value, a negative number if its less than other,
+ * or a positive number if its greater than other.
+ */
+@SymbolName("Kotlin_Byte_compareTo_Float")
+external public operator fun Byte.compareTo(other: Float): Int
+/**
+ * Compares this value with the specified value for order.
+ * Returns zero if this value is equal to the specified other value, a negative number if its less than other,
+ * or a positive number if its greater than other.
+ */
+@SymbolName("Kotlin_Byte_compareTo_Double")
+external public operator fun Byte.compareTo(other: Double): Int
+
+/** Subtracts the other value from this value. */
+@SymbolName("Kotlin_Byte_minus_Byte")
+external public operator fun Byte.minus(other: Byte): Int
+/** Subtracts the other value from this value. */
+@SymbolName("Kotlin_Byte_minus_Short")
+external public operator fun Byte.minus(other: Short): Int
+/** Subtracts the other value from this value. */
+@SymbolName("Kotlin_Byte_minus_Int")
+external public operator fun Byte.minus(other: Int): Int
+/** Subtracts the other value from this value. */
+@SymbolName("Kotlin_Byte_minus_Long")
+external public operator fun Byte.minus(other: Long): Long
+/** Subtracts the other value from this value. */
+@SymbolName("Kotlin_Byte_minus_Float")
+external public operator fun Byte.minus(other: Float): Float
+/** Subtracts the other value from this value. */
+@SymbolName("Kotlin_Byte_minus_Double")
+external public operator fun Byte.minus(other: Double): Double
+
+/** Multiplies this value by the other value. */
+@SymbolName("Kotlin_Byte_times_Byte")
+external public operator fun Byte.times(other: Byte): Int
+/** Multiplies this value by the other value. */
+@SymbolName("Kotlin_Byte_times_Short")
+external public operator fun Byte.times(other: Short): Int
+/** Multiplies this value by the other value. */
+@SymbolName("Kotlin_Byte_times_Int")
+external public operator fun Byte.times(other: Int): Int
+/** Multiplies this value by the other value. */
+@SymbolName("Kotlin_Byte_times_Long")
+external public operator fun Byte.times(other: Long): Long
+/** Multiplies this value by the other value. */
+@SymbolName("Kotlin_Byte_times_Float")
+external public operator fun Byte.times(other: Float): Float
+/** Multiplies this value by the other value. */
+@SymbolName("Kotlin_Byte_times_Double")
+external public operator fun Byte.times(other: Double): Double
+
+/** Divides this value by the other value. */
+@SymbolName("Kotlin_Byte_div_Byte")
+external public operator fun Byte.div(other: Byte): Int
+/** Divides this value by the other value. */
+@SymbolName("Kotlin_Byte_div_Short")
+external public operator fun Byte.div(other: Short): Int
+/** Divides this value by the other value. */
+@SymbolName("Kotlin_Byte_div_Int")
+external public operator fun Byte.div(other: Int): Int
+/** Divides this value by the other value. */
+@SymbolName("Kotlin_Byte_div_Long")
+external public operator fun Byte.div(other: Long): Long
+/** Divides this value by the other value. */
+@SymbolName("Kotlin_Byte_div_Float")
+external public operator fun Byte.div(other: Float): Float
+/** Divides this value by the other value. */
+@SymbolName("Kotlin_Byte_div_Double")
+external public operator fun Byte.div(other: Double): Double
+
+/** Calculates the remainder of dividing this value by the other value. */
+@SymbolName("Kotlin_Byte_mod_Byte")
+external public operator fun Byte.rem(other: Byte): Int
+/** Calculates the remainder of dividing this value by the other value. */
+@SymbolName("Kotlin_Byte_mod_Short")
+external public operator fun Byte.rem(other: Short): Int
+/** Calculates the remainder of dividing this value by the other value. */
+@SymbolName("Kotlin_Byte_mod_Int")
+external public operator fun Byte.rem(other: Int): Int
+/** Calculates the remainder of dividing this value by the other value. */
+@SymbolName("Kotlin_Byte_mod_Long")
+external public operator fun Byte.rem(other: Long): Long
+/** Calculates the remainder of dividing this value by the other value. */
+@SymbolName("Kotlin_Byte_mod_Float")
+external public operator fun Byte.rem(other: Float): Float
+/** Calculates the remainder of dividing this value by the other value. */
+@SymbolName("Kotlin_Byte_mod_Double")
+external public operator fun Byte.rem(other: Double): Double
+
+/** Increments this value. */
+@SymbolName("Kotlin_Byte_inc")
+external public operator fun Byte.inc(): Byte
+/** Decrements this value. */
+@SymbolName("Kotlin_Byte_dec")
+external public operator fun Byte.dec(): Byte
+/** Returns this value. */
+@SymbolName("Kotlin_Byte_unaryPlus")
+external public operator fun Byte.unaryPlus(): Int
+/** Returns the negative of this value. */
+@SymbolName("Kotlin_Byte_unaryMinus")
+external public operator fun Byte.unaryMinus(): Int
+
+/** Performs a bitwise AND operation between the two values. */
+@SymbolName("Kotlin_Byte_and_Byte")
+external public infix fun Byte.and(other: Byte): Byte
+/** Performs a bitwise OR operation between the two values. */
+@SymbolName("Kotlin_Byte_or_Byte")
+external public infix fun Byte.or(other: Byte): Byte
+/** Performs a bitwise XOR operation between the two values. */
+@SymbolName("Kotlin_Byte_xor_Byte")
+external public infix fun Byte.xor(other: Byte): Byte
+/** Inverts the bits in this value/ */
+@SymbolName("Kotlin_Byte_inv")
+external public fun Byte.inv(): Byte
+
+/** Creates a range from this value to the specified [other] value. */
+public operator fun Byte.rangeTo(other: Byte): IntRange {
+    return IntRange(this.toInt(), other.toInt())
+}
+/** Creates a range from this value to the specified [other] value. */
+public operator fun Byte.rangeTo(other: Short): IntRange {
+    return IntRange(this.toInt(), other.toInt())
+}
+/** Creates a range from this value to the specified [other] value. */
+public operator fun Byte.rangeTo(other: Int): IntRange {
+    return IntRange(this.toInt(), other.toInt())
+}
+/** Creates a range from this value to the specified [other] value. */
+public operator fun Byte.rangeTo(other: Long): LongRange {
+    return LongRange(this.toLong(), other.toLong())
 }

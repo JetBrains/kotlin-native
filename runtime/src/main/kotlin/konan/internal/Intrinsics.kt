@@ -23,9 +23,13 @@ import kotlinx.cinterop.NativePtr
 @Intrinsic external fun areEqualByValue(first: Boolean, second: Boolean): Boolean
 @Intrinsic external fun areEqualByValue(first: Char, second: Char): Boolean
 @Intrinsic external fun areEqualByValue(first: Byte, second: Byte): Boolean
+@Intrinsic external fun areEqualByValue(first: UByte, second: UByte): Boolean
 @Intrinsic external fun areEqualByValue(first: Short, second: Short): Boolean
+@Intrinsic external fun areEqualByValue(first: UShort, second: UShort): Boolean
 @Intrinsic external fun areEqualByValue(first: Int, second: Int): Boolean
+@Intrinsic external fun areEqualByValue(first: UInt, second: UInt): Boolean
 @Intrinsic external fun areEqualByValue(first: Long, second: Long): Boolean
+@Intrinsic external fun areEqualByValue(first: ULong, second: ULong): Boolean
 @Intrinsic external fun areEqualByValue(first: Float, second: Float): Boolean
 @Intrinsic external fun areEqualByValue(first: Double, second: Double): Boolean
 
