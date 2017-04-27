@@ -95,13 +95,13 @@ class UByteBox(val value: UByte) : Number(), Comparable<UByte> {
 
     override fun compareTo(other: UByte): Int = TODO() // value.compareTo(other)
 
-    override fun toByte() = TODO() // value.toByte()
-    override fun toChar() = TODO() // value.toChar()
-    override fun toShort() = TODO() // value.toShort()
-    override fun toInt() = TODO() // value.toInt()
-    override fun toLong() = TODO() // value.toLong()
-    override fun toFloat() = TODO() // value.toFloat()
-    override fun toDouble() = TODO() // value.toDouble()
+    override fun toByte() = value.toByte()
+    override fun toChar() = value.toChar()
+    override fun toShort() = value.toShort()
+    override fun toInt() = value.toInt()
+    override fun toLong() = value.toLong()
+    override fun toFloat() = value.toFloat()
+    override fun toDouble() = value.toDouble()
 }
 
 fun boxUByte(value: UByte) = UByteBox(value)
@@ -147,13 +147,13 @@ class UShortBox(val value: UShort) : Number(), Comparable<UShort> {
 
     override fun compareTo(other: UShort): Int = TODO() // value.compareTo(other)
 
-    override fun toByte() = TODO() // value.toByte()
-    override fun toChar() = TODO() // value.toChar()
-    override fun toShort() = TODO() // value.toShort()
-    override fun toInt() = TODO() // value.toInt()
-    override fun toLong() = TODO() // value.toLong()
-    override fun toFloat() = TODO() // value.toFloat()
-    override fun toDouble() = TODO() // value.toDouble()
+    override fun toByte() = value.toByte()
+    override fun toChar() = value.toChar()
+    override fun toShort() = value.toShort()
+    override fun toInt() = value.toInt()
+    override fun toLong() = value.toLong()
+    override fun toFloat() = value.toFloat()
+    override fun toDouble() = value.toDouble()
 }
 
 fun boxUShort(value: UShort) = UShortBox(value)
@@ -199,13 +199,13 @@ class UIntBox(val value: UInt) : Number(), Comparable<UInt> {
 
     override fun compareTo(other: UInt): Int = TODO() // value.compareTo(other)
 
-    override fun toByte() = TODO() // value.toByte()
-    override fun toChar() = TODO() // value.toChar()
-    override fun toShort() = TODO() // value.toShort()
-    override fun toInt() = TODO() // value.toInt()
-    override fun toLong() = TODO() // value.toLong()
-    override fun toFloat() = TODO() // value.toFloat()
-    override fun toDouble() = TODO() // value.toDouble()
+    override fun toByte() = value.toByte()
+    override fun toChar() = value.toChar()
+    override fun toShort() = value.toShort()
+    override fun toInt() = value.toInt()
+    override fun toLong() = value.toLong()
+    override fun toFloat() = value.toFloat()
+    override fun toDouble() = value.toDouble()
 }
 
 fun boxUInt(value: UInt) = UIntBox(value)
@@ -251,13 +251,13 @@ class ULongBox(val value: ULong) : Number(), Comparable<ULong> {
 
     override fun compareTo(other: ULong): Int = TODO() // value.compareTo(other)
 
-    override fun toByte() = TODO() // value.toByte()
-    override fun toChar() = TODO() // value.toChar()
-    override fun toShort() = TODO() // value.toShort()
-    override fun toInt() = TODO() // value.toInt()
-    override fun toLong() = TODO() // value.toLong()
-    override fun toFloat() = TODO() // value.toFloat()
-    override fun toDouble() = TODO() // value.toDouble()
+    override fun toByte() = value.toByte()
+    override fun toChar() = value.toChar()
+    override fun toShort() = value.toShort()
+    override fun toInt() = value.toInt()
+    override fun toLong() = value.toLong()
+    override fun toFloat() = value.toFloat()
+    override fun toDouble() = value.toDouble()
 }
 
 fun boxULong(value: ULong) = ULongBox(value)

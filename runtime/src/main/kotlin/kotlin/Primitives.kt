@@ -222,7 +222,6 @@ public final class Long : Number(), Comparable<Long> {
     }
 
     // Generated overrides.
-    // Generated overrides.
     @SymbolName("Kotlin_Long_toByte")
     external public override fun toByte(): Byte
     @SymbolName("Kotlin_Long_toShort")

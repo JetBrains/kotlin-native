@@ -197,7 +197,6 @@ public final class ULong : Number(), Comparable<ULong> {
     external public override fun toString(): String
 
     public override fun hashCode(): Int {
-        TODO()
-        // return ((this ushr 32) xor this).toInt()
+        return ((this shr 32) xor this).toInt()
     }
 }
