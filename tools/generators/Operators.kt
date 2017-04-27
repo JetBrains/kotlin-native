@@ -15,28 +15,58 @@
  */
 
 // This tool generates all arithmetic operations needed as extensions.
+enum class Kind(val signed: Boolean = true,
+                val numeric: Boolean = true,
+                val integral: Boolean = true,
+                val floating: Boolean = false) {
+    UNSIGNED(signed = false),
+    SIGNED,
+    FLOATING(floating = true, integral = false),
+    // Yes, CHAR is numeric, but not integral.
+    CHAR(integral = false),
+    BOOLEAN(numeric = false)
+}
 
-val signedTypes = listOf("Byte", "Short", "Int", "Long")
-val unsignedTypes = listOf("UByte", "UShort", "UInt", "ULong")
-val floatTypes = listOf("Float", "Double")
+enum class Type(val typeName: String, val kind: Kind) {
+    BYTE("Byte", Kind.SIGNED),
+    SHORT("Short", Kind.SIGNED),
+    INT("Int", Kind.SIGNED),
+    LONG("Long", Kind.SIGNED),
+    CHAR("Char", Kind.CHAR),
+    BOOLEAN("Boolean", Kind.BOOLEAN),
+    FLOAT("Float", Kind.FLOATING),
+    DOUBLE("Double", Kind.FLOATING),
+    UBYTE("UByte", Kind.UNSIGNED),
+    USHORT("UShort", Kind.UNSIGNED),
+    UINT("UInt", Kind.UNSIGNED),
+    ULONG("ULong", Kind.UNSIGNED);
+
+    public override fun toString(): String = typeName
+}
+
+val signedTypes = listOf(Type.BYTE, Type.SHORT, Type.INT, Type.LONG)
+val unsignedTypes = listOf(Type.UBYTE, Type.USHORT, Type.UINT, Type.ULONG)
+val floatTypes = listOf(Type.FLOAT, Type.DOUBLE)
+val allNumericTypes = signedTypes + floatTypes + Type.CHAR
 val typePromotion = mapOf(
-        "Byte" to "Int", "UByte" to "UInt",
-        "Short" to "Int", "UShort" to "UInt",
-        "Int" to "Int", "UInt" to "UInt",
-        "Long" to "Long", "ULong" to "ULong",
-        "Float" to "Float",
-        "Double" to "Double"
+        Type.BYTE to Type.INT, Type.UBYTE to Type.UINT,
+        Type.SHORT to Type.INT, Type.USHORT to Type.UINT,
+        Type.INT to Type.INT, Type.UINT to Type.UINT,
+        Type.LONG to Type.LONG, Type.ULONG to Type.ULONG,
+        Type.FLOAT to Type.FLOAT,
+        Type.DOUBLE to Type.DOUBLE
 )
 val typeRank = mapOf(
-        "Int" to 1,
-        "UInt" to 2,
-        "Long" to 3,
-        "ULong" to 4,
-        "Float" to 5,
-        "Double" to 6
+        Type.INT to 1,
+        Type.UINT to 2,
+        Type.LONG to 3,
+        Type.ULONG to 4,
+        Type.FLOAT to 5,
+        Type.DOUBLE to 6
 )
 val intTypes = signedTypes + unsignedTypes
-val intAndFloatTypes = intTypes + floatTypes
+//val intAndFloatTypes = intTypes + floatTypes
+val intAndFloatTypes = signedTypes + floatTypes
 val incrementOps = listOf("inc", "dec")
 val unaryArithOps = listOf("unaryPlus", "unaryMinus")
 val unaryBitOps = listOf("inv")
@@ -44,17 +74,29 @@ val binaryArithOps = listOf("plus", "minus", "times", "div", "rem")
 val binaryBitOps = listOf("and", "or", "xor")
 val binaryShiftOps = listOf("shl", "shr", "ushr")
 
-
-fun generateExternal(type: String, function: String,
-                     args: List<String>, retType: String = type,
-                     kind: String = "operator") {
-    val symbol = "Kotlin_${type}_${function}_${args.joinToString("_")}"
-    println("@SymbolName(\"$symbol\")")
-    var arguments = args.joinToString { arg -> "_: $arg" }
-    println("external public $kind fun $type.$function($arguments): $retType")
+fun generateRange(type: Type, otherType: Type) {
+    val valueType = maxType(maxType(type, otherType), Type.INT)
+    println("public operator fun rangeTo(other: $otherType) = ${valueType}Range(this.to$valueType(), other.to$valueType())")
 }
 
-fun maxType(type1: String, type2: String): String {
+fun generateOverrideHeader(function: String, args: List<Type>, retType: Type,
+                           kind: String = "") {
+    var index = 0
+    var arguments = args.joinToString { arg -> "arg${index++}: $arg" }
+    println("external public override$kind fun $function($arguments): $retType")
+}
+
+fun makeSymbolName(type: Type, function: String, args: List<Type>) =
+        "@SymbolName(\"Kotlin_${type}_${(listOf(function) + args.map { arg -> arg.toString() }).joinToString("_")}\")"
+
+fun generateExternal(type: Type, function: String, args: List<Type>, retType: Type = type, kind: String) {
+    println(makeSymbolName(type, function, args))
+    var index = 0
+    var arguments = args.joinToString { arg -> "arg${index++}: $arg" }
+    println("external public$kind fun $type.$function($arguments): $retType")
+}
+
+fun maxType(type1: Type, type2: Type): Type{
     val promoted1 = typePromotion[type1]!!
     val promoted2 = typePromotion[type2]!!
     val rank1 = typeRank[promoted1]!!
@@ -65,46 +107,71 @@ fun maxType(type1: String, type2: String): String {
         return promoted2
 }
 
-enum class Kind {
-    UNSIGNED,
-    SIGNED,
-    FLOAT,
-    CHAR,
-    BOOLEAN
+
+fun generateOverrides(type: Type) {
+    println("// Generated overrides.")
+    for (other in allNumericTypes) {
+        val op = "to$other"
+        println(makeSymbolName(type, op, listOf()))
+        generateOverrideHeader(op, listOf(), other)
+    }
+
+    for (other in listOf(type)) {
+        val op = "compareTo"
+        println(makeSymbolName(type, op, listOf(other)))
+        generateOverrideHeader(op, listOf(other), Type.INT, " operator")
+    }
+
+    if (type.kind == Kind.SIGNED) {
+        for (otherType in signedTypes) {
+            generateRange(type, otherType)
+        }
+    }
 }
 
 fun generateArithKt(kind: Kind) {
     val types = when (kind) {
         Kind.UNSIGNED -> unsignedTypes
         Kind.SIGNED -> signedTypes
-        Kind.FLOAT -> floatTypes
-        Kind.CHAR -> listOf("Char")
-        Kind.BOOLEAN -> listOf("Boolean")
+        Kind.FLOATING -> floatTypes
+        Kind.CHAR -> listOf(Type.CHAR)
+        Kind.BOOLEAN -> listOf(Type.BOOLEAN)
     }
+    val isIntegral = (kind == Kind.UNSIGNED || kind == Kind.SIGNED)
     for (type in types) {
         for (op in binaryArithOps) {
-            for (otherType in types) {
-                generateExternal(type, op, listOf(otherType), maxType(type, otherType))
+            for (otherType in intAndFloatTypes) {
+                generateExternal(type, op, listOf(otherType), maxType(type, otherType), " operator")
             }
         }
-        if (kind == Kind.UNSIGNED || kind == Kind.SIGNED) {
+
+        for (otherType in intAndFloatTypes) {
+            if (type != otherType)
+                generateExternal(type, "compareTo", listOf(otherType), Type.INT, " operator")
+        }
+
+        if (isIntegral) {
             for (op in binaryBitOps) {
-                generateExternal(type, op, listOf(type), maxType(type, type))
+                generateExternal(type, op, listOf(type), maxType(type, type), " infix")
             }
             for (op in binaryShiftOps) {
-                generateExternal(type, op, listOf("Int"), maxType(type, "Int"))
+                generateExternal(type, op, listOf(Type.INT), maxType(type, Type.INT), " infix")
+            }
+            for (op in unaryBitOps) {
+                generateExternal(type, op, listOf(), type, "")
             }
         }
         if (kind != Kind.BOOLEAN) {
             for (op in incrementOps) {
-                generateExternal(type, op, listOf(), type)
+                generateExternal(type, op, listOf(), type, " operator")
             }
         }
         if (kind != Kind.BOOLEAN && kind != Kind.CHAR) {
             for (op in unaryArithOps) {
-                generateExternal(type, op, listOf(), typePromotion[type]!!)
+                generateExternal(type, op, listOf(), typePromotion[type]!!, " operator")
             }
         }
+
     }
 }
 
@@ -115,9 +182,19 @@ fun main(args: Array<String>) {
 
     for (action in args) {
         when (action) {
+            "overrides_Byte" -> generateOverrides(Type.BYTE)
+            "overrides_Short" -> generateOverrides(Type.SHORT)
+            "overrides_Int" -> generateOverrides(Type.INT)
+            "overrides_Long" -> generateOverrides(Type.LONG)
+            "overrides_Float" -> generateOverrides(Type.FLOAT)
+            "overrides_Double" -> generateOverrides(Type.DOUBLE)
+            "overrides_UByte" -> generateOverrides(Type.UBYTE)
+            "overrides_UShort" -> generateOverrides(Type.USHORT)
+            "overrides_UInt" -> generateOverrides(Type.UINT)
+            "overrides_ULong" -> generateOverrides(Type.ULONG)
             "signed_kt" -> generateArithKt(Kind.SIGNED)
             "unsigned_kt" -> generateArithKt(Kind.UNSIGNED)
-            "float_kt" -> generateArithKt(Kind.FLOAT)
+            "floating_kt" -> generateArithKt(Kind.FLOATING)
             "char_kt" -> generateArithKt(Kind.CHAR)
             "boolean_kt" -> generateArithKt(Kind.BOOLEAN)
         }

@@ -32,48 +32,23 @@ public final class UByte : Number(), Comparable<UByte> {
         // public const val MAX_VALUE: UByte = 0xff
     }
 
-    // Methods from Number.
-    /**
-     * Returns the value of this number as a [Double], which may involve rounding.
-     */
-    public override fun toDouble(): Double = TODO()
-
-    /**
-     * Returns the value of this number as a [Float], which may involve rounding.
-     */
-    public override fun toFloat(): Float = TODO()
-
-    /**
-     * Returns the value of this number as a [Long], which may involve rounding or truncation.
-     */
-    public override fun toLong(): Long = TODO()
-
-    /**
-     * Returns the value of this number as an [Int], which may involve rounding or truncation.
-     */
-    public override fun toInt(): Int = TODO()
-
-    /**
-     * Returns the [Char] with the numeric value equal to this number, truncated to 16 bits if appropriate.
-     */
-    public override fun toChar(): Char = TODO()
-
-    /**
-     * Returns the value of this number as a [Short], which may involve rounding or truncation.
-     */
-    public override fun toShort(): Short = TODO()
-
-    /**
-     * Returns the value of this number as a [Byte], which may involve rounding or truncation.
-     */
-    public override fun toByte(): Byte = TODO()
-
-    /**
-     * Compares this value with the specified value for order.
-     * Returns zero if this value is equal to the specified other value, a negative number if its less than other,
-     * or a positive number if its greater than other.
-     */
-    public override operator fun compareTo(other: UByte): Int = TODO()
+    // Generated overrides.
+    @SymbolName("Kotlin_UByte_toByte")
+    external public override fun toByte(): Byte
+    @SymbolName("Kotlin_UByte_toShort")
+    external public override fun toShort(): Short
+    @SymbolName("Kotlin_UByte_toInt")
+    external public override fun toInt(): Int
+    @SymbolName("Kotlin_UByte_toLong")
+    external public override fun toLong(): Long
+    @SymbolName("Kotlin_UByte_toFloat")
+    external public override fun toFloat(): Float
+    @SymbolName("Kotlin_UByte_toDouble")
+    external public override fun toDouble(): Double
+    @SymbolName("Kotlin_UByte_toChar")
+    external public override fun toChar(): Char
+    @SymbolName("Kotlin_UByte_compareTo_UByte")
+    external public override operator fun compareTo(arg0: UByte): Int
 
     // Equality.
     public fun equals(other: UByte): Boolean = konan.internal.areEqualByValue(this, other)
@@ -85,10 +60,7 @@ public final class UByte : Number(), Comparable<UByte> {
     @SymbolName("Kotlin_UByte_toString")
     external public override fun toString(): String
 
-    public override fun hashCode(): Int {
-        TODO()
-        // return this.toInt()
-    }
+    public override fun hashCode() = this.toInt()
 }
 
 /**
@@ -107,48 +79,23 @@ public final class UShort : Number(), Comparable<UShort> {
         // public const val MAX_VALUE: UShort = 0xffff
     }
 
-    // Methods from Number.
-    /**
-     * Returns the value of this number as a [Double], which may involve rounding.
-     */
-    public override fun toDouble(): Double = TODO()
-
-    /**
-     * Returns the value of this number as a [Float], which may involve rounding.
-     */
-    public override fun toFloat(): Float = TODO()
-
-    /**
-     * Returns the value of this number as a [Long], which may involve rounding or truncation.
-     */
-    public override fun toLong(): Long = TODO()
-
-    /**
-     * Returns the value of this number as an [Int], which may involve rounding or truncation.
-     */
-    public override fun toInt(): Int = TODO()
-
-    /**
-     * Returns the [Char] with the numeric value equal to this number, truncated to 16 bits if appropriate.
-     */
-    public override fun toChar(): Char = TODO()
-
-    /**
-     * Returns the value of this number as a [Short], which may involve rounding or truncation.
-     */
-    public override fun toShort(): Short = TODO()
-
-    /**
-     * Returns the value of this number as a [Byte], which may involve rounding or truncation.
-     */
-    public override fun toByte(): Byte = TODO()
-
-    /**
-     * Compares this value with the specified value for order.
-     * Returns zero if this value is equal to the specified other value, a negative number if its less than other,
-     * or a positive number if its greater than other.
-     */
-    public override operator fun compareTo(other: UShort): Int = TODO()
+    // Generated overrides.
+    @SymbolName("Kotlin_UShort_toByte")
+    external public override fun toByte(): Byte
+    @SymbolName("Kotlin_UShort_toShort")
+    external public override fun toShort(): Short
+    @SymbolName("Kotlin_UShort_toInt")
+    external public override fun toInt(): Int
+    @SymbolName("Kotlin_UShort_toLong")
+    external public override fun toLong(): Long
+    @SymbolName("Kotlin_UShort_toFloat")
+    external public override fun toFloat(): Float
+    @SymbolName("Kotlin_UShort_toDouble")
+    external public override fun toDouble(): Double
+    @SymbolName("Kotlin_UShort_toChar")
+    external public override fun toChar(): Char
+    @SymbolName("Kotlin_UShort_compareTo_UShort")
+    external public override operator fun compareTo(arg0: UShort): Int
 
     public fun equals(other: UShort): Boolean = konan.internal.areEqualByValue(this, other)
 
@@ -159,10 +106,7 @@ public final class UShort : Number(), Comparable<UShort> {
     @SymbolName("Kotlin_UShort_toString")
     external public override fun toString(): String
 
-    public override fun hashCode(): Int {
-        TODO()
-        //return this.toInt()
-    }
+    public override fun hashCode(): Int = this.toInt()
 }
 
 /**
@@ -181,48 +125,23 @@ public final class UInt : Number(), Comparable<UInt> {
         //public const val MAX_VALUE: UInt = 0xffffffff
     }
 
-    // Methods from Number.
-    /**
-     * Returns the value of this number as a [Double], which may involve rounding.
-     */
-    public override fun toDouble(): Double = TODO()
-
-    /**
-     * Returns the value of this number as a [Float], which may involve rounding.
-     */
-    public override fun toFloat(): Float = TODO()
-
-    /**
-     * Returns the value of this number as a [Long], which may involve rounding or truncation.
-     */
-    public override fun toLong(): Long = TODO()
-
-    /**
-     * Returns the value of this number as an [Int], which may involve rounding or truncation.
-     */
-    public override fun toInt(): Int = TODO()
-
-    /**
-     * Returns the [Char] with the numeric value equal to this number, truncated to 16 bits if appropriate.
-     */
-    public override fun toChar(): Char = TODO()
-
-    /**
-     * Returns the value of this number as a [Short], which may involve rounding or truncation.
-     */
-    public override fun toShort(): Short = TODO()
-
-    /**
-     * Returns the value of this number as a [Byte], which may involve rounding or truncation.
-     */
-    public override fun toByte(): Byte = TODO()
-
-    /**
-     * Compares this value with the specified value for order.
-     * Returns zero if this value is equal to the specified other value, a negative number if its less than other,
-     * or a positive number if its greater than other.
-     */
-    public override operator fun compareTo(other: UInt): Int = TODO()
+    // Generated overrides.
+    @SymbolName("Kotlin_UInt_toByte")
+    external public override fun toByte(): Byte
+    @SymbolName("Kotlin_UInt_toShort")
+    external public override fun toShort(): Short
+    @SymbolName("Kotlin_UInt_toInt")
+    external public override fun toInt(): Int
+    @SymbolName("Kotlin_UInt_toLong")
+    external public override fun toLong(): Long
+    @SymbolName("Kotlin_UInt_toFloat")
+    external public override fun toFloat(): Float
+    @SymbolName("Kotlin_UInt_toDouble")
+    external public override fun toDouble(): Double
+    @SymbolName("Kotlin_UInt_toChar")
+    external public override fun toChar(): Char
+    @SymbolName("Kotlin_UInt_compareTo_UInt")
+    external public override operator fun compareTo(arg0: UInt): Int
 
     public fun equals(other: UInt): Boolean = konan.internal.areEqualByValue(this, other)
 
@@ -232,10 +151,7 @@ public final class UInt : Number(), Comparable<UInt> {
     @SymbolName("Kotlin_UInt_toString")
     external public override fun toString(): String
 
-    public override fun hashCode(): Int {
-        TODO()
-        // return this.toInt()
-    }
+    public override fun hashCode(): Int = this.toInt()
 }
 
 /**
@@ -254,48 +170,23 @@ public final class ULong : Number(), Comparable<ULong> {
         //public const val MAX_VALUE: ULong = 0xffffffffffffffffL
     }
 
-    // Methods from Number.
-    /**
-     * Returns the value of this number as a [Double], which may involve rounding.
-     */
-    public override fun toDouble(): Double = TODO()
-
-    /**
-     * Returns the value of this number as a [Float], which may involve rounding.
-     */
-    public override fun toFloat(): Float = TODO()
-
-    /**
-     * Returns the value of this number as a [Long], which may involve rounding or truncation.
-     */
-    public override fun toLong(): Long = TODO()
-
-    /**
-     * Returns the value of this number as an [Int], which may involve rounding or truncation.
-     */
-    public override fun toInt(): Int = TODO()
-
-    /**
-     * Returns the [Char] with the numeric value equal to this number, truncated to 16 bits if appropriate.
-     */
-    public override fun toChar(): Char = TODO()
-
-    /**
-     * Returns the value of this number as a [Short], which may involve rounding or truncation.
-     */
-    public override fun toShort(): Short = TODO()
-
-    /**
-     * Returns the value of this number as a [Byte], which may involve rounding or truncation.
-     */
-    public override fun toByte(): Byte = TODO()
-
-    /**
-     * Compares this value with the specified value for order.
-     * Returns zero if this value is equal to the specified other value, a negative number if its less than other,
-     * or a positive number if its greater than other.
-     */
-    public override operator fun compareTo(other: ULong): Int = TODO()
+    // Generated overrides.
+    @SymbolName("Kotlin_ULong_toByte")
+    external public override fun toByte(): Byte
+    @SymbolName("Kotlin_ULong_toShort")
+    external public override fun toShort(): Short
+    @SymbolName("Kotlin_ULong_toInt")
+    external public override fun toInt(): Int
+    @SymbolName("Kotlin_ULong_toLong")
+    external public override fun toLong(): Long
+    @SymbolName("Kotlin_ULong_toFloat")
+    external public override fun toFloat(): Float
+    @SymbolName("Kotlin_ULong_toDouble")
+    external public override fun toDouble(): Double
+    @SymbolName("Kotlin_ULong_toChar")
+    external public override fun toChar(): Char
+    @SymbolName("Kotlin_ULong_compareTo_ULong")
+    external public override operator fun compareTo(arg0: ULong): Int
 
     public fun equals(other: ULong): Boolean = konan.internal.areEqualByValue(this, other)
 

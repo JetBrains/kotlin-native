@@ -149,12 +149,12 @@ KLong   Kotlin_Short_div_Long         (KShort a, KLong   b) { return div<KLong>(
 KFloat  Kotlin_Short_div_Float        (KShort a, KFloat  b) { return a / b; }
 KDouble Kotlin_Short_div_Double       (KShort a, KDouble b) { return a / b; }
 
-KInt    Kotlin_Short_mod_Byte         (KShort a, KByte   b) { return a % b; }
-KInt    Kotlin_Short_mod_Short        (KShort a, KShort  b) { return a % b; }
-KInt    Kotlin_Short_mod_Int          (KShort a, KInt    b) { return a % b; }
-KLong   Kotlin_Short_mod_Long         (KShort a, KLong   b) { return a % b; }
-KFloat  Kotlin_Short_mod_Float        (KShort a, KFloat  b) { return fmodf(a, b); }
-KDouble Kotlin_Short_mod_Double       (KShort a, KDouble b) { return fmod (a, b); }
+KInt    Kotlin_Short_rem_Byte         (KShort a, KByte   b) { return a % b; }
+KInt    Kotlin_Short_rem_Short        (KShort a, KShort  b) { return a % b; }
+KInt    Kotlin_Short_rem_Int          (KShort a, KInt    b) { return a % b; }
+KLong   Kotlin_Short_rem_Long         (KShort a, KLong   b) { return a % b; }
+KFloat  Kotlin_Short_rem_Float        (KShort a, KFloat  b) { return fmodf(a, b); }
+KDouble Kotlin_Short_rem_Double       (KShort a, KDouble b) { return fmod (a, b); }
 
 KInt    Kotlin_Short_times_Byte       (KShort a, KByte   b) { return a * b; }
 KInt    Kotlin_Short_times_Short      (KShort a, KShort  b) { return a * b; }
@@ -211,12 +211,12 @@ KLong   Kotlin_Int_div_Long         (KInt a, KLong   b) { return div<KLong>(a, b
 KFloat  Kotlin_Int_div_Float        (KInt a, KFloat  b) { return a / b; }
 KDouble Kotlin_Int_div_Double       (KInt a, KDouble b) { return a / b; }
 
-KInt    Kotlin_Int_mod_Byte         (KInt a, KByte   b) { return a % b; }
-KInt    Kotlin_Int_mod_Short        (KInt a, KShort  b) { return a % b; }
-KInt    Kotlin_Int_mod_Int          (KInt a, KInt    b) { return a % b; }
-KLong   Kotlin_Int_mod_Long         (KInt a, KLong   b) { return a % b; }
-KFloat  Kotlin_Int_mod_Float        (KInt a, KFloat  b) { return fmodf(a, b); }
-KDouble Kotlin_Int_mod_Double       (KInt a, KDouble b) { return fmod (a, b); }
+KInt    Kotlin_Int_rem_Byte         (KInt a, KByte   b) { return a % b; }
+KInt    Kotlin_Int_rem_Short        (KInt a, KShort  b) { return a % b; }
+KInt    Kotlin_Int_rem_Int          (KInt a, KInt    b) { return a % b; }
+KLong   Kotlin_Int_rem_Long         (KInt a, KLong   b) { return a % b; }
+KFloat  Kotlin_Int_rem_Float        (KInt a, KFloat  b) { return fmodf(a, b); }
+KDouble Kotlin_Int_rem_Double       (KInt a, KDouble b) { return fmod (a, b); }
 
 KInt    Kotlin_Int_times_Byte       (KInt a, KByte   b) { return a * b; }
 KInt    Kotlin_Int_times_Short      (KInt a, KShort  b) { return a * b; }
@@ -281,12 +281,12 @@ KLong   Kotlin_Long_div_Long         (KLong a, KLong   b) { return div<KLong>(a,
 KFloat  Kotlin_Long_div_Float        (KLong a, KFloat  b) { return a / b; }
 KDouble Kotlin_Long_div_Double       (KLong a, KDouble b) { return a / b; }
 
-KLong   Kotlin_Long_mod_Byte         (KLong a, KByte   b) { return a % b; }
-KLong   Kotlin_Long_mod_Short        (KLong a, KShort  b) { return a % b; }
-KLong   Kotlin_Long_mod_Int          (KLong a, KInt    b) { return a % b; }
-KLong   Kotlin_Long_mod_Long         (KLong a, KLong   b) { return a % b; }
-KFloat  Kotlin_Long_mod_Float        (KLong a, KFloat  b) { return fmodf(a, b); }
-KDouble Kotlin_Long_mod_Double       (KLong a, KDouble b) { return fmod (a, b); }
+KLong   Kotlin_Long_rem_Byte         (KLong a, KByte   b) { return a % b; }
+KLong   Kotlin_Long_rem_Short        (KLong a, KShort  b) { return a % b; }
+KLong   Kotlin_Long_rem_Int          (KLong a, KInt    b) { return a % b; }
+KLong   Kotlin_Long_rem_Long         (KLong a, KLong   b) { return a % b; }
+KFloat  Kotlin_Long_rem_Float        (KLong a, KFloat  b) { return fmodf(a, b); }
+KDouble Kotlin_Long_rem_Double       (KLong a, KDouble b) { return fmod (a, b); }
 
 KLong   Kotlin_Long_times_Byte       (KLong a, KByte   b) { return a * b; }
 KLong   Kotlin_Long_times_Short      (KLong a, KShort  b) { return a * b; }
@@ -351,12 +351,12 @@ KFloat  Kotlin_Float_div_Long         (KFloat a, KLong   b) { return a / b; }
 KFloat  Kotlin_Float_div_Float        (KFloat a, KFloat  b) { return a / b; }
 KDouble Kotlin_Float_div_Double       (KFloat a, KDouble b) { return a / b; }
 
-KFloat  Kotlin_Float_mod_Byte         (KFloat a, KByte   b) { return fmodf(a, b); }
-KFloat  Kotlin_Float_mod_Short        (KFloat a, KShort  b) { return fmodf(a, b); }
-KFloat  Kotlin_Float_mod_Int          (KFloat a, KInt    b) { return fmodf(a, b); }
-KFloat  Kotlin_Float_mod_Long         (KFloat a, KLong   b) { return fmodf(a, b); }
-KFloat  Kotlin_Float_mod_Float        (KFloat a, KFloat  b) { return fmodf(a, b); }
-KDouble Kotlin_Float_mod_Double       (KFloat a, KDouble b) { return fmod (a, b); }
+KFloat  Kotlin_Float_rem_Byte         (KFloat a, KByte   b) { return fmodf(a, b); }
+KFloat  Kotlin_Float_rem_Short        (KFloat a, KShort  b) { return fmodf(a, b); }
+KFloat  Kotlin_Float_rem_Int          (KFloat a, KInt    b) { return fmodf(a, b); }
+KFloat  Kotlin_Float_rem_Long         (KFloat a, KLong   b) { return fmodf(a, b); }
+KFloat  Kotlin_Float_rem_Float        (KFloat a, KFloat  b) { return fmodf(a, b); }
+KDouble Kotlin_Float_rem_Double       (KFloat a, KDouble b) { return fmod (a, b); }
 
 KFloat  Kotlin_Float_times_Byte       (KFloat a, KByte   b) { return a * b; }
 KFloat  Kotlin_Float_times_Short      (KFloat a, KShort  b) { return a * b; }
@@ -420,12 +420,12 @@ KDouble Kotlin_Double_div_Long         (KDouble a, KLong   b) { return a / b; }
 KDouble Kotlin_Double_div_Float        (KDouble a, KFloat  b) { return a / b; }
 KDouble Kotlin_Double_div_Double       (KDouble a, KDouble b) { return a / b; }
 
-KDouble Kotlin_Double_mod_Byte         (KDouble a, KByte   b) { return fmod(a, b); }
-KDouble Kotlin_Double_mod_Short        (KDouble a, KShort  b) { return fmod(a, b); }
-KDouble Kotlin_Double_mod_Int          (KDouble a, KInt    b) { return fmod(a, b); }
-KDouble Kotlin_Double_mod_Long         (KDouble a, KLong   b) { return fmod(a, b); }
-KDouble Kotlin_Double_mod_Float        (KDouble a, KFloat  b) { return fmod(a, b); }
-KDouble Kotlin_Double_mod_Double       (KDouble a, KDouble b) { return fmod(a, b); }
+KDouble Kotlin_Double_rem_Byte         (KDouble a, KByte   b) { return fmod(a, b); }
+KDouble Kotlin_Double_rem_Short        (KDouble a, KShort  b) { return fmod(a, b); }
+KDouble Kotlin_Double_rem_Int          (KDouble a, KInt    b) { return fmod(a, b); }
+KDouble Kotlin_Double_rem_Long         (KDouble a, KLong   b) { return fmod(a, b); }
+KDouble Kotlin_Double_rem_Float        (KDouble a, KFloat  b) { return fmod(a, b); }
+KDouble Kotlin_Double_rem_Double       (KDouble a, KDouble b) { return fmod(a, b); }
 
 KDouble Kotlin_Double_times_Byte       (KDouble a, KByte   b) { return a * b; }
 KDouble Kotlin_Double_times_Short      (KDouble a, KShort  b) { return a * b; }
