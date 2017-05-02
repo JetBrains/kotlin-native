@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -23,6 +24,45 @@
 #include "Natives.h"
 #include "KString.h"
 #include "Types.h"
+
+namespace {
+
+  char int_to_digit(uint32_t value) {
+    if (value < 10) {
+        return '0' + value;
+    } else {
+        return 'a' + (value - 10);
+    }
+  }
+
+  // Radix is checked on the Kotlin side.
+  template <typename T> OBJ_GETTER(Kotlin_toStringRadix, T value, KInt radix) {
+    if (value == 0) {
+      RETURN_RESULT_OF(CreateStringFromCString, "0");
+    }
+    char cstring[sizeof(T) * CHAR_BIT + 1];
+    bool negative = (value < 0);
+    if  (!negative) {
+      value = -value;
+    }
+
+    int32_t length = 0;
+    while (value < 0) {
+      cstring[length++] = int_to_digit(-(value % radix));
+      value /= radix;
+    }
+    if (negative) {
+      cstring[length++] = '-';
+    }
+    for (int i = 0, j = length - 1; i < j; i++, j--) {
+      char tmp = cstring[i];
+      cstring[i] = cstring[j];
+      cstring[j] = tmp;
+    }
+    cstring[length] = '\0';
+    RETURN_RESULT_OF(CreateStringFromCString, cstring);
+  }
+}
 
 extern "C" {
 
@@ -60,22 +100,7 @@ OBJ_GETTER(Kotlin_Int_toString, KInt value) {
 }
 
 OBJ_GETTER(Kotlin_Int_toStringRadix, KInt value, KInt radix) {
-  // TODO: maye not fit for smaller radices.
-  char cstring[32];
-  switch (radix) {
-    case 8:
-      snprintf(cstring, sizeof(cstring), "%o", value);
-      break;
-    case 10:
-      snprintf(cstring, sizeof(cstring), "%d", value);
-      break;
-    case 16:
-      snprintf(cstring, sizeof(cstring), "%x", value);
-      break;
-    default:
-      RuntimeAssert(false, "Unsupported radix");
-  }
-  RETURN_RESULT_OF(CreateStringFromCString, cstring);
+  RETURN_RESULT_OF(Kotlin_toStringRadix<KInt>, value, radix)
 }
 
 OBJ_GETTER(Kotlin_Long_toString, KLong value) {
@@ -85,22 +110,7 @@ OBJ_GETTER(Kotlin_Long_toString, KLong value) {
 }
 
 OBJ_GETTER(Kotlin_Long_toStringRadix, KLong value, KInt radix) {
-  // TODO: may not fit for smaller radices.
-  char cstring[64];
-  switch (radix) {
-    case 8:
-      snprintf(cstring, sizeof(cstring), "%llo", value);
-      break;
-    case 10:
-      snprintf(cstring, sizeof(cstring), "%lld", value);
-      break;
-    case 16:
-      snprintf(cstring, sizeof(cstring), "%llx", value);
-      break;
-    default:
-      RuntimeAssert(false, "Unsupported radix");
-  }
-  RETURN_RESULT_OF(CreateStringFromCString, cstring);
+  RETURN_RESULT_OF(Kotlin_toStringRadix<KLong>, value, radix)
 }
 
 // TODO: use David Gay's dtoa() here instead. It's *very* big and ugly.

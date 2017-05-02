@@ -132,6 +132,7 @@ internal class FilteringSequence<T>(private val sequence: Sequence<T>,
             val result = nextItem
             nextItem = null
             nextState = -1
+            @Suppress("UNCHECKED_CAST")
             return result as T
         }
 
@@ -388,6 +389,7 @@ constructor(private val sequence: Sequence<T>,
                 calcNext() // will change nextState
             if (nextState == 0)
                 throw NoSuchElementException()
+            @Suppress("UNCHECKED_CAST")
             val result = nextItem as T
 
             // Clean next to avoid keeping reference on yielded instance
@@ -474,6 +476,7 @@ constructor(private val sequence: Sequence<T>,
                 drop()
 
             if (dropState == 1) {
+                @Suppress("UNCHECKED_CAST")
                 val result = nextItem as T
                 nextItem = null
                 dropState = 0
@@ -787,6 +790,7 @@ public inline fun <T> Sequence<T>.last(predicate: (T) -> Boolean): T {
         }
     }
     if (!found) throw NoSuchElementException("Sequence contains no element matching the predicate.")
+    @Suppress("UNCHECKED_CAST")
     return last as T
 }
 
@@ -857,6 +861,7 @@ public inline fun <T> Sequence<T>.single(predicate: (T) -> Boolean): T {
         }
     }
     if (!found) throw NoSuchElementException("Sequence contains no element matching the predicate.")
+    @Suppress("UNCHECKED_CAST")
     return single as T
 }
 
@@ -941,22 +946,18 @@ public inline fun <T, C : MutableCollection<in T>> Sequence<T>.filterIndexedTo(d
 /**
  * Returns a sequence containing all elements that are instances of specified type parameter R.
  */
-@FixmeReified
 public inline fun <reified R> Sequence<*>.filterIsInstance(): Sequence<@kotlin.internal.NoInfer R> {
-    //@Suppress("UNCHECKED_CAST")
-    //return filter { it is R } as Sequence<R>
-    TODO()
+    @Suppress("UNCHECKED_CAST")
+    return filter { it is R } as Sequence<R>
 }
 
 /**
  * Appends all elements that are instances of specified type parameter R to the given [destination].
  */
-@FixmeReified
 @Suppress("UNUSED_PARAMETER")
 public inline fun <reified R, C : MutableCollection<in R>> Sequence<*>.filterIsInstanceTo(destination: C): C {
-    //for (element in this) if (element is R) destination.add(element)
-    //return destination
-    TODO()
+    for (element in this) if (element is R) destination.add(element)
+    return destination
 }
 
 /**

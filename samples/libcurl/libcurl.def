@@ -1,2 +1,2 @@
-headers = curl/curl.h callbacks.h
-excludedFunctions = zopen pfctlinput
+headers = curl/curl.h
+headerFilter = curl/*

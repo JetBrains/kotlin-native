@@ -2,7 +2,7 @@
 syntax = "proto2";
 package org.jetbrains.kotlin.serialization;
 
-import "org/jetbrains/kotlin/backend/konan/serialization/KonanLinkData.proto";
+import "org/jetbrains/kotlin/backend/konan/serialization/descriptors.proto1";
 option java_outer_classname = "KonanIr";
 option optimize_for = LITE_RUNTIME;
 
@@ -20,31 +20,48 @@ message KotlinDescriptor {
         RECEIVER = 7;
         ACCESSOR = 8;
     }
-    // TODO: Use the string table?
+    // TODO: Use the string table index.
     optional string name = 1;
     required Kind kind = 2;
-    required int32 index = 3;
-    required int32 original_index = 4;
+    required UniqId uniq_id = 3;
+    required UniqId original_uniq_id = 4;
     // index in fq name table
-    required int32 class_or_package = 5;
+    optional int32 class_or_package = 5;
+
     // Descriptor kind specific fields.
+    // TODO: consider introducing specific messages
+    // for functions, variables etc.
     optional KotlinType type = 6;
     repeated KotlinDescriptor value_parameter = 7;
     repeated KotlinDescriptor type_parameter = 8;
-    optional int32 dispatch_receiver_index = 9;
-    optional int32 extension_receiver_index = 10;
+    optional UniqId dispatch_receiver_uniq_id = 9;
+    optional UniqId extension_receiver_uniq_id = 10;
     optional KotlinType extension_receiver_type = 11;
     optional LocalDeclaration ir_local_declaration = 12;
 }
 
+message UniqId {
+    required int64 index = 1;
+}
+
+// Inner descriptors used for inlining.
+message DeclarationDescriptor {
+    // These are ProtoBuf.Function, ProtoBuf.Class etc
+    oneof descriptor {
+        Function function = 1;
+        Class clazz = 2;
+        Property property = 3;
+        Constructor constructor = 4;
+    }
+}
 message LocalDeclaration {
-    // This is Descriptor message from KonanLinkData
-    required Descriptor descriptor = 1;
+    required DeclarationDescriptor descriptor = 1;
 }
 
 message KotlinType {
     required int32 index = 1;
-    optional string debug_text = 2; // TODO: remove me
+    required bool isCaptured = 2; // TODO: make it a flag set?
+    optional string debug_text = 3; // TODO: remove me
 }
 
 message Coordinates {
@@ -69,7 +86,8 @@ message IrBreak {
 
 message IrBlock {
     required bool is_transparent_scope = 1;
-    repeated IrStatement statement = 2; 
+    required bool is_lambda_origin = 2;
+    repeated IrStatement statement = 3; 
 }
 
 message MemberAccessCommon {
@@ -189,6 +207,8 @@ message IrWhile {
     optional IrExpression body = 4;
 }
 
+// TODO: we need an extension mechanism to accomodate new 
+// IR operators in upcoming releases.
 message IrOperation {
     oneof operation {
         IrBlock block = 1;
@@ -256,6 +276,8 @@ message IrEnumEntry {
     optional IrDeclaration corresponding_class = 2;
 }
 
+// TODO: we need an extension mechanism to accomodate new 
+// IR operators in upcoming releases.
 message IrDeclarator {
     oneof symbol {
         IrVar variable = 1;

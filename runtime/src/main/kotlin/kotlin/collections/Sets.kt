@@ -58,17 +58,17 @@ public fun <T> hashSetOf(vararg elements: T): HashSet<T> = elements.toCollection
  * Returns a new [LinkedHashSet] with the given elements.
  * Elements of the set are iterated in the order they were specified.
  */
-//public fun <T> linkedSetOf(vararg elements: T): LinkedHashSet<T> = elements.toCollection(LinkedHashSet(mapCapacity(elements.size)))
+public fun <T> linkedSetOf(vararg elements: T): LinkedHashSet<T> = elements.toCollection(LinkedHashSet(mapCapacity(elements.size)))
 
 /** Returns this Set if it's not `null` and the empty set otherwise. */
 @kotlin.internal.InlineOnly
 public inline fun <T> Set<T>?.orEmpty(): Set<T> = this ?: emptySet()
 
+// TODO: Add SingletonSet class
 /**
  * Returns an immutable set containing only the specified object [element].
- * The returned set is serializable.
  */
-//public fun <T> setOf(element: T): Set<T> = java.util.Collections.singleton(element)
+public fun <T> setOf(element: T): Set<T> = hashSetOf(element)
 
 
 /**
@@ -87,3 +87,123 @@ internal fun <T> Set<T>.optimizeReadOnlySet() = when (size) {
     1 -> setOf(iterator().next())
     else -> this
 }
+
+/**
+ * Returns a set containing all elements of the original set except the given [element].
+ *
+ * The returned set preserves the element iteration order of the original set.
+ */
+public operator fun <T> Set<T>.minus(element: T): Set<T> {
+    val result = LinkedHashSet<T>(mapCapacity(size))
+    var removed = false
+    return this.filterTo(result) { if (!removed && it == element) { removed = true; false } else true }
+}
+
+/**
+ * Returns a set containing all elements of the original set except the elements contained in the given [elements] array.
+ *
+ * The returned set preserves the element iteration order of the original set.
+ */
+public operator fun <T> Set<T>.minus(elements: Array<out T>): Set<T> {
+    val result = LinkedHashSet<T>(this)
+    result.removeAll(elements)
+    return result
+}
+
+/**
+ * Returns a set containing all elements of the original set except the elements contained in the given [elements] collection.
+ *
+ * The returned set preserves the element iteration order of the original set.
+ */
+public operator fun <T> Set<T>.minus(elements: Iterable<T>): Set<T> {
+    val other = elements.convertToSetForSetOperationWith(this)
+    if (other.isEmpty())
+        return this.toSet()
+    if (other is Set)
+        return this.filterNotTo(LinkedHashSet<T>()) { it in other }
+    val result = LinkedHashSet<T>(this)
+    result.removeAll(other)
+    return result
+}
+
+/**
+ * Returns a set containing all elements of the original set except the elements contained in the given [elements] sequence.
+ *
+ * The returned set preserves the element iteration order of the original set.
+ */
+public operator fun <T> Set<T>.minus(elements: Sequence<T>): Set<T> {
+    val result = LinkedHashSet<T>(this)
+    result.removeAll(elements)
+    return result
+}
+
+/**
+ * Returns a set containing all elements of the original set except the given [element].
+ *
+ * The returned set preserves the element iteration order of the original set.
+ */
+@kotlin.internal.InlineOnly
+public inline fun <T> Set<T>.minusElement(element: T): Set<T> {
+    return minus(element)
+}
+
+/**
+ * Returns a set containing all elements of the original set and then the given [element] if it isn't already in this set.
+ *
+ * The returned set preserves the element iteration order of the original set.
+ */
+public operator fun <T> Set<T>.plus(element: T): Set<T> {
+    val result = LinkedHashSet<T>(mapCapacity(size + 1))
+    result.addAll(this)
+    result.add(element)
+    return result
+}
+
+/**
+ * Returns a set containing all elements of the original set and the given [elements] array,
+ * which aren't already in this set.
+ *
+ * The returned set preserves the element iteration order of the original set.
+ */
+public operator fun <T> Set<T>.plus(elements: Array<out T>): Set<T> {
+    val result = LinkedHashSet<T>(mapCapacity(this.size + elements.size))
+    result.addAll(this)
+    result.addAll(elements)
+    return result
+}
+
+/**
+ * Returns a set containing all elements of the original set and the given [elements] collection,
+ * which aren't already in this set.
+ * The returned set preserves the element iteration order of the original set.
+ */
+public operator fun <T> Set<T>.plus(elements: Iterable<T>): Set<T> {
+    val result = LinkedHashSet<T>(mapCapacity(elements.collectionSizeOrNull()?.let { this.size + it } ?: this.size * 2))
+    result.addAll(this)
+    result.addAll(elements)
+    return result
+}
+
+/**
+ * Returns a set containing all elements of the original set and the given [elements] sequence,
+ * which aren't already in this set.
+ *
+ * The returned set preserves the element iteration order of the original set.
+ */
+public operator fun <T> Set<T>.plus(elements: Sequence<T>): Set<T> {
+    val result = LinkedHashSet<T>(mapCapacity(this.size * 2))
+    result.addAll(this)
+    result.addAll(elements)
+    return result
+}
+
+/**
+ * Returns a set containing all elements of the original set and then the given [element] if it isn't already in this set.
+ *
+ * The returned set preserves the element iteration order of the original set.
+ */
+@kotlin.internal.InlineOnly
+public inline fun <T> Set<T>.plusElement(element: T): Set<T> {
+    return plus(element)
+}
+

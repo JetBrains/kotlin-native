@@ -133,6 +133,37 @@ abstract class KonanTest extends JavaExec {
         return sourceFiles
     }
 
+    void createCoroutineUtil(String file) {
+        StringBuilder text = new StringBuilder("import kotlin.coroutines.experimental.*\n")
+        text.append(
+                """
+open class EmptyContinuation(override val context: CoroutineContext = EmptyCoroutineContext) : Continuation<Any?> {
+    companion object : EmptyContinuation()
+    override fun resume(value: Any?) {}
+    override fun resumeWithException(exception: Throwable) { throw exception }
+}
+
+fun <T> handleResultContinuation(x: (T) -> Unit): Continuation<T> = object: Continuation<T> {
+    override val context = EmptyCoroutineContext
+    override fun resumeWithException(exception: Throwable) {
+        throw exception
+    }
+
+    override fun resume(data: T) = x(data)
+}
+
+fun handleExceptionContinuation(x: (Throwable) -> Unit): Continuation<Any?> = object: Continuation<Any?> {
+    override val context = EmptyCoroutineContext
+    override fun resumeWithException(exception: Throwable) {
+        x(exception)
+    }
+
+    override fun resume(data: Any?) { }
+}
+"""     )
+        createFile(file, text.toString())
+    }
+
     // TODO refactor
     List<String> buildCompileList() {
         def result = []
@@ -140,6 +171,12 @@ abstract class KonanTest extends JavaExec {
         def srcFile = project.file(source)
         def srcText = removeDiagnostics(srcFile.text)
         def matcher = filePattern.matcher(srcText)
+
+        if (srcText.contains('// WITH_COROUTINES')) {
+            def coroutineUtilFileName = "$outputDirectory/CoroutineUtil.kt"
+            createCoroutineUtil(coroutineUtilFileName)
+            result.add(coroutineUtilFileName)
+        }
 
         if (!matcher.find()) {
             // There is only one file in the input
@@ -177,9 +214,9 @@ abstract class KonanTest extends JavaExec {
             println "to be executed manually: $exe"
             return
         }
-        println "execution :$exe"
+        println "execution: $exe"
 
-        def out = null
+        def out = new ByteArrayOutputStream()
         //TODO Add test timeout
         ExecResult execResult = project.execRemote {
             commandLine exe
@@ -189,13 +226,11 @@ abstract class KonanTest extends JavaExec {
             if (testData != null) {
                 standardInput = new ByteArrayInputStream(testData.bytes)
             }
-            if (goldValue != null) {
-                out = new ByteArrayOutputStream()
-                standardOutput = out
-            }
+            standardOutput = out
 
             ignoreExitValue = true
         }
+        println(out.toString())
 
         if (execResult.exitValue != expectedExitStatus) {
             throw new TestFailedException(
@@ -396,17 +431,15 @@ class RunExternalTestGroup extends RunKonanTest {
         for (v in imports) {
             text.append("import ").append(v).append('\n')
         }
+
         text.append(
 """
 fun main(args : Array<String>) {
-  @Suppress("USELESS_ELVIS")
-  val result = box()?:"null"
-  println(result)
-  if (result != "OK") {
-    throw TestFailedException(result)
-  }
+    @Suppress("UNUSED_VARIABLE")
+    val result = box()
+    ${ (goldValue != null) ? "print(result)" : "" }
 }
-""")
+"""     )
         createFile(file, text.toString())
     }
 
@@ -469,7 +502,7 @@ fun main(args : Array<String>) {
             // Create separate output directory for each test in the group.
             outputDirectory = outputRootDirectory + "/${it.name}"
             project.file(outputDirectory).mkdirs()
-            println("TEST: $it.name ($statistics.total/${ktFiles.size()}, passed: $statistics.passed, skipped: $statistics.skipped)")
+            println("TEST: $it.name (done: $statistics.total/${ktFiles.size()}, passed: $statistics.passed, skipped: $statistics.skipped)")
             def testCase = testSuite.createTestCase(it.name)
             testCase.start()
             if (isEnabledForNativeBackend(source)) {

@@ -17,12 +17,15 @@
 package org.jetbrains.kotlin.backend.konan.serialization
 
 import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.KonanIrDeserializationException
 import org.jetbrains.kotlin.backend.konan.descriptors.contributedMethods
-import org.jetbrains.kotlin.backend.konan.llvm.base64Decode
+import org.jetbrains.kotlin.backend.konan.descriptors.isFunctionInvoke
+import org.jetbrains.kotlin.backend.konan.llvm.isExported
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.ir.expressions.IrLoop
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.resolve.calls.tasks.createSynthesizedInvokes
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.serialization.KonanIr
 import org.jetbrains.kotlin.serialization.KonanIr.KotlinDescriptor
@@ -30,84 +33,72 @@ import org.jetbrains.kotlin.serialization.KonanLinkData
 import org.jetbrains.kotlin.serialization.ProtoBuf
 import org.jetbrains.kotlin.serialization.deserialization.NameResolver
 import org.jetbrains.kotlin.serialization.deserialization.NameResolverImpl
-import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedClassConstructorDescriptor
-import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedPropertyDescriptor
-import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedSimpleFunctionDescriptor
-import org.jetbrains.kotlin.types.KotlinType
-
-
-internal fun printType(proto: ProtoBuf.Type) {
-    println("debug text: " + proto.getExtension(KonanLinkData.typeText))
-}
-
-internal fun printTypeTable(proto: ProtoBuf.TypeTable) {
-    proto.getTypeList().forEach {
-        printType(it)
-    }
-}
+import org.jetbrains.kotlin.serialization.deserialization.descriptors.*
+import org.jetbrains.kotlin.types.*
 
 internal fun DeclarationDescriptor.findPackage(): PackageFragmentDescriptor {
     return if (this is PackageFragmentDescriptor) this 
         else this.containingDeclaration!!.findPackage()
 }
 
-internal fun DeserializedSimpleFunctionDescriptor.nameTable(): ProtoBuf.QualifiedNameTable {
+internal fun DeserializedMemberDescriptor.nameTable(): ProtoBuf.QualifiedNameTable {
     val pkg = this.findPackage()
     assert(pkg is KonanPackageFragment)
     return (pkg as KonanPackageFragment).proto.getNameTable()
 }
 
 
-internal fun DeserializedSimpleFunctionDescriptor.nameResolver(): NameResolver {
+internal fun DeserializedMemberDescriptor.nameResolver(): NameResolver {
     val pkg = this.findPackage() as KonanPackageFragment
     return NameResolverImpl(pkg.proto.getStringTable(), pkg.proto.getNameTable())
 }
-
 
 // This is the class that knowns how to deserialize
 // Kotlin descriptors and types for IR.
 
 internal class IrDescriptorDeserializer(val context: Context, 
-    val deserializationDescriptorIndex: IrDeserializationDescriptorIndex,
-    val rootFunction: DeserializedSimpleFunctionDescriptor,
+    val rootDescriptor: DeserializedCallableMemberDescriptor,
     val localDeserializer: LocalDeclarationDeserializer) {
 
     val loopIndex = mutableMapOf<Int, IrLoop>()
-    val nameResolver = rootFunction.nameResolver() as NameResolverImpl
-    val nameTable = rootFunction.nameTable()
-    val descriptorIndex = deserializationDescriptorIndex.map
+    val nameResolver = rootDescriptor.nameResolver() as NameResolverImpl
+    val nameTable = rootDescriptor.nameTable()
+    val descriptorIndex = IrDeserializationDescriptorIndex(context.irBuiltIns).map
 
     fun deserializeKotlinType(proto: KonanIr.KotlinType): KotlinType {
-
         val index = proto.getIndex()
         val text = proto.getDebugText()
         val typeProto = localDeserializer.typeTable[index]
         val type = localDeserializer.deserializeInlineType(typeProto)
-        context.log("### deserialized Kotlin Type index=$index, text=$text:\t$type")
+        if (type.isError) throw KonanIrDeserializationException("Could not deserialize KotlinType: $text $type")
 
-        return type
+        val realType = if (proto.isCaptured) {
+            unpackCapturedType(type)
+        } else
+            type
+
+        context.log{"### deserialized Kotlin Type index=$index, text=$text:\t$realType"}
+        return realType
     }
-
-    fun deserializeLocalDeclaration(proto: KonanLinkData.Descriptor): DeclarationDescriptor {
+    fun deserializeLocalDeclaration(irProto: KonanIr.KotlinDescriptor): DeclarationDescriptor {
+        val localDeclarationProto = irProto.irLocalDeclaration.descriptor
         when {
-            proto.hasFunction() -> {
-                val functionProto = proto.function
-                val index = functionProto.getExtension(KonanLinkData.functionIndex) 
-                val descriptor = localDeserializer.deserializeFunction(functionProto)
+            localDeclarationProto.hasFunction() -> {
+                val index = irProto.index
+                val descriptor = localDeserializer.deserializeFunction(irProto)
                 descriptorIndex.put(index, descriptor)
                 return descriptor
             }
 
-            proto.hasProperty() -> {
-                val propertyProto = proto.property
-                val index = propertyProto.getExtension(KonanLinkData.propertyIndex) 
-                val descriptor = localDeserializer.deserializeProperty(propertyProto)
+            localDeclarationProto.hasProperty() -> {
+                val index = irProto.index
+                val descriptor = localDeserializer.deserializeProperty(irProto)
                 descriptorIndex.put(index, descriptor)
                 return descriptor
             }
             // TODO
-            //  proto.hasClazz() -> 
-            else -> error("Unexpected descriptor kind")
+            //  localDclarationProto.hasClazz() -> 
+            else -> TODO("Unexpected descriptor kind")
         }
     }
 
@@ -141,17 +132,16 @@ internal class IrDescriptorDeserializer(val context: Context,
 
     fun deserializeDescriptor(proto: KonanIr.KotlinDescriptor): DeclarationDescriptor {
 
-        context.log("### deserializeDescriptor ${proto.kind} ${proto.index}")
+        context.log{"### deserializeDescriptor ${proto.kind} ${proto.index}"}
 
         val descriptor = if (proto.hasIrLocalDeclaration()) {
-            val realDescriptor = proto.irLocalDeclaration.descriptor
-            deserializeLocalDeclaration(realDescriptor)
+            deserializeLocalDeclaration(proto)
         } else 
             deserializeKnownDescriptor(proto)
         
         descriptorIndex.put(proto.index, descriptor)
 
-        context.log("### descriptor ${proto.kind} ${proto.index} -> $descriptor")
+        context.log{"### descriptor ${proto.kind} ${proto.index} -> $descriptor"}
 
         // Now there are several descriptors that automatically
         // recreated in addition to this one. Register them
@@ -182,16 +172,13 @@ internal class IrDescriptorDeserializer(val context: Context,
         proto: KonanIr.KotlinDescriptor, 
         functionDescriptor: FunctionDescriptor) {
 
-        //val functionProto = functionDescriptor.proto
         functionDescriptor.valueParameters.forEachIndexed { i, parameter ->
-            //val parameterProto = functionProto.getValueParameter(i)
             // Assume they are in the same order.
             val index = proto.getValueParameter(i).index
             descriptorIndex.put(index, parameter)
         }
 
         functionDescriptor.typeParameters.forEachIndexed {i, parameter ->
-            //val parameterProto = functionProto.getTypeParameter(i)
             // Assume they are in the same order too.
             val index = proto.getTypeParameter(i).index
             descriptorIndex.put(index, parameter)
@@ -199,20 +186,18 @@ internal class IrDescriptorDeserializer(val context: Context,
 
         val dispatchReceiver = functionDescriptor.dispatchReceiverParameter
         if (dispatchReceiver != null) {
-            assert(proto.hasDispatchReceiverIndex())
+            assert(proto.hasDispatchReceiverUniqId())
             val dispatchReceiverIndex = proto.dispatchReceiverIndex
             descriptorIndex.put(dispatchReceiverIndex, dispatchReceiver)
         }
 
-
         val extensionReceiver = functionDescriptor.extensionReceiverParameter
         if (extensionReceiver != null) {
-            assert(proto.hasExtensionReceiverIndex())
+            assert(proto.hasExtensionReceiverUniqId())
             val extensionReceiverIndex = proto.extensionReceiverIndex
             descriptorIndex.put(extensionReceiverIndex, extensionReceiver)
         }
     }
-
 
     fun substituteFunction(proto: KonanIr.KotlinDescriptor, 
         originalDescriptor: FunctionDescriptor): FunctionDescriptor {
@@ -268,7 +253,7 @@ internal class IrDescriptorDeserializer(val context: Context,
                 newPropertyDescriptor.getter
             is PropertySetterDescriptor ->
                 newPropertyDescriptor.setter
-            else -> error("Unexpected accessor kind")
+            else -> TODO("Unexpected accessor kind")
         }
 
         descriptorIndex.put(proto.index, newDescriptor!!)
@@ -287,14 +272,14 @@ internal class IrDescriptorDeserializer(val context: Context,
 
         val dispatchReceiver = newPropertyDescriptor.dispatchReceiverParameter
         if (dispatchReceiver != null) {
-            assert(proto.hasDispatchReceiverIndex())
+            assert(proto.hasDispatchReceiverUniqId())
             val dispatchReceiverIndex = proto.dispatchReceiverIndex
             descriptorIndex.put(dispatchReceiverIndex, dispatchReceiver)
         }
 
         val extensionReceiver = newPropertyDescriptor.extensionReceiverParameter
         if (extensionReceiver != null) {
-            assert(proto.hasExtensionReceiverIndex())
+            assert(proto.hasExtensionReceiverUniqId())
             val extensionReceiverIndex = proto.extensionReceiverIndex
             descriptorIndex.put(extensionReceiverIndex, extensionReceiver)
         }
@@ -308,7 +293,7 @@ internal class IrDescriptorDeserializer(val context: Context,
             is ClassDescriptor -> parent.getUnsubstitutedMemberScope()
             is PackageFragmentDescriptor -> parent.getMemberScope()
             is PackageViewDescriptor -> parent.memberScope
-            else -> error("could not get a member scope")
+            else -> TODO("could not get a member scope")
         }
     }
 
@@ -355,10 +340,22 @@ internal class IrDescriptorDeserializer(val context: Context,
         DeserializedSimpleFunctionDescriptor {
 
         val originalIndex = descriptorProto.originalIndex
-        return functions.single() {
-            val proto = (it as DeserializedSimpleFunctionDescriptor).proto
-            proto.getExtension(KonanLinkData.functionIndex) == originalIndex
-        } as DeserializedSimpleFunctionDescriptor
+        val match = functions.singleOrNull() {
+            it.uniqId == originalIndex
+        } as? DeserializedSimpleFunctionDescriptor
+        if (match != null) return match
+
+        // Special case: for invoke we need to re-synthesize 
+        // the invoke() descriptor.
+        val invoke = functions.singleOrNull {
+            (it as FunctionDescriptor).isFunctionInvoke
+        }
+
+        if (invoke != null) 
+                return createSynthesizedInvokes(listOf(invoke as FunctionDescriptor)).single() as DeserializedSimpleFunctionDescriptor
+        else {
+            error("Could not find matching descriptor")
+        }
     }
 
     fun selectConstructor(
@@ -368,8 +365,7 @@ internal class IrDescriptorDeserializer(val context: Context,
 
         val originalIndex = descriptorProto.originalIndex
         return constructors.single {
-            val proto = (it as DeserializedClassConstructorDescriptor).proto
-            proto.getExtension(KonanLinkData.constructorIndex) == originalIndex
+            it.uniqId == originalIndex
         } as DeserializedClassConstructorDescriptor
     }
 
@@ -387,7 +383,7 @@ internal class IrDescriptorDeserializer(val context: Context,
         val originalIndex = proto.originalIndex
         return functions.single {
             val property = (it as PropertyAccessorDescriptor).correspondingProperty as DeserializedPropertyDescriptor
-            property.proto.getExtension(KonanLinkData.propertyIndex) == originalIndex
+            property.uniqId == originalIndex
         } as PropertyAccessorDescriptor
     }
 
@@ -417,8 +413,8 @@ internal class IrDescriptorDeserializer(val context: Context,
         // copies for public descriptors if we know the substituted
         // descriptor is going to be the same.
         // But that's not a trivial thing to find out.
-        if (originalDescriptor == rootFunction) 
-            return rootFunction
+        if (originalDescriptor == rootDescriptor) 
+            return rootDescriptor
 
         return when (originalDescriptor) {
             is SimpleFunctionDescriptor ->
@@ -432,13 +428,13 @@ internal class IrDescriptorDeserializer(val context: Context,
                 // class descriptors here?
                 //substituteClass(proto, originalDescriptor)
                 originalDescriptor
-            else -> error("unexpected type of public function")
+            else -> TODO("unexpected type of public function")
         }
     }
 
     fun findInTheDescriptorTree(proto: KonanIr.KotlinDescriptor): DeclarationDescriptor? {
 
-        val matchingNames = matchNameInParentScope(proto)
+        val matchingNames = matchNameInParentScope(proto).filter{it.isExported()}
         if (matchingNames.size == 0) return null
 
         val originalDescriptor = selectAmongMatchingNames(matchingNames, proto)

@@ -54,6 +54,12 @@ internal tailrec fun DeclarationDescriptor.isExported(): Boolean {
     if (this.annotations.hasAnnotation(exportForCompilerAnnotation)){
         return true
     }
+    if (this.annotations.hasAnnotation(publishedApiAnnotation)){
+        return true
+    }
+    if (this.annotations.hasAnnotation(inlineExposedAnnotation)){
+        return true
+    }
 
 
     if (this is ConstructorDescriptor && constructedClass.kind.isSingleton) {
@@ -82,13 +88,31 @@ private val exportForCppRuntimeAnnotation = FqName("konan.internal.ExportForCppR
 
 private val exportForCompilerAnnotation = FqName("konan.internal.ExportForCompiler")
 
-private fun typeToHashString(type: KotlinType): String {
-    if (TypeUtils.isTypeParameter(type)) return "GENERIC"
+private val publishedApiAnnotation = FqName("kotlin.PublishedApi")
+
+private val inlineExposedAnnotation = FqName("kotlin.internal.InlineExposed")
+
+private fun acyclicTypeMangler(visited: MutableSet<TypeParameterDescriptor>, type: KotlinType): String {
+    val descriptor = TypeUtils.getTypeParameterDescriptorOrNull(type)
+    if (descriptor != null) {
+        val upperBounds = if (visited.contains(descriptor)) "" else {
+
+            visited.add(descriptor)
+
+            descriptor.upperBounds.map {
+                val bound = acyclicTypeMangler(visited, it)
+                if (bound == "kotlin.Any?") "" else "_$bound"
+            }.joinToString("")
+        }
+        return "GENERIC" + upperBounds
+    }
 
     var hashString = TypeUtils.getClassDescriptor(type)!!.fqNameSafe.asString()
     if (!type.arguments.isEmpty()) {
         hashString += "<${type.arguments.map {
-            typeToHashString(it.type)
+            val variance = it.projectionKind.label
+            val projection = if (variance == "") "" else "${variance}_" 
+            projection + acyclicTypeMangler(visited, it.type)
         }.joinToString(",")}>"
     }
 
@@ -96,9 +120,12 @@ private fun typeToHashString(type: KotlinType): String {
     return hashString
 }
 
+private fun typeToHashString(type: KotlinType) 
+    = acyclicTypeMangler(mutableSetOf<TypeParameterDescriptor>(), type)
+
 private val FunctionDescriptor.signature: String
     get() {
-        val extensionReceiverPart = this.extensionReceiverParameter?.let { "${it.type}." } ?: ""
+        val extensionReceiverPart = this.extensionReceiverParameter?.let { "@${typeToHashString(it.type)}." } ?: ""
 
         val argsPart = this.valueParameters.map {
             typeToHashString(it.type)
@@ -146,6 +173,16 @@ internal val FunctionDescriptor.symbolName: String
         return "kfun:$containingDeclarationPart$functionName"
     }
 
+internal val PropertyDescriptor.symbolName: String
+    get() {
+        val containingDeclarationPart = containingDeclaration.fqNameSafe.let {
+            if (it.isRoot) "" else "$it."
+        }
+        val extensionReceiverPart = this.extensionReceiverParameter?.let { "${it.type}." } ?: ""
+        return "kprop:$containingDeclarationPart$extensionReceiverPart$name"
+
+    }
+
 private fun getStringValue(annotation: AnnotationDescriptor): String? {
     annotation.allValueArguments.values.ifNotEmpty {
         val stringValue = this.single() as StringValue
@@ -158,8 +195,14 @@ private fun getStringValue(annotation: AnnotationDescriptor): String? {
 // TODO: bring here dependencies of this method?
 internal fun RuntimeAware.getLlvmFunctionType(function: FunctionDescriptor): LLVMTypeRef {
     val original = function.original
-    val returnType = if (original is ConstructorDescriptor) voidType else getLLVMReturnType(original.returnType!!)
+    val returnType = when {
+        original is ConstructorDescriptor -> voidType
+        original.isSuspend -> kObjHeaderPtr                // Suspend functions return Any?.
+        else -> getLLVMReturnType(original.returnType!!)
+    }
     val paramTypes = ArrayList(original.allParameters.map { getLLVMType(it.type) })
+    if (original.isSuspend)
+        paramTypes.add(kObjHeaderPtr)                       // Suspend functions have implicit parameter of type Continuation<>.
     if (isObjectType(returnType)) paramTypes.add(kObjHeaderPtrPtr)
 
     return functionType(returnType, isVarArg = false, paramTypes = *paramTypes.toTypedArray())

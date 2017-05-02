@@ -33,15 +33,15 @@ allprojects {
     loadCommandLineProperties()
     loadLocalProperties()
     setupCompilationFlags()
-    setupClang()
+    setupClang(project)
 }
 
-void setupClang() {
+void setupClang(Project project) {
 
-    convention.plugins.execClang = new org.jetbrains.kotlin.ExecClang(project)
+    project.convention.plugins.execClang = new org.jetbrains.kotlin.ExecClang(project)
 
-    plugins.withType(NativeComponentPlugin) {
-        model {
+    project.plugins.withType(NativeComponentPlugin) {
+        project.model {
             toolChains {
                 clang(Clang) {
                     clangPath.each {
@@ -83,10 +83,11 @@ void setupCompilationFlags() {
             ["host":
                 ["--sysroot=$hostSysrootDir", "-mmacosx-version-min=$minMacOsVersion"], 
              "iphone":
-                ["-stdlib=libc++", "-arch", "arm64", "-isysroot", "$iphoneSysrootDir"],
+                ["-stdlib=libc++", "-arch", "arm64", "-isysroot", "$iphoneSysrootDir",
+                 "-miphoneos-version-min=8.0.0"]
 // TODO: re-enable after simulator sysroot is available in the dependencies
 //             "iphone_sim":
-//                ["-stdlib=libc++", "-isysroot", "$iphoneSimSysrootDir"],
+//                ["-stdlib=libc++", "-isysroot", "$iphoneSimSysrootDir", "-miphoneos-version-min=8.0.0"],
             ]
      }
      ext.targetList = ext.targetArgs.keySet() as List
@@ -201,6 +202,11 @@ task dist_compiler(type: Copy) {
         into('konan/nativelib')
     }
 
+    from(project(':llvmDebugInfoC').file('build/libs/debugInfo/shared')) {
+        into('konan/nativelib')
+    }
+
+
     from(file('cmd')) {
         fileMode(0755)
         into('bin')
@@ -209,31 +215,9 @@ task dist_compiler(type: Copy) {
         into('konan')
     }
 
-    from("$llvmDir/lib") {
-        into('konan/nativelib')
-        include '**/libclang.*'
-        includeEmptyDirs = false
-    }
-
     // TODO: check if we use native libraries copied to dist (see above) or not.
     from(project(':tools:helpers').file('build/libs')) {
         into('konan/lib')
-    }
-
-    doLast {
-        // MacOS System Integrity Protection strips DYLD_LIBRARY_PATH from
-        // environment of all the binaries residing in /bin /usr/bin etc.
-        // That means /usr/bin/java can't use DYLD_LIBRARY_PATH to pick up
-        // rpath'ed libraries. 
-        // See dyld(1), install_name_tool(1) for rpath details.
-
-        if (isMac()) {
-            exec {
-                commandLine "install_name_tool"
-                args '-add_rpath', '@loader_path/', 
-                    'dist/konan/nativelib/libclangstubs.dylib'
-            }
-        }
     }
 }
 

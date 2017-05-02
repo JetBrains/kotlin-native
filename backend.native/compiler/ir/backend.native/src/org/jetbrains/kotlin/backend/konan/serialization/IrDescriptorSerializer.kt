@@ -17,11 +17,13 @@
 package org.jetbrains.kotlin.backend.konan.serialization
 
 import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.impl.LocalVariableDescriptor
 import org.jetbrains.kotlin.ir.descriptors.IrTemporaryVariableDescriptor
 import org.jetbrains.kotlin.resolve.DescriptorUtils
-import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
+import org.jetbrains.kotlin.resolve.calls.inference.CapturedType
+import org.jetbrains.kotlin.resolve.calls.inference.isCaptured
 import org.jetbrains.kotlin.serialization.KonanIr
 import org.jetbrains.kotlin.types.KotlinType
 
@@ -40,10 +42,17 @@ internal class IrDescriptorSerializer(
     var rootFunction: FunctionDescriptor) {
 
     fun serializeKotlinType(type: KotlinType): KonanIr.KotlinType {
-        val index = this.typeSerializer(type)
-        val proto =  KonanIr.KotlinType.newBuilder()
+        val isCaptured = type.isCaptured()
+        val typeToSerialize = if (isCaptured) {
+            packCapturedType(type as CapturedType)
+        } else {
+            type
+        }
+        val index = typeSerializer(typeToSerialize)
+        val proto = KonanIr.KotlinType.newBuilder()
             .setIndex(index)
             .setDebugText(type.toString())
+            .setIsCaptured(isCaptured)
             .build()
         return proto
     }
@@ -72,12 +81,19 @@ internal class IrDescriptorSerializer(
 
     fun functionDescriptorSpecifics(descriptor: FunctionDescriptor, proto: KonanIr.KotlinDescriptor.Builder) {
 
-        descriptor.valueParameters.forEach {
-            proto.addValueParameter(serializeDescriptor(it))
+        val typeParameters = descriptor.propertyIfAccessor.typeParameters
+        typeParameters.forEach {
+            proto.addTypeParameter(serializeDescriptor(it))
+            // We explicitly serialize type parameters
+            // as types here so that they are interned in the 
+            // natural order of declaration. Otherwise 
+            // they appear in the order of appearence in the 
+            // body of the function, and get wrong indices.
+            typeSerializer(it.defaultType)
         }
 
-        descriptor.typeParameters.forEach {
-            proto.addTypeParameter(serializeDescriptor(it))
+        descriptor.valueParameters.forEach {
+            proto.addValueParameter(serializeDescriptor(it))
         }
 
         // Allocate two indicies for the receivers.
@@ -118,28 +134,25 @@ internal class IrDescriptorSerializer(
         val classOrPackage = descriptor.classOrPackage
         val parentFqNameIndex = if (classOrPackage is ClassOrPackageFragmentDescriptor) {
             stringTable.getClassOrPackageFqNameIndex(classOrPackage)
-        } else { -1 }
+        } else null
 
         val index = descriptorTable.indexByValue(descriptor)
         // For getters and setters we use 
-        // the *protperty* original index.
-        val originalIndex = if (descriptor is PropertyAccessorDescriptor) {
-            descriptorTable.indexByValue(descriptor.correspondingProperty.original)
-        } else {
-            descriptorTable.indexByValue(descriptor.original)
+        // the *property* original index.
+        val originalIndex = descriptorTable.indexByValue(descriptor.propertyIfAccessor.original)
 
-        }
-
-        context.log("index = $index")
-        context.log("originalIndex = $originalIndex")
-        context.log("")
+        context.log{"index = $index"}
+        context.log{"originalIndex = $originalIndex"}
+        context.log{""}
 
         val proto =  KonanIr.KotlinDescriptor.newBuilder()
             .setName(descriptor.name.asString())
             .setKind(kotlinDescriptorKind(descriptor))
             .setIndex(index)
             .setOriginalIndex(originalIndex)
-            .setClassOrPackage(parentFqNameIndex)
+
+        if (parentFqNameIndex != null)
+            proto.setClassOrPackage(parentFqNameIndex)
 
         when (descriptor) {
             is FunctionDescriptor ->

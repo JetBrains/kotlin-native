@@ -17,24 +17,18 @@
 #ifndef RUNTIME_RUNTIME_H
 #define RUNTIME_RUNTIME_H
 
-#include "Types.h"
-
 struct RuntimeState;
+struct InitNode;
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
-typedef void (*Initializer)();
-struct InitNode {
-    Initializer      init;
-    struct InitNode* next;
-};
-
-void AppendToInitializersTail(struct InitNode*);
-
 RuntimeState* InitRuntime();
 void DeinitRuntime(RuntimeState* state);
+
+// Appends given node to an initializer list.
+void AppendToInitializersTail(struct InitNode*);
 
 #ifdef __cplusplus
 }

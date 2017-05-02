@@ -37,6 +37,8 @@ class KonanConfigKeys {
                 = CompilerConfigurationKey.create("current abi version")
         val OPTIMIZATION: CompilerConfigurationKey<Boolean> 
                 = CompilerConfigurationKey.create("optimized compilation")
+        val DEBUG: CompilerConfigurationKey<Boolean>
+                = CompilerConfigurationKey.create("add debug information")
         val NOSTDLIB: CompilerConfigurationKey<Boolean> 
                 = CompilerConfigurationKey.create("don't link with stdlib")
         val NOLINK: CompilerConfigurationKey<Boolean> 
@@ -66,7 +68,9 @@ class KonanConfigKeys {
 
         val PRINT_IR: CompilerConfigurationKey<Boolean> 
                 = CompilerConfigurationKey.create("print ir")
-        val PRINT_DESCRIPTORS: CompilerConfigurationKey<Boolean> 
+        val PRINT_IR_WITH_DESCRIPTORS: CompilerConfigurationKey<Boolean>
+                = CompilerConfigurationKey.create("print ir with descriptors")
+        val PRINT_DESCRIPTORS: CompilerConfigurationKey<Boolean>
                 = CompilerConfigurationKey.create("print descriptors")
         val PRINT_BITCODE: CompilerConfigurationKey<Boolean> 
                 = CompilerConfigurationKey.create("print bitcode")

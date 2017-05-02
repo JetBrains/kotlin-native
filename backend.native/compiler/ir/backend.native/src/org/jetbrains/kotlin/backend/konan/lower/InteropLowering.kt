@@ -17,6 +17,7 @@
 package org.jetbrains.kotlin.backend.konan.lower
 
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
+import org.jetbrains.kotlin.backend.common.descriptors.allParameters
 import org.jetbrains.kotlin.backend.common.lower.IrBuildingTransformer
 import org.jetbrains.kotlin.backend.common.lower.at
 import org.jetbrains.kotlin.backend.konan.Context
@@ -32,6 +33,7 @@ import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.expressions.*
+import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrCallableReferenceImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrGetObjectValueImpl
@@ -58,6 +60,7 @@ internal class InteropLowering(val context: Context) : FileLoweringPass {
 private class InteropTransformer(val context: Context, val irFile: IrFile) : IrBuildingTransformer(context) {
 
     val interop = context.interopBuiltIns
+    val konanBuiltins = context.builtIns
 
     private fun MemberScope.getSingleContributedFunction(name: String,
                                                          predicate: (SimpleFunctionDescriptor) -> Boolean) =
@@ -117,7 +120,7 @@ private class InteropTransformer(val context: Context, val irFile: IrFile) : IrB
         val elementType = array.type.arguments.single().type
         val elementSize = sizeOf(elementType) ?: return null
 
-        val resultRawPtr = irCall(interop.nativePtrPlusLong).apply {
+        val resultRawPtr = irCall(konanBuiltins.nativePtrPlusLong).apply {
             dispatchReceiver = irCall(interop.cPointerGetRawValue).apply {
                 extensionReceiver = array
             }
@@ -177,6 +180,21 @@ private class InteropTransformer(val context: Context, val irFile: IrFile) : IrB
         val align = alignOf(type) ?: return null
 
         return alloc(placement, size, align)
+    }
+
+    private fun IrBuilderWithScope.readValue(receiver: IrExpression, typeArgument: KotlinType): IrCallImpl? {
+        val size = sizeOf(typeArgument) ?: return null
+        val align = alignOf(typeArgument) ?: return null
+
+        val callee = interop.readValueBySizeAndAlign
+        val typeParameter = callee.typeParameters.single()
+        val typeArguments = mapOf(typeParameter to typeArgument)
+
+        return irCall(callee, typeArguments).apply {
+            extensionReceiver = receiver
+            putValueArgument(0, size)
+            putValueArgument(1, align)
+        }
     }
 
     override fun visitCall(expression: IrCall): IrExpression {
@@ -252,27 +270,50 @@ private class InteropTransformer(val context: Context, val irFile: IrFile) : IrB
                 }
             }
 
-            interop.staticCFunction -> {
-                val argument = expression.getValueArgument(0)!!
-                if (argument !is IrCallableReference || argument.getArguments().isNotEmpty()) {
+            interop.readValue -> {
+                val typeArgument = expression.getSingleTypeArgument()
+                val receiver = expression.extensionReceiver!!
+
+                builder.readValue(receiver, typeArgument) ?: expression
+            }
+
+            in interop.staticCFunction -> {
+                val irCallableReference = unwrapStaticFunctionArgument(expression.getValueArgument(0)!!)
+
+                if (irCallableReference == null || irCallableReference.getArguments().isNotEmpty()) {
                     context.reportCompilationError(
-                            "${interop.staticCFunction.fqNameSafe} must take an unbound, non-capturing function",
+                            "${descriptor.fqNameSafe} must take an unbound, non-capturing function or lambda",
                             irFile, expression
                     )
                     // TODO: should probably be reported during analysis.
                 }
 
-                val cFunctionType = expression.getTypeArgument(descriptor.typeParameters[1])!!
+                val target = irCallableReference.descriptor.original
+                val signatureTypes = target.allParameters.map { it.type } + target.returnType!!
 
-                if (interop.isTriviallyAdaptedFunctionType(cFunctionType)) {
-                    IrCallableReferenceImpl(
-                            builder.startOffset, builder.endOffset,
-                            expression.type,
-                            argument.descriptor,
-                            typeArguments = null)
-                } else {
-                    TODO("$cFunctionType requiring non-trivial C adapter")
+                signatureTypes.forEachIndexed { index, type ->
+                    type.ensureSupportedInCallbacks(
+                            isReturnType = (index == signatureTypes.lastIndex),
+                            reportError = { context.reportCompilationError(it, irFile, expression) }
+                    )
                 }
+
+                descriptor.typeParameters.forEachIndexed { index, typeParameterDescriptor ->
+                    val typeArgument = expression.getTypeArgument(typeParameterDescriptor)!!
+                    val signatureType = signatureTypes[index]
+                    if (typeArgument != signatureType) {
+                        context.reportCompilationError(
+                                "C function signature element mismatch: expected '$signatureType', got '$typeArgument'",
+                                irFile, expression
+                        )
+                    }
+                }
+
+                IrCallableReferenceImpl(
+                        builder.startOffset, builder.endOffset,
+                        expression.type,
+                        target,
+                        typeArguments = null)
             }
 
             interop.signExtend, interop.narrow -> {
@@ -321,6 +362,58 @@ private class InteropTransformer(val context: Context, val irFile: IrFile) : IrB
 
             else -> expression
         }
+    }
+
+    private fun KotlinType.ensureSupportedInCallbacks(isReturnType: Boolean, reportError: (String) -> Nothing) {
+        if (isReturnType && KotlinBuiltIns.isUnit(this)) {
+            return
+        }
+
+        if (KotlinBuiltIns.isPrimitiveTypeOrNullablePrimitiveType(this)) {
+            if (!this.isMarkedNullable) {
+                return
+            }
+            reportError("Type $this must not be nullable when used in callback signature")
+        }
+
+        if (TypeUtils.getClassDescriptor(this) == interop.cPointer) {
+            if (this.isMarkedNullable) {
+                return
+            }
+
+            reportError("Type $this must be nullable when used in callback signature")
+        }
+
+        reportError("Type $this is not supported in callback signature")
+    }
+
+    private fun unwrapStaticFunctionArgument(argument: IrExpression): IrCallableReference? {
+        if (argument is IrCallableReference) {
+            return argument
+        }
+
+        // Otherwise check whether it is a lambda:
+
+        // 1. It is a container with two statements and expected origin:
+
+        if (argument !is IrContainerExpression || argument.statements.size != 2) {
+            return null
+        }
+        if (argument.origin != IrStatementOrigin.LAMBDA && argument.origin != IrStatementOrigin.ANONYMOUS_FUNCTION) {
+            return null
+        }
+
+        // 2. First statement is an empty container (created during local functions lowering):
+
+        val firstStatement = argument.statements.first()
+
+        if (firstStatement !is IrContainerExpression || firstStatement.statements.size != 0) {
+            return null
+        }
+
+        // 3. Second statement is IrCallableReference:
+
+        return argument.statements.last() as? IrCallableReference
     }
 
     private fun IrCall.getSingleTypeArgument(): KotlinType {

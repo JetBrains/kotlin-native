@@ -19,14 +19,14 @@ package org.jetbrains.kotlin.backend.konan.serialization
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.impl.LocalVariableDescriptor
 import org.jetbrains.kotlin.serialization.Flags
+import org.jetbrains.kotlin.serialization.KonanIr
 import org.jetbrains.kotlin.serialization.KonanLinkData
 import org.jetbrains.kotlin.serialization.ProtoBuf
 import org.jetbrains.kotlin.serialization.ProtoBuf.QualifiedNameTable.QualifiedName
 import org.jetbrains.kotlin.serialization.deserialization.MemberDeserializer
 import org.jetbrains.kotlin.serialization.deserialization.NameResolverImpl
 import org.jetbrains.kotlin.serialization.deserialization.TypeTable
-import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedClassDescriptor
-import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedSimpleFunctionDescriptor
+import org.jetbrains.kotlin.serialization.deserialization.descriptors.*
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.SinceKotlinInfoTable
 import org.jetbrains.kotlin.serialization.deserialization.findClassAcrossModuleDependencies
 import org.jetbrains.kotlin.types.KotlinType
@@ -35,9 +35,9 @@ import org.jetbrains.kotlin.types.KotlinType
 // MemberDeserializer to deserialize descriptors declared in IR.
 // Consider merging it all to the very MemberDesereializer itself eventually.
 
-class LocalDeclarationDeserializer(val rootFunction: FunctionDescriptor, val module: ModuleDescriptor) {
+class LocalDeclarationDeserializer(val rootDescriptor: DeserializedCallableMemberDescriptor, val module: ModuleDescriptor) {
         
-    val pkg = rootFunction.getContainingDeclaration() as KonanPackageFragment
+    val pkg = rootDescriptor.getContainingDeclaration() as KonanPackageFragment
     init {
         assert(pkg is KonanPackageFragment)
     }
@@ -49,10 +49,19 @@ class LocalDeclarationDeserializer(val rootFunction: FunctionDescriptor, val mod
     val context = components.createContext(
         pkg, nameResolver, typeTable, SinceKotlinInfoTable.EMPTY, null)
 
-    val typeParameters = (rootFunction as DeserializedSimpleFunctionDescriptor).proto.typeParameterList
+    val typeParameterProtos = when (rootDescriptor) {
+        // These are two different typeParameterLists not 
+        // having a common ancestor.
+        is DeserializedSimpleFunctionDescriptor
+            -> rootDescriptor.proto.typeParameterList
+        is DeserializedPropertyDescriptor
+            -> rootDescriptor.proto.typeParameterList
+        else -> error("Unexpected descriptor kind")
+    }
 
-    val childContext = context.childContext(rootFunction, typeParameters, nameResolver, typeTable)
+    val childContext = context.childContext(rootDescriptor, typeParameterProtos, nameResolver, typeTable)
     val typeDeserializer = childContext.typeDeserializer
+
     val memberDeserializer = MemberDeserializer(childContext)
 
     fun deserializeInlineType(type: ProtoBuf.Type): KotlinType {
@@ -72,13 +81,13 @@ class LocalDeclarationDeserializer(val rootFunction: FunctionDescriptor, val mod
                 return module.findClassAcrossModuleDependencies(nameResolver.getClassId(fqNameIndex))!!
             QualifiedName.Kind.PACKAGE ->
                 return module.getPackage(packageName)
-            else -> error("Unexpected descriptor kind.")
+            else -> TODO("Unexpected descriptor kind.")
         }
     }
 
-    fun memberDeserializerByParentFqNameIndex(fqName: Int): MemberDeserializer {
+    fun memberDeserializerByParentFqNameIndex(fqNameIndex: Int): MemberDeserializer {
 
-       val parent = getDescriptorByFqNameIndex(module, fqName)
+       val parent = getDescriptorByFqNameIndex(module, fqNameIndex)
        val typeParameters = if (parent is DeserializedClassDescriptor) {
            parent.classProto.typeParameterList
        } else listOf<ProtoBuf.TypeParameter>()
@@ -88,40 +97,32 @@ class LocalDeclarationDeserializer(val rootFunction: FunctionDescriptor, val mod
 
     }
 
-    fun deserializeFunction(proto: ProtoBuf.Function): FunctionDescriptor {
-       val containingFqName = proto.getExtension(KonanLinkData.functionParent)
-       // TODO: learn to take the containing IR declaration
-       val memberDeserializer = if (containingFqName == -1) 
+    private fun memberDeserializer(irProto: KonanIr.KotlinDescriptor): MemberDeserializer {
+        return if (irProto.hasClassOrPackage()) {
+            memberDeserializerByParentFqNameIndex(irProto.classOrPackage)
+        } else {
+            // TODO: learn to take the containing IR declaration
             this.memberDeserializer
-       else
-            memberDeserializerByParentFqNameIndex(containingFqName)
-
-       val function = memberDeserializer.loadFunction(proto)
-
-        return function
+        }
     }
 
-    fun deserializeConstructor(proto: ProtoBuf.Constructor): ConstructorDescriptor {
+    fun deserializeFunction(irProto: KonanIr.KotlinDescriptor): FunctionDescriptor =
+        memberDeserializer(irProto).loadFunction(irProto.irLocalDeclaration.descriptor.function)
 
-       val containingFqName = proto.getExtension(KonanLinkData.constructorParent)
-       val memberDeserializer = memberDeserializerByParentFqNameIndex(containingFqName)
+    fun deserializeConstructor(irProto: KonanIr.KotlinDescriptor): ConstructorDescriptor {
+
+       val proto = irProto.irLocalDeclaration.descriptor.constructor
+       val memberDeserializer = memberDeserializerByParentFqNameIndex(irProto.classOrPackage)
        val isPrimary = !Flags.IS_SECONDARY.get(proto.flags)
        val constructor = memberDeserializer.loadConstructor(proto, isPrimary)
 
        return constructor
     }
 
+    fun deserializeProperty(irProto: KonanIr.KotlinDescriptor): VariableDescriptor {
 
-    fun deserializeProperty(proto: ProtoBuf.Property): VariableDescriptor {
-        val containingFqName = proto.getExtension(KonanLinkData.propertyParent)
-
-        // TODO: learn to take the containing IR declaration
-        val memberDeserializer = if (containingFqName == -1) 
-            this.memberDeserializer
-        else
-            memberDeserializerByParentFqNameIndex(containingFqName)
-
-        val property = memberDeserializer.loadProperty(proto)
+        val proto = irProto.irLocalDeclaration.descriptor.property
+        val property = memberDeserializer(irProto).loadProperty(proto)
 
         return if (proto.getExtension(KonanLinkData.usedAsVariable)) {
             propertyToVariable(property)

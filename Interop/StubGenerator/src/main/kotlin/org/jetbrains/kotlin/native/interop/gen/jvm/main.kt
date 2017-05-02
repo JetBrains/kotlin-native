@@ -16,17 +16,14 @@
 
 package org.jetbrains.kotlin.native.interop.gen.jvm
 
-import org.jetbrains.kotlin.native.interop.indexer.Language
-import org.jetbrains.kotlin.native.interop.indexer.NativeIndex
-import org.jetbrains.kotlin.native.interop.indexer.NativeLibrary
-import org.jetbrains.kotlin.native.interop.indexer.buildNativeIndex
+import org.jetbrains.kotlin.native.interop.indexer.*
 import java.io.File
 import java.lang.IllegalArgumentException
 import java.util.*
 import kotlin.reflect.KFunction
 
 fun main(args: Array<String>) {
-    val konanHome = System.getProperty("konan.home")!!
+    val konanHome = File(System.getProperty("konan.home")).absolutePath
 
     // TODO: remove OSX defaults.
     val substitutions = mapOf(
@@ -84,18 +81,15 @@ private fun String.targetSuffix(): String =
 //  foo = ${foo} ${foo.${arch}} ${foo.${os}}
 private fun substitute(properties: Properties, substitutions: Map<String, String>) {
     for (key in properties.stringPropertyNames()) {
-        if (key.contains('.')) {
-            continue
-        }
-        var value = ""
-        for (substitution in substitutions.keys) {
-            val property = properties.getProperty(key + "." + substitutions[substitution])
-            if (property != null) {
-                value += " " + property
+        for (substitution in substitutions.values) {
+            val suffix = ".$substitution"
+            if (key.endsWith(suffix)) {
+                val baseKey = key.removeSuffix(suffix)
+                val oldValue = properties.getProperty(baseKey, "")
+                val appendedValue = properties.getProperty(key, "")
+                val newValue = if (oldValue != "") "$oldValue $appendedValue" else appendedValue
+                properties.setProperty(baseKey, newValue)
             }
-        }
-        if (value != "") {
-            properties.setProperty(key, properties.getProperty(key, "") + " " + value)
         }
     }
 }
@@ -118,6 +112,10 @@ private fun <T> Collection<T>.atMostOne(): T? {
         else -> throw IllegalArgumentException("Collection has more than one element.")
     }
 }
+
+private fun String.matchesToGlob(glob: String): Boolean =
+        java.nio.file.FileSystems.getDefault()
+                .getPathMatcher("glob:$glob").matches(java.nio.file.Paths.get(this))
 
 private fun Properties.getOsSpecific(name: String, 
     host: String = detectHost()): String? {
@@ -178,13 +176,17 @@ private fun maybeExecuteHelper(dependenciesRoot: String, properties: Properties,
 
 private fun Properties.defaultCompilerOpts(target: String, dependencies: String): List<String> {
 
-    val hostSysRootDir = this.getOsSpecific("sysRoot", target)!!
+    val arch = this.getOsSpecific("arch", target)!!
+    val hostSysRootDir = this.getOsSpecific("sysRoot")!!
     val hostSysRoot = "$dependencies/$hostSysRootDir"
     val targetSysRootDir = this.getOsSpecific("targetSysRoot", target) ?: hostSysRootDir
     val targetSysRoot = "$dependencies/$targetSysRootDir"
     val sysRoot = targetSysRoot
-    val llvmHomeDir = this.getOsSpecific("llvmHome", target)!!
+    val llvmHomeDir = this.getOsSpecific("llvmHome")!!
     val llvmHome = "$dependencies/$llvmHomeDir"
+
+    System.load("$llvmHome/lib/${System.mapLibraryName("clang")}")
+
     val llvmVersion = this.getProperty("llvmVersion")!!
 
     val dependencyList = getOsSpecific("dependencies", target)?.split(' ') ?: listOf<String>()
@@ -197,44 +199,25 @@ private fun Properties.defaultCompilerOpts(target: String, dependencies: String)
     // We workaround the problem with -isystem flag below.
     val isystem = "$llvmHome/lib/clang/$llvmVersion/include"
 
-    when (target) {
-        "osx" -> 
+    when (detectHost()) {
+        "osx" -> {
+            val osVersionMinFlag = this.getOsSpecific("osVersionMinFlagClang", target)!!
+            val osVersionMinValue = this.getOsSpecific("osVersionMin", target)!!
+
             return listOf(
+                "-arch", arch,
                 "-isystem", isystem,
                 "-B$hostSysRoot/usr/bin",
                 "--sysroot=$sysRoot",
-                "-mmacosx-version-min=10.11")
-        "osx-ios" -> 
-            return listOf(
-                "-arch", "arm64",
-                "-isystem", isystem,
-                "-B$hostSysRoot/usr/bin",
-                "--sysroot=$sysRoot",
-                "-miphoneos-version-min=5.0.0")
-        "osx-ios-sim" -> 
-            return listOf(
-                "-arch", "x86_64",
-                "-isystem", isystem,
-                "-B$hostSysRoot/usr/bin",
-                "--sysroot=$sysRoot",
-                "-mios-simulator-version-min=5.0.0")
+                "$osVersionMinFlag=$osVersionMinValue")
+        }
         "linux" -> {
             val gccToolChainDir = this.getOsSpecific("gccToolChain", target)!!
             val gccToolChain= "$dependencies/$gccToolChainDir"
+            val quadruple = this.getOsSpecific("quadruple", target)!!
 
             return listOf(
-                "-isystem", isystem,
-                "--gcc-toolchain=$gccToolChain",
-                "-L$llvmHome/lib",
-                "-B$hostSysRoot/../bin",
-                "--sysroot=$sysRoot")
-        }
-        "linux-raspberrypi" -> {
-            val gccToolChainDir = this.getOsSpecific("gccToolChain", target)!!
-            val gccToolChain= "$dependencies/$gccToolChainDir"
-
-            return listOf(
-                "-target", "armv7-unknown-linux-gnueabihf",
+                "-target", quadruple,
                 "-isystem", isystem,
                 "--gcc-toolchain=$gccToolChain",
                 "-L$llvmHome/lib",
@@ -306,10 +289,11 @@ private fun processLib(konanHome: String,
     val headerFiles = config.getSpaceSeparated("headers") + additionalHeaders
     val compilerOpts = 
         config.getSpaceSeparated("compilerOpts") +
-        defaultOpts + additionalCompilerOpts 
+        defaultOpts + additionalCompilerOpts
     val compiler = "clang"
     val language = Language.C
     val excludeSystemLibs = config.getProperty("excludeSystemLibs")?.toBoolean() ?: false
+    val excludeDependentModules = config.getProperty("excludeDependentModules")?.toBoolean() ?: false
 
     val entryPoint = config.getSpaceSeparated("entryPoint").atMostOne()
     val linkerOpts = 
@@ -330,7 +314,25 @@ private fun processLib(konanHome: String,
 
     val libName = args["-cstubsname"]?.atMostOne() ?: fqParts.joinToString("") + "stubs"
 
-    val library = NativeLibrary(headerFiles, compilerOpts, language, excludeSystemLibs)
+    val headerFilterGlobs = config.getSpaceSeparated("headerFilter")
+
+    val headerFilter = { name: String ->
+        if (headerFilterGlobs.isEmpty()) {
+            true
+        } else {
+            headerFilterGlobs.any { name.matchesToGlob(it) }
+        }
+    }
+
+    val library = NativeLibrary(
+            includes = headerFiles,
+            compilerArgs = compilerOpts,
+            language = language,
+            excludeSystemLibs = excludeSystemLibs,
+            excludeDepdendentModules = excludeDependentModules,
+            headerFilter = headerFilter
+    )
+
     val configuration = InteropConfiguration(
             library = library,
             pkgName = outKtPkg,
@@ -344,40 +346,31 @@ private fun processLib(konanHome: String,
     val gen = StubGenerator(nativeIndex, configuration, libName, generateShims, verbose, flavor)
 
     outKtFile.parentFile.mkdirs()
-    outKtFile.bufferedWriter().use { out ->
-        gen.withOutput({ out.appendln(it) }) {
-            gen.generateKotlinFile()
-        }
-    }
 
     File(nativeLibsDir).mkdirs()
-
     val outCFile = File("$nativeLibsDir/$libName.c") // TODO: select the better location.
 
-    outCFile.bufferedWriter().use { out ->
-        gen.withOutput({ out.appendln(it) }) {
-            gen.generateCFile(headerFiles, entryPoint)
+    outKtFile.bufferedWriter().use { ktFile ->
+        outCFile.bufferedWriter().use { cFile ->
+            gen.generateFiles(ktFile = ktFile, cFile = cFile, entryPoint = entryPoint)
         }
     }
 
-    val workDir = defFile?.parentFile ?: File(System.getProperty("java.io.tmpdir"))
+    val workDir = defFile?.absoluteFile?.parentFile ?: File(userDir)
 
     if (flavor == KotlinPlatform.JVM) {
 
         val outOFile = createTempFile(suffix = ".o")
 
-        val javaHome = System.getProperty("java.home")
-        val compilerArgsForJniIncludes = listOf("", "linux", "darwin").map { "-I$javaHome/../include/$it" }.toTypedArray()
-
-        val compilerCmd = arrayOf("$llvmInstallPath/bin/$compiler", *compilerOpts.toTypedArray(),
-                *compilerArgsForJniIncludes,
-                "-c", outCFile.path, "-o", outOFile.path)
+        val compilerCmd = arrayOf("$llvmInstallPath/bin/$compiler", *gen.libraryForCStubs.compilerArgs.toTypedArray(),
+                "-c", outCFile.absolutePath, "-o", outOFile.absolutePath)
 
         runCmd(compilerCmd, workDir, verbose)
 
-        val outLib = nativeLibsDir + "/" + System.mapLibraryName(libName)
+        val outLib = File(nativeLibsDir, System.mapLibraryName(libName))
 
-        val linkerCmd = arrayOf("$llvmInstallPath/bin/$linker", *linkerOpts, outOFile.path, "-shared", "-o", outLib,
+        val linkerCmd = arrayOf("$llvmInstallPath/bin/$linker", *linkerOpts, outOFile.absolutePath, "-shared",
+                "-o", outLib.absolutePath,
                 "-Wl,-flat_namespace,-undefined,dynamic_lookup")
 
         runCmd(linkerCmd, workDir, verbose)
@@ -385,9 +378,9 @@ private fun processLib(konanHome: String,
         outOFile.delete()
     } else if (flavor == KotlinPlatform.NATIVE) {
         val outBcName = libName + ".bc"
-        val outLib = nativeLibsDir + "/" + outBcName
-        val compilerCmd = arrayOf("$llvmInstallPath/bin/$compiler", *compilerOpts.toTypedArray(),
-                "-emit-llvm", "-c", outCFile.path, "-o", outLib)
+        val outLib = File(nativeLibsDir, outBcName)
+        val compilerCmd = arrayOf("$llvmInstallPath/bin/$compiler", *gen.libraryForCStubs.compilerArgs.toTypedArray(),
+                "-emit-llvm", "-c", outCFile.absolutePath, "-o", outLib.absolutePath)
 
         runCmd(compilerCmd, workDir, verbose)
     }

@@ -61,12 +61,13 @@ public fun <K, V> mapOf(vararg pairs: Pair<K, V>): Map<K, V> =
 @kotlin.internal.InlineOnly
 public inline fun <K, V> mapOf(): Map<K, V> = emptyMap()
 
+// TODO: Add a singleton map class (see Kotlin JVM mapOf(Pair) implementation).
 /**
  * Returns an immutable map, mapping only the specified key to the
  * specified value.  The returned map is serializable.
  * @sample samples.collections.Maps.Instantiation.mapFromPairs
  */
-//public fun <K, V> mapOf(pair: Pair<K, V>): Map<K, V> = java.util.Collections.singletonMap(pair.first, pair.second)
+public fun <K, V> mapOf(pair: Pair<K, V>): Map<K, V> = hashMapOf(pair)
 
 /**
  * Returns a new [MutableMap] with the specified contents, given as a list of pairs
@@ -96,25 +97,27 @@ public fun <K, V> hashMapOf(vararg pairs: Pair<K, V>): HashMap<K, V>
  *
  * @sample samples.collections.Maps.Instantiation.linkedMapFromPairs
  */
-//public fun <K, V> linkedMapOf(vararg pairs: Pair<K, V>): LinkedHashMap<K, V>
-//        = LinkedHashMap<K, V>(mapCapacity(pairs.size)).apply { putAll(pairs) }
+public fun <K, V> linkedMapOf(vararg pairs: Pair<K, V>): LinkedHashMap<K, V>
+        = LinkedHashMap<K, V>(mapCapacity(pairs.size)).apply { putAll(pairs) }
 
 /**
  * Calculate the initial capacity of a map, based on Guava's com.google.common.collect.Maps approach. This is equivalent
  * to the Collection constructor for HashSet, (c.size()/.75f) + 1, but provides further optimisations for very small or
  * very large sizes, allows support non-collection classes, and provides consistency for all map based class construction.
  */
+@PublishedApi
 internal fun mapCapacity(expectedSize: Int): Int {
     if (expectedSize < 3) {
         return expectedSize + 1
     }
-    if (expectedSize < INT_MAX_POWER_OF_TWO) {
+    if (expectedSize < 0x40000000 /* INT_MAX_POWER_OF_TWO */) {
         return expectedSize + expectedSize / 3
     }
-    return Int.MAX_VALUE // any large value
+    return 0x7fffffff // any large value
 }
 
-private const val INT_MAX_POWER_OF_TWO: Int = Int.MAX_VALUE / 2 + 1
+// Using global constant with dependency like that introduces weird init order dependencies.
+// private const val INT_MAX_POWER_OF_TWO: Int = Int.MAX_VALUE / 2 + 1
 
 /** Returns `true` if this map is not empty. */
 @kotlin.internal.InlineOnly
@@ -222,9 +225,22 @@ internal inline fun <K, V> Map<K, V>.getOrElseNullable(key: K, defaultValue: () 
     if (value == null && !containsKey(key)) {
         return defaultValue()
     } else {
+        @Suppress("UNCHECKED_CAST")
         return value as V
     }
 }
+
+/**
+ * Returns the value for the given [key] or throws an exception if there is no such key in the map.
+ *
+ * If the map was created by [withDefault], resorts to its `defaultValue` provider function
+ * instead of throwing an exception.
+ *
+ * @throws NoSuchElementException when the map doesn't contain a value for the specified key and
+ * no implicit default value was provided for that map.
+ */
+@SinceKotlin("1.1")
+public fun <K, V> Map<K, V>.getValue(key: K): V = getOrImplicitDefault(key)
 
 /**
  * Returns the value for the given key. If the key is not found in the map, calls the [defaultValue] function,
@@ -473,7 +489,8 @@ public fun <K, V, M : MutableMap<in K, in V>> Sequence<Pair<K, V>>.toMap(destina
  *
  * The returned map preserves the entry iteration order of the original map.
  */
-public fun <K, V> Map</* out */K, V>.toMap(): Map<K, V> = when (size) {
+@SinceKotlin("1.1")
+public fun <K, V> Map<out K, V>.toMap(): Map<K, V> = when (size) {
     0 -> emptyMap()
 //    1 -> toSingletonMap()
     else -> toMutableMap()
@@ -484,7 +501,8 @@ public fun <K, V> Map</* out */K, V>.toMap(): Map<K, V> = when (size) {
  *
  * The returned map preserves the entry iteration order of the original map.
  */
-public fun <K, V> Map</*out */K, V>.toMutableMap(): MutableMap<K, V> = HashMap(this)
+@SinceKotlin("1.1")
+public fun <K, V> Map<out K, V>.toMutableMap(): MutableMap<K, V> = HashMap<K, V>(this)
 
 /**
  * Populates and returns the [destination] mutable map with key-value pairs from the given map.
@@ -498,9 +516,8 @@ public fun <K, V, M : MutableMap<in K, in V>> Map<out K, V>.toMap(destination: M
  * The returned map preserves the entry iteration order of the original map.
  * The [pair] is iterated in the end if it has a unique key.
  */
-@FixmeVariance
-public operator fun <K, V> Map</*out */K, V>.plus(pair: Pair<K, V>): Map<K, V>
-        = if (this.isEmpty()) mapOf(pair) else HashMap(this).apply { put(pair.first, pair.second) }
+public operator fun <K, V> Map<out K, V>.plus(pair: Pair<K, V>): Map<K, V>
+        = if (this.isEmpty()) mapOf(pair) else HashMap<K, V>(this).apply { put(pair.first, pair.second) }
 
 /**
  * Creates a new read-only map by replacing or adding entries to this map from a given collection of key-value [pairs].
@@ -508,8 +525,7 @@ public operator fun <K, V> Map</*out */K, V>.plus(pair: Pair<K, V>): Map<K, V>
  * The returned map preserves the entry iteration order of the original map.
  * Those [pairs] with unique keys are iterated in the end in the order of [pairs] collection.
  */
-@FixmeVariance
-public operator fun <K, V> Map</*out */K, V>.plus(pairs: Iterable<Pair<K, V>>): Map<K, V>
+public operator fun <K, V> Map<out K, V>.plus(pairs: Iterable<Pair<K, V>>): Map<K, V>
         = if (this.isEmpty()) pairs.toMap() else HashMap(this).apply { putAll(pairs) }
 
 /**
@@ -518,8 +534,7 @@ public operator fun <K, V> Map</*out */K, V>.plus(pairs: Iterable<Pair<K, V>>): 
  * The returned map preserves the entry iteration order of the original map.
  * Those [pairs] with unique keys are iterated in the end in the order of [pairs] array.
  */
-@FixmeVariance
-public operator fun <K, V> Map</*out */K, V>.plus(pairs: Array<out Pair<K, V>>): Map<K, V>
+public operator fun <K, V> Map<out K, V>.plus(pairs: Array<out Pair<K, V>>): Map<K, V>
         = if (this.isEmpty()) pairs.toMap() else HashMap(this).apply { putAll(pairs) }
 
 /**
@@ -528,7 +543,7 @@ public operator fun <K, V> Map</*out */K, V>.plus(pairs: Array<out Pair<K, V>>):
  * The returned map preserves the entry iteration order of the original map.
  * Those [pairs] with unique keys are iterated in the end in the order of [pairs] sequence.
  */
-public operator fun <K, V> Map</*out */K, V>.plus(pairs: Sequence<Pair<K, V>>): Map<K, V>
+public operator fun <K, V> Map<out K, V>.plus(pairs: Sequence<Pair<K, V>>): Map<K, V>
         = HashMap(this).apply { putAll(pairs) }.optimizeReadOnlyMap()
 
 /**
@@ -537,8 +552,7 @@ public operator fun <K, V> Map</*out */K, V>.plus(pairs: Sequence<Pair<K, V>>): 
  * The returned map preserves the entry iteration order of the original map.
  * Those entries of another [map] that are missing in this map are iterated in the end in the order of that [map].
  */
-@FixmeVariance
-public operator fun <K, V> Map</*out */K, V>.plus(map: Map</*out */K, V>): Map<K, V>
+public operator fun <K, V> Map<out K, V>.plus(map: Map<out K, V>): Map<K, V>
         = HashMap(this).apply { putAll(map) }
 
 /**
@@ -581,7 +595,7 @@ public inline operator fun <K, V> MutableMap<in K, in V>.plusAssign(map: Map<K, 
     putAll(map)
 }
 
-// do not expose for now @kotlin.internal.InlineExposed
+@kotlin.internal.InlineExposed
 internal fun <K, V> Map<K, V>.optimizeReadOnlyMap() = when (size) {
     0 -> emptyMap()
 //    1 -> toSingletonMapOrSelf()
@@ -717,3 +731,73 @@ public inline fun <K, V> Map<out K, V>.count(predicate: (Map.Entry<K, V>) -> Boo
 public inline fun <K, V> Map<out K, V>.forEach(action: (Map.Entry<K, V>) -> Unit): Unit {
     for (element in this) action(element)
 }
+
+/**
+ * Returns the first entry yielding the largest value of the given function or `null` if there are no entries.
+ */
+@kotlin.internal.InlineOnly
+public inline fun <K, V, R : Comparable<R>> Map<out K, V>.maxBy(selector: (Map.Entry<K, V>) -> R): Map.Entry<K, V>? {
+    return entries.maxBy(selector)
+}
+
+/**
+ * Returns the first entry having the largest value according to the provided [comparator] or `null` if there are no entries.
+ */
+@kotlin.internal.InlineOnly
+public inline fun <K, V> Map<out K, V>.maxWith(comparator: Comparator<in Map.Entry<K, V>>): Map.Entry<K, V>? {
+    return entries.maxWith(comparator)
+}
+
+/**
+ * Returns the first entry yielding the smallest value of the given function or `null` if there are no entries.
+ */
+public inline fun <K, V, R : Comparable<R>> Map<out K, V>.minBy(selector: (Map.Entry<K, V>) -> R): Map.Entry<K, V>? {
+    return entries.minBy(selector)
+}
+
+/**
+ * Returns the first entry having the smallest value according to the provided [comparator] or `null` if there are no entries.
+ */
+public fun <K, V> Map<out K, V>.minWith(comparator: Comparator<in Map.Entry<K, V>>): Map.Entry<K, V>? {
+    return entries.minWith(comparator)
+}
+
+/**
+ * Returns `true` if the map has no entries.
+ */
+public fun <K, V> Map<out K, V>.none(): Boolean {
+    for (element in this) return false
+    return true
+}
+
+/**
+ * Returns `true` if no entries match the given [predicate].
+ */
+public inline fun <K, V> Map<out K, V>.none(predicate: (Map.Entry<K, V>) -> Boolean): Boolean {
+    for (element in this) if (predicate(element)) return false
+    return true
+}
+
+/**
+ * Performs the given [action] on each entry and returns the map itself afterwards.
+ */
+@SinceKotlin("1.1")
+public inline fun <K, V, M : Map<out K, V>> M.onEach(action: (Map.Entry<K, V>) -> Unit): M {
+    return apply { for (element in this) action(element) }
+}
+
+/**
+ * Creates an [Iterable] instance that wraps the original map returning its entries when being iterated.
+ */
+@kotlin.internal.InlineOnly
+public inline fun <K, V> Map<out K, V>.asIterable(): Iterable<Map.Entry<K, V>> {
+    return entries
+}
+
+/**
+ * Creates a [Sequence] instance that wraps the original map returning its entries when being iterated.
+ */
+public fun <K, V> Map<out K, V>.asSequence(): Sequence<Map.Entry<K, V>> {
+    return entries.asSequence()
+}
+

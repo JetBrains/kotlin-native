@@ -23,7 +23,6 @@ import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.descriptors.ConstructorDescriptor
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
-import org.jetbrains.kotlin.descriptors.PropertyDescriptor
 import org.jetbrains.kotlin.types.KotlinType
 
 internal class CodeGenerator(override val context: Context) : ContextUtils {
@@ -43,11 +42,11 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
     val intPtrType = LLVMIntPtrType(llvmTargetData)!!
     private val immOneIntPtrType = LLVMConstInt(intPtrType, 1, 1)!!
 
-    fun prologue(descriptor: FunctionDescriptor) {
+    fun prologue(descriptor: FunctionDescriptor, locationInfo: LocationInfo? = null) {
         val llvmFunction = llvmFunction(descriptor)
 
         prologue(llvmFunction,
-                LLVMGetReturnType(getLlvmFunctionType(descriptor))!!)
+                LLVMGetReturnType(getLlvmFunctionType(descriptor))!!, locationInfo)
 
         if (!descriptor.isExported()) {
             LLVMSetLinkage(llvmFunction, LLVMLinkage.LLVMInternalLinkage)
@@ -60,7 +59,7 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
         functionDescriptor = descriptor
     }
 
-    fun prologue(function:LLVMValueRef, returnType:LLVMTypeRef) {
+    fun prologue(function:LLVMValueRef, returnType:LLVMTypeRef, locationInfo: LocationInfo? = null) {
         assert(returns.size == 0)
         assert(this.function != function)
 
@@ -71,10 +70,14 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
         this.returnType = returnType
         this.constructedClass = null
         prologueBb = LLVMAppendBasicBlock(function, "prologue")
+        localsInitBb = LLVMAppendBasicBlock(function, "locals_init")
         entryBb = LLVMAppendBasicBlock(function, "entry")
         epilogueBb = LLVMAppendBasicBlock(function, "epilogue")
         cleanupLandingpad = LLVMAppendBasicBlock(function, "cleanup_landingpad")!!
-        positionAtEnd(entryBb!!)
+        positionAtEnd(localsInitBb!!)
+        locationInfo?.let {
+            debugLocation(it)
+        }
         slotsPhi = phi(kObjHeaderPtrPtr)
         // First slot can be assigned to keep pointer to frame local arena.
         slotCount = 1
@@ -82,9 +85,10 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
         // Is removed by DCE trivially, if not needed.
         arenaSlot = intToPtr(
                 or(ptrToInt(slotsPhi, intPtrType), immOneIntPtrType), kObjHeaderPtrPtr)
+        positionAtEnd(entryBb!!)
     }
 
-    fun epilogue() {
+    fun epilogue(locationInfo: LocationInfo? = null) {
         appendingTo(prologueBb!!) {
             val slots = if (needSlots)
                 LLVMBuildArrayAlloca(builder, kObjHeaderPtr, Int32(slotCount).llvm, "")!!
@@ -95,12 +99,19 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
                 val slotsMem = bitcast(kInt8Ptr, slots)
                 val pointerSize = LLVMABISizeOfType(llvmTargetData, kObjHeaderPtr).toInt()
                 val alignment = LLVMABIAlignmentOfType(llvmTargetData, kObjHeaderPtr)
+                locationInfo?.let {
+                    debugLocation(it)
+                }
                 call(context.llvm.memsetFunction,
                         listOf(slotsMem, Int8(0).llvm,
                                 Int32(slotCount * pointerSize).llvm, Int32(alignment).llvm,
                                 Int1(0).llvm))
             }
             addPhiIncoming(slotsPhi!!, prologueBb!! to slots)
+            br(localsInitBb!!)
+        }
+
+        appendingTo(localsInitBb!!) {
             br(entryBb!!)
         }
 
@@ -151,6 +162,7 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
     }
 
     private var prologueBb: LLVMBasicBlockRef? = null
+    private var localsInitBb: LLVMBasicBlockRef? = null
     private var entryBb: LLVMBasicBlockRef? = null
     private var epilogueBb: LLVMBasicBlockRef? = null
     private var cleanupLandingpad: LLVMBasicBlockRef? = null
@@ -186,7 +198,9 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
 
     fun alloca(type: LLVMTypeRef?, name: String = ""): LLVMValueRef {
         if (isObjectType(type!!)) {
-            return gep(slotsPhi!!, Int32(slotCount++).llvm)
+            appendingTo(localsInitBb!!) {
+                return gep(slotsPhi!!, Int32(slotCount++).llvm, name)
+            }
         }
         appendingTo(prologueBb!!) {
             return LLVMBuildAlloca(builder, type, name)!!
@@ -223,21 +237,21 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
     }
     fun storeAnyLocal(value: LLVMValueRef, ptr: LLVMValueRef) {
         if (isObjectRef(value)) {
-            updateLocalRef(value, ptr)
+            updateRef(value, ptr)
         } else {
             LLVMBuildStore(builder, value, ptr)
         }
     }
     fun storeAnyGlobal(value: LLVMValueRef, ptr: LLVMValueRef) {
         if (isObjectRef(value)) {
-            updateGlobalRef(value, ptr)
+            updateRef(value, ptr)
         } else {
             LLVMBuildStore(builder, value, ptr)
         }
     }
 
-    fun gep(base: LLVMValueRef, index: LLVMValueRef): LLVMValueRef {
-        return LLVMBuildGEP(builder, base, cValuesOf(index), 1, "")!!
+    fun gep(base: LLVMValueRef, index: LLVMValueRef, name: String = ""): LLVMValueRef {
+        return LLVMBuildGEP(builder, base, cValuesOf(index), 1, name)!!
     }
 
     fun updateReturnRef(value: LLVMValueRef, address: LLVMValueRef) {
@@ -245,13 +259,8 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
     }
 
     // Only use ignoreOld, when sure that memory is freshly inited and have no value.
-    fun updateLocalRef(value: LLVMValueRef, address: LLVMValueRef, ignoreOld: Boolean = false) {
-        call(if (ignoreOld) context.llvm.setLocalRefFunction else context.llvm.updateLocalRefFunction,
-                listOf(address, value))
-    }
-
-    fun updateGlobalRef(value: LLVMValueRef, address: LLVMValueRef, ignoreOld: Boolean = false) {
-        call(if (ignoreOld) context.llvm.setGlobalRefFunction else context.llvm.updateGlobalRefFunction,
+    fun updateRef(value: LLVMValueRef, address: LLVMValueRef, ignoreOld: Boolean = false) {
+        call(if (ignoreOld) context.llvm.setRefFunction else context.llvm.updateRefFunction,
                 listOf(address, value))
     }
 
@@ -399,6 +408,17 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
         return res
     }
 
+    fun blockAddress(bbLabel: LLVMBasicBlockRef): LLVMValueRef {
+        return LLVMBlockAddress(function, bbLabel)!!
+    }
+
+    fun indirectBr(address: LLVMValueRef, destinations: Collection<LLVMBasicBlockRef>): LLVMValueRef? {
+        val indirectBr = LLVMBuildIndirectBr(builder, address, destinations.size)
+        destinations.forEach { LLVMAddDestination(indirectBr, it) }
+        currentPositionHolder.setAfterTerminator()
+        return indirectBr
+    }
+
     //-------------------------------------------------------------------------//
 
     fun gxxLandingpad(numClauses: Int, name: String = ""): LLVMValueRef {
@@ -492,6 +512,20 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
     }
 
     fun  llvmFunction(function: FunctionDescriptor): LLVMValueRef = function.llvmFunction
+
+    internal fun resetDebugLocation() {
+        if (!context.shouldContainDebugInfo()) return
+        LLVMBuilderResetDebugLocation(builder)
+    }
+
+    internal fun debugLocation(locationInfo: LocationInfo):DILocationRef? {
+        if (!context.shouldContainDebugInfo()) return null
+        return LLVMBuilderSetDebugLocation(
+                builder,
+                locationInfo.line,
+                locationInfo.column,
+                locationInfo.scope)
+    }
 
 }
 

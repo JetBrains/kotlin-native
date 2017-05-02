@@ -78,7 +78,8 @@ task update_external_tests() {
 
         // Copy only used tests into the test directory.
         externalTestsDir.mkdirs()
-        delete(externalTestsDir.listFiles())
+        delete("${externalTestsDir.canonicalPath}/codegen")
+        delete("${externalTestsDir.canonicalPath}/compileKotlinAgainstKotlin")
 
         copy {
             from temporaryDir.absolutePath + "/compiler"
@@ -107,24 +108,37 @@ task run() {
         dependsOn(tasks.withType(KonanTest).matching { !(it instanceof RunExternalTestGroup) && it.enabled })
 }
 
-
-task run_external () {
-    // TODO Consider test output directory cleaning before execution.
-    // TODO Consider using some logger instead of println
-    // Create tasks for external tests.
-    externalTestsDir.eachDirRecurse {
+Set<RunExternalTestGroup> createExternalTests(File testRoot, Closure taskConfiguration) {
+    def result = new HashSet<RunExternalTestGroup>()
+    testRoot.eachDirRecurse {
         // Skip build directory and directories without *.kt files.
-        if (it.name == "build" || it.listFiles().count {it.name.endsWith(".kt")} == 0) {
+        if (it.name == "build" || it.listFiles().count {it.name.endsWith(".kt") && it.isFile()} == 0) {
             return
         }
 
         def taskDirectory = project.relativePath(it)
         def taskName = taskDirectory.replaceAll("[-/]", '_')
 
-        task("$taskName", type: RunExternalTestGroup){
+        def task = (RunExternalTestGroup)project.task("$taskName", type: RunExternalTestGroup){
             groupDirectory = "$taskDirectory"
         }
+        taskConfiguration(task)
+        result.add(task)
     }
+    return result
+}
+
+task run_external () {
+    // TODO Consider test output directory cleaning before execution.
+    // TODO Consider using some logger instead of println
+    // Create tasks for external tests.
+
+    for (testDir in ["codegen", "compileKotlinAgainstKotlin"]) {
+        createExternalTests(new File(externalTestsDir, testDir)) {
+            it.goldValue = "OK"
+        }
+    }
+    createExternalTests(new File(externalTestsDir, "stdlib")) {}
 
     // Set up dependencies.
     def testTasks = tasks.withType(RunExternalTestGroup).matching { it.enabled }
@@ -454,6 +468,21 @@ task enum_linkTest(type: LinkKonanTest) {
     lib = "codegen/enum/linkTest_lib.kt"
 }
 
+task mangling(type: LinkKonanTest) {
+    goldValue = 
+        "Int direct [1, 2, 3, 4]\n" +
+        "out Number direct [9, 10, 11, 12]\n" +
+        "star direct [5, 6, 7, 8]\n" +
+        "Int param [1, 2, 3, 4]\n" +
+        "out Number param [9, 10, 11, 12]\n" +
+        "star param [5, 6, 7, 8]\n" +
+        "no constructors {}\n" +
+        "single constructor some string\n" +
+        "two constructors 17\n"
+    source = "mangling/mangling.kt"
+    lib = "mangling/manglinglib.kt"
+}
+
 task innerClass_simple(type: RunKonanTest) {
     goldValue = "OK\n"
     source = "codegen/innerClass/simple.kt"
@@ -537,6 +566,11 @@ task localClass_localFunctionCallFromLocalClass(type: RunKonanTest) {
 task localClass_localFunctionInLocalClass(type: RunKonanTest) {
     goldValue = "OK\n"
     source = "codegen/localClass/localFunctionInLocalClass.kt"
+}
+
+task localClass_tryCatch(type: RunKonanTest) {
+    goldValue = ""
+    source = "codegen/localClass/tryCatch.kt"
 }
 
 task function_localFunction(type : RunKonanTest) {
@@ -760,6 +794,117 @@ task lateinit_initialized(type: RunKonanTest) {
 task lateinit_notInitialized(type: RunKonanTest) {
     goldValue = "OK\n"
     source = "codegen/lateinit/notInitialized.kt"
+}
+
+task coroutines_simple(type: RunKonanTest) {
+    goldValue = "42\n"
+    source = "codegen/coroutines/simple.kt"
+}
+
+task coroutines_withReceiver(type: RunKonanTest) {
+    goldValue = "42\n"
+    source = "codegen/coroutines/withReceiver.kt"
+}
+
+task coroutines_correctOrder1(type: RunKonanTest) {
+    goldValue = "f1\ns1\nf2\n160\n"
+    source = "codegen/coroutines/correctOrder1.kt"
+}
+
+task coroutines_controlFlow_if1(type: RunKonanTest) {
+    goldValue = "f1\ns1\nf3\n84\n"
+    source = "codegen/coroutines/controlFlow_if1.kt"
+}
+
+task coroutines_controlFlow_if2(type: RunKonanTest) {
+    goldValue = "f1\ns1\nf2\n43\n"
+    source = "codegen/coroutines/controlFlow_if2.kt"
+}
+
+// Enable after finally blocks lowering.
+
+task coroutines_controlFlow_finally1(type: RunKonanTest) {
+    disabled = true
+    goldValue = "f1\ns1\n117\n"
+    source = "codegen/coroutines/controlFlow_finally1.kt"
+}
+
+task coroutines_controlFlow_finally2(type: RunKonanTest) {
+    disabled = true
+    goldValue = "f1\ns1\n117\n"
+    source = "codegen/coroutines/controlFlow_finally2.kt"
+}
+
+task coroutines_controlFlow_finally3(type: RunKonanTest) {
+    disabled = true
+    goldValue = "f1\ns1\n117\n"
+    source = "codegen/coroutines/controlFlow_finally3.kt"
+}
+
+task coroutines_controlFlow_finally4(type: RunKonanTest) {
+    disabled = true
+    goldValue = "s1\nfinally\n117\n"
+    source = "codegen/coroutines/controlFlow_finally4.kt"
+}
+
+task coroutines_controlFlow_inline1(type: RunKonanTest) {
+    goldValue = "42\n"
+    source = "codegen/coroutines/controlFlow_inline1.kt"
+}
+
+task coroutines_controlFlow_inline2(type: RunKonanTest) {
+    goldValue = "s1\n42\n"
+    source = "codegen/coroutines/controlFlow_inline2.kt"
+}
+
+task coroutines_controlFlow_inline3(type: RunKonanTest) {
+    goldValue = "f1\ns1\n42\n"
+    source = "codegen/coroutines/controlFlow_inline3.kt"
+}
+
+task coroutines_controlFlow_tryCatch1(type: RunKonanTest) {
+    goldValue = "s1\n42\n"
+    source = "codegen/coroutines/controlFlow_tryCatch1.kt"
+}
+
+task coroutines_controlFlow_tryCatch2(type: RunKonanTest) {
+    goldValue = "s1\n42\n"
+    source = "codegen/coroutines/controlFlow_tryCatch2.kt"
+}
+
+task coroutines_controlFlow_tryCatch3(type: RunKonanTest) {
+    goldValue = "s2\nf2\n1\n"
+    source = "codegen/coroutines/controlFlow_tryCatch3.kt"
+}
+
+task coroutines_controlFlow_tryCatch4(type: RunKonanTest) {
+    goldValue = "s2\nf2\n1\n"
+    source = "codegen/coroutines/controlFlow_tryCatch4.kt"
+}
+
+task coroutines_controlFlow_tryCatch5(type: RunKonanTest) {
+    goldValue = "s2\ns1\nError\n42\n"
+    source = "codegen/coroutines/controlFlow_tryCatch5.kt"
+}
+
+task coroutines_controlFlow_while1(type: RunKonanTest) {
+    goldValue = "s3\ns3\ns3\ns3\n3\n"
+    source = "codegen/coroutines/controlFlow_while1.kt"
+}
+
+task coroutines_controlFlow_while2(type: RunKonanTest) {
+    goldValue = "s3\ns3\ns3\n3\n"
+    source = "codegen/coroutines/controlFlow_while2.kt"
+}
+
+task coroutines_returnsUnit1(type: RunKonanTest) {
+    goldValue = "117\ns1\n0\n"
+    source = "codegen/coroutines/returnsUnit1.kt"
+}
+
+task AbstractMutableCollection(type: RunKonanTest) {
+    expectedExitStatus = 0
+    source = "runtime/collections/AbstractMutableCollection.kt"
 }
 
 task array0(type: RunKonanTest) {
@@ -1056,13 +1201,19 @@ task parse0(type: RunKonanTest) {
     goldValue = "false\n" +
             "true\n" +
             "-1\n" +
-            "-86\n" +
+            "10\n" +
+            "170\n" +
             "30\n" +
             "4294967295\n" +
             "bad format\n" +
             "0.5\n" +
             "2.39\n"
     source = "runtime/text/parse0.kt"
+}
+
+task to_string0(type: RunKonanTest) {
+    goldValue = "OK\n"
+    source = "runtime/text/to_string0.kt"
 }
 
 task catch1(type: RunKonanTest) {
@@ -1550,14 +1701,23 @@ task inline23(type: RunKonanTest) {
     source = "codegen/inline/inline23.kt"
 }
 
+task inline24(type: RunKonanTest) {
+    disabled = true
+    goldValue = "bar\nfoo\n"
+    source = "codegen/inline/inline24.kt"
+}
+
+task inline25(type: RunKonanTest) {
+    goldValue = "Ok\nOk\n"
+    source = "codegen/inline/inline25.kt"
+}
+
 task deserialized_inline0(type: RunKonanTest) {
     source = "serialization/deserialized_inline0.kt"
-    flags = ["--enable", "deserializer"]
 }
 
 task deserialized_listof0(type: RunKonanTest) {
     source = "serialization/deserialized_listof0.kt"
-    flags = ["--enable", "deserializer"]
 }
 
 // Just check that the driver is able to produce runnable binaries.
@@ -1574,11 +1734,9 @@ task driver_opt(type: RunDriverKonanTest) {
 
 // Enable when deserialization for default arguments is fixed.
 task inline_defaultArgs_linkTest(type: LinkKonanTest) {
-    disabled = true
     goldValue = "122\n47\n"
     source = "codegen/inline/defaultArgs_linkTest_main.kt"
     lib = "codegen/inline/defaultArgs_linkTest_lib.kt"
-    flags = ["--enable", "deserializer", "--print_ir", "--verbose", "deserializer", "--verbose", "lower_inline"]
 }
 
 kotlinNativeInterop {
@@ -1597,21 +1755,18 @@ kotlinNativeInterop {
     cstdio {
         defFile 'interop/basics/cstdio.def'
         flavor 'native'
-        compilerOpts '-D_POSIX_SOURCE' // Exclude Darwin extensions causing link errors.
     }
 
     sockets {
-        defFile 'interop/basics/sockets.def'
+        defFile '../../samples/socket/sockets.def'
         flavor 'native'
     }
 
     if (isMac()) {
         opengl {
-            flavor 'native'
-            compilerOpts '-framework', 'OpenGL', '-framework', 'GLUT'
+            defFile '../../samples/opengl/opengl.def'
             linkerOpts '-framework', 'OpenGL', '-framework', 'GLUT'
-            pkg 'opengl'
-            headers 'GLUT/glut.h'
+            flavor 'native'
         }
     }
 }
@@ -1623,7 +1778,7 @@ task interop0(type: RunInteropKonanTest) {
 }
 
 task interop1(type: RunInteropKonanTest) {
-    goldValue = "257\n"
+    goldValue = "257\n-1\n-2\n"
     source = "interop/basics/1.kt"
     interop = 'cstdlib'
 }

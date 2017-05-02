@@ -33,9 +33,7 @@ buildscript {
 
 // Copied from backend.native project. =====
 repositories {
-    maven {
-        url 'http://oss.sonatype.org/content/repositories/snapshots'
-    }
+    maven { url kotlinCompilerRepo }
 }
 
 configurations.all {

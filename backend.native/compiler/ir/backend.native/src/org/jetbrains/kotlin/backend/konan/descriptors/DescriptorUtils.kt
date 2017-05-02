@@ -22,9 +22,11 @@ import org.jetbrains.kotlin.backend.konan.isRepresentedAs
 import org.jetbrains.kotlin.backend.konan.isValueType
 import org.jetbrains.kotlin.backend.konan.llvm.functionName
 import org.jetbrains.kotlin.backend.konan.llvm.localHash
+import org.jetbrains.kotlin.backend.konan.llvm.isExported
 import org.jetbrains.kotlin.builtins.functions.FunctionClassDescriptor
 import org.jetbrains.kotlin.builtins.getFunctionalClassKind
 import org.jetbrains.kotlin.builtins.isFunctionType
+import org.jetbrains.kotlin.builtins.isSuspendFunctionType
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.name.FqName
@@ -158,6 +160,15 @@ internal val FunctionDescriptor.isFunctionInvoke: Boolean
                 this.isOperator && this.name == OperatorNameConventions.INVOKE
     }
 
+internal val FunctionDescriptor.isSuspendFunctionInvoke: Boolean
+    get() {
+        val dispatchReceiver = dispatchReceiverParameter
+                ?: return false
+
+        return dispatchReceiver.type.isSuspendFunctionType &&
+                this.isOperator && this.name == OperatorNameConventions.INVOKE
+    }
+
 internal fun ClassDescriptor.isUnit() = this.defaultType.isUnit()
 
 internal val <T : CallableMemberDescriptor> T.allOverriddenDescriptors: List<T>
@@ -172,8 +183,16 @@ internal val <T : CallableMemberDescriptor> T.allOverriddenDescriptors: List<T>
         return result
     }
 
+internal val ClassDescriptor.sortedContributedMethods: List<FunctionDescriptor>
+    get () = unsubstitutedMemberScope.sortedContributedMethods
+
 internal val ClassDescriptor.contributedMethods: List<FunctionDescriptor>
     get () = unsubstitutedMemberScope.contributedMethods
+
+internal val MemberScope.sortedContributedMethods: List<FunctionDescriptor>
+    get () = contributedMethods.sortedBy {
+            it.functionName.localHash.value
+    }
 
 internal val MemberScope.contributedMethods: List<FunctionDescriptor>
     get () {
@@ -185,20 +204,15 @@ internal val MemberScope.contributedMethods: List<FunctionDescriptor>
         val getters = properties.mapNotNull { it.getter }
         val setters = properties.mapNotNull { it.setter }
 
-        val allMethods = (functions + getters + setters).sortedBy {
-            it.functionName.localHash.value
-        }
-
-        return allMethods
+        return functions + getters + setters
     }
-
 
 fun ClassDescriptor.isAbstract() = this.modality == Modality.SEALED || this.modality == Modality.ABSTRACT
         || this.kind == ClassKind.ENUM_CLASS
 
 internal fun FunctionDescriptor.hasValueTypeAt(index: Int): Boolean {
     when (index) {
-        0 -> return returnType.let { it != null && it.isValueType() }
+        0 -> return !isSuspend && returnType.let { it != null && it.isValueType() }
         1 -> return extensionReceiverParameter.let { it != null && it.type.isValueType() }
         else -> return this.valueParameters[index - 2].type.isValueType()
     }
@@ -206,7 +220,7 @@ internal fun FunctionDescriptor.hasValueTypeAt(index: Int): Boolean {
 
 internal fun FunctionDescriptor.hasReferenceAt(index: Int): Boolean {
     when (index) {
-        0 -> return returnType.let { it != null && !it.isValueType() }
+        0 -> return isSuspend || returnType.let { it != null && !it.isValueType() }
         1 -> return extensionReceiverParameter.let { it != null && !it.type.isValueType() }
         else -> return !this.valueParameters[index - 2].type.isValueType()
     }
@@ -300,4 +314,7 @@ internal fun DeclarationDescriptor.getMemberScope(): MemberScope {
 // since externals don't have IR bodies.
 internal val FunctionDescriptor.needsInlining: Boolean 
     get() = (this.isInline && !this.isExternal)
+
+internal val FunctionDescriptor.needsSerializedIr: Boolean 
+    get() = (this.needsInlining && this.isExported())
 

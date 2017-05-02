@@ -45,7 +45,7 @@ model {
             }
 
             binaries.withType(SharedLibraryBinarySpec) {
-                linker.args "-L$llvmDir/lib", "-lclang"
+                linker.args "$llvmDir/lib/${System.mapLibraryName("clang")}"
             }
         }
    }
@@ -79,7 +79,7 @@ kotlinNativeInterop {
         defFile 'clang.def'
         compilerOpts "-I$llvmDir/include"
         linkerOpts "-L$llvmDir/lib"
-        genTask.args '-keepcstubs:true'
+        genTask.args '-keepcstubs', 'true'
     }
 }
 

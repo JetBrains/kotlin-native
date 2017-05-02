@@ -27,7 +27,7 @@ internal object EmptyIterator : ListIterator<Nothing> {
     override fun previous(): Nothing = throw NoSuchElementException()
 }
 
-internal object EmptyList : List<Nothing>/*, RandomAccess */ {
+internal object EmptyList : List<Nothing>, RandomAccess {
 
     override fun equals(other: Any?): Boolean = other is List<*> && other.isEmpty()
     override fun hashCode(): Int = 1
@@ -96,6 +96,26 @@ public fun <T : Any> listOfNotNull(element: T?): List<T> =
 
 /** Returns a new read-only list only of those given elements, that are not null. */
 public fun <T : Any> listOfNotNull(vararg elements: T?): List<T> = elements.filterNotNull()
+
+/**
+ * Creates a new read-only list with the specified [size], where each element is calculated by calling the specified
+ * [init] function. The [init] function returns a list element given its index.
+ */
+@SinceKotlin("1.1")
+@kotlin.internal.InlineOnly
+public inline fun <T> List(size: Int, init: (index: Int) -> T): List<T> = MutableList(size, init)
+
+/**
+ * Creates a new mutable list with the specified [size], where each element is calculated by calling the specified
+ * [init] function. The [init] function returns a list element given its index.
+ */
+@SinceKotlin("1.1")
+@kotlin.internal.InlineOnly
+public inline fun <T> MutableList(size: Int, init: (index: Int) -> T): MutableList<T> {
+    val list = ArrayList<T>(size)
+    repeat(size) { index -> list.add(init(index)) }
+    return list
+}
 
 /**
  * Returns an [IntRange] of the valid indices for this collection.
@@ -167,7 +187,7 @@ public interface MutableIterable<out T> : Iterable<T> {
 }
 
 public fun <T> Array<out T>.asList(): List<T> {
-    return object : AbstractList<T>() {
+    return object : AbstractList<T>(), RandomAccess {
         override val size: Int get() = this@asList.size
         override fun isEmpty(): Boolean = this@asList.isEmpty()
         override fun contains(element: T): Boolean = this@asList.contains(element)
@@ -289,25 +309,144 @@ public fun CharArray.asList(): List<Char> {
     }
 }
 
-
-fun <E> Array<E>.toSet(): Set<E> {
-    val result = HashSet<E>(this.size)
-    for (e in this) {
-        result.add(e)
-    }
-    return result
-}
-
-@FixmeVariance
-public fun <T, C : MutableCollection</*in */T>> Iterable<T>.toCollection(destination: C): C {
-    for (item in this) {
-        destination.add(item)
-    }
-    return destination
-}
-
 @Fixme
 internal fun <T> List<T>.optimizeReadOnlyList() = this
+
+/**
+ * Searches this list or its range for the provided [element] using the binary search algorithm.
+ * The list is expected to be sorted into ascending order according to the Comparable natural ordering of its elements,
+ * otherwise the result is undefined.
+ *
+ * If the list contains multiple elements equal to the specified [element], there is no guarantee which one will be found.
+ *
+ * `null` value is considered to be less than any non-null value.
+ *
+ * @return the index of the element, if it is contained in the list within the specified range;
+ * otherwise, the inverted insertion point `(-insertion point - 1)`.
+ * The insertion point is defined as the index at which the element should be inserted,
+ * so that the list (or the specified subrange of list) still remains sorted.
+ */
+public fun <T: Comparable<T>> List<T?>.binarySearch(element: T?, fromIndex: Int = 0, toIndex: Int = size): Int {
+    rangeCheck(size, fromIndex, toIndex)
+
+    var lowBorder = fromIndex
+    var highBorder = toIndex - 1
+
+    while (lowBorder <= highBorder) {
+        val middleIndex = (lowBorder + highBorder).ushr(1) // safe from overflows
+        val middleValue = get(middleIndex)
+        val comparisonResult = compareValues(middleValue, element)
+
+        if (comparisonResult < 0)
+            lowBorder = middleIndex + 1
+        else if (comparisonResult > 0)
+            highBorder = middleIndex - 1
+        else
+            return middleIndex // key found
+    }
+    return -(lowBorder + 1)  // key not found
+}
+
+/**
+ * Searches this list or its range for the provided [element] using the binary search algorithm.
+ * The list is expected to be sorted into ascending order according to the specified [comparator],
+ * otherwise the result is undefined.
+ *
+ * If the list contains multiple elements equal to the specified [element], there is no guarantee which one will be found.
+ *
+ * `null` value is considered to be less than any non-null value.
+ *
+ * @return the index of the element, if it is contained in the list within the specified range;
+ * otherwise, the inverted insertion point `(-insertion point - 1)`.
+ * The insertion point is defined as the index at which the element should be inserted,
+ * so that the list (or the specified subrange of list) still remains sorted according to the specified [comparator].
+ */
+public fun <T> List<T>.binarySearch(element: T, comparator: Comparator<in T>, fromIndex: Int = 0, toIndex: Int = size): Int {
+    rangeCheck(size, fromIndex, toIndex)
+
+    var lowBorder = fromIndex
+    var highBorder = toIndex - 1
+
+    while (lowBorder <= highBorder) {
+        val middleIndex = (lowBorder + highBorder).ushr(1) // safe from overflows
+        val middleValue = get(middleIndex)
+        val comparisonResult = comparator.compare(middleValue, element)
+
+        if (comparisonResult < 0)
+            lowBorder = middleIndex + 1
+        else if (comparisonResult > 0)
+            highBorder = middleIndex - 1
+        else
+            return middleIndex // key found
+    }
+    return -(lowBorder + 1)  // key not found
+}
+
+/**
+ * Searches this list or its range for an element having the key returned by the specified [selector] function
+ * equal to the provided [key] value using the binary search algorithm.
+ * The list is expected to be sorted into ascending order according to the Comparable natural ordering of keys of its elements.
+ * otherwise the result is undefined.
+ *
+ * If the list contains multiple elements with the specified [key], there is no guarantee which one will be found.
+ *
+ * `null` value is considered to be less than any non-null value.
+ *
+ * @return the index of the element with the specified [key], if it is contained in the list within the specified range;
+ * otherwise, the inverted insertion point `(-insertion point - 1)`.
+ * The insertion point is defined as the index at which the element should be inserted,
+ * so that the list (or the specified subrange of list) still remains sorted.
+ */
+public inline fun <T, K : Comparable<K>> List<T>.binarySearchBy(key: K?, fromIndex: Int = 0, toIndex: Int = size, crossinline selector: (T) -> K?): Int =
+        binarySearch(fromIndex, toIndex) { compareValues(selector(it), key) }
+
+/**
+ * Searches this list or its range for an element for which [comparison] function returns zero using the binary search algorithm.
+ * The list is expected to be sorted into ascending order according to the provided [comparison],
+ * otherwise the result is undefined.
+ *
+ * If the list contains multiple elements for which [comparison] returns zero, there is no guarantee which one will be found.
+ *
+ * @param comparison function that compares an element of the list with the element being searched.
+ *
+ * @return the index of the found element, if it is contained in the list within the specified range;
+ * otherwise, the inverted insertion point `(-insertion point - 1)`.
+ * The insertion point is defined as the index at which the element should be inserted,
+ * so that the list (or the specified subrange of list) still remains sorted.
+ */
+public fun <T> List<T>.binarySearch(fromIndex: Int = 0, toIndex: Int = size, comparison: (T) -> Int): Int {
+    rangeCheck(size, fromIndex, toIndex)
+
+    var lowBorder = fromIndex
+    var highBorder = toIndex - 1
+
+    while (lowBorder <= highBorder) {
+        val middleIndex = (lowBorder + highBorder).ushr(1) // safe from overflows
+        val middleValue = get(middleIndex)
+        val comparisonResult = comparison(middleValue)
+
+        if (comparisonResult < 0)
+            lowBorder = middleIndex + 1
+        else if (comparisonResult > 0)
+            highBorder = middleIndex - 1
+        else
+            return middleIndex // key found
+    }
+    return -(lowBorder + 1)  // key not found
+}
+
+/**
+ * Checks that `from` and `to` are in
+ * the range of [0..size] and throws an appropriate exception, if they aren't.
+ */
+private fun rangeCheck(size: Int, fromIndex: Int, toIndex: Int) {
+    when {
+        fromIndex > toIndex -> throw IllegalArgumentException("fromIndex ($fromIndex) is greater than toIndex ($toIndex).")
+        fromIndex < 0 -> throw IndexOutOfBoundsException("fromIndex ($fromIndex) is less than zero.")
+        toIndex > size -> throw IndexOutOfBoundsException("toIndex ($toIndex) is greater than size ($size).")
+    }
+}
+
 
 // From generated _Collections.kt.
 /////////
@@ -657,6 +796,7 @@ public inline fun <T> Iterable<T>.last(predicate: (T) -> Boolean): T {
         }
     }
     if (!found) throw NoSuchElementException("Collection contains no element matching the predicate.")
+    @Suppress("UNCHECKED_CAST")
     return last as T
 }
 
@@ -790,6 +930,7 @@ public inline fun <T> Iterable<T>.single(predicate: (T) -> Boolean): T {
         }
     }
     if (!found) throw NoSuchElementException("Collection contains no element matching the predicate.")
+    @Suppress("UNCHECKED_CAST")
     return single as T
 }
 
@@ -940,8 +1081,6 @@ public inline fun <T, C : MutableCollection<in T>> Iterable<T>.filterIndexedTo(d
 /**
  * Returns a list containing all elements that are instances of specified type parameter R.
  */
-/*
-@FixmeReified
 public inline fun <reified R> Iterable<*>.filterIsInstance(): List<@kotlin.internal.NoInfer R> {
     return filterIsInstanceTo(ArrayList<R>())
 }
@@ -953,7 +1092,7 @@ public inline fun <reified R, C : MutableCollection<in R>> Iterable<*>.filterIsI
     for (element in this) if (element is R) destination.add(element)
     return destination
 }
-*/
+
 
 /**
  * Returns a list containing all elements not matching the given [predicate].
@@ -1278,8 +1417,7 @@ public fun Collection<Short>.toShortArray(): ShortArray {
  * The returned map preserves the entry iteration order of the original collection.
  */
 public inline fun <T, K, V> Iterable<T>.associate(transform: (T) -> Pair<K, V>): Map<K, V> {
-    val capacity = @Suppress("NON_PUBLIC_CALL_FROM_PUBLIC_INLINE")
-        mapCapacity(collectionSizeOrDefault(10)).coerceAtLeast(16)
+    val capacity = mapCapacity(collectionSizeOrDefault(10)).coerceAtLeast(16)
     return associateTo(LinkedHashMap<K, V>(capacity), transform)
 }
 
@@ -1292,8 +1430,7 @@ public inline fun <T, K, V> Iterable<T>.associate(transform: (T) -> Pair<K, V>):
  * The returned map preserves the entry iteration order of the original collection.
  */
 public inline fun <T, K> Iterable<T>.associateBy(keySelector: (T) -> K): Map<K, T> {
-    val capacity = @Suppress("NON_PUBLIC_CALL_FROM_PUBLIC_INLINE")
-            mapCapacity(collectionSizeOrDefault(10)).coerceAtLeast(16)
+    val capacity = mapCapacity(collectionSizeOrDefault(10)).coerceAtLeast(16)
     return associateByTo(LinkedHashMap<K, T>(capacity), keySelector)
 }
 
@@ -1305,8 +1442,7 @@ public inline fun <T, K> Iterable<T>.associateBy(keySelector: (T) -> K): Map<K, 
  * The returned map preserves the entry iteration order of the original collection.
  */
 public inline fun <T, K, V> Iterable<T>.associateBy(keySelector: (T) -> K, valueTransform: (T) -> V): Map<K, V> {
-    val capacity = @Suppress("NON_PUBLIC_CALL_FROM_PUBLIC_INLINE")
-        mapCapacity(collectionSizeOrDefault(10)).coerceAtLeast(16)
+    val capacity = mapCapacity(collectionSizeOrDefault(10)).coerceAtLeast(16)
     return associateByTo(LinkedHashMap<K, V>(capacity), keySelector, valueTransform)
 }
 
@@ -1506,6 +1642,20 @@ public inline fun <T, K, V, M : MutableMap<in K, MutableList<V>>> Iterable<T>.gr
         list.add(valueTransform(element))
     }
     return destination
+}
+
+/**
+ * Creates a [Grouping] source from a collection to be used later with one of group-and-fold operations
+ * using the specified [keySelector] function to extract a key from each element.
+ *
+ * @sample samples.collections.Collections.Transformations.groupingByEachCount
+ */
+@SinceKotlin("1.1")
+public inline fun <T, K> Iterable<T>.groupingBy(crossinline keySelector: (T) -> K): Grouping<T, K> {
+    return object : Grouping<T, K> {
+        override fun sourceIterator(): Iterator<T> = this@groupingBy.iterator()
+        override fun keyOf(element: T): K = keySelector(element)
+    }
 }
 
 /**
@@ -1794,6 +1944,44 @@ public inline fun <T> Iterable<T>.forEachIndexed(action: (Int, T) -> Unit): Unit
 
 /**
  * Returns the largest element or `null` if there are no elements.
+ *
+ * If any of elements is `NaN` returns `NaN`.
+ */
+@SinceKotlin("1.1")
+public fun Iterable<Double>.max(): Double? {
+    val iterator = iterator()
+    if (!iterator.hasNext()) return null
+    var max = iterator.next()
+    if (max.isNaN()) return max
+    while (iterator.hasNext()) {
+        val e = iterator.next()
+        if (e.isNaN()) return e
+        if (max < e) max = e
+    }
+    return max
+}
+
+/**
+ * Returns the largest element or `null` if there are no elements.
+ *
+ * If any of elements is `NaN` returns `NaN`.
+ */
+@SinceKotlin("1.1")
+public fun Iterable<Float>.max(): Float? {
+    val iterator = iterator()
+    if (!iterator.hasNext()) return null
+    var max = iterator.next()
+    if (max.isNaN()) return max
+    while (iterator.hasNext()) {
+        val e = iterator.next()
+        if (e.isNaN()) return e
+        if (max < e) max = e
+    }
+    return max
+}
+
+/**
+ * Returns the largest element or `null` if there are no elements.
  */
 public fun <T : Comparable<T>> Iterable<T>.max(): T? {
     val iterator = iterator()
@@ -1837,6 +2025,44 @@ public fun <T> Iterable<T>.maxWith(comparator: Comparator<in T>): T? {
         if (comparator.compare(max, e) < 0) max = e
     }
     return max
+}
+
+/**
+ * Returns the smallest element or `null` if there are no elements.
+ *
+ * If any of elements is `NaN` returns `NaN`.
+ */
+@SinceKotlin("1.1")
+public fun Iterable<Double>.min(): Double? {
+    val iterator = iterator()
+    if (!iterator.hasNext()) return null
+    var min = iterator.next()
+    if (min.isNaN()) return min
+    while (iterator.hasNext()) {
+        val e = iterator.next()
+        if (e.isNaN()) return e
+        if (min > e) min = e
+    }
+    return min
+}
+
+/**
+ * Returns the smallest element or `null` if there are no elements.
+ *
+ * If any of elements is `NaN` returns `NaN`.
+ */
+@SinceKotlin("1.1")
+public fun Iterable<Float>.min(): Float? {
+    val iterator = iterator()
+    if (!iterator.hasNext()) return null
+    var min = iterator.next()
+    if (min.isNaN()) return min
+    while (iterator.hasNext()) {
+        val e = iterator.next()
+        if (e.isNaN()) return e
+        if (min > e) min = e
+    }
+    return min
 }
 
 /**
@@ -2298,7 +2524,7 @@ public fun Iterable<Byte>.average(): Double {
         sum += element
         count += 1
     }
-    return if (count == 0) 0.0 else sum / count
+    return if (count == 0) Double.NaN else sum / count
 }
 
 /**
@@ -2311,7 +2537,7 @@ public fun Iterable<Short>.average(): Double {
         sum += element
         count += 1
     }
-    return if (count == 0) 0.0 else sum / count
+    return if (count == 0) Double.NaN else sum / count
 }
 
 /**
@@ -2324,7 +2550,7 @@ public fun Iterable<Int>.average(): Double {
         sum += element
         count += 1
     }
-    return if (count == 0) 0.0 else sum / count
+    return if (count == 0) Double.NaN else sum / count
 }
 
 /**
@@ -2337,7 +2563,7 @@ public fun Iterable<Long>.average(): Double {
         sum += element
         count += 1
     }
-    return if (count == 0) 0.0 else sum / count
+    return if (count == 0) Double.NaN else sum / count
 }
 
 /**
@@ -2350,7 +2576,7 @@ public fun Iterable<Float>.average(): Double {
         sum += element
         count += 1
     }
-    return if (count == 0) 0.0 else sum / count
+    return if (count == 0) Double.NaN else sum / count
 }
 
 /**
@@ -2363,7 +2589,7 @@ public fun Iterable<Double>.average(): Double {
         sum += element
         count += 1
     }
-    return if (count == 0) 0.0 else sum / count
+    return if (count == 0) Double.NaN else sum / count
 }
 
 /**

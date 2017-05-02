@@ -16,9 +16,9 @@
 
 package org.jetbrains.kotlin.backend.konan.descriptors
 
-import org.jetbrains.kotlin.descriptors.ClassDescriptor
-import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
-import org.jetbrains.kotlin.descriptors.PropertyDescriptor
+import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.serialization.deserialization.descriptors.*
+import org.jetbrains.kotlin.serialization.KonanLinkData
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.name.FqName
@@ -46,11 +46,11 @@ fun ClassDescriptor?.signature2Descriptor(methodName: Name, signature:Array<Kotl
     }
 }
 
-val PropertyDescriptor.backingField: PropertyDescriptor? 
-    get() {
-        val backingFieldAnnotation = FqName("konan.internal.HasBackingField")
-        return if (this.annotations.findAnnotation(backingFieldAnnotation) != null) this else null
-    }
+val DeserializedPropertyDescriptor.backingField: PropertyDescriptor?
+    get() = 
+        if (this.proto.getExtension(KonanLinkData.hasBackingField)) 
+            this 
+        else null
 
 fun DeclarationDescriptor.deepPrint() {
     this.accept(DeepPrintVisitor(PrintVisitor()), 0)
@@ -59,3 +59,28 @@ fun DeclarationDescriptor.deepPrint() {
 internal val String.synthesizedName get() = Name.identifier(this.synthesizedString)
 
 internal val String.synthesizedString get() = "\$$this"
+
+
+internal val DeclarationDescriptor.propertyIfAccessor
+    get() = if (this is PropertyAccessorDescriptor)
+                this.correspondingProperty
+                else this
+
+internal val CallableMemberDescriptor.propertyIfAccessor
+    get() = if (this is PropertyAccessorDescriptor)
+                this.correspondingProperty
+                else this
+
+internal val FunctionDescriptor.deserializedPropertyIfAccessor: DeserializedCallableMemberDescriptor
+    get() {
+        val member = this.propertyIfAccessor
+        if (member is DeserializedCallableMemberDescriptor) 
+            return member
+        else 
+            error("Unexpected deserializable callable descriptor")
+    }
+
+internal val CallableMemberDescriptor.isDeserializableCallable
+    get () = (this.propertyIfAccessor is DeserializedCallableMemberDescriptor)
+
+
