@@ -1,6 +1,2 @@
 headers = tensorflow/c/c_api.h
-headers.osx =
-headers.linux =
 compilerOpts = -I/usr/local/include -L/usr/local/lib
-compilerOpts.osx =
-compilerOpts.linux =

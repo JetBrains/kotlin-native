@@ -9,11 +9,13 @@ val Status.isOk: Boolean get() = TF_GetCode(this) == TF_OK
 val Status.errorMessage: String get() = TF_Message(this)!!.toKString()
 fun Status.delete() = TF_DeleteStatus(this)
 fun Status.validate() {
-    if (!isOk) {
-        throw Error("Status is not ok: $errorMessage")
+    try {
+        if (!isOk) {
+            throw Error("Status is not ok: $errorMessage")
+        }
+    } finally {
+        delete()
     }
-
-    delete()
 }
 
 inline fun <T> statusValidated(block: (Status) -> T): T {
@@ -27,14 +29,11 @@ fun scalarTensor(value: Int): Tensor {
     val data = nativeHeap.allocArray<IntVar>(1)
     data[0] = value
 
-    fun intTensorDeallocator(data: COpaquePointer?, len: size_t, arg: COpaquePointer?) {
-        nativeHeap.free(data!!.reinterpret<IntVar>())
-    }
-
     return TF_NewTensor(TF_INT32,
             dims = null, num_dims = 0,
             data = data, len = IntVar.size,
-            deallocator = staticCFunction(::intTensorDeallocator), deallocator_arg = null)!!
+            deallocator = staticCFunction { dataToFree, _, _ -> nativeHeap.free(dataToFree!!.reinterpret<IntVar>()) },
+            deallocator_arg = null)!!
 }
 
 val Tensor.scalarIntValue: Int get() {
