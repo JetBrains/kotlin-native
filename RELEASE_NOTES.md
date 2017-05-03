@@ -69,7 +69,7 @@ for benchmarking and competitive analysis of any kind.
 ### Standard Library ###
 
   The standard library in _Kotlin/Native_ is known to be incomplete and may not include
-few methods available in standard library of Kotlin (notably, regular-expression related).
+few methods available in standard library of Kotlin (notably, regular expression-related).
 
 ### Reflection ###
 
