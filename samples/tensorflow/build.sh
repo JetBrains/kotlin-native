@@ -22,6 +22,7 @@ COMPILER_ARGS=${!var} # add -opt for an optimized build.
 
 if [ ! -d $TF_TARGET_DIRECTORY/include/tensorflow ]; then
  echo "Installing TensorFlow into $TF_TARGET_DIRECTORY ..."
+ sudo mkdir -p $TF_TARGET_DIRECTORY
  curl -s -L \
    "https://storage.googleapis.com/tensorflow/libtensorflow/libtensorflow-${TF_TYPE}-${TF_TARGET}-x86_64-1.1.0.tar.gz" |
    sudo tar -C $TF_TARGET_DIRECTORY -xz
