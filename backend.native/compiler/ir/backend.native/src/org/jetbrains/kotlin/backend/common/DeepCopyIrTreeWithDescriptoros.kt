@@ -18,7 +18,8 @@ package org.jetbrains.kotlin.backend.common
 
 import org.jetbrains.kotlin.backend.common.lower.SimpleMemberScope
 import org.jetbrains.kotlin.backend.konan.Context
-import org.jetbrains.kotlin.backend.konan.ir.IrInlineFunctionBody
+import org.jetbrains.kotlin.backend.konan.ir.IrReturnableBlock
+import org.jetbrains.kotlin.backend.konan.ir.IrReturnableBlockImpl
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.impl.*
 import org.jetbrains.kotlin.ir.IrElement
@@ -147,6 +148,22 @@ internal class DeepCopyIrTreeWithDescriptors(val targetDescriptor: DeclarationDe
             descriptorSubstituteMap[oldDescriptor] = newDescriptor
 
             super.visitVariable(declaration)
+        }
+
+        //---------------------------------------------------------------------//
+
+        override fun visitCatch(aCatch: IrCatch) {
+            val oldDescriptor = aCatch.parameter
+            val oldContainingDeclaration = oldDescriptor.containingDeclaration
+            val newContainingDeclaration = descriptorSubstituteMap.getOrDefault(oldContainingDeclaration, oldContainingDeclaration)
+            val newDescriptor = IrTemporaryVariableDescriptorImpl(
+                    containingDeclaration = newContainingDeclaration,
+                    name                  = generateCopyName(oldDescriptor.name),
+                    outType               = substituteType(oldDescriptor.type)!!,
+                    isMutable             = oldDescriptor.isVar)
+            descriptorSubstituteMap[oldDescriptor] = newDescriptor
+
+            super.visitCatch(aCatch)
         }
 
         //--- Copy descriptors ------------------------------------------------//
@@ -484,8 +501,8 @@ internal class DeepCopyIrTreeWithDescriptors(val targetDescriptor: DeclarationDe
         //---------------------------------------------------------------------//
 
         override fun visitBlock(expression: IrBlock): IrBlock {
-            return if (expression is IrInlineFunctionBody) {
-                IrInlineFunctionBody(
+            return if (expression is IrReturnableBlock) {
+                IrReturnableBlockImpl(
                     startOffset = expression.startOffset,
                     endOffset   = expression.endOffset,
                     type        = expression.type,
@@ -496,6 +513,10 @@ internal class DeepCopyIrTreeWithDescriptors(val targetDescriptor: DeclarationDe
             } else {
                 super.visitBlock(expression)
             }
+        }
+
+        override fun getNonTransformedLoop(irLoop: IrLoop): IrLoop {
+            return irLoop
         }
     }
 

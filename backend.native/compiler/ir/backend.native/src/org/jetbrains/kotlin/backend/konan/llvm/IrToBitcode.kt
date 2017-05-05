@@ -42,7 +42,6 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameUnsafe
-import org.jetbrains.kotlin.resolve.descriptorUtil.getSuperClassOrAny
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.typeUtil.isNothing
@@ -197,9 +196,17 @@ internal interface CodeContext {
     /**
      * Returns owning file scope.
      *
-     * @return the requested value
+     * @return the requested value if in the file scope or null.
      */
     fun fileScope(): CodeContext?
+
+    /**
+     * Returns owning class scope [ClassScope].
+     *
+     * @returns the requested value if in the class scope or null.
+     */
+    fun classScope(): CodeContext?
+
     fun addResumePoint(bbLabel: LLVMBasicBlockRef)
 }
 
@@ -243,7 +250,9 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         override fun functionScope(): CodeContext? = null
 
         override fun fileScope(): CodeContext? = null
-        
+
+        override fun classScope(): CodeContext? = null
+
         override fun addResumePoint(bbLabel: LLVMBasicBlockRef) = unsupported(bbLabel)
     }
 
@@ -431,16 +440,16 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     private inner class VariableScope : InnerScopeImpl() {
 
         override fun genDeclareVariable(descriptor: VariableDescriptor, value: LLVMValueRef?): Int {
-            return codegen.vars.createVariable(descriptor to this, value)
+            return codegen.vars.createVariable(descriptor, value)
         }
 
         override fun getDeclaredVariable(descriptor: VariableDescriptor): Int {
-            val index = codegen.vars.indexOf(descriptor to this)
+            val index = codegen.vars.indexOf(descriptor)
             return if (index < 0) super.getDeclaredVariable(descriptor) else return index
         }
 
         override fun genGetValue(descriptor: ValueDescriptor): LLVMValueRef {
-            val index = codegen.vars.indexOf(descriptor to this)
+            val index = codegen.vars.indexOf(descriptor)
             if (index < 0) {
                 return super.genGetValue(descriptor)
             } else {
@@ -460,13 +469,13 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
         init {
             parameters.map { (descriptor, value) ->
-                codegen.vars.createImmutable(descriptor to this, value)
+                codegen.vars.createImmutable(descriptor, value)
             }
 
         }
 
         override fun genGetValue(descriptor: ValueDescriptor): LLVMValueRef {
-            val index = codegen.vars.indexOf(descriptor to this)
+            val index = codegen.vars.indexOf(descriptor)
             if (index < 0) {
                 return super.genGetValue(descriptor)
             } else {
@@ -575,8 +584,11 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             // do not generate any code for annotation classes as a workaround for NotImplementedError
             return
         }
-
-        declaration.acceptChildrenVoid(this)
+        using(ClassScope(declaration)) {
+            debugClassDeclaration(declaration) {
+                declaration.acceptChildrenVoid(this)
+            }
+        }
     }
 
     //-------------------------------------------------------------------------//
@@ -595,6 +607,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
     override fun visitField(expression: IrField) {
         context.log{"visitField                     : ${ir2string(expression)}"}
+        debugFieldDeclaration(expression)
         val descriptor = expression.descriptor
         if (descriptor.containingDeclaration is PackageFragmentDescriptor) {
             val type = codegen.getLLVMType(descriptor.type)
@@ -632,7 +645,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             is IrWhen                -> return evaluateWhen                   (value)
             is IrThrow               -> return evaluateThrow                  (value)
             is IrTry                 -> return evaluateTry                    (value)
-            is IrInlineFunctionBody  -> return evaluateInlineFunction         (value)
+            is IrReturnableBlockImpl -> return evaluateReturnableBlock        (value)
             is IrContainerExpression -> return evaluateContainerExpression    (value)
             is IrWhileLoop           -> return evaluateWhileLoop              (value)
             is IrDoWhileLoop         -> return evaluateDoWhileLoop            (value)
@@ -885,169 +898,55 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
                                    private val success: ContinuationBlock) : CatchingScope() {
 
         override fun genHandler(exception: LLVMValueRef) {
-            // TODO: optimize for `Throwable` clause.
-            catches.forEach {
-                val isInstance = genInstanceOf(exception, it.parameter.type)
-                val nextCheck = codegen.basicBlock("catchCheck")
-                val body = codegen.basicBlock("catch")
-                codegen.condBr(isInstance, body, nextCheck)
 
-                codegen.appendingTo(body) {
+            for (catch in catches) {
+                fun genCatchBlock() {
                     using(VariableScope()) {
-                        currentCodeContext.genDeclareVariable(it.parameter, exception)
-                        evaluateExpressionAndJump(it.result, success)
+                        currentCodeContext.genDeclareVariable(catch.parameter, exception)
+                        evaluateExpressionAndJump(catch.result, success)
                     }
                 }
 
-                codegen.positionAtEnd(nextCheck)
+                if (catch.parameter.type == context.builtIns.throwable.defaultType) {
+                    genCatchBlock()
+                    return      // Remaining catch clauses are unreachable.
+                } else {
+                    val isInstance = genInstanceOf(exception, catch.parameter.type)
+                    val body = codegen.basicBlock("catch")
+                    val nextCheck = codegen.basicBlock("catchCheck")
+                    codegen.condBr(isInstance, body, nextCheck)
+
+                    codegen.appendingTo(body) {
+                        genCatchBlock()
+                    }
+
+                    codegen.positionAtEnd(nextCheck)
+
+                }
             }
             // rethrow the exception if no clause can handle it.
             outerContext.genThrow(exception)
         }
     }
 
-    /**
-     * The [InnerScope] that includes code generated by [genFinalizeImpl] when leaving it
-     * with `return`, `break`, `continue` or throwing exception.
-     */
-    private abstract inner class FinalizingScope() : CatchingScope() {
-
-        /**
-         * Cache for [genReturn].
-         *
-         * `returnBlocks[func]` contains the [ContinuationBlock] to be used for `return` from `func`;
-         * the block expects return value as its value.
-         */
-        private val returnBlocks = mutableMapOf<CallableDescriptor, ContinuationBlock>()
-
-        // Jump to finalize-and-return instead of simply returning.
-        override fun genReturn(target: CallableDescriptor, value: LLVMValueRef?) {
-            val block = returnBlocks.getOrPut(target) {
-                continuationBlock(target.returnType!!) {
-                    genFinalize()
-                    val returnValue = it.valuePhi // `null` if return type is `Unit`.
-                    outerContext.genReturn(target, returnValue)
-                }
-            }
-
-            jump(block, value)
-        }
-
-        /**
-         * Cache for [genBreak].
-         */
-        private val breakBlocks = mutableMapOf<IrLoop, LLVMBasicBlockRef>()
-
-        // Jump to finalize-and-break instead of simply breaking.
-        override fun genBreak(destination: IrBreak) {
-            val block = breakBlocks.getOrPut(destination.loop) {
-                codegen.basicBlock("finalizeAndBreak") {
-                    genFinalize()
-                    outerContext.genBreak(destination)
-                }
-            }
-
-            codegen.br(block)
-        }
-
-        /**
-         * Cache for [genContinue].
-         *
-         * Note: can't merge with [breakBlocks] because the code for `break` and `continue` is different.
-         */
-        private val continueBlocks = mutableMapOf<IrLoop, LLVMBasicBlockRef>()
-
-        // Jump to finalize-and-continue instead of simply continuing.
-        override fun genContinue(destination: IrContinue) {
-            val block = continueBlocks.getOrPut(destination.loop) {
-                codegen.basicBlock("finalizeAndContinue") {
-                    genFinalize()
-                    outerContext.genContinue(destination)
-                }
-            }
-
-            codegen.br(block)
-        }
-
-        // When an exception is caught, finalize the scope and rethrow the exception.
-        override fun genHandler(exception: LLVMValueRef) {
-            genFinalizeImpl()
-            outerContext.genThrow(exception)
-        }
-
-        private fun genFinalize() {
-            using(outerContext) {
-                this.genFinalizeImpl()
-            }
-        }
-
-        protected abstract fun genFinalizeImpl()
-    }
-
-    /**
-     * Generates the code which gets "finalized" exactly once when completed either normally or abnormally.
-     *
-     * @param code generates the code to be post-dominated by cleanup.
-     * It must jump to given [ContinuationBlock] with its result when completed normally.
-     *
-     * @param finalize generates the cleanup code that must be executed when code generated by [code] is completed.
-     *
-     * @param type Kotlin type of the result of generated code.
-     *
-     * @return the result of the generated code.
-     */
-    private fun genFinalizedBy(finalize: (() -> Unit)?,
-                                   type: KotlinType, code: (ContinuationBlock) -> Unit): LLVMValueRef {
-
-        val scope = if (finalize == null) null else {
-            object : FinalizingScope() {
-                override fun genFinalizeImpl() {
-                    finalize()
-                }
-            }
-        }
-
-        val continuation = continuationBlock(type)
-
-        using(scope) {
-            code(continuation)
-        }
-        codegen.positionAtEnd(continuation.block)
-        finalize?.invoke()
-
-        // TODO: finalize is duplicated many times (just as in C++, Java or Kotlin JVM);
-        // it is very important to optimize this.
-
-        return continuation.value
-    }
-
-    /**
-     * Generates code that is "finalized" by given expression.
-     */
-    private fun genFinalizedBy(finalize: IrExpression?, type: KotlinType,
-                                   code: (ContinuationBlock) -> Unit): LLVMValueRef {
-
-        val finalizeFun: (() -> Unit)? = if (finalize == null) {
-            null
-        } else {
-            { evaluateExpression(finalize) }
-        }
-
-        return genFinalizedBy(finalizeFun, type, code)
-    }
-
     private fun evaluateTry(expression: IrTry): LLVMValueRef {
         // TODO: does basic block order influence machine code order?
         // If so, consider reordering blocks to reduce exception tables size.
 
-        return genFinalizedBy(expression.finallyExpression, expression.type) { continuation ->
+        assert (expression.finallyExpression == null, { "All finally blocks should've been lowered" })
 
-            val catchScope = if (expression.catches.isEmpty()) null else CatchScope(expression.catches, continuation)
+        val continuation = continuationBlock(expression.type)
 
-            using(catchScope) {
-                evaluateExpressionAndJump(expression.tryResult, continuation)
-            }
+        val catchScope = if (expression.catches.isEmpty())
+                             null
+                         else
+                             CatchScope(expression.catches, continuation)
+        using(catchScope) {
+            evaluateExpressionAndJump(expression.tryResult, continuation)
         }
+        codegen.positionAtEnd(continuation.block)
+
+        return continuation.value
     }
 
     //-------------------------------------------------------------------------//
@@ -1185,7 +1084,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             val line = value.line()
             codegen.vars.debugInfoLocalVariableLocation(
                     functionScope = functionScope,
-                    diType        = variableDescriptor.diType,
+                    diType        = variableDescriptor.type.diType(context, codegen.llvmTargetData),
                     name          = variableDescriptor.name,
                     variable      = variable,
                     file          = file,
@@ -1467,13 +1366,13 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
     //-------------------------------------------------------------------------//
 
-    private inner class InlinedFunctionScope(val inlineBody: IrInlineFunctionBody) : InnerScopeImpl() {
+    private inner class ReturnableBlockScope(val returnableBlock: IrReturnableBlockImpl) : InnerScopeImpl() {
 
         var bbExit : LLVMBasicBlockRef? = null
         var resultPhi : LLVMValueRef? = null
 
         private fun getExit(): LLVMBasicBlockRef {
-            if (bbExit == null) bbExit = codegen.basicBlock("inline_body_exit")
+            if (bbExit == null) bbExit = codegen.basicBlock("returnable_block_exit")
             return bbExit!!
         }
 
@@ -1481,14 +1380,14 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             if (resultPhi == null) {
                 val bbCurrent = codegen.currentBlock
                 codegen.positionAtEnd(getExit())
-                resultPhi = codegen.phi(codegen.getLLVMType(inlineBody.type))
+                resultPhi = codegen.phi(codegen.getLLVMType(returnableBlock.type))
                 codegen.positionAtEnd(bbCurrent)
             }
             return resultPhi!!
         }
 
         override fun genReturn(target: CallableDescriptor, value: LLVMValueRef?) {
-            if (target != inlineBody.descriptor) {                              // It is not our "local return".
+            if (target != returnableBlock.descriptor) {                         // It is not our "local return".
                 super.genReturn(target, value)
                 return
             }
@@ -1509,11 +1408,31 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
     //-------------------------------------------------------------------------//
 
-    private fun evaluateInlineFunction(value: IrInlineFunctionBody): LLVMValueRef {
-        context.log{"evaluateInlineFunction         : ${value.statements.forEach { ir2string(it) }}"}
+    private inner class ClassScope(val clazz:IrClass) : InnerScopeImpl() {
+        val isExported
+            get() = clazz.descriptor.isExported()
+        var offsetInBits = 0L
+        val members = mutableListOf<DIDerivedTypeRef>()
+        @Suppress("UNCHECKED_CAST")
+        val scope = if (isExported && context.shouldContainDebugInfo())
+            DICreateReplaceableCompositeType(
+                    tag        = DwarfTag.DW_TAG_structure_type.value,
+                    refBuilder = context.debugInfo.builder,
+                    refScope   = context.debugInfo.compilationModule as DIScopeOpaqueRef,
+                    name       = clazz.descriptor.typeInfoSymbolName,
+                    refFile    = file().file(),
+                    line       = clazz.line()) as DITypeOpaqueRef
+        else null
+        override fun classScope(): CodeContext? = this
+    }
 
-        val inlinedFunctionScope = InlinedFunctionScope(value)
-        using(inlinedFunctionScope) {
+    //-------------------------------------------------------------------------//
+
+    private fun evaluateReturnableBlock(value: IrReturnableBlockImpl): LLVMValueRef {
+        context.log{"evaluateReturnableBlock         : ${value.statements.forEach { ir2string(it) }}"}
+
+        val returnableBlockScope = ReturnableBlockScope(value)
+        using(returnableBlockScope) {
             using(VariableScope()) {
                 value.statements.forEach {
                     generateStatement(it)
@@ -1521,10 +1440,10 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             }
         }
 
-        val bbExit = inlinedFunctionScope.bbExit
+        val bbExit = returnableBlockScope.bbExit
         if (bbExit != null) {
             if (!codegen.isAfterTerminator()) {                 // TODO should we solve this problem once and for all
-                if (inlinedFunctionScope.resultPhi != null) {
+                if (returnableBlockScope.resultPhi != null) {
                     codegen.unreachable()
                 } else {
                     codegen.br(bbExit)
@@ -1533,7 +1452,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             codegen.positionAtEnd(bbExit)
         }
 
-        return inlinedFunctionScope.resultPhi ?: codegen.theUnitInstanceRef.llvm
+        return returnableBlockScope.resultPhi ?: codegen.theUnitInstanceRef.llvm
     }
 
     //-------------------------------------------------------------------------//
@@ -1667,6 +1586,55 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     }
 
     //-------------------------------------------------------------------------//
+    @Suppress("UNCHECKED_CAST")
+    private fun debugClassDeclaration(declaration: IrClass, body: () -> Unit): Unit {
+        val doDebugInfo = context.shouldContainDebugInfo() && declaration.descriptor.isExported()
+        val classScope = currentCodeContext.classScope() as ClassScope
+        if (doDebugInfo) context.debugInfo.types[declaration.descriptor.defaultType] = classScope.scope!!
+        body()
+        memScoped {
+            if (doDebugInfo) context.debugInfo.types[declaration.descriptor.defaultType] = DICreateStructType(
+                    refBuilder = context.debugInfo.builder,
+                    scope = context.debugInfo.compilationModule as DIScopeOpaqueRef,
+                    name = declaration.descriptor.typeInfoSymbolName,
+                    file = file().file(),
+                    lineNumber = declaration.line(),
+                    sizeInBits = 64 /* TODO */,
+                    alignInBits = 4 /* TODO */,
+                    derivedFrom = null,
+                    elements = classScope.members.toCValues(),
+                    elementsCount = classScope.members.size.toLong(),
+                    refPlace = context.debugInfo.types[declaration.descriptor.defaultType] as DICompositeTypeRef,
+                    flags = 0
+            ) as DITypeOpaqueRef
+        }
+    }
+
+    //-------------------------------------------------------------------------//
+    private fun debugFieldDeclaration(expression: IrField) {
+        val scope = currentCodeContext.classScope() as? ClassScope ?: return
+        if (!scope.isExported || !context.shouldContainDebugInfo()) return
+        val irFile = (currentCodeContext.fileScope() as FileScope).file
+        val sizeInBits = expression.descriptor.type.size(context)
+        scope.offsetInBits += sizeInBits
+        val alignInBits = expression.descriptor.type.alignment(context)
+        scope.offsetInBits = alignTo(scope.offsetInBits, alignInBits)
+        scope.members.add(DICreateMemberType(
+                refBuilder   = context.debugInfo.builder,
+                refScope     = scope.scope as DIScopeOpaqueRef,
+                name         = expression.descriptor.symbolName,
+                file         = irFile.file(),
+                lineNum      = expression.line(),
+                sizeInBits   = sizeInBits,
+                alignInBits  = alignInBits,
+                offsetInBits = scope.offsetInBits,
+                flags        = 0,
+                type         = expression.descriptor.type.diType(context, codegen.llvmTargetData)
+        )!!)
+    }
+
+
+    //-------------------------------------------------------------------------//
     private fun IrFile.file(): DIFileRef {
         return context.debugInfo.files.getOrPut(this) {
             val path = this.fileEntry.name.toFileAndFolder()
@@ -1675,11 +1643,12 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     }
 
     //-------------------------------------------------------------------------//
+    @Suppress("UNCHECKED_CAST")
     private fun IrFunction.scope():DIScopeOpaqueRef? {
         if (!context.shouldContainDebugInfo()) return null
         return context.debugInfo.subprograms.getOrPut(descriptor) {
             memScoped {
-                val subroutineType = descriptor.subroutineType
+                val subroutineType = descriptor.subroutineType(context, codegen.llvmTargetData)
                 val functionLlvmValue = codegen.functionLlvmValue(descriptor)
                 val linkageName = LLVMGetValueName(functionLlvmValue)!!.toKString()
                 val diFunction = DICreateFunction(
@@ -1699,37 +1668,6 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             }
         } as DIScopeOpaqueRef
     }
-
-    //-------------------------------------------------------------------------//
-    private val  FunctionDescriptor.subroutineType: DISubroutineTypeRef
-        get() = memScoped {
-            DICreateSubroutineType(context.debugInfo.builder, allocArrayOf(
-	    this@subroutineType.valueParameters.map{it.diType}),
-	    this@subroutineType.valueParameters.size)!!
-        }
-
-    //-------------------------------------------------------------------------//
-    private val  VariableDescriptor.diType: DITypeOpaqueRef
-    get() = context.debugInfo.types.getOrPut(this.type) {
-        when {
-            KotlinBuiltIns.isInt(this.type)              -> debugInfoBaseType("Int",     LLVMInt32Type()!!)
-            KotlinBuiltIns.isBoolean(this.type)          -> debugInfoBaseType("Boolean", LLVMInt1Type()!!)
-            KotlinBuiltIns.isChar(this.type)             -> debugInfoBaseType("Char",    LLVMInt8Type()!!)
-            KotlinBuiltIns.isShort(this.type)            -> debugInfoBaseType("Short",   LLVMInt16Type()!!)
-            KotlinBuiltIns.isByte(this.type)             -> debugInfoBaseType("Byte",    LLVMInt8Type()!!)
-            KotlinBuiltIns.isLong(this.type)             -> debugInfoBaseType("Long",    LLVMInt64Type()!!)
-            KotlinBuiltIns.isFloat(this.type)            -> debugInfoBaseType("Float",   LLVMFloatType()!!)
-            KotlinBuiltIns.isDouble(this.type)           -> debugInfoBaseType("Double",  LLVMDoubleType()!!)
-            (!KotlinBuiltIns.isPrimitiveType(this.type)) -> debugInfoBaseType("Any?",    codegen.kObjHeaderPtr)
-            else                                         -> TODO(this.type.toString())
-        }
-    }
-
-    private fun debugInfoBaseType(typeName:String, type:LLVMTypeRef) = DICreateBasicType(
-            context.debugInfo.builder, typeName,
-            LLVMSizeOfTypeInBits(codegen.llvmTargetData, type),
-            LLVMPreferredAlignmentOfType(codegen.llvmTargetData, type).toLong(), 0) as DITypeOpaqueRef
-
 
     //-------------------------------------------------------------------------//
 
