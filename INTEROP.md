@@ -142,8 +142,9 @@ static inline int getErrno() {
 }
 ```
 
-Note that this part of the `.def` file is treated as the header file, so
+Note that this part of the `.def` file is treated as part of the header file, so
 functions with body should be declared as `static`.
+The declarations are parsed after including the files from `headers` list.
 
 ## Using bindings ##
 
