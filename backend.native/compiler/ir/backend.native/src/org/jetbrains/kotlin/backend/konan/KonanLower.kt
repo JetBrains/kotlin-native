@@ -22,6 +22,8 @@ import org.jetbrains.kotlin.backend.common.validateIrFile
 import org.jetbrains.kotlin.backend.konan.lower.*
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
+import org.jetbrains.kotlin.ir.util.checkSymbolsBound
+import org.jetbrains.kotlin.ir.util.replaceUnboundSymbols
 
 internal class KonanLower(val context: Context) {
 
@@ -41,6 +43,8 @@ internal class KonanLower(val context: Context) {
         // Inlining must be run before other phases.
         phaser.phase(KonanPhase.LOWER_INLINE) {
             FunctionInlining(context).inline(irModule)
+            irModule.replaceUnboundSymbols(context)
+            irModule.checkSymbolsBound()
         }
     }
 
@@ -49,24 +53,31 @@ internal class KonanLower(val context: Context) {
 
         phaser.phase(KonanPhase.LOWER_STRING_CONCAT) {
             StringConcatenationLowering(context).lower(irFile)
+            irFile.checkSymbolsBound()
         }
         phaser.phase(KonanPhase.LOWER_ENUMS) {
             EnumClassLowering(context).run(irFile)
+            irFile.checkSymbolsBound()
         }
         phaser.phase(KonanPhase.LOWER_INITIALIZERS) {
             InitializersLowering(context).runOnFilePostfix(irFile)
+            irFile.checkSymbolsBound()
         }
         phaser.phase(KonanPhase.LOWER_SHARED_VARIABLES) {
             SharedVariablesLowering(context).runOnFilePostfix(irFile)
+            irFile.checkSymbolsBound()
         }
         phaser.phase(KonanPhase.LOWER_DELEGATION) {
             PropertyDelegationLowering(context).lower(irFile)
+            irFile.checkSymbolsBound()
         }
         phaser.phase(KonanPhase.LOWER_LOCAL_FUNCTIONS) {
             LocalDeclarationsLowering(context).runOnFilePostfix(irFile)
+            irFile.checkSymbolsBound()
         }
         phaser.phase(KonanPhase.LOWER_TAILREC) {
             TailrecLowering(context).runOnFilePostfix(irFile)
+            irFile.checkSymbolsBound()
         }
         phaser.phase(KonanPhase.LOWER_FINALLY) {
             FinallyBlocksLowering(context).runOnFilePostfix(irFile)
