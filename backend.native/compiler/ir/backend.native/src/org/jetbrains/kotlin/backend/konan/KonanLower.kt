@@ -20,10 +20,12 @@ import org.jetbrains.kotlin.backend.common.runOnFilePostfix
 import org.jetbrains.kotlin.backend.common.lower.*
 import org.jetbrains.kotlin.backend.common.validateIrFile
 import org.jetbrains.kotlin.backend.konan.lower.*
+import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
-import org.jetbrains.kotlin.ir.util.checkSymbolsBound
+import org.jetbrains.kotlin.ir.util.IrSymbolBindingChecker
 import org.jetbrains.kotlin.ir.util.replaceUnboundSymbols
+import org.jetbrains.kotlin.ir.visitors.acceptVoid
 
 internal class KonanLower(val context: Context) {
 
@@ -117,6 +119,12 @@ internal class KonanLower(val context: Context) {
         phaser.phase(KonanPhase.AUTOBOX) {
             validateIrFile(context, irFile)
             Autoboxing(context).lower(irFile)
+        }
+    }
+
+    private fun IrElement.checkSymbolsBound() {
+        if (context.shouldVerifyIr()) {
+            this.acceptVoid(IrSymbolBindingChecker())
         }
     }
 }

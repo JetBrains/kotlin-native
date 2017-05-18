@@ -202,10 +202,6 @@ val IrValueParameter.type: KotlinType
 val IrClass.defaultType: KotlinType
     get() = this.descriptor.defaultType
 
-fun IrElement.checkSymbolsBound() {
-    this.acceptVoid(IrSymbolBindingChecker())
-}
-
 class IrSymbolBindingChecker : IrElementVisitorVoid {
     override fun visitElement(element: IrElement) {
         element.acceptChildrenVoid(this)
