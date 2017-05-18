@@ -172,7 +172,7 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
 
                             original.descriptor.valueParameters.filter { it.declaresDefaultValue() }.forEach { argument ->
                                 val body = original.getDefault(argument)!!
-                                this.putDefault(oldParameterToNew[argument] as ValueParameterDescriptor, body)
+                                oldParameterToNew[argument]!!.owner.defaultValue = body
                             }
                         }
                     }
@@ -212,7 +212,7 @@ class LocalDeclarationsLowering(val context: BackendContext) : DeclarationContai
 
                         declaration.descriptor.valueParameters.filter { it.declaresDefaultValue() }.forEach { argument ->
                             val body = declaration.getDefault(argument)!!
-                            this.putDefault(oldParameterToNew[argument] as ValueParameterDescriptor, body)
+                            oldParameterToNew[argument]!!.owner.defaultValue = body
                         }
                     }
                 } else {
