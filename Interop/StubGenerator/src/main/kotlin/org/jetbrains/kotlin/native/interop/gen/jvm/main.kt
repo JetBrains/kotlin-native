@@ -26,7 +26,6 @@ import kotlin.reflect.KFunction
 fun main(args: Array<String>) {
     val konanHome = File(System.getProperty("konan.home")).absolutePath
 
-    // TODO: remove OSX defaults.
     val substitutions = mapOf(
             "arch" to (System.getenv("TARGET_ARCH") ?: "x86-64"),
             "os" to (System.getenv("TARGET_OS") ?: detectHost())
@@ -67,12 +66,14 @@ private fun detectHost(): String {
 private fun defaultTarget() = detectHost()
 
 private val knownTargets = mapOf(
-    "host" to defaultTarget(),
-    "linux" to "linux",
-    "macbook" to "osx",
-    "iphone" to "osx-ios",
-    "iphone_sim" to "osx-ios-sim",
-    "raspberrypi" to "linux-raspberrypi")
+        "host" to detectHost(),
+        "linux" to "linux",
+        "macbook" to "osx",
+        "iphone" to "osx-ios",
+        "iphone_sim" to "osx-ios-sim",
+        "raspberrypi" to "linux-raspberrypi",
+        "android_arm32" to detectHost() + "-android_arm32"
+)
 
 
 private fun String.targetSuffix(): String =
@@ -118,11 +119,8 @@ private fun String.matchesToGlob(glob: String): Boolean =
         java.nio.file.FileSystems.getDefault()
                 .getPathMatcher("glob:$glob").matches(java.nio.file.Paths.get(this))
 
-private fun Properties.getOsSpecific(name: String, 
-    host: String = detectHost()): String? {
-
-    return this.getProperty("$name.$host")
-}
+private fun Properties.getOsSpecific(
+        name: String, host: String = detectHost()) = getProperty("$name.$host")
 
 private fun List<String>?.isTrue(): Boolean {
     // The rightmost wins, null != "true".
@@ -176,13 +174,10 @@ private fun maybeExecuteHelper(dependenciesRoot: String, properties: Properties,
 }
 
 private fun Properties.defaultCompilerOpts(target: String, dependencies: String): List<String> {
-
-    val arch = this.getOsSpecific("arch", target)!!
     val hostSysRootDir = this.getOsSpecific("sysRoot")!!
     val hostSysRoot = "$dependencies/$hostSysRootDir"
     val targetSysRootDir = this.getOsSpecific("targetSysRoot", target) ?: hostSysRootDir
     val targetSysRoot = "$dependencies/$targetSysRootDir"
-    val sysRoot = targetSysRoot
     val llvmHomeDir = this.getOsSpecific("llvmHome")!!
     val llvmHome = "$dependencies/$llvmHomeDir"
 
@@ -196,31 +191,30 @@ private fun Properties.defaultCompilerOpts(target: String, dependencies: String)
     // See e.g. http://lists.llvm.org/pipermail/cfe-dev/2013-November/033680.html
     // We workaround the problem with -isystem flag below.
     val isystem = "$llvmHome/lib/clang/$llvmVersion/include"
-
+    val quadruple = getOsSpecific("quadruple", target)
+    val arch = getOsSpecific("arch", target)
+    val archSelector = if (quadruple != null)
+        listOf("-target", quadruple) else listOf("-arch", arch!!)
     when (detectHost()) {
         "osx" -> {
-            val osVersionMinFlag = this.getOsSpecific("osVersionMinFlagClang", target)!!
-            val osVersionMinValue = this.getOsSpecific("osVersionMin", target)!!
-
-            return listOf(
-                "-arch", arch,
-                "-isystem", isystem,
-                "-B$hostSysRoot/usr/bin",
-                "--sysroot=$sysRoot",
-                "$osVersionMinFlag=$osVersionMinValue")
+            val osVersionMinFlag = this.getOsSpecific("osVersionMinFlagClang", target)
+            val osVersionMinValue = this.getOsSpecific("osVersionMin", target)
+            return archSelector + listOf(
+                    "-isystem", isystem,
+                    "-B$targetSysRoot/usr/bin",
+                    "--sysroot=$targetSysRoot") +
+                    if (osVersionMinFlag != null && osVersionMinValue != null)
+                        listOf("$osVersionMinFlag=$osVersionMinValue") else emptyList()
         }
         "linux" -> {
             val gccToolChainDir = this.getOsSpecific("gccToolChain", target)!!
             val gccToolChain= "$dependencies/$gccToolChainDir"
-            val quadruple = this.getOsSpecific("quadruple", target)!!
-
-            return listOf(
-                "-target", quadruple,
-                "-isystem", isystem,
-                "--gcc-toolchain=$gccToolChain",
-                "-L$llvmHome/lib",
-                "-B$hostSysRoot/../bin",
-                "--sysroot=$sysRoot")
+            return archSelector + listOf(
+                    "-isystem", isystem,
+                    "--gcc-toolchain=$gccToolChain",
+                    "-L$llvmHome/lib",
+                    "-B$hostSysRoot/../bin",
+                    "--sysroot=$targetSysRoot")
         }
         else -> error("Unexpected target: ${target}")
     }
@@ -332,7 +326,7 @@ private fun processLib(konanHome: String,
     val entryPoint = config.getSpaceSeparated("entryPoint").atMostOne()
     val linkerOpts = 
         config.getSpaceSeparated("linkerOpts").toTypedArray() +
-        defaultOpts + additionalLinkerOpts 
+        defaultOpts + additionalLinkerOpts
     val linker = args["-linker"]?.atMostOne() ?: config.getProperty("linker") ?: "clang"
     val excludedFunctions = config.getSpaceSeparated("excludedFunctions").toSet()
 

@@ -20,8 +20,9 @@ import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 
 enum class KonanTarget(val suffix: String, var enabled: Boolean = false) {
+    ANDROID_ARM32("android_arm32"),
     IPHONE("ios"),
-    IPHONE_SIM("ios-sim"),
+    IPHONE_SIM("ios_sim"),
     LINUX("linux"),
     MACBOOK("osx"),
     RASPBERRYPI("raspberrypi")
@@ -38,11 +39,14 @@ class TargetManager(val config: CompilerConfiguration) {
             KonanTarget.LINUX   -> {
                 KonanTarget.LINUX.enabled = true
                 KonanTarget.RASPBERRYPI.enabled = true
+                // TODO: enable!
+                KonanTarget.ANDROID_ARM32.enabled = false
             }
             KonanTarget.MACBOOK -> {
                 KonanTarget.MACBOOK.enabled = true
                 KonanTarget.IPHONE.enabled = true
                 KonanTarget.IPHONE_SIM.enabled = true
+                KonanTarget.ANDROID_ARM32.enabled = true
             }
             else ->
                 error("Unknown host platform: $host")

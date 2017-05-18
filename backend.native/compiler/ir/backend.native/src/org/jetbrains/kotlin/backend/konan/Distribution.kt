@@ -60,17 +60,19 @@ class Distribution(val config: CompilerConfiguration) {
         } else {
             sysRoot
         }
+    val targetToolchain = if (properties.hasProperty("targetToolchain.$suffix")) {
+        "$dependenciesDir/${properties.propertyString("targetToolchain.$suffix")}"
+    } else {
+        sysRoot
+    }
 
     val libffi = "$dependenciesDir/${properties.propertyString("libffiDir.$suffix")}/lib/libffi.a"
 
     val llvmBin = "$llvmHome/bin"
     val llvmLib = "$llvmHome/lib"
 
-    val llvmOpt = "$llvmBin/opt"
     val llvmLlc = "$llvmBin/llc"
     val llvmLto = "$llvmBin/llvm-lto"
-    val llvmLink = "$llvmBin/llvm-link"
-    val libCppAbi = "$llvmLib/libc++abi.a"
     val libLTO = when (TargetManager.host) {
         KonanTarget.MACBOOK -> "$llvmLib/libLTO.dylib" 
         KonanTarget.LINUX -> "$llvmLib/libLTO.so" 
