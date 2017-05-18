@@ -54,5 +54,26 @@ public abstract class Number {
      * Returns the value of this number as a [Byte], which may involve rounding or truncation.
      */
     public abstract fun toByte(): Byte
+
+    // Those are Konan-specific.
+    /**
+     * Returns the value of this number as a [ULong], which may involve rounding or truncation.
+     */
+    public fun toULong(): ULong = TODO()
+
+    /**
+     * Returns the value of this number as an [UInt], which may involve rounding or truncation.
+     */
+    public fun toUInt(): UInt = TODO()
+
+    /**
+     * Returns the value of this number as a [UShort], which may involve rounding or truncation.
+     */
+    public fun toUShort(): UShort = TODO()
+
+    /**
+     * Returns the value of this number as a [UByte], which may involve rounding or truncation.
+     */
+    public fun toUByte(): UByte = TODO()
 }
 

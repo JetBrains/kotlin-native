@@ -87,12 +87,12 @@ KLong   Kotlin_Byte_div_Long         (KByte a, KLong   b) { return div<KLong>(a,
 KFloat  Kotlin_Byte_div_Float        (KByte a, KFloat  b) { return a / b; }
 KDouble Kotlin_Byte_div_Double       (KByte a, KDouble b) { return a / b; }
 
-KInt    Kotlin_Byte_mod_Byte         (KByte a, KByte   b) { return a % b; }
-KInt    Kotlin_Byte_mod_Short        (KByte a, KShort  b) { return a % b; }
-KInt    Kotlin_Byte_mod_Int          (KByte a, KInt    b) { return a % b; }
-KLong   Kotlin_Byte_mod_Long         (KByte a, KLong   b) { return a % b; }
-KFloat  Kotlin_Byte_mod_Float        (KByte a, KFloat  b) { return fmodf(a, b); }
-KDouble Kotlin_Byte_mod_Double       (KByte a, KDouble b) { return fmod (a, b); }
+KInt    Kotlin_Byte_rem_Byte         (KByte a, KByte   b) { return a % b; }
+KInt    Kotlin_Byte_rem_Short        (KByte a, KShort  b) { return a % b; }
+KInt    Kotlin_Byte_rem_Int          (KByte a, KInt    b) { return a % b; }
+KLong   Kotlin_Byte_rem_Long         (KByte a, KLong   b) { return a % b; }
+KFloat  Kotlin_Byte_rem_Float        (KByte a, KFloat  b) { return fmodf(a, b); }
+KDouble Kotlin_Byte_rem_Double       (KByte a, KDouble b) { return fmod (a, b); }
 
 KInt    Kotlin_Byte_times_Byte       (KByte a, KByte   b) { return a * b; }
 KInt    Kotlin_Byte_times_Short      (KByte a, KShort  b) { return a * b; }
@@ -149,12 +149,12 @@ KLong   Kotlin_Short_div_Long         (KShort a, KLong   b) { return div<KLong>(
 KFloat  Kotlin_Short_div_Float        (KShort a, KFloat  b) { return a / b; }
 KDouble Kotlin_Short_div_Double       (KShort a, KDouble b) { return a / b; }
 
-KInt    Kotlin_Short_mod_Byte         (KShort a, KByte   b) { return a % b; }
-KInt    Kotlin_Short_mod_Short        (KShort a, KShort  b) { return a % b; }
-KInt    Kotlin_Short_mod_Int          (KShort a, KInt    b) { return a % b; }
-KLong   Kotlin_Short_mod_Long         (KShort a, KLong   b) { return a % b; }
-KFloat  Kotlin_Short_mod_Float        (KShort a, KFloat  b) { return fmodf(a, b); }
-KDouble Kotlin_Short_mod_Double       (KShort a, KDouble b) { return fmod (a, b); }
+KInt    Kotlin_Short_rem_Byte         (KShort a, KByte   b) { return a % b; }
+KInt    Kotlin_Short_rem_Short        (KShort a, KShort  b) { return a % b; }
+KInt    Kotlin_Short_rem_Int          (KShort a, KInt    b) { return a % b; }
+KLong   Kotlin_Short_rem_Long         (KShort a, KLong   b) { return a % b; }
+KFloat  Kotlin_Short_rem_Float        (KShort a, KFloat  b) { return fmodf(a, b); }
+KDouble Kotlin_Short_rem_Double       (KShort a, KDouble b) { return fmod (a, b); }
 
 KInt    Kotlin_Short_times_Byte       (KShort a, KByte   b) { return a * b; }
 KInt    Kotlin_Short_times_Short      (KShort a, KShort  b) { return a * b; }
@@ -211,12 +211,12 @@ KLong   Kotlin_Int_div_Long         (KInt a, KLong   b) { return div<KLong>(a, b
 KFloat  Kotlin_Int_div_Float        (KInt a, KFloat  b) { return a / b; }
 KDouble Kotlin_Int_div_Double       (KInt a, KDouble b) { return a / b; }
 
-KInt    Kotlin_Int_mod_Byte         (KInt a, KByte   b) { return a % b; }
-KInt    Kotlin_Int_mod_Short        (KInt a, KShort  b) { return a % b; }
-KInt    Kotlin_Int_mod_Int          (KInt a, KInt    b) { return a % b; }
-KLong   Kotlin_Int_mod_Long         (KInt a, KLong   b) { return a % b; }
-KFloat  Kotlin_Int_mod_Float        (KInt a, KFloat  b) { return fmodf(a, b); }
-KDouble Kotlin_Int_mod_Double       (KInt a, KDouble b) { return fmod (a, b); }
+KInt    Kotlin_Int_rem_Byte         (KInt a, KByte   b) { return a % b; }
+KInt    Kotlin_Int_rem_Short        (KInt a, KShort  b) { return a % b; }
+KInt    Kotlin_Int_rem_Int          (KInt a, KInt    b) { return a % b; }
+KLong   Kotlin_Int_rem_Long         (KInt a, KLong   b) { return a % b; }
+KFloat  Kotlin_Int_rem_Float        (KInt a, KFloat  b) { return fmodf(a, b); }
+KDouble Kotlin_Int_rem_Double       (KInt a, KDouble b) { return fmod (a, b); }
 
 KInt    Kotlin_Int_times_Byte       (KInt a, KByte   b) { return a * b; }
 KInt    Kotlin_Int_times_Short      (KInt a, KShort  b) { return a * b; }
@@ -281,12 +281,12 @@ KLong   Kotlin_Long_div_Long         (KLong a, KLong   b) { return div<KLong>(a,
 KFloat  Kotlin_Long_div_Float        (KLong a, KFloat  b) { return a / b; }
 KDouble Kotlin_Long_div_Double       (KLong a, KDouble b) { return a / b; }
 
-KLong   Kotlin_Long_mod_Byte         (KLong a, KByte   b) { return a % b; }
-KLong   Kotlin_Long_mod_Short        (KLong a, KShort  b) { return a % b; }
-KLong   Kotlin_Long_mod_Int          (KLong a, KInt    b) { return a % b; }
-KLong   Kotlin_Long_mod_Long         (KLong a, KLong   b) { return a % b; }
-KFloat  Kotlin_Long_mod_Float        (KLong a, KFloat  b) { return fmodf(a, b); }
-KDouble Kotlin_Long_mod_Double       (KLong a, KDouble b) { return fmod (a, b); }
+KLong   Kotlin_Long_rem_Byte         (KLong a, KByte   b) { return a % b; }
+KLong   Kotlin_Long_rem_Short        (KLong a, KShort  b) { return a % b; }
+KLong   Kotlin_Long_rem_Int          (KLong a, KInt    b) { return a % b; }
+KLong   Kotlin_Long_rem_Long         (KLong a, KLong   b) { return a % b; }
+KFloat  Kotlin_Long_rem_Float        (KLong a, KFloat  b) { return fmodf(a, b); }
+KDouble Kotlin_Long_rem_Double       (KLong a, KDouble b) { return fmod (a, b); }
 
 KLong   Kotlin_Long_times_Byte       (KLong a, KByte   b) { return a * b; }
 KLong   Kotlin_Long_times_Short      (KLong a, KShort  b) { return a * b; }
@@ -351,12 +351,12 @@ KFloat  Kotlin_Float_div_Long         (KFloat a, KLong   b) { return a / b; }
 KFloat  Kotlin_Float_div_Float        (KFloat a, KFloat  b) { return a / b; }
 KDouble Kotlin_Float_div_Double       (KFloat a, KDouble b) { return a / b; }
 
-KFloat  Kotlin_Float_mod_Byte         (KFloat a, KByte   b) { return fmodf(a, b); }
-KFloat  Kotlin_Float_mod_Short        (KFloat a, KShort  b) { return fmodf(a, b); }
-KFloat  Kotlin_Float_mod_Int          (KFloat a, KInt    b) { return fmodf(a, b); }
-KFloat  Kotlin_Float_mod_Long         (KFloat a, KLong   b) { return fmodf(a, b); }
-KFloat  Kotlin_Float_mod_Float        (KFloat a, KFloat  b) { return fmodf(a, b); }
-KDouble Kotlin_Float_mod_Double       (KFloat a, KDouble b) { return fmod (a, b); }
+KFloat  Kotlin_Float_rem_Byte         (KFloat a, KByte   b) { return fmodf(a, b); }
+KFloat  Kotlin_Float_rem_Short        (KFloat a, KShort  b) { return fmodf(a, b); }
+KFloat  Kotlin_Float_rem_Int          (KFloat a, KInt    b) { return fmodf(a, b); }
+KFloat  Kotlin_Float_rem_Long         (KFloat a, KLong   b) { return fmodf(a, b); }
+KFloat  Kotlin_Float_rem_Float        (KFloat a, KFloat  b) { return fmodf(a, b); }
+KDouble Kotlin_Float_rem_Double       (KFloat a, KDouble b) { return fmod (a, b); }
 
 KFloat  Kotlin_Float_times_Byte       (KFloat a, KByte   b) { return a * b; }
 KFloat  Kotlin_Float_times_Short      (KFloat a, KShort  b) { return a * b; }
@@ -371,6 +371,7 @@ KFloat  Kotlin_Float_unaryPlus        (KFloat a           ) { return  +a; }
 KFloat  Kotlin_Float_unaryMinus       (KFloat a           ) { return  -a; }
 
 KByte   Kotlin_Float_toByte           (KFloat a           ) { return a; }
+KChar   Kotlin_Float_toChar           (KFloat a           ) { return a; }
 KShort  Kotlin_Float_toShort          (KFloat a           ) { return a; }
 KInt    Kotlin_Float_toInt            (KFloat a           ) { return a; }
 KLong   Kotlin_Float_toLong           (KFloat a           ) { return a; }
@@ -420,12 +421,12 @@ KDouble Kotlin_Double_div_Long         (KDouble a, KLong   b) { return a / b; }
 KDouble Kotlin_Double_div_Float        (KDouble a, KFloat  b) { return a / b; }
 KDouble Kotlin_Double_div_Double       (KDouble a, KDouble b) { return a / b; }
 
-KDouble Kotlin_Double_mod_Byte         (KDouble a, KByte   b) { return fmod(a, b); }
-KDouble Kotlin_Double_mod_Short        (KDouble a, KShort  b) { return fmod(a, b); }
-KDouble Kotlin_Double_mod_Int          (KDouble a, KInt    b) { return fmod(a, b); }
-KDouble Kotlin_Double_mod_Long         (KDouble a, KLong   b) { return fmod(a, b); }
-KDouble Kotlin_Double_mod_Float        (KDouble a, KFloat  b) { return fmod(a, b); }
-KDouble Kotlin_Double_mod_Double       (KDouble a, KDouble b) { return fmod(a, b); }
+KDouble Kotlin_Double_rem_Byte         (KDouble a, KByte   b) { return fmod(a, b); }
+KDouble Kotlin_Double_rem_Short        (KDouble a, KShort  b) { return fmod(a, b); }
+KDouble Kotlin_Double_rem_Int          (KDouble a, KInt    b) { return fmod(a, b); }
+KDouble Kotlin_Double_rem_Long         (KDouble a, KLong   b) { return fmod(a, b); }
+KDouble Kotlin_Double_rem_Float        (KDouble a, KFloat  b) { return fmod(a, b); }
+KDouble Kotlin_Double_rem_Double       (KDouble a, KDouble b) { return fmod(a, b); }
 
 KDouble Kotlin_Double_times_Byte       (KDouble a, KByte   b) { return a * b; }
 KDouble Kotlin_Double_times_Short      (KDouble a, KShort  b) { return a * b; }
@@ -440,6 +441,7 @@ KDouble Kotlin_Double_unaryPlus        (KDouble a           ) { return  +a; }
 KDouble Kotlin_Double_unaryMinus       (KDouble a           ) { return  -a; }
 
 KByte   Kotlin_Double_toByte           (KDouble a           ) { return a; }
+KChar   Kotlin_Double_toChar           (KDouble a           ) { return a; }
 KShort  Kotlin_Double_toShort          (KDouble a           ) { return a; }
 KInt    Kotlin_Double_toInt            (KDouble a           ) { return a; }
 KLong   Kotlin_Double_toLong           (KDouble a           ) { return a; }
@@ -458,5 +460,220 @@ KLong   Kotlin_Double_bits             (KDouble a) {
 KBoolean Kotlin_Double_isNaN           (KDouble a)          { return isnan(a); }
 KBoolean Kotlin_Double_isInfinite      (KDouble a)          { return isinf(a); }
 KBoolean Kotlin_Double_isFinite        (KDouble a)          { return isfinite(a); }
+
+// Autogenerated with tools/generators/Operators.kt (unsigned_c).
+KUInt Kotlin_UByte_plus_Byte(KUByte arg0, KByte arg1) { return arg0 + arg1; }
+KUInt Kotlin_UByte_plus_Short(KUByte arg0, KShort arg1) { return arg0 + arg1; }
+KUInt Kotlin_UByte_plus_Int(KUByte arg0, KInt arg1) { return arg0 + arg1; }
+KLong Kotlin_UByte_plus_Long(KUByte arg0, KLong arg1) { return arg0 + arg1; }
+KFloat Kotlin_UByte_plus_Float(KUByte arg0, KFloat arg1) { return arg0 + arg1; }
+KDouble Kotlin_UByte_plus_Double(KUByte arg0, KDouble arg1) { return arg0 + arg1; }
+KUInt Kotlin_UByte_minus_Byte(KUByte arg0, KByte arg1) { return arg0 - arg1; }
+KUInt Kotlin_UByte_minus_Short(KUByte arg0, KShort arg1) { return arg0 - arg1; }
+KUInt Kotlin_UByte_minus_Int(KUByte arg0, KInt arg1) { return arg0 - arg1; }
+KLong Kotlin_UByte_minus_Long(KUByte arg0, KLong arg1) { return arg0 - arg1; }
+KFloat Kotlin_UByte_minus_Float(KUByte arg0, KFloat arg1) { return arg0 - arg1; }
+KDouble Kotlin_UByte_minus_Double(KUByte arg0, KDouble arg1) { return arg0 - arg1; }
+KUInt Kotlin_UByte_times_Byte(KUByte arg0, KByte arg1) { return arg0 * arg1; }
+KUInt Kotlin_UByte_times_Short(KUByte arg0, KShort arg1) { return arg0 * arg1; }
+KUInt Kotlin_UByte_times_Int(KUByte arg0, KInt arg1) { return arg0 * arg1; }
+KLong Kotlin_UByte_times_Long(KUByte arg0, KLong arg1) { return arg0 * arg1; }
+KFloat Kotlin_UByte_times_Float(KUByte arg0, KFloat arg1) { return arg0 * arg1; }
+KDouble Kotlin_UByte_times_Double(KUByte arg0, KDouble arg1) { return arg0 * arg1; }
+KUInt Kotlin_UByte_div_Byte(KUByte arg0, KByte arg1) { return div<KUInt>(arg0, arg1); }
+KUInt Kotlin_UByte_div_Short(KUByte arg0, KShort arg1) { return div<KUInt>(arg0, arg1); }
+KUInt Kotlin_UByte_div_Int(KUByte arg0, KInt arg1) { return div<KUInt>(arg0, arg1); }
+KLong Kotlin_UByte_div_Long(KUByte arg0, KLong arg1) { return div<KLong>(arg0, arg1); }
+KFloat Kotlin_UByte_div_Float(KUByte arg0, KFloat arg1) { return arg0 / arg1; }
+KDouble Kotlin_UByte_div_Double(KUByte arg0, KDouble arg1) { return arg0 / arg1; }
+KUInt Kotlin_UByte_rem_Byte(KUByte arg0, KByte arg1) { return arg0 % arg1; }
+KUInt Kotlin_UByte_rem_Short(KUByte arg0, KShort arg1) { return arg0 % arg1; }
+KUInt Kotlin_UByte_rem_Int(KUByte arg0, KInt arg1) { return arg0 % arg1; }
+KLong Kotlin_UByte_rem_Long(KUByte arg0, KLong arg1) { return arg0 % arg1; }
+KFloat Kotlin_UByte_rem_Float(KUByte arg0, KFloat arg1) { return fmodf(arg0, arg1); }
+KDouble Kotlin_UByte_rem_Double(KUByte arg0, KDouble arg1) { return fmod(arg0, arg1); }
+KInt Kotlin_UByte_compareTo_Byte(KUByte arg0, KByte arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KInt Kotlin_UByte_compareTo_Short(KUByte arg0, KShort arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KInt Kotlin_UByte_compareTo_Int(KUByte arg0, KInt arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KInt Kotlin_UByte_compareTo_Long(KUByte arg0, KLong arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KInt Kotlin_UByte_compareTo_Float(KUByte arg0, KFloat arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KInt Kotlin_UByte_compareTo_Double(KUByte arg0, KDouble arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KUInt Kotlin_UByte_and_UByte(KUByte arg0, KUByte arg1) { return arg0 & arg1; }
+KUInt Kotlin_UByte_or_UByte(KUByte arg0, KUByte arg1) { return arg0 | arg1; }
+KUInt Kotlin_UByte_xor_UByte(KUByte arg0, KUByte arg1) { return arg0 ^ arg1; }
+KUInt Kotlin_UByte_shl_Int(KUByte arg0, KInt arg1) { return arg0 << (arg1 & 31); }
+KUInt Kotlin_UByte_shr_Int(KUByte arg0, KInt arg1) { return arg0 >> (arg1 & 31); }
+KUByte Kotlin_UByte_inv(KUByte arg0) { return ~arg0; }
+KUByte Kotlin_UByte_inc(KUByte arg0) { return ++arg0; }
+KUByte Kotlin_UByte_dec(KUByte arg0) { return --arg0; }
+KUInt Kotlin_UByte_unaryPlus(KUByte arg0) { return +arg0; }
+KUInt Kotlin_UByte_unaryMinus(KUByte arg0) { return -arg0; }
+KByte Kotlin_UByte_toByte(KUByte arg0) { return arg0; }
+KShort Kotlin_UByte_toShort(KUByte arg0) { return arg0; }
+KInt Kotlin_UByte_toInt(KUByte arg0) { return arg0; }
+KLong Kotlin_UByte_toLong(KUByte arg0) { return arg0; }
+KFloat Kotlin_UByte_toFloat(KUByte arg0) { return arg0; }
+KDouble Kotlin_UByte_toDouble(KUByte arg0) { return arg0; }
+KChar Kotlin_UByte_toChar(KUByte arg0) { return arg0; }
+KUInt Kotlin_UShort_plus_Byte(KUShort arg0, KByte arg1) { return arg0 + arg1; }
+KUInt Kotlin_UShort_plus_Short(KUShort arg0, KShort arg1) { return arg0 + arg1; }
+KUInt Kotlin_UShort_plus_Int(KUShort arg0, KInt arg1) { return arg0 + arg1; }
+KLong Kotlin_UShort_plus_Long(KUShort arg0, KLong arg1) { return arg0 + arg1; }
+KFloat Kotlin_UShort_plus_Float(KUShort arg0, KFloat arg1) { return arg0 + arg1; }
+KDouble Kotlin_UShort_plus_Double(KUShort arg0, KDouble arg1) { return arg0 + arg1; }
+KUInt Kotlin_UShort_minus_Byte(KUShort arg0, KByte arg1) { return arg0 - arg1; }
+KUInt Kotlin_UShort_minus_Short(KUShort arg0, KShort arg1) { return arg0 - arg1; }
+KUInt Kotlin_UShort_minus_Int(KUShort arg0, KInt arg1) { return arg0 - arg1; }
+KLong Kotlin_UShort_minus_Long(KUShort arg0, KLong arg1) { return arg0 - arg1; }
+KFloat Kotlin_UShort_minus_Float(KUShort arg0, KFloat arg1) { return arg0 - arg1; }
+KDouble Kotlin_UShort_minus_Double(KUShort arg0, KDouble arg1) { return arg0 - arg1; }
+KUInt Kotlin_UShort_times_Byte(KUShort arg0, KByte arg1) { return arg0 * arg1; }
+KUInt Kotlin_UShort_times_Short(KUShort arg0, KShort arg1) { return arg0 * arg1; }
+KUInt Kotlin_UShort_times_Int(KUShort arg0, KInt arg1) { return arg0 * arg1; }
+KLong Kotlin_UShort_times_Long(KUShort arg0, KLong arg1) { return arg0 * arg1; }
+KFloat Kotlin_UShort_times_Float(KUShort arg0, KFloat arg1) { return arg0 * arg1; }
+KDouble Kotlin_UShort_times_Double(KUShort arg0, KDouble arg1) { return arg0 * arg1; }
+KUInt Kotlin_UShort_div_Byte(KUShort arg0, KByte arg1) { return div<KUInt>(arg0, arg1); }
+KUInt Kotlin_UShort_div_Short(KUShort arg0, KShort arg1) { return div<KUInt>(arg0, arg1); }
+KUInt Kotlin_UShort_div_Int(KUShort arg0, KInt arg1) { return div<KUInt>(arg0, arg1); }
+KLong Kotlin_UShort_div_Long(KUShort arg0, KLong arg1) { return div<KLong>(arg0, arg1); }
+KFloat Kotlin_UShort_div_Float(KUShort arg0, KFloat arg1) { return arg0 / arg1; }
+KDouble Kotlin_UShort_div_Double(KUShort arg0, KDouble arg1) { return arg0 / arg1; }
+KUInt Kotlin_UShort_rem_Byte(KUShort arg0, KByte arg1) { return arg0 % arg1; }
+KUInt Kotlin_UShort_rem_Short(KUShort arg0, KShort arg1) { return arg0 % arg1; }
+KUInt Kotlin_UShort_rem_Int(KUShort arg0, KInt arg1) { return arg0 % arg1; }
+KLong Kotlin_UShort_rem_Long(KUShort arg0, KLong arg1) { return arg0 % arg1; }
+KFloat Kotlin_UShort_rem_Float(KUShort arg0, KFloat arg1) { return fmodf(arg0, arg1); }
+KDouble Kotlin_UShort_rem_Double(KUShort arg0, KDouble arg1) { return fmod(arg0, arg1); }
+KInt Kotlin_UShort_compareTo_Byte(KUShort arg0, KByte arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KInt Kotlin_UShort_compareTo_Short(KUShort arg0, KShort arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KInt Kotlin_UShort_compareTo_Int(KUShort arg0, KInt arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KInt Kotlin_UShort_compareTo_Long(KUShort arg0, KLong arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KInt Kotlin_UShort_compareTo_Float(KUShort arg0, KFloat arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KInt Kotlin_UShort_compareTo_Double(KUShort arg0, KDouble arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KUInt Kotlin_UShort_and_UShort(KUShort arg0, KUShort arg1) { return arg0 & arg1; }
+KUInt Kotlin_UShort_or_UShort(KUShort arg0, KUShort arg1) { return arg0 | arg1; }
+KUInt Kotlin_UShort_xor_UShort(KUShort arg0, KUShort arg1) { return arg0 ^ arg1; }
+KUInt Kotlin_UShort_shl_Int(KUShort arg0, KInt arg1) { return arg0 << (arg1 & 31); }
+KUInt Kotlin_UShort_shr_Int(KUShort arg0, KInt arg1) { return arg0 >> (arg1 & 31); }
+KUShort Kotlin_UShort_inv(KUShort arg0) { return ~arg0; }
+KUShort Kotlin_UShort_inc(KUShort arg0) { return ++arg0; }
+KUShort Kotlin_UShort_dec(KUShort arg0) { return --arg0; }
+KUInt Kotlin_UShort_unaryPlus(KUShort arg0) { return +arg0; }
+KUInt Kotlin_UShort_unaryMinus(KUShort arg0) { return -arg0; }
+KByte Kotlin_UShort_toByte(KUShort arg0) { return arg0; }
+KShort Kotlin_UShort_toShort(KUShort arg0) { return arg0; }
+KInt Kotlin_UShort_toInt(KUShort arg0) { return arg0; }
+KLong Kotlin_UShort_toLong(KUShort arg0) { return arg0; }
+KFloat Kotlin_UShort_toFloat(KUShort arg0) { return arg0; }
+KDouble Kotlin_UShort_toDouble(KUShort arg0) { return arg0; }
+KChar Kotlin_UShort_toChar(KUShort arg0) { return arg0; }
+KUInt Kotlin_UInt_plus_Byte(KUInt arg0, KByte arg1) { return arg0 + arg1; }
+KUInt Kotlin_UInt_plus_Short(KUInt arg0, KShort arg1) { return arg0 + arg1; }
+KUInt Kotlin_UInt_plus_Int(KUInt arg0, KInt arg1) { return arg0 + arg1; }
+KLong Kotlin_UInt_plus_Long(KUInt arg0, KLong arg1) { return arg0 + arg1; }
+KFloat Kotlin_UInt_plus_Float(KUInt arg0, KFloat arg1) { return arg0 + arg1; }
+KDouble Kotlin_UInt_plus_Double(KUInt arg0, KDouble arg1) { return arg0 + arg1; }
+KUInt Kotlin_UInt_minus_Byte(KUInt arg0, KByte arg1) { return arg0 - arg1; }
+KUInt Kotlin_UInt_minus_Short(KUInt arg0, KShort arg1) { return arg0 - arg1; }
+KUInt Kotlin_UInt_minus_Int(KUInt arg0, KInt arg1) { return arg0 - arg1; }
+KLong Kotlin_UInt_minus_Long(KUInt arg0, KLong arg1) { return arg0 - arg1; }
+KFloat Kotlin_UInt_minus_Float(KUInt arg0, KFloat arg1) { return arg0 - arg1; }
+KDouble Kotlin_UInt_minus_Double(KUInt arg0, KDouble arg1) { return arg0 - arg1; }
+KUInt Kotlin_UInt_times_Byte(KUInt arg0, KByte arg1) { return arg0 * arg1; }
+KUInt Kotlin_UInt_times_Short(KUInt arg0, KShort arg1) { return arg0 * arg1; }
+KUInt Kotlin_UInt_times_Int(KUInt arg0, KInt arg1) { return arg0 * arg1; }
+KLong Kotlin_UInt_times_Long(KUInt arg0, KLong arg1) { return arg0 * arg1; }
+KFloat Kotlin_UInt_times_Float(KUInt arg0, KFloat arg1) { return arg0 * arg1; }
+KDouble Kotlin_UInt_times_Double(KUInt arg0, KDouble arg1) { return arg0 * arg1; }
+KUInt Kotlin_UInt_div_Byte(KUInt arg0, KByte arg1) { return div<KUInt>(arg0, arg1); }
+KUInt Kotlin_UInt_div_Short(KUInt arg0, KShort arg1) { return div<KUInt>(arg0, arg1); }
+KUInt Kotlin_UInt_div_Int(KUInt arg0, KInt arg1) { return div<KUInt>(arg0, arg1); }
+KLong Kotlin_UInt_div_Long(KUInt arg0, KLong arg1) { return div<KLong>(arg0, arg1); }
+KFloat Kotlin_UInt_div_Float(KUInt arg0, KFloat arg1) { return arg0 / arg1; }
+KDouble Kotlin_UInt_div_Double(KUInt arg0, KDouble arg1) { return arg0 / arg1; }
+KUInt Kotlin_UInt_rem_Byte(KUInt arg0, KByte arg1) { return arg0 % arg1; }
+KUInt Kotlin_UInt_rem_Short(KUInt arg0, KShort arg1) { return arg0 % arg1; }
+KUInt Kotlin_UInt_rem_Int(KUInt arg0, KInt arg1) { return arg0 % arg1; }
+KLong Kotlin_UInt_rem_Long(KUInt arg0, KLong arg1) { return arg0 % arg1; }
+KFloat Kotlin_UInt_rem_Float(KUInt arg0, KFloat arg1) { return fmodf(arg0, arg1); }
+KDouble Kotlin_UInt_rem_Double(KUInt arg0, KDouble arg1) { return fmod(arg0, arg1); }
+KInt Kotlin_UInt_compareTo_Byte(KUInt arg0, KByte arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KInt Kotlin_UInt_compareTo_Short(KUInt arg0, KShort arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KInt Kotlin_UInt_compareTo_Int(KUInt arg0, KInt arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KInt Kotlin_UInt_compareTo_Long(KUInt arg0, KLong arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KInt Kotlin_UInt_compareTo_Float(KUInt arg0, KFloat arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KInt Kotlin_UInt_compareTo_Double(KUInt arg0, KDouble arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KUInt Kotlin_UInt_and_UInt(KUInt arg0, KUInt arg1) { return arg0 & arg1; }
+KUInt Kotlin_UInt_or_UInt(KUInt arg0, KUInt arg1) { return arg0 | arg1; }
+KUInt Kotlin_UInt_xor_UInt(KUInt arg0, KUInt arg1) { return arg0 ^ arg1; }
+KUInt Kotlin_UInt_shl_Int(KUInt arg0, KInt arg1) { return arg0 << (arg1 & 31); }
+KUInt Kotlin_UInt_shr_Int(KUInt arg0, KInt arg1) { return arg0 >> (arg1 & 31); }
+KUInt Kotlin_UInt_inv(KUInt arg0) { return ~arg0; }
+KUInt Kotlin_UInt_inc(KUInt arg0) { return ++arg0; }
+KUInt Kotlin_UInt_dec(KUInt arg0) { return --arg0; }
+KUInt Kotlin_UInt_unaryPlus(KUInt arg0) { return +arg0; }
+KUInt Kotlin_UInt_unaryMinus(KUInt arg0) { return -arg0; }
+KByte Kotlin_UInt_toByte(KUInt arg0) { return arg0; }
+KShort Kotlin_UInt_toShort(KUInt arg0) { return arg0; }
+KInt Kotlin_UInt_toInt(KUInt arg0) { return arg0; }
+KLong Kotlin_UInt_toLong(KUInt arg0) { return arg0; }
+KFloat Kotlin_UInt_toFloat(KUInt arg0) { return arg0; }
+KDouble Kotlin_UInt_toDouble(KUInt arg0) { return arg0; }
+KChar Kotlin_UInt_toChar(KUInt arg0) { return arg0; }
+KULong Kotlin_ULong_plus_Byte(KULong arg0, KByte arg1) { return arg0 + arg1; }
+KULong Kotlin_ULong_plus_Short(KULong arg0, KShort arg1) { return arg0 + arg1; }
+KULong Kotlin_ULong_plus_Int(KULong arg0, KInt arg1) { return arg0 + arg1; }
+KULong Kotlin_ULong_plus_Long(KULong arg0, KLong arg1) { return arg0 + arg1; }
+KFloat Kotlin_ULong_plus_Float(KULong arg0, KFloat arg1) { return arg0 + arg1; }
+KDouble Kotlin_ULong_plus_Double(KULong arg0, KDouble arg1) { return arg0 + arg1; }
+KULong Kotlin_ULong_minus_Byte(KULong arg0, KByte arg1) { return arg0 - arg1; }
+KULong Kotlin_ULong_minus_Short(KULong arg0, KShort arg1) { return arg0 - arg1; }
+KULong Kotlin_ULong_minus_Int(KULong arg0, KInt arg1) { return arg0 - arg1; }
+KULong Kotlin_ULong_minus_Long(KULong arg0, KLong arg1) { return arg0 - arg1; }
+KFloat Kotlin_ULong_minus_Float(KULong arg0, KFloat arg1) { return arg0 - arg1; }
+KDouble Kotlin_ULong_minus_Double(KULong arg0, KDouble arg1) { return arg0 - arg1; }
+KULong Kotlin_ULong_times_Byte(KULong arg0, KByte arg1) { return arg0 * arg1; }
+KULong Kotlin_ULong_times_Short(KULong arg0, KShort arg1) { return arg0 * arg1; }
+KULong Kotlin_ULong_times_Int(KULong arg0, KInt arg1) { return arg0 * arg1; }
+KULong Kotlin_ULong_times_Long(KULong arg0, KLong arg1) { return arg0 * arg1; }
+KFloat Kotlin_ULong_times_Float(KULong arg0, KFloat arg1) { return arg0 * arg1; }
+KDouble Kotlin_ULong_times_Double(KULong arg0, KDouble arg1) { return arg0 * arg1; }
+KULong Kotlin_ULong_div_Byte(KULong arg0, KByte arg1) { return div<KULong>(arg0, arg1); }
+KULong Kotlin_ULong_div_Short(KULong arg0, KShort arg1) { return div<KULong>(arg0, arg1); }
+KULong Kotlin_ULong_div_Int(KULong arg0, KInt arg1) { return div<KULong>(arg0, arg1); }
+KULong Kotlin_ULong_div_Long(KULong arg0, KLong arg1) { return div<KULong>(arg0, arg1); }
+KFloat Kotlin_ULong_div_Float(KULong arg0, KFloat arg1) { return arg0 / arg1; }
+KDouble Kotlin_ULong_div_Double(KULong arg0, KDouble arg1) { return arg0 / arg1; }
+KULong Kotlin_ULong_rem_Byte(KULong arg0, KByte arg1) { return arg0 % arg1; }
+KULong Kotlin_ULong_rem_Short(KULong arg0, KShort arg1) { return arg0 % arg1; }
+KULong Kotlin_ULong_rem_Int(KULong arg0, KInt arg1) { return arg0 % arg1; }
+KULong Kotlin_ULong_rem_Long(KULong arg0, KLong arg1) { return arg0 % arg1; }
+KFloat Kotlin_ULong_rem_Float(KULong arg0, KFloat arg1) { return fmodf(arg0, arg1); }
+KDouble Kotlin_ULong_rem_Double(KULong arg0, KDouble arg1) { return fmod(arg0, arg1); }
+KInt Kotlin_ULong_compareTo_Byte(KULong arg0, KByte arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KInt Kotlin_ULong_compareTo_Short(KULong arg0, KShort arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KInt Kotlin_ULong_compareTo_Int(KULong arg0, KInt arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KInt Kotlin_ULong_compareTo_Long(KULong arg0, KLong arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KInt Kotlin_ULong_compareTo_Float(KULong arg0, KFloat arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KInt Kotlin_ULong_compareTo_Double(KULong arg0, KDouble arg1) { if (arg0 == arg1) return 0; return (arg0 < arg1) ? -1 : 1; }
+KULong Kotlin_ULong_and_ULong(KULong arg0, KULong arg1) { return arg0 & arg1; }
+KULong Kotlin_ULong_or_ULong(KULong arg0, KULong arg1) { return arg0 | arg1; }
+KULong Kotlin_ULong_xor_ULong(KULong arg0, KULong arg1) { return arg0 ^ arg1; }
+KULong Kotlin_ULong_shl_Int(KULong arg0, KInt arg1) { return arg0 << (arg1 & 63); }
+KULong Kotlin_ULong_shr_Int(KULong arg0, KInt arg1) { return arg0 >> (arg1 & 63); }
+KULong Kotlin_ULong_inv(KULong arg0) { return ~arg0; }
+KULong Kotlin_ULong_inc(KULong arg0) { return ++arg0; }
+KULong Kotlin_ULong_dec(KULong arg0) { return --arg0; }
+KULong Kotlin_ULong_unaryPlus(KULong arg0) { return +arg0; }
+KULong Kotlin_ULong_unaryMinus(KULong arg0) { return -arg0; }
+KByte Kotlin_ULong_toByte(KULong arg0) { return arg0; }
+KShort Kotlin_ULong_toShort(KULong arg0) { return arg0; }
+KInt Kotlin_ULong_toInt(KULong arg0) { return arg0; }
+KLong Kotlin_ULong_toLong(KULong arg0) { return arg0; }
+KFloat Kotlin_ULong_toFloat(KULong arg0) { return arg0; }
+KDouble Kotlin_ULong_toDouble(KULong arg0) { return arg0; }
+KChar Kotlin_ULong_toChar(KULong arg0) { return arg0; }
+
 
 }  // extern "C"

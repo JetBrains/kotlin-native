@@ -26,10 +26,10 @@ import org.jetbrains.kotlin.types.typeUtil.isUnit
 private val valueTypes = ValueType.values().associate {
     it to when (it) {
         ValueType.BOOLEAN -> LLVMInt1Type()
-        ValueType.BYTE -> LLVMInt8Type()
-        ValueType.SHORT, ValueType.CHAR -> LLVMInt16Type()
-        ValueType.INT -> LLVMInt32Type()
-        ValueType.LONG -> LLVMInt64Type()
+        ValueType.BYTE, ValueType.UBYTE -> LLVMInt8Type()
+        ValueType.SHORT, ValueType.USHORT, ValueType.CHAR -> LLVMInt16Type()
+        ValueType.INT, ValueType.UINT -> LLVMInt32Type()
+        ValueType.LONG, ValueType.ULONG -> LLVMInt64Type()
         ValueType.FLOAT -> LLVMFloatType()
         ValueType.DOUBLE -> LLVMDoubleType()
 

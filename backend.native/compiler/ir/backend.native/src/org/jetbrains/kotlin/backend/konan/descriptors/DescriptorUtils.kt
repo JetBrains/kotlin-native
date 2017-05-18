@@ -80,8 +80,10 @@ internal val FunctionDescriptor.isIntrinsic: Boolean
 
 private val intrinsicTypes = setOf(
         "kotlin.Boolean", "kotlin.Char",
-        "kotlin.Byte", "kotlin.Short",
-        "kotlin.Int", "kotlin.Long",
+        "kotlin.Byte", "kotlin.UByte",
+        "kotlin.Short", "kotlin.UShort",
+        "kotlin.Int", "kotlin.UInt",
+        "kotlin.Long", "kotlin.ULong",
         "kotlin.Float", "kotlin.Double"
 )
 

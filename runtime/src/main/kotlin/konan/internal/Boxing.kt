@@ -80,6 +80,32 @@ class ByteBox(val value: Byte) : Number(), Comparable<Byte> {
 
 fun boxByte(value: Byte) = ByteBox(value)
 
+class UByteBox(val value: UByte) : Number(), Comparable<UByte> {
+    override fun equals(other: Any?): Boolean {
+        if (other !is UByteBox) {
+            return false
+        }
+
+        return this.value == other.value
+    }
+
+    override fun hashCode() = value.hashCode()
+
+    override fun toString() = value.toString()
+
+    override fun compareTo(other: UByte): Int = TODO() // value.compareTo(other)
+
+    override fun toByte() = value.toByte()
+    override fun toChar() = value.toChar()
+    override fun toShort() = value.toShort()
+    override fun toInt() = value.toInt()
+    override fun toLong() = value.toLong()
+    override fun toFloat() = value.toFloat()
+    override fun toDouble() = value.toDouble()
+}
+
+fun boxUByte(value: UByte) = UByteBox(value)
+
 class ShortBox(val value: Short) : Number(), Comparable<Short> {
     override fun equals(other: Any?): Boolean {
         if (other !is ShortBox) {
@@ -105,6 +131,32 @@ class ShortBox(val value: Short) : Number(), Comparable<Short> {
 }
 
 fun boxShort(value: Short) = ShortBox(value)
+
+class UShortBox(val value: UShort) : Number(), Comparable<UShort> {
+    override fun equals(other: Any?): Boolean {
+        if (other !is UShortBox) {
+            return false
+        }
+
+        return this.value == other.value
+    }
+
+    override fun hashCode() = value.hashCode()
+
+    override fun toString() = value.toString()
+
+    override fun compareTo(other: UShort): Int = TODO() // value.compareTo(other)
+
+    override fun toByte() = value.toByte()
+    override fun toChar() = value.toChar()
+    override fun toShort() = value.toShort()
+    override fun toInt() = value.toInt()
+    override fun toLong() = value.toLong()
+    override fun toFloat() = value.toFloat()
+    override fun toDouble() = value.toDouble()
+}
+
+fun boxUShort(value: UShort) = UShortBox(value)
 
 class IntBox(val value: Int) : Number(), Comparable<Int> {
     override fun equals(other: Any?): Boolean {
@@ -132,6 +184,32 @@ class IntBox(val value: Int) : Number(), Comparable<Int> {
 
 fun boxInt(value: Int) = IntBox(value)
 
+class UIntBox(val value: UInt) : Number(), Comparable<UInt> {
+    override fun equals(other: Any?): Boolean {
+        if (other !is UIntBox) {
+            return false
+        }
+
+        return this.value == other.value
+    }
+
+    override fun hashCode() = value.hashCode()
+
+    override fun toString() = value.toString()
+
+    override fun compareTo(other: UInt): Int = TODO() // value.compareTo(other)
+
+    override fun toByte() = value.toByte()
+    override fun toChar() = value.toChar()
+    override fun toShort() = value.toShort()
+    override fun toInt() = value.toInt()
+    override fun toLong() = value.toLong()
+    override fun toFloat() = value.toFloat()
+    override fun toDouble() = value.toDouble()
+}
+
+fun boxUInt(value: UInt) = UIntBox(value)
+
 class LongBox(val value: Long) : Number(), Comparable<Long> {
     override fun equals(other: Any?): Boolean {
         if (other !is LongBox) {
@@ -157,6 +235,32 @@ class LongBox(val value: Long) : Number(), Comparable<Long> {
 }
 
 fun boxLong(value: Long) = LongBox(value)
+
+class ULongBox(val value: ULong) : Number(), Comparable<ULong> {
+    override fun equals(other: Any?): Boolean {
+        if (other !is ULongBox) {
+            return false
+        }
+
+        return this.value == other.value
+    }
+
+    override fun hashCode() = value.hashCode()
+
+    override fun toString() = value.toString()
+
+    override fun compareTo(other: ULong): Int = TODO() // value.compareTo(other)
+
+    override fun toByte() = value.toByte()
+    override fun toChar() = value.toChar()
+    override fun toShort() = value.toShort()
+    override fun toInt() = value.toInt()
+    override fun toLong() = value.toLong()
+    override fun toFloat() = value.toFloat()
+    override fun toDouble() = value.toDouble()
+}
+
+fun boxULong(value: ULong) = ULongBox(value)
 
 class FloatBox(val value: Float) : Number(), Comparable<Float> {
     override fun equals(other: Any?): Boolean {
