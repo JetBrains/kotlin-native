@@ -29,8 +29,8 @@ typealias ExecutableFile = String
 internal abstract class PlatformFlags(val distribution: Distribution) {
     val properties = distribution.properties
 
-    val hostSuffix = TargetManager.host.suffix
-    val targetSuffix = distribution.suffix
+    val hostSuffix = distribution.hostTargetSuffix
+    val targetSuffix = distribution.targetSuffix
 
     open val llvmLtoNooptFlags 
         = propertyTargetList("llvmLtoNooptFlags")
@@ -45,31 +45,39 @@ internal abstract class PlatformFlags(val distribution: Distribution) {
     open val linkerKonanFlags 
         = propertyTargetList("linkerKonanFlags")
 
-    abstract val linker: String 
-
-    abstract fun linkCommand(objectFiles: List<ObjectFile>, 
+   abstract fun linkCommand(objectFiles: List<ObjectFile>,
         executable: ExecutableFile, optimize: Boolean): List<String>
 
     protected fun propertyHostString(name: String)
         = properties.propertyString(name, hostSuffix)!!
-    protected fun propertyHostList(name: String) 
+    protected fun propertyHostList(name: String)
         = properties.propertyList(name, hostSuffix)
-    protected fun propertyTargetString(name: String) 
+    protected fun propertyTargetString(name: String)
         = properties.propertyString(name, targetSuffix)!!
     protected fun propertyTargetList(name: String) 
         = properties.propertyList(name, targetSuffix)
 }
 
+
+internal open class AndroidPlatform(distribution: Distribution)
+    : PlatformFlags(distribution) {
+
+    private val prefix = "${distribution.targetToolchain}/bin/"
+    private val clang = "$prefix/clang"
+
+    override fun linkCommand(objectFiles: List<String>, executable: String, optimize: Boolean): List<String> {
+        return mutableListOf<String>(clang, "-o", executable, "-fPIC", "-shared") +
+                    objectFiles +
+                    (if (optimize) linkerOptimizationFlags else emptyList()) +
+                linkerKonanFlags
+    }
+}
+
 internal open class MacOSBasedPlatform(distribution: Distribution)
     : PlatformFlags(distribution) {
 
-    // TODO: incredibly ugly!
-    private val isAndroid = distribution.target.indexOf("android") != -1
-    private val prefix = if (isAndroid)
-        "${distribution.targetToolchain}/bin/" else
-        "${distribution.targetToolchain}/usr/bin/"
-    private val clang = "$prefix/clang"
-    override val linker = "${prefix}/ld"
+    private val prefix = "${distribution.targetToolchain}/usr/bin/"
+    private val linker = "${prefix}/ld"
     private val dsymutil = "${distribution.llvmBin}/llvm-dsymutil"
 
     open val osVersionMin by lazy {
@@ -77,25 +85,16 @@ internal open class MacOSBasedPlatform(distribution: Distribution)
                 propertyTargetString("osVersionMinFlagLd"),
                 propertyTargetString("osVersionMin") + ".0")
     }
-                            
-    open val targetSysRoot = distribution.targetSysRoot
 
     override fun linkCommand(objectFiles: List<String>, executable: String, optimize: Boolean): List<String> {
-        return if (isAndroid) {
-            mutableListOf<String>(clang, "-o", executable, "-fPIC", "-shared") +
-                    objectFiles +
-                    (if (optimize) linkerOptimizationFlags else emptyList()) +
-                    linkerKonanFlags
-        } else {
-            mutableListOf<String>(linker, "-demangle") +
+        return mutableListOf<String>(linker, "-demangle") +
                     listOf("-object_path_lto", "temporary.o", "-lto_library", distribution.libLTO) +
                     listOf("-dynamic", "-arch", propertyTargetString("arch")) +
                     osVersionMin +
-                    listOf("-syslibroot", targetSysRoot, "-o", executable) +
+                    listOf("-syslibroot", distribution.targetSysRoot, "-o", executable) +
                     objectFiles +
                     (if (optimize) linkerOptimizationFlags else emptyList()) +
                     linkerKonanFlags + listOf("-lSystem")
-        }
     }
 
     open fun dsymutilCommand(executable: ExecutableFile): List<String> {
@@ -110,17 +109,12 @@ internal open class MacOSBasedPlatform(distribution: Distribution)
 internal open class LinuxBasedPlatform(distribution: Distribution)
     : PlatformFlags(distribution) {
 
-    open val targetSysRoot = distribution.targetSysRoot
-
+    val targetSysRoot = distribution.targetSysRoot
     val llvmLib = distribution.llvmLib
-    val libGcc = distribution.libGcc
-
-    override val linker = "${distribution.sysRoot}/../bin/ld.gold"
-
-    open val pluginOptimizationFlags = propertyTargetList("pluginOptimizationFlags")
-    open val dynamicLinker = propertyTargetString("dynamicLinker")
-
-    open val specificLibs 
+    val libGcc = "${distribution.targetToolchain}/${propertyTargetString("libGcc")!!}"
+    val linker = "${distribution.targetToolchain}/bin/ld.gold"
+    val pluginOptimizationFlags = propertyTargetList("pluginOptimizationFlags")
+    val specificLibs
         = propertyTargetList("abiSpecificLibraries").map{it -> "-L${targetSysRoot}/$it"}
 
     override fun linkCommand(objectFiles: List<String>, executable: String, optimize: Boolean): List<String> {
@@ -129,7 +123,7 @@ internal open class LinuxBasedPlatform(distribution: Distribution)
             "--sysroot=${targetSysRoot}",
             "-export-dynamic", "-z", "relro", "--hash-style=gnu", 
             "--build-id", "--eh-frame-hdr", // "-m", "elf_x86_64",
-            "-dynamic-linker", dynamicLinker,
+            "-dynamic-linker", propertyTargetString("dynamicLinker"),
             "-o", executable,
             "${targetSysRoot}/usr/lib64/crt1.o", "${targetSysRoot}/usr/lib64/crti.o", "${libGcc}/crtbegin.o",
             "-L${llvmLib}", "-L${libGcc}") +
@@ -152,13 +146,15 @@ internal class LinkStage(val context: Context) {
 
     private val distribution = context.config.distribution
 
-    val platform = when (TargetManager.host) {
-        KonanTarget.LINUX ->
+    val platform = when (context.config.targetManager.current) {
+        KonanTarget.LINUX, KonanTarget.RASPBERRYPI ->
             LinuxBasedPlatform(distribution)
-        KonanTarget.MACBOOK -> 
+        KonanTarget.MACBOOK, KonanTarget.IPHONE, KonanTarget.IPHONE_SIM ->
             MacOSBasedPlatform(distribution)
+        KonanTarget.ANDROID_ARM32 ->
+            AndroidPlatform(distribution)
         else ->
-            error("Unexpected host platform")
+            error("Unexpected target platform: ${context.config.targetManager.current}")
     }
 
     val optimize = config.get(KonanConfigKeys.OPTIMIZATION) ?: false

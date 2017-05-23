@@ -39,8 +39,7 @@ class TargetManager(val config: CompilerConfiguration) {
             KonanTarget.LINUX   -> {
                 KonanTarget.LINUX.enabled = true
                 KonanTarget.RASPBERRYPI.enabled = true
-                // TODO: enable!
-                KonanTarget.ANDROID_ARM32.enabled = false
+                KonanTarget.ANDROID_ARM32.enabled = true
             }
             KonanTarget.MACBOOK -> {
                 KonanTarget.MACBOOK.enabled = true
@@ -82,10 +81,10 @@ class TargetManager(val config: CompilerConfiguration) {
         }
     }
 
-    fun currentSuffix(): String {
-        return host.suffix + 
-            if (host != current) "-${current.suffix}" else ""
-    }
+    fun hostSuffix() = host.suffix
+    fun hostTargetSuffix() =
+            if (current == host) host.suffix else "${host.suffix}-${current.suffix}"
+    fun targetSuffix() = current.suffix
 
     companion object {
         fun host_os(): String {
@@ -113,7 +112,5 @@ class TargetManager(val config: CompilerConfiguration) {
             else -> error("Unknown host target: ${host_os()} ${host_arch()}")
         }
     }
-
-    val crossCompile = (host != current)
 }
 
