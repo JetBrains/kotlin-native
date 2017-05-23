@@ -76,8 +76,8 @@ internal open class AndroidPlatform(distribution: Distribution)
 internal open class MacOSBasedPlatform(distribution: Distribution)
     : PlatformFlags(distribution) {
 
-    private val prefix = "${distribution.targetToolchain}/usr/bin/"
-    private val linker = "${prefix}/ld"
+    // TODO: move 'ld' out of the host sysroot, as it doesn't belong here.
+    private val linker = "${distribution.hostSysRoot}/usr/bin/ld"
     private val dsymutil = "${distribution.llvmBin}/llvm-dsymutil"
 
     open val osVersionMin by lazy {

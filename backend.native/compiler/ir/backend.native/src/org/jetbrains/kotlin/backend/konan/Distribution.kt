@@ -52,6 +52,7 @@ class Distribution(val config: CompilerConfiguration) {
         ?: "$stdlib/$target/native/runtime.bc"
 
     val llvmHome = "$dependenciesDir/${properties.propertyString("llvmHome.$hostSuffix")}"
+    val hostSysRoot = "$dependenciesDir/${properties.propertyString("targetSysRoot.$hostSuffix")}"
     val targetSysRoot = "$dependenciesDir/${properties.propertyString("targetSysRoot.$targetSuffix")}"
     val targetToolchain = "$dependenciesDir/${properties.propertyString("targetToolchain.$hostTargetSuffix")}"
     val libffi =
