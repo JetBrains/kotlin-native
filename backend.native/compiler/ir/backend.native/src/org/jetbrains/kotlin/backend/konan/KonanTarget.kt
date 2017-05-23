@@ -16,7 +16,6 @@
 
 package org.jetbrains.kotlin.backend.konan
 
-import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 
 enum class KonanTarget(val suffix: String, var enabled: Boolean = false) {

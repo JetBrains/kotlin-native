@@ -87,7 +87,7 @@ internal open class MacOSBasedPlatform(distribution: Distribution)
     }
 
     override fun linkCommand(objectFiles: List<String>, executable: String, optimize: Boolean): List<String> {
-        return mutableListOf<String>(linker, "-demangle") +
+        return mutableListOf(linker, "-demangle") +
                     listOf("-object_path_lto", "temporary.o", "-lto_library", distribution.libLTO) +
                     listOf("-dynamic", "-arch", propertyTargetString("arch")) +
                     osVersionMin +
@@ -111,7 +111,7 @@ internal open class LinuxBasedPlatform(distribution: Distribution)
 
     val targetSysRoot = distribution.targetSysRoot
     val llvmLib = distribution.llvmLib
-    val libGcc = "${distribution.targetToolchain}/${propertyTargetString("libGcc")!!}"
+    val libGcc = "$targetSysRoot/${propertyTargetString("libGcc")!!}"
     val linker = "${distribution.targetToolchain}/bin/ld.gold"
     val pluginOptimizationFlags = propertyTargetList("pluginOptimizationFlags")
     val specificLibs
@@ -119,7 +119,7 @@ internal open class LinuxBasedPlatform(distribution: Distribution)
 
     override fun linkCommand(objectFiles: List<String>, executable: String, optimize: Boolean): List<String> {
         // TODO: Can we extract more to the konan.properties?
-        return mutableListOf<String>(linker,
+        return mutableListOf(linker,
             "--sysroot=${targetSysRoot}",
             "-export-dynamic", "-z", "relro", "--hash-style=gnu", 
             "--build-id", "--eh-frame-hdr", // "-m", "elf_x86_64",

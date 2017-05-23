@@ -210,21 +210,20 @@ private fun Properties.defaultCompilerOpts(target: String, dependencies: String)
     val arch = getTargetSpecific("arch", target)
     val archSelector = if (quadruple != null)
         listOf("-target", quadruple) else listOf("-arch", arch!!)
-    val commonArgs = listOf("-isystem", isystem, "--sysroot=$targetSysRoot",
-            "-B$targetToolchain/usr/bin")
+    val commonArgs = listOf("-isystem", isystem, "--sysroot=$targetSysRoot")
     when (host) {
         "osx" -> {
             val osVersionMinFlag = getTargetSpecific("osVersionMinFlagClang", target)
             val osVersionMinValue = getTargetSpecific("osVersionMin", target)
-            return archSelector + commonArgs +
+            return archSelector + commonArgs + listOf("-B$targetToolchain/bin") +
                     (if (osVersionMinFlag != null && osVersionMinValue != null)
                         listOf("$osVersionMinFlag=$osVersionMinValue") else emptyList())
         }
         "linux" -> {
-            val targetToolChainDir = getHostTargetSpecific("targetToolchain", target)
+            val libGcc = getTargetSpecific("libGcc", target)
+            val binDir = "$targetToolchain/${libGcc ?: "bin"}"
             return archSelector + commonArgs + listOf(
-                    "-L$llvmHome/lib",
-                    "--gcc-toolchain=$targetToolchain")
+                    "-B$binDir", "--gcc-toolchain=$targetToolchain")
         }
         else -> error("Unexpected target: ${target}")
     }
