@@ -16,21 +16,13 @@
 
 package org.jetbrains.kotlin.backend.common
 
+import org.jetbrains.kotlin.backend.konan.ir.DeepCopyKonanIrTreeWithSymbols
 import org.jetbrains.kotlin.descriptors.VariableDescriptor
 import org.jetbrains.kotlin.descriptors.impl.LocalVariableDescriptor
 import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.IrStatement
-import org.jetbrains.kotlin.ir.declarations.IrVariable
-import org.jetbrains.kotlin.ir.declarations.impl.IrVariableImpl
-import org.jetbrains.kotlin.ir.expressions.*
-import org.jetbrains.kotlin.ir.expressions.impl.IrGetValueImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrSetVariableImpl
-import org.jetbrains.kotlin.ir.symbols.IrVariableSymbol
-import org.jetbrains.kotlin.ir.symbols.impl.IrVariableSymbolImpl
-import org.jetbrains.kotlin.ir.util.DeepCopyIrTreeWithSymbols
+import org.jetbrains.kotlin.ir.expressions.IrLoop
 import org.jetbrains.kotlin.ir.util.DeepCopySymbolsRemapper
 import org.jetbrains.kotlin.ir.util.DescriptorsRemapper
-import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 
 fun IrElement.deepCopyWithVariablesImpl(): IrElement {
@@ -50,7 +42,7 @@ fun IrElement.deepCopyWithVariablesImpl(): IrElement {
     acceptVoid(symbolsRemapper)
 
     return this.transform(
-            object : DeepCopyIrTreeWithSymbols(symbolsRemapper) {
+            object : DeepCopyKonanIrTreeWithSymbols(symbolsRemapper) {
                 override fun getNonTransformedLoop(irLoop: IrLoop): IrLoop {
                     return irLoop
                 }
