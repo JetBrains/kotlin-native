@@ -24,7 +24,7 @@ COMPILER_ARGS=${!var} # add -opt for an optimized build.
 var=CLANG_${TARGET}
 CLANG=${!var}
 
-$CLANG -std=c++11 -c $DIR/MessageChannel.cpp -o $DIR/MessageChannel.bc -emit-llvm || exit 1
-cinterop -def $DIR/MessageChannel.def -copt "-I$DIR" -target $TARGET -o $DIR/MessageChannel.kt.bc || exit 1
-konanc $DIR/Concurrent.kt -library $DIR/MessageChannel.kt.bc \
-       -nativelibrary $DIR/MessageChannel.bc -o Concurrent.kexe || exit 1
+mkdir $DIR/build/
+mkdir $DIR/build/clang/
+
+$CLANG -std=c++11 -c $DIR/src/cpp/MessageChannel.cpp -o $DIR/build/clang/MessageChannel.bc -emit-llvm || exit 1
