@@ -1,12 +1,10 @@
 #!/usr/bin/env bash
 
+DIR="`pwd`"
 PATH=../../dist/bin:../../bin:$PATH
-DIR=.
+
 TF_TARGET_DIRECTORY="$HOME/.konan/third-party/tensorflow"
 TF_TYPE="cpu" # Change to "gpu" for GPU support
-
-CFLAGS_macbook="-I${TF_TARGET_DIRECTORY}/include"
-CFLAGS_linux="-I${TF_TARGET_DIRECTORY}/include"
 
 if [ x$TARGET == x ]; then
 case "$OSTYPE" in
@@ -15,13 +13,6 @@ case "$OSTYPE" in
   *)        echo "unknown: $OSTYPE" && exit 1;;
 esac
 fi
-
-var=CFLAGS_${TARGET}
-CFLAGS=${!var}
-var=LINKER_ARGS_${TARGET}
-LINKER_ARGS=${!var}
-var=COMPILER_ARGS_${TARGET}
-COMPILER_ARGS=${!var} # add -opt for an optimized build.
 
 if [ ! -d $TF_TARGET_DIRECTORY/include/tensorflow ]; then
  echo "Installing TensorFlow into $TF_TARGET_DIRECTORY ..."

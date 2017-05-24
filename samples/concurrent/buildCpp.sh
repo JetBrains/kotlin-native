@@ -15,12 +15,6 @@ fi
 CLANG_linux=$DEPS/clang-llvm-3.9.0-linux-x86-64/bin/clang++
 CLANG_macbook=$DEPS/clang-llvm-3.9.0-darwin-macos/bin/clang++
 
-var=CFLAGS_${TARGET}
-CFLAGS=${!var}
-var=LINKER_ARGS_${TARGET}
-LINKER_ARGS=${!var}
-var=COMPILER_ARGS_${TARGET}
-COMPILER_ARGS=${!var} # add -opt for an optimized build.
 var=CLANG_${TARGET}
 CLANG=${!var}
 
