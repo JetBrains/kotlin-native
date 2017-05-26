@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 
-DIR="`cd .;pwd`"
+DIR=$(dirname "$0")
 PATH=../../dist/bin:../../bin:$PATH
 
 if [ x$TARGET == x ]; then

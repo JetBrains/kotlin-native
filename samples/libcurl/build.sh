@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-DIR="`pwd`"
+DIR=$(dirname "$0")
 PATH=../../dist/bin:../../bin:$PATH
 
 CFLAGS_macbook=-I/opt/local/include

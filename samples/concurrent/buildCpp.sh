@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-DIR=.
+DIR=$(dirname "$0")
 PATH=../../dist/bin:../../bin:$PATH
 DEPS=$(dirname `type -p konanc`)/../dependencies
 

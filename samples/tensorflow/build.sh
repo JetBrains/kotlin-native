@@ -2,7 +2,7 @@
 
 ./downloadTensorflow.sh
 
-DIR="`pwd`"
+DIR=$(dirname "$0")
 PATH=../../dist/bin:../../bin:$PATH
 
 TF_TARGET_DIRECTORY="$HOME/.konan/third-party/tensorflow"

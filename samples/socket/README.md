@@ -7,7 +7,7 @@ Run the server:
     ../gradlew run
     
 To change run arguments, change property runArgs in gradle.propeties file 
-or pass `-PrunArgs="3000 &"` to gradle run. 
+or pass `-PrunArgs="3000"` to gradle run. 
 
 Alternatively you can run artifact directly 
 
