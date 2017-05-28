@@ -94,7 +94,7 @@ open class KonanCompileTask: DefaultTask() {
         addFileArgs("-nativelibrary", nativeLibraries)
         addArg("-produce", produce)
 
-        addListArg("-linkerArgs", linkerOpts)
+        addListArg("-linkerOpts", linkerOpts)
 
         addArgIfNotNull("-target", target)
         addArgIfNotNull("-language-version", languageVersion)
@@ -116,6 +116,7 @@ open class KonanCompileTask: DefaultTask() {
 
         // TODO: Use compiler service.
         project.javaexec {
+            println("Calling compiler!")
             with(it) {
                 main = COMPILER_MAIN
                 classpath = project.fileTree(COMPILER_CLASSPATH).apply { include("*.jar") }
