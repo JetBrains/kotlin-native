@@ -116,7 +116,6 @@ open class KonanCompileTask: DefaultTask() {
 
         // TODO: Use compiler service.
         project.javaexec {
-            println("Calling compiler!")
             with(it) {
                 main = COMPILER_MAIN
                 classpath = project.fileTree(COMPILER_CLASSPATH).apply { include("*.jar") }

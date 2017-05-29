@@ -38,7 +38,10 @@ fun main(args: Array<String>) {
 val escapedOptions = setOf("-compilerOpts", "-linkerOpts")
 
 private fun String.asArgList(key: String) =
-        if (escapedOptions.contains(key)) this.split(Regex("(?<!\\\\)\\Q \\E")).filter { it.isNotEmpty() } else listOf(this)
+        if (escapedOptions.contains(key))
+            this.split(Regex("(?<!\\\\)\\Q \\E")).filter { it.isNotEmpty() }.map { it.replace("\\ ", " ") }
+        else
+            listOf(this)
 
 private fun parseArgs(args: Array<String>): Map<String, List<String>> {
     val commandLine = mutableMapOf<String, MutableList<String>>()
