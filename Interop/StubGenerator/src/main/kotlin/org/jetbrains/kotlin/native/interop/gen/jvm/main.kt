@@ -34,7 +34,7 @@ fun main(args: Array<String>) {
     processLib(konanHome, substitutions, parseArgs(args))
 }
 
-// Options, whose values are space=separated and can be escaped.
+// Options, whose values are space-separated and can be escaped.
 val escapedOptions = setOf("-compilerOpts", "-linkerOpts")
 
 private fun String.asArgList(key: String) =
