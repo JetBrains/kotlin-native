@@ -52,6 +52,9 @@ import org.jetbrains.kotlin.ir.util.*
 
 internal class SuspendFunctionsLowering(val context: Context): DeclarationContainerLoweringPass {
 
+    private object STATEMENT_ORIGIN_COROUTINE_IMPL : IrStatementOriginImpl("COROUTINE_IMPL")
+    private object DECLARATION_ORIGIN_COROUTINE_IMPL : IrDeclarationOriginImpl("COROUTINE_IMPL")
+
     private val builtCoroutines = mutableMapOf<FunctionDescriptor, BuiltCoroutine>()
     private val suspendLambdas = mutableMapOf<FunctionDescriptor, IrFunctionReference>()
 
@@ -1075,9 +1078,6 @@ internal class SuspendFunctionsLowering(val context: Context): DeclarationContai
             private val IrExpression.isSuspendCall: Boolean
                 get() = this is IrCall && this.descriptor.isSuspend
 
-            private object STATEMENT_ORIGIN_COROUTINE_IMPL :
-                    IrStatementOriginImpl("COROUTINE_IMPL")
-
             private fun IrElement.isSpecialBlock()
                     = this is IrBlock && this.origin == STATEMENT_ORIGIN_COROUTINE_IMPL
 
@@ -1116,8 +1116,6 @@ internal class SuspendFunctionsLowering(val context: Context): DeclarationContai
                 get() = this is IrCall && this.descriptor.original == returnIfSuspendedDescriptor
         }
 
-        private object DECLARATION_ORIGIN_COROUTINE_IMPL :
-                IrDeclarationOriginImpl("COROUTINE_IMPL")
 
         private fun IrBuilderWithScope.irVar(descriptor: VariableDescriptor, initializer: IrExpression?) =
                 IrVariableImpl(startOffset, endOffset, DECLARATION_ORIGIN_COROUTINE_IMPL, descriptor, initializer)

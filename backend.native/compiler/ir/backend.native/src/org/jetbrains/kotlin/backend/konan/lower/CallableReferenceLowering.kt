@@ -56,6 +56,8 @@ import org.jetbrains.kotlin.types.*
 
 internal class CallableReferenceLowering(val context: Context): FileLoweringPass {
 
+    private object DECLARATION_ORIGIN_FUNCTION_REFERENCE_IMPL : IrDeclarationOriginImpl("FUNCTION_REFERENCE_IMPL")
+
     private var functionReferenceCount = 0
 
     override fun lower(irFile: IrFile) {
@@ -374,7 +376,5 @@ internal class CallableReferenceLowering(val context: Context): FileLoweringPass
             return propertyBuilder.ir.backingField!!.symbol
         }
 
-        private object DECLARATION_ORIGIN_FUNCTION_REFERENCE_IMPL :
-                IrDeclarationOriginImpl("FUNCTION_REFERENCE_IMPL")
     }
 }

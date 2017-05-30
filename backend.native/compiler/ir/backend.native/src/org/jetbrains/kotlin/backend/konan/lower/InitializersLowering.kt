@@ -38,6 +38,11 @@ import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.js.descriptorUtils.hasPrimaryConstructor
 
 internal class InitializersLowering(val context: Context) : ClassLoweringPass {
+
+    object STATEMENT_ORIGIN_ANONYMOUS_INITIALIZER : IrStatementOriginImpl("ANONYMOUS_INITIALIZER")
+
+    object DECLARATION_ORIGIN_ANONYMOUS_INITIALIZER : IrDeclarationOriginImpl("ANONYMOUS_INITIALIZER")
+
     override fun lower(irClass: IrClass) {
         InitializersTransformer(irClass).lowerInitializers()
     }
@@ -50,12 +55,6 @@ internal class InitializersLowering(val context: Context) : ClassLoweringPass {
             val initializerMethodSymbol = createInitializerMethod()
             lowerConstructors(initializerMethodSymbol)
         }
-
-        object STATEMENT_ORIGIN_ANONYMOUS_INITIALIZER :
-                IrStatementOriginImpl("ANONYMOUS_INITIALIZER")
-
-        object DECLARATION_ORIGIN_ANONYMOUS_INITIALIZER :
-                IrDeclarationOriginImpl("ANONYMOUS_INITIALIZER")
 
         private fun collectAndRemoveInitializers() {
             // Do with one traversal in order to preserve initializers order.
