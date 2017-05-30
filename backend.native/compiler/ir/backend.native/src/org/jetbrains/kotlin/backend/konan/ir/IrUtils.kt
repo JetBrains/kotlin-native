@@ -16,6 +16,7 @@
 
 package org.jetbrains.kotlin.backend.konan.ir
 
+import org.jetbrains.kotlin.backend.common.CommonBackendContext
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
@@ -116,7 +117,7 @@ internal fun IrClass.addSimpleDelegatingConstructor(superConstructorSymbol: IrCo
     }
 }
 
-internal fun Context.createArrayOfExpression(arrayElementType: KotlinType,
+internal fun CommonBackendContext.createArrayOfExpression(arrayElementType: KotlinType,
                                              arrayElements: List<IrExpression>,
                                              startOffset: Int, endOffset: Int): IrExpression {
 
