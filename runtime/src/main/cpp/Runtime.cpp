@@ -15,6 +15,9 @@
  */
 
 #include <stdio.h>
+#if KONAN_WINDOWS
+#include <windows.h>
+#endif
 
 #include "Memory.h"
 #include "Runtime.h"
@@ -64,6 +67,10 @@ RuntimeState* InitRuntime() {
   result->memoryState = InitMemory();
   // Keep global variables in state as well.
   InitGlobalVariables();
+#if KONAN_WINDOWS
+  SetConsoleCP(CP_UTF8);
+  SetConsoleOutputCP(CP_UTF8);
+#endif
   return result;
 }
 

@@ -367,19 +367,11 @@ task hello3(type: RunKonanTest) {
 }
 
 task hello4(type: RunKonanTest) {
-    if (isWindows()) {
-        // To be investigated.
-        disabled = true
-    }
     goldValue = "Hello\nПока\n"
     source = "runtime/basic/hello4.kt"
 }
 
 task tostring0(type: RunKonanTest) {
-    if (isWindows()) {
-        // To be investigated.
-        disabled = true
-    }
     goldValue = "127\n-1\n239\nA\nЁ\nト\n1122334455\n112233445566778899\n3.14159265358\n1.0E27\n1.0E-300\ntrue\nfalse\n"
     source = "runtime/basic/tostring0.kt"
 }
@@ -1223,19 +1215,11 @@ task moderately_large_array1(type: RunKonanTest) {
 }
 
 task string_builder0(type: RunKonanTest) {
-    if (isWindows()) {
-        // To be investigated.
-        disabled = true
-    }
     goldValue = "OK\n"
     source = "runtime/text/string_builder0.kt"
 }
 
 task string0(type: RunKonanTest) {
-    if (isWindows()) {
-        // To be investigated.
-        disabled = true
-    }
     goldValue = "true\ntrue\nПРИВЕТ\nпривет\nПока\ntrue\n"
     source = "runtime/text/string0.kt"
 }
