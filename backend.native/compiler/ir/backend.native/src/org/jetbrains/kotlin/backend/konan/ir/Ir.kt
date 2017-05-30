@@ -16,9 +16,11 @@
 
 package org.jetbrains.kotlin.backend.konan.ir
 
+import org.jetbrains.kotlin.backend.common.atMostOne
 import org.jetbrains.kotlin.backend.common.ir.Ir
 import org.jetbrains.kotlin.backend.common.ir.Symbols
 import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.ValueType
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.psi2ir.generators.SymbolTable
 import kotlin.properties.Delegates
@@ -41,4 +43,22 @@ internal class KonanSymbols(context: Context, symbolTable: SymbolTable): Symbols
     val interopCPointerGetRawValue = symbolTable.referenceSimpleFunction(context.interopBuiltIns.cPointerGetRawValue)
 
     val getNativeNullPtr = symbolTable.referenceSimpleFunction(context.builtIns.getNativeNullPtr)
+
+    val boxFunctions = ValueType.values().associate {
+        val boxFunctionName = "box${it.classFqName.shortName()}"
+        it to symbolTable.referenceSimpleFunction(context.getInternalFunctions(boxFunctionName).single())
+    }
+
+    val boxClasses = ValueType.values().associate {
+        it to symbolTable.referenceClass(context.getInternalClass("${it.classFqName.shortName()}Box"))
+    }
+
+    val unboxFunctions = ValueType.values().mapNotNull {
+        val unboxFunctionName = "unbox${it.classFqName.shortName()}"
+        context.getInternalFunctions(unboxFunctionName).atMostOne()?.let { descriptor ->
+            it to symbolTable.referenceSimpleFunction(descriptor)
+        }
+    }.toMap()
+
+
 }

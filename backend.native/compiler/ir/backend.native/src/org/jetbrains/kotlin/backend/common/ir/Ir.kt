@@ -1,8 +1,6 @@
 package org.jetbrains.kotlin.backend.common.ir
 
 import org.jetbrains.kotlin.backend.common.CommonBackendContext
-import org.jetbrains.kotlin.backend.common.atMostOne
-import org.jetbrains.kotlin.backend.konan.ValueType
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.builtins.PrimitiveType
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
@@ -117,22 +115,6 @@ open class Symbols<out T: CommonBackendContext>(val context: T, val symbolTable:
                         it.valueParameters.single().type == builtIns.intType
                     }
     )
-
-    val boxFunctions = ValueType.values().associate {
-        val boxFunctionName = "box${it.classFqName.shortName()}"
-        it to symbolTable.referenceSimpleFunction(context.getInternalFunctions(boxFunctionName).single())
-    }
-
-    val boxClasses = ValueType.values().associate {
-        it to symbolTable.referenceClass(context.getInternalClass("${it.classFqName.shortName()}Box"))
-    }
-
-    val unboxFunctions = ValueType.values().mapNotNull {
-        val unboxFunctionName = "unbox${it.classFqName.shortName()}"
-        context.getInternalFunctions(unboxFunctionName).atMostOne()?.let { descriptor ->
-            it to symbolTable.referenceSimpleFunction(descriptor)
-        }
-    }.toMap()
 
     val valuesForEnum = symbolTable.referenceSimpleFunction(
             context.getInternalFunctions("valuesForEnum").single())
