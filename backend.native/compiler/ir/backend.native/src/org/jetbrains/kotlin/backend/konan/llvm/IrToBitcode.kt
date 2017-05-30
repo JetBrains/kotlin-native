@@ -1712,7 +1712,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
     //-------------------------------------------------------------------------//
 
-    private val coroutineImplDescriptor = context.builtIns.getKonanInternalClass("CoroutineImpl")
+    private val coroutineImplDescriptor = context.getInternalClass("CoroutineImpl")
     private val doResumeFunctionDescriptor = coroutineImplDescriptor.unsubstitutedMemberScope
             .getContributedFunctions(Name.identifier("doResume"), NoLookupLocation.FROM_BACKEND).single()
 
