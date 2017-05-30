@@ -68,6 +68,8 @@ RuntimeState* InitRuntime() {
   // Keep global variables in state as well.
   InitGlobalVariables();
 #if KONAN_WINDOWS
+  // Note that this code enforces UTF-8 console output, so we may want to rethink
+  // how we perform console IO, if it turns out, that UTF-16 is better output format.
   SetConsoleCP(CP_UTF8);
   SetConsoleOutputCP(CP_UTF8);
 #endif
