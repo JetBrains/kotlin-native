@@ -21,7 +21,7 @@ abstract class Ir<out T: CommonBackendContext>(val context: T, val irModule: IrM
     abstract val symbols: Symbols<T>
 }
 
-open class Symbols<out T: CommonBackendContext>(val context: T, val symbolTable: SymbolTable) {
+open class Symbols<out T: CommonBackendContext>(val context: T, private val symbolTable: SymbolTable) {
 
     private val builtIns
         get() = context.builtIns

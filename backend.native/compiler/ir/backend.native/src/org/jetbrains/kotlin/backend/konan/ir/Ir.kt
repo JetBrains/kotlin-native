@@ -38,7 +38,7 @@ internal class KonanIr(context: Context, irModule: IrModuleFragment): Ir<Context
     override var symbols: KonanSymbols by Delegates.notNull()
 }
 
-internal class KonanSymbols(context: Context, symbolTable: SymbolTable): Symbols<Context>(context, symbolTable) {
+internal class KonanSymbols(context: Context, val symbolTable: SymbolTable): Symbols<Context>(context, symbolTable) {
 
     val interopNativePointedGetRawPointer =
             symbolTable.referenceSimpleFunction(context.interopBuiltIns.nativePointedGetRawPointer)
