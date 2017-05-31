@@ -85,65 +85,66 @@ internal fun emitLLVM(context: Context) {
         if (context.shouldContainDebugInfo()) {
             DIFinalize(context.debugInfo.builder)
         }
-        
-        when (config.get(KonanConfigKeys.PRODUCE)) {
-            CompilerOutputKind.PROGRAM -> {
-                val program = config.get(KonanConfigKeys.OUTPUT_NAME)!!
-                val output = "${program}.kt.bc"
-                context.bitcodeFileName = output
-
-                phaser.phase(KonanPhase.BITCODE_LINKER) {
-                    for (library in context.config.nativeLibraries) {
-                        val libraryModule = parseBitcodeFile(library)
-                        val failed = LLVMLinkModules2(llvmModule, libraryModule)
-                        if (failed != 0) {
-                            throw Error("failed to link $library") // TODO: retrieve error message from LLVM.
-                        }
-                    }
-                }
-
-                LLVMWriteBitcodeToFile(llvmModule, output)
-            }
-            CompilerOutputKind.LIBRARY -> {
-
-                val libraryName = config.get(KonanConfigKeys.OUTPUT_NAME)!!
-                val nopack = config.getBoolean(KonanConfigKeys.NOPACK)
-                val targetName = context.config.targetManager.currentName
-
-                val library = buildLibrary(
-                    phaser, 
-                    context.config.nativeLibraries, 
-                    context.serializedLinkData!!, 
-                    targetName,
-                    libraryName, 
-                    llvmModule,
-                    nopack)
-
-                context.library = library
-
-                context.bitcodeFileName = library.mainBitcodeFileName
-            }
-            CompilerOutputKind.BITCODE -> {
-                val output = config.get(KonanConfigKeys.OUTPUT_FILE)!!
-                context.bitcodeFileName = output
-                LLVMWriteBitcodeToFile(llvmModule, output)
-            }
-        }
 }
 
-internal fun buildLibrary(phaser: PhaseManager, natives: List<String>, linkData: LinkData, target: String, output: String, llvmModule: LLVMModuleRef, nopack: Boolean): KonanLibraryWriter {
+internal fun produceOutput(context: Context) {
+
+    val llvmModule = context.llvmModule!!
+    val config = context.config.configuration
+
+    when (config.get(KonanConfigKeys.PRODUCE)) {
+        CompilerOutputKind.PROGRAM -> {
+            val program = config.get(KonanConfigKeys.OUTPUT_NAME)!!
+            val output = "${program}.kt.bc"
+            context.bitcodeFileName = output
+
+            PhaseManager(context).phase(KonanPhase.BITCODE_LINKER) {
+                for (library in context.config.nativeLibraries) {
+                    val libraryModule = parseBitcodeFile(library)
+                    val failed = LLVMLinkModules2(llvmModule, libraryModule)
+                    if (failed != 0) {
+                        throw Error("failed to link $library") // TODO: retrieve error message from LLVM.
+                    }
+                }
+            }
+
+            LLVMWriteBitcodeToFile(llvmModule, output)
+        }
+        CompilerOutputKind.LIBRARY -> {
+
+            val libraryName = config.get(KonanConfigKeys.OUTPUT_NAME)!!
+            val nopack = config.getBoolean(KonanConfigKeys.NOPACK)
+            val targetName = context.config.targetManager.currentName
+
+            val library = buildLibrary(
+                context.config.nativeLibraries, 
+                context.serializedLinkData!!, 
+                targetName,
+                libraryName, 
+                llvmModule,
+                nopack)
+
+            context.library = library
+            context.bitcodeFileName = library.mainBitcodeFileName
+        }
+        CompilerOutputKind.BITCODE -> {
+            val output = config.get(KonanConfigKeys.OUTPUT_FILE)!!
+            context.bitcodeFileName = output
+            LLVMWriteBitcodeToFile(llvmModule, output)
+        }
+    }
+}
+
+internal fun buildLibrary(natives: List<String>, linkData: LinkData, target: String, output: String, llvmModule: LLVMModuleRef, nopack: Boolean): KonanLibraryWriter {
     // TODO: May be we need a factory?
     //val library = KtBcLibraryWriter(output, llvmModule)
     val library = SplitLibraryWriter(output, target, nopack)
 
     library.addKotlinBitcode(llvmModule)
-
     library.addLinkData(linkData)
 
-    phaser.phase(KonanPhase.BITCODE_LINKER) {
-        natives.forEach {
-            library.addNativeBitcode(it)
-        }
+    natives.forEach {
+        library.addNativeBitcode(it)
     }
 
     library.commit()
