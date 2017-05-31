@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.backend.common.CommonBackendContext
 import org.jetbrains.kotlin.backend.konan.descriptors.KonanSharedVariablesManager
 import org.jetbrains.kotlin.backend.konan.descriptors.konanInternal
 import org.jetbrains.kotlin.backend.konan.ir.KonanIr
+import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
@@ -41,4 +42,7 @@ abstract internal class KonanBackendContext(val config: KonanConfig) : CommonBac
 
     override fun getInternalFunctions(name: String): List<FunctionDescriptor> =
             builtIns.konanInternal.getContributedFunctions(Name.identifier(name), NoLookupLocation.FROM_BACKEND).toList()
+
+    override val compilerConfiguration: CompilerConfiguration
+        get() = config.configuration
 }

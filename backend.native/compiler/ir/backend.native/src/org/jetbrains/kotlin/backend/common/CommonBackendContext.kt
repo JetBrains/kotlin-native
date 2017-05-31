@@ -1,6 +1,7 @@
 package org.jetbrains.kotlin.backend.common
 
 import org.jetbrains.kotlin.backend.common.ir.Ir
+import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
@@ -14,7 +15,7 @@ import org.jetbrains.kotlin.types.KotlinTypeFactory
 import org.jetbrains.kotlin.types.TypeProjection
 import org.jetbrains.kotlin.types.typeUtil.asTypeProjection
 import org.jetbrains.kotlin.utils.addIfNotNull
-import java.util.ArrayList
+import java.util.*
 import kotlin.reflect.KProperty
 
 
@@ -31,6 +32,8 @@ interface CommonBackendContext : BackendContext {
     val reflectionTypes: ReflectionTypes
 
     fun log(message: () -> String)
+
+    val compilerConfiguration: CompilerConfiguration
 }
 
 class ReflectionTypes(module: ModuleDescriptor, internalPackage: FqName) {
