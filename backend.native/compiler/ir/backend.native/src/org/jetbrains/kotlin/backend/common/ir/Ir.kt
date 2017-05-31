@@ -5,7 +5,6 @@ import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.builtins.PrimitiveType
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
-import org.jetbrains.kotlin.descriptors.PropertyDescriptor
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
@@ -16,7 +15,6 @@ import org.jetbrains.kotlin.util.OperatorNameConventions
 
 // This is what Context collects about IR.
 abstract class Ir<out T: CommonBackendContext>(val context: T, val irModule: IrModuleFragment) {
-    val propertiesWithBackingFields = mutableSetOf<PropertyDescriptor>()
 
     val defaultParameterDeclarationsCache = mutableMapOf<FunctionDescriptor, IrFunction>()
 

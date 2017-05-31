@@ -21,12 +21,15 @@ import org.jetbrains.kotlin.backend.common.ir.Ir
 import org.jetbrains.kotlin.backend.common.ir.Symbols
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.ValueType
+import org.jetbrains.kotlin.descriptors.PropertyDescriptor
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.psi2ir.generators.SymbolTable
 import kotlin.properties.Delegates
 
 // This is what Context collects about IR.
 internal class KonanIr(context: Context, irModule: IrModuleFragment): Ir<Context>(context, irModule) {
+
+    val propertiesWithBackingFields = mutableSetOf<PropertyDescriptor>()
 
     val originalModuleIndex = ModuleIndex(irModule)
 
