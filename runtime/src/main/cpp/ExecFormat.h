@@ -19,7 +19,7 @@
 
 extern "C" {
 
-const char* AddressToSymbol(unsigned long address);
+const char* AddressToSymbol(const void* address);
 
 }  // extern "C"
 

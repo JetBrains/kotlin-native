@@ -95,11 +95,17 @@ _Unwind_Reason_Code unwindCallback(
     backtrace->skipCount--;
     return _URC_NO_REASON;
   }
-  unsigned long ip = _Unwind_GetIP(context);
-  const char* symbol = AddressToSymbol(ip);
+
+#if (__MINGW32__ || __MINGW64__)
+  _Unwind_Ptr address = _Unwind_GetRegionStart(context);
+#else
+  _Unwind_Ptr address = _Unwind_GetIP(context);
+#endif
+
+  const char* symbol = AddressToSymbol((const void*)address);
   char line[512];
-  snprintf(line, sizeof(line) - 1, "%s (0x%lx)",
-	   symbol != nullptr ? symbol : "", ip);
+  snprintf(line, sizeof(line) - 1, "%s (%p)",
+	   symbol != nullptr ? symbol : "", (void*)address);
   backtrace->setNextElement(line);
   return _URC_NO_REASON;
 }
