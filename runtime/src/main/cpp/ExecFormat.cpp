@@ -95,9 +95,7 @@ void initSymbols() {
   }
 }
 
-}  // namespace
-
-extern "C" const char* AddressToSymbol(const void* address) {
+const char* addressToSymbol(const void* address) {
   if (address == nullptr) return nullptr;
 
   // First, look up in dynamically loaded symbols.
@@ -125,6 +123,19 @@ extern "C" const char* AddressToSymbol(const void* address) {
     }
   }
   return nullptr;
+}
+
+}  // namespace
+
+extern "C" bool AddressToSymbol(const void* address, char* resultBuffer, size_t resultBufferSize) {
+  const char* result = addressToSymbol(address);
+  if (result == nullptr) {
+    return false;
+  } else {
+    strncpy(resultBuffer, result, resultBufferSize);
+    resultBuffer[resultBufferSize - 1] = '\0';
+    return true;
+  }
 }
 
 #elif USE_PE_COFF_SYMBOLS
@@ -206,10 +217,6 @@ static void* mapModuleFile(HMODULE hModule) {
   return mapAddress;
 }
 
-// TODO: do not use thread-local buffer, refactor AddressToSymbol callers instead.
-static const int SYMBOL_SHORT_NAME_LENGTH = 8;
-static __thread char symbolNameBuffer[SYMBOL_SHORT_NAME_LENGTH + 1];
-
 class SymbolTable {
  private:
 
@@ -217,6 +224,45 @@ class SymbolTable {
   IMAGE_SECTION_HEADER* sectionHeaders = nullptr;
   IMAGE_SYMBOL* symbols = nullptr;
   DWORD numberOfSymbols = 0;
+
+  // Note: it doesn't free resources yet.
+  ~SymbolTable() {}
+
+  static const int SYMBOL_SHORT_NAME_LENGTH = 8;
+
+  void getSymbolName(IMAGE_SYMBOL* sym, char* resultBuffer, size_t resultBufferSize) {
+    if (sym->N.Name.Short != 0) {
+      // ShortName is not zero-terminated if its length exactly equals SYMBOL_SHORT_NAME_LENGTH.
+      // Copy it to the buffer and zero-terminate explicitly:
+      size_t bytesToCopy = SYMBOL_SHORT_NAME_LENGTH;
+      if (bytesToCopy > resultBufferSize - 1) bytesToCopy = resultBufferSize - 1;
+
+      memcpy(resultBuffer, sym->N.ShortName, bytesToCopy);
+      resultBuffer[bytesToCopy] = '\0';
+    } else {
+      const char* strTable = (const char*)(symbols + numberOfSymbols);
+      const char* result = strTable + sym->N.Name.Long;
+      strncpy(resultBuffer, result, resultBufferSize);
+      resultBuffer[resultBufferSize - 1] = '\0';
+    }
+  }
+
+  const void* getSymbolAddress(IMAGE_SYMBOL* symbol) {
+    IMAGE_SECTION_HEADER* sectionHeader = &sectionHeaders[symbol->SectionNumber - 1];
+    return (const void*)(imageBase + sectionHeader->VirtualAddress + symbol->Value);
+  }
+
+  IMAGE_SYMBOL* findFunctionSymbol(const void* address) {
+    for (DWORD i = 0; i < numberOfSymbols; ++i) {
+      IMAGE_SYMBOL* symbol = &symbols[i];
+      if (symbol->Type == 0x20 && address == getSymbolAddress(symbol)) {
+        return symbol;
+      }
+    }
+    return nullptr;
+  }
+
+ public:
 
   explicit SymbolTable(HMODULE hModule) {
     imageBase = (char*)hModule;
@@ -242,65 +288,35 @@ class SymbolTable {
     }
   }
 
-  // Note: it doesn't free resources yet.
-  ~SymbolTable() {}
-
-  const char* getSymbolName(IMAGE_SYMBOL* sym) {
-    if (sym->N.Name.Short != 0) {
-      // ShortName is not zero-terminated if its length exactly equals SYMBOL_SHORT_NAME_LENGTH.
-      // Copy it to the buffer and zero-terminate explicitly:
-      memcpy(symbolNameBuffer, sym->N.ShortName, SYMBOL_SHORT_NAME_LENGTH);
-      symbolNameBuffer[SYMBOL_SHORT_NAME_LENGTH] = '\0';
-      return symbolNameBuffer;
-    } else {
-      const char* strTable = (const char*)(symbols + numberOfSymbols);
-      return strTable + sym->N.Name.Long;
-    }
-  }
-
-  const void* getSymbolAddress(IMAGE_SYMBOL* symbol) {
-    IMAGE_SECTION_HEADER* sectionHeader = &sectionHeaders[symbol->SectionNumber - 1];
-    return (const void*)(imageBase + sectionHeader->VirtualAddress + symbol->Value);
-  }
-
-  IMAGE_SYMBOL* findFunctionSymbol(const void* address) {
-    for (DWORD i = 0; i < numberOfSymbols; ++i) {
-      IMAGE_SYMBOL* symbol = &symbols[i];
-      if (symbol->Type == 0x20 && address == getSymbolAddress(symbol)) {
-        return symbol;
-      }
-    }
-    return nullptr;
-  }
-
- public:
-
-  const char* functionAddressToSymbol(const void* address) {
+  bool functionAddressToSymbol(const void* address, char* resultBuffer, size_t resultBufferSize) {
     IMAGE_SYMBOL* symbol = findFunctionSymbol(address);
     if (symbol == nullptr) {
-      return nullptr;
+      return false;
     } else {
-      return getSymbolName(symbol);
+      getSymbolName(symbol, resultBuffer, resultBufferSize);
+      return true;
     }
   }
-
-  static SymbolTable theExeSymbolTable;
 
 };
 
-// Initialize statically:
-SymbolTable SymbolTable::theExeSymbolTable(GetModuleHandle(nullptr));
+SymbolTable* theExeSymbolTable = nullptr;
 
 }  // namespace
 
-extern "C" const char* AddressToSymbol(const void* address) {
-  return SymbolTable::theExeSymbolTable.functionAddressToSymbol(address);
+extern "C" bool AddressToSymbol(const void* address, char* resultBuffer, size_t resultBufferSize) {
+  if (theExeSymbolTable == nullptr) {
+    // Note: do not protecting the lazy initialization by critical sections for simplicity;
+    // this doesn't have any serious consequences.
+    theExeSymbolTable = new SymbolTable(GetModuleHandle(nullptr));
+  }
+  return theExeSymbolTable->functionAddressToSymbol(address, resultBuffer, resultBufferSize);
 }
 
 #else
 
-extern "C" const char* AddressToSymbol(const void* address) {
-  return nullptr;
+extern "C" bool AddressToSymbol(const void* address, char* resultBuffer, size_t resultBufferSize) {
+  return false;
 }
 
 #endif // USE_ELF_SYMBOLS

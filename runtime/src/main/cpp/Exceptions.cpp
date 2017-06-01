@@ -16,6 +16,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 #ifndef OMIT_BACKTRACE
 #if USE_GCC_UNWIND
 // GCC unwinder for backtrace.
@@ -102,10 +103,15 @@ _Unwind_Reason_Code unwindCallback(
   _Unwind_Ptr address = _Unwind_GetIP(context);
 #endif
 
-  const char* symbol = AddressToSymbol((const void*)address);
+  char symbol[512];
+  if (!AddressToSymbol((const void*)address, symbol, sizeof(symbol))) {
+    // Make empty string:
+    symbol[0] = '\0';
+  }
+
   char line[512];
   snprintf(line, sizeof(line) - 1, "%s (%p)",
-	   symbol != nullptr ? symbol : "", (void*)address);
+    symbol, (void*)(intptr_t)address);
   backtrace->setNextElement(line);
   return _URC_NO_REASON;
 }
