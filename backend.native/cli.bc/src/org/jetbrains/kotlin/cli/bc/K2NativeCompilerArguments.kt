@@ -60,7 +60,7 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     @field:Argument(value = "-entry", shortName = "-e", valueDescription = "<name>", description = "Qualified entry point name")
     @JvmField var mainPackage: String? = null
 
-    @field:Argument(value = "-produce", shortName = "-p", valueDescription = "{program|library|bitcode}", description = "Produce either .kexe, .klib or a .bc file.")
+    @field:Argument(value = "-produce", shortName = "-p", valueDescription = "{program|library|bitcode}", description = "Specify output file kind")
     @JvmField var produce: String? = null
 
     @field:Argument(value = "-properties", valueDescription = "<path>", description = "Override standard 'konan.properties' location")
