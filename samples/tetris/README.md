@@ -16,8 +16,11 @@ not have MSYS2-MinGW64 installed - install it first as described in http://www.m
 To build Tetris application for your host platform use 
     
 For Mac and Linux:
+
     ./build.sh
+
 For Windows:
+
     build.bat
 
 You also may use gradle to build this sample: `../gradlew build`. This task builds the sample for all platforms
