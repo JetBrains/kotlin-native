@@ -41,6 +41,7 @@ class TargetManager(val config: CompilerConfiguration) {
                 KonanTarget.LINUX.enabled = true
                 KonanTarget.RASPBERRYPI.enabled = true
                 KonanTarget.ANDROID_ARM32.enabled = true
+                KonanTarget.ANDROID_ARM64.enabled = true
             }
             KonanTarget.MINGW -> {
                 KonanTarget.MINGW.enabled = true
