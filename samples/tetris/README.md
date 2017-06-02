@@ -42,3 +42,5 @@ To deploy executable to iPhone device take Info.plist, then use XCode and your o
 To run on Raspberry Pi one need to install SDL package with `apt-get install libsdl2-2.0.0` on the Pi. 
 Also GLES2 renderer is recommended (use `SDL_RENDER_DRIVER=opengles2 ./Tetris.kexe`).
 
+For Windows `set SDL_RENDER_DRIVER=software` may be needed on some machines.
+
