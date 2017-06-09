@@ -16,9 +16,11 @@ import org.jetbrains.kotlin.util.OperatorNameConventions
 // This is what Context collects about IR.
 abstract class Ir<out T: CommonBackendContext>(val context: T, val irModule: IrModuleFragment) {
 
+    abstract val symbols: Symbols<T>
+
     val defaultParameterDeclarationsCache = mutableMapOf<FunctionDescriptor, IrFunction>()
 
-    abstract val symbols: Symbols<T>
+    open fun shouldGenerateHandlerParameterForDefaultBodyFun() = false
 }
 
 open class Symbols<out T: CommonBackendContext>(val context: T, private val symbolTable: SymbolTable) {
@@ -56,7 +58,7 @@ open class Symbols<out T: CommonBackendContext>(val context: T, private val symb
             ) as ClassDescriptor
     )
 
-    val defaultArgumentMarker = symbolTable.referenceClass(context.getInternalClass("DefaultArgumentMarker"))
+    val defaultConstructorMarker = symbolTable.referenceClass(context.getInternalClass("DefaultConstructorMarker"))
 
     val any = symbolTable.referenceClass(builtIns.any)
     val unit = symbolTable.referenceClass(builtIns.unit)
@@ -131,7 +133,7 @@ open class Symbols<out T: CommonBackendContext>(val context: T, private val symb
                     .single().getter!!
     )
 
-    val kFunctionImpl = symbolTable.referenceClass(context.getInternalClass("KFunctionImpl"))
+    val kFunctionImpl = symbolTable.referenceClass(context.reflectionTypes.kFunctionImpl)
 
     val kProperty0Impl = symbolTable.referenceClass(context.reflectionTypes.kProperty0Impl)
     val kProperty1Impl = symbolTable.referenceClass(context.reflectionTypes.kProperty1Impl)
