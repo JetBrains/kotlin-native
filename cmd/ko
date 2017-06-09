@@ -1,0 +1,80 @@
+#!/bin/bash
+
+command="$1"
+
+if [[ $command == "" ]] || [[ $command == "help" ]]; then
+  cat <<EOF
+Ko is a tool for managing Kotlin source code.
+
+Usage:
+
+        ko command [arguments]
+
+The commands are:
+
+        build       create an executable
+        clean       remove the build output
+        fmt         format sources
+        help        this help
+
+EOF
+  exit 0
+fi
+
+outputname=$(basename $(pwd))
+
+if [[ $command == "build" ]]; then
+  compiler=$(which kotlinc-native 2>/dev/null)
+  if [[ ! -f $compiler ]]; then
+    echo "Could not find the kotlinc-native executable."
+    exit 1
+  fi
+  mainfile=$(grep "fun main" *.kt -l)
+  if [[ ! -f $mainfile ]]; then
+    echo "Could not find a .kt file with fun main!"
+    exit 1
+  fi
+  package=$(grep package "$mainfile" | cut -d" " -f2)
+  if [[ $package == "" ]]; then
+    echo "Found no package declaration in $mainfile!"
+    exit 1
+  fi
+  firstname=${mainfile%.*}
+  entrypoint="$package.$firstname"
+  "$compiler" *.kt -o "$outputname" -opt -e "$entrypoint"
+  if [[ ! -f $outputname.kexe ]]; then
+    echo "Compilation failed"
+    exit 1
+  fi
+  mv "$outputname.kexe" "$outputname"
+  for f in *.kt; do
+    rm -f "$f.bc"
+  done
+  exit 0
+fi
+
+if [[ $command == "clean" ]]; then
+  rm -f "$outputname"
+  exit 0
+fi
+
+if [[ $command == "fmt" ]]; then
+  formatter=$(which ktlint 2>/dev/null)
+  if [[ $formatter == "" ]]; then
+  cat <<EOF
+
+ERROR: Could not find the ktlint code formatting utility!
+
+Homepage:
+    https://github.com/shyiko/ktlint
+
+Quick installation:
+    curl -SLO https://github.com/shyiko/ktlint/releases/download/0.8.1/ktlint
+    sudo install -Dm755 ktlint /usr/bin/ktlint
+    rm ktlint
+
+EOF
+    exit 1
+  fi
+  "$formatter" -F *.kt
+fi
