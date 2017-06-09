@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.backend.konan.util.profile
 import org.jetbrains.kotlin.backend.konan.util.suffixIfNot
 import org.jetbrains.kotlin.backend.konan.util.removeSuffixIfPresent
 import org.jetbrains.kotlin.cli.common.CLICompiler
+import org.jetbrains.kotlin.cli.common.CLITool
 import org.jetbrains.kotlin.cli.common.ExitCode
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
@@ -122,6 +123,7 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
                 put(CommonConfigurationKeys.MODULE_NAME, output)
                 put(ABI_VERSION, 1)
 
+                arguments.mainPackage ?.let{ put(ENTRY, it) }
                 arguments.runtimeFile ?.let{ put(RUNTIME_FILE, it) }
                 arguments.propertyFile ?.let{ put(PROPERTY_FILE, it) }
 
@@ -164,7 +166,7 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
     companion object {
         @JvmStatic fun main(args: Array<String>) {
             profile("Total compiler main()") {
-                CLICompiler.doMain(K2Native(), args)
+                CLITool.doMain(K2Native(), args)
             }
         }
     }

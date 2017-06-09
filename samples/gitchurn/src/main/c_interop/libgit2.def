@@ -1,0 +1,3 @@
+headers = git2.h time.h
+linkerOpts = -lgit2
+headerFilter = git2/** time.h

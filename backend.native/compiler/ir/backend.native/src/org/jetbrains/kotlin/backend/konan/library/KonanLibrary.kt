@@ -50,15 +50,15 @@ abstract open class FileBasedLibraryReader(
     override val moduleName: String
         get() = namedModuleData.name
 
-    protected val tableOfContentsAsString : String
+    val tableOfContents : Base64
         get() = namedModuleData.base64
 
-    protected fun packageMetadata(fqName: String): Base64 =
+    fun packageMetadata(fqName: String): Base64 =
         reader.loadSerializedPackageFragment(fqName)
 
     override fun moduleDescriptor(specifics: LanguageVersionSettings) 
         = deserializeModule(specifics, {packageMetadata(it)}, 
-            tableOfContentsAsString, moduleName)
+            tableOfContents, moduleName)
 }
 
 // This scheme describes the Konan Library (klib) layout.
@@ -73,8 +73,10 @@ interface SplitLibraryScheme {
         get() = File(libDir, "manifest")
     val resourcesDir 
         get() = File(libDir, "resources")
+    val targetsDir
+        get() = File(libDir, "targets")
     val targetDir 
-        get() = File(libDir, target!!)
+        get() = File(targetsDir, target!!)
     val kotlinDir 
         get() = File(targetDir, "kotlin")
     val nativeDir 
@@ -185,8 +187,6 @@ class SplitLibraryWriter(override val libDir: File, override val target: String?
 
     override fun commit() {
         if (!nopack) {
-            // This is no-op for the Split library.
-            // Or should we zip the directory?
             libDir.zipDirAs(klibFile)
             libDir.deleteRecursively()
         }

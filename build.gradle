@@ -28,6 +28,9 @@ allprojects {
 
     repositories {
         mavenCentral()
+        maven {
+            url kotlinCompilerRepo
+        }
     }
 
     loadCommandLineProperties()
@@ -249,6 +252,8 @@ task list_dist(dependsOn: "listDist")
 task distCompiler(type: Copy) {
     dependsOn ':backend.native:jars'
     dependsOn ':tools:helpers:jar'
+    dependsOn ':utilities:jar'
+    dependsOn ':klib:jar'
 
     destinationDir file('dist')
 
@@ -288,6 +293,13 @@ task distCompiler(type: Copy) {
         into('konan/nativelib')
     }
 
+    from(project(':utilities').file('build/libs')) {
+        into('konan/lib')
+    }
+
+    from(project(':klib').file('build/libs')) {
+        into('konan/lib')
+    }
 
     from(file('cmd')) {
         fileMode(0755)
@@ -340,7 +352,7 @@ targetList.each { target ->
 
         from(project(':runtime').file("build/$target")) {
             include("*.bc")
-            into("klib/stdlib/$target/native")
+            into("klib/stdlib/targets/$target/native")
         }
         from(project(':runtime').file("build/${target}Stdlib")) {
             include('**')
@@ -348,7 +360,7 @@ targetList.each { target ->
         }
         from(project(':runtime').file("build/${target}Start.bc")) {
             rename("${target}Start.bc", 'start.bc')
-            into("klib/stdlib/$target/native")
+            into("klib/stdlib/targets/$target/native")
         }
     }
 }
