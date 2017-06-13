@@ -45,6 +45,9 @@ internal class InteropBuiltIns(builtIns: KonanBuiltIns) {
 
     val cPointer = this.packageScope.getContributedClassifier(cPointerName) as ClassDescriptor
 
+    val nativePtr = builtIns.builtInsModule.getPackage(FqName("konan.internal")).
+            memberScope.getContributedClassifier("NativePtr") as ClassDescriptor
+
     val cPointerRawValue = cPointer.unsubstitutedMemberScope.getContributedVariables("rawValue").single()
 
     val cPointerGetRawValue = packageScope.getContributedFunctions("getRawValue").single {
@@ -89,6 +92,12 @@ internal class InteropBuiltIns(builtIns: KonanBuiltIns) {
     val bitsToDouble = packageScope.getContributedFunctions("bitsToDouble").single()
 
     val staticCFunction = packageScope.getContributedFunctions("staticCFunction").toSet()
+
+    val workerPackageScope = builtIns.builtInsModule.getPackage(FqName("konan.worker")).memberScope
+
+    val scheduleFunction = workerPackageScope.getContributedFunctions("schedule").single()
+
+    val scheduleImplFunction = workerPackageScope.getContributedFunctions("scheduleImpl").single()
 
     val signExtend = packageScope.getContributedFunctions("signExtend").single()
 

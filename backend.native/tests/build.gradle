@@ -425,6 +425,11 @@ task empty_substring(type: RunKonanTest) {
     source = "runtime/basic/empty_substring.kt"
 }
 
+task worker0(type: RunKonanTest) {
+    goldValue = "Got Input processed\nOK\n"
+    source = "runtime/workers/worker0.kt"
+}
+
 task superFunCall(type: RunKonanTest) {
     goldValue = "<fun:C><fun:C1>\n<fun:C><fun:C3>\n"
     source = "codegen/basics/superFunCall.kt"
