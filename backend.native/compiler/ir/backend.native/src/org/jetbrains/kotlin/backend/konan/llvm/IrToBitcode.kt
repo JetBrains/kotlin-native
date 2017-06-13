@@ -111,10 +111,9 @@ internal fun produceOutput(context: Context) {
             LLVMWriteBitcodeToFile(llvmModule, output)
         }
         CompilerOutputKind.LIBRARY -> {
-
             val libraryName = config.get(KonanConfigKeys.OUTPUT_NAME)!!
             val nopack = config.getBoolean(KonanConfigKeys.NOPACK)
-            val targetName = context.config.targetManager.currentName
+            val targetName = context.config.targetManager.targetName
 
             val library = buildLibrary(
                 context.config.nativeLibraries, 

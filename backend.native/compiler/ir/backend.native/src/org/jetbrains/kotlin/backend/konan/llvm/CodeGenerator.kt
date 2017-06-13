@@ -154,7 +154,7 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
         get() {
             return slotCount > 1 || localAllocs > 0 ||
                     // Prevent empty cleanup on mingw to workaround LLVM bug:
-                    context.config.targetManager.current == KonanTarget.MINGW
+                    context.config.targetManager.target == KonanTarget.MINGW
         }
 
     private fun releaseVars() {

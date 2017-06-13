@@ -186,7 +186,7 @@ internal class LinkStage(val context: Context) {
 
     private val distribution = context.config.distribution
 
-    val platform = when (context.config.targetManager.current) {
+    val platform = when (context.config.targetManager.target) {
         KonanTarget.LINUX, KonanTarget.RASPBERRYPI ->
             LinuxBasedPlatform(distribution)
         KonanTarget.MACBOOK, KonanTarget.IPHONE, KonanTarget.IPHONE_SIM ->
@@ -196,7 +196,7 @@ internal class LinkStage(val context: Context) {
         KonanTarget.MINGW ->
             MingwPlatform(distribution)
         else ->
-            error("Unexpected target platform: ${context.config.targetManager.current}")
+            error("Unexpected target platform: ${context.config.targetManager.target}")
     }
 
     val optimize = config.get(KonanConfigKeys.OPTIMIZATION) ?: false

@@ -32,9 +32,9 @@ enum class KonanTarget(val suffix: String, var enabled: Boolean = false) {
 class TargetManager(val userRequest: String? = null) {
     constructor(config: CompilerConfiguration) : this(config.get(KonanConfigKeys.TARGET))
     val targets = KonanTarget.values().associate{ it.name.toLowerCase() to it }
-    val current = determineCurrent()
-    val currentName
-        get() = current.name.toLowerCase()
+    val target = determineCurrent()
+    val targetName
+        get() = target.name.toLowerCase()
 
     init {
         when (host) {
@@ -58,8 +58,8 @@ class TargetManager(val userRequest: String? = null) {
                 error("Unknown host platform: $host")
         }
 
-        if (!current.enabled) {
-            error("Target $current is not available on the current host")
+        if (!target.enabled) {
+            error("Target $target is not available on the target host")
         }
     }
 
@@ -71,9 +71,9 @@ class TargetManager(val userRequest: String? = null) {
     }
 
     fun list() {
-        targets.forEach { key, target -> 
-            if (target.enabled) {
-                val isDefault = if (target == current) "(default)" else ""
+        targets.forEach { key, it -> 
+            if (it.enabled) {
+                val isDefault = if (it == target) "(default)" else ""
                 println(String.format("%1$-30s%2$-10s", "$key:", "$isDefault"))
             }
         }
@@ -87,10 +87,10 @@ class TargetManager(val userRequest: String? = null) {
         }
     }
 
-    fun hostSuffix() = host.suffix
-    fun hostTargetSuffix() =
-            if (current == host) host.suffix else "${host.suffix}-${current.suffix}"
-    fun targetSuffix() = current.suffix
+    val hostSuffix get() = host.suffix
+    val hostTargetSuffix get() =
+        if (target == host) host.suffix else "${host.suffix}-${target.suffix}"
+    val targetSuffix get() = target.suffix
 
     companion object {
         fun host_os(): String {

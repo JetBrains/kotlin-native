@@ -35,11 +35,11 @@ import java.util.*
 import kotlin.reflect.KFunction
 
 // TODO: Don't use reflection?
-private fun maybeExecuteHelper(configuration: CompilerConfiguration) {
+private fun maybeExecuteHelper(targetName: String) {
     try {
         val kClass = Class.forName("org.jetbrains.kotlin.konan.Helper0").kotlin
         val ctor = kClass.constructors.single() as KFunction<Runnable>
-        val distribution = Distribution(configuration)
+        val distribution = Distribution(TargetManager(targetName))
         val result = ctor.call(
                 distribution.dependenciesDir,
                 distribution.properties.properties,
@@ -154,7 +154,7 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
             }
         }
 
-        maybeExecuteHelper(configuration)
+        maybeExecuteHelper(arguments.target ?: "host")
     }
 
     override fun createArguments(): K2NativeCompilerArguments {

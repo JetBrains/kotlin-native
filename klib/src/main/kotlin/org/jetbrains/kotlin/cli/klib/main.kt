@@ -113,7 +113,7 @@ fun main(args: Array<String>) {
     val command = Command(args)
 
     val targetManager = TargetManager(command.options["target"]?.last())
-    val target = targetManager.currentName
+    val target = targetManager.targetName
 
     val repository = command.options["repository"]?.last()
     val repositoryList = repository ?.let { listOf(it) } ?: emptyList()

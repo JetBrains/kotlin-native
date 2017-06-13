@@ -31,8 +31,11 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
     val moduleId: String
         get() = configuration.getNotNull(CommonConfigurationKeys.MODULE_NAME)
 
-    internal val targetManager = TargetManager(configuration)
-    internal val distribution = Distribution(configuration)
+    internal val targetManager = TargetManager(
+        configuration.get(KonanConfigKeys.TARGET))
+    internal val distribution = Distribution(targetManager, 
+        configuration.get(KonanConfigKeys.PROPERTY_FILE), 
+        configuration.get(KonanConfigKeys.RUNTIME_FILE))
 
     private val libraryNames: List<String>
         get() {
@@ -51,7 +54,7 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
 
     internal val libraries: List<KonanLibraryReader> by lazy {
         val currentAbiVersion = configuration.get(KonanConfigKeys.ABI_VERSION)!!
-        val target = targetManager.currentName
+        val target = targetManager.targetName
         // Here we have chosen a particular KonanLibraryReader implementation.
         librariesFound.map{it -> SplitLibraryReader(it, currentAbiVersion, target)}
     }
