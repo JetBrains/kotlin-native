@@ -75,9 +75,10 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
             }
         }
 
-        typeTable = packageFragment.`package`.typeTable
         val protoFunctions = packageFragment.`package`.functionOrBuilderList
         protoFunctions.forEach { protoFunction ->
+            if (protoFunction.hasTypeTable()) typeTable = protoFunction.typeTable
+            else                              typeTable = packageFragment.`package`.typeTable
             printFunction(protoFunction)
         }
 
@@ -129,12 +130,14 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
         val flags           = protoFunction.flags
         val name            = stringTable.getString(protoFunction.name)
         val visibility      = visibilityToString(Flags.VISIBILITY.get(flags))
+        val isInline        = inlineToString(Flags.IS_INLINE.get(flags))
+        val receiverType    = receiverTypeToString(protoFunction)
         val annotations     = protoFunction.getExtension(KonanSerializerProtocol.functionAnnotation)
         val typeParameters  = typeParametersToString(protoFunction.typeParameterList)
         val valueParameters = valueParametersToString(protoFunction.valueParameterList)
 
         printAnnotations(annotations)
-        printer.println("${visibility}fun $name$typeParameters$valueParameters")
+        printer.println("$visibility${isInline}fun $typeParameters$receiverType$name$valueParameters")
     }
 
     //-------------------------------------------------------------------------//
@@ -259,7 +262,7 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
         var buff = "<"
         typeParameters.dropLast(1).forEach { buff += typeParameterToString(it) + ", " }
         typeParameters.lastOrNull()?.let   { buff += typeParameterToString(it) }
-        buff += ">"
+        buff += "> "
         return buff
     }
 
@@ -317,10 +320,12 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
     fun valueParameterToString(protoValueParameter: ProtoBuf.ValueParameterOrBuilder): String {
         val parameterName = stringTable.getString(protoValueParameter.name)
         val type = typeToString(protoValueParameter.typeId)
+        val flags = protoValueParameter.flags
+        val isCrossInline = crossInlineToString(Flags.IS_CROSSINLINE.get(flags))
         val protoAnnotations = protoValueParameter.getExtension(KonanSerializerProtocol.parameterAnnotation)
         val annotations = annotationsToString(protoAnnotations)
 
-        return "$annotations$parameterName: $type"
+        return "$annotations$isCrossInline$parameterName: $type"
     }
 
     //-------------------------------------------------------------------------//
@@ -389,7 +394,7 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
 
     fun upperBoundsToString(upperBounds: List<Int>): String {
         var buff = ""
-        upperBounds.forEach { buff += ": " + typeToString(it) } // TODO
+        upperBounds.forEach { buff += ": " + typeToString(it) }
         return buff
     }
 
@@ -403,7 +408,10 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
         if (argumentList.isNotEmpty()) {
             buff += "<"
             argumentList.dropLast(1).forEach { buff += "${typeToString(it.typeId)}, " }
-            argumentList.lastOrNull()?.let   { if (typeId != it.typeId) buff +=    typeToString(it.typeId) }
+            argumentList.lastOrNull()?.let   {
+                if (typeId != it.typeId)
+                    buff += typeToString(it.typeId)
+            }
             buff += ">"
         }
         if (type.nullable) buff += "?"
@@ -413,17 +421,28 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
     //-------------------------------------------------------------------------//
 
     fun typeName(type: ProtoBuf.Type): String {
-        val qualifiedName = qualifiedNameTable.getQualifiedName(type.className)
-        val shortNameId   = qualifiedName.shortName
-        val shortName     = stringTable.getString(shortNameId)
-        return shortName
+        var typeName = "undefined"
+        if (type.hasClassName()) {
+            val qualifiedName = qualifiedNameTable.getQualifiedName(type.className)
+            val typeNameId = qualifiedName.shortName
+            typeName = stringTable.getString(typeNameId)
+        }
+
+        if (type.hasTypeParameterName()) {
+            typeName = stringTable.getString(type.typeParameterName)
+        }
+
+        if (type.hasTypeAliasName()) {
+            typeName = stringTable.getString(type.typeAliasName)
+        }
+        return typeName
     }
 
     //-------------------------------------------------------------------------//
 
     fun modalityToString(modality: ProtoBuf.Modality) =
         when (modality) {
-            ProtoBuf.Modality.FINAL    -> ""
+            ProtoBuf.Modality.FINAL    -> "final "
             ProtoBuf.Modality.OPEN     -> "open "
             ProtoBuf.Modality.ABSTRACT -> "abstract "
             ProtoBuf.Modality.SEALED   -> "sealed "
@@ -436,10 +455,32 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
             ProtoBuf.Visibility.INTERNAL        -> "internal "
             ProtoBuf.Visibility.PRIVATE         -> "private "
             ProtoBuf.Visibility.PROTECTED       -> "protected "
-            ProtoBuf.Visibility.PUBLIC          -> ""
+            ProtoBuf.Visibility.PUBLIC          -> "public "
             ProtoBuf.Visibility.PRIVATE_TO_THIS -> "private "
             ProtoBuf.Visibility.LOCAL           -> "local "
         }
+
+    //-------------------------------------------------------------------------//
+
+    fun inlineToString(isInline: Boolean): String {
+        if (isInline) return "inline "
+        return ""
+    }
+
+    //-------------------------------------------------------------------------//
+
+    fun receiverTypeToString(protoFunction: ProtoBuf.FunctionOrBuilder): String {
+        if (!protoFunction.hasReceiverTypeId()) return ""
+        val receiverType = typeToString(protoFunction.receiverTypeId)
+        return receiverType + "."
+    }
+
+    //-------------------------------------------------------------------------//
+
+    fun crossInlineToString(isCrossInline: Boolean): String {
+        if (isCrossInline) return "crossinline "
+        return ""
+    }
 
     //-------------------------------------------------------------------------//
 
