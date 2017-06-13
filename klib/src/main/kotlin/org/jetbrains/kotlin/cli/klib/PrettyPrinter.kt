@@ -68,10 +68,10 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
                 ProtoBuf.Class.Kind.CLASS            -> printClass(protoClass)
                 ProtoBuf.Class.Kind.ENUM_CLASS       -> printEnum(protoClass)
                 ProtoBuf.Class.Kind.INTERFACE        -> printClass(protoClass)
-                ProtoBuf.Class.Kind.ENUM_ENTRY       -> TODO()
+                ProtoBuf.Class.Kind.ENUM_ENTRY       -> printEnum(protoClass)
                 ProtoBuf.Class.Kind.ANNOTATION_CLASS -> printClass(protoClass)
-                ProtoBuf.Class.Kind.OBJECT           -> TODO()
-                ProtoBuf.Class.Kind.COMPANION_OBJECT -> TODO()
+                ProtoBuf.Class.Kind.OBJECT           -> printObject(protoClass)
+                ProtoBuf.Class.Kind.COMPANION_OBJECT -> printObject(protoClass)
             }
         }
 
@@ -85,8 +85,6 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
         protoProperties.forEach { protoProperty ->
             printProperty(protoProperty)
         }
-
-        printer.println("Ok")
     }
 
     //-------------------------------------------------------------------------//
@@ -122,7 +120,7 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
         protoProperties.forEach { printProperty(it) }
         nestedClasses.forEach   { printNestedClass(it) }
         printer.popIndent()
-        printer.println("}")
+        printer.println("}\n")
     }
 
     //-------------------------------------------------------------------------//
@@ -169,8 +167,20 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
 
         printer.println(" {")
         enumEntries.dropLast(1).forEach { printer.print("    ${enumEntryToString(it)},\n") }
-        enumEntries.last().let          { printer.print("    ${enumEntryToString(it)} \n") }
+        enumEntries.lastOrNull()?.let   { printer.print("    ${enumEntryToString(it)} \n") }
         printer.println("}\n")
+    }
+
+    //-------------------------------------------------------------------------//
+
+    fun printObject(protoObject: ProtoBuf.ClassOrBuilder) {
+        val flags       = protoObject.flags
+        val name        = getShortName(protoObject.fqName)
+        val visibility  = visibilityToString(Flags.VISIBILITY.get(flags))
+        val annotations = protoObject.getExtension(KonanSerializerProtocol.classAnnotation)
+
+        printAnnotations(annotations)
+        printer.println("${visibility}object $name")
     }
 
     //-------------------------------------------------------------------------//
@@ -200,7 +210,7 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
             val supertype = typeToString(supertypeId)
             if (supertype != "Any") buff += "$supertype, "
         }
-        supertypesId.last().let { supertypeId ->
+        supertypesId.lastOrNull()?.let { supertypeId ->
             val supertype = typeToString(supertypeId)
             if (supertype != "Any") buff += supertype
         }
@@ -248,7 +258,7 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
 
         var buff = "<"
         typeParameters.dropLast(1).forEach { buff += typeParameterToString(it) + ", " }
-        typeParameters.last().let          { buff += typeParameterToString(it) }
+        typeParameters.lastOrNull()?.let   { buff += typeParameterToString(it) }
         buff += ">"
         return buff
     }
@@ -276,7 +286,7 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
             val parameter = constructorValueParameterToString(valueParameter)
             buff += "$parameter, "
         }
-        valueParameters.last().let { valueParameter ->
+        valueParameters.lastOrNull()?.let { valueParameter ->
             val parameter = constructorValueParameterToString(valueParameter)
             buff += parameter
         }
@@ -294,7 +304,7 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
             val parameter = valueParameterToString(valueParameter)
             buff += "$parameter, "
         }
-        valueParameters.last().let { valueParameter ->
+        valueParameters.lastOrNull()?.let { valueParameter ->
             val parameter = valueParameterToString(valueParameter)
             buff += parameter
         }
@@ -393,7 +403,7 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
         if (argumentList.isNotEmpty()) {
             buff += "<"
             argumentList.dropLast(1).forEach { buff += "${typeToString(it.typeId)}, " }
-            argumentList.last().let          { buff +=    typeToString(it.typeId) }
+            argumentList.lastOrNull()?.let   { if (typeId != it.typeId) buff +=    typeToString(it.typeId) }
             buff += ">"
         }
         if (type.nullable) buff += "?"
@@ -443,6 +453,7 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
             ProtoBuf.Class.Kind.CLASS            -> buff = "${modality}class"
             ProtoBuf.Class.Kind.INTERFACE        -> buff = "interface"
             ProtoBuf.Class.Kind.ANNOTATION_CLASS -> buff = "annotation"
+            ProtoBuf.Class.Kind.OBJECT           -> buff = "object"
             else -> assert(false)
         }
         return buff
