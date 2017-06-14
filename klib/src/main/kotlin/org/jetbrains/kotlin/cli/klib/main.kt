@@ -6,7 +6,7 @@ import java.util.Properties
 import org.jetbrains.kotlin.backend.konan.library.SplitLibraryReader
 import org.jetbrains.kotlin.backend.konan.util.File
 import org.jetbrains.kotlin.backend.konan.util.copyTo
-import org.jetbrains.kotlin.backend.konan.TargetManager
+import org.jetbrains.kotlin.konan.target.TargetManager
 
 fun printUsage() {
     println("Usage: klib <command> <library> <options>")

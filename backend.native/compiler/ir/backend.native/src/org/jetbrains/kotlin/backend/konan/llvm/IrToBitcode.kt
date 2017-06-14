@@ -23,7 +23,6 @@ import org.jetbrains.kotlin.backend.common.descriptors.isSuspend
 import org.jetbrains.kotlin.backend.common.ir.ir2string
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.KonanConfigKeys
-import org.jetbrains.kotlin.backend.konan.CompilerOutputKind
 import org.jetbrains.kotlin.backend.konan.KonanPhase
 import org.jetbrains.kotlin.backend.konan.library.LinkData
 import org.jetbrains.kotlin.backend.konan.PhaseManager
@@ -43,6 +42,7 @@ import org.jetbrains.kotlin.ir.util.getArguments
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
+import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
@@ -94,7 +94,7 @@ internal fun produceOutput(context: Context) {
 
     when (config.get(KonanConfigKeys.PRODUCE)) {
         CompilerOutputKind.PROGRAM -> {
-            val program = config.get(KonanConfigKeys.OUTPUT_NAME)!!
+            val program = context.config.outputName
             val output = "${program}.kt.bc"
             context.bitcodeFileName = output
 
@@ -111,7 +111,7 @@ internal fun produceOutput(context: Context) {
             LLVMWriteBitcodeToFile(llvmModule, output)
         }
         CompilerOutputKind.LIBRARY -> {
-            val libraryName = config.get(KonanConfigKeys.OUTPUT_NAME)!!
+            val libraryName = context.config.outputName
             val nopack = config.getBoolean(KonanConfigKeys.NOPACK)
             val targetName = context.config.targetManager.targetName
 
@@ -127,7 +127,7 @@ internal fun produceOutput(context: Context) {
             context.bitcodeFileName = library.mainBitcodeFileName
         }
         CompilerOutputKind.BITCODE -> {
-            val output = config.get(KonanConfigKeys.OUTPUT_FILE)!!
+            val output = context.config.outputFile
             context.bitcodeFileName = output
             LLVMWriteBitcodeToFile(llvmModule, output)
         }

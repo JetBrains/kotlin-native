@@ -17,6 +17,7 @@
 package org.jetbrains.kotlin.backend.konan
 
 import java.io.File
+import org.jetbrains.kotlin.konan.target.*
 
 class Distribution(val targetManager: TargetManager,
     val propertyFileOverride: String? = null,
