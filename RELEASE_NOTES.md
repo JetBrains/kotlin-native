@@ -85,8 +85,8 @@ Notice that property delegation (including lazy properties) *does* work.
 ### Debugging ###
 
  _Kotlin/Native_ supports preliminary source-level debugging on produced executables with `lldb` debugger.
- Produce your binary with debugging information by specifying `-g` _Kotlin/Native_ compiler switch or 
- using `-Pbuild_flags=-g` option for Gradle build. Start your application with 
+ Produce your binary with debugging information by specifying `-g` _Kotlin/Native_ compiler switch.
+ Start your application with
     
     lldb my_program.kexe
  
