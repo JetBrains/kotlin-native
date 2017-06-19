@@ -163,7 +163,6 @@ enum CharacterClass {
     OTHER_SYMBOL = 28,
     /**
      * Unicode category constant Pi.
-     *
      */
     INITIAL_QUOTE_PUNCTUATION = 29,
     /**
@@ -973,6 +972,10 @@ KChar Kotlin_Char_toUpperCase(KChar ch) {
   return towupper_Konan(ch);
 }
 
+KInt Kotlin_Char_getType(KChar ch) {
+  return getType(ch);
+}
+
 constexpr KInt digits[] = {
   0, 1, 2, 3, 4, 5, 6, 7, 8, 9,
   -1, -1, -1, -1, -1, -1, -1,
@@ -1017,8 +1020,11 @@ KInt Kotlin_String_indexOfChar(KString thiz, KChar ch, KInt fromIndex) {
 }
 
 KInt Kotlin_String_lastIndexOfChar(KString thiz, KChar ch, KInt fromIndex) {
-  if (fromIndex < 0 || fromIndex > thiz->count_ || thiz->count_ == 0) {
+  if (fromIndex < 0 || thiz->count_ == 0) {
     return -1;
+  }
+  if (fromIndex >= thiz->count_) {
+    fromIndex = thiz->count_ - 1;
   }
   KInt count = thiz->count_;
   KInt index = fromIndex;
@@ -1062,35 +1068,33 @@ KInt Kotlin_String_indexOfString(KString thiz, KString other, KInt fromIndex) {
 }
 
 KInt Kotlin_String_lastIndexOfString(KString thiz, KString other, KInt fromIndex) {
-  if (fromIndex < 0 || fromIndex > thiz->count_ || thiz->count_ == 0 ||
-      other->count_ > thiz->count_ - fromIndex) {
-    return -1;
-  }
   KInt count = thiz->count_;
   KInt otherCount = other->count_;
-  KInt start = fromIndex;
-  if (otherCount <= count && start >= 0) {
-    if (otherCount > 0) {
-      if (fromIndex > count - otherCount)
-        start = count - otherCount;
-      KChar firstChar = *CharArrayAddressOfElementAt(other, 0);
-      while (true) {
-        KInt candidate = Kotlin_String_lastIndexOfChar(thiz, firstChar, start);
-        if (candidate == -1) return -1;
-        KInt offsetThiz = candidate;
-        KInt offsetOther = 0;
-        while (++offsetOther < otherCount &&
-               *CharArrayAddressOfElementAt(thiz, ++offsetThiz) ==
-               *CharArrayAddressOfElementAt(other, offsetOther)) {}
-        if (offsetOther == otherCount) {
-          return candidate;
-        }
-        start = candidate - 1;
-      }
-    }
-    return start < count ? start : count;
+
+  if (fromIndex < 0 || otherCount > count) {
+    return -1;
   }
-  return -1;
+  if (otherCount == 0) {
+    return fromIndex < count ? fromIndex : count;
+  }
+
+  KInt start = fromIndex;
+  if (fromIndex > count - otherCount)
+    start = count - otherCount;
+  KChar firstChar = *CharArrayAddressOfElementAt(other, 0);
+  while (true) {
+    KInt candidate = Kotlin_String_lastIndexOfChar(thiz, firstChar, start);
+    if (candidate == -1) return -1;
+    KInt offsetThiz = candidate;
+    KInt offsetOther = 0;
+    while (++offsetOther < otherCount &&
+           *CharArrayAddressOfElementAt(thiz, ++offsetThiz) ==
+           *CharArrayAddressOfElementAt(other, offsetOther)) {}
+    if (offsetOther == otherCount) {
+      return candidate;
+    }
+    start = candidate - 1;
+  }
 }
 
 KInt Kotlin_String_hashCode(KString thiz) {
@@ -1116,33 +1120,6 @@ OBJ_GETTER(Kotlin_String_subSequence, KString thiz, KInt startIndex, KInt endInd
          CharArrayAddressOfElementAt(thiz, startIndex),
          length * sizeof(KChar));
   RETURN_OBJ(result->obj());
-}
-
-// io/Console.kt
-void Kotlin_io_Console_print(KString message) {
-  RuntimeAssert(message->type_info() == theStringTypeInfo, "Must use a string");
-  // TODO: system stdout must be aware about UTF-8.
-  const KChar* utf16 = CharArrayAddressOfElementAt(message, 0);
-  std::string utf8;
-  utf8::utf16to8(utf16, utf16 + message->count_, back_inserter(utf8));
-  write(STDOUT_FILENO, utf8.c_str(), utf8.size());
-}
-
-void Kotlin_io_Console_println(KString message) {
-  Kotlin_io_Console_print(message);
-  Kotlin_io_Console_println0();
-}
-
-void Kotlin_io_Console_println0() {
-  write(STDOUT_FILENO, "\n", 1);
-}
-
-OBJ_GETTER0(Kotlin_io_Console_readLine) {
-  char data[4096];
-  if (!fgets(data, sizeof(data) - 1, stdin)) {
-    return nullptr;
-  }
-  RETURN_RESULT_OF(CreateStringFromCString, data);
 }
 
 } // extern "C"

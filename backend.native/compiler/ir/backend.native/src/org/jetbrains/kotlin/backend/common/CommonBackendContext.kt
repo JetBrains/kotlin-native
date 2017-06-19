@@ -1,6 +1,8 @@
 package org.jetbrains.kotlin.backend.common
 
 import org.jetbrains.kotlin.backend.common.ir.Ir
+import org.jetbrains.kotlin.builtins.KOTLIN_REFLECT_FQ_NAME
+import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
@@ -33,11 +35,10 @@ interface CommonBackendContext : BackendContext {
 
     fun log(message: () -> String)
 
-    val compilerConfiguration: CompilerConfiguration
+    val messageCollector: MessageCollector
 }
 
 class ReflectionTypes(module: ModuleDescriptor, internalPackage: FqName) {
-    val KOTLIN_REFLECT_FQ_NAME = FqName("kotlin.reflect")
 
     private val kotlinReflectScope: MemberScope by lazy(LazyThreadSafetyMode.PUBLICATION) {
         module.getPackage(KOTLIN_REFLECT_FQ_NAME).memberScope
@@ -83,6 +84,7 @@ class ReflectionTypes(module: ModuleDescriptor, internalPackage: FqName) {
     val kMutableProperty0: ClassDescriptor by ClassLookup(kotlinReflectScope)
     val kMutableProperty1: ClassDescriptor by ClassLookup(kotlinReflectScope)
     val kMutableProperty2: ClassDescriptor by ClassLookup(kotlinReflectScope)
+    val kFunctionImpl: ClassDescriptor by ClassLookup(internalScope)
     val kProperty0Impl: ClassDescriptor by ClassLookup(internalScope)
     val kProperty1Impl: ClassDescriptor by ClassLookup(internalScope)
     val kProperty2Impl: ClassDescriptor by ClassLookup(internalScope)

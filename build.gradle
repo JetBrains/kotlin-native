@@ -123,7 +123,7 @@ void setupCompilationFlags() {
          ext.host = "macbook"
          ext.targetArgs <<
             [(ext.host):
-                ["--sysroot=$macbookSysrootDir", "-mmacosx-version-min=$minMacOsVersion"], 
+                ["--sysroot=$macbookSysrootDir", "-mmacosx-version-min=10.11"],
              "iphone":
                 ["-stdlib=libc++", "-arch", "arm64", "-isysroot", "$iphoneSysrootDir",
                  "-miphoneos-version-min=8.0.0"]
@@ -138,14 +138,14 @@ void setupCompilationFlags() {
                  "android_arm32":
                          ["-target", getTargetArg("android_arm32"),
                           "--sysroot=$android_arm32SysrootDir",
-                          "-D__ANDROID__", "-DUSE_GCC_UNWIND=1", "-DUSE_ELF_SYMBOLS=1", "-DELFSIZE=32",
+                          "-D__ANDROID__", "-DUSE_GCC_UNWIND=1", "-DUSE_ELF_SYMBOLS=1", "-DELFSIZE=32", "-DKONAN_ANDROID",
                           // HACKS!
                           "-I$android_arm32SysrootDir/usr/include/c++/4.9.x",
                           "-I$android_arm32SysrootDir/usr/include/c++/4.9.x/arm-linux-androideabi"],
                  "android_arm64":
                         ["-target", getTargetArg("android_arm64"),
                          "--sysroot=$android_arm64SysrootDir",
-                         "-D__ANDROID__", "-DUSE_GCC_UNWIND=1", "-DUSE_ELF_SYMBOLS=1", "-DELFSIZE=64",
+                         "-D__ANDROID__", "-DUSE_GCC_UNWIND=1", "-DUSE_ELF_SYMBOLS=1", "-DELFSIZE=64", "-DKONAN_ANDROID",
                          // HACKS!
                          "-I$android_arm64SysrootDir/usr/include/c++/4.9.x",
                          "-I$android_arm64SysrootDir/usr/include/c++/4.9.x/aarch64-linux-android"]
@@ -344,9 +344,9 @@ task crossDistRuntime(type: Copy) {
 
 targetList.each { target ->
     task("${target}CrossDistRuntime", type: Copy) {
-        dependsOn ":runtime:${target}Runtime" 
-        dependsOn ":backend.native:${target}Stdlib" 
-        dependsOn ":backend.native:${target}Start" 
+        dependsOn ":runtime:${target}Runtime"
+        dependsOn ":backend.native:${target}Stdlib"
+        dependsOn ":backend.native:${target}Start"
 
         destinationDir file('dist')
 

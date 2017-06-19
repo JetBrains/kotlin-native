@@ -51,7 +51,7 @@ Write something to console and watch server echoing it back.
 Structurally it's a simple property file, looking like this:
 
 
-    header = zlib.h
+    headers = zlib.h
     compilerOpts = -std=c99
 
 Then run `cinterop` tool with something like (note that for host libraries not included
@@ -61,7 +61,7 @@ in sysroot search paths for headers may be needed):
 
 This command will produce `zlib.kt.bc` compiled library and
 `zlib.kt.bc-build/kotlin` directory containing Kotlin source code for the library.
-``
+
 If behavior for certain platform shall be modified, one may use format like
 `compilerOpts.osx` or `compilerOpts.linux` to provide platform-specific values
 to options.
