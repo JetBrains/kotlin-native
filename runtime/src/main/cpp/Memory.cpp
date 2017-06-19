@@ -896,10 +896,20 @@ bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
   if (root != nullptr) {
     auto state = memoryState;
     auto container = root->container();
-    removeFreeable(state, container);
-    auto allReferred = collectMutableReferred(container);
-    for (auto referred: allReferred) {
-      removeFreeable(state, referred);
+    ContainerHeaderList todo;
+    ContainerHeaderSet subgraph;
+    todo.push_back(container);
+    while (todo.size() > 0) {
+      auto header = todo.back();
+      todo.pop_back();
+      if (subgraph.count(header) != 0)
+        continue;
+      subgraph.insert(header);
+      removeFreeable(state, header);
+      auto children = collectMutableReferred(header);
+      for (auto child : children) {
+        todo.push_back(child);
+      }
     }
   }
 #endif  // USE_GC

@@ -24,10 +24,11 @@ import kotlinx.cinterop.*
  *      Workers: theory of operations.
  *
  *  Worker represent asynchronous and concurrent computation, usually performed by other threads
- * in the same process. Object passing between workers is performed using 'transfer()' operation.
+ * in the same process. Object passing between workers is performed using transfer operation, so that
+ * object graph belongs to one worker at the time, but can be disconnected and reconnected as needed.
  * See 'Object Transfer Basics' below for more details on how objects shall be transferred.
- * Once object is transferrable, it is provable disjoint from object graph of owning worker and
- * could be implanted into object graph of another worker.
+ * This approach ensures that no concurrent access happens to same object, while data may flow between
+ * workers as needed.
  */
 
 // Unique per-process identifier of worker.
@@ -49,16 +50,9 @@ enum class FutureState(val value: Int) {
  * Class representing abstract computation, whose result may become available in the future.
  */
 // TODO: make me value class!
-class Future<T> {
-
-    val id: FutureId
-
-    internal constructor(id: FutureId) {
-        this.id = id
-    }
-
+class Future<T> internal constructor(val id: FutureId) {
     /**
-     * Blocks execution of the current worker, until future is ready.
+     * Blocks execution until the future is ready.
      */
     fun consume(code: (T) -> Unit) {
         when (state) {
@@ -75,17 +69,15 @@ class Future<T> {
 
     val state: FutureState
             get() = FutureState.values()[stateOfFuture(id)]
-}
 
-/**
- * Placeholder class denoting that certain object subgraph is ready for transfer to another
- * worker (i.e. reachability analysis is complete and proven that object is unreachable from this worker).
- * Inside we store a stable native pointer usable to perform actual transfer (depending on memory
- * management scheme either direct pointer to the root of subgraph or stable pointer to place
- * where movable pointer is stored).
- */
-// TODO: make me value class!
-internal class Transferrable<T>(val value: NativePtr)
+    override fun equals(other: Any?): Boolean {
+        return (other is Future<*>) && (id == other.id)
+    }
+
+    override fun hashCode(): Int {
+        return id
+    }
+}
 
 /**
  * Class representing worker.
@@ -96,55 +88,63 @@ class Worker(val id: WorkerId) {
      * Requests termination of the worker after current job is done.
      */
     fun requestTermination() = Future<Any?>(requestTerminationInternal(id))
-}
 
-/**
- * Schedule a job for further execution in the worker.
- */
-fun <T1, T2> schedule(worker: Worker, mode: TransferMode, producer: () -> T1,
-                      @VolatileLambda job: (T1) -> T2): Future<T2> =
     /**
-     * This function is a magical operation, handled by lowering in the compiler, and replaced with call to
-     *   scheduleImpl(worker, mode, producer, job)
-     * but first ensuring that `job` parameter  doesn't capture any state.
+     * Schedule a job for further execution in the worker.
      */
-    throw RuntimeException("Shall not be called directly")
+    fun <T1, T2> schedule(mode: TransferMode, producer: () -> T1,
+                          @VolatileLambda job: (T1) -> T2): Future<T2> =
+            /**
+             * This function is a magical operation, handled by lowering in the compiler, and replaced with call to
+             *   scheduleImpl(worker, mode, producer, job)
+             * but first ensuring that `job` parameter  doesn't capture any state.
+             */
+            throw RuntimeException("Shall not be called directly")
 
-/**
- * Actual implementation of schedule.
- */
-@konan.internal.ExportForCompiler
-internal fun scheduleImpl(worker: Worker, mode: TransferMode, producer: () -> Any?,
-                          job: CPointer<CFunction<*>>) : Future<Any?> =
-        Future<Any?>(scheduleInternal(worker.id, mode.value, producer, job))
+    override fun equals(other: Any?): Boolean {
+        return (other is Worker) && (id == other.id)
+    }
+
+    override fun hashCode(): Int {
+        return id
+    }
+}
 
 fun startWorker() : Worker = Worker(startInternal())
 
 /**
- * Wait for availability of futures in the set. Returns iterable over all futures which has
- * value available for consumption.
+ * Wait for availability of futures in the set. Returns set with all futures which have
+ * value available for the consumption.
  */
-fun waitForMultipleFutures(futures: Set<Future<*>>, millis: Int) : Iterable<Future<*>> = TODO()
+fun Collection<Future<*>>.waitForMultipleFutures(millis: Int) : Set<Future<*>> {
+    val result = mutableSetOf<Future<*>>()
+    for (repeat in 1 .. 2) {
+        for (future in this) {
+            println("$repeat: ${future.state}")
+            if (future.state == FutureState.COMPUTED) {
+                result += future
+            }
+        }
+        if (result.isNotEmpty()) return result
+        waitForAnyFuture(millis)
+    }
+    return result
+}
 
 /**
  *   Object Transfer Basics.
  *
  *   Objects can be passed between threads in one of three possible modes.
  *
- *    * CHECKED - object is checked to be not reachable other globals or locals, and passed
+ *    - CHECKED - object subgraph is checked to be not reachable by other globals or locals, and passed
  *      if so, otherwise an exception is thrown
- *    * SAFE - object is checked to be not reachable other globals or locals, and passed
- *      if so, otherwise a deep copy is being created
- *    * UNCHECKED - object is blindly passed to another worker, if there are references
+ *    - UNCHECKED - object is blindly passed to another worker, if there are references
  *      left in the passing worker - it may lead to crash or program malfunction
  *
  *    Checked mode checks if object is no longer used in passing worker, using memory-management
  *    specific algorithm (ARC implementation relies on trial deletion on object graph rooted in
  *    passed object), and throws IllegalStateException if object graph rooted in transferred object
  *    is reachable by some other means,
- *
- *    Safe mode checks same invariant, but instead of throwing an exception creates deep object graph
- *    copy, if object ownership cannot be transferred.
  *
  *    Unchecked mode, intended for most performance crititcal operations, where object graph ownership
  *    is expected to be correct (such as application debugged earlier in CHECKED mode), just transfers
@@ -165,6 +165,11 @@ enum class TransferMode(val value: Int) {
 fun <T> T.shallowCopy(): T = shallowCopyInternal(this) as T
 
 // Implementation details.
+@konan.internal.ExportForCompiler
+internal fun scheduleImpl(worker: Worker, mode: TransferMode, producer: () -> Any?,
+                          job: CPointer<CFunction<*>>) : Future<Any?> =
+        Future<Any?>(scheduleInternal(worker.id, mode.value, producer, job))
+
 @SymbolName("Kotlin_Worker_startInternal")
 external internal fun startInternal() : WorkerId
 
@@ -184,12 +189,15 @@ external internal fun stateOfFuture(id: FutureId): Int
 @SymbolName("Kotlin_Worker_consumeFuture")
 external internal fun consumeFuture(id: FutureId): Any?
 
+@SymbolName("Kotlin_Worker_waitForAnyFuture")
+external internal fun waitForAnyFuture(millis: Int): Unit
+
 @ExportForCppRuntime
-internal fun ThrowWorkerUnsupported(): Nothing =
+internal fun ThrowWorkerUnsupported(): Unit =
         throw UnsupportedOperationException("Workers are not supported")
 
 @ExportForCppRuntime
-internal fun ThrowWorkerInvalidState(): Nothing =
+internal fun ThrowWorkerInvalidState(): Unit =
         throw IllegalStateException("Illegal transfer state")
 
 @ExportForCppRuntime

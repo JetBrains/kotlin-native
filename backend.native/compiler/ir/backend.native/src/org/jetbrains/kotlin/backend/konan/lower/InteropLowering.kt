@@ -180,7 +180,7 @@ private class InteropTransformer(val context: Context, val irFile: IrFile) : IrB
             }
 
             interop.scheduleFunction -> {
-                val irCallableReference = unwrapStaticFunctionArgument(expression.getValueArgument(3)!!)
+                val irCallableReference = unwrapStaticFunctionArgument(expression.getValueArgument(2)!!)
 
                 if (irCallableReference == null || irCallableReference.getArguments().isNotEmpty()) {
                     context.reportCompilationError(
@@ -198,9 +198,9 @@ private class InteropTransformer(val context: Context, val irFile: IrFile) : IrB
                         typeArguments = null)
 
                 builder.irCall(symbols.scheduleImpl).apply {
-                    putValueArgument(0, expression.getValueArgument(0))
-                    putValueArgument(1, expression.getValueArgument(1))
-                    putValueArgument(2, expression.getValueArgument(2))
+                    putValueArgument(0, expression.dispatchReceiver)
+                    putValueArgument(1, expression.getValueArgument(0))
+                    putValueArgument(2, expression.getValueArgument(1))
                     putValueArgument(3, jobPointer)
                 }
             }

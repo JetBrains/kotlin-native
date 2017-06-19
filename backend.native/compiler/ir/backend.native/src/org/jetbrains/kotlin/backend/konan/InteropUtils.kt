@@ -92,7 +92,8 @@ internal class InteropBuiltIns(builtIns: KonanBuiltIns) {
 
     val workerPackageScope = builtIns.builtInsModule.getPackage(FqName("konan.worker")).memberScope
 
-    val scheduleFunction = workerPackageScope.getContributedFunctions("schedule").single()
+    val scheduleFunction = (workerPackageScope.getContributedClassifier("Worker") as ClassDescriptor).
+            unsubstitutedMemberScope.getContributedFunctions("schedule").single()
 
     val scheduleImplFunction = workerPackageScope.getContributedFunctions("scheduleImpl").single()
 

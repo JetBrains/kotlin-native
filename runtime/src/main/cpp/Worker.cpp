@@ -21,6 +21,7 @@
 
 #if WITH_WORKERS
 #include <pthread.h>
+#include <sys/time.h>
 
 #include <deque>
 #include <unordered_map>
@@ -61,8 +62,8 @@ KNativePtr transfer(KRef object, KInt mode) {
     case CHECKED:
     case UNCHECKED:
       if (!ClearSubgraphReferences(object, mode == CHECKED)) {
-	ThrowWorkerInvalidState();
-	return nullptr;
+        ThrowWorkerInvalidState();
+        return nullptr;
       }
       return object;
     case SAFE:
@@ -108,12 +109,7 @@ class Future {
     return result;
   }
 
-  void storeResultUnlocked(KNativePtr result) {
-    Locker locker(&lock_);
-    state_ = COMPUTED;
-    result_ = result;
-    pthread_cond_signal(&cond_);
-  }
+  void storeResultUnlocked(KNativePtr result);
 
   // Those are called with the lock taken.
   KInt state() const { return state_; }
@@ -183,15 +179,17 @@ class State {
  public:
   State() {
     pthread_mutex_init(&lock_, nullptr);
+    pthread_cond_init(&cond_, nullptr);
+
     currentWorkerId_ = 1;
     currentFutureId_ = 1;
   }
 
   ~State() {
     // TODO: some sanity check here?
+    pthread_mutex_destroy(&lock_);
+    pthread_cond_destroy(&cond_);
   }
-
-  pthread_mutex_t* lock() { return &lock_; }
 
   Worker* addWorkerUnlocked() {
     Locker locker(&lock_);
@@ -256,13 +254,27 @@ class State {
        Locker locker(&lock_);
        auto it = futures_.find(id);
        if (it != futures_.end()) {
-	 future = it->second;
-	 futures_.erase(it);
-	 delete future;
+         futures_.erase(it);
+         delete future;
        }
     }
 
     return result;
+  }
+
+  void waitForAnyFuture(KInt millis) {
+    Locker locker(&lock_);
+    struct timeval tv;
+    struct timespec ts;
+    gettimeofday(&tv, nullptr);
+    KLong nsDelta = millis * 1000000LL;
+    ts.tv_nsec = (tv.tv_usec * 1000LL + nsDelta) % 1000000000LL;
+    ts.tv_sec =  (tv.tv_sec * 1000000000LL + nsDelta) / 1000000000LL;
+    pthread_cond_timedwait(&cond_, &lock_, &ts);
+  }
+
+  void signalAnyFuture() {
+    pthread_cond_broadcast(&cond_);
   }
 
   // All those called with lock taken.
@@ -271,6 +283,7 @@ class State {
 
  private:
   pthread_mutex_t lock_;
+  pthread_cond_t cond_;
   std::unordered_map<KInt, Future*> futures_;
   std::unordered_map<KInt, Worker*> workers_;
   KInt currentWorkerId_;
@@ -280,7 +293,6 @@ class State {
 State* theState() {
   static State* state = nullptr;
 
-  // Technically, we need read barrier here.
   if (state != nullptr) {
     return state;
   }
@@ -294,6 +306,16 @@ State* theState() {
     return old;
   }
   return state;
+}
+
+void Future::storeResultUnlocked(KNativePtr result) {
+  {
+    Locker locker(&lock_);
+    state_ = COMPUTED;
+    result_ = result;
+  }
+  pthread_cond_signal(&cond_);
+  theState()->signalAnyFuture();
 }
 
 void* workerRoutine(void* argument) {
@@ -380,6 +402,10 @@ KInt requestTermination(KInt id) {
   return future->id();
 }
 
+void waitForAnyFuture(KInt millis) {
+  theState()->waitForAnyFuture(millis);
+}
+
 #else
 
 KInt startWorker() {
@@ -405,6 +431,10 @@ OBJ_GETTER(consumeFuture, KInt id) {
 KInt requestTermination(KInt id) {
   ThrowWorkerUnsupported();
   return -1;
+}
+
+void waitForAnyFuture(KInt millis) {
+  ThrowWorkerUnsupported();
 }
 
 #endif  // WITH_WORKERS
@@ -437,5 +467,8 @@ OBJ_GETTER(Kotlin_Worker_consumeFuture, KInt id) {
   RETURN_RESULT_OF(consumeFuture, id);
 }
 
+void Kotlin_Worker_waitForAnyFuture(KInt millis) {
+  return waitForAnyFuture(millis);
+}
 
 }  // extern "C"

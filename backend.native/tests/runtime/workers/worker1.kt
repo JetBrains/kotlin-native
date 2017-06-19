@@ -5,9 +5,9 @@ fun main(args: Array<String>) {
     val workers = Array(COUNT, { _ -> startWorker()})
 
     for (attempt in 1 .. 3) {
-        val futures = Array(workers.size, { i -> schedule(workers[i], TransferMode.CHECKED, { "$attempt: Input $i".shallowCopy() }) {
-                input -> input + " processed"
-            }
+        val futures = Array(workers.size,
+                { i -> workers[i].schedule(TransferMode.CHECKED, { "$attempt: Input $i".shallowCopy() })
+                { input -> input + " processed" }
         })
         futures.forEachIndexed { index, future ->
             future.consume {
