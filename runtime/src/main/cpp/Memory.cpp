@@ -196,7 +196,7 @@ inline void flushFreeableCache(MemoryState* state) {
   }
   // Mass-clear cache.
   memset(state->toFreeCache, 0,
-	 sizeof(ContainerHeader*) * state->gcThreshold);
+         sizeof(ContainerHeader*) * state->gcThreshold);
   state->cacheSize = 0;
 #endif
 }
@@ -234,7 +234,7 @@ ContainerHeaderList collectMutableReferred(ContainerHeader* header) {
     for (int index = 0; index < array->count_; index++) {
       ObjHeader* ref = *ArrayAddressOfElementAt(array, index);
       if (ref != nullptr && !isPermanent(ref->container())) {
-	result.push_back(ref->container());
+        result.push_back(ref->container());
       }
     }
   }
@@ -243,9 +243,9 @@ ContainerHeaderList collectMutableReferred(ContainerHeader* header) {
 
 void dumpWorker(const char* prefix, ContainerHeader* header, ContainerHeaderSet* seen) {
   fprintf(stderr, "%s: %p (%08x): %d refs %s\n",
-	  prefix,
-	  header, header->refCount_, header->refCount_ >> CONTAINER_TAG_SHIFT,
-	  (header->refCount_ & CONTAINER_TAG_SEEN) != 0 ? "X" : "-");
+          prefix,
+          header, header->refCount_, header->refCount_ >> CONTAINER_TAG_SHIFT,
+          (header->refCount_ & CONTAINER_TAG_SEEN) != 0 ? "X" : "-");
   seen->insert(header);
   auto children = collectMutableReferred(header);
   for (auto child : children) {
@@ -377,7 +377,7 @@ void FreeContainer(ContainerHeader* header) {
 
     for (int index = 0; index < typeInfo->objOffsetsCount_; index++) {
       ObjHeader** location = reinterpret_cast<ObjHeader**>(
-	  reinterpret_cast<uintptr_t>(obj + 1) + typeInfo->objOffsets_[index]);
+          reinterpret_cast<uintptr_t>(obj + 1) + typeInfo->objOffsets_[index]);
       UpdateRef(location, nullptr);
     }
     // Object arrays are *special*.
@@ -552,13 +552,13 @@ extern "C" {
 
 MemoryState* InitMemory() {
   RuntimeAssert(offsetof(ArrayHeader, type_info_)
-		==
-		offsetof(ObjHeader,   type_info_),
-		"Layout mismatch");
+                ==
+                offsetof(ObjHeader,   type_info_),
+                "Layout mismatch");
   RuntimeAssert(offsetof(ArrayHeader, container_offset_negative_)
-		==
-		offsetof(ObjHeader  , container_offset_negative_),
-		"Layout mismatch");
+                ==
+                offsetof(ObjHeader  , container_offset_negative_),
+                "Layout mismatch");
   RuntimeAssert(memoryState == nullptr, "memory state must be clear");
   memoryState = allocMemory<MemoryState>(sizeof(MemoryState));
   // TODO: initialize heap here.
@@ -825,7 +825,7 @@ void Kotlin_konan_internal_GC_resume(KRef) {
   if (state->gcSuspendCount > 0) {
     state->gcSuspendCount--;
     if (state->toFree != nullptr &&
-	freeableSize(state) >= state->gcThreshold) {
+        freeableSize(state) >= state->gcThreshold) {
       GarbageCollect();
     }
   }

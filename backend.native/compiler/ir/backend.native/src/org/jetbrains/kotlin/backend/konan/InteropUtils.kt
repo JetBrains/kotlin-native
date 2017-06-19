@@ -45,9 +45,6 @@ internal class InteropBuiltIns(builtIns: KonanBuiltIns) {
 
     val cPointer = this.packageScope.getContributedClassifier(cPointerName) as ClassDescriptor
 
-    val nativePtr = builtIns.builtInsModule.getPackage(FqName("konan.internal")).
-            memberScope.getContributedClassifier("NativePtr") as ClassDescriptor
-
     val cPointerRawValue = cPointer.unsubstitutedMemberScope.getContributedVariables("rawValue").single()
 
     val cPointerGetRawValue = packageScope.getContributedFunctions("getRawValue").single {

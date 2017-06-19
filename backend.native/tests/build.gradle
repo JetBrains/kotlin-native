@@ -430,6 +430,11 @@ task worker0(type: RunKonanTest) {
     source = "runtime/workers/worker0.kt"
 }
 
+task worker1(type: RunKonanTest) {
+    goldValue = "OK\n"
+    source = "runtime/workers/worker1.kt"
+}
+
 task superFunCall(type: RunKonanTest) {
     goldValue = "<fun:C><fun:C1>\n<fun:C><fun:C3>\n"
     source = "codegen/basics/superFunCall.kt"
