@@ -18,12 +18,13 @@ fun main(args: Array<String>) {
             }
         })
         val futureSet = futures.toSet()
-
-        while (true) {
-            val ready = futureSet.waitForMultipleFutures(1000)
-            if (ready.isEmpty()) break
+        var consumed = 0
+        while (consumed < futureSet.size) {
+            val ready = futureSet.waitForMultipleFutures(10000)
             ready.forEach {
-                it.consume { result -> println(result) }
+                it.consume { result ->
+                    if (result.stringResult != "attempt $attempt result") throw Error("Unexpected $result")
+                    consumed++ }
             }
         }
     }

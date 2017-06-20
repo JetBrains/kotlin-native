@@ -85,12 +85,16 @@ class Future<T> internal constructor(val id: FutureId) {
 // TODO: make me value class!
 class Worker(val id: WorkerId) {
     /**
-     * Requests termination of the worker after current job is done.
+     * Requests termination of the worker. `processScheduledJobs` controls is we shall wait
+     * until all scheduled jobs processed, or terminate immediately.
      */
-    fun requestTermination() = Future<Any?>(requestTerminationInternal(id))
+    fun requestTermination(processScheduledJobs: Boolean = true) =
+            Future<Any?>(requestTerminationInternal(id, processScheduledJobs))
 
     /**
-     * Schedule a job for further execution in the worker.
+     * Schedule a job for further execution in the worker. Schedule is a two-phase operation,
+     * first `producer` function is executed, and resulting object and whatever it refers to
+     * is analyzed for being an isolated object subgraph, if in checked mode. Then,
      */
     fun <T1, T2> schedule(mode: TransferMode, producer: () -> T1,
                           @VolatileLambda job: (T1) -> T2): Future<T2> =
@@ -110,24 +114,38 @@ class Worker(val id: WorkerId) {
     }
 }
 
+/**
+ * Start new scheduling primitive, such as thread, to accept new tasks via `schedule` interface.
+ * Typically new worker may be needed for computations offload to another core, for IO it may be
+ * better to use non-blocking IO combined with more lightweight coroutines.
+ */
 fun startWorker() : Worker = Worker(startInternal())
 
 /**
- * Wait for availability of futures in the set. Returns set with all futures which have
+ * Wait for availability of futures in the collection. Returns set with all futures which have
  * value available for the consumption.
  */
-fun Collection<Future<*>>.waitForMultipleFutures(millis: Int) : Set<Future<*>> {
-    val result = mutableSetOf<Future<*>>()
-    for (repeat in 1 .. 2) {
+fun <T> Collection<Future<T>>.waitForMultipleFutures(millis: Int) : Set<Future<T>> {
+    val result = mutableSetOf<Future<T>>()
+
+    while (true) {
+        val versionToken = versionToken()
         for (future in this) {
-            println("$repeat: ${future.state}")
             if (future.state == FutureState.COMPUTED) {
                 result += future
             }
         }
         if (result.isNotEmpty()) return result
-        waitForAnyFuture(millis)
+
+        if (waitForAnyFuture(versionToken, millis)) break
     }
+
+    for (future in this) {
+        if (future.state == FutureState.COMPUTED) {
+            result += future
+        }
+    }
+
     return result
 }
 
@@ -150,8 +168,6 @@ fun Collection<Future<*>>.waitForMultipleFutures(millis: Int) : Set<Future<*>> {
  *    is expected to be correct (such as application debugged earlier in CHECKED mode), just transfers
  *    ownership without further checks.
  *
- *    When object is in transferrable state, it means that it has an unique pointer, and could be consumed
- *    easily as result of the Future.consume() operation by in some other worker.
  */
 enum class TransferMode(val value: Int) {
     CHECKED(0),
@@ -164,6 +180,12 @@ enum class TransferMode(val value: Int) {
  */
 fun <T> T.shallowCopy(): T = shallowCopyInternal(this) as T
 
+/**
+ * Creates verbatim *deep* copy of passed object's graph, use *VERY* carefully to create disjoint object graph.
+ * Note that this function could potentially duplicate a lot of objects.
+ */
+fun <T> T.deepCopy(): T = TODO()
+
 // Implementation details.
 @konan.internal.ExportForCompiler
 internal fun scheduleImpl(worker: Worker, mode: TransferMode, producer: () -> Any?,
@@ -174,7 +196,7 @@ internal fun scheduleImpl(worker: Worker, mode: TransferMode, producer: () -> An
 external internal fun startInternal() : WorkerId
 
 @SymbolName("Kotlin_Worker_requestTerminationWorkerInternal")
-external internal fun requestTerminationInternal(id: WorkerId): FutureId
+external internal fun requestTerminationInternal(id: WorkerId, processScheduledJobs: Boolean): FutureId
 
 @SymbolName("Kotlin_Worker_scheduleInternal")
 external internal fun scheduleInternal(
@@ -190,7 +212,10 @@ external internal fun stateOfFuture(id: FutureId): Int
 external internal fun consumeFuture(id: FutureId): Any?
 
 @SymbolName("Kotlin_Worker_waitForAnyFuture")
-external internal fun waitForAnyFuture(millis: Int): Unit
+external internal fun waitForAnyFuture(versionToken: Int, millis: Int): Boolean
+
+@SymbolName("Kotlin_Worker_versionToken")
+external internal fun versionToken(): Int
 
 @ExportForCppRuntime
 internal fun ThrowWorkerUnsupported(): Unit =

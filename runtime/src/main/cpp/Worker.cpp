@@ -142,6 +142,12 @@ class Worker {
   }
 
   ~Worker() {
+    // Cleanup jobs in queue.
+    for (auto job : queue_) {
+      DisposeStablePointer(job.argument);
+      job.future->storeResultUnlocked(nullptr);
+    }
+
     pthread_mutex_destroy(&lock_);
     pthread_cond_destroy(&cond_);
   }
@@ -183,6 +189,7 @@ class State {
 
     currentWorkerId_ = 1;
     currentFutureId_ = 1;
+    currentVersion_ = 0;
   }
 
   ~State() {
@@ -262,8 +269,14 @@ class State {
     return result;
   }
 
-  void waitForAnyFuture(KInt millis) {
+  KBoolean waitForAnyFuture(KInt version, KInt millis) {
     Locker locker(&lock_);
+    if (version != currentVersion_) return false;
+
+    if (millis < 0) {
+      pthread_cond_wait(&cond_, &lock_);
+      return true;
+    }
     struct timeval tv;
     struct timespec ts;
     gettimeofday(&tv, nullptr);
@@ -271,10 +284,20 @@ class State {
     ts.tv_nsec = (tv.tv_usec * 1000LL + nsDelta) % 1000000000LL;
     ts.tv_sec =  (tv.tv_sec * 1000000000LL + nsDelta) / 1000000000LL;
     pthread_cond_timedwait(&cond_, &lock_, &ts);
+    return true;
   }
 
   void signalAnyFuture() {
+    {
+      Locker locker(&lock_);
+      currentVersion_++;
+    }
     pthread_cond_broadcast(&cond_);
+  }
+
+  KInt versionToken() {
+    Locker locker(&lock_);
+    return currentVersion_;
   }
 
   // All those called with lock taken.
@@ -288,6 +311,7 @@ class State {
   std::unordered_map<KInt, Worker*> workers_;
   KInt currentWorkerId_;
   KInt currentFutureId_;
+  KInt currentVersion_;
 };
 
 State* theState() {
@@ -342,6 +366,7 @@ void* workerRoutine(void* argument) {
     // Notify the future.
     job.future->storeResultUnlocked(result);
   }
+
   DeinitRuntime(state);
 
   delete worker;
@@ -396,14 +421,19 @@ OBJ_GETTER(consumeFuture, KInt id) {
   RETURN_RESULT_OF(theState()->consumeFutureUnlocked, id);
 }
 
-KInt requestTermination(KInt id) {
-  Future* future = theState()->addJobToWorkerUnlocked(id, nullptr, nullptr, true, UNCHECKED);
+KInt requestTermination(KInt id, KBoolean processScheduledJobs) {
+  Future* future = theState()->addJobToWorkerUnlocked(
+      id, nullptr, nullptr, /* toFront = */ !processScheduledJobs, UNCHECKED);
   if (future == nullptr) ThrowWorkerInvalidState();
   return future->id();
 }
 
-void waitForAnyFuture(KInt millis) {
-  theState()->waitForAnyFuture(millis);
+KBoolean waitForAnyFuture(KInt version, KInt millis) {
+  return theState()->waitForAnyFuture(version, millis);
+}
+
+KInt versionToken() {
+  return theState()->versionToken();
 }
 
 #else
@@ -428,13 +458,19 @@ OBJ_GETTER(consumeFuture, KInt id) {
   RETURN_OBJ(nullptr);
 }
 
-KInt requestTermination(KInt id) {
+KInt requestTermination(KInt id, KBoolean processScheduledJobs) {
   ThrowWorkerUnsupported();
   return -1;
 }
 
-void waitForAnyFuture(KInt millis) {
+KBoolean waitForAnyFuture(KInt versionToken, KInt millis) {
   ThrowWorkerUnsupported();
+  return false;
+}
+
+KInt versionToken() {
+  ThrowWorkerUnsupported();
+  return 0;
 }
 
 #endif  // WITH_WORKERS
@@ -447,8 +483,8 @@ KInt Kotlin_Worker_startInternal() {
   return startWorker();
 }
 
-KInt Kotlin_Worker_requestTerminationWorkerInternal(KInt id) {
-  return requestTermination(id);
+KInt Kotlin_Worker_requestTerminationWorkerInternal(KInt id, KBoolean processScheduledJobs) {
+    return requestTermination(id, processScheduledJobs);
 }
 
 KInt Kotlin_Worker_scheduleInternal(KInt id, KInt transferMode, KRef producer, KNativePtr job) {
@@ -467,8 +503,13 @@ OBJ_GETTER(Kotlin_Worker_consumeFuture, KInt id) {
   RETURN_RESULT_OF(consumeFuture, id);
 }
 
-void Kotlin_Worker_waitForAnyFuture(KInt millis) {
-  return waitForAnyFuture(millis);
+KBoolean Kotlin_Worker_waitForAnyFuture(KInt versionToken, KInt millis) {
+  return waitForAnyFuture(versionToken, millis);
 }
+
+KInt Kotlin_Worker_versionToken() {
+  return versionToken();
+}
+
 
 }  // extern "C"
