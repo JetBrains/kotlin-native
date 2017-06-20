@@ -94,7 +94,14 @@ class Worker(val id: WorkerId) {
     /**
      * Schedule a job for further execution in the worker. Schedule is a two-phase operation,
      * first `producer` function is executed, and resulting object and whatever it refers to
-     * is analyzed for being an isolated object subgraph, if in checked mode. Then,
+     * is analyzed for being an isolated object subgraph, if in checked mode. Note, that for some cases
+     * cycle collection need to be done to ensure that dead cycles do not affect reachability of passed
+     * object graph. See `konan.internal.GC.collect()`.
+     * Afterwards, this disconnected object graph and `job` function pointer is being added to jobs queue
+     * of the selected worker. Note that `job` must not capture any state itself, so that whole state is
+     * explicitly stored in object produced by `producer`. Scheduled job is being executed by the worker,
+     * and result of such a execution is being disconnected from worker's object graph. Whoever will consume
+     * the future, can use result of worker's computations.
      */
     fun <T1, T2> schedule(mode: TransferMode, producer: () -> T1,
                           @VolatileLambda job: (T1) -> T2): Future<T2> =
@@ -171,8 +178,7 @@ fun <T> Collection<Future<T>>.waitForMultipleFutures(millis: Int) : Set<Future<T
  */
 enum class TransferMode(val value: Int) {
     CHECKED(0),
-    SAFE(1),
-    UNCHECKED(2) // USE UNCHECKED MODE ONLY IF ABSOLUTELY SURE WHAT YOU'RE DOING!!!
+    UNCHECKED(1) // USE UNCHECKED MODE ONLY IF ABSOLUTELY SURE WHAT YOU'RE DOING!!!
 }
 
 /**

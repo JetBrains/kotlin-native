@@ -53,8 +53,7 @@ enum {
 
 enum {
   CHECKED = 0,
-  SAFE = 1,
-  UNCHECKED = 2
+  UNCHECKED = 1
 };
 
 KNativePtr transfer(KRef object, KInt mode) {
@@ -66,10 +65,6 @@ KNativePtr transfer(KRef object, KInt mode) {
         return nullptr;
       }
       return object;
-    case SAFE:
-      // Unsupported yet.
-      ThrowWorkerUnsupported();
-      break;
   }
   return nullptr;
 }
@@ -111,6 +106,8 @@ class Future {
 
   void storeResultUnlocked(KNativePtr result);
 
+  void cancelUnlocked();
+
   // Those are called with the lock taken.
   KInt state() const { return state_; }
   KInt id() const { return id_; }
@@ -145,7 +142,7 @@ class Worker {
     // Cleanup jobs in queue.
     for (auto job : queue_) {
       DisposeStablePointer(job.argument);
-      job.future->storeResultUnlocked(nullptr);
+      job.future->cancelUnlocked();
     }
 
     pthread_mutex_destroy(&lock_);
@@ -341,6 +338,17 @@ void Future::storeResultUnlocked(KNativePtr result) {
   pthread_cond_signal(&cond_);
   theState()->signalAnyFuture();
 }
+
+void Future::cancelUnlocked() {
+  {
+    Locker locker(&lock_);
+    state_ = CANCELLED;
+    result_ = nullptr;
+  }
+  pthread_cond_signal(&cond_);
+  theState()->signalAnyFuture();
+}
+
 
 void* workerRoutine(void* argument) {
   Worker* worker = reinterpret_cast<Worker*>(argument);
