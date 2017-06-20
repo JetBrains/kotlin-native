@@ -31,11 +31,9 @@ import kotlinx.cinterop.*
  * workers as needed.
  */
 
-// Unique per-process identifier of worker.
-typealias WorkerId = Int
-// Unique per-process identifier of the future.
-typealias FutureId = Int
-
+/**
+ * State of the future object.
+ */
 enum class FutureState(val value: Int) {
     INVALID(0),
     // Future is scheduled for execution.
@@ -45,6 +43,43 @@ enum class FutureState(val value: Int) {
     // Future is cancelled.
     CANCELLED(3)
 }
+
+/**
+ *  Object Transfer Basics.
+ *
+ *  Objects can be passed between threads in one of two possible modes.
+ *
+ *    - CHECKED - object subgraph is checked to be not reachable by other globals or locals, and passed
+ *      if so, otherwise an exception is thrown
+ *    - UNCHECKED - object is blindly passed to another worker, if there are references
+ *      left in the passing worker - it may lead to crash or program malfunction
+ *
+ *   Checked mode checks if object is no longer used in passing worker, using memory-management
+ *  specific algorithm (ARC implementation relies on trial deletion on object graph rooted in
+ *  passed object), and throws IllegalStateException if object graph rooted in transferred object
+ *  is reachable by some other means,
+ *
+ *   Unchecked mode, intended for most performance crititcal operations, where object graph ownership
+ *  is expected to be correct (such as application debugged earlier in CHECKED mode), just transfers
+ *  ownership without further checks.
+ *
+ *   Note, that for some cases cycle collection need to be done to ensure that dead cycles do not affect
+ *  reachability of passed object graph. See `konan.internal.GC.collect()`.
+ *
+ */
+enum class TransferMode(val value: Int) {
+    CHECKED(0),
+    UNCHECKED(1) // USE UNCHECKED MODE ONLY IF ABSOLUTELY SURE WHAT YOU'RE DOING!!!
+}
+
+/**
+ * Unique identifier of the worker. Workers can be used from other workers.
+ */
+typealias WorkerId = Int
+/**
+ * Unique identifier of the future. Futures can be used from other workers.
+ */
+typealias FutureId = Int
 
 /**
  * Class representing abstract computation, whose result may become available in the future.
@@ -94,9 +129,7 @@ class Worker(val id: WorkerId) {
     /**
      * Schedule a job for further execution in the worker. Schedule is a two-phase operation,
      * first `producer` function is executed, and resulting object and whatever it refers to
-     * is analyzed for being an isolated object subgraph, if in checked mode. Note, that for some cases
-     * cycle collection need to be done to ensure that dead cycles do not affect reachability of passed
-     * object graph. See `konan.internal.GC.collect()`.
+     * is analyzed for being an isolated object subgraph, if in checked mode.
      * Afterwards, this disconnected object graph and `job` function pointer is being added to jobs queue
      * of the selected worker. Note that `job` must not capture any state itself, so that whole state is
      * explicitly stored in object produced by `producer`. Scheduled job is being executed by the worker,
@@ -154,31 +187,6 @@ fun <T> Collection<Future<T>>.waitForMultipleFutures(millis: Int) : Set<Future<T
     }
 
     return result
-}
-
-/**
- *   Object Transfer Basics.
- *
- *   Objects can be passed between threads in one of three possible modes.
- *
- *    - CHECKED - object subgraph is checked to be not reachable by other globals or locals, and passed
- *      if so, otherwise an exception is thrown
- *    - UNCHECKED - object is blindly passed to another worker, if there are references
- *      left in the passing worker - it may lead to crash or program malfunction
- *
- *    Checked mode checks if object is no longer used in passing worker, using memory-management
- *    specific algorithm (ARC implementation relies on trial deletion on object graph rooted in
- *    passed object), and throws IllegalStateException if object graph rooted in transferred object
- *    is reachable by some other means,
- *
- *    Unchecked mode, intended for most performance crititcal operations, where object graph ownership
- *    is expected to be correct (such as application debugged earlier in CHECKED mode), just transfers
- *    ownership without further checks.
- *
- */
-enum class TransferMode(val value: Int) {
-    CHECKED(0),
-    UNCHECKED(1) // USE UNCHECKED MODE ONLY IF ABSOLUTELY SURE WHAT YOU'RE DOING!!!
 }
 
 /**
