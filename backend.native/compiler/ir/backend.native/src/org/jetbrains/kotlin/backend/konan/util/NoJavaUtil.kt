@@ -16,6 +16,9 @@
 
 package org.jetbrains.kotlin.backend.konan.util
 
+import java.io.BufferedReader
+import java.io.InputStream
+import java.io.InputStreamReader
 import java.net.URI
 import java.nio.file.FileSystems
 import java.nio.file.Files
@@ -64,9 +67,13 @@ class File(val path: String) {
     companion object {
         val userDir
             get() = File(System.getProperty("user.dir"))
+
+        val userHome
+            get() = File(System.getProperty("user.home"))
     }
 }
 
+fun String.File() = File(this)
 
 private val File.zipUri: URI
         get() = URI.create("jar:${this.toPath().toUri()}")
@@ -114,3 +121,4 @@ fun File.copyTo(destination: File, vararg options: StandardCopyOption) {
     Files.copy(this.toPath(), destination.toPath(), *options) 
 }
 
+fun bufferedReader(errorStream: InputStream?) = BufferedReader(InputStreamReader(errorStream))

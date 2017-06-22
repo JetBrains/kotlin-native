@@ -89,11 +89,8 @@ object FloatingPointParser {
      * taking the positive integer the String represents and multiplying by 10
      * raised to the power of the exponent.
 
-     * @param s
+     * @param string
      * *            the String that will be parsed to a floating point
-     * *
-     * @param length
-     * *            the length of s
      * *
      * @return a StringExponentPair with necessary values
      * *
@@ -101,9 +98,9 @@ object FloatingPointParser {
      * @exception NumberFormatException
      * *                if the String doesn't pass basic tests
      */
-    private fun initialParse(s: String, length: Int): StringExponentPair {
-        var s = s
-        var length = length
+    private fun initialParse(string: String): StringExponentPair {
+        var s = string
+        var length = s.length
         var negative = false
         var c: Char
         var start: Int
@@ -310,7 +307,7 @@ object FloatingPointParser {
     /**
      * Returns the closest double value to the real number in the string.
 
-     * @param s
+     * @param string
      * *            the String that will be parsed to a floating point
      * *
      * @return the double closest to the real number
@@ -319,8 +316,8 @@ object FloatingPointParser {
      * @exception NumberFormatException
      * *                if the String doesn't represent a double
      */
-    fun parseDouble(s: String): Double {
-        var s = s
+    fun parseDouble(string: String): Double {
+        var s = string
         s = s.trim { it <= ' ' }
         val length = s.length
 
@@ -336,11 +333,10 @@ object FloatingPointParser {
 
         // See if it could be a hexadecimal representation.
         if (parseAsHex(s)) {
-            TODO("Hex format is not supported")
-            //return HexStringParser.parseDouble(s)
+            return HexStringParser.parseDouble(s)
         }
 
-        val info = initialParse(s, length)
+        val info = initialParse(s)
 
         // Two kinds of situation will directly return 0.0:
         // 1. info.s is 0;
@@ -372,8 +368,8 @@ object FloatingPointParser {
      * @exception NumberFormatException
      * *                if the String doesn't represent a float
      */
-    fun parseFloat(s: String): Float {
-        var s = s
+    fun parseFloat(string: String): Float {
+        var s = string
         s = s.trim { it <= ' ' }
         val length = s.length
 
@@ -389,11 +385,10 @@ object FloatingPointParser {
 
         // See if it could be a hexadecimal representation.
         if (parseAsHex(s)) {
-            TODO("Hex format is not supported")
-            //return HexStringParser.parseFloat(s)
+            return HexStringParser.parseFloat(s)
         }
 
-        val info = initialParse(s, length)
+        val info = initialParse(s)
 
         // Two kinds of situation will directly return 0.0f.
         // 1. info.s is 0;

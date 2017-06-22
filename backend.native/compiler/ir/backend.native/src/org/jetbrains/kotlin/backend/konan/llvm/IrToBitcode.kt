@@ -21,12 +21,8 @@ import llvm.*
 import org.jetbrains.kotlin.backend.common.descriptors.allParameters
 import org.jetbrains.kotlin.backend.common.descriptors.isSuspend
 import org.jetbrains.kotlin.backend.common.ir.ir2string
-import org.jetbrains.kotlin.backend.konan.Context
-import org.jetbrains.kotlin.backend.konan.KonanConfigKeys
-import org.jetbrains.kotlin.backend.konan.CompilerOutputKind
-import org.jetbrains.kotlin.backend.konan.KonanPhase
+import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.library.LinkData
-import org.jetbrains.kotlin.backend.konan.PhaseManager
 import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.backend.konan.library.KonanLibraryWriter
@@ -43,6 +39,7 @@ import org.jetbrains.kotlin.ir.util.getArguments
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
+import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
@@ -85,65 +82,65 @@ internal fun emitLLVM(context: Context) {
         if (context.shouldContainDebugInfo()) {
             DIFinalize(context.debugInfo.builder)
         }
-        
-        when (config.get(KonanConfigKeys.PRODUCE)) {
-            CompilerOutputKind.PROGRAM -> {
-                val program = config.get(KonanConfigKeys.OUTPUT_NAME)!!
-                val output = "${program}.kt.bc"
-                context.bitcodeFileName = output
-
-                phaser.phase(KonanPhase.BITCODE_LINKER) {
-                    for (library in context.config.nativeLibraries) {
-                        val libraryModule = parseBitcodeFile(library)
-                        val failed = LLVMLinkModules2(llvmModule, libraryModule)
-                        if (failed != 0) {
-                            throw Error("failed to link $library") // TODO: retrieve error message from LLVM.
-                        }
-                    }
-                }
-
-                LLVMWriteBitcodeToFile(llvmModule, output)
-            }
-            CompilerOutputKind.LIBRARY -> {
-
-                val libraryName = config.get(KonanConfigKeys.OUTPUT_NAME)!!
-                val nopack = config.getBoolean(KonanConfigKeys.NOPACK)
-                val targetName = context.config.targetManager.currentName
-
-                val library = buildLibrary(
-                    phaser, 
-                    context.config.nativeLibraries, 
-                    context.serializedLinkData!!, 
-                    targetName,
-                    libraryName, 
-                    llvmModule,
-                    nopack)
-
-                context.library = library
-
-                context.bitcodeFileName = library.mainBitcodeFileName
-            }
-            CompilerOutputKind.BITCODE -> {
-                val output = config.get(KonanConfigKeys.OUTPUT_FILE)!!
-                context.bitcodeFileName = output
-                LLVMWriteBitcodeToFile(llvmModule, output)
-            }
-        }
 }
 
-internal fun buildLibrary(phaser: PhaseManager, natives: List<String>, linkData: LinkData, target: String, output: String, llvmModule: LLVMModuleRef, nopack: Boolean): KonanLibraryWriter {
+internal fun produceOutput(context: Context) {
+
+    val llvmModule = context.llvmModule!!
+    val config = context.config.configuration
+
+    when (config.get(KonanConfigKeys.PRODUCE)) {
+        CompilerOutputKind.PROGRAM -> {
+            val program = context.config.outputName
+            val output = "${program}.kt.bc"
+            context.bitcodeFileName = output
+
+            PhaseManager(context).phase(KonanPhase.BITCODE_LINKER) {
+                for (library in context.config.nativeLibraries) {
+                    val libraryModule = parseBitcodeFile(library)
+                    val failed = LLVMLinkModules2(llvmModule, libraryModule)
+                    if (failed != 0) {
+                        throw Error("failed to link $library") // TODO: retrieve error message from LLVM.
+                    }
+                }
+            }
+
+            LLVMWriteBitcodeToFile(llvmModule, output)
+        }
+        CompilerOutputKind.LIBRARY -> {
+            val libraryName = context.config.outputName
+            val nopack = config.getBoolean(KonanConfigKeys.NOPACK)
+            val targetName = context.config.targetManager.targetName
+
+            val library = buildLibrary(
+                context.config.nativeLibraries, 
+                context.serializedLinkData!!, 
+                targetName,
+                libraryName, 
+                llvmModule,
+                nopack)
+
+            context.library = library
+            context.bitcodeFileName = library.mainBitcodeFileName
+        }
+        CompilerOutputKind.BITCODE -> {
+            val output = context.config.outputFile
+            context.bitcodeFileName = output
+            LLVMWriteBitcodeToFile(llvmModule, output)
+        }
+    }
+}
+
+internal fun buildLibrary(natives: List<String>, linkData: LinkData, target: String, output: String, llvmModule: LLVMModuleRef, nopack: Boolean): KonanLibraryWriter {
     // TODO: May be we need a factory?
     //val library = KtBcLibraryWriter(output, llvmModule)
     val library = SplitLibraryWriter(output, target, nopack)
 
     library.addKotlinBitcode(llvmModule)
-
     library.addLinkData(linkData)
 
-    phaser.phase(KonanPhase.BITCODE_LINKER) {
-        natives.forEach {
-            library.addNativeBitcode(it)
-        }
+    natives.forEach {
+        library.addNativeBitcode(it)
     }
 
     library.commit()
@@ -340,21 +337,41 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     //-------------------------------------------------------------------------//
 
     val kVoidFuncType = LLVMFunctionType(LLVMVoidType(), null, 0, 0)
+    val kInitFuncType = LLVMFunctionType(LLVMVoidType(), cValuesOf(LLVMInt32Type()), 1, 0)
     val kNodeInitType = LLVMGetTypeByName(context.llvmModule, "struct.InitNode")!!
     //-------------------------------------------------------------------------//
 
     fun createInitBody(initName: String): LLVMValueRef {
-        val initFunction = LLVMAddFunction(context.llvmModule, initName, kVoidFuncType)!!    // create LLVM function
+        val initFunction = LLVMAddFunction(context.llvmModule, initName, kInitFuncType)!!    // create LLVM function
         codegen.prologue(initFunction, voidType)
         using(FunctionScope(initFunction)) {
-            context.llvm.fileInitializers.forEach {
-                val irField = it as IrField
-                val descriptor = irField.descriptor
-                val initialization = evaluateExpression(irField.initializer!!.expression)
-                val globalPtr = context.llvmDeclarations.forStaticField(descriptor).storage
-                codegen.storeAnyGlobal(initialization, globalPtr)
+            val bbInit = codegen.basicBlock("init")
+            val bbDeinit = codegen.basicBlock("deinit")
+            codegen.condBr(codegen.icmpEq(LLVMGetParam(initFunction, 0)!!, kImmZero), bbDeinit, bbInit)
+
+            codegen.appendingTo(bbDeinit) {
+                context.llvm.fileInitializers.forEach {
+                    val irField = it as IrField
+                    val descriptor = irField.descriptor
+                    if (descriptor.type.isValueType())
+                        return@forEach // Is not a subject for memory management.
+                    val globalPtr = context.llvmDeclarations.forStaticField(descriptor).storage
+                    codegen.storeAnyGlobal(codegen.kNullObjHeaderPtr, globalPtr)
+                }
+                objects.forEach { codegen.storeAnyGlobal(codegen.kNullObjHeaderPtr, it) }
+                codegen.ret(null)
             }
-            codegen.ret(null)
+
+            codegen.appendingTo(bbInit) {
+                context.llvm.fileInitializers.forEach {
+                    val irField = it as IrField
+                    val descriptor = irField.descriptor
+                    val initialization = evaluateExpression(irField.initializer!!.expression)
+                    val globalPtr = context.llvmDeclarations.forStaticField(descriptor).storage
+                    codegen.storeAnyGlobal(initialization, globalPtr)
+                }
+                codegen.ret(null)
+            }
         }
         codegen.epilogue()
 
@@ -392,7 +409,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         using(FileScope(declaration)) {
             declaration.acceptChildrenVoid(this)
 
-            if (context.llvm.fileInitializers.isEmpty())
+            if (context.llvm.fileInitializers.isEmpty() && objects.isEmpty())
                 return
 
             // Create global initialization records.
@@ -456,7 +473,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
         if (constructorDescriptor.isPrimary) {
             if (DescriptorUtils.isObject(classDescriptor)) {
                 if (!classDescriptor.isUnit()) {
-                    val objectPtr = objectPtrByName(classDescriptor)
+                    val objectPtr = getObjectInstanceStorage(classDescriptor)
 
                     LLVMSetInitializer(objectPtr, codegen.kNullObjHeaderPtr)
                 }
@@ -722,7 +739,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
             return codegen.theUnitInstanceRef.llvm
         }
 
-        var objectPtr = objectPtrByName(value.descriptor)
+        var objectPtr = getObjectInstanceStorage(value.descriptor)
         val bbCurrent = codegen.currentBlock
         val bbInit    = codegen.basicBlock("label_init")
         val bbExit    = codegen.basicBlock("label_continue")
@@ -1283,15 +1300,19 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
 
     //-------------------------------------------------------------------------//
 
-    private fun objectPtrByName(descriptor: ClassDescriptor): LLVMValueRef {
+    private val objects = mutableSetOf<LLVMValueRef>()
+
+    private fun getObjectInstanceStorage(descriptor: ClassDescriptor): LLVMValueRef {
         assert (!descriptor.isUnit())
-        return if (codegen.isExternal(descriptor)) {
+        val llvmGlobal = if (!codegen.isExternal(descriptor)) {
+            context.llvmDeclarations.forSingleton(descriptor).instanceFieldRef
+        } else {
             val llvmType = codegen.getLLVMType(descriptor.defaultType)
             codegen.importGlobal(descriptor.objectInstanceFieldSymbolName, llvmType,
                     threadLocal = true)
-        } else {
-            context.llvmDeclarations.forSingleton(descriptor).instanceFieldRef
         }
+        objects += llvmGlobal
+        return llvmGlobal
     }
 
     //-------------------------------------------------------------------------//
@@ -1942,8 +1963,6 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     private val kImmOne      = LLVMConstInt(LLVMInt32Type(),  1, 1)!!
     private val kTrue        = LLVMConstInt(LLVMInt1Type(),   1, 1)!!
     private val kFalse       = LLVMConstInt(LLVMInt1Type(),   0, 1)!!
-    private val kIntPtrZero  = LLVMConstInt(codegen.intPtrType, 0, 1)!!
-
 
     private fun evaluateOperatorCall(callee: IrCall, args: List<LLVMValueRef>): LLVMValueRef {
         context.log{"evaluateCall                   : origin:${ir2string(callee)}"}

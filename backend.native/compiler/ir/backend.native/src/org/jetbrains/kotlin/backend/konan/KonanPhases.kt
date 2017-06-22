@@ -17,6 +17,7 @@
 package org.jetbrains.kotlin.backend.konan
 
 import org.jetbrains.kotlin.backend.konan.util.*
+import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 
 enum class KonanPhase(val description: String,
                       vararg prerequisite: KonanPhase,
@@ -49,6 +50,7 @@ enum class KonanPhase(val description: String,
     /* ... ... */ LOWER_TYPE_OPERATORS("Type operators lowering", LOWER_COROUTINES),
     /* ... ... */ BRIDGES_BUILDING("Bridges building", LOWER_COROUTINES),
     /* ... ... */ LOWER_STRING_CONCAT("String concatenation lowering"),
+    /* ... ... */ LOWER_DATA_CLASSES("Data classes lowering"),
     /* ... ... */ AUTOBOX("Autoboxing of primitive types", BRIDGES_BUILDING, LOWER_COROUTINES),
     /* ... */ BITCODE("LLVM BitCode Generation"),
     /* ... ... */ RTTI("RTTI Generation"),

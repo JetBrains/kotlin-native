@@ -45,12 +45,12 @@ COMPILER_ARGS=${!var} # add -opt for an optimized build.
 mkdir -p $DIR/build/c_interop/
 mkdir -p $DIR/build/bin/
 
-cinterop -def $DIR/src/main/c_interop/sdl.def -compilerOpts "$CFLAGS" -target $TARGET -o $DIR/build/c_interop/sdl.kt.bc || exit 1
+cinterop -def $DIR/src/main/c_interop/sdl.def -compilerOpts "$CFLAGS" -target $TARGET -o $DIR/build/c_interop/sdl || exit 1
 
 konanc $COMPILER_ARGS -target $TARGET $DIR/src/main/kotlin/Tetris.kt \
-       -library $DIR/build/c_interop/sdl.kt.bc -linkerOpts "$LINKER_ARGS" \
-       -o $DIR/build/bin/Tetris.kexe || exit 1
+       -library $DIR/build/c_interop/sdl -linkerOpts "$LINKER_ARGS" \
+       -o $DIR/build/bin/Tetris || exit 1
 
 cp -R $DIR/src/main/resources/ $DIR/build/bin/
 
-echo "Artifact path is ./build/bin/Tetris.kexe"
+echo "Artifact path is $DIR/build/bin/Tetris.kexe"

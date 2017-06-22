@@ -57,28 +57,29 @@ internal val Project.konanCompilerDownloadTask  get() = tasks.getByName(KonanPlu
 internal val Project.konanVersion
     get() = findProperty(KonanPlugin.KONAN_VERSION_PROPERTY_NAME) as String? ?: KonanPlugin.DEFAULT_KONAN_VERSION
 
-internal fun Project.isTargetSupported(target: String?): Boolean {
+internal fun Project.targetIsRequested(target: String?): Boolean {
     val targets = extensions.extraProperties.get(KonanPlugin.KONAN_BUILD_TARGETS).toString().trim().split(' ')
-    if (targets.contains("all")) {
-        return target?.isSupported() ?: true
-    } else {
-        return target == null || targets.contains(target)
-    }
+
+    return (targets.contains(target) || 
+            targets.contains("all") ||
+            target == null)
 }
 
-internal val Project.supportedCompileTasks: TaskCollection<KonanCompileTask>
-    get() {
+internal fun Project.targetIsSupportedAndRequested(task: KonanTargetableTask) 
+    = task.targetIsSupported && this.targetIsRequested(task.target)
 
-        return project.tasks.withType(KonanCompileTask::class.java).matching { isTargetSupported(it.target) }
+internal val Project.supportedCompileTasks: TaskCollection<KonanCompileTask>
+    get() = project.tasks.withType(KonanCompileTask::class.java).matching { 
+        targetIsSupportedAndRequested(it)
     }
 
 internal val Project.supportedInteropTasks: TaskCollection<KonanInteropTask>
-    get() {
-        return project.tasks.withType(KonanInteropTask::class.java).matching { isTargetSupported(it.target) }
+    get() = project.tasks.withType(KonanInteropTask::class.java).matching { 
+        targetIsSupportedAndRequested(it)
     }
 
 internal fun Project.konanCompilerName(): String =
-        "kotlin-native-${KonanCompilerDownloadTask.simpleOsName()}-${this.konanVersion}"
+        "kotlin-native-${project.simpleOsName}-${this.konanVersion}"
 
 internal fun Project.konanCompilerDownloadDir(): String =
         KonanCompilerDownloadTask.KONAN_PARENT_DIR + "/" + project.konanCompilerName()
@@ -147,6 +148,7 @@ internal fun dumpProperties(task: Task) {
             println("libraries          : ${task.libraries}")
             println("nativeLibraries    : ${task.nativeLibraries}")
             println("linkerOpts         : ${task.linkerOpts}")
+            println("enableDebug        : ${task.enableDebug}")
             println("noStdLib           : ${task.noStdLib}")
             println("noMain             : ${task.noMain}")
             println("enableOptimization : ${task.enableOptimization}")
@@ -177,17 +179,6 @@ internal fun dumpProperties(task: Task) {
     }
 }
 
-private fun String.isSupported(): Boolean {
-    val os = KonanCompilerDownloadTask.simpleOsName()
-    return when (os) {
-        "macos" -> this == "macbook" || this == "iphone"
-        "linux" -> this == "linux" || this == "raspberrypi"
-        "windows" -> this == "mingw"
-        else -> false
-    }
-}
-
-
 class KonanPlugin @Inject constructor(private val registry: ToolingModelBuilderRegistry)
     : Plugin<ProjectInternal> {
 
@@ -200,20 +191,22 @@ class KonanPlugin @Inject constructor(private val registry: ToolingModelBuilderR
         internal const val KONAN_VERSION_PROPERTY_NAME = "konan.version"
         internal const val KONAN_BUILD_TARGETS = "konan.build.targets"
 
-        internal const val DEFAULT_KONAN_VERSION = "0.2"
+        internal const val DEFAULT_KONAN_VERSION = "0.3"
+
+        internal const val DOWNLOAD_COMPILER_PROPERTY_NAME = "DownloadCompiler"
     }
 
     /**
      * Looks for task with given name in the given project.
      * If such task isn't found, will create it. Returns created/found task.
      */
-    private fun getTask(project: ProjectInternal, name: String): Task = project.getTasksByName(name, false).single()
+    private fun ProjectInternal.getTask(name: String): Task = getTasksByName(name, false).single()
 
-    private fun getOrCreateTask(project: ProjectInternal, name: String): Task {
-        var tasks = project.getTasksByName(name, false)
+    private fun ProjectInternal.getOrCreateTask(name: String): Task {
+        var tasks = getTasksByName(name, false)
         assert(tasks.size <= 1)
         return if (tasks.isEmpty()) {
-            project.tasks.create(name, DefaultTask::class.java)
+            this.tasks.create(name, DefaultTask::class.java)
         } else {
             tasks.single()
         }
@@ -229,25 +222,23 @@ class KonanPlugin @Inject constructor(private val registry: ToolingModelBuilderR
         project.extensions.add(INTEROP_EXTENSION_NAME, KonanInteropContainer(project))
         if (!project.extensions.extraProperties.has(KonanPlugin.KONAN_HOME_PROPERTY_NAME)) {
             project.extensions.extraProperties.set(KonanPlugin.KONAN_HOME_PROPERTY_NAME, project.konanCompilerDownloadDir())
-        }
-        val hostTarget =  when (KonanCompilerDownloadTask.simpleOsName()) {
-            "macos" -> "macbook"
-            "linux" -> "linux"
-            "windows" -> "mingw"
-            else -> throw IllegalStateException("Unsupported platform")
+            project.extensions.extraProperties.set(DOWNLOAD_COMPILER_PROPERTY_NAME, true)
         }
         if (!project.extensions.extraProperties.has(KonanPlugin.KONAN_BUILD_TARGETS)) {
-            project.extensions.extraProperties.set(KonanPlugin.KONAN_BUILD_TARGETS, hostTarget)
+            project.extensions.extraProperties.set(KonanPlugin.KONAN_BUILD_TARGETS, project.host)
         }
-        getTask(project, "build").apply {
+        val compileKonanTask = project.getOrCreateTask("compileKonan").apply {
             dependsOn(project.supportedCompileTasks)
         }
+        project.getTask("build").apply {
+            dependsOn(compileKonanTask)
+        }
 
-        getOrCreateTask(project, "run").apply {
-            dependsOn(getTask(project, "build"))
+        project.getOrCreateTask("run").apply {
+            dependsOn(project.getTask("build"))
             doLast {
-                for (task in project.tasks.withType(KonanCompileTask::class.java).matching { it.target?.equals(hostTarget) ?: true}) {
-                    if (task.artifactPath.endsWith("kexe")) {
+                for (task in project.tasks.withType(KonanCompileTask::class.java).matching { !it.isCrossCompile}) {
+                    if (task?.produce == "program") {
                         project.exec {
                             with(it) {
                                 commandLine(task.artifactPath)

@@ -425,6 +425,21 @@ task empty_substring(type: RunKonanTest) {
     source = "runtime/basic/empty_substring.kt"
 }
 
+task worker0(type: RunKonanTest) {
+    goldValue = "Got Input processed\nOK\n"
+    source = "runtime/workers/worker0.kt"
+}
+
+task worker1(type: RunKonanTest) {
+    goldValue = "OK\n"
+    source = "runtime/workers/worker1.kt"
+}
+
+task worker2(type: RunKonanTest) {
+    goldValue = "OK\n"
+    source = "runtime/workers/worker2.kt"
+}
+
 task superFunCall(type: RunKonanTest) {
     goldValue = "<fun:C><fun:C1>\n<fun:C><fun:C3>\n"
     source = "codegen/basics/superFunCall.kt"
@@ -1093,7 +1108,7 @@ task intrinsic(type: RunKonanTest) {
 
 /*
     Disabled until we extract the classes that should be
-    always present from stdlib.kt.bc into a separate binary.
+    always present from stdlib into a separate binary.
 
 task link(type: LinkKonanTest) {
     goldValue = "0\n"

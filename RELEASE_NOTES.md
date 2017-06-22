@@ -49,7 +49,7 @@ See the samples coming with the distribution.
 
  Download _Kotlin/Native_ distribution and unpack it. You can run command line compiler with
 
-	bin/kotlinc <some_file>.kt <dir_with_kt_files> -o <executable>.kexe
+    bin/kotlinc <some_file>.kt <dir_with_kt_files> -o <program_name>
 
   During the first run it will download all the external dependencies, such as LLVM.
 
@@ -85,8 +85,13 @@ Notice that property delegation (including lazy properties) *does* work.
 ### Debugging ###
 
  _Kotlin/Native_ supports preliminary source-level debugging on produced executables with `lldb` debugger.
- Produce your binary with debugging information by specifying `-g` _Kotlin/Native_ compiler switch or 
- using `-Pbuild_flags=-g` option for Gradle build. Start your application with 
+ Produce your binary with debugging information by specifying `-g` _Kotlin/Native_ compiler switch.
+ Konan plugin accepts `enableDebug` project's property, allowing two options for producing binaries with debug
+ information:
+   - gradle DSL.
+   - argument `-PenableDebug=true` in gradle command line.
+
+ Start your application with
     
     lldb my_program.kexe
  

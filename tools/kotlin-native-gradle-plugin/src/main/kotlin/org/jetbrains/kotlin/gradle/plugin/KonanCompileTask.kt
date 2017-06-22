@@ -67,7 +67,7 @@ import java.io.File
 
 // TODO: form groups for tasks
 // TODO: Make the task class nested for config with properties accessible for outer users.
-open class KonanCompileTask: DefaultTask() {
+open class KonanCompileTask: KonanTargetableTask() {
 
     companion object {
         const val COMPILER_MAIN = "org.jetbrains.kotlin.cli.bc.K2NativeKt"
@@ -82,20 +82,26 @@ open class KonanCompileTask: DefaultTask() {
 
     internal lateinit var artifactName: String
 
-    @OutputDirectory
     lateinit var outputDir: File
         internal set
 
     internal fun init(artifactName: String) {
         dependsOn(project.konanCompilerDownloadTask)
         this.artifactName = artifactName
-        outputDir = project.file("${project.konanCompilerOutputDir}/$artifactName")
+        outputDir = project.file("${project.konanCompilerOutputDir}")
     }
 
-    private val artifactSuffix = mapOf("program" to "kexe", "library" to "klib", "bitcode" to "bc")
+    val artifactNamePath: String
+        get() = "${outputDir.absolutePath}/$artifactName"
+
+    val artifactSuffix: String
+        get() = produceSuffix(produce)
 
     val artifactPath: String
-        get() = "${outputDir.absolutePath}/$artifactName.${artifactSuffix[produce]}"
+        get() = "$artifactNamePath$artifactSuffix"
+
+    val artifact: File
+        @OutputFile get() = project.file(artifactPath)
 
     // Other compilation parameters -------------------------------------------
 
@@ -110,6 +116,8 @@ open class KonanCompileTask: DefaultTask() {
     @Input var linkerOpts = mutableListOf<String>()
         internal set
 
+    @Input var enableDebug        = project.properties.containsKey("enableDebug") && project.properties["enableDebug"].toString().toBoolean()
+        internal set
     @Input var noStdLib           = false
         internal set
     @Input var noMain             = false
@@ -119,8 +127,6 @@ open class KonanCompileTask: DefaultTask() {
     @Input var enableAssertions   = false
         internal set
 
-    @Optional @Input var target          : String? = null
-        internal set
     @Optional @Input var languageVersion : String? = null
         internal set
     @Optional @Input var apiVersion      : String? = null
@@ -133,7 +139,7 @@ open class KonanCompileTask: DefaultTask() {
     // Task action ------------------------------------------------------------
 
     protected fun buildArgs() = mutableListOf<String>().apply {
-        addArg("-output", artifactPath)
+        addArg("-output", artifactNamePath)
 
         addFileArgs("-library", libraries)
         addFileArgs("-nativelibrary", nativeLibraries)
@@ -145,6 +151,7 @@ open class KonanCompileTask: DefaultTask() {
         addArgIfNotNull("-language-version", languageVersion)
         addArgIfNotNull("-api-version", apiVersion)
 
+        addKey("-g", enableDebug)
         addKey("-nostdlib", noStdLib)
         addKey("-nomain", noMain)
         addKey("-opt", enableOptimization)
@@ -205,6 +212,7 @@ open class KonanCompileConfig(
         anotherTask.apiVersion?.let { apiVersion(it) }
         anotherTask.produce.let { produce(it) }
 
+        enableDebug(anotherTask.enableDebug)
         if (anotherTask.noStdLib) noStdLib()
         if (anotherTask.noMain) noMain()
         if (anotherTask.enableOptimization) enableOptimization()
@@ -219,7 +227,7 @@ open class KonanCompileConfig(
         compilationTask.dependsOn(generateStubsTask)
 
         linkerOpts(generateStubsTask.linkerOpts)
-        library(compileStubsTask.artifactPath)
+        library(compileStubsTask.artifact)
         nativeLibraries(project.fileTree(generateStubsTask.libsDir).apply {
             builtBy(generateStubsTask)
             include("**/*.bc")
@@ -248,6 +256,10 @@ open class KonanCompileConfig(
 
     fun outputDir(dir: Any) = with(compilationTask) {
         outputDir = project.file(dir)
+    }
+
+    fun outputName(name: String) = with(compilationTask) {
+        artifactName = name
     }
 
     // DSL. Libraries.
@@ -285,6 +297,10 @@ open class KonanCompileConfig(
 
     fun apiVersion(version: String) = with(compilationTask) {
         apiVersion = version
+    }
+
+    fun enableDebug(flag: Boolean) = with(compilationTask) {
+        enableDebug = flag
     }
 
     fun noStdLib() = with(compilationTask) {

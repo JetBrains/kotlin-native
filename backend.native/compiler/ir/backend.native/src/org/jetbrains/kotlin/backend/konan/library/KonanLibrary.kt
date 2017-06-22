@@ -19,7 +19,6 @@ package org.jetbrains.kotlin.backend.konan.library
 import llvm.LLVMModuleRef
 import llvm.LLVMWriteBitcodeToFile
 import org.jetbrains.kotlin.backend.konan.KonanConfigKeys
-import org.jetbrains.kotlin.backend.konan.TargetManager
 import org.jetbrains.kotlin.backend.konan.serialization.Base64
 import org.jetbrains.kotlin.backend.konan.serialization.deserializeModule
 import org.jetbrains.kotlin.backend.konan.util.File
@@ -90,11 +89,11 @@ interface SplitLibraryScheme {
 }
 
 class SplitLibraryReader(override val libDir: File, currentAbiVersion: Int,
-        override val target: String) : 
+        override val target: String?) :
       FileBasedLibraryReader(libDir, currentAbiVersion, SplitMetadataReader(libDir)), 
       SplitLibraryScheme  {
 
-    public constructor(path: String, currentAbiVersion: Int, target: String) : 
+    public constructor(path: String, currentAbiVersion: Int, target: String?) :
         this(File(path), currentAbiVersion, target) 
 
     init {

@@ -38,21 +38,23 @@ class PrettyPrinter(val library: Base64, val packageLoader: (String) -> Base64) 
         get() = moduleHeader.packageFragmentNameList
 
     fun printPackageFragment(fqname: String) {
-        if (fqname.isNotEmpty()) println("\nPackage $fqname\n" )
+        if (fqname.isNotEmpty()) println("\npackage $fqname")
         val fragment = packageFragment(fqname)
         PackageFragmentPrinter(fragment, out).print()
     }
 }
 
 class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment, out: Appendable) {
-    val printer                        = Printer(out, "    ")
-    val stringTable                    = packageFragment.stringTable!!
-    val qualifiedNameTable             = packageFragment.nameTable!!
-    var typeTable: ProtoBuf.TypeTable? = packageFragment.`package`.typeTable
+    val printer            = Printer(out, "    ")
+    val stringTable        = packageFragment.stringTable!!
+    val qualifiedNameTable = packageFragment.nameTable!!
+    var typeTableStack     = mutableListOf<ProtoBuf.TypeTable>()
 
     //-------------------------------------------------------------------------//
 
     fun print() {
+        typeTableStack.add(packageFragment.`package`.typeTable)
+
         val protoTypeAliases = packageFragment.`package`.typeAliasList
         protoTypeAliases.forEach { protoTypeAlias ->
             printTypeAlias(protoTypeAlias)
@@ -61,7 +63,6 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
         val protoClasses = packageFragment.classes.classesList                     // ProtoBuf classes
         protoClasses.forEach { protoClass ->
             val classKind = Flags.CLASS_KIND.get(protoClass.flags)
-            if (protoClass.hasTypeTable()) typeTable = protoClass.typeTable
             when (classKind) {
                 ProtoBuf.Class.Kind.CLASS            -> printClass(protoClass)
                 ProtoBuf.Class.Kind.ENUM_CLASS       -> printEnum(protoClass)
@@ -75,8 +76,6 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
 
         val protoFunctions = packageFragment.`package`.functionList
         protoFunctions.forEach { protoFunction ->
-            if (protoFunction.hasTypeTable()) typeTable = protoFunction.typeTable
-            else                              typeTable = packageFragment.`package`.typeTable
             printFunction(protoFunction)
         }
 
@@ -97,6 +96,8 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
     //-------------------------------------------------------------------------//
 
     fun printClass(protoClass: ProtoBuf.Class) {
+        val hasTypeTable = protoClass.hasTypeTable()
+        if (hasTypeTable) typeTableStack.add(protoClass.typeTable)
         val className         = getShortName(protoClass.fqName)
         val annotations       = protoClass.getExtension(KonanSerializerProtocol.classAnnotation)
         val keyword           = classOrInterface(protoClass)
@@ -120,11 +121,14 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
         nestedClasses.forEach   { printNestedClass(it) }
         printer.popIndent()
         printer.println("}\n")
+        if (hasTypeTable) typeTableStack.removeAt(typeTableStack.lastIndex)
     }
 
     //-------------------------------------------------------------------------//
 
     fun printFunction(protoFunction: ProtoBuf.Function) {
+        val hasTypeTable = protoFunction.hasTypeTable()
+        if (hasTypeTable) typeTableStack.add(protoFunction.typeTable)
         val flags           = protoFunction.flags
         val name            = stringTable.getString(protoFunction.name)
         val visibility      = visibilityToString(Flags.VISIBILITY.get(flags))
@@ -133,9 +137,11 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
         val annotations     = protoFunction.getExtension(KonanSerializerProtocol.functionAnnotation)
         val typeParameters  = typeParametersToString(protoFunction.typeParameterList)
         val valueParameters = valueParametersToString(protoFunction.valueParameterList)
+        val returnType      = returnTypeToString(protoFunction)
 
         printAnnotations(annotations)
-        printer.println("$visibility${isInline}fun $typeParameters$receiverType$name$valueParameters")
+        printer.println("$visibility${isInline}fun $typeParameters$receiverType$name$valueParameters$returnType")
+        if (hasTypeTable) typeTableStack.removeAt(typeTableStack.lastIndex)
     }
 
     //-------------------------------------------------------------------------//
@@ -156,6 +162,8 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
     //-------------------------------------------------------------------------//
 
     fun printEnum(protoEnum: ProtoBuf.Class) {
+        val hasTypeTable = protoEnum.hasTypeTable()
+        if (hasTypeTable) typeTableStack.add(protoEnum.typeTable)
         val flags       = protoEnum.flags
         val enumName    = getShortName(protoEnum.fqName)
         val modality    = modalityToString(Flags.MODALITY.get(flags))
@@ -170,6 +178,7 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
         enumEntries.dropLast(1).forEach { printer.print("    ${enumEntryToString(it)},\n") }
         enumEntries.lastOrNull()?.let   { printer.print("    ${enumEntryToString(it)} \n") }
         printer.println("}\n")
+        if (hasTypeTable) typeTableStack.removeAt(typeTableStack.lastIndex)
     }
 
     //-------------------------------------------------------------------------//
@@ -196,9 +205,46 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
 
     fun annotationsToString(protoAnnotations: List<ProtoBuf.Annotation>): String {
         val buff = StringBuilder()
-        protoAnnotations.forEach { protoAnnotation ->
-            val annotation = getShortName(protoAnnotation.id)
-            buff.append("@$annotation ")
+        protoAnnotations.forEach { buff.append(annotationToString(it)) }
+        return buff.toString()
+    }
+
+    //-------------------------------------------------------------------------//
+
+    fun annotationToString(protoAnnotation: ProtoBuf.Annotation): String {
+        val buff = StringBuilder()
+        val annotationName = getShortName(protoAnnotation.id)
+        buff.append("@$annotationName")
+        val arguments = annotationArgumentsToString(protoAnnotation.argumentList)
+        buff.append(arguments)
+        return buff.append(" ").toString()
+    }
+
+    //-------------------------------------------------------------------------//
+
+    fun annotationArgumentsToString(annotationArguments: List<ProtoBuf.Annotation.Argument>): String {
+        if (annotationArguments.isEmpty()) return ""
+        val buff = StringBuilder("(")
+        annotationArguments.dropLast(1).forEach { buff.append(annotationArgumentValueToString(it.value) + ", ") }
+        annotationArguments.lastOrNull()?.let   { buff.append(annotationArgumentValueToString(it.value)) }
+        return buff.append(")").toString()
+    }
+
+    //-------------------------------------------------------------------------//
+
+    fun annotationArgumentValueToString(value: ProtoBuf.Annotation.Argument.Value): String {
+        val buff = StringBuilder()
+        if (value.hasAnnotation())  buff.append(annotationToString(value.annotation))
+        if (value.hasStringValue()) buff.append("\"${stringTable.getString(value.stringValue)}\"")
+        if (value.hasDoubleValue()) buff.append(value.doubleValue)
+        if (value.hasFloatValue())  buff.append(value.floatValue)
+        if (value.hasIntValue())    buff.append(value.intValue)
+        if (value.hasClassId())     buff.append(getShortName(value.classId) + ".")
+        if (value.hasEnumValueId()) buff.append(stringTable.getString(value.enumValueId))
+        if (value.arrayElementCount > 0) {
+            val arrayElements = value.arrayElementList
+            arrayElements.dropLast(1).forEach { buff.append(annotationArgumentValueToString(it) + ", ") }
+            arrayElements.lastOrNull()?.let   { buff.append(annotationArgumentValueToString(it)) }
         }
         return buff.toString()
     }
@@ -312,7 +358,10 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
 
     fun valueParameterToString(protoValueParameter: ProtoBuf.ValueParameter): String {
         val parameterName = stringTable.getString(protoValueParameter.name)
-        val type = typeToString(protoValueParameter.typeId)
+        val typeId = protoValueParameter.typeId
+        val type = if (isCallableType(typeId)) callableTypeToString(typeId)
+                   else                        typeToString(typeId)
+
         val flags = protoValueParameter.flags
         val isCrossInline = crossInlineToString(Flags.IS_CROSSINLINE.get(flags))
         val visibility = visibilityToString(Flags.VISIBILITY.get(flags))
@@ -396,7 +445,7 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
     //-------------------------------------------------------------------------//
 
     fun typeToString(typeId: Int): String {
-        val type = typeTable!!.getType(typeId)
+        val type = typeTableStack.last().getType(typeId)
         val buff = StringBuilder(typeName(type))
 
         val argumentList = type.argumentList
@@ -410,6 +459,28 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
             buff.append(">")
         }
         if (type.nullable) buff.append("?")
+        return buff.toString()
+    }
+
+    //-------------------------------------------------------------------------//
+
+    fun isCallableType(typeId: Int): Boolean {
+        val type = typeTableStack.last().getType(typeId)
+        return typeName(type).contains("Function")
+    }
+
+    //-------------------------------------------------------------------------//
+
+    fun callableTypeToString(typeId: Int): String {
+        val callableType = typeTableStack.last().getType(typeId)
+        val buff = StringBuilder("(")
+        val argumentTypes = callableType.argumentList.dropLast(1)
+        val returnType = callableType.argumentList.lastOrNull()
+
+        argumentTypes.dropLast(1).forEach { buff.append("${typeToString(it.typeId)}, ") }
+        argumentTypes.lastOrNull()?.let { buff.append(typeToString(it.typeId)) }
+        buff.append(") -> ")
+        if (returnType != null) buff.append(typeToString(returnType.typeId))
         return buff.toString()
     }
 
@@ -479,6 +550,14 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
 
     //-------------------------------------------------------------------------//
 
+    fun returnTypeToString(protoFunction: ProtoBuf.Function): String {
+        val returnType = typeToString(protoFunction.returnTypeId)
+        if (returnType == "Unit") return ""
+        return ": " + returnType
+    }
+
+    //-------------------------------------------------------------------------//
+
     fun classOrInterface(protoClass: ProtoBuf.Class): String {
         val flags     = protoClass.flags
         val classKind = Flags.CLASS_KIND.get(flags)
@@ -489,9 +568,11 @@ class PackageFragmentPrinter(val packageFragment: KonanLinkData.PackageFragment,
         when (classKind) {
             ProtoBuf.Class.Kind.CLASS            -> buff.append("class")
             ProtoBuf.Class.Kind.INTERFACE        -> buff.append("interface")
-            ProtoBuf.Class.Kind.ANNOTATION_CLASS -> buff.append("annotation")
+            ProtoBuf.Class.Kind.ENUM_CLASS       -> buff.append("enum class")
+            ProtoBuf.Class.Kind.ENUM_ENTRY       -> buff.append("enum")
+            ProtoBuf.Class.Kind.ANNOTATION_CLASS -> buff.append("annotation class")
             ProtoBuf.Class.Kind.OBJECT           -> buff.append("object")
-            else -> assert(false)
+            ProtoBuf.Class.Kind.COMPANION_OBJECT -> buff.append("companion object")
         }
         return buff.toString()
     }

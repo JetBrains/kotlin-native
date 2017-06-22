@@ -18,28 +18,28 @@ package org.jetbrains.kotlin.cli.bc
 
 import com.intellij.openapi.Disposable
 import org.jetbrains.kotlin.backend.konan.*
-import org.jetbrains.kotlin.backend.konan.CompilerOutputKind.*
 import org.jetbrains.kotlin.backend.konan.util.profile
-import org.jetbrains.kotlin.backend.konan.util.suffixIfNot
-import org.jetbrains.kotlin.backend.konan.util.removeSuffixIfPresent
 import org.jetbrains.kotlin.cli.common.CLICompiler
+import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.CLITool
 import org.jetbrains.kotlin.cli.common.ExitCode
+import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.*
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.config.Services
 import org.jetbrains.kotlin.config.addKotlinSourceRoots
+import org.jetbrains.kotlin.konan.target.*
 import java.util.*
 import kotlin.reflect.KFunction
 
 // TODO: Don't use reflection?
-private fun maybeExecuteHelper(configuration: CompilerConfiguration) {
+private fun maybeExecuteHelper(targetName: String) {
     try {
         val kClass = Class.forName("org.jetbrains.kotlin.konan.Helper0").kotlin
         val ctor = kClass.constructors.single() as KFunction<Runnable>
-        val distribution = Distribution(configuration)
+        val distribution = Distribution(TargetManager(targetName))
         val result = ctor.call(
                 distribution.dependenciesDir,
                 distribution.properties.properties,
@@ -70,10 +70,18 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
         } catch (e: KonanCompilationException) {
             return ExitCode.COMPILATION_ERROR
         }
-        // TODO: catch Errors and IllegalStateException.
 
+        if (arguments.freeArgs.isEmpty() && !arguments.isUsefulWithoutFreeArgs) {
+            val messageCollector = configuration.getNotNull(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY)
+            messageCollector.report(ERROR, "You have not specified any compilation arguments. No output has been produced.")
+        }
+
+        // TODO: catch Errors and IllegalStateException.
         return ExitCode.OK
     }
+
+    val K2NativeCompilerArguments.isUsefulWithoutFreeArgs: Boolean
+        get() = this.listTargets || this.listPhases
 
     fun Array<String>?.toNonNullList(): List<String> {
         return this?.asList<String>() ?: listOf<String>()
@@ -109,18 +117,10 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
                 // TODO: Collect all the explicit file names into an object
                 // and teach the compiler to work with temporaries and -save-temps.
 
+                arguments.outputName ?.let { put(OUTPUT, it) } 
                 val outputKind = CompilerOutputKind.valueOf(
                     (arguments.produce ?: "program").toUpperCase())
-
                 put(PRODUCE, outputKind)
-                val suffix = outputKind.suffix
-                val output = arguments.outputFile?.removeSuffixIfPresent(suffix) 
-                    ?: outputKind.name.toLowerCase()
-                put(OUTPUT_NAME, output)
-                put(OUTPUT_FILE, output.suffixIfNot(outputKind.suffix))
-
-                // This is a decision we could change
-                put(CommonConfigurationKeys.MODULE_NAME, output)
                 put(ABI_VERSION, 1)
 
                 arguments.mainPackage ?.let{ put(ENTRY, it) }
@@ -154,7 +154,7 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
             }
         }
 
-        maybeExecuteHelper(configuration)
+        maybeExecuteHelper(arguments.target ?: "host")
     }
 
     override fun createArguments(): K2NativeCompilerArguments {

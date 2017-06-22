@@ -16,9 +16,11 @@
 
 package org.jetbrains.kotlin.backend.konan
 
+import org.jetbrains.kotlin.backend.konan.util.bufferedReader
 import java.io.File
 import java.lang.ProcessBuilder
 import java.lang.ProcessBuilder.Redirect
+import org.jetbrains.kotlin.konan.target.*
 
 typealias BitcodeFile = String
 typealias ObjectFile = String
@@ -92,7 +94,7 @@ internal open class MacOSBasedPlatform(distribution: Distribution)
 
     // TODO: move 'ld' out of the host sysroot, as it doesn't belong here.
     private val linker = "${distribution.hostSysRoot}/usr/bin/ld"
-    private val dsymutil = "${distribution.llvmBin}/llvm-dsymutil"
+    internal val dsymutil = "${distribution.llvmBin}/llvm-dsymutil"
 
     open val osVersionMin by lazy {
         listOf(
@@ -186,7 +188,7 @@ internal class LinkStage(val context: Context) {
 
     private val distribution = context.config.distribution
 
-    val platform = when (context.config.targetManager.current) {
+    val platform = when (context.config.targetManager.target) {
         KonanTarget.LINUX, KonanTarget.RASPBERRYPI ->
             LinuxBasedPlatform(distribution)
         KonanTarget.MACBOOK, KonanTarget.IPHONE, KonanTarget.IPHONE_SIM ->
@@ -196,7 +198,7 @@ internal class LinkStage(val context: Context) {
         KonanTarget.MINGW ->
             MingwPlatform(distribution)
         else ->
-            error("Unexpected target platform: ${context.config.targetManager.current}")
+            error("Unexpected target platform: ${context.config.targetManager.target}")
     }
 
     val optimize = config.get(KonanConfigKeys.OPTIMIZATION) ?: false
@@ -251,7 +253,7 @@ internal class LinkStage(val context: Context) {
         get() = if (nomain) emptyList() else platform.entrySelector
 
     fun link(objectFiles: List<ObjectFile>): ExecutableFile {
-        val executable = config.get(KonanConfigKeys.OUTPUT_FILE)!!
+        val executable = context.config.outputFile
         val linkCommand = platform.linkCommand(objectFiles, executable, optimize, config.getBoolean(KonanConfigKeys.DEBUG)) +
                 distribution.libffi +
                 asLinkerArgs(config.getNotNull(KonanConfigKeys.LINKER_ARGS)) +
@@ -276,11 +278,29 @@ internal class LinkStage(val context: Context) {
         val builder = ProcessBuilder(command.asList())
 
         // Inherit main process output streams.
+        val isDsymUtil = platform is MacOSBasedPlatform && command[0] == platform.dsymutil
+
         builder.redirectOutput(Redirect.INHERIT)
         builder.redirectInput(Redirect.INHERIT)
-        builder.redirectError(Redirect.INHERIT)
+        if (!isDsymUtil)
+            builder.redirectError(Redirect.INHERIT)
+
 
         val process = builder.start()
+        if (isDsymUtil) {
+            /**
+             * llvm-lto has option -alias that lets tool to know which symbol we use instead of _main,
+             * llvm-dsym doesn't have such a option, so we ignore annoying warning manually.
+             */
+            val errorStream = process.errorStream
+            val outputStream = bufferedReader(errorStream)
+            while (true) {
+                val line = outputStream.readLine() ?: break
+                if (!line.contains("warning: could not find object file symbol for symbol _main"))
+                    System.err.println(line)
+            }
+            outputStream.close()
+        }
         val exitCode =  process.waitFor()
         return exitCode
     }
