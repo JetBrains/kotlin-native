@@ -139,7 +139,7 @@ internal class HangulDecomposedCharSet(
                     -1
             }
             index++
-            decompSyllable[SyllIndex] = curSymb.toInt()
+            decompSyllable[@Suppress("UNUSED_CHANGED_VALUE")SyllIndex++] = curSymb.toInt()
 
             /*
              * We deal with LVT syllable at testString, so
