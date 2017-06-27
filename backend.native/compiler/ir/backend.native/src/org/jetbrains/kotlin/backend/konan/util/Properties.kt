@@ -14,24 +14,22 @@
  * limitations under the License.
  */
 
-import org.jetbrains.kotlin.CompileCppToBitcode
+package org.jetbrains.kotlin.backend.konan.util
 
-// TODO: consider using some Gradle plugins to build and test
+typealias Properties = java.util.Properties
 
-targetList.each { targetName ->
-    task ("${targetName}Hash", type: CompileCppToBitcode) {
-        name 'hash'
-        target targetName
-        compilerArgs targetArgs[targetName]
+fun File.loadProperties(): Properties {
+    val properties = java.util.Properties()
+    this.bufferedReader().use { reader ->
+        properties.load(reader)
+    }
+    return properties
+}
+
+fun File.saveProperties(properties: Properties) {
+    this.outputStream().use { 
+        properties.store(it, null) 
     }
 }
 
-task build {
-    dependsOn "${host}Hash"
-}
-
-task clean {
-    doLast {
-        delete buildDir
-    }
-}
+fun Properties.saveToFile(file: File) = file.saveProperties(this)

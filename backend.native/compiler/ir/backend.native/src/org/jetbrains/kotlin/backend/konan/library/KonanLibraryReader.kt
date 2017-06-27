@@ -14,24 +14,18 @@
  * limitations under the License.
  */
 
-import org.jetbrains.kotlin.CompileCppToBitcode
+package org.jetbrains.kotlin.backend.konan.library
 
-// TODO: consider using some Gradle plugins to build and test
+import org.jetbrains.kotlin.config.LanguageVersionSettings
+import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 
-targetList.each { targetName ->
-    task ("${targetName}Hash", type: CompileCppToBitcode) {
-        name 'hash'
-        target targetName
-        compilerArgs targetArgs[targetName]
-    }
+interface KonanLibraryReader {
+    val libraryName: String
+    val bitcodePaths: List<String>
+    fun moduleDescriptor(specifics: LanguageVersionSettings): ModuleDescriptor
 }
 
-task build {
-    dependsOn "${host}Hash"
-}
-
-task clean {
-    doLast {
-        delete buildDir
-    }
+interface MetadataReader {
+    fun loadSerializedModule(): ByteArray
+    fun loadSerializedPackageFragment(fqName: String): ByteArray
 }

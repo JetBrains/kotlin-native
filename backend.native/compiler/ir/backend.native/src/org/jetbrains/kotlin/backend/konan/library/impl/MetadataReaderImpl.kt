@@ -14,24 +14,18 @@
  * limitations under the License.
  */
 
-import org.jetbrains.kotlin.CompileCppToBitcode
+package org.jetbrains.kotlin.backend.konan.library.impl
 
-// TODO: consider using some Gradle plugins to build and test
+import org.jetbrains.kotlin.backend.konan.library.KonanLibrary
+import org.jetbrains.kotlin.backend.konan.library.MetadataReader
+import org.jetbrains.kotlin.backend.konan.util.File
 
-targetList.each { targetName ->
-    task ("${targetName}Hash", type: CompileCppToBitcode) {
-        name 'hash'
-        target targetName
-        compilerArgs targetArgs[targetName]
+class MetadataReaderImpl(override val libDir: File) : MetadataReader, KonanLibrary {
+
+    override fun loadSerializedModule(): ByteArray {
+        return moduleHeaderFile.readBytes()
     }
-}
 
-task build {
-    dependsOn "${host}Hash"
-}
-
-task clean {
-    doLast {
-        delete buildDir
-    }
+    override fun loadSerializedPackageFragment(fqName: String) 
+        = packageFile(fqName).readBytes()
 }

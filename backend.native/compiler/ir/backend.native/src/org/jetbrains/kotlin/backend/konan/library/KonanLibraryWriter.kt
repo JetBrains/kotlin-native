@@ -14,24 +14,24 @@
  * limitations under the License.
  */
 
-import org.jetbrains.kotlin.CompileCppToBitcode
+package org.jetbrains.kotlin.backend.konan.library
 
-// TODO: consider using some Gradle plugins to build and test
+import llvm.LLVMModuleRef
 
-targetList.each { targetName ->
-    task ("${targetName}Hash", type: CompileCppToBitcode) {
-        name 'hash'
-        target targetName
-        compilerArgs targetArgs[targetName]
-    }
+interface KonanLibraryWriter {
+    fun addLinkData(linkData: LinkData)
+    fun addNativeBitcode(library: String)
+    fun addKotlinBitcode(llvmModule: LLVMModuleRef)
+    val mainBitcodeFileName: String
+    fun commit()
 }
 
-task build {
-    dependsOn "${host}Hash"
-}
+class LinkData(
+    val module: ByteArray,
+    val fragments: List<ByteArray>,
+    val fragmentNames: List<String> 
+)
 
-task clean {
-    doLast {
-        delete buildDir
-    }
+interface MetadataWriter {
+    fun addLinkData(linkData: LinkData)
 }
