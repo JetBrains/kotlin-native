@@ -112,6 +112,7 @@ internal fun produceOutput(context: Context) {
             val abiVersion = context.config.currentAbiVersion
             val target = context.config.targetManager.target
             val nopack = config.getBoolean(KonanConfigKeys.NOPACK)
+            val manifest = config.get(KonanConfigKeys.MANIFEST_FILE)
 
             val library = buildLibrary(
                 context.config.nativeLibraries, 
@@ -120,7 +121,8 @@ internal fun produceOutput(context: Context) {
                 target,
                 libraryName, 
                 llvmModule,
-                nopack)
+                nopack,
+                manifest)
 
             context.library = library
             context.bitcodeFileName = library.mainBitcodeFileName
