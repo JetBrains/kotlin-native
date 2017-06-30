@@ -48,7 +48,7 @@ abstract class KonanCompileTask: KonanBuildingTask(), KonanCompileSpec {
 
     // Other compilation parameters -------------------------------------------
 
-    protected val srcFiles_ = mutableSetOf<FileCollection>()
+    internal val srcFiles_ = mutableSetOf<FileCollection>()
     val srcFiles: Collection<FileCollection>
         @InputFiles get() = srcFiles_.takeIf { !it.isEmpty() } ?: listOf(project.konanDefaultSrcFiles)
 
@@ -64,6 +64,7 @@ abstract class KonanCompileTask: KonanBuildingTask(), KonanCompileSpec {
     @Input var noMain              = false
     @Input var enableOptimizations = false
     @Input var enableAssertions    = false
+    @Input var multiPlatform       = false
 
     @Optional @Input var entryPoint: String? = null
 
@@ -102,6 +103,7 @@ abstract class KonanCompileTask: KonanBuildingTask(), KonanCompileSpec {
         addKey("-ea", enableAssertions)
         addKey("--time", measureTime)
         addKey("-nodefaultlibs", noDefaultLibs)
+        addKey("-Xmulti-platform", multiPlatform)
 
         addAll(extraOpts)
 
