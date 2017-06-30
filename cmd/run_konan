@@ -38,6 +38,10 @@ while [ $# -gt 0 ]; do
       java_args=("${java_args[@]}" "${1:2}")
       shift
       ;;
+    -Xmulti-platform*)
+      konan_args[${#konan_args[@]}]=$1
+      shift
+      ;;
     -X*)
       echo "TODO: need to pass arguments to all the tools somehow."
       shift
