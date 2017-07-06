@@ -19,7 +19,7 @@ package org.jetbrains.kotlin.konan.target
 import org.jetbrains.kotlin.konan.properties.KonanProperties
 import org.jetbrains.kotlin.konan.file.File
 
-class ClangTarget(val target: KonanTarget, val konanProperties: KonanProperties) {
+class ClangTarget(val target: KonanTarget, konanProperties: KonanProperties) {
 
     val sysRoot = konanProperties.absoluteTargetSysRoot!!
     val targetArg = konanProperties.targetArg
@@ -67,6 +67,13 @@ class ClangTarget(val target: KonanTarget, val konanProperties: KonanProperties)
                         // HACKS!
                         "-I$sysRoot/usr/include/c++/4.9.x",
                         "-I$sysRoot/usr/include/c++/4.9.x/aarch64-linux-android")
+
+            KonanTarget.WASM32 ->
+                listOf("-target", targetArg!!, "-O1", "-fno-rtti", "-fno-exceptions",
+                        "-D_LIBCPP_ABI_VERSION=2", "-DKONAN_NO_FFI=1", "-DKONAN_NO_THREADS=1", "-DKONAN_NO_EXCEPTIONS=1",
+                        "-nostdinc", "-Xclang", "-nobuiltininc", "-Xclang", "-nostdsysteminc",
+                        "-Xclang", "-isystem$sysRoot/include/libcxx", "-Xclang", "-isystem$sysRoot/lib/libcxxabi/include",
+                        "-Xclang", "-isystem$sysRoot/include/compat", "-Xclang", "-isystem$sysRoot/include/libc")
         }
     }
 }

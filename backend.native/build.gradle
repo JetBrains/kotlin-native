@@ -161,7 +161,7 @@ targetList.each { target ->
     "-Djava.library.path=${project.buildDir}/nativelibs",
     "-Dfile.encoding=UTF-8"]
 
-    def konanArgs = ['-nopack', '-nostdlib','-ea', '-g',
+    def konanArgs = ['-nopack', '-nostdlib','-ea',
                      '-target', target,
                      '-runtime', project(':runtime').file("build/${target}/runtime.bc"),
                      '-properties', rootProject.konanPropertiesFile.canonicalPath,
