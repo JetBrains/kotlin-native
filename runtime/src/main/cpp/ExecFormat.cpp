@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+
+#include "Alloc.h"
 #include "ExecFormat.h"
 
 #if USE_ELF_SYMBOLS
