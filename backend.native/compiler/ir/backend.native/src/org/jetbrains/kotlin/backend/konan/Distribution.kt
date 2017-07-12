@@ -16,21 +16,22 @@
 
 package org.jetbrains.kotlin.backend.konan
 
-import java.io.File
 import org.jetbrains.kotlin.konan.target.*
+import org.jetbrains.kotlin.konan.file.*
+import org.jetbrains.kotlin.konan.properties.*
 
 class Distribution(val targetManager: TargetManager,
     val propertyFileOverride: String? = null,
     val runtimeFileOverride: String? = null) {
 
+    val target = targetManager.target
     val targetName = targetManager.targetName
-    val hostSuffix = targetManager.hostSuffix
+    val host = TargetManager.host
+    val hostSuffix = TargetManager.hostSuffix
     val hostTargetSuffix = targetManager.hostTargetSuffix
     val targetSuffix = targetManager.targetSuffix
 
-    private fun findUserHome() = File(System.getProperty("user.home")).absolutePath
-    val userHome = findUserHome()
-    val localKonanDir = "$userHome/.konan"
+    val localKonanDir = "${File.userHome}/.konan"
 
     private fun findKonanHome(): String {
         val value = System.getProperty("konan.home", "dist")
@@ -39,27 +40,27 @@ class Distribution(val targetManager: TargetManager,
     }
 
     val konanHome = findKonanHome()
-    val propertyFile = propertyFileOverride ?: "$konanHome/konan/konan.properties"
-    val properties = KonanProperties(propertyFile)
+    val propertyFileName = propertyFileOverride ?: "$konanHome/konan/konan.properties"
+    val properties = File(propertyFileName).loadProperties()
 
     val klib = "$konanHome/klib"
-
-    val dependenciesDir = "$konanHome/dependencies"
-    val dependencies = properties.propertyList("dependencies.$hostTargetSuffix")
-
     val stdlib = "$klib/stdlib"
     val runtime = runtimeFileOverride ?: "$stdlib/targets/${targetName}/native/runtime.bc"
 
-    val llvmHome = "$dependenciesDir/${properties.propertyString("llvmHome.$hostSuffix")}"
-    val hostSysRoot = "$dependenciesDir/${properties.propertyString("targetSysRoot.$hostSuffix")}"
-    val targetSysRoot = "$dependenciesDir/${properties.propertyString("targetSysRoot.$targetSuffix")}"
-    val targetToolchain = "$dependenciesDir/${properties.propertyString("targetToolchain.$hostTargetSuffix")}"
-    val libffi =
-            "$dependenciesDir/${properties.propertyString("libffiDir.$targetSuffix")}/lib/libffi.a"
+    val dependenciesDir = "$konanHome/dependencies"
 
+    val targetProperties = KonanProperties(target, properties, dependenciesDir)
+    val hostProperties = if (target == host) {
+        targetProperties 
+    } else {
+        KonanProperties(host, properties, dependenciesDir)
+    }
+    val dependencies = targetProperties.hostTargetList("dependencies")
+
+    val llvmHome = hostProperties.absoluteLlvmHome
+    val hostSysRoot = hostProperties.absoluteTargetSysRoot
     val llvmBin = "$llvmHome/bin"
     val llvmLib = "$llvmHome/lib"
-
     val llvmLto = "$llvmBin/llvm-lto"
 
     private val libLTODir = when (TargetManager.host) {

@@ -16,9 +16,9 @@
 
 package org.jetbrains.kotlin.backend.konan.library
 
-import org.jetbrains.kotlin.backend.konan.util.File
 import org.jetbrains.kotlin.backend.konan.util.removeSuffixIfPresent
 import org.jetbrains.kotlin.backend.konan.util.suffixIfNot
+import org.jetbrains.kotlin.konan.file.File
 
 interface SearchPathResolver {
     val searchRoots: List<File>
@@ -50,8 +50,7 @@ class KonanLibrarySearchPathResolver(repositories: List<String>,
         val noSuffix = File(candidate.path.removeSuffixIfPresent(".klib"))
         val withSuffix = File(candidate.path.suffixIfNot(".klib"))
         if (withSuffix.exists) {
-            // We always returing the name without suffix here.
-            return noSuffix
+            return withSuffix
         }
         if (noSuffix.exists) {
             return noSuffix

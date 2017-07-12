@@ -42,7 +42,7 @@ private fun maybeExecuteHelper(targetName: String) {
         val distribution = Distribution(TargetManager(targetName))
         val result = ctor.call(
                 distribution.dependenciesDir,
-                distribution.properties.properties,
+                distribution.properties,
                 distribution.dependencies
         )
         result.run()
@@ -72,8 +72,7 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
         }
 
         if (arguments.freeArgs.isEmpty() && !arguments.isUsefulWithoutFreeArgs) {
-            val messageCollector = configuration.getNotNull(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY)
-            messageCollector.report(ERROR, "You have not specified any compilation arguments. No output has been produced.")
+            configuration.report(ERROR, "You have not specified any compilation arguments. No output has been produced.")
         }
 
         // TODO: catch Errors and IllegalStateException.
@@ -124,6 +123,7 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
                 put(ABI_VERSION, 1)
 
                 arguments.mainPackage ?.let{ put(ENTRY, it) }
+                arguments.manifestFile ?.let{ put(MANIFEST_FILE, it) }
                 arguments.runtimeFile ?.let{ put(RUNTIME_FILE, it) }
                 arguments.propertyFile ?.let{ put(PROPERTY_FILE, it) }
 

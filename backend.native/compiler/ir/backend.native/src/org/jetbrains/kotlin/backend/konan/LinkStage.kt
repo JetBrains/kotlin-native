@@ -16,10 +16,10 @@
 
 package org.jetbrains.kotlin.backend.konan
 
-import org.jetbrains.kotlin.backend.konan.util.bufferedReader
-import java.io.File
 import java.lang.ProcessBuilder
 import java.lang.ProcessBuilder.Redirect
+import org.jetbrains.kotlin.konan.file.*
+import org.jetbrains.kotlin.konan.properties.*
 import org.jetbrains.kotlin.konan.target.*
 
 typealias BitcodeFile = String
@@ -28,49 +28,39 @@ typealias ExecutableFile = String
 
 // Use "clang -v -save-temps" to write linkCommand() method 
 // for another implementation of this class.
-internal abstract class PlatformFlags(val distribution: Distribution) {
-    val properties = distribution.properties
-
-    val hostSuffix = distribution.hostTargetSuffix
-    val targetSuffix = distribution.targetSuffix
-
-    open val llvmLtoNooptFlags 
-        = propertyTargetList("llvmLtoNooptFlags")
-    open val llvmLtoOptFlags
-        = propertyTargetList("llvmLtoOptFlags")
-    open val llvmLtoFlags 
-        = propertyTargetList("llvmLtoFlags")
-    open val entrySelector 
-        = propertyTargetList("entrySelector")
-    open val linkerOptimizationFlags 
-        = propertyTargetList("linkerOptimizationFlags")
-    open val linkerKonanFlags 
-        = propertyTargetList("linkerKonanFlags")
-    open val linkerDebugFlags
-            = propertyTargetList("linkerDebugFlags")
+internal abstract class PlatformFlags(val properties: KonanProperties) {
+    val llvmLtoNooptFlags = properties.llvmLtoNooptFlags
+    val llvmLtoOptFlags = properties.llvmLtoOptFlags
+    val llvmLtoFlags = properties.llvmLtoFlags
+    val entrySelector = properties.entrySelector
+    val linkerOptimizationFlags = properties.linkerOptimizationFlags
+    val linkerKonanFlags = properties.linkerKonanFlags
+    val linkerDebugFlags = properties.linkerDebugFlags
+    val llvmDebugOptFlags = properties.llvmDebugOptFlags
 
     open val useCompilerDriverAsLinker: Boolean get() = false // TODO: refactor.
 
    abstract fun linkCommand(objectFiles: List<ObjectFile>,
         executable: ExecutableFile, optimize: Boolean, debug: Boolean): List<String>
 
+    val targetLibffiDir = properties.absoluteLibffiDir
+    val targetLibffi = "$targetLibffiDir/lib/libffi.a"
+    val targetToolchain = properties.absoluteTargetToolchain
+    val targetSysRoot = properties.absoluteTargetSysRoot
+
     open fun linkCommandSuffix(): List<String> = emptyList()
 
-    protected fun propertyHostString(name: String)
-        = properties.propertyString(name, hostSuffix)!!
-    protected fun propertyHostList(name: String)
-        = properties.propertyList(name, hostSuffix)
     protected fun propertyTargetString(name: String)
-        = properties.propertyString(name, targetSuffix)!!
-    protected fun propertyTargetList(name: String) 
-        = properties.propertyList(name, targetSuffix)
+        = properties.targetString(name)!!
+    protected fun propertyTargetList(name: String)
+        = properties.targetList(name)
 }
 
 
 internal open class AndroidPlatform(distribution: Distribution)
-    : PlatformFlags(distribution) {
+    : PlatformFlags(distribution.targetProperties) {
 
-    private val prefix = "${distribution.targetToolchain}/bin/"
+    private val prefix = "$targetToolchain/bin/"
     private val clang = "$prefix/clang"
 
     override val useCompilerDriverAsLinker: Boolean get() = true
@@ -90,11 +80,12 @@ internal open class AndroidPlatform(distribution: Distribution)
 }
 
 internal open class MacOSBasedPlatform(distribution: Distribution)
-    : PlatformFlags(distribution) {
+    : PlatformFlags(distribution.targetProperties) {
 
     // TODO: move 'ld' out of the host sysroot, as it doesn't belong here.
     private val linker = "${distribution.hostSysRoot}/usr/bin/ld"
     internal val dsymutil = "${distribution.llvmBin}/llvm-dsymutil"
+    internal val libLTO = distribution.libLTO
 
     open val osVersionMin by lazy {
         listOf(
@@ -105,10 +96,10 @@ internal open class MacOSBasedPlatform(distribution: Distribution)
     override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile, optimize: Boolean, debug: Boolean): List<String> {
         return mutableListOf(linker).apply {
             add("-demangle")
-            addAll(listOf("-object_path_lto", "temporary.o", "-lto_library", distribution.libLTO))
+            addAll(listOf("-object_path_lto", "temporary.o", "-lto_library", libLTO))
             addAll(listOf("-dynamic", "-arch", propertyTargetString("arch")))
             addAll(osVersionMin)
-            addAll(listOf("-syslibroot", distribution.targetSysRoot, "-o", executable))
+            addAll(listOf("-syslibroot", targetSysRoot, "-o", executable))
             addAll(objectFiles)
             if (optimize) addAll(linkerOptimizationFlags)
             if (!debug) addAll(linkerDebugFlags)
@@ -117,24 +108,20 @@ internal open class MacOSBasedPlatform(distribution: Distribution)
         }
     }
 
-    open fun dsymutilCommand(executable: ExecutableFile): List<String> {
-        return listOf(dsymutil, executable)
-    }
+    open fun dsymutilCommand(executable: ExecutableFile): List<String> = listOf(dsymutil, executable)
 
-    open fun dsymutilDryRunVerboseCommand(executable: ExecutableFile): List<String> {
-        return listOf(dsymutil, "-dump-debug-map" ,executable)
-    }
+    open fun dsymutilDryRunVerboseCommand(executable: ExecutableFile): List<String> =
+            listOf(dsymutil, "-dump-debug-map" ,executable)
 }
 
 internal open class LinuxBasedPlatform(distribution: Distribution)
-    : PlatformFlags(distribution) {
+    : PlatformFlags(distribution.targetProperties) {
 
-    val targetSysRoot = distribution.targetSysRoot
-    val llvmLib = distribution.llvmLib
-    val libGcc = "$targetSysRoot/${propertyTargetString("libGcc")!!}"
-    val linker = "${distribution.targetToolchain}/bin/ld.gold"
-    val pluginOptimizationFlags = propertyTargetList("pluginOptimizationFlags")
-    val specificLibs
+    private val llvmLib = distribution.llvmLib
+    private val libGcc = "$targetSysRoot/${propertyTargetString("libGcc")!!}"
+    private val linker = "$targetToolchain/bin/ld.gold"
+    private val pluginOptimizationFlags = propertyTargetList("pluginOptimizationFlags")
+    private val specificLibs
         = propertyTargetList("abiSpecificLibraries").map{it -> "-L${targetSysRoot}/$it"}
 
     override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile, optimize: Boolean, debug: Boolean): List<String> {
@@ -164,9 +151,9 @@ internal open class LinuxBasedPlatform(distribution: Distribution)
 }
 
 internal open class MingwPlatform(distribution: Distribution)
-    : PlatformFlags(distribution) {
+    : PlatformFlags(distribution.targetProperties) {
 
-    val linker = "${distribution.targetToolchain}/bin/clang++"
+    private val linker = "$targetToolchain/bin/clang++"
 
     override val useCompilerDriverAsLinker: Boolean get() = true
 
@@ -188,7 +175,7 @@ internal class LinkStage(val context: Context) {
 
     private val distribution = context.config.distribution
 
-    val platform = when (context.config.targetManager.target) {
+    private val platform = when (context.config.targetManager.target) {
         KonanTarget.LINUX, KonanTarget.RASPBERRYPI ->
             LinuxBasedPlatform(distribution)
         KonanTarget.MACBOOK, KonanTarget.IPHONE, KonanTarget.IPHONE_SIM ->
@@ -201,23 +188,24 @@ internal class LinkStage(val context: Context) {
             error("Unexpected target platform: ${context.config.targetManager.target}")
     }
 
-    val optimize = config.get(KonanConfigKeys.OPTIMIZATION) ?: false
-    val nomain = config.get(KonanConfigKeys.NOMAIN) ?: false
-    val emitted = context.bitcodeFileName
-    val libraries = context.config.libraries
+    private val optimize = config.get(KonanConfigKeys.OPTIMIZATION) ?: false
+    private val debug = config.get(KonanConfigKeys.DEBUG) ?: false
+    private val nomain = config.get(KonanConfigKeys.NOMAIN) ?: false
+    private val emitted = context.bitcodeFileName
+    private val libraries = context.config.libraries
 
-    fun llvmLto(files: List<BitcodeFile>): ObjectFile {
-        val tmpCombined = File.createTempFile("combined", ".o")
+    private fun llvmLto(files: List<BitcodeFile>): ObjectFile {
+        val tmpCombined = createTempFile("combined", ".o")
         tmpCombined.deleteOnExit()
         val combined = tmpCombined.absolutePath
 
         val tool = distribution.llvmLto
         val command = mutableListOf(tool, "-o", combined)
         command.addAll(platform.llvmLtoFlags)
-        if (optimize) {
-            command.addAll(platform.llvmLtoOptFlags)
-        } else {
-            command.addAll(platform.llvmLtoNooptFlags)
+        when {
+            optimize -> command.addAll(platform.llvmLtoOptFlags)
+            debug    -> command.addAll(platform.llvmDebugOptFlags)
+            else     -> command.addAll(platform.llvmLtoNooptFlags)
         }
         command.addAll(files)
         runTool(*command.toTypedArray())
@@ -225,7 +213,7 @@ internal class LinkStage(val context: Context) {
         return combined
     }
 
-    fun asLinkerArgs(args: List<String>): List<String> {
+    private fun asLinkerArgs(args: List<String>): List<String> {
         if (platform.useCompilerDriverAsLinker) {
             return args
         }
@@ -249,16 +237,17 @@ internal class LinkStage(val context: Context) {
     // only seems to be working with dynamic libraries.
     // So we stick to "-alias _main _konan_main" on Mac.
     // And just do the same on Linux.
-    val entryPointSelector: List<String> 
+    private val entryPointSelector: List<String>
         get() = if (nomain) emptyList() else platform.entrySelector
 
-    fun link(objectFiles: List<ObjectFile>): ExecutableFile {
+    private fun link(objectFiles: List<ObjectFile>, libraryProvidedLinkerFlags: List<String>): ExecutableFile {
         val executable = context.config.outputFile
-        val linkCommand = platform.linkCommand(objectFiles, executable, optimize, config.getBoolean(KonanConfigKeys.DEBUG)) +
-                distribution.libffi +
+        val linkCommand = platform.linkCommand(objectFiles, executable, optimize, debug) +
+                platform.targetLibffi +
                 asLinkerArgs(config.getNotNull(KonanConfigKeys.LINKER_ARGS)) +
                 entryPointSelector +
-                platform.linkCommandSuffix()
+                platform.linkCommandSuffix() +
+                libraryProvidedLinkerFlags
 
         runTool(*linkCommand.toTypedArray())
         if (platform is MacOSBasedPlatform && context.shouldContainDebugInfo()) {
@@ -270,7 +259,7 @@ internal class LinkStage(val context: Context) {
         return executable
     }
 
-    fun executeCommand(vararg command: String): Int {
+    private fun executeCommand(vararg command: String): Int {
 
         context.log{""}
         context.log{command.asList<String>().joinToString(" ")}
@@ -305,7 +294,7 @@ internal class LinkStage(val context: Context) {
         return exitCode
     }
 
-    fun runTool(vararg command: String) {
+    private fun runTool(vararg command: String) {
         val code = executeCommand(*command)
         if (code != 0) error("The ${command[0]} command returned non-zero exit code: $code.")
     }
@@ -316,6 +305,9 @@ internal class LinkStage(val context: Context) {
         val bitcodeFiles = listOf(emitted) +
             libraries.map{it -> it.bitcodePaths}.flatten()
 
+        val libraryProvidedLinkerFlags = 
+            libraries.map{it -> it.linkerOpts}.flatten()
+
         var objectFiles: List<String> = listOf()
 
         val phaser = PhaseManager(context)
@@ -323,7 +315,7 @@ internal class LinkStage(val context: Context) {
             objectFiles = listOf( llvmLto(bitcodeFiles ) )
         }
         phaser.phase(KonanPhase.LINKER) {
-            link(objectFiles)
+            link(objectFiles, libraryProvidedLinkerFlags)
         }
     }
 }

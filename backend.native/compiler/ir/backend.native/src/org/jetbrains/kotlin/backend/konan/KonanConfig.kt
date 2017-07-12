@@ -18,15 +18,18 @@ package org.jetbrains.kotlin.backend.konan
 
 import com.intellij.openapi.project.Project
 import org.jetbrains.kotlin.backend.konan.library.KonanLibraryReader
-import org.jetbrains.kotlin.backend.konan.library.impl.LibraryReaderImpl
 import org.jetbrains.kotlin.backend.konan.library.KonanLibrarySearchPathResolver
+import org.jetbrains.kotlin.backend.konan.library.impl.LibraryReaderImpl
 import org.jetbrains.kotlin.backend.konan.util.profile
-import org.jetbrains.kotlin.backend.konan.util.suffixIfNot
 import org.jetbrains.kotlin.backend.konan.util.removeSuffixIfPresent
+import org.jetbrains.kotlin.backend.konan.util.suffixIfNot
+import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
+import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
+import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.*
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
-import org.jetbrains.kotlin.backend.konan.util.File
+import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.target.*
 import org.jetbrains.kotlin.konan.target.TargetManager.*
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind.*
@@ -69,11 +72,13 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
     private val repositories = configuration.getList(KonanConfigKeys.REPOSITORIES) ?: emptyList()
     private val resolver = KonanLibrarySearchPathResolver(repositories, distribution.klib, distribution.localKonanDir)
     private val librariesFound: List<File> by lazy {
-        libraryNames.map{it -> resolver.resolve(it)}
+        val resolvedLibraries = libraryNames.map{it -> resolver.resolve(it)}
+        checkLibraryDuplicates(resolvedLibraries)
+        resolvedLibraries
     }
 
     internal val libraries: List<KonanLibraryReader> by lazy {
-        val target = targetManager.targetName
+        val target = targetManager.target
         // Here we have chosen a particular KonanLibraryReader implementation.
         librariesFound.map{it -> LibraryReaderImpl(it, currentAbiVersion, target)}
     }
@@ -106,4 +111,14 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
 
         loadedDescriptors
     }
+
+    private fun checkLibraryDuplicates(resolvedLibraries: List<File>) {
+        val duplicates = resolvedLibraries.groupBy { it.absolutePath } .values.filter { it.size > 1 }
+        duplicates.forEach {
+            configuration.report(STRONG_WARNING, "library included more than once: ${it.first().absolutePath}")
+        }
+    }
 }
+
+fun CompilerConfiguration.report(priority: CompilerMessageSeverity, message: String) 
+    = this.getNotNull(CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY).report(priority, message)

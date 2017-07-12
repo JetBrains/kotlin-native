@@ -21,19 +21,25 @@ import llvm.LLVMWriteBitcodeToFile
 import org.jetbrains.kotlin.backend.konan.library.KonanLibrary
 import org.jetbrains.kotlin.backend.konan.library.KonanLibraryWriter
 import org.jetbrains.kotlin.backend.konan.library.LinkData
-import org.jetbrains.kotlin.backend.konan.util.*
+import org.jetbrains.kotlin.konan.file.*
+import org.jetbrains.kotlin.konan.properties.*
+import org.jetbrains.kotlin.konan.target.KonanTarget
 
 abstract class FileBasedLibraryWriter (
     val file: File, val currentAbiVersion: Int): KonanLibraryWriter {
 }
 
 class LibraryWriterImpl(override val libDir: File, currentAbiVersion: Int, 
-    override val target: String?, val nopack: Boolean = false): 
+    override val target: KonanTarget?, val nopack: Boolean = false): 
         FileBasedLibraryWriter(libDir, currentAbiVersion), KonanLibrary {
 
     public constructor(path: String, currentAbiVersion: Int, 
-        target: String, nopack: Boolean): 
+        target:KonanTarget?, nopack: Boolean): 
         this(File(path), currentAbiVersion, target, nopack)
+
+    override val libraryName = libDir.path
+    val klibFile 
+       get() = File("${libDir.path}.klib")
 
     // TODO: Experiment with separate bitcode files.
     // Per package or per class.
@@ -62,12 +68,18 @@ class LibraryWriterImpl(override val libDir: File, currentAbiVersion: Int,
     }
 
     override fun addLinkData(linkData: LinkData) {
-        MetadataWriterImpl(libDir).addLinkData(linkData)
+        MetadataWriterImpl(this).addLinkData(linkData)
     }
 
     override fun addNativeBitcode(library: String) {
         val basename = File(library).name
         File(library).copyTo(File(nativeDir, basename)) 
+    }
+
+    override fun addManifestAddend(path: String) {
+        val properties = File(path).loadProperties()
+        manifestProperties.putAll(properties)
+        println("manifest addend: ${properties.stringPropertyNames().joinToString(" ")}")
     }
 
     override fun commit() {
@@ -79,8 +91,15 @@ class LibraryWriterImpl(override val libDir: File, currentAbiVersion: Int,
     }
 }
 
-
-internal fun buildLibrary(natives: List<String>, linkData: LinkData, abiVersion: Int, target: String, output: String, llvmModule: LLVMModuleRef, nopack: Boolean): KonanLibraryWriter {
+internal fun buildLibrary(
+    natives: List<String>, 
+    linkData: LinkData, 
+    abiVersion: Int, 
+    target: KonanTarget, 
+    output: String, 
+    llvmModule: LLVMModuleRef, 
+    nopack: Boolean, 
+    manifest: String?): KonanLibraryWriter {
 
     val library = LibraryWriterImpl(output, abiVersion, target, nopack)
 
@@ -89,6 +108,7 @@ internal fun buildLibrary(natives: List<String>, linkData: LinkData, abiVersion:
     natives.forEach {
         library.addNativeBitcode(it)
     }
+    manifest ?.let { library.addManifestAddend(it) }
 
     library.commit()
     return library

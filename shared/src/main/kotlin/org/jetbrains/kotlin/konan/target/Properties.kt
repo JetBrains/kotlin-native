@@ -14,7 +14,9 @@
  * limitations under the License.
  */
 
-package org.jetbrains.kotlin.backend.konan.util
+package org.jetbrains.kotlin.konan.properties
+
+import org.jetbrains.kotlin.konan.file.*
 
 typealias Properties = java.util.Properties
 
@@ -26,6 +28,8 @@ fun File.loadProperties(): Properties {
     return properties
 }
 
+fun loadProperties(path: String): Properties = File(path).loadProperties()
+
 fun File.saveProperties(properties: Properties) {
     this.outputStream().use { 
         properties.store(it, null) 
@@ -33,3 +37,25 @@ fun File.saveProperties(properties: Properties) {
 }
 
 fun Properties.saveToFile(file: File) = file.saveProperties(this)
+
+fun Properties.propertyString(key: String, suffix: String? = null): String?
+    = this.getProperty(key.suffix(suffix))
+
+/**
+ * TODO: this method working with suffixes should be replaced with
+ * functionality borrowed from def file parser and unified for interop tool
+ * and kotlin compiler.
+ */
+fun Properties.propertyList(key: String, suffix: String? = null): List<String> {
+    val value = this.getProperty(key.suffix(suffix)) ?: this.getProperty(key)
+    return value?.split(' ') ?: emptyList()
+}
+
+fun Properties.hasProperty(key: String, suffix: String? = null): Boolean
+    = this.getProperty(key.suffix(suffix)) != null
+
+fun String.suffix(suf: String?): String =
+    if (suf == null) this
+    else "${this}.$suf"
+
+

@@ -18,9 +18,9 @@ package org.jetbrains.kotlin.backend.konan.library.impl
 
 import org.jetbrains.kotlin.backend.konan.library.KonanLibrary
 import org.jetbrains.kotlin.backend.konan.library.LinkData
-import org.jetbrains.kotlin.backend.konan.util.File
+import org.jetbrains.kotlin.konan.file.File
 
-internal class MetadataWriterImpl(override val libDir: File): KonanLibrary {
+internal class MetadataWriterImpl(library: KonanLibrary): KonanLibrary by library {
 
     fun addLinkData(linkData: LinkData) {
 
