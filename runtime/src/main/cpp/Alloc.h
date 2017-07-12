@@ -20,6 +20,8 @@
 #include <stddef.h>
 #include <stdlib.h>
 
+#include <utility>
+
 inline void* konanAllocMemory(size_t size) {
   return calloc(1, size);
 }
@@ -61,9 +63,19 @@ template <class T> class KonanAllocator {
   }
 
   pointer address(reference x) const { return &x; }
+
   const_pointer address(const_reference x) const { return &x; }
+
   KonanAllocator<T>&  operator=(const KonanAllocator&) { return *this; }
+
   void construct(pointer p, const T& val) { new ((T*) p) T(val); }
+
+  // C++-11 wants that.
+  template <class U, class ...A>
+  void construct(U* const p, A&& ...args) {
+    new (p) U(::std::forward<A>(args)...);
+  }
+
   void destroy(pointer p) { p->~T(); }
 
   size_type max_size() const { return size_t(-1); }
@@ -77,5 +89,17 @@ template <class T> class KonanAllocator {
   template <class U>
   KonanAllocator& operator=(const KonanAllocator<U>&) { return *this; }
 };
+
+template <class T, class U>
+bool operator==(
+  KonanAllocator<T> const&, KonanAllocator<U> const&) noexcept {
+    return true;
+}
+
+template <class T, class U>
+bool operator!=(
+  KonanAllocator<T> const& x, KonanAllocator<U> const& y) noexcept {
+    return !(x == y);
+}
 
 #endif // RUNTIME_ALLOC_H
