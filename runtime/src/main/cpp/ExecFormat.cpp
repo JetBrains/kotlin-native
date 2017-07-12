@@ -55,7 +55,9 @@ struct SymRecord {
   char* strtab;
 };
 
-std::vector<SymRecord>* symbols = nullptr;
+typedef std::vector<SymRecord, KonanAllocator<SymRecord>> SymRecordList;
+
+SymRecordList* symbols = nullptr;
 
 // Unfortunately, symbol tables are stored in ELF sections not mapped
 // during regular execution, so we have to map binary ourselves.
@@ -71,7 +73,7 @@ Elf_Ehdr* findElfHeader() {
 
 void initSymbols() {
   RuntimeAssert(symbols == nullptr, "Init twice");
-  symbols = new std::vector<SymRecord>();
+  symbols = konanConstructInstance<SymRecordList>();
   Elf_Ehdr* ehdr = findElfHeader();
   if (ehdr == nullptr) return;
   RuntimeAssert(strncmp((const char*)ehdr->e_ident, ELFMAG, SELFMAG) == 0, "Must be an ELF");
@@ -117,7 +119,7 @@ const char* addressToSymbol(const void* address) {
     while (begin < end) {
       // st_value is load address adjusted.
       if (addressValue >= begin->st_value && addressValue < begin->st_value + begin->st_size) {
-	return &record.strtab[begin->st_name];
+        return &record.strtab[begin->st_name];
       }
       begin++;
     }
@@ -264,7 +266,7 @@ class SymbolTable {
 
  public:
 
-  explicit SymbolTable(HMODULE hModule) {
+  void init(HMODULE hModule) {
     imageBase = (char*)hModule;
     IMAGE_DOS_HEADER* dosHeader = (IMAGE_DOS_HEADER*)imageBase;
     RuntimeAssert(dosHeader->e_magic == IMAGE_DOS_SIGNATURE, "PE executable e_magic mismatch");
@@ -308,7 +310,8 @@ extern "C" bool AddressToSymbol(const void* address, char* resultBuffer, size_t 
   if (theExeSymbolTable == nullptr) {
     // Note: do not protecting the lazy initialization by critical sections for simplicity;
     // this doesn't have any serious consequences.
-    theExeSymbolTable = new SymbolTable(GetModuleHandle(nullptr));
+    theExeSymbolTable = konanConstructInstance<SymbolTable>();
+    theExeSymbolTable->init(GetModuleHandle(nullptr));
   }
   return theExeSymbolTable->functionAddressToSymbol(address, resultBuffer, resultBufferSize);
 }
