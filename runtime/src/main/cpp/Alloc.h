@@ -20,6 +20,7 @@
 #include <stddef.h>
 #include <stdlib.h>
 
+#include <new>
 #include <utility>
 
 inline void* konanAllocMemory(size_t size) {

@@ -156,8 +156,13 @@ static void* mapModuleFile(HMODULE hModule) {
   int bufferLength = 64;
   wchar_t* buffer = nullptr;
   for (;;) {
-    buffer = (wchar_t*)realloc(buffer, sizeof(wchar_t) * bufferLength);
-    RuntimeAssert(buffer != nullptr, "Out of memory");
+    auto newBuffer = (wchar_t*)konanAllocMemory(sizeof(wchar_t) * bufferLength);
+    RuntimeAssert(newBuffer != nullptr, "Out of memory");
+	if (buffer != nullptr) {
+		memcpy(newBuffer, buffer, bufferLength / 2);
+		konanFreeMemory(buffer);
+	}
+	buffer = newBuffer;
 
     DWORD res = GetModuleFileNameW(hModule, buffer, bufferLength);
     if (res != 0 && res < bufferLength) {
@@ -171,7 +176,7 @@ static void* mapModuleFile(HMODULE hModule) {
     }
 
     // Invalid result.
-    free(buffer);
+    konanFreeMemory(buffer);
     return nullptr;
   }
 
@@ -184,7 +189,7 @@ static void* mapModuleFile(HMODULE hModule) {
       /* dwFlagsAndAttributes = */ FILE_ATTRIBUTE_NORMAL,
       /* hTemplateFile = */ nullptr
   );
-  free(buffer);
+  konanFreeMemory(buffer);
   if (hFile == INVALID_HANDLE_VALUE) {
     // Can't open module file.
     return nullptr;
@@ -228,7 +233,7 @@ class SymbolTable {
   IMAGE_SECTION_HEADER* sectionHeaders = nullptr;
   IMAGE_SYMBOL* symbols = nullptr;
   DWORD numberOfSymbols = 0;
-
+	
   // Note: it doesn't free resources yet.
   ~SymbolTable() {}
 
@@ -267,7 +272,8 @@ class SymbolTable {
   }
 
  public:
-
+  SymbolTable() {}
+ 
   void init(HMODULE hModule) {
     imageBase = (char*)hModule;
     IMAGE_DOS_HEADER* dosHeader = (IMAGE_DOS_HEADER*)imageBase;
