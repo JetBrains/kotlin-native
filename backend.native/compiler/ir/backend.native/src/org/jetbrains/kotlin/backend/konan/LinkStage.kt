@@ -170,10 +170,9 @@ internal open class MingwPlatform(distribution: Distribution)
 }
 
 internal open class WasmPlatform(distribution: Distribution)
-    : PlatformFlags(distribution) {
+    : PlatformFlags(distribution.targetProperties) {
 
-    private val prefix = "${distribution.targetToolchain}/bin/"
-    private val clang = "$prefix/clang"
+    private val clang = "clang"
 
     override val useCompilerDriverAsLinker: Boolean get() = false
 
