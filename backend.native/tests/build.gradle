@@ -975,7 +975,6 @@ task AbstractMutableCollection(type: RunKonanTest) {
 }
 
 task BitSet(type: RunKonanTest) {
-    disabled = isWindows()
     expectedExitStatus = 0
     source = "runtime/collections/BitSet.kt"
 }

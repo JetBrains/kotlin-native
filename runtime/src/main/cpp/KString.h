@@ -17,9 +17,6 @@
 #ifndef RUNTIME_STRING_H
 #define RUNTIME_STRING_H
 
-#include <string>
-
-#include "Alloc.h"
 #include "Common.h"
 #include "Memory.h"
 #include "Types.h"

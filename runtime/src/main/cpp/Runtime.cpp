@@ -64,8 +64,7 @@ void AppendToInitializersTail(InitNode *next) {
 
 // TODO: properly use RuntimeState.
 RuntimeState* InitRuntime() {
-  RuntimeState* result = reinterpret_cast<RuntimeState*>(
-      konanAllocMemory(sizeof(RuntimeState)));
+  RuntimeState* result = konanConstructInstance<RuntimeState>();
   result->memoryState = InitMemory();
   // Keep global variables in state as well.
   InitOrDeinitGlobalVariables(true);
@@ -82,7 +81,7 @@ void DeinitRuntime(RuntimeState* state) {
   if (state != nullptr) {
     InitOrDeinitGlobalVariables(false);
     DeinitMemory(state->memoryState);
-    konanFreeMemory(state);
+    konanDestructInstance(state);
   }
 }
 

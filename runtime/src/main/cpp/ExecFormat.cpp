@@ -15,8 +15,8 @@
  */
 
 
-#include "Alloc.h"
 #include "ExecFormat.h"
+#include "Types.h"
 
 #if USE_ELF_SYMBOLS
 
@@ -57,7 +57,7 @@ struct SymRecord {
   char* strtab;
 };
 
-typedef std::vector<SymRecord, KonanAllocator<SymRecord>> SymRecordList;
+typedef KStdVector<SymRecord> SymRecordList;
 
 SymRecordList* symbols = nullptr;
 
@@ -158,11 +158,10 @@ static void* mapModuleFile(HMODULE hModule) {
   for (;;) {
     auto newBuffer = (wchar_t*)konanAllocMemory(sizeof(wchar_t) * bufferLength);
     RuntimeAssert(newBuffer != nullptr, "Out of memory");
-        if (buffer != nullptr) {
-                memcpy(newBuffer, buffer, bufferLength / 2);
-                konanFreeMemory(buffer);
-        }
-        buffer = newBuffer;
+    if (buffer != nullptr) {
+      konanFreeMemory(buffer);
+    }
+    buffer = newBuffer;
 
     DWORD res = GetModuleFileNameW(hModule, buffer, bufferLength);
     if (res != 0 && res < bufferLength) {
@@ -272,7 +271,7 @@ class SymbolTable {
   }
 
  public:
-  SymbolTable(HMODULE hModule) {
+  explicit SymbolTable(HMODULE hModule) {
     imageBase = (char*)hModule;
     IMAGE_DOS_HEADER* dosHeader = (IMAGE_DOS_HEADER*)imageBase;
     RuntimeAssert(dosHeader->e_magic == IMAGE_DOS_SIGNATURE, "PE executable e_magic mismatch");
