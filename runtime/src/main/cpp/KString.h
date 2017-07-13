@@ -57,6 +57,4 @@ int binarySearchRange(const T* array, int arrayLength, T needle) {
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
-typedef std::basic_string<char, std::char_traits<char>, KonanAllocator<char>> KStdString;
-
 #endif // RUNTIME_STRING_H

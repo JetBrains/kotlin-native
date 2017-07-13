@@ -57,10 +57,9 @@ constexpr size_t kGcThreshold = 9341;
 #endif
 
 #if TRACE_MEMORY || USE_GC
-typedef std::unordered_set<ContainerHeader*, std::hash<void*>, std::equal_to<void*>,
-                           KonanAllocator<ContainerHeader*>> ContainerHeaderSet;
-typedef std::vector<ContainerHeader*, KonanAllocator<ContainerHeader*>> ContainerHeaderList;
-typedef std::vector<KRef*, KonanAllocator<KRef*>> KRefPtrList;
+typedef KStdUnorderedSet<ContainerHeader*> ContainerHeaderSet;
+typedef KStdVector<ContainerHeader*> ContainerHeaderList;
+typedef KStdVector<KRef*> KRefPtrList;
 #endif
 
 struct MemoryState {
@@ -341,7 +340,7 @@ inline ArenaContainer* initedArena(ObjHeader** auxSlot) {
 }  // namespace
 
 ContainerHeader* AllocContainer(size_t size) {
-  ContainerHeader* result = konanConstructInstance<ContainerHeader>(size);
+  ContainerHeader* result = konanConstructSizedInstance<ContainerHeader>(size);
 #if TRACE_MEMORY
   fprintf(stderr, ">>> alloc %d -> %p\n", static_cast<int>(size), result);
   memoryState->containers->insert(result);
@@ -464,7 +463,7 @@ bool ArenaContainer::allocContainer(container_size_t minSize) {
   auto size = minSize + sizeof(ContainerHeader) + sizeof(ContainerChunk);
   size = alignUp(size, kContainerAlignment);
   // TODO: keep simple cache of container chunks.
-  ContainerChunk* result = konanConstructInstance<ContainerChunk>(size);
+  ContainerChunk* result = konanConstructSizedInstance<ContainerChunk>(size);
   RuntimeAssert(result != nullptr, "Cannot alloc memory");
   if (result == nullptr) return false;
   result->next = currentChunk_;

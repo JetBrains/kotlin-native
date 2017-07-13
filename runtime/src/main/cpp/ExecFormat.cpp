@@ -158,11 +158,11 @@ static void* mapModuleFile(HMODULE hModule) {
   for (;;) {
     auto newBuffer = (wchar_t*)konanAllocMemory(sizeof(wchar_t) * bufferLength);
     RuntimeAssert(newBuffer != nullptr, "Out of memory");
-	if (buffer != nullptr) {
-		memcpy(newBuffer, buffer, bufferLength / 2);
-		konanFreeMemory(buffer);
-	}
-	buffer = newBuffer;
+        if (buffer != nullptr) {
+                memcpy(newBuffer, buffer, bufferLength / 2);
+                konanFreeMemory(buffer);
+        }
+        buffer = newBuffer;
 
     DWORD res = GetModuleFileNameW(hModule, buffer, bufferLength);
     if (res != 0 && res < bufferLength) {
@@ -233,7 +233,7 @@ class SymbolTable {
   IMAGE_SECTION_HEADER* sectionHeaders = nullptr;
   IMAGE_SYMBOL* symbols = nullptr;
   DWORD numberOfSymbols = 0;
-	
+
   // Note: it doesn't free resources yet.
   ~SymbolTable() {}
 
@@ -272,9 +272,7 @@ class SymbolTable {
   }
 
  public:
-  SymbolTable() {}
- 
-  void init(HMODULE hModule) {
+  SymbolTable(HMODULE hModule) {
     imageBase = (char*)hModule;
     IMAGE_DOS_HEADER* dosHeader = (IMAGE_DOS_HEADER*)imageBase;
     RuntimeAssert(dosHeader->e_magic == IMAGE_DOS_SIGNATURE, "PE executable e_magic mismatch");
@@ -318,8 +316,8 @@ extern "C" bool AddressToSymbol(const void* address, char* resultBuffer, size_t 
   if (theExeSymbolTable == nullptr) {
     // Note: do not protecting the lazy initialization by critical sections for simplicity;
     // this doesn't have any serious consequences.
-    theExeSymbolTable = konanConstructInstance<SymbolTable>();
-    theExeSymbolTable->init(GetModuleHandle(nullptr));
+    theExeSymbolTable = konanConstructInstance<SymbolTable>(
+        GetModuleHandle(nullptr));
   }
   return theExeSymbolTable->functionAddressToSymbol(address, resultBuffer, resultBufferSize);
 }
