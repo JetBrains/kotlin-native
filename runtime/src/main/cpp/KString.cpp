@@ -30,6 +30,7 @@
 #include "Memory.h"
 #include "Natives.h"
 #include "KString.h"
+#include "Porting.h"
 #include "Types.h"
 
 #include "utf8.h"
@@ -668,7 +669,7 @@ int iswlower_Konan(KChar ch) {
   return getType(ch) == LOWERCASE_LETTER;
 }
 
-void checkParsingErrors(const char* c_str, const char* end, std::string::size_type c_str_size) {
+void checkParsingErrors(const char* c_str, const char* end, KStdString::size_type c_str_size) {
   if (end == c_str) {
     ThrowNumberFormatException();
   }
@@ -736,7 +737,7 @@ OBJ_GETTER(Kotlin_String_toUtf8Array, KString thiz, KInt start, KInt size) {
     ThrowArrayIndexOutOfBoundsException();
   }
   const KChar* utf16 = CharArrayAddressOfElementAt(thiz, start);
-  std::string utf8;
+  KStdString utf8;
   utf8::utf16to8(utf16, utf16 + size, back_inserter(utf8));
   ArrayHeader* result = AllocArrayInstance(
       theByteArrayTypeInfo, utf8.size() + 1, OBJ_RESULT)->array();
@@ -1015,16 +1016,6 @@ KInt Kotlin_String_lastIndexOfChar(KString thiz, KChar ch, KInt fromIndex) {
   return -1;
 }
 
-#ifdef _WIN32
-static void* memmem(const void* big, size_t big_len, const void* little, size_t little_len) {
-  for (size_t i = 0; i + little_len <= big_len; ++i) {
-    void* pos = ((char*)big) + i;
-    if (memcmp(little, pos, little_len) == 0) return pos;
-  }
-  return nullptr;
-}
-#endif
-
 // TODO: or code up Knuth-Moris-Pratt.
 KInt Kotlin_String_indexOfString(KString thiz, KString other, KInt fromIndex) {
   if (fromIndex < 0 || fromIndex > thiz->count_ ||
@@ -1038,8 +1029,8 @@ KInt Kotlin_String_indexOfString(KString thiz, KString other, KInt fromIndex) {
   KInt count = thiz->count_;
   const KChar* thizRaw = CharArrayAddressOfElementAt(thiz, fromIndex);
   const KChar* otherRaw = CharArrayAddressOfElementAt(other, 0);
-  void* result = memmem(thizRaw, (thiz->count_ - fromIndex) * sizeof(KChar),
-                        otherRaw, other->count_ * sizeof(KChar));
+  void* result = konan::memmem(thizRaw, (thiz->count_ - fromIndex) * sizeof(KChar),
+                               otherRaw, other->count_ * sizeof(KChar));
   if (result == nullptr) return -1;
 
   return (reinterpret_cast<intptr_t>(result) - reinterpret_cast<intptr_t>(

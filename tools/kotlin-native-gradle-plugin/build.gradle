@@ -14,11 +14,12 @@ buildscript {
         classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7.3'
     }
 }
-
 apply plugin: 'java'
 apply plugin: 'kotlin'
+apply plugin: 'groovy'
 apply plugin: 'maven-publish'
 apply plugin: 'com.jfrog.bintray'
+apply plugin: 'java-gradle-plugin'
 
 group = 'org.jetbrains.kotlin'
 version = konanVersion
@@ -47,11 +48,25 @@ repositories {
 }
 
 evaluationDependsOn(':tools:helpers')
+
 dependencies {
     compile project(':shared')
     compile project(':tools:helpers')
     compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlin_version"
     compile gradleApi()
+
+    testCompile gradleTestKit()
+    testCompile 'junit:junit:4.12'
+    testCompile('org.spockframework:spock-core:1.1-groovy-2.4') {
+        exclude module: 'groovy-all'
+    }
+}
+
+test {
+    dependsOn ':dist'
+    //testLogging.showStandardStreams = true
+    systemProperty("konan.home", rootProject.file('dist'))
+    systemProperty("konan.root", rootProject.projectDir)
 }
 
 jar {

@@ -15,11 +15,10 @@
  */
 
 #include <stdio.h>
-#if KONAN_WINDOWS
-#include <windows.h>
-#endif
 
+#include "Alloc.h"
 #include "Memory.h"
+#include "Porting.h"
 #include "Runtime.h"
 
 struct RuntimeState {
@@ -47,9 +46,7 @@ void InitOrDeinitGlobalVariables(int initialize) {
 
 }  // namespace
 
-#ifdef __cplusplus
 extern "C" {
-#endif
 
 void AppendToInitializersTail(InitNode *next) {
   // TODO: use RuntimeState.
@@ -63,16 +60,11 @@ void AppendToInitializersTail(InitNode *next) {
 
 // TODO: properly use RuntimeState.
 RuntimeState* InitRuntime() {
-  RuntimeState* result = new RuntimeState();
+  RuntimeState* result = konanConstructInstance<RuntimeState>();
   result->memoryState = InitMemory();
   // Keep global variables in state as well.
   InitOrDeinitGlobalVariables(true);
-#if KONAN_WINDOWS
-  // Note that this code enforces UTF-8 console output, so we may want to rethink
-  // how we perform console IO, if it turns out, that UTF-16 is better output format.
-  SetConsoleCP(CP_UTF8);
-  SetConsoleOutputCP(CP_UTF8);
-#endif
+  konan::consoleInit();
   return result;
 }
 
@@ -80,10 +72,8 @@ void DeinitRuntime(RuntimeState* state) {
   if (state != nullptr) {
     InitOrDeinitGlobalVariables(false);
     DeinitMemory(state->memoryState);
-    delete state;
+    konanDestructInstance(state);
   }
 }
 
-#ifdef __cplusplus
-}
-#endif
+}  // extern "C"
