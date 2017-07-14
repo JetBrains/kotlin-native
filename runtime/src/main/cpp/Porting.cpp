@@ -38,8 +38,8 @@ void consoleInit() {
 #if KONAN_WINDOWS
   // Note that this code enforces UTF-8 console output, so we may want to rethink
   // how we perform console IO, if it turns out, that UTF-16 is better output format.
-  SetConsoleCP(CP_UTF8);
-  SetConsoleOutputCP(CP_UTF8);
+  ::SetConsoleCP(CP_UTF8);
+  ::SetConsoleOutputCP(CP_UTF8);
 #endif
 }
 
@@ -48,7 +48,7 @@ void consoleWriteUtf8(const void* utf8, uint32_t sizeBytes) {
   // TODO: use sizeBytes!
   __android_log_print(ANDROID_LOG_INFO, "Konan_main", "%s", utf8);
 #else
-  write(STDOUT_FILENO, utf8, sizeBytes);
+  ::write(STDOUT_FILENO, utf8, sizeBytes);
 #endif
 }
 
@@ -57,12 +57,12 @@ void consoleErrorUtf8(const void* utf8, uint32_t sizeBytes) {
   // TODO: use sizeBytes!
   __android_log_print(ANDROID_LOG_ERROR, "Konan_main", "%s", utf8);
 #else
-  write(STDERR_FILENO, utf8, sizeBytes);
+  ::write(STDERR_FILENO, utf8, sizeBytes);
 #endif
 }
 
 uint32_t consoleReadUtf8(void* utf8, uint32_t maxSizeBytes) {
-  char* result = fgets(reinterpret_cast<char*>(utf8), maxSizeBytes - 1, stdin);
+  char* result = ::fgets(reinterpret_cast<char*>(utf8), maxSizeBytes - 1, stdin);
   if (result == nullptr) return 0;
   return ::strlen(result);
 }
@@ -79,18 +79,18 @@ void* memmem(const void *big, size_t bigLen, const void *little, size_t littleLe
 #if KONAN_WINDOWS
   for (size_t i = 0; i + littleLen <= bigLen; ++i) {
     void* pos = ((char*)big) + i;
-    if (memcmp(little, pos, littleLen) == 0) return pos;
+    if (::memcmp(little, pos, littleLen) == 0) return pos;
   }
   return nullptr;
 #else
-  return memmem(big, bigLen, little, littleLen);
+  return ::memmem(big, bigLen, little, littleLen);
 #endif
 
 }
 
 int snprintf(char* buffer, size_t size, const char* format, ...) {
   va_list args;
-  va_start (args, format);
+  va_start(args, format);
   int rv = ::vsnprintf(buffer, size, format, args);
   va_end(args);
   return rv;
