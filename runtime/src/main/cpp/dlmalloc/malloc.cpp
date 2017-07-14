@@ -527,7 +527,12 @@ MAX_RELEASE_CHECK_RATE   default: 4095 unless not HAVE_MMAP
 #define USE_DL_PREFIX 1
 #define USE_LOCKS 1
 #define DLMALLOC_EXPORT extern "C"
-#define HAVE_MORECORE 0
+#define HAVE_MORECORE 1
+#define MORECORE konan::moreCore
+namespace konan {
+extern void* moreCore(int size);
+}  // namespace konan
+
 /**** End of Konan-specific dlmalloc configuration.   ****/
 
 

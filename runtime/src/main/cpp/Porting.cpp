@@ -137,4 +137,11 @@ uint64_t getTimeMicros() {
   return duration_cast<microseconds>(high_resolution_clock::now().time_since_epoch()).count();
 }
 
+#if KONAN_INTERNAL_DLMALLOC
+// This function is being called when memory allocator needs more RAM.
+void* moreCore(int size) {
+  return sbrk(size);
+}
+#endif
+
 }  // namespace konan
