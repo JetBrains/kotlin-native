@@ -25,10 +25,9 @@ class ClangTarget(val target: KonanTarget, konanProperties: KonanProperties) {
     val targetArg = konanProperties.targetArg
 
     val specificClangArgs: List<String> get() {
-        return when (target) {
-
+        val result = when (target) {
             KonanTarget.LINUX ->
-                listOf("--sysroot=$sysRoot", 
+                listOf("--sysroot=$sysRoot",
                         "-DUSE_GCC_UNWIND=1", "-DUSE_ELF_SYMBOLS=1", "-DELFSIZE=64")
             KonanTarget.RASPBERRYPI ->
                 listOf("-target", targetArg!!,
@@ -76,6 +75,7 @@ class ClangTarget(val target: KonanTarget, konanProperties: KonanProperties) {
                         "-Xclang", "-isystem$sysRoot/include/libcxx", "-Xclang", "-isystem$sysRoot/lib/libcxxabi/include",
                         "-Xclang", "-isystem$sysRoot/include/compat", "-Xclang", "-isystem$sysRoot/include/libc")
         }
+        return result + (if (target != KonanTarget.WASM32) listOf("-g") else emptyList())
     }
 }
 
