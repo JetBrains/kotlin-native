@@ -118,7 +118,8 @@ internal fun produceOutput(context: Context) {
                 libraryName, 
                 llvmModule,
                 nopack,
-                manifest)
+                manifest,
+                context.escapeAnalysisResults)
 
             context.library = library
             context.bitcodeFileName = library.mainBitcodeFileName
@@ -310,7 +311,7 @@ internal class CodeGeneratorVisitor(val context: Context) : IrElementVisitorVoid
     override fun visitModuleFragment(declaration: IrModuleFragment) {
         context.log{"visitModule                    : ${ir2string(declaration)}"}
 
-        computeLifetimes(module, this.codegen, resultLifetimes)
+        EscapeAnalysis.computeLifetimes(declaration, context, this.codegen, resultLifetimes)
 
         declaration.acceptChildrenVoid(this)
         appendLlvmUsed(context.llvm.usedFunctions)

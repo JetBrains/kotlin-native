@@ -170,6 +170,7 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     // But we have to wait until the code generation phase,
     // to dump this information into generated file.
     var serializedLinkData: LinkData? = null
+    var escapeAnalysisResults: ByteArray? = null
 
     @Deprecated("")
     lateinit var psi2IrGeneratorContext: GeneratorContext
