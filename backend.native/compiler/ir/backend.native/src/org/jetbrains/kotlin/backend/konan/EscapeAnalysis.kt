@@ -1023,9 +1023,9 @@ internal object EscapeAnalysis {
             val escapesAnnotation = function.annotations.findAnnotation(FQ_NAME_ESCAPES)
             val pointsToAnnotation = function.annotations.findAnnotation(FQ_NAME_POINTS_TO)
             @Suppress("UNCHECKED_CAST")
-            val escapesBitMask = (escapesAnnotation?.allValueArguments?.get(escapesWhoDescriptor) as? ConstantValue<Int>)?.value
+            val escapesBitMask = (escapesAnnotation?.allValueArguments?.get(escapesWhoDescriptor.name) as? ConstantValue<Int>)?.value
             @Suppress("UNCHECKED_CAST")
-            val pointsToBitMask = (pointsToAnnotation?.allValueArguments?.get(pointsToOnWhomDescriptor) as? ConstantValue<List<IntValue>>)?.value
+            val pointsToBitMask = (pointsToAnnotation?.allValueArguments?.get(pointsToOnWhomDescriptor.name) as? ConstantValue<List<IntValue>>)?.value
             return FunctionEscapeAnalysisResult.fromBits(
                     escapesBitMask ?: 0,
                     (0..function.allParameters.size).map { pointsToBitMask?.elementAtOrNull(it)?.value ?: 0 }.toIntArray()
