@@ -242,9 +242,9 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
 
                 SlotType.ANONYMOUS -> vars.createAnonymousSlot()
 
-                SlotType.RETURN_IF_ARENA -> {
-                    if (returnSlot != null)
-                        call(context.llvm.getReturnSlotIfArenaFunction, listOf(returnSlot!!, vars.createAnonymousSlot()))
+                SlotType.RETURN_IF_ARENA -> returnSlot.let {
+                    if (it != null)
+                        call(context.llvm.getReturnSlotIfArenaFunction, listOf(it, vars.createAnonymousSlot()))
                     else {
                         // Return type is not an object type - can allocate locally.
                         localAllocs++
