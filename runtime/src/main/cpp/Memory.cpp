@@ -448,7 +448,6 @@ void ArenaContainer::Deinit() {
   while (chunk != nullptr) {
     // FreeContainer() doesn't release memory when CONTAINER_TAG_STACK is set.
     FreeContainer(chunk->asHeader());
-    ReleaseRefs(chunk->slots, chunk->slotsCount);
     chunk = chunk->next;
   }
   chunk = currentChunk_;
@@ -493,18 +492,14 @@ void* ArenaContainer::place(container_size_t size) {
   return result;
 }
 
+#define ARENA_SLOTS_CHUNK_SIZE 16
+
 ObjHeader** ArenaContainer::getSlot() {
-  auto chunk = currentChunk_;
-  while (chunk != nullptr) {
-    if (chunk->slotsCount < ARRAY_SIZE(chunk->slots)) {
-      return &chunk->slots[chunk->slotsCount++];
-    }
-    chunk = chunk->next;
+  if (slots_ == nullptr || slotsCount_ >= ARENA_SLOTS_CHUNK_SIZE) {
+    slots_ = PlaceArray(theArrayTypeInfo, ARENA_SLOTS_CHUNK_SIZE);
+    slotsCount_ = 0;
   }
-  if (!allocContainer(1024)) {
-    return nullptr;
-  }
-  return &currentChunk_->slots[currentChunk_->slotsCount++];
+  return ArrayAddressOfElementAt(slots_, slotsCount_++);
 }
 
 ObjHeader* ArenaContainer::PlaceObject(const TypeInfo* type_info) {
@@ -711,6 +706,7 @@ ObjHeader** GetParamSlotIfArena(ObjHeader* param, ObjHeader** localSlot) {
 
 void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* object) {
   if (isArenaSlot(returnSlot)) {
+    return;
     if (object == nullptr
         || (object->container()->refCount_ & CONTAINER_TAG_MASK) > CONTAINER_TAG_NORMAL) {
         // Not a subject of reference counting.

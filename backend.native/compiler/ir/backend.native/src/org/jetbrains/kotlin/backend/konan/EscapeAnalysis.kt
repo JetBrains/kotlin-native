@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.backend.common.ir.ir2stringWhole
 import org.jetbrains.kotlin.backend.common.peek
 import org.jetbrains.kotlin.backend.common.pop
 import org.jetbrains.kotlin.backend.common.push
+import org.jetbrains.kotlin.backend.konan.descriptors.target
 import org.jetbrains.kotlin.backend.konan.ir.IrReturnableBlock
 import org.jetbrains.kotlin.backend.konan.ir.IrSuspendableExpression
 import org.jetbrains.kotlin.backend.konan.ir.IrSuspensionPoint
@@ -222,6 +223,7 @@ internal object EscapeAnalysis {
                 }
 
                 is IrGetObjectValue -> { /* Shall we do anything here? */
+                    block(expression)
                 }
 
                 else -> error("Unexpected expression: ${ir2stringWhole(expression)}")
@@ -469,22 +471,31 @@ internal object EscapeAnalysis {
             }
 
             override fun visitSetField(expression: IrSetField) {
-                if (expression.receiver == null)
+                val receiver = expression.receiver
+                if (receiver == null)
                     assignRole(expression.value, Role.WRITTEN_TO_GLOBAL, RoleInfoEntry(expression))
                 else {
                     val nodes = expressionValuesExtractor.extractNodesUsingVariableValues(
                             expression     = expression.value,
                             variableValues = if (useVarValues) variableValues else null
                     )
-                    nodes.forEach { assignRole(expression.receiver!!, Role.FIELD_WRITTEN, RoleInfoEntry(it)) }
+                    nodes.forEach { assignRole(receiver, Role.FIELD_WRITTEN, RoleInfoEntry(it)) }
                 }
                 super.visitSetField(expression)
             }
 
+            override fun visitGetObjectValue(expression: IrGetObjectValue) {
+                assignRole(expression, Role.WRITTEN_TO_GLOBAL, RoleInfoEntry(expression))
+                super.visitGetObjectValue(expression)
+            }
+
             override fun visitGetField(expression: IrGetField) {
-                expression.receiver?.let {
+                val receiver = expression.receiver
+                if (receiver == null)
+                    assignRole(expression, Role.WRITTEN_TO_GLOBAL, RoleInfoEntry(expression))
+                else {
                     // Receiver holds reference to all its fields.
-                    assignRole(it, Role.FIELD_WRITTEN, RoleInfoEntry(expression))
+                    assignRole(receiver, Role.FIELD_WRITTEN, RoleInfoEntry(expression))
 
                     /*
                      * The opposite (a field points to its receiver) is also kind of true.
@@ -501,7 +512,7 @@ internal object EscapeAnalysis {
                      *
                      */
                     val nodes = expressionValuesExtractor.extractNodesUsingVariableValues(
-                            expression     = it,
+                            expression     = receiver,
                             variableValues = if (useVarValues) variableValues else null
                     )
                     nodes.forEach { assignRole(expression, Role.FIELD_WRITTEN, RoleInfoEntry(it)) }
@@ -815,14 +826,14 @@ internal object EscapeAnalysis {
                     val caller = currentFunction?.scope?.scopeOwner
                     if (caller != null) {
                         caller as FunctionDescriptor
-                        val callee = expression.descriptor.original as FunctionDescriptor
+                        val callee = (expression.descriptor as FunctionDescriptor).target
 
                         if (!callee.isOverridable || expression !is IrCall || expression.superQualifier != null) {
                             val superQualifier = (expression as? IrCall)?.superQualifier
                             if (superQualifier == null)
                                 callGraph.addEdge(caller, CallSite(expression, callee))
                             else {
-                                val actualCallee = superQualifier.unsubstitutedMemberScope.getOverridingOf(callee) ?: callee
+                                val actualCallee = superQualifier.unsubstitutedMemberScope.getOverridingOf(callee)?.target ?: callee
                                 callGraph.addEdge(caller, CallSite(expression, actualCallee))
                             }
                         } else {
@@ -1070,6 +1081,8 @@ internal object EscapeAnalysis {
                 else -> PointsToGraphNodeKind.LOCAL
             }
 
+            val beingReturned = roles.has(Role.RETURN_VALUE)
+
             var parameterPointingOnUs: Int? = null
 
             fun addIncomingParameter(parameter: Int) {
@@ -1142,7 +1155,7 @@ internal object EscapeAnalysis {
                 }
             }
 
-            private val returnValues = nodes.filter { it.value.kind == PointsToGraphNodeKind.RETURN_VALUE }
+            private val returnValues = nodes.filter { it.value.beingReturned }
                                             .map { it.key }
                                             .toSet()
 

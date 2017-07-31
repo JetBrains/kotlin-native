@@ -244,9 +244,6 @@ class ArenaContainer;
 struct ContainerChunk {
   ContainerChunk* next;
   ArenaContainer* arena;
-  // TODO: create instead fictitious object to store references into its fields.
-  ObjHeader* slots[10];
-  int slotsCount;
   // Then we have ContainerHeader here.
   ContainerHeader* asHeader() {
     return reinterpret_cast<ContainerHeader*>(this + 1);
@@ -280,6 +277,8 @@ class ArenaContainer {
   ContainerChunk* currentChunk_;
   uint8_t* current_;
   uint8_t* end_;
+  ArrayHeader* slots_;
+  uint32_t slotsCount_;
 };
 
 #ifdef __cplusplus
