@@ -302,7 +302,7 @@ task bundle(type: (isWindows()) ? Zip : Tar) {
 }
 
 task performance {
-    dependsOn 'distCompiler'
+    dependsOn 'dist'
     dependsOn ':performance:build'
     dependsOn ':performance:run'
 }
