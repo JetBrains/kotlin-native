@@ -16,6 +16,8 @@
 
 #include "KDebug.h"
 
+#include <string.h>
+
 #include "Assert.h"
 #include "Memory.h"
 #include "Natives.h"
@@ -49,7 +51,7 @@ RUNTIME_USED KInt Konan_DebugObjectToUtf8Array(KRef obj, char* buffer, KInt buff
   auto data = KonanObjectToUtf8Array(obj, stringHolder.slot())->array();
   if (data == nullptr) return 0;
   KInt toCopy = data->count_ > bufferSize - 1 ? bufferSize - 1 : data->count_;
-  memcpy(buffer, ByteArrayAddressOfElementAt(data, 0), toCopy);
+  ::memcpy(buffer, ByteArrayAddressOfElementAt(data, 0), toCopy);
   buffer[toCopy + 1] = '\0';
   return toCopy + 1;
 }
