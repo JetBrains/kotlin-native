@@ -16,15 +16,9 @@
 
 package org.jetbrains.kotlin.gradle.plugin
 
-import org.gradle.api.DefaultTask
-import org.gradle.api.Plugin
-import org.gradle.api.Project
-import org.gradle.api.Task
+import org.gradle.api.*
 import org.gradle.api.file.FileCollection
-import org.gradle.api.internal.AbstractNamedDomainObjectContainer
-import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.tasks.TaskCollection
-import org.gradle.internal.reflect.Instantiator
 import org.gradle.tooling.provider.model.ToolingModelBuilderRegistry
 import java.util.*
 import javax.inject.Inject
@@ -35,11 +29,24 @@ import javax.inject.Inject
  *      konan.version    - a konan compiler version for downloading.
  */
 
+internal fun Project.hasProperty(property: KonanPlugin.ProjectProperty) = hasProperty(property.propertyName)
+internal fun Project.findProperty(property: KonanPlugin.ProjectProperty) = findProperty(property.propertyName)
+
+internal fun Project.getProperty(property: KonanPlugin.ProjectProperty) = findProperty(property)
+        ?: throw IllegalArgumentException("No such property in the project: ${property.propertyName}")
+
+internal fun Project.getProperty(property: KonanPlugin.ProjectProperty, defaultValue: Any?) =
+        findProperty(property) ?: defaultValue
+
+internal fun Project.setProperty(property: KonanPlugin.ProjectProperty, value: Any?) {
+    extensions.extraProperties.set(property.propertyName, value)
+}
+
 // konanHome extension is set by downloadKonanCompiler task.
 internal val Project.konanHome: String
     get() {
-        assert(extensions.extraProperties.has(KonanPlugin.KONAN_HOME_PROPERTY_NAME))
-        return extensions.extraProperties.get(KonanPlugin.KONAN_HOME_PROPERTY_NAME).toString()
+        assert(hasProperty(KonanPlugin.ProjectProperty.KONAN_HOME))
+        return getProperty(KonanPlugin.ProjectProperty.KONAN_HOME).toString()
     }
 
 internal val Project.konanBuildRoot               get() = "${buildDir.canonicalPath}/konan"
@@ -52,18 +59,21 @@ internal val Project.konanDefaultSrcDir           get() = file("${projectDir.can
 internal fun Project.konanDefaultDefFile(interopName: String)
         = file("${projectDir.canonicalPath}/src/main/c_interop/$interopName.def")
 
-internal val Project.konanArtifactsContainer: KonanArtifactsContainer
-    get() = extensions.getByName(KonanPlugin.COMPILER_EXTENSION_NAME) as KonanArtifactsContainer
-internal val Project.konanInteropContainer: KonanInteropContainer
-    get() = extensions.getByName(KonanPlugin.INTEROP_EXTENSION_NAME) as KonanInteropContainer
+@Suppress("UNCHECKED_CAST")
+internal val Project.konanArtifactsContainer: NamedDomainObjectContainer<KonanCompileConfig>
+    get() = extensions.getByName(KonanPlugin.ARTIFACTS_CONTAINER_NAME) as NamedDomainObjectContainer<KonanCompileConfig>
+
+@Suppress("UNCHECKED_CAST")
+internal val Project.konanInteropContainer: NamedDomainObjectContainer<KonanInteropConfig>
+    get() = extensions.getByName(KonanPlugin.INTEROP_CONTAINER_NAME) as  NamedDomainObjectContainer<KonanInteropConfig>
 
 internal val Project.konanCompilerDownloadTask  get() = tasks.getByName(KonanPlugin.KONAN_DOWNLOAD_TASK_NAME)
 
 internal val Project.konanVersion
-    get() = findProperty(KonanPlugin.KONAN_VERSION_PROPERTY_NAME) as String? ?: KonanPlugin.DEFAULT_KONAN_VERSION
+    get() = getProperty(KonanPlugin.ProjectProperty.KONAN_VERSION, KonanPlugin.DEFAULT_KONAN_VERSION) as String
 
 internal fun Project.targetIsRequested(target: String?): Boolean {
-    val targets = extensions.extraProperties.get(KonanPlugin.KONAN_BUILD_TARGETS).toString().trim().split(' ')
+    val targets = getProperty(KonanPlugin.ProjectProperty.KONAN_BUILD_TARGETS).toString().trim().split(' ')
 
     return (targets.contains(target) || 
             targets.contains("all") ||
@@ -89,28 +99,12 @@ internal fun Project.konanCompilerName(): String =
 internal fun Project.konanCompilerDownloadDir(): String =
         KonanCompilerDownloadTask.KONAN_PARENT_DIR + "/" + project.konanCompilerName()
 
-class KonanArtifactsContainer(val project: ProjectInternal): AbstractNamedDomainObjectContainer<KonanCompileConfig>(
-        KonanCompileConfig::class.java,
-        project.gradle.services.get(Instantiator::class.java)) {
-
-    override fun doCreate(name: String): KonanCompileConfig =
-            KonanCompileConfig(name, project).apply {
-                project.konanDefaultSrcDir?.takeIf { it.exists() }?.let {
-                    inputDir(it.canonicalPath)
-                }
-            }
+internal class KonanCompileConfigFactory(val project: Project): NamedDomainObjectFactory<KonanCompileConfig> {
+    override fun create(name: String): KonanCompileConfig = KonanCompileConfig(name, project)
 }
 
-class KonanInteropContainer(val project: ProjectInternal): AbstractNamedDomainObjectContainer<KonanInteropConfig>(
-        KonanInteropConfig::class.java,
-        project.gradle.services.get(Instantiator::class.java)) {
-
-    override fun doCreate(name: String): KonanInteropConfig =
-            KonanInteropConfig(name, project).apply {
-                project.konanDefaultDefFile(name).takeIf { it.exists() }?.let {
-                    defFile(it.canonicalFile)
-                }
-            }
+internal class KonanInteropConfigFactory(val project: Project): NamedDomainObjectFactory<KonanInteropConfig> {
+    override fun create(name: String): KonanInteropConfig = KonanInteropConfig(name, project)
 }
 
 // Useful extensions and functions ---------------------------------------
@@ -192,34 +186,53 @@ internal fun dumpProperties(task: Task) {
     }
 }
 
+internal fun setDefaultInputs(project: Project) {
+    project.konanArtifactsContainer.asSequence()
+            .filter { it.compilationTask.inputFiles.isEmpty() }
+            .forEach { config ->
+                project.konanDefaultSrcDir?.takeIf { it.exists() }?.let {
+                    config.inputDir(it.canonicalPath)
+                }
+            }
+
+    project.konanInteropContainer.asSequence()
+            .filter { it.generateStubsTask.defFile == null }
+            .forEach { config ->
+                project.konanDefaultDefFile(config.name).takeIf { it.exists() }?.let {
+                    config.defFile(it)
+                }
+            }
+}
+
 class KonanPlugin @Inject constructor(private val registry: ToolingModelBuilderRegistry)
-    : Plugin<ProjectInternal> {
+    : Plugin<Project> {
+
+    enum class ProjectProperty(val propertyName: String) {
+        KONAN_HOME          ("konan.home"),
+        KONAN_VERSION       ("konan.version"),
+        KONAN_BUILD_TARGETS ("konan.build.targets"),
+        DOWNLOAD_COMPILER   ("download.compiler")
+    }
 
     companion object {
-        internal const val COMPILER_EXTENSION_NAME = "konanArtifacts"
-        internal const val INTEROP_EXTENSION_NAME = "konanInterop"
+        internal const val ARTIFACTS_CONTAINER_NAME = "konanArtifacts"
+        internal const val INTEROP_CONTAINER_NAME   = "konanInterop"
         internal const val KONAN_DOWNLOAD_TASK_NAME = "downloadKonanCompiler"
-
-        internal const val KONAN_HOME_PROPERTY_NAME = "konan.home"
-        internal const val KONAN_VERSION_PROPERTY_NAME = "konan.version"
-        internal const val KONAN_BUILD_TARGETS = "konan.build.targets"
 
         internal val DEFAULT_KONAN_VERSION = Properties().apply {
             load(KonanPlugin::class.java.getResourceAsStream("/META-INF/gradle-plugins/konan.properties") ?:
                 throw RuntimeException("Cannot find a properties file"))
         }.getProperty("default-konan-version") ?: throw RuntimeException("Cannot read the default compiler version")
-
-        internal const val DOWNLOAD_COMPILER_PROPERTY_NAME = "DownloadCompiler"
     }
 
     /**
      * Looks for task with given name in the given project.
      * If such task isn't found, will create it. Returns created/found task.
      */
-    private fun ProjectInternal.getTask(name: String): Task = getTasksByName(name, false).single()
+    private fun Project.getTask(name: String): Task = getTasksByName(name, false).single()
 
-    private fun ProjectInternal.getOrCreateTask(name: String): Task {
-        var tasks = getTasksByName(name, false)
+    private fun Project.getOrCreateTask(name: String): Task {
+        val tasks = getTasksByName(name, false)
         assert(tasks.size <= 1)
         return if (tasks.isEmpty()) {
             this.tasks.create(name, DefaultTask::class.java)
@@ -229,20 +242,27 @@ class KonanPlugin @Inject constructor(private val registry: ToolingModelBuilderR
     }
 
     // TODO: Create default config? what about test sources?
-    override fun apply(project: ProjectInternal?) {
+    override fun apply(project: Project?) {
         if (project == null) { return }
         registry.register(KonanToolingModelBuilder)
         project.plugins.apply("base")
+        // Create necessary tasks and extensions.
         project.tasks.create(KONAN_DOWNLOAD_TASK_NAME, KonanCompilerDownloadTask::class.java)
-        project.extensions.add(COMPILER_EXTENSION_NAME, KonanArtifactsContainer(project))
-        project.extensions.add(INTEROP_EXTENSION_NAME, KonanInteropContainer(project))
-        if (!project.extensions.extraProperties.has(KonanPlugin.KONAN_HOME_PROPERTY_NAME)) {
-            project.extensions.extraProperties.set(KonanPlugin.KONAN_HOME_PROPERTY_NAME, project.konanCompilerDownloadDir())
-            project.extensions.extraProperties.set(DOWNLOAD_COMPILER_PROPERTY_NAME, true)
+        project.extensions.add(ARTIFACTS_CONTAINER_NAME,
+                project.container(KonanCompileConfig::class.java, KonanCompileConfigFactory(project)))
+        project.extensions.add(INTEROP_CONTAINER_NAME,
+                project.container(KonanInteropConfig::class.java, KonanInteropConfigFactory(project)))
+
+        // Set additional project properties like konan.home, konan.build.targets etc.
+        if (!project.hasProperty(ProjectProperty.KONAN_HOME)) {
+            project.setProperty(ProjectProperty.KONAN_HOME, project.konanCompilerDownloadDir())
+            project.setProperty(ProjectProperty.DOWNLOAD_COMPILER, true)
         }
-        if (!project.extensions.extraProperties.has(KonanPlugin.KONAN_BUILD_TARGETS)) {
-            project.extensions.extraProperties.set(KonanPlugin.KONAN_BUILD_TARGETS, project.host)
+        if (!project.hasProperty(ProjectProperty.KONAN_BUILD_TARGETS)) {
+            project.setProperty(ProjectProperty.KONAN_BUILD_TARGETS, project.host)
         }
+
+        // Create and set up aggregate building tasks.
         val compileKonanTask = project.getOrCreateTask("compileKonan").apply {
             dependsOn(project.supportedCompileTasks)
         }
@@ -250,6 +270,10 @@ class KonanPlugin @Inject constructor(private val registry: ToolingModelBuilderR
             dependsOn(compileKonanTask)
         }
 
+        // Add default source paths after project evaluation.
+        project.afterEvaluate(::setDefaultInputs)
+
+        // Create task to run supported executables.
         project.getOrCreateTask("run").apply {
             dependsOn(project.getTask("build"))
             doLast {

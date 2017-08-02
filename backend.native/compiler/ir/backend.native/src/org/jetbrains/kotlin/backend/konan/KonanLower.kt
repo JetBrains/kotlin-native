@@ -40,6 +40,10 @@ internal class KonanLower(val context: Context) {
     fun lowerModule(irModule: IrModuleFragment) {
         val phaser = PhaseManager(context)
 
+        phaser.phase(KonanPhase.LOWER_SPECIAL_CALLS) {
+            irModule.files.forEach(SpecialCallsLowering(context)::lower)
+        }
+
         phaser.phase(KonanPhase.LOWER_INLINE_CONSTRUCTORS) {
             InlineConstructorsTransformation(context).lower(irModule)
         }
@@ -65,6 +69,9 @@ internal class KonanLower(val context: Context) {
         }
         phaser.phase(KonanPhase.LOWER_DATA_CLASSES) {
             DataClassOperatorsLowering(context).runOnFilePostfix(irFile)
+        }
+        phaser.phase(KonanPhase.LOWER_FOR_LOOPS) {
+            ForLoopsLowering(context).lower(irFile)
         }
         phaser.phase(KonanPhase.LOWER_ENUMS) {
             EnumClassLowering(context).run(irFile)

@@ -16,10 +16,9 @@
 
 package org.jetbrains.kotlin.gradle.plugin
 
-import org.gradle.api.DefaultTask
 import org.gradle.api.Named
+import org.gradle.api.Project
 import org.gradle.api.file.FileCollection
-import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.tasks.*
 import java.io.File
 
@@ -74,31 +73,32 @@ open class KonanCompileTask: KonanTargetableTask() {
     }
 
     val COMPILER_JVM_ARGS: List<String>
-        get() = listOf("-Dkonan.home=${project.konanHome}", "-Djava.library.path=${project.konanHome}/konan/nativelib")
+        @Internal get() = listOf("-Dkonan.home=${project.konanHome}", "-Djava.library.path=${project.konanHome}/konan/nativelib")
     val COMPILER_CLASSPATH: String
-        get() = "${project.konanHome}/konan/lib/"
+        @Internal get() = "${project.konanHome}/konan/lib/"
 
     // Output artifact --------------------------------------------------------
 
     internal lateinit var artifactName: String
+        @Internal get
 
-    lateinit var outputDir: File
+    @Internal lateinit var outputDir: File
         internal set
 
     internal fun init(artifactName: String) {
         dependsOn(project.konanCompilerDownloadTask)
         this.artifactName = artifactName
-        outputDir = project.file("${project.konanCompilerOutputDir}")
+        outputDir = project.file(project.konanCompilerOutputDir)
     }
 
     val artifactNamePath: String
-        get() = "${outputDir.absolutePath}/$artifactName"
+        @Internal get() = "${outputDir.absolutePath}/$artifactName"
 
     val artifactSuffix: String
-        get() = produceSuffix(produce)
+        @Internal get() = produceSuffix(produce)
 
     val artifactPath: String
-        get() = "$artifactNamePath$artifactSuffix"
+        @Internal get() = "$artifactNamePath$artifactSuffix"
 
     val artifact: File
         @OutputFile get() = project.file(artifactPath)
@@ -131,7 +131,8 @@ open class KonanCompileTask: KonanTargetableTask() {
         internal set
     @Optional @Input var apiVersion      : String? = null
         internal set
-    @Input var manifest              : String? = null
+
+    @Optional @InputFile var manifest    : File? = null
         internal set
 
     @Input var dumpParameters: Boolean = false
@@ -152,7 +153,7 @@ open class KonanCompileTask: KonanTargetableTask() {
         addArgIfNotNull("-target", target)
         addArgIfNotNull("-language-version", languageVersion)
         addArgIfNotNull("-api-version", apiVersion)
-        addArgIfNotNull("-manifest", manifest)
+        addArgIfNotNull("-manifest", manifest?.canonicalPath)
 
         addKey("-g", enableDebug)
         addKey("-nostdlib", noStdLib)
@@ -186,7 +187,7 @@ open class KonanCompileTask: KonanTargetableTask() {
 // TODO: Use +=/-= syntax for libraries and inputFiles
 open class KonanCompileConfig(
         val configName: String,
-        val project: ProjectInternal,
+        val project: Project,
         taskNamePrefix: String = "compileKonan"): Named {
 
     override fun getName() = configName
@@ -287,8 +288,8 @@ open class KonanCompileConfig(
         linkerOpts.addAll(args)
     }
 
-    fun manifest(arg: String) = with(compilationTask) {
-        manifest = arg
+    fun manifest(arg: Any) = with(compilationTask) {
+        manifest = project.file(arg)
     }
 
     fun target(tgt: String) = with(compilationTask) {

@@ -16,10 +16,9 @@
 
 package org.jetbrains.kotlin.gradle.plugin
 
-import org.gradle.api.DefaultTask
 import org.gradle.api.Named
+import org.gradle.api.Project
 import org.gradle.api.file.FileCollection
-import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.tasks.*
 import java.io.File
 
@@ -55,9 +54,9 @@ open class KonanInteropTask: KonanTargetableTask() {
     }
 
     internal val INTEROP_JVM_ARGS: List<String>
-        get() = listOf("-Dkonan.home=${project.konanHome}", "-Djava.library.path=${project.konanHome}/konan/nativelib")
+        @Internal get() = listOf("-Dkonan.home=${project.konanHome}", "-Djava.library.path=${project.konanHome}/konan/nativelib")
     internal val INTEROP_CLASSPATH: String
-        get() = "${project.konanHome}/konan/lib/"
+        @Internal get() = "${project.konanHome}/konan/lib/"
 
     // Output directories -----------------------------------------------------
 
@@ -145,7 +144,7 @@ open class KonanInteropTask: KonanTargetableTask() {
 
 open class KonanInteropConfig(
         val configName: String,
-        val project: ProjectInternal
+        val project: Project
 ): Named {
 
     override fun getName() = configName

@@ -307,6 +307,61 @@ task sum_3const(type: RunKonanTest) {
     source = "codegen/function/sum_3const.kt"
 }
 
+task codegen_controlflow_for_loops(type: RunKonanTest) {
+    source = "codegen/controlflow/for_loops.kt"
+    goldValue = "01234\n0123\n43210\n\n024\n02\n420\n\n036\n03\n630\n\n024\n02\n420\n\n"
+}
+
+task codegen_controlflow_for_loops_types(type: RunKonanTest) {
+    source = "codegen/controlflow/for_loops_types.kt"
+    goldValue = "01234\n01234\n01234\n01234\n01234\n01234\n01234\n01234\n01234\n01234\n01234\n01234\n01234\n01234\n" +
+            "01234\n01234\n0123\n0123\n0123\n0123\n0123\n0123\n0123\n0123\n0123\n0123\n0123\n0123\n0123\n0123\n0123\n" +
+            "0123\n43210\n43210\n43210\n43210\n43210\n43210\n43210\n43210\n43210\n43210\n43210\n43210\n43210\n43210\n" +
+            "43210\n43210\nabcd\nabc\ndcba\n024\n024\n024\n024\n024\n024\n024\n024\n024\n024\n024\n024\n024\n024\n" +
+            "024\n024\n02\n02\n02\n02\n02\n02\n02\n02\n02\n02\n02\n02\n02\n02\n02\n02\n420\n420\n420\n420\n420\n420\n" +
+            "420\n420\n420\n420\n420\n420\n420\n420\n420\n420\nac\nac\ndb\n"
+}
+
+task codegen_controlflow_for_loops_overflow(type: RunKonanTest) {
+    source = "codegen/controlflow/for_loops_overflow.kt"
+    goldValue = "2147483646 2147483647 \n2147483646 \n-2147483647 -2147483648 \n1073741827 \n"
+}
+
+task codegen_controlflow_for_loops_errors(type: RunKonanTest) {
+    source = "codegen/controlflow/for_loops_errors.kt"
+    goldValue = "OK\n"
+}
+
+task codegen_controlflow_for_loops_empty_range(type: RunKonanTest) {
+    source = "codegen/controlflow/for_loops_empty_range.kt"
+    goldValue = "OK\n"
+}
+
+task codegen_controlflow_for_loops_nested(type: RunKonanTest) {
+    source = "codegen/controlflow/for_loops_nested.kt"
+    goldValue = "00 01 02 10 11 12 20 21 22 \n" +
+            "00 01 10 11 20 21 \n" +
+            "00 01 10 11 20 21 \n" +
+            "00 01 \n" +
+            "00 02 10 12 20 22 \n" +
+            "00 02 10 12 20 22 \n" +
+            "00 10 20 \n"
+}
+
+task codegen_controlflow_for_loops_coroutines(type: RunKonanTest) {
+    source = "codegen/controlflow/for_loops_coroutines.kt"
+    goldValue = "before: 0 after: 0\n" +
+            "before: 2 after: 2\n" +
+            "before: 4 after: 4\n" +
+            "before: 6 after: 6\n" +
+            "Got: 0 2 4 6\n"
+}
+
+task codegen_controlflow_for_loops_call_order(type: RunKonanTest) {
+    source = "codegen/controlflow/for_loops_call_order.kt"
+    goldValue = "1234\n1234\n2134\n"
+}
+
 task local_variable(type: RunKonanTest) {
     source = "codegen/basics/local_variable.kt"
 }
@@ -1461,9 +1516,24 @@ task main_exception(type: RunKonanTest) {
     source = "runtime/basic/main_exception.kt"
 }
 
-task failed_assert(type: RunKonanTest) {
+task runtime_basic_standard(type: RunKonanTest) {
+    source = "runtime/basic/standard.kt"
+}
+
+task runtime_basic_assert_failed(type: RunKonanTest) {
     expectedExitStatus = 1
-    source = "runtime/basic/failed_assert.kt"
+    source = "runtime/basic/assert_failed.kt"
+}
+
+task runtime_basic_assert_passed(type: RunKonanTest) {
+    expectedExitStatus = 0
+    source = "runtime/basic/assert_passed.kt"
+}
+
+task runtime_basic_assert_disabled(type: RunKonanTest) {
+    expectedExitStatus = 0
+    enableKonanAssertions = false
+    source = "runtime/basic/assert_failed.kt"
 }
 
 task initializers0(type: RunKonanTest) {
