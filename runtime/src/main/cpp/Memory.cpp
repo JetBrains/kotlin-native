@@ -36,6 +36,8 @@
 #define TRACE_MEMORY 0
 // Trace garbage collection phases.
 #define TRACE_GC_PHASES 0
+// Use reference counter update batching.
+#define BATCH_ARC 1
 
 ContainerHeader ObjHeader::theStaticObjectsContainer = {
   CONTAINER_TAG_PERMANENT | CONTAINER_TAG_INCREMENT
@@ -48,19 +50,31 @@ constexpr container_size_t kContainerAlignment = 1024;
 // Single object alignment.
 constexpr container_size_t kObjectAlignment = 8;
 
-}  // namespace
-
 #if USE_GC
 // Collection threshold default (collect after having so many elements in the
 // release candidates set). Better be a prime number.
 constexpr size_t kGcThreshold = 9341;
 #endif
 
+#if BATCH_ARC
+constexpr int kBatchSize = 16384;
+#endif
+
+}  // namespace
+
 #if TRACE_MEMORY || USE_GC
 typedef KStdUnorderedSet<ContainerHeader*> ContainerHeaderSet;
 typedef KStdVector<ContainerHeader*> ContainerHeaderList;
 typedef KStdVector<KRef*> KRefPtrList;
 #endif
+
+struct FrameOverlay {
+  ArenaContainer* arena;
+#if BATCH_ARC
+  FrameOverlay* previousFrame;
+  intptr_t slotCount; // So that we fit exactly into one slot.
+#endif
+};
 
 struct MemoryState {
   // Current number of allocated containers.
@@ -89,12 +103,23 @@ struct MemoryState {
   uint32_t cacheSize;
 #endif
 #endif
+
+#if BATCH_ARC
+  KRef incBatch[kBatchSize];
+  int incBatchIndex;
+  KRef decBatch[kBatchSize];
+  int decBatchIndex;
+
+  FrameOverlay* topmostFrame;
+#endif
 };
 
 namespace {
 
 // TODO: can we pass this variable as an explicit argument?
 THREAD_LOCAL_VARIABLE MemoryState* memoryState = nullptr;
+
+constexpr int kFrameOverlaySlots = sizeof(FrameOverlay) / sizeof(ObjHeader**);
 
 inline bool isFreeable(const ContainerHeader* header) {
   return (header->refCount_ & CONTAINER_TAG_MASK) < CONTAINER_TAG_PERMANENT;
@@ -126,6 +151,15 @@ inline bool isArenaSlot(ObjHeader** slot) {
 inline ObjHeader** asArenaSlot(ObjHeader** slot) {
   return reinterpret_cast<ObjHeader**>(
       reinterpret_cast<uintptr_t>(slot) & ~ARENA_BIT);
+}
+
+inline FrameOverlay* asFrameOverlay(ObjHeader** slot) {
+  return reinterpret_cast<FrameOverlay*>(slot);
+}
+
+inline bool isRefCounted(KConstRef object) {
+  return (object->container()->refCount_ & CONTAINER_TAG_MASK) ==
+      CONTAINER_TAG_NORMAL;
 }
 
 #if USE_GC
@@ -337,6 +371,90 @@ inline ArenaContainer* initedArena(ObjHeader** auxSlot) {
   return arena;
 }
 
+#if BATCH_ARC
+
+// We do the following on GC (when batch buffer is full):
+// (1) scan the stack of each thread and increment the reference count for each
+// pointer variable in the stack;
+// (2) perform the increments deferred in the Inc buffer;
+// (3) perform the decrements deferred in the Dec buffer, recursively freeing
+// any objects whose RC drops to 0;
+// (4) clear the Inc and Dec buffers;
+// (5) scan the stack of each thread again and place each pointer variable
+// into the Dec buffer.
+// On reference update we just add old value to decBatch and new value to addBatch.
+//
+// See http://researcher.watson.ibm.com/researcher/files/us-bacon/Bacon03Pure.pdf.
+void replayBatchedReferences(MemoryState* state) {
+  if (state->gcInProgress) return;
+
+  // Suspend GC, to avoid infinite recursion and performance implications.
+  Kotlin_konan_internal_GC_suspend(nullptr);
+
+  // Step (1).
+  auto currentFrame = state->topmostFrame;
+
+  while (currentFrame != nullptr) {
+    auto slots = reinterpret_cast<ObjHeader**>(currentFrame);
+    auto slot = kFrameOverlaySlots;
+    auto numSlots = currentFrame->slotCount;
+    while (slot < numSlots) {
+      auto object = slots[slot++];
+      if (object == nullptr) continue;
+      auto container = object->container();
+      if (isRefCounted(object))
+        container->refCount_ += CONTAINER_TAG_INCREMENT;
+    }
+    currentFrame = currentFrame->previousFrame;
+  }
+
+  // Step (2).
+  int index = 0;
+  while (index < state->incBatchIndex) {
+    state->incBatch[index++]->container()->refCount_ += CONTAINER_TAG_INCREMENT;
+  }
+
+  // Step (3), part 1, just decrement.
+  index = 0;
+  while (index < state->decBatchIndex) {
+    state->decBatch[index++]->container()->refCount_ -= CONTAINER_TAG_INCREMENT;
+  }
+  // Step (3), part 2, check if result of decrement shall result in object freeing.
+  index = 0;
+  while (index < state->decBatchIndex) {
+    auto container = state->decBatch[index++]->container();
+    if (container->refCount_ == CONTAINER_TAG_NORMAL) {
+      FreeContainer(container);
+    } else {
+      addFreeable(state, container);
+    }
+  }
+
+  // Step (4).
+  state->incBatchIndex = 0;
+  state->decBatchIndex = 0;
+
+  // Step (5).
+  currentFrame = state->topmostFrame;
+  while (currentFrame != nullptr) {
+    auto slots = reinterpret_cast<ObjHeader**>(currentFrame);
+    auto slot = kFrameOverlaySlots;
+    auto numSlots = currentFrame->slotCount;
+    while (slot < numSlots) {
+      auto object = slots[slot++];
+      if (object == nullptr) continue;
+      if (isRefCounted(object))
+        state->decBatch[state->decBatchIndex++] = object;
+    }
+    currentFrame = currentFrame->previousFrame;
+  }
+
+  // Resume GC.
+  Kotlin_konan_internal_GC_resume(nullptr);
+}
+#endif
+
+
 }  // namespace
 
 ContainerHeader* AllocContainer(size_t size) {
@@ -345,7 +463,6 @@ ContainerHeader* AllocContainer(size_t size) {
   fprintf(stderr, ">>> alloc %d -> %p\n", static_cast<int>(size), result);
   memoryState->containers->insert(result);
 #endif
-  // TODO: atomic increment in concurrent case.
   memoryState->allocCount++;
   return result;
 }
@@ -720,7 +837,15 @@ void SetRef(ObjHeader** location, const ObjHeader* object) {
 #endif
   *const_cast<const ObjHeader**>(location) = object;
   if (object != nullptr) {
+#if BATCH_ARC
+    auto state = memoryState;
+    if (state->incBatchIndex >= kBatchSize) {
+      replayBatchedReferences(state);
+    }
+    state->incBatch[state->incBatchIndex++] = const_cast<ObjHeader*>(object);
+#else
     AddRef(object);
+#endif
   }
 }
 
@@ -739,27 +864,12 @@ ObjHeader** GetParamSlotIfArena(ObjHeader* param, ObjHeader** localSlot) {
 
 void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* object) {
   if (isArenaSlot(returnSlot)) {
-    if (object == nullptr
-        || (object->container()->refCount_ & CONTAINER_TAG_MASK) > CONTAINER_TAG_NORMAL) {
-        // Not a subject of reference counting.
-        return;
-    }
+    // Not a subject of reference counting.
+    if (object == nullptr || !isRefCounted(object)) return;
     auto arena = initedArena(asArenaSlot(returnSlot));
     returnSlot = arena->getSlot();
   }
-  ObjHeader* old = *returnSlot;
-#if TRACE_MEMORY
-  fprintf(stderr, "UpdateReturnRef *%p: %p -> %p\n", returnSlot, old, object);
-#endif
-  if (old != object) {
-    if (object != nullptr) {
-      AddRef(object);
-    }
-    *const_cast<const ObjHeader**>(returnSlot) = object;
-    if (old > reinterpret_cast<ObjHeader*>(1)) {
-      ReleaseRef(old);
-    }
-  }
+  UpdateRef(returnSlot, object);
 }
 
 void UpdateRef(ObjHeader** location, const ObjHeader* object) {
@@ -769,6 +879,16 @@ void UpdateRef(ObjHeader** location, const ObjHeader* object) {
   fprintf(stderr, "UpdateRef *%p: %p -> %p\n", location, old, object);
 #endif
   if (old != object) {
+#if BATCH_ARC
+    auto state = memoryState;
+    *const_cast<const ObjHeader**>(location) = object;
+    if (state->incBatchIndex >= kBatchSize || state->decBatchIndex >= kBatchSize)
+      replayBatchedReferences(state);
+    if (object != nullptr && isRefCounted(object))
+      state->incBatch[state->incBatchIndex++] = const_cast<ObjHeader*>(object);
+    if (old != nullptr && isRefCounted(old))
+      state->decBatch[state->decBatchIndex++] = old;
+#else
     if (object != nullptr) {
       AddRef(object);
     }
@@ -776,14 +896,36 @@ void UpdateRef(ObjHeader** location, const ObjHeader* object) {
     if (old > reinterpret_cast<ObjHeader*>(1)) {
       ReleaseRef(old);
     }
+#endif
   }
+}
+
+void EnterFrame(ObjHeader** start, int count) {
+#if TRACE_MEMORY
+  fprintf(stderr, "EnterFrame %p .. %p\n", start, start + count);
+#endif
+#if BATCH_ARC
+  // Move topmost frame down.
+  auto frameOverlay = asFrameOverlay(start);
+  frameOverlay->previousFrame = memoryState->topmostFrame;
+  frameOverlay->slotCount = count;
+  memoryState->topmostFrame = frameOverlay;
+#endif
 }
 
 void LeaveFrame(ObjHeader** start, int count) {
 #if TRACE_MEMORY
-    fprintf(stderr, "LeaveFrame %p .. %p\n", start, start + count);
+  fprintf(stderr, "LeaveFrame %p .. %p\n", start, start + count);
 #endif
-  ReleaseRefs(start + 1, count - 1);
+#if BATCH_ARC
+  auto state = memoryState;
+  auto frame = asFrameOverlay(start);
+  RuntimeAssert(state->topmostFrame == frame, "Topmost frame must match");
+  // Move topmost frame up.
+  state->topmostFrame = frame->previousFrame;
+#else
+  ReleaseRefs(start + kFrameOverlaySlots, count - kFrameOverlaySlots);
+#endif
   if (*start != nullptr) {
     auto arena = initedArena(start);
 #if TRACE_MEMORY
@@ -816,10 +958,15 @@ void GarbageCollect() {
   RuntimeAssert(state->toFree != nullptr, "GC must not be stopped");
   RuntimeAssert(!state->gcInProgress, "Recursive GC is disallowed");
 
+  state->gcInProgress = true;
+
+#if BATCH_ARC
+  replayBatchedReferences(state);
+#endif
+
   // Flush cache.
   flushFreeableCache(state);
 
-  state->gcInProgress = true;
   // Traverse inner pointers in the closure of release candidates, and
   // temporary decrement refs on them. Set CONTAINER_TAG_SEEN while traversing.
 #if TRACE_GC_PHASES
