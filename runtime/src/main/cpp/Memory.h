@@ -53,6 +53,7 @@ struct ContainerHeader {
   volatile uint32_t refCount_;
   // Number of objects in the container.
   uint32_t objectCount_;
+  ContainerHeader* next;
 };
 
 struct ArrayHeader;
@@ -129,48 +130,6 @@ inline uint32_t ArrayDataSizeBytes(const ArrayHeader* obj) {
   // Instance size is negative.
   return -obj->type_info()->instanceSize_ * obj->count_;
 }
-
-//// TODO: those two operations can be implemented by translator when storing
-//// reference to an object.
-//inline void AddRef(ContainerHeader* header) {
-//  // Looking at container type we may want to skip AddRef() totally
-//  // (non-escaping stack objects, constant objects).
-//  switch (header->refCount_ & CONTAINER_TAG_MASK) {
-//    case CONTAINER_TAG_STACK:
-//    case CONTAINER_TAG_PERMANENT:
-//      break;
-//    case CONTAINER_TAG_NORMAL:
-//      header->refCount_ += CONTAINER_TAG_INCREMENT;
-//      break;
-//    default:
-//      RuntimeAssert(false, "unknown container type");
-//      break;
-//  }
-//}
-//
-//void FreeContainer(ContainerHeader* header);
-//
-//// Release() returns 'true' iff container cannot be part of cycle (either NOCOUNT
-//// object or container was fully released and will be collected).
-//inline bool Release(ContainerHeader* header) {
-//  switch (header->refCount_ & CONTAINER_TAG_MASK) {
-//      case CONTAINER_TAG_PERMANENT:
-//      case CONTAINER_TAG_STACK:
-//        // permanent/stack containers aren't loop candidates.
-//        return true;
-//    case CONTAINER_TAG_NORMAL:
-//      if ((header->refCount_ -= CONTAINER_TAG_INCREMENT) == CONTAINER_TAG_NORMAL) {
-//        FreeContainer(header);
-//        return true;
-//      }
-//      break;
-//    default:
-//      RuntimeAssert(false, "unknown container type");
-//      break;
-//  }
-//  // Object with non-zero counter after release are loop candidates.
-//  return false;
-//}
 
 // Class representing arbitrary placement container.
 class Container {
