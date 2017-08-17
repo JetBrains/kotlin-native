@@ -105,9 +105,9 @@ struct MemoryState {
 #endif
 
 #if BATCH_ARC
-  KRef incBatch[kBatchSize];
+  ContainerHeader* incBatch[kBatchSize];
   int incBatchIndex;
-  KRef decBatch[kBatchSize];
+  ContainerHeader* decBatch[kBatchSize];
   int decBatchIndex;
 
   FrameOverlay* topmostFrame;
@@ -127,6 +127,10 @@ inline bool isFreeable(const ContainerHeader* header) {
 
 inline bool isPermanent(const ContainerHeader* header) {
   return (header->refCount_ & CONTAINER_TAG_MASK) == CONTAINER_TAG_PERMANENT;
+}
+
+inline bool isArena(const ContainerHeader* header) {
+  return (header->refCount_ & CONTAINER_TAG_MASK) == CONTAINER_TAG_STACK;
 }
 
 inline container_size_t alignUp(container_size_t size, int alignment) {
@@ -177,7 +181,10 @@ inline uint32_t freeableSize(MemoryState* state) {
 #endif
 }
 
-inline void addFreeable(MemoryState* state, ContainerHeader* container) {
+inline void addFreeable(MemoryState* state, ContainerHeader* container, bool checkForGC) {
+#if TRACE_MEMORY
+  fprintf(stderr, "addFreeable %p\n", container);
+#endif
   if (memoryState->toFree == nullptr || !isFreeable(container))
     return;
 #if OPTIMIZE_GC
@@ -200,13 +207,16 @@ inline void addFreeable(MemoryState* state, ContainerHeader* container) {
 #else
   state->toFree->insert(container);
 #endif
-  if (state->gcSuspendCount == 0 &&
+  if (checkForGC && state->gcSuspendCount == 0 &&
       freeableSize(memoryState) > state->gcThreshold) {
     GarbageCollect();
   }
 }
 
 inline void removeFreeable(MemoryState* state, ContainerHeader* container) {
+#if TRACE_MEMORY
+  fprintf(stderr, "removeFreeable %p\n", container);
+#endif
   if (state->toFree == nullptr || !isFreeable(container))
     return;
 #if OPTIMIZE_GC
@@ -260,6 +270,7 @@ ContainerHeaderList collectMutableReferred(ContainerHeader* header) {
       ObjHeader** location = reinterpret_cast<ObjHeader**>(
           reinterpret_cast<uintptr_t>(obj + 1) + typeInfo->objOffsets_[index]);
       ObjHeader* ref = *location;
+      RuntimeAssert(ref == nullptr || !isArena(ref->container()), "A reference to local object is encountered");
       if (ref != nullptr && !isPermanent(ref->container())) {
         result.push_back(ref->container());
       }
@@ -268,6 +279,7 @@ ContainerHeaderList collectMutableReferred(ContainerHeader* header) {
       ArrayHeader* array = obj->array();
       for (int index = 0; index < array->count_; index++) {
         ObjHeader* ref = *ArrayAddressOfElementAt(array, index);
+        RuntimeAssert(ref == nullptr || !isArena(ref->container()), "A reference to local object is encountered");
         if (ref != nullptr && !isPermanent(ref->container())) {
           result.push_back(ref->container());
         }
@@ -373,6 +385,8 @@ inline ArenaContainer* initedArena(ObjHeader** auxSlot) {
 
 #if BATCH_ARC
 
+void FreeContainerHard(ContainerHeader* header);
+
 // We do the following on GC (when batch buffer is full):
 // (1) scan the stack of each thread and increment the reference count for each
 // pointer variable in the stack;
@@ -385,11 +399,17 @@ inline ArenaContainer* initedArena(ObjHeader** auxSlot) {
 // On reference update we just add old value to decBatch and new value to addBatch.
 //
 // See http://researcher.watson.ibm.com/researcher/files/us-bacon/Bacon03Pure.pdf.
-void replayBatchedReferences(MemoryState* state) {
-  if (state->gcInProgress) return;
+void replayBatchedReferences(MemoryState* state, bool calledFromGC) {
+  if (calledFromGC) {
+    //if (state->gcInProgress) return;
 
-  // Suspend GC, to avoid infinite recursion and performance implications.
-  Kotlin_konan_internal_GC_suspend(nullptr);
+    // Suspend GC, to avoid infinite recursion and performance implications.
+    //Kotlin_konan_internal_GC_suspend(nullptr);
+  }
+
+#if TRACE_MEMORY
+  fprintf(stderr, "Replaying batches.. inc count: %d, dec count: %d\n", state->incBatchIndex, state->decBatchIndex);
+#endif
 
   // Step (1).
   auto currentFrame = state->topmostFrame;
@@ -411,22 +431,24 @@ void replayBatchedReferences(MemoryState* state) {
   // Step (2).
   int index = 0;
   while (index < state->incBatchIndex) {
-    state->incBatch[index++]->container()->refCount_ += CONTAINER_TAG_INCREMENT;
+    state->incBatch[index++]->refCount_ += CONTAINER_TAG_INCREMENT;
   }
 
-  // Step (3), part 1, just decrement.
+  // Step (3).
   index = 0;
   while (index < state->decBatchIndex) {
-    state->decBatch[index++]->container()->refCount_ -= CONTAINER_TAG_INCREMENT;
-  }
-  // Step (3), part 2, check if result of decrement shall result in object freeing.
-  index = 0;
-  while (index < state->decBatchIndex) {
-    auto container = state->decBatch[index++]->container();
+    auto container = state->decBatch[index++];
+    container->refCount_ -= CONTAINER_TAG_INCREMENT;
     if (container->refCount_ == CONTAINER_TAG_NORMAL) {
-      FreeContainer(container);
+#if TRACE_MEMORY
+      fprintf(stderr, "Freeing container from Batch %d\n", index);
+#endif
+      FreeContainerHard(container);
     } else {
-      addFreeable(state, container);
+#if TRACE_MEMORY
+      fprintf(stderr, "Adding freeable from Batch\n");
+#endif
+      addFreeable(state, container, false);
     }
   }
 
@@ -444,13 +466,25 @@ void replayBatchedReferences(MemoryState* state) {
       auto object = slots[slot++];
       if (object == nullptr) continue;
       if (isRefCounted(object))
-        state->decBatch[state->decBatchIndex++] = object;
+        state->decBatch[state->decBatchIndex++] = object->container();
     }
     currentFrame = currentFrame->previousFrame;
   }
 
-  // Resume GC.
-  Kotlin_konan_internal_GC_resume(nullptr);
+#if TRACE_MEMORY
+  fprintf(stderr, "Replaying done\n");
+#endif
+
+
+  if (calledFromGC) {
+    // Resume GC.
+    //Kotlin_konan_internal_GC_resume(nullptr);
+  } else {
+    if (state->gcSuspendCount == 0 &&
+          freeableSize(memoryState) > state->gcThreshold) {
+        GarbageCollect();
+      }
+  }
 }
 #endif
 
@@ -462,6 +496,13 @@ ContainerHeader* AllocContainer(size_t size) {
 #if TRACE_MEMORY
   fprintf(stderr, ">>> alloc %d -> %p\n", static_cast<int>(size), result);
   memoryState->containers->insert(result);
+#endif
+#ifdef BATCH_ARC
+  result->refCount_ += CONTAINER_TAG_INCREMENT;
+  auto state = memoryState;
+  if (state->decBatchIndex >= kBatchSize)
+    replayBatchedReferences(state, false);
+  state->decBatch[state->decBatchIndex++] = result;
 #endif
   memoryState->allocCount++;
   return result;
@@ -493,15 +534,18 @@ void DeinitInstanceBody(const TypeInfo* typeInfo, void* body) {
 }
 
 void FreeContainer(ContainerHeader* header) {
-  RuntimeAssert(!isPermanent(header), "this kind of container shalln't be freed");
+  RuntimeAssert(!isPermanent(header), "this kind of container shan't be freed");
 #if TRACE_MEMORY
   if (isFreeable(header)) {
-    fprintf(stderr, "<<< free %p\n", header);
+    fprintf(stderr, "<<< free<FreeContainer> %p\n", header);
     memoryState->containers->erase(header);
   }
 #endif
 
 #if USE_GC
+#if TRACE_MEMORY
+  fprintf(stderr, "Calling removeFreeable from FreeContainer\n");
+#endif
   removeFreeable(memoryState, header);
 #endif
   // Now let's clean all object's fields in this container.
@@ -532,12 +576,15 @@ void FreeContainer(ContainerHeader* header) {
 
 #if USE_GC
 void FreeContainerNoRef(ContainerHeader* header) {
-  RuntimeAssert(isFreeable(header), "this kind of container shalln't be freed");
+  RuntimeAssert(isFreeable(header), "this kind of container shan't be freed");
 #if TRACE_MEMORY
-  fprintf(stderr, "<<< free %p\n", header);
+  fprintf(stderr, "<<< free<FreeContainerNoRef> %p\n", header);
   memoryState->containers->erase(header);
 #endif
 #if USE_GC
+#if TRACE_MEMORY
+  fprintf(stderr, "Calling removeFreeable from FreeContainerNoRef\n");
+#endif
   removeFreeable(memoryState, header);
 #endif
   ObjHeader* obj = reinterpret_cast<ObjHeader*>(header + 1);
@@ -552,6 +599,72 @@ void FreeContainerNoRef(ContainerHeader* header) {
   memoryState->allocCount--;
   konanFreeMemory(header);
 }
+#endif
+
+
+#if BATCH_ARC
+
+void ReleaseRef(const ObjHeader* object);
+
+namespace {
+void FreeContainerHard(ContainerHeader* header) {
+  RuntimeAssert(!isPermanent(header), "this kind of container shan't be freed");
+#if TRACE_MEMORY
+  if (isFreeable(header)) {
+    fprintf(stderr, "<<< free<FreeContainerHard> %p\n", header);
+    memoryState->containers->erase(header);
+  }
+#endif
+
+#if USE_GC
+#if TRACE_MEMORY
+  fprintf(stderr, "Calling removeFreeable from FreeContainerHard\n");
+#endif
+  removeFreeable(memoryState, header);
+#endif
+  // Now let's clean all object's fields in this container.
+  ObjHeader* obj = reinterpret_cast<ObjHeader*>(header + 1);
+
+  for (int index = 0; index < header->objectCount_; index++) {
+    runDeallocationHooks(obj);
+
+    const TypeInfo* typeInfo = obj->type_info();
+
+    for (int index = 0; index < typeInfo->objOffsetsCount_; index++) {
+      ObjHeader** location = reinterpret_cast<ObjHeader**>(
+          reinterpret_cast<uintptr_t>(obj + 1) + typeInfo->objOffsets_[index]);
+      auto object = *location;
+      if (object != nullptr) {
+        ReleaseRef(object);
+        *location = nullptr;
+      }
+    }
+    // Object arrays are *special*.
+    if (typeInfo == theArrayTypeInfo) {
+      ArrayHeader* array = obj->array();
+      ObjHeader** current = ArrayAddressOfElementAt(array, 0);
+      auto count = array->count_;
+      while (count-- > 0) {
+        ObjHeader* object = *current;
+        if (object != nullptr) {
+          ReleaseRef(object);
+          *current = nullptr;
+        }
+        current++;
+      }
+    }
+    obj = reinterpret_cast<ObjHeader*>(
+      reinterpret_cast<uintptr_t>(obj) + objectSize(obj));
+  }
+
+  // And release underlying memory.
+  if (isFreeable(header)) {
+    memoryState->allocCount--;
+    konanFreeMemory(header);
+  }
+}
+}
+
 #endif
 
 void ObjectContainer::Init(const TypeInfo* type_info) {
@@ -594,9 +707,15 @@ void ArenaContainer::Init() {
 }
 
 void ArenaContainer::Deinit() {
+#if TRACE_MEMORY
+  fprintf(stderr, "Arena::Deinit start\n");
+#endif
   auto chunk = currentChunk_;
   while (chunk != nullptr) {
     // FreeContainer() doesn't release memory when CONTAINER_TAG_STACK is set.
+#if TRACE_MEMORY
+    fprintf(stderr, "Arena::Deinit free chunk\n");
+#endif
     FreeContainer(chunk->asHeader());
     chunk = chunk->next;
   }
@@ -606,7 +725,9 @@ void ArenaContainer::Deinit() {
     chunk = chunk->next;
     konanFreeMemory(toRemove);
   }
-
+#if TRACE_MEMORY
+  fprintf(stderr, "Arena::Deinit end\n");
+#endif
 }
 
 bool ArenaContainer::allocContainer(container_size_t minSize) {
@@ -701,7 +822,12 @@ inline void ReleaseRef(const ObjHeader* object) {
 #if TRACE_MEMORY
   fprintf(stderr, "%p is release candidate\n", object->container());
 #endif
-  addFreeable(memoryState, object->container());
+#if !BATCH_ARC
+#if TRACE_MEMORY
+  fprintf(stderr, "Adding freeable from ReleaseRef\n");
+#endif
+  addFreeable(memoryState, object->container(), true);
+#endif
 #else // !USE_GC
   Release(object->container());
 #endif // USE_GC
@@ -836,17 +962,15 @@ void SetRef(ObjHeader** location, const ObjHeader* object) {
   fprintf(stderr, "SetRef *%p: %p\n", location, object);
 #endif
   *const_cast<const ObjHeader**>(location) = object;
-  if (object != nullptr) {
 #if BATCH_ARC
-    auto state = memoryState;
-    if (state->incBatchIndex >= kBatchSize) {
-      replayBatchedReferences(state);
-    }
-    state->incBatch[state->incBatchIndex++] = const_cast<ObjHeader*>(object);
-#else
-    AddRef(object);
-#endif
+  auto state = memoryState;
+  if (state->incBatchIndex >= kBatchSize) {
+    replayBatchedReferences(state, false);
   }
+  state->incBatch[state->incBatchIndex++] = object->container();
+#else
+  AddRef(object);
+#endif
 }
 
 ObjHeader** GetReturnSlotIfArena(ObjHeader** returnSlot, ObjHeader** localSlot) {
@@ -883,11 +1007,11 @@ void UpdateRef(ObjHeader** location, const ObjHeader* object) {
     auto state = memoryState;
     *const_cast<const ObjHeader**>(location) = object;
     if (state->incBatchIndex >= kBatchSize || state->decBatchIndex >= kBatchSize)
-      replayBatchedReferences(state);
+      replayBatchedReferences(state, false);
     if (object != nullptr && isRefCounted(object))
-      state->incBatch[state->incBatchIndex++] = const_cast<ObjHeader*>(object);
+      state->incBatch[state->incBatchIndex++] = object->container();
     if (old != nullptr && isRefCounted(old))
-      state->decBatch[state->decBatchIndex++] = old;
+      state->decBatch[state->decBatchIndex++] = old->container();
 #else
     if (object != nullptr) {
       AddRef(object);
@@ -933,6 +1057,9 @@ void LeaveFrame(ObjHeader** start, int count) {
 #endif
     arena->Deinit();
     konanFreeMemory(arena);
+#if TRACE_MEMORY
+    fprintf(stderr, "LeaveFrame: free arena done %p\n", arena);
+#endif
   }
 }
 
@@ -941,10 +1068,19 @@ void ReleaseRefs(ObjHeader** start, int count) {
   fprintf(stderr, "ReleaseRefs %p .. %p\n", start, start + count);
 #endif
   ObjHeader** current = start;
+  auto state = memoryState;
   while (count-- > 0) {
     ObjHeader* object = *current;
     if (object != nullptr) {
+#ifdef BATCH_ARC
+      if (isRefCounted(object)) {
+        if (state->decBatchIndex >= kBatchSize)
+          replayBatchedReferences(state, false);
+        state->decBatch[state->decBatchIndex++] = object->container();
+      }
+#else
       ReleaseRef(object);
+#endif
       // Just for sanity, optional.
       *current = nullptr;
     }
@@ -958,11 +1094,15 @@ void GarbageCollect() {
   RuntimeAssert(state->toFree != nullptr, "GC must not be stopped");
   RuntimeAssert(!state->gcInProgress, "Recursive GC is disallowed");
 
-  state->gcInProgress = true;
+#if TRACE_MEMORY
+  fprintf(stderr, "Garbage collect\n");
+#endif
 
 #if BATCH_ARC
-  replayBatchedReferences(state);
+  replayBatchedReferences(state, true);
 #endif
+
+  state->gcInProgress = true;
 
   // Flush cache.
   flushFreeableCache(state);
@@ -1115,6 +1255,11 @@ bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
 #if USE_GC
   if (root != nullptr) {
     auto state = memoryState;
+
+#if BATCH_ARC
+    replayBatchedReferences(state, false);
+#endif
+
     auto container = root->container();
     ContainerHeaderList todo;
     ContainerHeaderSet subgraph;
@@ -1125,6 +1270,9 @@ bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
       if (subgraph.count(header) != 0)
         continue;
       subgraph.insert(header);
+#if TRACE_MEMORY
+      fprintf(stderr, "Calling removeFreeable from ClearSubgraphReferences\n");
+#endif
       removeFreeable(state, header);
       auto children = collectMutableReferred(header);
       for (auto child : children) {
