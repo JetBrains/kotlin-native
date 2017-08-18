@@ -18,8 +18,6 @@
 #include <stdio.h>
 
 #include <cstddef> // for offsetof
-#include <unordered_set>
-#include <vector>
 
 #include "Alloc.h"
 #include "Assert.h"
@@ -54,6 +52,8 @@ constexpr container_size_t kObjectAlignment = 8;
 // Collection threshold default (collect after having so many elements in the
 // release candidates set). Better be a prime number.
 constexpr size_t kGcThreshold = 9341;
+
+typedef KStdDeque<KRef*> ContainerHeaderDeque;
 #endif
 
 #if TRACE_MEMORY || USE_GC
@@ -74,6 +74,9 @@ struct MemoryState {
 #endif
 
 #if USE_GC
+  // Finalizer queue.
+  ContainerHeaderDeque* finalizerQueue;
+
   // Set of references to release.
   ContainerHeaderSet* toFree;
   // How many GC suspend requests happened.
@@ -128,7 +131,25 @@ inline ObjHeader** asArenaSlot(ObjHeader** slot) {
       reinterpret_cast<uintptr_t>(slot) & ~ARENA_BIT);
 }
 
+inline void scheduleDestroyContainer(
+    MemoryState* state, ContainerHeader* container) {
+  state->allocCount--;
 #if USE_GC
+  memoryState->finalizerQueue->push_front(container);
+#else
+  konanFreeMemory(header);
+#endif
+}
+
+#if USE_GC
+
+inline void processFinalizerQueue(MemoryState* state) {
+  while (!state->finalizerQueue.empty()) {
+    auto container = memoryState->finalizerQueue->back();
+    memoryState->finalizerQueue->pop_back();
+    konanFreeMemory(container);
+  }
+}
 
 inline uint32_t hashOf(ContainerHeader* container) {
   uintptr_t value = reinterpret_cast<uintptr_t>(container);
@@ -219,7 +240,7 @@ inline void initThreshold(MemoryState* state, uint32_t gcThreshold) {
 ContainerHeaderList collectMutableReferred(ContainerHeader* header) {
   ContainerHeaderList result;
   ObjHeader* obj = reinterpret_cast<ObjHeader*>(header + 1);
-  for (int object = 0; object < header->objectCount_; object++) {
+  for (int object = 0; object < header->objectCount(); object++) {
     const TypeInfo* typeInfo = obj->type_info();
     // TODO: generalize iteration over all references.
     for (int index = 0; index < typeInfo->objOffsetsCount_; index++) {
@@ -273,8 +294,8 @@ void phase1(ContainerHeader* header) {
   header->refCount_ |= CONTAINER_TAG_SEEN;
   auto containers = collectMutableReferred(header);
   for (auto container : containers) {
-      container->refCount_ -= CONTAINER_TAG_INCREMENT;
-      phase1(container);
+    container->decRefCount();
+    phase1(container);
   }
 }
 
@@ -297,12 +318,12 @@ void phase3(ContainerHeader* header) {
   header->refCount_ |= CONTAINER_TAG_SEEN;
   auto containers = collectMutableReferred(header);
   for (auto container : containers) {
-    container->refCount_ += CONTAINER_TAG_INCREMENT;
+    container->incRefCount();
     phase3(container);
   }
 }
 
-void phase4(ContainerHeader* header, ContainerHeaderSet* toRemove) {
+void phase4(MemoryState* state, ContainerHeader* header) {
   auto refCount = header->refCount_ >> CONTAINER_TAG_SHIFT;
   bool seen = (refCount > 0 && (header->refCount_ & CONTAINER_TAG_SEEN) == 0) ||
       (refCount == 0 && (header->refCount_ & CONTAINER_TAG_SEEN) != 0);
@@ -310,7 +331,7 @@ void phase4(ContainerHeader* header, ContainerHeaderSet* toRemove) {
 
   // Add to toRemove set.
   if (refCount == 0)
-    toRemove->insert(header);
+    scheduleDestroyContainer(state, header);
 
   // Update seen bit.
   if (refCount == 0)
@@ -319,7 +340,7 @@ void phase4(ContainerHeader* header, ContainerHeaderSet* toRemove) {
     header->refCount_ &= ~CONTAINER_TAG_SEEN;
   auto containers = collectMutableReferred(header);
   for (auto container : containers) {
-    phase4(container, toRemove);
+    phase4(state, container);
   }
 }
 
@@ -390,7 +411,7 @@ void FreeContainer(ContainerHeader* header) {
   // Now let's clean all object's fields in this container.
   ObjHeader* obj = reinterpret_cast<ObjHeader*>(header + 1);
 
-  for (int index = 0; index < header->objectCount_; index++) {
+  for (int index = 0; index < header->objectCount(); index++) {
     runDeallocationHooks(obj);
 
     const TypeInfo* typeInfo = obj->type_info();
@@ -408,8 +429,7 @@ void FreeContainer(ContainerHeader* header) {
 
   // And release underlying memory.
   if (isFreeable(header)) {
-    memoryState->allocCount--;
-    konanFreeMemory(header);
+    scheduleDestroyContainer(header);
   }
 }
 
@@ -425,15 +445,13 @@ void FreeContainerNoRef(ContainerHeader* header) {
 #endif
   ObjHeader* obj = reinterpret_cast<ObjHeader*>(header + 1);
 
-  for (int index = 0; index < header->objectCount_; index++) {
+  for (int index = 0; index < header->objectCount(); index++) {
     runDeallocationHooks(obj);
-
     obj = reinterpret_cast<ObjHeader*>(
       reinterpret_cast<uintptr_t>(obj) + objectSize(obj));
   }
 
-  memoryState->allocCount--;
-  konanFreeMemory(header);
+  scheduleDestroyContainer(header);
 }
 #endif
 
@@ -444,7 +462,7 @@ void ObjectContainer::Init(const TypeInfo* type_info) {
   header_ = AllocContainer(alloc_size);
   if (header_) {
     // One object in this container.
-    header_->objectCount_ = 1;
+    header_->setObjectCount(1);
      // header->refCount_ is zero initialized by AllocContainer().
     SetMeta(GetPlace(), type_info);
 #if TRACE_MEMORY
@@ -462,7 +480,7 @@ void ArrayContainer::Init(const TypeInfo* type_info, uint32_t elements) {
   RuntimeAssert(header_ != nullptr, "Cannot alloc memory");
   if (header_) {
     // One object in this container.
-    header_->objectCount_ = 1;
+    header_->setObjectCount(1);
     // header->refCount_ is zero initialized by AllocContainer().
     GetPlace()->count_ = elements;
     SetMeta(GetPlace()->obj(), type_info);
@@ -542,7 +560,7 @@ ObjHeader* ArenaContainer::PlaceObject(const TypeInfo* type_info) {
   if (!result) {
       return nullptr;
   }
-  currentChunk_->asHeader()->objectCount_++;
+  currentChunk_->asHeader()->incObjectCount();
   setMeta(result, type_info);
   return result;
 }
@@ -554,7 +572,7 @@ ArrayHeader* ArenaContainer::PlaceArray(const TypeInfo* type_info, uint32_t coun
   if (!result) {
     return nullptr;
   }
-  currentChunk_->asHeader()->objectCount_++;
+  currentChunk_->asHeader()->incObjectCount();
   setMeta(result->obj(), type_info);
   result->count_ = count;
   return result;
@@ -610,6 +628,7 @@ MemoryState* InitMemory() {
   memoryState->containers = konanConstructInstance<ContainerHeaderSet>();
 #endif
 #if USE_GC
+  memoryState->finalizerQueue = konanConstructInstance<ContainerHeaderDeque>();
   memoryState->toFree = konanConstructInstance<ContainerHeaderSet>();
   memoryState->gcInProgress = false;
   initThreshold(memoryState, kGcThreshold);
@@ -640,6 +659,9 @@ void DeinitMemory(MemoryState* memoryState) {
     memoryState->toFreeCache = nullptr;
   }
 #endif
+
+  konanDestructInstance(memoryState->finalizerQueue);
+  memoryState->finalizerQueue = nullptr;
 
 #endif // USE_GC
 
@@ -857,9 +879,8 @@ void GarbageCollect() {
 
   // Traverse all elements, and collect those not having CONTAINER_TAG_SEEN and zero RC.
   // Clear CONTAINER_TAG_SEEN while traversing on live elements, set in on dead elements.
-  ContainerHeaderSet toRemove;
   for (auto container : *state->toFree) {
-    phase4(container, &toRemove);
+    phase4(state, container);
   }
 #if TRACE_GC_PHASES
   dumpReachable("P4", state->toFree);
@@ -872,6 +893,8 @@ void GarbageCollect() {
     RuntimeAssert((header->refCount_ & CONTAINER_TAG_SEEN) != 0, "Must be not seen");
     FreeContainerNoRef(header);
   }
+
+  processFinalizerQueue(state);
 
   state->gcInProgress = false;
 }
