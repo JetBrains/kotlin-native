@@ -53,7 +53,7 @@ constexpr container_size_t kObjectAlignment = 8;
 // release candidates set). Better be a prime number.
 constexpr size_t kGcThreshold = 9341;
 
-typedef KStdDeque<KRef*> ContainerHeaderDeque;
+typedef KStdDeque<ContainerHeader*> ContainerHeaderDeque;
 #endif
 
 #if TRACE_MEMORY || USE_GC
@@ -131,25 +131,35 @@ inline ObjHeader** asArenaSlot(ObjHeader** slot) {
       reinterpret_cast<uintptr_t>(slot) & ~ARENA_BIT);
 }
 
+#if USE_GC
+
+inline void processFinalizerQueue(MemoryState* state) {
+  // TODO: reuse elements of finalizer queue for new allocations.
+  while (!state->finalizerQueue->empty()) {
+    auto container = memoryState->finalizerQueue->back();
+    state->finalizerQueue->pop_back();
+    konanFreeMemory(container);
+    state->allocCount--;
+  }
+}
+#endif
+
 inline void scheduleDestroyContainer(
     MemoryState* state, ContainerHeader* container) {
-  state->allocCount--;
 #if USE_GC
-  memoryState->finalizerQueue->push_front(container);
+  state->finalizerQueue->push_front(container);
+  // We cannot clean finalizer queue while in GC.
+  if (!state->gcInProgress && state->finalizerQueue->size() > 256) {
+    processFinalizerQueue(state);
+  }
 #else
+  state->allocCount--;
   konanFreeMemory(header);
 #endif
 }
 
-#if USE_GC
 
-inline void processFinalizerQueue(MemoryState* state) {
-  while (!state->finalizerQueue.empty()) {
-    auto container = memoryState->finalizerQueue->back();
-    memoryState->finalizerQueue->pop_back();
-    konanFreeMemory(container);
-  }
-}
+#if USE_GC
 
 inline uint32_t hashOf(ContainerHeader* container) {
   uintptr_t value = reinterpret_cast<uintptr_t>(container);
@@ -329,15 +339,13 @@ void phase4(MemoryState* state, ContainerHeader* header) {
       (refCount == 0 && (header->refCount_ & CONTAINER_TAG_SEEN) != 0);
   if (seen) return;
 
-  // Add to toRemove set.
-  if (refCount == 0)
+  // Add to finalize queue and update seen bit.
+  if (refCount == 0) {
     scheduleDestroyContainer(state, header);
-
-  // Update seen bit.
-  if (refCount == 0)
     header->refCount_ |= CONTAINER_TAG_SEEN;
-  else
+  } else {
     header->refCount_ &= ~CONTAINER_TAG_SEEN;
+  }
   auto containers = collectMutableReferred(header);
   for (auto container : containers) {
     phase4(state, container);
@@ -361,13 +369,17 @@ inline ArenaContainer* initedArena(ObjHeader** auxSlot) {
 }  // namespace
 
 ContainerHeader* AllocContainer(size_t size) {
+  auto state = memoryState;
+#if USE_GC
+  // TODO: try to reuse elements of finalizer queue for new allocations, question
+  // is how to get actual size of container.
+#endif
   ContainerHeader* result = konanConstructSizedInstance<ContainerHeader>(size);
 #if TRACE_MEMORY
   fprintf(stderr, ">>> alloc %d -> %p\n", static_cast<int>(size), result);
-  memoryState->containers->insert(result);
+  state->containers->insert(result);
 #endif
-  // TODO: atomic increment in concurrent case.
-  memoryState->allocCount++;
+  state->allocCount++;
   return result;
 }
 
@@ -398,15 +410,16 @@ void DeinitInstanceBody(const TypeInfo* typeInfo, void* body) {
 
 void FreeContainer(ContainerHeader* header) {
   RuntimeAssert(!isPermanent(header), "this kind of container shalln't be freed");
+  auto state = memoryState;
 #if TRACE_MEMORY
   if (isFreeable(header)) {
     fprintf(stderr, "<<< free %p\n", header);
-    memoryState->containers->erase(header);
+    state->containers->erase(header);
   }
 #endif
 
 #if USE_GC
-  removeFreeable(memoryState, header);
+  removeFreeable(state, header);
 #endif
   // Now let's clean all object's fields in this container.
   ObjHeader* obj = reinterpret_cast<ObjHeader*>(header + 1);
@@ -429,19 +442,19 @@ void FreeContainer(ContainerHeader* header) {
 
   // And release underlying memory.
   if (isFreeable(header)) {
-    scheduleDestroyContainer(header);
+    scheduleDestroyContainer(state, header);
   }
 }
 
 #if USE_GC
-void FreeContainerNoRef(ContainerHeader* header) {
+void FreeContainerNoRef(MemoryState* state, ContainerHeader* header) {
   RuntimeAssert(isFreeable(header), "this kind of container shalln't be freed");
 #if TRACE_MEMORY
   fprintf(stderr, "<<< free %p\n", header);
-  memoryState->containers->erase(header);
+  state->containers->erase(header);
 #endif
 #if USE_GC
-  removeFreeable(memoryState, header);
+  removeFreeable(state, header);
 #endif
   ObjHeader* obj = reinterpret_cast<ObjHeader*>(header + 1);
 
@@ -451,7 +464,7 @@ void FreeContainerNoRef(ContainerHeader* header) {
       reinterpret_cast<uintptr_t>(obj) + objectSize(obj));
   }
 
-  scheduleDestroyContainer(header);
+  scheduleDestroyContainer(state, header);
 }
 #endif
 
@@ -490,6 +503,8 @@ void ArrayContainer::Init(const TypeInfo* type_info, uint32_t elements) {
   }
 }
 
+// TODO: store arena containers in some reuseable data structure, similar to
+// finalizer queue.
 void ArenaContainer::Init() {
   allocContainer(1024);
 }
@@ -666,8 +681,9 @@ void DeinitMemory(MemoryState* memoryState) {
 #endif // USE_GC
 
   if (memoryState->allocCount > 0) {
+    fprintf(stderr, "*** Memory leaks, leaked %d containers ***\n",
+            memoryState->allocCount);
 #if TRACE_MEMORY
-    fprintf(stderr, "*** Memory leaks, leaked %d containers ***\n", memoryState->allocCount);
     dumpReachable("", memoryState->containers);
     konanDestructInstance(memoryState->containers);
     memoryState->containers = nullptr;
@@ -888,11 +904,6 @@ void GarbageCollect() {
 
   // Clear cycle candidates list.
   state->toFree->clear();
-
-  for (auto header : toRemove) {
-    RuntimeAssert((header->refCount_ & CONTAINER_TAG_SEEN) != 0, "Must be not seen");
-    FreeContainerNoRef(header);
-  }
 
   processFinalizerQueue(state);
 
