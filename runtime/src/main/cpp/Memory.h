@@ -49,9 +49,11 @@ typedef uint32_t container_size_t;
 struct ContainerHeader {
   // Reference counter of container. Uses two lower bits of counter for
   // container type (for polymorphism in ::Release()).
+  // TODO: Why volatile?
   volatile uint32_t refCount_;
   // Number of objects in the container.
   uint32_t objectCount_;
+  ContainerHeader* next;
 };
 
 struct ArrayHeader;
@@ -129,48 +131,6 @@ inline uint32_t ArrayDataSizeBytes(const ArrayHeader* obj) {
   return -obj->type_info()->instanceSize_ * obj->count_;
 }
 
-// TODO: those two operations can be implemented by translator when storing
-// reference to an object.
-inline void AddRef(ContainerHeader* header) {
-  // Looking at container type we may want to skip AddRef() totally
-  // (non-escaping stack objects, constant objects).
-  switch (header->refCount_ & CONTAINER_TAG_MASK) {
-    case CONTAINER_TAG_STACK:
-    case CONTAINER_TAG_PERMANENT:
-      break;
-    case CONTAINER_TAG_NORMAL:
-      header->refCount_ += CONTAINER_TAG_INCREMENT;
-      break;
-    default:
-      RuntimeAssert(false, "unknown container type");
-      break;
-  }
-}
-
-void FreeContainer(ContainerHeader* header);
-
-// Release() returns 'true' iff container cannot be part of cycle (either NOCOUNT
-// object or container was fully released and will be collected).
-inline bool Release(ContainerHeader* header) {
-  switch (header->refCount_ & CONTAINER_TAG_MASK) {
-      case CONTAINER_TAG_PERMANENT:
-      case CONTAINER_TAG_STACK:
-        // permanent/stack containers aren't loop candidates.
-        return true;
-    case CONTAINER_TAG_NORMAL:
-      if ((header->refCount_ -= CONTAINER_TAG_INCREMENT) == CONTAINER_TAG_NORMAL) {
-        FreeContainer(header);
-        return true;
-      }
-      break;
-    default:
-      RuntimeAssert(false, "unknown container type");
-      break;
-  }
-  // Object with non-zero counter after release are loop candidates.
-  return false;
-}
-
 // Class representing arbitrary placement container.
 class Container {
  protected:
@@ -182,20 +142,6 @@ class Container {
         reinterpret_cast<uintptr_t>(obj) - reinterpret_cast<uintptr_t>(header_);
     obj->set_type_info(type_info);
     RuntimeAssert(obj->container() == header_, "Placement must match");
-  }
-
- public:
-  // Increment reference counter associated with container.
-  void AddRef() {
-    if (header_) ::AddRef(header_);
-  }
-
-  // Decrement reference counter associated with container.
-  // For objects whith tricky lifetime (such as ones shared between threads objects)
-  // individual container per object (ObjectContainer) shall be created.
-  // As an alternative, such objects could be evacuated from short-lived containers.
-  void Release() {
-    if (header_) ::Release(header_);
   }
 };
 
@@ -356,6 +302,8 @@ void UpdateRef(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
 void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* object) RUNTIME_NOTHROW;
 // Optimization: release all references in range.
 void ReleaseRefs(ObjHeader** start, int count) RUNTIME_NOTHROW;
+// Called on frame enter, if it has object slots.
+void EnterFrame(ObjHeader** start, int count) RUNTIME_NOTHROW;
 // Called on frame leave, if it has object slots.
 void LeaveFrame(ObjHeader** start, int count) RUNTIME_NOTHROW;
 // Tries to use returnSlot's arena for allocation.

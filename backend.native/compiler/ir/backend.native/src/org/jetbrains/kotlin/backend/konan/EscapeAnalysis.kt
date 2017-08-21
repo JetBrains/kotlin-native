@@ -43,6 +43,7 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.OverridingUtil
 import org.jetbrains.kotlin.resolve.constants.ConstantValue
 import org.jetbrains.kotlin.resolve.constants.IntValue
+import org.jetbrains.kotlin.resolve.descriptorUtil.module
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.typeUtil.*
@@ -631,7 +632,7 @@ internal object EscapeAnalysis {
 
     private class InterproceduralAnalysisResult(val functionEscapeAnalysisResults: Map<FunctionDescriptor, FunctionEscapeAnalysisResult>)
 
-    private class InterproceduralAnalysis(context: Context,
+    private class InterproceduralAnalysis(val context: Context,
                                           val runtimeAware: RuntimeAware,
                                           val externalFunctionEscapeAnalysisResults: Map<String, FunctionEscapeAnalysisResult>,
                                           val intraproceduralAnalysisResult: IntraproceduralAnalysisResult,
@@ -890,14 +891,22 @@ internal object EscapeAnalysis {
             DEBUG_OUTPUT(0) { println("External callee: $callee") }
 
             val parameters = callee.allParameters
+            val staticCall = !callee.isOverridable || callSite.expression !is IrCall || callSite.expression.superQualifier != null
             val calleeEAResult =
-                    if (!callee.isOverridable || callSite.expression !is IrCall || callSite.expression.superQualifier != null) {
+                    if (staticCall && (callee.module.name.asString().contains("stdlib", ignoreCase = true) // TODO: consider a better way.
+                            || context.config.configuration[KonanConfigKeys.NOSTDLIB] == true) /* TODO: what about other modules? */) {
                         getExternalFunctionEAResult(callee)
                     } else {
-                        DEBUG_OUTPUT(0) { println("A virtual call") }
+                        DEBUG_OUTPUT(0) { println(if (staticCall) "Unknown function from module ${callee.module}" else "A virtual call") }
 
                         FunctionEscapeAnalysisResult((0..parameters.size).map {
-                            val type = if (it < parameters.size) parameters[it].type else callee.returnType
+                            val type = if (it < parameters.size)
+                                           parameters[it].type
+                                       else {
+                                           if (callee is ConstructorDescriptor)
+                                               context.builtIns.unitType
+                                           else callee.returnType
+                                       }
                             ParameterEscapeAnalysisResult(
                                     escapes  = runtimeAware.isInteresting(type), // Conservatively assume all references escape.
                                     pointsTo = IntArray(0)
@@ -974,6 +983,11 @@ internal object EscapeAnalysis {
             fun addIncomingParameter(parameter: Int) {
                 if (kind == PointsToGraphNodeKind.ESCAPES)
                     return
+                if (kind == PointsToGraphNodeKind.RETURN_VALUE) {
+                    kind = PointsToGraphNodeKind.ESCAPES
+                    parameterPointingOnUs = null
+                    return
+                }
                 if (parameterPointingOnUs == null)
                     parameterPointingOnUs = parameter
                 else {
@@ -1004,8 +1018,6 @@ internal object EscapeAnalysis {
 
                     PointsToGraphNodeKind.RETURN_VALUE -> {
                         when {
-                            // If a value is stored into a parameter field and into the return value - consider it escapes.
-                            it.parameterPointingOnUs != null -> Lifetime.GLOBAL
                             // If a value is explicitly returned.
                             returnValues.contains(node) -> Lifetime.RETURN_VALUE
                             // A value is stored into a field of the return value.
