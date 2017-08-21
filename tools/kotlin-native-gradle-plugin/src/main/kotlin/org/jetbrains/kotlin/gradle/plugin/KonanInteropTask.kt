@@ -18,7 +18,9 @@ package org.jetbrains.kotlin.gradle.plugin
 
 import org.gradle.api.Named
 import org.gradle.api.Project
+import org.gradle.api.Task
 import org.gradle.api.file.FileCollection
+import org.gradle.api.plugins.BasePlugin
 import org.gradle.api.tasks.*
 import java.io.File
 
@@ -51,12 +53,11 @@ open class KonanInteropTask: KonanTargetableTask() {
     internal fun init(libName: String) {
         dependsOn(project.konanCompilerDownloadTask)
         this.libName = libName
+        this.defFile = project.konanDefaultDefFile(libName)
     }
 
     internal val INTEROP_JVM_ARGS: List<String>
         @Internal get() = listOf("-Dkonan.home=${project.konanHome}", "-Djava.library.path=${project.konanHome}/konan/nativelib")
-    internal val INTEROP_CLASSPATH: String
-        @Internal get() = "${project.konanHome}/konan/lib/"
 
     // Output directories -----------------------------------------------------
 
@@ -70,13 +71,13 @@ open class KonanInteropTask: KonanTargetableTask() {
 
     // Interop stub generator parameters -------------------------------------
 
-    @Optional @InputFile var defFile: File? = null
+    @InputFile lateinit var defFile: File
         internal set
+
     @Optional @Input var pkg: String? = null
         internal set
-    @Input lateinit var libName: String
 
-    @Optional @Input var linker: String? = null
+    @Input lateinit var libName: String
         internal set
 
     @Optional @Input var manifest: String? = null
@@ -99,7 +100,7 @@ open class KonanInteropTask: KonanTargetableTask() {
         project.javaexec {
             with(it) {
                 main = INTEROP_MAIN
-                classpath = project.fileTree(INTEROP_CLASSPATH).apply { include("*.jar") }
+                classpath = project.konanInteropClasspath
                 jvmArgs(INTEROP_JVM_ARGS)
                 environment("LIBCLANG_DISABLE_CRASH_RECOVERY", "1")
                 // TODO: remove this hack.
@@ -123,7 +124,6 @@ open class KonanInteropTask: KonanTargetableTask() {
         addArgIfNotNull("-target", target)
         addArgIfNotNull("-def", defFile?.canonicalPath)
         addArg("-pkg", pkg ?: libName)
-        addArgIfNotNull("-linker", linker)
 
         addFileArgs("-h", headers)
 
@@ -157,14 +157,18 @@ open class KonanInteropConfig(
             KonanInteropTask::class.java) {
         it.init(name)
         it.manifest = "${it.stubsDir.path}/manifest.properties"
+        it.group = BasePlugin.BUILD_GROUP
+        it.description = "Generates stubs for the Kotlin/Native interop '$name'"
     }
     // Config and task to compile *.kt stubs into a library
     internal val compileStubsConfig = KonanCompileConfig("${name}InteropStubs", project, "compile").apply {
         compilationTask.dependsOn(generateStubsTask)
         outputDir("${project.konanInteropCompiledStubsDir}/$name")
         produce("library")
-        inputFiles(project.fileTree(generateStubsTask.stubsDir).apply { builtBy(generateStubsTask) })
+        inputFiles(project.fileTree(generateStubsTask.stubsDir))
         manifest("${generateStubsTask.stubsDir.path}/manifest.properties")
+        compilationTask.group = BasePlugin.BUILD_GROUP
+        compilationTask.description = "Compiles stubs for the Kotlin/Native interop '${this@KonanInteropConfig.name}'"
     }
     val compileStubsTask = compileStubsConfig.compilationTask
 
@@ -200,10 +204,6 @@ open class KonanInteropConfig(
         compilerOpts.addAll(values.map { "-I$it" })
     }
 
-    fun linker(value: String) = with(generateStubsTask) {
-        linker = value
-    }
-
     fun linkerOpts(vararg values: String) = linkerOpts(values.toList())
     fun linkerOpts(values: List<String>) = with(generateStubsTask) {
         linkerOpts.addAll(values)
@@ -221,5 +221,6 @@ open class KonanInteropConfig(
         compileStubsTask.dumpParameters = value
     }
 
+    fun dependsOn(dependency: Any) = generateStubsTask.dependsOn(dependency)
 }
 

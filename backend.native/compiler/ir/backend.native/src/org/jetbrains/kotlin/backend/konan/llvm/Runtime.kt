@@ -36,8 +36,8 @@ class Runtime(bitcodeFile: String) {
     val methodTableRecordType = getStructType("MethodTableRecord")
     val globalHashType = getStructType("GlobalHash")
 
-    val containerHeaderType = getStructType("ContainerHeader")
     val objHeaderType = getStructType("ObjHeader")
+    val objHeaderPtrType = pointerType(objHeaderType)
     val arrayHeaderType = getStructType("ArrayHeader")
 
     val target = LLVMGetTarget(llvmModule)!!.toKString()
@@ -53,4 +53,7 @@ class Runtime(bitcodeFile: String) {
     val dataLayout = LLVMGetDataLayout(llvmModule)!!.toKString()
 
     val targetData = LLVMCreateTargetData(dataLayout)!!
+
+    val kotlinObjCClassInfo by lazy { getStructType("KotlinObjCClassInfo") }
+    val objCMethodDescription by lazy { getStructType("ObjCMethodDescription") }
 }

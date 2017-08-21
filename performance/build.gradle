@@ -1,0 +1,20 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        maven {
+            url "https://dl.bintray.com/jetbrains/kotlin-native-dependencies"
+        }
+    }
+
+    dependencies {
+        classpath files(konanPluginClasspath)
+    }
+}
+
+apply plugin: 'konan'
+
+konanArtifacts {
+    Ring {
+        enableOptimization()
+    }
+}

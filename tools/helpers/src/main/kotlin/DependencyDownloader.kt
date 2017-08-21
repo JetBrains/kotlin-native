@@ -32,7 +32,9 @@ import kotlin.concurrent.withLock
 class DependencyDownloader(dependenciesRoot: File,
                            val dependenciesUrl: String,
                            val dependencies: List<String>,
-                           val airplaneMode: Boolean = false) {
+                           val airplaneMode: Boolean = false,
+                           val maxAttempts: Int = DEFAULT_MAX_ATTEMPTS,
+                           val attemptPauseMs: Long = DEFAULT_ATTEMPT_PAUSE_MS) {
 
     val dependenciesDirectory = dependenciesRoot.apply { mkdirs() }
     val cacheDirectory = System.getProperty("user.home")?.let {
@@ -93,7 +95,21 @@ class DependencyDownloader(dependenciesRoot: File,
         val archive = File(cacheDirectory.canonicalPath, "$depName.$archiveExtension")
         if (!archive.exists()) {
             if (!airplaneMode) {
-                download(depName, archive)
+                var attempt = 0
+                while(true) {
+                    try {
+                        download(depName, archive)
+                        break
+                    } catch (e: IOException) {
+                        if (attempt < maxAttempts) {
+                            attempt++
+                            val pauseTime = attempt * attemptPauseMs
+                            println("Downloading error: ${e.message}.\n" +
+                                    "Waiting ${pauseTime.toDouble() / 1000} sec and trying again (attempt: $attempt/$maxAttempts)")
+                            Thread.sleep(pauseTime)
+                        } else { throw e }
+                    }
+                }
             } else {
                 throw RuntimeException("""
                     Cannot find a dependency locally: $dependency.
@@ -163,6 +179,9 @@ class DependencyDownloader(dependenciesRoot: File,
                             currentBytes += read
                             read = from.read(buffer)
                         }
+                        if (currentBytes != totalBytes) {
+                            throw EOFException("The stream closed before end of downloading.")
+                        }
                     }
                 }
             } catch (e: Throwable) {
@@ -179,7 +198,7 @@ class DependencyDownloader(dependenciesRoot: File,
         println("Done.")
         if (downloadError != null) {
             tmpFile.delete()
-            throw RuntimeException("Cannot download dependency: $url", downloadError)
+            throw IOException("Cannot download dependency: $url", downloadError)
         }
         Files.move(
                 tmpFile.toPath(),
@@ -209,6 +228,9 @@ class DependencyDownloader(dependenciesRoot: File,
 
     companion object {
         val lock = ReentrantLock()
+
+        const val DEFAULT_MAX_ATTEMPTS = 10
+        const val DEFAULT_ATTEMPT_PAUSE_MS = 3000L
     }
 
     fun run() = lock.withLock {

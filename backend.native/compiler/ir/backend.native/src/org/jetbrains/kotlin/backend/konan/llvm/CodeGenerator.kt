@@ -24,7 +24,6 @@ import org.jetbrains.kotlin.descriptors.ClassConstructorDescriptor
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
-import org.jetbrains.kotlin.types.KotlinType
 
 internal class CodeGenerator(override val context: Context) : ContextUtils {
 
@@ -110,9 +109,10 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         get() = (functionDescriptor as? ClassConstructorDescriptor)?.constructedClass
     private var returnSlot: LLVMValueRef? = null
     private var slotsPhi: LLVMValueRef? = null
-    private var slotCount = 0
+    private var slotCount = 1
     private var localAllocs = 0
     private var arenaSlot: LLVMValueRef? = null
+    private val slotToVariableLocation = mutableMapOf<Int,VariableDebugLocation>()
 
     private val prologueBb        = basicBlockInFunction("prologue", startLocation)
     private val localsInitBb      = basicBlockInFunction("locals_init", startLocation)
@@ -142,15 +142,31 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         return result
     }
 
-    fun alloca(type: LLVMTypeRef?, name: String = ""): LLVMValueRef {
+    fun alloca(type: LLVMTypeRef?, name: String = "", variableLocation: VariableDebugLocation? = null): LLVMValueRef {
         if (isObjectType(type!!)) {
             appendingTo(localsInitBb) {
-                return gep(slotsPhi!!, Int32(slotCount++).llvm, name)
+                val slotAddress = gep(slotsPhi!!, Int32(slotCount).llvm, name)
+                variableLocation?.let {
+                    slotToVariableLocation[slotCount] = it
+                }
+                slotCount++
+                return slotAddress
             }
         }
 
         appendingTo(prologueBb) {
-            return LLVMBuildAlloca(builder, type, name)!!
+            val slotAddress = LLVMBuildAlloca(builder, type, name)!!
+            variableLocation?.let {
+                DIInsertDeclaration(
+                        builder       = codegen.context.debugInfo.builder,
+                        value         = slotAddress,
+                        localVariable = it.localVariable,
+                        location      = it.location,
+                        bb            = prologueBb,
+                        expr          = null,
+                        exprCount     = 0)
+            }
+            return slotAddress
         }
     }
 
@@ -179,7 +195,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
     fun loadSlot(address: LLVMValueRef, isVar: Boolean, name: String = ""): LLVMValueRef {
         val value = LLVMBuildLoad(builder, address, name)!!
         if (isObjectRef(value) && isVar) {
-            val slot = alloca(LLVMTypeOf(value))
+            val slot = alloca(LLVMTypeOf(value), variableLocation = null)
             storeAnyLocal(value, slot)
         }
         return value
@@ -226,7 +242,9 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
     fun call(llvmFunction: LLVMValueRef, args: List<LLVMValueRef>,
              resultLifetime: Lifetime = Lifetime.IRRELEVANT,
              lazyLandingpad: () -> LLVMBasicBlockRef? = { null }): LLVMValueRef {
-        val callArgs = if (isObjectReturn(llvmFunction.type)) {
+        val callArgs = if (!isObjectReturn(llvmFunction.type)) {
+            args
+        } else {
             // If function returns an object - create slot for the returned value or give local arena.
             // This allows appropriate rootset accounting by just looking at the stack slots,
             // along with ability to allocate in appropriate arena.
@@ -235,15 +253,32 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                     localAllocs++
                     arenaSlot!!
                 }
+
                 SlotType.RETURN -> returnSlot!!
-            // TODO: for RETURN_IF_ARENA choose between created slot and arenaSlot
-            // dynamically.
-                SlotType.ANONYMOUS, SlotType.RETURN_IF_ARENA -> vars.createAnonymousSlot()
-                else -> throw Error("Incorrect slot type")
+
+                SlotType.ANONYMOUS -> vars.createAnonymousSlot()
+
+                SlotType.RETURN_IF_ARENA -> returnSlot.let {
+                    if (it != null)
+                        call(context.llvm.getReturnSlotIfArenaFunction, listOf(it, vars.createAnonymousSlot()))
+                    else {
+                        // Return type is not an object type - can allocate locally.
+                        localAllocs++
+                        arenaSlot!!
+                    }
+                }
+
+                is SlotType.PARAM_IF_ARENA ->
+                    if (LLVMTypeOf(vars.load(resultLifetime.slotType.parameter)) != codegen.runtime.objHeaderPtrType)
+                        vars.createAnonymousSlot()
+                    else {
+                        call(context.llvm.getParamSlotIfArenaFunction,
+                                listOf(vars.load(resultLifetime.slotType.parameter), vars.createAnonymousSlot()))
+                    }
+
+                else -> throw Error("Incorrect slot type: ${resultLifetime.slotType}")
             }
             args + resultSlot
-        } else {
-            args
         }
         return callRaw(llvmFunction, callArgs, lazyLandingpad)
     }
@@ -326,7 +361,37 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         return LLVMBlockAddress(function, bbLabel)!!
     }
 
+    fun and(arg0: LLVMValueRef, arg1: LLVMValueRef, name: String = ""): LLVMValueRef = LLVMBuildAnd(builder, arg0, arg1, name)!!
     fun or(arg0: LLVMValueRef, arg1: LLVMValueRef, name: String = ""): LLVMValueRef = LLVMBuildOr(builder, arg0, arg1, name)!!
+
+    fun zext(arg: LLVMValueRef, type: LLVMTypeRef): LLVMValueRef =
+            LLVMBuildZExt(builder, arg, type, "")!!
+
+    fun sext(arg: LLVMValueRef, type: LLVMTypeRef): LLVMValueRef =
+            LLVMBuildSExt(builder, arg, type, "")!!
+
+    fun ext(arg: LLVMValueRef, type: LLVMTypeRef, signed: Boolean): LLVMValueRef =
+            if (signed) {
+                sext(arg, type)
+            } else {
+                zext(arg, type)
+            }
+
+    fun trunc(arg: LLVMValueRef, type: LLVMTypeRef): LLVMValueRef =
+            LLVMBuildTrunc(builder, arg, type, "")!!
+
+    private fun shift(op: LLVMOpcode, arg: LLVMValueRef, amount: Int) =
+            if (amount == 0) {
+                arg
+            } else {
+                LLVMBuildBinOp(builder, op, arg, LLVMConstInt(arg.type, amount.toLong(), 0), "")!!
+            }
+
+    fun shl(arg: LLVMValueRef, amount: Int) = shift(LLVMOpcode.LLVMShl, arg, amount)
+
+    fun shr(arg: LLVMValueRef, amount: Int, signed: Boolean) =
+            shift(if (signed) LLVMOpcode.LLVMAShr else LLVMOpcode.LLVMLShr,
+                    arg, amount)
 
     /* integers comparisons */
     fun icmpEq(arg0: LLVMValueRef, arg1: LLVMValueRef, name: String = ""): LLVMValueRef = LLVMBuildICmp(builder, LLVMIntPredicate.LLVMIntEQ, arg0, arg1, name)!!
@@ -357,6 +422,33 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         return LLVMBuildLandingPad(builder, landingpadType, personalityFunction, numClauses, name)!!
     }
 
+    inline fun ifThenElse(
+            condition: LLVMValueRef,
+            thenValue: LLVMValueRef,
+            elseBlock: () -> LLVMValueRef
+    ): LLVMValueRef {
+        val resultType = thenValue.type
+
+        val bbExit = basicBlock(locationInfo = position())
+        val resultPhi = appendingTo(bbExit) {
+            phi(resultType)
+        }
+
+        val bbElse = basicBlock(locationInfo = position())
+
+        condBr(condition, bbExit, bbElse)
+        assignPhis(resultPhi to thenValue)
+
+        appendingTo(bbElse) {
+            val elseValue = elseBlock()
+            br(bbExit)
+            assignPhis(resultPhi to elseValue)
+        }
+
+        positionAtEnd(bbExit)
+        return resultPhi
+    }
+
     internal fun debugLocation(locationInfo: LocationInfo): DILocationRef? {
         if (!context.shouldContainDebugInfo()) return null
         update(currentBlock, locationInfo)
@@ -385,13 +477,10 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
     internal fun prologue() {
         assert(returns.isEmpty())
         if (isObjectType(returnType!!)) {
-            this.returnSlot = LLVMGetParam(function, numParameters(function.type) - 1)
+            returnSlot = LLVMGetParam(function, numParameters(function.type) - 1)
         }
         positionAtEnd(localsInitBb)
         slotsPhi = phi(kObjHeaderPtrPtr)
-        // First slot can be assigned to keep pointer to frame local arena.
-        slotCount = 1
-        localAllocs = 0
         // Is removed by DCE trivially, if not needed.
         arenaSlot = intToPtr(
                 or(ptrToInt(slotsPhi, codegen.intPtrType), codegen.immOneIntPtrType), kObjHeaderPtrPtr)
@@ -415,6 +504,20 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                                 Int1(0).llvm))
             }
             addPhiIncoming(slotsPhi!!, prologueBb to slots)
+            val slotOffset = pointerSize * slotCount
+            memScoped {
+                slotToVariableLocation.forEach { slot, variable ->
+                    val expr = longArrayOf(DwarfOp.DW_OP_minus.value, slotOffset + pointerSize * slot.toLong()).toCValues()
+                    DIInsertDeclaration(
+                            builder       = codegen.context.debugInfo.builder,
+                            value         = slotsPhi,
+                            localVariable = variable.localVariable,
+                            location      = variable.location,
+                            bb            = prologueBb,
+                            expr          = expr,
+                            exprCount     = 2)
+                }
+            }
             br(localsInitBb)
         }
 

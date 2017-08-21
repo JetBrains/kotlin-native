@@ -17,11 +17,13 @@
 package org.jetbrains.kotlin.backend.konan
 
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
+import org.jetbrains.kotlin.descriptors.PropertyDescriptor
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.types.TypeUtils
+import org.jetbrains.kotlin.util.OperatorNameConventions
 
 private val cPointerName = "CPointer"
 private val nativePointedName = "NativePointed"
@@ -100,6 +102,56 @@ internal class InteropBuiltIns(builtIns: KonanBuiltIns) {
     val signExtend = packageScope.getContributedFunctions("signExtend").single()
 
     val narrow = packageScope.getContributedFunctions("narrow").single()
+
+    val readBits = packageScope.getContributedFunctions("readBits").single()
+    val writeBits = packageScope.getContributedFunctions("writeBits").single()
+
+    val cFunctionPointerInvokes = packageScope.getContributedFunctions(OperatorNameConventions.INVOKE.asString())
+            .filter {
+                val extensionReceiverParameter = it.extensionReceiverParameter
+                it.isOperator &&
+                        extensionReceiverParameter != null &&
+                        TypeUtils.getClassDescriptor(extensionReceiverParameter.type) == cPointer
+            }.toSet()
+
+    val invokeImpls = mapOf(
+            builtIns.unit to "invokeImplUnitRet",
+            builtIns.boolean to "invokeImplBooleanRet",
+            builtIns.byte to "invokeImplByteRet",
+            builtIns.short to "invokeImplShortRet",
+            builtIns.int to "invokeImplIntRet",
+            builtIns.long to "invokeImplLongRet",
+            builtIns.float to "invokeImplFloatRet",
+            builtIns.double to "invokeImplDoubleRet",
+            cPointer to "invokeImplPointerRet"
+    ).mapValues { (_, name) ->
+        packageScope.getContributedFunctions(name).single()
+    }.toMap()
+
+    val objCObject = packageScope.getContributedClassifier("ObjCObject") as ClassDescriptor
+    val objCPointerHolder = packageScope.getContributedClassifier("ObjCPointerHolder") as ClassDescriptor
+
+    val objCPointerHolderValue = objCPointerHolder.unsubstitutedMemberScope
+            .getContributedDescriptors().filterIsInstance<PropertyDescriptor>().single()
+
+    val objCObjectInitFromPtr = packageScope.getContributedFunctions("initFromPtr").single()
+    val objCObjectInitFrom = packageScope.getContributedFunctions("initFrom").single()
+
+    val allocObjCObject = packageScope.getContributedFunctions("allocObjCObject").single()
+
+    val getObjCClass = packageScope.getContributedFunctions("getObjCClass").single()
+
+    val objCObjectRawPtr = packageScope.getContributedVariables("rawPtr").single {
+        val extensionReceiverType = it.extensionReceiverParameter?.type
+        extensionReceiverType != null && !extensionReceiverType.isMarkedNullable &&
+                TypeUtils.getClassDescriptor(extensionReceiverType) == objCObject
+    }
+
+    val getObjCReceiverOrSuper = packageScope.getContributedFunctions("getReceiverOrSuper").single()
+
+    val getObjCMessenger = packageScope.getContributedFunctions("getMessenger").single()
+    val getObjCMessengerLU = packageScope.getContributedFunctions("getMessengerLU").single()
+
 }
 
 private fun MemberScope.getContributedVariables(name: String) =

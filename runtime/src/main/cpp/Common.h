@@ -20,10 +20,14 @@
 #define RUNTIME_NOTHROW __attribute__((nothrow))
 #define RUNTIME_CONST __attribute__((const))
 #define RUNTIME_PURE __attribute__((pure))
+#define RUNTIME_USED __attribute__((used))
+
 #if KONAN_NO_THREADS
 #define THREAD_LOCAL_VARIABLE
 #else
 #define THREAD_LOCAL_VARIABLE __thread
 #endif
+
+#define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
 #endif // RUNTIME_COMMON_H

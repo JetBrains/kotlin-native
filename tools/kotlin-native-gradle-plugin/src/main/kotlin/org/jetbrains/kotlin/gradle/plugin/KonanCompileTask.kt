@@ -18,7 +18,9 @@ package org.jetbrains.kotlin.gradle.plugin
 
 import org.gradle.api.Named
 import org.gradle.api.Project
+import org.gradle.api.Task
 import org.gradle.api.file.FileCollection
+import org.gradle.api.plugins.BasePlugin
 import org.gradle.api.tasks.*
 import java.io.File
 
@@ -60,11 +62,9 @@ import java.io.File
  *     }
  *
  *  }
-
  */
 
 
-// TODO: form groups for tasks
 // TODO: Make the task class nested for config with properties accessible for outer users.
 open class KonanCompileTask: KonanTargetableTask() {
 
@@ -74,8 +74,6 @@ open class KonanCompileTask: KonanTargetableTask() {
 
     val COMPILER_JVM_ARGS: List<String>
         @Internal get() = listOf("-Dkonan.home=${project.konanHome}", "-Djava.library.path=${project.konanHome}/konan/nativelib")
-    val COMPILER_CLASSPATH: String
-        @Internal get() = "${project.konanHome}/konan/lib/"
 
     // Output artifact --------------------------------------------------------
 
@@ -105,7 +103,9 @@ open class KonanCompileTask: KonanTargetableTask() {
 
     // Other compilation parameters -------------------------------------------
 
-    @InputFiles val inputFiles      = mutableSetOf<FileCollection>()
+    internal val _inputFiles = mutableSetOf<FileCollection>()
+    val inputFiles: Collection<FileCollection>
+        @InputFiles get() = _inputFiles.takeIf { !it.isEmpty() } ?: listOf(project.konanDefaultSrcFiles)
 
     @InputFiles val libraries       = mutableSetOf<FileCollection>()
     @InputFiles val nativeLibraries = mutableSetOf<FileCollection>()
@@ -113,8 +113,14 @@ open class KonanCompileTask: KonanTargetableTask() {
     @Input var produce              = "program"
         internal set
 
-    @Input var linkerOpts = mutableListOf<String>()
-        internal set
+    @Internal val interops = mutableSetOf<KonanInteropConfig>()
+
+    internal var _linkerOpts = mutableListOf<String>()
+    val linkerOpts: List<String>
+        @Input get() = mutableListOf<String>().apply {
+            addAll(_linkerOpts)
+            interops.flatMapTo(this) { it.generateStubsTask.linkerOpts }
+        }
 
     @Input var enableDebug        = project.properties.containsKey("enableDebug") && project.properties["enableDebug"].toString().toBoolean()
         internal set
@@ -153,6 +159,7 @@ open class KonanCompileTask: KonanTargetableTask() {
         addArgIfNotNull("-target", target)
         addArgIfNotNull("-language-version", languageVersion)
         addArgIfNotNull("-api-version", apiVersion)
+        // TODO: Should we get manifests of the interops used?
         addArgIfNotNull("-manifest", manifest?.canonicalPath)
 
         addKey("-g", enableDebug)
@@ -174,13 +181,12 @@ open class KonanCompileTask: KonanTargetableTask() {
         project.javaexec {
             with(it) {
                 main = COMPILER_MAIN
-                classpath = project.fileTree(COMPILER_CLASSPATH).apply { include("*.jar") }
+                classpath = project.konanCompilerClasspath
                 jvmArgs(COMPILER_JVM_ARGS)
                 args(buildArgs().apply { logger.info("Compiler args: ${this.joinToString(separator = " ")}") })
             }
         }
     }
-
 }
 
 // TODO: check debug outputs
@@ -194,65 +200,52 @@ open class KonanCompileConfig(
 
     val compilationTask: KonanCompileTask = project.tasks.create(
             "$taskNamePrefix${configName.capitalize()}",
-            KonanCompileTask::class.java
-    ) { it.init(this@KonanCompileConfig.name) }
-
-    // DSL methods --------------------------------------------------
-
-    // TODO: Check if we copied all data or not
-    fun extendsFrom(anotherConfig: KonanCompileConfig) = with(compilationTask) {
-        val anotherTask = anotherConfig.compilationTask
-
-        outputDir(anotherTask.outputDir.absolutePath)
-
-        linkerOpts(anotherTask.linkerOpts)
-
-        anotherTask.target?.let { target(it) }
-        anotherTask.languageVersion?.let { languageVersion(it) }
-        anotherTask.apiVersion?.let { apiVersion(it) }
-        anotherTask.produce.let { produce(it) }
-
-        enableDebug(anotherTask.enableDebug)
-        if (anotherTask.noStdLib) noStdLib()
-        if (anotherTask.noMain) noMain()
-        if (anotherTask.enableOptimization) enableOptimization()
-        if (anotherTask.enableAssertions) enableAssertions()
+            KonanCompileTask::class.java) {
+        it.init(this@KonanCompileConfig.name)
+        it.group = BasePlugin.BUILD_GROUP
+        it.description = "Compiles the Kotlin/Native artifact '${this@KonanCompileConfig.name}'"
     }
 
-    private fun useInteropFromConfig(interopConfig: KonanInteropConfig) {
-        val generateStubsTask = interopConfig.generateStubsTask
-        val compileStubsTask  = interopConfig.compileStubsTask
+    // DSL methods. Interop. --------------------------------------------------
 
-        compilationTask.dependsOn(compileStubsTask)
-        compilationTask.dependsOn(generateStubsTask)
+    fun useInterop(interop: KonanInteropConfig) = with(compilationTask) {
+        val generateStubsTask = interop.generateStubsTask
+        val compileStubsTask = interop.compileStubsTask
 
-        linkerOpts(generateStubsTask.linkerOpts)
-        library(compileStubsTask.artifact)
-        nativeLibraries(project.fileTree(generateStubsTask.libsDir).apply {
-            builtBy(generateStubsTask)
+        dependsOn(compileStubsTask)
+        dependsOn(generateStubsTask)
+        library(project.files(compileStubsTask.artifact))
+        nativeLibrary(project.fileTree(generateStubsTask.libsDir).apply {
             include("**/*.bc")
         })
-        generateStubsTask.manifest ?.let {manifest(it)}
-    }
 
-    fun useInterops(interops: ArrayList<String>) {
-        interops.forEach { useInteropFromConfig(project.konanInteropContainer.getByName(it)) }
+        interops.add(interop)
     }
 
     fun useInterop(interop: String) {
-        useInteropFromConfig(project.konanInteropContainer.getByName(interop))
+        useInterop(project.konanInteropContainer.getByName(interop))
+    }
+
+    fun useInterops(interops: Collection<Any>) {
+        interops.forEach {
+            when(it) {
+                is String -> useInterop(it)
+                is KonanInteropConfig -> useInterop(it)
+                else -> throw IllegalArgumentException("Cannot convert the object to an interop description: $it")
+            }
+        }
     }
 
     // DSL. Input/output files
 
     fun inputDir(dir: String) = with(compilationTask) {
-        inputFiles.add(project.fileTree(dir))
+        _inputFiles.add(project.fileTree(dir))
     }
     fun inputFiles(vararg files: Any) = with(compilationTask) {
-        inputFiles.add(project.files(files))
+        _inputFiles.add(project.files(files))
     }
-    fun inputFiles(files: FileCollection) = compilationTask.inputFiles.add(files)
-    fun inputFiles(files: Collection<FileCollection>) = compilationTask.inputFiles.addAll(files)
+    fun inputFiles(files: FileCollection) = compilationTask._inputFiles.add(files)
+    fun inputFiles(files: Collection<FileCollection>) = compilationTask._inputFiles.addAll(files)
 
 
     fun outputDir(dir: Any) = with(compilationTask) {
@@ -285,7 +278,7 @@ open class KonanCompileConfig(
 
     fun linkerOpts(args: List<String>) = linkerOpts(*args.toTypedArray())
     fun linkerOpts(vararg args: String) = with(compilationTask) {
-        linkerOpts.addAll(args)
+        _linkerOpts.addAll(args)
     }
 
     fun manifest(arg: Any) = with(compilationTask) {
@@ -331,4 +324,6 @@ open class KonanCompileConfig(
     fun dumpParameters(value: Boolean) = with(compilationTask) {
         dumpParameters = value
     }
+
+    fun dependsOn(dependency: Any) = compilationTask.dependsOn(dependency)
 }

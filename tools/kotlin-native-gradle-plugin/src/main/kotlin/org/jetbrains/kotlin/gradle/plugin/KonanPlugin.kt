@@ -18,6 +18,7 @@ package org.jetbrains.kotlin.gradle.plugin
 
 import org.gradle.api.*
 import org.gradle.api.file.FileCollection
+import org.gradle.api.plugins.BasePlugin
 import org.gradle.api.tasks.TaskCollection
 import org.gradle.tooling.provider.model.ToolingModelBuilderRegistry
 import java.util.*
@@ -55,9 +56,15 @@ internal val Project.konanInteropStubsOutputDir   get() = "${konanBuildRoot}/int
 internal val Project.konanInteropCompiledStubsDir get() = "${konanBuildRoot}/interopCompiledStubs"
 internal val Project.konanInteropLibsOutputDir    get() = "${konanBuildRoot}/nativelibs"
 
-internal val Project.konanDefaultSrcDir           get() = file("${projectDir.canonicalPath}/src/main/kotlin")
-internal fun Project.konanDefaultDefFile(interopName: String)
-        = file("${projectDir.canonicalPath}/src/main/c_interop/$interopName.def")
+internal val Project.konanDefaultSrcFiles         get() = fileTree("${projectDir.canonicalPath}/src/main/kotlin")
+internal fun Project.konanDefaultDefFile(libName: String)
+        = file("${projectDir.canonicalPath}/src/main/c_interop/$libName.def")
+
+internal val Project.konanInteropClasspath
+    get() = project.fileTree("${project.konanHome}/konan/lib/").apply { include("*.jar")  }
+
+internal val Project.konanCompilerClasspath
+    get() = project.fileTree("${project.konanHome}/konan/lib/").apply { include("*.jar")  }
 
 @Suppress("UNCHECKED_CAST")
 internal val Project.konanArtifactsContainer: NamedDomainObjectContainer<KonanCompileConfig>
@@ -150,8 +157,10 @@ internal fun dumpProperties(task: Task) {
             println()
             println("Compilation task: ${task.name}")
             println("outputDir          : ${task.outputDir}")
+            println("artifact           : ${task.artifact}")
             println("artifactPath       : ${task.artifactPath}")
             println("inputFiles         : ${task.inputFiles.joinToString(prefix = "[", separator = ", ", postfix = "]")}")
+            println("produce            : ${task.produce}")
             println("libraries          : ${task.libraries}")
             println("nativeLibraries    : ${task.nativeLibraries}")
             println("linkerOpts         : ${task.linkerOpts}")
@@ -173,7 +182,6 @@ internal fun dumpProperties(task: Task) {
             println("defFile            : ${task.defFile}")
             println("target             : ${task.target}")
             println("pkg                : ${task.pkg}")
-            println("linker             : ${task.linker}")
             println("compilerOpts       : ${task.compilerOpts}")
             println("linkerOpts         : ${task.linkerOpts}")
             println("headers            : ${task.headers.joinToString(prefix = "[", separator = ", ", postfix = "]")}")
@@ -184,24 +192,6 @@ internal fun dumpProperties(task: Task) {
             println("Unsupported task.")
         }
     }
-}
-
-internal fun setDefaultInputs(project: Project) {
-    project.konanArtifactsContainer.asSequence()
-            .filter { it.compilationTask.inputFiles.isEmpty() }
-            .forEach { config ->
-                project.konanDefaultSrcDir?.takeIf { it.exists() }?.let {
-                    config.inputDir(it.canonicalPath)
-                }
-            }
-
-    project.konanInteropContainer.asSequence()
-            .filter { it.generateStubsTask.defFile == null }
-            .forEach { config ->
-                project.konanDefaultDefFile(config.name).takeIf { it.exists() }?.let {
-                    config.defFile(it)
-                }
-            }
 }
 
 class KonanPlugin @Inject constructor(private val registry: ToolingModelBuilderRegistry)
@@ -265,13 +255,12 @@ class KonanPlugin @Inject constructor(private val registry: ToolingModelBuilderR
         // Create and set up aggregate building tasks.
         val compileKonanTask = project.getOrCreateTask("compileKonan").apply {
             dependsOn(project.supportedCompileTasks)
+            group = BasePlugin.BUILD_GROUP
+            description = "Compiles all the Kotlin/Native artifacts supported"
         }
         project.getTask("build").apply {
             dependsOn(compileKonanTask)
         }
-
-        // Add default source paths after project evaluation.
-        project.afterEvaluate(::setDefaultInputs)
 
         // Create task to run supported executables.
         project.getOrCreateTask("run").apply {
@@ -292,5 +281,4 @@ class KonanPlugin @Inject constructor(private val registry: ToolingModelBuilderR
             }
         }
     }
-
 }

@@ -29,7 +29,7 @@
 
 // If garbage collection algorithm for cyclic garbage to be used.
 #define USE_GC 1
-// Optmize management of cyclic garbage (increases memory footprint).
+// Optimize management of cyclic garbage (increases memory footprint).
 // Not recommended for low-end embedded targets.
 #define OPTIMIZE_GC 1
 // Define to 1 to print all memory operations.
@@ -350,6 +350,31 @@ ContainerHeader* AllocContainer(size_t size) {
   return result;
 }
 
+extern "C" {
+void objc_release(void* ptr);
+}
+
+inline void runDeallocationHooks(ObjHeader* obj) {
+#if KONAN_OBJC_INTEROP
+  if (obj->type_info() == theObjCPointerHolderTypeInfo) {
+    void* objcPtr =  *reinterpret_cast<void**>(obj + 1); // TODO: use more reliable layout description
+    objc_release(objcPtr);
+  }
+#endif
+}
+
+static inline void DeinitInstanceBodyImpl(const TypeInfo* typeInfo, void* body) {
+  for (int index = 0; index < typeInfo->objOffsetsCount_; index++) {
+    ObjHeader** location = reinterpret_cast<ObjHeader**>(
+        reinterpret_cast<uintptr_t>(body) + typeInfo->objOffsets_[index]);
+    UpdateRef(location, nullptr);
+  }
+}
+
+void DeinitInstanceBody(const TypeInfo* typeInfo, void* body) {
+  DeinitInstanceBodyImpl(typeInfo, body);
+}
+
 void FreeContainer(ContainerHeader* header) {
   RuntimeAssert(!isPermanent(header), "this kind of container shalln't be freed");
 #if TRACE_MEMORY
@@ -366,13 +391,12 @@ void FreeContainer(ContainerHeader* header) {
   ObjHeader* obj = reinterpret_cast<ObjHeader*>(header + 1);
 
   for (int index = 0; index < header->objectCount_; index++) {
+    runDeallocationHooks(obj);
+
     const TypeInfo* typeInfo = obj->type_info();
 
-    for (int index = 0; index < typeInfo->objOffsetsCount_; index++) {
-      ObjHeader** location = reinterpret_cast<ObjHeader**>(
-          reinterpret_cast<uintptr_t>(obj + 1) + typeInfo->objOffsets_[index]);
-      UpdateRef(location, nullptr);
-    }
+    DeinitInstanceBodyImpl(typeInfo, reinterpret_cast<void*>(obj + 1));
+
     // Object arrays are *special*.
     if (typeInfo == theArrayTypeInfo) {
       ArrayHeader* array = obj->array();
@@ -399,6 +423,15 @@ void FreeContainerNoRef(ContainerHeader* header) {
 #if USE_GC
   removeFreeable(memoryState, header);
 #endif
+  ObjHeader* obj = reinterpret_cast<ObjHeader*>(header + 1);
+
+  for (int index = 0; index < header->objectCount_; index++) {
+    runDeallocationHooks(obj);
+
+    obj = reinterpret_cast<ObjHeader*>(
+      reinterpret_cast<uintptr_t>(obj) + objectSize(obj));
+  }
+
   memoryState->allocCount--;
   konanFreeMemory(header);
 }
@@ -467,6 +500,7 @@ bool ArenaContainer::allocContainer(container_size_t minSize) {
   RuntimeAssert(result != nullptr, "Cannot alloc memory");
   if (result == nullptr) return false;
   result->next = currentChunk_;
+  result->arena = this;
   result->asHeader()->refCount_ = (CONTAINER_TAG_STACK | CONTAINER_TAG_INCREMENT);
   currentChunk_ = result;
   current_ = reinterpret_cast<uint8_t*>(result->asHeader() + 1);
@@ -489,6 +523,16 @@ void* ArenaContainer::place(container_size_t size) {
   current_ += size;
   RuntimeAssert(current_ <= end_, "Must not overflow");
   return result;
+}
+
+#define ARENA_SLOTS_CHUNK_SIZE 16
+
+ObjHeader** ArenaContainer::getSlot() {
+  if (slots_ == nullptr || slotsCount_ >= ARENA_SLOTS_CHUNK_SIZE) {
+    slots_ = PlaceArray(theArrayTypeInfo, ARENA_SLOTS_CHUNK_SIZE);
+    slotsCount_ = 0;
+  }
+  return ArrayAddressOfElementAt(slots_, slotsCount_++);
 }
 
 ObjHeader* ArenaContainer::PlaceObject(const TypeInfo* type_info) {
@@ -618,7 +662,7 @@ OBJ_GETTER(AllocInstance, const TypeInfo* type_info) {
     auto arena = initedArena(asArenaSlot(OBJ_RESULT));
     auto result = arena->PlaceObject(type_info);
 #if TRACE_MEMORY
-    fprintf(stderr, "instace %p in arena: %p\n", result, arena);
+    fprintf(stderr, "instance %p in arena: %p\n", result, arena);
 #endif
     return result;
   }
@@ -680,8 +724,29 @@ void SetRef(ObjHeader** location, const ObjHeader* object) {
   }
 }
 
+ObjHeader** GetReturnSlotIfArena(ObjHeader** returnSlot, ObjHeader** localSlot) {
+  return isArenaSlot(returnSlot) ? returnSlot : localSlot;
+}
+
+ObjHeader** GetParamSlotIfArena(ObjHeader* param, ObjHeader** localSlot) {
+  if (param == nullptr) return localSlot;
+  auto container = param->container();
+  if ((container->refCount_ & CONTAINER_TAG_MASK) != CONTAINER_TAG_STACK)
+    return localSlot;
+  auto chunk = reinterpret_cast<ContainerChunk*>(container) - 1;
+  return reinterpret_cast<ObjHeader**>(reinterpret_cast<uintptr_t>(&chunk->arena) | ARENA_BIT);
+}
+
 void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* object) {
-  if (isArenaSlot(returnSlot)) return;
+  if (isArenaSlot(returnSlot)) {
+    if (object == nullptr
+        || (object->container()->refCount_ & CONTAINER_TAG_MASK) > CONTAINER_TAG_NORMAL) {
+        // Not a subject of reference counting.
+        return;
+    }
+    auto arena = initedArena(asArenaSlot(returnSlot));
+    returnSlot = arena->getSlot();
+  }
   ObjHeader* old = *returnSlot;
 #if TRACE_MEMORY
   fprintf(stderr, "UpdateReturnRef *%p: %p -> %p\n", returnSlot, old, object);

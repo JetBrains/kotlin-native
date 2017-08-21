@@ -22,11 +22,11 @@ defaultTasks 'clean', 'dist'
 convention.plugins.platformInfo = new PlatformInfo()
 
 ext {
-        konanPropertiesFile = project(':backend.native').file('konan.properties')
-        konanProperties = PropertiesKt.loadProperties(konanPropertiesFile.absolutePath)
+    konanPropertiesFile = project(':backend.native').file('konan.properties')
+    konanProperties = PropertiesKt.loadProperties(konanPropertiesFile.absolutePath)
 
-        dependenciesDir = rootProject.file("dist/dependencies")
-        clangManager = new ClangManager(konanProperties, dependenciesDir.absolutePath)
+    dependenciesDir = rootProject.file("dist/dependencies")
+    clangManager = new ClangManager(konanProperties, dependenciesDir.absolutePath)
 }
 
 allprojects {
@@ -74,7 +74,7 @@ void setupClang(Project project) {
 
                 toolChains {
                     gcc(Gcc) {
-                        path "$mingwWithLlvmDir/bin"
+                        path "$llvmDir/bin"
                     }
                 }
             } else {
@@ -254,6 +254,11 @@ targetList.each { target ->
             rename("${target}Start.bc", 'start.bc')
             into("klib/stdlib/targets/$target/native")
         }
+        if (target == 'wasm32') {
+            from(project(':runtime').file('src/launcher/js')) {
+                into('konan/nativelib')
+            }
+        }
     }
 }
 
@@ -298,6 +303,19 @@ task bundle(type: (isWindows()) ? Zip : Tar) {
     if (!isWindows()) {
         extension = 'tar.gz'
         compression = Compression.GZIP
+    }
+}
+
+task performance(type: GradleBuild) {
+    dependsOn 'dist'
+    dependsOn ':tools:kotlin-native-gradle-plugin:jar'
+
+    dir = 'performance'
+    tasks = ['build', 'run']
+
+    doFirst {
+        startParameter.projectProperties['konanPluginClasspath'] =
+                project(':tools:kotlin-native-gradle-plugin').tasks.getByName('jar').archivePath.canonicalPath
     }
 }
 

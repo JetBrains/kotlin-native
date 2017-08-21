@@ -43,13 +43,16 @@ class ClangTarget(val target: KonanTarget, konanProperties: KonanProperties) {
                         "-DUSE_GCC_UNWIND=1", "-DUSE_PE_COFF_SYMBOLS=1", "-DKONAN_WINDOWS=1")
 
             KonanTarget.MACBOOK ->
-                listOf("--sysroot=$sysRoot", "-mmacosx-version-min=10.11", "-DKONAN_OSX=1")
+                listOf("--sysroot=$sysRoot", "-mmacosx-version-min=10.11", "-DKONAN_OSX=1",
+                        "-DKONAN_OBJC_INTEROP=1")
 
             KonanTarget.IPHONE ->
-                listOf("-stdlib=libc++", "-arch", "arm64", "-isysroot", "$sysRoot", "-miphoneos-version-min=8.0.0")
+                listOf("-stdlib=libc++", "-arch", "arm64", "-isysroot", "$sysRoot", "-miphoneos-version-min=8.0.0",
+                        "-DKONAN_OBJC_INTEROP=1")
 
             KonanTarget.IPHONE_SIM ->
-                listOf("-stdlib=libc++", "-isysroot", "$sysRoot", "-miphoneos-version-min=8.0.0")
+                listOf("-stdlib=libc++", "-isysroot", "$sysRoot", "-miphoneos-version-min=8.0.0",
+                        "-DKONAN_OBJC_INTEROP=1")
 
             KonanTarget.ANDROID_ARM32 ->
                 listOf("-target", targetArg!!,
@@ -69,8 +72,8 @@ class ClangTarget(val target: KonanTarget, konanProperties: KonanProperties) {
 
             KonanTarget.WASM32 ->
                 listOf("-target", targetArg!!, "-O1", "-fno-rtti", "-fno-exceptions",  "-DKONAN_WASM=1",
-                        "-D_LIBCPP_ABI_VERSION=2", "-DKONAN_NO_FFI=1", "-DKONAN_NO_THREADS=1", "-DKONAN_NO_EXCEPTIONS=1",
-                        "-DKONAN_INTERNAL_DLMALLOC=1",
+                        "-D_LIBCPP_ABI_VERSION=2", "-D_LIBCPP_NO_EXCEPTIONS=1", "-DKONAN_NO_FFI=1", "-DKONAN_NO_THREADS=1", "-DKONAN_NO_EXCEPTIONS=1",
+                        "-DKONAN_INTERNAL_DLMALLOC=1", "-DKONAN_INTERNAL_SNPRINTF=1", "-DKONAN_INTERNAL_NOW=1",
                         "-nostdinc", "-Xclang", "-nobuiltininc", "-Xclang", "-nostdsysteminc",
                         "-Xclang", "-isystem$sysRoot/include/libcxx", "-Xclang", "-isystem$sysRoot/lib/libcxxabi/include",
                         "-Xclang", "-isystem$sysRoot/include/compat", "-Xclang", "-isystem$sysRoot/include/libc")
