@@ -1,0 +1,2 @@
+headers = GLES/gl.h GLES/glext.h GLES/glplatform.h
+linkerOpts = -lGLESv1_CM

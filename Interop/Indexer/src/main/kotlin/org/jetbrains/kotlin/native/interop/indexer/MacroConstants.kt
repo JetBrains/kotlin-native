@@ -190,7 +190,7 @@ private fun processCodeSnippet(
 
     visitChildren(translationUnit, visitor)
 
-    if (state != VisitorState.EXPECT_END) {
+    if (state != VisitorState.EXPECT_END || evalResultKind == null) {
         return null
     }
     return when (evalResultKind!!) {

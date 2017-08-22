@@ -1,0 +1,2 @@
+headers = GLES3/gl3.h GLES3/gl3ext.h GLES3/gl3platform.h
+linkerOpts = -lGLESv3

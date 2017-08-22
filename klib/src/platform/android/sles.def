@@ -1,0 +1,3 @@
+headers = SLES//OpenSLES.h SLES/OpenSLES_Android.h SLES/OpenSLES_AndroidConfiguration.h \
+    SLES/OpenSLES_AndroidMetadata.h SLES/OpenSLES_Platform.h
+linkerOpts = -lOpenSLES
