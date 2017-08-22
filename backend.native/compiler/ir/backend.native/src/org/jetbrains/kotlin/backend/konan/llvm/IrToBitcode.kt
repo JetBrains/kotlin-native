@@ -1774,8 +1774,9 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     private fun evaluateExplicitArgs(expression: IrMemberAccessExpression): List<LLVMValueRef> {
         // TODO: remove this hack by properly implementing blobs in the frontend.
         if (expression.descriptor.original == context.builtIns.immutableBinaryBlobOf) {
-            // As immutableBinaryBlobOf() cannot be called recursively, it's OK to
+            // As calls to immutableBinaryBlobOf() cannot be composed, it's OK to
             // have simple flag for that purpose.
+            assert(!produceImmutableBinaryBlob)
             produceImmutableBinaryBlob = true
         }
 
@@ -1990,7 +1991,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
             context.builtIns.immutableBinaryBlobOf -> {
                 // LLVM value is already computed when evaluating argument, just use it.
-                args[0]
+                args.single()
             }
 
             interop.objCObjectInitFromPtr -> {

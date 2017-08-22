@@ -96,7 +96,7 @@ private val arrayTypes = setOf(
         "kotlin.FloatArray",
         "kotlin.DoubleArray",
         "kotlin.BooleanArray",
-        "konan.ImmutableByteArray"
+        "konan.ImmutableBinaryBlob"
 )
 
 internal val ClassDescriptor.isIntrinsic: Boolean

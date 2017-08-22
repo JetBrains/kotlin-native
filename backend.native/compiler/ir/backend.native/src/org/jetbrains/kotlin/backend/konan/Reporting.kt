@@ -22,7 +22,7 @@ import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.util.getCompilerMessageLocation
 
-internal fun CommonBackendContext.reportCompilationError(message: String, irFile: IrFile, irElement: IrElement): Nothing {
+fun CommonBackendContext.reportCompilationError(message: String, irFile: IrFile, irElement: IrElement): Nothing {
     val location = irElement.getCompilerMessageLocation(irFile)
     this.messageCollector.report(CompilerMessageSeverity.ERROR, message, location)
     throw KonanCompilationException()

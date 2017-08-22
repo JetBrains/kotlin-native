@@ -329,9 +329,9 @@ KInt Kotlin_BooleanArray_getArrayLength(KConstRef thiz) {
   return array->count_;
 }
 
-OBJ_GETTER(Kotlin_ImmutableBinaryBlob_asByteArray, KConstRef thiz, KInt start, KInt count) {
+OBJ_GETTER(Kotlin_ImmutableBinaryBlob_toByteArray, KConstRef thiz, KInt start, KInt count) {
    const ArrayHeader* array = thiz->array();
-   if (start < 0 || count < 0 || start + count > array->count_)  {
+   if (start < 0 || count < 0 || start > array->count_ - count)  {
         ThrowArrayIndexOutOfBoundsException();
     }
     ArrayHeader* result = AllocArrayInstance(

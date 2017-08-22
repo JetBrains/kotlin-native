@@ -22,7 +22,7 @@ import kotlinx.cinterop.*
  * An immutable compile-time array of bytes.
  */
 @ExportTypeInfo("theImmutableBinaryBlobTypeInfo")
-public final class ImmutableBinaryBlob {
+public final class ImmutableBinaryBlob private constructor() {
     public val size: Int
         get() = getArrayLength()
 
@@ -54,9 +54,9 @@ private class ImmutableBinaryBlobIteratorImpl(
 }
 
 // Allocates new ByteArray and copies the data.
-@SymbolName("Kotlin_ImmutableBinaryBlob_asByteArray")
-public external fun ImmutableBinaryBlob.asByteArray(start: Int, count: Int): ByteArray
-public fun ImmutableBinaryBlob.asByteArray() = asByteArray(0, size)
+@SymbolName("Kotlin_ImmutableBinaryBlob_toByteArray")
+public external fun ImmutableBinaryBlob.toByteArray(start: Int, count: Int): ByteArray
+public fun ImmutableBinaryBlob.toByteArray() = toByteArray(0, size)
 
 // Returns stable C pointer to data at certain offset, useful as a way to pass resource
 // to C API.

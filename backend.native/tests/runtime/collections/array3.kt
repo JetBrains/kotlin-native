@@ -7,7 +7,7 @@ fun main(args : Array<String>) {
     }
     println()
 
-    val dataClone = data.asByteArray()
+    val dataClone = data.toByteArray()
     dataClone.map { print("$it ") }
     println()
 }
