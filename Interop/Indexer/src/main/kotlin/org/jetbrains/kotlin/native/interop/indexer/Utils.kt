@@ -349,12 +349,16 @@ internal fun indexTranslationUnit(index: CXIndex, translationUnit: CXTranslation
                     @Suppress("NAME_SHADOWING")
                     val indexer = StableObjPtr.fromValue(clientData!!).get() as Indexer
                     indexer.enteredMainFile(mainFile!!)
+                    // We must ensure only interop types exist in function signature.
+                    @Suppress("USELESS_CAST")
                     null as CXIdxClientFile?
                 }
                 ppIncludedFile = staticCFunction { clientData, info ->
                     @Suppress("NAME_SHADOWING")
                     val indexer = StableObjPtr.fromValue(clientData!!).get() as Indexer
                     indexer.ppIncludedFile(info!!.pointed)
+                    // We must ensure only interop types exist in function signature.
+                    @Suppress("USELESS_CAST")
                     null as CXIdxClientFile?
                 }
                 importedASTFile = null
