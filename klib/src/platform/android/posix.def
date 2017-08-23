@@ -1,3 +1,4 @@
+package = platform.posix
 headers = alloca.h ar.h assert.h byteswap.h complex.h dirent.h dlfcn.h elf.h endian.h err.h errno.h fcntl.h \
     features.h fenv.h fnmatch.h fts.h ftw.h getopt.h grp.h inttypes.h jni.h lastlog.h libgen.h limits.h \
     link.h locale.h malloc.h math.h memory.h mntent.h netdb.h nsswitch.h pathconf.h paths.h poll.h \
@@ -16,7 +17,7 @@ headers = alloca.h ar.h assert.h byteswap.h complex.h dirent.h dlfcn.h elf.h end
 linkerOpts = -ldl -lz
 
 ---
-// cinterop -target android_arm32 -def klib/src/platform/android/posix.def -pkg platform.posix -o platform.posix.klib
+// cinterop -target android_arm32 -def klib/src/platform/android/posix.def -o platform.posix.klib
 
 // Wrapper to access errno variable.
 static int posix_errno() {

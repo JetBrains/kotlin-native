@@ -142,9 +142,10 @@ private fun processCodeSnippet(
         val kind = cursor.kind
         when {
             state == VisitorState.EXPECT_VARIABLE && kind == CXCursorKind.CXCursor_VarDecl -> {
-                state = VisitorState.EXPECT_VARIABLE_VALUE
+
                 val evalResult = clang_Cursor_Evaluate(cursor)
                 if (evalResult != null) {
+                    state = VisitorState.EXPECT_VARIABLE_VALUE
                     try {
                         evalResultKind = clang_EvalResult_getKind(evalResult)
                         if (evalResultKind == CXEvalResultKind.CXEval_Float) {
@@ -153,6 +154,8 @@ private fun processCodeSnippet(
                     } finally {
                         clang_EvalResult_dispose(evalResult)
                     }
+                } else {
+                    state = VisitorState.INVALID
                 }
                 CXChildVisitResult.CXChildVisit_Recurse
             }
@@ -190,7 +193,7 @@ private fun processCodeSnippet(
 
     visitChildren(translationUnit, visitor)
 
-    if (state != VisitorState.EXPECT_END || evalResultKind == null) {
+    if (state != VisitorState.EXPECT_END) {
         return null
     }
     return when (evalResultKind!!) {
