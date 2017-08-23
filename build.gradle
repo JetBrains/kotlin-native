@@ -143,9 +143,9 @@ task list_dist(dependsOn: "listDist")
 
 task distCompiler(type: Copy) {
     dependsOn ':backend.native:jars'
-    dependsOn ':tools:helpers:jar'
     dependsOn ':utilities:jar'
     dependsOn ':klib:jar'
+    dependsOn ':shared:jar'
 
     destinationDir file('dist')
 
@@ -185,11 +185,19 @@ task distCompiler(type: Copy) {
         into('konan/nativelib')
     }
 
+    from(project(':llvmDebugInfoC').file('src/scripts/konan_lldb.py')) {
+        into('tools')
+    }
+
     from(project(':utilities').file('build/libs')) {
         into('konan/lib')
     }
 
     from(project(':klib').file('build/libs')) {
+        into('konan/lib')
+    }
+
+    from(project(':shared').file('build/libs')) {
         into('konan/lib')
     }
 
@@ -202,11 +210,6 @@ task distCompiler(type: Copy) {
     }
     from(konanPropertiesFile) {
         into('konan')
-    }
-
-    // TODO: check if we use native libraries copied to dist (see above) or not.
-    from(project(':tools:helpers').file('build/libs')) {
-        into('konan/lib')
     }
 }
 

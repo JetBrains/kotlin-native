@@ -182,20 +182,23 @@ fun Path.recursiveCopyTo(destPath: Path) {
         val relative = sourcePath.relativize(oldPath)
         val destFs = destPath.getFileSystem()
         // We are copying files between file systems, 
-        // so pass the relative path through the Sting.
+        // so pass the relative path through the String.
         val newPath = destFs.getPath(destPath.toString(), relative.toString())
 
         // File systems don't allow replacing an existing root.
-        if (newPath == newPath.getRoot()) return@next 
-        Files.copy(oldPath, newPath,
-            StandardCopyOption.REPLACE_EXISTING)
+        if (newPath == newPath.getRoot()) return@next
+        if (Files.isDirectory(newPath)) {
+            Files.createDirectories(newPath)
+        } else {
+            Files.copy(oldPath, newPath, StandardCopyOption.REPLACE_EXISTING)
+        }
     }
 }
 
 fun bufferedReader(errorStream: InputStream?) = BufferedReader(InputStreamReader(errorStream))
 
 // stdlib `use` function adapted for AutoCloseable.
-private inline fun <T : AutoCloseable?, R> T.use(block: (T) -> R): R {
+inline fun <T : AutoCloseable?, R> T.use(block: (T) -> R): R {
     var closed = false
     try {
         return block(this)
@@ -210,5 +213,13 @@ private inline fun <T : AutoCloseable?, R> T.use(block: (T) -> R): R {
         if (!closed) {
             this?.close()
         }
+    }
+}
+
+fun Path.unzipTo(directory: Path) {
+    val zipUri = URI.create("jar:" + this.toUri())
+    FileSystems.newFileSystem(zipUri, emptyMap<String, Any?>(), null).use { zipfs ->
+        val zipPath = zipfs.getPath("/")
+        zipPath.recursiveCopyTo(directory)
     }
 }

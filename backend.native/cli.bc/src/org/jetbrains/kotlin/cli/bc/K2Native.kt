@@ -35,25 +35,6 @@ import org.jetbrains.kotlin.konan.target.TargetManager
 import org.jetbrains.kotlin.utils.KotlinPaths
 import kotlin.reflect.KFunction
 
-// TODO: Don't use reflection?
-private fun maybeExecuteHelper(targetName: String) {
-    try {
-        val kClass = Class.forName("org.jetbrains.kotlin.konan.Helper0").kotlin
-        val ctor = kClass.constructors.single() as KFunction<Runnable>
-        val distribution = Distribution(TargetManager(targetName))
-        val result = ctor.call(
-                distribution.dependenciesDir,
-                distribution.properties,
-                distribution.dependencies
-        )
-        result.run()
-    } catch (notFound: ClassNotFoundException) {
-        // Just ignore, no helper.
-    } catch (e: Throwable) {
-        throw IllegalStateException("Cannot download dependencies.", e)
-    }
-}
-
 class K2Native : CLICompiler<K2NativeCompilerArguments>() {
 
     override fun doExecute(@NotNull arguments: K2NativeCompilerArguments, @NotNull configuration: CompilerConfiguration, @NotNull rootDisposable: Disposable, @Nullable paths: KotlinPaths?): ExitCode {
@@ -83,7 +64,6 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
     fun Array<String>?.toNonNullList(): List<String> {
         return this?.asList<String>() ?: listOf<String>()
     }
-
 
     // It is executed before doExecute().
     override fun setupPlatformSpecificArgumentsAndServices(
@@ -151,8 +131,6 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
                 put(ENABLE_ASSERTIONS, arguments.enableAssertions)
             }
         }
-
-        maybeExecuteHelper(arguments.target ?: "host")
     }
 
     override fun createArguments(): K2NativeCompilerArguments {
