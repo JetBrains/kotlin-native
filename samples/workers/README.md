@@ -25,6 +25,11 @@ The transfer is implemented with the function `schedule()` having the following 
 have a property, that no external references to subgraph rooted by this object, exists.
 If property doesn't hold, either (depending on `mode` argument) exception is being thrown
 or program may crash unexpectedly.
+ Then, pointer to stateless lambda `job` along with the stable pointer to parameter object
+is being added to the target worker's queue, and `Future` object matching to the query
+is being created. Once worker peeks the job from the queue, it executes stateless lambda
+with object provided, and stores stable pointer to result in future's data. Whenever
+future is being consumed, object is passed to the consumer's callback.
 
  This particular example starts several workers, and gives them some computational jobs.
 Then it continues execution, and waits on future objects encapsulating the

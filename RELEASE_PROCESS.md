@@ -20,6 +20,8 @@ Repeat those steps for Mac OS X, Linux x86-64 and Windows x64 machines/VMs:
     git checkout -b v0.X-fixes origin/v0.X-fixes
     ./gradlew clean bundle
 
+Make sure all samples are buildable from the bundle with both Gradle and shell script builds.
+
 ### Create GitHub release ###
 
  Create release at [`GitHub release page`](https://github.com/JetBrains/kotlin-native/releases).
@@ -33,6 +35,10 @@ We usually mark 0.X releases as pre-releases.
  Upload build to CDN at upload.cds.intellij.net/kotlin/native.
 Bundles are available at http://download.jetbrains.com/kotlin/native/<build>
 in few minutes after upload.
+
+ Upload Gradle plugin to BinTray
+
+    BINTRAY_USER=... BINTRAY_KEY=... ./gradlew :tools:gradle-plugin:bintrayUpload
 
 ### Blog post ###
  

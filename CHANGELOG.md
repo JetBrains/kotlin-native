@@ -4,7 +4,7 @@
   * Support for immutable data linked into an executable via ImmutableDataBlob class
   * Kotlin 1.1.4 supported
   * Basic variable inspection support in the debugger
-  * Some performance improvements (for loops, memory management)
+  * Some performance improvements ("for" loops, memory management)
   * .klib improvements (keep options from .def file, faster inline handling)
   * experimental workers API added (see [`sample`](https://github.com/JetBrains/kotlin-native/blob/master/samples/workers))
 
