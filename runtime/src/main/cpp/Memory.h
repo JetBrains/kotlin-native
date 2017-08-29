@@ -406,35 +406,59 @@ class ObjHolder {
    ObjHeader* obj_;
 };
 
-#define INC_ALLOC_STATISTIC memoryStatistic
-
-class MemoryStatisitic {
+class MemoryStatistic {
 public:
-  long long allocHeapCounter   = 0;
-  long long freeHeapCounter    = 0;
-  long long updateHeapCounter  = 0;
+    long long counters[4][4];
 
-  long long allocStackCounter  = 0;
-  long long freeStackCounter   = 0;
-  long long updateStackCounter = 0;
-
-  void incAlloc(ObjHeader* location) {
-    ContainerHeader* header = location->container();
-    switch (header->refCount_ & CONTAINER_TAG_MASK) {
-      case CONTAINER_TAG_PERMANENT: allocHeapCounter  ++; break;
-      case CONTAINER_TAG_NORMAL   : allocHeapCounter  ++; break;
-      case CONTAINER_TAG_STACK    : allocStackCounter ++; break;
-      default: RuntimeAssert(false, "unknown container type");
+    void inc(const ObjHeader* objOld, const ObjHeader* objNew) {
+      counters[toIndex(objOld)][toIndex(objNew)] ++;
     }
-  }
 
-  MemoryStatisitic() {
-    fprintf(stderr, "Akm start\n");
-  }
+    int toIndex(const ObjHeader* obj) {
+      if (obj == nullptr) return 0;
 
-  ~MemoryStatisitic() {
-    fprintf(stderr, "Akm finish\n");
-  }
+      ContainerHeader* header = obj->container();
+      switch (header->refCount_ & CONTAINER_TAG_MASK) {
+        case CONTAINER_TAG_PERMANENT: return 1;
+        case CONTAINER_TAG_NORMAL   : return 2;
+        case CONTAINER_TAG_STACK    : return 3;
+      }
+      RuntimeAssert(false, "unknown container type");
+    }
+
+    MemoryStatistic() {
+      for (int i=0; i<4; ++i) {
+        for (int j=0; j<4; ++j) {
+          counters[i][j] = 0;
+        }
+      }
+    }
+
+    ~MemoryStatistic() {
+      fprintf(stderr, "\nMemory manager statistic:\n");
+      fprintf(stderr, "UpdateRef[null      -> null     ]: %lld\n", counters[0][0]);
+      fprintf(stderr, "UpdateRef[null      -> permanent]: %lld\n", counters[0][1]);
+      fprintf(stderr, "UpdateRef[null      -> normal   ]: %lld\n", counters[0][2]);
+      fprintf(stderr, "UpdateRef[null      -> stack    ]: %lld\n", counters[0][3]);
+
+      fprintf(stderr, "\n");
+      fprintf(stderr, "UpdateRef[permanent -> null     ]: %lld\n", counters[1][0]);
+      fprintf(stderr, "UpdateRef[permanent -> permanent]: %lld\n", counters[1][1]);
+      fprintf(stderr, "UpdateRef[permanent -> normal   ]: %lld\n", counters[1][2]);
+      fprintf(stderr, "UpdateRef[permanent -> stack    ]: %lld\n", counters[1][3]);
+
+      fprintf(stderr, "\n");
+      fprintf(stderr, "UpdateRef[normal    -> null     ]: %lld\n", counters[2][0]);
+      fprintf(stderr, "UpdateRef[normal    -> permanent]: %lld\n", counters[2][1]);
+      fprintf(stderr, "UpdateRef[normal    -> normal   ]: %lld\n", counters[2][2]);
+      fprintf(stderr, "UpdateRef[normal    -> stack    ]: %lld\n", counters[2][3]);
+
+      fprintf(stderr, "\n");
+      fprintf(stderr, "UpdateRef[stack     -> null     ]: %lld\n", counters[3][0]);
+      fprintf(stderr, "UpdateRef[stack     -> permanent]: %lld\n", counters[3][1]);
+      fprintf(stderr, "UpdateRef[stack     -> normal   ]: %lld\n", counters[3][2]);
+      fprintf(stderr, "UpdateRef[stack     -> stack    ]: %lld\n", counters[3][3]);
+    }
 };
 
 #endif // RUNTIME_MEMORY_H

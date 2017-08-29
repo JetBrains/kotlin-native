@@ -34,6 +34,8 @@
 #define USE_GC 1
 // Define to 1 to print all memory operations.
 #define TRACE_MEMORY 0
+// Collect memory manager statistics
+#define MEMORY_STATISTIC 0
 
 ContainerHeader ObjHeader::theStaticObjectsContainer = {
   CONTAINER_TAG_PERMANENT | CONTAINER_TAG_INCREMENT
@@ -74,6 +76,13 @@ typedef KStdDeque<ContainerHeader*> ContainerHeaderDeque;
 typedef KStdUnorderedSet<ContainerHeader*> ContainerHeaderSet;
 typedef KStdVector<ContainerHeader*> ContainerHeaderList;
 typedef KStdVector<KRef*> KRefPtrList;
+#endif
+
+#if MEMORY_STATISTIC
+  #define INC_UPDATE_REF_STATISTIC memoryStatistic.inc(old, object);
+  MemoryStatistic memoryStatistic;
+#else
+  #define INC_UPDATE_REF_STATISTIC
 #endif
 
 struct FrameOverlay {
@@ -856,6 +865,7 @@ void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* object) {
 void UpdateRef(ObjHeader** location, const ObjHeader* object) {
   RuntimeAssert(!isArenaSlot(location), "must not be a slot");
   ObjHeader* old = *location;
+  INC_UPDATE_REF_STATISTIC
   if (old != object) {
     MEMORY_LOG("UpdateRef *%p: %p -> %p\n", location, old, object);
     if (object != nullptr) {
