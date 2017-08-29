@@ -17,6 +17,7 @@
 #ifndef RUNTIME_MEMORY_H
 #define RUNTIME_MEMORY_H
 
+#include <cstdio>
 #include "Assert.h"
 #include "Common.h"
 #include "TypeInfo.h"
@@ -403,6 +404,37 @@ class ObjHolder {
 
   private:
    ObjHeader* obj_;
+};
+
+#define INC_ALLOC_STATISTIC memoryStatistic
+
+class MemoryStatisitic {
+public:
+  long long allocHeapCounter   = 0;
+  long long freeHeapCounter    = 0;
+  long long updateHeapCounter  = 0;
+
+  long long allocStackCounter  = 0;
+  long long freeStackCounter   = 0;
+  long long updateStackCounter = 0;
+
+  void incAlloc(ObjHeader* location) {
+    ContainerHeader* header = location->container();
+    switch (header->refCount_ & CONTAINER_TAG_MASK) {
+      case CONTAINER_TAG_PERMANENT: allocHeapCounter  ++; break;
+      case CONTAINER_TAG_NORMAL   : allocHeapCounter  ++; break;
+      case CONTAINER_TAG_STACK    : allocStackCounter ++; break;
+      default: RuntimeAssert(false, "unknown container type");
+    }
+  }
+
+  MemoryStatisitic() {
+    fprintf(stderr, "Akm start\n");
+  }
+
+  ~MemoryStatisitic() {
+    fprintf(stderr, "Akm finish\n");
+  }
 };
 
 #endif // RUNTIME_MEMORY_H
