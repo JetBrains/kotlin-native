@@ -118,11 +118,15 @@ struct MemoryState {
 #endif // USE_GC
 
 #if MEMORY_STATISTIC
+  #define INC_ALLOC_STATISTIC memoryState->statistic.incAlloc(result);
+  #define INC_FREE_STATISTIC memoryState->statistic.incFree(header);
   #define INC_UPDATE_REF_STATISTIC memoryState->statistic.incUpdateRef(old, object);
   #define INIT_STATISTIC memoryState->statistic.init();
   #define PRINT_STATISTIC memoryState->statistic.printStatistic();
   MemoryStatistic statistic;
 #else
+  #define INC_ALLOC_STATISTIC
+  #define INC_FREE_STATISTIC
   #define INC_UPDATE_REF_STATISTIC
   #define INIT_STATISTIC
   #define PRINT_STATISTIC
@@ -538,6 +542,7 @@ ContainerHeader* AllocContainer(size_t size) {
 #endif
   ContainerHeader* result = konanConstructSizedInstance<ContainerHeader>(size);
   MEMORY_LOG(">>> alloc %d -> %p\n", static_cast<int>(size), result);
+  INC_ALLOC_STATISTIC
 #if TRACE_MEMORY
   state->containers->insert(result);
 #endif
@@ -554,6 +559,7 @@ void FreeContainer(ContainerHeader* header) {
   }
 #endif
 
+  INC_FREE_STATISTIC
   // Now let's clean all object's fields in this container.
   traverseContainerObjectFields(header, [](ObjHeader** location) {
     UpdateRef(location, nullptr);
