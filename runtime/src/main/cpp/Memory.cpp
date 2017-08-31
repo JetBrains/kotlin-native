@@ -78,13 +78,6 @@ typedef KStdVector<ContainerHeader*> ContainerHeaderList;
 typedef KStdVector<KRef*> KRefPtrList;
 #endif
 
-#if MEMORY_STATISTIC
-  #define INC_UPDATE_REF_STATISTIC memoryStatistic.inc(old, object);
-  MemoryStatistic memoryStatistic;
-#else
-  #define INC_UPDATE_REF_STATISTIC
-#endif
-
 struct FrameOverlay {
   ArenaContainer* arena;
 };
@@ -123,6 +116,17 @@ struct MemoryState {
   // If collection is in progress.
   bool gcInProgress;
 #endif // USE_GC
+
+#if MEMORY_STATISTIC
+  #define INC_UPDATE_REF_STATISTIC memoryState->statistic.incUpdateRef(old, object);
+  #define INIT_STATISTIC memoryState->statistic.init();
+  #define PRINT_STATISTIC memoryState->statistic.printStatistic();
+  MemoryStatistic statistic;
+#else
+  #define INC_UPDATE_REF_STATISTIC
+  #define INIT_STATISTIC
+  #define PRINT_STATISTIC
+#endif // MEMORY_STATISTIC
 };
 
 void FreeContainer(ContainerHeader* header);
@@ -719,6 +723,7 @@ MemoryState* InitMemory() {
   RuntimeAssert(sizeof(FrameOverlay) % sizeof(ObjHeader**) == 0, "Frame overlay should contain only pointers")
   RuntimeAssert(memoryState == nullptr, "memory state must be clear");
   memoryState = konanConstructInstance<MemoryState>();
+  INIT_STATISTIC
   // TODO: initialize heap here.
 #if TRACE_MEMORY
   memoryState->globalObjects = konanConstructInstance<KRefPtrList>();
@@ -774,6 +779,7 @@ void DeinitMemory(MemoryState* memoryState) {
 #endif
 
   konanFreeMemory(memoryState);
+  PRINT_STATISTIC
   ::memoryState = nullptr;
 }
 
