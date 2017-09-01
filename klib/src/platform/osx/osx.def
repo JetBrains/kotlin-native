@@ -1,0 +1,11 @@
+package = platform.osx
+headers = AppleTextureEncoder.h AssertMacros.h Availability.h AvailabilityInternal.h \
+    AvailabilityMacros.h Block.h ConditionalMacros.h MacTypes.h NSSystemDirectories.h \
+    TargetConditionals.h __cxxabi_config.h _locale.h _types.h _wctype.h \
+    aio.h aliasdb.h asl.h bitstring.h bootparams.h bootstrap.h bzlib.h \
+    cache.h cache_callbacks.h checkint.h com_err.h 
+
+compilerOpts = -D_XOPEN_SOURCE
+linkerOpts = -ldl -lz
+
+---
