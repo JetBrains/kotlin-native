@@ -1,0 +1,3 @@
+package = microhttpd
+headers = microhttpd.h
+linkerOpts = -L/opt/local/lib -lgnutls -lgcrypt
