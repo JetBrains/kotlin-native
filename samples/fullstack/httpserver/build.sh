@@ -6,5 +6,4 @@ PATH=$DIR/../../../dist/bin:$DIR/../../../bin:$PATH
 konanc HttpServer.kt -library $DIR/microhttpd/microhttpd.klib \
                      -library $DIR/../json/jansson.klib \
                      -library $DIR/../sql/sqlite3.klib \
-                     -linkerOpts "$DIR/microhttpd/osx/libmicrohttpd.a" \
                      -o HttpServer

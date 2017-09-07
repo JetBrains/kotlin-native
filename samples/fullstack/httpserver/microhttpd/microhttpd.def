@@ -1,3 +1,4 @@
 package = microhttpd
 headers = microhttpd.h
-linkerOpts.osx = -L/opt/local/lib -lgnutls -lgcrypt
+compilerOpts = -I /opt/local/include
+linkerOpts.osx = -L/opt/local/lib -lmicrohttpd
