@@ -78,4 +78,18 @@ void DeinitRuntime(RuntimeState* state) {
   }
 }
 
+THREAD_LOCAL_VARIABLE RuntimeState* runtimeState = nullptr;
+
+void Kotlin_initRuntimeIfNeeded() {
+  if (runtimeState == nullptr)
+    runtimeState = InitRuntime();
+}
+
+void Kotlin_deinitRuntimeIfNeeded() {
+  if (runtimeState != nullptr) {
+     DeinitRuntime(runtimeState);
+     runtimeState = nullptr;
+  }
+}
+
 }  // extern "C"

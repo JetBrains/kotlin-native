@@ -1,0 +1,4 @@
+package = microhttpd
+headers = microhttpd.h
+compilerOpts = -I /opt/local/include
+linkerOpts.osx = -L/opt/local/lib -lmicrohttpd

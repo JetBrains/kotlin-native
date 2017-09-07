@@ -1,0 +1,4 @@
+package = sqlite3
+headers = sqlite3.h
+compilerOpts.osx = -I/opt/local/include
+linkerOpts.osx = -L/opt/local/lib -lsqlite3
