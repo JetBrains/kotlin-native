@@ -47,14 +47,31 @@ fun dbOpen(): DbConnection {
     return db
 }
 
+fun fromCArray(ptr: CharStarStar, count: Int): Array<String> {
+    val result = Array<String>(count, {
+        index -> (ptr+index)!!.pointed.value!!.toKString()
+    })
+    return result
+}
+
 fun dbExecute(db: DbConnection,
-              command: String, callback: Function2<Int, CharStarStar, CharStarStar>? = null) {
+              command: String, callback: ((Array<String>, Array<String>)-> Int)? = null) {
     memScoped {
         val error = this.alloc<CPointerVar<ByteVar>>()
+        val callbackStable = if (callback != null) StableObjPtr.create(callback) else null
         try {
-            if (sqlite3_exec(db.value, command, null, null, error.ptr) != 0)
+            if (sqlite3_exec(db.value, command, if (callback != null)
+                        staticCFunction {
+                            ptr, count, data, columns -> Int
+                            val callbackFunction =
+                                StableObjPtr.fromValue(ptr!!).get() as (Array<String>, Array<String>)-> Int
+                            val columnsArray = fromCArray(columns!!, count)
+                            val dataArray = fromCArray(data!!, count)
+                            callbackFunction(columnsArray, dataArray)
+                        } else null, callbackStable?.value, error.ptr) != 0)
                 throw Error("DB error: ${error.value!!.toKString()}")
         } finally {
+            callbackStable?.dispose()
             sqlite3_free(error.value)
         }
     }
@@ -63,7 +80,16 @@ fun dbExecute(db: DbConnection,
 
 fun initSession(connection: CPointer<MHD_Connection>?, db: DbConnection)  {
     // TODO: read session using cookie and DB.
-    dbExecute(db, "SELECT COUNT(*) FROM clients ")
+    dbExecute(db, "SELECT COUNT(*) FROM clients ") {
+        columns, data -> Int
+
+        var index = 0
+        while (index < columns.size) {
+            println("${columns[index]} = ${data[index]}")
+            index++
+        }
+        0
+    }
 }
 
 fun main(args: Array<String>) {
@@ -72,11 +98,11 @@ fun main(args: Array<String>) {
         _exit(1)
     }
     val port = args[0].toInt().toShort()
-    val db = dbOpen()
-    dbExecute(db, createDbCommand)
+    val dbMain = dbOpen()
+    dbExecute(dbMain, createDbCommand)
     val daemon = MHD_start_daemon(MHD_USE_AUTO or MHD_USE_INTERNAL_POLLING_THREAD or MHD_USE_ERROR_LOG,
         port, null, null, staticCFunction {
-            cls, connection, urlC, methodC, _, _, _, ptr -> Int
+            cls, connection, urlC, methodC, _, _, _, _ -> Int
             // This handler could (and will) be invoked in another per-connection
             // thread, so reinit runtime.
             konan.initRuntimeIfNeeded()
@@ -87,18 +113,18 @@ fun main(args: Array<String>) {
             val method = methodC!!.toKString()
             println("Connection to $url method $method")
             if (method != "GET") return@staticCFunction MHD_NO
-            val (contentType, response) = makeResponse(method, url)
+            val (contentType, responseText) = makeResponse(method, url)
             return@staticCFunction memScoped {
-                val responseC = response.cstr
+                val responseC = responseText.cstr
                 val response = MHD_create_response_from_buffer(
                         responseC.size.toLong() - 1, responseC.getPointer(this),
                         MHD_ResponseMemoryMode.MHD_RESPMEM_MUST_COPY)
-                MHD_add_response_header (response, "Content-Type", contentType)
+                MHD_add_response_header(response, "Content-Type", contentType)
                 val result = MHD_queue_response(connection, MHD_HTTP_OK, response)
                 MHD_destroy_response(response);
                 result
             }
-        }, db.ptr,
+        }, dbMain.ptr,
         MHD_OPTION_CONNECTION_TIMEOUT, 120,
         MHD_OPTION_STRICT_FOR_CLIENT, 1,
         MHD_OPTION_END)
