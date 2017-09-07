@@ -24,13 +24,9 @@ fun makeResponse(method: String, url: String): Pair<String, String> {
     return "text/html" to makeHtml(url)
 }
 
-fun initHandler(connection: CPointer<MHD_Connection>?) {
-    konan.initRuntimeIfNeeded()
-    // TODO: read session using cookie and DB.
-}
-
 val dbName = "/tmp/clients.dblite"
-// `rowid` column is always there in sqlite.
+// `rowid` column is always there in sqlite, so no need to create explicit
+// primary key.
 val createDbCommand = """
     CREATE TABLE IF NOT EXISTS clients(
         name VARCHAR(255) NOT NULL
@@ -51,8 +47,8 @@ fun dbOpen(): DbConnection {
     return db
 }
 
-fun dbExecute(db: DbConnection, command: String,
-              callback: Function2<Int, CharStarStar, CharStarStar>? = null) {
+fun dbExecute(db: DbConnection,
+              command: String, callback: Function2<Int, CharStarStar, CharStarStar>? = null) {
     memScoped {
         val error = this.alloc<CPointerVar<ByteVar>>()
         try {
@@ -62,6 +58,12 @@ fun dbExecute(db: DbConnection, command: String,
             sqlite3_free(error.value)
         }
     }
+}
+
+
+fun initSession(connection: CPointer<MHD_Connection>?, db: DbConnection)  {
+    // TODO: read session using cookie and DB.
+    dbExecute(db, "SELECT COUNT(*) FROM clients ")
 }
 
 fun main(args: Array<String>) {
@@ -76,8 +78,11 @@ fun main(args: Array<String>) {
         port, null, null, staticCFunction {
             cls, connection, urlC, methodC, _, _, _, ptr -> Int
             // This handler could (and will) be invoked in another per-connection
-            // thread.
-            val state = initHandler(connection)
+            // thread, so reinit runtime.
+            konan.initRuntimeIfNeeded()
+            // TODO: is it correct?
+            val db = cls!!.reinterpret<CPointerVar<sqlite3>>().pointed
+            initSession(connection, db)
             val url = urlC!!.toKString()
             val method = methodC!!.toKString()
             println("Connection to $url method $method")
@@ -93,7 +98,7 @@ fun main(args: Array<String>) {
                 MHD_destroy_response(response);
                 result
             }
-        }, null,
+        }, db.ptr,
         MHD_OPTION_CONNECTION_TIMEOUT, 120,
         MHD_OPTION_STRICT_FOR_CLIENT, 1,
         MHD_OPTION_END)
