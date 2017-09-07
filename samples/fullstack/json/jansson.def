@@ -1,0 +1,4 @@
+package = jansson
+headers = jansson.h
+compilerOpts.osx = -I/opt/local/include
+linkerOpts.osx = -L/opt/local/lib -ljansson

@@ -1,1 +1,0 @@
-~/kotlin/kotlin-native/dist/bin/konanc HttpServer.kt -library microhttpd/microhttpd.klib -linkerOpts "/Users/jetbrains/kotlin/kotlin-native/samples/fullstack/httpserver/microhttpd/osx/libmicrohttpd.a" -o HttpServer
