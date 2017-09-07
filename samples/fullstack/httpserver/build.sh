@@ -3,4 +3,8 @@
 DIR=$(cd "$(dirname "${BASH_SOURCE[0]}" )" && pwd )
 PATH=$DIR/../../../dist/bin:$DIR/../../../bin:$PATH
 
-konanc HttpServer.kt -library $DIR/microhttpd/microhttpd.klib -library $DIR/../json/jansson.klib -linkerOpts "$DIR/microhttpd/osx/libmicrohttpd.a" -o HttpServer
+konanc HttpServer.kt -library $DIR/microhttpd/microhttpd.klib \
+                     -library $DIR/../json/jansson.klib \
+                     -library $DIR/../sql/sqlite3.klib \
+                     -linkerOpts "$DIR/microhttpd/osx/libmicrohttpd.a" \
+                     -o HttpServer

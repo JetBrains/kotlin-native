@@ -1,7 +1,8 @@
 import jansson.*
-import microhttpd.*
 import konan.initRuntimeIfNeeded
 import kotlinx.cinterop.*
+import microhttpd.*
+import sqlite3.*
 
 fun makeJson(url: String): String {
     val root = json_object()
@@ -23,8 +24,44 @@ fun makeResponse(method: String, url: String): Pair<String, String> {
     return "text/html" to makeHtml(url)
 }
 
-fun initHandler() {
+fun initHandler(connection: CPointer<MHD_Connection>?) {
     konan.initRuntimeIfNeeded()
+    // TODO: read session using cookie and DB.
+}
+
+val dbName = "/tmp/clients.dblite"
+// `rowid` column is always there in sqlite.
+val createDbCommand = """
+    CREATE TABLE IF NOT EXISTS clients(
+        name VARCHAR(255) NOT NULL
+    );
+    CREATE TABLE IF NOT EXISTS sessions(
+        client INT NOT NULL
+    );
+"""
+
+typealias CharStarStar = CPointer<CPointerVar<ByteVar>>
+typealias DbConnection = CPointerVar<sqlite3>
+
+fun dbOpen(): DbConnection {
+    val db = nativeHeap.alloc<DbConnection>()
+    if (sqlite3_open(dbName, db.ptr) != 0) {
+        throw Error("Cannot open db: ${sqlite3_errmsg(db.value)}")
+    }
+    return db
+}
+
+fun dbExecute(db: DbConnection, command: String,
+              callback: Function2<Int, CharStarStar, CharStarStar>? = null) {
+    memScoped {
+        val error = this.alloc<CPointerVar<ByteVar>>()
+        try {
+            if (sqlite3_exec(db.value, command, null, null, error.ptr) != 0)
+                throw Error("DB error: ${error.value!!.toKString()}")
+        } finally {
+            sqlite3_free(error.value)
+        }
+    }
 }
 
 fun main(args: Array<String>) {
@@ -33,18 +70,19 @@ fun main(args: Array<String>) {
         _exit(1)
     }
     val port = args[0].toInt().toShort()
+    val db = dbOpen()
+    dbExecute(db, createDbCommand)
     val daemon = MHD_start_daemon(MHD_USE_AUTO or MHD_USE_INTERNAL_POLLING_THREAD or MHD_USE_ERROR_LOG,
         port, null, null, staticCFunction {
             cls, connection, urlC, methodC, _, _, _, ptr -> Int
-
-            initHandler()
+            // This handler could (and will) be invoked in another per-connection
+            // thread.
+            val state = initHandler(connection)
             val url = urlC!!.toKString()
             val method = methodC!!.toKString()
             println("Connection to $url method $method")
             if (method != "GET") return@staticCFunction MHD_NO
-
             val (contentType, response) = makeResponse(method, url)
-
             return@staticCFunction memScoped {
                 val responseC = response.cstr
                 val response = MHD_create_response_from_buffer(
