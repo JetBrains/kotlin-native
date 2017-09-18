@@ -359,6 +359,6 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
         }
     }
 
-    lateinit var debugInfo:DebugInfo
+    lateinit var debugInfo: DebugInfo
 }
 

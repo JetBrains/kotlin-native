@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.descriptors.ClassConstructorDescriptor
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
+import org.jetbrains.kotlin.ir.declarations.IrValueParameter
 
 internal class CodeGenerator(override val context: Context) : ContextUtils {
 
@@ -473,6 +474,13 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
 
     private fun position() = basicBlockToLastLocation[currentBlock]
 
+
+    internal fun mapParameterForDebug(index: Int, value: LLVMValueRef) {
+        assert (context.shouldContainDebugInfo())
+        appendingTo(localsInitBb) {
+            LLVMBuildStore(builder, value, vars.addressOf(index))
+        }
+    }
 
     internal fun prologue() {
         assert(returns.isEmpty())

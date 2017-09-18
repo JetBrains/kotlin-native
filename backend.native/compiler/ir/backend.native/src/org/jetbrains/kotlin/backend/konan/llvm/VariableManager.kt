@@ -18,8 +18,14 @@ package org.jetbrains.kotlin.backend.konan.llvm
 
 import llvm.*
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.name.Name
 
+// If we shall always create stack slots for debugger's pleasure.
+private val alwaysCreateSlots = true
+
+fun IrElement.needDebugInfo() = alwaysCreateSlots || (this is IrVariable && this.descriptor.isVar)
 
 internal class VariableManager(val functionGenerationContext: FunctionGenerationContext) {
     internal interface Record {
@@ -51,19 +57,20 @@ internal class VariableManager(val functionGenerationContext: FunctionGeneration
         contextVariablesToIndex.clear()
     }
 
-    fun createVariable(descriptor: VariableDescriptor, value: LLVMValueRef? = null, variableLocation: VariableDebugLocation?) : Int {
+    fun createVariable(descriptor: ValueDescriptor, value: LLVMValueRef? = null, variableLocation: VariableDebugLocation?) : Int {
+        val isVar = descriptor is VariableDescriptor && descriptor.isVar
         // Note that we always create slot for object references for memory management.
-        if (!descriptor.isVar && value != null)
+        if (!alwaysCreateSlots && !isVar && value != null)
             return createImmutable(descriptor, value)
         else
             // Unfortunately, we have to create mutable slots here,
             // as even vals can be assigned on multiple paths. However, we use varness
             // knowledge, as anonymous slots are created only for true vars (for vals
             // their single assigner already have slot).
-            return createMutable(descriptor, descriptor.isVar, value, variableLocation)
+            return createMutable(descriptor, isVar, value, variableLocation)
     }
 
-    fun createMutable(descriptor: VariableDescriptor,
+    fun createMutable(descriptor: ValueDescriptor,
                       isVar: Boolean, value: LLVMValueRef? = null, variableLocation: VariableDebugLocation?) : Int {
         assert(!contextVariablesToIndex.contains(descriptor))
         val index = variables.size
@@ -92,7 +99,7 @@ internal class VariableManager(val functionGenerationContext: FunctionGeneration
         return index
     }
 
-    fun createImmutable(descriptor: ValueDescriptor, value: LLVMValueRef) : Int {
+    private fun createImmutable(descriptor: ValueDescriptor, value: LLVMValueRef) : Int {
         if (contextVariablesToIndex.containsKey(descriptor))
             throw Error("$descriptor is already defined")
         val index = variables.size
@@ -116,18 +123,36 @@ internal class VariableManager(val functionGenerationContext: FunctionGeneration
     fun store(value: LLVMValueRef, index: Int) {
         variables[index].store(value)
     }
-
-    fun debugInfoLocalVariableLocation(functionScope: DIScopeOpaqueRef, diType: DITypeOpaqueRef, name:Name, file: DIFileRef, line: Int, location: DILocationRef?):VariableDebugLocation {
-        val variableDeclaration = DICreateAutoVariable(
-                builder = functionGenerationContext.context.debugInfo.builder,
-                scope = functionScope,
-                name = name.asString(),
-                file = file,
-                line = line,
-                type = diType)
-
-        return VariableDebugLocation(localVariable = variableDeclaration!!, location = location, file = file, line = line)
-    }
 }
 
 internal data class VariableDebugLocation(val localVariable: DILocalVariableRef, val location:DILocationRef?, val file:DIFileRef, val line:Int)
+
+internal fun debugInfoLocalVariableLocation(builder: DIBuilderRef?,
+        functionScope: DIScopeOpaqueRef, diType: DITypeOpaqueRef, name:Name, file: DIFileRef, line: Int,
+        location: DILocationRef?): VariableDebugLocation {
+    val variableDeclaration = DICreateAutoVariable(
+            builder = builder,
+            scope = functionScope,
+            name = name.asString(),
+            file = file,
+            line = line,
+            type = diType)
+
+    return VariableDebugLocation(localVariable = variableDeclaration!!, location = location, file = file, line = line)
+}
+
+internal fun debugInfoParameterLocation(builder: DIBuilderRef?,
+                                        functionScope: DIScopeOpaqueRef, diType: DITypeOpaqueRef,
+                                        name:Name, argNo: Int, file: DIFileRef, line: Int,
+                                        location: DILocationRef?): VariableDebugLocation {
+    val variableDeclaration = DICreateParameterVariable(
+            builder = builder,
+            scope = functionScope,
+            name = name.asString(),
+            argNo = argNo,
+            file = file,
+            line = line,
+            type = diType)
+
+    return VariableDebugLocation(localVariable = variableDeclaration!!, location = location, file = file, line = line)
+}
