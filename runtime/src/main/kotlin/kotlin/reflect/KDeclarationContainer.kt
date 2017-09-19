@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2015 JetBrains s.r.o.
+ * Copyright 2010-2017 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -21,8 +21,8 @@ package kotlin.reflect
  * such as a class or a package.
  */
 public interface KDeclarationContainer {
-    /**
-     * All functions and properties accessible in this container.
-     */
-    public val members: Collection<KCallable<*>>
+//    /**
+//     * All functions and properties accessible in this container.
+//     */
+//    public val members: Collection<KCallable<*>>
 }
