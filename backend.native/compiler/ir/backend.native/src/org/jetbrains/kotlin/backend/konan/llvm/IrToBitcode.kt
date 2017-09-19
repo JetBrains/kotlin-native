@@ -528,16 +528,23 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         init {
             parameters.map {
                 (descriptor, value) ->
-                val element = descriptorToElement(descriptor, function)
-                if (element != null)
+                val element = descriptorToElement(descriptor, function, value)
+                if (element != null && descriptor !is ReceiverParameterDescriptor)
                     elementToValue += element to value
             }
         }
 
-        private fun descriptorToElement(descriptor: ParameterDescriptor, function: IrFunction?): IrValueParameter? {
+        private fun descriptorToElement(descriptor: ParameterDescriptor, function: IrFunction?, value: LLVMValueRef): IrValueParameter? {
             if (function == null) return null
 
-            return function.valueParameters.singleOrNull { it.descriptor.original == descriptor}
+            return when(descriptor) {
+                is ReceiverParameterDescriptor -> {
+                    functionGenerationContext.vars.createImmutable(descriptor, value)
+                    function.extensionReceiverParameter
+                }
+                is ValueParameterDescriptor -> function.getIrValueParameter(descriptor)
+                else -> function.dispatchReceiverParameter
+            }
         }
 
         override fun genGetValue(descriptor: ValueDescriptor): LLVMValueRef {

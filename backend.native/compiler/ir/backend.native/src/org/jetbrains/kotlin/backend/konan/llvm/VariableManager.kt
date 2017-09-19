@@ -99,7 +99,7 @@ internal class VariableManager(val functionGenerationContext: FunctionGeneration
         return index
     }
 
-    private fun createImmutable(descriptor: ValueDescriptor, value: LLVMValueRef) : Int {
+    fun createImmutable(descriptor: ValueDescriptor, value: LLVMValueRef) : Int {
         if (contextVariablesToIndex.containsKey(descriptor))
             throw Error("$descriptor is already defined")
         val index = variables.size
