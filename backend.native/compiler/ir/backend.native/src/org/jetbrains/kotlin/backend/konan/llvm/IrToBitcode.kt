@@ -523,27 +523,34 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             private val functionGenerationContext: FunctionGenerationContext,
             parameters: Map<ParameterDescriptor, LLVMValueRef>): InnerScopeImpl() {
 
-        val elementToValue = mutableListOf<Pair<IrValueParameter, LLVMValueRef>>()
+        val elementToValue = mutableMapOf<ParameterDescriptor, Pair<IrValueParameter, LLVMValueRef>>()
 
         init {
+            val containingDeclaration = function?.descriptor?.containingDeclaration
+            if (function != null && (function is IrConstructor) && (containingDeclaration is ClassDescriptor) && function.hasNotReceiver()){
+                /* There're cases when IR hasn't got entry for this, because it isn't used, but still implementation
+                 * might rely on its accessibility.
+                 * This is force injection for cases when, there're no user code working with `this`.
+                 */
+                val thisDescriptor = containingDeclaration.thisAsReceiverParameter
+                parameters[thisDescriptor]?.let {
+                    functionGenerationContext.vars.createImmutable(thisDescriptor, it)
+                }
+            }
             parameters.map {
                 (descriptor, value) ->
-                val element = descriptorToElement(descriptor, function, value)
-                if (element != null && descriptor !is ReceiverParameterDescriptor)
-                    elementToValue += element to value
+                val element = descriptorToElement(descriptor, function)
+                if (element != null)
+                    elementToValue[descriptor] = element to value
             }
         }
 
-        private fun descriptorToElement(descriptor: ParameterDescriptor, function: IrFunction?, value: LLVMValueRef): IrValueParameter? {
+        private fun descriptorToElement(descriptor: ParameterDescriptor, function: IrFunction?): IrValueParameter? {
             if (function == null) return null
 
             return when(descriptor) {
-                is ReceiverParameterDescriptor -> {
-                    functionGenerationContext.vars.createImmutable(descriptor, value)
-                    function.extensionReceiverParameter
-                }
                 is ValueParameterDescriptor -> function.getIrValueParameter(descriptor)
-                else -> function.dispatchReceiverParameter
+                else -> function.extensionReceiverParameter ?: function.dispatchReceiverParameter
             }
         }
 
@@ -634,9 +641,9 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         generateFunction(codegen, declaration.descriptor, startLocationInfo, endLocationInfo) {
             using(FunctionScope(declaration, it)) {
                 if (context.shouldContainDebugInfo()) {
-                    val parameters = (currentCodeContext as ParameterScope).elementToValue
-                    parameters.forEach { elementToValue ->
-                        val local = functionGenerationContext.vars.createVariable(elementToValue.first.descriptor,
+                    val functionalParameters = (currentCodeContext as ParameterScope).elementToValue
+                    functionalParameters.forEach { (descriptor, elementToValue) ->
+                        val local = functionGenerationContext.vars.createVariable(descriptor,
                                 elementToValue.second, debugInfoIfNeeded(declaration, elementToValue.first))
                         functionGenerationContext.mapParameterForDebug(local, elementToValue.second)
                     }
@@ -1173,7 +1180,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                     functionScope = functionScope,
                     diType        = element.descriptor.type.diType(context, codegen.llvmTargetData),
                     name          = element.descriptor.name,
-                    argNo         = (element.descriptor as ValueParameterDescriptor).index,
+                    argNo         = (element.descriptor as? ValueParameterDescriptor)?.index ?: 0,
                     file          = file,
                     line          = line,
                     location      = location)
@@ -2480,3 +2487,4 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
 internal data class LocationInfo(val scope:DIScopeOpaqueRef?, val line:Int, val column:Int)
 
+private fun IrFunction.hasNotReceiver() = this.extensionReceiverParameter == null && this.dispatchReceiverParameter == null

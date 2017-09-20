@@ -70,7 +70,7 @@ internal class VariableManager(val functionGenerationContext: FunctionGeneration
             return createMutable(descriptor, isVar, value, variableLocation)
     }
 
-    fun createMutable(descriptor: ValueDescriptor,
+    internal fun createMutable(descriptor: ValueDescriptor,
                       isVar: Boolean, value: LLVMValueRef? = null, variableLocation: VariableDebugLocation?) : Int {
         assert(!contextVariablesToIndex.contains(descriptor))
         val index = variables.size
@@ -99,7 +99,7 @@ internal class VariableManager(val functionGenerationContext: FunctionGeneration
         return index
     }
 
-    fun createImmutable(descriptor: ValueDescriptor, value: LLVMValueRef) : Int {
+    internal fun createImmutable(descriptor: ValueDescriptor, value: LLVMValueRef) : Int {
         if (contextVariablesToIndex.containsKey(descriptor))
             throw Error("$descriptor is already defined")
         val index = variables.size
