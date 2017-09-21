@@ -201,6 +201,17 @@ open class KonanCompileConfig(
 
     // DSL. Libraries.
 
+    fun library(project: Project) = {
+        this.project.evaluationDependsOn(project.path)
+        compilationTask.dependsOn(project.tasks.findByPath("compileKonan"))
+        libraries(project.fileTree(project.konanCompilerOutputDir).include("*.klib"))
+    }
+    fun library(project: Project, artifactName: String) = {
+        this.project.evaluationDependsOn(project.path)
+        compilationTask.dependsOn(project.konanArtifactsContainer.getByName(artifactName).compilationTask)
+        library("${project.konanCompilerOutputDir}/$artifactName.klib")
+    }
+
     fun library(lib: Any) = libraries(lib)
     fun libraries(vararg libs: Any) = with(compilationTask) {
         libraries.add(project.files(*libs))
