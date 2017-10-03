@@ -314,8 +314,12 @@ private String defFileToTaskName(String target, String name) {
 }
 
 task distPlatformLibs {
-    def target = TargetManager.host.name().toLowerCase()
-    dependsOn  targetDefFiles(target).collect {defFileToTaskName(target, it.name)}
+    // def target = TargetManager.host.name().toLowerCase()
+    dependsOn  targetList.collect { 
+        targetName -> targetDefFiles(targetName).collect {
+            defFileToTaskName(targetName, it.name)
+        }
+    }
 }
 
 task dist {

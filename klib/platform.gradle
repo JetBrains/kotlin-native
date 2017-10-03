@@ -8,13 +8,15 @@ buildscript {
     }
 }
 
-def taskName = "${gradle.startParameter.projectProperties['name']}"
+def libraryName = "${gradle.startParameter.projectProperties['name']}"
+def targetName = "${gradle.startParameter.projectProperties.target}"
+def taskName = "${libraryName}_${targetName}"
 
 konanInterop {
     "$taskName" {
         defFile gradle.startParameter.projectProperties.defFile
         pkg gradle.startParameter.projectProperties.name
-        target gradle.startParameter.projectProperties.target
+        target targetName
         noDefaultLibs true
     }
 }
