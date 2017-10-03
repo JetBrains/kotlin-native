@@ -2,7 +2,7 @@ import kotlinx.cinterop.*
 import cglobals.*
 
 fun main(args: Array<String>) {
-    assert(g1 == 42)
+    assert(g1__ == 42)
 
     assert(g2 == 17)
     g2 = 42

@@ -22,3 +22,7 @@ void foo() {
 typedef int MyInt;
 MyInt g7;
 #define g7 bad macro
+
+// Test property name mangling:
+struct g1 {};
+struct g1_ {};

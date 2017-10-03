@@ -67,11 +67,15 @@ class GlobalVariableStub(global: GlobalDecl, stubGenerator: StubGenerator) : Kot
         header = buildString {
             append(if (setter != null) "var" else "val")
             append(" ")
-            append(global.name.asSimpleName())
+            append(getDeclarationName(kotlinScope, global.name))
             append(": ")
             append(kotlinType.render(kotlinScope))
         }
     }
+
+    // Try to use the provided name. If failed, mangle it with underscore and try again:
+    private tailrec fun getDeclarationName(scope: KotlinScope, name: String): String =
+            scope.declareProperty(name) ?: getDeclarationName(scope, name + "_")
 
     override fun generate(context: StubGenerationContext): Sequence<String> {
         val lines = mutableListOf<String>()
