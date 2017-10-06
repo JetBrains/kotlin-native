@@ -28,8 +28,10 @@ konanc $DIR/src/canvas/kotlin \
         -l $DIR/build/klib/jsinterop \
         -p library -o $DIR/build/klib/canvas -target wasm32 || exit 1
 
+mkdir -p $DIR/build/bin
+
 konanc $DIR/src/main/kotlin \
-        -r $DIR/build -l jsinterop -l canvas \
+        -r $DIR/build/klib -l jsinterop -l canvas \
         -o $DIR/build/bin/html5Canvas -target wasm32 || exit 1
 
 echo "Artifact path is $DIR/build/bin/html5Canvas.wasm"
