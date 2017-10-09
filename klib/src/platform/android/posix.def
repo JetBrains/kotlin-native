@@ -15,8 +15,6 @@ headers = alloca.h ar.h assert.h complex.h dirent.h dlfcn.h err.h errno.h fcntl.
 linkerOpts = -ldl
 
 ---
-// cinterop -target android_arm32 -def klib/src/platform/android/posix.def -o platform.posix.klib
-
 // Wrapper to access errno variable.
 static int posix_errno() {
         return errno;
