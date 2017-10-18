@@ -22,6 +22,7 @@ import org.gradle.api.file.FileCollection
 import org.gradle.api.plugins.BasePlugin
 import org.gradle.api.tasks.*
 import java.io.File
+import java.lang.IllegalArgumentException
 
 /**
  * A task compiling the target executable/library using Kotlin/Native compiler
@@ -285,6 +286,10 @@ open class KonanCompileConfig(
 
     fun enableAssertions() = with(compilationTask) {
         enableAssertions = true
+    }
+
+    fun enableDebug() = with(compilationTask) {
+        enableDebug = true
     }
 
     fun noDefaultLibs(flag: Boolean) = with(compilationTask) {
