@@ -30,7 +30,8 @@ fun main(args: Array<String>) {
 
     memScoped {
 
-        val buffer = ByteArray(100)
+        val buffer = ByteArray(1024)
+        val prefixBuffer = kotlin.text.toUtf8Array("echo: ", 0, 6)
         val serverAddr = alloc<sockaddr_in>()
 
         val listenFd = socket(AF_INET, SOCK_STREAM, 0)
@@ -60,6 +61,8 @@ fun main(args: Array<String>) {
                 break
             }
 
+            send(commFd, prefixBuffer.refTo(0), prefixBuffer.size, 0)
+                    .ensureUnixCallResult("write") { it >= 0 }
             send(commFd, pinned.addressOf(0), length, 0)
                     .ensureUnixCallResult("write") { it >= 0 }
           }
