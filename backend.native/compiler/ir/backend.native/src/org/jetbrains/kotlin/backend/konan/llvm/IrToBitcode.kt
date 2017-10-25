@@ -463,17 +463,40 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     /**
      * The scope of parameter visibility.
      */
-    private open inner class ParameterScope(private val functionGenerationContext: FunctionGenerationContext,
+    private open inner class ParameterScope(
+            function: IrFunction?,
+            private val functionGenerationContext: FunctionGenerationContext,
             parameters: Map<ParameterDescriptor, LLVMValueRef>): InnerScopeImpl() {
 
-        // Note: it is possible to generate access to a parameter without any variables,
-        // however variables are named and thus the resulting bitcode can be more readable.
+        val elementToValue = mutableMapOf<ParameterDescriptor, Pair<IrValueParameter, LLVMValueRef>>()
 
         init {
-            parameters.map { (descriptor, value) ->
-                functionGenerationContext.vars.createImmutable(descriptor, value)
+            val containingDeclaration = function?.descriptor?.containingDeclaration
+            if (function != null && (function is IrConstructor) && (containingDeclaration is ClassDescriptor) && function.hasNotReceiver()){
+                /* There're cases when IR hasn't got entry for this, because it isn't used, but still implementation
+                 * might rely on its accessibility.
+                 * This is force injection for cases when, there're no user code working with `this`.
+                 */
+                val thisDescriptor = containingDeclaration.thisAsReceiverParameter
+                parameters[thisDescriptor]?.let {
+                    functionGenerationContext.vars.createImmutable(thisDescriptor, it)
+                }
             }
+            parameters.map {
+                (descriptor, value) ->
+                val element = descriptorToElement(descriptor, function)
+                if (element != null)
+                    elementToValue[descriptor] = element to value
+            }
+        }
 
+        private fun descriptorToElement(descriptor: ParameterDescriptor, function: IrFunction?): IrValueParameter? {
+            if (function == null) return null
+
+            return when(descriptor) {
+                is ValueParameterDescriptor -> function.getIrValueParameter(descriptor)
+                else -> function.extensionReceiverParameter ?: function.dispatchReceiverParameter
+            }
         }
 
         override fun genGetValue(descriptor: ValueDescriptor): LLVMValueRef {
@@ -490,9 +513,12 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
      * The [CodeContext] enclosing the entire function body.
      */
     private inner class FunctionScope (val declaration: IrFunction?, val functionGenerationContext: FunctionGenerationContext) :
-            ParameterScope(functionGenerationContext, bindParameters(declaration?.descriptor)) {
+            ParameterScope(declaration, functionGenerationContext, bindParameters(declaration?.descriptor)) {
+
+
         constructor(llvmFunction:LLVMValueRef, functionGenerationContext: FunctionGenerationContext):this(null, functionGenerationContext) {
             this.llvmFunction = llvmFunction
+
         }
 
         var llvmFunction:LLVMValueRef? = declaration?.let{
@@ -559,6 +585,14 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 column = declaration.endColumn())
         generateFunction(codegen, declaration.descriptor, startLocationInfo, endLocationInfo) {
             using(FunctionScope(declaration, it)) {
+                if (context.shouldContainDebugInfo()) {
+                    val functionalParameters = (currentCodeContext as ParameterScope).elementToValue
+                    functionalParameters.forEach { (descriptor, elementToValue) ->
+                        val local = functionGenerationContext.vars.createVariable(descriptor,
+                                elementToValue.second, debugInfoIfNeeded(declaration, elementToValue.first))
+                        functionGenerationContext.mapParameterForDebug(local, elementToValue.second)
+                    }
+                }
                 using(VariableScope()) {
                     when (body) {
                         is IrBlockBody -> body.statements.forEach { generateStatement(it) }
@@ -1070,25 +1104,41 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     }
 
     //-------------------------------------------------------------------------//
-
-    private fun generateVariable(value: IrVariable) {
-        context.log{"generateVariable               : ${ir2string(value)}"}
-        val result = value.initializer?.let { evaluateExpression(it) }
-        val variableDescriptor = value.descriptor
-        val functionScope = (currentCodeContext.functionScope() as FunctionScope).declaration?.scope()
-        val variableLocation = if (context.shouldContainDebugInfo() && functionScope != null && variableDescriptor.isVar) {
-            val location = debugLocation(value)
-            val file = (currentCodeContext.fileScope() as FileScope).file.file()
-            val line = value.startLine()
-            functionGenerationContext.vars.debugInfoLocalVariableLocation(
+    private fun debugInfoIfNeeded(function: IrFunction?, element: IrElement): VariableDebugLocation? {
+        if (function == null || !context.shouldContainDebugInfo()) return null
+        val functionScope = function?.scope()
+        if (functionScope == null || !element.needDebugInfo()) return null
+        val location = debugLocation(element)
+        val file = (currentCodeContext.fileScope() as FileScope).file.file()
+        val line = element.startLine()
+        return when (element) {
+            is IrVariable -> debugInfoLocalVariableLocation(
+                    builder       = context.debugInfo.builder,
                     functionScope = functionScope,
-                    diType        = variableDescriptor.type.diType(context, functionGenerationContext.llvmTargetData),
-                    name          = variableDescriptor.name,
+                    diType        = element.descriptor.type.diType(context, codegen.llvmTargetData),
+                    name          = element.descriptor.name,
                     file          = file,
                     line          = line,
                     location      = location)
-        } else null
-        currentCodeContext.genDeclareVariable(variableDescriptor, result, variableLocation)
+            is IrValueParameter -> debugInfoParameterLocation(
+                    builder       = context.debugInfo.builder,
+                    functionScope = functionScope,
+                    diType        = element.descriptor.type.diType(context, codegen.llvmTargetData),
+                    name          = element.descriptor.name,
+                    argNo         = (element.descriptor as? ValueParameterDescriptor)?.index ?: 0,
+                    file          = file,
+                    line          = line,
+                    location      = location)
+            else -> throw Error("Unsupported element type: ${ir2string(element)}")
+        }
+    }
+
+    private fun generateVariable(variable: IrVariable) {
+        context.log{"generateVariable               : ${ir2string(variable)}"}
+        val value = variable.initializer?.let { evaluateExpression(it) }
+        currentCodeContext.genDeclareVariable(
+                variable.descriptor, value, debugInfoIfNeeded(
+                (currentCodeContext.functionScope() as FunctionScope)?.declaration, variable))
     }
 
     //-------------------------------------------------------------------------//
@@ -2414,3 +2464,4 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
 internal data class LocationInfo(val scope:DIScopeOpaqueRef?, val line:Int, val column:Int)
 
+private fun IrFunction.hasNotReceiver() = this.extensionReceiverParameter == null && this.dispatchReceiverParameter == null
