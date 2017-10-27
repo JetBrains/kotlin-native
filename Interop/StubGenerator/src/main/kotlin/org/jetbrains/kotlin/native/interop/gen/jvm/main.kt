@@ -214,21 +214,17 @@ private fun parseImports(args: Map<String, List<String>>): ImportsImpl {
 fun getCompilerFlagsForVfsOverlay(args: Map<String, List<String>>, def: DefFile): List<String> {
     val relativeToRoot = mutableMapOf<Path, Path>() // TODO: handle clashes
 
-    val FILTERED_INCLUDE_DIR = "filteredIncludeDir"
+    val HEADER_FILTER_ADDITIONAL_SEARCH_PREFIX = "-headerFilterAdditionalSearchPrefix"
 
-    val filteredIncludeDirs = args["-$FILTERED_INCLUDE_DIR"]?.map { Paths.get(it) }
+    val filteredIncludeDirs = args[HEADER_FILTER_ADDITIONAL_SEARCH_PREFIX]?.map { Paths.get(it) }
     if (filteredIncludeDirs != null) {
         val headerFilterGlobs = def.config.headerFilter
         if (headerFilterGlobs.isEmpty()) {
-            error("'$FILTERED_INCLUDE_DIR' option requires 'headerFilter' to be specified in .def file")
+            error("'$HEADER_FILTER_ADDITIONAL_SEARCH_PREFIX' option requires " +
+                    "'headerFilter' to be specified in .def file")
         }
 
         relativeToRoot += findFilesByGlobs(roots = filteredIncludeDirs, globs = headerFilterGlobs)
-    }
-
-    args["-partialIncludeDir"]?.reversed()?.forEach {
-        val (realIncludeDir, relativePath) = it.split(':')
-        relativeToRoot[Paths.get(relativePath)] = Paths.get(realIncludeDir)
     }
 
     if (relativeToRoot.isEmpty()) {
