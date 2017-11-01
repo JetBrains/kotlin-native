@@ -1,9 +1,10 @@
 package = platform.posix
-headers = minwindef.h wtypesbase.h stdio.h io.h math.h
-compilerOpts = -DUNICODE -DWINVER=0x0601 -D_WIN32_WINNT=0x0601 -DWINAPI_FAMILY=3 \
-   -D_INC_WINDOWS -DRPC_NO_WINDOWS_H -DCOM_NO_WINDOWS_H \
-   -Wno-incompatible-pointer-types -Wno-deprecated-declarations
-noStringConversion = send recv
+headers = assert.h complex.h dirent.h errno.h fcntl.h \
+    fenv.h float.h ftw.h getopt.h inttypes.h libgen.h limits.h \
+    locale.h math.h memory.h sched.h search.h semaphore.h \
+    setjmp.h signal.h stdint.h stdio.h stdlib.h string.h \
+    time.h uchar.h unistd.h utime.h wchar.h wctype.h
+noStringConversion = send sendto recv
 linkerOpts = -lWs2_32
 
 ---
