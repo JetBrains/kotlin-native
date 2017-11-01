@@ -103,7 +103,7 @@ fun createKonanPackageFragmentProvider(
         LocalClassifierTypeSettings.Default, 
         ErrorReporter.DO_NOTHING,
         LookupTracker.DO_NOTHING, NullFlexibleTypeDeserializer,
-        emptyList(), notFoundClasses)
+        emptyList(), notFoundClasses, ContractDeserializer.DEFAULT)
 
         for (packageFragment in packageFragments) {
             packageFragment.components = components

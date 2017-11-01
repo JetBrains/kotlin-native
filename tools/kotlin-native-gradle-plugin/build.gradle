@@ -62,6 +62,10 @@ repositories {
     mavenCentral()
 }
 
+compileKotlin {
+    kotlinOptions.languageVersion = "1.2"
+}
+
 task pluginMetadata {
     def outputDir = file("$buildDir/$name")
 
