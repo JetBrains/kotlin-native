@@ -192,7 +192,6 @@ task run_external () {
             it.goldValue = "OK"
         }
     }
-    createExternalTests(new File(externalTestsDir, "stdlib")) {}
 
     // Set up dependencies.
     def testTasks = tasks.withType(RunExternalTestGroup).matching { it.enabled }
