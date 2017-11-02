@@ -294,8 +294,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 condBr(functionGenerationContext.icmpEq(LLVMGetParam(initFunction, 0)!!, kImmZero), bbDeinit, bbInit)
 
                 appendingTo(bbDeinit) {
-                    context.llvm.fileInitializers
-                            .forEach { it: IrField ->
+                    context.llvm.fileInitializers.forEach {
                         val descriptor = it.descriptor
                         if (descriptor.type.isValueType())
                             return@forEach // Is not a subject for memory management.
@@ -308,11 +307,12 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
                 appendingTo(bbInit) {
                     context.llvm.fileInitializers
-                            .filterNot { it.initializer?.expression is IrConst<*> }
-                            .forEach { it: IrField ->
-                                val initialization = evaluateExpression(it.initializer!!.expression)
-                                val address = context.llvmDeclarations.forStaticField(it.descriptor).storage
-                                storeAny(initialization, address)
+                            .forEach {
+                                if (it.initializer?.expression !is IrConst<*>?) {
+                                    val initialization = evaluateExpression(it.initializer!!.expression)
+                                    val address = context.llvmDeclarations.forStaticField(it.descriptor).storage
+                                    storeAny(initialization, address)
+                                }
                             }
                     ret(null)
                 }
