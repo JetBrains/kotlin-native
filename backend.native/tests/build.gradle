@@ -2356,6 +2356,18 @@ task produce_dynamic(type: DynamicKonanTest) {
                 "RW property is 239\n"
 }
 
+/**
+ * TODO: The following tests are commented:
+ *
+ *
+ *
+ *
+ */
+
+task buildKonanStdlibTests(type: BuildKonanTest) {
+    compileList = [ "stdlib_external" ]
+}
+
 task buildKonanTests(type: BuildKonanTest) {
     compileList = [ "codegen",  "datagen", "lower", "runtime", "serialization"]
 
