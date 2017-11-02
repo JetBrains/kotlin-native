@@ -57,9 +57,7 @@ static short posix_htons(short x) {
 #define RPC_NO_WINDOWS_H
 #define COM_NO_WINDOWS_H
 #define __INSIDE_CYGWIN__
-struct _OVERLAPPED;
-#define LPOVERLAPPED struct _OVERLAPPED*
-#include <winsock.h>
+#include <winsock2.h>
 
 // Wrapper to access h_errno variable.
 static int posix_h_errno() {
