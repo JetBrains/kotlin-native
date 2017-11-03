@@ -39,7 +39,7 @@ private class MyAppDelegate() : NSObject(), NSApplicationDelegateProtocol {
                 NSWindowStyleMaskClosable or NSWindowStyleMaskResizable
 
         window = NSWindow(windowRect, windowStyle, NSBackingStoreBuffered, false).apply {
-            title = "Окошко Konan"
+            title = "Konan Window"
             opaque = true
             hasShadow = true
             preferredBackingLocation = NSWindowBackingLocationVideoMemory
