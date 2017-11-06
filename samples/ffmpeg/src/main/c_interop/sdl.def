@@ -1,0 +1,29 @@
+package = sdl
+headers = SDL.h
+entryPoint = SDL_main
+
+headerFilter = SDL*
+
+compilerOpts = -D_POSIX_SOURCE
+compilerOpts.osx =
+compilerOpts.linux = -D_REENTRANT
+compilerOpts.ios =
+linkerOpts.osx = -framework SDL2
+linkerOpts.linux = -lSDL2
+
+---
+struct AVPacketList;
+
+typedef struct QueueElement {
+    struct QueueElement* next;
+    struct QueueElement* prev;
+    uint8_t* data;
+    int length;
+    int position;
+} QueueElement;
+
+typedef struct {
+  QueueElement* head;
+  QueueElement* tail;
+  SDL_mutex* mutex;
+} PacketQueue;
