@@ -20,10 +20,12 @@ typedef struct QueueElement {
     uint8_t* data;
     int length;
     int position;
+    int id;
 } QueueElement;
 
 typedef struct {
   QueueElement* head;
   QueueElement* tail;
   SDL_mutex* mutex;
+  SDL_cond* cond;
 } PacketQueue;

@@ -3,20 +3,30 @@ import sdl.*
 import ffmpeg.*
 
 fun fillBufferFromQueue(packetQueue: CPointer<PacketQueue>, buffer: CPointer<Uint8Var>?, length: Int) {
-    println("fill up to $length in packetQueue")
+    println("fill up to $length from packetQueue")
     SDL_LockMutex(packetQueue.pointed.mutex)
+    while (packetQueue.pointed.tail == null) {
+        SDL_CondWait(packetQueue.pointed.cond, packetQueue.pointed.mutex)
+    }
     val next = packetQueue.pointed.tail
     if (next == null) {
-        println("Underrun!")
+        // TODO: use that as exit condition?
+        platform.posix.memset(buffer, 0, length.signExtend())
     } else {
-        val copied = min(length, next.pointed.length - next.pointed.position)
+        println("get ${next.pointed.id}")
+        val dataLength = next.pointed.length
+        val copied = min(length, dataLength - next.pointed.position)
         platform.posix.memcpy(buffer, next.pointed.data + next.pointed.position, copied.signExtend())
-        if (copied != next.pointed.length - next.pointed.position) {
+        if (copied + next.pointed.position < dataLength) {
             next.pointed.position += copied
         } else {
             packetQueue.pointed.tail = next.pointed.prev
+            if (packetQueue.pointed.tail != null)
+                packetQueue.pointed.tail!!.pointed.next = null
+            SDL_free(next.pointed.data)
+            SDL_free(next)
         }
-        platform.posix.memset(buffer, copied, (length - copied).signExtend())
+        println("Request $copied of $length buffer has $dataLength")
     }
     SDL_UnlockMutex(packetQueue.pointed.mutex)
 }
@@ -30,11 +40,13 @@ class SDLAudio(val player: VideoPlayer) {
         if (packetQueue == null) {
             packetQueue = SDL_calloc(PacketQueue.size, 1)!!.reinterpret()
             packetQueue!!.pointed.mutex = SDL_CreateMutex()
+            packetQueue!!.pointed.cond = SDL_CreateCond()
         }
     }
 
     fun deinit() {
         if (packetQueue != null) {
+            SDL_DestroyCond(packetQueue!!.pointed.cond)
             SDL_DestroyMutex(packetQueue!!.pointed.mutex)
             SDL_free(packetQueue)
             packetQueue = null
@@ -67,13 +79,16 @@ class SDLAudio(val player: VideoPlayer) {
         }
     }
 
+    var id = 0
+
     fun nextFrame(buffer: CPointer<Uint8Var>?, length: Int) {
         // Put frame to audio thread's queue.
-        println("Next audio: $length")
+        println("Next audio: $length $id")
         val next = SDL_calloc(QueueElement.size, 1)!!.reinterpret<QueueElement>()
         next.pointed.data = SDL_calloc(length.signExtend(), 1)!!.reinterpret<ByteVar>()
         platform.posix.memcpy(next.pointed.data, buffer, length.signExtend())
         next.pointed.length = length
+        next.pointed.id = id++
 
         val queue = packetQueue!!.pointed
         SDL_LockMutex(queue.mutex)
@@ -83,9 +98,11 @@ class SDLAudio(val player: VideoPlayer) {
         next.pointed.next = queue.head
         queue.head = next
         if (queue.tail == null) {
-            queue.tail = next
+            queue.tail = queue.head
         }
         SDL_UnlockMutex(queue.mutex)
+
+        SDL_CondSignal(queue.cond)
     }
 
     fun stopPlayback() {

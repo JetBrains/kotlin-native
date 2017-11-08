@@ -113,7 +113,7 @@ class SDLVideo(val player: VideoPlayer) {
         }
         checkInput()
         if (player.state == State.PLAYING)
-            platform.posix.usleep((1000*1000 / fps).toInt() - 100)
+            platform.posix.usleep((1000*1000 / fps).toInt())
     }
 
     fun stopPlayback() {

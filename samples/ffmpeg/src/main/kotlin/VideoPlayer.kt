@@ -14,10 +14,11 @@ enum class PixelFormat {
     ARGB32
 }
 
+
 class VideoPlayer {
     val video = SDLVideo(this)
     val audio = SDLAudio(this)
-
+    var decoder = DecodeWorker()
     var state: State = State.STOPPED
 
     fun stop() {
@@ -32,16 +33,28 @@ class VideoPlayer {
         }
     }
 
-    fun renderPixelFormat() = when (video.pixelFormat()) {
-            PixelFormat.RGB24 -> AV_PIX_FMT_RGB24
-            PixelFormat.ARGB32 -> AV_PIX_FMT_RGB32
-            else -> TODO()
-        }
-
     fun playFile(file: String) {
         println("playFile $file")
+
+        decoder.init()
         video.init()
         audio.init()
+
+        try {
+            val info = decoder.initDecode(file)
+            val windowWidth = info.width
+            val windowHeight = info.height
+            video.startPlayback(windowWidth, windowHeight, info.fps)
+            audio.startPlayback(info.sampleRate, info.channels)
+            decoder.startPlayback(windowWidth, windowHeight, video.pixelFormat())
+        } finally {
+            decoder.deinit()
+            audio.deinit()
+            video.deinit()
+        }
+
+        /*
+
         try {
             memScoped {
                 val formatContextPtr = alloc<CPointerVar<AVFormatContext>>()
@@ -167,14 +180,17 @@ class VideoPlayer {
                             }
                         }
                     }
-                    av_packet_unref(packet.ptr)
+                    //av_packet_unref(packet.ptr)
                 }
                 video.stopPlayback()
+                av_frame_free(videoFrame.ptr)
+                av_frame_free(audioFrame.ptr)
             }
         } finally {
             audio.deinit()
             video.deinit()
-        }
+        } */
+
     }
 }
 
@@ -183,8 +199,6 @@ fun main(args: Array<String>) {
         println("usage: koplayer file.ext")
         exitProcess(1)
     }
-
-    av_register_all()
 
     val player = VideoPlayer()
     player.playFile(args[0])
