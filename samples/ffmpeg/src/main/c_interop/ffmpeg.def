@@ -1,0 +1,3 @@
+package = ffmpeg
+headers = libavcodec/avcodec.h libavformat/avformat.h libavutil/pixfmt.h libswscale/swscale.h
+linkerOpts = -lavutil -lavformat -lavcodec -lz -lswscale -lm
