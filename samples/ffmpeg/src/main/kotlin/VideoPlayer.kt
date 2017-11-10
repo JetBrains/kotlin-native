@@ -1,6 +1,7 @@
 import ffmpeg.*
 import kotlin.system.*
 import kotlinx.cinterop.*
+import platform.posix.*
 
 enum class State {
     PLAYING,
@@ -14,12 +15,15 @@ enum class PixelFormat {
     ARGB32
 }
 
-
 class VideoPlayer {
     val video = SDLVideo(this)
     val audio = SDLAudio(this)
+    val input = SDLInput(this)
+
     var decoder = DecodeWorker()
     var state: State = State.STOPPED
+    var hasAudio = false
+    var hasVideo = false
 
     fun stop() {
         state = State.STOPPED
@@ -27,11 +31,25 @@ class VideoPlayer {
 
     fun pause() {
         when (state) {
-            State.PAUSED -> state = State.PLAYING
-            State.PLAYING -> state = State.PAUSED
+            State.PAUSED -> {
+                state = State.PLAYING
+                audio.resume()
+            }
+            State.PLAYING -> {
+                state = State.PAUSED
+                audio.pause()
+            }
             State.STOPPED -> throw Error("Cannot pause in stopped state")
         }
     }
+
+
+    private fun getTime(): Double =
+        memScoped {
+            val now = alloc<timespec>()
+            clock_gettime(CLOCK_MONOTONIC, now.ptr)
+            now.tv_sec + now.tv_nsec / 1_000_000_000.0
+        }
 
     fun playFile(file: String) {
         println("playFile $file")
@@ -44,13 +62,62 @@ class VideoPlayer {
             val info = decoder.initDecode(file)
             val windowWidth = info.width
             val windowHeight = info.height
-            video.startPlayback(windowWidth, windowHeight, info.fps)
-            audio.startPlayback(info.sampleRate, info.channels)
-            decoder.startPlayback(windowWidth, windowHeight, video.pixelFormat())
+            hasVideo = windowWidth > 0
+            hasAudio = info.sampleRate != 0
+            if (hasVideo)
+                video.start(windowWidth, windowHeight)
+            decoder.start(windowWidth, windowHeight, video.pixelFormat())
+            if (hasAudio)
+                audio.start(info.sampleRate, info.channels)
+            var lastTimeStamp = getTime()
+            state = State.PLAYING
+            while (state != State.STOPPED) {
+                if (hasVideo) {
+                    val frame = decoder.nextVideoFrame()
+                    if (frame == null) {
+                        state = State.STOPPED
+                        continue
+                    }
+                    println("next frame ${frame.buffer}")
+                    video.nextFrame(frame.buffer.pointed.data!!, frame.lineSize)
+                    frame.unref()
+                }
+                // Audio is being auto-fetched by audio thread.
+
+                // Check if there are any input.
+                input.check()
+
+                // Pause support.
+                while (state == State.PAUSED) {
+                    input.check()
+                    usleep(5 * 1000)
+                }
+
+                // Interframe pause, may lead to broken A/V sync, think of better approach.
+                if (state == State.PLAYING) {
+                    if (hasVideo) {
+                        val now = getTime()
+                        val delta = now - lastTimeStamp
+                        if (delta < 1.0 / info.fps) {
+                            usleep(1000 * 1000 * (1.0 / info.fps - delta).toInt())
+                        }
+                        lastTimeStamp = now
+                    } else {
+                        // For pure sound, playback is driven by demand.
+                        usleep(10 * 1000)
+                    }
+                }
+                println("state=$state")
+            }
+            if (hasAudio)
+                audio.stop()
+            if (hasVideo)
+                video.stop()
+            decoder.stop()
         } finally {
-            decoder.deinit()
             audio.deinit()
             video.deinit()
+            decoder.deinit()
         }
 
         /*
@@ -199,6 +266,8 @@ fun main(args: Array<String>) {
         println("usage: koplayer file.ext")
         exitProcess(1)
     }
+
+    av_register_all()
 
     val player = VideoPlayer()
     player.playFile(args[0])

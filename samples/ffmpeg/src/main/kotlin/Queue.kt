@@ -1,5 +1,5 @@
 class Queue<T>(val maxSize: Int, val none: T) {
-    val array = Array<T>(maxSize, { i -> none})
+    val array = Array<T>(maxSize, { _ -> none})
     var head = 0
     var tail = 0
 
@@ -14,7 +14,9 @@ class Queue<T>(val maxSize: Int, val none: T) {
         if (tail == head)
             throw Error("queue underflow")
         head = (head + 1) % maxSize
-        return array[head]
+        val result = array[head]
+        array[head] = none
+        return result
     }
 
     fun size() = if (tail >= head) tail - head else maxSize - (head - tail)

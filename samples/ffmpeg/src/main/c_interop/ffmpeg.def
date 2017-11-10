@@ -1,3 +1,10 @@
 package = ffmpeg
 headers = libavcodec/avcodec.h libavformat/avformat.h libavutil/pixfmt.h libswscale/swscale.h
 linkerOpts = -lavutil -lavformat -lavcodec -lz -lswscale -lm
+
+---
+
+static void av_buffer_unref2(AVBufferRef* ref) {
+    AVBufferRef* copy = ref;
+    av_buffer_unref(&copy);
+}

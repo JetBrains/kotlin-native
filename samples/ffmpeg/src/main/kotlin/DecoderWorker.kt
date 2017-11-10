@@ -6,12 +6,19 @@ import konan.worker.*
 // This global variable only set to != null value in decoding worker.
 var state: DecodeWorkerState? = null
 
-class NextVideoFrame(val buffer: CPointer<AVBufferRef>?)
-class NextAudioFrame(val buffer: CPointer<AVBufferRef>?)
-class OutputInfo(val width: Int, val height: Int, val pixelFormat: AVPixelFormat)
-
+data class OutputInfo(val width: Int, val height: Int, val pixelFormat: AVPixelFormat)
 data class VideoInfo(val width: Int, val height: Int, val fps: Double,
                      val sampleRate: Int, val channels: Int)
+data class AskNextAudioFrame(val size: Int)
+data class VideoFrame(val buffer: CPointer<AVBufferRef>, val lineSize: Int) {
+    fun unref() = av_buffer_unref2(buffer)
+}
+data class AudioFrame(val buffer: CPointer<AVBufferRef>, val position: Int, val size: Int) {
+    fun unref() {
+        if (position + size >= buffer.pointed.size)
+            av_buffer_unref2(buffer)
+    }
+}
 
 class DecodeWorkerState(val formatContext: CPointer<AVFormatContext>,
                         val videoStreamIndex: Int,
@@ -22,26 +29,39 @@ class DecodeWorkerState(val formatContext: CPointer<AVFormatContext>,
     var scaledVideoFrame: CPointer<AVFrame>? = null
     var audioFrame: CPointer<AVFrame>? = null
     var softwareScalingContext: CPointer<SwsContext>? = null
-    val audioQueue = Queue<CPointer<AVBufferRef>?>(100, null)
-    val videoQueue = Queue<CPointer<AVBufferRef>?>(1000, null)
+    val videoQueue = Queue<VideoFrame?>(100, null)
+    val audioQueue = Queue<AudioFrame?>(1000, null)
     var buffer: ByteArray? = null
     var videoWidth = 0
     var videoHeight = 0
     var windowWidth = 0
     var windowHeight = 0
+    var frameBytes = 0
 
-    fun makeVideoFrame(): CPointer<AVBufferRef>? {
-        return null
+    fun makeVideoFrame(): VideoFrame {
+        //val buffer = av_buffer_ref(scaledVideoFrame!!.pointed.buf[0])
+        // TODO: reuse buffers!
+        val buffer = av_buffer_alloc(frameBytes)!!
+        platform.posix.memcpy(buffer.pointed.data, scaledVideoFrame!!.pointed.data[0], frameBytes.signExtend())
+        return VideoFrame(buffer, scaledVideoFrame!!.pointed.linesize[0])
     }
 
-    fun makeAudioFrame(): CPointer<AVBufferRef>? {
-        return null
+    fun makeAudioFrame(): AudioFrame {
+        val dataSize = av_samples_get_buffer_size(
+                null,
+                audioFrame!!.pointed.channels,
+                audioFrame!!.pointed.nb_samples,
+                audioCodecContext!!.pointed.sample_fmt,
+                1)
+        val buffer = av_buffer_alloc(frameBytes)!!
+        platform.posix.memcpy(buffer.pointed.data, audioFrame!!.pointed.data[0], dataSize.signExtend())
+        return AudioFrame(buffer, 0, dataSize)
     }
 
-    fun startPlayback(output: OutputInfo) {
-        if (videoStreamIndex != -1) {
-            videoWidth = videoCodecContext!!.pointed.width
-            videoHeight = videoCodecContext!!.pointed.height
+    fun start(output: OutputInfo) {
+        if (videoCodecContext != null) {
+            videoWidth = videoCodecContext.pointed.width
+            videoHeight = videoCodecContext.pointed.height
             windowWidth = output.width
             windowHeight = output.height
             videoFrame = av_frame_alloc()!!
@@ -49,29 +69,30 @@ class DecodeWorkerState(val formatContext: CPointer<AVFormatContext>,
             softwareScalingContext = sws_getContext(
                     videoWidth,
                     videoHeight,
-                    videoCodecContext!!.pointed.pix_fmt,
+                    videoCodecContext.pointed.pix_fmt,
                     windowWidth, windowHeight, output.pixelFormat,
                     SWS_BILINEAR, null, null, null)!!
 
-            val frameBytes = avpicture_get_size(output.pixelFormat, output.width, output.height)
+            frameBytes = avpicture_get_size(output.pixelFormat, output.width, output.height)
             buffer = ByteArray(frameBytes)
 
             avpicture_fill(scaledVideoFrame!!.reinterpret(), buffer!!.refTo(0),
                     output.pixelFormat, output.width, output.height)
-
-
         }
 
-        if (audioStreamIndex != -1) {
+        if (audioCodecContext != null) {
             audioFrame = av_frame_alloc()!!
         }
 
         decodeIfNeeded()
     }
 
+    fun stop() {
+    }
+
     fun needMoreBuffers(): Boolean {
-        return ((videoStreamIndex != -1) && (videoQueue.size() < 30)) ||
-                ((audioStreamIndex != -1) && (audioQueue.size() < 500))
+        return ((videoStreamIndex != -1) && (videoQueue.size() < 5)) ||
+                ((audioStreamIndex != -1) && (audioQueue.size() < 50))
     }
 
     fun decodeIfNeeded() {
@@ -99,12 +120,6 @@ class DecodeWorkerState(val formatContext: CPointer<AVFormatContext>,
                         // Put audio frame to decoder's queue.
                         avcodec_decode_audio4(audioCodecContext, audioFrame, frameFinished.ptr, packet.ptr)
                         if (frameFinished.value != 0) {
-                            val dataSize = av_samples_get_buffer_size(
-                                    null,
-                                    audioFrame!!.pointed.channels,
-                                    audioFrame!!.pointed.nb_samples,
-                                    audioCodecContext!!.pointed.sample_fmt,
-                                    1)
                             audioQueue.push(makeAudioFrame())
                         }
                     }
@@ -113,34 +128,66 @@ class DecodeWorkerState(val formatContext: CPointer<AVFormatContext>,
         }
     }
 
-    fun nextVideoFrame(): CPointer<AVBufferRef>? {
+    fun nextVideoFrame(): VideoFrame? {
         println("nextVideoFrame")
         decodeIfNeeded()
-        return null
+
+        if (videoQueue.isEmpty()) {
+            return null
+        }
+        return videoQueue.pop()
     }
 
-    fun nextAudioFrame(): CPointer<AVBufferRef>? {
-        println("nextAudioFrame")
+    fun nextAudioFrame(size: Int): AudioFrame? {
+        println("nextAudioFrame $size")
         decodeIfNeeded()
-        return null
+
+        if (audioQueue.isEmpty()) {
+            return null
+        }
+        return audioQueue.pop()
     }
 }
 
 class DecodeWorker {
-    val decodeWorker = konan.worker.startWorker()
+    // This class must have no other state, but this worker object.
+    // All the real state must be stored on the worker's side.
+    private val decodeWorker: Worker
 
-    fun init() {
-        av_register_all()
+    constructor() {
+        decodeWorker = konan.worker.startWorker()
     }
 
-    fun deinit() {
-        decodeWorker.requestTermination().consume { _ -> }
+    constructor(id: WorkerId) {
+        decodeWorker = Worker(id)
     }
+
+    fun workerId() = decodeWorker.id
+
+    fun init() {}
 
     fun renderPixelFormat(pixelFormat: PixelFormat) = when (pixelFormat) {
         PixelFormat.RGB24 -> AV_PIX_FMT_RGB24
         PixelFormat.ARGB32 -> AV_PIX_FMT_RGB32
-        else -> TODO()
+        else -> {
+            println("$pixelFormat unsupported!")
+            TODO()
+        }
+    }
+
+    private fun findStream(formatContext: CPointer<AVFormatContext>, streamIndex: Int, tag: String):
+            Pair<CPointer<AVStream>?, CPointer<AVCodecContext>?> {
+        if (streamIndex < 0) return null to null
+        val stream = formatContext.pointed.streams!!.get(streamIndex)!!
+        // Get codec context for the video stream.
+        val codecContext = stream.pointed.codec!!
+        val codec = avcodec_find_decoder(codecContext.pointed.codec_id)
+        if (codec == null)
+            throw Error("Unsupported $tag codec...")
+        // Open codec.
+        if (avcodec_open2(codecContext, codec, null) < 0)
+            throw Error("Couldn't open $tag codec")
+        return stream to codecContext
     }
 
     fun initDecode(file: String): VideoInfo {
@@ -168,50 +215,27 @@ class DecodeWorker {
                     }
                 }
 
-                if (videoStreamIndex == -1)
-                    throw Error("No video stream")
-
-                if (audioStreamIndex == -1)
-                    throw Error("No audio stream")
-
-                // VIDEO part.
-                val videoStream = formatContext.pointed.streams!!.get(videoStreamIndex)!!
-                // Get codec context for the video stream.
-                val videoCodecContext = videoStream.pointed.codec!!
-                val videoCodec = avcodec_find_decoder(videoCodecContext.pointed.codec_id)
-                if (videoCodec == null)
-                    throw Error("Unsupported codec in video...")
-
-                // Open video codec.
-                if (avcodec_open2(videoCodecContext, videoCodec, null) < 0)
-                    throw Error("Couldn't open video codec")
-
-                // AUDIO part.
-                val audioStream = formatContext.pointed.streams!!.get(audioStreamIndex)!!
-
-                // Get codec context for the audio stream.
-                val audioCodecContext = audioStream.pointed.codec!!
-                val audioCodec = avcodec_find_decoder(audioCodecContext.pointed.codec_id)
-                if (audioCodec == null)
-                    throw Error("Unsupported audio codec...")
-
-                // Open audio codec.
-                if (avcodec_open2(audioCodecContext, audioCodec, null) < 0)
-                    throw Error("Couldn't open audio codec")
+                val (videoStream, videoCodecContext) = findStream(formatContext, videoStreamIndex, "video")
+                val (_, audioCodecContext) = findStream(formatContext, audioStreamIndex, "audio")
 
                 // Extract video info.
-                val videoWidth = videoCodecContext.pointed.width
-                val videoHeight = videoCodecContext.pointed.height
-                val fps = av_q2d(av_stream_get_r_frame_rate(videoStream))
-
-                // Extract audio info.
-                val sampleRate = audioCodecContext.pointed.sample_rate
-                val channels = audioCodecContext.pointed.channels
+                val (videoWidth, videoHeight, fps) = if (videoCodecContext != null) {
+                    Triple(videoCodecContext.pointed.width, videoCodecContext.pointed.height,
+                            av_q2d(av_stream_get_r_frame_rate(videoStream)))
+                } else {
+                    Triple(-1, -1, 0.0)
+                }
+                val (sampleRate, channels) = if (audioCodecContext != null) {
+                    Pair(audioCodecContext.pointed.sample_rate, audioCodecContext.pointed.channels)
+                } else {
+                    Pair(0, 0)
+                }
 
                 // Pack all inited state and pass it to the worker.
                 decodeWorker.schedule(TransferMode.CHECKED, {
-                    DecodeWorkerState(formatContext, videoStreamIndex, audioStreamIndex,
-                                      videoCodecContext, audioCodecContext)
+                    DecodeWorkerState(formatContext,
+                            videoStreamIndex, audioStreamIndex,
+                            videoCodecContext, audioCodecContext)
                 }) { input ->
                     state = input
                     null
@@ -223,115 +247,49 @@ class DecodeWorker {
         }
     }
 
-    fun startPlayback(width: Int, height: Int, pixelFormat: PixelFormat) {
+    fun start(width: Int, height: Int, pixelFormat: PixelFormat) {
         decodeWorker.schedule(TransferMode.CHECKED, {
             OutputInfo(width, height, renderPixelFormat(pixelFormat))
         }) { input ->
 
-            state!!.startPlayback(input)
+            state!!.start(input)
 
             null
         }
     }
 
+    fun stop() {
+        decodeWorker.schedule(TransferMode.CHECKED, {
+            null
+        }) { _ ->
+            state!!.stop()
+            null
+        }
+    }
 
-    fun nextVideoFrame(): CPointer<AVBufferRef>? {
-        var result: CPointer<AVBufferRef>? = null
+    fun deinit() {
+        decodeWorker.requestTermination().consume { _ -> }
+    }
+
+    fun nextVideoFrame(): VideoFrame? {
+        var result: VideoFrame? = null
         decodeWorker.schedule(TransferMode.CHECKED, { null }) {
-            input ->
-            NextVideoFrame(state!!.nextVideoFrame())
+            _ -> state!!.nextVideoFrame()
         }.consume {
             it ->
-            result = it.buffer
+            result = it
         }
         return result
     }
 
-    fun nextAudioFrame(): CPointer<AVBufferRef>? {
-        var result: CPointer<AVBufferRef>? = null
-        decodeWorker.schedule(TransferMode.CHECKED, { null }) {
-            input -> NextAudioFrame(state!!.nextAudioFrame())
+    fun nextAudioFrame(size: Int): AudioFrame? {
+        var result: AudioFrame? = null
+        decodeWorker.schedule(TransferMode.CHECKED, { AskNextAudioFrame(size) }) {
+            input -> state!!.nextAudioFrame(input.size)
         }.consume {
             it ->
-            result = it.buffer
+            result = it
         }
         return result
     }
-
-    /*
-            // Allocate frames.
-            val videoFrame = av_frame_alloc()!!
-            val audioFrame = av_frame_alloc()!!
-            val frameRGB = av_frame_alloc()!!
-
-
-            val packet = alloc<AVPacket>()
-            val frameFinished = alloc<IntVar>()
-
-            video.startPlayback(videoWidth, videoHeight, fps)
-
-            // Allocate audio stream.
-
-            audio.startPlayback(sampleRate, channels)
-
-            val pixelFormat = renderPixelFormat()
-
-            // Initialize SWS context for software scaling.
-            val softwareScalingContext = sws_getContext(
-                    videoWidth, videoHeight, videoCodecContext.pointed.pix_fmt,
-                    videoWidth, videoHeight, pixelFormat, SWS_BILINEAR,
-                    null, null, null)
-
-            val frameBytes = avpicture_get_size(pixelFormat, videoWidth, videoHeight)
-            println("frame ${videoWidth}x${videoHeight}, size is $frameBytes bytes")
-            // Or use av_malloc?
-            val buffer = ByteArray(frameBytes)
-            avpicture_fill(frameRGB.reinterpret(), buffer.refTo(0), pixelFormat, videoWidth, videoHeight)
-
-            state = State.PLAYING
-
-            while (state != State.STOPPED && av_read_frame(formatContext, packet.ptr) >= 0) {
-
-                while (state == State.PAUSED) {
-                    video.checkInput()
-                    platform.posix.usleep(5 * 1000)
-                }
-
-                when (packet.stream_index) {
-                    videoStreamIndex -> {
-                        // Decode video frame.
-                        avcodec_decode_video2(videoCodecContext, videoFrame, frameFinished.ptr, packet.ptr)
-
-                        // Did we get a video frame?
-                        if (frameFinished.value != 0) {
-                            // Convert the image from its native format to window pixel format.
-                            sws_scale(softwareScalingContext, videoFrame.pointed.data,
-                                    videoFrame.pointed.linesize, 0, videoHeight,
-                                    frameRGB.pointed.data, frameRGB.pointed.linesize)
-                            // Render the frame.
-                            video.nextFrame(
-                                    frameRGB.pointed.data[0]!!, frameRGB.pointed.linesize[0], videoWidth, videoHeight)
-                        }
-                    }
-                    audioStreamIndex -> {
-                        // Put audio frame to decoder's queue.
-                        avcodec_decode_audio4(audioCodecContext, audioFrame, frameFinished.ptr, packet.ptr)
-                        if (frameFinished.value != 0) {
-                            val dataSize = av_samples_get_buffer_size(
-                                    null, channels, audioFrame.pointed.nb_samples,
-                                    audioCodecContext.pointed.sample_fmt, 1)
-                            audio.nextFrame(audioFrame.pointed.data[0], dataSize)
-                        }
-                    }
-                }
-                //av_packet_unref(packet.ptr)
-            }
-            video.stopPlayback()
-            av_frame_free(videoFrame.ptr)
-            av_frame_free(audioFrame.ptr)
-        }
-    } finally {
-        audio.deinit()
-        video.deinit()
-    }*/
 }

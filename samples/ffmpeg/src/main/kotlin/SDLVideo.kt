@@ -29,18 +29,32 @@ class SDLVideo(val player: VideoPlayer) {
     }
 
     fun deinit() {
-        stopPlayback()
+        stop()
         SDL_Quit()
     }
 
     private fun get_SDL_Error() = SDL_GetError()!!.toKString()
 
-    fun startPlayback(videoWidth: Int, videoHeight: Int, fps: Double) {
-        // To free resources from previous playbacks.
-        stopPlayback()
+    var windowWidth = 0
+    var windowHeight = 0
+    var rect: CPointer<SDL_Rect>? = null
 
-        val windowWidth = videoWidth
-        val windowHeight = videoHeight
+    fun start(videoWidth: Int, videoHeight: Int) {
+        // To free resources from previous playbacks.
+        stop()
+
+        windowWidth = videoWidth
+        windowHeight = videoHeight
+
+        // Use arena instead!
+        val rect = SDL_calloc(1, SDL_Rect.size)!!.reinterpret<SDL_Rect>()
+        rect.pointed.let {
+            it.x = 0
+            it.y = 0
+            it.w = windowWidth
+            it.h = windowHeight
+        }
+        this.rect = rect
 
         val windowX = (displayWidth - windowWidth) / 2
         val windowY = (displayHeight - windowHeight) / 2
@@ -63,8 +77,6 @@ class SDLVideo(val player: VideoPlayer) {
         this.renderer = renderer
 
         this.texture = SDL_CreateTexture(renderer, SDL_GetWindowPixelFormat(window), 0, videoWidth, videoHeight)
-
-        this.fps = fps
     }
 
     fun pixelFormat(): PixelFormat {
@@ -80,43 +92,14 @@ class SDLVideo(val player: VideoPlayer) {
         }
     }
 
-    fun checkInput() = memScoped {
-        val event = alloc<SDL_Event>()
-        while (SDL_PollEvent(event.ptr.reinterpret()) != 0) {
-            val eventType = event.type
-            when (eventType) {
-                SDL_QUIT -> player.stop()
-                SDL_KEYDOWN -> {
-                    val keyboardEvent = event.ptr.reinterpret<SDL_KeyboardEvent>().pointed
-                    when (keyboardEvent.keysym.scancode) {
-                        SDL_SCANCODE_ESCAPE -> player.stop()
-                        SDL_SCANCODE_SPACE -> player.pause()
-                    }
-                }
-            }
-        }
+    fun nextFrame(frameData: CPointer<Uint8Var>?, linesize: Int) {
+        SDL_UpdateTexture(texture, rect, frameData, linesize)
+        SDL_RenderClear(renderer)
+        SDL_RenderCopy(renderer, texture, rect, rect)
+        SDL_RenderPresent(renderer)
     }
 
-    fun nextFrame(frameData: CPointer<Uint8Var>, linesize: Int, width: Int, height: Int) {
-        println("Next video: ${width}x${height}")
-        memScoped {
-            val rect = alloc<SDL_Rect>()
-            rect.x = 0
-            rect.y = 0
-            rect.w = width
-            rect.h = height
-
-            SDL_UpdateTexture(texture, rect.ptr, frameData, linesize)
-            SDL_RenderClear(renderer)
-            SDL_RenderCopy(renderer, texture, rect.ptr, rect.ptr)
-            SDL_RenderPresent(renderer)
-        }
-        checkInput()
-        if (player.state == State.PLAYING)
-            platform.posix.usleep((1000*1000 / fps).toInt())
-    }
-
-    fun stopPlayback() {
+    fun stop() {
         if (renderer != null) {
             SDL_DestroyRenderer(renderer)
             renderer = null
@@ -124,6 +107,10 @@ class SDLVideo(val player: VideoPlayer) {
         if (window != null) {
             SDL_DestroyWindow(window)
             window = null
+        }
+        if (rect != null) {
+            SDL_free(rect)
+            rect = null
         }
     }
 }
