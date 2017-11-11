@@ -70,6 +70,7 @@ KNativePtr transfer(KRef object, KInt mode) {
         ThrowWorkerInvalidState();
         return nullptr;
       }
+      __sync_synchronize();
       return object;
   }
   return nullptr;

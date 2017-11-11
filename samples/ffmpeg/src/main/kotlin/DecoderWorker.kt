@@ -47,6 +47,7 @@ class DecodeWorkerState(val formatContext: CPointer<AVFormatContext>,
     }
 
     fun makeAudioFrame(): AudioFrame {
+        /*
          val audioFrameSize = av_samples_get_buffer_size(
                 null,
                 audioCodecContext!!.pointed.channels,
@@ -55,9 +56,16 @@ class DecodeWorkerState(val formatContext: CPointer<AVFormatContext>,
                 1)
         val buffer = av_buffer_alloc(audioFrameSize)!!
         platform.posix.memcpy(buffer.pointed.data, audioFrame!!.pointed.data[0], audioFrameSize.signExtend())
-        
-        //val outSamples = avresample_get_out_samples()
-        return AudioFrame(buffer, 0, audioFrameSize)
+        */
+        memScoped {
+            val outSamples = avresample_get_out_samples(resampleContext, audioFrame!!.pointed.nb_samples)
+            val outLineSize = alloc<IntVar>()
+            val audioFrameSize = av_samples_get_buffer_size(outLineSize.ptr, 2, outSamples, AV_SAMPLE_FMT_S16, 1)
+            val buffer = av_buffer_alloc(audioFrameSize)!!
+            avresample_convert(resampleContext, buffer.pointed.data, outLineSize.value, outSamples,
+                    audioFrame!!.pointed.data[0], audioFrame!!.pointed.linesize[0], audioFrame!!.pointed.nb_samples)
+            return AudioFrame(buffer, 0, audioFrameSize)
+        }
     }
 
     private fun setResampleOpt(name: String, value: Int) =
