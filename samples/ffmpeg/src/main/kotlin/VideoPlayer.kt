@@ -46,8 +46,8 @@ class VideoPlayer {
 
     private fun getTime(): Double =
         memScoped {
-            val now = alloc<timespec>()
-            clock_gettime(CLOCK_MONOTONIC, now.ptr)
+            val now = alloc<platform.posix.timespec>()
+            clock_gettime(platform.posix.CLOCK_MONOTONIC, now.ptr)
             now.tv_sec + now.tv_nsec / 1_000_000_000.0
         }
 
@@ -105,9 +105,11 @@ class VideoPlayer {
                     } else {
                         // For pure sound, playback is driven by demand.
                         usleep(10 * 1000)
+                        if (decoder.done()) {
+                           state = State.STOPPED
+                        }
                     }
                 }
-                println("state=$state")
             }
             if (hasAudio)
                 audio.stop()

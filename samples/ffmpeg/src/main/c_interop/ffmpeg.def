@@ -1,10 +1,27 @@
 package = ffmpeg
-headers = libavcodec/avcodec.h libavformat/avformat.h libavutil/pixfmt.h libswscale/swscale.h
-linkerOpts = -lavutil -lavformat -lavcodec -lz -lswscale -lm
+headers = libavcodec/avcodec.h libavformat/avformat.h libavutil/pixfmt.h libavutil/opt.h \
+          libswscale/swscale.h libavresample/avresample.h
+linkerOpts = -lavutil -lavformat -lavcodec -lz -lswscale -lavresample -lm
+depends = posix
 
 ---
 
 static void av_buffer_unref2(AVBufferRef* ref) {
     AVBufferRef* copy = ref;
     av_buffer_unref(&copy);
+}
+
+static void avcodec_free_context2(AVCodecContext* ref) {
+    AVCodecContext* copy = ref;
+    avcodec_free_context(&copy);
+}
+
+static void avformat_free_context2(AVFormatContext* ref) {
+    AVFormatContext* copy = ref;
+    avformat_free_context(&copy);
+}
+
+static void avresample_free2(AVAudioResampleContext* ref) {
+    AVAudioResampleContext* copy = ref;
+    avresample_free(&copy);
 }

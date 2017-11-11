@@ -1,6 +1,5 @@
 import kotlinx.cinterop.*
 import sdl.*
-import ffmpeg.*
 import konan.worker.WorkerId
 
 class SDLAudio(val player: VideoPlayer) {
@@ -17,31 +16,35 @@ class SDLAudio(val player: VideoPlayer) {
 
         memScoped {
             val spec = alloc<SDL_AudioSpec>()
-            spec.freq = sampleRate
+            spec.freq = 44100 // sampleRate
             spec.format = AUDIO_S16SYS.narrow()
-            spec.channels = channels.narrow()
+            spec.channels = 2.narrow() // channels.narrow()
             spec.silence = 0
             spec.samples = 1024
             spec.callback = staticCFunction {
                 userdata, buffer, length ->
-                // This handler will be invoked in audio thread, so reinit runtime.
+                // This handler will be invoked in the audio thread, so reinit runtime.
                 konan.initRuntimeIfNeeded()
-                println("fill up to $length from $userdata")
                 if (decoder == null) {
                     val callbackData = userdata as? CPointer<IntVar>
                     decoder = DecodeWorker(callbackData!!.pointed.value)
                 }
-                println("id is ${(userdata as? CPointer<IntVar>)!!.pointed.value}")
-                val frame = decoder!!.nextAudioFrame(length)
-                if (frame != null) {
-                    println("frame of ${frame.size} len=$length")
-                    platform.posix.memcpy(buffer, frame.buffer.pointed.data + frame.position, frame.size.signExtend())
-                    frame.unref()
-                } else {
-                    platform.posix.memset(buffer, 0, length.signExtend())
+                var outPosition = 0
+                while (outPosition < length) {
+                    val frame = decoder!!.nextAudioFrame(length)
+                    if (frame != null) {
+                       val toCopy = min(length - outPosition, frame.size - frame.position)
+                       //println("got audio frame of ${frame.size} len=$length framePos=${frame.position} outPos=$outPosition tc=$toCopy")
+                       platform.posix.memcpy(buffer + outPosition, frame.buffer.pointed.data + frame.position, toCopy.signExtend())
+                       frame.unref()
+                       outPosition += toCopy
+                    } else {
+                      println("got silence")
+                      platform.posix.memset(buffer + outPosition, 0, (length - outPosition).signExtend())
+                      break
+                    }
                 }
             }
-            // TODO: userData leaks this way!
             val userData = nativeHeap.alloc<IntVar>()
             userData.value = player.decoder.workerId()
             opaqueData = userData.ptr
@@ -73,5 +76,5 @@ class SDLAudio(val player: VideoPlayer) {
     }
 }
 
-// This global is only set in audio thread.
+// This global is only set in the audio thread.
 var decoder: DecodeWorker? = null

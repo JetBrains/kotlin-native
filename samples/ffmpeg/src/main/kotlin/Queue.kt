@@ -19,6 +19,13 @@ class Queue<T>(val maxSize: Int, val none: T) {
         return result
     }
 
+    fun peek() : T {
+        if (tail == head)
+            throw Error("queue underflow")
+        val index = (head + 1) % maxSize
+        return array[index]
+    }
+
     fun size() = if (tail >= head) tail - head else maxSize - (head - tail)
 
     fun isEmpty() = head == tail
