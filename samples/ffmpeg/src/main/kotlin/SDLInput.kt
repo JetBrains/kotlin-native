@@ -2,8 +2,9 @@ import kotlinx.cinterop.*
 import sdl.*
 
 class SDLInput(val player: VideoPlayer) {
-    fun check() = memScoped {
-        val event = alloc<SDL_Event>()
+    // TODO: leaks!
+    val event = nativeHeap.alloc<SDL_Event>()
+    fun check() {
         while (SDL_PollEvent(event.ptr.reinterpret()) != 0) {
             val eventType = event.type
             when (eventType) {

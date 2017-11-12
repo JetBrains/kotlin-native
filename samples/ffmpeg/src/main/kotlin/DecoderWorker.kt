@@ -3,18 +3,24 @@ import kotlin.system.*
 import kotlinx.cinterop.*
 import konan.worker.*
 
-// This global variable only set to != null value in decoding worker.
+// This global variable only set to != null value in the decoding worker.
 var state: DecodeWorkerState? = null
 
 data class OutputInfo(val width: Int, val height: Int, val pixelFormat: AVPixelFormat)
 data class VideoInfo(val width: Int, val height: Int, val fps: Double,
                      val sampleRate: Int, val channels: Int)
+
 data class AskNextAudioFrame(val size: Int)
 data class VideoFrame(val buffer: CPointer<AVBufferRef>, val lineSize: Int) {
-    fun unref() = av_buffer_unref2(buffer)
+    fun unref() {
+        av_buffer_unref2(buffer)
+    }
 }
+
 data class AudioFrame(val buffer: CPointer<AVBufferRef>, var position: Int, val size: Int) {
-    fun unref() = av_buffer_unref2(buffer)
+    fun unref() {
+        av_buffer_unref2(buffer)
+    }
 }
 
 class DecodeWorkerState(val formatContext: CPointer<AVFormatContext>,
@@ -29,7 +35,7 @@ class DecodeWorkerState(val formatContext: CPointer<AVFormatContext>,
     var softwareScalingContext: CPointer<SwsContext>? = null
     var resampleContext: CPointer<AVAudioResampleContext>? = null
     val videoQueue = Queue<VideoFrame?>(100, null)
-    val audioQueue = Queue<AudioFrame?>(1000, null)
+    val audioQueue = Queue<AudioFrame?>(400, null)
     var buffer: ByteArray? = null
     var videoWidth = 0
     var videoHeight = 0
@@ -42,7 +48,7 @@ class DecodeWorkerState(val formatContext: CPointer<AVFormatContext>,
         // TODO: reuse buffers!
         val buffer = av_buffer_alloc(scaledFrameSize)!!
         platform.posix.memcpy(buffer.pointed.data, scaledVideoFrame!!.pointed.data[0], scaledFrameSize.signExtend())
-     
+
         return VideoFrame(buffer, scaledVideoFrame!!.pointed.linesize[0])
     }
 
@@ -60,9 +66,8 @@ class DecodeWorkerState(val formatContext: CPointer<AVFormatContext>,
     }
 
     private fun setResampleOpt(name: String, value: Int) =
-        av_opt_set_int(resampleContext, name, value.signExtend(), 0)         
-      
- 
+            av_opt_set_int(resampleContext, name, value.signExtend(), 0)
+
 
     fun start(output: OutputInfo) {
         if (videoCodecContext != null) {
@@ -94,10 +99,10 @@ class DecodeWorkerState(val formatContext: CPointer<AVFormatContext>,
             resampledAudioFrame!!.pointed.channel_layout = AV_CH_LAYOUT_STEREO.signExtend()
             resampledAudioFrame!!.pointed.sample_rate = 44100
             resampleContext = avresample_alloc_context()
-            setResampleOpt("in_channel_layout", if (audioCodecContext!!.pointed.channels == 1) AV_CH_LAYOUT_MONO else AV_CH_LAYOUT_STEREO) 
+            setResampleOpt("in_channel_layout", if (audioCodecContext!!.pointed.channels == 1) AV_CH_LAYOUT_MONO else AV_CH_LAYOUT_STEREO)
             setResampleOpt("out_channel_layout", AV_CH_LAYOUT_STEREO)
             setResampleOpt("in_sample_rate", audioCodecContext!!.pointed.sample_rate)
-            setResampleOpt("out_sample_rate", 44100) 
+            setResampleOpt("out_sample_rate", 44100)
             setResampleOpt("in_sample_fmt", audioCodecContext!!.pointed.sample_fmt)
             setResampleOpt("out_sample_fmt", AV_SAMPLE_FMT_S16)
             avresample_open(resampleContext)
@@ -142,17 +147,17 @@ class DecodeWorkerState(val formatContext: CPointer<AVFormatContext>,
             resampleContext = null
         }
         if (videoCodecContext != null) {
-            //avcodec_free_context2(videoCodecContext)
+            avcodec_free_context2(videoCodecContext)
         }
         if (audioCodecContext != null) {
-            //avcodec_free_context2(audioCodecContext)
+            avcodec_free_context2(audioCodecContext)
         }
-        //avformat_free_context2(formatContext)
+        avformat_free_context2(formatContext)
     }
 
     fun needMoreBuffers(): Boolean {
         return ((videoStreamIndex != -1) && (videoQueue.size() < 5)) ||
-                ((audioStreamIndex != -1) && (audioQueue.size() < 10))
+                ((audioStreamIndex != -1) && (audioQueue.size() < 50))
     }
 
     fun decodeIfNeeded() {
@@ -178,15 +183,15 @@ class DecodeWorkerState(val formatContext: CPointer<AVFormatContext>,
                     }
                     audioStreamIndex -> {
                         while (packet.size > 0) {
-                           val size = avcodec_decode_audio4(
-                               audioCodecContext, audioFrame, frameFinished.ptr, packet.ptr)
+                            val size = avcodec_decode_audio4(
+                                    audioCodecContext, audioFrame, frameFinished.ptr, packet.ptr)
 
-                           if (frameFinished.value != 0) {
-                              // Put audio frame to decoder's queue.
-                              audioQueue.push(makeAudioFrame())
-                           }
-                           packet.size -= size
-                           packet.data += size
+                            if (frameFinished.value != 0) {
+                                // Put audio frame to decoder's queue.
+                                audioQueue.push(makeAudioFrame())
+                            }
+                            packet.size -= size
+                            packet.data += size
                         }
                     }
                 }
@@ -217,7 +222,7 @@ class DecodeWorkerState(val formatContext: CPointer<AVFormatContext>,
         var frame = audioQueue.peek()!!
         var realSize = if (frame.position + size > frame.size) frame.size - frame.position else size
         val result = AudioFrame(av_buffer_ref(frame.buffer)!!,
-                                frame.position, frame.size)
+                frame.position, frame.size)
         frame.position += realSize
         if (frame.position >= frame.size) {
             // If this buffer contains no more samples - remove it from the queue.
@@ -256,9 +261,9 @@ class DecodeWorker {
         }
     }
 
-    private fun findStream(formatContext: CPointer<AVFormatContext>, streamIndex: Int, tag: String):
+    private fun findStream(useStream: Boolean, formatContext: CPointer<AVFormatContext>, streamIndex: Int, tag: String):
             Pair<CPointer<AVStream>?, CPointer<AVCodecContext>?> {
-        if (streamIndex < 0) return null to null
+        if (streamIndex < 0 || !useStream) return null to null
         val stream = formatContext.pointed.streams!!.get(streamIndex)!!
         // Get codec context for the video stream.
         val codecContext = stream.pointed.codec!!
@@ -271,58 +276,56 @@ class DecodeWorker {
         return stream to codecContext
     }
 
-    fun initDecode(file: String): VideoInfo {
+    fun initDecode(file: String, useVideo: Boolean = true, useAudio: Boolean = true): VideoInfo {
         try {
-            memScoped {
-                val formatContextPtr = alloc<CPointerVar<AVFormatContext>>()
-                if (avformat_open_input(formatContextPtr.ptr, file, null, null) != 0)
-                    throw Error("Cannot open video file")
-                val formatContext = formatContextPtr.value!!
-                if (avformat_find_stream_info(formatContext, null) < 0)
-                    throw Error("Couldn't find stream information")
-                av_dump_format(formatContext, 0, file, 0)
+            val formatContextPtr = nativeHeap.alloc<CPointerVar<AVFormatContext>>()
+            if (avformat_open_input(formatContextPtr.ptr, file, null, null) != 0)
+                throw Error("Cannot open video file")
+            val formatContext = formatContextPtr.value!!
+            if (avformat_find_stream_info(formatContext, null) < 0)
+                throw Error("Couldn't find stream information")
+            av_dump_format(formatContext, 0, file, 0)
 
-                // Find the first video/audio streams.
-                var videoStreamIndex = -1
-                var audioStreamIndex = -1
-                for (i in 0 until formatContext.pointed.nb_streams) {
-                    val stream = formatContext.pointed.streams!!.get(i)
-                    val codec = stream!!.pointed.codec!!.pointed
-                    if (codec.codec_type == AVMEDIA_TYPE_VIDEO && videoStreamIndex == -1) {
-                        videoStreamIndex = i
-                    }
-                    if (codec.codec_type == AVMEDIA_TYPE_AUDIO && audioStreamIndex == -1) {
-                        audioStreamIndex = i
-                    }
+            // Find the first video/audio streams.
+            var videoStreamIndex = -1
+            var audioStreamIndex = -1
+            for (i in 0 until formatContext.pointed.nb_streams) {
+                val stream = formatContext.pointed.streams!!.get(i)
+                val codec = stream!!.pointed.codec!!.pointed
+                if (codec.codec_type == AVMEDIA_TYPE_VIDEO && videoStreamIndex == -1) {
+                    videoStreamIndex = i
                 }
-
-                val (videoStream, videoCodecContext) = findStream(formatContext, videoStreamIndex, "video")
-                val (_, audioCodecContext) = findStream(formatContext, audioStreamIndex, "audio")
-
-                // Extract video info.
-                val (videoWidth, videoHeight, fps) = if (videoCodecContext != null) {
-                    Triple(videoCodecContext.pointed.width, videoCodecContext.pointed.height,
-                            av_q2d(av_stream_get_r_frame_rate(videoStream)))
-                } else {
-                    Triple(-1, -1, 0.0)
+                if (codec.codec_type == AVMEDIA_TYPE_AUDIO && audioStreamIndex == -1) {
+                    audioStreamIndex = i
                 }
-                val (sampleRate, channels) = if (audioCodecContext != null) {
-                    Pair(audioCodecContext.pointed.sample_rate, audioCodecContext.pointed.channels)
-                } else {
-                    Pair(0, 0)
-                }
-
-                // Pack all inited state and pass it to the worker.
-                decodeWorker.schedule(TransferMode.CHECKED, {
-                    DecodeWorkerState(formatContext,
-                            videoStreamIndex, audioStreamIndex,
-                            videoCodecContext, audioCodecContext)
-                }) { input ->
-                    state = input
-                    null
-                }
-                return VideoInfo(videoWidth, videoHeight, fps, sampleRate, channels)
             }
+
+            val (videoStream, videoCodecContext) = findStream(useVideo, formatContext, videoStreamIndex, "video")
+            val (_, audioCodecContext) = findStream(useAudio, formatContext, audioStreamIndex, "audio")
+
+            // Extract video info.
+            val (videoWidth, videoHeight, fps) = if (videoCodecContext != null) {
+                Triple(videoCodecContext.pointed.width, videoCodecContext.pointed.height,
+                        av_q2d(av_stream_get_r_frame_rate(videoStream)))
+            } else {
+                Triple(-1, -1, 0.0)
+            }
+            val (sampleRate, channels) = if (audioCodecContext != null) {
+                Pair(audioCodecContext.pointed.sample_rate, audioCodecContext.pointed.channels)
+            } else {
+                Pair(0, 0)
+            }
+
+            // Pack all inited state and pass it to the worker.
+            decodeWorker.schedule(TransferMode.CHECKED, {
+                DecodeWorkerState(formatContext,
+                        videoStreamIndex, audioStreamIndex,
+                        videoCodecContext, audioCodecContext)
+            }) { input ->
+                state = input
+                null
+            }
+            return VideoInfo(videoWidth, videoHeight, fps, sampleRate, channels)
         } finally {
             // TODO: clean up whatever we allocated.
         }
@@ -349,38 +352,21 @@ class DecodeWorker {
         }.consume { _ -> }
     }
 
-    fun done(): Boolean {
-       var result = false
-       decodeWorker.schedule(TransferMode.CHECKED, { null }) { _ -> 
-            (state == null || state!!.done()) as Boolean? }.consume {
-               it -> result = it!!
-            }
-        return result
-    }
+    // TODO: we manually box returned primitive value,
+    // fix by autoboxing schedule()'s result in the compiler.
+    fun done() = decodeWorker.schedule(TransferMode.CHECKED, { null }) { _ ->
+        (state == null || state!!.done()) as Boolean?
+    }.consume { it -> it!! }
 
     fun deinit() {
         decodeWorker.requestTermination().consume { _ -> }
     }
 
-    fun nextVideoFrame(): VideoFrame? {
-        var result: VideoFrame? = null
-        decodeWorker.schedule(TransferMode.CHECKED, { null }) {
-            _ -> state!!.nextVideoFrame()
-        }.consume {
-            it ->
-            result = it
-        }
-        return result
-    }
+    fun nextVideoFrame(): VideoFrame? = decodeWorker.schedule(TransferMode.CHECKED, { null }) { _ ->
+        state!!.nextVideoFrame()
+    }.consume { it -> it }
 
-    fun nextAudioFrame(size: Int): AudioFrame? {
-        var result: AudioFrame? = null
-        decodeWorker.schedule(TransferMode.CHECKED, { AskNextAudioFrame(size) }) {
-            input -> state!!.nextAudioFrame(input.size)
-        }.consume {
-            it ->
-            result = it
-        }
-        return result
-    }
+    fun nextAudioFrame(size: Int) = decodeWorker.schedule(TransferMode.CHECKED, { AskNextAudioFrame(size) }) { input ->
+        state!!.nextAudioFrame(input.size)
+    }.consume { it -> it }
 }

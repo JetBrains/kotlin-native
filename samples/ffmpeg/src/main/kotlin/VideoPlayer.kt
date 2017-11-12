@@ -59,10 +59,10 @@ class VideoPlayer(val requestedWidth: Int, val requestedHeight: Int) {
         audio.init()
 
         try {
-            val info = decoder.initDecode(file)
-            val windowWidth = if (requestedWidth == 0) info.width else requestedWidth
-            val windowHeight = if (requestedHeight == 0) info.height else requestedHeight
-            hasVideo = windowWidth > 0
+            val info = decoder.initDecode(file, true, true)
+            val windowWidth = if (requestedWidth == 0) { if (info.width < 0) 400 else info.width } else requestedWidth
+            val windowHeight = if (requestedHeight == 0) { if (info.height < 0) 200 else info.height } else requestedHeight
+            hasVideo = info.width > 0
             hasAudio = info.sampleRate != 0
             if (hasVideo)
                 video.start(windowWidth, windowHeight)
@@ -90,8 +90,10 @@ class VideoPlayer(val requestedWidth: Int, val requestedHeight: Int) {
                 // Pause support.
                 while (state == State.PAUSED) {
                     input.check()
+                    if (hasAudio) audio.pause()
                     usleep(5 * 1000)
                 }
+                if (hasAudio) audio.resume()
 
                 // Interframe pause, may lead to broken A/V sync, think of better approach.
                 if (state == State.PLAYING) {
