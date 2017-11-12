@@ -71,6 +71,7 @@ class VideoPlayer(val requestedWidth: Int, val requestedHeight: Int) {
                 audio.start(info.sampleRate, info.channels)
             var lastTimeStamp = getTime()
             state = State.PLAYING
+            decoder.decodeChunk().consume { _ -> }
             while (state != State.STOPPED) {
                 if (hasVideo) {
                     val frame = decoder.nextVideoFrame()
@@ -78,7 +79,6 @@ class VideoPlayer(val requestedWidth: Int, val requestedHeight: Int) {
                         state = State.STOPPED
                         continue
                     }
-                    println("next frame ${frame.buffer}")
                     video.nextFrame(frame.buffer.pointed.data!!, frame.lineSize)
                     frame.unref()
                 }
@@ -89,21 +89,25 @@ class VideoPlayer(val requestedWidth: Int, val requestedHeight: Int) {
 
                 // Pause support.
                 while (state == State.PAUSED) {
-                    input.check()
                     if (hasAudio) audio.pause()
-                    usleep(5 * 1000)
+                    input.check()
+                    usleep(1 * 1000)
                 }
                 if (hasAudio) audio.resume()
 
                 // Interframe pause, may lead to broken A/V sync, think of better approach.
                 if (state == State.PLAYING) {
                     if (hasVideo) {
-                        val now = getTime()
-                        val delta = now - lastTimeStamp
-                        if (delta < 1.0 / info.fps) {
-                            usleep(1000 * 1000 * (1.0 / info.fps - delta).toInt())
-                        }
-                        lastTimeStamp = now
+                       // Use FPS for A/V sync.
+                       val now = getTime()
+                       val delta = now - lastTimeStamp
+                       if (delta < 1.0 / info.fps) {
+                           usleep((1000 * 1000 * (1.0 / info.fps - delta)).toInt())
+                       }
+                       while (hasAudio && !decoder.audioVideoSynced()) {
+                           usleep(10)
+                       }
+                       lastTimeStamp = now
                     } else {
                         // For pure sound, playback is driven by demand.
                         usleep(10 * 1000)

@@ -18,20 +18,21 @@ class SDLAudio(val player: VideoPlayer) {
             val spec = alloc<SDL_AudioSpec>()
             spec.freq = 44100 // sampleRate
             spec.format = AUDIO_S16SYS.narrow()
-            spec.channels = 2.narrow() // channels.narrow()
+            spec.channels = 2.narrow()
             spec.silence = 0
-            spec.samples = 1024
+            spec.samples = 4096
             spec.callback = staticCFunction {
                 userdata, buffer, length ->
                 // This handler will be invoked in the audio thread, so reinit runtime.
                 konan.initRuntimeIfNeeded()
+
                 if (decoder == null) {
                     val callbackData = userdata as? CPointer<IntVar>
                     decoder = DecodeWorker(callbackData!!.pointed.value)
                 }
                 var outPosition = 0
                 while (outPosition < length) {
-                    val frame = decoder!!.nextAudioFrame(length)
+                    val frame = decoder!!.nextAudioFrame(length - outPosition)
                     if (frame != null) {
                        val toCopy = min(length - outPosition, frame.size - frame.position)
                        //println("got audio frame of ${frame.size} len=$length framePos=${frame.position} outPos=$outPosition tc=$toCopy")

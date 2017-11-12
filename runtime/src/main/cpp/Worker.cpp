@@ -356,6 +356,8 @@ void Future::cancelUnlocked() {
   theState()->signalAnyFuture();
 }
 
+// Defined in RuntimeUtils.kt.
+extern "C" void ReportUnhandledException(KRef e);
 
 void* workerRoutine(void* argument) {
   Worker* worker = reinterpret_cast<Worker*>(argument);
@@ -375,9 +377,14 @@ void* workerRoutine(void* argument) {
     // so we don't use ObjHolder.
     // It is so, as ownership is transferred.
     KRef resultRef = nullptr;
-    job.function(argument, &resultRef);
-    // Transfer the result.
-    KNativePtr result = transfer(resultRef, job.transferMode);
+    KNativePtr result = nullptr;
+    try {
+        job.function(argument, &resultRef);
+        // Transfer the result.
+        result = transfer(resultRef, job.transferMode);
+    } catch (ObjHolder& e) {
+        ReportUnhandledException(e.obj());
+    }
     // Notify the future.
     job.future->storeResultUnlocked(result);
   }

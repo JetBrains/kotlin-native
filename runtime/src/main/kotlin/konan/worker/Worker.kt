@@ -235,4 +235,12 @@ internal fun ThrowWorkerInvalidState(): Unit =
         throw IllegalStateException("Illegal transfer state")
 
 @ExportForCppRuntime
-internal fun WorkerLaunchpad(function: () -> Any?) = function()
+internal fun WorkerLaunchpad(function: () -> Any?): Any? {
+    try {
+        return function()
+    } catch (e: Throwable) {
+        println("worker thrown an exception: $e")
+        e.printStackTrace()
+        return null
+    }
+}
