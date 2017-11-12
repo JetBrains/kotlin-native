@@ -25,7 +25,7 @@ class DecodeWorkerState(val formatContext: CPointer<AVFormatContext>,
     var videoFrame: CPointer<AVFrame>? = null
     var scaledVideoFrame: CPointer<AVFrame>? = null
     var audioFrame: CPointer<AVFrame>? = null
-    var resampledAudioFrame: CPointer<ByteVar>? = null
+    var resampledAudioFrame: CPointer<AVFrame>? = null
     var softwareScalingContext: CPointer<SwsContext>? = null
     var resampleContext: CPointer<AVAudioResampleContext>? = null
     val videoQueue = Queue<VideoFrame?>(100, null)
@@ -47,25 +47,16 @@ class DecodeWorkerState(val formatContext: CPointer<AVFormatContext>,
     }
 
     fun makeAudioFrame(): AudioFrame {
-        /*
-         val audioFrameSize = av_samples_get_buffer_size(
+        avresample_convert_frame(resampleContext, resampledAudioFrame, audioFrame)
+        val audioFrameSize = av_samples_get_buffer_size(
                 null,
-                audioCodecContext!!.pointed.channels,
-                audioFrame!!.pointed.nb_samples,
-                audioCodecContext!!.pointed.sample_fmt,
+                resampledAudioFrame!!.pointed.channels,
+                resampledAudioFrame!!.pointed.nb_samples,
+                resampledAudioFrame!!.pointed.format,
                 1)
         val buffer = av_buffer_alloc(audioFrameSize)!!
-        platform.posix.memcpy(buffer.pointed.data, audioFrame!!.pointed.data[0], audioFrameSize.signExtend())
-        */
-        memScoped {
-            val outSamples = avresample_get_out_samples(resampleContext, audioFrame!!.pointed.nb_samples)
-            val outLineSize = alloc<IntVar>()
-            val audioFrameSize = av_samples_get_buffer_size(outLineSize.ptr, 2, outSamples, AV_SAMPLE_FMT_S16, 1)
-            val buffer = av_buffer_alloc(audioFrameSize)!!
-            avresample_convert(resampleContext, buffer.pointed.data, outLineSize.value, outSamples,
-                    audioFrame!!.pointed.data[0], audioFrame!!.pointed.linesize[0], audioFrame!!.pointed.nb_samples)
-            return AudioFrame(buffer, 0, audioFrameSize)
-        }
+        platform.posix.memcpy(buffer.pointed.data, resampledAudioFrame!!.pointed.data[0], audioFrameSize.signExtend())
+        return AudioFrame(buffer, 0, audioFrameSize)
     }
 
     private fun setResampleOpt(name: String, value: Int) =
@@ -97,6 +88,11 @@ class DecodeWorkerState(val formatContext: CPointer<AVFormatContext>,
 
         if (audioCodecContext != null) {
             audioFrame = av_frame_alloc()!!
+            resampledAudioFrame = av_frame_alloc()!!
+            resampledAudioFrame!!.pointed.format = AV_SAMPLE_FMT_S16
+            resampledAudioFrame!!.pointed.channels = 2
+            resampledAudioFrame!!.pointed.channel_layout = AV_CH_LAYOUT_STEREO.signExtend()
+            resampledAudioFrame!!.pointed.sample_rate = 44100
             resampleContext = avresample_alloc_context()
             setResampleOpt("in_channel_layout", if (audioCodecContext!!.pointed.channels == 1) AV_CH_LAYOUT_MONO else AV_CH_LAYOUT_STEREO) 
             setResampleOpt("out_channel_layout", AV_CH_LAYOUT_STEREO)
@@ -115,39 +111,43 @@ class DecodeWorkerState(val formatContext: CPointer<AVFormatContext>,
     fun done() = noMoreFrames && videoQueue.isEmpty() && audioQueue.isEmpty()
 
     fun stop() {
-      while (!videoQueue.isEmpty()) {
-         videoQueue.pop()?.unref()
-      }
-      while (!audioQueue.isEmpty()) {
-         audioQueue.pop()?.unref()
-      }
-      if (videoFrame != null) {
-         av_frame_unref(videoFrame)
-         videoFrame = null
-      }
-      if (scaledVideoFrame != null) {
-         av_frame_unref(scaledVideoFrame)
-         scaledVideoFrame = null
-      }
-      if (audioFrame != null) {
-         av_frame_unref(audioFrame)
-         audioFrame = null
-      }
-      if (softwareScalingContext != null) {
-          sws_freeContext(softwareScalingContext)
-          softwareScalingContext = null
-      }
-      if (resampleContext != null) {
-          avresample_free2(resampleContext)
-          resampleContext = null
-      }
-      if (videoCodecContext != null) {
-          //avcodec_free_context2(videoCodecContext)
-      }
-      if (audioCodecContext != null) {
-          //avcodec_free_context2(audioCodecContext)
-      }
-      //avformat_free_context2(formatContext)
+        while (!videoQueue.isEmpty()) {
+            videoQueue.pop()?.unref()
+        }
+        while (!audioQueue.isEmpty()) {
+            audioQueue.pop()?.unref()
+        }
+        if (videoFrame != null) {
+            av_frame_unref(videoFrame)
+            videoFrame = null
+        }
+        if (scaledVideoFrame != null) {
+            av_frame_unref(scaledVideoFrame)
+            scaledVideoFrame = null
+        }
+        if (audioFrame != null) {
+            av_frame_unref(audioFrame)
+            audioFrame = null
+        }
+        if (resampledAudioFrame != null) {
+            av_frame_unref(resampledAudioFrame)
+            resampledAudioFrame = null
+        }
+        if (softwareScalingContext != null) {
+            sws_freeContext(softwareScalingContext)
+            softwareScalingContext = null
+        }
+        if (resampleContext != null) {
+            avresample_free2(resampleContext)
+            resampleContext = null
+        }
+        if (videoCodecContext != null) {
+            //avcodec_free_context2(videoCodecContext)
+        }
+        if (audioCodecContext != null) {
+            //avcodec_free_context2(audioCodecContext)
+        }
+        //avformat_free_context2(formatContext)
     }
 
     fun needMoreBuffers(): Boolean {
