@@ -89,7 +89,7 @@ class Future<T> internal constructor(val id: FutureId) {
     /**
      * Blocks execution until the future is ready.
      */
-    fun consume(code: (T) -> Unit) {
+    fun <R> consume(code: (T) -> R) =
         when (state) {
             FutureState.SCHEDULED, FutureState.COMPUTED -> {
                 val value = @Suppress("UNCHECKED_CAST") (consumeFuture(id) as T)
@@ -100,18 +100,13 @@ class Future<T> internal constructor(val id: FutureId) {
             FutureState.CANCELLED ->
                 throw IllegalStateException("Future is cancelled")
         }
-    }
 
     val state: FutureState
         get() = FutureState.values()[stateOfFuture(id)]
 
-    override fun equals(other: Any?): Boolean {
-        return (other is Future<*>) && (id == other.id)
-    }
+    override fun equals(other: Any?) = (other is Future<*>) && (id == other.id)
 
-    override fun hashCode(): Int {
-        return id
-    }
+    override fun hashCode() = id as Int
 }
 
 /**
@@ -240,4 +235,12 @@ internal fun ThrowWorkerInvalidState(): Unit =
         throw IllegalStateException("Illegal transfer state")
 
 @ExportForCppRuntime
-internal fun WorkerLaunchpad(function: () -> Any?) = function()
+internal fun WorkerLaunchpad(function: () -> Any?): Any? {
+    try {
+        return function()
+    } catch (e: Throwable) {
+        println("worker thrown an exception: $e")
+        e.printStackTrace()
+        return null
+    }
+}
