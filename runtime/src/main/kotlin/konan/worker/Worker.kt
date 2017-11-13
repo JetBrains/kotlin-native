@@ -106,7 +106,7 @@ class Future<T> internal constructor(val id: FutureId) {
 
     override fun equals(other: Any?) = (other is Future<*>) && (id == other.id)
 
-    override fun hashCode() = id as Int
+    override fun hashCode() = id
 }
 
 /**
@@ -140,13 +140,9 @@ class Worker(val id: WorkerId) {
              */
             throw RuntimeException("Shall not be called directly")
 
-    override fun equals(other: Any?): Boolean {
-        return (other is Worker) && (id == other.id)
-    }
+    override fun equals(other: Any?) = (other is Worker) && (id == other.id)
 
-    override fun hashCode(): Int {
-        return id
-    }
+    override fun hashCode() = id
 }
 
 /**
@@ -235,12 +231,4 @@ internal fun ThrowWorkerInvalidState(): Unit =
         throw IllegalStateException("Illegal transfer state")
 
 @ExportForCppRuntime
-internal fun WorkerLaunchpad(function: () -> Any?): Any? {
-    try {
-        return function()
-    } catch (e: Throwable) {
-        println("worker thrown an exception: $e")
-        e.printStackTrace()
-        return null
-    }
-}
+internal fun WorkerLaunchpad(function: () -> Any?) = function()
