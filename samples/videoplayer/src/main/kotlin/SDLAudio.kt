@@ -1,22 +1,47 @@
+/*
+ * Copyright 2010-2017 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import kotlinx.cinterop.*
 import sdl.*
 import konan.worker.WorkerId
+import platform.posix.memset
+import platform.posix.memcpy
 
-class SDLAudio(val player: VideoPlayer) {
-    private fun get_SDL_Error() = SDL_GetError()!!.toKString()
+class SDLAudio(val player: VideoPlayer) : SDLBase() {
 
-    private var opaqueData: COpaquePointer? = null
+    private var threadData: CPointer<IntVar>? = null
 
-    fun init() {}
+    override fun init() {
+        threadData = nativeHeap.alloc<IntVar>().ptr
+    }
 
-    fun deinit() {}
+    override fun deinit() {
+        if (threadData != null) {
+            nativeHeap.free(threadData!!)
+            threadData = null
+        }
+    }
 
     fun start(sampleRate: Int, channels: Int) {
         println("Audio: $channels channels, $sampleRate samples per second")
 
         memScoped {
+            // TODO: better mechanisms to ensure we have same output format here and in resampler of the decoder.
             val spec = alloc<SDL_AudioSpec>()
-            spec.freq = 44100 // sampleRate
+            spec.freq = 44100
             spec.format = AUDIO_S16SYS.narrow()
             spec.channels = 2.narrow()
             spec.silence = 0
@@ -27,29 +52,26 @@ class SDLAudio(val player: VideoPlayer) {
                 konan.initRuntimeIfNeeded()
 
                 if (decoder == null) {
-                    val callbackData = userdata as? CPointer<IntVar>
-                    decoder = DecodeWorker(callbackData!!.pointed.value)
+                    val callbackData = userdata!!.reinterpret<IntVar>()
+                    decoder = DecodeWorker(callbackData.pointed.value)
                 }
                 var outPosition = 0
                 while (outPosition < length) {
                     val frame = decoder!!.nextAudioFrame(length - outPosition)
                     if (frame != null) {
                        val toCopy = min(length - outPosition, frame.size - frame.position)
-                       //println("got audio frame of ${frame.size} len=$length framePos=${frame.position} outPos=$outPosition tc=$toCopy")
-                       platform.posix.memcpy(buffer + outPosition, frame.buffer.pointed.data + frame.position, toCopy.signExtend())
+                       memcpy(buffer + outPosition, frame.buffer.pointed.data + frame.position, toCopy.signExtend())
                        frame.unref()
                        outPosition += toCopy
                     } else {
-                      println("got silence")
-                      platform.posix.memset(buffer + outPosition, 0, (length - outPosition).signExtend())
+                      println("Decoder returned nothing!")
+                      memset(buffer + outPosition, 0, (length - outPosition).signExtend())
                       break
                     }
                 }
             }
-            val userData = nativeHeap.alloc<IntVar>()
-            userData.value = player.decoder.workerId()
-            opaqueData = userData.ptr
-            spec.userdata = opaqueData
+            threadData!!.pointed.value = player.decoder.workerId()
+            spec.userdata = threadData
             val realSpec = alloc<SDL_AudioSpec>()
             if (SDL_OpenAudio(spec.ptr, realSpec.ptr) < 0)
                 throw Error("SDL_OpenAudio: ${get_SDL_Error()}")
@@ -70,10 +92,7 @@ class SDLAudio(val player: VideoPlayer) {
     fun stop() {
         pause()
         SDL_CloseAudio()
-        if (opaqueData != null) {
-            nativeHeap.free(opaqueData!!)
-            opaqueData = null
-        }
+
     }
 }
 

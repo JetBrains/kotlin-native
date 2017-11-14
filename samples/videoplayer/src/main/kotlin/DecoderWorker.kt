@@ -1,7 +1,24 @@
+/*
+ * Copyright 2010-2017 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import ffmpeg.*
 import kotlin.system.*
 import kotlinx.cinterop.*
 import konan.worker.*
+import platform.posix.memcpy
 
 // This global variable only set to != null value in the decoding worker.
 private var state: DecodeWorkerState? = null
@@ -58,7 +75,7 @@ class DecodeWorkerState(val formatContext: CPointer<AVFormatContext>,
     fun makeVideoFrame(): VideoFrame {
         // TODO: reuse buffers!
         val buffer = av_buffer_alloc(scaledFrameSize)!!
-        platform.posix.memcpy(buffer.pointed.data, scaledVideoFrame!!.pointed.data[0], scaledFrameSize.signExtend())
+        memcpy(buffer.pointed.data, scaledVideoFrame!!.pointed.data[0], scaledFrameSize.signExtend())
         return VideoFrame(buffer, scaledVideoFrame!!.pointed.linesize[0])
     }
 
@@ -71,8 +88,7 @@ class DecodeWorkerState(val formatContext: CPointer<AVFormatContext>,
                 resampledAudioFrame!!.pointed.format,
                 1)
         val buffer = av_buffer_alloc(audioFrameSize)!!
-        platform.posix.memcpy(
-                buffer.pointed.data, resampledAudioFrame!!.pointed.data[0], audioFrameSize.signExtend())
+        memcpy(buffer.pointed.data, resampledAudioFrame!!.pointed.data[0], audioFrameSize.signExtend())
         return AudioFrame(buffer, 0, audioFrameSize)
     }
 

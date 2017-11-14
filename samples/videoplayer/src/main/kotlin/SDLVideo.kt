@@ -1,16 +1,35 @@
+/*
+ * Copyright 2010-2017 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 import kotlinx.cinterop.*
 import sdl.*
 
-class SDLVideo(val player: VideoPlayer) {
+class SDLVideo(val player: VideoPlayer) : SDLBase() {
     var displayWidth = 0
     var displayHeight = 0
-    var fps: Double = 0.0
+    var windowWidth = 0
+    var windowHeight = 0
+
     private var window: CPointer<SDL_Window>? = null
     private var renderer: CPointer<SDL_Renderer>? = null
     private var surface: CPointer<SDL_Surface>? = null
     private var texture: CPointer<SDL_Texture>? = null
+    private var rect: CPointer<SDL_Rect>? = null
 
-    fun init() {
+    override fun init() {
         if (SDL_Init(SDL_INIT_EVERYTHING) != 0) {
             println("SDL_Init Error: ${get_SDL_Error()}")
             throw Error()
@@ -26,18 +45,20 @@ class SDLVideo(val player: VideoPlayer) {
             displayWidth = displayMode.w
             displayHeight = displayMode.h
         }
+
+        rect = SDL_calloc(1, SDL_Rect.size)!!.reinterpret<SDL_Rect>()
     }
 
-    fun deinit() {
+    override fun deinit() {
         stop()
+
+        if (rect != null) {
+            SDL_free(rect)
+            rect = null
+        }
+
         SDL_Quit()
     }
-
-    private fun get_SDL_Error() = SDL_GetError()!!.toKString()
-
-    var windowWidth = 0
-    var windowHeight = 0
-    var rect: CPointer<SDL_Rect>? = null
 
     fun start(videoWidth: Int, videoHeight: Int) {
         // To free resources from previous playbacks.
@@ -46,15 +67,12 @@ class SDLVideo(val player: VideoPlayer) {
         windowWidth = videoWidth
         windowHeight = videoHeight
 
-        // Use arena instead!
-        val rect = SDL_calloc(1, SDL_Rect.size)!!.reinterpret<SDL_Rect>()
-        rect.pointed.let {
+        rect!!.pointed.let {
             it.x = 0
             it.y = 0
             it.w = windowWidth
             it.h = windowHeight
         }
-        this.rect = rect
 
         val windowX = (displayWidth - windowWidth) / 2
         val windowY = (displayHeight - windowHeight) / 2
@@ -108,9 +126,6 @@ class SDLVideo(val player: VideoPlayer) {
             SDL_DestroyWindow(window)
             window = null
         }
-        if (rect != null) {
-            SDL_free(rect)
-            rect = null
-        }
+
     }
 }

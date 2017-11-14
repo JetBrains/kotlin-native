@@ -4,10 +4,5 @@ entryPoint = SDL_main
 
 headerFilter = SDL*
 
-compilerOpts = -D_POSIX_SOURCE
-compilerOpts.osx =
-compilerOpts.linux = -D_REENTRANT
-compilerOpts.ios =
-#linkerOpts.osx = -framework SDL2
 linkerOpts.osx = -lSDL2
 linkerOpts.linux = -lSDL2
