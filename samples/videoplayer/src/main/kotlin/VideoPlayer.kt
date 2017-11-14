@@ -59,17 +59,30 @@ class VideoPlayer(val requestedWidth: Int, val requestedHeight: Int) {
         }
     }
 
+    private var now: CPointer<platform.posix.timespec>? = null
 
-    private fun getTime(): Double =
-            memScoped {
-                val now = alloc<platform.posix.timespec>()
-                clock_gettime(platform.posix.CLOCK_MONOTONIC, now.ptr)
-                now.tv_sec + now.tv_nsec / 1_000_000_000.0
-            }
+    private fun getTime(): Double {
+        clock_gettime(platform.posix.CLOCK_MONOTONIC, now)
+        return now!!.pointed.tv_sec + now!!.pointed.tv_nsec / 1_000_000_000.0
+    }
+
+    fun init() {
+        // Prealloc this one, to avoid frequent allocation.
+        if (now == null)
+            now = nativeHeap.alloc<platform.posix.timespec>().ptr
+    }
+
+    fun deinit() {
+        if (now != null) {
+            nativeHeap.free(now!!)
+            now = null
+        }
+    }
 
     fun playFile(file: String) {
         println("playFile $file")
 
+        this.init()
         decoder.init()
         video.init()
         audio.init()
@@ -155,6 +168,7 @@ class VideoPlayer(val requestedWidth: Int, val requestedHeight: Int) {
             audio.deinit()
             video.deinit()
             decoder.deinit()
+            this.deinit()
         }
     }
 }
