@@ -6,10 +6,10 @@ konanArtifacts {
     interop('ffmpeg') {
         defFile 'src/main/c_interop/ffmpeg.def'
 
-        target('linux') {
+        target 'linux', {
             includeDirs '/usr/include', '/usr/include/x86_64-linux-gnu'
         }
-        target('macbook') {
+        target 'macbook', {
             includeDirs '/opt/local/include', '/usr/local/include'
         }
     }
@@ -34,7 +34,7 @@ konanArtifacts {
             artifact 'ffmpeg'
             artifact 'sdl'
         }
-        target('macbook') {
+        target 'macbook', {
             linkerOpts "-F ${System.getProperty("user.home")}/Library/Frameworks -F /Library/Frameworks -L/opt/local/lib"
         }
 

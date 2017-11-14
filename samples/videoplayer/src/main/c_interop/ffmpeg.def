@@ -1,8 +1,9 @@
 package = ffmpeg
 headers = libavcodec/avcodec.h libavformat/avformat.h libavutil/pixfmt.h libavutil/opt.h \
           libswscale/swscale.h libavresample/avresample.h
+headerFilter = libavcodec/** libavformat/** libavutil/** \
+          libswscale/** libavresample/**
 linkerOpts = -lavutil -lavformat -lavcodec -lswscale -lavresample
-compilerOpts.linux = -D_ANSI_SOURCE -D_POSIX_C_SOURCE=199309 -D_BSD_SOURCE -D_XOPEN_SOURCE=700
 ---
 
 static void av_buffer_unref2(AVBufferRef* ref) {
