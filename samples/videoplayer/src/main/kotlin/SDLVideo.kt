@@ -126,6 +126,5 @@ class SDLVideo(val player: VideoPlayer) : SDLBase() {
             SDL_DestroyWindow(window)
             window = null
         }
-
     }
 }

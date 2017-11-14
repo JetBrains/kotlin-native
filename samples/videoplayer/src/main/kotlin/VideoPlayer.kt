@@ -106,7 +106,7 @@ class VideoPlayer(val requestedWidth: Int, val requestedHeight: Int) {
             var lastTimeStamp = getTime()
             state = State.PLAYING
             // Fill in frame caches.
-            decoder.decodeChunk().consume { _ -> }
+            decoder.requestDecodeChunk().result()
             while (state != State.STOPPED) {
                 if (hasVideo) {
                     val frame = decoder.nextVideoFrame()
@@ -117,7 +117,7 @@ class VideoPlayer(val requestedWidth: Int, val requestedHeight: Int) {
                     video.nextFrame(frame.buffer.pointed.data!!, frame.lineSize)
                     frame.unref()
                 }
-                // Audio is being auto-fetched by audio thread.
+                // Audio is being auto-fetched by the audio thread.
 
                 // Check if there are any input.
                 input.check()

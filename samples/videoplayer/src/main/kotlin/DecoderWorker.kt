@@ -354,47 +354,41 @@ class DecodeWorker {
     fun start(width: Int, height: Int, pixelFormat: PixelFormat) {
         decodeWorker.schedule(TransferMode.CHECKED, {
             OutputInfo(width, height, renderPixelFormat(pixelFormat))
-        }) { input ->
-
-            state!!.start(input)
-
-            null
-        }
+        }) { input -> state!!.start(input) }
     }
 
     fun stop() {
-        decodeWorker.schedule(TransferMode.CHECKED, {
-            null
-        }) { _ ->
-            state!!.stop()
-            state = null
-            null
-        }.consume { _ -> }
+        decodeWorker.schedule(
+                TransferMode.CHECKED,
+                { null }) { _ ->
+                    state!!.stop()
+                    state = null
+                }.result()
     }
 
     // TODO: we manually box returned primitive value,
     // fix by autoboxing schedule()'s result in the compiler.
-    fun done() = decodeWorker.schedule(TransferMode.CHECKED, { null }) { _ ->
-        (state == null || state!!.done()) as Boolean?
+    fun done() = decodeWorker.schedule(TransferMode.CHECKED,
+            { null }) { _ -> (state == null || state!!.done()) as Boolean?
     }.consume { it -> it!! }
 
     fun deinit() {
-        decodeWorker.requestTermination().consume { _ -> }
+        decodeWorker.requestTermination().result()
     }
 
-    fun decodeChunk() = decodeWorker.schedule(TransferMode.CHECKED, { null }) { _ ->
-        state!!.decodeIfNeeded()
-    }
+    fun requestDecodeChunk() = decodeWorker.schedule(
+            TransferMode.CHECKED,
+            { null }) { _ -> state!!.decodeIfNeeded() }
 
-    fun nextVideoFrame(): VideoFrame? = decodeWorker.schedule(TransferMode.CHECKED, { null }) { _ ->
-        state!!.nextVideoFrame()
-    }.consume { it -> it }
+    fun nextVideoFrame(): VideoFrame? = decodeWorker.schedule(
+            TransferMode.CHECKED,
+            { null }) { _ -> state!!.nextVideoFrame() }.result()
 
-    fun nextAudioFrame(size: Int) = decodeWorker.schedule(TransferMode.CHECKED, { AskNextAudioFrame(size) }) { input ->
-        state!!.nextAudioFrame(input.size)
-    }.consume { it -> it }
+    fun nextAudioFrame(size: Int) = decodeWorker.schedule(
+            TransferMode.CHECKED,
+            { size as Int? }) { input -> state!!.nextAudioFrame(input!!) }.result()
 
-    fun audioVideoSynced() = decodeWorker.schedule(TransferMode.CHECKED, { null }) { _ ->
-        state!!.audioVideoSynced() as Boolean?
-    }.consume { it -> it!! }
+    fun audioVideoSynced() = decodeWorker.schedule(
+            TransferMode.CHECKED,
+            { null }) { _ -> state!!.audioVideoSynced() as Boolean? }.consume { it -> it!! }
 }
