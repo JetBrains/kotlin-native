@@ -17,9 +17,15 @@
 import sdl.SDL_GetError
 import kotlinx.cinterop.*
 
-open class SDLBase {
-    protected fun get_SDL_Error() = SDL_GetError()!!.toKString()
-
-    open fun init() {}
-    open fun deinit() {}
+private fun logSDLError(name: String): String {
+    val msg = "SDL_$name Error: ${SDL_GetError()!!.toKString()}"
+    println(msg)
+    return msg
 }
+
+fun throwSDLError(name: String): Nothing = throw Error(logSDLError(name))
+
+fun checkSDLError(name: String, result: Int) {
+    if (result != 0) throwSDLError(name)
+}
+
