@@ -353,10 +353,15 @@ class BuildKonanTest extends ExtKonanTest {
         // create list of tests to compile
         def compileFiles = new ArrayList<String>()
         compileList.each {
-            project.file(it).eachFileRecurse {
-                if (it.isFile() && it.name.endsWith(".kt") && !excludeFiles.contains(it.absolutePath)) {
-                    compileFiles.add(it.absolutePath)
+            def file = project.file(it)
+            if (file.isDirectory()) {
+                file.eachFileRecurse {
+                    if (it.isFile() && it.name.endsWith(".kt") && !excludeFiles.contains(it.absolutePath)) {
+                        compileFiles.add(it.absolutePath)
+                    }
                 }
+            } else {
+                compileFiles.add(file.absolutePath)
             }
         }
         compileFiles
