@@ -56,7 +56,7 @@ class VideoPlayer(val requestedSize: Vec2D?) : DisposableContainer() {
     private var state = State.STOPPED
 
     val workerId get() = decoder.workerId
-    var lastTimeStamp = 0.0
+    var lastFrameTime = 0.0
     
     fun stop() {
         state = State.STOPPED
@@ -91,12 +91,12 @@ class VideoPlayer(val requestedSize: Vec2D?) : DisposableContainer() {
             info.video?.let { video.start(videoSize) }
             decoder.start(videoSize, video.pixelFormat())
             info.audio?.let { audio.start(it) }
-            lastTimeStamp = getTime()
+            lastFrameTime = getTime()
             state = State.PLAYING
             decoder.requestDecodeChunk() // Fill in frame caches.
             while (state != State.STOPPED) {
                 // Fetch video
-                if (info.hasVideo) playVideoFrame()
+                info.video?.let { playVideoFrame(it) }
                 // Audio is being auto-fetched by the audio thread.
                 // Check if there are any input.
                 input.check()
@@ -115,8 +115,21 @@ class VideoPlayer(val requestedSize: Vec2D?) : DisposableContainer() {
         }
     }
 
-    private fun playVideoFrame() {
+    private fun playVideoFrame(videoInfo: VideoInfo) {
+        // Fetch next frame
         val frame = decoder.nextVideoFrame() ?: return
+        // Use video FPS to maintain frame rate
+        val now = getTime()
+        val frameDuration = 1.0 / videoInfo.fps
+        val passedTime = now - lastFrameTime
+        lastFrameTime += frameDuration // try to maintain perfect frame rate
+        // Wait for next frame, if needed
+        if (passedTime < frameDuration) {
+            usleep((1000_000 * (frameDuration - passedTime)).toInt())
+        } else if (passedTime > frameDuration * 1.5){
+            lastFrameTime = now // we fell behind more than half frame, reset time
+        }
+        // Play frame
         video.nextFrame(frame.buffer.pointed.data!!, frame.lineSize)
         frame.unref()
     }
@@ -131,23 +144,18 @@ class VideoPlayer(val requestedSize: Vec2D?) : DisposableContainer() {
     }
     
     private fun syncAV(info: CodecInfo) {
-        info.video?.let { video ->
+        if (info.hasVideo) {
             if (info.hasAudio) {
                 // Use sound for A/V sync.
-                while (!decoder.audioVideoSynced() && state == State.PLAYING) {
-                    usleep(500)
-                    input.check()
+                if (!decoder.audioVideoSynced()) {
+                    println("Resynchronizing video with audio")
+                    while (!decoder.audioVideoSynced() && state == State.PLAYING) {
+                        usleep(500)
+                        input.check()
+                    }
                 }
-            } else {
-                // Use video FPS for frame rate.
-                val now = getTime()
-                val delta = now - lastTimeStamp
-                if (delta < 1.0 / video.fps) {
-                    usleep((1000 * 1000 * (1.0 / video.fps - delta)).toInt())
-                }
-                lastTimeStamp = now
             }
-        } ?: run {
+        } else {
             // For pure sound, playback is driven by demand.
             usleep(10 * 1000)
         }
