@@ -11,9 +11,7 @@ or where a developer is willing to produce a reasonably-sized self-contained pro
 without the need to ship an additional execution runtime.
 
 Prerequesties:
-
-Linux:
-	install JDK for your distribution, instead of JRE. The build requires ```tools.jar```, which is not included in JRE.
+	install JDK for your platform, instead of JRE. The build requires ```tools.jar```, which is not included in JRE.
 
 To compile from sources use following steps.
 
