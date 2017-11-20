@@ -18,7 +18,7 @@ import kotlinx.cinterop.*
 import sdl.*
 
 class SDLVideo : DisposableContainer() {
-    private val displaySize: Vec2D
+    private val displaySize: Dimensions
     private var window: SDLRendererWindow? = null
 
     init {
@@ -29,7 +29,7 @@ class SDLVideo : DisposableContainer() {
             memScoped {
                 alloc<SDL_DisplayMode>().run {
                     checkSDLError("GetCurrentDisplayMode", SDL_GetCurrentDisplayMode(0, ptr.reinterpret()))
-                    Vec2D(w, h)
+                    Dimensions(w, h)
                 }
             }
         }
@@ -40,7 +40,7 @@ class SDLVideo : DisposableContainer() {
         super.dispose()
     }
 
-    fun start(videoSize: Vec2D) {
+    fun start(videoSize: Dimensions) {
         stop() // To free resources from previous playbacks.
         window = SDLRendererWindow((displaySize - videoSize) / 2, videoSize)
     }
@@ -58,15 +58,15 @@ class SDLVideo : DisposableContainer() {
     }
 }
 
-class SDLRendererWindow(windowPos: Vec2D, videoSize: Vec2D) : DisposableContainer() {
+class SDLRendererWindow(windowPos: Dimensions, videoSize: Dimensions) : DisposableContainer() {
     private val window = sdlDisposable("CreateWindow",
-        SDL_CreateWindow("KoPlayer", windowPos.x, windowPos.y, videoSize.x, videoSize.y, SDL_WINDOW_SHOWN),
+        SDL_CreateWindow("KoPlayer", windowPos.w, windowPos.h, videoSize.w, videoSize.h, SDL_WINDOW_SHOWN),
         ::SDL_DestroyWindow)
     private val renderer = sdlDisposable("CreateRenderer",
         SDL_CreateRenderer(window, -1, SDL_RENDERER_ACCELERATED or SDL_RENDERER_PRESENTVSYNC),
         ::SDL_DestroyRenderer)
     private val texture = sdlDisposable("CreateTexture",
-        SDL_CreateTexture(renderer, SDL_GetWindowPixelFormat(window), 0, videoSize.x, videoSize.y),
+        SDL_CreateTexture(renderer, SDL_GetWindowPixelFormat(window), 0, videoSize.w, videoSize.h),
         ::SDL_DestroyTexture)
     private val rect = sdlDisposable("calloc(SDL_Rect)",
         SDL_calloc(1, SDL_Rect.size), ::SDL_free)
@@ -76,8 +76,8 @@ class SDLRendererWindow(windowPos: Vec2D, videoSize: Vec2D) : DisposableContaine
         rect.pointed.apply {
             x = 0
             y = 0
-            w = videoSize.x
-            h = videoSize.y
+            w = videoSize.w
+            h = videoSize.h
         }
     }
 

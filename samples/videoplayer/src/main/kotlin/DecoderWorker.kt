@@ -22,8 +22,8 @@ import platform.posix.memcpy
 // This global variable only set to != null value in the decoding worker.
 private var decoder: Decoder? = null
 
-data class OutputInfo(val windowSize: Vec2D, val pixelFormat: AVPixelFormat)
-data class VideoInfo(val size: Vec2D, val fps: Double)
+data class OutputInfo(val windowSize: Dimensions, val pixelFormat: AVPixelFormat)
+data class VideoInfo(val size: Dimensions, val fps: Double)
 data class AudioInfo(val sampleRate: Int, val channels: Int)
 
 data class CodecInfo(val video: VideoInfo?, val audio: AudioInfo?) {
@@ -97,7 +97,7 @@ class VideoDecoder(
     private val videoCodecContext: AVCodecContext,
     private val output: OutputInfo
 ) : DisposableContainer() {
-    private val videoSize = Vec2D(videoCodecContext.width, videoCodecContext.height)
+    private val videoSize = Dimensions(videoCodecContext.width, videoCodecContext.height)
     private val windowSize = output.windowSize
     private val videoFrame: AVFrame =
         disposable("av_frame_alloc", ::av_frame_alloc, ::av_frame_unref).pointed
@@ -107,14 +107,14 @@ class VideoDecoder(
         message = "sws_getContext",
         create = {
             sws_getContext(
-                videoSize.x, videoSize.y,
+                videoSize.w, videoSize.h,
                 videoCodecContext.pix_fmt,
-                windowSize.x, windowSize.y, output.pixelFormat,
+                windowSize.w, windowSize.h, output.pixelFormat,
                 SWS_BILINEAR, null, null, null)
         },
         dispose = ::sws_freeContext
     )
-    private val scaledFrameSize = avpicture_get_size(output.pixelFormat, output.windowSize.x, output.windowSize.y)
+    private val scaledFrameSize = avpicture_get_size(output.pixelFormat, output.windowSize.w, output.windowSize.h)
     private val buffer: ByteArray = ByteArray(scaledFrameSize)
 
     private val videoQueue = Queue<VideoFrame>(100)
@@ -123,7 +123,7 @@ class VideoDecoder(
 
     init {
         avpicture_fill(scaledVideoFrame.ptr.reinterpret(), buffer.refTo(0),
-            output.pixelFormat, output.windowSize.x, output.windowSize.y)
+            output.pixelFormat, output.windowSize.w, output.windowSize.h)
     }
 
     override fun dispose() {
@@ -143,7 +143,7 @@ class VideoDecoder(
         if (frameFinished.value != 0) {
             // Convert the frame from its movie format to window pixel format.
             sws_scale(softwareScalingContext, videoFrame.data,
-                videoFrame.linesize, 0, videoSize.y,
+                videoFrame.linesize, 0, videoSize.h,
                 scaledVideoFrame.data, scaledVideoFrame.linesize)
             // TODO: reuse buffers!
             val buffer = av_buffer_alloc(scaledFrameSize)!!
@@ -325,7 +325,7 @@ class DecoderWorker : Disposable {
 
         // Extract video info.
         val video = videoContext?.run {
-            VideoInfo(Vec2D(width, height), av_q2d(av_stream_get_r_frame_rate(videoStream.ptr)))
+            VideoInfo(Dimensions(width, height), av_q2d(av_stream_get_r_frame_rate(videoStream.ptr)))
         }
         // Extract audio info.
         val audio = audioContext?.run {
@@ -341,7 +341,7 @@ class DecoderWorker : Disposable {
         return CodecInfo(video, audio)
     }
 
-    fun start(videoSize: Vec2D, pixelFormat: PixelFormat) {
+    fun start(videoSize: Dimensions, pixelFormat: PixelFormat) {
         worker.schedule(TransferMode.CHECKED,
             { OutputInfo(videoSize.copy(), renderPixelFormat(pixelFormat)) }) { decoder?.start(it) }
     }

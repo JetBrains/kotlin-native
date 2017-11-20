@@ -46,7 +46,7 @@ enum class PlayMode {
     val useAudio: Boolean get() = this != VIDEO
 }
 
-class VideoPlayer(val requestedSize: Vec2D?) : DisposableContainer() {
+class VideoPlayer(val requestedSize: Dimensions?) : DisposableContainer() {
     private val video = disposable { SDLVideo() }
     private val audio = disposable { SDLAudio(this) }
     private val input = disposable { SDLInput(this) }
@@ -87,7 +87,7 @@ class VideoPlayer(val requestedSize: Vec2D?) : DisposableContainer() {
         try {
             file.dumpFormat()
             val info = decoder.initDecode(file.context, mode.useVideo, mode.useAudio)
-            val videoSize = requestedSize ?: info.video?.size ?: Vec2D(400, 200)
+            val videoSize = requestedSize ?: info.video?.size ?: Dimensions(400, 200)
             info.video?.let { video.start(videoSize) }
             decoder.start(videoSize, video.pixelFormat())
             info.audio?.let { audio.start(it) }
@@ -169,7 +169,7 @@ fun main(args: Array<String>) {
     }
     av_register_all()
     val mode = if (args.size == 2) PlayMode.valueOf(args[1].toUpperCase()) else PlayMode.BOTH
-    val requestedSize = if (args.size < 3) null else Vec2D(args[1].toInt(), args[2].toInt())
+    val requestedSize = if (args.size < 3) null else Dimensions(args[1].toInt(), args[2].toInt())
     val player = VideoPlayer(requestedSize)
     try {
         player.playFile(args[0], mode)
