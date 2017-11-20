@@ -2387,20 +2387,12 @@ task buildKonanStdlibTests(type: BuildKonanTest) {
     ]
 }
 
-task runStdlibTests() {
-    def stdlibTasks = new ArrayList<RunKonanTest>()
-    externalStdlibTestsDir.eachFileRecurse { f ->
-        if (f.name.endsWith(".kt")) {
-            def taskName = project.relativePath(f).replaceAll("[-/\\\\]", '_').replace('.kt', '')
-            def task = project.task(taskName, type: RunKonanTest) {
-                source = project.relativePath(f)
-                outputSourceSetName = "testOutputStdlib"
-                setDependsOn([buildKonanStdlibTests])
-            }
-            stdlibTasks.add(task)
-        }
-    }
-    dependsOn stdlibTasks
+task runStdlibTests(type: RunStdlibTest) {
+    outputSourceSetName = "testOutputStdlib"
+    // runs all tests and hence source name should be not null
+    source = "stdlib_external/testUtils.kt"
+    useFilter = false
+    runnerLogger = RunKonanTest.Logger.GTEST
 }
 
 task buildKonanTests(type: BuildKonanTest) {
