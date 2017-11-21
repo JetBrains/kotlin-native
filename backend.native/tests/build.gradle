@@ -179,7 +179,7 @@ def <T extends KonanTest> Set<T> createTestTasks(File testRoot, Class<T> taskTyp
         def taskName = taskDirectory.replaceAll("[-/\\\\]", '_')
 
         def task = (T) project.task(taskName, type: taskType) {
-            groupDirectory = "$taskDirectory"
+            groupDirectory = taskDirectory
             finalizedBy resultsTask
         }
         taskConfiguration(task)
