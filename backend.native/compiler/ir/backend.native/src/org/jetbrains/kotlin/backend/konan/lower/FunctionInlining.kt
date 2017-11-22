@@ -26,10 +26,7 @@ import org.jetbrains.kotlin.backend.konan.descriptors.isFunctionInvoke
 import org.jetbrains.kotlin.backend.konan.descriptors.needsInlining
 import org.jetbrains.kotlin.backend.konan.descriptors.resolveFakeOverride
 import org.jetbrains.kotlin.backend.konan.ir.DeserializerDriver
-import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
-import org.jetbrains.kotlin.descriptors.FunctionDescriptor
-import org.jetbrains.kotlin.descriptors.ValueDescriptor
-import org.jetbrains.kotlin.descriptors.ValueParameterDescriptor
+import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.IrFunction
@@ -226,9 +223,9 @@ private class Inliner(val globalSubstituteMap: MutableMap<DeclarationDescriptor,
                                       val argumentExpression : IrExpression) {
         val needsEvaluation: Boolean
             get() {
-                if (argumentExpression is IrGetValue) return false                         // Parameter is already GetValue - nothing to evaluate.
-                if (argumentExpression is IrConst<*>) return false                         // Parameter is constant - nothing to evaluate.
+                if (argumentExpression is IrConst<*>)          return false                // Parameter is constant - nothing to evaluate.
                 if (argumentExpression is IrCallableReference) return false                // Parameter is callable reference - nothing to evaluate.
+                if (isGetVal(argumentExpression))              return false                // Parameter is already GetValue - nothing to evaluate.
                 if (isLambdaExpression(argumentExpression)
                         && !(parameterDescriptor is ValueParameterDescriptor
                         && parameterDescriptor.isNoinline)) return false                   // Parameter is lambda and it is not noInline - will be inlined.
@@ -246,6 +243,12 @@ private class Inliner(val globalSubstituteMap: MutableMap<DeclarationDescriptor,
             if (irFunction !is IrFunction)                   return false                   // First statement of the block must be lambda declaration.
             if (irCallableReference !is IrCallableReference) return false                   // Second statement of the block must be CallableReference.
             return true                                                                     // The expression represents lambda.
+        }
+
+        private fun isGetVal(expression : IrExpression): Boolean {
+            if (expression !is IrGetValue) return false
+            if (expression.descriptor !is VariableDescriptor) return false
+            return !(expression.descriptor as VariableDescriptor).isVar                     // Variable needs evaluation
         }
     }
 
