@@ -662,7 +662,8 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         get() {
             return slotCount > frameOverlaySlotCount || localAllocs > 0 ||
                     // Prevent empty cleanup on mingw to workaround LLVM bug:
-                    context.config.targetManager.target == KonanTarget.MINGW
+                    context.config.targetManager.target == KonanTarget.MINGW ||
+                    context.config.targetManager.target == KonanTarget.MINGW2
         }
 
     private fun releaseVars() {
