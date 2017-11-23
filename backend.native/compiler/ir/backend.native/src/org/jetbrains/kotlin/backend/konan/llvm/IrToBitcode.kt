@@ -281,7 +281,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     }
 
     private fun appendCAdapters(declaration: IrModuleFragment) {
-        declaration.acceptVoid(CAdapterGeneratorVisitor(context, codegen))
+        declaration.acceptVoid(CAdapterGenerator(context, codegen))
     }
 
     //-------------------------------------------------------------------------//

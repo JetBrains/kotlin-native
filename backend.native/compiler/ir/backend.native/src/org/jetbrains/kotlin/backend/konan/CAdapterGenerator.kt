@@ -20,8 +20,6 @@ import llvm.LLVMValueRef
 import org.jetbrains.kotlin.backend.common.descriptors.allParameters
 import org.jetbrains.kotlin.backend.common.pop
 import org.jetbrains.kotlin.backend.common.push
-import org.jetbrains.kotlin.backend.common.ir.ir2string
-import org.jetbrains.kotlin.backend.common.ir.ir2stringWhole
 import org.jetbrains.kotlin.backend.konan.descriptors.isUnit
 import org.jetbrains.kotlin.backend.konan.llvm.*
 import org.jetbrains.kotlin.descriptors.*
@@ -33,6 +31,7 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.resolve.descriptorUtil.isEffectivelyPublicApi
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeUtils
+import org.jetbrains.kotlin.konan.file.File
 
 enum class ScopeKind {
     TOP,
@@ -42,7 +41,8 @@ enum class ScopeKind {
 
 enum class ElementKind {
     FUNCTION,
-    PROPERTY
+    PROPERTY,
+    TYPE
 }
 
 private operator fun String.times(count: Int): String {
@@ -51,10 +51,8 @@ private operator fun String.times(count: Int): String {
     return builder.toString()
 }
 
-
 private data class ExportedElementScope(val kind: ScopeKind, val name: String) {
     val elements = mutableListOf<ExportedElement>()
-    val valelements = mutableListOf<ExportedElement>()
     val scopes = mutableListOf<ExportedElementScope>()
 
     override fun toString(): String {
@@ -76,8 +74,8 @@ private data class ExportedElementScope(val kind: ScopeKind, val name: String) {
 
 private data class ExportedElement(val kind: ElementKind,
                                    val scope: ExportedElementScope,
-                                   val declaration: IrDeclaration,
-                                   val owner: CAdapterGeneratorVisitor) {
+                                   val declaration: DeclarationDescriptor,
+                                   val owner: CAdapterGenerator) {
     init {
         scope.elements.add(this)
     }
@@ -85,10 +83,10 @@ private data class ExportedElement(val kind: ElementKind,
     var bridge: LLVMValueRef? = null
 
     val name: String
-        get() = declaration.descriptor.fqNameSafe.shortName().asString()
+        get() = declaration.fqNameSafe.shortName().asString()
 
     val llvm: LLVMValueRef?
-        get() = owner.codegen.llvmFunction(declaration.descriptor as FunctionDescriptor)
+        get() = owner.codegen.llvmFunction(declaration as FunctionDescriptor)
 
 
     override fun toString(): String {
@@ -107,17 +105,18 @@ private data class ExportedElement(val kind: ElementKind,
         }
     }
 
-    val isFunction = declaration.descriptor is FunctionDescriptor
+    val isFunction = declaration is FunctionDescriptor
+    val isClass = declaration is ClassDescriptor
 
     fun makeFunctionPointerString(): String {
-        val descriptor = declaration.descriptor
+        val descriptor = declaration
         if (descriptor !is FunctionDescriptor) {
             throw Error("only for functions")
         }
         val original = descriptor.original
         val (name, returnType) = when {
             original is ConstructorDescriptor -> Pair(
-                    "construct_${scope.nextConstructorIndex()}",
+                    "_construct_${scope.nextConstructorIndex()}",
                     owner.translateType(original.constructedClass))
             original.isSuspend -> Pair(functionName(original), owner.translateType(
                     owner.codegen.context.builtIns.nullableAnyType))  // Suspend functions actually return Any?.
@@ -133,7 +132,7 @@ private data class ExportedElement(val kind: ElementKind,
     }
 
     fun addUsedTypes(set: MutableSet<ClassDescriptor>) {
-        val descriptor = declaration.descriptor
+        val descriptor = declaration
         when (descriptor) {
             is FunctionDescriptor -> {
                 val original = descriptor.original
@@ -148,10 +147,11 @@ private data class ExportedElement(val kind: ElementKind,
     }
 }
 
-internal class CAdapterGeneratorVisitor(
-        val context: Context, internal val codegen: CodeGenerator) : IrElementVisitorVoid {
+internal class CAdapterGenerator(val context: Context,
+                                 internal val codegen: CodeGenerator) : IrElementVisitorVoid {
     private val scopes = mutableListOf<ExportedElementScope>()
     private val prefix: String = context.config.outputName
+    private lateinit var outputStreamWriter: java.io.PrintWriter
 
     override fun visitElement(element: IrElement) {
         //println(ir2string(element))
@@ -171,13 +171,13 @@ internal class CAdapterGeneratorVisitor(
     override fun visitProperty(declaration: IrProperty) {
         val descriptor = declaration.descriptor
         if (!descriptor.isEffectivelyPublicApi || !descriptor.kind.isReal) return
-        ExportedElement(ElementKind.PROPERTY, scopes.last(), declaration, this)
+        ExportedElement(ElementKind.PROPERTY, scopes.last(), declaration.descriptor, this)
     }
 
     override fun visitFunction(function: IrFunction) {
         val descriptor = function.descriptor
         if (!descriptor.isEffectivelyPublicApi || !descriptor.kind.isReal) return
-        ExportedElement(ElementKind.FUNCTION, scopes.last(), function, this)
+        ExportedElement(ElementKind.FUNCTION, scopes.last(), function.descriptor, this)
     }
 
     override fun visitClass(declaration: IrClass) {
@@ -191,6 +191,8 @@ internal class CAdapterGeneratorVisitor(
         val classScope = ExportedElementScope(ScopeKind.CLASS, shortName.asString())
         scopes.last().scopes += classScope
         scopes.push(classScope)
+        // Add type getter.
+        ExportedElement(ElementKind.TYPE, scopes.last(), descriptor, this)
         declaration.acceptChildrenVoid(this)
         scopes.pop()
     }
@@ -204,18 +206,20 @@ internal class CAdapterGeneratorVisitor(
         // Now, let's generate C world adapters for all functions.
         top.generateCAdapters()
 
-        // Then generate data structure, describing referring adapters.
+        // Then generate data structure, describing generated adapters.
         makeGlobalStruct(top)
     }
 
     private fun output(string: String, indent: Int = 0) {
-        if (indent != 0) print("  " * indent)
-        println(string)
+        if (indent != 0) outputStreamWriter.print("  " * indent)
+        outputStreamWriter.println(string)
     }
 
     private fun makeElementDefinition(element: ExportedElement, indent: Int) {
         if (element.isFunction)
             output(element.makeFunctionPointerString() + ";", indent)
+        if (element.isClass)
+            output("${prefix}_KType* (*_type)();", indent)
         // TODO: handle properties.
     }
 
@@ -248,6 +252,7 @@ internal class CAdapterGeneratorVisitor(
     }
 
     private fun makeGlobalStruct(top: ExportedElementScope) {
+        outputStreamWriter = java.io.PrintWriter(File(".", "${prefix}_api.h").outputStream())
         output("#ifndef KONAN_${prefix.toUpperCase()}_H")
         output("#define KONAN_${prefix.toUpperCase()}_H")
         // TODO: use namespace for C++ case?
@@ -264,6 +269,8 @@ internal class CAdapterGeneratorVisitor(
         output("typedef float           ${prefix}_KFloat;")
         output("typedef double          ${prefix}_KDouble;")
         output("typedef void*           ${prefix}_KNativePtr;")
+        output("struct ${prefix}_KType;")
+        output("typedef struct ${prefix}_KType ${prefix}_KType;")
 
         output("")
         defineUsedTypes(top, 0)
@@ -273,6 +280,7 @@ internal class CAdapterGeneratorVisitor(
         output("/* Service functions. */", 1)
         output("void (*DisposeStablePointer)(${prefix}_KNativePtr ptr);", 1)
         output("void (*DisposeString)(char* string);", 1)
+        output("${prefix}_KNativePtr (*TryCast)(${prefix}_KType type, ${prefix}_KNativePtr ref);", 1)
 
         output("")
         output("/* User functions. */", 1)
@@ -286,6 +294,9 @@ internal class CAdapterGeneratorVisitor(
         #endif""".trimIndent())
 
         output("#endif  /* KONAN_${prefix.toUpperCase()}_H */")
+
+        outputStreamWriter.close()
+        println("Produced dynamic library API in ${prefix}_api.h")
     }
 
     private val simpleNameMapping = mapOf(
