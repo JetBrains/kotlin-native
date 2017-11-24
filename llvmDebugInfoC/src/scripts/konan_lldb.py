@@ -33,8 +33,6 @@ def lldb_val_to_ptr(lldb_val):
 def kotlin_object_type_summary(lldb_val, internal_dict):
     """Hook that is run by lldb to display a Kotlin object."""
     fallback = lldb_val.GetValue()
-    if str(lldb_val.type) != "struct ObjHeader *":
-        return fallback
 
     ptr = lldb_val_to_ptr(lldb_val)
     if ptr is None:
@@ -58,6 +56,8 @@ def kotlin_object_type_summary(lldb_val, internal_dict):
     return s if error.Success() else fallback
 
 
+KREF = "struct ObjHeader *"
+
 class KonanArraySyntheticChildrenProvider:
     def __init__(self, valobj, internal_dict):
         self.valobj = valobj
@@ -76,16 +76,18 @@ class KonanArraySyntheticChildrenProvider:
         if self._ptr is None:
             return
 
-        types = [("Boolean", "uint8_t"), 
-                 ("Byte", "int8_t"),
-                 ("Char", "uint16_t"), 
-                 ("Short", "int16_t"),
-                 ("Int", "int32_t"),
-                 ("Long", "int64_t"),
-                 ("Float", "float"), 
-                 ("Double", "double")]
+        primitives = [
+            ("Boolean", "uint8_t"), 
+            ("Byte", "int8_t"),
+            ("Char", "uint16_t"), 
+            ("Short", "int16_t"),
+            ("Int", "int32_t"),
+            ("Long", "int64_t"),
+            ("Float", "float"), 
+            ("Double", "double")
+        ]
 
-        for (ktype, ctype) in types:
+        for (ktype, ctype) in primitives:
             instance_check = "IsInstance({self._ptr}, the{ktype}ArrayTypeInfo)".format(
                 self=self, ktype=ktype
             )
@@ -94,6 +96,12 @@ class KonanArraySyntheticChildrenProvider:
                 self._fn_prefix = "Kotlin_{}Array".format(ktype)
                 break
         else:
+            instance_check = "IsInstance({self._ptr}, theArrayTypeInfo)".format(self=self)
+            if self._evaluate_bool(instance_check):
+                self._element_type = KREF
+                self._fn_prefix = "Kotlin_Array"
+
+        if self._element_type is None: 
             return
 
         self._num_children = self._evaluate_int(
@@ -129,10 +137,22 @@ class KonanArraySyntheticChildrenProvider:
 
         if not (0 <= index < self._num_children):
             return None
-        return self._evaluate(
-            "({self._element_type}){self._fn_prefix}_get({self._ptr}, {index})".format(self=self, index=index),
-            name=str(index)
-        )
+
+        if self._element_type == KREF:
+            self._evaluate(KREF + " $retval;")
+            return self._evaluate(
+                "({self._element_type}){self._fn_prefix}_get({self._ptr}, {index}, &$retval)".format(
+                    self=self, index=index
+                ),
+                name=str(index)
+            )
+        else:
+            return self._evaluate(
+                "({self._element_type}){self._fn_prefix}_get({self._ptr}, {index})".format(
+                    self=self, index=index
+                ),
+                name=str(index)
+            )
 
     def _evaluate(self, expr, name="tmp"):
         return self.valobj.CreateValueFromExpression(name, expr)
@@ -150,13 +170,13 @@ def __lldb_init_module(debugger, internal_dict):
         --no-value \
         --expand \
         --python-function konan_lldb.kotlin_object_type_summary \
-        "ObjHeader *" \
+        -x "(struct )?ObjHeader ?\\*" \
         --category Kotlin\
     ')
     debugger.HandleCommand('\
         type synthetic add \
         --python-class konan_lldb.KonanArraySyntheticChildrenProvider\
-        "ObjHeader *" \
+        -x "(struct )?ObjHeader ?\\*" \
         --category Kotlin\
     ')
     debugger.HandleCommand('type category enable Kotlin')

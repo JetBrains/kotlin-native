@@ -101,6 +101,20 @@ class LldbTests {
             val xs = intArrayOf(3, 5, 8)
             return
         }
+    """, """
+        > type summary add "ObjHeader *" --inline-children
+        > b main.kt:3
+        > r
+        > fr var xs
+        (ObjHeader *) xs = [..] (0 = 3, 1 = 5, 2 = 8)
+    """)
+
+    @Test
+    fun `can inspect object array children`() = lldbTest("""
+        fun main(args: Array<String>) {
+            val xs = arrayOf(Point(1, 2), null)
+            return
+        }
 
         data class Point(val x: Int, val y: Int)
     """, """
@@ -108,6 +122,6 @@ class LldbTests {
         > b main.kt:3
         > r
         > fr var xs
-        (ObjHeader *) xs = [..] (0 = 3, 1 = 5, 2 = 8)
+        (ObjHeader *) xs = [..] (0 = Point(x=1, y=2), 1 = 0x0000000000000000)
     """)
 }
