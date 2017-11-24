@@ -377,7 +377,7 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
     val missingInitImp by lazy { importRtFunction("MissingInitImp") }
 
     private val personalityFunctionName = when (context.config.targetManager.target) {
-        KonanTarget.MINGW -> "__gxx_personality_seh0"
+        KonanTarget.MINGW, KonanTarget.MINGW2 -> "__gxx_personality_seh0"
         else -> "__gxx_personality_v0"
     }
 

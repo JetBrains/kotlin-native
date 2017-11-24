@@ -231,7 +231,7 @@ internal class LinkStage(val context: Context) {
             MacOSBasedPlatform(distribution)
         KonanTarget.ANDROID_ARM32, KonanTarget.ANDROID_ARM64 ->
             AndroidPlatform(distribution)
-        KonanTarget.MINGW ->
+        KonanTarget.MINGW, KonanTarget.MINGW2 ->
             MingwPlatform(distribution)
         KonanTarget.WASM32 ->
             WasmPlatform(distribution)

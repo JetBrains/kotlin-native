@@ -44,6 +44,7 @@ enum class KonanTarget(val family: Family, val architecture: Architecture, val d
     IPHONE_SIM(     Family.IOS,         Architecture.X64,       "ios_sim"),
     LINUX(          Family.LINUX,       Architecture.X64,       "linux"),
     MINGW(          Family.WINDOWS,     Architecture.X64,       "mingw"),
+    MINGW2(         Family.WINDOWS,     Architecture.X64,       "mingw2"),
     MACBOOK(        Family.OSX,         Architecture.X64,       "osx"),
     RASPBERRYPI(    Family.LINUX,       Architecture.ARM32,     "raspberrypi"),
     LINUX_MIPS32(   Family.LINUX,       Architecture.MIPS32,    "linux_mips32"),
@@ -174,6 +175,7 @@ class TargetManager(val userRequest: String? = null) {
                 }
                 KonanTarget.MINGW -> {
                     KonanTarget.MINGW.enabled = true
+                    KonanTarget.MINGW2.enabled = true
                 }
                 KonanTarget.MACBOOK -> {
                     KonanTarget.MACBOOK.enabled = true
