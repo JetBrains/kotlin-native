@@ -45,6 +45,11 @@ enum class ElementKind {
     TYPE
 }
 
+enum class DefinitionKind {
+    C_HEADER,
+    C_SOURCE
+}
+
 private operator fun String.times(count: Int): String {
     val builder = StringBuilder()
     repeat(count, { builder.append(this) })
@@ -215,19 +220,40 @@ internal class CAdapterGenerator(val context: Context,
         outputStreamWriter.println(string)
     }
 
-    private fun makeElementDefinition(element: ExportedElement, indent: Int) {
-        if (element.isFunction)
-            output(element.makeFunctionPointerString() + ";", indent)
-        if (element.isClass)
-            output("${prefix}_KType* (*_type)();", indent)
-        // TODO: handle properties.
+    private fun makeElementDefinition(element: ExportedElement,
+                                      kind: DefinitionKind,
+                                      indent: Int) {
+        when (kind) {
+            DefinitionKind.C_HEADER -> {
+                when {
+                    element.isFunction ->
+                        output(element.makeFunctionPointerString() + ";", indent)
+                    element.isClass ->
+                        output("${prefix}_KType* (*_type)();", indent)
+                    // TODO: handle properties.
+                }
+            }
+            DefinitionKind.C_SOURCE -> {
+                when {
+                    element.isFunction ->
+                        output("/* ${element.name} = */ foo, ", indent)
+                    element.isClass ->
+                        output("/* Type for ${element.name} = */ get_type, ", indent)
+                // TODO: handle properties.
+                }
+            }
+        }
     }
 
-    private fun makeScopeDefinitions(scope: ExportedElementScope, indent: Int) {
-        output("struct {", indent)
-        scope.elements.forEach { makeElementDefinition(it, indent + 1) }
-        scope.scopes.forEach { makeScopeDefinitions(it, indent + 1) }
-        output("} ${scope.name};", indent)
+    private fun makeScopeDefinitions(scope: ExportedElementScope,
+                                     kind: DefinitionKind,
+                                     indent: Int) {
+        if (kind == DefinitionKind.C_HEADER) output("struct {", indent)
+        if (kind == DefinitionKind.C_SOURCE) output(".${scope.name} = {", indent)
+        scope.elements.forEach { makeElementDefinition(it,  kind, indent + 1) }
+        scope.scopes.forEach { makeScopeDefinitions(it,  kind,indent + 1) }
+        if (kind == DefinitionKind.C_HEADER) output("} ${scope.name};", indent)
+        if (kind == DefinitionKind.C_SOURCE) output("},", indent)
     }
 
     private fun defineUsedTypesImpl(scope: ExportedElementScope, set: MutableSet<ClassDescriptor>) {
@@ -280,11 +306,11 @@ internal class CAdapterGenerator(val context: Context,
         output("/* Service functions. */", 1)
         output("void (*DisposeStablePointer)(${prefix}_KNativePtr ptr);", 1)
         output("void (*DisposeString)(char* string);", 1)
-        output("${prefix}_KNativePtr (*TryCast)(${prefix}_KType type, ${prefix}_KNativePtr ref);", 1)
+        output("${prefix}_KBoolean (*CheckCast)(${prefix}_KType type, ${prefix}_KNativePtr ref);", 1)
 
         output("")
         output("/* User functions. */", 1)
-        makeScopeDefinitions(top, 1)
+        makeScopeDefinitions(top, DefinitionKind.C_HEADER, 1)
         output("} ${prefix}_ExportedSymbols;")
 
         output("extern ${prefix}_ExportedSymbols* ${prefix}_symbols();")
@@ -297,6 +323,19 @@ internal class CAdapterGenerator(val context: Context,
 
         outputStreamWriter.close()
         println("Produced dynamic library API in ${prefix}_api.h")
+
+        outputStreamWriter = java.io.PrintWriter(File(".", "${prefix}_api.c").outputStream())
+        output("#include \"${prefix}_api.h\"")
+        output("void foo() {}")
+        output("void get_type() {}")
+        output("static ${prefix}_ExportedSymbols __konan_symbols = {")
+        output(".DisposeStablePointer = 0,", 1)
+        output(".DisposeString = 0,", 1)
+        output(".CheckCast = 0,", 1)
+        makeScopeDefinitions(top, DefinitionKind.C_SOURCE, 1)
+        output("};")
+        output("${prefix}_ExportedSymbols* ${prefix}_symbols() { return &__konan_symbols;}")
+        outputStreamWriter.close()
     }
 
     private val simpleNameMapping = mapOf(
