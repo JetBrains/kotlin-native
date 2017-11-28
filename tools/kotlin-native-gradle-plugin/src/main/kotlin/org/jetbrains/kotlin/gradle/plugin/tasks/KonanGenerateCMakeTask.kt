@@ -17,7 +17,6 @@
 package org.jetbrains.kotlin.gradle.plugin.tasks
 
 import org.gradle.api.DefaultTask
-import org.gradle.api.file.FileCollection
 import org.gradle.api.tasks.TaskAction
 import org.jetbrains.kotlin.gradle.plugin.KonanInteropLibrary
 import org.jetbrains.kotlin.gradle.plugin.KonanLibrary
@@ -64,7 +63,6 @@ open class KonanGenerateCMakeTask : DefaultTask() {
                 project($projectName Kotlin)
             """.trimIndent())
             appendln()
-
             for (interop in interops) {
                 val task = interop[TargetManager.host] ?: continue
                 appendln(
@@ -99,14 +97,11 @@ open class KonanGenerateCMakeTask : DefaultTask() {
 
     private val File.relativePath get() = relativeTo(project.projectDir)
 
-    private val FileCollection.asCMakeSourceList: List<String>
-        get() = files.map { it.relativePath.toString() }
-
     private val KonanInteropTask.cMakeCompilerOpts: String
         get() = compilerOpts.joinToString(" ")
 
     private val KonanCompileTask.cMakeSources: String
-        get() = srcFiles.flatMap { it.asCMakeSourceList }.joinToString(" ")
+        get() = srcDirs.joinToString(" ") { it.relativePath.toString() }
 
     private val KonanCompileTask.cMakeLibraries: String
         get() = mutableListOf<String>().apply {

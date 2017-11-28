@@ -44,9 +44,8 @@ abstract class KonanCompileConfig<T: KonanCompileTask>(name: String,
     override fun generateHostTaskDescription(task: Task, hostTarget: KonanTarget) =
             "Build the Kotlin/Native $typeForDescription '${task.name}' for current host"
 
-    override fun srcDir(dir: Any) = forEach { it.srcDir(dir) }
-    override fun srcFiles(vararg files: Any) = forEach { it.srcFiles(*files) }
-    override fun srcFiles(files: Collection<Any>) = forEach { it.srcFiles(files) }
+    override fun srcDirs(vararg dirs: Any) = forEach { it.srcDirs(*dirs) }
+    override fun srcDirs(dirs: Collection<Any>) = forEach { it.srcDirs(dirs) }
 
     override fun nativeLibrary(lib: Any) = forEach { it.nativeLibrary(lib) }
     override fun nativeLibraries(vararg libs: Any) = forEach { it.nativeLibraries(*libs) }

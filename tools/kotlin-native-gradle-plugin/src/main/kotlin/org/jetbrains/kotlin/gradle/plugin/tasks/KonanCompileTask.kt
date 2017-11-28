@@ -16,10 +16,12 @@
 
 package org.jetbrains.kotlin.gradle.plugin.tasks
 
+import org.gradle.api.InvalidUserDataException
 import org.gradle.api.file.FileCollection
 import org.gradle.api.tasks.*
 import org.jetbrains.kotlin.gradle.plugin.*
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
+import java.io.File
 
 enum class Produce(val cliOption: String, val kind: CompilerOutputKind) {
     PROGRAM("program", CompilerOutputKind.PROGRAM),
@@ -45,9 +47,9 @@ abstract class KonanCompileTask: KonanBuildingTask(), KonanCompileSpec {
 
     // Other compilation parameters -------------------------------------------
 
-    protected val srcFiles_ = mutableSetOf<FileCollection>()
-    val srcFiles: Collection<FileCollection>
-        @InputFiles get() = srcFiles_.takeIf { !it.isEmpty() } ?: listOf(project.konanDefaultSrcFiles)
+    protected val srcDirs_ = mutableSetOf<File>()
+    val srcDirs: Collection<File>
+        @InputFiles get() = srcDirs_.takeIf { !it.isEmpty() } ?: listOf(project.konanDefaultSrcFiles)
 
     @InputFiles val nativeLibraries = mutableSetOf<FileCollection>()
 
@@ -102,23 +104,22 @@ abstract class KonanCompileTask: KonanBuildingTask(), KonanCompileSpec {
 
         addAll(extraOpts)
 
-        srcFiles.flatMap { it.files }.filter { it.name.endsWith(".kt") }.mapTo(this) { it.canonicalPath }
+        srcDirs.mapTo(this) { it.canonicalPath }
     }
 
     // region DSL.
 
-    // DSL. Input/output files.
+    // DSL. Input directories.
 
-    override fun srcDir(dir: Any) {
-        srcFiles_.add(project.fileTree(dir).apply {
-            include("**/*.kt")
-            exclude { it.file.startsWith(project.buildDir) }
-        })
+    override fun srcDirs(vararg dirs: Any) {
+        for (dir in dirs.map { project.file(it) }) {
+            if (!dir.isDirectory) {
+                throw InvalidUserDataException(String.format("Source directory '$dir' is not a directory."))
+            }
+            srcDirs_ += dir
+        }
     }
-    override fun srcFiles(vararg files: Any) {
-        srcFiles_.add(project.files(files))
-    }
-    override fun srcFiles(files: Collection<Any>) = srcFiles(*files.toTypedArray())
+    override fun srcDirs(dirs: Collection<Any>) = srcDirs(*dirs.toTypedArray())
 
     // DSL. Native libraries.
 

@@ -1,7 +1,6 @@
 package org.jetbrains.kotlin.gradle.plugin.test
 
 import org.gradle.testkit.runner.GradleRunner
-import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.TargetManager
 
 import java.nio.file.Files
@@ -275,7 +274,7 @@ class KonanProject {
             interopTasks += newTasks
         } else {
             def src = generateSrcFile(projectPath.resolve("src/$name/kotlin"), "source.kt", content)
-            addSetting(name, "srcFiles", src)
+            addSetting(name, "srcDirs", "\"src/$name/kotlin\"")
             srcFiles += src
             compilationTasks += newTasks
         }

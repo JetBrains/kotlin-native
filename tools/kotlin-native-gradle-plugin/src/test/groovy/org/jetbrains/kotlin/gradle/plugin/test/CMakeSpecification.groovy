@@ -48,11 +48,11 @@ class CMakeSpecification extends BaseKonanSpecification {
             
             konanc_library(
                 NAME main_lib
-                SOURCES src/main/kotlin/main.kt)
+                SOURCES src/main/kotlin)
                 
             konanc_executable(
                 NAME Main
-                SOURCES src/main/kotlin/main.kt
+                SOURCES src/main/kotlin
                 LIBRARIES stdio main_lib
                 LINKER_OPTS -L/usr/lib/x86_64-linux-gnu)
             """.stripIndent().trim()
