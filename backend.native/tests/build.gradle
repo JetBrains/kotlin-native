@@ -1154,6 +1154,17 @@ task sort1(type: RunKonanTest) {
     source = "runtime/collections/sort1.kt"
 }
 
+task sortDouble(type: RunKonanTest) {
+    goldValue = "[-273.0, -4.2, -0.0, 0.0, 0.5, 41.999, 451.6, 1984.0]\n" +
+            "[-Infinity, -273.2, -4.2, -0.0, 0.0, 0.5, 41.999, 451.6, 1984.0, 1.7976931348623157E308, Infinity, NaN]\n" +
+            "[-0.0, 0.0, 0.1, 42.0, NaN, NaN, NaN]\n" +
+            "[-0.0, 0.0, 0.1]\n" +
+            "-0.0\n" +
+            "0.0\n" +
+            "-0.0 == 0.0"
+    source = "runtime/collections/sortDouble.kt"
+}
+
 task if_else(type: RunKonanTest) {
     source = "codegen/branching/if_else.kt"
 }
