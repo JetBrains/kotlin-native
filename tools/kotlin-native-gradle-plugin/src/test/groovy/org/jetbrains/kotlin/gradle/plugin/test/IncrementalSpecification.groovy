@@ -119,7 +119,7 @@ class IncrementalSpecification extends BaseKonanSpecification {
         onlyRecompilationHappened(*results)
     }
 
-    def 'srcFiles change for a compilation task should cause only recompilation'() {
+    def 'srcDirs change for a compilation task should cause only recompilation'() {
         when:
         def project = KonanProject.createWithInterop(projectDirectory, ArtifactType.LIBRARY) { KonanProject it ->
             it.generateSrcFile(["src", "foo", "kotlin"], 'bar.kt', """
@@ -127,7 +127,7 @@ class IncrementalSpecification extends BaseKonanSpecification {
             """.stripIndent())
         }
         def results = buildTwice(project) { KonanProject it ->
-            it.addSetting("main", "srcFiles", "project.fileTree('src/foo/kotlin')")
+            it.addSetting("main", "srcDirs", "'src/foo/kotlin'")
         }
 
         then:
@@ -141,7 +141,7 @@ class IncrementalSpecification extends BaseKonanSpecification {
             it.buildFile.append("""
                 konanArtifacts {
                     library('lib') {
-                        srcFiles fileTree('src/lib/kotlin')
+                        srcDirs 'src/lib/kotlin'
                     }
                 }
             """.stripIndent())
@@ -161,7 +161,7 @@ class IncrementalSpecification extends BaseKonanSpecification {
             it.buildFile.append("""
                 konanArtifacts {
                     bitcode('lib') {
-                        srcFiles fileTree('src/lib/kotlin')
+                        srcDirs 'src/lib/kotlin'
                     }
                 }
             """.stripIndent())
@@ -241,7 +241,7 @@ class IncrementalSpecification extends BaseKonanSpecification {
             it.buildFile.append("""
                 konanArtifacts {
                     bitcode('lib') {
-                        srcFiles fileTree('src/lib/kotlin')
+                        srcDirs 'src/lib/kotlin'
                     }
                 }
             """.stripIndent())

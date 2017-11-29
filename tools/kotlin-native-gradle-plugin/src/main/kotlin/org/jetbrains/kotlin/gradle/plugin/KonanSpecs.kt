@@ -40,10 +40,8 @@ interface KonanBuildingSpec: KonanArtifactWithLibrariesSpec {
 }
 
 interface KonanCompileSpec: KonanBuildingSpec {
-    fun srcDir(dir: Any)
-
-    fun srcFiles(vararg files: Any)
-    fun srcFiles(files: Collection<Any>)
+    fun srcDirs(vararg dirs: Any)
+    fun srcDirs(dirs: Collection<Any>)
 
     // DSL. Native libraries.
 

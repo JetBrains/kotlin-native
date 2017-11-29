@@ -63,7 +63,7 @@ internal val Project.konanBitcodeBaseDir     get() = konanBuildRoot.resolve("bit
 
 internal fun File.targetSubdir(target: KonanTarget) = resolve(target.userName)
 
-internal val Project.konanDefaultSrcFiles         get() = fileTree("${projectDir.canonicalPath}/src/main/kotlin")
+internal val Project.konanDefaultSrcFiles get() = file("${projectDir.canonicalPath}/src/main/kotlin")
 internal fun Project.konanDefaultDefFile(libName: String)
         = file("${projectDir.canonicalPath}/src/main/c_interop/$libName.def")
 
@@ -163,13 +163,14 @@ internal fun MutableList<String>.addListArg(parameter: String, values: List<Stri
 internal fun dumpProperties(task: Task) {
     fun Iterable<String>.dump() = joinToString(prefix = "[", separator = ",\n${" ".repeat(22)}", postfix = "]")
     fun Collection<FileCollection>.dump() = flatMap { it.files }.map { it.canonicalPath }.dump()
+    fun Collection<File>.dump() = map { it.canonicalPath }.dump()
     when (task) {
         is KonanCompileTask -> with(task) {
             println()
             println("Compilation task: ${name}")
             println("destinationDir     : ${destinationDir}")
             println("artifact           : ${artifact.canonicalPath}")
-            println("srcFiles         : ${srcFiles.dump()}")
+            println("srcDirs            : ${srcDirs.dump()}")
             println("produce            : ${produce}")
             println("libraries          : ${libraries.files.dump()}")
             println("                   : ${libraries.artifacts.map {
