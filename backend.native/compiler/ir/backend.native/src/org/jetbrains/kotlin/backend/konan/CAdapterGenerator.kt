@@ -16,8 +16,10 @@
 
 package org.jetbrains.kotlin.backend.konan
 
+import java.io.PrintWriter
 import llvm.*
 import org.jetbrains.kotlin.backend.common.descriptors.allParameters
+import org.jetbrains.kotlin.backend.common.descriptors.explicitParameters
 import org.jetbrains.kotlin.backend.common.pop
 import org.jetbrains.kotlin.backend.common.push
 import org.jetbrains.kotlin.backend.konan.descriptors.isUnit
@@ -61,9 +63,11 @@ private operator fun String.times(count: Int): String {
     return builder.toString()
 }
 
-private data class ExportedElementScope(val kind: ScopeKind, val name: String) {
+private class ExportedElementScope(val kind: ScopeKind, val name: String) {
     val elements = mutableListOf<ExportedElement>()
     val scopes = mutableListOf<ExportedElementScope>()
+    private val scopeNames = mutableSetOf<String>()
+    private val scopeNamesMap = mutableMapOf<DeclarationDescriptor, String>()
 
     override fun toString(): String {
         return "$kind: $name ${elements.joinToString(", ")} ${scopes.joinToString("\n")}"
@@ -78,14 +82,22 @@ private data class ExportedElementScope(val kind: ScopeKind, val name: String) {
         }
     }
 
-    private var constructorIndex = 0
-    fun nextConstructorIndex(): Int = constructorIndex++
+    fun scopeUniqueName(descriptor: DeclarationDescriptor): String {
+        scopeNamesMap[descriptor]?.apply { return this }
+        var computedName = descriptor.fqNameSafe.shortName().asString()
+        while (scopeNames.contains(computedName)) {
+            computedName += "_"
+        }
+        scopeNames += computedName
+        scopeNamesMap[descriptor] = computedName
+        return computedName
+    }
 }
 
-private data class ExportedElement(val kind: ElementKind,
-                                   val scope: ExportedElementScope,
-                                   val declaration: DeclarationDescriptor,
-                                   val owner: CAdapterGenerator): ContextUtils {
+private class ExportedElement(val kind: ElementKind,
+                              val scope: ExportedElementScope,
+                              val declaration: DeclarationDescriptor,
+                              val owner: CAdapterGenerator) : ContextUtils {
     init {
         scope.elements.add(this)
     }
@@ -98,16 +110,16 @@ private data class ExportedElement(val kind: ElementKind,
     override fun toString(): String {
         return "$kind: $name (aliased to $cname)"
     }
+
     override val context = owner.context
 
     fun generateCAdapter() {
-        // TODO: fix it!
         when {
             isFunction -> {
                 val function = declaration as FunctionDescriptor
                 cname = "_konan_function_${owner.nextFunctionIndex()}"
                 val llvmFunction = owner.codegen.llvmFunction(function)
-                val bridge = LLVMAddAlias(context.llvmModule, LLVMTypeOf(llvmFunction)!!, llvmFunction, cname)!!
+                val bridge = LLVMAddAlias(context.llvmModule, llvmFunction.type, llvmFunction, cname)!!
                 LLVMSetLinkage(bridge, LLVMLinkage.LLVMExternalLinkage)
             }
             isClass -> {
@@ -127,7 +139,7 @@ private data class ExportedElement(val kind: ElementKind,
         return when (descriptor) {
             is PropertyGetterDescriptor -> "get_${descriptor.correspondingProperty.name.asString()}"
             is PropertySetterDescriptor -> "set_${descriptor.correspondingProperty.name.asString()}"
-            else -> descriptor.name.asString()
+            else -> scope.scopeUniqueName(descriptor)
         }
     }
 
@@ -142,13 +154,13 @@ private data class ExportedElement(val kind: ElementKind,
         val original = descriptor.original as FunctionDescriptor
         val returned = when {
             original is ConstructorDescriptor ->
-                    "_construct_${scope.nextConstructorIndex()}" to original.constructedClass
+                scope.scopeUniqueName(original.constructedClass) to original.constructedClass
             // Suspend functions actually return Any?.
-            original.isSuspend -> functionName(original) to TypeUtils.getClassDescriptor(
-                    owner.codegen.context.builtIns.nullableAnyType)!!
+            original.isSuspend -> functionName(original) to
+                    TypeUtils.getClassDescriptor(owner.context.builtIns.nullableAnyType)!!
             else -> functionName(original) to TypeUtils.getClassDescriptor(original.returnType!!)!!
         }
-        val params = ArrayList(original.allParameters.map {
+        val params = ArrayList(original.explicitParameters.map {
             owner.translateName(it.name.asString()) to TypeUtils.getClassDescriptor(it.type)!!
         })
         if (original is ConstructorDescriptor) {
@@ -182,8 +194,7 @@ private data class ExportedElement(val kind: ElementKind,
 
     fun makeFunctionPointerString(): String {
         val signature = makeCFunctionSignature()
-        return "${owner.translateType(signature[0].second)} (*${signature[0].first})(${signature.drop(1).map {
-            it -> "${owner.translateType(it.second)} ${it.first}" }.joinToString(", ")});"
+        return "${owner.translateType(signature[0].second)} (*${signature[0].first})(${signature.drop(1).map { it -> "${owner.translateType(it.second)} ${it.first}" }.joinToString(", ")});"
     }
 
     fun makeFunctionDeclaration(): String {
@@ -228,10 +239,9 @@ private data class ExportedElement(val kind: ElementKind,
 
     private fun translateBody(cfunction: List<Pair<String, ClassDescriptor>>): String {
         val builder = StringBuilder()
-        builder.append("static ${owner.translateType(cfunction[0].second)} ${cname}_impl(${cfunction.drop(1).mapIndexed {
-            index, it-> "${owner.translateType(it.second)} arg${index}"}.joinToString(", ")}) {\n")
-        val args = ArrayList(cfunction.drop(1).mapIndexed {
-            index, pair -> translateArgument("arg$index", pair.second, Direction.C_TO_KOTLIN, builder)
+        builder.append("static ${owner.translateType(cfunction[0].second)} ${cname}_impl(${cfunction.drop(1).mapIndexed { index, it -> "${owner.translateType(it.second)} arg${index}" }.joinToString(", ")}) {\n")
+        val args = ArrayList(cfunction.drop(1).mapIndexed { index, pair ->
+            translateArgument("arg$index", pair.second, Direction.C_TO_KOTLIN, builder)
         })
         val isVoidReturned = owner.isMappedToVoid(cfunction[0].second)
         val isConstructor = declaration is ConstructorDescriptor
@@ -270,7 +280,7 @@ private data class ExportedElement(val kind: ElementKind,
         when (descriptor) {
             is FunctionDescriptor -> {
                 val original = descriptor.original
-                original.allParameters.forEach { set += TypeUtils.getClassDescriptor(it.type)!!}
+                original.allParameters.forEach { set += TypeUtils.getClassDescriptor(it.type)!! }
                 original.returnType?.let { set += TypeUtils.getClassDescriptor(it)!! }
             }
             is PropertyAccessorDescriptor -> {
@@ -285,7 +295,7 @@ internal class CAdapterGenerator(val context: Context,
                                  internal val codegen: CodeGenerator) : IrElementVisitorVoid {
     private val scopes = mutableListOf<ExportedElementScope>()
     internal val prefix: String = context.config.outputName
-    private lateinit var outputStreamWriter: java.io.PrintWriter
+    private lateinit var outputStreamWriter: PrintWriter
 
     override fun visitElement(element: IrElement) {
         //println(ir2string(element))
@@ -359,7 +369,7 @@ internal class CAdapterGenerator(val context: Context,
                         output(element.makeFunctionPointerString(), indent)
                     element.isClass ->
                         output("${prefix}_KType* (*_type)();", indent)
-                    // TODO: handle properties.
+                // TODO: handle properties.
                 }
             }
 
@@ -369,7 +379,7 @@ internal class CAdapterGenerator(val context: Context,
                         output(element.makeFunctionDeclaration(), 0)
                     element.isClass ->
                         output(element.makeClassDeclaration(), 0)
-                    // TODO: handle properties.
+                // TODO: handle properties.
                 }
             }
 
@@ -390,8 +400,8 @@ internal class CAdapterGenerator(val context: Context,
                                      indent: Int) {
         if (kind == DefinitionKind.C_HEADER_STRUCT) output("struct {", indent)
         if (kind == DefinitionKind.C_SOURCE_STRUCT) output(".${scope.name} = {", indent)
-        scope.elements.forEach { makeElementDefinition(it,  kind, indent + 1) }
-        scope.scopes.forEach { makeScopeDefinitions(it,  kind,indent + 1) }
+        scope.elements.forEach { makeElementDefinition(it, kind, indent + 1) }
+        scope.scopes.forEach { makeScopeDefinitions(it, kind, indent + 1) }
         if (kind == DefinitionKind.C_HEADER_STRUCT) output("} ${scope.name};", indent)
         if (kind == DefinitionKind.C_SOURCE_STRUCT) output("},", indent)
     }
@@ -418,7 +428,7 @@ internal class CAdapterGenerator(val context: Context,
     }
 
     private fun makeGlobalStruct(top: ExportedElementScope) {
-        outputStreamWriter = java.io.PrintWriter(File(".", "${prefix}_api.h").outputStream())
+        outputStreamWriter = PrintWriter(File(".", "${prefix}_api.h").outputStream())
         output("#ifndef KONAN_${prefix.toUpperCase()}_H")
         output("#define KONAN_${prefix.toUpperCase()}_H")
         // TODO: use namespace for C++ case?
@@ -464,7 +474,7 @@ internal class CAdapterGenerator(val context: Context,
         outputStreamWriter.close()
         println("Produced dynamic library API in ${prefix}_api.h")
 
-        outputStreamWriter = java.io.PrintWriter(File(".", "${prefix}_api.cpp").outputStream())
+        outputStreamWriter = PrintWriter(File(".", "${prefix}_api.cpp").outputStream())
         output("#include \"${prefix}_api.h\"")
         output("#include \"KString.h\"")
         output("#include \"Memory.h\"")
