@@ -17,7 +17,6 @@
 package konan.internal
 
 import kotlin.internal.getProgressionLastElement
-import kotlin.text.toUtf8Array
 
 @ExportForCppRuntime
 fun ThrowNullPointerException(): Nothing {
@@ -145,5 +144,5 @@ fun KonanObjectToUtf8Array(value: Any?): ByteArray {
         is DoubleArray -> value.contentToString()
         else -> value.toString()
     }
-    return toUtf8Array(string, 0, string.length)
+    return string.toUtf8()
 }

@@ -220,5 +220,5 @@ public open class NumberFormatException : IllegalArgumentException {
 
 public open class IllegalCharacterConversionException : IllegalArgumentException {
     constructor(): super()
-    constructor(s: String) : super()
+    constructor(s: String) : super(s)
 }

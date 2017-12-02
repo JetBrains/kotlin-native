@@ -13,6 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
 #ifndef UTF_FOR_CPP_WITH_REPLACEMENT_H
 #define UTF_FOR_CPP_WITH_REPLACEMENT_H
 
@@ -83,16 +84,17 @@ template<typename u16bit_iterator, typename octet_iterator>
 octet_iterator utf16to8(u16bit_iterator start,
                         u16bit_iterator end,
                         octet_iterator result,
-                        uint32_t replacement = default_replacement) {
+                        uint32_t replacement) {
     while (start != end) {
         uint32_t cp = utf8::internal::mask16(*start++);
         // Process surrogates.
         if (utf8::internal::is_lead_surrogate(cp)) {
             if (start != end) {
-                uint32_t trail_surrogate = utf8::internal::mask16(*start++);
+                uint32_t trail_surrogate = utf8::internal::mask16(*start);
                 if (utf8::internal::is_trail_surrogate(trail_surrogate)) {
                     // Valid surrogate pair.
                     cp = (cp << 10) + trail_surrogate + internal::SURROGATE_OFFSET;
+                    start++;
                 } else {
                     cp = replacement; // Invalid input: lone lead surrogate.
                 }
@@ -108,10 +110,17 @@ octet_iterator utf16to8(u16bit_iterator start,
 }
 
 template<typename u16bit_iterator, typename octet_iterator>
+inline octet_iterator utf16to8(u16bit_iterator start,
+                      u16bit_iterator end,
+                      octet_iterator result) {
+  return utf16to8(start, end, result, default_replacement);
+}
+
+template<typename u16bit_iterator, typename octet_iterator>
 u16bit_iterator utf8to16(octet_iterator start,
                          octet_iterator end,
                          u16bit_iterator result,
-                         uint32_t replacement = default_replacement) {
+                         uint32_t replacement) {
     while (start != end) {
         // The `next` method takes care about replacing invalid sequences.
         uint32_t cp = next(start, end, replacement);
@@ -122,6 +131,13 @@ u16bit_iterator utf8to16(octet_iterator start,
             *result++ = static_cast<uint16_t>(cp);
     }
     return result;
+}
+
+template<typename u16bit_iterator, typename octet_iterator>
+inline u16bit_iterator utf8to16(octet_iterator start,
+                                octet_iterator end,
+                                u16bit_iterator result) {
+  return utf8to16(start, end, result, default_replacement);
 }
 
 } // namespace with_replacement
