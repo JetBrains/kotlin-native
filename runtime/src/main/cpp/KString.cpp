@@ -38,12 +38,14 @@
 namespace {
 
 OBJ_GETTER(utf8ToUtf16, const char* rawString, size_t rawStringLength) {
-  uint32_t charCount = utf8::unchecked::distance(rawString, rawString + rawStringLength);
+  const char* end = rawString + rawStringLength;
+  uint32_t charCount;
+  charCount = utf8::with_replacement::utf16_length(rawString, end);
   ArrayHeader* result = AllocArrayInstance(
     theStringTypeInfo, charCount, OBJ_RESULT)->array();
   KChar* rawResult = CharArrayAddressOfElementAt(result, 0);
   auto convertResult =
-      utf8::unchecked::utf8to16(rawString, rawString + rawStringLength, rawResult);
+      utf8::with_replacement::utf8to16(rawString, rawString + rawStringLength, rawResult);
   RETURN_OBJ(result->obj());
 }
 
@@ -752,7 +754,8 @@ OBJ_GETTER(Kotlin_String_toUtf8Array, KString thiz, KInt start, KInt size) {
   }
   const KChar* utf16 = CharArrayAddressOfElementAt(thiz, start);
   KStdString utf8;
-  utf8::unchecked::utf16to8(utf16, utf16 + size, back_inserter(utf8));
+  // TODO: THrow or just replace?
+  utf8::with_replacement::utf16to8(utf16, utf16 + size, back_inserter(utf8));
   ArrayHeader* result = AllocArrayInstance(
       theByteArrayTypeInfo, utf8.size(), OBJ_RESULT)->array();
   ::memcpy(ByteArrayAddressOfElementAt(result, 0), utf8.c_str(), utf8.size());

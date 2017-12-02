@@ -48,6 +48,8 @@ void ThrowNumberFormatException();
 void ThrowOutOfMemoryError();
 // Throws not implemented error.
 void ThrowNotImplementedError();
+// Throws illegal argument exception
+void ThrowIllegalCharacterConversionException();
 // Prints out mesage of Throwable.
 void PrintThrowable(KRef);
 

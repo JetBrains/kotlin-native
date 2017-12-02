@@ -542,7 +542,11 @@ Konan_FloatingPointParser_parseFloatImpl(KString s, KInt e)
 {
   const KChar* utf16 = CharArrayAddressOfElementAt(s, 0);
   KStdString utf8;
-  utf8::unchecked::utf16to8(utf16, utf16 + s->count_, back_inserter(utf8));
+  try {
+    utf8::utf16to8(utf16, utf16 + s->count_, back_inserter(utf8));
+  } catch (utf8::exception& e) {
+    ThrowNumberFormatException(); // Illegal UTF-16 string.
+  }
   const char *str = utf8.c_str();
   auto flt = createFloat(str, e);
 

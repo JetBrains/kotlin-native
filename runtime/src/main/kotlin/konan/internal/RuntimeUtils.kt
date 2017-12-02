@@ -67,6 +67,11 @@ internal fun ThrowNotImplementedError(): Nothing {
 }
 
 @ExportForCppRuntime
+internal fun ThrowIllegalCharacterConversionException(): Nothing {
+    throw IllegalCharacterConversionException()
+}
+
+@ExportForCppRuntime
 fun PrintThrowable(throwable: Throwable) {
     println(throwable)
 }
