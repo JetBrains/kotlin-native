@@ -54,6 +54,10 @@ class ViewController: UIViewController, UITextViewDelegate, UICollectionViewData
         }
     }
 
+    override func touchesBegan(_ touches: Set<UITouch>, with event: UIEvent?) {
+        self.input.endEditing(true)
+    }
+
     private func inputDidChange() {
         let parsed = parser.parseWithPartial(expression: input.text)
         if let resultValue = parsed.expression {
