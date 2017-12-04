@@ -175,9 +175,6 @@ open class KonanCompileProgramTask: KonanCompileTask() {
 
 open class KonanCompileDynamicTask: KonanCompileTask() {
     override val produce: Produce  get() = Produce.DYNAMIC
-
-    override val artifact
-        @OutputDirectory get() = super.artifact
 }
 
 open class KonanCompileFrameworkTask: KonanCompileTask() {
