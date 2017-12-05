@@ -52,9 +52,15 @@ class KonanProperties(val target: KonanTarget, val properties: Properties, val b
     val gccToolchain get() = targetString("gccToolchain")
     val targetArg get() = targetString("quadruple")
     val llvmHome get() = targetString("llvmHome")
+
     // Notice: these ones are host-target.
     val targetToolchain get() = hostTargetString("targetToolchain")
-    val dependencies get() = hostTargetList("dependencies")
+
+    val dependencies by lazy {
+        val llvm = hostList("llvmHome")
+        val deps = llvm + hostTargetList("dependencies")
+        deps.distinct()
+    }
 
     fun absolute(value: String?) = "${baseDir!!}/${value!!}"
 
