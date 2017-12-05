@@ -56,9 +56,13 @@ class KonanProperties(val target: KonanTarget, val properties: Properties, val b
     // Notice: these ones are host-target.
     val targetToolchain get() = hostTargetString("targetToolchain")
 
+    private fun dependency(value: String?): List<String>
+        = if (value != null) listOf(value.takeWhile{ it != '/' }) else emptyList()
+
     val dependencies by lazy {
         val llvm = hostList("llvmHome")
-        val deps = llvm + hostTargetList("dependencies")
+        val sysroot = dependency(targetSysRoot)
+        val deps = llvm + sysroot + hostTargetList("dependencies")
         deps.distinct()
     }
 
