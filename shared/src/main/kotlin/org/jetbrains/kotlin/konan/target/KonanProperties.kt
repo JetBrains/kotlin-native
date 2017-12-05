@@ -61,9 +61,10 @@ class KonanProperties(val target: KonanTarget, val properties: Properties, val b
 
     val dependencies by lazy {
         val llvm = hostList("llvmHome")
+        val toolchain = dependency(targetToolchain)
         val sysroot = dependency(targetSysRoot)
         val libffi = dependency(libffiDir)
-        val deps = llvm + sysroot + libffi + hostTargetList("dependencies")
+        val deps = llvm + toolchain + sysroot + libffi + hostTargetList("dependencies")
         deps.distinct()
     }
 
