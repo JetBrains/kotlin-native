@@ -1,7 +1,7 @@
 # iOS calculator sample
 
-This example shows how to use Kotlin library from existing iOS projects (e.g.
-written in Swift or Objective-C).
+This example shows how to use Kotlin library compiled to framework from
+an existing iOS project (e.g. written in Swift or Objective-C).
 
 To build and run the sample do the following:
 
@@ -15,10 +15,10 @@ To build and run the sample do the following:
     for more info.
 3.  Now build and run the application on a connected iPhone with Xcode.
 
-The sample consists of 
+The sample consists of:
 
 1.  Xcode iOS application project, written in Swift. It uses Kotlin library to
-    parse arithmetic expressions.
+    parse simple arithmetic expressions.
 2.  Kotlin library source code and build script. It is built into Objective-C
     framework by invoking Gradle from custom "Run Script" build phase, and this
     framework is imported into the Xcode project.
