@@ -66,11 +66,9 @@ OBJ_GETTER(utf16ToUtf8Impl, KString thiz, KInt start, KInt size) {
 OBJ_GETTER(utf8ToUtf16OrThrow, const char* rawString, size_t rawStringLength) {
   const char* end = rawString + rawStringLength;
   uint32_t charCount;
-  try {
-    charCount = utf8::utf16_length(rawString, end);
-  } catch (utf8::exception& e) {
-    ThrowIllegalCharacterConversionException();
-  }
+  TRY(charCount = utf8::utf16_length(rawString, end),
+      charCount = utf8::unchecked::utf16_length(rawString, end))
+  CATCH(utf8::exception&, ThrowIllegalCharacterConversionException)
   RETURN_RESULT_OF(utf8ToUtf16Impl<utf8::unchecked::utf8to16>, rawString, end, charCount);
 }
 
@@ -795,11 +793,9 @@ OBJ_GETTER(Kotlin_String_toUtf8, KString thiz, KInt start, KInt size) {
 }
 
 OBJ_GETTER(Kotlin_String_toUtf8OrThrow, KString thiz, KInt start, KInt size) {
-  try {
-    RETURN_RESULT_OF(utf16ToUtf8Impl<utf8::utf16to8>, thiz, start, size);
-  } catch (utf8::exception& e) {
-    ThrowIllegalCharacterConversionException();
-  }
+    TRY(RETURN_RESULT_OF(utf16ToUtf8Impl<utf8::utf16to8>, thiz, start, size),
+        RETURN_RESULT_OF(utf16ToUtf8Impl<utf8::unchecked::utf16to8>, thiz, start, size))
+    CATCH(utf8::exception&, ThrowIllegalCharacterConversionException)
 }
 
 OBJ_GETTER(Kotlin_String_fromCharArray, KConstRef thiz, KInt start, KInt size) {
