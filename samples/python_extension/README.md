@@ -7,21 +7,21 @@ lands.
 
 To build and run the sample do the following:
 
-   * Run `build.sh`, it will ask for superuser password to install Python extension
-   * On macOS copy Kotlin binary to extension's directory and change install name with
-   `install_name_tool` tool, i.e.
-```
+*   Run `build.sh`, it will ask for superuser password to install Python extension
+*   On macOS copy Kotlin binary to extension's directory and change install name with
+    `install_name_tool` tool, i.e.
+    ```
     sudo cp libserver.dylib  /Library/Python/2.7/site-packages/
     sudo install_name_tool /Library/Python/2.7/site-packages/kotlin_bridge.so \
           -change libserver.dylib @loader_path/libserver.dylib
-   ```
+    ```
 
-   * run Python code using Kotlin functionality with
-```
+*   run Python code using Kotlin functionality with
+    ```
     python src/main/python/main.py
-```
-   * it will show you result of using several Kotlin/Native APIs, accepting and returning both objects and
-   primitive types
+    ```
+*   it will show you result of using several Kotlin/Native APIs, accepting and returning both objects and
+    primitive types
 
  The example works as following. Kotlin/Native API is implemented in `Server.kt`, and we run Kotlin/Native compiler
  with `-produce dynamic` option. Compiler produces two artifacts: `server_api.h` which is C language API
