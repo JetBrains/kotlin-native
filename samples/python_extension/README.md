@@ -10,40 +10,43 @@ To build and run the sample do the following:
    * Run `build.sh`, it will ask for superuser password to install Python extension
    * On macOS copy Kotlin binary to extension's directory and change install name with
    `install_name_tool` tool, i.e.
-
+```
     sudo cp libserver.dylib  /Library/Python/2.7/site-packages/
     sudo install_name_tool /Library/Python/2.7/site-packages/kotlin_bridge.so \
           -change libserver.dylib @loader_path/libserver.dylib
-   * run Python code using Kotlin functionality with
+   ```
 
+   * run Python code using Kotlin functionality with
+```
     python src/main/python/main.py
-   * it will show you result of using of several Kotlin/Native APIs, accepting and returning both objects and
+```
+   * it will show you result of using several Kotlin/Native APIs, accepting and returning both objects and
    primitive types
 
- Example works as following. Kotlin/Native API is implemented in `Server.kt`, and we run Kotlin/Native compiler
+ The example works as following. Kotlin/Native API is implemented in `Server.kt`, and we run Kotlin/Native compiler
  with `-produce dynamic` option. Compiler produces two artifacts: `server_api.h` which is C language API
  to all public functions and classes available in the application. `libserver.dylib` or `libserver.so`
  shared object contains C bridge to all above APIs.
 
   This C bridge looks like a C struct, reflecting all scopes in program, with operations available. For example,
   for class Server
-
-      class Server(val prefix: String) {
+```c_cpp
+   class Server(val prefix: String) {
           fun greet(session: Session) = "$prefix: Hello from Kotlin/Native in ${session}"
           fun concat(session: Session, a: String, b: String) = "$prefix: $a $b in ${session}"
           fun add(session: Session, a: Int, b: Int) = a + b + session.number
-      }
+   }
+```
+   following C API is produced
+```c_cpp
+   typedef struct {
+     server_KNativePtr pinned;
+   } server_kref_demo_Session;
+   typedef struct {
+     server_KNativePtr pinned;
+   } server_kref_demo_Server;
 
- following C API is produced
-
-    typedef struct {
-      server_KNativePtr pinned;
-    } server_kref_demo_Session;
-    typedef struct {
-      server_KNativePtr pinned;
-    } server_kref_demo_Server;
-
-    typedef struct {
+   typedef struct {
       /* Service functions. */
       void (*DisposeStablePointer)(server_KNativePtr ptr);
       void (*DisposeString)(const char* string);
@@ -65,8 +68,9 @@ To build and run the sample do the following:
           } Server;
         } demo;
       } kotlin;
-    } server_ExportedSymbols;
-    extern server_ExportedSymbols* server_symbols(void);
+   } server_ExportedSymbols;
+   extern server_ExportedSymbols* server_symbols(void);
+```
 
  So every class instance is represented with a single element structure, encapsulating stable pointer to an instance.
  Once no longer needed, `DisposeStablePointer()` with that stable pointer shall be called, and if value is not stored
@@ -81,13 +85,14 @@ To build and run the sample do the following:
 
     server_symbols()->DisposeStablePointer(server.pinned);
 
- To make code easier readable, macro definition
+ To make code easier readable, macro definitions like
 
+    #define T_(name) server_kref_demo_ ## name
     #define __ server_symbols()->
 
  will transform above, overly verbose lines to more readable
 
-    server_kref_demo_Server server = __ kotlin.demo.Server.Server("the server");
+    T_(Server) server = __ kotlin.demo.Server.Server("the server");
 
  `_type()` function will return opaque type pointer, which could be checked with `IsInstance()` operation, like
 

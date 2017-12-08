@@ -25,7 +25,7 @@ setup(name='kotlin_bridge',
       description = 'Kotlin/Native Python bridge',
       long_description = 'Using Kotlin/Native from Python example',
 
-      data_files=[("/Library/Python/2.7/site-packages/", ['libserver.dylib'])],
+      # data_files=[("/Library/Python/2.7/site-packages/", ['libserver.dylib'])],
 
       ext_modules=[
          Extension('kotlin_bridge',

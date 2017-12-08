@@ -19,10 +19,13 @@
 #include "server_api.h"
 
 #define __ server_symbols()->
+#define T_(name) server_kref_demo_ ## name
 
-static server_kref_demo_Server server = { 0 };
+// Note, that as we cache this in the global, and Kotlin/Native object references
+// are currently thread local, we make this global a TLS variable.
+__thread static server_kref_demo_Server server = { 0 };
 
-static server_kref_demo_Server getServer() {
+static T_(Server) getServer() {
   if (!server.pinned) {
     server = __ kotlin.demo.Server.Server("the server");
   }
@@ -30,7 +33,7 @@ static server_kref_demo_Server getServer() {
 }
 
 static server_kref_demo_Session getSession(PyObject* args) {
-   server_kref_demo_Session result = { 0 };
+   T_(Session) result = { 0 };
    long long pinned;
    if (PyArg_ParseTuple(args, "L", &pinned)) {
        result.pinned = (void*)(uintptr_t)pinned;
@@ -50,15 +53,16 @@ static PyObject* open_session(PyObject* self, PyObject* args) {
 }
 
 static PyObject* close_session(PyObject* self, PyObject* args) {
-    server_kref_demo_Session session = getSession(args);
+    T_(Session) session = getSession(args);
     __ DisposeStablePointer(session.pinned);
     __ DisposeStablePointer(getServer().pinned);
+    server.pinned = 0;
     return Py_BuildValue("L", 0);
 }
 
 static PyObject* greet_server(PyObject* self, PyObject* args) {
-    server_kref_demo_Server server = getServer();
-    server_kref_demo_Session session = getSession(args);
+    T_(Server) server = getServer();
+    T_(Session) session = getSession(args);
     const char* string = __ kotlin.demo.Server.greet(server, session);
     PyObject* result = Py_BuildValue("s", string);
     __ DisposeString(string);
@@ -72,8 +76,8 @@ static PyObject* concat_server(PyObject* self, PyObject* args) {
     PyObject* result = NULL;
 
     if (PyArg_ParseTuple(args, "Lss", &session_arg, &string_arg1, &string_arg2)) {
-       server_kref_demo_Server server = getServer();
-       server_kref_demo_Session session = { (void*)(uintptr_t)session_arg };
+       T_(Server) server = getServer();
+       T_(Session) session = { (void*)(uintptr_t)session_arg };
        const char* string = __ kotlin.demo.Server.concat(server, session, string_arg1, string_arg2);
        result = Py_BuildValue("s", string);
        __ DisposeString(string);
@@ -90,8 +94,8 @@ static PyObject* add_server(PyObject* self, PyObject* args) {
     PyObject* result = NULL;
 
     if (PyArg_ParseTuple(args, "Lii", &session_arg, &int_arg1, &int_arg2)) {
-       server_kref_demo_Server server = getServer();
-       server_kref_demo_Session session = { (void*)(uintptr_t)session_arg };
+       T_(Server) server = getServer();
+       T_(Session) session = { (void*)(uintptr_t)session_arg };
        int sum = __ kotlin.demo.Server.add(server, session, int_arg1, int_arg2);
        result = Py_BuildValue("i", sum);
     } else {
