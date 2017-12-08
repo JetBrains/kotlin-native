@@ -48,7 +48,7 @@ void ThrowNumberFormatException();
 void ThrowOutOfMemoryError();
 // Throws not implemented error.
 void ThrowNotImplementedError();
-// Throws illegal argument exception
+// Throws illegal character conversion exception (used in UTF8/UTF16 conversions).
 void ThrowIllegalCharacterConversionException();
 // Prints out mesage of Throwable.
 void PrintThrowable(KRef);

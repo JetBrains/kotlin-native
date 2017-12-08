@@ -35,7 +35,7 @@ fun ByteArray.stringFromUtf8OrThrow(start: Int = 0, size: Int = this.size) : Str
 @SymbolName("Kotlin_ByteArray_stringFromUtf8OrThrow")
 private external fun ByteArray.stringFromUtf8OrThrowImpl(start: Int, size: Int) : String
 
-// String -> ByteArray (UTF-8 -> UTF-16)
+// String -> ByteArray (UTF-16 -> UTF-8)
 /**
  * Converts a [String] into an UTF-8 array. Replaces invalid input sequences with a default character.
  */

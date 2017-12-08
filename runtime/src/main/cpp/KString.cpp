@@ -41,6 +41,12 @@ typedef std::back_insert_iterator<KStdString> KStdStringInserter;
 typedef KChar* utf8to16(const char*, const char*, KChar*);
 typedef KStdStringInserter utf16to8(const KChar*,const KChar*, KStdStringInserter);
 
+KStdStringInserter utf16toUtf8OrThrow(const KChar* start, const KChar* end, KStdStringInserter result) {
+  TRY_CATCH(return utf8::utf16to8(start, end, result),
+            return utf8::unchecked::utf16to8(start, end, result),
+            ThrowIllegalCharacterConversionException());
+}
+
 template<utf8to16 conversion>
 OBJ_GETTER(utf8ToUtf16Impl, const char* rawString, const char* end, uint32_t charCount) {
   ArrayHeader* result = AllocArrayInstance(theStringTypeInfo, charCount, OBJ_RESULT)->array();
@@ -66,9 +72,9 @@ OBJ_GETTER(utf16ToUtf8Impl, KString thiz, KInt start, KInt size) {
 OBJ_GETTER(utf8ToUtf16OrThrow, const char* rawString, size_t rawStringLength) {
   const char* end = rawString + rawStringLength;
   uint32_t charCount;
-  TRY(charCount = utf8::utf16_length(rawString, end),
-      charCount = utf8::unchecked::utf16_length(rawString, end))
-  CATCH(utf8::exception&, ThrowIllegalCharacterConversionException)
+  TRY_CATCH(charCount = utf8::utf16_length(rawString, end),
+            charCount = utf8::unchecked::utf16_length(rawString, end),
+            ThrowIllegalCharacterConversionException());
   RETURN_RESULT_OF(utf8ToUtf16Impl<utf8::unchecked::utf8to16>, rawString, end, charCount);
 }
 
@@ -793,9 +799,7 @@ OBJ_GETTER(Kotlin_String_toUtf8, KString thiz, KInt start, KInt size) {
 }
 
 OBJ_GETTER(Kotlin_String_toUtf8OrThrow, KString thiz, KInt start, KInt size) {
-    TRY(RETURN_RESULT_OF(utf16ToUtf8Impl<utf8::utf16to8>, thiz, start, size),
-        RETURN_RESULT_OF(utf16ToUtf8Impl<utf8::unchecked::utf16to8>, thiz, start, size))
-    CATCH(utf8::exception&, ThrowIllegalCharacterConversionException)
+  RETURN_RESULT_OF(utf16ToUtf8Impl<utf16toUtf8OrThrow>, thiz, start, size);
 }
 
 OBJ_GETTER(Kotlin_String_fromCharArray, KConstRef thiz, KInt start, KInt size) {

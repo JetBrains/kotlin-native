@@ -118,7 +118,7 @@ namespace utf8
 
         /**
          * Calculates a count of characters needed to represent the string from first to last in UTF-16
-         * taking into account surrogate symbols. Don't validate the input.
+         * taking into account surrogate symbols. Doesn't validate the input.
          */
         template<typename octet_iterator>
         uint32_t utf16_length(octet_iterator first, octet_iterator last) {

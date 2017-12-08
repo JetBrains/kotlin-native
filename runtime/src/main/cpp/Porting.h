@@ -53,11 +53,13 @@ uint64_t getTimeMicros();
 uint64_t getTimeNanos();
 
 #if KONAN_NO_EXCEPTIONS
-#define TRY(action, actionWithoutExceptions) actionWithoutExceptions;
-#define CATCH(exception, call)
+#define TRY_CATCH(tryAction, actionWithoutExceptions, catchAction) actionWithoutExceptions;
 #else
-#define TRY(action, actionWithoutExceptions)  try { action; }
-#define CATCH(exception, call, ...)           catch (exception) { call(); }
+#define TRY_CATCH(tryAction, actionWithoutExceptions, catchAction) \
+do {                          \
+  try { tryAction; }          \
+  catch(...) { catchAction; } \
+} while(0)
 #endif
 
 }  // namespace konan
