@@ -507,7 +507,7 @@ internal class CAdapterGenerator(val context: Context,
         |class KObjHolder {
         |public:
         |  KObjHolder() : obj_(nullptr) {}
-        |  explicit KObjHolder(const KObjHeader* obj) {
+        |  explicit KObjHolder(const KObjHeader* obj) : obj_(nullptr) {
         |    UpdateRef(&obj_, obj);
         |  }
         |  ~KObjHolder() {
