@@ -42,9 +42,10 @@ typedef KChar* utf8to16(const char*, const char*, KChar*);
 typedef KStdStringInserter utf16to8(const KChar*,const KChar*, KStdStringInserter);
 
 KStdStringInserter utf16toUtf8OrThrow(const KChar* start, const KChar* end, KStdStringInserter result) {
-  TRY_CATCH(return utf8::utf16to8(start, end, result),
-            return utf8::unchecked::utf16to8(start, end, result),
+  TRY_CATCH(result = utf8::utf16to8(start, end, result),
+            result = utf8::unchecked::utf16to8(start, end, result),
             ThrowIllegalCharacterConversionException());
+  return result;
 }
 
 template<utf8to16 conversion>

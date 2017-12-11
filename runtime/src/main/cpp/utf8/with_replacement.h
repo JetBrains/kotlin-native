@@ -30,7 +30,7 @@ constexpr uint32_t default_replacement = 0xfffd;
  * Returns the next codepoint replacing any invalid sequence with the replacement codepoint.
  */
 template<typename octet_iterator>
-uint32_t next(octet_iterator &it, octet_iterator end, uint32_t replacement) {
+uint32_t next(octet_iterator &it, const octet_iterator end, uint32_t replacement) {
     uint32_t cp = 0;
     internal::utf_error err_code = utf8::internal::validate_next(it, end, cp);
     switch (err_code) {
@@ -44,8 +44,7 @@ uint32_t next(octet_iterator &it, octet_iterator end, uint32_t replacement) {
         case internal::OVERLONG_SEQUENCE :
         case internal::INVALID_CODE_POINT :
             // The whole invalid sequence is replaced with one replacement codepoint.
-            it++;
-            for (; it < end && utf8::internal::is_trail(*it); it++);
+            for (it++; it < end && utf8::internal::is_trail(*it); it++);
             return replacement;
     }
 }
@@ -59,7 +58,9 @@ uint32_t next(octet_iterator &it, octet_iterator end, uint32_t replacement) {
  * so each invalid sequence increases the result by 1 or 2 depending on `replacement`.
  */
 template<typename octet_iterator>
-uint32_t utf16_length(octet_iterator first, octet_iterator last, uint32_t replacement = default_replacement) {
+uint32_t utf16_length(octet_iterator first,
+                      const octet_iterator last,
+                      const uint32_t replacement = default_replacement) {
     uint32_t dist = 0;
     while (first < last) {
         uint32_t cp = next(first, last, replacement);
@@ -71,7 +72,7 @@ uint32_t utf16_length(octet_iterator first, octet_iterator last, uint32_t replac
 
 template<typename octet_iterator>
 typename std::iterator_traits<octet_iterator>::difference_type
-distance(octet_iterator first, octet_iterator last) {
+distance(octet_iterator first, const octet_iterator last) {
     typename std::iterator_traits<octet_iterator>::difference_type dist;
     uint32_t unused = 0;
     for (dist = 0; first < last; dist++) {
@@ -82,9 +83,9 @@ distance(octet_iterator first, octet_iterator last) {
 
 template<typename u16bit_iterator, typename octet_iterator>
 octet_iterator utf16to8(u16bit_iterator start,
-                        u16bit_iterator end,
+                        const u16bit_iterator end,
                         octet_iterator result,
-                        uint32_t replacement) {
+                        const uint32_t replacement) {
     while (start != end) {
         uint32_t cp = utf8::internal::mask16(*start++);
         // Process surrogates.
@@ -111,16 +112,16 @@ octet_iterator utf16to8(u16bit_iterator start,
 
 template<typename u16bit_iterator, typename octet_iterator>
 inline octet_iterator utf16to8(u16bit_iterator start,
-                      u16bit_iterator end,
-                      octet_iterator result) {
+                               const u16bit_iterator end,
+                               octet_iterator result) {
   return utf16to8(start, end, result, default_replacement);
 }
 
 template<typename u16bit_iterator, typename octet_iterator>
 u16bit_iterator utf8to16(octet_iterator start,
-                         octet_iterator end,
+                         const octet_iterator end,
                          u16bit_iterator result,
-                         uint32_t replacement) {
+                         const uint32_t replacement) {
     while (start != end) {
         // The `next` method takes care about replacing invalid sequences.
         uint32_t cp = next(start, end, replacement);
@@ -135,7 +136,7 @@ u16bit_iterator utf8to16(octet_iterator start,
 
 template<typename u16bit_iterator, typename octet_iterator>
 inline u16bit_iterator utf8to16(octet_iterator start,
-                                octet_iterator end,
+                                const octet_iterator end,
                                 u16bit_iterator result) {
   return utf8to16(start, end, result, default_replacement);
 }
