@@ -17,14 +17,21 @@
 package kotlin.text
 
 // ByteArray -> String (UTF-8 -> UTF-16)
+
+@Deprecated("Use ByteArray.stringFromUtf8()", ReplaceWith("array.stringFromUtf8(start, end)"))
+fun fromUtf8Array(array: ByteArray, start: Int, size: Int) = array.stringFromUtf8Impl(start, size)
+
+@Deprecated("Use String.toUtf8()", ReplaceWith("string.toUtf8(start, end)"))
+fun toUtf8Array(string: String, start: Int, size: Int) : ByteArray = string.toUtf8(start, size)
+
 /**
  * Converts an UTF-8 array into a [String]. Replaces invalid input sequences with a default character.
  */
 fun ByteArray.stringFromUtf8(start: Int = 0, size: Int = this.size) : String =
-        stringFromUtf8Iml(start, size)
+        stringFromUtf8Impl(start, size)
 
 @SymbolName("Kotlin_ByteArray_stringFromUtf8")
-private external fun ByteArray.stringFromUtf8Iml(start: Int, size: Int) : String
+private external fun ByteArray.stringFromUtf8Impl(start: Int, size: Int) : String
 
 /**
  * Converts an UTF-8 array into a [String]. Throws [IllegalCharacterConversionException] if the input is invalid.
