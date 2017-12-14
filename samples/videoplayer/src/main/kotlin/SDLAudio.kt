@@ -19,19 +19,32 @@ import sdl.*
 import platform.posix.memset
 import platform.posix.memcpy
 
+enum class SampleFormat {
+    INVALID,
+    S16
+}
+
+data class AudioOutput(val sampleRate: Int, val channels: Int, val sampleFormat: SampleFormat)
+
+private fun SampleFormat.toSDLFormat(): SDL_AudioFormat? = when (this) {
+    SampleFormat.S16 -> AUDIO_S16SYS.narrow()
+    SampleFormat.INVALID -> null
+}
+
 class SDLAudio(val player: VideoPlayer) : DisposableContainer() {
     private val threadData = arena.alloc<IntVar>().ptr
     private var state = State.STOPPED
 
-    fun start(audio: AudioInfo) {
+    fun start(audio: AudioOutput) {
         stop()
-        println("Audio: ${audio.channels} channels, ${audio.sampleRate} samples per second")
+        val audioFormat = audio.sampleFormat.toSDLFormat() ?: return
+        println("SDL Audio: Playing output with ${audio.channels} channels, ${audio.sampleRate} samples per second")
 
         memScoped {
             // TODO: better mechanisms to ensure we have same output format here and in resampler of the decoder.
             val spec = alloc<SDL_AudioSpec>().apply {
-                freq = 44100
-                format = AUDIO_S16SYS.narrow()
+                freq = audio.sampleRate
+                format = audioFormat
                 channels = audio.channels.narrow()
                 silence = 0
                 samples = 4096

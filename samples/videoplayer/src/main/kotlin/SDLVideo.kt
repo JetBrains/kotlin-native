@@ -14,8 +14,19 @@
  * limitations under the License.
  */
 
+import ffmpeg.AV_PIX_FMT_NONE
+import ffmpeg.AV_PIX_FMT_RGB24
+import ffmpeg.AV_PIX_FMT_RGB32
 import kotlinx.cinterop.*
 import sdl.*
+
+enum class PixelFormat {
+    INVALID,
+    RGB24,
+    ARGB32
+}
+
+data class VideoOutput(val size: Dimensions, val pixelFormat: PixelFormat)
 
 class SDLVideo : DisposableContainer() {
     private val displaySize: Dimensions
@@ -42,6 +53,7 @@ class SDLVideo : DisposableContainer() {
 
     fun start(videoSize: Dimensions) {
         stop() // To free resources from previous playbacks.
+        println("SDL Video: Playing output with ${videoSize.w} x ${videoSize.h} pixels")
         window = SDLRendererWindow((displaySize - videoSize) / 2, videoSize)
     }
 

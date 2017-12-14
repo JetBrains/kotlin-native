@@ -31,12 +31,6 @@ enum class State {
         } else this
 }
 
-enum class PixelFormat {
-    INVALID,
-    RGB24,
-    ARGB32
-}
-
 enum class PlayMode {
     VIDEO,
     AUDIO,
@@ -88,21 +82,29 @@ class VideoPlayer(val requestedSize: Dimensions?) : DisposableContainer() {
             file.dumpFormat()
             val info = decoder.initDecode(file.context, mode.useVideo, mode.useAudio)
             val videoSize = requestedSize ?: info.video?.size ?: Dimensions(400, 200)
+            // Use requested video size to start SDLVideo
             info.video?.let { video.start(videoSize) }
-            decoder.start(videoSize, video.pixelFormat())
-            info.audio?.let { audio.start(it) }
+            // Configure decoder output based on actual SDLVideo pixel format
+            val videoOutput = VideoOutput(videoSize, video.pixelFormat())
+            // Use fixed audio output format
+            val audioOutput = AudioOutput(44100, 2, SampleFormat.S16)
+            // Start decoder
+            decoder.start(videoOutput, audioOutput)
+            // Start SDLAudio player
+            info.audio?.let { audio.start(audioOutput) }
+            // Main player loop
             lastFrameTime = getTime()
             state = State.PLAYING
-            decoder.requestDecodeChunk() // Fill in frame caches.
+            decoder.requestDecodeChunk() // Fill in frame caches
             while (state != State.STOPPED) {
                 // Fetch video
                 info.video?.let { playVideoFrame(it) }
-                // Audio is being auto-fetched by the audio thread.
-                // Check if there are any input.
+                // Audio is being auto-fetched by the audio thread
+                // Check if there are any input
                 input.check()
-                // Pause support.
+                // Pause support
                 checkPause()
-                // Inter-frame pause, may lead to broken A/V sync, think of better approach.
+                // Inter-frame pause, may lead to broken A/V sync, think of better approach
                 if (state == State.PLAYING) syncAV(info)
                 if (decoder.done()) stop()
             }
