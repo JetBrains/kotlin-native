@@ -16,7 +16,7 @@
 
 package kotlin.collections
 
-private object EmptyMap : Map<Any?, Nothing> {
+private class EmptyMap : Map<Any?, Nothing> {
     override fun equals(other: Any?): Boolean = other is Map<*,*> && other.isEmpty()
     override fun hashCode(): Int = 0
     override fun toString(): String = "{}"
@@ -27,11 +27,11 @@ private object EmptyMap : Map<Any?, Nothing> {
     override fun containsKey(key: Any?): Boolean = false
     override fun containsValue(value: Nothing): Boolean = false
     override fun get(key: Any?): Nothing? = null
-    override val entries: Set<Map.Entry<Any?, Nothing>> get() = EmptySet
-    override val keys: Set<Any?> get() = EmptySet
-    override val values: Collection<Nothing> get() = EmptyList
+    override val entries: Set<Map.Entry<Any?, Nothing>> = EmptySet()
+    override val keys: Set<Any?> = EmptySet()
+    override val values: Collection<Nothing> = EmptyList()
 
-    private fun readResolve(): Any = EmptyMap
+    private fun readResolve(): Any = EmptyMap()
 }
 
 /**
@@ -39,7 +39,7 @@ private object EmptyMap : Map<Any?, Nothing> {
  * @sample samples.collections.Maps.Instantiation.emptyReadOnlyMap
  */
 @Suppress("UNCHECKED_CAST")
-public fun <K, V> emptyMap(): Map<K, V> = EmptyMap as Map<K, V>
+public fun <K, V> emptyMap(): Map<K, V> = EmptyMap() as Map<K, V>
 
 /**
  * Returns a new read-only map with the specified contents, given as a list of pairs

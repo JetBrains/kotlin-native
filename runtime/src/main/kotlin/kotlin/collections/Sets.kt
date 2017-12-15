@@ -17,7 +17,7 @@
 package kotlin.collections
 
 
-internal object EmptySet : Set<Nothing>, konan.internal.KonanSet<Nothing> {
+internal class EmptySet : Set<Nothing>, konan.internal.KonanSet<Nothing> {
     override fun equals(other: Any?): Boolean = other is Set<*> && other.isEmpty()
     override fun hashCode(): Int = 0
     override fun toString(): String = "[]"
@@ -28,14 +28,14 @@ internal object EmptySet : Set<Nothing>, konan.internal.KonanSet<Nothing> {
     override fun getElement(element: Nothing): Nothing? = null
     override fun containsAll(elements: Collection<Nothing>): Boolean = elements.isEmpty()
 
-    override fun iterator(): Iterator<Nothing> = EmptyIterator
+    override fun iterator(): Iterator<Nothing> = EmptyIterator()
 
-    private fun readResolve(): Any = EmptySet
+    private fun readResolve(): Any = EmptySet()
 }
 
 
 /** Returns an empty read-only set.  The returned set is serializable (JVM). */
-public fun <T> emptySet(): Set<T> = EmptySet
+public fun <T> emptySet(): Set<T> = EmptySet()
 /**
  * Returns a new read-only set with the given elements.
  * Elements of the set are iterated in the order they were specified.
