@@ -151,13 +151,9 @@ internal class ObjCExportNamer(val context: Context, val mapper: ObjCExportMappe
 
             append(")")
         }.mangledSequence {
-            if (parameters.isNotEmpty()) {
-                // "foo(label:)" -> "foo(label_:)"
-                insert(lastIndex - 1, '_')
-            } else {
-                // "foo()" -> "foo_()"
-                insert(lastIndex - 2, '_')
-            }
+            // "foo(label:)" -> "foo(label_:)"
+            // "foo()" -> "foo_()"
+            insert(lastIndex - 1, '_')
         }
     }
 
