@@ -482,6 +482,41 @@ private fun ObjCExportCodeGenerator.generateObjCImp(
     return result
 }
 
+private fun ObjCExportCodeGenerator.generateObjCImpForArrayConstructor(
+        target: ConstructorDescriptor,
+        methodBridge: MethodBridge
+): LLVMValueRef {
+    // TODO: adapt exceptions.
+
+    val result = LLVMAddFunction(context.llvmModule, "", objCFunctionType(methodBridge))!!
+
+    generateFunction(codegen, result) {
+        callFromBridge(context.llvm.initRuntimeIfNeeded, emptyList())
+
+        val kotlinValueArgs = methodBridge.paramBridges
+                .drop(1) // Drop class method receiver.
+                .mapIndexed { index, typeBridge ->
+                    objCToKotlin(param(index + 2), typeBridge, Lifetime.ARGUMENT)
+                }
+
+        val arrayInstance = callFromBridge(
+                context.llvm.allocArrayFunction,
+                listOf(target.constructedClass.llvmTypeInfoPtr, kotlinValueArgs.first()),
+                resultLifetime = Lifetime.ARGUMENT
+        )
+        callFromBridge(
+                target.llvmFunction,
+                listOf(arrayInstance) + kotlinValueArgs
+        )
+
+        ret(kotlinToObjC(arrayInstance, ReferenceBridge))
+    }
+
+    LLVMSetLinkage(result, LLVMLinkage.LLVMPrivateLinkage)
+
+    return result
+}
+
 // TODO: cache bridges.
 private fun ObjCExportCodeGenerator.generateKotlinToObjCBridge(
         descriptor: FunctionDescriptor,
@@ -598,6 +633,17 @@ private fun ObjCExportCodeGenerator.createConstructorAdapter(
         descriptor: ConstructorDescriptor
 ): ObjCExportCodeGenerator.ObjCToKotlinMethodAdapter = createMethodAdapter(descriptor, descriptor)
 
+private fun ObjCExportCodeGenerator.createArrayConstructorAdapter(
+        descriptor: ConstructorDescriptor
+): ObjCExportCodeGenerator.ObjCToKotlinMethodAdapter {
+    val selectorName = namer.getSelector(descriptor)
+    val methodBridge = mapper.bridgeMethod(descriptor)
+    val objCEncoding = getEncoding(methodBridge)
+    val objCToKotlin = constPointer(generateObjCImpForArrayConstructor(descriptor, methodBridge))
+
+    return ObjCToKotlinMethodAdapter(selectorName, objCEncoding, objCToKotlin)
+}
+
 private fun ObjCExportCodeGenerator.vtableIndex(descriptor: FunctionDescriptor): Int? {
     assert(descriptor.isOverridable)
     val classDescriptor = descriptor.containingDeclaration as ClassDescriptor
@@ -634,10 +680,17 @@ private fun ObjCExportCodeGenerator.createTypeAdapter(
         descriptor: ClassDescriptor
 ): ObjCExportCodeGenerator.ObjCTypeAdapter {
     val adapters = mutableListOf<ObjCExportCodeGenerator.ObjCToKotlinMethodAdapter>()
+    val classAdapters = mutableListOf<ObjCExportCodeGenerator.ObjCToKotlinMethodAdapter>()
 
     if (descriptor != context.builtIns.any) {
         descriptor.constructors.forEach {
-            if (mapper.shouldBeExposed(it)) adapters += createConstructorAdapter(it)
+            if (mapper.shouldBeExposed(it)) {
+                if (it.constructedClass.isArray) {
+                    classAdapters += createArrayConstructorAdapter(it)
+                } else {
+                    adapters += createConstructorAdapter(it)
+                }
+            }
         }
     }
 
@@ -731,8 +784,6 @@ private fun ObjCExportCodeGenerator.createTypeAdapter(
     } else {
         emptyList()
     }
-
-    val classAdapters = mutableListOf<ObjCExportCodeGenerator.ObjCToKotlinMethodAdapter>()
 
     if (descriptor.isUnit()) {
         classAdapters += createUnitInstanceAdapter()

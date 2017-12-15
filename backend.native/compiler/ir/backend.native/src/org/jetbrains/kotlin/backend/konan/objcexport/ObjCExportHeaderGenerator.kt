@@ -19,6 +19,7 @@ package org.jetbrains.kotlin.backend.konan.objcexport
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.KonanCompilationException
 import org.jetbrains.kotlin.backend.konan.descriptors.getPackageFragments
+import org.jetbrains.kotlin.backend.konan.descriptors.isArray
 import org.jetbrains.kotlin.backend.konan.descriptors.isInterface
 import org.jetbrains.kotlin.backend.konan.descriptors.isUnit
 import org.jetbrains.kotlin.backend.konan.reportCompilationError
@@ -210,9 +211,15 @@ internal class ObjCExportHeaderGenerator(val context: Context) {
             val presentConstructors = mutableSetOf<String>()
 
             descriptor.constructors.filter { mapper.shouldBeExposed(it) }.forEach {
-                presentConstructors += getSelector(it)
+                if (!descriptor.isArray) presentConstructors += getSelector(it)
 
                 +"${getSignature(it, it)};"
+                +""
+            }
+
+            if (descriptor.isArray) {
+                +"+(instancetype)alloc __attribute__((unavailable));"
+                +"+(instancetype)allocWithZone:(struct _NSZone *)zone __attribute__((unavailable));"
                 +""
             }
 
@@ -342,7 +349,8 @@ internal class ObjCExportHeaderGenerator(val context: Context) {
 
         val selectorParts = getSelector(baseMethod).split(':')
 
-        if (methodBridge.isKotlinTopLevel) {
+        val isArrayConstructor = method is ConstructorDescriptor && method.constructedClass.isArray
+        if (methodBridge.isKotlinTopLevel || isArrayConstructor) {
             append("+")
         } else {
             append("-")
@@ -392,7 +400,7 @@ internal class ObjCExportHeaderGenerator(val context: Context) {
 
         append(" NS_SWIFT_NAME($swiftName)")
 
-        if (method is ConstructorDescriptor) {
+        if (method is ConstructorDescriptor && !isArrayConstructor) {
             append(" NS_DESIGNATED_INITIALIZER")
         }
     }

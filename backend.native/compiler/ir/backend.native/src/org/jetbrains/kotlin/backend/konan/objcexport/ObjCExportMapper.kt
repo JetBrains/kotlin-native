@@ -16,10 +16,11 @@
 
 package org.jetbrains.kotlin.backend.konan.objcexport
 
-import org.jetbrains.kotlin.backend.common.descriptors.allParameters
+import org.jetbrains.kotlin.backend.common.descriptors.explicitParameters
 import org.jetbrains.kotlin.backend.common.descriptors.isSuspend
 import org.jetbrains.kotlin.backend.konan.ValueType
 import org.jetbrains.kotlin.backend.konan.correspondingValueType
+import org.jetbrains.kotlin.backend.konan.descriptors.isArray
 import org.jetbrains.kotlin.backend.konan.isObjCObjectType
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.resolve.descriptorUtil.builtIns
@@ -151,12 +152,22 @@ internal fun ObjCExportMapper.bridgeMethod(descriptor: FunctionDescriptor): Meth
 
     val paramBridges = mutableListOf<TypeBridge>()
 
+    if (descriptor is ConstructorDescriptor) {
+        if (descriptor.constructedClass.isArray) {
+            // Generated as class factory method.
+            paramBridges += ReferenceBridge // Receiver of class method.
+        } else {
+            // Generated as Objective-C instance init method.
+            paramBridges += ReferenceBridge // Receiver of init method.
+        }
+    }
+
     val isTopLevel = isTopLevel(descriptor)
     if (isTopLevel) {
         paramBridges += ReferenceBridge
     }
 
-    descriptor.allParameters.mapTo(paramBridges) { bridgeType(it.type) }
+    descriptor.explicitParameters.mapTo(paramBridges) { bridgeType(it.type) }
 
     return MethodBridge(returnBridge, paramBridges, isKotlinTopLevel = isTopLevel)
 }
