@@ -18,7 +18,7 @@ package kotlin.collections
 
 import kotlin.comparisons.*
 
-internal object EmptyIterator : ListIterator<Nothing> {
+internal class EmptyIterator : ListIterator<Nothing> {
     override fun hasNext(): Boolean = false
     override fun hasPrevious(): Boolean = false
     override fun nextIndex(): Int = 0
@@ -27,7 +27,7 @@ internal object EmptyIterator : ListIterator<Nothing> {
     override fun previous(): Nothing = throw NoSuchElementException()
 }
 
-internal object EmptyList : List<Nothing>, RandomAccess {
+internal class EmptyList : List<Nothing>, RandomAccess {
 
     override fun equals(other: Any?): Boolean = other is List<*> && other.isEmpty()
     override fun hashCode(): Int = 1
@@ -42,11 +42,11 @@ internal object EmptyList : List<Nothing>, RandomAccess {
     override fun indexOf(element: Nothing): Int = -1
     override fun lastIndexOf(element: Nothing): Int = -1
 
-    override fun iterator(): Iterator<Nothing> = EmptyIterator
-    override fun listIterator(): ListIterator<Nothing> = EmptyIterator
+    override fun iterator(): Iterator<Nothing> = EmptyIterator()
+    override fun listIterator(): ListIterator<Nothing> = EmptyIterator()
     override fun listIterator(index: Int): ListIterator<Nothing> {
         if (index != 0) throw IndexOutOfBoundsException("Index: $index")
-        return EmptyIterator
+        return EmptyIterator()
     }
 
     override fun subList(fromIndex: Int, toIndex: Int): List<Nothing> {
@@ -54,7 +54,7 @@ internal object EmptyList : List<Nothing>, RandomAccess {
         throw IndexOutOfBoundsException("fromIndex: $fromIndex, toIndex: $toIndex")
     }
 
-    private fun readResolve(): Any = EmptyList
+    private fun readResolve(): Any = EmptyList()
 }
 
 internal fun <T> Array<out T>.asCollection(): Collection<T> = ArrayAsCollection(this, isVarargs = false)
@@ -70,7 +70,7 @@ private class ArrayAsCollection<T>(val values: Array<out T>, val isVarargs: Bool
 }
 
 /** Returns an empty read-only list.  */
-public fun <T> emptyList(): List<T> = EmptyList
+public fun <T> emptyList(): List<T> = EmptyList()
 
 /** Returns a new read-only list of given elements. */
 public fun <T> listOf(vararg elements: T): List<T> = if (elements.size > 0) elements.asList() else emptyList()

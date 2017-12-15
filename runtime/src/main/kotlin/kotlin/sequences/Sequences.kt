@@ -56,12 +56,12 @@ public fun <T> sequenceOf(vararg elements: T): Sequence<T> = if (elements.isEmpt
 /**
  * Returns an empty sequence.
  */
-public fun <T> emptySequence(): Sequence<T> = EmptySequence
+public fun <T> emptySequence(): Sequence<T> = EmptySequence()
 
-private object EmptySequence : Sequence<Nothing>, DropTakeSequence<Nothing> {
-    override fun iterator(): Iterator<Nothing> = EmptyIterator
-    override fun drop(n: Int) = EmptySequence
-    override fun take(n: Int) = EmptySequence
+private class EmptySequence : Sequence<Nothing>, DropTakeSequence<Nothing> {
+    override fun iterator(): Iterator<Nothing> = EmptyIterator()
+    override fun drop(n: Int) = EmptySequence()
+    override fun take(n: Int) = EmptySequence()
 }
 
 /**
@@ -601,7 +601,7 @@ public fun <T : Any> generateSequence(nextFunction: () -> T?): Sequence<T> {
 @kotlin.internal.LowPriorityInOverloadResolution
 public fun <T : Any> generateSequence(seed: T?, nextFunction: (T) -> T?): Sequence<T> =
         if (seed == null)
-            EmptySequence
+            EmptySequence()
         else
             GeneratorSequence({ seed }, nextFunction)
 
