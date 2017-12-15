@@ -17,6 +17,7 @@
 package org.jetbrains.kotlin.backend.konan.llvm.objcexport
 
 import llvm.*
+import org.jetbrains.kotlin.backend.common.atMostOne
 import org.jetbrains.kotlin.backend.common.descriptors.allParameters
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.*
@@ -221,6 +222,8 @@ internal class ObjCExportCodeGenerator(
     }
 
     private val impType = pointerType(functionType(int8TypePtr, true, int8TypePtr, int8TypePtr))
+
+    internal val directMethodAdapters = mutableMapOf<DirectAdapterRequest, ObjCToKotlinMethodAdapter>()
 
     inner class ObjCToKotlinMethodAdapter(
             selector: String,
@@ -620,13 +623,18 @@ private fun ObjCExportCodeGenerator.createMethodVirtualAdapter(
 private fun ObjCExportCodeGenerator.createMethodAdapter(
         implementation: FunctionDescriptor?,
         baseMethod: FunctionDescriptor
-): ObjCExportCodeGenerator.ObjCToKotlinMethodAdapter {
-    val selectorName = namer.getSelector(baseMethod)
-    val methodBridge = mapper.bridgeMethod(baseMethod)
-    val objCEncoding = getEncoding(methodBridge)
-    val objCToKotlin = constPointer(generateObjCImp(implementation, methodBridge))
+) = createMethodAdapter(DirectAdapterRequest(implementation, baseMethod))
 
-    return ObjCToKotlinMethodAdapter(selectorName, objCEncoding, objCToKotlin)
+private fun ObjCExportCodeGenerator.createMethodAdapter(
+        request: DirectAdapterRequest
+): ObjCExportCodeGenerator.ObjCToKotlinMethodAdapter = this.directMethodAdapters.getOrPut(request) {
+
+    val selectorName = namer.getSelector(request.base)
+    val methodBridge = mapper.bridgeMethod(request.base)
+    val objCEncoding = getEncoding(methodBridge)
+    val objCToKotlin = constPointer(generateObjCImp(request.implementation, methodBridge))
+
+    ObjCToKotlinMethodAdapter(selectorName, objCEncoding, objCToKotlin)
 }
 
 private fun ObjCExportCodeGenerator.createConstructorAdapter(
@@ -698,15 +706,8 @@ private fun ObjCExportCodeGenerator.createTypeAdapter(
 
     val exposedMethods = descriptor.contributedMethods.filter { mapper.shouldBeExposed(it) } + categoryMethods
 
-    exposedMethods.filter { it.kind.isReal }.forEach { method ->
-        mapper.getBaseMethods(method).mapTo(adapters) { base ->
-            val implementation = if (method.modality == Modality.ABSTRACT) {
-                null
-            } else {
-                OverriddenFunctionDescriptor(method, base).getImplementation(context)
-            }
-            createMethodAdapter(implementation, base)
-        }
+    exposedMethods.forEach {
+        adapters += createDirectAdapters(it)
     }
 
     val reverseAdapters = mutableListOf<ObjCExportCodeGenerator.KotlinToObjCMethodAdapter>()
@@ -745,7 +746,7 @@ private fun ObjCExportCodeGenerator.createTypeAdapter(
 
         } else {
             // Mark it as non-overridable:
-            baseMethods.forEach { base ->
+            baseMethods.distinctBy { namer.getSelector(it) }.forEach { base ->
                 reverseAdapters += KotlinToObjCMethodAdapter(
                         namer.getSelector(base),
                         -1,
@@ -801,6 +802,34 @@ private fun ObjCExportCodeGenerator.createTypeAdapter(
             virtualAdapters,
             reverseAdapters
     )
+}
+
+internal data class DirectAdapterRequest(val implementation: FunctionDescriptor?, val base: FunctionDescriptor)
+
+private fun ObjCExportCodeGenerator.createDirectAdapters(
+        method: FunctionDescriptor
+): List<ObjCExportCodeGenerator.ObjCToKotlinMethodAdapter> {
+
+    fun FunctionDescriptor.getAllRequiredDirectAdapters() = mapper.getBaseMethods(this).map { base ->
+        val implementation = if (this.modality == Modality.ABSTRACT) {
+            null
+        } else {
+            OverriddenFunctionDescriptor(this, base).getImplementation(context)
+        }
+        DirectAdapterRequest(implementation, base)
+    }
+
+    val superClassMethod = method.overriddenDescriptors
+            .atMostOne { !(it.containingDeclaration as ClassDescriptor).isInterface }
+
+    val inheritedAdapters = superClassMethod?.getAllRequiredDirectAdapters().orEmpty()
+    val requiredAdapters = method.getAllRequiredDirectAdapters()
+
+    return (requiredAdapters - inheritedAdapters)
+            .distinctBy { namer.getSelector(it.base) }
+            .map {
+                createMethodAdapter(it)
+            }
 }
 
 private fun ObjCExportCodeGenerator.createUnitInstanceAdapter(): ObjCExportCodeGenerator.ObjCToKotlinMethodAdapter {

@@ -327,8 +327,7 @@ internal class ObjCExportHeaderGenerator(val context: Context) {
 
         val propertySetter = property.setter
         if (propertySetter != null && mapper.shouldBeExposed(propertySetter)) {
-            val baseSetter = mapper.getBaseMethods(propertySetter).single()
-            val setterSelector = getSelector(baseSetter)
+            val setterSelector = mapper.getBaseMethods(propertySetter).map { namer.getSelector(it) }.distinct().single()
             if (setterSelector != "set" + name.capitalize() + ":") {
                 attributes += "setter=$setterSelector"
             }

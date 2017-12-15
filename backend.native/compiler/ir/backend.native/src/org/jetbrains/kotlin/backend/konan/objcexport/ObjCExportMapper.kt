@@ -68,7 +68,9 @@ internal fun ObjCExportMapper.getBaseMethods(descriptor: FunctionDescriptor): Li
         if (isBaseMethod(descriptor)) {
             listOf(descriptor)
         } else {
-            descriptor.overriddenDescriptors.filter { shouldBeExposed(it) }.flatMap { getBaseMethods(it.original)}
+            descriptor.overriddenDescriptors.filter { shouldBeExposed(it) }
+                    .flatMap { getBaseMethods(it.original)}
+                    .distinct()
         }
 
 internal fun ObjCExportMapper.isBaseProperty(descriptor: PropertyDescriptor) =
@@ -78,7 +80,9 @@ internal fun ObjCExportMapper.getBaseProperties(descriptor: PropertyDescriptor):
         if (isBaseProperty(descriptor)) {
             listOf(descriptor)
         } else {
-            descriptor.overriddenDescriptors.flatMap { getBaseProperties(it.original) }
+            descriptor.overriddenDescriptors
+                    .flatMap { getBaseProperties(it.original) }
+                    .distinct()
         }
 
 internal tailrec fun KotlinType.getErasedTypeClass(): ClassDescriptor =
