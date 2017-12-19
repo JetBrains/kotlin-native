@@ -16,15 +16,18 @@
 
 
 import groovy.transform.stc.ClosureParams
-import groovy.transform.stc.ClosureSignatureHint
-import groovy.transform.stc.FirstParam
 import groovy.transform.stc.FromString
 import org.jetbrains.kotlin.konan.target.*
 import org.jetbrains.kotlin.konan.util.DependencyProcessor
 import static org.jetbrains.kotlin.konan.target.KonanTarget.*
 import org.jetbrains.kotlin.konan.util.Named
 import org.jetbrains.kotlin.konan.properties.KonanPropertiesLoader
-import org.jetbrains.kotlin.konan.properties.*
+import org.jetbrains.kotlin.konan.target.ConfigurablesImplKt
+import org.jetbrains.kotlin.konan.target.KonanTarget
+import org.jetbrains.kotlin.konan.target.TargetManager
+import org.jetbrains.kotlin.konan.util.DependencyProcessor
+
+import static org.jetbrains.kotlin.konan.util.VisibleNamedKt.getVisibleName
 
 buildscript {
     apply from: "$rootDir/gradle/kotlinGradlePlugin.gradle"
@@ -44,6 +47,17 @@ def modules = ['compiler'      : kotlinCompilerModule,
                'reflect'       : kotlinReflectModule,
                'script_runtime': kotlinScriptRuntimeModule
 ]
+
+Map.metaClass.moduleEntry = { key, version ->
+    delegate[key] = "org.jetbrains.kotlin:kotlin-${key.replace('_', '-')}:$version"
+}
+
+modules.moduleEntry('gradle_plugin_api', kotlinGradlePluginApiVersion)
+modules.moduleEntry('compiler_embeddable', kotlinCompilerEmbeddableVersion)
+modules.moduleEntry('annotation_processing_gradle', kotlinAnnotationProcessingGradleVersion)
+modules.moduleEntry('android_extensions', kotlinAndroidExtensionsVersion)
+modules.moduleEntry('compiler_runner', kotlinCompilerRunnerVersion)
+modules.moduleEntry('stdlib_jre7', kotlinStdLibJdk7Version)
 
 private static String configurationJar(x) {
     "kotlin_${x}_jar".toString()
