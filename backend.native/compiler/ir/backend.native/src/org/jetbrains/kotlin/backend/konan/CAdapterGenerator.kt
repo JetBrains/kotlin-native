@@ -32,7 +32,6 @@ import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.resolve.descriptorUtil.isEffectivelyPublicApi
 import org.jetbrains.kotlin.types.TypeUtils
-import org.jetbrains.kotlin.konan.file.*
 import org.jetbrains.kotlin.konan.target.*
 
 private enum class ScopeKind {
@@ -64,11 +63,50 @@ private operator fun String.times(count: Int): String {
     return builder.toString()
 }
 
+private val cKeywords = setOf(
+        // Actual C keywords.
+        "auto", "break", "case",
+        "char", "const", "continue",
+        "default", "do", "double",
+        "else", "enum", "extern",
+        "float", "for", "goto",
+        "if", "int", "long",
+        "register", "return",
+        "short", "signed", "sizeof", "static", "struct", "switch",
+        "typedef", "union", "unsigned",
+        "void", "volatile", "while",
+        // Not exactly keywords, but reserved.
+        "and", "not", "or", "xor"
+)
+
+private fun org.jetbrains.kotlin.types.KotlinType.isGeneric() =
+        constructor.declarationDescriptor is TypeParameterDescriptor
+
+private fun isExportedFunction(descriptor: FunctionDescriptor): Boolean {
+    if (!descriptor.isEffectivelyPublicApi || !descriptor.kind.isReal)
+        return false
+    descriptor.allParameters.forEach {
+        if (it.type.isGeneric()) return false
+    }
+    val returnType = descriptor.returnType
+    if (returnType == null) return true
+    return !returnType.isGeneric()
+}
+
+private fun isExportedClass(descriptor: ClassDescriptor): Boolean {
+    if (!descriptor.isEffectivelyPublicApi)
+        return false
+    // Do not export types with type parameters.
+    // TODO: is it correct?
+    return descriptor.declaredTypeParameters.isEmpty()
+}
+
 private class ExportedElementScope(val kind: ScopeKind, val name: String) {
     val elements = mutableListOf<ExportedElement>()
     val scopes = mutableListOf<ExportedElementScope>()
     private val scopeNames = mutableSetOf<String>()
     private val scopeNamesMap = mutableMapOf<DeclarationDescriptor, String>()
+
 
     override fun toString(): String {
         return "$kind: $name ${elements.joinToString(", ")} ${scopes.joinToString("\n")}"
@@ -85,8 +123,12 @@ private class ExportedElementScope(val kind: ScopeKind, val name: String) {
 
     fun scopeUniqueName(descriptor: DeclarationDescriptor): String {
         scopeNamesMap[descriptor]?.apply { return this }
-        var computedName = descriptor.fqNameSafe.shortName().asString()
-        while (scopeNames.contains(computedName)) {
+        var computedName = when (descriptor) {
+            is PropertyGetterDescriptor -> "get_${descriptor.correspondingProperty.name.asString()}"
+            is PropertySetterDescriptor -> "set_${descriptor.correspondingProperty.name.asString()}"
+            else -> descriptor.fqNameSafe.shortName().asString()
+        }
+        while (scopeNames.contains(computedName) || cKeywords.contains(computedName)) {
             computedName += "_"
         }
         scopeNames += computedName
@@ -136,13 +178,7 @@ private class ExportedElement(val kind: ElementKind,
         }
     }
 
-    fun functionName(descriptor: FunctionDescriptor): String {
-        return when (descriptor) {
-            is PropertyGetterDescriptor -> "get_${descriptor.correspondingProperty.name.asString()}"
-            is PropertySetterDescriptor -> "set_${descriptor.correspondingProperty.name.asString()}"
-            else -> scope.scopeUniqueName(descriptor)
-        }
-    }
+    fun uniqueName(descriptor: FunctionDescriptor) = scope.scopeUniqueName(descriptor)
 
     val isFunction = declaration is FunctionDescriptor
     val isClass = declaration is ClassDescriptor
@@ -157,9 +193,9 @@ private class ExportedElement(val kind: ElementKind,
             original is ConstructorDescriptor ->
                 scope.scopeUniqueName(original.constructedClass) to original.constructedClass
             // Suspend functions actually return Any?.
-            original.isSuspend -> functionName(original) to
+            original.isSuspend -> uniqueName(original) to
                     TypeUtils.getClassDescriptor(owner.context.builtIns.nullableAnyType)!!
-            else -> functionName(original) to TypeUtils.getClassDescriptor(original.returnType!!)!!
+            else -> uniqueName(original) to TypeUtils.getClassDescriptor(original.returnType!!)!!
         }
         val params = ArrayList(original.explicitParameters.map {
             owner.translateName(it.name.asString()) to TypeUtils.getClassDescriptor(it.type)!!
@@ -274,17 +310,27 @@ private class ExportedElement(val kind: ElementKind,
         return builder.toString()
     }
 
+    private fun addUsedType(type: org.jetbrains.kotlin.types.KotlinType, set: MutableSet<ClassDescriptor>) {
+        if (type.constructor.declarationDescriptor is TypeParameterDescriptor) return
+        val clazz = TypeUtils.getClassDescriptor(type)
+        if (clazz == null) {
+            println("cannot get class for $type")
+        } else {
+            set += clazz
+        }
+    }
+
     fun addUsedTypes(set: MutableSet<ClassDescriptor>) {
         val descriptor = declaration
         when (descriptor) {
             is FunctionDescriptor -> {
                 val original = descriptor.original
-                original.allParameters.forEach { set += TypeUtils.getClassDescriptor(it.type)!! }
-                original.returnType?.let { set += TypeUtils.getClassDescriptor(it)!! }
+                original.allParameters.forEach { addUsedType(it.type, set) }
+                original.returnType?.let { addUsedType(it, set) }
             }
             is PropertyAccessorDescriptor -> {
                 val original = descriptor.original
-                set += TypeUtils.getClassDescriptor(original.correspondingProperty.type)!!
+                addUsedType(original.correspondingProperty.type, set)
             }
         }
     }
@@ -297,7 +343,6 @@ internal class CAdapterGenerator(val context: Context,
     private lateinit var outputStreamWriter: PrintWriter
 
     override fun visitElement(element: IrElement) {
-        //println(ir2string(element))
         element.acceptChildrenVoid(this)
     }
 
@@ -319,14 +364,13 @@ internal class CAdapterGenerator(val context: Context,
 
     override fun visitFunction(declaration: IrFunction) {
         val descriptor = declaration.descriptor
-        if (!descriptor.isEffectivelyPublicApi || !descriptor.kind.isReal) return
+        if (!isExportedFunction(descriptor)) return
         ExportedElement(ElementKind.FUNCTION, scopes.last(), declaration.descriptor, this)
     }
 
     override fun visitClass(declaration: IrClass) {
         val descriptor = declaration.descriptor
-        if (!descriptor.isEffectivelyPublicApi)
-            return
+        if (!isExportedClass(descriptor)) return
         // TODO: fix me!
         val shortName = descriptor.fqNameSafe.shortName()
         if (shortName.isSpecial || shortName.asString().contains("<anonymous>"))
@@ -358,9 +402,7 @@ internal class CAdapterGenerator(val context: Context,
         outputStreamWriter.println(string)
     }
 
-    private fun makeElementDefinition(element: ExportedElement,
-                                      kind: DefinitionKind,
-                                      indent: Int) {
+    private fun makeElementDefinition(element: ExportedElement, kind: DefinitionKind, indent: Int) {
         when (kind) {
             DefinitionKind.C_HEADER_STRUCT -> {
                 when {
