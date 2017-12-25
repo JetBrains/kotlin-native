@@ -33,6 +33,7 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.resolve.descriptorUtil.isEffectivelyPublicApi
 import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.konan.target.*
+import org.jetbrains.kotlin.resolve.DescriptorUtils
 
 private enum class ScopeKind {
     TOP,
@@ -75,9 +76,14 @@ private val cKeywords = setOf(
         "short", "signed", "sizeof", "static", "struct", "switch",
         "typedef", "union", "unsigned",
         "void", "volatile", "while",
-        // Not exactly keywords, but reserved.
-        "and", "not", "or", "xor"
-)
+        // C99-specific.
+        "_Bool", "_Complex", "_Imaginary", "inline", "restrict",
+        // C11-specific.
+        "_Alignas", "_Alignof", "_Atomic", "_Generic", "_Noreturn", "_Static_assert", "_Thread_local",
+        // Not exactly keywords, but reserved or standard-defined.
+        "and", "not", "or", "xor",
+        "bool", "complex", "imaginary"
+        )
 
 private fun org.jetbrains.kotlin.types.KotlinType.isGeneric() =
         constructor.declarationDescriptor is TypeParameterDescriptor
@@ -162,7 +168,21 @@ private class ExportedElement(val kind: ElementKind,
                 val function = declaration as FunctionDescriptor
                 cname = "_konan_function_${owner.nextFunctionIndex()}"
                 val llvmFunction = owner.codegen.llvmFunction(function)
-                val bridge = LLVMAddAlias(context.llvmModule, llvmFunction.type, llvmFunction, cname)!!
+                // If function is virtual, we need to resolve receiver properly.
+                val bridge = if (!DescriptorUtils.isTopLevelDeclaration(function) && function.isOverridable) {
+                    // We need LLVMGetElementType() as otherwise type is function pointer.
+                    generateFunction(owner.codegen, LLVMGetElementType(llvmFunction.type)!!, cname) {
+                        val receiver = param(0)
+                        val numParams = LLVMCountParams(llvmFunction)
+                        val args = (0 .. numParams - 1).map { index -> param(index) }
+                        val callee = lookupVirtualImpl(receiver, function)
+                        val result = callAtFunctionScope(callee, args, Lifetime.RETURN_VALUE)
+                        ret(result)
+                    }
+
+                } else {
+                    LLVMAddAlias(context.llvmModule, llvmFunction.type, llvmFunction, cname)!!
+                }
                 LLVMSetLinkage(bridge, LLVMLinkage.LLVMExternalLinkage)
             }
             isClass -> {
@@ -336,8 +356,9 @@ private class ExportedElement(val kind: ElementKind,
     }
 }
 
-internal class CAdapterGenerator(val context: Context,
-                                 internal val codegen: CodeGenerator) : IrElementVisitorVoid {
+internal class CAdapterGenerator(
+        val context: Context, internal val codegen: CodeGenerator) : IrElementVisitorVoid {
+
     private val scopes = mutableListOf<ExportedElementScope>()
     internal val prefix = context.config.moduleId
     private lateinit var outputStreamWriter: PrintWriter
