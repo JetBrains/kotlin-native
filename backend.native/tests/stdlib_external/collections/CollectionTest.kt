@@ -910,6 +910,8 @@ class CollectionTest {
         assertTrue(emptyList<Int>() is RandomAccess, "Empty list is RandomAccess")
     }
 
+    /*
+    Test relies on Kotlin/JVM toTypedArray() implementation that invokes toArray() after the cast to JDK class
     @Test fun abstractCollectionToArray() {
         class TestCollection<out E>(val data: Collection<E>) : AbstractCollection<E>() {
             val invocations = mutableListOf<String>()
@@ -935,4 +937,5 @@ class CollectionTest {
         val arr2: Array<String> = coll.toArray(Array(coll.size + 1) { "" })
         assertEquals(data + listOf(null), arr2.asList())
     }
+    */
 }

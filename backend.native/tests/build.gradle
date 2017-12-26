@@ -2362,29 +2362,9 @@ task produce_dynamic(type: DynamicKonanTest) {
                 "RW property is 239\n"
 }
 
-/**
- * TODO: The following tests are commented:
- *
- *
- *
- *
- */
-
 task buildKonanStdlibTests(type: BuildKonanTest) {
     outputSourceSetName = "testOutputStdlib"
     compileList = [ "stdlib_external", "testUtils.kt" ]
-    excludeList = [
-            // TODO: implement kotlin.math library
-            "stdlib_external/numbers/MathTest.kt",
-            "stdlib_external/numbers/NumbersTest.kt",
-            // TODO: Update Stdlib with Iterable, String and Collection extensions
-            "stdlib_external/collections/CollectionTest.kt",
-            "stdlib_external/collections/MutableCollectionsTest.kt",
-            "stdlib_external/collections/IterableTests.kt",
-            "stdlib_external/collections/MapTest.kt",
-            "stdlib_external/collections/SequenceTest.kt",
-            "stdlib_external/text/StringTest.kt"
-    ]
 }
 
 task runStdlibTests(type: RunStdlibTest) {
