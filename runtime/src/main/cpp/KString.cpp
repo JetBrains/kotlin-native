@@ -671,8 +671,8 @@ int iswalnum_Konan(KChar ch) {
 }
 
 int iswspace_Konan(KChar ch) {
-  // # Zs SPACE or # Cc CONTROL
-  if ((ch == 0x20) || (ch >= 0x9 && ch <= 0xd)) {
+  // FILE, GROUP, RECORD, UNIT separators, # Zs SPACE or # Cc CONTROLs
+  if ((ch >= 0x1c && ch <= 0x20) || (ch >= 0x9 && ch <= 0xd)) {
     return true;
   }
   // not (# Zs OGHAM SPACE MARK or # Cc or # Zs NO-BREAK SPACE)
