@@ -671,17 +671,17 @@ int iswalnum_Konan(KChar ch) {
 }
 
 int iswspace_Konan(KChar ch) {
-  // Optimized case for ASCII.
-  if ((ch >= 0x1c && ch <= 0x20) || (ch >= 0x9 && ch <= 0xd)) {
+  // # Zs SPACE or # Cc CONTROL
+  if ((ch == 0x20) || (ch >= 0x9 && ch <= 0xd)) {
     return true;
   }
-  if (ch == 0x1680) {
-    return true;
-  }
-  if (ch < 0x2000 || ch == 0x2007) {
+  // not (# Zs OGHAM SPACE MARK or # Cc or # Zs NO-BREAK SPACE)
+  if (ch < 0x2000 && !(ch == 0x1680 || ch == 0x85 || ch == 0xA0)) {
     return false;
   }
-  return ch <= 0x200b || ch == 0x2028 || ch == 0x2029 || ch == 0x3000;
+  // if # Zl LINE SEPARATOR or # Zp PARAGRAPH SEPARATOR or # Zs NARROW NO-BREAK SPACE
+  // or # Zs MEDIUM MATHEMATICAL SPACE or # Zs IDEOGRAPHIC SPACE
+  return ch < 0x200b || ch == 0x2028 || ch == 0x2029 || ch == 0x202F || ch == 0x205F || ch == 0x3000;
 }
 
 int iswupper_Konan(KChar ch) {
