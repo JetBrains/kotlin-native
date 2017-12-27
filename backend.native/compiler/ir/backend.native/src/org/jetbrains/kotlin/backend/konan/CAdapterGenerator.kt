@@ -22,7 +22,6 @@ import org.jetbrains.kotlin.backend.common.descriptors.allParameters
 import org.jetbrains.kotlin.backend.common.descriptors.explicitParameters
 import org.jetbrains.kotlin.backend.common.pop
 import org.jetbrains.kotlin.backend.common.push
-import org.jetbrains.kotlin.backend.konan.descriptors.findPackage
 import org.jetbrains.kotlin.backend.konan.descriptors.isUnit
 import org.jetbrains.kotlin.backend.konan.llvm.*
 import org.jetbrains.kotlin.descriptors.*
@@ -336,7 +335,7 @@ private class ExportedElement(val kind: ElementKind,
         if (type.constructor.declarationDescriptor is TypeParameterDescriptor) return
         val clazz = TypeUtils.getClassDescriptor(type)
         if (clazz == null) {
-            println("cannot get class for $type")
+            context.reportCompilationWarning("cannot get class for $type")
         } else {
             set += clazz
         }
@@ -440,7 +439,7 @@ internal class CAdapterGenerator(
     }
 
     override fun visitScriptDescriptor(descriptor: ScriptDescriptor, ignored: Void?): Boolean {
-        println("visitScriptDescriptor() is ignored")
+        context.reportCompilationWarning("visitScriptDescriptor() is ignored")
         return true
     }
 
@@ -460,12 +459,12 @@ internal class CAdapterGenerator(
     }
 
     override fun visitVariableDescriptor(descriptor: VariableDescriptor, ignored: Void?): Boolean {
-        println("visitVariableDescriptor() is ignored for now")
+        context.reportCompilationWarning("visitVariableDescriptor() is ignored for now")
         return true
     }
 
     override fun visitTypeParameterDescriptor(descriptor: TypeParameterDescriptor, ignored: Void?): Boolean {
-        println("visitTypeParameterDescriptor() is ignored for now")
+        context.reportCompilationWarning("visitTypeParameterDescriptor() is ignored for now")
         return true
     }
 
@@ -483,7 +482,7 @@ internal class CAdapterGenerator(
     }
 
     override fun visitTypeAliasDescriptor(descriptor: TypeAliasDescriptor, ignored: Void?): Boolean {
-        println("visitTypeAliasDescriptor() is ignored for now")
+        context.reportCompilationWarning("visitTypeAliasDescriptor() is ignored for now")
         return true
     }
 
