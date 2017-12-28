@@ -390,7 +390,7 @@ class BuildKonanTest extends ExtKonanTest {
  * Runs test built with Konan's TestRunner
  */
 class RunKonanTest extends ExtKonanTest {
-    public def dependency = 'buildKonanTests'
+    public def buildTaskName = 'buildKonanTests'
     public def runnerLogger = Logger.SILENT
     public def useFilter = true
 
@@ -404,12 +404,12 @@ class RunKonanTest extends ExtKonanTest {
     @Inject
     RunKonanTest() {
         super()
-        dependsOn(dependency)
+        dependsOn(buildTaskName)
     }
 
     RunKonanTest(def depends) {
-        dependency = depends
-        dependsOn(dependency)
+        buildTaskName = depends
+        dependsOn(buildTaskName)
     }
 
     @Override
