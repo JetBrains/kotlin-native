@@ -220,8 +220,12 @@ private class ExportedElement(val kind: ElementKind,
                     TypeUtils.getClassDescriptor(owner.context.builtIns.nullableAnyType)!!
             else -> uniqueName(original) to TypeUtils.getClassDescriptor(original.returnType!!)!!
         }
+        val namesRecorded = mutableMapOf<String, Int>()
         val params = ArrayList(original.explicitParameters.mapIndexed() { index, it ->
-            "p$index /* ${it.name.asString()} */" to TypeUtils.getClassDescriptor(it.type)!!
+            val name = owner.translateName(it.name.asString())
+            val count = namesRecorded.getOrDefault(name, 0)
+            namesRecorded[name] = count + 1
+            "$name${count.toString().takeUnless { it == "0" } ?: ""}" to TypeUtils.getClassDescriptor(it.type)!!
         })
         return listOf(returned) + params
     }
