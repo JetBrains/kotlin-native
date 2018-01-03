@@ -25,6 +25,7 @@ task buildSamplesWithPlatformLibs() {
     dependsOn ':opengl:build'
     dependsOn ':socket:build'
     dependsOn ':tensorflow:build'
+    dependsOn ':torch:build'
     dependsOn ':uikit:build'
     dependsOn ':win32:build'
     dependsOn ':workers:build'
