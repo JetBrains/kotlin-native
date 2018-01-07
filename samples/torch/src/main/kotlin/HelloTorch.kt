@@ -6,8 +6,9 @@ abstract class FloatTensor(val raw: CPointer<THFloatTensor>) {
     private val elements get() = storage.pointed
     private val data: CPointer<FloatVar> get() = elements.data!!
     private val size: CPointer<LongVar> get() = raw.pointed.size!!
-    private val nDimension: Int get() = raw.pointed.nDimension
-    val shape: List<Int> = (0 until nDimension).map { size[it].toInt() }
+    protected val nDimension: Int get() = raw.pointed.nDimension
+
+    val shape: List<Int> get() = (0 until nDimension).map { size[it].toInt() }
 
     protected operator fun plus(other: FloatTensor) = initialized(shape) {
         THFloatTensor_cadd(it.raw, raw, 1f, other.raw)
@@ -26,11 +27,22 @@ abstract class FloatTensor(val raw: CPointer<THFloatTensor>) {
 
     fun asVector() = FloatVector(raw)
     fun asMatrix() = FloatMatrix(raw)
+    inline fun <reified T : FloatTensor> asTensor(): T = when (T::class) {
+        FloatVector::class -> asVector() as T
+        FloatMatrix::class -> asMatrix() as T
+        FloatTensor::class -> this as T
+        else -> throw Error("Unexpected class ${T::class}")
+    }
 
     abstract override fun toString(): String
 }
 
 class FloatVector(raw: CPointer<THFloatTensor>) : FloatTensor(raw) {
+    init {
+        if (super.nDimension != 1)
+            throw Error("A vector must have exactly 1 dimension.")
+    }
+
     operator fun get(i: Int) = THFloatTensor_get1d(raw, i.toLong())
     operator fun set(i: Int, value: Float) = THFloatTensor_set1d(raw, i.toLong(), value)
     fun toArray() = (0 until shape[0]).map { i0 -> this[i0] }.toTypedArray()
@@ -45,6 +57,11 @@ class FloatVector(raw: CPointer<THFloatTensor>) : FloatTensor(raw) {
 }
 
 class FloatMatrix(raw: CPointer<THFloatTensor>) : FloatTensor(raw) {
+    init {
+        if (super.nDimension != 2)
+            throw Error("A matrix must have exactly 2 dimensions.")
+    }
+
     operator fun get(i0: Int, i1: Int) = THFloatTensor_get2d(raw, i0.toLong(), i1.toLong())
     operator fun set(i0: Int, i1: Int, value: Float) = THFloatTensor_set2d(raw, i0.toLong(), i1.toLong(), value)
     fun toArray() = (0 until shape[0]).map { i0 -> (0 until shape[1]).map { i1 -> this[i0, i1] }.toTypedArray() }.toTypedArray()
@@ -52,20 +69,12 @@ class FloatMatrix(raw: CPointer<THFloatTensor>) : FloatTensor(raw) {
     operator fun plus(other: FloatMatrix) = super.plus(other).asMatrix()
     operator fun minus(other: FloatMatrix) = super.minus(other).asMatrix()
 
-    operator fun times(vector: FloatVector): FloatVector {
-        val result = THFloatTensor_newWithSize1d(shape[0].toLong())!!
-        val zeros = zeros(shape[0])
-        THFloatTensor_addmv(result, 1f, zeros.raw, 1f, raw, vector.raw)
-        zeros.dispose()
-        return FloatVector(result)
+    operator fun times(vector: FloatVector) = initialized(shape[0]) {
+        THFloatTensor_addmv(it.raw, 0f, it.raw, 1f, raw, vector.raw)
     }
 
-    operator fun times(matrix: FloatMatrix): FloatMatrix {
-        val result = THFloatTensor_newWithSize2d(shape[0].toLong(), matrix.shape[1].toLong())!!
-        val zeros = zeros(shape[0], matrix.shape[1])
-        THFloatTensor_addmm(result, 1f, zeros.raw, 1f, raw, matrix.raw)
-        zeros.dispose()
-        return FloatMatrix(result)
+    operator fun times(matrix: FloatMatrix) = initialized(shape[0], matrix.shape[1]) {
+        THFloatTensor_addmm(it.raw, 0f, it.raw, 1f, raw, matrix.raw)
     }
 
     override fun toString() = "[${toArray().joinToString(",\n") { "[${it.joinToString { it.toString() }}]" }}]"
@@ -99,12 +108,19 @@ fun tensor(vararg values: Array<Float>) = initialized(values.size, values.first(
 
 fun full(constant: Float, size: Int) = tensor(*(FloatArray(size) { constant }))
 fun full(constant: Float, size0: Int, size1: Int) = tensor(*(Array(size0) { Array(size1) { constant } }))
+fun full(constant: Float, shape: List<Int>) = when (shape.size) {
+    1 -> full(constant, shape.single())
+    2 -> full(constant, shape[0], shape[1])
+    else -> throw Error("Tensors with ${shape.size} dimensions are not supported yet.")
+}
 
 fun zeros(size: Int) = full(0f, size)
 fun zeros(size0: Int, size1: Int) = full(0f, size0, size1)
+fun zeros(shape: List<Int>) = full(0f, shape)
 
 fun ones(size: Int) = full(1f, size)
 fun ones(size0: Int, size1: Int) = full(1f, size0, size1)
+fun ones(shape: List<Int>) = full(1f, shape)
 
 
 object Abs {
@@ -112,28 +128,29 @@ object Abs {
         THNN_FloatAbs_updateOutput(cValuesOf<FloatVar>(), input.raw, it.raw)
     }
 
-    fun inputGradient(input: FloatVector, outputGradient: FloatVector = ones(input.shape[0])) = initialized(input.shape[0]) {
-        THNN_FloatAbs_updateGradInput(cValuesOf<FloatVar>(), input.raw, outputGradient.raw, it.raw)
-    }
+    fun inputGradient(input: FloatVector, outputGradient: FloatVector = ones(input.shape[0])) =
+            initialized(input.shape[0]) {
+                THNN_FloatAbs_updateGradInput(null, input.raw, outputGradient.raw, it.raw)
+            }
 }
 
 object Relu {
     operator fun invoke(input: FloatVector) = initialized(input.shape.single()) {
-        THNN_FloatLeakyReLU_updateOutput(cValuesOf<FloatVar>(), input.raw, it.raw, 0.0, false)
+        THNN_FloatLeakyReLU_updateOutput(null, input.raw, it.raw, 0.0, false)
     }
 
     fun inputGradient(input: FloatVector, outputGradient: FloatVector = ones(input.shape.single())) = initialized(input.shape[0]) {
-        THNN_FloatLeakyReLU_updateGradInput(cValuesOf<FloatVar>(), input.raw, outputGradient.raw, it.raw, 0.0, false)
+        THNN_FloatLeakyReLU_updateGradInput(null, input.raw, outputGradient.raw, it.raw, 0.0, false)
     }
 }
 
 object MeanSquaredError {
-    operator fun invoke(input: FloatVector, target: FloatVector) = initialized(1) {
-        THNN_FloatMSECriterion_updateOutput(cValuesOf<FloatVar>(), input.raw, target.raw, it.raw, sizeAverage = true, reduce = true)
+    operator fun invoke(input: FloatMatrix, target: FloatMatrix) = initialized(1) {
+        THNN_FloatMSECriterion_updateOutput(null, input.raw, target.raw, it.raw, sizeAverage = true, reduce = true)
     }
 
-    fun inputGradient(input: FloatVector, target: FloatVector, outputGradient: FloatVector = ones(1)) = initialized(input.shape[0]) {
-        THNN_FloatMSECriterion_updateGradInput(cValuesOf<FloatVar>(), input.raw, target.raw, outputGradient.raw, it.raw, sizeAverage = true, reduce = true)
+    fun inputGradient(input: FloatMatrix, target: FloatMatrix, outputGradient: FloatVector = ones(1)) = initialized(input.shape[0], input.shape[1]) {
+        THNN_FloatMSECriterion_updateGradInput(null, input.raw, target.raw, outputGradient.raw, it.raw, sizeAverage = true, reduce = true)
     }
 }
 
@@ -142,47 +159,25 @@ class Linear(var weight: FloatMatrix, var bias: FloatVector) {
     val outputSize = weight.shape[0]
     val addBuffer = uninitialized(outputSize)
 
-    operator fun invoke(input: FloatVector) = initialized(outputSize) {
-        THNN_FloatLinear_updateOutput(cValuesOf<FloatVar>(), input.raw, it.raw, weight.raw, bias.raw, addBuffer.raw)
+    operator fun invoke(input: FloatMatrix) = initialized(input.shape[0], outputSize) {
+        THNN_FloatLinear_updateOutput(null, input.raw, it.raw, weight.raw, bias.raw, addBuffer.raw)
     }
 
-    fun inputGradient(input: FloatVector, outputGradient: FloatVector) = initialized(inputSize) {
-        THNN_FloatLinear_updateGradInput(cValuesOf<FloatVar>(), input.raw, outputGradient.raw, it.raw, weight.raw)
+    fun inputGradient(input: FloatMatrix, outputGradient: FloatMatrix) = initialized(input.shape[0], inputSize) {
+        THNN_FloatLinear_updateGradInput(null, input.raw, outputGradient.raw, it.raw, weight.raw)
     }
 
-    fun parameterGradient(input: FloatVector, outputGradient: FloatVector, inputGradient: FloatVector): Pair<FloatMatrix, FloatVector> {
+    fun parameterGradient(input: FloatMatrix, outputGradient: FloatMatrix, inputGradient: FloatMatrix): Pair<FloatMatrix, FloatVector> {
         val biasGradient = zeros(outputSize)
         val weightGradient = zeros(weight.shape[0], weight.shape[1]).also {
-            THNN_FloatLinear_accGradParameters(cValuesOf<FloatVar>(), input.raw, outputGradient.raw, inputGradient.raw, weight.raw, bias.raw, it.raw, biasGradient.raw, addBuffer.raw, 1.0)
+            THNN_FloatLinear_accGradParameters(null, input.raw, outputGradient.raw, inputGradient.raw, weight.raw, bias.raw, it.raw, biasGradient.raw, addBuffer.raw, 1.0)
         }
 
         return weightGradient to biasGradient
     }
 }
 
-fun main(args: Array<String>) {
-    val input = tensor(-1f)
-    println("abs of $input is ${Abs(input)}, gradient is ${Abs.inputGradient(input)}")
-    println("relu of $input is ${Relu(input)}, gradient is ${Relu.inputGradient(input)}")
-
-    val weight = tensor(arrayOf(1f, 0f), arrayOf(0f, -1f), arrayOf(0f, 3f))
-    val bias = tensor(0f, 0f, -3f)
-    println("weight: $weight, bias: $bias")
-    val linear = Linear(weight = weight, bias = bias)
-    val v = tensor(1f, -1f)
-    val target = tensor(5f, 5f, 5f)
-    val learningRate = .1f
-
-    for (i in 0 until 100) {
-        val output = linear(v)
-        val mse = MeanSquaredError(output, target)
-        val outputGradient = MeanSquaredError.inputGradient(output, target, outputGradient = tensor(learningRate))
-        val inputGradient = linear.inputGradient(v, outputGradient = outputGradient)
-        val parameterGradient = linear.parameterGradient(v, outputGradient = outputGradient, inputGradient = inputGradient)
-        println("input: $v, output: $output, target: $target, MSE: $mse, output gradient: $outputGradient, input gradient: $inputGradient, parameter gradient: $parameterGradient")
-        linear.weight -= parameterGradient.first
-        linear.bias -= parameterGradient.second
-    }
+private fun demonstrateMatrixAndVectorOperations() {
     val x = tensor(0f, 1f, 2f)
     val y = tensor(0f, -1f, -2f)
     val m = tensor(
@@ -198,4 +193,31 @@ fun main(args: Array<String>) {
     x.dispose()
     y.dispose()
     m.dispose()
+}
+
+fun main(args: Array<String>) {
+    demonstrateMatrixAndVectorOperations()
+
+    val input = tensor(-1f)
+    println("abs of $input is ${Abs(input)}, gradient is ${Abs.inputGradient(input)}")
+    println("relu of $input is ${Relu(input)}, gradient is ${Relu.inputGradient(input)}")
+
+    val weight = tensor(arrayOf(1f, 0f), arrayOf(0f, -1f), arrayOf(0f, 3f))
+    val bias = tensor(0f, 0f, -3f)
+    println("weight: $weight, bias: $bias")
+    val linear = Linear(weight = weight, bias = bias)
+    val inputs = tensor(arrayOf(1f, -1f), arrayOf(1f, -1f))
+    val targets = tensor(arrayOf(5f, 5f, 5f), arrayOf(5f, 5f, 5f))
+    val learningRate = .1f
+
+    for (i in 0 until 100) {
+        val output = linear(inputs)
+        val mse = MeanSquaredError(output, targets)
+        val outputGradient = MeanSquaredError.inputGradient(output, targets, outputGradient = tensor(learningRate))
+        val inputGradient = linear.inputGradient(inputs, outputGradient = outputGradient)
+        val parameterGradient = linear.parameterGradient(inputs, outputGradient = outputGradient, inputGradient = inputGradient)
+        println("input: $inputs, output: $output, target: $targets, MSE: $mse, output gradient: $outputGradient, input gradient: $inputGradient, parameter gradient: $parameterGradient")
+        linear.weight -= parameterGradient.first
+        linear.bias -= parameterGradient.second
+    }
 }
