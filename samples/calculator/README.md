@@ -5,15 +5,16 @@ an existing iOS project (e.g. written in Swift or Objective-C).
 
 To build and run the sample do the following:
 
-1.  Open `samples/calculator/calculator.xcodeproj` with Xcode.
-2.  Open the project's target through project navigator, go to tab 'General'.
+1.  Insure you have built the compiler (see the root [README file](https://github.com/JetBrains/kotlin-native/blob/master/README.md)).
+2.  Open `samples/calculator/calculator.xcodeproj` with Xcode.
+3.  Open the project's target through project navigator, go to tab 'General'.
     In 'Identity' section change the bundle ID to the unique string in
     reverse-DNS format. Then select the team in 'Signing' section.
     
     See the
     [Xcode documentation](https://developer.apple.com/library/content/documentation/IDEs/Conceptual/AppDistributionGuide/ConfiguringYourApp/ConfiguringYourApp.html#//apple_ref/doc/uid/TP40012582-CH28-SW2)
     for more info.
-3.  Now build and run the application on a connected iPhone with Xcode.
+4.  Now build and run the application on a connected iPhone with Xcode.
 
 The sample consists of:
 
