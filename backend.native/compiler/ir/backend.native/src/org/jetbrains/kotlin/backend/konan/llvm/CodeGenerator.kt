@@ -25,7 +25,6 @@ import org.jetbrains.kotlin.backend.konan.descriptors.isUnit
 import org.jetbrains.kotlin.backend.konan.descriptors.stdlibModule
 import org.jetbrains.kotlin.backend.konan.isObjCClass
 import org.jetbrains.kotlin.descriptors.ClassConstructorDescriptor
-import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
@@ -225,7 +224,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
 
 
     fun ret(value: LLVMValueRef?): LLVMValueRef {
-        val res = LLVMBuildBr(builder, epilogueBb)!!
+        val res = LLVMBuildBr(builderOrSink, epilogueBb)!!
         if (returns.containsKey(currentBlock)) {
             // TODO: enable error throwing.
             throw Error("ret() in the same basic block twice! in ${function.name}")
@@ -248,7 +247,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
     }
 
     fun loadSlot(address: LLVMValueRef, isVar: Boolean, name: String = ""): LLVMValueRef {
-        val value = LLVMBuildLoad(builder, address, name)!!
+        val value = LLVMBuildLoad(builderOrSink, address, name)!!
         if (isObjectRef(value) && isVar) {
             val slot = alloca(LLVMTypeOf(value), variableLocation = null)
             storeAny(value, slot)
@@ -331,7 +330,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         if (LLVMIsAFunction(llvmFunction) != null /* the function declaration */  &&
                 isFunctionNoUnwind(llvmFunction)) {
 
-            return LLVMBuildCall(builder, llvmFunction, rargs, args.size, "")!!
+            return LLVMBuildCall(builderOrSink, llvmFunction, rargs, args.size, "")!!
         } else {
             val unwind = when (exceptionHandler) {
                 ExceptionHandler.Caller -> cleanupLandingpad
@@ -349,7 +348,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             }
 
             val success = basicBlock("call_success", position())
-            val result = LLVMBuildInvoke(builder, llvmFunction, rargs, args.size, success, unwind, "")!!
+            val result = LLVMBuildInvoke(builderOrSink, llvmFunction, rargs, args.size, success, unwind, "")!!
             positionAtEnd(success)
             return result
         }
@@ -395,7 +394,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
     }
 
     fun br(bbLabel: LLVMBasicBlockRef): LLVMValueRef {
-        val res = LLVMBuildBr(builder, bbLabel)!!
+        val res = LLVMBuildBr(builderOrSink, bbLabel)!!
         currentPositionHolder.setAfterTerminator()
         return res
     }
@@ -455,7 +454,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
     /* floating-point comparisons */
     fun fcmpEq(arg0: LLVMValueRef, arg1: LLVMValueRef, name: String = ""): LLVMValueRef = LLVMBuildFCmp(builder, LLVMRealPredicate.LLVMRealOEQ, arg0, arg1, name)!!
 
-    fun bitcast(type: LLVMTypeRef?, value: LLVMValueRef, name: String = "") = LLVMBuildBitCast(builder, value, type, name)!!
+    fun bitcast(type: LLVMTypeRef?, value: LLVMValueRef, name: String = "") = LLVMBuildBitCast(builderOrSink, value, type, name)!!
 
     fun intToPtr(value: LLVMValueRef?, DestTy: LLVMTypeRef, Name: String = "") = LLVMBuildIntToPtr(builder, value, DestTy, Name)!!
     fun ptrToInt(value: LLVMValueRef?, DestTy: LLVMTypeRef, Name: String = "") = LLVMBuildPtrToInt(builder, value, DestTy, Name)!!
@@ -463,7 +462,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         return LLVMBuildGEP(builder, base, cValuesOf(index), 1, name)!!
     }
     fun structGep(base: LLVMValueRef, index: Int, name: String = ""): LLVMValueRef =
-            LLVMBuildStructGEP(builder, base, index, name)!!
+            LLVMBuildStructGEP(builderOrSink, base, index, name)!!
 
     fun extractValue(aggregate: LLVMValueRef, index: Int, name: String = ""): LLVMValueRef =
             LLVMBuildExtractValue(builder, aggregate, index, name)!!
@@ -508,7 +507,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         if (!context.shouldContainDebugInfo()) return null
         update(currentBlock, locationInfo)
         return LLVMBuilderSetDebugLocation(
-                builder,
+                currentPositionHolder.builder,
                 locationInfo.line,
                 locationInfo.column,
                 locationInfo.scope)
@@ -536,7 +535,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         val typeInfoPtr: LLVMValueRef = if (owner.isObjCClass()) {
             call(context.llvm.getObjCKotlinTypeInfo, listOf(receiver))
         } else {
-            val typeInfoPtrPtr = LLVMBuildStructGEP(builder, receiver, 0 /* type_info */, "")!!
+            val typeInfoPtrPtr = structGep(receiver, 0 /* type_info */)
             load(typeInfoPtrPtr)
         }
 
@@ -765,12 +764,14 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
      * This class is introduced to workaround unreachable code handling.
      */
     inner class PositionHolder {
-        private val builder: LLVMBuilderRef = LLVMCreateBuilder()!!
+        internal val builder: LLVMBuilderRef = LLVMCreateBuilder()!!
 
-
-        fun getBuilder(): LLVMBuilderRef {
+        fun getBuilder(okAfterTerminator: Boolean): LLVMBuilderRef {
             if (isAfterTerminator) {
-                positionAtEnd(basicBlock("unreachable", null))
+                if (okAfterTerminator)
+                    positionAtEnd(basicBlock("unreachable", null))
+                else
+                    throw Error("beyound terminator")
             }
 
             return builder
@@ -791,27 +792,13 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
 
         fun positionAtEnd(block: LLVMBasicBlockRef) {
             LLVMPositionBuilderAtEnd(builder, block)
-            basicBlockToLastLocation[block]?.let(this@PositionHolder::debugLocation)
+            basicBlockToLastLocation[block]?.let { debugLocation(it) }
             val lastInstr = LLVMGetLastInstruction(block)
             isAfterTerminator = lastInstr != null && (LLVMIsATerminatorInst(lastInstr) != null)
         }
 
         fun dispose() {
             LLVMDisposeBuilder(builder)
-        }
-
-        fun debugLocation(locationInfo: LocationInfo): DILocationRef? {
-            if (!context.shouldContainDebugInfo()) return null
-            return LLVMBuilderSetDebugLocation(
-                    builder,
-                    locationInfo.line,
-                    locationInfo.column,
-                    locationInfo.scope)
-        }
-
-        fun resetDebugLocation() {
-            if (!context.shouldContainDebugInfo()) return
-            LLVMBuilderResetDebugLocation(builder)
         }
     }
 
@@ -832,7 +819,10 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
      * Use e.g. [positionAtEnd] instead. See [PositionHolder] for details.
      */
     val builder: LLVMBuilderRef
-        get() = currentPositionHolder.getBuilder()
+        get() = currentPositionHolder.getBuilder(false)
+
+    val builderOrSink: LLVMBuilderRef
+        get() = currentPositionHolder.getBuilder(true)
 
     fun positionAtEnd(bbLabel: LLVMBasicBlockRef) = currentPositionHolder.positionAtEnd(bbLabel)
 
