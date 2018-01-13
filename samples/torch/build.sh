@@ -29,8 +29,8 @@ COMPILER_ARGS=${!var} # add -opt for an optimized build.
 mkdir -p $DIR/build/c_interop/
 mkdir -p $DIR/build/bin/
 
-#cinterop -def $DIR/src/main/c_interop/torch.def -compilerOpts "$CFLAGS" -target $TARGET \
-#     -copt -I$TH_TARGET_DIRECTORY/include/TH -o $DIR/build/c_interop/torch || exit 1
+cinterop -def $DIR/src/main/c_interop/torch.def -compilerOpts "$CFLAGS" -labels $TARGET \
+     -copt -I$TH_TARGET_DIRECTORY/include/TH -o $DIR/build/c_interop/torch || exit 1
 
 konanc $COMPILER_ARGS -target $TARGET $DIR/src/main/kotlin/HelloTorch.kt \
        -library $DIR/build/c_interop/torch \
