@@ -264,7 +264,9 @@ abstract class ParameterFreeModule<Input : Disposable, Output : Disposable> : Mo
 }
 
 class Chain<Input : Disposable, Hidden : Disposable, Output : Disposable>(
-        val module1: Backpropagatable<Input, Hidden>, val module2: Backpropagatable<Hidden, Output>) : Backpropagatable<Input, Output>() {
+        val module1: Backpropagatable<Input, Hidden>,
+        val module2: Backpropagatable<Hidden, Output>
+) : Backpropagatable<Input, Output>() {
     override fun forwardPass(input: Input) = ChainForwardResults(input)
 
     inner class ChainForwardResults(input: Input) : ForwardResults(input) {
@@ -309,9 +311,10 @@ object Relu : ParameterFreeModule<FloatMatrix, FloatMatrix>() {
         THNN_FloatLeakyReLU_updateOutput(null, input.raw, it.raw, 0.0, false)
     }
 
-    override fun inputGradient(input: FloatMatrix, outputGradient: FloatMatrix, output: FloatMatrix) = initializedTensor(input.shape[0], input.shape[1]) {
-        THNN_FloatLeakyReLU_updateGradInput(null, input.raw, outputGradient.raw, it.raw, 0.0, false)
-    }
+    override fun inputGradient(input: FloatMatrix, outputGradient: FloatMatrix, output: FloatMatrix) =
+            initializedTensor(input.shape[0], input.shape[1]) {
+                THNN_FloatLeakyReLU_updateGradInput(null, input.raw, outputGradient.raw, it.raw, 0.0, false)
+            }
 }
 
 object Softmax : ParameterFreeModule<FloatMatrix, FloatMatrix>() {
@@ -319,9 +322,10 @@ object Softmax : ParameterFreeModule<FloatMatrix, FloatMatrix>() {
         THNN_FloatSoftMax_updateOutput(null, input.raw, it.raw, 1)
     }
 
-    override fun inputGradient(input: FloatMatrix, outputGradient: FloatMatrix, output: FloatMatrix) = initializedTensor(input.shape[0], input.shape[1]) {
-        THNN_FloatSoftMax_updateGradInput(null, input.raw, outputGradient.raw, it.raw, output.raw, 1)
-    }
+    override fun inputGradient(input: FloatMatrix, outputGradient: FloatMatrix, output: FloatMatrix) =
+            initializedTensor(input.shape[0], input.shape[1]) {
+                THNN_FloatSoftMax_updateGradInput(null, input.raw, outputGradient.raw, it.raw, output.raw, 1)
+            }
 }
 
 class MeanSquaredError(val labels: FloatMatrix) : ParameterFreeModule<FloatMatrix, FloatVector>() {
@@ -342,12 +346,15 @@ class MeanSquaredError(val labels: FloatMatrix) : ParameterFreeModule<FloatMatri
 
 class CrossEntropyLoss(val labels: FloatMatrix) : ParameterFreeModule<FloatMatrix, FloatVector>() {
     override operator fun invoke(input: FloatMatrix) = initializedTensor(1) {
-        THNN_FloatBCECriterion_updateOutput(null, input.raw, labels.raw, it.raw, sizeAverage = true, reduce = true, weights = null)
+        THNN_FloatBCECriterion_updateOutput(null, input.raw, labels.raw, it.raw,
+                sizeAverage = true, reduce = true, weights = null)
     }
 
-    override fun inputGradient(input: FloatMatrix, outputGradient: FloatVector, output: FloatVector) = initializedTensor(input.shape[0], input.shape[1]) {
-        THNN_FloatBCECriterion_updateGradInput(null, input.raw, labels.raw, outputGradient.raw, it.raw, sizeAverage = true, reduce = true, weights = null)
-    }
+    override fun inputGradient(input: FloatMatrix, outputGradient: FloatVector, output: FloatVector) =
+            initializedTensor(input.shape[0], input.shape[1]) {
+                THNN_FloatBCECriterion_updateGradInput(null, input.raw, labels.raw, outputGradient.raw,
+                        it.raw, sizeAverage = true, reduce = true, weights = null)
+            }
 }
 
 data class Linear(
@@ -534,7 +541,8 @@ class MNIST(val directory: String = "./samples/torch/") {
             bytes.withIndex().map { (i, value) -> value.reinterpretAsUnsigned().shl(8 * (3 - i)) }.sum()
 
     private val intSize = 4
-    private fun CPointer<ByteVar>.getIntAt(index: Int) = unsignedBytesToInt((index until (index + intSize)).map { this[it] })
+    private fun CPointer<ByteVar>.getIntAt(index: Int) =
+            unsignedBytesToInt((index until (index + intSize)).map { this[it] })
 
     private val imageLength = 28
     private val imageSize = imageLength * imageLength
