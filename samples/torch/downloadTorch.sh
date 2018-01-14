@@ -13,7 +13,7 @@ if [ ! -d $TH_TARGET_DIRECTORY/include/THNN ]; then
     make
     make DESTDIR=$TH_TARGET_DIRECTORY install
 
-    cd ../$TH_TARGET_DIRECTORY
+    cd $TH_TARGET_DIRECTORY
 
     # remove 'usr/local' prefix produced by make:
     mv usr/local/* .

@@ -605,8 +605,7 @@ fun twoLayerClassifier(dataset: Dataset, hiddenSize: Int = 64) =
                 linear(hiddenSize, dataset.labels[0].size) before Softmax
 
 private fun trainMnistClassifier() {
-    println("TODO use training dataset")
-    val trainingDataset = MNIST().labeledTestImages()
+    val trainingDataset = MNIST().labeledTrainingImages()
     val predictionNetwork = twoLayerClassifier(trainingDataset)
     predictionNetwork.trainClassifier(trainingDataset)
 
