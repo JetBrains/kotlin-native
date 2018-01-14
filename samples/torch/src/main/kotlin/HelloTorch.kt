@@ -2,7 +2,11 @@ import kotlinx.cinterop.*
 import torch.*
 import platform.posix.*
 
-abstract class FloatTensor(val raw: CPointer<THFloatTensor>) {
+interface Disposable {
+    fun dispose()
+}
+
+abstract class FloatTensor(val raw: CPointer<THFloatTensor>) : Disposable {
     private val storage: CPointer<THFloatStorage> get() = raw.pointed.storage!!
     private val elements get() = storage.pointed
     private val data: CPointer<FloatVar> get() = elements.data!!
@@ -26,7 +30,7 @@ abstract class FloatTensor(val raw: CPointer<THFloatTensor>) {
     fun sum() = THFloatTensor_sumall(raw)
     fun flatten() = (0 until elements.size).map { data[it] }.toTypedArray()
 
-    fun dispose() {
+    override fun dispose() {
         THFloatTensor_free(raw)
     }
 
@@ -100,6 +104,29 @@ fun uninitializedTensor(shape: List<Int>) = when (shape.size) {
     else -> throw Error("Tensors with ${shape.size} dimensions are not supported yet.")
 }
 
+open class DisposableContainer(private val disposables: MutableList<Disposable> = ArrayList()) : Disposable {
+    /**
+     * Creates the object and schedules its disposal for the end of the scope.
+     */
+    fun <T : Disposable> use(create: () -> T) = create().also { disposables.add(it) }
+
+    override fun dispose() {
+        for (disposable in disposables) {
+            disposable.dispose()
+        }
+    }
+}
+
+fun <T> disposeScoped(action: DisposableContainer.() -> T): T {
+    val scope = DisposableContainer()
+
+    try {
+        return scope.action()
+    } finally {
+        scope.dispose()
+    }
+}
+
 fun <T> initializedTensor(size: Int, initializer: (FloatVector) -> T) =
         uninitializedTensor(size).apply { initializer(this) }
 
@@ -153,32 +180,46 @@ fun ones(shape: List<Int>) = full(1f, shape)
 
 
 private fun demonstrateMatrixAndVectorOperations() {
-    val x = tensor(0f, 1f, 2f)
-    val y = tensor(0f, -1f, -2f)
-    val m = tensor(
-            arrayOf(1f, -1f, 0f),
-            arrayOf(0f, -1f, 0f),
-            arrayOf(0f, 0f, -.5f))
+    disposeScoped {
+        val x = use { tensor(0f, 1f, 2f) }
+        val y = use { tensor(0f, -1f, -2f) }
+        val m = use {
+            tensor(
+                    arrayOf(1f, -1f, 0f),
+                    arrayOf(0f, -1f, 0f),
+                    arrayOf(0f, 0f, -.5f))
+        }
 
-    println("Hello, Torch!\nx = $x\ny = $y\n" +
-            "|x| = ${x.abs()}\n|y| = ${y.abs()}\n" +
-            "2x=${x * 2f}\nx+y = ${x + y}\nx-y = ${x - y}\nxy = ${x * y}\n" +
-            "m=\n$m\nm·y = ${m * y}\nm+m =\n${m + m}\nm·m =\n${m * m}")
-
-    x.dispose()
-    y.dispose()
-    m.dispose()
+        println("Hello, Torch!\nx = $x\ny = $y\n" +
+                "|x| = ${x.abs()}\n|y| = ${y.abs()}\n" +
+                "2x=${use { x * 2f }}\nx+y = ${use { x + y }}\nx-y = ${use { x - y }}\nxy = ${x * y}\n" +
+                "m=\n${use { m }}\nm·y = ${use { m * y }}\nm+m =\n${use { m + m }}\nm·m =\n${use { m * m }}")
+    }
 }
 
 // The part up until here only depends on TH.h, while the following part also depends on THNN.h
 
-abstract class Backpropagatable<Input, Output> {
-    abstract inner class ForwardResults(val input: Input) {
+abstract class Backpropagatable<Input : Disposable, Output : Disposable> {
+    abstract inner class ForwardResults(val input: Input) : DisposableContainer() {
+        init {
+            use { input }
+        }
+
         abstract val output: Output
         abstract fun backpropagate(outputGradient: Output): BackpropagationResults
     }
 
-    abstract inner class BackpropagationResults(val input: Input, val output: Output, val outputGradient: Output) {
+    abstract inner class BackpropagationResults(
+            val input: Input,
+            val output: Output,
+            val outputGradient: Output
+    ) : DisposableContainer() {
+        init {
+            use { input }
+            use { output }
+            use { outputGradient }
+        }
+
         abstract val inputGradient: Input
         abstract fun descend()
     }
@@ -186,21 +227,21 @@ abstract class Backpropagatable<Input, Output> {
     abstract fun forwardPass(input: Input): ForwardResults
 }
 
-abstract class Module<Input, Output, Parameters> : Backpropagatable<Input, Output>() {
+abstract class Module<Input : Disposable, Output : Disposable, Parameters> : Backpropagatable<Input, Output>() {
     abstract var parameters: Parameters
     abstract fun parametersToList(parameters: Parameters): List<FloatTensor>
     abstract fun parametersFromList(list: List<FloatTensor>): Parameters
-    val parameterList get() = parametersToList(parameters)
+    private val parameterList get() = parametersToList(parameters)
 
     abstract operator fun invoke(input: Input): Output
     abstract fun inputGradient(input: Input, outputGradient: Output, output: Output): Input
     abstract fun parameterGradient(input: Input, outputGradient: Output, inputGradient: Input): Parameters
 
     override fun forwardPass(input: Input) = object : ForwardResults(input) {
-        override val output = this@Module(input)
+        override val output = use { this@Module(input) }
         override fun backpropagate(outputGradient: Output) =
                 object : Backpropagatable<Input, Output>.BackpropagationResults(input, output, outputGradient) {
-                    override val inputGradient = this@Module.inputGradient(input, outputGradient, output)
+                    override val inputGradient = use { this@Module.inputGradient(input, outputGradient, output) }
                     val parameterGradient = this@Module.parameterGradient(input,
                             outputGradient = outputGradient, inputGradient = inputGradient)
 
@@ -214,7 +255,7 @@ abstract class Module<Input, Output, Parameters> : Backpropagatable<Input, Outpu
     }
 }
 
-abstract class ParameterFreeModule<Input, Output> : Module<Input, Output, Unit>() {
+abstract class ParameterFreeModule<Input : Disposable, Output : Disposable> : Module<Input, Output, Unit>() {
     override var parameters = Unit
     override fun parametersToList(parameters: Unit) = emptyList<FloatTensor>()
     override fun parametersFromList(list: List<FloatTensor>) = Unit
@@ -222,34 +263,35 @@ abstract class ParameterFreeModule<Input, Output> : Module<Input, Output, Unit>(
     override fun descend(parameterGradient: Unit) {}
 }
 
-class Chain<Input, Hidden, Output>(
+class Chain<Input : Disposable, Hidden : Disposable, Output : Disposable>(
         val module1: Backpropagatable<Input, Hidden>, val module2: Backpropagatable<Hidden, Output>) : Backpropagatable<Input, Output>() {
     override fun forwardPass(input: Input) = ChainForwardResults(input)
 
     inner class ChainForwardResults(input: Input) : ForwardResults(input) {
-        val result1 = module1.forwardPass(input)
+        val result1 = use { module1.forwardPass(input) }
         val hidden = result1.output
-        val result2 = module2.forwardPass(result1.output)
+        val result2 = use { module2.forwardPass(result1.output) }
         override val output = result2.output
-        override fun backpropagate(outputGradient: Output) = object : Backpropagatable<Input, Output>.BackpropagationResults(input, output, outputGradient) {
-            val backpropResults2 = result2.backpropagate(outputGradient)
-            val hiddenGradient = backpropResults2.inputGradient
-            val backpropResults1 = result1.backpropagate(hiddenGradient)
+        override fun backpropagate(outputGradient: Output) =
+                object : Backpropagatable<Input, Output>.BackpropagationResults(input, output, outputGradient) {
+                    val backpropResults2 = use { result2.backpropagate(outputGradient) }
+                    val hiddenGradient = backpropResults2.inputGradient
+                    val backpropResults1 = use { result1.backpropagate(hiddenGradient) }
 
-            override val inputGradient = backpropResults1.inputGradient
+                    override val inputGradient = backpropResults1.inputGradient
 
-            override fun descend() {
-                backpropResults1.descend()
-                backpropResults2.descend()
-            }
-        }
+                    override fun descend() {
+                        backpropResults1.descend()
+                        backpropResults2.descend()
+                    }
+                }
     }
 
     override fun toString() = "$module1 before $module2"
 }
 
-infix fun <Input, Hidden, Output> Backpropagatable<Input, Hidden>.before(other: Backpropagatable<Hidden, Output>) =
-        Chain(this, other)
+infix fun <Input : Disposable, Hidden : Disposable, Output : Disposable> Backpropagatable<Input, Hidden>.before(
+        other: Backpropagatable<Hidden, Output>) = Chain(this, other)
 
 object Abs : ParameterFreeModule<FloatMatrix, FloatMatrix>() {
     override operator fun invoke(input: FloatMatrix) = initializedTensor(input.shape[0], input.shape[1]) {
@@ -284,11 +326,17 @@ object Softmax : ParameterFreeModule<FloatMatrix, FloatMatrix>() {
 
 class MeanSquaredError(val labels: FloatMatrix) : ParameterFreeModule<FloatMatrix, FloatVector>() {
     override operator fun invoke(input: FloatMatrix) = initializedTensor(1) {
-        THNN_FloatMSECriterion_updateOutput(null, input.raw, labels.raw, it.raw, sizeAverage = true, reduce = true)
+        THNN_FloatMSECriterion_updateOutput(null, input.raw, labels.raw, it.raw,
+                sizeAverage = true, reduce = true)
     }
 
-    override fun inputGradient(input: FloatMatrix, outputGradient: FloatVector, output: FloatVector) = initializedTensor(input.shape[0], input.shape[1]) {
-        THNN_FloatMSECriterion_updateGradInput(null, input.raw, labels.raw, outputGradient.raw, it.raw, sizeAverage = true, reduce = true)
+    override fun inputGradient(
+            input: FloatMatrix,
+            outputGradient: FloatVector,
+            output: FloatVector
+    ) = initializedTensor(input.shape[0], input.shape[1]) {
+        THNN_FloatMSECriterion_updateGradInput(null, input.raw, labels.raw,
+                outputGradient.raw, it.raw, sizeAverage = true, reduce = true)
     }
 }
 
@@ -318,8 +366,11 @@ data class Linear(
                 THNN_FloatLinear_updateGradInput(null, input.raw, outputGradient.raw, it.raw, weight.raw)
             }
 
-    override fun parameterGradient(input: FloatMatrix, outputGradient: FloatMatrix,
-                                   inputGradient: FloatMatrix): Pair<FloatMatrix, FloatVector> {
+    override fun parameterGradient(
+            input: FloatMatrix,
+            outputGradient: FloatMatrix,
+            inputGradient: FloatMatrix
+    ): Pair<FloatMatrix, FloatVector> {
         val biasGradient = zeros(outputSize)
         val weightGradient = zeros(weight.shape[0], weight.shape[1]).also {
             THNN_FloatLinear_accGradParameters(null, input.raw, outputGradient.raw, inputGradient.raw, weight.raw,
@@ -350,25 +401,31 @@ private fun demonstrateManualLayers() {
     println("relu of $input is $relu, gradient is ${Relu.inputGradient(input, tensor(arrayOf(1f)), relu)}")
 }
 
-private fun demonstrateManualBackpropagation(inputs: FloatMatrix = tensor(arrayOf(1f, -1f), arrayOf(1f, -1f)),
-                                             labels: FloatMatrix = tensor(arrayOf(5f, 5f, 5f), arrayOf(5f, 5f, 5f)),
-                                             learningRate: Float = .1f) {
-    val linear = Linear(
-            weight = tensor(arrayOf(1f, 0f), arrayOf(0f, -1f), arrayOf(0f, 3f)),
-            bias = tensor(0f, 0f, -3f))
-    println(linear)
+private fun demonstrateManualBackpropagationFor1LinearLayer(
+        inputs: FloatMatrix = tensor(arrayOf(1f, -1f), arrayOf(1f, -1f)),
+        labels: FloatMatrix = tensor(arrayOf(5f), arrayOf(5f)),
+        learningRate: Float = .1f) {
+    val linear = Linear(weight = randomInit(1, 2), bias = randomInit(1))
     val error = MeanSquaredError(labels)
 
     for (i in 0 until 100) {
-        val output = linear(inputs)
-        val mse = error(output)
-        val outputGradient = error.inputGradient(output, outputGradient = tensor(learningRate), output = mse)
-        val inputGradient = linear.inputGradient(inputs, outputGradient, output)
-        val parameterGradient = linear.parameterGradient(inputs, outputGradient, inputGradient)
-        println("input: $inputs, output: $output, labels: $labels, MSE: $mse, output gradient: $outputGradient, " +
-                "input gradient: $inputGradient, parameter gradient: $parameterGradient")
-        linear.weight -= parameterGradient.first
-        linear.bias -= parameterGradient.second
+        disposeScoped {
+            val output = use { linear(inputs) }
+            val loss = use { error(output) }
+            val outputGradient = use { error.inputGradient(output, tensor(learningRate), loss) }
+            val inputGradient = use { linear.inputGradient(inputs, outputGradient, output) }
+            val parameterGradient = linear.parameterGradient(inputs, outputGradient, inputGradient).
+                    also { use { it.first } }.also { use { it.second } }
+            println("input: $inputs, \n" +
+                    "output: $output, \n" +
+                    "labels: $labels, \n" +
+                    "mean squared error: $loss, \n" +
+                    "output gradient: $outputGradient, \n" +
+                    "input gradient: $inputGradient, \n" +
+                    "parameter gradient: $parameterGradient")
+            linear.weight -= parameterGradient.first
+            linear.bias -= parameterGradient.second
+        }
     }
 }
 
@@ -389,7 +446,7 @@ data class Dataset(val inputs: List<FloatArray>, val labels: List<FloatArray>) {
     }
 
     fun sampleBatch(batchSize: Int) = batch((0 until batchSize).map { randomInt(inputs.size) })
-    fun batchAt(batchIndex: Int, batchSize: Int) =
+    private fun batchAt(batchIndex: Int, batchSize: Int) =
             batch((0 until inputs.size).drop(batchSize + batchIndex).take(batchSize))
 
     fun testBatches(batchSize: Int) = (0 until inputs.size / batchSize).map { batchAt(it, batchSize = batchSize) }
@@ -415,19 +472,21 @@ fun Backpropagatable<FloatMatrix, FloatMatrix>.trainClassifier(
         iterations: Int = 500) {
 
     for (i in 0 until iterations) {
-        val (inputBatch, labelBatch) = dataset.sampleBatch(batchSize)
-        val errorNetwork = this before lossByLabels(labelBatch)
-        val forwardResults = errorNetwork.forwardPass(inputBatch)
-        val accuracy = accuracy(forwardResults.hidden, labelBatch)
-        val progress = i.toFloat() / iterations
-        val learningRate = learningRateByProgress(progress)
-        val backpropResults = forwardResults.backpropagate(outputGradient = tensor(learningRate))
-        val crossEntropy = forwardResults.output[0]
-        backpropResults.descend()
-        println("Iteration ${i + 1}/$iterations: " +
-                "${accuracy.toPercentageString()}% training accuracy, " +
-                "cross entropy loss = ${crossEntropy.toRoundedString(5)}, " +
-                "learning rate = ${learningRate.toRoundedString(4)}")
+        disposeScoped {
+            val (inputBatch, labelBatch) = dataset.sampleBatch(batchSize)
+            val errorNetwork = this@trainClassifier before lossByLabels(labelBatch)
+            val forwardResults = use { errorNetwork.forwardPass(inputBatch) }
+            val accuracy = accuracy(forwardResults.hidden, labelBatch)
+            val progress = i.toFloat() / iterations
+            val learningRate = learningRateByProgress(progress)
+            val backpropResults = use { forwardResults.backpropagate(outputGradient = tensor(learningRate)) }
+            val crossEntropy = forwardResults.output[0]
+            backpropResults.descend()
+            println("Iteration ${i + 1}/$iterations: " +
+                    "${accuracy.toPercentageString()}% training accuracy, " +
+                    "cross entropy loss = ${crossEntropy.toRoundedString(5)}, " +
+                    "learning rate = ${learningRate.toRoundedString(4)}")
+        }
     }
 }
 
@@ -449,7 +508,7 @@ val exampleDataset = Dataset(
  * Provides the MNIST labeled handwritten digit dataset, described at http://yann.lecun.com/exdb/mnist/
  */
 class MNIST(val directory: String = "./samples/torch/") {
-    fun <T> read(fileName: String, action: (Int, CPointer<ByteVar>) -> T): T {
+    private fun <T> read(fileName: String, action: (Int, CPointer<ByteVar>) -> T): T {
         val filePath = directory + fileName
         val file = fopen(fileName, "rb") ?: throw Error("Cannot read input file $filePath")
 
@@ -457,7 +516,7 @@ class MNIST(val directory: String = "./samples/torch/") {
             memScoped {
                 fseek(file, 0, SEEK_END)
                 val fileSize = ftell(file)
-                println("Reading $fileSize bytes from $filePath.")
+                println("Reading $fileSize bytes from $filePath...")
                 val buffer = allocArray<ByteVar>(fileSize)
                 rewind(file)
                 fread(buffer, fileSize, 1, file)
@@ -469,23 +528,23 @@ class MNIST(val directory: String = "./samples/torch/") {
         }
     }
 
-    fun Byte.reinterpretAsUnsigned() = this.toInt().let { it + if (it < 0) 256 else 0 }
+    private fun Byte.reinterpretAsUnsigned() = this.toInt().let { it + if (it < 0) 256 else 0 }
 
     private fun unsignedBytesToInt(bytes: List<Byte>) =
             bytes.withIndex().map { (i, value) -> value.reinterpretAsUnsigned().shl(8 * (3 - i)) }.sum()
 
-    val intSize = 4
-    fun CPointer<ByteVar>.getIntAt(index: Int) = unsignedBytesToInt((index until (index + intSize)).map { this[it] })
+    private val intSize = 4
+    private fun CPointer<ByteVar>.getIntAt(index: Int) = unsignedBytesToInt((index until (index + intSize)).map { this[it] })
 
-    val imageLength = 28
-    val imageSize = imageLength * imageLength
+    private val imageLength = 28
+    private val imageSize = imageLength * imageLength
 
-    fun CPointer<ByteVar>.getImageAt(index: Int) =
+    private fun CPointer<ByteVar>.getImageAt(index: Int) =
             FloatArray(imageSize) { this[index + it].reinterpretAsUnsigned().toFloat() / 255 }
 
-    fun oneHot(size: Int, index: Int) = FloatArray(size) { if (it == index) 1f else 0f }
+    private fun oneHot(size: Int, index: Int) = FloatArray(size) { if (it == index) 1f else 0f }
 
-    fun readLabels(fileName: String, totalLabels: Int = 10) =
+    private fun readLabels(fileName: String, totalLabels: Int = 10) =
             read(fileName) { fileSize, buffer ->
                 val check = buffer.getIntAt(0)
                 val expectedCheck = 2049
@@ -500,7 +559,7 @@ class MNIST(val directory: String = "./samples/torch/") {
                 (0 until count).map { oneHot(totalLabels, index = buffer[offset + it].reinterpretAsUnsigned()) }
             }
 
-    fun readImages(fileName: String) =
+    private fun readImages(fileName: String) =
             read(fileName) { fileSize, buffer ->
                 val check = buffer.getIntAt(0)
                 val expectedCheck = 2051
@@ -538,7 +597,8 @@ fun twoLayerClassifier(dataset: Dataset, hiddenSize: Int = 64) =
                 linear(hiddenSize, dataset.labels[0].size) before Softmax
 
 private fun trainMnistClassifier() {
-    val trainingDataset = MNIST().labeledTrainingImages()
+    println("TODO use training dataset")
+    val trainingDataset = MNIST().labeledTestImages()
     val predictionNetwork = twoLayerClassifier(trainingDataset)
     predictionNetwork.trainClassifier(trainingDataset)
 
@@ -548,8 +608,10 @@ private fun trainMnistClassifier() {
 }
 
 fun main(args: Array<String>) {
-    demonstrateMatrixAndVectorOperations()
-    demonstrateManualLayers()
-    // demonstrateManualBackpropagation()
+    // If you are curious you can also try out one of these:
+    // demonstrateMatrixAndVectorOperations()
+    // demonstrateManualLayers()
+    // demonstrateManualBackpropagationFor1LinearLayer()
+
     trainMnistClassifier()
 }
