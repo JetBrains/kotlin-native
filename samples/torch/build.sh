@@ -32,7 +32,10 @@ mkdir -p $DIR/build/bin/
 cinterop -def $DIR/src/main/c_interop/torch.def -compilerOpts "$CFLAGS" -labels $TARGET \
      -copt -I$TH_TARGET_DIRECTORY/include/TH -o $DIR/build/c_interop/torch || exit 1
 
-konanc $COMPILER_ARGS -target $TARGET $DIR/src/main/kotlin/HelloTorch.kt \
+SOURCE_DIR=$DIR/src/main/kotlin
+
+konanc $COMPILER_ARGS -target $TARGET $SOURCE_DIR/ClassifierDemo.kt $SOURCE_DIR/Disposable.kt \
+       $SOURCE_DIR/Tensors.kt $SOURCE_DIR/Modules.kt $SOURCE_DIR/Dataset.kt $SOURCE_DIR/SmallDemos.kt \
        -library $DIR/build/c_interop/torch \
        -o $DIR/build/bin/HelloTorch \
        -linkerOpts "-L$TH_TARGET_DIRECTORY/lib -lATen" || exit 1
