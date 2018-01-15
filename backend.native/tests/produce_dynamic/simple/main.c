@@ -13,7 +13,7 @@ int main(void) {
     T_(Base) casted_child = { .pinned = child.pinned };
     T_(I) casted_impl1 = { .pinned = impl1.pinned };
     T_(I) casted_impl2 = { .pinned = impl2.pinned };
-    T_(Enum) enum1 = __ kotlin.root.Enum.HUNDRED.instance();
+    T_(Enum) enum1 = __ kotlin.root.Enum.HUNDRED.get();
     T_(Codeable) object1 = __ kotlin.root.get_an_object();
 
     const char* string = __ kotlin.root.getString();

@@ -568,7 +568,7 @@ internal class CAdapterGenerator(
                         output("${prefix}_KType* (*_type)(void);", indent)
                     element.isEnumEntry -> {
                         val enumClass = element.declaration.containingDeclaration as ClassDescriptor
-                        output("${translateType(enumClass)} (*instance)(); /* enum entry for ${element.name}. */", indent)
+                        output("${translateType(enumClass)} (*get)(); /* enum entry for ${element.name}. */", indent)
                     }
                 // TODO: handle properties.
                 }
