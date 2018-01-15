@@ -490,8 +490,8 @@ fun Backpropagatable<FloatMatrix, FloatMatrix>.trainClassifier(
             val crossEntropy = forwardResults.output[0]
             backpropResults.descend()
             println("Iteration ${i + 1}/$iterations: " +
-                    "${accuracy.toPercentageString()}% training accuracy, " +
-                    "cross entropy loss = ${crossEntropy.toRoundedString(5)}, " +
+                    "${accuracy.toPercentageString()}% training batch accuracy, " +
+                    "cross entropy loss = ${crossEntropy.toRoundedString(4)}, " +
                     "learning rate = ${learningRate.toRoundedString(4)}")
         }
     }
@@ -502,7 +502,7 @@ fun Backpropagatable<FloatMatrix, FloatMatrix>.testClassifier(dataset: Dataset, 
     return testBatches.withIndex().map { (i, batchPair) ->
         val (inputBatch, outputBatch) = batchPair
         val accuracy = accuracy(this.forwardPass(inputBatch).output, outputBatch)
-        println("test batch ${i + 1}/${testBatches.size}: ${accuracy.toPercentageString()}% accuracy")
+        println("Test batch ${i + 1}/${testBatches.size}: ${accuracy.toPercentageString()}% accuracy")
         accuracy * inputBatch.shape[0]
     }.sum() / dataset.inputs.size
 }
