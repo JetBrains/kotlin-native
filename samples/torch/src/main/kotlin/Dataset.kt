@@ -18,22 +18,17 @@ data class Dataset(val inputs: List<FloatArray>, val labels: List<FloatArray>) {
 /**
  * Provides the MNIST labeled handwritten digit dataset, described at http://yann.lecun.com/exdb/mnist/
  */
-class MNIST(val directory: String = "./samples/torch/") {
-    private fun <T> read(fileName: String, action: (Int, CPointer<ByteVar>) -> T): T {
-        val filePath = directory + fileName
-        val file = fopen(fileName, "rb") ?: throw Error("Cannot read input file $filePath")
+object MNIST {
+    private fun readFileData(path: String) = memScoped {
+        fun fail(): Nothing = throw Error("Cannot read input file $path")
 
+        val size = alloc<stat>().also { if (stat(path, it.ptr) != 0) fail() }.st_size.toInt()
+
+        println("Reading $size bytes from $path...")
+
+        val file = fopen(path, "rb") ?: fail()
         try {
-            memScoped {
-                fseek(file, 0, SEEK_END)
-                val fileSize = ftell(file)
-                println("Reading $fileSize bytes from $filePath...")
-                val buffer = allocArray<ByteVar>(fileSize)
-                rewind(file)
-                fread(buffer, fileSize, 1, file)
-
-                return action(fileSize.toInt(), buffer)
-            }
+            ByteArray(size).also { fread(it.refTo(0), 1, size.signExtend(), file) }
         } finally {
             fclose(file)
         }
@@ -45,51 +40,51 @@ class MNIST(val directory: String = "./samples/torch/") {
             bytes.withIndex().map { (i, value) -> value.reinterpretAsUnsigned().shl(8 * (3 - i)) }.sum()
 
     private val intSize = 4
-    private fun CPointer<ByteVar>.getIntAt(index: Int) =
+    private fun ByteArray.getIntAt(index: Int) =
             unsignedBytesToInt((index until (index + intSize)).map { this[it] })
 
     private val imageLength = 28
     private val imageSize = imageLength * imageLength
 
-    private fun CPointer<ByteVar>.getImageAt(index: Int) =
+    private fun ByteArray.getImageAt(index: Int) =
             FloatArray(imageSize) { this[index + it].reinterpretAsUnsigned().toFloat() / 255 }
 
     private fun oneHot(size: Int, index: Int) = FloatArray(size) { if (it == index) 1f else 0f }
 
-    private fun readLabels(fileName: String, totalLabels: Int = 10) =
-            read(fileName) { fileSize, buffer ->
-                val check = buffer.getIntAt(0)
-                val expectedCheck = 2049
-                if (check != 2049) throw Error("File should start with int $expectedCheck, but was $check.")
+    private fun readLabels(filePath: String, totalLabels: Int = 10): List<FloatArray> {
+        val data = readFileData(filePath)
+        val check = data.getIntAt(0)
+        val expectedCheck = 2049
+        if (check != 2049) throw Error("File should start with int $expectedCheck, but was $check.")
 
-                val count = buffer.getIntAt(4)
+        val count = data.getIntAt(4)
 
-                val offset = 8
+        val offset = 8
 
-                if (count + offset != fileSize) throw Error("Unexpected file size: $fileSize.")
+        if (count + offset != data.size) throw Error("Unexpected file size: ${data.size}.")
 
-                (0 until count).map { oneHot(totalLabels, index = buffer[offset + it].reinterpretAsUnsigned()) }
-            }
+        return (0 until count).map { oneHot(totalLabels, index = data[offset + it].reinterpretAsUnsigned()) }
+    }
 
-    private fun readImages(fileName: String) =
-            read(fileName) { fileSize, buffer ->
-                val check = buffer.getIntAt(0)
-                val expectedCheck = 2051
-                if (check != expectedCheck) throw Error("File should start with int $expectedCheck, but was $check.")
+    private fun readImages(filePath: String): List<FloatArray> {
+        val data = readFileData(filePath)
+        val check = data.getIntAt(0)
+        val expectedCheck = 2051
+        if (check != expectedCheck) throw Error("File should start with int $expectedCheck, but was $check.")
 
-                val count = buffer.getIntAt(4)
-                val width = buffer.getIntAt(8)
-                val height = buffer.getIntAt(12)
+        val count = data.getIntAt(4)
+        val width = data.getIntAt(8)
+        val height = data.getIntAt(12)
 
-                val offset = 16
+        val offset = 16
 
-                if (width != imageLength) throw Error()
-                if (height != imageLength) throw Error()
+        if (width != imageLength) throw Error()
+        if (height != imageLength) throw Error()
 
-                if (count * imageSize + offset != fileSize) throw Error("Unexpected file size: $fileSize.")
+        if (count * imageSize + offset != data.size) throw Error("Unexpected file size: ${data.size}.")
 
-                (0 until count).map { buffer.getImageAt(offset + imageSize * it) }
-            }
+        return (0 until count).map { data.getImageAt(offset + imageSize * it) }
+    }
 
     fun labeledTrainingImages() = Dataset(
             inputs = readImages("train-images-idx3-ubyte"),

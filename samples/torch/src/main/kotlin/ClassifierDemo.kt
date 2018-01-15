@@ -64,11 +64,11 @@ fun twoLayerClassifier(dataset: Dataset, hiddenSize: Int = 64) =
                 linear(hiddenSize, dataset.labels[0].size) before Softmax
 
 fun main(args: Array<String>) {
-    val trainingDataset = MNIST().labeledTrainingImages()
+    val trainingDataset = MNIST.labeledTrainingImages()
     val predictionNetwork = twoLayerClassifier(trainingDataset)
     predictionNetwork.trainClassifier(trainingDataset, lossByLabels = { CrossEntropyLoss(labels = it) })
 
-    val testDataset = MNIST().labeledTestImages()
+    val testDataset = MNIST.labeledTestImages()
     val averageAccuracy = predictionNetwork.testClassifier(testDataset)
     println("Accuracy on the test set: ${averageAccuracy.toPercentageString()}")
 }
