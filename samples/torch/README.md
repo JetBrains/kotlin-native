@@ -38,7 +38,7 @@ Then run
     
 Alternatively you can run the artifact directly through
 
-    ./build/bin/HelloTorch.kexe
+    ./build/konan/bin/macbook/HelloTorch.kexe
     
 You may need to specify `LD_LIBRARY_PATH` or `DYLD_LIBRARY_PATH` to `$HOME/.konan/third-party/torch/lib`
 if the ATen dynamic library cannot be found.

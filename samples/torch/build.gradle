@@ -12,7 +12,7 @@ task downloadTorch(type: Exec) {
 konanArtifacts {
     interop('TorchInterop') {
         defFile "src/main/c_interop/torch.def"
-        includeDirs "${torchHome}/include"
+        includeDirs "${torchHome}/include", "${torchHome}/include/TH"
         dependsOn 'downloadTorch'
     }
 
@@ -20,7 +20,7 @@ konanArtifacts {
         libraries {
             artifact 'TorchInterop'
         }
-        linkerOpts "-L${torchHome}/lib -ltorch"
+        linkerOpts "-L${torchHome}/lib -lATen"
     }
 }
 
@@ -28,7 +28,7 @@ run.dependsOn 'warning'
 
 task warning {
     doLast {
-        println "Note: You may need to specify LD_LIBRARY_PATH or DYLD_LIBRARY_PATH env variables to $torchHome/lib if the Torch dynamic library cannot be found."
+        println "Note: You may need to specify LD_LIBRARY_PATH or DYLD_LIBRARY_PATH env variables to $torchHome/lib if the ATen dynamic library cannot be found."
 
     }
 }

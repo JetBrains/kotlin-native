@@ -37,6 +37,6 @@ konanc $COMPILER_ARGS -target $TARGET $DIR/src/main/kotlin/HelloTorch.kt \
        -o $DIR/build/bin/HelloTorch \
        -linkerOpts "-L$TH_TARGET_DIRECTORY/lib -lATen" || exit 1
 
-echo "Note: You may need to specify LD_LIBRARY_PATH or DYLD_LIBRARY_PATH env variables to $TH_TARGET_DIRECTORY/lib if the TH dynamic library cannot be found."
+echo "Note: You may need to specify LD_LIBRARY_PATH or DYLD_LIBRARY_PATH env variables to $TH_TARGET_DIRECTORY/lib if the ATen dynamic library cannot be found."
 
 echo "Artifact path is $DIR/build/bin/HelloTorch.kexe"
