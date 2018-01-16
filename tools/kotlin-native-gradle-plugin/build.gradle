@@ -62,6 +62,7 @@ task pluginMetadata {
 dependencies {
     compile project(':shared')
     compile "org.jetbrains.kotlin:kotlin-stdlib:$buildKotlinVersion"
+    compile "org.jetbrains.kotlin:kotlin-gradle-plugin:$buildKotlinVersion"
     compile gradleApi()
 
     testCompile gradleTestKit()
@@ -70,6 +71,10 @@ dependencies {
         exclude module: 'groovy-all'
     }
     testRuntime files(pluginMetadata)
+}
+
+compileKotlin {
+    kotlinOptions.jvmTarget = "1.8"
 }
 
 test {
