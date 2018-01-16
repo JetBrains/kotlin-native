@@ -14,6 +14,14 @@ open class Base {
 
 }
 
+@konan.internal.CName("topLevelFunctionFromC")
+fun topLevelFunction(x1: Int, x2: Int) = x1 - x2
+
+@konan.internal.CName("topLevelFunctionVoidFromC")
+fun topLevelFunctionVoid(x1: Int) {
+    assert(x1 == 42)
+}
+
 // Enum.
 enum class Enum(val code: Int) {
     ONE(1),

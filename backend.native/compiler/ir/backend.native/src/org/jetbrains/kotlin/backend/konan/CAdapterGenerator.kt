@@ -33,9 +33,11 @@ import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.konan.target.*
 import org.jetbrains.kotlin.name.isChildOf
 import org.jetbrains.kotlin.resolve.DescriptorUtils
+import org.jetbrains.kotlin.resolve.constants.StringValue
 import org.jetbrains.kotlin.resolve.descriptorUtil.isExtension
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
 import org.jetbrains.kotlin.types.KotlinType
+import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 
 private enum class ScopeKind {
     TOP,
@@ -50,6 +52,7 @@ private enum class ElementKind {
 }
 
 private enum class DefinitionKind {
+    C_HEADER_DECLARATION,
     C_HEADER_STRUCT,
     C_SOURCE_DECLARATION,
     C_SOURCE_STRUCT
@@ -87,6 +90,8 @@ private val cKeywords = setOf(
         "bool", "complex", "imaginary"
         )
 
+private val cnameAnnotation = FqName("konan.internal.CName")
+
 private fun org.jetbrains.kotlin.types.KotlinType.isGeneric() =
         constructor.declarationDescriptor is TypeParameterDescriptor
 
@@ -112,6 +117,18 @@ private fun isExportedClass(descriptor: ClassDescriptor): Boolean {
     return true
 }
 
+fun functionImplName(descriptor: DeclarationDescriptor, default: String): String {
+    assert(descriptor is FunctionDescriptor)
+    val annotation = descriptor.annotations.findAnnotation(cnameAnnotation) ?: return default
+
+    annotation.allValueArguments.values.ifNotEmpty {
+        val stringValue = this.single() as StringValue
+        return stringValue.value
+    }
+
+    return default
+}
+
 private class ExportedElementScope(val kind: ScopeKind, val name: String) {
     val elements = mutableListOf<ExportedElement>()
     val scopes = mutableListOf<ExportedElementScope>()
@@ -131,12 +148,14 @@ private class ExportedElementScope(val kind: ScopeKind, val name: String) {
         }
     }
 
+
     fun scopeUniqueName(descriptor: DeclarationDescriptor): String {
         scopeNamesMap[descriptor]?.apply { return this }
         var computedName = when (descriptor) {
             is ConstructorDescriptor -> "${descriptor.constructedClass.fqNameSafe.shortName().asString()}"
             is PropertyGetterDescriptor -> "get_${descriptor.correspondingProperty.name.asString()}"
             is PropertySetterDescriptor -> "set_${descriptor.correspondingProperty.name.asString()}"
+            is FunctionDescriptor -> functionImplName(descriptor, descriptor.fqNameSafe.shortName().asString())
             else -> descriptor.fqNameSafe.shortName().asString()
         }
         while (scopeNames.contains(computedName) || cKeywords.contains(computedName)) {
@@ -214,6 +233,7 @@ private class ExportedElement(val kind: ElementKind,
     fun uniqueName(descriptor: DeclarationDescriptor) = scope.scopeUniqueName(descriptor)
 
     val isFunction = declaration is FunctionDescriptor
+    val isTopLevelFunction = declaration is FunctionDescriptor && declaration.annotations.hasAnnotation(cnameAnnotation)
     val isClass = declaration is ClassDescriptor && declaration.kind != ClassKind.ENUM_ENTRY
     val isEnumClass = declaration is ClassDescriptor && declaration.kind == ClassKind.ENUM_CLASS
     val isEnumEntry = declaration is ClassDescriptor && declaration.kind == ClassKind.ENUM_ENTRY
@@ -263,6 +283,12 @@ private class ExportedElement(val kind: ElementKind,
         val signature = makeCFunctionSignature()
         return "${owner.translateType(signature[0].second)} (*${signature[0].first})(${signature.drop(1).map { it -> "${owner.translateType(it.second)} ${it.first}" }.joinToString(", ")});"
     }
+
+    fun makeTopLevelFunctionString(): String {
+        val signature = makeCFunctionSignature()
+        return "extern ${owner.translateType(signature[0].second)} ${signature[0].first}(${signature.drop(1).map { it -> "${owner.translateType(it.second)} ${it.first}" }.joinToString(", ")});"
+    }
+
 
     fun makeFunctionDeclaration(): String {
         assert(isFunction)
@@ -319,9 +345,13 @@ private class ExportedElement(val kind: ElementKind,
         }
     }
 
+    val cnameImpl: String
+        get() = if (isTopLevelFunction) functionImplName(declaration, "******") else "${cname}_impl"
+
     private fun translateBody(cfunction: List<Pair<String, ClassDescriptor>>): String {
+        val visibility = if (isTopLevelFunction) "RUNTIME_USED extern \"C\"" else "static"
         val builder = StringBuilder()
-        builder.append("static ${owner.translateType(cfunction[0].second)} ${cname}_impl(${cfunction.drop(1).mapIndexed { index, it -> "${owner.translateType(it.second)} arg${index}" }.joinToString(", ")}) {\n")
+        builder.append("$visibility ${owner.translateType(cfunction[0].second)} ${cnameImpl}(${cfunction.drop(1).mapIndexed { index, it -> "${owner.translateType(it.second)} arg${index}" }.joinToString(", ")}) {\n")
         val args = ArrayList(cfunction.drop(1).mapIndexed { index, pair ->
             translateArgument("arg$index", pair.second, Direction.C_TO_KOTLIN, builder)
         })
@@ -560,6 +590,13 @@ internal class CAdapterGenerator(
 
     private fun makeElementDefinition(element: ExportedElement, kind: DefinitionKind, indent: Int) {
         when (kind) {
+            DefinitionKind.C_HEADER_DECLARATION -> {
+                when {
+                    element.isTopLevelFunction ->
+                        output(element.makeTopLevelFunctionString(), indent)
+                }
+            }
+
             DefinitionKind.C_HEADER_STRUCT -> {
                 when {
                     element.isFunction ->
@@ -589,7 +626,7 @@ internal class CAdapterGenerator(
             DefinitionKind.C_SOURCE_STRUCT -> {
                 when {
                     element.isFunction ->
-                        output("/* ${element.name} = */ ${element.cname}_impl, ", indent)
+                        output("/* ${element.name} = */ ${element.cnameImpl}, ", indent)
                     element.isClass ->
                         output("/* Type for ${element.name} = */  ${element.cname}, ", indent)
                     element.isEnumEntry ->
@@ -600,9 +637,7 @@ internal class CAdapterGenerator(
         }
     }
 
-    private fun makeScopeDefinitions(scope: ExportedElementScope,
-                                     kind: DefinitionKind,
-                                     indent: Int) {
+    private fun makeScopeDefinitions(scope: ExportedElementScope, kind: DefinitionKind, indent: Int) {
         if (kind == DefinitionKind.C_HEADER_STRUCT) output("struct {", indent)
         if (kind == DefinitionKind.C_SOURCE_STRUCT) output(".${scope.name} = {", indent)
         scope.elements.forEach { makeElementDefinition(it, kind, indent + 1) }
@@ -659,6 +694,9 @@ internal class CAdapterGenerator(
 
         output("")
         defineUsedTypes(top, 0)
+
+        output("")
+        makeScopeDefinitions(top, DefinitionKind.C_HEADER_DECLARATION, 0)
 
         output("")
         output("typedef struct {")

@@ -24,9 +24,17 @@ package konan.internal
  *
  * If the name is not specified, the function to call will be available by its Kotlin unqualified name.
  */
-//@Target(AnnotationTarget.FUNCTION)
-//@Retention(AnnotationRetention.SOURCE)
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.CONSTRUCTOR)
+@Retention(AnnotationRetention.BINARY)
 annotation class ExportForCppRuntime(val name: String = "")
+
+/**
+ * Makes top level function available from C/C++ code with the given name.
+ * Only primitive types and interop types could be part of such a function's signature.
+ */
+@Target(AnnotationTarget.FUNCTION)
+@Retention(AnnotationRetention.BINARY)
+annotation class CName(val name: String)
 
 /**
  * This annotation denotes that the element is intrinsic and its usages require special handling in compiler.
