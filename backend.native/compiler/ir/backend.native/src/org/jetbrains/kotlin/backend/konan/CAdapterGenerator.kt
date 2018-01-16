@@ -391,7 +391,11 @@ internal class CAdapterGenerator(
             val name = translateName(it.name.asString()) 
             val count = paramNamesRecorded.getOrDefault(name, 0)
             paramNamesRecorded[name] = count + 1
-            "$name${count.toString().takeUnless { it == "0" } ?: ""}"
+            if (count == 0) {
+                name
+            } else {
+                "$name${count.toString()}"
+            }
         }
     }
 
