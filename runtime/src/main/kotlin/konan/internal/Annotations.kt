@@ -30,11 +30,12 @@ annotation class ExportForCppRuntime(val name: String = "")
 
 /**
  * Makes top level function available from C/C++ code with the given name.
- * Only primitive types and interop types could be part of such a function's signature.
+ * `fullName` controls the name of top level function, `shortName` controls the short name.
+ * If `fullName` is empty, no top level declaration is being created.
  */
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.BINARY)
-annotation class CName(val name: String)
+annotation class CName(val fullName: String = "", val shortName: String = "")
 
 /**
  * This annotation denotes that the element is intrinsic and its usages require special handling in compiler.

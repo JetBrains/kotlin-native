@@ -37,7 +37,8 @@ int main(void) {
     printf("object = %d\n",  __ kotlin.root.Codeable.asCode(object1));
 
     topLevelFunctionVoidFromC(42);
-    printf("topLevel = %d\n", topLevelFunctionFromC(780, 3));
+    __ kotlin.root.topLevelFunctionVoid(42);
+    printf("topLevel = %d %d\n", topLevelFunctionFromC(780, 3), __ kotlin.root.topLevelFunctionFromCShort(5, 2));
 
     __ DisposeString(string);
     __ DisposeStablePointer(base.pinned);
