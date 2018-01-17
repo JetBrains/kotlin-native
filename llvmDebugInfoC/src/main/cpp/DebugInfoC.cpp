@@ -22,8 +22,7 @@
 #include <llvm/IR/Instruction.h>
 #include <llvm/Support/Casting.h>
 #include "DebugInfoC.h"
-
-
+#include <stdio.h>
 /**
  * c++ --std=c++11 llvmDebugInfoC/src/DebugInfoC.cpp -IllvmDebugInfoC/include/ -Idependencies/all/clang+llvm-3.9.0-darwin-macos/include -Ldependencies/all/clang+llvm-3.9.0-darwin-macos/lib  -lLLVMCore -lLLVMSupport -lncurses -shared -o libLLVMDebugInfoC.dylib
  */
@@ -101,6 +100,15 @@ DISubprogramRef DICreateFunction(DIBuilderRef builder, DIScopeOpaqueRef scope,
                                                           isDefinition,
                                                           scopeLine));
 }
+
+DIScopeOpaqueRef DICreateLexicalBlockFile(DIBuilderRef builderRef, DIScopeOpaqueRef scopeRef, DIFileRef fileRef) {
+  return llvm::wrap(llvm::unwrap(builderRef)->createLexicalBlockFile(llvm::unwrap(scopeRef), llvm::unwrap(fileRef)));
+}
+
+DIScopeOpaqueRef DICreateLexicalBlock(DIBuilderRef builderRef, DIScopeOpaqueRef scopeRef, DIFileRef fileRef, int line, int column) {
+  return llvm::wrap(llvm::unwrap(builderRef)->createLexicalBlock(llvm::unwrap(scopeRef), llvm::unwrap(fileRef), line, column));
+}
+
 
 DICompositeTypeRef DICreateStructType(DIBuilderRef refBuilder,
                                       DIScopeOpaqueRef scope, const char *name,
@@ -278,5 +286,43 @@ int DISubprogramDescribesFunction(DISubprogramRef sp, LLVMValueRef fn) {
   return llvm::unwrap(sp)->describes(llvm::cast<llvm::Function>(llvm::unwrap(fn)));
 }
 
+int checkLocalVariable(DILocalVariableRef variable) {
+  auto var = llvm::unwrap(variable);
+  auto localScope = var->getScope();
+  auto subprogramScope = llvm::cast<llvm::DISubprogram>(localScope);
+  assert(subprogramScope);
+  auto scope = llvm::cast<llvm::DIScope>(localScope);
+  assert(scope);
+  fprintf(stderr, "-------->8--------\n");
+  while(scope) {
+    //scope->dump();
+    fprintf(stderr, "%p\n", scope);
+    if (llvm::isa<llvm::DICompileUnit>(scope))
+      return 1;
+    auto scopeRef = scope->getScope();
+    if (!scopeRef) {
+      fprintf(stderr, "variable: %s, directory:%s file:%s:%d\n", var->getName().data(), var->getDirectory().data(), var->getFilename().data(), var->getLine());
+    }
+    scope = llvm::cast<llvm::DIScope>(scopeRef);
+  }
+  return 0;
+}
+
+DIScopeOpaqueRef parentScope(DIScopeOpaqueRef scopeRef) {
+  return llvm::wrap(llvm::unwrap(scopeRef)->getScope().resolve());
+}
+
+void dumpScopeType(DIScopeOpaqueRef scopeRef) {
+  auto scope = llvm::unwrap(scopeRef);
+  #define _DUMP(type) do { \
+    if (llvm::isa<llvm::type>(scope)) {          \
+      fprintf(stderr, #type "\n");               \
+      return;                                    \
+    }                                            \
+  } while(0)
+  _DUMP(DICompileUnit);
+  _DUMP(DIFile);
+  _DUMP(DISubprogram);
+}
 } /* extern "C" */
 

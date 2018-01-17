@@ -84,6 +84,10 @@ DIModuleRef DICreateModule(DIBuilderRef builder, DIScopeOpaqueRef scope,
                            const char* name, const char* configurationMacro,
                            const char* includePath, const char *iSysRoot);
 
+DIScopeOpaqueRef DICreateLexicalBlockFile(DIBuilderRef builderRef, DIScopeOpaqueRef scopeRef, DIFileRef fileRef);
+
+DIScopeOpaqueRef DICreateLexicalBlock(DIBuilderRef builderRef, DIScopeOpaqueRef scopeRef, DIFileRef fileRef, int line, int column);
+
 DISubprogramRef DICreateFunction(DIBuilderRef builder, DIScopeOpaqueRef scope,
                                  const char* name, const char *linkageName,
                                  DIFileRef file, unsigned lineNo,
@@ -107,6 +111,10 @@ const char* LLVMBuilderGetCurrentBbName(LLVMBuilderRef builder);
 const char *DIGetSubprogramLinkName(DISubprogramRef sp);
 LLVMValueRef LLVMBuilderGetCurrentFunction(LLVMBuilderRef builder);
 int DISubprogramDescribesFunction(DISubprogramRef sp, LLVMValueRef fn);
+/* for debug needs */
+int checkLocalVariable(DILocalVariableRef variable);
+DIScopeOpaqueRef parentScope(DIScopeOpaqueRef scopeRef);
+void dumpScopeType(DIScopeOpaqueRef scopeRef);
 //void DIScopeDump(DIScopeOpaqueRef scope);
 # ifdef __cplusplus
 }

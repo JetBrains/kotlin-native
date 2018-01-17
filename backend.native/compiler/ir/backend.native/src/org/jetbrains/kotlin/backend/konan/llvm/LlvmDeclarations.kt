@@ -54,6 +54,8 @@ internal class LlvmDeclarations(
     fun forFunction(descriptor: FunctionDescriptor) = functions[descriptor] ?:
             error(descriptor.toString())
 
+    fun hasFunction(descriptor: FunctionDescriptor) = functions.containsKey(descriptor)
+
     fun forClass(descriptor: ClassDescriptor) = classes[descriptor] ?:
             error(descriptor.toString())
 
