@@ -217,6 +217,7 @@ external internal fun stateOfFuture(id: FutureId): Int
 
 @SymbolName("Kotlin_Worker_consumeFuture")
 @kotlin.internal.InlineExposed
+@Escapes(2)
 external internal fun consumeFuture(id: FutureId): Any?
 
 @SymbolName("Kotlin_Worker_waitForAnyFuture")
