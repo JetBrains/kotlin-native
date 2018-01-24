@@ -18,10 +18,8 @@ package org.jetbrains.kotlin.backend.konan.llvm
 
 import kotlinx.cinterop.*
 import llvm.*
-import org.jetbrains.kotlin.backend.konan.Context
-import org.jetbrains.kotlin.backend.konan.KonanConfigKeys
+import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.*
-import org.jetbrains.kotlin.backend.konan.isKotlinObjCClass
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.*
 import org.jetbrains.kotlin.ir.IrElement
@@ -384,8 +382,12 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
         val descriptor = declaration.descriptor
         val llvmFunctionType = getLlvmFunctionType(descriptor)
 
+        if ((descriptor is ConstructorDescriptor && descriptor.getObjCInitMethod() != null)) {
+            return
+        }
+
         val llvmFunction = if (descriptor.isExternal) {
-            if (descriptor.isIntrinsic) {
+            if (descriptor.isIntrinsic || descriptor.getExternalObjCMethodInfo() != null) {
                 return
             }
 
