@@ -21,6 +21,7 @@ import llvm.*
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.idea.MainFunctionDetector
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.*
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.*
@@ -398,7 +399,12 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
         } else {
             val symbolName = if (descriptor.isExported()) {
                 descriptor.symbolName.also {
-//                    assert(LLVMGetNamedFunction(context.llvm.llvmModule, it) == null) { it }
+                    if (!MainFunctionDetector.isMain(descriptor)) {
+                        assert(LLVMGetNamedFunction(context.llvm.llvmModule, it) == null) { it }
+                    } else {
+                        // As a workaround, allow `main` functions to clash because frontend accepts this.
+                        // See [OverloadResolver.isTopLevelMainInDifferentFiles] usage.
+                    }
                 }
             } else {
                 "kfun:" + qualifyInternalName(descriptor)
