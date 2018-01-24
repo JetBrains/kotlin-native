@@ -8,7 +8,6 @@ import android.widget.EditText;
 import android.widget.TextView;
 import android.widget.TextView.OnEditorActionListener;
 import org.konan.arithmeticparser.ParserKt;
-import org.konan.arithmeticparser.PartialParser.Result;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -24,10 +23,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public boolean onEditorAction(final TextView v, final int actionId, final KeyEvent event) {
                 final String inputText = v.getText().toString();
-                final Result<Double, String> result = ParserKt.parseAndCompute(inputText);
+                final Double result = ParserKt.parseAndCompute(inputText).getExpression();
                 if (result != null) {
-                    final Double expression = result.getExpression();
-                    resultView.setText(inputText + " = " + expression.toString());
+                    resultView.setText(inputText + " = " + result.toString());
                 } else {
                     resultView.setText("Unable to parse " + inputText);
                 }
