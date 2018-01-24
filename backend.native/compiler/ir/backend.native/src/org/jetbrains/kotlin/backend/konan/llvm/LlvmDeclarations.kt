@@ -395,7 +395,9 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
             )
         } else {
             val symbolName = if (descriptor.isExported()) {
-                descriptor.symbolName
+                descriptor.symbolName.also {
+                    assert(LLVMGetNamedFunction(context.llvm.llvmModule, it) == null) { it }
+                }
             } else {
                 "kfun:" + qualifyInternalName(descriptor)
             }
