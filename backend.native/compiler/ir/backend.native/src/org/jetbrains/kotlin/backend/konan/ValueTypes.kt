@@ -96,3 +96,11 @@ val KotlinType.correspondingValueType: ValueType?
     get() = ValueType.values().firstOrNull {
         isRepresentedAs(it)
     }
+
+
+fun ValueType.shouldBeSignExtended() =
+        this == ValueType.SHORT || this == ValueType.BYTE
+
+
+fun ValueType.shouldBeZeroExtended() =
+        this == ValueType.BOOLEAN || this == ValueType.CHAR

@@ -18,6 +18,7 @@ package org.jetbrains.kotlin.backend.konan.llvm
 
 import kotlinx.cinterop.*
 import llvm.*
+import org.jetbrains.kotlin.backend.common.descriptors.allParameters
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.descriptors.*
@@ -411,6 +412,19 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
             }
             LLVMAddFunction(context.llvmModule, symbolName, llvmFunctionType)!!
         }
+
+        // mark value types with `zeroext` or `signext` if needed
+        descriptor.allParameters.forEachIndexed { idx, param ->
+            val valueType = param.type.correspondingValueType
+            when {
+                valueType?.shouldBeSignExtended() == true -> "signext"
+                valueType?.shouldBeZeroExtended() == true -> "zeroext"
+                else -> null
+            }?.let { attribute ->
+                addFunctionArgumentAttribute(llvmFunction, idx, attribute)
+            }
+        }
+
 
         if (!context.config.configuration.getBoolean(KonanConfigKeys.OPTIMIZATION)) {
             LLVMAddTargetDependentFunctionAttr(llvmFunction, "no-frame-pointer-elim", "true")

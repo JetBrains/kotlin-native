@@ -2300,7 +2300,23 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     // However, it currently requires some refactoring to be performed.
     private fun call(descriptor: FunctionDescriptor, function: LLVMValueRef, args: List<LLVMValueRef>,
                      resultLifetime: Lifetime): LLVMValueRef {
-        val result = call(function, args, resultLifetime)
+        val callSite = call(function, args, resultLifetime)
+
+        // mark value types with `zeroext` or `signext` if needed
+        descriptor.allParameters.forEachIndexed { idx, param ->
+            // avoid cases like `T : Byte`
+            if (args[idx].type != codegen.kObjHeaderPtr) {
+                val valueType = param.type.correspondingValueType
+                when {
+                    valueType?.shouldBeSignExtended() == true -> "signext"
+                    valueType?.shouldBeZeroExtended() == true -> "zeroext"
+                    else -> null
+                }?.let { attribute ->
+                    addCallSiteArgumentAttribute(callSite, function, idx, attribute)
+                }
+            }
+        }
+
         if (descriptor.returnType?.isNothing() == true) {
             functionGenerationContext.unreachable()
         }
@@ -2309,7 +2325,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             return codegen.theUnitInstanceRef.llvm
         }
 
-        return result
+        return callSite
     }
 
     private fun call(function: LLVMValueRef, args: List<LLVMValueRef>,
