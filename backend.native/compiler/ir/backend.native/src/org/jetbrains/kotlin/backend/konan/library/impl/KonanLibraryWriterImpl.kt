@@ -129,12 +129,14 @@ internal fun buildLibrary(
     dataFlowGraph: ByteArray?): KonanLibraryWriter {
 
     val library = LibraryWriterImpl(output, moduleName, abiVersion, target, nopack)
+    LLVMWriteBitcodeToFile(llvmModule, library.mainBitcodeFileName)
 
-    library.addKotlinBitcode(llvmModule)
+//    library.addKotlinBitcode(llvmModule)
     library.addLinkData(linkData)
-    natives.forEach {
-        library.addNativeBitcode(it)
-    }
+    // TODO: removed for now
+//    natives.forEach {
+//        library.addNativeBitcode(it)
+//    }
     included.forEach {
         library.addIncludedBinary(it)
     }
@@ -142,7 +144,6 @@ internal fun buildLibrary(
     library.addLinkDependencies(linkDependencies)
     dataFlowGraph?.let { library.addDataFlowGraph(it) }
 
-    library.commit()
     return library
 }
 

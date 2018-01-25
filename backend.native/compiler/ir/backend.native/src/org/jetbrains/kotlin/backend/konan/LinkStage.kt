@@ -50,7 +50,13 @@ internal abstract class PlatformFlags(val properties: KonanProperties) {
     open val useCompilerDriverAsLinker: Boolean get() = false // TODO: refactor.
 
     abstract fun linkCommand(objectFiles: List<ObjectFile>,
-                             executable: ExecutableFile, optimize: Boolean, debug: Boolean, dynamic: Boolean): Command
+                             defaultLibraries: List<StaticLibrary>,
+                             userStaticLibs: List<StaticLibrary>,
+                             executable: ExecutableFile,
+                             optimize: Boolean,
+                             debug: Boolean,
+                             dynamic: Boolean
+                             ): Command
 
     open fun linkCommandSuffix(): List<String> = emptyList()
 
@@ -80,7 +86,14 @@ internal open class AndroidPlatform(distribution: Distribution)
     override fun filterStaticLibraries(binaries: List<String>) 
         = binaries.filter { it.isUnixStaticLib }
 
-    override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile, optimize: Boolean, debug: Boolean, dynamic: Boolean): Command {
+    override fun linkCommand(objectFiles: List<ObjectFile>,
+                             defaultLibraries: List<StaticLibrary>,
+                             userStaticLibs: List<StaticLibrary>,
+                             executable: ExecutableFile,
+                             optimize: Boolean,
+                             debug: Boolean,
+                             dynamic: Boolean
+    ): Command {
         // liblog.so must be linked in, as we use its functionality in runtime.
         return Command(clang).apply {
             + "-o"
@@ -101,8 +114,8 @@ internal open class MacOSBasedPlatform(distribution: Distribution)
     : PlatformFlags(distribution.targetProperties) {
 
     private val linker = "$targetToolchain/usr/bin/ld"
-    internal val dsymutil = "${distribution.llvmBin}/llvm-dsymutil"
-    internal val libLTO = distribution.libLTO
+    private val dsymutil = "${distribution.llvmBin}/llvm-dsymutil"
+    private val libLTO = distribution.libLTO
 
     open val osVersionMin by lazy {
         listOf(
@@ -113,7 +126,14 @@ internal open class MacOSBasedPlatform(distribution: Distribution)
     override fun filterStaticLibraries(binaries: List<String>) 
         = binaries.filter { it.isUnixStaticLib }
 
-    override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile, optimize: Boolean, debug: Boolean, dynamic: Boolean): Command {
+    override fun linkCommand(objectFiles: List<ObjectFile>,
+                             defaultLibraries: List<StaticLibrary>,
+                             userStaticLibs: List<StaticLibrary>,
+                             executable: ExecutableFile,
+                             optimize: Boolean,
+                             debug: Boolean,
+                             dynamic: Boolean
+    ): Command {
         return object : Command(linker) {} .apply {
             + "-demangle"
             + listOf("-object_path_lto", "temporary.o", "-lto_library", libLTO)
@@ -121,6 +141,8 @@ internal open class MacOSBasedPlatform(distribution: Distribution)
             + osVersionMin
             + listOf("-syslibroot", targetSysRoot, "-o", executable)
             + objectFiles
+            + defaultLibraries
+            + userStaticLibs.map { listOf("-force_load", it) }.flatten()
             if (optimize) + linkerOptimizationFlags
             if (!debug) + linkerNoDebugFlags
             if (dynamic) + linkerDynamicFlags
@@ -186,13 +208,20 @@ internal open class LinuxBasedPlatform(val distribution: Distribution)
     override fun filterStaticLibraries(binaries: List<String>) 
         = binaries.filter { it.isUnixStaticLib }
 
-    override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile, optimize: Boolean, debug: Boolean, dynamic: Boolean): Command {
+    override fun linkCommand(objectFiles: List<ObjectFile>,
+                             defaultLibraries: List<StaticLibrary>,
+                             userStaticLibs: List<StaticLibrary>,
+                             executable: ExecutableFile,
+                             optimize: Boolean,
+                             debug: Boolean,
+                             dynamic: Boolean
+    ): Command {
         val isMips = (distribution.target == KonanTarget.LINUX_MIPS32 ||
                 distribution.target == KonanTarget.LINUX_MIPSEL32)
         // TODO: Can we extract more to the konan.properties?
         return Command(linker).apply {
             + "--sysroot=${targetSysRoot}"
-            + "-export-dynamic"
+//            + "-export-dynamic"
             + "-z"
             + "relro"
             + "--build-id"
@@ -203,6 +232,10 @@ internal open class LinuxBasedPlatform(val distribution: Distribution)
             + propertyTargetString("dynamicLinker")
             + "-o"
             + executable
+            + defaultLibraries
+            + "--whole-library"
+            + userStaticLibs
+            + "--no-whole-library"
             if (!dynamic) + "$targetSysRoot/usr/lib64/crt1.o"
             + "$targetSysRoot/usr/lib64/crti.o"
             if (dynamic)
@@ -245,7 +278,14 @@ internal open class MingwPlatform(distribution: Distribution)
     override fun filterStaticLibraries(binaries: List<String>) 
         = binaries.filter { it.isWindowsStaticLib || it.isUnixStaticLib }
 
-    override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile, optimize: Boolean, debug: Boolean, dynamic: Boolean): Command {
+    override fun linkCommand(objectFiles: List<ObjectFile>,
+                             defaultLibraries: List<StaticLibrary>,
+                             userStaticLibs: List<StaticLibrary>,
+                             executable: ExecutableFile,
+                             optimize: Boolean,
+                             debug: Boolean,
+                             dynamic: Boolean
+    ): Command {
         return Command(linker).apply {
             + listOf("-o", executable)
             + objectFiles
@@ -268,7 +308,14 @@ internal open class WasmPlatform(distribution: Distribution)
     override fun filterStaticLibraries(binaries: List<String>) 
         = binaries.filter{it.isJavaScript}
 
-    override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile, optimize: Boolean, debug: Boolean, dynamic: Boolean): Command {
+    override fun linkCommand(objectFiles: List<ObjectFile>,
+                             defaultLibraries: List<StaticLibrary>,
+                             userStaticLibs: List<StaticLibrary>,
+                             executable: ExecutableFile,
+                             optimize: Boolean,
+                             debug: Boolean,
+                             dynamic: Boolean
+    ): Command {
         return object: Command("") {
             override fun execute() {
                 val src = File(objectFiles.single())
@@ -300,96 +347,38 @@ internal open class WasmPlatform(distribution: Distribution)
     }
 }
 
-internal class LinkStage(val context: Context) {
+internal fun determinePlatformFlags(target: KonanTarget, distribution: Distribution) = when (target) {
+    KonanTarget.LINUX, KonanTarget.RASPBERRYPI,
+    KonanTarget.LINUX_MIPS32, KonanTarget.LINUX_MIPSEL32 ->
+        LinuxBasedPlatform(distribution)
+    KonanTarget.MACBOOK, KonanTarget.IPHONE, KonanTarget.IPHONE_SIM ->
+        MacOSBasedPlatform(distribution)
+    KonanTarget.ANDROID_ARM32, KonanTarget.ANDROID_ARM64 ->
+        AndroidPlatform(distribution)
+    KonanTarget.MINGW ->
+        MingwPlatform(distribution)
+    KonanTarget.WASM32 ->
+        WasmPlatform(distribution)
+}
 
-    val config = context.config.configuration
-    val target = context.config.targetManager.target
+internal fun linkObjectFiles(context: Context, objectFiles: List<ObjectFile>) =
+        LinkStage(context).linkStage(objectFiles)
+
+private class LinkStage(val context: Context) {
+
+    private val config = context.config.configuration
+    private val target = context.config.targetManager.target
 
     private val distribution = context.config.distribution
 
-    private val platform = when (target) {
-        KonanTarget.LINUX, KonanTarget.RASPBERRYPI,
-        KonanTarget.LINUX_MIPS32, KonanTarget.LINUX_MIPSEL32 ->
-            LinuxBasedPlatform(distribution)
-        KonanTarget.MACBOOK, KonanTarget.IPHONE, KonanTarget.IPHONE_SIM ->
-            MacOSBasedPlatform(distribution)
-        KonanTarget.ANDROID_ARM32, KonanTarget.ANDROID_ARM64 ->
-            AndroidPlatform(distribution)
-        KonanTarget.MINGW ->
-            MingwPlatform(distribution)
-        KonanTarget.WASM32 ->
-            WasmPlatform(distribution)
-    }
-
     private val optimize = config.get(KonanConfigKeys.OPTIMIZATION) ?: false
+
+    private val platform = determinePlatformFlags(target, distribution)
     private val debug = config.get(KonanConfigKeys.DEBUG) ?: false
     private val dynamic = context.config.produce == CompilerOutputKind.DYNAMIC ||
             context.config.produce == CompilerOutputKind.FRAMEWORK
     private val nomain = config.get(KonanConfigKeys.NOMAIN) ?: false
-    private val emitted = context.bitcodeFileName
     private val libraries = context.llvm.librariesToLink
-    private fun MutableList<String>.addNonEmpty(elements: List<String>) {
-        addAll(elements.filter { !it.isEmpty() })
-    }
-
-    private fun runTool(command: List<String>) = runTool(*command.toTypedArray())
-    private fun runTool(vararg command: String) = 
-        Command(*command)
-            .logWith(context::log)
-            .execute()
-
-    private fun llvmLto(files: List<BitcodeFile>): ObjectFile {
-        val combined = temporary("combined", ".o")
-
-        val tool = distribution.llvmLto
-        val command = mutableListOf(tool, "-o", combined)
-        command.addNonEmpty(platform.llvmLtoFlags)
-        when {
-            optimize -> command.addNonEmpty(platform.llvmLtoOptFlags)
-            debug    -> command.addNonEmpty(platform.llvmDebugOptFlags)
-            else     -> command.addNonEmpty(platform.llvmLtoNooptFlags)
-        }
-        command.addNonEmpty(platform.llvmLtoDynamicFlags)
-        command.addNonEmpty(files)
-        runTool(command)
-
-        return combined
-    }
-
-    private fun temporary(name: String, suffix: String): String {
-        val temporaryFile = createTempFile(name, suffix)
-        temporaryFile.deleteOnExit()
-        return temporaryFile.absolutePath
-    }
-
-    private fun targetTool(tool: String, vararg arg: String) {
-        val absoluteToolName = "${platform.targetToolchain}/bin/$tool"
-        runTool(absoluteToolName, *arg)
-    }
-
-    private fun hostLlvmTool(tool: String, args: List<String>) {
-        val absoluteToolName = "${distribution.llvmBin}/$tool"
-        val command = listOf(absoluteToolName) + args
-        runTool(command)
-    }
-
-    private fun bitcodeToWasm(bitcodeFiles: List<BitcodeFile>): String {
-        val combinedBc = temporary("combined", ".bc")
-        hostLlvmTool("llvm-link", bitcodeFiles + listOf("-o", combinedBc))
-
-        val combinedS = temporary("combined", ".s")
-        targetTool("llc", combinedBc, "-o", combinedS)
-
-        val s2wasmFlags = platform.s2wasmFlags.toTypedArray()
-        val combinedWast = temporary( "combined", ".wast")
-        targetTool("s2wasm", combinedS, "-o", combinedWast, *s2wasmFlags)
-
-        val combinedWasm = temporary( "combined", ".wasm")
-        val combinedSmap = temporary( "combined", ".smap")
-        targetTool("wasm-as", combinedWast, "-o", combinedWasm, "-g", "-s", combinedSmap)
-
-        return combinedWasm
-    }
 
     private fun asLinkerArgs(args: List<String>): List<String> {
         if (platform.useCompilerDriverAsLinker) {
@@ -418,7 +407,8 @@ internal class LinkStage(val context: Context) {
     private val entryPointSelector: List<String>
         get() = if (nomain || dynamic) emptyList() else platform.entrySelector
 
-    private fun link(objectFiles: List<ObjectFile>, includedBinaries: List<String>, libraryProvidedLinkerFlags: List<String>): ExecutableFile? {
+    private fun link(objectFiles: List<ObjectFile>, includedBinaries: List<String>,
+                     userProvidedLibs: List<String>, libraryProvidedLinkerFlags: List<String>): ExecutableFile? {
         val frameworkLinkerArgs: List<String>
         val executable: String
 
@@ -440,7 +430,7 @@ internal class LinkStage(val context: Context) {
         }
 
         try {
-            platform.linkCommand(objectFiles, executable, optimize, debug, dynamic).apply {
+            platform.linkCommand(objectFiles, includedBinaries, userProvidedLibs, executable, optimize, debug, dynamic).apply {
                 + platform.targetLibffi
                 + asLinkerArgs(config.getNotNull(KonanConfigKeys.LINKER_ARGS))
                 + entryPointSelector
@@ -465,30 +455,15 @@ internal class LinkStage(val context: Context) {
         return executable
     }
 
-    fun linkStage() {
-        val bitcodeFiles = listOf(emitted) +
-            libraries.map{it -> it.bitcodePaths}.flatten()
-
-        val includedBinaries = 
-            libraries.map{it -> it.includedPaths}.flatten()
-
-        val libraryProvidedLinkerFlags = 
-            libraries.map{it -> it.linkerOpts}.flatten()
-
-        var objectFiles: List<String> = listOf()
-
-        val phaser = PhaseManager(context)
-        phaser.phase(KonanPhase.OBJECT_FILES) {
-            objectFiles = listOf( 
-                if (target == KonanTarget.WASM32)
-                    bitcodeToWasm(bitcodeFiles) 
-                else 
-                    llvmLto(bitcodeFiles)
-            )
-        }
-        phaser.phase(KonanPhase.LINKER) {
-            link(objectFiles, includedBinaries, libraryProvidedLinkerFlags)
-        }
+    fun linkStage(objectFiles: List<ObjectFile>) {
+        val (defalutLibs, userProvidedLibs) = libraries.partition { it.isDefaultLibrary }
+        val libraryProvidedLinkerFlags = libraries.map { it.linkerOpts }.flatten()
+        link(
+                objectFiles,
+                defalutLibs.map { it.includedPaths }.flatten(),
+                userProvidedLibs.map { it.includedPaths }.flatten(),
+                libraryProvidedLinkerFlags
+        )
     }
 }
 

@@ -101,9 +101,6 @@ fun runTopLevelPhases(konanConfig: KonanConfig, environment: KotlinCoreEnvironme
             context.printBitCode()
         }
     }
-
-    phaser.phase(KonanPhase.LINK_STAGE) {
-        LinkStage(context).linkStage()
-    }
+    context.backendProducer.produce()
 }
 
