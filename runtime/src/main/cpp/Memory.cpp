@@ -1106,9 +1106,12 @@ OBJ_GETTER(AllocInstance, const TypeInfo* type_info) {
     return result;
   }
 //  konan::consolePrintf("Alloc with RC: ");
-//  Kotlin_io_Console_print(reinterpret_cast<KString>(type_info->packageName_));
-//  konan::consolePrintf(".");
-//  Kotlin_io_Console_print(reinterpret_cast<KString>(type_info->relativeName_));
+//  if (type_info->packageName_ != nullptr) {
+//    Kotlin_io_Console_print(reinterpret_cast<KString>(type_info->packageName_));
+//    konan::consolePrintf(".");
+//  }
+//  if (type_info->relativeName_ != nullptr)
+//    Kotlin_io_Console_print(reinterpret_cast<KString>(type_info->relativeName_));
 //  konan::consolePrintf("\n");
   RETURN_OBJ(ObjectContainer(type_info).GetPlace());
 }
@@ -1122,9 +1125,12 @@ OBJ_GETTER(AllocArrayInstance, const TypeInfo* type_info, uint32_t elements) {
     return result;
   }
 //  konan::consolePrintf("Alloc array with RC: ");
-//  Kotlin_io_Console_print(reinterpret_cast<KString>(type_info->packageName_));
-//  konan::consolePrintf(".");
-//  Kotlin_io_Console_print(reinterpret_cast<KString>(type_info->relativeName_));
+//  if (type_info->packageName_ != nullptr) {
+//    Kotlin_io_Console_print(reinterpret_cast<KString>(type_info->packageName_));
+//    konan::consolePrintf(".");
+//  }
+//  if (type_info->relativeName_ != nullptr)
+//    Kotlin_io_Console_print(reinterpret_cast<KString>(type_info->relativeName_));
 //  konan::consolePrintf("\n");
   RETURN_OBJ(ArrayContainer(type_info, elements).GetPlace()->obj());
 }
