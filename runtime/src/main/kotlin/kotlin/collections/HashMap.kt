@@ -16,6 +16,15 @@
 
 package kotlin.collections
 
+private val MAGIC get() = 2654435769L.toInt() // golden ratio
+private val INITIAL_CAPACITY get() = 8
+private val INITIAL_MAX_PROBE_DISTANCE get() = 2
+private val TOMBSTONE get() = -1
+
+private fun computeHashSize(capacity: Int): Int = (capacity.coerceAtLeast(1) * 3).highestOneBit()
+
+private fun computeShift(hashSize: Int): Int = hashSize.numberOfLeadingZeros() + 1
+
 class HashMap<K, V> private constructor(
         private var keysArray: Array<K>,
         private var valuesArray: Array<V>?, // allocated only when actually used, always null in pure HashSet
@@ -506,17 +515,6 @@ class HashMap<K, V> private constructor(
     internal fun keysIterator() = KeysItr(this)
     internal fun valuesIterator() = ValuesItr(this)
     internal fun entriesIterator() = EntriesItr(this)
-
-    private companion object {
-        const val MAGIC = 2654435769L.toInt() // golden ratio
-        const val INITIAL_CAPACITY = 8
-        const val INITIAL_MAX_PROBE_DISTANCE = 2
-        const val TOMBSTONE = -1
-
-        fun computeHashSize(capacity: Int): Int = (capacity.coerceAtLeast(1) * 3).highestOneBit()
-
-        fun computeShift(hashSize: Int): Int = hashSize.numberOfLeadingZeros() + 1
-    }
 
     internal open class Itr<K, V>(
             internal val map: HashMap<K, V>

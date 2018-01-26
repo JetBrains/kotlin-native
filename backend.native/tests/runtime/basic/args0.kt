@@ -1,3 +1,109 @@
+//import kotlinx.cinterop.ByteVar
+//import kotlinx.cinterop.allocArray
+//import kotlinx.cinterop.memScoped
+//import kotlinx.cinterop.toKString
+//import platform.posix.*
+//import kotlin.system.measureNanoTime
+//
+//class Node(val id: Int) {
+//    val neighbors: MutableMap<Node, Int> = mutableMapOf()
+//}
+//
+//class Graph {
+//    val nodes: MutableList<Node> = mutableListOf()
+//    val size
+//        get() = nodes.size
+//
+//    fun first(): Node = nodes.first()
+//
+//    operator fun get(nodeId: Int): Node = nodes.getOrElse(nodeId) { nodes.add(it, Node(it)) ; nodes[it] }
+//}
+//
+//fun parseFile(fileName: String): Graph {
+//    val file = fopen(fileName, "r")
+//    if (file == null) {
+//        perror("cannot open input file $fileName")
+//        exit(1)
+//    }
+//
+//    val graph = Graph()
+//
+//    try {
+//        memScoped {
+//            fseek(file, 0, SEEK_END)
+//            val bufferLength = ftell(file) + 1
+//            fseek(file, 0, SEEK_SET)
+//            val buffer = allocArray<ByteVar>(bufferLength)
+//            if (fread(buffer, 1, bufferLength, file) <= 0) {
+//                println("Error while reading")
+//                exit(1)
+//            }
+//
+//            val fileContent = buffer.toKString().split("\n")
+//            fileContent.filter(String::isNotBlank).forEachIndexed { lineNumber, line ->
+//                addNeighbors(line, graph, lineNumber)
+//            }
+//
+//            println("Parsing ended")
+//        }
+//    } finally {
+//        fclose(file)
+//    }
+//
+//    return graph
+//}
+//
+//private data class ClosestNode(val node: Node, val distance: Int)
+//
+//class Greedy(private val graph: Graph) {
+//    private val visitedNodes: MutableSet<Node> = mutableSetOf()
+//
+//    private fun getClosest(node: Node): ClosestNode? {
+//        val nodes = node.neighbors
+//                .filter { it.value != 0 && !visitedNodes.contains(it.key) }
+//        val clostest = nodes
+//                .minBy { it.value }!!
+//        return ClosestNode(clostest.key, clostest.value)
+//    }
+//
+//    fun solve() {
+//        var previousNode = graph.first()
+//        visitedNodes.add(graph.first())
+//        var cost = 0
+//
+//        while (visitedNodes.size != graph.size) {
+//            val closest = getClosest(previousNode)!!
+//            visitedNodes.add(closest.node)
+//            cost += closest.distance
+//            previousNode = closest.node
+//        }
+//
+//        cost += visitedNodes.last().neighbors[graph.first()]!!
+//        println("Final cost: $cost")
+//    }
+//}
+//
+//fun addNeighbors(line: String, graph: Graph, lineNumber: Int): Node {
+//    val node = graph[lineNumber]
+//    line.split(',').forEachIndexed { index, value ->
+//        node.neighbors.put(graph[index], value.trim().toInt())//.trim().toInt())
+//    }
+//    return node
+//}
+//
+//fun main(args: Array<String>) {
+//    var graph: Graph? = null
+//    val parsingTime = measureNanoTime {
+//        //graph = parseFile("/Users/jetbrains/work/kotlin-native/tsp_exp.txt")
+//        graph = parseFile("/Users/jetbrains/Downloads/tsp/small_exp.txt")
+//    }
+//    println("Parsing time: ${parsingTime / 1_000_000}ms")
+//    val elapsed = measureNanoTime {
+//        Greedy(graph!!).solve()
+//    }
+//    println("Solving time: ${elapsed / 1_000_000}ms")
+//}
+
 //import konan.worker.*
 
 //data class WorkerArgument(val intParam: Int, val stringParam: String)
