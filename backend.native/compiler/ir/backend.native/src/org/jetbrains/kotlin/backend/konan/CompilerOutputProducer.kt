@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.backend.konan.llvm.parseBitcodeFile
 import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
+import org.jetbrains.kotlin.konan.target.KonanTarget
 
 internal interface CompilerOutputProducer {
     val context: Context
@@ -38,7 +39,6 @@ internal class BitcodeProducer(override val context: Context) : CompilerOutputPr
         LLVMWriteBitcodeToFile(llvmModule, output)
     }
 }
-
 
 // TODO: library extension should be platform dependent
 internal class LibraryProducer(override val context: Context) : CompilerOutputProducer {
@@ -120,7 +120,13 @@ internal class ProgramProducer(override val context: Context) : CompilerOutputPr
 
         lateinit var objectFiles: List<ObjectFile>
         phaser.phase(KonanPhase.OBJECT_FILES) {
-            objectFiles = produceObjectFiles(context, listOf(programBitcode))
+            // on wasm32 we link bitcode for now
+            val files = listOf(programBitcode) + if (context.isWasm) {
+                context.llvm.librariesToLink.map { it.bitcodePaths }.flatten()
+            } else {
+                emptyList()
+            }
+            objectFiles = produceObjectFiles(context, files)
         }
         phaser.phase(KonanPhase.LINK_STAGE) {
             linkObjectFiles(context, objectFiles)

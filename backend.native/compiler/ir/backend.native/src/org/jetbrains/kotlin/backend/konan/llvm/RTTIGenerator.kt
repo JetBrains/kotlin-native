@@ -89,6 +89,11 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
             val nameValue = annot.allValueArguments.values.single() as StringValue
             // TODO: use LLVMAddAlias?
             val global = addGlobal(nameValue.value, pointerType(runtime.typeInfoType), isExported = true)
+
+            if (context.isWasm) {
+                context.llvm.usedGlobals.add(global)
+            }
+
             LLVMSetInitializer(global, typeInfoGlobal)
         }
     }

@@ -101,7 +101,7 @@ internal tailrec fun DeclarationDescriptor.isExported(): Boolean {
 
 private val symbolNameAnnotation = FqName("konan.SymbolName")
 
-private val exportForCppRuntimeAnnotation = FqName("konan.internal.ExportForCppRuntime")
+internal val exportForCppRuntimeAnnotation = FqName("konan.internal.ExportForCppRuntime")
 
 private val cnameAnnotation = FqName("konan.internal.CName")
 

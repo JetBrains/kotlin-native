@@ -38,10 +38,16 @@ targetList.each { targetName ->
 
 
 targetList.each { targetName ->
-    task("${targetName}Runtime", type: CompileBitcodeToLibrary) {
-        dependsOn "${targetName}RuntimeBitcode"
-        target targetName
-        name "runtime"
+    if (targetName != "wasm32") {
+        task("${targetName}Runtime", type: CompileBitcodeToLibrary) {
+            dependsOn "${targetName}RuntimeBitcode"
+            target targetName
+            name "runtime"
+        }
+    } else {
+        task("${targetName}Runtime") {
+            dependsOn "${targetName}RuntimeBitcode"
+        }
     }
 }
 

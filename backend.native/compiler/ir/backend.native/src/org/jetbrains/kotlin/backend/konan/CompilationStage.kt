@@ -47,6 +47,7 @@ private class CompilationStage(val context: Context) {
                 else -> llc(opt(link(bitcodeFiles)))
             })
 
+    // TODO: wasm?
     fun produceStaticLibrary(bitcodeFiles: List<BitcodeFile>): StaticLibrary =
             bitcodeFiles.map {
                 when (target) {
@@ -148,10 +149,11 @@ private class CompilationStage(val context: Context) {
 
     private fun bitcodeToWasm(bitcodeFiles: List<BitcodeFile>): String {
         val combinedBc = temporary("combined", ".bc")
-        hostLlvmTool("llvm-link", bitcodeFiles + listOf("-o", combinedBc))
-
+        hostLlvmTool("llvm-link", bitcodeFiles + listOf("-o", combinedBc, "-internalize"))
+        val optedBc = temporary("opted", ".bc")
+        hostLlvmTool("opt", listOf(combinedBc, "-O2", "-o", optedBc))
         val combinedS = temporary("combined", ".s")
-        targetTool("llc", combinedBc, "-o", combinedS)
+        targetTool("llc", optedBc, "-o", combinedS)
 
         val s2wasmFlags = platform.s2wasmFlags.toTypedArray()
         val combinedWast = temporary( "combined", ".wast")
