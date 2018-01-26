@@ -45,6 +45,7 @@ import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
+import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi2ir.generators.GeneratorContext
 import org.jetbrains.kotlin.resolve.DescriptorUtils
@@ -160,6 +161,8 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     }
 
     lateinit var moduleDescriptor: ModuleDescriptor
+
+    lateinit var backendProducer: CompilerOutputProducer
 
     override val builtIns: KonanBuiltIns by lazy(PUBLICATION) {
         moduleDescriptor.builtIns as KonanBuiltIns
@@ -374,7 +377,7 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     fun shouldGenerateTestRunner(): Boolean = config.configuration.getBoolean(KonanConfigKeys.GENERATE_TEST_RUNNER)
 
     override fun log(message: () -> String) {
-        if (phase?.verbose ?: false) {
+        if (phase?.verbose == true) {
             println(message())
         }
     }
@@ -383,6 +386,10 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
 
     val isDynamicLibrary: Boolean by lazy {
         config.configuration.get(KonanConfigKeys.PRODUCE) == CompilerOutputKind.DYNAMIC
+    }
+
+    val isWasm: Boolean by lazy {
+        config.targetManager.target == KonanTarget.WASM32
     }
 }
 

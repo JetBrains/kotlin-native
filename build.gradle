@@ -284,7 +284,14 @@ targetList.each { target ->
         dependsOn ":backend.native:${target}Start"
 
         destinationDir distDir
-
+        // TODO: wasm?
+        if (target != 'wasm32') {
+            from(project(':runtime').file("build/$target")) {
+                include("runtime.a")
+                into("$stdlib/targets/$target/included")
+            }
+        }
+        // needed for compiler
         from(project(':runtime').file("build/$target")) {
             include("runtime.bc")
             into("$stdlib/targets/$target/native")

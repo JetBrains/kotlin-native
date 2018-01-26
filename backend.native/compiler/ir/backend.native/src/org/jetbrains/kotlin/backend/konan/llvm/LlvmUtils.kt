@@ -307,3 +307,19 @@ internal fun String.mdString() = LLVMMDString(this, this.length)!!
 internal fun node(vararg it:LLVMValueRef) = LLVMMDNode(it.toList().toCValues(), it.size)
 
 internal fun LLVMValueRef.setUnaligned() = apply { LLVMSetAlignment(this, 1) }
+
+private fun createAttribute(functionType: LLVMTypeRef, attributeName: String): LLVMAttributeRef? {
+    val attributeKind = getAttributeKindId(attributeName)
+    return LLVMCreateEnumAttribute(LLVMGetTypeContext(functionType), attributeKind, 0)
+}
+
+internal fun addFunctionArgumentAttribute(function: LLVMValueRef, argumentIdx: Int, attributeName: String) {
+    val attribute = createAttribute(function.type, attributeName)
+    // Argument with 0 index is return value so function parameters are 1-based
+   LLVMAddAttributeAtIndex(function, argumentIdx + 1, attribute)
+}
+
+internal fun addCallSiteArgumentAttribute(callSite: LLVMValueRef, function: LLVMValueRef, argumentIdx: Int, attributeName: String) {
+    val attribute = createAttribute(function.type, attributeName)
+    LLVMAddCallSiteAttribute(callSite, argumentIdx + 1, attribute)
+}

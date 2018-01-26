@@ -345,19 +345,20 @@ extern "C" {
     }
 
     // Some math.h functions.
-
+    RUNTIME_USED
     double pow(double x, double y) {
         return __builtin_pow(x, y);
     }
 
     // Some string.h functions.
-
+    RUNTIME_USED
     void *memcpy(void *dst, const void *src, size_t n) {
         for (long i = 0; i != n; ++i)
             *((char*)dst + i) = *((char*)src + i);
         return dst;
     }
 
+    RUNTIME_USED
     void *memmove(void *dst, const void *src, size_t len)  {
         if (src < dst) {
             for (long i = len; i != 0; --i) {
@@ -369,6 +370,7 @@ extern "C" {
         return dst;
     }
 
+    RUNTIME_USED
     int memcmp(const void *s1, const void *s2, size_t n) {
         for (long i = 0; i != n; ++i) {
             if (*((char*)s1 + i) != *((char*)s2 + i)) {
@@ -378,6 +380,7 @@ extern "C" {
         return 0;
     }
 
+    RUNTIME_USED
     void *memset(void *b, int c, size_t len) {
         for (long i = 0; i != len; ++i) {
             *((char*)b + i) = c;
@@ -385,12 +388,14 @@ extern "C" {
         return b;
     }
 
+    RUNTIME_USED
     size_t strlen(const char *s) {
         for (long i = 0;; ++i) {
             if (s[i] == 0) return i;
         }
     }
 
+    RUNTIME_USED
     size_t strnlen(const char *s, size_t maxlen) {
         for (long i = 0; i<=maxlen; ++i) {
             if (s[i] == 0) return i;
