@@ -1,16 +1,5 @@
-buildscript {
-    repositories {
-        google()
-        jcenter()
-    }
-    dependencies {
-        classpath 'com.android.tools.build:gradle:3.0.1'
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-    }
-}
-
 apply plugin: 'com.android.application'
-//apply plugin: 'kotlin-android' // TODO: Why is that not working 🤔
+apply plugin: 'kotlin-android'
 
 android {
     compileSdkVersion 27
