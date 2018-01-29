@@ -515,7 +515,7 @@ KInt versionToken() {
   return 0;
 }
 
-OBJ_GETTER(attachObjectGraphInternal, KNativePtr* stablePtr) {
+OBJ_GETTER(attachObjectGraphInternal, KNativePtr stable) {
   ThrowWorkerUnsupported();
   return nullptr;
 }
