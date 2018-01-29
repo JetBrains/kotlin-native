@@ -268,6 +268,10 @@ class ArrayContainer : public Container {
 // whole container can be freed, individual objects are not taken into account.
 class ArenaContainer;
 
+struct FrameOverlay {
+  ArenaContainer* arena;
+};
+
 struct ContainerChunk {
   ContainerChunk* next;
   ArenaContainer* arena;
@@ -279,6 +283,8 @@ struct ContainerChunk {
 
 class ArenaContainer {
  public:
+  ArenaContainer(FrameOverlay* frame): frame_(frame)
+   { }
   void Init();
   void Deinit();
 
@@ -292,6 +298,7 @@ class ArenaContainer {
 
   ObjHeader** getSlot();
 
+  FrameOverlay* frame_;
  private:
   void* place(container_size_t size);
 
@@ -387,6 +394,8 @@ void* GetReservedObjectTail(ObjHeader* obj) RUNTIME_NOTHROW;
 void SetRef(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
 // Updates location.
 void UpdateRef(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
+// Updates location.
+bool NeedUpdateRef(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
 // Updates reference in return slot.
 void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* object) RUNTIME_NOTHROW;
 // Optimization: release all references in range.
@@ -395,6 +404,7 @@ void ReleaseRefs(ObjHeader** start, int count) RUNTIME_NOTHROW;
 void EnterFrame(ObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
 // Called on frame leave, if it has object slots.
 void LeaveFrame(ObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
+uintptr_t GetParamFrame(ObjHeader* param) RUNTIME_NOTHROW;
 // Tries to use returnSlot's arena for allocation.
 ObjHeader** GetReturnSlotIfArena(ObjHeader** returnSlot, ObjHeader** localSlot) RUNTIME_NOTHROW;
 // Tries to use param's arena for allocation.

@@ -35,6 +35,7 @@ import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
+import org.jetbrains.kotlin.ir.expressions.IrGetField
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.name.FqName
@@ -115,9 +116,17 @@ internal object DataFlowIR {
     }
 
     abstract class FunctionSymbol(val numberOfParameters: Int, val isGlobalInitializer: Boolean, val name: String?) {
+        var escapes: Int? = null
+        var pointsTo: IntArray? = null
+
         class External(val hash: Long, numberOfParameters: Int, isGlobalInitializer: Boolean,
-                       val escapes: Int?, val pointsTo: IntArray?, name: String? = null)
+                       escapes: Int?, pointsTo: IntArray?, name: String? = null)
             : FunctionSymbol(numberOfParameters, isGlobalInitializer, name) {
+
+            init {
+                this.escapes = escapes
+                this.pointsTo = pointsTo
+            }
 
             override fun equals(other: Any?): Boolean {
                 if (this === other) return true
@@ -154,7 +163,7 @@ internal object DataFlowIR {
             }
 
             override fun toString(): String {
-                return "PublicFunction(hash='$hash', name='$name')"
+                return "PublicFunction(hash='$hash', name='$name', escapes='$escapes', pointsTo='${pointsTo?.contentToString()})"
             }
         }
 
@@ -173,7 +182,7 @@ internal object DataFlowIR {
             }
 
             override fun toString(): String {
-                return "PrivateFunction(index=$index, name='$name')"
+                return "PrivateFunction(index=$index, name='$name', escapes='$escapes', pointsTo='${pointsTo?.contentToString()})"
             }
         }
     }
@@ -218,7 +227,7 @@ internal object DataFlowIR {
 
         class Singleton(val type: Type, val constructor: FunctionSymbol?) : Node()
 
-        class FieldRead(val receiver: Edge?, val field: Field) : Node()
+        class FieldRead(val receiver: Edge?, val field: Field, val ir: IrGetField?) : Node()
 
         class FieldWrite(val receiver: Edge?, val field: Field, val value: Edge) : Node()
 
@@ -405,7 +414,7 @@ internal object DataFlowIR {
 
     class SymbolTable(val context: Context, val irModule: IrModuleFragment, val module: Module) {
 
-        private val TAKE_NAMES = false // Take fqNames for all functions and types (for debug purposes).
+        private val TAKE_NAMES = true // Take fqNames for all functions and types (for debug purposes).
 
         private inline fun takeName(block: () -> String) = if (TAKE_NAMES) block() else null
 

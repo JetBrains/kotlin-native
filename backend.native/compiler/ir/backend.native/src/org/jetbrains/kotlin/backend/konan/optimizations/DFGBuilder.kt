@@ -210,7 +210,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
         if (DEBUG > severity) block()
     }
 
-    private val TAKE_NAMES = false // Take fqNames for all functions and types (for debug purposes).
+    private val TAKE_NAMES = true // Take fqNames for all functions and types (for debug purposes).
 
     private inline fun takeName(block: () -> String) = if (TAKE_NAMES) block() else null
 
@@ -608,7 +608,8 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                                 receiverType,
                                                 name.localHash.value,
                                                 takeName { name }
-                                        )
+                                        ),
+                                        value
                                 )
                             }
 

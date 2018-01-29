@@ -48,8 +48,10 @@ internal sealed class SlotType {
     class RETURN: SlotType()
     // Return slot, if it is an arena, can be used.
     class RETURN_IF_ARENA: SlotType()
-    // Return slot, if it is an arena, can be used.
+    // Param slot, if it is an arena, can be used.
     class PARAM_IF_ARENA(val parameter: Int): SlotType()
+    // Params slot, if it is an arena, can be used.
+    class PARAMS_IF_ARENA(val parameters: IntArray, val useReturnSlot: Boolean): SlotType()
     // Anonymous slot.
     class ANONYMOUS: SlotType()
     // Unknown slot type.
@@ -91,6 +93,14 @@ internal sealed class Lifetime(val slotType: SlotType) {
     class PARAMETER_FIELD(val parameter: Int): Lifetime(SlotType.PARAM_IF_ARENA(parameter)) {
         override fun toString(): String {
             return "PARAMETER_FIELD($parameter)"
+        }
+    }
+
+    // If reference is stored to the field of an incoming parameters.
+    class PARAMETERS_FIELD(val parameters: IntArray, val useReturnSlot: Boolean)
+        : Lifetime(SlotType.PARAMS_IF_ARENA(parameters, useReturnSlot)) {
+        override fun toString(): String {
+            return "PARAMETERS_FIELD(${parameters.contentToString()}, useReturnSlot='$useReturnSlot')"
         }
     }
 
@@ -377,10 +387,11 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
     val allocInstanceFunction = importRtFunction("AllocInstance")
     val allocArrayFunction = importRtFunction("AllocArrayInstance")
     val initInstanceFunction = importRtFunction("InitInstance")
-    val updateReturnRefFunction = importRtFunction("UpdateReturnRef")
     val updateRefFunction = importRtFunction("UpdateRef")
+    val needUpdateRefFunction = importRtFunction("NeedUpdateRef")
     val enterFrameFunction = importRtFunction("EnterFrame")
     val leaveFrameFunction = importRtFunction("LeaveFrame")
+    val getParamFrame = importRtFunction("GetParamFrame")
     val getReturnSlotIfArenaFunction = importRtFunction("GetReturnSlotIfArena")
     val getParamSlotIfArenaFunction = importRtFunction("GetParamSlotIfArena")
     val lookupOpenMethodFunction = importRtFunction("LookupOpenMethod")
