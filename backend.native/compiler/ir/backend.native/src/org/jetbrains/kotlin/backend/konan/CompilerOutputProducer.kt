@@ -65,9 +65,11 @@ internal class LibraryProducer(override val context: Context) : CompilerOutputPr
     }
 
     private fun addStaticLibrary(bitcodeFileName: String) {
-        val stubs = File(File(bitcodeFileName).name + ".a")
-        File(produceStaticLibrary(context, listOf(bitcodeFileName))).copyTo(stubs)
-        libraryWriter.addIncludedBinary(stubs.name)
+        if (!context.isWasm) {
+            val stubs = File(File(bitcodeFileName).name + ".a")
+            File(produceStaticLibrary(context, listOf(bitcodeFileName))).copyTo(stubs)
+            libraryWriter.addIncludedBinary(stubs.name)
+        }
     }
 
     private fun produceLibrary(context: Context, config: CompilerConfiguration, llvmModule: LLVMModuleRef): String {
