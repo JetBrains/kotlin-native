@@ -340,38 +340,61 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                 return arenaSlot!!
             }
             val localSlot = ptrToInt(vars.createAnonymousSlot(), codegen.intPtrType)
-            var resultFrame =
+            localAllocs++
+            val arenaSlot = ptrToInt(arenaSlot!!, codegen.intPtrType)
+            var currentFrame =
                     if (returnSlot == null) {
                         codegen.immZeroIntPtrType
                     } else {
                         ptrToInt(call(context.llvm.getReturnSlotIfArenaFunction, listOf(returnSlot, intToPtr(codegen.immMOneIntPtrType, codegen.kObjHeaderPtrPtr))), codegen.intPtrType)
                     }
+
             objectParameters.forEach {
-                val paramFrame = call(context.llvm.getParamFrame, listOf(param(it)))
-                val bbTakeParam = basicBlock("takeParam", null)
-                val bbDoNotTakeParam = basicBlock("doNotTakeParam", null)
-                val bbNextParam = basicBlock("nextParam", null)
-                condBr(icmpUGt(paramFrame, resultFrame), bbTakeParam, bbDoNotTakeParam)
-                appendingTo(bbTakeParam) { br(bbNextParam) }
-                appendingTo(bbDoNotTakeParam) { br(bbNextParam) }
-                positionAtEnd(bbNextParam)
-                val currentFrame = phi(codegen.intPtrType)
-                addPhiIncoming(currentFrame, bbTakeParam to paramFrame, bbDoNotTakeParam to resultFrame)
-                resultFrame = currentFrame
+                currentFrame = call(context.llvm.mergeFramesFunction, listOf(param(it), currentFrame))
             }
-            if (true) {
-                val bbTakeCurrentFrame = basicBlock("takeCurFrame", null)
-                val bbTakeLocalSlot = basicBlock("takeLocalSlot", null)
-                val bbDone = basicBlock("done", null)
-                condBr(icmpNe(resultFrame, codegen.immMOneIntPtrType), bbTakeCurrentFrame, bbTakeLocalSlot)
-                appendingTo(bbTakeCurrentFrame) { br(bbDone) }
-                appendingTo(bbTakeLocalSlot) { br(bbDone) }
-                positionAtEnd(bbDone)
-                val currentFrame = phi(codegen.intPtrType)
-                addPhiIncoming(currentFrame, bbTakeCurrentFrame to resultFrame, bbTakeLocalSlot to localSlot)
-                resultFrame = currentFrame
+            val bbTakeCurrentFrame = basicBlock("takeCurFrame", null)
+            val bbTakeArena = basicBlock("takeArena", null)
+            val bbTakeLocalSlot = basicBlock("takeLocalSlot", null)
+            val bbNext = basicBlock("chooseSlotNext", null)
+            val bbDone = basicBlock("chooseSlotDone", null)
+            condBr(icmpNe(currentFrame, codegen.immMOneIntPtrType), bbNext, bbTakeLocalSlot)
+            appendingTo(bbNext) {
+                condBr(icmpNe(currentFrame, codegen.immZeroIntPtrType), bbTakeCurrentFrame, bbTakeArena)
             }
+            appendingTo(bbTakeCurrentFrame) { br(bbDone) }
+            appendingTo(bbTakeArena) { br(bbDone) }
+            appendingTo(bbTakeLocalSlot) { br(bbDone) }
+            positionAtEnd(bbDone)
+            val resultFrame = phi(codegen.intPtrType)
+            addPhiIncoming(resultFrame, bbTakeCurrentFrame to currentFrame, bbTakeArena to arenaSlot, bbTakeLocalSlot to localSlot)
             return intToPtr(resultFrame, codegen.kObjHeaderPtrPtr)
+
+//            objectParameters.forEach {
+//                val paramFrame = call(context.llvm.getParamFrame, listOf(param(it)))
+//                val bbTakeParam = basicBlock("takeParam", null)
+//                val bbDoNotTakeParam = basicBlock("doNotTakeParam", null)
+//                val bbNextParam = basicBlock("nextParam", null)
+//                condBr(icmpUGt(paramFrame, resultFrame), bbTakeParam, bbDoNotTakeParam)
+//                appendingTo(bbTakeParam) { br(bbNextParam) }
+//                appendingTo(bbDoNotTakeParam) { br(bbNextParam) }
+//                positionAtEnd(bbNextParam)
+//                val currentFrame = phi(codegen.intPtrType)
+//                addPhiIncoming(currentFrame, bbTakeParam to paramFrame, bbDoNotTakeParam to resultFrame)
+//                resultFrame = currentFrame
+//            }
+//            if (true) {
+//                val bbTakeCurrentFrame = basicBlock("takeCurFrame", null)
+//                val bbTakeLocalSlot = basicBlock("takeLocalSlot", null)
+//                val bbDone = basicBlock("done", null)
+//                condBr(icmpNe(resultFrame, codegen.immMOneIntPtrType), bbTakeCurrentFrame, bbTakeLocalSlot)
+//                appendingTo(bbTakeCurrentFrame) { br(bbDone) }
+//                appendingTo(bbTakeLocalSlot) { br(bbDone) }
+//                positionAtEnd(bbDone)
+//                val currentFrame = phi(codegen.intPtrType)
+//                addPhiIncoming(currentFrame, bbTakeCurrentFrame to resultFrame, bbTakeLocalSlot to localSlot)
+//                resultFrame = currentFrame
+//            }
+//            return intToPtr(currentFrame, codegen.kObjHeaderPtrPtr)
         }
 
         return when (lifetime.slotType) {
@@ -396,12 +419,14 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             }
 
             is SlotType.PARAM_IF_ARENA ->
-                if (LLVMTypeOf(param(lifetime.slotType.parameter)) != codegen.runtime.objHeaderPtrType)
-                    vars.createAnonymousSlot()
-                else {
-                    call(context.llvm.getParamSlotIfArenaFunction,
-                            listOf(param(lifetime.slotType.parameter), vars.createAnonymousSlot()))
-                }
+                    //TODO: Merge cases.
+            chooseArena(intArrayOf(lifetime.slotType.parameter), false)
+//                if (LLVMTypeOf(param(lifetime.slotType.parameter)) != codegen.runtime.objHeaderPtrType)
+//                    vars.createAnonymousSlot()
+//                else {
+//                    call(context.llvm.getParamSlotIfArenaFunction,
+//                            listOf(param(lifetime.slotType.parameter), vars.createAnonymousSlot()))
+//                }
 
             is SlotType.PARAMS_IF_ARENA -> {
                 chooseArena(lifetime.slotType.parameters, lifetime.slotType.useReturnSlot)

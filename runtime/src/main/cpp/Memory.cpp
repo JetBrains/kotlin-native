@@ -1218,20 +1218,33 @@ ObjHeader** GetReturnSlotIfArena(ObjHeader** returnSlot, ObjHeader** localSlot) 
   return isArenaSlot(returnSlot) ? returnSlot : localSlot;
 }
 
-uintptr_t GetParamFrame(ObjHeader* param) {
-  if (param == nullptr) return -1;
+//uintptr_t GetParamFrame(ObjHeader* param) {
+//  if (param == nullptr) return -1;
+//  auto container = param->container();
+//  if ((container->refCount_ & CONTAINER_TAG_MASK) != CONTAINER_TAG_STACK)
+//    return -1;
+//  auto chunk = reinterpret_cast<ContainerChunk*>(container) - 1;
+//  return reinterpret_cast<uintptr_t>(chunk->arena->frame_) | ARENA_BIT;
+//}
+
+uintptr_t MergeFrames(ObjHeader* param, uintptr_t current) {
+  if (param == nullptr) return current;
   auto container = param->container();
-  if ((container->refCount_ & CONTAINER_TAG_MASK) != CONTAINER_TAG_STACK)
-    return -1;
-  auto chunk = reinterpret_cast<ContainerChunk*>(container) - 1;
-  return reinterpret_cast<uintptr_t>(chunk->arena->frame_) | ARENA_BIT;
+  switch (container->refCount_ & CONTAINER_TAG_MASK) {
+    case CONTAINER_TAG_PERMANENT: return current;
+    case CONTAINER_TAG_NORMAL: return -1;
+    default:
+      auto chunk = reinterpret_cast<ContainerChunk*>(container) - 1;
+      auto paramFrame = reinterpret_cast<uintptr_t>(chunk->arena->frame_) | ARENA_BIT;
+      return paramFrame > current ? paramFrame : current;
+  }
 }
 
-ObjHeader** GetParamSlotIfArena(ObjHeader* param, ObjHeader** localSlot) {
-  auto frame = GetParamFrame(param);
-  if (frame == -1) return localSlot;
-  return reinterpret_cast<ObjHeader**>(frame);
-}
+//ObjHeader** GetParamSlotIfArena(ObjHeader* param, ObjHeader** localSlot) {
+//  auto frame = GetParamFrame(param);
+//  if (frame == -1) return localSlot;
+//  return reinterpret_cast<ObjHeader**>(frame);
+//}
 
 void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* object) {
   UpdateRef(returnSlot, object);
