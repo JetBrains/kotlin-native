@@ -404,11 +404,12 @@ void ReleaseRefs(ObjHeader** start, int count) RUNTIME_NOTHROW;
 void EnterFrame(ObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
 // Called on frame leave, if it has object slots.
 void LeaveFrame(ObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
-uintptr_t GetParamFrame(ObjHeader* param) RUNTIME_NOTHROW;
+//uintptr_t GetParamFrame(ObjHeader* param) RUNTIME_NOTHROW;
 // Tries to use returnSlot's arena for allocation.
 ObjHeader** GetReturnSlotIfArena(ObjHeader** returnSlot, ObjHeader** localSlot) RUNTIME_NOTHROW;
-// Tries to use param's arena for allocation.
-ObjHeader** GetParamSlotIfArena(ObjHeader* param, ObjHeader** localSlot) RUNTIME_NOTHROW;
+uintptr_t MergeFrames(ObjHeader* param, uintptr_t current);
+//// Tries to use param's arena for allocation.
+//ObjHeader** GetParamSlotIfArena(ObjHeader* param, ObjHeader** localSlot) RUNTIME_NOTHROW;
 // Collect garbage, which cannot be found by reference counting (cycles).
 void GarbageCollect() RUNTIME_NOTHROW;
 // Clears object subgraph references from memory subsystem, and optionally
