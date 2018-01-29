@@ -33,7 +33,7 @@ internal fun <T> Sequence<T>.windowedSequence(size: Int, step: Int, partialWindo
 }
 
 internal fun <T> windowedIterator(iterator: Iterator<T>, size: Int, step: Int, partialWindows: Boolean, reuseBuffer: Boolean): Iterator<List<T>> {
-    if (!iterator.hasNext()) return EmptyIterator
+    if (!iterator.hasNext()) return EmptyIterator()
     return buildIterator<List<T>> {
         val gap = step - size
         if (gap >= 0) {
