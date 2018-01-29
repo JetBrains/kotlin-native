@@ -296,28 +296,34 @@ internal object DFGSerializer {
     }
 
     class PublicFunctionSymbol(val hash: Long, val numberOfParameters: Int, val isGlobalInitializer: Boolean,
-                               val index: Int, val name: String?) {
+                               val index: Int, val escapes: Int?, val pointsTo: IntArray?, val name: String?) {
 
         constructor(data: ArraySlice) : this(data.readLong(), data.readInt(), data.readBoolean(), data.readInt(),
-                data.readNullableString())
+                data.readNullableInt(), data.readNullable { readIntArray() }, data.readNullableString())
 
         fun write(result: ArraySlice) {
             result.writeLong(hash)
             result.writeInt(numberOfParameters)
             result.writeBoolean(isGlobalInitializer)
             result.writeInt(index)
+            result.writeNullableInt(escapes)
+            result.writeNullable(pointsTo) { writeIntArray(it) }
             result.writeNullableString(name)
         }
     }
 
-    class PrivateFunctionSymbol(val index: Int, val numberOfParameters: Int, val isGlobalInitializer: Boolean, val name: String?) {
+    class PrivateFunctionSymbol(val index: Int, val numberOfParameters: Int, val isGlobalInitializer: Boolean,
+                                val escapes: Int?, val pointsTo: IntArray?, val name: String?) {
 
-        constructor(data: ArraySlice) : this(data.readInt(), data.readInt(), data.readBoolean(), data.readNullableString())
+        constructor(data: ArraySlice) : this(data.readInt(), data.readInt(), data.readBoolean(),
+                data.readNullableInt(), data.readNullable { readIntArray() }, data.readNullableString())
 
         fun write(result: ArraySlice) {
             result.writeInt(index)
             result.writeInt(numberOfParameters)
             result.writeBoolean(isGlobalInitializer)
+            result.writeNullableInt(escapes)
+            result.writeNullable(pointsTo) { writeIntArray(it) }
             result.writeNullableString(name)
         }
     }
@@ -342,11 +348,11 @@ internal object DFGSerializer {
             fun external(hash: Long, numberOfParameters: Int, isGlobalInitializer: Boolean, escapes: Int?, pointsTo: IntArray?, name: String?) =
                     FunctionSymbol(ExternalFunctionSymbol(hash, numberOfParameters, isGlobalInitializer, escapes, pointsTo, name), null, null)
 
-            fun public(hash: Long, numberOfParameters: Int, isGlobalInitializer: Boolean, index: Int, name: String?) =
-                    FunctionSymbol(null, PublicFunctionSymbol(hash, numberOfParameters, isGlobalInitializer, index, name), null)
+            fun public(hash: Long, numberOfParameters: Int, isGlobalInitializer: Boolean, index: Int, escapes: Int?, pointsTo: IntArray?, name: String?) =
+                    FunctionSymbol(null, PublicFunctionSymbol(hash, numberOfParameters, isGlobalInitializer, index, escapes, pointsTo, name), null)
 
-            fun private(index: Int, numberOfParameters: Int, isGlobalInitializer: Boolean, name: String?) =
-                    FunctionSymbol(null, null, PrivateFunctionSymbol(index, numberOfParameters, isGlobalInitializer, name))
+            fun private(index: Int, numberOfParameters: Int, isGlobalInitializer: Boolean, escapes: Int?, pointsTo: IntArray?, name: String?) =
+                    FunctionSymbol(null, null, PrivateFunctionSymbol(index, numberOfParameters, isGlobalInitializer, escapes, pointsTo, name))
 
             fun read(data: ArraySlice): FunctionSymbol {
                 val tag = data.readByte().toInt()
@@ -737,19 +743,20 @@ internal object DFGSerializer {
                     val functionSymbol = it.key
                     val numberOfParameters = functionSymbol.numberOfParameters
                     val isGlobalInitializer = functionSymbol.isGlobalInitializer
+                    val escapes = functionSymbol.escapes
+                    val pointsTo = functionSymbol.pointsTo
                     val name = functionSymbol.name
                     when (functionSymbol) {
                         is DataFlowIR.FunctionSymbol.External ->
-                            FunctionSymbol.external(functionSymbol.hash, numberOfParameters, isGlobalInitializer,
-                                    functionSymbol.escapes, functionSymbol.pointsTo, name)
+                            FunctionSymbol.external(functionSymbol.hash, numberOfParameters, isGlobalInitializer, escapes, pointsTo, name)
 
                         is DataFlowIR.FunctionSymbol.Public ->
                             FunctionSymbol.public(functionSymbol.hash, numberOfParameters,
-                                    isGlobalInitializer, functionSymbol.symbolTableIndex, name)
+                                    isGlobalInitializer, functionSymbol.symbolTableIndex, escapes, pointsTo, name)
 
                         is DataFlowIR.FunctionSymbol.Private ->
                             FunctionSymbol.private(functionSymbol.symbolTableIndex, numberOfParameters,
-                                    isGlobalInitializer, name)
+                                    isGlobalInitializer, escapes, pointsTo, name)
 
                         else -> error("Unknown function symbol $functionSymbol")
                     }
@@ -908,6 +915,8 @@ internal object DFGSerializer {
                                 ++module.numberOfFunctions
                             DataFlowIR.FunctionSymbol.Public(public.hash, public.numberOfParameters, module,
                                     symbolTableIndex, public.isGlobalInitializer, public.name).also {
+                                it.escapes = public.escapes
+                                it.pointsTo = public.pointsTo
                                 publicFunctionsMap.put(it.hash, it)
                             }
                         }
@@ -917,7 +926,10 @@ internal object DFGSerializer {
                             if (symbolTableIndex >= 0)
                                 ++module.numberOfFunctions
                             DataFlowIR.FunctionSymbol.Private(privateFunIndex++, private.numberOfParameters, module,
-                                    symbolTableIndex, private.isGlobalInitializer, private.name)
+                                    symbolTableIndex, private.isGlobalInitializer, private.name).also {
+                                it.escapes = private.escapes
+                                it.pointsTo = private.pointsTo
+                            }
                         }
                     }
                 }
@@ -1022,7 +1034,7 @@ internal object DFGSerializer {
                             NodeType.FIELD_READ -> {
                                 val fieldRead = it.fieldRead!!
                                 val receiver = fieldRead.receiver?.let { deserializeEdge(it) }
-                                DataFlowIR.Node.FieldRead(receiver, deserializeField(fieldRead.field))
+                                DataFlowIR.Node.FieldRead(receiver, deserializeField(fieldRead.field), null)
                             }
 
                             NodeType.FIELD_WRITE -> {

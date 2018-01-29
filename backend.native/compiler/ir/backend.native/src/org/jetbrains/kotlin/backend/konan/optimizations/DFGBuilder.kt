@@ -632,7 +632,8 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                                 receiverType,
                                                 name.localHash.value,
                                                 takeName { name }
-                                        )
+                                        ),
+                                        value
                                 )
                             }
 
