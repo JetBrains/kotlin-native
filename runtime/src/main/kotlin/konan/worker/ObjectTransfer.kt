@@ -58,19 +58,20 @@ fun <T> T.shallowCopy(): T = @Suppress("UNCHECKED_CAST") (shallowCopyInternal(th
 fun <T> T.deepCopy(): T = TODO()
 
 /**
- * Creates stable pointer to object, ensuring associated object subgraph is disjoint in checked mode.
- * It could be stored to C variable or passed to another thread, where it could be retrieved with attachObjectGraph().
+ * Creates stable pointer to object, ensuring associated object subgraph is disjoint in specified mode
+ * ([TransferMode.CHECKED] by default).
+ * It could be stored to C variable or passed to another thread, where it could be retrieved with [attachObjectGraph].
  */
-fun <T> detachObjectGraph(mode: TransferMode = TransferMode.CHECKED, producer: () -> T): COpaquePointer? =
-        @Suppress("UNCHECKED_CAST")(detachObjectGraphInternal(mode.value, producer as () -> Any?))
+inline fun <reified T> detachObjectGraph(mode: TransferMode = TransferMode.CHECKED, noinline producer: () -> T): COpaquePointer? =
+        @Suppress("UNCHECKED_CAST", "NON_PUBLIC_CALL_FROM_PUBLIC_INLINE")(detachObjectGraphInternal(mode.value, producer as () -> Any?))
 
 /**
- * Atatched previously detached object subgraph.
+ * Attaches previously detached with [detachObjectGraph] object subgraph.
  * Please note, that once object graph is attached, the stable pointer does not have sense anymore,
  * and shall be discarded.
  */
-fun <T> attachObjectGraph(stable: COpaquePointer?): T =
-        @Suppress("UNCHECKED_CAST")(attachObjectGraphInternal(stable) as T)
+inline fun <reified T> attachObjectGraph(stable: COpaquePointer?): T =
+        @Suppress("UNCHECKED_CAST", "NON_PUBLIC_CALL_FROM_PUBLIC_INLINE")(attachObjectGraphInternal(stable) as T)
 
 // Private APIs.
 @SymbolName("Kotlin_Worker_shallowCopyInternal")
