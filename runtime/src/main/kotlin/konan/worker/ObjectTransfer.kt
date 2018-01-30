@@ -49,13 +49,13 @@ enum class TransferMode(val value: Int) {
 /**
  * Creates verbatim *shallow* copy of passed object, use carefully to create disjoint object graph.
  */
-fun <T> T.shallowCopy(): T = @Suppress("UNCHECKED_CAST") (shallowCopyInternal(this) as T)
+inline fun <reified T> T.shallowCopy(): T = shallowCopyInternal(this) as T
 
 /**
  * Creates verbatim *deep* copy of passed object's graph, use *VERY* carefully to create disjoint object graph.
  * Note that this function could potentially duplicate a lot of objects.
  */
-fun <T> T.deepCopy(): T = TODO()
+inline fun <reified T> T.deepCopy(): T = TODO()
 
 /**
  * Creates stable pointer to object, ensuring associated object subgraph is disjoint in specified mode
@@ -63,7 +63,7 @@ fun <T> T.deepCopy(): T = TODO()
  * It could be stored to C variable or passed to another thread, where it could be retrieved with [attachObjectGraph].
  */
 inline fun <reified T> detachObjectGraph(mode: TransferMode = TransferMode.CHECKED, noinline producer: () -> T): COpaquePointer? =
-        @Suppress("UNCHECKED_CAST", "NON_PUBLIC_CALL_FROM_PUBLIC_INLINE")(detachObjectGraphInternal(mode.value, producer as () -> Any?))
+        detachObjectGraphInternal(mode.value, producer as () -> Any?)
 
 /**
  * Attaches previously detached with [detachObjectGraph] object subgraph.
@@ -71,13 +71,16 @@ inline fun <reified T> detachObjectGraph(mode: TransferMode = TransferMode.CHECK
  * and shall be discarded.
  */
 inline fun <reified T> attachObjectGraph(stable: COpaquePointer?): T =
-        @Suppress("UNCHECKED_CAST", "NON_PUBLIC_CALL_FROM_PUBLIC_INLINE")(attachObjectGraphInternal(stable) as T)
+        attachObjectGraphInternal(stable) as T
 
 // Private APIs.
+@PublishedApi
 @SymbolName("Kotlin_Worker_shallowCopyInternal")
 external internal fun shallowCopyInternal(value: Any?): Any?
+@PublishedApi
 @SymbolName("Kotlin_Worker_detachObjectGraphInternal")
-external private fun detachObjectGraphInternal(mode: Int, producer: () -> Any?): COpaquePointer?
+external internal fun detachObjectGraphInternal(mode: Int, producer: () -> Any?): COpaquePointer?
+@PublishedApi
 @SymbolName("Kotlin_Worker_attachObjectGraphInternal")
-external private fun attachObjectGraphInternal(stable: COpaquePointer?): Any?
+external internal fun attachObjectGraphInternal(stable: COpaquePointer?): Any?
 
