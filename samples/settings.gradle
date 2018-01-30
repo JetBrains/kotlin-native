@@ -2,7 +2,7 @@
 // please add it into the 'buildSamplesWithPlatfromLibs' task in build.gradle.
 include ':calculator'
 include ':calculator:jvmCliApp'
-include ':calculator:androidApp'
+// include ':calculator:androidApp'
 include ':csvparser'
 include ':gitchurn'
 include ':globalState'
