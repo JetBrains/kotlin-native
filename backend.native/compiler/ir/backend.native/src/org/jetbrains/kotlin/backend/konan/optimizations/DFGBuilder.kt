@@ -408,6 +408,9 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
             .getContributedFunctions(Name.identifier("doResume"), NoLookupLocation.FROM_BACKEND).single()
     private val getContinuationSymbol = context.ir.symbols.getContinuation
 
+    private val arrayGetSymbol = context.ir.symbols.arrayGet
+    private val arraySetSymbol = context.ir.symbols.arraySet
+
     private inner class FunctionDFGBuilder(val expressionValuesExtractor: ExpressionValuesExtractor,
                                            val variableValues: VariableValues,
                                            val descriptor: CallableDescriptor,
@@ -502,6 +505,11 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                             is IrCall -> {
                                 if (value.symbol == getContinuationSymbol) {
                                     getContinuation()
+                                } else if (value.symbol == arrayGetSymbol) {
+                                    DataFlowIR.Node.ArrayRead(expressionToEdge(value.dispatchReceiver!!), expressionToEdge(value.getValueArgument(0)!!), value)
+                                } else if (value.symbol == arraySetSymbol) {
+                                    DataFlowIR.Node.ArrayWrite(expressionToEdge(value.dispatchReceiver!!),
+                                            expressionToEdge(value.getValueArgument(0)!!), expressionToEdge(value.getValueArgument(1)!!))
                                 } else {
                                     val callee = value.descriptor
                                     val arguments = value.getArguments()
