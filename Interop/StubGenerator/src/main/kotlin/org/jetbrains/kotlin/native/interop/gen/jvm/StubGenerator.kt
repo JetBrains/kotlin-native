@@ -915,15 +915,6 @@ class StubGenerator(
         }
     }
 
-
-    val jdkDir by lazy {
-        val javaHome = java.io.File(System.getProperty("java.home"))
-        if (java.io.File(javaHome, "include").exists())
-            javaHome.absolutePath
-        else
-            javaHome.parentFile.absolutePath
-    }
-
     val libraryForCStubs = configuration.library.copy(
             includes = mutableListOf<String>().apply {
                 add("stdint.h")
@@ -933,12 +924,7 @@ class StubGenerator(
                 addAll(configuration.library.includes)
             },
 
-            compilerArgs = configuration.library.compilerArgs + when (platform) {
-                KotlinPlatform.JVM -> listOf("", "linux", "darwin", "win32").map {
-                    "-I$jdkDir/include/$it"
-                }
-                KotlinPlatform.NATIVE -> emptyList()
-            },
+            compilerArgs = configuration.library.compilerArgs,
 
             additionalPreambleLines = configuration.library.additionalPreambleLines +
                     when (configuration.library.language) {

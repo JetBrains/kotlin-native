@@ -152,8 +152,7 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
 
     val hostCompilerArgsForJni = listOf("", TargetManager.jniHostPlatformIncludeDir).map { "-I$jdkDir/include/$it" }.toTypedArray()
 
-    val clangArgs =
-            (commonClangArgs + specificClangArgs).toTypedArray()
+    val clangArgs = (commonClangArgs + specificClangArgs).toTypedArray()
 
     val clangArgsForKonanSources =
             clangArgs + clangArgsSpecificForKonanSources
