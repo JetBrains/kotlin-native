@@ -16,9 +16,18 @@
 
 package org.jetbrains.kotlin.backend.konan.optimizations
 
+import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
 import org.jetbrains.kotlin.backend.common.ir.ir2stringWhole
+import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.konan.*
+import org.jetbrains.kotlin.backend.konan.ir.IrPrivateFunctionCallImpl
 import org.jetbrains.kotlin.backend.konan.llvm.*
+import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
+import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.IrExpression
+import org.jetbrains.kotlin.ir.expressions.getValueArgument
+import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
+import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import java.util.*
 
@@ -837,5 +846,41 @@ internal object Devirtualization {
     fun analyze(context: Context, moduleDFG: ModuleDFG, externalModulesDFG: ExternalModulesDFG)
             : Map<DataFlowIR.Node.VirtualCall, DevirtualizedCallSite> {
         return DevirtualizationAnalysis(context, externalModulesDFG, moduleDFG).analyze()
+    }
+
+    internal fun devirtualize(irModule: IrModuleFragment, context: Context,
+                              devirtualizedCallSites: Map<IrCall, DevirtualizedCallSite>) {
+        irModule.transformChildrenVoid(object: IrElementTransformerVoidWithContext() {
+            override fun visitCall(expression: IrCall): IrExpression {
+                expression.transformChildrenVoid(this)
+
+                val devirtualizedCallSite = devirtualizedCallSites[expression]
+                val actualCallee = devirtualizedCallSite?.possibleCallees?.singleOrNull()?.callee as? DataFlowIR.FunctionSymbol.Declared
+                        ?: return expression
+                val startOffset = expression.startOffset
+                val endOffset = expression.endOffset
+                val irBuilder = context.createIrBuilder(currentScope!!.scope.scopeOwnerSymbol, startOffset, endOffset)
+                irBuilder.run {
+                    val dispatchReceiver = expression.dispatchReceiver!!
+                    return IrPrivateFunctionCallImpl(
+                            startOffset,
+                            endOffset,
+                            expression.type,
+                            expression.symbol,
+                            expression.descriptor,
+                            (expression as? IrCallImpl)?.typeArguments,
+                            actualCallee.module.descriptor,
+                            actualCallee.module.numberOfFunctions,
+                            actualCallee.symbolTableIndex
+                    ).apply {
+                        this.dispatchReceiver    = dispatchReceiver
+                        this.extensionReceiver   = expression.extensionReceiver
+                        expression.descriptor.valueParameters.forEach {
+                            this.putValueArgument(it.index, expression.getValueArgument(it))
+                        }
+                    }
+                }
+            }
+        })
     }
 }
