@@ -234,12 +234,12 @@ internal object DataFlowIR {
     class FunctionBody(val nodes: List<Node>, val returns: Node.Variable, val throws: Node.Variable)
 
     class Function(val symbol: FunctionSymbol,
-                   val numberOfParameters: Int,
+                   val parameterTypes: Array<Type>,
                    val body: FunctionBody) {
 
         fun debugOutput() {
             println("FUNCTION $symbol")
-            println("Params: $numberOfParameters")
+            println("Params: ${parameterTypes.contentToString()}")
             val ids = body.nodes.withIndex().associateBy({ it.value }, { it.index })
             body.nodes.forEach {
                 println("    NODE #${ids[it]!!}")

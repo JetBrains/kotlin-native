@@ -16,6 +16,7 @@
 
 package org.jetbrains.kotlin.backend.konan.optimizations
 
+import org.jetbrains.kotlin.backend.common.atMostOne
 import org.jetbrains.kotlin.backend.common.descriptors.allParameters
 import org.jetbrains.kotlin.backend.common.descriptors.isSuspend
 import org.jetbrains.kotlin.backend.common.ir.ir2stringWhole
@@ -407,6 +408,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
     private val doResumeFunctionDescriptor = context.getInternalClass("CoroutineImpl").unsubstitutedMemberScope
             .getContributedFunctions(Name.identifier("doResume"), NoLookupLocation.FROM_BACKEND).single()
     private val getContinuationSymbol = context.ir.symbols.getContinuation
+    private val continuationType = getContinuationSymbol.descriptor.returnType!!
 
     private val arrayGetSymbol = context.ir.symbols.arrayGet
     private val arraySetSymbol = context.ir.symbols.arraySet
@@ -450,10 +452,17 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
             val allNodes = nodes.values + variables.values + templateParameters.values + returnsNode + throwsNode +
                     (if (descriptor.isSuspend) listOf(continuationParameter!!) else emptyList())
 
+            val parameterTypes = (allParameters.map { it.type } + (if (descriptor.isSuspend) listOf(continuationType) else emptyList()))
+                    .map {
+                        val erasure = it.erasure().map { it.constructor.declarationDescriptor as ClassDescriptor }
+                        val superClass = erasure.singleOrNull() ?: erasure.atMostOne { !it.isInterface } ?: context.builtIns.any
+                        symbolTable.mapClass(superClass)
+                    }
+                    .toTypedArray()
             return DataFlowIR.Function(
-                    symbol              = symbolTable.mapFunction(descriptor),
-                    numberOfParameters  = templateParameters.size + if (descriptor.isSuspend) 1 else 0,
-                    body                = DataFlowIR.FunctionBody(allNodes.distinct().toList(), returnsNode, throwsNode)
+                    symbol         = symbolTable.mapFunction(descriptor),
+                    parameterTypes = parameterTypes,
+                    body           = DataFlowIR.FunctionBody(allNodes.distinct().toList(), returnsNode, throwsNode)
             )
         }
 
