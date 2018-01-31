@@ -572,7 +572,7 @@ internal object Devirtualization {
                         ?: error("Unknown function: $symbol")
 
                 val body = function.body
-                val parameters = Array<Node>(symbol.numberOfParameters) { ordinaryNode { "Param#$it\$$symbol" } }
+                val parameters = Array(symbol.numberOfParameters) { ordinaryNode { "Param#$it\$$symbol" } }
 
                 if (entryPoint == null && symbol is DataFlowIR.FunctionSymbol.Public && moduleDFG.functions.containsKey(symbol)) {
                     // Exported function from the current module.
