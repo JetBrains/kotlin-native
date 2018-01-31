@@ -270,3 +270,5 @@ internal val ClassDescriptor.objectInstanceFieldSymbolName: String
 
 internal val ClassDescriptor.typeInfoHasVtableAttached: Boolean
     get() = !this.isAbstract() && !this.isExternalObjCClass()
+
+internal val ModuleDescriptor.privateFunctionsTableSymbolName get() = "private_functions_${name.asString()}"

@@ -53,8 +53,6 @@ import org.jetbrains.kotlin.types.typeUtil.isPrimitiveNumberType
 import org.jetbrains.kotlin.types.typeUtil.isTypeParameter
 import org.jetbrains.kotlin.types.typeUtil.isUnit
 
-private val ModuleDescriptor.virtuallyCalledFunctions get() = "private_functions_${name.asString()}"
-
 internal fun emitLLVM(context: Context) {
         val irModule = context.irModule!!
 
@@ -117,7 +115,7 @@ internal fun emitLLVM(context: Context) {
                     .map { it.key as FunctionDescriptor }
                     .toList()
 
-            codegenVisitor.codegen.staticData.placeGlobalConstArray(irModule.descriptor.virtuallyCalledFunctions, int8TypePtr,
+            codegenVisitor.codegen.staticData.placeGlobalConstArray(irModule.descriptor.privateFunctionsTableSymbolName, int8TypePtr,
                     privateFunctions.map { constPointer(codegenVisitor.codegen.functionLlvmValue(it)).bitcast(int8TypePtr) },
                     isExported = true
             )
@@ -1907,13 +1905,14 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     //-------------------------------------------------------------------------//
 
     private fun evaluatePrivateFunctionCall(callee: IrPrivateFunctionCall, args: List<LLVMValueRef>, resultLifetime: Lifetime): LLVMValueRef {
-        val functionsListName = callee.moduleDescriptor.virtuallyCalledFunctions
+        val functionsListName = callee.moduleDescriptor.privateFunctionsTableSymbolName
+        // LLVM inlines access to this global array (with -opt option on).
         val functionsList =
                 if (callee.moduleDescriptor == context.irModule!!.descriptor)
                     LLVMGetNamedGlobal(context.llvmModule, functionsListName)
                 else
                     codegen.importGlobal(functionsListName, LLVMArrayType(int8TypePtr, callee.totalFunctions)!!, callee.moduleDescriptor.llvmSymbolOrigin)
-        val functionIndex    = LLVMConstInt(LLVMInt32Type(), callee.functionIndex.toLong(), 1)!!
+        val functionIndex    = Int32(callee.functionIndex).llvm
         val functionPlacePtr = LLVMBuildGEP(functionGenerationContext.builder, functionsList, cValuesOf(kImmZero, functionIndex), 2, "")!!
         val functionPtr      = functionGenerationContext.load(functionPlacePtr)
 

@@ -23,7 +23,6 @@ import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.ValueType
 import org.jetbrains.kotlin.backend.konan.descriptors.getMemberScope
 import org.jetbrains.kotlin.backend.konan.lower.TestProcessor
-import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.builtins.isFunctionType
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
@@ -32,16 +31,12 @@ import org.jetbrains.kotlin.descriptors.PropertyDescriptor
 import org.jetbrains.kotlin.descriptors.findClassAcrossModuleDependencies
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
+import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrEnumEntrySymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
-import org.jetbrains.kotlin.ir.expressions.IrCall
-import org.jetbrains.kotlin.ir.expressions.impl.IrCallWithIndexedArgumentsBase
-import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
-import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.util.SymbolTable
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.name.ClassId
-import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.types.KotlinType
 import kotlin.properties.Delegates
@@ -263,33 +258,4 @@ internal class KonanSymbols(context: Context, val symbolTable: SymbolTable): Sym
                 kind.runtimeKindName, NoLookupLocation.FROM_BACKEND
         ) as ClassDescriptor)
     }
-}
-
-internal interface IrPrivateFunctionCall : IrCall {
-    val moduleDescriptor: ModuleDescriptor
-    val totalFunctions: Int
-    val functionIndex: Int
-}
-
-internal class IrPrivateFunctionCallImpl(startOffset: Int,
-                                         endOffset: Int,
-                                         type: KotlinType,
-                                         override val symbol: IrFunctionSymbol,
-                                         override val descriptor: FunctionDescriptor,
-                                         typeArguments: Map<TypeParameterDescriptor, KotlinType>?,
-                                         override val moduleDescriptor: ModuleDescriptor,
-                                         override val totalFunctions: Int,
-                                         override val functionIndex: Int
-) : IrPrivateFunctionCall,
-        IrCallWithIndexedArgumentsBase(startOffset, endOffset, type, symbol.descriptor.valueParameters.size, typeArguments) {
-
-    override val superQualifierSymbol: IrClassSymbol?
-        get() = null
-
-    override val superQualifier: ClassDescriptor?
-        get() = null
-
-    override fun <R, D> accept(visitor: IrElementVisitor<R, D>, data: D): R =
-            visitor.visitCall(this, data)
-
 }

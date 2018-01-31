@@ -29,7 +29,7 @@ internal fun StaticData.placeGlobalConstArray(name: String,
                                               elemType: LLVMTypeRef,
                                               elements: List<ConstValue>,
                                               isExported: Boolean = false): ConstPointer {
-    if (elements.isNotEmpty()) {
+    if (elements.isNotEmpty() || isExported) {
         val global = this.placeGlobalArray(name, elemType, elements, isExported)
         global.setConstant(true)
         return global.pointer.getElementPtr(0)
