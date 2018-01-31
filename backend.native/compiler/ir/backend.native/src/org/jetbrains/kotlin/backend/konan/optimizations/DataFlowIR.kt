@@ -364,7 +364,7 @@ internal object DataFlowIR {
 
                 is Node.ArrayWrite -> {
                     val result = StringBuilder()
-                    result.appendln("        ARRAY READ")
+                    result.appendln("        ARRAY WRITE")
                     result.append("            ARRAY #${ids[node.array.node]}")
                     if (node.array.castToType == null)
                         result.appendln()

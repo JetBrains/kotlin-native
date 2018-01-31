@@ -518,15 +518,16 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                     else symbolTable.mapFunction(value.descriptor.constructors.single())
                             )
 
-                            is IrCall -> {
-                                if (value.symbol == getContinuationSymbol) {
-                                    getContinuation()
-                                } else if (value.symbol == arrayGetSymbol) {
-                                    DataFlowIR.Node.ArrayRead(expressionToEdge(value.dispatchReceiver!!), expressionToEdge(value.getValueArgument(0)!!), value)
-                                } else if (value.symbol == arraySetSymbol) {
-                                    DataFlowIR.Node.ArrayWrite(expressionToEdge(value.dispatchReceiver!!),
-                                            expressionToEdge(value.getValueArgument(0)!!), expressionToEdge(value.getValueArgument(1)!!))
-                                } else {
+                            is IrCall -> when (value.symbol) {
+                                getContinuationSymbol -> getContinuation()
+
+                                arrayGetSymbol -> DataFlowIR.Node.ArrayRead(expressionToEdge(value.dispatchReceiver!!),
+                                        expressionToEdge(value.getValueArgument(0)!!), value)
+
+                                arraySetSymbol -> DataFlowIR.Node.ArrayWrite(expressionToEdge(value.dispatchReceiver!!),
+                                        expressionToEdge(value.getValueArgument(0)!!), expressionToEdge(value.getValueArgument(1)!!))
+
+                                else -> {
                                     val callee = value.descriptor
                                     val arguments = value.getArguments()
                                             .map { expressionToEdge(it.second) }
