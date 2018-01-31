@@ -417,7 +417,9 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
     private val arrayGetSymbol = context.ir.symbols.arrayGet
     private val arraySetSymbol = context.ir.symbols.arraySet
     private val scheduleImplSymbol = context.ir.symbols.scheduleImpl
-    private val scheduleImplProducerParam = scheduleImplSymbol.descriptor.valueParameters[2]
+    private val scheduleImplProducerParam = scheduleImplSymbol.descriptor.valueParameters[2].also {
+        assert(it.name.asString() == "producer")
+    }
     private val scheduleImplProducerInvokeDescriptor = scheduleImplProducerParam.type.memberScope
             .getContributedFunctions(Name.identifier("invoke"), NoLookupLocation.FROM_BACKEND).single()
 
