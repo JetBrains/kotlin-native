@@ -513,8 +513,11 @@ internal object DataFlowIR {
         fun mapFunction(descriptor: CallableDescriptor) = descriptor.original.let {
             functionMap.getOrPut(it) {
                 when (it) {
-                    is PropertyDescriptor ->
+                    is PropertyDescriptor -> {
+                        // A global property initializer.
+                        assert (it.dispatchReceiverParameter == null) { "All local properties initializers should've been lowered" }
                         FunctionSymbol.Private(privateFunIndex++, 0, module, -1, true, takeName { "${it.symbolName}_init" })
+                    }
 
                     is FunctionDescriptor -> {
                         val name = if (it.isExported()) it.symbolName else it.internalName
