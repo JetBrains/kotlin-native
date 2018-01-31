@@ -91,13 +91,7 @@ internal fun emitLLVM(context: Context) {
         @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
         var devirtualizationAnalysisResult: Map<DataFlowIR.Node.VirtualCall, Devirtualization.DevirtualizedCallSite>? = null
         phaser.phase(KonanPhase.DEVIRTUALIZATION) {
-            devirtualizationAnalysisResult = Devirtualization.analyze(context, moduleDFG!!, externalModulesDFG!!)
-            val devirtualizedCallSites =
-                    devirtualizationAnalysisResult!!
-                            .asSequence()
-                            .filter { it.key.callSite != null }
-                            .associate { it.key.callSite!! to it.value }
-            Devirtualization.devirtualize(irModule, context, devirtualizedCallSites)
+            devirtualizationAnalysisResult = Devirtualization.run(irModule, context, moduleDFG!!, externalModulesDFG!!)
         }
 
         phaser.phase(KonanPhase.ESCAPE_ANALYSIS) {
@@ -107,13 +101,7 @@ internal fun emitLLVM(context: Context) {
 
         phaser.phase(KonanPhase.SERIALIZE_DFG) {
             DFGSerializer.serialize(context, moduleDFG!!)
-            val privateFunctions = moduleDFG!!.symbolTable.functionMap
-                    .asSequence()
-                    .filter { it.key is FunctionDescriptor }
-                    .filter { it.value.let { it is DataFlowIR.FunctionSymbol.Declared && it.symbolTableIndex >= 0 } }
-                    .sortedBy { (it.value as DataFlowIR.FunctionSymbol.Declared).symbolTableIndex }
-                    .map { it.key as FunctionDescriptor }
-                    .toList()
+            val privateFunctions = moduleDFG!!.symbolTable.getPrivateFunctionsTableForExport()
 
             codegenVisitor.codegen.staticData.placeGlobalConstArray(irModule.descriptor.privateFunctionsTableSymbolName, int8TypePtr,
                     privateFunctions.map { constPointer(codegenVisitor.codegen.functionLlvmValue(it)).bitcast(int8TypePtr) },

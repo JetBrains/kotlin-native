@@ -834,13 +834,20 @@ internal object Devirtualization {
 
     class DevirtualizedCallSite(val possibleCallees: List<DevirtualizedCallee>)
 
-    fun analyze(context: Context, moduleDFG: ModuleDFG, externalModulesDFG: ExternalModulesDFG)
+    fun run(irModule: IrModuleFragment, context: Context, moduleDFG: ModuleDFG, externalModulesDFG: ExternalModulesDFG)
             : Map<DataFlowIR.Node.VirtualCall, DevirtualizedCallSite> {
-        return DevirtualizationAnalysis(context, externalModulesDFG, moduleDFG).analyze()
+        val devirtualizationAnalysisResult = DevirtualizationAnalysis(context, externalModulesDFG, moduleDFG).analyze()
+        val devirtualizedCallSites =
+                devirtualizationAnalysisResult
+                        .asSequence()
+                        .filter { it.key.callSite != null }
+                        .associate { it.key.callSite!! to it.value }
+        Devirtualization.devirtualize(irModule, context, devirtualizedCallSites)
+        return devirtualizationAnalysisResult
     }
 
-    internal fun devirtualize(irModule: IrModuleFragment, context: Context,
-                              devirtualizedCallSites: Map<IrCall, DevirtualizedCallSite>) {
+    private fun devirtualize(irModule: IrModuleFragment, context: Context,
+                             devirtualizedCallSites: Map<IrCall, DevirtualizedCallSite>) {
         irModule.transformChildrenVoid(object: IrElementTransformerVoidWithContext() {
             override fun visitCall(expression: IrCall): IrExpression {
                 expression.transformChildrenVoid(this)
