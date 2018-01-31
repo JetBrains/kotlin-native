@@ -81,7 +81,7 @@ internal object Devirtualization {
                                            val externalModulesDFG: ExternalModulesDFG,
                                            val moduleDFG: ModuleDFG) {
 
-        private val hasMain = context.config.configuration.get(KonanConfigKeys.PRODUCE) == CompilerOutputKind.PROGRAM
+        private val entryPoint = findMainEntryPoint(context)
 
         private val symbolTable = moduleDFG.symbolTable
 
@@ -109,8 +109,8 @@ internal object Devirtualization {
 
             abstract fun toString(allTypes: List<DataFlowIR.Type.Declared>): String
 
-            class Source(id: Int, typeId: Int, block: () -> String): Node(id) {
-                val name = takeName(block)
+            class Source(id: Int, typeId: Int, nameBuilder: () -> String): Node(id) {
+                val name = takeName(nameBuilder)
 
                 init {
                     types.set(typeId)
@@ -121,8 +121,8 @@ internal object Devirtualization {
                 }
             }
 
-            class Ordinary(id: Int, block: () -> String) : Node(id) {
-                val name = takeName(block)
+            class Ordinary(id: Int, nameBuilder: () -> String) : Node(id) {
+                val name = takeName(nameBuilder)
 
                 override fun toString(allTypes: List<DataFlowIR.Type.Declared>): String {
                     return "Ordinary(name='$name', types='${types.format(allTypes)}')"
@@ -141,8 +141,8 @@ internal object Devirtualization {
             override val nodes = mutableListOf<Node>()
             override fun get(key: Node) = key
 
-            val voidNode = Node.Ordinary(nextId(), { "Void" }).also { nodes.add(it) }
-            val virtualNode = Node.Source(nextId(), VIRTUAL_TYPE_ID, { "Virtual" }).also { nodes.add(it) }
+            val voidNode = addNode { Node.Ordinary(it, { "Void" }) }
+            val virtualNode = addNode { Node.Source(it, VIRTUAL_TYPE_ID, { "Virtual" }) }
             val arrayItemField = DataFlowIR.Field(null, 1, "Array\$Item")
             val functions = mutableMapOf<DataFlowIR.FunctionSymbol, Function>()
             val concreteClasses = mutableMapOf<DataFlowIR.Type.Declared, Node>()
@@ -150,9 +150,9 @@ internal object Devirtualization {
             val fields = mutableMapOf<DataFlowIR.Field, Node>() // Do not distinguish receivers.
             val virtualCallSiteReceivers = mutableMapOf<DataFlowIR.Node.VirtualCall, Triple<Node, List<DevirtualizedCallee>, DataFlowIR.FunctionSymbol>>()
 
-            fun nextId(): Int = nodesCount++
+            private fun nextId(): Int = nodesCount++
 
-            fun addNode(node: Node) = nodes.add(node)
+            fun addNode(nodeBuilder: (Int) -> Node) = nodeBuilder(nextId()).also { nodes.add(it) }
         }
 
         private val constraintGraph = ConstraintGraph()
@@ -167,10 +167,6 @@ internal object Devirtualization {
             if (this is DataFlowIR.FunctionSymbol.External)
                 return externalModulesDFG.publicFunctions[this.hash] ?: this
             return this
-        }
-
-        private fun DataFlowIR.Type.Declared.isSubtypeOf(other: DataFlowIR.Type.Declared): Boolean {
-            return this == other || this.superTypes.any { it.resolved().isSubtypeOf(other) }
         }
 
         private inner class TypeHierarchy(types: List<DataFlowIR.Type.Declared>) {
@@ -215,10 +211,10 @@ internal object Devirtualization {
 
             fun search(): Set<DataFlowIR.Type.Declared> {
                 // Rapid Type Analysis: find all instantiations and conservatively estimate call graph.
-                if (hasMain) {
+                if (entryPoint != null) {
                     // Optimistic algorithm: traverse call graph from the roots - the entry point and all global initializers.
 
-                    dfs(symbolTable.mapFunction(findMainEntryPoint(context)!!))
+                    dfs(symbolTable.mapFunction(entryPoint))
 
                     (moduleDFG.functions.values + externalModulesDFG.functionDFGs.values)
                             .map { it.symbol }
@@ -562,16 +558,11 @@ internal object Devirtualization {
                 return if (type.isAbstract) VIRTUAL_TYPE_ID else instantiatingClasses[type]!!
             }
 
-            private fun virtualType(type: DataFlowIR.Type.Declared): Int {
-                assert(!(type.isAbstract && type.isFinal)) { "Incorrect type: $type" }
-                return if (type.isFinal) instantiatingClasses[type]!! else VIRTUAL_TYPE_ID
-            }
-
             private fun ordinaryNode(nameBuilder: () -> String) =
-                    Node.Ordinary(constraintGraph.nextId(), nameBuilder).also { constraintGraph.addNode(it) }
+                    constraintGraph.addNode { Node.Ordinary(it, nameBuilder) }
 
             private fun sourceNode(typeId: Int, nameBuilder: () -> String) =
-                    Node.Source(constraintGraph.nextId(), typeId, nameBuilder).also { constraintGraph.addNode(it) }
+                    constraintGraph.addNode { Node.Source(it, typeId, nameBuilder) }
 
             fun buildFunctionConstraintGraph(symbol: DataFlowIR.FunctionSymbol): Function? {
                 if (symbol is DataFlowIR.FunctionSymbol.External) return null
@@ -583,7 +574,7 @@ internal object Devirtualization {
                 val body = function.body
                 val parameters = Array<Node>(symbol.numberOfParameters) { ordinaryNode { "Param#$it\$$symbol" } }
 
-                if (!hasMain && symbol is DataFlowIR.FunctionSymbol.Public && moduleDFG.functions.containsKey(symbol)) {
+                if (entryPoint == null && symbol is DataFlowIR.FunctionSymbol.Public && moduleDFG.functions.containsKey(symbol)) {
                     // Exported function from the current module.
                     function.parameterTypes.forEachIndexed { index, type ->
                         if (type.resolved().isFinal) return@forEachIndexed
