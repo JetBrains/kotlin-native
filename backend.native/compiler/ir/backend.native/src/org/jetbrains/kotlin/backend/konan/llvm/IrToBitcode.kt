@@ -92,6 +92,13 @@ internal fun emitLLVM(context: Context) {
         var devirtualizationAnalysisResult: Map<DataFlowIR.Node.VirtualCall, Devirtualization.DevirtualizedCallSite>? = null
         phaser.phase(KonanPhase.DEVIRTUALIZATION) {
             devirtualizationAnalysisResult = Devirtualization.run(irModule, context, moduleDFG!!, externalModulesDFG!!)
+
+            val privateFunctions = moduleDFG!!.symbolTable.getPrivateFunctionsTableForExport()
+
+            codegenVisitor.codegen.staticData.placeGlobalConstArray(irModule.descriptor.privateFunctionsTableSymbolName, int8TypePtr,
+                    privateFunctions.map { constPointer(codegenVisitor.codegen.functionLlvmValue(it)).bitcast(int8TypePtr) },
+                    isExported = true
+            )
         }
 
         phaser.phase(KonanPhase.ESCAPE_ANALYSIS) {
@@ -101,12 +108,6 @@ internal fun emitLLVM(context: Context) {
 
         phaser.phase(KonanPhase.SERIALIZE_DFG) {
             DFGSerializer.serialize(context, moduleDFG!!)
-            val privateFunctions = moduleDFG!!.symbolTable.getPrivateFunctionsTableForExport()
-
-            codegenVisitor.codegen.staticData.placeGlobalConstArray(irModule.descriptor.privateFunctionsTableSymbolName, int8TypePtr,
-                    privateFunctions.map { constPointer(codegenVisitor.codegen.functionLlvmValue(it)).bitcast(int8TypePtr) },
-                    isExported = true
-            )
         }
 
         phaser.phase(KonanPhase.CODEGEN) {
