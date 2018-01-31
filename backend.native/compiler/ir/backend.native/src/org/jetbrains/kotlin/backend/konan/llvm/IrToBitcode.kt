@@ -596,16 +596,15 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         override fun functionScope(): CodeContext = this
 
 
-        override fun location(line: Int, column: Int) = scope()?.let {
-            @Suppress("UNCHECKED_CAST")
-            LocationInfo(declaration?.scope() ?:
-                    llvmFunction!!.scope(0, subroutineType(context, codegen.llvmTargetData, listOf(context.builtIns.intType)))!!, 0, 0)
+        private val scope by lazy {
+            if (!context.shouldContainDebugInfo())
+                return@lazy null
+            declaration?.scope() ?: llvmFunction!!.scope(0, subroutineType(context, codegen.llvmTargetData, listOf(context.builtIns.intType)))
         }
 
-        override fun scope() = if (context.shouldContainDebugInfo())
-            declaration?.scope() ?:  llvmFunction!!.scope(0, subroutineType(context, codegen.llvmTargetData, listOf(context.builtIns.intType)))
-        else
-            null
+        override fun location(line: Int, column: Int) = scope?.let { LocationInfo(it, line, column) }
+
+        override fun scope() = scope
     }
 
     private val functionGenerationContext
@@ -1135,8 +1134,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     //-------------------------------------------------------------------------//
     private fun debugInfoIfNeeded(function: IrFunction?, element: IrElement): VariableDebugLocation? {
-        if (function == null || !context.shouldContainDebugInfo() || currentCodeContext.scope() == null) return null
-        if (!element.needDebugInfo(context)) return null
+        if (function == null || !element.needDebugInfo(context) || currentCodeContext.scope() == null) return null
         val locationInfo = element.startLocation ?: return null
         val location = codegen.generateLocationInfo(locationInfo)
         val file = (currentCodeContext.fileScope() as FileScope).file.file()
@@ -1478,9 +1476,9 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         override fun returnableBlockScope(): CodeContext? = this
 
         override fun location(line: Int, column: Int): LocationInfo? {
-            return scope.let{
+            return scope?.let{
                 LocationInfo(
-                        scope,
+                        it,
                         line,
                         column)
             }
@@ -1489,7 +1487,9 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         /**
          * Note: DILexicalBlocks aren't nested, they should be scoped with the parent function.
          */
-        private val scope:DIScopeOpaqueRef by lazy {
+        private val scope by lazy {
+            if (!context.shouldContainDebugInfo())
+                return@lazy null
             val lexicalBlockFile = DICreateLexicalBlockFile(context.debugInfo.builder, functionScope()!!.scope(), super.file.file())
             DICreateLexicalBlock(context.debugInfo.builder, lexicalBlockFile, super.file.file(), returnableBlock.startLine(), returnableBlock.startColumn())!!
         }
@@ -1503,10 +1503,16 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     private open inner class FileScope(val file:IrFile) : InnerScopeImpl() {
         override fun fileScope(): CodeContext? = this
 
-        override fun location(line: Int, column: Int): LocationInfo? = LocationInfo(scope()!!, line, column)
+        override fun location(line: Int, column: Int) = scope?.let {LocationInfo(it, line, column) }
 
         @Suppress("UNCHECKED_CAST")
-        override fun scope() = file.file() as DIScopeOpaqueRef?
+        private val scope by lazy {
+            if (!context.shouldContainDebugInfo())
+                return@lazy null
+            file.file() as DIScopeOpaqueRef?
+        }
+
+        override fun scope() = scope
     }
 
     //-------------------------------------------------------------------------//
