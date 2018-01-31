@@ -489,8 +489,7 @@ internal object DataFlowIR {
             return type
         }
 
-        fun mapType(type: KotlinType) =
-                mapClass(type.erasure().single().constructor.declarationDescriptor as ClassDescriptor)
+        fun mapType(type: KotlinType) = mapClass(type.erasure().single())
 
         // TODO: use from LlvmDeclarations.
         private fun getFqName(descriptor: DeclarationDescriptor): FqName {

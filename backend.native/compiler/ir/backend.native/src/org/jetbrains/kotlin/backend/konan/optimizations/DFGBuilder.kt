@@ -16,7 +16,6 @@
 
 package org.jetbrains.kotlin.backend.konan.optimizations
 
-import org.jetbrains.kotlin.backend.common.atMostOne
 import org.jetbrains.kotlin.backend.common.descriptors.allParameters
 import org.jetbrains.kotlin.backend.common.descriptors.isSuspend
 import org.jetbrains.kotlin.backend.common.ir.ir2stringWhole
@@ -51,12 +50,11 @@ import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.typeUtil.isNothing
 import org.jetbrains.kotlin.types.typeUtil.isUnit
-import org.jetbrains.kotlin.types.typeUtil.makeNotNullable
 
-private fun computeErasure(type: KotlinType, erasure: MutableList<KotlinType>) {
+private fun computeErasure(type: KotlinType, erasure: MutableList<ClassDescriptor>) {
     val descriptor = type.constructor.declarationDescriptor
     when (descriptor) {
-        is ClassDescriptor -> erasure += type.makeNotNullable()
+        is ClassDescriptor -> erasure += descriptor
         is TypeParameterDescriptor -> {
             descriptor.upperBounds.forEach {
                 computeErasure(it, erasure)
@@ -66,8 +64,8 @@ private fun computeErasure(type: KotlinType, erasure: MutableList<KotlinType>) {
     }
 }
 
-internal fun KotlinType.erasure(): List<KotlinType> {
-    val result = mutableListOf<KotlinType>()
+internal fun KotlinType.erasure(): List<ClassDescriptor> {
+    val result = mutableListOf<ClassDescriptor>()
     computeErasure(this, result)
     return result
 }
@@ -450,6 +448,12 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                 { DataFlowIR.Node.Variable(mutableListOf(), false) }
         )
 
+        private fun choosePrimary(erasure: List<ClassDescriptor>): ClassDescriptor {
+            if (erasure.size == 1) return erasure[0]
+            // A parameter with constraints - choose class if exists.
+            return erasure.singleOrNull { !it.isInterface } ?: context.builtIns.any
+        }
+
         fun build(): DataFlowIR.Function {
             expressions.forEach { getNode(it) }
             val returnsNode = DataFlowIR.Node.Variable(returnValues.map { expressionToEdge(it) }, true)
@@ -463,11 +467,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                     (if (descriptor.isSuspend) listOf(continuationParameter!!) else emptyList())
 
             val parameterTypes = (allParameters.map { it.type } + (if (descriptor.isSuspend) listOf(continuationType) else emptyList()))
-                    .map {
-                        val erasure = it.erasure().map { it.constructor.declarationDescriptor as ClassDescriptor }
-                        val superClass = erasure.singleOrNull() ?: erasure.atMostOne { !it.isInterface } ?: context.builtIns.any
-                        symbolTable.mapClass(superClass)
-                    }
+                    .map { symbolTable.mapClass(choosePrimary(it.erasure())) }
                     .toTypedArray()
             return DataFlowIR.Function(
                     symbol         = symbolTable.mapFunction(descriptor),
