@@ -213,11 +213,18 @@ internal interface CodeContext {
     /**
      * Returns owning returnable block scope [ReturnableBlockScope].
      *
-     * @returns the requested value if in the class scope or null.
+     * @returns the requested value if in the returnableBlockScope scope or null.
      */
     fun returnableBlockScope(): CodeContext?
 
+    /**
+     * Returns location information for given source location [LocationInfo].
+     */
     fun location(line:Int, column: Int): LocationInfo?
+
+    /**
+     * Returns [DIScopeOpaqueRef] instance for corresponding scope.
+     */
     fun scope(): DIScopeOpaqueRef?
 }
 
@@ -1474,14 +1481,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
         override fun returnableBlockScope(): CodeContext? = this
 
-        override fun location(line: Int, column: Int): LocationInfo? {
-            return scope?.let{
-                LocationInfo(
-                        it,
-                        line,
-                        column)
-            }
-        }
 
         /**
          * Note: DILexicalBlocks aren't nested, they should be scoped with the parent function.
@@ -1502,7 +1501,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     private open inner class FileScope(val file:IrFile) : InnerScopeImpl() {
         override fun fileScope(): CodeContext? = this
 
-        override fun location(line: Int, column: Int) = scope?.let {LocationInfo(it, line, column) }
+        override fun location(line: Int, column: Int) = scope()?.let {LocationInfo(it, line, column) }
 
         @Suppress("UNCHECKED_CAST")
         private val scope by lazy {
@@ -1748,7 +1747,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     private fun IrFile.file(): DIFileRef {
         return context.debugInfo.files.getOrPut(this.fileEntry.name) {
             val path = this.fileEntry.name.toFileAndFolder()
-            val file = DICreateFile(context.debugInfo.builder, path.file, path.folder)!!
             DICreateCompilationUnit(
                     builder     = context.debugInfo.builder,
                     lang        = DwarfLanguage.DW_LANG_Kotlin.value,
@@ -1758,8 +1756,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                     isOptimized = 0,
                     flags       = "",
                     rv          = DWARF.runtimeVersion)
-            file
-
+            DICreateFile(context.debugInfo.builder, path.file, path.folder)!!
         }
     }
 
