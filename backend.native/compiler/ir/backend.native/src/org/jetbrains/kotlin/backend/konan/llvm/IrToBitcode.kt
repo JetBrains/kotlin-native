@@ -658,13 +658,12 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 "${declaration.descriptor.containingDeclaration}::${ir2string(declaration)}")
     }
 
-    private fun IrFunction.location(line: Int, column:Int): LocationInfo? {
-        return if (context.shouldContainDebugInfo()) LocationInfo(
+    private fun IrFunction.location(line: Int, column:Int) =
+            if (context.shouldContainDebugInfo()) LocationInfo(
                 scope = scope()!!,
                 line = line,
                 column = column)
-        else null
-    }
+            else null
 
     //-------------------------------------------------------------------------//
 
