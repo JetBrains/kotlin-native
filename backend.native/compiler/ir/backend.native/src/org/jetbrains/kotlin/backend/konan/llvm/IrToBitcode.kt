@@ -1766,7 +1766,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     @Suppress("UNCHECKED_CAST")
     private fun FunctionDescriptor.scope(startLine:Int): DIScopeOpaqueRef? {
-        if (!context.llvmDeclarations.hasFunction(this) || !context.shouldContainDebugInfo())
+        if (codegen.isExternal(this) || !context.shouldContainDebugInfo())
             return null
         return context.debugInfo.subprograms.getOrPut(codegen.llvmFunction(this)) {
             memScoped {
