@@ -577,8 +577,15 @@ internal object Devirtualization {
                 if (entryPoint == null && symbol is DataFlowIR.FunctionSymbol.Public && moduleDFG.functions.containsKey(symbol)) {
                     // Exported function from the current module.
                     function.parameterTypes.forEachIndexed { index, type ->
-                        if (type.resolved().isFinal) return@forEachIndexed
-                        constraintGraph.virtualNode.addEdge(parameters[index])
+                        val resolvedType = type.resolved()
+                        val node = if (!resolvedType.isFinal)
+                                       constraintGraph.virtualNode
+                                   else {
+                                       constraintGraph.concreteClasses.getOrPut(resolvedType) {
+                                           sourceNode(concreteType(resolvedType)) { "Class\$$resolvedType" }
+                                       }
+                                   }
+                        node.addEdge(parameters[index])
                     }
                 }
 
