@@ -102,6 +102,19 @@ internal class LinkStage(val context: Context) {
         return combinedWasm
     }
 
+    private fun llvmLinkAndLlc(bitcodeFiles: List<BitcodeFile>): String {
+        val combinedBc = temporary("combined", ".bc")
+        hostLlvmTool("llvm-link", bitcodeFiles + listOf("-o", combinedBc))
+
+        val optimizedBc = temporary("optimized", ".bc")
+        hostLlvmTool("opt", listOf(combinedBc, "-o=$optimizedBc", "-O3"))
+
+        val combinedO = temporary("combined", ".o")
+        hostLlvmTool("llc", listOf(combinedBc, "-filetype=obj", "-o", combinedO, "-function-sections", "-data-sections"))
+
+        return combinedO
+    }
+
     private fun asLinkerArgs(args: List<String>): List<String> {
         if (linker.useCompilerDriverAsLinker) {
             return args
@@ -190,11 +203,15 @@ internal class LinkStage(val context: Context) {
 
         val phaser = PhaseManager(context)
         phaser.phase(KonanPhase.OBJECT_FILES) {
-            objectFiles = listOf( 
-                if (target == KonanTarget.WASM32)
-                    bitcodeToWasm(bitcodeFiles) 
-                else 
-                    llvmLto(bitcodeFiles)
+            objectFiles = listOf(
+                when (target) {
+                    KonanTarget.WASM32
+                        -> bitcodeToWasm(bitcodeFiles)
+                    KonanTarget.ZEPHYR
+                        -> llvmLinkAndLlc(bitcodeFiles)
+                    else
+                        -> llvmLto(bitcodeFiles)
+                }
             )
         }
         phaser.phase(KonanPhase.LINKER) {

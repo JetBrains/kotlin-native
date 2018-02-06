@@ -24,7 +24,8 @@ enum class Family(val exeSuffix:String, val dynamicPrefix: String, val dynamicSu
     LINUX   ("kexe", "lib", "so"   ),
     WINDOWS ("exe" , ""   , "dll"  ),
     ANDROID ("so"  , "lib", "so"   ),
-    WASM    ("wasm", ""   , "wasm" )
+    WASM    ("wasm", ""   , "wasm" ),
+    ZEPHYR  ("o"   , "lib", "a"    )
 }
 
 enum class Architecture(val bitness: Int) {
@@ -47,7 +48,8 @@ enum class KonanTarget(val family: Family, val architecture: Architecture, val d
     RASPBERRYPI(    Family.LINUX,       Architecture.ARM32,     "raspberrypi"),
     LINUX_MIPS32(   Family.LINUX,       Architecture.MIPS32,    "linux_mips32"),
     LINUX_MIPSEL32( Family.LINUX,       Architecture.MIPSEL32,  "linux_mipsel32"),
-    WASM32(         Family.WASM,        Architecture.WASM32,    "wasm32");
+    WASM32(         Family.WASM,        Architecture.WASM32,    "wasm32"),
+    ZEPHYR(         Family.ZEPHYR,      Architecture.ARM32,     "zephyr");
 }
 
 fun hostTargetSuffix(host: KonanTarget, target: KonanTarget) =
@@ -168,12 +170,13 @@ class TargetManager(val userRequest: String? = null) {
             when (host) {
                 KonanTarget.LINUX   -> {
                     KonanTarget.LINUX.enabled = true
-                    KonanTarget.RASPBERRYPI.enabled = true
+                    /*KonanTarget.RASPBERRYPI.enabled = true
                     KonanTarget.LINUX_MIPS32.enabled = true
                     KonanTarget.LINUX_MIPSEL32.enabled = true
                     KonanTarget.ANDROID_ARM32.enabled = true
-                    KonanTarget.ANDROID_ARM64.enabled = true
+                    KonanTarget.ANDROID_ARM64.enabled = true*/
                     KonanTarget.WASM32.enabled = true
+                    KonanTarget.ZEPHYR.enabled = true
                 }
                 KonanTarget.MINGW -> {
                     KonanTarget.MINGW.enabled = true

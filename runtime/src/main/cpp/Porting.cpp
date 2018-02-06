@@ -32,11 +32,13 @@
 
 #include <chrono>
 
+#include "Common.h"
 #include "Porting.h"
 
-#ifdef KONAN_WASM
+#if KONAN_WASM || __ZEPHYR__
 extern "C" void Konan_abort(const char*);
 extern "C" void Konan_exit(int32_t status);
+extern "C" size_t strnlen(const char* buffer, size_t maxSize);
 #endif
 
 namespace konan {
@@ -70,9 +72,13 @@ void consoleErrorUtf8(const void* utf8, uint32_t sizeBytes) {
 }
 
 uint32_t consoleReadUtf8(void* utf8, uint32_t maxSizeBytes) {
+#ifdef __ZEPHYR__
+  return 0;
+#else
   char* result = ::fgets(reinterpret_cast<char*>(utf8), maxSizeBytes - 1, stdin);
   if (result == nullptr) return 0;
   return ::strlen(result);
+#endif
 }
 
 #if KONAN_INTERNAL_SNPRINTF
@@ -124,7 +130,7 @@ static void onThreadExitInit() {
 
 void onThreadExit(void (*destructor)()) {
 #if KONAN_NO_THREADS
-#ifdef KONAN_WASM
+#if KONAN_WASM || __ZEPHYR__
   // No way to do that.
 #else
 #error "How to do onThreadExit()?"
@@ -141,11 +147,11 @@ void onThreadExit(void (*destructor)()) {
 }
 
 // Process execution.
-void abort() {
+void abort(void) {
   ::abort();
 }
 
-#ifdef KONAN_WASM
+#if KONAN_WASM || __ZEPHYR__
 void exit(int32_t status) {
   Konan_exit(status);
 }
@@ -159,7 +165,7 @@ void exit(int32_t status) {
 // memcpy/memmove are not here intentionally, as frequently implemented/optimized
 // by C compiler.
 void* memmem(const void *big, size_t bigLen, const void *little, size_t littleLen) {
-#if KONAN_WINDOWS || KONAN_WASM
+#if KONAN_WINDOWS || KONAN_WASM || __ZEPHYR__
   for (size_t i = 0; i + littleLen <= bigLen; ++i) {
     void* pos = ((char*)big) + i;
     if (::memcmp(little, pos, littleLen) == 0) return pos;
@@ -205,7 +211,13 @@ void free(void* pointer) {
 
 #if KONAN_INTERNAL_NOW
 
+#ifdef __ZEPHYR__
+void Konan_date_now(uint64_t* arg) {
+    //TODO
+}
+#else
 extern "C" void Konan_date_now(uint64_t*);
+#endif
 
 uint64_t getTimeMillis() {
     uint64_t now;
@@ -302,10 +314,17 @@ long getpagesize() {
 }  // namespace konan
 
 extern "C" {
-#ifdef KONAN_WASM
+// TODO: get rid of these.
 
-    // TODO: get rid of these.
+#if KONAN_WASM || __ZEPHYR__
+
+    void _ZNKSt3__120__vector_base_commonILb1EE20__throw_length_errorEv(void) {
+        Konan_abort("TODO: throw_length_error not implemented.");
+    }
     void _ZNKSt3__220__vector_base_commonILb1EE20__throw_length_errorEv(void) {
+        Konan_abort("TODO: throw_length_error not implemented.");
+    }
+    void _ZNKSt3__121__basic_string_commonILb1EE20__throw_length_errorEv(void) {
         Konan_abort("TODO: throw_length_error not implemented.");
     }
     void _ZNKSt3__221__basic_string_commonILb1EE20__throw_length_errorEv(void) {
@@ -334,6 +353,9 @@ extern "C" {
         }
         return prime;
     }
+    int _ZNSt3__112__next_primeEj(unsigned long n) {
+        return _ZNSt3__212__next_primeEj(n);
+    }
     void __assert_fail(const char * assertion, const char * file, unsigned int line, const char * function) {
         char buf[1024];
         konan::snprintf(buf, sizeof(buf), "%s:%d in %s: runtime assert: %s\n", file, line, function, assertion);
@@ -351,6 +373,24 @@ extern "C" {
     }
 
     // Some string.h functions.
+
+    void *memset(void *b, int c, size_t len) {
+        for (long i = 0; i != len; ++i) {
+            *((char*)b + i) = c;
+        }
+        return b;
+    }
+
+    size_t strnlen(const char *s, size_t maxlen) {
+        for (long i = 0; i<=maxlen; ++i) {
+            if (s[i] == 0) return i;
+        }
+        return maxlen;
+    }
+
+#endif /* KONAN_WASM || __ZEPHYR__ */
+
+#if KONAN_WASM
 
     void *memcpy(void *dst, const void *src, size_t n) {
         for (long i = 0; i != n; ++i)
@@ -378,25 +418,32 @@ extern "C" {
         return 0;
     }
 
-    void *memset(void *b, int c, size_t len) {
-        for (long i = 0; i != len; ++i) {
-            *((char*)b + i) = c;
-        }
-        return b;
-    }
-
     size_t strlen(const char *s) {
         for (long i = 0;; ++i) {
             if (s[i] == 0) return i;
         }
     }
 
-    size_t strnlen(const char *s, size_t maxlen) {
-        for (long i = 0; i<=maxlen; ++i) {
-            if (s[i] == 0) return i;
-        }
-        return maxlen;
+#endif /* KONAN_WASM */
+
+#if __ZEPHYR__
+
+    RUNTIME_USED void Konan_abort(const char*) {
+        //TODO
+        for (;;);
     }
-#endif
+
+    RUNTIME_USED void* __cxa_begin_catch(void* exceptionObject) {
+        //TODO
+        Konan_abort("__cxa_begin_catch");
+        return 0;
+    }
+
+    RUNTIME_USED void __cxa_end_catch(void) {
+        //TODO
+        Konan_abort("__cxa_end_catch");
+    }
+
+#endif /* __ZEPHYR__ */
 
 }
