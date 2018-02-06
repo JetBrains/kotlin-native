@@ -1125,11 +1125,14 @@ uintptr_t MergeFrames(ObjHeader* param, uintptr_t current) {
   auto container = param->container();
   switch (container->refCount_ & CONTAINER_TAG_MASK) {
     case CONTAINER_TAG_PERMANENT: return current;
-    case CONTAINER_TAG_NORMAL: return -1;
-    default:
-      auto chunk = reinterpret_cast<ContainerChunk*>(container) - 1;
-      auto paramFrame = reinterpret_cast<uintptr_t>(chunk->arena->frame_) | ARENA_BIT;
-      return paramFrame > current ? paramFrame : current;
+
+    case CONTAINER_TAG_STACK: {
+        auto chunk = reinterpret_cast<ContainerChunk*>(container) - 1;
+        auto paramFrame = reinterpret_cast<uintptr_t>(chunk->arena->frame_) | ARENA_BIT;
+        return paramFrame > current ? paramFrame : current;
+      }
+
+    default: return -1;
   }
 }
 
