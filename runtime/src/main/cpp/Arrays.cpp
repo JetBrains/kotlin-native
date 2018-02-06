@@ -39,6 +39,14 @@ static inline void copyImpl(KConstRef thiz, KInt fromIndex,
           count * sizeof(T));
 }
 
+namespace {
+
+const ArrayHeader anEmptyArray = {
+  theArrayTypeInfo, /* permanent object */ 0, /* element count */ 0
+};
+
+}  // namespace
+
 extern "C" {
 
 // TODO: those must be compiler intrinsics afterwards.
@@ -98,11 +106,7 @@ void Kotlin_Array_copyImpl(KConstRef thiz, KInt fromIndex,
 }
 
 // Arrays.kt
-
 OBJ_GETTER0(Kotlin_emptyArray) {
-  static const ArrayHeader anEmptyArray = {
-    theArrayTypeInfo, /* permanent object */ 0, 0 /* element count */
-  };
   RETURN_OBJ(const_cast<ObjHeader*>(anEmptyArray.obj()));
 }
 
