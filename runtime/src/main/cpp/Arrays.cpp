@@ -98,6 +98,14 @@ void Kotlin_Array_copyImpl(KConstRef thiz, KInt fromIndex,
 }
 
 // Arrays.kt
+
+OBJ_GETTER0(Kotlin_emptyArray) {
+  static const ArrayHeader anEmptyArray = {
+    theArrayTypeInfo, /* permanent object */ 0, 0 /* element count */
+  };
+  RETURN_OBJ(const_cast<ObjHeader*>(anEmptyArray.obj()));
+}
+
 KByte Kotlin_ByteArray_get(KConstRef thiz, KInt index) {
   const ArrayHeader* array = thiz->array();
   if (static_cast<uint32_t>(index) >= array->count_) {
