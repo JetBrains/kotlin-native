@@ -29,9 +29,12 @@ data class SharedDataMember(val double: Double)
 
 data class SharedData(val string: String, val int: Int, val member: SharedDataMember)
 
+// pthread_t is Long on Linux and a pointer on other systems. Ensure we can print it correctly.
+fun Any?.asString() = if (this is CPointer<*>) rawValue.toString() else toString()
+
 fun dumpShared(prefix: String): Unit {
     println("""
-            $prefix: ${pthread_self().rawValue} x=${sharedData.x} f=${sharedData.f} s=${sharedData.string!!.toKString()}
+            $prefix: ${pthread_self().asString()} x=${sharedData.x} f=${sharedData.f} s=${sharedData.string!!.toKString()}
             """.trimIndent())
 }
 
