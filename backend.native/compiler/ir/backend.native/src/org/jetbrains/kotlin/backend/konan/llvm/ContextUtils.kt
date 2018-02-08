@@ -362,6 +362,8 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
 
     val staticData = StaticData(context)
 
+    private val target = context.config.targetManager.target
+
     val runtimeFile = context.config.distribution.runtime
     val runtime = Runtime(runtimeFile) // TODO: dispose
 
@@ -411,8 +413,19 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
         null
     }
 
-    private val personalityFunctionName = when (context.config.targetManager.target) {
+    val tlsMode by lazy {
+        when (target) {
+            KonanTarget.WASM32,
+            KonanTarget.ZEPHYR
+                -> LLVMThreadLocalMode.LLVMNotThreadLocal
+            else
+                -> LLVMThreadLocalMode.LLVMGeneralDynamicTLSModel
+        }
+    }
+
+    private val personalityFunctionName = when (target) {
         KonanTarget.MINGW -> "__gxx_personality_seh0"
+        KonanTarget.ZEPHYR -> "__gcc_personality_v0"
         else -> "__gxx_personality_v0"
     }
 

@@ -44,6 +44,17 @@ extern "C" KInt Konan_run_start(int argc, const char** argv) {
     return Konan_start(args.obj());
 }
 
+#ifdef __ZEPHYR__
+extern "C" RUNTIME_USED int Konan_main(void) {
+  Kotlin_initRuntimeIfNeeded();
+
+  KInt exitStatus = Konan_run_start(0, nullptr);
+
+  Kotlin_deinitRuntimeIfNeeded();
+
+  return exitStatus;
+}
+#else
 extern "C" RUNTIME_USED int Konan_main(int argc, const char** argv) {
   Kotlin_initRuntimeIfNeeded();
 
@@ -53,6 +64,7 @@ extern "C" RUNTIME_USED int Konan_main(int argc, const char** argv) {
 
   return exitStatus;
 }
+#endif
 
 #ifdef KONAN_WASM
 // Before we pass control to Konan_main, we need to obtain argv elements
