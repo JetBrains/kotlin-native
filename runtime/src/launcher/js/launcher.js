@@ -135,7 +135,7 @@ function stackTop() {
 
 function runGlobalInitializers(exports) {
     for (var property in exports) {
-        if (property.startsWith("Konan_global_ctor_")) {
+        if (property.startsWith("_Konan_constructors")) {
             exports[property]();
         }
     }
