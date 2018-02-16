@@ -2571,6 +2571,9 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             val globalCtors = context.llvm.staticData.placeGlobalArray("llvm.global_ctors", kCtorType,
                     listOf(createGlobalCtor(ctorFunction)))
             LLVMSetLinkage(globalCtors.llvmGlobal, LLVMLinkage.LLVMAppendingLinkage)
+            if (context.config.produce == CompilerOutputKind.PROGRAM) {
+                LLVMAddAlias(context.llvmModule, ctorFunction.type, ctorFunction, "_Konan_init_main")
+            }
         }
     }
 
