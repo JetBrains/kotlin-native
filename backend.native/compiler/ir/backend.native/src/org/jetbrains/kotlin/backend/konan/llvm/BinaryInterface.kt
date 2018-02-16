@@ -276,3 +276,6 @@ internal val ClassDescriptor.typeInfoHasVtableAttached: Boolean
 internal val ModuleDescriptor.privateFunctionsTableSymbolName get() = "private_functions_${name.asString()}"
 
 internal val ModuleDescriptor.privateClassesTableSymbolName get() = "private_classes_${name.asString()}"
+
+internal val ModuleDescriptor.moduleConstructorName
+    get() = "_Konan_init_${name}"

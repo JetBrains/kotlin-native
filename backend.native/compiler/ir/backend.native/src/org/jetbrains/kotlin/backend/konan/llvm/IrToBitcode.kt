@@ -27,8 +27,8 @@ import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.backend.konan.objcexport.ObjCExport
 import org.jetbrains.kotlin.backend.konan.optimizations.*
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
+import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.descriptors.*
-import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
@@ -357,8 +357,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     //-------------------------------------------------------------------------//
 
-    val kVoidFuncType = LLVMFunctionType(LLVMVoidType(), null, 0, 0)
-    val kInitFuncType = LLVMFunctionType(LLVMVoidType(), cValuesOf(LLVMInt32Type()), 1, 0)
+    val kVoidFuncType = LLVMFunctionType(LLVMVoidType(), null, 0, 0)!!
+    val kInitFuncType = LLVMFunctionType(LLVMVoidType(), cValuesOf(LLVMInt32Type()), 1, 0)!!
     val kNodeInitType = LLVMGetTypeByName(context.llvmModule, "struct.InitNode")!!
     //-------------------------------------------------------------------------//
 
@@ -2527,7 +2527,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     //-------------------------------------------------------------------------//
     fun appendStaticInitializers(initializers: List<LLVMValueRef>) {
-        val ctorName = "_Konan_init_${context.moduleDescriptor.name}"
+        val specifics = context.config.configuration.get(CommonConfigurationKeys.LANGUAGE_VERSION_SETTINGS)!!
+        val ctorName = context.moduleDescriptor.moduleConstructorName
         val ctorFunction = LLVMAddFunction(context.llvmModule, ctorName, kVoidFuncType)!!   // Create constructor function.
         generateFunction(codegen, ctorFunction) {
             val initGuard = LLVMAddGlobal(context.llvmModule, int32Type, "Konan_init_guard")
@@ -2547,13 +2548,13 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 appendingTo(bbNeedInit) {
                     LLVMBuildStore(builder, kImmOne, initGuard)
                     // Call in topo-sorted order initialzers of libraries we immediately depend upon.
-                    context.moduleDescriptor.allDependencyModules.toList().filter {
-                        (it.origin != SyntheticModules) }.forEach {
-                        val dependencyCtor = "_Konan_init_${it.name}"
-                        val dependencyCtorFunction = LLVMAddFunction(context.llvmModule, dependencyCtor, kVoidFuncType)!!
-                        call(dependencyCtorFunction, emptyList(), Lifetime.IRRELEVANT,
-                                exceptionHandler = ExceptionHandler.Caller, verbatim = true)
-                    }
+                    context.llvm.librariesToLink.map { it.moduleDescriptor(specifics) }.filter {
+                            (it.origin != SyntheticModules) }.forEach {
+                            val dependencyCtorFunction = context.llvm.externalFunction(
+                                    it.moduleConstructorName, kVoidFuncType, CurrentKonanModule)
+                            call(dependencyCtorFunction, emptyList(), Lifetime.IRRELEVANT,
+                                    exceptionHandler = ExceptionHandler.Caller, verbatim = true)
+                        }
                     // TODO: shall we put that into the try block?
                     initializers.forEach {
                         call(it, emptyList(), Lifetime.IRRELEVANT,
@@ -2564,9 +2565,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             }
         }
         LLVMSetLinkage(ctorFunction, LLVMLinkage.LLVMExternalLinkage)
-        // TODO: shall we have a getter for bitcode vs machine code produce targets?
-        if (context.config.produce != CompilerOutputKind.LIBRARY &&
-                context.config.produce != CompilerOutputKind.BITCODE) {
+        if (context.config.produce.isNativeBinary) {
             // Append initializers of global variables in "llvm.global_ctors" array
             val globalCtors = context.llvm.staticData.placeGlobalArray("llvm.global_ctors", kCtorType,
                     listOf(createGlobalCtor(ctorFunction)))
