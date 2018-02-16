@@ -2527,41 +2527,37 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     //-------------------------------------------------------------------------//
     fun appendStaticInitializers(initializers: List<LLVMValueRef>) {
-        val specifics = context.config.configuration.get(CommonConfigurationKeys.LANGUAGE_VERSION_SETTINGS)!!
-        val ctorName = context.moduleDescriptor.moduleConstructorName
+        val ctorName = context.config.moduleId.moduleConstructorName
         val ctorFunction = LLVMAddFunction(context.llvmModule, ctorName, kVoidFuncType)!!   // Create constructor function.
         generateFunction(codegen, ctorFunction) {
             val initGuard = LLVMAddGlobal(context.llvmModule, int32Type, "Konan_init_guard")
             LLVMSetInitializer(initGuard, kImmZero)
             LLVMSetLinkage(initGuard, LLVMLinkage.LLVMPrivateLinkage)
-            using(FunctionScope(ctorFunction, ctorName, it)) {
-                val bbInited = basicBlock("inited", null)
-                val bbNeedInit = basicBlock("need_init", null)
+            val bbInited = basicBlock("inited", null)
+            val bbNeedInit = basicBlock("need_init", null)
 
-                val value = LLVMBuildLoad(builder, initGuard, "")!!
-                condBr(functionGenerationContext.icmpEq(value, kImmZero), bbNeedInit, bbInited)
+            val value = LLVMBuildLoad(builder, initGuard, "")!!
+            condBr(icmpEq(value, kImmZero), bbNeedInit, bbInited)
 
-                appendingTo(bbInited) {
-                    ret(null)
+            appendingTo(bbInited) {
+                ret(null)
+            }
+
+            appendingTo(bbNeedInit) {
+                LLVMBuildStore(builder, kImmOne, initGuard)
+                // Call in topo-sorted order initialzers of libraries we immediately depend upon.
+                context.config.immediateNeededLibraries.forEach {
+                    val dependencyCtorFunction = context.llvm.externalFunction(
+                            it.moduleConstructorName, kVoidFuncType, CurrentKonanModule)
+                    call(dependencyCtorFunction, emptyList(), Lifetime.IRRELEVANT,
+                            exceptionHandler = ExceptionHandler.Caller, verbatim = true)
                 }
-
-                appendingTo(bbNeedInit) {
-                    LLVMBuildStore(builder, kImmOne, initGuard)
-                    // Call in topo-sorted order initialzers of libraries we immediately depend upon.
-                    context.llvm.librariesToLink.map { it.moduleDescriptor(specifics) }.filter {
-                            (it.origin != SyntheticModules) }.forEach {
-                            val dependencyCtorFunction = context.llvm.externalFunction(
-                                    it.moduleConstructorName, kVoidFuncType, CurrentKonanModule)
-                            call(dependencyCtorFunction, emptyList(), Lifetime.IRRELEVANT,
-                                    exceptionHandler = ExceptionHandler.Caller, verbatim = true)
-                        }
-                    // TODO: shall we put that into the try block?
-                    initializers.forEach {
-                        call(it, emptyList(), Lifetime.IRRELEVANT,
-                                exceptionHandler = ExceptionHandler.Caller, verbatim = true)
-                    }
-                    ret(null)
+                // TODO: shall we put that into the try block?
+                initializers.forEach {
+                    call(it, emptyList(), Lifetime.IRRELEVANT,
+                            exceptionHandler = ExceptionHandler.Caller, verbatim = true)
                 }
+                ret(null)
             }
         }
         LLVMSetLinkage(ctorFunction, LLVMLinkage.LLVMExternalLinkage)
@@ -2571,7 +2567,9 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                     listOf(createGlobalCtor(ctorFunction)))
             LLVMSetLinkage(globalCtors.llvmGlobal, LLVMLinkage.LLVMAppendingLinkage)
             if (context.config.produce == CompilerOutputKind.PROGRAM) {
-                LLVMAddAlias(context.llvmModule, ctorFunction.type, ctorFunction, "_Konan_init_main")
+                // Provide an optional handle for calling .ctors, if mechanism
+                // is not available on the platform (WASM, embedded).
+                LLVMAddAlias(context.llvmModule, ctorFunction.type, ctorFunction, "_Konan_constructors")
             }
         }
     }
