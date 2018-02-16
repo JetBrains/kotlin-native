@@ -2527,8 +2527,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     //-------------------------------------------------------------------------//
     fun appendStaticInitializers(initializers: List<LLVMValueRef>) {
-        if (initializers.isEmpty()) return
-
         val ctorName = "_Konan_init_${context.moduleDescriptor.name}"
         val ctorFunction = LLVMAddFunction(context.llvmModule, ctorName, kVoidFuncType)!!   // Create constructor function.
         generateFunction(codegen, ctorFunction) {
