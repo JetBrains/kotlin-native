@@ -2544,12 +2544,15 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
             appendingTo(bbNeedInit) {
                 LLVMBuildStore(builder, kImmOne, initGuard)
-                // Call in topo-sorted order initialzers of libraries we immediately depend upon.
-                context.config.immediateNeededLibraries.forEach {
-                    val dependencyCtorFunction = context.llvm.externalFunction(
-                            it.moduleConstructorName, kVoidFuncType, CurrentKonanModule)
-                    call(dependencyCtorFunction, emptyList(), Lifetime.IRRELEVANT,
-                            exceptionHandler = ExceptionHandler.Caller, verbatim = true)
+
+                if (context.config.produce.isNativeBinary) {
+                    // Call in topo-sorted order initialzers of libraries we immediately depend upon.
+                    context.llvm.librariesToLink.reversed().forEach {
+                        val dependencyCtorFunction = context.llvm.externalFunction(
+                                it.moduleConstructorName, kVoidFuncType, CurrentKonanModule)
+                        call(dependencyCtorFunction, emptyList(), Lifetime.IRRELEVANT,
+                                exceptionHandler = ExceptionHandler.Caller, verbatim = true)
+                    }
                 }
                 // TODO: shall we put that into the try block?
                 initializers.forEach {

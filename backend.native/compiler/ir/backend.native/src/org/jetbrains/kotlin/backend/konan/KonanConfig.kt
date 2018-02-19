@@ -95,19 +95,6 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
         result
     }
 
-    internal val immediateNeededLibraries: List<LibraryReaderImpl> by lazy {
-        val noStdlib = configuration.getBoolean(KonanConfigKeys.NOSTDLIB)
-        val resolved = resolver.resolveImmediateLibraries(libraryNames, target,
-                currentAbiVersion,
-                noStdLib = noStdlib,
-                noDefaultLibs = configuration.getBoolean(KonanConfigKeys.NODEFAULTLIBS),
-                logger = { msg -> configuration.report(STRONG_WARNING, msg) })
-        val purged = resolved.purgeUnneeded(this)
-        // TODO: fix this ugly hack, we sometimes miss existing stdlib dependency, for example
-        // on :backend.native:tests:bridges_linkTest.
-        if (!noStdlib) { purged + resolved.single {it.uniqueName == "stdlib" } } else { purged }
-    }
-
     fun librariesWithDependencies(moduleDescriptor: ModuleDescriptor?): List<KonanLibraryReader> {
         if (moduleDescriptor == null) error("purgeUnneeded() only works correctly after resolve is over, and we have successfully marked package files as needed or not needed.")
 
