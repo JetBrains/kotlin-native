@@ -277,11 +277,8 @@ internal val ModuleDescriptor.privateFunctionsTableSymbolName get() = "private_f
 
 internal val ModuleDescriptor.privateClassesTableSymbolName get() = "private_classes_${name.asString()}"
 
-internal val ModuleDescriptor.moduleConstructorName
-    get() = "_Konan_init_${name}"
-
 internal val String.moduleConstructorName
     get() = "_Konan_init_${this}"
 
 internal val KonanLibraryReader.moduleConstructorName
-    get() = "_Konan_init_${uniqueName}"
+    get() = uniqueName.moduleConstructorName

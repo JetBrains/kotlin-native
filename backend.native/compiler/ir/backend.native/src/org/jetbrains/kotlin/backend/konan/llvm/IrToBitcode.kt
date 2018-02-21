@@ -2546,8 +2546,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 LLVMBuildStore(builder, kImmOne, initGuard)
 
                 if (context.config.produce.isNativeBinary) {
-                    // Call in topo-sorted order initialzers of libraries we immediately depend upon.
-                    context.llvm.librariesToLink.reversed().forEach {
+                    context.llvm.librariesToLink.forEach {
                         val dependencyCtorFunction = context.llvm.externalFunction(
                                 it.moduleConstructorName, kVoidFuncType, CurrentKonanModule)
                         call(dependencyCtorFunction, emptyList(), Lifetime.IRRELEVANT,
