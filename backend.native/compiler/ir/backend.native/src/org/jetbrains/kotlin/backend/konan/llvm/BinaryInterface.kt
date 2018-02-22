@@ -150,11 +150,9 @@ private fun typeToHashString(type: KotlinType)
 private val FunctionDescriptor.signature: String
     get() {
         val extensionReceiverPart = this.extensionReceiverParameter?.let { "@${typeToHashString(it.type)}." } ?: ""
-
         val argsPart = this.valueParameters.map {
-            typeToHashString(it.type)
+            "${typeToHashString(it.type)}${if (it.isVararg) "_VarArg" else ""}"
         }.joinToString(";")
-
         // Distinguish value types and references - it's needed for calling virtual methods through bridges.
         // Also is function has type arguments - frontend allows exactly matching overrides.
         val signatureSuffix =
@@ -164,9 +162,7 @@ private val FunctionDescriptor.signature: String
                     returnType.let { it != null && !KotlinBuiltIns.isUnitOrNullableUnit(it) } -> typeToHashString(returnType!!)
                     else -> ""
                 }
-        // Differentiate vararg vs. non-vararg functions.
-        val varArgSuffix = if (this.valueParameters.any { it.isVararg }) "VarArg" else ""
-        return "$extensionReceiverPart($argsPart)$signatureSuffix$varArgSuffix"
+        return "$extensionReceiverPart($argsPart)$signatureSuffix"
     }
 
 // TODO: rename to indicate that it has signature included
