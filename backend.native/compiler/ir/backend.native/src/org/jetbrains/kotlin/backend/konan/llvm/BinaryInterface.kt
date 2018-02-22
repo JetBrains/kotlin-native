@@ -29,6 +29,7 @@ import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.resolve.DescriptorUtils
+import org.jetbrains.kotlin.resolve.calls.components.isVararg
 import org.jetbrains.kotlin.resolve.constants.StringValue
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.resolve.findOriginalTopMostOverriddenDescriptors
@@ -163,8 +164,9 @@ private val FunctionDescriptor.signature: String
                     returnType.let { it != null && !KotlinBuiltIns.isUnitOrNullableUnit(it) } -> typeToHashString(returnType!!)
                     else -> ""
                 }
-
-        return "$extensionReceiverPart($argsPart)$signatureSuffix"
+        // Differentiate vararg vs. non-vararg functions.
+        val varArgSuffix = if (this.valueParameters.any { it.isVararg }) "VarArg" else ""
+        return "$extensionReceiverPart($argsPart)$signatureSuffix$varArgSuffix"
     }
 
 // TODO: rename to indicate that it has signature included
