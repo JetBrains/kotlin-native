@@ -412,7 +412,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     private fun createInitCtor(ctorName: String, initNodePtr: LLVMValueRef) {
         val ctorFunction = LLVMAddFunction(context.llvmModule, ctorName, kVoidFuncType)!!   // Create constructor function.
-        LLVMSetLinkage(ctorFunction, LLVMLinkage.LLVMExternalLinkage)
+        LLVMSetLinkage(ctorFunction, LLVMLinkage.LLVMPrivateLinkage)
         generateFunction(codegen, ctorFunction) {
             call(context.llvm.appendToInitalizersTail, listOf(initNodePtr))             // Add node to the tail of initializers list.
             ret(null)
