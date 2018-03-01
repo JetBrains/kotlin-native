@@ -512,9 +512,11 @@ internal object EscapeAnalysis {
 
                     PointsToGraphNodeKind.RETURN_VALUE -> {
                         when {
-                            it.parametersPointingOnUs.isNotEmpty() -> Lifetime.PARAMETERS_FIELD(it.parametersPointingOnUs.toIntArray(), true)
                             // If a value is explicitly returned.
                             returnValues.contains(node) -> Lifetime.RETURN_VALUE
+
+                            it.parametersPointingOnUs.isNotEmpty() -> Lifetime.PARAMETERS_FIELD(it.parametersPointingOnUs.toIntArray(), true)
+
                             // A value is stored into a field of the return value.
                             else -> Lifetime.INDIRECT_RETURN_VALUE
                         }

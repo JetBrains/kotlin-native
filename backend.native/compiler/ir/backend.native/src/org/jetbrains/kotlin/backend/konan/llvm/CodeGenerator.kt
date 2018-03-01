@@ -275,7 +275,8 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
     fun loadSlot(address: LLVMValueRef, isVar: Boolean, resultLifetime: Lifetime = Lifetime.IRRELEVANT, name: String = ""): LLVMValueRef {
         val value = LLVMBuildLoad(builder, address, name)!!
         if (isObjectRef(value) && isVar) {
-            val slot = lifetimeToSlot(resultLifetime)//alloca(LLVMTypeOf(value), variableLocation = null)
+            //val slot = lifetimeToSlot(resultLifetime)//alloca(LLVMTypeOf(value), variableLocation = null)
+            val slot = lifetimeToSlot(if (resultLifetime == Lifetime.RETURN_VALUE) resultLifetime else Lifetime.LOCAL)//alloca(LLVMTypeOf(value), variableLocation = null)
             storeAny(value, slot)
         }
         return value

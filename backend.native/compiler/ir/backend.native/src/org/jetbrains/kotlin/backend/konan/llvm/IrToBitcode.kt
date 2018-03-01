@@ -1993,7 +1993,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         }
 
         if (callee is IrPrivateFunctionCall)
-            return evaluatePrivateFunctionCall(callee, argsWithContinuationIfNeeded, resultLifetime)
+            return evaluatePrivateFunctionCall(callee, argsWithContinuationIfNeeded, callee.virtualCallee?.let { resultLifetime(it) } ?: resultLifetime)
 
         when {
             descriptor.origin == IrDeclarationOrigin.IR_BUILTINS_STUB ->
