@@ -30,6 +30,7 @@ import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFile
+import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.*
@@ -41,6 +42,7 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.SimpleType
+import org.jetbrains.kotlin.types.asSimpleType
 import org.jetbrains.kotlin.types.typeUtil.isSubtypeOf
 import org.jetbrains.kotlin.types.typeUtil.makeNotNullable
 import org.jetbrains.kotlin.types.typeUtil.replaceArgumentsWithStarProjections
@@ -420,47 +422,81 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
         }
     }
 
+    fun buildComparsion(lhs: IrExpression,
+                        rhs: IrExpression,
+                        type : SimpleType,
+                        comparingBuiltins : Map<SimpleType, IrSimpleFunction>) : IrCall
+    {
+        val irBuilder = context.createIrBuilder(scopeOwnerSymbol, lhs.startOffset, lhs.endOffset)
+        with (irBuilder) {
+            return when {
+                comparingBuiltins.containsKey(type) -> {
+                    val comparingBuiltIn = comparingBuiltins[type]?.symbol
+                    irCall(comparingBuiltIn!!).apply {
+                        putValueArgument(0, lhs)
+                        putValueArgument(1, rhs)
+                    }
+                }
+                else -> {
+                    val builtIns = context.irBuiltIns
+                    val comparingBuiltIn = comparingBuiltins[builtIns.int]?.symbol
+
+                    // Check if left <= right.
+                    val compareTo = symbols.getBinaryOperator(OperatorNameConventions.COMPARE_TO,
+                            lhs.type, rhs.type)
+
+                    irCall(comparingBuiltIn!!).apply {
+                        putValueArgument(0, irCallOp(compareTo, lhs, rhs))
+                        putValueArgument(1, irInt(0))
+                    }
+                }
+            }
+        }
+    }
+
     private fun DeclarationIrBuilder.buildMinValueCondition(forLoopInfo: ForLoopInfo): IrExpression {
         // Condition for a corner case: for (i in a until Int.MIN_VALUE) {}.
         // Check if forLoopInfo.bound > MIN_VALUE.
         val progressionType = forLoopInfo.progressionInfo.progressionType
-        return irCall(context.irBuiltIns.greaterFunByOperandType[context.irBuiltIns.int]?.symbol!!).apply {
-            val minConst = when {
-                progressionType.isIntProgression() -> IrConstImpl
-                        .int(startOffset, endOffset, context.builtIns.intType, Int.MIN_VALUE)
-                progressionType.isCharProgression() -> IrConstImpl
-                        .char(startOffset, endOffset, context.builtIns.charType, 0.toChar())
-                progressionType.isLongProgression() -> IrConstImpl
-                        .long(startOffset, endOffset, context.builtIns.longType, Long.MIN_VALUE)
-                else -> throw IllegalArgumentException("Unknown progression type")
-            }
-            val compareToCall = irCall(symbols.getBinaryOperator(OperatorNameConventions.COMPARE_TO,
-                    forLoopInfo.bound.descriptor.type,
-                    minConst.type)).apply {
-                dispatchReceiver = irGet(forLoopInfo.bound)
-                putValueArgument(0, minConst)
-            }
-            putValueArgument(0, compareToCall)
-            putValueArgument(1, irInt(0))
+        val builtIns = context.irBuiltIns
+
+        val compareType = when {
+            progressionType.isIntProgression() -> builtIns.int
+            progressionType.isCharProgression() -> builtIns.char
+            progressionType.isLongProgression() -> builtIns.long
+            else -> throw IllegalArgumentException("Unknown progression type")
         }
+
+        val minConst = when {
+            progressionType.isIntProgression() -> IrConstImpl
+                    .int(startOffset, endOffset, context.builtIns.intType, Int.MIN_VALUE)
+            progressionType.isCharProgression() -> IrConstImpl
+                    .char(startOffset, endOffset, context.builtIns.charType, 0.toChar())
+            progressionType.isLongProgression() -> IrConstImpl
+                    .long(startOffset, endOffset, context.builtIns.longType, Long.MIN_VALUE)
+            else -> throw IllegalArgumentException("Unknown progression type")
+        }
+
+        val comparingBuiltins = context.irBuiltIns.greaterFunByOperandType
+        return buildComparsion(irGet(forLoopInfo.bound), minConst, compareType, comparingBuiltins)
     }
 
     // TODO: Eliminate the loop if we can prove that it will not be executed.
     private fun DeclarationIrBuilder.buildEmptyCheck(loop: IrLoop, forLoopInfo: ForLoopInfo): IrExpression {
         val builtIns = context.irBuiltIns
         val increasing = forLoopInfo.progressionInfo.increasing
-        val comparingBuiltIn = if (increasing) builtIns.lessOrEqualFunByOperandType[builtIns.int]?.symbol
-        else builtIns.greaterOrEqualFunByOperandType[builtIns.int]?.symbol
 
-        // Check if inductionVariable <= last.
-        val compareTo = symbols.getBinaryOperator(OperatorNameConventions.COMPARE_TO,
-                forLoopInfo.inductionVariable.descriptor.type,
-                forLoopInfo.last.descriptor.type)
-
-        val check: IrExpression = irCall(comparingBuiltIn!!).apply {
-            putValueArgument(0, irCallOp(compareTo, irGet(forLoopInfo.inductionVariable), irGet(forLoopInfo.last)))
-            putValueArgument(1, irInt(0))
+        val loopType = when (forLoopInfo.progressionInfo.progressionType.elementType) {
+            context.builtIns.charType -> builtIns.char
+            context.builtIns.intType -> builtIns.int
+            context.builtIns.longType -> builtIns.long
+            else -> throw IllegalArgumentException("Unknown progression type")
         }
+
+        val comparingBuiltins = if (increasing) builtIns.lessOrEqualFunByOperandType
+        else builtIns.greaterOrEqualFunByOperandType
+        val check = buildComparsion(irGet(forLoopInfo.inductionVariable), irGet(forLoopInfo.last),
+                loopType, comparingBuiltins)
 
         // Process closed and open ranges in different manners.
         return if (forLoopInfo.progressionInfo.closed) {
@@ -555,6 +591,38 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
         }
         return result ?: super.visitVariable(declaration)
     }
+
+
+    override fun visitCall(call: IrCall) : IrExpression {
+        // TODO: check that it is contains on range (contains(Int): Boolean) from symbols
+        if (call.origin != IrStatementOrigin.IN) {
+            return call
+        }
+
+        val parent = call.dispatchReceiver as? IrCall
+        if (parent == null || parent.origin != IrStatementOrigin.RANGE) {
+            return call
+        }
+
+        val left = parent.dispatchReceiver as? IrConst<*>
+        val right = parent.getValueArgument(0)
+        val varCompWithLeft = (call.getValueArgument(0) as? IrGetValue)?.copy()
+        val varCompWithRight = (call.getValueArgument(0) as? IrGetValue)?.copy()
+
+        if (left == null || right == null || varCompWithLeft == null || varCompWithRight == null) {
+            return call
+        }
+
+        val builtIns = context.irBuiltIns
+        val comparingBuiltins = builtIns.lessOrEqualFunByOperandType
+        val callCheckLeft = buildComparsion(left, varCompWithLeft, left.type.asSimpleType(), comparingBuiltins)
+        val callCheckRight = buildComparsion(varCompWithRight, right, right.type.asSimpleType(), comparingBuiltins)
+
+        val irBuilder = context.createIrBuilder(scopeOwnerSymbol, call.startOffset, call.endOffset)
+        val constFalse = IrConstImpl.boolean(call.startOffset, call.endOffset, context.builtIns.booleanType, false)
+        with (irBuilder) {
+            return irIfThenElse(context.builtIns.booleanType, callCheckLeft, callCheckRight, constFalse)
+        }
+    }
     //endregion
 }
-
