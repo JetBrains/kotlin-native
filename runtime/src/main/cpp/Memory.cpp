@@ -419,9 +419,12 @@ inline bool isRefCounted(KConstRef object) {
 } // namespace
 
 extern "C" {
+
 void objc_release(void* ptr);
 void Kotlin_ObjCExport_releaseReservedObjectTail(ObjHeader* obj);
-}
+RUNTIME_NORETURN void ThrowWorkerInvalidState();
+
+}  // extern "C"
 
 inline void runDeallocationHooks(ObjHeader* obj) {
 #if KONAN_OBJC_INTEROP
@@ -499,12 +502,14 @@ inline void scheduleDestroyContainer(
 
 #if !USE_GC
 
+template <bool Atomic>
 inline void IncrementRC(ContainerHeader* container) {
-  container->incRefCount();
+  container->incRefCount<Atomic>();
 }
 
+template <bool Atomic>
 inline void DecrementRC(ContainerHeader* container, bool useCycleCollector) {
-  if (container->decRefCount() == 0) {
+  if (container->decRefCount<Atomic>() == 0) {
     FreeContainer(container);
   }
 }
@@ -515,15 +520,18 @@ inline uint32_t freeableSize(MemoryState* state) {
   return state->toFree->size();
 }
 
+template <bool Atomic>
 inline void IncrementRC(ContainerHeader* container) {
-  container->incRefCount();
+  container->incRefCount<Atomic>();
   container->setColor(CONTAINER_TAG_GC_BLACK);
 }
 
+template <bool Atomic>
 inline void DecrementRC(ContainerHeader* container, bool useCycleCollector) {
-  if (container->decRefCount() == 0) {
+  if (container->decRefCount<Atomic>() == 0) {
     FreeContainer(container);
-  } else if (useCycleCollector) { // Possible root.
+  } else if (!Atomic && useCycleCollector) { // Possible root.
+    // TODO: currently, we cannot use cycle collector for frozen objects, as it is not concurrent.
     if (container->color() != CONTAINER_TAG_GC_PURPLE) {
       container->setColor(CONTAINER_TAG_GC_PURPLE);
       if (!container->buffered()) {
@@ -618,8 +626,9 @@ void MarkGray(ContainerHeader* container) {
   traverseContainerReferredObjects(container, [](ObjHeader* ref) {
     auto childContainer = ref->container();
     RuntimeAssert(!isArena(childContainer), "A reference to local object is encountered");
-    if (!childContainer->permanent()) {
-      childContainer->decRefCount();
+
+    if (!childContainer->permanent() && !childContainer->frozen()) {
+      childContainer->decRefCount<false>();
       MarkGray<useColor>(childContainer);
     }
   });
@@ -638,7 +647,7 @@ void ScanBlack(ContainerHeader* container) {
     auto childContainer = ref->container();
     RuntimeAssert(!isArena(childContainer), "A reference to local object is encountered");
     if (!childContainer->permanent()) {
-      childContainer->incRefCount();
+      childContainer->incRefCount<false>();
       if (useColor) {
         if (childContainer->color() != CONTAINER_TAG_GC_BLACK)
           ScanBlack<useColor>(childContainer);
@@ -730,7 +739,10 @@ inline void AddRef(ContainerHeader* header) {
     case CONTAINER_TAG_PERMANENT:
       break;
     case CONTAINER_TAG_NORMAL:
-      IncrementRC(header);
+      IncrementRC<false>(header);
+      break;
+    case CONTAINER_TAG_FROZEN:
+      IncrementRC<true>(header);
       break;
     default:
       RuntimeAssert(false, "unknown container type");
@@ -746,7 +758,10 @@ inline void Release(ContainerHeader* header, bool useCycleCollector) {
     case CONTAINER_TAG_STACK:
       break;
     case CONTAINER_TAG_NORMAL:
-      DecrementRC(header, useCycleCollector);
+      DecrementRC<false>(header, useCycleCollector);
+      break;
+    case CONTAINER_TAG_FROZEN:
+      DecrementRC<true>(header, useCycleCollector);
       break;
     default:
       RuntimeAssert(false, "unknown container type");
@@ -1127,7 +1142,7 @@ void UpdateRef(ObjHeader** location, const ObjHeader* object) {
       AddRef(object);
     }
     *const_cast<const ObjHeader**>(location) = object;
-    if (old > reinterpret_cast<ObjHeader*>(1)) {
+    if (old != nullptr) {
       ReleaseRef(old);
     }
   }
@@ -1300,7 +1315,7 @@ bool hasExternalRefs(ContainerHeader* container, ContainerHeaderSet* visited) {
   bool result = container->refCount() != 0;
   traverseContainerReferredObjects(container, [&result, visited](ObjHeader* ref) {
     auto child = ref->container();
-    if (!child->permanent() && (visited->find(child) == visited->end())) {
+    if (!child->permanent() && !child->frozen() && (visited->find(child) == visited->end())) {
       result |= hasExternalRefs(child, visited);
     }
   });
@@ -1318,12 +1333,14 @@ bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
     if (!checked) {
       hasExternalRefs(container, &visited);
     } else {
-      container->decRefCount();
-      MarkGray<false>(container);
-      auto bad = hasExternalRefs(container, &visited);
-      ScanBlack<false>(container);
-      container->incRefCount();
-      if (bad) return false;
+      if (!container->permanent() && !container->frozen()) {
+        container->decRefCount<false>();
+        MarkGray<false>(container);
+        auto bad = hasExternalRefs(container, &visited);
+        ScanBlack<false>(container);
+        container->incRefCount<false>();
+        if (bad) return false;
+      }
     }
 
     for (auto it = state->toFree->begin(); it != state->toFree->end(); ++it) {
@@ -1337,6 +1354,39 @@ bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
   }
 #endif  // USE_GC
   return true;
+}
+
+/**
+ * Theory of operations.
+ *
+ * Kotlin/Native supports object graph freezing, allowing to make certain subgraph immutable and thus
+ * suitable for safe sharing amongs multiple concurrent executors. This operation recursively operates
+ * on all objects reachable from the given object, and marks them as frozen. In frozen state object's
+ * fields cannot be modified, and so, lifetime of frozen objects correlates. Practically, it means
+ * that lifetimes of all strongly connected components are fully controlled by incoming reference
+ * counters, and so if we place all members of strongly connected component to the single container
+ * it could be correctly released by just atomic decrement on reference counter, without additional
+ * cycle collector run.
+ * So during subgraph freezing operation, we perform the following steps:
+ *   - run Kosoraju-Sharir algorithm to find strongly connected components
+ *   - put all objects in each strongly connected component into an artificial container
+ *     (we assume that they all were in single element containers initially), single-object
+ *     components remain in the same container
+ *   - artifical container sums up outer reference counters of all its objects (i.e.
+ *     incoming references from the same strongly connected component are not counted)
+ *   - mark all object's headers as frozen
+ *
+ *  Further reference counting on frozen objects is performed with the atomic operations, and so frozen
+ * references could be passed accross multiple threads.
+ */
+void FreezeSubgraph(ObjHeader* root) {
+  RuntimeAssert(false, "Not yet implemented");
+}
+
+// This function is called from field mutators to check if object's header is frozen.
+// If object is frozen, an exception is thrown.
+void MutationCheck(ObjHeader* obj) {
+  if (obj->container()->frozen()) ThrowWorkerInvalidState();
 }
 
 } // extern "C"

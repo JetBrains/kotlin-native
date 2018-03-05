@@ -1330,9 +1330,11 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     private fun evaluateSetField(value: IrSetField): LLVMValueRef {
         context.log{"evaluateSetField               : ${ir2string(value)}"}
         val valueToAssign = evaluateExpression(value.value)
-
         if (value.descriptor.dispatchReceiverParameter != null) {
             val thisPtr = evaluateExpression(value.receiver!!)
+            functionGenerationContext.call(context.llvm.mutationCheck,
+                    listOf(functionGenerationContext.bitcast(codegen.kObjHeaderPtr, thisPtr)),
+                    Lifetime.IRRELEVANT, ExceptionHandler.Caller)
             functionGenerationContext.storeAny(valueToAssign, fieldPtrOfClass(thisPtr, value.symbol.owner))
         }
         else {

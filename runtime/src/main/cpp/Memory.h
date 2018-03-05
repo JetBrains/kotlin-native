@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2017 JetBrains s.r.o.
+ * Copyright 2010-2018 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -71,17 +71,27 @@ struct ContainerHeader {
     return (refCount_ & CONTAINER_TAG_MASK) == CONTAINER_TAG_PERMANENT;
   }
 
+  inline bool frozen() const {
+    return (refCount_ & CONTAINER_TAG_MASK) == CONTAINER_TAG_FROZEN;
+  }
+
   inline unsigned refCount() const {
     return refCount_ >> CONTAINER_TAG_SHIFT;
   }
 
+  template <bool Atomic>
   inline void incRefCount() {
-    refCount_ += CONTAINER_TAG_INCREMENT;
+    if (Atomic)
+      __sync_add_and_fetch(&refCount_, CONTAINER_TAG_INCREMENT);
+    else
+      refCount_ += CONTAINER_TAG_INCREMENT;
   }
 
+  template <bool Atomic>
   inline int decRefCount() {
-    refCount_ -= CONTAINER_TAG_INCREMENT;
-    return refCount_ >> CONTAINER_TAG_SHIFT;
+    int value = Atomic ?
+       __sync_sub_and_fetch(&refCount_, CONTAINER_TAG_INCREMENT) : refCount_ -= CONTAINER_TAG_INCREMENT;
+    return value >> CONTAINER_TAG_SHIFT;
   }
 
   inline unsigned tag() const {
@@ -413,7 +423,10 @@ void DisposeStablePointer(void* pointer) RUNTIME_NOTHROW;
 OBJ_GETTER(DerefStablePointer, void*) RUNTIME_NOTHROW;
 // Move stable pointer ownership.
 OBJ_GETTER(AdoptStablePointer, void*) RUNTIME_NOTHROW;
-
+// Check mutability state.
+void MutationCheck(ObjHeader* obj);
+// Freeze object subgraph.
+void FreezeSubgraph(ObjHeader* root);
 #ifdef __cplusplus
 }
 #endif

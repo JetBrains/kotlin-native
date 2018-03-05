@@ -38,8 +38,8 @@
 
 extern "C" {
 
-void ThrowWorkerInvalidState();
-void ThrowWorkerUnsupported();
+RUNTIME_NORETURN void ThrowWorkerInvalidState();
+RUNTIME_NORETURN void ThrowWorkerUnsupported();
 OBJ_GETTER(WorkerLaunchpad, KRef);
 
 }  // extern "C"
