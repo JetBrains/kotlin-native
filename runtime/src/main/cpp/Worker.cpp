@@ -571,4 +571,13 @@ KNativePtr Kotlin_Worker_detachObjectGraphInternal(KInt transferMode, KRef produ
   return detachObjectGraphInternal(transferMode, producer);
 }
 
+void Kotlin_Worker_freezeInternal(KRef object) {
+  if (object != nullptr)
+    FreezeSubgraph(object);
+}
+
+KBoolean Kotlin_Worker_isFrozenInternal(KRef object) {
+  return object == nullptr || object->container()->frozen();
+}
+
 }  // extern "C"

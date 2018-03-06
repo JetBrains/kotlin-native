@@ -43,6 +43,7 @@
 // Auto-adjust GC thresholds.
 #define GC_ERGONOMICS 1
 
+// TODO: ensure it it read-only.
 ContainerHeader ObjHeader::theStaticObjectsContainer = {
   CONTAINER_TAG_PERMANENT | CONTAINER_TAG_INCREMENT
 };
@@ -422,7 +423,8 @@ extern "C" {
 
 void objc_release(void* ptr);
 void Kotlin_ObjCExport_releaseReservedObjectTail(ObjHeader* obj);
-RUNTIME_NORETURN void ThrowWorkerInvalidState();
+RUNTIME_NORETURN void ThrowFreezingException();
+RUNTIME_NORETURN void ThrowInvalidMutabilityException();
 
 }  // extern "C"
 
@@ -531,7 +533,8 @@ inline void DecrementRC(ContainerHeader* container, bool useCycleCollector) {
   if (container->decRefCount<Atomic>() == 0) {
     FreeContainer(container);
   } else if (!Atomic && useCycleCollector) { // Possible root.
-    // TODO: currently, we cannot use cycle collector for frozen objects, as it is not concurrent.
+    // Do not use cycle collector for frozen objects, as we already detected possible cycles during
+    // freezing.
     if (container->color() != CONTAINER_TAG_GC_PURPLE) {
       container->setColor(CONTAINER_TAG_GC_PURPLE);
       if (!container->buffered()) {
@@ -627,7 +630,7 @@ void MarkGray(ContainerHeader* container) {
     auto childContainer = ref->container();
     RuntimeAssert(!isArena(childContainer), "A reference to local object is encountered");
 
-    if (!childContainer->permanent() && !childContainer->frozen()) {
+    if (!childContainer->permanentOrFrozen()) {
       childContainer->decRefCount<false>();
       MarkGray<useColor>(childContainer);
     }
@@ -646,7 +649,7 @@ void ScanBlack(ContainerHeader* container) {
   traverseContainerReferredObjects(container, [](ObjHeader* ref) {
     auto childContainer = ref->container();
     RuntimeAssert(!isArena(childContainer), "A reference to local object is encountered");
-    if (!childContainer->permanent()) {
+    if (!childContainer->permanentOrFrozen()) {
       childContainer->incRefCount<false>();
       if (useColor) {
         if (childContainer->color() != CONTAINER_TAG_GC_BLACK)
@@ -710,7 +713,7 @@ void Scan(ContainerHeader* container) {
   traverseContainerReferredObjects(container, [](ObjHeader* ref) {
     auto childContainer = ref->container();
     RuntimeAssert(!isArena(childContainer), "A reference to local object is encountered");
-    if (!childContainer->permanent()) {
+    if (!childContainer->permanentOrFrozen()) {
       Scan(childContainer);
     }
   });
@@ -1315,7 +1318,7 @@ bool hasExternalRefs(ContainerHeader* container, ContainerHeaderSet* visited) {
   bool result = container->refCount() != 0;
   traverseContainerReferredObjects(container, [&result, visited](ObjHeader* ref) {
     auto child = ref->container();
-    if (!child->permanent() && !child->frozen() && (visited->find(child) == visited->end())) {
+    if (!child->permanentOrFrozen() && (visited->find(child) == visited->end())) {
       result |= hasExternalRefs(child, visited);
     }
   });
@@ -1329,11 +1332,16 @@ bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
     auto state = memoryState;
     auto container = root->container();
 
+    if (container->frozen())
+      // We assume, that frozen objects can be safely passed and are already removed
+      // GC candidate list.
+      return true;
+    
     ContainerHeaderSet visited;
     if (!checked) {
       hasExternalRefs(container, &visited);
     } else {
-      if (!container->permanent() && !container->frozen()) {
+      if (!container->permanentOrFrozen()) {
         container->decRefCount<false>();
         MarkGray<false>(container);
         auto bad = hasExternalRefs(container, &visited);
@@ -1343,6 +1351,7 @@ bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
       }
     }
 
+    // TODO: not very effecient traversal.
     for (auto it = state->toFree->begin(); it != state->toFree->end(); ++it) {
       auto container = *it;
       if (visited.find(container) != visited.end()) {
@@ -1380,13 +1389,72 @@ bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
  * references could be passed accross multiple threads.
  */
 void FreezeSubgraph(ObjHeader* root) {
-  RuntimeAssert(false, "Not yet implemented");
+  // TODO: for now, we just check that passed object graph has no cycles, and throw an exception,
+  // if it does. Next version will run Kosoraju-Sharir if cycles are found.
+  ContainerHeader* rootContainer = root->container();
+  if (rootContainer->permanentOrFrozen()) return;
+  KStdDeque<ContainerHeader*> stack;
+  stack.push_back(rootContainer);
+  bool hasCycles = false;
+  while (!stack.empty()) {
+    ContainerHeader* current = stack.front();
+    RuntimeAssert(current->objectCount() == 1, "Only single object containers allowed");
+    stack.pop_front();
+    current->mark();
+    traverseContainerObjectFields(current, [&hasCycles, &stack](ObjHeader** location) {
+	ObjHeader* obj = *location;
+	if (obj != nullptr) {
+	  ContainerHeader* objContainer = obj->container();
+	  RuntimeAssert(!objContainer->stack(), "Escape analysis bug");
+	  if (objContainer->marked())
+	    hasCycles = true;
+	  else if (!objContainer->permanentOrFrozen())
+	    stack.push_back(objContainer);
+	}
+    });
+  }
+  // Now unmark all marked objects, and freeze them, if no cycles detected.
+  RuntimeAssert(stack.empty(), "Must be empty at this point");
+  stack.push_back(rootContainer);
+  while (!stack.empty()) {
+    ContainerHeader* current = stack.front();
+    stack.pop_front();
+    current->unMark();
+    
+    if (!hasCycles) {
+      current->resetBuffered();
+      current->setColor(CONTAINER_TAG_GC_BLACK);
+      // Note, that once object is frozen, it could be concurrently accessed, so
+      // color and similar attributes shall not be used.
+      current->freeze();
+    }
+    traverseContainerObjectFields(current, [&hasCycles, &stack](ObjHeader** location) {
+	ObjHeader* obj = *location;
+	if (obj != nullptr) {
+	  ContainerHeader* objContainer = obj->container();
+	  if (!objContainer->permanentOrFrozen() && objContainer->marked())
+	    stack.push_back(objContainer);
+	}
+    });
+  }
+
+  // Now remove frozen objects from the toFree list.
+  auto state = memoryState;
+  for (auto it = state->toFree->begin(); it != state->toFree->end(); ++it) {
+      auto container = *it;
+      if (container->frozen()) {
+        *it = reinterpret_cast<ContainerHeader*>(reinterpret_cast<uintptr_t>(container) | 1);
+      }
+  }
+  
+  // For now, just throw an exception here.
+  if (hasCycles) ThrowFreezingException();
 }
 
 // This function is called from field mutators to check if object's header is frozen.
 // If object is frozen, an exception is thrown.
 void MutationCheck(ObjHeader* obj) {
-  if (obj->container()->frozen()) ThrowWorkerInvalidState();
+  if (obj->container()->frozen()) ThrowInvalidMutabilityException();
 }
 
 } // extern "C"

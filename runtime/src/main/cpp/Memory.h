@@ -75,6 +75,18 @@ struct ContainerHeader {
     return (refCount_ & CONTAINER_TAG_MASK) == CONTAINER_TAG_FROZEN;
   }
 
+  inline void freeze() {
+    refCount_ = (refCount_ & ~CONTAINER_TAG_MASK) | CONTAINER_TAG_FROZEN;
+  }
+
+  inline bool permanentOrFrozen() const {
+    return tag() == CONTAINER_TAG_PERMANENT || tag() == CONTAINER_TAG_FROZEN;
+  }
+
+  inline bool stack() const {
+    return (refCount_ & CONTAINER_TAG_MASK) == CONTAINER_TAG_STACK;
+  }
+
   inline unsigned refCount() const {
     return refCount_ >> CONTAINER_TAG_SHIFT;
   }
