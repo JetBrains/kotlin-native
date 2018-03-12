@@ -1257,6 +1257,11 @@ task array3(type: RunKonanTest) {
     source = "runtime/collections/array3.kt"
 }
 
+task typed_array0(type: RunKonanTest) {
+    goldValue = "OK\n"
+    source = "runtime/collections/typed_array0.kt"
+}
+
 task sort0(type: RunKonanTest) {
     goldValue = "[a, b, x]\n[-1, 0, 42, 239, 100500]\n"
     source = "runtime/collections/sort0.kt"
