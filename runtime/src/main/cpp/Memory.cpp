@@ -19,10 +19,6 @@
 
 #include <cstddef> // for offsetof
 
-#ifndef KONAN_NO_THREADS
-#include <pthread.h>
-#endif
-
 #include "Alloc.h"
 #include "Assert.h"
 #include "Exceptions.h"

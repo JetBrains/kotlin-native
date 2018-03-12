@@ -619,6 +619,12 @@ task freeze0(type: RunKonanTest) {
     source = "runtime/workers/freeze0.kt"
 }
 
+task freeze1(type: RunKonanTest) {
+    disabled = (project.testTarget == 'wasm32') // Does it make sense on WASM?
+    goldValue = "OK, cannot freeze cyclic\n"+
+                "OK, cannot mutate frozen\n"
+    source = "runtime/workers/freeze1.kt"
+}
 
 task superFunCall(type: RunKonanTest) {
     goldValue = "<fun:C><fun:C1>\n<fun:C><fun:C3>\n"

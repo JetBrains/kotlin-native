@@ -14,30 +14,35 @@
  * limitations under the License.
  */
 
-package runtime.workers.freeze0
+package runtime.workers.freeze1
 
 import kotlin.test.*
 
 import konan.worker.*
 
-data class SharedDataMember(val double: Double)
+data class Node(var previous: Node?, var data: Int)
 
-data class SharedData(val string: String, val int: Int, val member: SharedDataMember)
+fun makeCycle(count: Int): Node {
+    val first = Node(null, 0)
+    var current = first
+    for (index in 1 .. count - 1) {
+        current = Node(current, index)
+    }
+    first.previous = current
+    return first
+}
 
 @Test fun runTest() {
-    val worker = startWorker()
-    // Create immutable shared data.
-    val immutable = SharedData("Hello", 10, SharedDataMember(0.1)).freeze()
-    println("frozen bit is ${immutable.isFrozen}")
+    try {
+        makeCycle(10).freeze()
+    } catch (e: FreezingException) {
+        println("OK, cannot freeze cyclic")
+    }
 
-    val future = worker.schedule(TransferMode.CHECKED, { immutable } ) {
-        input ->
-        println("Worker: $input")
-        input
+    val immutable = Node(null, 4).freeze()
+    try {
+        immutable.data = 42
+    } catch (e: InvalidMutabilityException) {
+        println("OK, cannot mutate frozen")
     }
-    future.consume {
-        result -> println("Main: $result")
-    }
-    worker.requestTermination().consume { _ -> }
-    println("OK")
 }
