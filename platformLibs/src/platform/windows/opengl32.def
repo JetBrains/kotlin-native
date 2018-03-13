@@ -1,5 +1,5 @@
-depends = windows posix
 package = platform.opengl32
-headers = wtypes.h minwindef.h wtypes.h GL/gl.h GL/wglext.h
+headers = GL/gl.h GL/wglext.h
+headerFilter = GL/**
 compilerOpts = -DUNICODE
 linkerOpts = -lopengl32
