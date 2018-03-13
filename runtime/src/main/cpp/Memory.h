@@ -44,16 +44,17 @@ typedef enum {
   // Shift to get actual object count.
   CONTAINER_TAG_GC_SHIFT = 5,
   CONTAINER_TAG_GC_INCREMENT = 1 << CONTAINER_TAG_GC_SHIFT,
-  // Color of a container.
-  CONTAINER_TAG_GC_COLOR_MASK = ((CONTAINER_TAG_GC_INCREMENT >> 2) - 1),
+  // Color mask of a container.
+  CONTAINER_TAG_GC_COLOR_MASK = (1 << 2) - 1,
   // Colors.
   CONTAINER_TAG_GC_BLACK  = 0,
   CONTAINER_TAG_GC_GRAY   = 1,
   CONTAINER_TAG_GC_WHITE  = 2,
   CONTAINER_TAG_GC_PURPLE = 3,
-  CONTAINER_TAG_GC_MARKED = 4,
-  CONTAINER_TAG_GC_BUFFERED = 8,
-  CONTAINER_TAG_GC_SEEN = 16
+  // Individual state bits used during GC and freezing.
+  CONTAINER_TAG_GC_MARKED = 1 << 2,
+  CONTAINER_TAG_GC_BUFFERED = 1 << 3,
+  CONTAINER_TAG_GC_SEEN = 1 << 4
 } ContainerTag;
 
 typedef uint32_t container_offset_t;
@@ -93,16 +94,24 @@ struct ContainerHeader {
 
   template <bool Atomic>
   inline void incRefCount() {
+#ifdef KONAN_NO_THREADS
+    refCount_ += CONTAINER_TAG_INCREMENT;
+#else
     if (Atomic)
       __sync_add_and_fetch(&refCount_, CONTAINER_TAG_INCREMENT);
     else
       refCount_ += CONTAINER_TAG_INCREMENT;
+#endif
   }
 
   template <bool Atomic>
   inline int decRefCount() {
+#ifdef KONAN_NO_THREADS
+    int value = refCount_ -= CONTAINER_TAG_INCREMENT;
+#else
     int value = Atomic ?
        __sync_sub_and_fetch(&refCount_, CONTAINER_TAG_INCREMENT) : refCount_ -= CONTAINER_TAG_INCREMENT;
+#endif
     return value >> CONTAINER_TAG_SHIFT;
   }
 

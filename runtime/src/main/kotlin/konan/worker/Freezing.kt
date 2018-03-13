@@ -21,16 +21,12 @@ import konan.internal.ExportForCppRuntime
 /**
  * Exception thrown whenever freezing is not possible.
  */
-public class FreezingException : RuntimeException {
-    constructor() : super()
-}
+public class FreezingException() : RuntimeException()
 
 /**
  * Exception thrown whenever we attempt to mutate frozen objects.
  */
-public class InvalidMutabilityException : RuntimeException {
-    constructor() : super()
-}
+public class InvalidMutabilityException() : RuntimeException()
 
 /**
  * Freezes object subgraph reachable from this object. Frozen objects can be freely

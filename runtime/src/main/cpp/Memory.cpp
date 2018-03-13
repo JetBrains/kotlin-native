@@ -1360,11 +1360,13 @@ bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
   return true;
 }
 
-// Do DFS cycle detection with three colors:
-//   * 'marked' bit as BLACK marker (object and its descendants processed)
-//   * 'seen' bit as GRAY marker (object is being processed)
-//   * not 'marked' and not 'seen' is WHITE marker (object is unprocessed)
-// When we see GREY during DFS, it means we see cycle.
+/**
+  * Do DFS cycle detection with three colors:
+  *  - 'marked' bit as BLACK marker (object and its descendants processed)
+  *  - 'seen' bit as GRAY marker (object is being processed)
+  *  - not 'marked' and not 'seen' as WHITE marker (object is unprocessed)
+  * When we see GREY during DFS, it means we see cycle.
+  */
 void depthFirstTraversal(ContainerHeader* container, bool* hasCycles) {
   if (*hasCycles) return;
   // Mark GRAY.
@@ -1449,6 +1451,8 @@ void FreezeSubgraph(ObjHeader* root) {
   }
 
   // Now remove frozen objects from the toFree list.
+  // TODO: optimize it by keeping ignored (i.e. freshly frozen) objects in the set,
+  // and use it when analyzing toFree during collection.
   auto state = memoryState;
   for (auto it = state->toFree->begin(); it != state->toFree->end(); ++it) {
       auto container = *it;

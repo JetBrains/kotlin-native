@@ -611,7 +611,7 @@ task worker8(type: RunKonanTest) {
 }
 
 task freeze0(type: RunKonanTest) {
-    disabled = (project.testTarget == 'wasm32') // Does it make sense on WASM?
+    disabled = (project.testTarget == 'wasm32') // No workers on WASM.
     goldValue = "frozen bit is true\n" +
             "Worker: SharedData(string=Hello, int=10, member=SharedDataMember(double=0.1))\n" +
             "Main: SharedData(string=Hello, int=10, member=SharedDataMember(double=0.1))\n" +
@@ -620,7 +620,7 @@ task freeze0(type: RunKonanTest) {
 }
 
 task freeze1(type: RunKonanTest) {
-    disabled = (project.testTarget == 'wasm32') // Does it make sense on WASM?
+    disabled = (project.testTarget == 'wasm32') // No exceptions on WASM.
     goldValue = "OK, cannot freeze cyclic\n"+
                 "OK, cannot mutate frozen\n"
     source = "runtime/workers/freeze1.kt"
