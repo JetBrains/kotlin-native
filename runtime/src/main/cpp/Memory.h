@@ -21,7 +21,6 @@
 #include "Common.h"
 #include "TypeInfo.h"
 
-// Must fit in two bits.
 typedef enum {
   // Those bit masks are applied to refCount_ field.
   // Container is normal thread local container.
@@ -43,7 +42,7 @@ typedef enum {
 
   // Those bit masks are applied to objectCount_ field.
   // Shift to get actual object count.
-  CONTAINER_TAG_GC_SHIFT = 4,
+  CONTAINER_TAG_GC_SHIFT = 5,
   CONTAINER_TAG_GC_INCREMENT = 1 << CONTAINER_TAG_GC_SHIFT,
   // Color of a container.
   CONTAINER_TAG_GC_COLOR_MASK = ((CONTAINER_TAG_GC_INCREMENT >> 2) - 1),
@@ -53,7 +52,8 @@ typedef enum {
   CONTAINER_TAG_GC_WHITE  = 2,
   CONTAINER_TAG_GC_PURPLE = 3,
   CONTAINER_TAG_GC_MARKED = 4,
-  CONTAINER_TAG_GC_BUFFERED = 8
+  CONTAINER_TAG_GC_BUFFERED = 8,
+  CONTAINER_TAG_GC_SEEN = 16
 } ContainerTag;
 
 typedef uint32_t container_offset_t;
@@ -152,6 +152,18 @@ struct ContainerHeader {
 
   inline void unMark() {
     objectCount_ &= ~CONTAINER_TAG_GC_MARKED;
+  }
+
+  inline bool seen() const {
+    return (objectCount_ & CONTAINER_TAG_GC_SEEN) != 0;
+  }
+
+  inline void setSeen() {
+    objectCount_ |= CONTAINER_TAG_GC_SEEN;
+  }
+
+  inline void resetSeen() {
+    objectCount_ &= ~CONTAINER_TAG_GC_SEEN;
   }
 };
 

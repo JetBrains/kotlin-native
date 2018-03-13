@@ -27,7 +27,6 @@
 #include "Natives.h"
 #include "Porting.h"
 
-
 // If garbage collection algorithm for cyclic garbage to be used.
 // We are using the Bacon's algorithm for GC, see
 // http://researcher.watson.ibm.com/researcher/files/us-bacon/Bacon03Pure.pdf.
@@ -1332,7 +1331,7 @@ bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
       // We assume, that frozen objects can be safely passed and are already removed
       // GC candidate list.
       return true;
-    
+
     ContainerHeaderSet visited;
     if (!checked) {
       hasExternalRefs(container, &visited);
@@ -1359,6 +1358,35 @@ bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
   }
 #endif  // USE_GC
   return true;
+}
+
+// Do DFS cycle detection with three colors:
+//   * 'marked' bit as BLACK marker (object and its descendants processed)
+//   * 'seen' bit as GRAY marker (object is being processed)
+//   * not 'marked' and not 'seen' is WHITE marker (object is unprocessed)
+// When we see GREY during DFS, it means we see cycle.
+void depthFirstTraversal(ContainerHeader* container, bool* hasCycles) {
+  if (*hasCycles) return;
+  // Mark GRAY.
+  container->setSeen();
+  traverseContainerObjectFields(container, [&hasCycles](ObjHeader** location) {
+        ObjHeader* obj = *location;
+        if (obj != nullptr) {
+          ContainerHeader* objContainer = obj->container();
+          if (!objContainer->permanentOrFrozen()) {
+            // Marked GREY, there's cycle.
+            if (objContainer->seen()) *hasCycles = true;
+
+            // Go deeper if WHITE.
+            if (!objContainer->seen() && !objContainer->marked()) {
+              depthFirstTraversal(objContainer, hasCycles);
+            }
+          }
+        }
+    });
+  // Mark BLACK.
+  container->resetSeen();
+  container->mark();
 }
 
 /**
@@ -1389,34 +1417,20 @@ void FreezeSubgraph(ObjHeader* root) {
   // if it does. Next version will run Kosoraju-Sharir if cycles are found.
   ContainerHeader* rootContainer = root->container();
   if (rootContainer->permanentOrFrozen()) return;
-  KStdDeque<ContainerHeader*> stack;
-  stack.push_back(rootContainer);
+
+  // Do DFS cycle detection.
   bool hasCycles = false;
-  while (!stack.empty()) {
-    ContainerHeader* current = stack.front();
-    RuntimeAssert(current->objectCount() == 1, "Only single object containers allowed");
-    stack.pop_front();
-    current->mark();
-    traverseContainerObjectFields(current, [&hasCycles, &stack](ObjHeader** location) {
-	ObjHeader* obj = *location;
-	if (obj != nullptr) {
-	  ContainerHeader* objContainer = obj->container();
-	  RuntimeAssert(!objContainer->stack(), "Escape analysis bug");
-	  if (objContainer->marked())
-	    hasCycles = true;
-	  else if (!objContainer->permanentOrFrozen())
-	    stack.push_back(objContainer);
-	}
-    });
-  }
+  depthFirstTraversal(rootContainer, &hasCycles);
+
   // Now unmark all marked objects, and freeze them, if no cycles detected.
-  RuntimeAssert(stack.empty(), "Must be empty at this point");
+  KStdDeque<ContainerHeader*> stack;
   stack.push_back(rootContainer);
   while (!stack.empty()) {
     ContainerHeader* current = stack.front();
     stack.pop_front();
     current->unMark();
-    
+    current->resetSeen();
+
     if (!hasCycles) {
       current->resetBuffered();
       current->setColor(CONTAINER_TAG_GC_BLACK);
@@ -1425,12 +1439,12 @@ void FreezeSubgraph(ObjHeader* root) {
       current->freeze();
     }
     traverseContainerObjectFields(current, [&hasCycles, &stack](ObjHeader** location) {
-	ObjHeader* obj = *location;
-	if (obj != nullptr) {
-	  ContainerHeader* objContainer = obj->container();
-	  if (!objContainer->permanentOrFrozen() && objContainer->marked())
-	    stack.push_back(objContainer);
-	}
+        ObjHeader* obj = *location;
+        if (obj != nullptr) {
+          ContainerHeader* objContainer = obj->container();
+          if (!objContainer->permanentOrFrozen() && objContainer->marked())
+            stack.push_back(objContainer);
+        }
     });
   }
 
@@ -1442,7 +1456,7 @@ void FreezeSubgraph(ObjHeader* root) {
         *it = reinterpret_cast<ContainerHeader*>(reinterpret_cast<uintptr_t>(container) | 1);
       }
   }
-  
+
   // For now, just throw an exception here.
   if (hasCycles) ThrowFreezingException();
 }

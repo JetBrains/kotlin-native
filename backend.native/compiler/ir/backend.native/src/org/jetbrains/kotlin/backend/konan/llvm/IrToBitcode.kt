@@ -477,8 +477,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     override fun visitConstructor(declaration: IrConstructor) {
         context.log{"visitConstructor               : ${ir2string(declaration)}"}
-        if (declaration.constructedClass.isIntrinsic) {
-            // Do not generate any ctors for intrinsic classes.
+        if (declaration.descriptor.containingDeclaration.defaultType.isValueType()) {
+            // Do not generate any ctors for value types.
             return
         }
 
@@ -692,6 +692,10 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     //-------------------------------------------------------------------------//
 
     override fun visitProperty(declaration: IrProperty) {
+        val container = declaration.descriptor.containingDeclaration
+        // For value types with real backing field there's no point to generate an accessor.
+        if (container is ClassDescriptor && container.defaultType.isValueType() && declaration.backingField != null)
+            return
         declaration.getter?.acceptVoid(this)
         declaration.setter?.acceptVoid(this)
         declaration.backingField?.acceptVoid(this)

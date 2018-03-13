@@ -32,12 +32,25 @@ fun makeCycle(count: Int): Node {
     return first
 }
 
+data class Node2(var leaf1: Node2?, var leaf2: Node2?)
+
+fun makeDiamond(): Node2 {
+    val bottom = Node2(null, null)
+    val mid1prime = Node2(bottom, null)
+    val mid1 = Node2(mid1prime, null)
+    val mid2 = Node2(bottom, null)
+    return Node2(mid1, mid2)
+}
+
 @Test fun runTest() {
     try {
         makeCycle(10).freeze()
     } catch (e: FreezingException) {
         println("OK, cannot freeze cyclic")
     }
+
+    // Must be able to freeze diamond shaped graph.
+    val diamond = makeDiamond().freeze()
 
     val immutable = Node(null, 4).freeze()
     try {

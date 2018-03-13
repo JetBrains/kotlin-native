@@ -41,8 +41,8 @@ fun <T> T.freeze(): T {
     return this
 }
 
-val <T> T.isFrozen
-        get() = isFrozenInternal(this)
+val Any?.isFrozen
+    get() = isFrozenInternal(this)
 
 @SymbolName("Kotlin_Worker_freezeInternal")
 internal external fun freezeInternal(it: Any?)
