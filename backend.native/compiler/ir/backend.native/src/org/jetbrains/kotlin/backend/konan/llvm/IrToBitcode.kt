@@ -2430,7 +2430,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     private fun call(descriptor: FunctionDescriptor, function: LLVMValueRef, args: List<LLVMValueRef>,
                      resultLifetime: Lifetime): LLVMValueRef {
         val result = call(function, args, resultLifetime)
-        if (descriptor.returnType?.isNothing() == true) {
+        if (descriptor.returnType.isNothing()) {
             functionGenerationContext.unreachable()
         }
 
