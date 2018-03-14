@@ -211,7 +211,7 @@ void Kotlin_ByteArray_setLongAt(KRef thiz, KInt index, KLong value) {
   *reinterpret_cast<KLong*>(ByteArrayAddressOfElementAt(array, index)) = value;
 }
 
-void Kotlin_ByteArray_setFloatAt(KRef thiz, KInt index, KChar value) {
+void Kotlin_ByteArray_setFloatAt(KRef thiz, KInt index, KFloat value) {
   ArrayHeader* array = thiz->array();
   if (static_cast<uint32_t>(index + 3) >= array->count_) {
     ThrowArrayIndexOutOfBoundsException();
