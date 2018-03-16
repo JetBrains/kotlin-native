@@ -1,10 +1,38 @@
 #!/usr/bin/env bash
 
-BOARD=stm32f4_disco
-export ZEPHYR_BASE="PLEASE_SET_ZEPHYR_BASE"
+#BOARD=stm32f4_disco
+#BOARD=nucleo_f412zg
+BOARD="NONE"
+export ZEPHYR_BASE="NONE"
 
-if [ "$ZEPHYR_BASE" == "PLEASE_SET_ZEPHYR_BASE" ] ; then
-    echo "Please set ZEPHYR_BASE in this build.sh."
+usage="
+Please set BOARD in this build.sh or pass with -b flag.
+BOARD can be nucleo_f412zg or stm32f4_disco.
+Please set ZEPHYR_BASE in this build.sh or pass with -z flag.
+"
+
+while getopts "b:z:" opt; do
+  case $opt in
+    b)
+      BOARD=$OPTARG
+      ;;
+    z)
+      export ZEPHYR_BASE=$OPTARG
+      ;;
+    *)
+      echo "usage"
+      exit 1
+      ;;
+  esac
+done
+
+if [ "$BOARD" == "NONE" ] ; then
+    echo "Please set BOARD in this build.sh or pass with -b flag."
+    exit 1
+fi
+
+if [ "$ZEPHYR_BASE" == "NONE" ] ; then
+    echo "Please set ZEPHYR_BASE in this build.sh or pass with -z flag."
     exit 1
 fi
 
@@ -40,7 +68,7 @@ rm -f program.o
 
 mkdir -p $DIR/build/kotlin
 
-konanc $DIR/src/main.kt \
+konanc $DIR/src/main_$BOARD.kt \
         -target zephyr_$BOARD \
         -r $DIR/c_interop/platforms/build \
         -l $BOARD \
