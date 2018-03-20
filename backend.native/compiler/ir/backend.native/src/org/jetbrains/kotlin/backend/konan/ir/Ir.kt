@@ -343,8 +343,24 @@ internal class KonanSymbols(context: Context, val symbolTable: SymbolTable): Sym
                 kind.runtimeKindName, NoLookupLocation.FROM_BACKEND
         ) as ClassDescriptor)
     }
-}
 
+    val collection = symbolTable.referenceClass(builtIns.builtInsModule
+            .getPackage(KotlinBuiltIns.COLLECTIONS_PACKAGE_FQ_NAME).memberScope
+            .getContributedClassifier(Name.identifier("Collection"), NoLookupLocation.FROM_BACKEND)
+            as ClassDescriptor
+    )
+
+    val collectionSize = symbolTable.referenceSimpleFunction(collection.descriptor.unsubstitutedMemberScope
+            .getContributedVariables(Name.identifier("size"), NoLookupLocation.FROM_BACKEND)
+            .single().getter!!
+    )
+
+    val collectionIndices = symbolTable.referenceSimpleFunction(builtIns.builtInsModule
+            .getPackage(KotlinBuiltIns.COLLECTIONS_PACKAGE_FQ_NAME).memberScope
+            .getContributedVariables(Name.identifier("indices"), NoLookupLocation.FROM_BACKEND)
+            .single().getter!!
+    )
+}
 private fun getArrayListClassDescriptor(context: Context): ClassDescriptor {
     val module = context.builtIns.builtInsModule
     val pkg = module.getPackage(FqName.fromSegments(listOf("kotlin", "collections")))
