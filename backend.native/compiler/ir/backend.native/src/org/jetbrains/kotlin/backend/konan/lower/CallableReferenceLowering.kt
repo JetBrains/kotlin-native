@@ -194,7 +194,7 @@ internal class CallableReferenceLowering(val context: Context): FileLoweringPass
                 superTypes += suspendFunctionClassDescriptor.defaultType.replace(suspendFunctionClassTypeParameters)
             }
 
-            functionReferenceClassDescriptor = ClassDescriptorImpl(
+            functionReferenceClassDescriptor = object : ClassDescriptorImpl(
                     /* containingDeclaration = */ containingDeclaration,
                     /* name                  = */ "${functionDescriptor.name}\$${functionReferenceCount++}".synthesizedName,
                     /* modality              = */ Modality.FINAL,
@@ -202,7 +202,9 @@ internal class CallableReferenceLowering(val context: Context): FileLoweringPass
                     /* superTypes            = */ superTypes,
                     /* source                = */ SourceElement.NO_SOURCE,
                     /* isExternal            = */ false
-            )
+            ) {
+                override fun getVisibility() = Visibilities.PRIVATE
+            }
             functionReferenceClass = IrClassImpl(
                     startOffset = startOffset,
                     endOffset   = endOffset,
