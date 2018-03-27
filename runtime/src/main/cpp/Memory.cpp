@@ -39,9 +39,10 @@
 // Auto-adjust GC thresholds.
 #define GC_ERGONOMICS 1
 
-// TODO: ensure it it read-only.
+// TODO: ensure it is read-only.
 ContainerHeader ObjHeader::theStaticObjectsContainer = {
-  CONTAINER_TAG_PERMANENT | CONTAINER_TAG_INCREMENT
+  CONTAINER_TAG_PERMANENT | CONTAINER_TAG_INCREMENT,
+  0 /* Object count */
 };
 
 namespace {
@@ -806,6 +807,19 @@ inline size_t containerSize(const ContainerHeader* container) {
 
 }  // namespace
 
+MetaObjHeader* ObjHeader::createMetaObject(TypeInfo** location) {
+  MetaObjHeader* meta = konanConstructInstance<MetaObjHeader>();
+  TypeInfo* typeInfo = *location;
+  meta->typeInfo_ = typeInfo;
+#if KONAN_NO_THREADS
+  *location = reinterpret_cast<TypeInfo*>(meta);
+#else
+  void* old = __sync_val_compare_and_swap(location, typeInfo, reinterpret_cast<TypeInfo*>(meta));
+  meta = reinterpret_cast<MetaObjHeader*>(old);
+#endif
+  return meta;
+}
+
 ContainerHeader* AllocContainer(size_t size) {
   auto state = memoryState;
 #if USE_GC
@@ -842,26 +856,26 @@ void FreeContainer(ContainerHeader* header) {
   }
 }
 
-void ObjectContainer::Init(const TypeInfo* type_info) {
-  RuntimeAssert(type_info->instanceSize_ >= 0, "Must be an object");
+void ObjectContainer::Init(const TypeInfo* typeInfo) {
+  RuntimeAssert(typeInfo->instanceSize_ >= 0, "Must be an object");
   uint32_t alloc_size =
-      sizeof(ContainerHeader) + sizeof(ObjHeader) + type_info->instanceSize_ + kObjectReservedTailSize;
+      sizeof(ContainerHeader) + sizeof(ObjHeader) + typeInfo->instanceSize_ + kObjectReservedTailSize;
   header_ = AllocContainer(alloc_size);
   if (header_) {
     // One object in this container.
     header_->setObjectCount(1);
      // header->refCount_ is zero initialized by AllocContainer().
-    SetMeta(GetPlace(), type_info);
+    SetHeader(GetPlace(), typeInfo);
     MEMORY_LOG("object at %p\n", GetPlace())
     OBJECT_ALLOC_EVENT(memoryState, type_info->instanceSize_, GetPlace())
   }
 }
 
-void ArrayContainer::Init(const TypeInfo* type_info, uint32_t elements) {
-  RuntimeAssert(type_info->instanceSize_ < 0, "Must be an array");
+void ArrayContainer::Init(const TypeInfo* typeInfo, uint32_t elements) {
+  RuntimeAssert(typeInfo->instanceSize_ < 0, "Must be an array");
   uint32_t alloc_size =
       sizeof(ContainerHeader) + sizeof(ArrayHeader) -
-      type_info->instanceSize_ * elements + kObjectReservedTailSize;
+      typeInfo->instanceSize_ * elements + kObjectReservedTailSize;
   header_ = AllocContainer(alloc_size);
   RuntimeAssert(header_ != nullptr, "Cannot alloc memory");
   if (header_) {
@@ -869,10 +883,10 @@ void ArrayContainer::Init(const TypeInfo* type_info, uint32_t elements) {
     header_->setObjectCount(1);
     // header->refCount_ is zero initialized by AllocContainer().
     GetPlace()->count_ = elements;
-    SetMeta(GetPlace()->obj(), type_info);
+    SetHeader(GetPlace()->obj(), typeInfo);
     MEMORY_LOG("array at %p\n", GetPlace())
     OBJECT_ALLOC_EVENT(
-        memoryState, -type_info->instanceSize_ * elements, GetPlace()->obj())
+        memoryState, -typeInfo->instanceSize_ * elements, GetPlace()->obj())
   }
 }
 
@@ -951,7 +965,7 @@ ObjHeader* ArenaContainer::PlaceObject(const TypeInfo* type_info) {
   }
   OBJECT_ALLOC_EVENT(memoryState, type_info->instanceSize_, result)
   currentChunk_->asHeader()->incObjectCount();
-  setMeta(result, type_info);
+  setHeader(result, type_info);
   return result;
 }
 
@@ -964,7 +978,7 @@ ArrayHeader* ArenaContainer::PlaceArray(const TypeInfo* type_info, uint32_t coun
   }
   OBJECT_ALLOC_EVENT(memoryState, -type_info->instanceSize_ * count, result->obj())
   currentChunk_->asHeader()->incObjectCount();
-  setMeta(result->obj(), type_info);
+  setHeader(result->obj(), type_info);
   result->count_ = count;
   return result;
 }
@@ -992,13 +1006,17 @@ void ReleaseRefFromAssociatedObject(const ObjHeader* object) {
 extern "C" {
 
 MemoryState* InitMemory() {
-  RuntimeAssert(offsetof(ArrayHeader, type_info_)
+  RuntimeAssert(offsetof(ArrayHeader, typeInfoOrMeta_)
                 ==
-                offsetof(ObjHeader,   type_info_),
+                offsetof(ObjHeader,   typeInfoOrMeta_),
                 "Layout mismatch");
-  RuntimeAssert(offsetof(ArrayHeader, container_offset_negative_)
+  RuntimeAssert(offsetof(ArrayHeader, containerOffsetNegative_)
                 ==
-                offsetof(ObjHeader  , container_offset_negative_),
+                offsetof(ObjHeader  , containerOffsetNegative_),
+                "Layout mismatch");
+  RuntimeAssert(offsetof(TypeInfo, typeInfo_)
+                ==
+                offsetof(MetaObjHeader, typeInfo_),
                 "Layout mismatch");
   RuntimeAssert(sizeof(FrameOverlay) % sizeof(ObjHeader**) == 0, "Frame overlay should contain only pointers")
   RuntimeAssert(memoryState == nullptr, "memory state must be clear");

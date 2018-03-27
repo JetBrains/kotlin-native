@@ -45,6 +45,9 @@ struct FieldTableRecord {
 // This struct represents runtime type information and by itself is the compile time
 // constant.
 struct TypeInfo {
+    // Reference to the actual type info, usually points to this, unless meta-object is present.
+    const TypeInfo* typeInfo_;
+    // Hash of class name.
     ClassNameHash name_;
     // Negative value marks array class/string, and it is negated element size.
     int32_t instanceSize_;
