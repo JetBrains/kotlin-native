@@ -217,6 +217,7 @@ struct ObjHeader {
   }
 
   static MetaObjHeader* createMetaObject(TypeInfo** location);
+  static void destroyMetaObject(TypeInfo** location);
 };
 
 // Header of value type array objects. Keep layout in sync with that of object header.

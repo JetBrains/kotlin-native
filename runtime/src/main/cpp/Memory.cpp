@@ -417,7 +417,11 @@ RUNTIME_NORETURN void ThrowInvalidMutabilityException();
 }  // extern "C"
 
 inline void runDeallocationHooks(ObjHeader* obj) {
+  if (obj->has_meta_object()) {
+    ObjHeader::destroyMetaObject(&obj->typeInfoOrMeta_);
+  }
 #if KONAN_OBJC_INTEROP
+  // TODO: rewrite using meta-object.
   if (obj->type_info() == theObjCPointerHolderTypeInfo) {
     void* objcPtr =  *reinterpret_cast<void**>(obj + 1); // TODO: use more reliable layout description
     objc_release(objcPtr);
@@ -818,6 +822,20 @@ MetaObjHeader* ObjHeader::createMetaObject(TypeInfo** location) {
   meta = reinterpret_cast<MetaObjHeader*>(old);
 #endif
   return meta;
+}
+
+void ObjHeader::destroyMetaObject(TypeInfo** location) {
+  TypeInfo* meta = *location;
+#if KONAN_NO_THREADS
+  *location = nullptr;
+  konanFreeMemory(meta);
+#else
+  void* old = __sync_val_compare_and_swap(location, meta, nullptr);
+  if (old == meta) {
+    // We grabbed meta.
+    konanFreeMemory(meta);
+  }
+#endif
 }
 
 ContainerHeader* AllocContainer(size_t size) {
