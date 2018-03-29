@@ -21,6 +21,7 @@ var global_arguments;
 var globalBase = 0; // TODO: Is there any way to obtain global_base from JavaScript?
 
 var konanStackTop;
+var stringReturnVar;
 
 function isBrowser() {
     if (typeof window === 'undefined') {
@@ -123,6 +124,11 @@ function int32ToHeap(value, pointer) {
 function doubleToReturnSlot(value) {
     var twoInts = doubleToTwoInts(value);
     instance.exports.ReturnSlot_setDouble(twoInts.upper, twoInts.lower);
+}
+
+function stringToReturnVar(string) {
+    stringReturnVar = string;
+    return string.length // TODO: wait a second! It should be a byte length!
 }
 
 function stackTop() {

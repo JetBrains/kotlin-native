@@ -58,8 +58,10 @@ task generateJsMath {
         def jsinteropScript = isWindows() ? "jsinterop.bat" : "jsinterop"
         def jsinterop = "$distDir/bin/$jsinteropScript"
         def targetDir = "$buildDir/generated"
-        "$jsinterop -pkg kotlinx.interop.wasm.math -o $targetDir/math -target wasm32".execute().waitFor()
-        def generated = file("$targetDir/math-build/natives/js_stubs.js")
+        def idlDir = rootProject.file("Interop/StubGenerator/src/main/kotlin/org/jetbrains/kotlin/native/interop/gen/wasm/idl/")
+        println("$jsinterop -idl $idlDir -o $targetDir/math -target wasm32")
+        "$jsinterop -idl $idlDir -o $targetDir/math -target wasm32".execute().waitFor()
+        def generated = file("$targetDir/math-build/natives/kotlinx.interop.wasm.math.js")
         def mathJs = file('src/main/js/math.js')
         mathJs.write("// NOTE: THIS FILE IS AUTO-GENERATED!\n" +
                      "// Run ':runtime:generateJsMath' to re-generate it.\n\n")

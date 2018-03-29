@@ -80,6 +80,34 @@ project.rootProject.ext.platformManager.enabled.each { target ->
         installTasks.add(tasks[libName])
     }
 
+    if (target instanceof KonanTarget.WASM32) {
+        // TODO: we need to complete idl2k + StubGenerator rework
+        // so the tool pulls the idl files by itself.
+        task populateIdl {
+            dependsOn ':dist'
+            ant.get(src: 'https://raw.githubusercontent.com/JetBrains/kotlin/master/libraries/stdlib/js/idl/org.w3c.dom.idl', dest: project.file('src/platform/wasm32/'), skipexisting: 'true')
+        }
+
+        def klibFile = project.file('build/wasm32/wasm32.klib')
+        task org_w3c_klib(type: Exec) {
+            commandLine rootProject.file('dist/bin/jsinterop'), 
+                '-idl', 'src/platform/wasm32/', 
+                '-o', 'build/wasm32/wasm32',
+                '-target', 'wasm32'
+            outputs.file( klibFile )
+            dependsOn "populateIdl"
+        }
+
+        task org_w3c(type: KlibInstall) {
+            klib = klibFile
+            repo = file("$konanHome/klib/platform/$targetName")
+            it.target = targetName
+            dependsOn "org_w3c_klib"
+        }
+
+        installTasks.add(tasks["org_w3c"])
+    }
+
     task "${targetName}Install" {
         dependsOn installTasks
     }

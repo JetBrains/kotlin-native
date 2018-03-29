@@ -65,7 +65,7 @@ KONAN_HOME="$(findHome)"
 NATIVE_LIB="${KONAN_HOME}/konan/nativelib"
 
 java_opts=(-ea \
-            -Xmx3G \
+            -Xmx8G \
             "-Djava.library.path=${NATIVE_LIB}" \
             "-Dkonan.home=${KONAN_HOME}" \
             -Dfile.encoding=UTF-8 \
@@ -79,6 +79,7 @@ done < "${KONAN_HOME}/tools/env_blacklist"
 KONAN_JAR="${KONAN_HOME}/konan/lib/backend.native.jar"
 KOTLIN_JAR="${KONAN_HOME}/konan/lib/kotlin-compiler.jar"
 KOTLIN_STDLIB_JAR="${KONAN_HOME}/konan/lib/kotlin-stdlib.jar"
+KOTLIN_IDL2K_JAR="/Users/jetbrains/kotlin-native/kotlin/libraries/tools/idl2k/target/classes:/Users/jetbrains/.m2/repository/org/antlr/antlr4-runtime/4.5.3/antlr4-runtime-4.5.3.jar"
 KOTLIN_REFLECT_JAR="${KONAN_HOME}/konan/lib/kotlin-reflect.jar"
 KOTLIN_SCRIPT_RUNTIME_JAR="${KONAN_HOME}/konan/lib/kotlin-script-runtime.jar"
 STUB_GENERATOR_JAR="${KONAN_HOME}/konan/lib/StubGenerator.jar"
@@ -87,7 +88,7 @@ INTEROP_JAR="${KONAN_HOME}/konan/lib/Runtime.jar"
 SHARED_JAR="${KONAN_HOME}/konan/lib/shared.jar"
 KLIB_JAR="${KONAN_HOME}/konan/lib/klib.jar"
 UTILITIES_JAR="${KONAN_HOME}/konan/lib/utilities.jar"
-KONAN_CLASSPATH="$KOTLIN_JAR:$KOTLIN_STDLIB_JAR:$KOTLIN_REFLECT_JAR:$KOTLIN_SCRIPT_RUNTIME_JAR:$INTEROP_JAR:$STUB_GENERATOR_JAR:$INTEROP_INDEXER_JAR:$KONAN_JAR:$KLIB_JAR:$UTILITIES_JAR:$SHARED_JAR"
+KONAN_CLASSPATH="$KOTLIN_JAR:$KOTLIN_STDLIB_JAR:$KOTLIN_REFLECT_JAR:$KOTLIN_SCRIPT_RUNTIME_JAR:$INTEROP_JAR:$STUB_GENERATOR_JAR:$INTEROP_INDEXER_JAR:$KONAN_JAR:$KLIB_JAR:$UTILITIES_JAR:$SHARED_JAR:$KOTLIN_IDL2K_JAR"
 TOOL_CLASS=org.jetbrains.kotlin.cli.utilities.MainKt
 
 LIBCLANG_DISABLE_CRASH_RECOVERY=1 \

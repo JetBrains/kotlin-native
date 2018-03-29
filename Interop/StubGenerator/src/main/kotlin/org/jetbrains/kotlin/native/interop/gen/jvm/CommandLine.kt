@@ -80,6 +80,13 @@ class CInteropArguments : CommonInteropArguments() {
     var cstubsname: String? = null
 }
 
+class JsInteropArguments : CommonInteropArguments() {
+    @Argument(value = "-idl", valueDescription = "<directory>", description = "source IDL files")
+    var idl: String? = null
+    @Argument(value = "-cache", valueDescription = "<file>", description = "IDL files cache")
+    var cache: String? = null
+}
+
 const val HEADER_FILTER_ADDITIONAL_SEARCH_PREFIX = "-headerFilterAdditionalSearchPrefix"
 
 fun <T: CommonToolArguments> parseCommandLine(args: Array<String>, arguments: T): T {

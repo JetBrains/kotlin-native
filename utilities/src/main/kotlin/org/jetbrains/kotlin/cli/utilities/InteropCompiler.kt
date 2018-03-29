@@ -101,7 +101,7 @@ fun invokeInterop(flavor: String, args: Array<String>): Array<String> {
 
     val nativeStubs = 
         if (flavor == "wasm") 
-            arrayOf("-includeBinary", File(nativesDir, "js_stubs.js").path)
+            nativesDir.listFiles.map { listOf("-includeBinary", it.absolutePath) }.flatten().toTypedArray()
         else 
             arrayOf("-nativelibrary",File(nativesDir, "$cstubsName.bc").path)
 
