@@ -1,28 +1,17 @@
-import kotlinx.interop.wasm.dom.*
 import kotlinx.wasm.jsinterop.*
+import org.w3c.dom.*
 
 fun main(args: Array<String>) {
 
-    val canvas = document.getElementById("myCanvas").asCanvas
-    val ctx = canvas.getContext("2d")
+    val canvas = document.getElementById("myCanvas")!!.asHTMLCanvasElement
+    val ctx = canvas.getContext("2d")!!.asCanvasRenderingContext2D
     val rect = canvas.getBoundingClientRect()
     val rectLeft = rect.left
     val rectTop = rect.top
 
-    var mouseX: Int = 0
-    var mouseY: Int = 0
+    var mouseX: Double = 0.0
+    var mouseY: Double = 0.0
     var draw: Boolean = false
-
-    document.setter("onmousemove") { arguments: ArrayList<JsValue> ->
-        val event = MouseEvent(arguments[0])
-        mouseX = event.getInt("clientX") - rectLeft
-        mouseY = event.getInt("clientY") - rectTop
-
-        if (mouseX < 0) mouseX = 0
-        if (mouseX > 639) mouseX = 639
-        if (mouseY < 0) mouseY = 0
-        if (mouseY > 479) mouseY = 479
-    }
 
     document.setter("onmousedown") {
         draw = true
@@ -32,15 +21,31 @@ fun main(args: Array<String>) {
         draw = false
     }
 
-    setInterval(10) {
+    document.setter("onmousemove") { 
+        arguments: ArrayList<JsValue> ->
+
+        val event = arguments[0].asMouseEvent
+        mouseX = event.clientX - rectLeft
+        mouseY = event.clientY - rectTop
+
+        if (mouseX < 0.0) mouseX = 0.0
+        if (mouseX > 639.0) mouseX = 639.0
+        if (mouseY < 0.0) mouseY = 0.0
+        if (mouseY > 479.0) mouseY = 479.0
+    }
+
+    window.setInterval({ _: ArrayList<JsValue> ->
         if (draw) {
-            ctx.strokeStyle = "#222222"
-            ctx.lineTo(mouseX, mouseY)
+            // TODO: properly support union types to eliminate 
+            // explicit boxing here.
+            // Or implement overloaded setters in the frontend?
+            ctx.strokeStyle = "#222222".box 
+            ctx.lineTo(mouseX, mouseY) 
             ctx.stroke()
         } else {
             ctx.moveTo(mouseX, mouseY)
             ctx.stroke()
         }
-    }
+    }.wrapFunction.asTimerHandler , 10) // TODO: properly support union types
 }
 

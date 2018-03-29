@@ -40,6 +40,34 @@ konan.libraries.push ({
         arena.push(object);
         return arena.length - 1;
     },
+    Konan_js_pushNullToArena: function (arenaIndex) {
+        var result = konan_dependencies.env.Konan_js_addObjectToArena(arenaIndex, null)
+        return result
+    },
+    Konan_js_pushDoubleToArena: function(arenaIndex, upper, lower) {
+        var arena = konan_dependencies.env.arenas.get(arenaIndex);
+        arena.push(twoIntsToDouble(upper, lower));
+        return arena.length - 1;
+    },
+    Konan_js_pushStringToArena: function(arenaIndex, pointer, length) {
+        var arena = konan_dependencies.env.arenas.get(arenaIndex);
+        arena.push(toUTF16String(pointer, length))
+        return arena.length - 1;
+    },
+    Konan_js_pushFunctionToArena: function(arenaIndex, pointer) {
+        var arena = konan_dependencies.env.arenas.get(arenaIndex);
+        var lambda = konan_dependencies.env.Konan_js_wrapLambda(arena, pointer);
+        arena.push(lambda);
+        return arena.length - 1;
+    },
+    Konan_js_pushDocumentToArena: function (arenaIndex) {
+        var result = konan_dependencies.env.Konan_js_addObjectToArena(arenaIndex, document)
+        return result
+    },
+    Konan_js_pushWindowToArena: function (arenaIndex) {
+        var result = konan_dependencies.env.Konan_js_addObjectToArena(arenaIndex, window)
+        return result
+    },
     Konan_js_wrapLambda: function (functionArenaIndex, index) {
         return (function () { 
             var functionArena = konan_dependencies.env.arenas.get(functionArenaIndex);
@@ -49,11 +77,24 @@ konan.libraries.push ({
             var argumentArenaIndex = konan_dependencies.env.Konan_js_allocateArena(Array.prototype.slice.call(arguments));
 
             var resultIndex = instance.exports.Konan_js_runLambda(index, argumentArenaIndex, arguments.length);
-            var result = kotlinObject(argumentArenaIndex, resultIndex);
+            // TODO: we need to support return values.
+            //var result = kotlinObject(argumentArenaIndex, resultIndex);
             konan_dependencies.env.Konan_js_freeArena(argumentArenaIndex);
 
-            return result;
+            //return result;
         });
+    },
+    Konan_js_isNull: function(arenaIndex, objIndex) {
+        var value =  kotlinObject(arenaIndex, objIndex);
+        if (value == null){
+            return 1 
+        } else {
+            return 0;
+        }
+    },
+    Konan_js_jsPrint: function(arenaIndex, objIndex) {
+        var value =  kotlinObject(arenaIndex, objIndex);
+        console.log(value);
     },
     Konan_js_getInt: function(arenaIndex, objIndex, propertyNamePtr, propertyNameLength) {
         // TODO:  The toUTF16String() is to be resolved by launcher.js runtime.
@@ -73,12 +114,23 @@ konan.libraries.push ({
         var name = toUTF16String(propertyName, propertyNameLength);
         kotlinObject(arena, obj)[name] = konan_dependencies.env.Konan_js_wrapLambda(arena, func);
     },
-
     Konan_js_setString: function (arena, obj, propertyName, propertyNameLength, stringPtr, stringLength) {
         var name = toUTF16String(propertyName, propertyNameLength);
         var string = toUTF16String(stringPtr, stringLength);
         kotlinObject(arena, obj)[name] = string;
     },
+    Konan_js_unboxPrimitive: function(arena, obj) {
+        return kotlinObject(arena, obj)
+    },
+    Konan_js_unboxDouble: function(arena, obj) {
+        doubleToReturnSlot(kotlinObject(arena, obj))
+    },
+    Konan_js_unboxString: function(arena, obj) {
+        stringToReturnVar(kotlinObject(arena, obj))
+    },
+    Konan_js_fetchString: function (pointer) {
+        fromString(stringReturnVar, pointer);
+    }
 });
 
 // TODO: This is just a shorthand notation.

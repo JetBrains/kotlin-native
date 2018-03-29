@@ -8,9 +8,19 @@ konan.libraries.push ({
     return doubleToReturnSlot(result);
   },
 
+  knjs_set__Math_E: function(valueUpper, valueLower) {
+    var value = twoIntsToDouble(valueUpper, valueLower);
+    Math.E = value;
+  },
+
   knjs_get__Math_LN2: function() {
     var result = Math.LN2;
     return doubleToReturnSlot(result);
+  },
+
+  knjs_set__Math_LN2: function(valueUpper, valueLower) {
+    var value = twoIntsToDouble(valueUpper, valueLower);
+    Math.LN2 = value;
   },
 
   knjs_get__Math_LN10: function() {
@@ -18,9 +28,19 @@ konan.libraries.push ({
     return doubleToReturnSlot(result);
   },
 
+  knjs_set__Math_LN10: function(valueUpper, valueLower) {
+    var value = twoIntsToDouble(valueUpper, valueLower);
+    Math.LN10 = value;
+  },
+
   knjs_get__Math_LOG2E: function() {
     var result = Math.LOG2E;
     return doubleToReturnSlot(result);
+  },
+
+  knjs_set__Math_LOG2E: function(valueUpper, valueLower) {
+    var value = twoIntsToDouble(valueUpper, valueLower);
+    Math.LOG2E = value;
   },
 
   knjs_get__Math_LOG10E: function() {
@@ -28,9 +48,19 @@ konan.libraries.push ({
     return doubleToReturnSlot(result);
   },
 
+  knjs_set__Math_LOG10E: function(valueUpper, valueLower) {
+    var value = twoIntsToDouble(valueUpper, valueLower);
+    Math.LOG10E = value;
+  },
+
   knjs_get__Math_PI: function() {
     var result = Math.PI;
     return doubleToReturnSlot(result);
+  },
+
+  knjs_set__Math_PI: function(valueUpper, valueLower) {
+    var value = twoIntsToDouble(valueUpper, valueLower);
+    Math.PI = value;
   },
 
   knjs_get__Math_SQRT1_2: function() {
@@ -38,9 +68,19 @@ konan.libraries.push ({
     return doubleToReturnSlot(result);
   },
 
+  knjs_set__Math_SQRT1_2: function(valueUpper, valueLower) {
+    var value = twoIntsToDouble(valueUpper, valueLower);
+    Math.SQRT1_2 = value;
+  },
+
   knjs_get__Math_SQRT2: function() {
     var result = Math.SQRT2;
     return doubleToReturnSlot(result);
+  },
+
+  knjs_set__Math_SQRT2: function(valueUpper, valueLower) {
+    var value = twoIntsToDouble(valueUpper, valueLower);
+    Math.SQRT2 = value;
   },
 
   knjs__Math_abs: function(xUpper, xLower) {
@@ -251,4 +291,3 @@ konan.libraries.push ({
     return doubleToReturnSlot(result);
   }
 })
-

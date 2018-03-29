@@ -17,6 +17,11 @@
 let instance;
 let heap;
 let global_arguments;
+//let memory;
+let globalBase = 0; // TODO: Is there any way to obtain global_base from JavaScript?
+
+//let konanStackTop;
+let stringReturnVar;
 
 function isBrowser() {
     return typeof window !== 'undefined';
@@ -115,6 +120,19 @@ function int32ToHeap(value, pointer) {
 function doubleToReturnSlot(value) {
     const twoInts = doubleToTwoInts(value);
     instance.exports.ReturnSlot_setDouble(twoInts.upper, twoInts.lower);
+}
+
+function stringToReturnVar(string) {
+    stringReturnVar = string;
+    return string.length // TODO: wait a second! It should be a byte length!
+}
+
+function stackTop() {
+    // Read the value module's `__stack_pointer` is initialized with.
+    // It is the very first static in .data section.
+    var addr = (globalBase == 0 ? 4 : globalBase);
+    var fourBytes = heap.buffer.slice(addr, addr+4);
+    return new Uint32Array(fourBytes)[0];
 }
 
 let konan_dependencies = {
