@@ -273,9 +273,7 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
                     .pointer
         }
         val vtable = vtable(superClass)
-        val typeInfoWithVtableType = structType(
-                runtime.typeInfoType, LLVMArrayType(int8TypePtr, vtable.elements.size)!!
-        )
+        val typeInfoWithVtableType = structType(runtime.typeInfoType, vtable.llvmType)
         val typeInfoWithVtableGlobal = staticData.createGlobal(typeInfoWithVtableType, "", isExported = false)
         val result = typeInfoWithVtableGlobal.pointer.getElementPtr(0)
         val typeInfoWithVtable = Struct(TypeInfo(

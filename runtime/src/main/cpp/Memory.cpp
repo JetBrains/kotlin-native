@@ -826,16 +826,7 @@ MetaObjHeader* ObjHeader::createMetaObject(TypeInfo** location) {
 
 void ObjHeader::destroyMetaObject(TypeInfo** location) {
   TypeInfo* meta = *location;
-#if KONAN_NO_THREADS
   *location = nullptr;
-  konanFreeMemory(meta);
-#else
-  void* old = __sync_val_compare_and_swap(location, meta, nullptr);
-  if (old == meta) {
-    // We grabbed meta.
-    konanFreeMemory(meta);
-  }
-#endif
 }
 
 ContainerHeader* AllocContainer(size_t size) {

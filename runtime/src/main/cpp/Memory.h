@@ -244,7 +244,7 @@ struct ArrayHeader {
 // Header for the meta-object.
 struct MetaObjHeader {
   // Pointer to the type info. Must be first, to match ArrayHeader and ObjHeader layout.
-  TypeInfo* typeInfo_;
+  const TypeInfo* typeInfo_;
 };
 
 inline uint32_t ArrayDataSizeBytes(const ArrayHeader* obj) {
