@@ -107,7 +107,7 @@ private val cKeywords = setOf(
         "template", "this", "thread_local", "throw", "true", "try", "typeid", "typename",
         "using",
         "virtual",
-        "whcar_t",
+        "wchar_t",
         "xor_eq"
 )
 
