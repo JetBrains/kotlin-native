@@ -818,8 +818,12 @@ MetaObjHeader* ObjHeader::createMetaObject(TypeInfo** location) {
 #if KONAN_NO_THREADS
   *location = reinterpret_cast<TypeInfo*>(meta);
 #else
-  void* old = __sync_val_compare_and_swap(location, typeInfo, reinterpret_cast<TypeInfo*>(meta));
-  meta = reinterpret_cast<MetaObjHeader*>(old);
+  TypeInfo* old = __sync_val_compare_and_swap(location, typeInfo, reinterpret_cast<TypeInfo*>(meta));
+  if (old->typeInfo_ != old) {
+    // Someone installed a new meta-object since the check.
+    konanFreeMemory(meta);
+    meta = reinterpret_cast<MetaObjHeader*>(old);
+  }
 #endif
   return meta;
 }
@@ -827,6 +831,7 @@ MetaObjHeader* ObjHeader::createMetaObject(TypeInfo** location) {
 void ObjHeader::destroyMetaObject(TypeInfo** location) {
   TypeInfo* meta = *location;
   *location = nullptr;
+  konanFreeMemory(meta);
 }
 
 ContainerHeader* AllocContainer(size_t size) {
