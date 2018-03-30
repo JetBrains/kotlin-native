@@ -293,8 +293,8 @@ private class ExportedElement(val kind: ElementKind,
         val uniqueNames = owner.paramsToUniqueNames(original.explicitParameters)
         val params = ArrayList(original.explicitParameters
                 .filter { it.type.includeToSignature() }
-                .mapIndexed { idx, it ->
-                    uniqueNames[idx] to TypeUtils.getClassDescriptor(it.type)!!
+                .map { it ->
+                    uniqueNames[it]!! to TypeUtils.getClassDescriptor(it.type)!!
                 })
         return listOf(returned) + params
     }
@@ -496,16 +496,16 @@ internal class CAdapterGenerator(
     private lateinit var outputStreamWriter: PrintWriter
     private val paramNamesRecorded = mutableMapOf<String, Int>()
 
-    internal fun paramsToUniqueNames(params: List<ParameterDescriptor>): List<String> {
+    internal fun paramsToUniqueNames(params: List<ParameterDescriptor>): Map<ParameterDescriptor, String> {
         paramNamesRecorded.clear()
-        return params.map {
+        return params.associate {
             val name = translateName(it.name.asString()) 
             val count = paramNamesRecorded.getOrDefault(name, 0)
             paramNamesRecorded[name] = count + 1
             if (count == 0) {
-                name
+                it to name
             } else {
-                "$name${count.toString()}"
+                it to "$name${count.toString()}"
             }
         }
     }
