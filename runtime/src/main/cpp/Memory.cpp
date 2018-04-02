@@ -835,8 +835,12 @@ MetaObjHeader* ObjHeader::createMetaObject(TypeInfo** location) {
 }
 
 void ObjHeader::destroyMetaObject(TypeInfo** location) {
-  TypeInfo* meta = *location;
-  *location = nullptr;
+  MetaObjHeader* meta = *(reinterpret_cast<MetaObjHeader**>(location));
+  *const_cast<const TypeInfo**>(location) = meta->typeInfo_;
+  if (meta->counter_ != nullptr) {
+    WeakReferenceCounterClear(meta->counter_);
+    UpdateRef(&meta->counter_, nullptr);
+  }
   konanFreeMemory(meta);
 }
 
@@ -1248,16 +1252,6 @@ ObjHeader** GetParamSlotIfArena(ObjHeader* param, ObjHeader** localSlot) {
   return reinterpret_cast<ObjHeader**>(reinterpret_cast<uintptr_t>(&chunk->arena) | ARENA_BIT);
 }
 
-void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* object) {
-  if (isArenaSlot(returnSlot)) {
-    // Not a subject of reference counting.
-    if (object == nullptr || !isRefCounted(object)) return;
-    auto arena = initedArena(asArenaSlot(returnSlot));
-    returnSlot = arena->getSlot();
-  }
-  UpdateRef(returnSlot, object);
-}
-
 void UpdateRef(ObjHeader** location, const ObjHeader* object) {
   RuntimeAssert(!isArenaSlot(location), "must not be a slot");
   ObjHeader* old = *location;
@@ -1270,6 +1264,35 @@ void UpdateRef(ObjHeader** location, const ObjHeader* object) {
     if (reinterpret_cast<uintptr_t>(old) > 1) {
       ReleaseRef(old);
     }
+  }
+}
+
+void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* object) {
+  if (isArenaSlot(returnSlot)) {
+    // Not a subject of reference counting.
+    if (object == nullptr || !isRefCounted(object)) return;
+    auto arena = initedArena(asArenaSlot(returnSlot));
+    returnSlot = arena->getSlot();
+  }
+  UpdateRef(returnSlot, object);
+}
+
+void UpdateRefIfNull(ObjHeader** location, const ObjHeader* object) {
+  if (object != nullptr) {
+#if KONAN_NO_THREADS
+    ObjHeader* old = *location;
+    if (old == nullptr) {
+      AddRef(object);
+      *const_cast<const ObjHeader**>(location) = object;
+    }
+#else
+    AddRef(object);
+    auto old = __sync_val_compare_and_swap(location, nullptr, const_cast<ObjHeader*>(object));
+    if (old != nullptr) {
+      // Failed to store, was not null.
+      ReleaseRef(object);
+    }
+#endif
   }
 }
 
@@ -1652,5 +1675,8 @@ void FreezeSubgraph(ObjHeader* root) {
 void MutationCheck(ObjHeader* obj) {
   if (obj->container()->frozen()) ThrowInvalidMutabilityException();
 }
+
+
+
 
 } // extern "C"
