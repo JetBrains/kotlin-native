@@ -38,7 +38,7 @@ inline void unlock(int32_t* address) {
 
 extern "C" {
 
-OBJ_GETTER(makeWeakCounter, void*);
+OBJ_GETTER(makeWeakReferenceCounter, void*);
 
 // See Weak.kt for implementation details.
 // Retrieve link on the counter object.
@@ -47,7 +47,7 @@ OBJ_GETTER(Konan_getWeakReferenceCounter, ObjHeader* referred) {
   if (meta->counter_ == nullptr) {
      ObjHolder counterHolder;
      // Cast unneeded, just to emphasize we store an object reference as void*.
-     ObjHeader* counter = makeWeakCounter(reinterpret_cast<void*>(referred), counterHolder.slot());
+     ObjHeader* counter = makeWeakReferenceCounter(reinterpret_cast<void*>(referred), counterHolder.slot());
      UpdateRefIfNull(&meta->counter_, counter);
   }
   RETURN_OBJ(meta->counter_);
