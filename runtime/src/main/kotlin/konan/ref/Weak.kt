@@ -46,6 +46,7 @@ class WeakReference<T> {
         pointer = getWeakReferenceCounter(referred)
     }
 
+    @PublishedApi
     internal var pointer: WeakReferenceCounter?
 
     fun clear() {
