@@ -25,5 +25,11 @@ fun multiWeak(): Array<WeakReference<Data>>  {
 @Test fun runTest() {
     val weak = localWeak()
     val value = weak.get()
-    println(if (value != null) value.toString() else null)
+    println(value?.toString())
+
+    val weaks = multiWeak()
+    weaks.forEach {
+        it -> if (it.get()?.s != null) throw Error("not null")
+    }
+    println("OK")
 }
