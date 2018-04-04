@@ -16,61 +16,37 @@
 
 package konan.ref
 
-import kotlinx.cinterop.COpaquePointer
-import konan.internal.ExportForCppRuntime
-
 /**
- *   Theory of operations:
- *
- *  Weak references in Kotlin/Native are implemented in the following way. Whenever weak reference to an
- * object is created, we atomically modify type info pointer in the object to point into a metaobject.
- * This metaobject contains a strong reference to the counter object (instance of WeakReferenceCounter class).
- * Every other weak reference contains a strong reference to the counter object.
- *
- *         [weak1]  [weak2]
- *             \      /
- *             V     V
- *     .......[Counter] <----
- *     .                     |
- *     .                     |
- *      ->[Object] -> [Meta]-
- *
- *   References from weak reference objects to the counter and from the metaobject to the counter are strong,
- *  and from the counter to the object is nullably weak. So whenever an object dies, if it has a metaobject,
- *  it is traversed to find a counter object, and atomically nullify reference to the object. Afterward, all attempts
- *  to get the object would yield null.
+ * Class WeakReference encapsulates weak reference to an object, which could be used to either
+ * retrieve a strong reference to an object, or return null, if object was already destoyed by
+ * the memory manager.
  */
 class WeakReference<T> {
+    /**
+     * Creates a weak reference object pointing to an object. Weak reference doesn't prevent
+     * removing object, and is nullified once object is collected.
+     */
     constructor(referred: T) {
         if (referred == null) throw Error("Weak reference to null?")
         pointer = getWeakReferenceCounter(referred)
     }
 
+    /**
+     * Backing store for the object pointer, inaccessible directly.
+     */
     @PublishedApi
     internal var pointer: WeakReferenceCounter?
 
-    fun clear() {
+    /**
+     * Clears reference to an object.
+     */
+    public fun clear() {
         pointer = null
     }
 }
 
+/**
+ * Returns either reference to an object or null, if it was collected.
+ */
 @Suppress("NON_PUBLIC_CALL_FROM_PUBLIC_INLINE")
 public inline fun <reified T> WeakReference<T>.get() = pointer?.get() as T?
-
-// Clear holding the counter object, which refers to the actual object.
-internal class WeakReferenceCounter(var referred: COpaquePointer?) {
-    // Spinlock, potentially taken when materializing or removing 'referred' object.
-    var lock: Int = 0
-
-    @SymbolName("Konan_WeakReferenceCounter_get")
-    internal external fun get(): Any?
-}
-
-// Get a counter from non-null object.
-@SymbolName("Konan_getWeakReferenceCounter")
-external private fun getWeakReferenceCounter(referent: Any): WeakReferenceCounter
-
-// Create a counter object.
-@ExportForCppRuntime
-internal fun makeWeakReferenceCounter(referred: COpaquePointer) = WeakReferenceCounter(referred)
-

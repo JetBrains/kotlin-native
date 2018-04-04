@@ -1674,7 +1674,4 @@ void MutationCheck(ObjHeader* obj) {
   if (obj->container()->frozen()) ThrowInvalidMutabilityException();
 }
 
-
-
-
 } // extern "C"
