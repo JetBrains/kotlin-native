@@ -233,7 +233,9 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
             val step: IrExpression? = null,
             val increasing: Boolean = true,
             var needLastCalculation: Boolean = false,
-            val closed: Boolean = true)
+            val closed: Boolean = true,
+            val isCalculatedWithCalls: Boolean = true,
+            val isEmptyCond: IrExpression? = null)
 
     /** Contains information about variables used in the loop. */
     private data class ForLoopInfo(
@@ -242,7 +244,9 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
             val bound: IrVariableSymbol,
             val last: IrVariableSymbol,
             val step: IrVariableSymbol,
-            var loopVariable: IrVariableSymbol? = null)
+            var loopVariable: IrVariableSymbol? = null,
+            val isCalculatedWithCalls: Boolean = true,
+            val isEmptyCond: IrExpression? = null)
 
     private inner class ProgressionInfoBuilder : IrElementVisitor<ProgressionInfo?, Nothing?> {
 
@@ -269,6 +273,9 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
 
         private fun buildStep(expression: IrCall, progressionType: ProgressionType) =
                 expression.extensionReceiver!!.accept(this, null)?.let {
+                    if (!it.isCalculatedWithCalls) {
+                        return null
+                    }
                     val newStep = expression.getValueArgument(0)!!
                     val (newStepCheck, needBoundCalculation) = irCheckProgressionStep(progressionType, newStep)
                     val step = when {
@@ -309,6 +316,36 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
 
         override fun visitElement(element: IrElement, data: Nothing?): ProgressionInfo? = null
 
+        override fun visitGetValue(expression: IrGetValue, data: Nothing?): ProgressionInfo? {
+            val type = expression.type
+            var typeId = 0
+            val progressionType = when {
+                type.isSubtypeOf(symbols.charProgression.descriptor.defaultType) -> { typeId = 0; CHAR_PROGRESSION }
+                type.isSubtypeOf(symbols.intProgression.descriptor.defaultType)  -> { typeId = 1; INT_PROGRESSION  }
+                type.isSubtypeOf(symbols.longProgression.descriptor.defaultType) -> { typeId = 2; LONG_PROGRESSION }
+                else -> return null
+            }
+
+            val builder = context.createIrBuilder(scopeOwnerSymbol, expression.startOffset, expression.endOffset)
+            with (builder) {
+                val first = irCall(symbols.progressionFirst[typeId]).apply {
+                    dispatchReceiver = expression
+                }
+                val bound = irCall(symbols.progressionLast[typeId]).apply {
+                    dispatchReceiver = expression
+                }
+                val step = irCall(symbols.progressionStep[typeId]).apply {
+                    dispatchReceiver = expression
+                }
+                val isEmpty = irCall(symbols.progressionIsEmpty[typeId]).apply {
+                    dispatchReceiver = expression
+                }
+                return ProgressionInfo(progressionType, first, bound, step,
+                        isCalculatedWithCalls = false,
+                        isEmptyCond = isEmpty)
+            }
+        }
+
         override fun visitCall(expression: IrCall, data: Nothing?): ProgressionInfo? {
             val type = expression.type
             val progressionType = when {
@@ -325,7 +362,6 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
                 in downToSymbols -> buildDownTo(expression, progressionType)
                 in stepSymbols -> buildStep(expression, progressionType)
                 symbols.collectionIndices -> buildProgressionInfoFromGetIndices(expression, progressionType)
-                // get variable and this variable is range it should to get first and last and put it to progression info
                 else -> null
             }
         }
@@ -371,6 +407,7 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
                         .also { statements.add(it) }
 
 
+                assert(isCalculatedWithCalls || increasing)
                 val stepExpression = (if (increasing) step else step?.unaryMinus()) ?: defaultStep(startOffset, endOffset)
                 val stepValue = scope.createTemporaryVariable(ensureNotNullable(stepExpression),
                         nameHint = "step",
@@ -411,7 +448,9 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
                         inductionVariable.symbol,
                         boundValue.symbol,
                         lastValue.symbol,
-                        stepValue.symbol)
+                        stepValue.symbol,
+                        isCalculatedWithCalls = progressionInfo.isCalculatedWithCalls,
+                        isEmptyCond = progressionInfo.isEmptyCond)
 
                 return IrCompositeImpl(startOffset, endOffset, context.builtIns.unitType, null, statements)
             }
@@ -495,6 +534,13 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
 
     // TODO: Eliminate the loop if we can prove that it will not be executed.
     private fun DeclarationIrBuilder.buildEmptyCheck(loop: IrLoop, forLoopInfo: ForLoopInfo): IrExpression {
+        if (!forLoopInfo.isCalculatedWithCalls) {
+            val check = irCall(context.irBuiltIns.booleanNotSymbol).apply {
+                putValueArgument(0, forLoopInfo.isEmptyCond)
+            }
+            return irIfThen(check, loop)
+        }
+
         val builtIns = context.irBuiltIns
         val increasing = forLoopInfo.progressionInfo.increasing
 
