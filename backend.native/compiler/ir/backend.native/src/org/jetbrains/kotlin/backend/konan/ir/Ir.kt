@@ -355,29 +355,28 @@ internal class KonanSymbols(context: Context, val symbolTable: SymbolTable): Sym
             .single().getter!!
     )
 
+    private fun getPropertyByName(symbol : IrClassSymbol, name : String) : IrSimpleFunctionSymbol =
+            symbolTable.referenceSimpleFunction(symbol.descriptor.unsubstitutedMemberScope
+            .getContributedVariables(Name.identifier(name), NoLookupLocation.FROM_BACKEND)
+            .single().getter!!)
+
     val progressionFirst = progressionClasses.map { symbol ->
-        symbolTable.referenceSimpleFunction(symbol.descriptor.unsubstitutedMemberScope
-                .getContributedVariables(Name.identifier("first"), NoLookupLocation.FROM_BACKEND)
-                .single().getter!!)
-    }
+        symbol to getPropertyByName(symbol, "first")
+    }.toMap()
 
     val progressionLast = progressionClasses.map { symbol ->
-        symbolTable.referenceSimpleFunction(symbol.descriptor.unsubstitutedMemberScope
-                .getContributedVariables(Name.identifier("last"), NoLookupLocation.FROM_BACKEND)
-                .single().getter!!)
-    }
+        symbol to getPropertyByName(symbol, "last")
+    }.toMap()
 
     val progressionStep = progressionClasses.map { symbol ->
-        symbolTable.referenceSimpleFunction(symbol.descriptor.unsubstitutedMemberScope
-                .getContributedVariables(Name.identifier("step"), NoLookupLocation.FROM_BACKEND)
-                .single().getter!!)
-    }
+        symbol to getPropertyByName(symbol, "step")
+    }.toMap()
 
     val progressionIsEmpty = progressionClasses.map { symbol ->
-        symbolTable.referenceSimpleFunction(symbol.descriptor.unsubstitutedMemberScope
+        symbol to symbolTable.referenceSimpleFunction(symbol.descriptor.unsubstitutedMemberScope
                 .getContributedFunctions(Name.identifier("isEmpty"), NoLookupLocation.FROM_BACKEND)
                 .single())
-    }
+    }.toMap()
 
     val collectionIndices = symbolTable.referenceSimpleFunction(builtIns.builtInsModule
             .getPackage(KotlinBuiltIns.COLLECTIONS_PACKAGE_FQ_NAME).memberScope

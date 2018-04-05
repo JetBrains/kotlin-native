@@ -220,7 +220,10 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
 
     //region Util classes ==============================================================================================
     // TODO: Replace with a cast when such support is added in the boxing lowering.
-    private data class ProgressionType(val elementType: KotlinType, val numberCastFunctionName: Name) {
+    private data class ProgressionType(val elementType: KotlinType,
+                                       val numberCastFunctionName: Name,
+                                       val typeSymbol : IrClassSymbol)
+    {
         fun isIntProgression()  = KotlinBuiltIns.isInt(elementType)
         fun isLongProgression() = KotlinBuiltIns.isLong(elementType)
         fun isCharProgression() = KotlinBuiltIns.isChar(elementType)
@@ -244,15 +247,24 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
             val bound: IrVariableSymbol,
             val last: IrVariableSymbol,
             val step: IrVariableSymbol,
-            var loopVariable: IrVariableSymbol? = null,
-            val isCalculatedWithCalls: Boolean = true,
-            val isEmptyCond: IrExpression? = null)
+            var loopVariable: IrVariableSymbol? = null)
+    {
+        // mean that first, bound and step of the progression
+        // received with calls appropriate properties of the progression
+        val isCalculatedWithCalls: Boolean
+        get() = progressionInfo.isCalculatedWithCalls
+
+        // if calculated with calls then this will be call progression.isEmpty()
+        // else it will be null
+        val isEmptyCond: IrExpression?
+        get() = progressionInfo.isEmptyCond
+    }
 
     private inner class ProgressionInfoBuilder : IrElementVisitor<ProgressionInfo?, Nothing?> {
 
-        val INT_PROGRESSION = ProgressionType(context.builtIns.intType, Name.identifier("toInt"))
-        val LONG_PROGRESSION = ProgressionType(context.builtIns.longType, Name.identifier("toLong"))
-        val CHAR_PROGRESSION = ProgressionType(context.builtIns.charType, Name.identifier("toChar"))
+        val INT_PROGRESSION = ProgressionType(context.builtIns.intType, Name.identifier("toInt"), symbols.intProgression)
+        val LONG_PROGRESSION = ProgressionType(context.builtIns.longType, Name.identifier("toLong"), symbols.longProgression)
+        val CHAR_PROGRESSION = ProgressionType(context.builtIns.charType, Name.identifier("toChar"), symbols.charProgression)
 
         private fun buildRangeTo(expression: IrCall, progressionType: ProgressionType) =
                 ProgressionInfo(progressionType,
@@ -316,29 +328,31 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
 
         override fun visitElement(element: IrElement, data: Nothing?): ProgressionInfo? = null
 
+        fun KotlinType.progressionType(): ProgressionType? = when {
+            isSubtypeOf(symbols.charProgression.descriptor.defaultType) -> CHAR_PROGRESSION
+            isSubtypeOf(symbols.intProgression.descriptor.defaultType) -> INT_PROGRESSION
+            isSubtypeOf(symbols.longProgression.descriptor.defaultType) -> LONG_PROGRESSION
+            else -> null
+        }
+
         override fun visitGetValue(expression: IrGetValue, data: Nothing?): ProgressionInfo? {
             val type = expression.type
-            var typeId = 0
-            val progressionType = when {
-                type.isSubtypeOf(symbols.charProgression.descriptor.defaultType) -> { typeId = 0; CHAR_PROGRESSION }
-                type.isSubtypeOf(symbols.intProgression.descriptor.defaultType)  -> { typeId = 1; INT_PROGRESSION  }
-                type.isSubtypeOf(symbols.longProgression.descriptor.defaultType) -> { typeId = 2; LONG_PROGRESSION }
-                else -> return null
-            }
+            val progressionType = type.progressionType() ?: return null
 
+            val typeProgressionSymbol = progressionType.typeSymbol
             val builder = context.createIrBuilder(scopeOwnerSymbol, expression.startOffset, expression.endOffset)
             with (builder) {
-                val first = irCall(symbols.progressionFirst[typeId]).apply {
-                    dispatchReceiver = expression
+                val first = irCall(symbols.progressionFirst[typeProgressionSymbol]!!).apply {
+                    dispatchReceiver = expression.copy()
                 }
-                val bound = irCall(symbols.progressionLast[typeId]).apply {
-                    dispatchReceiver = expression
+                val bound = irCall(symbols.progressionLast[typeProgressionSymbol]!!).apply {
+                    dispatchReceiver = expression.copy()
                 }
-                val step = irCall(symbols.progressionStep[typeId]).apply {
-                    dispatchReceiver = expression
+                val step = irCall(symbols.progressionStep[typeProgressionSymbol]!!).apply {
+                    dispatchReceiver = expression.copy()
                 }
-                val isEmpty = irCall(symbols.progressionIsEmpty[typeId]).apply {
-                    dispatchReceiver = expression
+                val isEmpty = irCall(symbols.progressionIsEmpty[typeProgressionSymbol]!!).apply {
+                    dispatchReceiver = expression.copy()
                 }
                 return ProgressionInfo(progressionType, first, bound, step,
                         isCalculatedWithCalls = false,
@@ -348,12 +362,7 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
 
         override fun visitCall(expression: IrCall, data: Nothing?): ProgressionInfo? {
             val type = expression.type
-            val progressionType = when {
-                type.isSubtypeOf(symbols.charProgression.descriptor.defaultType) -> CHAR_PROGRESSION
-                type.isSubtypeOf(symbols.intProgression.descriptor.defaultType) -> INT_PROGRESSION
-                type.isSubtypeOf(symbols.longProgression.descriptor.defaultType) -> LONG_PROGRESSION
-                else -> return null
-            }
+            val progressionType = type.progressionType() ?: return null
 
             // TODO: Process constructors and other factory functions.
             return when (expression.symbol) {
@@ -448,9 +457,7 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
                         inductionVariable.symbol,
                         boundValue.symbol,
                         lastValue.symbol,
-                        stepValue.symbol,
-                        isCalculatedWithCalls = progressionInfo.isCalculatedWithCalls,
-                        isEmptyCond = progressionInfo.isEmptyCond)
+                        stepValue.symbol)
 
                 return IrCompositeImpl(startOffset, endOffset, context.builtIns.unitType, null, statements)
             }
@@ -499,13 +506,13 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
                 }
             } else {
                 val builtIns = context.irBuiltIns
-                comparingBuiltIn = comparingBuiltins[builtIns.int]?.symbol
+                comparingBuiltIn = comparingBuiltins.getValue(builtIns.int).symbol
 
                 // Check if left <= right.
                 val compareTo = symbols.getBinaryOperator(OperatorNameConventions.COMPARE_TO,
                         lhs.type, rhs.type)
 
-                irCall(comparingBuiltIn!!).apply {
+                irCall(comparingBuiltIn).apply {
                     putValueArgument(0, irCallOp(compareTo, lhs, rhs))
                     putValueArgument(1, irInt(0))
                 }
@@ -545,9 +552,7 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
         val increasing = forLoopInfo.progressionInfo.increasing
 
         val expressionType = forLoopInfo.progressionInfo.progressionType.elementType.asSimpleType()
-        if (!expressionType.isInt() && !expressionType.isChar() && !expressionType.isLong()) {
-            throw IllegalArgumentException("Unknown progression type")
-        }
+        assert(expressionType.isInt() || expressionType.isChar() || expressionType.isLong())
 
         val comparingBuiltIns = if (increasing) builtIns.lessOrEqualFunByOperandType
                                 else builtIns.greaterOrEqualFunByOperandType
@@ -656,8 +661,8 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
             return expression
         }
 
-        val parent = expression.dispatchReceiver as? IrCall ?: return expression
-        val progressionInfo = parent.accept(ProgressionInfoBuilder(), null) ?: return expression
+        val receiverCall = expression.dispatchReceiver as? IrCall ?: return expression
+        val progressionInfo = receiverCall.accept(ProgressionInfoBuilder(), null) ?: return expression
         if (!progressionInfo.isStepOne()) {
             return expression
         }
@@ -675,16 +680,12 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
                 statements.add(it)
             }.symbol
 
-            val left = parent.dispatchReceiver
-            val right = parent.getValueArgument(0)
-            if (left == null || right == null) {
-                return expression
-            }
+            val left = progressionInfo.first
+            val right = progressionInfo.bound
 
             val comparingLeft = when {
                 progressionInfo.increasing -> builtIns.lessOrEqualFunByOperandType
-                !progressionInfo.increasing -> builtIns.greaterOrEqualFunByOperandType
-                else -> return expression
+                else -> builtIns.greaterOrEqualFunByOperandType
             }
             val callCheckLeft = buildComparsion(left, irGet(varComp), left.type.asSimpleType(), comparingLeft)
 
@@ -692,8 +693,7 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
                 progressionInfo.increasing && progressionInfo.closed -> builtIns.lessOrEqualFunByOperandType
                 progressionInfo.increasing && !progressionInfo.closed -> builtIns.lessFunByOperandType
                 !progressionInfo.increasing && progressionInfo.closed -> builtIns.greaterOrEqualFunByOperandType
-                !progressionInfo.increasing && !progressionInfo.closed -> builtIns.greaterFunByOperandType
-                else -> return expression
+                else -> builtIns.greaterFunByOperandType
             }
             val callCheckRight = buildComparsion(irGet(varComp), right, right.type.asSimpleType(), comparingRight)
 
