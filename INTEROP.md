@@ -340,8 +340,8 @@ In all cases the C string is supposed to be encoded as UTF-8.
 ### Scope-local pointers ###
 
 It is possible to create scope-stable pointer of C representation of `CValues<T>`
-instance using `MemScope.ptr` extension property. It allows to use APIs which requires C
-pointers with lifetime bound to certain `MemScope`. For example:
+instance using `CValues<T>.ptr` extension property available under memScoped { ... }.
+It allows to use APIs which requires C pointers with lifetime bound to certain `MemScope`. For example:
 ```
 memScoped {
     items = arrayOfNulls<CPointer<ITEM>?>(6)
