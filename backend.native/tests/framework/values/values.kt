@@ -48,7 +48,7 @@ val boolVal: Boolean = true
 val boolAnyVal: Any = false
 
 // Lists
-val numbersList: List<Number> = listOf(1, 2.3F, 13.13)
+val numbersList: List<Number> = listOf(1.toByte(), 2.toShort(), 13)
 val anyList: List<Any> = listOf("Str", 42, 3.14, true)
 
 // lateinit
@@ -190,20 +190,6 @@ open class WithCompanionAndObject {
 fun getCompanionObject() = WithCompanionAndObject.Companion
 fun getNamedObject() = WithCompanionAndObject.Named
 fun getNamedObjectInterface(): OpenClassI = WithCompanionAndObject.Named
-
-// Stdlib usage with generics
-class GenericExtensionClass<K, out V, out T : Map<K, V>> (private val holder: T?) {
-    fun getFirstKey(): K? = holder?.entries?.first()?.key
-
-    fun getFirstValue() : V? {
-        holder?.entries?.forEach { e -> println("KEY: ${e.key}  VALUE: ${e.value}") }
-        return holder?.entries?.first()?.value
-    }
-}
-
-fun <K, V> createMutableMap() = linkedMapOf<K, V>()
-
-fun createTypedMutableMap() = linkedMapOf<Int, String>()
 
 typealias EE = Enumeration
 fun EE.getAnswer() : EE  = Enumeration.ANSWER

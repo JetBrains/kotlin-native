@@ -93,11 +93,10 @@ func testDoubles() throws {
 
 func testLists() throws {
     let numbersList = Values.numbersList
-//    let gold = [1, 2.3 as Float, 13.13]
-    for i in numbersList {
-        print(i)
+    let gold = [1, 2, 13]
+    for i in 0..<gold.count {
+        try assertEquals(actual: gold[i], expected: Int(numbersList[i] as! NSNumber), "Numbers list")
     }
-//    try assertEquals(actual: gold, expected: numbersList as [NSNumber], "Numbers list")
 
     let anyList = Values.anyList
     for i in anyList {
@@ -207,8 +206,6 @@ func testAnyPrint() throws {
 
 func testLambda() throws {
     try assertEquals(actual: Values.sumLambda(3, 4), expected: 7)
-    // FIXME: fails because Floats passed as NSNumbers while lambda defines parameters as Ints
-    // try assertEquals(actual: Values.sumLambda()(3.14, 2.71), expected: 5.85)
 }
 
 // -------- Tests for classes and interfaces -------
@@ -270,8 +267,7 @@ func testDataClass() throws {
 }
 
 func testCompanionObj() throws {
-    // FIXME: unable to get companion's str property
-//    try assertEquals(actual: ValuesWithCompanionAndObjectCompanion.str, expected: "String")
+    try assertEquals(actual: ValuesWithCompanionAndObjectCompanion().str, expected: "String")
     try assertEquals(actual: Values.getCompanionObject().str, expected: "String")
 
     let namedFromCompanion = Values.getCompanionObject().named
@@ -279,38 +275,6 @@ func testCompanionObj() throws {
     try assertTrue(named === namedFromCompanion, "Should be the same Named object")
 
     try assertEquals(actual: Values.getNamedObjectInterface().iFun(), expected: named.iFun(), "Named object's method")
-}
-
-func testGenericMapUsage() throws {
-    var map = Values.createMutableMap() as? [AnyHashable: Any]
-    map?[1] = "One"
-    map?[10] = "Ten"
-
-    print("Map on ")
-    for (k, v) in map! {
-        print("MAP: \(k) - \(v)")
-    }
-    //print((gen.getFirstValue() as? String)!)
-
-    map?[11] = "Eleven"
-    map?["10"] = "Ten as string"
-    let gen = ValuesGenericExtensionClass(holder: map)
-    let value : String? = gen.getFirstValue() as? String
-    for (k, v) in map! {
-        print("MAP: \(k) - \(v)")
-    }
-    try assertEquals(actual: value!, expected: "One", "First value of the map")
-}
-
-func testTypedMapUsage() throws {
-    var map = Values.createTypedMutableMap() as? [AnyHashable: Any]
-    map![1] = "One"
-    map![1.0 as Float] = "Float"
-    map![11] = "Eleven"
-    map!["10"] = "Ten as string"
-    let gen = ValuesGenericExtensionClass(holder: map)
-    let value : String? = gen.getFirstValue() as? String
-    try assertEquals(actual: value!, expected: "One", "First value of the map")
 }
 
 // -------- Execution of the test --------
@@ -343,8 +307,6 @@ class ValuesTests : TestProvider {
             TestCase(name: "TestEnum", method: withAutorelease(testEnum)),
             TestCase(name: "TestDataClass", method: withAutorelease(testDataClass)),
             TestCase(name: "TestCompanionObj", method: withAutorelease(testCompanionObj)),
-            TestCase(name: "TestGenericMapUsage", method: withAutorelease(testGenericMapUsage)),
-            TestCase(name: "TestTypedMapUsage", method: withAutorelease(testTypedMapUsage))
         ]
     }
 }

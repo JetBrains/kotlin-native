@@ -93,7 +93,7 @@ fun create(project: Project): ExecutorService {
 data class ProcessOutput(val stdOut: String, val stdErr: String, val exitCode: Int)
 
 /**
- * Runs process using a given executor
+ * Runs process using a given executor.
  *
  * @param executor a method that is able to run a given executable, e.g. ExecutorService::execute
  * @param executable a process executable to be run

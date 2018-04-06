@@ -157,6 +157,9 @@ def tasksOf(Closure<Task> filter) {
 run {
     def tasks = tasksOf { it instanceof KonanTest && it.inDevelopersRun }
     dependsOn(tasks)
+
+    // Add framework tests
+    dependsOn(project.tasks.withType(FrameworkTest))
 }
 
 // Collect results in one json.

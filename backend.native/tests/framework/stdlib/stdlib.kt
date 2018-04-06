@@ -27,6 +27,27 @@ fun <K, V> toMutableMap(map: HashMap<K, V>) = map.toMutableMap()
 
 fun <E> getFirstElement(collection: Collection<E>) = collection.first()
 
-fun <K, V> tryToAdd(entry: Map.Entry<K, V>, to: Map<K, V>) {
+class GenericExtensionClass<K, out V, out T : Map<K, V>> (private val holder: T?) {
+    fun getFirstKey(): K? = holder?.entries?.first()?.key
 
+    fun getFirstValue() : V? {
+        holder?.entries?.forEach { e -> println("KEY: ${e.key}  VALUE: ${e.value}") }
+        return holder?.entries?.first()?.value
+    }
+}
+
+fun <K, V> createPair():
+        Pair<LinkedHashMap<K, V>, GenericExtensionClass<K, V, Map<K, V>>> {
+    val l = createLinkedMap<K, V>()
+    val g = GenericExtensionClass(l)
+    return Pair(l, g)
+}
+
+fun <K, V> createLinkedMap() = linkedMapOf<K, V>()
+
+fun createTypedMutableMap() = linkedMapOf<Int, String>()
+
+fun addSomeElementsToMap(map: MutableMap<String, Int>) {
+    map.put(key = "XYZ", value = 321)
+    map.put(key = "TMP", value = 451)
 }
