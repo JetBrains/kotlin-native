@@ -167,9 +167,12 @@ We build this project into an Objective-C framework using Kotlin/Native compiler
 
     apply plugin: 'konan'
 
+    // Specify targets to build the framework: iOS and iOS simulator
+    konan.targets = ['iphone', 'iphone_sim']
+
     konanArtifacts {
         // Declare building into a framework.
-        framework('ios-greeting') {
+        framework('iosGreeting') {
             // The multiplatform support is disabled by default.
             enableMultiplatform true
         }
@@ -206,39 +209,46 @@ following line in `androidApp/settings.gradle`:
 
 ### 4. iOS application
 
-**TODO**
+As said above the multiplatform library can also be used in iOS applications. The general approach here is the same as
+in case of an Android application: we create a separate XCode project and add the library as a Framework. But we need
+to make some additional steps here.
 
+Unlike Android Studio XCode doesn't use Gradle, so we cannot just add the library as a dependency. Instead we need to
+create a new Framework in the XCode project and then replace its default build phases with a custom one that delegates
+building the framework to Gradle.
 
+To do this, make the following steps:
 
+1. Create a new XCode project using `iosApp` as a root directory for it.
+2. Add a new framework in the project. Go `File` -> `New` -> `Target` -> `Cocoa Touch Framework`. Specify a name of the
+framework added, e.g. `iosGreeting`.
+3. Choose the new framework in the `Project Navigator` and open `Build Settings` tab. Here we need to add a new build
+setting specifying what Gradle task will be executed to build the framework for one or another platform. Create this
+build setting in the `User-defined` section, name it `KONAN_TASK` and specify the following values for it depending on
+the platform:
+    * For any iOS simulator (both debug and release): `compileKonan<framework name>Iphone_sim`
+    * For any iOS device (both debug and release): `compileKonan<framework name>Iphone`
 
+    Replace `<framework name>` with the name you specified in the library's `ios/build.gradle`. Use camel case, e.g.
+    for our `greeting` library these tasks will be named `compileKonanIosGreetingIphone_sim` and
+    `compileKonanIosGreetingIphone`.
+4. Select the `Build phases` tab and remove all default phases except `Target Dependencies`.
+5. Add a new `Run Script` build phase and put the following line into the script field:
+    ```
+    "$SRCROOT/../greeting/gradlew" -p "$SRCROOT/../greeting/ios" "$KONAN_TASK" --no-daemon -Pkonan.useEnvironmentVariables=true
+    ```
+    This script executes the Gradle build to compile the multiplatform library into a Framework. Examine this command in more detail.
+    * `"$SRCROOT/../greeting/gradlew"` - here we invoke the Gradle wrapper located in `greeting`. If you use a local
+    Gradle installation you need to invoke it instead of the wrapper.
+    * `-p "$SRCROOT/../greeting/ios"` - specify a path to the Gradle subproject containing the framework.
+    * `"$KONAN_TASK"` - specify a Gradle task to execute. The build setting created above is used here.
+    * `--no-daemon` - disable the [Gradle daemon](https://docs.gradle.org/current/userguide/gradle_daemon.html). This
+    setting allows us to workaround [this issue](https://github.com/gradle/gradle/issues/3468) related to a build
+    environment in Java 9. If you have Java 8 or earlier you may omit this flag.
+    * `-Pkonan.useEnvironmentVariables=true` - enable passing build parameters from XCode to Kotlin/Native Gradle
+    plugin via environment variables.
 
+6. Add Kotlin sources into the framework: run `File` -> `Add files to "iosApp"...` and choose a directory with
+Kotlin sources (`greeting/ios/src` in this sample). Do this for the common code of the library too.
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+*TODO: Simple snippet showing how to call the library in swift*
