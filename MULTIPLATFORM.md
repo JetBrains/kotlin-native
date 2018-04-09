@@ -251,7 +251,19 @@ following line in `androidApp/settings.gradle`:
     ```
     includeBuild '../greeting'
     ```
-    Now dependencies of the application can be resolved in artefacts built by `greeting`, so we can access our library.
+    Now dependencies of the application can be resolved in artefacts built by `greeting`. You also may publish the
+    Android part of `greeting` into some Maven repo and get it from there. In this case you don't need to set up
+    the composite build.
+
+After these steps we can access our library as any other Kotlin code:
+
+    import org.greeting.*
+
+    /* ... */
+
+    fun foo() {
+        println(Greeting().greeting())
+    }
 
 **TODO: Describe including `greeting` as a  subproject of the AS project too.**
 
@@ -268,8 +280,8 @@ building the framework to Gradle.
 To do this, make the following steps:
 
 1. Create a new XCode project using `iosApp` as a root directory for it.
-2. Add a new framework in the project. Go `File` -> `New` -> `Target` -> `Cocoa Touch Framework`. Specify a name of the
-framework added, e.g. `iosGreeting`.
+2. Add a new framework in the project. Go `File` -> `New` -> `Target` -> `Cocoa Touch Framework`. Specify the same
+framework name as in `greeting/ios/build.gradle`: `iosGreeting`).
 3. Choose the new framework in the `Project Navigator` and open `Build Settings` tab. Here we need to add a new build
 setting specifying what Gradle task will be executed to build the framework for one or another platform. Create this
 build setting in the `User-defined` section, name it `KONAN_TASK` and specify the following values for it depending on
@@ -302,4 +314,12 @@ the platform:
 6. Add Kotlin sources into the framework: run `File` -> `Add files to "iosApp"...` and choose a directory with
 Kotlin sources (`greeting/ios/src` in this sample). Do this for the common code of the library too.
 
-*TODO: Simple snippet showing how to call the library in swift*
+Now the framework is added and all Kotlin API are available from Swift code. Let's print our greeting:
+
+    import iosGreeting
+
+    /* ... */
+
+    func foo() {
+        print(IosGreetingGreeting().greeting())
+    }
