@@ -1,25 +1,24 @@
 # Kotlin/Native in multiplatform projects
 
-*TODO: Some introduction*
+While Kotlin/Native could be used as the only Kotlin compiler in the project, it is pretty common to combine Kotlin/Native with other Kotlin backends, such as Kotlin/JVM (for JVM or Android targets) or Kotlin/JS (for web and Node.js applications). This document describes recommended approaches and the best practices for such scenarios.
+
+Kotlin as a language provides a notion of expect/actual declarations, and Gradle, as an official Kotlin build system augments it with the notion of multiplatform projects (aka MPP). Those two, combined together, provide a flexible standartized [mechanism of mutliplatform development](https://kotlinlang.org/docs/reference/multiplatform.html) across various Kotlin flavours.
+
+Code, common amongst multiple platforms can be placed in common modules, while platform-specific code could be placed into platform-specific modules, and expect/actual declarations can bind them together in developer-friendly way.
+
+One can find a step-by-step tutorial of creating a Kotlin multiplatform application for Android and iOS.
 
 ## Creating multiplatform Android/iOS application with Kotlin
 
-*TODO: High-level application structure: what code is common (data, logic) and what code is platform (io, ui, network).
-What languages are used in what parts of the project.*
+To create MPP application one has start with clear understanding which parts of an application is common for a different targets, and which ones are specific, and organize module structure accordingly. For shared Kotlin code the common ground consist of the Kotlin's standard library, which does include basic data structures and computational primitives, along with expect classes with platform-specific implementation. Most frequently, such code consists of GUI, input-output, cryptography and other APIs, available on the particular platform.
 
-*TODO: link to the calculator project*
+In this tutorial, the multiplatform application will include three parts:
 
-*TODO: link to the multiplatform description*
-
-### 1. Preparing a workspace
-
-Our multiplatform application will include three parts:
-
- * An **Android application** represented by a separate Android Studio project.
- * An **iOS application** represented by a separate XCode project.
+ * An **Android application** represented by a separate Android Studio project written in pure Kotlin
+ * An **iOS application** represented by a separate XCode project, written in Swift and using Kotlin 
  * A **multiplatform library** represented by a separate Gradle-build and containing a business logic of the application.
    This library can contain both platform-dependent and platform-independent code and is compiled into a `jar`-library
-   for Android and in a framework for iOS.
+   for Android and in a `Framework` for iOS.
 
 In its turn, the multiplatform library will include three subprojects:
 
@@ -27,8 +26,11 @@ In its turn, the multiplatform library will include three subprojects:
  * `ios` - contains an iOS-specific code;
  * `android` - contains an Android-specific code.
 
-Represent this structure as a directory tree. Assume that our multiplatform library is intended to generate different
-greetings on different platform. Create the following directory structure:
+*TODO: link to the calculator project*
+
+### 1. Preparing a workspace
+
+Represent the structure described above as a directory tree. Assume that our multiplatform library is intended to generate different greetings on different platform. Create the following directory structure:
 
     application/
     ├── androidApp/
@@ -39,6 +41,8 @@ greetings on different platform. Create the following directory structure:
         └── ios/
 
 Now we have a basic structure of the multiplatform application and can proceed to implementing of the multiplatform library.
+
+**TODO: Some words about Gradle. + the Note paragraph in the next section should be here.**
 
 ### 2. Multiplatform library
 
@@ -64,7 +68,6 @@ Create `build.gradle` in the `greeting` directory and add into it the following 
         repositories {
             google()
             jcenter()
-            mavenCentral()
             maven { url "https://dl.bintray.com/jetbrains/kotlin-native-dependencies" }
         }
 
@@ -82,7 +85,6 @@ Create `build.gradle` in the `greeting` directory and add into it the following 
         repositories {
             google()
             jcenter()
-            mavenCentral()
         }
     }
 
@@ -187,7 +189,7 @@ We build this project into an Objective-C framework using Kotlin/Native compiler
 
 Now we can create an Android application which will use the library we implemented on the previous step. Open Android
 Studio and create a new project in the `androidApp` directory. Android Studio generates all necessary files and
-directories so we need only add a dependency on our library. There are only 2 actions we have to do:
+directories so we only need to add a dependency on our library. There are 2 actions we need to do:
 
 1. Add dependency on the library. To do this just open `androidApp/app/build.gradle` and add the following snippet in
 the `dependencies` script block:
@@ -196,8 +198,8 @@ the `dependencies` script block:
     implementation 'org.greeting:android:1.0'
     implementation 'org.greeting:common:1.0'
     ```
-2. Include `greeting` build in the Android Studio project as part of
-[composite build](https://docs.gradle.org/current/userguide/composite_builds.html). To do it, add the
+2. Include `greeting` build in the Android Studio project as a part of
+[composite build](https://docs.gradle.org/current/userguide/composite_builds.html). To do this, add the
 following line in `androidApp/settings.gradle`:
 
     ```
@@ -234,10 +236,12 @@ the platform:
     `compileKonanIosGreetingIphone`.
 4. Select the `Build phases` tab and remove all default phases except `Target Dependencies`.
 5. Add a new `Run Script` build phase and put the following line into the script field:
+
     ```
     "$SRCROOT/../greeting/gradlew" -p "$SRCROOT/../greeting/ios" "$KONAN_TASK" --no-daemon -Pkonan.useEnvironmentVariables=true
     ```
-    This script executes the Gradle build to compile the multiplatform library into a Framework. Examine this command in more detail.
+    
+    This script executes the Gradle build to compile the multiplatform library into a Framework. Let's examine this command in more detail.
     * `"$SRCROOT/../greeting/gradlew"` - here we invoke the Gradle wrapper located in `greeting`. If you use a local
     Gradle installation you need to invoke it instead of the wrapper.
     * `-p "$SRCROOT/../greeting/ios"` - specify a path to the Gradle subproject containing the framework.
