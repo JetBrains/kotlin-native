@@ -12,11 +12,11 @@ across various Kotlin flavours.
 Code, common amongst multiple platforms can be placed in common modules, while platform-specific code could be placed
 into platform-specific modules, and expect/actual declarations can bind them together in developer-friendly way.
 
-One can find a step-by-step tutorial of creating a Kotlin multiplatform application for Android and iOS.
+Below one can find a step-by-step tutorial of creating a Kotlin multiplatform application for Android and iOS.
 
 ## Creating multiplatform Android/iOS application with Kotlin
 
-To create MPP application one has start with clear understanding which parts of an application is common for a different
+To create MPP application one has to start with clear understanding which parts of an application is common for a different
 targets, and which ones are specific, and organize module structure accordingly. For shared Kotlin code the common
 ground consist of the Kotlin's standard library, which does include basic data structures and computational primitives,
 along with expect classes with platform-specific implementation. Most frequently, such code consists of GUI,
@@ -30,7 +30,7 @@ In this tutorial, the multiplatform application will include three parts:
    This library can contain both platform-dependent and platform-independent code and is compiled into a `jar`-library
    for Android and in a `Framework` for iOS by Gradle.
 
-In its turn, the multiplatform library will include three subprojects:
+So, the multiplatform library will include three subprojects:
 
  * `common` - contains a common logic for both applications;
  * `ios` - contains an iOS-specific code;
@@ -39,7 +39,7 @@ In its turn, the multiplatform library will include three subprojects:
 ### 1. Preparing a workspace
 
 Let's represent the structure described above as a directory tree. Assume that our multiplatform library is intended to
-generate different greetings on different platform. Create the following directory structure:
+generate different greetings on different platforms. Create the following directory structure:
 
     application/
     ├── androidApp/
@@ -208,7 +208,7 @@ This project is compiled into an Objective-C framework using Kotlin/Native compi
     apply plugin: 'konan'
 
     // Specify targets to build the framework: iOS and iOS simulator
-    konan.targets = ['ios_arm64', 'Ios_x64']
+    konan.targets = ['ios_arm64', 'ios_x64']
 
     konanArtifacts {
         // Declare building into a framework.
@@ -249,14 +249,18 @@ the `dependencies` script block:
 following line in `androidApp/settings.gradle`:
 
     ```
-    includeBuild '../greeting'
+    includeBuild '../'
     ```
     Now dependencies of the application can be resolved in artifacts built by `greeting`. You also may publish the
     Android part of `greeting` into some Maven repo and get it from there. In this case you don't need to set up
     the composite build.
 
-> Alternatively you can add the multiplatform library subprojects right into the Android Studio one. To do this, you
-need to declare them along with their directories in `androidApp/settings.gradle`:
+> Note: Android Studio may fail to resolve declarations from the library added unless it's built. If you face such a
+> problem, build the library by executing `./gradlew greeting:android:jar` in the root directory of the project.
+
+> Alternatively you can add the multiplatform library subprojects right into the Android Studio one instead of
+> creating a composite build. To do this you need to declare them along with their directories in
+> `androidApp/settings.gradle`:
 >
 >```
 >include ':greeting'
@@ -269,8 +273,8 @@ need to declare them along with their directories in `androidApp/settings.gradle
 >```
 >
 > Now you can declare dependencies directly on projects instead of using maven-like coordinates:
+>
 >```
->implementation project(':greeting:common')
 >implementation project(':greeting:android')
 >```
 
@@ -287,11 +291,11 @@ After these steps we can access our library as any other Kotlin code:
 ### 4. iOS application
 
 As said above the multiplatform library can also be used in iOS applications. The general approach here is the same as
-in case of an Android application: we create a separate XCode project and add the library as a Framework. But we need
+in case of an Android application: we create a separate XCode project and add the library as a framework. But we need
 to make some additional steps here.
 
 Unlike Android Studio XCode doesn't use Gradle, so we cannot just add the library as a dependency. Instead we need to
-create a new Framework in the XCode project and then replace its default build phases with a custom one that delegates
+create a new framework in the XCode project and then replace its default build phases with a custom one which delegates
 building the framework to Gradle.
 
 To do this, make the following steps:
@@ -316,7 +320,7 @@ the platform:
     "$SRCROOT/../gradlew" -p "$SRCROOT/../greeting/ios" "$KONAN_TASK" --no-daemon -Pkonan.useEnvironmentVariables=true
     ```
 
-    This script executes the Gradle build to compile the multiplatform library into a Framework. Let's examine this
+    This script executes the Gradle build to compile the multiplatform library into a framework. Let's examine this
     command in more detail.
     * `"$SRCROOT/../gradlew"` - here we invoke the Gradle wrapper located in the root directory of the project. If you
     use a local Gradle installation you need to invoke it instead of the wrapper.
@@ -325,13 +329,15 @@ the platform:
     * `--no-daemon` - disable the [Gradle daemon](https://docs.gradle.org/current/userguide/gradle_daemon.html). This
     setting allows us to workaround [this issue](https://github.com/gradle/gradle/issues/3468) related to a build
     environment in Java 9. If you have Java 8 or earlier you may omit this flag.
-    * `-Pkonan.useEnvironmentVariables=true` - enable passing build parameters from XCode to Kotlin/Native Gradle
+    * `-Pkonan.useEnvironmentVariables=true` - enable passing build parameters from XCode to the Kotlin/Native Gradle
     plugin via environment variables.
 
 6. Add Kotlin sources into the framework: run `File` -> `Add files to "iosApp"...` and choose a directory with
-Kotlin sources (`greeting/ios/src` in this sample). Do this for the common code of the library too.
+Kotlin sources (`greeting/ios/src` in this sample). Choose the framework created as a target to add these sources to.
+Do this for the common code of the library too.
 
-Now the framework is added and all Kotlin API are available from Swift code. Let's print our greeting:
+Now the framework is added and all Kotlin API are available from Swift code (note that you need to build the
+framework in order to get code completion). Let's print our greeting:
 
     import Greeting
 
