@@ -72,12 +72,14 @@ Note that both iOS and Android applications are not included in the root Gradle 
 independent builds which are managed by specific IDEs (Android Studio and XCode). Such an approach makes work with
 these builds easier from these IDEs.
 
-As for IDE for other parts of the project, IntelliJ IDEA is recommended to be used.
+As for IDE for other parts of the project, [IntelliJ IDEA](https://www.jetbrains.com/idea/) is recommended to be used.
 
 > Note: Kotlin/Native is not supported by IntelliJ IDEA so the only IDE to develop Kotlin/Native subprojects is
-CLion. But at the moment CLion has no Gradle integration. As a workaround you can create a CLion Cmake project
-from a Kotlin/Native Gradle one. Just run `./gradlew generateCMake` for this project. It will generate all the
-necessary files which are required.
+[CLion](https://www.jetbrains.com/clion/). But at the moment CLion has no Gradle integration. As a workaround you can
+create a CLion Cmake project from a Kotlin/Native Gradle one. Just run `./gradlew generateCMake` for this project. It
+will generate all the necessary files which are required. See
+[this](https://blog.jetbrains.com/kotlin/2017/11/kotlinnative-ide-support-preview/) blog post to learn more about
+Kotlin/Native support in CLion.
 
 As the final step create empty `build.gradle` files in the root directory of the project and in all subprojects which are
 included in `settings.gradle`. After all these actions the project structure will be the following (files
@@ -252,22 +254,25 @@ following line in `androidApp/settings.gradle`:
     Now dependencies of the application can be resolved in artifacts built by `greeting`. You also may publish the
     Android part of `greeting` into some Maven repo and get it from there. In this case you don't need to set up
     the composite build.
-    
+
 > Alternatively you can add the multiplatform library subprojects right into the Android Studio one. To do this, you
 need to declare them along with their directories in `androidApp/settings.gradle`:
 >
-    include ':greeting'
-    include ':greeting:common'
-    include ':greeting:android'
->    
-    project(':greeting').projectDir = file('../greeting')
-    project(':greeting:common').projectDir = file('../greeting/common')
-    project(':greeting:android').projectDir = file('../greeting/android')
-    
->   Now you may declare dependencies directly on projects instead of using maven-like coordinates:
-> 
-    implementation project(':greeting:common')
-    implementation project(':greeting:android')
+>```
+>include ':greeting'
+>include ':greeting:common'
+>include ':greeting:android'
+>
+>project(':greeting').projectDir = file('../greeting')
+>project(':greeting:common').projectDir = file('../greeting/common')
+>project(':greeting:android').projectDir = file('../greeting/android')
+>```
+>
+> Now you can declare dependencies directly on projects instead of using maven-like coordinates:
+>```
+>implementation project(':greeting:common')
+>implementation project(':greeting:android')
+>```
 
 After these steps we can access our library as any other Kotlin code:
 
