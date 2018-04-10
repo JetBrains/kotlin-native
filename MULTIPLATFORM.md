@@ -118,7 +118,7 @@ We need to add buildscript dependencies to be able to use Kotlin plugins for Gra
         dependencies {
             classpath 'com.android.tools.build:gradle:3.1.0'
             classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-            classpath "org.jetbrains.kotlin:kotlin-native-gradle-plugin:0.6.2"
+            classpath "org.jetbrains.kotlin:kotlin-native-gradle-plugin:0.7-dev-1407"
 
         }
     }
@@ -217,11 +217,11 @@ We build this project into an Objective-C framework using Kotlin/Native compiler
     apply plugin: 'konan'
 
     // Specify targets to build the framework: iOS and iOS simulator
-    konan.targets = ['iphone', 'iphone_sim']
+    konan.targets = ['ios_arm64', 'Ios_x64']
 
     konanArtifacts {
         // Declare building into a framework.
-        framework('iosGreeting') {
+        framework('Greeting') {
             // The multiplatform support is disabled by default.
             enableMultiplatform true
         }
@@ -281,17 +281,17 @@ To do this, make the following steps:
 
 1. Create a new XCode project using `iosApp` as a root directory for it.
 2. Add a new framework in the project. Go `File` -> `New` -> `Target` -> `Cocoa Touch Framework`. Specify the same
-framework name as in `greeting/ios/build.gradle`: `iosGreeting`).
+framework name as in `greeting/ios/build.gradle`: `Greeting`.
 3. Choose the new framework in the `Project Navigator` and open `Build Settings` tab. Here we need to add a new build
 setting specifying what Gradle task will be executed to build the framework for one or another platform. Create this
 build setting in the `User-defined` section, name it `KONAN_TASK` and specify the following values for it depending on
 the platform:
-    * For any iOS simulator (both debug and release): `compileKonan<framework name>Iphone_sim`
-    * For any iOS device (both debug and release): `compileKonan<framework name>Iphone`
+    * For any iOS simulator (both debug and release): `compileKonan<framework name>Ios_x64`
+    * For any iOS device (both debug and release): `compileKonan<framework name>Ios_arm64`
 
     Replace `<framework name>` with the name you specified in the library's `ios/build.gradle`. Use camel case, e.g.
-    for our `greeting` library these tasks will be named `compileKonanIosGreetingIphone_sim` and
-    `compileKonanIosGreetingIphone`.
+    for our `greeting` library these tasks will be named `compileKonanGreetingIos_x64` and
+    `compileKonanGreetingIos_arm64`.
 4. Select the `Build phases` tab and remove all default phases except `Target Dependencies`.
 5. Add a new `Run Script` build phase and put the following line into the script field:
 
@@ -316,10 +316,10 @@ Kotlin sources (`greeting/ios/src` in this sample). Do this for the common code 
 
 Now the framework is added and all Kotlin API are available from Swift code. Let's print our greeting:
 
-    import iosGreeting
+    import Greeting
 
     /* ... */
 
     func foo() {
-        print(IosGreetingGreeting().greeting())
+        print(GreetingGreeting().greeting())
     }
