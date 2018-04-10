@@ -254,6 +254,22 @@ following line in `androidApp/settings.gradle`:
     Now dependencies of the application can be resolved in artefacts built by `greeting`. You also may publish the
     Android part of `greeting` into some Maven repo and get it from there. In this case you don't need to set up
     the composite build.
+    
+> Alternatively you can add the multiplatform library subprojects right into the Android Studio one. To do this, you
+need to declare them along with their directories in `androidApp/settings.gradle`:
+>
+    include ':greeting'
+    include ':greeting:common'
+    include ':greeting:android'
+>    
+    project(':greeting').projectDir = file('../greeting')
+    project(':greeting:common').projectDir = file('../greeting/common')
+    project(':greeting:android').projectDir = file('../greeting/android')
+    
+>   Now you may declare dependencies directly on projects instead of using maven-like coordinates:
+> 
+    implementation project(':greeting:common')
+    implementation project(':greeting:android')
 
 After these steps we can access our library as any other Kotlin code:
 
@@ -264,8 +280,6 @@ After these steps we can access our library as any other Kotlin code:
     fun foo() {
         println(Greeting().greeting())
     }
-
-**TODO: Describe including `greeting` as a  subproject of the AS project too.**
 
 ### 4. iOS application
 
