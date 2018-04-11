@@ -82,10 +82,6 @@ typedef KStdVector<ContainerHeader*> ContainerHeaderList;
 typedef KStdVector<KRef*> KRefPtrList;
 #endif
 
-struct FrameOverlay {
-  ArenaContainer* arena;
-};
-
 // A little hack that allows to enable -O2 optimizations
 // Prevents clang from replacing FrameOverlay struct
 // with single pointer.
@@ -762,7 +758,7 @@ inline ArenaContainer* initedArena(ObjHeader** auxSlot) {
   auto frame = asFrameOverlay(auxSlot);
   auto arena = frame->arena;
   if (!arena) {
-    arena = konanConstructInstance<ArenaContainer>();
+    arena = konanConstructInstance<ArenaContainer>(frame);
     MEMORY_LOG("Initializing arena in %p\n", frame)
     arena->Init();
     frame->arena = arena;
@@ -1109,6 +1105,11 @@ OBJ_GETTER(AllocInstance, const TypeInfo* type_info) {
     MEMORY_LOG("instance %p in arena: %p\n", result, arena)
     return result;
   }
+//  konan::consolePrintf("Alloc with RC: ");
+//  Kotlin_io_Console_print(reinterpret_cast<KString>(type_info->packageName_));
+//  konan::consolePrintf(".");
+//  Kotlin_io_Console_print(reinterpret_cast<KString>(type_info->relativeName_));
+//  konan::consolePrintf("\n");
   RETURN_OBJ(ObjectContainer(type_info).GetPlace());
 }
 
@@ -1120,6 +1121,11 @@ OBJ_GETTER(AllocArrayInstance, const TypeInfo* type_info, uint32_t elements) {
     MEMORY_LOG("array[%d] %p in arena: %p\n", elements, result, arena)
     return result;
   }
+//  konan::consolePrintf("Alloc array with RC: ");
+//  Kotlin_io_Console_print(reinterpret_cast<KString>(type_info->packageName_));
+//  konan::consolePrintf(".");
+//  Kotlin_io_Console_print(reinterpret_cast<KString>(type_info->relativeName_));
+//  konan::consolePrintf("\n");
   RETURN_OBJ(ArrayContainer(type_info, elements).GetPlace()->obj());
 }
 
@@ -1206,17 +1212,37 @@ ObjHeader** GetReturnSlotIfArena(ObjHeader** returnSlot, ObjHeader** localSlot) 
   return isArenaSlot(returnSlot) ? returnSlot : localSlot;
 }
 
-ObjHeader** GetParamSlotIfArena(ObjHeader* param, ObjHeader** localSlot) {
-  if (param == nullptr) return localSlot;
+uintptr_t GetParamFrame(ObjHeader* param) {
+  if (param == nullptr) return -1;
   auto container = param->container();
   if ((container->refCount_ & CONTAINER_TAG_MASK) != CONTAINER_TAG_STACK)
-    return localSlot;
+    return -1;
   auto chunk = reinterpret_cast<ContainerChunk*>(container) - 1;
-  return reinterpret_cast<ObjHeader**>(reinterpret_cast<uintptr_t>(&chunk->arena) | ARENA_BIT);
+  return reinterpret_cast<uintptr_t>(chunk->arena->frame_) | ARENA_BIT;
+}
+
+ObjHeader** GetParamSlotIfArena(ObjHeader* param, ObjHeader** localSlot) {
+  auto frame = GetParamFrame(param);
+  if (frame == -1) return localSlot;
+  return reinterpret_cast<ObjHeader**>(frame);
+}
+
+void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* object) {
+  UpdateRef(returnSlot, object);
+}
+
+bool NeedUpdateRef(ObjHeader** location, const ObjHeader* object) {
+  return !isArenaSlot(location) || (object != nullptr && isRefCounted(object));
 }
 
 void UpdateRef(ObjHeader** location, const ObjHeader* object) {
-  RuntimeAssert(!isArenaSlot(location), "must not be a slot");
+  if (isArenaSlot(location)) {
+    // Not a subject of reference counting.
+    if (object == nullptr || !isRefCounted(object)) return;
+    auto arena = initedArena(asArenaSlot(location));
+    location = arena->getSlot();
+  }
+
   ObjHeader* old = *location;
   UPDATE_REF_EVENT(memoryState, old, object, location)
   if (old != object) {
@@ -1228,16 +1254,6 @@ void UpdateRef(ObjHeader** location, const ObjHeader* object) {
       ReleaseRef(old);
     }
   }
-}
-
-void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* object) {
-  if (isArenaSlot(returnSlot)) {
-    // Not a subject of reference counting.
-    if (object == nullptr || !isRefCounted(object)) return;
-    auto arena = initedArena(asArenaSlot(returnSlot));
-    returnSlot = arena->getSlot();
-  }
-  UpdateRef(returnSlot, object);
 }
 
 void UpdateRefIfNull(ObjHeader** location, const ObjHeader* object) {
@@ -1297,6 +1313,7 @@ void GarbageCollect() {
   RuntimeAssert(!state->gcInProgress, "Recursive GC is disallowed");
 
   MEMORY_LOG("Garbage collect\n")
+  //konan::consolePrintf("GC\n");
 
 #if GC_ERGONOMICS
   auto gcStartTime = konan::getTimeMicros();

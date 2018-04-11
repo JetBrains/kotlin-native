@@ -32,6 +32,8 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
     fun llvmFunction(function: FunctionDescriptor): LLVMValueRef = function.llvmFunction
     val intPtrType = LLVMIntPtrType(llvmTargetData)!!
     internal val immOneIntPtrType = LLVMConstInt(intPtrType, 1, 1)!!
+    internal val immZeroIntPtrType = LLVMConstInt(intPtrType, 0, 1)!!
+    internal val immMOneIntPtrType = LLVMConstInt(intPtrType, -1L, 1)!!
 
     //-------------------------------------------------------------------------//
 
@@ -270,10 +272,10 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         return result
     }
 
-    fun loadSlot(address: LLVMValueRef, isVar: Boolean, name: String = ""): LLVMValueRef {
+    fun loadSlot(address: LLVMValueRef, isVar: Boolean, resultLifetime: Lifetime = Lifetime.IRRELEVANT, name: String = ""): LLVMValueRef {
         val value = LLVMBuildLoad(builder, address, name)!!
         if (isObjectRef(value) && isVar) {
-            val slot = alloca(LLVMTypeOf(value), variableLocation = null)
+            val slot = lifetimeToSlot(resultLifetime)//alloca(LLVMTypeOf(value), variableLocation = null)
             storeAny(value, slot)
         }
         return value
@@ -294,11 +296,18 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
     }
 
     private fun updateReturnRef(value: LLVMValueRef, address: LLVMValueRef) {
-        call(context.llvm.updateReturnRefFunction, listOf(address, value))
+        updateRef(value, address)
     }
 
     private fun updateRef(value: LLVMValueRef, address: LLVMValueRef) {
-        call(context.llvm.updateRefFunction, listOf(address, value))
+        val bbCallUpdateRef = basicBlock("callUpdateRef", null)
+        val bbDoNothing = basicBlock("doNotCallUpdateRef", null)
+        condBr(call(context.llvm.needUpdateRefFunction, listOf(address, value)), bbCallUpdateRef, bbDoNothing)
+        appendingTo(bbCallUpdateRef) {
+            call(context.llvm.updateRefFunction, listOf(address, value))
+            br(bbDoNothing)
+        }
+        positionAtEnd(bbDoNothing)
     }
 
     //-------------------------------------------------------------------------//
@@ -310,42 +319,97 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         val callArgs = if (verbatim || !isObjectReturn(llvmFunction.type)) {
             args
         } else {
-            // If function returns an object - create slot for the returned value or give local arena.
-            // This allows appropriate rootset accounting by just looking at the stack slots,
-            // along with ability to allocate in appropriate arena.
-            val resultSlot = when (resultLifetime.slotType) {
-                SlotType.ARENA -> {
-                    localAllocs++
-                    arenaSlot!!
-                }
-
-                SlotType.RETURN -> returnSlot!!
-
-                SlotType.ANONYMOUS -> vars.createAnonymousSlot()
-
-                SlotType.RETURN_IF_ARENA -> returnSlot.let {
-                    if (it != null)
-                        call(context.llvm.getReturnSlotIfArenaFunction, listOf(it, vars.createAnonymousSlot()))
-                    else {
-                        // Return type is not an object type - can allocate locally.
-                        localAllocs++
-                        arenaSlot!!
-                    }
-                }
-
-                is SlotType.PARAM_IF_ARENA ->
-                    if (LLVMTypeOf(vars.load(resultLifetime.slotType.parameter)) != codegen.runtime.objHeaderPtrType)
-                        vars.createAnonymousSlot()
-                    else {
-                        call(context.llvm.getParamSlotIfArenaFunction,
-                                listOf(vars.load(resultLifetime.slotType.parameter), vars.createAnonymousSlot()))
-                    }
-
-                else -> throw Error("Incorrect slot type: ${resultLifetime.slotType}")
-            }
+            val resultSlot = lifetimeToSlot(resultLifetime)
             args + resultSlot
         }
         return callRaw(llvmFunction, callArgs, exceptionHandler)
+    }
+
+    private fun lifetimeToSlot(lifetime: Lifetime): LLVMValueRef {
+        // If function returns an object - create slot for the returned value or give local arena.
+        // This allows appropriate rootset accounting by just looking at the stack slots,
+        // along with ability to allocate in appropriate arena.
+
+        // TODO: use in all cases.
+        fun chooseArena(parameters: IntArray, useReturn: Boolean): LLVMValueRef {
+            val objectParameters = parameters.filter { LLVMTypeOf(param(it)) == codegen.runtime.objHeaderPtrType }
+            val returnSlot = if (useReturn) this.returnSlot else null
+            if (returnSlot == null && objectParameters.isEmpty()) {
+                // Return type is not an object type - can allocate locally.
+                localAllocs++
+                return arenaSlot!!
+            }
+            val localSlot = ptrToInt(vars.createAnonymousSlot(), codegen.intPtrType)
+            var resultFrame =
+                    if (returnSlot == null) {
+                        codegen.immZeroIntPtrType
+                    } else {
+                        ptrToInt(call(context.llvm.getReturnSlotIfArenaFunction, listOf(returnSlot, intToPtr(codegen.immMOneIntPtrType, codegen.kObjHeaderPtrPtr))), codegen.intPtrType)
+                    }
+            objectParameters.forEach {
+                val paramFrame = call(context.llvm.getParamFrame, listOf(param(it)))
+                val bbTakeParam = basicBlock("takeParam", null)
+                val bbDoNotTakeParam = basicBlock("doNotTakeParam", null)
+                val bbNextParam = basicBlock("nextParam", null)
+                condBr(icmpUGt(paramFrame, resultFrame), bbTakeParam, bbDoNotTakeParam)
+                appendingTo(bbTakeParam) { br(bbNextParam) }
+                appendingTo(bbDoNotTakeParam) { br(bbNextParam) }
+                positionAtEnd(bbNextParam)
+                val currentFrame = phi(codegen.intPtrType)
+                addPhiIncoming(currentFrame, bbTakeParam to paramFrame, bbDoNotTakeParam to resultFrame)
+                resultFrame = currentFrame
+            }
+            if (true) {
+                val bbTakeCurrentFrame = basicBlock("takeCurFrame", null)
+                val bbTakeLocalSlot = basicBlock("takeLocalSlot", null)
+                val bbDone = basicBlock("done", null)
+                condBr(icmpNe(resultFrame, codegen.immMOneIntPtrType), bbTakeCurrentFrame, bbTakeLocalSlot)
+                appendingTo(bbTakeCurrentFrame) { br(bbDone) }
+                appendingTo(bbTakeLocalSlot) { br(bbDone) }
+                positionAtEnd(bbDone)
+                val currentFrame = phi(codegen.intPtrType)
+                addPhiIncoming(currentFrame, bbTakeCurrentFrame to resultFrame, bbTakeLocalSlot to localSlot)
+                resultFrame = currentFrame
+            }
+            return intToPtr(resultFrame, codegen.kObjHeaderPtrPtr)
+        }
+
+        return when (lifetime.slotType) {
+            SlotType.ARENA -> {
+                localAllocs++
+                arenaSlot!!
+            }
+
+            SlotType.RETURN -> returnSlot!!
+
+            SlotType.ANONYMOUS,
+            SlotType.UNKNOWN -> vars.createAnonymousSlot()
+
+            SlotType.RETURN_IF_ARENA -> returnSlot.let {
+                if (it != null)
+                    call(context.llvm.getReturnSlotIfArenaFunction, listOf(it, vars.createAnonymousSlot()))
+                else {
+                    // Return type is not an object type - can allocate locally.
+                    localAllocs++
+                    arenaSlot!!
+                }
+            }
+
+            is SlotType.PARAM_IF_ARENA ->
+                if (LLVMTypeOf(param(lifetime.slotType.parameter)) != codegen.runtime.objHeaderPtrType)
+                    vars.createAnonymousSlot()
+                else {
+                    call(context.llvm.getParamSlotIfArenaFunction,
+                            listOf(param(lifetime.slotType.parameter), vars.createAnonymousSlot()))
+                }
+
+            is SlotType.PARAMS_IF_ARENA -> {
+                chooseArena(lifetime.slotType.parameters, lifetime.slotType.useReturnSlot)
+            }
+
+            else -> throw Error("Incorrect slot type: ${lifetime.slotType}")
+        }
+
     }
 
     private fun callRaw(llvmFunction: LLVMValueRef, args: List<LLVMValueRef>,
@@ -540,7 +604,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
 
         // Pointer to Kotlin exception object:
         // We do need a slot here, as otherwise exception instance could be freed by _cxa_end_catch.
-        val exceptionPtr = loadSlot(exceptionPtrPtr, true, "exception")
+        val exceptionPtr = loadSlot(exceptionPtrPtr, true, Lifetime.IRRELEVANT, "exception")
 
         // __cxa_end_catch performs some C++ cleanup, including calling `KotlinException` class destructor.
         val endCatch = context.llvm.cxaEndCatchFunction

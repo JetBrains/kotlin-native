@@ -119,7 +119,7 @@ internal fun emitLLVM(context: Context) {
 
     phaser.phase(KonanPhase.ESCAPE_ANALYSIS) {
         val callGraph = CallGraphBuilder(context, moduleDFG!!, externalModulesDFG!!, devirtualizationAnalysisResult, false).build()
-        EscapeAnalysis.computeLifetimes(moduleDFG!!, externalModulesDFG!!, callGraph, lifetimes)
+        EscapeAnalysis.computeLifetimes(context, moduleDFG!!, externalModulesDFG!!, callGraph, lifetimes)
     }
 
     phaser.phase(KonanPhase.SERIALIZE_DFG) {
@@ -1396,12 +1396,12 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         if (value.descriptor.dispatchReceiverParameter != null) {
             val thisPtr = evaluateExpression(value.receiver!!)
             return functionGenerationContext.loadSlot(
-                    fieldPtrOfClass(thisPtr, value.symbol.owner), value.descriptor.isVar())
+                    fieldPtrOfClass(thisPtr, value.symbol.owner), value.descriptor.isVar(), resultLifetime(value))
         }
         else {
             assert (value.receiver == null)
             val ptr = context.llvmDeclarations.forStaticField(value.symbol.owner).storage
-            return functionGenerationContext.loadSlot(ptr, value.descriptor.isVar())
+            return functionGenerationContext.loadSlot(ptr, value.descriptor.isVar(), resultLifetime(value))
         }
     }
 
