@@ -878,8 +878,10 @@ internal object Devirtualization {
 
     class DevirtualizedCallSite(val possibleCallees: List<DevirtualizedCallee>)
 
+    class AnalysisResult(val devirtualizedCallSites: Map<DataFlowIR.Node.VirtualCall, DevirtualizedCallSite>)
+
     fun run(irModule: IrModuleFragment, context: Context, moduleDFG: ModuleDFG, externalModulesDFG: ExternalModulesDFG)
-            : Map<DataFlowIR.Node.VirtualCall, DevirtualizedCallSite> {
+            : AnalysisResult {
         val devirtualizationAnalysisResult = DevirtualizationAnalysis(context, moduleDFG, externalModulesDFG).analyze()
         val devirtualizedCallSites =
                 devirtualizationAnalysisResult
@@ -887,7 +889,7 @@ internal object Devirtualization {
                         .filter { it.key.callSite != null }
                         .associate { it.key.callSite!! to it.value }
         Devirtualization.devirtualize(irModule, context, devirtualizedCallSites)
-        return devirtualizationAnalysisResult
+        return AnalysisResult(devirtualizationAnalysisResult)
     }
 
     private fun devirtualize(irModule: IrModuleFragment, context: Context,
