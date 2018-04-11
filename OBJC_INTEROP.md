@@ -11,7 +11,7 @@ properly attached to the build (system frameworks are attached by default).
 See e.g. "Interop libraries" in
 [Gradle plugin documentation](GRADLE_PLUGIN.md#building-artifacts).
 Swift library can be used in Kotlin code if its API is exported to Objective-C
-with `@objc`.
+with `@objc`. Pure Swift modules are not yet supported.
 
 Kotlin module can be used in Swift/Objective-C code if compiled into a
 [framework](GRADLE_PLUGIN.md#framework). See [calculator sample](samples/calculator)
@@ -30,18 +30,20 @@ The table below shows how Kotlin concepts are mapped to Swift/Objective-C and vi
 | Method | Method | Method | [note](#top-level-functions-and-properties) |
 | `@Throws` | `throws` | `error:(NSError**)error` | [note](#errors-and-exceptions) |
 | Extension | Extension | Category member | [note](#category-members) |
-| Companion object member <- | Class method or property | Class method or property |  |
+| `companion` member <- | Class method or property | Class method or property |  |
+| `null` | `nil` | `nil` | |
 | `Singleton` | `Singleton()`  | `[Singleton singleton]` | |
-| Primitive type | Primitive type / `NSNumber` | | [note](#number) |
+| Primitive type | Primitive type / `NSNumber` | | [note](#nsnumber) |
+| `Unit` return type | `Void` | `void` | |
 | `String` | `String` | `NSString` | |
 | `String` | `NSMutableString` | `NSMutableString` | [note](#nsmutablestring) |
 | `List` | `Array` | `NSArray` | |
 | `MutableList` | `NSMutableArray` | `NSMutableArray` | |
 | `Set` | `Set` | `NSSet` | |
-| `MutableSet` | `NSMutableSet` | `NSMutableSet` | [note](#mutable-collections) |
+| `MutableSet` | `NSMutableSet` | `NSMutableSet` | [note](#collections) |
 | `Map` | `Dictionary` | `NSDictionary` | |
 | `MutableMap` | `NSMutableDictionary` | `NSMutableDictionary` | [note](#mutable-collections) |
-| Function type | Function type | Block pointer type | |
+| Function type | Function type | Block pointer type | [note](#function-types) |
 
 ### Name translation
 
@@ -57,7 +59,17 @@ The prefix is derived from the framework name.
 ### Top-level functions and properties
 
 Top-level Kotlin functions and properties are accessible as members of a special class.
-Each Kotlin package is translated into such a class.
+Each Kotlin package is translated into such a class. E.g.
+```
+package my.library
+
+fun foo() {}
+```
+
+can be called from Swift like
+```
+Framework.foo()
+```
 
 ### Errors and exceptions
 
@@ -78,25 +90,60 @@ Members of Objective-C categories and Swift extensions are imported to Kotlin
 as extensions. That's why these declarations can't be overridden in Kotlin.
 And extension initializers aren't available as Kotlin constructors.
 
-### Number
+### NSNumber
 
-`NSNumber` is not automatically translated to Kotlin primitive types
-when used as Swift/Objective-C parameter type or return value.
+While Kotlin primitive types in some cases are mapped to `NSNumber`
+(e.g. when they are boxed), `NSNumber` type is not automatically translated 
+to Kotlin primitive types when used as Swift/Objective-C parameter type or return value.
+The reason is that `NSNumber` type doesn't provide enough information
+about wrapped primitive value type, i.e. `NSNumber` is statically not known
+to be e.g. `Byte`, `Boolean` or `Double`. So Kotlin primitive values 
+should be cast to/from `NSNumber` manually (see [below](#casting-between-mapped-types)).
 
 ### NSMutableString
 
 `NSMutableString` Objective-C class is not available from Kotlin.
 All instances of `NSMutableString` are copied when passed to Kotlin.
 
-### Mutable collections
+### Collections
 
-Every Kotlin `MutableSet` is `NSMutableSet`, however the opposite is not true.
-To pass an object for Kotlin `MutableSet`, one can create this kind of Kotlin collection
-explicitly by either creating it in Kotlin with e.g. `mutableSetOf()`,
-or using `${prefix}MutableSet` class in Swift/Objective-C, where `prefix`
-is the framework names prefix.
-
+Kotlin collections are converted to Swift/Objective-C collections as described
+by the table above. Swift/Objective-C collections are mapped to Kotlin in the same way,
+except for `NSMutableSet` and `NSMutableDictionary`. `NSMutableSet` isn't converted to
+Kotlin `MutableSet`. To pass an object for Kotlin `MutableSet`,
+one can create this kind of Kotlin collection explicitly by either creating it 
+in Kotlin with e.g. `mutableSetOf()`, or using `${prefix}MutableSet` class in
+Swift/Objective-C, where `prefix` is the framework names prefix.
 The same holds for `MutableMap`.
+
+### Function types
+
+Kotlin function-typed objects (e.g. lambdas) are converted to 
+Swift functions / Objective-C blocks. However there is a difference in how
+types of parameters and return values are mapped when translating a function
+and a function type. In the latter case primitive types are mapped to their
+boxed representation, `NSNumber`. Kotlin `Unit` return value is represented
+as corresponding `Unit` singleton in Swift/Objective-C. The value of this singleton
+can be retrieved in the same way as for any other Kotlin `object`
+(see singletons in the table above).
+To sum the things up:
+```
+fun foo(block: (Int) -> Unit) { ... }
+```
+
+would be represented in Swift as
+
+```
+func foo(block: (NSNumber) -> KotlinUnit)
+```
+
+and can be called like
+```
+foo {
+    bar($0 as! Int32)
+    return KotlinUnit()
+}
+```
 
 ## Casting between mapped types
 
@@ -114,9 +161,12 @@ val nsNumber = 42 as NSNumber
 Kotlin classes and interfaces can be subclassed by Swift/Objective-C classes
 and protocols.
 Currently a class that adopts Kotlin protocol should inherit `NSObject`
-(either directly or indirectly). Note that all Kotlin classes do inherit `NSObject`.
+(either directly or indirectly). Note that all Kotlin classes do inherit `NSObject`,
+so a subclass of Kotlin class can adopt Kotlin protocol.
 
-Swift/Objective-C classes can be subclassed with Kotlin `final` class.
+Swift/Objective-C classes can be subclassed with Kotlin `final` class. Non-`final`
+Kotlin classes inherting Swift/Objective-C types aren't supported yet, so it is
+not possible to declare a complex class hierarchy inherting Swift/Objective-C types.
 
 ## C features
 
