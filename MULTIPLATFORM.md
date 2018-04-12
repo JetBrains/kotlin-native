@@ -357,3 +357,7 @@ framework in order to get code completion). Let's print our greeting:
     func foo() {
         print(GreetingGreeting().greeting())
     }
+
+### Sample
+
+A sample implementation which follows these documenation can be found in [samples/multiplatform](samples/multiplatform).
