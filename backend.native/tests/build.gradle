@@ -2660,7 +2660,7 @@ static String outputPath(SourceSet set) {
     return set.output.getDirs().getSingleFile().toString()
 }
 
-if (isMac()) {
+if (isMac() && project.testTarget != 'wasm32') {
     def target = project.testTarget ?: 'host'
 
     task testValuesFramework(type: FrameworkTest) {
