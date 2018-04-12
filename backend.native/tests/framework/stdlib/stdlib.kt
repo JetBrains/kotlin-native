@@ -51,3 +51,23 @@ fun addSomeElementsToMap(map: MutableMap<String, Int>) {
     map.put(key = "XYZ", value = 321)
     map.put(key = "TMP", value = 451)
 }
+
+fun list(vararg elements: Any?): Any = listOf(*elements)
+fun set(vararg elements: Any?): Any = setOf(*elements)
+fun map(vararg keysAndValues: Any?): Any = mutableMapOf<Any?, Any?>().apply {
+    (0 until keysAndValues.size step 2).forEach {index ->
+        this[keysAndValues[index]] = keysAndValues[index + 1]
+    }
+}
+
+fun emptyMutableList(): Any = mutableListOf<Any?>()
+fun emptyMutableSet(): Any = mutableSetOf<Any?>()
+fun emptyMutableMap(): Any = mutableMapOf<Any?, Any?>()
+
+data class TripleVals<T>(val first: T, val second: T, val third: T)
+
+data class TripleVars<T>(var first: T, var second: T, var third: T) {
+    override fun toString(): String {
+        return "[$first, $second, $third]"
+    }
+}
