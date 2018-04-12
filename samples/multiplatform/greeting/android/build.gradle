@@ -1,0 +1,15 @@
+apply plugin: 'kotlin-platform-jvm'
+
+// Specify a group and a version of the library to access it in Android Studio.
+// By default the project directory name is used as an artifact name thus the full dependency
+// description will be 'org.greeting:android:1.0'
+group = 'org.greeting'
+version = 1.0
+
+dependencies {
+    // Specify Kotlin/JVM stdlib dependency.
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jre7:$kotlin_version"
+
+    // Specify dependency on a common project for Kotlin multiplatform build.
+    expectedBy project(':greeting:common')
+}

@@ -1,0 +1,12 @@
+apply plugin: 'kotlin-platform-common'
+
+// Specify a group and a version of the library to access it in Android Studio.
+// By default the project directory name is used as an artifact name thus the full dependency
+// description will be 'org.greeting:common:1.0'
+group = 'org.greeting'
+version = 1.0
+
+dependencies {
+    // Set up compilation dependency on common Kotlin stdlib
+    compile "org.jetbrains.kotlin:kotlin-stdlib-common:$kotlin_version"
+}
