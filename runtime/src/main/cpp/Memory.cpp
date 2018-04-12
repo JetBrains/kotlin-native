@@ -495,19 +495,8 @@ inline void processFinalizerQueue(MemoryState* state) {
 }
 #endif
 
-template <bool clearExternalRefs>
 inline void scheduleDestroyContainer(
     MemoryState* state, ContainerHeader* container) {
-
-  if (clearExternalRefs) {
-    traverseContainerObjectFields(container, [](ObjHeader** location) {
-        ObjHeader* ref = *location;
-        // Frozen object references do not participate in trial deletion, so shall be explicitly freed.
-        if (ref != nullptr && ref->container()->frozen())
-          UpdateRef(location, nullptr);
-    });
-  }
-
 #if USE_GC
   state->finalizerQueue->push_front(container);
   // We cannot clean finalizer queue while in GC.
@@ -678,7 +667,7 @@ void MarkRoots(MemoryState* state) {
     } else {
       container->resetBuffered();
       if (color == CONTAINER_TAG_GC_BLACK && rcIsZero) {
-        scheduleDestroyContainer<true>(state, container);
+        scheduleDestroyContainer(state, container);
       }
     }
   }
@@ -717,14 +706,19 @@ void CollectWhite(MemoryState* state, ContainerHeader* container) {
   if (container->color() != CONTAINER_TAG_GC_WHITE || container->buffered())
     return;
   container->setColor(CONTAINER_TAG_GC_BLACK);
-  traverseContainerReferredObjects(container, [state](ObjHeader* ref) {
+  traverseContainerObjectFields(container, [state](ObjHeader** location) {
+    auto ref = *location;
+    if (ref == nullptr) return;
     auto childContainer = ref->container();
     RuntimeAssert(!isArena(childContainer), "A reference to local object is encountered");
-    if (!childContainer->permanentOrFrozen()) {
+    if (childContainer->permanentOrFrozen()) {
+      UpdateRef(location, nullptr);
+    } else {
       CollectWhite(state, childContainer);
     }
   });
-  scheduleDestroyContainer<true>(state, container);
+  runDeallocationHooks(container);
+  scheduleDestroyContainer(state, container);
 }
 
 inline void AddRef(ContainerHeader* header) {
@@ -872,7 +866,7 @@ void FreeAggregatingFrozenContainer(ContainerHeader* container) {
     FreeContainer(*subContainer++);
   }
   --state->finalizerQueueSuspendCount;
-  scheduleDestroyContainer<false>(state, container);
+  scheduleDestroyContainer(state, container);
   MEMORY_LOG("Freeing subcontainers done\n");
 }
 
@@ -885,9 +879,9 @@ void FreeContainer(ContainerHeader* container) {
   if (isAggregatingFrozenContainer(container)) {
     FreeAggregatingFrozenContainer(container);
     return;
-  } else {
-    runDeallocationHooks(container);
   }
+
+  runDeallocationHooks(container);
 
   // Now let's clean all object's fields in this container.
   traverseContainerObjectFields(container, [](ObjHeader** location) {
@@ -898,7 +892,7 @@ void FreeContainer(ContainerHeader* container) {
   if (isFreeable(container)) {
     container->setColor(CONTAINER_TAG_GC_BLACK);
     if (!container->buffered())
-      scheduleDestroyContainer<false>(state, container);
+      scheduleDestroyContainer(state, container);
   }
 }
 
