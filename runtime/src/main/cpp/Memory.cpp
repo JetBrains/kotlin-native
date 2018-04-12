@@ -414,17 +414,13 @@ RUNTIME_NORETURN void ThrowInvalidMutabilityException();
 
 }  // extern "C"
 
-inline void runDeallocationHooks(ObjHeader* obj) {
-  if (obj->has_meta_object()) {
-    ObjHeader::destroyMetaObject(&obj->typeInfoOrMeta_);
-  }
-}
-
 inline void runDeallocationHooks(ContainerHeader* container) {
   ObjHeader* obj = reinterpret_cast<ObjHeader*>(container + 1);
 
   for (int index = 0; index < container->objectCount(); index++) {
-    runDeallocationHooks(obj);
+    if (obj->has_meta_object()) {
+      ObjHeader::destroyMetaObject(&obj->typeInfoOrMeta_);
+    }
 
     obj = reinterpret_cast<ObjHeader*>(
       reinterpret_cast<uintptr_t>(obj) + objectSize(obj));
