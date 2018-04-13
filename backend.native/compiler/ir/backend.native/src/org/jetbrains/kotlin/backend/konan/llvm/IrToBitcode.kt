@@ -132,7 +132,7 @@ internal fun verifyModule(llvmModule: LLVMModuleRef, current: String = "") {
                 llvmModule, LLVMVerifierFailureAction.LLVMPrintMessageAction, errorRef.ptr) == 1) {
             if (current.isNotEmpty())
                 println("Error in $current")
-            LLVMDumpModule(llvmModule)
+//            LLVMDumpModule(llvmModule)
             throw Error("Invalid module")
         }
     }
@@ -1088,7 +1088,12 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
             functionGenerationContext.positionAtEnd(loopScope.loopCheck)
             val condition = evaluateExpression(loop.condition)
-            functionGenerationContext.condBr(condition, loopBody, loopScope.loopExit)
+            val cond = if (condition.type != int1Type) {
+                functionGenerationContext.trunc(condition, int1Type)
+            } else {
+                condition
+            }
+            functionGenerationContext.condBr(cond, loopBody, loopScope.loopExit)
 
             functionGenerationContext.positionAtEnd(loopBody)
             loop.body?.generate()
@@ -1116,7 +1121,12 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
             functionGenerationContext.positionAtEnd(loopScope.loopCheck)
             val condition = evaluateExpression(loop.condition)
-            functionGenerationContext.condBr(condition, loopBody, loopScope.loopExit)
+            val cond = if (condition.type != int1Type) {
+                functionGenerationContext.trunc(condition, int1Type)
+            } else {
+                condition
+            }
+            functionGenerationContext.condBr(cond, loopBody, loopScope.loopExit)
 
             functionGenerationContext.positionAtEnd(loopScope.loopExit)
         }
@@ -1872,7 +1882,12 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
      */
     private fun evaluateExplicitArgs(expression: IrMemberAccessExpression): List<LLVMValueRef> {
         val evaluatedArgs = expression.getArguments().map { (param, argExpr) ->
-            param to evaluateExpression(argExpr)
+            val value = evaluateExpression(argExpr)
+            param to when {
+                param.type.isRepresentedAs(ValueType.BOOLEAN) &&
+                        value.type == int8Type -> functionGenerationContext.trunc(value, int1Type)
+                else -> value
+            }
         }.toMap()
 
         val allValueParameters = expression.descriptor.allParameters
@@ -2433,7 +2448,12 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         } else {                                                                      // It is conditional clause.
             val bbCase = functionGenerationContext.basicBlock("when_case", branch.startLocation) // Create block for clause body.
             val condition = evaluateExpression(branch.condition)                      // Generate cmp instruction.
-            functionGenerationContext.condBr(condition, bbCase, bbNext)               // Conditional branch depending on cmp result.
+            val cond = if (condition.type != int1Type) {
+                functionGenerationContext.trunc(condition, int1Type)
+            } else {
+                condition
+            }
+            functionGenerationContext.condBr(cond, bbCase, bbNext)               // Conditional branch depending on cmp result.
             functionGenerationContext.positionAtEnd(bbCase)                           // Switch generation to block for clause body.
             evaluateExpression(branch.result)                                         // Generate clause body.
         }

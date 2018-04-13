@@ -40,7 +40,10 @@ private val valueTypes = ValueType.values().associate {
 internal val ValueType.llvmType
     get() = valueTypes[this]!!
 
-internal fun RuntimeAware.getLLVMType(type: KotlinType): LLVMTypeRef {
+internal fun RuntimeAware.getLLVMType(type: KotlinType, isSlot: Boolean = false): LLVMTypeRef {
+    if (isSlot && type.isRepresentedAs(ValueType.BOOLEAN)) {
+        return int8Type
+    }
     for ((valueType, llvmType) in valueTypes) {
         if (type.isRepresentedAs(valueType)) {
             return llvmType

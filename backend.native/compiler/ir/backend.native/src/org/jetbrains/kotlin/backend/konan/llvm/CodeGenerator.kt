@@ -53,7 +53,7 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
         val llvmGlobal = if (!isExternal(descriptor)) {
             context.llvmDeclarations.forSingleton(descriptor).instanceFieldRef
         } else {
-            val llvmType = getLLVMType(descriptor.defaultType)
+            val llvmType = getLLVMType(descriptor.defaultType, isSlot = true)
             importGlobal(
                     descriptor.objectInstanceFieldSymbolName,
                     llvmType,
@@ -74,7 +74,7 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
         val llvmGlobal = if (!isExternal(descriptor)) {
             context.llvmDeclarations.forSingleton(descriptor).instanceShadowFieldRef!!
         } else {
-            val llvmType = getLLVMType(descriptor.defaultType)
+            val llvmType = getLLVMType(descriptor.defaultType, isSlot = true)
             importGlobal(
                     descriptor.objectInstanceShadowFieldSymbolName,
                     llvmType,
@@ -248,14 +248,20 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
 
 
     fun ret(value: LLVMValueRef?): LLVMValueRef {
+        val retval = if (returnType == int1Type && value?.type == int8Type) {
+            trunc(value, int1Type)
+        } else {
+            value
+        }
         val res = LLVMBuildBr(builder, epilogueBb)!!
         if (returns.containsKey(currentBlock)) {
             // TODO: enable error throwing.
             throw Error("ret() in the same basic block twice! in ${function.name}")
         }
 
-        if (value != null)
-            returns[currentBlock] = value
+        if (retval != null) {
+            returns[currentBlock] = retval
+        }
 
         currentPositionHolder.setAfterTerminator()
         return res
@@ -282,14 +288,18 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
     fun store(value: LLVMValueRef, ptr: LLVMValueRef) {
         // Use updateRef() or storeAny() API for that.
         assert(!isObjectRef(value))
-        LLVMBuildStore(builder, value, ptr)
+        if (value.type == int1Type && ptr.type == pointerType(int8Type)) {
+            LLVMBuildStore(builder, zext(value, int8Type), ptr)
+        } else {
+            LLVMBuildStore(builder, value, ptr)
+        }
     }
 
     fun storeAny(value: LLVMValueRef, ptr: LLVMValueRef) {
         if (isObjectRef(value)) {
             updateRef(value, ptr)
         } else {
-            LLVMBuildStore(builder, value, ptr)
+            store(value, ptr)
         }
     }
 
