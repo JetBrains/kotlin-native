@@ -523,7 +523,9 @@
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				INFOPLIST_FILE = Greeting/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				KONAN_TASK = compileKonanGreetingIos_x64;
+				KONAN_TASK = "";
+				"KONAN_TASK[sdk=iphoneos*]" = compileKonanGreetingIos_arm64;
+				"KONAN_TASK[sdk=iphonesimulator*]" = compileKonanGreetingIos_x64;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
@@ -551,7 +553,9 @@
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				INFOPLIST_FILE = Greeting/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
-				KONAN_TASK = compileKonanGreetingIos_x64;
+				KONAN_TASK = "";
+				"KONAN_TASK[sdk=iphoneos*]" = compileKonanGreetingIos_arm64;
+				"KONAN_TASK[sdk=iphonesimulator*]" = compileKonanGreetingIos_x64;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/Frameworks",
