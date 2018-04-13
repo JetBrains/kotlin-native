@@ -5,7 +5,7 @@ apply plugin: 'kotlin-android-extensions'
 android {
     compileSdkVersion 27
     defaultConfig {
-        applicationId "stefma.guru.multiplatform"
+        applicationId "org.konan.multiplatform"
         minSdkVersion 24
         targetSdkVersion 27
         versionCode 1
@@ -21,7 +21,7 @@ android {
 }
 
 dependencies {
-    implementation"org.jetbrains.kotlin:kotlin-stdlib-jre7:$kotlin_version"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jre7:$kotlin_version"
     implementation 'com.android.support:appcompat-v7:27.1.1'
     implementation 'org.greeting:android:1.0'
     testImplementation 'junit:junit:4.12'

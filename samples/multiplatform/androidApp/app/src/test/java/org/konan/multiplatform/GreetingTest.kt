@@ -1,4 +1,4 @@
-package stefma.guru.multiplatform
+package org.konan.multiplatform
 
 import org.greeting.Greeting
 import org.junit.Assert.assertEquals
