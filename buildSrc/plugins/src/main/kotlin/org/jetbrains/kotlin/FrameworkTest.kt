@@ -96,12 +96,11 @@ open class FrameworkTest : DefaultTask() {
             .targetManager(project.findProperty("testTarget") as String?).target
 
     private fun swiftc(sources: List<String>, options: List<String>, output: Path) {
-        val compiler = Xcode.current.toolchain + "/usr/bin/swiftc"
-
         val target = project.testTarget()
         val platform = project.platformManager().platform(target)
         assert(platform.configurables is AppleConfigurables)
         val configs = platform.configurables as AppleConfigurables
+        val compiler = configs.absoluteTargetToolchain + "/usr/bin/swiftc"
 
         val swiftTarget = when (target) {
             KonanTarget.IOS_X64   -> "x86_64-apple-ios" + configs.osVersionMin
