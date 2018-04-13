@@ -2,7 +2,8 @@
 //  AppDelegate.swift
 //  iosApp
 //
-//  Created by Stefan M. on 12.04.18.
+//  Created by jetbrains on 12/04/2018.
+//  Copyright © 2018 JetBrains. All rights reserved.
 //
 
 import UIKit
