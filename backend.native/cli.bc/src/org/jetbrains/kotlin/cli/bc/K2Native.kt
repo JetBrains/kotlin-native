@@ -25,6 +25,7 @@ import org.jetbrains.kotlin.cli.common.CLICompiler
 import org.jetbrains.kotlin.cli.common.CLITool
 import org.jetbrains.kotlin.cli.common.ExitCode
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.ERROR
+import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.WARNING
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.config.CompilerConfiguration
@@ -48,14 +49,19 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
             return ExitCode.OK
         }
 
-        if (arguments.freeArgs.isEmpty() && !arguments.isUsefulWithoutFreeArgs) {
-            configuration.report(ERROR, "You have not specified any compilation arguments. No output has been produced.")
-        }
-
         val environment = KotlinCoreEnvironment.createForProduction(rootDisposable,
             configuration, EnvironmentConfigFiles.NATIVE_CONFIG_FILES)
         val project = environment.project
         val konanConfig = KonanConfig(project, configuration)
+
+        if (arguments.freeArgs.isEmpty() && !arguments.isUsefulWithoutFreeArgs && !konanConfig.linkOnly) {
+            configuration.report(ERROR, "You have not specified any compilation arguments. No output has been produced.")
+        }
+
+        if (konanConfig.linkOnly) {
+            configuration.report(WARNING, "You have not specified any source files. " +
+                    "Only libraries will be used to produce the output binary.")
+        }
 
         try {
             runTopLevelPhases(konanConfig, environment)
