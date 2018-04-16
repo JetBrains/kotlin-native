@@ -730,13 +730,22 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         debugFieldDeclaration(declaration)
         val descriptor = declaration
         if (context.needGlobalInit(declaration)) {
-            val type = codegen.getLLVMType(descriptor.type)
+            val type = codegen.getLLVMType(descriptor.type, isSlot = true)
             val globalProperty = context.llvmDeclarations.forStaticField(descriptor).storage
             val initializer = declaration.initializer?.expression as? IrConst<*>
-            if (initializer != null)
-                LLVMSetInitializer(globalProperty, evaluateExpression(initializer))
-            else
-                LLVMSetInitializer(globalProperty, LLVMConstNull(type))
+            val initialValue = if (initializer != null) {
+                if (initializer.kind == IrConstKind.Boolean) {
+                    when (initializer.value) {
+                        true -> LLVMConstInt(LLVMInt8Type(), 1, 1)!!
+                        else -> LLVMConstInt(LLVMInt8Type(), 0, 1)!!
+                    }
+                } else {
+                    evaluateConst(initializer)
+                }
+            } else {
+                LLVMConstNull(type)
+            }
+            LLVMSetInitializer(globalProperty, initialValue)
             context.llvm.fileInitializers.add(declaration)
 
             // (Cannot do this before the global is initialized).
