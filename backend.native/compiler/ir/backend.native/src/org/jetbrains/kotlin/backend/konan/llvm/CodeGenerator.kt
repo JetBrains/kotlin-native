@@ -248,10 +248,10 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
 
 
     fun ret(value: LLVMValueRef?): LLVMValueRef {
-        val retval = if (returnType == int1Type && value?.type == int8Type) {
-            trunc(value, int1Type)
+        val retval = if (value != null) {
+            truncI8IfNeeded(returnType, value)
         } else {
-            value
+            null
         }
         val res = LLVMBuildBr(builder, epilogueBb)!!
         if (returns.containsKey(currentBlock)) {
@@ -393,6 +393,13 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
     fun phi(type: LLVMTypeRef, name: String = ""): LLVMValueRef {
         return LLVMBuildPhi(builder, type, name)!!
     }
+
+    fun truncI8IfNeeded(destType: LLVMTypeRef?, value: LLVMValueRef): LLVMValueRef =
+            if (destType == int1Type && value.type == int8Type) {
+                trunc(value, int1Type)
+            } else {
+                value
+            }
 
     fun addPhiIncoming(phi: LLVMValueRef, vararg incoming: Pair<LLVMBasicBlockRef, LLVMValueRef>) {
         memScoped {

@@ -133,6 +133,7 @@ internal fun verifyModule(llvmModule: LLVMModuleRef, current: String = "") {
             if (current.isNotEmpty())
                 println("Error in $current")
 //            LLVMDumpModule(llvmModule)
+            LLVMPrintModuleToFile(llvmModule, "LLVM_MODULE_DUMP.ll", null)
             throw Error("Invalid module")
         }
     }
@@ -1563,10 +1564,15 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 return
             }
                                                                                 // It is local return from current function.
+            val result = if (value != null) {
+                functionGenerationContext.truncI8IfNeeded(codegen.getLLVMType(returnableBlock.type), value)
+            } else {
+                null
+            }
             functionGenerationContext.br(getExit())                                               // Generate branch on exit block.
 
             if (!returnableBlock.type.isUnit()) {                               // If function returns more then "unit"
-                functionGenerationContext.assignPhis(getResult() to value!!)                      // Assign return value to result PHI node.
+                functionGenerationContext.assignPhis(getResult() to result!!)                      // Assign return value to result PHI node.
             }
         }
 
@@ -2458,8 +2464,14 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             evaluateExpression(branch.result)                                         // Generate clause body.
         }
         if (!functionGenerationContext.isAfterTerminator()) {
-            if (resultPhi != null)
-                functionGenerationContext.assignPhis(resultPhi to brResult)
+            if (resultPhi != null) {
+                val result = if (resultPhi.type == int1Type && brResult.type == int8Type) {
+                    functionGenerationContext.trunc(brResult, int1Type)
+                } else {
+                    brResult
+                }
+                functionGenerationContext.assignPhis(resultPhi to result)
+            }
             if (bbExit != null)
                 functionGenerationContext.br(bbExit)
         }
