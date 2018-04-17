@@ -59,7 +59,7 @@ internal class DebugInfo internal constructor(override val context: Context):Con
             context.builtIns.shortType   to LLVMInt16Type()!!,
             context.builtIns.intType     to LLVMInt32Type()!!,
             context.builtIns.longType    to LLVMInt64Type()!!,
-            context.builtIns.booleanType to LLVMInt1Type()!!,
+            context.builtIns.booleanType to LLVMInt8Type()!!,
             context.builtIns.floatType   to LLVMFloatType()!!,
             context.builtIns.doubleType  to LLVMDoubleType()!!)
     val intTypes = listOf<KotlinType>(context.builtIns.byteType, context.builtIns.shortType, context.builtIns.intType, context.builtIns.longType)
