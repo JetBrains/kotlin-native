@@ -43,16 +43,16 @@ internal fun getLLVMType(type: ValueType, isStorage: Boolean = false): LLVMTypeR
             valueTypes[type]!!
         }
 
-// Boolean type has different representations
-// for memory layout and other cases (i8 and i1 respectively).
-// TODO: better parameter name?
+/** Some type may have different representation for lvalues.
+ * For example, Boolean is represented as i1 in function's signature and
+ * as i8 if it's used as variable.
+ **/
 internal fun RuntimeAware.getLLVMType(type: KotlinType, isStorage: Boolean = false): LLVMTypeRef {
     for (valueType in valueTypes.keys) {
         if (type.isRepresentedAs(valueType)) {
             return getLLVMType(valueType, isStorage)
         }
     }
-
     return this.kObjHeaderPtr
 }
 

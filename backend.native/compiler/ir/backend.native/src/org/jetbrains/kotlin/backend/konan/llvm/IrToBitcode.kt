@@ -733,6 +733,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             val globalProperty = context.llvmDeclarations.forStaticField(descriptor).storage
             val initializer = declaration.initializer?.expression as? IrConst<*>
             val initialValue = if (initializer != null) {
+                // TODO: looks dirty.
                 if (initializer.kind == IrConstKind.Boolean) {
                     LLVMConstInt(LLVMInt8Type(), if (initializer.value == true) 1 else 0, 0)!!
                 } else {
