@@ -754,10 +754,13 @@ internal class CAdapterGenerator(
         output("#define KONAN_${prefix.toUpperCase()}_H")
         // TODO: use namespace for C++ case?
         output("""
+        #ifndef __cplusplus
+        #include <stdbool.h>
+        #endif
         #ifdef __cplusplus
         extern "C" {
         #endif""".trimIndent())
-        output("typedef unsigned char   ${prefix}_KBoolean;")
+        output("typedef bool            ${prefix}_KBoolean;")
         output("typedef char            ${prefix}_KByte;")
         output("typedef unsigned short  ${prefix}_KChar;")
         output("typedef short           ${prefix}_KShort;")

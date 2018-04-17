@@ -89,15 +89,13 @@ private fun ValueType.initCache(context: Context, cacheName: String,
             .setConstant(true)
     val staticData = context.llvm.staticData
     val values = (start..end).map { staticData.createInitializer(kotlinType, createConstant(it)) }
-    // TODO: use i8 for boolean
-    val llvmBoxType = structType(context.llvm.runtime.objHeaderType, this.llvmType)
+    val llvmBoxType = structType(context.llvm.runtime.objHeaderType, getLLVMType(this, true))
     staticData.placeGlobalConstArray(cacheName, llvmBoxType, values, true).llvm
 }
 
 private fun ValueType.createConstant(value: Int) =
     constValue(when (this) {
-        // TODO: use i8 for boolean
-        ValueType.BOOLEAN   -> LLVMConstInt(LLVMInt1Type(),  (value > 0).toByte().toLong(), 1)!!
+        ValueType.BOOLEAN   -> LLVMConstInt(LLVMInt8Type(),  (value > 0).toByte().toLong(), 1)!!
         ValueType.BYTE      -> LLVMConstInt(LLVMInt8Type(),  value.toByte().toLong(),  1)!!
         ValueType.CHAR      -> LLVMConstInt(LLVMInt16Type(), value.toChar().toLong(),  0)!!
         ValueType.SHORT     -> LLVMConstInt(LLVMInt16Type(), value.toShort().toLong(), 1)!!

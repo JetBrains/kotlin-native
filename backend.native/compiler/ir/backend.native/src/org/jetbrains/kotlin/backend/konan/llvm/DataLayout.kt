@@ -20,7 +20,6 @@ import llvm.*
 import org.jetbrains.kotlin.backend.konan.ValueType
 import org.jetbrains.kotlin.backend.konan.isRepresentedAs
 import org.jetbrains.kotlin.types.KotlinType
-import org.jetbrains.kotlin.types.typeUtil.isNothing
 import org.jetbrains.kotlin.types.typeUtil.isUnit
 
 private val valueTypes = ValueType.values().associate {
@@ -37,16 +36,20 @@ private val valueTypes = ValueType.values().associate {
     }!!
 }
 
-internal val ValueType.llvmType
-    get() = valueTypes[this]!!
+internal fun getLLVMType(type: ValueType, isStorage: Boolean = false): LLVMTypeRef =
+        if (isStorage && type == ValueType.BOOLEAN) {
+            LLVMInt8Type()!!
+        } else {
+            valueTypes[type]!!
+        }
 
-internal fun RuntimeAware.getLLVMType(type: KotlinType, isSlot: Boolean = false): LLVMTypeRef {
-    if (isSlot && type.isRepresentedAs(ValueType.BOOLEAN)) {
-        return int8Type
-    }
-    for ((valueType, llvmType) in valueTypes) {
+// Boolean type has different representations
+// for memory layout and other cases (i8 and i1 respectively).
+// TODO: better parameter name?
+internal fun RuntimeAware.getLLVMType(type: KotlinType, isStorage: Boolean = false): LLVMTypeRef {
+    for (valueType in valueTypes.keys) {
         if (type.isRepresentedAs(valueType)) {
-            return llvmType
+            return getLLVMType(valueType, isStorage)
         }
     }
 

@@ -53,7 +53,7 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
         val llvmGlobal = if (!isExternal(descriptor)) {
             context.llvmDeclarations.forSingleton(descriptor).instanceFieldRef
         } else {
-            val llvmType = getLLVMType(descriptor.defaultType, isSlot = true)
+            val llvmType = getLLVMType(descriptor.defaultType, true)
             importGlobal(
                     descriptor.objectInstanceFieldSymbolName,
                     llvmType,
@@ -74,7 +74,7 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
         val llvmGlobal = if (!isExternal(descriptor)) {
             context.llvmDeclarations.forSingleton(descriptor).instanceShadowFieldRef!!
         } else {
-            val llvmType = getLLVMType(descriptor.defaultType, isSlot = true)
+            val llvmType = getLLVMType(descriptor.defaultType, true)
             importGlobal(
                     descriptor.objectInstanceShadowFieldSymbolName,
                     llvmType,
@@ -248,7 +248,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
 
 
     fun ret(value: LLVMValueRef?): LLVMValueRef {
-        val retval = castIfNeeded(returnType, value)
+        val retval = cast(returnType, value)
         val res = LLVMBuildBr(builder, epilogueBb)!!
         if (returns.containsKey(currentBlock)) {
             // TODO: enable error throwing.
@@ -284,12 +284,12 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
     fun store(value: LLVMValueRef, ptr: LLVMValueRef) {
         // Use updateRef() or storeAny() API for that.
         assert(!isObjectRef(value))
-        val storval = castIfNeeded(ptr.type, value)
-        LLVMBuildStore(builder, storval, ptr)
+        LLVMBuildStore(builder, cast(ptr.type, value), ptr)
     }
 
-    // TODO: document me
-    fun castIfNeeded(destType: LLVMTypeRef?, value: LLVMValueRef?): LLVMValueRef? =
+    // In some cases operand type is not equal to it's use type.
+    // So we need to cast operand to appropriate type.
+    fun cast(destType: LLVMTypeRef?, value: LLVMValueRef?): LLVMValueRef? =
             when {
                 destType == int1Type && value?.type == int8Type -> trunc(value, int1Type)
                 value?.type == int1Type && destType == int8TypePtr -> zext(value, int8Type)
