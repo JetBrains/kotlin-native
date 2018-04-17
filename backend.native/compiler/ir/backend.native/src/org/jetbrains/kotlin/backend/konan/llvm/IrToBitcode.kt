@@ -1098,11 +1098,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
             functionGenerationContext.positionAtEnd(loopScope.loopCheck)
             val condition = evaluateExpression(loop.condition)
-            val cond = if (condition.type != int1Type) {
-                functionGenerationContext.trunc(condition, int1Type)
-            } else {
-                condition
-            }
+            val cond = functionGenerationContext.castIfNeeded(int1Type, condition)
             functionGenerationContext.condBr(cond, loopBody, loopScope.loopExit)
 
             functionGenerationContext.positionAtEnd(loopBody)
@@ -1131,11 +1127,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
             functionGenerationContext.positionAtEnd(loopScope.loopCheck)
             val condition = evaluateExpression(loop.condition)
-            val cond = if (condition.type != int1Type) {
-                functionGenerationContext.trunc(condition, int1Type)
-            } else {
-                condition
-            }
+            val cond = functionGenerationContext.castIfNeeded(int1Type, condition)
             functionGenerationContext.condBr(cond, loopBody, loopScope.loopExit)
 
             functionGenerationContext.positionAtEnd(loopScope.loopExit)
@@ -1573,11 +1565,9 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 return
             }
                                                                                 // It is local return from current function.
-            val result = if (value != null) {
-                functionGenerationContext.truncI8IfNeeded(codegen.getLLVMType(returnableBlock.type), value)
-            } else {
-                null
-            }
+            val result = functionGenerationContext.castIfNeeded(
+                    codegen.getLLVMType(returnableBlock.type), value)
+
             functionGenerationContext.br(getExit())                                               // Generate branch on exit block.
 
             if (!returnableBlock.type.isUnit()) {                               // If function returns more then "unit"
@@ -1898,11 +1888,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     private fun evaluateExplicitArgs(expression: IrMemberAccessExpression): List<LLVMValueRef> {
         val evaluatedArgs = expression.getArguments().map { (param, argExpr) ->
             val value = evaluateExpression(argExpr)
-            param to when {
-                param.type.isRepresentedAs(ValueType.BOOLEAN) &&
-                        value.type == int8Type -> functionGenerationContext.trunc(value, int1Type)
-                else -> value
-            }
+            val destType = codegen.getLLVMType(param.type)
+            param to functionGenerationContext.castIfNeeded(destType, value)
         }.toMap()
 
         val allValueParameters = expression.descriptor.allParameters
@@ -2463,23 +2450,15 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         } else {                                                                      // It is conditional clause.
             val bbCase = functionGenerationContext.basicBlock("when_case", branch.startLocation) // Create block for clause body.
             val condition = evaluateExpression(branch.condition)                      // Generate cmp instruction.
-            val cond = if (condition.type != int1Type) {
-                functionGenerationContext.trunc(condition, int1Type)
-            } else {
-                condition
-            }
+            val cond = functionGenerationContext.castIfNeeded(int1Type, condition)
             functionGenerationContext.condBr(cond, bbCase, bbNext)               // Conditional branch depending on cmp result.
             functionGenerationContext.positionAtEnd(bbCase)                           // Switch generation to block for clause body.
             evaluateExpression(branch.result)                                         // Generate clause body.
         }
         if (!functionGenerationContext.isAfterTerminator()) {
             if (resultPhi != null) {
-                val result = if (resultPhi.type == int1Type && brResult.type == int8Type) {
-                    functionGenerationContext.trunc(brResult, int1Type)
-                } else {
-                    brResult
-                }
-                functionGenerationContext.assignPhis(resultPhi to result)
+                val result = functionGenerationContext.castIfNeeded(resultPhi.type, brResult)
+                functionGenerationContext.assignPhis(resultPhi to result!!)
             }
             if (bbExit != null)
                 functionGenerationContext.br(bbExit)
@@ -2524,6 +2503,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     // However, it currently requires some refactoring to be performed.
     private fun call(descriptor: FunctionDescriptor, function: LLVMValueRef, args: List<LLVMValueRef>,
                      resultLifetime: Lifetime): LLVMValueRef {
+
         val result = call(function, args, resultLifetime)
         if (descriptor.returnType.isNothing()) {
             functionGenerationContext.unreachable()

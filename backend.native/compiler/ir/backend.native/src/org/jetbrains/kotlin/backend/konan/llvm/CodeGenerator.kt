@@ -248,11 +248,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
 
 
     fun ret(value: LLVMValueRef?): LLVMValueRef {
-        val retval = if (value != null) {
-            truncI8IfNeeded(returnType, value)
-        } else {
-            null
-        }
+        val retval = castIfNeeded(returnType, value)
         val res = LLVMBuildBr(builder, epilogueBb)!!
         if (returns.containsKey(currentBlock)) {
             // TODO: enable error throwing.
@@ -288,12 +284,17 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
     fun store(value: LLVMValueRef, ptr: LLVMValueRef) {
         // Use updateRef() or storeAny() API for that.
         assert(!isObjectRef(value))
-        if (value.type == int1Type && ptr.type == pointerType(int8Type)) {
-            LLVMBuildStore(builder, zext(value, int8Type), ptr)
-        } else {
-            LLVMBuildStore(builder, value, ptr)
-        }
+        val storval = castIfNeeded(ptr.type, value)
+        LLVMBuildStore(builder, storval, ptr)
     }
+
+    // TODO: document me
+    fun castIfNeeded(destType: LLVMTypeRef?, value: LLVMValueRef?): LLVMValueRef? =
+            when {
+                destType == int1Type && value?.type == int8Type -> trunc(value, int1Type)
+                value?.type == int1Type && destType == int8TypePtr -> zext(value, int8Type)
+                else -> value
+            }
 
     fun storeAny(value: LLVMValueRef, ptr: LLVMValueRef) {
         if (isObjectRef(value)) {
@@ -393,13 +394,6 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
     fun phi(type: LLVMTypeRef, name: String = ""): LLVMValueRef {
         return LLVMBuildPhi(builder, type, name)!!
     }
-
-    fun truncI8IfNeeded(destType: LLVMTypeRef?, value: LLVMValueRef): LLVMValueRef =
-            if (destType == int1Type && value.type == int8Type) {
-                trunc(value, int1Type)
-            } else {
-                value
-            }
 
     fun addPhiIncoming(phi: LLVMValueRef, vararg incoming: Pair<LLVMBasicBlockRef, LLVMValueRef>) {
         memScoped {
