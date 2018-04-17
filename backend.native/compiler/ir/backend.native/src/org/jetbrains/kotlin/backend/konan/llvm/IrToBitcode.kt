@@ -1094,9 +1094,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             functionGenerationContext.br(loopScope.loopCheck)
 
             functionGenerationContext.positionAtEnd(loopScope.loopCheck)
-            val condition = evaluateExpression(loop.condition)
-            val cond = functionGenerationContext.cast(int1Type, condition)
-            functionGenerationContext.condBr(cond, loopBody, loopScope.loopExit)
+            val condition = functionGenerationContext.cast(int1Type, evaluateExpression(loop.condition))
+            functionGenerationContext.condBr(condition, loopBody, loopScope.loopExit)
 
             functionGenerationContext.positionAtEnd(loopBody)
             loop.body?.generate()
@@ -1123,9 +1122,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             functionGenerationContext.br(loopScope.loopCheck)
 
             functionGenerationContext.positionAtEnd(loopScope.loopCheck)
-            val condition = evaluateExpression(loop.condition)
-            val cond = functionGenerationContext.cast(int1Type, condition)
-            functionGenerationContext.condBr(cond, loopBody, loopScope.loopExit)
+            val condition = functionGenerationContext.cast(int1Type, evaluateExpression(loop.condition))
+            functionGenerationContext.condBr(condition, loopBody, loopScope.loopExit)
 
             functionGenerationContext.positionAtEnd(loopScope.loopExit)
         }
@@ -2445,9 +2443,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             evaluateExpression(branchResult)                                          // Generate clause body.
         } else {                                                                      // It is conditional clause.
             val bbCase = functionGenerationContext.basicBlock("when_case", branch.startLocation) // Create block for clause body.
-            val condition = evaluateExpression(branch.condition)                      // Generate cmp instruction.
-            val cond = functionGenerationContext.cast(int1Type, condition)
-            functionGenerationContext.condBr(cond, bbCase, bbNext)               // Conditional branch depending on cmp result.
+            val condition = functionGenerationContext.cast(int1Type, evaluateExpression(branch.condition)) // Generate cmp instruction.
+            functionGenerationContext.condBr(condition, bbCase, bbNext)               // Conditional branch depending on cmp result.
             functionGenerationContext.positionAtEnd(bbCase)                           // Switch generation to block for clause body.
             evaluateExpression(branch.result)                                         // Generate clause body.
         }
