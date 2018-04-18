@@ -37,8 +37,15 @@ private val valueTypes = ValueType.values().associate {
     }!!
 }
 
-internal val ValueType.llvmType
+internal val ValueType.llvmType: LLVMTypeRef
     get() = valueTypes[this]!!
+
+internal val ValueType.llvmMemoryType: LLVMTypeRef
+    get() = if (this == ValueType.BOOLEAN) {
+        int8Type
+    } else {
+        llvmType
+    }
 
 internal fun RuntimeAware.getLLVMType(type: KotlinType): LLVMTypeRef {
     for ((valueType, llvmType) in valueTypes) {
@@ -46,7 +53,15 @@ internal fun RuntimeAware.getLLVMType(type: KotlinType): LLVMTypeRef {
             return llvmType
         }
     }
+    return this.kObjHeaderPtr
+}
 
+internal fun RuntimeAware.getLLVMMemoryType(type: KotlinType): LLVMTypeRef {
+    for (valueType in valueTypes.keys) {
+        if (type.isRepresentedAs(valueType)) {
+            return valueType.llvmMemoryType
+        }
+    }
     return this.kObjHeaderPtr
 }
 

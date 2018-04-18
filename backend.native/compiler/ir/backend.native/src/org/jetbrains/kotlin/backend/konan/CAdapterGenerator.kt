@@ -757,7 +757,13 @@ internal class CAdapterGenerator(
         #ifdef __cplusplus
         extern "C" {
         #endif""".trimIndent())
-        output("typedef unsigned char   ${prefix}_KBoolean;")
+        output("""
+        #ifdef __cplusplus
+        typedef bool            ${prefix}_KBoolean;
+        #else
+        typedef _Bool           ${prefix}_KBoolean;
+        #endif
+        """.trimIndent())
         output("typedef char            ${prefix}_KByte;")
         output("typedef unsigned short  ${prefix}_KChar;")
         output("typedef short           ${prefix}_KShort;")
@@ -879,7 +885,8 @@ internal class CAdapterGenerator(
     )
 
     private val primitiveTypeMapping = mapOf(
-            ValueType.BOOLEAN to "${prefix}_KByte",
+            ValueType.BOOLEAN to "${prefix}_KBoolean",
+            ValueType.BYTE to "${prefix}_KByte",
             ValueType.SHORT to "${prefix}_KShort",
             ValueType.INT to "${prefix}_KInt",
             ValueType.LONG to "${prefix}_KLong",

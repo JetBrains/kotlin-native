@@ -33,11 +33,17 @@ internal class VariableManager(val functionGenerationContext: FunctionGeneration
         fun address() : LLVMValueRef
     }
 
-    inner class SlotRecord(val address: LLVMValueRef, val refSlot: Boolean, val isVar: Boolean) : Record {
-        override fun load() : LLVMValueRef = functionGenerationContext.loadSlot(address, isVar)
-        override fun store(value: LLVMValueRef) = functionGenerationContext.storeAny(value, address)
+    inner class SlotRecord(val address: LLVMValueRef, val type: LLVMTypeRef, val isVar: Boolean) : Record {
+        override fun load() : LLVMValueRef {
+            val loadedValue = functionGenerationContext.loadSlot(address, isVar)
+            return functionGenerationContext.fromMemoryType(loadedValue, type)
+        }
+        override fun store(value: LLVMValueRef) {
+            val valueToStore = functionGenerationContext.toMemoryType(value)
+            functionGenerationContext.storeAny(valueToStore, address)
+        }
         override fun address() : LLVMValueRef = this.address
-        override fun toString() = (if (refSlot) "refslot" else "slot") + " for ${address}"
+        override fun toString() = (if (functionGenerationContext.isObjectType(type)) "refslot" else "slot") + " for ${address}"
     }
 
     inner class ParameterRecord(val address: LLVMValueRef, val refSlot: Boolean) : Record {
@@ -80,11 +86,14 @@ internal class VariableManager(val functionGenerationContext: FunctionGeneration
                       isVar: Boolean, value: LLVMValueRef? = null, variableLocation: VariableDebugLocation?) : Int {
         assert(!contextVariablesToIndex.contains(descriptor))
         val index = variables.size
+        val memoryType = functionGenerationContext.getLLVMMemoryType(descriptor.type)
         val type = functionGenerationContext.getLLVMType(descriptor.type)
-        val slot = functionGenerationContext.alloca(type, descriptor.name.asString(), variableLocation)
-        if (value != null)
-            functionGenerationContext.storeAny(value, slot)
-        variables.add(SlotRecord(slot, functionGenerationContext.isObjectType(type), isVar))
+        val slot = functionGenerationContext.alloca(memoryType, descriptor.name.asString(), variableLocation)
+        if (value != null) {
+            val valueToStore = functionGenerationContext.toMemoryType(value)
+            functionGenerationContext.storeAny(valueToStore, slot)
+        }
+        variables.add(SlotRecord(slot, type, isVar))
         contextVariablesToIndex[descriptor] = index
         return index
     }
@@ -115,7 +124,7 @@ internal class VariableManager(val functionGenerationContext: FunctionGeneration
         val slot = functionGenerationContext.alloca(type, variableLocation = null)
         if (value != null)
             functionGenerationContext.storeAny(value, slot)
-        variables.add(SlotRecord(slot, functionGenerationContext.isObjectType(type), true))
+        variables.add(SlotRecord(slot, type, true))
         return index
     }
 

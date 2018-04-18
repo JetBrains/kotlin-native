@@ -19,6 +19,7 @@ int main(void) {
     const char* string = __ kotlin.root.getString();
 
     __ kotlin.root.hello();
+    __ kotlin.root.printBoolean(1);
     __ kotlin.root.Base.foo(base);
     __ kotlin.root.Base.fooParam(base, "a", 1);
     __ kotlin.root.Child.fooParam(child, "b", 2);

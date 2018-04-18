@@ -293,6 +293,27 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         }
     }
 
+    /**
+     * Convert given [value] from its in-memory representation
+     * to its value representation.
+     */
+    fun fromMemoryType(value: LLVMValueRef, destType: LLVMTypeRef): LLVMValueRef =
+            if (value.type == int8Type && destType == int1Type){
+                trunc(value, int1Type)
+            } else {
+                value
+            }
+
+    /**
+     * Convert given [value] to its in-memory representation.
+     */
+    fun toMemoryType(value: LLVMValueRef): LLVMValueRef =
+            if (value.type == int1Type) {
+                zext(value, int8Type)
+            } else {
+                value
+            }
+
     private fun updateReturnRef(value: LLVMValueRef, address: LLVMValueRef) {
         call(context.llvm.updateReturnRefFunction, listOf(address, value))
     }
