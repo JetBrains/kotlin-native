@@ -21,7 +21,6 @@ import java.lang.ProcessBuilder.Redirect
 import org.jetbrains.kotlin.konan.exec.Command
 import org.jetbrains.kotlin.konan.file.*
 
-typealias BitcodeFile = String
 typealias ObjectFile = String
 typealias ExecutableFile = String
 
@@ -54,6 +53,8 @@ abstract class LinkerFlags(val configurables: Configurables)
     abstract fun linkCommand(objectFiles: List<ObjectFile>,
                              executable: ExecutableFile, optimize: Boolean, debug: Boolean,
                              kind: LinkerOutputKind): Command
+
+    open fun postLinkCommand(executable: ExecutableFile): Command? = null
 
     open fun linkCommandSuffix(): List<String> = emptyList()
 
@@ -186,7 +187,7 @@ open class MacOSBasedLinker(targetProperties: AppleConfigurables)
 open class LinuxBasedLinker(targetProperties: LinuxBasedConfigurables)
     : LinkerFlags(targetProperties), LinuxBasedConfigurables by targetProperties {
 
-    private val ar = "$absoluteTargetToolchain/usr/bin/ar"
+    private val ar = "$absoluteTargetToolchain/bin/ar"
     override val libGcc: String = "$absoluteTargetSysRoot/${super.libGcc}"
     private val linker = "$absoluteTargetToolchain/bin/ld.gold"
     private val specificLibs
@@ -197,11 +198,16 @@ open class LinuxBasedLinker(targetProperties: LinuxBasedConfigurables)
 
     override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile, optimize: Boolean,
                              debug: Boolean, kind: LinkerOutputKind): Command {
-        if (kind == LinkerOutputKind.STATIC_LIBRARY)
+        if (kind == LinkerOutputKind.STATIC_LIBRARY) {
+            // Here we take somewhat unexpected approach - we create the thin
+            // library, and then repack it during post-link phase.
+            // This way we ensure .a inputs are properly processed.
             return Command(ar).apply {
-                + listOf("-r", executable)
+                + "cqT"
+                + executable
                 + objectFiles
-            }
+             }
+        }
         val isMips = (configurables is LinuxMIPSConfigurables)
         val dynamic = kind == LinkerOutputKind.DYNAMIC_LIBRARY
         // TODO: Can we extract more to the konan.configurables?
@@ -240,6 +246,12 @@ open class LinuxBasedLinker(targetProperties: LinuxBasedConfigurables)
             + "$absoluteTargetSysRoot/usr/lib64/crtn.o"
         }
     }
+
+    override fun postLinkCommand(executable: ExecutableFile) : Command? =
+        Command("/bin/sh").apply {
+           + "-c"
+           + "/bin/echo -e 'create $executable\\naddlib $executable\\nsave\\nend' | $ar -M"
+        }
 }
 
 open class MingwLinker(targetProperties: MingwConfigurables)

@@ -192,6 +192,12 @@ internal class LinkStage(val context: Context) {
                 logger = context::log
             }.execute()
 
+            linker.postLinkCommand(executable)?.let {
+                it.logWith(context::log)
+                it.execute()
+            }
+
+            // TODO(minamoto): move it to postLinkCommand().
             if (debug && linker is MacOSBasedLinker) {
                 val outputDsymBundle = context.config.outputFile + ".dSYM" // `outputFile` is either binary or bundle.
 
