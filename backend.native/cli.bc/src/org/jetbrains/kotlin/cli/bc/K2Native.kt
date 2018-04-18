@@ -24,8 +24,7 @@ import org.jetbrains.kotlin.backend.konan.util.profile
 import org.jetbrains.kotlin.cli.common.CLICompiler
 import org.jetbrains.kotlin.cli.common.CLITool
 import org.jetbrains.kotlin.cli.common.ExitCode
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.ERROR
-import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.WARNING
+import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.*
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.config.CompilerConfiguration
@@ -54,7 +53,8 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
         val project = environment.project
         val konanConfig = KonanConfig(project, configuration)
 
-        if (arguments.freeArgs.isEmpty() && !arguments.isUsefulWithoutFreeArgs && !konanConfig.linkOnly) {
+        val enoughArguments = arguments.freeArgs.isNotEmpty() || arguments.isUsefulWithoutFreeArgs
+        if (!enoughArguments) {
             configuration.report(ERROR, "You have not specified any compilation arguments. No output has been produced.")
         }
 
@@ -83,7 +83,7 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
     }
 
     val K2NativeCompilerArguments.isUsefulWithoutFreeArgs: Boolean
-        get() = this.listTargets || this.listPhases || this.checkDependencies
+        get() = this.listTargets || this.listPhases || this.checkDependencies || this.libraries?.isNotEmpty() ?: false
 
     fun Array<String>?.toNonNullList(): List<String> {
         return this?.asList<String>() ?: listOf<String>()

@@ -52,6 +52,8 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
     val linkOnly: Boolean =
             configuration.kotlinSourceRoots.isEmpty() && libraryNames.isNotEmpty() && produce.isNativeBinary
 
+    val infoArgsOnly = configuration.kotlinSourceRoots.isEmpty() && !linkOnly
+
     init {
         if (!platformManager.isEnabled(target)) {
             error("Target ${target.visibleName} is not available on the ${HostManager.hostName} host")
