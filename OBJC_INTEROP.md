@@ -94,7 +94,7 @@ in Kotlin would be:
 
 ```
 player.moveTo(LEFT, byMeters = 17)
-player moveTo(UP, byInches = 42)
+player.moveTo(UP, byInches = 42)
 ```
 
 ### Errors and exceptions
