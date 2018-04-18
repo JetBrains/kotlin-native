@@ -80,6 +80,9 @@ open class AndroidLinker(targetProperties: AndroidConfigurables)
 
     override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile, optimize: Boolean,
                              debug: Boolean, kind: LinkerOutputKind): Command {
+        // TODO: make it like Linux.
+        if (kind == LinkerOutputKind.STATIC_LIBRARY) throw Error("Unsupported")
+        val dynamic = kind == LinkerOutputKind.DYNAMIC_LIBRARY
         // liblog.so must be linked in, as we use its functionality in runtime.
         return Command(clang).apply {
             + "-o"
@@ -90,11 +93,7 @@ open class AndroidLinker(targetProperties: AndroidConfigurables)
             + objectFiles
             if (optimize) + linkerOptimizationFlags
             if (!debug) + linkerNoDebugFlags
-            when (kind) {
-                LinkerOutputKind.DYNAMIC_LIBRARY -> + linkerDynamicFlags
-                LinkerOutputKind.STATIC_LIBRARY -> throw Error("Unsupported on this platform")
-                LinkerOutputKind.EXECUTABLE -> Unit
-            }
+            if (dynamic) + linkerDynamicFlags
             + linkerKonanFlags
         }
     }
