@@ -7,7 +7,7 @@ Swift/Objective-C.
 
 Kotlin/Native provides bidirectional interoperability with Objective-C.
 Objective-C frameworks and libraries can be used in Kotlin code if
-properly attached to the build (system frameworks are attached by default).
+properly imported to the build (system frameworks are imported by default).
 See e.g. "Interop libraries" in
 [Gradle plugin documentation](GRADLE_PLUGIN.md#building-artifacts).
 Swift library can be used in Kotlin code if its API is exported to Objective-C
@@ -25,9 +25,9 @@ The table below shows how Kotlin concepts are mapped to Swift/Objective-C and vi
 | ------ | ----- |------------ | ----- |
 | `class` | `class` | `@interface` | [note](#name-translation) |
 | `interface` | `protocol` | `@protocol` | |
-| `constructor` | Initializer | Initializer | |
+| `constructor`/`create` | Initializer | Initializer | [note](#initializers) |
 | Property | Property | Property | [note](#top-level-functions-and-properties) |
-| Method | Method | Method | [note](#top-level-functions-and-properties) |
+| Method | Method | Method | [note](#top-level-functions-and-properties) [note](#method-names-translation) |
 | `@Throws` | `throws` | `error:(NSError**)error` | [note](#errors-and-exceptions) |
 | Extension | Extension | Category member | [note](#category-members) |
 | `companion` member <- | Class method or property | Class method or property |  |
@@ -56,6 +56,14 @@ These classes and interfaces are placed into package [specified in build configu
 Names of Kotlin classes and interfaces are prefixed when imported to Swift/Objective-C.
 The prefix is derived from the framework name.
 
+### Initializers
+
+Swift/Objective-C initializers are imported to Kotlin as constructors and factory methods
+named `create`. The latter happens with initializers declared in Objective-C category or
+as Swift extension, because Kotlin has no concept of extension constructors.
+
+Kotlin constructors are imported as initializers to Swift/Objective-C. 
+
 ### Top-level functions and properties
 
 Top-level Kotlin functions and properties are accessible as members of a special class.
@@ -69,6 +77,24 @@ fun foo() {}
 can be called from Swift like
 ```
 Framework.foo()
+```
+
+### Method names translation
+
+Generally Swift argument labels and Objective-C selector pieces are mapped to Kotlin
+parameter names. Anyway these two concepts have different semantics, so sometimes
+Swift/Objective-C methods can be imported with clashing Kotlin signature. In this case
+clashing methods can be called from Kotlin using named arguments, e.g.:
+```
+[player moveTo:LEFT byMeters:17]
+[player moveTo:UP byInches:42]
+```
+
+in Kotlin would be:
+
+```
+player.moveTo(LEFT, byMeters = 17)
+player moveTo(UP, byInches = 42)
 ```
 
 ### Errors and exceptions
@@ -158,15 +184,37 @@ val nsNumber = 42 as NSNumber
 
 ## Subclassing
 
+### Subclassing Kotlin classes and interfaces from Swift/Objective-C
+
 Kotlin classes and interfaces can be subclassed by Swift/Objective-C classes
 and protocols.
 Currently a class that adopts Kotlin protocol should inherit `NSObject`
 (either directly or indirectly). Note that all Kotlin classes do inherit `NSObject`,
-so a subclass of Kotlin class can adopt Kotlin protocol.
+so a Swift/Objective-C subclass of Kotlin class can adopt Kotlin protocol.
 
-Swift/Objective-C classes can be subclassed with Kotlin `final` class. Non-`final`
-Kotlin classes inherting Swift/Objective-C types aren't supported yet, so it is
+### Subclassing Swift/Objective-C classes and protocols from Kotlin
+
+Swift/Objective-C classes and protocols can be subclassed with Kotlin `final` class.
+Non-`final` Kotlin classes inherting Swift/Objective-C types aren't supported yet, so it is
 not possible to declare a complex class hierarchy inherting Swift/Objective-C types.
+
+Normal methods can be overridden using `override` Kotlin keyword. In this case
+overriding method must have the same parameter names as the overridden one.
+
+Sometimes it is required to override initializers, e.g. when subclassing `UIViewController`. 
+Initializers imported as Kotlin constructors can be overridden by Kotlin constructors
+marked with `@OverrideInit` annotation:
+```
+class ViewController : UIViewController {
+    @OverrideInit constructor(coder: NSCoder) : super(coder)
+
+    ...
+}
+```
+The overriding constructor must have the same parameter names and types as the overridden one.
+
+To override different methods with clashing Kotlin signatures, one can add
+`@Suppress("CONFLICTING_OVERLOADS")` annotation to the class.
 
 ## C features
 
