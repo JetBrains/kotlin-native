@@ -102,7 +102,7 @@ open class AndroidLinker(targetProperties: AndroidConfigurables)
 open class MacOSBasedLinker(targetProperties: AppleConfigurables)
     : LinkerFlags(targetProperties), AppleConfigurables by targetProperties {
 
-    private val ar = "$absoluteTargetToolchain/usr/bin/ar"
+    private val libtool = "$absoluteTargetToolchain/usr/bin/libtool"
     private val linker = "$absoluteTargetToolchain/usr/bin/ld"
     internal val dsymutil = "$absoluteLlvmHome/bin/llvm-dsymutil"
 
@@ -118,8 +118,9 @@ open class MacOSBasedLinker(targetProperties: AppleConfigurables)
     override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile, optimize: Boolean,
                              debug: Boolean, kind: LinkerOutputKind): Command {
         if (kind == LinkerOutputKind.STATIC_LIBRARY)
-            return Command(ar).apply {
-                + listOf("-r", "-c", executable)
+            return Command(libtool).apply {
+                + "-static"
+                + listOf("-o", executable)
                 + objectFiles
             }
         val dynamic = kind == LinkerOutputKind.DYNAMIC_LIBRARY
