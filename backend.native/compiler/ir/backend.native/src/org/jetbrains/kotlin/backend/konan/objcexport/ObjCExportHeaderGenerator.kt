@@ -78,7 +78,7 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
         result.associateBy { it.mappedClassDescriptor }
     }
 
-    val hiddenTypes: Set<ClassDescriptor> = run {
+    private val hiddenTypes: Set<ClassDescriptor> = run {
         val customMappedTypes = customTypeMappers.keys
 
         customMappedTypes
@@ -92,11 +92,11 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
     private val stubs = mutableListOf<Stub>()
     private val classOrInterfaceToName = mutableMapOf<ClassDescriptor, String>()
 
-    internal val classForwardDeclarations = mutableSetOf<String>()
-    internal val protocolForwardDeclarations = mutableSetOf<String>()
+    private val classForwardDeclarations = mutableSetOf<String>()
+    private val protocolForwardDeclarations = mutableSetOf<String>()
 
     private val extensions = mutableMapOf<ClassDescriptor, MutableList<CallableMemberDescriptor>>()
-    val extraClassesToTranslate = mutableSetOf<ClassDescriptor>()
+    private val extraClassesToTranslate = mutableSetOf<ClassDescriptor>()
 
     fun translateModule() {
         // TODO: make the translation order stable
@@ -119,18 +119,20 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
 
         }
 
-        fun MemberScope.translateClasses(): Unit = this.getContributedDescriptors()
-                .filterIsInstance<ClassDescriptor>()
-                .filter { mapper.shouldBeExposed(it) }
-                .forEach {
-                    if (it.isInterface) {
-                        translateInterface(it)
-                    } else {
-                        translateClass(it)
-                    }
+        fun MemberScope.translateClasses() {
+            getContributedDescriptors()
+                    .filterIsInstance<ClassDescriptor>()
+                    .filter { mapper.shouldBeExposed(it) }
+                    .forEach {
+                        if (it.isInterface) {
+                            translateInterface(it)
+                        } else {
+                            translateClass(it)
+                        }
 
-                    it.unsubstitutedMemberScope.translateClasses()
-                }
+                        it.unsubstitutedMemberScope.translateClasses()
+                    }
+        }
 
         packageFragments.forEach { packageFragment ->
             packageFragment.getMemberScope().translateClasses()
@@ -155,7 +157,7 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
         }
     }
 
-    fun translateClassName(descriptor: ClassDescriptor): String = classOrInterfaceToName.getOrPut(descriptor) {
+    private fun translateClassName(descriptor: ClassDescriptor): String = classOrInterfaceToName.getOrPut(descriptor) {
         assert(mapper.shouldBeExposed(descriptor))
         val forwardDeclarations = if (descriptor.isInterface) protocolForwardDeclarations else classForwardDeclarations
 
@@ -347,7 +349,7 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
 
     private val methodToSignatures = mutableMapOf<FunctionDescriptor, Set<String>>()
 
-    private fun getSignatures(method: FunctionDescriptor) = methodToSignatures.getOrPut(method) {
+    private fun getSignatures(method: FunctionDescriptor): Set<String> = methodToSignatures.getOrPut(method) {
         mapper.getBaseMethods(method).distinctBy { namer.getSelector(it) }.map { base ->
             getSignature(method, base)
         }.toSet()
@@ -355,7 +357,7 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
 
     private val propertyToSignatures = mutableMapOf<PropertyDescriptor, Set<String>>()
 
-    private fun getSignatures(property: PropertyDescriptor) = propertyToSignatures.getOrPut(property) {
+    private fun getSignatures(property: PropertyDescriptor): Set<String> = propertyToSignatures.getOrPut(property) {
         mapper.getBaseProperties(property).distinctBy { namer.getName(it) }.map { base ->
             getSignature(property, base)
         }.toSet()
@@ -363,11 +365,11 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
 
     // TODO: consider checking that signatures for bases with same selector/name are equal.
 
-    fun getSelector(method: FunctionDescriptor): String {
+    private fun getSelector(method: FunctionDescriptor): String {
         return namer.getSelector(method)
     }
 
-    private fun getSignature(property: PropertyDescriptor, baseProperty: PropertyDescriptor) = buildString {
+    private fun getSignature(property: PropertyDescriptor, baseProperty: PropertyDescriptor): String = buildString {
         assert(mapper.isBaseProperty(baseProperty))
         assert(mapper.isObjCProperty(baseProperty))
 
@@ -405,7 +407,7 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
         append(type.render(name))
     }
 
-    private fun getSignature(method: FunctionDescriptor, baseMethod: FunctionDescriptor) = buildString {
+    private fun getSignature(method: FunctionDescriptor, baseMethod: FunctionDescriptor): String = buildString {
         assert(mapper.isBaseMethod(baseMethod))
         val methodBridge = mapper.bridgeMethod(baseMethod)
 
@@ -519,19 +521,14 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
         method.allOverriddenDescriptors.forEach { exportThrown(it) }
     }
 
-    private fun mapReturnType(
-            returnBridge: MethodBridge.ReturnValue,
-            method: FunctionDescriptor
-    ): ObjCType = when (returnBridge) {
+    private fun mapReturnType(returnBridge: MethodBridge.ReturnValue, method: FunctionDescriptor): ObjCType = when (returnBridge) {
         MethodBridge.ReturnValue.Void -> ObjCVoidType
         MethodBridge.ReturnValue.HashCode -> ObjCPrimitiveType("NSUInteger")
         is MethodBridge.ReturnValue.Mapped -> mapType(method.returnType!!, returnBridge.bridge)
         MethodBridge.ReturnValue.WithError.Success -> ObjCPrimitiveType("BOOL")
         is MethodBridge.ReturnValue.WithError.RefOrNull -> {
-            val successReturnType = mapReturnType(returnBridge.successBridge, method)
-            if (successReturnType !is ObjCNonNullReferenceType) {
-                error("Function is expected to have non-null return type: $method")
-            }
+            val successReturnType = mapReturnType(returnBridge.successBridge, method) as? ObjCNonNullReferenceType
+                    ?: error("Function is expected to have non-null return type: $method")
 
             ObjCNullableReferenceType(successReturnType)
         }
