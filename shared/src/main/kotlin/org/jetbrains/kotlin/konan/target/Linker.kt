@@ -50,13 +50,12 @@ abstract class LinkerFlags(val configurables: Configurables)
 
     open val useCompilerDriverAsLinker: Boolean get() = false // TODO: refactor.
 
-    abstract fun linkCommand(objectFiles: List<ObjectFile>,
-                             executable: ExecutableFile, optimize: Boolean, debug: Boolean,
+    abstract fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile,
+                             libraries: List<String>, linkerArgs: List<String>,
+                             optimize: Boolean, debug: Boolean,
                              kind: LinkerOutputKind): Command
 
     open fun postLinkCommand(executable: ExecutableFile, kind: LinkerOutputKind): Command? = null
-
-    open fun linkCommandSuffix(): List<String> = emptyList()
 
     abstract fun filterStaticLibraries(binaries: List<String>): List<String> 
 
@@ -91,8 +90,9 @@ open class AndroidLinker(targetProperties: AndroidConfigurables)
     override fun filterStaticLibraries(binaries: List<String>) 
         = binaries.filter { it.isUnixStaticLib }
 
-    override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile, optimize: Boolean,
-                             debug: Boolean, kind: LinkerOutputKind): Command {
+    override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile,
+                             libraries: List<String>, linkerArgs: List<String>,
+                             optimize: Boolean, debug: Boolean, kind: LinkerOutputKind): Command {
         if (kind == LinkerOutputKind.STATIC_LIBRARY) {
             // Here we take somewhat unexpected approach - we create the thin
             // library, and then repack it during post-link phase.
@@ -115,6 +115,8 @@ open class AndroidLinker(targetProperties: AndroidConfigurables)
             if (!debug) + linkerNoDebugFlags
             if (dynamic) + linkerDynamicFlags
             + linkerKonanFlags
+            + libraries
+            + linkerArgs
         }
     }
 
@@ -141,8 +143,9 @@ open class MacOSBasedLinker(targetProperties: AppleConfigurables)
     override fun filterStaticLibraries(binaries: List<String>) 
         = binaries.filter { it.isUnixStaticLib }
 
-    override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile, optimize: Boolean,
-                             debug: Boolean, kind: LinkerOutputKind): Command {
+    override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile,
+                             libraries: List<String>, linkerArgs: List<String>,
+                             optimize: Boolean, debug: Boolean, kind: LinkerOutputKind): Command {
         if (kind == LinkerOutputKind.STATIC_LIBRARY)
             return Command(libtool).apply {
                 + "-static"
@@ -162,6 +165,8 @@ open class MacOSBasedLinker(targetProperties: AppleConfigurables)
             if (dynamic) + linkerDynamicFlags
             + linkerKonanFlags
             + "-lSystem"
+            + libraries
+            + linkerArgs
         }
     }
 
@@ -221,8 +226,9 @@ open class LinuxBasedLinker(targetProperties: LinuxBasedConfigurables)
     override fun filterStaticLibraries(binaries: List<String>) 
         = binaries.filter { it.isUnixStaticLib }
 
-    override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile, optimize: Boolean,
-                             debug: Boolean, kind: LinkerOutputKind): Command {
+    override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile,
+                             libraries: List<String>, linkerArgs: List<String>,
+                             optimize: Boolean, debug: Boolean, kind: LinkerOutputKind): Command {
         if (kind == LinkerOutputKind.STATIC_LIBRARY) {
             // Here we take somewhat unexpected approach - we create the thin
             // library, and then repack it during post-link phase.
@@ -268,6 +274,8 @@ open class LinuxBasedLinker(targetProperties: LinuxBasedConfigurables)
                     "-lc", "-lgcc", "--as-needed", "-lgcc_s", "--no-as-needed")
             + if (dynamic) "$libGcc/crtendS.o" else "$libGcc/crtend.o"
             + "$absoluteTargetSysRoot/usr/lib64/crtn.o"
+            + libraries
+            + linkerArgs
         }
     }
 
@@ -290,8 +298,9 @@ open class MingwLinker(targetProperties: MingwConfigurables)
     override fun filterStaticLibraries(binaries: List<String>) 
         = binaries.filter { it.isWindowsStaticLib || it.isUnixStaticLib }
 
-    override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile, optimize: Boolean,
-                             debug: Boolean, kind: LinkerOutputKind): Command {
+    override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile,
+                             libraries: List<String>, linkerArgs: List<String>,
+                             optimize: Boolean, debug: Boolean, kind: LinkerOutputKind): Command {
         if (kind == LinkerOutputKind.STATIC_LIBRARY) {
             // Here we take somewhat unexpected approach - we create the thin
             // library, and then repack it during post-link phase.
@@ -308,6 +317,9 @@ open class MingwLinker(targetProperties: MingwConfigurables)
             if (optimize) + linkerOptimizationFlags
             if (!debug)  + linkerNoDebugFlags
             if (dynamic) + linkerDynamicFlags
+            + libraries
+            + linkerArgs
+            + linkerKonanFlags
         }
     }
 
@@ -316,8 +328,6 @@ open class MingwLinker(targetProperties: MingwConfigurables)
                 postLinkGnuArCommand(ar, executable)
             else
                 null
-
-    override fun linkCommandSuffix() = linkerKonanFlags
 }
 
 open class WasmLinker(targetProperties: WasmConfigurables)
@@ -328,8 +338,9 @@ open class WasmLinker(targetProperties: WasmConfigurables)
     override fun filterStaticLibraries(binaries: List<String>) 
         = binaries.filter{it.isJavaScript}
 
-    override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile, optimize: Boolean,
-                             debug: Boolean, kind: LinkerOutputKind): Command {
+    override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile,
+                             libraries: List<String>, linkerArgs: List<String>,
+                             optimize: Boolean, debug: Boolean, kind: LinkerOutputKind): Command {
         if (kind != LinkerOutputKind.EXECUTABLE) throw Error("Unsupported linker output kind")
         return object: Command("") {
             override fun execute() {
@@ -372,13 +383,16 @@ open class ZephyrLinker(targetProperties: ZephyrConfigurables)
     override fun filterStaticLibraries(binaries: List<String>)
         = emptyList<String>()
 
-    override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile, optimize: Boolean,
-                             debug: Boolean, kind: LinkerOutputKind): Command {
+    override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile,
+                             libraries: List<String>, linkerArgs: List<String>,
+                             optimize: Boolean, debug: Boolean, kind: LinkerOutputKind): Command {
         if (kind != LinkerOutputKind.EXECUTABLE) throw Error("Unsupported linker output kind: $kind")
         return Command(linker).apply {
             + listOf("-r", "--gc-sections", "--entry", "main")
             + listOf("-o", executable)
             + objectFiles
+            + libraries
+            + linkerArgs
         }
     }
 }

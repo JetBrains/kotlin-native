@@ -159,7 +159,9 @@ internal class LinkStage(val context: Context) {
     private val entryPointSelector: List<String>
         get() = if (nomain || linkerOutput != LinkerOutputKind.EXECUTABLE) emptyList() else platform.entrySelector
 
-    private fun link(objectFiles: List<ObjectFile>, includedBinaries: List<String>, libraryProvidedLinkerFlags: List<String>): ExecutableFile? {
+    private fun link(objectFiles: List<ObjectFile>,
+                     includedBinaries: List<String>,
+                     libraryProvidedLinkerFlags: List<String>): ExecutableFile? {
         val frameworkLinkerArgs: List<String>
         val executable: String
 
@@ -181,20 +183,19 @@ internal class LinkStage(val context: Context) {
         }
 
         try {
-            linker.linkCommand(objectFiles, executable, optimize, debug, linkerOutput).apply {
-                + linker.targetLibffi
-                + asLinkerArgs(config.getNotNull(KonanConfigKeys.LINKER_ARGS))
-                + entryPointSelector
-                + frameworkLinkerArgs
-                + linker.linkCommandSuffix()
-                + linker.linkStaticLibraries(includedBinaries)
-                + libraryProvidedLinkerFlags
-                logger = context::log
+            linker.linkCommand(objectFiles = objectFiles, executable = executable,
+                    libraries = linker.targetLibffi + linker.linkStaticLibraries(includedBinaries),
+                    linkerArgs = entryPointSelector +
+                            asLinkerArgs(config.getNotNull(KonanConfigKeys.LINKER_ARGS)) +
+                            libraryProvidedLinkerFlags + frameworkLinkerArgs,
+                    optimize = optimize, debug = debug, kind = linkerOutput).apply {
+                logWith(context::log)
+                execute()
             }.execute()
 
-            linker.postLinkCommand(executable, linkerOutput)?.let {
-                it.logWith(context::log)
-                it.execute()
+            linker.postLinkCommand(executable, linkerOutput)?.apply {
+                logWith(context::log)
+                execute()
             }
 
             // TODO(minamoto): move it to postLinkCommand().
