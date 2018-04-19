@@ -80,7 +80,7 @@ internal class VariableManager(val functionGenerationContext: FunctionGeneration
                       isVar: Boolean, value: LLVMValueRef? = null, variableLocation: VariableDebugLocation?) : Int {
         assert(!contextVariablesToIndex.contains(descriptor))
         val index = variables.size
-        val type = functionGenerationContext.getLLVMType(descriptor.type)
+        val type = functionGenerationContext.getLLVMType(descriptor.type, true)
         val slot = functionGenerationContext.alloca(type, descriptor.name.asString(), variableLocation)
         if (value != null)
             functionGenerationContext.storeAny(value, slot)

@@ -729,13 +729,20 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         debugFieldDeclaration(declaration)
         val descriptor = declaration
         if (context.needGlobalInit(declaration)) {
-            val type = codegen.getLLVMType(descriptor.type)
+            val type = codegen.getLLVMType(descriptor.type, true)
             val globalProperty = context.llvmDeclarations.forStaticField(descriptor).storage
             val initializer = declaration.initializer?.expression as? IrConst<*>
-            if (initializer != null)
-                LLVMSetInitializer(globalProperty, evaluateExpression(initializer))
-            else
-                LLVMSetInitializer(globalProperty, LLVMConstNull(type))
+            val initialValue = if (initializer != null) {
+                // TODO: looks dirty.
+                if (initializer.kind == IrConstKind.Boolean) {
+                    LLVMConstInt(LLVMInt8Type(), if (initializer.value == true) 1 else 0, 0)!!
+                } else {
+                    evaluateConst(initializer)
+                }
+            } else {
+                LLVMConstNull(type)
+            }
+            LLVMSetInitializer(globalProperty, initialValue)
             context.llvm.fileInitializers.add(declaration)
 
             // (Cannot do this before the global is initialized).
@@ -1087,7 +1094,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             functionGenerationContext.br(loopScope.loopCheck)
 
             functionGenerationContext.positionAtEnd(loopScope.loopCheck)
-            val condition = evaluateExpression(loop.condition)
+            val condition = functionGenerationContext.cast(int1Type, evaluateExpression(loop.condition))
             functionGenerationContext.condBr(condition, loopBody, loopScope.loopExit)
 
             functionGenerationContext.positionAtEnd(loopBody)
@@ -1115,7 +1122,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             functionGenerationContext.br(loopScope.loopCheck)
 
             functionGenerationContext.positionAtEnd(loopScope.loopCheck)
-            val condition = evaluateExpression(loop.condition)
+            val condition = functionGenerationContext.cast(int1Type, evaluateExpression(loop.condition))
             functionGenerationContext.condBr(condition, loopBody, loopScope.loopExit)
 
             functionGenerationContext.positionAtEnd(loopScope.loopExit)
@@ -1493,8 +1500,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 true  -> return kTrue
                 false -> return kFalse
             }
-            IrConstKind.Char   -> return LLVMConstInt(LLVMInt16Type(), (value.value as Char).toLong(),  0)!!
             IrConstKind.Byte   -> return LLVMConstInt(LLVMInt8Type(),  (value.value as Byte).toLong(),  1)!!
+            IrConstKind.Char   -> return LLVMConstInt(LLVMInt16Type(), (value.value as Char).toLong(),  0)!!
             IrConstKind.Short  -> return LLVMConstInt(LLVMInt16Type(), (value.value as Short).toLong(), 1)!!
             IrConstKind.Int    -> return LLVMConstInt(LLVMInt32Type(), (value.value as Int).toLong(),   1)!!
             IrConstKind.Long   -> return LLVMConstInt(LLVMInt64Type(), value.value as Long,             1)!!
@@ -1553,10 +1560,12 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 return
             }
                                                                                 // It is local return from current function.
+            val result = functionGenerationContext.cast(
+                    codegen.getLLVMType(returnableBlock.type), value)
             functionGenerationContext.br(getExit())                                               // Generate branch on exit block.
 
             if (!returnableBlock.type.isUnit()) {                               // If function returns more then "unit"
-                functionGenerationContext.assignPhis(getResult() to value!!)                      // Assign return value to result PHI node.
+                functionGenerationContext.assignPhis(getResult() to result!!)                      // Assign return value to result PHI node.
             }
         }
 
@@ -1872,7 +1881,9 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
      */
     private fun evaluateExplicitArgs(expression: IrMemberAccessExpression): List<LLVMValueRef> {
         val evaluatedArgs = expression.getArguments().map { (param, argExpr) ->
-            param to evaluateExpression(argExpr)
+            val value = evaluateExpression(argExpr)
+            val destType = codegen.getLLVMType(param.type)
+            param to functionGenerationContext.cast(destType, value)
         }.toMap()
 
         val allValueParameters = expression.descriptor.allParameters
@@ -2429,14 +2440,16 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             evaluateExpression(branchResult)                                          // Generate clause body.
         } else {                                                                      // It is conditional clause.
             val bbCase = functionGenerationContext.basicBlock("when_case", branch.startLocation) // Create block for clause body.
-            val condition = evaluateExpression(branch.condition)                      // Generate cmp instruction.
+            val condition = functionGenerationContext.cast(int1Type, evaluateExpression(branch.condition)) // Generate cmp instruction.
             functionGenerationContext.condBr(condition, bbCase, bbNext)               // Conditional branch depending on cmp result.
             functionGenerationContext.positionAtEnd(bbCase)                           // Switch generation to block for clause body.
             evaluateExpression(branch.result)                                         // Generate clause body.
         }
         if (!functionGenerationContext.isAfterTerminator()) {
-            if (resultPhi != null)
-                functionGenerationContext.assignPhis(resultPhi to brResult)
+            if (resultPhi != null) {
+                val result = functionGenerationContext.cast(resultPhi.type, brResult)
+                functionGenerationContext.assignPhis(resultPhi to result!!)
+            }
             if (bbExit != null)
                 functionGenerationContext.br(bbExit)
         }

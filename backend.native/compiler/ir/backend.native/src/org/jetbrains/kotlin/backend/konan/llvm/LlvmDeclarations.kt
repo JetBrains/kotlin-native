@@ -134,7 +134,7 @@ private fun Context.getDeclaredFields(classDescriptor: ClassDescriptor): List<Ir
 private fun ContextUtils.createClassBodyType(name: String, fields: List<IrField>): LLVMTypeRef {
     val fieldTypes = fields.map {
         @Suppress("DEPRECATION")
-        getLLVMType(if (it.isDelegate) context.builtIns.nullableAnyType else it.type)
+        getLLVMType(if (it.isDelegate) context.builtIns.nullableAnyType else it.type, true)
     }
 
     val classType = LLVMStructCreateNamed(LLVMGetModuleContext(context.llvmModule), name)!!
@@ -315,7 +315,7 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
         }
         val threadLocal = !(descriptor.symbol.objectIsShared && context.config.threadsAreAllowed)
         val instanceFieldRef = addGlobal(
-                symbolName, getLLVMType(descriptor.defaultType), isExported = isExported, threadLocal = threadLocal)
+                symbolName, getLLVMType(descriptor.defaultType, true), isExported = isExported, threadLocal = threadLocal)
 
         LLVMSetInitializer(instanceFieldRef, kNullObjHeaderPtr)
 
@@ -327,7 +327,7 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
                     } else {
                         "kshadowobjref:" + qualifyInternalName(descriptor)
                     }
-                    addGlobal(shadowSymbolName, getLLVMType(descriptor.defaultType), isExported = isExported, threadLocal = true)
+                    addGlobal(shadowSymbolName, getLLVMType(descriptor.defaultType, true), isExported = isExported, threadLocal = true)
                 }
 
         instanceShadowFieldRef?.let { LLVMSetInitializer(it, kNullObjHeaderPtr) }
@@ -373,7 +373,7 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
             val name = "kvar:" + qualifyInternalName(descriptor)
 
             val storage = addGlobal(
-                    name, getLLVMType(descriptor.type), isExported = false, threadLocal = true)
+                    name, getLLVMType(descriptor.type, true), isExported = false, threadLocal = true)
 
             this.staticFields[descriptor] = StaticFieldLlvmDeclarations(storage)
         }
