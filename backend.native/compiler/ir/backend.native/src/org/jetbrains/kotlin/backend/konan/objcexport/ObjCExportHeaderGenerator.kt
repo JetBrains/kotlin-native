@@ -18,6 +18,7 @@ package org.jetbrains.kotlin.backend.konan.objcexport
 
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.*
+import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.builtins.getReceiverTypeFromFunctionType
 import org.jetbrains.kotlin.builtins.getReturnTypeFromFunctionType
 import org.jetbrains.kotlin.builtins.getValueParameterTypesFromFunctionType
@@ -35,24 +36,25 @@ import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.typeUtil.supertypes
 import org.jetbrains.kotlin.utils.addIfNotNull
 
-internal class ObjCExportHeaderGenerator(val context: Context) {
-    val mapper: ObjCExportMapper = object : ObjCExportMapper() {
+abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
+                                         val builtIns: KotlinBuiltIns) {
+    internal val mapper: ObjCExportMapper = object : ObjCExportMapper() {
         override fun getCategoryMembersFor(descriptor: ClassDescriptor) =
                 extensions[descriptor].orEmpty()
 
         override fun isSpecialMapped(descriptor: ClassDescriptor): Boolean {
             // TODO: this method duplicates some of the [mapReferenceType] logic.
-            return descriptor == context.builtIns.any ||
+            return descriptor == builtIns.any ||
                     descriptor.getAllSuperClassifiers().any { it in customTypeMappers }
         }
     }
 
-    val namer = ObjCExportNamer(context, mapper)
+    internal val namer = ObjCExportNamer(moduleDescriptor, builtIns, mapper)
 
     val generatedClasses = mutableSetOf<ClassDescriptor>()
     val topLevel = mutableMapOf<FqName, MutableList<CallableMemberDescriptor>>()
 
-    val customTypeMappers: Map<ClassDescriptor, CustomTypeMapper> = with (context.builtIns) {
+    internal val customTypeMappers: Map<ClassDescriptor, CustomTypeMapper> = with (builtIns) {
         val result = mutableListOf<CustomTypeMapper>()
 
         val generator = this@ObjCExportHeaderGenerator
@@ -104,7 +106,7 @@ internal class ObjCExportHeaderGenerator(val context: Context) {
         // TODO: make the translation order stable
         // to stabilize name mangling.
 
-        val packageFragments = context.moduleDescriptor.getPackageFragments()
+        val packageFragments = moduleDescriptor.getPackageFragments()
 
         packageFragments.forEach { packageFragment ->
             packageFragment.getMemberScope().getContributedDescriptors()
@@ -486,7 +488,7 @@ internal class ObjCExportHeaderGenerator(val context: Context) {
     private val methodsWithThrowAnnotationConsidered = mutableSetOf<FunctionDescriptor>()
 
     private val uncheckedExceptionClasses = listOf("Error", "RuntimeException").map {
-        context.builtIns.builtInsPackageScope
+        builtIns.builtInsPackageScope
                 .getContributedClassifier(Name.identifier(it), NoLookupLocation.FROM_BACKEND) as ClassDescriptor
     }
 
@@ -495,11 +497,7 @@ internal class ObjCExportHeaderGenerator(val context: Context) {
         val throwsAnnotation = method.annotations.findAnnotation(KonanBuiltIns.FqNames.throws) ?: return
 
         if (!mapper.doesThrow(method)) {
-            context.report(
-                    context.ir.get(method),
-                    "@${KonanBuiltIns.FqNames.throws.shortName()} annotation should also be added to a base method",
-                    isError = false
-            )
+            reportError(method, "@${KonanBuiltIns.FqNames.throws.shortName()} annotation should also be added to a base method")
         }
 
         if (method in methodsWithThrowAnnotationConsidered) return
@@ -510,13 +508,10 @@ internal class ObjCExportHeaderGenerator(val context: Context) {
             val classDescriptor = TypeUtils.getClassDescriptor((argument as KClassValue).value) ?: continue
 
             uncheckedExceptionClasses.firstOrNull { classDescriptor.isSubclassOf(it) }?.let {
-                context.report(
-                        context.ir.get(method),
+                reportError(method,
                         "Method is declared to throw ${classDescriptor.fqNameSafe}, " +
                                 "but instances of ${it.fqNameSafe} and its subclasses aren't propagated " +
-                                "from Kotlin to Objective-C/Swift",
-                        isError = false
-                )
+                                "from Kotlin to Objective-C/Swift")
             }
 
             scheduleClassToBeGenerated(classDescriptor)
@@ -599,6 +594,10 @@ internal class ObjCExportHeaderGenerator(val context: Context) {
 
         add("NS_ASSUME_NONNULL_END")
     }
+
+    abstract fun reportCompilationWarning(text: String)
+
+    abstract fun reportError(method: FunctionDescriptor, text: String)
 }
 
 internal sealed class ObjCType {
@@ -718,7 +717,7 @@ internal interface CustomTypeMapper {
             private val generator: ObjCExportHeaderGenerator,
             parameterCount: Int
     ) : CustomTypeMapper {
-        override val mappedClassDescriptor = generator.context.builtIns.getFunction(parameterCount)
+        override val mappedClassDescriptor = generator.builtIns.getFunction(parameterCount)
 
         override fun mapType(mappedSuperType: KotlinType): ObjCNonNullReferenceType {
             val functionType = mappedSuperType
@@ -768,9 +767,8 @@ private fun ObjCExportHeaderGenerator.mapReferenceTypeIgnoringNullability(
         val firstType = types[0]
         val secondType = types[1]
 
-        context.reportCompilationWarning(
-                "Exposed type '$kotlinType' is '$firstType' and '$secondType' at the same time. " +
-                        "This most likely wouldn't work as expected.")
+        reportCompilationWarning("Exposed type '$kotlinType' is '$firstType' and '$secondType' at the same time. " +
+                "This most likely wouldn't work as expected.")
 
         // TODO: the same warning for such classes.
     }
@@ -783,7 +781,7 @@ private fun ObjCExportHeaderGenerator.mapReferenceTypeIgnoringNullability(
 
     // TODO: translate `where T : BaseClass, T : SomeInterface` to `BaseClass* <SomeInterface>`
 
-    if (classDescriptor == context.builtIns.any || classDescriptor in hiddenTypes) {
+    if (classDescriptor == builtIns.any || classDescriptor in hiddenTypes) {
         return ObjCIdType
     }
 
@@ -876,4 +874,19 @@ private inline fun buildStub(block: StubBuilder.() -> Unit) = StubBuilder().let 
 
 private inline fun MutableCollection<Stub>.addBuiltBy(block: StubBuilder.() -> Unit) {
     this.add(buildStub(block))
+}
+
+internal class ObjCExportHeaderGeneratorImpl(val context: Context)
+    : ObjCExportHeaderGenerator(context.moduleDescriptor, context.builtIns) {
+    override fun reportCompilationWarning(text: String) {
+        context.reportCompilationWarning(text)
+    }
+
+    override fun reportError(method: FunctionDescriptor, text: String) {
+        context.report(
+                context.ir.get(method),
+                text,
+                isError = false
+        )
+    }
 }
