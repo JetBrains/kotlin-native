@@ -67,7 +67,7 @@ abstract class LinkerFlags(val configurables: Configurables)
 
     protected fun linkGnuArCommand(ar: String) =
             Command(ar).apply {
-                + "cqT"
+                + "cT"
             }
 
     protected fun postLinkGnuArCommand(ar: String, executable: ExecutableFile) =
@@ -100,6 +100,7 @@ open class AndroidLinker(targetProperties: AndroidConfigurables)
             return linkGnuArCommand(ar).apply {
                 + executable
                 + objectFiles
+                + libraries
             }
         }
         val dynamic = kind == LinkerOutputKind.DYNAMIC_LIBRARY
@@ -151,6 +152,7 @@ open class MacOSBasedLinker(targetProperties: AppleConfigurables)
                 + "-static"
                 + listOf("-o", executable)
                 + objectFiles
+                + libraries
             }
         val dynamic = kind == LinkerOutputKind.DYNAMIC_LIBRARY
         return Command(linker).apply {
@@ -236,6 +238,7 @@ open class LinuxBasedLinker(targetProperties: LinuxBasedConfigurables)
             return linkGnuArCommand(ar).apply {
                 + executable
                 + objectFiles
+                + libraries
              }
         }
         val isMips = (configurables is LinuxMIPSConfigurables)
@@ -308,6 +311,7 @@ open class MingwLinker(targetProperties: MingwConfigurables)
             return linkGnuArCommand(ar).apply {
                 + executable
                 + objectFiles
+                + libraries
             }
         }
         val dynamic = kind == LinkerOutputKind.DYNAMIC_LIBRARY

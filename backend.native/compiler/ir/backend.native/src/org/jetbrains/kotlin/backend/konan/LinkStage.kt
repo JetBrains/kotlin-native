@@ -183,6 +183,7 @@ internal class LinkStage(val context: Context) {
         }
 
         try {
+            File(executable).delete()
             linker.linkCommand(objectFiles = objectFiles, executable = executable,
                     libraries = linker.targetLibffi + linker.linkStaticLibraries(includedBinaries),
                     linkerArgs = entryPointSelector +
