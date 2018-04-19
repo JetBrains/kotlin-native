@@ -192,7 +192,7 @@ internal class LinkStage(val context: Context) {
                 logger = context::log
             }.execute()
 
-            linker.postLinkCommand(executable)?.let {
+            linker.postLinkCommand(executable, linkerOutput)?.let {
                 it.logWith(context::log)
                 it.execute()
             }

@@ -54,7 +54,7 @@ abstract class LinkerFlags(val configurables: Configurables)
                              executable: ExecutableFile, optimize: Boolean, debug: Boolean,
                              kind: LinkerOutputKind): Command
 
-    open fun postLinkCommand(executable: ExecutableFile): Command? = null
+    open fun postLinkCommand(executable: ExecutableFile, kind: LinkerOutputKind): Command? = null
 
     open fun linkCommandSuffix(): List<String> = emptyList()
 
@@ -65,6 +65,18 @@ abstract class LinkerFlags(val configurables: Configurables)
         // Let's just pass them as absolute paths
         return libraries
     }
+
+    protected fun linkGnuArCommand(ar: String) =
+            Command(ar).apply {
+                + "cqT"
+            }
+
+    protected fun postLinkGnuArCommand(ar: String, executable: ExecutableFile) =
+            Command("/bin/sh").apply {
+                + "-c"
+                + "/bin/echo -e 'create $executable\\naddlib $executable\\nsave\\nend' | $ar -M"
+            }
+
 }
 
 open class AndroidLinker(targetProperties: AndroidConfigurables)
@@ -72,6 +84,7 @@ open class AndroidLinker(targetProperties: AndroidConfigurables)
 
     private val prefix = "$absoluteTargetToolchain/bin/"
     private val clang = "$prefix/clang"
+    private val ar = "$prefix/ar"
 
     override val useCompilerDriverAsLinker: Boolean get() = true
 
@@ -80,8 +93,15 @@ open class AndroidLinker(targetProperties: AndroidConfigurables)
 
     override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile, optimize: Boolean,
                              debug: Boolean, kind: LinkerOutputKind): Command {
-        // TODO: make it like Linux.
-        if (kind == LinkerOutputKind.STATIC_LIBRARY) throw Error("Unsupported")
+        if (kind == LinkerOutputKind.STATIC_LIBRARY) {
+            // Here we take somewhat unexpected approach - we create the thin
+            // library, and then repack it during post-link phase.
+            // This way we ensure .a inputs are properly processed.
+            return linkGnuArCommand(ar).apply {
+                + executable
+                + objectFiles
+            }
+        }
         val dynamic = kind == LinkerOutputKind.DYNAMIC_LIBRARY
         // liblog.so must be linked in, as we use its functionality in runtime.
         return Command(clang).apply {
@@ -97,6 +117,12 @@ open class AndroidLinker(targetProperties: AndroidConfigurables)
             + linkerKonanFlags
         }
     }
+
+    override fun postLinkCommand(executable: ExecutableFile, kind: LinkerOutputKind) : Command? =
+            if (kind == LinkerOutputKind.STATIC_LIBRARY)
+                postLinkGnuArCommand(ar, executable)
+            else
+                null
 }
 
 open class MacOSBasedLinker(targetProperties: AppleConfigurables)
@@ -201,8 +227,7 @@ open class LinuxBasedLinker(targetProperties: LinuxBasedConfigurables)
             // Here we take somewhat unexpected approach - we create the thin
             // library, and then repack it during post-link phase.
             // This way we ensure .a inputs are properly processed.
-            return Command(ar).apply {
-                + "cqT"
+            return linkGnuArCommand(ar).apply {
                 + executable
                 + objectFiles
              }
@@ -246,11 +271,12 @@ open class LinuxBasedLinker(targetProperties: LinuxBasedConfigurables)
         }
     }
 
-    override fun postLinkCommand(executable: ExecutableFile) : Command? =
-        Command("/bin/sh").apply {
-           + "-c"
-           + "/bin/echo -e 'create $executable\\naddlib $executable\\nsave\\nend' | $ar -M"
-        }
+    override fun postLinkCommand(executable: ExecutableFile, kind: LinkerOutputKind) : Command? =
+            if (kind == LinkerOutputKind.STATIC_LIBRARY)
+                postLinkGnuArCommand(ar, executable)
+            else
+                null
+
 }
 
 open class MingwLinker(targetProperties: MingwConfigurables)
@@ -266,11 +292,15 @@ open class MingwLinker(targetProperties: MingwConfigurables)
 
     override fun linkCommand(objectFiles: List<ObjectFile>, executable: ExecutableFile, optimize: Boolean,
                              debug: Boolean, kind: LinkerOutputKind): Command {
-        if (kind == LinkerOutputKind.STATIC_LIBRARY)
-            return Command(ar).apply {
-                + listOf("-r", executable)
+        if (kind == LinkerOutputKind.STATIC_LIBRARY) {
+            // Here we take somewhat unexpected approach - we create the thin
+            // library, and then repack it during post-link phase.
+            // This way we ensure .a inputs are properly processed.
+            return linkGnuArCommand(ar).apply {
+                + executable
                 + objectFiles
             }
+        }
         val dynamic = kind == LinkerOutputKind.DYNAMIC_LIBRARY
         return Command(linker).apply {
             + listOf("-o", executable)
@@ -280,6 +310,12 @@ open class MingwLinker(targetProperties: MingwConfigurables)
             if (dynamic) + linkerDynamicFlags
         }
     }
+
+    override fun postLinkCommand(executable: ExecutableFile, kind: LinkerOutputKind) : Command? =
+            if (kind == LinkerOutputKind.STATIC_LIBRARY)
+                postLinkGnuArCommand(ar, executable)
+            else
+                null
 
     override fun linkCommandSuffix() = linkerKonanFlags
 }
