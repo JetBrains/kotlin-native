@@ -49,10 +49,10 @@ internal class LinkStage(val context: Context) {
     }
 
     private fun runTool(command: List<String>) = runTool(*command.toTypedArray())
-    private fun runTool(vararg command: String) = 
-        Command(*command)
-            .logWith(context::log)
-            .execute()
+    private fun runTool(vararg command: String) =
+            Command(*command)
+                    .logWith(context::log)
+                    .execute()
 
     private fun llvmLto(files: List<BitcodeFile>): ObjectFile {
         val combined = temporary("combined", ".o")
@@ -62,8 +62,8 @@ internal class LinkStage(val context: Context) {
         command.addNonEmpty(platform.llvmLtoFlags)
         when {
             optimize -> command.addNonEmpty(platform.llvmLtoOptFlags)
-            debug    -> command.addNonEmpty(platform.llvmDebugOptFlags)
-            else     -> command.addNonEmpty(platform.llvmLtoNooptFlags)
+            debug -> command.addNonEmpty(platform.llvmDebugOptFlags)
+            else -> command.addNonEmpty(platform.llvmLtoNooptFlags)
         }
         command.addNonEmpty(platform.llvmLtoDynamicFlags)
         command.addNonEmpty(files)
@@ -93,27 +93,27 @@ internal class LinkStage(val context: Context) {
         hostLlvmTool("llvm-link", *bitcodeFiles.toTypedArray(), "-o", combinedBc)
 
         val optFlags = (configurables.optFlags + when {
-            optimize    -> configurables.optOptFlags
-            debug       -> configurables.optDebugFlags
-            else        -> configurables.optNooptFlags
+            optimize -> configurables.optOptFlags
+            debug -> configurables.optDebugFlags
+            else -> configurables.optNooptFlags
         }).toTypedArray()
         val optimizedBc = temporary("optimized", ".bc")
         hostLlvmTool("opt", combinedBc, "-o", optimizedBc, *optFlags)
 
         val llcFlags = (configurables.llcFlags + when {
-            optimize    -> configurables.llcOptFlags
-            debug       -> configurables.llcDebugFlags
-            else        -> configurables.llcNooptFlags
+            optimize -> configurables.llcOptFlags
+            debug -> configurables.llcDebugFlags
+            else -> configurables.llcNooptFlags
         }).toTypedArray()
         val combinedS = temporary("combined", ".s")
         targetTool("llc", optimizedBc, "-o", combinedS, *llcFlags)
 
         val s2wasmFlags = configurables.s2wasmFlags.toTypedArray()
-        val combinedWast = temporary( "combined", ".wast")
+        val combinedWast = temporary("combined", ".wast")
         targetTool("s2wasm", combinedS, "-o", combinedWast, *s2wasmFlags)
 
-        val combinedWasm = temporary( "combined", ".wasm")
-        val combinedSmap = temporary( "combined", ".smap")
+        val combinedWasm = temporary("combined", ".wasm")
+        val combinedSmap = temporary("combined", ".smap")
         targetTool("wasm-as", combinedWast, "-o", combinedWasm, "-g", "-s", combinedSmap)
 
         return combinedWasm
@@ -184,28 +184,15 @@ internal class LinkStage(val context: Context) {
 
         try {
             File(executable).delete()
-            linker.linkCommand(objectFiles = objectFiles, executable = executable,
+            linker.linkCommands(objectFiles = objectFiles, executable = executable,
                     libraries = linker.targetLibffi + linker.linkStaticLibraries(includedBinaries),
                     linkerArgs = entryPointSelector +
                             asLinkerArgs(config.getNotNull(KonanConfigKeys.LINKER_ARGS)) +
                             libraryProvidedLinkerFlags + frameworkLinkerArgs,
-                    optimize = optimize, debug = debug, kind = linkerOutput).apply {
-                logWith(context::log)
-                execute()
-            }.execute()
-
-            linker.postLinkCommand(executable, linkerOutput)?.apply {
-                logWith(context::log)
-                execute()
-            }
-
-            // TODO(minamoto): move it to postLinkCommand().
-            if (debug && linker is MacOSBasedLinker) {
-                val outputDsymBundle = context.config.outputFile + ".dSYM" // `outputFile` is either binary or bundle.
-
-                linker.dsymUtilCommand(executable, outputDsymBundle)
-                        .logWith(context::log)
-                        .execute()
+                    optimize = optimize, debug = debug, kind = linkerOutput,
+                    outputDsymBundle = context.config.outputFile + ".dSYM").forEach {
+                it.logWith(context::log)
+                it.execute()
             }
         } catch (e: KonanExternalToolFailure) {
             context.reportCompilationError("${e.toolName} invocation reported errors")
@@ -216,27 +203,27 @@ internal class LinkStage(val context: Context) {
 
     fun linkStage() {
         val bitcodeFiles = listOf(emitted) +
-            libraries.map{it -> it.bitcodePaths}.flatten()
+                libraries.map { it -> it.bitcodePaths }.flatten()
 
-        val includedBinaries = 
-            libraries.map{it -> it.includedPaths}.flatten()
+        val includedBinaries =
+                libraries.map { it -> it.includedPaths }.flatten()
 
-        val libraryProvidedLinkerFlags = 
-            libraries.map{it -> it.linkerOpts}.flatten()
+        val libraryProvidedLinkerFlags =
+                libraries.map { it -> it.linkerOpts }.flatten()
 
         val objectFiles: MutableList<String> = mutableListOf()
 
         val phaser = PhaseManager(context)
         phaser.phase(KonanPhase.OBJECT_FILES) {
-            objectFiles.add( 
-                when (platform.configurables) {
-                    is WasmConfigurables 
-                        -> bitcodeToWasm(bitcodeFiles) 
-                    is ZephyrConfigurables 
-                        -> llvmLinkAndLlc(bitcodeFiles) 
-                    else 
+            objectFiles.add(
+                    when (platform.configurables) {
+                        is WasmConfigurables
+                        -> bitcodeToWasm(bitcodeFiles)
+                        is ZephyrConfigurables
+                        -> llvmLinkAndLlc(bitcodeFiles)
+                        else
                         -> llvmLto(bitcodeFiles)
-                }
+                    }
             )
         }
         phaser.phase(KonanPhase.LINKER) {
