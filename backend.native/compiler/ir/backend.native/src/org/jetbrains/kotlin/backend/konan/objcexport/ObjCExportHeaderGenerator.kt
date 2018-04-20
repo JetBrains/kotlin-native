@@ -316,7 +316,7 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
         }
 
         methods.forEach { method ->
-            val superSignatures = method.overriddenDescriptors
+            val superSignatures: Set<String> = method.overriddenDescriptors
                     .filter { mapper.shouldBeExposed(it) }
                     .flatMap { getSignatures(it.original) }
                     .toSet()

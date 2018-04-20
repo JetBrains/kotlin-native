@@ -16,6 +16,8 @@
 
 package org.jetbrains.kotlin.backend.konan.objcexport
 
+import org.jetbrains.kotlin.backend.konan.ValueType
+
 internal sealed class ObjCType {
     final override fun toString(): String = this.render()
 
@@ -96,3 +98,32 @@ internal object ObjCVoidType : ObjCType() {
     override fun render(attrsAndName: String) = "void".withAttrsAndName(attrsAndName)
 }
 
+internal enum class ObjCValueType(
+        val kotlinValueType: ValueType, // It is here for simplicity.
+        val encoding: String
+) {
+
+    BOOL(ValueType.BOOLEAN, "c"),
+    CHAR(ValueType.BYTE, "c"),
+    UNSIGNED_SHORT(ValueType.CHAR, "S"),
+    SHORT(ValueType.SHORT, "s"),
+    INT(ValueType.INT, "i"),
+    LONG_LONG(ValueType.LONG, "q"),
+    FLOAT(ValueType.FLOAT, "f"),
+    DOUBLE(ValueType.DOUBLE, "d")
+
+    ;
+
+    // UNSIGNED_SHORT -> unsignedShort
+    val nsNumberName = this.name.split('_').mapIndexed { index, s ->
+        val lower = s.toLowerCase()
+        if (index > 0) lower.capitalize() else lower
+    }.joinToString("")
+
+    val nsNumberValueSelector get() = "${nsNumberName}Value"
+    val nsNumberFactorySelector get() = "numberWith${nsNumberName.capitalize()}:"
+}
+
+internal sealed class TypeBridge
+internal object ReferenceBridge : TypeBridge()
+internal data class ValueTypeBridge(val objCValueType: ObjCValueType) : TypeBridge()
