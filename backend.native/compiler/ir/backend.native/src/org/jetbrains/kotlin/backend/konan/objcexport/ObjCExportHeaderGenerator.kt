@@ -217,20 +217,15 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
         val name = translateClassName(descriptor)
         val superClass = descriptor.getSuperClassNotAny()
 
-        val superName = if (superClass == null) {
+        val superName: String = if (superClass == null) {
             kotlinAnyName
         } else {
             translateClass(superClass)
             translateClassName(superClass)
         }
 
-        stubs.addBuiltBy {
-            if (descriptor.isFinalOrEnum) {
-                +"__attribute__((objc_subclassing_restricted))"
-            }
-
-            +"@interface $name : $superName${descriptor.superProtocolsClause}"
-
+        val superProtocols: List<String> = descriptor.superProtocols
+        val members: List<Stub<*>> = buildMembers {
             val presentConstructors = mutableSetOf<String>()
 
             descriptor.constructors.filter { mapper.shouldBeExposed(it) }.forEach {
@@ -288,6 +283,9 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
 
             +"@end;"
         }
+
+        val interfaceStub = ObjcInterface(name, descriptor, superName, superProtocols, members)
+        stubs.add(interfaceStub)
     }
 
     private fun StubBuilder.translateClassOrInterfaceMembers(descriptor: ClassDescriptor) {

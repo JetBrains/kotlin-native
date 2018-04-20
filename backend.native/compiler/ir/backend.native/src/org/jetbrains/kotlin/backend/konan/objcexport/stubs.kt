@@ -15,11 +15,8 @@ class ObjcProtocol(name: String,
                    superProtocols: List<String>,
                    members: List<Stub<*>>) : ClassStubBase<ClassDescriptor>(name, descriptor, superProtocols, members)
 
-internal inline fun buildStub(block: StubBuilder.() -> Unit) = StubBuilder().let {
-    it.block()
-    it.build()
-}
-
-internal inline fun MutableCollection<Stub>.addBuiltBy(block: StubBuilder.() -> Unit) {
-    this.add(buildStub(block))
-}
+class ObjcInterface(name: String,
+                    descriptor: ClassDescriptor,
+                    val superClass: String,
+                    superProtocols: List<String>,
+                    members: List<Stub<*>>) : ClassStubBase<ClassDescriptor>(name, descriptor, superProtocols, members)
