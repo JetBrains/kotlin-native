@@ -89,7 +89,7 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
 
     private val kotlinAnyName = namer.kotlinAnyName
 
-    private val stubs = mutableListOf<Stub>()
+    private val stubs = mutableListOf<Stub<*>>()
     private val classOrInterfaceToName = mutableMapOf<ClassDescriptor, String>()
 
     private val classForwardDeclarations = mutableSetOf<String>()
@@ -167,32 +167,25 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
     private fun translateInterface(descriptor: ClassDescriptor) {
         if (!generatedClasses.add(descriptor)) return
 
-        val name = translateClassName(descriptor)
+        val name: String = translateClassName(descriptor)
+        val members: List<Stub<*>> = buildMembers { translateClassOrInterfaceMembers(descriptor) }
+        val superProtocols: List<String> = descriptor.superProtocols
 
-        stubs.addBuiltBy {
-            +"@protocol $name${descriptor.superProtocolsClause}"
-            +"@required"
+        val protocolStub = ObjcProtocol(name, descriptor, superProtocols, members)
 
-            translateClassOrInterfaceMembers(descriptor)
-
-            +"@end;"
-        }
+        stubs.add(protocolStub)
     }
 
-    private val ClassDescriptor.superProtocolsClause: String
-        get() {
-            val interfaces = this.getSuperInterfaces().filter { mapper.shouldBeExposed(it) }
-            return if (interfaces.isEmpty()) {
-                ""
-            } else buildString {
-                append(" <")
-                interfaces.joinTo(this) {
-                    translateInterface(it)
-                    translateClassName(it)
-                }
-                append(">")
-            }
-        }
+    private val ClassDescriptor.superProtocols: List<String>
+        get() =
+            getSuperInterfaces()
+                    .asSequence()
+                    .filter { mapper.shouldBeExposed(it) }
+                    .map {
+                        translateInterface(it)
+                        translateClassName(it)
+                    }
+                    .toList()
 
     private fun translateExtensions(classDescriptor: ClassDescriptor, declarations: List<CallableMemberDescriptor>) {
         translateClass(classDescriptor)
