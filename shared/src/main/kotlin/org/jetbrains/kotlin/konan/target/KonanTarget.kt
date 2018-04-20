@@ -24,7 +24,7 @@ enum class Family(val exeSuffix:String, val dynamicPrefix: String, val dynamicSu
     OSX     ("kexe", "lib", "dylib", "lib", "a"),
     IOS     ("kexe", "lib", "dylib", "lib", "a"),
     LINUX   ("kexe", "lib", "so"   , "lib", "a"),
-    MINGW   ("exe" , ""   , "dll"  , "",    "a"),
+    MINGW   ("exe" , ""   , "dll"  , "lib", "a"),
     ANDROID ("so"  , "lib", "so"   , "lib", "a"),
     WASM    ("wasm", ""   , "wasm" , "",    "wasm"),
     ZEPHYR  ("o"   , "lib", "a"    , "lib", "a")

@@ -223,9 +223,10 @@ open class LinuxBasedLinker(targetProperties: LinuxBasedConfigurables)
             // library, and then repack it during post-link phase.
             // This way we ensure .a inputs are properly processed.
             return listOf(Command(ar, "cqT", executable).apply {
-                +objectFiles
-                +libraries
-            })
+                           +objectFiles
+                           +libraries
+                          },
+                          postLinkGnuArCommand(ar, executable))
         }
         val isMips = (configurables is LinuxMIPSConfigurables)
         val dynamic = kind == LinkerOutputKind.DYNAMIC_LIBRARY
@@ -272,7 +273,7 @@ open class LinuxBasedLinker(targetProperties: LinuxBasedConfigurables)
 open class MingwLinker(targetProperties: MingwConfigurables)
     : LinkerFlags(targetProperties), MingwConfigurables by targetProperties {
 
-    private val ar = "$absoluteTargetToolchain/bin/ar"
+    private val ar = "$absoluteTargetToolchain\\bin\\ar"
     private val linker = "$absoluteTargetToolchain/bin/clang++"
 
     override val useCompilerDriverAsLinker: Boolean get() = true
@@ -296,7 +297,7 @@ open class MingwLinker(targetProperties: MingwConfigurables)
                     Command("cmd", "/c").apply {
                         +"(echo create $executable & echo addlib ${temp} & echo save & echo end) | $ar -M"
                     },
-                    Command("del", "/q", temp))
+                    Command("cmd", "/c", "del", "/q", temp))
         }
         val dynamic = kind == LinkerOutputKind.DYNAMIC_LIBRARY
         return listOf(Command(linker).apply {
