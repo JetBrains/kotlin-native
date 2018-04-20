@@ -232,7 +232,7 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
                 val selector = getSelector(it)
                 if (!descriptor.isArray) presentConstructors += selector
 
-                +"${getSignature(it, it)};"
+                +"${buildMethod(it, it)};"
                 if (selector == "init") {
                     +"+ (instancetype)new OBJC_SWIFT_UNAVAILABLE(\"use object initializers instead\");"
                 }
@@ -269,7 +269,7 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
             superClass?.constructors?.filter { mapper.shouldBeExposed(it) }?.forEach {
                 val selector = getSelector(it)
                 if (selector !in presentConstructors) {
-                    +"${getSignature(it, it)} __attribute__((unavailable));"
+                    +"${buildMethod(it, it)} __attribute__((unavailable));"
                     if (selector == "init") {
                         +"+(instancetype) new __attribute__((unavailable));"
                     }
@@ -316,14 +316,12 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
         }
 
         methods.forEach { method ->
-            val superSignatures: Set<String> = method.overriddenDescriptors
+            val superMethods: Set<ObjcMethod> = method.overriddenDescriptors
                     .filter { mapper.shouldBeExposed(it) }
-                    .flatMap { getSignatures(it.original) }
+                    .flatMap { buildMethods(it.original) }
                     .toSet()
 
-            (getSignatures(method) - superSignatures).forEach {
-                +"$it;"
-            }
+            this += (buildMethods(method) - superMethods)
         }
 
         properties.forEach { property ->
@@ -338,12 +336,14 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
         }
     }
 
-    private val methodToSignatures = mutableMapOf<FunctionDescriptor, Set<String>>()
+    //todo hashCode&equals for ObjcMethod???
+    private val methodToSignatures = mutableMapOf<FunctionDescriptor, Set<ObjcMethod>>()
 
-    private fun getSignatures(method: FunctionDescriptor): Set<String> = methodToSignatures.getOrPut(method) {
-        mapper.getBaseMethods(method).distinctBy { namer.getSelector(it) }.map { base ->
-            getSignature(method, base)
-        }.toSet()
+    private fun buildMethods(method: FunctionDescriptor): Set<ObjcMethod> = methodToSignatures.getOrPut(method) {
+        mapper.getBaseMethods(method)
+                .distinctBy { namer.getSelector(it) }
+                .map { base -> buildMethod(method, base) }
+                .toSet()
     }
 
     private val propertyToSignatures = mutableMapOf<PropertyDescriptor, Set<String>>()
@@ -398,81 +398,77 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
         append(type.render(name))
     }
 
-    private fun getSignature(method: FunctionDescriptor, baseMethod: FunctionDescriptor): String = buildString {
+    private fun buildMethod(method: FunctionDescriptor, baseMethod: FunctionDescriptor): ObjcMethod {
+        fun collectParameters(baseMethodBridge: MethodBridge, method: FunctionDescriptor): List<ObjcParameter> {
+            fun unifyName(initialName: String, usedNames: Set<String>): String {
+                var unique = initialName
+                while (unique in usedNames) {
+                    unique += "_"
+                }
+                return unique
+            }
+
+            val valueParametersAssociated = baseMethodBridge.valueParametersAssociated(method)
+
+            val parameters = mutableListOf<ObjcParameter>()
+
+            val usedNames = mutableSetOf<String>()
+            valueParametersAssociated.forEach { (bridge: MethodBridgeValueParameter, p: ParameterDescriptor?) ->
+                val candidateName: String = when (bridge) {
+                    is MethodBridgeValueParameter.Mapped -> {
+                        p!!
+                        when {
+                            p is ReceiverParameterDescriptor -> "receiver"
+                            method is PropertySetterDescriptor -> "value"
+                            else -> p.name.asString()
+                        }
+                    }
+                    MethodBridgeValueParameter.ErrorOutParameter -> "error"
+                    is MethodBridgeValueParameter.KotlinResultOutParameter -> "result"
+                }
+
+                val uniqueName = unifyName(candidateName, usedNames)
+                usedNames += uniqueName
+
+                val type = when (bridge) {
+                    is MethodBridgeValueParameter.Mapped -> mapType(p!!.type, bridge.bridge)
+                    MethodBridgeValueParameter.ErrorOutParameter ->
+                        ObjCPointerType(ObjCNullableReferenceType(ObjCClassType("NSError")), nullable = true)
+
+                    is MethodBridgeValueParameter.KotlinResultOutParameter ->
+                        ObjCPointerType(mapType(method.returnType!!, bridge.bridge), nullable = true)
+                }
+
+                parameters += ObjcParameter(uniqueName, p!!, type) //todo get rid of !!
+            }
+            return parameters
+        }
+
         assert(mapper.isBaseMethod(baseMethod))
-        val methodBridge = mapper.bridgeMethod(baseMethod)
+
+        val baseMethodBridge = mapper.bridgeMethod(baseMethod)
 
         exportThrownFromThisAndOverridden(method)
 
-        val selectorParts = getSelector(baseMethod).split(':')
-
-        if (methodBridge.isInstance) {
-            append("-")
-        } else {
-            append("+")
-        }
-
-        append("(")
-        append(mapReturnType(methodBridge.returnBridge, method).render())
-        append(")")
-
-        val valueParametersAssociated = methodBridge.valueParametersAssociated(method)
-
-        val valueParameterNames = mutableListOf<String>()
-
-        valueParametersAssociated.forEach { (bridge, p) ->
-            var candidate = when (bridge) {
-                is MethodBridgeValueParameter.Mapped -> {
-                    p!!
-                    when {
-                        p is ReceiverParameterDescriptor -> "receiver"
-                        method is PropertySetterDescriptor -> "value"
-                        else -> p.name.asString()
-                    }
-                }
-                MethodBridgeValueParameter.ErrorOutParameter -> "error"
-                is MethodBridgeValueParameter.KotlinResultOutParameter -> "result"
-            }
-            while (candidate in valueParameterNames) {
-                candidate += "_"
-            }
-            valueParameterNames += candidate
-        }
-
-        append(selectorParts[0])
-
-        valueParametersAssociated.forEachIndexed { index, (bridge, p) ->
-            val name = valueParameterNames[index]
-            val type = when (bridge) {
-                is MethodBridgeValueParameter.Mapped -> mapType(p!!.type, bridge.bridge)
-                MethodBridgeValueParameter.ErrorOutParameter ->
-                    ObjCPointerType(ObjCNullableReferenceType(ObjCClassType("NSError")), nullable = true)
-
-                is MethodBridgeValueParameter.KotlinResultOutParameter ->
-                    ObjCPointerType(mapType(method.returnType!!, bridge.bridge), nullable = true)
-            }
-
-            if (index != 0) {
-                append(' ')
-                append(selectorParts[index])
-            }
-
-            append(":")
-            append("(")
-            append(type.render())
-            append(")")
-            append(name)
-        }
-
+        val isInstanceMethod: Boolean = baseMethodBridge.isInstance
+        val returnType: ObjCType = mapReturnType(baseMethodBridge.returnBridge, method)
+        val parameters = collectParameters(baseMethodBridge, method)
+        val selectorParts: List<String> = getSelector(baseMethod).trimEnd(':').split(':')
         val swiftName = namer.getSwiftName(baseMethod)
-
-        append(" NS_SWIFT_NAME($swiftName)")
-
-        if (method is ConstructorDescriptor && !method.constructedClass.isArray) { // TODO: check methodBridge instead.
-            append(" NS_DESIGNATED_INITIALIZER")
-        }
-
+        val isConstructor = method is ConstructorDescriptor
+        // TODO: check baseMethodBridge instead.
+        val isDesignatedConstructor = method is ConstructorDescriptor && !method.constructedClass.isArray
         // TODO: consider adding swift_error attribute.
+
+        return ObjcMethod(
+                method,
+                isInstanceMethod,
+                returnType,
+                selectorParts,
+                parameters,
+                swiftName,
+                isConstructor,
+                isDesignatedConstructor)
     }
 
     private val methodsWithThrowAnnotationConsidered = mutableSetOf<FunctionDescriptor>()

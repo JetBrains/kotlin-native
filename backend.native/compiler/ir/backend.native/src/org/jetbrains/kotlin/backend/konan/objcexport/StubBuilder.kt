@@ -7,6 +7,14 @@ internal class StubBuilder {
         children.add(this)
     }
 
+    operator fun Stub<*>.unaryPlus() {
+        children.add(this)
+    }
+
+    operator fun plusAssign(set: Set<Stub<*>>) {
+        children += set
+    }
+
     fun build() = children
 }
 

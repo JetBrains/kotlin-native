@@ -18,7 +18,7 @@ package org.jetbrains.kotlin.backend.konan.objcexport
 
 import org.jetbrains.kotlin.backend.konan.ValueType
 
-internal sealed class ObjCType {
+sealed class ObjCType {
     final override fun toString(): String = this.render()
 
     abstract fun render(attrsAndName: String): String
