@@ -42,7 +42,19 @@ open class VersionGenerator: DefaultTask() {
                      |     val CURRENT = KonanVersion($meta, $major, $minor, $maintenance, $build)
                      |  }
                      |  private val versionString by lazy {
-                     |     "${'$'}{meta.name} ${'$'}major.${'$'}minor.${'$'}maintenance-${'$'}build".trim()
+                     |     buildString {
+                     |       append(major)
+                     |       append('.')
+                     |       append(minor)
+                     |       if (maintenance != 0) {
+                     |         append('.')
+                     |         append(maintenance)
+                     |       }
+                     |       append('-')
+                     |       append(meta.metaString)
+                     |       append('-')
+                     |       append(build)
+                     |     }
                      |  }
                      |  override fun toString() = versionString
                      |}
