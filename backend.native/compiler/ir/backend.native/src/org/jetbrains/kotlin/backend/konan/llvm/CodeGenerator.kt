@@ -673,6 +673,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             }
         }
 
+        println("### Second part")
         val objectPtr = codegen.getObjectInstanceStorage(descriptor, shared)
         val bbCurrent = currentBlock
         val bbInit= basicBlock("label_init", locationInfo)
@@ -683,6 +684,10 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
 
         positionAtEnd(bbInit)
         val typeInfo = codegen.typeInfoForAllocation(descriptor)
+        println(descriptor)
+        descriptor.constructors.forEach {
+            println(it)
+        }
         val defaultConstructor = descriptor.constructors.first { it.valueParameters.size == 0 }
         val ctor = codegen.llvmFunction(defaultConstructor)
         val (initFunction, args) =
@@ -695,7 +700,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         val newValue = call(initFunction, args, Lifetime.GLOBAL, exceptionHandler)
         val bbInitResult = currentBlock
         br(bbExit)
-
+println("Final part")
         positionAtEnd(bbExit)
         val valuePhi = phi(codegen.getLLVMType(descriptor.defaultType))
         addPhiIncoming(valuePhi, bbCurrent to objectVal, bbInitResult to newValue)

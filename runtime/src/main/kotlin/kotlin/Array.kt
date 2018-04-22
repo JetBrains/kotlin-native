@@ -18,6 +18,18 @@ package kotlin
 import konan.internal.ExportForCompiler
 import konan.internal.InlineConstructor
 
+private open class FOOBAKA {
+    open fun foobaka() {
+    }
+}
+
+private class FOOBAKA2: FOOBAKA() {
+    override fun foobaka() {
+    }
+}
+
+
+
 // TODO: remove that, as RTTI shall be per instantiation.
 @ExportTypeInfo("theArrayTypeInfo")
 public final class Array<T> {

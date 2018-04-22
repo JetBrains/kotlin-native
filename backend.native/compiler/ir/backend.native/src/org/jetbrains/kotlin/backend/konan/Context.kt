@@ -29,6 +29,7 @@ import org.jetbrains.kotlin.backend.konan.library.KonanLibraryWriter
 import org.jetbrains.kotlin.backend.konan.library.LinkData
 import org.jetbrains.kotlin.backend.konan.llvm.*
 import org.jetbrains.kotlin.backend.konan.lower.DECLARATION_ORIGIN_BRIDGE_METHOD
+import org.jetbrains.kotlin.backend.konan.optimizations.CallGraph
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.descriptors.impl.PropertyDescriptorImpl
@@ -198,7 +199,7 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     // to dump this information into generated file.
     var serializedLinkData: LinkData? = null
     var dataFlowGraph: ByteArray? = null
-
+    lateinit var callGraph: CallGraph
     @Deprecated("")
     lateinit var psi2IrGeneratorContext: GeneratorContext
 

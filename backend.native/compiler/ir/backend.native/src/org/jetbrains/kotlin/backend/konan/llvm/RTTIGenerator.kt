@@ -20,6 +20,7 @@ import llvm.*
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.*
+import org.jetbrains.kotlin.backend.konan.optimizations.dceNotNeeded
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrProperty
@@ -228,9 +229,13 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
     }
 
     fun methodTableRecords(classDesc: ClassDescriptor): List<MethodTableRecord> {
+        //println("RTTI for ${classDesc.name}")
         val functionNames = mutableMapOf<Long, OverriddenFunctionDescriptor>()
         return context.getVtableBuilder(classDesc).methodTableEntries.map {
             val functionName = it.overriddenDescriptor.functionName
+            //println("functionName = $functionName")
+            //println(it.descriptor)
+            //println("")
             val nameSignature = functionName.localHash
             val previous = functionNames.putIfAbsent(nameSignature.value, it)
             if (previous != null)
@@ -238,7 +243,10 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
 
             // TODO: compile-time resolution limits binary compatibility
             val implementation = it.implementation
-            val methodEntryPoint = implementation?.entryPointAddress
+            val methodEntryPoint = if (dceNotNeeded.contains(it.descriptor)) {
+                println("### omitted from RTTI $implementation")
+                null 
+            } else implementation?.entryPointAddress
             MethodTableRecord(nameSignature, methodEntryPoint)
         }.sortedBy { it.nameSignature.value }
     }

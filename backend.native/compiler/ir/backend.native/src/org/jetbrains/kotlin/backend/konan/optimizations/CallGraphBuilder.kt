@@ -40,7 +40,7 @@ internal class CallGraphNode(val graph: CallGraph, val symbol: DataFlowIR.Functi
     val callSites = mutableListOf<CallSite>()
 }
 
-internal class CallGraph(val directEdges: Map<DataFlowIR.FunctionSymbol, CallGraphNode>,
+internal data class CallGraph(val directEdges: Map<DataFlowIR.FunctionSymbol, CallGraphNode>,
                          val reversedEdges: Map<DataFlowIR.FunctionSymbol, MutableList<DataFlowIR.FunctionSymbol>>)
     : DirectedGraph<DataFlowIR.FunctionSymbol, CallGraphNode> {
 
