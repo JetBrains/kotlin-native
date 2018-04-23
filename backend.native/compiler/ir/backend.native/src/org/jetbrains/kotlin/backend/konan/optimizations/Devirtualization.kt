@@ -396,6 +396,53 @@ internal object Devirtualization {
 
         fun BitSet.copy() = BitSet(this.size()).apply { this.or(this@copy) }
 
+        fun printPathToType(node: Node, type: Int) {
+            val visited = mutableSetOf<Node>()
+            val prev = mutableMapOf<Node, Node>()
+            var front = mutableListOf<Node>()
+            front.add(node)
+            visited.add(node)
+            lateinit var source: Node.Source
+            bfs@while (front.isNotEmpty()) {
+                val prevFront = front
+                front = mutableListOf()
+                for (from in prevFront) {
+                    val reversedEdges = from.reversedEdges
+                    if (reversedEdges != null)
+                        for (to in reversedEdges) {
+                            if (!visited.contains(to) && to.types[type]) {
+                                visited.add(to)
+                                prev[to] = from
+                                front.add(to)
+                                if (to is Node.Source) {
+                                    source = to
+                                    break@bfs
+                                }
+                            }
+                        }
+                    val reversedCastEdges = from.reversedCastEdges
+                    if (reversedCastEdges != null)
+                        for (castEdge in reversedCastEdges) {
+                            val to = castEdge.node
+                            if (!visited.contains(to) && castEdge.suitableTypes[type] && to.types[type]) {
+                                visited.add(to)
+                                prev[to] = from
+                                front.add(to)
+                                if (to is Node.Source) {
+                                    source = to
+                                    break@bfs
+                                }
+                            }
+                        }
+                }
+            }
+            var cur: Node = source
+            do {
+                println("    #${cur.id}")
+                cur = prev[cur]!!
+            } while (cur != node)
+        }
+
         fun analyze(): Map<DataFlowIR.Node.VirtualCall, DevirtualizedCallSite> {
             val functions = moduleDFG.functions + externalModulesDFG.functionDFGs
             val typeHierarchy = TypeHierarchy(symbolTable.classMap.values.filterIsInstance<DataFlowIR.Type.Declared>() +
@@ -532,11 +579,13 @@ internal object Devirtualization {
                     .forEach { virtualCall ->
                         assert (nodesMap[virtualCall] != null, { "Node for virtual call $virtualCall has not been built" })
                         val virtualCallSiteReceivers = constraintGraph.virtualCallSiteReceivers[virtualCall]
-                        if (virtualCallSiteReceivers == null || virtualCallSiteReceivers.receiver.types[VIRTUAL_TYPE_ID]) {
+                                ?: error("virtualCallSiteReceivers were not built for virtual call $virtualCall")
+                        if (virtualCallSiteReceivers.receiver.types[VIRTUAL_TYPE_ID]) {
 
                             DEBUG_OUTPUT(0) {
-                                println("Unable to devirtualize callsite ${virtualCall.irCallSite?.let { ir2stringWhole(it) } ?: virtualCall.toString() }")
+                                println("Unable to devirtualize callsite ${virtualCall.irCallSite?.let { ir2stringWhole(it) } ?: virtualCall.callee.toString() }")
                                 println("    receiver is Virtual")
+                                printPathToType(virtualCallSiteReceivers.receiver, VIRTUAL_TYPE_ID)
                             }
 
                             return@forEach
