@@ -227,6 +227,8 @@ internal object DataFlowIR {
 
         class Singleton(val type: Type, val constructor: FunctionSymbol?) : Node()
 
+        class AllocInstance(val type: Type) : Node()
+
         class FieldRead(val receiver: Edge?, val field: Field) : Node()
 
         class FieldWrite(val receiver: Edge?, val field: Field, val value: Edge) : Node()

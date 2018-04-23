@@ -498,6 +498,15 @@ internal object DFGSerializer {
         }
     }
 
+    class AllocInst(val type: Int) {
+
+        constructor(data: ArraySlice) : this(data.readInt())
+
+        fun write(result: ArraySlice) {
+            result.writeInt(type)
+        }
+    }
+
     class FieldRead(val receiver: Edge?, val field: Field) {
 
         constructor(data: ArraySlice) : this(data.readNullable { Edge(this) }, Field(data))
@@ -560,6 +569,7 @@ internal object DFGSerializer {
         VTABLE_CALL,
         ITABLE_CALL,
         SINGLETON,
+        ALLOC_INST,
         FIELD_READ,
         FIELD_WRITE,
         ARRAY_READ,
@@ -575,9 +585,10 @@ internal object DFGSerializer {
         var vtableCall : VtableCall? = null
         var itableCall : ItableCall? = null
         var singleton  : Singleton?  = null
+        var allocInst  : AllocInst?  = null
         var fieldRead  : FieldRead?  = null
         var fieldWrite : FieldWrite? = null
-        var arrayRead  : ArrayRead? = null
+        var arrayRead  : ArrayRead?  = null
         var arrayWrite : ArrayWrite? = null
         var variable   : Variable?   = null
 
@@ -589,6 +600,7 @@ internal object DFGSerializer {
             vtableCall != null -> NodeType.VTABLE_CALL
             itableCall != null -> NodeType.ITABLE_CALL
             singleton  != null -> NodeType.SINGLETON
+            allocInst  != null -> NodeType.ALLOC_INST
             fieldRead  != null -> NodeType.FIELD_READ
             fieldWrite != null -> NodeType.FIELD_WRITE
             arrayRead  != null -> NodeType.ARRAY_READ
@@ -606,6 +618,7 @@ internal object DFGSerializer {
             vtableCall?.write(result)
             itableCall?.write(result)
             singleton ?.write(result)
+            allocInst?.write(result)
             fieldRead ?.write(result)
             fieldWrite?.write(result)
             arrayRead ?.write(result)
@@ -635,6 +648,9 @@ internal object DFGSerializer {
             fun singleton(type: Int, constructor: Int?) =
                     Node().also { it.singleton = Singleton(type, constructor) }
 
+            fun allocInst(type: Int) =
+                    Node().also { it.allocInst = AllocInst(type) }
+
             fun fieldRead(receiver: Edge?, field: Field) =
                     Node().also { it.fieldRead = FieldRead(receiver, field) }
 
@@ -661,6 +677,7 @@ internal object DFGSerializer {
                     NodeType.VTABLE_CALL -> result.vtableCall = VtableCall(data)
                     NodeType.ITABLE_CALL -> result.itableCall = ItableCall(data)
                     NodeType.SINGLETON   -> result.singleton  = Singleton (data)
+                    NodeType.ALLOC_INST  -> result.allocInst  = AllocInst (data)
                     NodeType.FIELD_READ  -> result.fieldRead  = FieldRead (data)
                     NodeType.FIELD_WRITE -> result.fieldWrite = FieldWrite(data)
                     NodeType.ARRAY_READ  -> result.arrayRead  = ArrayRead (data)
@@ -846,6 +863,9 @@ internal object DFGSerializer {
 
                                     is DataFlowIR.Node.Singleton ->
                                         Node.singleton(typeMap[node.type]!!, node.constructor?.let { functionSymbolMap[it]!! })
+
+                                    is DataFlowIR.Node.AllocInstance ->
+                                        Node.allocInst(typeMap[node.type]!!)
 
                                     is DataFlowIR.Node.FieldRead ->
                                         Node.fieldRead(node.receiver?.let { buildEdge(it) }, buildField(node.field))
@@ -1066,6 +1086,10 @@ internal object DFGSerializer {
                             NodeType.SINGLETON -> {
                                 val singleton = it.singleton!!
                                 DataFlowIR.Node.Singleton(types[singleton.type], singleton.constructor?.let { functionSymbols[it] })
+                            }
+
+                            NodeType.ALLOC_INST -> {
+                                DataFlowIR.Node.AllocInstance(types[it.allocInst!!.type])
                             }
 
                             NodeType.FIELD_READ -> {
