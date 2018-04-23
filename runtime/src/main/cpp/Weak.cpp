@@ -48,7 +48,7 @@ OBJ_GETTER(Konan_getWeakReferenceImpl, ObjHeader* referred) {
   MetaObjHeader* meta = referred->meta_object();
 
 #if KONAN_OBJC_INTEROP
-  if (IsInstance(referred, theForeignObjCObjectTypeInfo)) { // FIXME: use more suitable check.
+  if (IsInstance(referred, theObjCObjectWrapperTypeInfo)) {
     RETURN_RESULT_OF(makeObjCWeakReferenceImpl, meta->associatedObject_);
   }
 #endif // KONAN_OBJC_INTEROP

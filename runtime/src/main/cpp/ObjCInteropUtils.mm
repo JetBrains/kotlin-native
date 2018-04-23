@@ -165,7 +165,7 @@ KBoolean Kotlin_Interop_IsObjectKindOfClass(id obj, void* cls) {
   return [((id<NSObject>)obj) isKindOfClass:(Class)cls];
 }
 
-// Used as associated object for ObjCWeakReferenceImpl.
+// Used as an associated object for ObjCWeakReferenceImpl.
 @interface KotlinObjCWeakReference : NSObject
 @end;
 

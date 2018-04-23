@@ -148,13 +148,19 @@ fun testMethodsOfAny(kotlinObject: Any, equalNsObject: NSObject, otherObject: An
 }
 
 fun testWeakRefs() {
+    testWeakReference({ NSObject.new()!! })
+
+    createAndAbandonWeakRef(NSObject())
+
+    testWeakReference({ NSArray.arrayWithArray(listOf(42)) as NSArray })
+}
+
+fun testWeakReference(block: () -> NSObject) {
     val ref = autoreleasepool {
-        createAndTestWeakReference({ NSObject.new()!! })
+        createAndTestWeakReference(block)
     }
 
     assertNull(ref.get())
-
-    createAndAbandonWeakRef(NSObject())
 }
 
 fun createAndTestWeakReference(block: () -> NSObject): WeakReference<NSObject> {

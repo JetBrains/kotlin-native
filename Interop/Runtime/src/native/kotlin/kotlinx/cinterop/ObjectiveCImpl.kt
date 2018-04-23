@@ -24,7 +24,7 @@ interface ObjCClassOf<T : ObjCObject> : ObjCClass // TODO: T should be added to 
 typealias ObjCObjectMeta = ObjCClass
 
 @ExportTypeInfo("theForeignObjCObjectTypeInfo")
-internal open class ForeignObjCObject
+internal open class ForeignObjCObject : konan.internal.ObjCObjectWrapper
 
 abstract class ObjCObjectBase protected constructor() : ObjCObject {
     @Target(AnnotationTarget.CONSTRUCTOR)
