@@ -247,6 +247,15 @@ KRef Kotlin_Interop_unwrapKotlinObjectHolder(void* holder) {
   RuntimeAssert(false, "Objective-C interop is disabled");
   return nullptr;
 }
+  
+OBJ_GETTER(Konan_ObjCInterop_getWeakReference, KRef ref) {
+  RuntimeAssert(false, "Objective-C interop is disabled");
+  RETURN_OBJ(nullptr);
+}
+
+void Konan_ObjCInterop_initWeakReference(KRef ref, void* objcPtr) {
+  RuntimeAssert(false, "Objective-C interop is disabled");
+}
 
 } // extern "C"
 
