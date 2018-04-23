@@ -335,7 +335,6 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
         val thrownValues = mutableListOf<IrExpression>()
         val catchParameters = mutableSetOf<VariableDescriptor>()
 
-        private val returnableBlocks = mutableMapOf<FunctionDescriptor, IrReturnableBlock>()
         private val suspendableExpressionStack = mutableListOf<IrSuspendableExpression>()
 
         override fun visitElement(element: IrElement) {
@@ -428,6 +427,8 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
 
     private val arrayGetSymbol = context.ir.symbols.arrayGet
     private val arraySetSymbol = context.ir.symbols.arraySet
+    private val createUninitializedInstanceSymbol = context.ir.symbols.createUninitializedInstance
+    private val initInstanceSymbol = context.ir.symbols.initInstance
     private val scheduleImplSymbol = context.ir.symbols.scheduleImpl
     private val scheduleImplProducerClassSymbol = context.ir.symbols.functions[0]
     private val scheduleImplProducerParam = scheduleImplSymbol.descriptor.valueParameters[2].also {
@@ -448,14 +449,15 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
         private val allParameters = (descriptor as? FunctionDescriptor)?.allParameters ?: emptyList()
         private val templateParameters = allParameters.withIndex().associateBy({ it.value }, { DataFlowIR.Node.Parameter(it.index) })
 
-        private val continuationParameter = if (descriptor !is IrSimpleFunction) {
-            null
-        } else if (descriptor.isSuspend) {
-            DataFlowIR.Node.Parameter(allParameters.size)
-        } else if (doResumeFunctionSymbol in descriptor.overriddenSymbols) { // <this> is a CoroutineImpl inheritor.
-            templateParameters[descriptor.dispatchReceiverParameter!!]       // It is its own continuation.
-        } else {
-            null
+        private val continuationParameter = when {
+            descriptor !is IrSimpleFunction -> null
+
+            descriptor.isSuspend -> DataFlowIR.Node.Parameter(allParameters.size)
+
+            doResumeFunctionSymbol in descriptor.overriddenSymbols ->            // <this> is a CoroutineImpl inheritor.
+                templateParameters[descriptor.dispatchReceiverParameter!!]       // It is its own continuation.
+
+            else -> null
         }
 
         private fun getContinuation() = continuationParameter ?: error("Function $descriptor has no continuation parameter")
@@ -578,6 +580,25 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
 
                                 arraySetSymbol -> DataFlowIR.Node.ArrayWrite(expressionToEdge(value.dispatchReceiver!!),
                                         expressionToEdge(value.getValueArgument(0)!!), expressionToEdge(value.getValueArgument(1)!!))
+
+                                createUninitializedInstanceSymbol -> {
+                                    val typeParameterT = createUninitializedInstanceSymbol.descriptor.typeParameters[0]
+                                    DataFlowIR.Node.AllocInstance(symbolTable.mapType(value.getTypeArgument(typeParameterT)!!))
+                                }
+
+                                initInstanceSymbol -> {
+                                    val thiz = expressionToEdge(value.getValueArgument(0)!!)
+                                    val initializer = value.getValueArgument(1) as IrCall
+                                    val arguments = listOf(thiz) + initializer.getArguments().map { expressionToEdge(it.second) }
+                                    val callee = initializer.symbol.owner as IrConstructor
+                                    DataFlowIR.Node.StaticCall(
+                                            symbolTable.mapFunction(callee),
+                                            arguments,
+                                            symbolTable.mapClass(context.ir.symbols.unit.owner),
+                                            symbolTable.mapClass(callee.constructedClass),
+                                            null
+                                    )
+                                }
 
                                 else -> {
                                     val callee = value.symbol.owner as IrFunction
