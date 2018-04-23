@@ -150,6 +150,20 @@ private external fun <T : ObjCObject> getObjCClass(): NativePtr
 @konan.internal.Intrinsic external fun getMessenger(superClass: NativePtr): COpaquePointer?
 @konan.internal.Intrinsic external fun getMessengerLU(superClass: NativePtr): COpaquePointer?
 
+internal class ObjCWeakReferenceImpl : konan.ref.WeakReferenceImpl() {
+    @SymbolName("Konan_ObjCInterop_getWeakReference")
+    external override fun get(): Any?
+}
+
+@SymbolName("Konan_ObjCInterop_initWeakReference")
+private external fun ObjCWeakReferenceImpl.init(objcPtr: NativePtr)
+
+@konan.internal.ExportForCppRuntime internal fun makeObjCWeakReferenceImpl(objcPtr: NativePtr): ObjCWeakReferenceImpl {
+    val result = ObjCWeakReferenceImpl()
+    result.init(objcPtr)
+    return result
+}
+
 // Konan runtme:
 
 @Deprecated("Use plain Kotlin cast of String to NSString", level = DeprecationLevel.WARNING)

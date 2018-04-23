@@ -165,6 +165,48 @@ KBoolean Kotlin_Interop_IsObjectKindOfClass(id obj, void* cls) {
   return [((id<NSObject>)obj) isKindOfClass:(Class)cls];
 }
 
+// Used as associated object for ObjCWeakReferenceImpl.
+@interface KotlinObjCWeakReference : NSObject
+@end;
+
+// libobjc:
+id objc_loadWeakRetained(id *location);
+id objc_storeWeak(id *location, id newObj);
+void objc_destroyWeak(id *location);
+void objc_release(id obj);
+
+@implementation KotlinObjCWeakReference {
+  @public id referred;
+}
+
+// Called when removing Kotlin object.
+-(void)releaseAsAssociatedObject {
+  objc_destroyWeak(&referred);
+  objc_release(self);
+}
+
+@end;
+
+OBJ_GETTER(Kotlin_Interop_refFromObjC, id obj);
+
+OBJ_GETTER(Konan_ObjCInterop_getWeakReference, KRef ref) {
+  MetaObjHeader* meta = ref->meta_object();
+  KotlinObjCWeakReference* objcRef = (KotlinObjCWeakReference*)meta->associatedObject_;
+
+  id objcReferred = objc_loadWeakRetained(&objcRef->referred);
+  KRef result = Kotlin_Interop_refFromObjC(objcReferred, OBJ_RESULT);
+  objc_release(objcReferred);
+
+  return result;
+}
+
+void Konan_ObjCInterop_initWeakReference(KRef ref, id objcPtr) {
+  MetaObjHeader* meta = ref->meta_object();
+  KotlinObjCWeakReference* objcRef = [KotlinObjCWeakReference new];
+  objc_storeWeak(&objcRef->referred, objcPtr);
+  meta->associatedObject_ = objcRef;
+}
+
 } // extern "C"
 
 #else // KONAN_OBJC_INTEROP
