@@ -328,7 +328,13 @@ internal object Devirtualization {
                         DEBUG_OUTPUT(1) { println("Adding return type as it is final") }
 
                         addInstantiatingClass(resolvedReturnType)
+                    } else if (entryPoint != null) {
+                        // For a final binary assume that all possible inheritors of return type are possible.
+                        typeHierarchy.inheritorsOf(resolvedReturnType)
+                                .filterNot { it.isAbstract }
+                                .forEach { addInstantiatingClass(it) }
                     }
+
                     return
                 }
                 if (!visited.add(resolvedFunctionSymbol)) return
@@ -777,8 +783,13 @@ internal object Devirtualization {
                             val fictitiousReturnNode = ordinaryNode { "External$resolvedCallee" }
                             if (returnType.isFinal)
                                 concreteClass(returnType).addEdge(fictitiousReturnNode)
-                            else
+                            else if (entryPoint == null)
                                 constraintGraph.virtualNode.addEdge(fictitiousReturnNode)
+                            else {
+                                typeHierarchy.inheritorsOf(returnType)
+                                        .filterNot { it.isAbstract }
+                                        .forEach { concreteClass(it).addEdge(fictitiousReturnNode) }
+                            }
                             fictitiousReturnNode
                         }
                     } else {
@@ -877,7 +888,7 @@ internal object Devirtualization {
                             // Add cast to [Virtual] edge from receiver to returns, if return type is not final.
                             // With this we're reflecting the fact that unknown function can return anything.
                             val virtualTypeFilter = BitSet().apply { set(VIRTUAL_TYPE_ID) }
-                            if (!returnType.isFinal) {
+                            if (!returnType.isFinal && entryPoint == null) {
                                 receiverNode.addCastEdge(Node.CastEdge(returnsNode, virtualTypeFilter))
                             }
                             // And throw anything.
