@@ -94,7 +94,7 @@ private fun ValueType.initCache(context: Context, cacheName: String,
 }
 
 private fun ValueType.createConstant(value: Int): ConstValue {
-    val (longValue, ext) = when (this) {
+    val (longValue, signExtend) = when (this) {
         ValueType.BOOLEAN   -> (value > 0).toByte().toLong()    to 0
         ValueType.BYTE      -> value.toByte().toLong()          to 1
         ValueType.CHAR      -> value.toChar().toLong()          to 0
@@ -103,7 +103,7 @@ private fun ValueType.createConstant(value: Int): ConstValue {
         ValueType.LONG      -> value.toLong()                   to 1
         else                -> error("Cannot box value of type $this")
     }
-    return constValue(LLVMConstInt(this.llvmMemoryType, longValue, ext)!!)
+    return constValue(LLVMConstInt(this.llvmMemoryType, longValue, signExtend)!!)
 }
 
 // When start is greater than end then `inRange` check is always false

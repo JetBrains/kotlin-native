@@ -748,7 +748,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     private fun evaluateConstOfMemoryType(const: IrConst<*>): LLVMValueRef {
         return if (const.kind == IrConstKind.Boolean) {
-            val value = ((const.value == true).toByte()).toLong()
+            val value = if (const.value == true) 1L else 0L
             LLVMConstInt(ValueType.BOOLEAN.llvmMemoryType, value, 0)!!
         } else {
             evaluateConst(const)
@@ -1333,8 +1333,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         val srcObjInfoPtr = functionGenerationContext.bitcast(codegen.kObjHeaderPtr, obj)                // Cast src to ObjInfoPtr.
         val args          = listOf(srcObjInfoPtr, dstTypeInfo)                         // Create arg list.
 
-        val result = call(context.llvm.isInstanceFunction, args)                       // Check if dst is subclass of src.
-        return functionGenerationContext.trunc(result, kInt1)                          // Truncate result to boolean
+        return call(context.llvm.isInstanceFunction, args)                       // Check if dst is subclass of src.
     }
 
     private fun genInstanceOfObjC(obj: LLVMValueRef, dstClass: IrClass): LLVMValueRef {

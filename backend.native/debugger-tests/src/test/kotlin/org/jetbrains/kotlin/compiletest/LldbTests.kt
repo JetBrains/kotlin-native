@@ -35,8 +35,6 @@ class LldbTests {
         [..] at main.kt:5
     """)
 
-    //FIXME: Boolean and Int are wrong
-    // Boolean is fixed. What's wrong with Int?
     @Test
     fun `can inspect values of primitive types`() = lldbTest("""
         fun main(args: Array<String>) {
