@@ -94,9 +94,11 @@ internal fun emitLLVM(context: Context) {
     }
 
     phaser.phase(KonanPhase.DEVIRTUALIZATION2) {
-        val privateFunctions = moduleDFG!!.symbolTable.getPrivateFunctionsTableForExport().filterNot { dceNotNeeded.contains(it) }
+        val privateFunctions = moduleDFG!!.symbolTable.getPrivateFunctionsTableForExport()
 
         privateFunctions.forEachIndexed { index, it ->
+            if (dceNotNeeded.contains(it)) return@forEachIndexed
+
             val function = codegenVisitor.codegen.llvmFunction(it)
             LLVMAddAlias(
                     context.llvmModule,
@@ -105,11 +107,7 @@ internal fun emitLLVM(context: Context) {
                     irModule.descriptor.privateFunctionSymbolName(index)
             )!!
         }
-
-        codegenVisitor.codegen.staticData.placeGlobalConstArray(irModule.descriptor.privateFunctionsTableSymbolName, int8TypePtr,
-                privateFunctions.map { constPointer(codegenVisitor.codegen.llvmFunction(it)).bitcast(int8TypePtr) },
-                isExported = true
-        )
+        context.privateFunctions = privateFunctions
 
         val privateClasses = moduleDFG!!.symbolTable.getPrivateClassesTableForExport()
 
