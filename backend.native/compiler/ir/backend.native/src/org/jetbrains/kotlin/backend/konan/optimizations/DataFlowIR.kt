@@ -274,6 +274,9 @@ internal object DataFlowIR {
                 is Node.Singleton ->
                     "        SINGLETON ${node.type}\n"
 
+                is Node.AllocInstance ->
+                    "        ALLOC INSTANCE ${node.type}\n"
+
                 is Node.StaticCall -> {
                     val result = StringBuilder()
                     result.appendln("        STATIC CALL ${node.callee}")
