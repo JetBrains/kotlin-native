@@ -98,7 +98,7 @@ internal fun emitLLVM(context: Context) {
                     context.llvmModule,
                     function.type,
                     function,
-                    irModule.descriptor.privateFunctionsTableSymbolName + "_$index"
+                    irModule.descriptor.privateFunctionSymbolName(index)
             )!!
         }
         context.privateFunctions = privateFunctions
@@ -111,7 +111,7 @@ internal fun emitLLVM(context: Context) {
                     context.llvmModule,
                     typeInfoPtr.type,
                     typeInfoPtr,
-                    irModule.descriptor.privateClassesTableSymbolName + "_$index"
+                    irModule.descriptor.privateClassSymbolName(index)
             )!!
         }
         context.privateClasses = privateClasses
@@ -2009,8 +2009,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     //-------------------------------------------------------------------------//
 
     private fun evaluatePrivateFunctionCall(callee: IrPrivateFunctionCall, args: List<LLVMValueRef>, resultLifetime: Lifetime): LLVMValueRef {
-        val functionsListName = callee.moduleDescriptor.privateFunctionsTableSymbolName
-
         val target = callee.symbol.owner as IrFunction
 
         val functionIndex = callee.functionIndex
@@ -2018,7 +2016,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             codegen.llvmFunction(context.privateFunctions[functionIndex])
         } else {
             context.llvm.externalFunction(
-                    functionsListName + "_$functionIndex",
+                    callee.moduleDescriptor.privateFunctionSymbolName(functionIndex),
                     codegen.getLlvmFunctionType(target),
                     callee.moduleDescriptor.llvmSymbolOrigin
 
@@ -2030,14 +2028,12 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     //-------------------------------------------------------------------------//
 
     private fun evaluatePrivateClassReference(classReference: IrPrivateClassReference): LLVMValueRef {
-        val classesListName = classReference.moduleDescriptor.privateClassesTableSymbolName
-
         val classIndex = classReference.classIndex
         val typeInfoPtr = if (classReference.moduleDescriptor == context.irModule!!.descriptor) {
             codegen.typeInfoValue(context.privateClasses[classIndex])
         } else {
             codegen.importGlobal(
-                    classesListName + "_$classIndex",
+                    classReference.moduleDescriptor.privateClassSymbolName(classIndex),
                     codegen.kTypeInfo,
                     classReference.moduleDescriptor.llvmSymbolOrigin
             )
