@@ -135,6 +135,13 @@ internal class CallGraphBuilder(val context: Context,
                     }
                 }
             }
+            body.nodes.filterIsInstance<DataFlowIR.Node.FunctionReference>()
+                    .forEach {
+                        val callee = it.symbol.resolved()
+                        if (callee is DataFlowIR.FunctionSymbol.Declared
+                                && !directEdges.containsKey(callee))
+                            dfs(callee)
+                    }
         } else {
             var function = moduleDFG.functions[symbol]
             var local = true
@@ -170,6 +177,15 @@ internal class CallGraphBuilder(val context: Context,
                     }
                 }
             }
+            body.nodes.filterIsInstance<DataFlowIR.Node.FunctionReference>()
+                    .forEach {
+                        val callee = it.symbol.resolved()
+                        if (moduleDFG.functions.containsKey(callee))
+                            addNode(callee)
+                        if (callee is DataFlowIR.FunctionSymbol.Declared
+                                && !visitedFunctions.contains(callee))
+                            dfs(callee)
+                    }
         }
     }
 }

@@ -366,6 +366,9 @@ internal object Devirtualization {
                         is DataFlowIR.Node.StaticCall ->
                             dfs(node.callee, node.returnType)
 
+                        is DataFlowIR.Node.FunctionReference ->
+                            dfs(node.symbol, node.returnType)
+
                         is DataFlowIR.Node.VirtualCall -> {
                             if (node.receiverType == DataFlowIR.Type.Virtual)
                                 continue@nodeLoop
@@ -918,6 +921,10 @@ internal object Devirtualization {
 
                         is DataFlowIR.Node.AllocInstance -> {
                             concreteClass(node.type.resolved())
+                        }
+
+                        is DataFlowIR.Node.FunctionReference -> {
+                            sourceNode(concreteType(node.type.resolved())) { "Const\$${function.symbol}" }
                         }
 
                         is DataFlowIR.Node.FieldRead ->
