@@ -232,24 +232,32 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
                 val selector = getSelector(it)
                 if (!descriptor.isArray) presentConstructors += selector
 
-                +"${buildMethod(it, it)};"
+                +buildMethod(it, it)
                 if (selector == "init") {
-                    +"+ (instancetype)new OBJC_SWIFT_UNAVAILABLE(\"use object initializers instead\");"
+                    //todo no swift name here???
+                    +ObjcMethod(it, false, ObjCInstanceType, listOf("new"), emptyList(), "" , true, false)
+                    //+"+ (instancetype)new OBJC_SWIFT_UNAVAILABLE(\"use object initializers instead\");"
                 }
-                +""
             }
 
             if (descriptor.isArray || descriptor.kind == ClassKind.OBJECT || descriptor.kind == ClassKind.ENUM_CLASS) {
-                +"+(instancetype)alloc __attribute__((unavailable));"
-                +"+(instancetype)allocWithZone:(struct _NSZone *)zone __attribute__((unavailable));"
-                +""
+                //todo attach attributes???
+                +ObjcMethod(null, false, ObjCInstanceType, listOf("alloc"), emptyList(), "init", true, false)
+                //+"+(instancetype)alloc __attribute__((unavailable));"
+
+
+                //todo attributes???
+                val parameter = ObjcParameter("zone", null, ObjcRawType("struct _NSZone *"))
+                +ObjcMethod(descriptor, false, ObjCInstanceType, listOf("allocWithZone"), listOf(parameter), "init", true, false)
+//                +"+(instancetype)allocWithZone:(struct _NSZone *)zone __attribute__((unavailable));"
+
             }
 
             // TODO: consider adding exception-throwing impls for these.
             when (descriptor.kind) {
                 ClassKind.OBJECT -> {
-                    +"+(instancetype)${namer.getObjectInstanceSelector(descriptor)} NS_SWIFT_NAME(init());"
-                    +""
+                    +ObjcMethod(null, false, ObjCInstanceType, listOf(namer.getObjectInstanceSelector(descriptor)), emptyList(), "init", true, false)
+//                    +"+(instancetype)${namer.getObjectInstanceSelector(descriptor)} NS_SWIFT_NAME(init());"
                 }
                 ClassKind.ENUM_CLASS -> {
                     val type = mapType(descriptor.defaultType, ReferenceBridge)
@@ -269,12 +277,15 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
             superClass?.constructors?.filter { mapper.shouldBeExposed(it) }?.forEach {
                 val selector = getSelector(it)
                 if (selector !in presentConstructors) {
-                    +"${buildMethod(it, it)} __attribute__((unavailable));"
+                    //todo attach attributes???
+//                    +"${buildMethod(it, it)} __attribute__((unavailable));"
+
                     if (selector == "init") {
-                        +"+(instancetype) new __attribute__((unavailable));"
+                        //todo attach attributes
+                        +ObjcMethod(null, false, ObjCInstanceType, listOf("new"), emptyList(), "init", true, false)
+//                        +"+(instancetype) new __attribute__((unavailable));"
                     }
 
-                    +""
                     // TODO: consider adding exception-throwing impls for these.
                 }
             }

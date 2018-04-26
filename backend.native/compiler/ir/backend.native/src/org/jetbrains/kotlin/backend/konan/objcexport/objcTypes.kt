@@ -29,6 +29,10 @@ sealed class ObjCType {
             if (attrsAndName.isEmpty()) this else "$this ${attrsAndName.trimStart()}"
 }
 
+internal class ObjcRawType(private val rawText: String) : ObjCType() {
+    override fun render(attrsAndName: String): String = rawText.withAttrsAndName(attrsAndName)
+}
+
 internal sealed class ObjCReferenceType : ObjCType()
 
 internal sealed class ObjCNonNullReferenceType : ObjCReferenceType()
