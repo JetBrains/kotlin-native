@@ -199,14 +199,13 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
 
     private fun translateTopLevel(packageFqName: FqName, declarations: List<CallableMemberDescriptor>) {
         val name = namer.getPackageName(packageFqName)
-        stubs.addBuiltBy {
-            +"__attribute__((objc_subclassing_restricted))"
-            +"@interface $name : ${namer.kotlinAnyName}" // TODO: stop inheriting KotlinBase.
 
+        // TODO: stop inheriting KotlinBase.
+        //todo add "__attribute__((objc_subclassing_restricted))"
+        val members = buildMembers {
             translateMembers(declarations)
-
-            +"@end;"
         }
+        stubs.add(ObjcInterface(name, null, namer.kotlinAnyName, emptyList(), null, members))
     }
 
     private fun translateClass(descriptor: ClassDescriptor) {
