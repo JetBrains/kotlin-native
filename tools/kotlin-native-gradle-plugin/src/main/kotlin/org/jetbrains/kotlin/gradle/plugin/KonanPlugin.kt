@@ -348,7 +348,7 @@ class KonanPlugin @Inject constructor(private val registry: ToolingModelBuilderR
             }
         }
         //project.gradle.experimentalFeatures.enable()
-        project.gradle.services.get(FeaturePreviews::class.java).enableFeature(FeaturePreviews.Feature.GRADLE_METADATA)
+        //project.gradle.services.get(FeaturePreviews::class.java).enableFeature(FeaturePreviews.Feature.GRADLE_METADATA)
         // Enable multiplatform support
         project.pluginManager.apply(KotlinNativePlatformPlugin::class.java)
         project.afterEvaluate {
