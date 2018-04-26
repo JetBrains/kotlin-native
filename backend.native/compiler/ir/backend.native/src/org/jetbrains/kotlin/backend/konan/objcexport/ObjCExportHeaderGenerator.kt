@@ -194,18 +194,17 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
         val members = buildMembers {
             translateMembers(declarations)
         }
-        stubs.add(ObjcInterface(name, null, null, emptyList(), "Extensions", members))
+        stubs.add(ObjcInterface(name, categoryName = "Extensions", members = members))
     }
 
     private fun translateTopLevel(packageFqName: FqName, declarations: List<CallableMemberDescriptor>) {
         val name = namer.getPackageName(packageFqName)
 
         // TODO: stop inheriting KotlinBase.
-        //todo add "__attribute__((objc_subclassing_restricted))"
         val members = buildMembers {
             translateMembers(declarations)
         }
-        stubs.add(ObjcInterface(name, null, namer.kotlinAnyName, emptyList(), null, members))
+        stubs.add(ObjcInterface(name, superClass = namer.kotlinAnyName, members = members, attributes = listOf("objc_subclassing_restricted")))
     }
 
     private fun translateClass(descriptor: ClassDescriptor) {
@@ -290,7 +289,8 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
             translateClassOrInterfaceMembers(descriptor)
         }
 
-        val interfaceStub = ObjcInterface(name, descriptor, superName, superProtocols, null, members)
+        val interfaceStub = ObjcInterface(name, descriptor = descriptor, superClass = superName,
+                superProtocols = superProtocols, members = members)
         stubs.add(interfaceStub)
     }
 

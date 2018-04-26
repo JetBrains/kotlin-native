@@ -18,11 +18,13 @@ class ObjcProtocol(name: String,
                    members: List<Stub<*>>) : ClassStubBase<ClassDescriptor>(name, descriptor, superProtocols, members)
 
 class ObjcInterface(name: String,
-                    descriptor: ClassDescriptor?,
-                    val superClass: String?,
-                    superProtocols: List<String>,
-                    val categoryName: String?,
-                    members: List<Stub<*>>) : ClassStubBase<ClassDescriptor>(name, descriptor, superProtocols, members)
+                    val generics: List<String> = emptyList(),
+                    descriptor: ClassDescriptor? = null,
+                    val superClass: String? = null,
+                    superProtocols: List<String> = emptyList(),
+                    val categoryName: String? = null,
+                    members: List<Stub<*>> = emptyList(),
+                    val attributes: List<String> = emptyList()) : ClassStubBase<ClassDescriptor>(name, descriptor, superProtocols, members)
 
 class ObjcMethod(descriptor: DeclarationDescriptor?,
                  val isInstanceMethod: Boolean,
