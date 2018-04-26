@@ -35,6 +35,13 @@ internal class IrDeadCode(val context: Context, val moduleDFG: ModuleDFG, val ca
 
     fun dceNeededFunction(declaration: IrFunction): Boolean {
 
+
+                // A workaround for a CallGraph bug.
+                if (declaration.parent is IrClass && (declaration.parent as IrClass).kind == ClassKind.OBJECT && declaration is IrConstructor) {
+
+                  return true
+                }
+
         val functionMap: MutableMap<DeclarationDescriptor, DataFlowIR.FunctionSymbol> =  moduleDFG.symbolTable.functionMap
         val dfgSymbol = functionMap[declaration]
         if (dfgSymbol== null) return true
