@@ -190,13 +190,11 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
     private fun translateExtensions(classDescriptor: ClassDescriptor, declarations: List<CallableMemberDescriptor>) {
         translateClass(classDescriptor)
 
-        stubs.addBuiltBy {
-            +"@interface ${translateClassName(classDescriptor)} (Extensions)"
-
+        val name = translateClassName(classDescriptor)
+        val members = buildMembers {
             translateMembers(declarations)
-
-            +"@end;"
         }
+        stubs.add(ObjcInterface(name, null, null, emptyList(), "Extensions", members))
     }
 
     private fun translateTopLevel(packageFqName: FqName, declarations: List<CallableMemberDescriptor>) {
@@ -293,7 +291,7 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
             translateClassOrInterfaceMembers(descriptor)
         }
 
-        val interfaceStub = ObjcInterface(name, descriptor, superName, superProtocols, members)
+        val interfaceStub = ObjcInterface(name, descriptor, superName, superProtocols, null, members)
         stubs.add(interfaceStub)
     }
 
