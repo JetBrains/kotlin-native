@@ -37,10 +37,10 @@ internal class IrDeadCode(val context: Context, val moduleDFG: ModuleDFG, val ca
 
 
                 // A workaround for a CallGraph bug.
-                if (declaration.parent is IrClass && (declaration.parent as IrClass).kind == ClassKind.OBJECT && declaration is IrConstructor) {
+                //if (declaration.parent is IrClass && (declaration.parent as IrClass).kind == ClassKind.OBJECT && declaration is IrConstructor) {
 
-                  return true
-                }
+                  //return true
+                //}
 
         val functionMap: MutableMap<DeclarationDescriptor, DataFlowIR.FunctionSymbol> =  moduleDFG.symbolTable.functionMap
         val dfgSymbol = functionMap[declaration]
@@ -57,19 +57,26 @@ internal class IrDeadCode(val context: Context, val moduleDFG: ModuleDFG, val ca
     fun dceNeeded(declaration: IrDeclaration): Boolean {
         return when (declaration) {
             is IrFunction ->  dceNeededFunction(declaration)
+            is IrProperty ->  { // TODO: no this is not generic enough. We need to treat inner functions too. Write a normal transformer?
+                val getter = declaration.getter
+                val setter = declaration.setter
+                if (getter != null && !dceNeededFunction(getter)) declaration.getter = null
+                if (setter != null && !dceNeededFunction(setter)) declaration.setter = null
+                true
+            }
 
             else -> true
         }
     }
 
-        override fun lower(irDeclarationContainer: IrDeclarationContainer) {
+    override fun lower(irDeclarationContainer: IrDeclarationContainer) {
         irDeclarationContainer.declarations.retainAll{
             dceNeeded(it)
         }
     }
 
     fun run() {
-        if (context.config.produce != CompilerOutputKind.PROGRAM) return
+        //if (context.config.produce != CompilerOutputKind.PROGRAM) return
         context.irModule!!.files.forEach{runOnFilePostfix(it)}
     }
 }
