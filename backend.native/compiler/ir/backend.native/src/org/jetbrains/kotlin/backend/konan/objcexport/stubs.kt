@@ -3,6 +3,7 @@ package org.jetbrains.kotlin.backend.konan.objcexport
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.descriptors.ParameterDescriptor
+import org.jetbrains.kotlin.descriptors.PropertyDescriptor
 
 open class Stub<out D : DeclarationDescriptor>(val name: String, val descriptor: D?)
 
@@ -34,6 +35,11 @@ class ObjcMethod(descriptor: DeclarationDescriptor?,
 class ObjcParameter(name: String,
                     descriptor: ParameterDescriptor?,
                     val type: ObjCType) : Stub<ParameterDescriptor>(name, descriptor)
+
+class ObjcProperty(name: String,
+                   descriptor: PropertyDescriptor?,
+                   val type: ObjCType,
+                   val attributes: List<String>) : Stub<PropertyDescriptor>(name, descriptor)
 
 private fun buildMethodName(selectors: List<String>, parameters: List<ObjcParameter>): String =
         if (selectors.size == 1 && parameters.size == 0) {

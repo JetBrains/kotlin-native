@@ -264,9 +264,9 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
 
                     descriptor.enumEntries.forEach {
                         val entryName = namer.getEnumEntrySelector(it)
-                        +"@property (class, readonly) ${type.render(entryName)};"
+                        +ObjcProperty(entryName, null, type, listOf("class", "readonly"))
+//                        +"@property (class, readonly) ${type.render(entryName)};"
                     }
-                    +""
                 }
                 else -> {
                     // Nothing special.
@@ -291,8 +291,6 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
             }
 
             translateClassOrInterfaceMembers(descriptor)
-
-            +"@end;"
         }
 
         val interfaceStub = ObjcInterface(name, descriptor, superName, superProtocols, members)
@@ -338,12 +336,10 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
         properties.forEach { property ->
             val superSignatures = property.overriddenDescriptors
                     .filter { mapper.shouldBeExposed(it) }
-                    .flatMap { getSignatures(it.original) }
+                    .flatMap { buildProperties(it.original) }
                     .toSet()
 
-            getSignatures(property).filter { it !in superSignatures }.forEach {
-                +"$it;"
-            }
+            this += buildProperties(property) - superSignatures
         }
     }
 
@@ -357,11 +353,12 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
                 .toSet()
     }
 
-    private val propertyToSignatures = mutableMapOf<PropertyDescriptor, Set<String>>()
+    //todo hashCode&equals for ObjcProperty???
+    private val propertyToSignatures = mutableMapOf<PropertyDescriptor, Set<ObjcProperty>>()
 
-    private fun getSignatures(property: PropertyDescriptor): Set<String> = propertyToSignatures.getOrPut(property) {
+    private fun buildProperties(property: PropertyDescriptor): Set<ObjcProperty> = propertyToSignatures.getOrPut(property) {
         mapper.getBaseProperties(property).distinctBy { namer.getName(it) }.map { base ->
-            getSignature(property, base)
+            buildProperty(property, base)
         }.toSet()
     }
 
@@ -371,15 +368,13 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
         return namer.getSelector(method)
     }
 
-    private fun getSignature(property: PropertyDescriptor, baseProperty: PropertyDescriptor): String = buildString {
+    private fun buildProperty(property: PropertyDescriptor, baseProperty: PropertyDescriptor): ObjcProperty {
         assert(mapper.isBaseProperty(baseProperty))
         assert(mapper.isObjCProperty(baseProperty))
 
         val getterBridge = mapper.bridgeMethod(baseProperty.getter!!)
         val type = mapReturnType(getterBridge.returnBridge, property.getter!!)
         val name = namer.getName(baseProperty)
-
-        append("@property ")
 
         val attributes = mutableListOf<String>()
 
@@ -402,11 +397,7 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
             attributes += "readonly"
         }
 
-        if (attributes.isNotEmpty()) {
-            attributes.joinTo(this, prefix = "(", postfix = ") ")
-        }
-
-        append(type.render(name))
+        return ObjcProperty(name, property, type, attributes)
     }
 
     private fun buildMethod(method: FunctionDescriptor, baseMethod: FunctionDescriptor): ObjcMethod {
