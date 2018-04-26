@@ -34,11 +34,6 @@ internal class IrDeadCode(val context: Context, val moduleDFG: ModuleDFG, val ca
 
 
     fun dceNeededFunction(declaration: IrFunction): Boolean {
-        // A workaround for a CallGraph bug.
-        //if (declaration.parent is IrClass && (declaration.parent as IrClass).kind == ClassKind.OBJECT && declaration is IrConstructor) {
-
-        //  return true
-        //}
 
         val functionMap: MutableMap<DeclarationDescriptor, DataFlowIR.FunctionSymbol> =  moduleDFG.symbolTable.functionMap
         val dfgSymbol = functionMap[declaration]
@@ -51,29 +46,17 @@ internal class IrDeadCode(val context: Context, val moduleDFG: ModuleDFG, val ca
             return false
         }
     }
-    /*
-    fun dceNeededClass(declaration: IrClass): Boolean {
-        return if (declaration.declarations.all{(it !is IrFunction) || dceNeededFunction(it)}) true
-               else false
-    }
-    */
 
     fun dceNeeded(declaration: IrDeclaration): Boolean {
         return when (declaration) {
             is IrFunction ->  dceNeededFunction(declaration)
-            /*
-            is IrClass -> true
-            */
+
             else -> true
         }
     }
 
         override fun lower(irDeclarationContainer: IrDeclarationContainer) {
         irDeclarationContainer.declarations.retainAll{
-/*
-            val needed = dceNeeded(it)
-            if (!needed) dceNotNeeded.add(it)
-            needed*/
             dceNeeded(it)
         }
     }
@@ -81,6 +64,5 @@ internal class IrDeadCode(val context: Context, val moduleDFG: ModuleDFG, val ca
     fun run() {
         if (context.config.produce != CompilerOutputKind.PROGRAM) return
         context.irModule!!.files.forEach{runOnFilePostfix(it)}
-        //context.irModule!!.files.forEach{lower(it)}
     }
 }
