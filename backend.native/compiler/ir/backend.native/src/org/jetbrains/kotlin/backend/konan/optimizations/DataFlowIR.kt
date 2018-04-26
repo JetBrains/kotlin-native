@@ -35,6 +35,7 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
 import org.jetbrains.kotlin.ir.expressions.IrGetField
+import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.load.java.BuiltinMethodsWithSpecialGenericSignature
@@ -462,7 +463,7 @@ internal object DataFlowIR {
         private val pointsToOnWhomDescriptor = pointsToAnnotationDescriptor.unsubstitutedPrimaryConstructor!!.valueParameters.single()
 
         private val getContinuationSymbol = context.ir.symbols.getContinuation
-        private val continuationType = getContinuationSymbol.descriptor.returnType!!
+        private val continuationType = getContinuationSymbol.owner.returnType
 
         var privateTypeIndex = 0
         var privateFunIndex = 0
@@ -518,7 +519,7 @@ internal object DataFlowIR {
 
             classMap[descriptor] = type
 
-            type.superTypes += descriptor.defaultType.immediateSupertypes().map { mapType(it) }
+            type.superTypes += descriptor.superTypes.map { mapType(it) }
             if (!isAbstract) {
                 val vtableBuilder = context.getVtableBuilder(descriptor)
                 type.vtable += vtableBuilder.vtableEntries.map { mapFunction(it.getImplementation(context)!!) }
@@ -535,7 +536,7 @@ internal object DataFlowIR {
             return erasure.singleOrNull { !it.isInterface } ?: context.ir.symbols.any.owner
         }
 
-        fun mapType(type: KotlinType) = mapClass(choosePrimary(type.erasure(context)))
+        fun mapType(type: IrType) = mapClass(choosePrimary(type.erasure(context)))
 
         // TODO: use from LlvmDeclarations.
         private fun getFqName(descriptor: DeclarationDescriptor): FqName =
@@ -599,7 +600,7 @@ internal object DataFlowIR {
                             .map { mapClass(choosePrimary(it.erasure(context))) }
                             .toTypedArray()
             symbol.returnType = mapType(if (descriptor.isSuspend)
-                                            context.builtIns.anyType
+                                            context.irBuiltIns.anyType
                                         else
                                             descriptor.returnType)
 

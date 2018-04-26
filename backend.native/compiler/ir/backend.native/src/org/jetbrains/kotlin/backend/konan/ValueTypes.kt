@@ -16,8 +16,16 @@
 
 package org.jetbrains.kotlin.backend.konan
 
+import org.jetbrains.kotlin.backend.konan.irasdescriptors.fqNameSafe
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
+import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
+import org.jetbrains.kotlin.ir.symbols.IrClassifierSymbol
+import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
+import org.jetbrains.kotlin.ir.types.IrSimpleType
+import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.classifierOrFail
 import org.jetbrains.kotlin.name.FqNameUnsafe
+import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.types.KotlinType
 
 /**
@@ -93,6 +101,74 @@ fun KotlinType.isValueType() = ValueType.values().any { this.isRepresentedAs(it)
  * or `null` if represented as object reference.
  */
 val KotlinType.correspondingValueType: ValueType?
+    get() = ValueType.values().firstOrNull {
+        isRepresentedAs(it)
+    }
+
+
+//////
+
+private fun IrType.isConstructedFromGivenClass(fqName: FqNameUnsafe) =
+        this is IrSimpleType &&
+                this.classifier.let { it is IrClassSymbol && it.descriptor.fqNameSafe.toUnsafe() == fqName } // FIXME: descriptor
+
+// FIXME: bad name
+internal val IrType.superTypes: List<IrType> get() = this.classifierOrFail.let {
+    when (it) {
+        is IrClassSymbol -> it.owner.superTypes
+        is IrTypeParameterSymbol -> it.owner.superTypes
+        else -> error(it)
+    }
+}
+
+/**
+ * @return `true` if this type must be represented as given value type in generated code.
+ */
+tailrec fun IrType.isRepresentedAs(valueType: ValueType): Boolean {
+    if (this !is IrSimpleType) {
+        return false
+    }
+
+    if (this.hasQuestionMark && !valueType.isNullable) {
+        return false
+    }
+
+    if (this.isConstructedFromGivenClass(valueType.classFqName)) {
+        return true
+    }
+
+    // Supertypes should be checked even for "final" value types (e.g. Int)
+    // to treat type parameter `T` with `Int` upper bound as value type.
+    // This behavior is observed on Kotlin JVM and used in interop implementation.
+    //
+    // However to optimize this method only first supertype is checked
+    // (it is supposed to be enough in all sane cases).
+    val firstSupertype = this.superTypes.firstOrNull() ?: return false
+    return firstSupertype.isRepresentedAs(valueType)
+}
+
+/**
+ * @return `true` if this type without `null` value must be represented as given value type in generated code.
+ *
+ * TODO: this method can be considered as a hack; rework its usages.
+ */
+tailrec fun IrType.notNullableIsRepresentedAs(valueType: ValueType): Boolean {
+    if (this.isConstructedFromGivenClass(valueType.classFqName)) {
+        return true
+    }
+
+    // See comment in [isRepresentedAs].
+    val firstSupertype = this.superTypes.firstOrNull() ?: return false
+    return firstSupertype.notNullableIsRepresentedAs(valueType)
+}
+
+fun IrType.isValueType() = ValueType.values().any { this.isRepresentedAs(it) }
+
+/**
+ * @return the [ValueType] given type represented in generated code as,
+ * or `null` if represented as object reference.
+ */
+val IrType.correspondingValueType: ValueType?
     get() = ValueType.values().firstOrNull {
         isRepresentedAs(it)
     }

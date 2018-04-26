@@ -25,6 +25,7 @@ import org.jetbrains.kotlin.backend.konan.descriptors.stdlibModule
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.*
 import org.jetbrains.kotlin.backend.konan.llvm.objc.ObjCDataGenerator
+import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.konan.target.KonanTarget
 
 internal class CodeGenerator(override val context: Context) : ContextUtils {
@@ -53,7 +54,7 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
         val llvmGlobal = if (!isExternal(descriptor)) {
             context.llvmDeclarations.forSingleton(descriptor).instanceFieldRef
         } else {
-            val llvmType = getLLVMType(descriptor.defaultType)
+            val llvmType = getLLVMType(descriptor.symbol.defaultType)
             importGlobal(
                     descriptor.objectInstanceFieldSymbolName,
                     llvmType,
@@ -74,7 +75,7 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
         val llvmGlobal = if (!isExternal(descriptor)) {
             context.llvmDeclarations.forSingleton(descriptor).instanceShadowFieldRef!!
         } else {
-            val llvmType = getLLVMType(descriptor.defaultType)
+            val llvmType = getLLVMType(descriptor.symbol.defaultType)
             importGlobal(
                     descriptor.objectInstanceShadowFieldSymbolName,
                     llvmType,
@@ -697,7 +698,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         br(bbExit)
 
         positionAtEnd(bbExit)
-        val valuePhi = phi(codegen.getLLVMType(descriptor.defaultType))
+        val valuePhi = phi(codegen.getLLVMType(descriptor.symbol.defaultType))
         addPhiIncoming(valuePhi, bbCurrent to objectVal, bbInitResult to newValue)
 
         return valuePhi
@@ -708,7 +709,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
      */
     fun getEnumEntry(descriptor: IrEnumEntry, exceptionHandler: ExceptionHandler): LLVMValueRef {
         val enumClassDescriptor = descriptor.containingDeclaration as ClassDescriptor
-        val loweredEnum = context.specialDeclarationsFactory.getLoweredEnum(enumClassDescriptor.descriptor)
+        val loweredEnum = context.specialDeclarationsFactory.getLoweredEnum(enumClassDescriptor)
 
         val ordinal = loweredEnum.entriesMap[descriptor.name]!!
         val values = call(

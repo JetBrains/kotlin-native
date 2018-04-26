@@ -23,28 +23,20 @@ import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
-import org.jetbrains.kotlin.descriptors.annotations.AnnotationArgumentVisitor
-import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor
-import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrFieldImpl
-import org.jetbrains.kotlin.ir.expressions.IrConst
-import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
-import org.jetbrains.kotlin.ir.expressions.getTypeArgumentOrDefault
+import org.jetbrains.kotlin.ir.expressions.*
+import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
+import org.jetbrains.kotlin.ir.symbols.IrClassifierSymbol
+import org.jetbrains.kotlin.ir.types.IrSimpleType
+import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.classifierOrFail
 import org.jetbrains.kotlin.ir.util.SymbolTable
-import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
-import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
-import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
-import org.jetbrains.kotlin.ir.visitors.acceptVoid
+import org.jetbrains.kotlin.ir.util.toKotlinType
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.resolve.constants.*
-import org.jetbrains.kotlin.resolve.descriptorUtil.module
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedPropertyDescriptor
-import org.jetbrains.kotlin.types.ErrorUtils
 import org.jetbrains.kotlin.types.KotlinType
-import org.jetbrains.kotlin.types.TypeUtils
 
 val IrConstructor.constructedClass get() = this.parent as IrClass
 
@@ -108,12 +100,16 @@ val IrFunction.explicitParameters: List<IrValueParameter>
         return result
     }
 
+fun IrFunction.explicitParameters() = this.explicitParameters // FIXME
+
 val IrValueParameter.isVararg get() = this.varargElementType != null
 
 val IrFunction.isSuspend get() = this is IrSimpleFunction && this.isSuspend
 
 fun IrClass.isUnit() = this.fqNameSafe == KotlinBuiltIns.FQ_NAMES.unit.toSafe()
 
+val IrClass.superClasses get() = this.superTypes.map { it.classifierOrFail as IrClassSymbol }
+val IrTypeParameter.upperBounds get() = this.superTypes
 fun IrClass.getSuperClassNotAny() = this.superClasses.map { it.owner }.atMostOne { !it.isInterface && !it.isAny() }
 
 fun IrClass.isAny() = this.fqNameSafe == KotlinBuiltIns.FQ_NAMES.any.toSafe()
@@ -130,7 +126,8 @@ val IrProperty.konanBackingField: IrField?
                     this.startOffset,
                     this.endOffset,
                     IrDeclarationOrigin.PROPERTY_BACKING_FIELD,
-                    backingFieldDescriptor
+                    backingFieldDescriptor,
+                    this.getter!!.returnType // FIXME
             ).also {
                 it.parent = this.parent
             }
@@ -142,7 +139,7 @@ val IrProperty.konanBackingField: IrField?
     }
 
 val IrClass.defaultType: KotlinType
-    get() = this.thisReceiver!!.type
+    get() = this.thisReceiver!!.descriptor.type
 
 val IrField.containingClass get() = this.parent as? IrClass
 
@@ -175,105 +172,79 @@ fun IrSimpleFunction.overrides(other: IrSimpleFunction): Boolean {
 
 fun IrClass.isSpecialClassWithNoSupertypes() = this.isAny() || this.isNothing()
 
-val IrClass.constructors get() = this.declarations.filterIsInstance<IrConstructor>()
+val IrClass.companionObject: IrClass? get() = this.declarations.filterIsInstance<IrClass>().atMostOne { it.isCompanion }
 
 internal val IrValueParameter.isValueParameter get() = this.index >= 0
 
+internal val IrFunctionAccessExpression.function get() = this.symbol.owner as IrFunction
+
 fun IrModuleFragment.referenceAllTypeExternalClassifiers(symbolTable: SymbolTable) {
-    val moduleDescriptor = this.descriptor
+    // Nothing to do anymore!
+}
 
-    fun KotlinType.referenceAllClassifiers() {
-        TypeUtils.getClassDescriptor(this)?.let {
-            if (!ErrorUtils.isError(it) && it.module != moduleDescriptor) {
-                if (it.kind == ClassKind.ENUM_ENTRY) {
-                    symbolTable.referenceEnumEntry(it)
-                } else {
-                    symbolTable.referenceClass(it)
-                }
+private val IrCall.annotationClass
+    get() = (this.symbol.owner as IrConstructor).constructedClass
+
+fun List<IrCall>.hasAnnotation(fqName: FqName): Boolean =
+        this.any { it.annotationClass.fqNameSafe == fqName }
+
+fun IrAnnotationContainer.hasAnnotation(fqName: FqName) =
+        this.annotations.hasAnnotation(fqName)
+
+fun List<IrCall>.findAnnotation(fqName: FqName): IrCall? = this.firstOrNull {
+    it.annotationClass.fqNameSafe == fqName
+}
+
+fun IrCall.getStringValue(name: String): String = this.getStringValueOrNull(name)!!
+
+fun IrCall.getStringValueOrNull(name: String): String? {
+    val parameter = this.descriptor.valueParameters.single { it.name.asString() == name }
+    val constantValue = this.getValueArgument(parameter.index) as IrConst<*>?
+    return constantValue?.value as String?
+}
+
+fun getStringValue(annotation: IrCall): String? {
+    val argument = annotation.getValueArgument(0) ?: return null
+    return (argument as IrConst<*>).value as String
+}
+
+object KotlinBuiltIns {
+    fun isNothing(type: IrType) = type.isNotNullableConstructedFromClass(KotlinBuiltIns.FQ_NAMES.nothing)
+
+    fun isUnit(type: IrType) = type.isUnit()
+
+    fun isUnitOrNullableUnit(type: IrType) =
+            type.isConstructedFromClass(KotlinBuiltIns.FQ_NAMES.unit)
+
+    fun isFloat(type: IrType) = type.isNotNullableConstructedFromClass(KotlinBuiltIns.FQ_NAMES._float)
+    fun isDouble(type: IrType) = type.isNotNullableConstructedFromClass(KotlinBuiltIns.FQ_NAMES._double)
+    fun isBoolean(type: IrType) = type.isNotNullableConstructedFromClass(KotlinBuiltIns.FQ_NAMES._boolean)
+    fun isByte(type: IrType) = type.isNotNullableConstructedFromClass(KotlinBuiltIns.FQ_NAMES._byte)
+    fun isShort(type: IrType) = type.isNotNullableConstructedFromClass(KotlinBuiltIns.FQ_NAMES._short)
+    fun isInt(type: IrType) = type.isNotNullableConstructedFromClass(KotlinBuiltIns.FQ_NAMES._int)
+    fun isLong(type: IrType) = type.isNotNullableConstructedFromClass(KotlinBuiltIns.FQ_NAMES._long)
+
+    fun isChar(type: IrType) = type.isNotNullableConstructedFromClass(KotlinBuiltIns.FQ_NAMES._char)
+    fun isString(type: IrType) = type.isNotNullableConstructedFromClass(KotlinBuiltIns.FQ_NAMES.string)
+
+    fun isArray(type: IrType) = type.isConstructedFromClass(KotlinBuiltIns.FQ_NAMES.array)
+    fun isPrimitiveArray(type: IrType) = KotlinBuiltIns.isPrimitiveArray(type.toKotlinType())
+    fun getPrimitiveArrayType(classifier: IrClassifierSymbol) = KotlinBuiltIns.getPrimitiveArrayType(classifier.descriptor)
+
+    fun isPrimitiveType(type: IrType): Boolean = KotlinBuiltIns.isPrimitiveType(type.toKotlinType()) // FIXME
+    fun isPrimitiveTypeOrNullablePrimitiveType(type: IrType): Boolean =
+            KotlinBuiltIns.isPrimitiveTypeOrNullablePrimitiveType(type.toKotlinType()) // FIXME
+}
+
+object TypeUtils {
+    fun getClassDescriptor(type: IrType) = type.getClass()
+
+    fun getTypeParameterDescriptorOrNull(type: IrType): IrTypeParameter? =
+            when (type) {
+                is IrSimpleType -> type.classifier.owner as? IrTypeParameter
+                else -> null
             }
-        }
 
-        this.constructor.supertypes.forEach {
-            it.referenceAllClassifiers()
-        }
-    }
-
-    val visitor = object : IrElementVisitorVoid {
-        override fun visitElement(element: IrElement) {
-            element.acceptChildrenVoid(this)
-        }
-
-        override fun visitValueParameter(declaration: IrValueParameter) {
-            super.visitValueParameter(declaration)
-            declaration.type.referenceAllClassifiers()
-        }
-
-        override fun visitVariable(declaration: IrVariable) {
-            super.visitVariable(declaration)
-            declaration.type.referenceAllClassifiers()
-        }
-
-        override fun visitExpression(expression: IrExpression) {
-            super.visitExpression(expression)
-            expression.type.referenceAllClassifiers()
-        }
-
-        override fun visitDeclaration(declaration: IrDeclaration) {
-            super.visitDeclaration(declaration)
-            declaration.descriptor.annotations.getAllAnnotations().forEach {
-                handleClassReferences(it.annotation)
-            }
-        }
-
-        private fun handleClassReferences(annotation: AnnotationDescriptor) {
-            annotation.allValueArguments.values.forEach {
-                it.accept(object : AnnotationArgumentVisitor<Unit, Nothing?> {
-
-                    override fun visitKClassValue(p0: KClassValue?, p1: Nothing?) {
-                        p0?.value?.referenceAllClassifiers()
-                    }
-
-                    override fun visitArrayValue(p0: ArrayValue?, p1: Nothing?) {
-                        p0?.value?.forEach { it.accept(this, null) }
-                    }
-
-                    override fun visitAnnotationValue(p0: AnnotationValue?, p1: Nothing?) {
-                        p0?.let { handleClassReferences(p0.value) }
-                    }
-
-                    override fun visitBooleanValue(p0: BooleanValue?, p1: Nothing?) {}
-                    override fun visitShortValue(p0: ShortValue?, p1: Nothing?) {}
-                    override fun visitByteValue(p0: ByteValue?, p1: Nothing?) {}
-                    override fun visitNullValue(p0: NullValue?, p1: Nothing?) {}
-                    override fun visitDoubleValue(p0: DoubleValue?, p1: Nothing?) {}
-                    override fun visitLongValue(p0: LongValue, p1: Nothing?) {}
-                    override fun visitCharValue(p0: CharValue?, p1: Nothing?) {}
-                    override fun visitIntValue(p0: IntValue?, p1: Nothing?) {}
-                    override fun visitErrorValue(p0: ErrorValue?, p1: Nothing?) {}
-                    override fun visitFloatValue(p0: FloatValue?, p1: Nothing?) {}
-                    override fun visitEnumValue(p0: EnumValue?, p1: Nothing?) {}
-                    override fun visitStringValue(p0: StringValue?, p1: Nothing?) {}
-                }, null)
-            }
-        }
-
-        override fun visitFunction(declaration: IrFunction) {
-            super.visitFunction(declaration)
-            declaration.returnType.referenceAllClassifiers()
-        }
-
-        override fun visitFunctionAccess(expression: IrFunctionAccessExpression) {
-            super.visitFunctionAccess(expression)
-            expression.descriptor.original.typeParameters.forEach {
-                expression.getTypeArgumentOrDefault(it).referenceAllClassifiers()
-            }
-        }
-    }
-
-    this.acceptVoid(visitor)
-    this.dependencyModules.forEach { module ->
-        module.externalPackageFragments.forEach {
-            it.acceptVoid(visitor)
-        }
-    }
+    // FIXME: isn't it already implemented in psi2ir?
+    fun isNullableType(type: IrType): Boolean = type.containsNull()
 }

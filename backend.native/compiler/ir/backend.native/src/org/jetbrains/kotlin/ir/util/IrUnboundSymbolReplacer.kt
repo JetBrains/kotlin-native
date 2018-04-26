@@ -19,6 +19,7 @@ package org.jetbrains.kotlin.ir.util
 import org.jetbrains.kotlin.backend.common.pop
 import org.jetbrains.kotlin.backend.common.push
 import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.irasdescriptors.defaultType
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
@@ -26,6 +27,7 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.*
 import org.jetbrains.kotlin.ir.symbols.*
+import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.visitors.*
 
 @Deprecated("")
@@ -47,11 +49,11 @@ internal fun IrModuleFragment.replaceUnboundSymbols(context: Context) {
 
     val symbolTable = context.ir.symbols.symbolTable
 
-    this.transformChildrenVoid(IrUnboundSymbolReplacer(symbolTable, collector.descriptorToSymbol))
+    this.transformChildrenVoid(IrUnboundSymbolReplacer(symbolTable, collector.descriptorToSymbol, context))
 
     // Generate missing external stubs:
     @Suppress("DEPRECATION")
-    ExternalDependenciesGenerator(symbolTable = context.psi2IrGeneratorContext.symbolTable, irBuiltIns = context.irBuiltIns).generateUnboundSymbolsAsDependencies(this)
+    ExternalDependenciesGenerator(context.moduleDescriptor, symbolTable = context.psi2IrGeneratorContext.symbolTable, irBuiltIns = context.irBuiltIns).generateUnboundSymbolsAsDependencies(this)
 
     // Merge duplicated module and package declarations:
     this.acceptVoid(object : IrElementVisitorVoid {
@@ -79,15 +81,7 @@ private fun IrModuleFragment.mergeFrom(other: IrModuleFragment): Unit {
     assert(this.files.isEmpty())
     assert(other.files.isEmpty())
 
-    val thisPackages = this.externalPackageFragments.groupBy { it.packageFragmentDescriptor }
-    other.externalPackageFragments.forEach {
-        val thisPackage = thisPackages[it.packageFragmentDescriptor]?.single()
-        if (thisPackage == null) {
-            this.externalPackageFragments.add(it)
-        } else {
-            thisPackage.addChildren(it.declarations)
-        }
-    }
+    this.externalPackageFragments += other.externalPackageFragments
 }
 
 private class DeclarationSymbolCollector : IrElementVisitorVoid {
@@ -109,7 +103,8 @@ private class DeclarationSymbolCollector : IrElementVisitorVoid {
 
 private class IrUnboundSymbolReplacer(
         val symbolTable: SymbolTable,
-        val descriptorToSymbol: Map<DeclarationDescriptor, IrSymbol>
+        val descriptorToSymbol: Map<DeclarationDescriptor, IrSymbol>,
+        val context: Context
 ) : IrElementTransformerVoid() {
 
     private val localDescriptorToSymbol = mutableMapOf<DeclarationDescriptor, MutableList<IrSymbol>>()
@@ -156,12 +151,16 @@ private class IrUnboundSymbolReplacer(
         }
     }
 
+    private fun IrType.replaceSymbols(): IrType {
+        TODO()
+    }
+
     override fun visitGetValue(expression: IrGetValue): IrExpression {
         val symbol = expression.symbol.replaceLocal() ?: return super.visitGetValue(expression)
 
         expression.transformChildrenVoid(this)
         return with(expression) {
-            IrGetValueImpl(startOffset, endOffset, symbol, origin)
+            IrGetValueImpl(startOffset, endOffset, expression.type, symbol, origin)
         }
     }
 
@@ -170,7 +169,7 @@ private class IrUnboundSymbolReplacer(
 
         expression.transformChildrenVoid(this)
         return with(expression) {
-            IrSetVariableImpl(startOffset, endOffset, symbol, value, origin)
+            IrSetVariableImpl(startOffset, endOffset, expression.type, symbol, value, origin)
         }
     }
 
@@ -200,17 +199,17 @@ private class IrUnboundSymbolReplacer(
 
         expression.transformChildrenVoid(this)
         return with(expression) {
-            IrClassReferenceImpl(startOffset, endOffset, type, symbol, symbol.descriptor.defaultType)
+            IrClassReferenceImpl(startOffset, endOffset, type, symbol, symbol.defaultType)
         }
     }
 
     override fun visitClass(declaration: IrClass): IrStatement {
-        declaration.superClasses.forEachIndexed { index, symbol ->
-            val newSymbol = symbol.replace(SymbolTable::referenceClass)
-            if (newSymbol != null) {
-                declaration.superClasses[index] = newSymbol
-            }
-        }
+//        declaration.superClasses.forEachIndexed { index, symbol ->
+//            val newSymbol = symbol.replace(SymbolTable::referenceClass)
+//            if (newSymbol != null) {
+//                declaration.superClasses[index] = newSymbol
+//            }
+//        }
         withLocal(declaration.thisReceiver?.symbol) {
             return super.visitClass(declaration)
         }
@@ -227,7 +226,7 @@ private class IrUnboundSymbolReplacer(
 
         expression.transformChildrenVoid(this)
         return with(expression) {
-            IrGetFieldImpl(startOffset, endOffset, symbol, receiver, origin, superQualifierSymbol)
+            IrGetFieldImpl(startOffset, endOffset, symbol, type, receiver, origin, superQualifierSymbol)
         }
     }
 
@@ -242,11 +241,13 @@ private class IrUnboundSymbolReplacer(
 
         expression.transformChildrenVoid(this)
         return with(expression) {
-            IrSetFieldImpl(startOffset, endOffset, symbol, receiver, value, origin, superQualifierSymbol)
+            IrSetFieldImpl(startOffset, endOffset, symbol, receiver, value, type, origin, superQualifierSymbol)
         }
     }
 
     override fun visitCall(expression: IrCall): IrExpression {
+        expression.replaceTypeArguments()
+
         val symbol = expression.symbol.replace(SymbolTable::referenceFunction) ?: expression.symbol
 
         val superQualifierSymbol = expression.superQualifierSymbol?.replaceOrSame(SymbolTable::referenceClass)
@@ -257,17 +258,21 @@ private class IrUnboundSymbolReplacer(
 
         expression.transformChildrenVoid()
         return with(expression) {
-            IrCallImpl(startOffset, endOffset, symbol, descriptor,
-                    getTypeArgumentsMap(),
+            IrCallImpl(startOffset, endOffset, type, symbol, descriptor,
+                    typeArgumentsCount,
                     origin, superQualifierSymbol).also {
 
                 it.copyArgumentsFrom(this)
+                it.copyTypeArgumentsFrom(this)
             }
         }
     }
 
-    private fun IrMemberAccessExpression.getTypeArgumentsMap() =
-            descriptor.original.typeParameters.associate { it to getTypeArgumentOrDefault(it) }
+    private fun IrMemberAccessExpression.replaceTypeArguments() {
+        repeat(typeArgumentsCount) {
+            putTypeArgument(it, getTypeArgument(it)?.toKotlinType()?.let { context.ir.translateErased(it) })
+        }
+    }
 
     private fun IrMemberAccessExpressionBase.copyArgumentsFrom(original: IrMemberAccessExpression) {
         dispatchReceiver = original.dispatchReceiver
@@ -282,37 +287,45 @@ private class IrUnboundSymbolReplacer(
                 return super.visitEnumConstructorCall(expression)
 
         return with(expression) {
-            IrEnumConstructorCallImpl(startOffset, endOffset, symbol, null).also {
+            IrEnumConstructorCallImpl(startOffset, endOffset, expression.type, symbol, 0).also {
                 it.copyArgumentsFrom(this)
             }
         }
     }
 
     override fun visitDelegatingConstructorCall(expression: IrDelegatingConstructorCall): IrExpression {
+        expression.replaceTypeArguments()
+
         val symbol = expression.symbol.replace(SymbolTable::referenceConstructor) ?:
                 return super.visitDelegatingConstructorCall(expression)
 
         expression.transformChildrenVoid()
         return with(expression) {
-            IrDelegatingConstructorCallImpl(startOffset, endOffset, symbol, descriptor, getTypeArgumentsMap()).also {
+            IrDelegatingConstructorCallImpl(startOffset, endOffset, type, symbol, descriptor, typeArgumentsCount).also {
                 it.copyArgumentsFrom(this)
+                it.copyTypeArgumentsFrom(this)
             }
         }
     }
 
     override fun visitFunctionReference(expression: IrFunctionReference): IrExpression {
+        expression.replaceTypeArguments()
+
         val symbol = expression.symbol.replace(SymbolTable::referenceFunction) ?:
                 return super.visitFunctionReference(expression)
 
         expression.transformChildrenVoid(this)
         return with(expression) {
-            IrFunctionReferenceImpl(startOffset, endOffset, type, symbol, descriptor, getTypeArgumentsMap()).also {
+            IrFunctionReferenceImpl(startOffset, endOffset, type, symbol, descriptor, 0).also {
                 it.copyArgumentsFrom(this)
+                it.copyTypeArgumentsFrom(this)
             }
         }
     }
 
     override fun visitPropertyReference(expression: IrPropertyReference): IrExpression {
+        expression.replaceTypeArguments()
+
         val field = expression.field?.replaceOrSame(SymbolTable::referenceField)
         val getter = expression.getter?.replace(SymbolTable::referenceFunction) ?: expression.getter
         val setter = expression.setter?.replace(SymbolTable::referenceFunction) ?: expression.setter
@@ -323,13 +336,14 @@ private class IrUnboundSymbolReplacer(
 
         expression.transformChildrenVoid(this)
         return with(expression) {
-            IrPropertyReferenceImpl(startOffset, endOffset, type, descriptor,
+            IrPropertyReferenceImpl(startOffset, endOffset, type, descriptor, 0,
                     field,
                     getter,
                     setter,
-                    getTypeArgumentsMap(), origin).also {
+                    origin).also {
 
                 it.copyArgumentsFrom(this)
+                it.copyTypeArgumentsFrom(this)
             }
         }
     }
@@ -411,7 +425,19 @@ private class IrUnboundSymbolReplacer(
         expression.transformChildrenVoid(this)
 
         return with(expression) {
-            IrInstanceInitializerCallImpl(startOffset, endOffset, classSymbol)
+            IrInstanceInitializerCallImpl(startOffset, endOffset, classSymbol, type)
+        }
+    }
+
+    override fun visitTypeOperator(expression: IrTypeOperatorCall): IrExpression {
+        expression.transformChildrenVoid(this)
+
+        return with(expression) {
+            val newTypeOperand = context.ir.translateErased(typeOperand.toKotlinType())
+            IrTypeOperatorCallImpl(startOffset, endOffset, type, operator, newTypeOperand).also {
+                it.argument = argument
+                it.typeOperandClassifier = newTypeOperand.classifier
+            }
         }
     }
 }

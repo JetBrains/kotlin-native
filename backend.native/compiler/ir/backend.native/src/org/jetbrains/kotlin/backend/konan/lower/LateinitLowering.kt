@@ -24,20 +24,18 @@ import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.descriptors.VariableDescriptor
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.*
-import org.jetbrains.kotlin.ir.declarations.IrFile
-import org.jetbrains.kotlin.ir.declarations.IrFunction
-import org.jetbrains.kotlin.ir.declarations.IrProperty
-import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.expressions.IrPropertyReference
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
-import org.jetbrains.kotlin.ir.symbols.IrFieldSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
+import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrGetFieldImpl
+import org.jetbrains.kotlin.ir.builders.irGet
+import org.jetbrains.kotlin.ir.util.irGetField
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.types.TypeUtils
@@ -82,10 +80,10 @@ internal class LateinitLowering(
                     return irBlock(expression) {
                         // TODO: do data flow analysis to check if value is proved to be not-null.
                         +irIfThen(
-                                irEqualsNull(irGet(symbol)),
+                                irEqualsNull(irGet(expression.type, symbol)),
                                 throwUninitializedPropertyAccessException(symbol)
                         )
-                        +irGet(symbol)
+                        +irGet(expression.type, symbol)
                     }
                 }
             }
@@ -106,11 +104,12 @@ internal class LateinitLowering(
                 builder.at(expression).run {
                     @Suppress("DEPRECATION")
                     val fieldValue = IrGetFieldImpl(
-                            expression.startOffset,
-                            expression.endOffset,
+                            expression.startOffset, expression.endOffset,
                             propertyDescriptor,
-                            propertyReference.dispatchReceiver
-                    )
+                            context.irBuiltIns.anyNType // FIXME
+                    ).also {
+                        it.receiver = propertyReference.dispatchReceiver
+                    }
                     return irNotEquals(fieldValue, irNull())
                 }
             }
@@ -122,7 +121,7 @@ internal class LateinitLowering(
                     return declaration
 
                 val backingField = declaration.backingField!!
-                transformGetter(backingField.symbol, declaration.getter!!)
+                transformGetter(backingField, declaration.getter!!)
 
                 assert(backingField.initializer == null, { "'lateinit' modifier is not allowed for properties with initializer" })
                 val irBuilder = context.createIrBuilder(backingField.symbol, declaration.startOffset, declaration.endOffset)
@@ -133,20 +132,20 @@ internal class LateinitLowering(
                 return declaration
             }
 
-            private fun transformGetter(backingFieldSymbol: IrFieldSymbol, getter: IrFunction) {
-                val type = backingFieldSymbol.descriptor.type
+            private fun transformGetter(backingField: IrField, getter: IrFunction) {
+                val type = backingField.descriptor.type
                 assert(!KotlinBuiltIns.isPrimitiveType(type), { "'lateinit' modifier is not allowed on primitive types" })
                 val irBuilder = context.createIrBuilder(getter.symbol, getter.startOffset, getter.endOffset)
                 irBuilder.run {
                     getter.body = irBlockBody {
                         val resultVar = irTemporary(
-                                irGetField(getter.dispatchReceiverParameter?.let { irGet(it.symbol) }, backingFieldSymbol)
+                                irGetField(getter.dispatchReceiverParameter?.let { irGet(it) }, backingField)
                         )
                         +irIfThenElse(
-                                context.builtIns.nothingType,
-                                irNotEquals(irGet(resultVar.symbol), irNull()),
-                                irReturn(irGet(resultVar.symbol)),
-                                throwUninitializedPropertyAccessException(backingFieldSymbol)
+                                context.irBuiltIns.nothingType,
+                                irNotEquals(irGet(resultVar), irNull()),
+                                irReturn(irGet(resultVar)),
+                                throwUninitializedPropertyAccessException(backingField.symbol)
                         )
                     }
                 }
@@ -155,14 +154,14 @@ internal class LateinitLowering(
     }
 
     private fun IrBuilderWithScope.throwUninitializedPropertyAccessException(backingFieldSymbol: IrSymbol) =
-            irCall(throwErrorFunction).apply {
+            irCall(throwErrorFunction, context.irBuiltIns.nothingType).apply {
                 if (generateParameterNameInAssertion) {
                     putValueArgument(
                             0,
                             IrConstImpl.string(
                                     startOffset,
                                     endOffset,
-                                    context.builtIns.stringType,
+                                    context.irBuiltIns.stringType,
                                     backingFieldSymbol.descriptor.name.asString()
                             )
                     )

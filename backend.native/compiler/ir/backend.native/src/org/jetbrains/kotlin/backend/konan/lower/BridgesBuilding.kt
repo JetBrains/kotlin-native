@@ -23,26 +23,31 @@ import org.jetbrains.kotlin.backend.common.lower.irBlockBody
 import org.jetbrains.kotlin.backend.common.lower.irIfThen
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.descriptors.*
-import org.jetbrains.kotlin.builtins.KotlinBuiltIns
-import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.backend.konan.irasdescriptors.KotlinBuiltIns
+import org.jetbrains.kotlin.backend.konan.irasdescriptors.KotlinType
+import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.descriptors.impl.ValueParameterDescriptorImpl
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.*
+import org.jetbrains.kotlin.ir.builders.irTrue
+import org.jetbrains.kotlin.ir.builders.irFalse
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrFunctionImpl
+import org.jetbrains.kotlin.ir.declarations.impl.IrValueParameterImpl
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.*
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
-import org.jetbrains.kotlin.ir.util.createParameterDeclarations
+import org.jetbrains.kotlin.ir.types.IrSimpleType
+import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.util.simpleFunctions
+import org.jetbrains.kotlin.ir.util.toKotlinType
 import org.jetbrains.kotlin.ir.util.transformFlat
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.load.java.BuiltinMethodsWithSpecialGenericSignature
-import org.jetbrains.kotlin.types.KotlinType
 
 internal class WorkersBridgesBuilding(val context: Context) : DeclarationContainerLoweringPass, IrElementTransformerVoid() {
 
@@ -100,7 +105,16 @@ internal class WorkersBridgesBuilding(val context: Context) : DeclarationContain
                             IrDeclarationOrigin.DEFINED,
                             runtimeJobDescriptor
                     ).also {
-                        it.createParameterDeclarations()
+                        it.returnType = context.irBuiltIns.anyNType
+
+                        it.valueParameters += IrValueParameterImpl(
+                                it.startOffset,
+                                it.endOffset,
+                                IrDeclarationOrigin.DEFINED,
+                                it.descriptor.valueParameters.single(),
+                                context.irBuiltIns.anyNType,
+                                null
+                        )
                     }
                 }
                 val overriddenJobDescriptor = OverriddenFunctionDescriptor(jobFunction, runtimeJobFunction)
@@ -118,7 +132,7 @@ internal class WorkersBridgesBuilding(val context: Context) : DeclarationContain
                         type          = job.type,
                         symbol        = bridge.symbol,
                         descriptor    = bridge.descriptor,
-                        typeArguments = null)
+                        typeArgumentsCount = 0)
                 )
                 return expression
             }
@@ -158,7 +172,7 @@ internal class BridgesBuilding(val context: Context) : ClassLoweringPass {
 
                 val irBuilder = context.createIrBuilder(declaration.symbol, declaration.startOffset, declaration.endOffset)
                 declaration.body = irBuilder.irBlockBody(declaration) {
-                    buildTypeSafeBarrier(declaration, descriptor, typeSafeBarrierDescription)
+                    buildTypeSafeBarrier(declaration, declaration, typeSafeBarrierDescription, this@BridgesBuilding.context)
                     body.statements.forEach { +it }
                 }
                 return declaration
@@ -188,8 +202,16 @@ internal val IrFunction.bridgeTarget: IrFunction?
 
 private fun IrBuilderWithScope.returnIfBadType(value: IrExpression,
                                                type: KotlinType,
-                                               returnValueOnFail: IrExpression)
-        = irIfThen(irNotIs(value, type), irReturn(returnValueOnFail))
+                                               returnValueOnFail: IrExpression, context: Context): IrIfThenElseImpl {
+    val typeCheck = IrTypeOperatorCallImpl(
+            startOffset, endOffset,
+            context.irBuiltIns.booleanType,
+            IrTypeOperator.NOT_INSTANCEOF,
+            type, (type as IrSimpleType).classifier, value
+    )
+
+    return irIfThen(typeCheck, irReturn(returnValueOnFail))
+}
 
 private fun IrBuilderWithScope.irConst(value: Any?) = when (value) {
     null       -> irNull()
@@ -199,19 +221,20 @@ private fun IrBuilderWithScope.irConst(value: Any?) = when (value) {
 }
 
 private fun IrBlockBodyBuilder.buildTypeSafeBarrier(function: IrFunction,
-                                                    originalDescriptor: FunctionDescriptor,
-                                                    typeSafeBarrierDescription: BuiltinMethodsWithSpecialGenericSignature.TypeSafeBarrierDescription) {
+                                                    originalFunction: IrFunction,
+                                                    typeSafeBarrierDescription: BuiltinMethodsWithSpecialGenericSignature.TypeSafeBarrierDescription, context: Context) {
     val valueParameters = function.valueParameters
-    val originalValueParameters = originalDescriptor.valueParameters
+    val originalValueParameters = originalFunction.valueParameters
     for (i in valueParameters.indices) {
         if (!typeSafeBarrierDescription.checkParameter(i))
             continue
         val type = originalValueParameters[i].type
-        if (type != context.builtIns.nullableAnyType) {
-            +returnIfBadType(irGet(valueParameters[i].symbol), type,
+        if (type.toKotlinType() != context.builtIns.nullableAnyType) {
+            +returnIfBadType(irGet(valueParameters[i]), type,
                     if (typeSafeBarrierDescription == BuiltinMethodsWithSpecialGenericSignature.TypeSafeBarrierDescription.MAP_GET_OR_DEFAULT)
-                        irGet(valueParameters[2].symbol)
-                    else irConst(typeSafeBarrierDescription.defaultValue)
+                        irGet(valueParameters[2])
+                    else irConst(typeSafeBarrierDescription.defaultValue),
+                    context
             )
         }
     }
@@ -230,19 +253,24 @@ private fun Context.buildBridge(startOffset: Int, endOffset: Int,
     val irBuilder = createIrBuilder(bridge.symbol, startOffset, endOffset)
     bridge.body = irBuilder.irBlockBody(bridge) {
         val typeSafeBarrierDescription = BuiltinMethodsWithSpecialGenericSignature.getDefaultValueForOverriddenBuiltinFunction(descriptor.overriddenDescriptor.descriptor)
-        typeSafeBarrierDescription?.let { buildTypeSafeBarrier(bridge, descriptor.descriptor.descriptor, it) }
+        typeSafeBarrierDescription?.let { buildTypeSafeBarrier(bridge, descriptor.descriptor, it, context = this@buildBridge) }
 
-        val delegatingCall = IrCallImpl(startOffset, endOffset, targetSymbol, targetSymbol.descriptor,
+        val delegatingCall = IrCallImpl(
+                startOffset,
+                endOffset,
+                (targetSymbol.owner as IrFunction).returnType,
+                targetSymbol,
+                targetSymbol.descriptor,
                 superQualifierSymbol = superQualifierSymbol /* Call non-virtually */
         ).apply {
             bridge.dispatchReceiverParameter?.let {
-                dispatchReceiver = irGet(it.symbol)
+                dispatchReceiver = irGet(it)
             }
             bridge.extensionReceiverParameter?.let {
-                extensionReceiver = irGet(it.symbol)
+                extensionReceiver = irGet(it)
             }
             bridge.valueParameters.forEachIndexed { index, parameter ->
-                this.putValueArgument(index, irGet(parameter.symbol))
+                this.putValueArgument(index, irGet(parameter))
             }
         }
 

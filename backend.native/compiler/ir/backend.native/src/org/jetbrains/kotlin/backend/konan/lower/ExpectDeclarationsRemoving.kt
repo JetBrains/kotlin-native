@@ -85,6 +85,7 @@ internal class ExpectDeclarationsRemoving(val context: Context) : FileLoweringPa
                 return IrGetValueImpl(
                         expression.startOffset,
                         expression.endOffset,
+                        expression.type, // TODO: check
                         newSymbol,
                         expression.origin
                 )

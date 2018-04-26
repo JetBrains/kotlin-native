@@ -20,11 +20,10 @@ import llvm.LLVMDumpModule
 import llvm.LLVMModuleRef
 import org.jetbrains.kotlin.backend.common.ReflectionTypes
 import org.jetbrains.kotlin.backend.common.validateIrModule
-import org.jetbrains.kotlin.backend.jvm.descriptors.initialize
 import org.jetbrains.kotlin.backend.konan.descriptors.*
-import org.jetbrains.kotlin.backend.common.DumpIrTreeWithDescriptorsVisitor
 import org.jetbrains.kotlin.backend.common.descriptors.DescriptorsFactory
 import org.jetbrains.kotlin.backend.konan.ir.KonanIr
+import org.jetbrains.kotlin.backend.konan.irasdescriptors.defaultType
 import org.jetbrains.kotlin.backend.konan.library.KonanLibraryWriter
 import org.jetbrains.kotlin.backend.konan.library.LinkData
 import org.jetbrains.kotlin.backend.konan.llvm.*
@@ -41,10 +40,8 @@ import org.jetbrains.kotlin.ir.SourceManager
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrFieldImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrFunctionImpl
-import org.jetbrains.kotlin.ir.util.DumpIrTreeVisitor
-import org.jetbrains.kotlin.ir.util.createParameterDeclarations
-import org.jetbrains.kotlin.ir.util.endOffsetOrUndefined
-import org.jetbrains.kotlin.ir.util.startOffsetOrUndefined
+import org.jetbrains.kotlin.ir.declarations.impl.IrValueParameterImpl
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
@@ -54,10 +51,10 @@ import org.jetbrains.kotlin.load.java.BuiltinMethodsWithSpecialGenericSignature
 import org.jetbrains.kotlin.metadata.KonanLinkData
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi2ir.generators.GeneratorContext
-import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.resolve.scopes.receivers.ImplicitClassReceiver
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedClassDescriptor
 import org.jetbrains.kotlin.serialization.deserialization.getName
+import org.jetbrains.kotlin.types.KotlinType
 import java.lang.System.out
 import kotlin.LazyThreadSafetyMode.PUBLICATION
 
@@ -65,30 +62,35 @@ internal class SpecialDeclarationsFactory(val context: Context) {
     private val enumSpecialDeclarationsFactory by lazy { EnumSpecialDeclarationsFactory(context) }
     private val outerThisFields = mutableMapOf<ClassDescriptor, IrField>()
     private val bridgesDescriptors = mutableMapOf<Pair<IrSimpleFunction, BridgeDirections>, IrSimpleFunction>()
-    private val loweredEnums = mutableMapOf<ClassDescriptor, LoweredEnum>()
-    private val ordinals = mutableMapOf<IrClass, Map<ClassDescriptor, Int>>()
+    private val loweredEnums = mutableMapOf<IrClass, LoweredEnum>()
+    private val ordinals = mutableMapOf<ClassDescriptor, Map<ClassDescriptor, Int>>()
 
     object DECLARATION_ORIGIN_FIELD_FOR_OUTER_THIS :
             IrDeclarationOriginImpl("FIELD_FOR_OUTER_THIS")
 
-    fun getOuterThisField(innerClassDescriptor: ClassDescriptor): IrField =
-        if (!innerClassDescriptor.isInner) throw AssertionError("Class is not inner: $innerClassDescriptor")
-        else outerThisFields.getOrPut(innerClassDescriptor) {
-            val outerClassDescriptor = DescriptorUtils.getContainingClass(innerClassDescriptor) ?:
-                    throw AssertionError("No containing class for inner class $innerClassDescriptor")
+    fun getOuterThisField(innerClass: IrClass): IrField =
+        if (!innerClass.descriptor.isInner) throw AssertionError("Class is not inner: ${innerClass.descriptor}")
+        else outerThisFields.getOrPut(innerClass.descriptor) {
+            val outerClass = innerClass.parent as? IrClass
+                    ?: throw AssertionError("No containing class for inner class ${innerClass.descriptor}")
 
-            val receiver = ReceiverParameterDescriptorImpl(innerClassDescriptor, ImplicitClassReceiver(innerClassDescriptor))
+            val receiver = ReceiverParameterDescriptorImpl(innerClass.descriptor, ImplicitClassReceiver(innerClass.descriptor))
             val descriptor = PropertyDescriptorImpl.create(
-                    innerClassDescriptor, Annotations.EMPTY, Modality.FINAL,
+                    innerClass.descriptor, Annotations.EMPTY, Modality.FINAL,
                     Visibilities.PRIVATE, false, "this$0".synthesizedName, CallableMemberDescriptor.Kind.SYNTHESIZED,
                     SourceElement.NO_SOURCE, false, false, false, false, false, false
-            ).initialize(outerClassDescriptor.defaultType, dispatchReceiverParameter = receiver)
+            ).apply {
+                val receiverType: KotlinType? = null
+                this.setType(outerClass.descriptor.defaultType, emptyList(), receiver, receiverType)
+                initialize(null, null)
+            }
 
             IrFieldImpl(
-                    innerClassDescriptor.startOffsetOrUndefined,
-                    innerClassDescriptor.endOffsetOrUndefined,
+                    innerClass.descriptor.startOffsetOrUndefined,
+                    innerClass.descriptor.endOffsetOrUndefined,
                     DECLARATION_ORIGIN_FIELD_FOR_OUTER_THIS,
-                    descriptor
+                    descriptor,
+                    outerClass.symbol.defaultType
             )
         }
 
@@ -108,29 +110,36 @@ internal class SpecialDeclarationsFactory(val context: Context) {
                 initializeBridgeDescriptor(this, descriptor, bridgeDirections.array)
             }
 
+            val returnType = when (bridgeDirections.array[0]) {
+                BridgeDirection.TO_VALUE_TYPE,
+                BridgeDirection.NOT_NEEDED      -> irFunction.returnType
+                BridgeDirection.FROM_VALUE_TYPE -> context.irBuiltIns.anyNType
+            }
+
             IrFunctionImpl(
                     irFunction.startOffset,
                     irFunction.endOffset,
                     DECLARATION_ORIGIN_BRIDGE_METHOD(irFunction),
                     bridgeDescriptor
             ).apply {
-                createParameterDeclarations()
+                this.returnType = returnType
+                initializeBridge(this, irFunction, bridgeDirections.array)
                 this.parent = overriddenFunctionDescriptor.descriptor.parent
             }
         }
     }
 
-    fun getLoweredEnum(enumClassDescriptor: ClassDescriptor): LoweredEnum {
-        assert(enumClassDescriptor.kind == ClassKind.ENUM_CLASS, { "Expected enum class but was: $enumClassDescriptor" })
-        return loweredEnums.getOrPut(enumClassDescriptor) {
-            enumSpecialDeclarationsFactory.createLoweredEnum(enumClassDescriptor)
+    fun getLoweredEnum(enumClass: IrClass): LoweredEnum {
+        assert(enumClass.kind == ClassKind.ENUM_CLASS, { "Expected enum class but was: ${enumClass.descriptor}" })
+        return loweredEnums.getOrPut(enumClass) {
+            enumSpecialDeclarationsFactory.createLoweredEnum(enumClass)
         }
     }
 
-    private fun assignOrdinalsToEnumEntries(irClass: IrClass): Map<ClassDescriptor, Int> {
+    private fun assignOrdinalsToEnumEntries(classDescriptor: ClassDescriptor): Map<ClassDescriptor, Int> {
         val enumEntryOrdinals = mutableMapOf<ClassDescriptor, Int>()
-        irClass.declarations.filterIsInstance<IrEnumEntry>().forEachIndexed { index, entry ->
-            enumEntryOrdinals[entry.descriptor] = index
+        classDescriptor.enumEntries.forEachIndexed { index, entry ->
+            enumEntryOrdinals[entry] = index
         }
         return enumEntryOrdinals
     }
@@ -144,8 +153,7 @@ internal class SpecialDeclarationsFactory(val context: Context) {
                     .first { entryDescriptor.name == enumClassDescriptor.c.nameResolver.getName(it.name) }
                     .getExtension(KonanLinkData.enumEntryOrdinal)
         }
-        val enumClass = context.ir.getEnum(enumClassDescriptor)
-        return ordinals.getOrPut(enumClass) { assignOrdinalsToEnumEntries(enumClass) }[entryDescriptor]!!
+        return ordinals.getOrPut(enumClassDescriptor) { assignOrdinalsToEnumEntries(enumClassDescriptor) }[entryDescriptor]!!
     }
 
     private fun initializeBridgeDescriptor(bridgeDescriptor: SimpleFunctionDescriptorImpl,
@@ -192,6 +200,53 @@ internal class SpecialDeclarationsFactory(val context: Context) {
                 /* visibility                   = */ descriptor.visibility).apply {
             isSuspend                           =    descriptor.isSuspend
         }
+    }
+
+    private fun initializeBridge(
+            bridge: IrFunction,
+            function: IrFunction,
+            bridgeDirections: Array<BridgeDirection>
+    ) {
+
+        function.dispatchReceiverParameter?.let {
+            bridge.createDispatchReceiverParameter(function.parent as IrClass)
+        }
+
+        val extensionReceiverType = when (bridgeDirections[1]) {
+            BridgeDirection.TO_VALUE_TYPE   -> function.extensionReceiverParameter!!.type
+            BridgeDirection.NOT_NEEDED      -> function.extensionReceiverParameter?.type
+            BridgeDirection.FROM_VALUE_TYPE -> context.irBuiltIns.anyNType
+        }
+
+        extensionReceiverType?.let {
+            val extensionReceiverParameter = function.extensionReceiverParameter!!
+            bridge.extensionReceiverParameter = IrValueParameterImpl(
+                    extensionReceiverParameter.startOffset,
+                    extensionReceiverParameter.endOffset,
+                    extensionReceiverParameter.origin,
+                    bridge.descriptor.extensionReceiverParameter!!,
+                    it, null
+            )
+        }
+
+        function.valueParameters.mapIndexedTo(bridge.valueParameters) { index, valueParameterDescriptor ->
+            val outType = when (bridgeDirections[index + 2]) {
+                BridgeDirection.TO_VALUE_TYPE   -> valueParameterDescriptor.type
+                BridgeDirection.NOT_NEEDED      -> valueParameterDescriptor.type
+                BridgeDirection.FROM_VALUE_TYPE -> context.irBuiltIns.anyNType
+            }
+
+            IrValueParameterImpl(
+                    valueParameterDescriptor.startOffset,
+                    valueParameterDescriptor.endOffset,
+                    valueParameterDescriptor.origin,
+                    bridge.descriptor.valueParameters[index],
+                    outType, valueParameterDescriptor.varargElementType
+            )
+        }
+
+        // FIXME: type parameters
+
     }
 }
 
@@ -315,7 +370,8 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     fun printIrWithDescriptors() {
         if (irModule == null) return
         separator("IR after: ${phase?.description}")
-        irModule!!.accept(DumpIrTreeWithDescriptorsVisitor(out), "")
+        TODO()
+//        irModule!!.accept(DumpIrTreeWithDescriptorsVisitor(out), "")
     }
 
     fun printLocations() {

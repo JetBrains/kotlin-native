@@ -16,15 +16,14 @@
 
 package org.jetbrains.kotlin.backend.konan.lower
 
-import org.jetbrains.kotlin.backend.common.CommonBackendContext
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irBlock
-import org.jetbrains.kotlin.backend.jvm.descriptors.initialize
 import org.jetbrains.kotlin.backend.konan.descriptors.synthesizedName
-import org.jetbrains.kotlin.backend.common.ir.createArrayOfExpression
 import org.jetbrains.kotlin.backend.konan.KonanBackendContext
+import org.jetbrains.kotlin.backend.konan.irasdescriptors.defaultType
+import org.jetbrains.kotlin.backend.konan.irasdescriptors.typeWith
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.descriptors.impl.PropertyDescriptorImpl
@@ -35,15 +34,13 @@ import org.jetbrains.kotlin.ir.declarations.IrDeclarationOriginImpl
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrLocalDelegatedProperty
 import org.jetbrains.kotlin.ir.declarations.impl.IrFieldImpl
-import org.jetbrains.kotlin.ir.declarations.impl.IrVariableImpl
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrLocalDelegatedPropertyReference
 import org.jetbrains.kotlin.ir.expressions.IrPropertyReference
 import org.jetbrains.kotlin.ir.expressions.impl.*
 import org.jetbrains.kotlin.ir.symbols.IrConstructorSymbol
-import org.jetbrains.kotlin.ir.util.addChild
-import org.jetbrains.kotlin.ir.util.constructors
-import org.jetbrains.kotlin.ir.util.functions
+import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.types.KotlinType
@@ -106,13 +103,17 @@ internal class PropertyDelegationLowering(val context: KonanBackendContext) : Fi
 
         val arrayItemGetter = arrayClass.functions.single { it.descriptor.name == Name.identifier("get") }
 
-        val kPropertyImplType = reflectionTypes.kProperty1Impl.replace(context.builtIns.anyType, context.builtIns.anyType)
+        val anyType = context.ir.symbols.any.defaultType
+        val kPropertyImplType = context.ir.symbols.kProperty1Impl.typeWith(anyType, anyType)
+
+        val kPropertiesFieldType: IrType = context.ir.symbols.array.typeWith(kPropertyImplType)
 
         val kPropertiesField = IrFieldImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET,
                 DECLARATION_ORIGIN_KPROPERTIES_FOR_DELEGATION,
                 createKPropertiesFieldDescriptor(irFile.packageFragmentDescriptor,
-                        context.builtIns.array.replace(kPropertyImplType)
-                )
+                        kPropertiesFieldType.toKotlinType()
+                ),
+                kPropertiesFieldType
         )
 
         irFile.transformChildrenVoid(object : IrElementTransformerVoidWithContext() {
@@ -150,9 +151,19 @@ internal class PropertyDelegationLowering(val context: KonanBackendContext) : Fi
 
                         return irCall(arrayItemGetter, typeArguments = listOf(kPropertyImplType)).apply {
                             dispatchReceiver =
-                                    IrGetFieldImpl(expression.startOffset, expression.endOffset, kPropertiesField.symbol)
+                                    IrGetFieldImpl(
+                                            expression.startOffset,
+                                            expression.endOffset,
+                                            kPropertiesField.symbol,
+                                            kPropertiesField.type
+                                    )
 
-                            putValueArgument(0, IrConstImpl.int(startOffset, endOffset, context.builtIns.intType, field.second))
+                            putValueArgument(0, IrConstImpl.int(
+                                    startOffset,
+                                    endOffset,
+                                    this@PropertyDelegationLowering.context.ir.symbols.int.defaultType,
+                                    field.second
+                            ))
                         }
                     }
                 }
@@ -178,9 +189,14 @@ internal class PropertyDelegationLowering(val context: KonanBackendContext) : Fi
 
                         return irCall(arrayItemGetter, typeArguments = listOf(kPropertyImplType)).apply {
                             dispatchReceiver =
-                                    IrGetFieldImpl(expression.startOffset, expression.endOffset, kPropertiesField.symbol)
+                                    IrGetFieldImpl(
+                                            expression.startOffset,
+                                            expression.endOffset,
+                                            kPropertiesField.symbol,
+                                            kPropertiesField.type
+                                    )
 
-                            putValueArgument(0, IrConstImpl.int(startOffset, endOffset, context.builtIns.intType, field.second))
+                            putValueArgument(0, IrConstImpl.int(startOffset, endOffset, this@PropertyDelegationLowering.context.ir.symbols.int.defaultType, field.second))
                         }
                     }
                 }
@@ -208,13 +224,13 @@ internal class PropertyDelegationLowering(val context: KonanBackendContext) : Fi
                 if (it == null)
                     null
                 else
-                    irTemporary(value = it, nameHint = "\$dispatchReceiver${tempIndex++}").symbol
+                    irTemporary(value = it, nameHint = "\$dispatchReceiver${tempIndex++}")
             }
             val extensionReceiver = expression.extensionReceiver.let {
                 if (it == null)
                     null
                 else
-                    irTemporary(value = it, nameHint = "\$extensionReceiver${tempIndex++}").symbol
+                    irTemporary(value = it, nameHint = "\$extensionReceiver${tempIndex++}")
             }
             val propertyDescriptor = expression.descriptor
 
@@ -228,18 +244,17 @@ internal class PropertyDelegationLowering(val context: KonanBackendContext) : Fi
                     if (it != null && expression.dispatchReceiver == null)
                         receiverTypes.add(it.type)
                 }
-                val getterKFunctionType = reflectionTypes.getKFunctionType(
-                        annotations    = Annotations.EMPTY,
-                        receiverType   = receiverTypes.firstOrNull(),
-                        parameterTypes = if (receiverTypes.size < 2) listOf() else listOf(receiverTypes[1]),
-                        returnType     = returnType)
+
+                val getterKFunctionType =
+                        this@PropertyDelegationLowering.context.ir.symbols
+                                .kFunctions[receiverTypes.size].defaultType // FIXME: substitute
                 IrFunctionReferenceImpl(
                         startOffset   = startOffset,
                         endOffset     = endOffset,
                         type          = getterKFunctionType,
                         symbol        = expression.getter!!,
                         descriptor    = getter,
-                        typeArguments = null
+                        typeArgumentsCount = 0
                 ).apply {
                     this.dispatchReceiver = dispatchReceiver?.let { irGet(it) }
                     this.extensionReceiver = extensionReceiver?.let { irGet(it) }
@@ -247,20 +262,18 @@ internal class PropertyDelegationLowering(val context: KonanBackendContext) : Fi
             }
 
             val setterCallableReference = propertyDescriptor.setter?.let {
-                if (!isKMutablePropertyType(expression.type)) null
+                if (!isKMutablePropertyType(expression.type.toKotlinType())) null
                 else {
-                    val setterKFunctionType = reflectionTypes.getKFunctionType(
-                            annotations    = Annotations.EMPTY,
-                            receiverType   = receiverTypes.firstOrNull(),
-                            parameterTypes = if (receiverTypes.size < 2) listOf(returnType) else listOf(receiverTypes[1], returnType),
-                            returnType     = context.builtIns.unitType)
+                    val setterKFunctionType = this@PropertyDelegationLowering.context.ir.symbols
+                            .kFunctions[receiverTypes.size + 1].defaultType // FIXME: substitute
+
                     IrFunctionReferenceImpl(
                             startOffset   = startOffset,
                             endOffset     = endOffset,
                             type          = setterKFunctionType,
                             symbol        = expression.setter!!,
                             descriptor    = it,
-                            typeArguments = null
+                            typeArgumentsCount = 0
                     ).apply {
                         this.dispatchReceiver = dispatchReceiver?.let { irGet(it) }
                         this.extensionReceiver = extensionReceiver?.let { irGet(it) }
@@ -273,7 +286,7 @@ internal class PropertyDelegationLowering(val context: KonanBackendContext) : Fi
                     returnType    = returnType,
                     isLocal       = false,
                     isMutable     = setterCallableReference != null)
-            val initializer = irCall(symbol, constructorTypeArguments).apply {
+            val initializer = irCall(symbol).apply { // FIXME: type arguments
                 putValueArgument(0, irString(propertyDescriptor.name.asString()))
                 if (getterCallableReference != null)
                     putValueArgument(1, getterCallableReference)
@@ -294,7 +307,7 @@ internal class PropertyDelegationLowering(val context: KonanBackendContext) : Fi
                     returnType = returnType,
                     isLocal = true,
                     isMutable = false)
-            val initializer = irCall(symbol, constructorTypeArguments).apply {
+            val initializer = irCall(symbol).apply { // FIXME: type arguments
                 putValueArgument(0, irString(propertyDescriptor.name.asString()))
             }
             return initializer
@@ -316,10 +329,15 @@ internal class PropertyDelegationLowering(val context: KonanBackendContext) : Fi
     private object DECLARATION_ORIGIN_KPROPERTIES_FOR_DELEGATION :
             IrDeclarationOriginImpl("KPROPERTIES_FOR_DELEGATION")
 
-    private fun createKPropertiesFieldDescriptor(containingDeclaration: DeclarationDescriptor, fieldType: SimpleType): PropertyDescriptorImpl {
+    private fun createKPropertiesFieldDescriptor(containingDeclaration: DeclarationDescriptor, fieldType: KotlinType): PropertyDescriptorImpl {
         return PropertyDescriptorImpl.create(containingDeclaration, Annotations.EMPTY, Modality.FINAL, Visibilities.PRIVATE,
                 false, "KPROPERTIES".synthesizedName, CallableMemberDescriptor.Kind.SYNTHESIZED, SourceElement.NO_SOURCE,
-                false, false, false, false, false, false).initialize(fieldType)
+                false, false, false, false, false, false).apply {
+
+            val receiverType: KotlinType? = null
+            this.setType(fieldType, emptyList(), null, receiverType)
+            initialize(null, null)
+        }
     }
 }
 

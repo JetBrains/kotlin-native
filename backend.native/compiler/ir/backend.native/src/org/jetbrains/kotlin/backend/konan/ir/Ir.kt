@@ -33,8 +33,16 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrEnumEntrySymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
+import org.jetbrains.kotlin.ir.symbols.impl.IrClassSymbolImpl
+import org.jetbrains.kotlin.ir.symbols.impl.IrTypeParameterSymbolImpl
+import org.jetbrains.kotlin.ir.types.IrSimpleType
+import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeImpl
+import org.jetbrains.kotlin.ir.types.impl.IrStarProjectionImpl
+import org.jetbrains.kotlin.ir.types.impl.makeTypeProjection
 import org.jetbrains.kotlin.ir.util.SymbolTable
 import org.jetbrains.kotlin.ir.util.constructors
+import org.jetbrains.kotlin.ir.util.translateErased
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
@@ -51,9 +59,6 @@ internal class KonanIr(context: Context, irModule: IrModuleFragment): Ir<Context
     lateinit var moduleIndexForCodegen: ModuleIndex
 
     override var symbols: KonanSymbols by Delegates.notNull()
-
-    fun getClass(type: KotlinType): IrClass? =
-            (type.constructor.declarationDescriptor as? ClassDescriptor)?.let { get(it) }
 
     fun get(descriptor: FunctionDescriptor): IrFunction {
         return moduleIndexForCodegen.functions[descriptor]
@@ -84,10 +89,35 @@ internal class KonanIr(context: Context, irModule: IrModuleFragment): Ir<Context
                 ?: symbols.symbolTable.referenceEnumEntry(descriptor).owner
     }
 
-    fun getEnum(descriptor: ClassDescriptor): IrClass {
-        assert(descriptor.kind == ClassKind.ENUM_CLASS)
-        return originalModuleIndex.classes[descriptor]
-                ?: symbols.symbolTable.referenceClass(descriptor).owner
+    fun translateErased(type: KotlinType): IrSimpleType = symbols.symbolTable.translateErased(type)
+
+    fun translateBroken(type: KotlinType): IrType {
+        val declarationDescriptor = type.constructor.declarationDescriptor
+        return when (declarationDescriptor) {
+            is ClassDescriptor -> {
+                val classifier = IrClassSymbolImpl(declarationDescriptor)
+                val typeArguments = type.arguments.map {
+                    if (it.isStarProjection) {
+                        IrStarProjectionImpl
+                    } else {
+                        makeTypeProjection(translateBroken(it.type), it.projectionKind)
+                    }
+                }
+                IrSimpleTypeImpl(
+                        classifier,
+                        type.isMarkedNullable,
+                        typeArguments,
+                        emptyList()
+                )
+            }
+            is TypeParameterDescriptor -> IrSimpleTypeImpl(
+                    IrTypeParameterSymbolImpl(declarationDescriptor),
+                    type.isMarkedNullable,
+                    emptyList(),
+                    emptyList()
+            )
+            else -> error(declarationDescriptor ?: "null")
+        }
     }
 }
 
@@ -99,6 +129,7 @@ internal class KonanSymbols(context: Context, val symbolTable: SymbolTable): Sym
     val throwable = symbolTable.referenceClass(builtIns.throwable)
     val string = symbolTable.referenceClass(builtIns.string)
     val enum = symbolTable.referenceClass(builtIns.enum)
+    val nativePtr = symbolTable.referenceClass(context.builtIns.nativePtr)
 
     val arrayList = symbolTable.referenceClass(getArrayListClassDescriptor(context))
 
@@ -219,8 +250,14 @@ internal class KonanSymbols(context: Context, val symbolTable: SymbolTable): Sym
     val getProgressionLast = context.getInternalFunctions("getProgressionLast")
             .map { Pair(it.returnType, symbolTable.referenceSimpleFunction(it)) }.toMap()
 
-    val arrayContentToString = arrayTypes.associateBy({ it }, { arrayExtensionFun(it, "contentToString") })
-    val arrayContentHashCode = arrayTypes.associateBy({ it }, { arrayExtensionFun(it, "contentHashCode") })
+    val arrayContentToString = arrays.associateBy(
+            { it },
+            { arrayExtensionFun(it.descriptor.defaultType, "contentToString") }
+    )
+    val arrayContentHashCode = arrays.associateBy(
+            { it },
+            { arrayExtensionFun(it.descriptor.defaultType, "contentHashCode") }
+    )
 
     override val copyRangeTo = arrays.map { symbol ->
         val packageViewDescriptor = builtIns.builtInsModule.getPackage(KotlinBuiltIns.COLLECTIONS_PACKAGE_FQ_NAME)

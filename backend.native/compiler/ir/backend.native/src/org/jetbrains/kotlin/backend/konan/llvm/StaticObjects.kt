@@ -28,8 +28,6 @@ import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.types.TypeProjection
-import org.jetbrains.kotlin.types.replace
 
 private fun StaticData.objHeader(typeInfo: ConstPointer): Struct {
     val container = NullPointer(runtime.containerHeaderType) // Static object mark.

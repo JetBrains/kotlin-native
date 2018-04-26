@@ -24,18 +24,17 @@ import org.jetbrains.kotlin.backend.konan.irasdescriptors.*
 import org.jetbrains.kotlin.backend.konan.isValueType
 import org.jetbrains.kotlin.backend.konan.library.KonanLibraryReader
 import org.jetbrains.kotlin.backend.konan.optimizations.DataFlowIR
-import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.descriptors.PropertyAccessorDescriptor
-import org.jetbrains.kotlin.descriptors.TypeParameterDescriptor
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.types.IrSimpleType
+import org.jetbrains.kotlin.ir.types.IrStarProjection
+import org.jetbrains.kotlin.ir.types.IrTypeProjection
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.resolve.constants.StringValue
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
-import org.jetbrains.kotlin.types.KotlinType
-import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 
 
@@ -144,14 +143,17 @@ private fun acyclicTypeMangler(visited: MutableSet<TypeParameterDescriptor>, typ
     }
 
     var hashString = TypeUtils.getClassDescriptor(type)!!.fqNameSafe.asString()
+    if (type !is IrSimpleType) error(type)
     if (!type.arguments.isEmpty()) {
         hashString += "<${type.arguments.map {
-            if (it.isStarProjection()) {
-                "#STAR" 
-            } else {
-                val variance = it.projectionKind.label
-                val projection = if (variance == "") "" else "${variance}_" 
-                projection + acyclicTypeMangler(visited, it.type)
+            when (it) {
+                is IrStarProjection -> "#STAR"
+                is IrTypeProjection -> {
+                    val variance = it.variance.label
+                    val projection = if (variance == "") "" else "${variance}_"
+                    projection + acyclicTypeMangler(visited, it.type)
+                }
+                else -> error(it)
             }
         }.joinToString(",")}>"
     }
@@ -235,7 +237,7 @@ internal val IrField.symbolName: String
 
     }
 
-private fun getStringValue(annotation: AnnotationDescriptor): String? {
+internal fun getStringValue(annotation: AnnotationDescriptor): String? {
     return annotation.allValueArguments.values.ifNotEmpty {
         val stringValue = single() as? StringValue
         stringValue?.value

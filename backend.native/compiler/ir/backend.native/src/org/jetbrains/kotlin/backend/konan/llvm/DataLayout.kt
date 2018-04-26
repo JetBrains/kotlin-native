@@ -18,11 +18,9 @@ package org.jetbrains.kotlin.backend.konan.llvm
 
 import llvm.*
 import org.jetbrains.kotlin.backend.konan.ValueType
+import org.jetbrains.kotlin.backend.konan.irasdescriptors.*
 import org.jetbrains.kotlin.backend.konan.isRepresentedAs
 import org.jetbrains.kotlin.backend.konan.optimizations.DataFlowIR
-import org.jetbrains.kotlin.types.KotlinType
-import org.jetbrains.kotlin.types.typeUtil.isNothing
-import org.jetbrains.kotlin.types.typeUtil.isUnit
 
 private val valueTypes = ValueType.values().associate {
     it to when (it) {

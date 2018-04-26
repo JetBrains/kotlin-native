@@ -21,6 +21,7 @@ import llvm.*
 import org.jetbrains.kotlin.backend.konan.ir.KonanSymbols
 import org.jetbrains.kotlin.backend.konan.llvm.*
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
+import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.getPropertyGetter
 import org.jetbrains.kotlin.konan.target.KonanTarget
@@ -50,6 +51,32 @@ internal fun KonanSymbols.getTypeConversion(
         }
 
         else -> throw IllegalArgumentException("actual type is $actualValueType, expected $expectedValueType")
+    }
+}
+
+internal fun KonanSymbols.getTypeConversion(
+        actualType: IrType,
+        expectedType: IrType
+): IrSimpleFunctionSymbol? {
+    val actualValueType = actualType.correspondingValueType
+    val expectedValueType = expectedType.correspondingValueType
+
+    return when {
+        actualValueType == expectedValueType -> null
+
+        actualValueType == null && expectedValueType != null -> {
+            // This may happen in the following cases:
+            // 1.  `actualType` is `Nothing`;
+            // 2.  `actualType` is incompatible.
+
+            this.getUnboxFunction(expectedValueType)
+        }
+
+        actualValueType != null && expectedValueType == null -> {
+            this.boxFunctions[actualValueType]!!
+        }
+
+        else -> throw IllegalArgumentException("actual type is $actualType, expected $expectedType")
     }
 }
 

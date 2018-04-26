@@ -19,15 +19,15 @@ package org.jetbrains.kotlin.backend.konan.lower
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
 import org.jetbrains.kotlin.backend.common.descriptors.explicitParameters
-import org.jetbrains.kotlin.backend.common.descriptors.getFunction
-import org.jetbrains.kotlin.backend.common.descriptors.isFunctionOrKFunctionType
 import org.jetbrains.kotlin.backend.common.descriptors.replace
 import org.jetbrains.kotlin.backend.common.lower.*
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.descriptors.synthesizedName
 import org.jetbrains.kotlin.backend.common.pop
 import org.jetbrains.kotlin.backend.common.push
+import org.jetbrains.kotlin.backend.konan.irasdescriptors.defaultType
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.fqNameSafe
+import org.jetbrains.kotlin.backend.konan.irasdescriptors.isFunctionOrKFunctionType
 import org.jetbrains.kotlin.backend.konan.llvm.functionName
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
@@ -38,20 +38,22 @@ import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.*
+import org.jetbrains.kotlin.ir.builders.irGetField
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrClassImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrConstructorImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrFunctionImpl
+import org.jetbrains.kotlin.ir.declarations.impl.IrValueParameterImpl
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrDelegatingConstructorCallImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrInstanceInitializerCallImpl
 import org.jetbrains.kotlin.ir.symbols.IrConstructorSymbol
-import org.jetbrains.kotlin.ir.symbols.IrFieldSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.IrValueParameterSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.IrConstructorSymbolImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrSimpleFunctionSymbolImpl
+import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.FqName
@@ -161,15 +163,16 @@ internal class CallableReferenceLowering(val context: Context): FileLoweringPass
                                                  val parent: IrDeclarationParent,
                                                  val functionReference: IrFunctionReference) {
 
-        private val functionDescriptor = functionReference.descriptor
+        private val functionDescriptor = functionReference.descriptor.original
         private val functionParameters = functionDescriptor.explicitParameters
-        private val boundFunctionParameters = functionReference.getArguments().map { it.first }
-        private val unboundFunctionParameters = functionParameters - boundFunctionParameters
+
+        private val boundFunctionParameters = functionReference.getArgumentsWithIr().map { it.first }
+        private val unboundFunctionParameters = functionParameters - boundFunctionParameters.map { it.descriptor }
 
         private lateinit var functionReferenceClassDescriptor: ClassDescriptorImpl
         private lateinit var functionReferenceClass: IrClassImpl
         private lateinit var functionReferenceThis: IrValueParameterSymbol
-        private lateinit var argumentToPropertiesMap: Map<ParameterDescriptor, IrFieldSymbol>
+        private lateinit var argumentToPropertiesMap: Map<ParameterDescriptor, IrField>
 
         private val kFunctionImplSymbol = context.ir.symbols.kFunctionImpl
 
@@ -184,22 +187,30 @@ internal class CallableReferenceLowering(val context: Context): FileLoweringPass
             val superClasses = mutableListOf(kFunctionImplSymbol.owner)
 
             val numberOfParameters = unboundFunctionParameters.size
+
+            if (numberOfParameters != functionReference.type.toKotlinType().arguments.size - 1) {
+                error("")
+            }
+
             val functionClassDescriptor = context.reflectionTypes.getKFunction(numberOfParameters)
+            val functionIrClass = context.ir.symbols.kFunctions[numberOfParameters].owner
             val functionParameterTypes = unboundFunctionParameters.map { it.type }
             val functionClassTypeParameters = functionParameterTypes + returnType
             superTypes += functionClassDescriptor.defaultType.replace(functionClassTypeParameters)
-            superClasses += context.ir.symbols.kFunctions[numberOfParameters].owner
+            superClasses += functionIrClass
 
             var suspendFunctionClassDescriptor: ClassDescriptor? = null
+            var suspendFunctionIrClass: IrClass? = null
             var suspendFunctionClassTypeParameters: List<KotlinType>? = null
             val lastParameterType = unboundFunctionParameters.lastOrNull()?.type
             if (lastParameterType != null && TypeUtils.getClassDescriptor(lastParameterType) == continuationClassDescriptor) {
                 // If the last parameter is Continuation<> inherit from SuspendFunction.
                 suspendFunctionClassDescriptor = kotlinPackageScope.getContributedClassifier(
                         Name.identifier("SuspendFunction${numberOfParameters - 1}"), NoLookupLocation.FROM_BACKEND) as ClassDescriptor
+                suspendFunctionIrClass = context.ir.symbols.suspendFunctions[numberOfParameters - 1].owner
                 suspendFunctionClassTypeParameters = functionParameterTypes.dropLast(1) + lastParameterType.arguments.single().type
                 superTypes += suspendFunctionClassDescriptor.defaultType.replace(suspendFunctionClassTypeParameters)
-                superClasses += context.ir.symbols.suspendFunctions[numberOfParameters - 1].owner
+                superClasses += suspendFunctionIrClass
             }
 
             functionReferenceClassDescriptor = object : ClassDescriptorImpl(
@@ -225,13 +236,15 @@ internal class CallableReferenceLowering(val context: Context): FileLoweringPass
 
             val constructorBuilder = createConstructorBuilder()
 
-            val invokeFunctionDescriptor = functionClassDescriptor.getFunction("invoke", functionClassTypeParameters)
-            val invokeMethodBuilder = createInvokeMethodBuilder(invokeFunctionDescriptor)
+            val invokeFunctionSymbol =
+                    functionIrClass.simpleFunctions().single { it.name.asString() == "invoke" }.symbol
+            val invokeMethodBuilder = createInvokeMethodBuilder(invokeFunctionSymbol, functionReferenceClass)
 
             var suspendInvokeMethodBuilder: SymbolWithIrBuilder<IrSimpleFunctionSymbol, IrSimpleFunction>? = null
-            if (suspendFunctionClassDescriptor != null) {
-                val suspendInvokeFunctionDescriptor = suspendFunctionClassDescriptor.getFunction("invoke", suspendFunctionClassTypeParameters!!)
-                suspendInvokeMethodBuilder = createInvokeMethodBuilder(suspendInvokeFunctionDescriptor)
+            if (suspendFunctionIrClass != null) {
+                val suspendInvokeFunctionSymbol =
+                        suspendFunctionIrClass.simpleFunctions().single { it.name.asString() == "invoke" }.symbol
+                suspendInvokeMethodBuilder = createInvokeMethodBuilder(suspendInvokeFunctionSymbol, functionReferenceClass)
             }
 
             val memberScope = stub<MemberScope>("callable reference class")
@@ -275,15 +288,18 @@ internal class CallableReferenceLowering(val context: Context): FileLoweringPass
             override fun doInitialize() {
                 val descriptor = symbol.descriptor as ClassConstructorDescriptorImpl
                 val constructorParameters = boundFunctionParameters.mapIndexed { index, parameter ->
-                    parameter.copyAsValueParameter(descriptor, index)
+                    parameter.descriptor.copyAsValueParameter(descriptor, index)
                 }
                 descriptor.initialize(constructorParameters, Visibilities.PUBLIC)
                 descriptor.returnType = functionReferenceClassDescriptor.defaultType
             }
 
             override fun buildIr(): IrConstructor {
+
+                val symbols = this@CallableReferenceLowering.context.ir.symbols
+
                 argumentToPropertiesMap = boundFunctionParameters.associate {
-                    it to buildPropertyWithBackingField(it.name, it.type, false)
+                    it.descriptor to buildPropertyWithBackingField(it.name, it.type, false)
                 }
 
                 val startOffset = functionReference.startOffset
@@ -294,30 +310,36 @@ internal class CallableReferenceLowering(val context: Context): FileLoweringPass
                         origin      = DECLARATION_ORIGIN_FUNCTION_REFERENCE_IMPL,
                         symbol      = symbol).apply {
 
+                    returnType = functionReferenceClass.symbol.defaultType
+
                     val irBuilder = context.createIrBuilder(this.symbol, startOffset, endOffset)
 
-                    createParameterDeclarations()
+                    boundFunctionParameters.mapIndexedTo(this.valueParameters) { index, parameter ->
+                        parameter.copyAsValueParameter(descriptor.valueParameters[index])
+                    }
 
                     body = irBuilder.irBlockBody {
                         +IrDelegatingConstructorCallImpl(startOffset, endOffset,
-                                kFunctionImplConstructorSymbol, kFunctionImplConstructorSymbol.descriptor).apply {
-                            val name = IrConstImpl(startOffset, endOffset, context.builtIns.stringType,
+                                kFunctionImplConstructorSymbol.owner.returnType,
+                                kFunctionImplConstructorSymbol, kFunctionImplConstructorSymbol.descriptor, 0).apply {
+                            val stringType = symbols.string.defaultType
+                            val name = IrConstImpl(startOffset, endOffset, stringType,
                                     IrConstKind.String, functionDescriptor.name.asString())
                             putValueArgument(0, name)
-                            val fqName = IrConstImpl(startOffset, endOffset, context.builtIns.stringType, IrConstKind.String,
+                            val fqName = IrConstImpl(startOffset, endOffset, stringType, IrConstKind.String,
                                     (functionReference.symbol.owner).fullName)
                             putValueArgument(1, fqName)
-                            val bound = IrConstImpl.boolean(startOffset, endOffset, context.builtIns.booleanType,
+                            val bound = IrConstImpl.boolean(startOffset, endOffset, context.irBuiltIns.booleanType,
                                     boundFunctionParameters.isNotEmpty())
                             putValueArgument(2, bound)
-                            val needReceiver = boundFunctionParameters.singleOrNull() is ReceiverParameterDescriptor
-                            val receiver = if (needReceiver) irGet(valueParameters.single().symbol) else irNull()
+                            val needReceiver = boundFunctionParameters.singleOrNull()?.descriptor is ReceiverParameterDescriptor
+                            val receiver = if (needReceiver) irGet(valueParameters.single()) else irNull()
                             putValueArgument(3, receiver)
                         }
-                        +IrInstanceInitializerCallImpl(startOffset, endOffset, functionReferenceClass.symbol)
+                        +IrInstanceInitializerCallImpl(startOffset, endOffset, functionReferenceClass.symbol, symbols.unit.defaultType)
                         // Save all arguments to fields.
                         boundFunctionParameters.forEachIndexed { index, parameter ->
-                            +irSetField(irGet(functionReferenceThis), argumentToPropertiesMap[parameter]!!, irGet(valueParameters[index].symbol))
+                            +irSetField(irGet(functionReferenceThis.owner), argumentToPropertiesMap[parameter.descriptor]!!, irGet(valueParameters[index]))
                         }
                     }
                 }
@@ -327,8 +349,10 @@ internal class CallableReferenceLowering(val context: Context): FileLoweringPass
         private val IrFunction.fullName: String
             get() = parent.fqNameSafe.child(Name.identifier(functionName)).asString()
 
-        private fun createInvokeMethodBuilder(superFunctionDescriptor: FunctionDescriptor)
+        private fun createInvokeMethodBuilder(superFunctionSymbol: IrSimpleFunctionSymbol, parent: IrClass)
                 = object : SymbolWithIrBuilder<IrSimpleFunctionSymbol, IrSimpleFunction>() {
+
+            val superFunctionDescriptor: FunctionDescriptor = superFunctionSymbol.descriptor
 
             override fun buildSymbol() = IrSimpleFunctionSymbolImpl(
                     SimpleFunctionDescriptorImpl.create(
@@ -368,10 +392,24 @@ internal class CallableReferenceLowering(val context: Context): FileLoweringPass
                         origin      = DECLARATION_ORIGIN_FUNCTION_REFERENCE_IMPL,
                         symbol      = ourSymbol).apply {
 
+                    returnType = superFunctionSymbol.owner.returnType
+
                     val function = this
                     val irBuilder = context.createIrBuilder(function.symbol, startOffset, endOffset)
 
-                    createParameterDeclarations()
+                    this.createDispatchReceiverParameter(parent)
+
+                    superFunctionSymbol.owner.valueParameters.mapTo(this.valueParameters) {
+                        it.copyAsValueParameter(descriptor.valueParameters[it.index])
+                    }
+                    this.dispatchReceiverParameter = IrValueParameterImpl(
+                            startOffset,
+                            endOffset,
+                            IrDeclarationOrigin.DEFINED,
+                            this.descriptor.dispatchReceiverParameter!!,
+                            functionReferenceClass.symbol.defaultType,
+                            null
+                    )
 
                     body = irBuilder.irBlockBody(startOffset, endOffset) {
                         +irReturn(
@@ -383,16 +421,16 @@ internal class CallableReferenceLowering(val context: Context): FileLoweringPass
                                                 if (!unboundArgsSet.contains(it))
                                                     // Bound parameter - read from field.
                                                     irGetField(
-                                                            irGet(function.dispatchReceiverParameter!!.symbol),
+                                                            irGet(function.dispatchReceiverParameter!!),
                                                             argumentToPropertiesMap[it]!!
                                                     )
                                                 else {
                                                     if (ourSymbol.descriptor.isSuspend && unboundIndex == valueParameters.size)
                                                         // For suspend functions the last argument is continuation and it is implicit.
-                                                        irCall(getContinuationSymbol,
-                                                                listOf(ourSymbol.descriptor.returnType!!))
+                                                        irCall(getContinuationSymbol.owner,
+                                                                listOf(returnType))
                                                     else
-                                                        irGet(valueParameters[unboundIndex++].symbol)
+                                                        irGet(valueParameters[unboundIndex++])
                                                 }
                                         when (it) {
                                             functionDescriptor.dispatchReceiverParameter -> dispatchReceiver = argument
@@ -408,21 +446,33 @@ internal class CallableReferenceLowering(val context: Context): FileLoweringPass
             }
         }
 
-        private fun buildPropertyWithBackingField(name: Name, type: KotlinType, isMutable: Boolean): IrFieldSymbol {
-            val propertyBuilder = context.createPropertyWithBackingFieldBuilder(
-                    startOffset = functionReference.startOffset,
-                    endOffset   = functionReference.endOffset,
-                    origin      = DECLARATION_ORIGIN_FUNCTION_REFERENCE_IMPL,
-                    owner       = functionReferenceClassDescriptor,
-                    name        = name,
-                    type        = type,
-                    isMutable   = isMutable).apply {
-                initialize()
+        private fun buildPropertyWithBackingField(name: Name, type: IrType, isMutable: Boolean): IrField {
+            return createField(
+                    functionReference.startOffset,
+                    functionReference.endOffset,
+                    type,
+                    name,
+                    isMutable,
+                    DECLARATION_ORIGIN_FUNCTION_REFERENCE_IMPL,
+                    functionReferenceClassDescriptor
+            ).also {
+                functionReferenceClass.addChild(it)
             }
-
-            functionReferenceClass.addChild(propertyBuilder.ir)
-            return propertyBuilder.ir.backingField!!.symbol
         }
 
     }
 }
+
+fun IrValueParameter.copyAsValueParameter(newDescriptor: ParameterDescriptor): IrValueParameter {
+    assert(this.descriptor.type == newDescriptor.type)
+
+    return IrValueParameterImpl(
+            startOffset,
+            endOffset,
+            IrDeclarationOrigin.DEFINED,
+            newDescriptor,
+            type,
+            varargElementType
+    )
+}
+

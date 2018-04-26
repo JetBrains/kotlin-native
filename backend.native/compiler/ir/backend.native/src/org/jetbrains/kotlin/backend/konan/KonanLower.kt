@@ -24,7 +24,6 @@ import org.jetbrains.kotlin.backend.konan.lower.DefaultArgumentStubGenerator
 import org.jetbrains.kotlin.backend.konan.lower.DefaultParameterInjector
 import org.jetbrains.kotlin.backend.konan.lower.InitializersLowering
 import org.jetbrains.kotlin.backend.konan.lower.LateinitLowering
-import org.jetbrains.kotlin.backend.konan.lower.LocalDeclarationsLowering
 import org.jetbrains.kotlin.backend.konan.lower.SharedVariablesLowering
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment

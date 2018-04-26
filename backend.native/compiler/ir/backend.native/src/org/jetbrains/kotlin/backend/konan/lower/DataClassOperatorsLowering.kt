@@ -20,15 +20,17 @@ import org.jetbrains.kotlin.backend.common.FunctionLoweringPass
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irBlock
 import org.jetbrains.kotlin.backend.konan.Context
-import org.jetbrains.kotlin.descriptors.ClassDescriptor
+import org.jetbrains.kotlin.backend.konan.irasdescriptors.*
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
+import org.jetbrains.kotlin.ir.types.IrSimpleType
+import org.jetbrains.kotlin.ir.types.makeNotNull
+import org.jetbrains.kotlin.ir.util.irCall
+import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
-import org.jetbrains.kotlin.types.KotlinType
-import org.jetbrains.kotlin.types.typeUtil.makeNotNullable
 
 internal class DataClassOperatorsLowering(val context: Context): FunctionLoweringPass {
 
@@ -44,27 +46,21 @@ internal class DataClassOperatorsLowering(val context: Context): FunctionLowerin
                     return expression
 
                 val argument = expression.getValueArgument(0)!!
-                val argumentType = argument.type.makeNotNullable()
-                val genericType =
-                        if (argumentType.arguments.isEmpty())
-                            argumentType
-                        else
-                            (argumentType.constructor.declarationDescriptor as ClassDescriptor).defaultType
+                val argumentType = argument.type.makeNotNull() as IrSimpleType
+
                 val isToString = expression.symbol == irBuiltins.dataClassArrayMemberToStringSymbol
                 val newSymbol = if (isToString)
-                                    context.ir.symbols.arrayContentToString[genericType]!!
+                                    context.ir.symbols.arrayContentToString[argumentType.classifier]!!
                                 else
-                                    context.ir.symbols.arrayContentHashCode[genericType]!!
+                                    context.ir.symbols.arrayContentHashCode[argumentType.classifier]!!
 
                 val startOffset = expression.startOffset
                 val endOffset = expression.endOffset
                 val irBuilder = context.createIrBuilder(irFunction.symbol, startOffset, endOffset)
 
                 return irBuilder.run {
-                    val typeArguments =
-                            if (argumentType.arguments.isEmpty())
-                                emptyList<KotlinType>()
-                            else argumentType.arguments.map { it.type }
+                    val typeArguments = emptyList<KotlinType>() // FIXME
+
                     if (!argument.type.isMarkedNullable) {
                         irCall(newSymbol, typeArguments).apply {
                             extensionReceiver = argument
@@ -72,12 +68,12 @@ internal class DataClassOperatorsLowering(val context: Context): FunctionLowerin
                     } else {
                         val tmp = scope.createTemporaryVariable(argument)
                         val call = irCall(newSymbol, typeArguments).apply {
-                            extensionReceiver = irGet(tmp.symbol)
+                            extensionReceiver = irGet(tmp)
                         }
                         irBlock(argument) {
                             +tmp
                             +irIfThenElse(call.type,
-                                    irEqeqeq(irGet(tmp.symbol), irNull()),
+                                    irEqeqeq(irGet(tmp), irNull()),
                                     if (isToString)
                                         irString("null")
                                     else
