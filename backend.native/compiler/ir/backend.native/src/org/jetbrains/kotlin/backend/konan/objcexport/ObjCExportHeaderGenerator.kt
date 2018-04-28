@@ -102,6 +102,28 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
         // TODO: make the translation order stable
         // to stabilize name mangling.
 
+        stubs.add(ObjcInterface(kotlinAnyName, superClass = "NSObject", members = buildMembers {
+            +ObjcMethod(null, true, ObjCInstanceType, listOf("init"), emptyList(), listOf("unavailable"))
+            +ObjcMethod(null, false, ObjCInstanceType, listOf("new"), emptyList(), listOf("unavailable"))
+            +ObjcMethod(null, false, ObjCVoidType, listOf("initialize"), emptyList(), listOf("objc_requires_super"))
+        }))
+
+        // TODO: add comment to the header.
+        stubs.add(ObjcInterface(kotlinAnyName, superProtocols = listOf("NSCopying"), categoryName = "${kotlinAnyName}Copying"))
+
+        // TODO: only if appears
+        stubs.add(ObjcInterface(namer.mutableSetName, generics = listOf("ObjectType"),
+                superClass = "NSMutableSet<ObjectType>", attributes = listOf("objc_runtime_name(\"KotlinMutableSet\")")))
+
+        // TODO: only if appears
+        stubs.add(ObjcInterface(namer.mutableMapName, generics = listOf("KeyType", "ObjectType"),
+                superClass = "NSMutableDictionary<KeyType, ObjectType>", attributes = listOf("objc_runtime_name(\"KotlinMutableDictionary\")")))
+
+        stubs.add(ObjcInterface("NSError", categoryName = "NSErrorKotlinException", members = buildMembers {
+            //todo add _Nullable to type
+            +ObjcProperty("kotlinException", null, ObjCIdType, listOf("readonly"))
+        }))
+
         val packageFragments = moduleDescriptor.getPackageFragments()
 
         packageFragments.forEach { packageFragment ->
@@ -526,33 +548,6 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
         }
 
         add("NS_ASSUME_NONNULL_BEGIN")
-        add("")
-
-        add("@interface $kotlinAnyName : NSObject")
-        add("-(instancetype) init __attribute__((unavailable));")
-        add("+(instancetype) new __attribute__((unavailable));")
-        add("+(void)initialize __attribute__((objc_requires_super));")
-        add("@end;")
-        add("")
-
-        // TODO: add comment to the header.
-        add("@interface $kotlinAnyName (${kotlinAnyName}Copying) <NSCopying>")
-        add("@end;")
-        add("")
-
-        add("__attribute__((objc_runtime_name(\"KotlinMutableSet\")))")
-        add("@interface ${namer.mutableSetName}<ObjectType> : NSMutableSet<ObjectType>") // TODO: only if appears
-        add("@end;")
-        add("")
-
-        add("__attribute__((objc_runtime_name(\"KotlinMutableDictionary\")))")
-        add("@interface ${namer.mutableMapName}<KeyType, ObjectType> : NSMutableDictionary<KeyType, ObjectType>") // TODO: only if appears
-        add("@end;")
-        add("")
-
-        add("@interface NSError (NSErrorKotlinException)")
-        add("@property (readonly) id _Nullable kotlinException;")
-        add("@end;")
         add("")
 
         stubs.forEach {
