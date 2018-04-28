@@ -551,7 +551,7 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
         add("")
 
         stubs.forEach {
-            addAll(it.lines)
+            addAll(StubRenderer.render(it))
             add("")
         }
 
