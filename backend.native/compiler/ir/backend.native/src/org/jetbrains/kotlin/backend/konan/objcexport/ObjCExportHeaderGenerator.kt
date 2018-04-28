@@ -98,7 +98,7 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
     private val extensions = mutableMapOf<ClassDescriptor, MutableList<CallableMemberDescriptor>>()
     private val extraClassesToTranslate = mutableSetOf<ClassDescriptor>()
 
-    fun translateModule() {
+    fun translateModule(): List<Stub<*>> {
         // TODO: make the translation order stable
         // to stabilize name mangling.
 
@@ -177,6 +177,8 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
                 translateClass(descriptor)
             }
         }
+
+        return stubs
     }
 
     private fun translateClassName(descriptor: ClassDescriptor): String = classOrInterfaceToName.getOrPut(descriptor) {
