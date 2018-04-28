@@ -31,9 +31,7 @@ class ObjcMethod(descriptor: DeclarationDescriptor?,
                  val returnType: ObjCType,
                  val selectors: List<String>,
                  val parameters: List<ObjcParameter>,
-                 val swiftName: String,
-                 val isConstructor: Boolean,
-                 val isDesignatedConstructor: Boolean) : Stub<DeclarationDescriptor>(buildMethodName(selectors, parameters), descriptor)
+                 val attributes: List<String>) : Stub<DeclarationDescriptor>(buildMethodName(selectors, parameters), descriptor)
 
 class ObjcParameter(name: String,
                     descriptor: ParameterDescriptor?,

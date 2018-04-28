@@ -231,29 +231,22 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
                 +buildMethod(it, it)
                 if (selector == "init") {
                     //todo no swift name here???
-                    +ObjcMethod(it, false, ObjCInstanceType, listOf("new"), emptyList(), "" , true, false)
-                    //+"+ (instancetype)new OBJC_SWIFT_UNAVAILABLE(\"use object initializers instead\");"
+                    +ObjcMethod(it, false, ObjCInstanceType, listOf("new"), emptyList(),
+                            listOf("availability(swift, unavailable, message=\"use object initializers instead\")"))
                 }
             }
 
             if (descriptor.isArray || descriptor.kind == ClassKind.OBJECT || descriptor.kind == ClassKind.ENUM_CLASS) {
-                //todo attach attributes???
-                +ObjcMethod(null, false, ObjCInstanceType, listOf("alloc"), emptyList(), "init", true, false)
-                //+"+(instancetype)alloc __attribute__((unavailable));"
+                +ObjcMethod(null, false, ObjCInstanceType, listOf("alloc"), emptyList(), listOf("unavailable"))
 
-
-                //todo attributes???
                 val parameter = ObjcParameter("zone", null, ObjcRawType("struct _NSZone *"))
-                +ObjcMethod(descriptor, false, ObjCInstanceType, listOf("allocWithZone"), listOf(parameter), "init", true, false)
-//                +"+(instancetype)allocWithZone:(struct _NSZone *)zone __attribute__((unavailable));"
-
+                +ObjcMethod(descriptor, false, ObjCInstanceType, listOf("allocWithZone"), listOf(parameter), listOf("unavailable"))
             }
 
             // TODO: consider adding exception-throwing impls for these.
             when (descriptor.kind) {
                 ClassKind.OBJECT -> {
-                    +ObjcMethod(null, false, ObjCInstanceType, listOf(namer.getObjectInstanceSelector(descriptor)), emptyList(), "init", true, false)
-//                    +"+(instancetype)${namer.getObjectInstanceSelector(descriptor)} NS_SWIFT_NAME(init());"
+                    +ObjcMethod(null, false, ObjCInstanceType, listOf(namer.getObjectInstanceSelector(descriptor)), emptyList(), listOf("swift_name(init())"))
                 }
                 ClassKind.ENUM_CLASS -> {
                     val type = mapType(descriptor.defaultType, ReferenceBridge)
@@ -274,12 +267,12 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
                 val selector = getSelector(it)
                 if (selector !in presentConstructors) {
                     //todo attach attributes???
-//                    +"${buildMethod(it, it)} __attribute__((unavailable));"
+                    val c = buildMethod(it, it)
+                    +ObjcMethod(c.descriptor, c.isInstanceMethod, c.returnType, c.selectors, c.parameters, c.attributes + "unavailable")
+
 
                     if (selector == "init") {
-                        //todo attach attributes
-                        +ObjcMethod(null, false, ObjCInstanceType, listOf("new"), emptyList(), "init", true, false)
-//                        +"+(instancetype) new __attribute__((unavailable));"
+                        +ObjcMethod(null, false, ObjCInstanceType, listOf("new"), emptyList(), listOf("unavailable"))
                     }
 
                     // TODO: consider adding exception-throwing impls for these.
@@ -454,20 +447,15 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
         val parameters = collectParameters(baseMethodBridge, method)
         val selectorParts: List<String> = getSelector(baseMethod).trimEnd(':').split(':')
         val swiftName = namer.getSwiftName(baseMethod)
-        val isConstructor = method is ConstructorDescriptor
-        // TODO: check baseMethodBridge instead.
-        val isDesignatedConstructor = method is ConstructorDescriptor && !method.constructedClass.isArray
-        // TODO: consider adding swift_error attribute.
+        val attributes = mutableListOf<String>()
 
-        return ObjcMethod(
-                method,
-                isInstanceMethod,
-                returnType,
-                selectorParts,
-                parameters,
-                swiftName,
-                isConstructor,
-                isDesignatedConstructor)
+        attributes += "swift_name($swiftName)"
+
+        if (method is ConstructorDescriptor && !method.constructedClass.isArray) { // TODO: check methodBridge instead.
+            attributes += "objc_designated_initializer"
+        }
+
+        return ObjcMethod(method, isInstanceMethod, returnType, selectorParts, parameters, attributes)
     }
 
     private val methodsWithThrowAnnotationConsidered = mutableSetOf<FunctionDescriptor>()
