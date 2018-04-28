@@ -47,10 +47,10 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
 
     internal val namer = ObjCExportNamer(moduleDescriptor, builtIns, mapper)
 
-    val generatedClasses = mutableSetOf<ClassDescriptor>()
-    val topLevel = mutableMapOf<FqName, MutableList<CallableMemberDescriptor>>()
+    internal val generatedClasses = mutableSetOf<ClassDescriptor>()
+    internal val topLevel = mutableMapOf<FqName, MutableList<CallableMemberDescriptor>>()
 
-    internal val customTypeMappers: Map<ClassDescriptor, CustomTypeMapper> = with(builtIns) {
+    private val customTypeMappers: Map<ClassDescriptor, CustomTypeMapper> = with(builtIns) {
         val result = mutableListOf<CustomTypeMapper>()
 
         val generator = this@ObjCExportHeaderGenerator
@@ -558,9 +558,9 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
         add("NS_ASSUME_NONNULL_END")
     }
 
-    abstract fun reportCompilationWarning(text: String)
+    protected abstract fun reportCompilationWarning(text: String)
 
-    abstract fun reportError(method: FunctionDescriptor, text: String)
+    protected abstract fun reportError(method: FunctionDescriptor, text: String)
 
     internal fun mapReferenceType(kotlinType: KotlinType): ObjCReferenceType =
             mapReferenceTypeIgnoringNullability(kotlinType).let {
