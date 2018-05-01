@@ -29,12 +29,13 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.module
 import org.jetbrains.kotlin.resolve.descriptorUtil.parentsWithSelf
 
 internal class ObjCExportNamer(val moduleDescriptor: ModuleDescriptor,
-                               val builtIns: KotlinBuiltIns,
-                               val mapper: ObjCExportMapper) {
+        val builtIns: KotlinBuiltIns,
+        val mapper: ObjCExportMapper,
+        private val topLevelNamePrefix: String = moduleDescriptor.namePrefix
+    ) {
     val kotlinAnyName = "KotlinBase"
 
     private val commonPackageSegments = moduleDescriptor.guessMainPackage().pathSegments()
-    private val topLevelNamePrefix = moduleDescriptor.namePrefix
 
     val mutableSetName = "${topLevelNamePrefix}MutableSet"
     val mutableMapName = "${topLevelNamePrefix}MutableDictionary"
@@ -441,7 +442,7 @@ private fun ObjCExportMapper.canHaveSameName(first: PropertyDescriptor, second: 
     return bridgePropertyType(first) == bridgePropertyType(second)
 }
 
-private val ModuleDescriptor.namePrefix: String get() {
+internal val ModuleDescriptor.namePrefix: String get() {
     // <fooBar> -> FooBar
     val moduleName = this.name.asString().let { it.substring(1, it.lastIndex) }.capitalize()
 

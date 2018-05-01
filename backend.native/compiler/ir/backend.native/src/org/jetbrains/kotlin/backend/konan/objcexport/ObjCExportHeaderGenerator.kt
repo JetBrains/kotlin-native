@@ -32,8 +32,11 @@ import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.typeUtil.supertypes
 import org.jetbrains.kotlin.utils.addIfNotNull
 
-abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
-                                         val builtIns: KotlinBuiltIns) {
+abstract class ObjCExportHeaderGenerator(
+        val moduleDescriptor: ModuleDescriptor,
+        val builtIns: KotlinBuiltIns,
+        topLevelNamePrefix: String = moduleDescriptor.namePrefix
+) {
     internal val mapper: ObjCExportMapper = object : ObjCExportMapper() {
         override fun getCategoryMembersFor(descriptor: ClassDescriptor) =
                 extensions[descriptor].orEmpty()
@@ -45,7 +48,7 @@ abstract class ObjCExportHeaderGenerator(val moduleDescriptor: ModuleDescriptor,
         }
     }
 
-    internal val namer = ObjCExportNamer(moduleDescriptor, builtIns, mapper)
+    internal val namer = ObjCExportNamer(moduleDescriptor, builtIns, mapper, topLevelNamePrefix)
 
     internal val generatedClasses = mutableSetOf<ClassDescriptor>()
     internal val topLevel = mutableMapOf<FqName, MutableList<CallableMemberDescriptor>>()
