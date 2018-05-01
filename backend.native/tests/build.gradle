@@ -440,6 +440,121 @@ task codegen_controlflow_for_loops_call_order(type: RunKonanTest) {
     goldValue = "1234\n1234\n2134\n"
 }
 
+task for_loops_lowering_test1(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test1.out")
+    source = "codegen/controlflow/for_loops_lowering/test1.kt"
+}
+
+task for_loops_lowering_test2(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test2.out")
+    source = "codegen/controlflow/for_loops_lowering/test2.kt"
+}
+
+task for_loops_lowering_test3(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test3.out")
+    source = "codegen/controlflow/for_loops_lowering/test3.kt"
+}
+
+task for_loops_lowering_test4(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test4.out")
+    source = "codegen/controlflow/for_loops_lowering/test4.kt"
+}
+
+task for_loops_lowering_test5(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test5.out")
+    source = "codegen/controlflow/for_loops_lowering/test5.kt"
+}
+
+task for_loops_lowering_test6(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test6.out")
+    source = "codegen/controlflow/for_loops_lowering/test6.kt"
+}
+
+task for_loops_lowering_test7(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test7.out")
+    source = "codegen/controlflow/for_loops_lowering/test7.kt"
+}
+
+task for_loops_lowering_test8(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test8.out")
+    source = "codegen/controlflow/for_loops_lowering/test8.kt"
+}
+
+task for_loops_lowering_test9(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test9.out")
+    source = "codegen/controlflow/for_loops_lowering/test9.kt"
+}
+
+task for_loops_lowering_test10(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test10.out")
+    source = "codegen/controlflow/for_loops_lowering/test10.kt"
+}
+
+task for_loops_lowering_test11(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test11.out")
+    source = "codegen/controlflow/for_loops_lowering/test11.kt"
+}
+
+task for_loops_lowering_test12(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test12.out")
+    source = "codegen/controlflow/for_loops_lowering/test12.kt"
+}
+
+task for_loops_lowering_test13(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test13.out")
+    source = "codegen/controlflow/for_loops_lowering/test13.kt"
+}
+
+task for_loops_lowering_test14(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test14.out")
+    source = "codegen/controlflow/for_loops_lowering/test14.kt"
+}
+
+task for_loops_lowering_test15(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test15.out")
+    source = "codegen/controlflow/for_loops_lowering/test15.kt"
+}
+
+task for_loops_lowering_test16(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test16.out")
+    source = "codegen/controlflow/for_loops_lowering/test16.kt"
+}
+
+task for_loops_lowering_test17(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test17.out")
+    source = "codegen/controlflow/for_loops_lowering/test17.kt"
+}
+
+task for_loops_lowering_test18(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test18.out")
+    source = "codegen/controlflow/for_loops_lowering/test18.kt"
+}
+
+task for_loops_lowering_test19(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test19.out")
+    source = "codegen/controlflow/for_loops_lowering/test19.kt"
+}
+
+task for_loops_lowering_test20(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test20.out")
+    source = "codegen/controlflow/for_loops_lowering/test20.kt"
+}
+
+task for_loops_lowering_test21(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test21.out")
+    source = "codegen/controlflow/for_loops_lowering/test21.kt"
+}
+
+task for_loops_lowering_test22(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test22.out")
+    source = "codegen/controlflow/for_loops_lowering/test22.kt"
+}
+
+task for_loops_lowering_test23(type: RunKonanTest) {
+    goldFromFile("codegen/controlflow/for_loops_lowering/test23.out")
+    source = "codegen/controlflow/for_loops_lowering/test23.kt"
+}
+
 task local_variable(type: RunKonanTest) {
     source = "codegen/basics/local_variable.kt"
 }
@@ -2731,3 +2846,5 @@ task buildKonanTests(type: BuildKonanTest) {
                 }
             }
 }
+
+

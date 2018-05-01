@@ -220,6 +220,10 @@ fun handleExceptionContinuation(x: (Throwable) -> Unit): Continuation<Any?> = ob
         project.file(file).write(text)
     }
 
+    void goldFromFile(Object obj) {
+        goldValue = project.file(obj).text
+    }
+
     @TaskAction
     void executeTest() {
         if (!enabled) {
