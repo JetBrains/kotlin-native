@@ -89,20 +89,22 @@ private fun ValueType.initCache(context: Context, cacheName: String,
             .setConstant(true)
     val staticData = context.llvm.staticData
     val values = (start..end).map { staticData.createInitializer(kotlinType, createConstant(it)) }
-    val llvmBoxType = structType(context.llvm.runtime.objHeaderType, this.llvmType)
+    val llvmBoxType = structType(context.llvm.runtime.objHeaderType, this.llvmMemoryType)
     staticData.placeGlobalConstArray(cacheName, llvmBoxType, values, true).llvm
 }
 
-private fun ValueType.createConstant(value: Int) =
-    constValue(when (this) {
-        ValueType.BOOLEAN   -> LLVMConstInt(LLVMInt1Type(),  (value > 0).toByte().toLong(), 1)!!
-        ValueType.BYTE      -> LLVMConstInt(LLVMInt8Type(),  value.toByte().toLong(),  1)!!
-        ValueType.CHAR      -> LLVMConstInt(LLVMInt16Type(), value.toChar().toLong(),  0)!!
-        ValueType.SHORT     -> LLVMConstInt(LLVMInt16Type(), value.toShort().toLong(), 1)!!
-        ValueType.INT       -> LLVMConstInt(LLVMInt32Type(), value.toLong(),   1)!!
-        ValueType.LONG      -> LLVMConstInt(LLVMInt64Type(), value.toLong(),             1)!!
+private fun ValueType.createConstant(value: Int): ConstValue {
+    val (longValue, signExtend) = when (this) {
+        ValueType.BOOLEAN   -> (value > 0).toByte().toLong()    to 0
+        ValueType.BYTE      -> value.toByte().toLong()          to 1
+        ValueType.CHAR      -> value.toChar().toLong()          to 0
+        ValueType.SHORT     -> value.toShort().toLong()         to 1
+        ValueType.INT       -> value.toLong()                   to 1
+        ValueType.LONG      -> value.toLong()                   to 1
         else                -> error("Cannot box value of type $this")
-    })
+    }
+    return constValue(LLVMConstInt(this.llvmMemoryType, longValue, signExtend)!!)
+}
 
 // When start is greater than end then `inRange` check is always false
 // and can be eliminated by LLVM.

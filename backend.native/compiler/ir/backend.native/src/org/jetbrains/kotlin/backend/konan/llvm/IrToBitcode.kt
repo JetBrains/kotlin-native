@@ -143,6 +143,7 @@ internal fun verifyModule(llvmModule: LLVMModuleRef, current: String = "") {
                 llvmModule, LLVMVerifierFailureAction.LLVMPrintMessageAction, errorRef.ptr) == 1) {
             if (current.isNotEmpty())
                 println("Error in $current")
+            // TODO: Consider dump to file instead of stdout
             LLVMDumpModule(llvmModule)
             throw Error("Invalid module")
         }
@@ -740,17 +741,28 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         debugFieldDeclaration(declaration)
         val descriptor = declaration
         if (context.needGlobalInit(declaration)) {
-            val type = codegen.getLLVMType(descriptor.type)
+            val type = codegen.getLLVMMemoryType(descriptor.type)
             val globalProperty = context.llvmDeclarations.forStaticField(descriptor).storage
             val initializer = declaration.initializer?.expression as? IrConst<*>
-            if (initializer != null)
-                LLVMSetInitializer(globalProperty, evaluateExpression(initializer))
-            else
-                LLVMSetInitializer(globalProperty, LLVMConstNull(type))
+            val initialValue = if (initializer != null) {
+                evaluateConstOfMemoryType(initializer)
+            } else {
+                LLVMConstNull(type)
+            }
+            LLVMSetInitializer(globalProperty, initialValue)
             context.llvm.fileInitializers.add(declaration)
 
             // (Cannot do this before the global is initialized).
             LLVMSetLinkage(globalProperty, LLVMLinkage.LLVMInternalLinkage)
+        }
+    }
+
+    private fun evaluateConstOfMemoryType(const: IrConst<*>): LLVMValueRef {
+        return if (const.kind == IrConstKind.Boolean) {
+            val value = if (const.value == true) 1L else 0L
+            LLVMConstInt(ValueType.BOOLEAN.llvmMemoryType, value, 0)!!
+        } else {
+            evaluateConst(const)
         }
     }
 
@@ -1332,8 +1344,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         val srcObjInfoPtr = functionGenerationContext.bitcast(codegen.kObjHeaderPtr, obj)                // Cast src to ObjInfoPtr.
         val args          = listOf(srcObjInfoPtr, dstTypeInfo)                         // Create arg list.
 
-        val result = call(context.llvm.isInstanceFunction, args)                       // Check if dst is subclass of src.
-        return LLVMBuildTrunc(functionGenerationContext.builder, result, kInt1, "")!!             // Truncate result to boolean
+        return call(context.llvm.isInstanceFunction, args)                       // Check if dst is subclass of src.
     }
 
     private fun genInstanceOfObjC(obj: LLVMValueRef, dstClass: IrClass): LLVMValueRef {
@@ -1345,13 +1356,13 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
         return if (dstClass.isObjCClass()) {
             if (dstClass.isInterface) {
-                val isMeta = if (dstClass.isObjCMetaClass()) Int8(1) else Int8(0)
+                val isMeta = if (dstClass.isObjCMetaClass()) kTrue else kFalse
                 call(
                         context.llvm.Kotlin_Interop_DoesObjectConformToProtocol,
                         listOf(
                                 objCObject,
                                 genGetObjCProtocol(dstClass),
-                                isMeta.llvm
+                                isMeta
                         )
                 )
             } else {
@@ -1360,7 +1371,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                         listOf(objCObject, genGetObjCClass(dstClass))
                 )
             }.let {
-                functionGenerationContext.icmpNe(it, Int8(0).llvm)
+                functionGenerationContext.icmpNe(it, kFalse)
             }
 
 
@@ -1393,23 +1404,23 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     private fun evaluateGetField(value: IrGetField): LLVMValueRef {
         context.log{"evaluateGetField               : ${ir2string(value)}"}
-        if (value.descriptor.dispatchReceiverParameter != null) {
+        val loadedValue = if (value.descriptor.dispatchReceiverParameter != null) {
             val thisPtr = evaluateExpression(value.receiver!!)
-            return functionGenerationContext.loadSlot(
-                    fieldPtrOfClass(thisPtr, value.symbol.owner), value.descriptor.isVar())
-        }
-        else {
-            assert (value.receiver == null)
+            functionGenerationContext.loadSlot(
+                    fieldPtrOfClass(thisPtr, value.symbol.owner), value.descriptor.isVar)
+        } else {
+            assert(value.receiver == null)
             val ptr = context.llvmDeclarations.forStaticField(value.symbol.owner).storage
-            return functionGenerationContext.loadSlot(ptr, value.descriptor.isVar())
+            functionGenerationContext.loadSlot(ptr, value.descriptor.isVar)
         }
+        return functionGenerationContext.fromMemoryType(loadedValue, codegen.getLLVMType(value.type))
     }
 
     //-------------------------------------------------------------------------//
 
     private fun evaluateSetField(value: IrSetField): LLVMValueRef {
         context.log{"evaluateSetField               : ${ir2string(value)}"}
-        val valueToAssign = evaluateExpression(value.value)
+        val valueToAssign = functionGenerationContext.toMemoryType(evaluateExpression(value.value))
         if (value.descriptor.dispatchReceiverParameter != null) {
             val thisPtr = evaluateExpression(value.receiver!!)
             functionGenerationContext.call(context.llvm.mutationCheck,

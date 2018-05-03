@@ -2646,6 +2646,7 @@ task produce_dynamic(type: DynamicKonanTest) {
     source = "produce_dynamic/simple/hello.kt"
     cSource = "$projectDir/produce_dynamic/simple/main.c"
     goldValue = "Hello, dynamic!\n" +
+                "true\n" +
                 "Base.foo\n" +
                 "Base.fooParam: a 1\n" +
                 "Child.fooParam: b 2\n" +

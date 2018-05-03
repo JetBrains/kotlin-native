@@ -5,6 +5,11 @@ fun hello() {
     println("Hello, dynamic!")
 }
 
+
+fun printBoolean(arg: Boolean) {
+    println(arg)
+}
+
 fun getString() = "Kotlin/Native"
 
 // Class with inheritance.
