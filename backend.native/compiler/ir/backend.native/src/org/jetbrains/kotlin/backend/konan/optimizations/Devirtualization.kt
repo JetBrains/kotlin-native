@@ -328,8 +328,8 @@ internal object Devirtualization {
                         DEBUG_OUTPUT(1) { println("Adding return type as it is final") }
 
                         addInstantiatingClass(resolvedReturnType)
-                    } else if (entryPoint != null) {
-                        // For a final binary assume that all possible inheritors of return type are possible.
+                    } else /*if (entryPoint != null) */{
+                        // Assume that all possible inheritors of return type are possible.
                         typeHierarchy.inheritorsOf(resolvedReturnType)
                                 .filterNot { it.isAbstract }
                                 .forEach { addInstantiatingClass(it) }
@@ -786,8 +786,8 @@ internal object Devirtualization {
                             val fictitiousReturnNode = ordinaryNode { "External$resolvedCallee" }
                             if (returnType.isFinal)
                                 concreteClass(returnType).addEdge(fictitiousReturnNode)
-                            else if (entryPoint == null)
-                                constraintGraph.virtualNode.addEdge(fictitiousReturnNode)
+//                            else if (entryPoint == null)
+//                                constraintGraph.virtualNode.addEdge(fictitiousReturnNode)
                             else {
                                 typeHierarchy.inheritorsOf(returnType)
                                         .filterNot { it.isAbstract }
