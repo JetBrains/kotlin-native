@@ -416,29 +416,33 @@ internal object Devirtualization {
                 val prevFront = front
                 front = mutableListOf()
                 for (from in prevFront) {
-                    for (to in from.reversedEdges) {
-                        if (!visited.contains(to) && to.types[type]) {
-                            visited.add(to)
-                            prev[to] = from
-                            front.add(to)
-                            if (to is Node.Source) {
-                                source = to
-                                break@bfs
+                    val reversedEdges = from.reversedEdges
+                    if (reversedEdges != null)
+                        for (to in reversedEdges) {
+                            if (!visited.contains(to) && to.types[type]) {
+                                visited.add(to)
+                                prev[to] = from
+                                front.add(to)
+                                if (to is Node.Source) {
+                                    source = to
+                                    break@bfs
+                                }
                             }
                         }
-                    }
-                    for (castEdge in from.reversedCastEdges) {
-                        val to = castEdge.node
-                        if (!visited.contains(to) && castEdge.suitableTypes[type] && to.types[type]) {
-                            visited.add(to)
-                            prev[to] = from
-                            front.add(to)
-                            if (to is Node.Source) {
-                                source = to
-                                break@bfs
+                    val reversedCastEdges = from.reversedCastEdges
+                    if (reversedCastEdges != null)
+                        for (castEdge in reversedCastEdges) {
+                            val to = castEdge.node
+                            if (!visited.contains(to) && castEdge.suitableTypes[type] && to.types[type]) {
+                                visited.add(to)
+                                prev[to] = from
+                                front.add(to)
+                                if (to is Node.Source) {
+                                    source = to
+                                    break@bfs
+                                }
                             }
                         }
-                    }
                 }
             }
             var cur: Node = source
