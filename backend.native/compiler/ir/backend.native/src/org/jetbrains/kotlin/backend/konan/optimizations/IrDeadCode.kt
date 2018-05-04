@@ -46,6 +46,8 @@ internal class IrDeadCode(val context: Context, val moduleDFG: ModuleDFG, val ca
         val dfgSymbol = functionMap[declaration]
         if (dfgSymbol== null) return true
         if (neededCallGraphNodes.contains(dfgSymbol)) {
+            println("### dceNEEDED: ${declaration.descriptor} $declaration")
+
             return true
         } else {
             println("### dceNotNeeded: ${declaration.descriptor} $declaration")
@@ -55,6 +57,12 @@ internal class IrDeadCode(val context: Context, val moduleDFG: ModuleDFG, val ca
     }
 
     fun dceNeeded(declaration: IrDeclaration): Boolean {
+        try {
+            println("### considering declaration: ${declaration.name}")
+        } catch (e: Throwable) {
+
+        }
+
         return when (declaration) {
             is IrFunction ->  dceNeededFunction(declaration)
             is IrProperty ->  { // TODO: no this is not generic enough. We need to treat inner functions too. Write a normal transformer?

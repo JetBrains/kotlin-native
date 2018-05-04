@@ -220,10 +220,10 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
         val vtableEntries = context.getVtableBuilder(classDesc).vtableEntries.map {
             val implementation = it.implementation
             if (implementation == null || implementation.isExternalObjCClassMethod() || dceNotNeeded.contains(implementation!!)) {
-                println("### omitted from vtable: ${it.descriptor} ${it.descriptor.name}")
+                println("### DCE omitted from vtable: ${it.descriptor} ${it.descriptor.name}")
                 NullPointer(int8Type)
             } else {
-                println("### preserved in vtable: ${it.descriptor} ${it.descriptor.name}")
+                println("### DCE preserved in vtable: ${it.descriptor} ${it.descriptor.name}")
 
                 implementation.entryPointAddress
             }

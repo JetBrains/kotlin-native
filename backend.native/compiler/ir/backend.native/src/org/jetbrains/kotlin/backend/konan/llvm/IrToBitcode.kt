@@ -97,7 +97,10 @@ internal fun emitLLVM(context: Context) {
         val privateFunctions = moduleDFG!!.symbolTable.getPrivateFunctionsTableForExport()
 
         privateFunctions.forEachIndexed { index, it ->
-            if (dceNotNeeded.contains(it)) return@forEachIndexed
+            if (dceNotNeeded.contains(it)) {
+                println("### DCE: skipping private function ${it.name} $it")
+                return@forEachIndexed
+            }
 
             val function = codegenVisitor.codegen.llvmFunction(it)
             LLVMAddAlias(
@@ -124,7 +127,7 @@ internal fun emitLLVM(context: Context) {
     }
 
     phaser.phase(KonanPhase.ESCAPE_ANALYSIS) {
-        val callGraph = CallGraphBuilder(context, moduleDFG!!, externalModulesDFG!!, devirtualizationAnalysisResult, true).build()
+        val callGraph = CallGraphBuilder(context, moduleDFG!!, externalModulesDFG!!, devirtualizationAnalysisResult, false).build()
         context.callGraph = callGraph
 
         EscapeAnalysis.computeLifetimes(moduleDFG!!, externalModulesDFG!!, callGraph, lifetimes)

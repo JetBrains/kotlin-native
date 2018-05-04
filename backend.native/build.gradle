@@ -181,7 +181,7 @@ targetList.each { target ->
         jvmArgs = konanJvmArgs
         args = [*konanArgs,
                 '-output', project(':runtime').file("build/${target}Stdlib"),
-                '-produce', 'library', '-module_name', 'stdlib',
+                '-produce', 'library', '-module_name', 'stdlib', // '--disable', 'dead_code',
                 project(':Interop:Runtime').file('src/main/kotlin'),
                 project(':Interop:Runtime').file('src/native/kotlin'),
                 project(':Interop:JsRuntime').file('src/main/kotlin'),
