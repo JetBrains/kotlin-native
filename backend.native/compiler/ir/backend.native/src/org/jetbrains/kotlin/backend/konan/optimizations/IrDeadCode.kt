@@ -23,9 +23,11 @@ internal class IrDeadCode(val context: Context, val moduleDFG: ModuleDFG, val ca
         callGraph.directEdges.forEach {
             val source = it.key
             result.add(source)
+            println("### ClGr: source: ${source.name}")
+            if (it.value.callSites.isEmpty()) println("### ClGr: ${source.name} -> no destinations")
             it.value.callSites.forEach {
                 val callee = it.actualCallee
-                println("${source.name} -> ${callee.name} ${if (it.isVirtual) "[label=\"virtual\"]" else ""}; ")
+                println("### ClGr: ${source.name} -> ${callee.name} ${if (it.isVirtual) "[label=\"virtual\"]" else ""}; ")
                 result.add(callee)
             }
         }
