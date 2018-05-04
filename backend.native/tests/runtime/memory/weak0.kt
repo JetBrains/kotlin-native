@@ -9,7 +9,7 @@ fun localWeak(): WeakReference<Data>  {
     val x = Data("Hello")
     val weak = WeakReference(x)
 
-    println(weak.kakaka())
+    println(weak.get())
     return weak
 }
 

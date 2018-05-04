@@ -642,6 +642,8 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             //       when passing object as an interface. This way we can use those bits as index
             //       for an additional per-interface vtable.
             val methodHash = codegen.functionHash(descriptor)                       // Calculate hash of the method to be invoked
+
+            println("### ${descriptor.name} in ${owner.name} = ${descriptor.functionName.localHash.value.toString(16)}")
             val lookupArgs = listOf(typeInfoPtr, methodHash)                        // Prepare args for lookup
             call(context.llvm.lookupOpenMethodFunction, lookupArgs)
         }
