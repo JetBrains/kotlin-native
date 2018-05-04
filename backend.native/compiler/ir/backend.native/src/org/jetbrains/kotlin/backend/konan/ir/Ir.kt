@@ -239,6 +239,11 @@ internal class KonanSymbols(context: Context, val symbolTable: SymbolTable): Sym
             .getContributedFunctions(Name.identifier("set"), NoLookupLocation.FROM_BACKEND)
             .single().let { symbolTable.referenceSimpleFunction(it) }
 
+    val arraySize = symbolTable.referenceSimpleFunction(array.descriptor.unsubstitutedMemberScope
+            .getContributedVariables(Name.identifier("size"), NoLookupLocation.FROM_BACKEND)
+            .single().getter!!
+    )
+
     val valuesForEnum = symbolTable.referenceSimpleFunction(
             context.getInternalFunctions("valuesForEnum").single())
 
