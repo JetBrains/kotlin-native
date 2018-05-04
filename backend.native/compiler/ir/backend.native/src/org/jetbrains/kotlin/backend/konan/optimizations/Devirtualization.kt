@@ -78,8 +78,6 @@ internal object Devirtualization {
                     moduleDFG.symbolTable.classMap.values
                             .filterIsInstance<DataFlowIR.Type.Declared>()
                             .flatMap { it.vtable + it.itable.values }
-                            .filterIsInstance<DataFlowIR.FunctionSymbol.Declared>()
-                            .filter { moduleDFG.functions.containsKey(it) }
         // TODO: Are globals inititalizers always called whether they are actually reachable from roots or not?
         val globalInitializers =
                 moduleDFG.functions.keys.filter { it.isGlobalInitializer } +
@@ -457,6 +455,8 @@ internal object Devirtualization {
             val typeHierarchy = TypeHierarchy(symbolTable.classMap.values.filterIsInstance<DataFlowIR.Type.Declared>() +
                                               externalModulesDFG.allTypes)
             val rootSet = computeRootSet(context, moduleDFG, externalModulesDFG)
+                    .filterIsInstance<DataFlowIR.FunctionSymbol.Declared>()
+                    .filter { moduleDFG.functions.containsKey(it) }
 
             val instantiatingClasses =
                     InstantiationsSearcher(functions, rootSet, typeHierarchy).search()
