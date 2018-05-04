@@ -114,8 +114,8 @@ internal class CallGraphBuilder(val context: Context,
         visitedFunctions += symbol
         if (gotoExternal) {
             addNode(symbol)
-            val function = moduleDFG.functions[symbol] ?: externalModulesDFG.functionDFGs[symbol]
-            val body = function!!.body
+            val function = moduleDFG.functions[symbol] ?: externalModulesDFG.functionDFGs[symbol] ?: return
+            val body = function.body
             body.forEachCallSite { call ->
                 val devirtualizedCallSite = (call as? DataFlowIR.Node.VirtualCall)?.let { devirtualizedCallSites?.get(it) }
                 if (devirtualizedCallSite == null) {
@@ -148,7 +148,7 @@ internal class CallGraphBuilder(val context: Context,
             if (function != null)
                 addNode(symbol)
             else {
-                function = externalModulesDFG.functionDFGs[symbol]!!
+                function = externalModulesDFG.functionDFGs[symbol] ?: return
                 local = false
             }
             val body = function.body
