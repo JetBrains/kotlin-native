@@ -399,22 +399,20 @@ abstract class ObjCExportHeaderGenerator(
             attributes += "class"
         }
 
-        val getterSelector = getSelector(baseProperty.getter!!)
-        if (getterSelector != name) {
-            attributes += "getter=$getterSelector"
-        }
-
+        val setterName: String?
         val propertySetter = property.setter
         if (propertySetter != null && mapper.shouldBeExposed(propertySetter)) {
             val setterSelector = mapper.getBaseMethods(propertySetter).map { namer.getSelector(it) }.distinct().single()
-            if (setterSelector != "set" + name.capitalize() + ":") {
-                attributes += "setter=$setterSelector"
-            }
+            setterName = if (setterSelector != "set" + name.capitalize() + ":") setterSelector else null
         } else {
             attributes += "readonly"
+            setterName = null
         }
 
-        return ObjcProperty(name, property, type, attributes)
+        val getterSelector = getSelector(baseProperty.getter!!)
+        val getterName: String? = if (getterSelector != name) getterSelector else null
+
+        return ObjcProperty(name, property, type, attributes, setterName, getterName)
     }
 
     private fun buildMethod(method: FunctionDescriptor, baseMethod: FunctionDescriptor): ObjcMethod {

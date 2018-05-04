@@ -40,7 +40,10 @@ class ObjcParameter(name: String,
 class ObjcProperty(name: String,
                    descriptor: PropertyDescriptor?,
                    val type: ObjCType,
-                   val attributes: List<String>) : Stub<PropertyDescriptor>(name, descriptor)
+                   val attributes: List<String>,
+                   val setterName: String? = null,
+                   val getterName: String? = null) : Stub<PropertyDescriptor>(name, descriptor)
+
 
 private fun buildMethodName(selectors: List<String>, parameters: List<ObjcParameter>): String =
         if (selectors.size == 1 && parameters.size == 0) {

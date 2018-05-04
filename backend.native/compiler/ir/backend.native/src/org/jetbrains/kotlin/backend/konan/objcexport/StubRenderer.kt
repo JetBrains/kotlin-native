@@ -37,10 +37,20 @@ object StubRenderer {
             append(property.type.render())
         }
 
+        fun ObjcProperty.getAllAttributes(): List<String> {
+            if (getterName == null && setterName == null) return attributes
+
+            val allAttributes = attributes.toMutableList()
+            getterName?.let { allAttributes += "getter=$it" }
+            setterName?.let { allAttributes += "setter=$it" }
+            return allAttributes
+        }
+
         fun StringBuilder.appendAttributes() {
-            if (property.attributes.isNotEmpty()) {
+            val attributes = property.getAllAttributes()
+            if (attributes.isNotEmpty()) {
                 append(' ')
-                property.attributes.joinTo(this, prefix = "(", postfix = ")")
+                attributes.joinTo(this, prefix = "(", postfix = ")")
             }
         }
 
