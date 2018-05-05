@@ -139,5 +139,10 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     @Argument(value = "--verify_ir", description = "Verify IR")
     var verifyIr: Boolean = false
 
+    @Argument(value = "--embed_bitcode", description = "embed LLVM bitcode in object files")
+    var embedBitcode: Boolean = false
+
+    @Argument(value = "--embed_bitcode_marker", description = "embed LLVM bitcode marker in object files")
+    var embedBitcodeMarker: Boolean = false
 }
 

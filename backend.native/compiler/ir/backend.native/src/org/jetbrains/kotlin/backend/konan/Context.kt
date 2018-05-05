@@ -389,6 +389,8 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
 
     fun shouldGenerateTestRunner(): Boolean = config.configuration.getBoolean(KonanConfigKeys.GENERATE_TEST_RUNNER)
 
+    fun shouldEmbedBitcode(): EmbedBitcode = config.configuration.get(KonanConfigKeys.EMBED_BITCODE, EmbedBitcode.OFF)
+
     override fun log(message: () -> String) {
         if (phase?.verbose ?: false) {
             println(message())

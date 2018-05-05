@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.konan.target.Family
+
 /*
  * Copyright 2010-2018 JetBrains s.r.o.
  *
@@ -170,11 +172,12 @@ targetList.each { target ->
 
     def defaultArgs = ['-nopack', '-nostdlib', '-nodefaultlibs', '-ea' ]
     if (target != "wasm32") defaultArgs += '-g'
+    if (target == "ios_arm64") defaultArgs += "--embed_bitcode"
+    if (target == "ios_x64") defaultArgs += "--embed_bitcode_marker"
     def konanArgs = [*defaultArgs,
                      '-target', target,
                      '--runtime', project(':runtime').file("build/${target}/runtime.bc"),
                      *project.globalBuildArgs]
-
     task("${target}Stdlib", type: JavaExec) {
         main = 'org.jetbrains.kotlin.cli.bc.K2NativeKt'
         classpath = project.configurations.cli_bc

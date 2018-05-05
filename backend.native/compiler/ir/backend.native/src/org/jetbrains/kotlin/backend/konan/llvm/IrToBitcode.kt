@@ -41,6 +41,7 @@ import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
+import org.jetbrains.kotlin.konan.target.Family
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameUnsafe
 import org.jetbrains.kotlin.types.KotlinType
@@ -132,6 +133,42 @@ internal fun emitLLVM(context: Context) {
 
     if (context.shouldContainDebugInfo()) {
         DIFinalize(context.debugInfo.builder)
+    }
+
+    when (context.shouldEmbedBitcode()) {
+        EmbedBitcode.ON -> embedBitcode(context, marker = false)
+        EmbedBitcode.MARKER -> embedBitcode(context, marker = true)
+        EmbedBitcode.OFF -> {}
+    }
+}
+
+private fun embedBitcode(context: Context, marker: Boolean) {
+    val family = context.config.platform.configurables.target.family
+    val isApple = family == Family.IOS || family == Family.OSX
+
+    val bytes = if (marker) {
+        byteArrayOf()
+    } else {
+        val buffer = LLVMWriteBitcodeToMemoryBuffer(context.llvmModule)
+        LLVMGetBufferStart(buffer)!!.getBytes(LLVMGetBufferSize(buffer))
+    }
+
+    context.llvm.staticData.placeGlobalArray(
+            name = "konan.embedded.module",
+            elemType = int8Type,
+            elements = bytes.map { Int8(it) }
+    ).apply {
+        setSection(if (isApple) "__LLVM,__bitcode" else ".llvmbc")
+        setLinkage(LLVMLinkage.LLVMPrivateLinkage)
+    }
+
+    context.llvm.staticData.placeGlobalArray(
+            name = "konan.embedded.cmdline",
+            elemType = int8Type,
+            elements = emptyList()
+    ).apply {
+        setSection(if (isApple) "__LLVM,__cmdline" else ".llvmcmd")
+        setLinkage(LLVMLinkage.LLVMPrivateLinkage)
     }
 }
 
@@ -362,7 +399,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         if (context.isNativeLibrary) {
             appendCAdapters()
         }
-
     }
 
     //-------------------------------------------------------------------------//
