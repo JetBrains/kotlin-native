@@ -50,5 +50,5 @@ private fun buildMethodName(selectors: List<String>, parameters: List<ObjcParame
             selectors[0]
         } else {
             assert(selectors.size == parameters.size)
-            selectors.joinToString(separator = ":", postfix = ":")
+            selectors.joinToString(separator = "")
         }

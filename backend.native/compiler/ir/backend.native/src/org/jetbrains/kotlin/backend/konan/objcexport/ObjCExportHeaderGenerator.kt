@@ -267,7 +267,7 @@ abstract class ObjCExportHeaderGenerator(
                 +ObjcMethod(null, false, ObjCInstanceType, listOf("alloc"), emptyList(), listOf("unavailable"))
 
                 val parameter = ObjcParameter("zone", null, ObjcRawType("struct _NSZone *"))
-                +ObjcMethod(descriptor, false, ObjCInstanceType, listOf("allocWithZone"), listOf(parameter), listOf("unavailable"))
+                +ObjcMethod(descriptor, false, ObjCInstanceType, listOf("allocWithZone:"), listOf(parameter), listOf("unavailable"))
             }
 
             // TODO: consider adding exception-throwing impls for these.
@@ -470,7 +470,8 @@ abstract class ObjCExportHeaderGenerator(
         val isInstanceMethod: Boolean = baseMethodBridge.isInstance
         val returnType: ObjCType = mapReturnType(baseMethodBridge.returnBridge, method)
         val parameters = collectParameters(baseMethodBridge, method)
-        val selectorParts: List<String> = getSelector(baseMethod).trimEnd(':').split(':')
+        val selector = getSelector(baseMethod)
+        val selectorParts: List<String> = splitSelector(selector)
         val swiftName = namer.getSwiftName(baseMethod)
         val attributes = mutableListOf<String>()
 
@@ -481,6 +482,14 @@ abstract class ObjCExportHeaderGenerator(
         }
 
         return ObjcMethod(method, isInstanceMethod, returnType, selectorParts, parameters, attributes)
+    }
+
+    private fun splitSelector(selector: String): List<String> {
+        return if (!selector.endsWith(":")) {
+            listOf(selector)
+        } else {
+            selector.trimEnd(':').split(':').map { "$it:" }
+        }
     }
 
     private val methodsWithThrowAnnotationConsidered = mutableSetOf<FunctionDescriptor>()

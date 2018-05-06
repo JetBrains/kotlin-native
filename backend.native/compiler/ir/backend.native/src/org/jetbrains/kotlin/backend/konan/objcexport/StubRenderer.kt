@@ -90,7 +90,7 @@ object StubRenderer {
                     val parameter = method.parameters[i]
                     val selector = method.selectors[i]
                     append(selector)
-                    append(": (")
+                    append(" (")
                     append(parameter.type.render())
                     append(") ")
                     append(parameter.name)
