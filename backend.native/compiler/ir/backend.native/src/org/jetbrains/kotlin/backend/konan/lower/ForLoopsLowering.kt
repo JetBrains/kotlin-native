@@ -773,8 +773,16 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
             return expression
         }
 
-        val receiverCall = expression.dispatchReceiver as? IrCall ?: return expression
-        val progressionInfo = receiverCall.accept(ProgressionInfoBuilder(), null) ?: return expression
+        val dispatchReceiverOfCall = expression.dispatchReceiver
+        val extensionReceiverOfCall = expression.extensionReceiver
+        val progressionInfo = when {
+            dispatchReceiverOfCall is IrCall || dispatchReceiverOfCall is IrGetValue ->
+                dispatchReceiverOfCall.accept(ProgressionInfoBuilder(), null) ?: return expression
+            extensionReceiverOfCall is IrCall || extensionReceiverOfCall is IrGetValue ->
+                extensionReceiverOfCall.accept(ProgressionInfoBuilder(), null) ?: return expression
+            else -> return expression
+        }
+
         if (!progressionInfo.isStepOne() || !progressionInfo.isEqualInductionVariableAndLoopVariable) {
             return expression
         }
