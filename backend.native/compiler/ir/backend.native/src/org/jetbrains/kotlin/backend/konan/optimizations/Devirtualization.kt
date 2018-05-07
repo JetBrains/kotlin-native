@@ -454,7 +454,6 @@ internal object Devirtualization {
                                               externalModulesDFG.allTypes)
             val rootSet = computeRootSet(context, moduleDFG, externalModulesDFG)
                     .filterIsInstance<DataFlowIR.FunctionSymbol.Declared>()
-                    .filter { moduleDFG.functions.containsKey(it) }
 
             val instantiatingClasses =
                     InstantiationsSearcher(rootSet, typeHierarchy).search()
