@@ -86,7 +86,6 @@ internal class LinkStage(val context: Context) {
         runTool(absoluteToolName, *arg)
     }
 
-    // TODO: pass different options llvm toolchain
     private fun bitcodeToWasm(bitcodeFiles: List<BitcodeFile>): String {
         val configurables = platform.configurables as WasmConfigurables
 
@@ -219,13 +218,13 @@ internal class LinkStage(val context: Context) {
 
     fun linkStage() {
         val bitcodeFiles = listOf(emitted) +
-                libraries.map { it -> it.bitcodePaths }.flatten()
+                libraries.map { it.bitcodePaths }.flatten()
 
         val includedBinaries =
-                libraries.map { it -> it.includedPaths }.flatten()
+                libraries.map { it.includedPaths }.flatten()
 
         val libraryProvidedLinkerFlags =
-                libraries.map { it -> it.linkerOpts }.flatten()
+                libraries.map { it.linkerOpts }.flatten()
 
         val objectFiles: MutableList<String> = mutableListOf()
 
