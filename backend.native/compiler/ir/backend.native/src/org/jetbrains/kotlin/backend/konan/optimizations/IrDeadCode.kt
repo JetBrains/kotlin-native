@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.backend.common.DeclarationContainerLoweringPass
 import org.jetbrains.kotlin.backend.common.lower.IrBuildingTransformer
 import org.jetbrains.kotlin.backend.common.runOnFilePostfix
 import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.DeadCodeAbortException
 import org.jetbrains.kotlin.backend.konan.lower.PostInlineLowering
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
@@ -28,6 +29,7 @@ internal class IrDeadCode(val context: Context, val moduleDFG: ModuleDFG, val ca
             it.value.callSites.forEach {
                 val callee = it.actualCallee
                 println("### ClGr: ${source.name} -> ${callee.name} ${if (it.isVirtual) "[label=\"virtual\"]" else ""}; ")
+                //if (it.isVirtual) throw DeadCodeAbortException("Virtual callgraph element: ${source.name} -> ${callee.name} ")
                 result.add(callee)
             }
         }
@@ -86,7 +88,11 @@ internal class IrDeadCode(val context: Context, val moduleDFG: ModuleDFG, val ca
     }
 
     fun run() {
-        //if (context.config.produce != CompilerOutputKind.PROGRAM) return
-        context.irModule!!.files.forEach{runOnFilePostfix(it)}
+        try {
+            //if (context.config.produce != CompilerOutputKind.PROGRAM) return
+            context.irModule!!.files.forEach { runOnFilePostfix(it) }
+        } catch (e: DeadCodeAbortException) {
+            println(e.message)
+        }
     }
 }
