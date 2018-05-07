@@ -252,7 +252,6 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
             val bound: IrVariableSymbol,
             val last: IrVariableSymbol,
             val step: IrVariableSymbol,
-            var currentInductionVariable: IrVariableSymbol? = null,
             var loopVariable: IrVariableSymbol? = null)
     {
         // Mean that first, bound and step of the progression
@@ -362,17 +361,16 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
                         context.builtIns.intType,
                         context.builtIns.intType
                 )
-                val callArraySize = irCall(containerSizeSymbol).apply {
-                    dispatchReceiver = exprValuesContainer.copy()
-                }
                 val callArraySize1 = irCall(containerSizeSymbol).apply {
                     dispatchReceiver = exprValuesContainer.copy()
                 }
-                val const1 = IrConstImpl.int(exprValuesContainer.startOffset, exprValuesContainer.endOffset, context.builtIns.intType, 1)
+                val callArraySize2 = irCall(containerSizeSymbol).apply {
+                    dispatchReceiver = exprValuesContainer.copy()
+                }
                 val const0 = IrConstImpl.int(exprValuesContainer.startOffset, exprValuesContainer.endOffset, context.builtIns.intType, 0)
-                val bound = irCallOp(minusOperator, callArraySize, const1)
+                val bound = callArraySize1
                 val isEmpty = irCall(context.irBuiltIns.eqeqSymbol).apply {
-                    putValueArgument(0, callArraySize1)
+                    putValueArgument(0, callArraySize2)
                     putValueArgument(1, const0)
                 }
                 return ProgressionInfo(INT_PROGRESSION, first, bound,
@@ -487,19 +485,6 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
                     statements.add(it)
                 }
 
-                var currentInductionVariable : IrVariable? = null
-                if (!isEqualInductionVariableAndLoopVariable) {
-                    val const5 = IrConstImpl.int(inductionVariable.startOffset, inductionVariable.endOffset,
-                            context.builtIns.intType, 0)
-                    //statements.add(const5)
-                    currentInductionVariable = scope.createTemporaryVariable(const5,
-                            nameHint = "inductionVariable",
-                            isMutable = true,
-                            origin = IrDeclarationOrigin.FOR_LOOP_IMPLICIT_VARIABLE).also {
-                        statements.add(it)
-                    }
-                }
-
                 val boundValue = scope.createTemporaryVariable(bound.castIfNecessary(progressionType),
                         nameHint = "bound",
                         origin = IrDeclarationOrigin.FOR_LOOP_IMPLICIT_VARIABLE)
@@ -547,9 +532,7 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
                         inductionVariable.symbol,
                         boundValue.symbol,
                         lastValue.symbol,
-                        stepValue.symbol,
-                        currentInductionVariable =  if (currentInductionVariable == null) null
-                                                    else currentInductionVariable.symbol)
+                        stepValue.symbol)
 
                 return IrCompositeImpl(startOffset, endOffset, context.builtIns.unitType, null, statements)
             }
@@ -575,30 +558,19 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
             val increment = irSetVar(forLoopInfo.inductionVariable,
                     irCallOp(plusOperator, irGet(forLoopInfo.inductionVariable), irGet(forLoopInfo.step)))
 
-            if (forLoopInfo.isEqualsInductionVariableAndLoopVariable) {
-                forLoopInfo.currentInductionVariable = forLoopInfo.loopVariable // in simple case
-
-                variable.initializer = irGet(forLoopInfo.inductionVariable)
-
-                return IrCompositeImpl(variable.startOffset,
-                        variable.endOffset,
-                        context.irBuiltIns.unit,
-                        IrStatementOrigin.FOR_LOOP_NEXT,
-                        listOf(variable, increment))
+            variable.initializer = if (forLoopInfo.isEqualsInductionVariableAndLoopVariable) {
+                irGet(forLoopInfo.inductionVariable)
             } else {
-                val setCurrentIterator = irSetVar(forLoopInfo.currentInductionVariable!!,
-                        irGet(forLoopInfo.inductionVariable))
-                variable.initializer = irCall(symbols.arrayGet).apply {
-                    //dispatchReceiver = irGet(forLoopInfo.varValuesContainer!!.symbol)
+                irCall(symbols.arrayGet).apply {
                     dispatchReceiver = forLoopInfo.exprValuesContainer!!.copy()
-                    putValueArgument(0, irGet(forLoopInfo.currentInductionVariable!!))
+                    putValueArgument(0, irGet(forLoopInfo.inductionVariable))
                 }
-                return IrCompositeImpl(variable.startOffset,
-                        variable.endOffset,
-                        context.irBuiltIns.unit,
-                        IrStatementOrigin.FOR_LOOP_NEXT,
-                        listOf(setCurrentIterator, variable, increment))
             }
+            return IrCompositeImpl(variable.startOffset,
+                    variable.endOffset,
+                    context.irBuiltIns.unit,
+                    IrStatementOrigin.FOR_LOOP_NEXT,
+                    listOf(variable, increment))
         }
 
     }
@@ -689,11 +661,16 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
         val irIteratorAccess = oldCondition.dispatchReceiver as? IrGetValue ?: throw AssertionError()
         // Return null if we didn't lower a corresponding header.
         val forLoopInfo = iteratorToLoopInfo[irIteratorAccess.symbol] ?: return null
-        assert(forLoopInfo.currentInductionVariable != null)
 
+        val comparingWithLast = if (forLoopInfo.isEqualsInductionVariableAndLoopVariable) {
+            irGet(forLoopInfo.loopVariable!!)
+        }
+        else {
+            irGet(forLoopInfo.inductionVariable)
+        }
         return irCall(context.irBuiltIns.booleanNotSymbol).apply {
             val eqeqCall = irCall(context.irBuiltIns.eqeqSymbol).apply {
-                putValueArgument(0, irGet(forLoopInfo.currentInductionVariable!!))
+                putValueArgument(0, comparingWithLast)
                 putValueArgument(1, irGet(forLoopInfo.last))
             }
             putValueArgument(0, eqeqCall)
