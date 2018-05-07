@@ -23,10 +23,7 @@ import org.jetbrains.kotlin.backend.konan.descriptors.isInterface
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.*
 import org.jetbrains.kotlin.backend.konan.isObjCClass
 import org.jetbrains.kotlin.backend.konan.isValueType
-import org.jetbrains.kotlin.backend.konan.llvm.functionName
-import org.jetbrains.kotlin.backend.konan.llvm.isExported
-import org.jetbrains.kotlin.backend.konan.llvm.localHash
-import org.jetbrains.kotlin.backend.konan.llvm.symbolName
+import org.jetbrains.kotlin.backend.konan.llvm.*
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
@@ -45,6 +42,46 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.typeUtil.immediateSupertypes
+
+private val symbolNameAnnotation = FqName("konan.SymbolName")
+
+private val exportForCppRuntimeAnnotation = FqName("konan.internal.ExportForCppRuntime")
+
+private val cnameAnnotation = FqName("konan.internal.CName")
+
+private val exportForCompilerAnnotation = FqName("konan.internal.ExportForCompiler")
+
+/**
+ * Defines whether the declaration is exported, i.e. visible from other modules.
+ *
+ * Exported declarations must have predictable and stable ABI
+ * that doesn't depend on any internal transformations (e.g. IR lowering),
+ * and so should be computable from the descriptor itself without checking a backend state.
+ */
+private tailrec fun DeclarationDescriptor.hasSpecialHackAnnotation(): Boolean {
+    if (this.annotations.findAnnotation(symbolNameAnnotation) != null) {
+        // Treat any `@SymbolName` declaration as exported.
+        return true
+    }
+    if (this.annotations.findAnnotation(exportForCppRuntimeAnnotation) != null) {
+        // Treat any `@ExportForCppRuntime` declaration as exported.
+        return true
+    }
+    if (this.annotations.findAnnotation(cnameAnnotation) != null) {
+        // Treat `@CName` declaration as exported.
+        return true
+    }
+    if (this.annotations.hasAnnotation(exportForCompilerAnnotation)) {
+        return true
+    }
+
+    val parent = this.parent
+    if (parent is IrDeclaration) {
+        return parent.hasSpecialHackAnnotation()
+    }
+
+    return true
+}
 
 internal object DataFlowIR {
 
@@ -529,6 +566,8 @@ internal object DataFlowIR {
                     }
 
                     is FunctionDescriptor -> {
+                        // TODO: Create separate attribute.
+                        val hasSpecialHackAnnotation = it.hasSpecialHackAnnotation()
                         val name = if (it.isExported()) it.symbolName else it.internalName
                         val numberOfParameters = it.allParameters.size + if (it.isSuspend) 1 else 0
                         if (it.module != irModule.descriptor || it.isExternal || (it.origin == IrDeclarationOrigin.IR_BUILTINS_STUB)) {
@@ -538,7 +577,7 @@ internal object DataFlowIR {
                             val escapesBitMask = (escapesAnnotation?.allValueArguments?.get(escapesWhoDescriptor.name) as? ConstantValue<Int>)?.value
                             @Suppress("UNCHECKED_CAST")
                             val pointsToBitMask = (pointsToAnnotation?.allValueArguments?.get(pointsToOnWhomDescriptor.name) as? ConstantValue<List<IntValue>>)?.value
-                            FunctionSymbol.External(name.localHash.value, numberOfParameters, false, escapesBitMask,
+                            FunctionSymbol.External(name.localHash.value, numberOfParameters, hasSpecialHackAnnotation, escapesBitMask,
                                     pointsToBitMask?.let { it.map { it.value }.toIntArray() }, takeName { name })
                         } else {
                             val isAbstract = it is SimpleFunctionDescriptor && it.modality == Modality.ABSTRACT
@@ -548,9 +587,9 @@ internal object DataFlowIR {
                                     && (it.isOverridableOrOverrides || it.name.asString().contains("<bridge-") || !classDescriptor.isFinal())
                             val symbolTableIndex = if (placeToFunctionsTable) module.numberOfFunctions++ else -1
                             if (it.isExported())
-                                FunctionSymbol.Public(name.localHash.value, numberOfParameters, module, symbolTableIndex, false, takeName { name })
+                                FunctionSymbol.Public(name.localHash.value, numberOfParameters, module, symbolTableIndex, hasSpecialHackAnnotation, takeName { name })
                             else
-                                FunctionSymbol.Private(privateFunIndex++, numberOfParameters, module, symbolTableIndex, false, takeName { name })
+                                FunctionSymbol.Private(privateFunIndex++, numberOfParameters, module, symbolTableIndex, hasSpecialHackAnnotation, takeName { name })
                         }
                     }
 
