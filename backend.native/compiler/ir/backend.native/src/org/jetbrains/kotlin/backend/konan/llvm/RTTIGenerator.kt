@@ -105,9 +105,9 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
             "kotlin.CharArray"          to LLVMInt16Type()!!,
             "kotlin.ShortArray"         to LLVMInt16Type()!!,
             "kotlin.IntArray"           to LLVMInt32Type()!!,
-            "kotlin.LongArray"          to LLVMInt32Type()!!,
+            "kotlin.LongArray"          to LLVMInt64Type()!!,
             "kotlin.FloatArray"         to LLVMFloatType()!!,
-            "kotlin.DoubleArray"        to LLVMFloatType()!!,
+            "kotlin.DoubleArray"        to LLVMDoubleType()!!,
             "kotlin.BooleanArray"       to LLVMInt8Type()!!,
             "kotlin.String"             to LLVMInt16Type()!!,
             "konan.ImmutableBinaryBlob" to LLVMInt8Type()!!
