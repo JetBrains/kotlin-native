@@ -48,4 +48,3 @@ class WeakReference<T : Any> {
  * Returns either reference to an object or null, if it was collected.
  */
 public inline fun <reified T : Any> WeakReference<T>.get() = pointer?.get() as T?
-public inline fun <reified T : Any> WeakReference<T>.kakaka() = pointer?.get() as T?

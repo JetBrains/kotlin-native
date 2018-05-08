@@ -27,9 +27,3 @@ class KonanCompilationException(message: String = "", cause: Throwable? = null) 
  * Internal compiler error: could not deserialize IR for inline function body.
  */
 class KonanIrDeserializationException(message: String = "", cause: Throwable? = null) : KonanException(message, cause)
-
-/**
- * The dead code elimination phase has encountered a bad call graph
- */
-class DeadCodeAbortException(message: String = "", cause: Throwable? = null) : KonanException(message, cause)
-

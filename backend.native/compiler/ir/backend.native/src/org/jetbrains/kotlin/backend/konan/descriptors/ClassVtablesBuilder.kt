@@ -87,7 +87,7 @@ internal class OverriddenFunctionDescriptor(
 }
 
 internal class ClassVtablesBuilder(val classDescriptor: ClassDescriptor, val context: Context) {
-    private val DEBUG = 1
+    private val DEBUG = 0
 
     private inline fun DEBUG_OUTPUT(severity: Int, block: () -> Unit) {
         if (DEBUG > severity) block()

@@ -83,22 +83,21 @@ internal fun emitLLVM(context: Context) {
 
     @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
     var devirtualizationAnalysisResult: Devirtualization.AnalysisResult? = null
-    phaser.phase(KonanPhase.DEVIRTUALIZATION) {
+    phaser.phase(KonanPhase.DEVIRT_ANALYSIS) {
         devirtualizationAnalysisResult = Devirtualization.run(irModule, context, moduleDFG!!, externalModulesDFG!!)
     }
 
     phaser.phase(KonanPhase.DEAD_CODE) {
         val callGraph = CallGraphBuilder(context, moduleDFG!!, externalModulesDFG!!, devirtualizationAnalysisResult, true).build()
-
         IrDeadCode(context, moduleDFG!!, callGraph).run()
     }
 
-    phaser.phase(KonanPhase.DEVIRTUALIZATION2) {
+    phaser.phase(KonanPhase.DEVIRTUALIZATION) {
         val privateFunctions = moduleDFG!!.symbolTable.getPrivateFunctionsTableForExport()
 
         privateFunctions.forEachIndexed { index, it ->
             if (dceNotNeeded.contains(it)) {
-                println("### DCE: skipping private function ${it.name} $it")
+                // println("### DCE: skipping private function ${it.name} $it")
                 return@forEachIndexed
             }
 
@@ -824,21 +823,13 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     //-------------------------------------------------------------------------//
 
-    private fun evaluateGetObjectValue(value: IrGetObjectValue): LLVMValueRef {
-      /*  println("### getObjectValue: ")
-        println(value.symbol.owner)
-        println(value.symbol.objectIsShared)
-        println(context.config.threadsAreAllowed)
-        println(currentCodeContext.exceptionHandler)
-        println(value.startLocation)*/
-        println(ir2stringWhole(value))
-        return functionGenerationContext.getObjectValue(
+    private fun evaluateGetObjectValue(value: IrGetObjectValue): LLVMValueRef =
+            functionGenerationContext.getObjectValue(
                 value.symbol.owner,
                 value.symbol.objectIsShared && context.config.threadsAreAllowed,
                 currentCodeContext.exceptionHandler,
                 value.startLocation
-        )
-    }
+            )
 
     //-------------------------------------------------------------------------//
 

@@ -382,8 +382,6 @@ private fun ObjCExportCodeGenerator.generateKotlinFunctionAdapterToBlock(numberO
 
     val invokeImpl = generateKotlinFunctionImpl(invokeMethod.descriptor)
 
-    println("### ObjCExportCodeGenerator.generateKotlinFunctionAdapterToBlock($numberOfParameters)")
-
     return rttiGenerator.generateSyntheticInterfaceImpl(
             irInterface,
             mapOf(invokeMethod to invokeImpl)

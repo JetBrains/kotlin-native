@@ -220,10 +220,10 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
         val vtableEntries = context.getVtableBuilder(classDesc).vtableEntries.map {
             val implementation = it.implementation
             if (implementation == null || implementation.isExternalObjCClassMethod() || dceNotNeeded.contains(implementation!!)) {
-                println("### DCE omitted from vtable: ${it.descriptor} ${it.descriptor.name}")
+                // println("### DCE omitted from vtable: ${it.descriptor} ${it.descriptor.name}")
                 NullPointer(int8Type)
             } else {
-                println("### DCE preserved in vtable: ${it.descriptor} ${it.descriptor.name}")
+                // println("### DCE preserved in vtable: ${it.descriptor} ${it.descriptor.name}")
 
                 implementation.entryPointAddress
             }
@@ -247,10 +247,10 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
             // TODO: compile-time resolution limits binary compatibility
             val implementation = it.implementation
             val methodEntryPoint = if (implementation != null && dceNotNeeded.contains(/*it.descriptor*/implementation)) {
-                println("### omitted from RTTI $implementation ${it.descriptor.name}")
+                // println("### omitted from RTTI $implementation ${it.descriptor.name}")
                 null 
             } else {
-                println("### preserverd in RTTI $implementation ${it.descriptor.name}")
+                // println("### preserverd in RTTI $implementation ${it.descriptor.name}")
                 implementation?.entryPointAddress
             }
             MethodTableRecord(nameSignature, methodEntryPoint)
