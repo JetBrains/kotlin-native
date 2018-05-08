@@ -377,7 +377,7 @@ private fun ObjCExportCodeGenerator.emitFunctionConverters() {
 
 private fun ObjCExportCodeGenerator.generateKotlinFunctionAdapterToBlock(numberOfParameters: Int): ConstPointer {
     val irInterface = context.ir.symbols.functions[numberOfParameters].owner
-    val invobbbkeMethod = irInterface.declarations.filterIsInstance<IrSimpleFunction>()
+    val invokeMethod = irInterface.declarations.filterIsInstance<IrSimpleFunction>()
             .single { it.name == OperatorNameConventions.INVOKE }
 
     val invokeImpl = generateKotlinFunctionImpl(invokeMethod.descriptor)
