@@ -129,4 +129,14 @@ open class KonanLibrariesSpec(val task: KonanArtifactWithLibrariesTask, val proj
     private fun Project.evaluationDependsOn(another: Project) {
         if (this != another) { evaluationDependsOn(another.path) }
     }
+
+    fun asFiles(): List<File> {
+        val result = mutableListOf<File>()
+        files.forEach {
+            result.addAll(it.files)
+        }
+        result.addAll(artifactFiles)
+        // TODO: Support named libraries when https://github.com/JetBrains/kotlin-native/pull/1577 is merged
+        return result
+    }
 }
