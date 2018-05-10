@@ -591,7 +591,7 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
 
     }
 
-    fun buildComparsion(lhs: IrExpression,
+    fun buildComparison(lhs: IrExpression,
                         rhs: IrExpression,
                         type : SimpleType,
                         comparingBuiltins : Map<SimpleType, IrSimpleFunction>) : IrCall
@@ -636,7 +636,7 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
         }
 
         val comparingBuiltins = context.irBuiltIns.greaterFunByOperandType
-        return buildComparsion(irGet(forLoopInfo.bound), minConst, expressionType, comparingBuiltins)
+        return buildComparison(irGet(forLoopInfo.bound), minConst, expressionType, comparingBuiltins)
     }
 
     // TODO: Eliminate the loop if we can prove that it will not be executed.
@@ -656,7 +656,7 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
 
         val comparingBuiltIns = if (increasing) builtIns.lessOrEqualFunByOperandType
                                 else builtIns.greaterOrEqualFunByOperandType
-        val check = buildComparsion(irGet(forLoopInfo.inductionVariable), irGet(forLoopInfo.last),
+        val check = buildComparison(irGet(forLoopInfo.inductionVariable), irGet(forLoopInfo.last),
                     expressionType, comparingBuiltIns)
 
         // Process closed and open ranges in different manners.
@@ -776,6 +776,15 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
             else -> return expression
         }
 
+        // Checking that types is equals
+        assert(progressionInfo.first.type == progressionInfo.bound.type)
+        if (progressionInfo.first.type != expression.getValueArgument(0)!!) {
+            return expression
+        }
+        val comparisonType = progressionInfo.first.type.asSimpleType()
+        // TODO: consider cases with different types
+        // TODO: e.x. (long in int .. int) or (int in long .. long)
+
         if (!progressionInfo.isStepOne() || !progressionInfo.isEqualInductionVariableAndLoopVariable) {
             return expression
         }
@@ -786,6 +795,22 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
             val statements = mutableListOf<IrStatement>()
             val builtIns = context.irBuiltIns
 
+            // Creating variables to ensure correct initialization order
+
+            val varLeft = scope.createTemporaryVariable(progressionInfo.first,
+                    nameHint = "variable to compare",
+                    isMutable = false,
+                    origin = IrDeclarationOrigin.IR_TEMPORARY_VARIABLE).also {
+                statements.add(it)
+            }.symbol
+
+            val varRight = scope.createTemporaryVariable(progressionInfo.bound,
+                    nameHint = "variable to compare",
+                    isMutable = false,
+                    origin = IrDeclarationOrigin.IR_TEMPORARY_VARIABLE).also {
+                statements.add(it)
+            }.symbol
+
             val varComp = scope.createTemporaryVariable(expression.getValueArgument(0)!!,
                     nameHint = "variable to compare",
                     isMutable = false,
@@ -793,14 +818,11 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
                 statements.add(it)
             }.symbol
 
-            val left = progressionInfo.first
-            val right = progressionInfo.bound
-
             val comparingLeft = when {
                 progressionInfo.increasing -> builtIns.lessOrEqualFunByOperandType
                 else -> builtIns.greaterOrEqualFunByOperandType
             }
-            val callCheckLeft = buildComparsion(left, irGet(varComp), left.type.asSimpleType(), comparingLeft)
+            val callCheckLeft = buildComparison(irGet(varLeft), irGet(varComp), comparisonType, comparingLeft)
 
             val comparingRight = when {
                 progressionInfo.increasing && progressionInfo.closed -> builtIns.lessOrEqualFunByOperandType
@@ -808,7 +830,7 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
                 !progressionInfo.increasing && progressionInfo.closed -> builtIns.greaterOrEqualFunByOperandType
                 else -> builtIns.greaterFunByOperandType
             }
-            val callCheckRight = buildComparsion(irGet(varComp), right, right.type.asSimpleType(), comparingRight)
+            val callCheckRight = buildComparison(irGet(varComp), irGet(varRight), comparisonType, comparingRight)
 
             irIfThenElse(context.builtIns.booleanType, callCheckLeft, callCheckRight, constFalse).also {
                 statements.add(it)
