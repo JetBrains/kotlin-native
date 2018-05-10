@@ -14,30 +14,30 @@
  * limitations under the License.
  */
 
-package org.jetbrains.kotlin.backend.konan.library
+package org.jetbrains.kotlin.konan.library
 
-import org.jetbrains.kotlin.config.LanguageVersionSettings
-import org.jetbrains.kotlin.descriptors.ModuleDescriptor
+import org.jetbrains.kotlin.backend.konan.library.KonanLibrary
+import org.jetbrains.kotlin.konan.library.KonanLibraryVersioning
 import org.jetbrains.kotlin.konan.properties.Properties
 
-interface KonanLibraryReader {
+interface KonanLibraryReader: KonanLibraryVersioning {
     val libraryName: String
     val uniqueName: String
     val bitcodePaths: List<String>
     val includedPaths: List<String>
     val linkerOpts: List<String>
-    val unresolvedDependencies: List<String>
+    val unresolvedDependencies: List<UnresolvedLibrary>
     val dataFlowGraph: ByteArray?
     val isDefaultLibrary: Boolean get() = false
     val isNeededForLink: Boolean get() = true
     val manifestProperties: Properties
-    val moduleHeaderData: ByteArray
-    fun packageMetadata(fqName: String): ByteArray
+    val metadataReader: MetadataReader
+    fun addMetadataReader(factory: (KonanLibrary)->MetadataReader)
     fun markPackageAccessed(fqName: String)
-    fun moduleDescriptor(specifics: LanguageVersionSettings): ModuleDescriptor
 }
 
 interface MetadataReader {
-    fun loadSerializedModule(): ByteArray
-    fun loadSerializedPackageFragment(fqName: String): ByteArray
+    val isNeededForLink: Boolean
+    fun packageMetadata(fqName: String): ByteArray
+    fun markPackageAccessed(fqName: String)
 }

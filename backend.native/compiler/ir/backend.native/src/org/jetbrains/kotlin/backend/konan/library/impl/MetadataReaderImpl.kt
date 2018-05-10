@@ -17,14 +17,33 @@
 package org.jetbrains.kotlin.backend.konan.library.impl
 
 import org.jetbrains.kotlin.backend.konan.library.KonanLibrary
-import org.jetbrains.kotlin.backend.konan.library.MetadataReader
+import org.jetbrains.kotlin.backend.konan.serialization.deserializeModule
+import org.jetbrains.kotlin.konan.library.MetadataReader
+import org.jetbrains.kotlin.backend.konan.serialization.emptyPackages
+import org.jetbrains.kotlin.config.LanguageVersionSettings
+import org.jetbrains.kotlin.konan.library.KonanLibraryReader
 
 class MetadataReaderImpl(library: KonanLibrary) : MetadataReader, KonanLibrary by library {
 
-    override fun loadSerializedModule(): ByteArray {
-        return moduleHeaderFile.readBytes()
+    val moduleHeaderData: ByteArray by lazy {
+        moduleHeaderFile.readBytes()
     }
 
-    override fun loadSerializedPackageFragment(fqName: String) 
+    override fun packageMetadata(fqName: String)
         = packageFile(fqName).readBytes()
+
+    override var isNeededForLink: Boolean = false
+        private set
+
+    private val emptyPackages by lazy { emptyPackages(moduleHeaderData) }
+
+    override fun markPackageAccessed(fqName: String) {
+        if (!isNeededForLink // fast path
+                && !emptyPackages.contains(fqName)) {
+            isNeededForLink = true
+        }
+    }
 }
+
+fun KonanLibraryReader.moduleDescriptor(specifics: LanguageVersionSettings)
+        = deserializeModule(specifics, this)

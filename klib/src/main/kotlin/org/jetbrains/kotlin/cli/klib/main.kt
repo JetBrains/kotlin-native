@@ -18,14 +18,13 @@ package org.jetbrains.kotlin.cli.klib
 
 // TODO: Extract `library` package as a shared jar?
 import org.jetbrains.kotlin.backend.konan.isStdlib
-import org.jetbrains.kotlin.backend.konan.library.impl.LibraryReaderImpl
-import org.jetbrains.kotlin.backend.konan.library.impl.UnzippedKonanLibrary
-import org.jetbrains.kotlin.backend.konan.library.impl.ZippedKonanLibrary
+import org.jetbrains.kotlin.backend.konan.library.impl.*
 import org.jetbrains.kotlin.backend.konan.serialization.parseModuleHeader
 import org.jetbrains.kotlin.config.ApiVersion
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
+import org.jetbrains.kotlin.konan.KonanVersion
 import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.library.KonanLibrarySearchPathResolver
 import org.jetbrains.kotlin.konan.target.Distribution
@@ -103,10 +102,10 @@ class Library(val name: String, val requestedRepository: String?, val target: St
 
     val repository = requestedRepository?.File() ?: defaultRepository
     fun info() {
-        val library = libraryInRepoOrCurrentDir(repository, name)
-        val reader = LibraryReaderImpl(library, currentAbiVersion)
+        val reader = libraryInRepoOrCurrentDir(repository, name)
         val headerAbiVersion = reader.abiVersion
-        val moduleName = ModuleDeserializer(reader.moduleHeaderData).moduleName
+        reader.addMetadataReader(::MetadataReaderImpl)
+        val moduleName = ModuleDeserializer((reader.metadataReader as MetadataReaderImpl).moduleHeaderData).moduleName
 
         println("")
         println("Resolved to: ${reader.libraryName.File().absolutePath}")
@@ -119,7 +118,7 @@ class Library(val name: String, val requestedRepository: String?, val target: St
     fun install() {
         Library(File(name).name.removeSuffix(".klib"), requestedRepository, target).remove(true)
 
-        val library = ZippedKonanLibrary(libraryInCurrentDir(name))
+        val library = ZippedKonanLibrary(libraryInCurrentDir(name).libraryFile)
         val newLibDir = File(repository, library.libraryName.File().name)
         newLibDir.mkdirs()
         library.unpackTo(newLibDir)
@@ -131,7 +130,7 @@ class Library(val name: String, val requestedRepository: String?, val target: St
         val reader = try {
             val library = libraryInRepo(repository, name)
             if (blind) warn("Removing The previously installed $name from $repository.")
-            UnzippedKonanLibrary(library)
+            UnzippedKonanLibrary(library.libraryFile)
 
         } catch (e: Throwable) {
             if (!blind) println(e.message)
@@ -142,8 +141,9 @@ class Library(val name: String, val requestedRepository: String?, val target: St
     }
 
     fun contents(output: Appendable = out) {
-        val reader = LibraryReaderImpl(libraryInRepoOrCurrentDir(repository, name), currentAbiVersion)
+        val reader = libraryInRepoOrCurrentDir(repository, name)
         val versionSpec = LanguageVersionSettingsImpl(currentLanguageVersion, currentApiVersion)
+        reader.addMetadataReader (::MetadataReaderImpl )
         val module = reader.moduleDescriptor(versionSpec)
         val defaultModules = mutableListOf<ModuleDescriptorImpl>()
         if (!module.isStdlib()) {
@@ -151,10 +151,13 @@ class Library(val name: String, val requestedRepository: String?, val target: St
                     target = null,
                     distributionKlib = Distribution().klib,
                     localKonanDir = null,
-                    skipCurrentDir = true)
+                    skipCurrentDir = true,
+                    knownAbiVersions =  listOf(currentAbiVersion),
+                    knownCompilerVersions = listOf(KonanVersion.CURRENT))
+
             resolver.defaultLinks(false, true)
                     .mapTo(defaultModules) {
-                        LibraryReaderImpl(it, currentAbiVersion).moduleDescriptor(versionSpec)
+                        it.moduleDescriptor(versionSpec)
                     }
         }
 
@@ -171,33 +174,39 @@ val currentAbiVersion = 1
 val currentLanguageVersion = LanguageVersion.LATEST_STABLE
 val currentApiVersion = ApiVersion.LATEST_STABLE
 
-fun libraryInRepo(repository: File, name: String): File {
+fun libraryInRepo(repository: File, name: String): LibraryReaderImpl {
     val resolver = KonanLibrarySearchPathResolver(
             repositories = listOf(repository.absolutePath),
             target = null,
             distributionKlib = null,
             localKonanDir = null,
-            skipCurrentDir = true
+            skipCurrentDir = true,
+            knownAbiVersions = listOf(currentAbiVersion),
+            knownCompilerVersions = listOf(KonanVersion.CURRENT)
     )
     return resolver.resolve(name)
 }
 
-fun libraryInCurrentDir(name: String): File {
+fun libraryInCurrentDir(name: String): LibraryReaderImpl {
     val resolver = KonanLibrarySearchPathResolver(
             repositories = emptyList(),
             target = null,
             distributionKlib = null,
-            localKonanDir = null
+            localKonanDir = null,
+            knownAbiVersions = listOf(currentAbiVersion),
+            knownCompilerVersions = listOf(KonanVersion.CURRENT)
     )
     return resolver.resolve(name)
 }
 
-fun libraryInRepoOrCurrentDir(repository: File, name: String): File {
+fun libraryInRepoOrCurrentDir(repository: File, name: String): LibraryReaderImpl {
     val resolver = KonanLibrarySearchPathResolver(
             repositories = listOf(repository.absolutePath),
             target = null,
             distributionKlib = null,
-            localKonanDir = null
+            localKonanDir = null,
+            knownAbiVersions = listOf(currentAbiVersion),
+            knownCompilerVersions = listOf(KonanVersion.CURRENT)
     )
     return resolver.resolve(name)
 }

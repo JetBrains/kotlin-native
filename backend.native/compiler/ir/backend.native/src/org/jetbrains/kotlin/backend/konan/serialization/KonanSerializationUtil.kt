@@ -21,8 +21,9 @@ import org.jetbrains.kotlin.backend.konan.createInteropLibrary
 import org.jetbrains.kotlin.backend.konan.descriptors.DeserializedKonanModule
 import org.jetbrains.kotlin.backend.konan.descriptors.createKonanModuleDescriptor
 import org.jetbrains.kotlin.backend.konan.descriptors.isExpectMember
-import org.jetbrains.kotlin.backend.konan.library.KonanLibraryReader
+import org.jetbrains.kotlin.konan.library.KonanLibraryReader
 import org.jetbrains.kotlin.backend.konan.library.LinkData
+import org.jetbrains.kotlin.backend.konan.library.impl.MetadataReaderImpl
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
@@ -115,7 +116,8 @@ public fun emptyPackages(libraryData: ByteArray)
 internal fun deserializeModule(languageVersionSettings: LanguageVersionSettings,
                                reader: KonanLibraryReader): ModuleDescriptorImpl {
 
-    val libraryProto = parseModuleHeader(reader.moduleHeaderData)
+    reader.addMetadataReader(::MetadataReaderImpl)
+    val libraryProto = parseModuleHeader((reader.metadataReader as MetadataReaderImpl).moduleHeaderData)
 
     val moduleName = libraryProto.moduleName
 
@@ -136,6 +138,10 @@ internal fun deserializeModule(languageVersionSettings: LanguageVersionSettings,
 
     return moduleDescriptor
 }
+
+fun KonanLibraryReader.moduleDescriptor(specifics: LanguageVersionSettings)
+        = deserializeModule(specifics, this)
+
 
 
 /* ------------ Serializer part ------------------------------------------*/

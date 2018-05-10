@@ -16,6 +16,7 @@
 
 package org.jetbrains.kotlin.konan.file
 
+import org.jetbrains.kotlin.konan.util.removeSuffixIfPresent
 import java.io.BufferedReader
 import java.io.InputStream
 import java.io.InputStreamReader
@@ -36,7 +37,7 @@ data class File constructor(internal val javaPath: Path) {
     val absoluteFile: File
         get() = File(absolutePath)
     val name: String
-        get() = javaPath.fileName.toString()
+        get() = javaPath.fileName.toString().removeSuffixIfPresent("/") // https://bugs.java.com/bugdatabase/view_bug.do?bug_id=8153248
     val parent: String
         get() = javaPath.parent.toString()
     val parentFile: File
