@@ -59,19 +59,19 @@ private val exportForCompilerAnnotation = FqName("konan.internal.ExportForCompil
  * and so should be computable from the descriptor itself without checking a backend state.
  */
 private tailrec fun DeclarationDescriptor.hasSpecialHackAnnotation(): Boolean {
-    if (this.annotations.findAnnotation(symbolNameAnnotation) != null) {
+    if (this.descriptor.annotations.findAnnotation(symbolNameAnnotation) != null) {
         // Treat any `@SymbolName` declaration as exported.
         return true
     }
-    if (this.annotations.findAnnotation(exportForCppRuntimeAnnotation) != null) {
+    if (this.descriptor.annotations.findAnnotation(exportForCppRuntimeAnnotation) != null) {
         // Treat any `@ExportForCppRuntime` declaration as exported.
         return true
     }
-    if (this.annotations.findAnnotation(cnameAnnotation) != null) {
+    if (this.descriptor.annotations.findAnnotation(cnameAnnotation) != null) {
         // Treat `@CName` declaration as exported.
         return true
     }
-    if (this.annotations.hasAnnotation(exportForCompilerAnnotation)) {
+    if (this.descriptor.annotations.hasAnnotation(exportForCompilerAnnotation)) {
         return true
     }
 
