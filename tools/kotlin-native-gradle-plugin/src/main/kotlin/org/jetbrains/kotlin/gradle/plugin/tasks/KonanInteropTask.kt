@@ -156,7 +156,7 @@ open class KonanInteropTask: KonanBuildingTask(), KonanInteropSpec {
 
     // region IDE model
     override fun toModelArtifact(): KonanModelArtifact = KonanModelArtifactImpl(
-            "$artifactName-$target",
+            artifactName,
             artifact,
             Produce.LIBRARY,
             konanTarget,

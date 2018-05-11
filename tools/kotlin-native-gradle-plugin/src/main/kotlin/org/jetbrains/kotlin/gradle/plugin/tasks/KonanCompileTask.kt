@@ -223,7 +223,7 @@ abstract class KonanCompileTask: KonanBuildingTask(), KonanCompileSpec {
 
     // region IDE model
     override fun toModelArtifact(): KonanModelArtifact = KonanModelArtifactImpl(
-            "$artifactName-$target",
+            artifactName,
             artifact,
             produce,
             konanTarget,

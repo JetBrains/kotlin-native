@@ -133,13 +133,13 @@ open class KonanLibrariesSpec(val task: KonanArtifactWithLibrariesTask, val proj
     }
 
     fun asFiles(): List<File> = mutableListOf<File>().apply {
-        addAll(files.map { it.files }.flatten())
+        files.flatMapTo(this) { it.files }
         addAll(artifactFiles)
         val resolver = defaultResolver(
                 repos.map { it.absolutePath },
                 task.konanTarget,
                 Distribution(konanHomeOverride = project.konanHome)
         )
-        addAll(namedKlibs.map { project.file(resolver.resolve(it).absolutePath) })
+        namedKlibs.mapTo(this) { project.file(resolver.resolve(it).absolutePath) }
     }
 }
