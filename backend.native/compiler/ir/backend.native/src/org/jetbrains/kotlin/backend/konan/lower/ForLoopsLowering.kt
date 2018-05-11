@@ -247,12 +247,8 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
             // else it will be null.
             val isEmptyCond: IrExpression? = null,
 
-            // TODO: Rename?
-            // If induction variable doesn't equal to loop variable
-            // for example in for loops on containers
-            // it's necessary to create another one temporary variable
-            // to check the end condition in do-while loop.
-            val isEqualInductionVariableAndLoopVariable: Boolean = true,
+            // If the progression is created for a FOR-loop on a container (e.g. array)
+            val isContainerProgression: Boolean = false,
 
             // A temporary variable of a container (e.g. an array if the loop is on the array) to get
             // elements from. Null if the container is a variable and created not in the scope of the FOR-loop.
@@ -282,13 +278,9 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
         val isEmptyCond: IrExpression?
             get() = progressionInfo.isEmptyCond
 
-        // TODO: Rename?
-        // If induction variable doesn't equal to loop variable
-        // for example in for loops on containers
-        // it's necessary to create another one temporary variable
-        // to check the end condition in do-while loop.
-        val isEqualsInductionVariableAndLoopVariable: Boolean
-            get() = progressionInfo.isEqualInductionVariableAndLoopVariable
+        // If the progression is created for a FOR-loop on a container (e.g. array)
+        val isContainerProgression: Boolean
+            get() = progressionInfo.isContainerProgression
 
         // Expression to get the container on which the loop is.
         // Null if the loop is not on a container.
@@ -329,7 +321,7 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
                     ProgressionInfo(progressionType, it.first, it.bound, stepCheck,
                             it.increasing, needBoundCalculation, it.closed,
                             it.isCalculatedWithCalls, it.isEmptyCond,
-                            it.isEqualInductionVariableAndLoopVariable,
+                            it.isContainerProgression,
                             it.containerVariable, it.getContainerExpr)
                 }
 
@@ -389,7 +381,7 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
                         getContainerExpr = exprValuesContainer,
                         isCalculatedWithCalls = true,
                         isEmptyCond = isEmpty,
-                        isEqualInductionVariableAndLoopVariable = false)
+                        isContainerProgression = true)
             }
         }
 
@@ -571,7 +563,7 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
             val increment = irSetVar(forLoopInfo.inductionVariable,
                     irCallOp(plusOperator, irGet(forLoopInfo.inductionVariable), irGet(forLoopInfo.step)))
 
-            variable.initializer = if (forLoopInfo.isEqualsInductionVariableAndLoopVariable) {
+            variable.initializer = if (!forLoopInfo.isContainerProgression) {
                 irGet(forLoopInfo.inductionVariable)
             } else {
                 irCall(symbols.arrayGet).apply {
@@ -674,11 +666,10 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
         // Return null if we didn't lower a corresponding header.
         val forLoopInfo = iteratorToLoopInfo[irIteratorAccess.symbol] ?: return null
 
-        val comparingWithLast = if (forLoopInfo.isEqualsInductionVariableAndLoopVariable) {
-            irGet(forLoopInfo.loopVariable!!)
-        }
-        else {
+        val comparingWithLast = if (forLoopInfo.isContainerProgression) {
             irGet(forLoopInfo.inductionVariable)
+        } else {
+            irGet(forLoopInfo.loopVariable!!)
         }
         return irCall(context.irBuiltIns.booleanNotSymbol).apply {
             val eqeqCall = irCall(context.irBuiltIns.eqeqSymbol).apply {
@@ -781,7 +772,7 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
         // TODO: consider cases with different types
         // TODO: e.x. (long in int .. int) or (int in long .. long)
 
-        if (!progressionInfo.isStepOne() || !progressionInfo.isEqualInductionVariableAndLoopVariable) {
+        if (!progressionInfo.isStepOne() || progressionInfo.isContainerProgression) {
             return expression
         }
 
