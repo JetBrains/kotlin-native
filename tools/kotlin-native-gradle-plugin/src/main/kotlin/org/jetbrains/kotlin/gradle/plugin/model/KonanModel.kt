@@ -39,7 +39,7 @@ interface KonanModelArtifact : Serializable {
     val name: String
     val type: Produce
     val targetPlatform: KonanTarget
-    val path: File
+    val file: File
     val buildTaskName: String
     val srcDirs: List<File>
     val srcFiles: List<File>

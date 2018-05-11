@@ -24,6 +24,8 @@ import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.Internal
 import org.jetbrains.kotlin.gradle.plugin.tasks.KonanArtifactWithLibrariesTask
 import org.jetbrains.kotlin.gradle.plugin.tasks.KonanBuildingTask
+import org.jetbrains.kotlin.konan.library.defaultResolver
+import org.jetbrains.kotlin.konan.target.Distribution
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.util.visibleName
 import java.io.File
@@ -130,13 +132,14 @@ open class KonanLibrariesSpec(val task: KonanArtifactWithLibrariesTask, val proj
         if (this != another) { evaluationDependsOn(another.path) }
     }
 
-    fun asFiles(): List<File> {
-        val result = mutableListOf<File>()
-        files.forEach {
-            result.addAll(it.files)
-        }
-        result.addAll(artifactFiles)
-        // TODO: Support named libraries when https://github.com/JetBrains/kotlin-native/pull/1577 is merged
-        return result
+    fun asFiles(): List<File> = mutableListOf<File>().apply {
+        addAll(files.map { it.files }.flatten())
+        addAll(artifactFiles)
+        val resolver = defaultResolver(
+                repos.map { it.absolutePath },
+                task.konanTarget,
+                Distribution(konanHomeOverride = project.konanHome)
+        )
+        addAll(namedKlibs.map { project.file(resolver.resolve(it).absolutePath) })
     }
 }

@@ -14,7 +14,7 @@ import java.io.File
 
 object KonanToolingModelBuilder : ToolingModelBuilder {
 
-    override fun canBuild(modelName: String): Boolean = KonanModel::class.java.name == modelName
+    override fun canBuild(modelName: String) = KonanModel::class.java.name == modelName
 
     override fun buildAll(modelName: String, project: Project): KonanModel {
         val artifacts = project.konanArtifactsContainer.flatten().toList().map { it.toModelArtifact() }
@@ -34,12 +34,12 @@ internal data class KonanModelImpl(
 ) : KonanModel
 
 internal data class KonanModelArtifactImpl(
-    override val name: String,
-    override val path: File,
-    override val type: Produce,
-    override val targetPlatform: KonanTarget,
-    override val buildTaskName: String,
-    override val srcDirs: List<File>,
-    override val srcFiles: List<File>,
-    override val libraries: List<File>
+        override val name: String,
+        override val file: File,
+        override val type: Produce,
+        override val targetPlatform: KonanTarget,
+        override val buildTaskName: String,
+        override val srcDirs: List<File>,
+        override val srcFiles: List<File>,
+        override val libraries: List<File>
 ) : KonanModelArtifact
