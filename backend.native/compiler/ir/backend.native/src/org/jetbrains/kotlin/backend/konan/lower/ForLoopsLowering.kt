@@ -318,7 +318,7 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
 
         private fun buildStep(expression: IrCall, progressionType: ProgressionType) =
                 expression.extensionReceiver!!.accept(this, null)?.let {
-                    if (!it.isCalculatedWithCalls) {
+                    if (it.isCalculatedWithCalls) {
                         return null
                     }
                     val newStep = expression.getValueArgument(0)!!
