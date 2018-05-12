@@ -168,6 +168,8 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
             }
         }
 
+    private fun ProgressionInfo.isStepOne(): Boolean = step == null || step is IrConst<*> && step.isOne()
+
     private fun IrConst<*>.isOne() =
         when (kind) {
             IrConstKind.Long -> value as Long == 1L
@@ -323,6 +325,7 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
                 in downToSymbols -> buildDownTo(expression, progressionType)
                 in stepSymbols -> buildStep(expression, progressionType)
                 symbols.collectionIndices -> buildProgressionInfoFromGetIndices(expression, progressionType)
+                // get variable and this variable is range it should to get first and last and put it to progression info
                 else -> null
             }
         }
@@ -603,34 +606,56 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
     override fun visitCall(expression: IrCall) : IrExpression {
         expression.transformChildrenVoid(this)
 
-        // TODO: check that it is contains on range (contains(Int): Boolean) from symbols
         if (expression.origin != IrStatementOrigin.IN) {
             return expression
         }
 
-        val parent = expression.dispatchReceiver as? IrCall
-        if (parent == null || parent.origin != IrStatementOrigin.RANGE) {
+        val parent = expression.dispatchReceiver as? IrCall ?: return expression
+        val progressionInfo = parent.accept(ProgressionInfoBuilder(), null) ?: return expression
+        if (!progressionInfo.isStepOne()) {
             return expression
         }
-
-        val left = parent.dispatchReceiver as? IrConst<*>
-        val right = parent.getValueArgument(0)
-        val varCompWithLeft = (expression.getValueArgument(0) as? IrGetValue)?.copy()
-        val varCompWithRight = (expression.getValueArgument(0) as? IrGetValue)?.copy()
-
-        if (left == null || right == null || varCompWithLeft == null || varCompWithRight == null) {
-            return expression
-        }
-
-        val builtIns = context.irBuiltIns
-        val comparingBuiltins = builtIns.lessOrEqualFunByOperandType
-        val callCheckLeft = buildComparsion(left, varCompWithLeft, left.type.asSimpleType(), comparingBuiltins)
-        val callCheckRight = buildComparsion(varCompWithRight, right, right.type.asSimpleType(), comparingBuiltins)
 
         val irBuilder = context.createIrBuilder(scopeOwnerSymbol, expression.startOffset, expression.endOffset)
         val constFalse = IrConstImpl.boolean(expression.startOffset, expression.endOffset, context.builtIns.booleanType, false)
         with (irBuilder) {
-            return irIfThenElse(context.builtIns.booleanType, callCheckLeft, callCheckRight, constFalse)
+            val statements = mutableListOf<IrStatement>()
+            val builtIns = context.irBuiltIns
+
+            val varComp = scope.createTemporaryVariable(expression.getValueArgument(0)!!,
+                    nameHint = "variable to compare",
+                    isMutable = false,
+                    origin = IrDeclarationOrigin.IR_TEMPORARY_VARIABLE).also {
+                statements.add(it)
+            }.symbol
+
+            val left = parent.dispatchReceiver
+            val right = parent.getValueArgument(0)
+            if (left == null || right == null) {
+                return expression
+            }
+
+            val comparingLeft = when {
+                progressionInfo.increasing -> builtIns.lessOrEqualFunByOperandType
+                !progressionInfo.increasing -> builtIns.greaterOrEqualFunByOperandType
+                else -> return expression
+            }
+            val callCheckLeft = buildComparsion(left, irGet(varComp), left.type.asSimpleType(), comparingLeft)
+
+            val comparingRight = when {
+                progressionInfo.increasing && progressionInfo.closed -> builtIns.lessOrEqualFunByOperandType
+                progressionInfo.increasing && !progressionInfo.closed -> builtIns.lessFunByOperandType
+                !progressionInfo.increasing && progressionInfo.closed -> builtIns.greaterOrEqualFunByOperandType
+                !progressionInfo.increasing && !progressionInfo.closed -> builtIns.greaterFunByOperandType
+                else -> return expression
+            }
+            val callCheckRight = buildComparsion(irGet(varComp), right, right.type.asSimpleType(), comparingRight)
+
+            irIfThenElse(context.builtIns.booleanType, callCheckLeft, callCheckRight, constFalse).also {
+                statements.add(it)
+            }
+
+            return IrCompositeImpl(startOffset, endOffset, context.builtIns.booleanType, null, statements)
         }
     }
     //endregion
