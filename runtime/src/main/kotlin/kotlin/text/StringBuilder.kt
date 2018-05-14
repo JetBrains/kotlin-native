@@ -65,6 +65,9 @@ private external fun String.toUtf8OrThrowImpl(start: Int, size: Int) : ByteArray
 @SymbolName("Kotlin_String_fromCharArray")
 external fun fromCharArray(array: CharArray, start: Int, size: Int) : String
 
+@SymbolName("Kotlin_StringBuilder_appendString")
+private  external fun appendString(array: CharArray, start: Int, it: String)
+
 /**
  * Builds new string by populating newly created [StringBuilder] using provided [builderAction]
  * and then converting it to [String].
@@ -296,7 +299,12 @@ class StringBuilder private constructor (
         return this
     }
 
-    fun append(it: String): StringBuilder = append(it.toCharArray())
+    fun append(it: String): StringBuilder {
+        ensureExtraCapacity(it.length)
+        appendString(array, length, it)
+        length += it.length
+        return this
+    }
 
     fun append(it: Boolean) = append(it.toString())
     fun append(it: Byte) = append(it.toString())

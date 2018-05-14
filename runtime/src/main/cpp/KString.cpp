@@ -840,6 +840,14 @@ OBJ_GETTER(Kotlin_String_plusImpl, KString thiz, KString other) {
   RETURN_OBJ(result->obj());
 }
 
+void Kotlin_StringBuilder_appendString(KRef builder, KInt position, KString fromString) {
+  auto toArray = builder->array();
+  RuntimeAssert(toArray->count_ >= fromString->count_ + position, "must be true");
+  memcpy(CharArrayAddressOfElementAt(toArray, position),
+         CharArrayAddressOfElementAt(fromString, 0),
+         fromString->count_ * sizeof(KChar));
+}
+
 KBoolean Kotlin_String_equals(KString thiz, KConstRef other) {
   if (other == nullptr || other->type_info() != theStringTypeInfo) return false;
   // Important, due to literal internalization.
