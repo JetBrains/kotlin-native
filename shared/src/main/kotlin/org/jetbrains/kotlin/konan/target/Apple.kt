@@ -56,7 +56,8 @@ class AppleConfigurablesImpl(
         properties.getProperty("useFixedXcodeVersion")?.let { requiredXcodeVersion ->
             val currentXcodeVersion = xcode.version
 
-            if (currentXcodeVersion != requiredXcodeVersion) {
+            if (properties.getProperty("ignoreXcodeVersionCheck") != "true" &&
+                    currentXcodeVersion != requiredXcodeVersion) {
                 error("expected Xcode version $requiredXcodeVersion, got $currentXcodeVersion")
             }
         }
