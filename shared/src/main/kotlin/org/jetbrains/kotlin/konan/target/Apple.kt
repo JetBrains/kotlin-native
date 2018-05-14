@@ -58,7 +58,8 @@ class AppleConfigurablesImpl(
 
             if (properties.getProperty("ignoreXcodeVersionCheck") != "true" &&
                     currentXcodeVersion != requiredXcodeVersion) {
-                error("expected Xcode version $requiredXcodeVersion, got $currentXcodeVersion")
+                error("expected Xcode version $requiredXcodeVersion, got $currentXcodeVersion, consider updating " +
+                        "Xcode or use \"ignoreXcodeVersionCheck\" variable in konan.properties")
             }
         }
 
