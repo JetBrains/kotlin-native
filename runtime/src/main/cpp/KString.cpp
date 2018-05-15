@@ -846,7 +846,7 @@ KInt Kotlin_StringBuilder_insertString(KRef builder, KInt position, KString from
   memcpy(CharArrayAddressOfElementAt(toArray, position),
          CharArrayAddressOfElementAt(fromString, 0),
          fromString->count_ * sizeof(KChar));
-   return fromString->count_;
+  return fromString->count_;
 }
 
 KInt Kotlin_StringBuilder_insertInt(KRef builder, KInt position, KInt value) {
