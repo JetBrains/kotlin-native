@@ -33,16 +33,16 @@ buildscript {
 
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-native-shared:$konanVersion"
-        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7.3'
         classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.2'
+        classpath 'com.novoda:bintray-release:0.8.1'
     }
 }
 apply plugin: 'java-gradle-plugin'
 apply plugin: 'kotlin'
 apply plugin: 'groovy'
 apply plugin: 'maven-publish'
-apply plugin: 'com.jfrog.bintray'
 apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin: 'com.novoda.bintray-release'
 
 group = 'org.jetbrains.kotlin'
 version = KonanVersion.CURRENT.gradlePluginVersion
@@ -51,22 +51,6 @@ repositories {
     mavenCentral()
     maven {
         url kotlinCompilerRepo
-    }
-}
-
-task pluginMetadata {
-    def outputDir = file("$buildDir/$name")
-
-    inputs.files sourceSets.main.runtimeClasspath
-    outputs.dir outputDir
-
-    doLast {
-        outputDir.mkdirs()
-        def metadata = new Properties()
-        metadata.put("implementation-classpath", sourceSets.main.runtimeClasspath.join(File.pathSeparator))
-        file("$outputDir/plugin-under-test-metadata.properties").withPrintWriter {
-            metadata.store(it, "Plugin metadata")
-        }
     }
 }
 
@@ -90,7 +74,6 @@ dependencies {
     testCompile('org.spockframework:spock-core:1.1-groovy-2.4') {
         exclude module: 'groovy-all'
     }
-    testRuntime files(pluginMetadata)
 }
 
 shadowJar {
@@ -130,45 +113,21 @@ compileTestGroovy.dependsOn.remove('compileTestJava')
 compileTestKotlin.dependsOn compileTestGroovy
 compileTestKotlin.classpath += files(compileTestGroovy.destinationDir)
 
-// TODO: Get rid of manual pom generation.
-publishing {
-    publications {
-        gradlePlugin(MavenPublication) {
-            artifact shadowJar
-            pom.withXml { XmlProvider xml ->
-                def deps = xml.asNode().appendNode("dependencies")
-
-                def stdlibDep = deps.appendNode("dependency")
-                stdlibDep.appendNode("groupId", "org.jetbrains.kotlin")
-                stdlibDep.appendNode("artifactId", "kotlin-stdlib")
-                stdlibDep.appendNode("version", "$buildKotlinVersion")
-
-                def kotlinPluginDep = deps.appendNode("dependency")
-                kotlinPluginDep.appendNode("groupId", "org.jetbrains.kotlin")
-                kotlinPluginDep.appendNode("artifactId", "kotlin-gradle-plugin")
-                kotlinPluginDep.appendNode("version", "$buildKotlinVersion")
-            }
-        }
-    }
-}
-
-bintray {
-    user = project.hasProperty('bintrayUser') ? project.property('bintrayUser') : System.getenv('BINTRAY_USER')
-    key = project.hasProperty('bintrayKey') ? project.property('bintrayKey') : System.getenv('BINTRAY_KEY')
-    pkg {
-        repo = 'kotlin-native-dependencies'
-        name = 'kotlin-native-gradle-plugin'
-        userOrg = 'jetbrains'
-        licenses = ['Apache-2.0']
-        vcsUrl = 'https://github.com/JetBrains/kotlin-native'
-        version {
-            name = project.version
-            desc = "Kotlin Native Gradle plugin $konanVersion"
-        }
-        publish  = project.findProperty("bintrayPublish").toString().toBoolean()
-        override = project.findProperty("bintrayOverride").toString().toBoolean()
-    }
+publish {
+    userOrg = 'jetbrains'
+    uploadName = 'kotlin-native-gradle-plugin'
+    repoName = 'kotlin-native-dependencies'
+    groupId = 'org.jetbrains.kotlin'
+    artifactId = 'kotlin-native-gradle-plugin'
+    publishVersion = project.version
+    desc = "Kotlin Native Gradle plugin $konanVersion"
+    website = 'https://github.com/JetBrains/kotlin-native'
     publications = ['gradlePlugin']
+    licences = ['Apache-2.0']
+    override = project.findProperty("bintrayOverride").toString().toBoolean()
+    autoPublish = project.findProperty("bintrayPublish").toString().toBoolean()
+    bintrayUser = project.hasProperty('bintrayUser') ? project.property('bintrayUser') : System.getenv('BINTRAY_USER')
+    bintrayKey = project.hasProperty('bintrayKey') ? project.property('bintrayKey') : System.getenv('BINTRAY_KEY')
 }
 
 gradlePlugin {
