@@ -43,11 +43,15 @@ open class VersionGenerator: DefaultTask() {
 
                 + """
                      |package org.jetbrains.kotlin.konan
+                     |
+                     |import java.io.Serializable
+                     |
                      |data class KonanVersion(val meta: MetaVersion = MetaVersion.DEV,
                      |                   val major: Int,
                      |                   val minor: Int,
                      |                   val maintenance: Int,
-                     |                   val build:Int) {
+                     |                   val build:Int
+                     |) : Serializable {
                      |  companion object {
                      |     val CURRENT = KonanVersion($meta, $major, $minor, $maintenance, $build)
                      |  }

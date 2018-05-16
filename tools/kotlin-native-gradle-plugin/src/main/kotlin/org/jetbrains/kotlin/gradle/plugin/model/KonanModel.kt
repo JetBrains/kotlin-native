@@ -17,6 +17,7 @@
 package org.jetbrains.kotlin.gradle.plugin.model
 
 import org.jetbrains.kotlin.gradle.plugin.tasks.Produce
+import org.jetbrains.kotlin.konan.KonanVersion
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import java.io.File
 import java.io.Serializable
@@ -26,8 +27,10 @@ import java.io.Serializable
  * This model is shared with the client processes such as an IDE.
  */
 interface KonanModel : Serializable {
-    val konanHome: String
-    val konanVersion: String
+    val konanHome: File
+    val konanVersion: KonanVersion
+    val languageVersion: String?
+    val apiVersion: String?
 
     val artifacts: List<KonanModelArtifact>
 }

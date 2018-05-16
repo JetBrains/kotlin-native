@@ -5,9 +5,8 @@ import org.gradle.tooling.provider.model.ToolingModelBuilder
 import org.jetbrains.kotlin.gradle.plugin.konanArtifactsContainer
 import org.jetbrains.kotlin.gradle.plugin.konanExtension
 import org.jetbrains.kotlin.gradle.plugin.konanHome
-import org.jetbrains.kotlin.gradle.plugin.tasks.KonanBuildingTask
-import org.jetbrains.kotlin.gradle.plugin.tasks.KonanCompileTask
 import org.jetbrains.kotlin.gradle.plugin.tasks.Produce
+import org.jetbrains.kotlin.konan.KonanVersion
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import java.io.File
 
@@ -20,17 +19,21 @@ object KonanToolingModelBuilder : ToolingModelBuilder {
         val artifacts = project.konanArtifactsContainer.flatten().toList().map { it.toModelArtifact() }
         return KonanModelImpl(
                 artifacts,
-                project.konanHome,
-                // TODO: Provide a better support for the default version
-                project.konanExtension.languageVersion ?: "1.2"
+                project.file(project.konanHome),
+                KonanVersion.CURRENT,
+                // TODO: Provide defaults for these versions.
+                project.konanExtension.languageVersion,
+                project.konanExtension.apiVersion
         )
     }
 }
 
 internal data class KonanModelImpl(
         override val artifacts: List<KonanModelArtifact>,
-        override val konanHome: String,
-        override val konanVersion: String
+        override val konanHome: File,
+        override val konanVersion: KonanVersion,
+        override val languageVersion: String?,
+        override val apiVersion: String?
 ) : KonanModel
 
 internal data class KonanModelArtifactImpl(
