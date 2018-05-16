@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2017 JetBrains s.r.o.
+ * Copyright 2010-2018 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,12 +14,14 @@
  * limitations under the License.
  */
 
-package kotlin.collections
+package kotlin
 
-/**
- * Data class representing a value from a collection or sequence, along with its index in that collection or sequence.
- *
- * @property value the underlying value.
- * @property index the index of the value in the collection or sequence.
- */
-public data class IndexedValue<out T>(public val index: Int, public val value: T)
+actual interface Comparator<T> {
+    actual fun compare(a: T, b: T): Int
+}
+
+actual inline fun <T> Comparator(crossinline comparison: (a: T, b: T) -> Int): Comparator<T> {
+    return object: Comparator<T> {
+        override fun compare(a: T, b: T) = comparison(a, b)
+    }
+}

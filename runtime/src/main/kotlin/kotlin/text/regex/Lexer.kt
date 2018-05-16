@@ -520,7 +520,7 @@ internal class Lexer(val patternString: String, flags: Int) {
     /** Process [lookAhead] in assumption that it's quantifier. */
     private fun processQuantifier(): Quantifier {
         assert(lookAhead == '{'.toInt())
-        val sb = StringBuilder(4)
+        var sb = StringBuilder(4)
         var min = -1
         var max = -1
 
@@ -532,7 +532,7 @@ internal class Lexer(val patternString: String, flags: Int) {
                 try {
                     val minParsed = sb.toString().toInt()
                     min = if (minParsed >= 0) minParsed else throw PatternSyntaxException()
-                    sb.length = 0
+                    sb = StringBuilder(4)
                 } catch (nfe: NumberFormatException) {
                     throw PatternSyntaxException()
                 }

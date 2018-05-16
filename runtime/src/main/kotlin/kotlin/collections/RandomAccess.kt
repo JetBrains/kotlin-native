@@ -16,4 +16,4 @@
 
 package kotlin.collections
 
-public interface RandomAccess
+public actual interface RandomAccess

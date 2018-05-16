@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2017 JetBrains s.r.o.
+ * Copyright 2010-2018JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -14,19 +14,17 @@
  * limitations under the License.
  */
 
-package kotlin
+package kotlin.jvm
 
-import kotlin.Comparator
+// Dummy JVM specific annotations in Kotlin/Native. Used in common stdlib
 
-/**
- * Classes which inherit from this interface have a defined total ordering between their instances.
- */
-public interface Comparable<in T> {
-    /**
-     * Compares this object with the specified object for order. Returns zero if this object is equal
-     * to the specified [other] object, a negative number if it's less than [other], or a positive number
-     * if it's greater than [other].
-     */
-    public operator fun compareTo(other: T): Int
-}
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.PROPERTY_SETTER, AnnotationTarget.FILE)
+actual annotation class JvmName(actual val name: String)
 
+@Target(AnnotationTarget.FILE)
+actual annotation class JvmMultifileClass
+
+actual annotation class JvmField
+
+@Target(AnnotationTarget.FIELD)
+actual annotation class Volatile
