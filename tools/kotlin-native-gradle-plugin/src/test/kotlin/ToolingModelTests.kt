@@ -150,7 +150,7 @@ open class ToolingModelTests {
                         model.artifacts.each {
 
                             def konanArtifact = konanArtifacts[it.name]
-                            def target = it.targetPlatform.name
+                            def target = it.targetPlatform
                             def task = konanArtifact.getByTarget(target)
 
                             assertEquals(it.file, task.artifact)

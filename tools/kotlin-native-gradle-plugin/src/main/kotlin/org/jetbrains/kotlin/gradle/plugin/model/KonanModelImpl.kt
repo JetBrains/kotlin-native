@@ -7,7 +7,6 @@ import org.jetbrains.kotlin.gradle.plugin.konanExtension
 import org.jetbrains.kotlin.gradle.plugin.konanHome
 import org.jetbrains.kotlin.gradle.plugin.tasks.Produce
 import org.jetbrains.kotlin.konan.KonanVersion
-import org.jetbrains.kotlin.konan.target.KonanTarget
 import java.io.File
 
 
@@ -40,7 +39,7 @@ internal data class KonanModelArtifactImpl(
         override val name: String,
         override val file: File,
         override val type: Produce,
-        override val targetPlatform: KonanTarget,
+        override val targetPlatform: String,
         override val buildTaskName: String,
         override val srcDirs: List<File>,
         override val srcFiles: List<File>,

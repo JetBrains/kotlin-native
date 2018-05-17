@@ -159,7 +159,7 @@ open class KonanInteropTask: KonanBuildingTask(), KonanInteropSpec {
             artifactName,
             artifact,
             Produce.LIBRARY,
-            konanTarget,
+            konanTarget.name,
             name,
             listOfNotNull(defFile.parentFile),
             listOf(defFile),

@@ -226,7 +226,7 @@ abstract class KonanCompileTask: KonanBuildingTask(), KonanCompileSpec {
             artifactName,
             artifact,
             produce,
-            konanTarget,
+            konanTarget.name,
             name,
             allSources.filter { it is ConfigurableFileTree }.map { (it as ConfigurableFileTree).dir },
             allSourceFiles,
