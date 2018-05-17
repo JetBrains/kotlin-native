@@ -158,7 +158,7 @@ open class KonanInteropTask: KonanBuildingTask(), KonanInteropSpec {
     override fun toModelArtifact(): KonanModelArtifact = KonanModelArtifactImpl(
             artifactName,
             artifact,
-            Produce.LIBRARY,
+            KonanOutput.LIBRARY,
             konanTarget.name,
             name,
             listOfNotNull(defFile.parentFile),

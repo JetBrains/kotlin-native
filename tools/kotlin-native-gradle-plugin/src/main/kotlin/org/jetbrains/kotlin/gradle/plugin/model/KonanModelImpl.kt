@@ -5,7 +5,7 @@ import org.gradle.tooling.provider.model.ToolingModelBuilder
 import org.jetbrains.kotlin.gradle.plugin.konanArtifactsContainer
 import org.jetbrains.kotlin.gradle.plugin.konanExtension
 import org.jetbrains.kotlin.gradle.plugin.konanHome
-import org.jetbrains.kotlin.gradle.plugin.tasks.Produce
+import org.jetbrains.kotlin.gradle.plugin.KonanOutput
 import org.jetbrains.kotlin.konan.KonanVersion
 import java.io.File
 
@@ -38,7 +38,7 @@ internal data class KonanModelImpl(
 internal data class KonanModelArtifactImpl(
         override val name: String,
         override val file: File,
-        override val type: Produce,
+        override val type: KonanOutput,
         override val targetPlatform: String,
         override val buildTaskName: String,
         override val srcDirs: List<File>,

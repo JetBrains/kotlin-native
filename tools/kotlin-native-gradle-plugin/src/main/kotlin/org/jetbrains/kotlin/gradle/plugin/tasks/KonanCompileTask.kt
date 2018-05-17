@@ -22,16 +22,7 @@ import org.gradle.api.tasks.*
 import org.jetbrains.kotlin.gradle.plugin.*
 import org.jetbrains.kotlin.gradle.plugin.model.KonanModelArtifact
 import org.jetbrains.kotlin.gradle.plugin.model.KonanModelArtifactImpl
-import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import java.io.File
-
-enum class Produce(val cliOption: String, val kind: CompilerOutputKind) {
-    PROGRAM("program", CompilerOutputKind.PROGRAM),
-    DYNAMIC("dynamic", CompilerOutputKind.DYNAMIC),
-    FRAMEWORK("framework", CompilerOutputKind.FRAMEWORK),
-    LIBRARY("library", CompilerOutputKind.LIBRARY),
-    BITCODE("bitcode", CompilerOutputKind.BITCODE)
-}
 
 /**
  * A task compiling the target executable/library using Kotlin/Native compiler
@@ -40,7 +31,7 @@ abstract class KonanCompileTask: KonanBuildingTask(), KonanCompileSpec {
 
     @Internal override val toolRunner = KonanCompilerRunner(project)
 
-    abstract val produce: Produce
+    abstract val produce: KonanOutput
         @Internal get
 
     // Output artifact --------------------------------------------------------
@@ -236,27 +227,27 @@ abstract class KonanCompileTask: KonanBuildingTask(), KonanCompileSpec {
 }
 
 open class KonanCompileProgramTask: KonanCompileTask() {
-    override val produce: Produce  get() = Produce.PROGRAM
+    override val produce: KonanOutput get() = KonanOutput.PROGRAM
 }
 
 open class KonanCompileDynamicTask: KonanCompileTask() {
-    override val produce: Produce  get() = Produce.DYNAMIC
+    override val produce: KonanOutput get() = KonanOutput.DYNAMIC
 
     val headerFile: File
         @OutputFile get() = destinationDir.resolve("$artifactPrefix${artifactName}_api.h")
 }
 
 open class KonanCompileFrameworkTask: KonanCompileTask() {
-    override val produce: Produce  get() = Produce.FRAMEWORK
+    override val produce: KonanOutput get() = KonanOutput.FRAMEWORK
 
     override val artifact
         @OutputDirectory get() = super.artifact
 }
 
 open class KonanCompileLibraryTask: KonanCompileTask() {
-    override val produce: Produce  get() = Produce.LIBRARY
+    override val produce: KonanOutput get() = KonanOutput.LIBRARY
 }
 
 open class KonanCompileBitcodeTask: KonanCompileTask() {
-    override val produce: Produce  get() = Produce.BITCODE
+    override val produce: KonanOutput get() = KonanOutput.BITCODE
 }

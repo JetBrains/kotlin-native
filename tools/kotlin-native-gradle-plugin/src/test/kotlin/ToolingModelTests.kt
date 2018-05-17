@@ -117,7 +117,7 @@ open class ToolingModelTests {
                 }
 
                 import org.jetbrains.kotlin.gradle.plugin.model.*
-                import org.jetbrains.kotlin.gradle.plugin.tasks.*
+                import org.jetbrains.kotlin.gradle.plugin.KonanOutput
 
                 public <T> void assertEquals(
                         T actual,
@@ -158,7 +158,7 @@ open class ToolingModelTests {
 
                             switch(it.name) {
                                 case 'foo':
-                                    assertEquals(it.type, Produce.LIBRARY)
+                                    assertEquals(it.type, KonanOutput.LIBRARY)
                                     assertContentEquals(it.srcDirs, [file('src/foo1'), file('src/foo2')])
                                     assertContentEquals(it.srcFiles, [
                                             file('src/foo1/foo1.kt'),
@@ -167,13 +167,13 @@ open class ToolingModelTests {
                                     assertContentEquals(it.libraries, [])
                                     break
                                 case 'bar':
-                                    assertEquals(it.type, Produce.LIBRARY)
+                                    assertEquals(it.type, KonanOutput.LIBRARY)
                                     assertContentEquals(it.srcDirs, [file('defs_bar')])
                                     assertContentEquals(it.srcFiles, [file('defs_bar/bar.def')])
                                     assertContentEquals(it.libraries, [])
                                     break
                                 case 'main':
-                                    assertEquals(it.type, Produce.PROGRAM)
+                                    assertEquals(it.type, KonanOutput.PROGRAM)
                                     assertContentEquals(it.srcDirs, [file('src/main/kotlin')])
                                     assertContentEquals(it.srcFiles, [file('src/main/kotlin/main.kt')])
                                     println(it.libraries)

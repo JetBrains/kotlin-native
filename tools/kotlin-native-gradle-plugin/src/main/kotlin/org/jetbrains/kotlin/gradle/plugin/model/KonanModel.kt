@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.gradle.plugin.model
 
-import org.jetbrains.kotlin.gradle.plugin.tasks.Produce
+import org.jetbrains.kotlin.gradle.plugin.KonanOutput
 import org.jetbrains.kotlin.konan.KonanVersion
 import java.io.File
 import java.io.Serializable
@@ -39,7 +39,7 @@ interface KonanModel : Serializable {
  */
 interface KonanModelArtifact : Serializable {
     val name: String
-    val type: Produce
+    val type: KonanOutput
     val targetPlatform: String
     val file: File
     val buildTaskName: String
