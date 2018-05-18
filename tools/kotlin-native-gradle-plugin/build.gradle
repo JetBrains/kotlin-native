@@ -45,7 +45,7 @@ apply plugin: 'com.jfrog.bintray'
 apply plugin: 'com.github.johnrengelman.shadow'
 
 group = 'org.jetbrains.kotlin'
-version = KonanVersion.CURRENT.gradlePluginVersion
+version = KonanVersion.Companion.CURRENT.toString()
 
 repositories {
     mavenCentral()
