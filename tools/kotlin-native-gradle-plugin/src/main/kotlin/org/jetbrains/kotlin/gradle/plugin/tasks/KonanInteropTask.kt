@@ -25,6 +25,7 @@ import org.jetbrains.kotlin.gradle.plugin.*
 import org.jetbrains.kotlin.gradle.plugin.KonanInteropSpec.IncludeDirectoriesSpec
 import org.jetbrains.kotlin.gradle.plugin.model.KonanModelArtifact
 import org.jetbrains.kotlin.gradle.plugin.model.KonanModelArtifactImpl
+import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import java.io.File
 
@@ -158,7 +159,7 @@ open class KonanInteropTask: KonanBuildingTask(), KonanInteropSpec {
     override fun toModelArtifact(): KonanModelArtifact = KonanModelArtifactImpl(
             artifactName,
             artifact,
-            KonanOutput.LIBRARY,
+            CompilerOutputKind.LIBRARY,
             konanTarget.name,
             name,
             listOfNotNull(defFile.parentFile),
