@@ -220,7 +220,7 @@ abstract class KonanCompileTask: KonanBuildingTask(), KonanCompileSpec {
             produce,
             konanTarget.name,
             name,
-            allSources.filter { it is ConfigurableFileTree }.map { (it as ConfigurableFileTree).dir },
+            allSources.filterIsInstance(ConfigurableFileTree::class.java).map { it.dir },
             allSourceFiles,
             libraries.asFiles()
     )
