@@ -22,7 +22,9 @@ import org.gradle.api.tasks.*
 import org.jetbrains.kotlin.gradle.plugin.*
 import org.jetbrains.kotlin.gradle.plugin.model.KonanModelArtifact
 import org.jetbrains.kotlin.gradle.plugin.model.KonanModelArtifactImpl
+import org.jetbrains.kotlin.konan.library.defaultResolver
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
+import org.jetbrains.kotlin.konan.target.Distribution
 import java.io.File
 
 /**
@@ -214,16 +216,26 @@ abstract class KonanCompileTask: KonanBuildingTask(), KonanCompileSpec {
     // endregion
 
     // region IDE model
-    override fun toModelArtifact(): KonanModelArtifact = KonanModelArtifactImpl(
-            artifactName,
-            artifact,
-            produce,
-            konanTarget.name,
-            name,
-            allSources.filterIsInstance(ConfigurableFileTree::class.java).map { it.dir },
-            allSourceFiles,
-            libraries.asFiles()
-    )
+    override fun toModelArtifact(): KonanModelArtifact {
+        val repos = libraries.repos
+        val resolver = defaultResolver(
+                repos.map { it.absolutePath },
+                konanTarget,
+                Distribution(konanHomeOverride = project.konanHome)
+        )
+
+        return KonanModelArtifactImpl(
+                artifactName,
+                artifact,
+                produce,
+                konanTarget.name,
+                name,
+                allSources.filterIsInstance(ConfigurableFileTree::class.java).map { it.dir },
+                allSourceFiles,
+                libraries.asFiles(resolver),
+                repos.toList()
+        )
+    }
     // endregion
 }
 

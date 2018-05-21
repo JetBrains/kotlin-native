@@ -43,5 +43,6 @@ internal data class KonanModelArtifactImpl(
         override val buildTaskName: String,
         override val srcDirs: List<File>,
         override val srcFiles: List<File>,
-        override val libraries: List<File>
+        override val libraries: List<File>,
+        override val searchPaths: List<File>
 ) : KonanModelArtifact

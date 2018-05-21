@@ -89,6 +89,7 @@ open class ToolingModelTests {
             generateSrcFile(listOf("defs_bar"), "bar.def", "")
             generateSrcFile(listOf("src", "baz"), "baz.kt", "fun baz() = 0")
             generateSrcFile("main.kt")
+            createSubDir("custom_repo")
             buildFile.appendText("""
                 konanArtifacts {
                     library('foo') {
@@ -107,6 +108,8 @@ open class ToolingModelTests {
                             artifact konanArtifacts.foo
                             artifact konanArtifacts.bar
                             klib 'baz'
+
+                            useRepo 'custom_repo'
                         }
                     }
                 }
@@ -131,7 +134,7 @@ open class ToolingModelTests {
                 public <T> void assertContentEquals(
                         Collection<T> actual,
                         Collection<T> expected,
-                        String message = "${'$'}expected\nexpected but\n ${'$'}actual\nfound") {
+                        String message = "${'$'}expected\nexpected but\n${'$'}actual\nfound") {
                     if (actual.size() != expected.size() || !actual.containsAll(expected)) {
                         throw new AssertionError(message)
                     }
@@ -165,12 +168,14 @@ open class ToolingModelTests {
                                             file('src/foo1/foo11.kt'),
                                             file('src/foo2/foo2.kt')])
                                     assertContentEquals(it.libraries, [])
+                                    assertContentEquals(it.searchPaths, [task.artifact.parentFile])
                                     break
                                 case 'bar':
                                     assertEquals(it.type, CompilerOutputKind.valueOf('LIBRARY'))
                                     assertContentEquals(it.srcDirs, [file('defs_bar')])
                                     assertContentEquals(it.srcFiles, [file('defs_bar/bar.def')])
                                     assertContentEquals(it.libraries, [])
+                                    assertContentEquals(it.searchPaths, [task.artifact.parentFile])
                                     break
                                 case 'main':
                                     assertEquals(it.type, CompilerOutputKind.valueOf('PROGRAM'))
@@ -180,6 +185,11 @@ open class ToolingModelTests {
                                             konanArtifacts['foo'].getByTarget(target).artifact,
                                             konanArtifacts['bar'].getByTarget(target).artifact,
                                             konanArtifacts['baz'].getByTarget(target).artifact
+                                    ])
+                                    assertContentEquals(it.searchPaths, [
+                                            file('custom_repo'),
+                                            task.artifact.parentFile,
+                                            konanArtifacts.foo.getByTarget(target).artifact.parentFile
                                     ])
                                     break
                             }

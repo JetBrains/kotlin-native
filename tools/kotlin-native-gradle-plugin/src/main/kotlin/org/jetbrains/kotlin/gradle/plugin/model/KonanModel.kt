@@ -46,4 +46,5 @@ interface KonanModelArtifact : Serializable {
     val srcDirs: List<File>
     val srcFiles: List<File>
     val libraries: List<File>
+    val searchPaths: List<File>
 }
