@@ -29,7 +29,7 @@ open class CompatibilityTests {
         get() = tmpFolder.root
 
     @Test
-    fun `Plugin should fail if running with Gradle prior to 4_6`() {
+    fun `Plugin should fail if running with Gradle prior to the required one`() {
         val project = KonanProject.createEmpty(projectDirectory)
         val result = project
                 .createRunner()

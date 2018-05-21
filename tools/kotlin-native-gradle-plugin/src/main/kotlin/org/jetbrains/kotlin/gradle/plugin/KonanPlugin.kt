@@ -296,16 +296,14 @@ class KonanPlugin @Inject constructor(private val registry: ToolingModelBuilderR
         project.delete(it.artifact)
     }
 
-    private fun checkGradleVersion() {
-        val current = GradleVersion.current()
-        if (current < REQUIRED_GRADLE_VERSION) {
-            throw UnsupportedVersionException(
-                    "Kotlin/Native Gradle plugin is incompatible with this version of Gradle.\n" +
-                    "The minimal required version is ${REQUIRED_GRADLE_VERSION}\n" +
-                    "Current version is ${current}"
-            )
+    private fun checkGradleVersion() =  GradleVersion.current().let { current ->
+        check(current >= REQUIRED_GRADLE_VERSION) {
+            "Kotlin/Native Gradle plugin is incompatible with this version of Gradle.\n" +
+            "The minimal required version is ${REQUIRED_GRADLE_VERSION}\n" +
+            "Current version is ${current}"
         }
     }
+
 
     override fun apply(project: ProjectInternal?) {
         if (project == null) {
