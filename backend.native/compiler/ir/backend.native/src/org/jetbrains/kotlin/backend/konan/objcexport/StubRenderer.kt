@@ -115,7 +115,7 @@ object StubRenderer {
         appendSuperProtocols(this@renderProtocolHeader)
     }
 
-    private fun StringBuilder.appendSuperProtocols(clazz: ClassStubBase<ClassDescriptor>) {
+    private fun StringBuilder.appendSuperProtocols(clazz: ObjcClass<ClassDescriptor>) {
         val protocols = clazz.superProtocols
         if (protocols.isNotEmpty()) {
             protocols.joinTo(this, separator = ", ", prefix = " <", postfix = ">")
@@ -150,7 +150,7 @@ object StubRenderer {
         appendSuperProtocols(this@renderInterfaceHeader)
     }
 
-    private fun Collector.renderMembers(clazz: ClassStubBase<*>) {
+    private fun Collector.renderMembers(clazz: ObjcClass<*>) {
         clazz.members.forEach {
             +render(it)
         }

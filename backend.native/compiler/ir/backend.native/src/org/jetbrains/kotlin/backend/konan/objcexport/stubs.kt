@@ -7,15 +7,15 @@ import org.jetbrains.kotlin.descriptors.PropertyDescriptor
 
 open class Stub<out D : DeclarationDescriptor>(val name: String, val descriptor: D?)
 
-abstract class ClassStubBase<out D : DeclarationDescriptor>(name: String,
-                                                            descriptor: D?,
-                                                            val superProtocols: List<String>,
-                                                            val members: List<Stub<*>>) : Stub<D>(name, descriptor)
+abstract class ObjcClass<out D : DeclarationDescriptor>(name: String,
+                                                        descriptor: D?,
+                                                        val superProtocols: List<String>,
+                                                        val members: List<Stub<*>>) : Stub<D>(name, descriptor)
 
 class ObjcProtocol(name: String,
                    descriptor: ClassDescriptor,
                    superProtocols: List<String>,
-                   members: List<Stub<*>>) : ClassStubBase<ClassDescriptor>(name, descriptor, superProtocols, members)
+                   members: List<Stub<*>>) : ObjcClass<ClassDescriptor>(name, descriptor, superProtocols, members)
 
 class ObjcInterface(name: String,
                     val generics: List<String> = emptyList(),
@@ -24,7 +24,7 @@ class ObjcInterface(name: String,
                     superProtocols: List<String> = emptyList(),
                     val categoryName: String? = null,
                     members: List<Stub<*>> = emptyList(),
-                    val attributes: List<String> = emptyList()) : ClassStubBase<ClassDescriptor>(name, descriptor, superProtocols, members)
+                    val attributes: List<String> = emptyList()) : ObjcClass<ClassDescriptor>(name, descriptor, superProtocols, members)
 
 class ObjcMethod(descriptor: DeclarationDescriptor?,
                  val isInstanceMethod: Boolean,
