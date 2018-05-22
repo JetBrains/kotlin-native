@@ -281,7 +281,6 @@ abstract class ObjCExportHeaderGenerator(
                     descriptor.enumEntries.forEach {
                         val entryName = namer.getEnumEntrySelector(it)
                         +ObjcProperty(entryName, null, type, listOf("class", "readonly"))
-//                        +"@property (class, readonly) ${type.render(entryName)};"
                     }
                 }
                 else -> {
