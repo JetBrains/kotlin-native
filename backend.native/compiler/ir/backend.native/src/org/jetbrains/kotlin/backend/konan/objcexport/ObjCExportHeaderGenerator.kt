@@ -264,7 +264,6 @@ abstract class ObjCExportHeaderGenerator(
 
                         +buildMethod(it, it)
                         if (selector == "init") {
-                            //todo no swift name here???
                             +ObjcMethod(it, false, ObjCInstanceType, listOf("new"), emptyList(),
                                         listOf("availability(swift, unavailable, message=\"use object initializers instead\")"))
                         }
@@ -302,7 +301,6 @@ abstract class ObjCExportHeaderGenerator(
                     ?.forEach {
                         val selector = getSelector(it)
                         if (selector !in presentConstructors) {
-                            //todo attach attributes???
                             val c = buildMethod(it, it)
                             +ObjcMethod(c.descriptor, c.isInstanceMethod, c.returnType, c.selectors, c.parameters, c.attributes + "unavailable")
 
