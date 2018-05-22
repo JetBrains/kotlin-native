@@ -466,7 +466,7 @@ abstract class ObjCExportHeaderGenerator(
                         ObjCPointerType(mapType(method.returnType!!, bridge.bridge), nullable = true)
                 }
 
-                parameters += ObjcParameter(uniqueName, p!!, type) //todo get rid of !!
+                parameters += ObjcParameter(uniqueName, p, type)
             }
             return parameters
         }
