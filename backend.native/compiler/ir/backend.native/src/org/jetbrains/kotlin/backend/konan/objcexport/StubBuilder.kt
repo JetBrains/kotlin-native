@@ -7,7 +7,7 @@ internal class StubBuilder {
         children.add(this)
     }
 
-    operator fun plusAssign(set: Set<Stub<*>>) {
+    operator fun plusAssign(set: Collection<Stub<*>>) {
         children += set
     }
 

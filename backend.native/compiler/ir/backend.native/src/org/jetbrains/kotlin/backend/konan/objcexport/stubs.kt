@@ -31,29 +31,7 @@ class ObjcMethod(descriptor: DeclarationDescriptor?,
                  val returnType: ObjCType,
                  val selectors: List<String>,
                  val parameters: List<ObjcParameter>,
-                 val attributes: List<String>) : Stub<DeclarationDescriptor>(buildMethodName(selectors, parameters), descriptor) {
-
-    //parameters and returnType are not included in equals as they are not included into signature
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as ObjcMethod
-
-        if (isInstanceMethod != other.isInstanceMethod) return false
-        if (selectors != other.selectors) return false
-        if (attributes != other.attributes) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = isInstanceMethod.hashCode()
-        result = 31 * result + selectors.hashCode()
-        result = 31 * result + attributes.hashCode()
-        return result
-    }
-}
+                 val attributes: List<String>) : Stub<DeclarationDescriptor>(buildMethodName(selectors, parameters), descriptor)
 
 class ObjcParameter(name: String,
                     descriptor: ParameterDescriptor?,
@@ -64,31 +42,7 @@ class ObjcProperty(name: String,
                    val type: ObjCType,
                    val attributes: List<String>,
                    val setterName: String? = null,
-                   val getterName: String? = null) : Stub<PropertyDescriptor>(name, descriptor) {
-
-    //type is not included in equals as it's not included into signature
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (javaClass != other?.javaClass) return false
-
-        other as ObjcProperty
-
-        if (name != other.name) return false
-        if (attributes != other.attributes) return false
-        if (setterName != other.setterName) return false
-        if (getterName != other.getterName) return false
-
-        return true
-    }
-
-    override fun hashCode(): Int {
-        var result = name.hashCode()
-        result = 31 * result + attributes.hashCode()
-        result = 31 * result + (setterName?.hashCode() ?: 0)
-        result = 31 * result + (getterName?.hashCode() ?: 0)
-        return result
-    }
-}
+                   val getterName: String? = null) : Stub<PropertyDescriptor>(name, descriptor)
 
 private fun buildMethodName(selectors: List<String>, parameters: List<ObjcParameter>): String =
         if (selectors.size == 1 && parameters.size == 0) {

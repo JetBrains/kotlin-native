@@ -44,7 +44,7 @@ abstract class ObjCExportHeaderGenerator(
         override fun isSpecialMapped(descriptor: ClassDescriptor): Boolean {
             // TODO: this method duplicates some of the [mapReferenceType] logic.
             return descriptor == builtIns.any ||
-                    descriptor.getAllSuperClassifiers().any { it in customTypeMappers }
+                   descriptor.getAllSuperClassifiers().any { it in customTypeMappers }
         }
     }
 
@@ -118,11 +118,11 @@ abstract class ObjCExportHeaderGenerator(
 
         // TODO: only if appears
         stubs.add(ObjcInterface(namer.mutableSetName, generics = listOf("ObjectType"),
-                superClass = "NSMutableSet<ObjectType>", attributes = listOf("objc_runtime_name(\"KotlinMutableSet\")")))
+                                superClass = "NSMutableSet<ObjectType>", attributes = listOf("objc_runtime_name(\"KotlinMutableSet\")")))
 
         // TODO: only if appears
         stubs.add(ObjcInterface(namer.mutableMapName, generics = listOf("KeyType", "ObjectType"),
-                superClass = "NSMutableDictionary<KeyType, ObjectType>", attributes = listOf("objc_runtime_name(\"KotlinMutableDictionary\")")))
+                                superClass = "NSMutableDictionary<KeyType, ObjectType>", attributes = listOf("objc_runtime_name(\"KotlinMutableDictionary\")")))
 
         stubs.add(ObjcInterface("NSError", categoryName = "NSErrorKotlinException", members = buildMembers {
             //todo add _Nullable to type
@@ -329,6 +329,25 @@ abstract class ObjCExportHeaderGenerator(
         translateMembers(members)
     }
 
+    private class RenderedStub<T: Stub<*>>(val stub: T) {
+        private val presentation: String by lazy(LazyThreadSafetyMode.NONE) {
+            val listOfLines = StubRenderer.render(stub)
+            assert(listOfLines.size == 1)
+            listOfLines[0]
+        }
+
+        override fun equals(other: Any?): Boolean {
+            if (this === other) return true
+            if (javaClass != other?.javaClass) return false
+
+            return other is RenderedStub<*> && presentation == other.presentation
+        }
+
+        override fun hashCode(): Int {
+            return presentation.hashCode()
+        }
+    }
+
     private fun StubBuilder.translateMembers(members: List<CallableMemberDescriptor>) {
         // TODO: add some marks about modality.
 
@@ -349,43 +368,52 @@ abstract class ObjCExportHeaderGenerator(
         }
 
         methods.forEach { method ->
-            val superMethods: Set<ObjcMethod> = method.overriddenDescriptors
+            val superMethods: Set<RenderedStub<ObjcMethod>> = method.overriddenDescriptors
                     .asSequence()
                     .filter { mapper.shouldBeExposed(it) }
                     .flatMap { buildMethods(it.original).asSequence() }
                     .toSet()
 
-            this += (buildMethods(method) - superMethods)
+            this += buildMethods(method)
+                    .asSequence()
+                    .filterNot {superMethods.contains(it)}
+                    .map { rendered -> rendered.stub }
+                    .toList()
         }
 
         properties.forEach { property ->
-            val superSignatures = property.overriddenDescriptors
+            val superSignatures: Set<RenderedStub<ObjcProperty>> = property.overriddenDescriptors
                     .asSequence()
                     .filter { mapper.shouldBeExposed(it) }
                     .flatMap { buildProperties(it.original).asSequence() }
                     .toSet()
 
-            this += buildProperties(property) - superSignatures
+            this += buildProperties(property)
+                    .asSequence()
+                    .filterNot { superSignatures.contains(it) }
+                    .map { rendered -> rendered.stub }
+                    .toList()
         }
     }
 
-    private val methodToSignatures = mutableMapOf<FunctionDescriptor, Set<ObjcMethod>>()
+    private val methodToSignatures = mutableMapOf<FunctionDescriptor, Set<RenderedStub<ObjcMethod>>>()
+    private val propertyToSignatures = mutableMapOf<PropertyDescriptor, Set<RenderedStub<ObjcProperty>>>()
 
-    private fun buildMethods(method: FunctionDescriptor): Set<ObjcMethod> = methodToSignatures.getOrPut(method) {
+    private fun buildMethods(method: FunctionDescriptor): Set<RenderedStub<ObjcMethod>> = methodToSignatures.getOrPut(method) {
         mapper.getBaseMethods(method)
                 .asSequence()
                 .distinctBy { namer.getSelector(it) }
                 .map { base -> buildMethod(method, base) }
+                .map { method -> RenderedStub(method) }
                 .toSet()
     }
 
-    private val propertyToSignatures = mutableMapOf<PropertyDescriptor, Set<ObjcProperty>>()
-
-    private fun buildProperties(property: PropertyDescriptor): Set<ObjcProperty> = propertyToSignatures.getOrPut(property) {
+    private fun buildProperties(property: PropertyDescriptor): Set<RenderedStub<ObjcProperty>> = propertyToSignatures.getOrPut(property) {
         mapper.getBaseProperties(property)
                 .asSequence()
                 .distinctBy { namer.getName(it) }
                 .map { base -> buildProperty(property, base) }
+                .map { property -> RenderedStub(property) }
                 .toSet()
     }
 
@@ -618,7 +646,7 @@ abstract class ObjCExportHeaderGenerator(
             val secondType = types[1]
 
             reportCompilationWarning("Exposed type '$kotlinType' is '$firstType' and '$secondType' at the same time. " +
-                    "This most likely wouldn't work as expected.")
+                                     "This most likely wouldn't work as expected.")
 
             // TODO: the same warning for such classes.
         }
