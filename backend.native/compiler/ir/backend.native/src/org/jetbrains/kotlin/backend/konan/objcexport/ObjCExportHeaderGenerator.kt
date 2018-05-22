@@ -107,21 +107,21 @@ abstract class ObjCExportHeaderGenerator(
         // TODO: make the translation order stable
         // to stabilize name mangling.
 
-        stubs.add(ObjcInterface(kotlinAnyName, superClass = "NSObject", members = buildMembers {
-            +ObjcMethod(null, true, ObjCInstanceType, listOf("init"), emptyList(), listOf("unavailable"))
-            +ObjcMethod(null, false, ObjCInstanceType, listOf("new"), emptyList(), listOf("unavailable"))
-            +ObjcMethod(null, false, ObjCVoidType, listOf("initialize"), emptyList(), listOf("objc_requires_super"))
+        stubs.add(ObjCInterface(kotlinAnyName, superClass = "NSObject", members = buildMembers {
+            +ObjCMethod(null, true, ObjCInstanceType, listOf("init"), emptyList(), listOf("unavailable"))
+            +ObjCMethod(null, false, ObjCInstanceType, listOf("new"), emptyList(), listOf("unavailable"))
+            +ObjCMethod(null, false, ObjCVoidType, listOf("initialize"), emptyList(), listOf("objc_requires_super"))
         }))
 
         // TODO: add comment to the header.
-        stubs.add(ObjcInterface(
+        stubs.add(ObjCInterface(
                 kotlinAnyName,
                 superProtocols = listOf("NSCopying"),
                 categoryName = "${kotlinAnyName}Copying"
         ))
 
         // TODO: only if appears
-        stubs.add(ObjcInterface(
+        stubs.add(ObjCInterface(
                 namer.mutableSetName,
                 generics = listOf("ObjectType"),
                 superClass = "NSMutableSet<ObjectType>",
@@ -129,15 +129,15 @@ abstract class ObjCExportHeaderGenerator(
         ))
 
         // TODO: only if appears
-        stubs.add(ObjcInterface(
+        stubs.add(ObjCInterface(
                 namer.mutableMapName,
                 generics = listOf("KeyType", "ObjectType"),
                 superClass = "NSMutableDictionary<KeyType, ObjectType>",
                 attributes = listOf("objc_runtime_name(\"KotlinMutableDictionary\")")
         ))
 
-        stubs.add(ObjcInterface("NSError", categoryName = "NSErrorKotlinException", members = buildMembers {
-            +ObjcProperty("kotlinException", null, ObjCNullableReferenceType(ObjCIdType), listOf("readonly"))
+        stubs.add(ObjCInterface("NSError", categoryName = "NSErrorKotlinException", members = buildMembers {
+            +ObjCProperty("kotlinException", null, ObjCNullableReferenceType(ObjCIdType), listOf("readonly"))
         }))
 
         val packageFragments = moduleDescriptor.getPackageFragments()
@@ -213,7 +213,7 @@ abstract class ObjCExportHeaderGenerator(
         val members: List<Stub<*>> = buildMembers { translateClassOrInterfaceMembers(descriptor) }
         val superProtocols: List<String> = descriptor.superProtocols
 
-        val protocolStub = ObjcProtocol(name, descriptor, superProtocols, members)
+        val protocolStub = ObjCProtocol(name, descriptor, superProtocols, members)
 
         stubs.add(protocolStub)
     }
@@ -236,7 +236,7 @@ abstract class ObjCExportHeaderGenerator(
         val members = buildMembers {
             translateMembers(declarations)
         }
-        stubs.add(ObjcInterface(name, categoryName = "Extensions", members = members))
+        stubs.add(ObjCInterface(name, categoryName = "Extensions", members = members))
     }
 
     private fun translateTopLevel(packageFqName: FqName, declarations: List<CallableMemberDescriptor>) {
@@ -246,7 +246,7 @@ abstract class ObjCExportHeaderGenerator(
         val members = buildMembers {
             translateMembers(declarations)
         }
-        stubs.add(ObjcInterface(
+        stubs.add(ObjCInterface(
                 name,
                 superClass = namer.kotlinAnyName,
                 members = members,
@@ -280,22 +280,22 @@ abstract class ObjCExportHeaderGenerator(
 
                         +buildMethod(it, it)
                         if (selector == "init") {
-                            +ObjcMethod(it, false, ObjCInstanceType, listOf("new"), emptyList(),
+                            +ObjCMethod(it, false, ObjCInstanceType, listOf("new"), emptyList(),
                                         listOf("availability(swift, unavailable, message=\"use object initializers instead\")"))
                         }
                     }
 
             if (descriptor.isArray || descriptor.kind == ClassKind.OBJECT || descriptor.kind == ClassKind.ENUM_CLASS) {
-                +ObjcMethod(null, false, ObjCInstanceType, listOf("alloc"), emptyList(), listOf("unavailable"))
+                +ObjCMethod(null, false, ObjCInstanceType, listOf("alloc"), emptyList(), listOf("unavailable"))
 
-                val parameter = ObjcParameter("zone", null, ObjcRawType("struct _NSZone *"))
-                +ObjcMethod(descriptor, false, ObjCInstanceType, listOf("allocWithZone:"), listOf(parameter), listOf("unavailable"))
+                val parameter = ObjCParameter("zone", null, ObjCRawType("struct _NSZone *"))
+                +ObjCMethod(descriptor, false, ObjCInstanceType, listOf("allocWithZone:"), listOf(parameter), listOf("unavailable"))
             }
 
             // TODO: consider adding exception-throwing impls for these.
             when (descriptor.kind) {
                 ClassKind.OBJECT -> {
-                    +ObjcMethod(
+                    +ObjCMethod(
                             null, false, ObjCInstanceType,
                             listOf(namer.getObjectInstanceSelector(descriptor)), emptyList(),
                             listOf(swiftNameAttribute("init()"))
@@ -306,7 +306,7 @@ abstract class ObjCExportHeaderGenerator(
 
                     descriptor.enumEntries.forEach {
                         val entryName = namer.getEnumEntrySelector(it)
-                        +ObjcProperty(entryName, null, type, listOf("class", "readonly"))
+                        +ObjCProperty(entryName, null, type, listOf("class", "readonly"))
                     }
                 }
                 else -> {
@@ -322,10 +322,10 @@ abstract class ObjCExportHeaderGenerator(
                         val selector = getSelector(it)
                         if (selector !in presentConstructors) {
                             val c = buildMethod(it, it)
-                            +ObjcMethod(c.descriptor, c.isInstanceMethod, c.returnType, c.selectors, c.parameters, c.attributes + "unavailable")
+                            +ObjCMethod(c.descriptor, c.isInstanceMethod, c.returnType, c.selectors, c.parameters, c.attributes + "unavailable")
 
                             if (selector == "init") {
-                                +ObjcMethod(null, false, ObjCInstanceType, listOf("new"), emptyList(), listOf("unavailable"))
+                                +ObjCMethod(null, false, ObjCInstanceType, listOf("new"), emptyList(), listOf("unavailable"))
                             }
 
                             // TODO: consider adding exception-throwing impls for these.
@@ -337,7 +337,7 @@ abstract class ObjCExportHeaderGenerator(
 
         val attributes = if (descriptor.isFinalOrEnum) listOf("objc_subclassing_restricted") else emptyList()
 
-        val interfaceStub = ObjcInterface(
+        val interfaceStub = ObjCInterface(
                 name,
                 descriptor = descriptor,
                 superClass = superName,
@@ -418,10 +418,10 @@ abstract class ObjCExportHeaderGenerator(
         }
     }
 
-    private val methodToSignatures = mutableMapOf<FunctionDescriptor, Set<RenderedStub<ObjcMethod>>>()
-    private val propertyToSignatures = mutableMapOf<PropertyDescriptor, Set<RenderedStub<ObjcProperty>>>()
+    private val methodToSignatures = mutableMapOf<FunctionDescriptor, Set<RenderedStub<ObjCMethod>>>()
+    private val propertyToSignatures = mutableMapOf<PropertyDescriptor, Set<RenderedStub<ObjCProperty>>>()
 
-    private fun buildMethods(method: FunctionDescriptor): Set<RenderedStub<ObjcMethod>> = methodToSignatures.getOrPut(method) {
+    private fun buildMethods(method: FunctionDescriptor): Set<RenderedStub<ObjCMethod>> = methodToSignatures.getOrPut(method) {
         mapper.getBaseMethods(method)
                 .asSequence()
                 .distinctBy { namer.getSelector(it) }
@@ -430,7 +430,7 @@ abstract class ObjCExportHeaderGenerator(
                 .toSet()
     }
 
-    private fun buildProperties(property: PropertyDescriptor): Set<RenderedStub<ObjcProperty>> = propertyToSignatures.getOrPut(property) {
+    private fun buildProperties(property: PropertyDescriptor): Set<RenderedStub<ObjCProperty>> = propertyToSignatures.getOrPut(property) {
         mapper.getBaseProperties(property)
                 .asSequence()
                 .distinctBy { namer.getName(it) }
@@ -445,7 +445,7 @@ abstract class ObjCExportHeaderGenerator(
         return namer.getSelector(method)
     }
 
-    private fun buildProperty(property: PropertyDescriptor, baseProperty: PropertyDescriptor): ObjcProperty {
+    private fun buildProperty(property: PropertyDescriptor, baseProperty: PropertyDescriptor): ObjCProperty {
         assert(mapper.isBaseProperty(baseProperty))
         assert(mapper.isObjCProperty(baseProperty))
 
@@ -472,11 +472,11 @@ abstract class ObjCExportHeaderGenerator(
         val getterSelector = getSelector(baseProperty.getter!!)
         val getterName: String? = if (getterSelector != name) getterSelector else null
 
-        return ObjcProperty(name, property, type, attributes, setterName, getterName)
+        return ObjCProperty(name, property, type, attributes, setterName, getterName)
     }
 
-    private fun buildMethod(method: FunctionDescriptor, baseMethod: FunctionDescriptor): ObjcMethod {
-        fun collectParameters(baseMethodBridge: MethodBridge, method: FunctionDescriptor): List<ObjcParameter> {
+    private fun buildMethod(method: FunctionDescriptor, baseMethod: FunctionDescriptor): ObjCMethod {
+        fun collectParameters(baseMethodBridge: MethodBridge, method: FunctionDescriptor): List<ObjCParameter> {
             fun unifyName(initialName: String, usedNames: Set<String>): String {
                 var unique = initialName
                 while (unique in usedNames) {
@@ -487,7 +487,7 @@ abstract class ObjCExportHeaderGenerator(
 
             val valueParametersAssociated = baseMethodBridge.valueParametersAssociated(method)
 
-            val parameters = mutableListOf<ObjcParameter>()
+            val parameters = mutableListOf<ObjCParameter>()
 
             val usedNames = mutableSetOf<String>()
             valueParametersAssociated.forEach { (bridge: MethodBridgeValueParameter, p: ParameterDescriptor?) ->
@@ -516,7 +516,7 @@ abstract class ObjCExportHeaderGenerator(
                         ObjCPointerType(mapType(method.returnType!!, bridge.bridge), nullable = true)
                 }
 
-                parameters += ObjcParameter(uniqueName, p, type)
+                parameters += ObjCParameter(uniqueName, p, type)
             }
             return parameters
         }
@@ -541,7 +541,7 @@ abstract class ObjCExportHeaderGenerator(
             attributes += "objc_designated_initializer"
         }
 
-        return ObjcMethod(method, isInstanceMethod, returnType, selectorParts, parameters, attributes)
+        return ObjCMethod(method, isInstanceMethod, returnType, selectorParts, parameters, attributes)
     }
 
     private fun splitSelector(selector: String): List<String> {

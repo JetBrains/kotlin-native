@@ -6,13 +6,13 @@ object StubRenderer {
     fun render(stub: Stub<*>): List<String> = collect {
         stub.run {
             when (this) {
-                is ObjcProtocol -> {
+                is ObjCProtocol -> {
                     +renderProtocolHeader()
                     +"@required"
                     renderMembers(this)
                     +"@end;"
                 }
-                is ObjcInterface -> {
+                is ObjCInterface -> {
                     attributes.forEach {
                         +renderAttribute(it)
                     }
@@ -20,10 +20,10 @@ object StubRenderer {
                     renderMembers(this)
                     +"@end;"
                 }
-                is ObjcMethod -> {
+                is ObjCMethod -> {
                     +renderMethod(this)
                 }
-                is ObjcProperty -> {
+                is ObjCProperty -> {
                     +renderProperty(this)
                 }
                 else -> throw IllegalArgumentException("unsupported stub: " + stub::class)
@@ -31,13 +31,13 @@ object StubRenderer {
         }
     }
 
-    private fun renderProperty(property: ObjcProperty): String = buildString {
+    private fun renderProperty(property: ObjCProperty): String = buildString {
         fun StringBuilder.appendTypeAndName() {
             append(' ')
             append(property.type.render(property.name))
         }
 
-        fun ObjcProperty.getAllAttributes(): List<String> {
+        fun ObjCProperty.getAllAttributes(): List<String> {
             if (getterName == null && setterName == null) return attributes
 
             val allAttributes = attributes.toMutableList()
@@ -60,7 +60,7 @@ object StubRenderer {
         append(';')
     }
 
-    private fun renderMethod(method: ObjcMethod): String = buildString {
+    private fun renderMethod(method: ObjCMethod): String = buildString {
         fun appendStaticness() {
             if (method.isInstanceMethod) {
                 append('-')
@@ -109,20 +109,20 @@ object StubRenderer {
         append(';')
     }
 
-    private fun ObjcProtocol.renderProtocolHeader() = buildString {
+    private fun ObjCProtocol.renderProtocolHeader() = buildString {
         append("@protocol ")
         append(name)
         appendSuperProtocols(this@renderProtocolHeader)
     }
 
-    private fun StringBuilder.appendSuperProtocols(clazz: ObjcClass<ClassDescriptor>) {
+    private fun StringBuilder.appendSuperProtocols(clazz: ObjCClass<ClassDescriptor>) {
         val protocols = clazz.superProtocols
         if (protocols.isNotEmpty()) {
             protocols.joinTo(this, separator = ", ", prefix = " <", postfix = ">")
         }
     }
 
-    private fun ObjcInterface.renderInterfaceHeader() = buildString {
+    private fun ObjCInterface.renderInterfaceHeader() = buildString {
         fun appendSuperClass() {
             if (superClass != null) append(" : $superClass")
         }
@@ -150,7 +150,7 @@ object StubRenderer {
         appendSuperProtocols(this@renderInterfaceHeader)
     }
 
-    private fun Collector.renderMembers(clazz: ObjcClass<*>) {
+    private fun Collector.renderMembers(clazz: ObjCClass<*>) {
         clazz.members.forEach {
             +render(it)
         }
