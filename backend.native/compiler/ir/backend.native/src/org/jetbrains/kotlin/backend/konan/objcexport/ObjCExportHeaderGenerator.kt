@@ -367,30 +367,23 @@ abstract class ObjCExportHeaderGenerator(
             }
         }
 
-        methods.forEach { method ->
-            val superMethods: Set<RenderedStub<ObjcMethod>> = method.overriddenDescriptors
+        collectMethodsOrProperties(methods) { it -> buildMethods(it.original) }
+        collectMethodsOrProperties(properties) { it -> buildProperties(it.original) }
+    }
+
+    private fun <D : CallableMemberDescriptor, S : Stub<*>> StubBuilder.collectMethodsOrProperties(
+            members: List<D>,
+            converter: (D) -> Set<RenderedStub<S>>) {
+        members.forEach { member ->
+            val superMembers: Set<RenderedStub<S>> = (member.overriddenDescriptors as List<D>)
                     .asSequence()
                     .filter { mapper.shouldBeExposed(it) }
-                    .flatMap { buildMethods(it.original).asSequence() }
+                    .flatMap { converter(it).asSequence() }
                     .toSet()
 
-            this += buildMethods(method)
+            this += converter(member)
                     .asSequence()
-                    .filterNot {superMethods.contains(it)}
-                    .map { rendered -> rendered.stub }
-                    .toList()
-        }
-
-        properties.forEach { property ->
-            val superSignatures: Set<RenderedStub<ObjcProperty>> = property.overriddenDescriptors
-                    .asSequence()
-                    .filter { mapper.shouldBeExposed(it) }
-                    .flatMap { buildProperties(it.original).asSequence() }
-                    .toSet()
-
-            this += buildProperties(property)
-                    .asSequence()
-                    .filterNot { superSignatures.contains(it) }
+                    .filterNot { superMembers.contains(it) }
                     .map { rendered -> rendered.stub }
                     .toList()
         }
