@@ -85,9 +85,11 @@ abstract class ObjCExportHeaderGenerator(
         val customMappedTypes = customTypeMappers.keys
 
         customMappedTypes
-                .flatMap { it.getAllSuperClassifiers().toList() }
+                .asSequence()
+                .flatMap { it.getAllSuperClassifiers().asSequence() }
                 .map { it as ClassDescriptor }
-                .toSet() - customMappedTypes
+                .filter { customMappedTypes.contains(it) }
+                .toSet()
     }
 
     private val kotlinAnyName = namer.kotlinAnyName
@@ -131,6 +133,7 @@ abstract class ObjCExportHeaderGenerator(
 
         packageFragments.forEach { packageFragment ->
             packageFragment.getMemberScope().getContributedDescriptors()
+                    .asSequence()
                     .filterIsInstance<CallableMemberDescriptor>()
                     .filter { mapper.shouldBeExposed(it) }
                     .forEach {
@@ -146,6 +149,7 @@ abstract class ObjCExportHeaderGenerator(
 
         fun MemberScope.translateClasses() {
             getContributedDescriptors()
+                    .asSequence()
                     .filterIsInstance<ClassDescriptor>()
                     .filter { mapper.shouldBeExposed(it) }
                     .forEach {
@@ -251,17 +255,20 @@ abstract class ObjCExportHeaderGenerator(
         val members: List<Stub<*>> = buildMembers {
             val presentConstructors = mutableSetOf<String>()
 
-            descriptor.constructors.filter { mapper.shouldBeExposed(it) }.forEach {
-                val selector = getSelector(it)
-                if (!descriptor.isArray) presentConstructors += selector
+            descriptor.constructors
+                    .asSequence()
+                    .filter { mapper.shouldBeExposed(it) }
+                    .forEach {
+                        val selector = getSelector(it)
+                        if (!descriptor.isArray) presentConstructors += selector
 
-                +buildMethod(it, it)
-                if (selector == "init") {
-                    //todo no swift name here???
-                    +ObjcMethod(it, false, ObjCInstanceType, listOf("new"), emptyList(),
-                            listOf("availability(swift, unavailable, message=\"use object initializers instead\")"))
-                }
-            }
+                        +buildMethod(it, it)
+                        if (selector == "init") {
+                            //todo no swift name here???
+                            +ObjcMethod(it, false, ObjCInstanceType, listOf("new"), emptyList(),
+                                        listOf("availability(swift, unavailable, message=\"use object initializers instead\")"))
+                        }
+                    }
 
             if (descriptor.isArray || descriptor.kind == ClassKind.OBJECT || descriptor.kind == ClassKind.ENUM_CLASS) {
                 +ObjcMethod(null, false, ObjCInstanceType, listOf("alloc"), emptyList(), listOf("unavailable"))
@@ -289,34 +296,37 @@ abstract class ObjCExportHeaderGenerator(
             }
 
             // Hide "unimplemented" super constructors:
-            superClass?.constructors?.filter { mapper.shouldBeExposed(it) }?.forEach {
-                val selector = getSelector(it)
-                if (selector !in presentConstructors) {
-                    //todo attach attributes???
-                    val c = buildMethod(it, it)
-                    +ObjcMethod(c.descriptor, c.isInstanceMethod, c.returnType, c.selectors, c.parameters, c.attributes + "unavailable")
+            superClass?.constructors
+                    ?.asSequence()
+                    ?.filter { mapper.shouldBeExposed(it) }
+                    ?.forEach {
+                        val selector = getSelector(it)
+                        if (selector !in presentConstructors) {
+                            //todo attach attributes???
+                            val c = buildMethod(it, it)
+                            +ObjcMethod(c.descriptor, c.isInstanceMethod, c.returnType, c.selectors, c.parameters, c.attributes + "unavailable")
 
+                            if (selector == "init") {
+                                +ObjcMethod(null, false, ObjCInstanceType, listOf("new"), emptyList(), listOf("unavailable"))
+                            }
 
-                    if (selector == "init") {
-                        +ObjcMethod(null, false, ObjCInstanceType, listOf("new"), emptyList(), listOf("unavailable"))
+                            // TODO: consider adding exception-throwing impls for these.
+                        }
                     }
-
-                    // TODO: consider adding exception-throwing impls for these.
-                }
-            }
 
             translateClassOrInterfaceMembers(descriptor)
         }
 
-        val interfaceStub = ObjcInterface(name, descriptor = descriptor, superClass = superName,
-                superProtocols = superProtocols, members = members)
+        val interfaceStub = ObjcInterface(name, descriptor = descriptor, superClass = superName, superProtocols = superProtocols, members = members)
         stubs.add(interfaceStub)
     }
 
     private fun StubBuilder.translateClassOrInterfaceMembers(descriptor: ClassDescriptor) {
         val members = descriptor.unsubstitutedMemberScope.getContributedDescriptors()
+                .asSequence()
                 .filterIsInstance<CallableMemberDescriptor>()
                 .filter { mapper.shouldBeExposed(it) }
+                .toList()
 
         translateMembers(members)
     }
@@ -342,8 +352,9 @@ abstract class ObjCExportHeaderGenerator(
 
         methods.forEach { method ->
             val superMethods: Set<ObjcMethod> = method.overriddenDescriptors
+                    .asSequence()
                     .filter { mapper.shouldBeExposed(it) }
-                    .flatMap { buildMethods(it.original) }
+                    .flatMap { buildMethods(it.original).asSequence() }
                     .toSet()
 
             this += (buildMethods(method) - superMethods)
@@ -351,8 +362,9 @@ abstract class ObjCExportHeaderGenerator(
 
         properties.forEach { property ->
             val superSignatures = property.overriddenDescriptors
+                    .asSequence()
                     .filter { mapper.shouldBeExposed(it) }
-                    .flatMap { buildProperties(it.original) }
+                    .flatMap { buildProperties(it.original).asSequence() }
                     .toSet()
 
             this += buildProperties(property) - superSignatures
@@ -364,6 +376,7 @@ abstract class ObjCExportHeaderGenerator(
 
     private fun buildMethods(method: FunctionDescriptor): Set<ObjcMethod> = methodToSignatures.getOrPut(method) {
         mapper.getBaseMethods(method)
+                .asSequence()
                 .distinctBy { namer.getSelector(it) }
                 .map { base -> buildMethod(method, base) }
                 .toSet()
@@ -373,9 +386,11 @@ abstract class ObjCExportHeaderGenerator(
     private val propertyToSignatures = mutableMapOf<PropertyDescriptor, Set<ObjcProperty>>()
 
     private fun buildProperties(property: PropertyDescriptor): Set<ObjcProperty> = propertyToSignatures.getOrPut(property) {
-        mapper.getBaseProperties(property).distinctBy { namer.getName(it) }.map { base ->
-            buildProperty(property, base)
-        }.toSet()
+        mapper.getBaseProperties(property)
+                .asSequence()
+                .distinctBy { namer.getName(it) }
+                .map { base -> buildProperty(property, base) }
+                .toSet()
     }
 
     // TODO: consider checking that signatures for bases with same selector/name are equal.
@@ -595,7 +610,7 @@ abstract class ObjCExportHeaderGenerator(
         val mostSpecificTypeToMapper = typeToMapper.filter { (_, mapper) ->
             typeToMapper.values.all {
                 it.mappedClassDescriptor == mapper.mappedClassDescriptor ||
-                        !it.mappedClassDescriptor.isSubclassOf(mapper.mappedClassDescriptor)
+                !it.mappedClassDescriptor.isSubclassOf(mapper.mappedClassDescriptor)
             }
 
             // E.g. if both List and MutableList are present, then retain only MutableList.
