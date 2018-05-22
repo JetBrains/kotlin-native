@@ -369,7 +369,6 @@ abstract class ObjCExportHeaderGenerator(
         }
     }
 
-    //todo hashCode&equals for ObjcMethod???
     private val methodToSignatures = mutableMapOf<FunctionDescriptor, Set<ObjcMethod>>()
 
     private fun buildMethods(method: FunctionDescriptor): Set<ObjcMethod> = methodToSignatures.getOrPut(method) {
@@ -380,7 +379,6 @@ abstract class ObjCExportHeaderGenerator(
                 .toSet()
     }
 
-    //todo hashCode&equals for ObjcProperty???
     private val propertyToSignatures = mutableMapOf<PropertyDescriptor, Set<ObjcProperty>>()
 
     private fun buildProperties(property: PropertyDescriptor): Set<ObjcProperty> = propertyToSignatures.getOrPut(property) {
