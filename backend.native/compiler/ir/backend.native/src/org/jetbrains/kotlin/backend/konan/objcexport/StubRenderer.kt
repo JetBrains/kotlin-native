@@ -76,7 +76,6 @@ object StubRenderer {
         }
 
         fun appendParameters() {
-            append(' ')
             assert(method.selectors.size == method.parameters.size ||
                    method.selectors.size == 1 && method.parameters.size == 0)
 
@@ -89,9 +88,9 @@ object StubRenderer {
                     val parameter = method.parameters[i]
                     val selector = method.selectors[i]
                     append(selector)
-                    append(" (")
+                    append("(")
                     append(parameter.type.render())
-                    append(") ")
+                    append(")")
                     append(parameter.name)
                 }
             }
@@ -130,7 +129,7 @@ object StubRenderer {
         fun appendGenerics() {
             val generics = generics
             if (generics.isNotEmpty()) {
-                generics.joinTo(this, separator = ", ", prefix = " <", postfix = ">")
+                generics.joinTo(this, separator = ", ", prefix = "<", postfix = ">")
             }
         }
 
