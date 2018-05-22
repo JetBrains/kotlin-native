@@ -8,11 +8,11 @@ import org.jetbrains.kotlin.ir.util.report
 internal class ObjCExportHeaderGeneratorImpl(val context: Context)
     : ObjCExportHeaderGenerator(context.moduleDescriptor, context.builtIns) {
 
-    override fun reportCompilationWarning(text: String) {
+    override fun reportWarning(text: String) {
         context.reportCompilationWarning(text)
     }
 
-    override fun reportError(method: FunctionDescriptor, text: String) {
+    override fun reportWarning(method: FunctionDescriptor, text: String) {
         context.report(
                 context.ir.get(method),
                 text,

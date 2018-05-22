@@ -114,19 +114,30 @@ abstract class ObjCExportHeaderGenerator(
         }))
 
         // TODO: add comment to the header.
-        stubs.add(ObjcInterface(kotlinAnyName, superProtocols = listOf("NSCopying"), categoryName = "${kotlinAnyName}Copying"))
+        stubs.add(ObjcInterface(
+                kotlinAnyName,
+                superProtocols = listOf("NSCopying"),
+                categoryName = "${kotlinAnyName}Copying"
+        ))
 
         // TODO: only if appears
-        stubs.add(ObjcInterface(namer.mutableSetName, generics = listOf("ObjectType"),
-                                superClass = "NSMutableSet<ObjectType>", attributes = listOf("objc_runtime_name(\"KotlinMutableSet\")")))
+        stubs.add(ObjcInterface(
+                namer.mutableSetName,
+                generics = listOf("ObjectType"),
+                superClass = "NSMutableSet<ObjectType>",
+                attributes = listOf("objc_runtime_name(\"KotlinMutableSet\")")
+        ))
 
         // TODO: only if appears
-        stubs.add(ObjcInterface(namer.mutableMapName, generics = listOf("KeyType", "ObjectType"),
-                                superClass = "NSMutableDictionary<KeyType, ObjectType>", attributes = listOf("objc_runtime_name(\"KotlinMutableDictionary\")")))
+        stubs.add(ObjcInterface(
+                namer.mutableMapName,
+                generics = listOf("KeyType", "ObjectType"),
+                superClass = "NSMutableDictionary<KeyType, ObjectType>",
+                attributes = listOf("objc_runtime_name(\"KotlinMutableDictionary\")")
+        ))
 
         stubs.add(ObjcInterface("NSError", categoryName = "NSErrorKotlinException", members = buildMembers {
-            //todo add _Nullable to type
-            +ObjcProperty("kotlinException", null, ObjCIdType, listOf("readonly"))
+            +ObjcProperty("kotlinException", null, ObjCNullableReferenceType(ObjCIdType), listOf("readonly"))
         }))
 
         val packageFragments = moduleDescriptor.getPackageFragments()
@@ -235,7 +246,12 @@ abstract class ObjCExportHeaderGenerator(
         val members = buildMembers {
             translateMembers(declarations)
         }
-        stubs.add(ObjcInterface(name, superClass = namer.kotlinAnyName, members = members, attributes = listOf("objc_subclassing_restricted")))
+        stubs.add(ObjcInterface(
+                name,
+                superClass = namer.kotlinAnyName,
+                members = members,
+                attributes = listOf("objc_subclassing_restricted")
+        ))
     }
 
     private fun translateClass(descriptor: ClassDescriptor) {
@@ -279,7 +295,11 @@ abstract class ObjCExportHeaderGenerator(
             // TODO: consider adding exception-throwing impls for these.
             when (descriptor.kind) {
                 ClassKind.OBJECT -> {
-                    +ObjcMethod(null, false, ObjCInstanceType, listOf(namer.getObjectInstanceSelector(descriptor)), emptyList(), listOf("swift_name(init())"))
+                    +ObjcMethod(
+                            null, false, ObjCInstanceType,
+                            listOf(namer.getObjectInstanceSelector(descriptor)), emptyList(),
+                            listOf(swiftNameAttribute("init()"))
+                    )
                 }
                 ClassKind.ENUM_CLASS -> {
                     val type = mapType(descriptor.defaultType, ReferenceBridge)
@@ -315,7 +335,16 @@ abstract class ObjCExportHeaderGenerator(
             translateClassOrInterfaceMembers(descriptor)
         }
 
-        val interfaceStub = ObjcInterface(name, descriptor = descriptor, superClass = superName, superProtocols = superProtocols, members = members)
+        val attributes = if (descriptor.isFinalOrEnum) listOf("objc_subclassing_restricted") else emptyList()
+
+        val interfaceStub = ObjcInterface(
+                name,
+                descriptor = descriptor,
+                superClass = superName,
+                superProtocols = superProtocols,
+                members = members,
+                attributes = attributes
+        )
         stubs.add(interfaceStub)
     }
 
@@ -375,7 +404,7 @@ abstract class ObjCExportHeaderGenerator(
             members: List<D>,
             converter: (D) -> Set<RenderedStub<S>>) {
         members.forEach { member ->
-            val superMembers: Set<RenderedStub<S>> = (member.overriddenDescriptors as List<D>)
+            val superMembers: Set<RenderedStub<S>> = (member.overriddenDescriptors as Collection<D>)
                     .asSequence()
                     .filter { mapper.shouldBeExposed(it) }
                     .flatMap { converter(it).asSequence() }
@@ -506,7 +535,7 @@ abstract class ObjCExportHeaderGenerator(
         val swiftName = namer.getSwiftName(baseMethod)
         val attributes = mutableListOf<String>()
 
-        attributes += "swift_name($swiftName)"
+        attributes += swiftNameAttribute(swiftName)
 
         if (method is ConstructorDescriptor && !method.constructedClass.isArray) { // TODO: check methodBridge instead.
             attributes += "objc_designated_initializer"
@@ -523,6 +552,8 @@ abstract class ObjCExportHeaderGenerator(
         }
     }
 
+    private fun swiftNameAttribute(swiftName: String) = "swift_name(\"$swiftName\")"
+
     private val methodsWithThrowAnnotationConsidered = mutableSetOf<FunctionDescriptor>()
 
     private val uncheckedExceptionClasses = listOf("Error", "RuntimeException").map {
@@ -535,7 +566,7 @@ abstract class ObjCExportHeaderGenerator(
         val throwsAnnotation = method.annotations.findAnnotation(KonanBuiltIns.FqNames.throws) ?: return
 
         if (!mapper.doesThrow(method)) {
-            reportError(method, "@${KonanBuiltIns.FqNames.throws.shortName()} annotation should also be added to a base method")
+            reportWarning(method, "@${KonanBuiltIns.FqNames.throws.shortName()} annotation should also be added to a base method")
         }
 
         if (method in methodsWithThrowAnnotationConsidered) return
@@ -546,7 +577,7 @@ abstract class ObjCExportHeaderGenerator(
             val classDescriptor = TypeUtils.getClassDescriptor((argument as KClassValue).value) ?: continue
 
             uncheckedExceptionClasses.firstOrNull { classDescriptor.isSubclassOf(it) }?.let {
-                reportError(method,
+                reportWarning(method,
                         "Method is declared to throw ${classDescriptor.fqNameSafe}, " +
                                 "but instances of ${it.fqNameSafe} and its subclasses aren't propagated " +
                                 "from Kotlin to Objective-C/Swift")
@@ -601,9 +632,9 @@ abstract class ObjCExportHeaderGenerator(
         add("NS_ASSUME_NONNULL_END")
     }
 
-    protected abstract fun reportCompilationWarning(text: String)
+    protected abstract fun reportWarning(text: String)
 
-    protected abstract fun reportError(method: FunctionDescriptor, text: String)
+    protected abstract fun reportWarning(method: FunctionDescriptor, text: String)
 
     internal fun mapReferenceType(kotlinType: KotlinType): ObjCReferenceType =
             mapReferenceTypeIgnoringNullability(kotlinType).let {
@@ -638,7 +669,7 @@ abstract class ObjCExportHeaderGenerator(
             val firstType = types[0]
             val secondType = types[1]
 
-            reportCompilationWarning("Exposed type '$kotlinType' is '$firstType' and '$secondType' at the same time. " +
+            reportWarning("Exposed type '$kotlinType' is '$firstType' and '$secondType' at the same time. " +
                                      "This most likely wouldn't work as expected.")
 
             // TODO: the same warning for such classes.

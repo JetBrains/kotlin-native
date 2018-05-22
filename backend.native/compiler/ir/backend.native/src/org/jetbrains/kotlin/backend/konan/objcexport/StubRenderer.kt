@@ -32,9 +32,9 @@ object StubRenderer {
     }
 
     private fun renderProperty(property: ObjcProperty): String = buildString {
-        fun StringBuilder.appendType() {
+        fun StringBuilder.appendTypeAndName() {
             append(' ')
-            append(property.type.render())
+            append(property.type.render(property.name))
         }
 
         fun ObjcProperty.getAllAttributes(): List<String> {
@@ -56,8 +56,7 @@ object StubRenderer {
 
         append("@property")
         appendAttributes()
-        appendType()
-        append(property.name)
+        appendTypeAndName()
         append(';')
     }
 
@@ -99,6 +98,7 @@ object StubRenderer {
         }
 
         fun appendAttributes() {
+            if (method.attributes.isNotEmpty()) append(' ')
             method.attributes.joinTo(this, separator = " ", transform = ::renderAttribute)
         }
 
@@ -124,7 +124,7 @@ object StubRenderer {
 
     private fun ObjcInterface.renderInterfaceHeader() = buildString {
         fun appendSuperClass() {
-            if (superClass != null) append(superClass)
+            if (superClass != null) append(" : $superClass")
         }
 
         fun appendGenerics() {
@@ -145,8 +145,8 @@ object StubRenderer {
         append("@interface ")
         append(name)
         appendGenerics()
-        appendSuperClass()
         appendCategoryName()
+        appendSuperClass()
         appendSuperProtocols(this@renderInterfaceHeader)
     }
 

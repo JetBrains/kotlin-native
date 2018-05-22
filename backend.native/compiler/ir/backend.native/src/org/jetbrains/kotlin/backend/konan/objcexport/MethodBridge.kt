@@ -4,7 +4,9 @@ import org.jetbrains.kotlin.backend.common.descriptors.allParameters
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
 import org.jetbrains.kotlin.descriptors.ParameterDescriptor
 
-// TODO: generalize type bridges to support such things as selectors, ignored class method receivers etc.
+internal sealed class TypeBridge
+internal object ReferenceBridge : TypeBridge()
+internal data class ValueTypeBridge(val objCValueType: ObjCValueType) : TypeBridge()
 
 internal sealed class MethodBridgeParameter
 

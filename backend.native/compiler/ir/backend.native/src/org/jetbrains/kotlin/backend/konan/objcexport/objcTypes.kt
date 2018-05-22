@@ -127,7 +127,3 @@ internal enum class ObjCValueType(
     val nsNumberValueSelector get() = "${nsNumberName}Value"
     val nsNumberFactorySelector get() = "numberWith${nsNumberName.capitalize()}:"
 }
-
-internal sealed class TypeBridge
-internal object ReferenceBridge : TypeBridge()
-internal data class ValueTypeBridge(val objCValueType: ObjCValueType) : TypeBridge()
