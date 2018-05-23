@@ -266,7 +266,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"$SRCROOT/../gradlew\" -p \"$SRCROOT/../greeting/ios\" \"$KONAN_TASK\" --no-daemon -Pkonan.useEnvironmentVariables=true";
+			shellScript = "\"$SRCROOT/../gradlew\" -p \"$SRCROOT/../greeting/ios\" \"$KONAN_TASK\" \\\n-Pkonan.configuration.build.dir=\"$CONFIGURATION_BUILD_DIR\"        \\\n-Pkonan.debugging.symbols=\"$DEBUGGING_SYMBOLS\"                    \\\n-Pkonan.optimizations.enable=\"$KONAN_ENABLE_OPTIMIZATIONS\"";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -523,6 +523,7 @@
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				INFOPLIST_FILE = Greeting/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				KONAN_ENABLE_OPTIMIZATIONS = NO;
 				KONAN_TASK = "";
 				"KONAN_TASK[sdk=iphoneos*]" = compileKonanGreetingIos_arm64;
 				"KONAN_TASK[sdk=iphonesimulator*]" = compileKonanGreetingIos_x64;
@@ -553,6 +554,7 @@
 				DYLIB_INSTALL_NAME_BASE = "@rpath";
 				INFOPLIST_FILE = Greeting/Info.plist;
 				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				KONAN_ENABLE_OPTIMIZATIONS = YES;
 				KONAN_TASK = "";
 				"KONAN_TASK[sdk=iphoneos*]" = compileKonanGreetingIos_arm64;
 				"KONAN_TASK[sdk=iphonesimulator*]" = compileKonanGreetingIos_x64;
