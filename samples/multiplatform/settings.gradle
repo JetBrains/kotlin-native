@@ -1,4 +1,9 @@
+enableFeaturePreview('GRADLE_METADATA')
+
 include ':greeting'
 include ':greeting:common'
 include ':greeting:android'
 include ':greeting:ios'
+
+includeBuild '../../shared'
+includeBuild '../../tools/kotlin-native-gradle-plugin'

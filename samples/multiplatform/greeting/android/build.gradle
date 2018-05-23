@@ -8,7 +8,7 @@ version = 1.0
 
 dependencies {
     // Specify Kotlin/JVM stdlib dependency.
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jre7:$kotlin_version"
+    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
 
     // Specify dependency on a common project for Kotlin multiplatform build.
     expectedBy project(':greeting:common')

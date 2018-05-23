@@ -235,8 +235,14 @@ As well as `android`, this project contains platform-dependent implementations o
 ### 3. Android application
 
 Now we can create an Android application which will use the library we implemented on the previous step. Open Android
-Studio and create a new project in the `androidApp` directory. Android Studio generates all necessary files and
-directories so we only need to add a dependency on our library. There are 2 actions we need to do:
+Studio and create a new project in the `androidApp` directory. Android Studio will generate all necessary files and
+directories.
+
+Kotlin/Native requires Gradle 4.7 or higher so you need to make sure that the AS project uses the correct
+Gradle version. To do this, open `androidApp/gradle/gradle-wrapper.properties` and check the `distributionUrl`
+property. Fix it if it's necessary.
+ 
+Now we only need to add a dependency on our library. There are 2 actions we need to do:
 
 1. Add dependency on the library. To do this just open `androidApp/app/build.gradle` and add the following snippet in
 the `dependencies` script block:

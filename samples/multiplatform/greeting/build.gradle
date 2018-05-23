@@ -11,7 +11,7 @@ buildscript {
     // Specify all the plugins used as dependencies
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-        classpath "org.jetbrains.kotlin:kotlin-native-gradle-plugin:0.7-dev-1407"
+        classpath "org.jetbrains.kotlin:kotlin-native-gradle-plugin:${project.property('konan.plugin.version')}"
 
     }
 }
