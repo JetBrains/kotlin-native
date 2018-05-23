@@ -63,7 +63,7 @@ enum class KonanPhase(val description: String,
     /* ... ... */ BUILD_DFG("Data flow graph building"),
     /* ... ... */ DESERIALIZE_DFG("Data flow graph deserializing"),
     /* ... ... */ DEVIRTUALIZATION("Devirtualization", BUILD_DFG, DESERIALIZE_DFG),
-    /* ... ... */ ESCAPE_ANALYSIS("Escape analysis", BUILD_DFG, DESERIALIZE_DFG), // TODO: Requires devirtualization.
+    /* ... ... */ ESCAPE_ANALYSIS("Escape analysis", BUILD_DFG, DESERIALIZE_DFG, enabled = false), // TODO: Requires devirtualization.
     /* ... ... */ SERIALIZE_DFG("Data flow graph serializing", BUILD_DFG), // TODO: Requires escape analysis.
     /* ... ... */ CODEGEN("Code Generation"),
     /* ... ... */ BITCODE_LINKER("Bitcode linking"),
