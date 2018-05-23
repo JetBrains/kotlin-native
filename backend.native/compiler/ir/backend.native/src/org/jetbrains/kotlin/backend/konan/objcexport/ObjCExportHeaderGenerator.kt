@@ -88,7 +88,7 @@ abstract class ObjCExportHeaderGenerator(
                 .asSequence()
                 .flatMap { it.getAllSuperClassifiers().asSequence() }
                 .map { it as ClassDescriptor }
-                .filter { customMappedTypes.contains(it) }
+                .filter { !customMappedTypes.contains(it) }
                 .toSet()
     }
 
