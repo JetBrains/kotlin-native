@@ -18,30 +18,28 @@ package NativeApplication
 import kotlinx.cinterop.*
 import platform.android.*
 
-data class JniClass(val jclass: jclass?)
-data class JniObject(val jobject: jobject?) {
-    val isNull
-        get() = jobject == null
-    val isNotNull
-        get() = jobject != null
-}
-data class JniMethod(val jmethod: jmethodID?)
+data class JniClass(val jclass: jclass)
+data class JniObject(val jobject: jobject)
+data class JniMethod(val jmethod: jmethodID)
+
+fun asJniClass(jclass: jclass?) =
+        if (jclass != null) JniClass(jclass) else null
+fun asJniObject(jobject: jobject?) =
+        if (jobject != null) JniObject(jobject) else null
+fun asJniMethod(jmethodID: jmethodID?) =
+        if (jmethodID != null) JniMethod(jmethodID) else null
 
 class JniBridge(val vm: CPointer<JavaVMVar>) {
     private val vmFunctions: JNIInvokeInterface = vm.pointed.pointed!!
-    private val jniEnv by lazy {
-        memScoped {
-            val envStorage = alloc<CPointerVar<JNIEnvVar>>()
-            if (vmFunctions.AttachCurrentThreadAsDaemon!!(vm, envStorage.ptr, null) != 0)
-                throw Error("Cannot attach thread to the VM")
-            envStorage.pointed!!
-        }
+    val jniEnv = memScoped {
+        val envStorage = alloc<CPointerVar<JNIEnvVar>>()
+        if (vmFunctions.AttachCurrentThreadAsDaemon!!(vm, envStorage.ptr, null) != 0)
+            throw Error("Cannot attach thread to the VM")
+        envStorage.value!!
     }
+    private val envFunctions: JNINativeInterface = jniEnv.pointed.pointed!!
 
-    private val envFunctions: JNINativeInterface by lazy {
-        jniEnv.pointed!!
-    }
-
+    // JNI operations.
     private val fNewStringUTF = envFunctions.NewStringUTF!!
     private val fFindClass = envFunctions.FindClass!!
     private val fGetMethodID = envFunctions.GetMethodID!!
@@ -50,17 +48,19 @@ class JniBridge(val vm: CPointer<JavaVMVar>) {
     private val fExceptionCheck = envFunctions.ExceptionCheck!!
     private val fExceptionDescribe = envFunctions.ExceptionDescribe!!
     private val fExceptionClear = envFunctions.ExceptionClear!!
+    val fPushLocalFrame = envFunctions.PushLocalFrame!!
+    val fPopLocalFrame = envFunctions.PopLocalFrame!!
 
     private fun check() {
-        if (fExceptionCheck(jniEnv.ptr) != 0.toByte()) {
-            fExceptionDescribe(jniEnv.ptr)
-            fExceptionClear(jniEnv.ptr)
+        if (fExceptionCheck(jniEnv) != 0.toByte()) {
+            fExceptionDescribe(jniEnv)
+            fExceptionClear(jniEnv)
             throw Error("JVM exception thrown")
         }
     }
 
     fun toJString(string: String) = memScoped {
-        val result = JniObject(fNewStringUTF(jniEnv.ptr, string.cstr.ptr))
+        val result = asJniObject(fNewStringUTF(jniEnv, string.cstr.ptr))
         check()
         result
     }
@@ -71,7 +71,7 @@ class JniBridge(val vm: CPointer<JavaVMVar>) {
             when (it) {
                 null -> result[index].l = null
                 is JniObject -> result[index].l = it.jobject
-                is String -> result[index].l = toJString(it).jobject
+                is String -> result[index].l = toJString(it)?.jobject
                 is Int -> result[index].i = it
                 is Long -> result[index].j = it
                 else -> throw Error("Unsupported conversion for ${it::class.simpleName}")
@@ -81,27 +81,38 @@ class JniBridge(val vm: CPointer<JavaVMVar>) {
     }
 
     fun FindClass(name: String) = memScoped {
-        val result = JniClass(fFindClass(jniEnv.ptr, name.cstr.ptr))
+        val result = asJniClass(fFindClass(jniEnv, name.cstr.ptr))
         check()
         result
     }
 
-    fun GetMethodID(clazz: JniClass, name: String, signature: String) = memScoped {
-        val result = JniMethod(fGetMethodID(jniEnv.ptr, clazz.jclass, name.cstr.ptr, signature.cstr.ptr))
+    fun GetMethodID(clazz: JniClass?, name: String, signature: String) = memScoped {
+        val result = asJniMethod(fGetMethodID(jniEnv, clazz?.jclass, name.cstr.ptr, signature.cstr.ptr))
         check()
          result
     }
 
     fun CallVoidMethod(receiver: JniObject?, method: JniMethod, vararg arguments: Any?) = memScoped {
-        fCallVoidMethodA(jniEnv.ptr, receiver?.jobject, method.jmethod,
+        fCallVoidMethodA(jniEnv, receiver?.jobject, method.jmethod,
                 toJValues(arguments, this@memScoped))
         check()
     }
 
     fun CallObjectMethod(receiver: JniObject?, method: JniMethod, vararg arguments: Any?) = memScoped {
-        val result = JniObject(fCallObjectMethodA(jniEnv.ptr, receiver?.jobject, method.jmethod,
+        val result = asJniObject(fCallObjectMethodA(jniEnv, receiver?.jobject, method.jmethod,
                 toJValues(arguments, this@memScoped)))
         check()
         result
+    }
+
+    // Usually, use this
+    inline fun <T> withLocalFrame(block: JniBridge.() -> T): T {
+        if (fPushLocalFrame(jniEnv, 0) < 0)
+            throw Error("Cannot push new local frame")
+        try {
+            return block()
+        } finally {
+            fPopLocalFrame(jniEnv, null)
+        }
     }
 }

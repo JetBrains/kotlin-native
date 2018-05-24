@@ -93,19 +93,19 @@ class Engine(val state: NativeActivityState): DisposableContainer() {
 
     private val jniBrigde = JniBridge(state.activity!!.pointed.vm!!)
 
-    private fun callToManagedAPI() {
-        // Actually, this is a context pointer.
-        val context = JniObject(state.activity!!.pointed.clazz!!)
+    private fun callToManagedAPI() = jniBrigde.withLocalFrame {
+            // Actually, this is a context pointer.
+            val context = JniObject(state.activity!!.pointed.clazz!!)
 
-        val contextClass = jniBrigde.FindClass("android/content/Context")
-        val getSystemServiceMethod = jniBrigde.GetMethodID(
-                contextClass, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;")
-        val vibrator = jniBrigde.CallObjectMethod(context, getSystemServiceMethod, "vibrator")
-        if (vibrator.isNotNull) {
-            val vibratorClass = jniBrigde.FindClass("android/os/Vibrator")
-            val vibrateMethod = jniBrigde.GetMethodID(vibratorClass, "vibrate", "(J)V")
-            jniBrigde.CallVoidMethod(vibrator, vibrateMethod, 500L)
-        }
+            val contextClass = FindClass("android/content/Context")
+            val getSystemServiceMethod = GetMethodID(
+                    contextClass, "getSystemService", "(Ljava/lang/String;)Ljava/lang/Object;")!!
+            val vibrator = CallObjectMethod(context, getSystemServiceMethod, "vibrator")
+            if (vibrator != null) {
+                val vibratorClass = FindClass("android/os/Vibrator")
+                val vibrateMethod = GetMethodID(vibratorClass, "vibrate", "(J)V")!!
+                CallVoidMethod(vibrator, vibrateMethod, 500L)
+            }
     }
 
     private fun processSysEvent(fd: IntVar): Boolean {
