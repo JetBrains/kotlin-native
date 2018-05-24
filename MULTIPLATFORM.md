@@ -240,7 +240,8 @@ directories.
 
 Kotlin/Native requires Gradle 4.7 or higher so you need to make sure that the AS project uses the correct
 Gradle version. To do this, open `androidApp/gradle/gradle-wrapper.properties` and check the `distributionUrl`
-property. Fix it if it's necessary.
+property. Upgrade the wrapper if necessary
+(see [Gradle documentation](https://docs.gradle.org/current/userguide/gradle_wrapper.html#sec:upgrading_wrapper)).
  
 Now we only need to add a dependency on our library. There are 2 actions we need to do:
 
