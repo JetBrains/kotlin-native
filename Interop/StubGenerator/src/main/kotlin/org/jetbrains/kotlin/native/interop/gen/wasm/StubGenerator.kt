@@ -67,7 +67,7 @@ fun Type.wasmReturnMapping(value: String): String = when (this) {
     is idlInt -> value
     is idlFloat -> value
     is idlDouble -> value
-    is idlString -> "TODO(\"Implement me\")"
+    is idlString -> "JsString(ArenaManager.currentArena, $value).getString()"
     is idlObject -> "JsValue(ArenaManager.currentArena, $value)"
     is idlFunction -> "TODO(\"Implement me\")"
     is idlInterfaceRef -> "$name(ArenaManager.currentArena, $value)"

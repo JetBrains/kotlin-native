@@ -105,6 +105,18 @@ open class JsArray(arena: Arena, index: Object): JsValue(arena, index) {
         get() = this.getInt("length")
 }
 
+open class JsString(arena: Arena, index: Object): JsValue(arena, index) {
+    constructor(jsValue: JsValue): this(jsValue.arena, jsValue.index)
+    fun getString(): String {
+        val length = this.getInt("length")
+        var result = ""
+	for (i in 0..length-1) {
+            result += getStringChar(arena, index, i).toChar()
+        }
+        return result;
+    }
+}
+
 @Used
 @SymbolName("Konan_js_getInt")
 external public fun getInt(arena: Arena, obj: Object, propertyPtr: Pointer, propertyLen: Int): Int;
@@ -120,6 +132,10 @@ external public fun setFunction(arena: Arena, obj: Object, propertyName: Pointer
 @Used
 @SymbolName("Konan_js_setString")
 external public fun setString(arena: Arena, obj: Object, propertyName: Pointer, propertyLength: Int, stringPtr: Pointer, stringLength: Int )
+
+@Used
+@SymbolName("Konan_js_getStringChar")
+external public fun getStringChar(arena: Arena, obj: Object, index: Int ): Int
 
 fun setter(obj: JsValue, property: String, string: String) {
     setString(obj.arena, obj.index, stringPointer(property), stringLengthBytes(property), stringPointer(string), stringLengthBytes(string))
