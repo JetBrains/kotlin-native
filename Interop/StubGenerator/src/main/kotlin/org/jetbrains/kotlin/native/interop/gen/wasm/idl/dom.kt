@@ -20,7 +20,7 @@ val idlDom = listOf(
         Operation("setTransform", idlVoid, Arg("a", idlInt), Arg("b", idlInt), Arg("c", idlInt), Arg("d", idlInt), Arg("e", idlInt), Arg("f", idlInt)),
         Operation("save", idlVoid),
         Operation("restore", idlVoid),
-        Operation("measureText", idlInterfaceRef("TextMetrics"), Arg("text", idlString)),
+        Operation("measureText", idlInterfaceRef("TextMetrics"), Arg("text", idlString))
    ),
     Interface("DOMRect",
         Attribute("left", idlInt),
