@@ -15,5 +15,5 @@ import konan.internal.Intrinsic
 @SinceKotlin("1.2")
 @InlineOnly
 @Intrinsic
-inline val @receiver:AccessibleLateinitPropertyLiteral KProperty0<*>.isInitialized: Boolean
+actual inline val @receiver:AccessibleLateinitPropertyLiteral KProperty0<*>.isInitialized: Boolean
     get() = throw NotImplementedError("Implementation is intrinsic")
