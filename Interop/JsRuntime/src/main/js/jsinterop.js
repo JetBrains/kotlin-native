@@ -79,6 +79,13 @@ konan.libraries.push ({
         var string = toUTF16String(stringPtr, stringLength);
         kotlinObject(arena, obj)[name] = string;
     },
+
+    Konan_js_getStringChar: function (arenaIndex, objIndex, charIndex) {
+        var arena = konan_dependencies.env.arenas.get(arenaIndex);
+        var value = arena[objIndex].charCodeAt(charIndex);
+	return value;
+    },
+
 });
 
 // TODO: This is just a shorthand notation.

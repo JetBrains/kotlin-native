@@ -31,7 +31,7 @@ fun Arg.wasmMapping(): String = when (type) {
     is idlString -> "stringPointer($name), stringLengthBytes($name)"
     is idlObject -> TODO("implement me")
     is idlFunction -> "wrapFunction<R$name>($name), ArenaManager.currentArena"
-    is idlInterfaceRef -> TODO("Implement me")
+    is idlInterfaceRef -> "${name}.arena, ${name}.index"
     else -> error("Unexpected type")
 }
 
@@ -58,7 +58,7 @@ fun Arg.wasmArgNames(): List<String> = when (type) {
     is idlString -> listOf("${name}Ptr", "${name}Len")
     is idlObject -> TODO("implement me (idlObject)")
     is idlFunction -> listOf("${name}Index", "${name}ResultArena")
-    is idlInterfaceRef -> TODO("Implement me (idlInterfaceRef)")
+    is idlInterfaceRef -> listOf("${name}Arena", "${name}Index")
     else -> error("Unexpected type")
 }
 
@@ -67,7 +67,7 @@ fun Type.wasmReturnMapping(value: String): String = when (this) {
     is idlInt -> value
     is idlFloat -> value
     is idlDouble -> value
-    is idlString -> "TODO(\"Implement me\")"
+    is idlString -> "JsString(ArenaManager.currentArena, $value).getString()"
     is idlObject -> "JsValue(ArenaManager.currentArena, $value)"
     is idlFunction -> "TODO(\"Implement me\")"
     is idlInterfaceRef -> "$name(ArenaManager.currentArena, $value)"
@@ -291,7 +291,8 @@ fun Arg.composeWasmArgs(): String = when (type) {
     is idlFunction ->
         "    var $name = konan_dependencies.env.Konan_js_wrapLambda(lambdaResultArena, ${name}Index);\n"
 
-    is idlInterfaceRef -> TODO("Implement me")
+    is idlInterfaceRef -> 
+        "    var $name = kotlinObject(${name}Arena, ${name}Index);\n"
     else -> error("Unexpected type")
 }
 
