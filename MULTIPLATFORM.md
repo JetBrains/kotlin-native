@@ -109,7 +109,7 @@ We need to add buildscript dependencies to be able to use Kotlin plugins for Gra
     // Set up a buildscript dependency on the Kotlin plugin.
     buildscript {
         // Specify a Kotlin version you need.
-        ext.kotlin_version = '1.2.31'
+        ext.kotlin_version = '1.2.41'
 
         repositories {
             jcenter()
@@ -119,7 +119,7 @@ We need to add buildscript dependencies to be able to use Kotlin plugins for Gra
         // Specify all the plugins used as dependencies
         dependencies {
             classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlin_version"
-            classpath "org.jetbrains.kotlin:kotlin-native-gradle-plugin:0.7-dev-1613"
+            classpath "org.jetbrains.kotlin:kotlin-native-gradle-plugin:0.7"
 
         }
     }
@@ -147,7 +147,7 @@ The `common` subproject contains a platform-independent code. To build it, add t
 
     dependencies {
         // Set up compilation dependency on common Kotlin stdlib
-        compile "org.jetbrains.kotlin:kotlin-stdlib-common:$kotlin_version"
+        implementation "org.jetbrains.kotlin:kotlin-stdlib-common:$kotlin_version"
     }
 
 Now we can write some logic available for all platforms. Create `common/src/main/kotlin/common.kt` and add some
@@ -367,4 +367,6 @@ framework in order to get code completion). Let's print our greeting:
 
 ### Sample
 
-A sample implementation which follows these documenation can be found in [samples/multiplatform](samples/multiplatform).
+A sample implementation which follows these documenation can be found [here](https://github.com/JetBrains/kotlin-mpp-example).
+You may also look at the [calculator sample](samples/calculator). It has a simpler structure (particularly both Android app
+and Kotlin/Native library are combined in a single Gradle build) but also uses the multiplatform support provided by Kotlin. 
