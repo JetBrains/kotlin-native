@@ -516,6 +516,11 @@ task hello4(type: RunKonanTest) {
     source = "runtime/basic/hello4.kt"
 }
 
+task enumEquals(type: RunKonanTest) {
+    goldValue = "true\nfalse\nfalse\n"
+    source = "runtime/basic/enum_equals.kt"
+}
+
 task entry0(type: RunStandaloneKonanTest) {
     goldValue = "Hello.\n"
     source = "runtime/basic/entry0.kt"
