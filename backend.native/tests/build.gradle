@@ -2720,6 +2720,7 @@ if (isMac() && project.testTarget != 'wasm32') {
 task buildKonanStdlibTests(type: BuildKonanTest) {
     outputSourceSetName = "testOutputStdlib"
     compileList = [ "stdlib_external", "testUtils.kt" ]
+    flags = [ "--disable", "devirtualization" ]
 }
 
 task runStdlibTests(type: RunStdlibTest) {
@@ -2732,6 +2733,7 @@ task runStdlibTests(type: RunStdlibTest) {
 
 task buildKonanTests(type: BuildKonanTest) {
     compileList = [ "codegen",  "datagen", "lower", "runtime", "serialization"]
+    flags = [ "--disable", "devirtualization" ]
 
     // These tests should not be built into the TestRunner's test executable
     excludeList = []
