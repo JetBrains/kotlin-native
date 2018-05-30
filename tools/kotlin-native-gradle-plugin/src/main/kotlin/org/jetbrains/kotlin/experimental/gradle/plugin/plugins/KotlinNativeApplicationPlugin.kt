@@ -31,7 +31,7 @@ class KotlinNativeApplicationPlugin @Inject constructor(
 ): Plugin<ProjectInternal> {
 
     override fun apply(project: ProjectInternal): Unit = with(project) {
-        project.pluginManager.apply(KotlinNativeBasePlugin::class.java)
+        pluginManager.apply(KotlinNativeBasePlugin::class.java)
 
         val instantiator = services.get(Instantiator::class.java)
         val objectFactory = objects

@@ -46,18 +46,9 @@ import java.io.File
 import javax.inject.Inject
 
 
-class KotlinNativeBasePlugin @Inject constructor(val publicationRegistry: ProjectPublicationRegistry) : Plugin<ProjectInternal> {
+class KotlinNativeBasePlugin: Plugin<ProjectInternal> {
 
-
-    private fun addBaseTasks(components: SoftwareComponentContainer) {
-        components.withType(ComponentWithBinaries::class.java) { component ->
-            component.binaries.whenElementKnown { binary ->
-                components.add(binary)
-            }
-        }
-    }
-
-    private fun addCompieTasks(
+    private fun addCompilationTasks(
             tasks: TaskContainerInternal,
             components: SoftwareComponentContainer,
             buildDirectory: DirectoryProperty,
@@ -92,12 +83,10 @@ class KotlinNativeBasePlugin @Inject constructor(val publicationRegistry: Projec
 
         // Apply base plugins
         project.pluginManager.apply(LifecycleBasePlugin::class.java)
-
-        // TODO: Add Lifecycle tasks. See Base Native plugin.*
-        addBaseTasks(components)
+        project.pluginManager.apply(NativeBasePlugin::class.java)
 
         // Create compile tasks
-        addCompieTasks(tasks, components, layout.buildDirectory, providers)
+        addCompilationTasks(tasks, components, layout.buildDirectory, providers)
     }
 
     companion object {

@@ -15,16 +15,12 @@ open class DefaultKotlinNativeApplication @Inject constructor(
         name: String,
         val objectFactory: ObjectFactory,
         fileOperations: FileOperations
-): DefaultKotlinNativeComponent(name, objectFactory, fileOperations), KotlinNativeApplication, PublicationAwareComponent {
+) : DefaultKotlinNativeComponent(name, objectFactory, fileOperations), KotlinNativeApplication, PublicationAwareComponent {
 
     override fun getDisplayName() = Describables.withTypeAndName("Kotlin/Native application", name)
 
     private val developmentBinaryProperty = objectFactory.property(KotlinNativeExecutable::class.java)
     override fun getDevelopmentBinary(): Property<KotlinNativeExecutable> = developmentBinaryProperty
-
-    private val mainVariant = MainExecutableVariant()
-
-    override fun getMainPublication(): MainExecutableVariant = mainVariant
 
     fun addExecutable(identity: NativeVariantIdentity): DefaultKotlinNativeExecutable =
             objectFactory.newInstance(

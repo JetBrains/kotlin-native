@@ -48,7 +48,8 @@ open class DefaultKotlinNativeExecutable @Inject constructor(
 
     // Properties
 
-    // TODO: May be make them public
+    // TODO: Set Runtime elements.
+
     private val runtimeElementsProperty: Property<Configuration> = objects.property(Configuration::class.java)
 
     private val executableFileProperty = projectLayout.fileProperty()

@@ -23,6 +23,7 @@ import org.gradle.language.nativeplatform.internal.Names
 import org.gradle.language.nativeplatform.internal.PublicationAwareComponent
 import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeBinary
 import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeComponent
+import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeExecutable
 import org.jetbrains.kotlin.experimental.gradle.plugin.plugins.kotlinNativeSourceSets
 import org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets.DefaultKotlinNativeSourceSet
 import org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets.KotlinNativeSourceSet
@@ -34,10 +35,10 @@ abstract class DefaultKotlinNativeComponent @Inject constructor(
         private val name: String,
         objects: ObjectFactory,
         fileOperations: FileOperations
-) : DefaultNativeComponent(fileOperations), KotlinNativeComponent, ComponentWithNames {
+) : DefaultNativeComponent(fileOperations), KotlinNativeComponent, ComponentWithNames, PublicationAwareComponent {
 
     override val baseName: Property<String> = objects.property(String::class.java)
-    fun getBaseName(): Provider<String> = baseName
+    override fun getBaseName(): Provider<String> = baseName
 
     // TODO: Filter only .kt files somehow. May be use createSourceView for this.
     override val sources: DefaultKotlinNativeSourceSet =
@@ -68,4 +69,8 @@ abstract class DefaultKotlinNativeComponent @Inject constructor(
     override fun getDependencies(): ComponentDependencies = dependencies
 
     override fun getImplementationDependencies(): Configuration = dependencies.implementationDependencies
+
+    private val mainVariant = MainExecutableVariant()
+
+    override fun getMainPublication(): MainExecutableVariant = mainVariant
 }
