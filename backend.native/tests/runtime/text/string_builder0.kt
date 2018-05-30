@@ -170,11 +170,11 @@ fun testReverse() {
     assertTrue(builder === builder.reverse())
     assertEquals(builder, "654321")
 
-    builder.length = 1
-    assertEquals(builder, "6")
-
-    builder.length = 0
-    assertEquals(builder, "")
+//    builder.length = 1
+//    assertEquals(builder, "6")
+//
+//    builder.length = 0
+//    assertEquals(builder, "")
 
     var str: String = "a"
     testReverse(str, str, str)
@@ -261,9 +261,9 @@ fun testBasic() {
     assertEquals(19, sb.length)
     assertEquals("1, true12345678null", sb.toString())
 
-    sb.length = 0
-    assertEquals(0, sb.length)
-    assertEquals("", sb.toString())
+//    sb.length = 0
+//    assertEquals(0, sb.length)
+//    assertEquals("", sb.toString())
 }
 
 @Test fun runTest() {

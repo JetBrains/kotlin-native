@@ -957,7 +957,7 @@ class PatternTest2 {
 
     @Test fun testCompile4() {
         val findString = "\\Qpublic\\E"
-        val text = StringBuilder("    public class Class {\n" + "    public class Class {")
+        var text = StringBuilder("    public class Class {\n" + "    public class Class {")
         val regex = Regex(findString)
 
         val result = regex.find(text)
@@ -965,8 +965,7 @@ class PatternTest2 {
         assertEquals(4, result!!.range.start)
 
         // modify text
-        text.length = 0
-        text.append("Text have been changed.")
+        text = StringBuilder("Text have been changed.")
 
         assertNull(regex.find(text))
     }
