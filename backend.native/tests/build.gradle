@@ -663,6 +663,12 @@ task freeze_stress(type: RunKonanTest) {
     source = "runtime/workers/freeze_stress.kt"
 }
 
+task enumIdentity(type: RunKonanTest) {
+    disabled = (project.testTarget == 'wasm32') // Workers need pthreads.
+    goldValue = "true\n"
+    source = "runtime/workers/enum_identity.kt"
+}
+
 task superFunCall(type: RunKonanTest) {
     goldValue = "<fun:C><fun:C1>\n<fun:C><fun:C3>\n"
     source = "codegen/basics/superFunCall.kt"
