@@ -1,14 +1,12 @@
 package org.jetbrains.kotlin.experimental.gradle.plugin
 
-import org.gradle.api.Action
 import org.gradle.api.artifacts.Configuration
-import org.gradle.api.file.ConfigurableFileCollection
-import org.gradle.api.file.FileCollection
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.SetProperty
 import org.gradle.language.BinaryCollection
 import org.gradle.language.ComponentWithBinaries
 import org.gradle.language.ComponentWithDependencies
+import org.jetbrains.kotlin.experimental.gradle.plugin.internal.OutputKind
 import org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets.KotlinNativeSourceSet
 import org.jetbrains.kotlin.konan.target.KonanTarget
 
@@ -32,11 +30,11 @@ interface KotlinNativeComponent: ComponentWithBinaries, ComponentWithDependencie
      */
     val sources: KotlinNativeSourceSet
 
-    /** Configures the source files or directories for this component. */
-    fun source(action: Action<in ConfigurableFileCollection>)
-
-    /** Specifies the kotlin native target used to build this component. */
+    /** Specifies Kotlin/Native targets used to build this component. */
     val konanTargets: SetProperty<KonanTarget>
+
+    /** Specifies compiler outputs produced by this component */
+    val outputKinds: SetProperty<OutputKind>
 
     /** Returns the binaries for this library. */
     override fun getBinaries(): BinaryCollection<out KotlinNativeBinary>

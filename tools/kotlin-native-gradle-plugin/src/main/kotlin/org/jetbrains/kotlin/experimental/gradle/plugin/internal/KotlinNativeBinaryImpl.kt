@@ -4,21 +4,22 @@ import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ModuleVersionIdentifier
 import org.gradle.api.attributes.Usage
+import org.gradle.api.component.PublishableComponent
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.FileCollection
+import org.gradle.api.file.ProjectLayout
 import org.gradle.api.internal.file.FileOperations
 import org.gradle.api.model.ObjectFactory
+import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
+import org.gradle.language.ComponentDependencies
 import org.gradle.language.ComponentWithDependencies
 import org.gradle.language.ComponentWithOutputs
-import org.gradle.api.component.PublishableComponent
-import org.gradle.api.file.ProjectLayout
-import org.gradle.api.provider.Property
-import org.gradle.language.ComponentDependencies
 import org.gradle.language.cpp.CppBinary
 import org.gradle.language.internal.DefaultComponentDependencies
 import org.gradle.language.nativeplatform.internal.ComponentWithNames
 import org.gradle.language.nativeplatform.internal.Names
+import org.gradle.nativeplatform.OperatingSystemFamily
 import org.gradle.nativeplatform.toolchain.NativeToolChain
 import org.jetbrains.kotlin.experimental.gradle.plugin.ComponentWithBaseName
 import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeBinary
@@ -39,7 +40,7 @@ import org.jetbrains.kotlin.konan.target.KonanTarget
  *  linkLibraries  runtimeLibraries  klibs (dependencies by type: klib, static lib, shared lib etc)
  *
  */
-open class DefaultKotlinNativeBinary(
+abstract class KotlinNativeBinaryImpl(
         private val name: String,
         private val baseName: Provider<String>,
         val sourceSet: KotlinNativeSourceSet,
@@ -48,8 +49,7 @@ open class DefaultKotlinNativeBinary(
         override val kind: CompilerOutputKind,
         objects: ObjectFactory,
         componentImplementation: Configuration,
-        configurations: ConfigurationContainer,
-        fileOperations: FileOperations
+        configurations: ConfigurationContainer
 ) : KotlinNativeBinary,
     ComponentWithNames,
     ComponentWithDependencies,
@@ -82,7 +82,7 @@ open class DefaultKotlinNativeBinary(
     }
 
     override fun getDependencies(): ComponentDependencies = dependencies
-    val implementationDependencies: Configuration = dependencies.implementationDependencies
+    fun getImplementationDependencies(): Configuration = dependencies.implementationDependencies
 
     // A configuration containing klibraries
     // TODO: Add similar configs for native libraries
@@ -92,9 +92,9 @@ open class DefaultKotlinNativeBinary(
         attributes.attribute(CppBinary.DEBUGGABLE_ATTRIBUTE, debuggable)
         attributes.attribute(CppBinary.OPTIMIZED_ATTRIBUTE, optimized)
         attributes.attribute(KotlinNativeBinary.KONAN_TARGET_ATTRIBUTE, konanTarget.name)
-        // TODO: Support operating system attribute for Kotlin/Native binaries
-        //attributes.attribute(OperatingSystemFamily.OPERATING_SYSTEM_ATTRIBUTE, )
-        extendsFrom(implementationDependencies)
+        // Write
+        attributes.attribute(OperatingSystemFamily.OPERATING_SYSTEM_ATTRIBUTE, konanTarget.getGradleOSFamily(objects))
+        extendsFrom(getImplementationDependencies())
     }
 
     override fun getBaseName(): Provider<String> = baseName
@@ -103,13 +103,10 @@ open class DefaultKotlinNativeBinary(
 
     override fun getCoordinates(): ModuleVersionIdentifier = identity.coordinates
 
-    private val outputsProperty: ConfigurableFileCollection = fileOperations.files()
-    override fun getOutputs(): ConfigurableFileCollection = outputsProperty
-
     open fun isDebuggable(): Boolean = debuggable
     open fun isOptimized(): Boolean = optimized
 
-    // TODO: rework libraries support
+    // TODO: Support native libraries
     fun getLinkLibraries(): FileCollection = projectLayout.filesFor()
     fun getRuntimeLibraries(): FileCollection = projectLayout.filesFor()
 

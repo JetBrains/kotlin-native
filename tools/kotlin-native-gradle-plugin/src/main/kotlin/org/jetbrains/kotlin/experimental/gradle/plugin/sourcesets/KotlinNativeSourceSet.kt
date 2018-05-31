@@ -3,11 +3,8 @@ package org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets
 import groovy.lang.Closure
 import org.gradle.api.Action
 import org.gradle.api.Named
-import org.gradle.api.artifacts.Configuration
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.SourceDirectorySet
-import org.gradle.api.tasks.SourceSet
-import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeBinary
 import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeComponent
 import org.jetbrains.kotlin.konan.target.KonanTarget
 

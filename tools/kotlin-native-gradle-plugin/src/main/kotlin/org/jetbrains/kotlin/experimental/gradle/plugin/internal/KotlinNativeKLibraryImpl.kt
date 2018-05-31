@@ -6,35 +6,31 @@ import org.gradle.api.attributes.AttributeContainer
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.ProjectLayout
 import org.gradle.api.file.RegularFile
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.internal.component.SoftwareComponentInternal
 import org.gradle.api.internal.component.UsageContext
 import org.gradle.api.internal.file.FileOperations
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
-import org.gradle.language.nativeplatform.internal.ConfigurableComponentWithLinkUsage
-import org.gradle.language.nativeplatform.internal.ConfigurableComponentWithRuntimeUsage
-import org.gradle.language.nativeplatform.internal.ConfigurableComponentWithStaticLibrary
+import org.gradle.language.cpp.internal.DefaultUsageContext
 import org.gradle.nativeplatform.Linkage
-import org.gradle.nativeplatform.platform.NativePlatform
-import org.gradle.nativeplatform.tasks.CreateStaticLibrary
-import org.gradle.nativeplatform.toolchain.NativeToolChain
-import org.gradle.nativeplatform.toolchain.internal.PlatformToolProvider
-import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeKlib
+import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeKLibrary
 import org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets.KotlinNativeSourceSet
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
+import javax.inject.Inject
 
-open class DefaultKotlinNativeKlib(
+open class KotlinNativeKLibraryImpl @Inject constructor(
         name: String,
         baseName: Provider<String>,
+        componentImplementation: Configuration,
         sources: KotlinNativeSourceSet,
         identity: KotlinNativeVariantIdentity,
         objects: ObjectFactory,
         projectLayout: ProjectLayout,
-        componentImplementation: Configuration,
         configurations: ConfigurationContainer,
-        fileOperations: FileOperations
-) : DefaultKotlinNativeBinary(name,
+        private val fileOperations: FileOperations
+) : KotlinNativeBinaryImpl(name,
         baseName,
         sources,
         identity,
@@ -42,23 +38,29 @@ open class DefaultKotlinNativeKlib(
         CompilerOutputKind.LIBRARY,
         objects,
         componentImplementation,
-        configurations,
-        fileOperations),
-    KotlinNativeKlib,
+        configurations),
+    KotlinNativeKLibrary,
     SoftwareComponentInternal
 {
     // Properties
 
+    // The link elements configuration is created by the NativeBase plugin.
     private val linkElementsProperty: Property<Configuration> = objects.property(Configuration::class.java)
-    private val linkFileProperty: Property<RegularFile> = projectLayout.fileProperty()
+    private val linkFileProperty: RegularFileProperty = projectLayout.fileProperty()
 
     // Interface
 
-    override fun getLinkElements(): Property<Configuration> = linkElementsProperty
+    override fun getLinkElements()  = linkElementsProperty
+    override fun getLinkFile() = linkFileProperty
 
-    override fun getLinkFile(): Property<RegularFile> = linkFileProperty
-
-    override fun getUsages(): MutableSet<out UsageContext> {
-        TODO("not implemented")
+    override fun getUsages(): Set<UsageContext> = linkElementsProperty.get().let {
+        setOf(DefaultUsageContext(identity.linkUsageContext, it.allArtifacts, it))
     }
+
+    override fun getLinkAttributes(): AttributeContainer = identity.linkUsageContext.attributes
+
+    // TODO: Does Klib really match a static linkage in Gradle's terms?
+    override fun getLinkage(): Linkage? = Linkage.STATIC
+
+    override fun getOutputs(): FileCollection = fileOperations.files(linkFile.get())
 }

@@ -1,51 +1,23 @@
 package org.jetbrains.kotlin.experimental.gradle.plugin.plugins
 
-import org.apache.tools.ant.TaskContainer
-import org.gradle.api.Action
-import org.gradle.api.NamedDomainObjectFactory
 import org.gradle.api.Plugin
-import org.gradle.api.Project
-import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.component.SoftwareComponentContainer
 import org.gradle.api.file.DirectoryProperty
-import org.gradle.api.file.RegularFile
-import org.gradle.api.internal.FactoryNamedDomainObjectContainer
 import org.gradle.api.internal.FeaturePreviews
-import org.gradle.api.internal.artifacts.ivyservice.projectmodule.DefaultProjectPublication
-import org.gradle.api.internal.artifacts.ivyservice.projectmodule.ProjectPublicationRegistry
-import org.gradle.api.internal.file.SourceDirectorySetFactory
 import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.internal.tasks.TaskContainerInternal
-import org.gradle.api.plugins.BasePlugin
-import org.gradle.api.provider.Provider
 import org.gradle.api.provider.ProviderFactory
-import org.gradle.internal.reflect.Instantiator
-import org.gradle.language.ComponentWithBinaries
 import org.gradle.language.base.plugins.LifecycleBasePlugin
-import org.gradle.language.cpp.ProductionCppComponent
-import org.gradle.language.cpp.internal.DefaultCppComponent
-import org.gradle.language.nativeplatform.internal.ConfigurableComponentWithExecutable
+import org.gradle.language.nativeplatform.ComponentWithLinkUsage
+import org.gradle.language.nativeplatform.internal.ConfigurableComponentWithLinkUsage
 import org.gradle.language.plugins.NativeBasePlugin
-import org.gradle.nativeplatform.plugins.NativeComponentModelPlugin
-import org.gradle.nativeplatform.toolchain.internal.plugins.StandardToolChainsPlugin
-import org.gradle.swiftpm.internal.SwiftPmTarget
-import org.jetbrains.kotlin.container.ComponentContainer
-import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeBinary
 import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeExecutable
-import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeKlib
-import org.jetbrains.kotlin.experimental.gradle.plugin.ProductionKotlinNativeComponent
-import org.jetbrains.kotlin.experimental.gradle.plugin.internal.DefaultKotlinNativeBinary
-import org.jetbrains.kotlin.experimental.gradle.plugin.internal.DefaultKotlinNativeComponent
-import org.jetbrains.kotlin.experimental.gradle.plugin.internal.DefaultKotlinNativeExecutable
+import org.jetbrains.kotlin.experimental.gradle.plugin.internal.KotlinNativeBinaryImpl
+import org.jetbrains.kotlin.experimental.gradle.plugin.internal.KotlinNativeExecutableImpl
+import org.jetbrains.kotlin.experimental.gradle.plugin.internal.KotlinNativeKLibraryImpl
 import org.jetbrains.kotlin.experimental.gradle.plugin.tasks.KotlinNativeCompile
-import org.jetbrains.kotlin.gradle.plugin.*
-import org.jetbrains.kotlin.gradle.plugin.tasks.*
-import org.jetbrains.kotlin.konan.target.CompilerOutputKind
-import org.jetbrains.kotlin.konan.target.KonanTarget
-import java.io.File
-import javax.inject.Inject
 
-
+// TODO: Support ProductionComponent (see Gradle NativeBase plugin)
 class KotlinNativeBasePlugin: Plugin<ProjectInternal> {
 
     private fun addCompilationTasks(
@@ -54,7 +26,7 @@ class KotlinNativeBasePlugin: Plugin<ProjectInternal> {
             buildDirectory: DirectoryProperty,
             providers: ProviderFactory
     ) {
-        components.withType(DefaultKotlinNativeBinary::class.java) { binary ->
+        components.withType(KotlinNativeBinaryImpl::class.java) { binary ->
             val names = binary.names
             val target = binary.konanTarget
             val kind = binary.kind
@@ -69,9 +41,15 @@ class KotlinNativeBasePlugin: Plugin<ProjectInternal> {
                     val suffix = kind.suffix(target)
                     val baseName = binary.getBaseName().get()
                     "exe/${names.dirName}/${prefix}${baseName}${suffix}"
+                    // TODO: Change the paths
                 }))
             }
             binary.compileTask.set(compileTask)
+
+            when(binary) {
+                is KotlinNativeExecutableImpl -> binary.runtimeFile.set(compileTask.outputFile)
+                is KotlinNativeKLibraryImpl -> binary.linkFile.set(compileTask.outputFile)
+            }
         }
     }
 
