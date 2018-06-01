@@ -6,6 +6,7 @@ import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.internal.FeaturePreviews
 import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.internal.tasks.TaskContainerInternal
+import org.gradle.api.plugins.BasePlugin
 import org.gradle.api.provider.ProviderFactory
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.language.nativeplatform.ComponentWithLinkUsage
@@ -36,13 +37,16 @@ class KotlinNativeBasePlugin: Plugin<ProjectInternal> {
                     KotlinNativeCompile::class.java
             ).apply {
                 this.binary = binary
-                this.outputFile.set(buildDirectory.file(providers.provider {
+                outputFile.set(buildDirectory.file(providers.provider {
                     val prefix = kind.prefix(target)
                     val suffix = kind.suffix(target)
                     val baseName = binary.getBaseName().get()
                     "exe/${names.dirName}/${prefix}${baseName}${suffix}"
                     // TODO: Change the paths
                 }))
+
+                group = BasePlugin.BUILD_GROUP
+                description = "Compiles Kotlin/Native source set '${binary.sourceSet.name}' into a ${binary.kind.name.toLowerCase()}"
             }
             binary.compileTask.set(compileTask)
 

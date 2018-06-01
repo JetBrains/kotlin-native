@@ -53,6 +53,8 @@ open class KotlinNativeCompile: DefaultTask() {
             addArg("-target", target)
             addArg("-p", kind.name.toLowerCase())
 
+            add("-Xmulti-platform")
+
             libraries.files.forEach {library ->
                 library.parent?.let { addArg("-r", it) }
                 addArg("-l", library.nameWithoutExtension)

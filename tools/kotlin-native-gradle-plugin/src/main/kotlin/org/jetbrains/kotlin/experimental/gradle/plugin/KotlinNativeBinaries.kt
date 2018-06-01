@@ -71,6 +71,8 @@ interface KotlinNativeExecutable : KotlinNativeBinary,
 interface KotlinNativeKLibrary : KotlinNativeBinary,
         ComponentWithOutputs,
         PublishableComponent,
-        ConfigurableComponentWithLinkUsage {
+        ConfigurableComponentWithLinkUsage
 
+// TODO: Support.
+interface KotlinNativeSharedLibrary {
 }

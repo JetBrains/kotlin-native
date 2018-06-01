@@ -17,13 +17,6 @@ import org.jetbrains.kotlin.konan.target.KonanTarget
 interface KotlinNativeComponent: ComponentWithBinaries, ComponentWithDependencies {
 
     /**
-     * Specifies the base name for this component. This name is used to calculate various output file names.
-     * The default value is calculated from the project name.
-     */
-    // TODO: Do we need some kind of wrapper for Property (to get rid of baseName.get ... )
-    val baseName: Property<String>
-
-    /**
      * Defines the source files or directories of this component. You can add files or directories to this collection.
      * When a directory is added, all source files are included for compilation. When this collection is empty,
      * the directory src/main/kotlin is used by default.

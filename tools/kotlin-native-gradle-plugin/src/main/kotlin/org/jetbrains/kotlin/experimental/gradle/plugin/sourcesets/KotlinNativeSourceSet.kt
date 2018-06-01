@@ -9,13 +9,6 @@ import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeComponent
 import org.jetbrains.kotlin.konan.target.KonanTarget
 
 interface KotlinNativeSourceSet: Named {
-    /*
-        Нам нужно:
-            sourceDir set-ы на каждый таргет по одному
-            возможность получить sourceDirSet (ы) по таргету
-            возможность получить binary по таргету.
-            возможность получить KotlinNativeComponent по таргету
-    */
 
     val common: SourceDirectorySet
     val component: KotlinNativeComponent
@@ -28,14 +21,9 @@ interface KotlinNativeSourceSet: Named {
     fun common(configureAction: Action<in SourceDirectorySet>): KotlinNativeSourceSet
     fun common(configureLambda: SourceDirectorySet.() -> Unit): KotlinNativeSourceSet
 
-    // TODO: Implement DSL for per-target source directory setting
-
-    // TODO: Implement
-    // TODO: may be provide some way to use different configs for different targets?
-    //val objectKlibs: Configuration
-    //fun getOutput(): FileCollection
-
-    // TODO: Также тут нужны:
-    // Таска для сборки клибы
-    // конфигурация с клибами для каждого таргета. Возможно, одна, от которой будут наследоваться специальные конфиги
+    // TODO: Provide a more convenient way to set targets
+    fun target(target: String): SourceDirectorySet
+    fun target(vararg targets: String, configureClosure: Closure<*>): KotlinNativeSourceSet
+    fun target(vararg targets: String, configureAction: Action<in SourceDirectorySet>): KotlinNativeSourceSet
+    fun target(vararg targets: String, configureLambda: SourceDirectorySet.() -> Unit): KotlinNativeSourceSet
 }

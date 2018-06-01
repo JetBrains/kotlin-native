@@ -5,6 +5,7 @@ import org.gradle.internal.os.OperatingSystem
 import org.gradle.nativeplatform.OperatingSystemFamily
 import org.gradle.nativeplatform.platform.NativePlatform
 import org.gradle.nativeplatform.platform.internal.*
+import org.jetbrains.kotlin.konan.target.Family
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.util.visibleName
 
@@ -17,7 +18,7 @@ fun KonanTarget.getGradleOS(): OperatingSystemInternal = family.visibleName.let 
 }
 
 fun KonanTarget.getGradleOSFamily(objectFactory: ObjectFactory): OperatingSystemFamily {
-    return objectFactory.named(OperatingSystemFamily::class.java, getGradleOS().toFamilyName())
+    return objectFactory.named(OperatingSystemFamily::class.java, family.visibleName)
 }
 
 fun KonanTarget.getGradleCPU(): ArchitectureInternal = architecture.visibleName.let {

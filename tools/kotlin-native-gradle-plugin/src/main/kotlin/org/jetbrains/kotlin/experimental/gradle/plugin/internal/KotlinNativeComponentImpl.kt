@@ -2,7 +2,6 @@ package org.jetbrains.kotlin.experimental.gradle.plugin.internal
 
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.component.ComponentWithVariants
-import org.gradle.api.component.SoftwareComponent
 import org.gradle.api.internal.component.SoftwareComponentInternal
 import org.gradle.api.internal.component.UsageContext
 import org.gradle.api.internal.file.FileOperations
@@ -13,7 +12,6 @@ import org.gradle.api.provider.Provider
 import org.gradle.internal.Describables
 import org.gradle.internal.DisplayName
 import org.gradle.language.ComponentDependencies
-import org.gradle.language.cpp.internal.MainExecutableVariant
 import org.gradle.language.cpp.internal.NativeVariantIdentity
 import org.gradle.language.internal.DefaultBinaryCollection
 import org.gradle.language.internal.DefaultComponentDependencies
@@ -23,39 +21,31 @@ import org.gradle.language.nativeplatform.internal.Names
 import org.gradle.language.nativeplatform.internal.PublicationAwareComponent
 import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeBinary
 import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeComponent
-import org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets.DefaultKotlinNativeSourceSet
-import org.jetbrains.kotlin.konan.target.CompilerOutputKind
+import org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets.KotlinNativeSourceSetImpl
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import javax.inject.Inject
 
 open class KotlinNativeComponentImpl @Inject constructor(
         private val name: String,
+        override val sources: KotlinNativeSourceSetImpl,
         private val objectFactory: ObjectFactory,
         fileOperations: FileOperations
 ) : DefaultNativeComponent(fileOperations), KotlinNativeComponent, ComponentWithNames, PublicationAwareComponent {
 
     override fun getDisplayName(): DisplayName = Describables.withTypeAndName("Kotlin/Native component", name)
 
-    override val baseName: Property<String> = objectFactory.property(String::class.java)
-    override fun getBaseName(): Provider<String> = baseName
-
-    // TODO: Filter only .kt files somehow. May be use createSourceView for this.
-    override val sources: DefaultKotlinNativeSourceSet =
-            objectFactory.newInstance(DefaultKotlinNativeSourceSet::class.java, name).apply {
-                component = this@KotlinNativeComponentImpl
-            }
+    private val baseName: Property<String> = objectFactory.property(String::class.java).apply { set(name) }
+    override fun getBaseName(): Property<String> = baseName
 
     override val konanTargets: LockableSetProperty<KonanTarget> =
             LockableSetProperty(objectFactory.setProperty(KonanTarget::class.java)).apply {
                 set(mutableSetOf(HostManager.host))
-                // TODO: Replace HostManger with PlatformManager
             }
 
     override val outputKinds: LockableSetProperty<OutputKind> =
             LockableSetProperty(objectFactory.setProperty(OutputKind::class.java)).apply {
                 set(mutableSetOf(OutputKind.EXECUTABLE, OutputKind.KLIBRARY))
-                // TODO: What is a default output kind?
             }
 
     @Suppress("UNCHECKED_CAST")
