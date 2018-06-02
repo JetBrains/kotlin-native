@@ -44,7 +44,7 @@ abstract class ObjCExportHeaderGenerator(
         override fun isSpecialMapped(descriptor: ClassDescriptor): Boolean {
             // TODO: this method duplicates some of the [mapReferenceType] logic.
             return descriptor == builtIns.any ||
-                   descriptor.getAllSuperClassifiers().any { it in customTypeMappers }
+                   descriptor.getAllSuperClassifiers().any { it.fqNameSafe in customTypeMappers }
         }
     }
 
@@ -53,7 +53,7 @@ abstract class ObjCExportHeaderGenerator(
     internal val generatedClasses = mutableSetOf<ClassDescriptor>()
     internal val topLevel = mutableMapOf<FqName, MutableList<CallableMemberDescriptor>>()
 
-    private val customTypeMappers: Map<ClassDescriptor, CustomTypeMapper> = with(builtIns) {
+    private val customTypeMappers: Map<FqName, CustomTypeMapper> = with(builtIns) {
         val result = mutableListOf<CustomTypeMapper>()
 
         val generator = this@ObjCExportHeaderGenerator
@@ -78,17 +78,18 @@ abstract class ObjCExportHeaderGenerator(
             result += CustomTypeMapper.Function(generator, it)
         }
 
-        result.associateBy { it.mappedClassDescriptor }
+        result.associateBy { it.mappedClassDescriptor.fqNameSafe }
     }
 
-    private val hiddenTypes: Set<ClassDescriptor> = run {
-        val customMappedTypes = customTypeMappers.keys
+    private val hiddenTypes: Set<FqName> = run {
+        val customMappedTypes = customTypeMappers.values.map { it.mappedClassDescriptor }
 
         customMappedTypes
                 .asSequence()
                 .flatMap { it.getAllSuperClassifiers().asSequence() }
                 .map { it as ClassDescriptor }
                 .filter { !customMappedTypes.contains(it) }
+                .map { it.fqNameSafe }
                 .toSet()
     }
 
@@ -647,7 +648,7 @@ abstract class ObjCExportHeaderGenerator(
 
     internal fun mapReferenceTypeIgnoringNullability(kotlinType: KotlinType): ObjCNonNullReferenceType {
         val typeToMapper = (listOf(kotlinType) + kotlinType.supertypes()).mapNotNull { type ->
-            val mapper = customTypeMappers[type.constructor.declarationDescriptor]
+            val mapper = customTypeMappers[type.constructor.declarationDescriptor?.fqNameSafe]
             if (mapper != null) {
                 type to mapper
             } else {
@@ -683,7 +684,7 @@ abstract class ObjCExportHeaderGenerator(
 
         // TODO: translate `where T : BaseClass, T : SomeInterface` to `BaseClass* <SomeInterface>`
 
-        if (classDescriptor == builtIns.any || classDescriptor in hiddenTypes) {
+        if (classDescriptor == builtIns.any || classDescriptor.fqNameSafe in hiddenTypes) {
             return ObjCIdType
         }
 
