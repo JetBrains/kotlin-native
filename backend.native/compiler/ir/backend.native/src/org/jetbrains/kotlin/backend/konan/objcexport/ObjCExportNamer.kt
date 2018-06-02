@@ -28,17 +28,29 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.isSubclassOf
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
 import org.jetbrains.kotlin.resolve.descriptorUtil.parentsWithSelf
 
-internal class ObjCExportNamer(val moduleDescriptor: ModuleDescriptor,
-        val builtIns: KotlinBuiltIns,
-        val mapper: ObjCExportMapper,
+class ObjCExportNamer internal constructor(
+        private val moduleDescriptor: ModuleDescriptor,
+        builtIns: KotlinBuiltIns,
+        private val mapper: ObjCExportMapper,
         private val topLevelNamePrefix: String = moduleDescriptor.namePrefix
-    ) {
-    val kotlinAnyName = "KotlinBase"
+) {
+    companion object {
+        fun createLocalNamer(moduleDescriptor: ModuleDescriptor, topLevelNamePrefix: String = moduleDescriptor.namePrefix): ObjCExportNamer {
+            return ObjCExportNamer(moduleDescriptor, moduleDescriptor.builtIns, LocalObjCExportMapper, topLevelNamePrefix)
+        }
+
+        private object LocalObjCExportMapper : ObjCExportMapper() {
+            override fun getCategoryMembersFor(descriptor: ClassDescriptor): List<CallableMemberDescriptor> = emptyList()
+            override fun isSpecialMapped(descriptor: ClassDescriptor): Boolean = false
+        }
+    }
+
+    internal val kotlinAnyName = "KotlinBase"
 
     private val commonPackageSegments = moduleDescriptor.guessMainPackage().pathSegments()
 
-    val mutableSetName = "${topLevelNamePrefix}MutableSet"
-    val mutableMapName = "${topLevelNamePrefix}MutableDictionary"
+    internal val mutableSetName = "${topLevelNamePrefix}MutableSet"
+    internal val mutableMapName = "${topLevelNamePrefix}MutableDictionary"
 
     private val methodSelectors = object : Mapping<FunctionDescriptor, String>() {
 
@@ -99,7 +111,7 @@ internal class ObjCExportNamer(val moduleDescriptor: ModuleDescriptor,
                 first.containingDeclaration == second.containingDeclaration
     }
 
-    fun getPackageName(fqName: FqName): String = classNames.getOrPut(fqName) {
+    internal fun getPackageName(fqName: FqName): String = classNames.getOrPut(fqName) {
         StringBuilder().apply {
             append(topLevelNamePrefix)
             fqName.pathSegments().forEachIndexed { index, segment ->
@@ -352,7 +364,6 @@ internal class ObjCExportNamer(val moduleDescriptor: ModuleDescriptor,
             elementToName[element] = name
         }
     }
-
 }
 
 private inline fun StringBuilder.mangledSequence(crossinline mangle: StringBuilder.() -> Unit) =
