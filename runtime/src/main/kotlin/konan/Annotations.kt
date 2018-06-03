@@ -62,6 +62,13 @@ public annotation class Used
 public annotation class Throws(vararg val exceptionClasses: KClass<out Throwable>)
 
 /**
+ * Class is immutable and is frozen by default.
+ */
+@Target(AnnotationTarget.CLASS)
+@Retention(AnnotationRetention.BINARY)
+annotation class Immutable
+
+/**
  * Need to be fixed because of reification support.
  */
 public annotation class FixmeReified

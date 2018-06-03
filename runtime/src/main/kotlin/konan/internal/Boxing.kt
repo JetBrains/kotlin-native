@@ -16,6 +16,7 @@
 
 package konan.internal
 
+import konan.Immutable
 
 @SymbolName("getCachedBooleanBox")
 external fun getCachedBooleanBox(value: Boolean): BooleanBox
@@ -42,6 +43,7 @@ external fun getCachedLongBox(value: Long): LongBox
 @SymbolName("inLongBoxCache")
 external fun inLongBoxCache(value: Long): Boolean
 
+@Immutable
 class BooleanBox(val value: Boolean) : Comparable<Boolean> {
     override fun equals(other: Any?): Boolean {
         if (other !is BooleanBox) {
@@ -65,6 +67,7 @@ fun boxBoolean(value: Boolean) = if (inBooleanBoxCache(value)) {
     BooleanBox(value)
 }
 
+@Immutable
 class CharBox(val value: Char) : Comparable<Char> {
     override fun equals(other: Any?): Boolean {
         if (other !is CharBox) {
@@ -88,6 +91,7 @@ fun boxChar(value: Char) = if (inCharBoxCache(value)) {
     CharBox(value)
 }
 
+@Immutable
 class ByteBox(val value: Byte) : Number(), Comparable<Byte> {
     override fun equals(other: Any?): Boolean {
         if (other !is ByteBox) {
@@ -119,6 +123,7 @@ fun boxByte(value: Byte) = if (inByteBoxCache(value)) {
     ByteBox(value)
 }
 
+@Immutable
 class ShortBox(val value: Short) : Number(), Comparable<Short> {
     override fun equals(other: Any?): Boolean {
         if (other !is ShortBox) {
@@ -150,6 +155,7 @@ fun boxShort(value: Short) = if (inShortBoxCache(value)) {
     ShortBox(value)
 }
 
+@Immutable
 class IntBox(val value: Int) : Number(), Comparable<Int> {
     override fun equals(other: Any?): Boolean {
         if (other !is IntBox) {
@@ -181,6 +187,7 @@ fun boxInt(value: Int) = if (inIntBoxCache(value)) {
     IntBox(value)
 }
 
+@Immutable
 class LongBox(val value: Long) : Number(), Comparable<Long> {
     override fun equals(other: Any?): Boolean {
         if (other !is LongBox) {
@@ -212,6 +219,7 @@ fun boxLong(value: Long) = if (inLongBoxCache(value)) {
     LongBox(value)
 }
 
+@Immutable
 class FloatBox(val value: Float) : Number(), Comparable<Float> {
     override fun equals(other: Any?): Boolean {
         if (other !is FloatBox) {
@@ -239,6 +247,7 @@ class FloatBox(val value: Float) : Number(), Comparable<Float> {
 @ExportForCppRuntime("Kotlin_boxFloat")
 fun boxFloat(value: Float) = FloatBox(value)
 
+@Immutable
 class DoubleBox(val value: Double) : Number(), Comparable<Double> {
     override fun equals(other: Any?): Boolean {
         if (other !is DoubleBox) {

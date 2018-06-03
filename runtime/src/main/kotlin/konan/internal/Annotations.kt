@@ -57,4 +57,3 @@ annotation class ExportForCompiler
 @Target(AnnotationTarget.CONSTRUCTOR)
 @Retention(AnnotationRetention.BINARY)
 annotation class InlineConstructor
-
