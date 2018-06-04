@@ -17,18 +17,16 @@
 package kotlin.collections
 
 
-internal object EmptySet : Set<Nothing>, konan.internal.KonanSet<Nothing> {
-    override fun equals(other: Any?): Boolean = other is Set<*> && other.isEmpty()
-    override fun hashCode(): Int = 0
-    override fun toString(): String = "[]"
+internal actual object EmptySet : Set<Nothing>, konan.internal.KonanSet<Nothing> {
+    actual override fun equals(other: Any?): Boolean = other is Set<*> && other.isEmpty()
+    actual override fun hashCode(): Int = 0
+    actual override fun toString(): String = "[]"
 
-    override val size: Int get() = 0
-    override fun isEmpty(): Boolean = true
-    override fun contains(element: Nothing): Boolean = false
+    actual override val size: Int get() = 0
+    actual override fun isEmpty(): Boolean = true
+    actual override fun contains(element: Nothing): Boolean = false
+    actual override fun containsAll(elements: Collection<Nothing>): Boolean = elements.isEmpty()
+    actual override fun iterator(): Iterator<Nothing> = EmptyIterator
+
     override fun getElement(element: Nothing): Nothing? = null
-    override fun containsAll(elements: Collection<Nothing>): Boolean = elements.isEmpty()
-
-    override fun iterator(): Iterator<Nothing> = EmptyIterator
-
-    private fun readResolve(): Any = EmptySet
 }
