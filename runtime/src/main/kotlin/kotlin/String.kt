@@ -17,7 +17,7 @@
 package kotlin
 
 @ExportTypeInfo("theStringTypeInfo")
-@konan.Immutable
+@konan.internal.Immutable
 public final class String : Comparable<String>, CharSequence {
     public companion object {
     }

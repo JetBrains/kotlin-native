@@ -57,3 +57,10 @@ annotation class ExportForCompiler
 @Target(AnnotationTarget.CONSTRUCTOR)
 @Retention(AnnotationRetention.BINARY)
 annotation class InlineConstructor
+
+/**
+ * Class is immutable and is frozen by default.
+ */
+@Target(AnnotationTarget.CLASS)
+@Retention(AnnotationRetention.BINARY)
+annotation class Immutable

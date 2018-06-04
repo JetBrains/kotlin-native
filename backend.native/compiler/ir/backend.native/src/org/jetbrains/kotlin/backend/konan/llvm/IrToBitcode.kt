@@ -1406,11 +1406,11 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     }
 
     //-------------------------------------------------------------------------//
-    private fun needMutationCheck(expression: IrExpression): Boolean {
+    // TODO: rewrite in IR!
+    private fun needMutationCheck(descriptor: org.jetbrains.kotlin.descriptors.DeclarationDescriptor): Boolean {
         // For now we omit mutation checks on immutable types, as this allows initialization in constructor
-        // and it is assumed API doesn't allow to change them.
-        val descriptor = TypeUtils.getClassDescriptor(expression.type)
-        return descriptor?.annotations?.findAnnotation(FqName("konan.Immutable")) == null
+        // and it is assumed that API doesn't allow to change them.
+        return !descriptor.isImmutable
     }
 
     private fun evaluateSetField(value: IrSetField): LLVMValueRef {
@@ -1418,7 +1418,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         val valueToAssign = evaluateExpression(value.value)
         if (value.descriptor.dispatchReceiverParameter != null) {
             val thisPtr = evaluateExpression(value.receiver!!)
-            if (needMutationCheck(value.receiver!!)) {
+            if (needMutationCheck(value.descriptor.containingDeclaration)) {
                 functionGenerationContext.call(context.llvm.mutationCheck,
                         listOf(functionGenerationContext.bitcast(codegen.kObjHeaderPtr, thisPtr)),
                         Lifetime.IRRELEVANT, ExceptionHandler.Caller)

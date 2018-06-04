@@ -16,8 +16,6 @@
 
 package konan.internal
 
-import konan.Immutable
-
 @SymbolName("getCachedBooleanBox")
 external fun getCachedBooleanBox(value: Boolean): BooleanBox
 @SymbolName("inBooleanBoxCache")

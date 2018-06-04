@@ -29,11 +29,9 @@ import org.jetbrains.kotlin.resolve.constants.StringValue
 
 internal class RTTIGenerator(override val context: Context) : ContextUtils {
 
-    private fun flagsFromClass(classDesc: ClassDescriptor): Int {
+    private fun flagsFromClass(classDescriptor: ClassDescriptor): Int {
         var result = 0
-        val isImmutable = classDesc.descriptor.annotations.findAnnotation(
-                FqName("konan.Immutable")) != null
-        if (isImmutable)
+        if (classDescriptor.isImmutable)
            result = result or 1 /* TF_IMMUTABLE */
         return result
     }
