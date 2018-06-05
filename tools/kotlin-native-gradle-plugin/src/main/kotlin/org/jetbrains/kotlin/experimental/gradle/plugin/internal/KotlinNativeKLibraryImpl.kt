@@ -29,7 +29,7 @@ open class KotlinNativeKLibraryImpl @Inject constructor(
         objects: ObjectFactory,
         projectLayout: ProjectLayout,
         configurations: ConfigurationContainer,
-        private val fileOperations: FileOperations
+        fileOperations: FileOperations
 ) : KotlinNativeBinaryImpl(name,
         baseName,
         sources,
@@ -38,7 +38,8 @@ open class KotlinNativeKLibraryImpl @Inject constructor(
         CompilerOutputKind.LIBRARY,
         objects,
         componentImplementation,
-        configurations),
+        configurations,
+        fileOperations),
     KotlinNativeKLibrary,
     SoftwareComponentInternal
 {
@@ -61,8 +62,6 @@ open class KotlinNativeKLibraryImpl @Inject constructor(
 
     // TODO: Does Klib really match a static linkage in Gradle's terms?
     override fun getLinkage(): Linkage? = Linkage.STATIC
-
-    override fun getOutputs(): FileCollection = fileOperations.files(linkFile.get())
 
     override val outputRootName = "lib"
 }

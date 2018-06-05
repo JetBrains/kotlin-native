@@ -1,11 +1,14 @@
 package org.jetbrains.kotlin.experimental.gradle.plugin
 
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.component.SoftwareComponent
 import org.gradle.api.provider.Property
+import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
 import org.gradle.language.BinaryCollection
 import org.gradle.language.ComponentWithBinaries
 import org.gradle.language.ComponentWithDependencies
+import org.gradle.language.ProductionComponent
 import org.jetbrains.kotlin.experimental.gradle.plugin.internal.OutputKind
 import org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets.KotlinNativeSourceSet
 import org.jetbrains.kotlin.konan.target.KonanTarget
@@ -14,7 +17,7 @@ import org.jetbrains.kotlin.konan.target.KonanTarget
  *  Class representing a Kotlin/Native component: application or library (both klib and dynamic)
  *  built for different targets.
  */
-interface KotlinNativeComponent: ComponentWithBinaries, ComponentWithDependencies {
+interface KotlinNativeComponent: ComponentWithBinaries, ComponentWithDependencies, ProductionComponent {
 
     /**
      * Defines the source files or directories of this component. You can add files or directories to this collection.
@@ -36,4 +39,9 @@ interface KotlinNativeComponent: ComponentWithBinaries, ComponentWithDependencie
      * Returns the implementation dependencies of this component.
      */
     fun getImplementationDependencies(): Configuration
+
+    /**
+     * Returns the binary of the component to use as the default for development.
+     */
+    override fun getDevelopmentBinary(): Provider<out KotlinNativeBinary>
 }

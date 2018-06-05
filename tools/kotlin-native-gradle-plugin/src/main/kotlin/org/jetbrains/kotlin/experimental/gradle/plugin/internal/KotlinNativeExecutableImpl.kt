@@ -30,7 +30,7 @@ open class KotlinNativeExecutableImpl @Inject constructor(
         objects: ObjectFactory,
         projectLayout: ProjectLayout,
         configurations: ConfigurationContainer,
-        private val fileOperations: FileOperations
+        fileOperations: FileOperations
 ) : KotlinNativeBinaryImpl(name,
         baseName,
         sources,
@@ -39,7 +39,8 @@ open class KotlinNativeExecutableImpl @Inject constructor(
         CompilerOutputKind.PROGRAM,
         objects,
         componentImplementation,
-        configurations),
+        configurations,
+        fileOperations),
     KotlinNativeExecutable,
     SoftwareComponentInternal
 {
@@ -62,8 +63,6 @@ open class KotlinNativeExecutableImpl @Inject constructor(
     override fun getUsages(): Set<UsageContext> = runtimeElementsProperty.get().let {
         setOf(DefaultUsageContext(identity.runtimeUsageContext, it.allArtifacts, it))
     }
-
-    override fun getOutputs(): FileCollection = fileOperations.files(runtimeFile.get())
 
     override val outputRootName = "exe"
 }

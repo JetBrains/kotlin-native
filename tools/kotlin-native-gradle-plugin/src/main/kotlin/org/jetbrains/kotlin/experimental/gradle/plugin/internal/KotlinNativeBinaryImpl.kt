@@ -49,7 +49,8 @@ abstract class KotlinNativeBinaryImpl(
         override val kind: CompilerOutputKind,
         objects: ObjectFactory,
         componentImplementation: Configuration,
-        configurations: ConfigurationContainer
+        configurations: ConfigurationContainer,
+        fileOperations: FileOperations
 ) : KotlinNativeBinary,
     ComponentWithNames,
     ComponentWithDependencies,
@@ -114,4 +115,7 @@ abstract class KotlinNativeBinaryImpl(
 
     /** A name of a root folder for this binary's output under the build directory. */
     internal abstract val outputRootName: String
+
+    private val outputs: ConfigurableFileCollection = fileOperations.files()
+    override fun getOutputs() = outputs
 }

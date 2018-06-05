@@ -49,6 +49,7 @@ class KotlinNativeBasePlugin: Plugin<ProjectInternal> {
                 description = "Compiles Kotlin/Native source set '${binary.sourceSet.name}' into a ${binary.kind.name.toLowerCase()}"
             }
             binary.compileTask.set(compileTask)
+            binary.outputs.from(compileTask.outputFile)
 
             when(binary) {
                 is KotlinNativeExecutableImpl -> binary.runtimeFile.set(compileTask.outputFile)

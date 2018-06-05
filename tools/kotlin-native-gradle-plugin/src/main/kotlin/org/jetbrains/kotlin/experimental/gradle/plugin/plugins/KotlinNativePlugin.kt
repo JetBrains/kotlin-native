@@ -5,6 +5,7 @@ import org.gradle.api.attributes.Usage
 import org.gradle.api.internal.FactoryNamedDomainObjectContainer
 import org.gradle.api.internal.attributes.ImmutableAttributesFactory
 import org.gradle.api.internal.project.ProjectInternal
+import org.gradle.api.model.ObjectFactory
 import org.gradle.internal.reflect.Instantiator
 import org.gradle.language.cpp.CppBinary.DEBUGGABLE_ATTRIBUTE
 import org.gradle.language.cpp.CppBinary.OPTIMIZED_ATTRIBUTE
@@ -15,9 +16,14 @@ import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeBinary.Compan
 import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeComponent
 import org.jetbrains.kotlin.experimental.gradle.plugin.internal.KotlinNativeComponentImpl
 import org.jetbrains.kotlin.experimental.gradle.plugin.internal.KotlinNativeVariantIdentity
+import org.jetbrains.kotlin.experimental.gradle.plugin.internal.OutputKind
 import org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets.KotlinNativeSourceSetFactory
 import org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets.KotlinNativeSourceSetImpl
 import javax.inject.Inject
+
+import org.jetbrains.kotlin.experimental.gradle.plugin.internal.OutputKind.Companion.getDevelopmentKind
+import org.jetbrains.kotlin.konan.target.HostManager
+import org.jetbrains.kotlin.konan.target.KonanTarget
 
 // TODO: Move from experimental package.
 class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAttributesFactory)
@@ -32,6 +38,24 @@ class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAtt
             } else {
                 ""
             }
+
+    private fun createUsageContext(
+            usageName: String,
+            variantName: String,
+            usageContextSuffix: String,
+            buildType: BuildType,
+            target: KonanTarget,
+            objectFactory: ObjectFactory
+    ): DefaultUsageContext {
+        val usage = objectFactory.named(Usage::class.java, usageName)
+        val attributes = attributesFactory.mutable().apply {
+            attribute(Usage.USAGE_ATTRIBUTE, usage)
+            attribute(DEBUGGABLE_ATTRIBUTE, buildType.isDebuggable)
+            attribute(OPTIMIZED_ATTRIBUTE, buildType.isOptimized)
+            attribute(KONAN_TARGET_ATTRIBUTE, target.name)
+        }
+        return DefaultUsageContext(variantName + usageContextSuffix, usage, attributes)
+    }
 
     override fun apply(project: ProjectInternal): Unit = with(project) {
         pluginManager.apply(KotlinNativeBasePlugin::class.java)
@@ -67,6 +91,7 @@ class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAtt
 
                 val group = project.provider { project.group.toString() }
                 val version = project.provider { project.version.toString() }
+                val developmentKind = outputKinds.getDevelopmentKind()
 
                 for (kind in outputKinds) {
                     // TODO: Release is debuggable in Gradle's DEFAULT_BUILD_TYPES. Is it ok for us?
@@ -80,25 +105,12 @@ class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAtt
 
                             // TODO: Move into a separate function
                             val linkUsageContext: DefaultUsageContext? = kind.linkUsageName?.let {
-                                val usage = objectFactory.named(Usage::class.java, it)
-                                val attributes = attributesFactory.mutable().apply {
-                                    attribute(Usage.USAGE_ATTRIBUTE, usage)
-                                    attribute(DEBUGGABLE_ATTRIBUTE, buildType.isDebuggable)
-                                    attribute(OPTIMIZED_ATTRIBUTE, buildType.isOptimized)
-                                    attribute(KONAN_TARGET_ATTRIBUTE, target.name)
-                                }
-                                DefaultUsageContext(variantName + "Link", usage, attributes)
+                                createUsageContext(it, variantName, "Link", buildType, target, objectFactory)
                             }
 
                             val runtimeUsageContext = kind.runtimeUsageName?.let {
-                                val usage = objectFactory.named(Usage::class.java, it)
-                                val attributes = attributesFactory.mutable().apply {
-                                    attribute(Usage.USAGE_ATTRIBUTE, usage)
-                                    attribute(DEBUGGABLE_ATTRIBUTE, buildType.isDebuggable)
-                                    attribute(OPTIMIZED_ATTRIBUTE, buildType.isOptimized)
-                                    attribute(KONAN_TARGET_ATTRIBUTE, target.name)
-                                }
-                                DefaultUsageContext(variantName + "Runtime", usage, attributes)
+                                createUsageContext(it, variantName, "Runtime", buildType, target, objectFactory)
+
                             }
 
                             // TODO: Do we need something like klibUsageContext?
@@ -113,7 +125,10 @@ class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAtt
                                     objects
                             )
 
-                            component.addBinary(kind, variantIdentity)
+                            val binary = component.addBinary(kind, variantIdentity)
+                            if (kind == developmentKind && buildType == BuildType.DEBUG && target == HostManager.host) {
+                                component.developmentBinary.set(binary)
+                            }
                         }
                     }
                 }

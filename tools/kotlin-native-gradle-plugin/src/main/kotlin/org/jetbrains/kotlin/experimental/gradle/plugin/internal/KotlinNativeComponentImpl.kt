@@ -70,6 +70,11 @@ open class KotlinNativeComponentImpl @Inject constructor(
 
     override fun getMainPublication(): KotlinNativeVariant = mainPublication
 
+    private val developmentBinaryProperty: Property<KotlinNativeBinary> =
+            objectFactory.property(KotlinNativeBinary::class.java)
+
+    override fun getDevelopmentBinary() = developmentBinaryProperty
+
     // region Adding binaries
 
     private fun <T: KotlinNativeBinary> addBinary(type: Class<T>, identity: NativeVariantIdentity): T =
