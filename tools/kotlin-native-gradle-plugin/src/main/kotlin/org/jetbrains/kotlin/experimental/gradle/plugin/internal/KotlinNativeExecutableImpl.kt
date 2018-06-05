@@ -20,7 +20,7 @@ import org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets.KotlinNativeSo
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import javax.inject.Inject
 
-// TODO: SoftwareComponentInternal will be replaced by ComponentWithVariants
+// TODO: SoftwareComponentInternal will be replaced with ComponentWithVariants by Gradle
 open class KotlinNativeExecutableImpl @Inject constructor(
         name: String,
         baseName: Provider<String>,
@@ -64,4 +64,6 @@ open class KotlinNativeExecutableImpl @Inject constructor(
     }
 
     override fun getOutputs(): FileCollection = fileOperations.files(runtimeFile.get())
+
+    override val outputRootName = "exe"
 }

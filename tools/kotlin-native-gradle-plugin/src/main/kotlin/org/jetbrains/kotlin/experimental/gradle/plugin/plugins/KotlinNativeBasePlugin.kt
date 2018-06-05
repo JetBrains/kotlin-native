@@ -38,11 +38,11 @@ class KotlinNativeBasePlugin: Plugin<ProjectInternal> {
             ).apply {
                 this.binary = binary
                 outputFile.set(buildDirectory.file(providers.provider {
+                    val root = binary.outputRootName
                     val prefix = kind.prefix(target)
                     val suffix = kind.suffix(target)
                     val baseName = binary.getBaseName().get()
-                    "exe/${names.dirName}/${prefix}${baseName}${suffix}"
-                    // TODO: Change the paths
+                    "$root/${names.dirName}/${prefix}${baseName}${suffix}"
                 }))
 
                 group = BasePlugin.BUILD_GROUP
@@ -56,7 +56,6 @@ class KotlinNativeBasePlugin: Plugin<ProjectInternal> {
             }
         }
     }
-
 
     override fun apply(project: ProjectInternal): Unit = with(project) {
         // TODO: Deal with compiler downloading.

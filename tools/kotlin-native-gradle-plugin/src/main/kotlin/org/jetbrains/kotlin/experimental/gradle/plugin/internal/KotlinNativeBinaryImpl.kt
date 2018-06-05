@@ -85,7 +85,6 @@ abstract class KotlinNativeBinaryImpl(
     fun getImplementationDependencies(): Configuration = dependencies.implementationDependencies
 
     // A configuration containing klibraries
-    // TODO: Add similar configs for native libraries
     override val klibraries = configurations.create(names.withPrefix("klibraries")).apply {
         isCanBeConsumed = false
         attributes.attribute(Usage.USAGE_ATTRIBUTE, objects.named(Usage::class.java, KotlinNativeUsage.KLIB))
@@ -112,4 +111,7 @@ abstract class KotlinNativeBinaryImpl(
 
     fun getToolChain(): NativeToolChain =
             throw NotImplementedError("Kotlin/Native doesn't support the Gradle's toolchain model.")
+
+    /** A name of a root folder for this binary's output under the build directory. */
+    internal abstract val outputRootName: String
 }

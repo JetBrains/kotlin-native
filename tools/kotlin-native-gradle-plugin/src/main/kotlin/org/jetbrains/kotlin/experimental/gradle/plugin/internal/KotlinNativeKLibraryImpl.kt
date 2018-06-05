@@ -63,4 +63,6 @@ open class KotlinNativeKLibraryImpl @Inject constructor(
     override fun getLinkage(): Linkage? = Linkage.STATIC
 
     override fun getOutputs(): FileCollection = fileOperations.files(linkFile.get())
+
+    override val outputRootName = "lib"
 }

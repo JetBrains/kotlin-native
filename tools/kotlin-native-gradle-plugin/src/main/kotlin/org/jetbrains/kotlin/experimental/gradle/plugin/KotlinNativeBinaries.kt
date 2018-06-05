@@ -3,6 +3,7 @@ package org.jetbrains.kotlin.experimental.gradle.plugin
 import org.gradle.api.attributes.Attribute
 import org.gradle.api.component.BuildableComponent
 import org.gradle.api.component.PublishableComponent
+import org.gradle.api.file.Directory
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Provider

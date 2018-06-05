@@ -46,20 +46,28 @@ open class KotlinNativeSourceSetImpl @Inject constructor(
 
     // region DSL
 
-    override fun common(configureClosure: Closure<*>): KotlinNativeSourceSetImpl = apply {
-        configure(configureClosure, common)
-    }
-    override fun common(configureAction: Action<in SourceDirectorySet>): KotlinNativeSourceSetImpl = apply {
-        configureAction.execute(common)
-    }
-    override fun common(configureLambda: SourceDirectorySet.() -> Unit): KotlinNativeSourceSetImpl = apply {
-        common.configureLambda()
-    }
+    // Common source directory set configuration.
+    override fun common(configureClosure: Closure<*>) = apply { configure(configureClosure, common) }
+    override fun common(configureAction: Action<in SourceDirectorySet>) = apply { configureAction.execute(common) }
+    override fun common(configureLambda: SourceDirectorySet.() -> Unit) = apply { common.configureLambda() }
 
+    // Configuration of the corresponding software component.
+    override fun component(configureClosure: Closure<*>) = apply { configure(configureClosure, component) }
+    override fun component(configureAction: Action<in KotlinNativeComponentImpl>) =
+            apply { configureAction.execute(component) }
+    override fun component(configureLambda: KotlinNativeComponentImpl.() -> Unit) =
+            apply { component.configureLambda() }
+
+    // Adding new targets and configuration of target-specific source directory sets.
     override fun target(target: String): SourceDirectorySet {
         val konanTarget = HostManager().targetByName(target)
         component.konanTargets.add(konanTarget)
         return getPlatformSources(konanTarget)
+    }
+
+    override fun target(vararg targets: String): KotlinNativeSourceSet {
+        target(*targets) {}
+        return this
     }
 
     override fun target(vararg targets: String, configureLambda: SourceDirectorySet.() -> Unit): KotlinNativeSourceSet {
@@ -70,10 +78,10 @@ open class KotlinNativeSourceSetImpl @Inject constructor(
         return this
     }
 
-    override fun target(vararg targets: String, configureClosure: Closure<*>): KotlinNativeSourceSet =
+    override fun target(vararg targets: String, configureClosure: Closure<*>) =
             target(*targets) { configure(configureClosure, this) }
 
-    override fun target(vararg targets: String, configureAction: Action<in SourceDirectorySet>): KotlinNativeSourceSet =
+    override fun target(vararg targets: String, configureAction: Action<in SourceDirectorySet>) =
             target(*targets) { configureAction.execute(this) }
 
     // endregion

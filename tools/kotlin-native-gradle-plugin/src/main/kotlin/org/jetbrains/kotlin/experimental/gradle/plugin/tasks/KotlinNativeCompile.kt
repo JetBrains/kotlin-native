@@ -50,6 +50,8 @@ open class KotlinNativeCompile: DefaultTask() {
             addKey("-g", debuggable)
             addKey("-ea", debuggable)
 
+            println("TTTT: ${binary.name}: dbg: $debuggable, opt: $optimized")
+
             addArg("-target", target)
             addArg("-p", kind.name.toLowerCase())
 

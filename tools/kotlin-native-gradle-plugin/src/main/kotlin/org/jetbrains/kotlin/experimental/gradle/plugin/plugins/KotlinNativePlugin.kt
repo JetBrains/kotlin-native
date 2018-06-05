@@ -19,7 +19,7 @@ import org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets.KotlinNativeSo
 import org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets.KotlinNativeSourceSetImpl
 import javax.inject.Inject
 
-// TODO: Move from experimental package. What should be the new package?
+// TODO: Move from experimental package.
 class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAttributesFactory)
     : Plugin<ProjectInternal> {
 
@@ -39,7 +39,7 @@ class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAtt
         val instantiator = services.get(Instantiator::class.java)
         val objectFactory = objects
 
-        // TODO: Use the base plugin
+        // TODO: Use the kotlin base plugin
         @Suppress("UNCHECKED_CAST")
         val sourceSets = project.extensions.create(
                 KotlinNativeBasePlugin.SOURCE_SETS_EXTENSION,
@@ -69,6 +69,7 @@ class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAtt
                 val version = project.provider { project.version.toString() }
 
                 for (kind in outputKinds) {
+                    // TODO: Release is debuggable in Gradle's DEFAULT_BUILD_TYPES. Is it ok for us?
                     for (buildType in BuildType.DEFAULT_BUILD_TYPES) {
                         for (target in targets) {
 
@@ -101,7 +102,6 @@ class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAtt
                             }
 
                             // TODO: Do we need something like klibUsageContext?
-
                             val variantIdentity = KotlinNativeVariantIdentity(
                                     variantName,
                                     component.baseName,
