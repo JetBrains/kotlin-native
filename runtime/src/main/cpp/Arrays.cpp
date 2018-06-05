@@ -29,9 +29,9 @@ const ArrayHeader anEmptyArray = {
   const_cast<TypeInfo*>(theArrayTypeInfo), /* permanent object */ 0, /* element count */ 0
 };
 
-inline void mutabilityCheck(KConstRef thiz) {
+ALWAYS_INLINE inline void mutabilityCheck(KConstRef thiz) {
   // TODO: optimize it!
-  if (thiz->container()->permanentOrFrozen()) {
+  if (thiz->container()->frozen()) {
     ThrowInvalidMutabilityException();
   }
 }
@@ -404,7 +404,6 @@ KFloat Kotlin_FloatArray_get(KConstRef thiz, KInt index) {
   if (static_cast<uint32_t>(index) >= array->count_) {
     ThrowArrayIndexOutOfBoundsException();
   }
-  mutabilityCheck(thiz);
   return *PrimitiveArrayAddressOfElementAt<KFloat>(array, index);
 }
 
