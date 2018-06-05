@@ -119,9 +119,9 @@ And extension initializers aren't available as Kotlin constructors.
 ### Kotlin singletons
 
 Kotlin singleton (made with `object` declaration, including `companion object`)
-is imported to Swift/Objective-C as class with single instance.
+is imported to Swift/Objective-C as class with a single instance.
 The instance is available through the factory method, i.e. as
-`[MySingleton singleton]` in Objective-C and `MySingleton()` in Swift.
+`[MySingleton mySingleton]` in Objective-C and `MySingleton()` in Swift.
 
 ### NSNumber
 
