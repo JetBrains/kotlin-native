@@ -83,7 +83,7 @@ data class Data(var int: Int)
         input -> println("Worker2: $input")
     }.result()
 
-    data = 239L
+    data = 239.0
     assert(data.isFrozen)
     worker.schedule(TransferMode.CHECKED, { data } ) {
         input -> println("Worker3: $input")
