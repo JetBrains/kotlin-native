@@ -31,14 +31,15 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.types.TypeProjection
 import org.jetbrains.kotlin.types.replace
 
+
 private fun StaticData.objHeader(typeInfo: ConstPointer): Struct {
-    val container = NullPointer(runtime.containerHeaderType) // Static object mark.
+    val container = constValue(context.llvm.staticContainer)
     return Struct(runtime.objHeaderType, typeInfo, container)
 }
 
 private fun StaticData.arrayHeader(typeInfo: ConstPointer, length: Int): Struct {
     assert (length >= 0)
-    val container = NullPointer(runtime.containerHeaderType) // Static object mark.
+    val container = constValue(context.llvm.staticContainer)
     return Struct(runtime.arrayHeaderType, typeInfo, container, Int32(length))
 }
 

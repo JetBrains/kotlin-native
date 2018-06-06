@@ -39,12 +39,6 @@
 // Auto-adjust GC thresholds.
 #define GC_ERGONOMICS 1
 
-// TODO: ensure it is read-only.
-ContainerHeader ObjHeader::theStaticObjectsContainer = {
-  CONTAINER_TAG_PERMANENT | CONTAINER_TAG_INCREMENT,
-  0 /* Object count */
-};
-
 namespace {
 
 // Granularity of arena container chunks.
@@ -406,6 +400,12 @@ inline bool isRefCounted(KConstRef object) {
 } // namespace
 
 extern "C" {
+
+// TODO: make it const, current LLVM throws it away, if marked const.
+RUNTIME_USED ContainerHeader theStaticObjectsContainer = {
+  CONTAINER_TAG_PERMANENT | CONTAINER_TAG_INCREMENT,
+  0 /* Object count */
+};
 
 void objc_release(void* ptr);
 void Kotlin_ObjCExport_releaseAssociatedObject(void* associatedObject);
