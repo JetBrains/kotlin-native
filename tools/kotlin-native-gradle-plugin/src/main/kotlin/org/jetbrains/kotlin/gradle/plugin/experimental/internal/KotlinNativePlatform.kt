@@ -1,4 +1,4 @@
-package org.jetbrains.kotlin.experimental.gradle.plugin.internal
+package org.jetbrains.kotlin.gradle.plugin.experimental.internal
 
 import org.gradle.api.model.ObjectFactory
 import org.gradle.internal.os.OperatingSystem
@@ -25,8 +25,14 @@ fun KonanTarget.getGradleCPU(): ArchitectureInternal = architecture.visibleName.
 }
 
 class DefaultKotlinNativePlatform(name: String, override val target: KonanTarget):
-        ImmutableDefaultNativePlatform(name, target.getGradleOS(), target.getGradleCPU()),
+        DefaultNativePlatform(name, target.getGradleOS(), target.getGradleCPU()),
         KotlinNativePlatform
 {
     constructor(target: KonanTarget): this(target.visibleName, target)
+
+    // TODO: Extend ImmutableDefaultNativePlatform and get rid of these methods after switch to Gradle 4.8
+    private fun notImplemented(): Nothing = throw NotImplementedError("Not Implemented in Kotlin/Native plugin")
+    override fun operatingSystem(name: String?) = notImplemented()
+    override fun withArchitecture(architecture: ArchitectureInternal?) = notImplemented()
+    override fun architecture(name: String?) = notImplemented()
 }

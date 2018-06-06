@@ -1,4 +1,4 @@
-package org.jetbrains.kotlin.experimental.gradle.plugin.tasks
+package org.jetbrains.kotlin.gradle.plugin.experimental.tasks
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.artifacts.Configuration
@@ -8,7 +8,7 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
-import org.jetbrains.kotlin.experimental.gradle.plugin.internal.KotlinNativeBinaryImpl
+import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeBinaryImpl
 import org.jetbrains.kotlin.gradle.plugin.KonanCompilerRunner
 import org.jetbrains.kotlin.gradle.plugin.addArg
 import org.jetbrains.kotlin.gradle.plugin.addKey

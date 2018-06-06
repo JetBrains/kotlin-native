@@ -1,8 +1,8 @@
-package org.jetbrains.kotlin.experimental.gradle.plugin.plugins
+package org.jetbrains.kotlin.gradle.plugin.experimental.plugins
 
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Project
-import org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets.KotlinNativeSourceSetImpl
+import org.jetbrains.kotlin.gradle.plugin.experimental.sourcesets.KotlinNativeSourceSetImpl
 
 @Suppress("UNCHECKED_CAST")
 val Project.kotlinNativeSourceSets: NamedDomainObjectContainer<KotlinNativeSourceSetImpl>

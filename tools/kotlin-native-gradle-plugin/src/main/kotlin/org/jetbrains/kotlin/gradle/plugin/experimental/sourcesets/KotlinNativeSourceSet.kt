@@ -1,12 +1,12 @@
-package org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets
+package org.jetbrains.kotlin.gradle.plugin.experimental.sourcesets
 
 import groovy.lang.Closure
 import org.gradle.api.Action
 import org.gradle.api.Named
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.SourceDirectorySet
-import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeComponent
-import org.jetbrains.kotlin.experimental.gradle.plugin.internal.KotlinNativeComponentImpl
+import org.jetbrains.kotlin.gradle.plugin.experimental.KotlinNativeComponent
+import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeComponentImpl
 import org.jetbrains.kotlin.konan.target.KonanTarget
 
 interface KotlinNativeSourceSet: Named {

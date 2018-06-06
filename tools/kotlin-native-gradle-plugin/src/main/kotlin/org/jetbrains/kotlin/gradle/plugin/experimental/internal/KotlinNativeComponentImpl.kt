@@ -1,4 +1,4 @@
-package org.jetbrains.kotlin.experimental.gradle.plugin.internal
+package org.jetbrains.kotlin.gradle.plugin.experimental.internal
 
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.component.ComponentWithVariants
@@ -18,9 +18,9 @@ import org.gradle.language.nativeplatform.internal.ComponentWithNames
 import org.gradle.language.nativeplatform.internal.DefaultNativeComponent
 import org.gradle.language.nativeplatform.internal.Names
 import org.gradle.language.nativeplatform.internal.PublicationAwareComponent
-import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeBinary
-import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeComponent
-import org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets.KotlinNativeSourceSetImpl
+import org.jetbrains.kotlin.gradle.plugin.experimental.KotlinNativeBinary
+import org.jetbrains.kotlin.gradle.plugin.experimental.KotlinNativeComponent
+import org.jetbrains.kotlin.gradle.plugin.experimental.sourcesets.KotlinNativeSourceSetImpl
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import javax.inject.Inject

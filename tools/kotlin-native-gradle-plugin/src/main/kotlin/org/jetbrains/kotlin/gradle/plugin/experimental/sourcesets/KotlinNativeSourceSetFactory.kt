@@ -1,4 +1,4 @@
-package org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets
+package org.jetbrains.kotlin.gradle.plugin.experimental.sourcesets
 
 import org.gradle.api.NamedDomainObjectFactory
 import org.gradle.api.internal.file.SourceDirectorySetFactory

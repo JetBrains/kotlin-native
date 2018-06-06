@@ -1,4 +1,4 @@
-package org.jetbrains.kotlin.experimental.gradle.plugin.plugins
+package org.jetbrains.kotlin.gradle.plugin.experimental.plugins
 
 import org.gradle.api.Plugin
 import org.gradle.api.component.SoftwareComponentContainer
@@ -10,10 +10,10 @@ import org.gradle.api.plugins.BasePlugin
 import org.gradle.api.provider.ProviderFactory
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.language.plugins.NativeBasePlugin
-import org.jetbrains.kotlin.experimental.gradle.plugin.internal.KotlinNativeBinaryImpl
-import org.jetbrains.kotlin.experimental.gradle.plugin.internal.KotlinNativeExecutableImpl
-import org.jetbrains.kotlin.experimental.gradle.plugin.internal.KotlinNativeKLibraryImpl
-import org.jetbrains.kotlin.experimental.gradle.plugin.tasks.KotlinNativeCompile
+import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeBinaryImpl
+import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeExecutableImpl
+import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeKLibraryImpl
+import org.jetbrains.kotlin.gradle.plugin.experimental.tasks.KotlinNativeCompile
 
 // TODO: Support ProductionComponent (see Gradle NativeBase plugin)
 class KotlinNativeBasePlugin: Plugin<ProjectInternal> {

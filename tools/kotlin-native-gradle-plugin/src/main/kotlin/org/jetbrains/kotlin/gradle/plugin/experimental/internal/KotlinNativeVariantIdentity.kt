@@ -1,4 +1,4 @@
-package org.jetbrains.kotlin.experimental.gradle.plugin.internal
+package org.jetbrains.kotlin.gradle.plugin.experimental.internal
 
 import org.gradle.api.internal.component.UsageContext
 import org.gradle.api.model.ObjectFactory

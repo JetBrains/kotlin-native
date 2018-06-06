@@ -1,4 +1,4 @@
-package org.jetbrains.kotlin.experimental.gradle.plugin.internal
+package org.jetbrains.kotlin.gradle.plugin.experimental.internal
 
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ConfigurationContainer
@@ -21,10 +21,10 @@ import org.gradle.language.nativeplatform.internal.ComponentWithNames
 import org.gradle.language.nativeplatform.internal.Names
 import org.gradle.nativeplatform.OperatingSystemFamily
 import org.gradle.nativeplatform.toolchain.NativeToolChain
-import org.jetbrains.kotlin.experimental.gradle.plugin.ComponentWithBaseName
-import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeBinary
-import org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets.KotlinNativeSourceSet
-import org.jetbrains.kotlin.experimental.gradle.plugin.tasks.KotlinNativeCompile
+import org.jetbrains.kotlin.gradle.plugin.experimental.ComponentWithBaseName
+import org.jetbrains.kotlin.gradle.plugin.experimental.KotlinNativeBinary
+import org.jetbrains.kotlin.gradle.plugin.experimental.sourcesets.KotlinNativeSourceSet
+import org.jetbrains.kotlin.gradle.plugin.experimental.tasks.KotlinNativeCompile
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.KonanTarget
 
@@ -50,11 +50,11 @@ abstract class KotlinNativeBinaryImpl(
         objects: ObjectFactory,
         componentImplementation: Configuration,
         configurations: ConfigurationContainer,
-        fileOperations: FileOperations
+        val fileOperations: FileOperations
 ) : KotlinNativeBinary,
     ComponentWithNames,
     ComponentWithDependencies,
-    ComponentWithBaseName,
+        ComponentWithBaseName,
     PublishableComponent,
     ComponentWithOutputs
 {
@@ -107,8 +107,8 @@ abstract class KotlinNativeBinaryImpl(
     open fun isOptimized(): Boolean = optimized
 
     // TODO: Support native libraries
-    fun getLinkLibraries(): FileCollection = projectLayout.filesFor()
-    fun getRuntimeLibraries(): FileCollection = projectLayout.filesFor()
+    fun getLinkLibraries(): FileCollection = fileOperations.files()
+    fun getRuntimeLibraries(): FileCollection = fileOperations.files()
 
     fun getToolChain(): NativeToolChain =
             throw NotImplementedError("Kotlin/Native doesn't support the Gradle's toolchain model.")

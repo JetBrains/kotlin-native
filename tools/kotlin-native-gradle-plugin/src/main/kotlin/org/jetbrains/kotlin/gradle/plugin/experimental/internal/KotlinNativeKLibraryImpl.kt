@@ -1,4 +1,4 @@
-package org.jetbrains.kotlin.experimental.gradle.plugin.internal
+package org.jetbrains.kotlin.gradle.plugin.experimental.internal
 
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ConfigurationContainer
@@ -13,8 +13,8 @@ import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.language.cpp.internal.DefaultUsageContext
 import org.gradle.nativeplatform.Linkage
-import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeKLibrary
-import org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets.KotlinNativeSourceSet
+import org.jetbrains.kotlin.gradle.plugin.experimental.KotlinNativeKLibrary
+import org.jetbrains.kotlin.gradle.plugin.experimental.sourcesets.KotlinNativeSourceSet
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import javax.inject.Inject
 
@@ -38,7 +38,7 @@ open class KotlinNativeKLibraryImpl @Inject constructor(
         componentImplementation,
         configurations,
         fileOperations),
-    KotlinNativeKLibrary,
+        KotlinNativeKLibrary,
     SoftwareComponentInternal
 {
     // Properties

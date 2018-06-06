@@ -1,4 +1,4 @@
-package org.jetbrains.kotlin.experimental.gradle.plugin.plugins
+package org.jetbrains.kotlin.gradle.plugin.experimental.plugins
 
 import org.gradle.api.Plugin
 import org.gradle.api.attributes.Usage
@@ -6,23 +6,21 @@ import org.gradle.api.internal.FactoryNamedDomainObjectContainer
 import org.gradle.api.internal.attributes.ImmutableAttributesFactory
 import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.model.ObjectFactory
-import org.gradle.internal.impldep.org.eclipse.jgit.transport.OpenSshConfig
 import org.gradle.internal.reflect.Instantiator
 import org.gradle.language.cpp.CppBinary.DEBUGGABLE_ATTRIBUTE
 import org.gradle.language.cpp.CppBinary.OPTIMIZED_ATTRIBUTE
 import org.gradle.language.cpp.internal.DefaultUsageContext
 import org.gradle.language.nativeplatform.internal.BuildType
-import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeBinary.Companion.KONAN_TARGET_ATTRIBUTE
-import org.jetbrains.kotlin.experimental.gradle.plugin.internal.KotlinNativeComponentImpl
-import org.jetbrains.kotlin.experimental.gradle.plugin.internal.KotlinNativeVariantIdentity
-import org.jetbrains.kotlin.experimental.gradle.plugin.internal.OutputKind.Companion.getDevelopmentKind
-import org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets.KotlinNativeSourceSetFactory
-import org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets.KotlinNativeSourceSetImpl
+import org.jetbrains.kotlin.gradle.plugin.experimental.KotlinNativeBinary.Companion.KONAN_TARGET_ATTRIBUTE
+import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeComponentImpl
+import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeVariantIdentity
+import org.jetbrains.kotlin.gradle.plugin.experimental.internal.OutputKind.Companion.getDevelopmentKind
+import org.jetbrains.kotlin.gradle.plugin.experimental.sourcesets.KotlinNativeSourceSetFactory
+import org.jetbrains.kotlin.gradle.plugin.experimental.sourcesets.KotlinNativeSourceSetImpl
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import javax.inject.Inject
 
-// TODO: Move from experimental package.
 class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAttributesFactory)
     : Plugin<ProjectInternal> {
 

@@ -1,4 +1,4 @@
-package org.jetbrains.kotlin.experimental.gradle.plugin
+package org.jetbrains.kotlin.gradle.plugin.experimental
 
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.provider.Provider
@@ -7,8 +7,8 @@ import org.gradle.language.BinaryCollection
 import org.gradle.language.ComponentWithBinaries
 import org.gradle.language.ComponentWithDependencies
 import org.gradle.language.ProductionComponent
-import org.jetbrains.kotlin.experimental.gradle.plugin.internal.OutputKind
-import org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets.KotlinNativeSourceSet
+import org.jetbrains.kotlin.gradle.plugin.experimental.internal.OutputKind
+import org.jetbrains.kotlin.gradle.plugin.experimental.sourcesets.KotlinNativeSourceSet
 import org.jetbrains.kotlin.konan.target.KonanTarget
 
 /**

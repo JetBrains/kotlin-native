@@ -1,7 +1,7 @@
-package org.jetbrains.kotlin.experimental.gradle.plugin.internal
+package org.jetbrains.kotlin.gradle.plugin.experimental.internal
 
 import org.gradle.api.attributes.Usage
-import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeBinary
+import org.jetbrains.kotlin.gradle.plugin.experimental.KotlinNativeBinary
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 
 enum class OutputKind(

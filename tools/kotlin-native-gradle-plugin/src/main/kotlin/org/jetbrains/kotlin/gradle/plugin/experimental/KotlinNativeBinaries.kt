@@ -1,4 +1,4 @@
-package org.jetbrains.kotlin.experimental.gradle.plugin
+package org.jetbrains.kotlin.gradle.plugin.experimental
 
 import org.gradle.api.attributes.Attribute
 import org.gradle.api.component.BuildableComponent
@@ -9,8 +9,8 @@ import org.gradle.language.ComponentWithDependencies
 import org.gradle.language.ComponentWithOutputs
 import org.gradle.language.nativeplatform.internal.ConfigurableComponentWithLinkUsage
 import org.gradle.language.nativeplatform.internal.ConfigurableComponentWithRuntimeUsage
-import org.jetbrains.kotlin.experimental.gradle.plugin.internal.KotlinNativePlatform
-import org.jetbrains.kotlin.experimental.gradle.plugin.tasks.KotlinNativeCompile
+import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativePlatform
+import org.jetbrains.kotlin.gradle.plugin.experimental.tasks.KotlinNativeCompile
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.KonanTarget
 

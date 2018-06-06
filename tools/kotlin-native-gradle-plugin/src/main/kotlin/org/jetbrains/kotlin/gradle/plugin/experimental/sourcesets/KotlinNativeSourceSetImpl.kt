@@ -1,4 +1,4 @@
-package org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets
+package org.jetbrains.kotlin.gradle.plugin.experimental.sourcesets
 
 import groovy.lang.Closure
 import org.gradle.api.Action
@@ -8,7 +8,7 @@ import org.gradle.api.internal.file.SourceDirectorySetFactory
 import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.model.ObjectFactory
 import org.gradle.util.ConfigureUtil.configure
-import org.jetbrains.kotlin.experimental.gradle.plugin.internal.KotlinNativeComponentImpl
+import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeComponentImpl
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import javax.inject.Inject

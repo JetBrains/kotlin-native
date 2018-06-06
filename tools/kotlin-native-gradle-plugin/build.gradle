@@ -166,5 +166,9 @@ gradlePlugin {
             id = 'konan'
             implementationClass = 'org.jetbrains.kotlin.gradle.plugin.KonanPlugin'
         }
+        create("kotlin-native") {
+            id = 'kotlin-native'
+            implementationClass = 'org.jetbrains.kotlin.gradle.plugin.experimental.plugins.KotlinNativePlugin'
+        }
     }
 }
