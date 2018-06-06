@@ -94,10 +94,10 @@ Notice that property delegation (including lazy properties) *does* work.
 
  _Kotlin/Native_ supports preliminary source-level debugging on produced executables with `lldb` debugger.
  Produce your binary with debugging information by specifying `-g` _Kotlin/Native_ compiler switch.
- Konan plugin accepts `enableDebug` project's property, allowing two options for producing binaries with debug
+ Konan plugin accepts `enableDebug` project's property, allowing two ways of producing binaries with the debug
  information:
    - Gradle DSL
-   - argument `-PenableDebug=true` in gradle command line.
+   - argument `-PenableDebug=true` in Gradle command line
 
  Start your application with
     
