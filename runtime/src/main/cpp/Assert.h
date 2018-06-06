@@ -19,14 +19,20 @@
 
 #include "Common.h"
 
-RUNTIME_NORETURN void RuntimeAssertFailed(const char* location, const char* message);
+// To avoid cluttering optimized code with asserts, they could be turned off.
+#define KONAN_ENABLE_ASSERT 1
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
 
+#if KONAN_ENABLE_ASSERT
+RUNTIME_NORETURN void RuntimeAssertFailed(const char* location, const char* message);
 #define RuntimeAssert(condition, message) \
   if (!(condition)) {                        \
     RuntimeAssertFailed( __FILE__ ":" TOSTRING(__LINE__), message); \
   }
+#else
+#define RuntimeAssert(condition, message)
+#endif
 
 #endif // RUNTIME_ASSERT_H
