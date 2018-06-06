@@ -25,8 +25,8 @@
 
 namespace {
 
-const ArrayHeader anEmptyArray = {
-  const_cast<TypeInfo*>(theArrayTypeInfo), /* permanent object */ 0, /* element count */ 0
+ArrayHeader anEmptyArray = {
+  const_cast<TypeInfo*>(theArrayTypeInfo), &theStaticObjectsContainer, /* element count */ 0
 };
 
 ALWAYS_INLINE inline void mutabilityCheck(KConstRef thiz) {
@@ -117,6 +117,12 @@ void Kotlin_Array_copyImpl(KConstRef thiz, KInt fromIndex,
 
 // Arrays.kt
 OBJ_GETTER0(Kotlin_emptyArray) {
+#if KONAN_WASM || KONAN_ZEPHYR
+  // We need that, as initializers do not work on those platforms.
+  if (anEmptyArray.container() == nullptr) {
+     anEmptyArray = { const_cast<TypeInfo*>(theArrayTypeInfo), &theStaticObjectsContainer, /* element count */ 0 };
+  }
+#endif
   RETURN_OBJ(const_cast<ObjHeader*>(anEmptyArray.obj()));
 }
 

@@ -376,6 +376,8 @@ extern "C" {
 
 struct MemoryState;
 
+extern ContainerHeader theStaticObjectsContainer;
+
 MemoryState* InitMemory();
 void DeinitMemory(MemoryState*);
 
