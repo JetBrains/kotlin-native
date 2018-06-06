@@ -72,21 +72,25 @@ data class Data(var int: Int)
     // Ensure that String and integral boxes are frozen by default, by passing local to the worker.
     val worker = startWorker()
     var data: Any = "Hello" + " " + "world"
+    assert(data.isFrozen)
     worker.schedule(TransferMode.CHECKED, { data } ) {
         input -> println("Worker 1: $input")
     }.result()
 
     data = 42
+    assert(data.isFrozen)
     worker.schedule(TransferMode.CHECKED, { data } ) {
         input -> println("Worker2: $input")
     }.result()
 
     data = 239L
+    assert(data.isFrozen)
     worker.schedule(TransferMode.CHECKED, { data } ) {
         input -> println("Worker3: $input")
     }.result()
 
     data = 'a'
+    assert(data.isFrozen)
     worker.schedule(TransferMode.CHECKED, { data } ) {
         input -> println("Worker4: $input")
     }.result()
