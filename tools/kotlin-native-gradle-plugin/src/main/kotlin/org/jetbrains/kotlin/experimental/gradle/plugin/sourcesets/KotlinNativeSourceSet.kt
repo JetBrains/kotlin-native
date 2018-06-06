@@ -32,4 +32,8 @@ interface KotlinNativeSourceSet: Named {
     fun target(vararg targets: String, configureClosure: Closure<*>): KotlinNativeSourceSet
     fun target(vararg targets: String, configureAction: Action<in SourceDirectorySet>): KotlinNativeSourceSet
     fun target(vararg targets: String, configureLambda: SourceDirectorySet.() -> Unit): KotlinNativeSourceSet
+    fun target(targets: Iterable<String>): KotlinNativeSourceSet
+    fun target(targets: Iterable<String>, configureClosure: Closure<*>): KotlinNativeSourceSet
+    fun target(targets: Iterable<String>, configureAction: Action<in SourceDirectorySet>): KotlinNativeSourceSet
+    fun target(targets: Iterable<String>, configureLambda: SourceDirectorySet.() -> Unit): KotlinNativeSourceSet
 }

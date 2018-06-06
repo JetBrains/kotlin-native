@@ -3,14 +3,10 @@ package org.jetbrains.kotlin.experimental.gradle.plugin
 import org.gradle.api.attributes.Attribute
 import org.gradle.api.component.BuildableComponent
 import org.gradle.api.component.PublishableComponent
-import org.gradle.api.file.Directory
 import org.gradle.api.file.FileCollection
-import org.gradle.api.file.RegularFile
 import org.gradle.api.provider.Provider
 import org.gradle.language.ComponentWithDependencies
 import org.gradle.language.ComponentWithOutputs
-import org.gradle.language.nativeplatform.ComponentWithLinkFile
-import org.gradle.language.nativeplatform.ComponentWithLinkUsage
 import org.gradle.language.nativeplatform.internal.ConfigurableComponentWithLinkUsage
 import org.gradle.language.nativeplatform.internal.ConfigurableComponentWithRuntimeUsage
 import org.jetbrains.kotlin.experimental.gradle.plugin.internal.KotlinNativePlatform
@@ -73,7 +69,3 @@ interface KotlinNativeKLibrary : KotlinNativeBinary,
         ComponentWithOutputs,
         PublishableComponent,
         ConfigurableComponentWithLinkUsage
-
-// TODO: Support.
-interface KotlinNativeSharedLibrary {
-}

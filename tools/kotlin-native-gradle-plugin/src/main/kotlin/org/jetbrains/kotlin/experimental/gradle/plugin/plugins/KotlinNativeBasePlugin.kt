@@ -9,10 +9,7 @@ import org.gradle.api.internal.tasks.TaskContainerInternal
 import org.gradle.api.plugins.BasePlugin
 import org.gradle.api.provider.ProviderFactory
 import org.gradle.language.base.plugins.LifecycleBasePlugin
-import org.gradle.language.nativeplatform.ComponentWithLinkUsage
-import org.gradle.language.nativeplatform.internal.ConfigurableComponentWithLinkUsage
 import org.gradle.language.plugins.NativeBasePlugin
-import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeExecutable
 import org.jetbrains.kotlin.experimental.gradle.plugin.internal.KotlinNativeBinaryImpl
 import org.jetbrains.kotlin.experimental.gradle.plugin.internal.KotlinNativeExecutableImpl
 import org.jetbrains.kotlin.experimental.gradle.plugin.internal.KotlinNativeKLibraryImpl

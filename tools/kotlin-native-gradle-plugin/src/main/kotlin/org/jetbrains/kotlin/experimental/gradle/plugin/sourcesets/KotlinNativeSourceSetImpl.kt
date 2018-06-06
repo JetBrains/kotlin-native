@@ -8,11 +8,9 @@ import org.gradle.api.internal.file.SourceDirectorySetFactory
 import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.model.ObjectFactory
 import org.gradle.util.ConfigureUtil.configure
-import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeComponent
 import org.jetbrains.kotlin.experimental.gradle.plugin.internal.KotlinNativeComponentImpl
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
-import org.jetbrains.kotlin.konan.target.PlatformManager
 import javax.inject.Inject
 
 open class KotlinNativeSourceSetImpl @Inject constructor(
@@ -65,24 +63,27 @@ open class KotlinNativeSourceSetImpl @Inject constructor(
         return getPlatformSources(konanTarget)
     }
 
-    override fun target(vararg targets: String): KotlinNativeSourceSet {
-        target(*targets) {}
-        return this
+    override fun target(targets: Iterable<String>) = target(targets) {}
+
+    override fun target(targets: Iterable<String>, configureLambda: SourceDirectorySet.() -> Unit) = apply {
+        targets.forEach { target(it).configureLambda() }
     }
 
-    override fun target(vararg targets: String, configureLambda: SourceDirectorySet.() -> Unit): KotlinNativeSourceSet {
-        val hostManager = HostManager()
-        targets.map { hostManager.targetByName(it) }.forEach {
-            getPlatformSources(it).configureLambda()
-        }
-        return this
-    }
+    override fun target(targets: Iterable<String>, configureClosure: Closure<*>) =
+            target(targets) { configure(configureClosure, this) }
+
+    override fun target(targets: Iterable<String>, configureAction: Action<in SourceDirectorySet>) =
+            target(targets) { configureAction.execute(this) }
+
+    override fun target(vararg targets: String) = target(targets.toList())
+
+    override fun target(vararg targets: String, configureLambda: SourceDirectorySet.() -> Unit) =
+            target(targets.toList(), configureLambda)
 
     override fun target(vararg targets: String, configureClosure: Closure<*>) =
-            target(*targets) { configure(configureClosure, this) }
+            target(targets.toList(), configureClosure)
 
     override fun target(vararg targets: String, configureAction: Action<in SourceDirectorySet>) =
-            target(*targets) { configureAction.execute(this) }
-
+            target(targets.toList(), configureAction)
     // endregion
 }

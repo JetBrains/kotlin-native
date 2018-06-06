@@ -4,7 +4,8 @@ import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ModuleVersionIdentifier
 import org.gradle.api.attributes.AttributeContainer
-import org.gradle.api.file.*
+import org.gradle.api.file.ProjectLayout
+import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.internal.component.SoftwareComponentInternal
 import org.gradle.api.internal.component.UsageContext
 import org.gradle.api.internal.file.FileOperations
@@ -13,8 +14,6 @@ import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.language.cpp.internal.DefaultUsageContext
 import org.gradle.nativeplatform.Linkage
-import org.gradle.nativeplatform.tasks.InstallExecutable
-import org.gradle.nativeplatform.tasks.LinkExecutable
 import org.jetbrains.kotlin.experimental.gradle.plugin.KotlinNativeExecutable
 import org.jetbrains.kotlin.experimental.gradle.plugin.sourcesets.KotlinNativeSourceSet
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind

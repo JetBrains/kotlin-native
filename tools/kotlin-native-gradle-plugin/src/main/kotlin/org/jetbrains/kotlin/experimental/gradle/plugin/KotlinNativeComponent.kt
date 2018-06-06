@@ -1,8 +1,6 @@
 package org.jetbrains.kotlin.experimental.gradle.plugin
 
 import org.gradle.api.artifacts.Configuration
-import org.gradle.api.component.SoftwareComponent
-import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.provider.SetProperty
 import org.gradle.language.BinaryCollection
