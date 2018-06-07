@@ -25,8 +25,10 @@
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
 
-#if KONAN_ENABLE_ASSERT
 RUNTIME_NORETURN void RuntimeAssertFailed(const char* location, const char* message);
+
+#if KONAN_ENABLE_ASSERT
+// Use RuntimeAssert() in internal state checks, which could be ignored in production.
 #define RuntimeAssert(condition, message) \
   if (!(condition)) {                        \
     RuntimeAssertFailed( __FILE__ ":" TOSTRING(__LINE__), message); \
@@ -34,5 +36,12 @@ RUNTIME_NORETURN void RuntimeAssertFailed(const char* location, const char* mess
 #else
 #define RuntimeAssert(condition, message)
 #endif
+
+// Use RuntimeCheck() in runtime checks that could fail due to external condition and shall lead
+// to program termination. Never compiled out.
+#define RuntimeCheck(condition, message) \
+  if (!(condition)) {                        \
+    RuntimeAssertFailed( __FILE__ ":" TOSTRING(__LINE__), message); \
+  }
 
 #endif // RUNTIME_ASSERT_H

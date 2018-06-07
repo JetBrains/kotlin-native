@@ -401,7 +401,8 @@ inline bool isRefCounted(KConstRef object) {
 
 extern "C" {
 
-// TODO: make it const, current LLVM throws it away, if marked const.
+// Ensure LLVM never throws theStaticObjectsContainer away.
+// TODO: although practically const, marking it as such makes LLVM crazy, fix it.
 RUNTIME_USED ContainerHeader theStaticObjectsContainer = {
   CONTAINER_TAG_PERMANENT | CONTAINER_TAG_INCREMENT,
   0 /* Object count */
