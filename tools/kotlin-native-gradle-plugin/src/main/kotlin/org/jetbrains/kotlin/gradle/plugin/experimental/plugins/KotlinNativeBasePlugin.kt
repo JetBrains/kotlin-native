@@ -15,7 +15,6 @@ import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeExec
 import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeKLibraryImpl
 import org.jetbrains.kotlin.gradle.plugin.experimental.tasks.KotlinNativeCompile
 
-// TODO: Support ProductionComponent (see Gradle NativeBase plugin)
 class KotlinNativeBasePlugin: Plugin<ProjectInternal> {
 
     private fun addCompilationTasks(

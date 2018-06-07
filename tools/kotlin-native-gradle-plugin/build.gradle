@@ -99,7 +99,7 @@ test {
         systemProperty("konan.jvmArgs", project.property("konan.jvmArgs"))
     }
     // Uncomment for debugging.
-    testLogging.showStandardStreams = true
+    //testLogging.showStandardStreams = true
     if (project.hasProperty("maxParallelForks")) {
         maxParallelForks=project.property("maxParallelForks")
     }

@@ -10,8 +10,8 @@ import org.gradle.internal.reflect.Instantiator
 import org.gradle.language.cpp.CppBinary.DEBUGGABLE_ATTRIBUTE
 import org.gradle.language.cpp.CppBinary.OPTIMIZED_ATTRIBUTE
 import org.gradle.language.cpp.internal.DefaultUsageContext
-import org.gradle.language.nativeplatform.internal.BuildType
 import org.jetbrains.kotlin.gradle.plugin.experimental.KotlinNativeBinary.Companion.KONAN_TARGET_ATTRIBUTE
+import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeBuildType
 import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeComponentImpl
 import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeVariantIdentity
 import org.jetbrains.kotlin.gradle.plugin.experimental.internal.OutputKind.Companion.getDevelopmentKind
@@ -38,15 +38,15 @@ class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAtt
             usageName: String,
             variantName: String,
             usageContextSuffix: String,
-            buildType: BuildType,
+            buildType: KotlinNativeBuildType,
             target: KonanTarget,
             objectFactory: ObjectFactory
     ): DefaultUsageContext {
         val usage = objectFactory.named(Usage::class.java, usageName)
         val attributes = attributesFactory.mutable().apply {
             attribute(Usage.USAGE_ATTRIBUTE, usage)
-            attribute(DEBUGGABLE_ATTRIBUTE, buildType.isDebuggable)
-            attribute(OPTIMIZED_ATTRIBUTE, buildType.isOptimized)
+            attribute(DEBUGGABLE_ATTRIBUTE, buildType.debuggable)
+            attribute(OPTIMIZED_ATTRIBUTE, buildType.optimized)
             attribute(KONAN_TARGET_ATTRIBUTE, target.name)
         }
         return DefaultUsageContext(variantName + usageContextSuffix, usage, attributes)
@@ -91,7 +91,7 @@ class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAtt
 
                 for (kind in outputKinds) {
                     // TODO: Release is debuggable in Gradle's DEFAULT_BUILD_TYPES. Is it ok for us?
-                    for (buildType in BuildType.DEFAULT_BUILD_TYPES) {
+                    for (buildType in KotlinNativeBuildType.DEFAULT_BUILD_TYPES) {
                         for (target in targets) {
 
                             val buildTypeSuffix = buildType.name
@@ -99,7 +99,6 @@ class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAtt
                             val targetSuffix = createDimensionSuffix(target.name, targets)
                             val variantName = "${buildTypeSuffix}${outputKindSuffix}${targetSuffix}"
 
-                            // TODO: Move into a separate function
                             val linkUsageContext: DefaultUsageContext? = kind.linkUsageName?.let {
                                 createUsageContext(it, variantName, "Link", buildType, target, objectFactory)
                             }
@@ -113,15 +112,17 @@ class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAtt
                                     variantName,
                                     component.baseName,
                                     group, version, target,
-                                    buildType.isDebuggable,
-                                    buildType.isOptimized,
+                                    buildType.debuggable,
+                                    buildType.optimized,
                                     linkUsageContext,
                                     runtimeUsageContext,
                                     objects
                             )
 
                             val binary = component.addBinary(kind, variantIdentity)
-                            if (kind == developmentKind && buildType == BuildType.DEBUG && target == HostManager.host) {
+                            if (kind == developmentKind &&
+                                buildType == KotlinNativeBuildType.DEBUG &&
+                                target == HostManager.host) {
                                 component.developmentBinary.set(binary)
                             }
                         }
@@ -133,5 +134,4 @@ class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAtt
         }
         // TODO: Support test source set
     }
-
 }

@@ -54,7 +54,7 @@ abstract class KotlinNativeBinaryImpl(
 ) : KotlinNativeBinary,
     ComponentWithNames,
     ComponentWithDependencies,
-        ComponentWithBaseName,
+    ComponentWithBaseName,
     PublishableComponent,
     ComponentWithOutputs
 {
@@ -92,7 +92,6 @@ abstract class KotlinNativeBinaryImpl(
         attributes.attribute(CppBinary.DEBUGGABLE_ATTRIBUTE, debuggable)
         attributes.attribute(CppBinary.OPTIMIZED_ATTRIBUTE, optimized)
         attributes.attribute(KotlinNativeBinary.KONAN_TARGET_ATTRIBUTE, konanTarget.name)
-        // Write
         attributes.attribute(OperatingSystemFamily.OPERATING_SYSTEM_ATTRIBUTE, konanTarget.getGradleOSFamily(objects))
         extendsFrom(getImplementationDependencies())
     }

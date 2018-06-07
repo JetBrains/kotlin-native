@@ -8,10 +8,10 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
-import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeBinaryImpl
 import org.jetbrains.kotlin.gradle.plugin.KonanCompilerRunner
 import org.jetbrains.kotlin.gradle.plugin.addArg
 import org.jetbrains.kotlin.gradle.plugin.addKey
+import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeBinaryImpl
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 
 open class KotlinNativeCompile: DefaultTask() {
