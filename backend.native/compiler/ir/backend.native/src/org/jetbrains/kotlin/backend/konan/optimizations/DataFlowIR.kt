@@ -631,7 +631,7 @@ internal object DataFlowIR {
                                 assert((entry.value  as DataFlowIR.FunctionSymbol.Declared).symbolTableIndex == index) { "Inconsistent function table" }
                             }
                         }
-                        .map { it.key as FunctionDescriptor }
+                        .map { (it.key as FunctionDescriptor) to (it.value as DataFlowIR.FunctionSymbol.Declared) }
                         .toList()
 
         fun getPrivateClassesTableForExport() =
@@ -644,7 +644,7 @@ internal object DataFlowIR {
                                 assert((entry.value  as DataFlowIR.Type.Declared).symbolTableIndex == index) { "Inconsistent class table" }
                             }
                         }
-                        .map { it.key }
+                        .map { it.key to (it.value as DataFlowIR.Type.Declared) }
                         .toList()
     }
 }
