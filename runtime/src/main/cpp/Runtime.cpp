@@ -140,9 +140,6 @@ RuntimeState* Kotlin_suspendRuntime() {
     RuntimeCheck(updateStatusIf(result, RUNNING, SUSPENDED), "Cannot transition state to SUSPENDED for suspend");
     result->memoryState = SuspendMemory();
     ::runtimeState = nullptr;
-#if !KONAN_NO_THREADS
-     __sync_synchronize();
-#endif
     return result;
 }
 
@@ -151,9 +148,6 @@ void Kotlin_resumeRuntime(RuntimeState* state) {
     RuntimeCheck(updateStatusIf(state, SUSPENDED, RUNNING), "Cannot transition state to RUNNING for resume");
     ::runtimeState = state;
     ResumeMemory(state->memoryState);
-#if !KONAN_NO_THREADS
-    __sync_synchronize();
-#endif
 }
 
 RuntimeState* RUNTIME_USED Kotlin_getRuntime() {
