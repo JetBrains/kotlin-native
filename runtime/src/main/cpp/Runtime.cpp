@@ -87,7 +87,6 @@ RuntimeState* initRuntime() {
 
 void deinitRuntime(RuntimeState* state) {
   bool lastRuntime = atomicAdd(&aliveRuntimesCount, -1) == 0;
-  RuntimeCheck(updateStatusIf(state, RUNNING, SUSPENDED), "Cannot transition state to SUSPENDED for deinit");
   InitOrDeinitGlobalVariables(DEINIT_THREAD_LOCAL_GLOBALS);
   if (lastRuntime)
     InitOrDeinitGlobalVariables(DEINIT_GLOBALS);
