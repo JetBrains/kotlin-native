@@ -1,6 +1,7 @@
 package org.jetbrains.kotlin.gradle.plugin.experimental.internal
 
 import org.gradle.api.component.ComponentWithVariants
+import org.gradle.api.component.SoftwareComponent
 import org.gradle.api.internal.component.SoftwareComponentInternal
 import org.gradle.api.internal.component.UsageContext
 import org.gradle.api.internal.file.FileOperations
@@ -51,7 +52,6 @@ open class KotlinNativeMainComponent @Inject constructor(
                     identity
             ).apply {
                 binaries.add(this)
-                mainPublication.variants.add(this)
             }
 
     private inline fun <reified T : KotlinNativeBinary> addBinary(identity: NativeVariantIdentity): T =
@@ -66,7 +66,7 @@ open class KotlinNativeMainComponent @Inject constructor(
     // region Kotlin/Native variant
     inner class KotlinNativeVariant: ComponentWithVariants, SoftwareComponentInternal {
 
-        private val variants = mutableSetOf<KotlinNativeBinary>()
+        private val variants = mutableSetOf<SoftwareComponent>()
         override fun getVariants() = variants
 
         override fun getName(): String = this@KotlinNativeMainComponent.name

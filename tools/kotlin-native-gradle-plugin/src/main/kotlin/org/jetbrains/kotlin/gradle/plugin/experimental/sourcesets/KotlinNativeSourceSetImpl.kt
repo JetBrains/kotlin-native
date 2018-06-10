@@ -23,13 +23,18 @@ open class KotlinNativeSourceSetImpl @Inject constructor(
 
     override lateinit var component: AbstractKotlinNativeComponent
 
-    override val common = newSourceDirectorySet("common")
+    override val kotlin = newSourceDirectorySet("kotlin")
+
+    private val common: SourceDirectorySet
+        get() = kotlin
 
     private val platformSources = mutableMapOf<KonanTarget, SourceDirectorySet>()
 
     private fun newSourceDirectorySet(name: String) = sourceDirectorySetFactory.create(name).apply {
         filter.include("**/*.kt")
     }
+
+    override fun getCommonSources(): SourceDirectorySet = common
 
     override fun getPlatformSources(target: KonanTarget) = platformSources.getOrPut(target) {
         newSourceDirectorySet(target.name)
@@ -42,9 +47,9 @@ open class KotlinNativeSourceSetImpl @Inject constructor(
     // region DSL
 
     // Common source directory set configuration.
-    override fun common(configureClosure: Closure<*>) = apply { configure(configureClosure, common) }
-    override fun common(configureAction: Action<in SourceDirectorySet>) = apply { configureAction.execute(common) }
-    override fun common(configureLambda: SourceDirectorySet.() -> Unit) = apply { common.configureLambda() }
+    override fun kotlin(configureClosure: Closure<*>) = apply { configure(configureClosure, common) }
+    override fun kotlin(configureAction: Action<in SourceDirectorySet>) = apply { configureAction.execute(common) }
+    override fun kotlin(configureLambda: SourceDirectorySet.() -> Unit) = apply { common.configureLambda() }
 
     // Configuration of the corresponding software component.
     override fun component(configureClosure: Closure<*>) = apply { configure(configureClosure, component) }

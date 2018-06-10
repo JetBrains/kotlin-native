@@ -11,16 +11,16 @@ import org.jetbrains.kotlin.konan.target.KonanTarget
 
 interface KotlinNativeSourceSet: Named {
 
-    val common: SourceDirectorySet
+    val kotlin: SourceDirectorySet
     val component: KotlinNativeComponent
 
-    fun getCommonSources(): SourceDirectorySet = common
+    fun getCommonSources(): SourceDirectorySet
     fun getPlatformSources(target: KonanTarget): SourceDirectorySet
     fun getAllSources(target: KonanTarget): FileCollection
 
-    fun common(configureClosure: Closure<*>): KotlinNativeSourceSet
-    fun common(configureAction: Action<in SourceDirectorySet>): KotlinNativeSourceSet
-    fun common(configureLambda: SourceDirectorySet.() -> Unit): KotlinNativeSourceSet
+    fun kotlin(configureClosure: Closure<*>): KotlinNativeSourceSet
+    fun kotlin(configureAction: Action<in SourceDirectorySet>): KotlinNativeSourceSet
+    fun kotlin(configureLambda: SourceDirectorySet.() -> Unit): KotlinNativeSourceSet
 
     fun component(configureClosure: Closure<*>): KotlinNativeSourceSet
     fun component(configureAction: Action<in AbstractKotlinNativeComponent>): KotlinNativeSourceSet

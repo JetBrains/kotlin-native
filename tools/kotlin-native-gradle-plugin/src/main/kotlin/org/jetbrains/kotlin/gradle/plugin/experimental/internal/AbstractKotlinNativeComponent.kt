@@ -49,4 +49,13 @@ abstract class AbstractKotlinNativeComponent @Inject constructor(
     override fun getDependencies() = dependencies
 
     override fun getImplementationDependencies(): Configuration = dependencies.implementationDependencies
+
+    // region DSL
+
+    override fun target(vararg targets: String) {
+        val hostManager = HostManager()
+        konanTargets.set(targets.map { hostManager.targetByName(it) })
+    }
+
+    // endregion
 }

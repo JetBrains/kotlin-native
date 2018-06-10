@@ -26,6 +26,10 @@ class ExperimentalPluginTests {
             settingsFile.appendText("\nrootProject.name = 'test'")
             buildFile.writeText("""
                 plugins { id 'kotlin-native' }
+
+                sourceSets.main.component {
+                    outputKinds = [ EXECUTABLE, KLIBRARY ]
+                }
             """.trimIndent())
         }
         val assembleResult = project.createRunner().withArguments("assemble").build()
@@ -40,11 +44,6 @@ class ExperimentalPluginTests {
         val libraryProject = KonanProject.createEmpty(libraryDir).apply {
             buildFile.writeText("""
                 plugins { id 'kotlin-native' }
-
-                sourceSets.main.component {
-                    outputKinds = [ KLIBRARY ]
-                }
-
             """.trimIndent())
             generateSrcFile("library.kt", "fun foo() = 42")
         }
@@ -94,11 +93,8 @@ class ExperimentalPluginTests {
                 group 'test'
                 version '1.0'
 
-                sourceSets.main {
-                    target('wasm32')
-                    component {
-                        outputKinds = [ KLIBRARY ]
-                    }
+                sourceSets.main.component {
+                    target 'host', 'wasm32'
                 }
 
                 publishing {
@@ -130,11 +126,9 @@ class ExperimentalPluginTests {
                     implementation 'test:library:1.0'
                 }
 
-                sourceSets.main {
-                    target('wasm32')
-                    component {
-                        outputKinds = [ EXECUTABLE ]
-                    }
+                sourceSets.main.component {
+                    target 'host', 'wasm32'
+                    outputKinds = [ EXECUTABLE ]
                 }
             """.trimIndent())
             generateSrcFile("main.kt", "fun main(args: Array<String>) { println(foo()) }")
@@ -164,6 +158,9 @@ class ExperimentalPluginTests {
                     target('macos_x64').srcDir 'src/main/macos_x64'
                     target('linux_x64').srcDir 'src/main/linux_x64'
                     target('mingw_x64').srcDir 'src/main/mingw_x64'
+                    component {
+                        outputKinds = [ EXECUTABLE ]
+                    }
                 }
             """.trimIndent())
             generateSrcFile("main.kt", """
@@ -181,7 +178,7 @@ class ExperimentalPluginTests {
         project.createRunner().withArguments("assemble").build()
 
         val process = ProcessBuilder(
-                projectDirectory.resolve("build/exe/main/debug/test.$exeSuffix").absolutePath
+                projectDirectory.resolve("build/exe/main/debug/${HostManager.hostName}/test.$exeSuffix").absolutePath
         ).start()
         process.waitFor(10, TimeUnit.SECONDS)
 
@@ -196,11 +193,8 @@ class ExperimentalPluginTests {
             buildFile.writeText("""
                 plugins { id 'kotlin-native' }
 
-                sourceSets.main {
-                    target('host', 'wasm32')
-                    component {
-                        outputKinds = [ KLIBRARY ]
-                    }
+                sourceSets.main.component {
+                    target 'host', 'wasm32'
                 }
 
                 dependencies {
@@ -214,11 +208,8 @@ class ExperimentalPluginTests {
             buildFile.writeText("""
                 plugins { id 'kotlin-native'}
 
-                sourceSets.main {
-                    target('host', 'wasm32')
-                    component {
-                        outputKinds = [ KLIBRARY ]
-                    }
+                sourceSets.main.component {
+                    target 'host', 'wasm32'
                 }
 
             """.trimIndent())
@@ -233,11 +224,9 @@ class ExperimentalPluginTests {
             buildFile.writeText("""
                 plugins { id 'kotlin-native' }
 
-                sourceSets.main {
-                    target('host', 'wasm32')
-                    component {
-                        outputKinds = [ EXECUTABLE ]
-                    }
+                sourceSets.main.component {
+                    target 'host', 'wasm32'
+                    outputKinds = [ EXECUTABLE ]
                 }
 
                 dependencies {
@@ -273,11 +262,8 @@ class ExperimentalPluginTests {
                 group 'test'
                 version '1.0'
 
-                sourceSets.main {
-                    target('host', 'wasm32')
-                    component {
-                        outputKinds = [ KLIBRARY ]
-                    }
+                sourceSets.main.component {
+                    target 'host', 'wasm32'
                 }
 
                 dependencies {
@@ -305,11 +291,8 @@ class ExperimentalPluginTests {
                 group 'test'
                 version '1.0'
 
-                sourceSets.main {
-                    target('host', 'wasm32')
-                    component {
-                        outputKinds = [ KLIBRARY ]
-                    }
+                sourceSets.main.component {
+                    target 'host', 'wasm32'
                 }
 
                 publishing {
@@ -342,11 +325,9 @@ class ExperimentalPluginTests {
                     implementation 'test:foo:1.0'
                 }
 
-                sourceSets.main {
-                    target('host', 'wasm32')
-                    component {
-                        outputKinds = [ EXECUTABLE ]
-                    }
+                sourceSets.main.component {
+                    target 'host', 'wasm32'
+                    outputKinds = [ EXECUTABLE ]
                 }
             """.trimIndent())
             generateSrcFile("main.kt", "fun main(args: Array<String>) { println(foo()) }")
@@ -361,6 +342,7 @@ class ExperimentalPluginTests {
     }
 
     @Test
+    @Ignore
     fun `Plugin should allow creating components by creating source sets`() {
         val project = KonanProject.create(projectDirectory).apply {
             settingsFile.appendText("\nrootProject.name = 'test'")
@@ -369,7 +351,7 @@ class ExperimentalPluginTests {
 
                 sourceSets {
                     foo {
-                        common.srcDir 'src/foo/kotlin'
+                        kotlin.srcDir 'src/foo/kotlin'
                         component {
                             outputKinds = [ EXECUTABLE ]
                         }

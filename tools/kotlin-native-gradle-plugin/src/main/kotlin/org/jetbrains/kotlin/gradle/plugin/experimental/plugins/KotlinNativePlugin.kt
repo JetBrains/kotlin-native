@@ -54,28 +54,31 @@ class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAtt
         return DefaultUsageContext(variantName + usageContextSuffix, usage, attributes)
     }
 
-    private fun AbstractKotlinNativeComponent.getSupportedTargetsAndLock(): Set<KonanTarget> {
+    private fun AbstractKotlinNativeComponent.getAndLockTargets(): Set<KonanTarget> {
         konanTargets.lockNow()
-        return konanTargets.get()
-                .filter { hostManager.isEnabled(it) }.toSet()
-                .also {
-                    require(it.isNotEmpty()) { "A Kotlin/Native target needs to be specified for the component." }
-                }
+        return konanTargets.get().also {
+            require(it.isNotEmpty()) { "A Kotlin/Native target needs to be specified for the component." }
+        }
     }
 
-    private fun KotlinNativeMainComponent.getOutputKindsAndLock(): Set<OutputKind> {
+    private fun KotlinNativeMainComponent.getAndLockOutputKinds(): Set<OutputKind> {
         outputKinds.lockNow()
         return outputKinds.get().also {
             require(it.isNotEmpty()) { "An output kind needs to be specified for the component." }
         }
     }
 
+    private fun Collection<KonanTarget>.getDevelopmentTarget(): KonanTarget =
+            if (contains(HostManager.host)) HostManager.host else first()
+
     private fun ProjectInternal.addBinariesForMainComponents(group: Provider<String>, version: Provider<String>) {
         for (component in components.withType(KotlinNativeMainComponent::class.java)) {
-            val targets = component.getSupportedTargetsAndLock()
-            val outputKinds = component.getOutputKindsAndLock()
+            val targets = component.getAndLockTargets()
+            val outputKinds = component.getAndLockOutputKinds()
             val developmentKind = outputKinds.getDevelopmentKind()
+            val developmentTarget = targets.getDevelopmentTarget()
             val objectFactory = objects
+            val hostManager = HostManager()
 
             for (kind in outputKinds) {
                 for (buildType in KotlinNativeBuildType.DEFAULT_BUILD_TYPES) {
@@ -107,9 +110,18 @@ class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAtt
                         )
 
                         val binary = component.addBinary(kind, variantIdentity)
+
+                        if (hostManager.isEnabled(target)) {
+                            component.mainPublication.variants.add(binary)
+                        } else {
+                            // Known but not buildable.
+                            // It allows us to publish different parts of a multitarget library from differnt hosts.
+                            component.mainPublication.variants.add(variantIdentity)
+                        }
+
                         if (kind == developmentKind &&
-                                buildType == KotlinNativeBuildType.DEBUG &&
-                                target == HostManager.host) {
+                            buildType == KotlinNativeBuildType.DEBUG &&
+                            target == developmentTarget) {
                             component.developmentBinary.set(binary)
                         }
                     }
@@ -121,7 +133,7 @@ class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAtt
 
     private fun ProjectInternal.addBinariesForTestComponents(group: Provider<String>, version: Provider<String>) {
         for (component in components.withType(KotlinNativeTestSuite::class.java)) {
-            val targets = component.getSupportedTargetsAndLock()
+            val targets = component.getAndLockTargets()
             val buildType = KotlinNativeBuildType.DEBUG
 
             for (target in targets) {
@@ -149,7 +161,6 @@ class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAtt
         }
     }
 
-    // TODO rename sourceSets.main.common -> kotlin
     override fun apply(project: ProjectInternal): Unit = with(project) {
         pluginManager.apply(KotlinNativeBasePlugin::class.java)
         pluginManager.apply(NativeTestingBasePlugin::class.java)
@@ -170,22 +181,23 @@ class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAtt
         // a source set is created by user. So we need a user DSL or some another way
         // to determine which component class should be instantiated (main or test).
         val mainSourceSet = sourceSets.create("main").apply {
-            component = objectFactory.newInstance(KotlinNativeMainComponent::class.java, name, this).apply {
-                // Override the default component base name.
-                baseName.set(project.name)
-                project.components.add(this)
-            }
+            kotlin.srcDir("src/main/kotlin")
+            component = objectFactory
+                    .newInstance(KotlinNativeMainComponent::class.java, name, this)
+                    .apply {
+                        // Override the default component base name.
+                        baseName.set(project.name)
+                        project.components.add(this)
+                    }
         }
 
         sourceSets.create("test").apply {
-            component = objectFactory.newInstance(
-                    KotlinNativeTestSuite::class.java,
-                    name,
-                    this,
-                    mainSourceSet.component
-            ).apply {
-                project.components.add(this)
-            }
+            kotlin.srcDir("src/test/kotlin")
+            component = objectFactory
+                    .newInstance(KotlinNativeTestSuite::class.java, name, this, mainSourceSet.component)
+                    .apply {
+                        project.components.add(this)
+                    }
         }
         // Create binaries for host
         afterEvaluate {

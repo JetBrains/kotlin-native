@@ -12,7 +12,5 @@ class KotlinNativeSourceSetFactory(val project: ProjectInternal) : NamedDomainOb
                     name,
                     project.services.get(SourceDirectorySetFactory::class.java),
                     project
-            ).apply {
-                common.srcDir("src/$name/kotlin")
-            }
+            )
 }

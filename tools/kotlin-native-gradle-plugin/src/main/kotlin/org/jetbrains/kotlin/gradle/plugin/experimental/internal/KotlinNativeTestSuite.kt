@@ -1,7 +1,6 @@
 package org.jetbrains.kotlin.gradle.plugin.experimental.internal
 
 import org.gradle.api.internal.file.FileOperations
-import org.gradle.api.internal.provider.LockableSetProperty
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.Property
 import org.gradle.internal.Describables

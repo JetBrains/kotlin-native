@@ -7,7 +7,6 @@ import org.gradle.language.BinaryCollection
 import org.gradle.language.ComponentWithBinaries
 import org.gradle.language.ComponentWithDependencies
 import org.gradle.nativeplatform.test.TestSuiteComponent
-import org.jetbrains.kotlin.gradle.plugin.experimental.internal.OutputKind
 import org.jetbrains.kotlin.gradle.plugin.experimental.sourcesets.KotlinNativeSourceSet
 import org.jetbrains.kotlin.konan.target.KonanTarget
 
@@ -30,10 +29,15 @@ interface KotlinNativeComponent: ComponentWithBinaries, ComponentWithDependencie
     /** Returns the binaries for this library. */
     override fun getBinaries(): BinaryCollection<out KotlinNativeBinary>
 
-    /**
-     * Returns the implementation dependencies of this component.
-     */
+    /** Returns the implementation dependencies of this component. */
     fun getImplementationDependencies(): Configuration
+
+    // region DSL
+
+    /** Set native targets for this component. */
+    fun target(vararg targets: String)
+
+    // endregion
 }
 
 /**
