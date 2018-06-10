@@ -2,7 +2,9 @@ package org.jetbrains.kotlin.gradle.plugin.experimental.internal
 
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ConfigurationContainer
+import org.gradle.api.artifacts.ModuleVersionIdentifier
 import org.gradle.api.attributes.AttributeContainer
+import org.gradle.api.component.PublishableComponent
 import org.gradle.api.file.ProjectLayout
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.internal.component.SoftwareComponentInternal
@@ -28,7 +30,7 @@ open class KotlinNativeKLibraryImpl @Inject constructor(
         projectLayout: ProjectLayout,
         configurations: ConfigurationContainer,
         fileOperations: FileOperations
-) : KotlinNativeBinaryImpl(name,
+) : AbstractKotlinNativeBinary(name,
         baseName,
         sources,
         identity,
@@ -39,8 +41,11 @@ open class KotlinNativeKLibraryImpl @Inject constructor(
         configurations,
         fileOperations),
         KotlinNativeKLibrary,
-    SoftwareComponentInternal
+    SoftwareComponentInternal,
+    PublishableComponent
 {
+    override fun getCoordinates(): ModuleVersionIdentifier = identity.coordinates
+
     // Properties
 
     // The link elements configuration is created by the NativeBase plugin.

@@ -8,7 +8,7 @@ import org.gradle.api.internal.file.SourceDirectorySetFactory
 import org.gradle.api.internal.project.ProjectInternal
 import org.gradle.api.model.ObjectFactory
 import org.gradle.util.ConfigureUtil.configure
-import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeComponentImpl
+import org.jetbrains.kotlin.gradle.plugin.experimental.internal.AbstractKotlinNativeComponent
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import javax.inject.Inject
@@ -21,10 +21,7 @@ open class KotlinNativeSourceSetImpl @Inject constructor(
 
     val objectFactory: ObjectFactory = project.objects
 
-    override val component: KotlinNativeComponentImpl =
-            objectFactory.newInstance(KotlinNativeComponentImpl::class.java, name, this).also {
-                project.components.add(it)
-            }
+    override lateinit var component: AbstractKotlinNativeComponent
 
     override val common = newSourceDirectorySet("common")
 
@@ -51,9 +48,9 @@ open class KotlinNativeSourceSetImpl @Inject constructor(
 
     // Configuration of the corresponding software component.
     override fun component(configureClosure: Closure<*>) = apply { configure(configureClosure, component) }
-    override fun component(configureAction: Action<in KotlinNativeComponentImpl>) =
+    override fun component(configureAction: Action<in AbstractKotlinNativeComponent>) =
             apply { configureAction.execute(component) }
-    override fun component(configureLambda: KotlinNativeComponentImpl.() -> Unit) =
+    override fun component(configureLambda: AbstractKotlinNativeComponent.() -> Unit) =
             apply { component.configureLambda() }
 
     // Adding new targets and configuration of target-specific source directory sets.

@@ -4,6 +4,7 @@ import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ConfigurationContainer
 import org.gradle.api.artifacts.ModuleVersionIdentifier
 import org.gradle.api.attributes.AttributeContainer
+import org.gradle.api.component.PublishableComponent
 import org.gradle.api.file.ProjectLayout
 import org.gradle.api.file.RegularFileProperty
 import org.gradle.api.internal.component.SoftwareComponentInternal
@@ -30,7 +31,7 @@ open class KotlinNativeExecutableImpl @Inject constructor(
         projectLayout: ProjectLayout,
         configurations: ConfigurationContainer,
         fileOperations: FileOperations
-) : KotlinNativeBinaryImpl(name,
+) : AbstractKotlinNativeBinary(name,
         baseName,
         sources,
         identity,
@@ -40,8 +41,9 @@ open class KotlinNativeExecutableImpl @Inject constructor(
         componentImplementation,
         configurations,
         fileOperations),
-        KotlinNativeExecutable,
-    SoftwareComponentInternal
+    KotlinNativeExecutable,
+    SoftwareComponentInternal,
+    PublishableComponent
 {
     override fun getCoordinates(): ModuleVersionIdentifier = identity.coordinates
 

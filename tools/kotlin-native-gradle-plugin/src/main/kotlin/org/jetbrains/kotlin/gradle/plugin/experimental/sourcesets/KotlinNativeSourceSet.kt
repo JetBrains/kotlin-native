@@ -6,7 +6,7 @@ import org.gradle.api.Named
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.SourceDirectorySet
 import org.jetbrains.kotlin.gradle.plugin.experimental.KotlinNativeComponent
-import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeComponentImpl
+import org.jetbrains.kotlin.gradle.plugin.experimental.internal.AbstractKotlinNativeComponent
 import org.jetbrains.kotlin.konan.target.KonanTarget
 
 interface KotlinNativeSourceSet: Named {
@@ -23,8 +23,8 @@ interface KotlinNativeSourceSet: Named {
     fun common(configureLambda: SourceDirectorySet.() -> Unit): KotlinNativeSourceSet
 
     fun component(configureClosure: Closure<*>): KotlinNativeSourceSet
-    fun component(configureAction: Action<in KotlinNativeComponentImpl>): KotlinNativeSourceSet
-    fun component(configureLambda: KotlinNativeComponentImpl.() -> Unit): KotlinNativeSourceSet
+    fun component(configureAction: Action<in AbstractKotlinNativeComponent>): KotlinNativeSourceSet
+    fun component(configureLambda: AbstractKotlinNativeComponent.() -> Unit): KotlinNativeSourceSet
 
     // TODO: Provide a more convenient way to set targets
     fun target(target: String): SourceDirectorySet

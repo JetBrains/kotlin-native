@@ -2,9 +2,7 @@ package org.jetbrains.kotlin.gradle.plugin.experimental.internal
 
 import org.gradle.api.artifacts.Configuration
 import org.gradle.api.artifacts.ConfigurationContainer
-import org.gradle.api.artifacts.ModuleVersionIdentifier
 import org.gradle.api.attributes.Usage
-import org.gradle.api.component.PublishableComponent
 import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.ProjectLayout
@@ -40,7 +38,7 @@ import org.jetbrains.kotlin.konan.target.KonanTarget
  *  linkLibraries  runtimeLibraries  klibs (dependencies by type: klib, static lib, shared lib etc)
  *
  */
-abstract class KotlinNativeBinaryImpl(
+abstract class AbstractKotlinNativeBinary(
         private val name: String,
         private val baseName: Provider<String>,
         val sourceSet: KotlinNativeSourceSet,
@@ -55,7 +53,6 @@ abstract class KotlinNativeBinaryImpl(
     ComponentWithNames,
     ComponentWithDependencies,
     ComponentWithBaseName,
-    PublishableComponent,
     ComponentWithOutputs
 {
 
@@ -100,8 +97,6 @@ abstract class KotlinNativeBinaryImpl(
 
     override val compileTask: Property<KotlinNativeCompile> = objects.property(KotlinNativeCompile::class.java)
 
-    override fun getCoordinates(): ModuleVersionIdentifier = identity.coordinates
-
     open fun isDebuggable(): Boolean = debuggable
     open fun isOptimized(): Boolean = optimized
 
@@ -117,4 +112,6 @@ abstract class KotlinNativeBinaryImpl(
 
     private val outputs: ConfigurableFileCollection = fileOperations.files()
     override fun getOutputs() = outputs
+
+    override val additionalCompilerOptions = mutableListOf<String>()
 }

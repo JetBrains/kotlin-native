@@ -10,10 +10,13 @@ import org.gradle.api.plugins.BasePlugin
 import org.gradle.api.provider.ProviderFactory
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.language.plugins.NativeBasePlugin
-import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeBinaryImpl
+import org.gradle.nativeplatform.test.tasks.RunTestExecutable
+import org.jetbrains.kotlin.gradle.plugin.experimental.internal.AbstractKotlinNativeBinary
 import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeExecutableImpl
 import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeKLibraryImpl
+import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeTestExecutableImpl
 import org.jetbrains.kotlin.gradle.plugin.experimental.tasks.KotlinNativeCompile
+import org.jetbrains.kotlin.konan.target.HostManager
 
 class KotlinNativeBasePlugin: Plugin<ProjectInternal> {
 
@@ -23,7 +26,7 @@ class KotlinNativeBasePlugin: Plugin<ProjectInternal> {
             buildDirectory: DirectoryProperty,
             providers: ProviderFactory
     ) {
-        components.withType(KotlinNativeBinaryImpl::class.java) { binary ->
+        components.withType(AbstractKotlinNativeBinary::class.java) { binary ->
             val names = binary.names
             val target = binary.konanTarget
             val kind = binary.kind
@@ -51,6 +54,28 @@ class KotlinNativeBasePlugin: Plugin<ProjectInternal> {
                 is KotlinNativeExecutableImpl -> binary.runtimeFile.set(compileTask.outputFile)
                 is KotlinNativeKLibraryImpl -> binary.linkFile.set(compileTask.outputFile)
             }
+
+            // Now we provide run tasks only for host binaries.
+            // So for some binaries the property 'runTask' remains unset.
+            // TODO: Avoid this situation somehow.
+            if (binary is KotlinNativeTestExecutableImpl && target == HostManager.host) {
+                val testTask = tasks.create(binary.names.getTaskName("run"), RunTestExecutable::class.java).apply {
+                    group = LifecycleBasePlugin.VERIFICATION_GROUP
+                    description = "Executes Kotlin/Native unit tests."
+
+                    val testExecutableProperty = compileTask.outputFile
+                    executable = testExecutableProperty.asFile.get().absolutePath
+
+                    onlyIf { testExecutableProperty.asFile.get().exists() }
+                    inputs.file(testExecutableProperty)
+                    dependsOn(testExecutableProperty)
+
+                    // TODO: Find or implement some mechanism for test result saving.
+                    outputDir = project.layout.buildDirectory.dir("test-results/" + binary.names.dirName).get().asFile
+                }
+                binary.runTask.set(testTask)
+            }
+
         }
     }
 

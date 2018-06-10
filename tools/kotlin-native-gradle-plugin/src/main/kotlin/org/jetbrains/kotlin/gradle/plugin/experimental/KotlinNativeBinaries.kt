@@ -9,6 +9,7 @@ import org.gradle.language.ComponentWithDependencies
 import org.gradle.language.ComponentWithOutputs
 import org.gradle.language.nativeplatform.internal.ConfigurableComponentWithLinkUsage
 import org.gradle.language.nativeplatform.internal.ConfigurableComponentWithRuntimeUsage
+import org.gradle.nativeplatform.test.TestComponent
 import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativePlatform
 import org.jetbrains.kotlin.gradle.plugin.experimental.tasks.KotlinNativeCompile
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
@@ -46,7 +47,11 @@ interface KotlinNativeBinary: ComponentWithDependencies, BuildableComponent {
      */
     val kind: CompilerOutputKind
 
-    // TODO: May be rework it a little.
+    /**
+     * Additinal command line options passed to the compiler when this binary is compiled.
+     */
+    val additionalCompilerOptions: MutableCollection<String>
+
     companion object {
         val KONAN_TARGET_ATTRIBUTE = Attribute.of("org.gradle.native.kotlin.platform", String::class.java)
     }
@@ -69,3 +74,11 @@ interface KotlinNativeKLibrary : KotlinNativeBinary,
         ComponentWithOutputs,
         PublishableComponent,
         ConfigurableComponentWithLinkUsage
+
+/**
+ * Represents a test executable.
+ */
+// TODO: Consider implementing ComponentWithExecutable and ComponentWithInstallation.
+interface KotlinNativeTestExecutable : KotlinNativeBinary,
+        ComponentWithOutputs,
+        TestComponent

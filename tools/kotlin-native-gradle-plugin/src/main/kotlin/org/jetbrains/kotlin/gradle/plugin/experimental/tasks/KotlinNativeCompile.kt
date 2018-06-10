@@ -11,13 +11,13 @@ import org.gradle.api.tasks.TaskAction
 import org.jetbrains.kotlin.gradle.plugin.KonanCompilerRunner
 import org.jetbrains.kotlin.gradle.plugin.addArg
 import org.jetbrains.kotlin.gradle.plugin.addKey
-import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeBinaryImpl
+import org.jetbrains.kotlin.gradle.plugin.experimental.internal.AbstractKotlinNativeBinary
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 
 open class KotlinNativeCompile: DefaultTask() {
 
     // TODO: May be replace with Gradle's property
-    internal lateinit var binary: KotlinNativeBinaryImpl
+    internal lateinit var binary: AbstractKotlinNativeBinary
 
     // Inputs and outputs
 
@@ -54,6 +54,8 @@ open class KotlinNativeCompile: DefaultTask() {
             addArg("-p", kind.name.toLowerCase())
 
             add("-Xmulti-platform")
+
+            addAll(binary.additionalCompilerOptions)
 
             libraries.files.forEach {library ->
                 library.parent?.let { addArg("-r", it) }
