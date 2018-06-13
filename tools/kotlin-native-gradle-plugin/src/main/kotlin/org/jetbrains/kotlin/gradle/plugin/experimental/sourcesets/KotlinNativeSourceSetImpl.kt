@@ -17,7 +17,7 @@ open class KotlinNativeSourceSetImpl @Inject constructor(
         private val name: String,
         val sourceDirectorySetFactory: SourceDirectorySetFactory,
         val project: ProjectInternal
-): KotlinNativeSourceSet {
+) : KotlinNativeSourceSet {
 
     val objectFactory: ObjectFactory = project.objects
 

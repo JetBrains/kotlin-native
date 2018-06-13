@@ -24,8 +24,7 @@ open class KotlinNativeMainComponent @Inject constructor(
         fileOperations: FileOperations
 ) : AbstractKotlinNativeComponent(name, sources, objectFactory, fileOperations),
     PublicationAwareComponent,
-    ProductionComponent
-{
+    ProductionComponent {
 
     override fun getDisplayName(): DisplayName = Describables.withTypeAndName("Kotlin/Native component", name)
 
@@ -64,6 +63,7 @@ open class KotlinNativeMainComponent @Inject constructor(
 
 
     // region Kotlin/Native variant
+    // TODO: SoftwareComponentInternal will be replaced with ComponentWithVariants by Gradle
     inner class KotlinNativeVariant: ComponentWithVariants, SoftwareComponentInternal {
 
         private val variants = mutableSetOf<SoftwareComponent>()

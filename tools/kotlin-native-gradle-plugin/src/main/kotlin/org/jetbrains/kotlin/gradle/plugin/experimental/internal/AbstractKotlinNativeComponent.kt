@@ -22,7 +22,9 @@ abstract class AbstractKotlinNativeComponent @Inject constructor(
         override val sources: KotlinNativeSourceSetImpl,
         val objectFactory: ObjectFactory,
         fileOperations: FileOperations
-) : DefaultNativeComponent(fileOperations), KotlinNativeComponent, ComponentWithNames {
+) : DefaultNativeComponent(fileOperations),
+    KotlinNativeComponent,
+    ComponentWithNames {
 
     private val baseName: Property<String> = objectFactory.property(String::class.java).apply { set(name) }
     fun getBaseName(): Property<String> = baseName

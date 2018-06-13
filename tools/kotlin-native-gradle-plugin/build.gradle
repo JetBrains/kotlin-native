@@ -170,5 +170,9 @@ gradlePlugin {
             id = 'kotlin-native'
             implementationClass = 'org.jetbrains.kotlin.gradle.plugin.experimental.plugins.KotlinNativePlugin'
         }
+        create("org.jetbrains.kotlin.native"){
+            id = 'org.jetbrains.kotlin.native'
+            implementationClass = 'org.jetbrains.kotlin.gradle.plugin.experimental.plugins.KotlinNativePlugin'
+        }
     }
 }

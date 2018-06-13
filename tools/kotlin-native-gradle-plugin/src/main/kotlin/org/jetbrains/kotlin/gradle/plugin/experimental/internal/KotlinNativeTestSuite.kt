@@ -19,8 +19,8 @@ open class KotlinNativeTestSuite @Inject constructor(
         objectFactory: ObjectFactory,
         fileOperations: FileOperations
 ) : AbstractKotlinNativeComponent(name, sources, objectFactory, fileOperations),
-    KotlinNativeTestComponent
-{
+    KotlinNativeTestComponent {
+
     init {
         getImplementationDependencies().extendsFrom(testedComponent.getImplementationDependencies())
     }

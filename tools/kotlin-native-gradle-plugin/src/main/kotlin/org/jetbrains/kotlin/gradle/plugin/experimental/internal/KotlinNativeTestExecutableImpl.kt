@@ -36,8 +36,7 @@ open class KotlinNativeTestExecutableImpl @Inject constructor(
         componentImplementation,
         configurations,
         fileOperations),
-    KotlinNativeTestExecutable
-{
+    KotlinNativeTestExecutable {
 
     init {
         additionalCompilerOptions.add("-tr")

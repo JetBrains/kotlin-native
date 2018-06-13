@@ -20,7 +20,6 @@ import org.jetbrains.kotlin.gradle.plugin.experimental.sourcesets.KotlinNativeSo
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import javax.inject.Inject
 
-// TODO: SoftwareComponentInternal will be replaced with ComponentWithVariants by Gradle
 open class KotlinNativeExecutableImpl @Inject constructor(
         name: String,
         baseName: Provider<String>,
@@ -42,7 +41,7 @@ open class KotlinNativeExecutableImpl @Inject constructor(
         configurations,
         fileOperations),
     KotlinNativeExecutable,
-    SoftwareComponentInternal,
+    SoftwareComponentInternal, // TODO: SoftwareComponentInternal will be replaced with ComponentWithVariants by Gradle
     PublishableComponent
 {
     override fun getCoordinates(): ModuleVersionIdentifier = identity.coordinates

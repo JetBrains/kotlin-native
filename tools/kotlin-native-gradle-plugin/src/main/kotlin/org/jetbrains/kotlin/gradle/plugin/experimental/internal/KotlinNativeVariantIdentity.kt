@@ -6,16 +6,17 @@ import org.gradle.api.provider.Provider
 import org.gradle.language.cpp.internal.NativeVariantIdentity
 import org.jetbrains.kotlin.konan.target.KonanTarget
 
-open class KotlinNativeVariantIdentity(name: String,
-                      baseName: Provider<String>,
-                      group: Provider<String>,
-                      version: Provider<String>,
-                      val konanTarget: KonanTarget,
-                      debuggable: Boolean,
-                      optimized: Boolean,
-                      linkUsage: UsageContext?,
-                      runtimeUsage: UsageContext?,
-                      objects: ObjectFactory
+open class KotlinNativeVariantIdentity(
+        name: String,
+        baseName: Provider<String>,
+        group: Provider<String>,
+        version: Provider<String>,
+        val konanTarget: KonanTarget,
+        debuggable: Boolean,
+        optimized: Boolean,
+        linkUsage: UsageContext?,
+        runtimeUsage: UsageContext?,
+        objects: ObjectFactory
 ) : NativeVariantIdentity(
         name,
         baseName,

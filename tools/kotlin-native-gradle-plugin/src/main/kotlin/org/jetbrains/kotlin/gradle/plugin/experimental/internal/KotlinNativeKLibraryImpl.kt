@@ -40,8 +40,8 @@ open class KotlinNativeKLibraryImpl @Inject constructor(
         componentImplementation,
         configurations,
         fileOperations),
-        KotlinNativeKLibrary,
-    SoftwareComponentInternal,
+    KotlinNativeKLibrary,
+    SoftwareComponentInternal, // TODO: SoftwareComponentInternal will be replaced with ComponentWithVariants by Gradle
     PublishableComponent
 {
     override fun getCoordinates(): ModuleVersionIdentifier = identity.coordinates

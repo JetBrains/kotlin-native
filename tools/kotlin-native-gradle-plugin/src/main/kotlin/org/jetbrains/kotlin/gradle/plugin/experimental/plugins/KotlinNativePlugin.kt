@@ -1,6 +1,7 @@
 package org.jetbrains.kotlin.gradle.plugin.experimental.plugins
 
 import org.gradle.api.Plugin
+import org.gradle.api.Project
 import org.gradle.api.attributes.Usage
 import org.gradle.api.internal.FactoryNamedDomainObjectContainer
 import org.gradle.api.internal.attributes.ImmutableAttributesFactory
@@ -71,7 +72,7 @@ class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAtt
     private fun Collection<KonanTarget>.getDevelopmentTarget(): KonanTarget =
             if (contains(HostManager.host)) HostManager.host else first()
 
-    private fun ProjectInternal.addBinariesForMainComponents(group: Provider<String>, version: Provider<String>) {
+    private fun Project.addBinariesForMainComponents(group: Provider<String>, version: Provider<String>) {
         for (component in components.withType(KotlinNativeMainComponent::class.java)) {
             val targets = component.getAndLockTargets()
             val outputKinds = component.getAndLockOutputKinds()
@@ -131,7 +132,7 @@ class KotlinNativePlugin @Inject constructor(val attributesFactory: ImmutableAtt
         }
     }
 
-    private fun ProjectInternal.addBinariesForTestComponents(group: Provider<String>, version: Provider<String>) {
+    private fun Project.addBinariesForTestComponents(group: Provider<String>, version: Provider<String>) {
         for (component in components.withType(KotlinNativeTestSuite::class.java)) {
             val targets = component.getAndLockTargets()
             val buildType = KotlinNativeBuildType.DEBUG
