@@ -1188,22 +1188,20 @@ OBJ_GETTER(InitSharedInstance,
     // OK'ish, inited by someone else.
     RETURN_OBJ(value);
   }
-
   ObjHeader* object = AllocInstance(type_info, OBJ_RESULT);
-  MEMORY_LOG("Calling UpdateRef from InitInstance\n")
+  RuntimeAssert(object->container()->normal() , "Shared object cannot be co-allocated");
+  MEMORY_LOG("Calling UpdateRef from InitSharedInstance\n")
   UpdateRef(localLocation, object);
 #if KONAN_NO_EXCEPTIONS
   ctor(object);
-  if (!object->container()->frozen())
-    ThrowFreezingException();
+  FreezeSubgraph(object);
   UpdateRef(location, object);
   __sync_synchronize();
   return object;
 #else
   try {
     ctor(object);
-    if (!object->container()->frozen())
-      ThrowFreezingException();
+    FreezeSubgraph(object);
     UpdateRef(location, object);
     __sync_synchronize();
     return object;
@@ -1574,8 +1572,8 @@ void traverseStronglyConnectedComponent(ContainerHeader* container,
  * references could be passed accross multiple threads.
  */
 void FreezeSubgraph(ObjHeader* root) {
-  // TODO: for now, we just check that passed object graph has no cycles, and throw an exception,
-  // if it does. Next version will run Kosoraju-Sharir if cycles are found.
+  // First check that passed object graph has no cycles.
+  // If there are cycles - run graph condensation on cyclic graphs using Kosoraju-Sharir.
   ContainerHeader* rootContainer = root->container();
   if (rootContainer->permanentOrFrozen()) return;
 

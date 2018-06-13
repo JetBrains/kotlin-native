@@ -44,7 +44,7 @@ import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameUnsafe
 
-val IrClassSymbol.objectIsShared get() = owner.origin == DECLARATION_ORIGIN_ENUM
+val IrClassSymbol.objectIsShared get() = true
 
 internal fun emitLLVM(context: Context) {
     val irModule = context.irModule!!
