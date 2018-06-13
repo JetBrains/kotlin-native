@@ -72,7 +72,7 @@ java_opts=(-ea \
             ${JAVA_OPTS})
 
 # Unset some environment variables which are set by XCode and may potentially affect the tool executed.
-while read -r line || [[ -n "$line" ]]; do
+while IFS=$'\r' read -r line || [[ -n "$line" ]]; do
     unset $line
 done < "${KONAN_HOME}/tools/env_blacklist"
 
