@@ -12,6 +12,8 @@ import org.gradle.api.tasks.TaskContainer
 import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.language.plugins.NativeBasePlugin
 import org.gradle.nativeplatform.test.tasks.RunTestExecutable
+import org.gradle.util.GradleVersion
+import org.jetbrains.kotlin.gradle.plugin.KonanPlugin
 import org.jetbrains.kotlin.gradle.plugin.experimental.internal.AbstractKotlinNativeBinary
 import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeExecutableImpl
 import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeKLibraryImpl
@@ -105,14 +107,33 @@ class KotlinNativeBasePlugin: Plugin<ProjectInternal> {
         }
     }
 
+    private fun ProjectInternal.checkGradleMetadataFeature() {
+        val metadataEnabled = gradle.services
+            .get(FeaturePreviews::class.java)
+            .isFeatureEnabled(FeaturePreviews.Feature.GRADLE_METADATA)
+        if (!metadataEnabled) {
+            logger.warn(
+                "The GRADLE_METADATA feature is not enabled: publication and external dependencies will not work properly."
+            )
+        }
+    }
+
+    private fun checkGradleVersion() =  GradleVersion.current().let { current ->
+        check(current >= KonanPlugin.REQUIRED_GRADLE_VERSION) {
+            "Kotlin/Native Gradle plugin is incompatible with this version of Gradle.\n" +
+                    "The minimal required version is ${KonanPlugin.REQUIRED_GRADLE_VERSION}\n" +
+                    "Current version is ${current}"
+        }
+    }
+
     override fun apply(project: ProjectInternal): Unit = with(project) {
         // TODO: Deal with compiler downloading.
-        // TODO: Replace with check if user set this property in the settings file or not.
-        gradle.services.get(FeaturePreviews::class.java).enableFeature(FeaturePreviews.Feature.GRADLE_METADATA)
-
         // Apply base plugins
         project.pluginManager.apply(LifecycleBasePlugin::class.java)
         project.pluginManager.apply(NativeBasePlugin::class.java)
+
+        checkGradleMetadataFeature()
+        checkGradleVersion()
 
         // Create compile tasks
         addCompilationTasks(tasks, components, layout.buildDirectory, providers)
