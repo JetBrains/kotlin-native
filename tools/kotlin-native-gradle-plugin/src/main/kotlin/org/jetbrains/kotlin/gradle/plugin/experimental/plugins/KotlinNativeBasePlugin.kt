@@ -19,6 +19,10 @@ import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeExec
 import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeKLibraryImpl
 import org.jetbrains.kotlin.gradle.plugin.experimental.internal.KotlinNativeTestExecutableImpl
 import org.jetbrains.kotlin.gradle.plugin.experimental.tasks.KotlinNativeCompile
+import org.jetbrains.kotlin.gradle.plugin.hasProperty
+import org.jetbrains.kotlin.gradle.plugin.konanCompilerDownloadDir
+import org.jetbrains.kotlin.gradle.plugin.setProperty
+import org.jetbrains.kotlin.gradle.plugin.tasks.KonanCompilerDownloadTask
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
 
@@ -126,6 +130,15 @@ class KotlinNativeBasePlugin: Plugin<ProjectInternal> {
         }
     }
 
+    private fun ProjectInternal.addCompilerDownloadingTask(): KonanCompilerDownloadTask {
+        val result = tasks.create(KonanPlugin.KONAN_DOWNLOAD_TASK_NAME, KonanCompilerDownloadTask::class.java)
+        if (!hasProperty(KonanPlugin.ProjectProperty.KONAN_HOME)) {
+            setProperty(KonanPlugin.ProjectProperty.KONAN_HOME, project.konanCompilerDownloadDir())
+            setProperty(KonanPlugin.ProjectProperty.DOWNLOAD_COMPILER, true)
+        }
+        return result
+    }
+
     override fun apply(project: ProjectInternal): Unit = with(project) {
         // TODO: Deal with compiler downloading.
         // Apply base plugins
@@ -134,6 +147,7 @@ class KotlinNativeBasePlugin: Plugin<ProjectInternal> {
 
         checkGradleMetadataFeature()
         checkGradleVersion()
+        addCompilerDownloadingTask()
 
         // Create compile tasks
         addCompilationTasks(tasks, components, layout.buildDirectory, providers)

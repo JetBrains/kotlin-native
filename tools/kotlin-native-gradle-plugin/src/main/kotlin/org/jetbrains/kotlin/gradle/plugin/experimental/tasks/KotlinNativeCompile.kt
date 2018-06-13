@@ -9,12 +9,17 @@ import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.jetbrains.kotlin.gradle.plugin.KonanCompilerRunner
+import org.jetbrains.kotlin.gradle.plugin.KonanPlugin
 import org.jetbrains.kotlin.gradle.plugin.addArg
 import org.jetbrains.kotlin.gradle.plugin.addKey
 import org.jetbrains.kotlin.gradle.plugin.experimental.internal.AbstractKotlinNativeBinary
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 
 open class KotlinNativeCompile: DefaultTask() {
+
+    init {
+        super.dependsOn(KonanPlugin.KONAN_DOWNLOAD_TASK_NAME)
+    }
 
     // TODO: May be replace with Gradle's property
     internal lateinit var binary: AbstractKotlinNativeBinary
