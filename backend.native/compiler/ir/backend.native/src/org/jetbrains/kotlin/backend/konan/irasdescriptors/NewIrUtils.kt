@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.backend.konan.descriptors.isInterface
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
+import org.jetbrains.kotlin.descriptors.ParameterDescriptor
 import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrFieldImpl
@@ -18,6 +19,8 @@ import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.explicitParameters
+import org.jetbrains.kotlin.ir.util.isFunction
+import org.jetbrains.kotlin.ir.util.isSuspendFunction
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedPropertyDescriptor
@@ -151,3 +154,11 @@ fun IrAnnotationContainer.hasAnnotation(fqName: FqName) =
 fun List<IrCall>.findAnnotation(fqName: FqName): IrCall? = this.firstOrNull {
     it.annotationClass.fqNameSafe == fqName
 }
+
+fun IrValueParameter.isInlineParameter(): Boolean =
+    !this.isNoinline && (this.type.isFunction() || this.type.isSuspendFunction()) && !this.type.isMarkedNullable()
+
+val IrDeclaration.parentDeclarationsWithSelf: Sequence<IrDeclaration>
+    get() = generateSequence(this, { it.parent as? IrDeclaration })
+
+fun IrClass.companionObject() = this.declarations.singleOrNull {it is IrClass && it.isCompanion }

@@ -332,8 +332,6 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
             )
             coroutineClass.addChild(labelField)
 
-
-            val overriddenMap = mutableMapOf<CallableMemberDescriptor, CallableMemberDescriptor>()
             val coroutineConstructorBuilder = createConstructorBuilder()
             coroutineConstructorBuilder.initialize()
 
@@ -341,7 +339,6 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
                     .single { it.name.asString() == "invokeSuspend" }
             val invokeSuspendMethodBuilder = createInvokeSuspendMethodBuilder(invokeSuspendFunction, coroutineClass)
             invokeSuspendMethodBuilder.initialize()
-            overriddenMap += invokeSuspendFunction.descriptor to invokeSuspendMethodBuilder.symbol.descriptor
 
             var coroutineFactoryConstructorBuilder: SymbolWithIrBuilder<IrConstructorSymbol, IrConstructor>? = null
             var createMethodBuilder: SymbolWithIrBuilder<IrSimpleFunctionSymbol, IrSimpleFunction>? = null
@@ -350,28 +347,28 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
                 // Suspend lambda - create factory methods.
                 coroutineFactoryConstructorBuilder = createFactoryConstructorBuilder(boundFunctionParameters!!)
 
-                val createFunctionDescriptor = baseClass.descriptor.unsubstitutedMemberScope
-                        .getContributedFunctions(Name.identifier("create"), NoLookupLocation.FROM_BACKEND)
-                        .atMostOne { it.valueParameters.size == unboundFunctionParameters!!.size + 1 }
+                val createFunctionSymbol =
+                        baseClass.simpleFunctions()
+                                .atMostOne { it.name.asString() == "create"
+                                        && it.valueParameters.size == unboundFunctionParameters!!.size + 1 }
+                                ?.symbol
                 createMethodBuilder = createCreateMethodBuilder(
-                        unboundArgs                    = unboundFunctionParameters!!,
-                        superFunctionDescriptor        = createFunctionDescriptor,
-                        coroutineConstructor           = coroutineConstructorBuilder.ir,
-                        coroutineClass                 = coroutineClass)
+                        unboundArgs          = unboundFunctionParameters!!,
+                        superFunctionSymbol  = createFunctionSymbol,
+                        coroutineConstructor = coroutineConstructorBuilder.ir,
+                        coroutineClass       = coroutineClass)
                 createMethodBuilder.initialize()
-                if (createFunctionDescriptor != null)
-                    overriddenMap += createFunctionDescriptor to createMethodBuilder.symbol.descriptor
+                val invokeFunctionSymbol =
+                        functionClass!!.simpleFunctions().single { it.name.asString() == "invoke" }.symbol
+                val suspendInvokeFunctionSymbol =
+                        suspendFunctionClass!!.simpleFunctions().single { it.name.asString() == "invoke" }.symbol
 
-                val invokeFunctionDescriptor = functionClass!!.descriptor
-                        .getFunction("invoke", functionClassTypeArguments!!.map { it.toKotlinType() })
-                val suspendInvokeFunctionDescriptor = suspendFunctionClass!!.descriptor
-                        .getFunction("invoke", suspendFunctionClassTypeArguments!!.map { it.toKotlinType() })
                 invokeMethodBuilder = createInvokeMethodBuilder(
-                        suspendFunctionInvokeFunctionDescriptor = suspendInvokeFunctionDescriptor,
-                        functionInvokeFunctionDescriptor        = invokeFunctionDescriptor,
-                        createFunction                          = createMethodBuilder.ir,
-                        invokeSuspendFunction                   = invokeSuspendMethodBuilder.ir,
-                        coroutineClass                          = coroutineClass)
+                        suspendFunctionInvokeFunctionSymbol = invokeFunctionSymbol,
+                        functionInvokeFunctionSymbol        = suspendInvokeFunctionSymbol,
+                        createFunction                      = createMethodBuilder.ir,
+                        invokeSuspendFunction               = invokeSuspendMethodBuilder.ir,
+                        coroutineClass                      = coroutineClass)
             }
 
             coroutineClass.addChild(coroutineConstructorBuilder.ir)
@@ -392,7 +389,8 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
 
             coroutineClass.addChild(invokeSuspendMethodBuilder.ir)
 
-            coroutineClass.setSuperSymbolsAndAddFakeOverrides(superTypes)
+            coroutineClass.superTypes += superTypes
+            coroutineClass.addFakeOverrides()
 
             return BuiltCoroutine(
                     coroutineClass       = coroutineClass,
@@ -534,7 +532,7 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
         }
 
         private fun createCreateMethodBuilder(unboundArgs: List<IrValueParameter>,
-                                              superFunctionDescriptor: FunctionDescriptor?,
+                                              superFunctionSymbol: IrSimpleFunctionSymbol?,
                                               coroutineConstructor: IrConstructor,
                                               coroutineClass: IrClass)
                 = object: SymbolWithIrBuilder<IrSimpleFunctionSymbol, IrSimpleFunction>() {
@@ -567,8 +565,8 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
                         /* unsubstitutedReturnType      = */ coroutineClassDescriptor.defaultType,
                         /* modality                     = */ Modality.FINAL,
                         /* visibility                   = */ Visibilities.PRIVATE).apply {
-                    if (superFunctionDescriptor != null) {
-                        overriddenDescriptors           =    listOf(superFunctionDescriptor)
+                    superFunctionSymbol?.let {
+                        overriddenDescriptors           =    listOf(it.descriptor)
                     }
                 }
             }
@@ -587,6 +585,8 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
 
                     this.valueParameters += parameters
                     this.createDispatchReceiverParameter()
+
+                    superFunctionSymbol?.let { overriddenSymbols += it }
 
                     val thisReceiver = this.dispatchReceiverParameter!!
 
@@ -613,8 +613,8 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
             }
         }
 
-        private fun createInvokeMethodBuilder(suspendFunctionInvokeFunctionDescriptor: FunctionDescriptor,
-                                              functionInvokeFunctionDescriptor: FunctionDescriptor,
+        private fun createInvokeMethodBuilder(suspendFunctionInvokeFunctionSymbol: IrSimpleFunctionSymbol,
+                                              functionInvokeFunctionSymbol: IrSimpleFunctionSymbol,
                                               createFunction: IrFunction,
                                               invokeSuspendFunction: IrFunction,
                                               coroutineClass: IrClass)
@@ -647,8 +647,8 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
                         /* unsubstitutedReturnType      = */ irFunction.descriptor.returnType,
                         /* modality                     = */ Modality.FINAL,
                         /* visibility                   = */ Visibilities.PRIVATE).apply {
-                    overriddenDescriptors               +=   suspendFunctionInvokeFunctionDescriptor
-                    overriddenDescriptors               +=   functionInvokeFunctionDescriptor
+                    overriddenDescriptors               +=   suspendFunctionInvokeFunctionSymbol.descriptor
+                    overriddenDescriptors               +=   functionInvokeFunctionSymbol.descriptor
                     isSuspend                           =    true
                 }
             }
@@ -667,6 +667,9 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
 
                     valueParameters += parameters
                     this.createDispatchReceiverParameter()
+
+                    overriddenSymbols += functionInvokeFunctionSymbol
+                    overriddenSymbols += suspendFunctionInvokeFunctionSymbol
 
                     val thisReceiver = this.dispatchReceiverParameter!!
 
@@ -702,7 +705,7 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
             coroutineClass.addChild(it)
         }
 
-        private fun createInvokeSuspendMethodBuilder(invokeSuspendFunction: IrFunction, coroutineClass: IrClass)
+        private fun createInvokeSuspendMethodBuilder(invokeSuspendFunction: IrSimpleFunction, coroutineClass: IrClass)
                 = object: SymbolWithIrBuilder<IrSimpleFunctionSymbol, IrSimpleFunction>() {
 
             override fun buildSymbol() = IrSimpleFunctionSymbolImpl(
@@ -725,6 +728,8 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
                     parent = coroutineClass
 
                     this.createDispatchReceiverParameter()
+
+                    overriddenSymbols += invokeSuspendFunction.symbol
 
                     invokeSuspendFunction.valueParameters.mapIndexedTo(this.valueParameters) { index, it ->
                         it.copy(descriptor.valueParameters[index])

@@ -7,14 +7,17 @@ package org.jetbrains.kotlin.backend.konan.lower
 
 import org.jetbrains.kotlin.backend.common.*
 import org.jetbrains.kotlin.backend.common.IrElementVisitorVoidWithContext
+import org.jetbrains.kotlin.backend.common.ir.ir2stringWhole
 import org.jetbrains.kotlin.backend.common.descriptors.*
 import org.jetbrains.kotlin.backend.common.lower.SimpleMemberScope
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.descriptors.createExtensionReceiver
 import org.jetbrains.kotlin.backend.konan.descriptors.initialize
+import org.jetbrains.kotlin.backend.konan.descriptors.needsInlining
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.impl.*
 import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.*
 import org.jetbrains.kotlin.ir.descriptors.IrTemporaryVariableDescriptorImpl
@@ -27,6 +30,11 @@ import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeImpl
 import org.jetbrains.kotlin.ir.types.impl.makeTypeProjection
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.*
+import org.jetbrains.kotlin.ir.types.impl.IrTypeProjectionImpl
+import org.jetbrains.kotlin.ir.types.impl.originalKotlinType
+import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.ir.visitors.*
+import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.resolve.descriptorUtil.getSuperClassOrAny
@@ -71,7 +79,11 @@ internal class DeepCopyIrTreeWithSymbolsForInliner(val context: Context,
             }
 
             override fun visitField(declaration: IrField) {
-                (declaration.descriptor as WrappedPropertyDescriptor).bind(declaration)
+                val descriptor = declaration.descriptor
+                when (descriptor) {
+                    is WrappedPropertyDescriptor -> descriptor.bind(declaration.correspondingProperty!!)
+                    is WrappedFieldDescriptor -> descriptor.bind(declaration)
+                }
                 declaration.acceptChildrenVoid(this)
             }
 
@@ -96,7 +108,6 @@ internal class DeepCopyIrTreeWithSymbolsForInliner(val context: Context,
                 declaration.acceptChildrenVoid(this)
             }
         })
-
         result.patchDeclarationParents(parent)
         return result
     }
@@ -247,6 +258,10 @@ internal class DeepCopyIrTreeWithDescriptors(val targetDescriptor: FunctionDescr
         //---------------------------------------------------------------------//
 
         override fun visitClassNew(declaration: IrClass) {
+
+            println("### visitClassNew: ${declaration.name.toString()}")
+            println(ir2stringWhole(declaration))
+
             val oldDescriptor = declaration.descriptor
             val newDescriptor = copyClassDescriptor(oldDescriptor)
             descriptorSubstituteMap[oldDescriptor] = newDescriptor
@@ -773,7 +788,7 @@ internal class DeepCopyIrTreeWithDescriptors(val targetDescriptor: FunctionDescr
                     mapDeclarationOrigin(declaration.origin),
                     descriptor,
                     context.ir.translateErased(descriptor.type),
-                    declaration.initializer?.transform(this, null)
+                    declaration.initializer?.transform(this, null) ?: {println("INITIALIZER is null"); null}()
             ).apply {
                 transformAnnotations(declaration)
             }

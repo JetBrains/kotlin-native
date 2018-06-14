@@ -14,7 +14,7 @@ import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.backend.konan.serialization.*
 import org.jetbrains.kotlin.backend.konan.PhaseManager
 import org.jetbrains.kotlin.backend.konan.KonanPhase
-
+/*
 internal class DeserializerDriver(val context: Context) {
 
     private val cache = mutableMapOf<FunctionDescriptor, IrDeclaration?>()
@@ -60,3 +60,4 @@ internal class DeserializerDriver(val context: Context) {
         }
     }
 }
+*/

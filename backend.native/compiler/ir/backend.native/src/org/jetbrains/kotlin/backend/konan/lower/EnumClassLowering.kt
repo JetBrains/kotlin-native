@@ -266,7 +266,8 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
             val memberScope = stub<MemberScope>("enum default class")
             defaultClassDescriptor.initialize(memberScope, constructors, null)
 
-            defaultClass.setSuperSymbolsAndAddFakeOverrides(listOf(irClass.defaultType))
+            defaultClass.superTypes += irClass.defaultType
+            defaultClass.addFakeOverrides()
 
             return defaultClass
         }

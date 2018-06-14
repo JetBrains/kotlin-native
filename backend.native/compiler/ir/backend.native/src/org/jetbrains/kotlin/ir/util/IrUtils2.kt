@@ -6,7 +6,11 @@
 package org.jetbrains.kotlin.ir.util
 
 import org.jetbrains.kotlin.backend.common.CommonBackendContext
+import org.jetbrains.kotlin.backend.common.descriptors.WrappedSimpleFunctionDescriptor
+import org.jetbrains.kotlin.backend.common.descriptors.WrappedVariableDescriptor
+import org.jetbrains.kotlin.backend.common.descriptors.WrappedPropertyDescriptor
 import org.jetbrains.kotlin.backend.common.descriptors.substitute
+import org.jetbrains.kotlin.backend.common.ir.copyParameterDeclarationsFrom
 import org.jetbrains.kotlin.backend.konan.KonanBackendContext
 import org.jetbrains.kotlin.backend.konan.KonanCompilationException
 import org.jetbrains.kotlin.backend.konan.descriptors.synthesizedName
@@ -22,6 +26,7 @@ import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.descriptors.impl.PropertyDescriptorImpl
 import org.jetbrains.kotlin.descriptors.impl.ValueParameterDescriptorImpl
 import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.*
@@ -29,12 +34,17 @@ import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.*
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
+import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
+import org.jetbrains.kotlin.ir.symbols.impl.IrSimpleFunctionSymbolImpl
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeImpl
 import org.jetbrains.kotlin.ir.types.impl.IrStarProjectionImpl
 import org.jetbrains.kotlin.ir.types.impl.makeTypeProjection
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
+import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
+import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.OverridingStrategy
 import org.jetbrains.kotlin.resolve.OverridingUtil
@@ -289,14 +299,30 @@ fun IrClass.setSuperSymbols(superTypes: List<IrType>) {
     assert(this.superTypes.isEmpty())
     this.superTypes += superTypes
 
+    println("### setSuperSymbols for $this ${this.name}")
+
+    println("### supers:")
+    supers.forEach { println(it.name) }
+
     val superMembers = supers.flatMap {
         it.simpleFunctions()
-    }.associateBy { it.descriptor }
+    }.associateBy {
+        it.descriptor
+    }
 
+    println("### superMembers:")
+    superMembers.forEach {
+        println("${it.key} -> ${it.value}")
+    }
+
+    println("### simpleFunctions:")
     this.simpleFunctions().forEach {
         assert(it.overriddenSymbols.isEmpty())
 
+        println("   member: ${it.name}")
+
         it.descriptor.overriddenDescriptors.mapTo(it.overriddenSymbols) {
+            println("   overridden by ${it.name}")
             val superMember = superMembers[it.original] ?: error(it.original)
             superMember.symbol
         }
@@ -314,53 +340,178 @@ fun IrClass.setSuperSymbols(symbolTable: ReferenceSymbolTable) {
         it.setOverrides(symbolTable)
     }
 }
-
+/*
+// Copied this function over from SuspendFunctionLowering in the main kotlin tree.
 fun IrClass.setSuperSymbolsAndAddFakeOverrides(superTypes: List<IrType>) {
-    val overriddenSuperMembers = this.declarations.map { it.descriptor }
-            .filterIsInstance<CallableMemberDescriptor>().flatMap { it.overriddenDescriptors.map { it.original } }.toSet()
 
-    val unoverriddenSuperMembers = superTypes.map { it.getClass()!! }.flatMap {
-        it.declarations.filter { it.descriptor !in overriddenSuperMembers }.mapNotNull {
-            when (it) {
-                is IrSimpleFunction -> it.descriptor to it
-                is IrProperty -> it.descriptor to it
-                else -> null
-            }
-        }
-    }.toMap()
-
-    val irClass = this
-
-    val overridingStrategy = object : OverridingStrategy() {
-        override fun addFakeOverride(fakeOverride: CallableMemberDescriptor) {
-            val overriddenDeclarations =
-                    fakeOverride.overriddenDescriptors.map { unoverriddenSuperMembers[it]!! }
-
-            assert(overriddenDeclarations.isNotEmpty())
-
-            irClass.declarations.add(createFakeOverride(fakeOverride, overriddenDeclarations, irClass))
-        }
-
-        override fun inheritanceConflict(first: CallableMemberDescriptor, second: CallableMemberDescriptor) {
-            error("inheritance conflict in synthesized class ${irClass.descriptor}:\n  $first\n  $second")
-        }
-
-        override fun overrideConflict(fromSuper: CallableMemberDescriptor, fromCurrent: CallableMemberDescriptor) {
-            error("override conflict in synthesized class ${irClass.descriptor}:\n  $fromSuper\n  $fromCurrent")
-        }
+    fun IrDeclaration.toList() = when (this) {
+        is IrSimpleFunction -> listOf(this)
+//                is IrProperty -> listOfNotNull(getter, setter)
+        else -> emptyList()
     }
 
-    unoverriddenSuperMembers.keys.groupBy { it.name }.forEach { (name, members) ->
-        OverridingUtil.generateOverridesInFunctionGroup(
-                name,
-                members,
-                emptyList(),
-                this.descriptor,
-                overridingStrategy
-        )
+    val overriddenMembers = declarations.flatMap { it.toList() }.flatMap { it.overriddenSymbols.map(
+        IrSimpleFunctionSymbol::owner) }
+
+    val unoverriddenSuperMembers = superTypes.map { it.getClass()!! }.flatMap { irClass ->
+        irClass.declarations.flatMap { it.toList() }.filter { it !in overriddenMembers }
+    }
+
+    fun createFakeOverride(irFunction: IrSimpleFunction) = IrFunctionImpl(
+        UNDEFINED_OFFSET,
+        UNDEFINED_OFFSET,
+        IrDeclarationOrigin.FAKE_OVERRIDE,
+        IrSimpleFunctionSymbolImpl(WrappedSimpleFunctionDescriptor()),
+        irFunction.name,
+        irFunction.visibility,
+        Modality.FINAL,
+        irFunction.isInline,
+        irFunction.isExternal,
+        irFunction.isTailrec,
+        irFunction.isSuspend
+    ).apply {
+        (descriptor as WrappedSimpleFunctionDescriptor).bind(this)
+        returnType = irFunction.returnType
+        //overriddenSymbols += irFunction.symbol
+        copyParameterDeclarationsFrom(irFunction)
+    }
+
+    for (sm in unoverriddenSuperMembers) {
+        val fakeOverride = createFakeOverride(sm).also { it.parent = this }
+        declarations += fakeOverride
     }
 
     this.setSuperSymbols(superTypes)
+
+
+    /*
+
+return when (descriptor) {
+is FunctionDescriptor -> descriptor.createFunction()
+is PropertyDescriptor ->
+    IrPropertyImpl(startOffset, endOffset, IrDeclarationOrigin.FAKE_OVERRIDE, descriptor).apply {
+        // TODO: add field if getter is missing?
+        getter = descriptor.getter?.createFunction() as IrSimpleFunction?
+        setter = descriptor.setter?.createFunction() as IrSimpleFunction?
+    }
+else -> TODO(descriptor.toString())
+}
+     */
+
+}
+
+
+*/
+
+
+fun IrClass.addFakeOverrides() {
+    fun IrDeclaration.toList() = when (this) {
+        is IrSimpleFunction -> listOf(this)
+        is IrProperty -> listOfNotNull(getter, setter)
+        else -> emptyList()
+    }
+
+    val overriddenFunctions = declarations
+            .flatMap { it.toList() }
+            .flatMap { it.overriddenSymbols.map { it.owner } }
+            .toSet()
+
+    val unoverriddenSuperFunctions = superTypes
+            .map { it.getClass()!! }
+            .flatMap { irClass ->
+                irClass.declarations
+                        .flatMap { it.toList() }
+                        .filter { it !in overriddenFunctions }
+            }
+            .toMutableSet()
+
+////    println("BEFORE:")
+//    unoverriddenSuperFunctions.forEach { println(it.descriptor) }
+////    println()
+//
+//    fun zzz(f: IrSimpleFunction) {
+////        println("    ${f.descriptor}")
+//        unoverriddenSuperFunctions.remove(f)
+//        f.overriddenSymbols.forEach {
+//            zzz(it.owner)
+//        }
+//    }
+//
+//    unoverriddenSuperFunctions.toList().forEach {
+////        println(it.descriptor)
+//        it.overriddenSymbols.forEach { zzz(it.owner) }
+//    }
+//
+////    println("AFTER:")
+//    unoverriddenSuperFunctions.forEach { println(it.descriptor) }
+////    println()
+
+    // TODO: A dirty hack.
+    val groupedUnoverriddenSuperFunctions = unoverriddenSuperFunctions.groupBy { it.name.asString() + it.allParameters.size }
+
+    val unoverriddenSuperProperties = mutableSetOf<IrProperty>()
+
+    fun createFakeOverride(overriddenFunctions: List<IrSimpleFunction>) =
+            overriddenFunctions.first().let { irFunction ->
+                val descriptor = WrappedSimpleFunctionDescriptor()
+                IrFunctionImpl(
+                        UNDEFINED_OFFSET,
+                        UNDEFINED_OFFSET,
+                        IrDeclarationOrigin.FAKE_OVERRIDE,
+                        IrSimpleFunctionSymbolImpl(descriptor),
+                        irFunction.name,
+                        Visibilities.INHERITED,
+                        Modality.FINAL,
+                        irFunction.isInline,
+                        irFunction.isExternal,
+                        irFunction.isTailrec,
+                        irFunction.isSuspend
+                ).apply {
+                    descriptor.bind(this)
+                    parent = this@addFakeOverrides
+                    returnType = irFunction.returnType
+                    overriddenSymbols += overriddenFunctions.map { it.symbol }
+                    copyParameterDeclarationsFrom(irFunction)
+                    irFunction.correspondingProperty?.let { unoverriddenSuperProperties.add(it) }
+                }
+            }
+
+    val fakeOverriddenFunctions = groupedUnoverriddenSuperFunctions
+            .asSequence()
+            .associate { it.value.first() to createFakeOverride(it.value) }
+            .toMutableMap()
+
+    for (property in unoverriddenSuperProperties) {
+        val getter = fakeOverriddenFunctions[property.getter]
+        val setter = fakeOverriddenFunctions[property.setter]
+        val descriptor = WrappedPropertyDescriptor()
+        val fakeOverriddenProperty = IrPropertyImpl(
+                UNDEFINED_OFFSET,
+                UNDEFINED_OFFSET,
+                IrDeclarationOrigin.FAKE_OVERRIDE,
+                descriptor,
+                property.name,
+                Visibilities.INHERITED,
+                Modality.FINAL,
+                property.isVar,
+                property.isConst,
+                property.isLateinit,
+                property.isDelegated,
+                property.isExternal
+        ).also {
+            it.parent = this@addFakeOverrides
+            it.getter = getter ?: property.getter
+            it.setter = setter ?: property.setter
+            getter?.correspondingProperty = it
+            setter?.correspondingProperty = it
+            descriptor.bind(it)
+        }
+        declarations += fakeOverriddenProperty
+        property.getter?.let { fakeOverriddenFunctions.remove(it) }
+        property.setter?.let { fakeOverriddenFunctions.remove(it) }
+    }
+
+    declarations += fakeOverriddenFunctions.values
 }
 
 private fun IrElement.innerStartOffset(descriptor: DeclarationDescriptorWithSource): Int =
@@ -690,7 +841,12 @@ fun createField(
 }
 
 fun IrValueParameter.copy(newDescriptor: ParameterDescriptor): IrValueParameter {
-    assert(this.descriptor.type == newDescriptor.type)
+    // Aggressive use of WrappedDescriptors during deserialization
+    // makes these types different.
+    // Let's hope they not really used afterwards.
+    //assert(this.descriptor.type == newDescriptor.type) {
+     //   "type1 = ${this.descriptor.type} != type2 = ${newDescriptor.type}"
+    //}
 
     return IrValueParameterImpl(
             startOffset,
@@ -708,7 +864,7 @@ val IrType.isSimpleTypeWithQuestionMark: Boolean
     get() = this is IrSimpleType && this.hasQuestionMark
 
 fun IrClass.defaultOrNullableType(hasQuestionMark: Boolean) =
-        if (hasQuestionMark) this.defaultType.makeNullable() else this.defaultType
+        if (hasQuestionMark) this.defaultType.makeNullable(false) else this.defaultType
 
 fun FunctionDescriptor.createOverriddenDescriptor(owner: ClassDescriptor, final: Boolean = true): FunctionDescriptor {
     return this.newCopyBuilder()
@@ -723,3 +879,19 @@ fun FunctionDescriptor.createOverriddenDescriptor(owner: ClassDescriptor, final:
 
 fun IrFunction.isRestrictedSuspendFunction(languageVersionSettings: LanguageVersionSettings): Boolean =
         this.descriptor.extensionReceiverParameter?.type?.isRestrictsSuspensionReceiver(languageVersionSettings) == true
+
+fun IrDeclaration.hasInlineFunctions(): Boolean {
+    var hasInlineFunctions = false
+    acceptVoid(object : IrElementVisitorVoid {
+        override fun visitElement(element: IrElement) {
+            element.acceptChildrenVoid(this)
+        }
+
+        override fun visitFunction(function: IrFunction) {
+            function.acceptChildrenVoid(this)
+            hasInlineFunctions = hasInlineFunctions || function.isInline
+        }
+    })
+
+    return hasInlineFunctions
+}

@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.backend.konan.serialization
 
 import org.jetbrains.kotlin.backend.konan.descriptors.externalSymbolOrThrow
+/*
 import org.jetbrains.kotlin.backend.konan.descriptors.isExpectMember
 import org.jetbrains.kotlin.backend.konan.getInlinedClass
 import org.jetbrains.kotlin.backend.konan.getObjCMethodInfo
@@ -16,6 +17,7 @@ import org.jetbrains.kotlin.backend.konan.llvm.localHash
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.contracts.parsing.ContractsDslNames
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor
+import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.resolve.DescriptorUtils
@@ -37,8 +39,13 @@ internal val DeclarationDescriptor.symbolName: String get() = when (this) {
     else -> error("Unexpected exported descriptor: $this") 
 }
 
+<<<<<<< HEAD
 internal val DeclarationDescriptor.uniqId 
     get() = this.symbolName.localHash.value
+=======
+internal val DeclarationDescriptor.uniqId
+    get() = this.symbolName().localHash.value
+>>>>>>> 025200bfd... Whole module deserialization prototype.
 
 internal val DeclarationDescriptor.isSerializableExpectClass: Boolean
     get() = this is ClassDescriptor && ExpectedActualDeclarationChecker.shouldGenerateExpectClass(this)
@@ -48,10 +55,11 @@ internal val DeclarationDescriptor.isSerializableExpectClass: Boolean
 class DescriptorTable(val builtIns: IrBuiltIns) {
 
     val table = mutableMapOf<DeclarationDescriptor, Long>()
-    var currentIndex = 0L
+    val reverse = mutableMapOf<Long, DeclarationDescriptor>() // TODO: remove me. Only needed during the development.
+    var currentIndex = 17L
 
     init {
-        builtIns.irBuiltInDescriptors.forEach { 
+        builtIns.irBuiltInDescriptors.forEach {
             table.put(it, it.uniqId)
         }
     }
@@ -65,8 +73,28 @@ class DescriptorTable(val builtIns: IrBuiltIns) {
                 value.uniqId
             }
         }
+        reverse.getOrPut(index) { value }
         return index
     }
+
+    fun valueByIndex(index: Long) = reverse[index]  // TODO: remove me. Only needed during the development.
+}
+
+class DeclarationTable(val builtins: IrBuiltIns) {
+    val descriptorTable = DescriptorTable(builtins)
+
+    val reverse = mutableMapOf<Long, IrDeclaration>()
+
+    fun indexByDeclaration(declaration: IrDeclaration) {
+
+        val index = descriptorTable.indexByValue(declaration.descriptor)
+        reverse.getOrPut(index) = declaration
+        return index
+    }
+
+    fun declarationByIndex(index: Long) = reverse
+
+
 }
 
 class IrDeserializationDescriptorIndex(irBuiltIns: IrBuiltIns) {
@@ -291,3 +319,4 @@ private val ClassDescriptor.uniqueName: String
         return "ktype:" + this.fqNameSafe.toString()
     }
 
+*/

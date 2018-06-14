@@ -44,4 +44,13 @@ interface KonanLibraryLayout {
 
     fun packageFragmentFile(packageFqName: String, partName: String) =
             File(packageFragmentsDir(packageFqName), "$partName$KLIB_METADATA_FILE_EXTENSION_WITH_DOT")
+    val irDir
+        get() = File(libDir, "ir")
+    fun hiddenDeclarationFile(declarationId: String)
+        = File(irDir, "hidden_$declarationId.knd")
+    fun visibleDeclarationFile(declarationId: String)
+        = File(irDir, "visible_$declarationId.knd")
+    val wholeIrFile
+        get() = File(irDir, "wholeIr.kni")
+
 }

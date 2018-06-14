@@ -143,7 +143,7 @@ internal interface ContextUtils : RuntimeAware {
     fun isExternal(descriptor: DeclarationDescriptor): Boolean {
         val pkg = descriptor.findPackage()
         return when (pkg) {
-            is IrFile -> false
+            is IrFile -> if (pkg.packageFragmentDescriptor.containingDeclaration != context.moduleDescriptor) true else false
             is IrExternalPackageFragment -> true
             else -> error(pkg)
         }

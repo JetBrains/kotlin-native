@@ -248,7 +248,11 @@ internal class CallableReferenceLowering(val context: Context): FileLoweringPass
                 functionReferenceClass.addChild(it.ir)
             }
 
-            functionReferenceClass.setSuperSymbolsAndAddFakeOverrides(superTypes)
+            functionReferenceClass.superTypes += superTypes
+            functionReferenceClass.addFakeOverrides()
+
+            //functionReferenceClass.addFakeOverrides(context.ir.symbols.symbolTable)
+            //functionReferenceClass.setSuperSymbols(context.ir.symbols.symbolTable)
 
             return BuiltFunctionReference(functionReferenceClass, constructorBuilder.ir)
         }
@@ -383,6 +387,8 @@ internal class CallableReferenceLowering(val context: Context): FileLoweringPass
                     superFunctionSymbol.owner.valueParameters.mapTo(this.valueParameters) {
                         it.copy(descriptor.valueParameters[it.index]) // FIXME: substitute
                     }
+
+                    overriddenSymbols += superFunctionSymbol
 
                     body = irBuilder.irBlockBody(startOffset, endOffset) {
                         +irReturn(

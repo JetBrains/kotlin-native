@@ -33,6 +33,7 @@ public final class Array<T> {
         }
     }
 
+    @PublishedApi
     @ExportForCompiler
     internal constructor(@Suppress("UNUSED_PARAMETER") size: Int) {}
 
@@ -96,4 +97,9 @@ public inline operator fun <T> Array<T>.plus(elements: Array<T>): Array<T> {
     val result = copyOfUninitializedElements(this.size + elements.size)
     elements.copyRangeTo(result, 0, elements.size, this.size)
     return result
-}
+    }
+
+    fun main() {
+        val a = Array(10) { 0 }
+    //    val a = Array(10)
+    }

@@ -16,6 +16,7 @@ import org.jetbrains.kotlin.backend.konan.lower.SharedVariablesLowering
 import org.jetbrains.kotlin.backend.konan.lower.loops.ForLoopsLowering
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
+import org.jetbrains.kotlin.ir.declarations.name
 import org.jetbrains.kotlin.ir.util.checkDeclarationParents
 import org.jetbrains.kotlin.ir.util.patchDeclarationParents
 import org.jetbrains.kotlin.ir.util.replaceUnboundSymbols
@@ -30,7 +31,11 @@ internal class KonanLower(val context: Context, val parentPhaser: PhaseManager) 
 
         // Phases to run against a file.
         irModule.files.forEach {
-            lowerFile(it, PhaseManager(context, parentPhaser))
+            try {
+                lowerFile(it, PhaseManager(context, parentPhaser))
+            } catch(e: Throwable) {
+                e.printStackTrace()
+            }
         }
 
         irModule.checkDeclarationParents()
@@ -70,10 +75,10 @@ internal class KonanLower(val context: Context, val parentPhaser: PhaseManager) 
 
         val symbolTable = context.ir.symbols.symbolTable
 
-        do {
-            @Suppress("DEPRECATION")
-            irModule.replaceUnboundSymbols(context)
-        } while (symbolTable.unboundClasses.isNotEmpty())
+    //    do {
+      //      @Suppress("DEPRECATION")
+        //    irModule.replaceUnboundSymbols(context)
+        //} while (symbolTable.unboundClasses.isNotEmpty())
 
         irModule.patchDeclarationParents()
 
@@ -81,6 +86,9 @@ internal class KonanLower(val context: Context, val parentPhaser: PhaseManager) 
     }
 
     private fun lowerFile(irFile: IrFile, phaser: PhaseManager) {
+        //if (irFile.fileEntry.name != "/Users/jetbrains/kotlin-native/kotlin-native/Interop/Runtime/src/main/kotlin/kotlinx/cinterop/Utils.kt") return
+
+
         phaser.phase(KonanPhase.LOWER_STRING_CONCAT) {
             StringConcatenationLowering(context).lower(irFile)
         }

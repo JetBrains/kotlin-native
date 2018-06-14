@@ -12,7 +12,6 @@ import org.jetbrains.kotlin.backend.konan.irasdescriptors.ConstructorDescriptor
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.FunctionDescriptor
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.PackageFragmentDescriptor
-import org.jetbrains.kotlin.backend.konan.irasdescriptors.SimpleFunctionDescriptor
 import org.jetbrains.kotlin.backend.konan.isInlined
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
@@ -133,11 +132,11 @@ private fun FunctionDescriptor.needBridgeToAt(target: FunctionDescriptor, index:
 internal fun FunctionDescriptor.needBridgeTo(target: FunctionDescriptor)
         = (0..this.valueParameters.size + 2).any { needBridgeToAt(target, it) }
 
-internal val SimpleFunctionDescriptor.target: SimpleFunctionDescriptor
+internal val IrSimpleFunction.target: IrSimpleFunction
     get() = (if (modality == Modality.ABSTRACT) this else resolveFakeOverride()).original
 
 internal val FunctionDescriptor.target: FunctionDescriptor get() = when (this) {
-    is SimpleFunctionDescriptor -> this.target
+    is IrSimpleFunction -> this.target
     is ConstructorDescriptor -> this
     else -> error(this)
 }
@@ -187,11 +186,11 @@ internal class BridgeDirections(val array: Array<BridgeDirection>) {
     }
 }
 
-val SimpleFunctionDescriptor.allOverriddenDescriptors: Set<SimpleFunctionDescriptor>
+val IrSimpleFunction.allOverriddenDescriptors: Set<IrSimpleFunction>
     get() {
-        val result = mutableSetOf<SimpleFunctionDescriptor>()
+        val result = mutableSetOf<IrSimpleFunction>()
 
-        fun traverse(function: SimpleFunctionDescriptor) {
+        fun traverse(function: IrSimpleFunction) {
             if (function in result) return
             result += function
             function.overriddenSymbols.forEach { traverse(it.owner) }
@@ -202,8 +201,8 @@ val SimpleFunctionDescriptor.allOverriddenDescriptors: Set<SimpleFunctionDescrip
         return result
     }
 
-internal fun SimpleFunctionDescriptor.bridgeDirectionsTo(
-        overriddenDescriptor: SimpleFunctionDescriptor
+internal fun IrSimpleFunction.bridgeDirectionsTo(
+        overriddenDescriptor: IrSimpleFunction
 ): BridgeDirections {
     val ourDirections = BridgeDirections(this.valueParameters.size)
     for (index in ourDirections.array.indices)

@@ -7,7 +7,6 @@ package org.jetbrains.kotlin.backend.konan.descriptors
 
 import org.jetbrains.kotlin.backend.common.atMostOne
 import org.jetbrains.kotlin.backend.konan.binaryTypeIsReference
-import org.jetbrains.kotlin.backend.konan.serialization.isExported
 import org.jetbrains.kotlin.builtins.functions.FunctionClassDescriptor
 import org.jetbrains.kotlin.builtins.getFunctionalClassKind
 import org.jetbrains.kotlin.builtins.isFunctionType
@@ -21,6 +20,10 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.resolve.DescriptorFactory
 import org.jetbrains.kotlin.resolve.OverridingUtil
 import org.jetbrains.kotlin.resolve.constants.StringValue
+import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.util.isFunction
+import org.jetbrains.kotlin.ir.util.isKFunction
+import org.jetbrains.kotlin.resolve.checkers.ExpectedActualDeclarationChecker
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
@@ -78,6 +81,15 @@ internal val FunctionDescriptor.isFunctionInvoke: Boolean
 
         return dispatchReceiver.type.isFunctionType &&
                 this.isOperator && this.name == OperatorNameConventions.INVOKE
+    }
+
+internal val IrFunction.isFunctionInvoke: Boolean
+    get() {
+        val dispatchReceiver = dispatchReceiverParameter ?: return false
+        assert(!dispatchReceiver.type.isKFunction())
+
+        return dispatchReceiver.type.isFunction() &&
+               /* this.isOperator &&*/ this.name == OperatorNameConventions.INVOKE
     }
 
 internal fun ClassDescriptor.isUnit() = this.defaultType.isUnit()
@@ -149,9 +161,10 @@ internal val FunctionDescriptor.needsInlining: Boolean
         if (inlineConstructor) return true
         return (this.isInline && !this.isExternal)
     }
-
+/*
 internal val FunctionDescriptor.needsSerializedIr: Boolean
     get() = (this.needsInlining && this.isExported())
+*/
 
 fun AnnotationDescriptor.getStringValueOrNull(name: String): String? {
     val constantValue = this.allValueArguments.entries.atMostOne {
@@ -189,6 +202,9 @@ val ClassDescriptor.enumEntries: List<ClassDescriptor>
 
 internal val DeclarationDescriptor.isExpectMember: Boolean
     get() = this is MemberDescriptor && this.isExpect
+
+internal val DeclarationDescriptor.isSerializableExpectClass: Boolean
+    get() = this is ClassDescriptor && ExpectedActualDeclarationChecker.shouldGenerateExpectClass(this)
 
 internal fun KotlinType?.createExtensionReceiver(owner: CallableDescriptor): ReceiverParameterDescriptor? =
         DescriptorFactory.createExtensionReceiverParameterForCallable(

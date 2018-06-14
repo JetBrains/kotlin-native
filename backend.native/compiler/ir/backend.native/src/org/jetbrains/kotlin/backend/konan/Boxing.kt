@@ -6,6 +6,8 @@
 package org.jetbrains.kotlin.backend.konan
 
 import llvm.*
+import org.jetbrains.kotlin.backend.common.descriptors.WrappedSimpleFunctionDescriptor
+import org.jetbrains.kotlin.backend.common.descriptors.WrappedValueParameterDescriptor
 import org.jetbrains.kotlin.backend.konan.ir.KonanSymbols
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.fqNameSafe
 import org.jetbrains.kotlin.backend.konan.llvm.*
@@ -16,6 +18,7 @@ import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.descriptors.impl.SimpleFunctionDescriptorImpl
 import org.jetbrains.kotlin.descriptors.impl.ValueParameterDescriptorImpl
+import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
@@ -23,6 +26,8 @@ import org.jetbrains.kotlin.ir.declarations.impl.IrFunctionImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrValueParameterImpl
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
+import org.jetbrains.kotlin.ir.symbols.impl.IrSimpleFunctionSymbolImpl
+import org.jetbrains.kotlin.ir.symbols.impl.IrValueParameterSymbolImpl
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.toKotlinType
 import org.jetbrains.kotlin.ir.util.*
@@ -129,54 +134,35 @@ internal val Context.getUnboxFunction: (IrClass) -> IrSimpleFunction by Context.
     val parameterType = boxedType
     val returnType = unboxedType
 
-    val descriptor = SimpleFunctionDescriptorImpl.create(
-            inlinedClass.descriptor,
-            Annotations.EMPTY,
-            Name.special("<unbox>"),
-            CallableMemberDescriptor.Kind.DECLARATION,
-            SourceElement.NO_SOURCE
-    )
-
-    val parameter = ValueParameterDescriptorImpl(
-            descriptor,
-            null,
-            0,
-            Annotations.EMPTY,
-            Name.identifier("value"),
-            parameterType.toKotlinType(),
-            false,
-            false,
-            false,
-            null,
-            SourceElement.NO_SOURCE
-    )
-
-    descriptor.initialize(
-            null,
-            null,
-            emptyList(),
-            listOf(parameter),
-            returnType.toKotlinType(),
-            Modality.FINAL,
-            Visibilities.PUBLIC
-    )
-
-    val startOffset = inlinedClass.startOffset
-    val endOffset = inlinedClass.endOffset
-
-    IrFunctionImpl(startOffset, endOffset, IrDeclarationOrigin.DEFINED, descriptor).apply {
+    IrFunctionImpl(
+        inlinedClass.startOffset, inlinedClass.endOffset,
+        IrDeclarationOrigin.DEFINED,
+        IrSimpleFunctionSymbolImpl(WrappedSimpleFunctionDescriptor()),
+        Name.special("<unbox>"),
+        Visibilities.PUBLIC,
+        Modality.FINAL,
+        isInline = false,
+        isExternal = false,
+        isTailrec = false,
+        isSuspend = false
+    ).apply {
+        (descriptor as WrappedSimpleFunctionDescriptor).bind(this)
+        parent = inlinedClass
         this.returnType = returnType
-
-        this.valueParameters.add(IrValueParameterImpl(
+        valueParameters.add(
+            IrValueParameterImpl(
                 startOffset,
                 endOffset,
                 IrDeclarationOrigin.DEFINED,
-                parameter,
+                IrValueParameterSymbolImpl(WrappedValueParameterDescriptor()),
+                Name.identifier("value"),
+                0,
                 parameterType,
-                null
-        ))
-
-        this.parent = inlinedClass
+                null,
+                false,
+                false
+            ).apply { (descriptor as WrappedValueParameterDescriptor).bind(this) }
+        )
     }
 }
 

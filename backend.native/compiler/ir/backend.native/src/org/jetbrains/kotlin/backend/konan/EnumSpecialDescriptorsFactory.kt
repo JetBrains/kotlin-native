@@ -71,7 +71,8 @@ internal class EnumSpecialDeclarationsFactory(val context: Context) {
         val constructorDescriptor = constructor.descriptor
 
         implObjectDescriptor.initialize(memberScope, setOf(constructorDescriptor), constructorDescriptor)
-        implObject.setSuperSymbolsAndAddFakeOverrides(listOf(context.irBuiltIns.anyType))
+        implObject.superTypes += context.irBuiltIns.anyType
+        implObject.addFakeOverrides()
         implObject.parent = enumClass
         valuesField.parent = implObject
 
