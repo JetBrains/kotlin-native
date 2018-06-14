@@ -21,6 +21,10 @@ fun <T> assertEquals(actual: T, expected: T) {
     assertEquals(foo.apply { bar }, foo)
     assertEquals(foo.also { it.bar }, foo)
     assertEquals(foo.let { it.bar }, 42)
+    assertEquals(foo.bar.takeIf { true }, 42)
+    assertEquals(foo.bar.takeIf { false }, null)
+    assertEquals(foo.bar.takeUnless { true }, null)
+    assertEquals(foo.bar.takeUnless { false }, 42)
     var i = 0
     repeat(10) { i++ }
     assertEquals(i, 10)
