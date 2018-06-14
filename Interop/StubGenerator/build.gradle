@@ -29,6 +29,5 @@ dependencies {
     compile project(':Interop:Indexer')
     compile "org.jetbrains.kotlin:kotlin-native-shared:$konanVersion"
     compile "org.antlr:antlr4-runtime:4.5.3"
-    // TODO: so we need to redistribute idl2k jar.
-    compile files("/Users/jetbrains/kotlin-native/kotlin/libraries/tools/idl2k/target/classes")
+    compile "org.jetbrains.kotlin:idl2k:$kotlinVersion"
 }
