@@ -521,7 +521,6 @@ fun generateKotlin(pkg: String, allPackages: Sequence<String>, interfaces: List<
     enumsSet = enums.map{it.name}.toSet()
 
     interfaces.forEach {
-        println("iface: ${it.name}")
         nameToInterface.put(it.name, it)
     }
 

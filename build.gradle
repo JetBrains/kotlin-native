@@ -159,6 +159,18 @@ class PlatformInfo {
     }
 }
 
+configurations {
+    ftpAntTask
+    antlr
+    idl2k
+}
+
+dependencies {
+    ftpAntTask 'org.apache.ant:ant-commons-net:1.9.9'
+    antlr "org.antlr:antlr4-runtime:4.5.3"
+    idl2k "org.jetbrains.kotlin:idl2k:$kotlinVersion"
+}
+
 task sharedJar {
     dependsOn gradle.includedBuild('kotlin-native-shared').task(':jar')
 }
@@ -188,6 +200,7 @@ task build {
 }
 
 task distCompiler(type: Copy) {
+
     dependsOn ':backend.native:jar'
     dependsOn ':utilities:jar'
     dependsOn ':klib:jar'
@@ -256,6 +269,17 @@ task distCompiler(type: Copy) {
     }
 
     from(file("${gradle.includedBuild('konan.serializer').projectDir}/build/libs")) {
+        into('konan/lib')
+    }
+    from(configurations.antlr) {
+        include("antlr4-runtime-*.jar")
+        rename "antlr4-runtime-(.*).jar", "antlr4-runtime.jar"
+        into('konan/lib')
+    }
+
+    from(configurations.idl2k) {
+        include("idl2k-${kotlinVersion}.jar")
+        rename "idl2k-(.*).jar", "idl2k.jar"
         into('konan/lib')
     }
 
@@ -354,14 +378,6 @@ task dist {
 
 task crossDist {
     dependsOn 'crossDistRuntime', 'distCompiler'
-}
-
-configurations {
-    ftpAntTask
-}
-
-dependencies {
-    ftpAntTask 'org.apache.ant:ant-commons-net:1.9.9'
 }
 
 task bundle(type: (isWindows()) ? Zip : Tar) {
