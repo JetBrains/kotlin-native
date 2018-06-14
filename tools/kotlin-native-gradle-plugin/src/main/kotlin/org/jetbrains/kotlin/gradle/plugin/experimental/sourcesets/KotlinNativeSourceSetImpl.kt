@@ -2,11 +2,11 @@ package org.jetbrains.kotlin.gradle.plugin.experimental.sourcesets
 
 import groovy.lang.Closure
 import org.gradle.api.Action
+import org.gradle.api.file.ConfigurableFileCollection
 import org.gradle.api.file.FileCollection
 import org.gradle.api.file.SourceDirectorySet
 import org.gradle.api.internal.file.SourceDirectorySetFactory
 import org.gradle.api.internal.project.ProjectInternal
-import org.gradle.api.model.ObjectFactory
 import org.gradle.util.ConfigureUtil.configure
 import org.jetbrains.kotlin.gradle.plugin.experimental.internal.AbstractKotlinNativeComponent
 import org.jetbrains.kotlin.konan.target.HostManager
@@ -19,14 +19,14 @@ open class KotlinNativeSourceSetImpl @Inject constructor(
         val project: ProjectInternal
 ) : KotlinNativeSourceSet {
 
-    val objectFactory: ObjectFactory = project.objects
-
     override lateinit var component: AbstractKotlinNativeComponent
 
-    override val kotlin = newSourceDirectorySet("kotlin")
+    override val kotlin: SourceDirectorySet
+        get() = nativeSources
 
-    private val common: SourceDirectorySet
-        get() = kotlin
+    internal val commonSources: ConfigurableFileCollection = project.files()
+
+    private val nativeSources: SourceDirectorySet = newSourceDirectorySet("kotlin")
 
     private val platformSources = mutableMapOf<KonanTarget, SourceDirectorySet>()
 
@@ -34,22 +34,24 @@ open class KotlinNativeSourceSetImpl @Inject constructor(
         filter.include("**/*.kt")
     }
 
-    override fun getCommonSources(): SourceDirectorySet = common
-
     override fun getPlatformSources(target: KonanTarget) = platformSources.getOrPut(target) {
         newSourceDirectorySet(target.name)
     }
 
-    override fun getAllSources(target: KonanTarget): FileCollection = common + getPlatformSources(target)
+    override fun getCommonMultiplatformSources(): FileCollection = commonSources
+    override fun getCommonNativeSources(): SourceDirectorySet = nativeSources
+
+    override fun getAllSources(target: KonanTarget): FileCollection =
+        commonSources + nativeSources + getPlatformSources(target)
 
     override fun getName(): String = name
 
     // region DSL
 
     // Common source directory set configuration.
-    override fun kotlin(configureClosure: Closure<*>) = apply { configure(configureClosure, common) }
-    override fun kotlin(configureAction: Action<in SourceDirectorySet>) = apply { configureAction.execute(common) }
-    override fun kotlin(configureLambda: SourceDirectorySet.() -> Unit) = apply { common.configureLambda() }
+    override fun kotlin(configureClosure: Closure<*>) = apply { configure(configureClosure, nativeSources) }
+    override fun kotlin(configureAction: Action<in SourceDirectorySet>) = apply { configureAction.execute(nativeSources) }
+    override fun kotlin(configureLambda: SourceDirectorySet.() -> Unit) = apply { nativeSources.configureLambda() }
 
     // Configuration of the corresponding software component.
     override fun component(configureClosure: Closure<*>) = apply { configure(configureClosure, component) }

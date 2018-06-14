@@ -170,9 +170,17 @@ gradlePlugin {
             id = 'kotlin-native'
             implementationClass = 'org.jetbrains.kotlin.gradle.plugin.experimental.plugins.KotlinNativePlugin'
         }
+        create("kotlin-platform-native") {
+            id = 'kotlin-platform-native'
+            implementationClass = 'org.jetbrains.kotlin.gradle.plugin.experimental.plugins.KotlinPlatformNativePlugin'
+        }
         create("org.jetbrains.kotlin.native"){
             id = 'org.jetbrains.kotlin.native'
             implementationClass = 'org.jetbrains.kotlin.gradle.plugin.experimental.plugins.KotlinNativePlugin'
+        }
+        create("org.jetbrains.kotlin.platform.native") {
+            id = 'org.jetbrains.kotlin.platform.native'
+            implementationClass = 'org.jetbrains.kotlin.gradle.plugin.experimental.plugins.KotlinPlatformNativePlugin'
         }
     }
 }

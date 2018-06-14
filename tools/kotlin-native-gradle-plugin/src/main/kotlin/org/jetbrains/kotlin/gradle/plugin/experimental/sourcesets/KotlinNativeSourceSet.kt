@@ -14,8 +14,16 @@ interface KotlinNativeSourceSet: Named {
     val kotlin: SourceDirectorySet
     val component: KotlinNativeComponent
 
-    fun getCommonSources(): SourceDirectorySet
+    /** Returns sources added in the source set via an expectedBy dependency. */
+    fun getCommonMultiplatformSources(): FileCollection
+
+    /** Returns sources common for all native targets. */
+    fun getCommonNativeSources(): SourceDirectorySet
+
+    /** Returns native sources specific for the given target. */
     fun getPlatformSources(target: KonanTarget): SourceDirectorySet
+
+    /** Returns all (common multiplatform, common native and target-specific) sources for the given target. */
     fun getAllSources(target: KonanTarget): FileCollection
 
     fun kotlin(configureClosure: Closure<*>): KotlinNativeSourceSet
@@ -26,7 +34,6 @@ interface KotlinNativeSourceSet: Named {
     fun component(configureAction: Action<in AbstractKotlinNativeComponent>): KotlinNativeSourceSet
     fun component(configureLambda: AbstractKotlinNativeComponent.() -> Unit): KotlinNativeSourceSet
 
-    // TODO: Provide a more convenient way to set targets
     fun target(target: String): SourceDirectorySet
     fun target(vararg targets: String): KotlinNativeSourceSet
     fun target(vararg targets: String, configureClosure: Closure<*>): KotlinNativeSourceSet
