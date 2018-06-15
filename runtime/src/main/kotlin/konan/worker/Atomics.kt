@@ -179,3 +179,31 @@ class AtomicNativePtr(private var value: NativePtr) {
      */
     fun get(): NativePtr = value
 }
+
+@SymbolName("Kotlin_AtomicReference_checkIfFrozen")
+external private fun checkIfFrozen(ref: Any?)
+
+@Frozen
+class AtomicReference<T>(private var value: T? = null) {
+    /**
+     * Creates a new atomic reference pointing to given [ref]. If reference is not frozen,
+     * @InvalidMutabilityException is thrown.
+     */
+    init {
+        checkIfFrozen(value)
+    }
+
+    /**
+     * Compares value with [expected] and replaces it with [new] value if values matches.
+     * If [new] value is not null, it must be frozen or permanent object, otherwise an
+     * @InvalidMutabilityException is thrown.
+     * Returns the old value.
+     */
+    @SymbolName("Kotlin_AtomicReference_compareAndSwap")
+    external fun compareAndSwap(expected: T?, new: T?): T?
+
+    /**
+     * Returns the current value.
+     */
+    public fun get(): T? = value
+}

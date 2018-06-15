@@ -15,6 +15,7 @@
  */
 
 #include "Atomic.h"
+#include "Common.h"
 #include "Types.h"
 
 namespace {
@@ -33,6 +34,8 @@ template <typename T> T compareAndSwapImpl(KRef thiz, T expectedValue, T newValu
 
 extern "C" {
 
+RUNTIME_NORETURN void ThrowInvalidMutabilityException();
+
 KInt Kotlin_AtomicInt_addAndGet(KRef thiz, KInt delta) {
     return addAndGetImpl(thiz, delta);
 }
@@ -50,6 +53,17 @@ KLong Kotlin_AtomicLong_compareAndSwap(KRef thiz, KLong expectedValue, KLong new
 }
 
 KNativePtr Kotlin_AtomicNativePtr_compareAndSwap(KRef thiz, KNativePtr expectedValue, KNativePtr newValue) {
+    return compareAndSwapImpl(thiz, expectedValue, newValue);
+}
+
+void Kotlin_AtomicReference_checkIfFrozen(KRef value) {
+    if (value != nullptr && !value->container()->permanentOrFrozen()) {
+        ThrowInvalidMutabilityException();
+    }
+}
+
+KRef Kotlin_AtomicReference_compareAndSwap(KRef thiz, KRef expectedValue, KRef newValue) {
+    Kotlin_AtomicReference_checkIfFrozen(newValue);
     return compareAndSwapImpl(thiz, expectedValue, newValue);
 }
 
