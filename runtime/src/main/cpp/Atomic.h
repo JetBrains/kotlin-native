@@ -17,12 +17,11 @@ ALWAYS_INLINE inline T compareAndSwap(volatile T* where, T expectedValue, T newV
 #ifndef KONAN_NO_THREADS
   return __sync_val_compare_and_swap(where, expectedValue, newValue);
 #else
-   T oldValue = *location;
+   T oldValue = *where;
    if (oldValue == expectedValue) {
-        *location = newValue;
-    }
-    return oldValue;
-  return *where += what;
+        *where = newValue;
+   }
+   return oldValue;
 #endif
 }
 
