@@ -59,8 +59,9 @@ annotation class ExportForCompiler
 annotation class InlineConstructor
 
 /**
- * Class is immutable and is frozen by default.
+ * Class is immutable and is frozen by default. Also this annotation is (ab)used for marking objects
+ * where mutability checks are not needed.
  */
 @Target(AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.BINARY)
-annotation class Immutable
+internal annotation class Immutable

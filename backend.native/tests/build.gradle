@@ -671,6 +671,12 @@ task freeze2(type: RunKonanTest) {
     source = "runtime/workers/freeze2.kt"
 }
 
+task atomic0(type: RunKonanTest) {
+    disabled = (project.testTarget == 'wasm32') // Workers need pthreads.
+    goldValue = "35\n" + "0\n1\n2\n3\n4\n5\n6\n7\n8\n9\n10\n11\n12\n13\n14\n15\n16\n17\n18\n19\n20\n"
+    source = "runtime/workers/atomic0.kt"
+}
+
 task enumIdentity(type: RunKonanTest) {
     disabled = (project.testTarget == 'wasm32') // Workers need pthreads.
     goldValue = "true\n"
