@@ -36,14 +36,19 @@ import org.jetbrains.kotlin.ir.declarations.impl.IrFunctionImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrVariableImpl
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.*
+import org.jetbrains.kotlin.ir.symbols.IrClassifierSymbol
+import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.*
-import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.types.classifierOrFail
+import org.jetbrains.kotlin.ir.types.*
+import org.jetbrains.kotlin.ir.types.impl.*
 import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.ir.util.toKotlinType as utilToKotlinType
 import org.jetbrains.kotlin.serialization.KonanDescriptorSerializer
 import org.jetbrains.kotlin.metadata.KonanIr
 import org.jetbrains.kotlin.metadata.KonanIr.IrConst.ValueCase.*
 import org.jetbrains.kotlin.metadata.KonanIr.IrOperation.OperationCase.*
+import org.jetbrains.kotlin.metadata.KonanIr.IrType.KindCase.*
+import org.jetbrains.kotlin.metadata.KonanIr.IrTypeArgument.KindCase.*
 import org.jetbrains.kotlin.metadata.KonanIr.IrVarargElement.VarargElementCase.*
 import org.jetbrains.kotlin.metadata.KonanLinkData
 import org.jetbrains.kotlin.resolve.calls.components.hasDefaultValue
@@ -54,6 +59,9 @@ import org.jetbrains.kotlin.serialization.deserialization.descriptors.Deserializ
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeProjectionImpl
 import org.jetbrains.kotlin.types.TypeSubstitutor
+import org.jetbrains.kotlin.types.Variance
+import org.jetbrains.kotlin.types.Variance.*
+
 
 
 internal class IrSerializer(val context: Context,
@@ -81,8 +89,6 @@ internal class IrSerializer(val context: Context,
         return irDescriptorSerializer.serializeKotlinType(type)
     }
 
-    private fun serializeKotlinType(type: IrType) = serializeKotlinType(type.toKotlinType())
-
     private fun serializeDescriptor(descriptor: DeclarationDescriptor): KonanIr.KotlinDescriptor {
         context.log{"### serializeDescriptor $descriptor"}
 
@@ -101,10 +107,95 @@ internal class IrSerializer(val context: Context,
     private fun serializeTypeArguments(call: IrMemberAccessExpression): KonanIr.TypeArguments {
         val proto = KonanIr.TypeArguments.newBuilder()
         for (i in 0 until call.typeArgumentsCount) {
-            proto.addTypeArgument(serializeKotlinType(call.getTypeArgument(i)!!))
+            proto.addTypeArgument(serializeIrType(call.getTypeArgument(i)!!))
         }
         return proto.build()
      }
+
+    /* ------- IrSymbols -------------------------------------------------------- */
+
+    fun serializeIrSymbol(symbol: IrSymbol) = KonanIr.IrSymbol.newBuilder().build()
+    fun serializeIrClassifierSymbol(symbol: IrClassifierSymbol): KonanIr.IrClassifierSymbol {
+        return KonanIr.IrClassifierSymbol.newBuilder()
+            .setDescriptor(serializeDescriptor(symbol.descriptor))
+            .setSymbol(serializeIrSymbol(symbol))
+            .build()
+    }
+
+    /* ------- IrTypes ---------------------------------------------------------- */
+
+
+    fun serializeIrTypeVariance(variance: Variance)= when(variance) {
+        Variance.IN_VARIANCE -> KonanIr.IrTypeVariance.IN
+        Variance.OUT_VARIANCE -> KonanIr.IrTypeVariance.OUT
+        Variance.INVARIANT -> KonanIr.IrTypeVariance.INV
+    }
+
+    fun serializeIrTypeBase(type: IrType, kotlinType: KonanIr.KotlinType?): KonanIr.IrTypeBase {
+        val typeBase = type as IrTypeBase // TODO: get rid of the cast.
+        val proto = KonanIr.IrTypeBase.newBuilder()
+            .setKotlinType(kotlinType)
+            .setVariance(serializeIrTypeVariance(typeBase.variance))
+        typeBase.annotations.forEach {
+            proto.addAnnotation(serializeCall(it))
+        }
+        return proto.build()
+    }
+
+    fun serializeIrTypeProjection(argument: IrTypeProjection)
+        = KonanIr.IrTypeProjection.newBuilder()
+            .setVariance(serializeIrTypeVariance(argument.variance))
+            .setType(serializeIrType(argument.type))
+            .build()
+
+    fun serializeTypeArgument(argument: IrTypeArgument): KonanIr.IrTypeArgument {
+        val proto = KonanIr.IrTypeArgument.newBuilder()
+        when (argument) {
+            is IrStarProjection ->
+                proto.star = KonanIr.IrStarProjection.newBuilder().build() // TODO: Do we need a singletone here? Or just an enum?
+            is IrTypeProjection ->
+                proto.type = serializeIrTypeProjection(argument)
+            else -> TODO("Unexpected type argument kind: $argument")
+        }
+        return proto.build()
+    }
+
+    fun serializeSimpleType(type: IrSimpleType, kotlinType: KonanIr.KotlinType?): KonanIr.IrSimpleType {
+        val proto = KonanIr.IrSimpleType.newBuilder()
+            .setBase(serializeIrTypeBase(type, kotlinType))
+            .setClassifier(serializeIrClassifierSymbol(type.classifier))
+            .setHasQuestionMark(type.hasQuestionMark)
+        type.arguments.forEach {
+            proto.addArgument(serializeTypeArgument(it))
+        }
+        return proto.build()
+    }
+
+    fun serializeDynamicType(type: IrDynamicType) = KonanIr.IrDynamicType.newBuilder()
+        .setBase(serializeIrTypeBase(type, null))
+        .build()
+
+    fun serializeErrorType(type: IrErrorType)  = KonanIr.IrErrorType.newBuilder()
+        .setBase(serializeIrTypeBase(type, null))
+        .build()
+
+    private fun serializeIrType(type: IrType) : KonanIr.IrType {
+        context.log{"### serializing IrType: " + type}
+        val kotlinType = serializeKotlinType(type.utilToKotlinType())
+        val proto = KonanIr.IrType.newBuilder()
+        when (type) {
+            is IrSimpleType ->
+                proto.simple = serializeSimpleType(type, kotlinType)
+            is IrDynamicType ->
+                proto.dynamic = serializeDynamicType(type)
+            is IrErrorType ->
+                proto.error = serializeErrorType(type)
+            else -> TODO("IrType serialization not implemented yet: $type.")
+        }
+        return proto.build()
+    }
+
+
 
     /* -------------------------------------------------------------------------- */
 
@@ -273,7 +364,7 @@ internal class IrSerializer(val context: Context,
 
     private fun serializeGetEnumValue(expression: IrGetEnumValue): KonanIr.IrGetEnumValue {
         val proto = KonanIr.IrGetEnumValue.newBuilder()
-            .setType(serializeKotlinType(expression.type))
+            .setType(serializeIrType(expression.type))
             .setDescriptor(serializeDescriptor(expression.descriptor))
         return proto.build()
     }
@@ -386,7 +477,7 @@ internal class IrSerializer(val context: Context,
     private fun serializeTypeOp(expression: IrTypeOperatorCall): KonanIr.IrTypeOp {
         val proto = KonanIr.IrTypeOp.newBuilder()
             .setOperator(serializeTypeOperator(expression.operator))
-            .setOperand(serializeKotlinType(expression.typeOperand))
+            .setOperand(serializeIrType(expression.typeOperand))
             .setArgument(serializeExpression(expression.argument))
         return proto.build()
 
@@ -394,7 +485,7 @@ internal class IrSerializer(val context: Context,
 
     private fun serializeVararg(expression: IrVararg): KonanIr.IrVararg {
         val proto = KonanIr.IrVararg.newBuilder()
-            .setElementType(serializeKotlinType(expression.varargElementType))
+            .setElementType(serializeIrType(expression.varargElementType))
         expression.elements.forEach {
             proto.addElement(serializeVarargElement(it))
         }
@@ -479,7 +570,7 @@ internal class IrSerializer(val context: Context,
 
         val coordinates = serializeCoordinates(expression.startOffset, expression.endOffset)
         val proto = KonanIr.IrExpression.newBuilder()
-            .setType(serializeKotlinType(expression.type))
+            .setType(serializeIrType(expression.type))
             .setCoordinates(coordinates)
 
         val operationProto = KonanIr.IrOperation.newBuilder()
@@ -730,6 +821,63 @@ internal class IrDeserializer(val context: Context,
         }
         return result
     }
+
+    /* ----- IrTypes ------------------------------------------------ */
+
+    fun deserializeIrClassifierSymbol(proto: KonanIr.IrClassifierSymbol): IrClassifierSymbol {
+        val descriptor =
+    }
+
+    fun deserializeIrTypeVariance(variance: KonanIr.IrTypeVariance) = when(variance) {
+        KonanIr.IrTypeVariance.IN -> Variance.IN_VARIANCE
+        KonanIr.IrTypeVariance.OUT -> Variance.OUT_VARIANCE
+        KonanIr.IrTypeVariance.INV -> Variance.INVARIANT
+    }
+
+    fun deserializeIrTypeArgument(proto: KonanIr.IrTypeArgument) = when (proto.KindCase) {
+        STAR -> IrStarProjectionImpl
+        TYPE -> IrTypeProjectionImpl(
+                        deserializeIrType(proto.type.type), deserializeIrTypeVariance(proto.type.variance))
+    }
+
+    fun deserializeIrTypeAnnotations(type: KonanIr.IrTypeBase): List<IrClass> {
+        type.annotationList.map {
+            deserializeCall(it, 0, 0, context.builtIns.unit ) // TODO: need a proper deserialization here
+        }
+    }
+
+    fun deserializeSimplType(proto: KonanIr.IrSimpleType): IrSimpleType {
+        val arguments = proto.argumentList.map { deserializeIrTypeArgument(it) }
+        val annotations= deserializeIrTypeAnnotations(proto.base)
+        return IrSimpleTypeImpl(
+                deserializeKotlinType(proto.base.kotlinType),
+                deserializeIrClassifierSymbol(proto.classifier),
+                proto.hasQuestionMark,
+                arguments
+        )
+    }
+
+    fun deserializeDynamicType(proto: KonanIr.IrDynamicType): IrDynamicType {
+        val annotations= deserializeIrTypeAnnotations(proto.base)
+        val variance = deserializeIrTypeVariance(proto.base.variance)
+        return IrDynamicTypeImpl(deserializeKotlinType(proto.base.kotlinType), annotations, variance)
+    }
+
+    fun deserializeErrorType(proto: KonanIr.IrErrorType): IrErrorType {
+        val annotations= deserializeIrTypeAnnotations(proto.base)
+        val variance = deserializeIrTypeVariance(proto.base.variance)
+        return IrErrorTypeImpl(deserializeKotlinType(proto.base.kotlinType), annotations, variance)
+    }
+
+    fun deserializeIrType(proto: KonanIr.IrType) {
+        when (proto.KindCase) {
+            SIMPLE -> deserializeSimplType(proto.simple)
+            DYNAMIC -> deserializeDynamicType(proto.dynamic)
+            ERROR -> deserializeErrorType(proto.error)
+        }
+    }
+
+    /* -------------------------------------------------------------- */
 
     private fun deserializeBlockBody(proto: KonanIr.IrBlockBody,
                                      start: Int, end: Int): IrBlockBody {

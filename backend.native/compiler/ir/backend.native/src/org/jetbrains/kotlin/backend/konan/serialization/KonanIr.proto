@@ -71,8 +71,74 @@ message Coordinates {
 }
 
 message TypeArguments {
-    repeated KotlinType type_argument = 1;
+    repeated IrType type_argument = 1;
 }
+
+/* ------ IrSymbols --------------------------------------------- */
+
+message IrSymbol {
+
+}
+
+message IrClassifierSymbol {
+    optional KotlinDescriptor descriptor = 1;
+    required IrSymbol symbol = 2;
+}
+
+
+/* ------ IrTypes --------------------------------------------- */
+
+enum IrTypeVariance { // Should we import metadata variance, or better stay separate?
+    IN = 0;
+    OUT = 1;
+    INV = 2;
+}
+
+message IrTypeBase {
+    optional KotlinType kotlin_type = 1;
+    repeated IrCall annotation = 2;
+    required IrTypeVariance variance = 3 [default = INV];
+}
+
+message IrStarProjection {
+    optional bool void = 1;
+}
+
+message IrTypeProjection {
+    required IrTypeVariance variance = 1;
+    required IrType type = 2;
+}
+
+message IrTypeArgument {
+    oneof kind {
+        IrStarProjection star = 1;
+        IrTypeProjection type = 2;
+    }
+}
+
+message IrSimpleType {
+    required IrTypeBase base = 1;
+    required IrClassifierSymbol classifier = 2;
+    required bool has_question_mark = 3;
+    repeated IrTypeArgument argument = 4;
+}
+
+message IrDynamicType {
+    required IrTypeBase base = 1;
+}
+
+message IrErrorType {
+    required IrTypeBase base = 1;
+}
+
+message IrType {
+    oneof kind {
+        IrSimpleType simple = 1;
+        IrDynamicType dynamic = 2;
+        IrErrorType error = 3;
+    }
+}
+
 /* ------ IrExpressions --------------------------------------------- */
 
 message IrBreak {
@@ -158,7 +224,7 @@ message IrGetClass {
 }
 
 message IrGetEnumValue {
-    required KotlinType type = 1;
+    required IrType type = 1;
     required KotlinDescriptor descriptor = 2;
 }
 
@@ -227,12 +293,12 @@ message IrTry {
 
 message IrTypeOp {
     required IrTypeOperator operator = 1;
-    required KotlinType operand = 2;
+    required IrType operand = 2;
     required IrExpression argument = 3;
 }
 
 message IrVararg {
-    required KotlinType element_type = 1;
+    required IrType element_type = 1;
     repeated IrVarargElement element = 2;
 }
 
@@ -297,7 +363,7 @@ enum IrTypeOperator {
 
 message IrExpression {
     required IrOperation operation = 1;
-    required KotlinType type = 2;
+    required IrType type = 2;
     required Coordinates coordinates = 3;
 }
 
