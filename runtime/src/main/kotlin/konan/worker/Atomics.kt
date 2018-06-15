@@ -16,11 +16,11 @@
 
 package konan.worker
 
-import konan.internal.Immutable
+import konan.internal.Frozen
 import konan.SymbolName
 import kotlinx.cinterop.NativePtr
 
-@Immutable
+@Frozen
 class AtomicInt(private var value: Int = 0) : Number() {
     /* Atomic operations. */
 
@@ -90,7 +90,7 @@ class AtomicInt(private var value: Int = 0) : Number() {
     public override fun toByte(): Byte = value.toByte()
 }
 
-@Immutable
+@Frozen
 class AtomicLong(private var value: Long = 0) : Number() {
     /* Atomic operations. */
 
@@ -165,7 +165,7 @@ class AtomicLong(private var value: Long = 0) : Number() {
     public override fun toByte(): Byte = value.toByte()
 }
 
-@Immutable
+@Frozen
 class AtomicNativePtr(private var value: NativePtr) {
     /**
      * Compares value with [expected] and replaces it with [new] value if values matches.
