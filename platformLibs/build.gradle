@@ -92,7 +92,8 @@ project.rootProject.ext.platformManager.enabled.each { target ->
 
         def klibFile = project.file('build/wasm32/wasm32.klib')
         task org_w3c_klib(type: Exec) {
-            commandLine rootProject.file('dist/bin/jsinterop'), 
+            def jsinterop = isWindows() ? "jsinterop.bat" : "jsinterop"
+            commandLine rootProject.file("dist/bin/$jsinterop"),
                 '-idl', 'src/platform/wasm32/', 
                 '-o', 'build/wasm32/wasm32',
                 '-target', 'wasm32'
