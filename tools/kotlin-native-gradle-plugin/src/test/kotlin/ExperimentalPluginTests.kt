@@ -110,6 +110,7 @@ class ExperimentalPluginTests {
 
         val project = KonanProject.createEmpty(projectDirectory).apply {
             settingsFile.writeText("""
+                enableFeaturePreview('GRADLE_METADATA')
                 include ':library'
                 rootProject.name = 'test'
             """.trimIndent())
@@ -308,6 +309,7 @@ class ExperimentalPluginTests {
 
         val project = KonanProject.createEmpty(projectDirectory).apply {
             settingsFile.writeText("""
+                enableFeaturePreview('GRADLE_METADATA')
                 include ':foo'
                 include ':bar'
                 rootProject.name = 'test'
