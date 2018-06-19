@@ -16,6 +16,7 @@
 
 #include "Atomic.h"
 #include "Common.h"
+#include "Memory.h"
 #include "Types.h"
 
 namespace {
@@ -62,9 +63,23 @@ void Kotlin_AtomicReference_checkIfFrozen(KRef value) {
     }
 }
 
-KRef Kotlin_AtomicReference_compareAndSwap(KRef thiz, KRef expectedValue, KRef newValue) {
+OBJ_GETTER(Kotlin_AtomicReference_compareAndSwap, KRef thiz, KRef expectedValue, KRef newValue) {
     Kotlin_AtomicReference_checkIfFrozen(newValue);
-    return compareAndSwapImpl(thiz, expectedValue, newValue);
+    if (expectedValue == newValue) {
+        RETURN_OBJ(expectedValue);
+    }
+    KRef old = compareAndSwapImpl(thiz, expectedValue, newValue);
+    if (old == expectedValue) {
+        // CAS to the new value was successful, we transfer ownership of [expectedValue] to the caller.
+        // No need to update the reference counter, as before @AtomicReference was holding the reference,
+        // and now result holds it. Also note, that object referred by [expectedValue] cannot be freed,
+        // as it is guaranteed to be held by the caller (and by [thiz]).
+        *OBJ_RESULT = old;
+        return old;
+    } else {
+        // On this path we just create an additional reference to the [expectedValue], held by caller anyway.
+        RETURN_OBJ(old);
+    }
 }
 
 }  // extern "C"
