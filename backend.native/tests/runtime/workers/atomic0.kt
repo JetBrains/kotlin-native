@@ -18,13 +18,19 @@ fun test1(workers: Array<Worker>) {
 }
 
 fun test2(workers: Array<Worker>) {
-    val atomic = AtomicInt(0)
+    val atomic = AtomicInt(1)
     val counter = AtomicInt(0)
     val futures = Array(workers.size, { workerIndex ->
         workers[workerIndex].schedule(TransferMode.CHECKED, { Triple(atomic, workerIndex, counter) }) {
             (place, index, result) ->
-            while (place.compareAndSwap(index, index + 1) != index) {}
-            result.increment() == index + 1
+            // Here we simulate mutex using [place] location to store tag of the current worker.
+            // When it is negative - worker executes exclusively.
+            val tag = index + 1
+            while (place.compareAndSwap(tag, -tag) != tag) {}
+            val ok1 = result.increment() == index + 1
+            // Now, let the next worker run.
+            val ok2 = place.compareAndSwap(-tag, tag + 1) == -tag
+            ok1 && ok2
         }
     })
     futures.forEach {

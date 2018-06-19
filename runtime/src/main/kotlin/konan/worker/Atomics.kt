@@ -119,6 +119,9 @@ external private fun checkIfFrozen(ref: Any?)
 
 @Frozen
 class AtomicReference<T>(private var value: T? = null) {
+    // A spinlock to fix potential ARC race. Not an AtomicInt just for the effeciency sake.
+    private var lock: Int = 0
+
     /**
      * Creates a new atomic reference pointing to given [ref]. If reference is not frozen,
      * @InvalidMutabilityException is thrown.
@@ -134,10 +137,11 @@ class AtomicReference<T>(private var value: T? = null) {
      * Returns the old value.
      */
     @SymbolName("Kotlin_AtomicReference_compareAndSwap")
-    external fun compareAndSwap(expected: T?, new: T?): T?
+    external public fun compareAndSwap(expected: T?, new: T?): T?
 
     /**
      * Returns the current value.
      */
-    public fun get(): T? = value
+    @SymbolName("Kotlin_AtomicReference_get")
+    external public fun get(): T?
 }

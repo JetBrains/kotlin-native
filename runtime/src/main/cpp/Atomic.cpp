@@ -21,6 +21,11 @@
 
 namespace {
 
+struct AtomicReferenceLayout {
+  KRef value_;
+  KInt lock_;
+};
+
 template <typename T> T addAndGetImpl(KRef thiz, T delta) {
   volatile T* location = reinterpret_cast<volatile T*>(thiz + 1);
   return atomicAdd(location, delta);
@@ -29,6 +34,20 @@ template <typename T> T addAndGetImpl(KRef thiz, T delta) {
 template <typename T> T compareAndSwapImpl(KRef thiz, T expectedValue, T newValue) {
     volatile T* location = reinterpret_cast<volatile T*>(thiz + 1);
     return compareAndSwap(location, expectedValue, newValue);
+}
+
+inline AtomicReferenceLayout* asAtomicReference(KRef thiz) {
+    return reinterpret_cast<AtomicReferenceLayout*>(thiz + 1);
+}
+
+inline void lock(KRef thiz) {
+    KInt* location = &asAtomicReference(thiz)->lock_;
+    while (compareAndSwap(location, 0, 1) != 0) {}
+}
+
+inline void unlock(KRef thiz) {
+    KInt* location = &asAtomicReference(thiz)->lock_;
+    RuntimeCheck(compareAndSwap(location, 1, 0) == 1, "Must succeed");
 }
 
 }  // namespace
@@ -63,12 +82,17 @@ void Kotlin_AtomicReference_checkIfFrozen(KRef value) {
     }
 }
 
+// TODO: maybe those two belongs to Memory.cpp, as somewhat depends on ARC/GC semantics.
 OBJ_GETTER(Kotlin_AtomicReference_compareAndSwap, KRef thiz, KRef expectedValue, KRef newValue) {
     Kotlin_AtomicReference_checkIfFrozen(newValue);
     if (expectedValue == newValue) {
         RETURN_OBJ(expectedValue);
     }
+    // See Kotlin_AtomicReference_get() for explanations, why locking is needed.
+    lock(thiz);
+    // As we lock [thiz], atomicity here is not really important.
     KRef old = compareAndSwapImpl(thiz, expectedValue, newValue);
+    unlock(thiz);
     if (old == expectedValue) {
         // CAS to the new value was successful, we transfer ownership of [expectedValue] to the caller.
         // No need to update the reference counter, as before @AtomicReference was holding the reference,
@@ -80,6 +104,23 @@ OBJ_GETTER(Kotlin_AtomicReference_compareAndSwap, KRef thiz, KRef expectedValue,
         // On this path we just create an additional reference to the [expectedValue], held by caller anyway.
         RETURN_OBJ(old);
     }
+}
+
+OBJ_GETTER(Kotlin_AtomicReference_get, KRef thiz) {
+    // Here we must take a lock to prevent race when value, while taken here, is CASed and immediately
+    // destroyed by an another thread. AtomicReference no longer holds such an object, so if we got
+    // rescheduled unluckily, between the moment value is read from the field and RC is incremented,
+    // object may go away.
+    lock(thiz);
+    KRef result = asAtomicReference(thiz)->value_;
+    // TODO: curiously, this may be artificially a very long lock, if we return to an already used slot
+    // and it triggers the cycle collector.
+    // Proper behavior would be to release the lock after incrementing [result] RC, but before decrementing
+    // RC of the old return slot content, but this would require primitives not yet exposed by Memory.cpp.
+    // This shall be fixed, if @AtomicReference would become a performance-sensitive primitive.
+    UpdateReturnRef(OBJ_RESULT, result);
+    unlock(thiz);
+    return result;
 }
 
 }  // extern "C"
