@@ -24,6 +24,10 @@ internal fun registerSuite(suite: TestSuite): Unit {
     _generatedSuites.add(suite)
 }
 
+fun testLauncherEntryPoint(args: Array<String>): Int {
+    return TestRunner(_generatedSuites, args).run()
+}
+
 fun main(args: Array<String>) {
-    exitProcess(TestRunner(_generatedSuites, args).run())
+    exitProcess(testLauncherEntryPoint(args))
 }
