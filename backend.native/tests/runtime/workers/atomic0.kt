@@ -86,4 +86,9 @@ fun test4() {
     test2(workers)
     test3(workers)
     test4()
+
+    workers.forEach {
+        it.requestTermination().consume { _ -> }
+    }
+    println("OK")
 }
