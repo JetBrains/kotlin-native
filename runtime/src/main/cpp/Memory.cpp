@@ -1042,14 +1042,6 @@ inline void ReleaseRef(const ObjHeader* object) {
   Release(container, (object->type_info()->objOffsetsCount_ > 0) || (container->objectCount() > 1));
 }
 
-inline void updateReturnRefAdded(ObjHeader** location, ObjHeader* value) {
-  if (isArenaSlot(location)) return;
-  ObjHeader* oldReturnSlotValue = *location;
-  *location = value;
-  if (oldReturnSlotValue != nullptr)
-    ReleaseRef(oldReturnSlotValue);
-}
-
 void AddRefFromAssociatedObject(const ObjHeader* object) {
   AddRef(object);
 }
@@ -1260,14 +1252,27 @@ void UpdateRef(ObjHeader** location, const ObjHeader* object) {
   }
 }
 
-void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* object) {
-  if (isArenaSlot(returnSlot)) {
+inline ObjHeader** slotAddressFor(ObjHeader** returnSlot, const ObjHeader* value) {
+    if (!isArenaSlot(returnSlot)) return returnSlot;
     // Not a subject of reference counting.
-    if (object == nullptr || !isRefCounted(object)) return;
-    auto arena = initedArena(asArenaSlot(returnSlot));
-    returnSlot = arena->getSlot();
+    if (value == nullptr || !isRefCounted(value)) return nullptr;
+    return initedArena(asArenaSlot(returnSlot))->getSlot();
+}
+
+inline void updateReturnRefAdded(ObjHeader** returnSlot, const ObjHeader* value) {
+  returnSlot = slotAddressFor(returnSlot, value);
+  if (returnSlot == nullptr) return;
+  ObjHeader* old = *returnSlot;
+  *const_cast<const ObjHeader**>(returnSlot) = value;
+  if (old != nullptr) {
+    ReleaseRef(old);
   }
-  UpdateRef(returnSlot, object);
+}
+
+void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* value) {
+  returnSlot = slotAddressFor(returnSlot, value);
+  if (returnSlot == nullptr) return;
+  UpdateRef(returnSlot, value);
 }
 
 void UpdateRefIfNull(ObjHeader** location, const ObjHeader* object) {
@@ -1678,8 +1683,9 @@ OBJ_GETTER(SwapRefLocked,
     SetRef(location, newValue);
   } else {
     // We create an additional reference to the [oldValue] in the return slot.
-    if (!isArenaSlot(OBJ_RESULT) && oldValue != nullptr)
+    if (oldValue != nullptr && isRefCounted(oldValue)) {
       AddRef(oldValue);
+    }
   }
   unlock(spinlock);
   // [oldValue] ownership was either transferred from *location to return slot if CAS succeeded, or
