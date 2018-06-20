@@ -600,12 +600,13 @@ tables below.
         expectedBy project(':common')
     }
 
-## Publishing to maven.
+## Publishing to Maven.
 
-Publishing the Kotlin/Native artifacts depends on mechanisms which was introduced in Gradle Native support, e.g. gradle 
+Publishing the Kotlin/Native artifacts depends on mechanisms which was introduced in Gradle Native support, e.g. Gradle's 
 metadata feature, thus there are some additional steps are required. First of all gradle version it shouldn't be less 
 then gradle version of kotlin native plugin depends on (currently Gradle 4.7). before Gradle 5.0 feature 
-[GRADLE_METADATA](https://github.com/gradle/gradle/blob/master/subprojects/docs/src/docs/design/gradle-module-metadata-specification.md) should be enabled for build. e.g. in settings.gradle
+[GRADLE_METADATA](https://github.com/gradle/gradle/blob/master/subprojects/docs/src/docs/design/gradle-module-metadata-specification.md) 
+should be enabled for build. e.g. in settings.gradle
 ````
 enableFeaturePreview('GRADLE_METADATA')
 ````
