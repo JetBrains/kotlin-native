@@ -40,16 +40,6 @@ inline AtomicReferenceLayout* asAtomicReference(KRef thiz) {
     return reinterpret_cast<AtomicReferenceLayout*>(thiz + 1);
 }
 
-inline void lock(KRef thiz) {
-    KInt* location = &asAtomicReference(thiz)->lock_;
-    while (compareAndSwap(location, 0, 1) != 0) {}
-}
-
-inline void unlock(KRef thiz) {
-    KInt* location = &asAtomicReference(thiz)->lock_;
-    RuntimeCheck(compareAndSwap(location, 1, 0) == 1, "Must succeed");
-}
-
 }  // namespace
 
 extern "C" {
@@ -82,28 +72,11 @@ void Kotlin_AtomicReference_checkIfFrozen(KRef value) {
     }
 }
 
-// TODO: maybe those two belongs to Memory.cpp, as somewhat depends on ARC/GC semantics.
 OBJ_GETTER(Kotlin_AtomicReference_compareAndSwap, KRef thiz, KRef expectedValue, KRef newValue) {
     Kotlin_AtomicReference_checkIfFrozen(newValue);
-    if (expectedValue == newValue) {
-        RETURN_OBJ(expectedValue);
-    }
     // See Kotlin_AtomicReference_get() for explanations, why locking is needed.
-    lock(thiz);
-    // As we lock [thiz], atomicity here is not really important.
-    KRef old = compareAndSwapImpl(thiz, expectedValue, newValue);
-    unlock(thiz);
-    if (old == expectedValue) {
-        // CAS to the new value was successful, we transfer ownership of [expectedValue] to the caller.
-        // No need to update the reference counter, as before @AtomicReference was holding the reference,
-        // and now result holds it. Also note, that object referred by [expectedValue] cannot be freed,
-        // as it is guaranteed to be held by the caller (and by [thiz]).
-        *OBJ_RESULT = old;
-        return old;
-    } else {
-        // On this path we just create an additional reference to the [expectedValue], held by caller anyway.
-        RETURN_OBJ(old);
-    }
+    AtomicReferenceLayout* ref = asAtomicReference(thiz);
+    RETURN_RESULT_OF(SwapRefLocked, &ref->value_, expectedValue, newValue, &ref->lock_);
 }
 
 OBJ_GETTER(Kotlin_AtomicReference_get, KRef thiz) {
@@ -111,16 +84,8 @@ OBJ_GETTER(Kotlin_AtomicReference_get, KRef thiz) {
     // destroyed by an another thread. AtomicReference no longer holds such an object, so if we got
     // rescheduled unluckily, between the moment value is read from the field and RC is incremented,
     // object may go away.
-    lock(thiz);
-    KRef result = asAtomicReference(thiz)->value_;
-    // TODO: curiously, this may be artificially a very long lock, if we return to an already used slot
-    // and it triggers the cycle collector.
-    // Proper behavior would be to release the lock after incrementing [result] RC, but before decrementing
-    // RC of the old return slot content, but this would require primitives not yet exposed by Memory.cpp.
-    // This shall be fixed, if @AtomicReference would become a performance-sensitive primitive.
-    UpdateReturnRef(OBJ_RESULT, result);
-    unlock(thiz);
-    return result;
+    AtomicReferenceLayout* ref = asAtomicReference(thiz);
+    RETURN_RESULT_OF(ReadRefLocked, &ref->value_, &ref->lock_);
 }
 
 }  // extern "C"
