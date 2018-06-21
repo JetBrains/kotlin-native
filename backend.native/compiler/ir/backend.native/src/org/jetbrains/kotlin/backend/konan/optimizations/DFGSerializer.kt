@@ -18,6 +18,8 @@ package org.jetbrains.kotlin.backend.konan.optimizations
 
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.ValueType
+import org.jetbrains.kotlin.backend.konan.library.impl.LibraryReaderImpl
+import org.jetbrains.kotlin.backend.konan.serialization.moduleDescriptor
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import sun.misc.Unsafe
 import kotlin.reflect.KClass
@@ -943,7 +945,7 @@ internal object DFGSerializer {
             }
 
             if (libraryDataFlowGraph != null) {
-                val module = DataFlowIR.Module(library.moduleDescriptor(specifics))
+                val module = DataFlowIR.Module((library as LibraryReaderImpl).moduleDescriptor(specifics))
                 val reader = ArraySlice(libraryDataFlowGraph)
                 val dataLayoutHash = reader.readLong()
                 val expectedHash = computeDataLayoutHash(Module::class)

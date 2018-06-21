@@ -16,20 +16,27 @@
 
 package org.jetbrains.kotlin.backend.konan.library.impl
 
-import org.jetbrains.kotlin.backend.konan.KonanConfig
-import org.jetbrains.kotlin.backend.konan.library.KonanLibraryReader
-import org.jetbrains.kotlin.backend.konan.serialization.emptyPackages
-import org.jetbrains.kotlin.backend.konan.serialization.deserializeModule
+import org.jetbrains.kotlin.backend.konan.library.KonanLibrary
+import org.jetbrains.kotlin.konan.library.KonanLibraryReader
 import org.jetbrains.kotlin.konan.file.File
+import org.jetbrains.kotlin.konan.library.MetadataReader
 import org.jetbrains.kotlin.konan.properties.*
-import org.jetbrains.kotlin.config.LanguageVersionSettings
+import org.jetbrains.kotlin.konan.library.UnresolvedLibrary
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.util.defaultTargetSubstitutions
 import org.jetbrains.kotlin.konan.util.substitute
+import org.jetbrains.kotlin.konan.*
 
-class LibraryReaderImpl(var libraryFile: File, val currentAbiVersion: Int,
-    val target: KonanTarget? = null, override val isDefaultLibrary: Boolean = false)
+class LibraryReaderImpl(var libraryFile: File,
+                        val target: KonanTarget? = null,
+                        override val isDefaultLibrary: Boolean = false)
     : KonanLibraryReader {
+
+    @Deprecated("Use the primary constructor")
+    constructor(libraryFile: File,
+        currentAbiVersion: Int,
+        target: KonanTarget? = null,
+        isDefaultLibrary: Boolean = false) : this(libraryFile, target, isDefaultLibrary)
 
     // For the zipped libraries inPlace gives files from zip file system
     // whereas realFiles extracts them to /tmp.
@@ -38,20 +45,16 @@ class LibraryReaderImpl(var libraryFile: File, val currentAbiVersion: Int,
     private val inPlace = KonanLibrary(libraryFile, target)
     private val realFiles = inPlace.realFiles
 
-    private val reader = MetadataReaderImpl(inPlace)
-
     override val manifestProperties: Properties by lazy {
         val properties = inPlace.manifestFile.loadProperties()
         if (target != null) substitute(properties, defaultTargetSubstitutions(target))
         properties
     }
 
-    val abiVersion: String
+    override val abiVersion: Int
         get() {
-            val manifestAbiVersion = manifestProperties.getProperty("abi_version")
-            if ("$currentAbiVersion" != manifestAbiVersion) 
-                error("ABI version mismatch. Compiler expects: $currentAbiVersion, the library is $manifestAbiVersion")
-            return manifestAbiVersion
+            val manifestAbiVersion = manifestProperties.getProperty("abi_version")!!
+            return manifestAbiVersion.toInt()
         }
 
     val targetList = inPlace.targetsDir.listFiles.map{it.name}
@@ -63,6 +66,12 @@ class LibraryReaderImpl(var libraryFile: File, val currentAbiVersion: Int,
     override val uniqueName
         get() = manifestProperties.propertyString("unique_name")!!
 
+    override val libraryVersion: String?
+        get() = manifestProperties.propertyString("library_version")
+
+    override val compilerVersion
+        get() = manifestProperties.propertyString("compiler_version")!!.parseKonanVersion()
+
     override val bitcodePaths: List<String>
         get() = (realFiles.kotlinDir.listFilesOrEmpty + realFiles.nativeDir.listFilesOrEmpty)
                 .map { it.absolutePath }
@@ -73,36 +82,23 @@ class LibraryReaderImpl(var libraryFile: File, val currentAbiVersion: Int,
     override val linkerOpts: List<String>
         get() = manifestProperties.propertyList("linkerOpts", target!!.visibleName)
 
-    override val unresolvedDependencies: List<String>
+    override val unresolvedDependencies: List<UnresolvedLibrary>
         get() = manifestProperties.propertyList("depends")
+                .map {
+                    UnresolvedLibrary(it, manifestProperties.propertyString("dependency_version_$it")
+                )}
 
     val resolvedDependencies = mutableListOf<LibraryReaderImpl>()
 
-    override val moduleHeaderData: ByteArray by lazy {
-        reader.loadSerializedModule()
+
+    // Metadata part
+
+    override lateinit var metadataReader: MetadataReader
+
+    override fun addMetadataReader(factory: (KonanLibrary)-> MetadataReader) {
+        metadataReader = factory(inPlace)
     }
 
-    override var isNeededForLink: Boolean = false
-        private set
-
-    private val emptyPackages by lazy { emptyPackages(moduleHeaderData) }
-
-    override fun markPackageAccessed(fqName: String) {
-        if (!isNeededForLink // fast path
-                && !emptyPackages.contains(fqName)) {
-            isNeededForLink = true
-        }
-    }
-
-    override fun packageMetadata(fqName: String): ByteArray {
-        return reader.loadSerializedPackageFragment(fqName)
-    }
-
-    override fun moduleDescriptor(specifics: LanguageVersionSettings) 
-        = deserializeModule(specifics, this)
-
+    override val isNeededForLink: Boolean get() = metadataReader.isNeededForLink
+    override fun markPackageAccessed(fqName: String) = metadataReader.markPackageAccessed(fqName)
 }
-
-internal fun <T: KonanLibraryReader> List<T>.purgeUnneeded(config: KonanConfig): List<T> =
-        this.filter{ (!it.isDefaultLibrary && !config.purgeUserLibs) || it.isNeededForLink }
-

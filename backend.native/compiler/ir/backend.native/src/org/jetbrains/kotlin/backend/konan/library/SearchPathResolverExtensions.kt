@@ -18,36 +18,28 @@ package org.jetbrains.kotlin.backend.konan.library
 
 import org.jetbrains.kotlin.backend.konan.library.impl.LibraryReaderImpl
 import org.jetbrains.kotlin.konan.file.File
-import org.jetbrains.kotlin.konan.library.SearchPathResolver
+import org.jetbrains.kotlin.konan.library.*
 import org.jetbrains.kotlin.konan.target.KonanTarget
 
-fun SearchPathResolver.resolveImmediateLibraries(libraryNames: List<String>,
-                                                 target: KonanTarget,
-                                                 abiVersion: Int = 1,
-                                                 noStdLib: Boolean = false,
-                                                 noDefaultLibs: Boolean = false,
-                                                 logger: ((String) -> Unit)?): List<LibraryReaderImpl> {
-    val userProvidedLibraries = libraryNames
-            .map { resolve(it) }
-            .map{ LibraryReaderImpl(it, abiVersion, target) }
+fun KonanLibrarySearchPathResolver.resolveImmediateLibraries(libraryNames: List<String>,
+                                                             noStdLib: Boolean = false,
+                                                             noDefaultLibs: Boolean = false): List<LibraryReaderImpl> {
+    val userProvidedLibraries: List<LibraryReaderImpl> = libraryNames
+            .map { UnresolvedLibrary(it, null) }
+            .map { this.resolve(it) }
 
-    val defaultLibraries = defaultLinks(nostdlib = noStdLib, noDefaultLibs = noDefaultLibs).map {
-        LibraryReaderImpl(it, abiVersion, target, isDefaultLibrary = true)
-    }
+    val defaultLibraries = defaultLinks(nostdlib = noStdLib, noDefaultLibs = noDefaultLibs)
 
     // Make sure the user provided ones appear first, so that 
     // they have precedence over defaults when duplicates are eliminated.
     val resolvedLibraries = userProvidedLibraries + defaultLibraries
 
-    warnOnLibraryDuplicates(resolvedLibraries.map { it.libraryFile }, logger)
+    warnOnLibraryDuplicates(resolvedLibraries.map { it.libraryFile })
 
     return resolvedLibraries.distinctBy { it.libraryFile.absolutePath }
 }
 
-private fun warnOnLibraryDuplicates(resolvedLibraries: List<File>, 
-    logger: ((String) -> Unit)? ) {
-
-    if (logger == null) return
+private fun SearchPathResolver.warnOnLibraryDuplicates(resolvedLibraries: List<File>) {
 
     val duplicates = resolvedLibraries.groupBy { it.absolutePath } .values.filter { it.size > 1 }
 
@@ -56,25 +48,24 @@ private fun warnOnLibraryDuplicates(resolvedLibraries: List<File>,
     }
 }
 
-fun SearchPathResolver.resolveLibrariesRecursive(immediateLibraries: List<LibraryReaderImpl>,
-                                                 target: KonanTarget,
-                                                 abiVersion: Int) {
+
+fun SearchPathResolver.resolveLibrariesRecursive(immediateLibraries: List<LibraryReaderImpl>) {
     val cache = mutableMapOf<File, LibraryReaderImpl>()
     cache.putAll(immediateLibraries.map { it.libraryFile.absoluteFile to it })
     var newDependencies = cache.values.toList()
     do {
         newDependencies = newDependencies.map { library: LibraryReaderImpl ->
             library.unresolvedDependencies
-                    .map { resolve(it).absoluteFile }
-                    .map { 
-                        if (it in cache) {
-                            library.resolvedDependencies.add(cache[it]!!)
+                    .map { it to resolve(it) }
+                    .map { (unresolved, resolved) ->
+                        val absoluteFile = resolved.libraryFile.absoluteFile
+                        if (absoluteFile in cache) {
+                            library.resolvedDependencies.add(cache[absoluteFile]!!)
                             null
                         } else {
-                            val reader = LibraryReaderImpl(it, abiVersion, target)
-                            cache.put(it,reader)
-                            library.resolvedDependencies.add(reader) 
-                            reader
+                            cache.put(absoluteFile ,resolved)
+                            library.resolvedDependencies.add(resolved)
+                            resolved
                         }
             }.filterNotNull()
         } .flatten()
@@ -94,19 +85,14 @@ fun List<LibraryReaderImpl>.withResolvedDependencies(): List<LibraryReaderImpl> 
     return result.toList()
 }
 
-fun SearchPathResolver.resolveLibrariesRecursive(libraryNames: List<String>,
-                                                 target: KonanTarget,
-                                                 abiVersion: Int = 1,
+fun KonanLibrarySearchPathResolver.resolveLibrariesRecursive(libraryNames: List<String>,
                                                  noStdLib: Boolean = false,
                                                  noDefaultLibs: Boolean = false): List<LibraryReaderImpl> {
     val immediateLibraries = resolveImmediateLibraries(
                     libraryNames = libraryNames,
-                    target = target,
-                    abiVersion = abiVersion,
                     noStdLib = noStdLib,
-                    noDefaultLibs = noDefaultLibs,
-                    logger = null
+                    noDefaultLibs = noDefaultLibs
             )
-    resolveLibrariesRecursive(immediateLibraries, target, abiVersion)
+    resolveLibrariesRecursive(immediateLibraries)
     return immediateLibraries.withResolvedDependencies()
 }

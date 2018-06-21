@@ -19,6 +19,7 @@ import llvm.LLVMLinkModules2
 import llvm.LLVMWriteBitcodeToFile
 import org.jetbrains.kotlin.backend.konan.library.impl.buildLibrary
 import org.jetbrains.kotlin.backend.konan.llvm.parseBitcodeFile
+import org.jetbrains.kotlin.konan.KonanVersion
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 
 val CompilerOutputKind.isNativeBinary: Boolean get() = when (this) {
@@ -74,6 +75,9 @@ internal fun produceOutput(context: Context) {
             val neededLibraries 
                 = context.llvm.librariesForLibraryManifest
             val abiVersion = context.config.currentAbiVersion
+            val compilerVersion = KonanVersion.CURRENT
+            val libraryVersion = config.get(KonanConfigKeys.LIBRARY_VERSION)
+
             val target = context.config.target
             val nopack = config.getBoolean(KonanConfigKeys.NOPACK)
             val manifest = config.get(KonanConfigKeys.MANIFEST_FILE)
@@ -84,6 +88,8 @@ internal fun produceOutput(context: Context) {
                 neededLibraries,
                 context.serializedLinkData!!, 
                 abiVersion,
+                compilerVersion,
+                libraryVersion,
                 target,
                 output,
                 libraryName, 

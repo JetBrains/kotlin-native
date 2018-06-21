@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.backend.konan.serialization
 
-import org.jetbrains.kotlin.backend.konan.library.KonanLibraryReader
+import org.jetbrains.kotlin.konan.library.KonanLibraryReader
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
@@ -45,7 +45,7 @@ class KonanPackageFragment(
     // The proto field is lazy so that we can load only needed
     // packages from the library.
     private val protoForNames: KonanLinkData.LinkDataPackageFragment by lazy {
-        parsePackageFragment(reader.packageMetadata(fqNameString))
+        parsePackageFragment(reader.metadataReader.packageMetadata(fqNameString))
     }
 
     val proto: KonanLinkData.LinkDataPackageFragment get() = protoForNames.also {
