@@ -36,7 +36,7 @@ annotation class SymbolName(val name: String)
 annotation class ExportTypeInfo(val name: String)
 
 /**
- * * If lambda shall be carefully lowered by the compiler.
+ * If a lambda shall be carefully lowered by the compiler.
  */
 annotation class VolatileLambda
 
@@ -62,36 +62,6 @@ public annotation class Used
 public annotation class Throws(vararg val exceptionClasses: KClass<out Throwable>)
 
 /**
- * Need to be fixed because of reification support.
- */
-public annotation class FixmeReified
-
-/**
- * Need to be fixed because of sorting support.
- */
-public annotation class FixmeSorting
-
-/**
- * Need to be fixed because of specialization support.
- */
-public annotation class FixmeSpecialization
-
-/**
- * Need to be fixed because of sequences support.
- */
-public annotation class FixmeSequences
-
-/**
- * Need to be fixed because of variance support.
- */
-public annotation class FixmeVariance
-
-/**
- * Need to be fixed because of regular expressions.
- */
-public annotation class FixmeRegex
-
-/**
  * Need to be fixed because of reflection.
  */
 public annotation class FixmeReflection
@@ -101,18 +71,26 @@ public annotation class FixmeReflection
  */
 public annotation class FixmeConcurrency
 
-public annotation class FixmeInline
+/**
+ * Need to be fixed because of header/impl notation
+ */
+public annotation class FixmeMultiplatform
 
 /**
- * Need to be fixed.
+ * Need to be fixed because of random support.
  */
-public annotation class Fixme
+public annotation class FixmeRandom
 
+/**
+ * Escape analysis annotations.
+ */
 public annotation class Escapes(val who: Int)
 
 public annotation class PointsTo(vararg val onWhom: Int)
 
 /**
- * Need to be fixed because of header/impl notation
+ * Top level variable or object is thread local, and so could be mutable.
  */
-public annotation class FixmeMultiplatform
+@Target(AnnotationTarget.FIELD, AnnotationTarget.CLASS)
+@Retention(AnnotationRetention.BINARY)
+annotation class ThreadLocal
