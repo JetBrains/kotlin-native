@@ -1607,31 +1607,31 @@ void freezeCyclic(ContainerHeader* rootContainer, const KStdVector<ContainerHead
     }
 
     // Enumerate strongly connected components in reversed topological order.
-    for (auto it = components.rbegin(); it != components.rend(); ++it) {
-      auto& component = *it;
-      int internalRefsCount = 0;
-      int totalCount = 0;
-      for (auto* container : component) {
-        totalCount += container->refCount();
-        traverseContainerReferredObjects(container, [&internalRefsCount](ObjHeader* obj) {
-            if (!obj->container()->permanentOrFrozen())
+  for (auto it = components.rbegin(); it != components.rend(); ++it) {
+    auto& component = *it;
+    int internalRefsCount = 0;
+    int totalCount = 0;
+    for (auto* container : component) {
+      totalCount += container->refCount();
+      traverseContainerReferredObjects(container, [&internalRefsCount](ObjHeader* obj) {
+          if (!obj->container()->permanentOrFrozen())
               ++internalRefsCount;
-         });
+        });
       }
-      // Create fictitious container for the whole component.
-      auto superContainer = component.size() == 1 ? component[0] : AllocAggregatingFrozenContainer(component);
-      // Don't count internal references.
-      superContainer->setRefCount(totalCount - internalRefsCount);
+    // Create fictitious container for the whole component.
+    auto superContainer = component.size() == 1 ? component[0] : AllocAggregatingFrozenContainer(component);
+    // Don't count internal references.
+    superContainer->setRefCount(totalCount - internalRefsCount);
 
-      // Freeze component.
-      for (auto* container : component) {
-          container->resetBuffered();
-          container->setColor(CONTAINER_TAG_GC_BLACK);
-          // Note, that once object is frozen, it could be concurrently accessed, so
-          // color and similar attributes shall not be used.
-          container->freeze();
-      }
-   }
+    // Freeze component.
+    for (auto* container : component) {
+      container->resetBuffered();
+      container->setColor(CONTAINER_TAG_GC_BLACK);
+      // Note, that once object is frozen, it could be concurrently accessed, so
+      // color and similar attributes shall not be used.
+      container->freeze();
+    }
+  }
 }
 
 /**
