@@ -18,7 +18,7 @@ package org.jetbrains.kotlin.serialization
 
 import org.jetbrains.kotlin.backend.common.onlyIf
 import org.jetbrains.kotlin.backend.konan.descriptors.needsSerializedIr
-import org.jetbrains.kotlin.backend.konan.serialization.IrAwareExtension
+//import org.jetbrains.kotlin.backend.konan.serialization.IrAwareExtension
 import org.jetbrains.kotlin.backend.konan.serialization.KonanStringTable
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.builtins.isSuspendFunctionType
@@ -257,7 +257,7 @@ class KonanDescriptorSerializer private constructor(
         }
 
         extension.serializeProperty(descriptor, builder)
-
+/*
         /* Konan specific chunk */
         if (extension is IrAwareExtension) {
             descriptor.getter?.onlyIf({needsSerializedIr}) {
@@ -269,7 +269,7 @@ class KonanDescriptorSerializer private constructor(
                     extension.serializeInlineBody(it, local))
             }
         }
-
+*/
         return builder
     }
 
@@ -343,13 +343,13 @@ class KonanDescriptorSerializer private constructor(
         // contractSerializer.serializeContractOfFunctionIfAny(descriptor, builder, this)
         //
         extension.serializeFunction(descriptor, builder)
-
+/*
         /* Konan specific chunk */
         if (extension is IrAwareExtension && descriptor.needsSerializedIr) {
             extension.addFunctionIR(builder,
                     extension.serializeInlineBody(descriptor, local))
         }
-
+*/
         return builder
     }
 
@@ -378,13 +378,13 @@ class KonanDescriptorSerializer private constructor(
         }
 
         extension.serializeConstructor(descriptor, builder)
-
+/*
         /* Konan specific chunk */
         if (extension is IrAwareExtension && descriptor.needsSerializedIr) {
             extension.addConstructorIR(builder, 
                 extension.serializeInlineBody(descriptor, local))
         }
-
+*/
         return builder
     }
 

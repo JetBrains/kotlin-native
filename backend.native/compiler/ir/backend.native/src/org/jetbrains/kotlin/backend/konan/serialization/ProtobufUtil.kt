@@ -27,7 +27,7 @@ fun newUniqId(index: Long): KonanIr.UniqId =
    KonanIr.UniqId.newBuilder().setIndex(index).build() 
 
 // -----------------------------------------------------------
-
+/*
 val KonanIr.KotlinDescriptor.index: Long
     get() = this.uniqId.index
 
@@ -97,7 +97,7 @@ internal fun printTypeTable(proto: ProtoBuf.TypeTable) {
         printType(it)
     }
 }
-
+*/
 // -----------------------------------------------------------
 
 internal val DeclarationDescriptor.typeParameterProtos: List<ProtoBuf.TypeParameter>

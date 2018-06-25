@@ -93,8 +93,8 @@ class NaiveSourceBasedFileEntryImpl(override val name: String) : SourceManager.F
 
     //-------------------------------------------------------------------------//
 
-    override val maxOffset: Int
-        get() = TODO("not implemented")
+    override val maxOffset: Int  = 1000000
+        // get() = TODO("not implemented")
 
     override fun getSourceRangeInfo(beginOffset: Int, endOffset: Int): SourceRangeInfo {
         TODO("not implemented")

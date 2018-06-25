@@ -24,7 +24,7 @@ import org.jetbrains.kotlin.serialization.*
 import org.jetbrains.kotlin.types.KotlinType
 
 internal class KonanSerializerExtension(val context: Context) :
-        KotlinSerializerExtensionBase(KonanSerializerProtocol), IrAwareExtension {
+        KotlinSerializerExtensionBase(KonanSerializerProtocol)/*, IrAwareExtension */ {
 
     val inlineDescriptorTable = DescriptorTable(context.irBuiltIns)
     override val stringTable = KonanStringTable()
@@ -80,7 +80,7 @@ internal class KonanSerializerExtension(val context: Context) :
 
         super.serializeProperty(descriptor, proto)
     }
-
+/*
     override fun addFunctionIR(proto: ProtoBuf.Function.Builder, serializedIR: String) 
         = proto.setInlineIr(inlineBody(serializedIR))
 
@@ -98,6 +98,7 @@ internal class KonanSerializerExtension(val context: Context) :
         return IrSerializer( 
             context, inlineDescriptorTable, stringTable, serializer, descriptor).serializeInlineBody()
     }
+    */
 }
 
 object KonanSerializerProtocol : SerializerExtensionProtocol(
@@ -115,7 +116,7 @@ object KonanSerializerProtocol : SerializerExtensionProtocol(
         KonanLinkData.typeAnnotation,
         KonanLinkData.typeParameterAnnotation
 )
-
+/*
 internal interface IrAwareExtension {
 
     fun serializeInlineBody(descriptor: FunctionDescriptor, serializer: KonanDescriptorSerializer): String 
@@ -128,4 +129,4 @@ internal interface IrAwareExtension {
 
     fun addGetterIR(proto: ProtoBuf.Property.Builder, serializedIR: String): ProtoBuf.Property.Builder
 }
-
+*/

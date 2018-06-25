@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+/*
 package org.jetbrains.kotlin.backend.konan.serialization
 
 import org.jetbrains.kotlin.backend.konan.Context
@@ -157,4 +157,4 @@ internal class IrDescriptorSerializer(
     }
 
 }
-
+*/

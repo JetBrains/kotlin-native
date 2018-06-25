@@ -13,7 +13,7 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
+/*
 package org.jetbrains.kotlin.backend.konan.serialization
 
 
@@ -28,6 +28,7 @@ import org.jetbrains.kotlin.backend.konan.lower.DeepCopyIrTreeWithDescriptors
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
+import org.jetbrains.kotlin.ir.SourceManager
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin.DEFINED
 import org.jetbrains.kotlin.ir.declarations.impl.IrClassImpl
@@ -36,8 +37,10 @@ import org.jetbrains.kotlin.ir.declarations.impl.IrFunctionImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrVariableImpl
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.*
+import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrClassifierSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
+import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.*
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.types.impl.*
@@ -45,6 +48,7 @@ import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.util.toKotlinType as utilToKotlinType
 import org.jetbrains.kotlin.serialization.KonanDescriptorSerializer
 import org.jetbrains.kotlin.metadata.KonanIr
+import org.jetbrains.kotlin.metadata.KonanIr.IrClassifierSymbol.ClassifierSymbolCase.*
 import org.jetbrains.kotlin.metadata.KonanIr.IrConst.ValueCase.*
 import org.jetbrains.kotlin.metadata.KonanIr.IrOperation.OperationCase.*
 import org.jetbrains.kotlin.metadata.KonanIr.IrType.KindCase.*
@@ -115,11 +119,25 @@ internal class IrSerializer(val context: Context,
     /* ------- IrSymbols -------------------------------------------------------- */
 
     fun serializeIrSymbol(symbol: IrSymbol) = KonanIr.IrSymbol.newBuilder().build()
+
+    fun serializeIrClassSymbol(symbol: IrClassSymbol) = KonanIr.IrClassSymbol.newBuilder().build()
+
+    fun serializeIrTypeParameterSymbol(symbol: IrTypeParameterSymbol) = KonanIr.IrTypeParameterSymbol.newBuilder().build()
+
     fun serializeIrClassifierSymbol(symbol: IrClassifierSymbol): KonanIr.IrClassifierSymbol {
-        return KonanIr.IrClassifierSymbol.newBuilder()
+        val proto =  KonanIr.IrClassifierSymbol.newBuilder()
             .setDescriptor(serializeDescriptor(symbol.descriptor))
-            .setSymbol(serializeIrSymbol(symbol))
-            .build()
+
+        when(symbol) {
+            is IrClassSymbol ->
+                proto.setClassSymbol(serializeIrClassSymbol(symbol))
+            is IrTypeParameterSymbol ->
+                proto.setTypeParameterSymbol(serializeIrTypeParameterSymbol(symbol))
+            else ->
+                TODO("Unexpected classifier symbol: $symbol")
+        }
+
+        return proto.build()
     }
 
     /* ------- IrTypes ---------------------------------------------------------- */
@@ -388,8 +406,10 @@ internal class IrSerializer(val context: Context,
     }
 
     private fun serializeGetValue(expression: IrGetValue): KonanIr.IrGetValue {
+        val type = (expression as IrGetValueImpl).type
         val proto = KonanIr.IrGetValue.newBuilder()
             .setDescriptor(serializeDescriptor(expression.descriptor))
+            .setType(serializeIrType(type))
         return proto.build()
     }
 
@@ -790,7 +810,48 @@ internal class IrSerializer(val context: Context,
     }
 
 
+
+
+
+// ---------- Top level ------------------------------------------------------
+
+    fun serializeDeclarations(declarations: List<IrDeclaration>): KonanIr.IrDeclarationContainer {
+        val proto = KonanIr.IrDeclarationContainer.newBuilder()
+        declarations.forEach {
+            proto.add(serializeDeclaration(it))
+        }
+        return proto.build()
+    }
+
+    fun serializeFileEntry(entry: SourceManager.FileEntry): KonanIr.FileEntry
+            = KonanIr.FileEntry.newBuilder()
+            .setName(entry.name)
+
+    fun serializeIrFile(file: IrFile) {
+        val proto = KonanIr.IrFile.newBuilder()
+                .setEntry(serializeFileEntry(file.fileEntry))
+                .setDeclarationContainer(serializeDeclarations(file.declarations))
+        return proto.build()
+    }
+
+    fun serializeModule(module: IrModuleFragment): KonanIr.IrModule {
+        val proto = KonanIr.IrModule.newBuilder()
+                .setName(module.name)
+        module.files.forEach {
+            proto.addFile(serializeIrFile(it))
+        }
+    }
+
+
+
+
+
+
 }
+
+
+
+
 
 // --------- Deserializer part -----------------------------
 
@@ -814,18 +875,27 @@ internal class IrDeserializer(val context: Context,
     private fun deserializeTypeArguments(proto: KonanIr.TypeArguments): List<IrType> {
         context.log{"### deserializeTypeArguments"}
         val result = mutableListOf<IrType>()
-        proto.typeArgumentList.forEach { type ->
-            val kotlinType = deserializeKotlinType(type)
-            result.add(kotlinType.brokenIr)
-            context.log{"$kotlinType"}
+        proto.typeArgumentList.forEach { typeProto ->
+            val type = deserializeIrType(typeProto)
+            result.add(type)
+            context.log{"$type"}
         }
         return result
     }
 
     /* ----- IrTypes ------------------------------------------------ */
 
+    fun deserializeIrClassSymbol(proto: KonanIr.IrClassSymbol, descriptor: ClassDescriptor) = IrClassSymbolImpl(descriptor)
+    fun deserializeIrTypeArgumentSymbol(proto: KonanIr.IrTypeParameterSymbol, descriptor: TypeParameterDescriptor) = IrTypeParameterSymbolImpl(descriptor)
+
+
     fun deserializeIrClassifierSymbol(proto: KonanIr.IrClassifierSymbol): IrClassifierSymbol {
-        val descriptor =
+        val descriptor = deserializeDescriptor(proto.descriptor)
+        return when (proto.classifierSymbolCase) {
+            CLASS_SYMBOL -> deserializeIrClassSymbol(proto.classSymbol, descriptor as ClassDescriptor)
+            TYPE_PARAMETER_SYMBOL -> deserializeIrTypeArgumentSymbol(proto.typeParameterSymbol, descriptor as TypeParameterDescriptor)
+            else -> TODO("Unexpected classifier symbol kind")
+        }
     }
 
     fun deserializeIrTypeVariance(variance: KonanIr.IrTypeVariance) = when(variance) {
@@ -834,27 +904,35 @@ internal class IrDeserializer(val context: Context,
         KonanIr.IrTypeVariance.INV -> Variance.INVARIANT
     }
 
-    fun deserializeIrTypeArgument(proto: KonanIr.IrTypeArgument) = when (proto.KindCase) {
+    fun deserializeIrTypeArgument(proto: KonanIr.IrTypeArgument) = when (proto.kindCase) {
         STAR -> IrStarProjectionImpl
-        TYPE -> IrTypeProjectionImpl(
+        TYPE -> makeTypeProjection(
                         deserializeIrType(proto.type.type), deserializeIrTypeVariance(proto.type.variance))
+        else -> TODO("Unexpected projection kind")
+
     }
 
-    fun deserializeIrTypeAnnotations(type: KonanIr.IrTypeBase): List<IrClass> {
-        type.annotationList.map {
-            deserializeCall(it, 0, 0, context.builtIns.unit ) // TODO: need a proper deserialization here
+    fun deserializeIrTypeAnnotations(type: KonanIr.IrTypeBase): List<IrCall> {
+        return type.annotationList.map {
+            deserializeCall(it, 0, 0, context.builtIns.unitType.ir) // TODO: need a proper deserialization here
         }
     }
 
-    fun deserializeSimplType(proto: KonanIr.IrSimpleType): IrSimpleType {
+    fun deserializeSimpleType(proto: KonanIr.IrSimpleType): IrSimpleType {
         val arguments = proto.argumentList.map { deserializeIrTypeArgument(it) }
         val annotations= deserializeIrTypeAnnotations(proto.base)
-        return IrSimpleTypeImpl(
-                deserializeKotlinType(proto.base.kotlinType),
-                deserializeIrClassifierSymbol(proto.classifier),
+        val kotlinType = deserializeKotlinType(proto.base.kotlinType)
+        val symbol =  deserializeIrClassifierSymbol(proto.classifier)
+        context.log { "deserializeSimpleType: kotlinType=$kotlinType, symbol=$symbol" }
+        val result =  IrSimpleTypeImpl(
+                kotlinType,
+                symbol,
                 proto.hasQuestionMark,
-                arguments
+                arguments,
+                annotations
         )
+        context.log { "ir_type = $result; render = ${result.render()}"}
+        return result
     }
 
     fun deserializeDynamicType(proto: KonanIr.IrDynamicType): IrDynamicType {
@@ -869,11 +947,12 @@ internal class IrDeserializer(val context: Context,
         return IrErrorTypeImpl(deserializeKotlinType(proto.base.kotlinType), annotations, variance)
     }
 
-    fun deserializeIrType(proto: KonanIr.IrType) {
-        when (proto.KindCase) {
-            SIMPLE -> deserializeSimplType(proto.simple)
+    fun deserializeIrType(proto: KonanIr.IrType): IrType {
+        return when (proto.kindCase) {
+            SIMPLE -> deserializeSimpleType(proto.simple)
             DYNAMIC -> deserializeDynamicType(proto.dynamic)
             ERROR -> deserializeErrorType(proto.error)
+            else -> TODO("Unexpected IrType kind")
         }
     }
 
@@ -935,7 +1014,7 @@ internal class IrDeserializer(val context: Context,
     private val KotlinType.brokenIr: IrType get() = context.ir.translateBroken(this)
 
 
-    private fun deserializeBlock(proto: KonanIr.IrBlock, start: Int, end: Int, type: KotlinType): IrBlock {
+    private fun deserializeBlock(proto: KonanIr.IrBlock, start: Int, end: Int, type: IrType): IrBlock {
         val statements = mutableListOf<IrStatement>()
         val statementProtos = proto.statementList
         statementProtos.forEach {
@@ -944,7 +1023,7 @@ internal class IrDeserializer(val context: Context,
 
         val isLambdaOrigin = if (proto.isLambdaOrigin) IrStatementOrigin.LAMBDA else null
 
-        return IrBlockImpl(start, end, type.ir, isLambdaOrigin, statements)
+        return IrBlockImpl(start, end, type, isLambdaOrigin, statements)
     }
 
     private fun deserializeMemberAccessCommon(access: IrMemberAccessExpression, proto: KonanIr.MemberAccessCommon) {
@@ -968,14 +1047,14 @@ internal class IrDeserializer(val context: Context,
         }
     }
 
-    private fun deserializeClassReference(proto: KonanIr.IrClassReference, start: Int, end: Int, type: KotlinType): IrClassReference {
+    private fun deserializeClassReference(proto: KonanIr.IrClassReference, start: Int, end: Int, type: IrType): IrClassReference {
         val descriptor = deserializeDescriptor(proto.classDescriptor) as ClassifierDescriptor
         /** TODO: [createClassifierSymbolForClassReference] is internal function */
         @Suppress("DEPRECATION")
-        return IrClassReferenceImpl(start, end, type.ir, descriptor, descriptor.defaultType.ir)
+        return IrClassReferenceImpl(start, end, type, descriptor, descriptor.defaultType.ir)
     }
 
-    private fun deserializeCall(proto: KonanIr.IrCall, start: Int, end: Int, type: KotlinType): IrCall {
+    private fun deserializeCall(proto: KonanIr.IrCall, start: Int, end: Int, type: IrType): IrCall {
         val descriptor = deserializeDescriptor(proto.descriptor) as FunctionDescriptor
 
         val superDescriptor = if (proto.hasSuper()) {
@@ -985,13 +1064,13 @@ internal class IrDeserializer(val context: Context,
         val call: IrCall = when (proto.kind) {
             KonanIr.IrCall.Primitive.NOT_PRIMITIVE ->
                 // TODO: implement the last three args here.
-                IrCallImpl(start, end, type.ir, createFunctionSymbol(descriptor), descriptor, proto.memberAccess.typeArguments.typeArgumentCount, null, createClassSymbolOrNull(superDescriptor))
+                IrCallImpl(start, end, type, createFunctionSymbol(descriptor), descriptor, proto.memberAccess.typeArguments.typeArgumentCount, null, createClassSymbolOrNull(superDescriptor))
             KonanIr.IrCall.Primitive.NULLARY ->
-                IrNullaryPrimitiveImpl(start, end, type.ir, null, createFunctionSymbol(descriptor))
+                IrNullaryPrimitiveImpl(start, end, type, null, createFunctionSymbol(descriptor))
             KonanIr.IrCall.Primitive.UNARY ->
-                IrUnaryPrimitiveImpl(start, end, type.ir, null, createFunctionSymbol(descriptor))
+                IrUnaryPrimitiveImpl(start, end, type, null, createFunctionSymbol(descriptor))
             KonanIr.IrCall.Primitive.BINARY ->
-                IrBinaryPrimitiveImpl(start, end, type.ir, null, createFunctionSymbol(descriptor))
+                IrBinaryPrimitiveImpl(start, end, type, null, createFunctionSymbol(descriptor))
             else -> TODO("Unexpected primitive IrCall.")
         }
         deserializeMemberAccessCommon(call, proto.memberAccess)
@@ -999,11 +1078,11 @@ internal class IrDeserializer(val context: Context,
     }
 
     private fun deserializeCallableReference(proto: KonanIr.IrCallableReference,
-                                             start: Int, end: Int, type: KotlinType): IrCallableReference {
+                                             start: Int, end: Int, type: IrType): IrCallableReference {
 
         val descriptor = deserializeDescriptor(proto.descriptor) as CallableDescriptor
         val callable = when (descriptor) {
-            is FunctionDescriptor -> IrFunctionReferenceImpl(start, end, type.ir, createFunctionSymbol(descriptor), descriptor, proto.typeArguments.typeArgumentCount, null)
+            is FunctionDescriptor -> IrFunctionReferenceImpl(start, end, type, createFunctionSymbol(descriptor), descriptor, proto.typeArguments.typeArgumentCount, null)
             else -> TODO()
         }
 
@@ -1013,13 +1092,13 @@ internal class IrDeserializer(val context: Context,
         return callable
     }
 
-    private fun deserializeComposite(proto: KonanIr.IrComposite, start: Int, end: Int, type: KotlinType): IrComposite {
+    private fun deserializeComposite(proto: KonanIr.IrComposite, start: Int, end: Int, type: IrType): IrComposite {
         val statements = mutableListOf<IrStatement>()
         val statementProtos = proto.statementList
         statementProtos.forEach {
             statements.add(deserializeStatement(it) as IrStatement)
         }
-        return IrCompositeImpl(start, end, type.ir, null, statements)
+        return IrCompositeImpl(start, end, type, null, statements)
     }
 
     private fun deserializeDelegatingConstructorCall(proto: KonanIr.IrDelegatingConstructorCall, start: Int, end: Int): IrDelegatingConstructorCall {
@@ -1030,9 +1109,9 @@ internal class IrDeserializer(val context: Context,
         return call
     }
 
-    private fun deserializeGetClass(proto: KonanIr.IrGetClass, start: Int, end: Int, type: KotlinType): IrGetClass {
+    private fun deserializeGetClass(proto: KonanIr.IrGetClass, start: Int, end: Int, type: IrType): IrGetClass {
         val argument = deserializeExpression(proto.argument)
-        return IrGetClassImpl(start, end, type.ir, argument)
+        return IrGetClassImpl(start, end, type, argument)
     }
 
     private fun deserializeGetField(proto: KonanIr.IrGetField, start: Int, end: Int): IrGetField {
@@ -1050,21 +1129,22 @@ internal class IrDeserializer(val context: Context,
 
     private fun deserializeGetValue(proto: KonanIr.IrGetValue, start: Int, end: Int): IrGetValue {
         val descriptor = deserializeDescriptor(proto.descriptor) as ValueDescriptor
+        val type = deserializeIrType(proto.type)
 
         // TODO: origin!
-        return IrGetValueImpl(start, end, descriptor.type.ir, createValueSymbol(descriptor), null)
+        return IrGetValueImpl(start, end, type, createValueSymbol(descriptor), null)
     }
 
     private fun deserializeGetEnumValue(proto: KonanIr.IrGetEnumValue, start: Int, end: Int): IrGetEnumValue {
-        val type = deserializeKotlinType(proto.type)
+        val type = deserializeIrType(proto.type)
         val descriptor = deserializeDescriptor(proto.descriptor) as ClassDescriptor
 
-        return IrGetEnumValueImpl(start, end, type.ir, IrEnumEntrySymbolImpl(descriptor))
+        return IrGetEnumValueImpl(start, end, type, IrEnumEntrySymbolImpl(descriptor))
     }
 
-    private fun deserializeGetObject(proto: KonanIr.IrGetObject, start: Int, end: Int, type: KotlinType): IrGetObjectValue {
+    private fun deserializeGetObject(proto: KonanIr.IrGetObject, start: Int, end: Int, type: IrType): IrGetObjectValue {
         val descriptor = deserializeDescriptor(proto.descriptor) as ClassDescriptor
-        return IrGetObjectValueImpl(start, end, type.ir, IrClassSymbolImpl(descriptor))
+        return IrGetObjectValueImpl(start, end, type, IrClassSymbolImpl(descriptor))
     }
 
     private fun deserializeInstanceInitializerCall(proto: KonanIr.IrInstanceInitializerCall, start: Int, end: Int): IrInstanceInitializerCall {
@@ -1073,7 +1153,7 @@ internal class IrDeserializer(val context: Context,
         return IrInstanceInitializerCallImpl(start, end, IrClassSymbolImpl(descriptor), context.irBuiltIns.unitType)
     }
 
-    private fun deserializeReturn(proto: KonanIr.IrReturn, start: Int, end: Int, type: KotlinType): IrReturn {
+    private fun deserializeReturn(proto: KonanIr.IrReturn, start: Int, end: Int, type: IrType): IrReturn {
         val descriptor = 
             deserializeDescriptor(proto.returnTarget) as FunctionDescriptor
         val value = deserializeExpression(proto.value)
@@ -1105,21 +1185,21 @@ internal class IrDeserializer(val context: Context,
         return IrSpreadElementImpl(proto.coordinates.startOffset, proto.coordinates.endOffset, expression)
     }
 
-    private fun deserializeStringConcat(proto: KonanIr.IrStringConcat, start: Int, end: Int, type: KotlinType): IrStringConcatenation {
+    private fun deserializeStringConcat(proto: KonanIr.IrStringConcat, start: Int, end: Int, type: IrType): IrStringConcatenation {
         val argumentProtos = proto.argumentList
         val arguments = mutableListOf<IrExpression>()
 
         argumentProtos.forEach {
             arguments.add(deserializeExpression(it))
         }
-        return IrStringConcatenationImpl(start, end, type.ir, arguments)
+        return IrStringConcatenationImpl(start, end, type, arguments)
     }
 
-    private fun deserializeThrow(proto: KonanIr.IrThrow, start: Int, end: Int, type: KotlinType): IrThrowImpl {
+    private fun deserializeThrow(proto: KonanIr.IrThrow, start: Int, end: Int, type: IrType): IrThrowImpl {
         return IrThrowImpl(start, end, context.irBuiltIns.nothingType, deserializeExpression(proto.value))
     }
 
-    private fun deserializeTry(proto: KonanIr.IrTry, start: Int, end: Int, type: KotlinType): IrTryImpl {
+    private fun deserializeTry(proto: KonanIr.IrTry, start: Int, end: Int, type: IrType): IrTryImpl {
         val result = deserializeExpression(proto.result)
         val catches = mutableListOf<IrCatch>()
         proto.catchList.forEach {
@@ -1127,7 +1207,7 @@ internal class IrDeserializer(val context: Context,
         }
         val finallyExpression = 
             if (proto.hasFinally()) deserializeExpression(proto.getFinally()) else null
-        return IrTryImpl(start, end, type.ir, result, catches, finallyExpression)
+        return IrTryImpl(start, end, type, result, catches, finallyExpression)
     }
 
     private fun deserializeTypeOperator(operator: KonanIr.IrTypeOperator): IrTypeOperator {
@@ -1150,24 +1230,24 @@ internal class IrDeserializer(val context: Context,
         }
     }
 
-    private fun deserializeTypeOp(proto: KonanIr.IrTypeOp, start: Int, end: Int, type: KotlinType) : IrTypeOperatorCall {
+    private fun deserializeTypeOp(proto: KonanIr.IrTypeOp, start: Int, end: Int, type: IrType) : IrTypeOperatorCall {
         val operator = deserializeTypeOperator(proto.operator)
-        val operand = deserializeKotlinType(proto.operand).brokenIr
+        val operand = deserializeIrType(proto.operand)//.brokenIr
         val argument = deserializeExpression(proto.argument)
-        return IrTypeOperatorCallImpl(start, end, type.ir, operator, operand).apply {
+        return IrTypeOperatorCallImpl(start, end, type, operator, operand).apply {
             this.argument = argument
             this.typeOperandClassifier = operand.classifierOrFail
         }
     }
 
-    private fun deserializeVararg(proto: KonanIr.IrVararg, start: Int, end: Int, type: KotlinType): IrVararg {
-        val elementType = deserializeKotlinType(proto.elementType)
+    private fun deserializeVararg(proto: KonanIr.IrVararg, start: Int, end: Int, type: IrType): IrVararg {
+        val elementType = deserializeIrType(proto.elementType)
 
         val elements = mutableListOf<IrVarargElement>()
         proto.elementList.forEach {
             elements.add(deserializeVarargElement(it))
         }
-        return IrVarargImpl(start, end, type.ir, elementType.ir, elements)
+        return IrVarargImpl(start, end, type, elementType, elements)
     }
 
     private fun deserializeVarargElement(element: KonanIr.IrVarargElement): IrVarargElement {
@@ -1181,7 +1261,7 @@ internal class IrDeserializer(val context: Context,
         }
     }
 
-    private fun deserializeWhen(proto: KonanIr.IrWhen, start: Int, end: Int, type: KotlinType): IrWhen {
+    private fun deserializeWhen(proto: KonanIr.IrWhen, start: Int, end: Int, type: IrType): IrWhen {
         val branches = mutableListOf<IrBranch>()
 
         proto.branchList.forEach {
@@ -1189,7 +1269,7 @@ internal class IrDeserializer(val context: Context,
         }
 
         // TODO: provide some origin!
-        return  IrWhenImpl(start, end, type.ir, null, branches)
+        return  IrWhenImpl(start, end, type, null, branches)
     }
 
     private fun deserializeLoop(proto: KonanIr.Loop, loop: IrLoopBase): IrLoopBase {
@@ -1207,68 +1287,68 @@ internal class IrDeserializer(val context: Context,
         return loop
     }
 
-    private fun deserializeDoWhile(proto: KonanIr.IrDoWhile, start: Int, end: Int, type: KotlinType): IrDoWhileLoop {
+    private fun deserializeDoWhile(proto: KonanIr.IrDoWhile, start: Int, end: Int, type: IrType): IrDoWhileLoop {
         // we create the loop before deserializing the body, so that 
         // IrBreak statements have something to put into 'loop' field.
-        val loop = IrDoWhileLoopImpl(start, end, type.ir, null)
+        val loop = IrDoWhileLoopImpl(start, end, type, null)
         deserializeLoop(proto.loop, loop)
         return loop
     }
 
-    private fun deserializeWhile(proto: KonanIr.IrWhile, start: Int, end: Int, type: KotlinType): IrWhileLoop {
+    private fun deserializeWhile(proto: KonanIr.IrWhile, start: Int, end: Int, type: IrType): IrWhileLoop {
         // we create the loop before deserializing the body, so that 
         // IrBreak statements have something to put into 'loop' field.
-        val loop = IrWhileLoopImpl(start, end, type.ir, null)
+        val loop = IrWhileLoopImpl(start, end, type, null)
         deserializeLoop(proto.loop, loop)
         return loop
     }
 
-    private fun deserializeBreak(proto: KonanIr.IrBreak, start: Int, end: Int, type: KotlinType): IrBreak {
+    private fun deserializeBreak(proto: KonanIr.IrBreak, start: Int, end: Int, type: IrType): IrBreak {
         val label = if(proto.hasLabel()) proto.label else null
         val loopId = proto.loopId
         val loop = loopIndex[loopId]!!
-        val irBreak = IrBreakImpl(start, end, type.ir, loop)
+        val irBreak = IrBreakImpl(start, end, type, loop)
         irBreak.label = label
 
         return irBreak
     }
 
-    private fun deserializeContinue(proto: KonanIr.IrContinue, start: Int, end: Int, type: KotlinType): IrContinue {
+    private fun deserializeContinue(proto: KonanIr.IrContinue, start: Int, end: Int, type: IrType): IrContinue {
         val label = if(proto.hasLabel()) proto.label else null
         val loopId = proto.loopId
         val loop = loopIndex[loopId]!!
-        val irContinue = IrContinueImpl(start, end, type.ir, loop)
+        val irContinue = IrContinueImpl(start, end, type, loop)
         irContinue.label = label
 
         return irContinue
     }
 
-    private fun deserializeConst(proto: KonanIr.IrConst, start: Int, end: Int, type: KotlinType): IrExpression =
+    private fun deserializeConst(proto: KonanIr.IrConst, start: Int, end: Int, type: IrType): IrExpression =
         when(proto.valueCase) {
             NULL
-                -> IrConstImpl.constNull(start, end, type.ir)
+                -> IrConstImpl.constNull(start, end, type)
             BOOLEAN
-                -> IrConstImpl.boolean(start, end, type.ir, proto.boolean)
+                -> IrConstImpl.boolean(start, end, type, proto.boolean)
             BYTE
-                -> IrConstImpl.byte(start, end, type.ir, proto.byte.toByte())
+                -> IrConstImpl.byte(start, end, type, proto.byte.toByte())
             SHORT
-                -> IrConstImpl.short(start, end, type.ir, proto.short.toShort())
+                -> IrConstImpl.short(start, end, type, proto.short.toShort())
             INT
-                -> IrConstImpl.int(start, end, type.ir, proto.int)
+                -> IrConstImpl.int(start, end, type, proto.int)
             LONG
-                -> IrConstImpl.long(start, end, type.ir, proto.long)
+                -> IrConstImpl.long(start, end, type, proto.long)
             STRING
-                -> IrConstImpl.string(start, end, type.ir, proto.string)
+                -> IrConstImpl.string(start, end, type, proto.string)
             FLOAT
-                -> IrConstImpl.float(start, end, type.ir, proto.float)
+                -> IrConstImpl.float(start, end, type, proto.float)
             DOUBLE
-                -> IrConstImpl.double(start, end, type.ir, proto.double)
+                -> IrConstImpl.double(start, end, type, proto.double)
             else -> {
                 TODO("Not all const types have been implemented")
             }
         }
 
-    private fun deserializeOperation(proto: KonanIr.IrOperation, start: Int, end: Int, type: KotlinType): IrExpression =
+    private fun deserializeOperation(proto: KonanIr.IrOperation, start: Int, end: Int, type: IrType): IrExpression =
         when (proto.operationCase) {
             BLOCK
                 -> deserializeBlock(proto.block, start, end, type)
@@ -1330,11 +1410,11 @@ internal class IrDeserializer(val context: Context,
     private fun deserializeExpression(proto: KonanIr.IrExpression): IrExpression {
         val start = proto.coordinates.startOffset
         val end = proto.coordinates.endOffset
-        val type = deserializeKotlinType(proto.type)
+        val type = deserializeIrType(proto.type)
         val operation = proto.operation
         val expression = deserializeOperation(operation, start, end, type)
 
-        context.log{"### Deserialized expression: ${ir2string(expression)}"}
+        context.log{"### Deserialized expression: ${ir2string(expression)} ir_type=$type"}
         return expression
     }
 
@@ -1496,6 +1576,10 @@ internal class IrDeserializer(val context: Context,
         val irProto = KonanIr.IrDeclaration.parseFrom(byteArray, KonanSerializerProtocol.extensionRegistry)
         val declaration = deserializeDeclaration(irProto)
 
-        return adaptDeserializedTypeParameters(declaration)
+        context.log {"BEFORE ADAPTATION: ${ir2stringWhole(declaration)}"}
+
+        //return adaptDeserializedTypeParameters(declaration)
+        return declaration
     }
 }
+*/

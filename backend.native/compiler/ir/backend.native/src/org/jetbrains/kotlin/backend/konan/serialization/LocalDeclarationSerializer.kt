@@ -42,7 +42,7 @@ import org.jetbrains.kotlin.types.KotlinType
  * provides type serialization facility for all the types in IR.
  * And class serialization is context specific.
  */
-
+/*
 internal class LocalDeclarationSerializer(val context: Context, val rootFunctionSerializer: KonanDescriptorSerializer) {
 
     private val contextStack = mutableListOf<KonanDescriptorSerializer>(rootFunctionSerializer)
@@ -125,6 +125,6 @@ internal class LocalDeclarationSerializer(val context: Context, val rootFunction
         return property
     }
 }
-
+*/
 val originalVariables = mutableMapOf<PropertyDescriptor, VariableDescriptor>()
 

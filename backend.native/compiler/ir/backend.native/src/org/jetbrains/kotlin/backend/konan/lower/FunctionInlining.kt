@@ -27,7 +27,7 @@ import org.jetbrains.kotlin.backend.konan.descriptors.isFunctionInvoke
 import org.jetbrains.kotlin.backend.konan.descriptors.needsInlining
 import org.jetbrains.kotlin.backend.konan.descriptors.propertyIfAccessor
 import org.jetbrains.kotlin.backend.konan.descriptors.resolveFakeOverride
-import org.jetbrains.kotlin.backend.konan.ir.DeserializerDriver
+//import org.jetbrains.kotlin.backend.konan.ir.DeserializerDriver
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
@@ -58,7 +58,7 @@ import org.jetbrains.kotlin.types.TypeSubstitutor
 
 internal class FunctionInlining(val context: Context): IrElementTransformerVoidWithContext() {
 
-    private val deserializer = DeserializerDriver(context)
+    //private val deserializer = DeserializerDriver(context)
     private val globalSubstituteMap = mutableMapOf<DeclarationDescriptor, SubstitutedDescriptor>()
 
     //-------------------------------------------------------------------------//
@@ -97,8 +97,8 @@ internal class FunctionInlining(val context: Context): IrElementTransformerVoidW
         val functionDescriptor = irCall.descriptor
         val originalDescriptor = functionDescriptor.resolveFakeOverride().original
         val functionDeclaration =
-            context.ir.originalModuleIndex.functions[originalDescriptor] ?:                 // If function is declared in the current module.
-                deserializer.deserializeInlineBody(originalDescriptor)                      // Function is declared in another module.
+            context.ir.originalModuleIndex.functions[originalDescriptor] // ?:                 // If function is declared in the current module.
+                //deserializer.deserializeInlineBody(originalDescriptor)                      // Function is declared in another module.
         return functionDeclaration as IrFunction?
     }
 
