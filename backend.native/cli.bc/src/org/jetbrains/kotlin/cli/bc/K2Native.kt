@@ -175,6 +175,12 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
                     } else {
                         arguments.checkDependencies
                     })
+
+                put(EMBED_BITCODE, when {
+                    arguments.embedBitcode -> EmbedBitcode.ON
+                    arguments.embedBitcodeMarker -> EmbedBitcode.MARKER
+                    else -> EmbedBitcode.OFF
+                })
             }
         }
     }

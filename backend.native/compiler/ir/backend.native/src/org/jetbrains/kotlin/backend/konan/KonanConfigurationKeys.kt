@@ -105,6 +105,12 @@ class KonanConfigKeys {
                 = CompilerConfigurationKey.create("verify ir")
         val VERBOSE_PHASES: CompilerConfigurationKey<List<String>> 
                 = CompilerConfigurationKey.create("verbose backend phases")
+        val EMBED_BITCODE: CompilerConfigurationKey<EmbedBitcode>
+                = CompilerConfigurationKey.create("embed_bitcode")
     }
+}
+
+enum class EmbedBitcode {
+    ON, OFF, MARKER
 }
 

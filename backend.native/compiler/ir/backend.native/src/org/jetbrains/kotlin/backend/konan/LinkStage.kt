@@ -16,6 +16,8 @@
 
 package org.jetbrains.kotlin.backend.konan
 
+import llvm.*
+import org.jetbrains.kotlin.backend.konan.llvm.parseBitcodeFile
 import org.jetbrains.kotlin.konan.KonanExternalToolFailure
 import org.jetbrains.kotlin.konan.exec.Command
 import org.jetbrains.kotlin.konan.file.File
@@ -177,6 +179,7 @@ internal class LinkStage(val context: Context) {
     private fun link(objectFiles: List<ObjectFile>,
                      includedBinaries: List<String>,
                      libraryProvidedLinkerFlags: List<String>): ExecutableFile? {
+
         val frameworkLinkerArgs: List<String>
         val executable: String
 
@@ -191,7 +194,13 @@ internal class LinkStage(val context: Context) {
                 KonanTarget.MACOS_X64 -> "Versions/A/$dylibName"
                 else -> error(target)
             }
-            frameworkLinkerArgs = listOf("-install_name", "@rpath/${framework.name}/$dylibRelativePath")
+            val args = mutableListOf("-install_name", "@rpath/${framework.name}/$dylibRelativePath")
+            when (context.shouldEmbedBitcode()) {
+                EmbedBitcode.ON,
+                EmbedBitcode.MARKER -> args += "-bitcode_bundle"
+                EmbedBitcode.OFF -> {}
+            }
+            frameworkLinkerArgs = args
             val dylibPath = framework.child(dylibRelativePath)
             dylibPath.parentFile.mkdirs()
             executable = dylibPath.absolutePath
