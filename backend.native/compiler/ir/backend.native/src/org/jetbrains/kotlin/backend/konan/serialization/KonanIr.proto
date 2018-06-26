@@ -415,9 +415,10 @@ enum IrTypeOperator {
     IMPLICIT_CAST = 2;
     IMPLICIT_NOTNULL = 3;
     IMPLICIT_COERCION_TO_UNIT = 4;
-    SAFE_CAST = 5;
-    INSTANCEOF = 6;
-    NOT_INSTANCEOF = 7;
+    IMPLICIT_INTEGER_COERCION = 5;
+    SAFE_CAST = 6;
+    INSTANCEOF = 7;
+    NOT_INSTANCEOF = 8;
 }
 
 message IrExpression {
@@ -567,11 +568,11 @@ message IrAnonymousInit {
 // TODO: we need an extension mechanism to accomodate new 
 // IR operators in upcoming releases.
 message IrDeclarator {
-    oneof symbol {
-        IrAnonymousInit anonymous_init = 7;
-        IrVariable variable = 1;
-        IrField field = 8;
-        IrFunction function = 2;
+    oneof declarator {
+        IrAnonymousInit ir_anonymous_init = 7;
+        IrVariable ir_variable = 1;
+        IrField ir_field = 8;
+        IrFunction ir_function = 2;
         IrClass ir_class = 3;
         IrEnumEntry ir_enum_entry = 4;
         IrProperty ir_property = 5;

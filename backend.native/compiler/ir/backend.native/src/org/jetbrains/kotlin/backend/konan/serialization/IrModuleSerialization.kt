@@ -60,6 +60,7 @@ import org.jetbrains.kotlin.ir.util.toKotlinType as utilToKotlinType
 import org.jetbrains.kotlin.metadata.*
 import org.jetbrains.kotlin.metadata.KonanIr
 import org.jetbrains.kotlin.metadata.KonanIr.IrConst.ValueCase.*
+import org.jetbrains.kotlin.metadata.KonanIr.IrDeclarator.DeclaratorCase.*
 import org.jetbrains.kotlin.metadata.KonanIr.IrOperation.OperationCase.*
 import org.jetbrains.kotlin.metadata.KonanIr.IrStatement.StatementCase
 import org.jetbrains.kotlin.metadata.KonanIr.IrType.KindCase.*
@@ -386,10 +387,7 @@ internal class IrModuleSerialization(val context: Context/*,
             IrConstKind.String      -> proto.string = value.value as String
             IrConstKind.Float       -> proto.float = value.value as Float
             IrConstKind.Double      -> proto.double = value.value as Double
-            else -> {
-                TODO("Const type serialization not implemented yet: ${ir2string(value)}")
-            }
-        }
+         }
         return proto.build()
     }
 
@@ -531,13 +529,14 @@ internal class IrModuleSerialization(val context: Context/*,
             -> KonanIr.IrTypeOperator.IMPLICIT_NOTNULL
         IrTypeOperator.IMPLICIT_COERCION_TO_UNIT
             -> KonanIr.IrTypeOperator.IMPLICIT_COERCION_TO_UNIT
+        IrTypeOperator.IMPLICIT_INTEGER_COERCION
+            -> KonanIr.IrTypeOperator.IMPLICIT_INTEGER_COERCION
         IrTypeOperator.SAFE_CAST
             -> KonanIr.IrTypeOperator.SAFE_CAST
         IrTypeOperator.INSTANCEOF
             -> KonanIr.IrTypeOperator.INSTANCEOF
         IrTypeOperator.NOT_INSTANCEOF
             -> KonanIr.IrTypeOperator.NOT_INSTANCEOF
-        else -> TODO("Unknown type operator")
     }
 
     private fun serializeTypeOp(expression: IrTypeOperatorCall): KonanIr.IrTypeOp {
@@ -928,15 +927,15 @@ internal class IrModuleSerialization(val context: Context/*,
             is IrTypeAlias
                -> declarator.irTypeAlias = serializeIrTypeAlias(declaration)
             is IrAnonymousInitializer
-                -> declarator.anonymousInit = serializeIrAnonymousInit(declaration)
+                -> declarator.irAnonymousInit = serializeIrAnonymousInit(declaration)
             is IrConstructor
                 -> declarator.irConstructor = serializeIrConstructor(declaration)
             is IrField
-                -> declarator.field = serializeIrField(declaration)
+                -> declarator.irField = serializeIrField(declaration)
             is IrSimpleFunction
-                -> declarator.function = serializeIrFunction(declaration)
+                -> declarator.irFunction = serializeIrFunction(declaration)
             is IrVariable 
-                -> declarator.variable = serializeIrVariable(declaration)
+                -> declarator.irVariable = serializeIrVariable(declaration)
             is IrClass
                 -> declarator.irClass = serializeIrClass(declaration)
             is IrEnumEntry
@@ -944,9 +943,7 @@ internal class IrModuleSerialization(val context: Context/*,
             is IrProperty
                 -> declarator.irProperty = serializeIrProperty(declaration)
             else
-                -> {
-                TODO("Declaration serialization not supported yet: $declaration")
-            }
+                -> TODO("Declaration serialization not supported yet: $declaration")
         }
 /*
         if (declaration !is IrVariable) {
@@ -1514,13 +1511,14 @@ internal class IrModuleDeserialization(val context: Context, val builtins: IrBui
                 -> return IrTypeOperator.IMPLICIT_NOTNULL
             KonanIr.IrTypeOperator.IMPLICIT_COERCION_TO_UNIT
                 -> return IrTypeOperator.IMPLICIT_COERCION_TO_UNIT
+            KonanIr.IrTypeOperator.IMPLICIT_INTEGER_COERCION
+                -> return IrTypeOperator.IMPLICIT_INTEGER_COERCION
             KonanIr.IrTypeOperator.SAFE_CAST
                 -> return IrTypeOperator.SAFE_CAST
             KonanIr.IrTypeOperator.INSTANCEOF
                 -> return IrTypeOperator.INSTANCEOF
             KonanIr.IrTypeOperator.NOT_INSTANCEOF
                 -> return IrTypeOperator.NOT_INSTANCEOF
-            else -> TODO("Unknown type operator")
         }
     }
 
@@ -1639,9 +1637,8 @@ internal class IrModuleDeserialization(val context: Context, val builtins: IrBui
                 -> IrConstImpl.float(start, end, type, proto.float)
             DOUBLE
                 -> IrConstImpl.double(start, end, type, proto.double)
-            else -> {
-                TODO("Not all const types have been implemented")
-            }
+            VALUE_NOT_SET
+                -> error("Const deserialization error: ${proto.valueCase} ")
         }
 
     private fun deserializeOperation(proto: KonanIr.IrOperation, start: Int, end: Int, type: IrType): IrExpression =
@@ -1702,9 +1699,8 @@ internal class IrModuleDeserialization(val context: Context, val builtins: IrBui
                 -> deserializeWhen(proto.`when`, start, end, type)
             WHILE
                 -> deserializeWhile(proto.`while`, start, end, type)
-            else -> {
-                TODO("Expression deserialization not implemented: ${proto.operationCase}")
-            }
+            OPERATION_NOT_SET
+                -> error("Expression deserialization not implemented: ${proto.operationCase}")
         }
 
     private fun deserializeExpression(proto: KonanIr.IrExpression): IrExpression {
@@ -1826,7 +1822,6 @@ internal class IrModuleDeserialization(val context: Context, val builtins: IrBui
         KonanIr.ModalityKind.SEALED_MODALITY -> Modality.SEALED
         KonanIr.ModalityKind.FINAL_MODALITY -> Modality.FINAL
         KonanIr.ModalityKind.ABSTRACT_MODALITY -> Modality.ABSTRACT
-        //else -> TODO("Unexpected modality: $modality")
     }
 
     private fun deserializeIrProperty(proto: KonanIr.IrProperty, start: Int, end: Int, origin: IrDeclarationOrigin): IrProperty {
@@ -1861,28 +1856,27 @@ internal class IrModuleDeserialization(val context: Context, val builtins: IrBui
         val origin = DEFINED // TODO: retore the real origins
         val declarator = proto.declarator
 
-        val declaration: IrDeclaration = when {
-            declarator.hasIrTypeAlias()
+        val declaration: IrDeclaration = when (declarator.declaratorCase){
+            IR_TYPE_ALIAS
                 -> deserializeIrTypeAlias(declarator.irTypeAlias, start, end, origin)
-            declarator.hasAnonymousInit()
-                -> deserializeIrAnonymousInit(declarator.anonymousInit, start, end, origin)
-            declarator.hasIrConstructor()
+            IR_ANONYMOUS_INIT
+                -> deserializeIrAnonymousInit(declarator.irAnonymousInit, start, end, origin)
+            IR_CONSTRUCTOR
                 -> deserializeIrConstructor(declarator.irConstructor, start, end, origin)
-            declarator.hasField()
-                -> deserializeIrField(declarator.field, start, end, origin)
-            declarator.hasIrClass()
+            IR_FIELD
+                -> deserializeIrField(declarator.irField, start, end, origin)
+            IR_CLASS
                 -> deserializeIrClass(declarator.irClass, start, end, origin)
-            declarator.hasFunction() 
-                -> deserializeIrFunction(declarator.function, start, end, origin)
-            declarator.hasIrProperty()
+            IR_FUNCTION
+                -> deserializeIrFunction(declarator.irFunction, start, end, origin)
+            IR_PROPERTY
                 -> deserializeIrProperty(declarator.irProperty, start, end, origin)
-            declarator.hasVariable()
-                -> deserializeIrVariable(declarator.variable, start, end, origin)
-            declarator.hasIrEnumEntry()
+            IR_VARIABLE
+                -> deserializeIrVariable(declarator.irVariable, start, end, origin)
+            IR_ENUM_ENTRY
                 -> deserializeIrEnumEntry(declarator.irEnumEntry, start, end, origin)
-            else -> {
-                TODO("Declaration deserialization not implemented: $declarator")
-            }
+            DECLARATOR_NOT_SET
+                -> error("Declaration deserialization not implemented: ${declarator.declaratorCase}")
         }
 
         val sourceFileName = proto.fileName
