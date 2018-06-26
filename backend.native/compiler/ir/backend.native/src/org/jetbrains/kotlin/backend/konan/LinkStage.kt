@@ -14,24 +14,28 @@ typealias BitcodeFile = String
 typealias ObjectFile = String
 typealias ExecutableFile = String
 
-internal class LinkStage(val context: Context, val phaser: PhaseManager) {
+// Legacy LLVM pipeline that should be removed when API-based pipeline
+// will be considered complete and absolutely stable.
+private class LegacyLlvmPipeline(val context: Context) {
 
     private val config = context.config.configuration
-    private val target = context.config.target
     private val platform = context.config.platform
-    private val linker = platform.linker
 
     private val optimize = context.shouldOptimize()
     private val debug = config.get(KonanConfigKeys.DEBUG) ?: false
-    private val linkerOutput = when (context.config.produce) {
-        CompilerOutputKind.DYNAMIC, CompilerOutputKind.FRAMEWORK -> LinkerOutputKind.DYNAMIC_LIBRARY
-        CompilerOutputKind.STATIC -> LinkerOutputKind.STATIC_LIBRARY
-        CompilerOutputKind.PROGRAM -> LinkerOutputKind.EXECUTABLE
-        else -> TODO("${context.config.produce} should not reach native linker stage")
+
+    internal fun compile(bitcodeFiles: List<BitcodeFile>, phaser: PhaseManager): List<ObjectFile> {
+        val objectFiles = mutableListOf<ObjectFile>()
+        phaser.phase(KonanPhase.LLVM_CODEGEN) {
+             objectFiles += when (platform.configurables) {
+                is WasmConfigurables -> bitcodeToWasm(bitcodeFiles)
+                is ZephyrConfigurables -> llvmLinkAndLlc(bitcodeFiles)
+                else -> llvmLto(bitcodeFiles)
+            }
+        }
+        return objectFiles
     }
-    private val nomain = config.get(KonanConfigKeys.NOMAIN) ?: false
-    private val emitted = context.bitcodeFileName
-    private val libraries = context.llvm.librariesToLink
+
     private fun MutableList<String>.addNonEmpty(elements: List<String>) {
         addAll(elements.filter { !it.isEmpty() })
     }
@@ -64,11 +68,6 @@ internal class LinkStage(val context: Context, val phaser: PhaseManager) {
     private fun temporary(name: String, suffix: String): String =
             context.config.tempFiles.create(name, suffix).absolutePath
 
-    private fun targetTool(tool: String, vararg arg: String) {
-        val absoluteToolName = "${platform.absoluteTargetToolchain}/bin/$tool"
-        runTool(absoluteToolName, *arg)
-    }
-
     private fun hostLlvmTool(tool: String, vararg arg: String) {
         val absoluteToolName = "${platform.absoluteLlvmHome}/bin/$tool"
         runTool(absoluteToolName, *arg)
@@ -94,9 +93,7 @@ internal class LinkStage(val context: Context, val phaser: PhaseManager) {
         } + llvmProfilingFlags()).toTypedArray()
         val combinedO = temporary("combined", ".o")
         hostLlvmTool("llc", optimizedBc, "-o", combinedO, *llcFlags, "-filetype=obj")
-        val linkedWasm = temporary("linked", ".wasm")
-        hostLlvmTool("wasm-ld", combinedO, "-o", linkedWasm, *configurables.lldFlags.toTypedArray())
-        return linkedWasm
+        return combinedO
     }
 
     private fun llvmLinkAndLlc(bitcodeFiles: List<BitcodeFile>): String {
@@ -126,6 +123,26 @@ internal class LinkStage(val context: Context, val phaser: PhaseManager) {
         }
         return flags
     }
+}
+
+
+internal class LinkStage(val context: Context, val phaser: PhaseManager) {
+
+    private val config = context.config.configuration
+    private val target = context.config.target
+    private val platform = context.config.platform
+    private val linker = platform.linker
+
+    private val optimize = context.shouldOptimize()
+    private val debug = config.get(KonanConfigKeys.DEBUG) ?: false
+    private val linkerOutput = when (context.config.produce) {
+        CompilerOutputKind.DYNAMIC, CompilerOutputKind.FRAMEWORK -> LinkerOutputKind.DYNAMIC_LIBRARY
+        CompilerOutputKind.STATIC -> LinkerOutputKind.STATIC_LIBRARY
+        CompilerOutputKind.PROGRAM -> LinkerOutputKind.EXECUTABLE
+        else -> TODO("${context.config.produce} should not reach native linker stage")
+    }
+    private val nomain = config.get(KonanConfigKeys.NOMAIN) ?: false
+    private val libraries = context.llvm.librariesToLink
 
     private fun asLinkerArgs(args: List<String>): List<String> {
         if (linker.useCompilerDriverAsLinker) {
@@ -197,8 +214,14 @@ internal class LinkStage(val context: Context, val phaser: PhaseManager) {
     }
 
     fun linkStage() {
-        val bitcodeFiles = listOf(emitted) +
-                libraries.map { it.bitcodePaths }.flatten()
+
+        val objectFiles = if (context.shouldUseNewBackend()) {
+            listOf(context.config.tempFiles.finalObjectFileName)
+        } else {
+            val bitcodeFiles = listOf(context.bitcodeFileName) +
+                    libraries.map { it.bitcodePaths }.flatten()
+            LegacyLlvmPipeline(context).compile(bitcodeFiles, phaser)
+        }
 
         val includedBinaries =
                 libraries.map { it.includedPaths }.flatten()
@@ -206,20 +229,6 @@ internal class LinkStage(val context: Context, val phaser: PhaseManager) {
         val libraryProvidedLinkerFlags =
                 libraries.map { it.linkerOpts }.flatten()
 
-        val objectFiles: MutableList<String> = mutableListOf()
-
-        phaser.phase(KonanPhase.OBJECT_FILES) {
-            objectFiles.add(
-                    when (platform.configurables) {
-                        is WasmConfigurables
-                        -> bitcodeToWasm(bitcodeFiles)
-                        is ZephyrConfigurables
-                        -> llvmLinkAndLlc(bitcodeFiles)
-                        else
-                        -> llvmLto(bitcodeFiles)
-                    }
-            )
-        }
         phaser.phase(KonanPhase.LINKER) {
             link(objectFiles, includedBinaries, libraryProvidedLinkerFlags)
         }

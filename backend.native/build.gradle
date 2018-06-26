@@ -71,11 +71,12 @@ task renamePackage(type: Copy) {
 kotlinNativeInterop {
     llvm {
         dependsOn ":llvmDebugInfoC:debugInfoStaticLibrary"
+        dependsOn ":libllvmext:llvmextStaticLibrary"
         defFile 'llvm.def'
         if (!project.parent.convention.plugins.platformInfo.isWindows())
             compilerOpts "-fPIC"
-        compilerOpts "-I$llvmDir/include", "-I${project(':llvmDebugInfoC').projectDir}/src/main/include"
-        linkerOpts "-L$llvmDir/lib", "-L${project(':llvmDebugInfoC').buildDir}/libs/debugInfo/static"
+        compilerOpts "-I$llvmDir/include", "-I${project(':llvmDebugInfoC').projectDir}/src/main/include", "-I${project(':libllvmext').projectDir}/src/main/include"
+        linkerOpts "-L$llvmDir/lib", "-L${project(':llvmDebugInfoC').buildDir}/libs/debugInfo/static", "-L${project(':libllvmext').buildDir}/libs/llvmext/static"
     }
 
     hash { // TODO: copy-pasted from ':common:compileHash'
@@ -167,7 +168,6 @@ targetList.each { target ->
     "-Dfile.encoding=UTF-8"]
 
     def defaultArgs = ['-nopack', '-nostdlib', '-nodefaultlibs', '-ea' ]
-    if (target != "wasm32") defaultArgs += '-g'
     def konanArgs = [*defaultArgs,
                      '-target', target,
                      "-Xruntime=${project(':runtime').file('build/' + target +'/runtime.bc')}",

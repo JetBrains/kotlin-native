@@ -83,7 +83,7 @@ fun runTopLevelPhases(konanConfig: KonanConfig, environment: KotlinCoreEnvironme
     phaser.phase(KonanPhase.SERIALIZER) {
         val serializer = KonanSerializationUtil(context, context.config.configuration.get(CommonConfigurationKeys.METADATA_VERSION)!!)
         context.serializedLinkData =
-            serializer.serializeModule(context.moduleDescriptor)
+                serializer.serializeModule(context.moduleDescriptor)
     }
     phaser.phase(KonanPhase.BACKEND) {
         phaser.phase(KonanPhase.LOWER) {
@@ -93,16 +93,13 @@ fun runTopLevelPhases(konanConfig: KonanConfig, environment: KotlinCoreEnvironme
         }
         phaser.phase(KonanPhase.BITCODE) {
             emitLLVM(context, phaser)
+            if (context.shouldPrintBitCode()) {
+                context.printBitCode()
+            }
             produceOutput(context, phaser)
         }
-        // We always verify bitcode to prevent hard to debug bugs.
-        context.verifyBitCode()
 
-        if (context.shouldPrintBitCode()) {
-            context.printBitCode()
-        }
     }
-
     phaser.phase(KonanPhase.LINK_STAGE) {
         LinkStage(context, phaser).linkStage()
     }

@@ -25,13 +25,15 @@ import org.jetbrains.kotlin.konan.file.*
 class TempFiles(outputPath: String, pathToTemporaryDir: String? = null) {
     private val outputName = File(outputPath).name
 
-    val nativeBinaryFile    by lazy { File(dir,"${outputName}.kt.bc") }
+    val nativeBinaryFile    by lazy { File(dir, "$outputName.kt.bc") }
     val cAdapterCpp         by lazy { File(dir, "api.cpp") }
     val cAdapterBitcode     by lazy { File(dir, "api.bc") }
+    val finalObjectFile     by lazy { File(dir, "$outputName.o")}
 
     val nativeBinaryFileName    get() = nativeBinaryFile.absolutePath
     val cAdapterCppName         get() = cAdapterCpp.absolutePath
     val cAdapterBitcodeName     get() = cAdapterBitcode.absolutePath
+    val finalObjectFileName     get() = finalObjectFile.absolutePath
 
     private val dir by lazy { if (pathToTemporaryDir == null || pathToTemporaryDir.isEmpty()) {
             createTempDir("konan_temp").deleteOnExit()

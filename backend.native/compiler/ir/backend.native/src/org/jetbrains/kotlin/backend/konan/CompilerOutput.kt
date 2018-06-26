@@ -4,9 +4,10 @@
  */
 package org.jetbrains.kotlin.backend.konan
 
-import llvm.LLVMLinkModules2
 import llvm.LLVMWriteBitcodeToFile
 import org.jetbrains.kotlin.backend.konan.library.impl.buildLibrary
+import org.jetbrains.kotlin.backend.konan.llvm.codegen.linkBitcode
+import org.jetbrains.kotlin.backend.konan.llvm.codegen.compileWithFatLto
 import org.jetbrains.kotlin.backend.konan.llvm.parseBitcodeFile
 import org.jetbrains.kotlin.konan.KonanAbiVersion
 import org.jetbrains.kotlin.konan.KonanVersion
@@ -27,6 +28,7 @@ internal fun produceOutput(context: Context, phaser: PhaseManager) {
     val produce = config.get(KonanConfigKeys.PRODUCE)
 
     when (produce) {
+
         CompilerOutputKind.STATIC,
         CompilerOutputKind.DYNAMIC,
         CompilerOutputKind.FRAMEWORK,
@@ -48,17 +50,14 @@ internal fun produceOutput(context: Context, phaser: PhaseManager) {
                 context.config.defaultNativeLibraries + 
                 generatedBitcodeFiles
 
-            phaser.phase(KonanPhase.BITCODE_LINKER) {
-                for (library in nativeLibraries) {
-                    val libraryModule = parseBitcodeFile(library)
-                    val failed = LLVMLinkModules2(llvmModule, libraryModule)
-                    if (failed != 0) {
-                        throw Error("failed to link $library") // TODO: retrieve error message from LLVM.
-                    }
+            if (context.shouldUseNewBackend()) {
+                compileWithFatLto(context, phaser, nativeLibraries)
+            } else {
+                phaser.phase(KonanPhase.BITCODE_LINKER) {
+                    linkBitcode(llvmModule, (nativeLibraries).map { parseBitcodeFile(it) })
                 }
+                LLVMWriteBitcodeToFile(llvmModule, output)
             }
-
-            LLVMWriteBitcodeToFile(llvmModule, output)
         }
         CompilerOutputKind.LIBRARY -> {
             val output = context.config.outputFiles.outputName

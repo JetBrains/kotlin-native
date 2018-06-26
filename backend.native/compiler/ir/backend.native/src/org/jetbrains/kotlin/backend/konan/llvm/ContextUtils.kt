@@ -275,14 +275,14 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
     }
 
     private fun copyFunctionAttributes(source: LLVMValueRef, destination: LLVMValueRef) {
-        // TODO: consider parameter attributes
-        val attributeIndex = LLVMAttributeFunctionIndex
-        val count = LLVMGetAttributeCountAtIndex(source, attributeIndex)
-        memScoped {
-            val attributes = allocArray<LLVMAttributeRefVar>(count)
-            LLVMGetAttributesAtIndex(source, attributeIndex, attributes)
-            (0 until count).forEach {
-                LLVMAddAttributeAtIndex(destination, attributeIndex, attributes[it])
+        for (attributeIndex in LLVMAttributeFunctionIndex..LLVMCountParams(source)) {
+            val count = LLVMGetAttributeCountAtIndex(source, attributeIndex)
+            memScoped {
+                val attributes = allocArray<LLVMAttributeRefVar>(count)
+                LLVMGetAttributesAtIndex(source, attributeIndex, attributes)
+                (0 until count).forEach {
+                    LLVMAddAttributeAtIndex(destination, attributeIndex, attributes[it])
+                }
             }
         }
     }

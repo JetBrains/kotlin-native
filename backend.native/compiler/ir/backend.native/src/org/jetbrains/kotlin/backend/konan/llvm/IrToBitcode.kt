@@ -158,25 +158,27 @@ internal fun emitLLVM(context: Context, phaser: PhaseManager) {
         DFGSerializer.serialize(context, moduleDFG!!)
     }
 
-    phaser.phase(KonanPhase.CODEGEN) {
+    phaser.phase(KonanPhase.BITCODE_GENERATION) {
         irModule.acceptVoid(codegenVisitor)
     }
 
     if (context.shouldContainDebugInfo()) {
         DIFinalize(context.debugInfo.builder)
     }
+    // We always verify bitcode to prevent hard to debug bugs.
+    context.verifyBitCode()
 }
 
-internal fun verifyModule(llvmModule: LLVMModuleRef, current: String = "") {
+internal fun verifyModule(llvmModule: LLVMModuleRef, context: Context, current: String = "") {
     memScoped {
         val errorRef = allocPointerTo<ByteVar>()
-        // TODO: use LLVMDisposeMessage() on errorRef, once possible in interop.
-        if (LLVMVerifyModule(
-                llvmModule, LLVMVerifierFailureAction.LLVMPrintMessageAction, errorRef.ptr) == 1) {
+        val action = LLVMVerifierFailureAction.LLVMPrintMessageAction
+        if (LLVMVerifyModule(llvmModule, action, errorRef.ptr) == 1) {
             if (current.isNotEmpty())
                 println("Error in $current")
-            LLVMDumpModule(llvmModule)
-            throw Error("Invalid module")
+            LLVMDisposeMessage(errorRef.value)
+            LLVMWriteBitcodeToFile(llvmModule, context.config.tempFiles.create("error_dump", ".bc").path)
+            context.reportCompilationError("Invalid module")
         }
     }
 }
@@ -747,7 +749,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         }
 
         if (context.shouldVerifyBitCode())
-            verifyModule(context.llvmModule!!,
+            verifyModule(context.llvmModule!!, context,
                 "${declaration.descriptor.containingDeclaration}::${ir2string(declaration)}")
     }
 

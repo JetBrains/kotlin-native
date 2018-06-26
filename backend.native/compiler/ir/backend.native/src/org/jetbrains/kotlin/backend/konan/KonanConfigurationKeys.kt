@@ -98,6 +98,10 @@ class KonanConfigKeys {
                 = CompilerConfigurationKey.create("verify ir")
         val VERBOSE_PHASES: CompilerConfigurationKey<List<String>> 
                 = CompilerConfigurationKey.create("verbose backend phases")
+
+        // TODO: remove
+        val LEGACY_BACKEND
+                = CompilerConfigurationKey.create<Boolean>("use legacy llvm backend")
     }
 }
 

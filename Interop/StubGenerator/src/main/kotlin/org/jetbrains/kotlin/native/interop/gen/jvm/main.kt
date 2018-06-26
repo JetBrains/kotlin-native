@@ -61,6 +61,7 @@ private fun List<String>?.isTrue(): Boolean {
 }
 
 private fun runCmd(command: Array<String>, verbose: Boolean = false) {
+    if (verbose) println(command.joinToString(" "))
     Command(*command).getOutputLines(true).let { lines ->
         if (verbose) lines.forEach(::println)
     }

@@ -56,10 +56,10 @@ enum class KonanPhase(val description: String,
     /* ... ... */ DEVIRTUALIZATION("Devirtualization", BUILD_DFG, DESERIALIZE_DFG),
     /* ... ... */ ESCAPE_ANALYSIS("Escape analysis", BUILD_DFG, DESERIALIZE_DFG, enabled = false), // TODO: Requires devirtualization.
     /* ... ... */ SERIALIZE_DFG("Data flow graph serializing", BUILD_DFG), // TODO: Requires escape analysis.
-    /* ... ... */ CODEGEN("Code Generation"),
+    /* ... ... */ BITCODE_GENERATION("Bitcode generation"),
     /* ... ... */ BITCODE_LINKER("Bitcode linking"),
+    /* ... ... */ LLVM_CODEGEN("LLVM Codegen"),
     /* */ LINK_STAGE("Link stage"),
-    /* ... */ OBJECT_FILES("Bitcode to object file"),
     /* ... */ LINKER("Linker");
 
     val prerequisite = prerequisite.toSet()

@@ -38,8 +38,11 @@ import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
+import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.builtins.konan.KonanBuiltIns
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
+import org.jetbrains.kotlin.konan.target.HostManager
+import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.metadata.konan.KonanProtoBuf
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
@@ -456,7 +459,7 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
 
     fun verifyBitCode() {
         if (llvmModule == null) return
-        verifyModule(llvmModule!!)
+        verifyModule(llvmModule!!, this)
     }
 
     fun printBitCode() {
@@ -500,11 +503,20 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
 
     fun shouldOptimize() = config.configuration.getBoolean(KonanConfigKeys.OPTIMIZATION)
 
+    fun shouldUseNewBackend(): Boolean {
+        if (config.configuration.getBoolean(KonanConfigKeys.LEGACY_BACKEND)) {
+            return false
+        }
+        // Disable wasm target for now because it needs additional work.
+        val canCompileWasm = HostManager.hostIsMac
+        return canCompileWasm
+    }
+
     fun shouldGenerateTestRunner() =
             config.configuration.getBoolean(KonanConfigKeys.GENERATE_TEST_RUNNER)
 
     override fun log(message: () -> String) {
-        if (phase?.verbose ?: false) {
+        if (phase?.verbose == true) {
             println(message())
         }
     }

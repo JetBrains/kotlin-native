@@ -145,6 +145,9 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     )
     var friendModules: String? = null
 
+    @Argument(value = "--legacy-backend", description = "Use legacy LLVM backend")
+    var legacyBackend: Boolean = false
+
     override fun configureAnalysisFlags(collector: MessageCollector): MutableMap<AnalysisFlag<*>, Any> =
             super.configureAnalysisFlags(collector).also {
                 val useExperimental = it[AnalysisFlag.useExperimental] as List<*>

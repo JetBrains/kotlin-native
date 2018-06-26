@@ -319,34 +319,38 @@ open class WasmLinker(targetProperties: WasmConfigurables)
         if (kind != LinkerOutputKind.EXECUTABLE) throw Error("Unsupported linker output kind")
 
         // TODO(horsh): maybe rethink it.
-        return listOf(object : Command() {
+        val javaScriptLinkCommand = object : Command() {
             override fun execute() {
-                val src = File(objectFiles.single())
-                val dst = File(executable)
-                src.recursiveCopyTo(dst)
                 javaScriptLink(libraries, executable)
             }
+        }
+        val wasmLinkCommand = Command("$llvmBin/wasm-ld").apply {
+            +objectFiles
+            +listOf("-o", executable)
+            +lldFlags
+        }
+        return listOf(wasmLinkCommand, javaScriptLinkCommand)
+    }
 
-            private fun javaScriptLink(jsFiles: List<String>, executable: String): String {
-                val linkedJavaScript = File("$executable.js")
 
-                val linkerHeader = "var konan = { libraries: [] };\n"
-                val linkerFooter = """|if (isBrowser()) {
+    private fun javaScriptLink(jsFiles: List<String>, executable: String): String {
+        val linkedJavaScript = File("$executable.js")
+
+        val linkerHeader = "var konan = { libraries: [] };\n"
+        val linkerFooter = """|if (isBrowser()) {
                                       |   konan.moduleEntry([]);
                                       |} else {
                                       |   konan.moduleEntry(arguments);
                                       |}""".trimMargin()
 
-                linkedJavaScript.writeText(linkerHeader)
+        linkedJavaScript.writeText(linkerHeader)
 
-                jsFiles.forEach {
-                    linkedJavaScript.appendBytes(File(it).readBytes())
-                }
+        jsFiles.forEach {
+            linkedJavaScript.appendBytes(File(it).readBytes())
+        }
 
-                linkedJavaScript.appendBytes(linkerFooter.toByteArray())
-                return linkedJavaScript.name
-            }
-        })
+        linkedJavaScript.appendBytes(linkerFooter.toByteArray())
+        return linkedJavaScript.name
     }
 }
 
