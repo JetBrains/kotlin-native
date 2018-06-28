@@ -17,7 +17,7 @@
 package org.jetbrains.kotlin.serialization
 
 import org.jetbrains.kotlin.backend.common.onlyIf
-import org.jetbrains.kotlin.backend.konan.descriptors.needsSerializedIr
+//import org.jetbrains.kotlin.backend.konan.descriptors.needsSerializedIr
 //import org.jetbrains.kotlin.backend.konan.serialization.IrAwareExtension
 import org.jetbrains.kotlin.backend.konan.serialization.KonanStringTable
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns

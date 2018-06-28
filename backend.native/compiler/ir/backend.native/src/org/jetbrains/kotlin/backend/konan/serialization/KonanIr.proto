@@ -121,12 +121,12 @@ enum IrSymbolKind {
     CLASS_SYMBOL = 7;
     TYPE_PARAMETER_SYMBOL = 8;
     VARIABLE_SYMBOL = 9;
-
+    ANONYMOUS_INIT_SYMBOL = 10;
 }
 
 message IrSymbol {
     required IrSymbolKind kind = 1;
-    //required UniqId owner = 2;
+    required UniqId uniq_id = 2;
 }
 
 /* ------ IrTypes --------------------------------------------- */
@@ -137,9 +137,13 @@ enum IrTypeVariance { // Should we import metadata variance, or better stay sepa
     INV = 2;
 }
 
+message Annotations {
+    repeated IrCall annotation = 2;
+}
+
 message IrTypeBase {
     optional KotlinType kotlin_type = 1;
-    repeated IrCall annotation = 2;
+    required Annotations annotations = 2;
     required IrTypeVariance variance = 3 [default = INV];
 }
 
@@ -215,7 +219,7 @@ message IrCall {
 }
 
 message IrFunctionReference {
-    //required IrSymbol symbol = 1;
+    required IrSymbol symbol = 1;
     required TypeArguments type_arguments = 2;
     optional string origin = 3;
 }
@@ -223,7 +227,7 @@ message IrFunctionReference {
 
 message IrPropertyReference {
     //required IrSymbol symbol = 1;
-
+    //required UniqId descriptor = 1;
     required TypeArguments type_arguments = 2;
     optional IrSymbol field = 3;
     optional IrSymbol getter = 4;
@@ -270,7 +274,7 @@ message IrDoWhile {
 }
 
 message IrEnumConstructorCall {
-    //required IrSymbol symbol = 1;
+    required IrSymbol symbol = 1;
     required MemberAccessCommon member_access = 2;
 }
 
@@ -439,7 +443,7 @@ message IrTypeAlias {
 }
 
 message IrFunction {
-    //required UniqId uniq_id = 1;
+    required IrSymbol symbol = 1;
     required IrFunctionBase base = 2;
     required ModalityKind modality = 3;
     required bool is_tailrec = 4;
@@ -463,21 +467,24 @@ message IrFunctionBase {
 }
 
 message IrConstructor {
+    required IrSymbol symbol = 3;
     required IrFunctionBase base = 1;
     required bool is_primary = 2;
 
 }
 
 message IrField {
+    required IrSymbol symbol = 7;
     optional IrExpression initializer = 1;
     required string name = 2;
     required string visibility = 3;
     required bool is_final = 4;
     required bool is_external = 5;
     required IrType type = 6;
-}
+    }
 
 message IrProperty {
+    //required UniqId property_descriptor = 1; // IrProperty doesn't have a symbol at all. Preserve this rudiment for now.
     required string name = 10;
     required string visibility = 11;
     required ModalityKind modality = 12;
@@ -493,6 +500,7 @@ message IrProperty {
 
 message IrVariable {
     required string name = 1;
+    required IrSymbol symbol = 7;
     required IrType type = 2;
     required bool is_var = 3;
     required bool is_const = 4;
@@ -517,6 +525,7 @@ enum ModalityKind { // It is ModalityKind to not clash with Modality in descript
 }
 
 message IrValueParameter {
+    required IrSymbol symbol = 1;
     required string name = 2;
     required int32 index = 3;
     required IrType type = 4;
@@ -527,7 +536,7 @@ message IrValueParameter {
 }
 
 message IrTypeParameter {
-    //required IrSymbol symbol = 1;
+    required IrSymbol symbol = 1;
     required string name = 2;
     required int32 index = 3;
     required IrTypeVariance variance = 4;
@@ -539,7 +548,7 @@ message IrTypeParameterContainer {
 }
 
 message IrClass {
-    //required IrSymbol symbol = 1;
+    required IrSymbol symbol = 1;
     required string name = 2;
     required ClassKind kind = 3;
     required string visibility = 4;
@@ -556,12 +565,14 @@ message IrClass {
 }
 
 message IrEnumEntry {
+    required IrSymbol symbol = 4;
     required IrExpression initializer = 1;
     optional IrDeclaration corresponding_class = 2;
     required string name = 3;
 }
 
 message IrAnonymousInit {
+    required IrSymbol symbol = 2;
     required IrStatement body = 1;
 }
 
@@ -585,6 +596,7 @@ message IrDeclaration {
     //required KotlinDescriptor descriptor = 1;
     //required UniqId uniqId = 1;
     required Coordinates coordinates = 2;
+    required Annotations annotations = 6;
     required IrDeclarator declarator = 3;
     repeated IrDeclaration nested = 4;
     required string file_name = 5;

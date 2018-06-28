@@ -26,7 +26,7 @@ import org.jetbrains.kotlin.types.KotlinType
 internal class KonanSerializerExtension(val context: Context) :
         KotlinSerializerExtensionBase(KonanSerializerProtocol)/*, IrAwareExtension */ {
 
-    val inlineDescriptorTable = DescriptorTable(context.irBuiltIns)
+    //val inlineDescriptorTable = DescriptorTable(context.irBuiltIns)
     override val stringTable = KonanStringTable()
     override fun shouldUseTypeTable(): Boolean = true
 

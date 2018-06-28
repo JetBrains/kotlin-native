@@ -21,10 +21,7 @@ import org.jetbrains.kotlin.backend.common.validateIrModule
 import org.jetbrains.kotlin.backend.konan.ir.KonanSymbols
 import org.jetbrains.kotlin.backend.konan.ir.ModuleIndex
 import org.jetbrains.kotlin.backend.konan.llvm.emitLLVM
-import org.jetbrains.kotlin.backend.konan.serialization.IrModuleDeserialization
-import org.jetbrains.kotlin.backend.konan.serialization.IrModuleSerialization
-import org.jetbrains.kotlin.backend.konan.serialization.KonanSerializationUtil
-import org.jetbrains.kotlin.backend.konan.serialization.markBackingFields
+import org.jetbrains.kotlin.backend.konan.serialization.*
 import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.config.kotlinSourceRoots
@@ -79,8 +76,9 @@ fun runTopLevelPhases(konanConfig: KonanConfig, environment: KotlinCoreEnvironme
 
         val module = translator.generateModuleFragment(generatorContext, environment.getSourceFiles())
 
-        val byteArray = IrModuleSerialization(context).serializedModule(module)
-        val module2 = IrModuleDeserialization(context, module.irBuiltins, symbols.symbolTable).deserializedIrModule(byteArray)
+        val declarationTable = DeclarationTable(module.irBuiltins)
+        val byteArray = IrModuleSerialization(context, declarationTable).serializedModule(module)
+        val module2 = IrModuleDeserialization(context, declarationTable, module.irBuiltins, symbols.symbolTable).deserializedIrModule(byteArray)
 
         println("ORIGINAL IR")
         println(ir2stringWhole(module))

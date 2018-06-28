@@ -153,8 +153,8 @@ internal class KonanSerializationUtil(val context: Context) {
         val previousSerializer = classSerializer
 
         // TODO: this is to filter out object{}. Change me.
-        if (classDescriptor.isExported()) 
-            classSerializer = KonanDescriptorSerializer.create(classDescriptor, serializerExtension)
+       // if (classDescriptor.isExported())
+        //    classSerializer = KonanDescriptorSerializer.create(classDescriptor, serializerExtension)
 
         val classProto = classSerializer.classProto(classDescriptor).build()
             ?: error("Class not serialized: $classDescriptor")
