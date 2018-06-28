@@ -1030,6 +1030,7 @@ class PatternTest {
     @Test fun testRangesWithSurrogatesSupplementary() {
         var patString = "[abc\uD8D2]"
         var testString = "\uD8D2"
+
         var regex = Regex(patString)
         assertTrue(regex.matches(testString))
 
@@ -1111,40 +1112,51 @@ class PatternTest {
         var patString = "[123\\D]"
         var testString = "a"
         var regex = Regex(patString)
+        println(0)
         assertTrue(regex.containsMatchIn(testString))
 
         testString = "5"
+        println(1)
         assertFalse(regex.containsMatchIn(testString))
 
         testString = "3"
+        println(2)
         assertTrue(regex.containsMatchIn(testString))
 
         // low surrogate
         testString = "\uDFC4"
+        println(3)
         assertTrue(regex.containsMatchIn(testString))
 
         // high surrogate
         testString = "\uDADA"
+        println(4)
         assertTrue(regex.containsMatchIn(testString))
 
         testString = "\uDADA\uDFC4"
+        println(5)
         assertTrue(regex.containsMatchIn(testString))
 
         testString = "5"
+        println(6)
         assertFalse(regex.containsMatchIn(testString))
 
         testString = "3"
+        println(7)
         assertTrue(regex.containsMatchIn(testString))
 
         // low surrogate
         testString = "\uDFC4"
+        println(8)
         assertTrue(regex.containsMatchIn(testString))
 
         // high surrogate
         testString = "\uDADA"
+        println(9)
         assertTrue(regex.containsMatchIn(testString))
 
         testString = "\uDADA\uDFC4"
+        println(10)
         assertTrue(regex.containsMatchIn(testString))
 
         // surrogate characters
@@ -1158,23 +1170,28 @@ class PatternTest {
      * consisting of two code units (two surrogate characters) so we find
      * nothing
      */
+        println(11)
         assertFalse(regex.containsMatchIn(testString))
 
         // swap low and high surrogates
         testString = "\uDE27\uD916"
+        println(12)
         assertTrue(regex.containsMatchIn(testString))
 
         patString = "[\uD916\uDE271\uD91623&&[^\\p{Cs}]]"
         testString = "1"
         regex = Regex(patString)
+        println(13)
         assertTrue(regex.containsMatchIn(testString))
 
         testString = "\uD916"
         regex = Regex(patString)
+        println(14)
         assertFalse(regex.containsMatchIn(testString))
 
         testString = "\uD916\uDE27"
         regex = Regex(patString)
+        println(15)
         assertTrue(regex.containsMatchIn(testString))
 
         // \uD9A0\uDE8E=\u7828E
@@ -1182,6 +1199,7 @@ class PatternTest {
         patString = "[a-\uD9A0\uDE8E]"
         testString = "\uD9A0\uDE81"
         regex = Regex(patString)
+        println(16)
         assertTrue(regex.matches(testString))
     }
 

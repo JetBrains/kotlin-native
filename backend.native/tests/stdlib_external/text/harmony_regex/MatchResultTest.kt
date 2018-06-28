@@ -443,6 +443,7 @@ class MatchResultTest {
 
         for (i in s.indices) {
             val regex = Regex(regexp)
+            println("ch="+s[i])
             assertTrue(regex.containsMatchIn(s[i]))
         }
     }

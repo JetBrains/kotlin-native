@@ -95,42 +95,53 @@ internal abstract class AbstractCharClass : SpecialToken() {
     open val instance: AbstractCharClass
         get() = this
 
+
+    private val surrogates_ = konan.worker.AtomicReference<AbstractCharClass>()
     val surrogates: AbstractCharClass
-        get() = object : AbstractCharClass() {
-        init {
-            this.setNegative(this@AbstractCharClass.isNegative())
-            this.mayContainSupplCodepoints = this@AbstractCharClass.mayContainSupplCodepoints
-        }
-
-        override fun contains(ch: Int): Boolean {
-            val index = ch - Char.MIN_SURROGATE.toInt()
-
-            val containslHS = if (index >= 0 && index < AbstractCharClass.SURROGATE_CARDINALITY)
-                this.altSurrogates xor this@AbstractCharClass.lowHighSurrogates.get(index)
-            else
-                false
-
-            return this@AbstractCharClass.contains(ch) && !containslHS
-        }
-    }
-
-    val withoutSurrogates: AbstractCharClass
-        get() = object : AbstractCharClass() {
-            init {
-                this.setNegative(this@AbstractCharClass.isNegative())
-                this.mayContainSupplCodepoints = this@AbstractCharClass.mayContainSupplCodepoints
+        get() {
+            surrogates_.get()?.let {
+                return it
             }
-            override fun contains(ch: Int): Boolean {
-                val index = ch - Char.MIN_SURROGATE.toInt()
+            val result = object : AbstractCharClass() {
+                override fun contains(ch: Int): Boolean {
+                    val index = ch - Char.MIN_SURROGATE.toInt()
 
-                val containslHS = if (index >= 0 && index < AbstractCharClass.SURROGATE_CARDINALITY)
-                    this.altSurrogates xor this@AbstractCharClass.lowHighSurrogates.get(index)
-                else
-                    false
+                    return if (index >= 0 && index < AbstractCharClass.SURROGATE_CARDINALITY)
+                        this.altSurrogates xor this@AbstractCharClass.lowHighSurrogates.get(index)
+                    else
+                        false
+                }
+            }
+            result.setNegative(this.altSurrogates)
+            surrogates_.compareAndSwap(null, result.freeze())
+            return surrogates_.get()!!
+        }
 
-                return this@AbstractCharClass.contains(ch) && !containslHS
-       }
-    }
+
+    private val withoutSurrogates_ = konan.worker.AtomicReference<AbstractCharClass>()
+    val withoutSurrogates: AbstractCharClass
+        get() {
+            withoutSurrogates_.get()?.let {
+                return it
+            }
+            val result = object : AbstractCharClass() {
+                override fun contains(ch: Int): Boolean {
+                    val index = ch - Char.MIN_SURROGATE.toInt()
+
+                    val containslHS = if (index >= 0 && index < AbstractCharClass.SURROGATE_CARDINALITY)
+                        this.altSurrogates xor this@AbstractCharClass.lowHighSurrogates.get(index)
+                    else
+                        false
+
+                    return this@AbstractCharClass.contains(ch) && !containslHS
+                }
+            }
+            result.setNegative(isNegative())
+            result.mayContainSupplCodepoints = mayContainSupplCodepoints
+            withoutSurrogates_ .compareAndSwap(null, result.freeze())
+            return withoutSurrogates_.get()!!
+        }
+
 
     /**
      * Sets this CharClass to negative form, i.e. if they will add some characters and after that set this
@@ -242,10 +253,11 @@ internal abstract class AbstractCharClass : SpecialToken() {
         override fun computeValue(): AbstractCharClass = CharClass().add('0', '9').add('a', 'f').add('A', 'F')
     }
 
-    internal class CachedRange(val start: Int, val end: Int) : CachedCharClass() {
+    internal class CachedRange(var start: Int, var end: Int) : CachedCharClass() {
         override fun computeValue(): AbstractCharClass =
-            object: AbstractCharClass() {
-                init {
+                object: AbstractCharClass() {
+                    override fun contains(ch: Int): Boolean = alt xor (ch in start..end)
+                }.apply {
                     if (end >= Char.MIN_SUPPLEMENTARY_CODE_POINT) {
                         mayContainSupplCodepoints = true
                     }
@@ -258,8 +270,6 @@ internal abstract class AbstractCharClass : SpecialToken() {
                         lowHighSurrogates.set(surrogatesStart..surrogatesEnd)
                     }
                 }
-                override fun contains(ch: Int): Boolean = alt xor (ch in start..end)
-            }
     }
 
     internal class CachedSpecialsBlock : CachedCharClass() {
@@ -308,7 +318,7 @@ internal abstract class AbstractCharClass : SpecialToken() {
         enum class CharClasses(val regexName : String, val factory: () -> CachedCharClass) {
             LOWER("Lower", ::CachedLower),
             UPPER("Upper", ::CachedUpper),
-            ACSII("ASCII", ::CachedASCII),
+            ASCII("ASCII", ::CachedASCII),
             ALPHA("Alpha", ::CachedAlpha),
             DIGIT("Digit", ::CachedDigit),
             ALNUM("Alnum", :: CachedAlnum),
@@ -396,7 +406,11 @@ internal abstract class AbstractCharClass : SpecialToken() {
             GEOMETRICSHAPES("GeometricShapes", { CachedRange(0x25A0, 0x25FF) }),
             MISCELLANEOUSSYMBOLS("MiscellaneousSymbols", { CachedRange(0x2600, 0x26FF) }),
             DINGBATS("Dingbats", { CachedRange(0x2700, 0x27BF) }),
+            MISCELLANEOUSMATHEMATICALSYMBOLS_A("MiscellaneousMathematicalSymbols-A", { CachedRange(0x27C0, 0x27EF) }),
+            SUPPLEMENTALARROWS_A("SupplementalArrows-A", { CachedRange(0x27F0, 0x27FF) }),
             BRAILLEPATTERNS("BraillePatterns", { CachedRange(0x2800, 0x28FF) }),
+            SUPPLEMENTALARROWS_B("SupplementalArrows-B", { CachedRange(0x2900, 0x297F) }),
+            MISCELLANEOUSMATHEMATICALSYMBOLS_B("MiscellaneousMathematicalSymbols-B", { CachedRange(0x2980, 0x29FF) }),
             SUPPLEMENTALMATHEMATICALOPERATORS("SupplementalMathematicalOperators", { CachedRange(0x2A00, 0x2AFF) }),
             MISCELLANEOUSSYMBOLSANDARROWS("MiscellaneousSymbolsandArrows", { CachedRange(0x2B00, 0x2BFF) }),
             GLAGOLITIC("Glagolitic", { CachedRange(0x2C00, 0x2C5F) }),
@@ -433,14 +447,16 @@ internal abstract class AbstractCharClass : SpecialToken() {
             PRIVATEUSEAREA("PrivateUseArea", { CachedRange(0xE000, 0xF8FF) }),
             CJKCOMPATIBILITYIDEOGRAPHS("CJKCompatibilityIdeographs", { CachedRange(0xF900, 0xFAFF) }),
             ALPHABETICPRESENTATIONFORMS("AlphabeticPresentationForms", { CachedRange(0xFB00, 0xFB4F) }),
+            ARABICPRESENTATIONFORMS_A("ArabicPresentationForms-A", { CachedRange(0xFB50, 0xFDFF) }),
             VARIATIONSELECTORS("VariationSelectors", { CachedRange(0xFE00, 0xFE0F) }),
             VERTICALFORMS("VerticalForms", { CachedRange(0xFE10, 0xFE1F) }),
             COMBININGHALFMARKS("CombiningHalfMarks", { CachedRange(0xFE20, 0xFE2F) }),
             CJKCOMPATIBILITYFORMS("CJKCompatibilityForms", { CachedRange(0xFE30, 0xFE4F) }),
             SMALLFORMVARIANTS("SmallFormVariants", { CachedRange(0xFE50, 0xFE6F) }),
+            ARABICPRESENTATIONFORMS_B("ArabicPresentationForms-B", { CachedRange(0xFE70, 0xFEFF) }),
             HALFWIDTHANDFULLWIDTHFORMS("HalfwidthandFullwidthForms", { CachedRange(0xFF00, 0xFFEF) }),
             ALL("all", { CachedRange(0x00, 0x10FFFF) }),
-            SPECIALS("Specials", { CachedSpecialsBlock() }),
+            SPECIALS("Specials", ::CachedSpecialsBlock),
             CN("Cn", { CachedCategory(CharCategory.UNASSIGNED.value, true) }),
             ISL("IsL", { CachedCategoryScope(0x3E, true) }),
             LU("Lu", { CachedCategory(CharCategory.UPPERCASE_LETTER.value, true) }),
@@ -502,13 +518,12 @@ internal abstract class AbstractCharClass : SpecialToken() {
         }
 
         fun getPredefinedClass(name: String, negative: Boolean): AbstractCharClass {
-            val charClass = classCacheMap[name] ?: throw Error("Unsupported character class $name")
+            val charClass = classCacheMap[name] ?: throw PatternSyntaxException("No such character class")
             val cachedClass = classCache[charClass.ordinal].get() ?: run {
                 classCache[charClass.ordinal].compareAndSwap(null, charClass.factory().freeze())
                 classCache[charClass.ordinal].get()!!
             }
             return cachedClass.getValue(negative)
-            //return classCacheMap[name]!!.factory().getValue(negative)
         }
     }
 }
