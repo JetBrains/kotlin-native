@@ -35,7 +35,6 @@ package kotlin.text.regex
 
 import kotlin.collections.associate
 import konan.worker.freeze
-import konan.worker.frozenLazy
 
 
 /**
@@ -57,7 +56,6 @@ internal class UnicodeCategoryScope(category: Int) : UnicodeCategory(category) {
  * Note: this class represent a token, not node, so being constructed by lexer.
  */
 internal abstract class AbstractCharClass : SpecialToken() {
-
     /**
      * Show if the class has alternative meaning:
      * if the class contains character 'a' and alt == true then the class will contains all characters except 'a'.
@@ -97,24 +95,31 @@ internal abstract class AbstractCharClass : SpecialToken() {
     open val instance: AbstractCharClass
         get() = this
 
-    val surrogates: AbstractCharClass by lazy {
-        val result = object : AbstractCharClass() {
-            override fun contains(ch: Int): Boolean {
-                val index = ch - Char.MIN_SURROGATE.toInt()
-
-                return if (index >= 0 && index < AbstractCharClass.SURROGATE_CARDINALITY)
-                    this.altSurrogates xor this@AbstractCharClass.lowHighSurrogates.get(index)
-                else
-                    false
-            }
+    val surrogates: AbstractCharClass
+        get() = object : AbstractCharClass() {
+        init {
+            this.setNegative(this@AbstractCharClass.isNegative())
+            this.mayContainSupplCodepoints = this@AbstractCharClass.mayContainSupplCodepoints
         }
-        result.setNegative(this.altSurrogates)
-        return@lazy result
+
+        override fun contains(ch: Int): Boolean {
+            val index = ch - Char.MIN_SURROGATE.toInt()
+
+            val containslHS = if (index >= 0 && index < AbstractCharClass.SURROGATE_CARDINALITY)
+                this.altSurrogates xor this@AbstractCharClass.lowHighSurrogates.get(index)
+            else
+                false
+
+            return this@AbstractCharClass.contains(ch) && !containslHS
+        }
     }
 
-
-    val withoutSurrogates: AbstractCharClass by frozenLazy {
-        val result = object : AbstractCharClass() {
+    val withoutSurrogates: AbstractCharClass
+        get() = object : AbstractCharClass() {
+            init {
+                this.setNegative(this@AbstractCharClass.isNegative())
+                this.mayContainSupplCodepoints = this@AbstractCharClass.mayContainSupplCodepoints
+            }
             override fun contains(ch: Int): Boolean {
                 val index = ch - Char.MIN_SURROGATE.toInt()
 
@@ -124,11 +129,7 @@ internal abstract class AbstractCharClass : SpecialToken() {
                     false
 
                 return this@AbstractCharClass.contains(ch) && !containslHS
-            }
-        }
-        result.setNegative(isNegative())
-        result.mayContainSupplCodepoints = mayContainSupplCodepoints
-        return@frozenLazy result
+       }
     }
 
     /**
@@ -241,22 +242,23 @@ internal abstract class AbstractCharClass : SpecialToken() {
         override fun computeValue(): AbstractCharClass = CharClass().add('0', '9').add('a', 'f').add('A', 'F')
     }
 
-    internal class CachedRange(var start: Int, var end: Int) : CachedCharClass() {
+    internal class CachedRange(val start: Int, val end: Int) : CachedCharClass() {
         override fun computeValue(): AbstractCharClass =
             object: AbstractCharClass() {
+                init {
+                    if (end >= Char.MIN_SUPPLEMENTARY_CODE_POINT) {
+                        mayContainSupplCodepoints = true
+                    }
+                    val minSurrogate = Char.MIN_SURROGATE.toInt()
+                    val maxSurrogate = Char.MAX_SURROGATE.toInt()
+                    // There is an intersection with surrogate characters.
+                    if (end >= minSurrogate && start <= maxSurrogate && start <= end) {
+                        val surrogatesStart = maxOf(start, minSurrogate) - minSurrogate
+                        val surrogatesEnd = minOf(end, maxSurrogate) - minSurrogate
+                        lowHighSurrogates.set(surrogatesStart..surrogatesEnd)
+                    }
+                }
                 override fun contains(ch: Int): Boolean = alt xor (ch in start..end)
-            }.apply {
-                if (end >= Char.MIN_SUPPLEMENTARY_CODE_POINT) {
-                    mayContainSupplCodepoints = true
-                }
-                val minSurrogate = Char.MIN_SURROGATE.toInt()
-                val maxSurrogate = Char.MAX_SURROGATE.toInt()
-                // There is an intersection with surrogate characters.
-                if (end >= minSurrogate && start <= maxSurrogate && start <= end) {
-                    val surrogatesStart = maxOf(start, minSurrogate) - minSurrogate
-                    val surrogatesEnd = minOf(end, maxSurrogate) - minSurrogate
-                    lowHighSurrogates.set(surrogatesStart..surrogatesEnd)
-                }
             }
     }
 
@@ -294,7 +296,6 @@ internal abstract class AbstractCharClass : SpecialToken() {
             return result
         }
     }
-
 
     companion object {
         //Char.MAX_SURROGATE - Char.MIN_SURROGATE + 1
@@ -507,6 +508,7 @@ internal abstract class AbstractCharClass : SpecialToken() {
                 classCache[charClass.ordinal].get()!!
             }
             return cachedClass.getValue(negative)
+            //return classCacheMap[name]!!.factory().getValue(negative)
         }
     }
 }

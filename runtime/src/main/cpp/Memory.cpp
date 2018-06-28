@@ -420,7 +420,6 @@ RUNTIME_USED ContainerHeader theStaticObjectsContainer = {
 void objc_release(void* ptr);
 void Kotlin_ObjCExport_releaseAssociatedObject(void* associatedObject);
 RUNTIME_NORETURN void ThrowFreezingException();
-RUNTIME_NORETURN void ThrowInvalidMutabilityException();
 
 }  // extern "C"
 
@@ -1687,7 +1686,7 @@ void FreezeSubgraph(ObjHeader* root) {
 // This function is called from field mutators to check if object's header is frozen.
 // If object is frozen, an exception is thrown.
 void MutationCheck(ObjHeader* obj) {
-  if (obj->container()->frozen()) ThrowInvalidMutabilityException();
+  if (obj->container()->frozen()) ThrowInvalidMutabilityException(obj);
 }
 
 OBJ_GETTER(SwapRefLocked,

@@ -146,10 +146,12 @@ class AtomicReference<T>(private var value: T? = null) {
     external public fun get(): T?
 }
 
+// TODO: design me properly first.
+/*
 private object UNINITIALIZED_VALUE
 
 @Frozen
-internal class FrozenLazyImpl<out T>(initializer: () -> T) : Lazy<T>, Serializable {
+internal class FrozenLazyImpl<out T>(initializer: () -> T) : Lazy<T> {
     private val _initializer = AtomicReference(initializer.freeze())
     private val _value = AtomicReference<Any>(UNINITIALIZED_VALUE)
 
@@ -173,4 +175,4 @@ internal class FrozenLazyImpl<out T>(initializer: () -> T) : Lazy<T>, Serializab
     override fun toString(): String = if (isInitialized()) value.toString() else "Lazy value not initialized yet."
 }
 
-public fun <T> frozenLazy(initializer: () -> T): Lazy<T> = FrozenLazyImpl(initializer)
+public fun <T> frozenLazy(initializer: () -> T): Lazy<T> = FrozenLazyImpl(initializer) */
