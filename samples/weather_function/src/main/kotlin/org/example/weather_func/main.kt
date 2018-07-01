@@ -10,8 +10,9 @@ import kotlin.system.exitProcess
 private val API_KEY by lazy { fetchApiKey() }
 
 fun main(args: Array<String>) {
-	val location = fetchLocationArg(args)
-	val jsonFile = fetchJsonFileArg(args)
+	val input = readLine()
+	val location = fetchLocationArg(input)
+	val jsonFile = fetchJsonFileArg(input)
 
 	if (location.isNotEmpty()) {
 		printFromWeatherService(location)
@@ -27,7 +28,7 @@ fun main(args: Array<String>) {
 private fun handleEmptyInput() {
 	println(
 		"""
-		| Weather - A Serverless Function that outputs weather information.
+		| Weather - A OpenFaaS Serverless Function that outputs weather information.
 		| Usage examples (pass one of the following as input to the function):
 		|   * Location (uses the Open Weather Map service), eg:
 		|       -l="christchurch,nz"
@@ -84,22 +85,16 @@ private fun printFromWeatherService(location: String) {
 	curl.close()
 }
 
-private fun fetchJsonFileArg(args: Array<String>): String {
+private fun fetchJsonFileArg(input: String?): String {
 	val flag = "-f"
-	return if (args.size == 1 && args[0].startsWith("$flag=")) {
-		args[0].replace("$flag=", "").replace("\"", "")
-	} else {
-		""
-	}
+	return if (input != null && input.startsWith("$flag=")) input.replace("$flag=", "").replace("\"", "")
+	else ""
 }
 
-private fun fetchLocationArg(args: Array<String>): String {
+private fun fetchLocationArg(input: String?): String {
 	val flag = "-l"
-	return if (args.size == 1 && args[0].startsWith("$flag=")) {
-		args[0].replace("$flag=", "").replace("\"", "")
-	} else {
-		""
-	}
+	return if (input != null && input.startsWith("$flag=")) input.replace("$flag=", "").replace("\"", "")
+	else ""
 }
 
 private fun createUrl(location: String): String {
