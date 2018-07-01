@@ -26,14 +26,14 @@ fun main(args: Array<String>) {
 
 private fun handleEmptyInput() {
 	println(
-			"""
-			| Weather - A Serverless Function that outputs weather information.
-			| Usage examples (pass one of the following as input to the function):
-			|   * Location (uses the Open Weather Map service), eg:
-			|       -l="christchurch,nz"
-			|   * JSON File, eg: -f="weather.json"
-			""".trimMargin()
-		)
+		"""
+		| Weather - A Serverless Function that outputs weather information.
+		| Usage examples (pass one of the following as input to the function):
+		|   * Location (uses the Open Weather Map service), eg:
+		|       -l="christchurch,nz"
+		|   * JSON File, eg: -f="weather.json"
+		""".trimMargin()
+	)
 	exitProcess(0)
 }
 
@@ -75,7 +75,10 @@ private fun printFromWeatherService(location: String) {
 	println("Fetching weather information (for $location)...")
 	val curl = CUrl(createUrl(location)).apply {
 		header += { if(it.startsWith("HTTP")) println("Response Status: $it") }
-		body += { println("Weather information:\n$it") }
+		body += { data ->
+			val weather = createWeatherFromJson(data)
+			println("Weather information:\n${weatherToJsonString(weather)}")
+		}
 	}
 	curl.fetch()
 	curl.close()
