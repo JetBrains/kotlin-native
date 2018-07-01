@@ -6,7 +6,14 @@ plugins {
 }
 
 konanArtifacts {
+    interop("curl") {
+        defFile("curl.def")
+    }
+
 	program("weather") {
     	entryPoint("org.example.weather_func.main")
+        libraries {
+            artifact("curl")
+        }
     }
 }
