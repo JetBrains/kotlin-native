@@ -11,9 +11,13 @@ private val API_KEY by lazy { fetchApiKey() }
 
 fun main(args: Array<String>) {
 	val location = fetchLocationArg(args)
+	val jsonFile = fetchJsonFileArg(args)
 
 	if (location.isNotEmpty()) {
 		printFromWeatherService(location)
+	} else if (jsonFile.isNotEmpty()) {
+		checkFile(jsonFile)
+		printJsonFile(jsonFile)
 	} else {
 		handleEmptyInput()
 	}
@@ -22,13 +26,14 @@ fun main(args: Array<String>) {
 
 private fun handleEmptyInput() {
 	println(
-		"""
-		| Weather - A Serverless Function that outputs weather information.
-		| Usage examples (pass one of the following as input to the function):
-		|   * Location (uses the Open Weather Map service), eg:
-		|       -l="christchurch,nz"
-		""".trimMargin()
-	)
+			"""
+			| Weather - A Serverless Function that outputs weather information.
+			| Usage examples (pass one of the following as input to the function):
+			|   * Location (uses the Open Weather Map service), eg:
+			|       -l="christchurch,nz"
+			|   * JSON File, eg: -f="weather.json"
+			""".trimMargin()
+		)
 	exitProcess(0)
 }
 
@@ -40,6 +45,32 @@ private fun checkFile(file: String) {
 	}
 }
 
+private fun fetchJson(jsonFile: String): String {
+	var result = ""
+	// Open the file using the fopen function and store the file handle.
+	val file = fopen(jsonFile, "r")
+	fseek(file, 0, SEEK_END)
+	val fileSize = ftell(file)
+	fseek(file, 0, SEEK_SET)
+
+	memScoped {
+		val buffer = allocArray<ByteVar>(fileSize)
+		// Read the entire file and store the contents into the buffer.
+		fread(buffer, fileSize, 1, file)
+		result = buffer.toKString()
+	}
+	// Close the file.
+	fclose(file)
+	return result
+}
+
+private fun printJsonFile(jsonFile: String) {
+	println("Printing from JSON file ($jsonFile)...")
+	val weather = createWeatherFromJson(fetchJson(jsonFile))
+	println("Weather Object:\n$weather")
+	println("Weather JSON:\n${weatherToJsonString(weather)}")
+}
+
 private fun printFromWeatherService(location: String) {
 	println("Fetching weather information (for $location)...")
 	val curl = CUrl(createUrl(location)).apply {
@@ -48,6 +79,15 @@ private fun printFromWeatherService(location: String) {
 	}
 	curl.fetch()
 	curl.close()
+}
+
+private fun fetchJsonFileArg(args: Array<String>): String {
+	val flag = "-f"
+	return if (args.size == 1 && args[0].startsWith("$flag=")) {
+		args[0].replace("$flag=", "").replace("\"", "")
+	} else {
+		""
+	}
 }
 
 private fun fetchLocationArg(args: Array<String>): String {
