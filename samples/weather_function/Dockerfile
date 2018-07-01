@@ -1,25 +1,24 @@
 FROM openjdk:8u171-jdk-stretch as builder
 WORKDIR /opt
 RUN wget "https://github.com/JetBrains/kotlin-native/releases/download/v0.7.1/kotlin-native-linux-0.7.1.tar.gz"
-RUN tar -xzf kotlin-native-linux-0.7.1.tar.gz
-RUN rm kotlin-native-linux-0.7.1.tar.gz
-RUN wget "https://gradle.org/next-steps/?version=4.7&format=bin" -O gradle-4.7-bin.zip
-RUN apt-get update && apt-get -y install p7zip-full && apt-get install libcurl4-openssl-dev
-RUN 7z x gradle-4.7-bin.zip && rm gradle-4.7-bin.zip
+RUN tar -xzf kotlin-native-linux-0.7.1.tar.gz && rm kotlin-native-linux-0.7.1.tar.gz
+RUN apt-get update && apt-get install libcurl4-openssl-dev
 
 ENV KOTLIN_NATIVE_HOME "/opt/kotlin-native-linux-0.7.1"
 ENV GRADLE "/opt/gradle-4.7/bin/gradle"
 RUN mkdir -p /app/src/main/kotlin/org/example/weather_func
 RUN mkdir -p /app/lib/cJSON-1.7.7/include/cjson
 RUN mkdir -p /app/lib/cJSON-1.7.7/lib/x86_64-linux-gnu
+RUN mkdir -p /app/gradle
 WORKDIR /app
 
+COPY ../gradle/wrapper /app/gradle/wrapper
+COPY ../gradlew /app
 COPY *.def /app/
 COPY *.kts /app/
 COPY openweathermap_key.txt /app
-COPY lib /app
 COPY src /app
-RUN $GRADLE wrapper --gradle-version 4.7 && $GRADLE build
+RUN ./gradlew build
 RUN cp build/konan/bin/linux_x64/weather.kexe weather
 
 FROM frolvlad/alpine-glibc
