@@ -19,7 +19,6 @@ package org.jetbrains.kotlin.backend.konan
 import org.jetbrains.kotlin.konan.KonanExternalToolFailure
 import org.jetbrains.kotlin.konan.exec.Command
 import org.jetbrains.kotlin.konan.file.File
-import org.jetbrains.kotlin.konan.file.createTempFile
 import org.jetbrains.kotlin.konan.target.*
 
 typealias BitcodeFile = String
@@ -90,6 +89,7 @@ internal class LinkStage(val context: Context) {
         val configurables = platform.configurables as WasmConfigurables
 
         val combinedBc = temporary("combined", ".bc")
+        // TODO: use -only-needed for the stdlib
         hostLlvmTool("llvm-link", *bitcodeFiles.toTypedArray(), "-o", combinedBc)
 
         val optFlags = (configurables.optFlags + when {
@@ -98,25 +98,18 @@ internal class LinkStage(val context: Context) {
             else -> configurables.optNooptFlags
         } + llvmProfilingFlags()).toTypedArray()
         val optimizedBc = temporary("optimized", ".bc")
-        hostLlvmTool("opt", combinedBc, "-o", optimizedBc, *optFlags)
+        targetTool("opt", combinedBc, "-o", optimizedBc, *optFlags)
 
         val llcFlags = (configurables.llcFlags + when {
             optimize -> configurables.llcOptFlags
             debug -> configurables.llcDebugFlags
             else -> configurables.llcNooptFlags
         } + llvmProfilingFlags()).toTypedArray()
-        val combinedS = temporary("combined", ".s")
-        targetTool("llc", optimizedBc, "-o", combinedS, *llcFlags)
-
-        val s2wasmFlags = configurables.s2wasmFlags.toTypedArray()
-        val combinedWast = temporary("combined", ".wast")
-        targetTool("s2wasm", combinedS, "-o", combinedWast, *s2wasmFlags)
-
-        val combinedWasm = temporary("combined", ".wasm")
-        val combinedSmap = temporary("combined", ".smap")
-        targetTool("wasm-as", combinedWast, "-o", combinedWasm, "-g", "-s", combinedSmap)
-
-        return combinedWasm
+        val combinedO = temporary("combined", ".o")
+        targetTool("llc", optimizedBc, "-o", combinedO, *llcFlags, "-filetype=obj")
+        val linkedWasm = temporary("linked", ".wasm")
+        targetTool("wasm-ld", combinedO, "-o", linkedWasm, *configurables.lldFlags.toTypedArray())
+        return linkedWasm
     }
 
     private fun llvmLinkAndLlc(bitcodeFiles: List<BitcodeFile>): String {
