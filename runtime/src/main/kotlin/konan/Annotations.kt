@@ -90,6 +90,9 @@ public annotation class PointsTo(vararg val onWhom: Int)
 
 /**
  * Top level variable or object is thread local, and so could be mutable.
+ * One may use this annotation as the stopgap measure for singleton
+ * object immutability.
+ * PLEASE NOTE THAT THIS ANNOTATION MAY GO AWAY IN UPCOMING RELEASES.
  */
 @Target(AnnotationTarget.FIELD, AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.BINARY)
