@@ -1,10 +1,11 @@
 FROM openjdk:8u171-jdk-stretch as builder
 WORKDIR /opt
-RUN wget "https://github.com/JetBrains/kotlin-native/releases/download/v0.7.1/kotlin-native-linux-0.7.1.tar.gz"
-RUN tar -xzf kotlin-native-linux-0.7.1.tar.gz && rm kotlin-native-linux-0.7.1.tar.gz
+ENV KOTLIN_NATIVE_VER "0.7.1"
+RUN wget "https://github.com/JetBrains/kotlin-native/releases/download/v0.7.1/kotlin-native-linux-$KOTLIN_NATIVE_VER.tar.gz"
+RUN tar -xzf kotlin-native-linux-$KOTLIN_NATIVE_VER.tar.gz && rm kotlin-native-linux-$KOTLIN_NATIVE_VER.tar.gz
 RUN apt-get update && apt-get install libcurl4-openssl-dev
 
-ENV KOTLIN_NATIVE_HOME "/opt/kotlin-native-linux-0.7.1"
+ENV KOTLIN_NATIVE_HOME "/opt/kotlin-native-linux-$KOTLIN_NATIVE_VER"
 ENV GRADLE "/opt/gradle-4.7/bin/gradle"
 RUN mkdir -p /app/src/main/kotlin/org/example/weather_func
 RUN mkdir -p /app/lib/cJSON-1.7.7/include/cjson

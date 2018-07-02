@@ -14,8 +14,8 @@ konanArtifacts {
         defFile("cjson.def")
     }
 
-	program("weather") {
-    	entryPoint("org.example.weather_func.main")
+    program("weather") {
+        entryPoint("org.example.weather_func.main")
         libraries {
             artifact("cjson")
             artifact("curl")

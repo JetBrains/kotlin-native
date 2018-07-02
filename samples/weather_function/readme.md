@@ -1,19 +1,16 @@
 # Weather Function Sample
 
-This is a Serverless Function that fetches the current weather information. Part of the Function's output includes HTTP response headers, and the HTTP response body. This sample is designed to be deployed on OpenFaaS via a Docker image.
-
-This document assumes that you are using a PC running Debian (v9 or later), Ubuntu (v14.04 or later), or Linux Mint (v17 or later).
+This is a Serverless Function that fetches the current weather information from the Open Weather Map [service](https://openweathermap.org/current) via HTTP. Part of the Function's output includes HTTP response headers, and the HTTP response body. This sample is designed to be deployed on OpenFaaS via a Docker image.
 
 
 # Building Docker Image
 
 It will be assumed that Docker is already installed.
 
-1. Clone the Kotlin Native Git repository: ```git clone https://github.com/JetBrains/kotlin-native ~/repos/kotlin-native```
-2. Change working directory to the sample:
-```cd ~/repos/kotlin-native/samples/weather_function```
+1. Clone the Kotlin Native Git repository: `git clone https://github.com/JetBrains/kotlin-native ~/repos/kotlin-native`
+2. Change working directory to the sample: `cd ~/repos/kotlin-native/samples/weather_function`
 3. Create the **openweathermap_key.txt** file and append your [Open Weather Map API key](https://openweathermap.org/appid) to the file
-4. Build Docker image: ```docker build --t weather .```
+4. Build Docker image: `docker build --t weather .`
 
 
 # Usage
@@ -33,4 +30,4 @@ http://127.0.0.1:8080
 **-l="christchurch,nz"**
 10. Click on **INVOKE** button
 
-Do note that the program (weather) can print weather information from a JSON file, eg: ```./weather -f="current_weather.json"```, but this functionality isn't available in the Serverless Function.
+**Note:** The program (weather) can print weather information from a JSON file, eg: `./weather -f="current_weather.json"`, but this functionality isn't available in the Serverless Function.
