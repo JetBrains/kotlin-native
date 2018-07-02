@@ -28,9 +28,9 @@ import kotlinx.cinterop.readBytes
  * Provides basic HTTP client functionality through the libCurl library.
 */
 internal class CUrl(val url: String) {
-	private val stableRef = StableRef.create(this)
-	private val curlObj = initCurl()
-	val header = Event<String>()
+    private val stableRef = StableRef.create(this)
+    private val curlObj = initCurl()
+    val header = Event<String>()
     val body = Event<String>()
 
     init {
@@ -53,10 +53,10 @@ internal class CUrl(val url: String) {
         if (response != CURL_ERROR_OK) println("curlFileSync() failed: ${curlErrorMessage(response)?.toKString(length)}")
     }
 
-	fun close() {
-		cleanupCurl(curlObj)
-		stableRef.dispose()
-	}
+    fun close() {
+        cleanupCurl(curlObj)
+        stableRef.dispose()
+    }
 }
 
 fun headerCallback(buffer: CPointer<ByteVar>?, size: size_t, totalItems: size_t, userData: COpaquePointer?): size_t {
