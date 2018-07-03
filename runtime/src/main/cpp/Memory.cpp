@@ -1174,7 +1174,28 @@ OBJ_GETTER(InitInstance,
 OBJ_GETTER(InitSharedInstance,
     ObjHeader** location, ObjHeader** localLocation, const TypeInfo* type_info, void (*ctor)(ObjHeader*)) {
 #if KONAN_NO_THREADS
-  RETURN_RESULT_OF(InitInstance, location, type_info, ctor);
+  ObjHeader* value = *location;
+  if (value != nullptr) {
+    // OK'ish, inited by someone else.
+    RETURN_OBJ(value);
+  }
+  ObjHeader* object = AllocInstance(type_info, OBJ_RESULT);
+  UpdateRef(location, object);
+#if KONAN_NO_EXCEPTIONS
+  ctor(object);
+  FreezeSubgraph(object);
+  return object;
+#else
+  try {
+    ctor(object);
+    FreezeSubgraph(object);
+    return object;
+  } catch (...) {
+    UpdateRef(OBJ_RESULT, nullptr);
+    UpdateRef(location, nullptr);
+    throw;
+  }
+#endif
 #else
   ObjHeader* value = *localLocation;
   if (value != nullptr) RETURN_OBJ(value);

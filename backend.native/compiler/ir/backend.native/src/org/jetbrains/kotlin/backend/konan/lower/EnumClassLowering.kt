@@ -400,6 +400,9 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
                                     putValueArgument(1, initializer)
                                 }
                             }
+                    +irCall(this@EnumClassLowering.context.ir.symbols.freeze, listOf(arrayType)).apply {
+                        extensionReceiver = irGet(loweredEnum.implObject.thisReceiver!!)
+                    }
                 }
             }
         }
@@ -559,7 +562,6 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
                 result.putValueArgument(1,
                         IrGetValueImpl(startOffset, endOffset, ordinalParameter.type, ordinalParameter.symbol, origin)
                 )
-
                 return result
             }
 
