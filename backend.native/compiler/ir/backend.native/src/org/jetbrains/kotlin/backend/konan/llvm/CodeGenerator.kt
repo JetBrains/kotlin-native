@@ -30,9 +30,9 @@ import org.jetbrains.kotlin.backend.konan.irasdescriptors.SimpleFunctionDescript
 import org.jetbrains.kotlin.backend.konan.llvm.objc.*
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.util.constructors
-import org.jetbrains.kotlin.ir.util.defaultType
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.konan.target.*
+import org.jetbrains.kotlin.backend.konan.descriptors.resolveFakeOverride
 
 internal class CodeGenerator(override val context: Context) : ContextUtils {
 
@@ -632,34 +632,18 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         }
 
         assert(typeInfoPtr.type == codegen.kTypeInfoPtr) { LLVMPrintTypeToString(typeInfoPtr.type)!!.toKString() }
-        val declaration = descriptor.containingDeclaration as ClassDescriptor
-        var actualDescriptor = descriptor as SimpleFunctionDescriptor
-        val callDescriptor = descriptor.descriptor
 
         /*
          * Resolve owner of the call with special handling of Any methods:
          * if toString/eq/hc is invoked on an interface instance, we resolve
          * owner as Any and dispatch it via vtable
          */
-        val owner =
-            if (!declaration.isInterface
-                || callDescriptor.modality == Modality.ABSTRACT
-                || callDescriptor.kind !== CallableMemberDescriptor.Kind.FAKE_OVERRIDE) {
-                declaration
-            } else {
-                val resolved = callDescriptor.resolveFakeOverride()
-                if (context.builtIns.isMemberOfAny(resolved)) {
-                    actualDescriptor = context.ir.get(resolved) as SimpleFunctionDescriptor
-                    actualDescriptor.containingDeclaration as ClassDescriptor
-                } else {
-                    declaration
-                }
-            }
-
+        val anyMethod = (descriptor as SimpleFunctionDescriptor).findOverriddenMethodOfAny()
+        val owner = (anyMethod ?: descriptor).containingDeclaration as ClassDescriptor
 
         val llvmMethod = if (!owner.isInterface) {
             // If this is a virtual method of the class - we can call via vtable.
-            val index = context.getVtableBuilder(owner).vtableIndex(actualDescriptor)
+            val index = context.getVtableBuilder(owner).vtableIndex(anyMethod ?: descriptor)
             val vtablePlace = gep(typeInfoPtr, Int32(1).llvm) // typeInfoPtr + 1
             val vtable = bitcast(kInt8PtrPtr, vtablePlace)
             val slot = gep(vtable, Int32(index).llvm)
@@ -675,6 +659,16 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         }
         val functionPtrType = pointerType(codegen.getLlvmFunctionType(descriptor))   // Construct type of the method to be invoked
         return bitcast(functionPtrType, llvmMethod)           // Cast method address to the type
+    }
+
+    private fun IrSimpleFunction.findOverriddenMethodOfAny(): IrSimpleFunction? {
+        if (modality == Modality.ABSTRACT) return null
+        val resolved = resolveFakeOverride()
+        if ((resolved.parent as ClassDescriptor).isAny()) {
+            return resolved
+        }
+
+        return null
     }
 
     fun getObjectValue(
