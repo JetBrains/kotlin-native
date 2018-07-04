@@ -104,8 +104,11 @@ private fun createUrl(location: String): String {
 
 private fun fetchApiKey(): String {
 	var result = ""
+	val maxChars = 50
+    // utfCharSize in bytes.
+    val utfCharSize = 4
 	// bufferLength in bytes.
-	val bufferLength = 50 * 8
+	val bufferLength = utfCharSize * maxChars
 	// Open the file using the fopen function and store the file handle.
 	val file = fopen("openweathermap_key.txt", "r")
 

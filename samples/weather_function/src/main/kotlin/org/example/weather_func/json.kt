@@ -138,10 +138,10 @@ private fun addTempInfoArray(rootObj: CPointer<cJSON>?, temp: Int, minTemp: Int,
 private fun addConditionsArray(rootObj: CPointer<cJSON>?, conditions: Array<Pair<String, String>>) {
 	val tmpArr = addArrayToObject(rootObj, "conditions")
 
-	conditions.forEach { c ->
+	conditions.forEach { (name, desc) ->
 		val tmpObj = createJsonObject()
-		addStringToObject(tmpObj, "name", c.first)
-		addStringToObject(tmpObj, "desc", c.second)
+		addStringToObject(tmpObj, "name", name)
+		addStringToObject(tmpObj, "desc", desc)
 		addItemToArray(tmpArr, tmpObj)
 	}
 }

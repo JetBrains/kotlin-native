@@ -47,8 +47,11 @@ internal class CUrl(val url: String) {
     fun fetch() {
         // Have Curl do a HTTP/HTTPS request and store the response (status).
         val response = curlFileSync(curlObj)
+        val maxChars = 50
+        // utfCharSize in bytes.
+        val utfCharSize = 4
         // length in bytes.
-        val length = 8192 * 50
+        val length = utfCharSize * maxChars
         // Print the error message if the Curl status code isn't OK (CURL_ERROR_OK).
         if (response != CURL_ERROR_OK) println("curlFileSync() failed: ${curlErrorMessage(response)?.toKString(length)}")
     }
