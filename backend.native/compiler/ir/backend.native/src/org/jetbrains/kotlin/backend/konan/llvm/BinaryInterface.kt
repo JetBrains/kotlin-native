@@ -205,6 +205,7 @@ internal val IrFunction.functionName: String
 
 internal val IrFunction.symbolName: String
     get() {
+        println("### symbolName for $this")
         if (!this.isExported()) {
             throw AssertionError(this.descriptor.toString())
         }
@@ -225,6 +226,8 @@ internal val IrFunction.symbolName: String
         val containingDeclarationPart = parent.fqNameSafe.let {
             if (it.isRoot) "" else "$it."
         }
+
+        println("### symbolName = kfun:$containingDeclarationPart$functionName")
         return "kfun:$containingDeclarationPart$functionName"
     }
 

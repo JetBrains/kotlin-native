@@ -1,10 +1,7 @@
 package org.jetbrains.kotlin.backend.konan.serialization
 
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.fqNameSafe
-import org.jetbrains.kotlin.backend.konan.llvm.isExported
-import org.jetbrains.kotlin.backend.konan.llvm.localHash
-import org.jetbrains.kotlin.backend.konan.llvm.symbolName
-import org.jetbrains.kotlin.backend.konan.llvm.typeInfoSymbolName
+import org.jetbrains.kotlin.backend.konan.llvm.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrAnonymousInitializerImpl
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
@@ -29,7 +26,10 @@ class DeclarationTable(val builtins: IrBuiltIns) {
 
 internal fun IrDeclaration.symbolName(): String = when (this) {
     is IrFunction
-    -> this.symbolName
+    -> {
+        println("### this.symbolNBame = ${this.symbolName}")
+        this.uniqFunctionName
+    }
     is IrProperty
     -> this.symbolName
     is IrClass
@@ -65,6 +65,8 @@ class DeclarationTable(val builtIns: IrBuiltIns) {
                     || value is IrTypeParameter
                     || value is IrValueParameter
                     || value is IrAnonymousInitializerImpl
+                    || value is IrFunction && value.origin == IrDeclarationOrigin.FAKE_OVERRIDE
+                    || value is IrProperty && value.origin == IrDeclarationOrigin.FAKE_OVERRIDE
             ) {
                 currentIndex++
             } else {
@@ -113,4 +115,22 @@ internal val IrEnumEntry.symbolName: String
             if (it.isRoot) "" else "$it."
         }
         return "kenumentry:$containingDeclarationPart$name"
+    }
+
+// This is basicly the same as .symbolName, but diambiguates external functions with the same C name
+internal val IrFunction.uniqFunctionName: String
+    get() {
+        println("### symbolName for $this")
+        if (!this.isExported()) {
+            throw AssertionError(this.descriptor.toString())
+        }
+
+        val parent = this.parent
+
+        val containingDeclarationPart = parent.fqNameSafe.let {
+            if (it.isRoot) "" else "$it."
+        }
+
+        println("### symbolName = kfun:$containingDeclarationPart$functionName")
+        return "kfun:$containingDeclarationPart$functionName"
     }

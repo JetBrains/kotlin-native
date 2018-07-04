@@ -18,6 +18,7 @@ package org.jetbrains.kotlin.backend.konan.lower
 
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
 import org.jetbrains.kotlin.backend.common.IrElementVisitorVoidWithContext
+import org.jetbrains.kotlin.backend.common.ir.ir2stringWhole
 import org.jetbrains.kotlin.backend.common.lower.SimpleMemberScope
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.descriptors.*
@@ -49,6 +50,9 @@ import org.jetbrains.kotlin.types.TypeSubstitutor
 import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.Variance
 
+
+
+
 internal class DeepCopyIrTreeWithDescriptors(val targetDescriptor: FunctionDescriptor,
                                     val parentDescriptor: DeclarationDescriptor,
                                     val context: Context) {
@@ -77,6 +81,10 @@ internal class DeepCopyIrTreeWithDescriptors(val targetDescriptor: FunctionDescr
         //---------------------------------------------------------------------//
 
         override fun visitClassNew(declaration: IrClass) {
+
+            println("### visitClassNew: ${declaration.name.toString()}")
+            println(ir2stringWhole(declaration))
+
             val oldDescriptor = declaration.descriptor
             val newDescriptor = copyClassDescriptor(oldDescriptor)
 

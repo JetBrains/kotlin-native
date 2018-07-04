@@ -27,6 +27,7 @@ import org.jetbrains.kotlin.backend.konan.descriptors.isFunctionInvoke
 import org.jetbrains.kotlin.backend.konan.descriptors.needsInlining
 import org.jetbrains.kotlin.backend.konan.descriptors.propertyIfAccessor
 import org.jetbrains.kotlin.backend.konan.descriptors.resolveFakeOverride
+import org.jetbrains.kotlin.backend.konan.llvm.symbolName
 //import org.jetbrains.kotlin.backend.konan.ir.DeserializerDriver
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.IrElement
@@ -116,6 +117,10 @@ private class Inliner(val globalSubstituteMap: MutableMap<DeclarationDescriptor,
                       val functionDeclaration: IrFunction,                                  // Function to substitute.
                       val currentScope: ScopeWithIr,
                       val context: Context) {
+
+    init {
+        println("### inliner: ${functionDeclaration.name}") /*, ${functionDeclaration.symbolName} */
+    }
 
     val copyIrElement = DeepCopyIrTreeWithDescriptors(functionDeclaration.descriptor, currentScope.scope.scopeOwner, context) // Create DeepCopy for current scope.
     val substituteMap = mutableMapOf<ValueDescriptor, IrExpression>()

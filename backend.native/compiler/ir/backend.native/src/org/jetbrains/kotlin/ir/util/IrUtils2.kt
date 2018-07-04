@@ -303,7 +303,9 @@ fun IrClass.setSuperSymbols(supers: List<IrClass>) {
 
     val superMembers = supers.flatMap {
         it.simpleFunctions()
-    }.associateBy { it.descriptor }
+    }.associateBy {
+        it.descriptor
+    }
 
     this.simpleFunctions().forEach {
         assert(it.overriddenSymbols.isEmpty())

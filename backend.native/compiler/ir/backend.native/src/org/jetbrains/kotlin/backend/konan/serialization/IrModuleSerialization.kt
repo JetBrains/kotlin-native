@@ -175,7 +175,9 @@ internal class IrModuleSerialization(val context: Context,
         //val index = declarationTable.descriptorTable.indexByValue(symbol.descriptor.original) //TODO: do we need original here?
         val index = declarationTable.indexByValue(symbol.owner as IrDeclaration) // TODO: change symbol to be IrSymbolDeclaration?
         proto.setUniqId(newUniqId(index))
-        //println("### serializeIrSymbol: descriptor is ${symbol.descriptor.original} ; kind=$kind ; index is ${index.toString(16)}")
+        println("### serializeIrSymbol: owner is ${symbol.owner} descriptor is ${symbol.descriptor.original} ; kind=$kind ; index is ${index.toString(16)}")
+        val owner = symbol.owner as IrDeclaration
+        println("### owner parent: ${owner.parent}; owner descriptor: ${owner.descriptor} owner parent descriptor: ${(owner.parent as? IrDeclaration)?.descriptor}")
 
         val result =  proto.build()
         //println("proto.uniqId.index = ${proto.uniqId.index}")
@@ -744,6 +746,8 @@ internal class IrModuleSerialization(val context: Context,
                 .setIsNoinline(parameter.isNoinline)
 
         parameter.varargElementType ?. let { proto.setVarargElementType(serializeIrType(it))}
+        parameter.defaultValue ?. let { proto.setDefaultValue(serializeExpression(it.expression)) }
+
         return proto.build()
     }
 
@@ -1080,8 +1084,7 @@ internal class IrModuleDeserialization(val context: Context, val declarationTabl
     private fun deserializeKotlinType(proto: KonanIr.KotlinType)
         = descriptorDeserializer.deserializeKotlinType(proto)
 */
-//    private fun deserializeIrSymbol(proto: KonanIr.KotlinDescriptor)
-//        = descriptorDeserializer.deserializeIrSymbol(proto)
+
 
     private fun deserializeTypeArguments(proto: KonanIr.TypeArguments): List<IrType> {
         context.log{"### deserializeTypeArguments"}
@@ -1147,14 +1150,17 @@ internal class IrModuleDeserialization(val context: Context, val declarationTabl
             0)
 
 
+    val deserializedSymbols = mutableMapOf<Long, IrSymbol>()
+
     fun deserializeIrSymbol(proto: KonanIr.IrSymbol): IrSymbol {
 
         val index = proto.uniqId.index
         println("### deserializing IrSymbol:  kind = ${proto.kind} ; index is ${index.toString(16)}")
 
         val originalDeclaration = declarationTable.valueByIndex(index)?.let {
-            (it as IrSymbolOwner).symbol // TODO: remove the cast
-        } ?: error("### Could not find a symbol for index: $index")
+            //(it as IrSymbolOwner).symbol // TODO: remove the cast
+            it
+        } ?: error("### Could not find a declaration for index: $index")
 
         val descriptor = originalDeclaration.descriptor
 /*
@@ -1162,30 +1168,33 @@ internal class IrModuleDeserialization(val context: Context, val declarationTabl
         */
         println("### deserialized IrSymbol: descriptor is $descriptor ; kind = ${proto.kind} ; index is ${index.toString(16)}")
 
-        val symbol = when (proto.kind) {
-            KonanIr.IrSymbolKind.ANONYMOUS_INIT_SYMBOL ->
-                IrAnonymousInitializerSymbolImpl(/*errorClassDescriptor*/descriptor as ClassDescriptor)
-            KonanIr.IrSymbolKind.CLASS_SYMBOL ->
-                IrClassSymbolImpl(/*errorClassDescriptor*/descriptor as ClassDescriptor)
-            KonanIr.IrSymbolKind.CONSTRUCTOR_SYMBOL ->
-                IrConstructorSymbolImpl(/*dummyConstructorDescriptor*/ descriptor as ClassConstructorDescriptor)
-            KonanIr.IrSymbolKind.TYPE_PARAMETER_SYMBOL ->
-                IrTypeParameterSymbolImpl(/*dummyTypeParameterDescriptor*/ descriptor as TypeParameterDescriptor)
-            KonanIr.IrSymbolKind.ENUM_ENTRY_SYMBOL ->
-                IrEnumEntrySymbolImpl(/*errorClassDescriptor*/ descriptor as ClassDescriptor)
-            KonanIr.IrSymbolKind.FIELD_SYMBOL ->
-                IrFieldSymbolImpl(/*dummyPropertyDescriptor*/descriptor as PropertyDescriptor)
-            KonanIr.IrSymbolKind.FUNCTION_SYMBOL ->
-                IrSimpleFunctionSymbolImpl(/*dummyFunctionDescriptor*/descriptor as FunctionDescriptor)
+
+
+        val symbol = deserializedSymbols.getOrPut(index) {
+            when (proto.kind) {
+                KonanIr.IrSymbolKind.ANONYMOUS_INIT_SYMBOL ->
+                    IrAnonymousInitializerSymbolImpl(/*errorClassDescriptor*/descriptor as ClassDescriptor)
+                KonanIr.IrSymbolKind.CLASS_SYMBOL ->
+                    IrClassSymbolImpl(/*errorClassDescriptor*/descriptor as ClassDescriptor)
+                KonanIr.IrSymbolKind.CONSTRUCTOR_SYMBOL ->
+                    IrConstructorSymbolImpl(/*dummyConstructorDescriptor*/ descriptor as ClassConstructorDescriptor)
+                KonanIr.IrSymbolKind.TYPE_PARAMETER_SYMBOL ->
+                    IrTypeParameterSymbolImpl(/*dummyTypeParameterDescriptor*/ descriptor as TypeParameterDescriptor)
+                KonanIr.IrSymbolKind.ENUM_ENTRY_SYMBOL ->
+                    IrEnumEntrySymbolImpl(/*errorClassDescriptor*/ descriptor as ClassDescriptor)
+                KonanIr.IrSymbolKind.FIELD_SYMBOL ->
+                    IrFieldSymbolImpl(/*dummyPropertyDescriptor*/descriptor as PropertyDescriptor)
+                KonanIr.IrSymbolKind.FUNCTION_SYMBOL ->
+                    IrSimpleFunctionSymbolImpl(/*dummyFunctionDescriptor*/descriptor as FunctionDescriptor)
             //RETURN_TARGET ->
-              //  IrReturnTargetSymbolImpl
-            KonanIr.IrSymbolKind.VARIABLE_SYMBOL ->
-                IrVariableSymbolImpl(/*dummyVariableDescriptor*/descriptor as VariableDescriptor)
-            KonanIr.IrSymbolKind.VALUE_PARAMETER_SYMBOL ->
-                IrValueParameterSymbolImpl(/*dummyParameterDescriptor*/descriptor as ParameterDescriptor)
-            else -> TODO("Unexpected classifier symbol kind: ${proto.kind}")
+            //  IrReturnTargetSymbolImpl
+                KonanIr.IrSymbolKind.VARIABLE_SYMBOL ->
+                    IrVariableSymbolImpl(/*dummyVariableDescriptor*/descriptor as VariableDescriptor)
+                KonanIr.IrSymbolKind.VALUE_PARAMETER_SYMBOL ->
+                    IrValueParameterSymbolImpl(/*dummyParameterDescriptor*/descriptor as ParameterDescriptor)
+                else -> TODO("Unexpected classifier symbol kind: ${proto.kind}")
+            }
         }
-        // symbol.bind()
         return symbol
 
     }
@@ -1792,7 +1801,7 @@ internal class IrModuleDeserialization(val context: Context, val declarationTabl
 
         val varargElementType = if (proto.hasVarargElementType()) deserializeIrType(proto.varargElementType) else null
 
-        return IrValueParameterImpl(start, end, origin,
+        val parameter = IrValueParameterImpl(start, end, origin,
             deserializeIrSymbol(proto.symbol) as IrValueParameterSymbol,
             Name.identifier(proto.name),
             proto.index,
@@ -1800,14 +1809,16 @@ internal class IrModuleDeserialization(val context: Context, val declarationTabl
             varargElementType,
             proto.isCrossinline,
             proto.isNoinline)
+
+        parameter.defaultValue = if (proto.hasDefaultValue()) {
+            val expression = deserializeExpression(proto.defaultValue)
+            IrExpressionBodyImpl(expression)
+        } else null
+
+        return parameter
     }
 
     private fun deserializeIrClass(proto: KonanIr.IrClass, start: Int, end: Int, origin: IrDeclarationOrigin): IrClass {
-        val members = mutableListOf<IrDeclaration>()
-
-        proto.declarationContainer.declarationList.forEach {
-            members.add(deserializeDeclaration(it))
-        }
 
         val symbol = deserializeIrSymbol(proto.symbol) as IrClassSymbol
 
@@ -1822,7 +1833,11 @@ internal class IrModuleDeserialization(val context: Context, val declarationTabl
                 proto.isData,
                 proto.isExternal)
 
-        clazz.addAll(members)
+        proto.declarationContainer.declarationList.forEach {
+            val member = deserializeDeclaration(it)
+            clazz.addMember(member)
+            member.parent = clazz
+        }
 
         clazz.thisReceiver = deserializeIrValueParameter(proto.thisReceiver, start, end, origin) // TODO: we need proper start, end and origin here?
 
@@ -1836,6 +1851,9 @@ internal class IrModuleDeserialization(val context: Context, val declarationTabl
         //clazz.createParameterDeclarations(symbolTable)
         //clazz.addFakeOverrides(symbolTable)
         //clazz.setSuperSymbols(symbolTable)
+
+        println("### deserialized IrClass ${clazz.name}")
+        println("### IR: ${ir2stringWhole(clazz)}")
 
         return clazz
     }
@@ -1856,7 +1874,7 @@ internal class IrModuleDeserialization(val context: Context, val declarationTabl
     private fun deserializeIrFunction(proto: KonanIr.IrFunction,
                                       start: Int, end: Int, origin: IrDeclarationOrigin, correspondingProperty: IrProperty? = null): IrSimpleFunction {
 
-        context.log{"function name = ${proto.base.name}"}
+        context.log{"### deserializing IrFunction ${proto.base.name}"}
         val symbol = deserializeIrSymbol(proto.symbol) as IrSimpleFunctionSymbol
         val function = IrFunctionImpl(start, end, origin, symbol,
                 Name.identifier(proto.base.name),
@@ -1875,6 +1893,10 @@ internal class IrModuleDeserialization(val context: Context, val declarationTabl
 
 //        function.createParameterDeclarations(symbolTable)
 //        function.setOverrides(symbolTable)
+
+        println("### deserialized IrFunction ${function.name}")
+        println("### IR: ${ir2stringWhole(function)}")
+
 
         return function
     }
@@ -1957,8 +1979,11 @@ internal class IrModuleDeserialization(val context: Context, val declarationTabl
 
     private fun deserializeIrProperty(proto: KonanIr.IrProperty, start: Int, end: Int, origin: IrDeclarationOrigin): IrProperty {
 
+        val backingField = if (proto.hasBackingField()) deserializeIrField(proto.backingField, start, end, origin) else null
+
         val property = IrPropertyImpl(start, end, origin,
-                /*declarationTable.descriptorTable.valueByIndex(proto.propertyDescriptor.index)!! as PropertyDescriptor*/ dummyPropertyDescriptor,
+                /*declarationTable.descriptorTable.valueByIndex(proto.propertyDescriptor.index)!! as PropertyDescriptor*/
+                backingField?.descriptor ?:  dummyPropertyDescriptor,
                 Name.identifier(proto.name),
                 deserializeVisibility(proto.visibility),
                 deserializeModality(proto.modality),
@@ -1967,7 +1992,8 @@ internal class IrModuleDeserialization(val context: Context, val declarationTabl
                 proto.isLateinit,
                 proto.isDelegated,
                 proto.isExternal)
-        property.backingField = if (proto.hasBackingField()) deserializeIrField(proto.backingField, start, end, origin) else null
+
+        property.backingField = backingField
         property.getter = if (proto.hasGetter()) deserializeIrFunction(proto.getter, start, end, origin, property) else null
         property.setter = if (proto.hasSetter()) deserializeIrFunction(proto.setter, start, end, origin, property) else null
 
@@ -2097,6 +2123,7 @@ internal class IrModuleDeserialization(val context: Context, val declarationTabl
         proto.declarationContainer.declarationList.forEach {
             val declaration = deserializeDeclaration(it)
             file.declarations.add(declaration)
+            declaration.parent = file
         }
         return file
     }
