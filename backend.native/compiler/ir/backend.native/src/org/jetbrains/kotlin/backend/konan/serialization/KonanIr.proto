@@ -484,7 +484,7 @@ message IrField {
     }
 
 message IrProperty {
-    //required UniqId property_descriptor = 1; // IrProperty doesn't have a symbol at all. Preserve this rudiment for now.
+    required UniqId declaration = 1; // IrProperty doesn't have a symbol at all. Preserve this rudiment for now.
     required string name = 10;
     required string visibility = 11;
     required ModalityKind modality = 12;

@@ -841,7 +841,7 @@ internal class IrModuleSerialization(val context: Context,
     private fun serializeIrProperty(property: IrProperty): KonanIr.IrProperty {
         val proto = KonanIr.IrProperty.newBuilder()
             .setIsDelegated(property.isDelegated)
-            //.setPropertyDescriptor(newUniqId(declarationTable.descriptorTable.indexByValue(property.descriptor)))
+            .setDeclaration(newUniqId(declarationTable.indexByValue(property)))
             .setName(property.name.toString())
             .setVisibility(serializeVisibility(property.visibility))
             .setModality(serializeModality(property.modality))
@@ -1981,9 +1981,12 @@ internal class IrModuleDeserialization(val context: Context, val declarationTabl
 
         val backingField = if (proto.hasBackingField()) deserializeIrField(proto.backingField, start, end, origin) else null
 
+        val descriptor = declarationTable.valueByIndex(proto.declaration.index)!!.descriptor as PropertyDescriptor
+
         val property = IrPropertyImpl(start, end, origin,
                 /*declarationTable.descriptorTable.valueByIndex(proto.propertyDescriptor.index)!! as PropertyDescriptor*/
-                backingField?.descriptor ?:  dummyPropertyDescriptor,
+                //backingField?.descriptor ?:  dummyPropertyDescriptor,
+                descriptor,
                 Name.identifier(proto.name),
                 deserializeVisibility(proto.visibility),
                 deserializeModality(proto.modality),
