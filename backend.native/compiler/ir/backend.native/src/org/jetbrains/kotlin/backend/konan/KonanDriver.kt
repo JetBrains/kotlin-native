@@ -78,7 +78,7 @@ fun runTopLevelPhases(konanConfig: KonanConfig, environment: KotlinCoreEnvironme
 
         val declarationTable = DeclarationTable(module.irBuiltins)
         val byteArray = IrModuleSerialization(context, declarationTable).serializedModule(module)
-        val module2 = IrModuleDeserialization(context, declarationTable, module.irBuiltins, symbols.symbolTable).deserializedIrModule(byteArray)
+        val module2 = IrModuleDeserialization(context, declarationTable, module.irBuiltins/*, symbols.symbolTable*/).deserializedIrModule(byteArray)
 
         println("ORIGINAL IR")
         println(ir2stringWhole(module))
