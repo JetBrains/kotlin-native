@@ -226,8 +226,7 @@ message IrFunctionReference {
 
 
 message IrPropertyReference {
-    //required IrSymbol symbol = 1;
-    //required UniqId descriptor = 1;
+   // required UniqId declaration = 1;
     required TypeArguments type_arguments = 2;
     optional IrSymbol field = 3;
     optional IrSymbol getter = 4;
@@ -592,9 +591,14 @@ message IrDeclarator {
     }
 }
 
+message IrDeclarationOrigin {
+    required string name = 1;
+}
+
 message IrDeclaration {
     //required KotlinDescriptor descriptor = 1;
     //required UniqId uniqId = 1;
+    required IrDeclarationOrigin origin = 1;
     required Coordinates coordinates = 2;
     required Annotations annotations = 6;
     required IrDeclarator declarator = 3;

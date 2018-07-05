@@ -78,6 +78,8 @@ import org.jetbrains.kotlin.resolve.calls.components.hasDefaultValue
 //import org.jetbrains.kotlin.serialization.deserialization.symbols.DeserializedSimpleFunctionDescriptor
 import org.jetbrains.kotlin.types.*
 import org.jetbrains.kotlin.types.error.*
+import kotlin.reflect.full.declaredMembers
+
 //import org.jetbrains.kotlin.types.Variance.*
 
 private fun printCurrentStackTrace() {
@@ -382,7 +384,7 @@ internal class IrModuleSerialization(val context: Context,
 
     private fun serializePropertyReference(callable: IrPropertyReference): KonanIr.IrPropertyReference {
         val proto = KonanIr.IrPropertyReference.newBuilder()
-                //.setDescriptor(newUniqId(declarationTable.descriptorTable.indexByValue(callable.descriptor)))
+                //.setDeclaration(newUniqId(declarationTable.indexByValue(property)))
                 .setTypeArguments(serializeTypeArguments(callable))
         callable.field?.let { proto.field = serializeIrSymbol(it) }
         callable.getter?.let { proto.getter = serializeIrSymbol(it) }
@@ -944,6 +946,10 @@ internal class IrModuleSerialization(val context: Context,
         return proto.build()
     }
 
+    private fun serializeIrDeclarationOrigin(origin: IrDeclarationOrigin) =
+            KonanIr.IrDeclarationOrigin.newBuilder()
+                    .setName((origin as IrDeclarationOriginImpl).name)
+
     private fun serializeDeclaration(declaration: IrDeclaration): KonanIr.IrDeclaration {
         context.log{"### serializing Declaration: ${ir2string(declaration)}"}
 
@@ -1003,11 +1009,13 @@ internal class IrModuleSerialization(val context: Context,
 */
         val coordinates = serializeCoordinates(declaration.startOffset, declaration.endOffset)
         val annotations = serializeAnnotations(declaration.annotations)
+        val origin = serializeIrDeclarationOrigin(declaration.origin)
         val proto = KonanIr.IrDeclaration.newBuilder()
             //.setKind(declaration.irKind())
             //.setSymbol(kotlinDescriptor)
             .setCoordinates(coordinates)
             .setAnnotations(annotations)
+            .setOrigin(origin)
 
 
         proto.setDeclarator(declarator)
@@ -1070,10 +1078,13 @@ internal class IrModuleSerialization(val context: Context,
 
 // --------- Deserializer part -----------------------------
 
-internal class IrModuleDeserialization(val context: Context, val declarationTable: DeclarationTable, val builtins: IrBuiltIns, val symbolTable: SymbolTable/*,
+internal class IrModuleDeserialization(val context: Context, val declarationTable: DeclarationTable, val builtins: IrBuiltIns/*, val symbolTable: SymbolTable*//*,
                               private val rootFunction: FunctionDescriptor*/) {
 
     private val loopIndex = mutableMapOf<Int, IrLoop>()
+
+    val originIndex = (IrDeclarationOrigin::class.nestedClasses).map { it.objectInstance as IrDeclarationOriginImpl }.associateBy { it.name }
+
 /*
     private val rootMember = rootFunction.deserializedPropertyIfAccessor
     private val localDeserializer = LocalDeclarationDeserializer(rootMember)
@@ -1084,7 +1095,6 @@ internal class IrModuleDeserialization(val context: Context, val declarationTabl
     private fun deserializeKotlinType(proto: KonanIr.KotlinType)
         = descriptorDeserializer.deserializeKotlinType(proto)
 */
-
 
     private fun deserializeTypeArguments(proto: KonanIr.TypeArguments): List<IrType> {
         context.log{"### deserializeTypeArguments"}
@@ -1099,27 +1109,13 @@ internal class IrModuleDeserialization(val context: Context, val declarationTabl
 
     /* ----- IrTypes ------------------------------------------------ */
 
-    //fun deserializeIrClassSymbol(proto: KonanIr.IrClassSymbol, descriptor: ClassDescriptor) = IrClassSymbolImpl(descriptor)
-    //fun deserializeIrTypeArgumentSymbol(proto: KonanIr.IrTypeParameterSymbol, descriptor: TypeParameterDescriptor) = IrTypeParameterSymbolImpl(descriptor)
-
-
     val errorClassDescriptor = ErrorUtils.createErrorClass("the descriptor should not be needed")
     val dummyFunctionDescriptor = context.builtIns.any.unsubstitutedMemberScope.getContributedDescriptors().first { it is FunctionDescriptor} as FunctionDescriptor
 
     val dummyConstructorDescriptor = context.builtIns.any.getConstructors().first()
 
     val dummyPropertyDescriptor = context.builtIns.string.unsubstitutedMemberScope.getContributedDescriptors().first { it is PropertyDescriptor} as PropertyDescriptor
-        /*PropertyDescriptorImpl.create(
-            errorClassDescriptor,
-            Annotations.EMPTY ,
-            Modality.FINAL,
-            Visibilities.PRIVATE,
-            false,
-            Name.identifier("the descriptor should not be needed"),
-            CallableMemberDescriptor.Kind.DECLARATION,
-            SourceElement.NO_SOURCE,
-            false, false, false, false, false, false
-    )*/
+
 
     val dummyVariableDescriptor = IrTemporaryVariableDescriptorImpl(
             errorClassDescriptor,
@@ -1323,8 +1319,8 @@ internal class IrModuleDeserialization(val context: Context, val declarationTabl
         return element
     }
 
-    private val KotlinType.ir: IrType get() = /*context.ir*/symbolTable.translateErased(this)
-    private val KotlinType.brokenIr: IrType get() = context.ir.translateBroken(this)
+//    private val KotlinType.ir: IrType get() = /*context.ir*/symbolTable.translateErased(this)
+//    private val KotlinType.brokenIr: IrType get() = context.ir.translateBroken(this)
 
 
     private fun deserializeBlock(proto: KonanIr.IrBlock, start: Int, end: Int, type: IrType): IrBlock {
@@ -1490,8 +1486,10 @@ internal class IrModuleDeserialization(val context: Context, val declarationTabl
         val field = if (proto.hasField()) deserializeIrSymbol(proto.field) as IrFieldSymbol else null
         val getter = if (proto.hasGetter()) deserializeIrSymbol(proto.getter) as IrFunctionSymbol else null
         val setter = if (proto.hasSetter()) deserializeIrSymbol(proto.setter) as IrFunctionSymbol else null
+        //val descriptor = declarationTable.valueByIndex(proto.declaration.index)!!.descriptor as PropertyDescriptor
+
         val callable= IrPropertyReferenceImpl(start, end, type,
-                /*declarationTable.descriptorTable.valueByIndex(proto.descriptor.index)!! as PropertyDescriptor*/ dummyPropertyDescriptor,
+                dummyPropertyDescriptor,
                 proto.typeArguments.typeArgumentCount,
                 field,
                 getter,
@@ -1984,8 +1982,6 @@ internal class IrModuleDeserialization(val context: Context, val declarationTabl
         val descriptor = declarationTable.valueByIndex(proto.declaration.index)!!.descriptor as PropertyDescriptor
 
         val property = IrPropertyImpl(start, end, origin,
-                /*declarationTable.descriptorTable.valueByIndex(proto.propertyDescriptor.index)!! as PropertyDescriptor*/
-                //backingField?.descriptor ?:  dummyPropertyDescriptor,
                 descriptor,
                 Name.identifier(proto.name),
                 deserializeVisibility(proto.visibility),
@@ -2012,7 +2008,8 @@ internal class IrModuleDeserialization(val context: Context, val declarationTabl
 
         val start = proto.coordinates.startOffset
         val end = proto.coordinates.endOffset
-        val origin = DEFINED // TODO: retore the real origins
+        val origin = originIndex[proto.origin.name]!!
+
         val declarator = proto.declarator
 
         val declaration: IrDeclaration = when (declarator.declaratorCase){
