@@ -1,5 +1,5 @@
 ## v0.8 (Jul 2018)
-  * Signleton objects are frozen after creation, and shared between threads
+  * Singleton objects are frozen after creation, and shared between threads
   * String and primitives types are frozen by default
   * Common stdlib with Kotlin/JVM and Kotlin/JS
   * Implemented `kotlin.random.*` and `Collection.shuffle`
