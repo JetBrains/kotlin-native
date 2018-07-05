@@ -2430,6 +2430,11 @@ task inline_changingCapturedLocal(type: RunKonanTest) {
     source = "codegen/inline/changingCapturedLocal.kt"
 }
 
+task inline_callableReferenceWithReifiedParameter(type: RunKonanTest) {
+    goldValue = "2000\n"
+    source = "codegen/inline/callableReferenceWithReifiedParameter.kt"
+}
+
 task deserialized_inline0(type: RunKonanTest) {
     source = "serialization/deserialized_inline0.kt"
 }

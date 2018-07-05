@@ -63,13 +63,13 @@ internal class DeepCopyIrTreeWithDescriptors(val targetDescriptor: FunctionDescr
     fun copy(irElement: IrElement, typeSubstitutor: TypeSubstitutor?): IrElement {
         this.typeSubstitutor = typeSubstitutor
         // Create all class descriptors and all necessary descriptors in order to create KotlinTypes.
-        irElement.acceptVoid(DescriptorCollectorCreatePhase())
+        irElement.acceptVoid(DescriptorCollectorCreatePhase(irElement))
         // Initialize all created descriptors possibly using previously created types.
-        irElement.acceptVoid(DescriptorCollectorInitPhase())
+        irElement.acceptVoid(DescriptorCollectorInitPhase(irElement))
         return irElement.accept(InlineCopyIr(), null)
     }
 
-    inner class DescriptorCollectorCreatePhase : IrElementVisitorVoidWithContext() {
+    inner class DescriptorCollectorCreatePhase(val root: IrElement) : IrElementVisitorVoidWithContext() {
 
         override fun visitElement(element: IrElement) {
             element.acceptChildren(this, null)
@@ -125,7 +125,7 @@ internal class DeepCopyIrTreeWithDescriptors(val targetDescriptor: FunctionDescr
             val oldDescriptor = declaration.descriptor
             if (oldDescriptor !is PropertyAccessorDescriptor) {                             // Property accessors are copied along with their property.
                 val oldContainingDeclaration =
-                        if (oldDescriptor.visibility == Visibilities.LOCAL)
+                        if (oldDescriptor.visibility == Visibilities.LOCAL || declaration == root)
                             parentDescriptor
                         else
                             oldDescriptor.containingDeclaration
@@ -235,7 +235,7 @@ internal class DeepCopyIrTreeWithDescriptors(val targetDescriptor: FunctionDescr
 
     //-------------------------------------------------------------------------//
 
-    inner class DescriptorCollectorInitPhase : IrElementVisitorVoidWithContext() {
+    inner class DescriptorCollectorInitPhase(val root: IrElement) : IrElementVisitorVoidWithContext() {
 
         private val initializedProperties = mutableSetOf<PropertyDescriptor>()
 
@@ -265,7 +265,7 @@ internal class DeepCopyIrTreeWithDescriptors(val targetDescriptor: FunctionDescr
         override fun visitFunctionNew(declaration: IrFunction) {
             val oldDescriptor = declaration.descriptor
             if (oldDescriptor !is PropertyAccessorDescriptor) {                             // Property accessors are copied along with their property.
-                val newDescriptor = initFunctionDescriptor(oldDescriptor)
+                val newDescriptor = initFunctionDescriptor(oldDescriptor, declaration == root)
                 oldDescriptor.extensionReceiverParameter?.let {
                     descriptorSubstituteMap[it] = newDescriptor.extensionReceiverParameter!!
                 }
@@ -312,16 +312,16 @@ internal class DeepCopyIrTreeWithDescriptors(val targetDescriptor: FunctionDescr
 
         //---------------------------------------------------------------------//
 
-        private fun initFunctionDescriptor(oldDescriptor: CallableDescriptor): CallableDescriptor =
+        private fun initFunctionDescriptor(oldDescriptor: CallableDescriptor, isRoot: Boolean): CallableDescriptor =
                 when (oldDescriptor) {
                     is ConstructorDescriptor    -> initConstructorDescriptor(oldDescriptor)
-                    is SimpleFunctionDescriptor -> initSimpleFunctionDescriptor(oldDescriptor)
+                    is SimpleFunctionDescriptor -> initSimpleFunctionDescriptor(oldDescriptor, isRoot)
                     else -> TODO("Unsupported FunctionDescriptor subtype: $oldDescriptor")
                 }
 
         //---------------------------------------------------------------------//
 
-        private fun initSimpleFunctionDescriptor(oldDescriptor: SimpleFunctionDescriptor): FunctionDescriptor =
+        private fun initSimpleFunctionDescriptor(oldDescriptor: SimpleFunctionDescriptor, isRoot: Boolean): FunctionDescriptor =
                 (descriptorSubstituteMap[oldDescriptor] as SimpleFunctionDescriptorImpl).apply {
                     val oldDispatchReceiverParameter = oldDescriptor.dispatchReceiverParameter
                     val newDispatchReceiverParameter = oldDispatchReceiverParameter?.let { descriptorSubstituteMap.getOrDefault(it, it) as ReceiverParameterDescriptor }
@@ -337,7 +337,7 @@ internal class DeepCopyIrTreeWithDescriptors(val targetDescriptor: FunctionDescr
                             /* unsubstitutedValueParameters = */ newValueParameters,
                             /* unsubstitutedReturnType      = */ newReturnType,
                             /* modality                     = */ oldDescriptor.modality,
-                            /* visibility                   = */ oldDescriptor.visibility
+                            /* visibility                   = */ if (isRoot) Visibilities.LOCAL else oldDescriptor.visibility
                     )
                     isTailrec = oldDescriptor.isTailrec
                     isSuspend = oldDescriptor.isSuspend
