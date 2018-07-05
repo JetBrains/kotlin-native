@@ -56,4 +56,5 @@ Q: How do I make a singleton object mutable?
 
 A: Currently, singleton objects are immutable (i.e. frozen after creation), and it's generally considered
 a good practise to have global state immutable. If for some reasons you need mutable state inside such an
-object, use `@konan.ThreadLocal` annotation on the object.
+object, use `@konan.ThreadLocal` annotation on the object. Also `konan.worker.AtomicReference` class could be
+used to store different pointers to frozen objects in a frozen object and atomically update those.
