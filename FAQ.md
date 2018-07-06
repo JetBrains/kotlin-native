@@ -65,7 +65,7 @@ A: We release dev builds frequently, usually at least once a week. You can check
 
 <details>
     
-<summary>For the CLI, you can compile using gradle as stated in the README (and if you get errors, you can try to do a `./gradlew clean`):</summary>
+<summary>For the CLI, you can compile using gradle as stated in the README (and if you get errors, you can try to do a <code>./gradlew clean</code>):</summary>
 
 ```
 ./gradlew dependencies:update
