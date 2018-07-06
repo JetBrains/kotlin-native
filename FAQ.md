@@ -77,7 +77,7 @@ You can then set the `KONAN_HOME` env variable to the generated `dist` folder in
 </details>
 
 <details>
-<summary>For Gradle, you can use [Gradle composite builds](https://docs.gradle.org/current/userguide/composite_builds.html) like this:</summary>
+<summary>For Gradle, you can use <a href="https://docs.gradle.org/current/userguide/composite_builds.html">Gradle composite builds</a> like this:</summary>
 
 ```
 # Set with the path of your kotlin-native clone
