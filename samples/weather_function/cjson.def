@@ -1,7 +1,6 @@
-# The def format doesn't allow environment variables to be used (eg HOME).
 package = cjson
 headers = cJSON.h
 compilerOpts = -std=c89
-compilerOpts.linux = -I/home/a_user/cJSON-1.7.7/include/cjson
+compilerOpts.linux = -I/app/lib/cJSON-1.7.7/include
 staticLibraries = libcjson.a
-libraryPaths = /home/a_user/cJSON-1.7.7/lib/x86_64-linux-gnu
+libraryPaths = /app/lib/cJSON-1.7.7/lib
