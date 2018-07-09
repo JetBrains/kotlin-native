@@ -28,10 +28,7 @@ import org.jetbrains.kotlin.cli.common.ExitCode
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity.*
 import org.jetbrains.kotlin.cli.jvm.compiler.EnvironmentConfigFiles
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
-import org.jetbrains.kotlin.config.CompilerConfiguration
-import org.jetbrains.kotlin.config.Services
-import org.jetbrains.kotlin.config.addKotlinSourceRoots
-import org.jetbrains.kotlin.config.kotlinSourceRoots
+import org.jetbrains.kotlin.config.*
 import org.jetbrains.kotlin.konan.KonanVersion
 import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
@@ -175,6 +172,24 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
                     } else {
                         arguments.checkDependencies
                     })
+                /**
+                 * [LanguageFeature.AllowContractsForCustomFunctions] is disabled in 6d733ff7b99a67f533cd9e17894ff426e103c051
+                 * to anable it
+                 * TODO: delete this when command line parameter for [LanguageFeature.AllowContractsForCustomFunctions] appears
+                 * in big Kotlin
+                 */
+                put(CommonConfigurationKeys.LANGUAGE_VERSION_SETTINGS,
+                        LanguageVersionSettingsImpl(
+                                LanguageVersion.LATEST_STABLE,
+                                ApiVersion.LATEST_STABLE,
+                                mapOf(
+                                        AnalysisFlag.useExperimental to languageVersionSettings.getFlag(AnalysisFlag.useExperimental)
+                                ),
+                                mapOf(
+                                        LanguageFeature.Coroutines to languageVersionSettings.getFeatureSupport(LanguageFeature.Coroutines),
+                                        LanguageFeature.MultiPlatformProjects to languageVersionSettings.getFeatureSupport(LanguageFeature.MultiPlatformProjects),
+                                        LanguageFeature.AllowContractsForCustomFunctions to LanguageFeature.State.ENABLED))
+                )
             }
         }
     }
