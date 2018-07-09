@@ -174,7 +174,7 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
                     })
                 /**
                  * [LanguageFeature.AllowContractsForCustomFunctions] is disabled in 6d733ff7b99a67f533cd9e17894ff426e103c051
-                 * to anable it
+                 * we have to enable it explicitly.
                  * TODO: delete this when command line parameter for [LanguageFeature.AllowContractsForCustomFunctions] appears
                  * in big Kotlin
                  */
