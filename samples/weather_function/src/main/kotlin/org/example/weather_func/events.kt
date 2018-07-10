@@ -5,7 +5,7 @@ internal typealias EventHandler<T> = (T) -> Unit
 /**
  * Covers event handling for the program.
 */
-internal class Event<T : Any> {
+internal class Event<T : Any?> {
     private var handlers = emptyList<EventHandler<T>>()
 
     fun subscribe(handler: EventHandler<T>) {

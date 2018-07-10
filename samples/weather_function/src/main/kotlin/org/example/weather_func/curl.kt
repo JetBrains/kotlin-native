@@ -1,20 +1,19 @@
 package org.example.weather_func
 
 import org.example.weather_func.Event
-// size_t is a alias for Long.
 import platform.posix.size_t
 
-import curl.curl_easy_setopt as setCurlOption
+import curl.curl_easy_setopt
 import curl.CURLOPT_URL
 import curl.CURLOPT_HEADERFUNCTION
 import curl.CURLOPT_HEADERDATA
 import curl.CURLOPT_WRITEFUNCTION
 import curl.CURLOPT_WRITEDATA
-import curl.curl_easy_cleanup as cleanupCurl
-import curl.curl_easy_init as initCurl
-import curl.CURLE_OK as CURL_ERROR_OK
-import curl.curl_easy_strerror as curlErrorMessage
-import curl.curl_easy_perform as curlFileSync
+import curl.curl_easy_cleanup
+import curl.curl_easy_init
+import curl.CURLE_OK
+import curl.curl_easy_strerror
+import curl.curl_easy_perform
 
 import kotlinx.cinterop.staticCFunction
 import kotlinx.cinterop.COpaquePointer
@@ -29,7 +28,7 @@ import kotlinx.cinterop.readBytes
 */
 internal class CUrl(val url: String) {
     private val stableRef = StableRef.create(this)
-    private val curlObj = initCurl()
+    private val curlObj = curl_easy_init()
     val header = Event<String>()
     val body = Event<String>()
 
@@ -37,27 +36,28 @@ internal class CUrl(val url: String) {
         val header = staticCFunction(::headerCallback)
         val writeData = staticCFunction(::writeCallback)
 
-        setCurlOption(curlObj, CURLOPT_URL, url)
-        setCurlOption(curlObj, CURLOPT_HEADERFUNCTION, header)
-        setCurlOption(curlObj, CURLOPT_HEADERDATA, stableRef.asCPointer())
-        setCurlOption(curlObj, CURLOPT_WRITEFUNCTION, writeData)
-        setCurlOption(curlObj, CURLOPT_WRITEDATA, stableRef.asCPointer())
+        // Setup Curl.
+        curl_easy_setopt(curlObj, CURLOPT_URL, url)
+        curl_easy_setopt(curlObj, CURLOPT_HEADERFUNCTION, header)
+        curl_easy_setopt(curlObj, CURLOPT_HEADERDATA, stableRef.asCPointer())
+        curl_easy_setopt(curlObj, CURLOPT_WRITEFUNCTION, writeData)
+        curl_easy_setopt(curlObj, CURLOPT_WRITEDATA, stableRef.asCPointer())
     }
 
     fun fetch() {
         // Have Curl do a HTTP/HTTPS request and store the response (status).
-        val response = curlFileSync(curlObj)
+        val response = curl_easy_perform(curlObj)
         val maxChars = 50
         // utfCharSize in bytes.
         val utfCharSize = 4
         // length in bytes.
         val length = utfCharSize * maxChars
-        // Print the error message if the Curl status code isn't OK (CURL_ERROR_OK).
-        if (response != CURL_ERROR_OK) println("curlFileSync() failed: ${curlErrorMessage(response)?.toKString(length)}")
+        // Print the error message if the Curl status code isn't OK (CURLE_OK).
+        if (response != CURLE_OK) println("Curl HTTP/S request failed: ${curl_easy_strerror(response)?.toKString(length)}")
     }
 
     fun close() {
-        cleanupCurl(curlObj)
+        curl_easy_cleanup(curlObj)
         stableRef.dispose()
     }
 }
