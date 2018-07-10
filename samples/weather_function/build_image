@@ -1,0 +1,7 @@
+#!/bin/sh
+IMAGE_NAME="weather"
+echo "Copying over Kotlin Native's Gradle Wrapper..."
+cp -R ../gradle .
+cp ../gradlew .
+echo "Building $IMAGE_NAME Docker Image..."
+docker build -t $IMAGE_NAME .

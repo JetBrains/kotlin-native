@@ -11,3 +11,5 @@ temp.json
 build/
 weather
 .konan/
+gradle/
+gradlew
