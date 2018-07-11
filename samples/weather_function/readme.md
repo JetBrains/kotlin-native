@@ -9,10 +9,8 @@ It will be assumed that Docker is already installed.
 
 1. Clone the Kotlin Native Git repository: `git clone https://github.com/JetBrains/kotlin-native ~/repos/kotlin-native`
 2. Change working directory to the sample: `cd ~/repos/kotlin-native/samples/weather_function`
-3. Create the **.konan** directory
-4. Copy the **~/.konan/cache** directory to the **.konan** directory
-5. Create the **openweathermap_key.txt** file and append your [Open Weather Map API key](https://openweathermap.org/appid) to the file
-6. Build Docker image: `docker build --t weather .`
+3. Create the **openweathermap_key.txt** file and append your [Open Weather Map API key](https://openweathermap.org/appid) to the file
+4. Build the *weather* Docker image by running the shell script: `./build_image`
 
 
 # Usage

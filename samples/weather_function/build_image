@@ -1,7 +1,11 @@
 #!/bin/sh
 IMAGE_NAME="weather"
+KOTLIN_NATIVE_CACHE="$HOME/.konan/cache"
 echo "Copying over Kotlin Native's Gradle Wrapper..."
 cp -R ../gradle .
 cp ../gradlew .
+mkdir .konan
+echo "Copying over the Kotlin Native cache..."
+cp -R $KOTLIN_NATIVE_CACHE .konan
 echo "Building $IMAGE_NAME Docker Image..."
 docker build -t $IMAGE_NAME .
