@@ -68,6 +68,7 @@ configurations {
 
     implementation.extendsFrom shadow
     compileOnly.extendsFrom bundleDependencies
+    testImplementation.extendsFrom bundleDependencies
 }
 
 dependencies {
@@ -95,6 +96,11 @@ shadowJar {
 }
 
 assemble.dependsOn shadowJar
+
+pluginUnderTestMetadata {
+    dependsOn shadowJar
+    pluginClasspath = files(shadowJar.archivePath) + configurations.shadow
+}
 
 test {
     systemProperty("kotlin.version", buildKotlinVersion)
