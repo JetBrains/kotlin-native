@@ -18,10 +18,9 @@ package org.jetbrains.kotlin.backend.konan.lower
 
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
-import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
-import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
-import org.jetbrains.kotlin.backend.common.lower.irIfThen
+import org.jetbrains.kotlin.backend.common.lower.*
 import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.ir.util.isSimpleTypeWithQuestionMark
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.descriptors.SimpleFunctionDescriptor
@@ -29,9 +28,7 @@ import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.*
-import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
-import org.jetbrains.kotlin.ir.declarations.IrFile
-import org.jetbrains.kotlin.ir.declarations.IrVariable
+import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.*
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
@@ -248,7 +245,10 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
             val bound: IrVariable,
             val last: IrVariable,
             val step: IrVariable,
-            var loopVariable: IrVariable? = null)
+            var loopVariable: IrVariable? = null,
+            val until: Boolean,
+            val increasing: Boolean
+        )
 
     private inner class ProgressionInfoBuilder : IrElementVisitor<ProgressionInfo?, Nothing?> {
 
@@ -368,11 +368,10 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
                 //    getProgressionLast(inductionVariable, boundValue, step), if step != 1 and the range is closed.
                 //    getProgressionLast(inductionVariable, boundValue - 1, step), if step != 1 and the range is open.
                 var lastExpression: IrExpression? = null
+                var until = false
                 if (!closed) {
-                    val decrementSymbol = symbols.getUnaryOperator(OperatorNameConventions.DEC, boundValue.descriptor.type)
-                    lastExpression = irCall(decrementSymbol.owner).apply {
-                        dispatchReceiver = irGet(boundValue)
-                    }
+                    lastExpression = irGet(boundValue)
+                    until = true
                 }
                 if (needLastCalculation) {
                     lastExpression = irGetProgressionLast(progressionType,
@@ -390,11 +389,16 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
                     boundValue
                 }
 
-                iteratorToLoopInfo[symbol] = ForLoopInfo(progressionInfo,
+                iteratorToLoopInfo[symbol] = ForLoopInfo(
+                        progressionInfo,
                         inductionVariable,
                         boundValue,
                         lastValue,
-                        stepValue)
+                        stepValue,
+                        null,
+                        until,
+                        increasing
+                    )
 
                 return IrCompositeImpl(startOffset, endOffset, context.irBuiltIns.unitType, null, statements)
             }
@@ -490,13 +494,14 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
         val forLoopInfo = iteratorToLoopInfo[irIteratorAccess.symbol] ?: return null
         assert(forLoopInfo.loopVariable != null)
 
-        return irCall(context.irBuiltIns.booleanNotSymbol).apply {
-            val eqeqCall = irCall(context.irBuiltIns.eqeqSymbol).apply {
-                putValueArgument(0, irGet(forLoopInfo.loopVariable!!))
-                putValueArgument(1, irGet(forLoopInfo.last))
-            }
-            putValueArgument(0, eqeqCall)
-        } to forLoopInfo
+        val right = irGet(forLoopInfo.last)
+        return if (forLoopInfo.until) {
+                val left = irGet(forLoopInfo.inductionVariable)
+                if (forLoopInfo.increasing) irLessThan(left, right) else irGreaterThan(left, right)
+            } else {
+                val left = irGet(forLoopInfo.loopVariable!!)
+                irNotEquals2(left, right)
+            } to forLoopInfo
     }
 
     /**
