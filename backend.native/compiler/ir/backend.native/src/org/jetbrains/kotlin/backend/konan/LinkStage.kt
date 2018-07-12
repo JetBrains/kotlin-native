@@ -98,7 +98,7 @@ internal class LinkStage(val context: Context) {
             else -> configurables.optNooptFlags
         } + llvmProfilingFlags()).toTypedArray()
         val optimizedBc = temporary("optimized", ".bc")
-        targetTool("opt", combinedBc, "-o", optimizedBc, *optFlags)
+        hostLlvmTool("opt", combinedBc, "-o", optimizedBc, *optFlags)
 
         val llcFlags = (configurables.llcFlags + when {
             optimize -> configurables.llcOptFlags
@@ -106,9 +106,9 @@ internal class LinkStage(val context: Context) {
             else -> configurables.llcNooptFlags
         } + llvmProfilingFlags()).toTypedArray()
         val combinedO = temporary("combined", ".o")
-        targetTool("llc", optimizedBc, "-o", combinedO, *llcFlags, "-filetype=obj")
+        hostLlvmTool("llc", optimizedBc, "-o", combinedO, *llcFlags, "-filetype=obj")
         val linkedWasm = temporary("linked", ".wasm")
-        targetTool("wasm-ld", combinedO, "-o", linkedWasm, *configurables.lldFlags.toTypedArray())
+        hostLlvmTool("wasm-ld", combinedO, "-o", linkedWasm, *configurables.lldFlags.toTypedArray())
         return linkedWasm
     }
 

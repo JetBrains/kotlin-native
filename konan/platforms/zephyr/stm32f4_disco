@@ -32,7 +32,7 @@ dependencies.linux_x64-zephyr_stm32f4_disco = \
 targetToolchain.macos_x64-zephyr_stm32f4_disco = gcc-arm-none-eabi-7-2017-q4-major-mac/arm-none-eabi
 dependencies.macos_x64-zephyr_stm32f4_disco = \
     gcc-arm-none-eabi-7-2017-q4-major-mac \
-    clang-llvm-6.0.0-darwin-macos \
+    clang-llvm-6.0.1-darwin-macos \
     target-sysroot-2-wasm
 
 targetToolchain.mingw_x64-zephyr_stm32f4_disco = gcc-arm-none-eabi-7-2017-q4-major-win32/arm-none-eabi
