@@ -5,6 +5,7 @@ import kotlinx.cinterop.allocArray
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.toKString
+import kotlinx.cinterop.refTo
 import kotlin.system.exitProcess
 
 private val API_KEY by lazy { fetchApiKey() }
@@ -107,16 +108,10 @@ private fun fetchApiKey(): String {
 	val maxChars = 50
     // utfCharSize in bytes.
     val utfCharSize = 4
-	// bufferLength in bytes.
-	val bufferLength = utfCharSize * maxChars
 	// Open the file using the fopen function and store the file handle.
 	val file = fopen("openweathermap_key.txt", "r")
-
-	memScoped {
-		val buffer = allocArray<ByteVar>(bufferLength)
-		// Read a line from the file using the fgets function.
-		result = fgets(buffer, bufferLength, file)?.toKString()?.replace("\n", "") ?: ""
-	}
+	val buffer = ByteArray(utfCharSize * maxChars)
+	if (file != null) result = fgets(buffer.refTo(0), buffer.size, file)?.toKString()?.trim() ?: ""
 	// Close the file.
 	fclose(file)
 	return result
