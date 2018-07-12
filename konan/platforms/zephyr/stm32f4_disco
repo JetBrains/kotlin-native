@@ -25,7 +25,7 @@ boardSpecificClangFlags.zephyr_stm32f4_disco = -mabi=aapcs -mthumb -mcpu=cortex-
 
 targetToolchain.linux_x64-zephyr_stm32f4_disco = gcc-arm-none-eabi-7-2017-q4-major-linux/arm-none-eabi
 dependencies.linux_x64-zephyr_stm32f4_disco = \
-    clang-llvm-6.0.0-linux-x86-64 \
+    clang-llvm-6.0.1-linux-x86-64 \
     gcc-arm-none-eabi-7-2017-q4-major-linux \
     target-sysroot-2-wasm
 
