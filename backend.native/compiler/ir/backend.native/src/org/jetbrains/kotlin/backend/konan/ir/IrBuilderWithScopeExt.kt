@@ -20,13 +20,18 @@ fun IrBuilderWithScope.irLessThan(left: IrExpression, right: IrExpression): IrEx
     return irCompare(context.irBuiltIns.lessFunByOperandType, left, right)
 }
 
+fun IrBuilderWithScope.irGreaterThan(left: IrExpression, right: IrExpression): IrExpression {
+    return irCompare(context.irBuiltIns.greaterFunByOperandType, left, right)
+}
+
 fun IrBuilderWithScope.irLessEqual(left: IrExpression, right: IrExpression): IrExpression {
     return irCompare(context.irBuiltIns.lessOrEqualFunByOperandType, left, right)
 }
 
-fun IrBuilderWithScope.irGreaterThan(left: IrExpression, right: IrExpression): IrExpression {
-    return irCompare(context.irBuiltIns.greaterFunByOperandType, left, right)
+fun IrBuilderWithScope.irGreaterEqual(left: IrExpression, right: IrExpression): IrExpression {
+    return irCompare(context.irBuiltIns.greaterOrEqualFunByOperandType, left, right)
 }
+
 
 fun IrBuilderWithScope.irCompare(map: Map<SimpleType, IrSimpleFunction>, left: IrExpression, right: IrExpression): IrExpression {
     return irCallWithArguments(map[left.type.toKotlinType()]?.symbol!!, left, right)

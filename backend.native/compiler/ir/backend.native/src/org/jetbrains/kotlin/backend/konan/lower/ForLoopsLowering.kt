@@ -494,13 +494,12 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
         val forLoopInfo = iteratorToLoopInfo[irIteratorAccess.symbol] ?: return null
         assert(forLoopInfo.loopVariable != null)
 
+        val left = irGet(forLoopInfo.inductionVariable)
         val right = irGet(forLoopInfo.last)
         return if (forLoopInfo.until) {
-                val left = irGet(forLoopInfo.inductionVariable)
                 if (forLoopInfo.increasing) irLessThan(left, right) else irGreaterThan(left, right)
             } else {
-                val left = irGet(forLoopInfo.loopVariable!!)
-                irNotEquals2(left, right)
+                if (forLoopInfo.increasing) irLessEqual(left, right) else irGreaterEqual(left, right)
             } to forLoopInfo
     }
 
