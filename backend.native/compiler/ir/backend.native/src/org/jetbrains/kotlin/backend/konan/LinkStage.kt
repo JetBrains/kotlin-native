@@ -51,7 +51,7 @@ internal class LinkStage(val context: Context, val phaser: PhaseManager) {
     private fun runTool(vararg command: String) =
             Command(*command)
                     .logWith(context::log)
-                    .execute()
+                    .getOutputLines(withErrors = true)
 
     private fun llvmLto(files: List<BitcodeFile>): ObjectFile {
         val combined = temporary("combined", ".o")
@@ -80,7 +80,7 @@ internal class LinkStage(val context: Context, val phaser: PhaseManager) {
         runTool(absoluteToolName, *arg)
     }
 
-    private fun hostLlvmTool(tool: String, vararg arg: String) {
+    private fun hostLlvmTool(tool: String, vararg arg: String) = run {
         val absoluteToolName = "${platform.absoluteLlvmHome}/bin/$tool"
         runTool(absoluteToolName, *arg)
     }
@@ -91,7 +91,7 @@ internal class LinkStage(val context: Context, val phaser: PhaseManager) {
         val combinedBc = temporary("combined", ".bc")
         // TODO: use -only-needed for the stdlib
         hostLlvmTool("llvm-link", *bitcodeFiles.toTypedArray(), "-o", combinedBc)
-
+        println("llvm-link complete")
         val optFlags = (configurables.optFlags + when {
             optimize -> configurables.optOptFlags
             debug -> configurables.optDebugFlags
@@ -99,7 +99,7 @@ internal class LinkStage(val context: Context, val phaser: PhaseManager) {
         } + llvmProfilingFlags()).toTypedArray()
         val optimizedBc = temporary("optimized", ".bc")
         hostLlvmTool("opt", combinedBc, "-o", optimizedBc, *optFlags)
-
+        println("opt complete")
         val llcFlags = (configurables.llcFlags + when {
             optimize -> configurables.llcOptFlags
             debug -> configurables.llcDebugFlags
@@ -107,6 +107,9 @@ internal class LinkStage(val context: Context, val phaser: PhaseManager) {
         } + llvmProfilingFlags()).toTypedArray()
         val combinedO = temporary("combined", ".o")
         hostLlvmTool("llc", optimizedBc, "-o", combinedO, *llcFlags, "-filetype=obj")
+        println("llc complete")
+        hostLlvmTool("wasm-ld", "-v")
+        println("version is shown")
         val linkedWasm = temporary("linked", ".wasm")
         hostLlvmTool("wasm-ld", combinedO, "-o", linkedWasm, *configurables.lldFlags.toTypedArray())
         return linkedWasm
