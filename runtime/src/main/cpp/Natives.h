@@ -92,22 +92,22 @@ OBJ_GETTER(Kotlin_Any_toString, KConstRef thiz);
 OBJ_GETTER(Kotlin_Array_clone, KConstRef thiz);
 OBJ_GETTER(Kotlin_Array_get, KConstRef thiz, KInt index);
 void Kotlin_Array_set(KRef thiz, KInt index, KConstRef value);
-KInt Kotlin_Array_getArrayLength(KConstRef thiz);
+KInt Kotlin_Array_getArrayLength(KConstRef thiz) RUNTIME_CONST;
 
 OBJ_GETTER(Kotlin_ByteArray_clone, KConstRef thiz);
 KByte Kotlin_ByteArray_get(KConstRef thiz, KInt index);
 void Kotlin_ByteArray_set(KRef thiz, KInt index, KByte value);
-KInt Kotlin_ByteArray_getArrayLength(KConstRef thiz);
+KInt Kotlin_ByteArray_getArrayLength(KConstRef thiz) RUNTIME_CONST;
 
 OBJ_GETTER(Kotlin_CharArray_clone, KConstRef thiz);
 KChar Kotlin_CharArray_get(KConstRef thiz, KInt index);
 void Kotlin_CharArray_set(KRef thiz, KInt index, KChar value);
-KInt Kotlin_CharArray_getArrayLength(KConstRef thiz);
+KInt Kotlin_CharArray_getArrayLength(KConstRef thiz) RUNTIME_CONST;
 
 OBJ_GETTER(Kotlin_IntArray_clone, KConstRef thiz);
 KInt Kotlin_IntArray_get(KConstRef thiz, KInt index);
 void Kotlin_IntArray_set(KRef thiz, KInt index, KInt value);
-KInt Kotlin_IntArray_getArrayLength(KConstRef thiz);
+KInt Kotlin_IntArray_getArrayLength(KConstRef thiz) RUNTIME_CONST;
 
 // io/Console.kt
 void Kotlin_io_Console_print(KString message);
