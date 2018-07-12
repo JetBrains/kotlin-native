@@ -2,7 +2,10 @@
 #include <stdint.h>
 
 #ifdef KONAN_WASM
-#include "../Common.h"
+#include "Common.h"
+#endif
+
+#ifdef KONAN_WASM
 RUNTIME_USED
 #endif
 float fmodf(float x, float y)
