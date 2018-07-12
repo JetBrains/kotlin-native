@@ -601,15 +601,6 @@ fun IrBuilderWithScope.irCallOp(
 fun IrBuilderWithScope.irSetVar(variable: IrVariable, value: IrExpression) =
         irSetVar(variable.symbol, value)
 
-fun IrBuilderWithScope.irSetField(receiver: IrExpression, irField: IrField, value: IrExpression): IrExpression =
-        IrSetFieldImpl(
-                startOffset,
-                endOffset,
-                irField.symbol,
-                receiver = receiver,
-                value = value,
-                type = context.irBuiltIns.unitType
-        )
 
 /**
  * Binds the arguments explicitly represented in the IR to the parameters of the accessed function.
