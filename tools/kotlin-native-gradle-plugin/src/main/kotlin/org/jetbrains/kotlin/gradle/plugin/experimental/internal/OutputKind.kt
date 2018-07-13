@@ -23,7 +23,7 @@ enum class OutputKind(
     ),
     KLIBRARY(
         CompilerOutputKind.LIBRARY,
-        KotlinNativeKLibraryImpl::class.java,
+        KotlinNativeLibraryImpl::class.java,
         1,
         null,
         KotlinNativeUsage.KLIB

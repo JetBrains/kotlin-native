@@ -70,7 +70,7 @@ abstract class AbstractKotlinNativeLibrary(
     override val outputRootName = "lib"
 }
 
-open class KotlinNativeKLibraryImpl @Inject constructor(
+open class KotlinNativeLibraryImpl @Inject constructor(
     name: String,
     baseName: Provider<String>,
     componentImplementation: Configuration,
