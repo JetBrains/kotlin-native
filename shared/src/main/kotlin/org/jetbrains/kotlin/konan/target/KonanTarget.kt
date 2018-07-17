@@ -46,6 +46,7 @@ sealed class KonanTarget(override val name: String, val family: Family, val arch
     object IOS_ARM32 :      KonanTarget( "ios_arm32",       Family.IOS,     Architecture.ARM32)
     object IOS_ARM64 :      KonanTarget( "ios_arm64",       Family.IOS,     Architecture.ARM64)
     object IOS_X64 :        KonanTarget( "ios_x64",         Family.IOS,     Architecture.X64)
+    object FRC_ARM32 :      KonanTarget( "frc_arm32",       Family.LINUX,   Architecture.ARM32)
     object LINUX_X64 :      KonanTarget( "linux_x64",       Family.LINUX,   Architecture.X64)
     object MINGW_X64 :      KonanTarget( "mingw_x64",       Family.MINGW,   Architecture.X64)
     object MACOS_X64 :      KonanTarget( "macos_x64",       Family.OSX,     Architecture.X64)
@@ -129,6 +130,7 @@ open class HostManager(protected val distribution: Distribution = Distribution()
 
     // TODO: need a better way to enumerated predefined targets.
     private val predefinedTargets = listOf(
+            FRC_ARM32,
             ANDROID_ARM32, ANDROID_ARM64,
             IOS_ARM32, IOS_ARM64, IOS_X64,
             LINUX_X64, LINUX_ARM32_HFP, LINUX_MIPS32, LINUX_MIPSEL32,
@@ -167,7 +169,7 @@ open class HostManager(protected val distribution: Distribution = Distribution()
         return target
     }
 
-    val enabled: List<KonanTarget> by lazy { 
+    val enabled: List<KonanTarget> by lazy {
             when (host) {
                 KonanTarget.LINUX_X64 -> listOf(
                     KonanTarget.LINUX_X64,
@@ -184,6 +186,7 @@ open class HostManager(protected val distribution: Distribution = Distribution()
                 ) + zephyrSubtargets
                 KonanTarget.MACOS_X64 -> listOf(
                     KonanTarget.MACOS_X64,
+                    KonanTarget.FRC_ARM32,
                     KonanTarget.IOS_ARM32,
                     KonanTarget.IOS_ARM64,
                     KonanTarget.IOS_X64,
@@ -215,7 +218,7 @@ open class HostManager(protected val distribution: Distribution = Distribution()
             return if (hostOs == "osx") "macos" else hostOs
         }
 
-        val jniHostPlatformIncludeDir: String 
+        val jniHostPlatformIncludeDir: String
             get() = when(host) {
                 KonanTarget.MACOS_X64 -> "darwin"
                 KonanTarget.LINUX_X64 -> "linux"
@@ -255,6 +258,8 @@ open class HostManager(protected val distribution: Distribution = Distribution()
                 "macbook"     to "macos_x64",
                 "macos"       to "macos_x64",
                 "imac"        to "macos_x64",
+                "frc"         to "frc_arm32",
+                "roborio"     to "frc_arm32",
                 "raspberrypi" to "linux_arm32_hfp",
                 "iphone32"    to "ios_arm32",
                 "iphone"      to "ios_arm64",

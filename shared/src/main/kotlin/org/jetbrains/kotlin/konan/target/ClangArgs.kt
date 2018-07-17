@@ -29,6 +29,15 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
             val result = when (target) {
                 KonanTarget.LINUX_X64 ->
                     listOf("--sysroot=$absoluteTargetSysRoot")
+
+                KonanTarget.FRC_ARM32 ->
+                    listOf("-target", targetArg!!,
+                            "-mfpu=neon", "-mfloat-abi=soft",
+                            "--sysroot=$absoluteTargetSysRoot",
+                            // TODO: those two are hacks.
+                            "-I$absoluteTargetSysRoot/include/c++/5.5.0",
+                            "-I$absoluteTargetSysRoot/include/c++/5.5.0/arm-frc-linux-gnueabi")
+
                 KonanTarget.LINUX_ARM32_HFP ->
                     listOf("-target", targetArg!!,
                             "-mfpu=vfp", "-mfloat-abi=hard",
@@ -111,6 +120,9 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
         get() = when (target) {
             KonanTarget.LINUX_X64 ->
                 listOf("-DUSE_GCC_UNWIND=1", "-DUSE_ELF_SYMBOLS=1", "-DELFSIZE=64")
+
+            KonanTarget.FRC_ARM32 ->
+                listOf("-DUSE_GCC_UNWIND=1", "-DUSE_ELF_SYMBOLS=1", "-DELFSIZE=32")
 
             KonanTarget.LINUX_ARM32_HFP ->
                 listOf("-DUSE_GCC_UNWIND=1", "-DUSE_ELF_SYMBOLS=1", "-DELFSIZE=32")

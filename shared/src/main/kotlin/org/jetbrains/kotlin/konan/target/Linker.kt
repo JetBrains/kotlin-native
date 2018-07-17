@@ -16,10 +16,9 @@
 
 package org.jetbrains.kotlin.konan.target
 
-import java.lang.ProcessBuilder
-import java.lang.ProcessBuilder.Redirect
 import org.jetbrains.kotlin.konan.exec.Command
 import org.jetbrains.kotlin.konan.file.*
+import java.lang.ProcessBuilder.Redirect
 
 typealias ObjectFile = String
 typealias ExecutableFile = String
@@ -270,6 +269,51 @@ open class LinuxBasedLinker(targetProperties: LinuxBasedConfigurables)
     }
 }
 
+open class FrcLinker(targetProperties: FrcConfigurables)
+    : LinkerFlags(targetProperties), FrcConfigurables by targetProperties {
+
+    override val libGcc: String = "$absoluteTargetSysRoot/${super.libGcc}"
+
+    override fun filterStaticLibraries(binaries: List<String>) = binaries.filter { it.isUnixStaticLib }
+
+    override fun linkCommands(objectFiles: List<ObjectFile>, executable: ExecutableFile,
+                              libraries: List<String>, linkerArgs: List<String>,
+                              optimize: Boolean, debug: Boolean,
+                              kind: LinkerOutputKind, outputDsymBundle: String): List<Command> {
+        if (kind != LinkerOutputKind.EXECUTABLE) TODO("frc_arm32 is for teams to write their robot code")
+        return listOf(Command("$absoluteTargetToolchain/bin/ld").apply {
+            +"--sysroot=$absoluteTargetSysRoot"
+            +"-export-dynamic"
+            +"-z"
+            +"relro"
+            +"--build-id"
+            +"--eh-frame-hdr"
+            +"-dynamic-linker"
+            +dynamicLinker
+            +"-o"
+            +executable
+            +"$absoluteTargetSysRoot/usr/lib/crt1.o"
+            +"$absoluteTargetSysRoot/usr/lib/crti.o"
+            +"-L$llvmLib"
+            +"--hash-style=gnu"
+            +listOf("-L$absoluteTargetSysRoot/lib", "-L$absoluteTargetSysRoot/usr/lib")
+            if (optimize) {
+                +"-plugin"
+                +"$llvmLib/LLVMgold.so"
+                +pluginOptimizationFlags
+            }
+            if (optimize) +linkerOptimizationFlags
+            if (!debug) +linkerNoDebugFlags
+            +objectFiles
+            +linkerKonanFlags
+            +"$libGcc/libgcc_s.so.1"
+            +"$absoluteTargetSysRoot/usr/lib/crtn.o"
+            +libraries
+            +linkerArgs
+        })
+    }
+}
+
 open class MingwLinker(targetProperties: MingwConfigurables)
     : LinkerFlags(targetProperties), MingwConfigurables by targetProperties {
 
@@ -384,6 +428,8 @@ open class ZephyrLinker(targetProperties: ZephyrConfigurables)
 
 fun linker(configurables: Configurables): LinkerFlags =
         when (configurables.target) {
+            KonanTarget.FRC_ARM32 ->
+                FrcLinker(configurables as FrcConfigurables)
             KonanTarget.LINUX_X64, KonanTarget.LINUX_ARM32_HFP ->
                 LinuxBasedLinker(configurables as LinuxConfigurables)
             KonanTarget.LINUX_MIPS32, KonanTarget.LINUX_MIPSEL32 ->
