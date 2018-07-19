@@ -1,0 +1,39 @@
+apply plugin: 'konan'
+
+konan.targets = ['frc']
+
+def konanUserDir = System.getenv("KONAN_DATA_DIR") ?: "${System.getProperty("user.home")}/.konan"
+def wpilibHome = "$konanUserDir/third-party/allwpilib"
+
+task downloadWpilib(type: Exec) {
+    workingDir getProjectDir()
+    commandLine './downloadWpilib.sh'
+}
+
+konanArtifacts {
+    interop('HAL') {
+        defFile "src/main/c_interop/hal.def"
+        includeDirs "${wpilibHome}/hal/src/main/native/include"
+        dependsOn 'downloadWpilib'
+    }
+
+    program('FRCUserProgram') {
+        libraries { artifact 'HAL' }
+
+        linkerOpts "-L${wpilibHome}/ni-libraries/lib",
+                "-L${wpilibHome}/wpiutil/build/libs/wpiutil/shared/athena/",
+                "-L${wpilibHome}/hal/build/libs/hal/shared/athena/",
+
+                "-lwpiHal",
+                "-lwpiutil",
+                "-lvisa",
+
+                "-l:libFRC_NetworkCommunication.so.18.0.0",
+                "-l:libNiFpga.so.17.0.0",
+                "-l:libNiFpgaLv.so.17.0.0",
+                "-l:libNiRioSrv.so.17.0.0",
+                "-l:libRoboRIO_FRC_ChipObject.so.18.0.0",
+                "-l:libniriodevenum.so.17.0.0",
+                "-l:libniriosession.so.17.0.0"
+    }
+}

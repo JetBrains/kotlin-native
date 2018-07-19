@@ -1,0 +1,11 @@
+package = platform.frc.hal
+---
+
+#include "HAL/Types.h"
+
+#undef HAL_ENUM
+#define HAL_ENUM(name)  \
+  typedef int32_t name; \
+  enum name ## _ ## e
+
+#include "HAL/HAL.h"
