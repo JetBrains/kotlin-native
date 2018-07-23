@@ -55,8 +55,6 @@ internal sealed class SlotType {
     class UNKNOWN: SlotType()
 
     companion object {
-        val ARENA = ARENA()
-        val RETURN = RETURN()
         val RETURN_IF_ARENA = RETURN_IF_ARENA()
         val ANONYMOUS = ANONYMOUS()
         val UNKNOWN = UNKNOWN()
@@ -138,7 +136,6 @@ internal sealed class Lifetime(val slotType: SlotType) {
     }
 
     companion object {
-        val LOCAL = LOCAL()
         val RETURN_VALUE = RETURN_VALUE()
         val INDIRECT_RETURN_VALUE = INDIRECT_RETURN_VALUE()
         val GLOBAL = GLOBAL()
