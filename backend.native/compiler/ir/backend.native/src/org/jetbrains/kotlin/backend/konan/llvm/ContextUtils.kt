@@ -40,9 +40,9 @@ import kotlin.reflect.KProperty
 
 internal sealed class SlotType {
     // Frame local arena slot can be used.
-    class ARENA: SlotType()
+    class ARENA(val scope: Int): SlotType()
     // Return slot can be used.
-    class RETURN: SlotType()
+    object RETURN : SlotType()
     // Return slot, if it is an arena, can be used.
     class RETURN_IF_ARENA: SlotType()
     // Param slot, if it is an arena, can be used.
@@ -66,9 +66,9 @@ internal sealed class SlotType {
 // Lifetimes class of reference, computed by escape analysis.
 internal sealed class Lifetime(val slotType: SlotType) {
     // If reference is frame-local (only obtained from some call and never leaves).
-    class LOCAL: Lifetime(SlotType.ARENA) {
+    class LOCAL(val scope: Int): Lifetime(SlotType.ARENA(scope)) {
         override fun toString(): String {
-            return "LOCAL"
+            return "LOCAL @$scope"
         }
     }
 

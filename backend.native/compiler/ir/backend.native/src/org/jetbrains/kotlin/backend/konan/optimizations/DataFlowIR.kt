@@ -46,6 +46,7 @@ import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.typeUtil.immediateSupertypes
 import org.jetbrains.kotlin.types.typeUtil.isNothing
 import org.jetbrains.kotlin.types.typeUtil.isUnit
+import kotlin.coroutines.experimental.buildSequence
 
 internal object DataFlowIR {
 
@@ -225,49 +226,51 @@ internal object DataFlowIR {
         CatchParameter
     }
 
-    sealed class Node {
-        class Parameter(val index: Int) : Node()
+    sealed class Node(val scope: Int) {
+        class Parameter(val index: Int) : Node(0) // 0 is the whole function scope.
 
-        class Const(val type: Type) : Node()
+        class Const(scope: Int, val type: Type) : Node(scope)
 
-        open class Call(val callee: FunctionSymbol, val arguments: List<Edge>,
-                        open val irCallSite: IrFunctionAccessExpression?) : Node()
+        open class Call(scope: Int, val callee: FunctionSymbol, val arguments: List<Edge>,
+                        open val irCallSite: IrFunctionAccessExpression?) : Node(scope)
 
-        class StaticCall(callee: FunctionSymbol, arguments: List<Edge>,
+        class StaticCall(scope: Int, callee: FunctionSymbol, arguments: List<Edge>,
                          val receiverType: Type?, irCallSite: IrFunctionAccessExpression?)
-            : Call(callee, arguments, irCallSite)
+            : Call(scope, callee, arguments, irCallSite)
 
-        class NewObject(constructor: FunctionSymbol, arguments: List<Edge>, val constructedType: Type, override val irCallSite: IrCall?)
-            : Call(constructor, arguments, irCallSite)
+        class NewObject(scope: Int, constructor: FunctionSymbol, arguments: List<Edge>, val constructedType: Type, override val irCallSite: IrCall?)
+            : Call(scope, constructor, arguments, irCallSite)
 
-        open class VirtualCall(callee: FunctionSymbol, arguments: List<Edge>,
+        open class VirtualCall(scope: Int, callee: FunctionSymbol, arguments: List<Edge>,
                                    val receiverType: Type, override val irCallSite: IrCall?)
-            : Call(callee, arguments, irCallSite)
+            : Call(scope, callee, arguments, irCallSite)
 
-        class VtableCall(callee: FunctionSymbol, receiverType: Type, val calleeVtableIndex: Int,
+        class VtableCall(scope: Int, callee: FunctionSymbol, receiverType: Type, val calleeVtableIndex: Int,
                          arguments: List<Edge>, irCallSite: IrCall?)
-            : VirtualCall(callee, arguments, receiverType, irCallSite)
+            : VirtualCall(scope, callee, arguments, receiverType, irCallSite)
 
-        class ItableCall(callee: FunctionSymbol, receiverType: Type, val calleeHash: Long,
+        class ItableCall(scope: Int, callee: FunctionSymbol, receiverType: Type, val calleeHash: Long,
                          arguments: List<Edge>, irCallSite: IrCall?)
-            : VirtualCall(callee, arguments, receiverType, irCallSite)
+            : VirtualCall(scope, callee, arguments, receiverType, irCallSite)
 
-        class Singleton(val type: Type, val constructor: FunctionSymbol?) : Node()
+        class Singleton(scope: Int, val type: Type, val constructor: FunctionSymbol?) : Node(scope)
 
-        class FieldRead(val receiver: Edge?, val field: Field, val ir: IrGetField?) : Node()
+        class FieldRead(scope: Int, val receiver: Edge?, val field: Field, val ir: IrGetField?) : Node(scope)
 
-        class FieldWrite(val receiver: Edge?, val field: Field, val value: Edge) : Node()
+        class FieldWrite(scope: Int, val receiver: Edge?, val field: Field, val value: Edge) : Node(scope)
 
-        class ArrayRead(val array: Edge, val index: Edge, val irCallSite: IrCall?) : Node()
+        class ArrayRead(scope: Int, val array: Edge, val index: Edge, val irCallSite: IrCall?) : Node(scope)
 
-        class ArrayWrite(val array: Edge, val index: Edge, val value: Edge) : Node()
+        class ArrayWrite(scope: Int, val array: Edge, val index: Edge, val value: Edge) : Node(scope)
 
-        class Variable(values: List<Edge>, val type: Type, val kind: VariableKind) : Node() {
+        class Variable(values: List<Edge>, val type: Type, val kind: VariableKind) : Node(0) { // 0 is the whole function scope.
             val values = mutableListOf<Edge>().also { it += values }
         }
     }
 
-    class FunctionBody(val nodes: List<Node>, val returns: Node.Variable, val throws: Node.Variable)
+//    class Scope(val id: Int, val parentScope: Scope?)
+
+    class FunctionBody(val scopeParents: IntArray, val nodes: List<Node>, val returns: Node.Variable, val throws: Node.Variable)
 
     class Function(val symbol: FunctionSymbol, val body: FunctionBody) {
 

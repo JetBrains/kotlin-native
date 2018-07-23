@@ -48,7 +48,7 @@ internal object EscapeAnalysis {
      * When we have the points-to graph it is easy to compute lifetimes - using DFS compute the graph's closure.
      */
 
-    private val DEBUG = 0
+    private val DEBUG = 2
 
     private inline fun DEBUG_OUTPUT(severity: Int, block: () -> Unit) {
         if (DEBUG > severity) block()
@@ -461,25 +461,49 @@ internal object EscapeAnalysis {
             ESCAPES(2)
         }
 
-        private class PointsToGraphNode(roles: Roles) {
-            val edges = mutableSetOf<DataFlowIR.Node>()
+        private class LCAFinder(scopeParents: IntArray) {
+            private val totalScopes = scopeParents.size + 1
+            private val childScopes = Array<MutableList<Int>>(totalScopes) { mutableListOf() }
+            private val dfsOrder = IntArray(2 * totalScopes - 1)
+            private val first = IntArray(totalScopes) { -1 }
+            private val depths = IntArray(totalScopes)
+            private var index = 0
 
-            var kind = when {
-                roles.escapes() -> PointsToGraphNodeKind.ESCAPES
-                roles.has(Role.RETURN_VALUE) -> PointsToGraphNodeKind.RETURN_VALUE
-                else -> PointsToGraphNodeKind.LOCAL
+            init {
+                scopeParents.forEachIndexed { index, parentScope ->
+                    val scope = index + 1
+                    childScopes[parentScope].add(scope)
+                }
+                dfs(0, 0)
+                for (i in dfsOrder.indices) {
+                    val scope = dfsOrder[i]
+                    if (first[scope] == -1)
+                        first[scope] = i
+                }
             }
 
-            val beingReturned = roles.has(Role.RETURN_VALUE)
+            private fun dfs(scope: Int, depth: Int) {
+                depths[scope] = depth
+                dfsOrder[index++] = scope
+                for (childScope in childScopes[scope]) {
+                    dfs(childScope, depth + 1)
+                    dfsOrder[index++] = scope
+                }
+            }
 
-            val parametersPointingOnUs = mutableSetOf<Int>()
-
-            fun addIncomingParameter(parameter: Int) {
-                if (kind == PointsToGraphNodeKind.ESCAPES) return
-                parametersPointingOnUs += parameter
-//                if (parametersPointingOnUs.size >= 5) {
-//                    kind = PointsToGraphNodeKind.ESCAPES
-//                }
+            fun lca(scopeA: Int, scopeB: Int): Int {
+                // TODO: can be done in O(1).
+                var minDepth = Int.MAX_VALUE
+                var result = -1
+                for (i in first[scopeA]..first[scopeB]) {
+                    val scope = dfsOrder[i]
+                    val depth = depths[scope]
+                    if (depth < minDepth) {
+                        minDepth = depth
+                        result = scope
+                    }
+                }
+                return result
             }
         }
 
@@ -487,6 +511,35 @@ internal object EscapeAnalysis {
 
             val functionAnalysisResult = intraproceduralAnalysisResult[functionSymbol]!!
             val nodes = mutableMapOf<DataFlowIR.Node, PointsToGraphNode>()
+            val lcaFinder = LCAFinder(functionAnalysisResult.function.body.scopeParents)
+
+            private inner class PointsToGraphNode(roles: Roles) {
+                val edges = mutableSetOf<DataFlowIR.Node>()
+
+                var kind = when {
+                    roles.escapes() -> PointsToGraphNodeKind.ESCAPES
+                    roles.has(Role.RETURN_VALUE) -> PointsToGraphNodeKind.RETURN_VALUE
+                    else -> PointsToGraphNodeKind.LOCAL
+                }
+
+                val beingReturned = roles.has(Role.RETURN_VALUE)
+
+                val parametersPointingOnUs = mutableSetOf<Int>()
+
+                var scopeReferringToUs: Int? = null
+
+                fun addIncomingParameter(parameter: Int) {
+                    if (kind == PointsToGraphNodeKind.ESCAPES) return
+                    parametersPointingOnUs += parameter
+//                if (parametersPointingOnUs.size >= 5) {
+//                    kind = PointsToGraphNodeKind.ESCAPES
+//                }
+                }
+
+                fun addReferringScope(scope: Int) {
+                    scopeReferringToUs = scopeReferringToUs?.let { lcaFinder.lca(it, scope) } ?: scope
+                }
+            }
 
             val ids = if (DEBUG > 0) functionAnalysisResult.function.body.nodes.withIndex().associateBy({ it.value }, { it.index }) else null
 
@@ -498,7 +551,7 @@ internal object EscapeAnalysis {
                         if (it.parametersPointingOnUs.isEmpty()) {
                             // A value is neither stored into a global nor into any parameter nor into the return value -
                             // it can be allocated locally.
-                            Lifetime.LOCAL
+                            Lifetime.LOCAL(it.scopeReferringToUs ?: -1)
                         } else {
                             if (it.parametersPointingOnUs.size == 1) { // TODO: remove.
                                 // A value is stored into a parameter field.
@@ -651,7 +704,8 @@ internal object EscapeAnalysis {
             }
 
             fun buildClosure(): FunctionEscapeAnalysisResult {
-                val parameters = functionAnalysisResult.function.body.nodes.filterIsInstance<DataFlowIR.Node.Parameter>()
+                val body = functionAnalysisResult.function.body
+                val parameters = body.nodes.filterIsInstance<DataFlowIR.Node.Parameter>()
                 val reachabilities = mutableListOf<IntArray>()
 
                 DEBUG_OUTPUT(0) {
@@ -664,8 +718,7 @@ internal object EscapeAnalysis {
 
                 parameters.forEach {
                     val visited = mutableSetOf<DataFlowIR.Node>()
-                    if (nodes[it] != null)
-                        findReachable(it, visited)
+                    findReachable(it, visited)
                     visited -= it
 
                     DEBUG_OUTPUT(0) {
@@ -688,6 +741,30 @@ internal object EscapeAnalysis {
                             nodes[node]!!.addIncomingParameter(it.index)
                     }
                 }
+
+                val scopes = Array<MutableList<DataFlowIR.Node>>(body.scopeParents.size + 1) { mutableListOf() }
+
+                for (node in body.nodes) {
+                    scopes[node.scope].add(node)
+                }
+                scopes.forEachIndexed { scope, scopeNodes ->
+
+                    println("Scope @$scope")
+                    scopeNodes.forEach {
+                        println("    ${nodeToString(it)}")
+                        print(nodeToStringWhole(it))
+                    }
+
+                    val visited = mutableSetOf<DataFlowIR.Node>()
+                    scopeNodes.forEach {
+                        if (!visited.contains(it))
+                            findReachable(it, visited)
+                    }
+                    visited.forEach {
+                        nodes[it]?.addReferringScope(scope)
+                    }
+                }
+
                 val visitedFromReturnValues = mutableSetOf<DataFlowIR.Node>()
                 returnValues.forEach {
                     if (!visitedFromReturnValues.contains(it)) {
@@ -716,7 +793,7 @@ internal object EscapeAnalysis {
 
             private fun findReachable(node: DataFlowIR.Node, visited: MutableSet<DataFlowIR.Node>) {
                 visited += node
-                nodes[node]!!.edges.forEach {
+                nodes[node]?.edges?.forEach {
                     if (!visited.contains(it)) {
                         findReachable(it, visited)
                     }
