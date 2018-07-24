@@ -72,7 +72,7 @@ internal fun produceOutput(context: Context) {
             val output = context.config.outputFiles.outputName
             val libraryName = context.config.moduleId
             val neededLibraries 
-                = context.llvm.librariesForLibraryManifest
+                = context.config.librariesForLibraryManifest
             val abiVersion = context.config.currentAbiVersion
             val target = context.config.target
             val nopack = config.getBoolean(KonanConfigKeys.NOPACK)

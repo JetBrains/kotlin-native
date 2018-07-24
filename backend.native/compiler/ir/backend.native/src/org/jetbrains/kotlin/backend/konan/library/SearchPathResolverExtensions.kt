@@ -17,6 +17,7 @@
 package org.jetbrains.kotlin.backend.konan.library
 
 import org.jetbrains.kotlin.backend.konan.library.impl.LibraryReaderImpl
+import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.library.SearchPathResolver
 import org.jetbrains.kotlin.konan.target.KonanTarget
@@ -24,15 +25,16 @@ import org.jetbrains.kotlin.konan.target.KonanTarget
 fun SearchPathResolver.resolveImmediateLibraries(libraryNames: List<String>,
                                                  target: KonanTarget,
                                                  abiVersion: Int = 1,
+                                                 languageVersionSettings: LanguageVersionSettings?,
                                                  noStdLib: Boolean = false,
                                                  noDefaultLibs: Boolean = false,
                                                  logger: ((String) -> Unit)?): List<LibraryReaderImpl> {
     val userProvidedLibraries = libraryNames
             .map { resolve(it) }
-            .map{ LibraryReaderImpl(it, abiVersion, target) }
+            .map{ LibraryReaderImpl(it, abiVersion, target = target, languageVersionSettings = languageVersionSettings) }
 
     val defaultLibraries = defaultLinks(nostdlib = noStdLib, noDefaultLibs = noDefaultLibs).map {
-        LibraryReaderImpl(it, abiVersion, target, isDefaultLibrary = true)
+        LibraryReaderImpl(it, abiVersion, target, isDefaultLibrary = true, languageVersionSettings = languageVersionSettings)
     }
 
     // Make sure the user provided ones appear first, so that 
@@ -58,7 +60,8 @@ private fun warnOnLibraryDuplicates(resolvedLibraries: List<File>,
 
 fun SearchPathResolver.resolveLibrariesRecursive(immediateLibraries: List<LibraryReaderImpl>,
                                                  target: KonanTarget,
-                                                 abiVersion: Int) {
+                                                 abiVersion: Int,
+                                                 languageVersionSettings: LanguageVersionSettings?) {
     val cache = mutableMapOf<File, LibraryReaderImpl>()
     cache.putAll(immediateLibraries.map { it.libraryFile.absoluteFile to it })
     var newDependencies = cache.values.toList()
@@ -71,7 +74,7 @@ fun SearchPathResolver.resolveLibrariesRecursive(immediateLibraries: List<Librar
                             library.resolvedDependencies.add(cache[it]!!)
                             null
                         } else {
-                            val reader = LibraryReaderImpl(it, abiVersion, target)
+                            val reader = LibraryReaderImpl(it, abiVersion, target = target, languageVersionSettings = languageVersionSettings)
                             cache.put(it,reader)
                             library.resolvedDependencies.add(reader) 
                             reader
@@ -97,16 +100,18 @@ fun List<LibraryReaderImpl>.withResolvedDependencies(): List<LibraryReaderImpl> 
 fun SearchPathResolver.resolveLibrariesRecursive(libraryNames: List<String>,
                                                  target: KonanTarget,
                                                  abiVersion: Int = 1,
+                                                 languageVersionSettings: LanguageVersionSettings?,
                                                  noStdLib: Boolean = false,
                                                  noDefaultLibs: Boolean = false): List<LibraryReaderImpl> {
     val immediateLibraries = resolveImmediateLibraries(
                     libraryNames = libraryNames,
                     target = target,
                     abiVersion = abiVersion,
+                    languageVersionSettings = languageVersionSettings,
                     noStdLib = noStdLib,
                     noDefaultLibs = noDefaultLibs,
                     logger = null
             )
-    resolveLibrariesRecursive(immediateLibraries, target, abiVersion)
+    resolveLibrariesRecursive(immediateLibraries, target, abiVersion, languageVersionSettings)
     return immediateLibraries.withResolvedDependencies()
 }

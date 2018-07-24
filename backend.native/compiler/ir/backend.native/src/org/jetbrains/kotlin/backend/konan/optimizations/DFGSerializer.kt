@@ -914,7 +914,6 @@ internal object DFGSerializer {
         val allTypes = mutableListOf<DataFlowIR.Type.Declared>()
         val publicFunctionsMap = mutableMapOf<Long, DataFlowIR.FunctionSymbol.Public>()
         val functions = mutableMapOf<DataFlowIR.FunctionSymbol, DataFlowIR.Function>()
-        val specifics = context.config.configuration.get(CommonConfigurationKeys.LANGUAGE_VERSION_SETTINGS)!!
         context.librariesWithDependencies.forEach { library ->
             val libraryDataFlowGraph = library.dataFlowGraph
 
@@ -923,7 +922,7 @@ internal object DFGSerializer {
             }
 
             if (libraryDataFlowGraph != null) {
-                val module = DataFlowIR.Module(library.moduleDescriptor(specifics))
+                val module = DataFlowIR.Module(library.moduleDescriptor)
                 val reader = ArraySlice(libraryDataFlowGraph)
                 val dataLayoutHash = reader.readLong()
                 val expectedHash = computeDataLayoutHash(Module::class)

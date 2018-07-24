@@ -27,4 +27,12 @@ class MetadataReaderImpl(library: KonanLibrary) : MetadataReader, KonanLibrary b
 
     override fun loadSerializedPackageFragment(fqName: String) 
         = packageFile(fqName).readBytes()
+
+    override fun loadWholeIr(): ByteArray {
+        return wholeIrFile.readBytes()
+    }
+
+    override fun loadIrDeclaraton(index: Long): ByteArray {
+        return declarationFile(index.toString(16)).readBytes()
+    }
 }

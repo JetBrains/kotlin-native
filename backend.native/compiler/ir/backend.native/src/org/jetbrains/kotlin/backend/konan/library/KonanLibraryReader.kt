@@ -32,12 +32,16 @@ interface KonanLibraryReader {
     val isNeededForLink: Boolean get() = true
     val manifestProperties: Properties
     val moduleHeaderData: ByteArray
+    val wholeIr: ByteArray // TODO: remove me!
+    fun irDeclaration(index: Long): ByteArray
     fun packageMetadata(fqName: String): ByteArray
     fun markPackageAccessed(fqName: String)
-    fun moduleDescriptor(specifics: LanguageVersionSettings): ModuleDescriptor
+    val moduleDescriptor: ModuleDescriptor
 }
 
 interface MetadataReader {
     fun loadSerializedModule(): ByteArray
     fun loadSerializedPackageFragment(fqName: String): ByteArray
+    fun loadWholeIr(): ByteArray
+    fun loadIrDeclaraton(index: Long): ByteArray
 }

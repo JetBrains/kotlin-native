@@ -46,6 +46,12 @@ interface KonanLibraryLayout {
         get() = File(linkdataDir, "module")
     val dataFlowGraphFile
         get() = File(linkdataDir, "module_data_flow_graph")
+    val irDir
+        get() = File(libDir, "ir")
+    fun declarationFile(declarationId: String)
+        = File(irDir, "$declarationId.knd")
+    val wholeIrFile
+        get() = File(irDir, "wholeIr.kni")
     fun packageFile(packageName: String)
         = File(linkdataDir, if (packageName == "") "root_package.knm" else "package_$packageName.knm")
 }

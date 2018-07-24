@@ -24,9 +24,13 @@ internal class MetadataWriterImpl(library: KonanLibrary): KonanLibrary by librar
 
     fun addLinkData(linkData: LinkData) {
         moduleHeaderFile.writeBytes(linkData.module)
+        wholeIrFile.writeBytes(linkData.ir!!.module)
         linkData.fragments.forEachIndexed { index, it ->
             val name = linkData.fragmentNames[index] 
             packageFile(name).writeBytes(it)
+        }
+        linkData.ir!!.declarations.forEach {
+            declarationFile(it.key.toString(16)).writeBytes(it.value)
         }
     }
 }

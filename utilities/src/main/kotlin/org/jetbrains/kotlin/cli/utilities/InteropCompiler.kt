@@ -71,7 +71,7 @@ fun invokeInterop(flavor: String, args: Array<String>): Array<String> {
     val target = PlatformManager().targetManager(targetRequest).target
     val resolver = defaultResolver(repos, target)
     val allLibraries = resolver.resolveLibrariesRecursive(
-            libraries, target, noStdLib = true, noDefaultLibs = noDefaultLibs
+            libraries, target, noStdLib = true, noDefaultLibs = noDefaultLibs, languageVersionSettings = null
     )
 
     val importArgs = allLibraries.flatMap {

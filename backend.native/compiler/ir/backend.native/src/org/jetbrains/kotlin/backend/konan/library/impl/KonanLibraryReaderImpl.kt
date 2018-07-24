@@ -23,12 +23,13 @@ import org.jetbrains.kotlin.backend.konan.serialization.deserializeModule
 import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.properties.*
 import org.jetbrains.kotlin.config.LanguageVersionSettings
+import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.util.defaultTargetSubstitutions
 import org.jetbrains.kotlin.konan.util.substitute
 
 class LibraryReaderImpl(var libraryFile: File, val currentAbiVersion: Int,
-    val target: KonanTarget? = null, override val isDefaultLibrary: Boolean = false)
+    val target: KonanTarget? = null, override val isDefaultLibrary: Boolean = false, val languageVersionSettings: LanguageVersionSettings? = null)
     : KonanLibraryReader {
 
     // For the zipped libraries inPlace gives files from zip file system
@@ -49,15 +50,15 @@ class LibraryReaderImpl(var libraryFile: File, val currentAbiVersion: Int,
     val abiVersion: String
         get() {
             val manifestAbiVersion = manifestProperties.getProperty("abi_version")
-            if ("$currentAbiVersion" != manifestAbiVersion) 
+            if ("$currentAbiVersion" != manifestAbiVersion)
                 error("ABI version mismatch. Compiler expects: $currentAbiVersion, the library is $manifestAbiVersion")
             return manifestAbiVersion
         }
 
-    val targetList = inPlace.targetsDir.listFiles.map{it.name}
+    val targetList = inPlace.targetsDir.listFiles.map { it.name }
     override val dataFlowGraph by lazy { inPlace.dataFlowGraphFile.let { if (it.exists) it.readBytes() else null } }
 
-    override val libraryName 
+    override val libraryName
         get() = inPlace.libraryName
 
     override val uniqueName
@@ -82,6 +83,10 @@ class LibraryReaderImpl(var libraryFile: File, val currentAbiVersion: Int,
         reader.loadSerializedModule()
     }
 
+    override val wholeIr: ByteArray by lazy {
+        reader.loadWholeIr()
+    }
+
     override var isNeededForLink: Boolean = false
         private set
 
@@ -98,9 +103,12 @@ class LibraryReaderImpl(var libraryFile: File, val currentAbiVersion: Int,
         return reader.loadSerializedPackageFragment(fqName)
     }
 
-    override fun moduleDescriptor(specifics: LanguageVersionSettings) 
-        = deserializeModule(specifics, this)
+    override val moduleDescriptor: ModuleDescriptorImpl by lazy {
+        deserializeModule(languageVersionSettings!!, this)
+    }
 
+    override fun irDeclaration(index: Long)
+        = reader.loadIrDeclaraton(index)
 }
 
 internal fun <T: KonanLibraryReader> List<T>.purgeUnneeded(config: KonanConfig): List<T> =

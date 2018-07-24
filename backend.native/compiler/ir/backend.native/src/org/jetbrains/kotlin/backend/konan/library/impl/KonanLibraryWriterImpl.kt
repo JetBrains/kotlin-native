@@ -59,6 +59,7 @@ class LibraryWriterImpl(override val libDir: File, moduleName: String, currentAb
         nativeDir.mkdirs()
         includedDir.mkdirs()
         resourcesDir.mkdirs()
+        irDir.mkdirs()
         // TODO: <name>:<hash> will go somewhere around here.
         manifestProperties.setProperty("unique_name", "$moduleName")
         manifestProperties.setProperty("abi_version", "$currentAbiVersion")

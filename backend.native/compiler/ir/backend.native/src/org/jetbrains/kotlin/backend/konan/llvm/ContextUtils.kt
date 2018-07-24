@@ -310,8 +310,6 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
         return function
     }
 
-    private val usedLibraries = mutableSetOf<LibraryReaderImpl>()
-
     val imports = object : LlvmImports {
 
         private val allLibraries = context.librariesWithDependencies.toSet()
@@ -326,50 +324,8 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
                 error("$reader (${reader.libraryName}) is used but not requested")
             }
 
-            usedLibraries.add(reader as LibraryReaderImpl)
+            context.config.usedLibraries.add(reader as LibraryReaderImpl)
         }
-    }
-
-    val librariesToLink: List<KonanLibraryReader>  by lazy {
-        context.config.immediateLibraries
-                .filter { (!it.isDefaultLibrary && !context.config.purgeUserLibs) || it in usedLibraries }
-                .withResolvedDependencies()
-                .topoSort()
-    }
-
-    private fun List<LibraryReaderImpl>.topoSort(): List<LibraryReaderImpl> {
-        var sorted = mutableListOf<LibraryReaderImpl>()
-        val visited = mutableSetOf<LibraryReaderImpl>()
-        val tempMarks = mutableSetOf<LibraryReaderImpl>()
-
-        fun visit(node: LibraryReaderImpl, result: MutableList<LibraryReaderImpl>) {
-            if (visited.contains(node)) return
-            if (tempMarks.contains(node)) error("Cyclic dependency in library graph.")
-            tempMarks.add(node)
-            node.resolvedDependencies.forEach {
-                visit(it, result)
-            }
-            visited.add(node)
-            result += node
-        }
-
-        this.forEach next@{
-            if (visited.contains(it)) return@next
-            visit(it, sorted)
-        }
-        return sorted
-    }
-
-    val librariesForLibraryManifest: List<KonanLibraryReader> get() {
-        // Note: library manifest should contain the list of all user libraries and frontend-used default libraries.
-        // However this would result into linking too many default libraries into the application which uses current
-        // library. This problem should probably be fixed by adding different kind of dependencies to library
-        // manifest.
-        // Currently the problem is workarounded like this:
-        return this.librariesToLink
-        // This list contains all user libraries and the default libraries required for link (not frontend).
-        // That's why the workaround doesn't work only in very special cases, e.g. when `-nodefaultlibs` is enabled
-        // when compiling the application, while the library API uses types from default libs.
     }
 
     val staticData = StaticData(context)

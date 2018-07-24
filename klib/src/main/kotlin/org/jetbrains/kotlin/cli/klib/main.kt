@@ -142,9 +142,9 @@ class Library(val name: String, val requestedRepository: String?, val target: St
     }
 
     fun contents(output: Appendable = out) {
-        val reader = LibraryReaderImpl(libraryInRepoOrCurrentDir(repository, name), currentAbiVersion)
         val versionSpec = LanguageVersionSettingsImpl(currentLanguageVersion, currentApiVersion)
-        val module = reader.moduleDescriptor(versionSpec)
+        val reader = LibraryReaderImpl(libraryInRepoOrCurrentDir(repository, name), currentAbiVersion, languageVersionSettings=versionSpec)
+        val module = reader.moduleDescriptor
         val defaultModules = mutableListOf<ModuleDescriptorImpl>()
         if (!module.isStdlib()) {
             val resolver = KonanLibrarySearchPathResolver(emptyList(),
@@ -154,7 +154,7 @@ class Library(val name: String, val requestedRepository: String?, val target: St
                     skipCurrentDir = true)
             resolver.defaultLinks(false, true)
                     .mapTo(defaultModules) {
-                        LibraryReaderImpl(it, currentAbiVersion).moduleDescriptor(versionSpec)
+                        LibraryReaderImpl(it, currentAbiVersion, languageVersionSettings=versionSpec).moduleDescriptor
                     }
         }
 

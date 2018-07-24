@@ -24,7 +24,10 @@ import org.jetbrains.kotlin.metadata.KonanLinkData.*
 import org.jetbrains.kotlin.metadata.ProtoBuf
 
 fun newUniqId(index: Long): KonanIr.UniqId =
-   KonanIr.UniqId.newBuilder().setIndex(index).build() 
+   KonanIr.UniqId.newBuilder().setIndex(index).build()
+
+fun newDescriptorUniqId(index: Long): KonanLinkData.DescriptorUniqId =
+    KonanLinkData.DescriptorUniqId.newBuilder().setIndex(index).build()
 
 // -----------------------------------------------------------
 /*
@@ -118,3 +121,10 @@ internal val DeclarationDescriptor.typeParameterProtos: List<ProtoBuf.TypeParame
     }
 
 
+fun DeclarationDescriptor.getUniqId(): KonanLinkData.DescriptorUniqId? = when (this) {
+    is DeserializedClassDescriptor -> this.classProto.getExtension(KonanLinkData.classUniqId)
+    is DeserializedSimpleFunctionDescriptor -> this.proto.getExtension(KonanLinkData.functionUniqId)
+    is DeserializedPropertyDescriptor -> this.proto.getExtension(KonanLinkData.propertyUniqId)
+    is DeserializedClassConstructorDescriptor -> this.proto.getExtension(KonanLinkData.constructorUniqId)
+    else -> null
+}

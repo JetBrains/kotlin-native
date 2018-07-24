@@ -43,8 +43,13 @@ message KotlinDescriptor {
 }
 */
 
-message KotlinDescriptor {
-
+message DescriptorReference {
+    required string package_fq_name = 1;
+    required string class_fq_name = 2;
+    required UniqId uniq_id = 3;
+    optional bool is_getter = 4;
+    optional bool is_setter = 5;
+    optional bool is_fake_override = 6;
 }
 
 message UniqId {
@@ -98,7 +103,8 @@ message FileEntry { // TODO: extend me.
 }
 
 message IrFile {
-    required IrDeclarationContainer declaration_container = 1;
+    //required IrDeclarationContainer declaration_container = 1;
+    repeated UniqId declaration_id = 1;
     required FileEntry file_entry = 2;
     // TODO: we need a better string management. See metadata serialization as an example.
     required string fq_name = 3;
@@ -127,6 +133,8 @@ enum IrSymbolKind {
 message IrSymbol {
     required IrSymbolKind kind = 1;
     required UniqId uniq_id = 2;
+    optional string fqname = 3;
+    optional DescriptorReference descriptor_reference = 4;
 }
 
 /* ------ IrTypes --------------------------------------------- */

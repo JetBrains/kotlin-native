@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.backend.konan.descriptors.createKonanModuleDescripto
 import org.jetbrains.kotlin.backend.konan.descriptors.isExpectMember
 import org.jetbrains.kotlin.backend.konan.library.KonanLibraryReader
 import org.jetbrains.kotlin.backend.konan.library.LinkData
+import org.jetbrains.kotlin.backend.konan.library.SerializedIr
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
@@ -140,9 +141,9 @@ internal fun deserializeModule(languageVersionSettings: LanguageVersionSettings,
 
 /* ------------ Serializer part ------------------------------------------*/
 
-internal class KonanSerializationUtil(val context: Context) {
+internal class KonanSerializationUtil(val context: Context, val declarationTable: DeclarationTable) {
 
-    val serializerExtension = KonanSerializerExtension(context)
+    val serializerExtension = KonanSerializerExtension(context, declarationTable)
     val topSerializer = KonanDescriptorSerializer.createTopLevel(serializerExtension)
     var classSerializer: KonanDescriptorSerializer = topSerializer
 
@@ -181,7 +182,7 @@ internal class KonanSerializationUtil(val context: Context) {
         }
     }
 
-    fun serializePackage(fqName: FqName, module: ModuleDescriptor) : 
+    fun serializePackage(fqName: FqName, module: ModuleDescriptor) :
         KonanLinkData.LinkDataPackageFragment? {
 
         // TODO: ModuleDescriptor should be able to return
@@ -238,7 +239,7 @@ internal class KonanSerializationUtil(val context: Context) {
         return result
     }
 
-    internal fun serializeModule(moduleDescriptor: ModuleDescriptor): LinkData {
+    internal fun serializeModule(moduleDescriptor: ModuleDescriptor, serializedIr: SerializedIr): LinkData {
         val libraryProto = KonanLinkData.LinkDataLibrary.newBuilder()
         libraryProto.moduleName = moduleDescriptor.name.asString()
         val fragments = mutableListOf<ByteArray>()
@@ -256,7 +257,7 @@ internal class KonanSerializationUtil(val context: Context) {
             fragmentNames.add(it.asString())
         }
         val libraryAsByteArray = libraryProto.build().toByteArray()
-        return LinkData(libraryAsByteArray, fragments, fragmentNames)
+        return LinkData(libraryAsByteArray, fragments, fragmentNames, serializedIr)
     }
 }
 

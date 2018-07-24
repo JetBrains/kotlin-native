@@ -2,6 +2,7 @@ package org.jetbrains.kotlin.backend.konan.serialization
 
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.fqNameSafe
 import org.jetbrains.kotlin.backend.konan.llvm.*
+import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrAnonymousInitializerImpl
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
@@ -50,6 +51,7 @@ class DeclarationTable(val builtIns: IrBuiltIns) {
 
     val table = mutableMapOf<IrDeclaration, Long>()
     val reverse = mutableMapOf<Long, IrDeclaration>() // TODO: remove me. Only needed during the development.
+    val descriptors = mutableMapOf<DeclarationDescriptor, Long>()
     var currentIndex = 17L
 
     init {
@@ -74,6 +76,8 @@ class DeclarationTable(val builtIns: IrBuiltIns) {
             }
         }
         reverse.getOrPut(index) { value }
+        descriptors.getOrPut(value.descriptor) { index }
+
         return index
     }
 

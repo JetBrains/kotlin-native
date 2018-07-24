@@ -90,13 +90,16 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
     private val repositories = configuration.getList(KonanConfigKeys.REPOSITORIES)
     private val resolver = defaultResolver(repositories, target, distribution)
 
+    private val languageVersionSettings = configuration.get(CommonConfigurationKeys.LANGUAGE_VERSION_SETTINGS)!!
+
     internal val immediateLibraries: List<LibraryReaderImpl> by lazy {
         val result = resolver.resolveImmediateLibraries(libraryNames, target,
                 currentAbiVersion,
+                languageVersionSettings,
                 configuration.getBoolean(KonanConfigKeys.NOSTDLIB),
                 configuration.getBoolean(KonanConfigKeys.NODEFAULTLIBS),
                 { msg -> configuration.report(STRONG_WARNING, msg) })
-        resolver.resolveLibrariesRecursive(result, target, currentAbiVersion)
+        resolver.resolveLibrariesRecursive(result, target, currentAbiVersion, languageVersionSettings)
         result
     }
 
@@ -122,13 +125,12 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
     fun loadLibMetadata(): List<ModuleDescriptorImpl> {
 
         val allMetadata = mutableListOf<ModuleDescriptorImpl>()
-        val specifics = configuration.get(CommonConfigurationKeys.LANGUAGE_VERSION_SETTINGS)!!
 
         val libraries = immediateLibraries.withResolvedDependencies()
         for (klib in libraries) {
             profile("Loading ${klib.libraryName}") {
                 // MutableModuleContext needs ModuleDescriptorImpl, rather than ModuleDescriptor.
-                val moduleDescriptor = klib.moduleDescriptor(specifics)
+                val moduleDescriptor = klib.moduleDescriptor
                 allMetadata.add(moduleDescriptor)
             }
         }
@@ -152,12 +154,63 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
 
     internal val moduleDescriptors: List<ModuleDescriptorImpl> by lazy {
         for (module in loadedDescriptors) {
-            // Yes, just to all of them.
+            println("### dependency set for $module ")
+            loadedDescriptors.forEach {
+                 println("   to $it")
+            }
+                // Yes, just to all of them.
             module.setDependencies(loadedDescriptors + getOrCreateForwardDeclarationsModule(module.builtIns))
+
         }
 
         loadedDescriptors
     }
+
+    internal val usedLibraries = mutableSetOf<LibraryReaderImpl>()
+
+    val librariesToLink: List<KonanLibraryReader>  by lazy {
+        immediateLibraries
+                .filter { (!it.isDefaultLibrary && !purgeUserLibs) || it in usedLibraries }
+                .withResolvedDependencies()
+                .topoSort()
+    }
+
+    private fun List<LibraryReaderImpl>.topoSort(): List<LibraryReaderImpl> {
+        var sorted = mutableListOf<LibraryReaderImpl>()
+        val visited = mutableSetOf<LibraryReaderImpl>()
+        val tempMarks = mutableSetOf<LibraryReaderImpl>()
+
+        fun visit(node: LibraryReaderImpl, result: MutableList<LibraryReaderImpl>) {
+            if (visited.contains(node)) return
+            if (tempMarks.contains(node)) error("Cyclic dependency in library graph.")
+            tempMarks.add(node)
+            node.resolvedDependencies.forEach {
+                visit(it, result)
+            }
+            visited.add(node)
+            result += node
+        }
+
+        this.forEach next@{
+            if (visited.contains(it)) return@next
+            visit(it, sorted)
+        }
+        return sorted
+    }
+
+
+    val librariesForLibraryManifest: List<KonanLibraryReader> get() {
+        // Note: library manifest should contain the list of all user libraries and frontend-used default libraries.
+        // However this would result into linking too many default libraries into the application which uses current
+        // library. This problem should probably be fixed by adding different kind of dependencies to library
+        // manifest.
+        // Currently the problem is workarounded like this:
+        return this.librariesToLink
+        // This list contains all user libraries and the default libraries required for link (not frontend).
+        // That's why the workaround doesn't work only in very special cases, e.g. when `-nodefaultlibs` is enabled
+        // when compiling the application, while the library API uses types from default libs.
+    }
+
 }
 
 fun CompilerConfiguration.report(priority: CompilerMessageSeverity, message: String) 

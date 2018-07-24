@@ -33,7 +33,13 @@ interface KonanLibraryWriter {
 class LinkData(
     val module: ByteArray,
     val fragments: List<ByteArray>,
-    val fragmentNames: List<String> 
+    val fragmentNames: List<String>,
+    val ir: SerializedIr? = null
+)
+
+class SerializedIr (
+    val module: ByteArray,
+    val declarations: Map<Long, ByteArray>
 )
 
 interface MetadataWriter {
