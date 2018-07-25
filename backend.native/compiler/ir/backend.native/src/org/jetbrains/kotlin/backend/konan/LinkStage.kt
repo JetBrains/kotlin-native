@@ -51,7 +51,7 @@ internal class LinkStage(val context: Context) {
     private fun runTool(vararg command: String) =
             Command(*command)
                     .logWith(context::log)
-                    .execute()
+                    .getOutputLines(withErrors = true)
 
     private fun llvmLto(files: List<BitcodeFile>): ObjectFile {
         val combined = temporary("combined", ".o")
@@ -80,7 +80,7 @@ internal class LinkStage(val context: Context) {
         runTool(absoluteToolName, *arg)
     }
 
-    private fun hostLlvmTool(tool: String, vararg arg: String) {
+    private fun hostLlvmTool(tool: String, vararg arg: String) = run {
         val absoluteToolName = "${platform.absoluteLlvmHome}/bin/$tool"
         runTool(absoluteToolName, *arg)
     }
@@ -108,7 +108,8 @@ internal class LinkStage(val context: Context) {
         val combinedO = temporary("combined", ".o")
         hostLlvmTool("llc", optimizedBc, "-o", combinedO, *llcFlags, "-filetype=obj")
         val linkedWasm = temporary("linked", ".wasm")
-        hostLlvmTool("wasm-ld", combinedO, "-o", linkedWasm, *configurables.lldFlags.toTypedArray())
+        val output = hostLlvmTool("wasm-ld", combinedO, "-o", linkedWasm, *configurables.lldFlags.toTypedArray())
+        output.forEach { println("##teamcity [message text='$it']") }
         return linkedWasm
     }
 
