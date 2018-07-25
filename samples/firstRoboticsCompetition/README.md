@@ -16,7 +16,7 @@ Make sure the `/home/lvuser/robotCommand` file on the RoboRIO is set to:
 
     /home/lvuser/FRCUserProgram.kexe
     
-To run the demo, execute the following:
+To deploy the demo, run the following:
 
     scp somePathHere/FRCUserProgram.kexe lvuser@roboRIO-YOURTEAMNUMBER-FRC.local:~/
     
