@@ -108,8 +108,7 @@ internal class LinkStage(val context: Context) {
         val combinedO = temporary("combined", ".o")
         hostLlvmTool("llc", optimizedBc, "-o", combinedO, *llcFlags, "-filetype=obj")
         val linkedWasm = temporary("linked", ".wasm")
-        val output = hostLlvmTool("wasm-ld", combinedO, "-o", linkedWasm, *configurables.lldFlags.toTypedArray())
-        output.forEach { println("##teamcity [message text='$it']") }
+        hostLlvmTool("wasm-ld", combinedO, "-o", linkedWasm, *configurables.lldFlags.toTypedArray())
         return linkedWasm
     }
 

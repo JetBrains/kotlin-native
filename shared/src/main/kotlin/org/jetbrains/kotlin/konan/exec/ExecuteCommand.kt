@@ -77,10 +77,9 @@ open class Command(initialCommand: List<String>) {
 
         try {
             val builder = ProcessBuilder(command)
-
             builder.redirectInput(Redirect.INHERIT)
             builder.redirectError(Redirect.INHERIT)
-            builder.redirectOutput(ProcessBuilder.Redirect.to(outputFile))
+            builder.redirectOutput(Redirect.INHERIT)
                     .redirectErrorStream(withErrors)
             // Note: getting process output could be done without redirecting to temporary file,
             // however this would require managing a thread to read `process.inputStream` because
