@@ -22,9 +22,9 @@ import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.allOverriddenDescriptors
 import org.jetbrains.kotlin.backend.konan.descriptors.isArray
 import org.jetbrains.kotlin.backend.konan.descriptors.isInterface
+import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.descriptors.*
-import org.jetbrains.kotlin.resolve.descriptorUtil.builtIns
-import org.jetbrains.kotlin.resolve.descriptorUtil.isEffectivelyPublicApi
+import org.jetbrains.kotlin.resolve.descriptorUtil.*
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.typeUtil.isUnit
@@ -67,7 +67,7 @@ internal fun ObjCExportMapper.shouldBeExposed(descriptor: ClassDescriptor): Bool
         descriptor.isEffectivelyPublicApi && !descriptor.defaultType.isObjCObjectType() && when (descriptor.kind) {
             ClassKind.CLASS, ClassKind.INTERFACE, ClassKind.ENUM_CLASS, ClassKind.OBJECT -> true
             ClassKind.ENUM_ENTRY, ClassKind.ANNOTATION_CLASS -> false
-        } && !descriptor.isExpect && !isSpecialMapped(descriptor)
+        } && !descriptor.isExpect && !isSpecialMapped(descriptor) && !descriptor.isInlined()
 
 private fun ObjCExportMapper.isBase(descriptor: CallableMemberDescriptor): Boolean =
         descriptor.overriddenDescriptors.all { !shouldBeExposed(it) }
@@ -111,13 +111,24 @@ internal fun ObjCExportMapper.doesThrow(method: FunctionDescriptor): Boolean = m
 }
 
 private fun ObjCExportMapper.bridgeType(kotlinType: KotlinType): TypeBridge {
-    val valueType = kotlinType.correspondingValueType
-            ?: return ReferenceBridge
+    val inlinedClass = kotlinType.getInlinedClass()
+    if (inlinedClass != null) {
+        when (inlinedClass.fqNameUnsafe) {
+            KotlinBuiltIns.FQ_NAMES._boolean -> return ValueTypeBridge(ObjCValueType.BOOL)
+            KotlinBuiltIns.FQ_NAMES._char -> return ValueTypeBridge(ObjCValueType.UNSIGNED_SHORT)
+            KotlinBuiltIns.FQ_NAMES._byte -> return ValueTypeBridge(ObjCValueType.CHAR)
+            KotlinBuiltIns.FQ_NAMES._short -> return ValueTypeBridge(ObjCValueType.SHORT)
+            KotlinBuiltIns.FQ_NAMES._int -> return ValueTypeBridge(ObjCValueType.INT)
+            KotlinBuiltIns.FQ_NAMES._long -> return ValueTypeBridge(ObjCValueType.LONG_LONG)
+            KotlinBuiltIns.FQ_NAMES._float -> return ValueTypeBridge(ObjCValueType.FLOAT)
+            KotlinBuiltIns.FQ_NAMES._double -> return ValueTypeBridge(ObjCValueType.DOUBLE)
+            KonanBuiltIns.FqNames.nativePtr -> error("Can't produce $kotlinType to framework API") // TODO
+        }
 
-    val objCValueType = ObjCValueType.values().singleOrNull { it.kotlinValueType == valueType }
-            ?: error("Can't produce $kotlinType to framework API")
+        return bridgeType(kotlinType.unwrapInlinedClass()!!)
+    }
 
-    return ValueTypeBridge(objCValueType)
+    return ReferenceBridge
 }
 
 private fun ObjCExportMapper.bridgeParameter(parameter: ParameterDescriptor): MethodBridgeValueParameter =

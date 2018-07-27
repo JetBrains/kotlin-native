@@ -43,7 +43,6 @@ import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameUnsafe
 
 private val threadLocalAnnotationFqName = FqName("konan.ThreadLocal")
@@ -160,10 +159,6 @@ internal class RTTIGeneratorVisitor(context: Context) : IrElementVisitorVoid {
         super.visitClass(declaration)
 
         val descriptor = declaration
-        if (descriptor.isIntrinsic) {
-            // do not generate any code for intrinsic classes as they require special handling
-            return
-        }
 
         generator.generate(descriptor)
 
@@ -407,7 +402,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 appendingTo(bbLocalDeinit) {
                     context.llvm.fileInitializers.forEach {
                         val descriptor = it
-                        if (descriptor.type.isValueType())
+                        if (!descriptor.type.binaryTypeIsReference())
                             return@forEach // Is not a subject for memory management.
                         val address = context.llvmDeclarations.forStaticField(descriptor).storage
                         storeAny(codegen.kNullObjHeaderPtr, address)
@@ -508,7 +503,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     override fun visitConstructor(declaration: IrConstructor) {
         context.log{"visitConstructor               : ${ir2string(declaration)}"}
-        if (declaration.descriptor.containingDeclaration.defaultType.isValueType()) {
+        if (declaration.constructedClass.isInlined()) {
             // Do not generate any ctors for value types.
             return
         }
@@ -728,7 +723,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     override fun visitProperty(declaration: IrProperty) {
         val container = declaration.descriptor.containingDeclaration
         // For value types with real backing field there's no point to generate an accessor.
-        if (container is ClassDescriptor && container.defaultType.isValueType() && declaration.backingField != null)
+        if (container is ClassDescriptor && container.isInlined() && declaration.backingField != null) // FIXME: how does it work?
             return
         declaration.getter?.acceptVoid(this)
         declaration.setter?.acceptVoid(this)
@@ -1254,10 +1249,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         context.log{"evaluateCast                   : ${ir2string(value)}"}
         val dstDescriptor = value.typeOperand.getClass()!!
 
-        assert(!dstDescriptor.defaultType.isValueType() &&
-                !value.argument.type.isValueType())
-
         val srcArg        = evaluateExpression(value.argument)                         // Evaluate src expression.
+        assert(srcArg.type == codegen.kObjHeaderPtr)
 
         if (dstDescriptor.defaultType.isObjCObjectType()) {
             with(functionGenerationContext) {
@@ -1413,6 +1406,9 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         val valueToAssign = evaluateExpression(value.value)
         if (value.descriptor.dispatchReceiverParameter != null) {
             val thisPtr = evaluateExpression(value.receiver!!)
+            assert(thisPtr.type == codegen.kObjHeaderPtr) {
+                LLVMPrintTypeToString(thisPtr.type)?.toKString().toString()
+            }
             if (needMutationCheck(value.descriptor.containingDeclaration)) {
                 functionGenerationContext.call(context.llvm.mutationCheck,
                         listOf(functionGenerationContext.bitcast(codegen.kObjHeaderPtr, thisPtr)),
@@ -2108,7 +2104,20 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 assert (arg0.type == arg1.type,
                         { "Types are different: '${llvmtype2string(arg0.type)}' and '${llvmtype2string(arg1.type)}'" })
 
-                return functionGenerationContext.icmpEq(arg0, arg1)
+                val typeKind = LLVMGetTypeKind(arg0.type)
+                with (functionGenerationContext) {
+                    return when (typeKind) {
+                        LLVMTypeKind.LLVMFloatTypeKind, LLVMTypeKind.LLVMDoubleTypeKind -> {
+                            val numBits = LLVMSizeOfTypeInBits(codegen.llvmTargetData, arg0.type).toInt()
+                            val integerType = LLVMIntType(numBits)!!
+                            icmpEq(bitcast(integerType, arg0), bitcast(integerType, arg1))
+                        }
+
+                        LLVMTypeKind.LLVMIntegerTypeKind, LLVMTypeKind.LLVMPointerTypeKind -> icmpEq(arg0, arg1)
+
+                        else -> error(typeKind)
+                    }
+                }
             }
             "konan.internal.ieee754Equals" -> {
                 val arg0 = args[0]
@@ -2128,7 +2137,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
         return when (descriptor) {
             interop.interpretNullablePointed, interop.interpretCPointer,
-            interop.nativePointedGetRawPointer, interop.cPointerGetRawValue -> args.single()
+            interop.nativePointedGetRawPointer, interop.cPointerGetRawValue, // TODO: implement through `reinterpret`
+            context.ir.symbols.reinterpret.descriptor -> args.single()
 
             in interop.readPrimitive -> {
                 val pointerType = pointerType(codegen.getLLVMType(function.returnType))
@@ -2185,10 +2195,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                     functionGenerationContext.unreachable()
                     kNullInt8Ptr
                 } else {
-                    val irClass = context.ir.symbols.valueClassToBox[typeArgumentClass.symbol]?.owner
-                            ?: typeArgumentClass
-
-                    val typeInfo = codegen.typeInfoValue(irClass)
+                    val typeInfo = codegen.typeInfoValue(typeArgumentClass)
                     LLVMConstBitCast(typeInfo, kInt8Ptr)!!
                 }
             }

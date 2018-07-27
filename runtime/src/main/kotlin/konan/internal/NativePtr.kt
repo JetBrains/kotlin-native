@@ -18,7 +18,7 @@ package konan.internal
 
 @Intrinsic external fun getNativeNullPtr(): NativePtr
 
-class NativePtr private constructor() {
+class NativePtr internal constructor(private val value: konan.internal.NotNullPointerValue?) {
     companion object {
         val NULL = getNativeNullPtr()
     }
