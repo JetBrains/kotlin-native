@@ -38,12 +38,12 @@ fun main(args: Array<String>) {
                 .ensureUnixCallResult("socket") { it >= 0 }
 
         with(serverAddr) {
-            memset(this.ptr, 0, sockaddr_in.size)
-            sin_family = AF_INET.narrow()
-            sin_port = posix_htons(port)
+            memset(this.ptr, 0, sockaddr_in.size.convert())
+            sin_family = AF_INET.convert()
+            sin_port = posix_htons(port).convert()
         }
 
-        bind(listenFd, serverAddr.ptr.reinterpret(), sockaddr_in.size.toInt())
+        bind(listenFd, serverAddr.ptr.reinterpret(), sockaddr_in.size.toUInt())
                 .ensureUnixCallResult("bind") { it == 0 }
 
         listen(listenFd, 10)
@@ -54,16 +54,16 @@ fun main(args: Array<String>) {
 
         buffer.usePinned { pinned ->
           while (true) {
-            val length = recv(commFd, pinned.addressOf(0), buffer.size.signExtend(), 0).toInt()
+            val length = recv(commFd, pinned.addressOf(0), buffer.size.convert(), 0).toInt()
                     .ensureUnixCallResult("read") { it >= 0 }
 
             if (length == 0) {
                 break
             }
 
-            send(commFd, prefixBuffer.refTo(0), prefixBuffer.size.signExtend(), 0)
+            send(commFd, prefixBuffer.refTo(0), prefixBuffer.size.convert(), 0)
                     .ensureUnixCallResult("write") { it >= 0 }
-            send(commFd, pinned.addressOf(0), length.signExtend(), 0)
+            send(commFd, pinned.addressOf(0), length.convert(), 0)
                     .ensureUnixCallResult("write") { it >= 0 }
           }
         }
