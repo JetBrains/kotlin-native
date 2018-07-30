@@ -43,12 +43,12 @@ public final class ByteArray {
     // TODO: What about inline constructors?
     @InlineConstructor
     public constructor(size: Int, init: (Int) -> Byte): this(size) {
-        for (i in 0..size - 1) {
+        for (i in 0 until this.size) {
             this[i] = init(i)
         }
     }
 
-    public val size: Int
+    inline public val size: Int
         get() = getArrayLength()
 
     @SymbolName("Kotlin_ByteArray_get")
@@ -58,7 +58,8 @@ public final class ByteArray {
     external public operator fun set(index: Int, value: Byte): Unit
 
     @SymbolName("Kotlin_ByteArray_getArrayLength")
-    external private fun getArrayLength(): Int
+    @PublishedApi
+    external internal fun getArrayLength(): Int
 
     /** Creates an iterator over the elements of the array. */
     public operator fun iterator(): ByteIterator {
@@ -95,12 +96,12 @@ public final class CharArray {
      */
     @InlineConstructor
     public constructor(size: Int, init: (Int) -> Char): this(size) {
-        for (i in 0..size - 1) {
+        for (i in 0 until this.size) {
             this[i] = init(i)
         }
     }
 
-    public val size: Int
+    inline public val size: Int
         get() = getArrayLength()
 
     @SymbolName("Kotlin_CharArray_get")
@@ -110,7 +111,8 @@ public final class CharArray {
     external public operator fun set(index: Int, value: Char): Unit
 
     @SymbolName("Kotlin_CharArray_getArrayLength")
-    external private fun getArrayLength(): Int
+    @PublishedApi
+    external internal fun getArrayLength(): Int
 
     /** Creates an iterator over the elements of the array. */
     public operator fun iterator(): kotlin.collections.CharIterator {
@@ -146,12 +148,12 @@ public final class ShortArray {
      */
     @InlineConstructor
     public constructor(size: Int, init: (Int) -> Short): this(size) {
-        for (i in 0..size - 1) {
+        for (i in 0 until this.size) {
             this[i] = init(i)
         }
     }
 
-    public val size: Int
+    inline public val size: Int
         get() = getArrayLength()
 
     @SymbolName("Kotlin_ShortArray_get")
@@ -161,7 +163,8 @@ public final class ShortArray {
     external public operator fun set(index: Int, value: Short): Unit
 
     @SymbolName("Kotlin_ShortArray_getArrayLength")
-    external private fun getArrayLength(): Int
+    @PublishedApi
+    external internal fun getArrayLength(): Int
 
     /** Creates an iterator over the elements of the array. */
     public operator fun iterator(): kotlin.collections.ShortIterator {
@@ -197,12 +200,12 @@ public final class IntArray {
      */
     @InlineConstructor
     public constructor(size: Int, init: (Int) -> Int): this(size) {
-        for (i in 0..size - 1) {
+        for (i in 0 until this.size) {
             this[i] = init(i)
         }
     }
 
-    public val size: Int
+    inline public val size: Int
         get() = getArrayLength()
 
     @SymbolName("Kotlin_IntArray_get")
@@ -212,7 +215,8 @@ public final class IntArray {
     external public operator fun set(index: Int, value: Int): Unit
 
     @SymbolName("Kotlin_IntArray_getArrayLength")
-    external private fun getArrayLength(): Int
+    @PublishedApi
+    external internal fun getArrayLength(): Int
 
     /** Creates an iterator over the elements of the array. */
     public operator fun iterator(): kotlin.collections.IntIterator {
@@ -248,12 +252,12 @@ public final class LongArray {
      */
     @InlineConstructor
     public constructor(size: Int, init: (Int) -> Long): this(size) {
-        for (i in 0..size - 1) {
+        for (i in 0 until this.size) {
             this[i] = init(i)
         }
     }
 
-    public val size: Int
+    inline public val size: Int
         get() = getArrayLength()
 
     @SymbolName("Kotlin_LongArray_get")
@@ -263,7 +267,8 @@ public final class LongArray {
     external public operator fun set(index: Int, value: Long): Unit
 
     @SymbolName("Kotlin_LongArray_getArrayLength")
-    external private fun getArrayLength(): Int
+    @PublishedApi
+    external internal fun getArrayLength(): Int
 
     /** Creates an iterator over the elements of the array. */
     public operator fun iterator(): kotlin.collections.LongIterator {
@@ -299,12 +304,12 @@ public final class FloatArray {
      */
     @InlineConstructor
     public constructor(size: Int, init: (Int) -> Float): this(size) {
-        for (i in 0..size - 1) {
+        for (i in 0 until this.size) {
             this[i] = init(i)
         }
     }
 
-    public val size: Int
+    inline public val size: Int
         get() = getArrayLength()
 
     @SymbolName("Kotlin_FloatArray_get")
@@ -314,7 +319,8 @@ public final class FloatArray {
     external public operator fun set(index: Int, value: Float): Unit
 
     @SymbolName("Kotlin_FloatArray_getArrayLength")
-    external private fun getArrayLength(): Int
+    @PublishedApi
+    external internal fun getArrayLength(): Int
 
     /** Creates an iterator over the elements of the array. */
     public operator fun iterator(): kotlin.collections.FloatIterator {
@@ -346,12 +352,12 @@ public final class DoubleArray {
      */
     @InlineConstructor
     public constructor(size: Int, init: (Int) -> Double): this(size) {
-        for (i in 0..size - 1) {
+        for (i in 0 until this.size) {
             this[i] = init(i)
         }
     }
 
-    public val size: Int
+    inline public val size: Int
         get() = getArrayLength()
 
     @SymbolName("Kotlin_DoubleArray_get")
@@ -361,7 +367,8 @@ public final class DoubleArray {
     external public operator fun set(index: Int, value: Double): Unit
 
     @SymbolName("Kotlin_DoubleArray_getArrayLength")
-    external private fun getArrayLength(): Int
+    @PublishedApi
+    external internal fun getArrayLength(): Int
 
     /** Creates an iterator over the elements of the array. */
     public operator fun iterator(): kotlin.collections.DoubleIterator {
@@ -393,12 +400,12 @@ public final class BooleanArray {
      */
     @InlineConstructor
     public constructor(size: Int, init: (Int) -> Boolean): this(size) {
-        for (i in 0..size - 1) {
+        for (i in 0 until this.size) {
             this[i] = init(i)
         }
     }
 
-    public val size: Int
+    inline public val size: Int
         get() = getArrayLength()
 
     @SymbolName("Kotlin_BooleanArray_get")
@@ -408,7 +415,8 @@ public final class BooleanArray {
     external public operator fun set(index: Int, value: Boolean): Unit
 
     @SymbolName("Kotlin_BooleanArray_getArrayLength")
-    external private fun getArrayLength(): Int
+    @PublishedApi
+    external internal fun getArrayLength(): Int
 
     /** Creates an iterator over the elements of the array. */
     public operator fun iterator(): kotlin.collections.BooleanIterator {
