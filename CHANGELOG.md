@@ -1,3 +1,14 @@
+## v0.8.1 (Jul 2018)
+  * Bugfixes: #1779 #1786 #1787 #1818
+  * APIs for easier freeze debugging (#1783)
+  * Friend module support in plugin and backend
+  * Improves synthetic field accessors and printing in lldb
+  * Various fixes in compiler (inliner, post-inline lowering)
+  * New Gradle plugin improvements:
+     * Support frameworks and extra options in the new plugin (issue #1796)
+     * Publish the plugin to plugin portal (fixes issue #1751)
+     * Multiple bug fixes in tasks and targets
+
 ## v0.8 (Jul 2018)
   * Singleton objects are frozen after creation, and shared between threads
   * String and primitives types are frozen by default
