@@ -91,7 +91,7 @@ internal class LinkStage(val context: Context) {
         val combinedBc = temporary("combined", ".bc")
         // TODO: use -only-needed for the stdlib
         hostLlvmTool("llvm-link", *bitcodeFiles.toTypedArray(), "-o", combinedBc)
-
+        println("llvm-link complete")
         val optFlags = (configurables.optFlags + when {
             optimize -> configurables.optOptFlags
             debug -> configurables.optDebugFlags
@@ -99,7 +99,7 @@ internal class LinkStage(val context: Context) {
         } + llvmProfilingFlags()).toTypedArray()
         val optimizedBc = temporary("optimized", ".bc")
         hostLlvmTool("opt", combinedBc, "-o", optimizedBc, *optFlags)
-
+        println("opt complete")
         val llcFlags = (configurables.llcFlags + when {
             optimize -> configurables.llcOptFlags
             debug -> configurables.llcDebugFlags

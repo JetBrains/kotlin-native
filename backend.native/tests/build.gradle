@@ -2877,6 +2877,7 @@ task runStdlibTests(type: RunStdlibTest) {
 }
 
 task buildKonanTests(type: BuildKonanTest) {
+    dependsOn hello1
     compileList = [ "codegen",  "datagen", "lower", "runtime", "serialization"]
 
     // These tests should not be built into the TestRunner's test executable
