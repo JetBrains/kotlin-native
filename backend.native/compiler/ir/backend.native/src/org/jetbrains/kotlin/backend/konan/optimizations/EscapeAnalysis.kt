@@ -97,7 +97,7 @@ internal object EscapeAnalysis {
                                           val moduleDFG: ModuleDFG, val externalModulesDFG: ExternalModulesDFG,
                                           val callGraph: CallGraph) {
 
-        val functions = moduleDFG.functions// TODO: use for cross-module analysis: + externalModulesDFG.functionDFGs
+        val functions = moduleDFG.functions + externalModulesDFG.functionDFGs// TODO: use for cross-module analysis: + externalModulesDFG.functionDFGs
 
         private fun DataFlowIR.Type.resolved(): DataFlowIR.Type.Declared {
             if (this is DataFlowIR.Type.Declared) return this

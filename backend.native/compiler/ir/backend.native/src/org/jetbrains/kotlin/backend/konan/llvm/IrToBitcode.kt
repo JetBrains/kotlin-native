@@ -118,7 +118,7 @@ internal fun emitLLVM(context: Context) {
     }
 
     phaser.phase(KonanPhase.ESCAPE_ANALYSIS) {
-        val callGraph = CallGraphBuilder(context, moduleDFG!!, externalModulesDFG!!, devirtualizationAnalysisResult, false).build()
+        val callGraph = CallGraphBuilder(context, moduleDFG!!, externalModulesDFG!!, devirtualizationAnalysisResult, true).build()
         EscapeAnalysis.computeLifetimes(context, moduleDFG!!, externalModulesDFG!!, callGraph, lifetimes)
     }
 
