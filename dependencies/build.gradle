@@ -43,7 +43,7 @@ abstract class NativeDep extends DefaultTask {
     }
 
     protected File getBaseOutDir() {
-        final File res = project.rootProject.ext.dependenciesDir
+        final File res = UtilsKt.knProject(project).ext.dependenciesDir
         res.mkdirs()
         return res
     }
