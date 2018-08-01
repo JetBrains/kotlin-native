@@ -22,7 +22,7 @@ targetList.each { targetName ->
     task("${targetName}Runtime", type: CompileCppToBitcode) {
         name "runtime"
         srcRoot file('src/main')
-        dependsOn ":common:${targetName}Hash"
+        dependsOn "${projectPathPrefix}:common:${targetName}Hash"
         dependsOn "${targetName}Launcher"
         target targetName
 	    if (!isWindows())
@@ -53,7 +53,7 @@ task clean {
 }
 
 task generateJsMath {
-    dependsOn ':distCompiler'
+    dependsOn "${projectPathPrefix}:distCompiler"
     doLast {
         def jsinteropScript = isWindows() ? "jsinterop.bat" : "jsinterop"
         def jsinterop = "$distDir/bin/$jsinteropScript"
@@ -62,7 +62,7 @@ task generateJsMath {
         def generated = file("$targetDir/math-build/natives/js_stubs.js")
         def mathJs = file('src/main/js/math.js')
         mathJs.write("// NOTE: THIS FILE IS AUTO-GENERATED!\n" +
-                     "// Run ':runtime:generateJsMath' to re-generate it.\n\n")
+                     "// Run '${projectPathPrefix}:runtime:generateJsMath' to re-generate it.\n\n")
         generated.withReader {
             mathJs.append(it)
         }
