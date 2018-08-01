@@ -21,7 +21,7 @@ import org.jetbrains.kotlin.konan.util.*
 buildscript {
     apply from: "gradle/kotlinGradlePlugin.gradle"
     dependencies {
-        classpath "org.jetbrains.kotlin:kotlin-native-shared:$konanVersion"
+        classpath "org.jetbrains.kotlin:kotlin-native-utils:$konanVersion"
     }
 }
 import org.jetbrains.kotlin.konan.*
@@ -160,7 +160,7 @@ class PlatformInfo {
 }
 
 task sharedJar {
-    dependsOn gradle.includedBuild('kotlin-native-shared').task(':jar')
+    dependsOn gradle.includedBuild('kotlin-native-utils').task(':jar')
 }
 
 task gradlePluginJar {
@@ -247,7 +247,7 @@ task distCompiler(type: Copy) {
         into('konan/lib')
     }
 
-    from(file("${gradle.includedBuild('kotlin-native-shared').projectDir}/build/libs")) {
+    from(file("${gradle.includedBuild('kotlin-native-utils').projectDir}/build/libs")) {
         into('konan/lib')
     }
 

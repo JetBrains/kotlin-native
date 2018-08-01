@@ -23,7 +23,7 @@ buildscript {
 
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-stdlib:$buildKotlinVersion"
-        classpath "org.jetbrains.kotlin:kotlin-native-shared:$konanVersion"
+        classpath "org.jetbrains.kotlin:kotlin-native-utils:$konanVersion"
     }
 }
 import org.jetbrains.kotlin.konan.target.ClangArgs

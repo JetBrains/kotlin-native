@@ -34,7 +34,7 @@ buildscript {
     }
 
     dependencies {
-        classpath "org.jetbrains.kotlin:kotlin-native-shared:$konanVersion"
+        classpath "org.jetbrains.kotlin:kotlin-native-utils:$konanVersion"
         classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7.3'
         classpath 'com.github.jengelman.gradle.plugins:shadow:2.0.2'
     }
@@ -75,7 +75,7 @@ dependencies {
     shadow "org.jetbrains.kotlin:kotlin-stdlib:$buildKotlinVersion"
     shadow "org.jetbrains.kotlin:kotlin-gradle-plugin:$buildKotlinVersion"
 
-    bundleDependencies "org.jetbrains.kotlin:kotlin-native-shared:$konanVersion"
+    bundleDependencies "org.jetbrains.kotlin:kotlin-native-utils:$konanVersion"
 
     testImplementation 'junit:junit:4.12'
     testImplementation "org.jetbrains.kotlin:kotlin-test:$buildKotlinVersion"
