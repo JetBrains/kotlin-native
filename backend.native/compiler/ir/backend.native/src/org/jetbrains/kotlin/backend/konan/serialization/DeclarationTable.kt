@@ -1,6 +1,9 @@
 package org.jetbrains.kotlin.backend.konan.serialization
 
+import org.jetbrains.kotlin.backend.konan.irasdescriptors.TypeUtils
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.fqNameSafe
+import org.jetbrains.kotlin.backend.konan.irasdescriptors.getObjCMethodInfo
+import org.jetbrains.kotlin.backend.konan.irasdescriptors.original
 import org.jetbrains.kotlin.backend.konan.llvm.*
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.ir.declarations.*
@@ -52,11 +55,11 @@ class DeclarationTable(val builtIns: IrBuiltIns) {
     val table = mutableMapOf<IrDeclaration, Long>()
     val reverse = mutableMapOf<Long, IrDeclaration>() // TODO: remove me. Only needed during the development.
     val descriptors = mutableMapOf<DeclarationDescriptor, Long>()
-    var currentIndex = 17L
+    var currentIndex = 0L
 
     init {
         builtIns.knownBuiltins.forEach {
-            table.put(it, it.uniqId)
+            table.put(it, /*it.uniqId*/ currentIndex ++)
         }
     }
 
@@ -67,8 +70,8 @@ class DeclarationTable(val builtIns: IrBuiltIns) {
                     || value is IrTypeParameter
                     || value is IrValueParameter
                     || value is IrAnonymousInitializerImpl
-                    || value is IrFunction && value.origin == IrDeclarationOrigin.FAKE_OVERRIDE
-                    || value is IrProperty && value.origin == IrDeclarationOrigin.FAKE_OVERRIDE
+                    //|| value is IrFunction && value.origin == IrDeclarationOrigin.FAKE_OVERRIDE
+                    //|| value is IrProperty && value.origin == IrDeclarationOrigin.FAKE_OVERRIDE
             ) {
                 currentIndex++
             } else {
@@ -107,10 +110,12 @@ val IrBuiltIns.knownBuiltins // TODO: why do we have this list??? We need the co
 
 internal val IrProperty.symbolName: String
     get() {
+        val extensionReceiver: String = getter!!.extensionReceiverParameter ?. extensionReceiverNamePart ?: ""
+
         val containingDeclarationPart = parent.fqNameSafe.let {
             if (it.isRoot) "" else "$it."
         }
-        return "kprop:$containingDeclarationPart$name"
+        return "kprop:$containingDeclarationPart$extensionReceiver$name"
     }
 
 internal val IrEnumEntry.symbolName: String

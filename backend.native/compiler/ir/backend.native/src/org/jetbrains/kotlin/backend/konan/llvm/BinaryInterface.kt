@@ -165,9 +165,12 @@ private fun acyclicTypeMangler(visited: MutableSet<TypeParameterDescriptor>, typ
 private fun typeToHashString(type: KotlinType) 
     = acyclicTypeMangler(mutableSetOf<TypeParameterDescriptor>(), type)
 
+internal val IrValueParameter.extensionReceiverNamePart: String
+    get() = "@${typeToHashString(this.type)}."
+
 private val IrFunction.signature: String
     get() {
-        val extensionReceiverPart = this.extensionReceiverParameter?.let { "@${typeToHashString(it.type)}." } ?: ""
+        val extensionReceiverPart = this.extensionReceiverParameter?.extensionReceiverNamePart ?: ""
         val argsPart = this.valueParameters.map {
             "${typeToHashString(it.type)}${if (it.isVararg) "_VarArg" else ""}"
         }.joinToString(";")

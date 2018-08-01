@@ -47,9 +47,14 @@ message DescriptorReference {
     required string package_fq_name = 1;
     required string class_fq_name = 2;
     required UniqId uniq_id = 3;
-    optional bool is_getter = 4;
-    optional bool is_setter = 5;
-    optional bool is_fake_override = 6;
+    required string name = 9;
+
+    optional bool is_getter = 4 [default=false];
+    optional bool is_setter = 5 [default=false];
+    optional bool is_fake_override = 6 [default=false];
+    optional bool is_default_constructor = 7 [default=false];
+    optional bool is_enum_entry = 8 [default=false];
+    optional bool is_enum_special = 10 [default=false];
 }
 
 message UniqId {
