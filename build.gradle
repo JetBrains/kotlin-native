@@ -25,25 +25,28 @@ buildscript {
     }
 }
 import org.jetbrains.kotlin.konan.*
+import org.jetbrains.kotlin.UtilsKt
 
 // Allows generating wrappers for the root build and all the samples during execution of the default 'wrapper' task.
 // Run './gradlew wrapper --gradle-version <version>' to update all the wrappers.
 apply plugin: org.jetbrains.kotlin.GradleWrappers
-
-wrappers.projects = ['samples', 'samples/calculator', 'samples/androidNativeActivity']
-wrapper.distributionType = Wrapper.DistributionType.ALL
 
 defaultTasks 'clean', 'dist'
 
 convention.plugins.platformInfo = new PlatformInfo()
 
 ext {
+    isKotlinCompositeBuild = project.hasProperty("kotlinNativeEnabled") && project.property("kotlinNativeEnabled") == "true"
+    projectPathPrefix = isKotlinCompositeBuild ? ":kotlin-native" : ""
+
     distDir = file('dist')
     dependenciesDir = DependencyProcessor.defaultDependenciesRoot
     platformManager = new PlatformManager(DistributionKt.buildDistribution(projectDir.absolutePath))
 
     kotlinCommonStdlibModule="org.jetbrains.kotlin:kotlin-stdlib-common:${kotlinVersion}:sources"
-    kotlinCompilerModule="org.jetbrains.kotlin:kotlin-compiler:${kotlinVersion}"
+    kotlinCompilerModule = isKotlinCompositeBuild ?
+            project(":include:kotlin-compiler") :
+            "org.jetbrains.kotlin:kotlin-compiler:${kotlinVersion}"
     kotlinStdLibModule="org.jetbrains.kotlin:kotlin-stdlib:${kotlinVersion}"
     kotlinReflectModule="org.jetbrains.kotlin:kotlin-reflect:${kotlinVersion}"
     kotlinScriptRuntimeModule="org.jetbrains.kotlin:kotlin-script-runtime:${kotlinVersion}"
@@ -52,9 +55,14 @@ ext {
     gradlePluginVersion = konanVersionFull.toString()
 }
 
+if (!isKotlinCompositeBuild) {
+    wrappers.projects = ['samples', 'samples/calculator', 'samples/androidNativeActivity']
+    wrapper.distributionType = Wrapper.DistributionType.ALL
+}
+
 allprojects {
-    if (path != ":dependencies") {
-        evaluationDependsOn(":dependencies")
+    if (path != projectPathPrefix + ':dependencies') {
+        evaluationDependsOn(projectPathPrefix + ':dependencies')
     }
 
     repositories {
@@ -80,7 +88,7 @@ void setupHostAndTarget() {
 
 void setupClang(Project project) {
 
-    project.convention.plugins.platformManager = project.rootProject.ext.platformManager
+    project.convention.plugins.platformManager = UtilsKt.knProject(project).ext.platformManager
     project.convention.plugins.execClang = new org.jetbrains.kotlin.ExecClang(project)
 
     project.plugins.withType(NativeComponentPlugin) {
@@ -159,6 +167,7 @@ class PlatformInfo {
     }
 }
 
+if (!isKotlinCompositeBuild) {
 task sharedJar {
     dependsOn gradle.includedBuild('kotlin-native-shared').task(':jar')
 }
@@ -346,6 +355,7 @@ task dist {
 
 task crossDist {
     dependsOn 'crossDistRuntime', 'distCompiler'
+}
 }
 
 configurations {

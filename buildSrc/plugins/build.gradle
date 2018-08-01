@@ -17,9 +17,11 @@
 apply plugin: 'groovy'
 
 buildscript {
+    ext.isKotlinCompositeBuild = project.hasProperty("kotlinNativeEnabled") && project.property("kotlinNativeEnabled") == "true"
+    ext.dirPathPrefix = isKotlinCompositeBuild ? "/kotlin-native" : ""
     ext.rootBuildDirectory = "$rootDir/.."
-    apply from: "$rootBuildDirectory/gradle/loadRootProperties.gradle"
-    apply from: "$rootBuildDirectory/gradle/kotlinGradlePlugin.gradle"
+    apply from: "$rootBuildDirectory$dirPathPrefix/gradle/loadRootProperties.gradle"
+    apply from: "$rootBuildDirectory$dirPathPrefix/gradle/kotlinGradlePlugin.gradle"
 }
 
 apply plugin: 'kotlin'
