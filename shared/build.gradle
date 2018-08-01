@@ -20,9 +20,19 @@ buildscript {
 
     apply from: "$rootBuildDirectory/gradle/loadRootProperties.gradle"
     apply from: "$rootBuildDirectory/gradle/kotlinGradlePlugin.gradle"
+
+    repositories {
+        jcenter()
+    }
+
+    dependencies {
+        classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7.3'
+    }
 }
 
 apply plugin: 'kotlin'
+apply plugin: 'com.jfrog.bintray'
+apply plugin: "maven-publish"
 
 group = 'org.jetbrains.kotlin'
 version = konanVersion
@@ -60,4 +70,31 @@ jar {
 
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib:$buildKotlinVersion"
+}
+
+publishing {
+    publications {
+        utils(MavenPublication) {
+            from components.java
+        }
+    }
+}
+
+bintray {
+    user = project.hasProperty('bintrayUser') ? project.property('bintrayUser') : System.getenv('BINTRAY_USER')
+    key = project.hasProperty('bintrayKey') ? project.property('bintrayKey') : System.getenv('BINTRAY_KEY')
+    pkg {
+        repo = 'kotlin-eap'
+        name = 'kotlin-native-utils'
+        userOrg = 'kotlin'
+        licenses = ['Apache-2.0']
+        vcsUrl = 'https://github.com/JetBrains/kotlin-native'
+        version {
+            name = project.version
+            desc = "Kotlin/Native utils, version $konanVersion)"
+        }
+        publish  = project.findProperty("bintrayPublish").toString().toBoolean()
+        override = project.findProperty("bintrayOverride").toString().toBoolean()
+    }
+    publications = ['utils']
 }
