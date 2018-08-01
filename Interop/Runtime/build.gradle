@@ -28,7 +28,7 @@ buildscript {
     }
 }
 import org.jetbrains.kotlin.konan.target.ClangArgs
-
+import org.jetbrains.kotlin.UtilsKt
 
 model {
     components {
@@ -38,9 +38,9 @@ model {
                 include '**/*.c'
             }
             binaries.all {
-                def host = rootProject.ext.hostName
+                def host = UtilsKt.knProject(project).ext.hostName
 
-                def hostLibffiDir = rootProject.ext.get("${host}LibffiDir")
+                def hostLibffiDir = UtilsKt.knProject(project).ext.get("${host}LibffiDir")
 
                 cCompiler.args hostPlatform.clang.hostCompilerArgsForJni
                 cCompiler.args "-I$hostLibffiDir/include"

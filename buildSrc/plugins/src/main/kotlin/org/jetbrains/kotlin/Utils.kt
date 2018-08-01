@@ -8,6 +8,14 @@ import org.jetbrains.kotlin.konan.target.PlatformManager
 fun Project.platformManager() = findProperty("platformManager") as PlatformManager
 fun Project.testTarget() = findProperty("target") as KonanTarget
 
+fun Project.knProject(): Project {
+    val rootProject = project.rootProject
+    val knProject = rootProject.findProject(":kotlin-native")
+    if (knProject != null) {
+        return knProject
+    } else return rootProject
+}
+
 /**
  * Ad-hoc signing of the specified path
  */

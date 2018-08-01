@@ -15,13 +15,15 @@
  */
 
 buildscript {
-   apply from: "$rootDir/gradle/kotlinGradlePlugin.gradle"
+   apply from: "../gradle/kotlinGradlePlugin.gradle"
    apply plugin: 'project-report'
 
    dependencies {
        classpath "com.google.protobuf:protobuf-gradle-plugin:0.8.0"
    }
 }
+
+import org.jetbrains.kotlin.UtilsKt
 
 String protobufVersion = '2.6.1'
 apply plugin: "com.google.protobuf"
@@ -82,12 +84,12 @@ task renamePackage(type: Copy) {
 
 kotlinNativeInterop {
     llvm {
-        dependsOn ":llvmDebugInfoC:debugInfoStaticLibrary"
+        dependsOn (projectPathPrefix + ":llvmDebugInfoC:debugInfoStaticLibrary")
         defFile 'llvm.def'
         if (!project.parent.convention.plugins.platformInfo.isWindows())
             compilerOpts "-fPIC"
-        compilerOpts "-I$llvmDir/include", "-I${project(':llvmDebugInfoC').projectDir}/src/main/include"
-        linkerOpts "-L$llvmDir/lib", "-L${project(':llvmDebugInfoC').buildDir}/libs/debugInfo/static"
+        compilerOpts "-I$llvmDir/include", "-I${project(projectPathPrefix + ':llvmDebugInfoC').projectDir}/src/main/include"
+        linkerOpts "-L$llvmDir/lib", "-L${project(projectPathPrefix + ':llvmDebugInfoC').buildDir}/libs/debugInfo/static"
     }
 
     hash { // TODO: copy-pasted from ':common:compileHash'
@@ -96,7 +98,7 @@ kotlinNativeInterop {
             linkerOpts '-fPIC'
         }
         linker 'clang++'
-        linkOutputs ":common:${hostName}Hash"
+        linkOutputs projectPathPrefix + ":common:${hostName}Hash"
 
         headers fileTree('../common/src/hash/headers') {
           include '**/*.h'
@@ -172,7 +174,7 @@ task unzipStdlibSources(type: Copy) {
 
 targetList.each { target ->
     def konanJvmArgs = ["-ea", "-Xmx3G",
-    "-Dkonan.home=${rootProject.projectDir}",
+    "-Dkonan.home=${UtilsKt.knProject(project).projectDir}",
     "-Djava.library.path=${project.buildDir}/nativelibs/$hostName",
     "-Dfile.encoding=UTF-8"]
 
@@ -180,7 +182,7 @@ targetList.each { target ->
     if (target != "wasm32") defaultArgs += '-g'
     def konanArgs = [*defaultArgs,
                      '-target', target,
-                     '--runtime', project(':runtime').file("build/${target}/runtime.bc"),
+                     '--runtime', project(projectPathPrefix + ':runtime').file("build/${target}/runtime.bc"),
                      *project.globalBuildArgs]
 
     task("${target}Stdlib", type: JavaExec) {
@@ -188,23 +190,23 @@ targetList.each { target ->
         classpath = project.configurations.cli_bc
         jvmArgs = konanJvmArgs
         args = [*konanArgs,
-                '-output', project(':runtime').file("build/${target}Stdlib"),
+                '-output', project(projectPathPrefix + ':runtime').file("build/${target}Stdlib"),
                 '-produce', 'library', '-module_name', 'stdlib', '-XXLanguage:+AllowContractsForCustomFunctions',
                 '-Xmulti-platform', '-Xuse-experimental=kotlin.Experimental',
                 commonSrc.absolutePath,
-                project(':Interop:Runtime').file('src/main/kotlin'),
-                project(':Interop:Runtime').file('src/native/kotlin'),
-                project(':Interop:JsRuntime').file('src/main/kotlin'),
-                project(':runtime').file('src/main/kotlin')]
-        inputs.dir(project(':runtime').file('src/main/kotlin'))
-        inputs.dir(project(':Interop:Runtime').file('src/main/kotlin'))
-        inputs.dir(project(':Interop:Runtime').file('src/native/kotlin'))
-        inputs.dir(project(':Interop:JsRuntime').file('src/main/kotlin'))
+                project(projectPathPrefix + ':Interop:Runtime').file('src/main/kotlin'),
+                project(projectPathPrefix + ':Interop:Runtime').file('src/native/kotlin'),
+                project(projectPathPrefix + ':Interop:JsRuntime').file('src/main/kotlin'),
+                project(projectPathPrefix + ':runtime').file('src/main/kotlin')]
+        inputs.dir(project(projectPathPrefix + ':runtime').file('src/main/kotlin'))
+        inputs.dir(project(projectPathPrefix + ':Interop:Runtime').file('src/main/kotlin'))
+        inputs.dir(project(projectPathPrefix + ':Interop:Runtime').file('src/native/kotlin'))
+        inputs.dir(project(projectPathPrefix + ':Interop:JsRuntime').file('src/main/kotlin'))
         inputs.dir(commonSrc)
-        outputs.dir(project(':runtime').file("build/${target}Stdlib"))
+        outputs.dir(project(projectPathPrefix + ':runtime').file("build/${target}Stdlib"))
 
         dependsOn 'unzipStdlibSources'
-        dependsOn ":runtime:${target}Runtime"
+        dependsOn "${projectPathPrefix}:runtime:${target}Runtime"
     }
 
     task("${target}Start", type: JavaExec) {
@@ -212,14 +214,14 @@ targetList.each { target ->
         classpath = project.configurations.cli_bc
         jvmArgs = konanJvmArgs
         args = [*konanArgs, '-produce', 'bitcode',
-                '-output', project(':runtime').file("build/${target}Start"),
-                '-library', project(':runtime').file("build/${target}Stdlib"),
-                project(':runtime').file('src/launcher/kotlin')]
+                '-output', project(projectPathPrefix + ':runtime').file("build/${target}Start"),
+                '-library', project(projectPathPrefix + ':runtime').file("build/${target}Stdlib"),
+                project(projectPathPrefix + ':runtime').file('src/launcher/kotlin')]
 
-        inputs.dir(project(':runtime').file('src/launcher/kotlin'))
-        outputs.file(project(':runtime').file("build/${target}Start.bc"))
+        inputs.dir(project(projectPathPrefix + ':runtime').file('src/launcher/kotlin'))
+        outputs.file(project(projectPathPrefix + ':runtime').file("build/${target}Start.bc"))
 
-        dependsOn ":runtime:${target}Runtime", "${target}Stdlib"
+        dependsOn "${projectPathPrefix}:runtime:${target}Runtime", "${target}Stdlib"
     }
 }
 
@@ -230,12 +232,16 @@ task run {
 }
 
 jar {
+    if (isKotlinCompositeBuild) {
+        from sourceSets.compiler.output
+    } else {
     from sourceSets.cli_bc.output,
          sourceSets.compiler.output,
          sourceSets.hashInteropStubs.output,
          sourceSets.llvmInteropStubs.output
 
     dependsOn ':runtime:hostRuntime', 'external_jars'
+    }
 }
 
 def externalJars = ['compiler', 'stdlib', 'reflect', 'script_runtime']
