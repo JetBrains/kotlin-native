@@ -68,6 +68,11 @@ jar {
     archiveName = "shared.jar"
 }
 
+task sourcesJar(type: Jar) {
+    from sourceSets.main.allSource
+    classifier = 'sources'
+}
+
 dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib:$buildKotlinVersion"
 }
@@ -76,6 +81,7 @@ publishing {
     publications {
         utils(MavenPublication) {
             from components.java
+            artifact sourcesJar
         }
     }
 }
