@@ -56,6 +56,7 @@ import org.jetbrains.kotlin.types.*
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedClassDescriptor
 import org.jetbrains.kotlin.ir.util.IrDeserializer
 import org.jetbrains.kotlin.backend.common.WithLogger
+import org.jetbrains.kotlin.backend.konan.descriptors.propertyIfAccessor
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.fqNameSafe
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.isReal
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.name
@@ -84,18 +85,18 @@ internal fun IrSimpleFunction.resolveFakeOverrideMaybeAbstract(): IrSimpleFuncti
     val realSupers = mutableSetOf<IrSimpleFunction>()
 
     fun findRealSupers(function: IrSimpleFunction) {
-        println("### findRealSupers()")
-        if (function in visited) {println("visited"); return }
+        //println("### findRealSupers()")
+        if (function in visited) { return }
         visited += function
         if (function.isReal) {
-            println("isreal")
+            //println("isreal")
             realSupers += function
         } else {
 
 
-            println("### overriddenSymbols for ${function.name} in ${function.parent.fqNameSafe.toString()}")
-            this.overriddenSymbols.forEach { println(function.name) }
-            println(".")
+            //println("### overriddenSymbols for ${function.name} in ${function.parent.fqNameSafe.toString()}")
+            //this.overriddenSymbols.forEach { println(function.name) }
+            //println(".")
 
             function.overriddenSymbols.forEach { findRealSupers(it.owner) }
         }
@@ -118,8 +119,8 @@ internal fun IrSimpleFunction.resolveFakeOverrideMaybeAbstract(): IrSimpleFuncti
         realSupers.toList().forEach { excludeOverridden(it) }
     }
 
-    println("### realSupers for ${this.name}")
-    realSupers.forEach { println("${it.name} in ${it.parent.fqNameSafe.toString()}") }
+    //println("### realSupers for ${this.name}")
+    //realSupers.forEach { println("${it.name} in ${it.parent.fqNameSafe.toString()}") }
 
     return realSupers.first() /*{ it.modality != Modality.ABSTRACT } */
 }
@@ -216,7 +217,7 @@ internal class IrModuleSerialization(val logger: WithLogger,
         if (symbol.owner is IrAnonymousInitializer) return null
         if (descriptor is ValueDescriptor || descriptor is TypeParameterDescriptor) return null
 
-        println("### descriptor reference: $descriptor")
+        //println("### descriptor reference: $descriptor")
 
         val parent = descriptor.containingDeclaration!!
         val (packageFqName, classFqName) = when (parent) {
@@ -247,8 +248,8 @@ internal class IrModuleSerialization(val logger: WithLogger,
             declarationTable.indexByValue(realDeclaration)
         }
 
-        println("### descriptor reference index=${index.toString(16)} descriptor=$descriptor")
-        println("realDeclaration: ${realDeclaration.name} in ${realDeclaration.parent.fqNameSafe.toString()}")
+        //println("### descriptor reference index=${index.toString(16)} descriptor=$descriptor")
+        //println("realDeclaration: ${realDeclaration.name} in ${realDeclaration.parent.fqNameSafe.toString()}")
 
         val proto = KonanIr.DescriptorReference.newBuilder()
             .setPackageFqName(packageFqName)
@@ -280,7 +281,7 @@ internal class IrModuleSerialization(val logger: WithLogger,
 
     fun serializeIrSymbol(symbol: IrSymbol): KonanIr.IrSymbol {
 
-        println("### serializeIrSymbol: owner is ${symbol.owner} descriptor is ${symbol.descriptor.original}")
+        //println("### serializeIrSymbol: owner is ${symbol.owner} descriptor is ${symbol.descriptor.original}")
 
         if (symbol.owner !is IrDeclaration) error("Expected IrDeclaration") // TODO: change symbol to be IrSymbolDeclaration?
 
@@ -320,9 +321,9 @@ internal class IrModuleSerialization(val logger: WithLogger,
         proto.kind = kind
         val index = declarationTable.indexByValue(symbol.owner as IrDeclaration) // TODO: change symbol to be IrSymbolDeclaration?
         proto.setUniqId(newUniqId(index))
-        println("### serializeIrSymbol: owner is ${symbol.owner} descriptor is ${symbol.descriptor.original} ; kind=$kind ; index is ${index.toString(16)}")
+        //println("### serializeIrSymbol: owner is ${symbol.owner} descriptor is ${symbol.descriptor.original} ; kind=$kind ; index is ${index.toString(16)}")
         val owner = symbol.owner as IrDeclaration
-        println("### owner parent: ${owner.parent}; owner descriptor: ${owner.descriptor} owner parent descriptor: ${(owner.parent as? IrDeclaration)?.descriptor}")
+        //println("### owner parent: ${owner.parent}; owner descriptor: ${owner.descriptor} owner parent descriptor: ${(owner.parent as? IrDeclaration)?.descriptor}")
 
         val result =  proto.build()
         //println("proto.uniqId.index = ${proto.uniqId.index}")
@@ -986,7 +987,7 @@ internal class IrModuleSerialization(val logger: WithLogger,
     private fun serializeIrProperty(property: IrProperty): KonanIr.IrProperty {
         println("###serializeIrProperty name=${property.name}")
         val index = declarationTable.indexByValue(property)
-        println("###serializeIrProperty index: $index ")
+        println("###serializeIrProperty index: ${index.toString(16)} ")
 
 
         val proto = KonanIr.IrProperty.newBuilder()
@@ -1309,11 +1310,14 @@ public class IrModuleDeserialization(val logger: WithLogger, val builtIns: IrBui
             0)
 
     val deserializedSymbols = mutableMapOf<Long, IrSymbol>()
+    val deserializedDeclarations = mutableMapOf<DeclarationDescriptor, IrDeclaration>()
 
     init {
         var currentIndex = 0L
         builtIns.knownBuiltins.forEach {
-            deserializedSymbols.put(/*it.descriptor.uniqId*/currentIndex++, it.symbol)
+            deserializedSymbols.put(currentIndex, it.symbol)
+            deserializedDeclarations.put(it.descriptor, it)
+            currentIndex++
         }
     }
 
@@ -1321,10 +1325,10 @@ public class IrModuleDeserialization(val logger: WithLogger, val builtIns: IrBui
         val packageFqName = FqName(proto.packageFqName)
         val classFqName = FqName(proto.classFqName)
         val protoIndex = proto.uniqId.index
-        println("deserializeDescriptorReference: looking for ${protoIndex.toString(16)}")
-        if (proto.isFakeOverride) println("isFakeOverride")
-        if (proto.isGetter) println("isGetter")
-        if (proto.isSetter) println("isSetter")
+        //println("deserializeDescriptorReference: looking for ${protoIndex.toString(16)}")
+        //if (proto.isFakeOverride) println("isFakeOverride")
+        //if (proto.isGetter) println("isGetter")
+        //if (proto.isSetter) println("isSetter")
 
         val (clazz, members) = if (proto.classFqName == "") {
             Pair(null, currentModule!!.getPackage(packageFqName).memberScope.getContributedDescriptors())
@@ -1335,7 +1339,7 @@ public class IrModuleDeserialization(val logger: WithLogger, val builtIns: IrBui
 
         if (proto.isEnumEntry) {
             val name = proto.name
-            println("trying name: $name")
+            //println("trying name: $name")
             val clazz = clazz!! as DeserializedClassDescriptor
             val memberScope = clazz.getUnsubstitutedMemberScope()
             return memberScope.getContributedClassifier(Name.identifier(name), NoLookupLocation.FROM_BACKEND)!!
@@ -1343,15 +1347,15 @@ public class IrModuleDeserialization(val logger: WithLogger, val builtIns: IrBui
 
         if (proto.isEnumSpecial) {
             val name = proto.name
-            println("members in static scope")
+            //println("members in static scope")
 
             return clazz!!.getStaticScope().getContributedFunctions(Name.identifier(name), NoLookupLocation.FROM_BACKEND)!!.single()
 
         }
 
-        println("### members of ${proto.packageFqName} ${proto.classFqName}")
+        //println("### members of ${proto.packageFqName} ${proto.classFqName}")
         members.forEach { member ->
-            println(member)
+            //println(member)
             if (proto.isDefaultConstructor && member is ClassConstructorDescriptor) return member
 
             val realMembers = if (proto.isFakeOverride && member is CallableMemberDescriptor && member.kind == CallableMemberDescriptor.Kind.FAKE_OVERRIDE)
@@ -1359,21 +1363,21 @@ public class IrModuleDeserialization(val logger: WithLogger, val builtIns: IrBui
             else
                 setOf(member)
 
-            println("realMembers: ")
+            //println("realMembers: ")
             realMembers.forEach{
-                println("${it.name.asString()} in ${clazz?.name?.asString()}")
+                //println("${it.name.asString()} in ${clazz?.name?.asString()}")
             }
 
             val memberIndices = realMembers.map { it.getUniqId()?.index }.filterNotNull()
 
-            println("Member indices: ")
+            //println("Member indices: ")
             memberIndices.forEach {
-                println(it.toString(16))
+                //println(it.toString(16))
             }
 
             if (memberIndices.contains(protoIndex)) {
 
-                println("Found member with matching index: member = $member")
+                //println("Found member with matching index: member = $member")
 
 
                 if (member is PropertyDescriptor) {
@@ -2129,6 +2133,7 @@ public class IrModuleDeserialization(val logger: WithLogger, val builtIns: IrBui
 
         println("### deserialized IrFunction ${function.name}")
         println("### IR: ${ir2stringWhole(function)}")
+        println("descriptor = ${function.descriptor}")
 
 
         return function
@@ -2231,6 +2236,9 @@ public class IrModuleDeserialization(val logger: WithLogger, val builtIns: IrBui
         property.getter = if (proto.hasGetter()) deserializeIrFunction(proto.getter, start, end, origin, property) else null
         property.setter = if (proto.hasSetter()) deserializeIrFunction(proto.setter, start, end, origin, property) else null
 
+        property.getter ?. let {deserializedDeclarations.put(it.descriptor, it)}
+        property.setter ?. let {deserializedDeclarations.put(it.descriptor, it)}
+
         return property
     }
 
@@ -2241,12 +2249,12 @@ public class IrModuleDeserialization(val logger: WithLogger, val builtIns: IrBui
 
     override fun deserializeDeclaration(descriptor: DeclarationDescriptor): IrDeclaration {
 
-        val index = descriptor.getUniqId()!!.index
-        val owner =  deserializedSymbols[index]?.owner
+        println("### deserializeDescriptor descriptor = $descriptor ${descriptor.name}")
 
-        if (owner == null) error("Unknown declaration index: ${index.toString(16)}")
+        val declaration = deserializedDeclarations[descriptor] ?:
+            error("Unknown declaration descriptor: $descriptor")
 
-        return owner as IrDeclaration
+        return declaration
     }
 
     private fun deserializeDeclaration(proto: KonanIr.IrDeclaration, parent: IrDeclarationParent?): IrDeclaration {
@@ -2284,12 +2292,12 @@ public class IrModuleDeserialization(val logger: WithLogger, val builtIns: IrBui
         declaration.annotations.addAll(annotations)
 
         val sourceFileName = proto.fileName
-        //context.ir.originalModuleIndex.declarationToFile[declaration.descriptor.original] = sourceFileName
-/*
-        if (!(descriptor is VariableDescriptor) && descriptor != rootFunction)
-            localDeserializer.popContext(descriptor)
-*/
+
+        deserializedDeclarations.put(declaration.descriptor, declaration)
         logger.log{"### Deserialized declaration: ${ir2string(declaration)}"}
+        println{"### Deserialized declaration: $declaration ${declaration.descriptor}"}
+
+
         return declaration
     }
 

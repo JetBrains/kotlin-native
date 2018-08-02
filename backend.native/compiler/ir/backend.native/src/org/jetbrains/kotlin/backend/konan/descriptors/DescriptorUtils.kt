@@ -53,19 +53,11 @@ internal fun IrSimpleFunction.resolveFakeOverride(): IrSimpleFunction {
     val realSupers = mutableSetOf<IrSimpleFunction>()
 
     fun findRealSupers(function: IrSimpleFunction) {
-        println("### findRealSupers()")
-        if (function in visited) {println("visited"); return }
+        if (function in visited) return
         visited += function
         if (function.isReal) {
-            println("isreal")
             realSupers += function
         } else {
-
-
-            println("### overriddenSymbols for ${function.name} in ${function.parent.fqNameSafe.toString()}")
-            this.overriddenSymbols.forEach { println(function.name) }
-            println(".")
-
             function.overriddenSymbols.forEach { findRealSupers(it.owner) }
         }
     }
@@ -86,9 +78,6 @@ internal fun IrSimpleFunction.resolveFakeOverride(): IrSimpleFunction {
 
         realSupers.toList().forEach { excludeOverridden(it) }
     }
-
-    println("### realSupers for ${this.name}")
-    realSupers.forEach { println("${it.name} in ${it.parent.fqNameSafe.toString()}") }
 
     return realSupers.first { it.modality != Modality.ABSTRACT }
 }
