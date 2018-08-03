@@ -143,17 +143,6 @@ internal fun <T : CallableMemberDescriptor> T.resolveFakeOverrideMaybeAbstract()
     }
 }
 
-
-
-
-//import org.jetbrains.kotlin.types.Variance.*
-
-private fun printCurrentStackTrace() {
-    try { error("xxx") } catch (e: Throwable) {
-        e.printStackTrace()
-    }
-}
-
 internal class IrModuleSerialization(val logger: WithLogger,
                             val declarationTable: DeclarationTable
                             /*stringTable: KonanStringTable,
@@ -162,32 +151,7 @@ internal class IrModuleSerialization(val logger: WithLogger,
 
     private val loopIndex = mutableMapOf<IrLoop, Int>()
     private var currentLoopIndex = 0
-/*
-    private val localDeclarationSerializer
-        = LocalDeclarationSerializer(context, rootFunctionSerializer)
-    private val irDescriptorSerializer
-        = IrDescriptorSerializer(context, descriptorTable, 
-            stringTable, localDeclarationSerializer, rootFunction)
 
-    fun serializeInlineBody(): String {
-        val declaration = context.ir.originalModuleIndex.functions[rootFunction]!!
-        logger.log{"INLINE: ${ir2stringWhole(declaration)}"}
-        return encodeDeclaration(declaration)
-    }
-
-    private fun serializeKotlinType(type: KotlinType): KonanIr.KotlinType {
-        logger.log{"### serializing KotlinType: " + type}
-        return irDescriptorSerializer.serializeKotlinType(type)
-    }
-
-    private fun serializeIrSymbol(descriptor: DeclarationDescriptor): KonanIr.KotlinDescriptor {
-        logger.log{"### serializeIrSymbol $descriptor"}
-
-        // Behind this call starts a large world of 
-        // descriptor serialization for IR.
-        return irDescriptorSerializer.serializeIrSymbol(descriptor)
-    }
-*/
 
     private fun serializeCoordinates(start: Int, end: Int): KonanIr.Coordinates {
         return KonanIr.Coordinates.newBuilder()
@@ -216,8 +180,6 @@ internal class IrModuleSerialization(val logger: WithLogger,
         if (!declaration.isExported()) return null
         if (symbol.owner is IrAnonymousInitializer) return null
         if (descriptor is ValueDescriptor || descriptor is TypeParameterDescriptor) return null
-
-        //println("### descriptor reference: $descriptor")
 
         val parent = descriptor.containingDeclaration!!
         val (packageFqName, classFqName) = when (parent) {
@@ -2243,7 +2205,6 @@ public class IrModuleDeserialization(val logger: WithLogger, val builtIns: IrBui
     }
 
     private fun deserializeIrTypeAlias(proto: KonanIr.IrTypeAlias, start: Int, end: Int, origin: IrDeclarationOrigin): IrDeclaration { //IrTypeAlias {
-        //return IrTypeAliasImpl(start, end, origin, descriptor)
         return IrErrorDeclarationImpl(start, end, errorClassDescriptor)
     }
 
@@ -2297,77 +2258,8 @@ public class IrModuleDeserialization(val logger: WithLogger, val builtIns: IrBui
         logger.log{"### Deserialized declaration: ${ir2string(declaration)}"}
         println{"### Deserialized declaration: $declaration ${declaration.descriptor}"}
 
-
         return declaration
     }
-
-/*
-    // We run inline body deserializations after the public descriptor tree
-    // deserialization is long gone. So we don't have the needed chain of
-    // deserialization contexts available to take type parameters.
-    // So typeDeserializer introduces a brand new set of DeserializadTypeParameterDescriptors
-    // for the rootFunction.
-    // This function takes the type parameters from the rootFunction descriptor
-    // and substitutes them instead the deserialized ones.
-    // TODO: consider lazy inline body deserialization during the public descriptors deserialization.
-    // I tried to copy over TypeDeserializaer, MemberDeserializer, 
-    // and the rest of what's needed, but it didn't work out.
-    private fun adaptDeserializedTypeParameters(declaration: IrDeclaration): IrDeclaration {
-
-        val rootFunctionTypeParameters = 
-            localDeserializer.typeDeserializer.ownTypeParameters
-
-        val realTypeParameters =
-            rootFunction.deserializedPropertyIfAccessor.typeParameters
-
-        val substitutionContext = rootFunctionTypeParameters.mapIndexed{
-            index, param ->
-            Pair(param.typeConstructor, TypeProjectionImpl(realTypeParameters[index].defaultType))
-        }.associate{
-            (key,value) ->
-        key to value}
-
-        return DeepCopyIrTreeWithDescriptors(rootFunction, rootFunction.parents.first(), context).copy(
-            irElement       = declaration,
-            typeSubstitutor = TypeSubstitutor.create(substitutionContext)
-        ) as IrFunction
-    }
-    */
-/*
-    private val extractInlineProto: KonanLinkData.InlineIrBody
-        get() = when (rootFunction) {
-            is DeserializedSimpleFunctionDescriptor -> {
-                rootFunction.proto.inlineIr
-            }
-            is DeserializedClassConstructorDescriptor -> {
-                rootFunction.proto.constructorIr
-            }
-            is PropertyGetterDescriptor -> {
-                (rootMember as DeserializedPropertyDescriptor).proto.getterIr
-            }
-            is PropertySetterDescriptor -> {
-                (rootMember as DeserializedPropertyDescriptor).proto.setterIr
-            }
-            else -> error("Unexpected descriptor: $rootFunction")
-        }
-
-    fun decodeDeclaration(): IrDeclaration {
-        assert(rootFunction.isDeserializableCallable)
-
-        val inlineProto = extractInlineProto
-        val base64 = inlineProto.encodedIr
-        val byteArray = base64Decode(base64)
-        val irProto = KonanIr.IrDeclaration.parseFrom(byteArray, KonanSerializerProtocol.extensionRegistry)
-        val declaration = deserializeDeclaration(irProto)
-
-        logger.log {"BEFORE ADAPTATION: ${ir2stringWhole(declaration)}"}
-
-        //return adaptDeserializedTypeParameters(declaration)
-        return declaration
-    }
-    */
-
-    /* ------- Top level --------------------------------------------*/
 
     val ByteArray.codedInputStream: org.jetbrains.kotlin.protobuf.CodedInputStream
         get() {

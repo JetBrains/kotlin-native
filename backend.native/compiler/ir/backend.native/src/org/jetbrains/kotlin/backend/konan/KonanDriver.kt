@@ -63,11 +63,6 @@ fun runTopLevelPhases(konanConfig: KonanConfig, environment: KotlinCoreEnvironme
             throw KonanCompilationException()
         }
         context.moduleDescriptor = analyzerWithCompilerReport.analysisResult.moduleDescriptor
-
-        println("### dependencies for ${context.moduleDescriptor}")
-        context.moduleDescriptor.allDependencyModules.forEach {
-            println("### dependency module: $it")
-        }
     }
 
     val bindingContext = analyzerWithCompilerReport.analysisResult.bindingContext
@@ -84,20 +79,11 @@ fun runTopLevelPhases(konanConfig: KonanConfig, environment: KotlinCoreEnvironme
         val deserializer = IrModuleDeserialization(context as WithLogger, generatorContext.irBuiltIns)
         val specifics = context.config.configuration.get(CommonConfigurationKeys.LANGUAGE_VERSION_SETTINGS)!!
         val dependencies = context.config.librariesToLink.map {
-            println("DEPENDENCY: ${it.libraryName}")
             deserializer.deserializedIrModule(it.moduleDescriptor, it.wholeIr, {index -> it.irDeclaration(index)})
         }
 
         val module = translator.generateModuleFragment(generatorContext, environment.getSourceFiles(), deserializer)
 
-        //val declarationTable = DeclarationTable(module.irBuiltins)
-        //val byteArray = IrModuleSerialization(context, declarationTable).serializedModule(module)
-        //val module2 = IrModuleDeserialization(context, declarationTable, module.irBuiltins/*, symbols.symbolTable*/).deserializedIrModule(byteArray)
-
-        //println("ORIGINAL IR")
-        //println(ir2stringWhole(module))
-        //println("DESERIALIZED IR")
-        //println(ir2stringWhole(module2))
         context.irModule = module
         context.ir.symbols = symbols
 
@@ -110,7 +96,6 @@ fun runTopLevelPhases(konanConfig: KonanConfig, environment: KotlinCoreEnvironme
 
         val declarationTable = DeclarationTable(context.irModule!!.irBuiltins)
         val serializedIr = IrModuleSerialization(context, declarationTable).serializedIrModule(context.irModule!!)
-        //context.serializedIr = byteArray
 
         markBackingFields(context)
         val serializer = KonanSerializationUtil(context, declarationTable)
