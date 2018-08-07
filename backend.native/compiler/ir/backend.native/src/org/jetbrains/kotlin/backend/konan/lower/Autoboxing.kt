@@ -19,18 +19,20 @@ package org.jetbrains.kotlin.backend.konan.lower
 import org.jetbrains.kotlin.backend.common.AbstractValueUsageTransformer
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.common.atMostOne
-import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
-import org.jetbrains.kotlin.backend.common.lower.irBlockBody
-import org.jetbrains.kotlin.backend.common.lower.irIfThen
+import org.jetbrains.kotlin.backend.common.lower.*
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.target
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.constructedClass
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.containsNull
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.isOverridable
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.isSuspend
+import org.jetbrains.kotlin.descriptors.CallableMemberDescriptor
+import org.jetbrains.kotlin.descriptors.Modality
+import org.jetbrains.kotlin.descriptors.impl.SimpleFunctionDescriptorImpl
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.declarations.impl.IrFunctionImpl
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrBlockImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
@@ -40,6 +42,7 @@ import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.utils.addIfNotNull
 
 /**
@@ -214,7 +217,7 @@ private class AutoboxingTransformer(val context: Context) : AbstractValueUsageTr
 
 }
 
-private class InlineClassTransformer(val context: Context) : IrElementTransformerVoid() {
+private class InlineClassTransformer(private val context: Context) : IrBuildingTransformer(context) {
 
     private val symbols = context.ir.symbols
     private val irBuiltIns = context.irBuiltIns
@@ -222,9 +225,15 @@ private class InlineClassTransformer(val context: Context) : IrElementTransforme
     override fun visitClass(declaration: IrClass): IrStatement {
         declaration.transformChildrenVoid()
 
-        if (declaration.isUsedAsBoxClass()) {
-            buildBoxFunction(declaration, context.getBoxFunction(declaration))
-            buildUnboxFunction(declaration, context.getUnboxFunction(declaration))
+        if (declaration.isInlined()) {
+            if (declaration.isUsedAsBoxClass()) {
+                buildBoxFunction(declaration, context.getBoxFunction(declaration))
+                buildUnboxFunction(declaration, context.getUnboxFunction(declaration))
+            }
+
+            declaration.constructors.filter { !it.isPrimary }.toList().mapTo(declaration.declarations) {
+                context.getLoweredInlineClassConstructor(it)
+            }
         }
 
         return declaration
@@ -268,14 +277,20 @@ private class InlineClassTransformer(val context: Context) : IrElementTransforme
 
         val function = expression.symbol.owner
         return if (function is IrConstructor && function.constructedClass.isInlined()) {
-            expression.getValueArgument(0)!!
+            builder.lowerConstructorCallToValue(expression, function)
         } else {
             expression
         }
     }
 
     override fun visitConstructor(declaration: IrConstructor): IrStatement {
-        if (declaration.constructedClass.isInlined() || !declaration.returnType.binaryTypeIsReference()) {
+        val classIsInlined = declaration.constructedClass.isInlined()
+
+        if (classIsInlined && !declaration.isPrimary) {
+            buildLoweredSecondaryConstructor(declaration)
+        }
+
+        if (classIsInlined || !declaration.returnType.binaryTypeIsReference()) {
             // TODO: fix DFG building and nullify the body instead.
             (declaration.body as IrBlockBody).statements.clear()
         }
@@ -363,6 +378,108 @@ private class InlineClassTransformer(val context: Context) : IrElementTransforme
         irClass.declarations += function
     }
 
+    private fun IrBuilderWithScope.lowerConstructorCallToValue(
+            expression: IrMemberAccessExpression,
+            callee: IrConstructor
+    ): IrExpression = if (callee.isPrimary) {
+        expression.getValueArgument(0)!!
+    } else {
+        this.at(expression).irCall(this@InlineClassTransformer.context.getLoweredInlineClassConstructor(callee)).apply {
+            (0 until expression.valueArgumentsCount).forEach {
+                putValueArgument(it, expression.getValueArgument(it)!!)
+            }
+        }
+    }
+
+    private fun buildLoweredSecondaryConstructor(irConstructor: IrConstructor) {
+        val result = context.getLoweredInlineClassConstructor(irConstructor)
+        val irClass = irConstructor.parentAsClass
+
+        result.body = context.createIrBuilder(result.symbol).irBlockBody(result) {
+            lateinit var thisVar: IrVariable
+            val parameterMapping = result.valueParameters.associateBy {
+                irConstructor.valueParameters[it.index].symbol
+            }
+
+            (irConstructor.body as IrBlockBody).statements.forEach { statement ->
+                +statement.transform(object : IrElementTransformerVoid() {
+                    override fun visitDelegatingConstructorCall(expression: IrDelegatingConstructorCall): IrExpression {
+                        expression.transformChildrenVoid()
+
+                        val value = lowerConstructorCallToValue(expression, expression.symbol.owner)
+                        return irBlock(expression) {
+                            thisVar = irTemporary(value)
+                        }
+                    }
+
+                    override fun visitGetValue(expression: IrGetValue): IrExpression {
+                        expression.transformChildrenVoid()
+                        if (expression.symbol == irClass.thisReceiver?.symbol) {
+                            return irGet(thisVar)
+                        }
+
+                        parameterMapping[expression.symbol]?.let { return irGet(it) }
+                        return expression
+                    }
+
+                    override fun visitReturn(expression: IrReturn): IrExpression {
+                        expression.transformChildrenVoid()
+                        if (expression.returnTargetSymbol == irConstructor.symbol) {
+                            return irReturn(irBlock(expression.startOffset, expression.endOffset) {
+                                +expression.value
+                                +irGet(thisVar)
+                            })
+                        }
+
+                        return expression
+                    }
+
+                }, null)
+            }
+            +irReturn(irGet(thisVar))
+        }
+    }
+
     private fun getInlineClassBackingField(irClass: IrClass): IrField =
             irClass.declarations.filterIsInstance<IrProperty>().mapNotNull { it.backingField }.single()
+}
+
+private val Context.getLoweredInlineClassConstructor: (IrConstructor) -> IrSimpleFunction by Context.lazyMapMember { irConstructor ->
+    require(irConstructor.constructedClass.isInlined())
+    require(!irConstructor.isPrimary)
+
+    val descriptor = SimpleFunctionDescriptorImpl.create(
+            irConstructor.descriptor.containingDeclaration,
+            irConstructor.descriptor.annotations,
+            Name.special("<constructor>"),
+            CallableMemberDescriptor.Kind.SYNTHESIZED,
+            irConstructor.descriptor.source
+    )
+
+    val parameterDescriptors = irConstructor.descriptor.valueParameters.map {
+        it.copy(descriptor, it.name, it.index)
+    }
+
+    descriptor.initialize(
+            null,
+            null,
+            emptyList(),
+            parameterDescriptors,
+            irConstructor.descriptor.returnType,
+            Modality.FINAL,
+            irConstructor.visibility
+    )
+
+    IrFunctionImpl(
+            irConstructor.startOffset,
+            irConstructor.endOffset,
+            IrDeclarationOrigin.DEFINED,
+            descriptor
+    ).apply {
+        parent = irConstructor.parent
+        returnType = irConstructor.returnType
+        irConstructor.valueParameters.mapTo(this.valueParameters) {
+            it.copy(this.descriptor.valueParameters[it.index])
+        }
+    }
 }
