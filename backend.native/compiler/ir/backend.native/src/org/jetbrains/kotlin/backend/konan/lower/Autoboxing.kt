@@ -223,7 +223,7 @@ private class InlineClassTransformer(private val context: Context) : IrBuildingT
     private val irBuiltIns = context.irBuiltIns
 
     override fun visitClass(declaration: IrClass): IrStatement {
-        declaration.transformChildrenVoid()
+        super.visitClass(declaration)
 
         if (declaration.isInlined()) {
             if (declaration.isUsedAsBoxClass()) {
@@ -245,7 +245,7 @@ private class InlineClassTransformer(private val context: Context) : IrBuildingT
     }
 
     override fun visitGetField(expression: IrGetField): IrExpression {
-        expression.transformChildrenVoid()
+        super.visitGetField(expression)
 
         return if (expression.symbol.owner.isInlinedClassField()) {
             expression.receiver!!
@@ -255,7 +255,7 @@ private class InlineClassTransformer(private val context: Context) : IrBuildingT
     }
 
     override fun visitSetField(expression: IrSetField): IrExpression {
-        expression.transformChildrenVoid()
+        super.visitSetField(expression)
 
         return if (expression.symbol.owner.isInlinedClassField()) {
             // TODO: it is better to get rid of functions setting such fields.
@@ -273,7 +273,7 @@ private class InlineClassTransformer(private val context: Context) : IrBuildingT
     }
 
     override fun visitCall(expression: IrCall): IrExpression {
-        expression.transformChildrenVoid()
+        super.visitCall(expression)
 
         val function = expression.symbol.owner
         return if (function is IrConstructor && function.constructedClass.isInlined()) {
@@ -295,9 +295,7 @@ private class InlineClassTransformer(private val context: Context) : IrBuildingT
             (declaration.body as IrBlockBody).statements.clear()
         }
 
-        declaration.transformChildrenVoid()
-
-        return declaration
+        return super.visitConstructor(declaration)
     }
 
     private fun IrBuilderWithScope.irIsNull(expression: IrExpression): IrExpression {
