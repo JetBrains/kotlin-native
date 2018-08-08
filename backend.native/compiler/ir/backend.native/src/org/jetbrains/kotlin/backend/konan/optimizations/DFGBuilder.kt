@@ -709,6 +709,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                         receiver,
                                         DataFlowIR.Field(
                                                 receiverType,
+                                                symbolTable.mapType(value.symbol.owner.type),
                                                 name.localHash.value,
                                                 takeName { name }
                                         ),
@@ -724,6 +725,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                         receiver,
                                         DataFlowIR.Field(
                                                 receiverType,
+                                                symbolTable.mapType(value.symbol.owner.type),
                                                 name.localHash.value,
                                                 takeName { name }
                                         ),
