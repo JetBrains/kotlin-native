@@ -29,10 +29,11 @@ import org.jetbrains.kotlin.descriptors.FunctionDescriptor
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrFile
+import org.jetbrains.kotlin.builtins.native.NativeBuiltIns
 import org.jetbrains.kotlin.name.Name
 
 abstract internal class KonanBackendContext(val config: KonanConfig) : CommonBackendContext {
-    abstract override val builtIns: KonanBuiltIns
+    abstract override val builtIns: NativeBuiltIns
 
     abstract override val ir: KonanIr
 

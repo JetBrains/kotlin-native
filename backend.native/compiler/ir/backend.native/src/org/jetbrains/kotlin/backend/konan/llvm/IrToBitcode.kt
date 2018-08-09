@@ -1705,7 +1705,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                     return receiver
                 }
 
-                context.builtIns.immutableBinaryBlobOf -> {
+                context.immutableBinaryBlobOf -> {
                     @Suppress("UNCHECKED_CAST")
                     val arg = expression.getValueArgument(0) as IrConst<String>
                     return context.llvm.staticData.createImmutableBinaryBlob(arg)
@@ -2142,10 +2142,10 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 functionGenerationContext.store(args[2], pointer)
                 codegen.theUnitInstanceRef.llvm
             }
-            context.builtIns.nativePtrPlusLong -> functionGenerationContext.gep(args[0], args[1])
-            context.builtIns.getNativeNullPtr -> kNullInt8Ptr
+            context.nativePtrPlusLong -> functionGenerationContext.gep(args[0], args[1])
+            context.getNativeNullPtr -> kNullInt8Ptr
             interop.getPointerSize -> Int32(LLVMPointerSize(codegen.llvmTargetData)).llvm
-            context.builtIns.nativePtrToLong -> {
+            context.nativePtrToLong -> {
                 val intPtrValue = functionGenerationContext.ptrToInt(args.single(), codegen.intPtrType)
                 val resultType = functionGenerationContext.getLLVMType(function.returnType)
 

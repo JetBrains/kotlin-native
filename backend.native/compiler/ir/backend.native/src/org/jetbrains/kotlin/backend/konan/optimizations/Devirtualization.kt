@@ -979,7 +979,7 @@ internal object Devirtualization {
     private fun devirtualize(irModule: IrModuleFragment, context: Context,
                              moduleDFG: ModuleDFG, externalModulesDFG: ExternalModulesDFG,
                              devirtualizedCallSites: Map<IrCall, DevirtualizedCallSite>) {
-        val nativePtrType = context.builtIns.nativePtr.defaultType
+        val nativePtrType = context.nativePtr.defaultType
         val nativePtrEqualityOperatorSymbol = context.ir.symbols.areEqualByValue.single { it.descriptor.valueParameters[0].type == nativePtrType }
         val optimize = context.shouldOptimize()
         val boxFunctions = ValueType.values().associate { context.ir.symbols.boxFunctions[it]!! to it }

@@ -47,7 +47,7 @@ enum class ValueType(val classFqName: FqNameUnsafe, val isNullable: Boolean = fa
     FLOAT(KotlinBuiltIns.FQ_NAMES._float),
     DOUBLE(KotlinBuiltIns.FQ_NAMES._double),
 
-    NATIVE_PTR(KonanBuiltIns.FqNames.nativePtr),
+    NATIVE_PTR(KonanFqNames.nativePtr),
 
     NATIVE_POINTED(InteropBuiltIns.FqNames.nativePointed, isNullable = true),
     C_POINTER(InteropBuiltIns.FqNames.cPointer, isNullable = true)

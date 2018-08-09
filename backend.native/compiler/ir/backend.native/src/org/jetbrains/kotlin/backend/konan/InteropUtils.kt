@@ -23,8 +23,8 @@ import org.jetbrains.kotlin.backend.konan.serialization.KonanPackageFragment
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.descriptors.PackageFragmentDescriptor
-import org.jetbrains.kotlin.descriptors.PropertyDescriptor
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
+import org.jetbrains.kotlin.builtins.native.NativeBuiltIns
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
@@ -53,7 +53,7 @@ fun createInteropLibrary(reader: KonanLibraryReader): InteropLibrary? {
 private val cPointerName = "CPointer"
 private val nativePointedName = "NativePointed"
 
-internal class InteropBuiltIns(builtIns: KonanBuiltIns) {
+internal class InteropBuiltIns(builtIns: NativeBuiltIns, vararg konanPrimitives: ClassDescriptor) {
 
     object FqNames {
         val packageName = FqName("kotlinx.cinterop")
@@ -104,11 +104,9 @@ internal class InteropBuiltIns(builtIns: KonanBuiltIns) {
 
     val nativeMemUtils = packageScope.getContributedClass("nativeMemUtils")
 
-    private val primitives = listOf(
-            builtIns.byte, builtIns.short, builtIns.int, builtIns.long,
-            builtIns.float, builtIns.double,
-            builtIns.nativePtr
-    )
+    private val primitives = arrayOf(
+            arrayOf(builtIns.byte, builtIns.short, builtIns.int, builtIns.long, builtIns.float, builtIns.double),
+            konanPrimitives).flatten()
 
     val readPrimitive = primitives.map {
         nativeMemUtils.unsubstitutedMemberScope.getContributedFunctions("get" + it.name).single()

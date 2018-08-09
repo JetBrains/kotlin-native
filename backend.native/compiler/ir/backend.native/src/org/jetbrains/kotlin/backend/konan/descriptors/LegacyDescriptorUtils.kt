@@ -17,13 +17,13 @@
 package org.jetbrains.kotlin.backend.konan.descriptors
 
 import org.jetbrains.kotlin.backend.common.atMostOne
-import org.jetbrains.kotlin.backend.konan.KonanBuiltIns
 import org.jetbrains.kotlin.backend.konan.serialization.isExported
 import org.jetbrains.kotlin.builtins.functions.FunctionClassDescriptor
 import org.jetbrains.kotlin.builtins.getFunctionalClassKind
 import org.jetbrains.kotlin.builtins.isFunctionType
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor
+import org.jetbrains.kotlin.builtins.native.NativeBuiltIns
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.resolve.OverridingUtil
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
@@ -63,7 +63,7 @@ private val konanInternalPackageName = FqName.fromSegments(listOf("konan", "inte
 /**
  * @return `konan.internal` member scope
  */
-internal val KonanBuiltIns.konanInternal: MemberScope
+internal val NativeBuiltIns.konanInternal: MemberScope
     get() = this.builtInsModule.getPackage(konanInternalPackageName).memberScope
 
 internal val KotlinType.isKFunctionType: Boolean

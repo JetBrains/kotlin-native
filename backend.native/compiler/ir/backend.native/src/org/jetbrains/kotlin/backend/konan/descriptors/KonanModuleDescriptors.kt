@@ -17,11 +17,11 @@
 package org.jetbrains.kotlin.backend.konan.descriptors
 
 import org.jetbrains.kotlin.backend.konan.Context
-import org.jetbrains.kotlin.backend.konan.KonanBuiltIns
 import org.jetbrains.kotlin.backend.konan.library.KonanLibraryReader
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
+import org.jetbrains.kotlin.builtins.native.NativeBuiltIns
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
 import org.jetbrains.kotlin.storage.StorageManager
@@ -49,7 +49,7 @@ internal fun createKonanModuleDescriptor(
         storageManager: StorageManager,
         origin: KonanModuleOrigin
 ): ModuleDescriptorImpl {
-    val builtIns = KonanBuiltIns(storageManager)
+    val builtIns = NativeBuiltIns(storageManager)
 
     val moduleDescriptor = createKonanModuleDescriptor(name, storageManager, builtIns, origin)
 

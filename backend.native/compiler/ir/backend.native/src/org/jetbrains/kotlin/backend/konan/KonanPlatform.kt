@@ -16,60 +16,25 @@
 
 package org.jetbrains.kotlin.backend.konan
 
-import org.jetbrains.kotlin.builtins.KotlinBuiltIns
-import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
-import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.ImportPath
 import org.jetbrains.kotlin.resolve.MultiTargetPlatform
 import org.jetbrains.kotlin.resolve.PlatformConfigurator
 import org.jetbrains.kotlin.resolve.TargetPlatform
-import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.storage.StorageManager
 
-val STDLIB_MODULE_NAME = Name.special("<stdlib>")
+private val STDLIB_MODULE_NAME = Name.special("<stdlib>")
+internal const val NATIVE_PTR_NAME = "NativePtr"
 
-fun ModuleDescriptor.isStdlib(): Boolean {
-    return name == STDLIB_MODULE_NAME
-}
+fun ModuleDescriptor.isStdlib() = name == STDLIB_MODULE_NAME
 
-private val nativePtrName = "NativePtr"
+object KonanFqNames {
 
-class KonanBuiltIns(storageManager: StorageManager) : KotlinBuiltIns(storageManager) {
-    override fun getClassDescriptorFactories() =
-            super.getClassDescriptorFactories() + KonanBuiltInClassDescriptorFactory(storageManager, builtInsModule)
-
-    override fun getSuspendFunction(parameterCount: Int): ClassDescriptor {
-        return getBuiltInClassByName(Name.identifier("SuspendFunction$parameterCount"))
-    }
-
-    object FqNames {
-        val packageName = FqName("konan.internal")
-
-        val nativePtr = packageName.child(Name.identifier(nativePtrName)).toUnsafe()
-
-        val throws = FqName("konan.Throws")
-    }
-
-    private val packageScope by lazy { builtInsModule.getPackage(FqNames.packageName).memberScope }
-
-    val nativePtr by lazy { packageScope.getContributedClassifier(nativePtrName) as ClassDescriptor }
-
-    val nativePtrPlusLong by lazy { nativePtr.unsubstitutedMemberScope.getContributedFunctions("plus").single() }
-    val nativePtrToLong   by lazy { nativePtr.unsubstitutedMemberScope.getContributedFunctions("toLong").single() }
-    val getNativeNullPtr  by lazy { packageScope.getContributedFunctions("getNativeNullPtr").single() }
-    val immutableBinaryBlobOf by lazy {
-        builtInsModule.getPackage(FqName("konan")).memberScope.
-                getContributedFunctions("immutableBinaryBlobOf").single()
-    }
-
-    private fun MemberScope.getContributedClassifier(name: String) =
-            this.getContributedClassifier(Name.identifier(name), NoLookupLocation.FROM_BUILTINS)
-
-    private fun MemberScope.getContributedFunctions(name: String) =
-            this.getContributedFunctions(Name.identifier(name), NoLookupLocation.FROM_BUILTINS)
+    val packageName = FqName("konan.internal")
+    val nativePtr = packageName.child(Name.identifier(NATIVE_PTR_NAME)).toUnsafe()
+    val throws = FqName("konan.Throws")
 }
 
 object KonanPlatform : TargetPlatform("Konan") {
