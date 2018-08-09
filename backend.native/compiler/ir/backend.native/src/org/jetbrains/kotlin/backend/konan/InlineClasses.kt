@@ -26,6 +26,7 @@ import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.defaultType
+import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqNameUnsafe
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameUnsafe
 import org.jetbrains.kotlin.resolve.descriptorUtil.getAllSuperClassifiers
@@ -42,9 +43,13 @@ fun KotlinType.getInlinedClass(): ClassDescriptor? = KotlinTypeInlineClassesSupp
 
 fun ClassDescriptor.isInlined(): Boolean = KotlinTypeInlineClassesSupport.isInlined(this)
 
-fun KotlinType.unwrapInlinedClass(): KotlinType? = KotlinTypeInlineClassesSupport.unwrapInlinedClass(this)
 fun KotlinType.unwrapInlinedClasses() = KotlinTypeInlineClassesSupport.unwrappingInlinedClasses(this).last()
 
+internal inline fun <R> KotlinType.unwrapToPrimitiveOrReference(
+        eachInlinedClass: (inlinedClass: ClassDescriptor, nullable: Boolean) -> Unit,
+        ifPrimitive: (primitiveType: KonanPrimitiveType, nullable: Boolean) -> R,
+        ifReference: (type: KotlinType) -> R
+): R = KotlinTypeInlineClassesSupport.unwrapToPrimitiveOrReference(this, eachInlinedClass, ifPrimitive, ifReference)
 
 // TODO: consider renaming to `isReference`.
 fun KotlinType.binaryTypeIsReference(): Boolean = this.computePrimitiveBinaryTypeOrNull() == null
@@ -63,7 +68,33 @@ fun IrType.computeBinaryType(): BinaryType<IrClass> = IrTypeInlineClassesSupport
 fun IrClass.inlinedClassIsNullable(): Boolean = this.defaultType.makeNullable().getInlinedClass() == this // TODO: optimize
 fun IrClass.isUsedAsBoxClass(): Boolean = IrTypeInlineClassesSupport.isUsedAsBoxClass(this)
 
-private abstract class InlineClassesSupport<Class : Any, Type : Any> {
+/**
+ * Most "underlying" user-visible non-reference type.
+ * It is visible as inlined to compiler for simplicity, and wraps internal [ValueClass].
+ */
+enum class KonanPrimitiveType(val classId: ClassId) {
+    BOOLEAN(PrimitiveType.BOOLEAN),
+    CHAR(PrimitiveType.CHAR),
+    BYTE(PrimitiveType.BYTE),
+    SHORT(PrimitiveType.SHORT),
+    INT(PrimitiveType.INT),
+    LONG(PrimitiveType.LONG),
+    FLOAT(PrimitiveType.FLOAT),
+    DOUBLE(PrimitiveType.DOUBLE),
+    NON_NULL_NATIVE_PTR(ClassId.topLevel(KonanBuiltIns.FqNames.nonNullNativePtr.toSafe()))
+
+    ;
+
+    constructor(primitiveType: PrimitiveType) : this(ClassId.topLevel(primitiveType.typeFqName))
+
+    val fqName: FqNameUnsafe get() = this.classId.asSingleFqName().toUnsafe()
+
+    companion object {
+        val byFqName = KonanPrimitiveType.values().associateBy { it.fqName }
+    }
+}
+
+internal abstract class InlineClassesSupport<Class : Any, Type : Any> {
     protected abstract fun isNullable(type: Type): Boolean
     protected abstract fun makeNullable(type: Type): Type
     protected abstract fun erase(type: Type): Class
@@ -121,6 +152,29 @@ private abstract class InlineClassesSupport<Class : Any, Type : Any> {
         return if (isNullable(type)) makeNullable(underlyingType) else underlyingType
     }
 
+    inline fun <R> unwrapToPrimitiveOrReference(
+            type: Type,
+            eachInlinedClass: (inlinedClass: Class, nullable: Boolean) -> Unit,
+            ifPrimitive: (primitiveType: KonanPrimitiveType, nullable: Boolean) -> R,
+            ifReference: (type: Type) -> R
+    ): R {
+        var currentType: Type = type
+
+        while (true) {
+            val inlinedClass = getInlinedClass(currentType)
+            if (inlinedClass == null) {
+                return ifReference(currentType)
+            }
+
+            KonanPrimitiveType.byFqName[getFqName(inlinedClass)]?.let { primitiveType ->
+                return ifPrimitive(primitiveType, isNullable(type))
+            }
+
+            eachInlinedClass(inlinedClass, isNullable(type))
+            currentType = unwrapInlinedClass(currentType)!!
+        }
+    }
+
     // TODO: optimize.
     fun unwrappingInlinedClasses(type: Type): Sequence<Type> = generateSequence(type, { unwrapInlinedClass(it) })
 
@@ -149,7 +203,7 @@ private abstract class InlineClassesSupport<Class : Any, Type : Any> {
 }
 
 private val implicitInlineClasses =
-        (PrimitiveType.values().map { it.typeFqName.toUnsafe() } +
+        (KonanPrimitiveType.values().map { it.fqName } +
                 KonanBuiltIns.FqNames.nativePtr +
                 InteropBuiltIns.FqNames.cPointer).toSet()
 
@@ -179,7 +233,7 @@ private enum class ValueClass(val fqName: FqNameUnsafe, val binaryType: BinaryTy
 
 private fun IrClass.getAllSuperClassifiers(): List<IrClass> = listOf(this) + this.superTypes.flatMap { (it.classifierOrFail.owner as IrClass).getAllSuperClassifiers() }
 
-private object KotlinTypeInlineClassesSupport : InlineClassesSupport<ClassDescriptor, KotlinType>() {
+internal object KotlinTypeInlineClassesSupport : InlineClassesSupport<ClassDescriptor, KotlinType>() {
 
     override fun isNullable(type: KotlinType): Boolean = type.isNullable()
     override fun makeNullable(type: KotlinType): KotlinType = type.makeNullable()

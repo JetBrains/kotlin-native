@@ -110,26 +110,28 @@ internal fun ObjCExportMapper.doesThrow(method: FunctionDescriptor): Boolean = m
     it.overriddenDescriptors.isEmpty() && it.annotations.hasAnnotation(KonanBuiltIns.FqNames.throws)
 }
 
-private fun ObjCExportMapper.bridgeType(kotlinType: KotlinType): TypeBridge {
-    val inlinedClass = kotlinType.getInlinedClass()
-    if (inlinedClass != null) {
-        when (inlinedClass.fqNameUnsafe) {
-            KotlinBuiltIns.FQ_NAMES._boolean -> return ValueTypeBridge(ObjCValueType.BOOL)
-            KotlinBuiltIns.FQ_NAMES._char -> return ValueTypeBridge(ObjCValueType.UNSIGNED_SHORT)
-            KotlinBuiltIns.FQ_NAMES._byte -> return ValueTypeBridge(ObjCValueType.CHAR)
-            KotlinBuiltIns.FQ_NAMES._short -> return ValueTypeBridge(ObjCValueType.SHORT)
-            KotlinBuiltIns.FQ_NAMES._int -> return ValueTypeBridge(ObjCValueType.INT)
-            KotlinBuiltIns.FQ_NAMES._long -> return ValueTypeBridge(ObjCValueType.LONG_LONG)
-            KotlinBuiltIns.FQ_NAMES._float -> return ValueTypeBridge(ObjCValueType.FLOAT)
-            KotlinBuiltIns.FQ_NAMES._double -> return ValueTypeBridge(ObjCValueType.DOUBLE)
-            KonanBuiltIns.FqNames.nativePtr -> error("Can't produce $kotlinType to framework API") // TODO
+private fun ObjCExportMapper.bridgeType(kotlinType: KotlinType): TypeBridge = kotlinType.unwrapToPrimitiveOrReference(
+        eachInlinedClass = { _, _ ->
+            // unsigned types to be handled.
+        },
+        ifPrimitive = { primitiveType, _ ->
+            val objCValueType = when (primitiveType) {
+                KonanPrimitiveType.BOOLEAN -> ObjCValueType.BOOL
+                KonanPrimitiveType.CHAR -> ObjCValueType.UNSIGNED_SHORT
+                KonanPrimitiveType.BYTE -> ObjCValueType.CHAR
+                KonanPrimitiveType.SHORT -> ObjCValueType.SHORT
+                KonanPrimitiveType.INT -> ObjCValueType.INT
+                KonanPrimitiveType.LONG -> ObjCValueType.LONG_LONG
+                KonanPrimitiveType.FLOAT -> ObjCValueType.FLOAT
+                KonanPrimitiveType.DOUBLE -> ObjCValueType.DOUBLE
+                KonanPrimitiveType.NON_NULL_NATIVE_PTR -> error("Can't produce pointer type to framework API") // TODO
+            }
+            ValueTypeBridge(objCValueType)
+        },
+        ifReference = {
+            ReferenceBridge
         }
-
-        return bridgeType(kotlinType.unwrapInlinedClass()!!)
-    }
-
-    return ReferenceBridge
-}
+)
 
 private fun ObjCExportMapper.bridgeParameter(parameter: ParameterDescriptor): MethodBridgeValueParameter =
         MethodBridgeValueParameter.Mapped(bridgeType(parameter.type))
