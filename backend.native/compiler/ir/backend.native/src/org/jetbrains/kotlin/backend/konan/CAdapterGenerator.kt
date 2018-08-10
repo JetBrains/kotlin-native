@@ -870,7 +870,7 @@ internal class CAdapterGenerator(
         outputStreamWriter.close()
 
         if (context.config.target.family == Family.MINGW) {
-            outputStreamWriter = context.config.tempFiles
+            outputStreamWriter = context.config.outputFiles
                     .cAdapterDef
                     .printWriter()
             output("EXPORTS")
