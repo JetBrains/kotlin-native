@@ -16,20 +16,11 @@
 
 package org.jetbrains.kotlin.backend.konan
 
-import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.FqNameUnsafe
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.resolve.ImportPath
-import org.jetbrains.kotlin.resolve.MultiTargetPlatform
-import org.jetbrains.kotlin.resolve.PlatformConfigurator
-import org.jetbrains.kotlin.resolve.TargetPlatform
-import org.jetbrains.kotlin.storage.StorageManager
 
-private val STDLIB_MODULE_NAME = Name.special("<stdlib>")
 internal const val NATIVE_PTR_NAME = "NativePtr"
-
-fun ModuleDescriptor.isStdlib() = name == STDLIB_MODULE_NAME
 
 object KonanFqNames {
 
@@ -37,15 +28,6 @@ object KonanFqNames {
     val nativePtr = packageName.child(Name.identifier(NATIVE_PTR_NAME)).toUnsafe()
     val nonNullNativePtr = FqNameUnsafe("konan.internal.NonNullNativePtr")
     val throws = FqName("konan.Throws")
-}
-
-object KonanPlatform : TargetPlatform("Konan") {
-    override fun computePlatformSpecificDefaultImports(storageManager: StorageManager, result: MutableList<ImportPath>) {
-        result.add(ImportPath.fromString("konan.*"))
-    }
-
-    override val multiTargetPlatform = MultiTargetPlatform.Specific(platformName)
-    override val platformConfigurator: PlatformConfigurator = KonanPlatformConfigurator
 }
 
 /**

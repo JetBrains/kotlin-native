@@ -17,11 +17,11 @@
 package org.jetbrains.kotlin.cli.klib
 
 // TODO: Extract `library` package as a shared jar?
-import org.jetbrains.kotlin.backend.konan.isStdlib
 import org.jetbrains.kotlin.backend.konan.library.impl.LibraryReaderImpl
 import org.jetbrains.kotlin.backend.konan.library.impl.UnzippedKonanLibrary
 import org.jetbrains.kotlin.backend.konan.library.impl.ZippedKonanLibrary
 import org.jetbrains.kotlin.backend.konan.serialization.parseModuleHeader
+import org.jetbrains.kotlin.builtins.konan.isKonanStdlib
 import org.jetbrains.kotlin.config.ApiVersion
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
@@ -146,7 +146,7 @@ class Library(val name: String, val requestedRepository: String?, val target: St
         val versionSpec = LanguageVersionSettingsImpl(currentLanguageVersion, currentApiVersion)
         val module = reader.moduleDescriptor(versionSpec)
         val defaultModules = mutableListOf<ModuleDescriptorImpl>()
-        if (!module.isStdlib()) {
+        if (!module.isKonanStdlib()) {
             val resolver = KonanLibrarySearchPathResolver(emptyList(),
                     target = null,
                     distributionKlib = Distribution().klib,
