@@ -23,7 +23,9 @@ import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
-import org.jetbrains.kotlin.ir.types.*
+import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.classifierOrFail
+import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.name.ClassId
@@ -81,7 +83,7 @@ enum class KonanPrimitiveType(val classId: ClassId) {
     LONG(PrimitiveType.LONG),
     FLOAT(PrimitiveType.FLOAT),
     DOUBLE(PrimitiveType.DOUBLE),
-    NON_NULL_NATIVE_PTR(ClassId.topLevel(KonanBuiltIns.FqNames.nonNullNativePtr.toSafe()))
+    NON_NULL_NATIVE_PTR(ClassId.topLevel(KonanFqNames.nonNullNativePtr.toSafe()))
 
     ;
 
@@ -204,7 +206,7 @@ internal abstract class InlineClassesSupport<Class : Any, Type : Any> {
 
 private val implicitInlineClasses =
         (KonanPrimitiveType.values().map { it.fqName } +
-                KonanBuiltIns.FqNames.nativePtr +
+                KonanFqNames.nativePtr +
                 InteropBuiltIns.FqNames.cPointer).toSet()
 
 private enum class ValueClass(val fqName: FqNameUnsafe, val binaryType: BinaryType.Primitive) {

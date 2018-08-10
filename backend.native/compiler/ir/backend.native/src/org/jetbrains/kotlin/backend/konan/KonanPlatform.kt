@@ -35,6 +35,7 @@ object KonanFqNames {
 
     val packageName = FqName("konan.internal")
     val nativePtr = packageName.child(Name.identifier(NATIVE_PTR_NAME)).toUnsafe()
+    val nonNullNativePtr = FqNameUnsafe("konan.internal.NonNullNativePtr")
     val throws = FqName("konan.Throws")
 }
 
