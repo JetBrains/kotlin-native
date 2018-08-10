@@ -50,7 +50,7 @@ import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
-import org.jetbrains.kotlin.builtins.konan.NativeBuiltIns
+import org.jetbrains.kotlin.builtins.konan.KonanBuiltIns
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.metadata.KonanLinkData
 import org.jetbrains.kotlin.name.FqName
@@ -280,8 +280,8 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
 
     lateinit var moduleDescriptor: ModuleDescriptor
 
-    override val builtIns: NativeBuiltIns by lazy(PUBLICATION) {
-        moduleDescriptor.builtIns as NativeBuiltIns
+    override val builtIns: KonanBuiltIns by lazy(PUBLICATION) {
+        moduleDescriptor.builtIns as KonanBuiltIns
     }
 
     private val packageScope by lazy { builtIns.builtInsModule.getPackage(KonanFqNames.packageName).memberScope }

@@ -24,7 +24,7 @@ import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.descriptors.PackageFragmentDescriptor
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
-import org.jetbrains.kotlin.builtins.konan.NativeBuiltIns
+import org.jetbrains.kotlin.builtins.konan.KonanBuiltIns
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
@@ -53,7 +53,7 @@ fun createInteropLibrary(reader: KonanLibraryReader): InteropLibrary? {
 private val cPointerName = "CPointer"
 private val nativePointedName = "NativePointed"
 
-internal class InteropBuiltIns(builtIns: NativeBuiltIns, vararg konanPrimitives: ClassDescriptor) {
+internal class InteropBuiltIns(builtIns: KonanBuiltIns, vararg konanPrimitives: ClassDescriptor) {
 
     object FqNames {
         val packageName = FqName("kotlinx.cinterop")
