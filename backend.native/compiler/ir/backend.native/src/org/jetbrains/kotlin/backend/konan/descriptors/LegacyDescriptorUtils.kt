@@ -23,7 +23,7 @@ import org.jetbrains.kotlin.builtins.getFunctionalClassKind
 import org.jetbrains.kotlin.builtins.isFunctionType
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor
-import org.jetbrains.kotlin.builtins.native.NativeBuiltIns
+import org.jetbrains.kotlin.builtins.konan.NativeBuiltIns
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.resolve.OverridingUtil
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe

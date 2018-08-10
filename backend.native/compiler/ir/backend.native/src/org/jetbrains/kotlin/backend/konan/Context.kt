@@ -50,7 +50,7 @@ import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
-import org.jetbrains.kotlin.builtins.native.NativeBuiltIns
+import org.jetbrains.kotlin.builtins.konan.NativeBuiltIns
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.metadata.KonanLinkData
 import org.jetbrains.kotlin.name.FqName
