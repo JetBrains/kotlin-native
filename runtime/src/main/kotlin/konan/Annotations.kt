@@ -25,7 +25,7 @@ import kotlin.reflect.KClass
  * so it should probably be allowed on `internal` and `private` functions only.
  */
 @Target(AnnotationTarget.FUNCTION)
-@Retention(AnnotationRetention.SOURCE)
+// @Retention(AnnotationRetention.SOURCE)
 annotation class SymbolName(val name: String)
 
 /**
