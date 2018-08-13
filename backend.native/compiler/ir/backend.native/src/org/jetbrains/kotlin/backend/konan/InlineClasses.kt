@@ -289,7 +289,7 @@ private object IrTypeInlineClassesSupport : InlineClassesSupport<IrClass, IrType
         }
     }
 
-    override fun getFqName(clazz: IrClass): FqNameUnsafe = clazz.fqNameSafe.toUnsafe()
+    override fun getFqName(clazz: IrClass): FqNameUnsafe = clazz.descriptor.fqNameUnsafe
     override fun hasInlineModifier(clazz: IrClass): Boolean = clazz.descriptor.isInline
 
     override fun getNativePointedSuperclass(clazz: IrClass): IrClass? = clazz.getAllSuperClassifiers()
