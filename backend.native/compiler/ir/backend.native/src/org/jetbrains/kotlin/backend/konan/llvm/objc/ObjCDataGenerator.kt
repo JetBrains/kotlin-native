@@ -18,7 +18,7 @@ package org.jetbrains.kotlin.backend.konan.llvm.objc
 
 import llvm.*
 import org.jetbrains.kotlin.backend.konan.llvm.*
-import org.jetbrains.kotlin.descriptors.konan.CurrentKonanModule
+import org.jetbrains.kotlin.descriptors.konan.KonanModuleOrigin.CompiledModules.CurrentKonanModule
 
 /**
  * This class provides methods to generate Objective-C RTTI and other data.

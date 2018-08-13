@@ -28,9 +28,9 @@ import org.jetbrains.kotlin.backend.konan.irasdescriptors.*
 import org.jetbrains.kotlin.backend.konan.library.KonanLibraryReader
 import org.jetbrains.kotlin.backend.konan.library.impl.LibraryReaderImpl
 import org.jetbrains.kotlin.backend.konan.library.withResolvedDependencies
-import org.jetbrains.kotlin.descriptors.konan.CurrentKonanModule
-import org.jetbrains.kotlin.descriptors.konan.DeserializedKonanModule
-import org.jetbrains.kotlin.descriptors.konan.LlvmSymbolOrigin
+import org.jetbrains.kotlin.descriptors.konan.KonanModuleOrigin.CompiledModules
+import org.jetbrains.kotlin.descriptors.konan.KonanModuleOrigin.CompiledModules.CurrentKonanModule
+import org.jetbrains.kotlin.descriptors.konan.KonanModuleOrigin.CompiledModules.DeserializedKonanModule
 import org.jetbrains.kotlin.ir.declarations.IrExternalPackageFragment
 import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrFile
@@ -305,7 +305,7 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
         return LLVMAddFunction(llvmModule, "llvm.memset.p0i8.i32", functionType)!!
     }
 
-    internal fun externalFunction(name: String, type: LLVMTypeRef, origin: LlvmSymbolOrigin): LLVMValueRef {
+    internal fun externalFunction(name: String, type: LLVMTypeRef, origin: CompiledModules): LLVMValueRef {
         this.imports.add(origin)
 
         val found = LLVMGetNamedFunction(llvmModule, name)
@@ -318,7 +318,7 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
         }
     }
 
-    private fun externalNounwindFunction(name: String, type: LLVMTypeRef, origin: LlvmSymbolOrigin): LLVMValueRef {
+    private fun externalNounwindFunction(name: String, type: LLVMTypeRef, origin: CompiledModules): LLVMValueRef {
         val function = externalFunction(name, type, origin)
         setFunctionNoUnwind(function)
         return function
@@ -330,7 +330,7 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
 
         private val allLibraries = context.librariesWithDependencies.toSet()
 
-        override fun add(origin: LlvmSymbolOrigin) {
+        override fun add(origin: CompiledModules) {
             val reader = when (origin) {
                 CurrentKonanModule -> return
                 is DeserializedKonanModule -> origin.reader as KonanLibraryReader

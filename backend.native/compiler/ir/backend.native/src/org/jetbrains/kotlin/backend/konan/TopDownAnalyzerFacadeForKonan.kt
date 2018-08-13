@@ -21,7 +21,7 @@ import org.jetbrains.kotlin.config.*
 import org.jetbrains.kotlin.context.ModuleContext
 import org.jetbrains.kotlin.context.MutableModuleContextImpl
 import org.jetbrains.kotlin.context.ProjectContext
-import org.jetbrains.kotlin.descriptors.konan.CurrentKonanModule
+import org.jetbrains.kotlin.descriptors.konan.KonanModuleOrigin.CompiledModules.CurrentKonanModule
 import org.jetbrains.kotlin.descriptors.konan.createKonanModuleDescriptor
 import org.jetbrains.kotlin.descriptors.konan.isKonanStdlib
 import org.jetbrains.kotlin.konan.util.visibleName
