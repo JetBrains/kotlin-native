@@ -5,7 +5,7 @@ import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.impl.ClassDescriptorImpl
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
 import org.jetbrains.kotlin.descriptors.impl.PackageFragmentDescriptorImpl
-import org.jetbrains.kotlin.descriptors.konan.KonanModuleOrigin.SyntheticModules
+import org.jetbrains.kotlin.descriptors.konan.SyntheticModulesOrigin
 import org.jetbrains.kotlin.descriptors.konan.createKonanModuleDescriptor
 import org.jetbrains.kotlin.incremental.components.LookupLocation
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
@@ -28,7 +28,7 @@ fun createForwardDeclarationsModule(builtIns: KotlinBuiltIns, storageManager: St
             Name.special("<forward declarations>"),
             storageManager,
             builtIns,
-            origin = SyntheticModules
+            origin = SyntheticModulesOrigin
     )
 
     fun createPackage(fqName: FqName, supertypeName: String, classKind: ClassKind = ClassKind.CLASS) =

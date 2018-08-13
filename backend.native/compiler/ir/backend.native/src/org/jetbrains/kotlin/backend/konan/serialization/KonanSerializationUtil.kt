@@ -24,7 +24,7 @@ import org.jetbrains.kotlin.backend.konan.library.LinkData
 import org.jetbrains.kotlin.config.LanguageVersionSettings
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
-import org.jetbrains.kotlin.descriptors.konan.KonanModuleOrigin.CompiledModules.DeserializedKonanModule
+import org.jetbrains.kotlin.descriptors.konan.DeserializedKonanModuleOrigin
 import org.jetbrains.kotlin.descriptors.konan.createKonanModuleDescriptor
 import org.jetbrains.kotlin.incremental.components.LookupTracker
 import org.jetbrains.kotlin.metadata.KonanLinkData
@@ -123,7 +123,7 @@ internal fun deserializeModule(languageVersionSettings: LanguageVersionSettings,
     val storageManager = LockBasedStorageManager()
     val moduleDescriptor = createKonanModuleDescriptor(
             Name.special(moduleName), storageManager,
-            origin = DeserializedKonanModule(reader)
+            origin = DeserializedKonanModuleOrigin(reader)
     )
     val deserializationConfiguration = CompilerDeserializationConfiguration(languageVersionSettings)
 

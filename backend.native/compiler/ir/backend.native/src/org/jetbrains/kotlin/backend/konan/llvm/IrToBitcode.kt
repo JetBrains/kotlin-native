@@ -28,7 +28,7 @@ import org.jetbrains.kotlin.backend.konan.objcexport.ObjCExport
 import org.jetbrains.kotlin.backend.konan.optimizations.*
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
-import org.jetbrains.kotlin.descriptors.konan.KonanModuleOrigin.CompiledModules.CurrentKonanModule
+import org.jetbrains.kotlin.descriptors.konan.CurrentKonanModuleOrigin
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.SourceManager
@@ -2627,7 +2627,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 if (context.config.produce.isNativeBinary) {
                     context.llvm.librariesToLink.forEach {
                         val dependencyCtorFunction = context.llvm.externalFunction(
-                                it.moduleConstructorName, kVoidFuncType, CurrentKonanModule)
+                                it.moduleConstructorName, kVoidFuncType, CurrentKonanModuleOrigin)
                         call(dependencyCtorFunction, emptyList(), Lifetime.IRRELEVANT,
                                 exceptionHandler = ExceptionHandler.Caller, verbatim = true)
                     }
