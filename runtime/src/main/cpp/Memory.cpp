@@ -20,7 +20,7 @@
 #include <cstddef> // for offsetof
 
 #include "Alloc.h"
-#include "Assert.h"
+#include "KAssert.h"
 #include "Atomic.h"
 #include "Exceptions.h"
 #include "Memory.h"
