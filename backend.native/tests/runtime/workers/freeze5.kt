@@ -8,21 +8,21 @@ object Keys {
     )
 
     fun getKey(name: String): String {
-        for (entry in myMap) {
-            if (entry.key  == name) {
-                return entry.key
+        for (key in myMap.keys) {
+            if (key == name) {
+                return key
             }
         }
-        return name
+        return ""
     }
 
     fun getValue(name: String): String {
-        for (entry in myMap) {
-            if (entry.value.contains(name)) {
-                return entry.key
+        for (value in myMap.values) {
+            if (value.contains(name)) {
+                return name
             }
         }
-        return name
+        return ""
     }
 
     fun getEntry(name: String): String {
@@ -31,12 +31,12 @@ object Keys {
                 return entry.key
             }
         }
-        return name
+        return ""
     }
 }
 @Test fun runTest() {
-    assertEquals(Keys.getKey("val2"), "val2")
-    assertEquals(Keys.getValue("a1"), "val1")
-    assertEquals(Keys.getEntry("a2"), "a2")
+    assertEquals("val2", Keys.getKey("val2"))
+    assertEquals("a1", Keys.getValue("a1"))
+    assertEquals("val1", Keys.getEntry("val1"))
     println("OK")
 }
