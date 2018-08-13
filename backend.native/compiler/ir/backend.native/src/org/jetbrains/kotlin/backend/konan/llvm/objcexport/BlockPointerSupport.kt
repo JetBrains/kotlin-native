@@ -17,8 +17,8 @@
 package org.jetbrains.kotlin.backend.konan.llvm.objcexport
 
 import llvm.*
-import org.jetbrains.kotlin.backend.konan.descriptors.CurrentKonanModule
 import org.jetbrains.kotlin.backend.konan.llvm.*
+import org.jetbrains.kotlin.descriptors.konan.CurrentKonanModule
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.util.OperatorNameConventions
 

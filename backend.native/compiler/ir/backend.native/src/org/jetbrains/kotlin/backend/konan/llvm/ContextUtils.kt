@@ -22,17 +22,15 @@ import kotlinx.cinterop.get
 import kotlinx.cinterop.memScoped
 import llvm.*
 import org.jetbrains.kotlin.backend.konan.Context
-import org.jetbrains.kotlin.backend.konan.descriptors.CurrentKonanModule
-import org.jetbrains.kotlin.backend.konan.descriptors.DeserializedKonanModule
-import org.jetbrains.kotlin.backend.konan.descriptors.LlvmSymbolOrigin
 import org.jetbrains.kotlin.backend.konan.descriptors.findPackage
 import org.jetbrains.kotlin.backend.konan.hash.GlobalHash
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.*
 import org.jetbrains.kotlin.backend.konan.library.KonanLibraryReader
 import org.jetbrains.kotlin.backend.konan.library.impl.LibraryReaderImpl
 import org.jetbrains.kotlin.backend.konan.library.withResolvedDependencies
-import org.jetbrains.kotlin.descriptors.DeclarationDescriptorWithVisibility
-import org.jetbrains.kotlin.descriptors.Visibilities
+import org.jetbrains.kotlin.descriptors.konan.CurrentKonanModule
+import org.jetbrains.kotlin.descriptors.konan.DeserializedKonanModule
+import org.jetbrains.kotlin.descriptors.konan.LlvmSymbolOrigin
 import org.jetbrains.kotlin.ir.declarations.IrExternalPackageFragment
 import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrFile
@@ -335,7 +333,7 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
         override fun add(origin: LlvmSymbolOrigin) {
             val reader = when (origin) {
                 CurrentKonanModule -> return
-                is DeserializedKonanModule -> origin.reader
+                is DeserializedKonanModule -> origin.reader as KonanLibraryReader
             }
 
             if (reader !in allLibraries) {

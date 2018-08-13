@@ -21,11 +21,11 @@ import org.jetbrains.kotlin.backend.konan.library.impl.LibraryReaderImpl
 import org.jetbrains.kotlin.backend.konan.library.impl.UnzippedKonanLibrary
 import org.jetbrains.kotlin.backend.konan.library.impl.ZippedKonanLibrary
 import org.jetbrains.kotlin.backend.konan.serialization.parseModuleHeader
-import org.jetbrains.kotlin.builtins.konan.isKonanStdlib
 import org.jetbrains.kotlin.config.ApiVersion
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
+import org.jetbrains.kotlin.descriptors.konan.isKonanStdlib
 import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.library.KonanLibrarySearchPathResolver
 import org.jetbrains.kotlin.konan.target.Distribution

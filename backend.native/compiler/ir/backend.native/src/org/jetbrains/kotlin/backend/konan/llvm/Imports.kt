@@ -17,8 +17,11 @@
 package org.jetbrains.kotlin.backend.konan.llvm
 
 import org.jetbrains.kotlin.backend.konan.Context
-import org.jetbrains.kotlin.backend.konan.descriptors.*
+import org.jetbrains.kotlin.backend.konan.descriptors.isExpectMember
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
+import org.jetbrains.kotlin.descriptors.konan.LlvmSymbolOrigin
+import org.jetbrains.kotlin.descriptors.konan.SyntheticModules
+import org.jetbrains.kotlin.descriptors.konan.konanModuleOrigin
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
 
 internal interface LlvmImports {
@@ -30,7 +33,7 @@ internal val DeclarationDescriptor.llvmSymbolOrigin: LlvmSymbolOrigin
         assert(!this.isExpectMember) { this }
 
         val module = this.module
-        val moduleOrigin = module.origin
+        val moduleOrigin = module.konanModuleOrigin
         when (moduleOrigin) {
             is LlvmSymbolOrigin -> return moduleOrigin
             SyntheticModules -> error("Declaration is synthetic and can't be an origin of LLVM symbol:\n${this}")

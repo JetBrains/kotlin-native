@@ -20,11 +20,12 @@ import org.jetbrains.kotlin.backend.konan.descriptors.ClassifierAliasingPackageF
 import org.jetbrains.kotlin.backend.konan.descriptors.ExportedForwardDeclarationsPackageFragmentDescriptor
 import org.jetbrains.kotlin.backend.konan.library.KonanLibraryReader
 import org.jetbrains.kotlin.backend.konan.serialization.KonanPackageFragment
+import org.jetbrains.kotlin.builtins.konan.KonanBuiltIns
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.descriptors.PackageFragmentDescriptor
+import org.jetbrains.kotlin.descriptors.konan.interop.InteropFqNames
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
-import org.jetbrains.kotlin.builtins.konan.KonanBuiltIns
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
@@ -50,32 +51,15 @@ fun createInteropLibrary(reader: KonanLibraryReader): InteropLibrary? {
     return InteropLibraryImpl(FqName(pkg), exportForwardDeclarations)
 }
 
-private val cPointerName = "CPointer"
-private val nativePointedName = "NativePointed"
-
 internal class InteropBuiltIns(builtIns: KonanBuiltIns, vararg konanPrimitives: ClassDescriptor) {
 
-    object FqNames {
-        val packageName = FqName("kotlinx.cinterop")
-
-        val cPointer = packageName.child(Name.identifier(cPointerName)).toUnsafe()
-        val nativePointed = packageName.child(Name.identifier(nativePointedName)).toUnsafe()
-
-        val cNames = FqName("cnames")
-        val cNamesStructs = cNames.child(Name.identifier("structs"))
-
-        val objCNames = FqName("objcnames")
-        val objCNamesClasses = objCNames.child(Name.identifier("classes"))
-        val objCNamesProtocols = objCNames.child(Name.identifier("protocols"))
-    }
-
-    val packageScope = builtIns.builtInsModule.getPackage(FqNames.packageName).memberScope
+    val packageScope = builtIns.builtInsModule.getPackage(InteropFqNames.packageName).memberScope
 
     val getPointerSize = packageScope.getContributedFunctions("getPointerSize").single()
 
-    val nativePointed = packageScope.getContributedClass(nativePointedName)
+    val nativePointed = packageScope.getContributedClass(InteropFqNames.nativePointedName)
 
-    val cPointer = this.packageScope.getContributedClass(cPointerName)
+    val cPointer = this.packageScope.getContributedClass(InteropFqNames.cPointerName)
 
     val cPointerRawValue = cPointer.unsubstitutedMemberScope.getContributedVariables("rawValue").single()
 
@@ -210,12 +194,10 @@ private class InteropLibraryImpl(
     ): List<PackageFragmentDescriptor> {
         val interopPackageFragments = konanPackageFragments.filter { it.fqName == packageFqName }
 
-        val fqNames = InteropBuiltIns.FqNames
-
         val result = mutableListOf<PackageFragmentDescriptor>()
 
         // Allow references to forwarding declarations to be resolved into classifiers declared in this library:
-        listOf(fqNames.cNamesStructs, fqNames.objCNamesClasses, fqNames.objCNamesProtocols).mapTo(result) { fqName ->
+        listOf(InteropFqNames.cNamesStructs, InteropFqNames.objCNamesClasses, InteropFqNames.objCNamesProtocols).mapTo(result) { fqName ->
             ClassifierAliasingPackageFragmentDescriptor(interopPackageFragments, module, fqName)
         }
         // TODO: use separate namespaces for structs, enums, Objective-C protocols etc.

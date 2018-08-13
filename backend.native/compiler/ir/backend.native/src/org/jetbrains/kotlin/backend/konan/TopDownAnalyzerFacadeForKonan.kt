@@ -17,13 +17,13 @@
 package org.jetbrains.kotlin.backend.konan
 
 import org.jetbrains.kotlin.analyzer.AnalysisResult
-import org.jetbrains.kotlin.backend.konan.descriptors.createKonanModuleDescriptor
-import org.jetbrains.kotlin.backend.konan.descriptors.CurrentKonanModule
-import org.jetbrains.kotlin.builtins.konan.isKonanStdlib
 import org.jetbrains.kotlin.config.*
 import org.jetbrains.kotlin.context.ModuleContext
 import org.jetbrains.kotlin.context.MutableModuleContextImpl
 import org.jetbrains.kotlin.context.ProjectContext
+import org.jetbrains.kotlin.descriptors.konan.CurrentKonanModule
+import org.jetbrains.kotlin.descriptors.konan.createKonanModuleDescriptor
+import org.jetbrains.kotlin.descriptors.konan.isKonanStdlib
 import org.jetbrains.kotlin.konan.util.visibleName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi.KtFile

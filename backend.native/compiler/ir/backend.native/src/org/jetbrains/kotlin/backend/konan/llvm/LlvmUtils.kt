@@ -18,7 +18,7 @@ package org.jetbrains.kotlin.backend.konan.llvm
 
 import kotlinx.cinterop.*
 import llvm.*
-import org.jetbrains.kotlin.backend.konan.descriptors.LlvmSymbolOrigin
+import org.jetbrains.kotlin.descriptors.konan.LlvmSymbolOrigin
 
 internal val LLVMValueRef.type: LLVMTypeRef
     get() = LLVMTypeOf(this)!!
