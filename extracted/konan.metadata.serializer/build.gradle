@@ -1,5 +1,5 @@
 buildscript {
-    ext.rootBuildDirectory = file('..')
+    ext.rootBuildDirectory = file('../..')
 
     apply from: "$rootBuildDirectory/gradle/loadRootProperties.gradle"
     apply from: "$rootBuildDirectory/gradle/kotlinGradlePlugin.gradle"
@@ -24,11 +24,10 @@ sourceSets {
 }
 
 jar {
-    archiveName = "shared-klib.jar"
+    archiveName = "${project.name}.jar"
 }
 
 dependencies {
-    compile "org.jetbrains.kotlin:kotlin-stdlib:$buildKotlinVersion"
-    compile "org.jetbrains.kotlin:kotlin-native-shared:$konanVersion"
-    compile "org.jetbrains.kotlin:kotlin-compiler:$kotlinVersion"
+    compile "org.jetbrains.kotlin:konan.descriptors:$konanVersion"
+    compile "org.jetbrains.kotlin:konan.metadata:$konanVersion"
 }
