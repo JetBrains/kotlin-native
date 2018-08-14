@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package konan.worker
+package kotlin.native.worker
 
 internal class FreezeAwareLazyImpl<out T>(initializer: () -> T) : Lazy<T> {
     private var initializer_: (() -> T)? = initializer
