@@ -19,7 +19,8 @@ package konan.worker
 internal class FreezeAwareLazyImpl<out T>(initializer: () -> T) : Lazy<T> {
     private var initializer_: (() -> T)? = initializer
     private var value_: Any? = UNINITIALIZED
-    private val valueFrozen_ = AtomicReference<Any?>(UNINITIALIZED)
+    // Objects are not frozen by default on single-threaded targets, shall they?
+    private val valueFrozen_ = AtomicReference<Any?>(UNINITIALIZED.freeze())
 
     override val value: T
         get() {
@@ -31,6 +32,7 @@ internal class FreezeAwareLazyImpl<out T>(initializer: () -> T) : Lazy<T> {
                     return result as T
                 }
                 // Barrier.
+                // Note that recursive lazy initializers will hang here.
                 do {
                     result = valueFrozen_.get()
                 } while (result === INITIALIZING)
@@ -53,8 +55,10 @@ internal class FreezeAwareLazyImpl<out T>(initializer: () -> T) : Lazy<T> {
                 @Suppress("UNCHECKED_CAST")
                 return result as T
             } else {
-                if (result === UNINITIALIZED_VALUE) {
+                if (result === UNINITIALIZED) {
                     result = initializer_!!()
+                    if (isFrozen)
+                        throw InvalidMutabilityException(this)
                     value_ = result
                     initializer_ = null
                 }

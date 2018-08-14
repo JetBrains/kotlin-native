@@ -39,7 +39,7 @@ fun testSingleData(workers: Array<Worker>) {
     assertEquals(set.single(), Immutable2.y)
 }
 
-fun testLazy(workers: Array<Worker>) {
+fun testFrozenLazy(workers: Array<Worker>) {
     val set = mutableSetOf<Int>()
     for (attempt in 1 .. 3) {
         val futures = Array(workers.size, { workerIndex ->
@@ -52,13 +52,23 @@ fun testLazy(workers: Array<Worker>) {
     assertEquals(1001 * 500, set.single())
 }
 
+fun testLiquidLazy() {
+    class L {
+        val value by lazy { 17 }
+    }
+    val l = L()
+    for (i in 1 .. 100)
+        assertEquals(l.value, 17)
+}
+
 @Test fun runTest() {
     assertEquals(42, Immutable.x)
 
     val COUNT = 5
     val workers = Array(COUNT, { _ -> startWorker()})
     testSingleData(workers)
-    testLazy(workers)
+    testFrozenLazy(workers)
+    testLiquidLazy()
 
     println("OK")
 }
