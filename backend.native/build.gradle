@@ -114,6 +114,9 @@ configurations {
     kotlin_reflect_jar
     kotlin_script_runtime_jar
     kotlin_common_stdlib_src
+    kotlin_native_utils_jar {
+        transitive = false
+    }
 
     cli_bcRuntime {
         extendsFrom compilerRuntime
@@ -131,6 +134,8 @@ dependencies {
     kotlin_reflect_jar "$kotlinReflectModule@jar"
     kotlin_script_runtime_jar "$kotlinScriptRuntimeModule@jar"
     kotlin_common_stdlib_src kotlinCommonStdlibModule
+    kotlin_native_utils_jar "$kotlinNativeUtilsModule@jar"
+
 
     compilerCompile "com.google.protobuf:protobuf-java:${protobufVersion}"
 
@@ -241,7 +246,7 @@ jar {
     dependsOn ':runtime:hostRuntime', 'external_jars'
 }
 
-def externalJars = ['compiler', 'stdlib', 'reflect', 'script_runtime']
+def externalJars = ['compiler', 'stdlib', 'reflect', 'script_runtime', 'native_utils']
 
 externalJars.each { arg ->
     def jar = arg.replace('_', '-') // :(

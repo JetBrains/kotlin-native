@@ -20,10 +20,28 @@ import org.jetbrains.kotlin.konan.util.*
 
 buildscript {
     apply from: "gradle/kotlinGradlePlugin.gradle"
+
+    ext {
+        kotlinCommonStdlibModule =  "org.jetbrains.kotlin:kotlin-stdlib-common:${kotlinVersion}:sources"
+        kotlinCompilerModule =      "org.jetbrains.kotlin:kotlin-compiler:${kotlinVersion}"
+        kotlinStdLibModule =        "org.jetbrains.kotlin:kotlin-stdlib:${kotlinVersion}"
+        kotlinReflectModule =       "org.jetbrains.kotlin:kotlin-reflect:${kotlinVersion}"
+        kotlinScriptRuntimeModule = "org.jetbrains.kotlin:kotlin-script-runtime:${kotlinVersion}"
+        kotlinNativeUtilsModule =   "org.jetbrains.kotlin:kotlin-native-utils:${kotlinVersion}"
+    }
+
+    repositories {
+        maven {
+            url kotlinCompilerRepo
+        }
+    }
+
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-native-shared:$konanVersion"
+        classpath "org.jetbrains.kotlin:build-plugins:$konanVersion"
     }
 }
+
 import org.jetbrains.kotlin.konan.*
 
 // Allows generating wrappers for the root build and all the samples during execution of the default 'wrapper' task.
@@ -42,13 +60,7 @@ ext {
     dependenciesDir = DependencyProcessor.defaultDependenciesRoot
     platformManager = new PlatformManager(DistributionKt.buildDistribution(projectDir.absolutePath))
 
-    kotlinCommonStdlibModule="org.jetbrains.kotlin:kotlin-stdlib-common:${kotlinVersion}:sources"
-    kotlinCompilerModule="org.jetbrains.kotlin:kotlin-compiler:${kotlinVersion}"
-    kotlinStdLibModule="org.jetbrains.kotlin:kotlin-stdlib:${kotlinVersion}"
-    kotlinReflectModule="org.jetbrains.kotlin:kotlin-reflect:${kotlinVersion}"
-    kotlinScriptRuntimeModule="org.jetbrains.kotlin:kotlin-script-runtime:${kotlinVersion}"
-
-    konanVersionFull = KonanVersion.Companion.CURRENT
+    konanVersionFull = KonanVersionKt.getCurrentKonanVersion()
     gradlePluginVersion = konanVersionFull.toString()
 }
 

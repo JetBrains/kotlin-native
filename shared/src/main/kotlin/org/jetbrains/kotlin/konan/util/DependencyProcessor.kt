@@ -206,16 +206,15 @@ class DependencyProcessor(dependenciesRoot: File,
     companion object {
         private val lock = ReentrantLock()
 
-        val localKonanDir: File by lazy {
-            File(System.getenv("KONAN_DATA_DIR") ?: (System.getProperty("user.home") + File.separator + ".konan"))
-        }
+        val localKonanDir: File
+            get() = DependencyDirectories.localKonanDir
 
         @JvmStatic
         val defaultDependenciesRoot: File
-            get() = localKonanDir.resolve("dependencies")
+            get() = DependencyDirectories.defaultDependenciesRoot
 
         val defaultDependencyCacheDir: File
-            get() = localKonanDir.resolve("cache")
+            get() = DependencyDirectories.defaultDependencyCacheDir
     }
 
     private val resolvedDependencies = dependencyToCandidates.map { (dependency, candidates) ->

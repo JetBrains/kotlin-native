@@ -24,7 +24,8 @@ import org.jetbrains.kotlin.konan.util.DependencyProcessor
 class Distribution(
         private val onlyDefaultProfiles: Boolean = false,
         private val konanHomeOverride: String? = null,
-        private val runtimeFileOverride: String? = null) {
+        private val runtimeFileOverride: String? = null
+) : SubTargetProvider {
 
     val localKonanDir = DependencyProcessor.localKonanDir
 
@@ -80,7 +81,7 @@ class Distribution(
 
     val dependenciesDir = DependencyProcessor.defaultDependenciesRoot.absolutePath
 
-    fun availableSubTarget(genericName: String) =
+    override fun availableSubTarget(genericName: String) =
             additionalPropertyFiles(genericName).map { it.name }
 }
 

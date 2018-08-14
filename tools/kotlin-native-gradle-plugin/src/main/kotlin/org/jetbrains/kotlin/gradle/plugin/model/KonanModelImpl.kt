@@ -21,6 +21,7 @@ import org.gradle.tooling.provider.model.ToolingModelBuilder
 import org.jetbrains.kotlin.gradle.plugin.konanArtifactsContainer
 import org.jetbrains.kotlin.gradle.plugin.konanExtension
 import org.jetbrains.kotlin.gradle.plugin.konanHome
+import org.jetbrains.kotlin.konan.CURRENT
 import org.jetbrains.kotlin.konan.KonanVersion
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import java.io.File

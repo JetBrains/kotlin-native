@@ -44,55 +44,10 @@ open class VersionGenerator: DefaultTask() {
                 + """
                    |package org.jetbrains.kotlin.konan
                    |
-                   |import java.io.Serializable
+                   |val KonanVersion.Companion.CURRENT
+                   |    get() = KonanVersionImpl($meta, $major, $minor, $maintenance, $build)
                    |
-                   |interface KonanVersion : Serializable {
-                   |    val meta: MetaVersion
-                   |    val major: Int
-                   |    val minor: Int
-                   |    val maintenance: Int
-                   |    val build: Int
-                   |
-                   |    fun toString(showMeta: Boolean, showBuild: Boolean): String
-                   |
-                   |    companion object {
-                   |        val CURRENT = KonanVersionImpl($meta, $major, $minor, $maintenance, $build)
-                   |    }
-                   |}
-                   |
-                   |data class KonanVersionImpl(
-                   |        override val meta: MetaVersion = MetaVersion.DEV,
-                   |        override val major: Int,
-                   |        override val minor: Int,
-                   |        override val maintenance: Int,
-                   |        override val build: Int
-                   |) : KonanVersion {
-                   |
-                   |    override fun toString(showMeta: Boolean, showBuild: Boolean) = buildString {
-                   |        append(major)
-                   |        append('.')
-                   |        append(minor)
-                   |        if (maintenance != 0) {
-                   |            append('.')
-                   |            append(maintenance)
-                   |        }
-                   |        if (showMeta) {
-                   |            append('-')
-                   |            append(meta.metaString)
-                   |        }
-                   |        if (showBuild && build != -1) {
-                   |            append('-')
-                   |            append(build)
-                   |        }
-                   |    }
-                   |
-                   |    private val isRelease: Boolean
-                   |        get() = meta == MetaVersion.RELEASE
-                   |
-                   |    private val versionString by lazy { toString(!isRelease, !isRelease) }
-                   |
-                   |    override fun toString() = versionString
-                   |}
+                   |fun getCurrentKonanVersion() = KonanVersion.CURRENT
                 """.trimMargin()
             }
             versionFile.printWriter().use {

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-import org.jetbrains.kotlin.konan.KonanVersion
+import org.jetbrains.kotlin.konan.KonanVersionKt
 
 /**
  * One may use bintrayUser/bintrayKey project properties or BINTRAY_USER/BINTRAY_KEY environment variables to upload
@@ -52,7 +52,7 @@ apply plugin: 'com.jfrog.bintray'
 apply plugin: 'com.github.johnrengelman.shadow'
 
 group = 'org.jetbrains.kotlin'
-version = KonanVersion.Companion.CURRENT.toString()
+version = KonanVersionKt.getCurrentKonanVersion().toString()
 
 repositories {
     mavenCentral()

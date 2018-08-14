@@ -59,5 +59,10 @@ jar {
 }
 
 dependencies {
+    compile("org.jetbrains.kotlin:kotlin-native-utils:$kotlinVersion") {
+        // Exclude transitive dependency on stdlib to avoid getting two stdlib versions in a classpath.
+        // TODO: Use dev compiler/stdlib to build KN and remove this exclude.
+        exclude group: 'org.jetbrains.kotlin', module: 'kotlin-stdlib'
+    }
     compile "org.jetbrains.kotlin:kotlin-stdlib:$buildKotlinVersion"
 }
