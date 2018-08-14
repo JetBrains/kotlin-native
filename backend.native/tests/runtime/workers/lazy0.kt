@@ -18,12 +18,16 @@ object Immutable2 {
     }
 }
 
-@Test fun runTest() {
-    assertEquals(42, Immutable.x)
+object Immutable3 {
+    val x by lazy {
+        var result = 0
+        for (i in 1 .. 1000)
+            result += i
+        result
+    }
+}
 
-    val COUNT = 5
-    val workers = Array(COUNT, { _ -> startWorker()})
-
+fun testSingleData(workers: Array<Worker>) {
     val set = mutableSetOf<Any?>()
     for (attempt in 1 .. 3) {
         val futures = Array(workers.size, { workerIndex ->
@@ -33,6 +37,28 @@ object Immutable2 {
     }
     assertEquals(set.size, 1)
     assertEquals(set.single(), Immutable2.y)
+}
+
+fun testLazy(workers: Array<Worker>) {
+    val set = mutableSetOf<Int>()
+    for (attempt in 1 .. 3) {
+        val futures = Array(workers.size, { workerIndex ->
+            workers[workerIndex].schedule(TransferMode.CHECKED, { "" }) { _  -> Immutable3.x }
+        })
+        futures.forEach { set += it.result() }
+    }
+    assertEquals(1, set.size)
+    assertEquals(Immutable3.x, set.single())
+    assertEquals(1001 * 500, set.single())
+}
+
+@Test fun runTest() {
+    assertEquals(42, Immutable.x)
+
+    val COUNT = 5
+    val workers = Array(COUNT, { _ -> startWorker()})
+    testSingleData(workers)
+    testLazy(workers)
 
     println("OK")
 }
