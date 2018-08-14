@@ -54,11 +54,18 @@ fun testFrozenLazy(workers: Array<Worker>) {
 
 fun testLiquidLazy() {
     class L {
-        val value by lazy { 17 }
+        val value by lazy {
+            17
+        }
     }
-    val l = L()
+    val l1 = L()
     for (i in 1 .. 100)
-        assertEquals(l.value, 17)
+        assertEquals(l1.value, 17)
+
+    val l2 = L()
+    l2.freeze()
+    for (i in 1 .. 100)
+        assertEquals(l2.value, 17)
 }
 
 @Test fun runTest() {
