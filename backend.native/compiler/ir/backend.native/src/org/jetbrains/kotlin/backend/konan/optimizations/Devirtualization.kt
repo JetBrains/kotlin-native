@@ -163,7 +163,7 @@ internal object Devirtualization {
 
         class VirtualCallSiteReceivers(val receiver: Node, val caller: DataFlowIR.FunctionSymbol, val devirtualizedCallees: List<DevirtualizedCallee>)
 
-        class ConstraintGraph : DirectedGraph<Node, Node> {
+        inner class ConstraintGraph : DirectedGraph<Node, Node> {
 
             private var nodesCount = 0
 
@@ -172,7 +172,7 @@ internal object Devirtualization {
 
             val voidNode = addNode { Node.Ordinary(it, { "Void" }) }
             val virtualNode = addNode { Node.Source(it, VIRTUAL_TYPE_ID, { "Virtual" }) }
-            val arrayItemField = DataFlowIR.Field(null, 1, "Array\$Item")
+            val arrayItemField = DataFlowIR.Field(null, symbolTable.mapClassReferenceType(context.irBuiltIns.anyClass.owner), 1, "Array\$Item")
             val functions = mutableMapOf<DataFlowIR.FunctionSymbol, Function>()
             val concreteClasses = mutableMapOf<DataFlowIR.Type.Declared, Node>()
             val externalFunctions = mutableMapOf<DataFlowIR.FunctionSymbol, Node>()
@@ -362,6 +362,14 @@ internal object Devirtualization {
 
                         is DataFlowIR.Node.StaticCall ->
                             dfs(node.callee)
+
+                        is DataFlowIR.Node.FieldRead ->
+                            if (entryPoint == null && node.field.type.isFinal)
+                                addInstantiatingClass(node.field.type)
+
+                        is DataFlowIR.Node.FieldWrite ->
+                            if (entryPoint == null && node.field.type.isFinal)
+                                addInstantiatingClass(node.field.type)
 
                         is DataFlowIR.Node.VirtualCall -> {
                             if (node.receiverType == DataFlowIR.Type.Virtual)
@@ -676,7 +684,19 @@ internal object Devirtualization {
                     constraintGraph.concreteClasses.getOrPut(type) { sourceNode(concreteType(type)) { "Class\$$type" } }
 
             private fun fieldNode(field: DataFlowIR.Field) =
-                    constraintGraph.fields.getOrPut(field) { ordinaryNode { "Field\$$field" } }
+                    constraintGraph.fields.getOrPut(field) {
+                        val fieldNode = ordinaryNode { "Field\$$field" }
+                        if (entryPoint == null) {
+                            // TODO: This is conservative.
+                            val fieldType = field.type.resolved()
+                            // Some user of our library might place some value into the field.
+                            if (fieldType.isFinal)
+                                concreteClass(fieldType).addEdge(fieldNode)
+                            else
+                                constraintGraph.virtualNode.addEdge(fieldNode)
+                        }
+                        fieldNode
+                    }
 
             private var stack = mutableListOf<DataFlowIR.FunctionSymbol>()
 
@@ -898,8 +918,6 @@ internal object Devirtualization {
                             }
                             // And throw anything.
                             receiverNode.addCastEdge(Node.CastEdge(function.throws, virtualTypeFilter))
-                            // And write to some array anything. TODO: This is conservative.
-                            receiverNode.addCastEdge(Node.CastEdge(fieldNode(constraintGraph.arrayItemField), virtualTypeFilter))
 
                             if (callees.isEmpty() && returnType.isFinal && entryPoint == null) {
                                 // If we are in a library and facing final return type with no possible callees -
@@ -979,11 +997,13 @@ internal object Devirtualization {
     private fun devirtualize(irModule: IrModuleFragment, context: Context,
                              moduleDFG: ModuleDFG, externalModulesDFG: ExternalModulesDFG,
                              devirtualizedCallSites: Map<IrCall, DevirtualizedCallSite>) {
-        val nativePtrType = context.builtIns.nativePtr.defaultType
-        val nativePtrEqualityOperatorSymbol = context.ir.symbols.areEqualByValue.single { it.descriptor.valueParameters[0].type == nativePtrType }
+        val nativePtrType = context.ir.symbols.nativePtrType
+        val nativePtrEqualityOperatorSymbol = context.ir.symbols.areEqualByValue[PrimitiveBinaryType.POINTER]!!
         val optimize = context.shouldOptimize()
+        /*
         val boxFunctions = ValueType.values().associate { context.ir.symbols.boxFunctions[it]!! to it }
         val unboxFunctions = ValueType.values().associate { context.ir.symbols.getUnboxFunction(it) to it }
+        */
 
         fun DataFlowIR.Type.resolved(): DataFlowIR.Type.Declared {
             if (this is DataFlowIR.Type.Declared) return this
@@ -997,7 +1017,11 @@ internal object Devirtualization {
             return this
         }
 
+        /*
         fun IrExpression.isBoxOrUnboxCall() = this is IrCall && (boxFunctions[symbol] != null || unboxFunctions[symbol] != null)
+        */
+
+        fun IrExpression.isBoxOrUnboxCall() = false
 
         fun IrBuilderWithScope.irCoerce(value: IrExpression, coercion: IrFunctionSymbol?) =
                 if (coercion == null)
@@ -1023,6 +1047,7 @@ internal object Devirtualization {
                             , coercion.symbol)
                 }
 
+        /*
         fun assertCoercionsMatch(coercion1: IrFunctionSymbol, coercion2: IrFunctionSymbol) {
             boxFunctions[coercion1]?.let { assert (unboxFunctions[coercion2] == it)
                     { "Incosistent coercions: ${coercion1.descriptor}, ${coercion2.descriptor}" }
@@ -1044,6 +1069,7 @@ internal object Devirtualization {
             assertCoercionsMatch(coercion, prevCoercion)
             return irGet(value)
         }
+        */
 
         fun IrBuilderWithScope.irDevirtualizedCall(callee: IrCall, actualType: IrType,
                                                    devirtualizedCallee: DataFlowIR.FunctionSymbol.Declared) =
@@ -1067,7 +1093,7 @@ internal object Devirtualization {
                                                     extensionReceiver: PossiblyCoercedValue?,
                                                     parameters: Map<ValueParameterDescriptor, PossiblyCoercedValue>) =
                 actualCallee.bridgeTarget.let {
-                    if (it == null)
+//                    if (it == null)
                         irDevirtualizedCall(callee, actualType, actualCallee).apply {
                             this.dispatchReceiver = irGet(receiver)
                             this.extensionReceiver = extensionReceiver?.getFullValue(this@irDevirtualizedCall)
@@ -1075,6 +1101,7 @@ internal object Devirtualization {
                                 putValueArgument(it.index, parameters[it]!!.getFullValue(this@irDevirtualizedCall))
                             }
                         }
+                    /*
                     else {
                         val bridgeTarget = it.resolved() as DataFlowIR.FunctionSymbol.Declared
                         val callResult = irDevirtualizedCall(callee, actualType, bridgeTarget).apply {
@@ -1102,6 +1129,7 @@ internal object Devirtualization {
                                 actualCallee.returnType.resolved().correspondingValueType)
                         irCoerce(callResult, returnCoercion)
                     }
+                    */
                 }
 
         irModule.transformChildrenVoid(object: IrElementTransformerVoidWithContext() {
@@ -1114,10 +1142,12 @@ internal object Devirtualization {
                                           arg.argument
                                       else arg
                     if (!uncastedArg.isBoxOrUnboxCall()) return expression
+                    /*
                     val argarg = (uncastedArg as IrCall).getArguments().single().second
                     if (boxFunctions[expression.symbol].let { it != null && it == unboxFunctions[uncastedArg.symbol] }
                         || unboxFunctions[expression.symbol].let { it != null && it == boxFunctions[uncastedArg.symbol] })
                         return argarg
+                    */
                     return expression
                 }
 

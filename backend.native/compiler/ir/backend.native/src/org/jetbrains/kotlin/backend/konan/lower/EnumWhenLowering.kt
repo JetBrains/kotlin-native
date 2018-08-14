@@ -6,8 +6,6 @@ import org.jetbrains.kotlin.backend.common.pop
 import org.jetbrains.kotlin.backend.common.push
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.containsNull
-import org.jetbrains.kotlin.backend.konan.irasdescriptors.getClass
-import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFile
@@ -19,12 +17,12 @@ import org.jetbrains.kotlin.ir.expressions.impl.IrCallImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrGetValueImpl
 import org.jetbrains.kotlin.ir.types.classifierOrNull
+import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.util.getArguments
 import org.jetbrains.kotlin.ir.util.getPropertyGetter
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.types.isNullable
 
 /** Look for when-constructs where subject is enum entry.
  * Replace branches that are comparisons with compile-time known enum entries
@@ -110,9 +108,7 @@ internal class EnumWhenLowering(private val context: Context) : IrElementTransfo
         return tryLower(expression)
     }
 
-    private val areEqualByValue = context.ir.symbols.areEqualByValue.first {
-        it.owner.valueParameters[0].type.classifierOrNull == context.ir.symbols.int
-    }
+    private val areEqualByValue = context.irBuiltIns.eqeqSymbol
 
     // We are looking for branch that is a comparison of the subject and another enum entry.
     private fun tryLower(call: IrCall): IrExpression {

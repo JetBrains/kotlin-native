@@ -16,12 +16,13 @@
 
 package org.jetbrains.kotlin.backend.konan.optimizations
 
+import org.jetbrains.kotlin.backend.common.reportWarning
 import org.jetbrains.kotlin.backend.konan.Context
-import org.jetbrains.kotlin.backend.konan.ValueType
+import org.jetbrains.kotlin.backend.konan.PrimitiveBinaryType
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import sun.misc.Unsafe
 import kotlin.reflect.KClass
-import kotlin.reflect.full.primaryConstructor
+import kotlin.reflect.full.memberProperties
 import kotlin.reflect.jvm.jvmName
 
 internal class ExternalModulesDFG(val allTypes: List<DataFlowIR.Type.Declared>,
@@ -204,15 +205,15 @@ internal object DFGSerializer {
         }
     }
 
-    class TypeBase(val isFinal: Boolean, val isAbstract: Boolean, val correspondingValueType: ValueType?, val name: String?) {
+    class TypeBase(val isFinal: Boolean, val isAbstract: Boolean, val primitiveBinaryType: PrimitiveBinaryType?, val name: String?) {
 
         constructor(data: ArraySlice) : this(data.readBoolean(), data.readBoolean(),
-                data.readNullableInt()?.let { ValueType.values()[it] }, data.readNullableString())
+                data.readNullableInt()?.let { PrimitiveBinaryType.values()[it] }, data.readNullableString())
 
         fun write(result: ArraySlice) {
             result.writeBoolean(isFinal)
             result.writeBoolean(isAbstract)
-            result.writeNullableInt(correspondingValueType?.ordinal)
+            result.writeNullableInt(primitiveBinaryType?.ordinal)
             result.writeNullableString(name)
         }
     }
@@ -407,12 +408,13 @@ internal object DFGSerializer {
         }
     }
 
-    class Field(val type: Int?, val hash: Long, val name: String?) {
+    class Field(val receiverType: Int?, val type: Int, val hash: Long, val name: String?) {
 
-        constructor(data: ArraySlice) : this(data.readNullableInt(), data.readLong(), data.readNullable { readString() })
+        constructor(data: ArraySlice) : this(data.readNullableInt(), data.readInt(), data.readLong(), data.readNullable { readString() })
 
         fun write(result: ArraySlice) {
-            result.writeNullableInt(type)
+            result.writeNullableInt(receiverType)
+            result.writeInt(type)
             result.writeLong(hash)
             result.writeNullable(name) { writeString(it) }
         }
@@ -758,14 +760,16 @@ internal object DFGSerializer {
         }
         if (kClass.java.isArray)
             return mergeHashes("array".hash, computeDataLayoutHash(kClass.java.componentType.kotlin))
-        val propertiesHashes = kClass.primaryConstructor!!.parameters
-                .map {
-                    val propHash = computeDataLayoutHash(it.type.classifier!! as KClass<*>)
-                    if (it.type.isMarkedNullable)
+        val properties = kClass.memberProperties.sortedBy { it.name }
+        val propertyTypeHashes =
+                properties.map {
+                    val propHash = computeDataLayoutHash(it.returnType.classifier!! as KClass<*>)
+                    if (it.returnType.isMarkedNullable)
                         mergeHashes("nullable".hash, propHash)
                     else propHash
                 }
-        return mergeHashes(propertiesHashes)
+        val propertyNameHashes = properties.map { it.name.hash }
+        return mergeHashes(propertyTypeHashes + propertyNameHashes)
     }
 
     private val DEBUG = 0
@@ -776,7 +780,8 @@ internal object DFGSerializer {
 
     fun serialize(context: Context, moduleDFG: ModuleDFG) {
         val symbolTable = moduleDFG.symbolTable
-        val typeMap = (symbolTable.classMap.values + DataFlowIR.Type.Virtual).distinct().withIndex().associateBy({ it.value }, { it.index })
+        val typeList = symbolTable.classMap.values + symbolTable.primitiveMap.values + DataFlowIR.Type.Virtual
+        val typeMap = typeList.distinct().withIndex().associateBy({ it.value }, { it.index })
         val functionSymbolMap = symbolTable.functionMap.values.distinct().withIndex().associateBy({ it.value }, { it.index })
         DEBUG_OUTPUT(0) {
             println("TYPES: ${typeMap.size}, " +
@@ -790,7 +795,7 @@ internal object DFGSerializer {
                 .map {
 
                     fun buildTypeBase(type: DataFlowIR.Type) =
-                            TypeBase(type.isFinal, type.isAbstract, type.correspondingValueType, type.name)
+                            TypeBase(type.isFinal, type.isAbstract, type.primitiveBinaryType, type.name)
 
                     fun buildTypeIntestines(type: DataFlowIR.Type.Declared) =
                             DeclaredType(
@@ -868,7 +873,7 @@ internal object DFGSerializer {
                                         VirtualCall(buildCall(virtualCall), typeMap[virtualCall.receiverType]!!)
 
                                 fun buildField(field: DataFlowIR.Field) =
-                                        Field(field.type?.let { typeMap[it]!! }, field.hash, field.name)
+                                        Field(field.receiverType?.let { typeMap[it]!! }, typeMap[field.type]!!, field.hash, field.name)
 
                                 when (node) {
                                     is DataFlowIR.Node.Parameter -> Node.parameter(node.index)
@@ -927,7 +932,7 @@ internal object DFGSerializer {
     }
 
     // TODO: Deserialize functions bodies lazily.
-    fun deserialize(context: Context, startPrivateTypeIndex: Int, startPrivateFunIndex: Int): ExternalModulesDFG {
+    fun deserialize(context: Context, startPrivateTypeIndex: Int, startPrivateFunIndex: Int): ExternalModulesDFG? {
         var privateTypeIndex = startPrivateTypeIndex
         var privateFunIndex = startPrivateFunIndex
         val publicTypesMap = mutableMapOf<Long, DataFlowIR.Type.Public>()
@@ -947,8 +952,10 @@ internal object DFGSerializer {
                 val reader = ArraySlice(libraryDataFlowGraph)
                 val dataLayoutHash = reader.readLong()
                 val expectedHash = computeDataLayoutHash(Module::class)
-                if (dataLayoutHash != expectedHash)
-                    error("Expected data layout hash: $expectedHash but actual is: $dataLayoutHash")
+                if (dataLayoutHash != expectedHash) {
+                    context.report(null, null, "Expected data layout hash: $expectedHash but actual is: $dataLayoutHash", false)
+                    return null
+                }
                 val moduleDataFlowGraph = Module(reader)
 
                 val symbolTable = moduleDataFlowGraph.symbolTable
@@ -962,14 +969,14 @@ internal object DFGSerializer {
                         when {
                             external != null ->
                                 DataFlowIR.Type.External(external.hash, external.base.isFinal, external.base.isAbstract,
-                                        external.base.correspondingValueType, external.base.name)
+                                        external.base.primitiveBinaryType, external.base.name)
 
                             public != null -> {
                                 val symbolTableIndex = public.intestines.index
                                 if (symbolTableIndex >= 0)
                                     ++module.numberOfClasses
                                 DataFlowIR.Type.Public(public.hash, public.intestines.base.isFinal,
-                                        public.intestines.base.isAbstract, public.intestines.base.correspondingValueType,
+                                        public.intestines.base.isAbstract, public.intestines.base.primitiveBinaryType,
                                         module, symbolTableIndex, public.intestines.base.name).also {
                                     publicTypesMap.put(it.hash, it)
                                     allTypes += it
@@ -981,7 +988,7 @@ internal object DFGSerializer {
                                 if (symbolTableIndex >= 0)
                                     ++module.numberOfClasses
                                 DataFlowIR.Type.Private(privateTypeIndex++, private.intestines.base.isFinal,
-                                        private.intestines.base.isAbstract, private.intestines.base.correspondingValueType,
+                                        private.intestines.base.isAbstract, private.intestines.base.primitiveBinaryType,
                                         module, symbolTableIndex, private.intestines.base.name).also {
                                     allTypes += it
                                 }
@@ -1075,7 +1082,7 @@ internal object DFGSerializer {
                 }
 
                 fun deserializeField(field: Field) =
-                        DataFlowIR.Field(field.type?.let { types[it] }, field.hash, field.name)
+                        DataFlowIR.Field(field.receiverType?.let { types[it] }, types[field.type], field.hash, field.name)
 
                 fun deserializeBody(body: FunctionBody): DataFlowIR.FunctionBody {
                     val nodes = body.nodes.map {

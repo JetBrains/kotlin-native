@@ -19,6 +19,7 @@ package org.jetbrains.kotlin.backend.konan
 import org.jetbrains.kotlin.backend.common.runOnFilePostfix
 import org.jetbrains.kotlin.backend.common.lower.*
 import org.jetbrains.kotlin.backend.konan.lower.*
+import org.jetbrains.kotlin.backend.konan.lower.FinallyBlocksLowering
 import org.jetbrains.kotlin.backend.konan.lower.InitializersLowering
 import org.jetbrains.kotlin.backend.konan.lower.LateinitLowering
 import org.jetbrains.kotlin.backend.konan.lower.SharedVariablesLowering
@@ -124,7 +125,7 @@ internal class KonanLower(val context: Context, val parentPhaser: PhaseManager) 
         }
         phaser.phase(KonanPhase.LOWER_DEFAULT_PARAMETER_EXTENT) {
             DefaultArgumentStubGenerator(context).runOnFilePostfix(irFile)
-            DefaultParameterInjector(context).runOnFilePostfix(irFile)
+            KonanDefaultParameterInjector(context).runOnFilePostfix(irFile)
         }
         phaser.phase(KonanPhase.LOWER_BUILTIN_OPERATORS) {
             BuiltinOperatorLowering(context).lower(irFile)

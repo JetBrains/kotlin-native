@@ -135,6 +135,9 @@ private fun Context.getDeclaredFields(classDescriptor: ClassDescriptor): List<Ir
     // TODO: hack over missed parents in deserialized fields/property declarations.
     fields.forEach{it.parent = irClass}
 
+    if (classDescriptor.hasAnnotation(FqName.fromSegments(listOf("konan", "internal", "NoReorderFields"))))
+        return fields
+
     return fields.sortedBy {
         it.fqNameSafe.localHash.value
     }
@@ -209,12 +212,7 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
     }
 
     override fun visitClass(declaration: IrClass) {
-
-        if (declaration.isIntrinsic) {
-            // do not generate any declarations for intrinsic classes as they require special handling
-        } else {
-            this.classes[declaration] = createClassDeclarations(declaration)
-        }
+        this.classes[declaration] = createClassDeclarations(declaration)
 
         super.visitClass(declaration)
     }
@@ -378,7 +376,7 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
 
         val containingClass = descriptor.containingClass
         if (containingClass != null) {
-            val classDeclarations = this.classes[containingClass] ?: error(containingClass.toString())
+            val classDeclarations = this.classes[containingClass] ?: error(containingClass.descriptor.toString())
 
             val allFields = classDeclarations.fields
 

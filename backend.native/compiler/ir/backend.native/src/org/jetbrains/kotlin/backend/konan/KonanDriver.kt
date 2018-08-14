@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.backend.konan
 
-import org.jetbrains.kotlin.backend.common.validateIrModule
+import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.konan.ir.KonanSymbols
 import org.jetbrains.kotlin.backend.konan.ir.ModuleIndex
 import org.jetbrains.kotlin.backend.konan.llvm.emitLLVM
@@ -25,8 +25,6 @@ import org.jetbrains.kotlin.backend.konan.serialization.markBackingFields
 import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
-import org.jetbrains.kotlin.config.CompilerConfigurationKey
-import org.jetbrains.kotlin.config.kotlinSourceRoots
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.psi2ir.Psi2IrConfiguration
 import org.jetbrains.kotlin.psi2ir.Psi2IrTranslator
@@ -84,12 +82,18 @@ fun runTopLevelPhases(konanConfig: KonanConfig, environment: KotlinCoreEnvironme
 
 //        validateIrModule(context, module)
     }
+    phaser.phase(KonanPhase.IR_GENERATOR_PLUGINS) {
+        val extensions = IrGenerationExtension.getInstances(context.config.project)
+        extensions.forEach { extension ->
+            context.irModule!!.files.forEach { irFile -> extension.generate(irFile, context, bindingContext) }
+        }
+    }
     phaser.phase(KonanPhase.GEN_SYNTHETIC_FIELDS) {
         markBackingFields(context)
     }
     phaser.phase(KonanPhase.SERIALIZER) {
         val serializer = KonanSerializationUtil(context, context.config.configuration.get(CommonConfigurationKeys.METADATA_VERSION)!!)
-        context.serializedLinkData = 
+        context.serializedLinkData =
             serializer.serializeModule(context.moduleDescriptor)
     }
     phaser.phase(KonanPhase.BACKEND) {

@@ -379,6 +379,10 @@ task function_defaults_with_vararg2(type: RunKonanTest) {
     source = "codegen/function/defaultsWithVarArg2.kt"
 }
 
+task function_defaults_with_inline_classes(type: RunKonanTest) {
+    source = "codegen/function/defaultsWithInlineClasses.kt"
+}
+
 task sum_3const(type: RunKonanTest) {
     source = "codegen/function/sum_3const.kt"
 }
@@ -701,6 +705,11 @@ task freeze4(type: RunKonanTest) {
     disabled = (project.testTarget == 'wasm32') // No exceptions on WASM.
     goldValue = "OK\n"
     source = "runtime/workers/freeze4.kt"
+}
+
+task freeze5(type: RunKonanTest) {
+    goldValue = "OK\n"
+    source = "runtime/workers/freeze5.kt"
 }
 
 task atomic0(type: RunKonanTest) {
@@ -2816,7 +2825,7 @@ task jsinterop_math(type: RunStandaloneKonanTest) {
 }
 
 task interop_libiconv(type: RunStandaloneKonanTest) {
-    disabled = (isWindows() || (project.testTarget != null))
+    disabled = (project.testTarget != null)
     source = "interop/libiconv.kt"
     goldValue = "72 72\n101 101\n108 108\n108 108\n111 111\n33 33\n"
 }
