@@ -169,6 +169,9 @@ internal class ObjCExportCodeGenerator(
             dataGenerator.emitEmptyClass(namer.getPackageName(fqName), namer.kotlinAnyName)
         }
 
+        NSNumberKind.values().mapNotNull { it.mappedKotlinClassId }.forEach {
+            dataGenerator.exportClass("Kotlin${it.shortClassName}")
+        }
         dataGenerator.exportClass("KotlinMutableSet")
         dataGenerator.exportClass("KotlinMutableDictionary")
 
