@@ -13,6 +13,9 @@ String protobufVersion = '2.6.1'
 apply plugin: "com.google.protobuf"
 apply plugin: 'java'
 
+group = 'org.jetbrains.kotlin'
+version = konanVersion
+
 repositories {
     mavenCentral()
     maven {
