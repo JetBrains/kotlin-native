@@ -33,6 +33,7 @@ private class ContainsRangeTransformer(val context: Context) : IrElementTransfor
     val rangeClasses = primClasses.map { "${it}Range" }.toSet()
 
     override fun visitCall(expression: IrCall): IrExpression {
+        val expression = super.visitCall(expression) as IrCall
         val expressionDescriptor = expression.descriptor
 
         if (
@@ -63,33 +64,24 @@ private class ContainsRangeTransformer(val context: Context) : IrElementTransfor
                         val low = rangeArgs.first()
                         val high = rangeArgs.last()
 
-                        when {
-                            rangeDescriptor.isIdentifier("rangeTo") &&
+                        val isRangeTo = rangeDescriptor.isIdentifier("rangeTo") &&
                                     rangeDescriptor.inPackage("kotlin") &&
                                     rangeDescriptor.inClassName(primClasses)
-                            -> {
-                                return createTempBlock(booleanType, item) {
-                                    irAnd(
-                                        irGreaterEqual(it.load(), low),
-                                        irLessEqual(it.load(), high)
-                                    )
-                                }
+                        val isUntil = rangeDescriptor.isTopLevelFunction("kotlin.ranges", "until")
 
-                            }
-                            rangeDescriptor.isTopLevelFunction("kotlin.ranges", "until") -> {
-                                return createTempBlock(booleanType, item) {
-                                    irAnd(
-                                        irGreaterEqual(it.load(), low),
-                                        irLessThan(it.load(), high)
-                                    )
-                                }
+                        if (isRangeTo || isUntil) {
+                            return createTempBlock(booleanType, item) {
+                                irAndWithoutShortCircuit(
+                                    irGreaterEqual(it.load(), low),
+                                    irCompare(if (isRangeTo) CompType.LE else CompType.LT, it.load(), high)
+                                )
                             }
                         }
                     }
                 }
             }
         }
-        return super.visitCall(expression)
+        return expression
     }
 
     fun IrBuilderWithScope.createTempBlock(blockType: IrType, tempExpr: IrExpression, callback: IrBlock.(temp: IntermediateValue) -> IrExpression): IrBlock {

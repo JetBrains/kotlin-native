@@ -3,12 +3,24 @@ package org.jetbrains.kotlin.backend.konan.ir
 import org.jetbrains.kotlin.backend.common.lower.*
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.expressions.*
+import org.jetbrains.kotlin.ir.expressions.impl.*
 import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.types.*
+import org.jetbrains.kotlin.psi2ir.intermediate.*
 
 fun IrBuilderWithScope.irAnd(l: IrExpression, r: IrExpression): IrExpression {
     val boolType = this.irFalse().type
     return irIfThenElse(boolType, l, irIfThenElse(boolType, r, irTrue(), irFalse()), irFalse())
+}
+
+fun IrBuilderWithScope.irAndWithoutShortCircuit(l: IrExpression, r: IrExpression): IrExpression {
+    val boolType = context.irBuiltIns.booleanType
+    val irBlock = IrBlockImpl(startOffset, endOffset, boolType, IrStatementOrigin.ARGUMENTS_REORDERING_FOR_CALL)
+    val tl = scope.createTemporaryVariableInBlock(context, l, irBlock, "ltemp")
+    val tr = scope.createTemporaryVariableInBlock(context, r, irBlock, "rtemp")
+    irBlock.addIfNotNull(irIfThenElse(boolType, tl.load(), irIfThenElse(boolType, tr.load(), irTrue(), irFalse()), irFalse()))
+    return irBlock
+
 }
 
 fun IrBuilderWithScope.irEquals(l: IrExpression, r: IrExpression): IrExpression = irCompare(CompType.EQ, l, r)
