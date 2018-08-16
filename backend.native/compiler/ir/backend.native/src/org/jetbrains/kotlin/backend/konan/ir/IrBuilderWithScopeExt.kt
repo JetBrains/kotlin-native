@@ -23,16 +23,20 @@ fun IrBuilderWithScope.irCompare(type: CompType, l: IrExpression, r: IrExpressio
     return when (type) {
         CompType.NE -> irNot(irCompare(CompType.EQ, l, r))
         CompType.EQ -> irCallWithArguments(context.irBuiltIns.eqeqSymbol, l, r)
-        else -> irCallWithArguments(
-            when (type) {
+        else -> {
+            // Only implemented for
+            // val primitiveTypesWithComparisons = listOf(int, long, float, double)
+            val op = when (type) {
                 CompType.LT -> context.irBuiltIns.lessFunByOperandType
                 CompType.LE -> context.irBuiltIns.lessOrEqualFunByOperandType
                 CompType.GT -> context.irBuiltIns.greaterFunByOperandType
                 CompType.GE -> context.irBuiltIns.greaterOrEqualFunByOperandType
                 else -> unreachable()
-            }[l.type.toKotlinType()]?.symbol!!,
-            l, r
-        )
+            }
+            val func = op[l.type.toKotlinType()]
+            val symbol = func?.symbol ?: error("Can't find symbol for func=$func, type=${l.type.toKotlinType()}")
+            irCallWithArguments(symbol, l, r)
+        }
     }
 }
 

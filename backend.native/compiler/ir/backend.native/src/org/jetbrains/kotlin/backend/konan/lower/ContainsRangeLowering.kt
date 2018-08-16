@@ -26,7 +26,10 @@ private class ContainsRangeTransformer(val context: Context) : IrElementTransfor
     private val scopeOwnerSymbol
         get() = currentScope!!.scope.scopeOwnerSymbol
 
-    val primClasses = setOf("Byte", "Char", "Short", "Int", "Long")
+    //val primClasses = setOf("Byte", "Char", "Short", "Int", "Long")
+    // @TODO: We should cast to int/long to support Byte, Char and Short
+    // @TODO: because comparisons from context.irBuiltIns are only defined for Int, Long, Float and Double.
+    val primClasses = setOf("Int", "Long")
     val rangeClasses = primClasses.map { "${it}Range" }.toSet()
 
     override fun visitCall(expression: IrCall): IrExpression {
@@ -47,7 +50,7 @@ private class ContainsRangeTransformer(val context: Context) : IrElementTransfor
             with(builder) {
                 val booleanType = context.irBuiltIns.booleanType
 
-                // Temp: Needed to avoid evaluating the expression twice
+                // Temp Needed to avoid evaluating the expression twice
                 // var a = 0
                 // a++ in (0 until 10)
                 // println(a) // a = 1
