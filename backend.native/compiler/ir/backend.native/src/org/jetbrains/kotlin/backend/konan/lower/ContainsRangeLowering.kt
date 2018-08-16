@@ -26,10 +26,7 @@ private class ContainsRangeTransformer(val context: Context) : IrElementTransfor
     private val scopeOwnerSymbol
         get() = currentScope!!.scope.scopeOwnerSymbol
 
-    //val primClasses = setOf("Byte", "Char", "Short", "Int", "Long")
-    // @TODO: We should cast to int/long to support Byte, Char and Short
-    // @TODO: because comparisons from context.irBuiltIns are only defined for Int, Long, Float and Double.
-    val primClasses = setOf("Int", "Long")
+    val primClasses = setOf("Byte", "Char", "Short", "Int", "Long")
     val rangeClasses = primClasses.map { "${it}Range" }.toSet()
 
     override fun visitCall(expression: IrCall): IrExpression {
@@ -65,15 +62,23 @@ private class ContainsRangeTransformer(val context: Context) : IrElementTransfor
                         val high = rangeArgs.last()
 
                         val isRangeTo = rangeDescriptor.isIdentifier("rangeTo") &&
-                                    rangeDescriptor.inPackage("kotlin") &&
-                                    rangeDescriptor.inClassName(primClasses)
+                                rangeDescriptor.inPackage("kotlin") &&
+                                rangeDescriptor.inClassName(primClasses)
                         val isUntil = rangeDescriptor.isTopLevelFunction("kotlin.ranges", "until")
 
                         if (isRangeTo || isUntil) {
-                            return createTempBlock(booleanType, item) {
+                            fun doCast(e: IrExpression): IrExpression {
+                                return if (expressionDescriptor.declClassName == "LongRange") {
+                                    e
+                                } else {
+                                    castToInt(this@ContainsRangeTransformer.context, e)
+                                }
+                            }
+
+                            return createTempBlock(booleanType, doCast(item)) {
                                 irAndWithoutShortCircuit(
-                                    irGreaterEqual(it.load(), low),
-                                    irCompare(if (isRangeTo) CompType.LE else CompType.LT, it.load(), high)
+                                    irGreaterEqual(it.load(), doCast(low)),
+                                    irCompare(if (isRangeTo) CompType.LE else CompType.LT, it.load(), doCast(high))
                                 )
                             }
                         }
@@ -84,7 +89,11 @@ private class ContainsRangeTransformer(val context: Context) : IrElementTransfor
         return expression
     }
 
-    fun IrBuilderWithScope.createTempBlock(blockType: IrType, tempExpr: IrExpression, callback: IrBlock.(temp: IntermediateValue) -> IrExpression): IrBlock {
+    fun IrBuilderWithScope.createTempBlock(
+        blockType: IrType,
+        tempExpr: IrExpression,
+        callback: IrBlock.(temp: IntermediateValue) -> IrExpression
+    ): IrBlock {
         val irBlock =
             IrBlockImpl(startOffset, endOffset, blockType, IrStatementOrigin.ARGUMENTS_REORDERING_FOR_CALL)
         val temp = scope.createTemporaryVariableInBlock(context, tempExpr, irBlock, "temp")
@@ -96,8 +105,10 @@ private class ContainsRangeTransformer(val context: Context) : IrElementTransfor
     private fun Named.isIdentifier(id: String) = !name.isSpecial && this.name.identifier == id
 
     val FunctionDescriptor.functionName: String? get() = if (!name.isSpecial) this.name.identifier else null
-    val FunctionDescriptor.declPackageName: String? get() =
-        ((containingDeclaration as? PackageFragmentDescriptor) ?: (containingDeclaration.containingDeclaration as? PackageFragmentDescriptor))?.fqName?.asString()
+    val FunctionDescriptor.declPackageName: String?
+        get() =
+            ((containingDeclaration as? PackageFragmentDescriptor)
+                    ?: (containingDeclaration.containingDeclaration as? PackageFragmentDescriptor))?.fqName?.asString()
 
     val FunctionDescriptor.declClassName: String? get() = (containingDeclaration as? ClassDescriptor)?.name?.asString()
     fun FunctionDescriptor.inPackage(_package: String): Boolean = declPackageName == _package
