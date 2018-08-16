@@ -1,22 +1,6 @@
-/*
- * Copyright 2010-2017 JetBrains s.r.o.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+package org.jetbrains.kotlin.konan.library.impl
 
-package org.jetbrains.kotlin.backend.konan.library.impl
-
-import org.jetbrains.kotlin.backend.konan.library.KonanLibrary
+import org.jetbrains.kotlin.konan.library.KonanLibrary
 import org.jetbrains.kotlin.konan.util.removeSuffixIfPresent
 import org.jetbrains.kotlin.konan.file.*
 import org.jetbrains.kotlin.konan.target.KonanTarget
@@ -34,14 +18,14 @@ open class ZippedKonanLibrary(val klibFile: File, override val target: KonanTarg
     override val libraryName = klibFile.path.removeSuffixIfPresent(".klib")
 
     override val libDir by lazy {
-       klibFile.asZipRoot
+        klibFile.asZipRoot
     }
 
     fun unpackTo(newDir: File) {
         if (newDir.exists) {
-            if (newDir.isDirectory) 
+            if (newDir.isDirectory)
                 newDir.deleteRecursively()
-            else 
+            else
                 newDir.delete()
         }
         libDir.recursiveCopyTo(newDir)
@@ -49,7 +33,7 @@ open class ZippedKonanLibrary(val klibFile: File, override val target: KonanTarg
     }
 }
 
-// This class automatically extracts pieces of 
+// This class automatically extracts pieces of
 // the library on first access. Use it if you need
 // to pass extracted files to an external tool.
 // Otherwise, stick to ZippedKonanLibrary.
@@ -102,15 +86,15 @@ class UnzippedKonanLibrary(override val libDir: File, override val target: Konan
     }
 }
 
-fun KonanLibrary(klib: File, target: KonanTarget? = null) = 
-    if (klib.isFile) ZippedKonanLibrary(klib, target) 
-    else UnzippedKonanLibrary(klib, target)
+fun KonanLibrary(klib: File, target: KonanTarget? = null) =
+        if (klib.isFile) ZippedKonanLibrary(klib, target)
+        else UnzippedKonanLibrary(klib, target)
 
-val KonanLibrary.realFiles 
+val KonanLibrary.realFiles
     get() = when (this) {
         is ZippedKonanLibrary -> FileExtractor(this)
-        // Unpacked library just provides its own files.
-        is UnzippedKonanLibrary -> this 
+    // Unpacked library just provides its own files.
+        is UnzippedKonanLibrary -> this
         else -> error("Provide an extractor for your container.")
     }
 

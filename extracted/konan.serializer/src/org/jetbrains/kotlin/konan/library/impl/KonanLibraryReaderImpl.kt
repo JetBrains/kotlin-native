@@ -1,25 +1,8 @@
-/*
- * Copyright 2010-2017 JetBrains s.r.o.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
+package org.jetbrains.kotlin.konan.library.impl
 
-package org.jetbrains.kotlin.backend.konan.library.impl
-
-import org.jetbrains.kotlin.backend.konan.KonanConfig
-import org.jetbrains.kotlin.backend.konan.library.KonanLibraryReader
-import org.jetbrains.kotlin.backend.konan.serialization.emptyPackages
-import org.jetbrains.kotlin.backend.konan.serialization.deserializeModule
+import org.jetbrains.kotlin.konan.library.KonanLibraryReader
+import org.jetbrains.kotlin.serialization.konan.emptyPackages
+import org.jetbrains.kotlin.serialization.konan.deserializeModule
 import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.properties.*
 import org.jetbrains.kotlin.config.LanguageVersionSettings
@@ -27,9 +10,12 @@ import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.util.defaultTargetSubstitutions
 import org.jetbrains.kotlin.konan.util.substitute
 
-class LibraryReaderImpl(var libraryFile: File, val currentAbiVersion: Int,
-    val target: KonanTarget? = null, override val isDefaultLibrary: Boolean = false)
-    : KonanLibraryReader {
+class LibraryReaderImpl(
+        var libraryFile: File,
+        val currentAbiVersion: Int,
+        val target: KonanTarget? = null,
+        override val isDefaultLibrary: Boolean = false
+) : KonanLibraryReader {
 
     // For the zipped libraries inPlace gives files from zip file system
     // whereas realFiles extracts them to /tmp.
@@ -49,7 +35,7 @@ class LibraryReaderImpl(var libraryFile: File, val currentAbiVersion: Int,
     val abiVersion: String
         get() {
             val manifestAbiVersion = manifestProperties.getProperty("abi_version")
-            if ("$currentAbiVersion" != manifestAbiVersion) 
+            if ("$currentAbiVersion" != manifestAbiVersion)
                 error("ABI version mismatch. Compiler expects: $currentAbiVersion, the library is $manifestAbiVersion")
             return manifestAbiVersion
         }
@@ -57,7 +43,7 @@ class LibraryReaderImpl(var libraryFile: File, val currentAbiVersion: Int,
     val targetList = inPlace.targetsDir.listFiles.map{it.name}
     override val dataFlowGraph by lazy { inPlace.dataFlowGraphFile.let { if (it.exists) it.readBytes() else null } }
 
-    override val libraryName 
+    override val libraryName
         get() = inPlace.libraryName
 
     override val uniqueName
@@ -98,11 +84,7 @@ class LibraryReaderImpl(var libraryFile: File, val currentAbiVersion: Int,
         return reader.loadSerializedPackageFragment(fqName)
     }
 
-    override fun moduleDescriptor(specifics: LanguageVersionSettings) 
-        = deserializeModule(specifics, this)
+    override fun moduleDescriptor(specifics: LanguageVersionSettings)
+            = deserializeModule(specifics, this)
 
 }
-
-internal fun <T: KonanLibraryReader> List<T>.purgeUnneeded(config: KonanConfig): List<T> =
-        this.filter{ (!it.isDefaultLibrary && !config.purgeUserLibs) || it.isNeededForLink }
-
