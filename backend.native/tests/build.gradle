@@ -1462,6 +1462,11 @@ task if_else(type: RunKonanTest) {
     source = "codegen/branching/if_else.kt"
 }
 
+task immutable_binary_blob_in_lambda(type: RunKonanTest) {
+    source = "lower/immutable_binary_blob_in_lambda.kt"
+    goldValue = "123\n"
+}
+
 task when2(type: RunKonanTest) {
     source = "codegen/branching/when2.kt"
 }
@@ -2834,6 +2839,12 @@ task interop_libiconv(type: RunStandaloneKonanTest) {
     disabled = (project.testTarget != null)
     source = "interop/libiconv.kt"
     goldValue = "72 72\n101 101\n108 108\n108 108\n111 111\n33 33\n"
+}
+
+task interop_zlib(type: RunStandaloneKonanTest) {
+    disabled = (project.testTarget != null)
+    source = "interop/platform_zlib.kt"
+    goldValue = "Hello!\nHello!\n"
 }
 
 task produce_dynamic(type: DynamicKonanTest) {
