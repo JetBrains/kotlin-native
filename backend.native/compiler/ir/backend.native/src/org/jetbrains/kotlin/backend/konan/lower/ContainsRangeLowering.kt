@@ -75,10 +75,15 @@ private class ContainsRangeTransformer(val context: Context) : IrElementTransfor
                                 }
                             }
 
-                            return createTempBlock(booleanType, doCast(item)) {
-                                irAndWithoutShortCircuit(
-                                    irGreaterEqual(it.load(), doCast(low)),
-                                    irCompare(if (isRangeTo) CompType.LE else CompType.LT, it.load(), doCast(high))
+                            return createTempBlock(booleanType) {
+                                // First the range
+                                val clow = createTemp(doCast(low))
+                                val chigh = createTemp(doCast(high))
+                                // Then the value
+                                val cval = createTemp(doCast(item))
+                                irAnd(
+                                    irGreaterEqual(cval.load(), clow.load()),
+                                    irCompare(if (isRangeTo) CompType.LE else CompType.LT, cval.load(), chigh.load())
                                 )
                             }
                         }
@@ -87,18 +92,6 @@ private class ContainsRangeTransformer(val context: Context) : IrElementTransfor
             }
         }
         return expression
-    }
-
-    fun IrBuilderWithScope.createTempBlock(
-        blockType: IrType,
-        tempExpr: IrExpression,
-        callback: IrBlock.(temp: IntermediateValue) -> IrExpression
-    ): IrBlock {
-        val irBlock =
-            IrBlockImpl(startOffset, endOffset, blockType, IrStatementOrigin.ARGUMENTS_REORDERING_FOR_CALL)
-        val temp = scope.createTemporaryVariableInBlock(context, tempExpr, irBlock, "temp")
-        irBlock.addIfNotNull(callback(irBlock, temp))
-        return irBlock
     }
 
     // Tools

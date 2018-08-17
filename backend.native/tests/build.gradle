@@ -2028,7 +2028,7 @@ task range0(type: RunKonanTest) {
 }
 
 task range1(type: RunKonanTest) {
-    goldValue = "ABCfalse\nABCtrue\n"
+    goldValue = "BCAfalse\nBCAtrue\n"
     source = "runtime/collections/range1.kt"
 }
 

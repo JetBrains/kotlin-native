@@ -15,16 +15,6 @@ fun IrBuilderWithScope.irAnd(l: IrExpression, r: IrExpression): IrExpression {
     return irIfThenElse(boolType, l, irIfThenElse(boolType, r, irTrue(), irFalse()), irFalse())
 }
 
-fun IrBuilderWithScope.irAndWithoutShortCircuit(l: IrExpression, r: IrExpression): IrExpression {
-    val boolType = context.irBuiltIns.booleanType
-    val irBlock = IrBlockImpl(startOffset, endOffset, boolType, IrStatementOrigin.ARGUMENTS_REORDERING_FOR_CALL)
-    val tl = scope.createTemporaryVariableInBlock(context, l, irBlock, "ltemp")
-    val tr = scope.createTemporaryVariableInBlock(context, r, irBlock, "rtemp")
-    irBlock.addIfNotNull(irIfThenElse(boolType, tl.load(), irIfThenElse(boolType, tr.load(), irTrue(), irFalse()), irFalse()))
-    return irBlock
-
-}
-
 fun IrBuilderWithScope.irEquals(l: IrExpression, r: IrExpression): IrExpression = irCompare(CompType.EQ, l, r)
 fun IrBuilderWithScope.irNotEquals2(l: IrExpression, r: IrExpression): IrExpression = irCompare(CompType.NE, l, r)
 
@@ -90,4 +80,20 @@ internal fun IrBuilderWithScope.castToInt(context: Context, e: IrExpression): Ir
         context.builtIns.doubleType -> irCallWithArguments(func, e)
         else -> error("Unsupported type $exprType for .toInt")
     }
+}
+
+data class IrBlockBuilderWithScope(val builder: IrBuilderWithScope, val irBlock: IrBlockImpl)
+
+fun IrBlockBuilderWithScope.createTemp(expr: IrExpression): IntermediateValue {
+    return builder.scope.createTemporaryVariableInBlock(builder.context, expr, irBlock)
+}
+
+fun IrBuilderWithScope.createTempBlock(
+    blockType: IrType,
+    callback: IrBlockBuilderWithScope.() -> IrExpression
+): IrBlock {
+    val irBlock =
+        IrBlockImpl(startOffset, endOffset, blockType, IrStatementOrigin.ARGUMENTS_REORDERING_FOR_CALL)
+    irBlock.addIfNotNull(callback(IrBlockBuilderWithScope(this, irBlock)))
+    return irBlock
 }
