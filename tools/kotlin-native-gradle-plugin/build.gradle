@@ -57,7 +57,7 @@ version = KonanVersion.Companion.CURRENT.toString()
 repositories {
     mavenCentral()
     maven {
-        url kotlinCompilerRepo
+        url buildKotlinCompilerRepo
     }
 }
 
