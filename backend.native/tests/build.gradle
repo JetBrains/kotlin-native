@@ -513,6 +513,11 @@ task runtime_worker_random(type: RunKonanTest) {
     source = "runtime/basic/worker_random.kt"
 }
 
+task runtime_time(type: RunKonanTest) {
+    goldValue = "since-epoch\ntime-advances\n"
+    source = "runtime/time/time0.kt"
+}
+
 task hello0(type: RunKonanTest) {
     goldValue = "Hello, world!\n"
     source = "runtime/basic/hello0.kt"

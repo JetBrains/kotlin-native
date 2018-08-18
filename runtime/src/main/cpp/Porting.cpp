@@ -263,7 +263,7 @@ uint64_t getTimeNanos() {
 using namespace std::chrono;
 
 uint64_t getTimeMillis() {
-  return duration_cast<milliseconds>(high_resolution_clock::now().time_since_epoch()).count();
+  return duration_cast<milliseconds>(system_clock::now().time_since_epoch()).count();
 }
 
 uint64_t getTimeNanos() {
