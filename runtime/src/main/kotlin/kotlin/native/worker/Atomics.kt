@@ -162,7 +162,6 @@ class AtomicReference<T>(private var value: T? = null) {
      * Sets the value to [new] value
      * If [new] value is not null, it must be frozen or permanent object, otherwise an
      * @InvalidMutabilityException is thrown.
-     * Returns the old value.
      */
     @SymbolName("Kotlin_AtomicReference_set")
     external public fun set(new: T?): Unit

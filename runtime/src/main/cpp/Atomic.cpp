@@ -85,7 +85,17 @@ KLong Kotlin_AtomicLong_compareAndSwap(KRef thiz, KLong expectedValue, KLong new
 }
 
 void Kotlin_AtomicLong_set(KRef thiz, KLong newValue) {
+#ifdef __mips
+    // Potentially huge performance penalty, but correct.
+    // TODO: reconsider, once target MIPS can do proper 64-bit atomic store.
+    static int lock = 0;
+    while (compareAndSwap(&lock, 0, 1) != 0);
+    KLong* address = reinterpret_cast<KLong*>(thiz + 1);
+    *address = newValue;
+    compareAndSwap(&lock, 1, 0);
+#else
     setImpl(thiz, newValue);
+#endif
 }
 
 KNativePtr Kotlin_AtomicNativePtr_compareAndSwap(KRef thiz, KNativePtr expectedValue, KNativePtr newValue) {
