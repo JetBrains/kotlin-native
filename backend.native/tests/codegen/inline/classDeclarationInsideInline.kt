@@ -4,15 +4,18 @@ import kotlin.test.*
 
 fun f() {
     run {
-        class Test<T>(val x: T) {
+        class Test1<T : Number, G>(val x: T, val y: G) {
+            override fun toString() = "test1: ${x.toDouble()}"
+        }
+
+        class Test2<X>(val a: Test1<Int, X>) {
             override fun toString() = "test2"
         }
 
-        class Test2(val a: Test<Int>)
-
-        val v = Test2(Test(1))
+        val v = Test2(Test1(1, Test2(Test1(1, 3))))
         println(v.a)
         println(v.a.x)
+        println(v.a.y)
     }
 }
 

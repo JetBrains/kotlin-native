@@ -2520,7 +2520,7 @@ task inline_defaultArgs(type: RunKonanTest) {
 
 task classDeclarationInsideInline(type: RunStandaloneKonanTest) {
     source = "codegen/inline/classDeclarationInsideInline.kt"
-    goldValue = "test2\n1\n"
+    goldValue = "test1: 1.0\n1\ntest2\n"
 }
 
 task deserialized_inline0(type: RunKonanTest) {
