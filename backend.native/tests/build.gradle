@@ -2042,6 +2042,11 @@ task range0(type: RunKonanTest) {
     source = "runtime/collections/range0.kt"
 }
 
+task range1(type: RunKonanTest) {
+    goldValue = "BCAfalse\nBCAtrue\n"
+    source = "runtime/collections/range1.kt"
+}
+
 task args0(type: RunStandaloneKonanTest) {
     arguments = ["AAA", "BB", "C"]
     goldValue = "AAA\nBB\nC\n"

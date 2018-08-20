@@ -99,6 +99,9 @@ internal class KonanLower(val context: Context, val parentPhaser: PhaseManager) 
         phaser.phase(KonanPhase.LOWER_FOR_LOOPS) {
             ForLoopsLowering(context).lower(irFile)
         }
+        phaser.phase(KonanPhase.LOWER_CONTAINS_RANGE) {
+            ContainsRangeLowering(context).lower(irFile)
+        }
         phaser.phase(KonanPhase.LOWER_ENUMS) {
             EnumClassLowering(context).run(irFile)
         }
