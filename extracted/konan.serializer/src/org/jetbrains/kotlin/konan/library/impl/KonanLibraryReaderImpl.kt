@@ -11,6 +11,8 @@ import org.jetbrains.kotlin.konan.properties.propertyString
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.util.defaultTargetSubstitutions
 import org.jetbrains.kotlin.konan.util.substitute
+import org.jetbrains.kotlin.serialization.konan.KonanPackageFragmentProviderFactory
+import org.jetbrains.kotlin.serialization.konan.DefaultKonanPackageFragmentProviderFactoryImpl
 import org.jetbrains.kotlin.serialization.konan.deserializeModule
 import org.jetbrains.kotlin.serialization.konan.emptyPackages
 
@@ -19,7 +21,8 @@ class LibraryReaderImpl(
         val currentAbiVersion: Int,
         val target: KonanTarget? = null,
         override val isDefaultLibrary: Boolean = false,
-        private val metadataReader: MetadataReader = DefaultMetadataReaderImpl
+        private val metadataReader: MetadataReader = DefaultMetadataReaderImpl,
+        private val providerFactory: KonanPackageFragmentProviderFactory = DefaultKonanPackageFragmentProviderFactoryImpl()
 ) : KonanLibraryReader {
 
     // For the zipped libraries inPlace gives files from zip file system
@@ -83,5 +86,5 @@ class LibraryReaderImpl(
 
     override fun packageMetadata(fqName: String) = metadataReader.loadSerializedPackageFragment(inPlace, fqName)
 
-    override fun moduleDescriptor(specifics: LanguageVersionSettings) = deserializeModule(this, specifics)
+    override fun moduleDescriptor(specifics: LanguageVersionSettings) = deserializeModule(this, specifics, providerFactory)
 }

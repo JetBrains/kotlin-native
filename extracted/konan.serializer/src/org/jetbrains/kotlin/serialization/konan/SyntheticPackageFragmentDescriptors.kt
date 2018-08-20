@@ -1,4 +1,4 @@
-package org.jetbrains.kotlin.serialization.konan.interop
+package org.jetbrains.kotlin.serialization.konan
 
 import org.jetbrains.kotlin.descriptors.ClassifierDescriptor
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
@@ -8,7 +8,6 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.resolve.scopes.MemberScopeImpl
-import org.jetbrains.kotlin.serialization.konan.KonanPackageFragment
 import org.jetbrains.kotlin.utils.Printer
 import org.jetbrains.kotlin.utils.addToStdlib.firstNotNullResult
 

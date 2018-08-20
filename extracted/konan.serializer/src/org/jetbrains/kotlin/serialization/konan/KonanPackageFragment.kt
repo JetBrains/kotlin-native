@@ -57,7 +57,7 @@ class KonanPackageFragment(
 
     override fun getMemberScope(): DeserializedPackageMemberScope = memberScope_
 
-    private val classifierNames by lazy {
+    private val classifierNames: Set<Name> by lazy {
         val result = mutableSetOf<Name>()
         result.addAll(loadClassNames())
         protoForNames.getPackage().typeAliasList.mapTo(result) { nameResolver.getName(it.name) }
