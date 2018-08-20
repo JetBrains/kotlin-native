@@ -1329,6 +1329,7 @@ task coroutines_controlFlow_finally4(type: RunKonanTest) {
 }
 
 task coroutines_controlFlow_finally5(type: RunKonanTest) {
+    disabled = (project.testTarget == 'wasm32') // Uses exceptions.
     goldValue = "s1\nf2\nfinally\n1\n"
     source = "codegen/coroutines/controlFlow_finally5.kt"
 }
