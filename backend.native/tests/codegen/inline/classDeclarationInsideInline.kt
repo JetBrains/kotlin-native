@@ -19,6 +19,6 @@ fun f() {
     }
 }
 
-fun main(args: Array<String>) {
+@Test fun test() {
     f()
 }
