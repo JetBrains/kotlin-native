@@ -229,6 +229,10 @@ internal class DeepCopyIrTreeWithDescriptors(val targetDescriptor: FunctionDescr
                     /* storageManager        = */ LockBasedStorageManager.NO_LOCKS
             ) {
                 override fun getVisibility() = visibility
+
+                override fun getDeclaredTypeParameters(): List<TypeParameterDescriptor> {
+                    return oldDescriptor.declaredTypeParameters
+                }
             }
         }
     }
