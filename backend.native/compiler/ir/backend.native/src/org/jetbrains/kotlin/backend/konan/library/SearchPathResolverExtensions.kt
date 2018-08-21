@@ -16,7 +16,7 @@
 
 package org.jetbrains.kotlin.backend.konan.library
 
-import org.jetbrains.kotlin.backend.konan.library.impl.LibraryReaderImpl
+import org.jetbrains.kotlin.konan.library.impl.LibraryReaderImpl
 import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.library.SearchPathResolver
 import org.jetbrains.kotlin.konan.target.KonanTarget

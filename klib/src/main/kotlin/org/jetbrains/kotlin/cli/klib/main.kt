@@ -17,10 +17,10 @@
 package org.jetbrains.kotlin.cli.klib
 
 // TODO: Extract `library` package as a shared jar?
-import org.jetbrains.kotlin.backend.konan.library.impl.LibraryReaderImpl
-import org.jetbrains.kotlin.backend.konan.library.impl.UnzippedKonanLibrary
-import org.jetbrains.kotlin.backend.konan.library.impl.ZippedKonanLibrary
-import org.jetbrains.kotlin.backend.konan.serialization.parseModuleHeader
+import org.jetbrains.kotlin.konan.library.impl.LibraryReaderImpl
+import org.jetbrains.kotlin.konan.library.impl.UnzippedKonanLibrary
+import org.jetbrains.kotlin.konan.library.impl.ZippedKonanLibrary
+import org.jetbrains.kotlin.serialization.konan.parseModuleHeader
 import org.jetbrains.kotlin.config.ApiVersion
 import org.jetbrains.kotlin.config.LanguageVersion
 import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl

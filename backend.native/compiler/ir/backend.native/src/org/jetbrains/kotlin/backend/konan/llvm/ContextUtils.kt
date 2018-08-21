@@ -25,8 +25,8 @@ import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.descriptors.findPackage
 import org.jetbrains.kotlin.backend.konan.hash.GlobalHash
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.*
-import org.jetbrains.kotlin.backend.konan.library.KonanLibraryReader
-import org.jetbrains.kotlin.backend.konan.library.impl.LibraryReaderImpl
+import org.jetbrains.kotlin.konan.library.KonanLibraryReader
+import org.jetbrains.kotlin.konan.library.impl.LibraryReaderImpl
 import org.jetbrains.kotlin.backend.konan.library.withResolvedDependencies
 import org.jetbrains.kotlin.descriptors.konan.CompiledKonanModuleOrigin
 import org.jetbrains.kotlin.descriptors.konan.CurrentKonanModuleOrigin
