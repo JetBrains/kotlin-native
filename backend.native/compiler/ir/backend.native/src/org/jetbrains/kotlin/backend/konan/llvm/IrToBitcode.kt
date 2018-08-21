@@ -51,6 +51,9 @@ private val threadLocalAnnotationFqName = FqName("kotlin.native.ThreadLocal")
 val IrClassSymbol.objectIsShared get() =
     !descriptor.annotations.hasAnnotation(threadLocalAnnotationFqName)
 
+val IrFieldSymbol.isShared get() =
+    !descriptor.annotations.hasAnnotation(threadLocalAnnotationFqName) && !owner.descriptor.isVar
+
 internal fun emitLLVM(context: Context, phaser: PhaseManager) {
     val irModule = context.irModule!!
 
@@ -398,7 +401,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                                 if (it.initializer?.expression !is IrConst<*>?) {
                                     val initialization = evaluateExpression(it.initializer!!.expression)
                                     val address = context.llvmDeclarations.forStaticField(it).storage
-                                    storeAny(initialization, address)
+                                    storeAny(initialization, address, shallFreeze = it.symbol.isShared)
                                 }
                             }
                     ret(null)
@@ -1418,7 +1421,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         } else {
             assert (value.receiver == null)
             val globalValue = context.llvmDeclarations.forStaticField(value.symbol.owner).storage
-            functionGenerationContext.storeAny(valueToAssign, globalValue)
+            val shallFreeze = value.symbol.isShared
+            functionGenerationContext.storeAny(valueToAssign, globalValue, shallFreeze = shallFreeze)
         }
 
         assert (value.type.isUnit())

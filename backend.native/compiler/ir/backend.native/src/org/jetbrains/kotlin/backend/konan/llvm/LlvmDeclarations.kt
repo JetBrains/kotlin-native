@@ -390,7 +390,7 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
             val name = "kvar:" + qualifyInternalName(descriptor)
 
             val storage = addGlobal(
-                    name, getLLVMType(descriptor.type), isExported = false, threadLocal = true)
+                    name, getLLVMType(descriptor.type), isExported = false, threadLocal = !declaration.symbol.isShared)
 
             this.staticFields[descriptor] = StaticFieldLlvmDeclarations(storage)
         }

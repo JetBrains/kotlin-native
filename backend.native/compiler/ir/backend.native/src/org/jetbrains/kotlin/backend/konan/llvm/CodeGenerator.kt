@@ -292,8 +292,11 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         LLVMBuildStore(builder, value, ptr)
     }
 
-    fun storeAny(value: LLVMValueRef, ptr: LLVMValueRef) {
+    fun storeAny(value: LLVMValueRef, ptr: LLVMValueRef, shallFreeze: Boolean = false) {
         if (isObjectRef(value)) {
+            if (shallFreeze) {
+                call(context.llvm.freezeSubgraph, listOf(value),  Lifetime.IRRELEVANT, ExceptionHandler.Caller)
+            }
             updateRef(value, ptr)
         } else {
             LLVMBuildStore(builder, value, ptr)
