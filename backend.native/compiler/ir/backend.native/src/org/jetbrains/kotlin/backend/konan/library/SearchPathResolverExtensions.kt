@@ -36,10 +36,10 @@ fun SearchPathResolver.resolveImmediateLibraries(libraryNames: List<String>,
                                                  logger: ((String) -> Unit)?): List<KonanLibraryReader> {
     val userProvidedLibraries = libraryNames
             .map { resolve(it) }
-            .map{ LibraryReaderImpl(it, abiVersion, target) as KonanLibraryReader }
+            .map{ LibraryReaderImpl(it, abiVersion, target) }
 
     val defaultLibraries = defaultLinks(noStdLib = noStdLib, noDefaultLibs = noDefaultLibs).map {
-        LibraryReaderImpl(it, abiVersion, target, isDefaultLibrary = true) as KonanLibraryReader
+        LibraryReaderImpl(it, abiVersion, target, isDefaultLibrary = true)
     }
 
     // Make sure the user provided ones appear first, so that 
