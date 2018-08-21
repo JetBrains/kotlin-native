@@ -54,7 +54,7 @@ static isIntPositivePtrType getIsIntPositivePtr() {
 }
 
 static unsigned int getMaxUInt(void) {
-    return UINT32_MAX;
+    return 0xffffffff;
 }
 
 static typeof(&getMaxUInt) getMaxUIntGetter() {
