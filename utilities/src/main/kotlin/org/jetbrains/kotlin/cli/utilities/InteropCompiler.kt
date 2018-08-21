@@ -19,8 +19,6 @@ package org.jetbrains.kotlin.cli.utilities
 import org.jetbrains.kotlin.backend.konan.library.resolveLibrariesRecursive
 import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.library.defaultResolver
-import org.jetbrains.kotlin.konan.library.impl.KonanLibrary
-import org.jetbrains.kotlin.konan.properties.loadProperties
 import org.jetbrains.kotlin.konan.target.PlatformManager
 import org.jetbrains.kotlin.native.interop.gen.jvm.interop
 import org.jetbrains.kotlin.utils.addIfNotNull
@@ -74,8 +72,7 @@ fun invokeInterop(flavor: String, args: Array<String>): Array<String> {
     )
 
     val importArgs = allLibraries.flatMap {
-        val library = KonanLibrary(it.libraryFile)
-        val manifestProperties = library.manifestFile.loadProperties()
+        val manifestProperties = it.manifestProperties
         // TODO: handle missing properties?
         manifestProperties["package"]?.let {
             val pkg = it as String
