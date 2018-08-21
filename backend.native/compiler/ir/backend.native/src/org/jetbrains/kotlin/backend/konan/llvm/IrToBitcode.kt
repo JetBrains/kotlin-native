@@ -374,14 +374,16 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     //-------------------------------------------------------------------------//
 
     val INIT_GLOBALS = 0
-    val DEINIT_THREAD_LOCAL_GLOBALS = 1
-    val DEINIT_GLOBALS = 2
+    val INIT_THREAD_LOCAL_GLOBALS = 1
+    val DEINIT_THREAD_LOCAL_GLOBALS = 2
+    val DEINIT_GLOBALS = 3
 
     private fun createInitBody(): LLVMValueRef {
         val initFunction = LLVMAddFunction(context.llvmModule, "", kInitFuncType)!!
         generateFunction(codegen, initFunction) {
             using(FunctionScope(initFunction, "init_body", it)) {
                 val bbInit = basicBlock("init", null)
+                val bbLocalInit = basicBlock("local_init", null)
                 val bbLocalDeinit = basicBlock("local_deinit", null)
                 val bbGlobalDeinit = basicBlock("global_deinit", null)
                 val bbDefault = basicBlock("default", null) {
@@ -390,6 +392,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
                 switch(LLVMGetParam(initFunction, 0)!!,
                         listOf(Int32(INIT_GLOBALS).llvm                to bbInit,
+                               Int32(INIT_THREAD_LOCAL_GLOBALS).llvm   to bbLocalInit,
                                Int32(DEINIT_THREAD_LOCAL_GLOBALS).llvm to bbLocalDeinit,
                                Int32(DEINIT_GLOBALS).llvm              to bbGlobalDeinit),
                         bbDefault)
@@ -399,9 +402,25 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                     context.llvm.fileInitializers
                             .forEach {
                                 if (it.initializer?.expression !is IrConst<*>?) {
-                                    val initialization = evaluateExpression(it.initializer!!.expression)
-                                    val address = context.llvmDeclarations.forStaticField(it).storage
-                                    storeAny(initialization, address, shallFreeze = it.symbol.isShared)
+                                    if (it.symbol.isShared) {
+                                        val initialization = evaluateExpression(it.initializer!!.expression)
+                                        val address = context.llvmDeclarations.forStaticField(it).storage
+                                        storeAny(initialization, address, shallFreeze = true)
+                                    }
+                                }
+                            }
+                    ret(null)
+                }
+
+                appendingTo(bbLocalInit) {
+                    context.llvm.fileInitializers
+                            .forEach {
+                                if (it.initializer?.expression !is IrConst<*>?) {
+                                   if (!it.symbol.isShared) {
+                                       val initialization = evaluateExpression(it.initializer!!.expression)
+                                       val address = context.llvmDeclarations.forStaticField(it).storage
+                                       storeAny(initialization, address, shallFreeze = false)
+                                    }
                                 }
                             }
                     ret(null)
@@ -409,17 +428,25 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
                 appendingTo(bbLocalDeinit) {
                     context.llvm.fileInitializers.forEach {
-                        val descriptor = it
-                        if (!descriptor.type.binaryTypeIsReference())
-                            return@forEach // Is not a subject for memory management.
-                        val address = context.llvmDeclarations.forStaticField(descriptor).storage
-                        storeAny(codegen.kNullObjHeaderPtr, address)
+                        // Only if a subject for memory management.
+                        if (it.type.binaryTypeIsReference() && !it.symbol.isShared) {
+                            val address = context.llvmDeclarations.forStaticField(it).storage
+                            storeAny(codegen.kNullObjHeaderPtr, address)
+                        }
                     }
                     context.llvm.objects.forEach { storeAny(codegen.kNullObjHeaderPtr, it) }
                     ret(null)
                 }
 
                 appendingTo(bbGlobalDeinit) {
+                    context.llvm.fileInitializers
+                            // Only if a subject for memory management.
+                            .forEach {
+                                if (it.type.binaryTypeIsReference() && it.symbol.isShared) {
+                                    val address = context.llvmDeclarations.forStaticField(it).storage
+                                    storeAny(codegen.kNullObjHeaderPtr, address)
+                                }
+                            }
                     context.llvm.sharedObjects.forEach { storeAny(codegen.kNullObjHeaderPtr, it) }
                     ret(null)
                 }
