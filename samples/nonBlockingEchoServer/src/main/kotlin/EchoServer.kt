@@ -32,7 +32,7 @@ fun main(args: Array<String>) {
         val serverAddr = alloc<sockaddr_in>()
 
         val listenFd = socket(AF_INET, SOCK_STREAM, 0)
-                .ensureUnixCallResult { it >= 0 }
+                .ensureUnixCallResult { !it.isMinusOne() }
 
         with(serverAddr) {
             memset(this.ptr, 0, sockaddr_in.size.convert())
@@ -153,7 +153,7 @@ fun acceptClientsAndRun(serverFd: Int, block: suspend Client.() -> Unit) {
 
                             // Accept new client.
                             val clientFd = accept(serverFd, null, null)
-                            if (clientFd < 0) {
+                            if (clientFd.isMinusOne()) {
                                 if (posix_errno() != EWOULDBLOCK)
                                     throw Error(getUnixError())
                                 break@loop
@@ -210,3 +210,14 @@ inline fun Long.ensureUnixCallResult(predicate: (Long) -> Boolean): Long {
     }
     return this
 }
+
+inline fun ULong.ensureUnixCallResult(predicate: (ULong) -> Boolean): ULong {
+    if (!predicate(this)) {
+        throw Error(getUnixError())
+    }
+    return this
+}
+
+private fun Int.isMinusOne() = (this == -1)
+private fun Long.isMinusOne() = (this == -1L)
+private fun ULong.isMinusOne() = (this == ULong.MAX_VALUE)
