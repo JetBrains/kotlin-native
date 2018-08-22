@@ -68,9 +68,6 @@ internal tailrec fun DeclarationDescriptor.isExported(): Boolean {
     if (descriptorAnnotations.hasAnnotation(publishedApiAnnotation)){
         return true
     }
-    if (descriptorAnnotations.hasAnnotation(inlineExposedAnnotation)){
-        return true
-    }
 
     if (this.isAnonymousObject)
         return false
@@ -86,8 +83,7 @@ internal tailrec fun DeclarationDescriptor.isExported(): Boolean {
         // TODO: this code is required because accessor doesn't have a reference to property.
         if (descriptor is PropertyAccessorDescriptor) {
             val property = descriptor.correspondingProperty
-            if (property.annotations.hasAnnotation(inlineExposedAnnotation) ||
-                    property.annotations.hasAnnotation(publishedApiAnnotation)) return true
+            if (property.annotations.hasAnnotation(publishedApiAnnotation)) return true
         }
     }
 
@@ -125,8 +121,6 @@ private val cnameAnnotation = FqName("kotlin.native.internal.CName")
 private val exportForCompilerAnnotation = FqName("kotlin.native.internal.ExportForCompiler")
 
 private val publishedApiAnnotation = FqName("kotlin.PublishedApi")
-
-private val inlineExposedAnnotation = FqName("kotlin.internal.InlineExposed")
 
 private fun acyclicTypeMangler(visited: MutableSet<TypeParameterDescriptor>, type: IrType): String {
     val descriptor = (type.classifierOrNull as? IrTypeParameterSymbol)?.owner
