@@ -48,11 +48,11 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameUnsafe
 
 private val threadLocalAnnotationFqName = FqName("kotlin.native.ThreadLocal")
 
-val IrClassSymbol.objectIsShared get() =
+val IrClass.objectIsShared get() =
     !descriptor.annotations.hasAnnotation(threadLocalAnnotationFqName)
 
-val IrFieldSymbol.isShared get() =
-    !descriptor.annotations.hasAnnotation(threadLocalAnnotationFqName) && !owner.descriptor.isVar
+val IrField.isShared get() =
+    !descriptor.annotations.hasAnnotation(threadLocalAnnotationFqName) && !descriptor.isVar
 
 internal fun emitLLVM(context: Context, phaser: PhaseManager) {
     val irModule = context.irModule!!
@@ -402,10 +402,11 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                     context.llvm.fileInitializers
                             .forEach {
                                 if (it.initializer?.expression !is IrConst<*>?) {
-                                    if (it.symbol.isShared) {
+                                    if (it.isShared) {
                                         val initialization = evaluateExpression(it.initializer!!.expression)
                                         val address = context.llvmDeclarations.forStaticField(it).storage
-                                        storeAny(initialization, address, shallFreeze = true)
+                                        freeze(initialization, currentCodeContext.exceptionHandler)
+                                        storeAny(initialization, address)
                                     }
                                 }
                             }
@@ -416,10 +417,10 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                     context.llvm.fileInitializers
                             .forEach {
                                 if (it.initializer?.expression !is IrConst<*>?) {
-                                   if (!it.symbol.isShared) {
+                                   if (!it.isShared) {
                                        val initialization = evaluateExpression(it.initializer!!.expression)
                                        val address = context.llvmDeclarations.forStaticField(it).storage
-                                       storeAny(initialization, address, shallFreeze = false)
+                                       storeAny(initialization, address)
                                     }
                                 }
                             }
@@ -429,7 +430,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 appendingTo(bbLocalDeinit) {
                     context.llvm.fileInitializers.forEach {
                         // Only if a subject for memory management.
-                        if (it.type.binaryTypeIsReference() && !it.symbol.isShared) {
+                        if (it.type.binaryTypeIsReference() && !it.isShared) {
                             val address = context.llvmDeclarations.forStaticField(it).storage
                             storeAny(codegen.kNullObjHeaderPtr, address)
                         }
@@ -442,7 +443,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                     context.llvm.fileInitializers
                             // Only if a subject for memory management.
                             .forEach {
-                                if (it.type.binaryTypeIsReference() && it.symbol.isShared) {
+                                if (it.type.binaryTypeIsReference() && it.isShared) {
                                     val address = context.llvmDeclarations.forStaticField(it).storage
                                     storeAny(codegen.kNullObjHeaderPtr, address)
                                 }
@@ -1446,10 +1447,11 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             }
             functionGenerationContext.storeAny(valueToAssign, fieldPtrOfClass(thisPtr, value.symbol.owner))
         } else {
-            assert (value.receiver == null)
+            assert(value.receiver == null)
             val globalValue = context.llvmDeclarations.forStaticField(value.symbol.owner).storage
-            val shallFreeze = value.symbol.isShared
-            functionGenerationContext.storeAny(valueToAssign, globalValue, shallFreeze = shallFreeze)
+            if (value.symbol.owner.isShared)
+                functionGenerationContext.freeze(valueToAssign, currentCodeContext.exceptionHandler)
+            functionGenerationContext.storeAny(valueToAssign, globalValue)
         }
 
         assert (value.type.isUnit())
