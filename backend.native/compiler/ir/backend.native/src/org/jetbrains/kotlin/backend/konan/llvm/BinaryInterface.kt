@@ -114,9 +114,9 @@ internal tailrec fun DeclarationDescriptor.isExported(): Boolean {
 
 private val symbolNameAnnotation = FqName("kotlin.native.SymbolName")
 
-private val exportForCppRuntimeAnnotation = FqName("kotlin.native.internal.ExportForCppRuntime")
+private val cnameAnnotation = FqName("kotlin.native.CName")
 
-private val cnameAnnotation = FqName("kotlin.native.internal.CName")
+private val exportForCppRuntimeAnnotation = FqName("kotlin.native.internal.ExportForCppRuntime")
 
 private val exportForCompilerAnnotation = FqName("kotlin.native.internal.ExportForCompiler")
 
