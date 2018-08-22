@@ -1,31 +1,35 @@
 package org.jetbrains.kotlin.konan.library.impl
 
 import org.jetbrains.kotlin.konan.file.File
+import org.jetbrains.kotlin.konan.library.KLIB_PROPERTY_ABI_VERSION
+import org.jetbrains.kotlin.konan.library.KLIB_PROPERTY_LINKED_OPTS
 import org.jetbrains.kotlin.konan.library.KonanLibraryReader
 import org.jetbrains.kotlin.konan.library.MetadataReader
 import org.jetbrains.kotlin.konan.properties.Properties
 import org.jetbrains.kotlin.konan.properties.loadProperties
 import org.jetbrains.kotlin.konan.properties.propertyList
-import org.jetbrains.kotlin.konan.properties.propertyString
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.util.defaultTargetSubstitutions
 import org.jetbrains.kotlin.konan.util.substitute
 import org.jetbrains.kotlin.serialization.konan.emptyPackages
 
-class LibraryReaderImpl(
+internal class LibraryReaderImpl(
         override val libraryFile: File,
-        val currentAbiVersion: Int,
-        val target: KonanTarget? = null,
-        override val isDefaultLibrary: Boolean = false,
-        private val metadataReader: MetadataReader = DefaultMetadataReaderImpl
+        private val currentAbiVersion: Int,
+        internal val target: KonanTarget?,
+        override val isDefaultLibrary: Boolean,
+        private val metadataReader: MetadataReader
 ) : KonanLibraryReader {
 
     // For the zipped libraries inPlace gives files from zip file system
     // whereas realFiles extracts them to /tmp.
     // For unzipped libraries inPlace and realFiles are the same
     // providing files in the library directory.
-    private val inPlace = KonanLibrary(libraryFile, target)
+    private val inPlace = createKonanLibrary(libraryFile, target)
     private val realFiles = inPlace.realFiles
+
+    override val libraryName
+        get() = inPlace.libraryName
 
     override val manifestProperties: Properties by lazy {
         val properties = inPlace.manifestFile.loadProperties()
@@ -33,23 +37,17 @@ class LibraryReaderImpl(
         properties
     }
 
-    val abiVersion: String
+    override val abiVersion: String
         get() {
-            val manifestAbiVersion = manifestProperties.getProperty("abi_version")
-            check("$currentAbiVersion" == manifestAbiVersion) {
+            val manifestAbiVersion = manifestProperties.getProperty(KLIB_PROPERTY_ABI_VERSION)
+            check(currentAbiVersion.toString() == manifestAbiVersion) {
                 "ABI version mismatch. Compiler expects: $currentAbiVersion, the library is $manifestAbiVersion"
             }
             return manifestAbiVersion
         }
 
-    val targetList = inPlace.targetsDir.listFiles.map { it.name }
-    override val dataFlowGraph by lazy { inPlace.dataFlowGraphFile.let { if (it.exists) it.readBytes() else null } }
-
-    override val libraryName
-        get() = inPlace.libraryName
-
-    override val uniqueName
-        get() = manifestProperties.propertyString("unique_name")!!
+    override val linkerOpts: List<String>
+        get() = manifestProperties.propertyList(KLIB_PROPERTY_LINKED_OPTS, target!!.visibleName)
 
     override val bitcodePaths: List<String>
         get() = (realFiles.kotlinDir.listFilesOrEmpty + realFiles.nativeDir.listFilesOrEmpty).map { it.absolutePath }
@@ -57,20 +55,18 @@ class LibraryReaderImpl(
     override val includedPaths: List<String>
         get() = realFiles.includedDir.listFilesOrEmpty.map { it.absolutePath }
 
-    override val linkerOpts: List<String>
-        get() = manifestProperties.propertyList("linkerOpts", target!!.visibleName)
+    override val targetList by lazy { inPlace.targetsDir.listFiles.map { it.name } }
 
-    override val unresolvedDependencies: List<String>
-        get() = manifestProperties.propertyList("depends")
-
-    override val resolvedDependencies = mutableListOf<KonanLibraryReader>()
+    override val dataFlowGraph by lazy { inPlace.dataFlowGraphFile.let { if (it.exists) it.readBytes() else null } }
 
     override val moduleHeaderData: ByteArray by lazy { metadataReader.loadSerializedModule(inPlace) }
+
+    override fun packageMetadata(fqName: String) = metadataReader.loadSerializedPackageFragment(inPlace, fqName)
 
     override var isNeededForLink: Boolean = false
         private set
 
-    private val emptyPackages by lazy { emptyPackages(moduleHeaderData) }
+    override val resolvedDependencies = mutableListOf<KonanLibraryReader>()
 
     override fun markPackageAccessed(fqName: String) {
         if (!isNeededForLink // fast path
@@ -79,5 +75,5 @@ class LibraryReaderImpl(
         }
     }
 
-    override fun packageMetadata(fqName: String) = metadataReader.loadSerializedPackageFragment(inPlace, fqName)
+    private val emptyPackages by lazy { emptyPackages(moduleHeaderData) }
 }

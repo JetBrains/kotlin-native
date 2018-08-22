@@ -1,36 +1,36 @@
 package org.jetbrains.kotlin.konan.library.impl
 
+import org.jetbrains.kotlin.konan.file.File
+import org.jetbrains.kotlin.konan.file.asZipRoot
+import org.jetbrains.kotlin.konan.file.createTempDir
+import org.jetbrains.kotlin.konan.file.createTempFile
+import org.jetbrains.kotlin.konan.library.KLIB_FILE_EXTENSION
+import org.jetbrains.kotlin.konan.library.KLIB_FILE_EXTENSION_WITH_DOT
 import org.jetbrains.kotlin.konan.library.KonanLibrary
-import org.jetbrains.kotlin.konan.util.removeSuffixIfPresent
-import org.jetbrains.kotlin.konan.file.*
 import org.jetbrains.kotlin.konan.target.KonanTarget
+import org.jetbrains.kotlin.konan.util.removeSuffixIfPresent
 
-const val KLIB_FILE_EXTENSION = "klib"
-const val KLIB_FILE_EXTENSION_WITH_DOT = ".$KLIB_FILE_EXTENSION"
+private class ZippedKonanLibrary(val klibFile: File, override val target: KonanTarget? = null): KonanLibrary {
 
-class ZippedKonanLibrary(val klibFile: File, override val target: KonanTarget? = null): KonanLibrary {
-    init {
-        check(klibFile.exists) { "Could not find $klibFile." }
-        check(klibFile.isFile) { "Expected $klibFile to be a regular file." }
-
-        val extension = klibFile.extension
-        check(extension.isEmpty() || extension == KLIB_FILE_EXTENSION) { "Unexpected file extension: $extension" }
-    }
+    init { zippedKonanLibraryChecks(klibFile) }
 
     override val libraryName = klibFile.path.removeSuffixIfPresent(KLIB_FILE_EXTENSION_WITH_DOT)
 
-    override val libDir by lazy { klibFile.asZipRoot }
+    override val libDir by lazy { zippedKonanLibraryRoot(klibFile) }
+}
 
-    fun unpackTo(newDir: File) {
-        if (newDir.exists) {
-            if (newDir.isDirectory)
-                newDir.deleteRecursively()
-            else
-                newDir.delete()
-        }
-        libDir.recursiveCopyTo(newDir)
-        check(newDir.exists) { "Could not unpack $klibFile as $newDir." }
-    }
+internal fun zippedKonanLibraryChecks(klibFile: File) {
+    check(klibFile.exists) { "Could not find $klibFile." }
+    check(klibFile.isFile) { "Expected $klibFile to be a regular file." }
+
+    val extension = klibFile.extension
+    check(extension.isEmpty() || extension == KLIB_FILE_EXTENSION) { "Unexpected file extension: $extension" }
+}
+
+internal fun zippedKonanLibraryRoot(klibFile: File) = klibFile.asZipRoot
+
+private class UnzippedKonanLibrary(override val libDir: File, override val target: KonanTarget? = null): KonanLibrary {
+    override val libraryName = libDir.path
 }
 
 // This class automatically extracts pieces of
@@ -66,13 +66,7 @@ private class FileExtractor(zippedLibrary: KonanLibrary): KonanLibrary by zipped
     }
 }
 
-class UnzippedKonanLibrary(override val libDir: File, override val target: KonanTarget? = null): KonanLibrary {
-    override val libraryName = libDir.path
-
-    val targetList: List<String> by lazy { targetsDir.listFiles.map { it.name } }
-}
-
-fun KonanLibrary(klib: File, target: KonanTarget? = null) =
+internal fun createKonanLibrary(klib: File, target: KonanTarget? = null) =
         if (klib.isFile) ZippedKonanLibrary(klib, target) else UnzippedKonanLibrary(klib, target)
 
 internal val KonanLibrary.realFiles

@@ -16,31 +16,34 @@
 
 package org.jetbrains.kotlin.backend.konan.library.impl
 
-import org.jetbrains.kotlin.konan.library.KonanLibraryReader
 import llvm.LLVMModuleRef
 import llvm.LLVMWriteBitcodeToFile
-import org.jetbrains.kotlin.konan.library.KonanLibrary
 import org.jetbrains.kotlin.backend.konan.library.KonanLibraryWriter
 import org.jetbrains.kotlin.backend.konan.library.LinkData
 import org.jetbrains.kotlin.konan.file.*
+import org.jetbrains.kotlin.konan.library.*
 import org.jetbrains.kotlin.konan.properties.*
 import org.jetbrains.kotlin.konan.target.KonanTarget
 
-abstract class FileBasedLibraryWriter (
-    val file: File, val currentAbiVersion: Int): KonanLibraryWriter {
-}
+abstract class FileBasedLibraryWriter (val file: File, val currentAbiVersion: Int): KonanLibraryWriter
 
-class LibraryWriterImpl(override val libDir: File, moduleName: String, currentAbiVersion: Int, 
-    override val target: KonanTarget?, val nopack: Boolean = false): 
-        FileBasedLibraryWriter(libDir, currentAbiVersion), KonanLibrary {
+/**
+ * Requires non-null [target].
+ */
+class LibraryWriterImpl(
+        override val libDir: File,
+        moduleName: String,
+        currentAbiVersion: Int,
+        override val target: KonanTarget,
+        val nopack: Boolean = false
+): FileBasedLibraryWriter(libDir, currentAbiVersion), KonanLibrary {
 
-    public constructor(path: String, moduleName: String, currentAbiVersion: Int, 
-        target:KonanTarget?, nopack: Boolean): 
+    constructor(path: String, moduleName: String, currentAbiVersion: Int, target: KonanTarget, nopack: Boolean):
         this(File(path), moduleName, currentAbiVersion, target, nopack)
 
     override val libraryName = libDir.path
     val klibFile 
-       get() = File("${libDir.path}.klib")
+       get() = File("${libDir.path}.$KLIB_FILE_EXTENSION")
 
     // TODO: Experiment with separate bitcode files.
     // Per package or per class.
@@ -60,8 +63,8 @@ class LibraryWriterImpl(override val libDir: File, moduleName: String, currentAb
         includedDir.mkdirs()
         resourcesDir.mkdirs()
         // TODO: <name>:<hash> will go somewhere around here.
-        manifestProperties.setProperty("unique_name", "$moduleName")
-        manifestProperties.setProperty("abi_version", "$currentAbiVersion")
+        manifestProperties.setProperty(KLIB_PROPERTY_UNIQUE_NAME, moduleName)
+        manifestProperties.setProperty(KLIB_PROPERTY_ABI_VERSION, currentAbiVersion.toString())
     }
 
     var llvmModule: LLVMModuleRef? = null
@@ -87,12 +90,12 @@ class LibraryWriterImpl(override val libDir: File, moduleName: String, currentAb
 
     override fun addLinkDependencies(libraries: List<KonanLibraryReader>) {
         if (libraries.isEmpty()) {
-            manifestProperties.remove("depends") 
+            manifestProperties.remove(KLIB_PROPERTY_DEPENDS)
             // make sure there are no leftovers from the .def file.
             return
         } else {
-            val newValue = libraries .map { it.uniqueName } . joinToString(" ")
-            manifestProperties.setProperty("depends", newValue)
+            val newValue = libraries.joinToString(" ") { it.uniqueName }
+            manifestProperties.setProperty(KLIB_PROPERTY_DEPENDS, newValue)
         }
     }
 

@@ -19,7 +19,8 @@ package org.jetbrains.kotlin.backend.konan.library
 import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.library.KonanLibraryReader
 import org.jetbrains.kotlin.konan.library.SearchPathResolver
-import org.jetbrains.kotlin.konan.library.impl.LibraryReaderImpl
+import org.jetbrains.kotlin.konan.library.createKonanLibraryReader
+import org.jetbrains.kotlin.konan.library.unresolvedDependencies
 import org.jetbrains.kotlin.konan.target.KonanTarget
 
 const val KONAN_CURRENT_ABI_VERSION = 1
@@ -36,10 +37,10 @@ fun SearchPathResolver.resolveImmediateLibraries(libraryNames: List<String>,
                                                  logger: ((String) -> Unit)?): List<KonanLibraryReader> {
     val userProvidedLibraries = libraryNames
             .map { resolve(it) }
-            .map{ LibraryReaderImpl(it, abiVersion, target) }
+            .map{ createKonanLibraryReader(it, abiVersion, target) }
 
     val defaultLibraries = defaultLinks(noStdLib = noStdLib, noDefaultLibs = noDefaultLibs).map {
-        LibraryReaderImpl(it, abiVersion, target, isDefaultLibrary = true)
+        createKonanLibraryReader(it, abiVersion, target, isDefaultLibrary = true)
     }
 
     // Make sure the user provided ones appear first, so that 
@@ -81,7 +82,7 @@ fun SearchPathResolver.resolveLibrariesRecursive(immediateLibraries: List<KonanL
                             library.resolvedDependencies.add(cache[it]!!)
                             null
                         } else {
-                            val reader = LibraryReaderImpl(it, abiVersion, target)
+                            val reader = createKonanLibraryReader(it, abiVersion, target)
                             cache[it] = reader
                             library.resolvedDependencies.add(reader)
                             reader
