@@ -7,7 +7,7 @@ import org.jetbrains.kotlin.descriptors.konan.DeserializedKonanModuleOrigin
 import org.jetbrains.kotlin.descriptors.konan.createKonanModuleDescriptor
 import org.jetbrains.kotlin.descriptors.konan.interop.InteropFqNames
 import org.jetbrains.kotlin.incremental.components.LookupTracker
-import org.jetbrains.kotlin.konan.library.KonanLibraryReader
+import org.jetbrains.kotlin.konan.library.KonanLibrary
 import org.jetbrains.kotlin.konan.library.exportForwardDeclarations
 import org.jetbrains.kotlin.konan.library.isInterop
 import org.jetbrains.kotlin.konan.library.packageFqName
@@ -21,7 +21,7 @@ import org.jetbrains.kotlin.storage.StorageManager
 interface KonanModuleDescriptorFactory {
 
     fun createModuleDescriptor(
-            libraryReader: KonanLibraryReader,
+            libraryReader: KonanLibrary,
             specifics: LanguageVersionSettings,
             storageManager: StorageManager = LockBasedStorageManager()
     ): ModuleDescriptor
@@ -30,7 +30,7 @@ interface KonanModuleDescriptorFactory {
 object DefaultKonanModuleDescriptorFactory: KonanModuleDescriptorFactory {
 
     override fun createModuleDescriptor(
-            libraryReader: KonanLibraryReader,
+            libraryReader: KonanLibrary,
             specifics: LanguageVersionSettings,
             storageManager: StorageManager
     ): ModuleDescriptorImpl {
@@ -59,7 +59,7 @@ object DefaultKonanModuleDescriptorFactory: KonanModuleDescriptorFactory {
     }
 
     private fun createPackageFragmentProvider(
-            libraryReader: KonanLibraryReader,
+            libraryReader: KonanLibrary,
             fragmentNames: List<String>,
             storageManager: StorageManager,
             moduleDescriptor: ModuleDescriptor,
@@ -108,7 +108,7 @@ object DefaultKonanModuleDescriptorFactory: KonanModuleDescriptorFactory {
     }
 
     private fun getSyntheticPackageFragments(
-            libraryReader: KonanLibraryReader,
+            libraryReader: KonanLibrary,
             moduleDescriptor: ModuleDescriptor,
             konanPackageFragments: List<KonanPackageFragment>
     ): List<PackageFragmentDescriptor> {

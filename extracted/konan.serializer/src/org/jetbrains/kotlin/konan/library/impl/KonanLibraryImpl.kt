@@ -1,79 +1,79 @@
 package org.jetbrains.kotlin.konan.library.impl
 
 import org.jetbrains.kotlin.konan.file.File
-import org.jetbrains.kotlin.konan.file.asZipRoot
-import org.jetbrains.kotlin.konan.file.createTempDir
-import org.jetbrains.kotlin.konan.file.createTempFile
-import org.jetbrains.kotlin.konan.library.KLIB_FILE_EXTENSION
-import org.jetbrains.kotlin.konan.library.KLIB_FILE_EXTENSION_WITH_DOT
+import org.jetbrains.kotlin.konan.library.KLIB_PROPERTY_ABI_VERSION
+import org.jetbrains.kotlin.konan.library.KLIB_PROPERTY_LINKED_OPTS
 import org.jetbrains.kotlin.konan.library.KonanLibrary
+import org.jetbrains.kotlin.konan.library.MetadataReader
+import org.jetbrains.kotlin.konan.properties.Properties
+import org.jetbrains.kotlin.konan.properties.loadProperties
+import org.jetbrains.kotlin.konan.properties.propertyList
 import org.jetbrains.kotlin.konan.target.KonanTarget
-import org.jetbrains.kotlin.konan.util.removeSuffixIfPresent
+import org.jetbrains.kotlin.konan.util.defaultTargetSubstitutions
+import org.jetbrains.kotlin.konan.util.substitute
+import org.jetbrains.kotlin.serialization.konan.emptyPackages
 
-private class ZippedKonanLibrary(val klibFile: File, override val target: KonanTarget? = null): KonanLibrary {
+internal class KonanLibraryImpl(
+        override val libraryFile: File,
+        private val currentAbiVersion: Int,
+        internal val target: KonanTarget?,
+        override val isDefaultLibrary: Boolean,
+        private val metadataReader: MetadataReader
+) : KonanLibrary {
 
-    init { zippedKonanLibraryChecks(klibFile) }
+    // For the zipped libraries inPlace gives files from zip file system
+    // whereas realFiles extracts them to /tmp.
+    // For unzipped libraries inPlace and realFiles are the same
+    // providing files in the library directory.
+    private val inPlace = createKonanLibraryLayout(libraryFile, target)
+    private val realFiles = inPlace.realFiles
 
-    override val libraryName = klibFile.path.removeSuffixIfPresent(KLIB_FILE_EXTENSION_WITH_DOT)
+    override val libraryName
+        get() = inPlace.libraryName
 
-    override val libDir by lazy { zippedKonanLibraryRoot(klibFile) }
-}
-
-internal fun zippedKonanLibraryChecks(klibFile: File) {
-    check(klibFile.exists) { "Could not find $klibFile." }
-    check(klibFile.isFile) { "Expected $klibFile to be a regular file." }
-
-    val extension = klibFile.extension
-    check(extension.isEmpty() || extension == KLIB_FILE_EXTENSION) { "Unexpected file extension: $extension" }
-}
-
-internal fun zippedKonanLibraryRoot(klibFile: File) = klibFile.asZipRoot
-
-private class UnzippedKonanLibrary(override val libDir: File, override val target: KonanTarget? = null): KonanLibrary {
-    override val libraryName = libDir.path
-}
-
-// This class automatically extracts pieces of
-// the library on first access. Use it if you need
-// to pass extracted files to an external tool.
-// Otherwise, stick to ZippedKonanLibrary.
-private class FileExtractor(zippedLibrary: KonanLibrary): KonanLibrary by zippedLibrary {
-
-    override val manifestFile: File by lazy { extract(super.manifestFile) }
-
-    override val resourcesDir: File by lazy { extractDir(super.resourcesDir) }
-
-    override val includedDir: File by lazy { extractDir(super.includedDir) }
-
-    override val kotlinDir: File by lazy { extractDir(super.kotlinDir) }
-
-    override val nativeDir: File by lazy { extractDir(super.nativeDir) }
-
-    override val linkdataDir: File by lazy { extractDir(super.linkdataDir) }
-
-    fun extract(file: File): File {
-        val temporary = createTempFile(file.name)
-        file.copyTo(temporary)
-        temporary.deleteOnExit()
-        return temporary
+    override val manifestProperties: Properties by lazy {
+        val properties = inPlace.manifestFile.loadProperties()
+        if (target != null) substitute(properties, defaultTargetSubstitutions(target))
+        properties
     }
 
-    fun extractDir(directory: File): File {
-        val temporary = createTempDir(directory.name)
-        directory.recursiveCopyTo(temporary)
-        temporary.deleteOnExitRecursively()
-        return temporary
+    override val abiVersion: String
+        get() {
+            val manifestAbiVersion = manifestProperties.getProperty(KLIB_PROPERTY_ABI_VERSION)
+            check(currentAbiVersion.toString() == manifestAbiVersion) {
+                "ABI version mismatch. Compiler expects: $currentAbiVersion, the library is $manifestAbiVersion"
+            }
+            return manifestAbiVersion
+        }
+
+    override val linkerOpts: List<String>
+        get() = manifestProperties.propertyList(KLIB_PROPERTY_LINKED_OPTS, target!!.visibleName)
+
+    override val bitcodePaths: List<String>
+        get() = (realFiles.kotlinDir.listFilesOrEmpty + realFiles.nativeDir.listFilesOrEmpty).map { it.absolutePath }
+
+    override val includedPaths: List<String>
+        get() = realFiles.includedDir.listFilesOrEmpty.map { it.absolutePath }
+
+    override val targetList by lazy { inPlace.targetsDir.listFiles.map { it.name } }
+
+    override val dataFlowGraph by lazy { inPlace.dataFlowGraphFile.let { if (it.exists) it.readBytes() else null } }
+
+    override val moduleHeaderData: ByteArray by lazy { metadataReader.loadSerializedModule(inPlace) }
+
+    override fun packageMetadata(fqName: String) = metadataReader.loadSerializedPackageFragment(inPlace, fqName)
+
+    override var isNeededForLink: Boolean = false
+        private set
+
+    override val resolvedDependencies = mutableListOf<KonanLibrary>()
+
+    override fun markPackageAccessed(fqName: String) {
+        if (!isNeededForLink // fast path
+                && !emptyPackages.contains(fqName)) {
+            isNeededForLink = true
+        }
     }
+
+    private val emptyPackages by lazy { emptyPackages(moduleHeaderData) }
 }
-
-internal fun createKonanLibrary(klib: File, target: KonanTarget? = null) =
-        if (klib.isFile) ZippedKonanLibrary(klib, target) else UnzippedKonanLibrary(klib, target)
-
-internal val KonanLibrary.realFiles
-    get() = when (this) {
-        is ZippedKonanLibrary -> FileExtractor(this)
-        // Unpacked library just provides its own files.
-        is UnzippedKonanLibrary -> this
-        else -> error("Provide an extractor for your container.")
-    }
-

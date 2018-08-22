@@ -36,7 +36,7 @@ class LibraryWriterImpl(
         currentAbiVersion: Int,
         override val target: KonanTarget,
         val nopack: Boolean = false
-): FileBasedLibraryWriter(libDir, currentAbiVersion), KonanLibrary {
+): FileBasedLibraryWriter(libDir, currentAbiVersion), KonanLibraryLayout {
 
     constructor(path: String, moduleName: String, currentAbiVersion: Int, target: KonanTarget, nopack: Boolean):
         this(File(path), moduleName, currentAbiVersion, target, nopack)
@@ -88,7 +88,7 @@ class LibraryWriterImpl(
         File(library).copyTo(File(includedDir, basename)) 
     }
 
-    override fun addLinkDependencies(libraries: List<KonanLibraryReader>) {
+    override fun addLinkDependencies(libraries: List<KonanLibrary>) {
         if (libraries.isEmpty()) {
             manifestProperties.remove(KLIB_PROPERTY_DEPENDS)
             // make sure there are no leftovers from the .def file.
@@ -118,18 +118,18 @@ class LibraryWriterImpl(
 }
 
 internal fun buildLibrary(
-    natives: List<String>, 
-    included: List<String>,
-    linkDependencies: List<KonanLibraryReader>,
-    linkData: LinkData, 
-    abiVersion: Int, 
-    target: KonanTarget, 
-    output: String, 
-    moduleName: String, 
-    llvmModule: LLVMModuleRef, 
-    nopack: Boolean, 
-    manifest: String?,
-    dataFlowGraph: ByteArray?): KonanLibraryWriter {
+        natives: List<String>,
+        included: List<String>,
+        linkDependencies: List<KonanLibrary>,
+        linkData: LinkData,
+        abiVersion: Int,
+        target: KonanTarget,
+        output: String,
+        moduleName: String,
+        llvmModule: LLVMModuleRef,
+        nopack: Boolean,
+        manifest: String?,
+        dataFlowGraph: ByteArray?): KonanLibraryWriter {
 
     val library = LibraryWriterImpl(output, moduleName, abiVersion, target, nopack)
 

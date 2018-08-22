@@ -2,7 +2,7 @@ package org.jetbrains.kotlin.konan.library
 
 import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.library.impl.DefaultMetadataReaderImpl
-import org.jetbrains.kotlin.konan.library.impl.LibraryReaderImpl
+import org.jetbrains.kotlin.konan.library.impl.KonanLibraryImpl
 import org.jetbrains.kotlin.konan.library.impl.zippedKonanLibraryChecks
 import org.jetbrains.kotlin.konan.library.impl.zippedKonanLibraryRoot
 import org.jetbrains.kotlin.konan.target.KonanTarget
@@ -29,4 +29,4 @@ fun createKonanLibraryReader(
         target: KonanTarget? = null,
         isDefaultLibrary: Boolean = false,
         metadataReader: MetadataReader = DefaultMetadataReaderImpl
-): KonanLibraryReader = LibraryReaderImpl(libraryFile, currentAbiVersion, target, isDefaultLibrary, metadataReader)
+): KonanLibrary = KonanLibraryImpl(libraryFile, currentAbiVersion, target, isDefaultLibrary, metadataReader)
