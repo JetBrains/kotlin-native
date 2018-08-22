@@ -73,11 +73,10 @@ fun invokeInterop(flavor: String, args: Array<String>): Array<String> {
             libraries, target, noStdLib = true, noDefaultLibs = noDefaultLibs
     )
 
-    val importArgs = allLibraries.flatMap {
+    val importArgs = allLibraries.flatMap {libraryReader ->
         // TODO: handle missing properties?
-        val libraryReader = it
         libraryReader.packageFqName?.asString()?.let { packageFqName ->
-            val headerIds = it.includedHeaders
+            val headerIds = libraryReader.includedHeaders
             val arg = "$packageFqName:${headerIds.joinToString(";")}"
             listOf("-import", arg)
         } ?: emptyList()
