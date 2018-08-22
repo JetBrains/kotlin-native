@@ -24,7 +24,7 @@ package kotlin.native.internal
  *
  * If the name is not specified, the function to call will be available by its Kotlin unqualified name.
  *
- * This annotation is not intended for the general consumption and is public only for launcher!
+ * This annotation is not intended for the general consumption and is public only for the launcher!
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.CONSTRUCTOR)
 @Retention(AnnotationRetention.BINARY)
@@ -39,10 +39,12 @@ internal annotation class Intrinsic
 
 /**
  * Exports symbol for compiler needs.
+ *
+ * This annotation is not intended for the general consumption and is public only for interop!
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.CONSTRUCTOR, AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.BINARY)
-internal annotation class ExportForCompiler
+public annotation class ExportForCompiler
 
 /**
  * Annotated constructor will be inlined.
