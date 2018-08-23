@@ -52,7 +52,7 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameUnsafe
 private val threadLocalAnnotationFqName = FqName("kotlin.native.ThreadLocal")
 private val sharedAnnotationFqName = FqName("kotlin.native.SharedImmutable")
 
-// TODO: maybe apply same logic to the singleton objects as well.
+// TODO: maybe unannotated singleton objects shall be accessed from main thread only as well?
 val IrClass.objectIsShared get() =
     !descriptor.annotations.hasAnnotation(threadLocalAnnotationFqName)
 
@@ -64,7 +64,8 @@ val IrField.isShared get() =
 
 val IrField.isMainOnly get() =
     !descriptor.annotations.hasAnnotation(threadLocalAnnotationFqName) &&
-    !descriptor.annotations.hasAnnotation(sharedAnnotationFqName)
+    !descriptor.annotations.hasAnnotation(sharedAnnotationFqName) &&
+    !descriptor.isDelegated
 
 val IrField.isMainOnlyNonPrimitive get() = when  {
         KotlinBuiltIns.isPrimitiveType(descriptor.type) -> false
