@@ -1478,8 +1478,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         } else {
             assert(value.receiver == null)
             val globalValue = context.llvmDeclarations.forStaticField(value.symbol.owner).storage
-            if (context.config.threadsAreAllowed &&
-                    (value.symbol.owner.isMainOnlyNonPrimitive || value.symbol.owner.descriptor.isVar))
+            if (context.config.threadsAreAllowed && value.symbol.owner.isMainOnlyNonPrimitive)
                 functionGenerationContext.checkMainThread(currentCodeContext.exceptionHandler)
             if (value.symbol.owner.isShared)
                 functionGenerationContext.freeze(valueToAssign, currentCodeContext.exceptionHandler)
