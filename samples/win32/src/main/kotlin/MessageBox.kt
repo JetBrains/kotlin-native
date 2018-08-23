@@ -1,3 +1,4 @@
+import kotlinx.cinterop.*
 import platform.windows.*
 
 fun main(args: Array<String>) {
