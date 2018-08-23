@@ -1445,7 +1445,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                     fieldPtrOfClass(thisPtr, value.symbol.owner), value.descriptor.isVar())
         } else {
             assert(value.receiver == null)
-            if (value.symbol.owner.isMainOnlyNonPrimitive) {
+            if (context.config.threadsAreAllowed && value.symbol.owner.isMainOnlyNonPrimitive) {
                 functionGenerationContext.checkMainThread(currentCodeContext.exceptionHandler)
             }
             val ptr = context.llvmDeclarations.forStaticField(value.symbol.owner).storage
@@ -1478,7 +1478,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         } else {
             assert(value.receiver == null)
             val globalValue = context.llvmDeclarations.forStaticField(value.symbol.owner).storage
-            if (value.symbol.owner.isMainOnlyNonPrimitive || value.symbol.owner.descriptor.isVar)
+            if (context.config.threadsAreAllowed &&
+                    (value.symbol.owner.isMainOnlyNonPrimitive || value.symbol.owner.descriptor.isVar))
                 functionGenerationContext.checkMainThread(currentCodeContext.exceptionHandler)
             if (value.symbol.owner.isShared)
                 functionGenerationContext.freeze(valueToAssign, currentCodeContext.exceptionHandler)
