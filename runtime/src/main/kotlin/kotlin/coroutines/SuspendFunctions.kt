@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package kotlin
+package kotlin.coroutines
 
 public interface SuspendFunction0<out R> : SuspendFunction<R> {
     operator suspend fun invoke(): R

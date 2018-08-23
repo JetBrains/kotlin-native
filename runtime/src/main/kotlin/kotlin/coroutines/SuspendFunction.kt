@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package kotlin
+package kotlin.coroutines
 
 import kotlin.native.internal.FixmeReflection
 
