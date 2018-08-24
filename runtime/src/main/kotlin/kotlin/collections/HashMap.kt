@@ -711,4 +711,5 @@ internal class HashMapEntrySet<K, V> internal constructor(
 }
 
 // This hash map keeps insertion order.
+// TODO: should be `public actual open class LinkedHashMap<K, V> : HashMap<K, V>, MutableMap<K, V>`
 actual typealias LinkedHashMap<K, V> = HashMap<K, V>
