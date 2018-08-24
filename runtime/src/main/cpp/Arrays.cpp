@@ -147,7 +147,7 @@ KChar Kotlin_ByteArray_getCharAt(KConstRef thiz, KInt index) {
     ThrowArrayIndexOutOfBoundsException();
   }
   auto result = *reinterpret_cast<const KChar*>(ByteArrayAddressOfElementAt(array, index));
-#if __BYTE_ORDER == __BIG_ENDIAN
+#if __BIG_ENDIAN__
   return __builtin_bswap16(result);
 #else
   return result;
@@ -160,7 +160,7 @@ KShort Kotlin_ByteArray_getShortAt(KConstRef thiz, KInt index) {
     ThrowArrayIndexOutOfBoundsException();
   }
   auto result = *reinterpret_cast<const KShort*>(ByteArrayAddressOfElementAt(array, index));
-#if __BYTE_ORDER == __BIG_ENDIAN
+#if __BIG_ENDIAN__
   return __builtin_bswap16(result);
 #else
   return result;
@@ -173,7 +173,7 @@ KInt Kotlin_ByteArray_getIntAt(KConstRef thiz, KInt index) {
     ThrowArrayIndexOutOfBoundsException();
   }
   auto result = *reinterpret_cast<const KInt*>(ByteArrayAddressOfElementAt(array, index));
-#if __BYTE_ORDER == __BIG_ENDIAN
+#if __BIG_ENDIAN__
   return __builtin_bswap32(result);
 #else
   return result;
@@ -187,7 +187,7 @@ KLong Kotlin_ByteArray_getLongAt(KConstRef thiz, KInt index) {
   }
 
   auto result = *reinterpret_cast<const KLong*>(ByteArrayAddressOfElementAt(array, index));
-#if __BYTE_ORDER == __BIG_ENDIAN
+#if __BIG_ENDIAN__
   return __builtin_bswap64(result);
 #else
   return result;
@@ -217,7 +217,7 @@ void Kotlin_ByteArray_setCharAt(KRef thiz, KInt index, KChar value) {
     ThrowArrayIndexOutOfBoundsException();
   }
   mutabilityCheck(thiz);
-#if __BYTE_ORDER == __BIG_ENDIAN
+#if __BIG_ENDIAN__
    value = __builtin_bswap16(value);
 #endif
   *reinterpret_cast<KChar*>(ByteArrayAddressOfElementAt(array, index)) = value;
@@ -229,7 +229,7 @@ void Kotlin_ByteArray_setShortAt(KRef thiz, KInt index, KShort value) {
     ThrowArrayIndexOutOfBoundsException();
   }
   mutabilityCheck(thiz);
-#if __BYTE_ORDER == __BIG_ENDIAN
+#if __BIG_ENDIAN__
   value = __builtin_bswap16(value);
 #endif
   *reinterpret_cast<KShort*>(ByteArrayAddressOfElementAt(array, index)) = value;
@@ -241,7 +241,7 @@ void Kotlin_ByteArray_setIntAt(KRef thiz, KInt index, KInt value) {
     ThrowArrayIndexOutOfBoundsException();
   }
   mutabilityCheck(thiz);
-#if __BYTE_ORDER == __BIG_ENDIAN
+#if __BIG_ENDIAN__
   value = __builtin_bswap32(value);
 #endif
   *reinterpret_cast<KInt*>(ByteArrayAddressOfElementAt(array, index)) = value;
@@ -253,7 +253,7 @@ void Kotlin_ByteArray_setLongAt(KRef thiz, KInt index, KLong value) {
     ThrowArrayIndexOutOfBoundsException();
   }
   mutabilityCheck(thiz);
-#if __BYTE_ORDER == __BIG_ENDIAN
+#if __BIG_ENDIAN__
   value = __builtin_bswap64(value);
 #endif
   *reinterpret_cast<KLong*>(ByteArrayAddressOfElementAt(array, index)) = value;
