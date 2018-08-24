@@ -18,7 +18,7 @@ package kotlin.collections
 
 import kotlin.native.concurrent.isFrozen
 
-actual class HashMap<K, V> private constructor(
+public actual open class HashMap<K, V> private constructor(
         private var keysArray: Array<K>,
         private var valuesArray: Array<V>?, // allocated only when actually used, always null in pure HashSet
         private var presenceArray: IntArray,
@@ -711,4 +711,5 @@ internal class HashMapEntrySet<K, V> internal constructor(
 }
 
 // This hash map keeps insertion order.
+// TODO: should be `public actual open class LinkedHashMap<K, V> : HashMap<K, V>, MutableMap<K, V>`
 actual typealias LinkedHashMap<K, V> = HashMap<K, V>

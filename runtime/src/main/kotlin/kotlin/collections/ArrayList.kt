@@ -16,7 +16,7 @@
 
 package kotlin.collections
 
-actual class ArrayList<E> private constructor(
+public actual open class ArrayList<E> private constructor(
         private var array: Array<E>,
         private var offset: Int,
         private var length: Int,
