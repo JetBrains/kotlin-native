@@ -146,7 +146,12 @@ KChar Kotlin_ByteArray_getCharAt(KConstRef thiz, KInt index) {
   if (static_cast<uint32_t>(index + 1) >= array->count_) {
     ThrowArrayIndexOutOfBoundsException();
   }
-  return *reinterpret_cast<const KChar*>(ByteArrayAddressOfElementAt(array, index));
+  auto result = *reinterpret_cast<const KChar*>(ByteArrayAddressOfElementAt(array, index));
+#if __BYTE_ORDER == __BIG_ENDIAN
+  return __builtin_bswap16(result);
+#else
+  return result;
+#endif
 }
 
 KShort Kotlin_ByteArray_getShortAt(KConstRef thiz, KInt index) {
@@ -162,7 +167,12 @@ KInt Kotlin_ByteArray_getIntAt(KConstRef thiz, KInt index) {
   if (static_cast<uint32_t>(index + 3) >= array->count_) {
     ThrowArrayIndexOutOfBoundsException();
   }
-  return *reinterpret_cast<const KInt*>(ByteArrayAddressOfElementAt(array, index));
+  auto result = *reinterpret_cast<const KInt*>(ByteArrayAddressOfElementAt(array, index));
+#if __BYTE_ORDER == __BIG_ENDIAN
+  return __builtin_bswap32(result);
+#else
+  return result;
+#endif
 }
 
 KLong Kotlin_ByteArray_getLongAt(KConstRef thiz, KInt index) {
@@ -170,7 +180,13 @@ KLong Kotlin_ByteArray_getLongAt(KConstRef thiz, KInt index) {
   if (static_cast<uint32_t>(index + 7) >= array->count_) {
     ThrowArrayIndexOutOfBoundsException();
   }
-  return *reinterpret_cast<const KLong*>(ByteArrayAddressOfElementAt(array, index));
+
+  auto result = *reinterpret_cast<const KLong*>(ByteArrayAddressOfElementAt(array, index));
+#if __BYTE_ORDER == __BIG_ENDIAN
+    return __builtin_bswap64(result);
+#else
+    return result;
+#endif
 }
 
 KFloat Kotlin_ByteArray_getFloatAt(KConstRef thiz, KInt index) {

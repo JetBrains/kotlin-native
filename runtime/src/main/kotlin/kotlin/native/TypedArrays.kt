@@ -17,6 +17,11 @@ package kotlin.native
 
 import kotlin.native.SymbolName
 
+/**
+ * Those operations allows to extract primitive values out of the byte buffers.
+ * Data is treated as if it was in Least-Significant-Byte first (little-endian) byte order.
+ * If index is outside of array boundaries  - ArrayIndexOutOfBoundsException is thrown.
+ */
 @ExperimentalUnsignedTypes
 public fun ByteArray.ubyteAt(index: Int): UByte = UByte(get(index))
 
