@@ -47,5 +47,3 @@ public open class Any {
         return "$className@$hashCodeStr"
     }
 }
-
-public fun Any?.hashCode() = if (this != null) this.hashCode() else 0

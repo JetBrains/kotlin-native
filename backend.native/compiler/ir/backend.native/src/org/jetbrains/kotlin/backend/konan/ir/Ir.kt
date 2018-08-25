@@ -395,12 +395,29 @@ internal class KonanSymbols(context: Context, val symbolTable: SymbolTable, val 
                     .filterNot { it.isExpect }.single().getter!!
     )
 
-    val successOrFailure = symbolTable.referenceClass(
+    val kotlinResult = symbolTable.referenceClass(
             builtIns.builtInsModule.findClassAcrossModuleDependencies(
-                    ClassId.topLevel(FqName("kotlin.SuccessOrFailure")))!!
+                    ClassId.topLevel(FqName("kotlin.Result")))!!
+    )
+
+    val kotlinResultGetOrThrow = symbolTable.referenceSimpleFunction(
+            builtInsPackage("kotlin")
+                    .getContributedFunctions(Name.identifier("getOrThrow"), NoLookupLocation.FROM_BACKEND)
+                    .single {
+                        it.extensionReceiverParameter?.type?.constructor?.declarationDescriptor == kotlinResult.descriptor
+                    }
     )
 
     val refClass = symbolTable.referenceClass(context.getInternalClass("Ref"))
+
+    val kFunctionImpl =  symbolTable.referenceClass(context.reflectionTypes.kFunctionImpl)
+
+    val kProperty0Impl = symbolTable.referenceClass(context.reflectionTypes.kProperty0Impl)
+    val kProperty1Impl = symbolTable.referenceClass(context.reflectionTypes.kProperty1Impl)
+    val kProperty2Impl = symbolTable.referenceClass(context.reflectionTypes.kProperty2Impl)
+    val kMutableProperty0Impl = symbolTable.referenceClass(context.reflectionTypes.kMutableProperty0Impl)
+    val kMutableProperty1Impl = symbolTable.referenceClass(context.reflectionTypes.kMutableProperty1Impl)
+    val kMutableProperty2Impl = symbolTable.referenceClass(context.reflectionTypes.kMutableProperty2Impl)
 
     val kLocalDelegatedPropertyImpl = symbolTable.referenceClass(context.reflectionTypes.kLocalDelegatedPropertyImpl)
     val kLocalDelegatedMutablePropertyImpl = symbolTable.referenceClass(context.reflectionTypes.kLocalDelegatedMutablePropertyImpl)
