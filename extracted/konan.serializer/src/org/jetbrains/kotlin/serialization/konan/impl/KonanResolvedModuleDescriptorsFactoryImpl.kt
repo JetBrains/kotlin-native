@@ -35,7 +35,7 @@ class KonanResolvedModuleDescriptorsFactoryImpl(
             resolvedLibraries: KonanLibraryResolveResult,
             storageManager: StorageManager,
             builtIns: KotlinBuiltIns?,
-            specifics: LanguageVersionSettings,
+            languageVersionSettings: LanguageVersionSettings,
             customAction: ((KonanLibrary, ModuleDescriptorImpl) -> Unit)?
     ): KonanResolvedModuleDescriptors {
 
@@ -43,13 +43,13 @@ class KonanResolvedModuleDescriptorsFactoryImpl(
         @Suppress("NAME_SHADOWING")
         var builtIns = builtIns
 
-        // build module descriptors
+        // Build module descriptors.
         resolvedLibraries.forEach { library, packageAccessedHandler ->
             profile("Loading ${library.libraryName}") {
 
                 // MutableModuleContext needs ModuleDescriptorImpl, rather than ModuleDescriptor.
                 val moduleDescriptor = createDescriptorOptionalBuiltsIns(
-                        library, specifics, storageManager, builtIns, packageAccessedHandler)
+                        library, languageVersionSettings, storageManager, builtIns, packageAccessedHandler)
                 builtIns = moduleDescriptor.builtIns
                 moduleDescriptors.add(moduleDescriptor)
 
@@ -59,7 +59,7 @@ class KonanResolvedModuleDescriptorsFactoryImpl(
 
         val forwardDeclarationsModule = createForwardDeclarationsModule(builtIns, storageManager)
 
-        // set inter-dependencies between module descriptors, add forwarding declarations module
+        // Set inter-dependencies between module descriptors, add forwarding declarations module.
         for (module in moduleDescriptors) {
             // Yes, just to all of them.
             module.setDependencies(moduleDescriptors + forwardDeclarationsModule)
@@ -109,14 +109,14 @@ class KonanResolvedModuleDescriptorsFactoryImpl(
 
     private fun createDescriptorOptionalBuiltsIns(
             library: KonanLibrary,
-            specifics: LanguageVersionSettings,
+            languageVersionSettings: LanguageVersionSettings,
             storageManager: StorageManager,
             builtIns: KotlinBuiltIns?,
             packageAccessedHandler: PackageAccessedHandler?
     ) = if (builtIns != null)
-        moduleDescriptorFactory.createDescriptor(library, specifics, storageManager, builtIns, packageAccessedHandler)
+        moduleDescriptorFactory.createDescriptor(library, languageVersionSettings, storageManager, builtIns, packageAccessedHandler)
     else
-        moduleDescriptorFactory.createDescriptorAndNewBuiltIns(library, specifics, storageManager, packageAccessedHandler)
+        moduleDescriptorFactory.createDescriptorAndNewBuiltIns(library, languageVersionSettings, storageManager, packageAccessedHandler)
 }
 
 /**
@@ -167,7 +167,7 @@ private class ForwardDeclarationsPackageFragmentDescriptor(
     override fun getMemberScope(): MemberScope = memberScope
 }
 
-// FIXME(ddol): decouple and move interop-specific logic back to Kotlin/Native
+// FIXME(ddol): decouple and move interop-specific logic back to Kotlin/Native.
 internal object ForwardDeclarationsFqNames {
 
     val packageName = FqName("kotlinx.cinterop")

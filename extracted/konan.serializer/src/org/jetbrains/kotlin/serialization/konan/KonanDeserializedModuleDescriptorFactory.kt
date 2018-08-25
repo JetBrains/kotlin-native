@@ -16,7 +16,7 @@ interface KonanDeserializedModuleDescriptorFactory {
 
     fun createDescriptor(
             library: KonanLibrary,
-            specifics: LanguageVersionSettings,
+            languageVersionSettings: LanguageVersionSettings,
             storageManager: StorageManager,
             builtIns: KotlinBuiltIns,
             packageAccessedHandler: PackageAccessedHandler? = null
@@ -28,7 +28,7 @@ interface KonanDeserializedModuleDescriptorFactory {
      */
     fun createDescriptorAndNewBuiltIns(
             library: KonanLibrary,
-            specifics: LanguageVersionSettings,
+            languageVersionSettings: LanguageVersionSettings,
             storageManager: StorageManager,
             packageAccessedHandler: PackageAccessedHandler? = null
     ): ModuleDescriptorImpl

@@ -15,7 +15,7 @@ interface KonanResolvedModuleDescriptorsFactory {
             resolvedLibraries: KonanLibraryResolveResult,
             storageManager: StorageManager,
             builtIns: KotlinBuiltIns?,
-            specifics: LanguageVersionSettings,
+            languageVersionSettings: LanguageVersionSettings,
             customAction: ((KonanLibrary, ModuleDescriptorImpl) -> Unit)? = null
     ): KonanResolvedModuleDescriptors
 }

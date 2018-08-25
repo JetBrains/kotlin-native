@@ -12,7 +12,6 @@ import org.jetbrains.kotlin.serialization.konan.impl.KonanResolvedModuleDescript
 /**
  * The default Kotlin/Native factories.
  */
-@Suppress("MemberVisibilityCanBePrivate")
 object KonanFactories {
 
     /**

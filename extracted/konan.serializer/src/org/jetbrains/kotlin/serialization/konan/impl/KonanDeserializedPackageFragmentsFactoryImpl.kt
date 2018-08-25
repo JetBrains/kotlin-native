@@ -20,7 +20,7 @@ import org.jetbrains.kotlin.storage.StorageManager
 import org.jetbrains.kotlin.utils.Printer
 import org.jetbrains.kotlin.utils.addToStdlib.firstNotNullResult
 
-// FIXME(ddol): decouple and move interop-specific logic back to Kotlin/Native
+// FIXME(ddol): decouple and move interop-specific logic back to Kotlin/Native.
 internal object KonanDeserializedPackageFragmentsFactoryImpl: KonanDeserializedPackageFragmentsFactory {
 
     override fun createDeserializedPackageFragments(

@@ -54,8 +54,8 @@ object TopDownAnalyzerFacadeForKonan {
                 config.resolvedLibraries,
                 projectContext.storageManager,
                 module.builtIns,
-                config.specifics,
-                config.friendLibsSet)
+                config.languageVersionSettings,
+                config.friendModuleFiles)
 
         if (!module.isKonanStdlib()) {
             val dependencies = listOf(module) + resolvedDependencies.moduleDescriptors.resolvedDescriptors + resolvedDependencies.moduleDescriptors.forwardDeclarationsModule
@@ -103,7 +103,7 @@ private class ResolvedDependencies(
         storageManager: StorageManager,
         builtIns: KotlinBuiltIns,
         specifics: LanguageVersionSettings,
-        friendLibsSet: Set<File>?
+        friendModuleFiles: Set<File>
 ) {
 
     val moduleDescriptors: KonanResolvedModuleDescriptors
@@ -114,8 +114,8 @@ private class ResolvedDependencies(
         val collectedFriends = mutableListOf<ModuleDescriptorImpl>()
 
         val customAction: (KonanLibrary, ModuleDescriptorImpl) -> Unit = { library, moduleDescriptor ->
-            friendLibsSet?.apply {
-                if (contains(library.libraryFile)) collectedFriends.add(moduleDescriptor)
+            if (friendModuleFiles.contains(library.libraryFile)) {
+                collectedFriends.add(moduleDescriptor)
             }
         }
 

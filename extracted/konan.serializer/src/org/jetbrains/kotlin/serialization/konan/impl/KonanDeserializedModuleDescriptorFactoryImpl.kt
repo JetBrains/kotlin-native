@@ -25,22 +25,22 @@ internal class KonanDeserializedModuleDescriptorFactoryImpl(
 
     override fun createDescriptor(
             library: KonanLibrary,
-            specifics: LanguageVersionSettings,
+            languageVersionSettings: LanguageVersionSettings,
             storageManager: StorageManager,
             builtIns: KotlinBuiltIns,
             packageAccessedHandler: PackageAccessedHandler?
-    ) = createDescriptorOptionalBuiltIns(library, specifics, storageManager, builtIns, packageAccessedHandler)
+    ) = createDescriptorOptionalBuiltIns(library, languageVersionSettings, storageManager, builtIns, packageAccessedHandler)
 
     override fun createDescriptorAndNewBuiltIns(
             library: KonanLibrary,
-            specifics: LanguageVersionSettings,
+            languageVersionSettings: LanguageVersionSettings,
             storageManager: StorageManager,
             packageAccessedHandler: PackageAccessedHandler?
-    ) = createDescriptorOptionalBuiltIns(library, specifics, storageManager, null, packageAccessedHandler)
+    ) = createDescriptorOptionalBuiltIns(library, languageVersionSettings, storageManager, null, packageAccessedHandler)
 
     private fun createDescriptorOptionalBuiltIns(
             library: KonanLibrary,
-            specifics: LanguageVersionSettings,
+            languageVersionSettings: LanguageVersionSettings,
             storageManager: StorageManager,
             builtIns: KotlinBuiltIns?,
             packageAccessedHandler: PackageAccessedHandler?
@@ -56,7 +56,7 @@ internal class KonanDeserializedModuleDescriptorFactoryImpl(
         else
             descriptorFactory.createDescriptorAndNewBuiltIns(moduleName, storageManager, moduleOrigin)
 
-        val deserializationConfiguration = CompilerDeserializationConfiguration(specifics)
+        val deserializationConfiguration = CompilerDeserializationConfiguration(languageVersionSettings)
 
         val provider = createPackageFragmentProvider(
                 library,
