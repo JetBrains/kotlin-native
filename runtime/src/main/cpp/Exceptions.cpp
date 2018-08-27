@@ -172,7 +172,9 @@ void ThrowException(KRef exception) {
 #endif
 }
 
-#if KONAN_OBJC_INTEROP
+// Some libstdc++-based targets has limited support for std::current_exception and other C++11 functions.
+// This restriction can be lifted later when toolchains will be updated.
+#if KONAN_HAS_CXX11_EXCEPTION_FUNCTIONS
 
 void ReportUnhandledException(KRef e);
 
