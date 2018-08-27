@@ -182,6 +182,7 @@ static void (*oldTerminateHandler)() = nullptr;
 
 static void KonanTerminateHandler() {
   auto currentException = std::current_exception();
+  RuntimeCheck(oldTerminateHandler != nullptr, "Underlying exception handler is not set.");
   if (!currentException) {
     // No current exception.
     oldTerminateHandler();
@@ -207,7 +208,6 @@ void SetKonanTerminateHandler() {
 
   if (oldTerminateHandler != nullptr) return; // Already initialized.
 
-  oldTerminateHandler = std::get_terminate(); // If termination happens between `set_terminate` and assignment.
   oldTerminateHandler = std::set_terminate(&KonanTerminateHandler);
 }
 
