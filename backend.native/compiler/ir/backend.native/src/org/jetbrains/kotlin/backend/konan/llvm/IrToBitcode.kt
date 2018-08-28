@@ -1300,7 +1300,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             with(functionGenerationContext) {
                 ifThen(not(genInstanceOf(srcArg, dstDescriptor))) {
                     callDirect(
-                            context.ir.symbols.ThrowTypeCastException.owner,
+                            context.ir.symbols.ThrowTypeCastExceptionInterop.owner,
                             emptyList(),
                             Lifetime.GLOBAL
                     )

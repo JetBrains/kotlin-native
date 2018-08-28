@@ -5,17 +5,20 @@
 
 package org.jetbrains.kotlin.backend.konan.lower
 
-import org.jetbrains.kotlin.backend.common.CommonBackendContext
 import org.jetbrains.kotlin.backend.common.FunctionLoweringPass
+import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.at
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irBlock
+import org.jetbrains.kotlin.backend.konan.KonanBackendContext
 import org.jetbrains.kotlin.ir.util.isSimpleTypeWithQuestionMark
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.containsNull
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.isSubtypeOf
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.declarations.IrValueDeclaration
+import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrTypeOperator
 import org.jetbrains.kotlin.ir.expressions.IrTypeOperatorCall
@@ -35,19 +38,34 @@ import org.jetbrains.kotlin.types.TypeUtils
 /**
  * This lowering pass lowers some [IrTypeOperatorCall]s.
  */
-internal class TypeOperatorLowering(val context: CommonBackendContext) : FunctionLoweringPass {
+internal class TypeOperatorLowering(val context: KonanBackendContext) : FunctionLoweringPass {
     override fun lower(irFunction: IrFunction) {
         val transformer = TypeOperatorTransformer(context, irFunction.symbol)
         irFunction.transformChildrenVoid(transformer)
     }
 }
 
+private fun constructCallToThrowTypeCastException(context: KonanBackendContext,
+                                                   builder: DeclarationIrBuilder,
+                                                   argument: IrValueDeclaration,
+                                                   typeOperand: IrType): IrCall {
+    val symbols = context.ir.symbols
+    val throwTypeCastException = symbols.ThrowTypeCastException
 
-private class TypeOperatorTransformer(val context: CommonBackendContext, val function: IrFunctionSymbol) : IrElementTransformerVoid() {
+    return with(builder) {
+        val constructTypeOperandClass = irCall(symbols.kClassImplConstructor, listOf(typeOperand)).apply {
+            putValueArgument(0, irCall(symbols.getClassTypeInfo, listOf(typeOperand)))
+        }
+        irCall(throwTypeCastException.owner).apply {
+            putValueArgument(0, builder.irGet(argument))
+            putValueArgument(1, constructTypeOperandClass)
+        }
+    }
+}
+
+private class TypeOperatorTransformer(val context: KonanBackendContext, val function: IrFunctionSymbol) : IrElementTransformerVoid() {
 
     private val builder = context.createIrBuilder(function)
-
-    val throwTypeCastException = context.ir.symbols.ThrowTypeCastException
 
     override fun visitFunction(declaration: IrFunction): IrStatement {
         // ignore inner functions during this pass
@@ -96,7 +114,7 @@ private class TypeOperatorTransformer(val context: CommonBackendContext, val fun
                                 thenPart = if (typeOperand.isSimpleTypeWithQuestionMark)
                                     irNull()
                                 else
-                                    irCall(throwTypeCastException.owner),
+                                    constructCallToThrowTypeCastException(this@TypeOperatorTransformer.context, builder, argument.owner, typeOperand),
 
                                 elsePart = irAs(irGet(argument.owner), typeOperand.makeNotNull())
                         )

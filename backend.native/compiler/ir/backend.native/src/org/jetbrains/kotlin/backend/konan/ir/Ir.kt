@@ -261,6 +261,9 @@ internal class KonanSymbols(context: Context, val symbolTable: SymbolTable, val 
     override val ThrowTypeCastException = symbolTable.referenceSimpleFunction(
             context.getInternalFunctions("ThrowTypeCastException").single())
 
+    val ThrowTypeCastExceptionInterop = symbolTable.referenceSimpleFunction(
+            context.getInternalFunctions("ThrowTypeCastExceptionInterop").single())
+
     val throwInvalidReceiverTypeException = symbolTable.referenceSimpleFunction(
             context.getInternalFunctions("ThrowInvalidReceiverTypeException").single())
 

@@ -20,13 +20,22 @@ internal fun ThrowArrayIndexOutOfBoundsException(): Nothing {
 
 @ExportForCppRuntime
 fun ThrowClassCastException(instance: Any, typeInfo: NativePtr): Nothing {
-    val clazz = KClassImpl<Any>(typeInfo)
-    throw ClassCastException("${instance::class.qualifiedName} cannot be cast to ${clazz.qualifiedName}")
+    val klass = KClassImpl<Any>(typeInfo)
+    throw ClassCastException("${instance::class.qualifiedName} cannot be cast to ${klass.qualifiedName}")
 }
 
-fun ThrowTypeCastException(): Nothing {
+// TODO: Add verbosity to interop TCE
+fun ThrowTypeCastExceptionInterop(): Nothing {
     throw TypeCastException()
 }
+
+fun ThrowTypeCastException(instance: Any, toKlass: KClass<*>): Nothing {
+    if (instance == null) {
+        throw TypeCastException("null cannot be cast to non-null type ${toKlass.qualifiedName}")
+    }
+    throw TypeCastException("${instance::class.qualifiedName} cannot be cast to ${toKlass.qualifiedName}")
+}
+
 
 fun ThrowInvalidReceiverTypeException(klass: KClass<*>): Nothing {
     throw RuntimeException("Unexpected receiver type: " + (klass.qualifiedName ?: "noname"))
