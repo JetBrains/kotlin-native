@@ -53,6 +53,13 @@ OBJ_GETTER(Kotlin_boxDouble, KDouble value);
   abort();
 }
 
+[[ noreturn ]] static void incorrectNumberFactory(Class self, SEL _cmd) {
+  [NSException raise:NSGenericException format:@"%@ can't be created with %s, use properly typed factory",
+    NSStringFromClass(self), sel_getName(_cmd)];
+
+  abort();
+}
+
 @implementation KotlinNumber : NSNumber
 
 - (NSNumber *)initWithBool:(BOOL)value { incorrectNumberInitialization(self, _cmd); }
@@ -70,6 +77,22 @@ OBJ_GETTER(Kotlin_boxDouble, KDouble value);
 - (NSNumber *)initWithUnsignedLongLong:(unsigned long long)value { incorrectNumberInitialization(self, _cmd); }
 - (NSNumber *)initWithFloat:(float)value { incorrectNumberInitialization(self, _cmd); }
 - (NSNumber *)initWithDouble:(double)value { incorrectNumberInitialization(self, _cmd); }
+
++ (NSNumber *)numberWithBool:(BOOL)value { incorrectNumberFactory(self, _cmd); }
++ (NSNumber *)numberWithChar:(char)value { incorrectNumberFactory(self, _cmd); }
++ (NSNumber *)numberWithShort:(short)value { incorrectNumberFactory(self, _cmd); }
++ (NSNumber *)numberWithInt:(int)value { incorrectNumberFactory(self, _cmd); }
++ (NSNumber *)numberWithInteger:(NSInteger)value { incorrectNumberFactory(self, _cmd); }
++ (NSNumber *)numberWithLong:(long)value { incorrectNumberFactory(self, _cmd); }
++ (NSNumber *)numberWithLongLong:(long long)value { incorrectNumberFactory(self, _cmd); }
++ (NSNumber *)numberWithUnsignedChar:(unsigned char)value { incorrectNumberFactory(self, _cmd); }
++ (NSNumber *)numberWithUnsignedShort:(unsigned short)value { incorrectNumberFactory(self, _cmd); }
++ (NSNumber *)numberWithUnsignedInt:(unsigned int)value { incorrectNumberFactory(self, _cmd); }
++ (NSNumber *)numberWithUnsignedLong:(unsigned long)value { incorrectNumberFactory(self, _cmd); }
++ (NSNumber *)numberWithUnsignedInteger:(NSUInteger)value { incorrectNumberFactory(self, _cmd); }
++ (NSNumber *)numberWithUnsignedLongLong:(unsigned long long)value { incorrectNumberFactory(self, _cmd); }
++ (NSNumber *)numberWithFloat:(float)value { incorrectNumberFactory(self, _cmd); }
++ (NSNumber *)numberWithDouble:(double)value { incorrectNumberFactory(self, _cmd); }
 
 @end;
 
@@ -103,6 +126,12 @@ private fun genBoolean(): String = """
   self = [super init];
   value_ = value;
   return self;
+}
+
++ (instancetype)numberWithBool:(BOOL)value {
+  KotlinBoolean* result = [[self new] autorelease];
+  result->value_ = value;
+  return result;
 }
 
 - (BOOL)boolValue {
@@ -142,6 +171,12 @@ private fun genInteger(
   self = [super init];
   value_ = value;
   return self;
+}
+
++ (instancetype)numberWith${kind.capitalize()}:($cType)value {
+  Kotlin$name* result = [[self new] autorelease];
+  result->value_ = value;
+  return result;
 }
 
 // Required to convert Swift integer literals.
@@ -187,6 +222,12 @@ private fun genFloating(
   self = [super init];
   value_ = value;
   return self;
+}
+
++ (instancetype)numberWith${kind.capitalize()}:($cType)value {
+  Kotlin$name* result = [[self new] autorelease];
+  result->value_ = value;
+  return result;
 }
 
 // Required to convert Swift integer literals.
@@ -235,6 +276,12 @@ ${if (cType != "double") """
   return self;
 }
 
++ (instancetype)numberWithBool:(BOOL)value {
+  KotlinBoolean* result = [[self new] autorelease];
+  result->value_ = value;
+  return result;
+}
+
 - (BOOL)boolValue {
   return value_;
 }
@@ -264,6 +311,12 @@ ${if (cType != "double") """
   self = [super init];
   value_ = value;
   return self;
+}
+
++ (instancetype)numberWithChar:(char)value {
+  KotlinByte* result = [[self new] autorelease];
+  result->value_ = value;
+  return result;
 }
 
 // Required to convert Swift integer literals.
@@ -300,6 +353,12 @@ ${if (cType != "double") """
   return self;
 }
 
++ (instancetype)numberWithShort:(short)value {
+  KotlinShort* result = [[self new] autorelease];
+  result->value_ = value;
+  return result;
+}
+
 // Required to convert Swift integer literals.
 - (instancetype)initWithInteger:(NSInteger)value {
   self = [super init];
@@ -332,6 +391,12 @@ ${if (cType != "double") """
   self = [super init];
   value_ = value;
   return self;
+}
+
++ (instancetype)numberWithInt:(int)value {
+  KotlinInt* result = [[self new] autorelease];
+  result->value_ = value;
+  return result;
 }
 
 // Required to convert Swift integer literals.
@@ -368,6 +433,12 @@ ${if (cType != "double") """
   return self;
 }
 
++ (instancetype)numberWithLongLong:(long long)value {
+  KotlinLong* result = [[self new] autorelease];
+  result->value_ = value;
+  return result;
+}
+
 // Required to convert Swift integer literals.
 - (instancetype)initWithInteger:(NSInteger)value {
   self = [super init];
@@ -400,6 +471,12 @@ ${if (cType != "double") """
   self = [super init];
   value_ = value;
   return self;
+}
+
++ (instancetype)numberWithUnsignedChar:(unsigned char)value {
+  KotlinUByte* result = [[self new] autorelease];
+  result->value_ = value;
+  return result;
 }
 
 // Required to convert Swift integer literals.
@@ -436,6 +513,12 @@ ${if (cType != "double") """
   return self;
 }
 
++ (instancetype)numberWithUnsignedShort:(unsigned short)value {
+  KotlinUShort* result = [[self new] autorelease];
+  result->value_ = value;
+  return result;
+}
+
 // Required to convert Swift integer literals.
 - (instancetype)initWithInteger:(NSInteger)value {
   self = [super init];
@@ -468,6 +551,12 @@ ${if (cType != "double") """
   self = [super init];
   value_ = value;
   return self;
+}
+
++ (instancetype)numberWithUnsignedInt:(unsigned int)value {
+  KotlinUInt* result = [[self new] autorelease];
+  result->value_ = value;
+  return result;
 }
 
 // Required to convert Swift integer literals.
@@ -504,6 +593,12 @@ ${if (cType != "double") """
   return self;
 }
 
++ (instancetype)numberWithUnsignedLongLong:(unsigned long long)value {
+  KotlinULong* result = [[self new] autorelease];
+  result->value_ = value;
+  return result;
+}
+
 // Required to convert Swift integer literals.
 - (instancetype)initWithInteger:(NSInteger)value {
   self = [super init];
@@ -536,6 +631,12 @@ ${if (cType != "double") """
   self = [super init];
   value_ = value;
   return self;
+}
+
++ (instancetype)numberWithFloat:(float)value {
+  KotlinFloat* result = [[self new] autorelease];
+  result->value_ = value;
+  return result;
 }
 
 // Required to convert Swift integer literals.
@@ -577,6 +678,12 @@ ${if (cType != "double") """
   self = [super init];
   value_ = value;
   return self;
+}
+
++ (instancetype)numberWithDouble:(double)value {
+  KotlinDouble* result = [[self new] autorelease];
+  result->value_ = value;
+  return result;
 }
 
 // Required to convert Swift integer literals.
