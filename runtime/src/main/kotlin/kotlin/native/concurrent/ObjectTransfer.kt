@@ -9,13 +9,13 @@ import kotlinx.cinterop.*
 import kotlin.native.internal.Frozen
 
 /**
- *  Object Transfer Basics.
+ *  ## Object Transfer Basics.
  *
  *  Objects can be passed between threads in one of two possible modes.
  *
- *    - SAFE - object subgraph is checked to be not reachable by other globals or locals, and passed
+ *  - [SAFE] - object subgraph is checked to be not reachable by other globals or locals, and passed
  *      if so, otherwise an exception is thrown
- *    - UNSAFE - object is blindly passed to another worker, if there are references
+ *  - [UNSAFE] - object is blindly passed to another worker, if there are references
  *      left in the passing worker - it may lead to crash or program malfunction
  *
  *   Safe mode checks if object is no longer used in passing worker, using memory-management
@@ -28,8 +28,9 @@ import kotlin.native.internal.Frozen
  *  ownership without further checks.
  *
  *   Note, that for some cases cycle collection need to be done to ensure that dead cycles do not affect
- *  reachability of passed object graph. See `[kotlin.native.internal.GC.collect]`.
+ *  reachability of passed object graph.
  *
+ *  @see [kotlin.native.internal.GC.collect].
  */
 public enum class TransferMode(val value: Int) {
     SAFE(0),
@@ -61,8 +62,8 @@ public class DetachedObjectGraph<T> internal constructor(pointer: NativePtr) {
 }
 
 /**
- * Attaches previously detached with [detachObjectGraph] object subgraph.
- * Please note, that once object graph is attached, the stable pointer does not have sense anymore,
+ * Attaches previously detached object subgraph created by [DetachedObjectGraph].
+ * Please note, that once object graph is attached, the [DetachedObjectGraph.stable] pointer does not have sense anymore,
  * and shall be discarded.
  */
 public inline fun <reified T> DetachedObjectGraph<T>.attach(): T {
