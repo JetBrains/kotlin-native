@@ -139,7 +139,7 @@ fun CPointer<UShortVar>.toKString(): String {
     val bytes = CharArray(length)
     var index = 0
     while (index < length) {
-        bytes[index] = nativeBytes[index].toChar()
+        bytes[index] = nativeBytes[index].toShort().toChar()
         ++index
     }
     return String(bytes)
