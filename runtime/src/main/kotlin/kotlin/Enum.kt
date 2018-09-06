@@ -18,8 +18,8 @@ public abstract class Enum<E: Enum<E>>(public val name: String, public val ordin
     public override final fun compareTo(other: E): Int { return ordinal - other.ordinal }
 
     /**
-     * Throws an exception since enum constants cannot be cloned.
      * This method prevents enum classes from inheriting from [Cloneable].
+     * @throws UnsupportedOperationException exception since enum constants cannot be cloned.
      */
     protected final fun clone(): Any {
         throw UnsupportedOperationException()
