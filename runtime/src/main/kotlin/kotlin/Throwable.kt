@@ -22,7 +22,7 @@ public open class Throwable(open val message: String?, open val cause: Throwable
 
     constructor() : this(null, null)
 
-    private val stacktrace: Array<String> = getCurrentStackTrace()
+    private val stacktrace: Array<String> by lazy { getCurrentStackTrace() }
 
     fun printStackTrace() {
         println(this.toString())
