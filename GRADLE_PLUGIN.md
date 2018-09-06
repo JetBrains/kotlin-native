@@ -69,7 +69,7 @@ The Kotlin/Native Gradle plugin allows one to build artifacts of the following t
 
 * Executable
 * KLibrary - a library used by Kotlin/Native compiler (`*.klib`)
-* Interoperability library - a special type of library providing an interoperability with some native API. See [`INTEROP.md`](INTEROP.md) for details
+* Interoperability library - a special type of library providing an interoperability with some native API. See [INTEROP.md](c_interop.html) for details
 * Dynamic library (`*.so`/`*.dylib`/`*.dll`)
 * Objective-C framework
 * LLVM bitcode
@@ -381,7 +381,7 @@ Using a dynamic library is shown in the [python extension sample](samples/python
 
 An Objective-C framework can be built using the `framework` artifact block. This block contains the
 same options as other ones. One may access the framework built using `artifact` property of the building task
-(see the [**Tasks**](#Tasks) section). Unlike other artifacts this property points to a directory instead of a regular file.
+(see the [**Tasks**](#tasks) section). Unlike other artifacts this property points to a directory instead of a regular file.
     
     ```
     konanArtifacts {

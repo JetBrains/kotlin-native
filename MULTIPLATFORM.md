@@ -374,5 +374,5 @@ framework in order to get code completion). Let's print our greeting:
 ### Sample
 
 A sample implementation which follows these documenation can be found [here](https://github.com/JetBrains/kotlin-mpp-example).
-You may also look at the [calculator sample](samples/calculator). It has a simpler structure (particularly both Android app
+You may also look at the [calculator sample](https://github.com/JetBrains/kotlin-native/tree/master/samples/calculator). It has a simpler structure (particularly both Android app
 and Kotlin/Native library are combined in a single Gradle build) but also uses the multiplatform support provided by Kotlin. 

@@ -15,12 +15,12 @@ Kotlin/Native provides bidirectional interoperability with Objective-C.
 Objective-C frameworks and libraries can be used in Kotlin code if
 properly imported to the build (system frameworks are imported by default).
 See e.g. "Interop libraries" in
-[Gradle plugin documentation](GRADLE_PLUGIN.md#building-artifacts).
+[Gradle plugin documentation](gradle_plugin.html#building-artifacts).
 Swift library can be used in Kotlin code if its API is exported to Objective-C
 with `@objc`. Pure Swift modules are not yet supported.
 
 Kotlin module can be used in Swift/Objective-C code if compiled into a
-[framework](GRADLE_PLUGIN.md#framework). See [calculator sample](samples/calculator)
+[framework](gradle_plugin.html#framework). See [calculator sample](https://github.com/JetBrains/kotlin-native/tree/master/samples/calculator)
 as an example.
 
 ## Mappings
@@ -48,7 +48,7 @@ The table below shows how Kotlin concepts are mapped to Swift/Objective-C and vi
 | `Set` | `Set` | `NSSet` | |
 | `MutableSet` | `NSMutableSet` | `NSMutableSet` | [note](#collections) |
 | `Map` | `Dictionary` | `NSDictionary` | |
-| `MutableMap` | `NSMutableDictionary` | `NSMutableDictionary` | [note](#mutable-collections) |
+| `MutableMap` | `NSMutableDictionary` | `NSMutableDictionary` | [note](#collections) |
 | Function type | Function type | Block pointer type | [note](#function-types) |
 
 ### Name translation
@@ -237,5 +237,5 @@ this library would disable these compiler checks.
 
 ## C features
 
-See [INTEROP.md](INTEROP.md) for the case when library uses some plain C features
+See [INTEROP.md](c_interop.html) for the case when library uses some plain C features
 (e.g. unsafe pointers, structs etc.).
