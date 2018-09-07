@@ -1,9 +1,3 @@
----
-type: doc
-layout: reference
-title: "Kotlin/Native Gradle plugin"
----
-
 # Kotlin/Native Gradle plugin
 
 _Note: For the experimental DSL see the [corresponding section](#experimental-plugin)_.

@@ -1,9 +1,3 @@
----
-type: doc
-layout: reference
-title: "Concurrency in Kotlin/Native"
----
-
 ### Concurrency in Kotlin/Native
 
   Kotlin/Native runtime doesn't encourage a classical thread-oriented concurrency

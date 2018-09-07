@@ -1,9 +1,3 @@
----
-type: doc
-layout: reference
-title: "Kotlin/Native interoperability with Swift/Objective-C"
----
-
 # _Kotlin/Native_ interoperability with Swift/Objective-C
 
 This documents covers some details of Kotlin/Native interoperability with
@@ -20,7 +14,7 @@ Swift library can be used in Kotlin code if its API is exported to Objective-C
 with `@objc`. Pure Swift modules are not yet supported.
 
 Kotlin module can be used in Swift/Objective-C code if compiled into a
-[framework](gradle_plugin.html#framework). See [calculator sample](https://github.com/JetBrains/kotlin-native/tree/master/samples/calculator)
+[framework](GRADLE_PLUGIN.md#framework). See [calculator sample](https://github.com/JetBrains/kotlin-native/tree/master/samples/calculator)
 as an example.
 
 ## Mappings
