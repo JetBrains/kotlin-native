@@ -63,7 +63,7 @@ The Kotlin/Native Gradle plugin allows one to build artifacts of the following t
 
 * Executable
 * KLibrary - a library used by Kotlin/Native compiler (`*.klib`)
-* Interoperability library - a special type of library providing an interoperability with some native API. See [INTEROP.md](c_interop.html) for details
+* Interoperability library - a special type of library providing an interoperability with some native API. See [INTEROP.md](INTEROP.md) for details
 * Dynamic library (`*.so`/`*.dylib`/`*.dll`)
 * Objective-C framework
 * LLVM bitcode
