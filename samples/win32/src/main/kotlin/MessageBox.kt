@@ -2,7 +2,7 @@ import kotlinx.cinterop.*
 import platform.windows.*
 
 fun main(args: Array<String>) {
-    var message = StringBuilder()
+    val message = StringBuilder()
     memScoped {
       val buffer = allocArray<UShortVar>(MAX_PATH)
       GetModuleFileNameW(null, buffer, MAX_PATH)
