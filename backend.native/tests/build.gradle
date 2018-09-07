@@ -713,7 +713,7 @@ task lazy1(type: RunKonanTest) {
     source = "runtime/workers/lazy1.kt"
 }
 
-task lazy2(type: RunKonanTest) {
+task lazy2(type: RunStandaloneKonanTest) {
     goldValue = "123\nOK\n"
     source = "runtime/workers/lazy2.kt"
 }
