@@ -18,6 +18,9 @@ package org.jetbrains.kotlin.konan.target
 
 import org.jetbrains.kotlin.konan.properties.*
 
+class FrcConfigurablesImpl(target: KonanTarget, properties: Properties, baseDir: String?)
+    : FrcConfigurables, KonanPropertiesLoader(target, properties, baseDir)
+
 class LinuxConfigurablesImpl(target: KonanTarget, properties: Properties, baseDir: String?)
     : LinuxConfigurables, KonanPropertiesLoader(target, properties, baseDir)
 
@@ -38,6 +41,8 @@ class ZephyrConfigurablesImpl(target: KonanTarget, properties: Properties, baseD
 
 
 fun loadConfigurables(target: KonanTarget, properties: Properties, baseDir: String?) = when (target)  {
+        KonanTarget.FRC_ARM32 ->
+            FrcConfigurablesImpl(target, properties, baseDir)
         KonanTarget.LINUX_X64, KonanTarget.LINUX_ARM32_HFP ->
             LinuxConfigurablesImpl(target, properties, baseDir)
         KonanTarget.LINUX_MIPS32, KonanTarget.LINUX_MIPSEL32 ->

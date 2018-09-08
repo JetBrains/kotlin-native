@@ -71,6 +71,7 @@ interface LinuxBasedConfigurables : NonAppleConfigurables {
 }
 
 interface LinuxConfigurables : LinuxBasedConfigurables
+interface FrcConfigurables : LinuxBasedConfigurables
 interface LinuxMIPSConfigurables : LinuxBasedConfigurables
 interface RaspberryPiConfigurables : LinuxBasedConfigurables
 interface AndroidConfigurables : NonAppleConfigurables
