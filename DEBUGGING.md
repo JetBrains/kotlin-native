@@ -236,5 +236,5 @@ Process 80496 launched: './program.kexe' (x86_64)
 - single stepping sometimes works incorrectly in some other scenarios
 - variable inspections may not work properly
 
-_Note:_ Support DWARF 2 specification means that the debugger tool recognizes Kotlin as C89, because before DWARF 5 specification, there is no identifier for the Kotlin language type in specification.
+_Note:_ Supporting the DWARF 2 specification means that the debugger tool recognizes Kotlin as C89, because before the DWARF 5 specification, there is no identifier for the Kotlin language type in specification.
 
