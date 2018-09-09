@@ -6,7 +6,7 @@ title: "Debugging"
 
 ## Debugging
 
-Currently the Kotlin native compiler produces debug info compatible with the DWARF 2 specification, so modern debugger tools can
+Currently the Kotlin/Native compiler produces debug info compatible with the DWARF 2 specification, so modern debugger tools can
 perform the following operations:
 - breakpoints
 - stepping
@@ -53,7 +53,7 @@ Process 28473 stopped
 ```
 
 ### Breakpoints
-Modern debuggers provide several ways to set a breakpoint, see below for tool-by-tool breakdown:
+Modern debuggers provide several ways to set a breakpoint, see below for a tool-by-tool breakdown:
 
 #### lldb
 - by name
