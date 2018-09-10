@@ -8,7 +8,7 @@ package kotlin
 import kotlin.native.internal.ExportTypeInfo
 
 /**
- * The type with only one value: the Unit object. This type corresponds to the `void` type in Java.
+ * The type with only one value: the `Unit` object.
  */
 @ExportTypeInfo("theUnitTypeInfo")
 public object Unit {

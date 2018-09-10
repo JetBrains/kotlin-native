@@ -33,10 +33,21 @@ import kotlin.native.internal.Frozen
  *  @see [kotlin.native.internal.GC.collect].
  */
 public enum class TransferMode(val value: Int) {
+    /**
+     * Reachibility check is performed.
+     */
     SAFE(0),
-    UNSAFE(1) // USE UNSAFE MODE ONLY IF ABSOLUTELY SURE WHAT YOU'RE DOING!!!
+    /**
+     * Skip reachibility check, can lead to mysterious crashes in an application.
+     * USE UNSAFE MODE ONLY IF ABSOLUTELY SURE WHAT YOU'RE DOING!!!
+     */
+    UNSAFE(1)
 }
 
+/**
+ * Detached object graph encapsulates transferrable detached subgraph which cannot be accessed
+ * externally, until it is attached with the [attach] extension function.
+ */
 @Frozen
 public class DetachedObjectGraph<T> internal constructor(pointer: NativePtr) {
     @PublishedApi
@@ -56,7 +67,7 @@ public class DetachedObjectGraph<T> internal constructor(pointer: NativePtr) {
     public constructor(pointer: COpaquePointer?) : this(pointer?.rawValue ?: NativePtr.NULL)
 
     /**
-     * Returns raw C pointer value.
+     * Returns raw C pointer value, usable for interoperability with C scenarious.
      */
     public fun asCPointer(): COpaquePointer? = interpretCPointer<COpaque>(stable.value)
 }

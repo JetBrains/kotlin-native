@@ -43,14 +43,14 @@ private class ImmutableBlobIteratorImpl(val blob: ImmutableBlob) : ByteIterator(
 
 /**
  * Allocates new [ByteArray] and copies the data from blob starting from [start]
- * and with [count] amount of bytes
+ * and with [count] amount of bytes.
  */
 @SymbolName("Kotlin_ImmutableBlob_toByteArray")
 public external fun ImmutableBlob.toByteArray(start: Int = 0, count: Int = size): ByteArray
 
 /**
  * Allocates new [UByteArray] and copies the data from blob starting from [start]
- * and with [count] amount of bytes
+ * and with [count] amount of bytes.
  */
 @ExperimentalUnsignedTypes
 @SymbolName("Kotlin_ImmutableBlob_toByteArray")
@@ -64,10 +64,8 @@ public external fun ImmutableBlob.toUByteArray(start: Int = 0, count: Int = size
 public fun ImmutableBlob.asCPointer(offset: Int = 0): CPointer<ByteVar> =
         interpretCPointer<ByteVar>(asCPointerImpl(offset))!!
 
-/*
 public fun ImmutableBlob.asUCPointer(offset: Int = 0): CPointer<UByteVar> =
         interpretCPointer<UByteVar>(asCPointerImpl(offset))!!
-*/
 
 @SymbolName("Kotlin_ImmutableBlob_asCPointerImpl")
 private external fun ImmutableBlob.asCPointerImpl(offset: Int): kotlin.native.internal.NativePtr

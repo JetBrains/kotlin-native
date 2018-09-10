@@ -11,7 +11,7 @@ import kotlin.native.internal.InlineConstructor
 import kotlin.native.internal.PointsTo
 
 /**
- * Represents an array. Array instances can be created using the [arrayOf], [arrayOfNulls] and [emptyArray]
+ * Represents an array. Array instances can be created using the constructor, [arrayOf], [arrayOfNulls] and [emptyArray]
  * standard library functions.
  * See [Kotlin language documentation](http://kotlinlang.org/docs/reference/basic-types.html#arrays)
  * for more information on arrays.

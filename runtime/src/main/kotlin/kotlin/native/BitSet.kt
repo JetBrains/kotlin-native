@@ -38,7 +38,6 @@ public class BitSet(size: Int = ELEMENT_SIZE) {
     var size: Int = size
         private set
 
-    // TODO: Add more constructors.
     /**
      * Creates a bit set of given [length] filling elements using [initializer]
      */

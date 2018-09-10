@@ -8,7 +8,7 @@ package kotlin.native.concurrent
 /**
  * Exception thrown whenever freezing is not possible.
  *
- * @param toFreeze an object tried to be freezed
+ * @param toFreeze an object intended to be frozen.
  * @param blocker an object preventing freezing, usually one marked with [ensureNeverFrozen] earlier.
  */
 public class FreezingException(toFreeze: Any, blocker: Any) :
@@ -26,8 +26,9 @@ public class InvalidMutabilityException(where: Any) :
  * Freezes object subgraph reachable from this object. Frozen objects can be freely
  * shared between threads/workers.
  *
- * @throws FreezingException if freezing is not possible.
+ * @throws FreezingException if freezing is not possible
  * @return the object itself
+ * @see ensureNeverFrozen
  */
 public fun <T> T.freeze(): T {
     freezeInternal(this)
@@ -37,7 +38,7 @@ public fun <T> T.freeze(): T {
 /**
  * Checks if given object is null or frozen or permanent (i.e. instantiated at compile-time).
  *
- * @return true if given object is null or frozen or permanent.
+ * @return true if given object is null or frozen or permanent
  */
 public val Any?.isFrozen
     get() = isFrozenInternal(this)
@@ -47,6 +48,7 @@ public val Any?.isFrozen
  * [FreezingException] is thrown.
  *
  * @throws FreezingException thrown immediately if this object is already frozen
+ * @see freeze
  */
 @SymbolName("Kotlin_Worker_ensureNeverFrozen")
 public external fun Any.ensureNeverFrozen()

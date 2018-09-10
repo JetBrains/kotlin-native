@@ -33,14 +33,14 @@ inline val nativeNullPtr: NativePtr
 fun <T : CVariable> typeOf(): CVariable.Type = throw Error("typeOf() is called with erased argument")
 
 /**
- * Returns interpretation of entity with given pointer, or `null` if it is null.
+ * Performs type cast of the native pointer to given interop type, including null values.
  *
  * @param T must not be abstract
  */
 @Intrinsic external fun <T : NativePointed> interpretNullablePointed(ptr: NativePtr): T?
 
 /**
- * Returns an instance of [CPointer] from the given raw pointer, or `null` if it is null.
+ *  Performs type cast of the [CPointer] from the given raw pointer.
  */
 @Intrinsic external fun <T : CPointed> interpretCPointer(rawValue: NativePtr): CPointer<T>?
 
