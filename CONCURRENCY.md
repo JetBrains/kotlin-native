@@ -26,7 +26,7 @@ title: "Concurrency in Kotlin/Native"
  each mutable object is owned by a single worker, but ownership can be transferred.
  See section [Object transfer and freezing](#transfer).
 
-  Once a worker is started with the `Worker.start` function call, it can be addressed with its own uniqu integer
+  Once a worker is started with the `Worker.start` function call, it can be addressed with its own unique integer
  worker id. Other workers, or non-worker concurrency primitives, such as OS threads, can send a message
  to the worker with the `execute` call.
  ```kotlin
@@ -48,7 +48,7 @@ title: "Concurrency in Kotlin/Native"
  The call to `execute` uses a function passed as its second parameter to produce an object subgraph
  (i.e. set of mutually referring objects) which is then passed as a whole to that worker, it is then no longer
  available to the thread that initiated the request. This property is checked if the first parameter
- is `TransferMode.SAFE` by graph traversal and is just assumed to be true, if it is `TransferMode.UNCHECKED`.
+ is `TransferMode.SAFE` by graph traversal and is just assumed to be true, if it is `TransferMode.UNSAFE`.
  The last parameter to `execute` is a special Kotlin lambda, which is not allowed to capture any state,
  and is actually invoked in the target worker's context. Once processed, the result is transferred to whatever consumes
  it in the future, and it is attached to the object graph of that worker/thread.
