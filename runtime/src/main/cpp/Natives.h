@@ -18,6 +18,7 @@
 #define RUNTIME_NATIVES_H
 
 #include "Types.h"
+#include "Exceptions.h"
 
 inline void* AddressOfElementAt(ArrayHeader* obj, int32_t index) {
   // Instance size is negative.
@@ -75,11 +76,31 @@ inline const KRef* ArrayAddressOfElementAt(const ArrayHeader* obj, KInt index) {
   return reinterpret_cast<const KRef*>(obj + 1) + index;
 }
 
-template <class T>
-void PrimitiveArraySet(KRef thiz, KInt index, T value);
+ALWAYS_INLINE inline void mutabilityCheck(KConstRef thiz) {
+  // TODO: optimize it!
+  if (thiz->container()->frozen()) {
+    ThrowInvalidMutabilityException(thiz);
+  }
+}
 
 template <class T>
-T PrimitiveArrayGet(KConstRef thiz, KInt index);
+inline void PrimitiveArraySet(KRef thiz, KInt index, T value) {
+  ArrayHeader* array = thiz->array();
+  if (static_cast<uint32_t>(index) >= array->count_) {
+    ThrowArrayIndexOutOfBoundsException();
+  }
+  mutabilityCheck(thiz);
+  *PrimitiveArrayAddressOfElementAt<T>(array, index) = value;
+}
+
+template <class T>
+inline T PrimitiveArrayGet(KConstRef thiz, KInt index) {
+  const ArrayHeader* array = thiz->array();
+  if (static_cast<uint32_t>(index) >= array->count_) {
+    ThrowArrayIndexOutOfBoundsException();
+  }
+  return *PrimitiveArrayAddressOfElementAt<T>(array, index);
+}
 
 #ifdef __cplusplus
 extern "C" {

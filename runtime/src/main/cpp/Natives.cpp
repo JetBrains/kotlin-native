@@ -44,7 +44,7 @@ OBJ_GETTER0(Kotlin_getCurrentStackTrace) {
 }
 
 OBJ_GETTER(Kotlin_getStackTraceStrings, KConstRef stackTrace) {
-  OBJ_GETTER(GetStackTraceStrings, KConstRef stackTrace);
+  RETURN_RESULT_OF(GetStackTraceStrings, stackTrace);
 }
 
 // TODO: consider handling it with compiler magic instead.
