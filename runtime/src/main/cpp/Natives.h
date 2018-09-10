@@ -18,6 +18,7 @@
 #define RUNTIME_NATIVES_H
 
 #include "Types.h"
+#include "Exceptions.h"
 
 inline void* AddressOfElementAt(ArrayHeader* obj, int32_t index) {
   // Instance size is negative.
@@ -75,6 +76,32 @@ inline const KRef* ArrayAddressOfElementAt(const ArrayHeader* obj, KInt index) {
   return reinterpret_cast<const KRef*>(obj + 1) + index;
 }
 
+ALWAYS_INLINE inline void mutabilityCheck(KConstRef thiz) {
+  // TODO: optimize it!
+  if (thiz->container()->frozen()) {
+    ThrowInvalidMutabilityException(thiz);
+  }
+}
+
+template <class T>
+inline void PrimitiveArraySet(KRef thiz, KInt index, T value) {
+  ArrayHeader* array = thiz->array();
+  if (static_cast<uint32_t>(index) >= array->count_) {
+    ThrowArrayIndexOutOfBoundsException();
+  }
+  mutabilityCheck(thiz);
+  *PrimitiveArrayAddressOfElementAt<T>(array, index) = value;
+}
+
+template <class T>
+inline T PrimitiveArrayGet(KConstRef thiz, KInt index) {
+  const ArrayHeader* array = thiz->array();
+  if (static_cast<uint32_t>(index) >= array->count_) {
+    ThrowArrayIndexOutOfBoundsException();
+  }
+  return *PrimitiveArrayAddressOfElementAt<T>(array, index);
+}
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -109,6 +136,9 @@ KInt Kotlin_IntArray_get(KConstRef thiz, KInt index);
 void Kotlin_IntArray_set(KRef thiz, KInt index, KInt value);
 KInt Kotlin_IntArray_getArrayLength(KConstRef thiz);
 
+KLong Kotlin_LongArray_get(KConstRef thiz, KInt index);
+void Kotlin_LongArray_set(KRef thiz, KInt index, KLong value);
+
 // io/Console.kt
 void Kotlin_io_Console_print(KString message);
 void Kotlin_io_Console_println(KString message);
@@ -131,6 +161,8 @@ KInt Kotlin_String_getStringLength(KString thiz);
 OBJ_GETTER(Kotlin_String_subSequence, KString thiz, KInt startIndex, KInt endIndex);
 
 OBJ_GETTER0(Kotlin_getCurrentStackTrace);
+
+OBJ_GETTER(Kotlin_getStackTraceStrings, KConstRef stackTrace);
 
 OBJ_GETTER0(Kotlin_native_internal_undefined);
 
