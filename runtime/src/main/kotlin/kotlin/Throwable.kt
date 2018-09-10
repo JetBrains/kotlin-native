@@ -22,11 +22,16 @@ public open class Throwable(open val message: String?, open val cause: Throwable
 
     constructor() : this(null, null)
 
-    private val stacktrace: Array<String> = getCurrentStackTrace()
+    private val stackTrace = getCurrentStackTrace()
+
+    private val stackTraceStrings: Array<String> by lazy {
+        getStackTraceStrings(stackTrace)
+    }
 
     fun printStackTrace() {
         println(this.toString())
-        for (element in stacktrace) {
+
+        for (element in stackTraceStrings) {
             println("        at " + element)
         }
 
@@ -47,5 +52,10 @@ public open class Throwable(open val message: String?, open val cause: Throwable
     }
 }
 
+// We don't care about return type because it's only matter to
+// `Kotlin_getStackTraceStrings` implementation.
 @SymbolName("Kotlin_getCurrentStackTrace")
-private external fun getCurrentStackTrace(): Array<String>
+private external fun getCurrentStackTrace(): Any
+
+@SymbolName("Kotlin_getStackTraceStrings")
+private external fun getStackTraceStrings(stackTrace: Any): Array<String>
