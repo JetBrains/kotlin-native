@@ -381,7 +381,6 @@ private fun ObjCClass.getDesignatedInitializerSelectors(result: MutableSet<Strin
     // Swift considers all super initializers to be available (unless otherwise specified explicitly),
     // but seems to consider them as non-designated if class declares its own ones explicitly.
     // Simulate the similar behaviour:
-
     val explicitlyDesignatedInitializers = this.methods.filter { it.isExplicitlyDesignatedInitializer && !it.isClass }
 
     if (explicitlyDesignatedInitializers.isNotEmpty()) {
