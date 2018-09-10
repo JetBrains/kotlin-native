@@ -56,7 +56,10 @@ internal class KonanLibraryImpl(
 
     override val moduleHeaderData: ByteArray by lazy { layout.inPlace { metadataReader.loadSerializedModule(it) } }
 
-    override fun packageMetadata(fqName: String) = layout.inPlace { metadataReader.loadSerializedPackageFragment(it, fqName) }
+    override fun packageMetadataPartCount(fqName: String): Int =
+            layout.inPlace { it.packageFragmentsDir(fqName).listFiles.count { file -> file.extension == "knm" } }
+
+    override fun packageMetadata(fqName: String, partIndex: Int) = layout.inPlace { metadataReader.loadSerializedPackageFragment(it, fqName, partIndex) }
 
     override fun toString() = "$libraryName[default=$isDefault]"
 }
