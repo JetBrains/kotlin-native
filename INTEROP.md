@@ -188,7 +188,7 @@ separator sequence `---`:
 
 <div class="sample" markdown="1" theme="idea" mode="c">
 
-```
+```c
 headers = errno.h
 
 ---
@@ -213,7 +213,7 @@ clauses. For example:
 
 <div class="sample" markdown="1" theme="idea" mode="c">
 
-```
+```c
 staticLibraries = libfoo.a 
 libraryPaths = /opt/local/lib /usr/local/opt/curl/lib
 ```
@@ -266,7 +266,7 @@ type support all Kotlin operations related to handling `null`, e.g. `?:`, `?.`,
 
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
-```
+```kotlin
 val path = getenv("PATH")?.toKString() ?: ""
 ```
 
@@ -277,7 +277,7 @@ for accessing values by index:
 
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
-```
+```kotlin
 fun shift(ptr: CPointer<BytePtr>, length: Int) {
     for (index in 0 .. length - 2) {
         ptr[index] = ptr[index + 1]
@@ -300,7 +300,7 @@ Casting any pointer (including `COpaquePointer`) can be done with
 
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
-```
+```kotlin
 val intPtr = bytePtr.reinterpret<IntVar>()
 ```
 
@@ -310,7 +310,7 @@ or
 
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
-```
+```kotlin
 val intPtr: CPointer<IntVar> = bytePtr.reinterpret()
 ```
 
@@ -324,7 +324,7 @@ provided by `.toLong()` and `.toCPointer<T>()` extension methods:
 
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
-```
+```kotlin
 val longValue = ptr.toLong()
 val originalPtr = longValue.toCPointer<T>()
 ```
@@ -340,7 +340,7 @@ The native memory can be allocated using `NativePlacement` interface, e.g.
 
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
-```
+```kotlin
 val byteVar = placement.alloc<ByteVar>()
 ```
 
@@ -350,7 +350,7 @@ or
 
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
-```
+```kotlin
 val bytePtr = placement.allocArray<ByteVar>(5):
 ```
 
@@ -362,7 +362,7 @@ It corresponds to allocating native memory with `malloc` and provides additional
 
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
-```
+```kotlin
 val buffer = nativeHeap.allocArray<ByteVar>(size)
 <use buffer>
 nativeHeap.free(buffer)
@@ -381,7 +381,7 @@ used like
 
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
-```
+```kotlin
 val fileSize = memScoped {
     val statBuf = alloc<statStruct>()
     val error = stat("/", statBuf.ptr)
@@ -460,9 +460,15 @@ In all cases the C string is supposed to be encoded as UTF-8.
 
 To skip automatic conversion and ensure raw pointers are used in the bindings `noStringConversion`
 statement in `.def` file could be used, i.e.
+
+<div class="sample" markdown="1" theme="idea" mode="c">
+
+```c
+noStringConversion = LoadCursorA LoadCursorW
 ```
-    noStringConversion = LoadCursorA LoadCursorW
-```
+
+</div>
+
 This way any value of type `CPointer<ByteVar>` could be passed as an argument of `const char*` type.
 If Kotlin string shall me passed code like that could be used:
 
@@ -517,9 +523,15 @@ methods available:
     `CValue<T>` to the memory, and then runs the passed lambda with this placed
     value `T` as receiver. So to read a single field, the following code can be
     used:
-    ```
+    
+    <div class="sample" markdown="1" theme="idea" data-highlight-only>
+
+    ```kotlin
     val fieldValue = structValue.useContents { field }
     ```
+
+    </div>
+
 
 ### Callbacks ###
 
