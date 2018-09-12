@@ -33,10 +33,6 @@ import org.jetbrains.kotlin.serialization.KonanDescriptorSerializer
 
 internal class KonanSerializationUtil(val context: Context, private val metadataVersion: BinaryVersion) {
 
-    /*val serializerExtension = KonanSerializerExtension(context, metadataVersion)
-    val topSerializer = KonanDescriptorSerializer.createTopLevel(context, serializerExtension)
-    var classSerializer: KonanDescriptorSerializer = topSerializer*/
-
     lateinit var serializerContext: SerializerContext
 
     data class SerializerContext(
@@ -136,7 +132,6 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
                         .build()
             }
 
-
         result += members.windowed(TOP_LEVEL_DECLARATION_COUNT_PER_FILE, step = TOP_LEVEL_DECLARATION_COUNT_PER_FILE, partialWindows = true) {
             withNewContext {
                 val packageProto = topSerializer.packagePartProto(fqName, it).build()
@@ -159,7 +154,6 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
                         .build()
             }
         }
-
 
         return result
     }
