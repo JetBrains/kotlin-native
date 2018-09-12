@@ -31,9 +31,9 @@ internal object KonanDeserializedPackageFragmentsFactoryImpl: KonanDeserializedP
             storageManager: StorageManager
     ) = packageFragmentNames.flatMap {
         val fqName = FqName(it)
-        val count = library.packageMetadataPartCount(fqName.asString())
-        List(count) { partIndex ->
-            KonanPackageFragment(fqName, library, packageAccessedHandler, storageManager, moduleDescriptor, partIndex)
+        val parts = library.packageMetadataParts(fqName.asString())
+        parts.map { partName ->
+            KonanPackageFragment(fqName, library, packageAccessedHandler, storageManager, moduleDescriptor, partName)
         }
     }
 

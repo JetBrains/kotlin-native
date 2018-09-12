@@ -38,8 +38,8 @@ interface KonanLibrary {
 
     val dataFlowGraph: ByteArray?
     val moduleHeaderData: ByteArray
-    fun packageMetadataPartCount(fqName: String): Int
-    fun packageMetadata(fqName: String, partIndex: Int): ByteArray
+    fun packageMetadataParts(fqName: String): Set<String>
+    fun packageMetadata(fqName: String, partName: String): ByteArray
 }
 
 val KonanLibrary.uniqueName
