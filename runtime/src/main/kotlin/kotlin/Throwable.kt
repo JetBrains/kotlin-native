@@ -6,6 +6,7 @@
 package kotlin
 
 import kotlin.native.internal.ExportTypeInfo
+import kotlin.native.internal.NativePtrArray
 
 /**
  * The base class for all errors and exceptions. Only instances of this class can be thrown or caught.
@@ -52,10 +53,8 @@ public open class Throwable(open val message: String?, open val cause: Throwable
     }
 }
 
-// We don't care about return type because it's only matter to
-// `Kotlin_getStackTraceStrings` implementation.
 @SymbolName("Kotlin_getCurrentStackTrace")
-private external fun getCurrentStackTrace(): Any
+private external fun getCurrentStackTrace(): NativePtrArray
 
 @SymbolName("Kotlin_getStackTraceStrings")
-private external fun getStackTraceStrings(stackTrace: Any): Array<String>
+private external fun getStackTraceStrings(stackTrace: NativePtrArray): Array<String>
