@@ -57,33 +57,20 @@ class AutoFree {
   }
 };
 
-// Backtrace is an array of pointers.
-// So we store pointers inside IntArray on 32-bit platforms
-// and inside LongArray on 64-bit platforms.
-template <class T>
-const TypeInfo* getStackTraceTypeInfo() {
-  if (sizeof(T) == sizeof(KInt)) {
-    return theIntArrayTypeInfo;
-  } else {
-    return theLongArrayTypeInfo;
-  }
-}
-
 #if USE_GCC_UNWIND
 struct Backtrace {
   Backtrace(int count, int skip) : index(0), skipCount(skip) {
-    const TypeInfo* typeInfo = getStackTraceTypeInfo<_Unwind_Ptr>();
     uint32_t size = count - skipCount;
     if (size < 0) {
       size = 0;
     }
-    auto result = AllocArrayInstance(typeInfo, size, arrayHolder.slot());
+    auto result = AllocArrayInstance(theNativePtrArrayTypeInfo, size, arrayHolder.slot());
     // TODO: throw cached OOME?
     RuntimeCheck(result != nullptr, "Cannot create backtrace array");
   }
 
   void setNextElement(_Unwind_Ptr element) {
-    PrimitiveArraySet(obj(), index++, element);
+    Kotlin_NativePtrArray_set(obj(), index++, (KNativePtr) element);
   }
 
   ObjHeader* obj() { return arrayHolder.obj(); }
@@ -126,9 +113,8 @@ extern "C" {
 // TODO: this implementation is just a hack, e.g. the result is inexact;
 // however it is better to have an inexact stacktrace than not to have any.
 OBJ_GETTER0(GetCurrentStackTrace) {
-  const TypeInfo* traceTypeInfo = getStackTraceTypeInfo<void *>();
 #if OMIT_BACKTRACE
-  return AllocArrayInstance(traceTypeInfo, 0, OBJ_RESULT);
+  return AllocArrayInstance(theNativePtrArrayTypeInfo, 0, OBJ_RESULT);
 #else
   // Skips first 3 elements as irrelevant.
   constexpr int kSkipFrames = 3;
@@ -146,12 +132,12 @@ OBJ_GETTER0(GetCurrentStackTrace) {
 
   int size = backtrace(buffer, maxSize);
   if (size < kSkipFrames)
-      return AllocArrayInstance(traceTypeInfo, 0, OBJ_RESULT);
+      return AllocArrayInstance(theNativePtrArrayTypeInfo, 0, OBJ_RESULT);
 
   ObjHolder resultHolder;
-  ObjHeader* result = AllocArrayInstance(traceTypeInfo, size - kSkipFrames, resultHolder.slot());
+  ObjHeader* result = AllocArrayInstance(theNativePtrArrayTypeInfo, size - kSkipFrames, resultHolder.slot());
   for (int index = kSkipFrames; index < size; ++index) {
-    PrimitiveArraySet(result, index - kSkipFrames, buffer[index]);
+    Kotlin_NativePtrArray_set(result, index - kSkipFrames, buffer[index]);
   }
   RETURN_OBJ(result);
 #endif
@@ -169,7 +155,7 @@ OBJ_GETTER(GetStackTraceStrings, KConstRef stackTrace) {
   ObjHeader* strings = AllocArrayInstance(theArrayTypeInfo, size, resultHolder.slot());
 #if USE_GCC_UNWIND
   for (int index = 0; index < size; ++index) {
-    _Unwind_Ptr address = PrimitiveArrayGet<_Unwind_Ptr>(stackTrace, index);
+    KNativePtr address = Kotlin_NativePtrArray_get(stackTrace, index);
     char symbol[512];
     if (!AddressToSymbol((const void*) address, symbol, sizeof(symbol))) {
       // Make empty string:
@@ -181,7 +167,7 @@ OBJ_GETTER(GetStackTraceStrings, KConstRef stackTrace) {
   }
 #else
   if (size > 0) {
-    char **symbols = backtrace_symbols(PrimitiveArrayAddressOfElementAt<void *>(stackTrace->array(), 0), size);
+    char **symbols = backtrace_symbols(PrimitiveArrayAddressOfElementAt<KNativePtr>(stackTrace->array(), 0), size);
     RuntimeCheck(symbols != nullptr, "Not enough memory to retrieve the stacktrace");
     AutoFree autoFree(symbols);
     for (int index = 0; index < size; ++index) {

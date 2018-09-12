@@ -25,6 +25,13 @@
 
 namespace {
 
+ALWAYS_INLINE inline void mutabilityCheck(KConstRef thiz) {
+  // TODO: optimize it!
+  if (thiz->container()->frozen()) {
+    ThrowInvalidMutabilityException(thiz);
+  }
+}
+
 template<typename T>
 inline void copyImpl(KConstRef thiz, KInt fromIndex,
                      KRef destination, KInt toIndex, KInt count) {
@@ -39,6 +46,26 @@ inline void copyImpl(KConstRef thiz, KInt fromIndex,
   memmove(PrimitiveArrayAddressOfElementAt<T>(destinationArray, toIndex),
           PrimitiveArrayAddressOfElementAt<T>(array, fromIndex),
           count * sizeof(T));
+}
+
+
+template <class T>
+inline void PrimitiveArraySet(KRef thiz, KInt index, T value) {
+  ArrayHeader* array = thiz->array();
+  if (static_cast<uint32_t>(index) >= array->count_) {
+    ThrowArrayIndexOutOfBoundsException();
+  }
+  mutabilityCheck(thiz);
+  *PrimitiveArrayAddressOfElementAt<T>(array, index) = value;
+}
+
+template <class T>
+inline T PrimitiveArrayGet(KConstRef thiz, KInt index) {
+  const ArrayHeader* array = thiz->array();
+  if (static_cast<uint32_t>(index) >= array->count_) {
+    ThrowArrayIndexOutOfBoundsException();
+  }
+  return *PrimitiveArrayAddressOfElementAt<T>(array, index);
 }
 
 }  // namespace
@@ -423,6 +450,19 @@ void Kotlin_BooleanArray_set(KRef thiz, KInt index, KBoolean value) {
 }
 
 KInt Kotlin_BooleanArray_getArrayLength(KConstRef thiz) {
+  const ArrayHeader* array = thiz->array();
+  return array->count_;
+}
+
+KNativePtr Kotlin_NativePtrArray_get(KConstRef thiz, KInt index) {
+  return PrimitiveArrayGet<KNativePtr>(thiz, index);
+}
+
+void Kotlin_NativePtrArray_set(KRef thiz, KInt index, KNativePtr value) {
+  PrimitiveArraySet(thiz, index, value);
+}
+
+KInt Kotlin_NativePtrArray_getArrayLength(KConstRef thiz) {
   const ArrayHeader* array = thiz->array();
   return array->count_;
 }
