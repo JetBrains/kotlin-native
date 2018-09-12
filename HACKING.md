@@ -38,7 +38,7 @@ and run `./gradlew update_external_tests`
 
 * **-Ptest_flags** passes flags to the compiler used to compile tests
 
-        ./gradlew -Ptest_flags="--time" backend.native:tests:array0
+        ./gradlew -Ptest_flags="-Xtime" backend.native:tests:array0
 
 * **-Ptest_target** specifies cross target for a test run. 
 
