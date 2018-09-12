@@ -29,6 +29,8 @@ public open class Throwable(open val message: String?, open val cause: Throwable
         getStackTraceStrings(stackTrace)
     }
 
+    fun getStackTrace(): Array<String> = stackTraceStrings
+
     fun printStackTrace() {
         println(this.toString())
 
