@@ -13,10 +13,15 @@ internal class MetadataWriterImpl(libraryLayout: KonanLibraryLayout): KonanLibra
     fun addLinkData(linkData: LinkData) {
         moduleHeaderFile.writeBytes(linkData.module)
         linkData.fragments.forEachIndexed { index, it ->
-            val name = linkData.fragmentNames[index]
-            packageFragmentsDir(name).mkdirs()
+            val packageFqName = linkData.fragmentNames[index]
+            val shortName = packageFqName.substringAfterLast(".")
+            val dir = packageFragmentsDir(packageFqName)
+            dir.deleteRecursively()
+            dir.mkdirs()
+            val numCount = it.size.toString().length
+            fun withLeadingZeros(i: Int) = String.format("%0${numCount}d", i)
             for ((i, fragment) in it.withIndex()) {
-                packageFragmentFile(name, i).writeBytes(fragment)
+                packageFragmentFile(packageFqName, "${withLeadingZeros(i)}_$shortName").writeBytes(fragment)
             }
         }
     }
