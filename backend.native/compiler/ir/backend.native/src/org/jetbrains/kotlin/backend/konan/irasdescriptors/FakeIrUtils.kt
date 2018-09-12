@@ -38,7 +38,7 @@ internal fun IrFunction.isExternalObjCClassMethod() = this.descriptor.isExternal
 
 internal val IrDeclaration.llvmSymbolOrigin get() = this.descriptor.llvmSymbolOrigin
 
-internal fun IrFunction.isMain() = MainFunctionDetector.isMain(this.descriptor)
+//internal fun IrFunction.isMain() = MainFunctionDetector.isMain(this.descriptor)
 
 internal fun IrType.isObjCObjectType() = this.toKotlinType().isObjCObjectType()
 
