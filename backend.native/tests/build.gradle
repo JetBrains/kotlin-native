@@ -43,7 +43,7 @@ repositories {
 
 dependencies {
     cli_bc project(path: ':backend.native', configuration: 'cli_bc')
-    update_tests (group: 'org',  name: 'Kotlin_dev_CompilerAllPlugins', version: testKotlinVersion) {
+    update_tests (group: 'org',  name: 'Kotlin_130_Compiler', version: testKotlinVersion) {
         artifact {
             name = 'internal/kotlin-test-data'
             type = 'zip'
@@ -544,6 +544,17 @@ task entry2(type: LinkKonanTest) {
     source = "runtime/basic/entry2.kt"
     lib = "runtime/basic/libentry2.kt"
     flags = ["-entry", "foo"] 
+}
+
+task entry3(type: RunStandaloneKonanTest) {
+    goldValue = "Hello, without args.\n"
+    source = "runtime/basic/entry1.kt"
+    flags = ["-entry", "bar"]
+}
+
+task entry4(type: RunStandaloneKonanTest) {
+    goldValue = "This is main without args\n"
+    source = "runtime/basic/entry4.kt"
 }
 
 task readline0(type: RunStandaloneKonanTest) {
@@ -2306,7 +2317,7 @@ task mpp_optional_expectation(type: RunStandaloneKonanTest) {
     def outputRoot = project.ext."$outputSourceSetName"
     flags = [
             '-Xmulti-platform',
-            "-Xcommon-sources=${file("$outputRoot/$name/mpp_optional_expectation.kt")}"
+            "-Xcommon-sources=$outputRoot/$name/mpp_optional_expectation.kt"
     ]
 }
 
