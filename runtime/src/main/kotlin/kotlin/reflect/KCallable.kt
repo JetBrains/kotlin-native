@@ -12,7 +12,6 @@ import kotlin.native.internal.FixmeReflection
  *
  * @param R return type of the callable.
  */
-@FixmeReflection
 public actual interface KCallable<out R> : KAnnotatedElement {
     /**
      * The name of this callable as it was declared in the source code.
