@@ -15,9 +15,10 @@ import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.BinaryVersion
 import org.jetbrains.kotlin.metadata.konan.KonanProtoBuf
 import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
 import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
+import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter.Companion.CALLABLES
+import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter.Companion.CLASSIFIERS
 import org.jetbrains.kotlin.resolve.scopes.getDescriptorsFiltered
 import org.jetbrains.kotlin.serialization.KonanDescriptorSerializer
 
@@ -100,31 +101,18 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
         val fragments = module.getPackage(fqName).fragments.filter { it.module == module }
         if (fragments.isEmpty()) return emptyList()
 
-        val descriptorKindClass =
-                DescriptorKindFilter(
-                        DescriptorKindFilter.NON_SINGLETON_CLASSIFIERS_MASK
-                                or DescriptorKindFilter.SINGLETON_CLASSIFIERS_MASK
-                )
-
         val classifierDescriptors = KonanDescriptorSerializer.sort(
                 fragments.flatMap {
-                    it.getMemberScope().getDescriptorsFiltered(descriptorKindClass)
+                    it.getMemberScope().getDescriptorsFiltered(CLASSIFIERS)
                 }.filter { !it.isExpectMember }
         )
 
-        val descriptorKindTopLevel =
-                DescriptorKindFilter(
-                        DescriptorKindFilter.CALLABLES_MASK
-                                or DescriptorKindFilter.TYPE_ALIASES_MASK
-                )
         val topLevelDescriptors = KonanDescriptorSerializer.sort(
                 fragments.flatMap { fragment ->
-                    fragment.getMemberScope().getDescriptorsFiltered(descriptorKindTopLevel)
-                }
-                        .filter {
-                            !it.isExpectMember
-                        }
+                    fragment.getMemberScope().getDescriptorsFiltered(CALLABLES)
+                }.filter { !it.isExpectMember }
         )
+
         val result = mutableListOf<KonanProtoBuf.LinkDataPackageFragment>()
 
         result += classifierDescriptors.chunked(TOP_LEVEL_CLASS_DECLARATION_COUNT_PER_FILE) { descriptors ->
@@ -133,9 +121,9 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
                 serializeClasses(fqName, classesBuilder, descriptors)
                 val classesProto = classesBuilder.build()
                 val packageProto = ProtoBuf.Package.newBuilder().build()
+
                 val strings = serializerExtension.stringTable
                 val (stringTableProto, nameTableProto) = strings.buildProto()
-                serializeClasses(fqName, classesBuilder, descriptors)
 
                 val fragmentBuilder = KonanProtoBuf.LinkDataPackageFragment.newBuilder()
                 fragmentBuilder
@@ -157,19 +145,40 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
                 val strings = serializerExtension.stringTable
                 val (stringTableProto, nameTableProto) = strings.buildProto()
 
-                val isEmpty = descriptors.isEmpty()
                 val emptyClassesProtoForPackage = KonanProtoBuf.LinkDataClasses.newBuilder().build()
-                val fragmentBuilder = KonanProtoBuf.LinkDataPackageFragment.newBuilder()
 
+                val fragmentBuilder = KonanProtoBuf.LinkDataPackageFragment.newBuilder()
                 fragmentBuilder
                         .setPackage(packageProto)
                         .setClasses(emptyClassesProtoForPackage)
-                        .setIsEmpty(isEmpty)
+                        .setIsEmpty(descriptors.isEmpty())
                         .setFqName(fqName.asString())
                         .setStringTable(stringTableProto)
                         .setNameTable(nameTableProto)
                         .build()
             }
+        }
+
+        if (result.isEmpty()) {
+            result += withNewContext {
+                val packageProto = ProtoBuf.Package.newBuilder().build()
+
+                val strings = serializerExtension.stringTable
+                val (stringTableProto, nameTableProto) = strings.buildProto()
+
+                val emptyClassesProtoForPackage = KonanProtoBuf.LinkDataClasses.newBuilder().build()
+
+                val fragmentBuilder = KonanProtoBuf.LinkDataPackageFragment.newBuilder()
+                fragmentBuilder
+                        .setPackage(packageProto)
+                        .setClasses(emptyClassesProtoForPackage)
+                        .setIsEmpty(true)
+                        .setFqName(fqName.asString())
+                        .setStringTable(stringTableProto)
+                        .setNameTable(nameTableProto)
+                        .build()
+            }
+
         }
 
         return result
@@ -212,4 +221,3 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
 
 private const val TOP_LEVEL_DECLARATION_COUNT_PER_FILE = 128
 private const val TOP_LEVEL_CLASS_DECLARATION_COUNT_PER_FILE = 64
-
