@@ -117,8 +117,10 @@ abstract class KonanTest extends JavaExec {
             if (enableKonanAssertions) {
                 args "-ea"
             }
-            println("Files to compile: $filesToCompile")
-            println(args)
+            if (project.hasProperty("test_verbose")) {
+                println("Files to compile: $filesToCompile")
+                println(args)
+            }
             standardOutput = log
             errorOutput = log
             super.exec()
