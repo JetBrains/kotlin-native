@@ -8,9 +8,7 @@ package org.jetbrains.kotlin.backend.konan.serialization
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.descriptors.isExpectMember
 import org.jetbrains.kotlin.backend.konan.library.LinkData
-import org.jetbrains.kotlin.descriptors.ClassDescriptor
-import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
-import org.jetbrains.kotlin.descriptors.ModuleDescriptor
+import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.BinaryVersion
 import org.jetbrains.kotlin.metadata.konan.KonanProtoBuf
@@ -43,7 +41,7 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
             var classSerializer: KonanDescriptorSerializer = topSerializer
     )
 
-    fun createNewContext(): SerializerContext {
+    private fun createNewContext(): SerializerContext {
         val extension = KonanSerializerExtension(context, metadataVersion)
         return SerializerContext(
                 extension,
@@ -51,12 +49,12 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
         )
     }
 
-    inline fun <T> withNewContext(crossinline block: SerializerContext.() -> T): T {
+    private inline fun <T> withNewContext(crossinline block: SerializerContext.() -> T): T {
         serializerContext = createNewContext()
         return with(serializerContext, block)
     }
 
-    fun serializeClass(packageName: FqName,
+    private fun serializeClass(packageName: FqName,
                        builder: KonanProtoBuf.LinkDataClasses.Builder,
                        classDescriptor: ClassDescriptor) {
         with(serializerContext) {
@@ -81,7 +79,7 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
         }
     }
 
-    fun serializeClasses(packageName: FqName,
+    private fun serializeClasses(packageName: FqName,
                          builder: KonanProtoBuf.LinkDataClasses.Builder,
                          descriptors: Collection<DeclarationDescriptor>) {
 
@@ -92,7 +90,7 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
         }
     }
 
-    fun serializePackage(fqName: FqName, module: ModuleDescriptor):
+    private fun serializePackage(fqName: FqName, module: ModuleDescriptor):
             List<KonanProtoBuf.LinkDataPackageFragment> {
 
         // TODO: ModuleDescriptor should be able to return
@@ -116,73 +114,64 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
         val result = mutableListOf<KonanProtoBuf.LinkDataPackageFragment>()
 
         result += classifierDescriptors.chunked(TOP_LEVEL_CLASS_DECLARATION_COUNT_PER_FILE) { descriptors ->
+
             withNewContext {
-                val classesBuilder = KonanProtoBuf.LinkDataClasses.newBuilder()
-                serializeClasses(fqName, classesBuilder, descriptors)
-                val classesProto = classesBuilder.build()
-                val packageProto = ProtoBuf.Package.newBuilder().build()
 
-                val strings = serializerExtension.stringTable
-                val (stringTableProto, nameTableProto) = strings.buildProto()
+                val classesProto = buildClassesProto { classesBuilder ->
+                    serializeClasses(fqName, classesBuilder, descriptors)
+                }
 
-                val fragmentBuilder = KonanProtoBuf.LinkDataPackageFragment.newBuilder()
-                fragmentBuilder
-                        .setPackage(packageProto)
-                        .setClasses(classesProto)
-                        .setIsEmpty(descriptors.isEmpty())
-                        .setFqName(fqName.asString())
-                        .setStringTable(stringTableProto)
-                        .setNameTable(nameTableProto)
-                        .build()
+                val typeAliases = descriptors.filterIsInstance<TypeAliasDescriptor>()
+                val packageProto =
+                        if (typeAliases.isNotEmpty()) buildPackageProto(fqName, typeAliases, fragments)
+                        else emptyPackageProto()
+
+                buildFragment(
+                        packageProto,
+                        classesProto,
+                        fqName,
+                        descriptors.isEmpty()
+                )
             }
         }
 
         result += topLevelDescriptors.chunked(TOP_LEVEL_DECLARATION_COUNT_PER_FILE) { descriptors ->
             withNewContext {
-                val packageProto = topSerializer.packagePartProto(fqName, descriptors).build()
-                        ?: error("Package fragments not serialized: $fragments")
-
-                val strings = serializerExtension.stringTable
-                val (stringTableProto, nameTableProto) = strings.buildProto()
-
-                val emptyClassesProtoForPackage = KonanProtoBuf.LinkDataClasses.newBuilder().build()
-
-                val fragmentBuilder = KonanProtoBuf.LinkDataPackageFragment.newBuilder()
-                fragmentBuilder
-                        .setPackage(packageProto)
-                        .setClasses(emptyClassesProtoForPackage)
-                        .setIsEmpty(descriptors.isEmpty())
-                        .setFqName(fqName.asString())
-                        .setStringTable(stringTableProto)
-                        .setNameTable(nameTableProto)
-                        .build()
+                buildFragment(
+                        buildPackageProto(fqName, descriptors, fragments),
+                        buildClassesProto {},
+                        fqName,
+                        descriptors.isEmpty())
             }
         }
 
         if (result.isEmpty()) {
             result += withNewContext {
-                val packageProto = ProtoBuf.Package.newBuilder().build()
-
-                val strings = serializerExtension.stringTable
-                val (stringTableProto, nameTableProto) = strings.buildProto()
-
-                val emptyClassesProtoForPackage = KonanProtoBuf.LinkDataClasses.newBuilder().build()
-
-                val fragmentBuilder = KonanProtoBuf.LinkDataPackageFragment.newBuilder()
-                fragmentBuilder
-                        .setPackage(packageProto)
-                        .setClasses(emptyClassesProtoForPackage)
-                        .setIsEmpty(true)
-                        .setFqName(fqName.asString())
-                        .setStringTable(stringTableProto)
-                        .setNameTable(nameTableProto)
-                        .build()
+                buildFragment(
+                        emptyPackageProto(),
+                        buildClassesProto {},
+                        fqName,
+                        true)
             }
-
         }
 
         return result
     }
+
+
+    private fun buildClassesProto(action: (KonanProtoBuf.LinkDataClasses.Builder) -> Unit): KonanProtoBuf.LinkDataClasses {
+        val classesBuilder = KonanProtoBuf.LinkDataClasses.newBuilder()
+        action(classesBuilder)
+        return classesBuilder.build()
+    }
+
+    private fun emptyPackageProto(): ProtoBuf.Package = ProtoBuf.Package.newBuilder().build()
+
+    private fun SerializerContext.buildPackageProto(
+            fqName: FqName,
+            descriptors: List<DeclarationDescriptor>,
+            fragments: List<PackageFragmentDescriptor>) = topSerializer.packagePartProto(fqName, descriptors).build()
+            ?: error("Package fragments not serialized: $fragments")
 
     private fun getPackagesFqNames(module: ModuleDescriptor): Set<FqName> {
         val result = mutableSetOf<FqName>()
@@ -194,6 +183,25 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
 
         getSubPackages(FqName.ROOT)
         return result
+    }
+
+    private fun SerializerContext.buildFragment(
+            packageProto: ProtoBuf.Package,
+            classesProto: KonanProtoBuf.LinkDataClasses,
+            fqName: FqName,
+            isEmpty: Boolean
+    ): KonanProtoBuf.LinkDataPackageFragment {
+
+        val (stringTableProto, nameTableProto) = serializerExtension.stringTable.buildProto()
+
+        return KonanProtoBuf.LinkDataPackageFragment.newBuilder()
+                .setPackage(packageProto)
+                .setClasses(classesProto)
+                .setIsEmpty(isEmpty)
+                .setFqName(fqName.asString())
+                .setStringTable(stringTableProto)
+                .setNameTable(nameTableProto)
+                .build()
     }
 
     internal fun serializeModule(moduleDescriptor: ModuleDescriptor): LinkData {

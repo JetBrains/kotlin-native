@@ -293,7 +293,9 @@ class ContentsTest {
         """
         package custom.pkg {
             typealias MyTransformer = (String) -> Int
+        }
 
+        package custom.pkg {
             val v1: Int = 1
             val v2: String = "hello"
             val v3: (String) -> Int
@@ -307,7 +309,9 @@ class ContentsTest {
         """
         package <root> {
             typealias MyTransformer = (String) -> Int
+        }
 
+        package <root> {
             val v1: Int = 1
             val v2: String = "hello"
             val v3: (String) -> Int
@@ -322,11 +326,10 @@ class ContentsTest {
         package custom.pkg {
             object Bar
             class Foo constructor()
+            typealias MyTransformer = (String) -> Int
         }
 
         package custom.pkg {
-            typealias MyTransformer = (String) -> Int
-
             val v1: Int = 1
             val v2: String = "hello"
             val v3: (String) -> Int
@@ -341,11 +344,10 @@ class ContentsTest {
         package <root> {
             object Bar
             class Foo constructor()
+            typealias MyTransformer = (String) -> Int
         }
 
         package <root> {
-            typealias MyTransformer = (String) -> Int
-
             val v1: Int = 1
             val v2: String = "hello"
             val v3: (String) -> Int
