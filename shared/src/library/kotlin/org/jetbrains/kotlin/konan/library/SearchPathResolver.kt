@@ -183,7 +183,7 @@ internal fun SearchPathResolverWithTarget.libraryMatch(candidate: KonanLibraryIm
 
      if (candidateCompilerVersion == null ||
         knownCompilerVersions != null &&
-            !knownCompilerVersions!!.contains(candidateCompilerVersion)) {
+            !knownCompilerVersions!!.containsFIXME(candidateCompilerVersion)) {
         logger("skipping $candidatePath. The compiler versions don't match. Expected '${knownCompilerVersions?.map { it.toString(true, true) }}', found '${candidateCompilerVersion?.toString(true, true)}'")
         return false
     }
@@ -204,3 +204,13 @@ internal fun SearchPathResolverWithTarget.libraryMatch(candidate: KonanLibraryIm
 
     return true
 }
+
+private fun Collection<KonanVersion>.containsFIXME(candidate: KonanVersion) =
+        this.any { it.isEqualToFIXME(candidate) }
+
+// FIXME: Decide: Either need to store build number in KLIBs, or should ignore build number during version match check.
+private fun KonanVersion.isEqualToFIXME(other: KonanVersion) =
+        this.major == other.major
+        && this.minor == other.minor
+        && this.maintenance == other.maintenance
+        && this.meta == other.meta
