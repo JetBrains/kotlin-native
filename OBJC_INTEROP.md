@@ -66,12 +66,13 @@ Kotlin constructors are imported as initializers to Swift/Objective-C.
 
 ### Top-level functions and properties
 
-Top-level Kotlin functions and properties are accessible as members of a special class.
-Each Kotlin package is translated into such a class. E.g.
+Top-level Kotlin functions and properties are accessible as members of special classes.
+Each Kotlin file is translated into such a class. E.g.
 
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
 ```kotlin
+// MyLibraryUtils.kt
 package my.library
 
 fun foo() {}
@@ -84,7 +85,7 @@ can be called from Swift like
 <div class="sample" markdown="1" theme="idea" mode="swift">
 
 ```swift
-Framework.foo()
+MyLibraryUtilsKt.foo()
 ```
 
 </div>
