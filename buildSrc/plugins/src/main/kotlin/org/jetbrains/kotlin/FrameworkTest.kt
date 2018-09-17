@@ -1,13 +1,9 @@
 package org.jetbrains.kotlin
 
 import groovy.lang.Closure
-import org.gradle.api.Action
 import org.gradle.api.DefaultTask
-import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.SourceSet
-import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.TaskAction
 
 import org.jetbrains.kotlin.konan.target.*

@@ -22,10 +22,8 @@ import org.gradle.api.Project
 import org.gradle.process.ExecResult
 import org.gradle.process.ExecSpec
 import org.gradle.util.ConfigureUtil
-import org.jetbrains.kotlin.konan.target.AppleConfigurables
 
 import org.jetbrains.kotlin.konan.target.KonanTarget
-import org.jetbrains.kotlin.konan.target.PlatformManager
 import org.jetbrains.kotlin.konan.target.Xcode
 
 import java.io.ByteArrayOutputStream
@@ -47,8 +45,8 @@ interface ExecutorService {
  * Creates an ExecutorService depending on a test target -Ptest_target
  */
 fun create(project: Project): ExecutorService {
-    val platformManager = project.rootProject.findProperty("platformManager") as PlatformManager
-    val testTarget = platformManager.targetManager(project.findProperty("testTarget") as String?).target
+    val platformManager = project.platformManager()
+    val testTarget = project.testTarget()
     val platform = platformManager.platform(testTarget)
     val absoluteTargetToolchain = platform.absoluteTargetToolchain
     val absoluteTargetSysRoot = platform.absoluteTargetSysRoot

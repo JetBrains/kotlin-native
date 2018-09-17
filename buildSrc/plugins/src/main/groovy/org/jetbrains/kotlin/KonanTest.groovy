@@ -156,61 +156,6 @@ abstract class KonanTest extends JavaExec {
         return sourceFiles
     }
 
-    String createTextForHelpers() {
-        def coroutinesPackage = "kotlin.coroutines"
-
-        def emptyContinuationBody =
-            """
-                |override fun resumeWith(result: Result<Any?>) { result.getOrThrow() }
-            """.stripMargin()
-
-        def handleResultContinuationBody = """
-                |override fun resumeWith(result: Result<T>) { x(result.getOrThrow()) }
-            """.stripMargin()
-
-        def handleExceptionContinuationBody = """
-                |override fun resumeWith(result: Result<Any?>) {
-                |    val exception = result.exceptionOrNull() ?: return
-                |    x(exception)
-                |}
-            """.stripMargin()
-
-        return """
-            |package helpers
-            |import $coroutinesPackage.*
-            |
-            |fun <T> handleResultContinuation(x: (T) -> Unit): Continuation<T> = object: Continuation<T> {
-            |    override val context = EmptyCoroutineContext
-            |    $handleResultContinuationBody
-            |}
-            |
-            |
-            |fun handleExceptionContinuation(x: (Throwable) -> Unit): Continuation<Any?> = object: Continuation<Any?> {
-            |    override val context = EmptyCoroutineContext
-            |    $handleExceptionContinuationBody
-            |}
-            |
-            |open class EmptyContinuation(override val context: CoroutineContext = EmptyCoroutineContext) : Continuation<Any?> {
-            |    companion object : EmptyContinuation()
-            |    $emptyContinuationBody
-            |}
-            |
-            |abstract class ContinuationAdapter<in T> : Continuation<T> {
-            |    override val context: CoroutineContext = EmptyCoroutineContext
-            |    override fun resumeWith(result: Result<T>) {
-            |       if (result.isSuccess) {
-            |           resume(result.getOrThrow())
-            |       } else {
-            |           resumeWithException(result.exceptionOrNull()!!)
-            |       }
-            |    }
-            |
-            |    abstract fun resumeWithException(exception: Throwable)
-            |    abstract fun resume(value: T)
-            |}
-        """.stripMargin()
-    }
-
     // TODO refactor
     List<String> buildCompileList() {
         def result = []
@@ -221,7 +166,7 @@ abstract class KonanTest extends JavaExec {
 
         if (srcText.contains('// WITH_COROUTINES')) {
             def coroutineHelpersFileName = "$outputDirectory/helpers.kt"
-            createFile(coroutineHelpersFileName, createTextForHelpers())
+            createFile(coroutineHelpersFileName, CoroutineTestUtilKt.createTextForHelpers(true))
             result.add(coroutineHelpersFileName)
         }
 
