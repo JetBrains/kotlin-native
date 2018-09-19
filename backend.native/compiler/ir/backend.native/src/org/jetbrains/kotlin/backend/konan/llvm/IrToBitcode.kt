@@ -65,13 +65,13 @@ val IrClass.objectIsShared get() =
 
 internal val IrField.storageClass: FieldStorage get() {
     val descriptor = propertyDescriptor
+    val isVal = this.isFinal
     return when {
         descriptor.annotations.hasAnnotation(threadLocalAnnotationFqName) -> FieldStorage.THREAD_LOCAL
-        descriptor.annotations.hasAnnotation(sharedAnnotationFqName) -> FieldStorage.SHARED
+        isVal && descriptor.annotations.hasAnnotation(sharedAnnotationFqName) -> FieldStorage.SHARED
         // TODO: simplify, once IR types are fully there.
-        // TODO: check if we do have backing field indeed.
-        !descriptor.isVar && type is IrSimpleType && ((type as IrSimpleType).
-                classifier.descriptor.annotations.hasAnnotation(frozenAnnotationFqName)) -> FieldStorage.SHARED
+        isVal && type is IrSimpleType && (type as IrSimpleType).
+                classifier.descriptor.annotations.hasAnnotation(frozenAnnotationFqName) -> FieldStorage.SHARED
         else -> FieldStorage.MAIN_THREAD
     }
 }
