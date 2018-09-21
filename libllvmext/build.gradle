@@ -19,6 +19,8 @@ apply plugin: "c"
 
 import org.jetbrains.kotlin.konan.target.ClangArgs
 
+ext.isNewBackendEnabled = false
+
 model {
     components {
         llvmext(NativeLibrarySpec) {
@@ -30,10 +32,14 @@ model {
             }
             binaries {
                 withType(StaticLibraryBinarySpec) {
-                    if (project.parent.convention.plugins.platformInfo.isLinux())
                     // LLVM toolchain on linux is compiled with old ABI
                     // so we need to set this flag to prevent nasty linkage errors.
+                    if (project.parent.convention.plugins.platformInfo.isLinux())
                         cppCompiler.args "-D_GLIBCXX_USE_CXX11_ABI=0"
+
+                    if (isNewBackendEnabled)
+                        cppCompiler.args "-DLLVM_NEW_BACKEND_ENABLED=1"
+
                     cppCompiler.args "-DLLVM_EXT_DEBUG=0"
                     cppCompiler.args "--std=c++11", "-O2", "-g", "-fPIC", "-I${llvmDir}/include", "-L${llvmDir}/lib"
                 }

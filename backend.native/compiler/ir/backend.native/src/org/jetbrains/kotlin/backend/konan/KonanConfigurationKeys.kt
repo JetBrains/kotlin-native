@@ -52,6 +52,8 @@ class KonanConfigKeys {
                 = CompilerConfigurationKey.create("module name")
         val NATIVE_LIBRARY_FILES: CompilerConfigurationKey<List<String>>
                 = CompilerConfigurationKey.create("native library file paths")
+        val NEW_BACKEND
+                = CompilerConfigurationKey.create<Boolean>("use legacy llvm backend")
         val NODEFAULTLIBS: CompilerConfigurationKey<Boolean>
                 = CompilerConfigurationKey.create("don't link with the default libraries")
         val NOMAIN: CompilerConfigurationKey<Boolean> 
@@ -98,10 +100,6 @@ class KonanConfigKeys {
                 = CompilerConfigurationKey.create("verify ir")
         val VERBOSE_PHASES: CompilerConfigurationKey<List<String>> 
                 = CompilerConfigurationKey.create("verbose backend phases")
-
-        // TODO: remove
-        val LEGACY_BACKEND
-                = CompilerConfigurationKey.create<Boolean>("use legacy llvm backend")
     }
 }
 

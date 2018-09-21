@@ -42,6 +42,8 @@
 #include <memory>
 #include <ctime>
 
+#if LLVM_NEW_BACKEND_ENABLED
+
 using namespace llvm;
 
 class ModuleLinker {
@@ -111,15 +113,9 @@ void setFunctionAttributes(StringRef cpu, StringRef features, Module &module) {
   }
 }
 
-// Mostly copy'n'paste from opt and llc for now.
 void initLLVM(PassRegistry *registry) {
-  InitializeAllTargets();
-  InitializeAllTargetMCs();
-  InitializeAllAsmPrinters();
-  InitializeAllAsmParsers();
-
   initializeCore(*registry);
-
+  initializeCodeGen(*registry);
   initializeScalarOpts(*registry);
   initializeObjCARCOpts(*registry);
   initializeVectorization(*registry);
@@ -127,29 +123,7 @@ void initLLVM(PassRegistry *registry) {
   initializeAnalysis(*registry);
   initializeTransformUtils(*registry);
   initializeInstCombine(*registry);
-  initializeInstrumentation(*registry);
   initializeTarget(*registry);
-
-  initializeCodeGenPreparePass(*registry);
-  initializeCodeGen(*registry);
-  initializeLoopStrengthReducePass(*registry);
-  initializeLowerIntrinsicsPass(*registry);
-
-  initializeScalarizeMaskedMemIntrinPass(*registry);
-  initializeAtomicExpandPass(*registry);
-  initializeRewriteSymbolsLegacyPassPass(*registry);
-  initializeWinEHPreparePass(*registry);
-  initializeDwarfEHPreparePass(*registry);
-  initializeSafeStackLegacyPassPass(*registry);
-  initializeSjLjEHPreparePass(*registry);
-  initializePreISelIntrinsicLoweringLegacyPassPass(*registry);
-  initializeGlobalMergePass(*registry);
-  initializeInterleavedAccessPass(*registry);
-  initializeUnreachableBlockElimLegacyPassPass(*registry);
-  initializeExpandReductionsPass(*registry);
-
-  initializeConstantHoistingLegacyPassPass(*registry);
-  initializeExpandReductionsPass(*registry);
 }
 
 void LLVMExtDiagnosticHandlerCallback(const DiagnosticInfo &DI, void* context) {
@@ -177,12 +151,16 @@ std::string determineTargetCPU(const CodeGenConfig &configuration) {
     cpu = llvm::sys::getHostCPUName();
   }
   if (cpu.empty() && triple.isOSDarwin()) {
-    if (triple.getArch() == llvm::Triple::x86_64)
-      cpu = "core2";
-    else if (triple.getArch() == llvm::Triple::x86)
-      cpu = "yonah";
-    else if (triple.getArch() == llvm::Triple::aarch64)
-      cpu = "cyclone";
+
+    Triple::ArchType archType = triple.getArch();
+    switch (archType) {
+      case llvm::Triple::x86_64:
+        cpu = "core2";
+        break;
+      case llvm::Triple::aarch64:
+        cpu = "cyclone";
+        break;
+    }
   }
   return cpu;
 }
@@ -216,7 +194,6 @@ int LLVMFatLtoCodegen(LLVMContextRef contextRef,
 
   std::unique_ptr<LLVMContext> context(unwrap(contextRef));
 
-  bool errorDetected = false;
   context->setDiagnosticHandlerCallBack(LLVMExtDiagnosticHandlerCallback);
 
   initLLVM(PassRegistry::getPassRegistry());
@@ -248,3 +225,18 @@ int LLVMFatLtoCodegen(LLVMContextRef contextRef,
 }
 
 }
+
+#else // LLVM_NEW_BACKEND_ENABLED
+
+extern "C" {
+
+int LLVMFatLtoCodegen(LLVMContextRef contextRef,
+                      LLVMModuleRef programModuleRef,
+                      LLVMModuleRef runtimeModuleRef,
+                      LLVMModuleRef stdlibModuleRef,
+                      CodeGenConfig codeGenConfig) {
+  return 1;
+}
+}
+
+#endif

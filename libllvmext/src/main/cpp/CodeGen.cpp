@@ -14,6 +14,8 @@
  * limitations under the License.
  */
 
+#if LLVM_NEW_BACKEND_ENABLED
+
 #include "CodeGen.h"
 
 #include <llvm/IR/Verifier.h>
@@ -180,3 +182,5 @@ void CodeGen::createPasses(legacy::PassManager &modulePasses,
   passManagerBuilder.populateModulePassManager(modulePasses);
   passManagerBuilder.populateLTOPassManager(modulePasses);
 }
+
+#endif

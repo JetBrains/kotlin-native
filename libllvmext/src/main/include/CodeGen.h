@@ -16,6 +16,8 @@
 #ifndef LIBLLVMEXT_CODEGEN_H
 #define LIBLLVMEXT_CODEGEN_H
 
+#if LLVM_NEW_BACKEND_ENABLED
+
 #include "logging.h"
 
 #include <memory>
@@ -72,5 +74,7 @@ class CodeGen {
 
   void createPasses(legacy::PassManager &modulePasses, legacy::FunctionPassManager &functionPasses);
 };
+
+#endif
 
 #endif //LIBLLVMEXT_CODEGEN_H

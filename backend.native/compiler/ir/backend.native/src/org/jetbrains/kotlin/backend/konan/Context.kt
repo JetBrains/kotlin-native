@@ -38,7 +38,6 @@ import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
-import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.builtins.konan.KonanBuiltIns
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.HostManager
@@ -52,7 +51,6 @@ import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.resolve.scopes.receivers.ImplicitClassReceiver
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedClassDescriptor
 import org.jetbrains.kotlin.serialization.deserialization.getName
-import org.jetbrains.kotlin.types.KotlinType
 import java.lang.System.out
 import kotlin.LazyThreadSafetyMode.PUBLICATION
 import kotlin.reflect.KProperty
@@ -504,12 +502,18 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     fun shouldOptimize() = config.configuration.getBoolean(KonanConfigKeys.OPTIMIZATION)
 
     fun shouldUseNewBackend(): Boolean {
-        if (config.configuration.getBoolean(KonanConfigKeys.LEGACY_BACKEND)) {
+        if (config.configuration.getBoolean(KonanConfigKeys.NEW_BACKEND)) {
+            if (config.target == KonanTarget.WASM32) {
+                // Linux and Windows LLVM Toolchains should be recompiled
+                // with enabled support for wasm.
+                val canCompileWasm = HostManager.hostIsMac
+                return canCompileWasm
+            }
+            return true
+        } else {
             return false
         }
-        // Disable wasm target for now because it needs additional work.
-        val canCompileWasm = HostManager.hostIsMac
-        return canCompileWasm
+
     }
 
     fun shouldGenerateTestRunner() =
