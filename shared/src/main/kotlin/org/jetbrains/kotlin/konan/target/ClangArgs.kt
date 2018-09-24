@@ -104,7 +104,7 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-fno-pic",
                         "-fshort-enums",
                         "-nostdinc",
-                        // TODO: make it a libGcc property? 
+                        // TODO: make it a libGcc property?
                         // We need to get rid of wasm sysroot first.
                         "-isystem $targetToolchain/../lib/gcc/arm-none-eabi/7.2.1/include",
                         "-isystem $targetToolchain/../lib/gcc/arm-none-eabi/7.2.1/include-fixed",
@@ -257,10 +257,15 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
             when (HostManager.host) {
                 KonanTarget.LINUX_X64 -> args.remove("/usr/include/x86_64-linux-gnu")  // HACK: over gradle-4.4.
                 KonanTarget.MACOS_X64 -> {
-                    val indexToRemove = args.indexOf(args.find { it.contains("MacOSX.platform")})  // HACK: over gradle-4.7.
+                    // Gradle implicitly runs `xcrun --show-sdk-path` and adds output to included dirs. We have to exclude it.
+                    val xcRunFilter: (String) -> Boolean =
+                            { it.contains("MacOSX.platform") || it.contains("CommandLineTools") }
+                    val indexToRemove = args.indexOf(args.find(xcRunFilter))  // HACK: over gradle-4.7.
                     if (indexToRemove != -1) {
-                        args.removeAt(indexToRemove - 1) // drop -I.
-                        args.removeAt(indexToRemove - 1) // drop /Application/Xcode.app/...
+                        // drop -I.
+                        args.removeAt(indexToRemove - 1)
+                        // drop /Application/Xcode.app/... or /Library/Developer/CommandLineTools/...
+                        args.removeAt(indexToRemove - 1)
                     }
                 }
             }
