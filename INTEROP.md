@@ -562,8 +562,8 @@ To wrap the reference:
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
 ```kotlin
-val stablePtr = StableRef.create(kotlinReference)
-val voidPtr = stablePtr.value
+val stableRef = StableRef.create(kotlinReference)
+val voidPtr = stableRef.asCPointer()
 ```
 
 </div>
@@ -575,14 +575,13 @@ To unwrap the reference:
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
 ```kotlin
-val stablePtr = StableRef.fromValue(voidPtr)
-val kotlinReference = stablePtr.get()
+val stableRef = voidPtr.asStableRef<KotlinClass>()
+val kotlinReference = stableRef.get()
 ```
 
 </div>
 
-where `kotlinReference` is the original wrapped reference (however, it's type is
-`Any` so it may require casting).
+where `kotlinReference` is the original wrapped reference.
 
 The created `StableRef` should eventually be manually disposed using
 the `.dispose()` method to prevent memory leaks:
@@ -590,7 +589,7 @@ the `.dispose()` method to prevent memory leaks:
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
 ```kotlin
-stablePtr.dispose()
+stableRef.dispose()
 ```
 
 </div>
