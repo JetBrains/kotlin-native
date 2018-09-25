@@ -16,6 +16,7 @@
 
 #include "LLVMExt.h"
 #include "CodeGen.h"
+#include "logging.h"
 
 #include <llvm/Support/FileSystem.h>
 #include <llvm/Support/TargetSelect.h>
@@ -42,9 +43,32 @@
 #include <memory>
 #include <ctime>
 
-#if LLVM_NEW_BACKEND_ENABLED
-
 using namespace llvm;
+
+static void LLVMExtDiagnosticHandlerCallback(const DiagnosticInfo &DI, void* context) {
+  bool *errorDetected = static_cast<bool *>(context);
+  if (DI.getSeverity() == DS_Error)
+    *errorDetected = true;
+
+  if (auto *Remark = dyn_cast<DiagnosticInfoOptimizationBase>(&DI)) {
+    if (!Remark->isEnabled()) {
+      return;
+    }
+  }
+
+  DiagnosticPrinterRawOStream DP(logging::error());
+  logging::error() << LLVMContext::getDiagnosticMessagePrefix(DI.getSeverity()) << ": ";
+  DI.print(DP);
+  logging::error() << "\n";
+}
+
+void LLVMExtSetDiagnosticHandler(LLVMContextRef contextRef) {
+  LLVMContext* context = unwrap(contextRef);
+  bool hasError = false;
+  context->setDiagnosticHandlerCallBack(LLVMExtDiagnosticHandlerCallback, &hasError);
+}
+
+#if LLVM_NEW_BACKEND_ENABLED
 
 class ModuleLinker {
  public:
@@ -114,6 +138,12 @@ void setFunctionAttributes(StringRef cpu, StringRef features, Module &module) {
 }
 
 void initLLVM(PassRegistry *registry) {
+
+  InitializeAllTargets();
+  InitializeAllTargetMCs();
+  InitializeAllAsmPrinters();
+  InitializeAllAsmParsers();
+
   initializeCore(*registry);
   initializeCodeGen(*registry);
   initializeScalarOpts(*registry);
@@ -124,23 +154,6 @@ void initLLVM(PassRegistry *registry) {
   initializeTransformUtils(*registry);
   initializeInstCombine(*registry);
   initializeTarget(*registry);
-}
-
-void LLVMExtDiagnosticHandlerCallback(const DiagnosticInfo &DI, void* context) {
-  bool *errorDetected = static_cast<bool *>(context);
-  if (DI.getSeverity() == DS_Error)
-    *errorDetected = true;
-
-  if (auto *Remark = dyn_cast<DiagnosticInfoOptimizationBase>(&DI)) {
-    if (!Remark->isEnabled()) {
-      return;
-    }
-  }
-
-  DiagnosticPrinterRawOStream DP(logging::error());
-  logging::error() << LLVMContext::getDiagnosticMessagePrefix(DI.getSeverity()) << ": ";
-  DI.print(DP);
-  logging::error() << "\n";
 }
 
 // Copied for LTOCodeGenerator. Should change to something more sophisticated.
@@ -193,9 +206,7 @@ int LLVMFatLtoCodegen(LLVMContextRef contextRef,
   }
 
   std::unique_ptr<LLVMContext> context(unwrap(contextRef));
-
-  context->setDiagnosticHandlerCallBack(LLVMExtDiagnosticHandlerCallback);
-
+  
   initLLVM(PassRegistry::getPassRegistry());
 
   auto module = linkModules(*context, programModuleRef, runtimeModuleRef, stdlibModuleRef);

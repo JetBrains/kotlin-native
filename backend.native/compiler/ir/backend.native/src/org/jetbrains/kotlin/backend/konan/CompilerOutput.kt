@@ -54,6 +54,7 @@ internal fun produceOutput(context: Context, phaser: PhaseManager) {
                 compileWithFatLto(context, phaser, nativeLibraries)
             } else {
                 phaser.phase(KonanPhase.BITCODE_LINKER) {
+                    context.log { "Linking ${nativeLibraries.joinToString()}" }
                     linkBitcode(llvmModule, (nativeLibraries).map { parseBitcodeFile(it) })
                 }
                 LLVMWriteBitcodeToFile(llvmModule, output)

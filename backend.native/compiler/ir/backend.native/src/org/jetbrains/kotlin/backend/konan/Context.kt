@@ -6,6 +6,8 @@
 package org.jetbrains.kotlin.backend.konan
 
 import llvm.LLVMDumpModule
+import llvm.LLVMExtSetDiagnosticHandler
+import llvm.LLVMGetModuleContext
 import llvm.LLVMModuleRef
 import org.jetbrains.kotlin.backend.common.DumpIrTreeWithDescriptorsVisitor
 import org.jetbrains.kotlin.backend.common.ReflectionTypes
@@ -369,6 +371,8 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
 
             llvm = Llvm(this, module)
             debugInfo = DebugInfo(this)
+            // Set Diagnostic Handler so we can see LLVM's error messages.
+            LLVMExtSetDiagnosticHandler(LLVMGetModuleContext(module))
         }
 
     lateinit var llvm: Llvm

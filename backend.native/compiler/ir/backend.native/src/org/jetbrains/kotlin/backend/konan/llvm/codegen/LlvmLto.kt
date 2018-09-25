@@ -13,11 +13,18 @@ import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
 
+internal fun getModuleName(module: LLVMModuleRef): String {
+    return memScoped {
+        val len = alloc<size_tVar>()
+        val identifier = LLVMGetModuleIdentifier(module, len.ptr)
+        identifier?.toKString() ?: "Unnamed module"
+    }
+}
+
 internal fun linkBitcode(mainModule: LLVMModuleRef, toLink: List<LLVMModuleRef?>) {
     for (library in toLink) {
-        val failed = LLVMLinkModules2(mainModule, library)
-        if (failed != 0) {
-            throw Error("failed to link $library") // TODO: retrieve error message from LLVM.
+        if (LLVMLinkModules2(mainModule, library) != 0) {
+            error("Cannot link ${getModuleName(mainModule)} and ${getModuleName(library!!)}.")
         }
     }
 }

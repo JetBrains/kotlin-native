@@ -45,6 +45,9 @@ typedef struct {
   int compilingForHost;
 } CodeGenConfig;
 
+/// Adds default error printer to the context.
+void LLVMExtSetDiagnosticHandler(LLVMContextRef contextRef);
+
 /// Performs "fat" LTO.
 /// Merges all given modules into one and compiles to object file based on
 /// given configuration.
