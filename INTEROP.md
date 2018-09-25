@@ -22,14 +22,12 @@ separate document [OBJC_INTEROP.md](OBJC_INTEROP.md).
 
 ## Platform libraries ##
 
- Note that in many cases there's no need to use mechanisms described below, as for APIs available on the
-platform standartized bindings called platform libraries [PLATFORM_LIBS.md](PLATFORM_LIBS.md) could be used.
-For example, POSIX on Linux/macOS platforms, Win32 on Windows platform, or Apple frameworks on macOS/iOS are
-avilable this way.
+ Note that in many cases there's no need to use custom interoperability library creation mechanisms described below,
+as for APIs available on the platform standartized bindings called [platform libraries](PLATFORM_LIBS.md)
+could be used. For example, POSIX on Linux/macOS platforms, Win32 on Windows platform, or Apple frameworks
+on macOS/iOS are available this way.
 
 ## Simple example ##
-
-Build the dependencies and compiler (see `README.md`).
 
 Install libgit2 and prepare stubs for the git library:
 
@@ -627,7 +625,7 @@ The `.def` file supports several options for adjusting the generated bindings.
     values correspondingly. If the enum is not included into any of these lists,
     then it is generated according to the heuristics.
 
-*    `noStringConversion` property value is space-separated lists of the function whose
+*    `noStringConversion` property value is space-separated lists of the functions whose
      `const char*` parameters shall not be autoconverted as Kotlin string
 
 ### Portability ###
@@ -670,8 +668,8 @@ in some cases.
 
 ### Object pinning ###
 
- Kotlin objects could be pinned, i.e. their position is memory is guaranteed to be stable
-until unpinned, and pointers to such objects could be passed to the C functions. For example
+ Kotlin objects could be pinned, i.e. their position in memory is guaranteed to be stable
+until unpinned, and pointers to such objects inner data could be passed to the C functions. For example
 
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
