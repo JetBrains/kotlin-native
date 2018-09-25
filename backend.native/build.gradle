@@ -21,6 +21,10 @@ apply plugin: org.jetbrains.kotlin.NativeInteropPlugin
 allprojects {
     repositories {
         maven { url buildKotlinCompilerRepo }
+        ivy {
+            ivyPattern      'https://teamcity.jetbrains.com/guestAuth/repository/download/[module]/[revision]/teamcity-ivy.xml'
+            artifactPattern 'https://teamcity.jetbrains.com/guestAuth/repository/download/[module]/[revision]/[artifact](.[ext])'
+        }
     }
 }
 
@@ -118,7 +122,12 @@ dependencies {
     kotlin_stdlib_jar "$kotlinStdLibModule@jar"
     kotlin_reflect_jar "$kotlinReflectModule@jar"
     kotlin_script_runtime_jar "$kotlinScriptRuntimeModule@jar"
-    kotlin_common_stdlib_src kotlinCommonStdlibModule
+    kotlin_common_stdlib_src (group: 'org',  name: 'Kotlin_dev_Compiler', version: '1.3.20-dev-375') {
+        artifact {
+            name = 'maven/org/jetbrains/kotlin/kotlin-stdlib-common/1.3.20-dev-375/kotlin-stdlib-common-1.3.20-dev-375-sources'
+            type = 'jar'
+        }
+    }
 
     compilerCompile "com.google.protobuf:protobuf-java:${protobufVersion}"
 
