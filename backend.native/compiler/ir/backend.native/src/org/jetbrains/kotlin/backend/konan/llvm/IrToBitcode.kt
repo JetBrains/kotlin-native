@@ -177,7 +177,7 @@ internal fun verifyModule(llvmModule: LLVMModuleRef, context: Context, current: 
             if (current.isNotEmpty())
                 println("Error in $current")
             LLVMDisposeMessage(errorRef.value)
-            LLVMWriteBitcodeToFile(llvmModule, context.config.tempFiles.create("error_dump", ".bc").path)
+            LLVMDumpModule(llvmModule)
             context.reportCompilationError("Invalid module")
         }
     }
