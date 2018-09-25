@@ -1171,7 +1171,8 @@ internal actual fun <T> copyToArrayImpl(collection: Collection<*>, array: Array<
         array[index++] = iterator.next() as T
     }
     if (index < array.size) {
-        return (@Suppress("UNCHECKED_CAST")(array as Array<T>)).copyOf(index) as Array<T>
+        @Suppress("UNCHECKED_CAST")
+        array[index] = null as T
     }
     return array
 }
@@ -1182,13 +1183,15 @@ internal actual fun <T> copyToArrayImpl(collection: Collection<*>, array: Array<
  * Allocates an array of runtime type `T` having its size equal to the size of this collection
  * and populates the array with the elements of this collection.
  */
-public actual inline fun <reified T> Collection<T>.toTypedArray(): Array<T> {
-    val result = arrayOfNulls<T>(size)
-    var index = 0
-    for (element in this) result[index++] = element
-    @Suppress("UNCHECKED_CAST")
-    return result as Array<T>
-}
+public actual inline fun <reified T> Collection<T>.toTypedArray(): Array<T> =
+        @Suppress("UNCHECKED_CAST")
+        ((this.toTypedArrayIfSupports()
+                ?: arrayOfNulls<T>(size)
+                        .also { forEachIndexed { index, elem -> it[index] = elem } }
+                ) as Array<T>)
+
+@PublishedApi
+internal fun <T> Collection<T>.toTypedArrayIfSupports() = (this as? SupportsToArray)?.let { toArray() }
 
 /**
  * Returns an array containing all elements of the original array and then the given [element].

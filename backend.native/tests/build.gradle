@@ -3016,7 +3016,6 @@ task runStdlibTests(type: RunStdlibTest) {
     // runs all tests and hence source name should be not null
     source = "stdlib_external/utils.kt"
     useFilter = false
-    arguments = [ "--ktest_negative_regex_filter=test.collections.CollectionTest.abstractCollectionToArray" ]
     runnerLogger = RunKonanTest.Logger.GTEST
 }
 
