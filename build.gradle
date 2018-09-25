@@ -296,6 +296,7 @@ task commonDistRuntime(type: Copy) {
 task crossDistRuntime(type: Copy) {
     dependsOn.addAll(targetList.collect { "${it}CrossDistRuntime" })
     dependsOn('commonDistRuntime')
+    dependsOn(':backend.native:teamcityPublishStdLibSources')
 }
 
 task crossDistPlatformLibs {
