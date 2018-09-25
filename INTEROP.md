@@ -168,9 +168,38 @@ excludeDependentModules = true
 When both `excludeDependentModules` and `headerFilter` are used, they are
 applied as an intersection.
 
+### C compiler and linker options ###
+
+ Options passed to the C compiler (used to analyze headers, such as preprocessor definitions) and the linker
+(used to link final executables) can be passed in in the definition file as `compilerOpts` and `linkerOpts`
+respectively. For example
+
+<div class="sample" markdown="1" theme="idea" mode="c">
+
+```c
+compilerOpts = -DFOO=bar
+linkerOpts = -lpng
+```
+
+</div>
+
+Target-specific options, only applicable to the certain target can be specified as well, such as
+
+<div class="sample" markdown="1" theme="idea" mode="c">
+
+ ```c
+ compilerOpts = -DBAR=bar
+ compilerOpts.linux_x64 = -DFOO=foo1
+ compilerOpts.mac_x64 = -DFOO=foo2
+ ```
+
+</div>
+
+and so, C headers on Linux will be analyzed with `-DBAR=bar -DFOO=foo1` and on macOS with `-DBAR=bar -DFOO=foo2`.
+
 ### Adding custom declarations ###
 
-Sometimes it is required to add custom C declarations to the library before
+ Sometimes it is required to add custom C declarations to the library before
 generating bindings (e.g., for [macros](#macros)). Instead of creating an
 additional header file with these declarations, you can include them directly
 to the end of the `.def` file, after a separating line, containing only the
