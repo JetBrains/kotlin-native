@@ -179,6 +179,7 @@ task zipStdLibSources(type: Zip, dependsOn: unzipStdlibSources) {
 task teamcityPublishStdLibSources {
   dependsOn zipStdLibSources
   if (System.getenv("TEAMCITY_BUILD_PROPERTIES_FILE") != null) {
+    outputs.upToDateWhen { false }
     doLast {
       println " ##teamcity[publishArtifacts '${tasks.zipStdLibSources.archivePath}'] "
     }
