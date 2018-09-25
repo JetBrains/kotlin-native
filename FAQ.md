@@ -1,6 +1,6 @@
 ### Q: How do I run my program?
 
-A: Define a top level function `fun main(args: Array<String>)` or just  `fun main()` if you not interested
+A: Define a top level function `fun main(args: Array<String>)` or just  `fun main()` if you are not interested
 in passed arguments, please ensure it's not in a package.
 Also compiler switch `-entry` could be used to make any function taking `Array<String>` or no arguments
 and return `Unit` as an entry point.

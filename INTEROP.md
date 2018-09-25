@@ -171,7 +171,7 @@ applied as an intersection.
 ### C compiler and linker options ###
 
  Options passed to the C compiler (used to analyze headers, such as preprocessor definitions) and the linker
-(used to link final executables) can be passed in in the definition file as `compilerOpts` and `linkerOpts`
+(used to link final executables) can be passed in the definition file as `compilerOpts` and `linkerOpts`
 respectively. For example
 
 <div class="sample" markdown="1" theme="idea" mode="c">
@@ -196,6 +196,7 @@ Target-specific options, only applicable to the certain target can be specified 
 </div>
 
 and so, C headers on Linux will be analyzed with `-DBAR=bar -DFOO=foo1` and on macOS with `-DBAR=bar -DFOO=foo2`.
+Note that any definition file option can have both common and the platform-specific part.
 
 ### Adding custom declarations ###
 
