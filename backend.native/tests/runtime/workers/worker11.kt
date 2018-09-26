@@ -35,6 +35,7 @@ fun initJobs(count: Int) = Array<Job?>(count) { i -> Job(i, i * 2, i)}
         ready.forEach {
             it.consume { job ->
                 assertEquals(job.index * 3, job.counter)
+                jobs[job.index] = job
             }
             consumed++
         }
