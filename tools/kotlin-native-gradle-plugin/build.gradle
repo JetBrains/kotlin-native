@@ -15,7 +15,7 @@
  */
 
 import org.jetbrains.kotlin.konan.KonanVersion
-import com.github.jengelman.gradle.plugins.shadow.tasks.ConfigureShadowRelocation
+import org.jetbrains.kotlin.konan.MetaVersion
 
 /**
  * One may use bintrayUser/bintrayKey project properties or BINTRAY_USER/BINTRAY_KEY environment variables to upload
@@ -54,7 +54,12 @@ apply plugin: 'com.jfrog.bintray'
 apply plugin: 'com.github.johnrengelman.shadow'
 
 group = 'org.jetbrains.kotlin'
-version = KonanVersion.Companion.CURRENT.toString()
+
+if (KonanVersion.Companion.CURRENT.meta == MetaVersion.RELEASE) {
+    version = kotlinVersion
+} else {
+    version = "$kotlinVersion-native-${KonanVersion.Companion.CURRENT.toString()}"
+}
 
 repositories {
     mavenCentral()
@@ -110,7 +115,6 @@ shadowJar {
         exclude('org.jetbrains.kotlin.gradle.plugin.model.**')
     }
 }
-
 
 assemble.dependsOn shadowJar
 
