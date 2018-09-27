@@ -14,8 +14,13 @@
  * limitations under the License.
  */
 
+import com.github.jengelman.gradle.plugins.shadow.transformers.ServiceFileTransformer
+import com.github.jengelman.gradle.plugins.shadow.transformers.Transformer
+import com.github.jengelman.gradle.plugins.shadow.transformers.TransformerContext
+import shadow.org.apache.tools.zip.ZipOutputStream
 import org.jetbrains.kotlin.konan.KonanVersion
 import org.jetbrains.kotlin.konan.MetaVersion
+
 
 /**
  * One may use bintrayUser/bintrayKey project properties or BINTRAY_USER/BINTRAY_KEY environment variables to upload
@@ -114,6 +119,18 @@ shadowJar {
         exclude('org.jetbrains.kotlin.gradle.plugin.konan.**')
         exclude('org.jetbrains.kotlin.gradle.plugin.model.**')
     }
+
+    exclude {
+        def path = it.relativePath.pathString
+        if (path.startsWith("META-INF/gradle-plugins") && path.endsWith(".properties")) {
+            def fileName = it.name
+            def id = fileName.take(fileName.lastIndexOf('.'))
+            return project.gradlePlugin.plugins.findByName(id) == null
+        }
+        return false
+    }
+    exclude('META-INF/services/org.jetbrains.kotlin.compiler.plugin.ComponentRegistrar')
+    exclude('META-INF/services/org.jetbrains.kotlin.gradle.plugin.KotlinGradleSubplugin')
 }
 
 assemble.dependsOn shadowJar
