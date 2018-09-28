@@ -3,7 +3,7 @@
  * that can be found in the LICENSE file.
  */
 
-package org.jetbrains.kotlin.backend.konan.lower
+package org.jetbrains.kotlin.backend.konan.lower.loops
 
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
@@ -67,68 +67,11 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
     private val scopeOwnerSymbol
         get() = currentScope!!.scope.scopeOwnerSymbol
 
-    private val progressionElementClasses: List<IrClassSymbol> = mutableListOf(symbols.char).apply {
-        addAll(symbols.integerClasses)
-    }
-
-    private val progressionElementClassesTypes: List<SimpleType> = mutableListOf<SimpleType>().apply {
-        progressionElementClasses.mapTo(this) { it.descriptor.defaultType }
-    }
-
-    private val progressionElementClassesNullableTypes: List<SimpleType> = mutableListOf<SimpleType>().apply {
-        progressionElementClassesTypes.mapTo(this) { it.makeNullableAsSpecified(true) }
-    }
-
-    //region Symbols for progression building functions ================================================================
-    private fun getProgressionBuildingMethods(name: String): Set<IrFunctionSymbol> =
-            getMethodsForProgressionElements(name) {
-                it.valueParameters.size == 1 && it.valueParameters[0].type in progressionElementClassesTypes
-            }
-
-    private fun getProgressionBuildingExtensions(name: String, pkg: FqName): Set<IrFunctionSymbol> =
-            getExtensionsForProgressionElements(name, pkg) {
-                it.extensionReceiverParameter?.type in progressionElementClassesTypes &&
-                it.valueParameters.size == 1 &&
-                it.valueParameters[0].type in progressionElementClassesTypes
-            }
-
-    private fun getMethodsForProgressionElements(name: String,
-                                                 filter: (SimpleFunctionDescriptor) -> Boolean): Set<IrFunctionSymbol> =
-            mutableSetOf<IrFunctionSymbol>().apply {
-                progressionElementClasses.flatMapTo(this) { receiver ->
-                    receiver.descriptor.unsubstitutedMemberScope
-                            .getContributedFunctions(Name.identifier(name), NoLookupLocation.FROM_BACKEND)
-                            .filter(filter).map { symbols.symbolTable.referenceFunction(it) }
-                }
-            }
-
-    private fun getExtensionsForProgressionElements(name: String,
-                                                    pkg: FqName,
-                                                    filter: (SimpleFunctionDescriptor) -> Boolean): Set<IrFunctionSymbol> =
-            mutableSetOf<IrFunctionSymbol>().apply {
-                progressionElementClasses.flatMapTo(this) { _ /* receiver */ ->
-                    context.builtIns.builtInsModule.getPackage(pkg).memberScope
-                            .getContributedFunctions(Name.identifier(name), NoLookupLocation.FROM_BACKEND)
-                            .filter(filter).map { symbols.symbolTable.referenceFunction(it) }
-                }
-            }
-
-    private val rangeToSymbols by lazy { getProgressionBuildingMethods("rangeTo") }
-    private val untilSymbols by lazy { getProgressionBuildingExtensions("until", FqName("kotlin.ranges")) }
-    private val downToSymbols by lazy { getProgressionBuildingExtensions("downTo", FqName("kotlin.ranges")) }
-    private val stepSymbols by lazy {
-        getExtensionsForProgressionElements("step", FqName("kotlin.ranges")) {
-            it.extensionReceiverParameter?.type in symbols.progressionClassesTypes &&
-                    it.valueParameters.size == 1 &&
-                    (KotlinBuiltIns.isLong(it.valueParameters[0].type) || KotlinBuiltIns.isInt(it.valueParameters[0].type))
-        }
-    }
-    //endregion
-
     //region Util methods ==============================================================================================
     private fun IrExpression.castIfNecessary(progressionType: ProgressionType): IrExpression {
         val type = this.type.toKotlinType()
-        assert(type in progressionElementClassesTypes || type in progressionElementClassesNullableTypes)
+        // TODO: Fix asserts
+//        assert(type in progressionElementClassesTypes || type in progressionElementClassesNullableTypes)
         return if (type == progressionType.elementType) {
             this
         } else {
@@ -165,38 +108,6 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
             }
         }
 
-    private fun IrConst<*>.isOne() =
-        when (kind) {
-            IrConstKind.Long -> value as Long == 1L
-            IrConstKind.Int  -> value as Int == 1
-            else -> false
-        }
-
-    // Used only by the assert.
-    private fun stepHasRightType(step: IrExpression, progressionType: ProgressionType) =
-            ((progressionType.isCharProgression() || progressionType.isIntProgression()) &&
-                    KotlinBuiltIns.isInt(step.type.toKotlinType().makeNotNullable())) ||
-            (progressionType.isLongProgression() &&
-                    KotlinBuiltIns.isLong(step.type.toKotlinType().makeNotNullable()))
-
-    private fun irCheckProgressionStep(progressionType: ProgressionType,
-                                       step: IrExpression): Pair<IrExpression, Boolean> {
-        if (step is IrConst<*> &&
-            ((step.kind == IrConstKind.Long && step.value as Long > 0) ||
-            (step.kind == IrConstKind.Int && step.value as Int > 0))) {
-            return step to !step.isOne()
-        }
-        // The frontend checks if the step has a right type (Long for LongProgression and Int for {Int/Char}Progression)
-        // so there is no need to cast it.
-        assert(stepHasRightType(step, progressionType))
-
-        val symbol = symbols.checkProgressionStep[step.type.toKotlinType().makeNotNullable()]
-                ?: throw IllegalArgumentException("Unknown progression element type: ${step.type}")
-        return IrCallImpl(step.startOffset, step.endOffset, symbol.owner.returnType, symbol).apply {
-            putValueArgument(0, step)
-        } to true
-    }
-
     private fun irGetProgressionLast(progressionType: ProgressionType,
                                      first: IrVariable,
                                      lastExpression: IrExpression,
@@ -213,97 +124,6 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
     }
     //endregion
 
-    //region Util classes ==============================================================================================
-    // TODO: Replace with a cast when such support is added in the boxing lowering.
-    private data class ProgressionType(val elementType: KotlinType, val numberCastFunctionName: Name) {
-        fun isIntProgression()  = KotlinBuiltIns.isInt(elementType)
-        fun isLongProgression() = KotlinBuiltIns.isLong(elementType)
-        fun isCharProgression() = KotlinBuiltIns.isChar(elementType)
-    }
-
-    private data class ProgressionInfo(
-            val progressionType: ProgressionType,
-            val first: IrExpression,
-            val bound: IrExpression,
-            val step: IrExpression? = null,
-            val increasing: Boolean = true,
-            var needLastCalculation: Boolean = false,
-            val closed: Boolean = true)
-
-    /** Contains information about variables used in the loop. */
-    private data class ForLoopInfo(
-            val progressionInfo: ProgressionInfo,
-            val inductionVariable: IrVariable,
-            val bound: IrVariable,
-            val last: IrVariable,
-            val step: IrVariable,
-            var loopVariable: IrVariable? = null)
-
-    private inner class ProgressionInfoBuilder : IrElementVisitor<ProgressionInfo?, Nothing?> {
-
-        val INT_PROGRESSION = ProgressionType(context.builtIns.intType, Name.identifier("toInt"))
-        val LONG_PROGRESSION = ProgressionType(context.builtIns.longType, Name.identifier("toLong"))
-        val CHAR_PROGRESSION = ProgressionType(context.builtIns.charType, Name.identifier("toChar"))
-
-        private fun buildRangeTo(expression: IrCall, progressionType: ProgressionType) =
-                ProgressionInfo(progressionType,
-                        expression.dispatchReceiver!!,
-                        expression.getValueArgument(0)!!)
-
-        private fun buildUntil(expression: IrCall, progressionType: ProgressionType): ProgressionInfo =
-                ProgressionInfo(progressionType,
-                        expression.extensionReceiver!!,
-                        expression.getValueArgument(0)!!,
-                        closed = false)
-
-        private fun buildDownTo(expression: IrCall, progressionType: ProgressionType) =
-                ProgressionInfo(progressionType,
-                        expression.extensionReceiver!!,
-                        expression.getValueArgument(0)!!,
-                        increasing = false)
-
-        private fun buildStep(expression: IrCall, progressionType: ProgressionType) =
-                expression.extensionReceiver!!.accept(this, null)?.let {
-                    val newStep = expression.getValueArgument(0)!!
-                    val (newStepCheck, needBoundCalculation) = irCheckProgressionStep(progressionType, newStep)
-                    val step = when {
-                        it.step == null -> newStepCheck
-                        // There were step calls before. Just add our check in the container or create a new one.
-                        it.step is IrStatementContainer -> {
-                            it.step.statements.add(newStepCheck)
-                            it.step
-                        }
-                        else -> IrCompositeImpl(expression.startOffset, expression.endOffset, newStep.type).apply {
-                            statements.add(it.step)
-                            statements.add(newStepCheck)
-                        }
-                    }
-                    ProgressionInfo(progressionType, it.first, it.bound, step, it.increasing, needBoundCalculation, it.closed)
-                }
-
-        override fun visitElement(element: IrElement, data: Nothing?): ProgressionInfo? = null
-
-        override fun visitCall(expression: IrCall, data: Nothing?): ProgressionInfo? {
-            val type = expression.type.toKotlinType()
-            val progressionType = when {
-                type.isSubtypeOf(symbols.charProgression.descriptor.defaultType) -> CHAR_PROGRESSION
-                type.isSubtypeOf(symbols.intProgression.descriptor.defaultType) -> INT_PROGRESSION
-                type.isSubtypeOf(symbols.longProgression.descriptor.defaultType) -> LONG_PROGRESSION
-                else -> return null
-            }
-
-            // TODO: Process constructors and other factory functions.
-            return when (expression.symbol) {
-                in rangeToSymbols -> buildRangeTo(expression, progressionType)
-                in untilSymbols -> buildUntil(expression, progressionType)
-                in downToSymbols -> buildDownTo(expression, progressionType)
-                in stepSymbols -> buildStep(expression, progressionType)
-                else -> null
-            }
-        }
-    }
-    //endregion
-
     //region Lowering ==================================================================================================
     // Lower a loop header.
     private fun processHeader(variable: IrVariable, initializer: IrCall): IrStatement? {
@@ -316,7 +136,7 @@ private class ForLoopsTransformer(val context: Context) : IrElementTransformerVo
 
         val builder = context.createIrBuilder(scopeOwnerSymbol, variable.startOffset, variable.endOffset)
         // Collect loop info and form the loop header composite.
-        val progressionInfo = initializer.dispatchReceiver?.accept(ProgressionInfoBuilder(), null) ?: return null
+        val progressionInfo = initializer.dispatchReceiver?.accept(ProgressionInfoBuilder(context), null) ?: return null
 
         with(builder) {
             with(progressionInfo) {
