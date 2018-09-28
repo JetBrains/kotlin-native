@@ -37,6 +37,7 @@ import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.types.KotlinType
+import org.jetbrains.kotlin.types.SimpleType
 import org.jetbrains.kotlin.types.TypeUtils
 import kotlin.properties.Delegates
 
@@ -282,14 +283,20 @@ internal class KonanSymbols(context: Context, val symbolTable: SymbolTable, val 
 
     val arrayContentToString = arrays.associateBy(
             { it },
-            { findArrayExtension(it.descriptor, "contentToString") }
+            { findArrayExtensionFunction(it.descriptor, "contentToString") }
     )
     val arrayContentHashCode = arrays.associateBy(
             { it },
-            { findArrayExtension(it.descriptor, "contentHashCode") }
+            { findArrayExtensionFunction(it.descriptor, "contentHashCode") }
     )
 
-    fun findArrayExtension(descriptor: ClassDescriptor, name: String): IrSimpleFunctionSymbol {
+    // Arrays of unsigned primitives have not `lastIndex` extension.
+    val arrayLastIndex = (primitiveArrays.values + array).associateBy(
+            { it },
+            { findArrayExtensionGetter(it.descriptor, "lastIndex") }
+    )
+
+    fun findArrayExtensionFunction(descriptor: ClassDescriptor, name: String): IrSimpleFunctionSymbol {
         val functionDescriptor = builtInsPackage("kotlin", "collections")
                 .getContributedFunctions(Name.identifier(name), NoLookupLocation.FROM_BACKEND)
                 .singleOrNull {
@@ -297,6 +304,18 @@ internal class KonanSymbols(context: Context, val symbolTable: SymbolTable, val 
                             && it.extensionReceiverParameter?.type?.constructor?.declarationDescriptor == descriptor
                             && !it.isExpect
                 }
+                ?: throw Error(descriptor.toString())
+        return symbolTable.referenceSimpleFunction(functionDescriptor)
+    }
+
+    fun findArrayExtensionGetter(descriptor: ClassDescriptor, name: String): IrSimpleFunctionSymbol {
+        val functionDescriptor = builtInsPackage("kotlin", "collections")
+                .getContributedVariables(Name.identifier(name), NoLookupLocation.FROM_BACKEND)
+                .singleOrNull {
+                    it.valueParameters.isEmpty()
+                            && it.extensionReceiverParameter?.type?.constructor?.declarationDescriptor == descriptor
+                            && !it.isExpect
+                }?.getter
                 ?: throw Error(descriptor.toString())
         return symbolTable.referenceSimpleFunction(functionDescriptor)
     }
