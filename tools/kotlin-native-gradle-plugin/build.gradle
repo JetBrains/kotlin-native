@@ -129,8 +129,8 @@ task jar(type: ShadowJar, overwrite: true) {
 assemble.dependsOn shadowJar
 
 pluginUnderTestMetadata {
-    dependsOn shadowJar
-    pluginClasspath = files(shadowJar.archivePath) + configurations.shadow
+    dependsOn jar
+    pluginClasspath = files(jar.archivePath) + configurations.shadow
 }
 
 test {
