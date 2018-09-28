@@ -101,11 +101,6 @@ dependencies {
     }
 }
 
-/*
-jar {
-    appendix = "no-shared"
-}*/
-
 task jar(type: ShadowJar, overwrite: true) {
     from sourceSets.main.output
     configurations = [project.configurations.bundleDependencies]
