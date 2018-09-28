@@ -14,13 +14,9 @@
  * limitations under the License.
  */
 
-import com.github.jengelman.gradle.plugins.shadow.transformers.ServiceFileTransformer
-import com.github.jengelman.gradle.plugins.shadow.transformers.Transformer
-import com.github.jengelman.gradle.plugins.shadow.transformers.TransformerContext
-import shadow.org.apache.tools.zip.ZipOutputStream
 import org.jetbrains.kotlin.konan.KonanVersion
 import org.jetbrains.kotlin.konan.MetaVersion
-
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 /**
  * One may use bintrayUser/bintrayKey project properties or BINTRAY_USER/BINTRAY_KEY environment variables to upload
@@ -105,11 +101,13 @@ dependencies {
     }
 }
 
+/*
 jar {
     appendix = "no-shared"
-}
+}*/
 
-shadowJar {
+task jar(type: ShadowJar, overwrite: true) {
+    from sourceSets.main.output
     configurations = [project.configurations.bundleDependencies]
     classifier = null
     relocate('org.jetbrains.kotlinx', 'shadow.org.jetbrains.kotlinx')
@@ -177,9 +175,6 @@ publishing {
         }
     }
 }
-
-// Publish the fat jar into a local maven repo.
-task install(dependsOn: 'publishGradlePluginPublicationToMavenLocal')
 
 bintray {
     user = project.hasProperty('bintrayUser') ? project.property('bintrayUser') : System.getenv('BINTRAY_USER')

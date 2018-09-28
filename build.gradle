@@ -171,11 +171,6 @@ task gradlePluginCheck {
     dependsOn gradle.includedBuild('kotlin-native-gradle-plugin').task(':check')
 }
 
-// Publish the Gradle plugin into the local maven repo.
-task gradlePluginInstall {
-    dependsOn gradle.includedBuild('kotlin-native-gradle-plugin').task(':install')
-}
-
 task gradlePluginUpload {
     dependsOn gradle.includedBuild('kotlin-native-gradle-plugin').task(':bintrayUpload')
     // Don't publish dev builds to the plugin portal.
@@ -355,11 +350,11 @@ task distPlatformLibs {
 }
 
 task dist {
-    dependsOn 'distCompiler', 'distRuntime', 'gradlePluginInstall'
+    dependsOn 'distCompiler', 'distRuntime'
 }
 
 task crossDist {
-    dependsOn 'crossDistRuntime', 'distCompiler', 'gradlePluginInstall'
+    dependsOn 'crossDistRuntime', 'distCompiler'
 }
 
 configurations {

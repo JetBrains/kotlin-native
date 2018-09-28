@@ -1,3 +1,7 @@
+buildscript {
+    println(configurations.classpath.files)
+}
+
 apply plugin: 'org.jetbrains.kotlin.platform.native'
 
 components.main {
