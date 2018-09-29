@@ -136,6 +136,11 @@ pluginUnderTestMetadata {
 }
 
 test {
+    dependsOn shadowJar
+    classpath = configurations.testRuntimeClasspath +
+            sourceSets.test.output +
+            files(shadowJar.archivePath) +
+            configurations.shadow
     systemProperty("kotlin.version", buildKotlinVersion)
     systemProperty("kotlin.repo", buildKotlinCompilerRepo)
     if (project.hasProperty("konan.home")) {
