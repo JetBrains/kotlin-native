@@ -84,6 +84,8 @@ allprojects {
     // backend.native/tests/framework
     ext.testOutputFramework = rootProject.file("$testOutputRoot/framework")
 }
+testOutputExternal.mkdirs()
+testOutputStdlib.mkdirs()
 
 konanArtifacts {
     library('testLibrary') {
@@ -3211,16 +3213,27 @@ task runKonanRegexTests(type: RunKonanTest) {
     runnerLogger = RunKonanTest.Logger.GTEST
 }
 
-task buildKonanStdlibTests(type: BuildKonanTest) {
-    outputSourceSetName = "testOutputStdlib"
-    flags = [ "-Xmulti-platform", "-friend-modules",  project.rootProject.file("${project.properties['konan.home']}/klib/common/stdlib") ]
-    def testSources = externalStdlibTestsDir.absolutePath
-    compileList = [ "$testSources/stdlib/test", "$testSources/stdlib/common",
-                    "stdlib_external/utils.kt", "stdlib_external/jsCollectionFactoriesActuals.kt" ]
-    excludeList = [ "$testSources/stdlib/test/internalAnnotations.kt" ]
+List<String> getKtFilesFrom(String dir, String filter) {
+    def ktFiles = []
+    project.file(dir).eachFileRecurse {
+        if (it.name.endsWith(".kt") && !it.name.contains(filter)) ktFiles.add(it.absolutePath)
+    }
+    return ktFiles
 }
 
 task runStdlibTests(type: RunStdlibTest) {
+    def sources = getKtFilesFrom('build/stdlib_external/stdlib', 'internalAnnotations.kt') +
+            [ "stdlib_external/utils.kt", "stdlib_external/jsCollectionFactoriesActuals.kt" ]
+
+    konanArtifacts {
+        program('stdlibTest', targets: [ target ]) {
+            srcFiles sources
+            baseDir testOutputStdlib
+            enableMultiplatform true
+            extraOpts '-tr', "-friend-modules", project.rootProject.file("dist/klib/common/stdlib").absolutePath
+        }
+    }
+
     outputSourceSetName = "testOutputStdlib"
     // runs all tests and hence source name should be not null
     source = "stdlib_external/utils.kt"
