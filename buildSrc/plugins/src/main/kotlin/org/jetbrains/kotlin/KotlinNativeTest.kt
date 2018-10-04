@@ -102,9 +102,10 @@ data class Statistics(
 
     fun error(count: Int = 1) { error += count }
 
-    operator fun plus(other: Statistics) = Statistics(
-            this.passed + other.passed,
-            this.failed + other.failed,
-            this.error + other.error,
-            this.skipped + other.skipped)
+    fun add(other: Statistics) {
+        passed += other.passed
+        failed += other.failed
+        error += other.error
+        skipped += other.skipped
+    }
 }
