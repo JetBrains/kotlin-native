@@ -42,7 +42,7 @@ open class FrameworkTest : DefaultTask() {
         if (!(project.property("useCustomDist") as Boolean)) {
             setRootDependency("${target}CrossDist", "${target}CrossDistRuntime", "commonDistRuntime", "distCompiler")
         }
-        check(::frameworkName.isInitialized, { "Framework name should be set" })
+        check(::frameworkName.isInitialized) { "Framework name should be set" }
         dependsOn(project.tasks.getByName("compileKonan$frameworkName"))
         return this
     }
@@ -77,20 +77,7 @@ open class FrameworkTest : DefaultTask() {
         val testExecutable = Paths.get(testOutput, frameworkName, "swiftTestExecutable")
         swiftc(sources, options, testExecutable)
 
-        runTest(testExecutable)
-    }
-
-    private fun runTest(testExecutable: Path) {
-        val executor = (project.convention.plugins["executor"] as? ExecutorService)
-                ?: throw RuntimeException("Executor wasn't found")
-        val (stdOut, stdErr, exitCode) = runProcess(executor = executor::execute,
-                executable = testExecutable.toString())
-
-        println("""
-            |stdout: $stdOut
-            |stderr: $stdErr
-            """.trimMargin())
-        check(exitCode == 0, { "Execution failed with exit code: $exitCode "})
+        project.executeAndCheck(testExecutable)
     }
 
     private fun swiftc(sources: List<String>, options: List<String>, output: Path) {
@@ -119,7 +106,7 @@ open class FrameworkTest : DefaultTask() {
             |stdout: $stdOut
             |stderr: $stdErr
             """.trimMargin())
-        check(exitCode == 0, { "Compilation failed" })
-        check(output.toFile().exists(), { "Compiler swiftc hasn't produced an output file: $output" })
+        check(exitCode == 0) { "Compilation failed" }
+        check(output.toFile().exists()) { "Compiler swiftc hasn't produced an output file: $output" }
     }
 }

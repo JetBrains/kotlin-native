@@ -28,12 +28,13 @@ import org.jetbrains.kotlin.konan.target.Xcode
 
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.nio.file.Path
 import java.nio.file.Paths
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
 /**
- * A replacement of the standard exec {}
+ * A replacement of the standard `exec {}`
  * @see org.gradle.api.Project.exec
  */
 interface ExecutorService {
@@ -123,11 +124,30 @@ fun runProcess(executor: (Action<in ExecSpec>) -> ExecResult?,
     return ProcessOutput(stdOut, stdErr, execResult.exitValue)
 }
 
-fun runProcess(executor: (Action<in ExecSpec>) -> ExecResult?,
-               executable: String, vararg args: String) = runProcess(executor, executable, args.toList())
+/**
+ * The [ExecutorService] being set in the given project.
+ * @throws IllegalStateException if there are no executor in the project.
+ */
+val Project.executor: ExecutorService
+    get() = this.convention.plugins["executor"] as? ExecutorService ?: throw IllegalStateException("Executor wasn't found")
 
 /**
- * Returns Project's process executor
+ * Executes the [executable] with the given [arguments]
+ * and checks that the program finished with zero exit code.
+ */
+fun Project.executeAndCheck(executable: Path, arguments: List<String> = emptyList()) {
+    val (stdOut, stdErr, exitCode) = runProcess(executor = executor::execute,
+            executable = executable.toString(), args = arguments)
+
+    println("""
+            |stdout: $stdOut
+            |stderr: $stdErr
+            """.trimMargin())
+    check(exitCode == 0) { "Execution failed with exit code: $exitCode "}
+}
+
+/**
+ * Returns [project]'s process executor.
  * @see Project.exec
  */
 fun localExecutor(project: Project) = { a: Action<in ExecSpec> -> project.exec(a) }
