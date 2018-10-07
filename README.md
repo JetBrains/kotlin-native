@@ -1,4 +1,6 @@
 [![official project](http://jb.gg/badges/official.svg)](https://confluence.jetbrains.com/display/ALL/JetBrains+on+GitHub)
+[![Slack][slack-badge]][slack-url]
+[![JetBrains community Discord](https://goo.gl/xe5fjk)](https://discord.gg/zzgKagV)
 
 # Kotlin/Native  #
 
@@ -57,3 +59,8 @@ See the provided [samples](https://github.com/JetBrains/kotlin-native/tree/maste
 
 The Interop tool generates a library in the `.klib` library format. See [`LIBRARIES.md`](https://github.com/JetBrains/kotlin-native/blob/master/LIBRARIES.md)
 for more details on this file format.
+
+
+[slack-url]: http://slack.kotlinlang.org
+[slack-badge-broken]: http://slack.kotlinlang.org/badge.svg
+[slack-badge]: https://goo.gl/6v9NMJ
