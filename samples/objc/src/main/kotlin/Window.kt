@@ -12,6 +12,17 @@ import kotlin.native.concurrent.DetachedObjectGraph
 import kotlin.native.concurrent.attach
 import kotlin.native.concurrent.freeze
 
+inline fun <reified T> executeAsync(queue: NSOperationQueue, crossinline producerConsumer: () -> Pair<T, (T) -> Unit>) {
+    dispatch_async_f(queue.underlyingQueue, DetachedObjectGraph {
+        producerConsumer()
+    }.asCPointer(), staticCFunction { it ->
+        val result = DetachedObjectGraph<Pair<T, (T) -> Unit>>(it).attach()
+        result.second(result.first)
+    })
+}
+
+data class QueryResult(val json: Map<String, *>?, val error: String?)
+
 fun main(args: Array<String>) {
     autoreleasepool {
         runApp()
@@ -75,20 +86,21 @@ class Controller : NSObject() {
 
         override fun URLSession(session: NSURLSession, task: NSURLSessionTask, didCompleteWithError: NSError?) {
             initRuntimeIfNeeded()
-            dispatch_async_f(NSOperationQueue.mainQueue.underlyingQueue, DetachedObjectGraph {
+
+            executeAsync(NSOperationQueue.mainQueue) {
                 val response = task.response as? NSHTTPURLResponse
-                when {
-                    response == null -> Pair(null, didCompleteWithError?.localizedDescription)
-                    response.statusCode.toInt() != 200 -> Pair(null, "${response.statusCode.toInt()})")
-                    else -> Pair(
+                Pair(when {
+                    response == null -> QueryResult(null, didCompleteWithError?.localizedDescription)
+                    response.statusCode.toInt() != 200 -> QueryResult(null, "${response.statusCode.toInt()})")
+                    else -> QueryResult(
                             NSJSONSerialization.JSONObjectWithData(receivedData, 0, null) as? Map<String, *>,
-                            null)
-                }
-            }.asCPointer(), staticCFunction { it ->
-                val result = DetachedObjectGraph<Pair<Map<String, *>?, String?>>(it).attach()
-                appDelegate.contentText.string = result.first?.toString() ?: "Error: ${result.second}"
-                appDelegate.canClick = true
-            })
+                            null
+                    )
+                }, { result: QueryResult ->
+                    appDelegate.contentText.string = result.json?.toString() ?: "Error: ${result.error}"
+                    appDelegate.canClick = true
+                })
+            }
         }
     }
 }
