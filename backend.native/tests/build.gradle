@@ -2993,6 +2993,8 @@ if (isMac() && project.testTarget != 'wasm32') {
                 if (!useCustomDist) {
                     dependsOn ":${target}CrossDistRuntime", ':commonDistRuntime', ':distCompiler'
                 }
+
+                extraOpts "-Xembed-bitcode-marker"
             }
         }
         swiftSources = ['framework/values/values.swift']
@@ -3000,6 +3002,7 @@ if (isMac() && project.testTarget != 'wasm32') {
 
     task testStdlibFramework(type: FrameworkTest) {
         frameworkName = 'Stdlib'
+        fullBitcode = true
         konanArtifacts {
             framework(frameworkName, targets: [ target ]) {
                 srcDir 'framework/stdlib'
@@ -3008,6 +3011,8 @@ if (isMac() && project.testTarget != 'wasm32') {
                 if (!useCustomDist) {
                     dependsOn ":${target}CrossDistRuntime", ':commonDistRuntime', ':distCompiler'
                 }
+
+                extraOpts "-Xembed-bitcode"
             }
         }
         swiftSources = ['framework/stdlib/stdlib.swift']
