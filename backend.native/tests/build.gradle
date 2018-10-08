@@ -462,7 +462,7 @@ task codegen_controlflow_for_loops_overflow(type: KonanLocalTestRunner) {
 }
 
 task codegen_controlflow_for_loops_errors(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // Uses exceptions.
+    enabled = (project.testTarget != 'wasm32') // Uses exceptions.
     source = "codegen/controlflow/for_loops_errors.kt"
     goldValue = "OK\n"
 }
@@ -504,37 +504,37 @@ task codegen_controlflow_for_loops_call_order(type: KonanLocalTestRunner) {
     goldValue = "1234\n1234\n2134\n"
 }
 
-task codegen_controlflow_for_loops_array_indices(type: RunKonanTest) {
+task codegen_controlflow_for_loops_array_indices(type: KonanLocalTestRunner) {
     source = "codegen/controlflow/for_loops_array_indices.kt"
     goldValue = "0123\n\n"
 }
 
-task codegen_controlflow_for_loops_array(type: RunKonanTest) {
+task codegen_controlflow_for_loops_array(type: KonanLocalTestRunner) {
     source = "codegen/controlflow/for_loops_array.kt"
     goldValue = "4035\n\n0\n0\n"
 }
 
-task codegen_controlflow_for_loops_array_nested(type: RunKonanTest) {
+task codegen_controlflow_for_loops_array_nested(type: KonanLocalTestRunner) {
     source = "codegen/controlflow/for_loops_array_nested.kt"
     goldValue = "123\nHello\n\n12345678910\n"
 }
 
-task codegen_controlflow_for_loops_array_side_effects(type: RunKonanTest) {
+task codegen_controlflow_for_loops_array_side_effects(type: KonanLocalTestRunner) {
     source = "codegen/controlflow/for_loops_array_side_effects.kt"
     goldValue = "side-effect\n4035\nside-effect\n\n"
 }
 
-task codegen_controlflow_for_loops_array_break_continue(type: RunKonanTest) {
+task codegen_controlflow_for_loops_array_break_continue(type: KonanLocalTestRunner) {
     source = "codegen/controlflow/for_loops_array_break_continue.kt"
     goldValue = "403\n\n"
 }
 
-task codegen_controlflow_for_loops_array_mutation(type: RunKonanTest) {
+task codegen_controlflow_for_loops_array_mutation(type: KonanLocalTestRunner) {
     source = "codegen/controlflow/for_loops_array_mutation.kt"
     goldValue = "4000"
 }
 
-task codegen_controlflow_for_loops_array_nullable(type: RunKonanTest) {
+task codegen_controlflow_for_loops_array_nullable(type: KonanLocalTestRunner) {
     source = "codegen/controlflow/for_loops_array_nullable.kt"
     goldValue = "123"
 }
@@ -564,7 +564,7 @@ task unchecked_cast1(type: KonanLocalTestRunner) {
 }
 
 task unchecked_cast2(type: KonanLocalTestRunner) {
-    disabled = true
+    enabled = false
     goldValue = "Ok\n"
     source = "codegen/basics/unchecked_cast2.kt"
 }
@@ -593,7 +593,7 @@ task runtime_random(type: KonanLocalTestRunner) {
 }
 
 task runtime_worker_random(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // Uses workers.
+    enabled = (project.testTarget != 'wasm32') // Uses workers.
     source = "runtime/basic/worker_random.kt"
 }
 
@@ -702,79 +702,79 @@ task empty_substring(type: KonanLocalTestRunner) {
 }
 
 task worker0(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // Workers need pthreads.
+    enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
     goldValue = "Got Input processed\nOK\n"
     source = "runtime/workers/worker0.kt"
 }
 
 task worker1(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // Workers need pthreads.
+    enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
     goldValue = "OK\n"
     source = "runtime/workers/worker1.kt"
 }
 
 task worker2(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // Workers need pthreads.
+    enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
     goldValue = "OK\n"
     source = "runtime/workers/worker2.kt"
 }
 
 task worker3(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // Workers need pthreads.
+    enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
     goldValue = "OK\n"
     source = "runtime/workers/worker3.kt"
 }
 
 task worker4(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // Workers need pthreads.
+    enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
     goldValue = "Got 42\nOK\n"
     source = "runtime/workers/worker4.kt"
 }
 
 task worker5(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // Workers need pthreads.
+    enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
     goldValue = "Got 3\nOK\n"
     source = "runtime/workers/worker5.kt"
 }
 
 task worker6(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // Workers need pthreads.
+    enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
     goldValue = "Got 42\nOK\n"
     source = "runtime/workers/worker6.kt"
 }
 
 task worker7(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // Workers need pthreads.
+    enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
     goldValue = "Input\nGot kotlin.Unit\nOK\n"
     source = "runtime/workers/worker7.kt"
 }
 
 task worker8(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // Workers need pthreads.
+    enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
     goldValue = "SharedData(string=Hello, int=10, member=SharedDataMember(double=0.1))\nGot kotlin.Unit\nOK\n"
     source = "runtime/workers/worker8.kt"
 }
 
 task worker9(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // Workers need pthreads.
+    enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
     goldValue = "zzz\n42\nOK\n"
     source = "runtime/workers/worker9.kt"
 }
 
 task worker10(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // Workers need pthreads.
+    enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
     goldValue = "OK\n"
     source = "runtime/workers/worker10.kt"
 }
 
 task worker11(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // Workers need pthreads.
+    enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
     goldValue = "OK\n"
     source = "runtime/workers/worker11.kt"
 }
 
 task freeze0(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // No workers on WASM.
+    enabled = (project.testTarget != 'wasm32') // No workers on WASM.
     goldValue = "frozen bit is true\n" +
             "Worker: SharedData(string=Hello, int=10, member=SharedDataMember(double=0.1))\n" +
             "Main: SharedData(string=Hello, int=10, member=SharedDataMember(double=0.1))\n" +
@@ -783,19 +783,19 @@ task freeze0(type: KonanLocalTestRunner) {
 }
 
 task freeze1(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // No exceptions on WASM.
+    enabled = (project.testTarget != 'wasm32') // No exceptions on WASM.
     goldValue = "OK, cannot mutate frozen\n"
     source = "runtime/workers/freeze1.kt"
 }
 
 task freeze_stress(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // No exceptions on WASM.
+    enabled = (project.testTarget != 'wasm32') // No exceptions on WASM.
     goldValue = "OK\n"
     source = "runtime/workers/freeze_stress.kt"
 }
 
 task freeze2(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // No exceptions on WASM.
+    enabled = (project.testTarget != 'wasm32') // No exceptions on WASM.
     goldValue =
             "Worker 1: Hello world\n" + "Worker2: 42\n" +
             "Worker3: 239.0\n" + "Worker4: a\n" + "OK\n"
@@ -803,13 +803,13 @@ task freeze2(type: KonanLocalTestRunner) {
 }
 
 task freeze3(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // No exceptions on WASM.
+    enabled = (project.testTarget != 'wasm32') // No exceptions on WASM.
     goldValue = "OK\n"
     source = "runtime/workers/freeze3.kt"
 }
 
 task freeze4(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // No exceptions on WASM.
+    enabled = (project.testTarget != 'wasm32') // No exceptions on WASM.
     goldValue = "OK\n"
     source = "runtime/workers/freeze4.kt"
 }
@@ -819,26 +819,26 @@ task freeze5(type: KonanLocalTestRunner) {
     source = "runtime/workers/freeze5.kt"
 }
 
-task freeze6(type: RunKonanTest) {
+task freeze6(type: KonanLocalTestRunner) {
     disabled = (project.testTarget == 'wasm32') // No exceptions on WASM.
     goldValue = "OK\nOK\n"
     source = "runtime/workers/freeze6.kt"
 }
 
 task atomic0(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // Workers need pthreads.
+    enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
     goldValue = "35\n" + "20\n" + "OK\n"
     source = "runtime/workers/atomic0.kt"
 }
 
 task lazy0(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // Workers need pthreads.
+    enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
     goldValue = "OK\n"
     source = "runtime/workers/lazy0.kt"
 }
 
 task lazy1(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // Need exceptions.
+    enabled = (project.testTarget != 'wasm32') // Need exceptions.
     goldValue = "OK\n"
     source = "runtime/workers/lazy1.kt"
 }
@@ -849,7 +849,7 @@ task lazy2(type: RunStandaloneKonanTest) {
 }
 
 task enumIdentity(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // Workers need pthreads.
+    enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
     goldValue = "true\n"
     source = "runtime/workers/enum_identity.kt"
 }
@@ -1102,16 +1102,16 @@ task initializers_linkTest2(type: LinkKonanTest) {
     lib = "codegen/initializers/linkTest2_lib.kt"
 }
 
-task arithmetic_basic(type: RunKonanTest) {
+task arithmetic_basic(type: KonanLocalTestRunner) {
     source = "codegen/arithmetic/basic.kt"
 }
 
-task arithmetic_division(type: RunKonanTest) {
+task arithmetic_division(type: KonanLocalTestRunner) {
     expectedFail = (project.testTarget == 'wasm32') // Uses exceptions.
     source = "codegen/arithmetic/division.kt"
 }
 
-task arithmetic_github1856(type: RunKonanTest) {
+task arithmetic_github1856(type: KonanLocalTestRunner) {
     source = "codegen/arithmetic/github1856.kt"
 }
 
@@ -1607,7 +1607,7 @@ task typed_array0(type: KonanLocalTestRunner) {
 }
 
 task typed_array1(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32')  // No exceptions on WASM.
+    enabled  = (project.testTarget != 'wasm32')  // No exceptions on WASM.
     goldValue = "OK\n"
     source = "runtime/collections/typed_array1.kt"
 }
@@ -1737,7 +1737,7 @@ task strdedup1(type: KonanLocalTestRunner) {
 task strdedup2(type: KonanLocalTestRunner) {
     // TODO: string deduplication across several components seems to require
     // linking them as bitcode modules before translating to machine code.
-    disabled = true
+    enabled = false
 
     goldValue = "true\ntrue\n"
     source = "datagen/literals/strdedup2.kt"
@@ -1771,14 +1771,14 @@ task link_omit_unused(type: LinkKonanTest) {
 
 task link_default_libs(type: RunStandaloneKonanTest) {
     dependsOnPlatformLibs(it)
-    disabled = (project.testTarget == 'wasm32') // there will be no posix.klib for wasm
+    enabled = (project.testTarget != 'wasm32') // there will be no posix.klib for wasm
     goldValue = "sizet = 0\n"
     source = "link/default/default.kt"
 }
 
 task link_testLib_explicitly(type: RunStandaloneKonanTest) {
     // there are no testLibrary for cross targets yet.
-    disabled = (project.testTarget != null && project.testTarget != project.hostName) 
+    enabled = project.testTarget == null || project.testTarget == project.hostName
 
     dependsOn 'installTestLibrary'
     goldValue = "This is a side effect of a test library linked into the binary.\nYou should not be seeing this.\n\nHello\n"
@@ -1793,7 +1793,7 @@ task link_testLib_explicitly(type: RunStandaloneKonanTest) {
 
 task no_purge_for_dependencies(type: LinkKonanTest) {
     dependsOnPlatformLibs(it)
-    disabled = (project.testTarget == 'wasm32') // there will be no posix.klib for wasm
+    enabled = (project.testTarget != 'wasm32') // there will be no posix.klib for wasm
     goldValue = "linked library\nand symbols from posix available: 17; 1.0\n"
     source = "link/purge1/prog.kt"
     lib = "link/purge1/lib.kt"
@@ -1942,7 +1942,7 @@ task array_list1(type: KonanLocalTestRunner) {
 }
 
 task array_list2(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // uses exceptions
+    enabled = (project.testTarget != 'wasm32') // uses exceptions
     goldValue = "OK\n"
     source = "runtime/collections/array_list2.kt"
 }
@@ -1963,7 +1963,7 @@ task listof0(type: KonanLocalTestRunner) {
 }
 
 task listof1(type: KonanLocalTestRunner) {
-    disabled = true
+    enabled = false
     goldValue = "true\n[a, b, c]\n"
     source = "datagen/literals/listof1.kt"
 }
@@ -2074,7 +2074,7 @@ task custom_hook(type: RunStandaloneKonanTest) {
 }
 
 task runtime_math_exceptions(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32')
+    enabled = (project.testTarget != 'wasm32')
     source = "stdlib_external/numbers/MathExceptionTest.kt"
 }
 
@@ -2278,7 +2278,7 @@ task initializers0(type: KonanLocalTestRunner) {
 task initializers1(type: KonanLocalTestRunner) {
     goldValue = "Init Test\n" +
                 "Done\n"
-    disabled = true
+    enabled = false
     source = "runtime/basic/initializers1.kt"
 }
 
@@ -2524,7 +2524,7 @@ task vararg0(type: KonanLocalTestRunner) {
 }
 
 task vararg_of_literals(type: KonanLocalTestRunner) {
-    disabled = true
+    enabled = false
     goldValue = "a\na\n"
     source = "lower/vararg_of_literals.kt"
 }
@@ -2647,7 +2647,7 @@ task inline23(type: KonanLocalTestRunner) {
 }
 
 task inline24(type: KonanLocalTestRunner) {
-    disabled = true
+    enabled = false
     goldValue = "bar\nfoo\n"
     source = "codegen/inline/inline24.kt"
 }
@@ -2693,7 +2693,7 @@ task inline_statementAsLastExprInBlock(type: KonanLocalTestRunner) {
 }
 
 task inline_returnLocalClassFromBlock(type: KonanLocalTestRunner) {
-    disabled = true
+    enabled = false
     goldValue = "Zzz\n"
     source = "codegen/inline/returnLocalClassFromBlock.kt"
 }
@@ -2718,7 +2718,7 @@ task inline_localObjectReturnedFromWhen(type: KonanLocalTestRunner) {
     source = "codegen/inline/localObjectReturnedFromWhen.kt"
 }
 
-task inline_genericFunctionReference(type: RunKonanTest) {
+task inline_genericFunctionReference(type: KonanLocalTestRunner) {
     goldValue = "0\n"
     source = "codegen/inline/genericFunctionReference.kt"
 }
