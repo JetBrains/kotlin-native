@@ -3270,7 +3270,7 @@ task buildKonanTests {
     // These tests should not be built into the TestRunner's test executable
     def excludeList = ["codegen/inline/returnLocalClassFromBlock.kt"]
     project.tasks.withType(KonanTest)
-            .matching { ! (it instanceof KonanTest) }
+            .matching { ! (it instanceof KonanTestRunner) }
             .each {
                 // add library and source files
                 if (it instanceof LinkKonanTest) {
