@@ -109,3 +109,51 @@ data class Statistics(
         skipped += other.skipped
     }
 }
+
+open class KonanLocalTestRunner : KonanTestRunner() {
+    init {
+        val testOutputLocal = project.findProperty("testOutputLocal")
+        val target = project.testTarget()
+        executable = "$testOutputLocal/${target.name}/localTest.${target.family.exeSuffix}"
+    }
+
+    @Optional
+    var expectedExitStatus = 0
+
+    @Optional
+    var expectedFail = false
+
+    @Optional
+    lateinit var goldValue: String
+
+    @Optional
+    lateinit var testData: String
+
+    @TaskAction
+    override fun run() {
+        val (stdOut, stdErr, exitCode) = when(::testData.isInitialized) {
+            true -> runProcessWithInput(project.executor::execute, executable, arguments, testData)
+            false -> runProcess(project.executor::execute, executable, arguments)
+        }
+        val exitCodeMismatch = exitCode != expectedExitStatus
+        if (exitCodeMismatch) {
+            val message = "Expected exit status: $expectedExitStatus, actual: $exitCode"
+            check(expectedFail) { """
+                Test failed. $message
+                stdout: $stdOut
+                stderr: $stdErr
+                """.trimIndent() }
+            println("Expected failure. $message")
+        }
+
+        val result = stdOut + stdErr
+        val goldValueMismatch = ::goldValue.isInitialized && goldValue != result.replace(System.lineSeparator(), "\n")
+        if (goldValueMismatch) {
+            val message = "Expected output: $goldValue, actual output: $result"
+            check(expectedFail) { "Test failed. $message" }
+            println("Expected failure. $message")
+        }
+
+        check(!exitCodeMismatch && !goldValueMismatch && !expectedFail) { "Unexpected pass" }
+    }
+}

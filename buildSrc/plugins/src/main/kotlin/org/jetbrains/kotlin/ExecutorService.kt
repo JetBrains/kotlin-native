@@ -26,6 +26,7 @@ import org.gradle.util.ConfigureUtil
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.target.Xcode
 
+import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 import java.io.File
 import java.nio.file.Path
@@ -114,6 +115,37 @@ fun runProcess(executor: (Action<in ExecSpec>) -> ExecResult?,
         it.standardOutput = outStream
         it.errorOutput = errStream
         it.isIgnoreExitValue = true
+    })
+
+    checkNotNull(execResult)
+
+    val stdOut = outStream.toString("UTF-8")
+    val stdErr = errStream.toString("UTF-8")
+
+    return ProcessOutput(stdOut, stdErr, execResult.exitValue)
+}
+
+/**
+ * Runs process using a given executor.
+ *
+ * @param executor a method that is able to run a given executable, e.g. ExecutorService::execute
+ * @param executable a process executable to be run
+ * @param args arguments for a process
+ * @param input an input string to be passed through the standard input stream
+ */
+fun runProcessWithInput(executor: (Action<in ExecSpec>) -> ExecResult?,
+               executable: String, args: List<String>, input: String) : ProcessOutput {
+    val outStream = ByteArrayOutputStream()
+    val errStream = ByteArrayOutputStream()
+    val inStream = ByteArrayInputStream(input.toByteArray())
+
+    val execResult = executor(Action {
+        it.executable = executable
+        it.args = args.toList()
+        it.standardOutput = outStream
+        it.errorOutput = errStream
+        it.isIgnoreExitValue = true
+        it.standardInput = inStream
     })
 
     checkNotNull(execResult)
