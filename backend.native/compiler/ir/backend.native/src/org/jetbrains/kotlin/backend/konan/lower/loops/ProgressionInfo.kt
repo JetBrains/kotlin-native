@@ -39,38 +39,52 @@ private fun IrConst<*>.isOne() =
             else -> false
         }
 
+// Used only by the assert.
+private fun stepHasRightType(step: IrExpression, progressionType: ProgressionType) = when(progressionType) {
+    ProgressionType.CHAR_PROGRESSION, ProgressionType.INT_PROGRESSION -> step.type.isInt()
+
+    ProgressionType.LONG_PROGRESSION -> step.type.isLong()
+}
+
 internal class ProgressionInfoBuilder(val context: Context) : IrElementVisitor<ProgressionInfo?, Nothing?> {
 
     private val symbols = context.ir.symbols
 
     private val progressionElementClasses = symbols.integerClasses + symbols.char
 
+    private val isIndicesMatch = IrMatcher(context).apply {
+        val supportedArrays = symbols.primitiveArrays.values + symbols.array
+
+        addNameRestriction { it == FqName("kotlin.collections.indices") }
+
+        addParamCountRestrictions { it == 0 }
+
+        addExtensionReceiverRestriction { it.type.classifierOrNull in supportedArrays }
+    }
+
+    private val isUntilMatch = IrMatcher(context).apply {
+        addParamCountRestrictions { it == 1 }
+
+        addParameterRestriction(0) { it.type.classifierOrNull in progressionElementClasses }
+
+        addNameRestriction { it == FqName("kotlin.ranges.until") }
+
+        addExtensionReceiverRestriction { it.type.classifierOrNull in progressionElementClasses }
+    }
+
     // TODO: Process constructors and other factory functions.
     private val handlers = listOf(
-            ::isIndices to ::buildIndices,
+            isIndicesMatch::match to ::buildIndices,
             ::isRangeTo to ::buildRangeTo,
-            ::isUntil   to ::buildUntil,
+            isUntilMatch::match   to ::buildUntil,
             ::isDownTo  to ::buildDownTo,
             ::isStep    to ::buildStep
     )
 
-    fun handle(call: IrCall, progressionType: ProgressionType): ProgressionInfo? =
+    private fun handleCall(call: IrCall, progressionType: ProgressionType): ProgressionInfo? =
             handlers.firstOrNull { (checker, _) ->
                 checker(call.symbol.owner)
             }?.let { (_, builder) -> builder(call, progressionType) }
-
-    private fun isIndices(irFunction: IrFunction): Boolean {
-        // Unsigned arrays have no .indices extension for now.
-        val supportedArrays = symbols.primitiveArrays.values + symbols.array
-
-        if (irFunction.fqNameSafe != FqName("kotlin.collections.indices")) {
-            return false
-        }
-        if (!irFunction.valueParameters.isEmpty()) {
-            return false
-        }
-        return irFunction.dispatchReceiverParameter?.type?.classifierOrNull in supportedArrays
-    }
 
     private fun isRangeTo(irFunction: IrFunction): Boolean {
         if (irFunction.valueParameters.size == 1 && irFunction.valueParameters[0].type.classifierOrNull in progressionElementClasses) {
@@ -81,20 +95,6 @@ internal class ProgressionInfoBuilder(val context: Context) : IrElementVisitor<P
                 }
             }
             return false
-        }
-        return false
-    }
-
-    private fun isUntil(irFunction: IrFunction): Boolean {
-        if (irFunction.extensionReceiverParameter?.type?.classifierOrNull !in progressionElementClasses) {
-            return false
-        }
-        if (irFunction.fqNameSafe != FqName("kotlin.ranges.until")) {
-            return false
-        }
-        if (irFunction.valueParameters.size == 1) {
-            val param = irFunction.valueParameters[0]
-            return param.type.classifierOrNull in progressionElementClasses
         }
         return false
     }
@@ -194,14 +194,6 @@ internal class ProgressionInfoBuilder(val context: Context) : IrElementVisitor<P
         } to true
     }
 
-    // Used only by the assert.
-    private fun stepHasRightType(step: IrExpression, progressionType: ProgressionType) = when(progressionType) {
-        ProgressionType.CHAR_PROGRESSION, ProgressionType.INT_PROGRESSION -> step.type.isInt()
-
-        ProgressionType.LONG_PROGRESSION -> step.type.isLong()
-    }
-
-
     private fun IrType.getProgressionType(): ProgressionType? = when {
         isSubtypeOf(symbols.charProgression.owner.defaultType) -> ProgressionType.CHAR_PROGRESSION
         isSubtypeOf(symbols.intProgression.owner.defaultType) -> ProgressionType.INT_PROGRESSION
@@ -215,6 +207,6 @@ internal class ProgressionInfoBuilder(val context: Context) : IrElementVisitor<P
         val progressionType = expression.type.getProgressionType()
                 ?: return null
 
-        return handle(expression, progressionType)
+        return handleCall(expression, progressionType)
     }
 }
