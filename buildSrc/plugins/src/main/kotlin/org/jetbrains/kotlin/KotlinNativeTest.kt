@@ -6,6 +6,7 @@ import org.gradle.api.Task
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
+import org.jetbrains.kotlin.konan.target.HostManager
 
 import java.util.regex.Pattern
 
@@ -41,6 +42,17 @@ open class KonanTestRunner : DefaultTask() {
         if (useFilter && ::source.isInitialized) {
             arguments += "--ktest_filter=${source.convertToPattern()}"
         }
+
+        if (project.findProperty("useCustomDist") as Boolean) {
+            dependsOn(project.rootProject.tasks.getByName("dist"))
+            val testTarget = project.testTarget()
+            if (testTarget != HostManager.host) {
+                // if a test_target property is set then tests should depend on a crossDist
+                // otherwise runtime components would not be build for a target
+                dependsOn(project.rootProject.tasks.getByName("${testTarget.name}CrossDist"))
+            }
+        }
+
         return this
     }
 
