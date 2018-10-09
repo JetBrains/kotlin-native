@@ -165,7 +165,7 @@ TaskCollection<KonanTest> tasksOf(Closure<Boolean> filter) {
 run {
     def tasks = tasksOf { it instanceof KonanTest && it.inDevelopersRun }
     dependsOn(tasks)
-
+    dependsOn(project.tasks.withType(KonanLocalTestRunner))
     // Add framework tests
     dependsOn(project.tasks.withType(FrameworkTest))
 }
