@@ -141,6 +141,11 @@ open class KonanLocalTestRunner : KonanTestRunner() {
     @Optional
     lateinit var testData: String
 
+    override fun configure(config: Closure<*>): Task {
+        dependsOn("buildKonanTests")
+        return super.configure(config)
+    }
+
     @TaskAction
     override fun run() {
         val (stdOut, stdErr, exitCode) = when(::testData.isInitialized) {
