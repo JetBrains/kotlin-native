@@ -51,6 +51,10 @@ apply plugin: 'com.github.johnrengelman.shadow'
 
 group = 'org.jetbrains.kotlin'
 
+// With Gradle 4.10 we are no longer able to depend on
+// a 'shared' build included into the root one and use the KonanVersion API provided
+// by it. So we have to manually construct the version.
+// TODO: Remove this code when 'shared' is built separately (from a separate repo).
 def meta = findProperty('konanMetaVersion') ?: 'dev'
 if (meta == 'release') {
     version = kotlinVersion
