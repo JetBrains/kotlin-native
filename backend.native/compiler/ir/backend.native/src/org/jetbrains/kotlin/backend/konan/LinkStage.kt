@@ -177,6 +177,14 @@ internal class LinkStage(val context: Context, val phaser: PhaseManager) {
             executable = dylibPath.absolutePath
         }
 
+        config[KonanConfigKeys.IOS_MINIMAL_VERSION]?.let {
+            if (linker is MacOSBasedLinker && target.family == Family.IOS) {
+                linker.iOsMinimalVersion = it
+            } else {
+                context.reportCompilationWarning("Target is not iOS, ignoring `-minimal-ios-version`.")
+            }
+        }
+
         try {
             File(executable).delete()
             linker.linkCommands(objectFiles = objectFiles, executable = executable,

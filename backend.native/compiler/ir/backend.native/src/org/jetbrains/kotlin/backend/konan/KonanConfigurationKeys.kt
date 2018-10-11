@@ -29,7 +29,9 @@ class KonanConfigKeys {
         val FRIEND_MODULES: CompilerConfigurationKey<List<String>>
                 = CompilerConfigurationKey.create<List<String>>("friend module paths")
         val GENERATE_TEST_RUNNER: CompilerConfigurationKey<Boolean>
-                = CompilerConfigurationKey.create("generate test runner") 
+                = CompilerConfigurationKey.create("generate test runner")
+        val IOS_MINIMAL_VERSION: CompilerConfigurationKey<String>
+                = CompilerConfigurationKey.create("ios minimal version")
         val INCLUDED_BINARY_FILES: CompilerConfigurationKey<List<String>>
                 = CompilerConfigurationKey.create("included binary file paths")
         val LIBRARY_FILES: CompilerConfigurationKey<List<String>> 

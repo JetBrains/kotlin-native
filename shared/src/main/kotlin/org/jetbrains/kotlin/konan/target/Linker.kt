@@ -119,13 +119,13 @@ open class MacOSBasedLinker(targetProperties: AppleConfigurables)
 
     private val libtool = "$absoluteTargetToolchain/usr/bin/libtool"
     private val linker = "$absoluteTargetToolchain/usr/bin/ld"
-    internal val dsymutil = "$absoluteLlvmHome/bin/llvm-dsymutil"
+    private val dsymutil = "$absoluteLlvmHome/bin/llvm-dsymutil"
 
     open val osVersionMinFlags: List<String> by lazy {
-        listOf(
-                osVersionMinFlagLd,
-                osVersionMin + ".0")
+        listOf(osVersionMinFlagLd, iOsMinimalVersion)
     }
+
+    var iOsMinimalVersion = "$osVersionMin.0"
 
     override fun filterStaticLibraries(binaries: List<String>) = binaries.filter { it.isUnixStaticLib }
 

@@ -37,8 +37,11 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     @Argument(value = "-list-targets", deprecatedName = "-list_targets", description = "List available hardware targets")
     var listTargets: Boolean = false
 
-    @Argument(value = "-manifest", valueDescription = "<path>", description = "Provide a maniferst addend file")
+    @Argument(value = "-manifest", valueDescription = "<path>", description = "Provide a manifest addend file")
     var manifestFile: String? = null
+
+    @Argument(value = "-minimal-ios-version", description = "Override default iOS minimal version")
+    var iOsMinimalVersion: String? = null
 
     @Argument(value="-module-name", deprecatedName = "-module_name", valueDescription = "<name>", description = "Spicify a name for the compilation module")
     var moduleName: String? = null
