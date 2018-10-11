@@ -419,7 +419,7 @@ void KRefSharedHolder::verifyRefOwner() const {
   if (owner_ != memoryState) {
     // Initialized runtime is required to throw the exception below
     // or to provide proper execution context for shared objects:
-    Kotlin_initRuntimeIfNeeded();
+    if (memoryState == nullptr) Kotlin_initRuntimeIfNeeded();
 
     if (!obj_->container()->permanentOrFrozen()) {
       // TODO: add some info about the owner.
