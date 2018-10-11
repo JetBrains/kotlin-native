@@ -3220,6 +3220,18 @@ List<String> getFilesFrom(List<String> compileList, List<String> excludeList) {
     return compileFiles
 }
 
+void setDependencyOfDist(Task t) {
+    // We don't build the compiler if a custom dist path is specified.
+    if (!project.ext.useCustomDist) {
+        t.dependsOn(project.rootProject.tasks['dist'])
+        if (project.testTarget) {
+            // if a test_target property is set then tests should depend on a crossDist
+            // otherwise runtime components would not be build for a target
+            t.dependsOn(project.rootProject.tasks["${target}CrossDist"])
+        }
+    }
+}
+
 task runKonanRegexTests(type: KonanStdlibTestRunner) {
     enabled = (project.testTarget != 'wasm32') // Uses exceptions.
 
@@ -3237,6 +3249,7 @@ task runKonanRegexTests(type: KonanStdlibTestRunner) {
     testLogger = RunnerLogger.GTEST
 
     dependsOn compileKonanHarmonyRegexTest
+    setDependencyOfDist(compileKonanHarmonyRegexTest)
     finalizedBy resultsTask
 }
 
@@ -3260,6 +3273,7 @@ task runStdlibTests(type: KonanStdlibTestRunner) {
     testLogger = RunnerLogger.GTEST
 
     dependsOn compileKonanStdlibTest
+    setDependencyOfDist(compileKonanStdlibTest)
     finalizedBy resultsTask
 }
 
@@ -3290,4 +3304,5 @@ task buildKonanTests {
     }
 
     dependsOn compileKonanLocalTest
+    setDependencyOfDist(compileKonanLocalTest)
 }
