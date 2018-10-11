@@ -3224,10 +3224,12 @@ void setDependencyOfDist(Task t) {
     // We don't build the compiler if a custom dist path is specified.
     if (!project.ext.useCustomDist) {
         t.dependsOn(project.rootProject.tasks['dist'])
+        t.dependsOn(project.rootProject.tasks['distPlatformLibs'])
         if (project.testTarget) {
             // if a test_target property is set then tests should depend on a crossDist
             // otherwise runtime components would not be build for a target
             t.dependsOn(project.rootProject.tasks["${target}CrossDist"])
+            t.dependsOn(project.rootProject.tasks["${target}PlatformLibs"])
         }
     }
 }
