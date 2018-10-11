@@ -32,18 +32,18 @@ buildscript {
         maven {
             url = 'https://cache-redirector.jetbrains.com/jcenter'
         }
-        mavenCentral()
+        maven {
+            url "https://cache-redirector.jetbrains.com/plugins.gradle.org/m2/"
+        }
+        jcenter()
     }
 
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-native-shared:$konanVersion"
         classpath 'com.jfrog.bintray.gradle:gradle-bintray-plugin:1.7.3'
         classpath 'com.github.jengelman.gradle.plugins:shadow:4.0.0'
+        classpath "com.gradle.publish:plugin-publish-plugin:0.10.0"
     }
-}
-
-plugins {
-    id 'com.gradle.plugin-publish' version '0.9.10'
 }
 
 apply plugin: 'java-gradle-plugin'
@@ -52,6 +52,7 @@ apply plugin: 'groovy'
 apply plugin: 'maven-publish'
 apply plugin: 'com.jfrog.bintray'
 apply plugin: 'com.github.johnrengelman.shadow'
+apply plugin: "com.gradle.plugin-publish"
 
 group = 'org.jetbrains.kotlin'
 
