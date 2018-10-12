@@ -39,14 +39,14 @@ the following platforms:
 
 To run _Kotlin/Native_ JDK 8 or Java 9 (JDK) for the host platform has to be installed.
 
-On macOS it also requires Xcode 9.4.1 or newer to be installed.
+On macOS it also requires Xcode 10.0 or newer to be installed.
 
-The language and library version supported by this EAP release match Kotlin 1.3.
+The language and library version supported by this beta release match Kotlin 1.3.
 However, there are certain limitations, see section [Known Limitations](#limitations).
 
  Currently _Kotlin/Native_ uses reference counting based memory management scheme with a cycle
-collection algorithm. Multiple threads could be used, but objects must be explicitly transferred
-between threads, and same object couldn't be accessed by two threads concurrently.
+collection algorithm. [Multiple threads could be used](CONCURRENCY.md), but mutable objects must be explicitly transferred
+between threads, and same mutable object couldn't be accessed by two threads concurrently.
 
 _Kotlin/Native_ provides efficient interoperability with libraries written in C or Objective-C, and supports
 automatic generation of Kotlin bindings from a C/Objective-C header file.
@@ -62,7 +62,7 @@ See the samples coming with the distribution.
 
 To see the list of available flags, run `kotlinc -h`.
 
-For documentation on C interoperability stubs see INTEROP.md.
+See also documentation on [C](INTEROP.md) and [Objective-C](OBJC_INTEROP.md) interoperability.
 
  ## <a name="limitations"></a>Known limitations ##
 
@@ -111,4 +111,4 @@ Notice that property delegation (including lazy properties) *does* work.
 
 to set breakpoint in main function of your application. Single stepping and step into shall work, 
 variable inspection may have issues.
-See [`DEBUGGING.md`](https://github.com/JetBrains/kotlin-native/blob/master/DEBUGGING.md)
+See also [the relevant documentation](DEBUGGING.md).

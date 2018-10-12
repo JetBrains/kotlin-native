@@ -1,3 +1,6 @@
+# v1.0 (Oct 2018)
+  * Bugfixes
+
 ## v0.9.3 (Sep 2018)
   * Bugfixes
 
