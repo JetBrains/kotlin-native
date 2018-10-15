@@ -20,7 +20,7 @@
 #include "Common.h"
 
 // To avoid cluttering optimized code with asserts, they could be turned off.
-#define KONAN_ENABLE_ASSERT 1
+#define KONAN_ENABLE_ASSERT 0
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
@@ -39,9 +39,9 @@ RUNTIME_NORETURN void RuntimeAssertFailed(const char* location, const char* mess
 
 // Use RuntimeCheck() in runtime checks that could fail due to external condition and shall lead
 // to program termination. Never compiled out.
-#define RuntimeCheck(condition, message) \
-  if (!(condition)) {                        \
-    RuntimeAssertFailed( __FILE__ ":" TOSTRING(__LINE__), message); \
+#define RuntimeCheck(condition, message)   \
+  if (!(condition)) {                      \
+    RuntimeAssertFailed(nullptr, message); \
   }
 
 #endif // RUNTIME_ASSERT_H
