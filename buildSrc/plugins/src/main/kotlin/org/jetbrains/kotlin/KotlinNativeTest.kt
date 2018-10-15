@@ -148,18 +148,26 @@ open class KonanLocalTestRunner : KonanTestRunner() {
 
     @TaskAction
     override fun run() {
-        val (stdOut, stdErr, exitCode) = when(::testData.isInitialized) {
+        val output = when(::testData.isInitialized) {
             true -> runProcessWithInput(project.executor::execute, executable, arguments, testData)
             false -> runProcess(project.executor::execute, executable, arguments)
         }
+        process(output)
+    }
+
+    private fun process(output: ProcessOutput) {
+        val (stdOut, stdErr, exitCode) = output
+
         val exitCodeMismatch = exitCode != expectedExitStatus
         if (exitCodeMismatch) {
             val message = "Expected exit status: $expectedExitStatus, actual: $exitCode"
-            check(expectedFail) { """
-                Test failed. $message
-                stdout: $stdOut
-                stderr: $stdErr
-                """.trimIndent() }
+            check(expectedFail) {
+                """
+                    Test failed. $message
+                    stdout: $stdOut
+                    stderr: $stdErr
+                    """.trimIndent()
+            }
             println("Expected failure. $message")
         }
 
