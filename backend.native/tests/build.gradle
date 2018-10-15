@@ -162,7 +162,7 @@ TaskCollection<KonanTest> tasksOf(Closure<Boolean> filter) {
             .matching { filter(it) && it.enabled && (prefix != null ? it.name.startsWith(prefix) : true) }
 }
 
-task smallTest {
+task executeTests {
     dependsOn(tasksOf { it instanceof KonanTest && it.inDevelopersRun })
     dependsOn(project.tasks.withType(KonanLocalTestRunner))
     // Add framework tests
@@ -3220,22 +3220,8 @@ List<String> getFilesFrom(List<String> compileList, List<String> excludeList) {
     return compileFiles
 }
 
-void setDependencyOfDist(Task t) {
-    // We don't build the compiler if a custom dist path is specified.
-    if (!project.ext.useCustomDist) {
-        t.dependsOn(project.rootProject.tasks['dist'])
-        t.dependsOn(project.rootProject.tasks['distPlatformLibs'])
-        if (project.testTarget) {
-            // if a test_target property is set then tests should depend on a crossDist
-            // otherwise runtime components would not be build for a target
-            t.dependsOn(project.rootProject.tasks["${target}CrossDist"])
-            t.dependsOn(project.rootProject.tasks["${target}PlatformLibs"])
-        }
-    }
-}
-
-task runKonanRegexTests(type: KonanStdlibTestRunner) {
-    enabled = (project.testTarget != 'wasm32') // Uses exceptions.
+TasksKt.createStdlibTest(project, 'harmonyRegexTest') { task ->
+    task.enabled = (project.testTarget != 'wasm32') // Uses exceptions.
 
     def sources = getFilesFrom([ "harmony_regex" ], [])
 
@@ -3246,17 +3232,10 @@ task runKonanRegexTests(type: KonanStdlibTestRunner) {
             extraOpts '-tr'
         }
     }
-    executable = "$testOutputStdlib/$targetName/harmonyRegexTest.${target.family.exeSuffix}"
-    useFilter = false
-    testLogger = RunnerLogger.GTEST
-
-    dependsOn compileKonanHarmonyRegexTest
-    setDependencyOfDist(compileKonanHarmonyRegexTest)
-    finalizedBy resultsTask
 }
 
 
-task runStdlibTests(type: KonanStdlibTestRunner) {
+TasksKt.createStdlibTest(project, 'stdlibTest') { task ->
     def sources = getFilesFrom([ 'build/stdlib_external/stdlib', 'stdlib_external/utils.kt',
                                  'stdlib_external/jsCollectionFactoriesActuals.kt' ],
             [ 'build/stdlib_external/stdlib/test/internalAnnotations.kt' ])
@@ -3269,14 +3248,8 @@ task runStdlibTests(type: KonanStdlibTestRunner) {
             extraOpts '-tr', "-friend-modules", project.rootProject.file("dist/klib/common/stdlib").absolutePath
         }
     }
-    executable = "$testOutputStdlib/$targetName/stdlibTest.${target.family.exeSuffix}"
-    useFilter = false
-    arguments = [ "--ktest_negative_regex_filter=test.collections.CollectionTest.abstractCollectionToArray" ]
-    testLogger = RunnerLogger.GTEST
-
-    dependsOn compileKonanStdlibTest
-    setDependencyOfDist(compileKonanStdlibTest)
-    finalizedBy resultsTask
+    // Exclude test providing args to the test executable
+    task.arguments = [ "--ktest_negative_regex_filter=test.collections.CollectionTest.abstractCollectionToArray" ]
 }
 
 task buildKonanTests {
@@ -3306,5 +3279,5 @@ task buildKonanTests {
     }
 
     dependsOn compileKonanLocalTest
-    setDependencyOfDist(compileKonanLocalTest)
+    TasksKt.setDistDependencyFor(project, compileKonanLocalTest)
 }

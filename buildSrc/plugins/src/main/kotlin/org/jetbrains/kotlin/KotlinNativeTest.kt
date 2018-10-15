@@ -6,7 +6,6 @@ import org.gradle.api.Task
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
-import org.jetbrains.kotlin.konan.target.HostManager
 
 import java.util.regex.Pattern
 
@@ -17,7 +16,7 @@ enum class RunnerLogger {
     SILENT
 }
 
-open class KonanTestRunner : DefaultTask() {
+abstract class KonanTestRunner : DefaultTask() {
     @Optional
     var testLogger = RunnerLogger.SILENT
 
@@ -42,17 +41,7 @@ open class KonanTestRunner : DefaultTask() {
         if (useFilter && ::source.isInitialized) {
             arguments += "--ktest_filter=${source.convertToPattern()}"
         }
-
-        if (project.findProperty("useCustomDist") as Boolean) {
-            dependsOn(project.rootProject.tasks.getByName("dist"))
-            val testTarget = project.testTarget()
-            if (testTarget != HostManager.host) {
-                // if a test_target property is set then tests should depend on a crossDist
-                // otherwise runtime components would not be build for a target
-                dependsOn(project.rootProject.tasks.getByName("${testTarget.name}CrossDist"))
-            }
-        }
-
+        project.setDistDependencyFor(this)
         return this
     }
 
@@ -97,31 +86,6 @@ open class KonanStdlibTestRunner : KonanTestRunner() {
     }
 }
 
-data class Statistics(
-        var passed: Int = 0,
-        var failed: Int = 0,
-        var error: Int = 0,
-        var skipped: Int = 0) {
-
-    val total: Int
-        get() = passed + failed + error + skipped
-
-    fun pass(count: Int = 1) { passed += count }
-
-    fun skip(count: Int = 1) { skipped += count }
-
-    fun fail(count: Int = 1) { failed += count }
-
-    fun error(count: Int = 1) { error += count }
-
-    fun add(other: Statistics) {
-        passed += other.passed
-        failed += other.failed
-        error += other.error
-        skipped += other.skipped
-    }
-}
-
 open class KonanLocalTestRunner : KonanTestRunner() {
     init {
         val testOutputLocal = project.findProperty("testOutputLocal")
@@ -152,10 +116,10 @@ open class KonanLocalTestRunner : KonanTestRunner() {
             true -> runProcessWithInput(project.executor::execute, executable, arguments, testData)
             false -> runProcess(project.executor::execute, executable, arguments)
         }
-        process(output)
+        checkOutput(output)
     }
 
-    private fun process(output: ProcessOutput) {
+    private fun checkOutput(output: ProcessOutput) {
         val (stdOut, stdErr, exitCode) = output
 
         val exitCodeMismatch = exitCode != expectedExitStatus
