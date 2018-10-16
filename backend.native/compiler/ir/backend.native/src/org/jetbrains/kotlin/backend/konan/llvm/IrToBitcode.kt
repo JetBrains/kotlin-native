@@ -2636,12 +2636,12 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     }
 
     private fun appendDebugSelector() {
-        if (context.config.produce.isNativeBinary) {
-            val llvmDebugSelector =
-                    context.llvm.staticData.placeGlobal("KonanNeedDebugInfo",
-                            Int32(if (context.shouldContainDebugInfo()) 1 else 0))
-            LLVMSetLinkage(llvmDebugSelector.llvmGlobal, LLVMLinkage.LLVMExternalLinkage)
-        }
+        if (!context.config.produce.isNativeBinary) return
+        val llvmDebugSelector =
+                context.llvm.staticData.placeGlobal("KonanNeedDebugInfo",
+                        Int32(if (context.shouldContainDebugInfo()) 1 else 0))
+        llvmDebugSelector.setConstant(true)
+        llvmDebugSelector.setLinkage(LLVMLinkage.LLVMExternalLinkage)
     }
 
     //-------------------------------------------------------------------------//

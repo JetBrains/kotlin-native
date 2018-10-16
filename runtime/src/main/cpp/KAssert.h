@@ -34,9 +34,9 @@ extern "C" const int KonanNeedDebugInfo;
 #if KONAN_ENABLE_ASSERT
 // Use RuntimeAssert() in internal state checks, which could be ignored in production.
 #define RuntimeAssert(condition, message)                           \
-  if (KonanNeedDebugInfo && !(condition)) {                         \
+if (KonanNeedDebugInfo && (!(condition))) {                         \
     RuntimeAssertFailed( __FILE__ ":" TOSTRING(__LINE__), message); \
-  }
+}
 #else
 #define RuntimeAssert(condition, message)
 #endif
