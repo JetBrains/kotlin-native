@@ -18,6 +18,13 @@ import kotlin.reflect.KClass
 public annotation class SymbolName(val name: String)
 
 /**
+ * This annotation indicates imported functions, classes, files are from specified module name.
+ */
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.CLASS, AnnotationTarget.FILE)
+@Retention(AnnotationRetention.BINARY)
+public annotation class ModuleName(val name: String)
+
+/**
  * Preserve the function entry point during global optimizations.
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.CLASS)
