@@ -20,17 +20,21 @@
 #include "Common.h"
 
 // To avoid cluttering optimized code with asserts, they could be turned off.
-#define KONAN_ENABLE_ASSERT 0
+#define KONAN_ENABLE_ASSERT 1
 
 #define STRINGIFY(x) #x
 #define TOSTRING(x) STRINGIFY(x)
 
 RUNTIME_NORETURN void RuntimeAssertFailed(const char* location, const char* message);
 
+// During codegeneration we set this constant to 1 or 0 to allow bitcode optimizer
+// to get rid of code behind condition.
+extern "C" const int KonanNeedDebugInfo;
+
 #if KONAN_ENABLE_ASSERT
 // Use RuntimeAssert() in internal state checks, which could be ignored in production.
-#define RuntimeAssert(condition, message) \
-  if (!(condition)) {                        \
+#define RuntimeAssert(condition, message)                           \
+  if (KonanNeedDebugInfo && !(condition)) {                         \
     RuntimeAssertFailed( __FILE__ ":" TOSTRING(__LINE__), message); \
   }
 #else
