@@ -848,6 +848,16 @@ class StubGenerator(
             }
         }
 
+        nativeIndex.wrappedMacros.forEach {
+            try {
+                stubs.add(
+                        GlobalVariableStub(GlobalDecl(it.name, it.type, isConst = true), this)
+                )
+            } catch (e: Throwable) {
+                log("Warning: cannot generate stubs for macro ${it.name}")
+            }
+        }
+
         nativeIndex.globals.filter { it.name !in excludedFunctions }.forEach {
             try {
                 stubs.add(

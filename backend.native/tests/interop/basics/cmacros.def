@@ -1,4 +1,18 @@
 ---
+int* ptr_call() {
+    return (int*) 1;
+}
+
+int int_call() {
+    return 42;
+}
+
+void void_call() {}
+
+int arg_call(int x) {
+    return x;
+}
+
 #define ZERO 0
 #define ONE 1
 #define MAX_LONG 9223372036854775807
@@ -10,5 +24,18 @@
 #define ONE_POINT_ZERO 1.0
 #define ONE_POINT_FIVE 1.5f
 
+#define VOID_PTR (void*)1
+#define INT_PTR (int*)1
+#define PTR_SUM INT_PTR + 1
+
+#define PTR_CALL ptr_call()
+#define INT_CALL int_call()
+#define CALL_SUM int_call() + int_call()
+
+// These ones should be ignored:
+#define VOID_CALL  void_call()
+#define ARG_CALL(x) arg_call(x)
+
 #define BAD1 bar
 #define BAD2 5;
+#define BAD3 { foo(); }

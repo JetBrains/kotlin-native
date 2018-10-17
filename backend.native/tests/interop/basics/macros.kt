@@ -5,6 +5,7 @@
 
 import kotlin.test.*
 import cmacros.*
+import kotlinx.cinterop.*
 
 fun main(args: Array<String>) {
     assertEquals("foo", FOO_STRING)
@@ -21,4 +22,17 @@ fun main(args: Array<String>) {
 
     assertEquals(1.5f, onePointFive)
     assertEquals(1.0, onePointZero)
+
+    val voidPtr: COpaquePointer? = VOID_PTR
+    val intPtr: CPointer<IntVar>? = INT_PTR
+    val ptrSum: CPointer<IntVar>?  = PTR_SUM
+    val ptrCall: CPointer<IntVar>? = PTR_CALL
+
+    assertEquals(1L, voidPtr.rawValue.toLong())
+    assertEquals(1L, intPtr.rawValue.toLong())
+    assertEquals(2L, ptrSum.rawValue.toLong())
+    assertEquals(1L, ptrCall.rawValue.toLong())
+
+    assertEquals(42, INT_CALL)
+    assertEquals(84, CALL_SUM)
 }

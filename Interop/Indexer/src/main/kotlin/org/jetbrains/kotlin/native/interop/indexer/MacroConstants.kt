@@ -23,13 +23,13 @@ import java.io.File
 /**
  * Finds all "macro constants" and registers them as [NativeIndex.constants] in given index.
  */
-internal fun findMacroConstants(nativeIndex: NativeIndexImpl) {
-    val names = collectMacroConstantsNames(nativeIndex)
+internal fun findMacros(nativeIndex: NativeIndexImpl) {
+    val names = collectMacroNames(nativeIndex)
     // TODO: apply user-defined filters.
+    val macros = expandMacros(nativeIndex.library, names, typeConverter = { nativeIndex.convertType(it) })
 
-    val constants = expandMacroConstants(nativeIndex.library, names, typeConverter = { nativeIndex.convertType(it) })
-
-    nativeIndex.macroConstants.addAll(constants)
+    macros.filterIsInstanceTo(nativeIndex.macroConstants)
+    macros.filterIsInstanceTo(nativeIndex.wrappedMacros)
 }
 
 private typealias TypeConverter = (CValue<CXType>) -> Type
@@ -40,11 +40,11 @@ private typealias TypeConverter = (CValue<CXType>) -> Type
  *
  * @return the list of constants.
  */
-private fun expandMacroConstants(
+private fun expandMacros(
         originalLibrary: NativeLibrary,
         names: List<String>,
         typeConverter: TypeConverter
-): List<ConstantDef> {
+): List<MacroDef> {
 
     // Each macro is expanded by parsing it separately with the library;
     // so precompile library headers to significantly speed up the parsing:
@@ -57,7 +57,7 @@ private fun expandMacroConstants(
         try {
             translationUnit.ensureNoCompileErrors()
             return names.mapNotNull {
-                expandMacroAsConstant(library, translationUnit, sourceFile, it, typeConverter)
+                expandMacro(library, translationUnit, sourceFile, it, typeConverter)
             }
         } finally {
             clang_disposeTranslationUnit(translationUnit)
@@ -74,13 +74,13 @@ private fun expandMacroConstants(
  *
  * As a side effect, modifies the [sourceFile] and reparses the [translationUnit].
  */
-private fun expandMacroAsConstant(
+private fun expandMacro(
         library: NativeLibrary,
         translationUnit: CXTranslationUnit,
         sourceFile: File,
         name: String,
         typeConverter: TypeConverter
-): ConstantDef? {
+): MacroDef? {
 
     reparseWithCodeSnippet(library, translationUnit, sourceFile, name)
 
@@ -95,7 +95,11 @@ private fun expandMacroAsConstant(
  * Adds the code snippet to be then processed with [processCodeSnippet] to the [sourceFile]
  * and reparses the [translationUnit].
  *
- * The code snippet should allow to extract the constant value using libclang API.
+ *  - If the code snippet allows extracting the constant value using libclang API, we'll add a [ConstantDef] in the
+ * native index and generate a Kotlin constant for it.
+ *  - If the expression type can be inferred by libclang, we'll add a [WrappedMacroDef] in the native index and
+ * generate a bridge for this macro.
+ *  - Otherwise the macro is skipped.
  */
 private fun reparseWithCodeSnippet(library: NativeLibrary,
                                    translationUnit: CXTranslationUnit, sourceFile: File,
@@ -110,7 +114,7 @@ private fun reparseWithCodeSnippet(library: NativeLibrary,
         val codeSnippetLines = when (library.language) {
             // Note: __auto_type is a GNU extension which is supported by clang.
             Language.C, Language.OBJECTIVE_C -> listOf(
-                    "const __auto_type KNI_INDEXER_VARIABLE = $name;"
+                    "void kni_indexer_function() { const __auto_type KNI_INDEXER_VARIABLE = $name; }"
             )
         }
 
@@ -127,8 +131,9 @@ private fun processCodeSnippet(
         translationUnit: CXTranslationUnit,
         name: String,
         typeConverter: TypeConverter
-): ConstantDef? {
+): MacroDef? {
 
+    val prefixKinds = listOf(CXCursorKind.CXCursor_FunctionDecl, CXCursorKind.CXCursor_CompoundStmt, CXCursorKind.CXCursor_DeclStmt)
     var state = VisitorState.EXPECT_VARIABLE
     var evalResultOrNull: CXEvalResult? = null
     var typeOrNull: Type? = null
@@ -137,23 +142,23 @@ private fun processCodeSnippet(
         val kind = cursor.kind
         when {
             state == VisitorState.EXPECT_VARIABLE && kind == CXCursorKind.CXCursor_VarDecl -> {
-                val evalResult = clang_Cursor_Evaluate(cursor)
-
-                if (evalResult != null) {
-                    evalResultOrNull = evalResult
-                    state = VisitorState.EXPECT_VARIABLE_VALUE
-                } else {
-                    state = VisitorState.INVALID
-                }
-
+                evalResultOrNull = clang_Cursor_Evaluate(cursor)
+                state = VisitorState.EXPECT_VARIABLE_VALUE
                 CXChildVisitResult.CXChildVisit_Recurse
             }
 
             state == VisitorState.EXPECT_VARIABLE_VALUE && clang_isExpression(kind) != 0 -> {
                 typeOrNull = typeConverter(clang_getCursorType(cursor))
-                state = VisitorState.EXPECT_END
+                state = if (typeOrNull != null) {
+                    VisitorState.EXPECT_END
+                } else {
+                    VisitorState.INVALID
+                }
                 CXChildVisitResult.CXChildVisit_Continue
             }
+
+            // Skip auxiliary elements.
+            state == VisitorState.EXPECT_VARIABLE && kind in prefixKinds -> CXChildVisitResult.CXChildVisit_Recurse
 
             else -> {
                 state = VisitorState.INVALID
@@ -169,30 +174,35 @@ private fun processCodeSnippet(
             return null
         }
 
-        val evalResult = evalResultOrNull!!
         val type = typeOrNull!!
-        val evalResultKind = clang_EvalResult_getKind(evalResult)
+        return if (evalResultOrNull == null) {
+            // The macro cannot be evaluated as a constant so we will wrap it in a bridge.
+            WrappedMacroDef(name, type)
+        } else {
+            // Otherwise we can evaluate the expression and create a Kotlin constant for it.
+            val evalResult = evalResultOrNull!!
+            val evalResultKind = clang_EvalResult_getKind(evalResult)
+            when (evalResultKind) {
+                CXEvalResultKind.CXEval_Int ->
+                    IntegerConstantDef(name, type, clang_EvalResult_getAsLongLong(evalResult))
 
-        return when (evalResultKind) {
-            CXEvalResultKind.CXEval_Int ->
-                IntegerConstantDef(name, type, clang_EvalResult_getAsLongLong(evalResult))
+                CXEvalResultKind.CXEval_Float ->
+                    FloatingConstantDef(name, type, clang_EvalResult_getAsDouble(evalResult))
 
-            CXEvalResultKind.CXEval_Float ->
-                FloatingConstantDef(name, type, clang_EvalResult_getAsDouble(evalResult))
+                CXEvalResultKind.CXEval_CFStr,
+                CXEvalResultKind.CXEval_ObjCStrLiteral,
+                CXEvalResultKind.CXEval_StrLiteral ->
+                    if (evalResultKind == CXEvalResultKind.CXEval_StrLiteral && !type.canonicalIsPointerToChar()) {
+                        // libclang doesn't seem to support wide string literals properly in this API;
+                        // thus disable wide literals here:
+                        null
+                    } else {
+                        StringConstantDef(name, type, clang_EvalResult_getAsStr(evalResult)!!.toKString())
+                    }
 
-            CXEvalResultKind.CXEval_CFStr,
-            CXEvalResultKind.CXEval_ObjCStrLiteral,
-            CXEvalResultKind.CXEval_StrLiteral ->
-                if (evalResultKind == CXEvalResultKind.CXEval_StrLiteral && !type.canonicalIsPointerToChar()) {
-                    // libclang doesn't seem to support wide string literals properly in this API;
-                    // thus disable wide literals here:
-                    null
-                } else {
-                    StringConstantDef(name, type, clang_EvalResult_getAsStr(evalResult)!!.toKString())
-                }
-
-            CXEvalResultKind.CXEval_Other,
-            CXEvalResultKind.CXEval_UnExposed -> null
+                CXEvalResultKind.CXEval_Other,
+                CXEvalResultKind.CXEval_UnExposed -> null
+            }
         }
 
     } finally {
@@ -205,7 +215,7 @@ enum class VisitorState {
     EXPECT_END, INVALID
 }
 
-private fun collectMacroConstantsNames(nativeIndex: NativeIndexImpl): List<String> {
+private fun collectMacroNames(nativeIndex: NativeIndexImpl): List<String> {
     val result = mutableSetOf<String>()
     val index = clang_createIndex(excludeDeclarationsFromPCH = 0, displayDiagnostics = 0)!!
     try {
