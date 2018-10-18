@@ -45,7 +45,6 @@ open class UsageCompatibility: AttributeCompatibilityRule<Usage> {
 
         when {
             requested == null -> compatible()
-            requested == provided -> compatible()
             requested in supportedRequestedUsages && provided in supportedProvidedUsages -> {
                 compatible()
             }
