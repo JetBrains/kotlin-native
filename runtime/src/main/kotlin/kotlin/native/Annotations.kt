@@ -44,19 +44,21 @@ public annotation class Throws(vararg val exceptionClasses: KClass<out Throwable
  * Top level variable or object is thread local, and so could be mutable.
  * One may use this annotation as the stopgap measure for singleton
  * object immutability.
+ *
  * PLEASE NOTE THAT THIS ANNOTATION MAY GO AWAY IN UPCOMING RELEASES.
  */
 @Target(AnnotationTarget.PROPERTY, AnnotationTarget.CLASS)
 @Retention(AnnotationRetention.BINARY)
-public annotation class ThreadLocal
+public actual annotation class ThreadLocal
 
 /**
  * Top level variable is immutable and so could be shared.
+ *
  * PLEASE NOTE THAT THIS ANNOTATION MAY GO AWAY IN UPCOMING RELEASES.
  */
 @Target(AnnotationTarget.PROPERTY)
 @Retention(AnnotationRetention.BINARY)
-public annotation class SharedImmutable
+public actual annotation class SharedImmutable
 
 /**
  * Makes top level function available from C/C++ code with the given name.
