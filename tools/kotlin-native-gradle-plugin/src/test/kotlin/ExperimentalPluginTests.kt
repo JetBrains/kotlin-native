@@ -888,6 +888,7 @@ class ExperimentalPluginTests {
     @Test
     fun `Plugin should be compatible with the MPP one`() {
         val repo = tmpFolder.newFolder("repo")
+        val repoPath = KonanProject.escapeBackSlashes(repo.absolutePath)
         val nativeProducer = KonanProject.createEmpty(tmpFolder.newFolder("native-producer")).apply {
             buildFile.writeText("""
                 plugins {
@@ -904,7 +905,7 @@ class ExperimentalPluginTests {
 
                 publishing {
                     repositories {
-                        maven { url = '${repo.absolutePath}' }
+                        maven { url = '$repoPath' }
                     }
                 }
             """.trimIndent())
@@ -924,7 +925,7 @@ class ExperimentalPluginTests {
                 version '1.0'
 
                 repositories {
-                    maven { url '${repo.absolutePath}' }
+                    maven { url '$repoPath' }
                     maven { url "${MultiplatformSpecification.KOTLIN_REPO}" }
                     jcenter()
                 }
@@ -945,7 +946,7 @@ class ExperimentalPluginTests {
 
                 publishing {
                     repositories {
-                        maven { url = '${repo.absolutePath}' }
+                        maven { url = '$repoPath' }
                     }
                 }
             """.trimIndent())
@@ -971,7 +972,7 @@ class ExperimentalPluginTests {
                 }
 
                 repositories {
-                    maven { url '${repo.absolutePath}' }
+                    maven { url '$repoPath' }
                 }
 
                 sourceSets.main.component {
