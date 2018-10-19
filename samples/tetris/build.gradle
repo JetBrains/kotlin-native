@@ -80,7 +80,11 @@ if (hostPreset == kotlin.presets.mingwX64) {
     }
 }
 
-MPPTools.createRunTask(project, 'runProgram', kotlin.targets.tetris)
+MPPTools.createRunTask(project, 'runProgram', kotlin.targets.tetris) {
+    workingDir = project.provider {
+        kotlin.targets.tetris.compilations.main.getBinary('EXECUTABLE', buildType).parentFile
+    }
+}
 
 afterEvaluate {
     kotlin.targets.tetris.compilations.main { mainCompilation ->

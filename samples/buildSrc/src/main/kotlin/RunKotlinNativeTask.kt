@@ -12,11 +12,11 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
 import javax.inject.Inject
 
 open class RunKotlinNativeTask @Inject constructor(
-        private val myProject: Project,
         private val myTarget: KotlinTarget
 ): DefaultTask() {
 
     var buildType = "RELEASE"
+    var workingDir: Any = project.projectDir
     private var myArgs: List<String> = emptyList()
     private val myEnvironment: MutableMap<String, Any> = mutableMapOf()
 
@@ -36,10 +36,11 @@ open class RunKotlinNativeTask @Inject constructor(
 
     @TaskAction
     fun run() {
-        myProject.exec {
+        project.exec {
             it.executable = myTarget.compilations.main.getBinary("EXECUTABLE", buildType).toString()
             it.args = myArgs
             it.environment = myEnvironment
+            it.workingDir(workingDir)
         }
     }
 }
