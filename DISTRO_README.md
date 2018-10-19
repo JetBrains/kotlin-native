@@ -13,6 +13,7 @@ without need to ship an additional execution runtime.
   * `androidNativeActivity` - Android Native Activity rendering 3D graphics using OpenGLES
   * `calculator` - iOS Swift application, using Kotlin/Native code compiled into the framework
   * `csvparser` - simple CSV file parser and analyzer
+  * `echoServer` - TCP/IP echo server
   * `gitchurn` - program interoperating with `libgit2` for GIT repository analysis
   * `gtk` - GTK2 interoperability example
   * `html5Canvas` - WebAssembly example
@@ -21,7 +22,6 @@ without need to ship an additional execution runtime.
   * `objc` - AppKit Objective-C interoperability example for macOS
   * `opengl` - OpenGL/GLUT teapot example
   * `python_extension` - Python extension written in Kotlin/Native
-  * `socket` - TCP/IP echo server
   * `tensorflow` - simple client for TensorFlow Machine Intelligence library
   * `tetris` - Tetris game implementation (using SDL2 for rendering)
   * `uikit` - UIKit Objective-C interoperability example for iOS
