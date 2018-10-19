@@ -250,10 +250,10 @@ fun CallableMemberDescriptor.findSourceFile(): SourceFile {
     val source = this.source.containingFile
     if (source != SourceFile.NO_SOURCE_FILE)
         return source
-    return when (this) {
-        is DeserializedSimpleFunctionDescriptor -> sourceByIndex(
+    return when {
+        this is DeserializedSimpleFunctionDescriptor && proto.hasExtension(KonanProtoBuf.functionFile) -> sourceByIndex(
                 this, proto.getExtension(KonanProtoBuf.functionFile))
-        is DeserializedPropertyDescriptor ->
+        this is DeserializedPropertyDescriptor && proto.hasExtension(KonanProtoBuf.propertyFile) ->
             sourceByIndex(
                     this, proto.getExtension(KonanProtoBuf.propertyFile))
         else -> TODO()

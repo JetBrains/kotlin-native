@@ -38,7 +38,7 @@ class KonanPackageFragment(
         val result = SourceFileMap()
         val proto = protoForNames
         proto.filesList.forEachIndexed { index, it ->
-            result.provide(it, index)
+            result.provide(it, index, this)
         }
         result
     }

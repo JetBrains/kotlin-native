@@ -5,12 +5,18 @@
 package org.jetbrains.kotlin.serialization.konan
 
 import org.jetbrains.kotlin.descriptors.SourceFile
+import org.jetbrains.kotlin.serialization.deserialization.DeserializedPackageFragment
 
-private class DeserializedSourceFile(val path: String, val index: Int) : SourceFile {
-    override fun getName(): String? = path
+private class DeserializedSourceFile(
+        val name_: String, val index: Int, val fragment: DeserializedPackageFragment) : SourceFile {
+    override fun getName(): String? = name_
 
     override fun equals(other: Any?): Boolean {
-        return other is DeserializedSourceFile && index == other.index
+        return other is DeserializedSourceFile && fragment == other.fragment && index == other.index
+    }
+
+    override fun hashCode(): Int {
+        return fragment.hashCode() xor index
     }
 }
 
@@ -24,8 +30,9 @@ class SourceFileMap {
         }
     }
 
-    fun provide(fileName: String, index: Int) {
-        indexToSource[index] = DeserializedSourceFile(fileName, index)
+    fun provide(fileName: String, index: Int, fragment: DeserializedPackageFragment) {
+        assert(indexToSource[index] == null)
+        indexToSource[index] = DeserializedSourceFile(fileName, index, fragment)
     }
 
     fun sourceFile(index: Int): SourceFile =
