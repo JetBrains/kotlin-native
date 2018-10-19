@@ -37,10 +37,4 @@ open class RunKotlinNativeTask @Inject constructor(
             it.environment = myEnvironment
         }
     }
-
-    internal fun emptyConfigureClosure() = object : Closure<Any>(this) {
-        override fun call(): RunKotlinNativeTask {
-            return this@RunKotlinNativeTask
-        }
-    }
 }

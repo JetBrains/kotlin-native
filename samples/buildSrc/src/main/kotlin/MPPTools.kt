@@ -72,6 +72,6 @@ fun createRunTask(
         configureClosure: Closure<Any>? = null
 ): Task {
     val task = subproject.tasks.create(name, RunKotlinNativeTask::class.java, subproject, target)
-    task.configure(configureClosure ?: task.emptyConfigureClosure())
+    configureClosure?.let { closure -> task.configure(closure) }
     return task
 }
