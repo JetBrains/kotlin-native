@@ -39,7 +39,8 @@ kotlin {
 
 task jsinterop(type: Exec) {
     workingDir projectDir
-    commandLine Paths.get(project.properties['org.jetbrains.kotlin.native.home'] as String, 'bin', 'jsinterop').toString(), 
+    def ext = MPPTools.isWindows() ? '.bat' : ''
+    commandLine Paths.get(project.properties['org.jetbrains.kotlin.native.home'] as String, 'bin', "jsinterop$ext").toString(),
             '-pkg', packageName,
             '-o', jsinteropKlibFileName,
             '-target', 'wasm32'
