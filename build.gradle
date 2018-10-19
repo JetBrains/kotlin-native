@@ -409,11 +409,11 @@ task bundle(type: (isWindows()) ? Zip : Tar) {
         include '**/gradle.properties'
         into "$baseName/samples"
         filter {
-            if (it.startsWith("konan.home=")) {
+            if (it.startsWith("org.jetbrains.kotlin.native.home=")) {
                 return it.replace("/dist", "")
             }
-            if (it.startsWith("konan.plugin.version=")) {
-                return "konan.plugin.version=$gradlePluginVersion"
+            if (it.startsWith("kotlin_version=")) {
+                return "kotlin_version=$kotlinVersion"
             }
             return it
         }

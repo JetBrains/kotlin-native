@@ -1,6 +1,6 @@
 buildscript {
     repositories {
-        mavenCentral()
+        maven { url 'https://cache-redirector.jetbrains.com/maven-central' }
         maven { url "https://dl.bintray.com/jetbrains/kotlin-native-dependencies" }
     }
 
