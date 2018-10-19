@@ -1,7 +1,7 @@
 # Samples
 
 This directory contains a set of samples demonstrating how one can work with Kotlin/Native. The samples can be
-built using Gradle built tool. See `README.md` in sample directories to learn more about specific samples and
+built using Gradle build tool. See `README.md` in sample directories to learn more about specific samples and
 the building process.
 
 **Note**: If the samples are built from a source tree (not from a distribution archive) the compiler built from
