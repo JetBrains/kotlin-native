@@ -1,6 +1,8 @@
 import org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompile
 import org.jetbrains.kotlin.gradle.tasks.KotlinNativeCompile
 
+import java.nio.file.Paths
+
 plugins {
     id 'kotlin-multiplatform'
 }
@@ -9,6 +11,9 @@ repositories {
     jcenter()
     maven { url "https://dl.bintray.com/kotlin/ktor" }
 }
+
+String packageName = 'kotlinx.interop.wasm.dom'
+String jsinteropKlibFileName = Paths.get(buildDir.toString(), 'klib', "$packageName-jsinterop.klib").toString()
 
 kotlin {
     targets {
@@ -21,7 +26,7 @@ kotlin {
     sourceSets {
         html5CanvasMain {
             dependencies {
-                implementation files(NativeTools.getJsInteropKlibFileName(project, 'kotlinx.interop.wasm.dom'))
+                implementation files(jsinteropKlibFileName)
             }
         }
         httpServerMain {
@@ -32,7 +37,14 @@ kotlin {
     }
 }
 
-def jsinterop = NativeTools.createJsInteropTask(project, 'jsinterop', 'kotlinx.interop.wasm.dom')
+task jsinterop(type: Exec) {
+    workingDir projectDir
+    commandLine Paths.get(project.properties['org.jetbrains.kotlin.native.home'] as String, 'bin', 'jsinterop').toString(), 
+            '-pkg', packageName,
+            '-o', jsinteropKlibFileName,
+            '-target', 'wasm32'
+}
+
 tasks.withType(KotlinNativeCompile).all {
     dependsOn jsinterop
 }
