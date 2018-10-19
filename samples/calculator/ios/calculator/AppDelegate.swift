@@ -1,9 +1,6 @@
 //
-//  AppDelegate.swift
-//  calculator
-//
-//  Created by jetbrains on 01/12/2017.
-//  Copyright © 2017 JetBrains. All rights reserved.
+// Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
+// that can be found in the license/LICENSE.txt file.
 //
 
 import UIKit
