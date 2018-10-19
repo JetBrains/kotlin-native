@@ -63,7 +63,7 @@ See the samples coming with the distribution.
 
 To see the list of available flags, run `kotlinc -h`.
 
-For documentation on C interoperability stubs see [INTEROP.md](INTEROP.md).
+For documentation on C interoperability stubs see [INTEROP.md](https://github.com/JetBrains/kotlin-native/blob/master/INTEROP.md).
 
  ## <a name="limitations"></a>Known limitations ##
 
