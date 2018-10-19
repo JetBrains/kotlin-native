@@ -1,6 +1,6 @@
 buildscript {
     repositories {
-        mavenCentral()
+        maven { url 'https://cache-redirector.jetbrains.com/maven-central' }
         maven { url 'https://dl.bintray.com/kotlin/kotlin-dev' }
         maven { url 'https://dl.bintray.com/kotlin/kotlin-eap' }
     }
@@ -12,7 +12,7 @@ buildscript {
 
 allprojects {
     repositories {
-        mavenCentral()
+        maven { url 'https://cache-redirector.jetbrains.com/maven-central' }
         maven { url 'https://dl.bintray.com/kotlin/kotlin-dev' }
         maven { url 'https://dl.bintray.com/kotlin/kotlin-eap' }
     }

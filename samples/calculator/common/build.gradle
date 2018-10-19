@@ -2,7 +2,7 @@ buildscript {
     ext.kotlin_version = '1.3.0-rc-6'
 
     repositories {
-        mavenCentral()
+        maven { url 'https://cache-redirector.jetbrains.com/maven-central' }
     }
 
     dependencies {
@@ -15,7 +15,7 @@ apply plugin: 'kotlin-platform-common'
 group = 'org.jetbrains.kotlin.konan.samples'
 
 repositories {
-    mavenCentral()
+    maven { url 'https://cache-redirector.jetbrains.com/maven-central' }
 }
 
 dependencies {

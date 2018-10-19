@@ -33,7 +33,7 @@ android {
 repositories {
     google()
     jcenter()
-    mavenCentral()
+    maven { url 'https://cache-redirector.jetbrains.com/maven-central' }
 }
 
 dependencies {
