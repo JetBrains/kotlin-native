@@ -13,8 +13,6 @@ import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.BinaryVersion
 import org.jetbrains.kotlin.metadata.konan.KonanProtoBuf
 import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.resolve.DescriptorUtils
-import org.jetbrains.kotlin.resolve.checkers.ExpectedActualDeclarationChecker
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
 import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
 import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter.Companion.CALLABLES
@@ -196,14 +194,19 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
 
         val (stringTableProto, nameTableProto) = serializerExtension.stringTable.buildProto()
 
-        return KonanProtoBuf.LinkDataPackageFragment.newBuilder()
+        val result = KonanProtoBuf.LinkDataPackageFragment.newBuilder()
                 .setPackage(packageProto)
                 .setClasses(classesProto)
                 .setIsEmpty(isEmpty)
                 .setFqName(fqName.asString())
                 .setStringTable(stringTableProto)
                 .setNameTable(nameTableProto)
-                .build()
+
+        serializerExtension.sourceFileMap.files.map { it.name ?: "" }.forEach {
+            result.addFiles(it)
+        }
+
+        return result.build()
     }
 
     internal fun serializeModule(moduleDescriptor: ModuleDescriptor): LinkData {
@@ -213,7 +216,8 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
         val fragmentNames = mutableListOf<String>()
 
         getPackagesFqNames(moduleDescriptor).forEach iteration@{ packageFqName ->
-            val packageProtos = serializePackage(packageFqName, moduleDescriptor)
+            val packageProtos =
+                    serializePackage(packageFqName, moduleDescriptor)
             if (packageProtos.isEmpty()) return@iteration
 
             val packageFqNameStr = packageFqName.asString()
@@ -223,6 +227,7 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
             }
             fragments.add(packageProtos.map { it.toByteArray() })
             fragmentNames.add(packageFqNameStr)
+
         }
         val libraryAsByteArray = libraryProto.build().toByteArray()
         return LinkData(libraryAsByteArray, fragments, fragmentNames)

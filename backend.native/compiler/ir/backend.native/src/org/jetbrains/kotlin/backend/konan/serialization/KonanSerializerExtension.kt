@@ -16,6 +16,7 @@ import org.jetbrains.kotlin.metadata.serialization.MutableVersionRequirementTabl
 import org.jetbrains.kotlin.serialization.KonanDescriptorSerializer
 import org.jetbrains.kotlin.serialization.KotlinSerializerExtensionBase
 import org.jetbrains.kotlin.serialization.konan.KonanSerializerProtocol
+import org.jetbrains.kotlin.serialization.konan.SourceFileMap
 import org.jetbrains.kotlin.types.KotlinType
 
 internal class KonanSerializerExtension(val context: Context, override val metadataVersion: BinaryVersion) :
@@ -24,11 +25,12 @@ internal class KonanSerializerExtension(val context: Context, override val metad
     val inlineDescriptorTable = DescriptorTable(context.irBuiltIns)
     override val stringTable = KonanStringTable()
     override fun shouldUseTypeTable(): Boolean = true
+    internal val sourceFileMap = SourceFileMap()
 
     override fun serializeType(type: KotlinType, proto: ProtoBuf.Type.Builder) {
         // TODO: For debugging purpose we store the textual 
         // representation of serialized types.
-        // To be removed for release 1.0.
+        // To be removed.
         proto.setExtension(KonanProtoBuf.typeText, type.toString())
 
         super.serializeType(type, proto)
@@ -60,7 +62,7 @@ internal class KonanSerializerExtension(val context: Context, override val metad
     }
 
     override fun serializeFunction(descriptor: FunctionDescriptor, proto: ProtoBuf.Function.Builder) {
-
+        proto.setExtension(KonanProtoBuf.functionFile, sourceFileMap.assign(descriptor.source.containingFile))
         super.serializeFunction(descriptor, proto)
     }
 
@@ -69,7 +71,7 @@ internal class KonanSerializerExtension(val context: Context, override val metad
         if (variable != null) {
             proto.setExtension(KonanProtoBuf.usedAsVariable, true)
         }
-
+        proto.setExtension(KonanProtoBuf.propertyFile, sourceFileMap.assign(descriptor.source.containingFile))
         proto.setExtension(KonanProtoBuf.hasBackingField,
             context.ir.propertiesWithBackingFields.contains(descriptor))
 

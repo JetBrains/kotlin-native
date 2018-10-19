@@ -1,6 +1,11 @@
+/*
+ * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
+ * that can be found in the LICENSE file.
+ */
 package org.jetbrains.kotlin.serialization.konan
 
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
+import org.jetbrains.kotlin.descriptors.SourceFile
 import org.jetbrains.kotlin.konan.library.KonanLibrary
 import org.jetbrains.kotlin.konan.library.resolver.PackageAccessedHandler
 import org.jetbrains.kotlin.metadata.deserialization.NameResolverImpl
@@ -29,11 +34,22 @@ class KonanPackageFragment(
         this.components = components
     }
 
+    private val fileSources by lazy {
+        val result = SourceFileMap()
+        val proto = protoForNames
+        proto.filesList.forEachIndexed { index, it ->
+            result.provide(it, index)
+        }
+        result
+    }
+
     // The proto field is lazy so that we can load only needed
     // packages from the library.
     private val protoForNames: KonanProtoBuf.LinkDataPackageFragment by lazy {
         parsePackageFragment(library.packageMetadata(fqName.asString(), partName))
     }
+
+    fun sourceByIndex(index: Int): SourceFile = fileSources.sourceFile(index)
 
     val proto: KonanProtoBuf.LinkDataPackageFragment
         get() = protoForNames.also { packageAccessedHandler?.markPackageAccessed(fqName.toString()) }
