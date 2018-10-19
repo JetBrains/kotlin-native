@@ -1,0 +1,51 @@
+import org.jetbrains.kotlin.gradle.dsl.KotlinJvmCompile
+import org.jetbrains.kotlin.gradle.tasks.KotlinNativeCompile
+
+plugins {
+    id 'kotlin-multiplatform'
+}
+
+repositories {
+    jcenter()
+    maven { url "https://dl.bintray.com/kotlin/ktor" }
+}
+
+kotlin {
+    targets {
+        fromPreset(presets.wasm32, 'html5Canvas') {
+            compilations.main.outputKinds 'EXECUTABLE'
+            compilations.main.entryPoint 'sample.html5canvas.main'
+        }
+        fromPreset(presets.jvm, 'httpServer')
+    }
+    sourceSets {
+        html5CanvasMain {
+            dependencies {
+                implementation files(NativeTools.getJsInteropKlibFileName(project, 'kotlinx.interop.wasm.dom'))
+            }
+        }
+        httpServerMain {
+            dependencies {
+                implementation "io.ktor:ktor-server-netty:1.0.0-beta-1"
+            }
+        }
+    }
+}
+
+def jsinterop = NativeTools.createJsInteropTask(project, 'jsinterop', 'kotlinx.interop.wasm.dom')
+tasks.withType(KotlinNativeCompile).all {
+    dependsOn jsinterop
+}
+
+// This is to run embedded HTTP server with Ktor:
+task runProgram(type: JavaExec) {
+    dependsOn assemble
+    main = 'sample.html5canvas.httpserver.HttpServer'
+    classpath = files(kotlin.targets.httpServer.compilations.main.output) + kotlin.targets.httpServer.compilations.main.runtimeDependencyFiles
+    args projectDir
+}
+
+tasks.withType(KotlinJvmCompile).all {
+    runProgram.dependsOn it
+    kotlinOptions.jvmTarget = '1.8'
+}

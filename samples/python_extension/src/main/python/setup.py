@@ -29,9 +29,9 @@ setup(name='kotlin_bridge',
 
       ext_modules=[
          Extension('kotlin_bridge',
-            include_dirs = ['.'],
+            include_dirs = ['./build'],
             libraries = ['server'],
-            library_dirs = ['.'],
+            library_dirs = ['./build'],
             depends = ['server_api.h'],
             sources = ['src/main/c/kotlin_bridge.c']
         )
