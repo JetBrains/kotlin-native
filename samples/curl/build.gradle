@@ -1,9 +1,11 @@
+import java.nio.file.Paths
+
 plugins {
     id 'kotlin-multiplatform'
 }
 
 repositories {
-    maven { url = NativeTools.testMavenRepoUrl() }
+    maven { url = "file://${Paths.get(System.getProperty('user.home'), '.m2-kotlin-native-samples')}" }
 }
 
 kotlin {
