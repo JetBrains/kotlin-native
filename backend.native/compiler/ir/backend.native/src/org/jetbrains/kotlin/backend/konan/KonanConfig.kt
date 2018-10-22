@@ -120,6 +120,9 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
     internal val friendModuleFiles: Set<File> =
             configuration.get(KonanConfigKeys.FRIEND_MODULES)?.map { File(it) }?.toSet() ?: emptySet()
 
+    internal val exportedLibraries: Set<File> =
+            configuration.getList(KonanConfigKeys.EXPORTED_LIBRARIES).map { File(it) }.toSet()
+
     internal val manifestProperties = configuration.get(KonanConfigKeys.MANIFEST_FILE)?.let {
         File(it).loadProperties()
     }
