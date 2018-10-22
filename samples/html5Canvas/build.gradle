@@ -40,10 +40,21 @@ kotlin {
 task jsinterop(type: Exec) {
     workingDir projectDir
     def ext = MPPTools.isWindows() ? '.bat' : ''
-    commandLine Paths.get(project.properties['org.jetbrains.kotlin.native.home'] as String, 'bin', "jsinterop$ext").toString(),
-            '-pkg', packageName,
-            '-o', jsinteropKlibFileName,
-            '-target', 'wasm32'
+    def distributionPath = project.properties['org.jetbrains.kotlin.native.home']
+    if (distributionPath != null) {
+        commandLine Paths.get(distributionPath as String, 'bin', "jsinterop$ext").toString(),
+                '-pkg', packageName,
+                '-o', jsinteropKlibFileName,
+                '-target', 'wasm32'
+    } else {
+        doFirst {
+            // Abort build execution if the distribution path isn't specified.
+            throw new GradleException("""\
+                |Kotlin/Native distribution path must be specified to build the JavaScript interop.
+                |Use 'org.jetbrains.kotlin.native.home' project property to specify it.
+            """.stripMargin())
+        }
+    }
 }
 
 tasks.withType(KotlinNativeCompile).all {

@@ -400,6 +400,40 @@ task bundle(type: (isWindows()) ? Zip : Tar) {
     }
 }
 
+task samples {
+    dependsOn 'samplesZip', 'samplesTar'
+}
+
+task samplesZip(type: Zip)
+task samplesTar(type: Tar) {
+    extension = 'tar.gz'
+    compression = Compression.GZIP
+}
+
+configure([samplesZip, samplesTar]) {
+    baseName "kotlin-native-samples-$konanVersionFull"
+    destinationDir = projectDir
+    into(baseName)
+
+    from(file('samples')) {
+        // Process properties files separately.
+        exclude '**/gradle.properties'
+    }
+
+    from(file('samples')) {
+        include '**/gradle.properties'
+        filter {
+            it.startsWith('org.jetbrains.kotlin.native.home=') || it.startsWith('# Use custom Kotlin/Native home:') ? null : it
+        }
+    }
+
+    // Exclude build artifacts.
+    exclude '**/build'
+    exclude '**/.gradle'
+    exclude '**/.idea'
+    exclude '**/*.kt.bc-build/'
+}
+
 task uploadBundle {
     dependsOn ':bundle'
     doLast {
