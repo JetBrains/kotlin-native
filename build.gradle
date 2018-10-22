@@ -390,7 +390,7 @@ task bundle(type: (isWindows()) ? Zip : Tar) {
     }
     from(project.rootDir) {
         include 'RELEASE_NOTES.md'
-        include 'samples/**'
+        exclude 'samples/**'
         exclude '**/gradle.properties'
         exclude '**/settings.gradle'
         exclude '**/build'
