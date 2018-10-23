@@ -7,7 +7,9 @@ package org.jetbrains.kotlin.serialization.konan
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.descriptors.SourceFile
 import org.jetbrains.kotlin.konan.library.KonanLibrary
+import org.jetbrains.kotlin.konan.library.resolver.KonanResolvedLibrary
 import org.jetbrains.kotlin.konan.library.resolver.PackageAccessedHandler
+import org.jetbrains.kotlin.konan.library.resolver.impl.KonanResolvedLibraryImpl
 import org.jetbrains.kotlin.metadata.deserialization.NameResolverImpl
 import org.jetbrains.kotlin.metadata.konan.KonanProtoBuf
 import org.jetbrains.kotlin.name.FqName
@@ -19,6 +21,17 @@ import org.jetbrains.kotlin.serialization.deserialization.getClassId
 import org.jetbrains.kotlin.serialization.deserialization.getName
 import org.jetbrains.kotlin.storage.StorageManager
 
+
+private val KonanLibrary.fileSources: SourceFileMap get() {
+    val result = SourceFileMap()
+    val proto = parseModuleHeader(moduleHeaderData)
+    proto.fileList.forEachIndexed { index, it ->
+        result.provide(it, index, this)
+    }
+    return result
+}
+
+
 class KonanPackageFragment(
         fqName: FqName,
         private val library: KonanLibrary,
@@ -28,19 +41,14 @@ class KonanPackageFragment(
         partName: String
 ) : DeserializedPackageFragment(fqName, storageManager, module) {
 
+    val sourceFileMap: SourceFileMap by lazy {
+        library.fileSources
+    }
+
     lateinit var components: DeserializationComponents
 
     override fun initialize(components: DeserializationComponents) {
         this.components = components
-    }
-
-    private val fileSources by lazy {
-        val result = SourceFileMap()
-        val proto = protoForNames
-        proto.filesList.forEachIndexed { index, it ->
-            result.provide(it, index, this)
-        }
-        result
     }
 
     // The proto field is lazy so that we can load only needed
@@ -48,8 +56,6 @@ class KonanPackageFragment(
     private val protoForNames: KonanProtoBuf.LinkDataPackageFragment by lazy {
         parsePackageFragment(library.packageMetadata(fqName.asString(), partName))
     }
-
-    fun sourceByIndex(index: Int): SourceFile = fileSources.sourceFile(index)
 
     val proto: KonanProtoBuf.LinkDataPackageFragment
         get() = protoForNames.also { packageAccessedHandler?.markPackageAccessed(fqName.toString()) }

@@ -243,7 +243,7 @@ fun FunctionDescriptor.isComparisonDescriptor(map: Map<SimpleType, IrSimpleFunct
 
 private fun sourceByIndex(descriptor: CallableMemberDescriptor, index: Int): SourceFile {
     val fragment = descriptor.findPackage() as KonanPackageFragment
-    return fragment.sourceByIndex(index)
+    return fragment.sourceFileMap.sourceFile(index)
 }
 
 fun CallableMemberDescriptor.findSourceFile(): SourceFile {

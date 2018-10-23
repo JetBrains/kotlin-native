@@ -19,6 +19,7 @@ import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter.Companion.CALLAB
 import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter.Companion.CLASSIFIERS
 import org.jetbrains.kotlin.resolve.scopes.getDescriptorsFiltered
 import org.jetbrains.kotlin.serialization.KonanDescriptorSerializer
+import org.jetbrains.kotlin.serialization.konan.SourceFileMap
 
 /*
  * This is Konan specific part of public descriptor 
@@ -35,6 +36,8 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
 
     lateinit var serializerContext: SerializerContext
 
+    val sourceFileMap = SourceFileMap()
+
     data class SerializerContext(
             val serializerExtension: KonanSerializerExtension,
             val topSerializer: KonanDescriptorSerializer,
@@ -42,7 +45,7 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
     )
 
     private fun createNewContext(): SerializerContext {
-        val extension = KonanSerializerExtension(context, metadataVersion)
+        val extension = KonanSerializerExtension(context, metadataVersion, sourceFileMap)
         return SerializerContext(
                 extension,
                 KonanDescriptorSerializer.createTopLevel(context, extension)
@@ -194,19 +197,14 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
 
         val (stringTableProto, nameTableProto) = serializerExtension.stringTable.buildProto()
 
-        val result = KonanProtoBuf.LinkDataPackageFragment.newBuilder()
+        return KonanProtoBuf.LinkDataPackageFragment.newBuilder()
                 .setPackage(packageProto)
                 .setClasses(classesProto)
                 .setIsEmpty(isEmpty)
                 .setFqName(fqName.asString())
                 .setStringTable(stringTableProto)
                 .setNameTable(nameTableProto)
-
-        serializerExtension.sourceFileMap.files.map { it.name ?: "" }.forEach {
-            result.addFiles(it)
-        }
-
-        return result.build()
+                .build()
     }
 
     internal fun serializeModule(moduleDescriptor: ModuleDescriptor): LinkData {
@@ -229,6 +227,11 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
             fragmentNames.add(packageFqNameStr)
 
         }
+
+        sourceFileMap.filesAndClear().map { it.name ?: "" }.forEach {
+            libraryProto.addFile(it)
+        }
+
         val libraryAsByteArray = libraryProto.build().toByteArray()
         return LinkData(libraryAsByteArray, fragments, fragmentNames)
     }

@@ -19,13 +19,13 @@ import org.jetbrains.kotlin.serialization.konan.KonanSerializerProtocol
 import org.jetbrains.kotlin.serialization.konan.SourceFileMap
 import org.jetbrains.kotlin.types.KotlinType
 
-internal class KonanSerializerExtension(val context: Context, override val metadataVersion: BinaryVersion) :
+internal class KonanSerializerExtension(val context: Context, override val metadataVersion: BinaryVersion,
+                                        val sourceFileMap: SourceFileMap) :
         KotlinSerializerExtensionBase(KonanSerializerProtocol), IrAwareExtension {
 
     val inlineDescriptorTable = DescriptorTable(context.irBuiltIns)
     override val stringTable = KonanStringTable()
     override fun shouldUseTypeTable(): Boolean = true
-    internal val sourceFileMap = SourceFileMap()
 
     override fun serializeType(type: KotlinType, proto: ProtoBuf.Type.Builder) {
         // TODO: For debugging purpose we store the textual 
