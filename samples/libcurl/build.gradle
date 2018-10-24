@@ -8,7 +8,7 @@ plugins {
 group 'org.jetbrains.kotlin.sample.native'
 version '1.0'
 
-def localRepo = Paths.get(System.getProperty('user.home'), '.m2-kotlin-native-samples')
+def localRepo = rootProject.file('build/repo')
 
 publishing {
     repositories {
