@@ -390,33 +390,7 @@ task bundle(type: (isWindows()) ? Zip : Tar) {
     }
     from(project.rootDir) {
         include 'RELEASE_NOTES.md'
-        include 'samples/**'
-        exclude '**/gradle.properties'
-        exclude '**/settings.gradle'
-        exclude '**/build'
-        exclude '**/.gradle'
-        exclude 'samples/**/*.kt.bc-build'
         into baseName
-    }
-
-    from(project.file("samples")) {
-        include '**/settings.gradle'
-        into "$baseName/samples"
-        filter { it.startsWith("includeBuild") ? null : it }
-    }
-
-    from(project.file("samples")) {
-        include '**/gradle.properties'
-        into "$baseName/samples"
-        filter {
-            if (it.startsWith("konan.home=")) {
-                return it.replace("/dist", "")
-            }
-            if (it.startsWith("konan.plugin.version=")) {
-                return "konan.plugin.version=$gradlePluginVersion"
-            }
-            return it
-        }
     }
 
     destinationDir = file('.')
