@@ -8,7 +8,7 @@ package sample.html5canvas
 import kotlinx.interop.wasm.dom.*
 import kotlinx.wasm.jsinterop.*
 
-fun main(args: Array<String>) {
+fun main() {
 
     val canvas = document.getElementById("myCanvas").asCanvas
     val ctx = canvas.getContext("2d")

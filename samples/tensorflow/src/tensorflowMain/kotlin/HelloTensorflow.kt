@@ -223,7 +223,7 @@ class Session(val graph: Graph) {
     }
 }
 
-fun main(args: Array<String>) {
+fun main() {
     println("Hello, TensorFlow ${TF_Version()!!.toKString()}!")
 
     val result = Graph().run {

@@ -23,6 +23,6 @@ fun blinky(value: Int) {
    }
 }
 
-fun main(args: Array<String>) {
+fun main() {
     blinky(1)
 }

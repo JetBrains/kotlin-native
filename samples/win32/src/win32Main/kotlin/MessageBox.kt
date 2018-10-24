@@ -8,7 +8,7 @@ package sample.win32
 import kotlinx.cinterop.*
 import platform.windows.*
 
-fun main(args: Array<String>) {
+fun main() {
     val message = StringBuilder()
     memScoped {
       val buffer = allocArray<UShortVar>(MAX_PATH)

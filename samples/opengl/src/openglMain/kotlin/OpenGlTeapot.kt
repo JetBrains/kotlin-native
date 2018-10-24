@@ -89,7 +89,7 @@ fun initialize() {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f)
 }
 
-fun main(args: Array<String>) {
+fun main() {
     // initialize and run program
     memScoped {
         val argc = alloc<IntVar>().apply { value = 0 }

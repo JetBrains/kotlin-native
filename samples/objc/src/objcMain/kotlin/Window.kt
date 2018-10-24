@@ -14,7 +14,7 @@ import platform.osx.*
 import platform.darwin.*
 import platform.posix.*
 
-fun main(args: Array<String>) {
+fun main() {
     autoreleasepool {
         runApp()
     }

@@ -30,7 +30,7 @@ fun dumpShared(prefix: String) {
             """.trimIndent())
 }
 
-fun main(args: Array<String>) {
+fun main() {
     // Arena owning all native allocs.
     val arena = Arena()
 

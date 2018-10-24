@@ -10,7 +10,7 @@ import kotlin.native.concurrent.*
 data class WorkerArgument(val intParam: Int, val stringParam: String)
 data class WorkerResult(val intResult: Int, val stringResult: String)
 
-fun main(args: Array<String>) {
+fun main() {
     val COUNT = 5
     val workers = Array(COUNT, { _ -> Worker.start() })
 

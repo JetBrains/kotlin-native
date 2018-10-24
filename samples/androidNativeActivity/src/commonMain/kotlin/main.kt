@@ -8,7 +8,7 @@ package sample.androidnative
 import kotlinx.cinterop.*
 import platform.android.*
 
-fun main(args: Array<String>) {
+fun main() {
     logInfo("Entering main().")
     memScoped {
         val state = alloc<NativeActivityState>()
