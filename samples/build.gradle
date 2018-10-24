@@ -28,6 +28,28 @@ task buildSh(type: Exec) {
     }
 }
 
+task buildSamplesWithPlatformLibs() {
+    dependsOn ':csvparser:assemble'
+    dependsOn ':echoServer:assemble'
+    dependsOn ':globalState:assemble'
+    dependsOn ':html5Canvas:assemble'
+    dependsOn ':workers:assemble'
+
+    if (MPPTools.isMacos() || MPPTools.isLinux()) {
+        dependsOn ':nonBlockingEchoServer:assemble'
+    }
+
+    if (MPPTools.isMacos()) {
+        dependsOn ':objc:assemble'
+        dependsOn ':opengl:assemble'
+        dependsOn ':uikit:assemble'
+    }
+
+    if (MPPTools.isWindows()) {
+        dependsOn ':win32:assemble'
+    }
+}
+
 task buildAllSamples() {
     dependsOn buildSh
     subprojects.each {
