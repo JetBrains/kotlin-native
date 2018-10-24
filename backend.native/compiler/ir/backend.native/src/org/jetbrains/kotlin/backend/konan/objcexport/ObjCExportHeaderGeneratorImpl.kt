@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.backend.konan.objcexport
 
 import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.getExportedLibraries
 import org.jetbrains.kotlin.backend.konan.reportCompilationWarning
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
@@ -40,6 +41,6 @@ private fun Context.getExportedDependencies(): List<ModuleDescriptor> =
             when (konanModuleOrigin) {
                 CurrentKonanModuleOrigin, SyntheticModulesOrigin -> false
                 is DeserializedKonanModuleOrigin ->
-                    konanModuleOrigin.library.libraryFile in this.config.exportedLibraries
+                    konanModuleOrigin.library.libraryFile in getExportedLibraries(this.config.configuration)
             }
         }

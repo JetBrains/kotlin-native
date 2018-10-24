@@ -94,7 +94,10 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
         resolver.resolveWithDependencies(
                 unresolvedLibraries,
                 noStdLib = configuration.getBoolean(KonanConfigKeys.NOSTDLIB),
-                noDefaultLibs = configuration.getBoolean(KonanConfigKeys.NODEFAULTLIBS) )
+                noDefaultLibs = configuration.getBoolean(KonanConfigKeys.NODEFAULTLIBS)).also {
+
+            validateExportedLibraries(configuration, it.getFullList(null).map { it.libraryFile })
+        }
     }
 
     fun librariesWithDependencies(moduleDescriptor: ModuleDescriptor?): List<KonanLibrary> {
@@ -119,9 +122,6 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
 
     internal val friendModuleFiles: Set<File> =
             configuration.get(KonanConfigKeys.FRIEND_MODULES)?.map { File(it) }?.toSet() ?: emptySet()
-
-    internal val exportedLibraries: Set<File> =
-            configuration.getList(KonanConfigKeys.EXPORTED_LIBRARIES).map { File(it) }.toSet()
 
     internal val manifestProperties = configuration.get(KonanConfigKeys.MANIFEST_FILE)?.let {
         File(it).loadProperties()
