@@ -37,6 +37,7 @@ task buildSamplesWithPlatformLibs() {
 
     if (MPPTools.isMacos() || MPPTools.isLinux()) {
         dependsOn ':nonBlockingEchoServer:assemble'
+        dependsOn ':tensorflow:assemble'
     }
 
     if (MPPTools.isMacos()) {
