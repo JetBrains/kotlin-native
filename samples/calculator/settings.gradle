@@ -4,19 +4,19 @@ if (!rootProjectGradlePropertiesFile.isFile()) {
     throw new Exception("File $rootProjectGradlePropertiesFile does not exist or is not a file")
 }
 
-String kotlinVersion = null
+Properties rootProjectProperties = new Properties()
 rootProjectGradlePropertiesFile.withInputStream { inputStream ->
-    Properties properties = new Properties()
-    properties.load(inputStream)
-
-    kotlinVersion = properties.getProperty('kotlin_version')
-    if (kotlinVersion == null) {
+    rootProjectProperties.load(inputStream)
+    if (!rootProjectProperties.containsKey('kotlin_version')) {
         throw new Exception("No 'kotlin_version' property in $rootProjectGradlePropertiesFile file")
     }
 }
 
 gradle.beforeProject { project ->
-    project.ext.kotlin_version = kotlinVersion
+    rootProjectProperties.forEach { String key, value ->
+        if (!project.hasProperty(key))
+            project.ext[key] = value
+    }
 }
 
 include ':arithmeticParser'
