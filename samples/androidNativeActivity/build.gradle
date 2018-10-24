@@ -24,8 +24,8 @@ repositories {
 apply plugin: 'org.jetbrains.kotlin.multiplatform'
 apply plugin: 'com.android.application'
 
-File appDir = file("$buildDir/Polyhedron")
-File libsDir = file("$appDir/libs")
+def appDir = file("$buildDir/Polyhedron")
+def libsDir = file("$appDir/libs")
 Map<String, String> libsDirMapping = [
         'arm32' : "$libsDir/armeabi-v7a",
         'arm64' : "$libsDir/arm64-v8a"

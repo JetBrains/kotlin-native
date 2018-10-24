@@ -102,8 +102,8 @@ afterEvaluate {
     }
 }
 
-private Object determinePreset() {
-    Object preset = isRaspberryPiBuild() ? kotlin.presets.linuxArm32Hfp /* aka RaspberryPi */ : MPPTools.defaultHostPreset(project)
+private def determinePreset() {
+    def preset = isRaspberryPiBuild() ? kotlin.presets.linuxArm32Hfp /* aka RaspberryPi */ : MPPTools.defaultHostPreset(project)
     println("$project has been configured for ${preset.name} platform.")
     preset
 }

@@ -30,9 +30,9 @@ configurations {
 
 // If custom preset specified in 'calculator.preset.name' property, then use it for building.
 // Otherwise build for iPhone simulator (by default).
-Object determineIosPreset() {
+def determineIosPreset() {
     String presetName = project.hasProperty('calculator.preset.name') ? project.properties['calculator.preset.name'] : 'iosX64'
-    Object preset = project.kotlin.presets[presetName]
+    def preset = project.kotlin.presets[presetName]
     println("$project has been configured for $presetName platform.")
     preset
 }
