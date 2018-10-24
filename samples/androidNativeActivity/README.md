@@ -17,4 +17,4 @@ to deploy the apk on the Android device or emulator (note that only ARM-based de
 Note: If you are importing project to IDEA for the first time, you might need to put `local.properties` file
 with the following content:
 
-    sdk.dir=<your path to android sdk>
+    sdk.dir=<your path to Android SDK>

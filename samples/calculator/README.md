@@ -25,7 +25,7 @@ to deploy the apk on the Android device or emulator (note that only ARM-based de
 Note: If you are importing project to IDEA for the first time, you might need to put `local.properties` file
 with the following content:
 
-    sdk.dir=<your path to android sdk>
+    sdk.dir=<your path to Android SDK>
 
 ## iOS
 The iOS project compiles Kotlin module to a framework (see [iosApp](iosApp/)). The framework can be easily included in an existing iOS project (e.g. written in Swift or Objective-C)
