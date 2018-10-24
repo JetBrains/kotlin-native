@@ -39,6 +39,7 @@
 		2C3F384E1FD1738300151601 /* Base */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; name = Base; path = Base.lproj/LaunchScreen.storyboard; sourceTree = "<group>"; };
 		2C3F38501FD1738300151601 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		7FF94AD92058464C00590D0D /* arithmeticParser.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = arithmeticParser.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		7FF94AEA2058485300590D0D /* Parser.kt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Parser.kt; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -57,6 +58,7 @@
 			isa = PBXGroup;
 			children = (
 				2C3F38431FD1738300151601 /* calculator */,
+				7FF94ADA2058464C00590D0D /* arithmeticParser */,
 				2C3F38421FD1738300151601 /* Products */,
 				7FF94AE22058483900590D0D /* Frameworks */,
 			);
@@ -84,11 +86,44 @@
 			path = calculator;
 			sourceTree = "<group>";
 		};
+		7FF94ADA2058464C00590D0D /* arithmeticParser */ = {
+			isa = PBXGroup;
+			children = (
+				7FF94AE42058485300590D0D /* src */,
+			);
+			name = arithmeticParser;
+			sourceTree = "<group>";
+		};
 		7FF94AE22058483900590D0D /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
 			);
 			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		7FF94AE42058485300590D0D /* src */ = {
+			isa = PBXGroup;
+			children = (
+				7FF94AE52058485300590D0D /* commonMain */,
+			);
+			name = src;
+			path = ../arithmeticParser/src;
+			sourceTree = SOURCE_ROOT;
+		};
+		7FF94AE52058485300590D0D /* commonMain */ = {
+			isa = PBXGroup;
+			children = (
+				7FF94AE62058485300590D0D /* kotlin */,
+			);
+			path = commonMain;
+			sourceTree = "<group>";
+		};
+		7FF94AE62058485300590D0D /* kotlin */ = {
+			isa = PBXGroup;
+			children = (
+				7FF94AEA2058485300590D0D /* Parser.kt */,
+			);
+			path = kotlin;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
