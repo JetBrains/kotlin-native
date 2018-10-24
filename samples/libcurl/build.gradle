@@ -8,10 +8,16 @@ plugins {
 group 'org.jetbrains.kotlin.sample.native'
 version '1.0'
 
+def localRepo = Paths.get(System.getProperty('user.home'), '.m2-kotlin-native-samples')
+
 publishing {
     repositories {
-        maven { url = "file://${Paths.get(System.getProperty('user.home'), '.m2-kotlin-native-samples')}" }
+        maven { url = "file://$localRepo" }
     }
+}
+
+task cleanLocalRepo(type: Delete) {
+    delete localRepo
 }
 
 kotlin {
