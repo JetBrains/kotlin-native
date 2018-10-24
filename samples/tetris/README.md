@@ -27,3 +27,6 @@ To run on Raspberry Pi one need to install SDL package with `apt-get install lib
 Also GLES2 renderer is recommended (use `SDL_RENDER_DRIVER=opengles2 ./Tetris.kexe`).
 
 For Windows `set SDL_RENDER_DRIVER=software` may be needed on some machines.
+
+Note: There is a known issue with SDL2 library on Mac OS X 10.14 Mojave. Window may render black until
+it is dragged. See https://bugzilla.libsdl.org/show_bug.cgi?id=4272
