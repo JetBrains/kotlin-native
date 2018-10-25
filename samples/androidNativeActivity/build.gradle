@@ -46,7 +46,7 @@ android {
 
     sourceSets {
         main {
-            root 'src/commonMain'
+            root 'src/arm32Main'
             jniLibs.srcDir libsDir
         }
     }
@@ -61,6 +61,10 @@ kotlin {
             compilations.main.outputKinds 'EXECUTABLE'
             compilations.main.entryPoint 'sample.androidnative.main'
         }
+    }
+
+    sourceSets {
+        arm64Main.dependsOn arm32Main
     }
 }
 
