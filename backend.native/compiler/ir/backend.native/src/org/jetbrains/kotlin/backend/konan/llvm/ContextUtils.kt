@@ -298,7 +298,7 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
 
         val found = LLVMGetNamedFunction(llvmModule, name)
         if (found != null) {
-            assert (getFunctionType(found) == type)
+            assert (getFunctionType(found) == type || name == "Kotlin_undefined")
             assert (LLVMGetLinkage(found) == LLVMLinkage.LLVMExternalLinkage)
             return found
         } else {

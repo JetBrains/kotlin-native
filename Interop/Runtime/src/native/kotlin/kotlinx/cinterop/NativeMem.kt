@@ -24,31 +24,36 @@ internal inline val pointerSize: Int
     get() = getPointerSize()
 
 @PublishedApi
-@Intrinsic internal external fun getPointerSize(): Int
+@SymbolName("Kotlin_undefined")
+@Intrinsic external internal fun getPointerSize(): Int
 
 // TODO: do not use singleton because it leads to init-check on any access.
 @PublishedApi
 internal object nativeMemUtils {
-    @Intrinsic external fun getByte(mem: NativePointed): Byte
-    @Intrinsic external fun putByte(mem: NativePointed, value: Byte)
+    @Intrinsic @SymbolName("Kotlin_undefined") external fun getByte(mem: NativePointed): Byte
+    @Intrinsic @SymbolName("Kotlin_undefined") external fun putByte(mem: NativePointed, value: Byte)
 
-    @Intrinsic external fun getShort(mem: NativePointed): Short
-    @Intrinsic external fun putShort(mem: NativePointed, value: Short)
+    @Intrinsic @SymbolName("Kotlin_undefined") external fun getShort(mem: NativePointed): Short
+    @Intrinsic @SymbolName("Kotlin_undefined") external fun putShort(mem: NativePointed, value: Short)
 
-    @Intrinsic external fun getInt(mem: NativePointed): Int
-    @Intrinsic external fun putInt(mem: NativePointed, value: Int)
+    @Intrinsic @SymbolName("Kotlin_undefined") external fun getInt(mem: NativePointed): Int
+    @Intrinsic @SymbolName("Kotlin_undefined") external fun putInt(mem: NativePointed, value: Int)
 
-    @Intrinsic external fun getLong(mem: NativePointed): Long
-    @Intrinsic external fun putLong(mem: NativePointed, value: Long)
+    @Intrinsic @SymbolName("Kotlin_undefined") external fun getLong(mem: NativePointed): Long
+    @Intrinsic @SymbolName("Kotlin_undefined") external fun putLong(mem: NativePointed, value: Long)
 
-    @Intrinsic external fun getFloat(mem: NativePointed): Float
-    @Intrinsic external fun putFloat(mem: NativePointed, value: Float)
+    @Intrinsic @SymbolName("Kotlin_undefined") external fun getFloat(mem: NativePointed): Float
+    @Intrinsic @SymbolName("Kotlin_undefined") external fun putFloat(mem: NativePointed, value: Float)
 
-    @Intrinsic external fun getDouble(mem: NativePointed): Double
-    @Intrinsic external fun putDouble(mem: NativePointed, value: Double)
+    @Intrinsic @SymbolName("Kotlin_undefined") external fun getDouble(mem: NativePointed): Double
+    @Intrinsic @SymbolName("Kotlin_undefined") external fun putDouble(mem: NativePointed, value: Double)
 
-    @Intrinsic external fun getNativePtr(mem: NativePointed): NativePtr
-    @Intrinsic external fun putNativePtr(mem: NativePointed, value: NativePtr)
+    @Intrinsic
+    @SymbolName("Kotlin_undefined")
+    external fun getNativePtr(mem: NativePointed): NativePtr
+    @Intrinsic
+    @SymbolName("Kotlin_undefined")
+    external fun putNativePtr(mem: NativePointed, value: NativePtr)
 
     // TODO: optimize
     fun getByteArray(source: NativePointed, dest: ByteArray, length: Int) {
@@ -151,5 +156,7 @@ private external fun malloc(size: Long, align: Int): NativePtr
 @SymbolName("Kotlin_interop_free")
 private external fun cfree(ptr: NativePtr)
 
-@Intrinsic external fun readBits(ptr: NativePtr, offset: Long, size: Int, signed: Boolean): Long
-@Intrinsic external fun writeBits(ptr: NativePtr, offset: Long, size: Int, value: Long)
+@Intrinsic @SymbolName("Kotlin_undefined")
+external fun readBits(ptr: NativePtr, offset: Long, size: Int, signed: Boolean): Long
+@Intrinsic @SymbolName("Kotlin_undefined")
+external fun writeBits(ptr: NativePtr, offset: Long, size: Int, value: Long)

@@ -602,7 +602,7 @@ class StubGenerator(
                 } else {
                     sequenceOf(
                             annotationForUnableToImport,
-                            "external $header"
+                            "external @SymbolName(\"Kotlin_undefined\") $header"
                     )
                 }
 

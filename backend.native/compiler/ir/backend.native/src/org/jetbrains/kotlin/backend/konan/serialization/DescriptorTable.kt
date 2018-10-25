@@ -244,13 +244,13 @@ private val FunctionDescriptor.uniqueName: String
             throw AssertionError(this.toString())
         }
 
-        this.annotations.findAnnotation(symbolNameAnnotation)?.let {
-            if (this.isExternal) {
-                return getStringValue(it)!!
-            } else {
-                // ignore; TODO: report compile error
-            }
+        if (this.isExternal) {
+            return this.annotations.findAnnotation(symbolNameAnnotation)?.let {
+                getStringValue(it)!!
+            } ?: throw Error("external function $this must have @SymbolName annotation")
         }
+        // TODO: check that only external function has @SymbolName.
+
 
         this.annotations.findAnnotation(exportForCppRuntimeAnnotation)?.let {
             val name = getStringValue(it) ?: this.name.asString()
