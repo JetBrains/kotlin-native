@@ -96,7 +96,7 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
                 noStdLib = configuration.getBoolean(KonanConfigKeys.NOSTDLIB),
                 noDefaultLibs = configuration.getBoolean(KonanConfigKeys.NODEFAULTLIBS)).also {
 
-            validateExportedLibraries(configuration, it.getFullList(null).map { it.libraryFile })
+            validateExportedLibraries(configuration, it)
         }
     }
 
