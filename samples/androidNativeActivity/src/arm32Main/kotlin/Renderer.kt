@@ -193,7 +193,7 @@ class Renderer(val container: DisposableContainer,
                 ?: throw Error("Error opening asset $assetName")
         try {
             val length = AAsset_getLength(asset)
-            val buffer: CArrayPointer<ByteVar> = allocArray(length)
+            val buffer = allocArray<ByteVar>(length)
             if (AAsset_read(asset, buffer, length.convert()) != length.toInt()) {
                 throw Error("Error reading asset")
             }
