@@ -14,9 +14,8 @@ internal inline suspend fun <T> suspendCoroutineUninterceptedOrReturn(crossinlin
         returnIfSuspended<T>(block(getContinuation<T>()))
 
 @Intrinsic
-@SymbolName("Kotlin_undefined")
 @PublishedApi
-external internal fun <T> getContinuation(): Continuation<T>
+internal external fun <T> getContinuation(): Continuation<T>
 
 @kotlin.internal.InlineOnly
 @PublishedApi
@@ -25,5 +24,4 @@ internal inline suspend fun getCoroutineContext(): CoroutineContext =
 
 @Intrinsic
 @PublishedApi
-@SymbolName("Kotlin_undefined")
-external internal suspend fun <T> returnIfSuspended(@Suppress("UNUSED_PARAMETER") argument: Any?): T
+internal external suspend fun <T> returnIfSuspended(@Suppress("UNUSED_PARAMETER") argument: Any?): T

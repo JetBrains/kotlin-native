@@ -7,20 +7,16 @@
 
 package kotlin.native.internal
 
-@Intrinsic
-@SymbolName("Kotlin_undefined")
-external fun getNativeNullPtr(): NativePtr
+@Intrinsic external fun getNativeNullPtr(): NativePtr
 
 class NativePtr @PublishedApi internal constructor(private val value: NonNullNativePtr?) {
     companion object {
         val NULL = getNativeNullPtr()
     }
 
-    @Intrinsic @SymbolName("Kotlin_undefined")
-    external operator fun plus(offset: Long): NativePtr
+    @Intrinsic external operator fun plus(offset: Long): NativePtr
 
-    @Intrinsic @SymbolName("Kotlin_undefined")
-    external fun toLong(): Long
+    @Intrinsic external fun toLong(): Long
 
     override fun equals(other: Any?) = (other is NativePtr) && kotlin.native.internal.areEqualByValue(this, other)
 

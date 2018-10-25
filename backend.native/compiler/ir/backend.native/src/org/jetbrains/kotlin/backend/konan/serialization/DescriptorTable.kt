@@ -154,6 +154,8 @@ internal tailrec fun DeclarationDescriptor.isExported(): Boolean {
 
 private val symbolNameAnnotation = FqName("kotlin.native.SymbolName")
 
+private val intrinsicAnnotation = FqName("kotlin.native.internal.Intrinsic")
+
 private val exportForCppRuntimeAnnotation = FqName("kotlin.native.internal.ExportForCppRuntime")
 
 private val cnameAnnotation = FqName("kotlin.native.internal.CName")
@@ -245,9 +247,12 @@ private val FunctionDescriptor.uniqueName: String
         }
 
         if (this.isExternal) {
-            return this.annotations.findAnnotation(symbolNameAnnotation)?.let {
-                getStringValue(it)!!
-            } ?: throw Error("external function $this must have @SymbolName annotation")
+            this.annotations.findAnnotation(symbolNameAnnotation)?.let {
+                return getStringValue(it)!!
+            }
+            if (!annotations.hasAnnotation(intrinsicAnnotation)) {
+                throw Error("external function $this must have @SymbolName annotation")
+            }
         }
         // TODO: check that only external function has @SymbolName.
 
