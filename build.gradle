@@ -17,6 +17,7 @@ import groovy.io.FileType
 import org.jetbrains.kotlin.konan.target.*
 import org.jetbrains.kotlin.konan.properties.*
 import org.jetbrains.kotlin.konan.util.*
+import org.jetbrains.kotlin.CopySamples
 
 buildscript {
     apply from: "gradle/kotlinGradlePlugin.gradle"
@@ -432,6 +433,11 @@ configure([samplesZip, samplesTar]) {
     exclude '**/.gradle'
     exclude '**/.idea'
     exclude '**/*.kt.bc-build/'
+}
+
+task copy_samples(dependsOn: 'copySamples')
+task copySamples(type: CopySamples) {
+    destinationDir file('build/samples-under-test')
 }
 
 task uploadBundle {
