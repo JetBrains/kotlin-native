@@ -45,6 +45,7 @@ import platform.gles.glVertexPointer
 import platform.gles.glTexCoordPointer
 import platform.gles.glNormalPointer
 import platform.gles.GL_TEXTURE_ENV_COLOR
+import sample.androidnative.bmpformat.BMPHeader
 
 class Renderer(val container: DisposableContainer,
                val nativeActivity: ANativeActivity,
@@ -192,12 +193,13 @@ class Renderer(val container: DisposableContainer,
                 ?: throw Error("Error opening asset $assetName")
         try {
             val length = AAsset_getLength(asset)
-            val buffer = allocArray<ByteVar>(length)
+            val buffer: CArrayPointer<ByteVar> = allocArray(length)
             if (AAsset_read(asset, buffer, length.convert()) != length.toInt()) {
                 throw Error("Error reading asset")
             }
-            with(BMPHeader(buffer.rawValue)) {
-                if (magic != 0x4d42 || zero != 0 || size != length.toInt() || bits != 24) {
+
+            with(buffer.reinterpret<BMPHeader>().pointed) {
+                if (magic != 0x4d42.toUShort() || zero != 0u || size != length.toUInt() || bits != 24.toUShort()) {
                     throw Error("Error parsing texture file")
                 }
                 val numberOfBytes = width * height * 3

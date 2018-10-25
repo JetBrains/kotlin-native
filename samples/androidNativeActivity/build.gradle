@@ -60,6 +60,9 @@ kotlin {
         configure([arm32, arm64]) {
             compilations.main.outputKinds 'EXECUTABLE'
             compilations.main.entryPoint 'sample.androidnative.main'
+            compilations.main.cinterops {
+                bmpformat
+            }
         }
     }
 
