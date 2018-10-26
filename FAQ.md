@@ -15,7 +15,14 @@ garbage.
 
 ### Q: How do I create a shared library?
 
-A: Use the `-produce dynamic` compiler switch, or `konanArtifacts { dynamic('foo') {} }` in Gradle.
+A: Use the `-produce dynamic` compiler switch, or `compilations.main.outputKinds 'DYNAMIC'` in Gradle, i.e.
+```groovy
+targets {
+    fromPreset(presets.iosArm64, 'mylib') {
+       compilations.main.outputKinds 'DYNAMIC'
+    }
+}
+```
 It will produce a platform-specific shared object (.so on Linux, .dylib on macOS, and .dll on Windows targets) and a
 C language header, allowing the use of all public APIs available in your Kotlin/Native program from C/C++ code.
 See `samples/python_extension` for an example of using such a shared object to provide a bridge between Python and
@@ -24,7 +31,14 @@ Kotlin/Native.
 
 ### Q: How do I create a static library or an object file?
 
-A: Use the `-produce static` compiler switch, or `konanArtifacts { static('foo') {} }` in Gradle.
+A: Use the `-produce static` compiler switch, or `compilations.main.outputKinds 'STATIC'` in Gradle, i.e.
+```groovy
+targets {
+    fromPreset(presets.iosArm64, 'mylib') {
+       compilations.main.outputKinds 'STATIC'
+    }
+}
+```
 It will produce a platform-specific static object (.a library format) and a C language header, allowing you to
 use all the public APIs available in your Kotlin/Native program from C/C++ code.
 
@@ -113,7 +127,7 @@ You can then set the `KONAN_HOME` env variable to the generated `dist` folder in
 <details>
 <summary>For Gradle, you can use <a href="https://docs.gradle.org/current/userguide/composite_builds.html">Gradle composite builds</a> like this:</summary>
 
-```
+```bash
 # Set with the path of your kotlin-native clone
 export KONAN_REPO=$PWD/../kotlin-native
 
