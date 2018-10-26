@@ -127,6 +127,9 @@ You can then set the `KONAN_HOME` env variable to the generated `dist` folder in
 <details>
 <summary>For Gradle, you can use <a href="https://docs.gradle.org/current/userguide/composite_builds.html">Gradle composite builds</a> like this:</summary>
 
+<div class="sample" markdown="1" theme="idea" mode="shell">
+
+
 ```bash
 # Set with the path of your kotlin-native clone
 export KONAN_REPO=$PWD/../kotlin-native
@@ -137,5 +140,7 @@ pushd $KONAN_REPO && git pull && ./gradlew clean dependencies:update dist distPl
 # In your project, you set have to the konan.home property, and include as composite the shared and gradle-plugin builds
 ./gradlew check -Pkonan.home=$KONAN_REPO/dist --include-build $KONAN_REPO/shared --include-build $KONAN_REPO/tools/kotlin-native-gradle-plugin
 ```
+
+</div>
 
 </details>
