@@ -24,6 +24,7 @@ int arg_call(int x) {
 #define ONE_POINT_ZERO 1.0
 #define ONE_POINT_FIVE 1.5f
 
+#define NULL_PTR (void*)0
 #define VOID_PTR (void*)1
 #define INT_PTR (int*)1
 #define PTR_SUM INT_PTR + 1

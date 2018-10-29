@@ -114,7 +114,7 @@ private fun reparseWithCodeSnippet(library: NativeLibrary,
         val codeSnippetLines = when (library.language) {
             // Note: __auto_type is a GNU extension which is supported by clang.
             Language.C, Language.OBJECTIVE_C -> listOf(
-                    "void kni_indexer_function() { const __auto_type KNI_INDEXER_VARIABLE = $name; }"
+                    "void kni_indexer_function() { __auto_type KNI_INDEXER_VARIABLE = $name; }"
             )
         }
 

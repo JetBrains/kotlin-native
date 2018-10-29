@@ -23,11 +23,13 @@ fun main(args: Array<String>) {
     assertEquals(1.5f, onePointFive)
     assertEquals(1.0, onePointZero)
 
+    val nullPtr: COpaquePointer? = NULL_PTR
     val voidPtr: COpaquePointer? = VOID_PTR
     val intPtr: CPointer<IntVar>? = INT_PTR
     val ptrSum: CPointer<IntVar>?  = PTR_SUM
     val ptrCall: CPointer<IntVar>? = PTR_CALL
 
+    assertEquals(null, nullPtr)
     assertEquals(1L, voidPtr.rawValue.toLong())
     assertEquals(1L, intPtr.rawValue.toLong())
     assertEquals(2L, ptrSum.rawValue.toLong())
