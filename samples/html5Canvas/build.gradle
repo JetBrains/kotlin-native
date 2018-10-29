@@ -9,7 +9,7 @@ plugins {
 
 repositories {
     jcenter()
-    maven { url "https://dl.bintray.com/kotlin/ktor" }
+    maven { url 'https://dl.bintray.com/kotlin/ktor' }
 }
 
 String packageName = 'kotlinx.interop.wasm.dom'
@@ -31,7 +31,7 @@ kotlin {
         }
         httpServerMain {
             dependencies {
-                implementation "io.ktor:ktor-server-netty:1.0.0-beta-1"
+                implementation 'io.ktor:ktor-server-netty:1.0.0-beta-2'
             }
         }
     }
