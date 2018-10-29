@@ -291,7 +291,7 @@ internal object InternalServer {
 
     private fun checkAccessible() = try {
         if (!InetAddress.getLocalHost().canonicalHostName.endsWith(".$internalDomain")) {
-            // Fast pass:
+            // Fast path:
             false
         } else {
             InetAddress.getByName(host)
