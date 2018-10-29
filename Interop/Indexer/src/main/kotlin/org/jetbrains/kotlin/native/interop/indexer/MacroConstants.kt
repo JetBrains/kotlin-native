@@ -133,8 +133,8 @@ private fun processCodeSnippet(
         typeConverter: TypeConverter
 ): MacroDef? {
 
-    val prefixKinds = listOf(CXCursorKind.CXCursor_FunctionDecl, CXCursorKind.CXCursor_CompoundStmt, CXCursorKind.CXCursor_DeclStmt)
-    var state = VisitorState.EXPECT_VARIABLE
+    val kindsToSkip = listOf(CXCursorKind.CXCursor_FunctionDecl, CXCursorKind.CXCursor_CompoundStmt)
+    var state = VisitorState.EXPECT_NODES_TO_SKIP
     var evalResultOrNull: CXEvalResult? = null
     var typeOrNull: Type? = null
 
@@ -158,7 +158,13 @@ private fun processCodeSnippet(
             }
 
             // Skip auxiliary elements.
-            state == VisitorState.EXPECT_VARIABLE && kind in prefixKinds -> CXChildVisitResult.CXChildVisit_Recurse
+            state == VisitorState.EXPECT_NODES_TO_SKIP && kind in kindsToSkip ->
+                CXChildVisitResult.CXChildVisit_Recurse
+
+            state == VisitorState.EXPECT_NODES_TO_SKIP && kind == CXCursorKind.CXCursor_DeclStmt -> {
+                state = VisitorState.EXPECT_VARIABLE
+                CXChildVisitResult.CXChildVisit_Recurse
+            }
 
             else -> {
                 state = VisitorState.INVALID
@@ -211,6 +217,7 @@ private fun processCodeSnippet(
 }
 
 enum class VisitorState {
+    EXPECT_NODES_TO_SKIP,
     EXPECT_VARIABLE, EXPECT_VARIABLE_VALUE,
     EXPECT_END, INVALID
 }
