@@ -42,10 +42,7 @@ task jsinterop(type: Exec) {
     def ext = MPPTools.isWindows() ? '.bat' : ''
     def distributionPath = project.properties['org.jetbrains.kotlin.native.home'] as String
     if (distributionPath != null) {
-        if (!Paths.get(distributionPath).isAbsolute())
-            distributionPath = Paths.get(projectDir.path, distributionPath).toString()
-
-        commandLine Paths.get(distributionPath, 'bin', "jsinterop$ext").toString(),
+        commandLine Paths.get(file(distributionPath).path, 'bin', "jsinterop$ext").toString(),
                 '-pkg', packageName,
                 '-o', jsinteropKlibFileName,
                 '-target', 'wasm32'
