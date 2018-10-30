@@ -172,7 +172,7 @@ task resultsTask() {
     }
 }
 
-boolean isExcluded(String task) {
+boolean isExcluded(String dir) {
     // List of tests that fail due to unresolved compiler bugs
     def excluded = [ "codegen/box/functions/bigArity",           // KT-26140
                      "codegen/box/functions/functionExpression", // KT-26973
@@ -180,7 +180,7 @@ boolean isExcluded(String task) {
 
     boolean result = false
     excluded.forEach {
-        if (task.contains(it)) {
+        if (dir.endsWith(it)) {
             result = true
         }
     }
