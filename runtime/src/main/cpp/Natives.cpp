@@ -78,8 +78,4 @@ const void* Kotlin_Any_getTypeInfo(KConstRef obj) {
   return obj->type_info();
 }
 
-void Kotlin_undefined() {
-  ThrowNotImplementedError();
-}
-
 }  // extern "C"

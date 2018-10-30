@@ -23,7 +23,8 @@ import kotlin.native.internal.Intrinsic
 internal inline val pointerSize: Int
     get() = getPointerSize()
 
-@PublishedApi @Intrinsic external internal fun getPointerSize(): Int
+@PublishedApi
+@Intrinsic internal external fun getPointerSize(): Int
 
 // TODO: do not use singleton because it leads to init-check on any access.
 @PublishedApi
