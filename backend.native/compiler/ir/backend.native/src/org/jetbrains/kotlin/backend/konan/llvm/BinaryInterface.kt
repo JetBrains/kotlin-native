@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.backend.konan.llvm
 
 import llvm.LLVMTypeRef
+import org.jetbrains.kotlin.backend.common.ir.ir2string
 import org.jetbrains.kotlin.backend.konan.descriptors.isAbstract
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.*
 import org.jetbrains.kotlin.backend.konan.isInlined
@@ -103,6 +104,8 @@ internal tailrec fun DeclarationDescriptor.isExported(): Boolean {
 }
 
 private val symbolNameAnnotation = FqName("kotlin.native.SymbolName")
+
+private val intrinsicAnnotation = FqName("kotlin.native.internal.Intrinsic")
 
 private val cnameAnnotation = FqName("kotlin.native.CName")
 
@@ -205,13 +208,16 @@ internal val FunctionDescriptor.symbolName: String
         if (!this.isExported()) {
             throw AssertionError(this.descriptor.toString())
         }
-        this.descriptor.annotations.findAnnotation(symbolNameAnnotation)?.let {
-            if (this.isExternal) {
+
+        if (isExternal) {
+            this.descriptor.annotations.findAnnotation(symbolNameAnnotation)?.let {
                 return getStringValue(it)!!
-            } else {
-                // ignore; TODO: report compile error
+            }
+            if (!this.descriptor.annotations.hasAnnotation(intrinsicAnnotation)) {
+                throw Error("external function ${ir2string(this)} must have @SymbolName or @Intrinsic annotation")
             }
         }
+
         this.descriptor.annotations.findAnnotation(exportForCppRuntimeAnnotation)?.let {
             val name = getStringValue(it) ?: this.name.asString()
             return name // no wrapping currently required

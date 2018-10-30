@@ -24,7 +24,9 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 
-internal fun DeclarationDescriptor.symbolName(): String = when (this) {
+
+// TODO: merge with FunctionDescriptor.symbolName in BinaryInterface.kt.
+internal val DeclarationDescriptor.symbolName: String get() = when (this) {
     is FunctionDescriptor 
         -> this.uniqueName
     is PropertyDescriptor 
@@ -35,7 +37,7 @@ internal fun DeclarationDescriptor.symbolName(): String = when (this) {
 }
 
 internal val DeclarationDescriptor.uniqId 
-    get() = this.symbolName().localHash.value
+    get() = this.symbolName.localHash.value
 
 internal val DeclarationDescriptor.isSerializableExpectClass: Boolean
     get() = this is ClassDescriptor && ExpectedActualDeclarationChecker.shouldGenerateExpectClass(this)
