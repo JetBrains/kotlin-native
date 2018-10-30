@@ -18,6 +18,7 @@ import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
 import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter.Companion.CALLABLES
 import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter.Companion.CLASSIFIERS
 import org.jetbrains.kotlin.resolve.scopes.getDescriptorsFiltered
+import org.jetbrains.kotlin.serialization.DescriptorSerializer
 import org.jetbrains.kotlin.serialization.KonanDescriptorSerializer
 import org.jetbrains.kotlin.serialization.konan.SourceFileMap
 
@@ -102,13 +103,13 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
         val fragments = module.getPackage(fqName).fragments.filter { it.module == module }
         if (fragments.isEmpty()) return emptyList()
 
-        val classifierDescriptors = KonanDescriptorSerializer.sort(
+        val classifierDescriptors = DescriptorSerializer.sort(
                 fragments.flatMap {
                     it.getMemberScope().getDescriptorsFiltered(CLASSIFIERS)
                 }.filter { !it.isExpectMember || it.isSerializableExpectClass }
         )
 
-        val topLevelDescriptors = KonanDescriptorSerializer.sort(
+        val topLevelDescriptors = DescriptorSerializer.sort(
                 fragments.flatMap { fragment ->
                     fragment.getMemberScope().getDescriptorsFiltered(CALLABLES)
                 }.filter { !it.isExpectMember }
