@@ -106,6 +106,7 @@ internal tailrec fun DeclarationDescriptor.isExported(): Boolean {
 private val symbolNameAnnotation = FqName("kotlin.native.SymbolName")
 
 private val intrinsicAnnotation = FqName("kotlin.native.internal.Intrinsic")
+private val objCMethodAnnotation = FqName("kotlinx.cinterop.ObjCMethod")
 
 private val cnameAnnotation = FqName("kotlin.native.CName")
 
@@ -213,8 +214,9 @@ internal val FunctionDescriptor.symbolName: String
             this.descriptor.annotations.findAnnotation(symbolNameAnnotation)?.let {
                 return getStringValue(it)!!
             }
-            if (!this.descriptor.annotations.hasAnnotation(intrinsicAnnotation)) {
-                throw Error("external function ${ir2string(this)} must have @SymbolName or @Intrinsic annotation")
+            if (!this.descriptor.annotations.hasAnnotation(intrinsicAnnotation) &&
+                    !this.descriptor.annotations.hasAnnotation(objCMethodAnnotation)) {
+                throw Error("external function ${this.descriptor} must have @SymbolName, @Intrinsic or @ObjCMethod annotation")
             }
         }
 
