@@ -187,7 +187,9 @@ private fun createFakeOverride(
                     it.descriptor.valueParameters[oldParameter.index],
                     oldParameter.type,
                     (oldParameter as? IrValueParameter)?.varargElementType
-            )
+            ).apply {
+                parent = this@copyFake
+            }
         }
 
         this.typeParameters.mapTo(it.typeParameters) { oldParameter ->
@@ -338,7 +340,10 @@ fun IrClass.setSuperSymbolsAndAddFakeOverrides(superTypes: List<IrType>) {
 
             assert(overriddenDeclarations.isNotEmpty())
 
-            irClass.declarations.add(createFakeOverride(fakeOverride, overriddenDeclarations, irClass))
+            irClass.declarations.add(createFakeOverride(fakeOverride, overriddenDeclarations, irClass).apply {
+                parent = irClass
+
+            })
         }
 
         override fun inheritanceConflict(first: CallableMemberDescriptor, second: CallableMemberDescriptor) {

@@ -450,6 +450,7 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
                     returnType  = coroutineClass.defaultType
 
                     this.valueParameters += constructorParameters
+                    this.valueParameters.forEach { it.parent = this }
 
                     val irBuilder = context.createIrBuilder(symbol, startOffset, endOffset)
                     body = irBuilder.irBlockBody {
@@ -514,6 +515,7 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
                     returnType = coroutineClass.defaultType
 
                     this.valueParameters += constructorParameters
+                    valueParameters.forEach { it.parent = this }
 
                     val irBuilder = context.createIrBuilder(symbol, startOffset, endOffset)
                     body = irBuilder.irBlockBody {
@@ -589,6 +591,7 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
                     this.createDispatchReceiverParameter()
 
                     val thisReceiver = this.dispatchReceiverParameter!!
+                    valueParameters.forEach { it.parent = this }
 
                     val irBuilder = context.createIrBuilder(symbol, startOffset, endOffset)
                     body = irBuilder.irBlockBody(startOffset, endOffset) {
@@ -670,6 +673,7 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
 
                     val thisReceiver = this.dispatchReceiverParameter!!
 
+                    valueParameters.forEach { it.parent = this }
                     val irBuilder = context.createIrBuilder(symbol, startOffset, endOffset)
                     body = irBuilder.irBlockBody(startOffset, endOffset) {
                         +irReturn(
@@ -735,6 +739,7 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
                 resultArgument = function.valueParameters.single()
 
                 val irBuilder = context.createIrBuilder(function.symbol, startOffset, endOffset)
+                function.valueParameters.forEach { it.parent = function }
                 function.body = irBuilder.irBlockBody(startOffset, endOffset) {
 
                     suspendResult = irVar(IrTemporaryVariableDescriptorImpl(
@@ -742,7 +747,7 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
                                     name                  = "suspendResult".synthesizedName,
                                     outType               = context.builtIns.nullableAnyType,
                                     isMutable             = true)
-                    , context.irBuiltIns.anyNType)
+                    , context.irBuiltIns.anyNType).apply { parent = function }
 
                     // Extract all suspend calls to temporaries in order to make correct jumps to them.
                     originalBody.transformChildrenVoid(ExpressionSlicer(labelField.type))
@@ -766,7 +771,7 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
                                 origin      = it.origin,
                                 symbol      = symbol,
                                 type        = it.type
-                        )
+                        ).apply { it.parent = function }
 
                         it.descriptor to variable
                     }
@@ -825,7 +830,9 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
                                                 scope.forEach {
                                                     val variable = localsMap[it.descriptor] ?: it
                                                     +irSetField(irGet(thisReceiver), localToPropertyMap[it.symbol]!!, irGet(variable))
+                                                    variable.parent = function
                                                 }
+
                                                 +irSetField(
                                                         irGet(thisReceiver),
                                                         labelField,
@@ -837,6 +844,7 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
                                             val scope = liveLocals[suspensionPoint]!!
                                             return irBlock(expression) {
                                                 scope.forEach {
+                                                    it.parent = function
                                                     +irSetVar(localsMap[it.descriptor] ?: it, irGetField(irGet(thisReceiver), localToPropertyMap[it.symbol]!!))
                                                 }
                                             }
@@ -857,7 +865,9 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
                             type              = context.irBuiltIns.unitType,
                             suspensionPointId = irGetField(irGet(function.dispatchReceiverParameter!!), labelField),
                             result            = irBlock(startOffset, endOffset) {
-                                +irThrowIfNotNull(irExceptionOrNull(irGet(resultArgument))) // Coroutine might start with an exception.
+                                +irThrowIfNotNull(irExceptionOrNull(irGet(resultArgument))).apply { // Coroutine might start with an exception.
+                                    ((this as? IrBlock)?.statements?.first() as? IrVariable)?.parent = irFunction
+                                }
                                 statements.forEach { +it }
                             })
                     if (irFunction.returnType.isUnit())
@@ -1020,7 +1030,7 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
                         else {
                             // Save to temporary in order to save execution order.
                             val tmp = irVar(transformedChild)
-
+                            tmp.parent = irFunction
                             tempStatements += tmp
                             newChildren[index] = irGet(tmp)
                         }
@@ -1050,6 +1060,7 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
                                                 +lastChild
                                             } else {
                                                 val tmp = irVar(lastChild)
+                                                tmp.parent = irFunction
                                                 +tmp
                                                 +irCall(saveState)
                                                 +irGet(tmp)
@@ -1085,7 +1096,7 @@ internal class SuspendFunctionsLowering(val context: Context): FileLoweringPass 
                             startOffset                = startOffset,
                             endOffset                  = endOffset,
                             type                       = context.irBuiltIns.anyNType,
-                            suspensionPointIdParameter = irVar(suspensionPointIdParameter, suspensionPointIdType),
+                            suspensionPointIdParameter = irVar(suspensionPointIdParameter, suspensionPointIdType).apply { parent = irFunction },
                             result                     = irBlock(startOffset, endOffset) {
                                 if (!calledSaveState)
                                     +irCall(saveState)

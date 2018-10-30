@@ -44,6 +44,7 @@ internal class EnumSpecialDeclarationsFactory(val context: Context) {
                 ClassKind.OBJECT, listOf(context.builtIns.anyType), SourceElement.NO_SOURCE, false, LockBasedStorageManager.NO_LOCKS)
 
         val implObject = IrClassImpl(startOffset, endOffset, DECLARATION_ORIGIN_ENUM, implObjectDescriptor).apply {
+            parent = enumClass.parent
             createParameterDeclarations()
         }
 

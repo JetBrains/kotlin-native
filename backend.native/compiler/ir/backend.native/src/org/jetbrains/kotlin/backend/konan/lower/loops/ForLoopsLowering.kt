@@ -171,12 +171,16 @@ private class ForLoopsTransformer(val context: Context, val progressionInfoBuild
                         isMutable = true,
                         origin = IrDeclarationOrigin.FOR_LOOP_IMPLICIT_VARIABLE).also {
                     statements.add(it)
+                    it.parent = variable.parent
                 }
 
                 val boundValue = scope.createTemporaryVariable(ensureNotNullable(bound.castIfNecessary(progressionType)),
                         nameHint = "bound",
                         origin = IrDeclarationOrigin.FOR_LOOP_IMPLICIT_VARIABLE)
-                        .also { statements.add(it) }
+                        .also {
+                            statements.add(it)
+                            it.parent = variable.parent
+                        }
 
                 val stepExpression = if (step != null) {
                     if (increasing) step else step.unaryMinus()
@@ -188,6 +192,7 @@ private class ForLoopsTransformer(val context: Context, val progressionInfoBuild
                         nameHint = "step",
                         origin = IrDeclarationOrigin.FOR_LOOP_IMPLICIT_VARIABLE).also {
                     statements.add(it)
+                    it.parent = variable.parent
                 }
 
                 // Calculate the last element of the progression
@@ -215,6 +220,7 @@ private class ForLoopsTransformer(val context: Context, val progressionInfoBuild
                         nameHint = "last",
                         origin = IrDeclarationOrigin.FOR_LOOP_IMPLICIT_VARIABLE).also {
                     statements.add(it)
+                    it.parent = variable.parent
                 }
 
                 iteratorToLoopInfo[symbol] = ForLoopInfo(progressionInfo,

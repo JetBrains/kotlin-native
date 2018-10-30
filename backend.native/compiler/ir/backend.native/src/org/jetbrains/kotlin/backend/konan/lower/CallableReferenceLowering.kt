@@ -384,6 +384,7 @@ internal class CallableReferenceLowering(val context: Context): FileLoweringPass
                         it.copy(descriptor.valueParameters[it.index]) // FIXME: substitute
                     }
 
+                    this.valueParameters.forEach { it.parent = this }
                     body = irBuilder.irBlockBody(startOffset, endOffset) {
                         +irReturn(
                                 irCall(functionReference.symbol).apply {

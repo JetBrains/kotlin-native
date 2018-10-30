@@ -12,8 +12,10 @@ import org.jetbrains.kotlin.backend.common.push
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.containsNull
 import org.jetbrains.kotlin.descriptors.ClassKind
+import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFile
+import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.declarations.impl.IrVariableImpl
 import org.jetbrains.kotlin.ir.descriptors.IrTemporaryVariableDescriptorImpl
@@ -65,6 +67,13 @@ internal class EnumWhenLowering(private val context: Context) : IrElementTransfo
         return enumClass.kind == ClassKind.ENUM_CLASS
     }
 
+    private var functionParent:IrFunction? = null
+    override fun visitFunction(declaration: IrFunction): IrStatement {
+        functionParent = declaration
+        return super.visitFunction(declaration)
+        functionParent = null
+    }
+
     override fun visitBlock(expression: IrBlock): IrExpression {
         if (!shouldLower(expression)) {
             return super.visitBlock(expression)
@@ -73,7 +82,9 @@ internal class EnumWhenLowering(private val context: Context) : IrElementTransfo
         // subject with compile-time known enum entry.
         val subject = expression.statements[0] as IrVariable
         val subjectOrdinalProvider = lazy {
-            createEnumOrdinalVariable(subject)
+            createEnumOrdinalVariable(subject).apply {
+                parent = functionParent!!
+            }
         }
         subjectWithOrdinalStack.push(Pair(subject, subjectOrdinalProvider))
         // Process nested `when` and comparisons.

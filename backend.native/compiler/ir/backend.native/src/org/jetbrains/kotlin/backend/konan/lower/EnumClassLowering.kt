@@ -247,6 +247,8 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
                         DECLARATION_ORIGIN_ENUM
                 )
 
+                constructor.valueParameters.forEach { it.parent = constructor }
+
                 val constructorDescriptor = constructor.descriptor
                 constructors.add(constructorDescriptor)
                 defaultEnumEntryConstructors.put(loweredEnumConstructor, constructor)
@@ -259,6 +261,7 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
                         body.transformChildrenVoid(ParameterMapper(constructor))
                         body.accept(SetDeclarationsParentVisitor, constructor)
                         constructor.putDefault(constructorDescriptor.valueParameters[loweredArgument.index], body)
+                        irConstructor.parent = irClass
                     }
                 }
             }
@@ -266,6 +269,7 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
             val memberScope = stub<MemberScope>("enum default class")
             defaultClassDescriptor.initialize(memberScope, constructors, null)
 
+            defaultClass.parent = irClass.parent
             defaultClass.setSuperSymbolsAndAddFakeOverrides(listOf(irClass.defaultType))
 
             return defaultClass
@@ -383,7 +387,9 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
 
             return IrAnonymousInitializerImpl(startOffset, endOffset, DECLARATION_ORIGIN_ENUM, loweredEnum.implObject.descriptor).apply {
                 body = context.createIrBuilder(symbol, startOffset, endOffset).irBlockBody(irClass) {
-                    val instances = irTemporary(irGetField(irGet(loweredEnum.implObject.thisReceiver!!), loweredEnum.valuesField))
+                    val instances = irTemporary(irGetField(irGet(loweredEnum.implObject.thisReceiver!!), loweredEnum.valuesField)).apply {
+                        parent = irClass
+                    }
                     enumEntries
                             .sortedBy { it.descriptor.name }
                             .withIndex()
@@ -408,6 +414,8 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
                         extensionReceiver = irGet(loweredEnum.implObject.thisReceiver!!)
                     }
                 }
+            }.apply {
+                parent = irClass
             }
         }
 
@@ -513,6 +521,7 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
                                 it.copy(loweredValueParameterDescriptor)
                             }
 
+            valueParameters.forEach{ it.parent = enumConstructor }
             loweredConstructorDescriptor.initialize(
                     valueParameters.map { it.descriptor as ValueParameterDescriptor },
                     Visibilities.PROTECTED
@@ -669,7 +678,9 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
                 enumConstructorCallTransformer = InEnumEntryInitializer(declaration.descriptor)
 
                 var result: IrEnumEntry = IrEnumEntryImpl(declaration.startOffset, declaration.endOffset, declaration.origin,
-                        declaration.descriptor, null, declaration.initializerExpression)
+                        declaration.descriptor, null, declaration.initializerExpression).apply {
+                    parent = declaration.parent
+                }
                 result = super.visitEnumEntry(result) as IrEnumEntry
 
                 enumConstructorCallTransformer = null

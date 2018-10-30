@@ -84,6 +84,9 @@ internal class KonanLower(val context: Context, val parentPhaser: PhaseManager) 
         phaser.phase(KonanPhase.LOWER_STRING_CONCAT) {
             StringConcatenationLowering(context).lower(irFile)
         }
+        /**
+         * TODO: [StringConcatenationLowering] doesn't initialize `.parent` for temporal variables.
+         */
         phaser.phase(KonanPhase.LOWER_DATA_CLASSES) {
             DataClassOperatorsLowering(context).runOnFilePostfix(irFile)
         }
@@ -93,13 +96,6 @@ internal class KonanLower(val context: Context, val parentPhaser: PhaseManager) 
         phaser.phase(KonanPhase.LOWER_ENUMS) {
             EnumClassLowering(context).run(irFile)
         }
-
-        /**
-         * TODO:  this is workaround for issue of unitialized parents in IrDeclaration,
-         * the last one detected in [EnumClassLowering]. The issue appears in [DefaultArgumentStubGenerator].
-         */
-        irFile.patchDeclarationParents()
-
         phaser.phase(KonanPhase.LOWER_INITIALIZERS) {
             InitializersLowering(context).runOnFilePostfix(irFile)
         }
@@ -113,11 +109,6 @@ internal class KonanLower(val context: Context, val parentPhaser: PhaseManager) 
             CallableReferenceLowering(context).lower(irFile)
         }
 
-        /**
-         * TODO:  this is workaround for issue of unitialized parents in IrDeclaration,
-         * the last one detected in [CallableReferenceLowering]. The issue appears in [LocalDeclarationsLowering].
-         */
-        irFile.patchDeclarationParents()
         phaser.phase(KonanPhase.LOWER_LOCAL_FUNCTIONS) {
             LocalDeclarationsLowering(context).runOnFilePostfix(irFile)
         }
