@@ -8,7 +8,13 @@ package org.jetbrains.kotlin.backend.konan.serialization
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.descriptors.isExpectMember
 import org.jetbrains.kotlin.backend.konan.library.LinkData
+import org.jetbrains.kotlin.config.LanguageVersionSettingsImpl
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.ir.declarations.impl.IrModuleFragmentImpl
+import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
+import org.jetbrains.kotlin.ir.util.ConstantValueGenerator
+import org.jetbrains.kotlin.ir.util.SymbolTable
+import org.jetbrains.kotlin.ir.util.TypeTranslator
 import org.jetbrains.kotlin.metadata.ProtoBuf
 import org.jetbrains.kotlin.metadata.deserialization.BinaryVersion
 import org.jetbrains.kotlin.metadata.konan.KonanProtoBuf
@@ -19,6 +25,7 @@ import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter.Companion.CALLAB
 import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter.Companion.CLASSIFIERS
 import org.jetbrains.kotlin.resolve.scopes.getDescriptorsFiltered
 import org.jetbrains.kotlin.serialization.KonanDescriptorSerializer
+import org.jetbrains.kotlin.serialization.konan.KonanMetadataVersion
 import org.jetbrains.kotlin.serialization.konan.SourceFileMap
 
 /*
@@ -239,3 +246,20 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
 
 private const val TOP_LEVEL_DECLARATION_COUNT_PER_FILE = 128
 private const val TOP_LEVEL_CLASS_DECLARATION_COUNT_PER_FILE = 64
+
+fun serializeModule(module: ModuleDescriptor, konanConfig: KonanConfig): LinkData {
+    val context = Context(konanConfig)
+    val symbolTable = SymbolTable()
+
+    val typeTranslator = TypeTranslator(symbolTable, LanguageVersionSettingsImpl.DEFAULT)
+    val lazyTable = symbolTable.lazyWrapper
+    val constantValueGenerator = ConstantValueGenerator(module, lazyTable)
+    typeTranslator.constantValueGenerator = constantValueGenerator
+
+
+    val irBuiltins = IrBuiltIns(module.builtIns, typeTranslator, symbolTable)
+    context.irModule = IrModuleFragmentImpl(module, irBuiltins)
+
+
+    return KonanSerializationUtil(context, KonanMetadataVersion.INSTANCE).serializeModule(module)
+}
