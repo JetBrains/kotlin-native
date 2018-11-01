@@ -37,7 +37,7 @@ interface KonanLibraryLayout {
     val moduleHeaderFile
         get() = File(linkdataDir, "module")
     val dataFlowGraphFile
-        get() = File(linkdataDir, "module_data_flow_graph")
+        get() = File(targetDir, "module_data_flow_graph")
 
     fun packageFragmentsDir(packageName: String)
             = File(linkdataDir, if (packageName == "") "root_package" else "package_$packageName")

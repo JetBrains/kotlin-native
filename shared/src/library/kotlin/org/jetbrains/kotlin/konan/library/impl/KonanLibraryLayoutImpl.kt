@@ -48,6 +48,7 @@ private class UnzippedKonanLibraryLayout(override val libDir: File, override val
 }
 
 private class DirectFromZip(zippedLayout: ZippedKonanLibraryLayout, val zipFileSystem: FileSystem): KonanLibraryLayout {
+    override val target = zippedLayout.target
     override val libraryName = zippedLayout.libraryName
     override val libDir = zipFileSystem.file(zippedLayout.libDir)
 }
