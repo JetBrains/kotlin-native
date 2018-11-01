@@ -70,4 +70,7 @@ class KonanLibraryImpl(
             }
 
     override fun toString() = "$libraryName[default=$isDefault]"
+
+    val kotlinBitcodePaths: List<String>
+        get() = layout.realFiles { (it.kotlinDir.listFilesOrEmpty).map(File::absolutePath) }
 }
