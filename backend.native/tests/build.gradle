@@ -738,6 +738,7 @@ task freeze5(type: RunKonanTest) {
 }
 
 task freeze6(type: RunKonanTest) {
+    disabled = (project.testTarget == 'wasm32') // No exceptions on WASM.
     goldValue = "OK\nOK\n"
     source = "runtime/workers/freeze6.kt"
 }
