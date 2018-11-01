@@ -23,7 +23,7 @@ internal class KonanSerializerExtension(val context: Context, override val metad
                                         val sourceFileMap: SourceFileMap) :
         KotlinSerializerExtensionBase(KonanSerializerProtocol), IrAwareExtension {
 
-    val inlineDescriptorTable = DescriptorTable(context.irBuiltIns)
+    val inlineDescriptorTable by lazy { DescriptorTable(context.irBuiltIns) }
     override val stringTable = KonanStringTable()
     override fun shouldUseTypeTable(): Boolean = true
 
