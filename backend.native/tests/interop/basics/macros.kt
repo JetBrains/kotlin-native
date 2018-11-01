@@ -32,9 +32,10 @@ fun main(args: Array<String>) {
     assertEquals(null, nullPtr)
     assertEquals(1L, voidPtr.rawValue.toLong())
     assertEquals(1L, intPtr.rawValue.toLong())
-    assertEquals(2L, ptrSum.rawValue.toLong())
+    assertEquals(PTR_SUM_EXPECTED.toLong(), ptrSum.rawValue.toLong())
     assertEquals(1L, ptrCall.rawValue.toLong())
 
     assertEquals(42, INT_CALL)
     assertEquals(84, CALL_SUM)
+    assertEquals(5, GLOBAL_VAR)
 }

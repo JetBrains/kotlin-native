@@ -149,11 +149,7 @@ private fun processCodeSnippet(
 
             state == VisitorState.EXPECT_VARIABLE_VALUE && clang_isExpression(kind) != 0 -> {
                 typeOrNull = typeConverter(clang_getCursorType(cursor))
-                state = if (typeOrNull != null) {
-                    VisitorState.EXPECT_END
-                } else {
-                    VisitorState.INVALID
-                }
+                state = VisitorState.EXPECT_END
                 CXChildVisitResult.CXChildVisit_Continue
             }
 
@@ -183,7 +179,12 @@ private fun processCodeSnippet(
         val type = typeOrNull!!
         return if (evalResultOrNull == null) {
             // The macro cannot be evaluated as a constant so we will wrap it in a bridge.
-            WrappedMacroDef(name, type)
+            when(type.unwrapTypedefs()) {
+                is PrimitiveType,
+                is PointerType,
+                is ObjCPointer -> WrappedMacroDef(name, type)
+                else -> null
+            }
         } else {
             // Otherwise we can evaluate the expression and create a Kotlin constant for it.
             val evalResult = evalResultOrNull!!
