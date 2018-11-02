@@ -1,3 +1,4 @@
+excludedMacros = EXCLUDED
 ---
 int* ptr_call() {
     return (int*) 1;
@@ -44,6 +45,9 @@ int global_var = 5;
 #define INT_CALL int_call()
 #define CALL_SUM (int_call() + int_call())
 #define GLOBAL_VAR (global_var)
+
+// This one should be excluded:
+#define EXCLUDED 42
 
 // These ones should be ignored:
 #define VOID_CALL   (void_call())
