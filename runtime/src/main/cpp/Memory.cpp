@@ -1716,7 +1716,8 @@ void FreezeSubgraph(ObjHeader* root) {
 
   // Do DFS cycle detection.
   bool hasCycles = false;
-  KRef firstBlocker = nullptr;
+  KRef firstBlocker = root->has_meta_object() && ((root->meta_object()->flags_ & MF_NEVER_FROZEN) != 0) ?
+    root : nullptr;
   KStdVector<ContainerHeader*> order;
   depthFirstTraversal(rootContainer, &hasCycles, &firstBlocker, order);
   if (firstBlocker != nullptr) {
