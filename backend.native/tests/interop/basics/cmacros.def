@@ -49,6 +49,7 @@ int global_var = 5;
 #define VOID_CALL   (void_call())
 #define ARG_CALL(x) (arg_call(x))
 #define GET_STRUCT  (getStruct())
+#define UNDECLARED  (undeclared())
 
 #define BAD1 bar
 #define BAD2 5;

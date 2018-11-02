@@ -53,7 +53,10 @@ private fun expandMacros(
     val index = clang_createIndex(excludeDeclarationsFromPCH = 1, displayDiagnostics = 0)!!
     try {
         val sourceFile = library.createTempSource()
-        val translationUnit = parseTranslationUnit(index, sourceFile, library.compilerArgs, options = 0)
+        // We disable implicit function declaration to filter out cases when a macro is expanded as a function
+        // or function-like construction (e.g. #define FOO throw()) but such a function is undeclared.
+        val compilerArgs = library.compilerArgs + listOf("-Werror=implicit-function-declaration")
+        val translationUnit = parseTranslationUnit(index, sourceFile, compilerArgs, options = 0)
         try {
             translationUnit.ensureNoCompileErrors()
             return names.mapNotNull {
