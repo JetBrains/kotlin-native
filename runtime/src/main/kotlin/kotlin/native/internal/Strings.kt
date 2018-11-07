@@ -139,11 +139,15 @@ public fun String.endsWith(suffix: String, ignoreCase: Boolean = false): Boolean
  * @param otherOffset the start offset in the other char sequence of the substring to compare.
  * @param length the length of the substring to compare.
  */
-@SymbolName("Kotlin_CharSequence_regionMatches")
-external public actual fun CharSequence.regionMatches(
+public actual fun CharSequence.regionMatches(
         thisOffset: Int, other: CharSequence, otherOffset: Int, length: Int,
-        ignoreCase: Boolean): Boolean
-
+        ignoreCase: Boolean): Boolean {
+    return if (this is String && other is String) {
+        this.regionMatches(thisOffset, other, otherOffset, length, ignoreCase)
+    } else {
+        regionMatchesImpl(thisOffset, other, otherOffset, length, ignoreCase)
+    }
+}
 
 /**
  * Returns `true` if the specified range in this string is equal to the specified range in another string.
