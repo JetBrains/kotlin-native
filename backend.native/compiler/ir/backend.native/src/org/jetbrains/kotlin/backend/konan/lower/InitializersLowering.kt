@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.ir.expressions.impl.*
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.createDispatchReceiverParameter
+import org.jetbrains.kotlin.ir.util.patchDeclarationParents
 import org.jetbrains.kotlin.ir.util.transformFlat
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
@@ -191,7 +192,7 @@ internal class InitializersLowering(val context: CommonBackendContext) : ClassLo
                             else -> null
                         }
                     }
-
+                    declaration.patchDeclarationParents(irClass)
                     return declaration
                 }
             })
