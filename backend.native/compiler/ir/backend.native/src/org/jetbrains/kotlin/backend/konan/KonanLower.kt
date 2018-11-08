@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.backend.konan.lower.ExpectDeclarationsRemoving
 import org.jetbrains.kotlin.backend.konan.lower.FinallyBlocksLowering
 import org.jetbrains.kotlin.backend.konan.lower.InitializersLowering
 import org.jetbrains.kotlin.backend.konan.lower.LateinitLowering
+import org.jetbrains.kotlin.backend.konan.lower.LocalDeclarationsLowering
 import org.jetbrains.kotlin.backend.konan.lower.SharedVariablesLowering
 import org.jetbrains.kotlin.backend.konan.lower.loops.ForLoopsLowering
 import org.jetbrains.kotlin.ir.declarations.IrFile
