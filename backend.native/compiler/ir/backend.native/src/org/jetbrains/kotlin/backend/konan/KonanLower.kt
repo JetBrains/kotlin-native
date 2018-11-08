@@ -16,6 +16,7 @@ import org.jetbrains.kotlin.backend.konan.lower.SharedVariablesLowering
 import org.jetbrains.kotlin.backend.konan.lower.loops.ForLoopsLowering
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
+import org.jetbrains.kotlin.ir.util.CheckDeclarationParentsVisitor
 import org.jetbrains.kotlin.ir.util.checkDeclarationParents
 import org.jetbrains.kotlin.ir.util.patchDeclarationParents
 import org.jetbrains.kotlin.ir.util.replaceUnboundSymbols
@@ -81,79 +82,83 @@ internal class KonanLower(val context: Context, val parentPhaser: PhaseManager) 
     }
 
     private fun lowerFile(irFile: IrFile, phaser: PhaseManager) {
-        phaser.phase(KonanPhase.LOWER_STRING_CONCAT) {
+        phaser.phase(KonanPhase.LOWER_STRING_CONCAT, irFile) {
             StringConcatenationLowering(context).lower(irFile)
         }
-        /**
-         * TODO: [StringConcatenationLowering] doesn't initialize `.parent` for temporal variables.
-         */
-        phaser.phase(KonanPhase.LOWER_DATA_CLASSES) {
+
+        phaser.phase(KonanPhase.LOWER_DATA_CLASSES, irFile) {
             DataClassOperatorsLowering(context).runOnFilePostfix(irFile)
         }
-        phaser.phase(KonanPhase.LOWER_FOR_LOOPS) {
+        phaser.phase(KonanPhase.LOWER_FOR_LOOPS, irFile) {
             ForLoopsLowering(context).lower(irFile)
         }
-        phaser.phase(KonanPhase.LOWER_ENUMS) {
+        phaser.phase(KonanPhase.LOWER_ENUMS, irFile) {
             EnumClassLowering(context).run(irFile)
         }
-        phaser.phase(KonanPhase.LOWER_INITIALIZERS) {
+        irFile.patchDeclarationParents() /* TODO: fix .parent on in [EnumClassLowering] */
+
+        phaser.phase(KonanPhase.LOWER_INITIALIZERS, irFile) {
             InitializersLowering(context).runOnFilePostfix(irFile)
         }
-        phaser.phase(KonanPhase.LOWER_SHARED_VARIABLES) {
+        phaser.phase(KonanPhase.LOWER_SHARED_VARIABLES, irFile) {
             SharedVariablesLowering(context).runOnFilePostfix(irFile)
         }
-        phaser.phase(KonanPhase.LOWER_DELEGATION) {
+        phaser.phase(KonanPhase.LOWER_DELEGATION, irFile) {
             PropertyDelegationLowering(context).lower(irFile)
         }
-        phaser.phase(KonanPhase.LOWER_CALLABLES) {
+        phaser.phase(KonanPhase.LOWER_CALLABLES, irFile) {
             CallableReferenceLowering(context).lower(irFile)
         }
 
-        phaser.phase(KonanPhase.LOWER_LOCAL_FUNCTIONS) {
+        phaser.phase(KonanPhase.LOWER_LOCAL_FUNCTIONS, irFile) {
             LocalDeclarationsLowering(context).runOnFilePostfix(irFile)
         }
-        phaser.phase(KonanPhase.LOWER_TAILREC) {
+        phaser.phase(KonanPhase.LOWER_TAILREC, irFile) {
             TailrecLowering(context).runOnFilePostfix(irFile)
         }
-        phaser.phase(KonanPhase.LOWER_FINALLY) {
+        phaser.phase(KonanPhase.LOWER_FINALLY, irFile) {
             FinallyBlocksLowering(context).lower(irFile)
         }
-        phaser.phase(KonanPhase.LOWER_DEFAULT_PARAMETER_EXTENT) {
+        phaser.phase(KonanPhase.LOWER_DEFAULT_PARAMETER_EXTENT, irFile) {
             DefaultArgumentStubGenerator(context).runOnFilePostfix(irFile)
             KonanDefaultParameterInjector(context).runOnFilePostfix(irFile)
         }
-        phaser.phase(KonanPhase.LOWER_BUILTIN_OPERATORS) {
+        phaser.phase(KonanPhase.LOWER_BUILTIN_OPERATORS, irFile) {
             BuiltinOperatorLowering(context).lower(irFile)
         }
-        phaser.phase(KonanPhase.LOWER_INNER_CLASSES) {
+        phaser.phase(KonanPhase.LOWER_INNER_CLASSES, irFile) {
             InnerClassLowering(context).runOnFilePostfix(irFile)
         }
-        phaser.phase(KonanPhase.LOWER_INTEROP_PART2) {
+        phaser.phase(KonanPhase.LOWER_INTEROP_PART2, irFile) {
             InteropLoweringPart2(context).lower(irFile)
         }
-        phaser.phase(KonanPhase.LOWER_VARARG) {
+        phaser.phase(KonanPhase.LOWER_VARARG, irFile) {
             VarargInjectionLowering(context).runOnFilePostfix(irFile)
         }
-        phaser.phase(KonanPhase.LOWER_COMPILE_TIME_EVAL) {
+        phaser.phase(KonanPhase.LOWER_COMPILE_TIME_EVAL, irFile) {
             CompileTimeEvaluateLowering(context).lower(irFile)
         }
-        phaser.phase(KonanPhase.LOWER_COROUTINES) {
+        phaser.phase(KonanPhase.LOWER_COROUTINES, irFile) {
             SuspendFunctionsLowering(context).lower(irFile)
         }
-        phaser.phase(KonanPhase.LOWER_TYPE_OPERATORS) {
+        phaser.phase(KonanPhase.LOWER_TYPE_OPERATORS, irFile) {
             TypeOperatorLowering(context).runOnFilePostfix(irFile)
         }
-        phaser.phase(KonanPhase.BRIDGES_BUILDING) {
+        phaser.phase(KonanPhase.BRIDGES_BUILDING, irFile) {
             BridgesBuilding(context).runOnFilePostfix(irFile)
             WorkersBridgesBuilding(context).lower(irFile)
         }
-        phaser.phase(KonanPhase.AUTOBOX) {
+        phaser.phase(KonanPhase.AUTOBOX, irFile) {
             // validateIrFile(context, irFile) // Temporarily disabled until moving to new IR finished.
             Autoboxing(context).lower(irFile)
         }
-        phaser.phase(KonanPhase.RETURNS_INSERTION) {
+        phaser.phase(KonanPhase.RETURNS_INSERTION, irFile) {
             ReturnsInsertionLowering(context).lower(irFile)
         }
     }
 
+    private fun PhaseManager.phase(phase: KonanPhase, file: IrFile, function: () -> Unit) {
+        if (context.config.configuration.getBoolean(KonanConfigKeys.CHECK_IR_PARENTS)) file.accept(CheckDeclarationParentsVisitor, null)
+        phase(phase, function)
+    }
 }

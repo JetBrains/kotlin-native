@@ -104,6 +104,8 @@ class KonanConfigKeys {
                 = CompilerConfigurationKey.create("verbose backend phases")
         val DEBUG_INFO_VERSION: CompilerConfigurationKey<Int>
                 = CompilerConfigurationKey.create("debug info format version")
+        val CHECK_IR_PARENTS: CompilerConfigurationKey<Boolean>
+                = CompilerConfigurationKey.create("check IR parents")
 
     }
 }

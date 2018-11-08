@@ -94,6 +94,10 @@ abstract class KonanTest extends JavaExec {
     abstract void compileTest(List<String> filesToCompile, String exe)
 
     protected void runCompiler(List<String> filesToCompile, String output, List<String> moreArgs) {
+        def extopts = []
+        if (project.hasProperty('checkIrParents') && (project.property('checkIrParents') == 'true')) {
+            extopts += '-Xcheck-ir-parents'
+        }
         def log = new ByteArrayOutputStream()
         try {
             main = 'org.jetbrains.kotlin.cli.bc.K2NativeKt'
@@ -111,6 +115,7 @@ abstract class KonanTest extends JavaExec {
             args = ["-output", output,
                     "@${sources.absolutePath}",
                     *moreArgs,
+                    *extopts,
                     *project.globalTestArgs]
             if (project.testTarget) {
                 args "-target", target.visibleName

@@ -195,6 +195,7 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
 
                 put(BITCODE_EMBEDDING_MODE, selectBitcodeEmbeddingMode(this, arguments, outputKind))
                 put(DEBUG_INFO_VERSION, arguments.debugInfoFormatVersion.toInt())
+                put(CHECK_IR_PARENTS, arguments.checkIrParents)
             }
         }
     }

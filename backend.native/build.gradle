@@ -185,10 +185,14 @@ task teamcityPublishStdLibSources {
   }
 }
 
+def extopts = []
+if (project.hasProperty('checkIrParents') && (project.property('checkIrParents') == 'true')) {
+    extopts += '-Xcheck-ir-parents'
+}
+
 // These files are built before the 'dist' is complete,
 // so we provide custom values for
 // konan.home, --runtime, -Djava.library.path etc
-
 targetList.each { target ->
     def konanJvmArgs = ["-ea", "-Xmx3G",
     "-Dkonan.home=${rootProject.projectDir}",
@@ -206,7 +210,7 @@ targetList.each { target ->
         main = 'org.jetbrains.kotlin.cli.bc.K2NativeKt'
         classpath = project.configurations.cli_bc
         jvmArgs = konanJvmArgs
-        args = [*konanArgs,
+        args = [*konanArgs, *extopts,
                 '-output', project(':runtime').file("build/${target}Stdlib"),
                 '-produce', 'library', '-module-name', 'stdlib', '-XXLanguage:+AllowContractsForCustomFunctions',
                 '-Xmulti-platform', '-Xuse-experimental=kotlin.Experimental',
