@@ -1876,8 +1876,8 @@ KBoolean Konan_ensureAcyclicAndSet(ObjHeader* where, KInt index, ObjHeader* what
 
 void Kotlin_Any_share(ObjHeader* obj) {
     auto container = obj->container();
-    RuntimeCheck(container->objectCount_ == 1, "Must be single object");
     if (container->shared()) return;
+    RuntimeCheck(container->objectCount() == 1, "Must be a single object container");
     container->share();
 }
 

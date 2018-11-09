@@ -10,7 +10,9 @@ import platform.AppKit.*
 import platform.Foundation.*
 import platform.darwin.NSObject
 import platform.darwin.dispatch_async_f
+import platform.posix.memcpy
 import kotlin.native.concurrent.DetachedObjectGraph
+import kotlin.native.concurrent.MutableData
 import kotlin.native.concurrent.attach
 import kotlin.native.concurrent.freeze
 
@@ -24,6 +26,14 @@ inline fun <reified T> executeAsync(queue: NSOperationQueue, crossinline produce
 }
 
 data class QueryResult(val json: Map<String, *>?, val error: String?)
+
+private fun asNSData(data: MutableData): NSMutableData {
+    val result = NSMutableData.create(length = data.size.convert())!!
+    data.asPointerLocked { it ->
+        memcpy(result.mutableBytes, it, data.size.convert())
+    }
+    return result
+}
 
 fun main() {
     autoreleasepool {
@@ -65,14 +75,14 @@ class Controller : NSObject() {
 
     class HttpDelegate: NSObject(), NSURLSessionDataDelegateProtocol {
         private val asyncQueue = NSOperationQueue()
-        private val receivedData = NSMutableData()
+        private val receivedData = MutableData()
 
         init {
             freeze()
         }
 
         fun fetchUrl(url: String) {
-            receivedData.setLength(0)
+            receivedData.reset()
             val session = NSURLSession.sessionWithConfiguration(
                     NSURLSessionConfiguration.defaultSessionConfiguration(),
                     this,
@@ -83,7 +93,7 @@ class Controller : NSObject() {
 
         override fun URLSession(session: NSURLSession, dataTask: NSURLSessionDataTask, didReceiveData: NSData) {
             initRuntimeIfNeeded()
-            receivedData.appendData(didReceiveData)
+            receivedData.append(didReceiveData.bytes!!, didReceiveData.length.convert())
         }
 
         override fun URLSession(session: NSURLSession, task: NSURLSessionTask, didCompleteWithError: NSError?) {
@@ -95,7 +105,7 @@ class Controller : NSObject() {
                     response == null -> QueryResult(null, didCompleteWithError?.localizedDescription)
                     response.statusCode.toInt() != 200 -> QueryResult(null, "${response.statusCode.toInt()})")
                     else -> QueryResult(
-                            NSJSONSerialization.JSONObjectWithData(receivedData, 0, null) as? Map<String, *>,
+                            NSJSONSerialization.JSONObjectWithData(asNSData(receivedData), 0, null) as? Map<String, *>,
                             null
                     )
                 }, { result: QueryResult ->

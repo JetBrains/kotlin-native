@@ -93,7 +93,7 @@ struct ContainerHeader {
     return tag() == CONTAINER_TAG_PERMANENT || tag() == CONTAINER_TAG_FROZEN;
   }
 
-  inline bool shareable() const {
+  inline bool shared() const {
       return (tag() & 1) != 0; // CONTAINER_TAG_PERMANENT || CONTAINER_TAG_FROZEN || CONTAINER_TAG_SHARED
   }
 
