@@ -45,7 +45,7 @@ private fun runApp() {
 
 class Controller : NSObject() {
     private var index = 1
-    private var httpDelegate = HttpDelegate()
+    private val httpDelegate = HttpDelegate()
 
     @ObjCAction
     fun onClick() {
@@ -65,7 +65,7 @@ class Controller : NSObject() {
 
     class HttpDelegate: NSObject(), NSURLSessionDataDelegateProtocol {
         private val asyncQueue = NSOperationQueue()
-        internal val receivedData = NSMutableData()
+        private val receivedData = NSMutableData()
 
         init {
             freeze()
