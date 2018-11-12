@@ -7,9 +7,13 @@ package sample.objc
 
 import kotlinx.cinterop.*
 import platform.AppKit.*
+import platform.Contacts.CNContactStore
+import platform.Contacts.CNEntityType
 import platform.Foundation.*
 import platform.darwin.NSObject
 import platform.darwin.dispatch_async_f
+import platform.darwin.dispatch_get_main_queue
+import platform.darwin.dispatch_sync_f
 import platform.posix.memcpy
 import kotlin.native.concurrent.DetachedObjectGraph
 import kotlin.native.concurrent.MutableData
@@ -25,15 +29,83 @@ inline fun <reified T> executeAsync(queue: NSOperationQueue, crossinline produce
     })
 }
 
+class Continuation0(
+        block: () -> Unit, private val invoker: CPointer<CFunction<(COpaquePointer?) -> Unit>>): Function0<Unit> {
+
+    private val stable = StableRef.create(block)
+    init {
+        freeze()
+    }
+
+    override operator fun invoke()  {
+        invoker(stable.asCPointer())
+    }
+
+    fun dispose() {
+        stable.dispose()
+    }
+}
+
+class Continuation2<T1, T2>(
+        block: (p1: T1, p2: T2) -> Unit,
+        private val invoker: CPointer<CFunction<(COpaquePointer?) -> Unit>>) : Function2<T1, T2, Unit> {
+
+    private val stable = StableRef.create(block)
+    init {
+        freeze()
+    }
+
+    override operator fun invoke(p1: T1, p2: T2) {
+        val args= StableRef.create(Triple(stable, p1, p2))
+        try {
+            invoker(args.asCPointer())
+        } finally {
+            args.dispose()
+        }
+    }
+
+    fun dispose() {
+        stable.dispose()
+    }
+}
+
+inline fun mainContinuation(noinline block: () -> Unit) = Continuation0(
+        block, staticCFunction { invokerArg ->
+        if (NSThread.isMainThread()) {
+            val blockCallback = invokerArg!!.asStableRef<() -> Unit>()
+            blockCallback.get()()
+        } else {
+            dispatch_sync_f(dispatch_get_main_queue(), invokerArg, staticCFunction { args ->
+                val blockCallback = args!!.asStableRef<() -> Unit>()
+                blockCallback.get()()
+            })
+        }
+    })
+
+inline fun <T1, T2> mainContinuation(noinline block: (T1, T2) -> Unit) = Continuation2(
+        block, staticCFunction { invokerArg ->
+    if (NSThread.isMainThread()) {
+        val triple = invokerArg!!.asStableRef<Triple<StableRef<(T1, T2) -> Unit>, T1, T2>>().get()
+        triple.first.get()(triple.second, triple.third)
+    } else {
+        dispatch_sync_f(dispatch_get_main_queue(), invokerArg, staticCFunction { args ->
+            val triple = args!!.asStableRef<Triple<StableRef<(T1, T2) -> Unit>, T1, T2>>().get()
+            triple.first.get()(triple.second, triple.third)
+        })
+    }
+})
+
+
 data class QueryResult(val json: Map<String, *>?, val error: String?)
 
-private fun asNSData(data: MutableData): NSMutableData {
-    val result = NSMutableData.create(length = data.size.convert())!!
-    data.asPointerLocked { it ->
-        memcpy(result.mutableBytes, it, data.size.convert())
-    }
-    return result
+private fun MutableData.asNSData() = this.asPointerLocked { it, size ->
+    val result = NSMutableData.create(length = size.convert())!!
+    memcpy(result.mutableBytes, it, size.convert())
+    result
 }
+
+private fun MutableData.asJSON(): Map<String, *>? =
+        NSJSONSerialization.JSONObjectWithData(this.asNSData(), 0, null) as? Map<String, *>
 
 fun main() {
     autoreleasepool {
@@ -73,6 +145,18 @@ class Controller : NSObject() {
         NSApplication.sharedApplication().stop(this)
     }
 
+    @ObjCAction
+    fun onRequest() {
+        val addressBookRef = CNContactStore()
+        addressBookRef.requestAccessForEntityType(CNEntityType.CNEntityTypeContacts, mainContinuation {
+            granted, error ->
+            appDelegate.contentText.string = if (granted)
+                "Access granted!"
+            else
+                "Access denied: $error"
+        })
+    }
+
     class HttpDelegate: NSObject(), NSURLSessionDataDelegateProtocol {
         private val asyncQueue = NSOperationQueue()
         private val receivedData = MutableData()
@@ -93,7 +177,7 @@ class Controller : NSObject() {
 
         override fun URLSession(session: NSURLSession, dataTask: NSURLSessionDataTask, didReceiveData: NSData) {
             initRuntimeIfNeeded()
-            receivedData.append(didReceiveData.bytes!!, didReceiveData.length.convert())
+            receivedData.append(didReceiveData.bytes, didReceiveData.length.convert())
         }
 
         override fun URLSession(session: NSURLSession, task: NSURLSessionTask, didCompleteWithError: NSError?) {
@@ -104,10 +188,7 @@ class Controller : NSObject() {
                 Pair(when {
                     response == null -> QueryResult(null, didCompleteWithError?.localizedDescription)
                     response.statusCode.toInt() != 200 -> QueryResult(null, "${response.statusCode.toInt()})")
-                    else -> QueryResult(
-                            NSJSONSerialization.JSONObjectWithData(asNSData(receivedData), 0, null) as? Map<String, *>,
-                            null
-                    )
+                    else -> QueryResult(receivedData.asJSON(), null)
                 }, { result: QueryResult ->
                     appDelegate.contentText.string = result.json?.toString() ?: "Error: ${result.error}"
                     appDelegate.canClick = true
@@ -167,6 +248,14 @@ class MyAppDelegate() : NSObject(), NSApplicationDelegateProtocol {
             action = NSSelectorFromString("onQuit")
         }
         window.contentView!!.addSubview(buttonQuit)
+
+        val buttonRequest = NSButton(NSMakeRect(230.0, 10.0, 100.0, 40.0)).apply {
+            title = "Request"
+            target = controller
+            action = NSSelectorFromString("onRequest")
+        }
+        window.contentView!!.addSubview(buttonRequest)
+
         contentText = NSText(NSMakeRect(10.0, 80.0, 600.0, 350.0)).apply {
             string = "Press 'Click' to start fetching"
             verticallyResizable = false
