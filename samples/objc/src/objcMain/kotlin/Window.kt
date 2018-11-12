@@ -15,10 +15,7 @@ import platform.darwin.dispatch_async_f
 import platform.darwin.dispatch_get_main_queue
 import platform.darwin.dispatch_sync_f
 import platform.posix.memcpy
-import kotlin.native.concurrent.DetachedObjectGraph
-import kotlin.native.concurrent.MutableData
-import kotlin.native.concurrent.attach
-import kotlin.native.concurrent.freeze
+import kotlin.native.concurrent.*
 
 inline fun <reified T> executeAsync(queue: NSOperationQueue, crossinline producerConsumer: () -> Pair<T, (T) -> Unit>) {
     dispatch_async_f(queue.underlyingQueue, DetachedObjectGraph {
@@ -29,76 +26,43 @@ inline fun <reified T> executeAsync(queue: NSOperationQueue, crossinline produce
     })
 }
 
-class Continuation0(
-        block: () -> Unit, private val invoker: CPointer<CFunction<(COpaquePointer?) -> Unit>>): Function0<Unit> {
-
-    private val stable = StableRef.create(block)
-    init {
-        freeze()
-    }
-
-    override operator fun invoke()  {
-        invoker(stable.asCPointer())
-    }
-
-    fun dispose() {
-        stable.dispose()
-    }
-}
-
-class Continuation2<T1, T2>(
-        block: (p1: T1, p2: T2) -> Unit,
-        private val invoker: CPointer<CFunction<(COpaquePointer?) -> Unit>>) : Function2<T1, T2, Unit> {
-
-    private val stable = StableRef.create(block)
-    init {
-        freeze()
-    }
-
-    override operator fun invoke(p1: T1, p2: T2) {
-        val args= StableRef.create(Triple(stable, p1, p2))
-        try {
-            invoker(args.asCPointer())
-        } finally {
-            args.dispose()
-        }
-    }
-
-    fun dispose() {
-        stable.dispose()
-    }
-}
-
-inline fun mainContinuation(noinline block: () -> Unit) = Continuation0(
+inline fun mainContinuation(singleShot: Boolean = true, noinline block: () -> Unit) = Continuation0(
         block, staticCFunction { invokerArg ->
         if (NSThread.isMainThread()) {
-            val blockCallback = invokerArg!!.asStableRef<() -> Unit>()
-            blockCallback.get()()
+            invokerArg!!.callContinuation0()
         } else {
             dispatch_sync_f(dispatch_get_main_queue(), invokerArg, staticCFunction { args ->
-                val blockCallback = args!!.asStableRef<() -> Unit>()
-                blockCallback.get()()
+                args!!.callContinuation0()
             })
         }
-    })
+    }, singleShot)
 
-inline fun <T1, T2> mainContinuation(noinline block: (T1, T2) -> Unit) = Continuation2(
+inline fun <T1> mainContinuation(singleShot: Boolean = true, noinline block: (T1) -> Unit) = Continuation1(
         block, staticCFunction { invokerArg ->
     if (NSThread.isMainThread()) {
-        val triple = invokerArg!!.asStableRef<Triple<StableRef<(T1, T2) -> Unit>, T1, T2>>().get()
-        triple.first.get()(triple.second, triple.third)
+        invokerArg!!.callContinuation1<T1>()
     } else {
         dispatch_sync_f(dispatch_get_main_queue(), invokerArg, staticCFunction { args ->
-            val triple = args!!.asStableRef<Triple<StableRef<(T1, T2) -> Unit>, T1, T2>>().get()
-            triple.first.get()(triple.second, triple.third)
+            args!!.callContinuation1<T1>()
         })
     }
-})
+}, singleShot)
+
+inline fun <T1, T2> mainContinuation(singleShot: Boolean = true, noinline block: (T1, T2) -> Unit) = Continuation2(
+        block, staticCFunction { invokerArg ->
+    if (NSThread.isMainThread()) {
+        invokerArg!!.callContinuation2<T1, T2>()
+    } else {
+        dispatch_sync_f(dispatch_get_main_queue(), invokerArg, staticCFunction { args ->
+            args!!.callContinuation2<T1, T2>()
+        })
+    }
+}, singleShot)
 
 
 data class QueryResult(val json: Map<String, *>?, val error: String?)
 
-private fun MutableData.asNSData() = this.asPointerLocked { it, size ->
+private fun MutableData.asNSData() = this.withPointerLocked { it, size ->
     val result = NSMutableData.create(length = size.convert())!!
     memcpy(result.mutableBytes, it, size.convert())
     result
