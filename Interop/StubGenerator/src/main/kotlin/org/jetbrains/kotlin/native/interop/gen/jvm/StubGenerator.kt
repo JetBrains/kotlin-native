@@ -74,9 +74,6 @@ class StubGenerator(
         typedefNames.toSet()
     }
 
-    val StructDecl.isAnonymous: Boolean
-        get() = spelling.contains("(anonymous ") // TODO: it is a hack
-
     val anonymousStructKotlinNames = mutableMapOf<StructDecl, String>()
 
     /**
