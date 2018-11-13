@@ -69,7 +69,9 @@ public class MutableData constructor(capacity: Int = 16) {
      * Appends byte array to the buffer.
      */
     public fun append(data: ByteArray, fromIndex: Int = 0, toIndex: Int = data.size): Unit = locked(lock) {
-        if (toIndex <= fromIndex) return
+        if (fromIndex > toIndex)
+            throw IndexOutOfBoundsException("$fromIndex is bigger than $toIndex")
+        if (toIndex == toIndex) return
         val where = resizeDataLocked(this.size + (toIndex - fromIndex))
         data.copyRangeTo(buffer, fromIndex, toIndex, where)
     }
