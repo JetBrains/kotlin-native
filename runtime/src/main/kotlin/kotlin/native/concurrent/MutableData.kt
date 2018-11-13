@@ -62,16 +62,16 @@ public class MutableData constructor(capacity: Int = 16) {
     public fun append(data: MutableData) = locked(lock) {
         val toCopy = data.size
         val where = resizeDataLocked(size + toCopy)
-        data.copyRangeTo(buffer, 0, toCopy, where)
+        data.copyInto(buffer, 0, toCopy, where)
     }
 
     /**
      * Appends byte array to the buffer.
      */
-    public fun append(data: ByteArray, start: Int = 0, count: Int = data.size - start): Unit = locked(lock) {
-        if (count <= 0) return
-        val where = resizeDataLocked(this.size + count)
-        data.copyRangeTo(buffer, start, start + count, where)
+    public fun append(data: ByteArray, fromIndex: Int = 0, toIndex: Int = data.size): Unit = locked(lock) {
+        if (toIndex <= fromIndex) return
+        val where = resizeDataLocked(this.size + (toIndex - fromIndex))
+        data.copyRangeTo(buffer, fromIndex, toIndex, where)
     }
 
     /**
@@ -88,7 +88,7 @@ public class MutableData constructor(capacity: Int = 16) {
     /**
      * Copies range of mutable data to the byte array.
      */
-    public fun copyRangeTo(output: ByteArray, fromIndex: Int, toIndex: Int, destinationIndex: Int): Unit = locked(lock) {
+    public fun copyInto(output: ByteArray, fromIndex: Int, toIndex: Int, destinationIndex: Int): Unit = locked(lock) {
         buffer.copyRangeTo(output, fromIndex, toIndex, destinationIndex)
     }
 
