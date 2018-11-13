@@ -186,9 +186,10 @@ task teamcityPublishStdLibSources {
 }
 
 def extopts = []
-if (project.hasProperty('checkIrParents') && (project.property('checkIrParents') == 'true')) {
+if (checkIrParentEnabled.toBoolean()) {
     extopts += '-Xcheck-ir-parents'
 }
+
 
 // These files are built before the 'dist' is complete,
 // so we provide custom values for

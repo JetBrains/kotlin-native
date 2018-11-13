@@ -95,9 +95,10 @@ abstract class KonanTest extends JavaExec {
 
     protected void runCompiler(List<String> filesToCompile, String output, List<String> moreArgs) {
         def extopts = []
-        if (project.hasProperty('checkIrParents') && (project.property('checkIrParents') == 'true')) {
+        if (project.property('checkIrParentEnabled').toBoolean()) {
             extopts += '-Xcheck-ir-parents'
         }
+
         def log = new ByteArrayOutputStream()
         try {
             main = 'org.jetbrains.kotlin.cli.bc.K2NativeKt'
