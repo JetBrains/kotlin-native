@@ -981,6 +981,7 @@ class StubGenerator(
     val libraryForCStubs = configuration.library.copy(
             includes = mutableListOf<String>().apply {
                 add("stdint.h")
+                add("string.h")
                 if (platform == KotlinPlatform.JVM) {
                     add("jni.h")
                 }
