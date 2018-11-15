@@ -12,7 +12,7 @@ public class Continuation0(block: () -> Unit,
                     private val invoker: CPointer<CFunction<(COpaquePointer?) -> Unit>>,
                     private val singleShot: Boolean = false): Function0<Unit> {
 
-    private var stable = StableRef.create(block)
+    private val stable = StableRef.create(block)
 
     init {
         freeze()

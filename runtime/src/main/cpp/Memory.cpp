@@ -648,7 +648,7 @@ void MarkGray(ContainerHeader* start) {
       auto childContainer = ref->container();
       RuntimeAssert(!isArena(childContainer), "A reference to local object is encountered");
 
-      if (!childContainer->shared()) {
+      if (!childContainer->shareable()) {
         childContainer->decRefCount<false>();
         toVisit.push_front(childContainer);
       }
@@ -675,7 +675,7 @@ void ScanBlack(ContainerHeader* start) {
     traverseContainerReferredObjects(container, [&toVisit](ObjHeader* ref) {
         auto childContainer = ref->container();
         RuntimeAssert(!isArena(childContainer), "A reference to local object is encountered");
-        if (!childContainer->shared()) {
+        if (!childContainer->shareable()) {
           childContainer->incRefCount<false>();
           if (useColor) {
             if (childContainer->color() != CONTAINER_TAG_GC_BLACK)
@@ -764,7 +764,7 @@ void CollectWhite(MemoryState* state, ContainerHeader* start) {
         if (ref == nullptr) return;
         auto childContainer = ref->container();
         RuntimeAssert(!isArena(childContainer), "A reference to local object is encountered");
-        if (childContainer->shared()) {
+        if (childContainer->shareable()) {
           UpdateRef(location, nullptr);
         } else {
           toVisit.push_front(childContainer);
