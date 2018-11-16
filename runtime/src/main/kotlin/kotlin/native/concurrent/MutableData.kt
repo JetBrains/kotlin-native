@@ -90,8 +90,8 @@ public class MutableData constructor(capacity: Int = 16) {
     /**
      * Copies range of mutable data to the byte array.
      */
-    public fun copyInto(output: ByteArray, fromIndex: Int, toIndex: Int, destinationIndex: Int): Unit = locked(lock) {
-        buffer.copyRangeTo(output, fromIndex, toIndex, destinationIndex)
+    public fun copyInto(output: ByteArray, destinationIndex: Int, startIndex: Int, endIndex: Int): Unit = locked(lock) {
+        buffer.copyRangeTo(output, startIndex, endIndex, destinationIndex)
     }
 
     /**

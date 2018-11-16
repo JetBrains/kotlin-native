@@ -26,7 +26,7 @@ typealias StableObjPtr = StableRef<*>
  *
  * Any [StableRef] should be manually [disposed][dispose]
  */
-data class StableRef<out T : Any> @PublishedApi internal constructor(
+inline class StableRef<out T : Any> constructor(
         private val stablePtr: COpaquePointer
 ) {
 
