@@ -26,7 +26,8 @@ typealias StableObjPtr = StableRef<*>
  *
  * Any [StableRef] should be manually [disposed][dispose]
  */
-inline class StableRef<out T : Any> constructor(
+@Suppress("NON_PUBLIC_PRIMARY_CONSTRUCTOR_OF_INLINE_CLASS")
+public inline class StableRef<out T : Any> @PublishedApi internal constructor(
         private val stablePtr: COpaquePointer
 ) {
 
@@ -64,6 +65,7 @@ inline class StableRef<out T : Any> constructor(
     /**
      * Returns the object this handle was [created][StableRef.create] for.
      */
+    @Suppress("UNCHECKED_CAST")
     fun get() = derefStablePointer(this.stablePtr) as T
 
 }
@@ -71,4 +73,5 @@ inline class StableRef<out T : Any> constructor(
 /**
  * Converts to [StableRef] this opaque pointer produced by [StableRef.asCPointer].
  */
-inline fun <reified T : Any> CPointer<*>.asStableRef() = StableRef<T>(this)
+inline fun <reified T : Any> CPointer<*>.asStableRef(): StableRef<T> = StableRef<T>(this)
+        .also { it.get() as T }
