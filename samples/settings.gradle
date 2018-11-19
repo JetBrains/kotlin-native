@@ -27,13 +27,13 @@ if (MPPTools.isMacos() || MPPTools.isLinux() || MPPTools.isWindows()) {
     include ':tetris'
     include ':videoplayer'
     include ':workers'
+    include ':curl'
+    include ':libcurl'
 }
 
 if (MPPTools.isMacos() || MPPTools.isLinux()) {
-    include ':curl'
     include ':gitchurn'
     include ':gtk'
-    include ':libcurl'
     include ':nonBlockingEchoServer'
     include ':tensorflow'
     include ':torch'
