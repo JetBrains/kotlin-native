@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.backend.konan.descriptors
 import org.jetbrains.kotlin.backend.konan.binaryTypeIsReference
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.*
 import org.jetbrains.kotlin.backend.konan.isInlined
+import org.jetbrains.kotlin.backend.konan.isObjCClass
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
@@ -81,8 +82,9 @@ internal val FunctionDescriptor.isIntrinsic: Boolean
 
 internal val org.jetbrains.kotlin.descriptors.DeclarationDescriptor.isFrozen: Boolean
     get() = this.annotations.hasAnnotation(frozenAnnotation) ||
-            // RTTI is used for non-reference type box:
-            this is org.jetbrains.kotlin.descriptors.ClassDescriptor && !this.defaultType.binaryTypeIsReference()
+            (this is org.jetbrains.kotlin.descriptors.ClassDescriptor
+                    // RTTI is used for non-reference type box or Objective-C object wrapper:
+                    && (!this.defaultType.binaryTypeIsReference() || this.isObjCClass()))
 
 internal val DeclarationDescriptor.isFrozen: Boolean
     get() = this.descriptor.isFrozen
