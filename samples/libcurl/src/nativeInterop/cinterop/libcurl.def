@@ -2,3 +2,5 @@ headers = curl/curl.h
 headerFilter = curl/*
 linkerOpts.osx = -L/opt/local/lib -L/usr/local/opt/curl/lib -lcurl
 linkerOpts.linux = -L/usr/lib64 -L/usr/lib/x86_64-linux-gnu -lcurl
+compilerOpts.mingw = -DCURL_STATICLIB
+linkerOpts.mingw = -static -DCURL_STATICLIB -lcurl -pipe -lnghttp2 -lidn2 -liconv -lunistring -lssh2 -lssh2 -lssl -lz -lcrypto -lz -lpsl -lidn2 -liconv -lunistring -lssl -lcrypto -lssl -lz -lcrypto -lz -lgdi32 -lgssapi -lheimntlm -lkrb5 -lhx509 -lcom_err -lcrypto -lasn1 -lwind -lheimbase -lroken -lsqlite3 -lcrypt -lz

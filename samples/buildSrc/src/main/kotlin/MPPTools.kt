@@ -27,6 +27,9 @@ val isWindows by lazy { hostOs.startsWith("Windows") }
 val isLinux by lazy { hostOs == "Linux" }
 
 // Short-cuts for mostly used paths.
+@get:JvmName("msysPath")
+val msysPath by lazy { System.getenv("MSYS2_DIR") ?: "c:/msys64" }
+
 @get:JvmName("mingwPath")
 val mingwPath by lazy { System.getenv("MINGW64_DIR") ?: "c:/msys64/mingw64" }
 
