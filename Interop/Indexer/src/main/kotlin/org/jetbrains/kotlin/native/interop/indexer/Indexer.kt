@@ -618,6 +618,13 @@ internal class NativeIndexImpl(val library: NativeLibrary) : NativeIndex() {
         } else {
             val returnType = convertType(clang_getResultType(type))
             val numArgs = clang_getNumArgTypes(type)
+
+            // Ignore functions with long signatures since we have no basic class for such functional types in the stdlib.
+            // TODO: Remove this limitation when functional types with long signatures are supported.
+            if (numArgs > 22) {
+                return VoidType
+            }
+
             val paramTypes = (0..numArgs - 1).map {
                 convertType(clang_getArgType(type, it))
             }
