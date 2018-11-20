@@ -16,17 +16,20 @@ import org.jetbrains.kotlin.name.FqName
 
 internal class RTTIGenerator(override val context: Context) : ContextUtils {
 
-    private fun flagsFromClass(classDescriptor: ClassDescriptor): Int {
+    private fun flagsFromClass(classDescriptor: ClassDescriptor, objOffsetsCount: Int): Int {
         var result = 0
         if (classDescriptor.isFrozen)
            result = result or TF_IMMUTABLE
+        if (objOffsetsCount == 0)
+            result = result or TF_ACYCLIC
+        // TODO: perform deeper analysis to find surely acyclic structures.
         return result
     }
 
     private inner class FieldTableRecord(val nameSignature: LocalHash, val fieldOffset: Int) :
             Struct(runtime.fieldTableRecordType, nameSignature, Int32(fieldOffset))
 
-    inner class MethodTableRecord(val nameSignature: LocalHash, val methodEntryPoint: ConstPointer?) :
+    inner class MethodTableRecord(val nameSignature: LocalHash, methodEntryPoint: ConstPointer?) :
             Struct(runtime.methodTableRecordType, nameSignature, methodEntryPoint)
 
     private inner class TypeInfo(
@@ -203,7 +206,7 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
                 fieldsPtr, if (classDesc.isInterface) -1 else fields.size,
                 reflectionInfo.packageName,
                 reflectionInfo.relativeName,
-                flagsFromClass(classDesc),
+                flagsFromClass(classDesc, objOffsetsCount),
                 makeExtendedInfo(classDesc),
                 llvmDeclarations.writableTypeInfoGlobal?.pointer
         )
@@ -347,7 +350,7 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
                 fields = fieldsPtr, fieldsCount = fieldsCount,
                 packageName = reflectionInfo.packageName,
                 relativeName = reflectionInfo.relativeName,
-                flags = flagsFromClass(descriptor) or (if (immutable) TF_IMMUTABLE else 0),
+                flags = flagsFromClass(descriptor, objOffsetsCount) or (if (immutable) TF_IMMUTABLE else 0),
                 extendedInfo = NullPointer(runtime.extendedTypeInfoType),
                 writableTypeInfo = writableTypeInfo
               ), vtable)
@@ -379,3 +382,4 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
 }
 
 private const val TF_IMMUTABLE = 1
+private const val TF_ACYCLIC   = 2

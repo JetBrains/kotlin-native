@@ -44,19 +44,31 @@ typedef enum {
 
   // Those bit masks are applied to objectCount_ field.
   // Shift to get actual object count.
-  CONTAINER_TAG_GC_SHIFT = 5,
+  CONTAINER_TAG_GC_SHIFT     = 6,
   CONTAINER_TAG_GC_INCREMENT = 1 << CONTAINER_TAG_GC_SHIFT,
   // Color mask of a container.
-  CONTAINER_TAG_GC_COLOR_MASK = (1 << 2) - 1,
+  CONTAINER_TAG_COLOR_SHIFT   = 3,
+  CONTAINER_TAG_GC_COLOR_MASK = (1 << CONTAINER_TAG_COLOR_SHIFT) - 1,
   // Colors.
+  // In use or free.
   CONTAINER_TAG_GC_BLACK  = 0,
+  // Possible member of garbage cycle.
   CONTAINER_TAG_GC_GRAY   = 1,
+  // Member of garbage cycle.
   CONTAINER_TAG_GC_WHITE  = 2,
+  // Possible root of cycle.
   CONTAINER_TAG_GC_PURPLE = 3,
+  // Acyclic.
+  CONTAINER_TAG_GC_GREEN  = 4,
+  // Orange and red are currently unused.
+  // Candidate cycle awaiting epoch.
+  CONTAINER_TAG_GC_ORANGE = 5,
+  // Candidate cycle awaiting sigma computation.
+  CONTAINER_TAG_GC_RED    = 6,
   // Individual state bits used during GC and freezing.
-  CONTAINER_TAG_GC_MARKED = 1 << 2,
-  CONTAINER_TAG_GC_BUFFERED = 1 << 3,
-  CONTAINER_TAG_GC_SEEN = 1 << 4
+  CONTAINER_TAG_GC_MARKED   = 1 << CONTAINER_TAG_COLOR_SHIFT,
+  CONTAINER_TAG_GC_BUFFERED = 1 << (CONTAINER_TAG_COLOR_SHIFT + 1),
+  CONTAINER_TAG_GC_SEEN     = 1 << (CONTAINER_TAG_COLOR_SHIFT + 2)
 } ContainerTag;
 
 typedef uint32_t container_size_t;
@@ -281,6 +293,8 @@ class Container {
     // Take into account typeInfo's immutability for ARC strategy.
     if ((type_info->flags_ & TF_IMMUTABLE) != 0)
       header_->refCount_ |= CONTAINER_TAG_FROZEN;
+    if ((type_info->flags_ & TF_ACYCLIC) != 0)
+      header_->setColor(CONTAINER_TAG_GC_GREEN);
   }
 };
 

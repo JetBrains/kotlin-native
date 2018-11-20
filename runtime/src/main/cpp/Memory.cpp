@@ -569,9 +569,11 @@ inline void DecrementRC(ContainerHeader* container, bool useCycleCollector) {
   if (container->decRefCount<Atomic>() == 0) {
     FreeContainer(container);
   } else if (!Atomic && useCycleCollector) { // Possible root.
-    // Do not use cycle collector for frozen objects, as we already detected possible cycles during
-    // freezing.
-    if (container->color() != CONTAINER_TAG_GC_PURPLE) {
+    // We do not use cycle collector for frozen objects, as we already detected
+    // possible cycles during freezing.
+    // Also do not use cycle collector for provable acyclic objects.
+    int color = container->color();
+    if (color != CONTAINER_TAG_GC_PURPLE && color != CONTAINER_TAG_GC_GREEN) {
       container->setColor(CONTAINER_TAG_GC_PURPLE);
       if (!container->buffered()) {
         container->setBuffered();
@@ -807,6 +809,8 @@ inline void Release(ContainerHeader* header, bool useCycleCollector) {
       DecrementRC<false>(header, useCycleCollector);
       break;
     case CONTAINER_TAG_FROZEN:
+      DecrementRC<true>(header, false);
+      break;
     case CONTAINER_TAG_ATOMIC:
       DecrementRC<true>(header, useCycleCollector);
       break;
@@ -1091,9 +1095,9 @@ inline void AddRef(const ObjHeader* object) {
 
 inline void ReleaseRef(const ObjHeader* object) {
   MEMORY_LOG("ReleaseRef on %p in %p\n", object, object->container())
-  // Use cycle collector only for objects having object fields, or if container is multiobject.
+  // Use cycle collector only if container is single object.
   auto container = object->container();
-  Release(container, (object->type_info()->objOffsetsCount_ > 0) || (container->objectCount() > 1));
+  Release(container, container->objectCount() == 1);
 }
 
 void AddRefFromAssociatedObject(const ObjHeader* object) {
