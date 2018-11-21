@@ -638,7 +638,7 @@ void MarkGray(ContainerHeader* start) {
     toVisit.pop_front();
     if (useColor) {
       int color = container->color();
-      if (color == CONTAINER_TAG_GC_GRAY || color == CONTAINER_TAG_GC_GREEN) continue;
+      if (color == CONTAINER_TAG_GC_GRAY) continue;
       container->setColor(CONTAINER_TAG_GC_GRAY);
     } else {
       if (container->marked()) continue;
