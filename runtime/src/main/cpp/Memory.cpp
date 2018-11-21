@@ -545,8 +545,8 @@ inline void IncrementRC(ContainerHeader* container) {
   container->incRefCount<Atomic>();
 }
 
-template <bool Atomic>
-inline void DecrementRC(ContainerHeader* container, bool useCycleCollector) {
+template <bool Atomic, bool UseCycleCollector>
+inline void DecrementRC(ContainerHeader* container) {
   if (container->decRefCount<Atomic>() == 0) {
     FreeContainer(container);
   }
@@ -564,11 +564,11 @@ inline void IncrementRC(ContainerHeader* container) {
   container->setColor(CONTAINER_TAG_GC_BLACK);
 }
 
-template <bool Atomic>
-inline void DecrementRC(ContainerHeader* container, bool useCycleCollector) {
+template <bool Atomic, bool UseCycleCollector>
+inline void DecrementRC(ContainerHeader* container) {
   if (container->decRefCount<Atomic>() == 0) {
     FreeContainer(container);
-  } else if (!Atomic && useCycleCollector) { // Possible root.
+  } else if (!Atomic && UseCycleCollector) { // Possible root.
     // We do not use cycle collector for frozen objects, as we already detected
     // possible cycles during freezing.
     // Also do not use cycle collector for provable acyclic objects.
@@ -637,13 +637,11 @@ void MarkGray(ContainerHeader* start) {
     auto container = toVisit.front();
     toVisit.pop_front();
     if (useColor) {
-      if (container->color() == CONTAINER_TAG_GC_GRAY) continue;
-    } else {
-       if (container->marked()) continue;
-    }
-    if (useColor) {
+      int color = container->color();
+      if (color == CONTAINER_TAG_GC_GRAY || color == CONTAINER_TAG_GC_GREEN) continue;
       container->setColor(CONTAINER_TAG_GC_GRAY);
     } else {
+      if (container->marked()) continue;
       container->mark();
     }
     traverseContainerReferredObjects(container, [&toVisit](ObjHeader* ref) {
@@ -669,18 +667,19 @@ void ScanBlack(ContainerHeader* start) {
     auto container = toVisit.front();
     toVisit.pop_front();
     if (useColor) {
+      if (container->color() == CONTAINER_TAG_GC_GREEN) continue;
       container->setColor(CONTAINER_TAG_GC_BLACK);
     } else {
       container->unMark();
     }
-
     traverseContainerReferredObjects(container, [&toVisit](ObjHeader* ref) {
         auto childContainer = ref->container();
         RuntimeAssert(!isArena(childContainer), "A reference to local object is encountered");
         if (!childContainer->shareable()) {
           childContainer->incRefCount<false>();
           if (useColor) {
-            if (childContainer->color() != CONTAINER_TAG_GC_BLACK)
+            int color = childContainer->color();
+            if (color != CONTAINER_TAG_GC_BLACK && color != CONTAINER_TAG_GC_GREEN)
               toVisit.push_front(childContainer);
           } else {
             if (childContainer->marked())
@@ -786,19 +785,16 @@ inline void AddRef(ContainerHeader* header) {
     case CONTAINER_TAG_PERMANENT:
       break;
     case CONTAINER_TAG_NORMAL:
-      IncrementRC<false>(header);
+      IncrementRC</* Atomic = */ false>(header);
       break;
-    case CONTAINER_TAG_FROZEN:
-    case CONTAINER_TAG_ATOMIC:
-      IncrementRC<true>(header);
-      break;
+    /* case CONTAINER_TAG_FROZEN: case CONTAINER_TAG_ATOMIC: */
     default:
-      RuntimeAssert(false, "unknown container type");
+      IncrementRC</* Atomic = */ true>(header);
       break;
   }
 }
 
-inline void Release(ContainerHeader* header, bool useCycleCollector) {
+inline void Release(ContainerHeader* header) {
   // Looking at container type we may want to skip Release() totally
   // (non-escaping stack objects, constant objects).
   switch (header->refCount_ & CONTAINER_TAG_MASK) {
@@ -806,16 +802,11 @@ inline void Release(ContainerHeader* header, bool useCycleCollector) {
     case CONTAINER_TAG_STACK:
       break;
     case CONTAINER_TAG_NORMAL:
-      DecrementRC<false>(header, useCycleCollector);
+      DecrementRC</* Atomic = */ false, /* UseCyclicCollector = */ true>(header);
       break;
-    case CONTAINER_TAG_FROZEN:
-      DecrementRC<true>(header, false);
-      break;
-    case CONTAINER_TAG_ATOMIC:
-      DecrementRC<true>(header, useCycleCollector);
-      break;
+    /* case CONTAINER_TAG_FROZEN: case CONTAINER_TAG_ATOMIC: */
     default:
-      RuntimeAssert(false, "unknown container type");
+      DecrementRC</* Atomic = */ true, /* UseCyclicCollector = */ false>(header);
       break;
   }
 }
@@ -1095,9 +1086,8 @@ inline void AddRef(const ObjHeader* object) {
 
 inline void ReleaseRef(const ObjHeader* object) {
   MEMORY_LOG("ReleaseRef on %p in %p\n", object, object->container())
-  // Use cycle collector only if container is single object.
   auto container = object->container();
-  Release(container, container->objectCount() == 1);
+  Release(container);
 }
 
 void AddRefFromAssociatedObject(const ObjHeader* object) {

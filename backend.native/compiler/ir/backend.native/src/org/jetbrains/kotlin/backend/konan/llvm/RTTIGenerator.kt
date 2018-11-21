@@ -22,7 +22,6 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
     private val acyclicCache = mutableMapOf<IrType, Boolean>()
 
     private fun checkAcyclicFieldType(type: IrType): Boolean = acyclicCache.getOrPut(type) {
-        val type = type
         // TODO: is it correct?
         if (KotlinBuiltIns.isPrimitiveTypeOrNullablePrimitiveType(type.toKotlinType()))
             return true
@@ -40,9 +39,9 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
            result = result or TF_IMMUTABLE
         // TODO: maybe perform deeper analysis to find surely acyclic types.
         if (!classDescriptor.isInterface && !classDescriptor.isAbstract()) {
-            val llvmDeclarations = context.llvmDeclarations.forClass(classDescriptor)
-            if (checkAcyclicFieldType(classDescriptor.defaultType) ||
-                    llvmDeclarations.fields.all { it -> checkAcyclicFieldType(it.type) }) {
+            if (context.llvmDeclarations.forClass(classDescriptor).fields.all {
+                        it -> checkAcyclicFieldType(it.type) }) {
+                acyclicCache.put(classDescriptor.defaultType, true)
                 result = result or TF_ACYCLIC
             }
         }
