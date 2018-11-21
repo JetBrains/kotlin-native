@@ -561,7 +561,7 @@ inline uint32_t freeableSize(MemoryState* state) {
 template <bool Atomic>
 inline void IncrementRC(ContainerHeader* container) {
   container->incRefCount<Atomic>();
-  container->setColor(CONTAINER_TAG_GC_BLACK);
+  container->setColorUnlessGreen(CONTAINER_TAG_GC_BLACK);
 }
 
 template <bool Atomic, bool UseCycleCollector>
@@ -704,6 +704,8 @@ void MarkRoots(MemoryState* state) {
   for (auto container : *(state->toFree)) {
     if (isMarkedAsRemoved(container))
       continue;
+    // Acyclic containers cannot be in this list.
+    RuntimeCheck(container->color() != CONTAINER_TAG_GC_GREEN, "Must not be green");
     auto color = container->color();
     auto rcIsZero = container->refCount() == 0;
     if (color == CONTAINER_TAG_GC_PURPLE && !rcIsZero) {
@@ -711,6 +713,7 @@ void MarkRoots(MemoryState* state) {
       state->roots->push_back(container);
     } else {
       container->resetBuffered();
+      RuntimeAssert(container->color() != CONTAINER_TAG_GC_GREEN, "Must not be green");
       if (color == CONTAINER_TAG_GC_BLACK && rcIsZero) {
         scheduleDestroyContainer(state, container);
       }
@@ -1566,11 +1569,12 @@ bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
       }
     }
 
-    // TODO: not very effecient traversal.
+    // TODO: not very efficient traversal.
     for (auto it = state->toFree->begin(); it != state->toFree->end(); ++it) {
       auto container = *it;
       if (visited.find(container) != visited.end()) {
         container->resetBuffered();
+        RuntimeAssert(container->color() != CONTAINER_TAG_GC_GREEN, "Must not be green");
         container->setColor(CONTAINER_TAG_GC_BLACK);
         *it = markAsRemoved(container);
       }
@@ -1637,7 +1641,7 @@ void freezeAcyclic(ContainerHeader* rootContainer) {
     queue.pop_front();
     current->unMark();
     current->resetBuffered();
-    current->setColor(CONTAINER_TAG_GC_BLACK);
+    current->setColorUnlessGreen(CONTAINER_TAG_GC_BLACK);
     // Note, that once object is frozen, it could be concurrently accessed, so
     // color and similar attributes shall not be used.
     current->freeze();
@@ -1706,7 +1710,7 @@ void freezeCyclic(ContainerHeader* rootContainer, const KStdVector<ContainerHead
     // Freeze component.
     for (auto* container : component) {
       container->resetBuffered();
-      container->setColor(CONTAINER_TAG_GC_BLACK);
+      container->setColorUnlessGreen(CONTAINER_TAG_GC_BLACK);
       // Note, that once object is frozen, it could be concurrently accessed, so
       // color and similar attributes shall not be used.
       container->freeze();

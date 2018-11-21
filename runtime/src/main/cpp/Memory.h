@@ -165,7 +165,15 @@ struct ContainerHeader {
   }
 
   inline void setColor(unsigned color) {
+    // TODO: do we need atomic color update?
     objectCount_ = (objectCount_ & ~CONTAINER_TAG_GC_COLOR_MASK) | color;
+  }
+
+  inline void setColorUnlessGreen(unsigned color) {
+    // TODO: do we need atomic color update?
+    unsigned objectCount_ = objectCount_;
+    if ((objectCount_ & CONTAINER_TAG_GC_COLOR_MASK) != CONTAINER_TAG_GC_GREEN)
+        objectCount_ = (objectCount_ & ~CONTAINER_TAG_GC_COLOR_MASK) | color;
   }
 
   inline bool buffered() const {
