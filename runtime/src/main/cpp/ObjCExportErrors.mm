@@ -19,10 +19,10 @@
 #import <Foundation/NSDictionary.h>
 #import <Foundation/NSError.h>
 #import <Foundation/NSString.h>
-#import <stdio.h>
 
 #import "Exceptions.h"
 #import "ObjCExport.h"
+#import "Porting.h"
 #import "Runtime.h"
 #import "Utils.h"
 
@@ -31,8 +31,7 @@ extern "C" OBJ_GETTER(Kotlin_ObjCExport_getWrappedError, KRef throwable);
 extern "C" KBoolean Kotlin_ObjCExport_isUnchecked(KRef exception);
 
 static void printlnMessage(const char* message) {
-  printf("%s\n", message);
-  fflush(stdout);
+  konan::consolePrintf("%s\n", message);
 }
 
 static const char* uncheckedExceptionMessage =
