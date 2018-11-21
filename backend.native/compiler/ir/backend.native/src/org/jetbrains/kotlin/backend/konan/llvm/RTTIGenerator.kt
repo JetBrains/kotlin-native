@@ -6,27 +6,50 @@
 package org.jetbrains.kotlin.backend.konan.llvm
 
 import llvm.*
+import org.jetbrains.kotlin.backend.common.ir.ir2string
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.*
+import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrProperty
+import org.jetbrains.kotlin.ir.types.*
+import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.name.FqName
-
 
 internal class RTTIGenerator(override val context: Context) : ContextUtils {
 
-    private fun flagsFromClass(classDescriptor: ClassDescriptor, objOffsetsCount: Int): Int {
+    private val acyclicCache = mutableMapOf<IrType, Boolean>()
+
+    private fun checkAcyclicFieldType(type: IrType): Boolean = acyclicCache.getOrPut(type) {
+        val type = type
+        // TODO: is it correct?
+        if (KotlinBuiltIns.isPrimitiveTypeOrNullablePrimitiveType(type.toKotlinType()))
+            return true
+        if (type.isString() || type.isNullableString())
+            return true
+        // TODO: is it correct? Handle nullable.
+        if (KotlinBuiltIns.isPrimitiveArray(type.toKotlinType()))
+            return true
+        return false
+    }
+
+    private fun flagsFromClass(classDescriptor: ClassDescriptor): Int {
         var result = 0
         if (classDescriptor.isFrozen)
            result = result or TF_IMMUTABLE
-        if (objOffsetsCount == 0)
-            result = result or TF_ACYCLIC
-        // TODO: perform deeper analysis to find surely acyclic structures.
+        // TODO: maybe perform deeper analysis to find surely acyclic types.
+        if (!classDescriptor.isInterface && !classDescriptor.isAbstract()) {
+            val llvmDeclarations = context.llvmDeclarations.forClass(classDescriptor)
+            if (checkAcyclicFieldType(classDescriptor.defaultType) ||
+                    llvmDeclarations.fields.all { it -> checkAcyclicFieldType(it.type) }) {
+                result = result or TF_ACYCLIC
+            }
+        }
         return result
     }
 
-    private inner class FieldTableRecord(val nameSignature: LocalHash, val fieldOffset: Int) :
+    private inner class FieldTableRecord(val nameSignature: LocalHash, fieldOffset: Int) :
             Struct(runtime.fieldTableRecordType, nameSignature, Int32(fieldOffset))
 
     inner class MethodTableRecord(val nameSignature: LocalHash, methodEntryPoint: ConstPointer?) :
@@ -206,7 +229,7 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
                 fieldsPtr, if (classDesc.isInterface) -1 else fields.size,
                 reflectionInfo.packageName,
                 reflectionInfo.relativeName,
-                flagsFromClass(classDesc, objOffsetsCount),
+                flagsFromClass(classDesc),
                 makeExtendedInfo(classDesc),
                 llvmDeclarations.writableTypeInfoGlobal?.pointer
         )
@@ -350,7 +373,7 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
                 fields = fieldsPtr, fieldsCount = fieldsCount,
                 packageName = reflectionInfo.packageName,
                 relativeName = reflectionInfo.relativeName,
-                flags = flagsFromClass(descriptor, objOffsetsCount) or (if (immutable) TF_IMMUTABLE else 0),
+                flags = flagsFromClass(descriptor) or (if (immutable) TF_IMMUTABLE else 0),
                 extendedInfo = NullPointer(runtime.extendedTypeInfoType),
                 writableTypeInfo = writableTypeInfo
               ), vtable)
