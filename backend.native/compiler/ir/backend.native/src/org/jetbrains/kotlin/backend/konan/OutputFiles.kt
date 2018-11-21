@@ -21,7 +21,12 @@ class OutputFiles(outputPath: String?, target: KonanTarget, produce: CompilerOut
     private val prefix = produce.prefix(target)
     private val suffix = produce.suffix(target)
 
-    val outputName = outputPath?.removeSuffixIfPresent(suffix) ?: produce.visibleName
+    val outputName: String
+
+    init {
+        val _outputName = outputPath?.removeSuffixIfPresent(suffix) ?: produce.visibleName
+        this.outputName = if (produce == CompilerOutputKind.FRAMEWORK) _outputName.capitalize() else _outputName
+    }
 
     /**
      * Header file for dynamic library
