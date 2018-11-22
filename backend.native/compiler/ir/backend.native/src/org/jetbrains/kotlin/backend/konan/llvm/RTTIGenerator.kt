@@ -15,17 +15,25 @@ import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.isAnnotationClass
+import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.name.FqName
 
 internal class RTTIGenerator(override val context: Context) : ContextUtils {
 
     private val acyclicCache = mutableMapOf<IrType, Boolean>()
-    private val safeAcyclicFieldTypes = setOf(context.irBuiltIns.stringClass) +
+    private val safeAcyclicFieldTypes = setOf(
+            context.irBuiltIns.stringClass,
+            context.irBuiltIns.booleanClass, context.irBuiltIns.charClass,
+            context.irBuiltIns.byteClass, context.irBuiltIns.shortClass, context.irBuiltIns.intClass,
+            context.irBuiltIns.longClass,
+            context.irBuiltIns.floatClass,context.irBuiltIns.doubleClass) +
             context.ir.symbols.primitiveArrays.values +
             context.ir.symbols.unsignedArrays.values
 
     private fun checkAcyclicFieldType(type: IrType): Boolean = acyclicCache.getOrPut(type) {
+        if (type.isInterface()) return false
         if (type.computePrimitiveBinaryTypeOrNull() != null) return true
+
         val classifier = type.classifierOrNull
         if (classifier != null && classifier in safeAcyclicFieldTypes)
             return true
@@ -35,8 +43,7 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
     private fun checkAcyclicClass(classDescriptor: ClassDescriptor): Boolean = when {
         classDescriptor.symbol == context.ir.symbols.array -> false
         classDescriptor.isArray -> true
-        context.llvmDeclarations.forClass(classDescriptor).fields.all {
-            checkAcyclicFieldType(it.type) } -> true
+        context.getFields(classDescriptor).all { checkAcyclicFieldType(it.type) } -> true
         else -> false
     }
 
