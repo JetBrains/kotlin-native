@@ -568,13 +568,14 @@ template <bool Atomic, bool UseCycleCollector>
 inline void DecrementRC(ContainerHeader* container) {
   if (container->decRefCount<Atomic>() == 0) {
     FreeContainer(container);
-  } else if (!Atomic && UseCycleCollector) { // Possible root.
+  } else if (UseCycleCollector) { // Possible root.
+    RuntimeAssert(!Atomic, "Cycle collector shalln't be used with shared objects yet");
     // We do not use cycle collector for frozen objects, as we already detected
     // possible cycles during freezing.
     // Also do not use cycle collector for provable acyclic objects.
     int color = container->color();
     if (color != CONTAINER_TAG_GC_PURPLE && color != CONTAINER_TAG_GC_GREEN) {
-      container->setColor(CONTAINER_TAG_GC_PURPLE);
+      container->setColorAssertIfGreen(CONTAINER_TAG_GC_PURPLE);
       if (!container->buffered()) {
         container->setBuffered();
         auto state = memoryState;
@@ -635,7 +636,7 @@ const char* colorNames[] = {"BLACK", "GRAY", "WHITE", "PURPLE", "GREEN", "ORANGE
 template<bool useColor>
 void MarkGray(ContainerHeader* start) {
   ContainerHeaderDeque toVisit;
-  toVisit.push_back(start);
+  toVisit.push_front(start);
 
   while (!toVisit.empty()) {
     auto* container = toVisit.front();
@@ -648,7 +649,8 @@ void MarkGray(ContainerHeader* start) {
       if (color == CONTAINER_TAG_GC_GREEN && container->refCount() != 0) {
         continue;
       }
-      container->setColor(CONTAINER_TAG_GC_GRAY);
+      // Only garbage green object could be recolored here.
+      container->setColorEvenIfGreen(CONTAINER_TAG_GC_GRAY);
     } else {
       if (container->marked()) continue;
       container->mark();
@@ -668,7 +670,7 @@ void MarkGray(ContainerHeader* start) {
 template<bool useColor>
 void ScanBlack(ContainerHeader* start) {
   ContainerHeaderDeque toVisit;
-  toVisit.push_back(start);
+  toVisit.push_front(start);
 
   while (!toVisit.empty()) {
     auto* container = toVisit.front();
@@ -676,7 +678,7 @@ void ScanBlack(ContainerHeader* start) {
     toVisit.pop_front();
     if (useColor) {
       if (container->color() == CONTAINER_TAG_GC_GREEN) continue;
-      container->setColor(CONTAINER_TAG_GC_BLACK);
+      container->setColorAssertIfGreen(CONTAINER_TAG_GC_BLACK);
     } else {
       container->unMark();
     }
@@ -758,7 +760,7 @@ void Scan(ContainerHeader* start) {
        ScanBlack<true>(container);
        continue;
      }
-     container->setColor(CONTAINER_TAG_GC_WHITE);
+     container->setColorAssertIfGreen(CONTAINER_TAG_GC_WHITE);
      traverseContainerReferredObjects(container, [&toVisit](ObjHeader* ref) {
        auto* childContainer = ref->container();
        RuntimeAssert(!isArena(childContainer), "A reference to local object is encountered");
@@ -777,7 +779,7 @@ void CollectWhite(MemoryState* state, ContainerHeader* start) {
      auto* container = toVisit.front();
      toVisit.pop_front();
      if (container->color() != CONTAINER_TAG_GC_WHITE || container->buffered()) continue;
-     container->setColor(CONTAINER_TAG_GC_BLACK);
+     container->setColorAssertIfGreen(CONTAINER_TAG_GC_BLACK);
      traverseContainerObjectFields(container, [state, &toVisit](ObjHeader** location) {
         auto* ref = *location;
         if (ref == nullptr) return;
@@ -964,7 +966,7 @@ void FreeContainer(ContainerHeader* container) {
 
   // And release underlying memory.
   if (isFreeable(container)) {
-    container->setColor(CONTAINER_TAG_GC_BLACK);
+    container->setColorEvenIfGreen(CONTAINER_TAG_GC_BLACK);
     if (!container->buffered())
       scheduleDestroyContainer(state, container);
   }
@@ -1544,17 +1546,22 @@ OBJ_GETTER(AdoptStablePointer, KNativePtr pointer) {
 }
 
 #if USE_GC
-
-bool hasExternalRefs(ContainerHeader* container, ContainerHeaderSet* visited) {
-  visited->insert(container);
-  bool result = container->refCount() != 0;
-  traverseContainerReferredObjects(container, [&result, visited](ObjHeader* ref) {
-    auto child = ref->container();
-    if (!child->shareable() && (visited->find(child) == visited->end())) {
-      result |= hasExternalRefs(child, visited);
-    }
-  });
-  return result;
+bool hasExternalRefs(ContainerHeader* start, ContainerHeaderSet* visited) {
+  ContainerHeaderDeque toVisit;
+  toVisit.push_back(start);
+  while (!toVisit.empty()) {
+    auto* container = toVisit.front();
+    toVisit.pop_front();
+    visited->insert(container);
+    if (container->refCount() != 0) return true;
+    traverseContainerReferredObjects(container, [&toVisit, visited](ObjHeader* ref) {
+        auto* child = ref->container();
+        if (!child->shareable() && (visited->count(child) == 0)) {
+           toVisit.push_front(child);
+        }
+     });
+  }
+  return false;
 }
 #endif
 
@@ -1562,7 +1569,7 @@ bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
 #if USE_GC
   if (root != nullptr) {
     auto state = memoryState;
-    auto container = root->container();
+    auto* container = root->container();
 
     if (container->frozen())
       // We assume, that frozen objects can be safely passed and are already removed
@@ -1586,10 +1593,9 @@ bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
     // TODO: not very efficient traversal.
     for (auto it = state->toFree->begin(); it != state->toFree->end(); ++it) {
       auto container = *it;
-      if (visited.find(container) != visited.end()) {
+      if (visited.count(container) != 0) {
         container->resetBuffered();
-        RuntimeAssert(container->color() != CONTAINER_TAG_GC_GREEN, "Must not be green");
-        container->setColor(CONTAINER_TAG_GC_BLACK);
+        container->setColorAssertIfGreen(CONTAINER_TAG_GC_BLACK);
         *it = markAsRemoved(container);
       }
     }

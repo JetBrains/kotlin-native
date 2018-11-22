@@ -34,7 +34,7 @@ typedef enum {
   CONTAINER_TAG_ATOMIC = 5 | 1,  // shareable
   // Those container tags shall not be refcounted.
   // Permanent container, cannot refer to non-permanent containers, so no need to cleanup those.
-  // Please check isFreeable() if changining numeric value.
+  // Please check isFreeable() if changing the numeric value.
   CONTAINER_TAG_PERMANENT = 7 | 1,  // shareable
   // Shift to get actual counter.
   CONTAINER_TAG_SHIFT = 3,
@@ -165,7 +165,12 @@ struct ContainerHeader {
     return objectCount_ & CONTAINER_TAG_GC_COLOR_MASK;
   }
 
-  inline void setColor(unsigned color) {
+  inline void setColorAssertIfGreen(unsigned color) {
+    RuntimeAssert(this->color() != CONTAINER_TAG_GC_GREEN, "Must not be green");
+    setColorEvenIfGreen(color);
+  }
+
+  inline void setColorEvenIfGreen(unsigned color) {
     // TODO: do we need atomic color update?
     objectCount_ = (objectCount_ & ~CONTAINER_TAG_GC_COLOR_MASK) | color;
   }
@@ -303,7 +308,7 @@ class Container {
     if ((type_info->flags_ & TF_IMMUTABLE) != 0)
       header_->refCount_ |= CONTAINER_TAG_FROZEN;
     if ((type_info->flags_ & TF_ACYCLIC) != 0)
-      header_->setColor(CONTAINER_TAG_GC_GREEN);
+      header_->setColorEvenIfGreen(CONTAINER_TAG_GC_GREEN);
   }
 };
 

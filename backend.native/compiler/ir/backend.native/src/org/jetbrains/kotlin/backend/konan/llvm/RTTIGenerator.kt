@@ -30,20 +30,22 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
             context.ir.symbols.primitiveArrays.values +
             context.ir.symbols.unsignedArrays.values
 
+    // TODO: extend logic here by taking into account final acyclic classes.
     private fun checkAcyclicFieldType(type: IrType): Boolean = acyclicCache.getOrPut(type) {
-        if (type.isInterface()) return false
-        if (type.computePrimitiveBinaryTypeOrNull() != null) return true
-
-        val classifier = type.classifierOrNull
-        if (classifier != null && classifier in safeAcyclicFieldTypes)
-            return true
-        return false
+        when {
+            type.isInterface() -> false
+            type.computePrimitiveBinaryTypeOrNull() != null -> true
+            else -> {
+                val classifier = type.classifierOrNull
+                (classifier != null && classifier in safeAcyclicFieldTypes)
+            }
+        }
     }
 
     private fun checkAcyclicClass(classDescriptor: ClassDescriptor): Boolean = when {
         classDescriptor.symbol == context.ir.symbols.array -> false
         classDescriptor.isArray -> true
-        context.getFields(classDescriptor).all { checkAcyclicFieldType(it.type) } -> true
+        context.llvmDeclarations.forClass(classDescriptor).fields.all { checkAcyclicFieldType(it.type) } -> true
         else -> false
     }
 
