@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.descriptors.impl.EmptyPackageFragmentDescriptor
 import org.jetbrains.kotlin.ir.declarations.impl.IrFileImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrFileSymbolImpl
 import org.jetbrains.kotlin.ir.util.hasInlineFunctions
+import org.jetbrains.kotlin.konan.util.printMillisec
 import org.jetbrains.kotlin.konan.utils.KonanFactories.DefaultDeserializedDescriptorFactory
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi2ir.Psi2IrConfiguration
@@ -74,41 +75,25 @@ fun runTopLevelPhases(konanConfig: KonanConfig, environment: KotlinCoreEnvironme
         @Suppress("DEPRECATION")
         context.psi2IrGeneratorContext = generatorContext
 
-        val deserializer = IrModuleDeserialization(context as WithLogger, context.moduleDescriptor, generatorContext.irBuiltIns, generatorContext.symbolTable)
+        val deserializer = printMillisec("constructor") { IrModuleDeserialization(context as WithLogger, context.moduleDescriptor, generatorContext.irBuiltIns, generatorContext.symbolTable) }
         val specifics = context.config.configuration.get(CommonConfigurationKeys.LANGUAGE_VERSION_SETTINGS)!!
-        //val libraries = context.config.resolvedLibraries.getFullList()
 
         val irModules = context.moduleDescriptor.allDependencyModules.map {
             val library = moduleToLibrary[it]
             if (library == null) return@map null
-            deserializer.deserializedIrModule(it, library.wholeIr, {uniqid -> library.irDeclaration(uniqid.index, uniqid.isLocal)})
+            printMillisec("${library.libraryName}") {deserializer.deserializedIrModule(it, library.wholeIr, {uniqid -> library.irDeclaration(uniqid.index, uniqid.isLocal)})}
         }.filterNotNull()
-
-        irModules.forEach {
-            generatorContext.symbolTable.loadModule(it)
-        }
-
-        val symbols = KonanSymbols(context, generatorContext.symbolTable, generatorContext.symbolTable.lazyWrapper)
-        val module = translator.generateModuleFragment(generatorContext, environment.getSourceFiles(), deserializer)
-
 /*
-        println("moving declarations with inlines to the current module")
-        val packageFragmentDescriptor = EmptyPackageFragmentDescriptor(context.moduleDescriptor!!, FqName("forinlines"))
-        val fileSymbol = IrFileSymbolImpl(packageFragmentDescriptor)
-        val inlineFile = IrFileImpl(NaiveSourceBasedFileEntryImpl("forinlines"), fileSymbol, FqName("forinlines"))
-        irModules.forEach { module ->
-            module.files.forEach { file ->
-                //println("adding ${file.fileEntry.name}")
-                //module.files.add(file)
-                file.declarations.forEach {
-                    if (it.hasInlineFunctions()) {
-                        inlineFile.declarations.add(it)
-                        it.parent = inlineFile
-                    }
-                }
+        printMillisec("loadModules") {
+            irModules.forEach {
+                generatorContext.symbolTable.loadModule(it)
             }
         }
 */
+        val symbols = KonanSymbols(context, generatorContext.symbolTable, generatorContext.symbolTable.lazyWrapper)
+        val module = translator.generateModuleFragment(generatorContext, environment.getSourceFiles(), deserializer)
+
+
         context.irModule = module
 
         context.ir.symbols = symbols
