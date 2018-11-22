@@ -52,5 +52,7 @@ interface KonanLibraryLayout {
         = File(irDir, "visible_$declarationId.knd")
     val wholeIrFile
         get() = File(irDir, "wholeIr.kni")
+    val irIndex: File
+        get() = File(irDir, "index.txt")
 
 }

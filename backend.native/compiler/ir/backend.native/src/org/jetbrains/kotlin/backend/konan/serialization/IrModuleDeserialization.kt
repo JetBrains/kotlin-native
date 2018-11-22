@@ -66,25 +66,14 @@ class IrModuleDeserialization(val logger: WithLogger, val currentModule: ModuleD
     val irrelevantOrigin = object : IrDeclarationOriginImpl("irrelevant") {}
     private var deserializedModuleDescriptor: ModuleDescriptor? = null
 
-    private fun deserializeTypeArguments(proto: KonanIr.TypeArguments): List<IrType> {
-        logger.log { "### deserializeTypeArguments" }
-        val result = mutableListOf<IrType>()
-        proto.typeArgumentList.forEach { typeProto ->
-            val type = deserializeIrType(typeProto)
-            result.add(type)
-            logger.log { "$type" }
-        }
-        return result
-    }
-
     val deserializedSymbols = mutableMapOf<Pair<ModuleDescriptor?, Long>, IrSymbol>()
-    val deserializedDeclarations = mutableMapOf<DeclarationDescriptor, IrDeclaration>()
+    //val deserializedDeclarations = mutableMapOf<DeclarationDescriptor, IrDeclaration>()
 
     init {
         var currentIndex = 0L
         builtIns.knownBuiltins.forEach {
             deserializedSymbols.put(Pair(null, currentIndex), it.symbol)
-            deserializedDeclarations.put(it.descriptor, it)
+            //deserializedDeclarations.put(it.descriptor, it)
             //println("$it ${it.descriptor} ${it.symbol} bound = ${it.symbol.isBound} owner = ${it.symbol.owner}")
             assert(symbolTable.referenceSimpleFunction(it.descriptor) == it.symbol)
             currentIndex++
@@ -104,7 +93,7 @@ class IrModuleDeserialization(val logger: WithLogger, val currentModule: ModuleD
             Pair(clazz, clazz.unsubstitutedMemberScope.getContributedDescriptors() + clazz.getConstructors())
         }
 
-        if (proto.packageFqName.startsWith("cname")) {
+        if (proto.packageFqName.startsWith("cnames") || proto.packageFqName.startsWith("objcnames")) {
             return currentModule.findClassAcrossModuleDependencies(ClassId(packageFqName, FqName(proto.name), false))!!
         }
 
@@ -218,6 +207,17 @@ class IrModuleDeserialization(val logger: WithLogger, val currentModule: ModuleD
         }
         //println("symbol.isBound = ${symbol.isBound} symbol = $symbol")
         return symbol
+    }
+
+    private fun deserializeTypeArguments(proto: KonanIr.TypeArguments): List<IrType> {
+        logger.log { "### deserializeTypeArguments" }
+        val result = mutableListOf<IrType>()
+        proto.typeArgumentList.forEach { typeProto ->
+            val type = deserializeIrType(typeProto)
+            result.add(type)
+            logger.log { "$type" }
+        }
+        return result
     }
 
     fun deserializeIrTypeVariance(variance: KonanIr.IrTypeVariance) = when (variance) {
@@ -832,6 +832,7 @@ val parameter =  try {
     )
 } catch (e: Throwable) {
     println("uniqId: ${proto.symbol.uniqId.index} in name = ${proto.name}")
+    throw e
     null
 }
         parameter!!.defaultValue = if (proto.hasDefaultValue()) {
@@ -1065,7 +1066,7 @@ val parameter =  try {
             symbolTable.declareSimpleFunction(UNDEFINED_OFFSET, UNDEFINED_OFFSET, irrelevantOrigin,
                 descriptor, { symbol -> it})
 
-            deserializedDeclarations.put(it.descriptor, it)
+            //deserializedDeclarations.put(it.descriptor, it)
         }
         property.setter?.let {
             val descriptor = it.descriptor
@@ -1073,7 +1074,7 @@ val parameter =  try {
             symbolTable.declareSimpleFunction(UNDEFINED_OFFSET, UNDEFINED_OFFSET, irrelevantOrigin,
                 descriptor, { symbol -> it})
 
-            deserializedDeclarations.put(it.descriptor, it)
+            //deserializedDeclarations.put(it.descriptor, it)
         }
 
         return property
@@ -1083,9 +1084,11 @@ val parameter =  try {
         return IrErrorDeclarationImpl(start, end, WrappedClassDescriptor())
     }
 
+/*
     override fun findDeserializedDeclaration(descriptor: DeclarationDescriptor)=
         deserializedDeclarations[descriptor] ?:
             error("Could not find deserialized declaration for descriptor: $descriptor")
+*/
 
     private fun deserializeDeclaration(proto: KonanIr.IrDeclaration, parent: IrDeclarationParent?): IrDeclaration {
 
@@ -1148,7 +1151,7 @@ val parameter =  try {
             }
         }
 
-        deserializedDeclarations.put(descriptor, declaration)
+        //deserializedDeclarations.put(descriptor, declaration)
         logger.log { "### Deserialized declaration: ${descriptor} -> ${ir2string(declaration)}" }
         //println("### Deserialized declaration: ${descriptor} ${descriptor.hashCode().toUInt().toString(16)}")
 

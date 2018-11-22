@@ -251,6 +251,8 @@ fun IrConstructor.getObjCInitMethod(): IrSimpleFunction? {
     }
 }
 
+fun IrFunction.hasObjCFactoryAnnotation() = this.descriptor.annotations.hasAnnotation(objCFactoryFqName)
+
 fun FunctionDescriptor.getObjCFactoryInitMethodInfo(): ObjCMethodInfo? {
     val factoryAnnotation = this.annotations.findAnnotation(objCFactoryFqName) ?: return null
     val bridgeName = factoryAnnotation.getStringValue("bridge")

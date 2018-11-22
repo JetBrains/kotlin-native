@@ -200,8 +200,10 @@ internal class IrModuleSerialization(
 
         serializeDescriptorReference(declaration) ?. let { proto.setDescriptorReference(it) }
 
-        //        val owner = symbol.owner as IrDeclaration
-        //        println("serialized IrSymbol: index = ${uniqId.index}, descriptor = ${symbol.descriptor}, descriptorIndex = ${descriptorTable.descriptors[symbol.descriptor]},  owner = $owner symbol=$symbol owner.descriptor = ${owner.descriptor}")
+        if (uniqId.index == -3746695740799408782) {
+                    val owner = symbol.owner as IrDeclaration
+                    println("serialized IrSymbol: index = ${uniqId.index}, descriptor = ${symbol.descriptor}, descriptorIndex = ${descriptorTable.descriptors[symbol.descriptor]},  owner = $owner symbol=$symbol owner.descriptor = ${owner.descriptor}")
+        }
 
         val result = proto.build()
         return result
@@ -1083,7 +1085,7 @@ internal class IrModuleSerialization(
 
     fun serializedIrModule(module: IrModuleFragment): SerializedIr {
         val moduleHeader = serializeModule(module).toByteArray()
-        return SerializedIr(moduleHeader, topLevelDeclarations)
+        return SerializedIr(moduleHeader, topLevelDeclarations, declarationTable.textual)
 
     }
 }

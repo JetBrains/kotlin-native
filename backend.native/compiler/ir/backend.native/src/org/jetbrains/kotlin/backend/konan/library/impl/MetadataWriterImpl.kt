@@ -33,5 +33,7 @@ internal class MetadataWriterImpl(libraryLayout: KonanLibraryLayout): KonanLibra
                 visibleDeclarationFile(index)
             file.writeBytes(it.value)
         }
+        val lines = linkData.ir?.index.map { entry -> "${entry.key}: ${entry.value}" }
+        irIndex.writeLines(lines)
     }
 }

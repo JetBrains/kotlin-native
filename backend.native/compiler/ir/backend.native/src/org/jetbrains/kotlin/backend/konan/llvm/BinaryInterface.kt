@@ -6,12 +6,11 @@
 package org.jetbrains.kotlin.backend.konan.llvm
 
 import llvm.LLVMTypeRef
+import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.externalSymbolOrThrow
 import org.jetbrains.kotlin.backend.konan.descriptors.getAnnotationValue
 import org.jetbrains.kotlin.backend.konan.descriptors.isAbstract
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.*
-import org.jetbrains.kotlin.backend.konan.isExternalObjCClass
-import org.jetbrains.kotlin.backend.konan.isInlined
 import org.jetbrains.kotlin.konan.library.KonanLibrary
 import org.jetbrains.kotlin.backend.konan.optimizations.DataFlowIR
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
@@ -158,7 +157,8 @@ private val IrFunction.signature: String
     get() {
         val extensionReceiverPart = this.extensionReceiverParameter?.extensionReceiverNamePart ?: ""
         val argsPart = this.valueParameters.map {
-            "${typeToHashString(it.type)}${if (it.isVararg) "_VarArg" else ""}"
+            val argName = if (this.hasObjCFactoryAnnotation()) "${it.name}:" else ""
+            "$argName${typeToHashString(it.type)}${if (it.isVararg) "_VarArg" else ""}"
         }.joinToString(";")
         // Distinguish value types and references - it's needed for calling virtual methods through bridges.
         // Also is function has type arguments - frontend allows exactly matching overrides.
@@ -176,7 +176,7 @@ private val IrFunction.signature: String
 internal val IrFunction.functionName: String
     get() {
         with(this.original) { // basic support for generics
-            this.getObjCMethodInfo()?.let {
+            (if (this is IrConstructor && this.isObjCConstructor()) this.getObjCInitMethod() else this)?.getObjCMethodInfo()?.let {
                 return buildString {
                     if (extensionReceiverParameter != null) {
                         append(extensionReceiverParameter!!.type.getClass()!!.name)
@@ -185,10 +185,15 @@ internal val IrFunction.functionName: String
 
                     append("objc:")
                     append(it.selector)
+                    if (this@with is IrConstructor && this@with.isObjCConstructor()) append ("#Constructor")
                 }
             }
 
             val name = this.name.mangleIfInternal(this.module, this.visibility)
+
+            if (this.name.asString() == "countByEnumeratingWithState") {
+                println("$name$signature")
+            }
 
             return "$name$signature"
         }
@@ -226,7 +231,12 @@ internal val IrFunction.symbolName: String
         val containingDeclarationPart = parent.fqNameSafe.let {
             if (it.isRoot) "" else "$it."
         }
-        return "kfun:$containingDeclarationPart$functionName"
+        val result = "kfun:$containingDeclarationPart$functionName"
+
+        if (this.name.asString() == "countByEnumeratingWithState") {
+            println("symbolName = $result\ndescriptor = ${this.descriptor}")
+        }
+        return result
     }
 
 internal val IrField.symbolName: String

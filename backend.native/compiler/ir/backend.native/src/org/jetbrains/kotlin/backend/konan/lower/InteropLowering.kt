@@ -515,7 +515,7 @@ internal class InteropLoweringPart1(val context: Context) : IrBuildingTransforme
         }
 
         if (!constructedClass.isExternalObjCClass() &&
-            (expression.symbol.owner as IrClass).isExternalObjCClass()) {
+            (expression.symbol.owner.constructedClass).isExternalObjCClass()) {
 
             // Calling super constructor from Kotlin Objective-C class.
 
