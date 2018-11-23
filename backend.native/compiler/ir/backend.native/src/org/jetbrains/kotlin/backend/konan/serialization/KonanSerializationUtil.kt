@@ -19,7 +19,6 @@ import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter.Companion.CALLAB
 import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter.Companion.CLASSIFIERS
 import org.jetbrains.kotlin.resolve.scopes.getDescriptorsFiltered
 import org.jetbrains.kotlin.serialization.DescriptorSerializer
-import org.jetbrains.kotlin.serialization.KonanDescriptorSerializer
 import org.jetbrains.kotlin.serialization.konan.SourceFileMap
 
 /*
@@ -28,7 +27,7 @@ import org.jetbrains.kotlin.serialization.konan.SourceFileMap
  *
  * It takes care of module and package fragment serializations.
  * The lower level (classes and members) serializations are delegated 
- * to the KonanDescriptorSerializer class.
+ * to the DescriptorSerializer class.
  * The lower level deserializations are performed by the frontend
  * with MemberDeserializer class.
  */
@@ -41,15 +40,15 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
 
     data class SerializerContext(
             val serializerExtension: KonanSerializerExtension,
-            val topSerializer: KonanDescriptorSerializer,
-            var classSerializer: KonanDescriptorSerializer = topSerializer
+            val topSerializer: DescriptorSerializer,
+            var classSerializer: DescriptorSerializer = topSerializer
     )
 
     private fun createNewContext(): SerializerContext {
         val extension = KonanSerializerExtension(context, metadataVersion, sourceFileMap)
         return SerializerContext(
                 extension,
-                KonanDescriptorSerializer.createTopLevel(context, extension)
+                DescriptorSerializer.createTopLevel(extension)
         )
     }
 
@@ -66,7 +65,7 @@ internal class KonanSerializationUtil(val context: Context, private val metadata
 
             // TODO: this is to filter out object{}. Change me.
             if (classDescriptor.isExported())
-                classSerializer = KonanDescriptorSerializer.create(context, classDescriptor, serializerExtension)
+                classSerializer = DescriptorSerializer.create(classDescriptor, serializerExtension, classSerializer)
 
             val classProto = classSerializer.classProto(classDescriptor).build()
                     ?: error("Class not serialized: $classDescriptor")
