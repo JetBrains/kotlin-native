@@ -262,7 +262,8 @@ struct MemoryState {
    * and thus requiring only one list, but the downside is that both of the
    * next phases would iterate over the whole list of objects instead of only 10%.
    */
-  ContainerHeaderList* toFree; // List of all cycle candidates.
+  ContainerHeader* toFree; // List of all cycle candidates.
+  int toFreeSize;
   ContainerHeaderList* roots; // Real candidates excluding those with refcount = 0.
   // How many GC suspend requests happened.
   int gcSuspendCount;
@@ -525,14 +526,6 @@ inline void traverseContainerReferredObjects(ContainerHeader* container, func pr
 
 #if USE_GC
 
-inline bool isMarkedAsRemoved(ContainerHeader* container) {
-  return (reinterpret_cast<uintptr_t>(container) & 1) != 0;
-}
-
-inline ContainerHeader* markAsRemoved(ContainerHeader* container) {
-  return reinterpret_cast<ContainerHeader*>(reinterpret_cast<uintptr_t>(container) | 1);
-}
-
 inline void processFinalizerQueue(MemoryState* state) {
   // TODO: reuse elements of finalizer queue for new allocations.
   while (state->finalizerQueue != nullptr) {
@@ -585,10 +578,6 @@ inline void DecrementRC(ContainerHeader* container) {
 
 #else // USE_GC
 
-inline uint32_t freeableSize(MemoryState* state) {
-  return state->toFree->size();
-}
-
 template <bool Atomic>
 inline void IncrementRC(ContainerHeader* container) {
   container->incRefCount<Atomic>();
@@ -615,8 +604,10 @@ inline void DecrementRC(ContainerHeader* container) {
       if (!container->buffered()) {
         container->setBuffered();
         auto state = memoryState;
-        state->toFree->push_back(container);
-        if (state->gcSuspendCount == 0 && freeableSize(state) >= state->gcThreshold) {
+        container->setNextLink(state->toFree);
+        state->toFree = container;
+        state->toFreeSize++;
+        if (state->gcSuspendCount == 0 && state->toFreeSize >= state->gcThreshold) {
           GarbageCollect();
         }
       }
@@ -628,7 +619,6 @@ inline void DecrementRC(ContainerHeader* container) {
 
 inline void initThreshold(MemoryState* state, uint32_t gcThreshold) {
   state->gcThreshold = gcThreshold;
-  state->toFree->reserve(gcThreshold);
 }
 #endif // USE_GC
 
@@ -744,14 +734,13 @@ void CollectCycles(MemoryState* state) {
   MarkRoots(state);
   ScanRoots(state);
   CollectRoots(state);
-  state->toFree->clear();
+  state->toFree = nullptr;
+  state->toFreeSize = 0;
   state->roots->clear();
 }
 
 void MarkRoots(MemoryState* state) {
-  for (auto container : *(state->toFree)) {
-    if (isMarkedAsRemoved(container))
-      continue;
+  for (auto* container = state->toFree; container != nullptr; container = container->nextLink()) {
     // Acyclic containers cannot be in this list.
     RuntimeCheck(container->color() != CONTAINER_TAG_GC_GREEN, "Must not be green");
     auto color = container->color();
@@ -838,7 +827,7 @@ void CollectWhite(MemoryState* state, ContainerHeader* start) {
 inline void AddRef(ContainerHeader* header) {
   // Looking at container type we may want to skip AddRef() totally
   // (non-escaping stack objects, constant objects).
-  switch (header->refCount_ & CONTAINER_TAG_MASK) {
+  switch (header->tag()) {
     case CONTAINER_TAG_STACK:
     case CONTAINER_TAG_PERMANENT:
       break;
@@ -1175,7 +1164,6 @@ MemoryState* InitMemory() {
   memoryState = konanConstructInstance<MemoryState>();
   INIT_EVENT(memoryState)
 #if USE_GC
-  memoryState->toFree = konanConstructInstance<ContainerHeaderList>();
   memoryState->roots = konanConstructInstance<ContainerHeaderList>();
   memoryState->gcInProgress = false;
   initThreshold(memoryState, kGcThreshold);
@@ -1188,7 +1176,8 @@ MemoryState* InitMemory() {
 void DeinitMemory(MemoryState* memoryState) {
 #if USE_GC
   GarbageCollect();
-  RuntimeAssert(memoryState->toFree->size() == 0, "Some memory have not been released after GC");
+  RuntimeAssert(memoryState->toFree == nullptr, "Some memory have not been released after GC");
+  RuntimeAssert(memoryState->toFreeSize == 0, "Some memory have not been released after GC");
   konanDestructInstance(memoryState->toFree);
   konanDestructInstance(memoryState->roots);
 
@@ -1467,7 +1456,7 @@ void GarbageCollect() {
 
   processFinalizerQueue(state);
 
-  while (state->toFree->size() > 0) {
+  while (state->toFree != nullptr) {
     CollectCycles(state);
     processFinalizerQueue(state);
   }
@@ -1509,8 +1498,7 @@ void Kotlin_native_internal_GC_resume(KRef) {
   MemoryState* state = memoryState;
   if (state->gcSuspendCount > 0) {
     state->gcSuspendCount--;
-    if (state->toFree != nullptr &&
-        freeableSize(state) >= state->gcThreshold) {
+    if (state->toFree != nullptr && state->toFreeSize >= state->gcThreshold) {
       GarbageCollect();
     }
   }
@@ -1521,9 +1509,8 @@ void Kotlin_native_internal_GC_stop(KRef) {
 #if USE_GC
   if (memoryState->toFree != nullptr) {
     GarbageCollect();
-    konanDestructInstance(memoryState->toFree);
+    RuntimeAssert(memoryState->toFree == nullptr, "GC must complete");
     konanDestructInstance(memoryState->roots);
-    memoryState->toFree = nullptr;
     memoryState->roots = nullptr;
   }
 #endif
@@ -1531,8 +1518,7 @@ void Kotlin_native_internal_GC_stop(KRef) {
 
 void Kotlin_native_internal_GC_start(KRef) {
 #if USE_GC
-  if (memoryState->toFree == nullptr) {
-    memoryState->toFree = konanConstructInstance<ContainerHeaderList>();
+  if (memoryState->roots == nullptr) {
     memoryState->roots = konanConstructInstance<ContainerHeaderList>();
   }
 #endif
@@ -1628,12 +1614,19 @@ bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
     }
 
     // TODO: not very efficient traversal.
-    for (auto it = state->toFree->begin(); it != state->toFree->end(); ++it) {
-      auto container = *it;
+    ContainerHeader* lastNonRemoved = nullptr;
+    for (auto* container = state->toFree; container != nullptr; container = container->nextLink()) {
       if (visited.count(container) != 0) {
         container->resetBuffered();
         container->setColorAssertIfGreen(CONTAINER_TAG_GC_BLACK);
-        *it = markAsRemoved(container);
+        if (lastNonRemoved == nullptr) {
+          state->toFree = container->nextLink();
+        } else {
+          lastNonRemoved->setNextLink(container->nextLink());
+        }
+        state->toFreeSize--;
+      } else {
+        lastNonRemoved = container;
       }
     }
   }
@@ -1826,9 +1819,18 @@ void FreezeSubgraph(ObjHeader* root) {
   // TODO: optimize it by keeping ignored (i.e. freshly frozen) objects in the set,
   // and use it when analyzing toFree during collection.
   auto state = memoryState;
-  for (auto& container : *(state->toFree)) {
-      if (!isMarkedAsRemoved(container) && container->frozen())
-        container = markAsRemoved(container);
+  ContainerHeader* lastNonRemoved = nullptr;
+  for (auto* container = state->toFree; container != nullptr; container = container->nextLink()) {
+      if (container->frozen()) {
+        if (lastNonRemoved == nullptr) {
+          state->toFree = container->nextLink();
+        } else {
+           lastNonRemoved->setNextLink(container->nextLink());
+        }
+        state->toFreeSize--;
+      } else {
+        lastNonRemoved = container;
+      }
   }
 #endif
 }

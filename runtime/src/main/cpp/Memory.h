@@ -81,6 +81,8 @@ struct ContainerHeader {
   uint32_t refCount_;
   // Number of objects in the container.
   uint32_t objectCount_;
+  // TODO: rework, to make it same work as objectCount_.
+  ContainerHeader* link_;
 
   inline bool normal() const {
       return (refCount_ & CONTAINER_TAG_MASK) == CONTAINER_TAG_NORMAL;
@@ -218,13 +220,12 @@ struct ContainerHeader {
     objectCount_ &= ~CONTAINER_TAG_GC_SEEN;
   }
 
-  // We cannot use 'this' here, as it conflicts with aliasing analysis in clang.
   inline void setNextLink(ContainerHeader* next) {
-    *reinterpret_cast<ContainerHeader**>(this + 1) = next;
+    link_ = next;
   }
 
   inline ContainerHeader* nextLink() {
-    return *reinterpret_cast<ContainerHeader**>(this + 1);
+    return link_;
   }
 };
 
