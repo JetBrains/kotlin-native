@@ -1,3 +1,18 @@
+# v1.0.3 (Dec 2018)
+  * Improvements and fixes in cineterop:
+     * Objective-C objects are shareable in Kotlin now.
+     * Fixed incorrect generation of non-callable bindings for some cases.
+  * Various bugfixes.
+
+# v1.0.2 (Nov 2018)
+  * Improved support of C macros in cinterop.
+  * Added worker test runner.
+  * Various bugfixes.
+
+# v1.0.1 (Oct 2018)
+  * Samples are switched to the new MPP Gradle plugin.
+  * Various bugfixes.
+
 # v1.0 (Oct 2018)
   * Bugfixes
 
