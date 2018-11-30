@@ -1,8 +1,8 @@
 # v1.0.3 (Dec 2018)
-  * Improvements and fixes in cineterop:
-     * Objective-C objects are shareable in Kotlin now.
-     * Fixed incorrect generation of non-callable bindings for some cases.
-  * Various bugfixes.
+  * Improvements and fixes in cinterop, including:
+     * KT-28066, KT-25628, KT-27881, KT-28065.
+  * Various bugfixes, including:
+     * KT-27500, KT-28205
 
 # v1.0.2 (Nov 2018)
   * Improved support of C macros in cinterop.
