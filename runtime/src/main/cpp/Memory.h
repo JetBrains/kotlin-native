@@ -102,7 +102,7 @@ struct ContainerHeader {
   }
 
   inline bool shareable() const {
-      return (tag() & 1) != 0; // CONTAINER_TAG_PERMANENT || CONTAINER_TAG_FROZEN || CONTAINER_TAG_ATOMIC
+      return (tag() & 1) != 0; // CONTAINER_TAG_FROZEN || CONTAINER_TAG_ATOMIC
   }
 
   inline bool stack() const {
@@ -225,6 +225,10 @@ struct ContainerHeader {
 
 inline bool PermanentOrFrozen(ContainerHeader* container) {
     return container == nullptr || container->frozen();
+}
+
+inline bool Shareable(ContainerHeader* container) {
+    return container == nullptr || container->shareable();
 }
 
 struct ArrayHeader;

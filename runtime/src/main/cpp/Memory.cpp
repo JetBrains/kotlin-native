@@ -447,7 +447,7 @@ void KRefSharedHolder::verifyRefOwner() const {
     // or to provide proper execution context for shared objects:
     if (memoryState == nullptr) Kotlin_initRuntimeIfNeeded();
     auto* container = obj_->container();
-    if (container != nullptr && !container->shareable()) {
+    if (!Shareable(container)) {
       // TODO: add some info about the owner.
       ThrowIllegalObjectSharingException(obj_->type_info(), obj_);
     }
@@ -688,7 +688,7 @@ void MarkGray(ContainerHeader* start) {
     traverseContainerReferredObjects(container, [&toVisit](ObjHeader* ref) {
       auto childContainer = ref->container();
       RuntimeAssert(!isArena(childContainer), "A reference to local object is encountered");
-      if (childContainer != nullptr && !childContainer->shareable()) {
+      if (!Shareable(childContainer)) {
         childContainer->decRefCount<false>();
         toVisit.push_front(childContainer);
       }
@@ -714,7 +714,7 @@ void ScanBlack(ContainerHeader* start) {
     traverseContainerReferredObjects(container, [&toVisit](ObjHeader* ref) {
         auto childContainer = ref->container();
         RuntimeAssert(!isArena(childContainer), "A reference to local object is encountered");
-        if (childContainer != nullptr && !childContainer->shareable()) {
+        if (!Shareable(childContainer)) {
           childContainer->incRefCount<false>();
           if (useColor) {
             int color = childContainer->color();
@@ -793,7 +793,7 @@ void Scan(ContainerHeader* start) {
      traverseContainerReferredObjects(container, [&toVisit](ObjHeader* ref) {
        auto* childContainer = ref->container();
        RuntimeAssert(!isArena(childContainer), "A reference to local object is encountered");
-       if (childContainer != nullptr && !childContainer->shareable()) {
+       if (!Shareable(childContainer)) {
          toVisit.push_front(childContainer);
        }
      });
@@ -814,7 +814,7 @@ void CollectWhite(MemoryState* state, ContainerHeader* start) {
         if (ref == nullptr) return;
         auto* childContainer = ref->container();
         RuntimeAssert(!isArena(childContainer), "A reference to local object is encountered");
-        if (childContainer == nullptr || childContainer->shareable()) {
+        if (Shareable(childContainer)) {
           UpdateRef(location, nullptr);
         } else {
           toVisit.push_front(childContainer);
@@ -1585,7 +1585,7 @@ bool hasExternalRefs(ContainerHeader* start, ContainerHeaderSet* visited) {
     if (container->refCount() != 0) return true;
     traverseContainerReferredObjects(container, [&toVisit, visited](ObjHeader* ref) {
         auto* child = ref->container();
-        if (child != nullptr && !child->shareable() && (visited->count(child) == 0)) {
+        if (!Shareable(child) && (visited->count(child) == 0)) {
            toVisit.push_front(child);
         }
      });
@@ -1609,7 +1609,7 @@ bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
     if (!checked) {
       hasExternalRefs(container, &visited);
     } else {
-      if (container != nullptr && !container->shareable()) {
+      if (!Shareable(container)) {
         container->decRefCount<false>();
         MarkGray<false>(container);
         auto bad = hasExternalRefs(container, &visited);
@@ -1653,7 +1653,7 @@ void depthFirstTraversal(ContainerHeader* container, bool* hasCycles,
           return;
       }
       ContainerHeader* objContainer = obj->container();
-      if (objContainer != nullptr && !objContainer->shareable()) {
+      if (!Shareable(objContainer)) {
         // Marked GREY, there's cycle.
         if (objContainer->seen()) *hasCycles = true;
 
@@ -1696,7 +1696,7 @@ void freezeAcyclic(ContainerHeader* rootContainer) {
     current->freeze();
     traverseContainerReferredObjects(current, [current, &queue](ObjHeader* obj) {
         ContainerHeader* objContainer = obj->container();
-        if (objContainer != nullptr && !objContainer->shareable()) {
+        if (!Shareable(objContainer)) {
           if (objContainer->marked())
             queue.push_back(objContainer);
         }
@@ -1715,7 +1715,7 @@ void freezeCyclic(ContainerHeader* rootContainer, const KStdVector<ContainerHead
     reversedEdges.emplace(current, KStdVector<ContainerHeader*>(0));
     traverseContainerReferredObjects(current, [current, &queue, &reversedEdges](ObjHeader* obj) {
           ContainerHeader* objContainer = obj->container();
-          if (objContainer != nullptr && !objContainer->shareable()) {
+          if (!Shareable(objContainer)) {
             if (objContainer->marked())
               queue.push_back(objContainer);
             reversedEdges.emplace(objContainer, KStdVector<ContainerHeader*>(0)).first->second.push_back(current);
@@ -1748,7 +1748,7 @@ void freezeCyclic(ContainerHeader* rootContainer, const KStdVector<ContainerHead
       totalCount += container->refCount();
       traverseContainerReferredObjects(container, [&internalRefsCount](ObjHeader* obj) {
           auto* container = obj->container();
-          if (container != nullptr && !container->shareable())
+          if (!Shareable(container))
               ++internalRefsCount;
         });
       }
@@ -1799,7 +1799,7 @@ void FreezeSubgraph(ObjHeader* root) {
   // First check that passed object graph has no cycles.
   // If there are cycles - run graph condensation on cyclic graphs using Kosoraju-Sharir.
   ContainerHeader* rootContainer = root->container();
-  if (rootContainer == nullptr || rootContainer->shareable()) return;
+  if (Shareable(rootContainer)) return;
 
   // Do DFS cycle detection.
   bool hasCycles = false;
@@ -1930,7 +1930,7 @@ KBoolean Konan_ensureAcyclicAndSet(ObjHeader* where, KInt index, ObjHeader* what
 
 void Kotlin_Any_share(ObjHeader* obj) {
     auto* container = obj->container();
-    if (container == nullptr || container->shareable()) return;
+    if (Shareable(container)) return;
     RuntimeCheck(container->objectCount() == 1, "Must be a single object container");
     container->makeShareable();
 }
