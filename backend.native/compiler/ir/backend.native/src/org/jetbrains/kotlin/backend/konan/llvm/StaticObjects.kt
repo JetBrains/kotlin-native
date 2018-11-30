@@ -5,10 +5,8 @@
 
 package org.jetbrains.kotlin.backend.konan.llvm
 
-import llvm.LLVMLinkage
-import llvm.LLVMSetLinkage
-import llvm.LLVMTypeRef
-import llvm.LLVMValueRef
+import kotlinx.cinterop.cValuesOf
+import llvm.*
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.fqNameSafe
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.llvmSymbolOrigin
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
@@ -17,16 +15,22 @@ import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 
+private fun ConstPointer.add(index: Int): ConstPointer {
+    return constPointer(LLVMConstGEP(llvm, cValuesOf(Int32(index).llvm), 1)!!)
+}
+
+// Must match OBJECT_TAG_PERMANENT_CONTAINER in C++.
+private fun StaticData.permTag(typeInfo: ConstPointer): ConstPointer {
+    return typeInfo.bitcast(int8TypePtr).add(1).bitcast(kTypeInfoPtr)
+}
 
 private fun StaticData.objHeader(typeInfo: ConstPointer): Struct {
-    val container = constValue(context.llvm.staticContainer)
-    return Struct(runtime.objHeaderType, typeInfo, container)
+    return Struct(runtime.objHeaderType, permTag(typeInfo))
 }
 
 private fun StaticData.arrayHeader(typeInfo: ConstPointer, length: Int): Struct {
     assert (length >= 0)
-    val container = constValue(context.llvm.staticContainer)
-    return Struct(runtime.arrayHeaderType, typeInfo, container, Int32(length))
+    return Struct(runtime.arrayHeaderType, permTag(typeInfo), Int32(length))
 }
 
 internal fun StaticData.createKotlinStringLiteral(value: String): ConstPointer {
