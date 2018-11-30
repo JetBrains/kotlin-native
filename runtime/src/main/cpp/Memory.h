@@ -242,7 +242,7 @@ ALWAYS_INLINE T* clearPointerBits(T* ptr, unsigned bits) {
 
 template <typename T>
 ALWAYS_INLINE unsigned getPointerBits(T* ptr, unsigned bits) {
-  return (reinterpret_cast<uintptr_t>(ptr) & static_cast<uintptr_t>(bits));
+  return reinterpret_cast<uintptr_t>(ptr) & static_cast<uintptr_t>(bits);
 }
 
 template <typename T>

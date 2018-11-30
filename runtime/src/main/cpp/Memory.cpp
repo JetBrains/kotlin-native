@@ -34,9 +34,9 @@
 // http://researcher.watson.ibm.com/researcher/files/us-bacon/Bacon03Pure.pdf.
 #define USE_GC 1
 // Define to 1 to print all memory operations.
-#define TRACE_MEMORY 1
+#define TRACE_MEMORY 0
 // Collect memory manager events statistics.
-#define COLLECT_STATISTIC 1
+#define COLLECT_STATISTIC 0
 // Auto-adjust GC thresholds.
 #define GC_ERGONOMICS 1
 
@@ -381,7 +381,7 @@ THREAD_LOCAL_VARIABLE MemoryState* memoryState = nullptr;
 constexpr int kFrameOverlaySlots = sizeof(FrameOverlay) / sizeof(ObjHeader**);
 
 inline bool isFreeable(const ContainerHeader* header) {
-  return header->tag() != CONTAINER_TAG_STACK;
+  return header != nullptr && header->tag() != CONTAINER_TAG_STACK;
 }
 
 inline bool isArena(const ContainerHeader* header) {
@@ -937,12 +937,12 @@ ContainerHeader* AllocContainer(size_t size) {
 
 ContainerHeader* AllocAggregatingFrozenContainer(KStdVector<ContainerHeader*>& containers) {
   auto componentSize = containers.size();
-  auto superContainer = AllocContainer(sizeof(ContainerHeader) + sizeof(void*) * componentSize);
-  auto place = reinterpret_cast<ContainerHeader**>(superContainer + 1);
+  auto* superContainer = AllocContainer(sizeof(ContainerHeader) + sizeof(void*) * componentSize);
+  auto* place = reinterpret_cast<ContainerHeader**>(superContainer + 1);
   for (auto* container : containers) {
     *place++ = container;
     // Set link to the new container.
-    auto obj = reinterpret_cast<ObjHeader*>(container + 1);
+    auto* obj = reinterpret_cast<ObjHeader*>(container + 1);
     obj->setContainer(superContainer);
     MEMORY_LOG("Set fictitious frozen container for %p: %p\n", obj, superContainer);
   }
@@ -1752,10 +1752,6 @@ void freezeCyclic(ContainerHeader* rootContainer, const KStdVector<ContainerHead
               ++internalRefsCount;
         });
       }
-    // Create fictitious container for the whole component.
-    auto superContainer = component.size() == 1 ? component[0] : AllocAggregatingFrozenContainer(component);
-    // Don't count internal references.
-    superContainer->setRefCount(totalCount - internalRefsCount);
 
     // Freeze component.
     for (auto* container : component) {
@@ -1764,7 +1760,14 @@ void freezeCyclic(ContainerHeader* rootContainer, const KStdVector<ContainerHead
       // Note, that once object is frozen, it could be concurrently accessed, so
       // color and similar attributes shall not be used.
       container->freeze();
+      // We set refcount of original container to zero, so that it is seen as such after removal
+      // meta-object, where aggregating container is stored.
+      container->setRefCount(0);
     }
+    // Create fictitious container for the whole component.
+    auto superContainer = component.size() == 1 ? component[0] : AllocAggregatingFrozenContainer(component);
+    // Don't count internal references.
+    superContainer->setRefCount(totalCount - internalRefsCount);
   }
 }
 
@@ -1892,7 +1895,8 @@ KBoolean Konan_ensureAcyclicAndSet(ObjHeader* where, KInt index, ObjHeader* what
         // As we cannot modify objects while traversing, instead we remember all seen objects in a set.
         KStdUnorderedSet<ContainerHeader*> seen;
         KStdDeque<ContainerHeader*> queue;
-        queue.push_back(what->container());
+        if (what->container() != nullptr)
+            queue.push_back(what->container());
         bool acyclic = true;
         while (!queue.empty() && acyclic) {
             ContainerHeader* current = queue.front();
