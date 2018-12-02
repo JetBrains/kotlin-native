@@ -23,6 +23,7 @@ if (MPPTools.isMacos() || MPPTools.isLinux() || MPPTools.isWindows()) {
     include ':csvparser'
     include ':curl'
     include ':echoServer'
+    include ':gitchurn'
     include ':globalState'
     include ':html5Canvas'
     include ':libcurl'
@@ -32,7 +33,6 @@ if (MPPTools.isMacos() || MPPTools.isLinux() || MPPTools.isWindows()) {
 }
 
 if (MPPTools.isMacos() || MPPTools.isLinux()) {
-    include ':gitchurn'
     include ':gtk'
     include ':nonBlockingEchoServer'
     include ':tensorflow'
