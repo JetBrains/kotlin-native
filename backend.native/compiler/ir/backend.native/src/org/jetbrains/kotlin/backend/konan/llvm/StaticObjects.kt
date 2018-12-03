@@ -20,17 +20,18 @@ private fun ConstPointer.add(index: Int): ConstPointer {
 }
 
 // Must match OBJECT_TAG_PERMANENT_CONTAINER in C++.
-private fun StaticData.permTag(typeInfo: ConstPointer): ConstPointer {
+private fun StaticData.permanentTag(typeInfo: ConstPointer): ConstPointer {
+    // Only pointer arithmetic via GEP works on constant pointers in LLVM.
     return typeInfo.bitcast(int8TypePtr).add(1).bitcast(kTypeInfoPtr)
 }
 
 private fun StaticData.objHeader(typeInfo: ConstPointer): Struct {
-    return Struct(runtime.objHeaderType, permTag(typeInfo))
+    return Struct(runtime.objHeaderType, permanentTag(typeInfo))
 }
 
 private fun StaticData.arrayHeader(typeInfo: ConstPointer, length: Int): Struct {
     assert (length >= 0)
-    return Struct(runtime.arrayHeaderType, permTag(typeInfo), Int32(length))
+    return Struct(runtime.arrayHeaderType, permanentTag(typeInfo), Int32(length))
 }
 
 internal fun StaticData.createKotlinStringLiteral(value: String): ConstPointer {
