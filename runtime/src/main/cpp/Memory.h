@@ -17,8 +17,9 @@
 #ifndef RUNTIME_MEMORY_H
 #define RUNTIME_MEMORY_H
 
-#include "KAssert.h"
+#include "Atomic.h"
 #include "Common.h"
+#include "KAssert.h"
 #include "TypeInfo.h"
 
 typedef enum {
@@ -41,6 +42,7 @@ typedef enum {
 
   // Shift to get actual object count.
   CONTAINER_TAG_GC_SHIFT     = 6,
+
   CONTAINER_TAG_GC_INCREMENT = 1 << CONTAINER_TAG_GC_SHIFT,
   // Color mask of a container.
   CONTAINER_TAG_COLOR_SHIFT   = 3,
@@ -68,7 +70,7 @@ typedef enum {
 } ContainerTag;
 
 typedef enum {
-  // Must match to permTag() in Kotlin.
+  // Must match to permanentTag() in Kotlin.
   OBJECT_TAG_PERMANENT_CONTAINER = 1 << 0,
   OBJECT_TAG_NONTRIVIAL_CONTAINER = 1 << 1,
   // Keep in sync with immTypeInfoMask in Kotlin.
@@ -119,24 +121,16 @@ struct ContainerHeader {
 
   template <bool Atomic>
   inline void incRefCount() {
-#ifdef KONAN_NO_THREADS
-    refCount_ += CONTAINER_TAG_INCREMENT;
-#else
     if (Atomic)
-      __sync_add_and_fetch(&refCount_, CONTAINER_TAG_INCREMENT);
+      atomicAdd(&refCount_, static_cast<uint32_t>(CONTAINER_TAG_INCREMENT));
     else
       refCount_ += CONTAINER_TAG_INCREMENT;
-#endif
   }
 
   template <bool Atomic>
   inline int decRefCount() {
-#ifdef KONAN_NO_THREADS
-    int value = refCount_ -= CONTAINER_TAG_INCREMENT;
-#else
     int value = Atomic ?
-       __sync_sub_and_fetch(&refCount_, CONTAINER_TAG_INCREMENT) : refCount_ -= CONTAINER_TAG_INCREMENT;
-#endif
+        atomicSub(&refCount_, static_cast<uint32_t>(CONTAINER_TAG_INCREMENT)) : refCount_ -= CONTAINER_TAG_INCREMENT;
     return value >> CONTAINER_TAG_SHIFT;
   }
 

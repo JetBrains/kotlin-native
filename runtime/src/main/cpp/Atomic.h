@@ -13,6 +13,33 @@ ALWAYS_INLINE inline T atomicAdd(volatile T* where, T what) {
 }
 
 template <typename T>
+ALWAYS_INLINE inline T atomicSub(volatile T* where, T what) {
+#ifndef KONAN_NO_THREADS
+  return __sync_sub_and_fetch(where, what);
+#else
+  return *where -= what;
+#endif
+}
+
+template <typename T>
+ALWAYS_INLINE inline T atomicOr(volatile T* where, T what) {
+#ifndef KONAN_NO_THREADS
+  return __sync_or_and_fetch(where, what);
+#else
+  return *where |= what;
+#endif
+}
+
+template <typename T>
+ALWAYS_INLINE inline T atomicAnd(volatile T* where, T what) {
+#ifndef KONAN_NO_THREADS
+  return __sync_and_and_fetch(where, what);
+#else
+  return *where &= what;
+#endif
+}
+
+template <typename T>
 ALWAYS_INLINE inline T compareAndSwap(volatile T* where, T expectedValue, T newValue) {
 #ifndef KONAN_NO_THREADS
   return __sync_val_compare_and_swap(where, expectedValue, newValue);

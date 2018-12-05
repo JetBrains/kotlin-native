@@ -1103,7 +1103,7 @@ KInt Kotlin_String_lastIndexOfChar(KString thiz, KChar ch, KInt fromIndex) {
   return -1;
 }
 
-// TODO: or code up Knuth-Moris-Pratt.
+// TODO: or Knuth-Morris-Pratt.
 KInt Kotlin_String_indexOfString(KString thiz, KString other, KInt fromIndex) {
   if (fromIndex < 0) {
     fromIndex = 0;
@@ -1160,7 +1160,7 @@ KInt Kotlin_String_lastIndexOfString(KString thiz, KString other, KInt fromIndex
 }
 
 KInt Kotlin_String_hashCode(KString thiz) {
-  // TODO: consider caching strings hashes.
+  // TODO: consider caching strings hashes in meta object.
   // TODO: maybe use some simpler hashing algorithm?
   // Note that we don't use Java's string hash.
   return CityHash64(
