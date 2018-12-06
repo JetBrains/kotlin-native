@@ -73,6 +73,9 @@ internal class InteropBuiltIns(builtIns: KonanBuiltIns) {
 
     val executeImplFunction = concurrentPackageScope.getContributedFunctions("executeImpl").single()
 
+    val setFutureProcessorInternalFunction =
+            concurrentPackageScope.getContributedFunctions("setFutureProcessorInternal").single()
+
     private fun KonanBuiltIns.getUnsignedClass(unsignedType: UnsignedType): ClassDescriptor =
             this.builtInsModule.findClassAcrossModuleDependencies(unsignedType.classId)!!
 

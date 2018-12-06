@@ -12,11 +12,14 @@ import kotlinx.cinterop.*
 // Implementation details.
 
 @SymbolName("Kotlin_Worker_stateOfFuture")
-external internal fun stateOfFuture(id: Int): Int
+external internal fun stateOfFuture(futureId: Int): Int
 
 @SymbolName("Kotlin_Worker_consumeFuture")
 @PublishedApi
-external internal fun consumeFuture(id: Int): Any?
+external internal fun consumeFuture(futureId: Int): Any?
+
+@SymbolName("Kotlin_Worker_discardInternal")
+internal external fun discardInternal(futureId: Int): Unit
 
 @SymbolName("Kotlin_Worker_waitForAnyFuture")
 external internal fun waitForAnyFuture(versionToken: Int, millis: Int): Boolean
@@ -36,11 +39,14 @@ external internal fun startInternal(errorReporting: Boolean): Int
 external internal fun currentInternal(): Int
 
 @SymbolName("Kotlin_Worker_requestTerminationWorkerInternal")
-external internal fun requestTerminationInternal(id: Int, processScheduledJobs: Boolean): Int
+external internal fun requestTerminationInternal(workerId: Int, processScheduledJobs: Boolean): Int
 
 @SymbolName("Kotlin_Worker_executeInternal")
 external internal fun executeInternal(
         id: Int, mode: Int, producer: () -> Any?, job: CPointer<CFunction<*>>): Int
+
+@SymbolName("Kotlin_Worker_setFutureProcessorInternal")
+external internal fun setFutureProcessorInternal(id: Worker, processor: CPointer<CFunction<*>>): Unit
 
 @ExportForCppRuntime
 internal fun ThrowWorkerUnsupported(): Unit =

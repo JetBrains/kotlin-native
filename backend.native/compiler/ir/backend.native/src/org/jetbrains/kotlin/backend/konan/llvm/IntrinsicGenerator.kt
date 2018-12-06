@@ -80,7 +80,8 @@ internal enum class IntrinsicType {
     INTEROP_FUNPTR_INVOKE,
     INTEROP_MEMORY_COPY,
     // Worker
-    WORKER_EXECUTE
+    WORKER_EXECUTE,
+    SET_FUTURE_PROCESSOR
 }
 
 // Explicit and single interface between Intrinsic Generator and IrToBitcode.
@@ -228,7 +229,8 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
                 IntrinsicType.INTEROP_STATIC_C_FUNCTION,
                 IntrinsicType.INTEROP_FUNPTR_INVOKE,
                 IntrinsicType.INTEROP_CONVERT,
-                IntrinsicType.WORKER_EXECUTE ->
+                IntrinsicType.WORKER_EXECUTE,
+                IntrinsicType.SET_FUTURE_PROCESSOR ->
                     reportNonLoweredIntrinsic(intrinsicType)
                 IntrinsicType.INIT_INSTANCE,
                 IntrinsicType.OBJC_INIT_BY,

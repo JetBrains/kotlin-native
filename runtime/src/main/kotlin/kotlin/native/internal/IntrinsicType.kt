@@ -74,5 +74,6 @@ class IntrinsicType {
 
         // Worker
         const val WORKER_EXECUTE                = "WORKER_EXECUTE"
+        const val SET_FUTURE_PROCESSOR          = "SET_FUTURE_PROCESSOR"
     }
 }

@@ -53,11 +53,25 @@ public inline class Future<T> @PublishedApi internal constructor(val id: Int) {
         }
 
     /**
+     * Notify given worker about this future's state change. Use [Worker.setFutureProcessor] to set custom listener.
+     */
+    @SymbolName("Konan_Worker_setFutureSubscriber")
+    external public fun setFutureSubscriber(worker: Worker)
+
+    /**
      * The result of the future computation.
      * Blocks execution until the future is ready. Second attempt to get will result in an error.
      */
     public val result: T
             get() = consume { it -> it }
+
+    /**
+     * Discard the future result without cancelling it. Important when send an request to worker but do not
+     * care about resul.
+     */
+    public fun discard(): Unit {
+        discardInternal(id)
+    }
 
     /**
      * A [FutureState] of this future

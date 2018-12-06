@@ -259,6 +259,9 @@ internal class KonanSymbols(context: Context, val symbolTable: SymbolTable, val 
 
     val executeImpl = symbolTable.referenceSimpleFunction(context.interopBuiltIns.executeImplFunction)
 
+    val setFutureProcessorInternal =
+            symbolTable.referenceSimpleFunction(context.interopBuiltIns.setFutureProcessorInternalFunction)
+
     val areEqualByValue = context.getInternalFunctions("areEqualByValue").map {
         symbolTable.referenceSimpleFunction(it)
     }.associateBy { it.descriptor.valueParameters[0].type.computePrimitiveBinaryTypeOrNull()!! }

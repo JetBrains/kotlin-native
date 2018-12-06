@@ -56,7 +56,13 @@ enum {
 
 enum {
   CHECKED = 0,
-  UNCHECKED = 1
+  UNCHECKED = 1,
+};
+
+enum JobKind {
+  JOB_REGULAR = 1,
+  JOB_TERMINATE,
+  JOB_FUTURE_PING
 };
 
 THREAD_LOCAL_VARIABLE KInt g_currentWorkerId = 0;
@@ -97,8 +103,18 @@ class Future {
   }
 
   ~Future() {
+    clear();
     pthread_mutex_destroy(&lock_);
     pthread_cond_destroy(&cond_);
+  }
+
+  void clear() {
+    Locker locker(&lock_);
+    if (result_ != nullptr) {
+      // No one cared to consume result - dispose it.
+      DisposeStablePointer(result_);
+      result_ = nullptr;
+    }
   }
 
   OBJ_GETTER0(consumeResultUnlocked) {
@@ -122,6 +138,8 @@ class Future {
   KInt state() const { return state_; }
   KInt id() const { return id_; }
 
+  void setFutureSubscriber(KInt workerId) { subscriberWorkerId_ = workerId; }
+
  private:
   // State of future execution.
   KInt state_;
@@ -132,13 +150,26 @@ class Future {
   // Lock and condition for waiting on the future.
   pthread_mutex_t lock_;
   pthread_cond_t cond_;
+  // Worker to ping on completion.
+  KInt subscriberWorkerId_;
 };
 
 struct Job {
-  KRef (*function)(KRef, ObjHeader**);
-  KNativePtr argument;
-  Future* future;
-  KInt transferMode;
+  enum JobKind kind;
+  union {
+    struct {
+      KRef (*function)(KRef, ObjHeader**);
+      KNativePtr argument;
+      Future* future;
+      KInt transferMode;
+    } regularJob;
+    struct {
+      Future* future;
+    } terminationRequest;
+    struct {
+      KInt futureId;
+    } futureNotification;
+  };
 };
 
 class Worker {
@@ -146,15 +177,28 @@ class Worker {
   Worker(KInt id, bool errorReporting) : id_(id), errorReporting_(errorReporting) {
     pthread_mutex_init(&lock_, nullptr);
     pthread_cond_init(&cond_, nullptr);
+    futureProcessor_ = nullptr;
   }
 
   ~Worker() {
-    // Cleanup jobs in queue.
+    // Cleanup jobs in the queue.
     for (auto job : queue_) {
-      DisposeStablePointer(job.argument);
-      job.future->cancelUnlocked();
+      switch (job.kind) {
+        case JOB_REGULAR:
+         DisposeStablePointer(job.regularJob.argument);
+         job.regularJob.future->cancelUnlocked();
+         break;
+        case JOB_FUTURE_PING: {
+          // TODO: what do we do here? Shall we notify one who care?
+          break;
+        }
+        case JOB_TERMINATE: {
+          // TODO: any more processing here?
+          job.terminationRequest.future->cancelUnlocked();
+          break;
+        }
+      }
     }
-
     pthread_mutex_destroy(&lock_);
     pthread_cond_destroy(&cond_);
   }
@@ -182,13 +226,26 @@ class Worker {
 
   bool errorReporting() const { return errorReporting_; }
 
+  void setFutureProcessor(void (*futureProcessor)(KInt)) {
+    futureProcessor_ = futureProcessor;
+  }
+
+  void notifyFuture(KInt futureId) {
+    if (futureProcessor_ != nullptr) {
+        futureProcessor_(futureId);
+    }
+  }
+
  private:
   KInt id_;
   KStdDeque<Job> queue_;
   // Lock and condition for waiting on the queue.
   pthread_mutex_t lock_;
   pthread_cond_t cond_;
+  // If errors to be reported on console.
   bool errorReporting_;
+  // Listener for future completion notifications.
+  void (*futureProcessor_)(KInt future);
 };
 
 class State {
@@ -239,21 +296,65 @@ class State {
     }
 
     Job job;
-    job.function = reinterpret_cast<KRef (*)(KRef, ObjHeader**)>(jobFunction);
-    job.argument = jobArgument;
-    job.future = future;
-    job.transferMode = transferMode;
-
+    if (jobFunction == nullptr) {
+      job.kind = JOB_TERMINATE;
+      job.terminationRequest.future = future;
+    } else {
+      job.kind = JOB_REGULAR;
+      job.regularJob.function = reinterpret_cast<KRef (*)(KRef, ObjHeader**)>(jobFunction);
+      job.regularJob.argument = jobArgument;
+      job.regularJob.future = future;
+      job.regularJob.transferMode = transferMode;
+    }
     worker->putJob(job, toFront);
 
     return future;
   }
 
-  KInt stateOfFutureUnlocked(KInt id) {
+  void sendFutureNotificationUnlocked(KInt workerId, KInt futureId) {
+      Worker* worker = nullptr;
+      {
+        Locker locker(&lock_);
+
+        auto it = workers_.find(workerId);
+        if (it == workers_.end()) return;
+        worker = it->second;
+      }
+
+      Job job;
+      job.kind = JOB_FUTURE_PING;
+      job.futureNotification.futureId = futureId;
+
+      worker->putJob(job, false);
+    }
+
+  void setFutureProcessorUnlocked(KInt workerId, KNativePtr processor) {
+      Locker locker(&lock_);
+      auto it = workers_.find(workerId);
+      if (it == workers_.end()) return;
+      it->second->setFutureProcessor(reinterpret_cast<void (*)(KInt)>(processor));
+    }
+
+  KInt stateOfFutureUnlocked(KInt futureId) {
     Locker locker(&lock_);
-    auto it = futures_.find(id);
+    auto it = futures_.find(futureId);
     if (it == futures_.end()) return INVALID;
     return it->second->state();
+  }
+
+  void setFutureSubscriber(KInt futureId, KInt workerId) {
+    bool shallSignal = false;
+    {
+      Locker locker(&lock_);
+      auto it = futures_.find(futureId);
+      if (it == futures_.end()) return;
+      auto* future = it->second;
+      future->setFutureSubscriber(workerId);
+      if (future->state() != SCHEDULED)
+        shallSignal = true;
+    }
+    if (shallSignal)
+      sendFutureNotificationUnlocked(workerId, futureId);
   }
 
   OBJ_GETTER(consumeFutureUnlocked, KInt id) {
@@ -275,8 +376,19 @@ class State {
          konanDestructInstance(future);
        }
     }
-
     return result;
+  }
+
+  void discardFutureUnlocked(KInt futureId) {
+    Locker locker(&lock_);
+    auto it = futures_.find(futureId);
+    if (it == futures_.end()) return;
+    auto* future = it->second;
+    // TODO: more carefully dispose potentially save state.
+    futures_.erase(it);
+    // TODO : potential leak.
+    future->clear();
+    //konanDestructInstance(future);
   }
 
   KBoolean waitForAnyFuture(KInt version, KInt millis) {
@@ -352,6 +464,8 @@ void Future::storeResultUnlocked(KNativePtr result, bool ok) {
     // some notifications are missing.
     pthread_cond_signal(&cond_);
   }
+  if (subscriberWorkerId_ != 0)
+    theState()->sendFutureNotificationUnlocked(subscriberWorkerId_, id());
   theState()->signalAnyFuture();
 }
 
@@ -376,14 +490,19 @@ void* workerRoutine(void* argument) {
 
   while (true) {
     Job job = worker->getJob();
-    if (job.function == nullptr) {
+    if (job.kind == JOB_TERMINATE) {
        // Termination request, notify the future.
-      job.future->storeResultUnlocked(nullptr, true);
+      job.terminationRequest.future->storeResultUnlocked(nullptr, true);
       theState()->removeWorkerUnlocked(worker->id());
       break;
     }
+    if (job.kind == JOB_FUTURE_PING) {
+      worker->notifyFuture(job.futureNotification.futureId);
+      continue;
+    }
+    RuntimeAssert(job.kind == JOB_REGULAR, "Must be of known kind");
     ObjHolder argumentHolder;
-    KRef argument = AdoptStablePointer(job.argument, argumentHolder.slot());
+    KRef argument = AdoptStablePointer(job.regularJob.argument, argumentHolder.slot());
     // Note that this is a bit hacky, as we must not auto-release resultRef,
     // so we don't use ObjHolder.
     // It is so, as ownership is transferred.
@@ -391,17 +510,17 @@ void* workerRoutine(void* argument) {
     KNativePtr result = nullptr;
     bool ok = true;
     try {
-        job.function(argument, &resultRef);
+        job.regularJob.function(argument, &resultRef);
         argumentHolder.clear();
         // Transfer the result.
-        result = transfer(resultRef, job.transferMode);
+        result = transfer(resultRef, job.regularJob.transferMode);
     } catch (ObjHolder& e) {
         ok = false;
         if (worker->errorReporting())
             ReportUnhandledException(e.obj());
     }
     // Notify the future.
-    job.future->storeResultUnlocked(result, ok);
+    job.regularJob.future->storeResultUnlocked(result, ok);
   }
 
   Kotlin_deinitRuntimeIfNeeded();
@@ -424,7 +543,6 @@ KInt currentWorker() {
 }
 
 KInt schedule(KInt id, KInt transferMode, KRef producer, KNativePtr jobFunction) {
-  Job job;
   // Note that this is a bit hacky, as we must not auto-release jobArgumentRef,
   // so we don't use ObjHolder.
   KRef jobArgumentRef = nullptr;
@@ -435,12 +553,24 @@ KInt schedule(KInt id, KInt transferMode, KRef producer, KNativePtr jobFunction)
   return future->id();
 }
 
-KInt stateOfFuture(KInt id) {
-  return theState()->stateOfFutureUnlocked(id);
+void setFutureProcessorInternal(KInt workerId, KNativePtr processor) {
+  theState()->setFutureProcessorUnlocked(workerId, processor);
 }
 
-OBJ_GETTER(consumeFuture, KInt id) {
-  RETURN_RESULT_OF(theState()->consumeFutureUnlocked, id);
+void setFutureSubscriberInternal(KInt futureId, KInt workerId) {
+   theState()->setFutureSubscriber(futureId, workerId);
+}
+
+KInt stateOfFuture(KInt futureId) {
+  return theState()->stateOfFutureUnlocked(futureId);
+}
+
+OBJ_GETTER(consumeFuture, KInt futureId) {
+  RETURN_RESULT_OF(theState()->consumeFutureUnlocked, futureId);
+}
+
+void discardFuture(KInt futureId) {
+  return theState()->discardFutureUnlocked(futureId);
 }
 
 KInt requestTermination(KInt id, KBoolean processScheduledJobs) {
@@ -478,12 +608,16 @@ KInt startWorker(KBoolean errorReporting) {
   return -1;
 }
 
-KInt stateOfFuture(KInt id) {
+KInt stateOfFuture(KInt futureId) {
   ThrowWorkerUnsupported();
   return 0;
 }
 
-KInt schedule(KInt id, KInt transferMode, KRef producer, KNativePtr jobFunction) {
+void discardFuture(KInt futureId) {
+  ThrowWorkerUnsupported();
+}
+
+KInt schedule(KInt workerId, KInt transferMode, KRef producer, KNativePtr jobFunction) {
   ThrowWorkerUnsupported();
   return 0;
 }
@@ -491,6 +625,14 @@ KInt schedule(KInt id, KInt transferMode, KRef producer, KNativePtr jobFunction)
 KInt currentWorker() {
   ThrowWorkerUnsupported();
   return 0;
+}
+
+void setFutureProcessorInternal(KInt id, KNativePtr processor) {
+  ThrowWorkerUnsupported();
+}
+
+void setFutureSubscriberInternal(KInt futureId, KInt workerId) {
+  ThrowWorkerUnsupported();
 }
 
 OBJ_GETTER(consumeFuture, KInt id) {
@@ -541,16 +683,28 @@ KInt Kotlin_Worker_requestTerminationWorkerInternal(KInt id, KBoolean processSch
     return requestTermination(id, processScheduledJobs);
 }
 
-KInt Kotlin_Worker_executeInternal(KInt id, KInt transferMode, KRef producer, KNativePtr job) {
-  return schedule(id, transferMode, producer, job);
+KInt Kotlin_Worker_executeInternal(KInt workerId, KInt transferMode, KRef producer, KNativePtr job) {
+  return schedule(workerId, transferMode, producer, job);
 }
 
-KInt Kotlin_Worker_stateOfFuture(KInt id) {
-  return stateOfFuture(id);
+void Kotlin_Worker_setFutureProcessorInternal(KInt workerId, KNativePtr processor) {
+  setFutureProcessorInternal(workerId, processor);
 }
 
-OBJ_GETTER(Kotlin_Worker_consumeFuture, KInt id) {
-  RETURN_RESULT_OF(consumeFuture, id);
+void Konan_Worker_setFutureSubscriber(KInt futureId, KInt workerId) {
+  setFutureSubscriberInternal(futureId, workerId);
+}
+
+KInt Kotlin_Worker_stateOfFuture(KInt futureId) {
+  return stateOfFuture(futureId);
+}
+
+OBJ_GETTER(Kotlin_Worker_consumeFuture, KInt futureId) {
+  RETURN_RESULT_OF(consumeFuture, futureId);
+}
+
+void Kotlin_Worker_discardInternal(KInt futureId) {
+  return discardFuture(futureId);
 }
 
 KBoolean Kotlin_Worker_waitForAnyFuture(KInt versionToken, KInt millis) {
