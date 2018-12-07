@@ -9,7 +9,7 @@ package kotlin.test
  * Marks a function as a test.
  */
 @Target(AnnotationTarget.FUNCTION)
-public annotation class Test
+public actual annotation class Test
 
 /**
  * Marks a function to be executed before a suite. Not supported in Kotlin/Common.
@@ -40,7 +40,7 @@ public annotation class AfterEach
  * Marks a test or a suite as ignored.
  */
 @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
-public annotation class Ignore
+public actual annotation class Ignore
 
-public typealias AfterTest = AfterEach
-public typealias BeforeTest = BeforeEach
+public actual typealias AfterTest = AfterEach
+public actual typealias BeforeTest = BeforeEach

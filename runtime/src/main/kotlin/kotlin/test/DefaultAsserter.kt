@@ -8,7 +8,7 @@ package kotlin.test
 /**
  * Default [Asserter] implementation for Kotlin/Native.
  */
-public object DefaultAsserter : Asserter {
+public object DefaultObjectAsserter : Asserter {
     override fun fail(message: String?): Nothing {
         if (message == null)
             throw AssertionError()
