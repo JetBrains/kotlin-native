@@ -205,8 +205,10 @@ internal class TestProcessor (val context: KonanBackendContext) {
                         when {
                             isInner ->
                                 warn("Annotation $annotation is not allowed for methods of an inner class")
-                            isAbstract() ->
-                                warn("Annotation $annotation is not allowed for methods of an abstract class")
+                            isAbstract() -> {
+                                // We cannot create an abstract test class but it's allowed to mark its methods as
+                                // tests because the class can be extended. So skip this case without warnings.
+                            }
                             isCompanionObject ->
                                 warn("Annotation $annotation is not allowed for methods of a companion object")
                             constructors.none { it.valueParameters.size == 0 } ->
