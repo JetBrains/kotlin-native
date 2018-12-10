@@ -22,6 +22,7 @@ import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.resolve.descriptorUtil.getSuperClassOrAny
 import org.jetbrains.kotlin.types.KotlinType
+import org.jetbrains.kotlin.types.typeUtil.isNothing
 import org.jetbrains.kotlin.types.typeUtil.isUnit
 import org.jetbrains.kotlin.util.OperatorNameConventions
 
@@ -737,11 +738,11 @@ private fun ObjCExportCodeGenerator.generateKotlinToObjCBridge(
         val actualReturnType = descriptor.returnType!!
 
         val retVal = when {
-            actualReturnType.isUnit() -> {
+            actualReturnType.isUnit() || actualReturnType.isNothing() -> {
                 genKotlinBaseMethodResult(Lifetime.ARGUMENT, methodBridge.returnBridge)
                 null
             }
-            baseReturnType.isUnit() -> {
+            baseReturnType.isUnit() || baseReturnType.isNothing() -> {
                 genKotlinBaseMethodResult(Lifetime.ARGUMENT, methodBridge.returnBridge)
                 codegen.theUnitInstanceRef.llvm
             }
@@ -962,7 +963,7 @@ private fun ObjCExportCodeGenerator.createTypeAdapter(
 
     when (descriptor.kind) {
         ClassKind.OBJECT -> {
-            classAdapters += if (descriptor.isUnit()) {
+            classAdapters += if (descriptor.isUnit() || descriptor.isNothing()) {
                 createUnitInstanceAdapter()
             } else {
                 createObjectInstanceAdapter(descriptor)
@@ -1056,7 +1057,7 @@ private fun ObjCExportCodeGenerator.createObjectInstanceAdapter(
         descriptor: ClassDescriptor
 ): ObjCExportCodeGenerator.ObjCToKotlinMethodAdapter {
     assert(descriptor.kind == ClassKind.OBJECT)
-    assert(!descriptor.isUnit())
+    assert(!descriptor.isUnit() && !descriptor.isNothing())
 
     val selector = namer.getObjectInstanceSelector(descriptor)
 
