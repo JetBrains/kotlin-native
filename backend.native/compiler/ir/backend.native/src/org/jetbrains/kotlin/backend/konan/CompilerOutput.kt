@@ -19,7 +19,7 @@ val CompilerOutputKind.isNativeBinary: Boolean get() = when (this) {
     CompilerOutputKind.LIBRARY, CompilerOutputKind.BITCODE -> false
 }
 
-internal fun produceOutput(context: Context, phaser: PhaseManager) {
+internal fun produceOutput(context: Context) {
 
     val llvmModule = context.llvmModule!!
     val config = context.config.configuration
@@ -48,13 +48,11 @@ internal fun produceOutput(context: Context, phaser: PhaseManager) {
                 context.config.defaultNativeLibraries + 
                 generatedBitcodeFiles
 
-            phaser.phase(KonanPhase.BITCODE_LINKER) {
-                for (library in nativeLibraries) {
-                    val libraryModule = parseBitcodeFile(library)
-                    val failed = LLVMLinkModules2(llvmModule, libraryModule)
-                    if (failed != 0) {
-                        throw Error("failed to link $library") // TODO: retrieve error message from LLVM.
-                    }
+            for (library in nativeLibraries) {
+                val libraryModule = parseBitcodeFile(library)
+                val failed = LLVMLinkModules2(llvmModule, libraryModule)
+                if (failed != 0) {
+                    throw Error("failed to link $library") // TODO: retrieve error message from LLVM.
                 }
             }
 

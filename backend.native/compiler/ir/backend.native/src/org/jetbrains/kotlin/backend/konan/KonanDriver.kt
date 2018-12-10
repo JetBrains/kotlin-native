@@ -5,7 +5,9 @@
 
 package org.jetbrains.kotlin.backend.konan
 
+import org.jetbrains.kotlin.backend.common.CompilerPhaseManager
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
+import org.jetbrains.kotlin.backend.common.runPhases
 import org.jetbrains.kotlin.backend.konan.ir.KonanSymbols
 import org.jetbrains.kotlin.backend.konan.ir.ModuleIndex
 import org.jetbrains.kotlin.backend.konan.llvm.emitLLVM
@@ -27,84 +29,16 @@ fun runTopLevelPhases(konanConfig: KonanConfig, environment: KotlinCoreEnvironme
         targets.list()
     }
 
-    KonanPhases.config(konanConfig)
+    val context = Context(konanConfig)
+    context.environment = environment
+    context.phases.konanPhasesConfig(konanConfig) // TODO: Wrong place to call it
+
     if (config.get(KonanConfigKeys.LIST_PHASES) ?: false) {
-        KonanPhases.list()
+        context.phases.list()
     }
 
     if (konanConfig.infoArgsOnly) return
 
-    val context = Context(konanConfig)
-
-    val analyzerWithCompilerReport = AnalyzerWithCompilerReport(context.messageCollector,
-            environment.configuration.languageVersionSettings)
-
-    val phaser = PhaseManager(context, null)
-
-    phaser.phase(KonanPhase.FRONTEND) {
-        // Build AST and binding info.
-        analyzerWithCompilerReport.analyzeAndReport(environment.getSourceFiles()) {
-            TopDownAnalyzerFacadeForKonan.analyzeFiles(environment.getSourceFiles(), konanConfig)
-        }
-        if (analyzerWithCompilerReport.hasErrors()) {
-            throw KonanCompilationException()
-        }
-        context.moduleDescriptor = analyzerWithCompilerReport.analysisResult.moduleDescriptor
-    }
-
-    val bindingContext = analyzerWithCompilerReport.analysisResult.bindingContext
-
-    phaser.phase(KonanPhase.PSI_TO_IR) {
-        // Translate AST to high level IR.
-        val translator = Psi2IrTranslator(context.config.configuration.languageVersionSettings,
-                Psi2IrConfiguration(false))
-        val generatorContext = translator.createGeneratorContext(context.moduleDescriptor, bindingContext)
-        @Suppress("DEPRECATION")
-        context.psi2IrGeneratorContext = generatorContext
-
-        val symbols = KonanSymbols(context, generatorContext.symbolTable, generatorContext.symbolTable.lazyWrapper)
-
-        val module = translator.generateModuleFragment(generatorContext, environment.getSourceFiles())
-
-        context.irModule = module
-        context.ir.symbols = symbols
-
-//        validateIrModule(context, module)
-    }
-    phaser.phase(KonanPhase.IR_GENERATOR_PLUGINS) {
-        val extensions = IrGenerationExtension.getInstances(context.config.project)
-        extensions.forEach { extension ->
-            context.irModule!!.files.forEach { irFile -> extension.generate(irFile, context, bindingContext) }
-        }
-    }
-    phaser.phase(KonanPhase.GEN_SYNTHETIC_FIELDS) {
-        markBackingFields(context)
-    }
-    phaser.phase(KonanPhase.SERIALIZER) {
-        val serializer = KonanSerializationUtil(context, context.config.configuration.get(CommonConfigurationKeys.METADATA_VERSION)!!)
-        context.serializedLinkData =
-            serializer.serializeModule(context.moduleDescriptor)
-    }
-    phaser.phase(KonanPhase.BACKEND) {
-        phaser.phase(KonanPhase.LOWER) {
-            KonanLower(context, phaser).lower()
-//            validateIrModule(context, context.ir.irModule) // Temporarily disabled until moving to new IR finished.
-            context.ir.moduleIndexForCodegen = ModuleIndex(context.ir.irModule)
-        }
-        phaser.phase(KonanPhase.BITCODE) {
-            emitLLVM(context, phaser)
-            produceOutput(context, phaser)
-        }
-        // We always verify bitcode to prevent hard to debug bugs.
-        context.verifyBitCode()
-
-        if (context.shouldPrintBitCode()) {
-            context.printBitCode()
-        }
-    }
-
-    phaser.phase(KonanPhase.LINK_STAGE) {
-        LinkStage(context, phaser).linkStage()
-    }
+    CompilerPhaseManager(context, context.phases, Unit, KonanUnitPhaseRunner).runPhases(toplevelPhaseList)
 }
 

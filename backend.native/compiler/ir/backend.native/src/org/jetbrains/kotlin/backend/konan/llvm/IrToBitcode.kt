@@ -7,8 +7,10 @@ package org.jetbrains.kotlin.backend.konan.llvm
 
 import kotlinx.cinterop.*
 import llvm.*
+import org.jetbrains.kotlin.backend.common.CompilerPhaseManager
 import org.jetbrains.kotlin.backend.common.descriptors.allParameters
 import org.jetbrains.kotlin.backend.common.ir.ir2string
+import org.jetbrains.kotlin.backend.common.runPhases
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.backend.konan.ir.*
@@ -38,7 +40,6 @@ import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.resolve.descriptorUtil.classId
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameUnsafe
-import org.jetbrains.kotlin.resolve.hasBackingField
 
 private val threadLocalAnnotationFqName = FqName("kotlin.native.ThreadLocal")
 private val sharedAnnotationFqName = FqName("kotlin.native.SharedImmutable")
@@ -81,90 +82,10 @@ val IrField.isMainOnlyNonPrimitive get() = when  {
         else -> storageClass == FieldStorage.MAIN_THREAD
     }
 
-internal fun emitLLVM(context: Context, phaser: PhaseManager) {
+internal fun emitLLVM(context: Context, parentPhaser: CompilerPhaseManager<Context, *>) {
     val irModule = context.irModule!!
 
-    // Note that we don't set module target explicitly.
-    // It is determined by the target of runtime.bc
-    // (see Llvm class in ContextUtils)
-    // Which in turn is determined by the clang flags
-    // used to compile runtime.bc.
-    val llvmModule = LLVMModuleCreateWithName("out")!! // TODO: dispose
-    context.llvmModule = llvmModule
-    context.debugInfo.builder = DICreateBuilder(llvmModule)
-    context.llvmDeclarations = createLlvmDeclarations(context)
-
-    phaser.phase(KonanPhase.RTTI) {
-        irModule.acceptVoid(RTTIGeneratorVisitor(context))
-    }
-
-    generateDebugInfoHeader(context)
-
-    var moduleDFG: ModuleDFG? = null
-    phaser.phase(KonanPhase.BUILD_DFG) {
-        moduleDFG = ModuleDFGBuilder(context, irModule).build()
-    }
-
-    val lifetimes = mutableMapOf<IrElement, Lifetime>()
-    val codegenVisitor = CodeGeneratorVisitor(context, lifetimes)
-
-    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
-    var externalModulesDFG: ExternalModulesDFG? = null
-    phaser.phase(KonanPhase.DESERIALIZE_DFG) {
-        externalModulesDFG = DFGSerializer.deserialize(context, moduleDFG!!.symbolTable.privateTypeIndex, moduleDFG!!.symbolTable.privateFunIndex)
-    }
-
-    @Suppress("ASSIGNED_BUT_NEVER_ACCESSED_VARIABLE")
-    var devirtualizationAnalysisResult: Devirtualization.AnalysisResult? = null
-    phaser.phase(KonanPhase.DEVIRTUALIZATION) {
-        externalModulesDFG?.let { externalModulesDFG ->
-            devirtualizationAnalysisResult = Devirtualization.run(irModule, context, moduleDFG!!, externalModulesDFG)
-
-            val privateFunctions = moduleDFG!!.symbolTable.getPrivateFunctionsTableForExport()
-            privateFunctions.forEachIndexed { index, it ->
-                val function = codegenVisitor.codegen.llvmFunction(it.first)
-                LLVMAddAlias(
-                        context.llvmModule,
-                        function.type,
-                        function,
-                        irModule.descriptor.privateFunctionSymbolName(index, it.second.name)
-                )!!
-            }
-            context.privateFunctions = privateFunctions
-
-            val privateClasses = moduleDFG!!.symbolTable.getPrivateClassesTableForExport()
-
-            privateClasses.forEachIndexed { index, it ->
-                val typeInfoPtr = codegenVisitor.codegen.typeInfoValue(it.first)
-                LLVMAddAlias(
-                        context.llvmModule,
-                        typeInfoPtr.type,
-                        typeInfoPtr,
-                        irModule.descriptor.privateClassSymbolName(index, it.second.name)
-                )!!
-            }
-            context.privateClasses = privateClasses
-        }
-    }
-
-    phaser.phase(KonanPhase.ESCAPE_ANALYSIS) {
-        externalModulesDFG?.let { externalModulesDFG ->
-            val callGraph = CallGraphBuilder(context, moduleDFG!!, externalModulesDFG, devirtualizationAnalysisResult, false).build()
-            EscapeAnalysis.computeLifetimes(context, moduleDFG!!, externalModulesDFG, callGraph, lifetimes)
-        }
-    }
-
-    phaser.phase(KonanPhase.SERIALIZE_DFG) {
-        DFGSerializer.serialize(context, moduleDFG!!)
-    }
-
-    phaser.phase(KonanPhase.CODEGEN) {
-        irModule.acceptVoid(codegenVisitor)
-    }
-
-    if (context.shouldContainDebugInfo()) {
-        DIFinalize(context.debugInfo.builder)
-    }
+    parentPhaser.createChildManager(irModule, KonanIrModulePhaseRunner).runPhases(bitcodePhaseList)
 }
 
 internal fun verifyModule(llvmModule: LLVMModuleRef, current: String = "") {

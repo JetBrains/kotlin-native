@@ -7,15 +7,20 @@ package org.jetbrains.kotlin.backend.konan
 
 import llvm.LLVMDumpModule
 import llvm.LLVMModuleRef
+import org.jetbrains.kotlin.backend.common.CompilerPhases
 import org.jetbrains.kotlin.backend.common.DumpIrTreeWithDescriptorsVisitor
 import org.jetbrains.kotlin.backend.common.validateIrModule
 import org.jetbrains.kotlin.backend.konan.descriptors.*
+import org.jetbrains.kotlin.backend.konan.ir.DeserializerPhase
 import org.jetbrains.kotlin.backend.konan.ir.KonanIr
 import org.jetbrains.kotlin.backend.konan.library.KonanLibraryWriter
 import org.jetbrains.kotlin.backend.konan.library.LinkData
 import org.jetbrains.kotlin.backend.konan.llvm.*
 import org.jetbrains.kotlin.backend.konan.lower.DECLARATION_ORIGIN_BRIDGE_METHOD
 import org.jetbrains.kotlin.backend.konan.optimizations.DataFlowIR
+import org.jetbrains.kotlin.backend.konan.optimizations.Devirtualization
+import org.jetbrains.kotlin.backend.konan.optimizations.ExternalModulesDFG
+import org.jetbrains.kotlin.backend.konan.optimizations.ModuleDFG
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.descriptors.impl.PropertyDescriptorImpl
@@ -38,11 +43,13 @@ import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.builtins.konan.KonanBuiltIns
+import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.metadata.konan.KonanProtoBuf
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.psi2ir.generators.GeneratorContext
+import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.resolve.scopes.receivers.ImplicitClassReceiver
@@ -261,6 +268,9 @@ internal class SpecialDeclarationsFactory(val context: Context) {
 }
 
 internal class Context(config: KonanConfig) : KonanBackendContext(config) {
+    lateinit var environment: KotlinCoreEnvironment
+    lateinit var bindingContext: BindingContext
+
     override val declarationFactory
         get() = TODO("not implemented")
 
@@ -273,6 +283,17 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     override val builtIns: KonanBuiltIns by lazy(PUBLICATION) {
         moduleDescriptor.builtIns as KonanBuiltIns
     }
+
+    val phaseList = toplevelPhaseList +
+            backendPhaseList +
+            irModulePhaseList +
+            listOf(DeserializerPhase) +
+            irFilePhaseList +
+            bitcodePhaseList +
+            linkPhaseList
+    val phases = CompilerPhases(
+            phaseList, config.configuration, StartToplevelPhase, EndToplevelPhase
+    )
 
     private val packageScope by lazy { builtIns.builtInsModule.getPackage(KonanFqNames.internalPackageName).memberScope }
 
@@ -377,9 +398,6 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     lateinit var bitcodeFileName: String
     lateinit var library: KonanLibraryWriter
 
-    var phase: KonanPhase? = null
-    var depth: Int = 0
-
     lateinit var privateFunctions: List<Pair<IrFunction, DataFlowIR.FunctionSymbol.Declared>>
     lateinit var privateClasses: List<Pair<IrClass, DataFlowIR.Type.Declared>>
 
@@ -398,7 +416,7 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
         // A workaround to check if the lateinit field is assigned, see KT-9327
         try { moduleDescriptor } catch (e: UninitializedPropertyAccessException) { return }
 
-        separator("Descriptors after: ${phase?.description}")
+        separator("Descriptors:")
         moduleDescriptor.deepPrint()
     }
 
@@ -409,19 +427,19 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
 
     fun printIr() {
         if (irModule == null) return
-        separator("IR after: ${phase?.description}")
+        separator("IR:")
         irModule!!.accept(DumpIrTreeVisitor(out), "")
     }
 
     fun printIrWithDescriptors() {
         if (irModule == null) return
-        separator("IR after: ${phase?.description}")
+        separator("IR:")
         irModule!!.accept(DumpIrTreeWithDescriptorsVisitor(out), "")
     }
 
     fun printLocations() {
         if (irModule == null) return
-        separator("Locations after: ${phase?.description}")
+        separator("Locations:")
         irModule!!.acceptVoid(object: IrElementVisitorVoid {
             override fun visitElement(element: IrElement) {
                 element.acceptChildrenVoid(this)
@@ -463,7 +481,7 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
 
     fun printBitCode() {
         if (llvmModule == null) return
-        separator("BitCode after: ${phase?.description}")
+        separator("BitCode:")
         LLVMDumpModule(llvmModule!!)
     }
 
@@ -502,13 +520,19 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
 
     fun shouldOptimize() = config.configuration.getBoolean(KonanConfigKeys.OPTIMIZATION)
 
+    override var inVerbosePhase = false
     override fun log(message: () -> String) {
-        if (phase?.verbose ?: false) {
+        if (inVerbosePhase) {
             println(message())
         }
     }
 
     lateinit var debugInfo: DebugInfo
+    var moduleDFG: ModuleDFG? = null
+    var externalModulesDFG: ExternalModulesDFG? = null
+    lateinit var lifetimes: MutableMap<IrElement, Lifetime>
+    lateinit var codegenVisitor: CodeGeneratorVisitor
+    var devirtualizationAnalysisResult: Devirtualization.AnalysisResult? = null
 
     val isNativeLibrary: Boolean by lazy {
         val kind = config.configuration.get(KonanConfigKeys.PRODUCE)
@@ -517,6 +541,8 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
 
     internal val stdlibModule
         get() = this.builtIns.any.module
+
+    lateinit var linkStage: LinkStage
 }
 
 private fun MemberScope.getContributedClassifier(name: String) =

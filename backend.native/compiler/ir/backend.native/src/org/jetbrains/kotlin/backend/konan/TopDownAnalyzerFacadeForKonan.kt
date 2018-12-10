@@ -28,16 +28,17 @@ import org.jetbrains.kotlin.resolve.lazy.declarations.FileBasedDeclarationProvid
 import org.jetbrains.kotlin.serialization.konan.KonanResolvedModuleDescriptors
 import org.jetbrains.kotlin.storage.StorageManager
 
-object TopDownAnalyzerFacadeForKonan {
+internal object TopDownAnalyzerFacadeForKonan {
 
-    fun analyzeFiles(files: Collection<KtFile>, config: KonanConfig): AnalysisResult {
+    fun analyzeFiles(files: Collection<KtFile>, context: Context): AnalysisResult {
+        val config = context.config
         val moduleName = Name.special("<${config.moduleId}>") 
 
         val projectContext = ProjectContext(config.project)
 
         val module = DefaultDescriptorFactory.createDescriptorAndNewBuiltIns(
                 moduleName, projectContext.storageManager, origin = CurrentKonanModuleOrigin)
-        val context = MutableModuleContextImpl(module, projectContext)
+        val moduleContext = MutableModuleContextImpl(module, projectContext)
 
         val resolvedDependencies = ResolvedDependencies(
                 config.resolvedLibraries,
@@ -51,28 +52,28 @@ object TopDownAnalyzerFacadeForKonan {
             module.setDependencies(dependencies, resolvedDependencies.friends)
         } else {
             assert (resolvedDependencies.moduleDescriptors.resolvedDescriptors.isEmpty())
-            context.setDependencies(module)
+            moduleContext.setDependencies(module)
         }
 
-        return analyzeFilesWithGivenTrace(files, BindingTraceContext(), context, config)
+        return analyzeFilesWithGivenTrace(files, BindingTraceContext(), moduleContext, context)
     }
 
     fun analyzeFilesWithGivenTrace(
             files: Collection<KtFile>,
             trace: BindingTrace,
             moduleContext: ModuleContext,
-            config: KonanConfig
+            context: Context
     ): AnalysisResult {
 
         // we print out each file we compile if frontend phase is verbose
-        files.takeIf { with (KonanPhases) {
-            phases[known(KonanPhase.FRONTEND.visibleName)]!!.verbose
-        }} ?.forEach(::println)
+        files.takeIf {
+            FrontendPhase in context.phases.verbose
+        } ?.forEach(::println)
 
         val analyzerForKonan = createTopDownAnalyzerForKonan(
                 moduleContext, trace,
                 FileBasedDeclarationProviderFactory(moduleContext.storageManager, files),
-                config.configuration.get(CommonConfigurationKeys.LANGUAGE_VERSION_SETTINGS)!!
+                context.config.configuration.get(CommonConfigurationKeys.LANGUAGE_VERSION_SETTINGS)!!
         )
 
         analyzerForKonan.analyzeDeclarations(TopDownAnalysisMode.TopLevelDeclarations, files)

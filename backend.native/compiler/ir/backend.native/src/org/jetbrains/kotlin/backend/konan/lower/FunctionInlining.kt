@@ -9,7 +9,6 @@ package org.jetbrains.kotlin.backend.konan.lower
 
 import org.jetbrains.kotlin.backend.common.*
 import org.jetbrains.kotlin.backend.common.descriptors.explicitParameters
-import org.jetbrains.kotlin.backend.common.ir.ir2stringWhole
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.descriptors.isFunctionInvoke
@@ -17,7 +16,6 @@ import org.jetbrains.kotlin.backend.konan.descriptors.needsInlining
 import org.jetbrains.kotlin.backend.konan.descriptors.propertyIfAccessor
 import org.jetbrains.kotlin.backend.konan.descriptors.resolveFakeOverride
 import org.jetbrains.kotlin.backend.konan.ir.DeserializerDriver
-import org.jetbrains.kotlin.backend.konan.irasdescriptors.constructedClass
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.IrElement
@@ -116,9 +114,9 @@ abstract class IrElementTransformerWithContext<D> : IrElementTransformer<D> {
 
 internal class Ref<T>(var value: T)
 
-internal class FunctionInlining(val context: Context): IrElementTransformerWithContext<Ref<Boolean>>() {
+internal class FunctionInlining(val context: Context, parentPhaseManager: CompilerPhaseManager<Context, *>): IrElementTransformerWithContext<Ref<Boolean>>() {
 
-    private val deserializer = DeserializerDriver(context)
+    private val deserializer = DeserializerDriver(context, parentPhaseManager)
     private val globalSubstituteMap = mutableMapOf<DeclarationDescriptor, SubstitutedDescriptor>()
     private val inlineFunctions = mutableMapOf<FunctionDescriptor, Boolean>()
 
