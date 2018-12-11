@@ -26,6 +26,11 @@ import org.jetbrains.kotlin.types.typeUtil.isNothing
 import org.jetbrains.kotlin.types.typeUtil.isUnit
 import org.jetbrains.kotlin.util.OperatorNameConventions
 
+internal fun TypeBridge.makeNothing() = when (this) {
+    is ReferenceBridge -> kNullInt8Ptr
+    is ValueTypeBridge -> LLVMConstNull(this.objCValueType.llvmType)!!
+}
+
 internal class ObjCExportCodeGenerator(
         codegen: CodeGenerator,
         val namer: ObjCExportNamerImpl,
@@ -115,7 +120,7 @@ internal class ObjCExportCodeGenerator(
             value: LLVMValueRef,
             typeBridge: TypeBridge
     ): LLVMValueRef = when {
-            LLVMTypeOf(value) == voidType -> kNullInt8Ptr
+            LLVMTypeOf(value) == voidType -> typeBridge.makeNothing()
             typeBridge is ReferenceBridge -> kotlinReferenceToObjC(value)
             typeBridge is ValueTypeBridge -> kotlinToObjC(value, typeBridge.objCValueType)
             else -> TODO()
@@ -960,7 +965,7 @@ private fun ObjCExportCodeGenerator.createTypeAdapter(
 
     when (descriptor.kind) {
         ClassKind.OBJECT -> {
-            classAdapters += if (descriptor.isUnit() || descriptor.isNothing()) {
+            classAdapters += if (descriptor.isUnit()) {
                 createUnitInstanceAdapter()
             } else {
                 createObjectInstanceAdapter(descriptor)
@@ -972,7 +977,8 @@ private fun ObjCExportCodeGenerator.createTypeAdapter(
             }
         }
         else -> {
-            // Nothing special.
+            if (descriptor.isNothing())
+                classAdapters += createUnitInstanceAdapter()
         }
     }
 
@@ -1054,7 +1060,7 @@ private fun ObjCExportCodeGenerator.createObjectInstanceAdapter(
         descriptor: ClassDescriptor
 ): ObjCExportCodeGenerator.ObjCToKotlinMethodAdapter {
     assert(descriptor.kind == ClassKind.OBJECT)
-    assert(!descriptor.isUnit() && !descriptor.isNothing())
+    assert(!descriptor.isUnit())
 
     val selector = namer.getObjectInstanceSelector(descriptor)
 
