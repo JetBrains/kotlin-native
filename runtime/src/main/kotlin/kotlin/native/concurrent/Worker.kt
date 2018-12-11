@@ -31,12 +31,15 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
          * Start new scheduling primitive, such as thread, to accept new tasks via `execute` interface.
          * Typically new worker may be needed for computations offload to another core, for IO it may be
          * better to use non-blocking IO combined with more lightweight coroutines.
+         *
+         * @param errorReporting controls if an uncaught exceptions in the worker will be printed out
          */
         public fun start(errorReporting: Boolean = true): Worker = Worker(startInternal(errorReporting))
 
         /**
-         * Return current worker, if known, null otherwise, for example, in the main thread or in platform
-         * thread without an associated worker.
+         * Return the current worker, if known, null otherwise. null value will be returned in the main thread
+         * or platform thread without an associated worker, non-null - if called inside worker started with
+         * [Worker.start].
          */
         public val current: Worker? get() {
             val id = currentInternal()
