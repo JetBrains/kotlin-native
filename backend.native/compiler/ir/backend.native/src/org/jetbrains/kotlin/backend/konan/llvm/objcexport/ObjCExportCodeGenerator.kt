@@ -114,16 +114,19 @@ internal class ObjCExportCodeGenerator(
     fun FunctionGenerationContext.kotlinToObjC(
             value: LLVMValueRef,
             typeBridge: TypeBridge
-    ): LLVMValueRef = when (typeBridge) {
-        is ReferenceBridge -> kotlinReferenceToObjC(value)
-        is ValueTypeBridge -> kotlinToObjC(value, typeBridge.objCValueType)
-    }
+    ): LLVMValueRef = when {
+            LLVMTypeOf(value) == voidType -> kNullInt8Ptr
+            typeBridge is ReferenceBridge -> kotlinReferenceToObjC(value)
+            typeBridge is ValueTypeBridge -> kotlinToObjC(value, typeBridge.objCValueType)
+            else -> TODO()
+        }
 
     fun FunctionGenerationContext.objCToKotlin(
             value: LLVMValueRef,
             typeBridge: TypeBridge,
             resultLifetime: Lifetime
     ): LLVMValueRef = when (typeBridge) {
+        // TODO: if we add value type check here, we could bridge on Unit better.
         is ReferenceBridge -> objCReferenceToKotlin(value, resultLifetime)
         is ValueTypeBridge -> objCToKotlin(value, typeBridge.objCValueType)
     }
@@ -609,7 +612,6 @@ private fun ObjCExportCodeGenerator.generateObjCImp(
     }
 
     ret(genReturnValueOnSuccess(returnType))
-
 }
 
 private fun ObjCExportCodeGenerator.generateObjCImpForArrayConstructor(
@@ -920,13 +922,8 @@ private fun ObjCExportCodeGenerator.createTypeAdapter(
 
         } else {
             // Mark it as non-overridable:
-            baseMethods.distinctBy { namer.getSelector(it) }.forEach { base ->
-                reverseAdapters += KotlinToObjCMethodAdapter(
-                        namer.getSelector(base),
-                        -1,
-                        -1,
-                        NullPointer(int8Type)
-                )
+            baseMethods.distinctBy { namer.getSelector(it) }.forEach { baseMethod ->
+                reverseAdapters += createReverseAdapter(method, baseMethod, context.ir.get(baseMethod).functionName, -1)
             }
 
             // TODO: some fake-overrides can be skipped.
