@@ -88,7 +88,8 @@ konanArtifacts {
         }
         srcDir 'testLibrary'
     }
-    library('baseTestClass') {
+    def target = project.testTarget ?: 'host'
+    library('baseTestClass', targets: [target]) {
         if (!useCustomDist) {
             dependsOn ':dist'
         }
@@ -2767,8 +2768,9 @@ task testing_custom_main(type: RunStandaloneKonanTest) {
 }
 
 task testing_library_usage(type: RunStandaloneKonanTest) {
-    dependsOn compileKonanBaseTestClassHost
-    def klib = konanArtifacts.baseTestClass.getArtifactByTarget('host')
+    def target = project.testTarget ?: 'host'
+    dependsOn konanArtifacts.baseTestClass.getByTarget(target)
+    def klib = konanArtifacts.baseTestClass.getArtifactByTarget(target)
     source = 'testing/library_user.kt'
     flags = ['-tr', '-e', 'main', '-l', klib.absolutePath]
     arguments = ['--ktest_logger=SILENT']
