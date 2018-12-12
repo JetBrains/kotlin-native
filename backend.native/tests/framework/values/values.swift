@@ -280,29 +280,25 @@ func testExceptions() throws {
     let bridge = Bridge()
     do {
         try bridge.foo1()
-    } catch let error {
-        let kotlinException = error._userInfo?.value(forKey: "KotlinException")
-        try assertTrue(kotlinException is MyException)
+    } catch let error as NSError {
+        try assertTrue(error.kotlinException is MyException)
     }
     do {
         var result: Int32 = 0
         try bridge.foo2(result: &result)
-    } catch let error {
-        let kotlinException = error._userInfo?.value(forKey: "KotlinException")
-        try assertTrue(kotlinException is MyException)
+    } catch let error as NSError {
+        try assertTrue(error.kotlinException is MyException)
     }
     do {
         try bridge.foo3()
-    } catch let error {
-        let kotlinException = error._userInfo?.value(forKey: "KotlinException")
-        try assertTrue(kotlinException is MyException)
+    } catch let error as NSError {
+        try assertTrue(error.kotlinException is MyException)
     }
     do {
         var result: KotlinNothing? = nil
         try bridge.foo4(result: &result)
-    } catch let error {
-        let kotlinException = error._userInfo?.value(forKey: "KotlinException")
-        try assertTrue(kotlinException is MyException)
+    } catch let error as NSError {
+        try assertTrue(error.kotlinException is MyException)
     }
 }
 

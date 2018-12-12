@@ -978,8 +978,7 @@ private fun ObjCExportCodeGenerator.createTypeAdapter(
             }
         }
         else -> {
-            if (descriptor.isNothing())
-                classAdapters += createUnitInstanceAdapter()
+            // Nothing special.
         }
     }
 
