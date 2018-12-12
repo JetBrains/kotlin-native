@@ -928,7 +928,8 @@ private fun ObjCExportCodeGenerator.createTypeAdapter(
         } else {
             // Mark it as non-overridable:
             baseMethods.distinctBy { namer.getSelector(it) }.forEach { baseMethod ->
-                reverseAdapters += createReverseAdapter(method, baseMethod, context.ir.get(baseMethod).functionName, -1)
+                reverseAdapters += KotlinToObjCMethodAdapter(
+                        namer.getSelector(baseMethod), -1, -1, NullPointer(int8Type))
             }
 
             // TODO: some fake-overrides can be skipped.
