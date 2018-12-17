@@ -16,6 +16,8 @@
 
 package org.jetbrains.ring
 
+import platform.posix.*
+
 //-----------------------------------------------------------------------------//
 
 class Blackhole {
@@ -43,6 +45,22 @@ class Random() {
         fun nextDouble(boundary: Double = 100.0): Double {
             seedDouble = (7.0 * seedDouble + 7.0) % boundary
             return seedDouble
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------//
+
+class FileWriter() {
+    companion object {
+        fun writeToFile(fileName: String, text: String): Unit {
+            val file = fopen(fileName, "wt")
+            if (file == null) throw Error("Cannot write file '$fileName'")
+            try {
+                fputs(text, file)
+            } finally {
+                fclose(file)
+            }
         }
     }
 }

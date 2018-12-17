@@ -16,6 +16,8 @@
 
 package org.jetbrains.ring
 
+import java.io.File
+
 //-----------------------------------------------------------------------------//
 
 class Blackhole {
@@ -41,6 +43,18 @@ class Random() {
         fun nextDouble(boundary: Double = 100.0): Double {
             seedDouble = (7.0 * seedDouble + 7.0) % boundary
             return seedDouble
+        }
+    }
+}
+
+//-----------------------------------------------------------------------------//
+
+class FileWriter() {
+    companion object {
+        fun writeToFile(fileName: String, text: String): Unit {
+            File(fileName).printWriter().use { out ->
+                out.println(text)
+            }
         }
     }
 }
