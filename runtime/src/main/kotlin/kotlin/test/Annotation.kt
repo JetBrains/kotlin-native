@@ -27,14 +27,13 @@ public annotation class AfterClass
  * Marks a function to be executed before a test.
  */
 @Target(AnnotationTarget.FUNCTION)
-public annotation class BeforeEach
-
+public actual annotation class BeforeTest
 
 /**
  * Marks a function to be executed after a test.
  */
 @Target(AnnotationTarget.FUNCTION)
-public annotation class AfterEach
+public actual annotation class AfterTest
 
 /**
  * Marks a test or a suite as ignored.
@@ -42,5 +41,7 @@ public annotation class AfterEach
 @Target(AnnotationTarget.CLASS, AnnotationTarget.FUNCTION)
 public actual annotation class Ignore
 
-public actual typealias AfterTest = AfterEach
-public actual typealias BeforeTest = BeforeEach
+@Deprecated("AfterEach should be replaced with AfterTest to unify usage of kotlin.test")
+public typealias AfterEach = AfterTest
+@Deprecated("BeforeEach should be replaced with BeforeTest to unify usage of kotlin.test")
+public typealias BeforeEach = BeforeTest

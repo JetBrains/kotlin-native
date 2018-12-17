@@ -48,4 +48,4 @@ public actual fun <T : Throwable> assertFailsWith(exceptionClass: KClass<T>, mes
     asserter.fail(msg + "Expected an exception of ${exceptionClass.qualifiedName} to be thrown, but was completed successfully.")
 }
 
-internal actual fun lookupAsserter(): Asserter = DefaultObjectAsserter
+internal actual fun lookupAsserter(): Asserter = DefaultAsserter
