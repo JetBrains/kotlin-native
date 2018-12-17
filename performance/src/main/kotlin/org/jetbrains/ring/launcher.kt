@@ -30,7 +30,7 @@ class Launcher(val numWarmIterations: Int, val numberOfAttempts: Int) {
     val results = mutableMapOf<String, Results>()
     val benchmarkResults = mutableListOf<BenchmarkResult>()
 
-    fun launch(benchmark: () -> Any?, name: String): Unit {                          // If benchmark runs too long - use coeff to speed it up.
+    fun launch(benchmark: () -> Any?, name: String) {                          // If benchmark runs too long - use coeff to speed it up.
         var i = numWarmIterations
 
         while (i-- > 0) benchmark()
@@ -74,7 +74,7 @@ class Launcher(val numWarmIterations: Int, val numberOfAttempts: Int) {
 
     //-------------------------------------------------------------------------//
 
-    fun runBenchmarks(): MutableList<BenchmarkResult> {
+    fun runBenchmarks(): List<BenchmarkResult> {
         runAbstractMethodBenchmark()
         runClassArrayBenchmark()
         runClassBaselineBenchmark()

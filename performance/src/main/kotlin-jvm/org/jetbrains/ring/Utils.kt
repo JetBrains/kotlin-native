@@ -51,7 +51,7 @@ class Random() {
 
 actual class FileWriter() {
     actual companion object {
-        actual fun writeToFile(fileName: String, text: String): Unit {
+        actual fun writeToFile(fileName: String, text: String) {
             File(fileName).printWriter().use { out ->
                 out.println(text)
             }

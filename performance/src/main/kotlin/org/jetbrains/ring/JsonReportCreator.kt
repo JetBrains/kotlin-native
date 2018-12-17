@@ -18,10 +18,9 @@ package org.jetbrains.ring
 
 class JsonReportCreator(val data: Iterable<BenchmarkResult>) {
     fun printJsonReport(jsonReport: String): Unit {
-        val reportText = data.joinToString(prefix = "[", postfix = "]") { it ->
+        val reportText = data.joinToString(prefix = "[", postfix = "]") {
             it.toJson()
         }
         FileWriter.writeToFile(jsonReport, reportText)
     }
 }
-
