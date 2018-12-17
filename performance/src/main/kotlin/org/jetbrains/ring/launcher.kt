@@ -24,34 +24,11 @@ val BENCHMARK_SIZE = 100
 
 //-----------------------------------------------------------------------------//
 
-class Launcher(val numWarmIterations: Int, val numberOfAttempts: Int, val jsonReport: String?) {
+class Launcher(val numWarmIterations: Int, val numberOfAttempts: Int) {
     class Results(val mean: Double, val variance: Double)
 
-    enum class Status(val value: String) {
-        PASSED("PASSED"),
-        FAILED("FAILED")
-    }
-
-    data class BenchmarkResult(val name: String, val status: Status,
-                          val score: Double, val runtimeInUs: Double,
-                          val repeat: Int, val warmup: Int) {
-        override fun toString(): String {
-            return """
-        {
-            "name": "$name",
-            "status": "${status.value}",
-            "score": ${score.toString()},
-            "runtimeInUs": ${runtimeInUs.toString()},
-            "repeat": ${repeat.toString()},
-            "warmup": ${warmup.toString()}
-        }
-        """
-
-        }
-    }
-
     val results = mutableMapOf<String, Results>()
-    val bechmarkResults = mutableListOf<BenchmarkResult>()
+    val benchmarkResults = mutableListOf<BenchmarkResult>()
 
     fun launch(benchmark: () -> Any?, name: String): Unit {                          // If benchmark runs too long - use coeff to speed it up.
         var i = numWarmIterations
@@ -85,7 +62,7 @@ class Launcher(val numWarmIterations: Int, val numberOfAttempts: Int, val jsonRe
             val scaledTime = time * 1.0 / autoEvaluatedNumberOfMeasureIteration
             samples[k] = scaledTime
             // Save benchmark object
-            bechmarkResults.add(BenchmarkResult(name, Status.PASSED,
+            benchmarkResults.add(BenchmarkResult(name, BenchmarkResult.Status.PASSED,
                                 scaledTime / 1000, scaledTime / 1000,
                                 k + 1, numWarmIterations))
         }
@@ -97,7 +74,7 @@ class Launcher(val numWarmIterations: Int, val numberOfAttempts: Int, val jsonRe
 
     //-------------------------------------------------------------------------//
 
-    fun runBenchmarks() {
+    fun runBenchmarks(): MutableList<BenchmarkResult> {
         runAbstractMethodBenchmark()
         runClassArrayBenchmark()
         runClassBaselineBenchmark()
@@ -125,16 +102,7 @@ class Launcher(val numWarmIterations: Int, val numberOfAttempts: Int, val jsonRe
         runOctoTest()
 
         printResultsNormalized()
-        printJsonReport()
-    }
-
-    //-------------------------------------------------------------------------//
-
-    fun printJsonReport():Unit {
-        if (jsonReport != null) {
-            val reportText = bechmarkResults.joinToString(prefix = "[", postfix = "]")
-            FileWriter.writeToFile(jsonReport, reportText)
-        }
+        return benchmarkResults
     }
 
     //-------------------------------------------------------------------------//
