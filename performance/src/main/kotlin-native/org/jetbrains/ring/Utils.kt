@@ -51,15 +51,12 @@ class Random() {
 
 //-----------------------------------------------------------------------------//
 
-actual class FileWriter() {
-    actual companion object {
-        actual fun writeToFile(fileName: String, text: String) {
-            val file = fopen(fileName, "wt") ?: error("Cannot write file '$fileName'")
-            try {
-                fputs(text, file)
-            } finally {
-                fclose(file)
-            }
-        }
+
+actual fun writeToFile(fileName: String, text: String) {
+    val file = fopen(fileName, "wt") ?: error("Cannot write file '$fileName'")
+    try {
+        fputs(text, file)
+    } finally {
+        fclose(file)
     }
 }

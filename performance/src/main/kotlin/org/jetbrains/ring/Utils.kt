@@ -16,9 +16,6 @@
 
 package org.jetbrains.ring
 
-expect class FileWriter {
-    companion object {
-        fun writeToFile(fileName: String, text: String)
-    }
-}
+expect fun writeToFile(fileName: String, text: String)
+
 

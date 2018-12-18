@@ -21,6 +21,6 @@ class JsonReportCreator(val data: Iterable<BenchmarkResult>) {
         val reportText = data.joinToString(prefix = "[", postfix = "]") {
             it.toJson()
         }
-        FileWriter.writeToFile(jsonReport, reportText)
+        writeToFile(jsonReport, reportText)
     }
 }

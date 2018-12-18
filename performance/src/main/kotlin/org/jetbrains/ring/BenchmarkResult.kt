@@ -29,10 +29,10 @@ class BenchmarkResult(val name: String, val status: Status,
         {
             "name": "$name",
             "status": "${status.value}",
-            "score": ${score.toString()},
-            "runtimeInUs": ${runtimeInUs.toString()},
-            "repeat": ${repeat.toString()},
-            "warmup": ${warmup.toString()}
+            "score": ${score},
+            "runtimeInUs": ${runtimeInUs},
+            "repeat": ${repeat},
+            "warmup": ${warmup}
         }
         """
     }
