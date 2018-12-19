@@ -36,7 +36,7 @@ The table below shows how Kotlin concepts are mapped to Swift/Objective-C and vi
 | Primitive type | Primitive type / `NSNumber` | | [note](#nsnumber) |
 | `Unit` return type | `Void` | `void` | |
 | `String` | `String` | `NSString` | |
-| `String` | `NSMutableString` | `NSMutableString` | [note](#nsmutablestring) |
+| `String` | `String` | `NSMutableString` | [note](#nsmutablestring) |
 | `List` | `Array` | `NSArray` | |
 | `MutableList` | `NSMutableArray` | `NSMutableArray` | |
 | `Set` | `Set` | `NSSet` | |
