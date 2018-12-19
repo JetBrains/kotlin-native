@@ -316,10 +316,10 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 evaluateSimpleFunctionCall(function, args, resultLifetime)
 
         override fun evaluateExplicitArgs(expression: IrMemberAccessExpression): List<LLVMValueRef> =
-                evaluateExplicitArgs(expression)
+                this@CodeGeneratorVisitor.evaluateExplicitArgs(expression)
 
         override fun evaluateExpression(value: IrExpression): LLVMValueRef =
-                evaluateExpression(value)
+                this@CodeGeneratorVisitor.evaluateExpression(value)
     }
 
     private val intrinsicGenerator = IntrinsicGenerator(intrinsicGeneratorEnvironment)
@@ -1830,7 +1830,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     private fun evaluateCall(value: IrFunctionAccessExpression): LLVMValueRef {
         context.log{"evaluateCall                   : ${ir2string(value)}"}
 
-        intrinsicGenerator.evaluateSpecialCall(value)?.let { return it }
+        intrinsicGenerator.tryEvaluateSpecialCall(value)?.let { return it }
 
         val args = evaluateExplicitArgs(value)
 
@@ -2088,7 +2088,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                                            else args
         return when {
             function.isTypedIntrinsic -> intrinsicGenerator.evaluateCall(callee, args)
-            function.isIntrinsic -> context.reportCompilationError("Unexpected @Intrinsic function: ${function.name.asString()}")
             function.origin == IrDeclarationOrigin.IR_BUILTINS_STUB -> evaluateOperatorCall(callee, argsWithContinuationIfNeeded)
             function is ConstructorDescriptor -> evaluateConstructorCall(callee, argsWithContinuationIfNeeded)
             else -> evaluateSimpleFunctionCall(function, argsWithContinuationIfNeeded, resultLifetime, callee.superQualifierSymbol?.owner)
