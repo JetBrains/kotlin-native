@@ -47,6 +47,10 @@ OBJ_GETTER(Kotlin_getStackTraceStrings, KConstRef stackTrace) {
   RETURN_RESULT_OF(GetStackTraceStrings, stackTrace);
 }
 
+KLong Kotlin_getImageBase(KNativePtr address) {
+  return static_cast<KLong>(konan::getImageBase(address));
+}
+
 // TODO: consider handling it with compiler magic instead.
 OBJ_GETTER0(Kotlin_native_internal_undefined) {
   RETURN_OBJ(nullptr);

@@ -92,6 +92,9 @@ do {                          \
 } while(0)
 #endif
 
+// Computes program image load base address.
+intptr_t getImageBase(void* address);
+
 }  // namespace konan
 
 #endif  // RUNTIME_PORTING_H

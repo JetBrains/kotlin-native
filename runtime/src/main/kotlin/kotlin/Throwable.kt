@@ -6,6 +6,7 @@
 package kotlin
 
 import kotlin.native.internal.ExportTypeInfo
+import kotlin.native.internal.NativePtr
 import kotlin.native.internal.NativePtrArray
 
 /**
@@ -34,8 +35,13 @@ public open class Throwable(open val message: String?, open val cause: Throwable
     fun printStackTrace() {
         println(this.toString())
 
-        for (element in stackTraceStrings) {
-            println("        at " + element)
+        stackTraceStrings.forEachIndexed {
+            index, element ->
+            val base = getImageBase(stackTrace[index])
+            if (base != 0L)
+                println("        at $element [0x${base.toString(16)}]")
+            else
+                println("        at $element")
         }
 
         this.cause?.printEnclosedStackTrace(this)
@@ -60,3 +66,6 @@ private external fun getCurrentStackTrace(): NativePtrArray
 
 @SymbolName("Kotlin_getStackTraceStrings")
 private external fun getStackTraceStrings(stackTrace: NativePtrArray): Array<String>
+
+@SymbolName("Kotlin_getImageBase")
+private external fun getImageBase(address: NativePtr): Long

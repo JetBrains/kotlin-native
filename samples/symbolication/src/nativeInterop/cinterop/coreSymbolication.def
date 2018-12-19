@@ -1,0 +1,72 @@
+package = CoreSymbolication
+linkerOpts.osx = -F /System/Library/PrivateFrameworks -framework CoreSymbolication
+headerFilter = **
+language=Objective-C
+---
+#include <CoreServices/CoreServices.h>
+#include <mach/mach.h>
+
+typedef struct _CSTypeRef {
+ unsigned long type;
+ void* contents;
+} CSTypeRef;
+
+typedef CSTypeRef CSSymbolicatorRef;
+typedef CSTypeRef CSSymbolOwnerRef;
+typedef CSTypeRef CSSymbolRef;
+typedef CSTypeRef CSSourceInfoRef;
+
+typedef struct _CSRange {
+ unsigned long long location;
+ unsigned long long length;
+} CSRange;
+
+typedef unsigned long long CSArchitecture;
+
+#define kCSNow LONG_MAX
+
+cpu_type_t CSArchitectureGetCurrent();
+
+CSSymbolicatorRef CSSymbolicatorCreateWithPid(pid_t pid);
+
+CSSymbolicatorRef CSSymbolicatorCreateWithPathAndArchitecture(const char* path, cpu_type_t type);
+
+CSSymbolicatorRef CSSymbolicatorCreateWithPidFlagsAndNotification(
+   pid_t pid, uint32_t flags, uint32_t notification);
+
+CSArchitecture CSSymbolicatorGetArchitecture(CSSymbolicatorRef symbolicator);
+
+CSSymbolOwnerRef CSSymbolicatorGetAOutSymbolOwner(CSSymbolicatorRef cs);
+
+CSSymbolOwnerRef CSSymbolicatorGetSymbolOwnerWithNameAtTime(CSSymbolicatorRef symbolicator, const char* name, long time);
+
+CSSymbolOwnerRef CSSymbolicatorGetSymbolOwnerWithAddressAtTime(
+   CSSymbolicatorRef symbolicator, unsigned long long address, long time);
+
+const char* CSSymbolOwnerGetName(CSSymbolOwnerRef owner);
+
+unsigned long long CSSymbolOwnerGetBaseAddress(CSSymbolOwnerRef owner);
+
+CSSymbolRef CSSymbolOwnerGetSymbolWithAddress(CSSymbolOwnerRef owner,
+                                             unsigned long long address);
+
+CSSourceInfoRef CSSymbolOwnerGetSourceInfoWithAddress(
+   CSSymbolOwnerRef owner, unsigned long long address);
+
+const char* CSSymbolGetName(CSSymbolRef symbol);
+
+CSRange CSSymbolGetRange(CSSymbolRef symbol);
+
+const char* CSSourceInfoGetFilename(CSSourceInfoRef info);
+
+uint32_t CSSourceInfoGetLineNumber(CSSourceInfoRef info);
+
+CSTypeRef CSRetain(CSTypeRef);
+
+void CSRelease(CSTypeRef);
+
+bool CSIsNull(CSTypeRef);
+
+void CSShow(CSTypeRef);
+
+const char* CSArchitectureGetFamilyName(CSArchitecture);

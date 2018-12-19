@@ -17,6 +17,9 @@
 #ifdef KONAN_ANDROID
 #include <android/log.h>
 #endif
+#ifdef KONAN_OSX
+#include <dlfcn.h>
+#endif
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -112,7 +115,6 @@ extern "C" int rpl_vsnprintf(char *, size_t, const char *, va_list);
 #define vsnprintf_impl ::vsnprintf
 #endif
 
-
 void consolePrintf(const char* format, ...) {
   char buffer[1024];
   va_list args;
@@ -121,7 +123,6 @@ void consolePrintf(const char* format, ...) {
   va_end(args);
   consoleWriteUtf8(buffer, rv);
 }
-
 
 // Thread execution.
 #if !KONAN_NO_THREADS
@@ -341,6 +342,20 @@ long getpagesize() {
 #endif
 #endif
 
+
+intptr_t getImageBase(void* address) {
+  static uint64_t result = 0;
+  if (result != 0)
+    return result;
+#ifdef KONAN_OSX
+  Dl_info info = { 0 };
+  if (dladdr(address, &info) < 0) return 0;
+  return reinterpret_cast<intptr_t>(info.dli_fbase);
+#else
+  return 0;
+#endif
+}
+
 }  // namespace konan
 
 extern "C" {
@@ -455,4 +470,5 @@ extern "C" {
         while(1) {}
     }
 #endif // KONAN_ZEPHYR
-}
+
+}  // extern "C"

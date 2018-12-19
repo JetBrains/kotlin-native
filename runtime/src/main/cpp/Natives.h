@@ -146,6 +146,8 @@ OBJ_GETTER0(Kotlin_getCurrentStackTrace);
 
 OBJ_GETTER(Kotlin_getStackTraceStrings, KConstRef stackTrace);
 
+KLong Kotlin_getImageBase(KNativePtr address);
+
 OBJ_GETTER0(Kotlin_native_internal_undefined);
 
 void Kotlin_native_internal_GC_suspend(KRef);
