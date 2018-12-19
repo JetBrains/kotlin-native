@@ -3,11 +3,12 @@ package org.jetbrains.kotlin.backend.konan.llvm
 import kotlinx.cinterop.cValuesOf
 import llvm.*
 import org.jetbrains.kotlin.backend.konan.descriptors.TypedIntrinsic
+import org.jetbrains.kotlin.backend.konan.descriptors.isIntrinsic
 import org.jetbrains.kotlin.backend.konan.reportCompilationError
 import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.expressions.IrCall
-import org.jetbrains.kotlin.ir.expressions.IrVararg
-import org.jetbrains.kotlin.ir.expressions.getTypeArgument
+import org.jetbrains.kotlin.ir.declarations.IrConstructor
+import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.name.Name
 
@@ -66,10 +67,28 @@ private enum class IntrinsicType {
     GET_NATIVE_NULL_PTR
 }
 
-internal class IntrinsicGenerator(private val codegen: CodeGenerator,
-                                  private val lifetimeCalculator: (IrElement) -> Lifetime,
-                                  private val continuationProvider: () -> LLVMValueRef,
-                                  private val exceptionHandlerProvider: () -> ExceptionHandler) {
+internal interface IntrinsicGeneratorEnvironment {
+
+    val codegen: CodeGenerator
+
+    val functionGenerationContext: FunctionGenerationContext
+
+    val continuation: LLVMValueRef
+
+    val exceptionHandler: ExceptionHandler
+
+    fun calculateLifetime(element: IrElement): Lifetime
+
+    fun evaluateCall(function: IrFunction, args: List<LLVMValueRef>, resultLifetime: Lifetime): LLVMValueRef
+
+    fun evaluateExplicitArgs(expression: IrMemberAccessExpression): List<LLVMValueRef>
+
+    fun evaluateExpression(value: IrExpression): LLVMValueRef
+}
+
+internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnvironment) {
+
+    private val codegen = environment.codegen
 
     private val context = codegen.context
 
@@ -83,8 +102,47 @@ internal class IntrinsicGenerator(private val codegen: CodeGenerator,
         return IntrinsicType.valueOf(value)
     }
 
-    fun evaluateCall(callSite: IrCall, args: List<LLVMValueRef>, generationContext: FunctionGenerationContext): LLVMValueRef =
-            generationContext.evaluateCall(callSite, args)
+    fun evaluateSpecialCall(expression: IrFunctionAccessExpression): LLVMValueRef? {
+        val function = expression.symbol.owner
+
+        // TODO: Read
+        if (function.isIntrinsic) {
+            when (function.descriptor) {
+                context.interopBuiltIns.objCObjectInitBy -> {
+                    val receiver = environment.evaluateExpression(expression.extensionReceiver!!)
+                    val irConstructorCall = expression.getValueArgument(0) as IrCall
+                    val constructorDescriptor = irConstructorCall.symbol.owner as IrConstructor
+                    val constructorArgs = environment.evaluateExplicitArgs(irConstructorCall)
+                    val args = listOf(receiver) + constructorArgs
+                    environment.evaluateCall(constructorDescriptor, args, Lifetime.IRRELEVANT)
+                    return receiver
+                }
+
+                context.immutableBlobOf -> {
+                    @Suppress("UNCHECKED_CAST")
+                    val arg = expression.getValueArgument(0) as IrConst<String>
+                    return context.llvm.staticData.createImmutableBlob(arg)
+                }
+
+                context.ir.symbols.initInstance.descriptor -> {
+                    val callee = expression as IrCall
+                    val initializer = callee.getValueArgument(1) as IrCall
+                    val thiz = environment.evaluateExpression(callee.getValueArgument(0)!!)
+                    environment.evaluateCall(
+                            initializer.symbol.owner,
+                            listOf(thiz) + environment.evaluateExplicitArgs(initializer),
+                            environment.calculateLifetime(initializer)
+                    )
+                    return codegen.theUnitInstanceRef.llvm
+                }
+            }
+        }
+
+        return null
+    }
+
+    fun evaluateCall(callSite: IrCall, args: List<LLVMValueRef>): LLVMValueRef =
+            environment.functionGenerationContext.evaluateCall(callSite, args)
 
     // Assuming that we checked for `TypedIntrinsic` annotation presence.
     private fun FunctionGenerationContext.evaluateCall(callSite: IrCall, args: List<LLVMValueRef>): LLVMValueRef =
@@ -141,7 +199,7 @@ internal class IntrinsicGenerator(private val codegen: CodeGenerator,
             }
 
     private fun FunctionGenerationContext.emitGetContinuation(): LLVMValueRef =
-            continuationProvider()
+            environment.continuation
 
     private fun FunctionGenerationContext.emitIdentity(args: List<LLVMValueRef>): LLVMValueRef =
             args.single()
@@ -181,7 +239,7 @@ internal class IntrinsicGenerator(private val codegen: CodeGenerator,
         val typeParameterT = context.ir.symbols.createUninitializedInstance.descriptor.typeParameters[0]
         val enumClass = callSite.getTypeArgument(typeParameterT)!!
         val enumIrClass = enumClass.getClass()!!
-        return allocInstance(enumIrClass, lifetimeCalculator(callSite))
+        return allocInstance(enumIrClass, environment.calculateLifetime(callSite))
     }
 
     private fun FunctionGenerationContext.emitGetPointerSize(): LLVMValueRef =
@@ -320,7 +378,7 @@ internal class IntrinsicGenerator(private val codegen: CodeGenerator,
     private fun FunctionGenerationContext.emitGetObjCClass(callSite: IrCall): LLVMValueRef {
         val descriptor = callSite.descriptor.original
         val typeArgument = callSite.getTypeArgument(descriptor.typeParameters.single())
-        return getObjCClass(typeArgument!!.getClass()!!, exceptionHandlerProvider())
+        return getObjCClass(typeArgument!!.getClass()!!, environment.exceptionHandler)
     }
 
     private fun FunctionGenerationContext.emitObjCGetMessenger(args: List<LLVMValueRef>, isStret: Boolean): LLVMValueRef {
@@ -477,7 +535,7 @@ internal class IntrinsicGenerator(private val codegen: CodeGenerator,
     private fun FunctionGenerationContext.emitThrowIfZero(divider: LLVMValueRef) {
         ifThen(icmpEq(divider, Zero(divider.type).llvm)) {
             val throwArithExc = codegen.llvmFunction(context.ir.symbols.throwArithmeticException.owner)
-            call(throwArithExc, emptyList(), Lifetime.GLOBAL, exceptionHandlerProvider())
+            call(throwArithExc, emptyList(), Lifetime.GLOBAL, environment.exceptionHandler)
             unreachable()
         }
     }
