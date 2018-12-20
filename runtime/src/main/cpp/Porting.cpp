@@ -17,9 +17,6 @@
 #ifdef KONAN_ANDROID
 #include <android/log.h>
 #endif
-#ifdef KONAN_OSX
-#include <dlfcn.h>
-#endif
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -326,7 +323,7 @@ void* moreCore(int32_t delta) {
   return (void *) top;
 }
 
-// dlmalloc wants to know the page size.
+// dlmalloc() wants to know the page size.
 long getpagesize() {
     return WASM_PAGESIZE;
 }
@@ -341,17 +338,6 @@ long getpagesize() {
 }
 #endif
 #endif
-
-
-intptr_t getImageBase(void* address) {
-#ifdef KONAN_OSX
-  Dl_info info = { 0 };
-  if (dladdr(address, &info) < 0) return 0;
-  return reinterpret_cast<intptr_t>(info.dli_fbase);
-#else
-  return 0;
-#endif
-}
 
 }  // namespace konan
 

@@ -16,6 +16,11 @@ typedef CSTypeRef CSSymbolOwnerRef;
 typedef CSTypeRef CSSymbolRef;
 typedef CSTypeRef CSSourceInfoRef;
 
+typedef struct {
+  unsigned long long location;
+  unsigned long long length;
+} CSRange;
+
 typedef unsigned long long CSArchitecture;
 
 #define kCSNow LONG_MAX
@@ -36,6 +41,9 @@ CSSymbolOwnerRef CSSymbolicatorGetSymbolOwnerWithAddressAtTime(
 
 CSSymbolOwnerRef CSSymbolicatorGetSymbolOwner(CSSymbolicatorRef cs);
 
+CSSymbolRef CSSymbolicatorGetSymbolWithNameAtTime(
+    CSSymbolicatorRef symbolicator, const char* name, long time);
+
 const char* CSSymbolOwnerGetName(CSSymbolOwnerRef owner);
 
 unsigned long long CSSymbolOwnerGetBaseAddress(CSSymbolOwnerRef owner);
@@ -44,6 +52,10 @@ CSSourceInfoRef CSSymbolOwnerGetSourceInfoWithAddress(
    CSSymbolOwnerRef owner, unsigned long long address);
 
 const char* CSSymbolGetName(CSSymbolRef symbol);
+
+CSRange CSSymbolGetRange(CSSymbolRef symbol);
+
+const char* CSSourceInfoGetPath(CSSourceInfoRef info);
 
 const char* CSSourceInfoGetFilename(CSSourceInfoRef info);
 
@@ -54,7 +66,3 @@ CSTypeRef CSRetain(CSTypeRef);
 void CSRelease(CSTypeRef);
 
 bool CSIsNull(CSTypeRef);
-
-void CSShow(CSTypeRef);
-
-const char* CSArchitectureGetFamilyName(CSArchitecture);
