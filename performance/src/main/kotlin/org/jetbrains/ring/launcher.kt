@@ -18,7 +18,7 @@ package org.jetbrains.ring
 
 import octoTest
 import kotlin.math.sqrt
-import kotlin.system.measureNanoTime
+import org.jetbrains.report.BenchmarkResult
 
 val BENCHMARK_SIZE = 100
 

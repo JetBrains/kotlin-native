@@ -31,3 +31,5 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-gradle-plugin"
     implementation "org.jetbrains.kotlin:kotlin-stdlib-common:$kotlinVersion"
 }
+
+sourceSets.main.kotlin.srcDirs = ["src", "$projectDir/../../tools/benchmarks/shared/src"]

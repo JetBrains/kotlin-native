@@ -18,4 +18,24 @@ package org.jetbrains.ring
 
 expect fun writeToFile(fileName: String, text: String)
 
+expect class Blackhole {
+    companion object {
+        var consumer: Int
+        fun consume(value: Any)
+    }
+}
+
+expect class Random() {
+    companion object {
+        var seedInt: Int
+        fun nextInt(boundary: Int = 100): Int
+
+        var seedDouble: Double
+        fun nextDouble(boundary: Double = 100.0): Double
+    }
+}
+
+expect fun assert(value: Boolean)
+
+expect inline fun measureNanoTime(block: () -> Unit): Long
 

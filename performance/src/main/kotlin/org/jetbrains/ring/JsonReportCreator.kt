@@ -16,6 +16,8 @@
 
 package org.jetbrains.ring
 
+import org.jetbrains.report.BenchmarkResult
+
 class JsonReportCreator(val data: Iterable<BenchmarkResult>) {
     fun printJsonReport(jsonReport: String): Unit {
         val reportText = data.joinToString(prefix = "[", postfix = "]") {

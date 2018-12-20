@@ -10,6 +10,8 @@ import org.gradle.api.Project
 import org.gradle.api.Task
 import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
 import org.jetbrains.kotlin.gradle.plugin.KotlinTargetPreset
+import org.jetbrains.report.*
+import org.jetbrains.report.json.*
 import java.nio.file.Paths
 
 /*
@@ -56,6 +58,23 @@ fun defaultHostPreset(
         presetCandidate
     else
         throw Exception("Host OS '$hostOs' is not supported in Kotlin/Native ${subproject.displayName}.")
+}
+
+// Create benchmarks json report based on information get from gradle project
+fun createJsonReport(projectProperties: Map<String, Any>): String {
+    fun getValue(key: String): String = projectProperties[key] as? String ?: "uknown"
+    val machine = Environment.Machine(getValue("cpu"), getValue("os"))
+    val jdk = Environment.JDKInstance(getValue("jdkVersion"), getValue("jdkVendor"))
+    val env = Environment(machine, jdk)
+    val flags = (projectProperties["flags"] ?: emptyList<String>()) as List<String>
+    val backend = Compiler.Backend(Compiler.backendTypeFromString(getValue("type"))!! ,
+                                    getValue("compilerVersion"), flags)
+    val kotlin = Compiler(backend, getValue("kotlinVersion"))
+    val benchDesc = getValue("benchmarks")
+    val benchmarksArray = JsonTreeParser.parse(benchDesc)
+    val benchmarks = BenchmarksReport.parseBenchmarksArray(benchmarksArray)
+    val report = BenchmarksReport(env, benchmarks, kotlin)
+    return report.toJson()
 }
 
 // A short-cut to add a Kotlin/Native run task.

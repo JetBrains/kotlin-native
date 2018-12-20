@@ -1,6 +1,3 @@
-import groovy.json.JsonBuilder
-import groovy.json.JsonSlurper
-
 buildscript {
     ext.rootBuildDirectory = file('..')
 
@@ -8,17 +5,15 @@ buildscript {
     apply from: "$rootBuildDirectory/gradle/kotlinGradlePlugin.gradle"
     repositories {
         maven {
-            url 'https://cache-redirector.jetbrains.com/maven-central'
+            url 'https://cache-redirector.jetbrains.com/jcenter'
         }
         maven {
             url kotlinCompilerRepo
         }
-        jcenter()
     }
 
     dependencies {
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
-        classpath "org.jetbrains.kotlin:kotlin-serialization:$kotlinVersion"
     }
 }
 
@@ -26,7 +21,7 @@ apply plugin: 'kotlin-multiplatform'
 
 repositories {
     maven {
-        url 'https://cache-redirector.jetbrains.com/maven-central'
+        url 'https://cache-redirector.jetbrains.com/jcenter'
     }
     maven {
         url kotlinCompilerRepo
@@ -34,10 +29,8 @@ repositories {
     maven {
         url buildKotlinCompilerRepo
     }
-    jcenter()
-}
 
-ext."konan.home" = distDir
+}
 
 private def determinePreset() {
     def preset = MPPTools.defaultHostPreset(project)
@@ -53,18 +46,17 @@ kotlin {
             dependencies {
                 implementation "org.jetbrains.kotlin:kotlin-stdlib-common:$kotlinVersion"
             }
+            kotlin.srcDir '../tools/benchmarks/shared/src'
+            kotlin.srcDir 'src/main/kotlin'
+
         }
         nativeMain {
-            dependsOn commonMain
-            kotlin.srcDir 'src/main/kotlin'
             kotlin.srcDir 'src/main/kotlin-native'
         }
         jvmMain {
             dependencies {
                 implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinVersion"
             }
-            dependsOn commonMain
-            kotlin.srcDir 'src/main/kotlin'
             kotlin.srcDir 'src/main/kotlin-jvm'
         }
     }
@@ -112,25 +104,28 @@ task jvmRun(type: JavaExec)  {
     }
 }
 
-task konanJsonReport << {
-    def backendDesc = ['type'   : 'native',
-                       'version': "${konanVersion}",
-                       'flags': kotlin.targets.native.compilations.main.extraOpts]
-    String benchContents = new File("${buildDir.absolutePath}/${nativeBenchResults}").text
-    def jsonSlurper = new JsonSlurper()
-    def benchs = jsonSlurper.parseText(benchContents)
-    def output = new JsonReport(new KotlinCompiler("${kotlinVersion}", backendDesc), benchs).toJson()
-    new File("${buildDir.absolutePath}/${nativeJson}").write(output)
+task konanJsonReport {
+    doLast {
+        String benchContents = new File("${buildDir.absolutePath}/${nativeBenchResults}").text
+        def properties = getCommonProperties() + ['type'           : 'native',
+                                                  'compilerVersion': "${konanVersion}".toString(),
+                                                  'flags'          : kotlin.targets.native.compilations.main.extraOpts.collect{ '"' + it + '"'},
+                                                  'benchmarks'     : benchContents]
+        def output = MPPTools.createJsonReport(properties)
+        new File("${buildDir.absolutePath}/${nativeJson}").write(output)
+    }
 }
 
-task jvmJsonReport << {
-    def backendDesc = ["type": "jvm",
-                       "version": "${buildKotlinVersion}"]
-    String benchContents = new File("${buildDir.absolutePath}/${jvmBenchResults}").text
-    def jsonSlurper = new JsonSlurper()
-    def benchs = jsonSlurper.parseText(benchContents)
-    def output = new JsonReport(new KotlinCompiler("${kotlinVersion}", backendDesc), benchs).toJson()
-    new File("${buildDir.absolutePath}/${jvmJson}").write(output)
+task jvmJsonReport {
+    doLast {
+        String benchContents = new File("${buildDir.absolutePath}/${jvmBenchResults}").text
+        def properties = getCommonProperties() + ['type'           : 'jvm',
+                                                  'compilerVersion': "${buildKotlinVersion}".toString(),
+                                                  'benchmarks'     : benchContents]
+        println(properties['compilerVersion'])
+        def output = MPPTools.createJsonReport(properties)
+        new File("${buildDir.absolutePath}/${jvmJson}").write(output)
+    }
 }
 
 jvmRun.finalizedBy jvmJsonReport
@@ -140,6 +135,14 @@ private void dumpReport(String name, ByteArrayOutputStream output) {
     new File("${name}").withOutputStream {
         it.write(output.toByteArray())
     }
+}
+
+private def getCommonProperties() {
+    return ['cpu': System.getProperty("os.arch"),
+            'os': System.getProperty("os.name"), // OperatingSystem.current().getName()
+            'jdkVersion': System.getProperty("java.version"), // org.gradle.internal.jvm.Jvm.current().javaVersion
+            'jdkVendor': System.getProperty("java.vendor"),
+            'kotlinVersion': "${kotlinVersion}".toString()]
 }
 
 task bench(type:DefaultTask) {
@@ -184,49 +187,6 @@ class Results {
     Results(Double mean, Double stdDev) {
         this.mean = mean
         this.stdDev = stdDev
-    }
-}
-
-class JsonSerializable {
-    // Standard groovy classes have extra fields contentHash and originalClassName
-    protected def instance = new Object()
-    
-    String toJson() {
-        return new JsonBuilder(instance).toPrettyString()
-    }
-    
-    Object getInstance() {
-        return instance
-    }
-}
-
-class Machine extends JsonSerializable {
-    Machine() {
-        instance.metaClass.os =  System.getProperty("os.name") // OperatingSystem.current().getName()
-        instance.metaClass.cpu = System.getProperty("os.arch")
-    }
-}
-
-class JDKInstance extends JsonSerializable {
-    JDKInstance() {
-        instance.metaClass.version = System.getProperty("java.version") // org.gradle.internal.jvm.Jvm.current().javaVersion
-        instance.metaClass.vendor = System.getProperty("java.vendor")
-    }
-}
-
-class KotlinCompiler extends JsonSerializable {
-    KotlinCompiler(String kotlinVersion, def backend) {
-        instance.metaClass.kotlinVersion = kotlinVersion
-        instance.metaClass.backend = backend
-    }
-}
-
-class JsonReport extends JsonSerializable {
-    JsonReport(def kotlinCompiler, def benchmarks) {
-        instance.metaClass.env = ["machine": new Machine().getInstance(),
-                                  "jdk": new JDKInstance().getInstance()]
-        instance.metaClass.kotlin = kotlinCompiler.getInstance()
-        instance.metaClass.benchmarks = benchmarks
     }
 }
 
