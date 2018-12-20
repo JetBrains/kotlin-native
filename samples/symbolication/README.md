@@ -1,4 +1,4 @@
-# Backtrace symbolization tool
+# Backtrace symbolication tool
 
-Produces more verbose backtrace symbolification with file name and line number.
-Only works on debug .dSYM binaries.
+Produces more verbose backtrace symbolication with file name and line number.
+Only works on debug .dSYM binaries on macOS at the moment.

@@ -344,9 +344,6 @@ long getpagesize() {
 
 
 intptr_t getImageBase(void* address) {
-  static uint64_t result = 0;
-  if (result != 0)
-    return result;
 #ifdef KONAN_OSX
   Dl_info info = { 0 };
   if (dladdr(address, &info) < 0) return 0;

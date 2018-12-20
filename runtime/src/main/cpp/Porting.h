@@ -92,7 +92,7 @@ do {                          \
 } while(0)
 #endif
 
-// Computes program image load base address.
+// Computes image load base address for the symbol at address.
 intptr_t getImageBase(void* address);
 
 }  // namespace konan
