@@ -1,6 +1,5 @@
 package symbolication
 
-import platform.posix.*
 import platform.darwin.*
 
 import kotlinx.cinterop.*
@@ -16,13 +15,15 @@ fun main(args: Array<String>) {
 
 fun archToCpuName(arch: String): cpu_type_t = when (arch) {
     "x64", "x86_64" -> CPU_TYPE_X86_64
+    "arm32" -> CPU_TYPE_ARM
+    "arm64" -> CPU_TYPE_ARM64
     "current" -> CSArchitectureGetCurrent()
     else -> TODO("unsupported $arch")
 }
 
-fun analyzeTrace(program: String, arch: String, input: Sequence<String>) = memScoped {
+fun analyzeTrace(program: String, arch: String, input: Sequence<String>) {
     val symbolicator = CSSymbolicatorCreateWithPathAndArchitecture(program, archToCpuName(arch))
-    if (CSIsNull(symbolicator)) throw Error("Cannot create symbolicator")
+    if (CSIsNull(symbolicator)) throw Error("Cannot create \"$arch\" symbolicator for $program")
     val owner = CSSymbolicatorGetSymbolOwner(symbolicator)
     val imageName = CSSymbolOwnerGetName(owner)!!.toKString()
     val imageBase = CSSymbolOwnerGetBaseAddress(owner)
