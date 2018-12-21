@@ -23,7 +23,7 @@ fun archToCpuName(arch: String): cpu_type_t = when (arch) {
 
 fun sourceInfoString(owner: CValue<CSSymbolOwnerRef>, address: ULong): String? {
     var sourceInfo: CValue<CSTypeRef>? = CSSymbolOwnerGetSourceInfoWithAddress(owner, address)
-    if (sourceInfo == null || CSIsNull(sourceInfo)) return null
+    if (CSIsNull(sourceInfo!!)) return null
     var lineNumber = CSSourceInfoGetLineNumber(sourceInfo)
     var maybe = false
     if (lineNumber == 0u) {
