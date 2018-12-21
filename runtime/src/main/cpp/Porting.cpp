@@ -42,7 +42,6 @@ extern "C" RUNTIME_NORETURN void Konan_exit(int32_t status);
 #ifdef KONAN_ZEPHYR
 // In Zephyr's Newlib strnlen(3) is not included from string.h by default.
 extern "C" size_t strnlen(const char* buffer, size_t maxSize);
-extern "C" __attribute__((format (printf, 1, 2))) int printk(const char *fmt, ...);
 #endif
 
 namespace konan {
@@ -61,8 +60,6 @@ void consoleWriteUtf8(const void* utf8, uint32_t sizeBytes) {
 #ifdef KONAN_ANDROID
   // TODO: use sizeBytes!
   __android_log_print(ANDROID_LOG_INFO, "Konan_main", "%s", utf8);
-#elif KONAN_ZEPHYR
-  ::printk("%s", utf8);
 #else
   ::write(STDOUT_FILENO, utf8, sizeBytes);
 #endif
@@ -72,8 +69,6 @@ void consoleErrorUtf8(const void* utf8, uint32_t sizeBytes) {
 #ifdef KONAN_ANDROID
   // TODO: use sizeBytes!
   __android_log_print(ANDROID_LOG_ERROR, "Konan_main", "%s", utf8);
-#elif KONAN_ZEPHYR
-  ::printk("Error: %s", utf8);
 #else
   ::write(STDERR_FILENO, utf8, sizeBytes);
 #endif
@@ -118,16 +113,12 @@ extern "C" int rpl_vsnprintf(char *, size_t, const char *, va_list);
 #endif
 
 void consolePrintf(const char* format, ...) {
-#ifdef KONAN_ZEPHYR
-  ::printk("%s", format);
-#else
   char buffer[1024];
   va_list args;
   va_start(args, format);
   int rv = vsnprintf_impl(buffer, sizeof(buffer) - 1, format, args);
   va_end(args);
   consoleWriteUtf8(buffer, rv);
-#endif
 }
 
 // Thread execution.
@@ -458,8 +449,7 @@ extern "C" {
 #endif
 
 #ifdef KONAN_ZEPHYR
-    void Konan_abort(const char *utf8) {
-        printk("Abort: %s", utf8);
+    RUNTIME_USED void Konan_abort(const char*) {
         while(1) {}
     }
 #endif // KONAN_ZEPHYR

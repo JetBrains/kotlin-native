@@ -23,14 +23,20 @@ entrySelector.zephyr_arm_cortex_m3 = --defsym main=Konan_main
 
 boardSpecificClangFlags.zephyr_arm_cortex_m3 = -mabi=aapcs -mthumb -mcpu=cortex-m3
 
-targetToolchain.linux-zephyr_arm_cortex_m3 = gcc-arm-none-eabi-7-2017-q4-major-linux/arm-none-eabi
-dependencies.linux-zephyr_arm_cortex_m3 = \
-    clang-llvm-5.0.0-linux-x86-64 \
+targetToolchain.linux_x64-zephyr_arm_cortex_m3 = gcc-arm-none-eabi-7-2017-q4-major-linux/arm-none-eabi
+dependencies.linux_x64-zephyr_arm_cortex_m3 = \
+    clang-llvm-6.0.1-linux-x86-64 \
     gcc-arm-none-eabi-7-2017-q4-major-linux \
     target-sysroot-2-wasm
 
-targetToolchain.osx-zephyr_arm_cortex_m3 = gcc-arm-none-eabi-7-2017-q4-major-mac/arm-none-eabi
-dependencies.osx-zephyr_arm_cortex_m3 = \
+targetToolchain.macos_x64-zephyr_arm_cortex_m3 = gcc-arm-none-eabi-7-2017-q4-major-mac/arm-none-eabi
+dependencies.macos_x64-zephyr_arm_cortex_m3 = \
     gcc-arm-none-eabi-7-2017-q4-major-mac \
-    clang-llvm-5.0.0-darwin-macos \
+    clang-llvm-6.0.1-darwin-macos \
+    target-sysroot-2-wasm
+
+targetToolchain.mingw_x64-zephyr_arm_cortex_m3 = gcc-arm-none-eabi-7-2017-q4-major-win32/arm-none-eabi
+dependencies.mingw_x64-zephyr_arm_cortex_m3 = \
+    msys2-mingw-w64-x86_64-gcc-7.3.0-clang-llvm-lld-6.0.1 \
+    gcc-arm-none-eabi-7-2017-q4-major-win32 \
     target-sysroot-2-wasm
