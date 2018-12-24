@@ -178,7 +178,7 @@ OBJ_GETTER(GetStackTraceStrings, KConstRef stackTrace) {
       char line[1024];
       if (sourceInfo.fileName != nullptr) {
         if (sourceInfo.lineNumber != -1) {
-          konan::snprintf(line, sizeof(line) - 1, "%s (%s:%d.%d)",
+          konan::snprintf(line, sizeof(line) - 1, "%s (%s:%d:%d)",
                           symbol, sourceInfo.fileName, sourceInfo.lineNumber, sourceInfo.column);
         } else {
           konan::snprintf(line, sizeof(line) - 1, "%s (%s:<unknown>)", symbol, sourceInfo.fileName);
