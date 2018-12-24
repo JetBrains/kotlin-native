@@ -110,10 +110,8 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
 
     internal val defaultNativeLibraries: List<String> = mutableListOf<String>().apply {
         add(if (debug) "debug.bc" else "release.bc")
-
         if (produce == CompilerOutputKind.PROGRAM) {
-            add("start.bc")
-            add("launcher.bc")
+            addAll(distribution.launcherFiles)
         }
     }.map {
         File(distribution.defaultNatives(target)).child(it).absolutePath

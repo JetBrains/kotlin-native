@@ -175,9 +175,14 @@ OBJ_GETTER(GetStackTraceStrings, KConstRef stackTrace) {
       auto sourceInfo = Kotlin_getSourceInfo(*PrimitiveArrayAddressOfElementAt<KNativePtr>(stackTrace->array(), index));
       const char* symbol = symbols[index];
       const char* result;
-      char line[512];
+      char line[1024];
       if (sourceInfo.fileName != nullptr) {
-        konan::snprintf(line, sizeof(line) - 1, "%s (%s:%d)", symbol, sourceInfo.fileName, sourceInfo.lineNumber);
+        if (sourceInfo.lineNumber != -1) {
+          konan::snprintf(line, sizeof(line) - 1, "%s (%s:%d.%d)",
+                          symbol, sourceInfo.fileName, sourceInfo.lineNumber, sourceInfo.column);
+        } else {
+          konan::snprintf(line, sizeof(line) - 1, "%s (%s:<unknown>)", symbol, sourceInfo.fileName);
+        }
         result = line;
       } else {
         result = symbol;

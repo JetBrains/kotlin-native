@@ -6,8 +6,10 @@ install-name:    /System/Library/PrivateFrameworks/CoreSymbolication.framework/V
 exports:         
   - archs:           [ x86_64 ]
     symbols:         [ _CSIsNull, 
-                       _CSSourceInfoGetFilename, 
-                       _CSSourceInfoGetLineNumber, 
+                       _CSSourceInfoGetFilename,
+                       _CSSourceInfoGetPath,
+                       _CSSourceInfoGetLineNumber,
+                       _CSSourceInfoGetColumn,
                        _CSSymbolOwnerGetSourceInfoWithAddress, 
                        _CSSymbolicatorCreateWithPid, 
                        _CSSymbolicatorGetSymbolOwnerWithAddressAtTime ]

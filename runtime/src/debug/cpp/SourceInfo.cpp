@@ -57,16 +57,19 @@ CSSourceInfoRef CSSymbolOwnerGetSourceInfoWithAddress(
 );
 
 
-const char* CSSourceInfoGetFilename(CSSourceInfoRef info);
+const char* CSSourceInfoGetPath(CSSourceInfoRef info);
 
 uint32_t CSSourceInfoGetLineNumber(CSSourceInfoRef info);
+
+uint32_t CSSourceInfoGetColumn(CSSourceInfoRef info);
+
 
 bool CSIsNull(CSTypeRef);
 
 } // extern "C"
 
 extern "C" struct SourceInfo Kotlin_getSourceInfo(void* addr) {
-  SourceInfo result = { .fileName = nullptr, .lineNumber = -1 };
+  SourceInfo result = { .fileName = nullptr, .lineNumber = -1, .column = -1 };
 
   static CSSymbolicatorRef symbolicator = CSSymbolicatorCreateWithPid(getpid());
 
@@ -76,11 +79,14 @@ extern "C" struct SourceInfo Kotlin_getSourceInfo(void* addr) {
     CSSymbolOwnerRef symbolOwner = CSSymbolicatorGetSymbolOwnerWithAddressAtTime(symbolicator, address, kCSNow);
     CSSourceInfoRef sourceInfo = CSSymbolOwnerGetSourceInfoWithAddress(symbolOwner, address);
     if (!CSIsNull(sourceInfo)) {
-      const char* fileName = CSSourceInfoGetFilename(sourceInfo);
+      const char* fileName = CSSourceInfoGetPath(sourceInfo);
       if (fileName != nullptr) {
         result.fileName = fileName;
         uint32_t lineNumber = CSSourceInfoGetLineNumber(sourceInfo);
-        if (lineNumber != 0) result.lineNumber = lineNumber;
+        if (lineNumber != 0) {
+          result.lineNumber = lineNumber;
+          result.column = CSSourceInfoGetColumn(sourceInfo);
+        }
       }
     }
   }
@@ -91,7 +97,7 @@ extern "C" struct SourceInfo Kotlin_getSourceInfo(void* addr) {
 #else // KONAN_CORE_SYMBOLICATION
 
 extern "C" struct SourceInfo Kotlin_getSourceInfo(void* addr) {
-  return (SourceInfo) { .fileName = nullptr, .lineNumber = -1 };
+  return (SourceInfo) { .fileName = nullptr, .lineNumber = -1, .column = -1 };
 }
 
 #endif // KONAN_CORE_SYMBOLICATION

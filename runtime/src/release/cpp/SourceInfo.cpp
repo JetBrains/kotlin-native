@@ -17,5 +17,5 @@
 #include "SourceInfo.h"
 
 extern "C" struct SourceInfo Kotlin_getSourceInfo(void* addr) {
-  return (SourceInfo) { .fileName = nullptr, .lineNumber = -1 };
+  return (SourceInfo) { .fileName = nullptr, .lineNumber = -1, .column = -1 };
 }

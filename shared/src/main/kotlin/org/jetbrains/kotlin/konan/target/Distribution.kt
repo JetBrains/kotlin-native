@@ -79,6 +79,8 @@ class Distribution(
 
     fun runtime(target: KonanTarget) = runtimeFileOverride ?: "$stdlib/targets/${target.visibleName}/native/runtime.bc"
 
+    val launcherFiles = listOf("start.bc", "launcher.bc")
+
     val dependenciesDir = DependencyProcessor.defaultDependenciesRoot.absolutePath
 
     fun availableSubTarget(genericName: String) =

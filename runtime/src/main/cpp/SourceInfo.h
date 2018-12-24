@@ -17,6 +17,7 @@
 struct SourceInfo {
     const char* fileName;
     int lineNumber;
+    int column;
 };
 
 #ifdef __cplusplus
