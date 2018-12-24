@@ -679,7 +679,7 @@ void ScanBlack(ContainerHeader* start) {
             if (childContainer->color() != CONTAINER_TAG_GC_BLACK)
               toVisit.push_front(childContainer);
           } else {
-            if (childContainer->marked())
+            if (!childContainer->marked())
               toVisit.push_front(childContainer);
           }
         }
