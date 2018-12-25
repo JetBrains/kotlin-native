@@ -8,12 +8,14 @@ package org.jetbrains.kotlin.backend.konan.llvm
 import kotlinx.cinterop.allocArrayOf
 import kotlinx.cinterop.memScoped
 import llvm.*
+import org.jetbrains.kotlin.backend.konan.SYNTHETIC_OFFSET
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.KonanConfig
 import org.jetbrains.kotlin.backend.konan.KonanConfigKeys
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.FunctionDescriptor
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.ir.SourceManager.FileEntry
+import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.js.descriptorUtils.getJetTypeFqName
 import org.jetbrains.kotlin.konan.KonanVersion
 import org.jetbrains.kotlin.konan.file.File
@@ -81,19 +83,26 @@ internal class DebugInfo internal constructor(override val context: Context):Con
     val otherTypeSize = LLVMSizeOfTypeInBits(llvmTargetData, otherLlvmType)
     val otherTypeAlignment = LLVMPreferredAlignmentOfType(llvmTargetData, otherLlvmType)
 }
+
 /**
  * File entry starts offsets from zero while dwarf number lines/column starting from 1.
  */
-private fun FileEntry.location(offset:Int, offsetToNumber:(Int) -> Int):Int {
-    return if (offset < 0) 0 // lldb uses 1-based unsigned integers, so 0 is "no-info"
-    else offsetToNumber(offset) + 1
+private val NO_SOURCE_FILE = "no source file"
+private fun FileEntry.location(offset: Int, offsetToNumber: (Int) -> Int): Int {
+    assert(offset != UNDEFINED_OFFSET)
+    // Part "name.isEmpty() || name == NO_SOURCE_FILE" is an awful hack, @minamoto, please fix properly.
+    if (offset == SYNTHETIC_OFFSET || name.isEmpty() || name == NO_SOURCE_FILE) return 1
+    // lldb uses 1-based unsigned integers, so 0 is "no-info".
+    val result = offsetToNumber(offset) + 1
+    assert(result != 0)
+    return result
 }
 
 internal fun FileEntry.line(offset: Int) = location(offset, this::getLineNumber)
 
 internal fun FileEntry.column(offset: Int) = location(offset, this::getColumnNumber)
 
-internal data class FileAndFolder(val file:String, val folder:String) {
+internal data class FileAndFolder(val file: String, val folder: String) {
     companion object {
         val NOFILE =  FileAndFolder("-", "")
     }
