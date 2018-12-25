@@ -45,9 +45,9 @@ class AnalyzerTests {
     }
 
     @Test
-    fun testGetMeanVariance() {
+    fun testComputeMeanVariance() {
         val numbers: List<Double> = listOf(10.1, 10.2, 10.3)
-        val value = Statistics.getMeanVariance(numbers)
+        val value = Statistics.computeMeanVariance(numbers)
         val expectedMean = 10.2
         val expectedVariance = 0.092395
         assertTrue(abs(value.mean - expectedMean) < eps)

@@ -31,11 +31,15 @@ data class MeanVariance(val mean: Double, val variance: Double) {
     }
 }
 
-// Composite benchmark which descibe avarage result for several runs and contains mean and variance value
+// Composite benchmark which descibes avarage result for several runs and contains mean and variance value.
 data class MeanVarianceBench(val meanBenchmark: BenchmarkResult, val varianceBenchmark: BenchmarkResult) {
 
     // Calculate difference in percentage compare to another.
     fun calcPercentageDiff(other: MeanVarianceBench): MeanVariance {
+        assert(other.meanBenchmark.score > 0 &&
+                other.varianceBenchmark.score > 0 &&
+                other.meanBenchmark.score - other.varianceBenchmark.score != 0.0,
+                { "Mean and variance should be positive and not equal!" })
         val mean = (meanBenchmark.score - other.meanBenchmark.score) / other.meanBenchmark.score
         val maxValueChange = abs(meanBenchmark.score + varianceBenchmark.score -
                         other.meanBenchmark.score + other.varianceBenchmark.score) /
@@ -51,6 +55,10 @@ data class MeanVarianceBench(val meanBenchmark: BenchmarkResult, val varianceBen
 
     // Calculate ratio value compare to another.
     fun calcRatio(other: MeanVarianceBench): MeanVariance {
+        assert(other.meanBenchmark.score > 0 &&
+                other.varianceBenchmark.score > 0 &&
+                other.meanBenchmark.score - other.varianceBenchmark.score != 0.0,
+                { "Mean and variance should be positive and not equal!" })
         val mean = meanBenchmark.score / other.meanBenchmark.score
         val minRatio = (meanBenchmark.score - varianceBenchmark.score) / (other.meanBenchmark.score + other.varianceBenchmark.score)
         val maxRatio = (meanBenchmark.score + varianceBenchmark.score) / (other.meanBenchmark.score - other.varianceBenchmark.score)
@@ -59,22 +67,19 @@ data class MeanVarianceBench(val meanBenchmark: BenchmarkResult, val varianceBen
     }
 
     override fun toString(): String {
-        val format = { number: Double -> format(number, 4)}
+        val format = { number: Double -> format(number)}
         return "${format(meanBenchmark.score)}+-${format(varianceBenchmark.score)}"
     }
 }
 
-// Class with different statistical operations
+// Class with different statistical operations.
 class Statistics {
     companion object {
         private val zStar = 1.96
 
-        fun geometricMean(values: List<Double>): Double {
-            val iPow = 1.0 / values.size
-            return values.map { it.pow(iPow) }.reduce { a, b -> a * b }
-        }
+        fun geometricMean(values: List<Double>) = values.map { it.pow(1.0 / values.size) }.reduce { a, b -> a * b }
 
-        fun getMeanVariance(samples: List<Double>): MeanVariance {
+        fun computeMeanVariance(samples: List<Double>): MeanVariance {
             val mean = samples.sum() / samples.size
             val variance = samples.indices.sumByDouble { (samples[it] - mean) * (samples[it] - mean) } / samples.size
             val confidenceInterval = sqrt(variance / samples.size) * zStar

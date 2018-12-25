@@ -17,5 +17,7 @@
 package org.jetbrains.benchmarksAnalyzer
 
 expect fun readFile(fileName: String): String
-expect fun format(number: Double, decimalNumber: Int): String
+expect fun format(number: Double, decimalNumber: Int = 4): String
 expect fun writeToFile(fileName: String, text: String)
+expect fun exitProcess(status: Int)
+expect fun assert(value: Boolean, lazyMessage: () -> Any)

@@ -18,14 +18,14 @@
 package org.jetbrains.benchmarksAnalyzer
 
 // Report with changes of different fields.
-class ChangeReport(val entityName: String, val changes: List<FieldChange>) {
+class ChangeReport<T>(val entityName: String, val changes: List<FieldChange<T>>) {
     fun renderAsTextReport(): String {
         var content = ""
         if (!changes.isEmpty()) {
-            content += "$entityName changes\n"
-            content += "====================\n"
+            content = "$content$entityName changes\n"
+            content = "$content====================\n"
             changes.forEach {
-                content += it.renderAsText()
+                content = "$content${it.renderAsText()}"
             }
         }
         return content
@@ -33,15 +33,13 @@ class ChangeReport(val entityName: String, val changes: List<FieldChange>) {
 }
 
 // Change of report field.
-class FieldChange(val field: String, val previous: Any, val current: Any) {
+class FieldChange<T>(val field: String, val previous: T, val current: T) {
     companion object {
-        fun getFieldChangeOrNull(field: String, previous: Any, current: Any): FieldChange? {
+        fun <T> getFieldChangeOrNull(field: String, previous: T, current: T): FieldChange<T>? {
             if (previous != current) {
                 return FieldChange(field, previous, current)
             }
-            else {
-                return null
-            }
+            return null
         }
     }
 

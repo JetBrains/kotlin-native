@@ -23,23 +23,22 @@ import kotlinx.cinterop.*
 actual fun readFile(fileName: String): String {
     val file = fopen(fileName, "r") ?: error("Cannot write file '$fileName'")
     var str = ByteArray(1024)
-    var text: String = ""
+    var text = StringBuilder()
     try {
         while (true) {
             val nextLine = fgets(str.refTo(0), str.size, file)?.toKString()
             if (nextLine == null) break
-            text += nextLine
+            text.append(nextLine)
         }
     } finally {
         fclose(file)
     }
-    return text
+    return text.toString()
 }
 
 actual fun format(number: Double, decimalNumber: Int): String {
     var str = ByteArray(1024)
-    val formatStr = "%.${decimalNumber}f"
-    sprintf(str.refTo(0), formatStr, number)
+    snprintf(str.refTo(0), str.size.toULong(), "%.${decimalNumber}f", number)
     return str.stringFromUtf8()
 }
 
@@ -50,4 +49,12 @@ actual fun writeToFile(fileName: String, text: String) {
     } finally {
         fclose(file)
     }
+}
+
+actual fun exitProcess(status: Int) {
+    kotlin.system.exitProcess(status)
+}
+
+actual fun assert(value: Boolean, lazyMessage: () -> Any) {
+    kotlin.assert(value, lazyMessage)
 }

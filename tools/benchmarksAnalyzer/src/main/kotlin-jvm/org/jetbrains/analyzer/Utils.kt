@@ -20,7 +20,7 @@ import java.io.File
 import java.io.InputStream
 
 actual fun readFile(fileName: String): String {
-    val inputStream: InputStream = File(fileName).inputStream()
+    val inputStream = File(fileName).inputStream()
     val inputString = inputStream.bufferedReader().use { it.readText() }
     return inputString
 }
@@ -34,4 +34,12 @@ actual fun writeToFile(fileName: String, text: String) {
     File(fileName).printWriter().use { out ->
         out.println(text)
     }
+}
+
+actual fun exitProcess(status: Int) {
+    kotlin.system.exitProcess(status)
+}
+
+actual fun assert(value: Boolean, lazyMessage: () -> Any) {
+    kotlin.assert(value, lazyMessage)
 }

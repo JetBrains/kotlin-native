@@ -15,72 +15,51 @@
  */
 
 import org.jetbrains.benchmarksAnalyzer.readFile
+import org.jetbrains.benchmarksAnalyzer.exitProcess
+import org.jetbrains.kliopt.*
 import org.jetbrains.benchmarksAnalyzer.SummaryBenchmarksReport
 import org.jetbrains.report.BenchmarksReport
 import org.jetbrains.report.json.JsonTreeParser
 
-fun printError(message: String) {
-    val usageDesc = "Usage: benchComparator main_report report_to_compare_to [-o output_file] [-eps eps_value] [-short]\n"
-    error("${usageDesc}${message}")
-}
-
 fun main(args: Array<String>) {
-    var mainReport: String? = null
-    var compareToReport: String? = null
-    var outputFile: String? = null
-    var eps: Double = 0.5
-    var shortReport = false
 
-    // Parse args
-    var i = 0
-    while (i < args.size) {
-        when (args[i]) {
-            "-o" -> {
-                if (i + 1 >= args.size) {
-                    printError("Output file name is expected after -o flag")
-                }
-                outputFile = args[i+1]
-                i = i + 1
-            }
-            "-eps" -> {
-                if (i + 1 >= args.size) {
-                    printError("Value of meaningful performance changes is expected after -eps flag")
-                }
-                eps = args[i+1].toDouble()
-                i = i + 1
-            }
-            "-short" -> {
-                shortReport = true
-            }
-            else -> {
-                if (mainReport == null) {
-                    mainReport = args[i]
-                } else if (compareToReport == null) {
-                    compareToReport = args[i]
-                } else {
-                    printError("Too many arguments.")
-                }
-            }
+    val options = listOf(
+            OptionDescriptor(ArgType.STRING, "output", "o", "Output file"),
+            OptionDescriptor(ArgType.DOUBLE, "eps", "e", "Meaningful performance changes", "0.5"),
+            OptionDescriptor(ArgType.BOOLEAN, "short", "s", "Show short version of report", "false"),
+            OptionDescriptor(ArgType.BOOLEAN, "help", "h", "Usage info")        // TODO Replace to options parser. Parser should do it ny itself.
+    )
+
+    val arguments = listOf(
+            ArgDescriptor(ArgType.STRING, "mainReport", "Main report for analysis"),
+            ArgDescriptor(ArgType.STRING, "compareToReport", "Report to compare to", isRequired = false)
+    )
+
+    // Parse args.
+    val argParser = ArgParser(options, arguments)
+    argParser.parse(args)
+
+    argParser.get("help")?.let {
+        if (it.booleanValue) {
+            println(argParser.makeUsage())
+            exitProcess(0)
         }
-        i++
-    }
-
-    if (mainReport == null) {
-        printError("At least one file with benchmarks results should be provided!")
     }
 
     // Read contents of file.
-    val mainBenchsResults = readFile(mainReport!!)
+    val mainBenchsResults = readFile(argParser.get("mainReport")!!.stringValue)
     val mainReportElement = JsonTreeParser.parse(mainBenchsResults)
     val mainBenchsReport = BenchmarksReport.create(mainReportElement)
-    var compareToBenchsReport: BenchmarksReport? = null
-    if (compareToReport != null) {
-        val compareToResults = readFile(compareToReport)
+    var compareToBenchsReport = argParser.get("compareToReport")?.stringValue?. let {
+        val compareToResults = readFile(it)
         val compareToReportElement = JsonTreeParser.parse(compareToResults)
-        compareToBenchsReport = BenchmarksReport.create(compareToReportElement)
+        BenchmarksReport.create(compareToReportElement)
     }
 
     // Generate comparasion report
-    val summaryReport = SummaryBenchmarksReport(mainBenchsReport, compareToBenchsReport, eps)
-    summaryReport.print(summaryReport.getTextRender(), shortReport, outputFile)
+    val summaryReport = SummaryBenchmarksReport(mainBenchsReport,
+                                                compareToBenchsReport,
+                                                argParser.get("eps")!!.doubleValue)
+    summaryReport.print(summaryReport.getTextRender(), argParser.get("short")!!.booleanValue,
+                        argParser.get("output")?.stringValue)
 }
