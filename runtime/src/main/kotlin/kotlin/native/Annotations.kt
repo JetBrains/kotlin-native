@@ -40,25 +40,15 @@ public annotation class Retain
 @Retention(AnnotationRetention.SOURCE)
 public annotation class Throws(vararg val exceptionClasses: KClass<out Throwable>)
 
-/**
- * Top level variable or object is thread local, and so could be mutable.
- * One may use this annotation as the stopgap measure for singleton
- * object immutability.
- *
- * PLEASE NOTE THAT THIS ANNOTATION MAY GO AWAY IN UPCOMING RELEASES.
- */
-@Target(AnnotationTarget.PROPERTY, AnnotationTarget.CLASS)
-@Retention(AnnotationRetention.BINARY)
-public actual annotation class ThreadLocal
+@Deprecated("ThreadLocal was moved to kotlin.native.concurrent package " +
+        "and became available in Kotlin Common as optional annotation",
+        ReplaceWith("kotlin.native.concurrent.ThreadLocal"))
+public typealias ThreadLocal = kotlin.native.concurrent.ThreadLocal
 
-/**
- * Top level variable is immutable and so could be shared.
- *
- * PLEASE NOTE THAT THIS ANNOTATION MAY GO AWAY IN UPCOMING RELEASES.
- */
-@Target(AnnotationTarget.PROPERTY)
-@Retention(AnnotationRetention.BINARY)
-public actual annotation class SharedImmutable
+@Deprecated("SharedImmutable was moved to kotlin.native.concurrent package " +
+        "and became available in Kotlin Common as optional annotation",
+        ReplaceWith("kotlin.native.concurrent.SharedImmutable"))
+public typealias SharedImmutable = kotlin.native.concurrent.SharedImmutable
 
 /**
  * Makes top level function available from C/C++ code with the given name.
