@@ -17,6 +17,8 @@
 
 package org.jetbrains.kliopt
 
+import org.jetbrains.benchmarksAnalyzer.exitProcess
+
 // Possible types of arguments.
 enum class ArgType(val hasParameter: Boolean) {
     BOOLEAN(false),
@@ -81,7 +83,9 @@ class ArgDescriptor(
 
 // Arguments parser.
 class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescriptor> = listOf<ArgDescriptor>()) {
-    private val options = optionsList
+    private val options = optionsList.union(listOf(OptionDescriptor(ArgType.BOOLEAN, "help",
+                                            "h", "Usage info")))
+                            .toList()
     private val arguments = argsList
     private lateinit var parsedValues: MutableMap<String, ParsedArg?>
 
@@ -120,6 +124,17 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
         error("$message\n${makeUsage()}")
     }
 
+    private fun saveAsArg(argDescriptors: Map<String, ArgDescriptor>, arg: String): Boolean {
+        // Find uninitialized arguments.
+        val nullArgs = argDescriptors.keys.filter { parsedValues[it] == null }
+        val name = nullArgs.firstOrNull()
+        name?. let {
+            parsedValues[name] = ParsedArg(argDescriptors[name]!!, arg)
+            return true
+        }
+        return false
+    }
+
     fun parse(args: Array<String>) {
         var index = 0
         val optDescriptors = options.map { it.longName to it }.toMap()
@@ -142,20 +157,21 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
                             printError("No value for ${descriptor.textDescription}")
                         }
                     } else {
+                        if (name == "help") {
+                            println(makeUsage())
+                            exitProcess(0)
+                        }
                         parsedValues[name] = ParsedArg(descriptor, "true")
                     }
                 } ?: run {
-                    // TODO Need changes for cases when argument starts with "-"
-                    printError("Unknown option $arg")
+                    // Try save as argument.
+                    if (!saveAsArg(argDescriptors, arg)) {
+                        printError("Unknown option $arg")
+                    }
                 }
             } else {
                 // Argument is found.
-                // Find uninitialized arguments.
-                val nullArgs = argDescriptors.keys.filter { parsedValues[it] == null }
-                val name = nullArgs.firstOrNull()
-                name?. let {
-                    parsedValues[name] = ParsedArg(argDescriptors[name]!!, arg)
-                } ?: run {
+                if (!saveAsArg(argDescriptors, arg)) {
                     printError("Too many arguments!")
                 }
             }
@@ -180,10 +196,15 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
     }
 
     fun get(name: String): ParsedArg? {
-        return parsedValues[name]
+        if (::parsedValues.isInitialized) {
+            return parsedValues[name]
+        } else {
+            println("Method parse() of ArgParser class should be called before getting arguments and options.")
+            return null
+        }
     }
 
-    fun makeUsage(): String {
+    private fun makeUsage(): String {
         val result = StringBuilder()
         result.append("Usage: \n")
         if (!arguments.isEmpty()) {

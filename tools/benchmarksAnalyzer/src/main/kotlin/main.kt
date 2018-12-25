@@ -15,7 +15,6 @@
  */
 
 import org.jetbrains.benchmarksAnalyzer.readFile
-import org.jetbrains.benchmarksAnalyzer.exitProcess
 import org.jetbrains.kliopt.*
 import org.jetbrains.benchmarksAnalyzer.SummaryBenchmarksReport
 import org.jetbrains.report.BenchmarksReport
@@ -26,8 +25,7 @@ fun main(args: Array<String>) {
     val options = listOf(
             OptionDescriptor(ArgType.STRING, "output", "o", "Output file"),
             OptionDescriptor(ArgType.DOUBLE, "eps", "e", "Meaningful performance changes", "0.5"),
-            OptionDescriptor(ArgType.BOOLEAN, "short", "s", "Show short version of report", "false"),
-            OptionDescriptor(ArgType.BOOLEAN, "help", "h", "Usage info")        // TODO Replace to options parser. Parser should do it ny itself.
+            OptionDescriptor(ArgType.BOOLEAN, "short", "s", "Show short version of report", "false")
     )
 
     val arguments = listOf(
@@ -38,13 +36,6 @@ fun main(args: Array<String>) {
     // Parse args.
     val argParser = ArgParser(options, arguments)
     argParser.parse(args)
-
-    argParser.get("help")?.let {
-        if (it.booleanValue) {
-            println(argParser.makeUsage())
-            exitProcess(0)
-        }
-    }
 
     // Read contents of file.
     val mainBenchsResults = readFile(argParser.get("mainReport")!!.stringValue)

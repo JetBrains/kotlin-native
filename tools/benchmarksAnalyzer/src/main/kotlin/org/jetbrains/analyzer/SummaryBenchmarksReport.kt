@@ -67,6 +67,9 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
         createMergedReport(currentBenchTable, previousBenchTable)
         previousBenchTable?.let {
             analyzePerformanceChanges()
+        } ?: run {
+            regressions = mapOf<String, ScoreChange>()
+            improvements = mapOf<String, ScoreChange>()
         }
     }
 
