@@ -1690,7 +1690,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
          * Note: DILexicalBlocks aren't nested, they should be scoped with the parent function.
          */
         private val scope by lazy {
-            if (!context.shouldContainDebugInfo())
+            if (!context.shouldContainDebugInfo() || returnableBlock.startOffset == UNDEFINED_OFFSET)
                 return@lazy null
             val lexicalBlockFile = DICreateLexicalBlockFile(context.debugInfo.builder, functionScope()!!.scope(), super.file.file())
             DICreateLexicalBlock(context.debugInfo.builder, lexicalBlockFile, super.file.file(), returnableBlock.startLine(), returnableBlock.startColumn())!!

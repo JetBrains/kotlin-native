@@ -118,7 +118,6 @@ internal fun String?.toFileAndFolder():FileAndFolder {
 
 internal fun generateDebugInfoHeader(context: Context) {
     if (context.shouldContainDebugInfo()) {
-
         val path = context.config.outputFile
             .toFileAndFolder()
         @Suppress("UNCHECKED_CAST")
@@ -159,7 +158,7 @@ internal fun generateDebugInfoHeader(context: Context) {
 }
 
 @Suppress("UNCHECKED_CAST")
-internal fun KotlinType.dwarfType(context:Context, targetData:LLVMTargetDataRef): DITypeOpaqueRef {
+internal fun KotlinType.dwarfType(context: Context, targetData: LLVMTargetDataRef): DITypeOpaqueRef {
     when {
         KotlinBuiltIns.isPrimitiveType(this) -> return debugInfoBaseType(context, targetData, this.getJetTypeFqName(false), llvmType(context), encoding(context).value.toInt())
         else -> {
@@ -195,7 +194,6 @@ internal fun KotlinType.diType(context: Context, llvmTargetData: LLVMTargetDataR
             dwarfType(context, llvmTargetData)
         }
 
-
 @Suppress("UNCHECKED_CAST")
 private fun debugInfoBaseType(context:Context, targetData:LLVMTargetDataRef, typeName:String, type:LLVMTypeRef, encoding:Int) = DICreateBasicType(
         context.debugInfo.builder, typeName,
@@ -214,14 +212,12 @@ internal fun KotlinType.alignment(context:Context) = context.debugInfo.llvmTypeA
 
 internal fun KotlinType.llvmType(context:Context): LLVMTypeRef = context.debugInfo.llvmTypes.getOrDefault(this, context.debugInfo.otherLlvmType)
 
-private fun<T> or(v:T, vararg p:(T)->Boolean):Boolean = p.any{it(v)}
-
-internal fun KotlinType.encoding(context:Context):DwarfTypeKind = when {
+internal fun KotlinType.encoding(context: Context): DwarfTypeKind = when {
     this in context.debugInfo.intTypes            -> DwarfTypeKind.DW_ATE_signed
     this in context.debugInfo.realTypes           -> DwarfTypeKind.DW_ATE_float
-    KotlinBuiltIns.isBoolean(this)                -> DwarfTypeKind.DW_ATE_boolean
-    KotlinBuiltIns.isChar(this)                   -> DwarfTypeKind.DW_ATE_unsigned
-    (!KotlinBuiltIns.isPrimitiveType(this))       -> DwarfTypeKind.DW_ATE_address
+    KotlinBuiltIns.isBoolean(this)          -> DwarfTypeKind.DW_ATE_boolean
+    KotlinBuiltIns.isChar(this)             -> DwarfTypeKind.DW_ATE_unsigned
+    (!KotlinBuiltIns.isPrimitiveType(this)) -> DwarfTypeKind.DW_ATE_address
     else                                          -> TODO(toString())
 }
 
