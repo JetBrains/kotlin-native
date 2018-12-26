@@ -120,6 +120,11 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
     private val IrCall.llvmReturnType: LLVMTypeRef
         get() = LLVMGetReturnType(codegen.getLlvmFunctionType(symbol.owner))!!
 
+    /**
+     * Some intrinsics have to be processed before evaluation of their arguments.
+     * So this method looks at [callSite] and if it is call to "special" intrinsic
+     * processes it. Otherwise it returns null.
+     */
     fun tryEvaluateSpecialCall(callSite: IrFunctionAccessExpression): LLVMValueRef? {
         val function = callSite.symbol.owner
         if (!function.isTypedIntrinsic) {
@@ -224,8 +229,11 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
                 IntrinsicType.INIT_INSTANCE,
                 IntrinsicType.OBJC_INIT_BY,
                 IntrinsicType.IMMUTABLE_BLOB ->
-                    context.reportCompilationError("$intrinsicType should be handled by `tryEvaluateSpecialCall`")
+                    reportSpecialIntrinsic(intrinsicType)
             }
+
+    private fun reportSpecialIntrinsic(intrinsicType: IntrinsicType): Nothing =
+            context.reportCompilationError("$intrinsicType should be handled by `tryEvaluateSpecialCall`")
 
     private fun reportNonLoweredIntrinsic(intrinsicType: IntrinsicType): Nothing =
             context.reportCompilationError("Intrinsic of type $intrinsicType should be handled by previos lowering phase")
