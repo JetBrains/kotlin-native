@@ -15,20 +15,23 @@
  */
 
 
-package org.jetbrains.analyzer
+package org.jetbrains.renders
 
+import org.jetbrains.analyzer.*
 import org.jetbrains.report.BenchmarkResult
+
 import kotlin.math.abs
 
 // Common interface for printing report in different formats.
 interface Render {
     fun render(report: SummaryBenchmarksReport, onlyChanges: Boolean = false): String
-    fun renderPerformanceSummary(regressions: Map<String, ScoreChange>, improvements: Map<String, ScoreChange>)
-    fun renderStatusSummary(report: SummaryBenchmarksReport)
-    fun renderStatusChangesDetails(benchmarksWithChangedStatus: List<FieldChange<BenchmarkResult.Status>>)
-    fun renderEnvChanges(envChanges: List<FieldChange<String>>, bucketName: String)
-    fun renderPerformanceDetails(report: SummaryBenchmarksReport, onlyChanges: Boolean = false)
-    fun print(report: SummaryBenchmarksReport, onlyChanges: Boolean = false, outputFile: String? = null)
+    // Print report using render.
+    fun print(report: SummaryBenchmarksReport, onlyChanges: Boolean = false, outputFile: String? = null) {
+        val content = render(report, onlyChanges)
+        outputFile?.let {
+            writeToFile(outputFile, content)
+        } ?: println(content)
+    }
 }
 
 // Report render to text format.
@@ -40,14 +43,6 @@ class TextRender: Render {
 
     private fun append(text: String = "") {
         content.append("$text\n")
-    }
-
-    // Print report using render.
-    override fun print(report: SummaryBenchmarksReport, onlyChanges: Boolean, outputFile: String?) {
-        val content = render(report, onlyChanges)
-        outputFile?.let {
-            writeToFile(outputFile, content)
-        } ?: println(content)
     }
 
     override fun render(report: SummaryBenchmarksReport, onlyChanges: Boolean): String {
@@ -75,7 +70,7 @@ class TextRender: Render {
         }
     }
 
-    override fun renderEnvChanges(envChanges: List<FieldChange<String>>, bucketName: String) {
+    fun renderEnvChanges(envChanges: List<FieldChange<String>>, bucketName: String) {
         if (!envChanges.isEmpty()) {
             append(ChangeReport(bucketName, envChanges).renderAsTextReport())
         }
@@ -101,7 +96,7 @@ class TextRender: Render {
         }
     }
 
-    override fun renderStatusChangesDetails(benchmarksWithChangedStatus: List<FieldChange<BenchmarkResult.Status>>) {
+    fun renderStatusChangesDetails(benchmarksWithChangedStatus: List<FieldChange<BenchmarkResult.Status>>) {
         if (!benchmarksWithChangedStatus.isEmpty()) {
             append("Changes in status")
             append(headerSeparator)
@@ -113,7 +108,7 @@ class TextRender: Render {
         }
     }
 
-    override fun renderStatusSummary(report: SummaryBenchmarksReport) {
+    fun renderStatusSummary(report: SummaryBenchmarksReport) {
         append("Status summary")
         append(headerSeparator)
 
@@ -132,7 +127,7 @@ class TextRender: Render {
         append()
     }
 
-    override fun renderPerformanceSummary(regressions: Map<String, ScoreChange>,
+    fun renderPerformanceSummary(regressions: Map<String, ScoreChange>,
                                           improvements: Map<String, ScoreChange>) {
         if (!regressions.isEmpty() || !improvements.isEmpty()) {
             append("Performance summary")
@@ -189,7 +184,7 @@ class TextRender: Render {
         return tableWidth
     }
 
-    override fun renderPerformanceDetails(report: SummaryBenchmarksReport, onlyChanges: Boolean) {
+    fun renderPerformanceDetails(report: SummaryBenchmarksReport, onlyChanges: Boolean = false) {
         append("Performance details")
         append(headerSeparator)
 

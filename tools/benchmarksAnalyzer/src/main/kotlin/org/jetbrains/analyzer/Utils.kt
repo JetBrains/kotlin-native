@@ -20,3 +20,4 @@ expect fun readFile(fileName: String): String
 expect fun format(number: Double, decimalNumber: Int = 4): String
 expect fun writeToFile(fileName: String, text: String)
 expect fun assert(value: Boolean, lazyMessage: () -> Any)
+expect fun getEnv(variableName:String): String?

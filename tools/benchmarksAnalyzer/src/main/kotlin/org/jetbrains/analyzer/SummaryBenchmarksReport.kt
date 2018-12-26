@@ -71,6 +71,9 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
     val benchmarksNumber: Int
         get() = mergedReport.keys.size
 
+    val currentMeanVarianceBenchmarks: List<MeanVarianceBenchmark>
+        get() = mergedReport.filter { it.value.first != null }.map { it.value.first!! }
+
     init {
         // Count avarage values for each benchmark.
         val currentBenchmarksTable = collectMeanResults(currentReport.benchmarks)

@@ -37,3 +37,6 @@ actual fun writeToFile(fileName: String, text: String) {
 actual fun assert(value: Boolean, lazyMessage: () -> Any) {
     kotlin.assert(value, lazyMessage)
 }
+
+actual fun getEnv(variableName:String): String? =
+        System.getenv(variableName)

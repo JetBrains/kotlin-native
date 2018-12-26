@@ -14,10 +14,12 @@
  * limitations under the License.
  */
 
+import org.jetbrains.analyzer.getEnv
 import org.jetbrains.analyzer.readFile
 import org.jetbrains.analyzer.SummaryBenchmarksReport
-import org.jetbrains.analyzer.TextRender
 import org.jetbrains.kliopt.*
+import org.jetbrains.renders.TextRender
+import org.jetbrains.renders.TeamCityStatisticsRender
 import org.jetbrains.report.BenchmarksReport
 import org.jetbrains.report.json.JsonTreeParser
 
@@ -54,4 +56,8 @@ fun main(args: Array<String>) {
                                                 argParser.get("eps")!!.doubleValue)
     TextRender().print(summaryReport, argParser.get("short")!!.booleanValue,
                         argParser.get("output")?.stringValue)
+    // Produce information for TeamCity if needed.
+    getEnv("TEAMCITY_BUILD_PROPERTIES_FILE")?. let {
+        TeamCityStatisticsRender().print(summaryReport, argParser.get("short")!!.booleanValue)
+    }
 }
