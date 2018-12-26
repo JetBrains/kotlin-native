@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-import org.jetbrains.benchmarksAnalyzer.readFile
+import org.jetbrains.analyzer.readFile
+import org.jetbrains.analyzer.SummaryBenchmarksReport
 import org.jetbrains.kliopt.*
-import org.jetbrains.benchmarksAnalyzer.SummaryBenchmarksReport
 import org.jetbrains.report.BenchmarksReport
 import org.jetbrains.report.json.JsonTreeParser
 
@@ -51,6 +51,6 @@ fun main(args: Array<String>) {
     val summaryReport = SummaryBenchmarksReport(mainBenchsReport,
                                                 compareToBenchsReport,
                                                 argParser.get("eps")!!.doubleValue)
-    summaryReport.print(summaryReport.getTextRender(), argParser.get("short")!!.booleanValue,
-                        argParser.get("output")?.stringValue)
+    summaryReport.getTextRender().print(argParser.get("short")!!.booleanValue,
+                                        argParser.get("output")?.stringValue)
 }

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.jetbrains.benchmarksAnalyzer
+package org.jetbrains.analyzer
 
 import platform.posix.*
 import kotlinx.cinterop.CValuesRef
@@ -22,11 +22,11 @@ import kotlinx.cinterop.*
 
 actual fun readFile(fileName: String): String {
     val file = fopen(fileName, "r") ?: error("Cannot write file '$fileName'")
-    var str = ByteArray(1024)
+    var buffer = ByteArray(1024)
     var text = StringBuilder()
     try {
         while (true) {
-            val nextLine = fgets(str.refTo(0), str.size, file)?.toKString()
+            val nextLine = fgets(buffer.refTo(0), buffer.size, file)?.toKString()
             if (nextLine == null) break
             text.append(nextLine)
         }
@@ -37,9 +37,9 @@ actual fun readFile(fileName: String): String {
 }
 
 actual fun format(number: Double, decimalNumber: Int): String {
-    var str = ByteArray(1024)
-    snprintf(str.refTo(0), str.size.toULong(), "%.${decimalNumber}f", number)
-    return str.stringFromUtf8()
+    var buffer = ByteArray(1024)
+    snprintf(buffer.refTo(0), buffer.size.toULong(), "%.${decimalNumber}f", number)
+    return buffer.stringFromUtf8()
 }
 
 actual fun writeToFile(fileName: String, text: String) {
@@ -49,10 +49,6 @@ actual fun writeToFile(fileName: String, text: String) {
     } finally {
         fclose(file)
     }
-}
-
-actual fun exitProcess(status: Int) {
-    kotlin.system.exitProcess(status)
 }
 
 actual fun assert(value: Boolean, lazyMessage: () -> Any) {

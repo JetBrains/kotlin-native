@@ -15,7 +15,7 @@
  */
 
 
-package org.jetbrains.benchmarksAnalyzer
+package org.jetbrains.analyzer
 
 // Report with changes of different fields.
 class ChangeReport<T>(val entityName: String, val changes: List<FieldChange<T>>) {

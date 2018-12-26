@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package org.jetbrains.benchmarksAnalyzer
+package org.jetbrains.analyzer
 
 import java.io.File
 import java.io.InputStream
@@ -25,19 +25,13 @@ actual fun readFile(fileName: String): String {
     return inputString
 }
 
-actual fun format(number: Double, decimalNumber: Int): String {
-    val formatStr = "%.${decimalNumber}f"
-    return formatStr.format(number)
-}
+actual fun format(number: Double, decimalNumber: Int): String =
+    "%.${decimalNumber}f".format(number)
 
 actual fun writeToFile(fileName: String, text: String) {
     File(fileName).printWriter().use { out ->
         out.println(text)
     }
-}
-
-actual fun exitProcess(status: Int) {
-    kotlin.system.exitProcess(status)
 }
 
 actual fun assert(value: Boolean, lazyMessage: () -> Any) {

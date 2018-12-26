@@ -14,9 +14,9 @@
  * limitations under the License.
  */
 
-package org.jetbrains.analyzer
 
-expect fun readFile(fileName: String): String
-expect fun format(number: Double, decimalNumber: Int = 4): String
-expect fun writeToFile(fileName: String, text: String)
-expect fun assert(value: Boolean, lazyMessage: () -> Any)
+package org.jetbrains.kliopt
+
+actual fun exitProcess(status: Int) {
+    kotlin.system.exitProcess(status)
+}

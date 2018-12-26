@@ -17,7 +17,7 @@
 
 package org.jetbrains.kliopt
 
-import org.jetbrains.benchmarksAnalyzer.exitProcess
+expect fun exitProcess(status: Int)
 
 // Possible types of arguments.
 enum class ArgType(val hasParameter: Boolean) {
@@ -220,6 +220,3 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
         return result.toString()
     }
 }
-
-
-

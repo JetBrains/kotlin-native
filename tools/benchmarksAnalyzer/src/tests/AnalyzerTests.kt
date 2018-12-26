@@ -15,7 +15,7 @@
  */
 
 
-package org.jetbrains.benchmarksAnalyzer
+package org.jetbrains.analyzer
 
 import kotlin.test.*
 import kotlin.math.abs
@@ -24,30 +24,30 @@ import org.jetbrains.report.BenchmarkResult
 class AnalyzerTests {
     private val eps = 0.000001
 
-    private fun createMeanVarianceBenchs(): Pair<MeanVarianceBench, MeanVarianceBench> {
+    private fun createMeanVarianceBenchmarks(): Pair<MeanVarianceBenchmark, MeanVarianceBenchmark> {
         val firstMean = BenchmarkResult("testBenchmark", BenchmarkResult.Status.PASSED, 9.0, 9.0, 10, 10)
         val firstVariance = BenchmarkResult("testBenchmark", BenchmarkResult.Status.PASSED, 0.0001, 0.0001, 10, 10)
-        val first = MeanVarianceBench(firstMean, firstVariance)
+        val first = MeanVarianceBenchmark(firstMean, firstVariance)
 
         val secondMean = BenchmarkResult("testBenchmark", BenchmarkResult.Status.PASSED, 10.0, 10.0, 10, 10)
         val secondVariance = BenchmarkResult("testBenchmark", BenchmarkResult.Status.PASSED, 0.0001, 0.0001, 10, 10)
-        val second = MeanVarianceBench(secondMean, secondVariance)
+        val second = MeanVarianceBenchmark(secondMean, secondVariance)
 
         return Pair(first, second)
     }
 
     @Test
     fun testGeoMean() {
-        val numbers: List<Double> = listOf(4.0, 6.0, 9.0)
-        val value = Statistics.geometricMean(numbers)
+        val numbers = listOf(4.0, 6.0, 9.0)
+        val value = geometricMean(numbers)
         val expected = 6.0
         assertTrue(abs(value - expected) < eps)
     }
 
     @Test
     fun testComputeMeanVariance() {
-        val numbers: List<Double> = listOf(10.1, 10.2, 10.3)
-        val value = Statistics.computeMeanVariance(numbers)
+        val numbers = listOf(10.1, 10.2, 10.3)
+        val value = computeMeanVariance(numbers)
         val expectedMean = 10.2
         val expectedVariance = 0.092395
         assertTrue(abs(value.mean - expectedMean) < eps)
@@ -56,7 +56,7 @@ class AnalyzerTests {
 
     @Test
     fun calcPercentageDiff() {
-        val inputs = createMeanVarianceBenchs()
+        val inputs = createMeanVarianceBenchmarks()
 
         val percent = inputs.first.calcPercentageDiff(inputs.second)
         val expectedMean = -10.0
@@ -67,7 +67,7 @@ class AnalyzerTests {
 
     @Test
     fun calcRatio() {
-        val inputs = createMeanVarianceBenchs()
+        val inputs = createMeanVarianceBenchmarks()
 
         val ratio = inputs.first.calcRatio(inputs.second)
         val expectedMean = 0.9
@@ -76,27 +76,4 @@ class AnalyzerTests {
         assertTrue(abs(ratio.mean - expectedMean) < eps)
         assertTrue(abs(ratio.variance - expectedVariance) < eps)
     }
-
-    /* Possible tests
-    fun testStableBenchmarks() {
-
-    }
-
-    fun testImprRegressionsStable() {
-
-    }
-
-    fun testAddedBecnhmarks() {
-
-    }
-
-    fun testRemovedBenchmarks() {
-
-    }
-
-    fun testFailedBenchmarks() {
-
-    }
-    */
-
 }

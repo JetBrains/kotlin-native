@@ -15,16 +15,16 @@
  */
 
 
-package org.jetbrains.benchmarksAnalyzer
+package org.jetbrains.analyzer
 import org.jetbrains.report.BenchmarkResult
 import org.jetbrains.report.Environment
 import org.jetbrains.report.Compiler
 import org.jetbrains.report.BenchmarksReport
 import kotlin.math.abs
 
-typealias SummaryBench = Pair<MeanVarianceBench?, MeanVarianceBench?>
-typealias BenchTable = Map<String, MeanVarianceBench>
-typealias SummaryBenchTable = Map<String, SummaryBench>
+typealias SummaryBenchmark = Pair<MeanVarianceBenchmark?, MeanVarianceBenchmark?>
+typealias BenchmarksTable = Map<String, MeanVarianceBenchmark>
+typealias SummaryBenchmarksTable = Map<String, SummaryBenchmark>
 typealias ScoreChange = Pair<MeanVariance, MeanVariance>
 
 // Summary report with comparasion of separate benchmarks results.
@@ -33,22 +33,21 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
                                val meaningfulChangesValue: Double = 0.5) {
 
     // Lists of benchmarks in different status.
-    private val failedBenchs = mutableListOf<String>()
-    private val addedBenchs = mutableListOf<String>()
-    private val newFailures = mutableListOf<FieldChange<BenchmarkResult.Status>>()
-    private val newPasses = mutableListOf<FieldChange<BenchmarkResult.Status>>()
+    private val failedBenchmarks = mutableListOf<String>()
+    private val addedBenchmarks = mutableListOf<String>()
+    private val benchmarksWithChangedStatus = mutableListOf<FieldChange<BenchmarkResult.Status>>()
 
-    private lateinit var removedBenchs: List<String>
+    private lateinit var removedBenchmarks: List<String>
 
     // Maps with changes of performance.
     private lateinit var regressions: Map<String, ScoreChange>
     private lateinit var improvements: Map<String, ScoreChange>
 
     // Report created by joining comparing reports.
-    private val mergedReport = mutableMapOf<String, SummaryBench>()
+    private val mergedReport = mutableMapOf<String, SummaryBenchmark>()
 
     // Summary value of report - geometric mean.
-    private lateinit var geoMeanBench: SummaryBench
+    private lateinit var geoMeanBenchmark: SummaryBenchmark
     private var geoMeanScoreChange: ScoreChange? = null
 
     // Changes in environment and tools.
@@ -57,15 +56,15 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
 
     init {
         // Count avarage values for each benchmark.
-        val currentBenchTable = collectMeanResults(currentReport.benchmarks)
-        val previousBenchTable = previousReport?.let {
+        val currentBenchmarksTable = collectMeanResults(currentReport.benchmarks)
+        val previousBenchmarksTable = previousReport?.let {
             // Check changes in environment and tools.
             analyzeEnvChanges(currentReport.env, previousReport.env)
             analyzeKotlinChanges(currentReport.compiler, previousReport.compiler)
             collectMeanResults(previousReport.benchmarks)
         }
-        createMergedReport(currentBenchTable, previousBenchTable)
-        previousBenchTable?.let {
+        createMergedReport(currentBenchmarksTable, previousBenchmarksTable)
+        previousBenchmarksTable?.let {
             analyzePerformanceChanges()
         } ?: run {
             regressions = mapOf<String, ScoreChange>()
@@ -74,57 +73,53 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
     }
 
     // Create geometric mean.
-    private fun createGeoMeanBenchmark(benchTable: BenchTable): MeanVarianceBench {
-        val geoMeanBenchName = "Geometric mean"
-        val geoMean = Statistics.geometricMean(benchTable.toList().map { (_, value) -> value.meanBenchmark.score })
-        val varianceGeoMean = Statistics.geometricMean(benchTable.toList().map { (_, value) -> value.varianceBenchmark.score })
-        val meanBench = BenchmarkResult(geoMeanBenchName, geoMean)
-        val varianceBench = BenchmarkResult(geoMeanBenchName, varianceGeoMean)
-        return MeanVarianceBench(meanBench, varianceBench)
+    private fun createGeoMeanBenchmark(benchTable: BenchmarksTable): MeanVarianceBenchmark {
+        val geoMeanBenchmarkName = "Geometric mean"
+        val geoMean = geometricMean(benchTable.toList().map { (_, value) -> value.meanBenchmark.score })
+        val varianceGeoMean = geometricMean(benchTable.toList().map { (_, value) -> value.varianceBenchmark.score })
+        val meanBenchmark = BenchmarkResult(geoMeanBenchmarkName, geoMean)
+        val varianceBenchmark = BenchmarkResult(geoMeanBenchmarkName, varianceGeoMean)
+        return MeanVarianceBenchmark(meanBenchmark, varianceBenchmark)
     }
 
     // Merge current and compare to report.
-    private fun createMergedReport(curBenchs: BenchTable, prevBenchs: BenchTable?) {
-        curBenchs.forEach { (name, current) ->
-            val curBench = current.meanBenchmark
+    private fun createMergedReport(currentBenchmarks: BenchmarksTable, previousBenchmarks: BenchmarksTable?) {
+        currentBenchmarks.forEach { (name, current) ->
+            val currentBenchmark = current.meanBenchmark
             // Check status.
-            if (curBench.status == BenchmarkResult.Status.FAILED) {
-                failedBenchs.add(name)
+            if (currentBenchmark.status == BenchmarkResult.Status.FAILED) {
+                failedBenchmarks.add(name)
             }
             // Check existance of benchmark in previous results.
-            if (prevBenchs == null || name !in prevBenchs) {
-                mergedReport[name] = SummaryBench(current, null)
-                addedBenchs.add(name)
+            if (previousBenchmarks == null || name !in previousBenchmarks) {
+                mergedReport[name] = SummaryBenchmark(current, null)
+                addedBenchmarks.add(name)
             } else {
-                val prevBench = prevBenchs[name]!!.meanBenchmark
-                mergedReport[name] = SummaryBench(current, prevBenchs[name])
+                val previousBenchmark = previousBenchmarks[name]!!.meanBenchmark
+                mergedReport[name] = SummaryBenchmark(current, previousBenchmarks[name])
                 // Explore change of status.
-                if (prevBench.status != curBench.status) {
-                    val statusChange = FieldChange("$name", prevBench.status, curBench.status)
-                    if (curBench.status == BenchmarkResult.Status.FAILED) {
-                        newFailures.add(statusChange)
-                    } else {
-                        newPasses.add(statusChange)
-                    }
+                if (previousBenchmark.status != currentBenchmark.status) {
+                    val statusChange = FieldChange("$name", previousBenchmark.status, currentBenchmark.status)
+                    benchmarksWithChangedStatus.add(statusChange)
                 }
             }
         }
 
-        // Find removed becnhmarks.
-        removedBenchs = prevBenchs?.filter { (key, _) -> key !in curBenchs }?.toList()?.map { (key, value) ->
-            mergedReport[key] = SummaryBench(null, value)
-            key
+        // Find removed benchmarks.
+        removedBenchmarks = previousBenchmarks?.filter { (key, _) -> key !in currentBenchmarks }?.toList()
+                ?.map { (key, value) ->
+                        mergedReport[key] = SummaryBenchmark(null, value)
+                    key
         } ?: listOf<String>()
 
         // Calculate geometric mean.
-        val curGeoMean = createGeoMeanBenchmark(curBenchs)
-        val prevGeoMean = prevBenchs?. let { createGeoMeanBenchmark(prevBenchs) }
-        geoMeanBench = SummaryBench(curGeoMean, prevGeoMean)
+        val currentGeoMean = createGeoMeanBenchmark(currentBenchmarks)
+        val previousGeoMean = previousBenchmarks?. let { createGeoMeanBenchmark(previousBenchmarks) }
+        geoMeanBenchmark = SummaryBenchmark(currentGeoMean, previousGeoMean)
     }
 
-    private fun getBenchPerfomanceChange(name: String, bench: SummaryBench): Pair<String, ScoreChange>? {
-        val current = bench.first
-        val previous = bench.second
+    private fun getBenchmarkPerfomanceChange(name: String, benchmark: SummaryBenchmark): Pair<String, ScoreChange>? {
+        val (current, previous) = benchmark
         current?.let {
             previous?.let {
                 // Calculate metrics for showing difference.
@@ -140,8 +135,8 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
 
     // Analyze and collect changes in performance between same becnhmarks.
     private fun analyzePerformanceChanges() {
-        val performanceChanges = mergedReport.toList().map {(name, element) ->
-            getBenchPerfomanceChange(name, element)
+        val performanceChanges = mergedReport.asSequence().map {(name, element) ->
+            getBenchmarkPerfomanceChange(name, element)
         }.filterNotNull().groupBy {
             if (it.second.first.mean > 0) "regressions" else "improvements"
         }
@@ -155,79 +150,36 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
                 ?.toMap() ?: mapOf<String, ScoreChange>()
 
         // Calculate change for geometric mean.
-        geoMeanScoreChange = Pair(geoMeanBench.first!!.calcPercentageDiff(geoMeanBench.second!!),
-                geoMeanBench.first!!.calcRatio(geoMeanBench.second!!))
-    }
-
-    private fun <T> addFieldChange(list: MutableList<FieldChange<T>>, field: String, previous: T, current: T) {
-        FieldChange.getFieldChangeOrNull(field, previous, current)?.let {
-            list.add(it)
+        val (current, previous) = geoMeanBenchmark
+        geoMeanScoreChange = current?. let {
+            previous?. let {
+                Pair(current.calcPercentageDiff(previous), current.calcRatio(previous))
+            }
         }
     }
 
-    private fun analyzeEnvChanges(curEnv: Environment, prevEnv: Environment) {
-        addFieldChange(envChanges,"Machine CPU", prevEnv.machine.cpu, curEnv.machine.cpu)
-        addFieldChange(envChanges,"Machine OS", prevEnv.machine.os, curEnv.machine.os)
-        addFieldChange(envChanges,"JDK version", prevEnv.jdk.version, curEnv.jdk.version)
-        addFieldChange(envChanges,"JDK vendor", prevEnv.jdk.vendor, curEnv.jdk.vendor)
+    private fun <T> MutableList<FieldChange<T>>.addFieldChange(field: String, previous: T, current: T) {
+        FieldChange.getFieldChangeOrNull(field, previous, current)?.let {
+            add(it)
+        }
     }
 
-    private fun analyzeKotlinChanges(curCompiler: Compiler, prevCompiler: Compiler) {
-        addFieldChange(kotlinChanges,"Backend type", prevCompiler.backend.type.type, curCompiler.backend.type.type)
-        addFieldChange(kotlinChanges,"Backend version", prevCompiler.backend.version, curCompiler.backend.version)
-        addFieldChange(kotlinChanges,"Backend flags", prevCompiler.backend.flags.toString(),
-                       curCompiler.backend.flags.toString())
-        addFieldChange(kotlinChanges,"Kotlin version", prevCompiler.kotlinVersion, curCompiler.kotlinVersion)
+    private fun analyzeEnvChanges(currentEnv: Environment, previousEnv: Environment) {
+        envChanges.apply {
+            addFieldChange("Machine CPU", previousEnv.machine.cpu, currentEnv.machine.cpu)
+            addFieldChange("Machine OS", previousEnv.machine.os, currentEnv.machine.os)
+            addFieldChange("JDK version", previousEnv.jdk.version, currentEnv.jdk.version)
+            addFieldChange("JDK vendor", previousEnv.jdk.vendor, currentEnv.jdk.vendor)
+        }
     }
 
-    // Calculate avarage results for bencmarks (each becnhmark can be run several times).
-    fun collectMeanResults(benchmarks: Map<String, List<BenchmarkResult>>): BenchTable {
-        return benchmarks.map {(name, resultsSet) ->
-            val repeatSeq = IntArray(resultsSet.size)
-            var curStatus = BenchmarkResult.Status.PASSED
-            var currentWarmup = -1
-
-            // Collect common becnhmark values and check them.
-            resultsSet.forEachIndexed { index, result ->
-                // If there was at least one failure, summary is marked as failure.
-                if (result.status == BenchmarkResult.Status.FAILED) {
-                    curStatus = result.status
-                }
-                repeatSeq[index] = result.repeat
-                if (currentWarmup != -1)
-                    if (result.warmup != currentWarmup)
-                        println("Check data consistency. Warmup value for benchmark '${result.name}' differs.")
-                currentWarmup = result.warmup
-            }
-
-            repeatSeq.sort()
-            // Check if there are missed loop during running benchmarks.
-            repeatSeq.forEachIndexed { index, element ->
-                if (index != 0)
-                    if ((element - repeatSeq[index - 1]) != 1)
-                        println("Check data consistency. For benchmark '$name' there is no run between ${repeatSeq[index - 1]} and $element.")
-            }
-
-            // Create mean and variance benchmarks result.
-            val scoreMeanVariance = Statistics.computeMeanVariance(resultsSet.map{it.score})
-            val runtimeInUsMeanVariance = Statistics.computeMeanVariance(resultsSet.map{it.runtimeInUs})
-            val meanBench = BenchmarkResult(name, curStatus, scoreMeanVariance.mean,
-                    runtimeInUsMeanVariance.mean, repeatSeq[resultsSet.size - 1],
-                    currentWarmup)
-            val varianceBench = BenchmarkResult(name, curStatus, scoreMeanVariance.variance,
-                    runtimeInUsMeanVariance.variance, repeatSeq[resultsSet.size - 1],
-                    currentWarmup)
-             name to MeanVarianceBench(meanBench, varianceBench)
-        }.toMap()
-    }
-
-    // Print report using render.
-    fun print(renderInstance: Render, onlyChanges: Boolean = false, outputFile: String? = null) {
-        val content = renderInstance.render(onlyChanges)
-        outputFile?.let {
-            writeToFile(outputFile, content)
-        } ?: run {
-            println(content)
+    private fun analyzeKotlinChanges(currentCompiler: Compiler, previousCompiler: Compiler) {
+        kotlinChanges.apply {
+            addFieldChange("Backend type", previousCompiler.backend.type.type, currentCompiler.backend.type.type)
+            addFieldChange("Backend version", previousCompiler.backend.version, currentCompiler.backend.version)
+            addFieldChange("Backend flags", previousCompiler.backend.flags.toString(),
+                    currentCompiler.backend.flags.toString())
+            addFieldChange( "Kotlin version", previousCompiler.kotlinVersion, currentCompiler.kotlinVersion)
         }
     }
 
@@ -238,15 +190,26 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
         fun renderStatusSummary()
         fun renderEnvChanges()
         fun renderPerformanceDetails(onlyChanges: Boolean = false)
+        fun print(onlyChanges: Boolean = false, outputFile: String? = null)
     }
 
     // Report render to text format.
     inner class TextRender: Render {
-        private var content = ""
+        private var content = StringBuilder()
         private val headerSeparator = "================="
+        private val wideColumnWidth = 50
+        private val standardColumnWidth = 25
 
         private fun append(text: String = "") {
-            content = "$content$text\n"
+            content.append("$text\n")
+        }
+
+        // Print report using render.
+        override fun print(onlyChanges: Boolean, outputFile: String?) {
+            val content = render(onlyChanges)
+            outputFile?.let {
+                writeToFile(outputFile, content)
+            } ?: println(content)
         }
 
         override fun render(onlyChanges: Boolean): String {
@@ -254,7 +217,7 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
             renderStatusSummary()
             renderPerformanceSummary()
             renderPerformanceDetails(onlyChanges)
-            return content
+            return content.toString()
         }
 
         private fun printBucketInfo(bucket: Collection<Any>, name: String) {
@@ -287,12 +250,12 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
                 val maxValue = percentsList.first()
                 var geomeanValue: Double
                 if (percentsList.first() > 0.0) {
-                    geomeanValue = Statistics.geometricMean(percentsList)
+                    geomeanValue = geometricMean(percentsList)
                 } else {
                     // Geometric mean can be counted on positive numbers.
                     val precision = abs(maxValue) + 1
                     percentsList = percentsList.map{it + precision}
-                    geomeanValue = Statistics.geometricMean(percentsList) - precision
+                    geomeanValue = geometricMean(percentsList) - precision
                 }
 
                 append("$bucketName: Maximum = ${formatValue(maxValue, true)}," +
@@ -303,22 +266,24 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
         override fun renderStatusSummary() {
             append("Status summary")
             append(headerSeparator)
-            if (failedBenchs.isEmpty()) {
+            if (failedBenchmarks.isEmpty()) {
                 append("All benchmarks passed!")
             }
-            if (!failedBenchs.isEmpty() || !addedBenchs.isEmpty() || !removedBenchs.isEmpty()) {
-                printBucketInfo(failedBenchs, "Failed benchmarks")
-                printBucketInfo(addedBenchs, "Added benchmarks")
-                printBucketInfo(removedBenchs, "Removed benchmarks")
+            if (!failedBenchmarks.isEmpty() || !addedBenchmarks.isEmpty() || !removedBenchmarks.isEmpty()) {
+                printBucketInfo(failedBenchmarks, "Failed benchmarks")
+                printBucketInfo(addedBenchmarks, "Added benchmarks")
+                printBucketInfo(removedBenchmarks, "Removed benchmarks")
             }
             append("Total becnhmarks number: ${mergedReport.keys.size}")
             append()
 
-            if (!newFailures.isEmpty() || !newPasses.isEmpty()) {
+            if (!benchmarksWithChangedStatus.isEmpty()) {
                 append("Changes in status")
                 append(headerSeparator)
-                printStatusChangeInfo(newFailures, "New failures")
-                printStatusChangeInfo(newPasses, "New passes")
+                printStatusChangeInfo(benchmarksWithChangedStatus
+                        .filter { it.current == BenchmarkResult.Status.FAILED }, "New failures")
+                printStatusChangeInfo(benchmarksWithChangedStatus
+                        .filter { it.current == BenchmarkResult.Status.PASSED }, "New passes")
                 append()
             }
         }
@@ -333,58 +298,50 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
             }
         }
 
-        private fun formatValue(number: Double, isPercent: Boolean = false): String {
-            if (isPercent) {
-                return format(number, 2) + "%"
-            }
-            return format(number)
-        }
+        private fun formatValue(number: Double, isPercent: Boolean = false): String =
+                if (isPercent) format(number, 2) + "%" else format(number)
 
-        private fun formatColumn(content:String, isWide: Boolean = false): String {
-            val width = if (isWide) 50 else 25
-            return content.padEnd(width, ' ')
-        }
+        private fun formatColumn(content:String, isWide: Boolean = false): String =
+            content.padEnd(if (isWide) wideColumnWidth else standardColumnWidth, ' ')
 
-        private fun printBenchmarksDetails(fullSet: MutableMap<String, SummaryBench>,
+        private fun printBenchmarksDetails(fullSet: Map<String, SummaryBenchmark>,
                                            bucket: Map<String, ScoreChange>? = null) {
             bucket?.let {
                 // There are changes in performance.
                 // Output changed benchmarks.
                 for ((name, change) in bucket) {
                     append("${formatColumn(name, true)} " +
-                            "${formatColumn(fullSet[name]!!.first!!.toString())} " +
-                            "${formatColumn(fullSet[name]!!.second!!.toString())} " +
-                            "${formatColumn(change.first.toString() + " %")} " +
+                            "${formatColumn(fullSet[name]!!.first!!.toString())}" +
+                            "${formatColumn(fullSet[name]!!.second!!.toString())}" +
+                            "${formatColumn(change.first.toString() + " %")}" +
                             "${formatColumn(change.second.toString())}")
-                    fullSet.remove(name)
                 }
             } ?: let {
                 // Output all values without performance changes.
                 val placeholder = "-"
                 for ((name, value) in fullSet) {
-                    append("${formatColumn(name, true)} " +
-                            "${formatColumn(value.first?.toString() ?: placeholder)} " +
-                            "${formatColumn(value.second?.toString() ?: placeholder)} " +
-                            "${formatColumn(placeholder)} " +
+                    append("${formatColumn(name, true)}" +
+                            "${formatColumn(value.first?.toString() ?: placeholder)}" +
+                            "${formatColumn(value.second?.toString() ?: placeholder)}" +
+                            "${formatColumn(placeholder)}" +
                             "${formatColumn(placeholder)}")
                 }
             }
         }
 
-        private fun printTableLineSeparator() {
-            val tableWidth = 50 + 25 * 4
-            val placeholder = "-"
-            append("${placeholder.padEnd(tableWidth, '-')}")
-        }
+        private fun printTableLineSeparator(tableWidth: Int) =
+            append("${"-".padEnd(tableWidth, '-')}")
 
-        private fun printPerformanceTableHeader() {
-            val bench = formatColumn("Benchmark", true)
-            val current = formatColumn("Current score")
-            val previous = formatColumn("Previous score")
-            val percent = formatColumn("Percent")
-            val ratio = formatColumn("Ratio")
-            append("$bench $current $previous $percent $ratio")
-            printTableLineSeparator()
+        private fun printPerformanceTableHeader(): Int {
+            val wideColumns = listOf(formatColumn("Benchmark", true))
+            val standardColumns = listOf(formatColumn("Current score"),
+                    formatColumn("Previous score"),
+                    formatColumn("Percent"),
+                    formatColumn("Ratio"))
+            val tableWidth = wideColumnWidth * wideColumns.size + standardColumnWidth * standardColumns.size
+            append("${wideColumns.joinToString(separator = "")}${standardColumns.joinToString(separator = "")}")
+            printTableLineSeparator(tableWidth)
+            return tableWidth
         }
 
         override fun renderPerformanceDetails(onlyChanges: Boolean) {
@@ -397,21 +354,20 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
                 }
             }
 
-            printPerformanceTableHeader()
+            val tableWidth = printPerformanceTableHeader()
 
-            // Copy report for eliminating already printed benchmarks.
-            val fullSet = mergedReport.toMutableMap()
             // Print geometric mean.
             val geoMeanChangeMap = geoMeanScoreChange?.
-                                    let { mapOf(geoMeanBench.first!!.meanBenchmark.name to geoMeanScoreChange!!) }
-            printBenchmarksDetails(mutableMapOf(geoMeanBench.first!!.meanBenchmark.name to geoMeanBench),
+                                    let { mapOf(geoMeanBenchmark.first!!.meanBenchmark.name to geoMeanScoreChange!!) }
+            printBenchmarksDetails(mutableMapOf(geoMeanBenchmark.first!!.meanBenchmark.name to geoMeanBenchmark),
                                          geoMeanChangeMap)
-            printTableLineSeparator()
-            printBenchmarksDetails(fullSet, regressions)
-            printBenchmarksDetails(fullSet, improvements)
+            printTableLineSeparator(tableWidth)
+            printBenchmarksDetails(mergedReport, regressions)
+            printBenchmarksDetails(mergedReport, improvements)
             if (!onlyChanges) {
-                // Print all left results.
-                printBenchmarksDetails(fullSet)
+                // Print all remaining results.
+                printBenchmarksDetails(mergedReport.filter { it.key !in regressions.keys &&
+                                                             it.key !in improvements.keys })
             }
 
         }

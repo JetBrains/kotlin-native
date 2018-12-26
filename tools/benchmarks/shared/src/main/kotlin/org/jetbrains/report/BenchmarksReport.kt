@@ -109,13 +109,8 @@ class BenchmarksReport(val env: Environment, benchmarksList: List<BenchmarkResul
         }
 
         // Made a map of becnhmarks with name as key from list.
-        private fun structBenchmarks(benchmarksList: List<BenchmarkResult>): Map<String, List<BenchmarkResult>> {
-            val result = mutableMapOf<String, MutableList<BenchmarkResult>>()
-            benchmarksList.forEach {
-                result.getOrPut(it.name) { mutableListOf() } += it
-            }
-            return result
-        }
+        private fun structBenchmarks(benchmarksList: List<BenchmarkResult>) =
+                benchmarksList.groupBy{ it.name }
     }
 
     val benchmarks: Map<String, List<BenchmarkResult>> = structBenchmarks(benchmarksList)
