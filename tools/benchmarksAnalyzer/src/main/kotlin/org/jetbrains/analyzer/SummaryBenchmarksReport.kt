@@ -33,8 +33,7 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
                                val previousReport: BenchmarksReport? = null,
                                val meaningfulChangesValue: Double = 0.5) {
     // Report created by joining comparing reports.
-    lateinit var mergedReport: Map<String, SummaryBenchmark>
-        private set
+    val mergedReport: Map<String, SummaryBenchmark>
 
     // Lists of benchmarks in different status.
     private val benchmarksWithChangedStatus = mutableListOf<FieldChange<BenchmarkResult.Status>>()
@@ -46,16 +45,13 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
         private set
 
     // Summary value of report - geometric mean.
-    lateinit var geoMeanBenchmark: SummaryBenchmark
-        private set
+    val geoMeanBenchmark: SummaryBenchmark
     var geoMeanScoreChange: ScoreChange? = null
         private set
 
     // Changes in environment and tools.
-    var envChanges = listOf<FieldChange<String>>()
-        private set
-    var kotlinChanges = listOf<FieldChange<String>>()
-        private set
+    val envChanges: List<FieldChange<String>>
+    val kotlinChanges: List<FieldChange<String>>
 
     // Countable properties.
     val failedBenchmarks: List<String>
@@ -78,14 +74,18 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
         // Count avarage values for each benchmark.
         val currentBenchmarksTable = collectMeanResults(currentReport.benchmarks)
         val previousBenchmarksTable = previousReport?.let {
-            // Check changes in environment and tools.
-            analyzeEnvChanges(currentReport.env, previousReport.env)
-            analyzeKotlinChanges(currentReport.compiler, previousReport.compiler)
             collectMeanResults(previousReport.benchmarks)
         }
-        createMergedReport(currentBenchmarksTable, previousBenchmarksTable)
-        previousBenchmarksTable?.let {
+        mergedReport = createMergedReport(currentBenchmarksTable, previousBenchmarksTable)
+        geoMeanBenchmark = calculateGeoMeanBenchmark(currentBenchmarksTable, previousBenchmarksTable)
+        if (previousReport != null) {
+            // Check changes in environment and tools.
+            envChanges = analyzeEnvChanges(currentReport.env, previousReport.env)
+            kotlinChanges = analyzeKotlinChanges(currentReport.compiler, previousReport.compiler)
             analyzePerformanceChanges()
+        } else {
+            envChanges = listOf<FieldChange<String>>()
+            kotlinChanges = listOf<FieldChange<String>>()
         }
     }
 
@@ -102,9 +102,10 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
     }
 
     // Merge current and compare to report.
-    private fun createMergedReport(currentBenchmarks: BenchmarksTable, previousBenchmarks: BenchmarksTable?) {
-        val mergedBucket = mutableMapOf<String, SummaryBenchmark>()
-        mergedBucket.apply {
+    private fun createMergedReport(currentBenchmarks: BenchmarksTable, previousBenchmarks: BenchmarksTable?):
+            Map<String, SummaryBenchmark> {
+        val mergedTable = mutableMapOf<String, SummaryBenchmark>()
+        mergedTable.apply {
             currentBenchmarks.forEach { (name, current) ->
                 val currentBenchmark = current.meanBenchmark
                 // Check existance of benchmark in previous results.
@@ -123,18 +124,22 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
         }
 
         // Add removed benchmarks to merged report.
-        mergedBucket.apply {
+        mergedTable.apply {
             previousBenchmarks?.filter { (key, _) -> key !in currentBenchmarks }?.forEach { (key, value) ->
                 getOrPut(key) { SummaryBenchmark(null, value) }
             }
         }
 
-        mergedReport = mergedBucket
+        return mergedTable
+    }
 
+    // Calculate geometric mean.
+    private fun calculateGeoMeanBenchmark(currentBenchmarks: BenchmarksTable, previousBenchmarks: BenchmarksTable?):
+            SummaryBenchmark {
         // Calculate geometric mean.
         val currentGeoMean = createGeoMeanBenchmark(currentBenchmarks)
         val previousGeoMean = previousBenchmarks?. let { createGeoMeanBenchmark(previousBenchmarks) }
-        geoMeanBenchmark = SummaryBenchmark(currentGeoMean, previousGeoMean)
+        return SummaryBenchmark(currentGeoMean, previousGeoMean)
     }
 
     private fun getBenchmarkPerfomanceChange(name: String, benchmark: SummaryBenchmark): Pair<String, ScoreChange>? {
@@ -183,8 +188,8 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
         }
     }
 
-    private fun analyzeEnvChanges(currentEnv: Environment, previousEnv: Environment) {
-        envChanges = mutableListOf<FieldChange<String>>().apply {
+    private fun analyzeEnvChanges(currentEnv: Environment, previousEnv: Environment): List<FieldChange<String>> {
+        return mutableListOf<FieldChange<String>>().apply {
             addFieldChange("Machine CPU", previousEnv.machine.cpu, currentEnv.machine.cpu)
             addFieldChange("Machine OS", previousEnv.machine.os, currentEnv.machine.os)
             addFieldChange("JDK version", previousEnv.jdk.version, currentEnv.jdk.version)
@@ -192,8 +197,8 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
         }
     }
 
-    private fun analyzeKotlinChanges(currentCompiler: Compiler, previousCompiler: Compiler) {
-        kotlinChanges = mutableListOf<FieldChange<String>>().apply {
+    private fun analyzeKotlinChanges(currentCompiler: Compiler, previousCompiler: Compiler): List<FieldChange<String>> {
+        return mutableListOf<FieldChange<String>>().apply {
             addFieldChange("Backend type", previousCompiler.backend.type.type, currentCompiler.backend.type.type)
             addFieldChange("Backend version", previousCompiler.backend.version, currentCompiler.backend.version)
             addFieldChange("Backend flags", previousCompiler.backend.flags.toString(),

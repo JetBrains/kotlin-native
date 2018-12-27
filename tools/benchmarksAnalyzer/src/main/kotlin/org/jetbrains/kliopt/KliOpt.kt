@@ -17,8 +17,6 @@
 
 package org.jetbrains.kliopt
 
-expect fun exitProcess(status: Int)
-
 // Possible types of arguments.
 enum class ArgType(val hasParameter: Boolean) {
     BOOLEAN(false),
@@ -135,7 +133,9 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
         return false
     }
 
-    fun parse(args: Array<String>) {
+    // Parse arguments.
+    // Returns true if all arguments were parsed, otherwise return false and print help message.
+    fun parse(args: Array<String>): Boolean {
         var index = 0
         val optDescriptors = options.map { it.longName to it }.toMap()
         val shortNames = options.filter { it.shortName != null }.map { it.shortName!! to it.longName }.toMap()
@@ -159,7 +159,7 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
                     } else {
                         if (name == "help") {
                             println(makeUsage())
-                            exitProcess(0)
+                            return false
                         }
                         parsedValues[name] = ParsedArg(descriptor, "true")
                     }
@@ -193,6 +193,8 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
                 }
             }
         }
+
+        return true
     }
 
     fun get(name: String): ParsedArg? {

@@ -36,7 +36,7 @@ interface Render {
 
 // Report render to text format.
 class TextRender: Render {
-    private var content = StringBuilder()
+    private val content = StringBuilder()
     private val headerSeparator = "================="
     private val wideColumnWidth = 50
     private val standardColumnWidth = 25
@@ -146,25 +146,25 @@ class TextRender: Render {
 
     private fun printBenchmarksDetails(fullSet: Map<String, SummaryBenchmark>,
                                        bucket: Map<String, ScoreChange>? = null) {
-        bucket?.let {
+        if (bucket != null) {
             // There are changes in performance.
             // Output changed benchmarks.
             for ((name, change) in bucket) {
-                append("${formatColumn(name, true)}" +
-                        "${formatColumn(fullSet[name]!!.first!!.toString())}" +
-                        "${formatColumn(fullSet[name]!!.second!!.toString())}" +
-                        "${formatColumn(change.first.toString() + " %")}" +
-                        "${formatColumn(change.second.toString())}")
+                append(formatColumn(name, true) +
+                        formatColumn(fullSet[name]!!.first!!.toString()) +
+                        formatColumn(fullSet[name]!!.second!!.toString()) +
+                        formatColumn(change.first.toString() + " %") +
+                        formatColumn(change.second.toString()))
             }
-        } ?: let {
+        } else {
             // Output all values without performance changes.
             val placeholder = "-"
             for ((name, value) in fullSet) {
-                append("${formatColumn(name, true)}" +
-                        "${formatColumn(value.first?.toString() ?: placeholder)}" +
-                        "${formatColumn(value.second?.toString() ?: placeholder)}" +
-                        "${formatColumn(placeholder)}" +
-                        "${formatColumn(placeholder)}")
+                append(formatColumn(name, true) +
+                        formatColumn(value.first?.toString() ?: placeholder) +
+                        formatColumn(value.second?.toString() ?: placeholder) +
+                        formatColumn(placeholder) +
+                        formatColumn(placeholder))
             }
         }
     }

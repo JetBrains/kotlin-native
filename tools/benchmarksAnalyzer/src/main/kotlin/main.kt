@@ -38,26 +38,26 @@ fun main(args: Array<String>) {
 
     // Parse args.
     val argParser = ArgParser(options, arguments)
-    argParser.parse(args)
+    if (argParser.parse(args)) {
+        // Read contents of file.
+        val mainBenchsResults = readFile(argParser.get("mainReport")!!.stringValue)
+        val mainReportElement = JsonTreeParser.parse(mainBenchsResults)
+        val mainBenchsReport = BenchmarksReport.create(mainReportElement)
+        var compareToBenchsReport = argParser.get("compareToReport")?.stringValue?.let {
+            val compareToResults = readFile(it)
+            val compareToReportElement = JsonTreeParser.parse(compareToResults)
+            BenchmarksReport.create(compareToReportElement)
+        }
 
-    // Read contents of file.
-    val mainBenchsResults = readFile(argParser.get("mainReport")!!.stringValue)
-    val mainReportElement = JsonTreeParser.parse(mainBenchsResults)
-    val mainBenchsReport = BenchmarksReport.create(mainReportElement)
-    var compareToBenchsReport = argParser.get("compareToReport")?.stringValue?. let {
-        val compareToResults = readFile(it)
-        val compareToReportElement = JsonTreeParser.parse(compareToResults)
-        BenchmarksReport.create(compareToReportElement)
-    }
-
-    // Generate comparasion report
-    val summaryReport = SummaryBenchmarksReport(mainBenchsReport,
-                                                compareToBenchsReport,
-                                                argParser.get("eps")!!.doubleValue)
-    TextRender().print(summaryReport, argParser.get("short")!!.booleanValue,
-                        argParser.get("output")?.stringValue)
-    // Produce information for TeamCity if needed.
-    getEnv("TEAMCITY_BUILD_PROPERTIES_FILE")?. let {
-        TeamCityStatisticsRender().print(summaryReport, argParser.get("short")!!.booleanValue)
+        // Generate comparasion report
+        val summaryReport = SummaryBenchmarksReport(mainBenchsReport,
+                compareToBenchsReport,
+                argParser.get("eps")!!.doubleValue)
+        TextRender().print(summaryReport, argParser.get("short")!!.booleanValue,
+                argParser.get("output")?.stringValue)
+        // Produce information for TeamCity if needed.
+        getEnv("TEAMCITY_BUILD_PROPERTIES_FILE")?.let {
+            TeamCityStatisticsRender().print(summaryReport, argParser.get("short")!!.booleanValue)
+        }
     }
 }
