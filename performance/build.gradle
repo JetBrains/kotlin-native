@@ -81,6 +81,8 @@ kotlin {
     }
 }
 
+MPPTools.addTimeListener(project)
+
 MPPTools.createRunTask(project, 'konanRun', kotlin.targets.native) {
     workingDir = project.provider {
         kotlin.targets.native.compilations.main.getBinary('EXECUTABLE', buildType).parentFile
@@ -102,11 +104,13 @@ task jvmRun(type: JavaExec)  {
 
 task konanJsonReport {
     doLast {
+        def nativeCompileTime = MPPTools.getNativeCompileTime('Ring')
         String benchContents = new File("${buildDir.absolutePath}/${nativeBenchResults}").text
         def properties = getCommonProperties() + ['type'           : 'native',
                                                   'compilerVersion': "${konanVersion}".toString(),
                                                   'flags'          : kotlin.targets.native.compilations.main.extraOpts.collect{ '"' + it + '"'},
-                                                  'benchmarks'     : benchContents]
+                                                  'benchmarks'     : benchContents,
+                                                  'compileTime'    : nativeCompileTime]
         def output = MPPTools.createJsonReport(properties)
         new File("${buildDir.absolutePath}/${nativeJson}").write(output)
     }
@@ -114,10 +118,12 @@ task konanJsonReport {
 
 task jvmJsonReport {
     doLast {
+        def jvmCompileTime = MPPTools.getJvmCompileTime('Ring')
         String benchContents = new File("${buildDir.absolutePath}/${jvmBenchResults}").text
         def properties = getCommonProperties() + ['type'           : 'jvm',
                                                   'compilerVersion': "${buildKotlinVersion}".toString(),
-                                                  'benchmarks'     : benchContents]
+                                                  'benchmarks'     : benchContents,
+                                                  'compileTime'    : jvmCompileTime]
         def output = MPPTools.createJsonReport(properties)
         new File("${buildDir.absolutePath}/${jvmJson}").write(output)
     }
@@ -143,7 +149,8 @@ private def getCommonProperties() {
 task bench(type:Exec) {
     dependsOn jvmRun
     dependsOn konanRun
-    def analyzer = MPPTools.findFile("$analyzerTool", "${rootBuildDirectory}/${analyzerToolDirectory}")
+    def extension = MPPTools.getNativeProgramExtension(project)
+    def analyzer = MPPTools.findFile("${analyzerTool}${extension}", "${rootBuildDirectory}/${analyzerToolDirectory}")
     if (analyzer != null) {
         commandLine "${analyzer}", "${buildDir.absolutePath}/${nativeJson}", "${buildDir.absolutePath}/${jvmJson}"
     } else {
