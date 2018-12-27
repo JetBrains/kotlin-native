@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.gradle.plugin.KotlinTargetPreset
 import org.jetbrains.report.*
 import org.jetbrains.report.json.*
 import java.nio.file.Paths
+import java.io.File
 
 /*
  * This file includes short-cuts that may potentially be implemented in Kotlin MPP Gradle plugin in the future.
@@ -75,6 +76,15 @@ fun createJsonReport(projectProperties: Map<String, Any>): String {
     val benchmarks = BenchmarksReport.parseBenchmarksArray(benchmarksArray)
     val report = BenchmarksReport(env, benchmarks, kotlin)
     return report.toJson()
+}
+
+// Find file with set name in directory.
+fun findFile(fileName: String, directory: String): String? {
+    File(directory).walkBottomUp().forEach {
+        if (it.getName() == fileName)
+            return it.getAbsolutePath()
+    }
+    return null
 }
 
 // A short-cut to add a Kotlin/Native run task.
