@@ -90,7 +90,7 @@ fun createJsonReport(projectProperties: Map<String, Any>): String {
 
 // Find file with set name in directory.
 fun findFile(fileName: String, directory: String): String? =
-    File(directory).walkBottomUp().find { it.getName() == fileName }?.getAbsolutePath()
+    File(directory).walkBottomUp().find { it.name == fileName }?.getAbsolutePath()
 
 // A short-cut to add a Kotlin/Native run task.
 @JvmOverloads
