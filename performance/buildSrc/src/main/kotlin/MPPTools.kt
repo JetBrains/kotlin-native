@@ -67,7 +67,7 @@ fun getNativeProgramExtension(subproject: Project): String = when {
     isMacos -> ".kexe"
     isLinux -> ".kexe"
     isWindows -> ".exe"
-    else -> ""
+    else -> TODO("Unknown host")
 }
 
 // Create benchmarks json report based on information get from gradle project
@@ -114,15 +114,15 @@ fun getNativeCompileTime(programName: String): BenchmarkResult =
 // Class time tracker for all tasks.
 class TaskTimerListener: TaskExecutionListener {
     companion object {
-        val tasksTimes = mutableMapOf<String, Long>()
+        val tasksTimes = mutableMapOf<String, Double>()
 
         fun getBenchmarkResult(programName: String, tasksNames: List<String>): BenchmarkResult {
-            val time = tasksNames.map { tasksTimes[it] ?: 0 }.sum()
+            val time = tasksNames.map { tasksTimes[it] ?: 0.0 }.sum()
             // TODO get this info from gradle plugin with exit code end stacktrace.
             val status = tasksNames.map { tasksTimes.containsKey(it) }.reduce { a, b -> a && b }
             return BenchmarkResult("$programName.compileTime",
                                     if (status) BenchmarkResult.Status.PASSED else BenchmarkResult.Status.FAILED,
-                                    time.toDouble(), time.toDouble(), 1, 0)
+                                    time, time, 1, 0)
         }
 
     }
@@ -130,11 +130,11 @@ class TaskTimerListener: TaskExecutionListener {
     private var startTime = System.currentTimeMillis()
 
     override fun beforeExecute(task: Task) {
-        startTime = System.currentTimeMillis()
+        startTime = System.nanoTime()
     }
 
      override fun afterExecute(task: Task, taskState: TaskState) {
-         tasksTimes[task.name] = 1000 * (System.currentTimeMillis() - startTime)
+         tasksTimes[task.name] = (System.nanoTime() - startTime) / 1000.0
      }
 }
 
