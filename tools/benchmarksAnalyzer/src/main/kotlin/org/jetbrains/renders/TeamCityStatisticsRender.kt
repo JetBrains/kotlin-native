@@ -54,7 +54,7 @@ class TeamCityStatisticsRender: Render {
             content.append("##teamcity[testFailed name='${benchmark.name}']\n")
         }
         // test_duration_in_milliseconds is set for TeamCity
-        content.append("##teamcity[testFinished name='${benchmark.name}' duration='${duration / 1000}']\n")
+        content.append("##teamcity[testFinished name='${benchmark.name}' duration='${(duration / 1000).toInt()}']\n")
     }
 
     private fun renderGeometricMean(geoMeanBenchmark: MeanVarianceBenchmark) {
