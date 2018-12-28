@@ -63,7 +63,7 @@ fun defaultHostPreset(
         throw Exception("Host OS '$hostOs' is not supported in Kotlin/Native ${subproject.displayName}.")
 }
 
-fun getNativeProgramExtension(subproject: Project): String = when {
+fun getNativeProgramExtension(): String = when {
     isMacos -> ".kexe"
     isLinux -> ".kexe"
     isWindows -> ".exe"
@@ -109,7 +109,7 @@ fun getJvmCompileTime(programName: String): BenchmarkResult =
         TaskTimerListener.getBenchmarkResult(programName, listOf("compileKotlinMetadata", "jvmJar"))
 
 fun getNativeCompileTime(programName: String): BenchmarkResult =
-        TaskTimerListener.getBenchmarkResult(programName, listOf("compileKotlinNative", "linkReleaseExecutable"))
+        TaskTimerListener.getBenchmarkResult(programName, listOf("compileKotlinNative", "linkReleaseExecutableNative"))
 
 // Class time tracker for all tasks.
 class TaskTimerListener: TaskExecutionListener {

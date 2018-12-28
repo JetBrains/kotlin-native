@@ -149,7 +149,7 @@ private def getCommonProperties() {
 task bench(type:Exec) {
     dependsOn jvmRun
     dependsOn konanRun
-    def extension = MPPTools.getNativeProgramExtension(project)
+    def extension = MPPTools.getNativeProgramExtension()
     def analyzer = MPPTools.findFile("${analyzerTool}${extension}", "${rootBuildDirectory}/${analyzerToolDirectory}")
     if (analyzer != null) {
         commandLine "${analyzer}", "${buildDir.absolutePath}/${nativeJson}", "${buildDir.absolutePath}/${jvmJson}"
