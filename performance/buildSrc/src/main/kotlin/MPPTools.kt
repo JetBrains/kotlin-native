@@ -67,12 +67,12 @@ fun getNativeProgramExtension(): String = when {
     isMacos -> ".kexe"
     isLinux -> ".kexe"
     isWindows -> ".exe"
-    else -> TODO("Unknown host")
+    else -> error("Unknown host")
 }
 
 // Create benchmarks json report based on information get from gradle project
 fun createJsonReport(projectProperties: Map<String, Any>): String {
-    fun getValue(key: String): String = projectProperties[key] as? String ?: "uknown"
+    fun getValue(key: String): String = projectProperties[key] as? String ?: "unknown"
     val machine = Environment.Machine(getValue("cpu"), getValue("os"))
     val jdk = Environment.JDKInstance(getValue("jdkVersion"), getValue("jdkVendor"))
     val env = Environment(machine, jdk)
