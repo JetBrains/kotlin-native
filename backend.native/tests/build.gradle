@@ -175,7 +175,7 @@ task sanity {
     }
     dependsOn(tasksOf { it instanceof KonanTest && it.inDevelopersRun &&
             !it.getDependsOn().contains(':distPlatformLibs') })
-    dependsOn(tasksOf { it instanceof RunStdlibTest })
+    dependsOn(tasksOf { it instanceof KonanStdlibTestRunner })
 }
 
 // Collect reports in one json.
@@ -819,7 +819,7 @@ task freeze5(type: KonanLocalTestRunner) {
 }
 
 task freeze6(type: KonanLocalTestRunner) {
-    disabled = (project.testTarget == 'wasm32') // No exceptions on WASM.
+    enabled = (project.testTarget != 'wasm32') // No exceptions on WASM.
     goldValue = "OK\nOK\n"
     source = "runtime/workers/freeze6.kt"
 }
