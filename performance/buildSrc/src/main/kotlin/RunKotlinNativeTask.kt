@@ -31,7 +31,7 @@ open class RunKotlinNativeTask @Inject constructor(
 
     override fun configure(configureClosure: Closure<Any>): Task {
         val task = super.configure(configureClosure)
-        this.dependsOn += curTarget.compilations.main.linkTaskName("EXECUTABLE", buildType)
+        //this.dependsOn += curTarget.compilations.main.getLinkTask("EXECUTABLE", buildType).name
         return task
     }
 

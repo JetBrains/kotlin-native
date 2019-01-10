@@ -109,7 +109,7 @@ fun getJvmCompileTime(programName: String): BenchmarkResult =
         TaskTimerListener.getBenchmarkResult(programName, listOf("compileKotlinMetadata", "jvmJar"))
 
 fun getNativeCompileTime(programName: String): BenchmarkResult =
-        TaskTimerListener.getBenchmarkResult(programName, listOf("compileKotlinNative", "linkReleaseExecutableNative"))
+        TaskTimerListener.getBenchmarkResult(programName, listOf("compileKotlinNative", "linkMainReleaseExecutableNative"))
 
 // Class time tracker for all tasks.
 class TaskTimerListener: TaskExecutionListener {

@@ -157,3 +157,10 @@ task bench(type:Exec) {
         println("No analyzer $analyzerTool found in subdirectories of ${rootBuildDirectory}/${analyzerToolDirectory}")
     }
 }
+
+task slackReport(type: RegressionsReporter) {
+    currentBenchmarksReportFile = "${buildDir.absolutePath}/${nativeJson}"
+    fileNameForPreviousResults = "${buildDir.absolutePath}/previousReport.json"
+    analyzer = MPPTools.findFile("${analyzerTool}${MPPTools.getNativeProgramExtension()}",
+            "${rootBuildDirectory}/${analyzerToolDirectory}")
+}
