@@ -222,12 +222,12 @@ open class RegressionsReporter : DefaultTask() {
             session.sendMessage(channel, footer)
         } else {
             changesList.commits.filter{ (_, user, _) -> user in slackUsers }. map { (_, user, _) ->
-                val user = session.findUserByUserName(slackUsers[user])
-                session.sendMessageToUser(user, header, null)
+                val slackUser = session.findUserByUserName(slackUsers[user])
+                session.sendMessageToUser(slackUser, header, null)
                 reportMessages.forEach { message ->
-                    session.sendMessageToUser(user, message.joinToString("\n", "```", "```"), null)
+                    session.sendMessageToUser(slackUser, message.joinToString("\n", "```", "```"), null)
                 }
-                session.sendMessageToUser(user, footer, null)
+                session.sendMessageToUser(slackUser, footer, null)
 
             }
         }
