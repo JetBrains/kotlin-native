@@ -26,7 +26,7 @@ import java.util.Properties
 
 fun String.runCommand(workingDir: File = File("."),
                       timeoutAmount: Long = 60,
-                      timeoutUnit: TimeUnit = TimeUnit.SECONDS): String? {
+                      timeoutUnit: TimeUnit = TimeUnit.SECONDS): String {
     return try {
         ProcessBuilder(*this.split("\\s".toRegex()).toTypedArray())
                 .directory(workingDir)
@@ -36,8 +36,7 @@ fun String.runCommand(workingDir: File = File("."),
                     waitFor(timeoutAmount, timeoutUnit)
                 }.inputStream.bufferedReader().readText()
     } catch (e: IOException) {
-        e.printStackTrace()
-        null
+        error("Couldn't run command $this")
     }
 }
 
@@ -77,6 +76,9 @@ open class RegressionsReporter : DefaultTask() {
     val teamCityUrl = "http://buildserver.labs.intellij.net"
     val defaultBranch = "master"
     val slackUsers = mapOf("elena.lepilkina" to "elena.lepilkina")
+    val buildNamePrefix = "Kotlin_Konan"
+    val buildNamePostfix = "Performance"
+    val linesNumberInMessage = 20
 
     @Input
     lateinit var currentBenchmarksReportFile: String
@@ -178,9 +180,9 @@ open class RegressionsReporter : DefaultTask() {
 
         // Get changes description.
         val changesList = getChanges("id:$buildId", user, password)
-        val changesInfo = "Changes:\n" + buildString {
+        val changesInfo = "*Changes* in branch *$branch:*\n" + buildString {
             changesList.commits.forEach { (version, user, url) ->
-                append("    Change $version by @$user\n (details: $url)")
+                append("        - Change $version by <@$user>\n (details: $url)")
             }
         }
 
@@ -189,7 +191,7 @@ open class RegressionsReporter : DefaultTask() {
 
         // Get benchmarks results from last build on branch.
         val benchmarksReportFromArtifact = getArtifactContent(previousBuildLocator(buildTypeId, compareToBranch),
-                                                                currentBenchmarksReportFile.substringAfterLast("/"), user, password)
+                currentBenchmarksReportFile.substringAfterLast("/"), user, password)
 
         // Get compare to build.
         val compareToBuild = getBuild(previousBuildLocator(buildTypeId, compareToBranch), user, password)
@@ -200,20 +202,33 @@ open class RegressionsReporter : DefaultTask() {
         }
 
         // Generate comparasion report.
-        val report = "$analyzer -s -b $currentBenchmarksReportFile $fileNameForPreviousResults".runCommand()
+        val report = "$analyzer -s -b $currentBenchmarksReportFile $fileNameForPreviousResults".runCommand().lines()
+
+        val target = buildTypeId.substringAfter(buildNamePrefix).substringBefore(buildNamePostfix)
+        val title = "\n*Performance report for target $target*\n"
+        val header = "$title\n$changesInfo\n\nCompare to build:$compareToBuildLink\n\n"
+        val reportMessages = report.withIndex().groupBy { it.index / linesNumberInMessage }.map { it.value.map { it.value } }
+        val footer = "*Benchmarks statistics:* $testReportUrl"
 
         // Send to channel or user directly.
-        val message = "${changesInfo}\nCompare to build:$compareToBuildLink\n" +
-                "${report}\nBenchmarks statistics:$testReportUrl"
         val session = SlackSessionFactory.createWebSocketSlackSession(buildProperties.getProperty("konan-reporter-token"))
         session.connect()
         if (branch == defaultBranch) {
             val channel = session.findChannelByName(buildProperties.getProperty("konan-channel-name"))
-            session.sendMessage(channel, message)
+            session.sendMessage(channel, header)
+            reportMessages.forEach { message ->
+                session.sendMessage(channel, message.joinToString("\n", "```", "```"))
+            }
+            session.sendMessage(channel, footer)
         } else {
             changesList.commits.filter{ (_, user, _) -> user in slackUsers }. map { (_, user, _) ->
                 val user = session.findUserByUserName(slackUsers[user])
-                session.sendMessageToUser(user, message, null)
+                session.sendMessageToUser(user, header, null)
+                reportMessages.forEach { message ->
+                    session.sendMessageToUser(user, message.joinToString("\n", "```", "```"), null)
+                }
+                session.sendMessageToUser(user, footer, null)
+
             }
         }
         session.disconnect()
