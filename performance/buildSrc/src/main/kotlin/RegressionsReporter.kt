@@ -59,7 +59,7 @@ class CommitsList(data: JsonElement): ConvertedFromJson {
                 error("Change field is expected to be an array. Please, check source.")
             }
         } else {
-            error("Commits description is expected to be a json object")
+            error("Commits description is expected to be a json object!")
         }
     }
 }
@@ -75,6 +75,7 @@ class CommitsList(data: JsonElement): ConvertedFromJson {
 open class RegressionsReporter : DefaultTask() {
 
     val teamCityUrl = "http://buildserver.labs.intellij.net"
+    val defaultBranch = "master"
     val slackUsers = mapOf("elena.lepilkina" to "elena.lepilkina")
 
     @Input
@@ -97,11 +98,14 @@ open class RegressionsReporter : DefaultTask() {
     private fun testReportUrl(buildId: String, buildTypeId: String) =
             tabUrl(buildId, buildTypeId, "testsInfo")
 
-    private fun artifactContentUrl(buildTypeId: String, artifactPath: String) =
-            "$teamCityUrl/app/rest/builds/${previousBuildLocator(buildTypeId)}/artifacts/content/$artifactPath"
+    private fun buildsUrl(buildLocator: String) =
+            "$teamCityUrl/app/rest/builds/$buildLocator"
 
-    private fun previousBuildLocator(buildTypeId: String) =
-            "buildType:id:$buildTypeId,branch:name:master,status:SUCCESS,count:1"
+    private fun artifactContentUrl(buildLocator: String, artifactPath: String) =
+            "${buildsUrl(buildLocator)}/artifacts/content/$artifactPath"
+
+    private fun previousBuildLocator(buildTypeId: String, branchName: String) =
+            "buildType:id:$buildTypeId,branch:name:$branchName,status:SUCCESS,state:finished,count:1"
 
     private fun changesListUrl(buildId: String) =
             "$teamCityUrl/app/rest/changes/?locator=id:$buildId"
@@ -120,7 +124,7 @@ open class RegressionsReporter : DefaultTask() {
     fun run() {
         // Get TeamCity properties.
         val teamcityConfig = System.getenv("TEAMCITY_BUILD_PROPERTIES_FILE") ?:
-            throw RuntimeException("Can't load teamcity config")
+            throw RuntimeException("Can't load teamcity config!")
         val buildProperties = Properties()
         buildProperties.load(FileInputStream(teamcityConfig))
 
@@ -132,25 +136,40 @@ open class RegressionsReporter : DefaultTask() {
 
         val testReportUrl = testReportUrl(buildId, buildTypeId)
 
+        // Get previous builds on branch.
+        val builds = try {
+            sendGet(buildsUrl("buildType:id:$buildTypeId,branch:name:$branch,status:SUCCESS,state:finished,count:1"),
+                    user, password)
+        } catch (t: Throwable) {
+            throw RuntimeException("Try to get builds! TeamCity is unreachable!")
+        }
+        val previousBuildsExist = (JsonTreeParser.parse(builds) as JsonObject).getPrimitive("count").int != 0
+
         // Get changes description.
-        val changesList = try {
+        val changes = try {
             sendGet(changesListUrl(buildId), user, password)
         } catch (t: Throwable) {
-            ""
+            throw RuntimeException("Try to get commits! TeamCity is unreachable!")
         }
-        val changes = CommitsList(JsonTreeParser.parse(changesList))
+        val changesList = CommitsList(JsonTreeParser.parse(changes))
         val changesInfo = "Changes:\n" + buildString {
-            changes.commits.forEach { (version, user, url) ->
+            changesList.commits.forEach { (version, user, url) ->
                 append("    Change $version by @$user\n (details: $url)")
             }
         }
 
-        // Get benchmarks results from last build on master branch.
+        // If branch differs from default compare to master if it's first build, otherwise to previous build on branch.
+        val compareToBranch = if (previousBuildsExist) { branch } else { defaultBranch }
+
+        // Get benchmarks results from last build on branch.
         val response = try {
-            sendGet(artifactContentUrl(buildTypeId, currentBenchmarksReportFile), user, password)
+            sendGet(artifactContentUrl(previousBuildLocator(buildTypeId, compareToBranch), currentBenchmarksReportFile),
+                    user, password)
         } catch (t: Throwable) {
             ""
         }
+
+        // TODO. Get compare to build.
 
         File(fileNameForPreviousResults).printWriter().use { out ->
             out.println(response)
@@ -162,10 +181,10 @@ open class RegressionsReporter : DefaultTask() {
         // Send to channel or user directly.
         val session = SlackSessionFactory.createWebSocketSlackSession(buildProperties.getProperty("konan-reporter-token"))
         session.connect()
-        val channel = if (branch == "master") {
+        val channel = if (branch == defaultBranch) {
             session.findChannelByName(buildProperties.getProperty("konan-channel-name"))
         } else {
-            val developers = changes.commits.filter{ (_, user, _) -> user in slackUsers }. map { (_, user, _) ->
+            val developers = changesList.commits.filter{ (_, user, _) -> user in slackUsers }. map { (_, user, _) ->
                 session.findUserByUserName(slackUsers[user])
             }
             val reply = session.openMultipartyDirectMessageChannel(*developers.toTypedArray())
