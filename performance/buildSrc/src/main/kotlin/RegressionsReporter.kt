@@ -79,7 +79,22 @@ open class RegressionsReporter : DefaultTask() {
 
     val teamCityUrl = "http://buildserver.labs.intellij.net"
     val defaultBranch = "master"
-    val slackUsers = mapOf("elena.lepilkina" to "elena.lepilkina")
+    val slackUsers = mapOf(
+            "olonho" to "nikolay.igotti",
+            "nikolay.igotti" to "nikolay.igotti",
+            "ilya.matveev" to "ilya.matveev",
+            "ilmat192" to "ilya.matveev",
+            "vasily.v.levchenko" to "minamoto",
+            "vasily.levchenko" to "minamoto",
+            "alexander.gorshenev" to "alexander.gorshenev",
+            "igor.chevdar" to "igor.chevdar",
+            "pavel.punegov" to "Pavel Punegov",
+            "dmitriy.dolovov" to "dmitriy.dolovov",
+            "svyatoslav.scherbina" to "svyatoslav.scherbina",
+            "sbogolepov" to "sergey.bogolepov",
+            "Alexey.Zubakov" to "Alexey.Zubakov",
+            "kirill.shmakov" to "kirill.shmakov",
+            "elena.lepilkina" to "elena.lepilkina")
     val buildNamePrefix = "Kotlin_Konan"
     val buildNamePostfix = "Performance"
     val linesNumberInMessage = 20
