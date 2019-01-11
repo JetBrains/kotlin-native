@@ -99,10 +99,10 @@ open class RegressionsReporter : DefaultTask() {
             tabUrl(buildId, buildTypeId, "testsInfo")
 
     private fun buildsUrl(buildLocator: String) =
-            "$teamCityUrl/app/rest/builds/$buildLocator"
+            "$teamCityUrl/app/rest/builds/?locator=$buildLocator"
 
     private fun artifactContentUrl(buildLocator: String, artifactPath: String) =
-            "${buildsUrl(buildLocator)}/artifacts/content/$artifactPath"
+            "$teamCityUrl/app/rest/builds/$buildLocator/artifacts/content/$artifactPath"
 
     private fun previousBuildLocator(buildTypeId: String, branchName: String) =
             "buildType:id:$buildTypeId,branch:name:$branchName,status:SUCCESS,state:finished,count:1"
@@ -138,6 +138,7 @@ open class RegressionsReporter : DefaultTask() {
 
         // Get previous builds on branch.
         val builds = try {
+            println("Build get request: ${buildsUrl("buildType:id:$buildTypeId,branch:name:$branch,status:SUCCESS,state:finished,count:1")}")
             sendGet(buildsUrl("buildType:id:$buildTypeId,branch:name:$branch,status:SUCCESS,state:finished,count:1"),
                     user, password)
         } catch (t: Throwable) {
