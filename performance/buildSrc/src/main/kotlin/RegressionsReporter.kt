@@ -107,8 +107,8 @@ open class RegressionsReporter : DefaultTask() {
     private fun previousBuildLocator(buildTypeId: String, branchName: String) =
             "buildType:id:$buildTypeId,branch:name:$branchName,status:SUCCESS,state:finished,count:1"
 
-    private fun changesListUrl(buildId: String) =
-            "$teamCityUrl/app/rest/changes/?locator=id:$buildId"
+    private fun changesListUrl(buildLocator: String) =
+            "$teamCityUrl/app/rest/changes/?locator=build:$buildLocator"
 
 
     private fun sendGet(url: String, username: String, password: String ) : String {
@@ -119,6 +119,38 @@ open class RegressionsReporter : DefaultTask() {
         connection.connect()
         return connection.inputStream.use { it.reader().use { reader -> reader.readText() } }
     }
+
+    private fun getBuild(buildLocator: String, user: String, password: String) =
+            try {
+                sendGet(buildsUrl(buildLocator), user, password)
+            } catch (t: Throwable) {
+                error("Try to get build! TeamCity is unreachable!")
+            }
+
+    private fun getBuildProperty(buildJsonDescription: String, property: String) =
+            with(JsonTreeParser.parse(buildJsonDescription) as JsonObject) {
+                if (getPrimitive("count").int == 0) {
+                    error("No build information on TeamCity for $buildJsonDescription!")
+                }
+                (getArray("build").getObject(0).getPrimitive(property) as JsonLiteral).unquoted()
+            }
+
+    private fun getChanges(buildLocator: String, user: String, password: String): CommitsList {
+        val changes = try {
+            sendGet(changesListUrl(buildLocator), user, password)
+        } catch (t: Throwable) {
+            error("Try to get commits! TeamCity is unreachable!")
+        }
+        return CommitsList(JsonTreeParser.parse(changes))
+    }
+
+    private fun getArtifactContent(buildLocator: String, artifactPath: String, user: String, password: String) =
+            try {
+                sendGet(artifactContentUrl(buildLocator, artifactPath),
+                        user, password)
+            } catch (t: Throwable) {
+                error("No artifacts in build with locator $buildLocator!")
+            }
 
     @TaskAction
     fun run() {
@@ -134,39 +166,18 @@ open class RegressionsReporter : DefaultTask() {
         val password = buildProperties.getProperty("teamcity.auth.password")
 
         // Get branch.
-        val currentBuild = try {
-            println("Branch get request: ")
-            sendGet(buildsUrl("id:$buildId"), user, password)
-        } catch (t: Throwable) {
-            error("Try to get build branch! TeamCity is unreachable!")
-        }
-        
-        val branch =  with(JsonTreeParser.parse(currentBuild) as JsonObject) {
-            if (getPrimitive("count").int != 0) {
-                error("No current build information on TeamCity!")
-            }
-            getArray("build").getObject(0).getPrimitive("branchName").toString()
-        }
+        val currentBuild = getBuild("id:$buildId", user, password)
+        val branch = getBuildProperty(currentBuild,"branchName")
 
         val testReportUrl = testReportUrl(buildId, buildTypeId)
 
         // Get previous builds on branch.
-        val builds = try {
-            println("Build get request: ${buildsUrl("buildType:id:$buildTypeId,branch:name:$branch,status:SUCCESS,state:finished,count:1")}")
-            sendGet(buildsUrl("buildType:id:$buildTypeId,branch:name:$branch,status:SUCCESS,state:finished,count:1"),
-                    user, password)
-        } catch (t: Throwable) {
-            error("Try to get builds! TeamCity is unreachable!")
-        }
+        val builds = getBuild("buildType:id:$buildTypeId,branch:name:$branch,status:SUCCESS,state:finished,count:1",
+                                user, password)
         val previousBuildsExist = (JsonTreeParser.parse(builds) as JsonObject).getPrimitive("count").int != 0
 
         // Get changes description.
-        val changes = try {
-            sendGet(changesListUrl(buildId), user, password)
-        } catch (t: Throwable) {
-            error("Try to get commits! TeamCity is unreachable!")
-        }
-        val changesList = CommitsList(JsonTreeParser.parse(changes))
+        val changesList = getChanges("id:$buildId", user, password)
         val changesInfo = "Changes:\n" + buildString {
             changesList.commits.forEach { (version, user, url) ->
                 append("    Change $version by @$user\n (details: $url)")
@@ -177,48 +188,34 @@ open class RegressionsReporter : DefaultTask() {
         val compareToBranch = if (previousBuildsExist) { branch } else { defaultBranch }
 
         // Get benchmarks results from last build on branch.
-        val response = try {
-            sendGet(artifactContentUrl(previousBuildLocator(buildTypeId, compareToBranch), currentBenchmarksReportFile),
-                    user, password)
-        } catch (t: Throwable) {
-            error("No build to compare to!")
-        }
+        val benchmarksReportFromArtifact = getArtifactContent(previousBuildLocator(buildTypeId, compareToBranch),
+                                                                currentBenchmarksReportFile.substringAfterLast("/"), user, password)
 
         // Get compare to build.
-        val compareToBuild = try {
-            sendGet(buildsUrl(previousBuildLocator(buildTypeId, compareToBranch)), user, password)
-        } catch (t: Throwable) {
-            error("Try to get build! TeamCity is unreachable!")
-        }
-
-        val compareToBuildLink = with(JsonTreeParser.parse(builds) as JsonObject) {
-            if (getPrimitive("count").int != 0) {
-                error("No build to compare to!")
-            }
-            getArray("build").getObject(0).getPrimitive("webUrl").toString()
-        }
+        val compareToBuild = getBuild(previousBuildLocator(buildTypeId, compareToBranch), user, password)
+        val compareToBuildLink = getBuildProperty(compareToBuild,"webUrl")
 
         File(fileNameForPreviousResults).printWriter().use { out ->
-            out.println(response)
+            out.println(benchmarksReportFromArtifact)
         }
 
         // Generate comparasion report.
-        val report = "$analyzer -s $currentBenchmarksReportFile $fileNameForPreviousResults".runCommand()
+        val report = "$analyzer -s -b $currentBenchmarksReportFile $fileNameForPreviousResults".runCommand()
 
         // Send to channel or user directly.
+        val message = "${changesInfo}\nCompare to build:$compareToBuildLink\n" +
+                "${report}\nBenchmarks statistics:$testReportUrl"
         val session = SlackSessionFactory.createWebSocketSlackSession(buildProperties.getProperty("konan-reporter-token"))
         session.connect()
-        val channel = if (branch == defaultBranch) {
-            session.findChannelByName(buildProperties.getProperty("konan-channel-name"))
+        if (branch == defaultBranch) {
+            val channel = session.findChannelByName(buildProperties.getProperty("konan-channel-name"))
+            session.sendMessage(channel, message)
         } else {
-            val developers = changesList.commits.filter{ (_, user, _) -> user in slackUsers }. map { (_, user, _) ->
-                session.findUserByUserName(slackUsers[user])
-            }.toTypedArray()
-            val reply = session.openMultipartyDirectMessageChannel(*developers)
-            reply.getReply().getSlackChannel()
+            changesList.commits.filter{ (_, user, _) -> user in slackUsers }. map { (_, user, _) ->
+                val user = session.findUserByUserName(slackUsers[user])
+                session.sendMessageToUser(user, message, null)
+            }
         }
-        session.sendMessage(channel, "${changesInfo}\nCompare to build:$compareToBuildLink\n" +
-                "${report}\nBenchmarks statistics:$testReportUrl")
         session.disconnect()
     }
 }

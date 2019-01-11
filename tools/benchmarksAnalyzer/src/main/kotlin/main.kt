@@ -28,7 +28,8 @@ fun main(args: Array<String>) {
     val options = listOf(
             OptionDescriptor(ArgType.STRING, "output", "o", "Output file"),
             OptionDescriptor(ArgType.DOUBLE, "eps", "e", "Meaningful performance changes", "0.5"),
-            OptionDescriptor(ArgType.BOOLEAN, "short", "s", "Show short version of report", "false")
+            OptionDescriptor(ArgType.BOOLEAN, "short", "s", "Show short version of report", "false"),
+            OptionDescriptor(ArgType.BOOLEAN, "blockTeamCityPrinter", "b", "Block TeamCity Printer", "false")
     )
 
     val arguments = listOf(
@@ -43,6 +44,7 @@ fun main(args: Array<String>) {
         val mainBenchsResults = readFile(argParser.get("mainReport")!!.stringValue)
         val mainReportElement = JsonTreeParser.parse(mainBenchsResults)
         val mainBenchsReport = BenchmarksReport.create(mainReportElement)
+        val blockTeamCityPrinter = argParser.get("blockTeamCityPrinter")!!.booleanValue
         var compareToBenchsReport = argParser.get("compareToReport")?.stringValue?.let {
             val compareToResults = readFile(it)
             val compareToReportElement = JsonTreeParser.parse(compareToResults)
@@ -56,7 +58,7 @@ fun main(args: Array<String>) {
         TextRender().print(summaryReport, argParser.get("short")!!.booleanValue,
                 argParser.get("output")?.stringValue)
         // Produce information for TeamCity if needed.
-        getEnv("TEAMCITY_BUILD_PROPERTIES_FILE")?.let {
+        if (getEnv("TEAMCITY_BUILD_PROPERTIES_FILE") != null && !blockTeamCityPrinter) {
             TeamCityStatisticsRender().print(summaryReport, argParser.get("short")!!.booleanValue)
         }
     }
