@@ -132,7 +132,21 @@ open class RegressionsReporter : DefaultTask() {
         val buildTypeId = buildProperties.getProperty("teamcity.buildType.id")
         val user = buildProperties.getProperty("teamcity.auth.userId")
         val password = buildProperties.getProperty("teamcity.auth.password")
-        val branch = buildProperties.getProperty("vcsroot.branch")
+
+        // Get branch.
+        val currentBuild = try {
+            println("Branch get request: ")
+            sendGet(buildsUrl("id:$buildId"), user, password)
+        } catch (t: Throwable) {
+            error("Try to get build branch! TeamCity is unreachable!")
+        }
+        
+        val branch =  with(JsonTreeParser.parse(currentBuild) as JsonObject) {
+            if (getPrimitive("count").int != 0) {
+                error("No current build information on TeamCity!")
+            }
+            getArray("build").getObject(0).getPrimitive("branchName").toString()
+        }
 
         val testReportUrl = testReportUrl(buildId, buildTypeId)
 
