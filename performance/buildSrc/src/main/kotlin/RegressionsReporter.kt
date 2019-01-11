@@ -24,6 +24,7 @@ import java.net.URL
 import java.util.Base64
 import java.util.Properties
 
+// Run command line from string.
 fun String.runCommand(workingDir: File = File("."),
                       timeoutAmount: Long = 60,
                       timeoutUnit: TimeUnit = TimeUnit.SECONDS): String {
@@ -40,8 +41,11 @@ fun String.runCommand(workingDir: File = File("."),
     }
 }
 
+// List of commits.
 class CommitsList(data: JsonElement): ConvertedFromJson {
+
     val commits: List<Triple<String, String, String>>
+
     init {
         if (data is JsonObject) {
             val changesElement = getRequiredField(data, "change")
@@ -89,11 +93,6 @@ open class RegressionsReporter : DefaultTask() {
     @Input
     lateinit var analyzer: String
 
-    override fun configure(config: Closure<*>): Task {
-        super.configure(config)
-        return this
-    }
-
     private fun tabUrl(buildId: String, buildTypeId: String, tab: String) =
             "$teamCityUrl/viewLog.html?buildId=$buildId&buildTypeId=$buildTypeId&tab=$tab"
 
@@ -113,7 +112,7 @@ open class RegressionsReporter : DefaultTask() {
             "$teamCityUrl/app/rest/changes/?locator=build:$buildLocator"
 
 
-    private fun sendGet(url: String, username: String, password: String ) : String {
+    private fun sendGetRequest(url: String, username: String, password: String ) : String {
         val connection = URL(url).openConnection() as HttpURLConnection
         val auth = Base64.getEncoder().encode((username + ":" + password).toByteArray()).toString(Charsets.UTF_8)
         connection.addRequestProperty("Authorization", "Basic $auth")
@@ -124,7 +123,7 @@ open class RegressionsReporter : DefaultTask() {
 
     private fun getBuild(buildLocator: String, user: String, password: String) =
             try {
-                sendGet(buildsUrl(buildLocator), user, password)
+                sendGetRequest(buildsUrl(buildLocator), user, password)
             } catch (t: Throwable) {
                 error("Try to get build! TeamCity is unreachable!")
             }
@@ -137,9 +136,9 @@ open class RegressionsReporter : DefaultTask() {
                 (getArray("build").getObject(0).getPrimitive(property) as JsonLiteral).unquoted()
             }
 
-    private fun getChanges(buildLocator: String, user: String, password: String): CommitsList {
+    private fun getCommits(buildLocator: String, user: String, password: String): CommitsList {
         val changes = try {
-            sendGet(changesListUrl(buildLocator), user, password)
+            sendGetRequest(changesListUrl(buildLocator), user, password)
         } catch (t: Throwable) {
             error("Try to get commits! TeamCity is unreachable!")
         }
@@ -148,7 +147,7 @@ open class RegressionsReporter : DefaultTask() {
 
     private fun getArtifactContent(buildLocator: String, artifactPath: String, user: String, password: String) =
             try {
-                sendGet(artifactContentUrl(buildLocator, artifactPath),
+                sendGetRequest(artifactContentUrl(buildLocator, artifactPath),
                         user, password)
             } catch (t: Throwable) {
                 error("No artifacts in build with locator $buildLocator!")
@@ -159,9 +158,9 @@ open class RegressionsReporter : DefaultTask() {
         // Get TeamCity properties.
         val teamcityConfig = System.getenv("TEAMCITY_BUILD_PROPERTIES_FILE") ?:
             error("Can't load teamcity config!")
+
         val buildProperties = Properties()
         buildProperties.load(FileInputStream(teamcityConfig))
-
         val buildId = buildProperties.getProperty("teamcity.build.id")
         val buildTypeId = buildProperties.getProperty("teamcity.buildType.id")
         val user = buildProperties.getProperty("teamcity.auth.userId")
@@ -173,20 +172,19 @@ open class RegressionsReporter : DefaultTask() {
 
         val testReportUrl = testReportUrl(buildId, buildTypeId)
 
-        // Get previous builds on branch.
-        val builds = getBuild("buildType:id:$buildTypeId,branch:name:$branch,status:SUCCESS,state:finished,count:1",
-                                user, password)
+        // Get previous build on branch.
+        val builds = getBuild(previousBuildLocator(buildTypeId,branch), user, password)
         val previousBuildsExist = (JsonTreeParser.parse(builds) as JsonObject).getPrimitive("count").int != 0
 
         // Get changes description.
-        val changesList = getChanges("id:$buildId", user, password)
+        val changesList = getCommits("id:$buildId", user, password)
         val changesInfo = "*Changes* in branch *$branch:*\n" + buildString {
             changesList.commits.forEach { (version, user, url) ->
                 append("        - Change $version by <@$user>\n (details: $url)")
             }
         }
 
-        // If branch differs from default compare to master if it's first build, otherwise to previous build on branch.
+        // If branch differs from default and it's first build compare to master, otherwise compare to previous build on branch.
         val compareToBranch = if (previousBuildsExist) { branch } else { defaultBranch }
 
         // Get benchmarks results from last build on branch.
@@ -207,12 +205,14 @@ open class RegressionsReporter : DefaultTask() {
         val target = buildTypeId.substringAfter(buildNamePrefix).substringBefore(buildNamePostfix)
         val title = "\n*Performance report for target $target*\n"
         val header = "$title\n$changesInfo\n\nCompare to build:$compareToBuildLink\n\n"
-        val reportMessages = report.withIndex().groupBy { it.index / linesNumberInMessage }.map { it.value.map { it.value } }
+        val reportMessages = report.withIndex().groupBy { it.index / linesNumberInMessage }
+                                                .map { it.value.map { it.value } }
         val footer = "*Benchmarks statistics:* $testReportUrl"
 
         // Send to channel or user directly.
         val session = SlackSessionFactory.createWebSocketSlackSession(buildProperties.getProperty("konan-reporter-token"))
         session.connect()
+
         if (branch == defaultBranch) {
             val channel = session.findChannelByName(buildProperties.getProperty("konan-channel-name"))
             session.sendMessage(channel, header)

@@ -32,7 +32,7 @@ open class RunKotlinNativeTask @Inject constructor(
     override fun configure(configureClosure: Closure<Any>): Task {
         val task = super.configure(configureClosure)
         // Comment because of bug in Gradle MPP plugin. Wait fix.
-        //this.dependsOn += curTarget.compilations.main.getLinkTask("EXECUTABLE", buildType).name
+        //this.dependsOn += curTarget.compilations.main.linkTaskName("EXECUTABLE", buildType)
         return task
     }
 
