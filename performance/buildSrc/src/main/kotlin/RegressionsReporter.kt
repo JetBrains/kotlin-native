@@ -124,7 +124,7 @@ open class RegressionsReporter : DefaultTask() {
     fun run() {
         // Get TeamCity properties.
         val teamcityConfig = System.getenv("TEAMCITY_BUILD_PROPERTIES_FILE") ?:
-            throw RuntimeException("Can't load teamcity config!")
+            error("Can't load teamcity config!")
         val buildProperties = Properties()
         buildProperties.load(FileInputStream(teamcityConfig))
 
@@ -141,7 +141,7 @@ open class RegressionsReporter : DefaultTask() {
             sendGet(buildsUrl("buildType:id:$buildTypeId,branch:name:$branch,status:SUCCESS,state:finished,count:1"),
                     user, password)
         } catch (t: Throwable) {
-            throw RuntimeException("Try to get builds! TeamCity is unreachable!")
+            error("Try to get builds! TeamCity is unreachable!")
         }
         val previousBuildsExist = (JsonTreeParser.parse(builds) as JsonObject).getPrimitive("count").int != 0
 
@@ -149,7 +149,7 @@ open class RegressionsReporter : DefaultTask() {
         val changes = try {
             sendGet(changesListUrl(buildId), user, password)
         } catch (t: Throwable) {
-            throw RuntimeException("Try to get commits! TeamCity is unreachable!")
+            error("Try to get commits! TeamCity is unreachable!")
         }
         val changesList = CommitsList(JsonTreeParser.parse(changes))
         val changesInfo = "Changes:\n" + buildString {
@@ -166,10 +166,22 @@ open class RegressionsReporter : DefaultTask() {
             sendGet(artifactContentUrl(previousBuildLocator(buildTypeId, compareToBranch), currentBenchmarksReportFile),
                     user, password)
         } catch (t: Throwable) {
-            ""
+            error("No build to compare to!")
         }
 
-        // TODO. Get compare to build.
+        // Get compare to build.
+        val compareToBuild = try {
+            sendGet(buildsUrl(previousBuildLocator(buildTypeId, compareToBranch)), user, password)
+        } catch (t: Throwable) {
+            error("Try to get build! TeamCity is unreachable!")
+        }
+
+        val compareToBuildLink = with(JsonTreeParser.parse(builds) as JsonObject) {
+            if (getPrimitive("count").int != 0) {
+                error("No build to compare to!")
+            }
+            getArray("build").getObject(0).getPrimitive("webUrl").toString()
+        }
 
         File(fileNameForPreviousResults).printWriter().use { out ->
             out.println(response)
@@ -186,12 +198,12 @@ open class RegressionsReporter : DefaultTask() {
         } else {
             val developers = changesList.commits.filter{ (_, user, _) -> user in slackUsers }. map { (_, user, _) ->
                 session.findUserByUserName(slackUsers[user])
-            }
-            val reply = session.openMultipartyDirectMessageChannel(*developers.toTypedArray())
+            }.toTypedArray()
+            val reply = session.openMultipartyDirectMessageChannel(*developers)
             reply.getReply().getSlackChannel()
         }
-        session.sendMessage(channel, "${changesInfo}\n${report}\nBenchmarks statistics:$testReportUrl")
+        session.sendMessage(channel, "${changesInfo}\nCompare to build:$compareToBuildLink\n" +
+                "${report}\nBenchmarks statistics:$testReportUrl")
         session.disconnect()
     }
 }
-
