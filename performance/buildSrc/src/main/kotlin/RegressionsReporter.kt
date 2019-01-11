@@ -195,7 +195,7 @@ open class RegressionsReporter : DefaultTask() {
         val changesList = getCommits("id:$buildId", user, password)
         val changesInfo = "*Changes* in branch *$branch:*\n" + buildString {
             changesList.commits.forEach { (version, user, url) ->
-                append("        - Change $version by <@$user>\n (details: $url)")
+                append("        - Change $version by <@$user> (details: $url)\n")
             }
         }
 
@@ -236,15 +236,16 @@ open class RegressionsReporter : DefaultTask() {
             }
             session.sendMessage(channel, footer)
         } else {
-            changesList.commits.filter{ (_, user, _) -> user in slackUsers }. map { (_, user, _) ->
-                val slackUser = session.findUserByUserName(slackUsers[user])
-                session.sendMessageToUser(slackUser, header, null)
-                reportMessages.forEach { message ->
-                    session.sendMessageToUser(slackUser, message.joinToString("\n", "```", "```"), null)
-                }
-                session.sendMessageToUser(slackUser, footer, null)
+            changesList.commits.filter { (_, user, _) -> user in slackUsers }. map { (_, user, _) -> user }
+                    .toSet().forEach {
+                        val slackUser = session.findUserByUserName(slackUsers[it])
+                        session.sendMessageToUser(slackUser, header, null)
+                        reportMessages.forEach { message ->
+                            session.sendMessageToUser(slackUser, message.joinToString("\n", "```", "```"), null)
+                        }
+                        session.sendMessageToUser(slackUser, footer, null)
 
-            }
+                    }
         }
         session.disconnect()
     }
