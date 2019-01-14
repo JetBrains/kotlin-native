@@ -13,7 +13,7 @@ object Immutable {
     var x = 1
 }
 
-@ThreadLocal
+@kotlin.native.ThreadLocal
 object Mutable {
     var x = 2
 }

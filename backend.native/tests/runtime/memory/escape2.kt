@@ -6,7 +6,6 @@
 package runtime.memory.escape2
 
 import kotlin.test.*
-import kotlin.native.concurrent.ThreadLocal
 
 class A(val s: String)
 
