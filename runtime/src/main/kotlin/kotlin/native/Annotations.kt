@@ -50,8 +50,8 @@ public annotation class Throws(vararg val exceptionClasses: KClass<out Throwable
 @Retention(AnnotationRetention.BINARY)
 public annotation class CName(val externName: String = "", val shortName: String = "")
 
-@Deprecated("please use kotlin.native.concurrent")
+@Deprecated("Please use kotlin.native.concurrent")
 typealias ThreadLocal = kotlin.native.concurrent.ThreadLocal
 
-@Deprecated("please use kotlin.native.concurrent")
+@Deprecated("Please use kotlin.native.concurrent")
 typealias SharedImmutable = kotlin.native.concurrent.SharedImmutable
