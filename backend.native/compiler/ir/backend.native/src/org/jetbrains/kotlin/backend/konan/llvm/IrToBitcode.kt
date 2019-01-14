@@ -40,8 +40,8 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.classId
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameUnsafe
 import org.jetbrains.kotlin.resolve.hasBackingField
 
-private val threadLocalAnnotationFqName = FqName("kotlin.native.ThreadLocal")
-private val sharedAnnotationFqName = FqName("kotlin.native.SharedImmutable")
+private val threadLocalAnnotationFqName = FqName("kotlin.native.concurrent.ThreadLocal")
+private val sharedAnnotationFqName = FqName("kotlin.native.concurrent.SharedImmutable")
 private val frozenAnnotationFqName = FqName("kotlin.native.internal.Frozen")
 
 val IrField.propertyDescriptor: PropertyDescriptor
