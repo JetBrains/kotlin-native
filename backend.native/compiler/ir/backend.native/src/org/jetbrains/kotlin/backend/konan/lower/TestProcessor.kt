@@ -113,13 +113,14 @@ internal class TestProcessor (val context: KonanBackendContext) {
                     dispatchReceiver = irGet(receiver)
                     val testKindEntry = it.kind.runtimeKind
                     putValueArgument(0, IrGetEnumValueImpl(
-                            SYNTHETIC_OFFSET,
-                            SYNTHETIC_OFFSET,
+                            it.function.startOffset,
+                            it.function.endOffset,
                             symbols.testFunctionKind.typeWithoutArguments,
                             testKindEntry)
                     )
-                    putValueArgument(1, IrFunctionReferenceImpl(SYNTHETIC_OFFSET,
-                            SYNTHETIC_OFFSET,
+                    putValueArgument(1, IrFunctionReferenceImpl(
+                            it.function.startOffset,
+                            it.function.endOffset,
                             registerFunction.valueParameters[1].type,
                             it.function.symbol,
                             it.function.descriptor,
@@ -360,8 +361,7 @@ internal class TestProcessor (val context: KonanBackendContext) {
             overriddenSymbols += superFunction.symbol
 
             body = context.createIrBuilder(symbol, symbol.owner.startOffset, symbol.owner.endOffset).irBlockBody {
-                +irReturn(IrGetObjectValueImpl(objectSymbol.owner.startOffset, objectSymbol.owner.endOffset,
-                        objectSymbol.typeWithoutArguments, objectSymbol)
+                +irReturn(irGetObjectValue(objectSymbol.typeWithoutArguments, objectSymbol)
                 )
             }
         }
