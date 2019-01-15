@@ -339,7 +339,7 @@ internal class TestProcessor (val context: KonanBackendContext) {
                                   owner: IrClass,
                                   getterName: Name) = WrappedSimpleFunctionDescriptor().let { descriptor ->
         IrFunctionImpl(
-                objectSymbol.owner.startOffset, objectSymbol.owner.endOffset,
+                owner.startOffset, owner.endOffset,
                 TEST_SUITE_GENERATED_MEMBER,
                 IrSimpleFunctionSymbolImpl(descriptor),
                 getterName,
@@ -375,7 +375,7 @@ internal class TestProcessor (val context: KonanBackendContext) {
                                     owner: IrClass,
                                     getterName: Name) = WrappedSimpleFunctionDescriptor().let { descriptor ->
         IrFunctionImpl(
-                classSymbol.owner.startOffset, classSymbol.owner.endOffset,
+                owner.startOffset, owner.endOffset,
                 TEST_SUITE_GENERATED_MEMBER,
                 IrSimpleFunctionSymbolImpl(descriptor),
                 getterName,
