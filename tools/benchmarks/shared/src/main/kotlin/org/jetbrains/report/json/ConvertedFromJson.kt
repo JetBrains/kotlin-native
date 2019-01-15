@@ -28,7 +28,8 @@ interface ConvertedFromJson {
 
     // Parse json array to list.
     // Takes function to convert elements in array to expected type.
-    fun <T> arrayToList(array: JsonArray, convert: JsonArray.(Int) -> T?): List<T> {
+    /*fun <T> arrayToList(array: JsonArray, convert: JsonArray.(Int) -> T?): List<T> {
+        array. map { convert}
         var results = mutableListOf<T>()
         var index = 0
         var current: T? = array.convert(index)
@@ -38,7 +39,7 @@ interface ConvertedFromJson {
             current = array.convert(index)
         }
         return results
-    }
+    }*/
 
     // Methods for conversion to expected type with checks of possibility of such conversions.
     fun elementToDouble(element: JsonElement, name: String): Double =

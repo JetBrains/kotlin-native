@@ -50,14 +50,12 @@ class CommitsList(data: JsonElement): ConvertedFromJson {
         if (data is JsonObject) {
             val changesElement = getRequiredField(data, "change")
             if (changesElement is JsonArray) {
-                commits = arrayToList(changesElement.jsonArray, { index ->
-                    if (getObjectOrNull(index) != null)
-                        Triple(elementToString(getRequiredField((this.getObjectOrNull(index) as JsonObject), "version"), "version"),
-                                elementToString(getRequiredField((this.getObjectOrNull(index) as JsonObject), "username"), "username"),
-                                elementToString(getRequiredField((this.getObjectOrNull(index) as JsonObject), "webUrl"), "webUrl")
+                commits = changesElement.jsonArray.map {
+                        Triple(elementToString(getRequiredField((it as JsonObject), "version"), "version"),
+                                elementToString(getRequiredField((it as JsonObject), "username"), "username"),
+                                elementToString(getRequiredField((it as JsonObject), "webUrl"), "webUrl")
                         )
-                    else null
-                })
+                }
             } else {
                 error("Change field is expected to be an array. Please, check source.")
             }
@@ -200,7 +198,7 @@ open class RegressionsReporter : DefaultTask() {
         }
 
         // If branch differs from default and it's first build compare to master, otherwise compare to previous build on branch.
-        val compareToBranch = if (previousBuildsExist) { branch } else { defaultBranch }
+        val compareToBranch = if (previousBuildsExist) branch else defaultBranch
 
         // Get benchmarks results from last build on branch.
         val benchmarksReportFromArtifact = getArtifactContent(previousBuildLocator(buildTypeId, compareToBranch),
@@ -214,7 +212,7 @@ open class RegressionsReporter : DefaultTask() {
             out.println(benchmarksReportFromArtifact)
         }
 
-        // Generate comparasion report.
+        // Generate comparison report.
         val report = "$analyzer -s -b $currentBenchmarksReportFile $fileNameForPreviousResults".runCommand().lines()
 
         val target = buildTypeId.substringAfter(buildNamePrefix).substringBefore(buildNamePostfix)

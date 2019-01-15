@@ -54,11 +54,7 @@ class BenchmarksReport(val env: Environment, benchmarksList: List<BenchmarkResul
         // Parse array with benchmarks to list
         fun parseBenchmarksArray(data: JsonElement): List<BenchmarkResult> {
             if (data is JsonArray) {
-                return arrayToList(data.jsonArray, { index ->
-                    if (this.getObjectOrNull(index) != null)
-                        BenchmarkResult.create(this.getObjectOrNull(index) as JsonObject)
-                    else null
-                })
+                return data.jsonArray.map { BenchmarkResult.create(it as JsonObject) }
             } else {
                 error("Benchmarks field is expected to be an array. Please, check origin files.")
             }
@@ -117,9 +113,7 @@ data class Compiler(val backend: Backend, val kotlinVersion: String): JsonSerial
                         val flagsArray = getOptionalField(data, "flags")
                         var flags: List<String> = emptyList()
                         if (flagsArray != null && flagsArray is JsonArray) {
-                            flags = arrayToList(flagsArray.jsonArray, { index ->
-                                this.getPrimitiveOrNull(index)?.toString()
-                            })
+                            flags = flagsArray.jsonArray.map { it.toString() }
                         }
                         return Backend(type, version, flags)
                     } else {

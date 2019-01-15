@@ -18,8 +18,7 @@ import org.jetbrains.analyzer.getEnv
 import org.jetbrains.analyzer.readFile
 import org.jetbrains.analyzer.SummaryBenchmarksReport
 import org.jetbrains.kliopt.*
-import org.jetbrains.renders.TextRender
-import org.jetbrains.renders.TeamCityStatisticsRender
+import org.jetbrains.renders.*
 import org.jetbrains.report.BenchmarksReport
 import org.jetbrains.report.json.JsonTreeParser
 
@@ -41,11 +40,11 @@ fun main(args: Array<String>) {
     val argParser = ArgParser(options, arguments)
     if (argParser.parse(args)) {
         // Read contents of file.
-        val mainBenchsResults = readFile(argParser.get("mainReport")!!.stringValue)
+        val mainBenchsResults = readFile(argParser.get<String>("mainReport")!!)
         val mainReportElement = JsonTreeParser.parse(mainBenchsResults)
         val mainBenchsReport = BenchmarksReport.create(mainReportElement)
-        val blockTeamCityPrinter = argParser.get("blockTeamCityPrinter")!!.booleanValue
-        var compareToBenchsReport = argParser.get("compareToReport")?.stringValue?.let {
+        val blockTeamCityPrinter = argParser.get<Boolean>("blockTeamCityPrinter")!!
+        var compareToBenchsReport = argParser.get<String>("compareToReport")?.let {
             val compareToResults = readFile(it)
             val compareToReportElement = JsonTreeParser.parse(compareToResults)
             BenchmarksReport.create(compareToReportElement)
@@ -54,12 +53,13 @@ fun main(args: Array<String>) {
         // Generate comparasion report
         val summaryReport = SummaryBenchmarksReport(mainBenchsReport,
                 compareToBenchsReport,
-                argParser.get("eps")!!.doubleValue)
-        TextRender().print(summaryReport, argParser.get("short")!!.booleanValue,
-                argParser.get("output")?.stringValue)
+                argParser.get<Double>("eps")!!)
+        TextRender().print(summaryReport, argParser.get<Boolean>("short")!!,
+                argParser.get<String>("output"))
         // Produce information for TeamCity if needed.
         if (getEnv("TEAMCITY_BUILD_PROPERTIES_FILE") != null && !blockTeamCityPrinter) {
-            TeamCityStatisticsRender().print(summaryReport, argParser.get("short")!!.booleanValue)
+            TeamCityStatisticsRender().print(summaryReport, argParser.get<Boolean>("short")!!)
         }
+        HTMLRender().print(summaryReport, argParser.get<Boolean>("short")!!)
     }
 }
