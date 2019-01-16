@@ -42,6 +42,8 @@ typedef unsigned long long CSArchitecture;
 
 #define kCSNow LONG_MAX
 
+namespace {
+
 CSSymbolicatorRef (*CSSymbolicatorCreateWithPid)(pid_t pid);
 
 CSSymbolOwnerRef (*CSSymbolicatorGetSymbolOwnerWithAddressAtTime)(
@@ -65,9 +67,9 @@ uint32_t (*CSSourceInfoGetColumn)(CSSourceInfoRef info);
 
 bool (*CSIsNull)(CSTypeRef);
 
-static CSSymbolicatorRef symbolicator;
+CSSymbolicatorRef symbolicator;
 
-static bool TryInitializeCoreSymbolication() {
+bool TryInitializeCoreSymbolication() {
   void* cs = dlopen("/System/Library/PrivateFrameworks/CoreSymbolication.framework/CoreSymbolication", RTLD_LAZY);
   if (!cs) return false;
 
@@ -86,6 +88,8 @@ static bool TryInitializeCoreSymbolication() {
   symbolicator = CSSymbolicatorCreateWithPid(getpid());
   return !CSIsNull(symbolicator);
 }
+
+} // namespace
 
 extern "C" struct SourceInfo Kotlin_getSourceInfo(void* addr) {
   SourceInfo result = { .fileName = nullptr, .lineNumber = -1, .column = -1 };
