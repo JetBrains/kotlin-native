@@ -25,15 +25,16 @@ import org.jetbrains.report.json.JsonTreeParser
 fun main(args: Array<String>) {
 
     val options = listOf(
-            OptionDescriptor(ArgType.STRING, "output", "o", "Output file"),
-            OptionDescriptor(ArgType.DOUBLE, "eps", "e", "Meaningful performance changes", "0.5"),
-            OptionDescriptor(ArgType.BOOLEAN, "short", "s", "Show short version of report", "false"),
-            OptionDescriptor(ArgType.BOOLEAN, "blockTeamCityPrinter", "b", "Block TeamCity Printer", "false")
+            OptionDescriptor(ArgType.String(), "output", "o", "Output file"),
+            OptionDescriptor(ArgType.Double(), "eps", "e", "Meaningful performance changes", "0.5"),
+            OptionDescriptor(ArgType.Boolean(), "short", "s", "Show short version of report", "false"),
+            OptionDescriptor(ArgType.Choice(listOf("text", "html", "teamcity")),
+                    "renders", "r", "Renders for showing information", "text", isMultiple = true)
     )
 
     val arguments = listOf(
-            ArgDescriptor(ArgType.STRING, "mainReport", "Main report for analysis"),
-            ArgDescriptor(ArgType.STRING, "compareToReport", "Report to compare to", isRequired = false)
+            ArgDescriptor(ArgType.String(), "mainReport", "Main report for analysis"),
+            ArgDescriptor(ArgType.String(), "compareToReport", "Report to compare to", isRequired = false)
     )
 
     // Parse args.
@@ -43,23 +44,24 @@ fun main(args: Array<String>) {
         val mainBenchsResults = readFile(argParser.get<String>("mainReport")!!)
         val mainReportElement = JsonTreeParser.parse(mainBenchsResults)
         val mainBenchsReport = BenchmarksReport.create(mainReportElement)
-        val blockTeamCityPrinter = argParser.get<Boolean>("blockTeamCityPrinter")!!
         var compareToBenchsReport = argParser.get<String>("compareToReport")?.let {
             val compareToResults = readFile(it)
             val compareToReportElement = JsonTreeParser.parse(compareToResults)
             BenchmarksReport.create(compareToReportElement)
         }
 
+        val renders = argParser.getAll<String>("renders")
+
         // Generate comparasion report
         val summaryReport = SummaryBenchmarksReport(mainBenchsReport,
                 compareToBenchsReport,
                 argParser.get<Double>("eps")!!)
-        TextRender().print(summaryReport, argParser.get<Boolean>("short")!!,
-                argParser.get<String>("output"))
-        // Produce information for TeamCity if needed.
-        if (getEnv("TEAMCITY_BUILD_PROPERTIES_FILE") != null && !blockTeamCityPrinter) {
-            TeamCityStatisticsRender().print(summaryReport, argParser.get<Boolean>("short")!!)
+
+        var output = argParser.get<String>("output")
+
+        renders?.forEach {
+            Render.getRenderByName(it).print(summaryReport, argParser.get<Boolean>("short")!!, output)
+            output = null
         }
-        HTMLRender().print(summaryReport, argParser.get<Boolean>("short")!!)
     }
 }

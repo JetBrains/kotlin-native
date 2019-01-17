@@ -74,6 +74,18 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
     val currentBenchmarksDuration: Map<String, Double>
         get() = benchmarksDurations.filter{ it.value.first != null }.map { it.key to it.value.first!! }.toMap()
 
+    val maximumRegression: Double
+        get() = getMaximumChange(regressions)
+
+    val maximumImprovement: Double
+        get() = getMaximumChange(improvements)
+
+    val regressionsGeometricMean: Double
+        get() = getGeometricMeanOfChanges(regressions)
+
+    val improvementsGeometricMean: Double
+        get() = getGeometricMeanOfChanges(improvements)
+
     val envChanges: List<FieldChange<String>>
         get() {
             val previousEnvironment = environments.second
@@ -118,6 +130,25 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
         if (previousReport != null) {
             // Check changes in environment and tools.
             analyzePerformanceChanges()
+        }
+    }
+
+    private fun getMaximumChange(bucket: Map<String, ScoreChange>): Double =
+        // Maps of regressions and improvements are sorted.
+        if (bucket.isEmpty()) 0.0 else bucket.values.map { it.first.mean }.first()
+
+    private fun getGeometricMeanOfChanges(bucket: Map<String, ScoreChange>): Double {
+        if (bucket.isEmpty())
+            return 0.0
+        var percentsList = bucket.values.map { it.first.mean }
+        var geomeanValue: Double
+        return if (percentsList.first() > 0.0) {
+            geometricMean(percentsList)
+        } else {
+            // Geometric mean can be counted on positive numbers.
+            val precision = abs(getMaximumChange(bucket)) + 1
+            percentsList = percentsList.map { it + precision }
+            geometricMean(percentsList) - precision
         }
     }
 
