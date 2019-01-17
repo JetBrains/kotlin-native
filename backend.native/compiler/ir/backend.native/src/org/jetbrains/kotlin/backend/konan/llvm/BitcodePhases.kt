@@ -6,25 +6,17 @@
 package org.jetbrains.kotlin.backend.konan.llvm
 
 import llvm.*
-import org.jetbrains.kotlin.backend.common.CompilerPhase
-import org.jetbrains.kotlin.backend.common.CompilerPhaseManager
-import org.jetbrains.kotlin.backend.common.makePhase
+import org.jetbrains.kotlin.backend.common.NamedPhase
+import org.jetbrains.kotlin.backend.common.then
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.optimizations.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 
-private fun makeBitcodePhase(
-        op: CompilerPhaseManager<Context, IrModuleFragment>.(IrModuleFragment) -> Unit,
-        description: String,
-        name: String,
-        prerequisite: Set<CompilerPhase<Context, IrModuleFragment>> = emptySet()
-) = makePhase(op, description, name, prerequisite)
-
-internal val ContextLLVMSetupPhase = makeBitcodePhase(
+internal val ContextLLVMSetupPhase = makeKonanPhase<IrModuleFragment>(
         name = "ContextLLVMSetup",
         description = "Set up Context for LLVM bitcode generation",
-        op = { irModule ->
+        op = { context, _ ->
             // Note that we don't set module target explicitly.
             // It is determined by the target of runtime.bc
             // (see Llvm class in ContextUtils)
@@ -39,30 +31,30 @@ internal val ContextLLVMSetupPhase = makeBitcodePhase(
         }
 )
 
-internal val RTTIPhase = makeBitcodePhase(
+internal val RTTIPhase = makeKonanPhase<IrModuleFragment>(
         name = "RTTI",
         description = "RTTI Generation",
-        op = { irModule -> irModule.acceptVoid(RTTIGeneratorVisitor(context)) }
+        op = { context, irModule -> irModule.acceptVoid(RTTIGeneratorVisitor(context)) }
 )
 
-internal val GenerateDebugInfoHeaderPhase = makeBitcodePhase(
+internal val GenerateDebugInfoHeaderPhase = makeKonanPhase<IrModuleFragment>(
         name = "GenerateDebugInfoHeader",
         description = "Generate debug info header",
-        op = { irModule -> generateDebugInfoHeader(context) }
+        op = { context, _ -> generateDebugInfoHeader(context) }
 )
 
-internal val BuildDFGPhase = makeBitcodePhase(
+internal val BuildDFGPhase = makeKonanPhase<IrModuleFragment>(
         name = "BuildDFG",
         description = "Data flow graph building",
-        op = { irModule ->
+        op = { context, irModule ->
             context.moduleDFG = ModuleDFGBuilder(context, irModule).build()
         }
 )
 
-internal val DeserializeDFGPhase = makeBitcodePhase(
+internal val DeserializeDFGPhase = makeKonanPhase<IrModuleFragment>(
         name = "DeserializeDFG",
         description = "Data flow graph deserializing",
-        op = { irModule ->
+        op = { context, _ ->
             context.externalModulesDFG = DFGSerializer.deserialize(
                     context,
                     context.moduleDFG!!.symbolTable.privateTypeIndex,
@@ -71,11 +63,11 @@ internal val DeserializeDFGPhase = makeBitcodePhase(
         }
 )
 
-internal val DevirtualizationPhase = makeBitcodePhase(
+internal val DevirtualizationPhase = makeKonanPhase<IrModuleFragment>(
         name = "Devirtualization",
         description = "Devirtualization",
         prerequisite = setOf(BuildDFGPhase, DeserializeDFGPhase),
-        op = { irModule ->
+        op = { context, irModule ->
             context.externalModulesDFG?.let { externalModulesDFG ->
                 context.devirtualizationAnalysisResult = Devirtualization.run(
                         irModule, context, context.moduleDFG!!, externalModulesDFG
@@ -109,12 +101,12 @@ internal val DevirtualizationPhase = makeBitcodePhase(
         }
 )
 
-internal val EscapeAnalysisPhase = makeBitcodePhase(
+internal val EscapeAnalysisPhase = makeKonanPhase<IrModuleFragment>(
         // Disabled by default !!!!
         name = "EscapeAnalysis",
         description = "Escape analysis",
         prerequisite = setOf(BuildDFGPhase, DeserializeDFGPhase),
-        op = { irModule ->
+        op = { context, _ ->
             context.externalModulesDFG?.let { externalModulesDFG ->
                 val callGraph = CallGraphBuilder(
                         context, context.moduleDFG!!,
@@ -129,67 +121,52 @@ internal val EscapeAnalysisPhase = makeBitcodePhase(
         }
 )
 
-internal val SerializeDFGPhase = makeBitcodePhase(
+internal val SerializeDFGPhase = makeKonanPhase<IrModuleFragment>(
         name = "SerializeDFG",
         description = "Data flow graph serializing",
         prerequisite = setOf(BuildDFGPhase),
-        op = { irModule ->
+        op = { context, _ ->
             DFGSerializer.serialize(context, context.moduleDFG!!)
         }
 )
 
-internal val CodegenPhase = makeBitcodePhase(
+internal val CodegenPhase = makeKonanPhase<IrModuleFragment>(
         name = "Codegen",
         description = "Code Generation",
-        op = { irModule ->
+        op = { context, irModule ->
             irModule.acceptVoid(context.codegenVisitor)
         }
 )
 
-internal val FinalizeDebugInfoPhase = makeBitcodePhase(
-        name = "FinalizeDebuginfo",
+internal val FinalizeDebugInfoPhase = makeKonanPhase<IrModuleFragment>(
+        name = "FinalizeDebugInfo",
         description = "Finalize debug info",
-        op = {
+        op = { context, _ ->
             if (context.shouldContainDebugInfo()) {
                 DIFinalize(context.debugInfo.builder)
             }
         }
 )
 
-internal val BitcodeLinkerPhase = makeBitcodePhase(
+internal val BitcodeLinkerPhase = makeKonanPhase<IrModuleFragment>(
         name = "BitcodeLinker",
         description = "Bitcode linking",
-        op = { produceOutput(context) }
+        op = { context, _ -> produceOutput(context) }
 )
 
-internal val VerifyBitcodePhase = makeBitcodePhase(
+internal val VerifyBitcodePhase = makeKonanPhase<IrModuleFragment>(
         name = "VerifyBitcode",
         description = "Verify bitcode",
-        op = { context.verifyBitCode() }
+        op = { context, _ -> context.verifyBitCode() }
 )
 
-internal val PrintBitcodePhase = makeBitcodePhase(
+internal val PrintBitcodePhase = makeKonanPhase<IrModuleFragment>(
         name = "PrintBitcode",
         description = "Print bitcode",
-        op = {
+        op = { context, _ ->
             if (context.shouldPrintBitCode()) {
                 context.printBitCode()
             }
         }
 )
 
-internal val bitcodePhaseList = listOf(
-        ContextLLVMSetupPhase,
-        RTTIPhase,
-        GenerateDebugInfoHeaderPhase,
-        BuildDFGPhase,
-        DeserializeDFGPhase,
-        DevirtualizationPhase,
-        EscapeAnalysisPhase,
-        SerializeDFGPhase,
-        CodegenPhase,
-        FinalizeDebugInfoPhase,
-        BitcodeLinkerPhase,
-        VerifyBitcodePhase,
-        PrintBitcodePhase
-)

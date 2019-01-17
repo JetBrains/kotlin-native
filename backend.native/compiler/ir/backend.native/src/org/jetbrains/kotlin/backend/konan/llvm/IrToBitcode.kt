@@ -7,10 +7,8 @@ package org.jetbrains.kotlin.backend.konan.llvm
 
 import kotlinx.cinterop.*
 import llvm.*
-import org.jetbrains.kotlin.backend.common.CompilerPhaseManager
 import org.jetbrains.kotlin.backend.common.descriptors.allParameters
 import org.jetbrains.kotlin.backend.common.ir.ir2string
-import org.jetbrains.kotlin.backend.common.runPhases
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.backend.konan.ir.*
@@ -81,12 +79,6 @@ val IrField.isMainOnlyNonPrimitive get() = when  {
         KotlinBuiltIns.isPrimitiveType(descriptor.type) -> false
         else -> storageClass == FieldStorage.MAIN_THREAD
     }
-
-internal fun emitLLVM(context: Context, parentPhaser: CompilerPhaseManager<Context, *>) {
-    val irModule = context.irModule!!
-
-    parentPhaser.createChildManager(irModule, KonanIrModulePhaseRunner).runPhases(bitcodePhaseList)
-}
 
 internal fun verifyModule(llvmModule: LLVMModuleRef, current: String = "") {
     memScoped {

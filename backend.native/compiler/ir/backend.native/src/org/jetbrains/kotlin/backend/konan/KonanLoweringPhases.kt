@@ -16,54 +16,69 @@ import org.jetbrains.kotlin.ir.util.checkDeclarationParents
 import org.jetbrains.kotlin.ir.util.patchDeclarationParents
 import org.jetbrains.kotlin.ir.util.replaceUnboundSymbols
 
-private fun <Data : IrElement> makeKonanPhase(
-        lowering: CompilerPhaseManager<Context, Data>.(Data) -> Unit,
+internal fun <Data : IrElement> makeKonanPhase(
+        op: (Context, Data) -> Unit,
         description: String,
         name: String,
-        prerequisite: Set<CompilerPhase<Context, *>> = emptySet()
-) = makePhase(lowering, description, name, prerequisite)
+        prerequisite: Set<CompilerPhase<Context, *, *>> = emptySet()
+) = makeIrPhase<Context, Data>(
+        { context, data ->
+            op(context, data)
+            data
+        },
+        description,
+        name,
+        prerequisite,
+        { name }
+)
 
 private fun makeKonanFilePhase(
         lowering: (Context) -> FileLoweringPass,
         description: String,
         name: String,
-        prerequisite: Set<CompilerPhase<Context, *>> = emptySet()
-) = makeFileLoweringPhase(lowering, description, name, prerequisite)
+        prerequisite: Set<CompilerPhase<Context, *, *>> = emptySet()
+) = makeIrFilePhase(lowering, description, name, prerequisite)
 
 private fun makeKonanModulePhase(
         lowering: (Context) -> FileLoweringPass,
         description: String,
         name: String,
-        prerequisite: Set<CompilerPhase<Context, *>> = emptySet()
-) = makeModuleLoweringPhase(lowering, description, name, prerequisite)
+        prerequisite: Set<CompilerPhase<Context, *, *>> = emptySet()
+) = org.jetbrains.kotlin.backend.common.makeIrModulePhase(lowering, description, name, prerequisite)
 
-private val RemoveExpectDeclarationsPhase = makeKonanModulePhase(
+internal val RemoveExpectDeclarationsPhase = makeKonanModulePhase(
         ::ExpectDeclarationsRemoving,
         name = "RemoveExpectDeclarations",
         description = "Expect declarations removing"
 )
 
 internal val TestProcessorPhase = makeKonanPhase<IrModuleFragment>(
-        { irModule -> TestProcessor(context).process(irModule) },
+        { context, irModule -> TestProcessor(context).process(irModule) },
         name = "TestProcessor",
         description = "Unit test processor"
 )
 
-private val LowerBeforeInlinePhase = makeKonanModulePhase(
+internal val LowerBeforeInlinePhase = makeKonanModulePhase(
         ::PreInlineLowering,
         name = "LowerBeforeInline",
         description = "Special operations processing before inlining"
 )
 
-private val InlinePhase = makeKonanPhase<IrModuleFragment>(
-        { irModule -> FunctionInlining(context, this).inline(irModule) },
-        name = "Inline",
-        description = "Functions inlining",
-        prerequisite = setOf(LowerBeforeInlinePhase)
-)
+internal val InlinePhase = object : AbstractIrCompilerPhase<Context, IrModuleFragment>(
+        getName = { name.asString() }
+) {
+    override val name = "Inline"
+    override val description = "Functions inlining"
+    override val prerequisite = setOf(LowerBeforeInlinePhase)
 
-private val LowerAfterInlinePhase = makeKonanPhase<IrModuleFragment>(
-        { irModule ->
+    override fun invoke(phaseConfig: PhaseConfig, phaserState: PhaserState, context: Context, input: IrModuleFragment): IrModuleFragment {
+        FunctionInlining(context, phaserState).inline(input)
+        return input
+    }
+}
+
+internal val LowerAfterInlinePhase = makeKonanPhase<IrModuleFragment>(
+        { context, irModule ->
             irModule.files.forEach(PostInlineLowering(context)::lower)
             // TODO: Seems like this should be deleted in PsiToIR.
             irModule.files.forEach(ContractsDslRemover(context)::lower)
@@ -72,22 +87,22 @@ private val LowerAfterInlinePhase = makeKonanPhase<IrModuleFragment>(
         description = "Special operations processing after inlining"
 )
 
-private val InteropPart1Phase = makeKonanModulePhase(
+internal val InteropPart1Phase = makeKonanModulePhase(
         ::InteropLoweringPart1,
         name = "InteropPart1",
         description = "Interop lowering, part 1",
         prerequisite = setOf(InlinePhase)
 )
 
-private val LateinitPhase = makeKonanPhase<IrModuleFragment>(
-        { irModule -> irModule.files.forEach(LateinitLowering(context)::lower) },
+internal val LateinitPhase = makeKonanPhase<IrModuleFragment>(
+        { context, irModule -> irModule.files.forEach(LateinitLowering(context)::lower) },
         name = "Lateinit",
         description = "Lateinit properties lowering",
         prerequisite = setOf(InlinePhase)
 )
 
-private val ReplaceUnboundSymbolsPhase = makeKonanPhase<IrModuleFragment>(
-        { irModule ->
+internal val ReplaceUnboundSymbolsPhase = makeKonanPhase<IrModuleFragment>(
+        { context, irModule ->
             val symbolTable = context.ir.symbols.symbolTable
             do {
                 @Suppress("DEPRECATION")
@@ -98,41 +113,21 @@ private val ReplaceUnboundSymbolsPhase = makeKonanPhase<IrModuleFragment>(
         description = "Replace unbound symbols"
 )
 
-private val PatchDeclarationParents1Phase = makeKonanPhase<IrModuleFragment>(
-        { irModule -> irModule.patchDeclarationParents() },
+internal val PatchDeclarationParents1Phase = makeKonanPhase<IrModuleFragment>(
+        { _, irModule -> irModule.patchDeclarationParents() },
         name = "PatchDeclarationParents1",
         description = "Patch declaration parents 1"
 )
 
-private val LowerByFilePhase = makeKonanPhase<IrModuleFragment>(
-        { irModule ->
-            irModule.files.forEach {
-                createChildManager(it, KonanIrFilePhaseRunner).runPhases(irFilePhaseList)
-            }
-        },
-        name = "LowerByFile",
-        description = "Run file lowerings"
-)
 
-private val CheckDeclarationParentsPhase = makeKonanPhase<IrModuleFragment>(
-        { irModule -> irModule.checkDeclarationParents() },
+
+internal val CheckDeclarationParentsPhase = makeKonanPhase<IrModuleFragment>(
+        { _, irModule -> irModule.checkDeclarationParents() },
         name = "CheckDeclarationParents",
         description = "Check declaration parents"
 )
 
-internal val irModulePhaseList: List<CompilerPhase<Context, IrModuleFragment>> = listOf(
-        RemoveExpectDeclarationsPhase,
-        TestProcessorPhase,
-        LowerBeforeInlinePhase,
-        InlinePhase,
-        LowerAfterInlinePhase,
-        InteropPart1Phase,
-        LateinitPhase,
-        ReplaceUnboundSymbolsPhase,
-        PatchDeclarationParents1Phase,
-        LowerByFilePhase,
-        CheckDeclarationParentsPhase
-)
+/* IrFile phases */
 
 internal val StringConcatenationPhase = makeKonanFilePhase(
         ::StringConcatenationLowering,
@@ -153,13 +148,13 @@ internal val ForLoopsPhase = makeKonanFilePhase(
 )
 
 internal val EnumClassPhase = makeKonanPhase<IrFile>(
-        { irFile -> EnumClassLowering(context).run(irFile) },
+        { context, irFile -> EnumClassLowering(context).run(irFile) },
         name = "Enums",
         description = "Enum classes lowering"
 )
 
 internal val PatchDeclarationParents2Phase = makeKonanPhase<IrFile>(
-        { irFile ->
+        { _, irFile ->
             /**
              * TODO:  this is workaround for issue of unitialized parents in IrDeclaration,
              * the last one detected in [EnumClassLowering]. The issue appears in [DefaultArgumentStubGenerator].
@@ -198,9 +193,9 @@ internal val CallableReferencePhase = makeKonanFilePhase(
 )
 
 internal val PatchDeclarationParents3Phase = makeKonanPhase<IrFile>(
-        { irFile ->
+        { _, irFile ->
             /**
-             * TODO:  this is workaround for issue of unitialized parents in IrDeclaration,
+             * TODO:  this is workaround for issue of uninitialized parents in IrDeclaration,
              * the last one detected in [CallableReferenceLowering]. The issue appears in [LocalDeclarationsLowering].
              */
             irFile.patchDeclarationParents()
@@ -210,7 +205,7 @@ internal val PatchDeclarationParents3Phase = makeKonanPhase<IrFile>(
 )
 
 internal val LocalDeclarationsPhase = makeKonanPhase<IrFile>(
-        { irFile -> LocalDeclarationsLowering(context).runOnFilePostfix(irFile) },
+        { context, irFile -> LocalDeclarationsLowering(context).runOnFilePostfix(irFile) },
         name = "LocalDeclarations",
         description = "Local Function Lowering",
         prerequisite = setOf(SharedVariablesPhase, CallableReferencePhase)
@@ -231,7 +226,7 @@ internal val FinallyBlocksPhase = makeKonanFilePhase(
 )
 
 internal val DefaultParameterExtentPhase = makeKonanPhase<IrFile>(
-        { irFile ->
+        { context, irFile ->
             DefaultArgumentStubGenerator(context).runOnFilePostfix(irFile)
             KonanDefaultParameterInjector(context).runOnFilePostfix(irFile)
         },
@@ -290,7 +285,7 @@ internal val TypeOperatorPhase = makeKonanFilePhase(
 )
 
 internal val BridgesPhase = makeKonanPhase<IrFile>(
-        { irFile ->
+        { context, irFile ->
             BridgesBuilding(context).runOnFilePostfix(irFile)
             WorkersBridgesBuilding(context).lower(irFile)
         },
@@ -300,7 +295,7 @@ internal val BridgesPhase = makeKonanPhase<IrFile>(
 )
 
 internal val AutoboxPhase = makeKonanPhase<IrFile>(
-        { irFile ->
+        { context, irFile ->
             // validateIrFile(context, irFile) // Temporarily disabled until moving to new IR finished.
             Autoboxing(context).lower(irFile)
         },
@@ -316,29 +311,3 @@ internal val ReturnsInsertionPhase = makeKonanFilePhase(
         prerequisite = setOf(AutoboxPhase, CoroutinesPhase, EnumClassPhase)
 )
 
-internal val irFilePhaseList = listOf(
-        StringConcatenationPhase,
-        DataClassesPhase,
-        ForLoopsPhase,
-        EnumClassPhase,
-        PatchDeclarationParents2Phase,
-        InitializersPhase,
-        SharedVariablesPhase,
-        DelegationPhase,
-        CallableReferencePhase,
-        PatchDeclarationParents3Phase,
-        LocalDeclarationsPhase,
-        TailrecPhase,
-        FinallyBlocksPhase,
-        DefaultParameterExtentPhase,
-        BuiltinOperatorPhase,
-        InnerClassPhase,
-        InteropPart2Phase,
-        VarargPhase,
-        CompileTimeEvaluatePhase,
-        CoroutinesPhase,
-        TypeOperatorPhase,
-        BridgesPhase,
-        AutoboxPhase,
-        ReturnsInsertionPhase
-)

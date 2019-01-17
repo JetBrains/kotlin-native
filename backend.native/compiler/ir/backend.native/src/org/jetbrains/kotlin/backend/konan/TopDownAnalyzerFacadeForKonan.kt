@@ -67,7 +67,7 @@ internal object TopDownAnalyzerFacadeForKonan {
 
         // we print out each file we compile if frontend phase is verbose
         files.takeIf {
-            FrontendPhase in context.phases.verbose
+            FrontendPhase in context.phaseConfig.verbose
         } ?.forEach(::println)
 
         val analyzerForKonan = createTopDownAnalyzerForKonan(

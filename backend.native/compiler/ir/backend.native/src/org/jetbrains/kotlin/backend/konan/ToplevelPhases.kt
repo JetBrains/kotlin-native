@@ -3,8 +3,7 @@ package org.jetbrains.kotlin.backend.konan
 import org.jetbrains.kotlin.backend.common.*
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.konan.ir.KonanSymbols
-import org.jetbrains.kotlin.backend.konan.llvm.EscapeAnalysisPhase
-import org.jetbrains.kotlin.backend.konan.llvm.emitLLVM
+import org.jetbrains.kotlin.backend.konan.llvm.*
 import org.jetbrains.kotlin.backend.konan.serialization.KonanSerializationUtil
 import org.jetbrains.kotlin.backend.konan.serialization.markBackingFields
 import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
@@ -14,70 +13,52 @@ import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.psi2ir.Psi2IrConfiguration
 import org.jetbrains.kotlin.psi2ir.Psi2IrTranslator
+import java.util.Collections.emptySet
 
-private fun makeToplevelPhase(
-        op: CompilerPhaseManager<Context, Unit>.(Context) -> Unit,
-        description: String,
+internal fun konanUnitPhase(
         name: String,
-        prerequisite: Set<CompilerPhase<Context, Unit>> = emptySet()
-) = makePhase<Context, Unit>({ op(context) }, description, name, prerequisite)
-
-private fun makeIrModulePhase(
-        op: CompilerPhaseManager<Context, IrModuleFragment>.(IrModuleFragment) -> Unit,
         description: String,
-        name: String,
-        prerequisite: Set<CompilerPhase<Context, IrModuleFragment>> = emptySet()
-) = makePhase(op, description, name, prerequisite)
+        prerequisite: Set<CompilerPhase<*, *, *>> = emptySet(),
+        op: Context.() -> Unit
+) = namedOpUnitPhase<Context>(op, name, description, prerequisite)
 
-internal object StartToplevelPhase : CompilerPhase<Context, Unit> {
-    override val name = "Start"
-    override val description = "Start compilation"
-    override fun invoke(manager: CompilerPhaseManager<Context, Unit>, input: Unit) = input
-}
-
-internal object EndToplevelPhase : CompilerPhase<Context, Unit> {
-    override val name = "End"
-    override val description = "End compilation"
-    override fun invoke(manager: CompilerPhaseManager<Context, Unit>, input: Unit) = input
-}
-
-internal val FrontendPhase = makeToplevelPhase(
+internal val FrontendPhase = konanUnitPhase(
         op = {
-            val environment = context.environment
-            val analyzerWithCompilerReport = AnalyzerWithCompilerReport(context.messageCollector,
+            val environment = environment
+            val analyzerWithCompilerReport = AnalyzerWithCompilerReport(messageCollector,
                     environment.configuration.languageVersionSettings)
 
             // Build AST and binding info.
             analyzerWithCompilerReport.analyzeAndReport(environment.getSourceFiles()) {
-                TopDownAnalyzerFacadeForKonan.analyzeFiles(environment.getSourceFiles(), context)
+                TopDownAnalyzerFacadeForKonan.analyzeFiles(environment.getSourceFiles(), this)
             }
             if (analyzerWithCompilerReport.hasErrors()) {
                 throw KonanCompilationException()
             }
-            context.moduleDescriptor = analyzerWithCompilerReport.analysisResult.moduleDescriptor
-            context.bindingContext = analyzerWithCompilerReport.analysisResult.bindingContext
+            moduleDescriptor = analyzerWithCompilerReport.analysisResult.moduleDescriptor
+            bindingContext = analyzerWithCompilerReport.analysisResult.bindingContext
         },
         name = "Frontend",
         description = "Frontend builds AST"
 )
 
-internal val PsiToIrPhase = makeToplevelPhase(
+internal val PsiToIrPhase = konanUnitPhase(
         op = {
             // Translate AST to high level IR.
-            val translator = Psi2IrTranslator(context.config.configuration.languageVersionSettings,
+            val translator = Psi2IrTranslator(config.configuration.languageVersionSettings,
                     Psi2IrConfiguration(false))
             val generatorContext =
-                    translator.createGeneratorContext(context.moduleDescriptor, context.bindingContext)
+                    translator.createGeneratorContext(moduleDescriptor, bindingContext)
             @Suppress("DEPRECATION")
-            context.psi2IrGeneratorContext = generatorContext
+            psi2IrGeneratorContext = generatorContext
 
-            val symbols = KonanSymbols(context, generatorContext.symbolTable, generatorContext.symbolTable.lazyWrapper)
+            val symbols = KonanSymbols(this, generatorContext.symbolTable, generatorContext.symbolTable.lazyWrapper)
 
             val module =
-                    translator.generateModuleFragment(generatorContext, context.environment.getSourceFiles())
+                    translator.generateModuleFragment(generatorContext, environment.getSourceFiles())
 
-            context.irModule = module
-            context.ir.symbols = symbols
+            irModule = module
+            ir.symbols = symbols
 
 //        validateIrModule(context, module)
         },
@@ -85,12 +66,12 @@ internal val PsiToIrPhase = makeToplevelPhase(
         description = "Psi to IR conversion"
 )
 
-internal val IrGeneratorPluginsPhase = makeToplevelPhase(
+internal val IrGeneratorPluginsPhase = konanUnitPhase(
         op = {
-            val extensions = IrGenerationExtension.getInstances(context.config.project)
+            val extensions = IrGenerationExtension.getInstances(config.project)
             extensions.forEach { extension ->
-                context.irModule!!.files.forEach {
-                    irFile -> extension.generate(irFile, context, context.bindingContext)
+                irModule!!.files.forEach {
+                    irFile -> extension.generate(irFile, this, bindingContext)
                 }
             }
         },
@@ -98,19 +79,18 @@ internal val IrGeneratorPluginsPhase = makeToplevelPhase(
         description = "Plugged-in ir generators"
 )
 
-internal val GenSyntheticFieldsPhase = makeToplevelPhase(
-        op = { markBackingFields(context) },
+internal val GenSyntheticFieldsPhase = konanUnitPhase(
+        op = { markBackingFields(this) },
         name = "GenSyntheticFields",
         description = "Generate synthetic fields"
 )
 
-internal val SerializerPhase = makeToplevelPhase(
+internal val SerializerPhase = konanUnitPhase(
         op = {
             val serializer = KonanSerializationUtil(
-                    context, context.config.configuration.get(CommonConfigurationKeys.METADATA_VERSION)!!
+                    this, config.configuration.get(CommonConfigurationKeys.METADATA_VERSION)!!
             )
-            context.serializedLinkData =
-                    serializer.serializeModule(context.moduleDescriptor)
+            serializedLinkData = serializer.serializeModule(moduleDescriptor)
 
         },
         name = "Serializer",
@@ -118,76 +98,109 @@ internal val SerializerPhase = makeToplevelPhase(
         prerequisite = setOf(GenSyntheticFieldsPhase)
 )
 
-internal val BackendPhase = makeToplevelPhase(
-        op = {
-            createChildManager(context.irModule!!, KonanIrModulePhaseRunner).runPhases(backendPhaseList)
-        },
-        name = "Backend",
-        description = "All backend"
-)
-
-internal val LinkPhase = makeToplevelPhase(
-        op = {
-            createChildManager(Unit, KonanUnitPhaseRunner).runPhases(linkPhaseList)
-        },
-        name = "Link",
-        description = "Link stage"
-)
-
-internal val toplevelPhaseList = listOf(
-        StartToplevelPhase,
-        FrontendPhase,
-        PsiToIrPhase,
-        IrGeneratorPluginsPhase,
-        GenSyntheticFieldsPhase,
-        SerializerPhase,
-        BackendPhase,
-        LinkPhase,
-        EndToplevelPhase
-)
-
-internal val LowerPhase = makeIrModulePhase(
-        op = {  KonanLower(context, this).lower() },
-        name = "Lower",
-        description = "IR Lowering"
-)
-
-internal val BitcodePhase = makeIrModulePhase(
-        op = { emitLLVM(context, this) },
-        name = "Bitcode",
-        description = "LLVM BitCode Generation"
-)
-
-internal val backendPhaseList = listOf(
-        LowerPhase,
-        BitcodePhase
-)
-
-internal val SetUpLinkStagePhase = makeToplevelPhase(
-        op =  { context.linkStage = LinkStage(context) },
+internal val SetUpLinkStagePhase = konanUnitPhase(
+        op =  { linkStage = LinkStage(this) },
         name = "SetUpLinkStage",
         description = "Set up link stage"
 )
 
-internal val ObjectFilesPhase = makeToplevelPhase(
-        op = { context.linkStage.makeObjectFiles() },
+internal val ObjectFilesPhase = konanUnitPhase(
+        op = { linkStage.makeObjectFiles() },
         name = "ObjectFiles",
         description = "Bitcode to object file"
 )
 
-internal val LinkerPhase = makeToplevelPhase(
-        op = { context.linkStage.linkStage() },
+internal val LinkerPhase = konanUnitPhase(
+        op = { linkStage.linkStage() },
         name = "Linker",
         description = "Linker"
 )
 
-internal val linkPhaseList = listOf(
-        SetUpLinkStagePhase,
-        ObjectFilesPhase,
-        LinkerPhase
+internal val LinkPhase = namedUnitPhase(
+        name = "Link",
+        description = "Link stage",
+        lower = SetUpLinkStagePhase then
+                ObjectFilesPhase then
+                LinkerPhase
 )
 
-internal fun CompilerPhases.konanPhasesConfig(config: KonanConfig) {
+internal val ToplevelPhase = namedUnitPhase(
+        name = "Compiler",
+        description = "The whole compilation process",
+        lower = FrontendPhase then
+                PsiToIrPhase then
+                IrGeneratorPluginsPhase then
+                GenSyntheticFieldsPhase then
+                SerializerPhase then
+                namedUnitPhase(
+                        name = "Backend",
+                        description = "All backend",
+                        lower = takeFromContext<Context, Unit, IrModuleFragment> { it.irModule!! } then
+                                namedIrModulePhase(
+                                        name = "IrLowering",
+                                        description = "IR Lowering",
+                                        lower = RemoveExpectDeclarationsPhase then
+                                                TestProcessorPhase then
+                                                LowerBeforeInlinePhase then
+                                                InlinePhase then
+                                                LowerAfterInlinePhase then
+                                                InteropPart1Phase then
+                                                LateinitPhase then
+                                                ReplaceUnboundSymbolsPhase then
+                                                PatchDeclarationParents1Phase then
+                                                performByIrFile(
+                                                        name = "IrLowerByFile",
+                                                        description = "IR Lowering by file",
+                                                        lower = StringConcatenationPhase then
+                                                                DataClassesPhase then
+                                                                ForLoopsPhase then
+                                                                EnumClassPhase then
+                                                                PatchDeclarationParents2Phase then
+                                                                InitializersPhase then
+                                                                SharedVariablesPhase then
+                                                                DelegationPhase then
+                                                                CallableReferencePhase then
+                                                                PatchDeclarationParents3Phase then
+                                                                LocalDeclarationsPhase then
+                                                                TailrecPhase then
+                                                                FinallyBlocksPhase then
+                                                                DefaultParameterExtentPhase then
+                                                                BuiltinOperatorPhase then
+                                                                InnerClassPhase then
+                                                                InteropPart2Phase then
+                                                                VarargPhase then
+                                                                CompileTimeEvaluatePhase then
+                                                                CoroutinesPhase then
+                                                                TypeOperatorPhase then
+                                                                BridgesPhase then
+                                                                AutoboxPhase then
+                                                                ReturnsInsertionPhase
+                                                ) then
+                                                CheckDeclarationParentsPhase
+                                ) then
+                                namedIrModulePhase(
+                                        name = "Bitcode",
+                                        description = "LLVM BitCode Generation",
+                                        lower = ContextLLVMSetupPhase then
+                                                RTTIPhase then
+                                                GenerateDebugInfoHeaderPhase then
+                                                BuildDFGPhase then
+                                                DeserializeDFGPhase then
+                                                DevirtualizationPhase then
+                                                EscapeAnalysisPhase then
+                                                SerializeDFGPhase then
+                                                CodegenPhase then
+                                                FinalizeDebugInfoPhase then
+                                                BitcodeLinkerPhase then
+                                                VerifyBitcodePhase then
+                                                PrintBitcodePhase
+                                ) then
+                                unitSink()
+                ) then
+                LinkPhase
+)
+
+internal fun PhaseConfig.konanPhasesConfig(config: KonanConfig) {
     with(config.configuration) {
         disable(EscapeAnalysisPhase)
 

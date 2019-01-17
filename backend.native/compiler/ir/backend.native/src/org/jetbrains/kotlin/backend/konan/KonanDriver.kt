@@ -5,20 +5,8 @@
 
 package org.jetbrains.kotlin.backend.konan
 
-import org.jetbrains.kotlin.backend.common.CompilerPhaseManager
-import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
-import org.jetbrains.kotlin.backend.common.runPhases
-import org.jetbrains.kotlin.backend.konan.ir.KonanSymbols
-import org.jetbrains.kotlin.backend.konan.ir.ModuleIndex
-import org.jetbrains.kotlin.backend.konan.llvm.emitLLVM
-import org.jetbrains.kotlin.backend.konan.serialization.KonanSerializationUtil
-import org.jetbrains.kotlin.backend.konan.serialization.markBackingFields
-import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
+import org.jetbrains.kotlin.backend.common.invokeToplevel
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
-import org.jetbrains.kotlin.config.CommonConfigurationKeys
-import org.jetbrains.kotlin.config.languageVersionSettings
-import org.jetbrains.kotlin.psi2ir.Psi2IrConfiguration
-import org.jetbrains.kotlin.psi2ir.Psi2IrTranslator
 
 fun runTopLevelPhases(konanConfig: KonanConfig, environment: KotlinCoreEnvironment) {
 
@@ -31,14 +19,14 @@ fun runTopLevelPhases(konanConfig: KonanConfig, environment: KotlinCoreEnvironme
 
     val context = Context(konanConfig)
     context.environment = environment
-    context.phases.konanPhasesConfig(konanConfig) // TODO: Wrong place to call it
+    context.phaseConfig.konanPhasesConfig(konanConfig) // TODO: Wrong place to call it
 
     if (config.get(KonanConfigKeys.LIST_PHASES) ?: false) {
-        context.phases.list()
+        context.phaseConfig.list()
     }
 
     if (konanConfig.infoArgsOnly) return
 
-    CompilerPhaseManager(context, context.phases, Unit, KonanUnitPhaseRunner).runPhases(toplevelPhaseList)
+    ToplevelPhase.invokeToplevel(context.phaseConfig, context, Unit)
 }
 

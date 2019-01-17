@@ -5,9 +5,7 @@
 
 package org.jetbrains.kotlin.backend.konan.ir
 
-import org.jetbrains.kotlin.backend.common.CompilerPhase
-import org.jetbrains.kotlin.backend.common.CompilerPhaseManager
-import org.jetbrains.kotlin.backend.common.DefaultPhaseRunner
+import org.jetbrains.kotlin.backend.common.*
 import org.jetbrains.kotlin.backend.common.ir.ir2stringWhole
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.descriptors.FunctionDescriptor
@@ -15,7 +13,6 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.backend.konan.descriptors.EmptyDescriptorVisitorVoid
 import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.backend.konan.serialization.*
-import org.jetbrains.kotlin.config.CompilerConfiguration
 import org.jetbrains.kotlin.ir.util.dump
 
 // An ugly hack to squeeze the deserialize op into the CompilerPhase framework.
@@ -36,31 +33,36 @@ internal class DeserializeIrData(val descriptor: FunctionDescriptor) {
     }
 }
 
-internal object DeserializerPhase : CompilerPhase<Context, DeserializeIrData> {
+internal object DeserializerPhase : AbstractNamedCompilerPhase<Context, DeserializeIrData, DeserializeIrData>() {
     override val name = "Deserializer"
     override val description = "Deserialize inline bodies"
-    override fun invoke(manager: CompilerPhaseManager<Context, DeserializeIrData>, input: DeserializeIrData): DeserializeIrData {
-        input.perform(manager.context)
+    override fun invoke(phaseConfig: PhaseConfig, phaserState: PhaserState, context: Context, input: DeserializeIrData): DeserializeIrData {
+        input.perform(context)
         return input
     }
-}
 
-internal object DeserializeIrDataPhaseRunner : DefaultPhaseRunner<Context, DeserializeIrData>() {
-    override fun dumpElement(input: DeserializeIrData, phase: CompilerPhase<Context, DeserializeIrData>, context: Context, beforeOrAfter: BeforeOrAfter) {
-        println("Descriptor: ${input.descriptor}")
-        if (input.ir == null) {
-            println("No IR")
-        } else {
-            println("IR: ${input.ir!!.dump()}")
-        }
+    override fun dumpInput(context: Context, input: DeserializeIrData) {
+        dump(input)
     }
 
-    override fun phases(context: Context) = context.phases
-    override fun elementName(input: DeserializeIrData): String = input.descriptor.name.asString()
-    override fun configuration(context: Context): CompilerConfiguration = context.config.configuration
+    override fun dumpOutput(context: Context, output: DeserializeIrData) {
+        dump(output)
+    }
+
+    override fun verifyInput(context: Context, input: DeserializeIrData) {}
+    override fun verifyOutput(context: Context, output: DeserializeIrData) {}
+
+    private fun dump(data: DeserializeIrData) {
+        println("Descriptor: ${data.descriptor}")
+        if (data.ir == null) {
+            println("No IR")
+        } else {
+            println("IR: ${data.ir!!.dump()}")
+        }
+    }
 }
 
-internal class DeserializerDriver(val context: Context, val parentPhaseManager: CompilerPhaseManager<Context, *>) {
+internal class DeserializerDriver(val context: Context, val phaserState: PhaserState) {
 
     private val cache = mutableMapOf<FunctionDescriptor, IrDeclaration?>()
 
@@ -69,8 +71,9 @@ internal class DeserializerDriver(val context: Context, val parentPhaseManager: 
         if (!descriptor.isDeserializableCallable) return null
 
         val deserializeIrData = DeserializeIrData(descriptor)
-        parentPhaseManager.createChildManager(deserializeIrData, DeserializeIrDataPhaseRunner)
-                .phase(DeserializerPhase, deserializeIrData)
+        phaserState.downlevel {
+            DeserializerPhase.invoke(context.phaseConfig, phaserState, context, deserializeIrData)
+        }
         deserializeIrData.ir
     }
 

@@ -7,8 +7,8 @@ package org.jetbrains.kotlin.backend.konan
 
 import llvm.LLVMDumpModule
 import llvm.LLVMModuleRef
-import org.jetbrains.kotlin.backend.common.CompilerPhases
 import org.jetbrains.kotlin.backend.common.DumpIrTreeWithDescriptorsVisitor
+import org.jetbrains.kotlin.backend.common.PhaseConfig
 import org.jetbrains.kotlin.backend.common.validateIrModule
 import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.backend.konan.ir.DeserializerPhase
@@ -284,16 +284,7 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
         moduleDescriptor.builtIns as KonanBuiltIns
     }
 
-    val phaseList = toplevelPhaseList +
-            backendPhaseList +
-            irModulePhaseList +
-            listOf(DeserializerPhase) +
-            irFilePhaseList +
-            bitcodePhaseList +
-            linkPhaseList
-    val phases = CompilerPhases(
-            phaseList, config.configuration, StartToplevelPhase, EndToplevelPhase
-    )
+    val phaseConfig = PhaseConfig(ToplevelPhase, config.configuration)
 
     private val packageScope by lazy { builtIns.builtInsModule.getPackage(KonanFqNames.internalPackageName).memberScope }
 
