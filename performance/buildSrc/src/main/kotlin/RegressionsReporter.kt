@@ -52,18 +52,20 @@ class CommitsList(data: JsonElement): ConvertedFromJson {
         if (data !is JsonObject) {
             error("Commits description is expected to be a json object!")
         }
-        val changesElement = data.getRequiredField("change")
-        if (changesElement !is JsonArray) {
-            error("Change field is expected to be an array. Please, check source.")
-        }
-        commits = changesElement.jsonArray.map {
-                with (it as JsonObject) {
+        val changesElement = data.getOptionalField("change")
+        commits = changesElement ?. let {
+            if (changesElement !is JsonArray) {
+                error("Change field is expected to be an array. Please, check source.")
+            }
+           changesElement.jsonArray.map {
+                with(it as JsonObject) {
                     Commit(elementToString(getRequiredField("version"), "version"),
                             elementToString(getRequiredField("username"), "username"),
                             elementToString(getRequiredField("webUrl"), "webUrl")
                     )
                 }
-        }
+           }
+        } ?: listOf<Commit>()
     }
 }
 
