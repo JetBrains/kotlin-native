@@ -27,10 +27,11 @@ import kotlin.math.pow
 private fun <T : Comparable<T>> clamp(value: T, minValue: T, maxValue: T): T =
         minOf(maxOf(value, minValue), maxValue)
 
+// Natural number.
 class Natural(initValue: Int) {
     val value: Int
     init {
-        value = if (initValue > 0) { initValue } else { error("Provided value $initValue isn't natural") }
+        value = if (initValue > 0) initValue else error("Provided value $initValue isn't natural")
     }
 
     override fun toString(): String {
@@ -93,7 +94,6 @@ abstract class TagWithText(name: String) : Tag(name) {
 
 class HTML : TagWithText("html") {
     fun head(init: Head.() -> Unit) = initTag(Head(), init)
-
     fun body(init: Body.() -> Unit) = initTag(Body(), init)
 }
 
@@ -129,7 +129,6 @@ abstract class BodyTag(name: String) : TagWithText(name) {
     fun button(classAttr: String, init: Button.() -> Unit) = initTag(Button(classAttr), init)
     fun header(classAttr: String, init: Header.() -> Unit) = initTag(Header(classAttr), init)
     fun span(classAttr: String, init: Span.() -> Unit) = initTag(Span(classAttr), init)
-
 }
 
 abstract class BodyTagWithClass(name: String, val classAttr: String) : BodyTag(name) {
@@ -190,6 +189,7 @@ abstract class TableRowTag(name: String) : TableBlock(name) {
         set(value) {
             attributes["rowspan"] = value.toString()
         }
+
     fun th(rowspan: Natural = Natural(1), colspan: Natural = Natural(1), init: TableHeadInfo.() -> Unit) {
         val element = initTag(TableHeadInfo(), init)
         element.rowspan = rowspan
@@ -222,6 +222,8 @@ class HTMLRender: Render() {
         html {
             head {
                 title { +"Benchmarks report" }
+
+                // Links to bootstrap files.
                 link {
                     attributes["href"] = "https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/css/bootstrap.min.css"
                     attributes["rel"] = "stylesheet"
@@ -236,8 +238,8 @@ class HTMLRender: Render() {
                     attributes["src"] = "https://stackpath.bootstrapcdn.com/bootstrap/4.2.1/js/bootstrap.min.js"
                 }
             }
+
             body {
-                //attributes["class"] = "bg-light"
                 header("navbar navbar-expand navbar-dark flex-column flex-md-row bd-navbar") {
                     attributes["style"] = "background-color:#161616;"
                     img("https://dashboard.snapcraft.io/site_media/appmedia/2018/04/256px-kotlin-logo-svg.png") {
@@ -262,6 +264,7 @@ class HTMLRender: Render() {
     private fun TableRowTag.formatComparedTableData(data: String, compareToData: String?) {
         td {
             compareToData?. let {
+                // Highlight changed data.
                 if (it != data)
                     attributes["bgcolor"] = "yellow"
             }
@@ -406,9 +409,7 @@ class HTMLRender: Render() {
             list.forEach {
                 tbody {
                     tr {
-                        td {
-                            +it
-                        }
+                        td { +it }
                     }
                 }
             }
@@ -483,10 +484,6 @@ class HTMLRender: Render() {
         }
     }
 
-    private fun getColorScheme(current: Double, other: Double, reverse: Boolean = false) {
-        ColoredCell(current/maxOf(current, other), reverse).backgroundStyle
-    }
-
     private fun BodyTag.renderPerformanceSummary(report: SummaryBenchmarksReport) {
         if (!report.improvements.isEmpty() || !report.regressions.isEmpty()) {
             h4 { +"Performance Summary" }
@@ -495,18 +492,10 @@ class HTMLRender: Render() {
                 attributes["style"] = "width:initial;"
                 thead {
                     tr {
-                        th {
-                            +"Change"
-                        }
-                        th {
-                            +"#"
-                        }
-                        th {
-                            +"Maximum"
-                        }
-                        th {
-                            +"Geometric mean"
-                        }
+                        th { +"Change" }
+                        th { +"#" }
+                        th { +"Maximum" }
+                        th { +"Geometric mean" }
                     }
                 }
                 val maximumRegression = report.maximumRegression
@@ -526,7 +515,8 @@ class HTMLRender: Render() {
                             }
                             td {
                                 attributes["bgcolor"] = ColoredCell(
-                                        regressionsGeometricMean/maxOf(regressionsGeometricMean, abs(improvementsGeometricMean)))
+                                        regressionsGeometricMean/maxOf(regressionsGeometricMean,
+                                                            abs(improvementsGeometricMean)))
                                         .backgroundStyle
                                 +formatValue(report.regressionsGeometricMean, true)
                             }
@@ -540,12 +530,15 @@ class HTMLRender: Render() {
                                 attributes["bgcolor"] = ColoredCell(
                                         maximumImprovement/maxOf(maximumRegression, abs(maximumImprovement)))
                                         .backgroundStyle
-                                +formatValue(report.maximumImprovement, true) }
+                                +formatValue(report.maximumImprovement, true)
+                            }
                             td {
                                 attributes["bgcolor"] = ColoredCell(
-                                        improvementsGeometricMean/maxOf(regressionsGeometricMean, abs(improvementsGeometricMean)))
+                                        improvementsGeometricMean/maxOf(regressionsGeometricMean,
+                                                        abs(improvementsGeometricMean)))
                                         .backgroundStyle
-                                +formatValue(report.improvementsGeometricMean, true) }
+                                +formatValue(report.improvementsGeometricMean, true)
+                            }
                         }
                     }
                 }
@@ -572,10 +565,10 @@ class HTMLRender: Render() {
                         +"${change.first.toString() + " %"}"
                     }
                     td {
-                        val scaledRatio = if (change.first.mean < 0) (1 - change.second.mean) / (-1 + bucket.values.first().second.mean)
-                                                else (change.second.mean / bucket.values.first().second.mean)
-                        attributes["bgcolor"] = ColoredCell(scaledRatio)
-                                .backgroundStyle
+                        val scaledRatio = if (change.first.mean < 0)
+                                            (1 - change.second.mean) / (-1 + bucket.values.first().second.mean)
+                                            else (change.second.mean / bucket.values.first().second.mean)
+                        attributes["bgcolor"] = ColoredCell(scaledRatio).backgroundStyle
                         +"${change.second}"
                     }
                 }
@@ -633,8 +626,6 @@ class HTMLRender: Render() {
                 }
             }
         }
-
-
     }
 
     data class Color(val red: Double, val green: Double, val blue: Double) {

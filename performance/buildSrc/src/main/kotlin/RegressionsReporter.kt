@@ -98,7 +98,6 @@ open class RegressionsReporter : DefaultTask() {
             "elena.lepilkina" to "elena.lepilkina")
     val buildNamePrefix = "Kotlin_Konan"
     val buildNamePostfix = "Performance"
-    val linesNumberInMessage = 20
 
     @Input
     lateinit var currentBenchmarksReportFile: String
@@ -221,7 +220,7 @@ open class RegressionsReporter : DefaultTask() {
         // Generate comparison report.
         "$analyzer -r html $currentBenchmarksReportFile $fileNameForPreviousResults -o $htmlReport".runCommand()
 
-        val reportLink = "$teamCityUrl/viewLog.html?buildId=$buildId&buildTypeId=$buildTypeId&tab=Benchmarks"
+        val reportLink = tabUrl(buildId, buildTypeId, "Benchmarks")
         val target = buildTypeId.substringAfter(buildNamePrefix).substringBefore(buildNamePostfix)
         val title = "\n*Performance report for target $target* - $reportLink\n"
         val header = "$title\n$changesInfo\n\nCompare to build:$compareToBuildLink\n\n"

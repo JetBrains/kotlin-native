@@ -158,7 +158,9 @@ task bench(type:Exec) {
     }
 }
 
+// Produce and send slack report.
 task slackReport(type: RegressionsReporter) {
+    // Create folder for report (root Kotlin project settings make create report in separate folder).
     def reportDirectory = outputReport.substring(0, outputReport.lastIndexOf("/"))
     mkdir reportDirectory
     currentBenchmarksReportFile = "${buildDir.absolutePath}/${nativeJson}"

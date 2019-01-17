@@ -128,6 +128,7 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
             }
         }
 
+        // Get value of argument converted to expected type.
         private fun <T : Any> getTyped(value: String): T {
             val typedValue = when (descriptor.type) {
                 is ArgType.Int -> value.toInt()
@@ -139,14 +140,16 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
             return typedValue
         }
 
+        // Get value of argument.
         fun <T : Any> get(): T {
             return getTyped<T>(values[0])
         }
 
+        // Get all values of argument.
+        // For options that can be set multiple types.
         fun <T : Any> getAll(): List<T> {
             return values.map { getTyped<T>(it) }
         }
-
     }
 
     // Output error. Also adds help usage information for easy understanding of problem.
@@ -241,6 +244,7 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
         return true
     }
 
+    // Get value of argument.
     fun <T : Any> get(name: String): T? {
         if (::parsedValues.isInitialized) {
             val arg = parsedValues[name]
@@ -251,6 +255,8 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
         }
     }
 
+    // Get all values of argument.
+    // For options that can be set multiple types.
     fun <T : Any> getAll(name: String): List<T>? {
         if (::parsedValues.isInitialized) {
             val arg = parsedValues[name]
