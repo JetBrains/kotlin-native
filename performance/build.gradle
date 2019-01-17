@@ -152,15 +152,18 @@ task bench(type:Exec) {
     def extension = MPPTools.getNativeProgramExtension()
     def analyzer = MPPTools.findFile("${analyzerTool}${extension}", "${rootBuildDirectory}/${analyzerToolDirectory}")
     if (analyzer != null) {
-        commandLine "${analyzer}", "${buildDir.absolutePath}/${nativeJson}", "${buildDir.absolutePath}/${jvmJson}"
+        commandLine "${analyzer}", "-r", "text", "-r", "teamcity", "${buildDir.absolutePath}/${nativeJson}", "${buildDir.absolutePath}/${jvmJson}"
     } else {
         println("No analyzer $analyzerTool found in subdirectories of ${rootBuildDirectory}/${analyzerToolDirectory}")
     }
 }
 
 task slackReport(type: RegressionsReporter) {
+    def reportDirectory = outputReport.substring(0, outputReport.lastIndexOf("/"))
+    mkdir reportDirectory
     currentBenchmarksReportFile = "${buildDir.absolutePath}/${nativeJson}"
     fileNameForPreviousResults = "${buildDir.absolutePath}/previousReport.json"
     analyzer = MPPTools.findFile("${analyzerTool}${MPPTools.getNativeProgramExtension()}",
             "${rootBuildDirectory}/${analyzerToolDirectory}")
+    htmlReport = outputReport
 }

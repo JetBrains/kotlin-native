@@ -141,7 +141,6 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
         if (bucket.isEmpty())
             return 0.0
         var percentsList = bucket.values.map { it.first.mean }
-        var geomeanValue: Double
         return if (percentsList.first() > 0.0) {
             geometricMean(percentsList)
         } else {

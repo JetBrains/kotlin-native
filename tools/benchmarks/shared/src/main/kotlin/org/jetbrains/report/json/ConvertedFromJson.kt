@@ -18,14 +18,6 @@ package org.jetbrains.report.json
 
 // Entity can be created from json description.
 interface ConvertedFromJson {
-    fun getRequiredField(data: JsonObject, fieldName: String): JsonElement {
-        return data.getOrNull(fieldName) ?: error("Field '$fieldName' doesn't exist in '$data'. Please, check origin files.")
-    }
-
-    fun getOptionalField(data: JsonObject, fieldName: String): JsonElement? {
-        return data.getOrNull(fieldName)
-    }
-
     // Methods for conversion to expected type with checks of possibility of such conversions.
     fun elementToDouble(element: JsonElement, name: String): Double =
             if (element is JsonPrimitive)
@@ -44,4 +36,12 @@ interface ConvertedFromJson {
                 element.unquoted()
             else
                 error("Field '$name' in '$element' is expected to be a string. Please, check origin files.")
+}
+
+fun JsonObject.getRequiredField(fieldName: String): JsonElement {
+    return getOrNull(fieldName) ?: error("Field '$fieldName' doesn't exist in '$this'. Please, check origin files.")
+}
+
+fun JsonObject.getOptionalField(fieldName: String): JsonElement? {
+    return getOrNull(fieldName)
 }

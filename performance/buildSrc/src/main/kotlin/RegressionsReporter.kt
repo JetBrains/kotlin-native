@@ -41,26 +41,28 @@ fun String.runCommand(workingDir: File = File("."),
     }
 }
 
+data class Commit(val revision: String, val developer: String, val webUrlWithDescription: String)
+
 // List of commits.
 class CommitsList(data: JsonElement): ConvertedFromJson {
 
-    val commits: List<Triple<String, String, String>>
+    val commits: List<Commit>
 
     init {
-        if (data is JsonObject) {
-            val changesElement = getRequiredField(data, "change")
-            if (changesElement is JsonArray) {
-                commits = changesElement.jsonArray.map {
-                        Triple(elementToString(getRequiredField((it as JsonObject), "version"), "version"),
-                                elementToString(getRequiredField((it as JsonObject), "username"), "username"),
-                                elementToString(getRequiredField((it as JsonObject), "webUrl"), "webUrl")
-                        )
-                }
-            } else {
-                error("Change field is expected to be an array. Please, check source.")
-            }
-        } else {
+        if (data !is JsonObject) {
             error("Commits description is expected to be a json object!")
+        }
+        val changesElement = data.getRequiredField("change")
+        if (changesElement !is JsonArray) {
+            error("Change field is expected to be an array. Please, check source.")
+        }
+        commits = changesElement.jsonArray.map {
+                with (it as JsonObject) {
+                    Commit(elementToString(getRequiredField("version"), "version"),
+                            elementToString(getRequiredField("username"), "username"),
+                            elementToString(getRequiredField("webUrl"), "webUrl")
+                    )
+                }
         }
     }
 }
@@ -72,6 +74,7 @@ class CommitsList(data: JsonElement): ConvertedFromJson {
  * @property currentBenchmarksReportFile  path to file with becnhmarks result
  * @property analyzer path to analyzer tool
  * @property fileNameForPreviousResults name of file where should be saved benchmarks results from previous build
+ * @property htmlReport name of result html report
  */
 open class RegressionsReporter : DefaultTask() {
 
@@ -105,6 +108,9 @@ open class RegressionsReporter : DefaultTask() {
 
     @Input
     lateinit var analyzer: String
+
+    @Input
+    lateinit var htmlReport: String
 
     private fun tabUrl(buildId: String, buildTypeId: String, tab: String) =
             "$teamCityUrl/viewLog.html?buildId=$buildId&buildTypeId=$buildTypeId&tab=$tab"
@@ -192,8 +198,8 @@ open class RegressionsReporter : DefaultTask() {
         // Get changes description.
         val changesList = getCommits("id:$buildId", user, password)
         val changesInfo = "*Changes* in branch *$branch:*\n" + buildString {
-            changesList.commits.forEach { (version, user, url) ->
-                append("        - Change $version by <@$user> (details: $url)\n")
+            changesList.commits.forEach {
+                append("        - Change ${it.revision} by <@${it.developer}> (details: ${it.webUrlWithDescription})\n")
             }
         }
 
@@ -213,14 +219,14 @@ open class RegressionsReporter : DefaultTask() {
         }
 
         // Generate comparison report.
-        val report = "$analyzer -s -b $currentBenchmarksReportFile $fileNameForPreviousResults".runCommand().lines()
+        "$analyzer -r html $currentBenchmarksReportFile $fileNameForPreviousResults -o $htmlReport".runCommand()
 
+        val reportLink = "$teamCityUrl/viewLog.html?buildId=$buildId&buildTypeId=$buildTypeId&tab=Benchmarks"
         val target = buildTypeId.substringAfter(buildNamePrefix).substringBefore(buildNamePostfix)
-        val title = "\n*Performance report for target $target*\n"
+        val title = "\n*Performance report for target $target* - $reportLink\n"
         val header = "$title\n$changesInfo\n\nCompare to build:$compareToBuildLink\n\n"
-        val reportMessages = report.withIndex().groupBy { it.index / linesNumberInMessage }
-                                                .map { it.value.map { it.value } }
         val footer = "*Benchmarks statistics:* $testReportUrl"
+        val message = "$header\n$footer\n"
 
         // Send to channel or user directly.
         val session = SlackSessionFactory.createWebSocketSlackSession(buildProperties.getProperty("konan-reporter-token"))
@@ -228,20 +234,12 @@ open class RegressionsReporter : DefaultTask() {
 
         if (branch == defaultBranch) {
             val channel = session.findChannelByName(buildProperties.getProperty("konan-channel-name"))
-            session.sendMessage(channel, header)
-            reportMessages.forEach { message ->
-                session.sendMessage(channel, message.joinToString("\n", "```", "```"))
-            }
-            session.sendMessage(channel, footer)
+            session.sendMessage(channel, message)
         } else {
-            changesList.commits.filter { (_, user, _) -> user in slackUsers }. map { (_, user, _) -> user }
+            changesList.commits.filter { it.developer in slackUsers }. map { it.developer }
                     .toSet().forEach {
                         val slackUser = session.findUserByUserName(slackUsers[it])
-                        session.sendMessageToUser(slackUser, header, null)
-                        reportMessages.forEach { message ->
-                            session.sendMessageToUser(slackUser, message.joinToString("\n", "```", "```"), null)
-                        }
-                        session.sendMessageToUser(slackUser, footer, null)
+                        session.sendMessageToUser(slackUser, message, null)
 
                     }
         }

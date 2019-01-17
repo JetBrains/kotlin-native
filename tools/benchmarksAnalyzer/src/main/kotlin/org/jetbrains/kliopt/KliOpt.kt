@@ -84,7 +84,7 @@ class OptionDescriptor(
             defaultValue?.let { result.append(" [$it]") }
             description?.let {result.append(" -> ${it}")}
             if (!isRequired) result.append(" (optional)")
-            result.append("${type.description}")
+            result.append(" ${type.description}")
             result.append("\n")
             return result.toString()
         }
@@ -106,7 +106,7 @@ class ArgDescriptor(
             defaultValue?.let { result.append(" [$it]") }
             description?.let {result.append(" -> ${it}")}
             if (!isRequired) result.append(" (optional)")
-            result.append("${type.description}")
+            result.append(" ${type.description}")
             result.append("\n")
             return result.toString()
         }
@@ -128,27 +128,23 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
             }
         }
 
-        private fun <T> getTyped(value: String): T? {
-            try {
-                val typedValue = when (descriptor.type) {
-                    is ArgType.Int -> value.toInt()
-                    is ArgType.Double -> value.toDouble()
-                    is ArgType.Boolean -> value == "true"
-                    else -> value
-                } as T
-                return typedValue
-            } catch (e: ClassCastException) {
-                printError("Argument ${descriptor.longName} has type ${descriptor.type} which differs from expected!")
-                return null
-            }
+        private fun <T : Any> getTyped(value: String): T {
+            val typedValue = when (descriptor.type) {
+                is ArgType.Int -> value.toInt()
+                is ArgType.Double -> value.toDouble()
+                is ArgType.Boolean -> value == "true"
+                else -> value
+            } as? T
+            typedValue ?: error("Argument ${descriptor.longName} has type ${descriptor.type} which differs from expected!")
+            return typedValue
         }
 
-        fun <T> get(): T? {
+        fun <T : Any> get(): T {
             return getTyped<T>(values[0])
         }
 
-        fun <T> getAll(): List<T> {
-            return values.map { getTyped<T>(it)!! }
+        fun <T : Any> getAll(): List<T> {
+            return values.map { getTyped<T>(it) }
         }
 
     }
@@ -245,7 +241,7 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
         return true
     }
 
-    fun <T> get(name: String): T? {
+    fun <T : Any> get(name: String): T? {
         if (::parsedValues.isInitialized) {
             val arg = parsedValues[name]
             return arg?.get()
@@ -255,7 +251,7 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
         }
     }
 
-    fun <T> getAll(name: String): List<T>? {
+    fun <T : Any> getAll(name: String): List<T>? {
         if (::parsedValues.isInitialized) {
             val arg = parsedValues[name]
             return arg?.getAll()
