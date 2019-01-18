@@ -621,15 +621,10 @@ class GeneratedObjCCategoriesMembers {
     private val classMethodSelectors = mutableSetOf<String>()
 
     fun register(method: ObjCMethod): Boolean =
-            register(method.selector, if (method.isClass) classMethodSelectors else instanceMethodSelectors)
+            (if (method.isClass) classMethodSelectors else instanceMethodSelectors).add(method.selector)
 
-    fun register(property: ObjCProperty): Boolean = register(property.name, propertyNames)
+    fun register(property: ObjCProperty): Boolean = propertyNames.add(property.name)
 
-    private fun <T> register(item: T, registry: MutableSet<T>): Boolean {
-        if (item in registry) return false
-        registry += item
-        return true
-    }
 }
 
 class ObjCCategoryStub(
