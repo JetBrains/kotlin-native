@@ -1,13 +1,9 @@
 package org.jetbrains.kotlin
 
 import groovy.lang.Closure
-import org.gradle.api.Action
 import org.gradle.api.DefaultTask
-import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.tasks.Input
-import org.gradle.api.tasks.SourceSet
-import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.api.tasks.TaskAction
 
 import org.jetbrains.kotlin.konan.target.*
@@ -34,19 +30,17 @@ open class FrameworkTest : DefaultTask() {
     @Input
     var fullBitcode: Boolean = false
 
-    private val testOutput: String by lazy {
-        project.file(project.property("testOutputFramework")!!).absolutePath
-    }
+    private val testOutput: String = project.testOutputFramework
 
     override fun configure(config: Closure<*>): Task {
         super.configure(config)
-        val target = project.testTarget().name
+        val target = project.testTarget.name
 
         // set crossdist build dependency if custom konan.home wasn't set
         if (!(project.property("useCustomDist") as Boolean)) {
             setRootDependency("${target}CrossDist", "${target}CrossDistRuntime", "commonDistRuntime", "distCompiler")
         }
-        check(::frameworkName.isInitialized, { "Framework name should be set" })
+        check(::frameworkName.isInitialized) { "Framework name should be set" }
         dependsOn(project.tasks.getByName("compileKonan$frameworkName"))
         return this
     }
@@ -55,7 +49,7 @@ open class FrameworkTest : DefaultTask() {
 
     @TaskAction
     fun run() {
-        val frameworkPath = "$testOutput/$frameworkName/${project.testTarget().name}"
+        val frameworkPath = "$testOutput/$frameworkName/${project.testTarget.name}"
 
         codesign(project, Paths.get(frameworkPath, "$frameworkName.framework").toString())
 
@@ -81,25 +75,12 @@ open class FrameworkTest : DefaultTask() {
         val testExecutable = Paths.get(testOutput, frameworkName, "swiftTestExecutable")
         swiftc(sources, options, testExecutable)
 
-        runTest(testExecutable)
-    }
-
-    private fun runTest(testExecutable: Path) {
-        val executor = (project.convention.plugins["executor"] as? ExecutorService)
-                ?: throw RuntimeException("Executor wasn't found")
-        val (stdOut, stdErr, exitCode) = runProcess(executor = executor::execute,
-                executable = testExecutable.toString())
-
-        println("""
-            |stdout: $stdOut
-            |stderr: $stdErr
-            """.trimMargin())
-        check(exitCode == 0, { "Execution failed with exit code: $exitCode "})
+        project.executeAndCheck(testExecutable)
     }
 
     private fun swiftc(sources: List<String>, options: List<String>, output: Path) {
-        val target = project.testTarget()
-        val platform = project.platformManager().platform(target)
+        val target = project.testTarget
+        val platform = project.platformManager.platform(target)
         assert(platform.configurables is AppleConfigurables)
         val configs = platform.configurables as AppleConfigurables
         val compiler = configs.absoluteTargetToolchain + "/usr/bin/swiftc"
@@ -123,7 +104,7 @@ open class FrameworkTest : DefaultTask() {
             |stdout: $stdOut
             |stderr: $stdErr
             """.trimMargin())
-        check(exitCode == 0, { "Compilation failed" })
-        check(output.toFile().exists(), { "Compiler swiftc hasn't produced an output file: $output" })
+        check(exitCode == 0) { "Compilation failed" }
+        check(output.toFile().exists()) { "Compiler swiftc hasn't produced an output file: $output" }
     }
 }
