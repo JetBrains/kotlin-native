@@ -679,7 +679,10 @@ class RunExternalTestGroup extends RunStandaloneKonanTest {
         def languageSettings = findLinesWithPrefixesRemoved(text, "// !LANGUAGE: ")
         if (languageSettings.size() != 0) {
             languageSettings.forEach { line ->
-                line.split(" ").toList().forEach { flags.add("-XXLanguage:$it") }
+                line.split(" ").toList().forEach {
+                    def s = it.replace('-DataClassInheritance', '+DataClassInheritance')
+                    flags.add("-XXLanguage:$s")
+                }
             }
         }
 
@@ -874,6 +877,8 @@ fun runTest() {
         def text = project.file(fileName).text
 
         if (excludeList.contains(fileName.replace(File.separator, "/"))) return false
+
+        if (findLinesWithPrefixesRemoved(text, "// WITH_REFLECT").size() != 0) return false
 
         if (findLinesWithPrefixesRemoved(text, "// WITH_REFLECT").size() != 0) return false
 
