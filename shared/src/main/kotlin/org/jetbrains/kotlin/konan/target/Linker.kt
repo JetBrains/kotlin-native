@@ -117,7 +117,15 @@ open class MacOSBasedLinker(targetProperties: AppleConfigurables)
 
     private val libtool = "$absoluteTargetToolchain/usr/bin/libtool"
     private val linker = "$absoluteTargetToolchain/usr/bin/ld"
-    internal val dsymutil = "$absoluteLlvmHome/bin/llvm-dsymutil"
+    private val dsymutil = "$absoluteLlvmHome/bin/llvm-dsymutil"
+    private val compilerRtLibrary: String get() {
+            val suffix = when (configurables.target) {
+                KonanTarget.MACOS_X64 -> "osx"
+                KonanTarget.IOS_ARM32, KonanTarget.IOS_ARM64, KonanTarget.IOS_X64 -> "ios"
+                else -> TODO()
+            }
+            return "$absoluteTargetToolchain/usr/lib/clang/10.0.0/lib/darwin/libclang_rt.$suffix.a"
+        }
 
     open val osVersionMinFlags: List<String> by lazy {
         listOf(
@@ -149,7 +157,7 @@ open class MacOSBasedLinker(targetProperties: AppleConfigurables)
             if (!debug) +linkerNoDebugFlags
             if (dynamic) +linkerDynamicFlags
             +linkerKonanFlags
-            +"-lSystem"
+            +compilerRtLibrary
             +libraries
             +linkerArgs
         }) + if (debug) listOf(dsymUtilCommand(executable, outputDsymBundle)) else emptyList()
