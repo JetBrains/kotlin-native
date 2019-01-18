@@ -118,19 +118,17 @@ open class MacOSBasedLinker(targetProperties: AppleConfigurables)
     private val libtool = "$absoluteTargetToolchain/usr/bin/libtool"
     private val linker = "$absoluteTargetToolchain/usr/bin/ld"
     private val dsymutil = "$absoluteLlvmHome/bin/llvm-dsymutil"
-    private val compilerRtLibrary: String get() {
-            val suffix = when (configurables.target) {
-                KonanTarget.MACOS_X64 -> "osx"
-                KonanTarget.IOS_ARM32, KonanTarget.IOS_ARM64, KonanTarget.IOS_X64 -> "ios"
+    private val compilerRtLibrary: String? by lazy {
+            val suffix = when (configurables.target.family) {
+                Family.OSX -> "osx"
+                Family.IOS -> "ios"
                 else -> TODO()
             }
-            return "$absoluteTargetToolchain/usr/lib/clang/10.0.0/lib/darwin/libclang_rt.$suffix.a"
+            val dir = File("$absoluteTargetToolchain/usr/lib/clang/").listFiles.firstOrNull()?.absolutePath
+            if (dir != null) "$dir/lib/darwin/libclang_rt.$suffix.a" else null
         }
-
-    open val osVersionMinFlags: List<String> by lazy {
-        listOf(
-                osVersionMinFlagLd,
-                osVersionMin + ".0")
+    private val osVersionMinFlags: List<String> by lazy {
+        listOf(osVersionMinFlagLd, osVersionMin + ".0")
     }
 
     override fun filterStaticLibraries(binaries: List<String>) = binaries.filter { it.isUnixStaticLib }
@@ -157,7 +155,7 @@ open class MacOSBasedLinker(targetProperties: AppleConfigurables)
             if (!debug) +linkerNoDebugFlags
             if (dynamic) +linkerDynamicFlags
             +linkerKonanFlags
-            +compilerRtLibrary
+            if (compilerRtLibrary != null) +compilerRtLibrary!!
             +libraries
             +linkerArgs
         }) + if (debug) listOf(dsymUtilCommand(executable, outputDsymBundle)) else emptyList()
