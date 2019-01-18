@@ -25,11 +25,20 @@
 
 namespace {
 
-template<typename R, typename Ta, typename Tb> R div(Ta a, Tb b) {
-    if (__builtin_expect(b == 0, false)) {
+template<typename T> void checkNotZero(T t) {
+    if (__builtin_expect(t == 0, false)) {
         ThrowArithmeticException();
     }
+}
+
+template<typename R, typename Ta, typename Tb> R div(Ta a, Tb b) {
+    checkNotZero(b);
     return a / b;
+}
+
+template<typename R, typename Ta, typename Tb> R mod(Ta a, Tb b) {
+    checkNotZero(b);
+    return a % b;
 }
 
 }
@@ -91,10 +100,10 @@ ALWAYS_INLINE KLong   Kotlin_Byte_div_Long         (KByte a, KLong   b) { return
 ALWAYS_INLINE KFloat  Kotlin_Byte_div_Float        (KByte a, KFloat  b) { return a / b; }
 ALWAYS_INLINE KDouble Kotlin_Byte_div_Double       (KByte a, KDouble b) { return a / b; }
 
-ALWAYS_INLINE KInt    Kotlin_Byte_mod_Byte         (KByte a, KByte   b) { return a % b; }
-ALWAYS_INLINE KInt    Kotlin_Byte_mod_Short        (KByte a, KShort  b) { return a % b; }
-ALWAYS_INLINE KInt    Kotlin_Byte_mod_Int          (KByte a, KInt    b) { return a % b; }
-ALWAYS_INLINE KLong   Kotlin_Byte_mod_Long         (KByte a, KLong   b) { return a % b; }
+ALWAYS_INLINE KInt    Kotlin_Byte_mod_Byte         (KByte a, KByte   b) { return mod<KInt>(a, b); }
+ALWAYS_INLINE KInt    Kotlin_Byte_mod_Short        (KByte a, KShort  b) { return mod<KInt>(a, b); }
+ALWAYS_INLINE KInt    Kotlin_Byte_mod_Int          (KByte a, KInt    b) { return mod<KInt>(a, b); }
+ALWAYS_INLINE KLong   Kotlin_Byte_mod_Long         (KByte a, KLong   b) { return mod<KLong>(a, b); }
 ALWAYS_INLINE KFloat  Kotlin_Byte_mod_Float        (KByte a, KFloat  b) { return fmodf(a, b); }
 ALWAYS_INLINE KDouble Kotlin_Byte_mod_Double       (KByte a, KDouble b) { return fmod (a, b); }
 
@@ -148,10 +157,10 @@ ALWAYS_INLINE KLong   Kotlin_Short_div_Long         (KShort a, KLong   b) { retu
 ALWAYS_INLINE KFloat  Kotlin_Short_div_Float        (KShort a, KFloat  b) { return a / b; }
 ALWAYS_INLINE KDouble Kotlin_Short_div_Double       (KShort a, KDouble b) { return a / b; }
 
-ALWAYS_INLINE KInt    Kotlin_Short_mod_Byte         (KShort a, KByte   b) { return a % b; }
-ALWAYS_INLINE KInt    Kotlin_Short_mod_Short        (KShort a, KShort  b) { return a % b; }
-ALWAYS_INLINE KInt    Kotlin_Short_mod_Int          (KShort a, KInt    b) { return a % b; }
-ALWAYS_INLINE KLong   Kotlin_Short_mod_Long         (KShort a, KLong   b) { return a % b; }
+ALWAYS_INLINE KInt    Kotlin_Short_mod_Byte         (KShort a, KByte   b) { return mod<KInt>(a, b); }
+ALWAYS_INLINE KInt    Kotlin_Short_mod_Short        (KShort a, KShort  b) { return mod<KInt>(a, b); }
+ALWAYS_INLINE KInt    Kotlin_Short_mod_Int          (KShort a, KInt    b) { return mod<KInt>(a, b); }
+ALWAYS_INLINE KLong   Kotlin_Short_mod_Long         (KShort a, KLong   b) { return mod<KLong>(a, b); }
 ALWAYS_INLINE KFloat  Kotlin_Short_mod_Float        (KShort a, KFloat  b) { return fmodf(a, b); }
 ALWAYS_INLINE KDouble Kotlin_Short_mod_Double       (KShort a, KDouble b) { return fmod (a, b); }
 
@@ -205,10 +214,10 @@ ALWAYS_INLINE KLong   Kotlin_Int_div_Long         (KInt a, KLong   b) { return d
 ALWAYS_INLINE KFloat  Kotlin_Int_div_Float        (KInt a, KFloat  b) { return a / b; }
 ALWAYS_INLINE KDouble Kotlin_Int_div_Double       (KInt a, KDouble b) { return a / b; }
 
-ALWAYS_INLINE KInt    Kotlin_Int_mod_Byte         (KInt a, KByte   b) { return a % b; }
-ALWAYS_INLINE KInt    Kotlin_Int_mod_Short        (KInt a, KShort  b) { return a % b; }
-ALWAYS_INLINE KInt    Kotlin_Int_mod_Int          (KInt a, KInt    b) { return a % b; }
-ALWAYS_INLINE KLong   Kotlin_Int_mod_Long         (KInt a, KLong   b) { return a % b; }
+ALWAYS_INLINE KInt    Kotlin_Int_mod_Byte         (KInt a, KByte   b) { return mod<KInt>(a, b); }
+ALWAYS_INLINE KInt    Kotlin_Int_mod_Short        (KInt a, KShort  b) { return mod<KInt>(a, b); }
+ALWAYS_INLINE KInt    Kotlin_Int_mod_Int          (KInt a, KInt    b) { return mod<KInt>(a, b); }
+ALWAYS_INLINE KLong   Kotlin_Int_mod_Long         (KInt a, KLong   b) { return mod<KLong>(a, b); }
 ALWAYS_INLINE KFloat  Kotlin_Int_mod_Float        (KInt a, KFloat  b) { return fmodf(a, b); }
 ALWAYS_INLINE KDouble Kotlin_Int_mod_Double       (KInt a, KDouble b) { return fmod (a, b); }
 
@@ -275,10 +284,10 @@ ALWAYS_INLINE KLong   Kotlin_Long_div_Long         (KLong a, KLong   b) { return
 ALWAYS_INLINE KFloat  Kotlin_Long_div_Float        (KLong a, KFloat  b) { return a / b; }
 ALWAYS_INLINE KDouble Kotlin_Long_div_Double       (KLong a, KDouble b) { return a / b; }
 
-ALWAYS_INLINE KLong   Kotlin_Long_mod_Byte         (KLong a, KByte   b) { return a % b; }
-ALWAYS_INLINE KLong   Kotlin_Long_mod_Short        (KLong a, KShort  b) { return a % b; }
-ALWAYS_INLINE KLong   Kotlin_Long_mod_Int          (KLong a, KInt    b) { return a % b; }
-ALWAYS_INLINE KLong   Kotlin_Long_mod_Long         (KLong a, KLong   b) { return a % b; }
+ALWAYS_INLINE KLong   Kotlin_Long_mod_Byte         (KLong a, KByte   b) { return mod<KLong>(a, b); }
+ALWAYS_INLINE KLong   Kotlin_Long_mod_Short        (KLong a, KShort  b) { return mod<KLong>(a, b); }
+ALWAYS_INLINE KLong   Kotlin_Long_mod_Int          (KLong a, KInt    b) { return mod<KLong>(a, b); }
+ALWAYS_INLINE KLong   Kotlin_Long_mod_Long         (KLong a, KLong   b) { return mod<KLong>(a, b); }
 ALWAYS_INLINE KFloat  Kotlin_Long_mod_Float        (KLong a, KFloat  b) { return fmodf(a, b); }
 ALWAYS_INLINE KDouble Kotlin_Long_mod_Double       (KLong a, KDouble b) { return fmod (a, b); }
 
