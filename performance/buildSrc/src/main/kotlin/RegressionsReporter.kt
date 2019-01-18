@@ -189,6 +189,7 @@ open class RegressionsReporter : DefaultTask() {
         // Get branch.
         val currentBuild = getBuild("id:$buildId", user, password)
         val branch = getBuildProperty(currentBuild,"branchName")
+        val buildNumber = getBuildProperty(currentBuild,"number")
 
         val testReportUrl = testReportUrl(buildId, buildTypeId)
 
@@ -222,7 +223,7 @@ open class RegressionsReporter : DefaultTask() {
         // Generate comparison report.
         "$analyzer -r html $currentBenchmarksReportFile $fileNameForPreviousResults -o $htmlReport".runCommand()
 
-        val reportLink = tabUrl(buildId, buildTypeId, "Benchmarks")
+        val reportLink = tabUrl(buildId, buildTypeId, "report_project170_Benchmarks")
         val target = buildTypeId.substringAfter(buildNamePrefix).substringBefore(buildNamePostfix)
         val title = "\n*Performance report for target $target* - $reportLink\n"
         val header = "$title\n$changesInfo\n\nCompare to build:$compareToBuildLink\n\n"

@@ -136,7 +136,7 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
                 is ArgType.Boolean -> value == "true"
                 else -> value
             } as? T
-            typedValue ?: error("Argument ${descriptor.longName} has type ${descriptor.type} which differs from expected!")
+            typedValue ?: printError("Argument ${descriptor.longName} has type ${descriptor.type} which differs from expected!")
             return typedValue
         }
 
@@ -153,7 +153,7 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
     }
 
     // Output error. Also adds help usage information for easy understanding of problem.
-    private fun printError(message: String) {
+    private fun printError(message: String): Nothing {
         error("$message\n${makeUsage()}")
     }
 
@@ -251,7 +251,6 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
             return arg?.get()
         } else {
             printError("Method parse() of ArgParser class should be called before getting arguments and options.")
-            return null
         }
     }
 
@@ -263,7 +262,6 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
             return arg?.getAll()
         } else {
             printError("Method parse() of ArgParser class should be called before getting arguments and options.")
-            return null
         }
     }
 
