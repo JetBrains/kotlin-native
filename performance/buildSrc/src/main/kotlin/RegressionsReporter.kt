@@ -132,10 +132,12 @@ open class RegressionsReporter : DefaultTask() {
             "$teamCityUrl/app/rest/changes/?locator=build:$buildLocator"
 
 
-    private fun sendGetRequest(url: String, username: String, password: String ) : String {
+    private fun sendGetRequest(url: String, username: String? = null, password: String? = null) : String {
         val connection = URL(url).openConnection() as HttpURLConnection
-        val auth = Base64.getEncoder().encode((username + ":" + password).toByteArray()).toString(Charsets.UTF_8)
-        connection.addRequestProperty("Authorization", "Basic $auth")
+        if (username != null && password != null) {
+            val auth = Base64.getEncoder().encode((username + ":" + password).toByteArray()).toString(Charsets.UTF_8)
+            connection.addRequestProperty("Authorization", "Basic $auth")
+        }
         connection.setRequestProperty("Accept", "application/json");
         connection.connect()
         return connection.inputStream.use { it.reader().use { reader -> reader.readText() } }
@@ -185,11 +187,12 @@ open class RegressionsReporter : DefaultTask() {
         val buildTypeId = buildProperties.getProperty("teamcity.buildType.id")
         val user = buildProperties.getProperty("teamcity.auth.userId")
         val password = buildProperties.getProperty("teamcity.auth.password")
+        val buildNumber = buildProperties.getProperty("build.number")
 
         // Get branch.
         val currentBuild = getBuild("id:$buildId", user, password)
         val branch = getBuildProperty(currentBuild,"branchName")
-        val buildNumber = getBuildProperty(currentBuild,"number")
+
 
         val testReportUrl = testReportUrl(buildId, buildTypeId)
 

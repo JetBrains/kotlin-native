@@ -113,6 +113,7 @@ task konanJsonReport {
                                                   'compileTime'    : nativeCompileTime]
         def output = MPPTools.createJsonReport(properties)
         new File("${buildDir.absolutePath}/${nativeJson}").write(output)
+        uploadBenchmarkResultToBintray(nativeJson)
     }
 }
 
@@ -126,6 +127,7 @@ task jvmJsonReport {
                                                   'compileTime'    : jvmCompileTime]
         def output = MPPTools.createJsonReport(properties)
         new File("${buildDir.absolutePath}/${jvmJson}").write(output)
+        uploadBenchmarkResultToBintray(jvmJson)
     }
 }
 
@@ -144,6 +146,21 @@ private def getCommonProperties() {
             'jdkVersion': System.getProperty("java.version"), // org.gradle.internal.jvm.Jvm.current().javaVersion
             'jdkVendor': System.getProperty("java.vendor"),
             'kotlinVersion': "${kotlinVersion}".toString()]
+}
+
+private def uploadBenchmarkResultToBintray(String fileName) {
+    def teamcityConfig = System.getenv("TEAMCITY_BUILD_PROPERTIES_FILE")
+    if (teamcityConfig) {
+        def buildProperties = new Properties()
+        buildProperties.load(new FileInputStream(teamcityConfig))
+        def user = buildProperties.getProperty("bintray.user")
+        def password = buildProperties.getProperty("bintray.apikey")
+        def buildNumber = buildProperties.getProperty("build.number")
+        def target = System.getProperty("os.name").replaceAll("\\s", "")
+        MPPTools.uploadFileToBintray("${bintrayUrl}", "${bintrayRepo}",
+                buildNumber, "${bintrayPackage}", "${target}/${buildNumber}/${fileName}",
+                "${buildDir.absolutePath}/${fileName}", user, password)
+    }
 }
 
 task bench(type:Exec) {

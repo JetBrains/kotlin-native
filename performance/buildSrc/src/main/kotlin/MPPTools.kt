@@ -16,6 +16,12 @@ import org.jetbrains.report.*
 import org.jetbrains.report.json.*
 import java.nio.file.Paths
 import java.io.File
+import java.io.FileInputStream
+import java.io.BufferedOutputStream
+import java.io.BufferedInputStream
+import java.net.HttpURLConnection
+import java.net.URL
+import java.util.Base64
 
 /*
  * This file includes short-cuts that may potentially be implemented in Kotlin MPP Gradle plugin in the future.
@@ -91,6 +97,38 @@ fun createJsonReport(projectProperties: Map<String, Any>): String {
 // Find file with set name in directory.
 fun findFile(fileName: String, directory: String): String? =
     File(directory).walkBottomUp().find { it.name == fileName }?.getAbsolutePath()
+
+fun uploadFileToBintray(url: String, project: String, version: String, packageName: String, bintrayFilePath: String,
+                        filePath: String, username: String? = null, password: String? = null) {
+    val uploadUrl = "$url/$project/$packageName/$version/$bintrayFilePath?publish=1"
+    sendUploadRequest(uploadUrl, filePath, username, password)
+}
+
+fun sendUploadRequest(url: String, fileName: String, username: String? = null, password: String? = null) {
+    val uploadingFile = File(fileName)
+    val connection = URL(url).openConnection() as HttpURLConnection
+    connection.doOutput = true
+    connection.doInput = true
+    connection.requestMethod = "PUT"
+    connection.setRequestProperty("Content-type", "text/plain")
+    if (username != null && password != null) {
+        val auth = Base64.getEncoder().encode((username + ":" + password).toByteArray()).toString(Charsets.UTF_8)
+        connection.addRequestProperty("Authorization", "Basic $auth")
+    }
+
+    try {
+        connection.connect()
+        BufferedOutputStream(connection.outputStream).use { output ->
+            BufferedInputStream(FileInputStream(uploadingFile)).use { input ->
+                input.copyTo(output)
+            }
+        }
+        val response = connection.responseMessage
+        println("Upload request ended with ${connection.responseCode} - $response")
+    } catch (t: Throwable) {
+        error("Couldn't upload file $fileName to $url")
+    }
+}
 
 // A short-cut to add a Kotlin/Native run task.
 @JvmOverloads
