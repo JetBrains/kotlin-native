@@ -76,11 +76,11 @@ class CommitsList(data: JsonElement): ConvertedFromJson {
  * @property currentBenchmarksReportFile  path to file with becnhmarks result
  * @property analyzer path to analyzer tool
  * @property htmlReport name of result html report
+ * @property defaultBranch name of defaukt branch
  */
 open class RegressionsReporter : DefaultTask() {
 
     val teamCityUrl = "http://buildserver.labs.intellij.net"
-    val defaultBranch = "master"
     val slackUsers = mapOf(
             "olonho" to "nikolay.igotti",
             "nikolay.igotti" to "nikolay.igotti",
@@ -106,6 +106,9 @@ open class RegressionsReporter : DefaultTask() {
 
     @Input
     lateinit var htmlReport: String
+
+    @Input
+    lateinit var defaultBranch: String
 
     private fun tabUrl(buildId: String, buildTypeId: String, tab: String) =
             "$teamCityUrl/viewLog.html?buildId=$buildId&buildTypeId=$buildTypeId&tab=$tab"
@@ -188,6 +191,8 @@ open class RegressionsReporter : DefaultTask() {
                 append("        - Change ${it.revision} by <@${it.developer}> (details: ${it.webUrlWithDescription})\n")
             }
         }
+
+        println("defaul Branch: $defaultBranch")
 
         // If branch differs from default and it's first build compare to master, otherwise compare to previous build on branch.
         val compareToBranch = if (previousBuildsExist) branch else defaultBranch
