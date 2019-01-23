@@ -181,7 +181,6 @@ task slackReport(type: RegressionsReporter) {
     def reportDirectory = outputReport.substring(0, outputReport.lastIndexOf("/"))
     mkdir reportDirectory
     currentBenchmarksReportFile = "${buildDir.absolutePath}/${nativeJson}"
-    fileNameForPreviousResults = "${buildDir.absolutePath}/previousReport.json"
     analyzer = MPPTools.findFile("${analyzerTool}${MPPTools.getNativeProgramExtension()}",
             "${rootBuildDirectory}/${analyzerToolDirectory}")
     htmlReport = outputReport

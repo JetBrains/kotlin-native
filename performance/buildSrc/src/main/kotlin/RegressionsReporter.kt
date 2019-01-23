@@ -75,7 +75,6 @@ class CommitsList(data: JsonElement): ConvertedFromJson {
  *
  * @property currentBenchmarksReportFile  path to file with becnhmarks result
  * @property analyzer path to analyzer tool
- * @property fileNameForPreviousResults name of file where should be saved benchmarks results from previous build
  * @property htmlReport name of result html report
  */
 open class RegressionsReporter : DefaultTask() {
@@ -98,14 +97,9 @@ open class RegressionsReporter : DefaultTask() {
             "Alexey.Zubakov" to "Alexey.Zubakov",
             "kirill.shmakov" to "kirill.shmakov",
             "elena.lepilkina" to "elena.lepilkina")
-    val buildNamePrefix = "Kotlin_Konan"
-    val buildNamePostfix = "Performance"
 
     @Input
     lateinit var currentBenchmarksReportFile: String
-
-    @Input
-    var fileNameForPreviousResults = "previousReport.json"
 
     @Input
     lateinit var analyzer: String
@@ -122,15 +116,11 @@ open class RegressionsReporter : DefaultTask() {
     private fun buildsUrl(buildLocator: String) =
             "$teamCityUrl/app/rest/builds/?locator=$buildLocator"
 
-    private fun artifactContentUrl(buildLocator: String, artifactPath: String) =
-            "$teamCityUrl/app/rest/builds/$buildLocator/artifacts/content/$artifactPath"
-
     private fun previousBuildLocator(buildTypeId: String, branchName: String) =
             "buildType:id:$buildTypeId,branch:name:$branchName,status:SUCCESS,state:finished,count:1"
 
     private fun changesListUrl(buildLocator: String) =
             "$teamCityUrl/app/rest/changes/?locator=build:$buildLocator"
-
 
     private fun sendGetRequest(url: String, username: String? = null, password: String? = null) : String {
         val connection = URL(url).openConnection() as HttpURLConnection
@@ -167,14 +157,6 @@ open class RegressionsReporter : DefaultTask() {
         return CommitsList(JsonTreeParser.parse(changes))
     }
 
-    private fun getArtifactContent(buildLocator: String, artifactPath: String, user: String, password: String) =
-            try {
-                sendGetRequest(artifactContentUrl(buildLocator, artifactPath),
-                        user, password)
-            } catch (t: Throwable) {
-                error("No artifacts in build with locator $buildLocator!")
-            }
-
     @TaskAction
     fun run() {
         // Get TeamCity properties.
@@ -185,14 +167,13 @@ open class RegressionsReporter : DefaultTask() {
         buildProperties.load(FileInputStream(teamcityConfig))
         val buildId = buildProperties.getProperty("teamcity.build.id")
         val buildTypeId = buildProperties.getProperty("teamcity.buildType.id")
+        val buildNumber = buildProperties.getProperty("build.number")
         val user = buildProperties.getProperty("teamcity.auth.userId")
         val password = buildProperties.getProperty("teamcity.auth.password")
-        val buildNumber = buildProperties.getProperty("build.number")
 
         // Get branch.
         val currentBuild = getBuild("id:$buildId", user, password)
         val branch = getBuildProperty(currentBuild,"branchName")
-
 
         val testReportUrl = testReportUrl(buildId, buildTypeId)
 
@@ -211,25 +192,29 @@ open class RegressionsReporter : DefaultTask() {
         // If branch differs from default and it's first build compare to master, otherwise compare to previous build on branch.
         val compareToBranch = if (previousBuildsExist) branch else defaultBranch
 
-        // Get benchmarks results from last build on branch.
-        val benchmarksReportFromArtifact = getArtifactContent(previousBuildLocator(buildTypeId, compareToBranch),
-                currentBenchmarksReportFile.substringAfterLast("/"), user, password)
+        // File name on bintray is the same as current.
+        val bintrayFileName = currentBenchmarksReportFile.substringAfterLast("/")
 
         // Get compare to build.
         val compareToBuild = getBuild(previousBuildLocator(buildTypeId, compareToBranch), user, password)
         val compareToBuildLink = getBuildProperty(compareToBuild,"webUrl")
-
-        File(fileNameForPreviousResults).printWriter().use { out ->
-            out.println(benchmarksReportFromArtifact)
-        }
+        val compareToBuildNumber = getBuildProperty(compareToBuild,"number")
+        val target = System.getProperty("os.name").replace("\\s".toRegex(), "")
 
         // Generate comparison report.
-        "$analyzer -r html $currentBenchmarksReportFile $fileNameForPreviousResults -o $htmlReport".runCommand()
+        val output = "$analyzer -r html $currentBenchmarksReportFile bintray:$compareToBuildNumber:$target:$bintrayFileName -o $htmlReport"
+                .runCommand()
+
+        if (output.contains("Uncaught exception")) {
+            error("Error during comparasion of $currentBenchmarksReportFile and " +
+                    "bintray:$compareToBuildNumber:$target:$bintrayFileName with $analyzer! " +
+                    "Please check files existance and their correctness.")
+        }
 
         val reportLink = tabUrl(buildId, buildTypeId, "report_project170_Benchmarks")
-        val target = buildTypeId.substringAfter(buildNamePrefix).substringBefore(buildNamePostfix)
-        val title = "\n*Performance report for target $target* - $reportLink\n"
-        val header = "$title\n$changesInfo\n\nCompare to build:$compareToBuildLink\n\n"
+
+        val title = "\n*Performance report for target $target (build $buildNumber)* - $reportLink\n"
+        val header = "$title\n$changesInfo\n\nCompare to build $compareToBuildNumber: $compareToBuildLink\n\n"
         val footer = "*Benchmarks statistics:* $testReportUrl"
         val message = "$header\n$footer\n"
 
