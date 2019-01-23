@@ -184,5 +184,5 @@ task slackReport(type: RegressionsReporter) {
     analyzer = MPPTools.findFile("${analyzerTool}${MPPTools.getNativeProgramExtension()}",
             "${rootBuildDirectory}/${analyzerToolDirectory}")
     htmlReport = outputReport
-    defaultBranch = "${project.ext['kotlin.native.default.branch']}"
+    defaultBranch = project.hasProperty('kotlin.native.default.branch') ? property('kotlin.native.default.branch') : "master"
 }
