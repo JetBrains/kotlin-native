@@ -74,7 +74,7 @@ set "KONAN_CLASSPATH=%KOTLIN_JAR%;%KOTLIN_STDLIB_JAR%;%KOTLIN_REFLECT_JAR%;%KOTL
 set JAVA_OPTS=-ea ^
     -Xmx3G ^
     "-Djava.library.path=%NATIVE_LIB%" ^
-    "-Dkonan.home=%_KONAN_HOME%" ^
+    "-Dorg.jetbrains.kotlin.native.home=%_KONAN_HOME%" ^
     -Dfile.encoding=UTF-8 ^
     %JAVA_OPTS%
 
