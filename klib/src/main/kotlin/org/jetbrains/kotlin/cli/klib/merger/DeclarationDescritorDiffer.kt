@@ -16,7 +16,7 @@ import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
 import org.jetbrains.kotlin.resolve.scopes.getDescriptorsFiltered
 import org.jetbrains.kotlin.storage.StorageManager
 
-fun ModuleDescriptor.getPackagesFqNames(): Set<FqName> {
+internal fun ModuleDescriptor.getPackagesFqNames(): Set<FqName> {
     val result = mutableSetOf<FqName>()
 
     fun getSubPackages(fqName: FqName) {
