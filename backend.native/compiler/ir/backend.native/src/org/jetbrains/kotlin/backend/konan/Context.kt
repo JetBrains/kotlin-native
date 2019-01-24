@@ -300,7 +300,7 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
         get() = ir.irModule.irBuiltins
 
     val interopBuiltIns by lazy {
-        InteropBuiltIns(this.builtIns, nativePtr)
+        InteropBuiltIns(this.builtIns)
     }
 
     var llvmModule: LLVMModuleRef? = null
