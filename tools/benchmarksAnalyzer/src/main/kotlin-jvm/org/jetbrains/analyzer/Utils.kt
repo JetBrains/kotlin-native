@@ -28,8 +28,8 @@ actual fun readFile(fileName: String): String {
     return inputString
 }
 
-actual fun format(number: Double, decimalNumber: Int): String =
-    "%.${decimalNumber}f".format(number)
+actual fun Double.format(decimalNumber: Int): String =
+    "%.${decimalNumber}f".format(this)
 
 actual fun writeToFile(fileName: String, text: String) {
     File(fileName).printWriter().use { out ->
@@ -37,12 +37,8 @@ actual fun writeToFile(fileName: String, text: String) {
     }
 }
 
-actual fun assert(value: Boolean, lazyMessage: () -> Any) {
+actual fun assert(value: Boolean, lazyMessage: () -> Any) =
     kotlin.assert(value, lazyMessage)
-}
-
-actual fun getEnv(variableName:String): String? =
-        System.getenv(variableName)
 
 // Create http(-s) request.
 fun getHttpRequest(url: String, user: String?, password: String?): HttpURLConnection {

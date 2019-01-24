@@ -14,7 +14,6 @@
  * limitations under the License.
  */
 
-import org.jetbrains.analyzer.getEnv
 import org.jetbrains.analyzer.sendGetRequest
 import org.jetbrains.analyzer.readFile
 import org.jetbrains.analyzer.SummaryBenchmarksReport

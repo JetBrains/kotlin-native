@@ -29,10 +29,7 @@ private fun <T : Comparable<T>> clamp(value: T, minValue: T, maxValue: T): T =
 
 // Natural number.
 class Natural(initValue: Int) {
-    val value: Int
-    init {
-        value = if (initValue > 0) initValue else error("Provided value $initValue isn't natural")
-    }
+    val value = if (initValue > 0) initValue else error("Provided value $initValue isn't natural")
 
     override fun toString(): String {
         return value.toString()
@@ -71,13 +68,10 @@ abstract class Tag(val name: String) : Element {
         builder.append("$indent</$name>\n")
     }
 
-    private fun renderAttributes(): String {
-        val builder = StringBuilder()
-        for ((attr, value) in attributes) {
-            builder.append(" $attr=\"$value\"")
-        }
-        return builder.toString()
-    }
+    private fun renderAttributes(): String =
+            attributes.map { (attr, value) ->
+                "$attr=\"$value\""
+            }.joinToString(separator = " ", prefix = " ")
 
     override fun toString(): String {
         val builder = StringBuilder()
@@ -150,19 +144,11 @@ class Button(classAttr: String) : BodyTagWithClass("button", classAttr)
 class Span(classAttr: String) : BodyTagWithClass("span", classAttr)
 
 class A : BodyTag("a") {
-    var href: String
-        get() = attributes["href"]!!
-        set(value) {
-            attributes["href"] = value
-        }
+    var href: String by attributes
 }
 
 class Image : BodyTag("img") {
-    var src: String
-        get() = attributes["src"]!!
-        set(value) {
-            attributes["src"] = value
-        }
+    var src: String by attributes
 }
 
 abstract class TableTag(name: String) : BodyTag(name) {
@@ -557,8 +543,8 @@ class HTMLRender: Render() {
                         attributes["style"] = rowStyle
                     }
                     th { +name }
-                    td { +"${fullSet[name]!!.first!!}" }
-                    td { +"${fullSet[name]!!.second!!}" }
+                    td { +"${fullSet.getValue(name).first}" }
+                    td { +"${fullSet.getValue(name).second}" }
                     td {
                         attributes["bgcolor"] = ColoredCell(change.first.mean / abs(bucket.values.first().first.mean))
                                 .backgroundStyle

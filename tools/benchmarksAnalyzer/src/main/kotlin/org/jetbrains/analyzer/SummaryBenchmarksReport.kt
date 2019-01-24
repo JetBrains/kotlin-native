@@ -185,7 +185,7 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
                 if (previousBenchmarks == null || name !in previousBenchmarks) {
                     getOrPut(name) { SummaryBenchmark(current, null) }
                 } else {
-                    val previousBenchmark = previousBenchmarks[name]!!.meanBenchmark
+                    val previousBenchmark = previousBenchmarks.getValue(name).meanBenchmark
                     getOrPut(name) { SummaryBenchmark(current, previousBenchmarks[name]) }
                     // Explore change of status.
                     if (previousBenchmark.status != currentBenchmark.status) {

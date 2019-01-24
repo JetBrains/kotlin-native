@@ -48,7 +48,7 @@ abstract class Render {
     }
 
     protected fun formatValue(number: Double, isPercent: Boolean = false): String =
-            if (isPercent) format(number, 2) + "%" else format(number)
+            if (isPercent) number.format(2) + "%" else number.format()
 }
 
 // Report render to text format.
@@ -153,8 +153,8 @@ class TextRender: Render() {
             // Output changed benchmarks.
             for ((name, change) in bucket) {
                 append(formatColumn(name, true) +
-                        formatColumn(fullSet[name]!!.first!!.toString()) +
-                        formatColumn(fullSet[name]!!.second!!.toString()) +
+                        formatColumn(fullSet.getValue(name).first.toString()) +
+                        formatColumn(fullSet.getValue(name).second.toString()) +
                         formatColumn(change.first.toString() + " %") +
                         formatColumn(change.second.toString()))
             }

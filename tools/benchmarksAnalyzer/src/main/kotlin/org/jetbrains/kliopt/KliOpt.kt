@@ -159,22 +159,22 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
 
     private fun saveAsArg(argDescriptors: Map<String, ArgDescriptor>, arg: String, processedValues: Map<String, MutableList<String>>): Boolean {
         // Find uninitialized arguments.
-        val nullArgs = argDescriptors.keys.filter { processedValues[it]!!.isEmpty() }
+        val nullArgs = argDescriptors.keys.filter { processedValues.getValue(it).isEmpty() }
         val name = nullArgs.firstOrNull()
         name?. let {
-            argDescriptors[name]!!.type.check(arg, name)
-            processedValues[name]!!.add(arg)
+            argDescriptors.getValue(name).type.check(arg, name)
+            processedValues.getValue(name).add(arg)
             return true
         }
         return false
     }
 
     private fun saveAsOption(descriptor: OptionDescriptor, value: String, processedValues: Map<String, MutableList<String>>) {
-        if (!descriptor.isMultiple && !processedValues[descriptor.longName]!!.isEmpty()) {
+        if (!descriptor.isMultiple && !processedValues.getValue(descriptor.longName).isEmpty()) {
             printError("Option ${descriptor.longName} is used more than one time!")
         }
         descriptor.type.check(value, descriptor.longName)
-        processedValues[descriptor.longName]!!.add(value)
+        processedValues.getValue(descriptor.longName).add(value)
     }
 
     // Parse arguments.
@@ -225,7 +225,7 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
         }
 
         processedValues.forEach { (key, value) ->
-            val descriptor = optDescriptors[key] ?: argDescriptors[key]!!
+            val descriptor = optDescriptors[key] ?: argDescriptors.getValue(key)
             // Not inited, append default value if needed.
             if (value.isEmpty()) {
                 descriptor.defaultValue?. let {

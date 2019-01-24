@@ -36,9 +36,9 @@ actual fun readFile(fileName: String): String {
     return text.toString()
 }
 
-actual fun format(number: Double, decimalNumber: Int): String {
+actual fun Double.format(decimalNumber: Int): String {
     var buffer = ByteArray(1024)
-    snprintf(buffer.refTo(0), buffer.size.toULong(), "%.${decimalNumber}f", number)
+    snprintf(buffer.refTo(0), buffer.size.toULong(), "%.${decimalNumber}f", this)
     return buffer.stringFromUtf8()
 }
 
@@ -51,12 +51,8 @@ actual fun writeToFile(fileName: String, text: String) {
     }
 }
 
-actual fun assert(value: Boolean, lazyMessage: () -> Any) {
+actual fun assert(value: Boolean, lazyMessage: () -> Any) =
     kotlin.assert(value, lazyMessage)
-}
-
-actual fun getEnv(variableName:String): String? =
-        getenv(variableName)?.toKString()
 
 class CUrl(url: String, user: String? = null, password: String? = null, followLocation: Boolean = false)  {
     private val stableRef = StableRef.create(this)

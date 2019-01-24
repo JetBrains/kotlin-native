@@ -53,7 +53,7 @@ class CommitsList(data: JsonElement): ConvertedFromJson {
             error("Commits description is expected to be a json object!")
         }
         val changesElement = data.getOptionalField("change")
-        commits = changesElement ?. let {
+        commits = changesElement?.let {
             if (changesElement !is JsonArray) {
                 error("Change field is expected to be an array. Please, check source.")
             }
