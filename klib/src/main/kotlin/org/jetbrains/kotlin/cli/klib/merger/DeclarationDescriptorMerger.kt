@@ -6,7 +6,6 @@ import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.impl.ModuleDescriptorImpl
 import org.jetbrains.kotlin.descriptors.konan.KonanModuleOrigin
 import org.jetbrains.kotlin.descriptors.konan.SyntheticModulesOrigin
-import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.resolve.ImplicitIntegerCoercion
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
@@ -71,13 +70,11 @@ class DeclarationDescriptorMerger(private val storageManager: StorageManager,
 
     private fun mergeOldMembers(packageViewDescriptors: List<PackageViewDescriptor>,
                                 descriptorKindFilter: DescriptorKindFilter): List<DeclarationDescriptor> {
-
         fun PackageViewDescriptor.getDescriptors() = memberScope.getDescriptorsFiltered(descriptorKindFilter)
 
         val equalDescriptorsMap = mutableMapOf<DescriptorHolder, MutableList<DescriptorHolder>>()
         for (viewDescriptor in packageViewDescriptors) {
             val descriptors = viewDescriptor.getDescriptors().map { DescriptorHolder(it) }
-
 
             for (desc in descriptors) {
                 equalDescriptorsMap.getOrPut(desc, ::mutableListOf)

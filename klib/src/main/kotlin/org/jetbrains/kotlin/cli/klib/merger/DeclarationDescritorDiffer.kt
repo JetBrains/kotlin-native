@@ -37,7 +37,6 @@ class DeclarationDescriptorDiffer(private val storageManager: StorageManager,
         return diffModules(modules)
     }
 
-
     private fun getPackagesWithTargets(modules: List<ModuleWithTargets>): List<PackageWithTargets> =
             modules.flatMap { (module, targets) ->
                 module.getPackagesFqNames().map { module.getPackage(it) }
