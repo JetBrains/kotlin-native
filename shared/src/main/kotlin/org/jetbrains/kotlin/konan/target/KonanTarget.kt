@@ -191,6 +191,8 @@ open class HostManager(protected val distribution: Distribution = Distribution()
                     KonanTarget.IOS_ARM32,
                     KonanTarget.IOS_ARM64,
                     KonanTarget.IOS_X64,
+                    KonanTarget.LINUX_X64,
+                    KonanTarget.LINUX_ARM32_HFP,
                     KonanTarget.ANDROID_ARM32,
                     KonanTarget.ANDROID_ARM64,
                     KonanTarget.WASM32

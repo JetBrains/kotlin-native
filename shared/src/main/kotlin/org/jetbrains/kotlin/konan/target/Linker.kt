@@ -48,7 +48,7 @@ private fun staticGnuArCommands(ar: String, executable: ExecutableFile,
                     },
                     Command("cmd", "/c", "del", "/q", temp))
         }
-        HostManager.hostIsLinux -> listOf(
+        HostManager.hostIsLinux || HostManager.hostIsMac -> listOf(
                      Command(ar, "cqT", executable).apply {
                         +objectFiles
                         +libraries
@@ -233,7 +233,8 @@ open class MacOSBasedLinker(targetProperties: AppleConfigurables)
 open class LinuxBasedLinker(targetProperties: LinuxBasedConfigurables)
     : LinkerFlags(targetProperties), LinuxBasedConfigurables by targetProperties {
 
-    private val ar = "$absoluteTargetToolchain/bin/ar"
+    private val ar = if (HostManager.hostIsMac) "$absoluteTargetToolchain/bin/llvm-ar"
+        else "$absoluteTargetToolchain/bin/ar"
     override val libGcc: String = "$absoluteTargetSysRoot/${super.libGcc}"
     private val linker = "$absoluteLlvmHome/bin/ld.lld"
     private val specificLibs = abiSpecificLibraries.map { "-L${absoluteTargetSysRoot}/$it" }
