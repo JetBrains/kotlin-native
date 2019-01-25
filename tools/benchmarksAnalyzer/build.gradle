@@ -114,6 +114,6 @@ kotlin {
 def getMingwPath() {
     def directory = System.getenv("MINGW64_DIR")
     if (directory == null)
-        directory = "c:/msys64/mingw64"
+        directory = "c:/msys64/mingw64/bin"
     return directory
 }
