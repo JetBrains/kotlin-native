@@ -1,0 +1,25 @@
+plugins {
+    id 'kotlin-multiplatform' version '1.3.20'
+}
+
+repositories {
+    mavenCentral()
+}
+
+final def os = org.gradle.internal.os.OperatingSystem.current()
+
+kotlin {
+    final def posixPreset = os.isLinux()   ? presets.linuxX64
+            : os.isMacOsX()  ? presets.macosX64
+            : /*unknown host*/ null
+    targets {
+        fromPreset(posixPreset, 'posix') {
+            compilations.main.outputKinds 'EXECUTABLE'
+            compilations.main.entryPoint 'sample.dateformat.main'
+        }
+    }
+    sourceSets {
+        posixMain {
+        }
+    }
+}
