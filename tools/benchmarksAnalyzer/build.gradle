@@ -81,20 +81,21 @@ kotlin {
         }
 
         fromPreset(presets.mingwX64, 'windows') {
-            compilations.main.linkerOpts "-L${getMingwPath()}/lib"
+            compilations.test.linkerOpts "-L${getMingwPath()}/lib"
             compilations.main.cinterops {
                 libcurl {
                     includeDirs.headerFilterOnly "${getMingwPath()}/include"
                 }
             }
         }
-        
+
         fromPreset(presets.linuxX64, 'linux') {
             compilations.main.cinterops {
                 libcurl {
                     includeDirs.headerFilterOnly '/usr/include', '/usr/include/x86_64-linux-gnu'
                 }
             }
+            compilations.test.linkerOpts "-L${getMingwPath()}/lib"
         }
         fromPreset(presets.macosX64, 'macos') {
             compilations.main.cinterops {
@@ -106,7 +107,12 @@ kotlin {
 
         configure([windows, linux, macos]) {
             binaries {
-                executable('benchmarksAnalyzer', [RELEASE])
+                executable('benchmarksAnalyzer', [RELEASE]) {
+                    if (org.gradle.internal.os.OperatingSystem.current().isWindows()) {
+                        println("-L${getMingwPath()}/lib")
+                        linkerOpts("-L${getMingwPath()}/lib")
+                    }
+                }
             }
         }
     }
