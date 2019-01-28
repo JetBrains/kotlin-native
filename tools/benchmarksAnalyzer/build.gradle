@@ -81,6 +81,7 @@ kotlin {
         }
 
         fromPreset(presets.mingwX64, 'windows') {
+            compilations.main.linkerOpts "-L${getMingwPath()}/lib"
             compilations.main.cinterops {
                 libcurl {
                     includeDirs.headerFilterOnly "${getMingwPath()}/include"
