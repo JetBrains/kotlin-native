@@ -184,6 +184,8 @@ open class HostManager(protected val distribution: Distribution = Distribution()
                     KonanTarget.MINGW_X64,
                     KonanTarget.LINUX_X64,
                     KonanTarget.LINUX_ARM32_HFP,
+                    KonanTarget.ANDROID_ARM32,
+                    //KonanTarget.ANDROID_ARM64,
                     KonanTarget.WASM32
                 ) + zephyrSubtargets
                 KonanTarget.MACOS_X64 -> listOf(
