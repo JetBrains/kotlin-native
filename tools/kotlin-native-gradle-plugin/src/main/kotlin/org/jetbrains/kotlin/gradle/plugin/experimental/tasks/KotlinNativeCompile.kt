@@ -111,8 +111,7 @@ open class KotlinNativeCompile @Inject constructor(internal val binary: Abstract
             val baseName = getBaseName().get()
 
             var fileName = "${prefix}${baseName}${suffix}"
-            if (kind == FRAMEWORK ||
-                kind == STATIC ||
+            if (kind == STATIC ||
                 kind == DYNAMIC ||
                 kind == PROGRAM && konanTarget == KonanTarget.WASM32
             ) {

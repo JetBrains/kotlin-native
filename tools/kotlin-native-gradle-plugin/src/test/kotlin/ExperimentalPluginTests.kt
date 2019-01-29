@@ -470,7 +470,7 @@ class ExperimentalPluginTests {
     }
 
     @Test
-    fun `Framework name should not contain minus symbols`() = withProject("test-framework-project") {
+    fun `Framework name is not mangled`() = withProject("test-framework-project") {
         assumeTrue(HostManager.hostIsMac)
         components.withType(KotlinNativeMainComponent::class.java)
             .getByName("main")
@@ -483,7 +483,7 @@ class ExperimentalPluginTests {
         val klibraryTask = compileTasks.getByName("compileDebugKlibraryKotlinNative")
 
 
-        assertEquals("test_framework_project", frameworkTask.outputFile.nameWithoutExtension)
+        assertEquals("test-framework-project", frameworkTask.outputFile.nameWithoutExtension)
         assertEquals("test-framework-project", klibraryTask.outputFile.nameWithoutExtension)
     }
 
