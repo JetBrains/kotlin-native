@@ -1,9 +1,25 @@
 ## Profiling the compiler
 
+### Profiling with Async profiler
+
+ IDEA Ultimate contains an Async sampling profiler.
+ As of IDEA 2018.3 Async sampling profiler is still an experimental feature, so use Ctrl-Alt-Shift-/ on Linux,
+Cmd-Alt-Shift-/ on macOS to activate it. Then start compilation in CLI with `--no-daemon` and
+`-Porg.gradle.workers.max=1` flags (running Gradle task with the profiler doesn't seem to work properly) and attach
+to the running process using "Run/Attach Profiler to Local Process" menu item.
+
+ Select "K2NativeKt" or "org.jetbrains.kotlin.cli.utilities.MainKt" process.
+On completion profiler will produce flame diagram which could be navigated with the mouse
+(click-drag moves, wheel scales). More RAM in IDE (>4G) could be helpful when analyzing longer runs.
+As Async is a sampling profiler, to get sensible coverage longer runs are important.
+
 ### Profiling with YourKit
 
+Unlike Async profiler in IDEA, YourKit can work as an exact profiler and provide complete coverage
+of all methods along with exact invocation counters.
+
 Install the YourKit profiler for your platform from https://www.yourkit.com/java/profiler.
-Set AGENT variable to the JVMTI agent provided by YourKit.
+Set AGENT variable to the JVMTI agent provided by YourKit, like
 
         export AGENT=/Applications/YourKit-Java-Profiler-2018.04.app/Contents/Resources/bin/mac/libyjpagent.jnilib
 
