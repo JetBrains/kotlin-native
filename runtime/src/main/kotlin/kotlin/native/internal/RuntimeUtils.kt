@@ -92,14 +92,13 @@ internal fun ReportUnhandledException(throwable: Throwable) {
 }
 
 @ExportForCppRuntime
-internal fun ExceptionReporterLaunchpad(reporter: (Throwable) -> Unit, throwable: Throwable)
-        = reporter(throwable)
-
-/**
- * Called once to report unhandled expection. To be used in launcher only.
- */
-@SymbolName("OnUnhandledException")
-external public fun OnUnhandledException(throwable: Throwable)
+internal fun ExceptionReporterLaunchpad(reporter: (Throwable) -> Unit, throwable: Throwable) {
+    try {
+        reporter(throwable)
+    } catch (t: Throwable) {
+        ReportUnhandledException(t)
+    }
+}
 
 @ExportForCppRuntime
 internal fun TheEmptyString() = ""

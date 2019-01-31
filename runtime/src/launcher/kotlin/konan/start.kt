@@ -12,16 +12,17 @@ import kotlin.native.internal.ExportForCppRuntime
 @SymbolName("EntryPointSelector")
 external fun EntryPointSelector(args: Array<String>)
 
+@SymbolName("OnUnhandledException")
+external private fun OnUnhandledException(throwable: Throwable)
+
 @ExportForCppRuntime
 private fun Konan_start(args: Array<String>): Int {
     try {
         EntryPointSelector(args)
-
         // Successfully finished:
         return 0
-
     } catch (e: Throwable) {
-        kotlin.native.internal.OnUnhandledException(e)
+        OnUnhandledException(e)
         return 1
     }
 }
