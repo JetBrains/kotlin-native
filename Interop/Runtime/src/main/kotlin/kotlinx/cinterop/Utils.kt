@@ -66,7 +66,7 @@ open class DeferScope {
 }
 
 abstract class AutofreeScope : DeferScope(), NativePlacement {
-    override abstract fun alloc(size: Long, align: Int): NativePointed
+    abstract override fun alloc(size: Long, align: Int): NativePointed
 }
 
 open class ArenaBase(private val parent: NativeFreeablePlacement = nativeHeap) : AutofreeScope() {
@@ -359,23 +359,23 @@ fun <T : CPointed> Array<CPointer<T>?>.toCValues() = cValuesOf(*this)
 
 fun <T : CPointed> List<CPointer<T>?>.toCValues() = this.toTypedArray().toCValues()
 
+private class CString(val bytes: ByteArray): CValues<ByteVar>() {
+    override val size get() = bytes.size + 1
+
+    override fun getPointer(scope: AutofreeScope): CPointer<ByteVar> {
+        val result = scope.allocArray<ByteVar>(bytes.size + 1)
+        nativeMemUtils.putByteArray(bytes, result.pointed, bytes.size)
+        result[bytes.size] = 0.toByte()
+        return result
+    }
+}
+
 /**
  * @return the value of zero-terminated UTF-8-encoded C string constructed from given [kotlin.String].
  */
 val String.cstr: CValues<ByteVar>
     get() {
-        val bytes = encodeToUtf8(this)
-
-        return object : CValues<ByteVar>() {
-            override val size get() = bytes.size + 1
-
-            override fun getPointer(scope: AutofreeScope): CPointer<ByteVar> {
-                val result = scope.allocArray<ByteVar>(bytes.size + 1)
-                nativeMemUtils.putByteArray(bytes, result.pointed, bytes.size)
-                result[bytes.size] = 0.toByte()
-                return result
-            }
-        }
+        return CString(encodeToUtf8(this))
     }
 
 /**
@@ -392,19 +392,21 @@ fun List<String>.toCStringArray(autofreeScope: AutofreeScope): CPointer<CPointer
 fun Array<String>.toCStringArray(autofreeScope: AutofreeScope): CPointer<CPointerVar<ByteVar>> =
         autofreeScope.allocArrayOf(this.map { it.cstr.getPointer(autofreeScope) })
 
+
+private class WCString(val chars: CharArray): CValues<UShortVar>() {
+    override val size get() = 2 * (chars.size + 1)
+
+    override fun getPointer(scope: AutofreeScope): CPointer<UShortVar> {
+        val result = scope.allocArray<UShortVar>(chars.size + 1)
+        nativeMemUtils.putCharArray(chars, result.pointed, chars.size)
+        nativeMemUtils.putShort((result + chars.size)!!.pointed, 0)
+        return result
+    }
+}
+
 val String.wcstr: CValues<UShortVar>
     get() {
-        val chars = CharArray(this.length, { i -> this.get(i)})
-        return object : CValues<UShortVar>() {
-            override val size get() = 2 * (chars.size + 1)
-
-            override fun getPointer(scope: AutofreeScope): CPointer<UShortVar> {
-                val result = scope.allocArray<UShortVar>(chars.size + 1)
-                nativeMemUtils.putCharArray(chars, result.pointed, chars.size)
-                result[chars.size] = 0u
-                return result
-            }
-        }
+        return WCString(CharArray(this.length, { i -> this.get(i)}))
     }
 
 /**
