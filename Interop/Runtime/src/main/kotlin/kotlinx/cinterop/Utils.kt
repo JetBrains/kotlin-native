@@ -374,9 +374,7 @@ private class CString(val bytes: ByteArray): CValues<ByteVar>() {
  * @return the value of zero-terminated UTF-8-encoded C string constructed from given [kotlin.String].
  */
 val String.cstr: CValues<ByteVar>
-    get() {
-        return CString(encodeToUtf8(this))
-    }
+    get() = CString(encodeToUtf8(this))
 
 /**
  * Convert this list of Kotlin strings to C array of C strings,
@@ -399,15 +397,14 @@ private class WCString(val chars: CharArray): CValues<UShortVar>() {
     override fun getPointer(scope: AutofreeScope): CPointer<UShortVar> {
         val result = scope.allocArray<UShortVar>(chars.size + 1)
         nativeMemUtils.putCharArray(chars, result.pointed, chars.size)
+        // TODO: fix, after KT-29627 is fixed.
         nativeMemUtils.putShort((result + chars.size)!!.pointed, 0)
         return result
     }
 }
 
 val String.wcstr: CValues<UShortVar>
-    get() {
-        return WCString(CharArray(this.length, { i -> this.get(i)}))
-    }
+    get() = WCString(this.toCharArray())
 
 /**
  * TODO: should the name of the function reflect the encoding?
