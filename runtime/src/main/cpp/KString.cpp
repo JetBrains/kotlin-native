@@ -50,7 +50,7 @@ OBJ_GETTER(utf8ToUtf16Impl, const char* rawString, const char* end, uint32_t cha
 template<utf16to8 conversion>
 OBJ_GETTER(utf16ToUtf8Impl, KString thiz, KInt start, KInt size) {
   RuntimeAssert(thiz->type_info() == theStringTypeInfo, "Must use String");
-  if (start < 0 || size < 0 || size > static_cast<KInt>(thiz->count_) - start) {
+  if (start < 0 || size < 0 || (size > static_cast<KInt>(thiz->count_) - start)) {
     ThrowArrayIndexOutOfBoundsException();
   }
   const KChar* utf16 = CharArrayAddressOfElementAt(thiz, start);
