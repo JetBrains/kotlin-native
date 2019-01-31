@@ -86,10 +86,20 @@ internal fun PrintThrowable(throwable: Throwable) {
 }
 
 @ExportForCppRuntime
-internal fun ReportUnhandledException(e: Throwable) {
+internal fun ReportUnhandledException(throwable: Throwable) {
     print("Uncaught Kotlin exception: ")
-    e.printStackTrace()
+    throwable.printStackTrace()
 }
+
+@ExportForCppRuntime
+internal fun ExceptionReporterLaunchpad(reporter: (Throwable) -> Unit, throwable: Throwable)
+        = reporter(throwable)
+
+/**
+ * Called once to report unhandled expection. To be used in launcher only.
+ */
+@SymbolName("OnUnhandledException")
+external public fun OnUnhandledException(throwable: Throwable)
 
 @ExportForCppRuntime
 internal fun TheEmptyString() = ""

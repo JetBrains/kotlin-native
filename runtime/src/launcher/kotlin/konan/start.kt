@@ -21,9 +21,7 @@ private fun Konan_start(args: Array<String>): Int {
         return 0
 
     } catch (e: Throwable) {
-        // TODO: may be add some more info.
-        print("Uncaught exception from Kotlin's main: ")
-        e.printStackTrace()
+        kotlin.native.internal.OnUnhandledException(e)
         return 1
     }
 }

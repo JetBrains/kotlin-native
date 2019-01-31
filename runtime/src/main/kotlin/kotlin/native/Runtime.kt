@@ -24,3 +24,14 @@ public class IncorrectDereferenceException : RuntimeException {
 
     constructor(message: String) : super(message)
 }
+
+/**
+ * Typealias describing custom exception reporting hook.
+ */
+public typealias ReportUnhandledExceptionHook = Function1<Throwable, Unit>
+
+/**
+ * Install custom unhandled exception hook. Returns old hook.
+ */
+@SymbolName("Kotlin_setUnhandledExceptionHook")
+external public fun setUnhandledExceptionHook(hook: ReportUnhandledExceptionHook): ReportUnhandledExceptionHook?
