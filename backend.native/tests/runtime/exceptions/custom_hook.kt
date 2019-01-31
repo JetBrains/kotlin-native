@@ -4,9 +4,19 @@
  */
 import kotlin.test.*
 
+import kotlin.native.concurrent.*
+
 fun main(args : Array<String>) {
+    assertFailsWith<InvalidMutabilityException> {
+        setUnhandledExceptionHook { _ -> println("wrong") }
+    }
+
     val x = 42
-    val old = setUnhandledExceptionHook({ throwable -> println("value $x: ${throwable::class.simpleName}")})
+    val old = setUnhandledExceptionHook({
+        throwable: Throwable -> println("value $x: ${throwable::class.simpleName}")
+    }.freeze())
+
     assertNull(old)
+
     throw Error("an error")
 }
