@@ -122,7 +122,7 @@ internal class LinkStage(val context: Context) {
         if (context.shouldProfilePhases()) {
             flags += "-time-passes"
         }
-        if (context.inVerbosePhase == true) {
+        if (context.inVerbosePhase) {
             flags += "-debug-pass=Structure"
         }
         return flags
@@ -224,4 +224,3 @@ internal class LinkStage(val context: Context) {
         link(objectFiles, includedBinaries, libraryProvidedLinkerFlags)
     }
 }
-

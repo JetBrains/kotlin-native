@@ -18,9 +18,9 @@ import java.util.Collections.emptySet
 internal fun konanUnitPhase(
         name: String,
         description: String,
-        prerequisite: Set<CompilerPhase<*, *, *>> = emptySet(),
+        prerequisite: Set<AnyNamedPhase> = emptySet(),
         op: Context.() -> Unit
-) = namedOpUnitPhase<Context>(op, name, description, prerequisite)
+) = namedOpUnitPhase(op, name, description, prerequisite)
 
 internal val FrontendPhase = konanUnitPhase(
         op = {

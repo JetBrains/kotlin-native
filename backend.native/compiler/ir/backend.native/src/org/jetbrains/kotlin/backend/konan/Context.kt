@@ -283,6 +283,8 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
         moduleDescriptor.builtIns as KonanBuiltIns
     }
 
+    override val configuration get() = config.configuration
+
     val phaseConfig = PhaseConfig(ToplevelPhase, config.configuration)
 
     private val packageScope by lazy { builtIns.builtInsModule.getPackage(KonanFqNames.internalPackageName).memberScope }
