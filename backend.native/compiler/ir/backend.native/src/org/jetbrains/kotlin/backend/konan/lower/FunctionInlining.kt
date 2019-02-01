@@ -116,7 +116,7 @@ internal class Ref<T>(var value: T)
 
 internal class FunctionInlining(val context: Context, phaserState: PhaserState): IrElementTransformerWithContext<Ref<Boolean>>() {
 
-    private val deserializer = DeserializerDriver(context, phaserState)
+    private val deserializer = DeserializerDriver(context)
     private val globalSubstituteMap = mutableMapOf<DeclarationDescriptor, SubstitutedDescriptor>()
     private val inlineFunctions = mutableMapOf<FunctionDescriptor, Boolean>()
 

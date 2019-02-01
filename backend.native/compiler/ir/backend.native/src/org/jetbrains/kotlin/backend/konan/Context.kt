@@ -11,7 +11,6 @@ import org.jetbrains.kotlin.backend.common.DumpIrTreeWithDescriptorsVisitor
 import org.jetbrains.kotlin.backend.common.PhaseConfig
 import org.jetbrains.kotlin.backend.common.validateIrModule
 import org.jetbrains.kotlin.backend.konan.descriptors.*
-import org.jetbrains.kotlin.backend.konan.ir.DeserializerPhase
 import org.jetbrains.kotlin.backend.konan.ir.KonanIr
 import org.jetbrains.kotlin.backend.konan.library.KonanLibraryWriter
 import org.jetbrains.kotlin.backend.konan.library.LinkData
