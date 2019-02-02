@@ -126,6 +126,8 @@ object StubRenderer {
         val protocols = clazz.superProtocols
         if (protocols.isNotEmpty()) {
             protocols.joinTo(this, separator = ", ", prefix = " <", postfix = ">")
+        } else if (clazz is ObjCProtocol) {
+            append("<NSObject>")
         }
     }
 
