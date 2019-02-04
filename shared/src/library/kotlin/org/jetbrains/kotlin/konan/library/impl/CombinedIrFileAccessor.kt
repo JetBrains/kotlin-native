@@ -1,3 +1,19 @@
+/**
+ * Copyright 2010-2019 JetBrains s.r.o.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ * You may obtain a copy of the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.jetbrains.kotlin.konan.library.impl
 
 import org.jetbrains.kotlin.konan.file.File
@@ -7,8 +23,8 @@ import java.nio.channels.FileChannel
 data class DeclarationId(val id: Long, val isLocal: Boolean)
 
 class CombinedIrFileReader(file: File) {
-    var buffer = file.map(FileChannel.MapMode.READ_ONLY)
-    val declarationToOffsetSize = mutableMapOf<DeclarationId, Pair<Int, Int>>()
+    private var buffer = file.map(FileChannel.MapMode.READ_ONLY)
+    private val declarationToOffsetSize = mutableMapOf<DeclarationId, Pair<Int, Int>>()
 
     init {
         val declarationsCount = buffer.int
@@ -23,14 +39,14 @@ class CombinedIrFileReader(file: File) {
     fun declarationBytes(id: DeclarationId): ByteArray {
         val offsetSize = declarationToOffsetSize[id] ?: throw Error("No declaration with $id here")
         val result = ByteArray(offsetSize.second)
-        // Unfortunately natural "buffer.get(result, offsetSize.first, offsetSize.second)" has
-        // nasty bug with bounds checking.
-        for (i in 0 until offsetSize.second) {
-            result[i] = buffer[i + offsetSize.first]
-        }
+        buffer.position(offsetSize.first)
+        buffer.get(result, 0, offsetSize.second)
         return result
     }
 }
+
+private const val SINGLE_INDEX_RECORD_SIZE = 20  // sizeof(Long) + 3 * sizeof(Int).
+private const val INDEX_HEADER_SIZE = 4  // sizeof(Int).
 
 class CombinedIrFileWriter(val declarationCount: Int) {
     private var currentDeclaration = 0
@@ -40,6 +56,7 @@ class CombinedIrFileWriter(val declarationCount: Int) {
 
     init {
         randomAccessFile.writeInt(declarationCount)
+        assert(randomAccessFile.filePointer.toInt() == INDEX_HEADER_SIZE)
         for (i in 0 until declarationCount) {
             randomAccessFile.writeLong(-1) // id
             randomAccessFile.writeInt(-1)  // isLocal
@@ -47,6 +64,7 @@ class CombinedIrFileWriter(val declarationCount: Int) {
             randomAccessFile.writeInt(-1)  // size
         }
         currentPosition = randomAccessFile.filePointer.toInt()
+        assert(currentPosition == INDEX_HEADER_SIZE + SINGLE_INDEX_RECORD_SIZE * declarationCount)
     }
 
     fun skipDeclaration() {
@@ -54,7 +72,7 @@ class CombinedIrFileWriter(val declarationCount: Int) {
     }
 
     fun addDeclaration(id: DeclarationId, bytes: ByteArray) {
-        randomAccessFile.seek((currentDeclaration * 20 + 4).toLong())
+        randomAccessFile.seek((currentDeclaration * SINGLE_INDEX_RECORD_SIZE + INDEX_HEADER_SIZE).toLong())
         randomAccessFile.writeLong(id.id)
         randomAccessFile.writeInt(if (id.isLocal) 1 else 0)
         randomAccessFile.writeInt(currentPosition)

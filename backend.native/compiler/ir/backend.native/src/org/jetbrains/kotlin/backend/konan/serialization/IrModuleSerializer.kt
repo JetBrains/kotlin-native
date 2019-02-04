@@ -1077,14 +1077,9 @@ internal class IrModuleSerializer(
         val proto = KonanIr.IrModule.newBuilder()
             .setName(serializeString(module.name.toString()))
 
-        var countTopLevelDeclarations = 0
-        module.files.forEach {
-            it.declarations.forEach {
-                countTopLevelDeclarations++
-            }
-        }
+        val topLevelDeclarationsCount = module.files.sumBy { it.declarations.size }
 
-        writer = CombinedIrFileWriter(countTopLevelDeclarations)
+        writer = CombinedIrFileWriter(topLevelDeclarationsCount)
 
         module.files.forEach {
             proto.addFile(serializeIrFile(it))
