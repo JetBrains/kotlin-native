@@ -20,7 +20,7 @@ internal fun konanUnitPhase(
         description: String,
         prerequisite: Set<AnyNamedPhase> = emptySet(),
         op: Context.() -> Unit
-) = namedOpUnitPhase(op, name, description, prerequisite)
+) = namedOpUnitPhase(name, description, prerequisite, op)
 
 internal val FrontendPhase = konanUnitPhase(
         op = {

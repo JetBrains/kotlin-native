@@ -35,13 +35,13 @@ internal fun makeKonanFileOpPhase(
         description: String,
         prerequisite: Set<AnyNamedPhase> = emptySet()
 ) = namedIrFilePhase(
-        object : SameTypeCompilerPhase<Context, IrFile> {
+        name, description, prerequisite, nlevels = 0,
+        lower = object : SameTypeCompilerPhase<Context, IrFile> {
             override fun invoke(phaseConfig: PhaseConfig, phaserState: PhaserState, context: Context, input: IrFile): IrFile {
                 op(context, input)
                 return input
             }
-        },
-        name, description, prerequisite, nlevels = 0
+        }
 )
 
 internal fun makeKonanModuleOpPhase(
@@ -50,13 +50,13 @@ internal fun makeKonanModuleOpPhase(
         description: String,
         prerequisite: Set<AnyNamedPhase> = emptySet()
 ) = namedIrModulePhase(
-        object : SameTypeCompilerPhase<Context, IrModuleFragment> {
+        name, description, prerequisite, nlevels = 0,
+        lower = object : SameTypeCompilerPhase<Context, IrModuleFragment> {
             override fun invoke(phaseConfig: PhaseConfig, phaserState: PhaserState, context: Context, input: IrModuleFragment): IrModuleFragment {
                 op(context, input)
                 return input
             }
-        },
-        name, description, prerequisite, nlevels = 0
+        }
 )
 
 internal val RemoveExpectDeclarationsPhase = makeKonanModuleLoweringPhase(
