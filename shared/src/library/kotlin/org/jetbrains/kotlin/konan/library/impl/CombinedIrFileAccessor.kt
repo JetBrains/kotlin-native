@@ -23,7 +23,7 @@ import java.nio.channels.FileChannel
 data class DeclarationId(val id: Long, val isLocal: Boolean)
 
 class CombinedIrFileReader(file: File) {
-    private var buffer = file.map(FileChannel.MapMode.READ_ONLY)
+    private val buffer = file.map(FileChannel.MapMode.READ_ONLY)
     private val declarationToOffsetSize = mutableMapOf<DeclarationId, Pair<Int, Int>>()
 
     init {
@@ -36,6 +36,7 @@ class CombinedIrFileReader(file: File) {
             declarationToOffsetSize[DeclarationId(id, isLocal)] = offset to size
         }
     }
+
     fun declarationBytes(id: DeclarationId): ByteArray {
         val offsetSize = declarationToOffsetSize[id] ?: throw Error("No declaration with $id here")
         val result = ByteArray(offsetSize.second)

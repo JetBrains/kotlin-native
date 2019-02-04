@@ -63,7 +63,7 @@ interface KonanLibraryLayout {
     val irDir
         get() = File(libDir, "ir")
     val irFile
-        get() = File(irDir, "combined_ir.knd")
+        get() = File(irDir, "irCombined.knd")
     val irHeader
         get() = File(irDir, "irHeaders.kni")
     val irIndex: File
