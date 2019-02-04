@@ -120,6 +120,7 @@ fun mergeReports(reports: List<File>): String {
     return reportsToMerge.reduce { result, it -> result + it }.toJson()
 }
 
+
 // Find file with set name in directory.
 fun findFile(fileName: String, directory: String): String? =
     File(directory).walkBottomUp().find { it.name == fileName }?.getAbsolutePath()
