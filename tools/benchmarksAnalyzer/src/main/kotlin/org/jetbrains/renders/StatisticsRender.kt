@@ -37,27 +37,27 @@ class StatisticsRender: Render() {
                 .filter { it.current == BenchmarkResult.Status.PASSED }
         val newFailures = benchmarksWithChangedStatus
                 .filter { it.current == BenchmarkResult.Status.FAILED }
-        if (!report.failedBenchmarks.isEmpty()) {
+        if (report.failedBenchmarks.isNotEmpty()) {
             content.append("failed: ${report.failedBenchmarks.size}\n")
         }
         val status = when {
-            !newFailures.isEmpty() -> {
+            newFailures.isNotEmpty() -> {
                 content.append("new failures: ${newFailures.size}\n")
                 Status.FAILED
             }
-            !newPasses.isEmpty() -> {
+            newPasses.isNotEmpty() -> {
                 content.append("new passes: ${newPasses.size}\n")
                 Status.FIXED
             }
-            !report.improvements.isEmpty() && !report.regressions.isEmpty() -> {
+            report.improvements.isNotEmpty() && report.regressions.isNotEmpty() -> {
                 content.append("regressions: ${report.regressions.size}\nimprovements: ${report.improvements.size}")
                 Status.UNSTABLE
             }
-            !report.improvements.isEmpty() && report.regressions.isEmpty() ->  {
+            report.improvements.isNotEmpty() && report.regressions.isEmpty() ->  {
                 content.append("improvements: ${report.improvements.size}")
                 Status.IMPROVED
             }
-            report.improvements.isEmpty() && !report.regressions.isEmpty() -> {
+            report.improvements.isEmpty() && report.regressions.isNotEmpty() -> {
                 content.append("regressions: ${report.regressions.size}")
                 Status.REGRESSED
             }
