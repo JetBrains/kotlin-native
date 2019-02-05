@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.backend.konan
 
-import org.jetbrains.kotlin.backend.common.invokeToplevel
+import org.jetbrains.kotlin.backend.common.phaser.invokeToplevel
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 
 fun runTopLevelPhases(konanConfig: KonanConfig, environment: KotlinCoreEnvironment) {
