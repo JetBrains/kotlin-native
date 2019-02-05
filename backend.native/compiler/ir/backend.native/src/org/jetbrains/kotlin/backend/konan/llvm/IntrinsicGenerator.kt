@@ -77,6 +77,7 @@ internal enum class IntrinsicType {
     INTEROP_NARROW,
     INTEROP_STATIC_C_FUNCTION,
     INTEROP_FUNPTR_INVOKE,
+    INTEROP_MEMORY_COPY,
     // Worker
     WORKER_EXECUTE
 }
@@ -224,6 +225,7 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
                 IntrinsicType.INTEROP_STATIC_C_FUNCTION,
                 IntrinsicType.INTEROP_FUNPTR_INVOKE,
                 IntrinsicType.INTEROP_CONVERT,
+                IntrinsicType.INTEROP_MEMORY_COPY,
                 IntrinsicType.WORKER_EXECUTE ->
                     reportNonLoweredIntrinsic(intrinsicType)
                 IntrinsicType.INIT_INSTANCE,
