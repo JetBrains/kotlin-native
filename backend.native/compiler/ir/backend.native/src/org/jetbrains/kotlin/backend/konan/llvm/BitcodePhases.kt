@@ -10,7 +10,7 @@ import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.optimizations.*
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 
-internal val ContextLLVMSetupPhase = makeKonanModuleOpPhase(
+internal val contextLLVMSetupPhase = makeKonanModuleOpPhase(
         name = "ContextLLVMSetup",
         description = "Set up Context for LLVM bitcode generation",
         op = { context, _ ->
@@ -34,13 +34,13 @@ internal val RTTIPhase = makeKonanModuleOpPhase(
         op = { context, irModule -> irModule.acceptVoid(RTTIGeneratorVisitor(context)) }
 )
 
-internal val GenerateDebugInfoHeaderPhase = makeKonanModuleOpPhase(
+internal val generateDebugInfoHeaderPhase = makeKonanModuleOpPhase(
         name = "GenerateDebugInfoHeader",
         description = "Generate debug info header",
         op = { context, _ -> generateDebugInfoHeader(context) }
 )
 
-internal val BuildDFGPhase = makeKonanModuleOpPhase(
+internal val buildDFGPhase = makeKonanModuleOpPhase(
         name = "BuildDFG",
         description = "Data flow graph building",
         op = { context, irModule ->
@@ -48,7 +48,7 @@ internal val BuildDFGPhase = makeKonanModuleOpPhase(
         }
 )
 
-internal val DeserializeDFGPhase = makeKonanModuleOpPhase(
+internal val deserializeDFGPhase = makeKonanModuleOpPhase(
         name = "DeserializeDFG",
         description = "Data flow graph deserializing",
         op = { context, _ ->
@@ -60,10 +60,10 @@ internal val DeserializeDFGPhase = makeKonanModuleOpPhase(
         }
 )
 
-internal val DevirtualizationPhase = makeKonanModuleOpPhase(
+internal val devirtualizationPhase = makeKonanModuleOpPhase(
         name = "Devirtualization",
         description = "Devirtualization",
-        prerequisite = setOf(BuildDFGPhase, DeserializeDFGPhase),
+        prerequisite = setOf(buildDFGPhase, deserializeDFGPhase),
         op = { context, irModule ->
             context.externalModulesDFG?.let { externalModulesDFG ->
                 context.devirtualizationAnalysisResult = Devirtualization.run(
@@ -98,11 +98,11 @@ internal val DevirtualizationPhase = makeKonanModuleOpPhase(
         }
 )
 
-internal val EscapeAnalysisPhase = makeKonanModuleOpPhase(
+internal val escapeAnalysisPhase = makeKonanModuleOpPhase(
         // Disabled by default !!!!
         name = "EscapeAnalysis",
         description = "Escape analysis",
-        prerequisite = setOf(BuildDFGPhase, DeserializeDFGPhase),
+        prerequisite = setOf(buildDFGPhase, deserializeDFGPhase),
         op = { context, _ ->
             context.externalModulesDFG?.let { externalModulesDFG ->
                 val callGraph = CallGraphBuilder(
@@ -118,16 +118,16 @@ internal val EscapeAnalysisPhase = makeKonanModuleOpPhase(
         }
 )
 
-internal val SerializeDFGPhase = makeKonanModuleOpPhase(
+internal val serializeDFGPhase = makeKonanModuleOpPhase(
         name = "SerializeDFG",
         description = "Data flow graph serializing",
-        prerequisite = setOf(BuildDFGPhase),
+        prerequisite = setOf(buildDFGPhase),
         op = { context, _ ->
             DFGSerializer.serialize(context, context.moduleDFG!!)
         }
 )
 
-internal val CodegenPhase = makeKonanModuleOpPhase(
+internal val codegenPhase = makeKonanModuleOpPhase(
         name = "Codegen",
         description = "Code Generation",
         op = { context, irModule ->
@@ -135,7 +135,7 @@ internal val CodegenPhase = makeKonanModuleOpPhase(
         }
 )
 
-internal val FinalizeDebugInfoPhase = makeKonanModuleOpPhase(
+internal val finalizeDebugInfoPhase = makeKonanModuleOpPhase(
         name = "FinalizeDebugInfo",
         description = "Finalize debug info",
         op = { context, _ ->
@@ -145,19 +145,19 @@ internal val FinalizeDebugInfoPhase = makeKonanModuleOpPhase(
         }
 )
 
-internal val BitcodeLinkerPhase = makeKonanModuleOpPhase(
+internal val bitcodeLinkerPhase = makeKonanModuleOpPhase(
         name = "BitcodeLinker",
         description = "Bitcode linking",
         op = { context, _ -> produceOutput(context) }
 )
 
-internal val VerifyBitcodePhase = makeKonanModuleOpPhase(
+internal val verifyBitcodePhase = makeKonanModuleOpPhase(
         name = "VerifyBitcode",
         description = "Verify bitcode",
         op = { context, _ -> context.verifyBitCode() }
 )
 
-internal val PrintBitcodePhase = makeKonanModuleOpPhase(
+internal val printBitcodePhase = makeKonanModuleOpPhase(
         name = "PrintBitcode",
         description = "Print bitcode",
         op = { context, _ ->

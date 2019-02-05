@@ -18,7 +18,6 @@ import org.jetbrains.kotlin.descriptors.konan.isKonanStdlib
 import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.library.KonanLibrary
 import org.jetbrains.kotlin.konan.library.resolver.KonanLibraryResolveResult
-import org.jetbrains.kotlin.konan.util.visibleName
 import org.jetbrains.kotlin.konan.utils.KonanFactories
 import org.jetbrains.kotlin.konan.utils.KonanFactories.DefaultDescriptorFactory
 import org.jetbrains.kotlin.name.Name
@@ -67,7 +66,7 @@ internal object TopDownAnalyzerFacadeForKonan {
 
         // we print out each file we compile if frontend phase is verbose
         files.takeIf {
-            FrontendPhase in context.phaseConfig.verbose
+            frontendPhase in context.phaseConfig.verbose
         } ?.forEach(::println)
 
         val analyzerForKonan = createTopDownAnalyzerForKonan(

@@ -22,7 +22,7 @@ internal fun konanUnitPhase(
         op: Context.() -> Unit
 ) = namedOpUnitPhase(name, description, prerequisite, op)
 
-internal val FrontendPhase = konanUnitPhase(
+internal val frontendPhase = konanUnitPhase(
         op = {
             val environment = environment
             val analyzerWithCompilerReport = AnalyzerWithCompilerReport(messageCollector,
@@ -42,7 +42,7 @@ internal val FrontendPhase = konanUnitPhase(
         description = "Frontend builds AST"
 )
 
-internal val PsiToIrPhase = konanUnitPhase(
+internal val psiToIrPhase = konanUnitPhase(
         op = {
             // Translate AST to high level IR.
             val translator = Psi2IrTranslator(config.configuration.languageVersionSettings,
@@ -66,7 +66,7 @@ internal val PsiToIrPhase = konanUnitPhase(
         description = "Psi to IR conversion"
 )
 
-internal val IrGeneratorPluginsPhase = konanUnitPhase(
+internal val irGeneratorPluginsPhase = konanUnitPhase(
         op = {
             val extensions = IrGenerationExtension.getInstances(config.project)
             extensions.forEach { extension ->
@@ -79,13 +79,13 @@ internal val IrGeneratorPluginsPhase = konanUnitPhase(
         description = "Plugged-in ir generators"
 )
 
-internal val GenSyntheticFieldsPhase = konanUnitPhase(
+internal val genSyntheticFieldsPhase = konanUnitPhase(
         op = { markBackingFields(this) },
         name = "GenSyntheticFields",
         description = "Generate synthetic fields"
 )
 
-internal val SerializerPhase = konanUnitPhase(
+internal val serializerPhase = konanUnitPhase(
         op = {
             val serializer = KonanSerializationUtil(
                     this, config.configuration.get(CommonConfigurationKeys.METADATA_VERSION)!!
@@ -95,43 +95,43 @@ internal val SerializerPhase = konanUnitPhase(
         },
         name = "Serializer",
         description = "Serialize descriptor tree and inline IR bodies",
-        prerequisite = setOf(GenSyntheticFieldsPhase)
+        prerequisite = setOf(genSyntheticFieldsPhase)
 )
 
-internal val SetUpLinkStagePhase = konanUnitPhase(
+internal val setUpLinkStagePhase = konanUnitPhase(
         op =  { linkStage = LinkStage(this) },
         name = "SetUpLinkStage",
         description = "Set up link stage"
 )
 
-internal val ObjectFilesPhase = konanUnitPhase(
+internal val objectFilesPhase = konanUnitPhase(
         op = { linkStage.makeObjectFiles() },
         name = "ObjectFiles",
         description = "Bitcode to object file"
 )
 
-internal val LinkerPhase = konanUnitPhase(
+internal val linkerPhase = konanUnitPhase(
         op = { linkStage.linkStage() },
         name = "Linker",
         description = "Linker"
 )
 
-internal val LinkPhase = namedUnitPhase(
+internal val linkPhase = namedUnitPhase(
         name = "Link",
         description = "Link stage",
-        lower = SetUpLinkStagePhase then
-                ObjectFilesPhase then
-                LinkerPhase
+        lower = setUpLinkStagePhase then
+                objectFilesPhase then
+                linkerPhase
 )
 
-internal val ToplevelPhase = namedUnitPhase(
+internal val toplevelPhase = namedUnitPhase(
         name = "Compiler",
         description = "The whole compilation process",
-        lower = FrontendPhase then
-                PsiToIrPhase then
-                IrGeneratorPluginsPhase then
-                GenSyntheticFieldsPhase then
-                SerializerPhase then
+        lower = frontendPhase then
+                psiToIrPhase then
+                irGeneratorPluginsPhase then
+                genSyntheticFieldsPhase then
+                serializerPhase then
                 namedUnitPhase(
                         name = "Backend",
                         description = "All backend",
@@ -139,74 +139,74 @@ internal val ToplevelPhase = namedUnitPhase(
                                 namedIrModulePhase(
                                         name = "IrLowering",
                                         description = "IR Lowering",
-                                        lower = RemoveExpectDeclarationsPhase then
-                                                TestProcessorPhase then
-                                                LowerBeforeInlinePhase then
-                                                InlinePhase then
-                                                LowerAfterInlinePhase then
-                                                InteropPart1Phase then
-                                                LateinitPhase then
-                                                ReplaceUnboundSymbolsPhase then
-                                                PatchDeclarationParents1Phase then
+                                        lower = removeExpectDeclarationsPhase then
+                                                testProcessorPhase then
+                                                lowerBeforeInlinePhase then
+                                                inlinePhase then
+                                                lowerAfterInlinePhase then
+                                                interopPart1Phase then
+                                                lateinitPhase then
+                                                replaceUnboundSymbolsPhase then
+                                                patchDeclarationParents1Phase then
                                                 performByIrFile(
                                                         name = "IrLowerByFile",
                                                         description = "IR Lowering by file",
-                                                        lower = StringConcatenationPhase then
-                                                                DataClassesPhase then
-                                                                ForLoopsPhase then
-                                                                EnumClassPhase then
-                                                                PatchDeclarationParents2Phase then
-                                                                InitializersPhase then
-                                                                SharedVariablesPhase then
-                                                                DelegationPhase then
-                                                                CallableReferencePhase then
-                                                                PatchDeclarationParents3Phase then
-                                                                LocalDeclarationsPhase then
-                                                                TailrecPhase then
-                                                                FinallyBlocksPhase then
-                                                                DefaultParameterExtentPhase then
-                                                                BuiltinOperatorPhase then
-                                                                InnerClassPhase then
-                                                                InteropPart2Phase then
-                                                                VarargPhase then
-                                                                CompileTimeEvaluatePhase then
-                                                                CoroutinesPhase then
-                                                                TypeOperatorPhase then
-                                                                BridgesPhase then
-                                                                AutoboxPhase then
-                                                                ReturnsInsertionPhase
+                                                        lower = stringConcatenationPhase then
+                                                                dataClassesPhase then
+                                                                forLoopsPhase then
+                                                                enumClassPhase then
+                                                                patchDeclarationParents2Phase then
+                                                                initializersPhase then
+                                                                sharedVariablesPhase then
+                                                                delegationPhase then
+                                                                callableReferencePhase then
+                                                                patchDeclarationParents3Phase then
+                                                                localDeclarationsPhase then
+                                                                tailrecPhase then
+                                                                finallyBlocksPhase then
+                                                                defaultParameterExtentPhase then
+                                                                builtinOperatorPhase then
+                                                                innerClassPhase then
+                                                                interopPart2Phase then
+                                                                varargPhase then
+                                                                compileTimeEvaluatePhase then
+                                                                coroutinesPhase then
+                                                                typeOperatorPhase then
+                                                                bridgesPhase then
+                                                                autoboxPhase then
+                                                                returnsInsertionPhase
                                                 ) then
-                                                CheckDeclarationParentsPhase
+                                                checkDeclarationParentsPhase
                                 ) then
                                 namedIrModulePhase(
                                         name = "Bitcode",
                                         description = "LLVM BitCode Generation",
-                                        lower = ContextLLVMSetupPhase then
+                                        lower = contextLLVMSetupPhase then
                                                 RTTIPhase then
-                                                GenerateDebugInfoHeaderPhase then
-                                                BuildDFGPhase then
-                                                DeserializeDFGPhase then
-                                                DevirtualizationPhase then
-                                                EscapeAnalysisPhase then
-                                                SerializeDFGPhase then
-                                                CodegenPhase then
-                                                FinalizeDebugInfoPhase then
-                                                BitcodeLinkerPhase then
-                                                VerifyBitcodePhase then
-                                                PrintBitcodePhase
+                                                generateDebugInfoHeaderPhase then
+                                                buildDFGPhase then
+                                                deserializeDFGPhase then
+                                                devirtualizationPhase then
+                                                escapeAnalysisPhase then
+                                                serializeDFGPhase then
+                                                codegenPhase then
+                                                finalizeDebugInfoPhase then
+                                                bitcodeLinkerPhase then
+                                                verifyBitcodePhase then
+                                                printBitcodePhase
                                 ) then
                                 unitSink()
                 ) then
-                LinkPhase
+                linkPhase
 )
 
 internal fun PhaseConfig.konanPhasesConfig(config: KonanConfig) {
     with(config.configuration) {
-        disable(EscapeAnalysisPhase)
+        disable(escapeAnalysisPhase)
 
         // Don't serialize anything to a final executable.
-        switch(SerializerPhase, config.produce == CompilerOutputKind.LIBRARY)
-        switch(LinkPhase, config.produce.isNativeBinary)
-        switch(TestProcessorPhase, getNotNull(KonanConfigKeys.GENERATE_TEST_RUNNER) != TestRunnerKind.NONE)
+        switch(serializerPhase, config.produce == CompilerOutputKind.LIBRARY)
+        switch(linkPhase, config.produce.isNativeBinary)
+        switch(testProcessorPhase, getNotNull(KonanConfigKeys.GENERATE_TEST_RUNNER) != TestRunnerKind.NONE)
     }
 }
