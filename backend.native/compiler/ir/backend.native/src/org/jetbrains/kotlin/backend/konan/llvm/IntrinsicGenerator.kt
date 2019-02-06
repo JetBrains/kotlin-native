@@ -217,6 +217,7 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
                 IntrinsicType.LIST_OF_INTERNAL -> emitListOfInternal(callSite, args)
                 IntrinsicType.IDENTITY -> emitIdentity(args)
                 IntrinsicType.GET_CONTINUATION -> emitGetContinuation()
+                IntrinsicType.INTEROP_MEMORY_COPY -> emitMemoryCopy(callSite, args)
                 IntrinsicType.RETURN_IF_SUSPEND,
                 IntrinsicType.INTEROP_BITS_TO_FLOAT,
                 IntrinsicType.INTEROP_BITS_TO_DOUBLE,
@@ -225,7 +226,6 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
                 IntrinsicType.INTEROP_STATIC_C_FUNCTION,
                 IntrinsicType.INTEROP_FUNPTR_INVOKE,
                 IntrinsicType.INTEROP_CONVERT,
-                IntrinsicType.INTEROP_MEMORY_COPY,
                 IntrinsicType.WORKER_EXECUTE ->
                     reportNonLoweredIntrinsic(intrinsicType)
                 IntrinsicType.INIT_INSTANCE,
@@ -377,6 +377,12 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
         }
         llvm.LLVMBuildStore(builder, bitsToStore, bitsWithPaddingPtr)!!.setUnaligned()
         return codegen.theUnitInstanceRef.llvm
+    }
+
+    private fun FunctionGenerationContext.emitMemoryCopy(callSite: IrCall, args: List<LLVMValueRef>): LLVMValueRef {
+        println("memcpy at ${callSite}")
+        args.map { println(llvm2string(it)) }
+        TODO("Implement me")
     }
 
     private fun extractConstUnsignedInt(value: LLVMValueRef): Long {
