@@ -75,7 +75,7 @@ fun geometricMean(values: List<Double>, totalNumber: Int? = null) =
     values.map { it.pow(1.0 / (totalNumber ?: values.size)) }.reduce { a, b -> a * b }
 
 fun computeMeanVariance(samples: List<Double>): MeanVariance {
-    val zStar = 2.66    // Critical point for 90% confidence of normal distribution.
+    val zStar = 1.67    // Critical point for 90% confidence of normal distribution.
     val mean = samples.sum() / samples.size
     val variance = samples.indices.sumByDouble { (samples[it] - mean) * (samples[it] - mean) } / samples.size
     val confidenceInterval = sqrt(variance / samples.size) * zStar
