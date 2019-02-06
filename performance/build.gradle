@@ -29,8 +29,14 @@ task jvmRun {
     }
 }
 
-defaultTasks 'konanRun'
+task clean {
+    subprojects.each {
+        dependsOn it.getTasksByName('clean', true)[0]
+    }
+    delete "${buildDir.absolutePath}"
+}
 
+defaultTasks 'konanRun'
 
 // Produce and send slack report.
 task slackReport(type: RegressionsReporter) {

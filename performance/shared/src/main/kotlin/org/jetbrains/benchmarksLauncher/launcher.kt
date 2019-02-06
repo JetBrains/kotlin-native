@@ -20,8 +20,6 @@ import kotlin.math.sqrt
 import org.jetbrains.report.BenchmarkResult
 import org.jetbrains.kliopt.*
 
-val BENCHMARK_SIZE = 100
-
 abstract class Launcher(val numWarmIterations: Int, val numberOfAttempts: Int, val prefix: String = "") {
     class Results(val mean: Double, val variance: Double)
 
