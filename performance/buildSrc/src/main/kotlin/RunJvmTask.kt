@@ -16,17 +16,17 @@ import java.io.File
 open class RunJvmTask: JavaExec() {
     var outputFileName: String? = null
     @Input
-    @Option(option="subkernel", description="subkernel")
-    var subkernel: String = ""
+    @Option(option = "filter", description = "filter")
+    var filter: String = ""
 
     override fun configure(configureClosure: Closure<Any>): Task {
         return super.configure(configureClosure)
     }
 
     private fun executeTask(output: java.io.OutputStream? = null) {
-        val subkernelArgs = subkernel.split("\\s*,\\s*".toRegex())
-                .map{ if (it.isNotEmpty()) listOf("-s", it) else listOf(null) }.flatten().filterNotNull()
-        args(subkernelArgs)
+        val filterArgs = filter.split("\\s*,\\s*".toRegex())
+                .map{ if (it.isNotEmpty()) listOf("-f", it) else listOf(null) }.flatten().filterNotNull()
+        args(filterArgs)
         exec()
     }
 

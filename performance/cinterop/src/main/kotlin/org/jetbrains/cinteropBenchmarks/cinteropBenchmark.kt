@@ -14,25 +14,6 @@
  * limitations under the License.
  */
 
-package org.jetbrains.benchmarksLauncher
+package org.jetbrains.cinteropBenchmarks
 
-import java.io.File
-
-actual fun writeToFile(fileName: String, text: String) {
-    File(fileName).printWriter().use { out ->
-        out.println(text)
-    }
-}
-
-// Wrapper for assert funtion in stdlib.
-actual fun assert(value: Boolean) {
-    kotlin.assert(value)
-}
-
-// Wrapper for measureNanoTime funtion in stdlib.
-actual inline fun measureNanoTime(block: () -> Unit): Long {
-    return kotlin.system.measureNanoTime(block)
-}
-
-actual fun cleanup() {}
-
+expect fun macrosBenchmark()
