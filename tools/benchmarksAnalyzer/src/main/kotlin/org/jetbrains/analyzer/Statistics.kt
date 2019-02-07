@@ -44,12 +44,12 @@ data class MeanVarianceBenchmark(val meanBenchmark: BenchmarkResult, val varianc
         // Analyze intervals. Calculate difference between border points.
         val (bigValue, smallValue) = if (meanBenchmark.score > other.meanBenchmark.score) Pair(this, other) else Pair(other, this)
         val bigValueIntervalStart = bigValue.meanBenchmark.score - bigValue.varianceBenchmark.score
-        val smallValueINtervalEnd = smallValue.meanBenchmark.score + smallValue.varianceBenchmark.score
-        if (smallValueINtervalEnd > bigValueIntervalStart) {
+        val smallValueIntervalEnd = smallValue.meanBenchmark.score + smallValue.varianceBenchmark.score
+        if (smallValueIntervalEnd > bigValueIntervalStart) {
             // Interval intersect.
             return MeanVariance(0.0, 0.0)
         }
-        val mean = ((smallValueINtervalEnd - bigValueIntervalStart) / bigValueIntervalStart) *
+        val mean = ((smallValueIntervalEnd - bigValueIntervalStart) / bigValueIntervalStart) *
                 (if (meanBenchmark.score > other.meanBenchmark.score) -1 else 1)
 
         val maxValueChange = abs(meanBenchmark.score + varianceBenchmark.score -
