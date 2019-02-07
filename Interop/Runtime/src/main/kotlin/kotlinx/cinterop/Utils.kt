@@ -353,7 +353,9 @@ public fun cValuesOf(vararg elements: Long): CValues<LongVar> =
 public fun cValuesOf(vararg elements: Float): CValues<FloatVar> =
         createValues(elements.size) { index -> this.value = elements[index] }
 
-public fun cValuesOf(vararg elements: Double): CValues<DoubleVar> =
+/**
+ * Returns sequence of immutable values [CValues] to pass them to C code.
+ */
         createValues(elements.size) { index -> this.value = elements[index] }
 
 public fun <T : CPointed> cValuesOf(vararg elements: CPointer<T>?): CValues<CPointerVar<T>> =

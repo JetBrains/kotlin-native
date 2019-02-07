@@ -54,9 +54,9 @@ task slackReport(type: RegressionsReporter) {
 }
 
 task slackSummary(type: RegressionsSummaryReporter) {
-    targetsResultFiles = ["Linux": "../targetsResults/Linux.txt",
-                          "MacOSX": "../targetsResults/Mac OS X.txt",
-                          "Windows": "../targetsResults/Windows 10.txt"]
+    targetsResultFiles = ["Linux": "${rootBuildDirectory}/targetsResults/Linux.txt",
+                          "MacOSX": "${rootBuildDirectory}/targetsResults/Mac OS X.txt",
+                          "Windows": "${rootBuildDirectory}/targetsResults/Windows 10.txt"]
 }
 
 private def uploadBenchmarkResultToBintray(String fileName) {
