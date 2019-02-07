@@ -16,7 +16,7 @@
 
 package org.jetbrains.ring
 
-val BENCHMARK_SIZE = 100
+const val BENCHMARK_SIZE = 10000
 
 expect class Blackhole {
     companion object {
