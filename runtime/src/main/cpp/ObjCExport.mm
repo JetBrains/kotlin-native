@@ -135,6 +135,8 @@ static inline id AtomicSetAssociatedObject(ObjHeader* obj, id associatedObject) 
 @interface KotlinBase : NSObject <ConvertibleToKotlin, NSCopying>
 @end;
 
+static void initializeObjCExport();
+
 @implementation KotlinBase {
   KRefSharedHolder refHolder;
 }
@@ -144,6 +146,9 @@ static inline id AtomicSetAssociatedObject(ObjHeader* obj, id associatedObject) 
 }
 
 +(void)initialize {
+  if (self == [KotlinBase class]) {
+    initializeObjCExport();
+  }
   initializeClass(self);
 }
 
@@ -382,8 +387,6 @@ static void SwiftObject_releaseAsAssociatedObjectImp(id self, SEL cmd);
 static void checkLoadedOnce();
 
 static void initializeObjCExport() {
-  checkLoadedOnce();
-
   SEL toKotlinSelector = @selector(toKotlin:);
   Method toKotlinMethod = class_getClassMethod([NSObject class], toKotlinSelector);
   RuntimeAssert(toKotlinMethod != nullptr, "");
@@ -438,7 +441,7 @@ static void initializeObjCExport() {
 +(void)load {
   static dispatch_once_t onceToken = 0;
   dispatch_once(&onceToken, ^{
-    initializeObjCExport();
+    checkLoadedOnce();
   });
 }
 @end;
