@@ -106,13 +106,11 @@ subprojects.each {
     it.getTasksByName('konanJsonReport', true)[0].finalizedBy mergeNativeReports
 }
 
-task bench(type:Exec) {
-    dependsOn jvmRun
-    dependsOn konanRun
+task teamCityStat(type:Exec) {
     def extension = MPPTools.getNativeProgramExtension()
     def analyzer = MPPTools.findFile("${analyzerTool}${extension}", "${rootBuildDirectory}/${analyzerToolDirectory}")
     if (analyzer != null) {
-        commandLine "${analyzer}", "${buildDir.absolutePath}/${nativeJson}", "${buildDir.absolutePath}/${jvmJson}"
+        commandLine "${analyzer}", "-r", "teamcity", "${buildDir.absolutePath}/${nativeJson}"
     } else {
         println("No analyzer $analyzerTool found in subdirectories of ${rootBuildDirectory}/${analyzerToolDirectory}")
     }
