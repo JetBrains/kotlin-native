@@ -44,19 +44,19 @@ static void writeStackTraceToBuffer(KRef throwable, char* buffer, unsigned long 
 
 #if MACHSIZE == 32
 
-typedef struct mach_header mach_header_host;
-typedef struct segment_command segment_command_host;
-typedef struct section section_host;
-static const uint32_t MH_MAGIC_HOST = MH_MAGIC;
-static const uint32_t LC_SEGMENT_HOST = LC_SEGMENT;
+typedef struct mach_header mach_header_target;
+typedef struct segment_command segment_command_target;
+typedef struct section section_target;
+static const uint32_t MH_MAGIC_TARGET = MH_MAGIC;
+static const uint32_t LC_SEGMENT_TARGET = LC_SEGMENT;
 
 #elif MACHSIZE == 64
 
-typedef struct mach_header_64 mach_header_host;
-typedef struct segment_command_64 segment_command_host;
-typedef struct section_64 section_host;
-static const uint32_t MH_MAGIC_HOST = MH_MAGIC_64;
-static const uint32_t LC_SEGMENT_HOST = LC_SEGMENT_64;
+typedef struct mach_header_64 mach_header_target;
+typedef struct segment_command_64 segment_command_target;
+typedef struct section_64 section_target;
+static const uint32_t MH_MAGIC_TARGET = MH_MAGIC_64;
+static const uint32_t LC_SEGMENT_TARGET = LC_SEGMENT_64;
 
 #else
 
@@ -64,11 +64,11 @@ static const uint32_t LC_SEGMENT_HOST = LC_SEGMENT_64;
 
 #endif
 
-static mach_header_host* findCoreFoundationMachHeader() {
+static mach_header_target* findCoreFoundationMachHeader() {
   Dl_info info;
   if (dladdr(reinterpret_cast<void*>(&CFRunLoopRun), &info) == 0) return nullptr;
 
-  return reinterpret_cast<mach_header_host*>(info.dli_fbase);
+  return reinterpret_cast<mach_header_target*>(info.dli_fbase);
 }
 
 template<int n>
@@ -77,24 +77,24 @@ bool bufferEqualsString(const char (&buffer)[n], const char* str) {
 }
 
 static char* findExceptionBacktraceSection(unsigned long *size) {
-  mach_header_host* header = findCoreFoundationMachHeader();
+  mach_header_target* header = findCoreFoundationMachHeader();
   if (header == nullptr) return nullptr;
-  if (header->magic != MH_MAGIC_HOST) return nullptr;
+  if (header->magic != MH_MAGIC_TARGET) return nullptr;
 
   uintptr_t textVmaddr = 0;
 
   load_command* loadCommand = reinterpret_cast<load_command*>(header + 1);
   for (uint32_t loadCommandIndex = 0; loadCommandIndex < header->ncmds; ++loadCommandIndex) {
-    if (loadCommand->cmd == LC_SEGMENT_HOST) {
-      segment_command_host* segmentCommand = reinterpret_cast<segment_command_host*>(loadCommand);
+    if (loadCommand->cmd == LC_SEGMENT_TARGET) {
+      segment_command_target* segmentCommand = reinterpret_cast<segment_command_target*>(loadCommand);
       if (bufferEqualsString(segmentCommand->segname, "__TEXT")) {
         textVmaddr = segmentCommand->vmaddr;
       }
 
       if (bufferEqualsString(segmentCommand->segname, "__DATA")) {
-        section_host* sections = reinterpret_cast<section_host*>(segmentCommand + 1);
+        section_target* sections = reinterpret_cast<section_target*>(segmentCommand + 1);
         for (uint32_t sectionIndex = 0; sectionIndex < segmentCommand->nsects; ++sectionIndex) {
-          section_host* section = &sections[sectionIndex];
+          section_target* section = &sections[sectionIndex];
 
           if (bufferEqualsString(section->sectname, "__cf_except_bt") && bufferEqualsString(section->segname, "__DATA")) {
             *size = section->size;
