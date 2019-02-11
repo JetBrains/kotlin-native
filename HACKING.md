@@ -1,3 +1,17 @@
+
+## Experimental targets
+
+ Some Kotlin/Native targets are not enabled by default, and must be explicitly enabled with
+JVM property `org.jetbrains.kotlin.native.experimental`, so to build bundle use
+    
+        ./gradlew -Dorg.jetbrains.kotlin.native.experimental=1
+        
+And to run command line compiler with an experimental target use
+
+        JAVA_OPTS="-Dorg.jetbrains.kotlin.native.experimental=1" kotlinc-native file.kt
+       
+Currently experimental targets include 
+
 ## Profiling the compiler
 
 ### Profiling with Async profiler

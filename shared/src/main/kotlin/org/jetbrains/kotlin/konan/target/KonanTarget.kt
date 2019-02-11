@@ -105,7 +105,7 @@ private class TargetManagerImpl(val userRequest: String?, val hostManager: HostM
         get() = target.visibleName
 
     override fun list() {
-        hostManager.enabled.forEach {
+        hostManager.enabledRegular.forEach {
             val isDefault = if (it == target) "(default)" else ""
             val aliasList = HostManager.listAliases(it.visibleName).joinToString(", ")
             println(String.format("%1$-30s%2$-10s%3\$s", "${it.visibleName}:", "$isDefault", aliasList))
@@ -173,7 +173,10 @@ open class HostManager(protected val distribution: Distribution = Distribution()
         return target
     }
 
-    val enabled: List<KonanTarget> by lazy {
+    val experimental: Boolean
+        get() = System.getProperty("org.jetbrains.kotlin.native.experimental") != null
+
+    val enabledRegular: List<KonanTarget> by lazy {
             when (host) {
                 KonanTarget.LINUX_X64 -> listOf(
                     KonanTarget.LINUX_X64,
@@ -200,7 +203,6 @@ open class HostManager(protected val distribution: Distribution = Distribution()
                     KonanTarget.IOS_X64,
                     KonanTarget.LINUX_X64,
                     KonanTarget.LINUX_ARM32_HFP,
-                    KonanTarget.MINGW_X64,
                     KonanTarget.ANDROID_ARM32,
                     KonanTarget.ANDROID_ARM64,
                     KonanTarget.WASM32
@@ -222,6 +224,9 @@ open class HostManager(protected val distribution: Distribution = Distribution()
             else -> throw TargetSupportException("Unknown host platform: $host")
         }
     }
+
+    val enabled : List<KonanTarget>
+        get() = if (experimental) enabledRegular + enabledExperimental else enabledRegular
 
     fun isEnabled(target: KonanTarget) = enabled.contains(target)
 

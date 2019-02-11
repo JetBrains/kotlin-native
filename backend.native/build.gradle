@@ -223,6 +223,7 @@ targetList.each { target ->
     task("${target}Stdlib", type: JavaExec) {
         main = 'org.jetbrains.kotlin.cli.bc.K2NativeKt'
         classpath = project.configurations.cli_bc
+        systemProperties System.getProperties()
         jvmArgs = konanJvmArgs
         args = [*konanArgs,
                 '-output', project(':runtime').file("build/${target}Stdlib"),
@@ -246,6 +247,7 @@ targetList.each { target ->
         main = 'org.jetbrains.kotlin.cli.bc.K2NativeKt'
         classpath = project.configurations.cli_bc
         jvmArgs = konanJvmArgs
+        systemProperties System.getProperties()
         args = [*konanArgs, '-produce', 'bitcode',
                 '-output', project(':runtime').file("build/${target}Start"),
                 '-library', project(':runtime').file("build/${target}Stdlib"),
@@ -317,6 +319,7 @@ protobuf {
 task debugCompiler(type: JavaExec) {
     dependsOn ':dist'
     main = 'org.jetbrains.kotlin.cli.bc.K2NativeKt'
+    systemProperties System.getProperties()
     classpath = project.fileTree("${distDir.canonicalPath}/konan/lib/") {
         include '*.jar'
     }

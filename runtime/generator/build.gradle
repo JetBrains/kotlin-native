@@ -12,5 +12,6 @@ task run(type: JavaExec) {
     group 'application'
     main 'generators.GenerateStandardLibKt'
     classpath configurations.generatorRuntime
+    systemProperties System.getProperties()
     args = ["native", "${project(":runtime").projectDir}/src/main/kotlin/generated"]
 }
