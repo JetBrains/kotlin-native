@@ -73,12 +73,6 @@ public abstract class CValuesRef<T : CPointed> {
      * allocate storage value in the scope and return it.
      */
     public abstract fun getPointer(scope: AutofreeScope): CPointer<T>
-
-    /**
-     * Copy the referenced values to [placement] and returns the pointer to it for values, or just return [this]
-     * pointer if this value is already a CPointer.
-     */
-    public abstract fun place(placement: CPointer<T>): CPointer<T>
 }
 
 /**
@@ -89,7 +83,9 @@ public abstract class CValues<T : CVariable> : CValuesRef<T>() {
     /**
      * Copies the values to [placement] and returns the pointer to the copy.
      */
-    public abstract override fun getPointer(scope: AutofreeScope): CPointer<T>
+    public override fun getPointer(scope: AutofreeScope): CPointer<T> {
+        return place(interpretCPointer(scope.alloc(size, align).rawPtr)!!)
+    }
 
     // TODO: optimize
     public override fun equals(other: Any?): Boolean {
@@ -121,6 +117,13 @@ public abstract class CValues<T : CVariable> : CValuesRef<T>() {
     }
 
     public abstract val size: Int
+
+    public abstract val align: Int
+
+    /**
+     * Copy the referenced values to [placement] and returns the pointer to it.
+     */
+    public abstract fun place(placement: CPointer<T>): CPointer<T>
 }
 
 public fun <T : CVariable> CValues<T>.placeTo(scope: AutofreeScope) = this.getPointer(scope)
@@ -157,8 +160,6 @@ public class CPointer<T : CPointed> internal constructor(@PublishedApi internal 
     public override fun toString() = this.cPointerToString()
 
     public override fun getPointer(scope: AutofreeScope) = this
-
-    public override fun place(placement: CPointer<T>): CPointer<T> = this
 }
 
 /**

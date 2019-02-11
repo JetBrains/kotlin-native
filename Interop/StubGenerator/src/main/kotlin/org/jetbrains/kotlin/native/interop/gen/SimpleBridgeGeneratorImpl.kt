@@ -191,7 +191,7 @@ class SimpleBridgeGeneratorImpl(
                 kotlinExpr = "objc_retainAutoreleaseReturnValue($kotlinExpr)"
                 // (Objective-C does the same for returned pointers).
             }
-            returnResult(kotlinExpr, returnsVoid = false)
+            returnResult(kotlinExpr)
         }.forEach {
             kotlinLines.add("    $it")
         }

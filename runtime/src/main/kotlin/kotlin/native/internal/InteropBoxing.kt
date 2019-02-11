@@ -59,8 +59,6 @@ class CPointerBox(val value: CPointer<CPointed>) : CValuesRef<CPointed>() {
 
     override fun toString() = value.toString()
 
-    override fun place(placement: CPointer<CPointed>) = value.place(placement)
-
     override fun getPointer(scope: AutofreeScope) = value.getPointer(scope)
 }
 

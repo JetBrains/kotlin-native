@@ -83,16 +83,3 @@ inline fun <reified R : Number> Long.narrow(): R = when (R::class.java) {
 inline fun <reified R : Number> Number.invalidNarrowing(): R {
     throw Error("unable to narrow ${this.javaClass.simpleName} \"${this}\" to ${R::class.java.simpleName}")
 }
-
-fun cValuesOf(vararg elements: Byte): CValues<ByteVar> = object : CValues<ByteVar>() {
-    override fun getPointer(scope: AutofreeScope): CPointer<ByteVar> {
-        return place(scope.allocArray(elements.size))
-    }
-
-    override fun place(placement: CPointer<ByteVar>): CPointer<ByteVar> {
-        nativeMemUtils.putByteArray(elements, interpretPointed(placement.rawValue), elements.size)
-        return placement
-    }
-
-    override val size get() = 1 * elements.size
-}

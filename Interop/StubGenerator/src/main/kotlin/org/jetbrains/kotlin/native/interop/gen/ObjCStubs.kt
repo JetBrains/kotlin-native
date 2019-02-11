@@ -231,7 +231,7 @@ class ObjCMethodStub(private val stubGenerator: StubGenerator,
 
             "$messenger(${messengerArguments.joinToString()})"
         }
-        bodyGenerator.returnResult(result, returnType.unwrapTypedefs() is VoidType)
+        bodyGenerator.returnResult(result)
 
         this.implementationTemplate = genImplementationTemplate(stubGenerator)
         this.bodyLines = bodyGenerator.build()

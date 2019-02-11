@@ -665,7 +665,7 @@ class StubGenerator(
                 ) { nativeValues ->
                     "${func.name}(${nativeValues.joinToString()})"
                 }
-                bodyGenerator.returnResult(result, func.returnsVoid())
+                bodyGenerator.returnResult(result)
                 isCCall = false
                 cCallSymbolName = null
             } else {

@@ -315,7 +315,7 @@ sealed class TypeInfo {
                     val objCBlock = "((__bridge $blockType)${nativeValues.last()})"
                     "$objCBlock(${nativeValues.dropLast(1).joinToString()})"
                 }.let {
-                    codeBuilder.returnResult(it, returnsVoid = false)
+                    codeBuilder.returnResult(it)
                 }
 
                 codeBuilder.build().joinTo(this, separator = "\n")

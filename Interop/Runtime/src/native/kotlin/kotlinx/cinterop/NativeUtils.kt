@@ -51,9 +51,6 @@ external fun <R : Number> Number.narrow(): R
 @Retention(AnnotationRetention.SOURCE)
 internal annotation class JvmName(val name: String)
 
-fun cValuesOf(vararg elements: Byte): CValues<ByteVar> =
-        createValues(elements.size) { index -> this.value = elements[index] }
-
 fun cValuesOf(vararg elements: UByte): CValues<UByteVar> =
         createValues(elements.size) { index -> this.value = elements[index] }
 

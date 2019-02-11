@@ -56,21 +56,10 @@ class KotlinCodeBuilder(val scope: KotlinScope) {
     }
 
     private var memScoped = false
-    private var clearIndex = -1
-    fun pushMemScoped(explicitClear: Boolean = true) {
-        if (!explicitClear) {
-            if (clearIndex != -1) {
-                blocks[0].epilogue[clearIndex] = "/* memScope.clear() is not needed here. */"
-            }
-        }
-
+    fun pushMemScoped() {
         if (!memScoped) {
             memScoped = true
-            blocks[0].prologue += "val memScope = Arena()"
-            if (explicitClear) {
-                clearIndex = blocks[0].epilogue.size
-                blocks[0].epilogue += "memScope.clear()"
-            }
+            pushBlock("memScoped {")
         }
     }
 
@@ -78,13 +67,8 @@ class KotlinCodeBuilder(val scope: KotlinScope) {
         return "$name?.getPointer(memScope)"
     }
 
-    fun returnResult(result: String, returnsVoid: Boolean) {
-        if (returnsVoid) {
-            currentBlock().body += result
-        } else {
-            currentBlock().body += "val _r_ = $result"
-            currentBlock().epilogue += "return _r_"
-        }
+    fun returnResult(result: String) {
+        currentBlock().body += "return $result"
     }
 
     private fun currentBlock() = blocks.last()

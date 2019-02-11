@@ -84,8 +84,6 @@ private inline fun <T : Any, P : CPointed> T.usingPinned(
         scope.defer { pinned.unpin() }
         return pinned.block()
     }
-
-    override fun place(placement: CPointer<P> ): CPointer<P> = TODO("What to do here?")
 }
 
 @SymbolName("Kotlin_Arrays_getByteArrayAddressOfElement")
