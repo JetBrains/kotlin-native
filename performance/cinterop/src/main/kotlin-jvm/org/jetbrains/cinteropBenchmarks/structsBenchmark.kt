@@ -25,6 +25,3 @@ actual fun unionBenchmark() {
 actual fun enumBenchmark() {
     error("Benchmark enumBenchmark is unsupported on JVM!")
 }
-actual fun structAndUnionBencmark() {
-    error("Benchmark structAndUnionBencmark is unsupported on JVM!")
-}

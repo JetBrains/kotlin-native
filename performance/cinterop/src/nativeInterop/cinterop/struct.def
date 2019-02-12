@@ -1,9 +1,18 @@
 package = org.jetbrains.structsBenchmarks
+strictEnums = WeekDay
 
 ---
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
+
+enum WeekDay {Sunday, Monday, Tuesday, Wednesday, Thursday, Friday, Saturday};
+
+int isWeekEnd(enum WeekDay day) {
+    if (day == Saturday || day == Sunday)
+        return 1;
+    return 0;
+}
 
 struct ElementS {
     long int integer;

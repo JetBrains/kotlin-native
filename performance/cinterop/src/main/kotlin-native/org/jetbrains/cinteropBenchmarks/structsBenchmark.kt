@@ -75,7 +75,3 @@ actual fun unionBenchmark() {
 actual fun enumBenchmark() {
 
 }
-
-actual fun structAndUnionBencmark() {
-
-}

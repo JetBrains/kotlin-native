@@ -19,4 +19,3 @@ package org.jetbrains.structsBenchmarks
 expect fun structBenchmark()
 expect fun unionBenchmark()
 expect fun enumBenchmark()
-expect fun structAndUnionBencmark()
