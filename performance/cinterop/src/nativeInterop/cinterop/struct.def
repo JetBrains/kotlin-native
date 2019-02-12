@@ -1,0 +1,68 @@
+package = org.jetbrains.structsBenchmarks
+
+---
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+
+struct ElementS {
+    long int integer;
+    float floatValue;
+    char string[32];
+
+    int (*contains)(const struct ElementS*, const struct ElementS*);
+};
+
+int elementContains(const struct ElementS* self, const struct ElementS* other) {
+    if (strstr(self->string, other->string) != NULL) {
+        return 1;
+    }
+    return 0;
+}
+
+union ElementU {
+    long int integer;
+    float floatValue;
+    char string[32];
+};
+
+union ElementU multiplyElementU(union ElementU element, int coefficient) {
+    union ElementU newElement;
+    newElement.integer = coefficient * element.integer;
+    return newElement;
+}
+
+struct ElementS multiplyElementS(struct ElementS element, int coefficient) {
+    struct ElementS newElement;
+    newElement.integer = coefficient * element.integer;
+    newElement.floatValue = coefficient * element.floatValue;
+    int i = 0;
+    while (element.string[i] != NULL)  {
+        newElement.string[i] = coefficient * element.string[i];
+        i++;
+    }
+    return newElement;
+}
+
+void itoa(int val, char* buffer, int base){
+    int i = 30;
+    for(; val && i ; --i, val /= base)
+        buffer[i] = "0123456789abcdef"[val % base];
+    buffer[31] = '\0';
+
+}
+
+union ElementU* sumElementUPtr(const union ElementU* first, const union ElementU* second) {
+    union ElementU* newElement = (union ElementU*)malloc(sizeof(union ElementU));
+    newElement->integer = first->integer + second->integer;
+    return newElement;
+}
+
+struct ElementS* sumElementSPtr(const struct ElementS* first, const struct ElementS* second) {
+    struct ElementS* newElement = (struct ElementS*)malloc(sizeof(struct ElementS));
+    newElement->integer = first->integer + second->integer;
+    newElement->floatValue = first->floatValue + second->floatValue;
+    itoa(newElement->integer, newElement->string, 10);
+    return newElement;
+
+}
