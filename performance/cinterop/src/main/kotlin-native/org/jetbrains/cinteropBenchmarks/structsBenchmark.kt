@@ -22,13 +22,27 @@ const val benchmarkSize = 100000
 
 actual fun structBenchmark() {
     memScoped {
+        val containsFunction = staticCFunction<CPointer<ElementS>?, CPointer<ElementS>?, Int> { first, second ->
+            var result: Int;
+            if (first == null || second == null) {
+                result = 0
+            } else if (first.pointed.string.toKString().contains(second.pointed.string.toKString())) {
+                result = 1
+            }
+            else {
+                result = 0
+            }
+            result
+        }
         val elementsList = mutableListOf<ElementS>()
-        // Fill list
+        // Fill list.
         for (i in 1..benchmarkSize) {
             val element = alloc<ElementS>()
             element.floatValue = i + sqrt(i.toDouble()).toFloat()
             element.integer = i.toLong()
             itoa(i, element.string, 10)
+            element.contains = containsFunction
+
             elementsList.add(element)
         }
         val summary = elementsList.map { multiplyElementS(it.readValue(), (0..10).random()) }
@@ -36,10 +50,26 @@ actual fun structBenchmark() {
         val intValue = summary.useContents { integer }
         if (intValue < 20000000000)
             error("Summary value is expected to be greater than 20000000000")
+        elementsList.last().contains!!(elementsList.last().ptr, elementsList.first().ptr)
     }
 }
-actual fun unionBenchmark() {
 
+actual fun unionBenchmark() {
+    memScoped {
+        val elementsList = mutableListOf<ElementU>()
+        // Fill list.
+        for (i in 1..benchmarkSize) {
+            val element = alloc<ElementU>()
+            element.integer = i.toLong()
+            elementsList.add(element)
+        }
+        elementsList.forEach {
+            it.floatValue = it.integer + sqrt(it.integer.toDouble()).toFloat()
+        }
+        val summary = elementsList.map { multiplyElementU(it.readValue(), (0..10).random()) }
+                .reduce { acc, it -> sumElementUPtr(acc.ptr, it.ptr)!!.pointed.readValue() }
+        summary.useContents { integer }
+    }
 }
 
 actual fun enumBenchmark() {

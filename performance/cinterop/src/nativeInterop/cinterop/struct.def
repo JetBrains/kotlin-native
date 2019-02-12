@@ -14,6 +14,9 @@ struct ElementS {
 };
 
 int elementContains(const struct ElementS* self, const struct ElementS* other) {
+    if (self == NULL || other == NULL) {
+        return 0;
+    }
     if (strstr(self->string, other->string) != NULL) {
         return 1;
     }
@@ -53,12 +56,18 @@ void itoa(int val, char* buffer, int base){
 }
 
 union ElementU* sumElementUPtr(const union ElementU* first, const union ElementU* second) {
+    if (first == NULL || second == NULL) {
+        return NULL;
+    }
     union ElementU* newElement = (union ElementU*)malloc(sizeof(union ElementU));
     newElement->integer = first->integer + second->integer;
     return newElement;
 }
 
 struct ElementS* sumElementSPtr(const struct ElementS* first, const struct ElementS* second) {
+    if (first == NULL || second == NULL) {
+        return NULL;
+    }
     struct ElementS* newElement = (struct ElementS*)malloc(sizeof(struct ElementS));
     newElement->integer = first->integer + second->integer;
     newElement->floatValue = first->floatValue + second->floatValue;
