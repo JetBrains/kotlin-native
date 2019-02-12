@@ -224,6 +224,10 @@ public fun <T : CPointed> NativePlacement.allocPointerTo() = alloc<CPointerVar<T
 
 @PublishedApi
 internal class ZeroValue<T: CVariable>(private val sizeBytes: Int, private val alignBytes: Int): CValue<T>() {
+    // Optimization to avoid unneeded virtual calls in base class implementation.
+    override fun getPointer(scope: AutofreeScope): CPointer<T> {
+        return place(interpretCPointer(scope.alloc(size, align).rawPtr)!!)
+    }
 
     override fun place(placement: CPointer<T>): CPointer<T> {
         nativeMemUtils.zeroMemory(interpretPointed(placement.rawValue), sizeBytes)
@@ -246,6 +250,10 @@ public fun <T : CVariable> CPointed.readValues(size: Int, align: Int): CValues<T
     nativeMemUtils.getByteArray(this, bytes, size)
 
     return object : CValue<T>() {
+        // Optimization to avoid unneeded virtual calls in base class implementation.
+        override fun getPointer(scope: AutofreeScope): CPointer<T> {
+            return place(interpretCPointer(scope.alloc(size, align).rawPtr)!!)
+        }
         override fun place(placement: CPointer<T>): CPointer<T> {
             nativeMemUtils.putByteArray(bytes, interpretPointed(placement.rawValue), bytes.size)
             return placement
@@ -266,6 +274,10 @@ public fun <T : CVariable> CPointed.readValue(size: Long, align: Int): CValue<T>
         override fun place(placement: CPointer<T>): CPointer<T> {
             nativeMemUtils.putByteArray(bytes, interpretPointed(placement.rawValue), bytes.size)
             return placement
+        }
+        // Optimization to avoid unneeded virtual calls in base class implementation.
+        public override fun getPointer(scope: AutofreeScope): CPointer<T> {
+            return place(interpretCPointer(scope.alloc(size, align).rawPtr)!!)
         }
         override val size get() = size.toInt()
         override val align get() = align
@@ -316,8 +328,10 @@ public inline fun <reified T : CVariable> createValues(count: Int, initializer: 
 
 // TODO: optimize other [cValuesOf] methods:
 fun cValuesOf(vararg elements: Byte): CValues<ByteVar> = object : CValues<ByteVar>() {
-    override fun getPointer(scope: AutofreeScope) = scope.allocArrayOf(elements)
-
+    // Optimization to avoid unneeded virtual calls in base class implementation.
+    override fun getPointer(scope: AutofreeScope): CPointer<ByteVar> {
+        return place(interpretCPointer(scope.alloc(size, align).rawPtr)!!)
+    }
     override fun place(placement: CPointer<ByteVar>): CPointer<ByteVar> {
         nativeMemUtils.putByteArray(elements, interpretPointed(placement.rawValue), elements.size)
         return placement
@@ -358,6 +372,10 @@ private class CString(val bytes: ByteArray): CValues<ByteVar>() {
     override val size get() = bytes.size + 1
     override val align get() = 1
 
+    // Optimization to avoid unneeded virtual calls in base class implementation.
+    override fun getPointer(scope: AutofreeScope): CPointer<ByteVar> {
+        return place(interpretCPointer(scope.alloc(size, align).rawPtr)!!)
+    }
     override fun place(placement: CPointer<ByteVar>): CPointer<ByteVar> {
         nativeMemUtils.putByteArray(bytes, placement.pointed, bytes.size)
         placement[bytes.size] = 0.toByte()
@@ -390,6 +408,11 @@ private class WCString(val chars: CharArray): CValues<UShortVar>() {
     override val size get() = 2 * (chars.size + 1)
 
     override val align get() = 2
+
+    // Optimization to avoid unneeded virtual calls in base class implementation.
+    override fun getPointer(scope: AutofreeScope): CPointer<UShortVar> {
+        return place(interpretCPointer(scope.alloc(size, align).rawPtr)!!)
+    }
 
     override fun place(placement: CPointer<UShortVar>): CPointer<UShortVar> {
         nativeMemUtils.putCharArray(chars, placement.pointed, chars.size)

@@ -121,7 +121,7 @@ public abstract class CValues<T : CVariable> : CValuesRef<T>() {
     public abstract val align: Int
 
     /**
-     * Copy the referenced values to [placement] and returns the pointer to it.
+     * Copy the referenced values to [placement] and return placement pointer.
      */
     public abstract fun place(placement: CPointer<T>): CPointer<T>
 }
