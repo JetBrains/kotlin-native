@@ -222,6 +222,6 @@ class RingLauncher(numWarmIterations: Int, numberOfAttempts: Int, prefix: String
 
 fun main(args: Array<String>) {
     BenchmarksRunner.runBenchmarks(args, { parser: ArgParser ->
-        RingLauncher(parser.get<Int>("warmup")!!, parser.get<Int>("repeat")!!, parser.get<String>("prefix")!!).launch(parser.getAll<String>("subkernel"))
+        RingLauncher(parser.get<Int>("warmup")!!, parser.get<Int>("repeat")!!, parser.get<String>("prefix")!!).launch(parser.getAll<String>("filter"))
     })
 }

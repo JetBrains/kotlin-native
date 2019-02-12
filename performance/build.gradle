@@ -41,16 +41,17 @@ defaultTasks 'konanRun'
 // Produce and send slack report.
 task slackReport(type: RegressionsReporter) {
     // Create folder for report (root Kotlin project settings make create report in separate folder).
-    def reportDirectory = outputReport.substring(0, outputReport.lastIndexOf("/"))
+    def reportDirectory = new File(outputReport).parentFile
     mkdir reportDirectory
-    mkdir "../targetsResults"
+    def targetsResults = new File(new File("${rootBuildDirectory}"), "targetsResults").toString()
+    mkdir targetsResults
     currentBenchmarksReportFile = "${buildDir.absolutePath}/${nativeJson}"
     analyzer = MPPTools.findFile("${analyzerTool}${MPPTools.getNativeProgramExtension()}",
             "${rootBuildDirectory}/${analyzerToolDirectory}")
     htmlReport = outputReport
     defaultBranch = project.findProperty('kotlin.native.default.branch') ?: "master"
     def target = System.getProperty("os.name")
-    summaryFile = "../targetsResults/${target}.txt"
+    summaryFile = "${targetsResults}/${target}.txt"
 }
 
 task slackSummary(type: RegressionsSummaryReporter) {
@@ -84,6 +85,7 @@ def mergeReports(String fileName) {
     depends("build")
     }
     def output = MPPTools.mergeReports(reports)
+    mkdir buildDir.absolutePath
     new File("${buildDir.absolutePath}/${fileName}").write(output)
 }
 

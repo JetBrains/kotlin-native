@@ -76,7 +76,7 @@ object BenchmarksRunner {
                 OptionDescriptor(ArgType.Int(), "repeat", "r", "Number of each becnhmark run", "10"),
                 OptionDescriptor(ArgType.String(), "prefix", "p", "Prefix added to benchmark name", ""),
                 OptionDescriptor(ArgType.String(), "output", "o", "Output file"),
-                OptionDescriptor(ArgType.String(), "subkernel", "s", "Benchmark to run", isMultiple = true)
+                OptionDescriptor(ArgType.String(), "filter", "f", "Benchmark to run", isMultiple = true)
         )
 
         // Parse args.
