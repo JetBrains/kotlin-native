@@ -14,6 +14,25 @@ int isWeekEnd(enum WeekDay day) {
     return 0;
 }
 
+enum WeekDay getWeekDay(const char* date) {
+    if (strstr(date, "Sunday") != NULL) {
+        return Sunday;
+    } else if (strstr(date, "Monday") != NULL) {
+        return Monday;
+    } else if (strstr(date, "Tuesday") != NULL) {
+        return Tuesday;
+    } else if (strstr(date, "Wednesday") != NULL) {
+        return Wednesday;
+    } else if (strstr(date, "Thursday") != NULL) {
+        return Thursday;
+    } else if (strstr(date, "Friday") != NULL) {
+        return Friday;
+    } else if (strstr(date, "Saturday") != NULL) {
+        return Saturday;
+    }
+    exit(1);
+}
+
 struct ElementS {
     long int integer;
     float floatValue;

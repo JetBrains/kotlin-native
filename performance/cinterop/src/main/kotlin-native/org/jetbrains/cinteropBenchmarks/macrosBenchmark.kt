@@ -14,10 +14,10 @@
  * limitations under the License.
  */
 
-package org.jetbrains.cinteropBenchmarks
+package org.jetbrains.macrosBenchmarks
 import kotlinx.cinterop.*
 
-const val benachmarkSize = 10000
+const val benachmarkSize = 1000
 
 actual fun macrosBenchmark() {
     memScoped {

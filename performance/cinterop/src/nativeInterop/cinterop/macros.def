@@ -1,4 +1,4 @@
-package = org.jetbrains.cinteropBenchmarks
+package = org.jetbrains.macrosBenchmarks
 
 ---
 #include <stdio.h>

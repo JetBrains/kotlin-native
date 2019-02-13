@@ -14,6 +14,21 @@
  * limitations under the License.
  */
 
-package org.jetbrains.cinteropBenchmarks
+package org.jetbrains.typesBenchmarks
 
-expect fun macrosBenchmark()
+actual fun stringToCBenchmark() {
+    error("Benchmark stringToCBenchmark is unsupported on JVM!")
+}
+actual fun stringToKotlinBenchmark() {
+    error("Benchmark stringToKotlinBenchmark is unsupported on JVM!")
+}
+actual fun intBenchmark() {
+    error("Benchmark intBenchmark is unsupported on JVM!")
+}
+actual fun boxedIntBenchmark() {
+    error("Benchmark boxedIntBenchmark is unsupported on JVM!")
+}
+actual fun intMatrixBenchmark() {
+    error("Benchmark intMatrixBenchmark is unsupported on JVM!")
+}
+

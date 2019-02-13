@@ -18,7 +18,7 @@ package org.jetbrains.structsBenchmarks
 import kotlinx.cinterop.*
 import kotlin.math.sqrt
 
-const val benchmarkSize = 100000
+const val benchmarkSize = 10000
 
 actual fun structBenchmark() {
     memScoped {
@@ -48,8 +48,6 @@ actual fun structBenchmark() {
         val summary = elementsList.map { multiplyElementS(it.readValue(), (0..10).random()) }
                 .reduce { acc, it -> sumElementSPtr(acc.ptr, it.ptr)!!.pointed.readValue() }
         val intValue = summary.useContents { integer }
-        if (intValue < 20000000000)
-            error("Summary value is expected to be greater than 20000000000")
         elementsList.last().contains!!(elementsList.last().ptr, elementsList.first().ptr)
     }
 }
@@ -73,5 +71,12 @@ actual fun unionBenchmark() {
 }
 
 actual fun enumBenchmark() {
-
+    val days = arrayOf("Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday")
+    val enumValues = mutableListOf<WeekDay>()
+    for (i in 1..benchmarkSize) {
+        enumValues.add(getWeekDay(days[(0..6).random()]))
+    }
+    enumValues.forEach {
+        isWeekEnd(it)
+    }
 }

@@ -9,4 +9,5 @@ apply from: rootProject.file('gradle/benchmark.gradle')
 kotlin.targets.native.compilations.main.cinterops { 
     macros
     struct
+    types
 }

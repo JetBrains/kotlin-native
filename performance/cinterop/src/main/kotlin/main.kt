@@ -15,16 +15,24 @@
  */
 
 
-import org.jetbrains.cinteropBenchmarks.*
+import org.jetbrains.macrosBenchmarks.*
 import org.jetbrains.benchmarksLauncher.*
 import org.jetbrains.structsBenchmarks.*
+import org.jetbrains.typesBenchmarks.*
 import org.jetbrains.kliopt.*
 
 class CinteropLauncher(numWarmIterations: Int, numberOfAttempts: Int, prefix: String): Launcher(numWarmIterations, numberOfAttempts, prefix) {
     override val benchmarks = BenchmarksCollection(
             mutableMapOf(
                     "macros" to ::macrosBenchmark,
-                    "struct" to ::structBenchmark
+                    "struct" to ::structBenchmark,
+                    "union" to ::unionBenchmark,
+                    "enum" to ::enumBenchmark,
+                    "stringToC" to ::stringToCBenchmark,
+                    "stringToKotlin" to ::stringToKotlinBenchmark,
+                    "intMatrix" to ::intMatrixBenchmark,
+                    "int" to ::intBenchmark,
+                    "boxedInt" to ::boxedIntBenchmark
             )
     )
 }

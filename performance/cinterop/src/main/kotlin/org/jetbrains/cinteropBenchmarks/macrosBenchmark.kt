@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-package org.jetbrains.cinteropBenchmarks
+package org.jetbrains.macrosBenchmarks
 
-actual fun macrosBenchmark() {
-    error("Benchmark macrosBenchmark is unsupported on JVM!")
-}
+expect fun macrosBenchmark()
