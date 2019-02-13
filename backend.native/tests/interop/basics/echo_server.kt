@@ -41,9 +41,9 @@ fun main(args: Array<String>) {
 
         while (true) {
             val length = read(commFd, buffer, bufferLength.convert())
-                    .ensureUnixCallResult { it >= 0 }
+                    .toInt().ensureUnixCallResult { it >= 0 }
 
-            if (length == 0L) {
+            if (length == 0) {
                 break
             }
 
@@ -62,13 +62,6 @@ fun throwUnixError(): Nothing {
 }
 
 inline fun Int.ensureUnixCallResult(predicate: (Int) -> Boolean): Int {
-    if (!predicate(this)) {
-        throwUnixError()
-    }
-    return this
-}
-
-inline fun Long.ensureUnixCallResult(predicate: (Long) -> Boolean): Long {
     if (!predicate(this)) {
         throwUnixError()
     }
