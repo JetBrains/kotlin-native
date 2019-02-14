@@ -23,16 +23,14 @@ const val benchmarkSize = 10000
 actual fun structBenchmark() {
     memScoped {
         val containsFunction = staticCFunction<CPointer<ElementS>?, CPointer<ElementS>?, Int> { first, second ->
-            var result: Int;
             if (first == null || second == null) {
-                result = 0
+                0
             } else if (first.pointed.string.toKString().contains(second.pointed.string.toKString())) {
-                result = 1
+                1
             }
             else {
-                result = 0
+                0
             }
-            result
         }
         val elementsList = mutableListOf<ElementS>()
         // Fill list.

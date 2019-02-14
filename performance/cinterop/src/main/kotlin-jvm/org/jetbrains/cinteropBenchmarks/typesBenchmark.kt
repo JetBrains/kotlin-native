@@ -16,19 +16,31 @@
 
 package org.jetbrains.typesBenchmarks
 
-actual fun stringToCBenchmark() {
-    error("Benchmark stringToCBenchmark is unsupported on JVM!")
+actual class StringBenchmark actual constructor() {
+    actual fun stringToCBenchmark() {
+        error("Benchmark stringToCBenchmark is unsupported on JVM!")
+    }
+
+    actual fun stringToKotlinBenchmark() {
+        error("Benchmark stringToKotlinBenchmark is unsupported on JVM!")
+    }
 }
-actual fun stringToKotlinBenchmark() {
-    error("Benchmark stringToKotlinBenchmark is unsupported on JVM!")
+
+actual class IntBenchmark actual constructor() {
+    actual fun intBenchmark() {
+        error("Benchmark intBenchmark is unsupported on JVM!")
+    }
 }
-actual fun intBenchmark() {
-    error("Benchmark intBenchmark is unsupported on JVM!")
+
+actual class BoxedIntBenchmark actual constructor() {
+    actual fun boxedIntBenchmark() {
+        error("Benchmark boxedIntBenchmark is unsupported on JVM!")
+    }
 }
-actual fun boxedIntBenchmark() {
-    error("Benchmark boxedIntBenchmark is unsupported on JVM!")
-}
-actual fun intMatrixBenchmark() {
-    error("Benchmark intMatrixBenchmark is unsupported on JVM!")
+
+actual class IntMatrixBenchmark actual constructor() {
+    actual fun intMatrixBenchmark() {
+        error("Benchmark intMatrixBenchmark is unsupported on JVM!")
+    }
 }
 

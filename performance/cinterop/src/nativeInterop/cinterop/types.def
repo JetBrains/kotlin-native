@@ -8,7 +8,7 @@ package = org.jetbrains.typesBenchmarks
 
 int charFrequency(const char* string, char charToFind) {
     int frequency = 0;
-    for(int i = 0; string[i] != NULL; ++i) {
+    for(int i = 0; string[i] != '\0'; ++i) {
        if(charToFind == string[i])
            ++frequency;
     }
@@ -17,8 +17,10 @@ int charFrequency(const char* string, char charToFind) {
 
 const char* findSuitableString(const char* stringsArray[], int arraySize, const char* stringToFind) {
     for(int i = 0; i < arraySize; ++i) {
-        if (strcmp(stringsArray[i], stringToFind) == 0) {
-            return stringToFind;
+        if (strstr(stringsArray[i], stringToFind) != NULL) {
+            char* result = (char*) malloc((strlen(stringsArray[i])+1)*sizeof(char));
+            strcpy(result, stringsArray[i]);
+            return result;
         }
     }
     return NULL;

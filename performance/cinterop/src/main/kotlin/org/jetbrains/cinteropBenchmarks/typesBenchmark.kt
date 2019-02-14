@@ -16,8 +16,16 @@
 
 package org.jetbrains.typesBenchmarks
 
-expect fun stringToCBenchmark()
-expect fun stringToKotlinBenchmark()
-expect fun intBenchmark()
-expect fun boxedIntBenchmark()
-expect fun intMatrixBenchmark()
+expect class StringBenchmark() {
+    fun stringToCBenchmark()
+    fun stringToKotlinBenchmark()
+}
+expect class IntBenchmark() {
+    fun intBenchmark()
+}
+expect class BoxedIntBenchmark() {
+    fun boxedIntBenchmark()
+}
+expect class IntMatrixBenchmark() {
+    fun intMatrixBenchmark()
+}

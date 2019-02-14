@@ -14,8 +14,9 @@
  * limitations under the License.
  */
 
-package org.jetbrains.macrosBenchmarks
+package org.jetbrains.structsProducedByMacrosBenchmarks
 import kotlinx.cinterop.*
+import kotlin.math.abs
 
 const val benachmarkSize = 1000
 
@@ -27,29 +28,26 @@ actual fun macrosBenchmark() {
         }
         val floats = new_list_float()
         // Copy integer list to float one.
-        with (ints?.pointed) {
-            this?.let {
-                var current = _first
-                while(current != null) {
-                    list_push_front_float(floats, current?.pointed?._data?.toFloat()
-                            ?: error("Null elements in list are not expected!")
-                    )
-                    current = current?.pointed?._next
-                }
+        ints?.pointed?.apply {
+            var current = _first
+            while(current != null) {
+                list_push_front_float(floats, current?.pointed?._data?.toFloat()
+                        ?: error("Null elements in list are not expected!")
+                )
+                current = current?.pointed?._next
             }
         }
         // Reverse list.
         var previous: CPointer<list_elem_float>? = null
         var current = floats?.pointed?._first
-        var next = current?.pointed?._next
-        while(current != null) {
+        while (current != null) {
+            val next = current?.pointed?._next
             current?.pointed?._next = previous
             previous = current
             current = next
-            next = current?.pointed?._next
         }
         floats?.pointed?._first = previous
-        if (list_front_float(floats) != benachmarkSize.toFloat())
+        if (abs(list_front_float(floats) - benachmarkSize.toFloat()) > 0.00001)
             error("Wrong first element!")
     }
 }

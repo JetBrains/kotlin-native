@@ -14,8 +14,6 @@
  * limitations under the License.
  */
 
-package org.jetbrains.macrosBenchmarks
+package org.jetbrains.structsProducedByMacrosBenchmarks
 
-actual fun macrosBenchmark() {
-    error("Benchmark macrosBenchmark is unsupported on JVM!")
-}
+expect fun macrosBenchmark()
