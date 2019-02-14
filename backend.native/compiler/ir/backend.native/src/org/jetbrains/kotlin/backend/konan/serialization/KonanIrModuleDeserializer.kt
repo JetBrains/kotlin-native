@@ -167,6 +167,9 @@ class KonanIrModuleDeserializer(
             symbol.descriptor !is WrappedDeclarationDescriptor<*> &&
             symbol.descriptor.module.isForwardDeclarationModule
         ) {
+
+            println("ADDING to forwardDeclarations ${symbol.descriptor}")
+
             forwardDeclarations.add(symbol)
         }
 
@@ -213,6 +216,9 @@ class KonanIrModuleDeserializer(
 
     private fun findDeserializedDeclarationForDescriptor(descriptor: DeclarationDescriptor): DeclarationDescriptor? {
         val topLevelDescriptor = descriptor.findTopLevelDescriptor()
+
+        if (topLevelDescriptor.name.asString().contains("CIFilter"))
+            println("Deserializing: ${topLevelDescriptor}, $deserializedModuleDescriptor")
 
         if (topLevelDescriptor.module.isForwardDeclarationModule) return null
 
@@ -295,6 +301,9 @@ class KonanIrModuleDeserializer(
             val declarations = symbols.map {
 
                 val classDescriptor = it.descriptor as ClassDescriptor
+
+                println("DECLARE forward declaration: ${classDescriptor}")
+
                 val declaration = symbolTable.declareClass(UNDEFINED_OFFSET, UNDEFINED_OFFSET, irrelevantOrigin,
                         classDescriptor,
                         classDescriptor.modality

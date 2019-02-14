@@ -201,6 +201,9 @@ internal class LinkStage(val context: Context, val phaser: PhaseManager) {
         val bitcodeFiles = listOf(emitted) +
                 libraries.map { it.bitcodePaths }.flatten().filter { it.isBitcode }
 
+        //println("BC FILES:")
+        //bitcodeFiles.forEach { println("    $it") }
+
         val includedBinaries =
                 libraries.map { it.includedPaths }.flatten()
 

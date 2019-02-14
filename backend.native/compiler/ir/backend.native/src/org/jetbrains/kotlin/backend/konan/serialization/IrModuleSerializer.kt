@@ -869,6 +869,8 @@ internal class IrModuleSerializer(
 
     private fun serializeIrFunction(declaration: IrSimpleFunction): KonanIr.IrFunction {
         val function = declaration// as IrFunctionImpl
+//        if (function.name.asString() == "Konan_start")
+//            println("YEAH, BABY")
         val proto = KonanIr.IrFunction.newBuilder()
             .setSymbol(serializeIrSymbol(function.symbol))
             .setModality(serializeModality(function.modality))
