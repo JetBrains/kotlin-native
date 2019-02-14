@@ -11,7 +11,9 @@ import org.jetbrains.kotlin.backend.konan.library.impl.buildLibrary
 import org.jetbrains.kotlin.backend.konan.llvm.parseBitcodeFile
 import org.jetbrains.kotlin.konan.KonanAbiVersion
 import org.jetbrains.kotlin.konan.KonanVersion
+import org.jetbrains.kotlin.konan.library.KonanLibrary
 import org.jetbrains.kotlin.konan.library.KonanLibraryVersioning
+import org.jetbrains.kotlin.konan.library.resolver.TopologicalLibraryOrder
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 
 val CompilerOutputKind.isNativeBinary: Boolean get() = when (this) {
@@ -22,15 +24,15 @@ val CompilerOutputKind.isNativeBinary: Boolean get() = when (this) {
 
 internal fun produceOutput(context: Context, phaser: PhaseManager) {
 
-    val llvmModule = context.llvmModule!!
     val config = context.config.configuration
     val tempFiles = context.config.tempFiles
     val produce = config.get(KonanConfigKeys.PRODUCE)
 
     phaser.phase(KonanPhase.C_STUBS) {
-        context.cStubsManager.compile(context.config.clang, context.messageCollector, context.phase!!.verbose)?.let {
-            parseAndLinkBitcodeFile(llvmModule, it.absolutePath)
-        }
+        if (produce != CompilerOutputKind.LIBRARY)
+            context.cStubsManager.compile(context.config.clang, context.messageCollector, context.phase!!.verbose)?.let {
+                parseAndLinkBitcodeFile(context.llvmModule!!, it.absolutePath)
+            }
     }
 
     when (produce) {
@@ -41,7 +43,8 @@ internal fun produceOutput(context: Context, phaser: PhaseManager) {
             val output = tempFiles.nativeBinaryFileName
             context.bitcodeFileName = output
 
-            val generatedBitcodeFiles = 
+            //println("ZZZ1")
+            val generatedBitcodeFiles =
                 if (produce == CompilerOutputKind.DYNAMIC || produce == CompilerOutputKind.STATIC) {
                     produceCAdapterBitcode(
                         context.config.clang, 
@@ -55,19 +58,30 @@ internal fun produceOutput(context: Context, phaser: PhaseManager) {
                 context.config.defaultNativeLibraries + 
                 generatedBitcodeFiles
 
+            //println("ZZZ2")
             phaser.phase(KonanPhase.BITCODE_LINKER) {
                 for (library in nativeLibraries) {
-                    parseAndLinkBitcodeFile(llvmModule, library)
+                    //println(library)
+                    parseAndLinkBitcodeFile(context.llvmModule!!, library)
                 }
             }
 
-            LLVMWriteBitcodeToFile(llvmModule, output)
+            //println("ZZZ3")
+            LLVMWriteBitcodeToFile(context.llvmModule!!, output)
+            //println("ZZZ4")
         }
         CompilerOutputKind.LIBRARY -> {
             val output = context.config.outputFiles.outputName
             val libraryName = context.config.moduleId
-            val neededLibraries 
-                = context.llvm.librariesForLibraryManifest
+
+            val neededLibraries =
+                    context.librariesWithDependencies
+//                context.config.resolvedLibraries
+//                        .filterRoots { (!it.isDefault && !context.config.purgeUserLibs)/*TODO || imports.isImported(it.library)*/ }
+//                        .getFullList(TopologicalLibraryOrder)
+
+//            val neededLibraries
+//                = context.llvm.librariesForLibraryManifest
             val abiVersion = KonanAbiVersion.CURRENT
             val compilerVersion = KonanVersion.CURRENT
             val libraryVersion = config.get(KonanConfigKeys.LIBRARY_VERSION)
@@ -86,7 +100,7 @@ internal fun produceOutput(context: Context, phaser: PhaseManager) {
                 target,
                 output,
                 libraryName, 
-                llvmModule,
+                /*llvmModule*/null,
                 nopack,
                 manifestProperties,
                 context.dataFlowGraph)
@@ -95,9 +109,10 @@ internal fun produceOutput(context: Context, phaser: PhaseManager) {
             context.bitcodeFileName = library.mainBitcodeFileName
         }
         CompilerOutputKind.BITCODE -> {
+            //println("QXX")
             val output = context.config.outputFile
             context.bitcodeFileName = output
-            LLVMWriteBitcodeToFile(llvmModule, output)
+            LLVMWriteBitcodeToFile(context.llvmModule!!, output)
         }
     }
 }
