@@ -93,7 +93,9 @@ internal class SpecialDeclarationsFactory(val context: Context) {
                     DECLARATION_ORIGIN_FIELD_FOR_OUTER_THIS,
                     descriptor,
                     outerClass.defaultType
-            )
+            ).apply {
+                parent = innerClass
+            }
         }
 
     fun getLoweredEnum(enumClass: IrClass): LoweredEnum {
@@ -103,25 +105,30 @@ internal class SpecialDeclarationsFactory(val context: Context) {
         }
     }
 
-    private fun assignOrdinalsToEnumEntries(classDescriptor: ClassDescriptor): Map<ClassDescriptor, Int> {
-        val enumEntryOrdinals = mutableMapOf<ClassDescriptor, Int>()
-        classDescriptor.enumEntries.forEachIndexed { index, entry ->
-            enumEntryOrdinals[entry] = index
-        }
-        return enumEntryOrdinals
+    fun getEnumEntryOrdinal(enumEntry: IrEnumEntry): Int {
+        return enumEntry.parentAsClass.declarations.filterIsInstance<IrEnumEntry>().indexOf(enumEntry)
     }
 
-    fun getEnumEntryOrdinal(entryDescriptor: ClassDescriptor): Int {
-        val enumClassDescriptor = entryDescriptor.containingDeclaration as ClassDescriptor
-        // If enum came from another module then we need to get serialized ordinal number.
-        // We serialize ordinal because current serialization cannot preserve enum entry order.
-        if (enumClassDescriptor is DeserializedClassDescriptor) {
-            return enumClassDescriptor.classProto.enumEntryList
-                    .first { entryDescriptor.name == enumClassDescriptor.c.nameResolver.getName(it.name) }
-                    .getExtension(KonanProtoBuf.enumEntryOrdinal)
-        }
-        return ordinals.getOrPut(enumClassDescriptor) { assignOrdinalsToEnumEntries(enumClassDescriptor) }[entryDescriptor]!!
-    }
+//    private fun assignOrdinalsToEnumEntries(classDescriptor: ClassDescriptor): Map<ClassDescriptor, Int> {
+//        val enumEntryOrdinals = mutableMapOf<ClassDescriptor, Int>()
+//        classDescriptor.enumEntries.forEachIndexed { index, entry ->
+//            enumEntryOrdinals[entry] = index
+//        }
+//        return enumEntryOrdinals
+//    }
+//
+//    fun getEnumEntryOrdinal(entryDescriptor: ClassDescriptor): Int {
+//        val enumClassDescriptor = entryDescriptor.containingDeclaration as ClassDescriptor
+//        // If enum came from another module then we need to get serialized ordinal number.
+//        // We serialize ordinal because current serialization cannot preserve enum entry order.
+//        if (enumClassDescriptor is DeserializedClassDescriptor) {
+//            return enumClassDescriptor.classProto.enumEntryList
+//                    .first { entryDescriptor.name == enumClassDescriptor.c.nameResolver.getName(it.name) }
+//                    .getExtension(KonanProtoBuf.enumEntryOrdinal)
+//        }
+//        return ordinals.getOrPut(enumClassDescriptor) { assignOrdinalsToEnumEntries(enumClassDescriptor) }[entryDescriptor]
+//                ?: error("BUGBUGBUG: ${enumClassDescriptor.name}")
+//    }
 
     fun getBridge(overriddenFunction: OverriddenFunctionInfo): IrSimpleFunction {
         val irFunction = overriddenFunction.function
@@ -276,10 +283,16 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     var coroutineCount = 0
 
     fun needGlobalInit(field: IrField): Boolean {
-        if (field.descriptor.containingDeclaration !is PackageFragmentDescriptor) return false
-        // TODO: add some smartness here. Maybe if package of the field is in never accessed
-        // assume its global init can be actually omitted.
-        return true
+        try {
+            if (field.descriptor.containingDeclaration !is PackageFragmentDescriptor) return false
+            // TODO: add some smartness here. Maybe if package of the field is in never accessed
+            // assume its global init can be actually omitted.
+            return true
+        } catch (t: Throwable) {
+            println(field.dump())
+            println(field.descriptor)
+            throw t
+        }
     }
 
     // TODO: make lateinit?

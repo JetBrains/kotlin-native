@@ -332,10 +332,18 @@ class KonanIrModuleDeserializer(
             }
         }
 
+        val annotations = deserializeAnnotations(fileProto.annotations)
+        file.annotations.addAll(annotations)
+
+
+        // TODO: Do it only for final binary.
+        if (!deserializeAllDeclarations)
+            fileProto.explicitlyExportedToCompilerList.forEach { deserializeIrSymbol(it) }
+
         return file
     }
 
-    fun deserializeIrModule(proto: KonanIr.IrModule, moduleDescriptor: ModuleDescriptor, deserializeAllDeclarations: Boolean): IrModuleFragment {
+    fun deserializeIrModuleHeader(proto: KonanIr.IrModule, moduleDescriptor: ModuleDescriptor, deserializeAllDeclarations: Boolean): IrModuleFragment {
 
         deserializedModuleDescriptor = moduleDescriptor
         deserializedModuleProtoSymbolTables.put(moduleDescriptor, proto.symbolTable)
@@ -351,8 +359,8 @@ class KonanIrModuleDeserializer(
         return module
     }
 
-    fun deserializeIrModule(moduleDescriptor: ModuleDescriptor, byteArray: ByteArray, deserializeAllDeclarations: Boolean = false): IrModuleFragment {
+    fun deserializeIrModuleHeader(moduleDescriptor: ModuleDescriptor, byteArray: ByteArray, deserializeAllDeclarations: Boolean = false): IrModuleFragment {
         val proto = KonanIr.IrModule.parseFrom(byteArray.codedInputStream, KonanSerializerProtocol.extensionRegistry)
-        return deserializeIrModule(proto, moduleDescriptor, deserializeAllDeclarations)
+        return deserializeIrModuleHeader(proto, moduleDescriptor, deserializeAllDeclarations)
     }
 }

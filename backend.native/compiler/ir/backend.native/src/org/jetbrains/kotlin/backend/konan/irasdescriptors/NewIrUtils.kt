@@ -97,19 +97,19 @@ val IrProperty.konanBackingField: IrField?
         assert(this.isReal)
         this.backingField?.let { return it }
 
-        (this.descriptor as? DeserializedPropertyDescriptor)?.konanBackingField?.let { backingFieldDescriptor ->
-            val result = IrFieldImpl(
-                    this.startOffset,
-                    this.endOffset,
-                    IrDeclarationOrigin.PROPERTY_BACKING_FIELD,
-                    backingFieldDescriptor,
-                    this.getter!!.returnType
-            ).also {
-                it.parent = this.parent
-            }
-            this.backingField = result
-            return result
-        }
+//        (this.descriptor as? DeserializedPropertyDescriptor)?.konanBackingField?.let { backingFieldDescriptor ->
+//            val result = IrFieldImpl(
+//                    this.startOffset,
+//                    this.endOffset,
+//                    IrDeclarationOrigin.PROPERTY_BACKING_FIELD,
+//                    backingFieldDescriptor,
+//                    this.getter!!.returnType
+//            ).also {
+//                it.parent = this.parent
+//            }
+//            this.backingField = result
+//            return result
+//        }
 
         return null
     }

@@ -58,7 +58,7 @@ class AutoFree {
   }
 };
 
-// RuntimeUtiks.kt
+// RuntimeUtils.kt
 extern "C" void ReportUnhandledException(KRef throwable);
 extern "C" void ExceptionReporterLaunchpad(KRef reporter, KRef throwable);
 

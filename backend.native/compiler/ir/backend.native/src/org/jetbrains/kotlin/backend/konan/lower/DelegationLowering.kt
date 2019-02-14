@@ -200,7 +200,7 @@ internal class PropertyDelegationLowering(val context: Context) : FileLoweringPa
                 else
                     irTemporary(value = it, nameHint = "\$extensionReceiver${tempIndex++}")
             }
-            val propertyDescriptor = expression.descriptor
+            //val propertyDescriptor = expression.descriptor
             val returnType = expression.getter?.owner?.returnType ?: expression.field!!.owner.type
 
             val getterCallableReference = expression.getter?.owner?.let { getter ->
@@ -262,7 +262,8 @@ internal class PropertyDelegationLowering(val context: Context) : FileLoweringPa
                     isLocal       = false,
                     isMutable     = setterCallableReference != null)
             val initializer = irCall(symbol.owner, constructorTypeArguments).apply {
-                putValueArgument(0, irString(propertyDescriptor.name.asString()))
+                // TODO: expression.descriptor for deserialized IrPropertyReference is unbound.
+                putValueArgument(0, irString(expression.getter!!.owner.correspondingProperty!!.name.asString()))
                 putValueArgument(1, irKType(this@PropertyDelegationLowering.context, returnType))
                 if (getterCallableReference != null)
                     putValueArgument(2, getterCallableReference)

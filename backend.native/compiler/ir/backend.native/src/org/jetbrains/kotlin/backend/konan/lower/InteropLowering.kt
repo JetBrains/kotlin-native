@@ -628,7 +628,8 @@ internal class InteropLoweringPart1(val context: Context) : IrBuildingTransforme
 
         descriptor.getExternalObjCMethodInfo()?.let { methodInfo ->
             val isInteropStubsFile =
-                    currentFile.fileAnnotations.any { it.fqName ==  FqName("kotlinx.cinterop.InteropStubs") }
+                    //currentFile.fileAnnotations.any { it.fqName ==  FqName("kotlinx.cinterop.InteropStubs") }
+                    currentFile.annotations.hasAnnotation(FqName("kotlinx.cinterop.InteropStubs"))
 
             // Special case: bridge from Objective-C method implementation template to Kotlin method;
             // handled in CodeGeneratorVisitor.callVirtual.

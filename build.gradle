@@ -314,7 +314,7 @@ targetList.each { target ->
     task("${target}CrossDistRuntime", type: Copy) {
         dependsOn ":runtime:${target}Runtime"
         dependsOn ":backend.native:${target}Stdlib"
-        dependsOn ":backend.native:${target}Start"
+        //dependsOn ":backend.native:${target}Start"
 
         destinationDir distDir
 
@@ -331,10 +331,10 @@ targetList.each { target ->
             include('**')
             into(stdlib)
         }
-        from(project(':runtime').file("build/${target}Start.bc")) {
-            rename("${target}Start.bc", 'start.bc')
-            into("konan/targets/$target/native")
-        }
+//        from(project(':runtime').file("build/${target}Start.bc")) {
+//            rename("${target}Start.bc", 'start.bc')
+//            into("konan/targets/$target/native")
+//        }
         if (target == 'wasm32') {
             into("$stdlib/targets/wasm32/included") {
                 from(project(':runtime').file('src/main/js'))

@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.backend.common.ir.Ir
 import org.jetbrains.kotlin.backend.common.ir.Symbols
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.kotlinNativeInternal
+import org.jetbrains.kotlin.backend.konan.llvm.findKonanStart
 import org.jetbrains.kotlin.backend.konan.llvm.findMainEntryPoint
 import org.jetbrains.kotlin.backend.konan.lower.TestProcessor
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
@@ -137,6 +138,8 @@ internal class KonanSymbols(context: Context, val symbolTable: SymbolTable, val 
        = symbolTable.referenceSimpleFunction(isInitializedPropertyDescriptor.getter!!)
 
     val entryPoint = findMainEntryPoint(context)?.let { symbolTable.referenceSimpleFunction(it) }
+
+    val konanStart = findKonanStart(context)?.let { symbolTable.referenceSimpleFunction(it) }
 
     override val externalSymbolTable = lazySymbolTable
 
