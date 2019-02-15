@@ -200,6 +200,7 @@ class DependencyProcessor(dependenciesRoot: File,
         }
         println("Extracting dependency: $archive into $dependenciesDirectory")
         extractor.extract(archive, dependenciesDirectory)
+        archive.delete()
         extractedDependencies.addAndSave(depName)
     }
 
