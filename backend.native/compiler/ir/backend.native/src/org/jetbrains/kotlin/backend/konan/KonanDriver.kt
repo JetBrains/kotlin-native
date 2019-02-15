@@ -201,7 +201,18 @@ fun runTopLevelPhases(konanConfig: KonanConfig, environment: KotlinCoreEnvironme
                         irModule.files.clear()
                     }
 
+            context.config.librariesWithDependencies(context.moduleDescriptor)
+                    //context.config.resolvedLibraries
+                    //      .getFullList(TopologicalLibraryOrder)
+                    .forEach {
+                        println("   ${it.libraryName}")
+                        val libModule = irModules[it.libraryName] ?: return@forEach
+                        irModule.files += libModule.files
+                    }
             irModule.files += files
+
+
+//            irModule.files += files
 
 //            validateIrModule(context, context.ir.irModule) // Temporarily disabled until moving to new IR finished.
             context.ir.moduleIndexForCodegen = ModuleIndex(context.ir.irModule)
