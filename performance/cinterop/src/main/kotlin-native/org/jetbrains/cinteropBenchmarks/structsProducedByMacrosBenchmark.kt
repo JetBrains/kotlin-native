@@ -48,11 +48,12 @@ actual fun macrosBenchmark() {
         }
         floats?.pointed?._first = previous
         free_list_int(ints)
-        if (abs(list_front_float(floats) - benachmarkSize.toFloat()) > 0.00001) {
+        try {
+            if (abs(list_front_float(floats) - benachmarkSize.toFloat()) > 0.00001) {
+                error("Wrong first element!")
+            }
+        } finally {
             free_list_float(floats)
-            error("Wrong first element!")
         }
-
-        free_list_float(floats)
     }
 }
