@@ -532,6 +532,11 @@ internal class NativeIndexImpl(val library: NativeLibrary, val verbose: Boolean 
                 IncompleteArrayType(elemType)
             }
 
+            CXType_VariableArray -> {
+                val elemType = convertType(clang_getArrayElementType(type))
+                VariableArrayType(elemType)
+            }
+
             CXType_FunctionProto -> {
                 convertFunctionType(type)
             }
