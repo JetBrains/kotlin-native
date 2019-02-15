@@ -72,7 +72,8 @@ class OptionDescriptor(
         description: String? = null,
         defaultValue: String? = null,
         isRequired: Boolean = false,
-        val isMultiple: Boolean = false) : Descriptor (type, longName, description, defaultValue, isRequired) {
+        val isMultiple: Boolean = false,
+        val delimiter: String? = null) : Descriptor (type, longName, description, defaultValue, isRequired) {
     override val textDescription: String
         get() = "option -$longName"
 
@@ -153,7 +154,7 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
     }
 
     // Output error. Also adds help usage information for easy understanding of problem.
-    private fun printError(message: String): Nothing {
+    fun printError(message: String): Nothing {
         error("$message\n${makeUsage()}")
     }
 
@@ -173,8 +174,11 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
         if (!descriptor.isMultiple && !processedValues.getValue(descriptor.longName).isEmpty()) {
             printError("Option ${descriptor.longName} is used more than one time!")
         }
-        descriptor.type.check(value, descriptor.longName)
-        processedValues.getValue(descriptor.longName).add(value)
+        val savedValues = descriptor.delimiter?.let { value.split(it) } ?: listOf(value)
+        savedValues.forEach {
+            descriptor.type.check(it, descriptor.longName)
+            processedValues.getValue(descriptor.longName).add(it)
+        }
     }
 
     // Parse arguments.

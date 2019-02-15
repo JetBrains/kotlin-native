@@ -76,12 +76,11 @@ fun invokeInterop(flavor: String, args: Array<String>): Array<String>? {
 
     val additionalArgs = listOf(
         "-generated", generatedDir.path, 
-        "-natives", nativesDir.path, 
-        "-cstubsname", cstubsName,
+        "-natives", nativesDir.path,
         "-manifest", manifest.path,
         "-flavor", flavor,
         "-temporaryFilesDir", temporaryFilesDir
-    ) + importArgs
+    ) + if (flavor == "native") listOf("-cstubsname", cstubsName) + importArgs else listOf()
 
     val cinteropArgs = (additionalArgs + args.filter { it !in cinteropArgFilter }).toTypedArray()
 

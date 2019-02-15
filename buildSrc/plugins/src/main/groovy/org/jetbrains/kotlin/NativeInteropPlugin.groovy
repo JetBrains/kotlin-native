@@ -251,7 +251,7 @@ class NamedNativeInteropConfig implements Named {
                 args linkerOpts.collectMany { ['-lopt', it] }
 
                 headers.each {
-                    args '-h', it
+                    args '-header', it
                 }
 
                 if (project.hasProperty('shims')) {
