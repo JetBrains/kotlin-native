@@ -50,8 +50,11 @@ actual class StringBenchmark actual constructor() {
 
     actual fun stringToKotlinBenchmark() {
         memScoped {
+            val result = StringBuilder()
             for (i in 1..benchmarkSize) {
-                val result = findSuitableString(strings.toCStringArray(this), benchmarkSize, "a")?.toKString()
+                val pointer = findSuitableString(strings.toCStringArray(this), benchmarkSize, "a")
+                result.append(pointer?.toKString())
+                nativeHeap.free(pointer.rawValue)
             }
         }
     }

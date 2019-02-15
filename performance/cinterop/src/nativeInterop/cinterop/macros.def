@@ -74,7 +74,20 @@ package = org.jetbrains.structsProducedByMacrosBenchmarks
         res->_first = NULL; \
         res->_functions = &_list_funcs_##type; \
         return res; \
+    } \
+    \
+    void free_list_##type(List_##type* list) \
+    { \
+        struct _list_elem_##type* current = list->_first; \
+        while (current != NULL) \
+        { \
+            struct _list_elem_##type* next = current->_next; \
+            free(current); \
+            current = next; \
+        } \
+        free(list); \
     }
+
 
 define_list(int)
 define_list(float)
