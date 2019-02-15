@@ -17,9 +17,25 @@
 package org.jetbrains.kotlin.native.interop.tool
 
 import org.jetbrains.kotlin.cli.common.arguments.*
+import org.jetbrains.kliopt.*
 
 // TODO: unify camel and snake cases.
 // Possible solution is to accept both cases
+fun getCommonToolArguments() {
+    val options = listOf(
+            OptionDescriptor(ArgType.String(), "output", "o", "Output file"),
+            OptionDescriptor(ArgType.Double(), "eps", "e", "Meaningful performance changes", "1.0"),
+            OptionDescriptor(ArgType.Boolean(), "short", "s", "Show short version of report", "false"),
+            OptionDescriptor(ArgType.Choice(listOf("text", "html", "teamcity", "statistics")),
+                    "renders", "r", "Renders for showing information", "text", isMultiple = true),
+            OptionDescriptor(ArgType.String(), "user", "u", "User access information for authorization")
+    )
+
+    val arguments = listOf(
+            ArgDescriptor(ArgType.String(), "mainReport", "Main report for analysis"),
+            ArgDescriptor(ArgType.String(), "compareToReport", "Report to compare to", isRequired = false)
+    )
+}
 open class CommonInteropArguments : CommonToolArguments() {
     @Argument(value = "-flavor", valueDescription = "<flavor>", description = "One of: jvm, native or wasm")
     var flavor: String? = null

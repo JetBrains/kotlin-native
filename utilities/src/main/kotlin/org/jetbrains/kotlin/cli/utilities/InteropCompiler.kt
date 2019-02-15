@@ -18,7 +18,7 @@ private const val PURGE_USER_LIBS = "-Xpurge-user-libs"
 // TODO: this function should eventually be eliminated from 'utilities'. 
 // The interaction of interop and the compler should be streamlined. 
 
-fun invokeInterop(flavor: String, args: Array<String>): Array<String> {
+fun invokeInterop(flavor: String, args: Array<String>): Array<String>? {
     val cinteropArgFilter = listOf(NODEFAULTLIBS, PURGE_USER_LIBS)
 
     var outputFileName = "nativelib"
@@ -85,7 +85,7 @@ fun invokeInterop(flavor: String, args: Array<String>): Array<String> {
 
     val cinteropArgs = (additionalArgs + args.filter { it !in cinteropArgFilter }).toTypedArray()
 
-    val cinteropArgsToCompiler = interop(flavor, cinteropArgs) ?: emptyArray()
+    val cinteropArgsToCompiler = interop(flavor, cinteropArgs) ?: return null
 
     val nativeStubs = 
         if (flavor == "wasm") 
