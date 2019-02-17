@@ -31,9 +31,10 @@ val StructDecl.isAnonymous: Boolean
  * TODO: use libclang to implement?
  */
 fun Type.getStringRepresentation(): String = when (this) {
-    is VoidType -> "void"
-    is CharType -> "char"
-    is BoolType -> "BOOL"
+    VoidType -> "void"
+    CharType -> "char"
+    CBoolType -> "bool"
+    ObjCBoolType -> "BOOL"
     is IntegerType -> this.spelling
     is FloatingType -> this.spelling
 
