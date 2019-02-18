@@ -1,3 +1,7 @@
+/*
+ * Copyright 2010-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
+ * that can be found in the LICENSE file.
+ */
 package org.jetbrains.kotlin
 
 import groovy.lang.Closure
@@ -6,6 +10,7 @@ import org.gradle.api.Task
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
+import org.gradle.language.base.plugins.LifecycleBasePlugin
 
 import java.util.regex.Pattern
 
@@ -21,7 +26,7 @@ abstract class KonanTestRunner : DefaultTask() {
     var testLogger = RunnerLogger.SILENT
 
     @Input
-    lateinit var arguments: List<String>
+    lateinit var arguments: MutableList<String>
 
     @Input
     lateinit var executable: String
@@ -32,14 +37,20 @@ abstract class KonanTestRunner : DefaultTask() {
     @Input
     var useFilter = true
 
+    @Suppress("UnstableApiUsage")
     override fun configure(config: Closure<*>): Task {
         super.configure(config)
+
+        // Set Gradle properties for the better navigation
+        group = LifecycleBasePlugin.VERIFICATION_GROUP
+        description = "Kotlin/Native test infrastructure task"
+
         if (!::arguments.isInitialized) {
-            arguments = ArrayList()
+            arguments = mutableListOf()
         }
-        arguments += "--ktest_logger=$testLogger"
+        arguments.add("--ktest_logger=$testLogger")
         if (useFilter && ::source.isInitialized) {
-            arguments += "--ktest_filter=${source.convertToPattern()}"
+            arguments.add("--ktest_filter=${source.convertToPattern()}")
         }
         project.setDistDependencyFor(this)
         return this
@@ -50,12 +61,23 @@ abstract class KonanTestRunner : DefaultTask() {
 
     // Converts to runner's pattern
     private fun String.convertToPattern() = this.replace('/', '.').replace(".kt", "") + (".*")
+
+    internal fun ProcessOutput.print() {
+        val (stdOut, stdErr, exitCode) = this
+        if (project.verboseTest)
+            println("""
+                |stdout:$stdOut
+                |stderr:$stdErr
+                |exit code: $exitCode
+                """.trimMargin())
+    }
 }
 
 /**
- * Task to run and parse output of stdlib tests
+ * Task to run tests compiled with TestRunner.
+ * Runs tests with GTEST output and parses it to create statistics info
  */
-open class KonanStdlibTestRunner : KonanTestRunner() {
+open class KonanGTestRunner : KonanTestRunner() {
     init {
         // Use GTEST logger to parse test results later
         testLogger = RunnerLogger.GTEST
@@ -64,11 +86,13 @@ open class KonanStdlibTestRunner : KonanTestRunner() {
     lateinit var statistics: Statistics
 
     @TaskAction
-    override fun run() {
-        val (stdOut, stdErr, exitCode) = runProcess(executor = project.executor::execute,
-                executable = executable, args = arguments)
+    override fun run() = with(runProcess(
+            executor = project.executor::execute,
+            executable = executable,
+            args = arguments
+    )) {
         statistics = parse(stdOut)
-        println("$stdOut$stdErr")
+        print()
         check(exitCode == 0) { "Test $executable exited with $exitCode" }
     }
 
@@ -88,9 +112,8 @@ open class KonanStdlibTestRunner : KonanTestRunner() {
 
 open class KonanLocalTestRunner : KonanTestRunner() {
     init {
-        val testOutputLocal = project.findProperty("testOutputLocal")
         val target = project.testTarget()
-        executable = "$testOutputLocal/${target.name}/localTest.${target.family.exeSuffix}"
+        executable = "${project.testOutputLocal}/${target.name}/localTest.${target.family.exeSuffix}"
     }
 
     @Optional
@@ -102,47 +125,77 @@ open class KonanLocalTestRunner : KonanTestRunner() {
     @Optional
     lateinit var goldValue: String
 
+    /**
+     * Checks test's output against gold value and returns true if the output matches the expectation
+     */
+    @Optional
+    var outputChecker: (String) -> Boolean = { str -> (!::goldValue.isInitialized || goldValue == str) }
+
     @Optional
     lateinit var testData: String
 
-    override fun configure(config: Closure<*>): Task {
-        dependsOn("buildKonanTests")
-        return super.configure(config)
-    }
+    @Optional
+    var compilerMessages = false
 
     @TaskAction
     override fun run() {
-        val output = when(::testData.isInitialized) {
-            true -> runProcessWithInput(project.executor::execute, executable, arguments, testData)
-            false -> runProcess(project.executor::execute, executable, arguments)
+        var output = if (::testData.isInitialized)
+            runProcessWithInput(project.executor::execute, executable, arguments, testData)
+        else
+            runProcess(project.executor::execute, executable, arguments)
+        if (compilerMessages) {
+            val target = project.testTarget()
+            val compilationLog = project.file("${project.testOutputLocal}/${target.name}/localTest.compilation.log")
+                    .readText()
+            output = ProcessOutput(compilationLog + output.stdOut, output.stdErr, output.exitCode)
         }
-        checkOutput(output)
+        output.check()
+        output.print()
     }
 
-    private fun checkOutput(output: ProcessOutput) {
-        val (stdOut, stdErr, exitCode) = output
+    private fun ProcessOutput.check() {
+        val (stdOut, stdErr, exitCode) = this
 
         val exitCodeMismatch = exitCode != expectedExitStatus
         if (exitCodeMismatch) {
             val message = "Expected exit status: $expectedExitStatus, actual: $exitCode"
-            check(expectedFail) {
-                """
-                    Test failed. $message
-                    stdout: $stdOut
-                    stderr: $stdErr
-                    """.trimIndent()
+            check(expectedFail) { """
+                    |Test failed. $message
+                    |stdout: $stdOut
+                    |stderr: $stdErr
+                    """.trimMargin()
             }
             println("Expected failure. $message")
         }
 
         val result = stdOut + stdErr
-        val goldValueMismatch = ::goldValue.isInitialized && goldValue != result.replace(System.lineSeparator(), "\n")
+        val goldValueMismatch = !outputChecker(result.replace(System.lineSeparator(), "\n"))
         if (goldValueMismatch) {
-            val message = "Expected output: $goldValue, actual output: $result"
+            val message = if (::goldValue.isInitialized)
+                "Expected output: $goldValue, actual output: $result"
+            else
+                "Actual output doesn't match with output checker: $result"
+
             check(expectedFail) { "Test failed. $message" }
             println("Expected failure. $message")
         }
 
         check(!exitCodeMismatch && !goldValueMismatch && !expectedFail) { "Unexpected pass" }
+    }
+}
+
+open class KonanStandaloneTestRunner : KonanLocalTestRunner() {
+    @Optional
+    var flags: MutableList<String>? = null
+
+    @Optional
+    var enableKonanAssertions = true
+
+    fun getSources() = buildCompileList(project.testOutputLocal)
+
+    override fun configure(config: Closure<*>): Task {
+        super.configure(config)
+        this.dependsOn("compileKonan${source.capitalize()}")
+        return this
     }
 }

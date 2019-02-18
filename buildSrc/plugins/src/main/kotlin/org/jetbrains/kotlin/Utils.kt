@@ -4,9 +4,16 @@ import org.gradle.api.Project
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.target.PlatformManager
+import java.io.File
 
 fun Project.platformManager() = findProperty("platformManager") as PlatformManager
 fun Project.testTarget() = findProperty("target") as KonanTarget
+
+val Project.verboseTest
+    get() = hasProperty("test_verbose")
+
+val Project.testOutputLocal
+    get() = (findProperty("testOutputLocal") as File).toString()
 
 /**
  * Ad-hoc signing of the specified path

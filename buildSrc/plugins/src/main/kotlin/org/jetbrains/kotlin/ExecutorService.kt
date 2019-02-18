@@ -168,8 +168,11 @@ val Project.executor: ExecutorService
  * and checks that the program finished with zero exit code.
  */
 fun Project.executeAndCheck(executable: Path, arguments: List<String> = emptyList()) {
-    val (stdOut, stdErr, exitCode) = runProcess(executor = executor::execute,
-            executable = executable.toString(), args = arguments)
+    val (stdOut, stdErr, exitCode) = runProcess(
+            executor = executor::execute,
+            executable = executable.toString(),
+            args = arguments
+    )
 
     println("""
             |stdout: $stdOut

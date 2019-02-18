@@ -162,8 +162,21 @@ TaskCollection<KonanTest> tasksOf(Closure<Boolean> filter) {
             .matching { filter(it) && it.enabled && (prefix != null ? it.name.startsWith(prefix) : true) }
 }
 
+Task createStandaloneTest(String name, Closure<KonanStandaloneTestRunner> configureClosure) {
+    return TasksKt.createStandaloneTest(project, name) { task ->
+        configureClosure(task)
+        konanArtifacts {
+            program(name, targets: [target.name ?: 'host']) {
+                srcFiles task.getSources()
+                baseDir testOutputLocal
+                extraOpts task.flags ?: []
+            }
+        }
+    }
+}
+
 task executeTests {
-    dependsOn(tasksOf { it instanceof KonanTest && it.inDevelopersRun })
+//    dependsOn(tasksOf { it instanceof KonanTest && it.inDevelopersRun })
     dependsOn(project.tasks.withType(KonanLocalTestRunner))
     // Add framework tests
     dependsOn(project.tasks.withType(FrameworkTest))
@@ -175,7 +188,7 @@ task sanity {
     }
     dependsOn(tasksOf { it instanceof KonanTest && it.inDevelopersRun &&
             !it.getDependsOn().contains(':distPlatformLibs') })
-    dependsOn(tasksOf { it instanceof KonanStdlibTestRunner })
+    dependsOn(tasksOf { it instanceof KonanGTestRunner })
 }
 
 // Collect reports in one json.
@@ -188,7 +201,7 @@ task resultsTask() {
             statistics.add(it.testGroupReporter.statistics)
         }
         
-        tasks.withType(KonanStdlibTestRunner).matching {it.state.executed }.each {
+        tasks.withType(KonanGTestRunner).matching { it.state.executed }.each {
             statistics.add(it.statistics)
         }
 
@@ -259,7 +272,7 @@ task run_external () {
     createTestTasks(externalTestsDir, RunExternalTestGroup) { }
 
     // Set up dependencies.
-    dependsOn(tasksOf { it instanceof RunExternalTestGroup || it instanceof KonanStdlibTestRunner })
+    dependsOn(tasksOf { it instanceof RunExternalTestGroup || it instanceof KonanGTestRunner })
 }
 
 task daily() {
@@ -277,7 +290,7 @@ task slackReportNightly(type:NightlyReporter) {
     externalWindowsReport = "external_windows_results/reports.json"
 }
 
-task sum (type:KonanLocalTestRunner) {
+task sum(type: KonanLocalTestRunner) {
     source = "codegen/function/sum.kt"
 }
 
@@ -321,8 +334,8 @@ task objectInitialization1(type: KonanLocalTestRunner) {
     source = "codegen/object/initialization1.kt"
 }
 
-task object_globalInitializer(type: RunStandaloneKonanTest) {
-    source = "codegen/object/globalInitializer.kt"
+createStandaloneTest("object_globalInitializer") {
+    it.source = "codegen/object/globalInitializer.kt"
 }
 
 task check_type(type: KonanLocalTestRunner) {
@@ -347,7 +360,6 @@ task aritmetic(type: KonanLocalTestRunner) {
 
 task sum1(type: KonanLocalTestRunner) {
     source = "codegen/function/sum_foo_bar.kt"
-
 }
 
 task sum2(type: KonanLocalTestRunner) {
@@ -582,9 +594,9 @@ task array_to_any(type: KonanLocalTestRunner) {
     source = "codegen/basics/array_to_any.kt"
 }
 
-task runtime_basic_exit(type: RunStandaloneKonanTest) {
-    source = "runtime/basic/exit.kt"
-    expectedExitStatus = 42
+createStandaloneTest("runtime_basic_exit") {
+    it.source = "runtime/basic/exit.kt"
+    it.expectedExitStatus = 42
 }
 
 task runtime_random(type: KonanLocalTestRunner) {
@@ -601,16 +613,16 @@ task hello0(type: KonanLocalTestRunner) {
     source = "runtime/basic/hello0.kt"
 }
 
-task hello1(type: RunStandaloneKonanTest) {
-    goldValue = "Hello World"
-    testData = "Hello World\n"
-    source = "runtime/basic/hello1.kt"
+createStandaloneTest("hello1") {
+    it.goldValue = "Hello World"
+    it.testData = "Hello World\n"
+    it.source = "runtime/basic/hello1.kt"
 }
 
-task hello2(type: RunStandaloneKonanTest) {
-    goldValue = "you entered 'Hello World'"
-    testData = "Hello World\n"
-    source = "runtime/basic/hello2.kt"
+createStandaloneTest("hello2") {
+    it.goldValue = "you entered 'Hello World'"
+    it.testData = "Hello World\n"
+    it.source = "runtime/basic/hello2.kt"
 }
 
 task hello3(type: KonanLocalTestRunner) {
@@ -628,16 +640,16 @@ task enumEquals(type: KonanLocalTestRunner) {
     source = "runtime/basic/enum_equals.kt"
 }
 
-task entry0(type: RunStandaloneKonanTest) {
-    goldValue = "Hello.\n"
-    source = "runtime/basic/entry0.kt"
-    flags = ["-entry", "runtime.basic.entry0.main"]
+createStandaloneTest("entry0") {
+    it.goldValue = "Hello.\n"
+    it.source = "runtime/basic/entry0.kt"
+    it.flags = ["-entry", "runtime.basic.entry0.main"]
 }
 
-task entry1(type: RunStandaloneKonanTest) {
-    goldValue = "Hello.\n"
-    source = "runtime/basic/entry1.kt"
-    flags = ["-entry", "foo"]
+createStandaloneTest("entry1") {
+    it.goldValue = "Hello.\n"
+    it.source = "runtime/basic/entry1.kt"
+    it.flags = ["-entry", "foo"]
 }
 
 task entry2(type: LinkKonanTest) {
@@ -647,27 +659,27 @@ task entry2(type: LinkKonanTest) {
     flags = ["-entry", "foo"] 
 }
 
-task entry3(type: RunStandaloneKonanTest) {
-    goldValue = "Hello, without args.\n"
-    source = "runtime/basic/entry1.kt"
-    flags = ["-entry", "bar"]
+createStandaloneTest("entry3") {
+    it.goldValue = "Hello, without args.\n"
+    it.source = "runtime/basic/entry1.kt"
+    it.flags = ["-entry", "bar"]
 }
 
-task entry4(type: RunStandaloneKonanTest) {
-    goldValue = "This is main without args\n"
-    source = "runtime/basic/entry4.kt"
+createStandaloneTest("entry4") {
+    it.goldValue = "This is main without args\n"
+    it.source = "runtime/basic/entry4.kt"
 }
 
-task readline0(type: RunStandaloneKonanTest) {
-    goldValue = "41"
-    testData = "41\r\n"
-    source = "runtime/basic/readline0.kt"
+createStandaloneTest("readline0") {
+    it.goldValue = "41"
+    it.testData = "41\r\n"
+    it.source = "runtime/basic/readline0.kt"
 }
 
-task readline1(type: RunStandaloneKonanTest) {
-    goldValue = ""
-    testData = "\n"
-    source = "runtime/basic/readline1.kt"
+createStandaloneTest("readline1") {
+    it.goldValue = ""
+    it.testData = "\n"
+    it.source = "runtime/basic/readline1.kt"
 }
 
 task tostring0(type: KonanLocalTestRunner) {
@@ -842,9 +854,9 @@ task lazy1(type: KonanLocalTestRunner) {
     source = "runtime/workers/lazy1.kt"
 }
 
-task lazy2(type: RunStandaloneKonanTest) {
-    goldValue = "123\nOK\n"
-    source = "runtime/workers/lazy2.kt"
+createStandaloneTest("lazy2") {
+    it.goldValue = "123\nOK\n"
+    it.source = "runtime/workers/lazy2.kt"
 }
 
 task enumIdentity(type: KonanLocalTestRunner) {
@@ -1256,9 +1268,9 @@ task classDelegation_linkTest(type: LinkKonanTest) {
     lib = "codegen/classDelegation/linkTest_lib.kt"
 }
 
-task contracts(type: RunStandaloneKonanTest) {
-    flags = [ '-Xuse-experimental=kotlin.Experimental', '-tr' ]
-    source = "codegen/contracts/contracts.kt"
+createStandaloneTest("contracts") {
+    it.flags = [ '-Xuse-experimental=kotlin.Experimental', '-tr' ]
+    it.source = "codegen/contracts/contracts.kt"
 }
 
 task delegatedProperty_simpleVal(type: KonanLocalTestRunner) {
@@ -1624,10 +1636,10 @@ task sort1(type: KonanLocalTestRunner) {
 
 // TODO: Enable devirtualization and make the test not standalone
 // when KT-26315 is fixed.
-task sortWith(type: RunStandaloneKonanTest) {
-    source = "runtime/collections/SortWith.kt"
-    flags = ['-tr', '-Xdisable=devirtualization']
-    arguments = ['--ktest_logger=SILENT']
+createStandaloneTest("sortWith") {
+    it.source = "runtime/collections/SortWith.kt"
+    it.flags = ['-tr', '-Xdisable=devirtualization']
+    it.arguments = ['--ktest_logger=SILENT']
 }
 
 task if_else(type: KonanLocalTestRunner) {
@@ -1768,23 +1780,23 @@ task link_omit_unused(type: LinkKonanTest) {
     lib = "link/omit/lib.kt"
 }
 
-task link_default_libs(type: RunStandaloneKonanTest) {
+createStandaloneTest("link_default_libs") {
     dependsOnPlatformLibs(it)
-    enabled = (project.testTarget != 'wasm32') // there will be no posix.klib for wasm
-    goldValue = "sizet = 0\n"
-    source = "link/default/default.kt"
+    it.enabled = (project.testTarget != 'wasm32') // there will be no posix.klib for wasm
+    it.goldValue = "sizet = 0\n"
+    it.source = "link/default/default.kt"
 }
 
-task link_testLib_explicitly(type: RunStandaloneKonanTest) {
+createStandaloneTest("link_testLib_explicitly") {
     // there are no testLibrary for cross targets yet.
-    enabled = project.testTarget == null || project.testTarget == project.hostName
+    it.enabled = project.testTarget == null || project.testTarget == project.hostName
 
-    dependsOn 'installTestLibrary'
-    goldValue = "This is a side effect of a test library linked into the binary.\nYou should not be seeing this.\n\nHello\n"
-    source = "link/omit/hello.kt"
+    it.dependsOn 'installTestLibrary'
+    it.goldValue = "This is a side effect of a test library linked into the binary.\nYou should not be seeing this.\n\nHello\n"
+    it.source = "link/omit/hello.kt"
     // We force library inclusion, so need to see the warning banner.
-    flags = ['-l', 'testLibrary'] 
-    doLast {
+    it.flags = ['-l', 'testLibrary']
+    it.doLast {
         def file = new File("$testLibraryDir/testLibrary")
         file.deleteDir()
     }
@@ -1813,9 +1825,9 @@ task statements0(type: KonanLocalTestRunner) {
     source = "runtime/basic/statements0.kt"
 }
 
-task annotations0(type: RunStandaloneKonanTest) {
-    source = "codegen/annotations/annotations0.kt"
-    flags = ['-tr']
+createStandaloneTest("annotations0") {
+    it.source = "codegen/annotations/annotations0.kt"
+    it.flags = ['-tr']
 }
 
 task boxing0(type: KonanLocalTestRunner) {
@@ -2059,17 +2071,17 @@ task extend_exception(type: KonanLocalTestRunner) {
     source = "runtime/exceptions/extend0.kt"
 }
 
-task check_stacktrace_format(type: RunStandaloneKonanTest) {
-    disabled = !isAppleTarget(project)
-    flags = ['-g']
-    source = "runtime/exceptions/check_stacktrace_format.kt"
+createStandaloneTest("check_stacktrace_format") {
+    it.enabled = isAppleTarget(project)
+    it.flags = ['-g']
+    it.source = "runtime/exceptions/check_stacktrace_format.kt"
 }
 
-task custom_hook(type: RunStandaloneKonanTest) {
-    disabled = (project.testTarget == 'wasm32') // Uses exceptions.
-    goldValue = "value 42: Error\n"
-    expectedExitStatus = 1
-    source = "runtime/exceptions/custom_hook.kt"
+createStandaloneTest("custom_hook") {
+    it.enabled = (project.testTarget != 'wasm32') // Uses exceptions.
+    it.goldValue = "value 42: Error\n"
+    it.expectedExitStatus = 1
+    it.source = "runtime/exceptions/custom_hook.kt"
 }
 
 task runtime_math_exceptions(type: KonanLocalTestRunner) {
@@ -2222,10 +2234,10 @@ task range0(type: KonanLocalTestRunner) {
     source = "runtime/collections/range0.kt"
 }
 
-task args0(type: RunStandaloneKonanTest) {
-    arguments = ["AAA", "BB", "C"]
-    goldValue = "AAA\nBB\nC\n"
-    source = "runtime/basic/args0.kt"
+createStandaloneTest("args0") {
+    it.arguments = ["AAA", "BB", "C"]
+    it.goldValue = "AAA\nBB\nC\n"
+    it.source = "runtime/basic/args0.kt"
 }
 
 task spread_operator_0(type: KonanLocalTestRunner) {
@@ -2243,20 +2255,20 @@ task runtime_basic_standard(type: KonanLocalTestRunner) {
     source = "runtime/basic/standard.kt"
 }
 
-task runtime_basic_assert_failed(type: RunStandaloneKonanTest) {
-    expectedExitStatus = 1
-    source = "runtime/basic/assert_failed.kt"
+createStandaloneTest("runtime_basic_assert_failed") {
+    it.expectedExitStatus = 1
+    it.source = "runtime/basic/assert_failed.kt"
 }
 
-task runtime_basic_assert_passed(type: RunStandaloneKonanTest) {
-    expectedExitStatus = 0
-    source = "runtime/basic/assert_passed.kt"
+createStandaloneTest("runtime_basic_assert_passed") {
+    it.expectedExitStatus = 0
+    it.source = "runtime/basic/assert_passed.kt"
 }
 
-task runtime_basic_assert_disabled(type: RunStandaloneKonanTest) {
-    expectedExitStatus = 0
-    enableKonanAssertions = false
-    source = "runtime/basic/assert_failed.kt"
+createStandaloneTest("runtime_basic_assert_disabled") {
+    it.expectedExitStatus = 0
+    it.enableKonanAssertions = false
+    it.source = "runtime/basic/assert_failed.kt"
 }
 
 task initializers0(type: KonanLocalTestRunner) {
@@ -2353,9 +2365,9 @@ task lambda13(type: KonanLocalTestRunner) {
     source = "codegen/lambda/lambda13.kt"
 }
 
-task lambda14(type: RunStandaloneKonanTest) {
-    source = "codegen/lambda/lambda14.kt"
-    flags = ['-tr']
+createStandaloneTest("lambda14") {
+    it.source = "codegen/lambda/lambda14.kt"
+    it.flags = ['-tr']
 }
 
 task objectExpression1(type: KonanLocalTestRunner) {
@@ -2373,14 +2385,14 @@ task objectExpression3(type: KonanLocalTestRunner) {
     source = "codegen/objectExpression/expr3.kt"
 }
 
-task initializers2(type: RunStandaloneKonanTest) {
-    goldValue = "init globalValue2\n" +
+createStandaloneTest("initializers2") {
+    it.goldValue = "init globalValue2\n" +
                 "init globalValue3\n" +
                 "1\n" +
                 "globalValue2\n" +
                 "globalValue3\n"
 
-    source = "runtime/basic/initializers2.kt"
+    it.source = "runtime/basic/initializers2.kt"
 }
 
 task initializers3(type: KonanLocalTestRunner) {
@@ -2463,13 +2475,13 @@ task memory_weak1(type: KonanLocalTestRunner) {
     source = "runtime/memory/weak1.kt"
 }
 
-task memory_only_gc(type: RunStandaloneKonanTest) {
-    source = "runtime/memory/only_gc.kt"
+createStandaloneTest("memory_only_gc") {
+    it.source = "runtime/memory/only_gc.kt"
 }
 
-task mpp1(type: RunStandaloneKonanTest) {
-    source = "codegen/mpp/mpp1.kt"
-    flags = ['-tr', '-Xmulti-platform']
+createStandaloneTest("mpp1") {
+    it.source = "codegen/mpp/mpp1.kt"
+    it.flags = ['-tr', '-Xmulti-platform']
 }
 
 task mpp2(type: LinkKonanTest) {
@@ -2479,15 +2491,15 @@ task mpp2(type: LinkKonanTest) {
     flags = ['-Xmulti-platform']
 }
 
-task mpp_default_args(type: RunStandaloneKonanTest) {
-    source = "codegen/mpp/mpp_default_args.kt"
-    flags = ['-tr', '-Xmulti-platform']
+createStandaloneTest("mpp_default_args") {
+    it.source = "codegen/mpp/mpp_default_args.kt"
+    it.flags = ['-tr', '-Xmulti-platform']
 }
 
-task mpp_optional_expectation(type: RunStandaloneKonanTest) {
-    source = "codegen/mpp/mpp_optional_expectation.kt"
-    def outputRoot = project.ext."$outputSourceSetName"
-    flags = [
+createStandaloneTest("mpp_optional_expectation") {
+    it.source = "codegen/mpp/mpp_optional_expectation.kt"
+    def outputRoot = project.ext.testOutputLocal
+    it.flags = [
             '-Xmulti-platform',
             "-Xcommon-sources=$outputRoot/$name/mpp_optional_expectation.kt"
     ]
@@ -2778,9 +2790,9 @@ task serialized_default_args(type: LinkKonanTest) {
     goldValue = "SomeDataClass(first=17, second=666, third=23)\n"
 }
 
-task serialized_no_typemap(type: RunStandaloneKonanTest) {
-    source = "serialization/regression/no_type_map.kt"
-    goldValue = "OK\n"
+createStandaloneTest("serialized_no_typemap") {
+    it.source = "serialization/regression/no_type_map.kt"
+    it.goldValue = "OK\n"
 }
 
 task serialized_enum_ordinal(type: LinkKonanTest) {
@@ -2795,11 +2807,11 @@ task serialized_char_constant(type: LinkKonanTest) {
     goldValue = "Ы\n"
 }
 
-task testing_annotations(type: RunStandaloneKonanTest) {
-    source = "testing/annotations.kt"
-    flags = ['-tr']
-    arguments = ['--ktest_logger=SIMPLE']
-    goldValue = 'Starting testing\nStarting iteration: 1\n' +
+createStandaloneTest("testing_annotations") {
+    it.source = "testing/annotations.kt"
+    it.flags = ['-tr']
+    it.arguments = ['--ktest_logger=SIMPLE']
+    it.goldValue = 'Starting testing\nStarting iteration: 1\n' +
             'Test suite ignored: kotlin.test.tests.IgnoredClass.IgnoredObject\n' +
             'Test suite ignored: kotlin.test.tests.IgnoredClass\nTest suite ignored: kotlin.test.tests.IgnoredObject\n' +
             'Starting test suite: kotlin.test.tests.A\nbeforeClass (A.companion)\n' +
@@ -2821,18 +2833,18 @@ task testing_annotations(type: RunStandaloneKonanTest) {
             'Test suite finished: kotlin.test.tests.AnnotationsKt\nIteration finished: 1\nTesting finished\n'
 }
 
-task testing_assertions(type: RunStandaloneKonanTest) {
-    source = "testing/assertions.kt"
-    flags = ['-tr']
-    expectedFail = (project.testTarget == 'wasm32') // Uses exceptions.
-    expectedExitStatus = 0
+createStandaloneTest("testing_assertions") {
+    it.source = "testing/assertions.kt"
+    it.flags = ['-tr']
+    it.expectedFail = (project.testTarget == 'wasm32') // Uses exceptions.
+    it.expectedExitStatus = 0
 }
 
-task testing_custom_main(type: RunStandaloneKonanTest) {
-    source = "testing/custom_main.kt"
-    flags = ['-tr', '-e', 'kotlin.test.tests.main']
-    arguments = ['--ktest_logger=SIMPLE', '--ktest_repeat=2']
-    goldValue = 'Custom main\n' +
+createStandaloneTest("testing_custom_main") {
+    it.source = "testing/custom_main.kt"
+    it.flags = ['-tr', '-e', 'kotlin.test.tests.main']
+    it.arguments = ['--ktest_logger=SIMPLE', '--ktest_repeat=2']
+    it.goldValue = 'Custom main\n' +
             'Starting testing\n' +
             'Starting iteration: 1\n' +
             'Starting test suite: kotlin.test.tests.Custom_mainKt\n' +
@@ -2851,13 +2863,13 @@ task testing_custom_main(type: RunStandaloneKonanTest) {
             'Testing finished\n'
 }
 
-task testing_library_usage(type: RunStandaloneKonanTest) {
+createStandaloneTest("testing_library_usage") {
     def target = project.testTarget ?: 'host'
-    dependsOn konanArtifacts.baseTestClass.getByTarget(target)
+    it.dependsOn konanArtifacts.baseTestClass.getByTarget(target)
     def klib = konanArtifacts.baseTestClass.getArtifactByTarget(target)
-    source = 'testing/library_user.kt'
-    flags = ['-tr', '-e', 'main', '-l', klib.absolutePath]
-    arguments = ['--ktest_logger=SILENT']
+    it.source = 'testing/library_user.kt'
+    it.flags = ['-tr', '-e', 'main', '-l', klib.absolutePath]
+    it.arguments = ['--ktest_logger=SILENT']
 }
 
 // Just check that the driver is able to produce runnable binaries.
@@ -2983,11 +2995,11 @@ task interop4(type: RunInteropKonanTest) {
     interop = 'cstdio'
 }
 
-task interop5(type: RunStandaloneKonanTest) {
+createStandaloneTest("interop5") {
     dependsOnPlatformLibs(it)
-    disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
-    goldValue = "Hello!\n"
-    source = "interop/basics/5.kt"
+    it.enabled = (project.testTarget != 'wasm32') // No interop for wasm yet.
+    it.goldValue = "Hello!\n"
+    it.source = "interop/basics/5.kt"
 }
 
 task interop_bitfields(type: RunInteropKonanTest) {
@@ -3042,12 +3054,15 @@ task interop_echo_server(type: RunInteropKonanTest) {
     interop = 'sockets'
 }
 
-task interop_opengl_teapot(type: RunStandaloneKonanTest) {
-    disabled = !isAppleTarget(project) || (project.testTarget == 'ios_x64')  // No GLUT in iOS
+/*
+TODO: This test isn't run automatically 
+createStandaloneTest("interop_opengl_teapot") {
+    it.enabled = isAppleTarget(project) && project.testTarget != 'ios_x64'  // No GLUT in iOS
     dependsOnPlatformLibs(it as Task)
     run = false
-    source = "interop/basics/opengl_teapot.kt"
+    it.source = "interop/basics/opengl_teapot.kt"
 }
+*/
 
 task interop_objc_smoke(type: RunInteropKonanTest) {
     disabled = !isAppleTarget(project)
@@ -3076,33 +3091,33 @@ task interop_objc_smoke(type: RunInteropKonanTest) {
     }
 }
 
-task jsinterop_math(type: RunStandaloneKonanTest) {
-    doFirst {
+createStandaloneTest("jsinterop_math") {
+    it.doFirst {
         def jsinteropScript = isWindows() ? "jsinterop.bat" : "jsinterop"
         def jsinterop = "$dist/bin/$jsinteropScript"
         // TODO: We probably need a NativeInteropPlugin for jsinterop?
         "$jsinterop -pkg kotlinx.interop.wasm.math -o $buildDir/jsmath -target wasm32".execute().waitFor()
 
     }
-    dependsOn ':wasm32PlatformLibs'
-    disabled = (project.testTarget != 'wasm32')
-    goldValue = "e = 2.718281828459045, pi = 3.141592653589793, sin(pi) = 1.2246467991473532E-16, sin(pi/2) = 1.0, ln(1) = 0.0, ln(e) = 1.0\n"
-    source = "jsinterop/math.kt"
-    flags = ["-r", "$buildDir", "-l", "jsmath"]
+    it.dependsOn ':wasm32PlatformLibs'
+    it.enabled = (project.testTarget == 'wasm32')
+    it.goldValue = "e = 2.718281828459045, pi = 3.141592653589793, sin(pi) = 1.2246467991473532E-16, sin(pi/2) = 1.0, ln(1) = 0.0, ln(e) = 1.0\n"
+    it.source = "jsinterop/math.kt"
+    it.flags = ["-r", "$buildDir", "-l", "jsmath"]
 }
 
-task interop_libiconv(type: RunStandaloneKonanTest) {
+createStandaloneTest("interop_libiconv") {
     dependsOnPlatformLibs(it)
-    disabled = (project.testTarget != null)
-    source = "interop/libiconv.kt"
-    goldValue = "72 72\n101 101\n108 108\n108 108\n111 111\n33 33\n"
+    it.enabled = (project.testTarget == null)
+    it.source = "interop/libiconv.kt"
+    it.goldValue = "72 72\n101 101\n108 108\n108 108\n111 111\n33 33\n"
 }
 
-task interop_zlib(type: RunStandaloneKonanTest) {
+createStandaloneTest("interop_zlib") {
     dependsOnPlatformLibs(it)
-    disabled = (project.testTarget != null)
-    source = "interop/platform_zlib.kt"
-    goldValue = "Hello!\nHello!\n"
+    it.enabled = (project.testTarget == null)
+    it.source = "interop/platform_zlib.kt"
+    it.goldValue = "Hello!\nHello!\n"
 }
 
 task produce_dynamic(type: DynamicKonanTest) {
@@ -3125,9 +3140,9 @@ task produce_dynamic(type: DynamicKonanTest) {
                 "topLevel = 777 3\n"
 }
 
-task library_mismatch(type: RunStandaloneKonanTest) {
+createStandaloneTest("library_mismatch") {
     // Does not work for cross targets yet.
-    disabled = (project.testTarget != null && project.testTarget != project.hostName)
+    it.enabled = !(project.testTarget != null && project.testTarget != project.hostName)
 
     def dir = buildDir.absolutePath
     def lib = "$projectDir/link/versioning/empty.kt"
@@ -3136,10 +3151,10 @@ task library_mismatch(type: RunStandaloneKonanTest) {
     def someOtherTarget = (project.testTarget == 'wasm32' ? project.hostName : 'wasm32')
 
     if (!useCustomDist) {
-        dependsOn ':wasm32CrossDistRuntime' // we actually need any target other than the current one.
+        it.dependsOn ':wasm32CrossDistRuntime' // we actually§ need any target other than the current one.
     }
 
-    doFirst {
+    it.doFirst {
         def konancScript = isWindows() ? "konanc.bat" : "konanc"
         def konanc = "$dist/bin/$konancScript"
         "$konanc $lib -p library -o $dir/1.2/empty -target $currentTarget -lv 1.2".execute().waitFor()
@@ -3148,20 +3163,20 @@ task library_mismatch(type: RunStandaloneKonanTest) {
         "$konanc $lib -p library -o $dir/7.8/empty -target $currentTarget -lv 7.8".execute().waitFor()
 
     }
-    source = "link/versioning/hello.kt"
-    flags = ['-l', 'empty@5.6', '-r', "$dir/1.2", '-r', "$dir/3.4", '-r', "$dir/5.6"]
-    compilerMessages = true
+    it.source = "link/versioning/hello.kt"
+    it.flags = ['-l', 'empty@5.6', '-r', "$dir/1.2", '-r', "$dir/3.4", '-r', "$dir/5.6"]
+    it.compilerMessages = true
     def messages =
         "warning: skipping $dir/1.2/empty.klib. The library versions don't match. Expected '5.6', found '1.2'\n" +
         "warning: skipping $dir/3.4/empty.klib. The target doesn't match. Expected '$currentTarget', found [$someOtherTarget]\n" +
         "Hello, versioned world!\n"
-    goldValue = isWindows() ? messages.replaceAll('\\/', '\\\\') : messages
+    it.goldValue = isWindows() ? messages.replaceAll('\\/', '\\\\') : messages
 }
 
-if (isAppleTarget(project)) {
-    def target = ext.platformManager.targetByName(project.testTarget ?: 'host')
-    def targetName = target.name
+def target = ext.platformManager.targetByName(project.testTarget ?: 'host')
+def targetName = target.name
 
+if (isAppleTarget(project)) {
     task testValuesFramework(type: FrameworkTest) {
         frameworkName = 'Values'
         konanArtifacts {
@@ -3234,7 +3249,6 @@ TasksKt.createStdlibTest(project, 'harmonyRegexTest') { task ->
     }
 }
 
-
 TasksKt.createStdlibTest(project, 'stdlibTest') { task ->
     def sources = getFilesFrom([ 'build/stdlib_external/stdlib', 'stdlib_external/utils.kt',
                                  'stdlib_external/jsCollectionFactoriesActuals.kt' ],
@@ -3252,13 +3266,16 @@ TasksKt.createStdlibTest(project, 'stdlibTest') { task ->
     task.arguments = [ "--ktest_negative_regex_filter=test.collections.CollectionTest.abstractCollectionToArray" ]
 }
 
-task buildKonanTests {
-    def compileList = [ "codegen",  "datagen", "lower", "runtime", "serialization"]
+/**
+ * Builds tests into a single binary with TestRunner
+ */
+task buildKonanTests { t ->
+    def compileList = [ "codegen",  "datagen", "lower", "runtime", "serialization" ]
 
     // These tests should not be built into the TestRunner's test executable
     def excludeList = ["codegen/inline/returnLocalClassFromBlock.kt"]
-    project.tasks.withType(KonanTest)
-            .matching { ! (it instanceof KonanTestRunner) }
+    project.tasks
+            .matching { it instanceof KonanTest || it instanceof KonanStandaloneTestRunner }
             .each {
                 // add library and source files
                 if (it instanceof LinkKonanTest) {
@@ -3278,6 +3295,9 @@ task buildKonanTests {
         }
     }
 
+    // Set build dependencies.
     dependsOn compileKonanLocalTest
-    TasksKt.setDistDependencyFor(project, compileKonanLocalTest)
+    TasksKt.setDistDependencyFor(project, "compileKonanLocalTest${targetName.capitalize()}")
+    // Local tests build into a single binary should depend on this task
+    project.tasks.withType(KonanLocalTestRunner).forEach { it.dependsOn(t) }
 }
