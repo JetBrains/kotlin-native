@@ -33,7 +33,7 @@ val StructDecl.isAnonymous: Boolean
 fun Type.getStringRepresentation(): String = when (this) {
     VoidType -> "void"
     CharType -> "char"
-    CBoolType -> "bool"
+    CBoolType -> "_Bool"
     ObjCBoolType -> "BOOL"
     is IntegerType -> this.spelling
     is FloatingType -> this.spelling

@@ -469,11 +469,6 @@ internal class NativeIndexImpl(val library: NativeLibrary, val verbose: Boolean 
         Language.OBJECTIVE_C -> supplier()
     }
 
-    private fun boolType() = when (library.language) {
-        Language.C -> CBoolType
-        Language.OBJECTIVE_C -> ObjCBoolType
-    }
-
     private fun convertUnqualifiedPrimitiveType(type: CValue<CXType>): Type = when (type.kind) {
         CXTypeKind.CXType_Char_U, CXTypeKind.CXType_Char_S -> {
             assert(type.getSize() == 1L)
@@ -499,7 +494,7 @@ internal class NativeIndexImpl(val library: NativeLibrary, val verbose: Boolean 
                 spelling = clang_getTypeSpelling(type).convertAndDispose()
         )
 
-        CXTypeKind.CXType_Bool -> boolType()
+        CXTypeKind.CXType_Bool -> CBoolType
 
         else -> UnsupportedType
     }
