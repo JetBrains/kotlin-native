@@ -79,6 +79,19 @@ fun parseCommandLineString(value: () -> Array<String>) = object: ReadOnlyPropert
     }
 }
 
+fun escapeToCommandLineString(args: Iterable<String>) : String {
+    return args.joinToString(separator = " ", transform = {
+        when {
+            it.startsWith("\'") && it.endsWith("\'") -> it
+            it.startsWith("\"") && it.endsWith("\"") -> it
+            it.contains(" ") -> "\"$it\""
+            it.isEmpty() -> "\"\""
+            //TODO: possible incorrect case for "a b c\" (slash escapes ")
+            else -> it
+        }
+    })
+}
+
 fun parseCommandLineString(cmdString: String): List<String> {
     //inspired by IntelliJ IDEA source code (Apache 2.0 by JetBrains)
     //com.intellij.openapi.util.text.StringUtilRt#splitHonorQuotes

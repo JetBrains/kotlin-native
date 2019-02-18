@@ -19,6 +19,7 @@ package org.jetbrains.kotlin.konan.exec
 import java.lang.ProcessBuilder
 import java.lang.ProcessBuilder.Redirect
 import org.jetbrains.kotlin.konan.KonanExternalToolFailure
+import org.jetbrains.kotlin.konan.util.escapeToCommandLineString
 
 
 open class Command(initialCommand: List<String>) {
@@ -106,6 +107,6 @@ open class Command(initialCommand: List<String>) {
     }
 
     private fun log() {
-        if (logger != null) logger!! { command.toList<String>().joinToString(" ") }
+        if (logger != null) logger!! { escapeToCommandLineString(command.toList()) }
     }
 }
