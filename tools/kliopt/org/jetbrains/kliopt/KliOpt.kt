@@ -222,7 +222,7 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
             } else {
                 // Argument is found.
                 if (!saveAsArg(argDescriptors, arg, processedValues)) {
-                    printError("Too many arguments!")
+                    printError("Too many arguments! Couldn't proccess argument $arg!")
                 }
             }
             index++

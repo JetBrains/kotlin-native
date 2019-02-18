@@ -40,7 +40,7 @@ fun getCommonInteropArguments() = listOf(
 fun getCInteropArguments(): List<OptionDescriptor> {
     val options = listOf(
             OptionDescriptor(ArgType.String(), "import", description = "a semicolon separated list of headers, prepended with the package name",
-                    isMultiple = true, delimiter = ";"),
+                    isMultiple = true, delimiter = ","),
             OptionDescriptor(ArgType.String(), "target", description = "native target to compile to"),
             OptionDescriptor(ArgType.String(), "def", description = "the library definition file"),
             OptionDescriptor(ArgType.String(), "header", "hd", "header file to produce kotlin bindings for",

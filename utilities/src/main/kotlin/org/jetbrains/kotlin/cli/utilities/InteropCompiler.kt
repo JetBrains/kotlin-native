@@ -6,7 +6,6 @@ package org.jetbrains.kotlin.cli.utilities
 
 import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.target.PlatformManager
-import org.jetbrains.kotlin.konan.KonanAbiVersion
 import org.jetbrains.kotlin.konan.library.*
 import org.jetbrains.kotlin.konan.target.Distribution
 import org.jetbrains.kotlin.native.interop.gen.jvm.interop
@@ -16,11 +15,9 @@ private const val NODEFAULTLIBS = "-nodefaultlibs"
 private const val PURGE_USER_LIBS = "-Xpurge-user-libs"
 
 // TODO: this function should eventually be eliminated from 'utilities'. 
-// The interaction of interop and the compler should be streamlined. 
+// The interaction of interop and the compler should be streamlined.
 
 fun invokeInterop(flavor: String, args: Array<String>): Array<String>? {
-    val cinteropArgFilter = listOf(NODEFAULTLIBS, PURGE_USER_LIBS)
-
     var outputFileName = "nativelib"
     var targetRequest = "host"
     val libraries = mutableListOf<String>()
@@ -28,25 +25,50 @@ fun invokeInterop(flavor: String, args: Array<String>): Array<String>? {
     var noDefaultLibs = false
     var purgeUserLibs = false
     var temporaryFilesDir = ""
-    for (i in args.indices) {
-        val arg = args[i]
-        val nextArg = args.getOrNull(i + 1)
-        if (arg.startsWith("-o"))
-            outputFileName = nextArg ?: outputFileName
-        if (arg == "-target")
-            targetRequest = nextArg ?: targetRequest
-        if (arg == "-library")
-            libraries.addIfNotNull(nextArg)
-        if (arg == "-r" || arg == "-repo")
-            repos.addIfNotNull(nextArg)
-        if (arg == NODEFAULTLIBS)
-            noDefaultLibs = true
-        if (arg == PURGE_USER_LIBS)
-            purgeUserLibs = true
-        if (arg == "-Xtemporary-files-dir")
-            temporaryFilesDir = nextArg ?: ""
-    }
+    var saveNext = true
 
+    val filteredInteropArgs = args.filterIndexed { i, arg ->
+        val nextArg = args.getOrNull(i + 1)
+        when {
+            arg.startsWith("-o") -> {
+                outputFileName = nextArg ?: outputFileName
+                saveNext = false
+                false
+            }
+            arg == "-target" -> {
+                targetRequest = nextArg ?: targetRequest
+                true
+            }
+            arg == "-library" -> {
+                libraries.addIfNotNull(nextArg)
+                saveNext = false
+                false
+            }
+            (arg == "-r" || arg == "-repo") -> {
+                repos.addIfNotNull(nextArg)
+                saveNext = false
+                false
+            }
+            arg == NODEFAULTLIBS -> {
+                noDefaultLibs = true
+                false
+            }
+            arg == PURGE_USER_LIBS -> {
+                purgeUserLibs = true
+                false
+            }
+            arg == "-Xtemporary-files-dir" -> {
+                temporaryFilesDir = nextArg ?: ""
+                saveNext = false
+                false
+            }
+            else -> {
+                val savedResult = saveNext
+                saveNext = true
+                savedResult
+            }
+        }
+    }
 
     val buildDir = File("$outputFileName-build")
     val generatedDir = File(buildDir, "kotlin")
@@ -82,7 +104,7 @@ fun invokeInterop(flavor: String, args: Array<String>): Array<String>? {
         "-temporaryFilesDir", temporaryFilesDir
     ) + if (flavor == "native") listOf("-cstubsname", cstubsName) + importArgs else listOf()
 
-    val cinteropArgs = (additionalArgs + args.filter { it !in cinteropArgFilter }).toTypedArray()
+    val cinteropArgs = (additionalArgs + filteredInteropArgs).toTypedArray()
 
     val cinteropArgsToCompiler = interop(flavor, cinteropArgs) ?: return null
 
