@@ -23,6 +23,7 @@ import org.jetbrains.kotlin.konan.properties.loadProperties
 import org.jetbrains.kotlin.konan.properties.propertyList
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.util.defaultTargetSubstitutions
+import org.jetbrains.kotlin.konan.util.getParsedCommandLineString
 import org.jetbrains.kotlin.konan.util.substitute
 
 class KonanLibraryImpl(
@@ -51,7 +52,7 @@ class KonanLibraryImpl(
         get() = manifestProperties.readKonanLibraryVersioning()
 
     override val linkerOpts: List<String>
-        get() = manifestProperties.propertyList(KLIB_PROPERTY_LINKED_OPTS)
+        get() = manifestProperties.getParsedCommandLineString(KLIB_PROPERTY_LINKED_OPTS)
 
     override val bitcodePaths: List<String>
         get() = layout.realFiles { (it.kotlinDir.listFilesOrEmpty + it.nativeDir.listFilesOrEmpty).map { it.absolutePath } }

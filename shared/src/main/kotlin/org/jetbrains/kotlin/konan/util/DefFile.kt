@@ -57,7 +57,7 @@ class DefFile(val file:File?, val config:DefFileConfig, val manifestAddendProper
         }
 
         val linkerOpts by lazy {
-            properties.getSpaceSeparated("linkerOpts")
+            properties.getParsedCommandLineString("linkerOpts")
         }
 
         val linker by lazy {
