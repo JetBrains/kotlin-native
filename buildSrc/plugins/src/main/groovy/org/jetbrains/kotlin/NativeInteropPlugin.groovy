@@ -222,7 +222,7 @@ class NamedNativeInteropConfig implements Named {
 
                 args '-generated', generatedSrcDir
                 args '-natives', nativeLibsDir
-                args '-temporaryFilesDir', temporaryFilesDir
+                args '-Xtemporary-files-dir', temporaryFilesDir
                 args '-flavor', this.flavor
                 // Uncomment to debug.
                 // args '-verbose', 'true'

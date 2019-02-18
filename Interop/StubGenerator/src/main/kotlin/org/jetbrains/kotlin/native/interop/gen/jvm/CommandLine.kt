@@ -18,6 +18,11 @@ package org.jetbrains.kotlin.native.interop.tool
 
 import org.jetbrains.kliopt.*
 
+const val HEADER_FILTER_ADDITIONAL_SEARCH_PREFIX = "headerFilterAdditionalSearchPrefix"
+const val NODEFAULTLIBS = "nodefaultlibs"
+const val PURGE_USER_LIBS = "Xpurge-user-libs"
+const val TEMP_DIR = "Xtemporary-files-dir"
+
 // TODO: unify camel and snake cases.
 // Possible solution is to accept both cases
 fun getCommonInteropArguments() = listOf(
@@ -25,23 +30,31 @@ fun getCommonInteropArguments() = listOf(
         OptionDescriptor(ArgType.Choice(listOf("jvm", "native", "wasm")),
                 "flavor", description = "Interop target", defaultValue = "jvm"),
         OptionDescriptor(ArgType.String(), "pkg", description = "place generated bindings to the package"),
-        OptionDescriptor(ArgType.String(), "generated", description = "place generated bindings to the directory",
-                defaultValue = System.getProperty("user.dir")),
+        OptionDescriptor(ArgType.String(), "output", "o", "specifies the resulting library file", defaultValue = "nativelib"),
         OptionDescriptor(ArgType.String(), "libraryPath", description = "add a library search path",
                 isMultiple = true, delimiter = ","),
-        OptionDescriptor(ArgType.String(), "manifest", description = "library manifest addend"),
-        OptionDescriptor(ArgType.String(), "natives", description = "where to put the built native files",
-                defaultValue = System.getProperty("user.dir")),
         OptionDescriptor(ArgType.String(), "staticLibrary", description = "embed static library to the result",
                 isMultiple = true, delimiter = ","),
-        OptionDescriptor(ArgType.String(), "temporaryFilesDir", description = "save temporary files to the given directory")
+        OptionDescriptor(ArgType.String(), "generated", description = "place generated bindings to the directory",
+                defaultValue = System.getProperty("user.dir")),
+        OptionDescriptor(ArgType.String(), "natives", description = "where to put the built native files",
+                defaultValue = System.getProperty("user.dir")),
+        OptionDescriptor(ArgType.String(), "library",
+                description = "library to use for building", isMultiple = true),
+        OptionDescriptor(ArgType.String(), "repo", "-r",
+                "repository to resolve dependencies", isMultiple = true),
+        OptionDescriptor(ArgType.Boolean(), NODEFAULTLIBS, description = "don't link the libraries from dist/klib automatically",
+                defaultValue = "false"),
+        OptionDescriptor(ArgType.Boolean(), PURGE_USER_LIBS, description = "don't link unused libraries even explicitly specified",
+                defaultValue = "false"),
+        OptionDescriptor(ArgType.String(), TEMP_DIR, description = "save temporary files to the given directory")
     )
 
 fun getCInteropArguments(): List<OptionDescriptor> {
     val options = listOf(
             OptionDescriptor(ArgType.String(), "import", description = "a semicolon separated list of headers, prepended with the package name",
                     isMultiple = true, delimiter = ","),
-            OptionDescriptor(ArgType.String(), "target", description = "native target to compile to"),
+            OptionDescriptor(ArgType.String(), "target", description = "native target to compile to", defaultValue = "host"),
             OptionDescriptor(ArgType.String(), "def", description = "the library definition file"),
             OptionDescriptor(ArgType.String(), "header", "hd", "header file to produce kotlin bindings for",
                     isMultiple = true, delimiter = ","),
@@ -52,13 +65,10 @@ fun getCInteropArguments(): List<OptionDescriptor> {
             OptionDescriptor(ArgType.String(), "linkerOpts", "lopt",
                     "additional linker options", isMultiple = true, delimiter = " "),
             OptionDescriptor(ArgType.Boolean(), "shims", description = "wrap bindings by a tracing layer", defaultValue = "false"),
-            OptionDescriptor(ArgType.String(), "linker", description = "use specified linker"),
-            OptionDescriptor(ArgType.String(), "cstubsname", description = "provide a name for the generated c stubs file")
+            OptionDescriptor(ArgType.String(), "linker", description = "use specified linker")
     )
     return (options + getCommonInteropArguments())
 }
-
-const val HEADER_FILTER_ADDITIONAL_SEARCH_PREFIX = "headerFilterAdditionalSearchPrefix"
 
 internal fun warn(msg: String) {
     println("warning: $msg")

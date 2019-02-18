@@ -33,11 +33,12 @@ fun main(args: Array<String>) {
     processCLib(args)
 }
 
-fun interop(flavor: String, args: Array<String>) = when(flavor) {
-        "jvm", "native" -> processCLib(args)
-        "wasm" -> processIdlLib(args)
-        else -> error("Unexpected flavor")
-    }
+fun interop(flavor: String, args: Array<String>, additionalArgs: Map<String, Any> = mapOf()) =
+        when(flavor) {
+            "jvm", "native" -> processCLib(args, additionalArgs)
+            "wasm" -> processIdlLib(args, additionalArgs)
+            else -> error("Unexpected flavor")
+        }
 
 // Options, whose values are space-separated and can be escaped.
 val escapedOptions = setOf("-compilerOpts", "-linkerOpts")
@@ -157,7 +158,7 @@ private fun findFilesByGlobs(roots: List<Path>, globs: List<String>): Map<Path, 
 }
 
 
-private fun processCLib(args: Array<String>): Array<String>? {
+private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = mapOf()): Array<String>? {
     val argParser = ArgParser(getCInteropArguments())
     if (!argParser.parse(args))
         return null
@@ -166,7 +167,7 @@ private fun processCLib(args: Array<String>): Array<String>? {
     val flavorName = argParser.get<String>("flavor")
     val flavor = KotlinPlatform.values().single { it.name.equals(flavorName, ignoreCase = true) }
     val defFile = argParser.get<String>("def")?.let { File(it) }
-    val manifestAddend = argParser.get<String>("manifest")?.let { File(it) }
+    val manifestAddend = (additionalArgs["manifest"] as? String)?.let { File(it) }
 
     if (defFile == null && argParser.get<String>("pkg") == null) {
         argParser.printError("-def or -pkg should provided!")
@@ -204,11 +205,11 @@ private fun processCLib(args: Array<String>): Array<String>? {
     val outKtFileRelative = (fqParts + outKtFileName).joinToString("/")
     val outKtFile = File(ktGenRoot, outKtFileRelative)
 
-    val libName = argParser.get<String>("cstubsname") ?: fqParts.joinToString("") + "stubs"
+    val libName = (additionalArgs["cstubsname"] as? String)?: fqParts.joinToString("") + "stubs"
 
-    val tempFiles = TempFiles(libName, argParser.get<String>("temporaryFilesDir"))
+    val tempFiles = TempFiles(libName, argParser.get<String>("Xtemporary-files-dir"))
 
-    val imports = parseImports(argParser.getValuesAsArray("import"))
+    val imports = parseImports((additionalArgs["import"] as? List<String>)?.toTypedArray() ?: arrayOf())
 
     val library = buildNativeLibrary(tool, def, argParser, imports)
 

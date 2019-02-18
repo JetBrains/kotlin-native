@@ -174,11 +174,36 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
         if (!descriptor.isMultiple && !processedValues.getValue(descriptor.longName).isEmpty()) {
             printError("Option ${descriptor.longName} is used more than one time!")
         }
-        val savedValues = descriptor.delimiter?.let { value.split(it) } ?: listOf(value)
+        val savedValues = descriptor.delimiter?.let {
+            // Escape values on quotes.
+            val splittedValues = mutableListOf<String>()
+            var start = 0
+            var occurs = 0
+            while (start != -1) {
+                val place = value.indexOf('"', start)
+                if (place == -1) {
+                    splittedValues.addAll(value.substring(start).split(it))
+                    start = place
+                } else if (occurs % 2 == 0) {
+                    // Open quote.
+                    splittedValues.addAll(value.substring(start, place).split(it))
+                } else {
+                    // Close quote.
+                    splittedValues.add(value.substring(start, place + 1))
+                }
+                if (place != -1) {
+                    occurs++
+                    start = place + 1
+                }
+            }
+            splittedValues
+        } ?: listOf(value)
+
         savedValues.forEach {
             descriptor.type.check(it, descriptor.longName)
             processedValues.getValue(descriptor.longName).add(it)
         }
+
     }
 
     // Parse arguments.

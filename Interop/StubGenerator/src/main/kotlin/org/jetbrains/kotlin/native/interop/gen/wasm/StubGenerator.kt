@@ -392,7 +392,7 @@ fun generateJs(interfaces: List<Interface>): String =
 const val idlMathPackage = "kotlinx.interop.wasm.math"
 const val idlDomPackage = "kotlinx.interop.wasm.dom"
 
-fun processIdlLib(args: Array<String>): Array<String>? {
+fun processIdlLib(args: Array<String>, additionalArgs: Map<String, Any> = mapOf()): Array<String>? {
     val argParser = ArgParser(getCommonInteropArguments())
     if (!argParser.parse(args))
         return null
@@ -408,6 +408,6 @@ fun processIdlLib(args: Array<String>): Array<String>? {
 
     File(ktGenRoot, "kotlin_stubs.kt").writeText(generateKotlin(argParser.get<String>("pkg")!!, idl))
     File(nativeLibsDir, "js_stubs.js").writeText(generateJs(idl))
-    File(argParser.get<String>("manifest")!!).writeText("") // The manifest is currently unused for wasm.
+    File((additionalArgs["manifest"] as? String)!!).writeText("") // The manifest is currently unused for wasm.
     return argsToCompiler(argParser.getValuesAsArray("staticLibrary"), argParser.getValuesAsArray("libraryPath"))
 }
