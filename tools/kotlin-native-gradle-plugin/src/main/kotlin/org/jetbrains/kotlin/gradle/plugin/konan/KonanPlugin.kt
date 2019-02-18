@@ -115,8 +115,10 @@ internal val Project.konanArtifactsContainer: KonanArtifactContainer
 // stage (e.g. by getting it from maven as a plugin dependency) and bring back the PlatformManager here.
 internal val Project.hostManager: HostManager
     get() = findProperty("hostManager") as HostManager? ?:
-        HostManager(buildDistribution(rootProject.rootDir.absolutePath),
-                hasProperty("org.jetbrains.kotlin.native.experimentalTargets"))
+            if (hasProperty("org.jetbrains.kotlin.native.experimentalTargets"))
+                HostManager(buildDistribution(rootProject.rootDir.absolutePath), true)
+            else
+                HostManager(customerDistribution(konanHome))
 
 internal val Project.konanTargets: List<KonanTarget>
     get() = hostManager.toKonanTargets(konanExtension.targets)
