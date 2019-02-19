@@ -428,6 +428,40 @@ private class WCString(val chars: CharArray): CValues<UShortVar>() {
 public val String.wcstr: CValues<UShortVar>
     get() = WCString(this.toCharArray())
 
+private class W4CString(val chars: CharArray): CValues<IntVar>() {
+    override val size get() = 4 * (chars.size + 1)
+
+    override val align get() = 4
+
+    // Optimization to avoid unneeded virtual calls in base class implementation.
+    override fun getPointer(scope: AutofreeScope): CPointer<IntVar> {
+        return place(interpretCPointer(scope.alloc(size, align).rawPtr)!!)
+    }
+
+    override fun place(placement: CPointer<IntVar>): CPointer<IntVar> {
+        var indexIn = 0
+        var indexOut = 0
+        while (indexIn < chars.size) {
+            var value = chars[indexIn++].toInt()
+            if (value >= 0xd800 && value < 0xdc00) {
+                // Surrogate pair.
+                if (indexIn >= chars.size - 1) throw IllegalArgumentException()
+                indexIn++
+                val next = chars[indexIn].toInt()
+                if (next < 0xdc00 || next >= 0xe000) throw IllegalArgumentException()
+                value = 0x10000 + ((value and 0x3ff) shl 10) + (next and 0x3ff)
+            }
+            nativeMemUtils.putInt((placement + indexOut)!!.pointed, value)
+            indexOut++
+        }
+        nativeMemUtils.putInt((placement + indexOut)!!.pointed, 0)
+        return placement
+    }
+}
+
+public val String.w4cstr: CValues<IntVar>
+    get() = W4CString(this.toCharArray())
+
 /**
  * TODO: should the name of the function reflect the encoding?
  *
