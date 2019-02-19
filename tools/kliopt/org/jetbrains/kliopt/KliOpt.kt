@@ -60,7 +60,8 @@ abstract class Descriptor(val type: ArgType,
                           val longName: String,
                           val description: String? = null,
                           val defaultValue: String? = null,
-                          val isRequired: Boolean = false) {
+                          val isRequired: Boolean = false,
+                          val deprecatedWarning: String? = null) {
     abstract val textDescription: String
     abstract val helpMessage: String
 }
@@ -73,7 +74,8 @@ class OptionDescriptor(
         defaultValue: String? = null,
         isRequired: Boolean = false,
         val isMultiple: Boolean = false,
-        val delimiter: String? = null) : Descriptor (type, longName, description, defaultValue, isRequired) {
+        val delimiter: String? = null,
+        deprecatedWarning: String? = null) : Descriptor (type, longName, description, defaultValue, isRequired, deprecatedWarning) {
     override val textDescription: String
         get() = "option -$longName"
 
@@ -84,8 +86,9 @@ class OptionDescriptor(
             shortName?.let { result.append(", -$it") }
             defaultValue?.let { result.append(" [$it]") }
             description?.let {result.append(" -> ${it}")}
-            if (!isRequired) result.append(" (optional)")
+            if (isRequired) result.append(" (always required)")
             result.append(" ${type.description}")
+            deprecatedWarning?.let { result.append(" Warning: $it") }
             result.append("\n")
             return result.toString()
         }
@@ -96,7 +99,8 @@ class ArgDescriptor(
         longName: String,
         description: String? = null,
         defaultValue: String? = null,
-        isRequired: Boolean = true) : Descriptor (type, longName, description, defaultValue, isRequired) {
+        isRequired: Boolean = true,
+        deprecatedWarning: String? = null) : Descriptor (type, longName, description, defaultValue, isRequired, deprecatedWarning) {
     override val textDescription: String
         get() = "argument $longName"
 
@@ -108,16 +112,20 @@ class ArgDescriptor(
             description?.let {result.append(" -> ${it}")}
             if (!isRequired) result.append(" (optional)")
             result.append(" ${type.description}")
+            deprecatedWarning?.let { result.append(" Warning: $it") }
             result.append("\n")
             return result.toString()
         }
 }
 
 // Arguments parser.
-class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescriptor> = listOf<ArgDescriptor>()) {
-    private val options = optionsList.union(listOf(OptionDescriptor(ArgType.Boolean(), "help",
-                                            "h", "Usage info")))
-                            .toList()
+class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescriptor> = listOf<ArgDescriptor>(),
+                useDefaultHelpShortName: Boolean = true) {
+    private val options = optionsList.union(if (useDefaultHelpShortName)
+        listOf(OptionDescriptor(ArgType.Boolean(), "help", "h", "Usage info"))
+            else
+        listOf(OptionDescriptor(ArgType.Boolean(), "help", description = "Usage info"))
+    ).toList()
     private val arguments = argsList
     private lateinit var parsedValues: MutableMap<String, ParsedArg?>
 
@@ -164,6 +172,7 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
         val name = nullArgs.firstOrNull()
         name?. let {
             argDescriptors.getValue(name).type.check(arg, name)
+            argDescriptors.getValue(name).deprecatedWarning?.let { println ("Warning: $it") }
             processedValues.getValue(name).add(arg)
             return true
         }
@@ -174,6 +183,7 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
         if (!descriptor.isMultiple && !processedValues.getValue(descriptor.longName).isEmpty()) {
             printError("Option ${descriptor.longName} is used more than one time!")
         }
+        descriptor.deprecatedWarning?.let { if (processedValues.getValue(descriptor.longName).isEmpty()) println ("Warning: $it") }
         val savedValues = descriptor.delimiter?.let { value.split(it) } ?: listOf(value)
 
         savedValues.forEach {

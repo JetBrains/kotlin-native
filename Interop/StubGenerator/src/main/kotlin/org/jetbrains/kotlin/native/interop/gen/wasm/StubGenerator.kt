@@ -393,7 +393,7 @@ const val idlMathPackage = "kotlinx.interop.wasm.math"
 const val idlDomPackage = "kotlinx.interop.wasm.dom"
 
 fun processIdlLib(args: Array<String>, additionalArgs: Map<String, Any> = mapOf()): Array<String>? {
-    val argParser = ArgParser(getCommonInteropArguments())
+    val argParser = ArgParser(getCommonInteropArguments(), useDefaultHelpShortName = false)
     if (!argParser.parse(args))
         return null
     // TODO: Refactor me.

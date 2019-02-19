@@ -17,7 +17,8 @@ import org.jetbrains.kotlin.native.interop.tool.*
 // The interaction of interop and the compler should be streamlined.
 
 fun invokeInterop(flavor: String, args: Array<String>): Array<String>? {
-    val argParser = ArgParser(if (flavor == "native") getCInteropArguments() else getCommonInteropArguments())
+    val argParser = ArgParser(if (flavor == "native") getCInteropArguments() else getCommonInteropArguments(),
+            useDefaultHelpShortName = false)
     if (!argParser.parse(args))
         return null
     val outputFileName = argParser.get<String>("output")!!

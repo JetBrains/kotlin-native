@@ -39,7 +39,7 @@ private fun makeDependencyAssigner(targets: List<String>, defFiles: List<File>) 
 
 private fun makeDependencyAssignerForTarget(target: String, defFiles: List<File>): SingleTargetDependencyAssigner {
     val tool = prepareTool(target, KotlinPlatform.NATIVE)
-    val argParser = ArgParser(getCInteropArguments())
+    val argParser = ArgParser(getCInteropArguments(), useDefaultHelpShortName = false)
     argParser.parse(arrayOf<String>())
     val libraries = defFiles.associateWith {
         buildNativeLibrary(
