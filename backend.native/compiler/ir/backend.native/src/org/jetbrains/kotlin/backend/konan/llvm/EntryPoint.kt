@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.descriptors.FunctionDescriptor
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind.*
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.typeUtil.isUnit
@@ -40,10 +41,9 @@ internal fun findMainEntryPoint(context: Context): FunctionDescriptor? {
         candidates.singleOrNull { it.hasSingleArrayOfStringParameter } ?:
         candidates.singleOrNull { it.hasNoParameters } ?:
         context.reportCompilationError("Could not find '$entryName' in '$packageName' package.")
-    
-    if (main.isSuspend) {
+
+    if (main.isSuspend)
         context.reportCompilationError("Entry point can not be a suspend function.")
-    }
 
     return main
 }
