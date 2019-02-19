@@ -61,9 +61,9 @@ fun getCInteropArguments(): List<OptionDescriptor> {
             OptionDescriptor(ArgType.String(), HEADER_FILTER_ADDITIONAL_SEARCH_PREFIX, "hfasp",
                     "header file to produce kotlin bindings for", isMultiple = true, delimiter = ","),
             OptionDescriptor(ArgType.String(), "compilerOpts", "copt",
-                    "additional compiler options", isMultiple = true, delimiter = " "),
+                    "additional compiler options", isMultiple = true),
             OptionDescriptor(ArgType.String(), "linkerOpts", "lopt",
-                    "additional linker options", isMultiple = true, delimiter = " "),
+                    "additional linker options", isMultiple = true),
             OptionDescriptor(ArgType.Boolean(), "shims", description = "wrap bindings by a tracing layer", defaultValue = "false"),
             OptionDescriptor(ArgType.String(), "linker", description = "use specified linker")
     )
