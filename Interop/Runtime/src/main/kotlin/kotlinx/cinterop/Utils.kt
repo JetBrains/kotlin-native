@@ -392,6 +392,9 @@ private class CString(val bytes: ByteArray): CValues<ByteVar>() {
 public val String.cstr: CValues<ByteVar>
     get() = CString(encodeToUtf8(this))
 
+public val String.utf8: CValues<ByteVar>
+    get() = CString(encodeToUtf8(this))
+
 /**
  * Convert this list of Kotlin strings to C array of C strings,
  * allocating memory for the array and C strings with given [AutofreeScope].
@@ -407,7 +410,7 @@ public fun Array<String>.toCStringArray(autofreeScope: AutofreeScope): CPointer<
         autofreeScope.allocArrayOf(this.map { it.cstr.getPointer(autofreeScope) })
 
 
-private class WCString(val chars: CharArray): CValues<UShortVar>() {
+private class U16CString(val chars: CharArray): CValues<UShortVar>() {
     override val size get() = 2 * (chars.size + 1)
 
     override val align get() = 2
@@ -426,9 +429,12 @@ private class WCString(val chars: CharArray): CValues<UShortVar>() {
 }
 
 public val String.wcstr: CValues<UShortVar>
-    get() = WCString(this.toCharArray())
+    get() = U16CString(this.toCharArray())
 
-private class W4CString(val chars: CharArray): CValues<IntVar>() {
+public val String.utf16: CValues<UShortVar>
+    get() = U16CString(this.toCharArray())
+
+private class U32CString(val chars: CharArray): CValues<IntVar>() {
     override val size get() = 4 * (chars.size + 1)
 
     override val align get() = 4
@@ -459,8 +465,8 @@ private class W4CString(val chars: CharArray): CValues<IntVar>() {
     }
 }
 
-public val String.w4cstr: CValues<IntVar>
-    get() = W4CString(this.toCharArray())
+public val String.utf32: CValues<IntVar>
+    get() = U32CString(this.toCharArray())
 
 /**
  * TODO: should the name of the function reflect the encoding?
