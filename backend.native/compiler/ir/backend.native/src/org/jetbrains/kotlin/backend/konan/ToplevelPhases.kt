@@ -14,7 +14,6 @@ import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
-import org.jetbrains.kotlin.ir.util.dump
 import org.jetbrains.kotlin.ir.util.patchDeclarationParents
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.psi2ir.Psi2IrConfiguration
@@ -223,6 +222,60 @@ internal val allLoweringsPhase = namedIrModulePhase(
 //                                                validateIrModulePhase // Temporarily disabled until moving to new IR finished.
 )
 
+internal val dependenciesLowerPhase = SameTypeNamedPhaseWrapper(
+        name = "LowerLibIR",
+        description = "Lower library's IR",
+        prerequisite = emptySet(),
+        dumperVerifier = EmptyDumperVerifier(),
+        lower = object : CompilerPhase<Context, IrModuleFragment, IrModuleFragment> {
+            override fun invoke(phaseConfig: PhaseConfig, phaserState: PhaserState, context: Context, irModule: IrModuleFragment): IrModuleFragment {
+
+                val files = mutableListOf<IrFile>()
+                files += irModule.files
+                irModule.files.clear()
+
+                // TODO: KonanLibraryResolver.TopologicalLibraryOrder actually returns libraries in the reverse topological order.
+                context.librariesWithDependencies
+                        .reversed()
+                        .forEach {
+                            val libModule = context.irModules[it.libraryName]
+                                    ?: return@forEach
+
+                            irModule.files += libModule.files
+                            allLoweringsPhase.invoke(phaseConfig, phaserState, context, irModule)
+
+                            irModule.files.clear()
+                        }
+
+                // Save all files for codegen in reverse topological order.
+                // This guarantees that libraries initializers are emitted in correct order.
+                context.librariesWithDependencies
+                        .forEach {
+                            val libModule = context.irModules[it.libraryName]
+                                    ?: return@forEach
+                            irModule.files += libModule.files
+                        }
+                irModule.files += files
+
+                return irModule
+            }
+
+        })
+
+internal val bitcodePhase = namedIrModulePhase(
+        name = "Bitcode",
+        description = "LLVM Bitcode generation",
+        lower = contextLLVMSetupPhase then
+                RTTIPhase then
+                generateDebugInfoHeaderPhase then
+                deserializeDFGPhase then
+                devirtualizationPhase then
+                escapeAnalysisPhase then
+                codegenPhase then
+                finalizeDebugInfoPhase then
+                cStubsPhase
+)
+
 internal val toplevelPhase = namedUnitPhase(
         name = "Compiler",
         description = "The whole compilation process",
@@ -237,67 +290,15 @@ internal val toplevelPhase = namedUnitPhase(
                         description = "All backend",
                         lower = takeFromContext<Context, Unit, IrModuleFragment> { it.irModule!! } then
                                 allLoweringsPhase then // Lower current module first.
-                                SameTypeNamedPhaseWrapper(
-                                        name = "LowerLibIR",
-                                        description = "Lower library's IR",
-                                        prerequisite = emptySet(),
-                                        dumperVerifier = EmptyDumperVerifier(),
-                                        lower = object : CompilerPhase<Context, IrModuleFragment, IrModuleFragment> {
-                                            override fun invoke(phaseConfig: PhaseConfig, phaserState: PhaserState, context: Context, irModule: IrModuleFragment): IrModuleFragment {
-
-                                                val files = mutableListOf<IrFile>()
-                                                files += irModule.files
-                                                irModule.files.clear()
-
-                                                // Then lower all libraries in topological order.
-                                                // With that we guarantee that inline functions are unlowered while being inlined.
-                                                // TODO: KonanLibraryResolver.TopologicalLibraryOrder actually returns libraries in the reverse topological order.
-                                                context.librariesWithDependencies
-                                                        .reversed()
-                                                        .forEach {
-                                                            val libModule = context.irModules[it.libraryName]
-                                                                    ?: return@forEach
-
-                                                            irModule.files += libModule.files
-                                                            allLoweringsPhase.invoke(phaseConfig, phaserState, context, irModule)
-
-                                                            irModule.files.clear()
-                                                        }
-
-                                                // Save all files for codegen in reverse topological order.
-                                                // This guarantees that libraries initializers are emitted in correct order.
-                                                context.librariesWithDependencies
-                                                        .forEach {
-                                                            val libModule = context.irModules[it.libraryName]
-                                                                    ?: return@forEach
-                                                            irModule.files += libModule.files
-                                                        }
-                                                irModule.files += files
-
-                                                return irModule
-                                            }
-
-                                        }) then
+                                dependenciesLowerPhase then // Then lower all libraries in topological order.
+                                                            // With that we guarantee that inline functions are unlowered while being inlined.
                                 moduleIndexForCodegenPhase then
-                                namedIrModulePhase(
-                                        name = "Bitcode",
-                                        description = "LLVM Bitcode generation",
-                                        lower = contextLLVMSetupPhase then
-                                                RTTIPhase then
-                                                generateDebugInfoHeaderPhase then
-                                                buildDFGPhase then
-                                                deserializeDFGPhase then
-                                                devirtualizationPhase then
-                                                escapeAnalysisPhase then
-                                                serializeDFGPhase then
-                                                codegenPhase then
-                                                finalizeDebugInfoPhase then
-                                                cStubsPhase then
-                                                bitcodeLinkerPhase
-                                ) then
+                                buildDFGPhase then
+                                serializeDFGPhase then
+                                bitcodePhase then
+                                produceOutputPhase then
                                 verifyBitcodePhase then
-                                printBitcodePhase
-                                then
+                                printBitcodePhase then
                                 unitSink()
                 ) then
                 linkPhase
@@ -314,8 +315,8 @@ internal fun PhaseConfig.konanPhasesConfig(config: KonanConfig) {
 
         // Don't serialize anything to a final executable.
         switch(serializerPhase, config.produce == CompilerOutputKind.LIBRARY)
-        switch(codegenPhase, config.produce != CompilerOutputKind.LIBRARY)
-        switch(cStubsPhase, config.produce != CompilerOutputKind.LIBRARY)
+        switch(dependenciesLowerPhase, config.produce != CompilerOutputKind.LIBRARY)
+        switch(bitcodePhase, config.produce != CompilerOutputKind.LIBRARY)
         switch(linkPhase, config.produce.isNativeBinary)
         switch(testProcessorPhase, getNotNull(KonanConfigKeys.GENERATE_TEST_RUNNER) != TestRunnerKind.NONE)
     }
