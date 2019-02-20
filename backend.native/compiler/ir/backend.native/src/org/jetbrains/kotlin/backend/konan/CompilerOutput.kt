@@ -41,6 +41,7 @@ internal fun produceOutput(context: Context) {
             val output = tempFiles.nativeBinaryFileName
             context.bitcodeFileName = output
 
+            //println("ZZZ1")
             val generatedBitcodeFiles =
                 if (produce == CompilerOutputKind.DYNAMIC || produce == CompilerOutputKind.STATIC) {
                     produceCAdapterBitcode(
@@ -55,11 +56,15 @@ internal fun produceOutput(context: Context) {
                 context.config.defaultNativeLibraries + 
                 generatedBitcodeFiles
 
+            //println("ZZZ2")
             for (library in nativeLibraries) {
+                //println(library)
                 parseAndLinkBitcodeFile(context.llvmModule!!, library)
             }
 
+            //println("ZZZ3")
             LLVMWriteBitcodeToFile(context.llvmModule!!, output)
+            //println("ZZZ4")
         }
         CompilerOutputKind.LIBRARY -> {
             val output = context.config.outputFiles.outputName
@@ -92,6 +97,7 @@ internal fun produceOutput(context: Context) {
             context.bitcodeFileName = library.mainBitcodeFileName
         }
         CompilerOutputKind.BITCODE -> {
+            //println("QXX")
             val output = context.config.outputFile
             context.bitcodeFileName = output
             LLVMWriteBitcodeToFile(context.llvmModule!!, output)

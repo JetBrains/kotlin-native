@@ -203,6 +203,9 @@ internal class LinkStage(val context: Context) {
         val bitcodeFiles = listOf(emitted) +
                 libraries.map { it.bitcodePaths }.flatten().filter { it.isBitcode }
 
+        //println("BC FILES:")
+        //bitcodeFiles.forEach { println("    $it") }
+
         objectFiles.add(when (platform.configurables) {
             is WasmConfigurables
             -> bitcodeToWasm(bitcodeFiles)

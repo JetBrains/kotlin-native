@@ -743,6 +743,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 LLVMSetInitializer(globalProperty, LLVMConstNull(type))
             context.llvm.fileInitializers.add(declaration)
 
+            //println("INIT GLOBAL: ${declaration.name}")
+
             // (Cannot do this before the global is initialized).
             LLVMSetLinkage(globalProperty, LLVMLinkage.LLVMInternalLinkage)
         }

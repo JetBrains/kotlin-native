@@ -14,6 +14,10 @@ class KonanClassDataFinder(
 ) : ClassDataFinder {
 
     override fun findClassData(classId: ClassId): ClassData? {
+        if (classId.packageFqName.asString().contains("AppKit")) {
+            println(classId.relativeClassName)
+            Throwable().printStackTrace()
+        }
         val proto = fragment.classes
         val nameList = proto.classNameList
 

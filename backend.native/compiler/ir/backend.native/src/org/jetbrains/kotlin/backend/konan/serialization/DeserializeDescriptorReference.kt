@@ -42,6 +42,9 @@ class DescriptorReferenceDeserializer(val currentModule: ModuleDescriptor, val r
         if (packageFqNameString.startsWith("cnames.") || packageFqNameString.startsWith("objcnames.")) {
             val descriptor =
                 currentModule.findClassAcrossModuleDependencies(ClassId(packageFqName, FqName(name), false))!!
+
+            println("FOUND forward declaration: $descriptor for ${packageFqNameString}.${name}")
+
             if (!descriptor.fqNameUnsafe.asString().startsWith("cnames") && !descriptor.fqNameUnsafe.asString().startsWith(
                     "objcnames"
                 )

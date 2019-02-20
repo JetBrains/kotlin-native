@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
+import org.jetbrains.kotlin.ir.util.dump
 import org.jetbrains.kotlin.ir.util.patchDeclarationParents
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.psi2ir.Psi2IrConfiguration
@@ -66,6 +67,10 @@ internal val psiToIrPhase = konanUnitPhase(
                     forwardDeclarationsModuleDescriptor
             )
 
+            println("psi2ir:")
+
+            config.librariesWithDependencies(moduleDescriptor).forEach { println("DEPENDENCY: ${it.libraryName}") }
+
             val modules = mutableMapOf<String, IrModuleFragment>()
 
             var dependenciesCount = 0
@@ -77,6 +82,7 @@ internal val psiToIrPhase = konanUnitPhase(
                 for (dependency in dependencies) {
                     val konanLibrary = dependency.konanLibrary!!
                     if (modules.containsKey(konanLibrary.libraryName)) continue
+                    println("Deserializing header of ${konanLibrary.libraryName}")
                     konanLibrary.irHeader?.let { header ->
                         val deserializationStrategy = when {
                             config.produce.isNativeBinary -> DeserializationStrategy.EXPLICITLY_EXPORTED

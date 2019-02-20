@@ -8,7 +8,9 @@ import org.jetbrains.kotlin.serialization.konan.parseModuleHeader
 internal class KonanResolvedLibraryImpl(override val library: KonanLibrary): KonanResolvedLibrary {
 
     private val _resolvedDependencies = mutableListOf<KonanResolvedLibrary>()
-    private val _emptyPackages by lazy { parseModuleHeader(library.moduleHeaderData).emptyPackageList }
+    private val _emptyPackages by lazy {
+        parseModuleHeader(library.moduleHeaderData).emptyPackageList.also { it.forEach { println("Empty: ${library.libraryName}.$it") } }
+    }
 
     override val resolvedDependencies: List<KonanResolvedLibrary>
         get() = _resolvedDependencies
@@ -23,7 +25,10 @@ internal class KonanResolvedLibraryImpl(override val library: KonanLibrary): Kon
 
     override fun markPackageAccessed(fqName: String) {
         if (!isNeededForLink // fast path
-                && !_emptyPackages.contains(fqName)) {
+                && !_emptyPackages.contains(/*if (fqName == "<root>") "" else*/ fqName)) {
+            println("ZZZ: $fqName")
+            if (fqName.contains("AppKit"))
+                Throwable().printStackTrace()
             isNeededForLink = true
         }
     }
