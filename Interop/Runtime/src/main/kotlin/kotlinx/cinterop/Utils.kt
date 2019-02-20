@@ -392,6 +392,9 @@ private class CString(val bytes: ByteArray): CValues<ByteVar>() {
 public val String.cstr: CValues<ByteVar>
     get() = CString(encodeToUtf8(this))
 
+/**
+ * @return the value of zero-terminated UTF-8-encoded C string constructed from given [kotlin.String].
+ */
 public val String.utf8: CValues<ByteVar>
     get() = CString(encodeToUtf8(this))
 
@@ -428,9 +431,15 @@ private class U16CString(val chars: CharArray): CValues<UShortVar>() {
     }
 }
 
+/**
+ * @return the value of zero-terminated UTF-16-encoded C string constructed from given [kotlin.String].
+ */
 public val String.wcstr: CValues<UShortVar>
     get() = U16CString(this.toCharArray())
 
+/**
+ * @return the value of zero-terminated UTF-16-encoded C string constructed from given [kotlin.String].
+ */
 public val String.utf16: CValues<UShortVar>
     get() = U16CString(this.toCharArray())
 
@@ -465,16 +474,18 @@ private class U32CString(val chars: CharArray): CValues<IntVar>() {
     }
 }
 
+/**
+ * @return the value of zero-terminated UTF-32-encoded C string constructed from given [kotlin.String].
+ */
 public val String.utf32: CValues<IntVar>
     get() = U32CString(this.toCharArray())
 
+
+// TODO: optimize
 /**
- * TODO: should the name of the function reflect the encoding?
- *
  * @return the [kotlin.String] decoded from given zero-terminated UTF-8-encoded C string.
  */
-// TODO: optimize
-public fun CPointer<ByteVar>.toKString(): String {
+public fun CPointer<ByteVar>.toKStringFromUtf8(): String {
     val nativeBytes = this
 
     var length = 0
@@ -485,6 +496,62 @@ public fun CPointer<ByteVar>.toKString(): String {
     val bytes = ByteArray(length)
     nativeMemUtils.getByteArray(nativeBytes.pointed, bytes, length)
     return decodeFromUtf8(bytes)
+}
+
+/**
+ * @return the [kotlin.String] decoded from given zero-terminated UTF-8-encoded C string.
+ */
+public fun CPointer<ByteVar>.toKString(): String = this.toKStringFromUtf8()
+
+/**
+ * @return the [kotlin.String] decoded from given zero-terminated UTF-16-encoded C string.
+ */
+public fun CPointer<ShortVar>.toKStringFromUtf16(): String {
+    val nativeBytes = this
+
+    var length = 0
+    while (nativeBytes[length] != 0.toShort()) {
+        ++length
+    }
+    val chars = CharArray(length)
+    var index = 0
+    while (index < length) {
+        chars[index] = nativeBytes[index].toChar()
+        ++index
+    }
+    return String(chars)
+}
+
+/**
+ * @return the [kotlin.String] decoded from given zero-terminated UTF-32-encoded C string.
+ */
+public fun CPointer<IntVar>.toKStringFromUtf32(): String {
+    val nativeBytes = this
+
+    var fromIndex = 0
+    var toIndex = 0
+    while (true) {
+        val value = nativeBytes[fromIndex++]
+        toIndex++
+        if (value == 0) break
+        if (value >= 0x10000 && value <= 0x10ffff) {
+            toIndex++
+        }
+    }
+    val length = toIndex
+    val chars = CharArray(length)
+    fromIndex = 0
+    toIndex = 0
+    while (toIndex < length) {
+        var value = nativeBytes[fromIndex++]
+        if (value >= 0x10000 && value <= 0x10ffff) {
+            chars[toIndex++] = (((value - 0x10000) shr 10) or 0xd800).toChar()
+            chars[toIndex++] = (((value - 0x10000) and 0x3ff) or 0xdc00).toChar()
+        } else {
+            chars[toIndex++] = value.toChar()
+        }
+    }
+    return String(chars)
 }
 
 public class MemScope : ArenaBase() {

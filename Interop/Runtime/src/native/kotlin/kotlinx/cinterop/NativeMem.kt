@@ -127,30 +127,14 @@ internal object nativeMemUtils {
     }
 }
 
-fun CPointer<ShortVar>.toKString(): String {
-    val nativeBytes = this
-
-    var length = 0
-    while (nativeBytes[length] != 0.toShort()) {
-        ++length
-    }
-    val chars = CharArray(length)
-    var index = 0
-    while (index < length) {
-        chars[index] = nativeBytes[index].toChar()
-        ++index
-    }
-    return String(chars)
-}
-
-fun CPointer<UShortVar>.toKString(): String {
+public fun CPointer<UShortVar>.toKStringFromUtf16(): String {
     val nativeBytes = this
 
     var length = 0
     while (nativeBytes[length] != 0.toUShort()) {
         ++length
     }
-    val chars = CharArray(length)
+    val chars = kotlin.CharArray(length)
     var index = 0
     while (index < length) {
         chars[index] = nativeBytes[index].toShort().toChar()
@@ -159,35 +143,9 @@ fun CPointer<UShortVar>.toKString(): String {
     return String(chars)
 }
 
-fun CPointer<IntVar>.toKString(): String {
-    val nativeBytes = this
+public fun CPointer<ShortVar>.toKString(): String = this.toKStringFromUtf16()
 
-    var fromIndex = 0
-    var toIndex = 0
-    while (true) {
-        val value = nativeBytes[fromIndex++]
-        toIndex++
-        if (value == 0) break
-        if (value >= 0x10000 && value <= 0x10ffff) {
-            toIndex++
-        }
-    }
-    val length = toIndex
-    val chars = CharArray(length)
-    fromIndex = 0
-    toIndex = 0
-    while (toIndex < length) {
-        var value = nativeBytes[fromIndex++]
-        if (value >= 0x10000 && value <= 0x10ffff) {
-            chars[toIndex++] = (((value - 0x10000) shr 10) or 0xd800).toChar()
-            chars[toIndex++] = (((value - 0x10000) and 0x3ff) or 0xdc00).toChar()
-        } else {
-            chars[toIndex++] = value.toChar()
-        }
-    }
-    return String(chars)
-}
-
+public fun CPointer<UShortVar>.toKString(): String = this.toKStringFromUtf16()
 
 @SymbolName("Kotlin_interop_malloc")
 private external fun malloc(size: Long, align: Int): NativePtr
