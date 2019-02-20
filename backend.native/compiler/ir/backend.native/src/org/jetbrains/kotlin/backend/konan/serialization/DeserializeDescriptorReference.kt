@@ -25,21 +25,33 @@ class DescriptorReferenceDeserializer(val currentModule: ModuleDescriptor, val r
                 currentModule.getPackage(packageFqName).memberScope.getContributedDescriptors()
             }
 
-    private val membersCache = mutableMapOf<Pair<String, String>, List<Pair<DeclarationDescriptor, List<Long>>>>()
+    private data class ClassName(val packageFqName: String, val classFqName: String)
+
+    private class ClassMembers(val defaultConstructor: ClassConstructorDescriptor?,
+                               val members: Map<Long, DeclarationDescriptor>,
+                               val realMembers: Map<Long, DeclarationDescriptor>)
+
+    private val membersCache = mutableMapOf<ClassName, ClassMembers>()
 
     private fun getMembers(packageFqNameString: String, classFqNameString: String,
-                           members: Collection<DeclarationDescriptor>): List<Pair<DeclarationDescriptor, List<Long>>> =
-            membersCache.getOrPut(packageFqNameString to classFqNameString) {
-                members.map { member ->
+                           members: Collection<DeclarationDescriptor>): ClassMembers =
+            membersCache.getOrPut(ClassName(packageFqNameString, classFqNameString)) {
+                val allMembersMap = mutableMapOf<Long, DeclarationDescriptor>()
+                val realMembersMap = mutableMapOf<Long, DeclarationDescriptor>()
+                var classConstructorDescriptor: ClassConstructorDescriptor? = null
+                members.forEach { member ->
+                    if (member is ClassConstructorDescriptor)
+                        classConstructorDescriptor = member
                     val realMembers =
                             if (member is CallableMemberDescriptor && member.kind == CallableMemberDescriptor.Kind.FAKE_OVERRIDE)
                                 member.resolveFakeOverrideMaybeAbstract()
                             else
                                 setOf(member)
 
-                    val memberIndices = realMembers.map { it.getUniqId()?.index }.filterNotNull()
-                    member to memberIndices
+                    member.getUniqId()?.index?.let { allMembersMap[it] = member }
+                    realMembers.mapNotNull { it.getUniqId()?.index }.forEach { realMembersMap[it] = member }
                 }
+                ClassMembers(classConstructorDescriptor, allMembersMap, realMembersMap)
             }
 
     fun deserializeDescriptorReference(
@@ -103,20 +115,19 @@ class DescriptorReferenceDeserializer(val currentModule: ModuleDescriptor, val r
 
         val membersWithIndices = getMembers(packageFqNameString, classFqNameString, members)
 
-        membersWithIndices.forEach { pair ->
-            val member = pair.first
-            if (isDefaultConstructor && member is ClassConstructorDescriptor) return member
+        return when {
+            isDefaultConstructor -> membersWithIndices.defaultConstructor
 
-            val memberIndices = pair.second
-
-            if (memberIndices.contains(protoIndex)) {
-                return when {
-                    member is PropertyDescriptor && isSetter -> member.setter!!
-                    member is PropertyDescriptor && isGetter -> member.getter!!
-                    else -> member
+            else -> {
+                val map = if (isFakeOverride) membersWithIndices.realMembers else membersWithIndices.members
+                map[protoIndex]?.let { member ->
+                    when {
+                        member is PropertyDescriptor && isSetter -> member.setter!!
+                        member is PropertyDescriptor && isGetter -> member.getter!!
+                        else -> member
+                    }
                 }
             }
-        }
-        error("Could not find serialized descriptor for index: ${index} ${packageFqName},${classFqName},${name}")
+        } ?: error("Could not find serialized descriptor for index: ${index} ${packageFqName},${classFqName},${name}")
     }
 }
