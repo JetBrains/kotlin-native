@@ -142,12 +142,7 @@ internal interface ContextUtils : RuntimeAware {
         get() = context.llvm.staticData
 
     fun isExternal(declaration: IrDeclaration): Boolean {
-        val pkg = declaration.findPackage()
-        return when (pkg) {
-            is IrFile -> false
-            is IrExternalPackageFragment -> true
-            else -> error(pkg)
-        }
+        return false
     }
 
     /**
