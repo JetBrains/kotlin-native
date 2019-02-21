@@ -24,7 +24,6 @@ public annotation class SymbolName(val name: String)
 @Retention(AnnotationRetention.BINARY)
 public annotation class Retain
 
-// TODO: merge with [kotlin.jvm.Throws]
 /**
  * This annotation indicates what exceptions should be declared by a function when compiled to a platform method.
  *
@@ -38,7 +37,9 @@ public annotation class Retain
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.CONSTRUCTOR)
 @Retention(AnnotationRetention.SOURCE)
-public annotation class Throws(vararg val exceptionClasses: KClass<out Throwable>)
+public actial annotation class NativeThrows(vararg val exceptionClasses: KClass<out Throwable>)
+
+public typealias Throws = kotlin.native.NativeThrows
 
 public typealias ThreadLocal = kotlin.native.concurrent.ThreadLocal
 
