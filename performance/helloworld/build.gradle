@@ -1,0 +1,5 @@
+project.ext {
+    applicationName = 'HelloWorld'
+    repeatNumber = 10
+}
+apply from: rootProject.file("${rootProject.rootDir}/gradle/compileBenchmark.gradle")
