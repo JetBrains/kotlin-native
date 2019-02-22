@@ -2,21 +2,24 @@ def exitCodes = [:]
 
 MPPTools.addTimeListener(project)
 
-def dist = findProperty('org.jetbrains.kotlin.native.home') ?: 'dist'
+
 task konanRun {
     mkdir buildDir.absolutePath
-    (1..project.ext.repeatNumber).each {
-        dependsOn "runCompileTime$it"
+    (1..project.ext.repeatNumber).each { number ->
+        project.ext.buildSteps.keySet().each {
+            dependsOn "$it$number"
+        }
     }
 }
 
-(1..project.ext.repeatNumber).each {
-    tasks.create(name: "runCompileTime$it", type:Exec) {
-        commandLine "${project.getProjectDir()}/$dist/bin/konanc", "${project.getProjectDir()}/src/main/kotlin/main.kt", "-o",
-                "${buildDir.absolutePath}/program${MPPTools.getNativeProgramExtension()}"
-        ignoreExitValue true
-        doLast {
-            exitCodes[name] = execResult.exitValue
+(1..project.ext.repeatNumber).each { number ->
+    project.ext.buildSteps.each { taskName, command ->
+        tasks.create(name: "$taskName$number", type: Exec) {
+            commandLine command
+            ignoreExitValue true
+            doLast {
+                exitCodes[name] = execResult.exitValue
+            }
         }
     }
 }
@@ -29,7 +32,8 @@ task clean {
 
 task konanJsonReport {
     doLast {
-        def nativeCompileTime = MPPTools.getCompileBenchmarkTime(project.ext.applicationName, "runCompileTime", project.ext.repeatNumber, exitCodes)
+        def nativeCompileTime = MPPTools.getCompileBenchmarkTime(project.ext.applicationName, project.ext.buildSteps.keySet(),
+                project.ext.repeatNumber, exitCodes)
         def nativeExecutable = "${buildDir.absolutePath}/program${MPPTools.getNativeProgramExtension()}"
         def properties = getCommonProperties() + ['type': 'native',
                                                   'compilerVersion': "${konanVersion}".toString(),

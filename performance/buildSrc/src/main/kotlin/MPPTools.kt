@@ -175,12 +175,16 @@ fun getJvmCompileTime(programName: String): BenchmarkResult =
 fun getNativeCompileTime(programName: String): BenchmarkResult =
         TaskTimerListener.getBenchmarkResult(programName, listOf("compileKotlinNative", "linkMainReleaseExecutableNative"))
 
-fun getCompileBenchmarkTime(programName: String, taskName: String, repeats: Int, exitCodes: Map<String, Int>) =
-    (1..repeats).map {
-        val time = TaskTimerListener.getTime("$taskName$it")
-        BenchmarkResult("$programName.compileTime",
-                if (exitCodes["$taskName$it"] == 0) BenchmarkResult.Status.PASSED else BenchmarkResult.Status.FAILED,
-                time, time, 1, 0)
+fun getCompileBenchmarkTime(programName: String, tasksNames: Iterable<String>, repeats: Int, exitCodes: Map<String, Int>) =
+    (1..repeats).map { number ->
+        var time = 0.0
+        var status = BenchmarkResult.Status.PASSED
+        tasksNames.forEach {
+            time += TaskTimerListener.getTime("$it$number")
+            status = if (exitCodes["$it$number"] != 0) BenchmarkResult.Status.FAILED else status
+        }
+
+        BenchmarkResult("$programName.compileTime", status, time, time, number, 0)
     }.toList()
 
 
