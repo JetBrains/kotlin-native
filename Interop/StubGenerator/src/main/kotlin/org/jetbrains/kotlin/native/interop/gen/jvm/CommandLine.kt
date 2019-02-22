@@ -18,7 +18,7 @@ package org.jetbrains.kotlin.native.interop.tool
 
 import org.jetbrains.kotlin.cli.common.arguments.*
 import org.jetbrains.kotlin.konan.util.ARGUMENT_NO_DELIMITER
-import org.jetbrains.kotlin.konan.util.parseCommandLineString
+import org.jetbrains.kotlin.konan.util.CommandLineOpts
 
 // TODO: unify camel and snake cases.
 // Possible solution is to accept both cases
@@ -69,10 +69,12 @@ class CInteropArguments : CommonInteropArguments() {
     @Argument(value = "-compilerOpts", shortName = "-copt", valueDescription = "<arg>", description = "additional compiler options", delimiter = " ")
     var compilerOpts: Array<String> = arrayOf()
 
-    @Argument(value = "-linkerOpts", shortName = "-lopt", valueDescription = "<arg>", description = "additional linker options", delimiter = ARGUMENT_NO_DELIMITER)
-    var linkerOptsInternal: Array<String> = arrayOf()
-
-    val linkerOpts: Array<String> by parseCommandLineString { linkerOptsInternal }
+    private val linkerOptsHolder = CommandLineOpts()
+    val linkerOpts: List<String> by linkerOptsHolder
+    @Argument(value = "-linkerOpt", valueDescription = "<arg>", description = "single additional linker option", delimiter = ARGUMENT_NO_DELIMITER)
+    var linkerOptInternal by linkerOptsHolder.singletonOpt
+    @Argument(value = "-linkerOpts", shortName = "-lopt", valueDescription = "<args>", description = "additional linker options", delimiter = ARGUMENT_NO_DELIMITER)
+    var linkerOptsInternal by linkerOptsHolder.multipleOpts
 
     @Argument(value = "-shims", description = "wrap bindings by a tracing layer") 
     var shims: Boolean = false

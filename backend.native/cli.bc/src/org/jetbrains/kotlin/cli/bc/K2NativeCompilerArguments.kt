@@ -12,7 +12,7 @@ import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.config.AnalysisFlag
 import org.jetbrains.kotlin.config.AnalysisFlags
 import org.jetbrains.kotlin.konan.util.ARGUMENT_NO_DELIMITER
-import org.jetbrains.kotlin.konan.util.parseCommandLineString
+import org.jetbrains.kotlin.konan.util.CommandLineOpts
 
 class K2NativeCompilerArguments : CommonCompilerArguments() {
     // First go the options interesting to the general public.
@@ -62,10 +62,14 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     @Argument(value = "-nopack", description = "Don't pack the library into a klib file")
     var nopack: Boolean = false
 
-    @Argument(value="-linker-options", deprecatedName = "-linkerOpts", valueDescription = "<arg>", description = "Pass arguments to linker", delimiter = ARGUMENT_NO_DELIMITER)
-    var linkerArgumentsInternal: Array<String> = arrayOf()
+    private val linkerOpts = CommandLineOpts()
+    val linkerArguments by linkerOpts
 
-    val linkerArguments: Array<String> by parseCommandLineString { linkerArgumentsInternal }
+    @Argument(value="-linker-option", valueDescription = "<arg>", description = "Pass single argument to linker", delimiter = ARGUMENT_NO_DELIMITER)
+    var linkerArgumentInternal by linkerOpts.singletonOpt
+
+    @Argument(value="-linker-options", deprecatedName = "-linkerOpts", valueDescription = "<args>", description = "Pass arguments to linker", delimiter = ARGUMENT_NO_DELIMITER)
+    var linkerArgumentsInternal by linkerOpts.multipleOpts
 
     @Argument(value = "-nostdlib", description = "Don't link with stdlib")
     var nostdlib: Boolean = false

@@ -88,6 +88,7 @@ Run interop tool with -def <def_file_for_lib>.def
 Following flags are supported:
   -def <file>.def specifies library definition file
   -compilerOpts <c compiler flags> specifies flags passed to clang
+  -linkerOpt  <linker flag> specifies single flag passed to linker as-is
   -linkerOpts <linker flags> specifies flags passed to linker
   -verbose <boolean> increases verbosity
   -shims <boolean> adds generation of shims tracing native library calls
