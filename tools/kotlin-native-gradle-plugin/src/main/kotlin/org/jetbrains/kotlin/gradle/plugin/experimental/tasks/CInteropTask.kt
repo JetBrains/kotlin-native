@@ -102,7 +102,7 @@ open class CInteropTask @Inject constructor(val settings: CInteropSettingsImpl):
             }
 
             linkerOpts.forEach {
-                addArg("-lopt", it)
+                addArg("-linkerOpt", it)
             }
 
             addArgs("-copt", allHeadersDirs.map { "-I${it.absolutePath}" })
