@@ -17,18 +17,23 @@
 
 package org.jetbrains.kliopt
 
-enum class DeprecatedState {
-    ALL {
-        override fun helpMessage(descriptor: Descriptor): String = "Warning: Option/argument -${descriptor.longName} is deprecated!"
-    },
-    ONLY_SHORT {
-        override fun helpMessage(descriptor: Descriptor): String =
-                "Warning: Short form -${(descriptor as? OptionDescriptor)?.shortName} of option -${descriptor.longName} is deprecated!"
-    },
-    ONLY_FULL {
-        override fun helpMessage(descriptor: Descriptor): String =
-                "Warning: Full form of option -${descriptor.longName} is deprecated!"
-    };
+sealed class DeprecatedState(val newName: String? = null) {
+    class AllForms(newName: String? = null) : DeprecatedState(newName) {
+        override fun helpMessage(descriptor: Descriptor) = "Warning: Option/argument -${descriptor.longName}" +
+                "${(descriptor as? OptionDescriptor)?.let { it.shortName?.let{ "-$it" } ?: ""} ?: ""} is deprecated!" +
+                "${newName?.let {" Use -$it instead."} ?: ""}"
+    }
+    class OnlyShort(newName: String? = null) : DeprecatedState(newName) {
+        override fun helpMessage(descriptor: Descriptor) =
+                "Warning: Short form -${(descriptor as? OptionDescriptor)?.shortName} of option " +
+                        "-${descriptor.longName} is deprecated!${newName?.let {" Use -$it instead."} ?: ""}"
+    }
+    class OnlyFull(newName: String? = null) : DeprecatedState(newName) {
+        override fun helpMessage(descriptor: Descriptor) =
+                "Warning: Full form of option -${descriptor.longName}" +
+                        "${(descriptor as? OptionDescriptor)?.let { it.shortName?.let { "-$it" } ?: "" } ?: ""} is deprecated!" +
+                        "${newName?.let {" Use -$it instead."} ?: ""}"
+    }
     abstract fun helpMessage(descriptor: Descriptor): String
 }
 
@@ -141,6 +146,7 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
             else
         listOf(OptionDescriptor(ArgType.Boolean(), "help", description = "Usage info"))
     ).toList()
+    private val reportedDeprecatedWarnings = mutableMapOf<String, Boolean>()
     private val arguments = argsList
     private lateinit var parsedValues: MutableMap<String, ParsedArg?>
 
@@ -195,15 +201,18 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
     }
 
     private fun saveAsOption(descriptor: OptionDescriptor, value: String,
-                             processedValues: Map<String, MutableList<String>>, useShort: Boolean = false) {
+                             processedValues: Map<String, MutableList<String>>, shortNameUsed: Boolean = false) {
         if (!descriptor.isMultiple && !processedValues.getValue(descriptor.longName).isEmpty()) {
             printError("Option ${descriptor.longName} is used more than one time!")
         }
         descriptor.deprecated?.let {
-            if (processedValues.getValue(descriptor.longName).isEmpty())
-                if (it == DeprecatedState.ALL || it == DeprecatedState.ONLY_SHORT && useShort
-                        || it == DeprecatedState.ONLY_FULL && !useShort)
+            if ((it is DeprecatedState.AllForms || it is DeprecatedState.OnlyShort && shortNameUsed
+                    || it is DeprecatedState.OnlyFull && !shortNameUsed)
+                    && reportedDeprecatedWarnings[descriptor.longName] != true) {
                 println ("${it.helpMessage(descriptor)}")
+                reportedDeprecatedWarnings[descriptor.longName] = true
+            }
+
         }
         val savedValues = descriptor.delimiter?.let { value.split(it) } ?: listOf(value)
 
@@ -227,12 +236,12 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
             val arg = args[index]
             if (arg.startsWith('-')) {
                 // Option is found.
-                val (name, useShort) = shortNames[arg.substring(1)]?.let { Pair(it, true) } ?: Pair(arg.substring(1), false)
+                val (name, shortNameUsed) = shortNames[arg.substring(1)]?.let { Pair(it, true) } ?: Pair(arg.substring(1), false)
                 val descriptor = optDescriptors[name]
                 descriptor?. let {
                     if (descriptor.type.hasParameter) {
                         if (index < args.size - 1) {
-                            saveAsOption(descriptor, args[index + 1], processedValues, useShort)
+                            saveAsOption(descriptor, args[index + 1], processedValues, shortNameUsed)
                             index++
                         } else {
                             // An error, option with value without value.
