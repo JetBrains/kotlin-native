@@ -17,6 +17,21 @@
 
 package org.jetbrains.kliopt
 
+enum class DeprecatedState {
+    ALL {
+        override fun helpMessage(descriptor: Descriptor): String = "Warning: Option/argument -${descriptor.longName} is deprecated!"
+    },
+    ONLY_SHORT {
+        override fun helpMessage(descriptor: Descriptor): String =
+                "Warning: Short form -${(descriptor as? OptionDescriptor)?.shortName} of option -${descriptor.longName} is deprecated!"
+    },
+    ONLY_FULL {
+        override fun helpMessage(descriptor: Descriptor): String =
+                "Warning: Full form of option -${descriptor.longName} is deprecated!"
+    };
+    abstract fun helpMessage(descriptor: Descriptor): String
+}
+
 // Possible types of arguments.
 sealed class ArgType(val hasParameter: kotlin.Boolean) {
     abstract val description: kotlin.String
@@ -61,7 +76,7 @@ abstract class Descriptor(val type: ArgType,
                           val description: String? = null,
                           val defaultValue: String? = null,
                           val isRequired: Boolean = false,
-                          val deprecatedWarning: String? = null) {
+                          val deprecated: DeprecatedState? = null) {
     abstract val textDescription: String
     abstract val helpMessage: String
 }
@@ -75,7 +90,7 @@ class OptionDescriptor(
         isRequired: Boolean = false,
         val isMultiple: Boolean = false,
         val delimiter: String? = null,
-        deprecatedWarning: String? = null) : Descriptor (type, longName, description, defaultValue, isRequired, deprecatedWarning) {
+        deprecated: DeprecatedState? = null) : Descriptor (type, longName, description, defaultValue, isRequired, deprecated) {
     override val textDescription: String
         get() = "option -$longName"
 
@@ -88,7 +103,7 @@ class OptionDescriptor(
             description?.let {result.append(" -> ${it}")}
             if (isRequired) result.append(" (always required)")
             result.append(" ${type.description}")
-            deprecatedWarning?.let { result.append(" Warning: $it") }
+            deprecated?.let { result.append(" ${it.helpMessage(this)}") }
             result.append("\n")
             return result.toString()
         }
@@ -100,7 +115,7 @@ class ArgDescriptor(
         description: String? = null,
         defaultValue: String? = null,
         isRequired: Boolean = true,
-        deprecatedWarning: String? = null) : Descriptor (type, longName, description, defaultValue, isRequired, deprecatedWarning) {
+        deprecated: DeprecatedState? = null) : Descriptor (type, longName, description, defaultValue, isRequired, deprecated) {
     override val textDescription: String
         get() = "argument $longName"
 
@@ -112,7 +127,7 @@ class ArgDescriptor(
             description?.let {result.append(" -> ${it}")}
             if (!isRequired) result.append(" (optional)")
             result.append(" ${type.description}")
-            deprecatedWarning?.let { result.append(" Warning: $it") }
+            deprecated?.let { result.append(" ${it.helpMessage(this)}") }
             result.append("\n")
             return result.toString()
         }
@@ -172,25 +187,30 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
         val name = nullArgs.firstOrNull()
         name?. let {
             argDescriptors.getValue(name).type.check(arg, name)
-            argDescriptors.getValue(name).deprecatedWarning?.let { println ("Warning: $it") }
+            argDescriptors.getValue(name).deprecated?.let { println ("${it.helpMessage(argDescriptors.getValue(name))}") }
             processedValues.getValue(name).add(arg)
             return true
         }
         return false
     }
 
-    private fun saveAsOption(descriptor: OptionDescriptor, value: String, processedValues: Map<String, MutableList<String>>) {
+    private fun saveAsOption(descriptor: OptionDescriptor, value: String,
+                             processedValues: Map<String, MutableList<String>>, useShort: Boolean = false) {
         if (!descriptor.isMultiple && !processedValues.getValue(descriptor.longName).isEmpty()) {
             printError("Option ${descriptor.longName} is used more than one time!")
         }
-        descriptor.deprecatedWarning?.let { if (processedValues.getValue(descriptor.longName).isEmpty()) println ("Warning: $it") }
+        descriptor.deprecated?.let {
+            if (processedValues.getValue(descriptor.longName).isEmpty())
+                if (it == DeprecatedState.ALL || it == DeprecatedState.ONLY_SHORT && useShort
+                        || it == DeprecatedState.ONLY_FULL && !useShort)
+                println ("${it.helpMessage(descriptor)}")
+        }
         val savedValues = descriptor.delimiter?.let { value.split(it) } ?: listOf(value)
 
         savedValues.forEach {
             descriptor.type.check(it, descriptor.longName)
             processedValues.getValue(descriptor.longName).add(it)
         }
-
     }
 
     // Parse arguments.
@@ -207,12 +227,12 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
             val arg = args[index]
             if (arg.startsWith('-')) {
                 // Option is found.
-                val name = shortNames[arg.substring(1)] ?: arg.substring(1)
+                val (name, useShort) = shortNames[arg.substring(1)]?.let { Pair(it, true) } ?: Pair(arg.substring(1), false)
                 val descriptor = optDescriptors[name]
                 descriptor?. let {
                     if (descriptor.type.hasParameter) {
                         if (index < args.size - 1) {
-                            saveAsOption(descriptor, args[index + 1], processedValues)
+                            saveAsOption(descriptor, args[index + 1], processedValues, useShort)
                             index++
                         } else {
                             // An error, option with value without value.
