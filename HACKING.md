@@ -118,6 +118,8 @@ To update the blackbox compiler tests set TeamCity build number in `gradle.prope
  
     ../gradlew jvmRun
     
+ Files with results of benchmarks run are saved in `performance/build`. **nativeReport.json** - for konanRun and **jvmReport.json** for jvmRun.
+    
  To compare different results run benchmarksAnalyzer tool:
  
     cd tools/benchmarksAnalyzer/build/bin/<target>/benchmarksAnalyzerReleaseExecutable/
