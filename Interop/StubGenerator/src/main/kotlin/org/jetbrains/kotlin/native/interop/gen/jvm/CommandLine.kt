@@ -56,7 +56,7 @@ fun getCInteropArguments(): List<OptionDescriptor> {
             OptionDescriptor(ArgType.String(), "header", description = "header file to produce kotlin bindings for",
                     isMultiple = true, delimiter = ","),
             OptionDescriptor(ArgType.String(), "h", description = "header file to produce kotlin bindings for",
-                    isMultiple = true, delimiter = ",", deprecatedWarning = "Option -h is deprecated! Please, use -header"),
+                    isMultiple = true, delimiter = ",", deprecatedWarning = "Option -h is deprecated. Please use -header."),
             OptionDescriptor(ArgType.String(), HEADER_FILTER_ADDITIONAL_SEARCH_PREFIX, "hfasp",
                     "header file to produce kotlin bindings for", isMultiple = true, delimiter = ","),
             OptionDescriptor(ArgType.String(), "compilerOpts", "copt",
