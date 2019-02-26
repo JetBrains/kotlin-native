@@ -573,9 +573,7 @@ class HTMLRender: Render() {
                         +"${change.first.toString() + " %"}"
                     }
                     td {
-                        val scaledRatio = if (change.first.mean < 0)
-                                            (1 - change.second.mean) / (-1 + bucket.values.first().second.mean)
-                                            else (change.second.mean / maxRatio)
+                        val scaledRatio = change.second.mean / maxRatio
                         attributes["bgcolor"] = ColoredCell(scaledRatio).backgroundStyle
                         +"${change.second}"
                     }
