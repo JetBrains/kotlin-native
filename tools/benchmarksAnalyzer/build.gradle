@@ -130,15 +130,15 @@ kotlin {
         }
 
         configure([windows, linux, macos]) {
-            def targetName = name
+            def isCurrentHost = (name == getHostName())
             compilations.all {
                 cinterops.all {
-                    project.tasks[interopProcessingTaskName].enabled = (interopProcessingTaskName.toLowerCase().contains(getHostName()))
+                    project.tasks[interopProcessingTaskName].enabled = isCurrentHost
                 }
-                compileKotlinTask.enabled = (targetName == getHostName())
+                compileKotlinTask.enabled = isCurrentHost
             }
             binaries.all {
-                linkTask.enabled = (targetName == getHostName())
+                linkTask.enabled = isCurrentHost
             }
 
             binaries {
