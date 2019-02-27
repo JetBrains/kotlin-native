@@ -133,8 +133,7 @@ kotlin {
             def targetName = name
             compilations.all {
                 cinterops.all {
-                    if (!interopProcessingTaskName.toLowerCase().contains(getHostName()))
-                        project.tasks[interopProcessingTaskName].enabled = false
+                    project.tasks[interopProcessingTaskName].enabled = (interopProcessingTaskName.toLowerCase().contains(getHostName()))
                 }
                 compileKotlinTask.enabled = (targetName == getHostName())
             }
