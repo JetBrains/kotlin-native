@@ -13,17 +13,13 @@ import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.declarations.IrAnnotationContainer
-import org.jetbrains.kotlin.ir.declarations.IrDeclaration
-import org.jetbrains.kotlin.ir.declarations.IrFile
-import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
+import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.impl.IrVarargImpl
-import org.jetbrains.kotlin.ir.util.deepCopyWithSymbols
-import org.jetbrains.kotlin.ir.util.dump
-import org.jetbrains.kotlin.ir.util.patchDeclarationParents
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
+import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.psi2ir.Psi2IrConfiguration
 import org.jetbrains.kotlin.psi2ir.Psi2IrTranslator
@@ -55,6 +51,17 @@ internal val frontendPhase = konanUnitPhase(
         name = "Frontend",
         description = "Frontend builds AST"
 )
+
+// FIXME: a temporary workaround with JVM-inliner issue. It's unable to obtain compiled function body
+internal inline fun <reified T : IrElement> T.deepCopyWithSymbols(
+        initialParent: IrDeclarationParent? = null,
+        descriptorRemapper: DescriptorsRemapper = DescriptorsRemapper.DEFAULT
+): T {
+    val symbolRemapper = DeepCopySymbolRemapper(descriptorRemapper)
+    acceptVoid(symbolRemapper)
+    val typeRemapper = DeepCopyTypeRemapper(symbolRemapper)
+    return transform(DeepCopyIrTreeWithSymbols(symbolRemapper, typeRemapper), null).patchDeclarationParents(initialParent) as T
+}
 
 internal val psiToIrPhase = konanUnitPhase(
         op = {
