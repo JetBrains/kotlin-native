@@ -12,9 +12,18 @@ import org.jetbrains.kotlin.backend.konan.serialization.*
 import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.languageVersionSettings
+import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.declarations.IrAnnotationContainer
+import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
+import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.impl.IrVarargImpl
+import org.jetbrains.kotlin.ir.util.deepCopyWithSymbols
+import org.jetbrains.kotlin.ir.util.dump
 import org.jetbrains.kotlin.ir.util.patchDeclarationParents
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
+import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.psi2ir.Psi2IrConfiguration
 import org.jetbrains.kotlin.psi2ir.Psi2IrTranslator
@@ -95,6 +104,37 @@ internal val psiToIrPhase = konanUnitPhase(
             modules.values.forEach {
                 it.patchDeclarationParents()
             }
+
+            // TODO: Move to a separate phase. May be this should be a part of PsiToIr?
+            fun fixAnnotation(call: IrCall) {
+                call.accept(object: IrElementVisitorVoid {
+                    override fun visitElement(element: IrElement) {
+                        element.acceptChildrenVoid(this)
+                    }
+
+                    override fun visitCall(expression: IrCall) {
+                        expression.symbol.owner.valueParameters.forEach {
+                            if (expression.getValueArgument(it.index) == null)
+                                expression.putValueArgument(it.index, it.defaultValue?.expression?.deepCopyWithSymbols() ?: IrVarargImpl(
+                                        startOffset = expression.startOffset,
+                                        endOffset = expression.endOffset,
+                                        type = it.type,
+                                        varargElementType = it.varargElementType!!
+                                ))
+                        }
+                        super.visitCall(expression)
+                    }
+                }, data = null)
+            }
+
+            module.acceptChildrenVoid(object: IrElementVisitorVoid {
+                override fun visitElement(element: IrElement) {
+                    element.acceptChildrenVoid(this)
+                    if (element is IrAnnotationContainer) {
+                        element.annotations.forEach { fixAnnotation(it) }
+                    }
+                }
+            })
 
             irModule = module
             irModules = modules
