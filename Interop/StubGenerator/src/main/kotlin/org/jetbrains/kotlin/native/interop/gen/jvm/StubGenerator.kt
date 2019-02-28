@@ -753,7 +753,7 @@ class StubGenerator(
             "val ${name.asSimpleName()}: ${type.render(kotlinFile)} get() = $expressionBody"
 
     private fun topLevelConstVal(name: String, type: KotlinType, initializer: String): String =
-            "const val ${name.asSimpleName()}: ${type.render(kotlinFile)} = $initializer"
+            "val ${name.asSimpleName()}: ${type.render(kotlinFile)} get() = $initializer"
 
     private fun generateConstant(constant: ConstantDef) {
         val kotlinName = constant.name
