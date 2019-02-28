@@ -178,7 +178,7 @@ private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = 
     val def = DefFile(defFile, tool.substitutions)
 
     if (flavorName == "native" && argParser.getOrigin("linkerOpts") == ArgParser.ValueOrigin.SET_BY_USER) {
-        warn("Don't use option -linkerOpts/-lopt for native flavor. Necessary libraries will be get from def file.")
+        warn("-linkerOpts/-lopt option is not supported by cinterop. Please add linker options to .def file or binary compilation instead.")
     }
 
     val additionalLinkerOpts = argParser.getValuesAsArray("linkerOpts")
