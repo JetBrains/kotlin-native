@@ -192,10 +192,4 @@ open class KonanStandaloneTestRunner : KonanLocalTestRunner() {
     var enableKonanAssertions = true
 
     fun getSources() = buildCompileList(project.testOutputLocal)
-
-    override fun configure(config: Closure<*>): Task {
-        super.configure(config)
-        this.dependsOn("compileKonan${source.capitalize()}")
-        return this
-    }
 }

@@ -4,6 +4,7 @@
  */
 package org.jetbrains.kotlin
 
+import groovy.lang.Closure
 import org.gradle.api.Project
 import org.gradle.api.Task
 
@@ -49,10 +50,10 @@ fun Project.setDistDependencyFor(t: Task) {
     }
 }
 
-fun Project.createStandaloneTest(name: String, configure: (KonanStandaloneTestRunner) -> Unit = {}): KonanStandaloneTestRunner =
+fun Project.createStandaloneTest(name: String, config: Closure<*>): KonanStandaloneTestRunner =
         project.tasks.create("execute${name.capitalize()}", KonanStandaloneTestRunner::class.java).apply {
             // Apply closure set in build.gradle to get all parameters.
-            configure(this)
+            this.configure(config)
 
             // Configure test task.
             val testOutput = (project.findProperty("testOutputLocal") as? File)?.toString()
