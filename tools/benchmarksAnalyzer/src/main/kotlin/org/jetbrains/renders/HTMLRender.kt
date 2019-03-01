@@ -554,7 +554,7 @@ class HTMLRender: Render() {
 
     private fun TableBlock.renderBenchmarksDetails(fullSet: Map<String, SummaryBenchmark>,
                                                    bucket: Map<String, ScoreChange>? = null, rowStyle: String? = null) {
-        if (bucket != null) {
+        if (bucket != null && !bucket.isEmpty()) {
             // Find max ratio.
             val maxRatio = bucket.values.map { it.second.mean }.max()!!
             // There are changes in performance.
