@@ -36,7 +36,6 @@ while IFS=$'\r' read -r line || [[ -n "$line" ]]; do
         systemctl enable $line
         systemctl start $line
     else
-        echo "BBBB $line"
         systemctl disable $line
         systemctl stop $line
     fi
