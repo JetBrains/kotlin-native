@@ -646,7 +646,7 @@ internal class CAdapterGenerator(
         moduleDescriptors += context.moduleDescriptor
         moduleDescriptors += context.getExportedDependencies()
 
-        currentPackageFragments = context.moduleDescriptor.getPackageFragments().sortedWith(
+        currentPackageFragments = moduleDescriptors.flatMap { it.getPackageFragments() }.toSet().sortedWith(
                 Comparator { o1, o2 ->
                     o1.fqName.toString().compareTo(o2.fqName.toString())
                 })
