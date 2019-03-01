@@ -14,18 +14,24 @@ import org.jetbrains.kotlin.serialization.deserialization.descriptors.Deserializ
 // Then the rest of the fields allow to find the needed descriptor relative to the one with index.
 class DescriptorReferenceDeserializer(val currentModule: ModuleDescriptor, val resolvedForwardDeclarations: MutableMap<UniqIdKey, UniqIdKey>) {
 
-    private val cache = mutableMapOf<String, Collection<DeclarationDescriptor>>()
+    private val cache = mutableMapOf<Pair<String, String>, Collection<DeclarationDescriptor>>()
 
-    private fun getContributedDescriptors(packageFqNameString: String): Collection<DeclarationDescriptor> =
-            cache.getOrPut(packageFqNameString) {
+    private fun getContributedDescriptors(packageFqNameString: String, name: String): Collection<DeclarationDescriptor> =
+            cache.getOrPut(packageFqNameString to name) {
                 val packageFqName = packageFqNameString.let {
                     if (it == "<root>") FqName.ROOT else FqName(it)
                 }// TODO: whould we store an empty string in the protobuf?
 
-                currentModule.getPackage(packageFqName).memberScope.getContributedDescriptors()
+                val contributedName = if (name.startsWith("<get-") || name.startsWith("<set-")) {
+                    name.substring(5, name.length - 1) // FIXME: rework serialization format.
+                } else {
+                    name
+                }
+                currentModule.getPackage(packageFqName).memberScope
+                        .getContributedDescriptors(nameFilter = { it.asString() == contributedName })
             }
 
-    private data class ClassName(val packageFqName: String, val classFqName: String)
+    private data class ClassName(val packageFqName: String, val classFqName: String, val name: String)
 
     private class ClassMembers(val defaultConstructor: ClassConstructorDescriptor?,
                                val members: Map<Long, DeclarationDescriptor>,
@@ -33,9 +39,9 @@ class DescriptorReferenceDeserializer(val currentModule: ModuleDescriptor, val r
 
     private val membersCache = mutableMapOf<ClassName, ClassMembers>()
 
-    private fun getMembers(packageFqNameString: String, classFqNameString: String,
+    private fun getMembers(packageFqNameString: String, classFqNameString: String, name: String,
                            members: Collection<DeclarationDescriptor>): ClassMembers =
-            membersCache.getOrPut(ClassName(packageFqNameString, classFqNameString)) {
+            membersCache.getOrPut(ClassName(packageFqNameString, classFqNameString, name)) {
                 val allMembersMap = mutableMapOf<Long, DeclarationDescriptor>()
                 val realMembersMap = mutableMapOf<Long, DeclarationDescriptor>()
                 var classConstructorDescriptor: ClassConstructorDescriptor? = null
@@ -74,7 +80,7 @@ class DescriptorReferenceDeserializer(val currentModule: ModuleDescriptor, val r
         val protoIndex = index
 
         val (clazz, members) = if (classFqNameString == "") {
-            Pair(null, getContributedDescriptors(packageFqNameString))
+            Pair(null, getContributedDescriptors(packageFqNameString, name))
         } else {
             val clazz = currentModule.findClassAcrossModuleDependencies(ClassId(packageFqName, classFqName, false))!!
             Pair(clazz, clazz.unsubstitutedMemberScope.getContributedDescriptors() + clazz.getConstructors())
@@ -110,7 +116,7 @@ class DescriptorReferenceDeserializer(val currentModule: ModuleDescriptor, val r
                 .getContributedFunctions(Name.identifier(name), NoLookupLocation.FROM_BACKEND).single()
         }
 
-        val membersWithIndices = getMembers(packageFqNameString, classFqNameString, members)
+        val membersWithIndices = getMembers(packageFqNameString, classFqNameString, name, members)
 
         return when {
             isDefaultConstructor -> membersWithIndices.defaultConstructor
