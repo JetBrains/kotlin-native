@@ -7,6 +7,7 @@ import org.jetbrains.kotlin.backend.konan.descriptors.isForwardDeclarationModule
 import org.jetbrains.kotlin.backend.konan.descriptors.konanLibrary
 import org.jetbrains.kotlin.backend.konan.ir.KonanSymbols
 import org.jetbrains.kotlin.backend.konan.llvm.*
+import org.jetbrains.kotlin.backend.konan.lower.AnnotationsFixer
 import org.jetbrains.kotlin.backend.konan.lower.ExpectToActualDefaultValueCopier
 import org.jetbrains.kotlin.backend.konan.serialization.*
 import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
@@ -104,6 +105,12 @@ internal val psiToIrPhase = konanUnitPhase(
         },
         name = "Psi2Ir",
         description = "Psi to IR conversion"
+)
+
+internal val annotationsFixerPhase = konanUnitPhase(
+        op = { irModule!!.files.forEach(AnnotationsFixer()::lower) },
+        name = "AnnotationsFixer",
+        description = "Fix annotations"
 )
 
 internal val irGeneratorPluginsPhase = konanUnitPhase(
@@ -275,6 +282,7 @@ internal val toplevelPhase = namedUnitPhase(
         description = "The whole compilation process",
         lower = frontendPhase then
                 psiToIrPhase then
+                annotationsFixerPhase then
                 irGeneratorPluginsPhase then
                 copyDefaultValuesToActualPhase then
                 patchDeclarationParents0Phase then
