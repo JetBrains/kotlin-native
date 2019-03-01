@@ -8,7 +8,7 @@ package kotlin.native
  * Operating system family.
  */
 public enum class OsFamily {
-    OTHER,
+    UNKNOWN,
     MACOSX,
     IOS,
     LINUX,
@@ -21,7 +21,7 @@ public enum class OsFamily {
  * Central Processor Unit architecture.
  */
 public enum class CpuArchitecture(val bitness: Int) {
-    OTHER(-1),
+    UNKNOWN(-1),
     ARM32(32),
     ARM64(64),
     X86(32),
@@ -48,7 +48,7 @@ public object Platform {
         get() = Platform_isLittleEndian() != 0
 
     /**
-     * Ooperating system family program executes upon.
+     * Operating system family program executes upon.
      */
     public val osFamily: OsFamily
         get() = OsFamily.values()[Platform_getOsFamily()]
