@@ -280,65 +280,6 @@ class TestFailedException extends RuntimeException {
     }
 }
 
-/**
- * Compiles and executes test as a standalone binary
- */
-class RunStandaloneKonanTest extends KonanTest {
-    /**
-     * overrides [KonanTest::inDevelopersRun] used in [:backend.native:tests:sanity]
-     */
-    public def inDevelopersRun = true
-
-    void compileTest(List<String> filesToCompile, String exe) {
-        runCompiler(filesToCompile, exe, flags?:[])
-    }
-}
-
-// This is another way to run the compiler.
-// Don't use this task for regular testing as
-// project.exec + a shell script isolate the jvm
-// from IDEA. Use the RunKonanTest instead.
-class RunDriverKonanTest extends KonanTest {
-    /**
-     * overrides [KonanTest::inDevelopersRun] used in [:backend.native:tests:sanity]
-     */
-    public def inDevelopersRun = true
-
-    RunDriverKonanTest() {
-        super()
-        // We don't build the compiler if a custom konan.home path is specified.
-        if (!project.hasProperty("konan.home")) {
-            dependsOn(project.rootProject.tasks['cross_dist'])
-        }
-    }
-
-    void compileTest(List<String> filesToCompile, String exe) {
-        runCompiler(filesToCompile, exe, flags?:[])
-    }
-
-    protected void runCompiler(List<String> filesToCompile, String output, List<String> moreArgs) {
-        def log = new ByteArrayOutputStream()
-        project.exec {
-            commandLine konanc
-            args = ["-output", output,
-                    *filesToCompile,
-                    *moreArgs,
-                    *project.globalTestArgs]
-            if (project.testTarget) {
-                args "-target", target.visibleName
-            }
-            if (enableKonanAssertions) {
-                args "-ea"
-            }
-            standardOutput = log
-            errorOutput = log
-        }
-        def logString = log.toString("UTF-8")
-        project.file("${output}.compilation.log").write(logString)
-        println(logString)
-    }
-}
-
 class RunInteropKonanTest extends KonanTest {
     /**
      * overrides [KonanTest::inDevelopersRun] used in [:backend.native:tests:sanity]

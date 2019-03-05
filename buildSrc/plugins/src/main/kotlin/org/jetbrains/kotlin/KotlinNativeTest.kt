@@ -11,8 +11,9 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
 import org.gradle.language.base.plugins.LifecycleBasePlugin
-
+import java.io.File
 import java.util.regex.Pattern
+import org.jetbrains.kotlin.konan.target.HostManager
 
 enum class RunnerLogger {
     GTEST,
@@ -22,6 +23,11 @@ enum class RunnerLogger {
 }
 
 abstract class KonanTestRunner : DefaultTask() {
+    var disabled: Boolean
+        get() = !enabled
+        @Optional
+        set(value) { enabled = !value }
+
     @Optional
     var testLogger = RunnerLogger.SILENT
 
@@ -62,10 +68,9 @@ abstract class KonanTestRunner : DefaultTask() {
     // Converts to runner's pattern
     private fun String.convertToPattern() = this.replace('/', '.').replace(".kt", "") + (".*")
 
-    internal fun ProcessOutput.print() {
-        val (stdOut, stdErr, exitCode) = this
+    internal fun ProcessOutput.print(prepend: String = "") {
         if (project.verboseTest)
-            println("""
+            println(prepend + """
                 |stdout:$stdOut
                 |stderr:$stdErr
                 |exit code: $exitCode
@@ -112,7 +117,8 @@ open class KonanGTestRunner : KonanTestRunner() {
 
 open class KonanLocalTestRunner : KonanTestRunner() {
     init {
-        val target = project.testTarget()
+        // local tests built into a single binary with the known name
+        val target = project.testTarget
         executable = "${project.testOutputLocal}/${target.name}/localTest.${target.family.exeSuffix}"
     }
 
@@ -144,7 +150,7 @@ open class KonanLocalTestRunner : KonanTestRunner() {
         else
             runProcess(project.executor::execute, executable, arguments)
         if (compilerMessages) {
-            val target = project.testTarget()
+            val target = project.testTarget
             val compilationLog = project.file("${project.testOutputLocal}/${target.name}/localTest.compilation.log")
                     .readText()
             output = ProcessOutput(compilationLog + output.stdOut, output.stdErr, output.exitCode)
@@ -154,8 +160,6 @@ open class KonanLocalTestRunner : KonanTestRunner() {
     }
 
     private fun ProcessOutput.check() {
-        val (stdOut, stdErr, exitCode) = this
-
         val exitCodeMismatch = exitCode != expectedExitStatus
         if (exitCodeMismatch) {
             val message = "Expected exit status: $expectedExitStatus, actual: $exitCode"
@@ -186,10 +190,56 @@ open class KonanLocalTestRunner : KonanTestRunner() {
 
 open class KonanStandaloneTestRunner : KonanLocalTestRunner() {
     @Optional
-    var flags: MutableList<String>? = null
-
-    @Optional
     var enableKonanAssertions = true
 
+    @Optional
+    var flags: MutableList<String> = if (enableKonanAssertions) mutableListOf("-ea") else mutableListOf()
+
     fun getSources() = buildCompileList(project.testOutputLocal)
+}
+
+/**
+ * This is another way to run the konanc compiler. It runs a konanc shell script.
+ *
+ * @note This task is not intended for regular testing as project.exec + a shell script isolate the jvm from IDEA.
+ * @see KonanLocalTestRunner to be used as a regular task.
+ */
+open class KonanDriverTestRunner : KonanStandaloneTestRunner() {
+    private fun runCompiler(filesToCompile: List<String>, output: String) {
+        val dist = project.rootProject.file(project.findProperty("org.jetbrains.kotlin.native.home") ?:
+                   project.findProperty("konan.home") ?: "dist")
+        val konancDriver = if (HostManager.hostIsMingw) "konanc.bat" else "konanc"
+        val konanc = File("${dist.canonicalPath}/bin/$konancDriver").absolutePath
+
+        val args = mutableListOf("-output", output).apply {
+            addAll(filesToCompile)
+            addAll(flags)
+            addAll(project.globalTestArgs)
+            if (enableKonanAssertions) add("-ea")
+        }
+
+        // run konanc compiler locally
+        with(runProcess(localExecutor(project), konanc, args)) {
+            check(exitCode == 0) { "Compiler failed with exit code $exitCode" }
+            project.file("$output.compilation.log").run {
+                writeText(stdOut)
+                writeText(stdErr)
+            }
+            print("Compiler execution:")
+        }
+    }
+
+    @TaskAction
+    override fun run() {
+        val testOutput = project.testOutputLocal
+        val target = project.testTarget
+        executable = "$testOutput/${target.name}/$name.${target.family.exeSuffix}"
+        runCompiler(getSources(), executable)
+        super.run()
+    }
+}
+
+open class KonanInteropTestRunner : KonanStandaloneTestRunner() {
+    @Input
+    lateinit var interop: String
 }

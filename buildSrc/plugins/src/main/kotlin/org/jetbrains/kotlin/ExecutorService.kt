@@ -47,8 +47,8 @@ interface ExecutorService {
  * Creates an ExecutorService depending on a test target -Ptest_target
  */
 fun create(project: Project): ExecutorService {
-    val platformManager = project.platformManager()
-    val testTarget = project.testTarget()
+    val platformManager = project.platformManager
+    val testTarget = project.testTarget
     val platform = platformManager.platform(testTarget)
     val absoluteTargetToolchain = platform.absoluteTargetToolchain
     val absoluteTargetSysRoot = platform.absoluteTargetSysRoot

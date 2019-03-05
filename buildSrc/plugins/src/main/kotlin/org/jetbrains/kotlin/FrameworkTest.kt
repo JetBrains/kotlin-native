@@ -30,13 +30,11 @@ open class FrameworkTest : DefaultTask() {
     @Input
     var fullBitcode: Boolean = false
 
-    private val testOutput: String by lazy {
-        project.file(project.property("testOutputFramework")!!).absolutePath
-    }
+    private val testOutput: String = project.testOutputFramework
 
     override fun configure(config: Closure<*>): Task {
         super.configure(config)
-        val target = project.testTarget().name
+        val target = project.testTarget.name
 
         // set crossdist build dependency if custom konan.home wasn't set
         if (!(project.property("useCustomDist") as Boolean)) {
@@ -51,7 +49,7 @@ open class FrameworkTest : DefaultTask() {
 
     @TaskAction
     fun run() {
-        val frameworkPath = "$testOutput/$frameworkName/${project.testTarget().name}"
+        val frameworkPath = "$testOutput/$frameworkName/${project.testTarget.name}"
 
         codesign(project, Paths.get(frameworkPath, "$frameworkName.framework").toString())
 
@@ -81,8 +79,8 @@ open class FrameworkTest : DefaultTask() {
     }
 
     private fun swiftc(sources: List<String>, options: List<String>, output: Path) {
-        val target = project.testTarget()
-        val platform = project.platformManager().platform(target)
+        val target = project.testTarget
+        val platform = project.platformManager.platform(target)
         assert(platform.configurables is AppleConfigurables)
         val configs = platform.configurables as AppleConfigurables
         val compiler = configs.absoluteTargetToolchain + "/usr/bin/swiftc"

@@ -1,19 +1,37 @@
 package org.jetbrains.kotlin
 
 import org.gradle.api.Project
+import org.gradle.api.Task
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.target.PlatformManager
 import java.io.File
 
-fun Project.platformManager() = findProperty("platformManager") as PlatformManager
-fun Project.testTarget() = findProperty("target") as KonanTarget
+//region Project properties.
+
+val Project.platformManager
+    get() = findProperty("platformManager") as PlatformManager
+
+val Project.testTarget
+    get() = findProperty("target") as KonanTarget
 
 val Project.verboseTest
     get() = hasProperty("test_verbose")
 
 val Project.testOutputLocal
     get() = (findProperty("testOutputLocal") as File).toString()
+
+val Project.testOutputStdlib
+    get() = (findProperty("testOutputStdlib") as File).toString()
+
+val Project.testOutputFramework
+    get() = (findProperty("testOutputFramework") as File).toString()
+
+@Suppress("UNCHECKED_CAST")
+val Project.globalTestArgs
+    get() = findProperty("globalTestArgs") as List<String>
+
+//endregion
 
 /**
  * Ad-hoc signing of the specified path
@@ -29,3 +47,25 @@ fun codesign(project: Project, path: String) {
         """.trimMargin()
     }
 }
+
+//region Task dependency.
+
+fun Project.setDistDependencyFor(taskName: String) {
+    project.setDistDependencyFor(project.tasks.getByName(taskName))
+}
+
+fun Project.setDistDependencyFor(t: Task) {
+    val rootTasks = project.rootProject.tasks
+    // We don't build the compiler if a custom dist path is specified.
+    if (project.findProperty("useCustomDist") != null) {
+        t.dependsOn(rootTasks.getByName("dist"))
+        val target = project.testTarget
+        if (target != HostManager.host) {
+            // if a test_target property is set then tests should depend on a crossDist
+            // otherwise runtime components would not be build for a target.
+            t.dependsOn(rootTasks.getByName("${target.name}CrossDist"))
+        }
+    }
+}
+
+//endregion

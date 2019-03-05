@@ -8,6 +8,11 @@ package org.jetbrains.kotlin
 import java.nio.file.Paths
 import java.util.regex.Pattern
 
+/**
+ * Creates files from the given source file that may contain divverent test directives.
+ *
+ * @return list of file names to be compiled
+ */
 fun KonanTestRunner.buildCompileList(outputDirectory: String): List<String> {
     val result = mutableListOf<String>()
     val srcFile = project.file(source)
@@ -44,7 +49,7 @@ fun KonanTestRunner.buildCompileList(outputDirectory: String): List<String> {
     return result
 }
 
-internal fun createFile(file: String, text: String) = with(Paths.get(file)) {
+internal fun createFile(file: String, text: String) = Paths.get(file).run {
     parent.toFile()
             .takeUnless { it.exists() }
             ?.mkdirs()
