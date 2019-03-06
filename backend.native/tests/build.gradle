@@ -3096,10 +3096,10 @@ createStandaloneTest("interop_opengl_teapot") {
     it.source = "interop/basics/opengl_teapot.kt"
 }
 */
-
-task interop_objc_smoke(type: RunInteropKonanTest) {
-    disabled = !isAppleTarget(project)
-    goldValue = "84\nFoo\nHello, World!\nKotlin says: Hello, everybody!\nHello from Kotlin\n2, 1\n" +
+/* TODO doFirst should be replaced with beforeBuild or smth
+createInteropTest("interop_objc_smoke") {
+    it.disabled = !isAppleTarget(project)
+    it.goldValue = "84\nFoo\nHello, World!\nKotlin says: Hello, everybody!\nHello from Kotlin\n2, 1\n" +
             "true\ntrue\n" +
             "Global string\nAnother global string\nnull\nglobal object\n" +
             "5\n" +
@@ -3108,8 +3108,8 @@ task interop_objc_smoke(type: RunInteropKonanTest) {
             "Deallocated\nDeallocated\nDeallocated\n"
 
     if (isAppleTarget(project)) {
-        source = "interop/objc/smoke.kt"
-        interop = 'objcSmoke'
+        it.source = "interop/objc/smoke.kt"
+        it.interop = 'objcSmoke'
 
         doFirst {
             execKonanClang(project.target) {
@@ -3125,7 +3125,7 @@ task interop_objc_smoke(type: RunInteropKonanTest) {
 }
 
 /*
-TODO: doFirst shold be done before the build
+TODO: doFirst should be done before the build
 createStandaloneTest("jsinterop_math") {
     it.doFirst {
         def jsinteropScript = isWindows() ? "jsinterop.bat" : "jsinterop"
