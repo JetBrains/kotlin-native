@@ -3,10 +3,7 @@
  * that can be found in the LICENSE file.
  */
 
-import groovy.json.JsonOutput
 import org.jetbrains.kotlin.*
-import org.jetbrains.kotlin.konan.target.KonanTarget
-
 import java.nio.file.Paths
 
 buildscript {
@@ -178,7 +175,34 @@ Task standaloneTest(String name, Closure<KonanStandaloneTestRunner> configureClo
     }
 }
 
+/**
+ * Creates a task for a interop test. Configures runner and adds library and test build tasks.
+ */
+Task linkTest(String name, Closure<KonanLinkTestRunner> configureClosure) {
+    return TasksKt.createLinkTest(project, name) { task ->
+        configureClosure(task)
+        konanArtifacts {
+            def lib = "lib$name"
+            def targetName = target.name
+            library(lib, targets: [targetName]) {
+                srcFiles  task.lib
+                baseDir   testOutputLocal
+                extraOpts task.flags + project.globalTestArgs
+            }
+            UtilsKt.setDistDependencyFor(project, "compileKonan${lib.capitalize()}${targetName.capitalize()}")
 
+            program(name, targets: [targetName]) {
+                libraries {
+                    klib lib
+                }
+                dependsOn "compileKonan${lib.capitalize()}${targetName.capitalize()}"
+                srcFiles  task.getSources()
+                baseDir   testOutputLocal
+                extraOpts task.flags + project.globalTestArgs
+            }
+        }
+    }
+}
 
 task executeTests {
 //    dependsOn(tasksOf { it instanceof KonanTest && it.inDevelopersRun })
@@ -657,11 +681,11 @@ standaloneTest("entry1") {
     it.flags = ["-entry", "foo"]
 }
 
-task entry2(type: LinkKonanTest) {
-    goldValue = "Hello.\n"
-    source = "runtime/basic/entry2.kt"
-    lib = "runtime/basic/libentry2.kt"
-    flags = ["-entry", "foo"] 
+linkTest("entry2") {
+    it.goldValue = "Hello.\n"
+    it.source = "runtime/basic/entry2.kt"
+    it.lib = "runtime/basic/libentry2.kt"
+    it.flags = ["-entry", "foo"]
 }
 
 standaloneTest("entry3") {
@@ -930,10 +954,10 @@ task enum_interfaceCallWithEntryClass(type: KonanLocalTestRunner) {
     source = "codegen/enum/interfaceCallWithEntryClass.kt"
 }
 
-task enum_linkTest(type: LinkKonanTest) {
-    goldValue = "42\n117\n-1\n"
-    source = "codegen/enum/linkTest_main.kt"
-    lib = "codegen/enum/linkTest_lib.kt"
+linkTest("enum_linkTest") {
+    it.goldValue = "42\n117\n-1\n"
+    it.source = "codegen/enum/linkTest_main.kt"
+    it.lib = "codegen/enum/linkTest_lib.kt"
 }
 
 task enum_varargParam(type: KonanLocalTestRunner) {
@@ -970,8 +994,8 @@ task enum_lambdaInDefault(type: KonanLocalTestRunner) {
     source = "codegen/enum/lambdaInDefault.kt"
 }
 
-task mangling(type: LinkKonanTest) {
-    goldValue = 
+linkTest("mangling") {
+    it.goldValue =
         "Int direct [1, 2, 3, 4]\n" +
         "out Number direct [9, 10, 11, 12]\n" +
         "star direct [5, 6, 7, 8]\n" +
@@ -981,8 +1005,8 @@ task mangling(type: LinkKonanTest) {
         "no constructors {}\n" +
         "single constructor some string\n" +
         "two constructors 17\n"
-    source = "mangling/mangling.kt"
-    lib = "mangling/manglinglib.kt"
+    it.source = "mangling/mangling.kt"
+    it.lib = "mangling/manglinglib.kt"
 }
 
 task innerClass_simple(type: KonanLocalTestRunner) {
@@ -1025,10 +1049,9 @@ task innerClass_secondaryConstructor(type: KonanLocalTestRunner) {
     source = "codegen/innerClass/secondaryConstructor.kt"
 }
 
-task innerClass_linkTest(type: LinkKonanTest) {
-    goldValue = ""
-    source = "codegen/innerClass/linkTest_main.kt"
-    lib = "codegen/innerClass/linkTest_lib.kt"
+linkTest("innerClass_linkTest") {
+    it.source = "codegen/innerClass/linkTest_main.kt"
+    it.lib = "codegen/innerClass/linkTest_lib.kt"
 }
 
 task localClass_localHierarchy(type: KonanLocalTestRunner) {
@@ -1106,16 +1129,16 @@ task initializers_correctOrder2(type: KonanLocalTestRunner) {
     source = "codegen/initializers/correctOrder2.kt"
 }
 
-task initializers_linkTest1(type: LinkKonanTest) {
-    goldValue = "1200\n"
-    source = "codegen/initializers/linkTest1_main.kt"
-    lib = "codegen/initializers/linkTest1_lib.kt"
+linkTest("initializers_linkTest1") {
+    it.goldValue = "1200\n"
+    it.source = "codegen/initializers/linkTest1_main.kt"
+    it.lib = "codegen/initializers/linkTest1_lib.kt"
 }
 
-task initializers_linkTest2(type: LinkKonanTest) {
-    goldValue = "2\n"
-    source = "codegen/initializers/linkTest2_main.kt"
-    lib = "codegen/initializers/linkTest2_lib.kt"
+linkTest("initializers_linkTest2") {
+    it.goldValue = "2\n"
+    it.source = "codegen/initializers/linkTest2_main.kt"
+    it.lib = "codegen/initializers/linkTest2_lib.kt"
 }
 
 task arithmetic_basic(type: KonanLocalTestRunner) {
@@ -1226,16 +1249,16 @@ task bridges_test18(type: KonanLocalTestRunner) {
     source = "codegen/bridges/test18.kt"
 }
 
-task bridges_linkTest(type: LinkKonanTest) {
-    goldValue = "42\n42\n42\n"
-    source = "codegen/bridges/linkTest_main.kt"
-    lib = "codegen/bridges/linkTest_lib.kt"
+linkTest("bridges_linkTest") {
+    it.goldValue = "42\n42\n42\n"
+    it.source = "codegen/bridges/linkTest_main.kt"
+    it.lib = "codegen/bridges/linkTest_lib.kt"
 }
 
-task bridges_linkTest2(type: LinkKonanTest) {
-    goldValue = "true\n"
-    source = "codegen/bridges/linkTest2_main.kt"
-    lib = "codegen/bridges/linkTest2_lib.kt"
+linkTest("bridges_linkTest2") {
+    it.goldValue = "true\n"
+    it.source = "codegen/bridges/linkTest2_main.kt"
+    it.lib = "codegen/bridges/linkTest2_lib.kt"
 }
 
 task bridges_special(type: KonanLocalTestRunner) {
@@ -1267,10 +1290,10 @@ task classDelegation_withBridge(type: KonanLocalTestRunner) {
     source = "codegen/classDelegation/withBridge.kt"
 }
 
-task classDelegation_linkTest(type: LinkKonanTest) {
-    goldValue = "qxx\n123\n42\n117\nzzz\n"
-    source = "codegen/classDelegation/linkTest_main.kt"
-    lib = "codegen/classDelegation/linkTest_lib.kt"
+linkTest("classDelegation_linkTest") {
+    it.goldValue = "qxx\n123\n42\n117\nzzz\n"
+    it.source = "codegen/classDelegation/linkTest_main.kt"
+    it.lib = "codegen/classDelegation/linkTest_lib.kt"
 }
 
 standaloneTest("contracts") {
@@ -1298,16 +1321,16 @@ task delegatedProperty_local(type: KonanLocalTestRunner) {
     source = "codegen/delegatedProperty/local.kt"
 }
 
-task delegatedProperty_delegatedOverride(type: LinkKonanTest) {
-    goldValue = "156\nx\n117\n42\n"
-    source = "codegen/delegatedProperty/delegatedOverride_main.kt"
-    lib = "codegen/delegatedProperty/delegatedOverride_lib.kt"
+linkTest("delegatedProperty_delegatedOverride") {
+    it.goldValue = "156\nx\n117\n42\n"
+    it.source = "codegen/delegatedProperty/delegatedOverride_main.kt"
+    it.lib = "codegen/delegatedProperty/delegatedOverride_lib.kt"
 }
 
-task delegatedProperty_correctFieldsOrder(type: LinkKonanTest) {
-    goldValue = "qxx\n117\nzzz\nqzz\n"
-    source = "codegen/delegatedProperty/correctFieldsOrder_main.kt"
-    lib = "codegen/delegatedProperty/correctFieldsOrder_lib.kt"
+linkTest("delegatedProperty_correctFieldsOrder") {
+    it.goldValue = "qxx\n117\nzzz\nqzz\n"
+    it.source = "codegen/delegatedProperty/correctFieldsOrder_main.kt"
+    it.lib = "codegen/delegatedProperty/correctFieldsOrder_lib.kt"
 }
 
 task delegatedProperty_lazy(type: KonanLocalTestRunner) {
@@ -1355,10 +1378,10 @@ task propertyCallableReference_varExtension(type: KonanLocalTestRunner) {
     source = "codegen/propertyCallableReference/varExtension.kt"
 }
 
-task propertyCallableReference_linkTest(type: LinkKonanTest) {
-    goldValue = "42\n117\n"
-    source = "codegen/propertyCallableReference/linkTest_main.kt"
-    lib = "codegen/propertyCallableReference/linkTest_lib.kt"
+linkTest("propertyCallableReference_linkTest") {
+    it.goldValue = "42\n117\n"
+    it.source = "codegen/propertyCallableReference/linkTest_main.kt"
+    it.lib = "codegen/propertyCallableReference/linkTest_lib.kt"
 }
 
 task propertyCallableReference_dynamicReceiver(type: KonanLocalTestRunner) {
@@ -1772,17 +1795,17 @@ task intrinsic(type: KonanLocalTestRunner) {
     Disabled until we extract the classes that should be
     always present from stdlib into a separate binary.
 
-task link(type: LinkKonanTest) {
-    goldValue = "0\n"
-    source = "link/src/bar.kt"
-    lib = "link/lib"
+linkTest("link") {
+    it.goldValue = "0\n"
+    it.source = "link/src/bar.kt"
+    it.lib = "link/lib"
 }(
 */
 
-task link_omit_unused(type: LinkKonanTest) {
-    goldValue = "Hello\n"
-    source = "link/omit/hello.kt"
-    lib = "link/omit/lib.kt"
+linkTest("link_omit_unused") {
+    it.goldValue = "Hello\n"
+    it.source = "link/omit/hello.kt"
+    it.lib = "link/omit/lib.kt"
 }
 
 standaloneTest("link_default_libs") {
@@ -1807,12 +1830,12 @@ standaloneTest("link_testLib_explicitly") {
     }
 }
 
-task no_purge_for_dependencies(type: LinkKonanTest) {
+linkTest("no_purge_for_dependencies") {
     dependsOnPlatformLibs(it)
-    enabled = (project.testTarget != 'wasm32') // there will be no posix.klib for wasm
-    goldValue = "linked library\nand symbols from posix available: 17; 1.0\n"
-    source = "link/purge1/prog.kt"
-    lib = "link/purge1/lib.kt"
+    it.enabled = (project.testTarget != 'wasm32') // there will be no posix.klib for wasm
+    it.goldValue = "linked library\nand symbols from posix available: 17; 1.0\n"
+    it.source = "link/purge1/prog.kt"
+    it.lib = "link/purge1/lib.kt"
 }
 
 task for0(type: KonanLocalTestRunner) {
@@ -2489,11 +2512,11 @@ standaloneTest("mpp1") {
     it.flags = ['-tr', '-Xmulti-platform']
 }
 
-task mpp2(type: LinkKonanTest) {
-    goldValue = "C(arg=42)\ntrue\n1\nh\n"
-    source = "codegen/mpp/mpp2.kt"
-    lib = "codegen/mpp/libmpp2.kt"
-    flags = ['-Xmulti-platform']
+linkTest("mpp2") {
+    it.goldValue = "C(arg=42)\ntrue\n1\nh\n"
+    it.source = "codegen/mpp/mpp2.kt"
+    it.lib = "codegen/mpp/libmpp2.kt"
+    it.flags = ['-Xmulti-platform']
 }
 
 standaloneTest("mpp_default_args") {
@@ -2756,8 +2779,8 @@ task deserialized_listof0(type: KonanLocalTestRunner) {
     source = "serialization/deserialized_listof0.kt"
 }
 
-task deserialized_members(type: LinkKonanTest) {
-    goldValue=
+linkTest("deserialized_members") {
+    it.goldValue=
         "first level\n"+
         "second level\n"+
         "third levelxz\n"+
@@ -2767,32 +2790,32 @@ task deserialized_members(type: LinkKonanTest) {
         "types first level: 13\n"+
         "types second level cha-cha-cha\n"+
         "types third level 1.0\n"
-    lib = "serialization/serialize_members.kt"
-    source = "serialization/deserialize_members.kt"
+    it.lib = "serialization/serialize_members.kt"
+    it.source = "serialization/deserialize_members.kt"
 }
 
-task serialized_catch(type: LinkKonanTest) {
-    source = "serialization/use.kt"
-    lib = "serialization/catch.kt"
-    goldValue = "Gotcha1: XXX\nGotcha2: YYY\n"
+linkTest("serialized_catch") {
+    it.source = "serialization/use.kt"
+    it.lib = "serialization/catch.kt"
+    it.goldValue = "Gotcha1: XXX\nGotcha2: YYY\n"
 }
 
-task serialized_doWhile(type: LinkKonanTest) {
-    source = "serialization/use.kt"
-    lib = "serialization/do_while.kt"
-    goldValue = "999\n"
+linkTest("serialized_doWhile") {
+    it.source = "serialization/use.kt"
+    it.lib = "serialization/do_while.kt"
+    it.goldValue = "999\n"
 }
 
-task serialized_vararg(type: LinkKonanTest) {
-    source = "serialization/use.kt"
-    lib = "serialization/vararg.kt"
-    goldValue = "17\n19\n23\n29\n31\nsize: 5\n"
+linkTest("serialized_vararg") {
+    it.source = "serialization/use.kt"
+    it.lib = "serialization/vararg.kt"
+    it.goldValue = "17\n19\n23\n29\n31\nsize: 5\n"
 }
 
-task serialized_default_args(type: LinkKonanTest) {
-    source = "serialization/prop.kt"
-    lib = "serialization/default_args.kt"
-    goldValue = "SomeDataClass(first=17, second=666, third=23)\n"
+linkTest("serialized_default_args") {
+    it.source = "serialization/prop.kt"
+    it.lib = "serialization/default_args.kt"
+    it.goldValue = "SomeDataClass(first=17, second=666, third=23)\n"
 }
 
 standaloneTest("serialized_no_typemap") {
@@ -2800,16 +2823,16 @@ standaloneTest("serialized_no_typemap") {
     it.goldValue = "OK\n"
 }
 
-task serialized_enum_ordinal(type: LinkKonanTest) {
-    source = "serialization/enum_ordinal/main.kt"
-    lib = "serialization/enum_ordinal/library.kt"
-    goldValue = "0\n1\n2\nb\n"
+linkTest("serialized_enum_ordinal") {
+    it.source = "serialization/enum_ordinal/main.kt"
+    it.lib = "serialization/enum_ordinal/library.kt"
+    it.goldValue = "0\n1\n2\nb\n"
 }
 
-task serialized_char_constant(type: LinkKonanTest) {
-    source = "serialization/use_char_const.kt"
-    lib = "serialization/char_const.kt"
-    goldValue = "Ы\n"
+linkTest("serialized_char_constant") {
+    it.source = "serialization/use_char_const.kt"
+    it.lib = "serialization/char_const.kt"
+    it.goldValue = "Ы\n"
 }
 
 standaloneTest("testing_annotations") {
@@ -2890,10 +2913,10 @@ task driver_opt(type: KonanDriverTestRunner) {
 }
 
 // Enable when deserialization for default arguments is fixed.
-task inline_defaultArgs_linkTest(type: LinkKonanTest) {
-    goldValue = "122\n47\n"
-    source = "codegen/inline/defaultArgs_linkTest_main.kt"
-    lib = "codegen/inline/defaultArgs_linkTest_lib.kt"
+linkTest("inline_defaultArgs_linkTest") {
+    it.goldValue = "122\n47\n"
+    it.source = "codegen/inline/defaultArgs_linkTest_main.kt"
+    it.lib = "codegen/inline/defaultArgs_linkTest_lib.kt"
 }
 
 kotlinNativeInterop {
@@ -2956,22 +2979,23 @@ kotlinNativeInterop {
 }
 
 /**
- * Creates a task for a interop test. Configures runner and adds library and test build tasks.
+ * Creates a task for the interop test. Configures runner and adds library and test build tasks.
  */
 Task interopTest(String name, Closure<KonanInteropTestRunner> configureClosure) {
     return TasksKt.createInteropTest(project, name) { task ->
         configureClosure(task)
         konanArtifacts {
+            // TODO: get rid of the kotlinNativeInterop here
             def conf = project.kotlinNativeInterop[task.interop]
             def lib = conf.name + name
-            interop(lib) {
+            interop(lib, targets: [target.name ?: 'host']) {
                 // FIXME: creates empty file to workaround konan gradle plugin issue (should be able to have no def file)
                 defFile((conf.defFile != null) ? conf.defFile : File.createTempFile("${conf.name}.empty", ".def"))
                 if (conf.headers != null) headers(conf.headers)
                 if (conf.linkerOpts != null) linkerOpts(conf.linkerOpts)
                 if (conf.pkg != null) packageName(conf.pkg)
             }
-            UtilsKt.setDistDependencyFor(project, "compileKonan${lib.capitalize()}${targetName.capitalize()}")
+            UtilsKt.setDistDependencyFor(project, "compileKonan${lib.capitalize()}${target.name.capitalize()}")
 
             program(name, targets: [target.name ?: 'host']) {
                 libraries {
@@ -3326,7 +3350,7 @@ task buildKonanTests { t ->
             .matching { it instanceof KonanTest || it instanceof KonanStandaloneTestRunner }
             .each {
                 // add library and source files
-                if (it instanceof LinkKonanTest) {
+                if (it instanceof KonanLinkTestRunner) {
                     excludeList += it.lib
                 }
                 if (it.source != null) {
@@ -3351,6 +3375,5 @@ task buildKonanTests { t ->
     // Local tests build into a single binary should depend on this task
     project.tasks
             .withType(KonanLocalTestRunner)
-            .matching { ! it instanceof KonanStandaloneTestRunner }
             .forEach { it.dependsOn(t) }
 }

@@ -17,7 +17,7 @@ fun Project.createStdlibTest(name: String, configure: (KonanGTestRunner) -> Unit
             // Configure test task.
             val testOutput = project.testOutputStdlib
             val target = project.testTarget
-            executable = "$testOutput/${target.name}/$name.${target.family.exeSuffix}"
+            executable = "$testOutput/$name/${target.name}/$name.${target.family.exeSuffix}"
             useFilter = false
             testLogger = KonanTestRunner.Logger.GTEST
 
@@ -36,7 +36,7 @@ fun Project.createStandaloneTest(name: String, config: Closure<*>): KonanStandal
             // Configure test task.
             val testOutput = project.testOutputLocal
             val target = project.testTarget
-            executable = "$testOutput/${target.name}/$name.${target.family.exeSuffix}"
+            executable = "$testOutput/$name/${target.name}/$name.${target.family.exeSuffix}"
 
             // Set dependencies.
             val compileTask = "compileKonan${name.capitalize()}${target.name.capitalize()}"
@@ -52,7 +52,23 @@ fun Project.createInteropTest(name: String, config: Closure<*>): KonanInteropTes
             // Configure test task.
             val testOutput = project.testOutputLocal
             val target = project.testTarget
-            executable = "$testOutput/${target.name}/$name.${target.family.exeSuffix}"
+            executable = "$testOutput/$name/${target.name}/$name.${target.family.exeSuffix}"
+
+            // Set dependencies.
+            val compileTask = "compileKonan${name.capitalize()}${target.name.capitalize()}"
+            dependsOn(compileTask)
+            setDistDependencyFor(compileTask)
+        }
+
+fun Project.createLinkTest(name: String, config: Closure<*>): KonanLinkTestRunner =
+        project.tasks.create("execute${name.capitalize()}", KonanLinkTestRunner::class.java).apply {
+            // Apply closure set in build.gradle to get all parameters.
+            this.configure(config)
+
+            // Configure test task.
+            val testOutput = project.testOutputLocal
+            val target = project.testTarget
+            executable = "$testOutput/$name/${target.name}/$name.${target.family.exeSuffix}"
 
             // Set dependencies.
             val compileTask = "compileKonan${name.capitalize()}${target.name.capitalize()}"

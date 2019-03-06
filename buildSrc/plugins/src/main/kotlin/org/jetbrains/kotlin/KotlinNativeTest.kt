@@ -30,6 +30,8 @@ abstract class KonanTestRunner : DefaultTask() {
         @Optional
         set(value) { enabled = !value }
 
+    lateinit var outputDirectory: String
+
     @Optional
     var testLogger = Logger.SILENT
 
@@ -88,6 +90,7 @@ open class KonanGTestRunner : KonanTestRunner() {
     init {
         // Use GTEST logger to parse test results later
         testLogger = Logger.GTEST
+        outputDirectory = "${project.testOutputStdlib}/$name"
     }
 
     lateinit var statistics: Statistics
@@ -121,7 +124,8 @@ open class KonanLocalTestRunner : KonanTestRunner() {
     init {
         // local tests built into a single binary with the known name
         val target = project.testTarget
-        executable = "${project.testOutputLocal}/${target.name}/localTest.${target.family.exeSuffix}"
+        outputDirectory = project.testOutputLocal
+        executable = "$outputDirectory/${target.name}/localTest.${target.family.exeSuffix}"
     }
 
     @Optional
@@ -153,8 +157,7 @@ open class KonanLocalTestRunner : KonanTestRunner() {
             runProcess(project.executor::execute, executable, arguments)
         if (compilerMessages) {
             val target = project.testTarget
-            val compilationLog = project.file("${project.testOutputLocal}/${target.name}/localTest.compilation.log")
-                    .readText()
+            val compilationLog = project.file("$outputDirectory/${target.name}/localTest.compilation.log").readText()
             output = ProcessOutput(compilationLog + output.stdOut, output.stdErr, output.exitCode)
         }
         output.check()
@@ -191,13 +194,19 @@ open class KonanLocalTestRunner : KonanTestRunner() {
 }
 
 open class KonanStandaloneTestRunner : KonanLocalTestRunner() {
+    init {
+        val target = project.testTarget
+        outputDirectory = "${project.testOutputLocal}/$name"
+        executable = "$outputDirectory/${target.name}/$name.${target.family.exeSuffix}"
+    }
+
     @Optional
     var enableKonanAssertions = true
 
     @Optional
     var flags: MutableList<String> = if (enableKonanAssertions) mutableListOf("-ea") else mutableListOf()
 
-    fun getSources() = buildCompileList(project.testOutputLocal)
+    fun getSources() = buildCompileList(outputDirectory)
 }
 
 /**
@@ -221,7 +230,7 @@ open class KonanDriverTestRunner : KonanStandaloneTestRunner() {
         }
 
         // run konanc compiler locally
-        with(runProcess(localExecutor(project), konanc, args)) {
+        runProcess(localExecutor(project), konanc, args).run {
             check(exitCode == 0) { "Compiler failed with exit code $exitCode" }
             project.file("$output.compilation.log").run {
                 writeText(stdOut)
@@ -233,9 +242,6 @@ open class KonanDriverTestRunner : KonanStandaloneTestRunner() {
 
     @TaskAction
     override fun run() {
-        val testOutput = project.testOutputLocal
-        val target = project.testTarget
-        executable = "$testOutput/${target.name}/$name.${target.family.exeSuffix}"
         runCompiler(getSources(), executable)
         super.run()
     }
@@ -244,4 +250,9 @@ open class KonanDriverTestRunner : KonanStandaloneTestRunner() {
 open class KonanInteropTestRunner : KonanStandaloneTestRunner() {
     @Input
     lateinit var interop: String
+}
+
+open class KonanLinkTestRunner : KonanStandaloneTestRunner() {
+    @Input
+    lateinit var lib: String
 }

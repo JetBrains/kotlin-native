@@ -274,22 +274,6 @@ abstract class KonanTest extends JavaExec {
     }
 }
 
-class LinkKonanTest extends KonanTest {
-    /**
-     * overrides [KonanTest::inDevelopersRun] used in [:backend.native:tests:sanity]
-     */
-    public def inDevelopersRun = true
-    protected String lib
-
-    void compileTest(List<String> filesToCompile, String exe) {
-        def libname = "testklib"
-        def klib = "$outputDirectory/$libname"
-
-        runCompiler(lib, klib, ['-produce', 'library'] + ((flags != null) ? flags :[]))
-        runCompiler(filesToCompile, exe, ['-library', klib] + ((flags != null) ? flags :[]))
-    }
-}
-
 class DynamicKonanTest extends KonanTest {
     /**
      * overrides [KonanTest::inDevelopersRun] used in [:backend.native:tests:sanity]
