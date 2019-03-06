@@ -280,37 +280,6 @@ class TestFailedException extends RuntimeException {
     }
 }
 
-class RunInteropKonanTest extends KonanTest {
-    /**
-     * overrides [KonanTest::inDevelopersRun] used in [:backend.native:tests:sanity]
-     */
-    public def inDevelopersRun = true
-
-    private String interop
-    private NamedNativeInteropConfig interopConf
-
-    void setInterop(String value) {
-        this.interop = value
-        this.interopConf = project.kotlinNativeInterop[value]
-        this.interopConf.target = target.visibleName
-        this.dependsOn(this.interopConf.genTask)
-    }
-
-    void compileTest(List<String> filesToCompile, String exe) {
-        String interopBc = exe + "-interop.bc"
-        runCompiler([interopConf.generatedSrcDir.absolutePath], interopBc, ['-produce', 'library'])
-
-        String interopStubsBc = new File(interopConf.nativeLibsDir, interop + "stubs.bc").absolutePath
-
-        List<String> linkerArguments = interopConf.linkerOpts // TODO: add arguments from .def file
-
-        List<String> compilerArguments = ["-library", interopBc, "-native-library", interopStubsBc] +
-                linkerArguments.collectMany { ["-linker-options", it] }
-
-        runCompiler(filesToCompile, exe, compilerArguments)
-    }
-}
-
 class LinkKonanTest extends KonanTest {
     /**
      * overrides [KonanTest::inDevelopersRun] used in [:backend.native:tests:sanity]
@@ -363,7 +332,7 @@ class DynamicKonanTest extends KonanTest {
         println(logString)
     }
 }
-class RunExternalTestGroup extends RunStandaloneKonanTest {
+class RunExternalTestGroup extends KonanTest {
     /**
      * overrides [KonanTest::inDevelopersRun] used in [:backend.native:tests:sanity]
      */
