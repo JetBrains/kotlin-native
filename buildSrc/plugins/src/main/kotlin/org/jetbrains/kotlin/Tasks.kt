@@ -19,7 +19,7 @@ fun Project.createStdlibTest(name: String, configure: (KonanGTestRunner) -> Unit
             val target = project.testTarget
             executable = "$testOutput/${target.name}/$name.${target.family.exeSuffix}"
             useFilter = false
-            testLogger = RunnerLogger.GTEST
+            testLogger = KonanTestRunner.Logger.GTEST
 
             // Set dependencies.
             val compileTask = "compileKonan${name.capitalize()}${target.name.capitalize()}"

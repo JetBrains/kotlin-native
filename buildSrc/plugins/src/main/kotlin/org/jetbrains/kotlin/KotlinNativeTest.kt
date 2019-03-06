@@ -11,25 +11,27 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
 import org.gradle.language.base.plugins.LifecycleBasePlugin
+
 import java.io.File
 import java.util.regex.Pattern
+
 import org.jetbrains.kotlin.konan.target.HostManager
 
-enum class RunnerLogger {
-    GTEST,
-    TEAMCITY,
-    SIMPLE,
-    SILENT
-}
-
 abstract class KonanTestRunner : DefaultTask() {
+    enum class Logger {
+        GTEST,
+        TEAMCITY,
+        SIMPLE,
+        SILENT
+    }
+
     var disabled: Boolean
         get() = !enabled
         @Optional
         set(value) { enabled = !value }
 
     @Optional
-    var testLogger = RunnerLogger.SILENT
+    var testLogger = Logger.SILENT
 
     @Input
     lateinit var arguments: MutableList<String>
@@ -85,17 +87,17 @@ abstract class KonanTestRunner : DefaultTask() {
 open class KonanGTestRunner : KonanTestRunner() {
     init {
         // Use GTEST logger to parse test results later
-        testLogger = RunnerLogger.GTEST
+        testLogger = Logger.GTEST
     }
 
     lateinit var statistics: Statistics
 
     @TaskAction
-    override fun run() = with(runProcess(
+    override fun run() = runProcess(
             executor = project.executor::execute,
             executable = executable,
             args = arguments
-    )) {
+    ).run {
         statistics = parse(stdOut)
         print()
         check(exitCode == 0) { "Test $executable exited with $exitCode" }

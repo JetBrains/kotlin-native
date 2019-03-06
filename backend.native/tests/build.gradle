@@ -165,7 +165,7 @@ TaskCollection<KonanTest> tasksOf(Closure<Boolean> filter) {
 /**
  * Creates a task for a standalone test. Configures runner and adds building task.
  */
-Task createStandaloneTest(String name, Closure<KonanStandaloneTestRunner> configureClosure) {
+Task standaloneTest(String name, Closure<KonanStandaloneTestRunner> configureClosure) {
     return TasksKt.createStandaloneTest(project, name) { task ->
         configureClosure(task)
         konanArtifacts {
@@ -177,6 +177,8 @@ Task createStandaloneTest(String name, Closure<KonanStandaloneTestRunner> config
         }
     }
 }
+
+
 
 task executeTests {
 //    dependsOn(tasksOf { it instanceof KonanTest && it.inDevelopersRun })
@@ -337,7 +339,7 @@ task objectInitialization1(type: KonanLocalTestRunner) {
     source = "codegen/object/initialization1.kt"
 }
 
-createStandaloneTest("object_globalInitializer") {
+standaloneTest("object_globalInitializer") {
     it.source = "codegen/object/globalInitializer.kt"
 }
 
@@ -597,7 +599,7 @@ task array_to_any(type: KonanLocalTestRunner) {
     source = "codegen/basics/array_to_any.kt"
 }
 
-createStandaloneTest("runtime_basic_exit") {
+standaloneTest("runtime_basic_exit") {
     it.source = "runtime/basic/exit.kt"
     it.expectedExitStatus = 42
 }
@@ -616,13 +618,13 @@ task hello0(type: KonanLocalTestRunner) {
     source = "runtime/basic/hello0.kt"
 }
 
-createStandaloneTest("hello1") {
+standaloneTest("hello1") {
     it.goldValue = "Hello World"
     it.testData = "Hello World\n"
     it.source = "runtime/basic/hello1.kt"
 }
 
-createStandaloneTest("hello2") {
+standaloneTest("hello2") {
     it.goldValue = "you entered 'Hello World'"
     it.testData = "Hello World\n"
     it.source = "runtime/basic/hello2.kt"
@@ -643,13 +645,13 @@ task enumEquals(type: KonanLocalTestRunner) {
     source = "runtime/basic/enum_equals.kt"
 }
 
-createStandaloneTest("entry0") {
+standaloneTest("entry0") {
     it.goldValue = "Hello.\n"
     it.source = "runtime/basic/entry0.kt"
     it.flags = ["-entry", "runtime.basic.entry0.main"]
 }
 
-createStandaloneTest("entry1") {
+standaloneTest("entry1") {
     it.goldValue = "Hello.\n"
     it.source = "runtime/basic/entry1.kt"
     it.flags = ["-entry", "foo"]
@@ -662,24 +664,24 @@ task entry2(type: LinkKonanTest) {
     flags = ["-entry", "foo"] 
 }
 
-createStandaloneTest("entry3") {
+standaloneTest("entry3") {
     it.goldValue = "Hello, without args.\n"
     it.source = "runtime/basic/entry1.kt"
     it.flags = ["-entry", "bar"]
 }
 
-createStandaloneTest("entry4") {
+standaloneTest("entry4") {
     it.goldValue = "This is main without args\n"
     it.source = "runtime/basic/entry4.kt"
 }
 
-createStandaloneTest("readline0") {
+standaloneTest("readline0") {
     it.goldValue = "41"
     it.testData = "41\r\n"
     it.source = "runtime/basic/readline0.kt"
 }
 
-createStandaloneTest("readline1") {
+standaloneTest("readline1") {
     it.goldValue = ""
     it.testData = "\n"
     it.source = "runtime/basic/readline1.kt"
@@ -857,7 +859,7 @@ task lazy1(type: KonanLocalTestRunner) {
     source = "runtime/workers/lazy1.kt"
 }
 
-createStandaloneTest("lazy2") {
+standaloneTest("lazy2") {
     it.goldValue = "123\nOK\n"
     it.source = "runtime/workers/lazy2.kt"
 }
@@ -1271,7 +1273,7 @@ task classDelegation_linkTest(type: LinkKonanTest) {
     lib = "codegen/classDelegation/linkTest_lib.kt"
 }
 
-createStandaloneTest("contracts") {
+standaloneTest("contracts") {
     it.flags = [ '-Xuse-experimental=kotlin.Experimental', '-tr' ]
     it.source = "codegen/contracts/contracts.kt"
 }
@@ -1639,7 +1641,7 @@ task sort1(type: KonanLocalTestRunner) {
 
 // TODO: Enable devirtualization and make the test not standalone
 // when KT-26315 is fixed.
-createStandaloneTest("sortWith") {
+standaloneTest("sortWith") {
     it.source = "runtime/collections/SortWith.kt"
     it.flags = ['-tr', '-Xdisable=devirtualization']
     it.arguments = ['--ktest_logger=SILENT']
@@ -1783,14 +1785,14 @@ task link_omit_unused(type: LinkKonanTest) {
     lib = "link/omit/lib.kt"
 }
 
-createStandaloneTest("link_default_libs") {
+standaloneTest("link_default_libs") {
     dependsOnPlatformLibs(it)
     it.enabled = (project.testTarget != 'wasm32') // there will be no posix.klib for wasm
     it.goldValue = "sizet = 0\n"
     it.source = "link/default/default.kt"
 }
 
-createStandaloneTest("link_testLib_explicitly") {
+standaloneTest("link_testLib_explicitly") {
     // there are no testLibrary for cross targets yet.
     it.enabled = project.testTarget == null || project.testTarget == project.hostName
 
@@ -1828,7 +1830,7 @@ task statements0(type: KonanLocalTestRunner) {
     source = "runtime/basic/statements0.kt"
 }
 
-createStandaloneTest("annotations0") {
+standaloneTest("annotations0") {
     it.source = "codegen/annotations/annotations0.kt"
     it.flags = ['-tr']
 }
@@ -2074,13 +2076,13 @@ task extend_exception(type: KonanLocalTestRunner) {
     source = "runtime/exceptions/extend0.kt"
 }
 
-createStandaloneTest("check_stacktrace_format") {
+standaloneTest("check_stacktrace_format") {
     it.enabled = isAppleTarget(project)
     it.flags = ['-g']
     it.source = "runtime/exceptions/check_stacktrace_format.kt"
 }
 
-createStandaloneTest("custom_hook") {
+standaloneTest("custom_hook") {
     it.enabled = (project.testTarget != 'wasm32') // Uses exceptions.
     it.goldValue = "value 42: Error\n"
     it.expectedExitStatus = 1
@@ -2237,7 +2239,7 @@ task range0(type: KonanLocalTestRunner) {
     source = "runtime/collections/range0.kt"
 }
 
-createStandaloneTest("args0") {
+standaloneTest("args0") {
     it.arguments = ["AAA", "BB", "C"]
     it.goldValue = "AAA\nBB\nC\n"
     it.source = "runtime/basic/args0.kt"
@@ -2258,17 +2260,17 @@ task runtime_basic_standard(type: KonanLocalTestRunner) {
     source = "runtime/basic/standard.kt"
 }
 
-createStandaloneTest("runtime_basic_assert_failed") {
+standaloneTest("runtime_basic_assert_failed") {
     it.expectedExitStatus = 1
     it.source = "runtime/basic/assert_failed.kt"
 }
 
-createStandaloneTest("runtime_basic_assert_passed") {
+standaloneTest("runtime_basic_assert_passed") {
     it.expectedExitStatus = 0
     it.source = "runtime/basic/assert_passed.kt"
 }
 
-createStandaloneTest("runtime_basic_assert_disabled") {
+standaloneTest("runtime_basic_assert_disabled") {
     it.expectedExitStatus = 0
     it.enableKonanAssertions = false
     it.source = "runtime/basic/assert_failed.kt"
@@ -2368,7 +2370,7 @@ task lambda13(type: KonanLocalTestRunner) {
     source = "codegen/lambda/lambda13.kt"
 }
 
-createStandaloneTest("lambda14") {
+standaloneTest("lambda14") {
     it.source = "codegen/lambda/lambda14.kt"
     it.flags = ['-tr']
 }
@@ -2388,7 +2390,7 @@ task objectExpression3(type: KonanLocalTestRunner) {
     source = "codegen/objectExpression/expr3.kt"
 }
 
-createStandaloneTest("initializers2") {
+standaloneTest("initializers2") {
     it.goldValue = "init globalValue2\n" +
                 "init globalValue3\n" +
                 "1\n" +
@@ -2478,11 +2480,11 @@ task memory_weak1(type: KonanLocalTestRunner) {
     source = "runtime/memory/weak1.kt"
 }
 
-createStandaloneTest("memory_only_gc") {
+standaloneTest("memory_only_gc") {
     it.source = "runtime/memory/only_gc.kt"
 }
 
-createStandaloneTest("mpp1") {
+standaloneTest("mpp1") {
     it.source = "codegen/mpp/mpp1.kt"
     it.flags = ['-tr', '-Xmulti-platform']
 }
@@ -2494,12 +2496,12 @@ task mpp2(type: LinkKonanTest) {
     flags = ['-Xmulti-platform']
 }
 
-createStandaloneTest("mpp_default_args") {
+standaloneTest("mpp_default_args") {
     it.source = "codegen/mpp/mpp_default_args.kt"
     it.flags = ['-tr', '-Xmulti-platform']
 }
 
-createStandaloneTest("mpp_optional_expectation") {
+standaloneTest("mpp_optional_expectation") {
     it.source = "codegen/mpp/mpp_optional_expectation.kt"
     def outputRoot = project.ext.testOutputLocal
     it.flags = [
@@ -2793,7 +2795,7 @@ task serialized_default_args(type: LinkKonanTest) {
     goldValue = "SomeDataClass(first=17, second=666, third=23)\n"
 }
 
-createStandaloneTest("serialized_no_typemap") {
+standaloneTest("serialized_no_typemap") {
     it.source = "serialization/regression/no_type_map.kt"
     it.goldValue = "OK\n"
 }
@@ -2810,7 +2812,7 @@ task serialized_char_constant(type: LinkKonanTest) {
     goldValue = "Ы\n"
 }
 
-createStandaloneTest("testing_annotations") {
+standaloneTest("testing_annotations") {
     it.source = "testing/annotations.kt"
     it.flags = ['-tr']
     it.arguments = ['--ktest_logger=SIMPLE']
@@ -2836,14 +2838,14 @@ createStandaloneTest("testing_annotations") {
             'Test suite finished: kotlin.test.tests.AnnotationsKt\nIteration finished: 1\nTesting finished\n'
 }
 
-createStandaloneTest("testing_assertions") {
+standaloneTest("testing_assertions") {
     it.source = "testing/assertions.kt"
     it.flags = ['-tr']
     it.expectedFail = (project.testTarget == 'wasm32') // Uses exceptions.
     it.expectedExitStatus = 0
 }
 
-createStandaloneTest("testing_custom_main") {
+standaloneTest("testing_custom_main") {
     it.source = "testing/custom_main.kt"
     it.flags = ['-tr', '-e', 'kotlin.test.tests.main']
     it.arguments = ['--ktest_logger=SIMPLE', '--ktest_repeat=2']
@@ -2866,7 +2868,7 @@ createStandaloneTest("testing_custom_main") {
             'Testing finished\n'
 }
 
-createStandaloneTest("testing_library_usage") {
+standaloneTest("testing_library_usage") {
     def target = project.testTarget ?: 'host'
     it.dependsOn konanArtifacts.baseTestClass.getByTarget(target)
     def klib = konanArtifacts.baseTestClass.getArtifactByTarget(target)
@@ -2956,21 +2958,24 @@ kotlinNativeInterop {
 /**
  * Creates a task for a interop test. Configures runner and adds library and test build tasks.
  */
-Task createInteropTest(String name, Closure<KonanInteropTestRunner> configureClosure) {
+Task interopTest(String name, Closure<KonanInteropTestRunner> configureClosure) {
     return TasksKt.createInteropTest(project, name) { task ->
         configureClosure(task)
         konanArtifacts {
             def conf = project.kotlinNativeInterop[task.interop]
-            interop(conf.name + name) {
+            def lib = conf.name + name
+            interop(lib) {
+                // FIXME: creates empty file to workaround konan gradle plugin issue (should be able to have no def file)
                 defFile((conf.defFile != null) ? conf.defFile : File.createTempFile("${conf.name}.empty", ".def"))
                 if (conf.headers != null) headers(conf.headers)
                 if (conf.linkerOpts != null) linkerOpts(conf.linkerOpts)
                 if (conf.pkg != null) packageName(conf.pkg)
             }
+            UtilsKt.setDistDependencyFor(project, "compileKonan${lib.capitalize()}${targetName.capitalize()}")
 
             program(name, targets: [target.name ?: 'host']) {
                 libraries {
-                    artifact conf.name + name
+                    artifact lib
                 }
                 srcFiles  task.getSources()
                 baseDir   testOutputLocal
@@ -2980,7 +2985,7 @@ Task createInteropTest(String name, Closure<KonanInteropTestRunner> configureClo
     }
 }
 
-createInteropTest("interop0") {
+interopTest("interop0") {
     it.disabled = (project.testTarget == 'wasm32') ||       // No interop for wasm yet.
                (project.testTarget == 'linux_mips32') ||   //  st_uid of '/' is not equal to 0 when using qemu
                (project.testTarget == 'linux_mipsel32')
@@ -2989,21 +2994,21 @@ createInteropTest("interop0") {
     it.interop = 'sysstat'
 }
 
-createInteropTest("interop1") {
+interopTest("interop1") {
     it.disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
     it.goldValue = "257\n-1\n-2\n"
     it.source = "interop/basics/1.kt"
     it.interop = 'cstdlib'
 }
 
-createInteropTest("interop2") {
+interopTest("interop2") {
     it.disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
     it.goldValue = "Hello\n"
     it.source = "interop/basics/2.kt"
     it.interop = 'cstdio'
 }
 
-createInteropTest("interop3") {
+interopTest("interop3") {
     // We disable this test on Raspberry Pi because
     // qsort accepts size_t args. So the .kt file
     // should be different depending on the bitness of the target.
@@ -3018,28 +3023,28 @@ createInteropTest("interop3") {
     it.interop = 'cstdlib'
 }
 
-createInteropTest("interop4") {
+interopTest("interop4") {
     it.disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
     it.goldValue = "a b -1 2 3 9223372036854775807 0.1 0.2 1 0\n1 42\n"
     it.source = "interop/basics/4.kt"
     it.interop = 'cstdio'
 }
 
-createStandaloneTest("interop5") {
+standaloneTest("interop5") {
     dependsOnPlatformLibs(it)
     it.enabled = (project.testTarget != 'wasm32') // No interop for wasm yet.
     it.goldValue = "Hello!\n"
     it.source = "interop/basics/5.kt"
 }
 
-createInteropTest("interop_bitfields") {
+interopTest("interop_bitfields") {
     it.disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
     it.expectedFail = (project.testTarget == 'linux_mips32') // fails because of big-endiannes
     it.source = "interop/basics/bf.kt"
     it.interop = 'bitfields'
 }
 
-createInteropTest("interop_funptr") {
+interopTest("interop_funptr") {
     it.disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
     it.expectedFail = (project.testTarget == 'linux_mips32') // fails because of big-endiannes
     it.goldValue = "42\n17\n1\n0\n42\n42\n"
@@ -3047,31 +3052,31 @@ createInteropTest("interop_funptr") {
     it.interop = 'cfunptr'
 }
 
-createInteropTest("interop_globals") {
+interopTest("interop_globals") {
     it.disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
     it.source = "interop/basics/globals.kt"
     it.interop = 'cglobals'
 }
 
-createInteropTest("interop_macros") {
+interopTest("interop_macros") {
     it.disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
     it.source = "interop/basics/macros.kt"
     it.interop = 'cmacros'
 }
 
-createInteropTest("interop_unsupported") {
+interopTest("interop_unsupported") {
     it.disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
     it.source = "interop/basics/unsupported.kt"
     it.interop = 'cunsupported'
 }
 
-createInteropTest("interop_types") {
+interopTest("interop_types") {
     it.disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
     it.source = "interop/basics/types.kt"
     it.interop = 'ctypes'
 }
 
-createInteropTest("interop_callbacksAndVarargs") {
+interopTest("interop_callbacksAndVarargs") {
     it.disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
     it.source = "interop/basics/callbacksAndVarargs.kt"
     it.interop = 'ccallbacksAndVarargs'
@@ -3089,7 +3094,7 @@ task interop_echo_server(type: RunInteropKonanTest) {
 
 /*
 TODO: This test isn't run automatically 
-createStandaloneTest("interop_opengl_teapot") {
+standaloneTest("interop_opengl_teapot") {
     it.enabled = isAppleTarget(project) && project.testTarget != 'ios_x64'  // No GLUT in iOS
     dependsOnPlatformLibs(it as Task)
     run = false
@@ -3097,7 +3102,7 @@ createStandaloneTest("interop_opengl_teapot") {
 }
 */
 /* TODO doFirst should be replaced with beforeBuild or smth
-createInteropTest("interop_objc_smoke") {
+interopTest("interop_objc_smoke") {
     it.disabled = !isAppleTarget(project)
     it.goldValue = "84\nFoo\nHello, World!\nKotlin says: Hello, everybody!\nHello from Kotlin\n2, 1\n" +
             "true\ntrue\n" +
@@ -3126,7 +3131,7 @@ createInteropTest("interop_objc_smoke") {
 
 /*
 TODO: doFirst should be done before the build
-createStandaloneTest("jsinterop_math") {
+standaloneTest("jsinterop_math") {
     it.doFirst {
         def jsinteropScript = isWindows() ? "jsinterop.bat" : "jsinterop"
         def jsinterop = "$dist/bin/$jsinteropScript"
@@ -3141,14 +3146,14 @@ createStandaloneTest("jsinterop_math") {
     it.flags = ["-r", "$buildDir", "-l", "jsmath"]
 }
 */
-createStandaloneTest("interop_libiconv") {
+standaloneTest("interop_libiconv") {
     dependsOnPlatformLibs(it)
     it.enabled = (project.testTarget == null)
     it.source = "interop/libiconv.kt"
     it.goldValue = "72 72\n101 101\n108 108\n108 108\n111 111\n33 33\n"
 }
 
-createStandaloneTest("interop_zlib") {
+standaloneTest("interop_zlib") {
     dependsOnPlatformLibs(it)
     it.enabled = (project.testTarget == null)
     it.source = "interop/platform_zlib.kt"
@@ -3177,7 +3182,7 @@ task produce_dynamic(type: DynamicKonanTest) {
 
 /*
 TODO: doFirst should be done before the compileTask but this closure is invoked before the compileKonan task is createds
-createStandaloneTest("library_mismatch") {
+standaloneTest("library_mismatch") {
     // Does not work for cross targets yet.
     it.enabled = !(project.testTarget != null && project.testTarget != project.hostName)
 

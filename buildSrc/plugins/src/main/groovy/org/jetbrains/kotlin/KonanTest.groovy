@@ -274,12 +274,6 @@ abstract class KonanTest extends JavaExec {
     }
 }
 
-class TestFailedException extends RuntimeException {
-    TestFailedException(String s) {
-        super(s)
-    }
-}
-
 class LinkKonanTest extends KonanTest {
     /**
      * overrides [KonanTest::inDevelopersRun] used in [:backend.native:tests:sanity]
