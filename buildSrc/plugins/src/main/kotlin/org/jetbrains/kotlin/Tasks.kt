@@ -75,3 +75,35 @@ fun Project.createLinkTest(name: String, config: Closure<*>): KonanLinkTestRunne
             dependsOn(compileTask)
             setDistDependencyFor(compileTask)
         }
+
+fun Project.createDynamicTest(name: String, config: Closure<*>): KonanDynamicTestRunner =
+        project.tasks.create(name, KonanDynamicTestRunner::class.java).apply {
+            // Apply closure set in build.gradle to get all parameters.
+            this.configure(config)
+
+            // Configure test task.
+            val testOutput = project.testOutputLocal
+            val target = project.testTarget
+            executable = "$testOutput/$name/${target.name}/$name.${target.family.exeSuffix}"
+
+            // Set dependencies.
+            val compileTask = "compileKonan${name.capitalize()}${target.name.capitalize()}"
+            dependsOn(compileTask)
+            setDistDependencyFor(compileTask)
+        }
+
+inline fun <reified T: KonanTestRunner> Project.createTest(name: String, config: Closure<*>): T =
+        project.tasks.create(name, T::class.java).apply {
+            // Apply closure set in build.gradle to get all parameters.
+            this.configure(config)
+
+            // Configure test task.
+            val testOutput = project.testOutputLocal
+            val target = project.testTarget
+            executable = "$testOutput/$name/${target.name}/$name.${target.family.exeSuffix}"
+
+            // Set dependencies.
+            val compileTask = "compileKonan${name.capitalize()}${target.name.capitalize()}"
+            dependsOn(compileTask)
+            setDistDependencyFor(compileTask)
+        }

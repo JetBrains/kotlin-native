@@ -84,6 +84,8 @@ allprojects {
 testOutputExternal.mkdirs()
 testOutputStdlib.mkdirs()
 
+apply from: 'util.gradle.kts'
+
 konanArtifacts {
     library('testLibrary') {
         if (!useCustomDist) {
@@ -200,6 +202,24 @@ Task linkTest(String name, Closure<KonanLinkTestRunner> configureClosure) {
                 baseDir   testOutputLocal
                 extraOpts task.flags + project.globalTestArgs
             }
+        }
+    }
+}
+
+/**
+ * Creates a task for a dynamic test. Configures runner and adds library and test build tasks.
+ */
+Task dynamicTest(String name, Closure<KonanDynamicTestRunner> configureClosure) {
+    return TasksKt.createDynamicTest(project, name) { task ->
+        configureClosure(task)
+        konanArtifacts {
+            def targetName = target.name
+            dynamic(name, targets: [targetName]) {
+                srcFiles  task.getSources()
+                baseDir   "$testOutputLocal/$name"
+                extraOpts task.flags + project.globalTestArgs
+            }
+            UtilsKt.setDistDependencyFor(project, "compileKonan${name.capitalize()}${targetName.capitalize()}")
         }
     }
 }
@@ -3184,11 +3204,11 @@ standaloneTest("interop_zlib") {
     it.goldValue = "Hello!\nHello!\n"
 }
 
-task produce_dynamic(type: DynamicKonanTest) {
-    disabled = (project.testTarget != null && project.testTarget != project.hostName)
-    source = "produce_dynamic/simple/hello.kt"
-    cSource = "$projectDir/produce_dynamic/simple/main.c"
-    goldValue = "Hello, dynamic!\n" +
+dynamicTest("produce_dynamic") {
+    it.disabled = (project.testTarget != null && project.testTarget != project.hostName)
+    it.source = "produce_dynamic/simple/hello.kt"
+    it.cSource = "$projectDir/produce_dynamic/simple/main.c"
+    it.goldValue = "Hello, dynamic!\n" +
                 "Base.foo\n" +
                 "Base.fooParam: a 1\n" +
                 "Child.fooParam: b 2\n" +
@@ -3205,7 +3225,7 @@ task produce_dynamic(type: DynamicKonanTest) {
 }
 
 /*
-TODO: doFirst should be done before the compileTask but this closure is invoked before the compileKonan task is createds
+TODO: doFirst should be done before the compileTask but this closure is invoked before the compileKonan task is created
 standaloneTest("library_mismatch") {
     // Does not work for cross targets yet.
     it.enabled = !(project.testTarget != null && project.testTarget != project.hostName)

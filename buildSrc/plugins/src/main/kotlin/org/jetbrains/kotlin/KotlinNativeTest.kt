@@ -5,17 +5,20 @@
 package org.jetbrains.kotlin
 
 import groovy.lang.Closure
+import org.gradle.api.Action
 import org.gradle.api.DefaultTask
 import org.gradle.api.Task
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
 import org.gradle.language.base.plugins.LifecycleBasePlugin
+import org.gradle.process.ExecSpec
 
 import java.io.File
 import java.util.regex.Pattern
 
 import org.jetbrains.kotlin.konan.target.HostManager
+import java.io.ByteArrayOutputStream
 
 abstract class KonanTestRunner : DefaultTask() {
     enum class Logger {
@@ -216,14 +219,20 @@ open class KonanStandaloneTestRunner : KonanLocalTestRunner() {
  * @see KonanLocalTestRunner to be used as a regular task.
  */
 open class KonanDriverTestRunner : KonanStandaloneTestRunner() {
-    private fun runCompiler(filesToCompile: List<String>, output: String) {
+    @TaskAction
+    override fun run() {
+        konan()
+        super.run()
+    }
+
+    private fun konan() {
         val dist = project.rootProject.file(project.findProperty("org.jetbrains.kotlin.native.home") ?:
-                   project.findProperty("konan.home") ?: "dist")
+        project.findProperty("konan.home") ?: "dist")
         val konancDriver = if (HostManager.hostIsMingw) "konanc.bat" else "konanc"
         val konanc = File("${dist.canonicalPath}/bin/$konancDriver").absolutePath
 
-        val args = mutableListOf("-output", output).apply {
-            addAll(filesToCompile)
+        val args = mutableListOf("-output", executable).apply {
+            addAll(getSources())
             addAll(flags)
             addAll(project.globalTestArgs)
             if (enableKonanAssertions) add("-ea")
@@ -232,18 +241,12 @@ open class KonanDriverTestRunner : KonanStandaloneTestRunner() {
         // run konanc compiler locally
         runProcess(localExecutor(project), konanc, args).run {
             check(exitCode == 0) { "Compiler failed with exit code $exitCode" }
-            project.file("$output.compilation.log").run {
+            project.file("$executable.compilation.log").run {
                 writeText(stdOut)
                 writeText(stdErr)
             }
             print("Compiler execution:")
         }
-    }
-
-    @TaskAction
-    override fun run() {
-        runCompiler(getSources(), executable)
-        super.run()
     }
 }
 
@@ -255,4 +258,55 @@ open class KonanInteropTestRunner : KonanStandaloneTestRunner() {
 open class KonanLinkTestRunner : KonanStandaloneTestRunner() {
     @Input
     lateinit var lib: String
+}
+
+open class KonanDynamicTestRunner : KonanStandaloneTestRunner() {
+    @Input
+    lateinit var cSource: String
+
+    @TaskAction
+    override fun run() {
+        clang()
+        super.run()
+    }
+
+    // Replace testlib_api.h and all occurrences of the testlib with the actual name of the test
+    private fun processCSource(): String {
+        val sourceFile = File(cSource)
+        val res = sourceFile.readText()
+                .replace("#include \"testlib_api.h\"", "#include \"lib${name}_api.h\"")
+                .replace("testlib", "lib${name}")
+        val newFileName = "$outputDirectory/${sourceFile.name}"
+        println(newFileName)
+        File(newFileName).run {
+            createNewFile()
+            writeText(res)
+        }
+        return newFileName
+    }
+
+    private fun clang() {
+        val log = ByteArrayOutputStream()
+        val plugin = project.convention.getPlugin(ExecClang::class.java)
+        val execResult = plugin.execKonanClang(project.testTarget, Action<ExecSpec> {
+            it.workingDir = File(outputDirectory)
+            it.executable = "clang"
+            val artifactsDir = "$outputDirectory/${project.testTarget}"
+            it.args = listOf(processCSource(),
+                    "-o", executable,
+                    "-I", artifactsDir,
+                    "-L", artifactsDir,
+                    "-l", name,
+                    "-Wl,-rpath,$artifactsDir")
+
+            it.standardOutput = log
+            it.errorOutput = log
+            it.isIgnoreExitValue = true
+        })
+        log.toString("UTF-8").also {
+            project.file("$executable.compilation.log").writeText(it)
+            println(it)
+        }
+        execResult.assertNormalExitValue()
+    }
 }
