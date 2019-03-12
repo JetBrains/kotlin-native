@@ -3318,7 +3318,7 @@ KotlinNativeTestKt.createTest(project, 'harmonyRegexTest', KonanGTestRunner) { t
     konanArtifacts {
         program('harmonyRegexTest', targets: [ targetName ]) {
             srcFiles sources
-            baseDir testOutputStdlib
+            baseDir "$testOutputStdlib/harmonyRegexTest"
             extraOpts '-tr'
             extraOpts project.globalTestArgs
         }
@@ -3339,7 +3339,7 @@ KotlinNativeTestKt.createTest(project, 'stdlibTest', KonanGTestRunner) { task ->
     konanArtifacts {
         program('stdlibTest', targets: [ targetName ]) {
             srcFiles sources
-            baseDir testOutputStdlib
+            baseDir "$testOutputStdlib/stdlibTest"
             enableMultiplatform true
             extraOpts '-tr', "-friend-modules", project.rootProject.file("dist/klib/common/stdlib").absolutePath
             extraOpts project.globalTestArgs

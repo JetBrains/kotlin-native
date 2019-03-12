@@ -115,9 +115,8 @@ abstract class KonanTestRunner : DefaultTask() {
 fun <T: KonanTestRunner> Project.createTest(name: String, type: Class<T>, config: Closure<*>): T =
         project.tasks.create(name, type).apply {
             // Configure test task.
-            val testOutput = project.testOutputLocal
             val target = project.testTarget
-            executable = "$testOutput/$name/${target.name}/$name.${target.family.exeSuffix}"
+            executable = "$outputDirectory/${target.name}/$name.${target.family.exeSuffix}"
 
             // Apply closure set in build.gradle to get all parameters.
             this.configure(config)
