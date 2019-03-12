@@ -1,3 +1,8 @@
+/*
+ * Copyright 2010-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
+ * that can be found in the LICENSE file.
+ */
+
 package org.jetbrains.kotlin
 
 import org.gradle.api.Project
@@ -34,7 +39,7 @@ val Project.globalTestArgs
 //endregion
 
 /**
- * Ad-hoc signing of the specified path
+ * Ad-hoc signing of the specified path.
  */
 fun codesign(project: Project, path: String) {
     check(HostManager.hostIsMac) { "Apple specific code signing" }
@@ -45,6 +50,24 @@ fun codesign(project: Project, path: String) {
         |stdout: $stdOut
         |stderr: $stdErr
         """.trimMargin()
+    }
+}
+
+/**
+ * Creates a list of file paths to be compiled from the given list with regard to exclude list.
+ */
+fun Project.getFilesToCompile(compile: List<String>, exclude: List<String>): List<String> {
+    // convert exclude list to paths
+    val excludeFiles = exclude.map { project.file(it).absolutePath }.toList()
+
+    // create list of tests to compile
+    return compile.flatMap {
+        project.file(it)
+                .listFiles { f ->
+                        f.isFile
+                            && f.name.endsWith(".kt")
+                            && !excludeFiles.contains(f.absolutePath) }
+                .map(File::getAbsolutePath)
     }
 }
 

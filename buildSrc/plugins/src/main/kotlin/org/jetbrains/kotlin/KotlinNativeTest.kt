@@ -7,6 +7,7 @@ package org.jetbrains.kotlin
 import groovy.lang.Closure
 import org.gradle.api.Action
 import org.gradle.api.DefaultTask
+import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
@@ -15,10 +16,10 @@ import org.gradle.language.base.plugins.LifecycleBasePlugin
 import org.gradle.process.ExecSpec
 
 import java.io.File
+import java.io.ByteArrayOutputStream
 import java.util.regex.Pattern
 
 import org.jetbrains.kotlin.konan.target.HostManager
-import java.io.ByteArrayOutputStream
 
 abstract class KonanTestRunner : DefaultTask() {
     enum class Logger {
@@ -31,22 +32,42 @@ abstract class KonanTestRunner : DefaultTask() {
     var disabled: Boolean
         get() = !enabled
         @Optional
-        set(value) { enabled = !value }
+        set(value) {
+            enabled = !value
+        }
 
+    /**
+     * Test output directory. Used to store processed sources and binary artifacts.
+     */
     lateinit var outputDirectory: String
 
+    /**
+     * Test logger to be used for the test built with TestRunner (`-tr` option).
+     */
     @Optional
     var testLogger = Logger.SILENT
 
+    /**
+     * Test executable arguments.
+     */
     @Input
     lateinit var arguments: MutableList<String>
 
+    /**
+     * Test executable.
+     */
     @Input
     lateinit var executable: String
 
+    /**
+     * Test source.
+     */
     @Optional
     lateinit var source: String
 
+    /**
+     * Sets test filtering to choose the exact test in the executable built with TestRunner.
+     */
     @Input
     var useFilter = true
 
@@ -86,6 +107,25 @@ abstract class KonanTestRunner : DefaultTask() {
 }
 
 /**
+ * Create a test task of the given type. Supports configuration with Closure passed form build.gradle file.
+ */
+fun <T: KonanTestRunner> Project.createTest(name: String, type: Class<T>, config: Closure<*>): T =
+        project.tasks.create(name, type).apply {
+            // Configure test task.
+            val testOutput = project.testOutputLocal
+            val target = project.testTarget
+            executable = "$testOutput/$name/${target.name}/$name.${target.family.exeSuffix}"
+
+            // Apply closure set in build.gradle to get all parameters.
+            this.configure(config)
+
+            // Set dependencies.
+            val compileTask = "compileKonan${name.capitalize()}${target.name.capitalize()}"
+            dependsOn(compileTask)
+            setDistDependencyFor(compileTask)
+        }
+
+/**
  * Task to run tests compiled with TestRunner.
  * Runs tests with GTEST output and parses it to create statistics info
  */
@@ -116,13 +156,18 @@ open class KonanGTestRunner : KonanTestRunner() {
         Pattern.compile("\\[  FAILED  ] ([0-9]*) tests.*").matcher(output)
                 .apply { if (find()) fail(group(1).toInt()) }
         if (total == 0) {
-            // No test were run. Try to find if there we tried to run something
+            // No test were run. Try to find if we've tried to run something
             error(Pattern.compile("\\[={10}] Running ([0-9]*) tests from ([0-9]*) test cases\\..*")
-                    .matcher(output).run { if (find()) group(1).toInt() else 1 })
+                    .matcher(output)
+                    .apply { if (find()) group(1).toInt() else 1 })
         }
     }
 }
 
+/**
+ * Task to run tests built into a single predefined binary named `localTest`.
+ * Note: this task should depend on task that builds a test binary.
+ */
 open class KonanLocalTestRunner : KonanTestRunner() {
     init {
         // local tests built into a single binary with the known name
@@ -134,34 +179,46 @@ open class KonanLocalTestRunner : KonanTestRunner() {
     @Optional
     var expectedExitStatus = 0
 
+    /**
+     * Should this test fail or not.
+     */
     @Optional
     var expectedFail = false
 
+    /**
+     * Used to validate output as a gold value.
+     */
     @Optional
     lateinit var goldValue: String
 
     /**
-     * Checks test's output against gold value and returns true if the output matches the expectation
+     * Checks test's output against gold value and returns true if the output matches the expectation.
      */
     @Optional
     var outputChecker: (String) -> Boolean = { str -> (!::goldValue.isInitialized || goldValue == str) }
 
+    /**
+     * Input test data to be passed to process' stdin.
+     */
     @Optional
     lateinit var testData: String
 
+    /**
+     * Should compiler message be read and validated with output checker or gold value.
+     */
     @Optional
     var compilerMessages = false
 
     @TaskAction
     override fun run() {
-        var output = if (::testData.isInitialized)
+        val output = if (::testData.isInitialized)
             runProcessWithInput(project.executor::execute, executable, arguments, testData)
         else
             runProcess(project.executor::execute, executable, arguments)
         if (compilerMessages) {
             val target = project.testTarget
             val compilationLog = project.file("$outputDirectory/${target.name}/localTest.compilation.log").readText()
-            output = ProcessOutput(compilationLog + output.stdOut, output.stdErr, output.exitCode)
+            output.stdOut = compilationLog + output.stdOut
         }
         output.check()
         output.print()
@@ -196,6 +253,10 @@ open class KonanLocalTestRunner : KonanTestRunner() {
     }
 }
 
+/**
+ * Executes a standalone tests provided with either @param executable or by the tasks @param name.
+ * The executable itself should be built by the konan plugin.
+ */
 open class KonanStandaloneTestRunner : KonanLocalTestRunner() {
     init {
         val target = project.testTarget
@@ -206,6 +267,9 @@ open class KonanStandaloneTestRunner : KonanLocalTestRunner() {
     @Optional
     var enableKonanAssertions = true
 
+    /**
+     * Compiler flags used to build a test.
+     */
     @Optional
     var flags: MutableList<String> = if (enableKonanAssertions) mutableListOf("-ea") else mutableListOf()
 
@@ -251,6 +315,9 @@ open class KonanDriverTestRunner : KonanStandaloneTestRunner() {
 }
 
 open class KonanInteropTestRunner : KonanStandaloneTestRunner() {
+    /**
+     * Name of the interop library
+     */
     @Input
     lateinit var interop: String
 }
@@ -260,7 +327,15 @@ open class KonanLinkTestRunner : KonanStandaloneTestRunner() {
     lateinit var lib: String
 }
 
+/**
+ * Test task to check a library built by `-produce dynamic`.
+ * C source code should contain `testlib` as a reference to a testing library.
+ * It will be replaced then by the actual library name.
+ */
 open class KonanDynamicTestRunner : KonanStandaloneTestRunner() {
+    /**
+     * File path to the C source.
+     */
     @Input
     lateinit var cSource: String
 

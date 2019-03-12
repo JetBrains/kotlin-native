@@ -95,7 +95,7 @@ fun create(project: Project): ExecutorService {
     }
 }
 
-data class ProcessOutput(val stdOut: String, val stdErr: String, val exitCode: Int)
+data class ProcessOutput(var stdOut: String, var stdErr: String, var exitCode: Int)
 
 /**
  * Runs process using a given executor.

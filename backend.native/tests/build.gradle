@@ -84,8 +84,6 @@ allprojects {
 testOutputExternal.mkdirs()
 testOutputStdlib.mkdirs()
 
-apply from: 'util.gradle.kts'
-
 konanArtifacts {
     library('testLibrary') {
         if (!useCustomDist) {
@@ -159,69 +157,6 @@ TaskCollection<KonanTest> tasksOf(Closure<Boolean> filter) {
     String prefix = project.findProperty("prefix")
     project.tasks.withType(KonanTest)
             .matching { filter(it) && it.enabled && (prefix != null ? it.name.startsWith(prefix) : true) }
-}
-
-/**
- * Creates a task for a standalone test. Configures runner and adds building task.
- */
-Task standaloneTest(String name, Closure<KonanStandaloneTestRunner> configureClosure) {
-    return TasksKt.createStandaloneTest(project, name) { task ->
-        configureClosure(task)
-        konanArtifacts {
-            program(name, targets: [target.name ?: 'host']) {
-                srcFiles task.getSources()
-                baseDir testOutputLocal
-                extraOpts task.flags + project.globalTestArgs
-            }
-        }
-    }
-}
-
-/**
- * Creates a task for a interop test. Configures runner and adds library and test build tasks.
- */
-Task linkTest(String name, Closure<KonanLinkTestRunner> configureClosure) {
-    return TasksKt.createLinkTest(project, name) { task ->
-        configureClosure(task)
-        konanArtifacts {
-            def lib = "lib$name"
-            def targetName = target.name
-            library(lib, targets: [targetName]) {
-                srcFiles  task.lib
-                baseDir   testOutputLocal
-                extraOpts task.flags + project.globalTestArgs
-            }
-            UtilsKt.setDistDependencyFor(project, "compileKonan${lib.capitalize()}${targetName.capitalize()}")
-
-            program(name, targets: [targetName]) {
-                libraries {
-                    klib lib
-                }
-                dependsOn "compileKonan${lib.capitalize()}${targetName.capitalize()}"
-                srcFiles  task.getSources()
-                baseDir   testOutputLocal
-                extraOpts task.flags + project.globalTestArgs
-            }
-        }
-    }
-}
-
-/**
- * Creates a task for a dynamic test. Configures runner and adds library and test build tasks.
- */
-Task dynamicTest(String name, Closure<KonanDynamicTestRunner> configureClosure) {
-    return TasksKt.createDynamicTest(project, name) { task ->
-        configureClosure(task)
-        konanArtifacts {
-            def targetName = target.name
-            dynamic(name, targets: [targetName]) {
-                srcFiles  task.getSources()
-                baseDir   "$testOutputLocal/$name"
-                extraOpts task.flags + project.globalTestArgs
-            }
-            UtilsKt.setDistDependencyFor(project, "compileKonan${name.capitalize()}${targetName.capitalize()}")
-        }
-    }
 }
 
 task executeTests {
@@ -307,6 +242,72 @@ void dependsOnPlatformLibs(Task t) {
         def testTarget = project.testTarget
         if (testTarget != null && testTarget != project.hostName) {
             t.dependsOn(":${testTarget}PlatformLibs")
+        }
+    }
+}
+
+/**
+ * Creates a task for a standalone test. Configures runner and adds building task.
+ */
+Task standaloneTest(String name, Closure<KonanStandaloneTestRunner> configureClosure) {
+    return KotlinNativeTestKt.createTest(project, name, KonanStandaloneTestRunner) { task ->
+        configureClosure(task)
+        konanArtifacts {
+            program(name, targets: [target.name ?: 'host']) {
+                srcFiles task.getSources()
+                baseDir "$testOutputLocal/$name"
+                extraOpts task.flags + project.globalTestArgs
+            }
+        }
+    }
+}
+
+/**
+ * Creates a task for a interop test. Configures runner and adds library and test build tasks.
+ */
+Task linkTest(String name, Closure<KonanLinkTestRunner> configureClosure) {
+    return KotlinNativeTestKt.createTest(project, name, KonanLinkTestRunner) { task ->
+        configureClosure(task)
+        konanArtifacts {
+            def lib = "lib$name"
+            def targetName = target.name
+            // build a library from KonanLinkTestRunner::lib property
+            library(lib, targets: [targetName]) {
+                srcFiles  task.lib
+                baseDir   "$testOutputLocal/$name"
+                extraOpts task.flags + project.globalTestArgs
+            }
+            UtilsKt.setDistDependencyFor(project, "compileKonan${lib.capitalize()}${targetName.capitalize()}")
+
+            // Build an executable with library
+            program(name, targets: [targetName]) {
+                libraries {
+                    klib lib
+                }
+                srcFiles  task.getSources()
+                baseDir   "$testOutputLocal/$name"
+                extraOpts task.flags + project.globalTestArgs
+                // depend on library build task
+                dependsOn "compileKonan${lib.capitalize()}${targetName.capitalize()}"
+            }
+        }
+    }
+}
+
+/**
+ * Creates a task for a dynamic test. Configures runner and adds library and test build tasks.
+ */
+Task dynamicTest(String name, Closure<KonanDynamicTestRunner> configureClosure) {
+    return KotlinNativeTestKt.createTest(project, name, KonanDynamicTestRunner) { task ->
+        configureClosure(task)
+        konanArtifacts {
+            def targetName = target.name
+            dynamic(name, targets: [targetName]) {
+                srcFiles  task.getSources()
+                baseDir   "$testOutputLocal/$name"
+                extraOpts task.flags + project.globalTestArgs
+            }
+            UtilsKt.setDistDependencyFor(project, "compileKonan${name.capitalize()}${targetName.capitalize()}")
         }
     }
 }
@@ -3002,10 +3003,10 @@ kotlinNativeInterop {
  * Creates a task for the interop test. Configures runner and adds library and test build tasks.
  */
 Task interopTest(String name, Closure<KonanInteropTestRunner> configureClosure) {
-    return TasksKt.createInteropTest(project, name) { task ->
+    return KotlinNativeTestKt.createTest(project, name, KonanInteropTestRunner) { task ->
         configureClosure(task)
         konanArtifacts {
-            // TODO: get rid of the kotlinNativeInterop here
+            // TODO: get rid of the kotlinNativeInterop here used only for the properties
             def conf = project.kotlinNativeInterop[task.interop]
             def lib = conf.name + name
             interop(lib, targets: [target.name ?: 'host']) {
@@ -3014,6 +3015,7 @@ Task interopTest(String name, Closure<KonanInteropTestRunner> configureClosure) 
                 if (conf.headers != null) headers(conf.headers)
                 if (conf.linkerOpts != null) linkerOpts(conf.linkerOpts)
                 if (conf.pkg != null) packageName(conf.pkg)
+                baseDir "$testOutputLocal/$name"
             }
             UtilsKt.setDistDependencyFor(project, "compileKonan${lib.capitalize()}${target.name.capitalize()}")
 
@@ -3022,7 +3024,7 @@ Task interopTest(String name, Closure<KonanInteropTestRunner> configureClosure) 
                     artifact lib
                 }
                 srcFiles  task.getSources()
-                baseDir   testOutputLocal
+                baseDir   "$testOutputLocal/$name"
                 extraOpts task.flags + project.globalTestArgs
             }
         }
@@ -3303,32 +3305,15 @@ if (isAppleTarget(project)) {
     }
 }
 
-List<String> getFilesFrom(List<String> compileList, List<String> excludeList) {
-    // convert exclude list to paths
-    def excludeFiles = new ArrayList<String>()
-    excludeList.each { excludeFiles.add(project.file(it).absolutePath) }
-
-    // create list of tests to compile
-    def compileFiles = new ArrayList<String>()
-    compileList.each {
-        def file = project.file(it)
-        if (file.isDirectory()) {
-            file.eachFileRecurse {
-                if (it.isFile() && it.name.endsWith(".kt") && !excludeFiles.contains(it.absolutePath)) {
-                    compileFiles.add(it.absolutePath)
-                }
-            }
-        } else if (!excludeFiles.contains(file.absolutePath)) {
-            compileFiles.add(file.absolutePath)
-        }
-    }
-    return compileFiles
-}
-
-TasksKt.createStdlibTest(project, 'harmonyRegexTest') { task ->
+/**
+ * Creates tasks to build and execute Harmony regex tests with GTEST logger.
+ */
+KotlinNativeTestKt.createTest(project, 'harmonyRegexTest', KonanGTestRunner) { task ->
     task.enabled = (project.testTarget != 'wasm32') // Uses exceptions.
+    task.useFilter = false
+    task.testLogger = KonanTestRunner.Logger.GTEST
 
-    def sources = getFilesFrom([ "harmony_regex" ], [])
+    def sources = UtilsKt.getFilesToCompile(project, [ "harmony_regex" ], [])
 
     konanArtifacts {
         program('harmonyRegexTest', targets: [ targetName ]) {
@@ -3338,10 +3323,16 @@ TasksKt.createStdlibTest(project, 'harmonyRegexTest') { task ->
             extraOpts project.globalTestArgs
         }
     }
+
+    task.finalizedBy("resultsTask")
 }
 
-TasksKt.createStdlibTest(project, 'stdlibTest') { task ->
-    def sources = getFilesFrom([ 'build/stdlib_external/stdlib', 'stdlib_external/utils.kt',
+/**
+ * Creates tasks to build nd execute stdlib tests.
+ */
+KotlinNativeTestKt.createTest(project, 'stdlibTest', KonanGTestRunner) { task ->
+    def sources = UtilsKt.getFilesToCompile(project,
+            [ 'build/stdlib_external/stdlib', 'stdlib_external/utils.kt',
                                  'stdlib_external/jsCollectionFactoriesActuals.kt' ],
             [ 'build/stdlib_external/stdlib/test/internalAnnotations.kt' ])
 
@@ -3356,6 +3347,9 @@ TasksKt.createStdlibTest(project, 'stdlibTest') { task ->
     }
     // Exclude test providing args to the test executable
     task.arguments = [ "--ktest_negative_regex_filter=test.collections.CollectionTest.abstractCollectionToArray" ]
+    task.useFilter = false
+    task.testLogger = KonanTestRunner.Logger.GTEST
+    task.finalizedBy("resultsTask")
 }
 
 /**

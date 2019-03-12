@@ -274,42 +274,6 @@ abstract class KonanTest extends JavaExec {
     }
 }
 
-class DynamicKonanTest extends KonanTest {
-    /**
-     * overrides [KonanTest::inDevelopersRun] used in [:backend.native:tests:sanity]
-     */
-    public def inDevelopersRun = true
-
-    protected String cSource
-
-    void compileTest(List<String> filesToCompile, String exe) {
-        def libname = "testlib"
-        def dylib = "$outputDirectory/$libname"
-        def realExe = "${exe}.${target.family.exeSuffix}"
-
-        runCompiler(filesToCompile, dylib, ['-produce', 'dynamic'] + ((flags != null) ? flags :[]))
-        runClang([cSource], realExe, ['-I', outputDirectory, '-L', outputDirectory, '-l', libname])
-    }
-
-    void runClang(List<String> cSources, String output, List<String> moreArgs) {
-        def log = new ByteArrayOutputStream()
-        project.execKonanClang(project.target) {
-            workingDir outputDirectory
-
-            executable "clang"
-            args cSources
-            args '-o', output
-            args moreArgs
-            args "-Wl,-rpath,$outputDirectory"
-
-            standardOutput = log
-            errorOutput = log
-        }
-        def logString = log.toString("UTF-8")
-        project.file("${output}.compilation.log").write(logString)
-        println(logString)
-    }
-}
 class RunExternalTestGroup extends KonanTest {
     /**
      * overrides [KonanTest::inDevelopersRun] used in [:backend.native:tests:sanity]
