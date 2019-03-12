@@ -23,10 +23,11 @@ import org.jetbrains.kotlin.konan.target.HostManager
 
 abstract class KonanTestRunner : DefaultTask() {
     enum class Logger {
-        GTEST,
-        TEAMCITY,
-        SIMPLE,
-        SILENT
+        EMPTY,    // Built without test runner
+        GTEST,    // Google test log output
+        TEAMCITY, // TeamCity log output
+        SIMPLE,   // Prints simple messages of passed/failed tests
+        SILENT    // Prints no log of passed/failed tests
     }
 
     var disabled: Boolean
@@ -45,7 +46,7 @@ abstract class KonanTestRunner : DefaultTask() {
      * Test logger to be used for the test built with TestRunner (`-tr` option).
      */
     @Optional
-    var testLogger = Logger.SILENT
+    lateinit var testLogger: Logger
 
     /**
      * Test executable arguments.
@@ -82,7 +83,9 @@ abstract class KonanTestRunner : DefaultTask() {
         if (!::arguments.isInitialized) {
             arguments = mutableListOf()
         }
-        arguments.add("--ktest_logger=$testLogger")
+        if (::testLogger.isInitialized && testLogger != Logger.EMPTY) {
+            arguments.add("--ktest_logger=$testLogger")
+        }
         if (useFilter && ::source.isInitialized) {
             arguments.add("--ktest_filter=${source.convertToPattern()}")
         }
@@ -157,9 +160,9 @@ open class KonanGTestRunner : KonanTestRunner() {
                 .apply { if (find()) fail(group(1).toInt()) }
         if (total == 0) {
             // No test were run. Try to find if we've tried to run something
-            error(Pattern.compile("\\[={10}] Running ([0-9]*) tests from ([0-9]*) test cases\\..*")
+            this.error(Pattern.compile("\\[={10}] Running ([0-9]*) tests from ([0-9]*) test cases\\..*")
                     .matcher(output)
-                    .apply { if (find()) group(1).toInt() else 1 })
+                    .run { if (find()) group(1).toInt() else 1 })
         }
     }
 }
@@ -174,6 +177,7 @@ open class KonanLocalTestRunner : KonanTestRunner() {
         val target = project.testTarget
         outputDirectory = project.testOutputLocal
         executable = "$outputDirectory/${target.name}/localTest.${target.family.exeSuffix}"
+        testLogger = Logger.SILENT
     }
 
     @Optional
@@ -217,7 +221,8 @@ open class KonanLocalTestRunner : KonanTestRunner() {
             runProcess(project.executor::execute, executable, arguments)
         if (compilerMessages) {
             val target = project.testTarget
-            val compilationLog = project.file("$outputDirectory/${target.name}/localTest.compilation.log").readText()
+            val compilationLog = project.file(executable.replace(target.family.exeSuffix, "") + ".compilation.log")
+                    .readText()
             output.stdOut = compilationLog + output.stdOut
         }
         output.check()
@@ -262,6 +267,8 @@ open class KonanStandaloneTestRunner : KonanLocalTestRunner() {
         val target = project.testTarget
         outputDirectory = "${project.testOutputLocal}/$name"
         executable = "$outputDirectory/${target.name}/$name.${target.family.exeSuffix}"
+        useFilter = false
+        testLogger = Logger.EMPTY
     }
 
     @Optional

@@ -3371,7 +3371,7 @@ task buildKonanTests { t ->
                     excludeList += it.source
                 }
             }
-    def sources = getFilesFrom(compileList, excludeList)
+    def sources = UtilsKt.getFilesToCompile(project, compileList, excludeList)
 
     konanArtifacts {
         program('localTest', targets: [ targetName ]) {

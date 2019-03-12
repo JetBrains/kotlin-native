@@ -61,13 +61,12 @@ fun Project.getFilesToCompile(compile: List<String>, exclude: List<String>): Lis
     val excludeFiles = exclude.map { project.file(it).absolutePath }.toList()
 
     // create list of tests to compile
-    return compile.flatMap {
-        project.file(it)
-                .listFiles { f ->
-                        f.isFile
-                            && f.name.endsWith(".kt")
-                            && !excludeFiles.contains(f.absolutePath) }
+    return compile.flatMap { f ->
+        project.file(f)
+                .walk()
+                .filter { it.isFile && it.name.endsWith(".kt") && !excludeFiles.contains(it.absolutePath) }
                 .map(File::getAbsolutePath)
+                .asIterable()
     }
 }
 
