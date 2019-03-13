@@ -184,6 +184,7 @@ internal class KonanSymbols(context: Context, val symbolTable: SymbolTable, val 
     val arrayList = symbolTable.referenceClass(getArrayListClassDescriptor(context))
 
     val symbolName = topLevelClass(RuntimeNames.symbolName)
+    val filterExceptions = topLevelClass(RuntimeNames.filterExceptions)
     val exportForCppRuntime = topLevelClass(RuntimeNames.exportForCppRuntime)
 
     val objCMethodImp = symbolTable.referenceClass(context.interopBuiltIns.objCMethodImp)
@@ -211,6 +212,16 @@ internal class KonanSymbols(context: Context, val symbolTable: SymbolTable, val 
     val interopObjCRetain = interopFunction("objc_retain")
 
     val interopObjcRetainAutoreleaseReturnValue = interopFunction("objc_retainAutoreleaseReturnValue")
+
+    val interopCreateObjCObjectHolder = interopFunction("createObjCObjectHolder")
+
+    val interopCreateKotlinObjectHolder = interopFunction("createKotlinObjectHolder")
+    val interopUnwrapKotlinObjectHolderImpl = interopFunction("unwrapKotlinObjectHolderImpl")
+
+    val interopCreateObjCSuperStruct = interopFunction("createObjCSuperStruct")
+
+    val interopGetMessenger = interopFunction("getMessenger")
+    val interopGetMessengerStret = interopFunction("getMessengerStret")
 
     val interopGetObjCClass = symbolTable.referenceSimpleFunction(context.interopBuiltIns.getObjCClass)
 
