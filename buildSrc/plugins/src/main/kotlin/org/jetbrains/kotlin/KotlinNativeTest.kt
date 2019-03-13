@@ -121,8 +121,11 @@ fun <T: KonanTestRunner> Project.createTest(name: String, type: Class<T>, config
             // Apply closure set in build.gradle to get all parameters.
             this.configure(config)
 
-            // Set dependencies.
             val compileTask = "compileKonan${name.capitalize()}${target.name.capitalize()}"
+            // If run task depends on something, compile task should also depend on this.
+            val dependencies = dependsOn.toList() // save to the list, otherwise it will cause cyclic dependency.
+            project.tasks.getByName(compileTask).dependsOn(dependencies)
+            // Run task should depend on compile task.
             dependsOn(compileTask)
             setDistDependencyFor(compileTask)
         }
