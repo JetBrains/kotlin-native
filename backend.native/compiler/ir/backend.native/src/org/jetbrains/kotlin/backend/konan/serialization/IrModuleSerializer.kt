@@ -1089,8 +1089,7 @@ internal class IrModuleSerializer(
             }
 
             override fun visitFunction(declaration: IrFunction) {
-                if (declaration.descriptor.annotations.hasAnnotation(RuntimeNames.exportForCppRuntime)
-                        || declaration.descriptor.annotations.hasAnnotation(RuntimeNames.exportForCompilerAnnotation))
+                if (declaration.descriptor.annotations.hasAnnotation(RuntimeNames.exportForCppRuntime))
                     proto.addExplicitlyExportedToCompiler(serializeIrSymbol(declaration.symbol))
                 super.visitDeclaration(declaration)
             }
