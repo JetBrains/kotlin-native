@@ -4,6 +4,8 @@
  */
 
 import org.jetbrains.kotlin.*
+import org.jetbrains.kotlin.konan.target.KonanTarget
+
 import java.nio.file.Paths
 
 buildscript {
@@ -252,11 +254,13 @@ void dependsOnPlatformLibs(Task t) {
 Task standaloneTest(String name, Closure<KonanStandaloneTestRunner> configureClosure) {
     return KotlinNativeTestKt.createTest(project, name, KonanStandaloneTestRunner) { task ->
         configureClosure(task)
-        konanArtifacts {
-            program(name, targets: [target.name ?: 'host']) {
-                srcFiles task.getSources()
-                baseDir "$testOutputLocal/$name"
-                extraOpts task.flags + project.globalTestArgs
+        if (task.enabled) {
+            konanArtifacts {
+                program(name, targets: [target.name ?: 'host']) {
+                    srcFiles task.getSources()
+                    baseDir "$testOutputLocal/$name"
+                    extraOpts task.flags + project.globalTestArgs
+                }
             }
         }
     }
@@ -268,27 +272,29 @@ Task standaloneTest(String name, Closure<KonanStandaloneTestRunner> configureClo
 Task linkTest(String name, Closure<KonanLinkTestRunner> configureClosure) {
     return KotlinNativeTestKt.createTest(project, name, KonanLinkTestRunner) { task ->
         configureClosure(task)
-        konanArtifacts {
-            def lib = "lib$name"
-            def targetName = target.name
-            // build a library from KonanLinkTestRunner::lib property
-            library(lib, targets: [targetName]) {
-                srcFiles  task.lib
-                baseDir   "$testOutputLocal/$name"
-                extraOpts task.flags + project.globalTestArgs
-            }
-            UtilsKt.setDistDependencyFor(project, "compileKonan${lib.capitalize()}${targetName.capitalize()}")
-
-            // Build an executable with library
-            program(name, targets: [targetName]) {
-                libraries {
-                    klib lib
+        if (task.enabled) {
+            konanArtifacts {
+                def lib = "lib$name"
+                def targetName = target.name
+                // build a library from KonanLinkTestRunner::lib property
+                library(lib, targets: [targetName]) {
+                    srcFiles task.lib
+                    baseDir "$testOutputLocal/$name"
+                    extraOpts task.flags + project.globalTestArgs
                 }
-                srcFiles  task.getSources()
-                baseDir   "$testOutputLocal/$name"
-                extraOpts task.flags + project.globalTestArgs
-                // depend on library build task
-                dependsOn "compileKonan${lib.capitalize()}${targetName.capitalize()}"
+                UtilsKt.setDistDependencyFor(project, "compileKonan${lib.capitalize()}${targetName.capitalize()}")
+
+                // Build an executable with library
+                program(name, targets: [targetName]) {
+                    libraries {
+                        klib lib
+                    }
+                    srcFiles task.getSources()
+                    baseDir "$testOutputLocal/$name"
+                    extraOpts task.flags + project.globalTestArgs
+                    // depend on library build task
+                    dependsOn "compileKonan${lib.capitalize()}${targetName.capitalize()}"
+                }
             }
         }
     }
@@ -300,14 +306,16 @@ Task linkTest(String name, Closure<KonanLinkTestRunner> configureClosure) {
 Task dynamicTest(String name, Closure<KonanDynamicTestRunner> configureClosure) {
     return KotlinNativeTestKt.createTest(project, name, KonanDynamicTestRunner) { task ->
         configureClosure(task)
-        konanArtifacts {
-            def targetName = target.name
-            dynamic(name, targets: [targetName]) {
-                srcFiles  task.getSources()
-                baseDir   "$testOutputLocal/$name"
-                extraOpts task.flags + project.globalTestArgs
+        if (task.enabled) {
+            konanArtifacts {
+                def targetName = target.name
+                dynamic(name, targets: [targetName]) {
+                    srcFiles task.getSources()
+                    baseDir "$testOutputLocal/$name"
+                    extraOpts task.flags + project.globalTestArgs
+                }
+                UtilsKt.setDistDependencyFor(project, "compileKonan${name.capitalize()}${targetName.capitalize()}")
             }
-            UtilsKt.setDistDependencyFor(project, "compileKonan${name.capitalize()}${targetName.capitalize()}")
         }
     }
 }
@@ -3005,27 +3013,29 @@ kotlinNativeInterop {
 Task interopTest(String name, Closure<KonanInteropTestRunner> configureClosure) {
     return KotlinNativeTestKt.createTest(project, name, KonanInteropTestRunner) { task ->
         configureClosure(task)
-        konanArtifacts {
-            // TODO: get rid of the kotlinNativeInterop here used only for the properties
-            def conf = project.kotlinNativeInterop[task.interop]
-            def lib = conf.name + name
-            interop(lib, targets: [target.name ?: 'host']) {
-                // FIXME: creates empty file to workaround konan gradle plugin issue (should be able to have no def file)
-                defFile((conf.defFile != null) ? conf.defFile : File.createTempFile("${conf.name}.empty", ".def"))
-                if (conf.headers != null) headers(conf.headers)
-                if (conf.linkerOpts != null) linkerOpts(conf.linkerOpts)
-                if (conf.pkg != null) packageName(conf.pkg)
-                baseDir "$testOutputLocal/$name"
-            }
-            UtilsKt.setDistDependencyFor(project, "compileKonan${lib.capitalize()}${target.name.capitalize()}")
-
-            program(name, targets: [target.name ?: 'host']) {
-                libraries {
-                    artifact lib
+        if (task.enabled) {
+            konanArtifacts {
+                // TODO: get rid of the kotlinNativeInterop here used only for the properties
+                def conf = project.kotlinNativeInterop[task.interop]
+                def lib = conf.name + name
+                interop(lib, targets: [target.name ?: 'host']) {
+                    // FIXME: creates empty file to workaround konan gradle plugin issue (should be able to have no def file)
+                    defFile((conf.defFile != null) ? conf.defFile : File.createTempFile("${conf.name}.empty", ".def"))
+                    if (conf.headers != null) headers(conf.headers)
+                    if (conf.pkg != null) packageName(conf.pkg)
+                    baseDir "$testOutputLocal/$name"
                 }
-                srcFiles  task.getSources()
-                baseDir   "$testOutputLocal/$name"
-                extraOpts task.flags + project.globalTestArgs
+                UtilsKt.setDistDependencyFor(project, "compileKonan${lib.capitalize()}${target.name.capitalize()}")
+
+                program(name, targets: [target.name ?: 'host']) {
+                    libraries {
+                        artifact lib
+                    }
+                    srcFiles task.getSources()
+                    baseDir "$testOutputLocal/$name"
+                    if (conf.linkerOpts != null) linkerOpts(conf.linkerOpts)
+                    extraOpts task.flags + project.globalTestArgs
+                }
             }
         }
     }
@@ -3147,9 +3157,9 @@ standaloneTest("interop_opengl_teapot") {
     it.source = "interop/basics/opengl_teapot.kt"
 }
 */
-/* TODO doFirst should be replaced with beforeBuild or smth
+
 interopTest("interop_objc_smoke") {
-    it.disabled = !isAppleTarget(project)
+    it.enabled = isAppleTarget(project)
     it.goldValue = "84\nFoo\nHello, World!\nKotlin says: Hello, everybody!\nHello from Kotlin\n2, 1\n" +
             "true\ntrue\n" +
             "Global string\nAnother global string\nnull\nglobal object\n" +
@@ -3158,29 +3168,25 @@ interopTest("interop_objc_smoke") {
             "CFString macro\n" +
             "Deallocated\nDeallocated\nDeallocated\n"
 
-    if (isAppleTarget(project)) {
-        it.source = "interop/objc/smoke.kt"
-        it.interop = 'objcSmoke'
+    it.source = "interop/objc/smoke.kt"
+    it.interop = 'objcSmoke'
 
-        doFirst {
-            execKonanClang(project.target) {
-                args "$projectDir/interop/objc/smoke.m"
-                args "-lobjc", '-fobjc-arc'
-                args '-fPIC', '-shared', '-o', "$buildDir/libobjcsmoke.dylib"
-            }
-            if (project.target instanceof KonanTarget.IOS_X64) {
-                UtilsKt.codesign(project, "$buildDir/libobjcsmoke.dylib")
-            }
+    it.doBefore {
+        execKonanClang(project.target) {
+            args "$projectDir/interop/objc/smoke.m"
+            args "-lobjc", '-fobjc-arc'
+            args '-fPIC', '-shared', '-o', "$buildDir/libobjcsmoke.dylib"
+        }
+        if (project.target instanceof KonanTarget.IOS_X64) {
+            UtilsKt.codesign(project, "$buildDir/libobjcsmoke.dylib")
         }
     }
 }
 
-/*
-TODO: doFirst should be done before the build
 standaloneTest("jsinterop_math") {
-    it.doFirst {
+    it.doBefore {
         def jsinteropScript = isWindows() ? "jsinterop.bat" : "jsinterop"
-        def jsinterop = "$dist/bin/$jsinteropScript"
+        def jsinterop = "$distDir/bin/$jsinteropScript"
         // TODO: We probably need a NativeInteropPlugin for jsinterop?
         "$jsinterop -pkg kotlinx.interop.wasm.math -o $buildDir/jsmath -target wasm32".execute().waitFor()
 
@@ -3191,7 +3197,7 @@ standaloneTest("jsinterop_math") {
     it.source = "jsinterop/math.kt"
     it.flags = ["-r", "$buildDir", "-l", "jsmath"]
 }
-*/
+
 standaloneTest("interop_libiconv") {
     dependsOnPlatformLibs(it)
     it.enabled = (project.testTarget == null)

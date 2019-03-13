@@ -32,10 +32,7 @@ abstract class KonanTestRunner : DefaultTask() {
 
     var disabled: Boolean
         get() = !enabled
-        @Optional
-        set(value) {
-            enabled = !value
-        }
+        @Optional set(value) { enabled = !value }
 
     /**
      * Test output directory. Used to store processed sources and binary artifacts.
@@ -71,6 +68,21 @@ abstract class KonanTestRunner : DefaultTask() {
      */
     @Input
     var useFilter = true
+
+
+    /**
+     * As this run task comes after the build task all actions for doFirst
+     * should be done before the build and not run.
+     * @see doBefore
+     */
+    @Deprecated("doFirst on run task doesn't affect build", ReplaceWith("doBefore"))
+    override fun doFirst(action: Action<in Task>): Task = super.doFirst(action)
+
+    /**
+     * An action to be executed before the build.
+     */
+    @Optional
+    var doBefore: Action<in Task>? = null
 
     @Suppress("UnstableApiUsage")
     override fun configure(config: Closure<*>): Task {
@@ -114,20 +126,23 @@ abstract class KonanTestRunner : DefaultTask() {
  */
 fun <T: KonanTestRunner> Project.createTest(name: String, type: Class<T>, config: Closure<*>): T =
         project.tasks.create(name, type).apply {
-            // Configure test task.
-            val target = project.testTarget
-            executable = "$outputDirectory/${target.name}/$name.${target.family.exeSuffix}"
-
             // Apply closure set in build.gradle to get all parameters.
             this.configure(config)
+            if (enabled) {
+                // Configure test task.
+                val target = project.testTarget
+                executable = "$outputDirectory/${target.name}/$name.${target.family.exeSuffix}"
 
-            val compileTask = "compileKonan${name.capitalize()}${target.name.capitalize()}"
-            // If run task depends on something, compile task should also depend on this.
-            val dependencies = dependsOn.toList() // save to the list, otherwise it will cause cyclic dependency.
-            project.tasks.getByName(compileTask).dependsOn(dependencies)
-            // Run task should depend on compile task.
-            dependsOn(compileTask)
-            setDistDependencyFor(compileTask)
+                val compileTask = project.tasks.getByName("compileKonan${name.capitalize()}${target.name.capitalize()}")
+                // If run task depends on something, compile task should also depend on this.
+                val dependencies = dependsOn.toList() // save to the list, otherwise it will cause cyclic dependency.
+                compileTask.dependsOn(dependencies)
+                // Run task should depend on compile task.
+                dependsOn(compileTask)
+                setDistDependencyFor(compileTask)
+                if (doBefore != null) compileTask.doFirst(doBefore!!)
+                compileTask.enabled = enabled
+            }
         }
 
 /**
