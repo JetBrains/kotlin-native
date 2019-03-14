@@ -82,7 +82,7 @@ data class MeanVarianceBenchmark(val meanBenchmark: BenchmarkResult, val varianc
 
 }
 
-fun geometricMean(values: List<Double>, totalNumber: Int = values.size) =
+fun geometricMean(values: Collection<Double>, totalNumber: Int = values.size) =
     values.asSequence().filter{ it != 0.0 }.map { it.pow(1.0 / totalNumber) }.reduce { a, b -> a * b }
 
 fun computeMeanVariance(samples: List<Double>): MeanVariance {

@@ -133,6 +133,34 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
         }
     }
 
+    enum class Metric(val suffix: Regex) {
+        EXECUTION_TIME(Regex("(?<!(\\.(codeSize|compileTime)))$")),
+        CODE_SIZE(Regex("\\.codeSize$")),
+        COMPILE_TIME(Regex("\\.compileTime$"))
+    }
+
+    fun getResultsByMetric(metric: Metric, getGeoMean: Boolean = true, filter: List<String>? = null): List<Double>  {
+        val benchmarks = filter?.let {
+            mergedReport.filter { entry ->
+                filter.find {
+                    entry.key.startsWith(it)
+                } != null
+            }
+        } ?: mergedReport
+        if (benchmarks.isEmpty()) {
+            error("There is no benchmarks from provided list")
+        }
+        val filteredBenchmarks = benchmarks.filter { entry -> metric.suffix.find(entry.key) != null }
+        if (filteredBenchmarks.isEmpty()) {
+            error("There is no benchmarks for metric $metric")
+        }
+        val results = filteredBenchmarks.map { entry -> metric.suffix.replace(entry.key, "") to entry.value.first!!.meanBenchmark.score }.toMap()
+        if (getGeoMean) {
+            return listOf(geometricMean(results.values))
+        }
+        return filter?.let { it.map { results[it] ?: error("Benchmark $it for metric $metric doesn't exist.") }.toList() } ?: results.values.toList()
+    }
+
     private fun getMaximumChange(bucket: Map<String, ScoreChange>): Double =
         // Maps of regressions and improvements are sorted.
         if (bucket.isEmpty()) 0.0 else bucket.values.map { it.first.mean }.first()
