@@ -37,6 +37,9 @@ RUNTIME_NORETURN void abort(void);
 RUNTIME_NORETURN void exit(int32_t status);
 
 // Thread control.
+long currentThread();
+void setThreadInterruptHandler(void (*handler)(int));
+void interruptThread(long threadId);
 void onThreadExit(void (*destructor)());
 
 // String/byte operations.

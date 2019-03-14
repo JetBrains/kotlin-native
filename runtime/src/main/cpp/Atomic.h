@@ -13,6 +13,15 @@ ALWAYS_INLINE inline T atomicAdd(volatile T* where, T what) {
 }
 
 template <typename T>
+ALWAYS_INLINE inline T atomicSub(volatile T* where, T what) {
+#ifndef KONAN_NO_THREADS
+    return __sync_sub_and_fetch(where, what);
+#else
+    return *where += what;
+#endif
+}
+
+template <typename T>
 ALWAYS_INLINE inline T compareAndSwap(volatile T* where, T expectedValue, T newValue) {
 #ifndef KONAN_NO_THREADS
   return __sync_val_compare_and_swap(where, expectedValue, newValue);
@@ -39,7 +48,6 @@ ALWAYS_INLINE inline bool compareAndSet(volatile T* where, T expectedValue, T ne
 #endif
 }
 
-
 template <typename T>
 ALWAYS_INLINE inline void atomicSet(volatile T* where, T what) {
 #ifndef KONAN_NO_THREADS
@@ -60,12 +68,39 @@ ALWAYS_INLINE inline T atomicGet(volatile T* where) {
 #endif
 }
 
-static ALWAYS_INLINE void spinLock(int* spinlock) {
+template <typename T>
+ALWAYS_INLINE inline bool atomicSetBit(volatile T* where, T mask) {
+#ifndef KONAN_NO_THREADS
+  auto old = __sync_fetch_and_or(where, mask);
+#else
+  auto old = *where;
+  *where |= mask;
+#endif
+  return (old & mask) != 0;
+}
+
+template <typename T>
+ALWAYS_INLINE inline void atomicClearBit(volatile T* where, T mask) {
+#ifndef KONAN_NO_THREADS
+  __sync_and_and_fetch(where, ~mask);
+#else
+  *where &= ~mask;
+#endif
+}
+
+
+static ALWAYS_INLINE inline void spinLock(int* spinlock) {
   while (compareAndSwap(spinlock, 0, 1) != 0) {}
 }
 
-static ALWAYS_INLINE void spinUnlock(int* spinlock) {
+static ALWAYS_INLINE inline void spinUnlock(int* spinlock) {
   compareAndSwap(spinlock, 1, 0);
+}
+
+static ALWAYS_INLINE inline void synchronize() {
+#ifndef KONAN_NO_THREADS
+    __sync_synchronize();
+#endif
 }
 
 #endif // RUNTIME_ATOMIC_H

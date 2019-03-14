@@ -57,6 +57,12 @@ static_assert(sizeof(ContainerHeader) % kObjectAlignment == 0, "sizeof(Container
 #define MEMORY_LOG(...)
 #endif
 
+#if TRACE_SHARED_GC
+#define GC_LOG(...) konan::consolePrintf(__VA_ARGS__);
+#else
+#define GC_LOG(...)
+#endif
+
 #if USE_GC
 // Collection threshold default (collect after having so many elements in the
 // release candidates set).
@@ -70,6 +76,11 @@ constexpr double kGcToComputeRatioThreshold = 0.5;
 constexpr size_t kMaxErgonomicThreshold = 1024 * 1024;
 #endif  // GC_ERGONOMICS
 
+// Size of buffer for delayed refcount updates.
+constexpr size_t kRefcountBufferSize = 12;
+// Threshold defining at which capacity of refcount buffer we shall start collection.
+constexpr size_t kRefcountBufferThreshold = kRefcountBufferSize * 3 / 4;
+
 typedef KStdDeque<ContainerHeader*> ContainerHeaderDeque;
 #endif
 
@@ -79,13 +90,21 @@ typedef KStdDeque<ContainerHeader*> ContainerHeaderDeque;
 typedef KStdUnorderedSet<ContainerHeader*> ContainerHeaderSet;
 typedef KStdVector<ContainerHeader*> ContainerHeaderList;
 typedef KStdVector<KRef*> KRefPtrList;
+
+enum ProcessingStrategy {
+    PROCESS_NONE = 0,
+    PROCESS_PROCESSED = 1,
+    PROCESS_EPOQUE = 2,
+    PROCESS_GC = 3
+};
+
 #endif
 
 struct FrameOverlay {
   ArenaContainer* arena;
 };
 
-// A little hack that allows to enable -O2 optimizations
+// A little hack that allows to enable -O2 optimizations.
 // Prevents clang from replacing FrameOverlay struct
 // with single pointer.
 // Can be removed when FrameOverlay will become more complex.
@@ -93,7 +112,12 @@ FrameOverlay exportFrameOverlay;
 
 // Current number of allocated containers.
 int allocCount = 0;
+// Current number of alive memory states.
 int aliveMemoryStatesCount = 0;
+#if USE_GC
+// Lock taken when deciding if it's time to start new GC.
+int gcLock = 0;
+#endif
 
 // Forward declarations.
 void FreeContainer(ContainerHeader* header);
@@ -278,7 +302,12 @@ struct MemoryState {
 #if GC_ERGONOMICS
   uint64_t lastGcTimestamp;
 #endif
-
+  // Buffer caching delayed reference count decrements. First dimension is epoque number % 2.
+  ContainerHeader* refcountBuffer[2][kRefcountBufferSize];
+  size_t refcountBufferSize[2];
+  int32_t gcEpoque;
+  int32_t gcOps;
+  ProcessingStrategy processingStrategy;
 #endif // USE_GC
 
 #if COLLECT_STATISTIC
@@ -601,13 +630,116 @@ inline void IncrementRC(ContainerHeader* container) {
   UPDATE_ADDREF_STAT(memoryState, container, Atomic);
 }
 
+bool scheduleNextProcessEpoque(RuntimeState* state, void* argument);
+bool resetProcessEpoque(RuntimeState* state, void* argument);
+
+void epoqueProcessor(MemoryState* state) {
+  memoryState->processingStrategy = PROCESS_PROCESSED;
+  state->gcEpoque++;
+  Kotlin_iterateRuntimes(scheduleNextProcessEpoque, nullptr);
+}
+
+void gcProcessor(MemoryState* state) {
+  GC_LOG("%d: GC initiated: %p\n", state->gcEpoque, state);
+  Kotlin_iterateRuntimes(resetProcessEpoque, nullptr);
+  Kotlin_unlockRuntimes();
+  GC_LOG("GC done\n");
+  auto old = compareAndSwap(&gcLock, 1, 0);
+  RuntimeCheck(old == 1, "GC lock must be held");
+}
+
+void processEpoque(RuntimeState* runtimeState) {
+  GC_LOG("processEpoque in %p %d\n", runtimeState, memoryState->processingStrategy);
+  auto* memoryState = runtimeState->memoryState;
+  RuntimeCheck(memoryState->processingStrategy != PROCESS_NONE, "Must be meaningful request");
+  switch (memoryState->processingStrategy) {
+      case PROCESS_EPOQUE:
+          epoqueProcessor(memoryState);
+          break;
+      case PROCESS_GC:
+          gcProcessor(memoryState);
+          break;
+      default:
+          RuntimeCheck(false, "Incorrect processing strategy");
+          break;
+  }
+  GC_LOG("done processEpoque in %p gcLock=%d\n", runtimeState, gcLock);
+}
+
+bool scheduleNextProcessEpoque(RuntimeState* state, void* argument) {
+  if (state->memoryState->processingStrategy == PROCESS_NONE) {
+      state->memoryState->processingStrategy = state->next == nullptr ? PROCESS_GC : PROCESS_EPOQUE;
+      state->handler = processEpoque;
+      if (konan::currentThread() == state->threadId) {
+        state->handler(state);
+      } else {
+        synchronize();
+        GC_LOG("interrupt %lx\n", state->threadId);
+        konan::interruptThread(state->threadId);
+      }
+  }
+  return state->memoryState->processingStrategy != PROCESS_PROCESSED;
+}
+
+bool resetProcessEpoque(RuntimeState* state, void* argument) {
+  auto epoqueIndex = (state->memoryState->gcEpoque - 0) % 2;
+  GC_LOG("resetProcessEpoque: %d got %d pointers in %p\n",
+          state->memoryState->gcEpoque,
+          state->memoryState->refcountBufferSize[epoqueIndex],
+          state->memoryState);
+  state->memoryState->refcountBufferSize[epoqueIndex] = 0;
+  state->memoryState->processingStrategy = PROCESS_NONE;
+  // Process all runtimes.
+  return false;
+}
+
+bool trigger(MemoryState* state) {
+  GC_LOG("trigger gcLock=%d\n", gcLock);
+  if (compareAndSet(&gcLock, 0, 1)) {
+    // Perform epoque processing in all runtimes, lock the list.
+    Kotlin_lockRuntimes();
+    // Request runtimes to eventually execute epoque processor or GC.
+    Kotlin_iterateRuntimes(scheduleNextProcessEpoque, nullptr);
+    // We hold runtimes lock for time of GC, so new runtimes may not appear or current ones go away,
+    // thus we could be sure that all runtimes will be visited, and the last one will process GC.
+    return true;
+  } else {
+    return false;
+  }
+}
+
+void mutationTrigger(MemoryState* state) {
+  if (++state->gcOps > kRefcountBufferThreshold) {
+    if (trigger(state)) {
+      state->gcOps = 0;
+    }
+  }
+}
+
+void enqueueCyclic(ContainerHeader* container) {
+  auto state = memoryState;
+#if 1
+  container->setColorAssertIfGreen(CONTAINER_TAG_GC_PURPLE);
+  state->toFree->push_back(container);
+  if (state->gcSuspendCount == 0 && freeableSize(state) >= state->gcThreshold) {
+    GarbageCollect();
+  }
+#endif
+  mutationTrigger(state);
+  auto epoqueIndex = state->gcEpoque % 2;
+  auto count = state->refcountBufferSize[epoqueIndex];
+  if (count < kRefcountBufferSize) {
+    state->refcountBuffer[epoqueIndex][count] = container;
+    state->refcountBufferSize[epoqueIndex]++;
+  }
+}
+
 template <bool Atomic, bool UseCycleCollector>
 inline void DecrementRC(ContainerHeader* container) {
   if (container->decRefCount<Atomic>() == 0) {
     UPDATE_RELEASEREF_STAT(memoryState, container, Atomic, false);
     FreeContainer(container);
   } else if (UseCycleCollector) { // Possible root.
-    RuntimeAssert(!Atomic, "Cycle collector shalln't be used with shared objects yet");
     RuntimeAssert(container->objectCount() == 1,
         "cycle collector shall only work with single object containers");
     // We do not use cycle collector for frozen objects, as we already detected
@@ -616,14 +748,8 @@ inline void DecrementRC(ContainerHeader* container) {
     int color = container->color();
     if (color != CONTAINER_TAG_GC_PURPLE && color != CONTAINER_TAG_GC_GREEN) {
       UPDATE_RELEASEREF_STAT(memoryState, container, Atomic, true);
-      container->setColorAssertIfGreen(CONTAINER_TAG_GC_PURPLE);
-      if (!container->buffered()) {
-        container->setBuffered();
-        auto state = memoryState;
-        state->toFree->push_back(container);
-        if (state->gcSuspendCount == 0 && freeableSize(state) >= state->gcThreshold) {
-          GarbageCollect();
-        }
+      if (container->makeBuffered()) {
+        enqueueCyclic(container);
       }
     } else {
       UPDATE_RELEASEREF_STAT(memoryState, container, Atomic, false);
@@ -1214,6 +1340,7 @@ MemoryState* InitMemory() {
   memoryState->gcInProgress = false;
   initThreshold(memoryState, kGcThreshold);
   memoryState->gcSuspendCount = 0;
+  memoryState->gcEpoque = 1;
 #endif
   atomicAdd(&aliveMemoryStatesCount, 1);
   return memoryState;
@@ -1358,20 +1485,20 @@ OBJ_GETTER(InitSharedInstance,
   ctor(object);
   FreezeSubgraph(object);
   UpdateRef(location, object);
-  __sync_synchronize();
+  synchronize();
   return object;
 #else
   try {
     ctor(object);
     FreezeSubgraph(object);
     UpdateRef(location, object);
-    __sync_synchronize();
+    synchronize();
     return object;
   } catch (...) {
     UpdateRef(OBJ_RESULT, nullptr);
     UpdateRef(location, nullptr);
     UpdateRef(localLocation, nullptr);
-    __sync_synchronize();
+    synchronize();
     throw;
   }
 #endif
@@ -1607,9 +1734,7 @@ OBJ_GETTER(DerefStablePointer, KNativePtr pointer) {
 }
 
 OBJ_GETTER(AdoptStablePointer, KNativePtr pointer) {
-#ifndef KONAN_NO_THREADS
-  __sync_synchronize();
-#endif
+  synchronize();
   KRef ref = reinterpret_cast<KRef>(pointer);
   UpdateRef(OBJ_RESULT, nullptr);
   // Somewhat hacky.

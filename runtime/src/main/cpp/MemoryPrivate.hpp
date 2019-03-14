@@ -19,6 +19,14 @@
 
 #include "Memory.h"
 
+struct RuntimeState {
+    RuntimeState* next;
+    MemoryState* memoryState;
+    volatile int executionStatus;
+    long threadId;
+    void (*handler)(RuntimeState* state);
+};
+
 void AddRefFromAssociatedObject(const ObjHeader* object) RUNTIME_NOTHROW;
 void ReleaseRefFromAssociatedObject(const ObjHeader* object) RUNTIME_NOTHROW;
 

@@ -24,6 +24,7 @@
 #include <string.h>
 #if !KONAN_NO_THREADS
 #include <pthread.h>
+#include <signal.h>
 #endif
 #include <unistd.h>
 #if KONAN_WINDOWS
@@ -149,6 +150,34 @@ static void onThreadExitInit() {
 }
 
 #endif  // !KONAN_NO_THREADS
+
+long currentThread() {
+#if KONAN_NO_THREADS
+  return 0;
+#else
+  return reinterpret_cast<long>(pthread_self());
+#endif
+}
+
+void interruptThread(long threadId) {
+#if KONAN_NO_THREADS
+  RuntimeCheck(false, "Unsupported operation");
+#else
+  pthread_kill(reinterpret_cast<pthread_t>(threadId), SIGUSR2);
+#endif
+}
+
+void setThreadInterruptHandler(void (*handler)(int)) {
+#if KONAN_NO_THREADS
+  RuntimeCheck(false, "Unsupported operation");
+#else
+  struct sigaction sa;
+  sa.sa_handler = handler;
+  sa.sa_mask = 0;
+  sa.sa_flags = SA_RESTART;
+  sigaction(SIGUSR2, &sa, nullptr);
+#endif
+}
 
 void onThreadExit(void (*destructor)()) {
 #if KONAN_NO_THREADS

@@ -50,7 +50,7 @@ RuntimeState* RUNTIME_USED Kotlin_getRuntime();
 void RUNTIME_USED Kotlin_lockRuntimes();
 
 // Iterates over currently active runtimes. Lock must be taken.
-void RUNTIME_USED Kotlin_iterateRuntimes(void (*operation)(RuntimeState*, void*), void* argument);
+void RUNTIME_USED Kotlin_iterateRuntimes(bool (*operation)(RuntimeState*, void*), void* argument);
 
 // Release runtime list lock.
 void RUNTIME_USED Kotlin_unlockRuntimes();

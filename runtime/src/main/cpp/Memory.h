@@ -17,8 +17,9 @@
 #ifndef RUNTIME_MEMORY_H
 #define RUNTIME_MEMORY_H
 
-#include "KAssert.h"
+#include "Atomic.h"
 #include "Common.h"
+#include "KAssert.h"
 #include "TypeInfo.h"
 
 typedef enum {
@@ -123,7 +124,7 @@ struct ContainerHeader {
     refCount_ += CONTAINER_TAG_INCREMENT;
 #else
     if (Atomic)
-      __sync_add_and_fetch(&refCount_, CONTAINER_TAG_INCREMENT);
+      atomicAdd(&refCount_, static_cast<unsigned>(CONTAINER_TAG_INCREMENT));
     else
       refCount_ += CONTAINER_TAG_INCREMENT;
 #endif
@@ -135,7 +136,7 @@ struct ContainerHeader {
     int value = refCount_ -= CONTAINER_TAG_INCREMENT;
 #else
     int value = Atomic ?
-       __sync_sub_and_fetch(&refCount_, CONTAINER_TAG_INCREMENT) : refCount_ -= CONTAINER_TAG_INCREMENT;
+        atomicSub(&refCount_, static_cast<unsigned>(CONTAINER_TAG_INCREMENT)) : refCount_ -= CONTAINER_TAG_INCREMENT;
 #endif
     return value >> CONTAINER_TAG_SHIFT;
   }
@@ -182,7 +183,11 @@ struct ContainerHeader {
   }
 
   inline void setBuffered() {
-    objectCount_ |= CONTAINER_TAG_GC_BUFFERED;
+    objectCount_ |= ~CONTAINER_TAG_GC_BUFFERED;
+  }
+
+  inline bool makeBuffered() {
+    return atomicSetBit(&objectCount_, (unsigned)CONTAINER_TAG_GC_BUFFERED);
   }
 
   inline void resetBuffered() {
