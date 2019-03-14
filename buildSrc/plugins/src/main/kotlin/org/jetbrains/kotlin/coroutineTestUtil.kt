@@ -13,7 +13,7 @@ fun createTextForHelpers(isReleaseCoroutines: Boolean): String {
     val emptyContinuationBody =
             if (isReleaseCoroutines)
                 """
-                |override fun resumeWith(result: SuccessOrFailure<Any?>) {
+                |override fun resumeWith(result: Result<Any?>) {
                 |   result.getOrThrow()
                 |}
             """.trimMargin()
@@ -26,7 +26,7 @@ fun createTextForHelpers(isReleaseCoroutines: Boolean): String {
     val handleResultContinuationBody =
             if (isReleaseCoroutines)
                 """
-                |override fun resumeWith(result: SuccessOrFailure<T>) {
+                |override fun resumeWith(result: Result<T>) {
                 |   x(result.getOrThrow())
                 |}
             """.trimMargin()
@@ -42,7 +42,7 @@ fun createTextForHelpers(isReleaseCoroutines: Boolean): String {
     val handleExceptionContinuationBody =
             if (isReleaseCoroutines)
                 """
-                |override fun resumeWith(result: SuccessOrFailure<Any?>) {
+                |override fun resumeWith(result: Result<Any?>) {
                 |   result.exceptionOrNull()?.let(x)
                 |}
             """.trimMargin()
@@ -58,7 +58,7 @@ fun createTextForHelpers(isReleaseCoroutines: Boolean): String {
     val continuationAdapterBody =
             if (isReleaseCoroutines)
                 """
-                |override fun resumeWith(result: SuccessOrFailure<T>) {
+                |override fun resumeWith(result: Result<T>) {
                 |   if (result.isSuccess) {
                 |       resume(result.getOrThrow())
                 |   } else {
