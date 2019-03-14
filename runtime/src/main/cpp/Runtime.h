@@ -43,10 +43,17 @@ RuntimeState* RUNTIME_USED Kotlin_suspendRuntime();
 void RUNTIME_USED Kotlin_resumeRuntime(RuntimeState*);
 
 // Gets currently active runtime, nullptr if no runtime is currently available.
+// Increments runtime's use counter.
 RuntimeState* RUNTIME_USED Kotlin_getRuntime();
 
-// Appends given node to an initializer list.
-void AppendToInitializersTail(struct InitNode*);
+// Take runtime list lock. Runtimes cannot appear or disappear while lock is taken.
+void RUNTIME_USED Kotlin_lockRuntimes();
+
+// Iterates over currently active runtimes. Lock must be taken.
+void RUNTIME_USED Kotlin_iterateRuntimes(void (*operation)(RuntimeState*, void*), void* argument);
+
+// Release runtime list lock.
+void RUNTIME_USED Kotlin_unlockRuntimes();
 
 #ifdef __cplusplus
 }

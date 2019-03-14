@@ -22,13 +22,14 @@
 #include "Atomic.h"
 
 struct RuntimeState {
+  RuntimeState* next;
   MemoryState* memoryState;
   volatile int executionStatus;
 };
 
 typedef void (*Initializer)(int initialize);
 struct InitNode {
-  Initializer      init;
+  Initializer init;
   InitNode* next;
 };
 
@@ -74,6 +75,8 @@ THREAD_LOCAL_VARIABLE RuntimeState* runtimeState = nullptr;
 THREAD_LOCAL_VARIABLE int isMainThread = 0;
 
 int aliveRuntimesCount = 0;
+int32_t runtimesLock = 0;
+RuntimeState* runtimeStateList = nullptr;
 
 RuntimeState* initRuntime() {
   SetKonanTerminateHandler();
@@ -81,11 +84,14 @@ RuntimeState* initRuntime() {
   if (!result) return nullptr;
   result->memoryState = InitMemory();
   bool firstRuntime = atomicAdd(&aliveRuntimesCount, 1) == 1;
+  Kotlin_lockRuntimes();
+  result->next = runtimeStateList;
+  runtimeStateList = result;
+  Kotlin_unlockRuntimes();
   // Keep global variables in state as well.
   if (firstRuntime) {
     isMainThread = 1;
     konan::consoleInit();
-
     InitOrDeinitGlobalVariables(INIT_GLOBALS);
   }
   InitOrDeinitGlobalVariables(INIT_THREAD_LOCAL_GLOBALS);
@@ -97,6 +103,21 @@ void deinitRuntime(RuntimeState* state) {
   InitOrDeinitGlobalVariables(DEINIT_THREAD_LOCAL_GLOBALS);
   if (lastRuntime)
     InitOrDeinitGlobalVariables(DEINIT_GLOBALS);
+  Kotlin_lockRuntimes();
+  RuntimeState* current = runtimeStateList;
+  RuntimeState* previous = nullptr;
+  while (current != nullptr) {
+      if (current == state) {
+        if (previous != nullptr)
+          previous->next = current->next;
+        else
+          runtimeStateList = current->next;
+        break;
+      }
+      previous = current;
+      current = current->next;
+  }
+  Kotlin_unlockRuntimes();
   DeinitMemory(state->memoryState);
   konanDestructInstance(state);
 }
@@ -113,6 +134,24 @@ void AppendToInitializersTail(InitNode *next) {
     initTailNode->next = next;
   }
   initTailNode = next;
+}
+
+void Kotlin_lockRuntimes() {
+  spinLock(&runtimesLock);
+}
+
+void Kotlin_unlockRuntimes() {
+  spinUnlock(&runtimesLock);
+}
+
+void Kotlin_iterateRuntimes(void (*operation)(RuntimeState*, void*), void* argument) {
+  RuntimeCheck(runtimesLock == 1, "Lock must be taken");
+  auto* current = runtimeStateList;
+  while (current != nullptr) {
+      operation(current, argument);
+      current = current->next;
+  }
+  RuntimeCheck(runtimesLock == 1, "Lock must be taken");
 }
 
 void Kotlin_initRuntimeIfNeeded() {

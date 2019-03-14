@@ -439,14 +439,6 @@ inline bool isRefCounted(KConstRef object) {
   return isFreeable(object->container());
 }
 
-inline void lock(KInt* spinlock) {
-  while (compareAndSwap(spinlock, 0, 1) != 0) {}
-}
-
-inline void unlock(KInt* spinlock) {
-  RuntimeCheck(compareAndSwap(spinlock, 1, 0) == 1, "Must succeed");
-}
-
 } // namespace
 
 void KRefSharedHolder::initRefOwner() {
@@ -1911,7 +1903,7 @@ void MutationCheck(ObjHeader* obj) {
 
 OBJ_GETTER(SwapRefLocked,
     ObjHeader** location, ObjHeader* expectedValue, ObjHeader* newValue, int32_t* spinlock) {
-  lock(spinlock);
+  spinLock(spinlock);
   ObjHeader* oldValue = *location;
   // We do not use UpdateRef() here to avoid having ReleaseRef() on return slot under the lock.
   if (oldValue == expectedValue) {
@@ -1922,7 +1914,7 @@ OBJ_GETTER(SwapRefLocked,
       AddRef(oldValue);
     }
   }
-  unlock(spinlock);
+  spinUnlock(spinlock);
   // [oldValue] ownership was either transferred from *location to return slot if CAS succeeded, or
   // we explicitly added a new reference if CAS failed.
   updateReturnRefAdded(OBJ_RESULT, oldValue);
@@ -1930,22 +1922,22 @@ OBJ_GETTER(SwapRefLocked,
 }
 
 void SetRefLocked(ObjHeader** location, ObjHeader* newValue, int32_t* spinlock) {
-  lock(spinlock);
+  spinLock(spinlock);
   ObjHeader* oldValue = *location;
   // We do not use UpdateRef() here to avoid having ReleaseRef() on old value under the lock.
   SetRef(location, newValue);
-  unlock(spinlock);
+  spinUnlock(spinlock);
   if (oldValue != nullptr)
     ReleaseRef(oldValue);
 }
 
 OBJ_GETTER(ReadRefLocked, ObjHeader** location, int32_t* spinlock) {
-  lock(spinlock);
+  spinLock(spinlock);
   ObjHeader* value = *location;
   // We do not use UpdateRef() here to avoid having ReleaseRef() on return slot under the lock.
   if (value != nullptr)
     AddRef(value);
-  unlock(spinlock);
+  spinUnlock(spinlock);
   updateReturnRefAdded(OBJ_RESULT, value);
   return value;
 }

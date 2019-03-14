@@ -60,4 +60,12 @@ ALWAYS_INLINE inline T atomicGet(volatile T* where) {
 #endif
 }
 
+static ALWAYS_INLINE void spinLock(int* spinlock) {
+  while (compareAndSwap(spinlock, 0, 1) != 0) {}
+}
+
+static ALWAYS_INLINE void spinUnlock(int* spinlock) {
+  compareAndSwap(spinlock, 1, 0);
+}
+
 #endif // RUNTIME_ATOMIC_H

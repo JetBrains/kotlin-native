@@ -538,7 +538,7 @@ KInt Kotlin_Worker_currentInternal() {
 }
 
 KInt Kotlin_Worker_requestTerminationWorkerInternal(KInt id, KBoolean processScheduledJobs) {
-    return requestTermination(id, processScheduledJobs);
+  return requestTermination(id, processScheduledJobs);
 }
 
 KInt Kotlin_Worker_executeInternal(KInt id, KInt transferMode, KRef producer, KNativePtr job) {
