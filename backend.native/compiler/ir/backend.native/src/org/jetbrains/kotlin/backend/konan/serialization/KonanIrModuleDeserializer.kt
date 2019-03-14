@@ -43,12 +43,13 @@ import org.jetbrains.kotlin.serialization.deserialization.descriptors.Deserializ
 import org.jetbrains.kotlin.serialization.konan.KonanSerializerProtocol
 
 class KonanIrModuleDeserializer(
-    currentModule: ModuleDescriptor,
-    logger: LoggingContext,
-    builtIns: IrBuiltIns,
-    symbolTable: SymbolTable,
-    val forwardModuleDescriptor: ModuleDescriptor?)
-        : IrModuleDeserializer(logger, builtIns, symbolTable) {
+        currentModule: ModuleDescriptor,
+        logger: LoggingContext,
+        builtIns: IrBuiltIns,
+        symbolTable: SymbolTable,
+        val forwardModuleDescriptor: ModuleDescriptor?,
+        val exportedDependencies: List<ModuleDescriptor>)
+    : IrModuleDeserializer(logger, builtIns, symbolTable) {
 
     val deserializedSymbols = mutableMapOf<UniqIdKey, IrSymbol>()
     val reachableTopLevels = mutableSetOf<UniqIdKey>()
@@ -63,6 +64,8 @@ class KonanIrModuleDeserializer(
 
     val resolvedForwardDeclarations = mutableMapOf<UniqIdKey, UniqIdKey>()
     val descriptorReferenceDeserializer = DescriptorReferenceDeserializer(currentModule, resolvedForwardDeclarations)
+
+    val modules = mutableMapOf<String, IrModuleFragment>()
 
     init {
         var currentIndex = 0L
@@ -163,6 +166,18 @@ class KonanIrModuleDeserializer(
 
             resolvedForwardDeclarations[key]?.let {
                 if (!deserializedTopLevels.contains(it)) reachableTopLevels.add(it) // Assuming forward declarations are always top levels.
+            }
+
+            if (descriptor != null) {
+                val module = descriptor.module
+                if (module !in deserializedModuleProtoSymbolTables && !module.isForwardDeclarationModule) {
+                    val currentDeserializedModuleDescriptor = deserializedModuleDescriptor
+                    try {
+                        deserializeIrModuleHeader(module)
+                    } finally {
+                        deserializedModuleDescriptor = currentDeserializedModuleDescriptor
+                    }
+                }
             }
 
             referenceDeserializedSymbol(proto, descriptor)
@@ -349,7 +364,11 @@ class KonanIrModuleDeserializer(
         return file
     }
 
-    fun deserializeIrModuleHeader(proto: KonanIr.IrModule, moduleDescriptor: ModuleDescriptor, deserializationStrategy: DeserializationStrategy): IrModuleFragment {
+    private fun deserializeIrModuleHeader(
+            proto: KonanIr.IrModule,
+            moduleDescriptor: ModuleDescriptor,
+            deserializationStrategy: DeserializationStrategy
+    ): IrModuleFragment {
 
         deserializedModuleDescriptor = moduleDescriptor
         deserializedModuleProtoSymbolTables.put(moduleDescriptor, proto.symbolTable)
@@ -365,9 +384,26 @@ class KonanIrModuleDeserializer(
         return module
     }
 
-    fun deserializeIrModuleHeader(moduleDescriptor: ModuleDescriptor, byteArray: ByteArray, deserializationStrategy: DeserializationStrategy = DeserializationStrategy.ONLY_REFERENCED): IrModuleFragment {
+    private fun deserializeIrModuleHeader(
+            moduleDescriptor: ModuleDescriptor,
+            byteArray: ByteArray,
+            deserializationStrategy: DeserializationStrategy = DeserializationStrategy.ONLY_REFERENCED
+    ): IrModuleFragment {
         val proto = KonanIr.IrModule.parseFrom(byteArray.codedInputStream, KonanSerializerProtocol.extensionRegistry)
         return deserializeIrModuleHeader(proto, moduleDescriptor, deserializationStrategy)
+    }
+
+    fun deserializeIrModuleHeader(moduleDescriptor: ModuleDescriptor) {
+        val konanLibrary = moduleDescriptor.konanLibrary!!
+        if (modules.containsKey(konanLibrary.libraryName)) return
+        konanLibrary.irHeader?.let { header ->
+            // TODO: consider skip deserializing explicitly exported declarations for libraries.
+            // Now it's not valid because of all dependencies that must be computed.
+            val deserializationStrategy = if (exportedDependencies.contains(moduleDescriptor))
+                DeserializationStrategy.ALL else DeserializationStrategy.EXPLICITLY_EXPORTED
+            modules[konanLibrary.libraryName] =
+                    deserializeIrModuleHeader(moduleDescriptor, header, deserializationStrategy)
+        }
     }
 }
 
