@@ -69,17 +69,10 @@ abstract class KonanTest : DefaultTask() {
     @Input
     var useFilter = true
 
-
-    /**
-     * As this run task comes after the build task all actions for doFirst
-     * should be done before the build and not run.
-     * @see doBefore
-     */
-    @Deprecated("doFirst on run task doesn't affect build", ReplaceWith("doBefore"))
-    override fun doFirst(action: Action<in Task>): Task = super.doFirst(action)
-
     /**
      * An action to be executed before the build.
+     * As this run task comes after the build task all actions for doFirst
+     * should be done before the build and not run.
      */
     @Optional
     var doBefore: Action<in Task>? = null
@@ -237,9 +230,9 @@ open class KonanLocalTest : KonanTest() {
         else
             runProcess(project.executor::execute, executable, arguments)
         if (compilerMessages) {
-            val target = project.testTarget
-            val compilationLog = project.file(executable.replace(target.family.exeSuffix, "") + ".compilation.log")
-                    .readText()
+            // TODO: as for now it captures output only in the driver task.
+            // It should capture output from the build task using Gradle's LoggerManager and LoggerOutput
+            val compilationLog = project.file("$executable.compilation.log").readText()
             output.stdOut = compilationLog + output.stdOut
         }
         output.check()
@@ -291,11 +284,19 @@ open class KonanStandaloneTest : KonanLocalTest() {
     @Optional
     var enableKonanAssertions = true
 
+    private var _flags: MutableList<String> = mutableListOf()
     /**
      * Compiler flags used to build a test.
      */
-    @Optional
-    var flags: MutableList<String> = if (enableKonanAssertions) mutableListOf("-ea") else mutableListOf()
+    var flags: MutableList<String>
+        get() {
+                if (enableKonanAssertions) _flags.add("-ea")
+                return _flags
+            }
+        @Optional
+        set(value) {
+            _flags = value
+        }
 
     fun getSources() = buildCompileList(outputDirectory)
 }
@@ -307,6 +308,12 @@ open class KonanStandaloneTest : KonanLocalTest() {
  * @see KonanLocalTest to be used as a regular task.
  */
 open class KonanDriverTest : KonanStandaloneTest() {
+    override fun configure(config: Closure<*>): Task {
+        super.configure(config)
+        if (doBefore != null) doFirst(doBefore!!)
+        return this
+    }
+
     @TaskAction
     override fun run() {
         konan()

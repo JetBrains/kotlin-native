@@ -259,9 +259,10 @@ Task standaloneTest(String name, Closure configureClosure) {
         if (task.enabled) {
             konanArtifacts {
                 program(name, targets: [target.name ?: 'host']) {
-                    srcFiles task.getSources()
-                    baseDir "$testOutputLocal/$name"
-                    extraOpts task.flags + project.globalTestArgs
+                    baseDir   "$testOutputLocal/$name"
+                    srcFiles  task.getSources()
+                    extraOpts task.flags
+                    extraOpts project.globalTestArgs
                 }
             }
         }
@@ -281,8 +282,9 @@ Task linkTest(String name, Closure<KonanLinkTest> configureClosure) {
                 // build a library from KonanLinkTest::lib property
                 library(lib, targets: [targetName]) {
                     srcFiles task.lib
-                    baseDir "$testOutputLocal/$name"
-                    extraOpts task.flags + project.globalTestArgs
+                    baseDir  "$testOutputLocal/$name"
+                    extraOpts task.flags
+                    extraOpts project.globalTestArgs
                 }
                 UtilsKt.setDistDependencyFor(project, "compileKonan${lib.capitalize()}${targetName.capitalize()}")
 
@@ -291,9 +293,10 @@ Task linkTest(String name, Closure<KonanLinkTest> configureClosure) {
                     libraries {
                         klib lib
                     }
-                    srcFiles task.getSources()
-                    baseDir "$testOutputLocal/$name"
-                    extraOpts task.flags + project.globalTestArgs
+                    baseDir  "$testOutputLocal/$name"
+                    srcFiles  task.getSources()
+                    extraOpts task.flags
+                    extraOpts project.globalTestArgs
                     // depend on library build task
                     dependsOn "compileKonan${lib.capitalize()}${targetName.capitalize()}"
                 }
@@ -313,8 +316,9 @@ Task dynamicTest(String name, Closure<KonanDynamicTest> configureClosure) {
                 def targetName = target.name
                 dynamic(name, targets: [targetName]) {
                     srcFiles task.getSources()
-                    baseDir "$testOutputLocal/$name"
-                    extraOpts task.flags + project.globalTestArgs
+                    baseDir  "$testOutputLocal/$name"
+                    extraOpts task.flags
+                    extraOpts project.globalTestArgs
                 }
                 UtilsKt.setDistDependencyFor(project, "compileKonan${name.capitalize()}${targetName.capitalize()}")
             }
@@ -1834,28 +1838,28 @@ linkTest("link") {
 */
 
 linkTest("link_omit_unused") {
-    it.goldValue = "Hello\n"
-    it.source = "link/omit/hello.kt"
-    it.lib = "link/omit/lib.kt"
+    goldValue = "Hello\n"
+    source = "link/omit/hello.kt"
+    lib = "link/omit/lib.kt"
 }
 
 standaloneTest("link_default_libs") {
     dependsOnPlatformLibs(it)
-    it.enabled = (project.testTarget != 'wasm32') // there will be no posix.klib for wasm
-    it.goldValue = "sizet = 0\n"
-    it.source = "link/default/default.kt"
+    enabled = (project.testTarget != 'wasm32') // there will be no posix.klib for wasm
+    goldValue = "sizet = 0\n"
+    source = "link/default/default.kt"
 }
 
 standaloneTest("link_testLib_explicitly") {
     // there are no testLibrary for cross targets yet.
-    it.enabled = project.testTarget == null || project.testTarget == project.hostName
+    enabled = project.testTarget == null || project.testTarget == project.hostName
 
-    it.dependsOn 'installTestLibrary'
-    it.goldValue = "This is a side effect of a test library linked into the binary.\nYou should not be seeing this.\n\nHello\n"
-    it.source = "link/omit/hello.kt"
+    dependsOn 'installTestLibrary'
+    goldValue = "This is a side effect of a test library linked into the binary.\nYou should not be seeing this.\n\nHello\n"
+    source = "link/omit/hello.kt"
     // We force library inclusion, so need to see the warning banner.
-    it.flags = ['-l', 'testLibrary']
-    it.doLast {
+    flags = ['-l', 'testLibrary']
+    doLast {
         def file = new File("$testLibraryDir/testLibrary")
         file.deleteDir()
     }
@@ -1863,10 +1867,10 @@ standaloneTest("link_testLib_explicitly") {
 
 linkTest("no_purge_for_dependencies") {
     dependsOnPlatformLibs(it)
-    it.enabled = (project.testTarget != 'wasm32') // there will be no posix.klib for wasm
-    it.goldValue = "linked library\nand symbols from posix available: 17; 1.0\n"
-    it.source = "link/purge1/prog.kt"
-    it.lib = "link/purge1/lib.kt"
+    enabled = (project.testTarget != 'wasm32') // there will be no posix.klib for wasm
+    goldValue = "linked library\nand symbols from posix available: 17; 1.0\n"
+    source = "link/purge1/prog.kt"
+    lib = "link/purge1/lib.kt"
 }
 
 task for0(type: KonanLocalTest) {
@@ -1885,8 +1889,8 @@ task statements0(type: KonanLocalTest) {
 }
 
 standaloneTest("annotations0") {
-    it.source = "codegen/annotations/annotations0.kt"
-    it.flags = ['-tr']
+    source = "codegen/annotations/annotations0.kt"
+    flags = ['-tr']
 }
 
 task boxing0(type: KonanLocalTest) {
@@ -2131,16 +2135,16 @@ task extend_exception(type: KonanLocalTest) {
 }
 
 standaloneTest("check_stacktrace_format") {
-    it.enabled = isAppleTarget(project)
-    it.flags = ['-g']
-    it.source = "runtime/exceptions/check_stacktrace_format.kt"
+    enabled = isAppleTarget(project)
+    flags = ['-g']
+    source = "runtime/exceptions/check_stacktrace_format.kt"
 }
 
 standaloneTest("custom_hook") {
-    it.enabled = (project.testTarget != 'wasm32') // Uses exceptions.
-    it.goldValue = "value 42: Error\n"
-    it.expectedExitStatus = 1
-    it.source = "runtime/exceptions/custom_hook.kt"
+    enabled = (project.testTarget != 'wasm32') // Uses exceptions.
+    goldValue = "value 42: Error\n"
+    expectedExitStatus = 1
+    source = "runtime/exceptions/custom_hook.kt"
 }
 
 task runtime_math_exceptions(type: KonanLocalTest) {
@@ -2294,9 +2298,9 @@ task range0(type: KonanLocalTest) {
 }
 
 standaloneTest("args0") {
-    it.arguments = ["AAA", "BB", "C"]
-    it.goldValue = "AAA\nBB\nC\n"
-    it.source = "runtime/basic/args0.kt"
+    arguments = ["AAA", "BB", "C"]
+    goldValue = "AAA\nBB\nC\n"
+    source = "runtime/basic/args0.kt"
 }
 
 task spread_operator_0(type: KonanLocalTest) {
@@ -2315,19 +2319,19 @@ task runtime_basic_standard(type: KonanLocalTest) {
 }
 
 standaloneTest("runtime_basic_assert_failed") {
-    it.expectedExitStatus = 1
-    it.source = "runtime/basic/assert_failed.kt"
+    expectedExitStatus = 1
+    source = "runtime/basic/assert_failed.kt"
 }
 
 standaloneTest("runtime_basic_assert_passed") {
-    it.expectedExitStatus = 0
-    it.source = "runtime/basic/assert_passed.kt"
+    expectedExitStatus = 0
+    source = "runtime/basic/assert_passed.kt"
 }
 
 standaloneTest("runtime_basic_assert_disabled") {
-    it.expectedExitStatus = 0
-    it.enableKonanAssertions = false
-    it.source = "runtime/basic/assert_failed.kt"
+    expectedExitStatus = 0
+    enableKonanAssertions = false
+    source = "runtime/basic/assert_failed.kt"
 }
 
 task initializers0(type: KonanLocalTest) {
@@ -2425,8 +2429,8 @@ task lambda13(type: KonanLocalTest) {
 }
 
 standaloneTest("lambda14") {
-    it.source = "codegen/lambda/lambda14.kt"
-    it.flags = ['-tr']
+    source = "codegen/lambda/lambda14.kt"
+    flags = ['-tr']
 }
 
 task objectExpression1(type: KonanLocalTest) {
@@ -2445,13 +2449,13 @@ task objectExpression3(type: KonanLocalTest) {
 }
 
 standaloneTest("initializers2") {
-    it.goldValue = "init globalValue2\n" +
+    goldValue = "init globalValue2\n" +
                 "init globalValue3\n" +
                 "1\n" +
                 "globalValue2\n" +
                 "globalValue3\n"
 
-    it.source = "runtime/basic/initializers2.kt"
+    source = "runtime/basic/initializers2.kt"
 }
 
 task initializers3(type: KonanLocalTest) {
@@ -2535,30 +2539,30 @@ task memory_weak1(type: KonanLocalTest) {
 }
 
 standaloneTest("memory_only_gc") {
-    it.source = "runtime/memory/only_gc.kt"
+    source = "runtime/memory/only_gc.kt"
 }
 
 standaloneTest("mpp1") {
-    it.source = "codegen/mpp/mpp1.kt"
-    it.flags = ['-tr', '-Xmulti-platform']
+    source = "codegen/mpp/mpp1.kt"
+    flags = ['-tr', '-Xmulti-platform']
 }
 
 linkTest("mpp2") {
-    it.goldValue = "C(arg=42)\ntrue\n1\nh\n"
-    it.source = "codegen/mpp/mpp2.kt"
-    it.lib = "codegen/mpp/libmpp2.kt"
-    it.flags = ['-Xmulti-platform']
+    goldValue = "C(arg=42)\ntrue\n1\nh\n"
+    source = "codegen/mpp/mpp2.kt"
+    lib = "codegen/mpp/libmpp2.kt"
+    flags = ['-Xmulti-platform']
 }
 
 standaloneTest("mpp_default_args") {
-    it.source = "codegen/mpp/mpp_default_args.kt"
-    it.flags = ['-tr', '-Xmulti-platform']
+    source = "codegen/mpp/mpp_default_args.kt"
+    flags = ['-tr', '-Xmulti-platform']
 }
 
 standaloneTest("mpp_optional_expectation") {
-    it.source = "codegen/mpp/mpp_optional_expectation.kt"
+    source = "codegen/mpp/mpp_optional_expectation.kt"
     def outputRoot = project.ext.testOutputLocal
-    it.flags = [
+    flags = [
             '-Xmulti-platform',
             "-Xcommon-sources=$outputRoot/$name/mpp_optional_expectation.kt"
     ]
@@ -3021,9 +3025,21 @@ Task interopTest(String name, Closure<KonanInteropTest> configureClosure) {
                 def conf = project.kotlinNativeInterop[task.interop]
                 def lib = conf.name + name
                 interop(lib, targets: [target.name ?: 'host']) {
-                    // FIXME: creates empty file to workaround konan gradle plugin issue (should be able to have no def file)
-                    defFile((conf.defFile != null) ? conf.defFile : File.createTempFile("${conf.name}.empty", ".def"))
-                    if (conf.headers != null) headers(conf.headers)
+                    defFile((conf.defFile != null)
+                            ? conf.defFile
+                            // FIXME: creates empty file to workaround konan gradle plugin issue (should be able to have no def file)
+                            : File.createTempFile("${conf.name}.empty", ".def"))
+
+                    // FIXME: this option doesn't work due to an issue in plugin: it tries to resolve header in project dir.
+                    if (conf.headers != null && conf.defFile != null) headers(conf.headers)
+                    // FIXME: remove this when fixed
+                    else if (conf.headers != null && !conf.headers.isEmpty()) {
+                        def f = File.createTempFile("${conf.name}.empty", ".def")
+                        def h = conf.headers.join(" ")
+                        f.write("headers = $h")
+                        defFile(f)
+                    }
+
                     if (conf.pkg != null) packageName(conf.pkg)
                     baseDir "$testOutputLocal/$name"
                 }
@@ -3036,7 +3052,8 @@ Task interopTest(String name, Closure<KonanInteropTest> configureClosure) {
                     srcFiles task.getSources()
                     baseDir "$testOutputLocal/$name"
                     if (conf.linkerOpts != null) linkerOpts(conf.linkerOpts)
-                    extraOpts task.flags + project.globalTestArgs
+                    extraOpts task.flags
+                    extraOpts project.globalTestArgs
                 }
             }
         }
@@ -3234,7 +3251,7 @@ dynamicTest("produce_dynamic") {
                 "topLevel = 777 3\n"
 }
 
-standaloneTest("library_mismatch") {
+task library_mismatch(type: KonanDriverTest) {
     // Does not work for cross targets yet.
     enabled = !(project.testTarget != null && project.testTarget != project.hostName)
 
@@ -3244,14 +3261,14 @@ standaloneTest("library_mismatch") {
     def currentTarget = project.target.name
     def someOtherTarget = (project.testTarget == 'wasm32' ? project.hostName : 'wasm32')
 
-    // FIXME: is this correct? When there are no custom dist depend on crossDist making sanity task
+    // FIXME: is this correct? If there are no custom dist, it depends on crossDist making sanity task run longer
     if (!useCustomDist) {
         dependsOn ':wasm32CrossDistRuntime' // we actually need any target other than the current one.
     }
 
     doBefore {
         def konancScript = isWindows() ? "konanc.bat" : "konanc"
-        def konanc = "$dist/bin/$konancScript"
+        def konanc = "$distDir/bin/$konancScript"
         "$konanc $lib -p library -o $dir/1.2/empty -target $currentTarget -lv 1.2".execute().waitFor()
         "$konanc $lib -p library -o $dir/3.4/empty -target $someOtherTarget".execute().waitFor()
         "$konanc $lib -p library -o $dir/5.6/empty -target $currentTarget -lv 5.6".execute().waitFor()
@@ -3364,7 +3381,7 @@ standaloneTest("coverage_basic_library") {
 
     def dir = buildDir.absolutePath
 
-    doFirst {
+    doBefore {
         def konancScript = isWindows() ? "konanc.bat" : "konanc"
         def konanc = "$dist/bin/$konancScript"
         "$konanc $projectDir/coverage/basic/library/library.kt -p library -o $dir/lib_to_cover".execute().waitFor()
@@ -3449,7 +3466,6 @@ task buildKonanTests { t ->
 
     // Local tests build into a single binary should depend on this task
     project.tasks
-            .matching { !it instanceof KonanStandaloneTest &&
-                    it instanceof KonanLocalTest }
+            .matching { !(it instanceof KonanStandaloneTest) && it instanceof KonanLocalTest }
             .forEach { it.dependsOn(t) }
 }

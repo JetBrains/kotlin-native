@@ -299,10 +299,7 @@ class RunExternalTestGroup extends OldKonanTest {
         def languageSettings = findLinesWithPrefixesRemoved(text, "// !LANGUAGE: ")
         if (languageSettings.size() != 0) {
             languageSettings.forEach { line ->
-                line.split(" ").toList().forEach {
-                    def s = it.replace('-DataClassInheritance', '+DataClassInheritance')
-                    flags.add("-XXLanguage:$s")
-                }
+                line.split(" ").toList().forEach { flags.add("-XXLanguage:$it") }
             }
         }
 
