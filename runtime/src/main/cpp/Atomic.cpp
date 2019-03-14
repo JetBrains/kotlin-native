@@ -199,7 +199,7 @@ KBoolean Kotlin_AtomicReference_compareAndSet(KRef thiz, KRef expectedValue, KRe
 void Kotlin_AtomicReference_set(KRef thiz, KRef newValue) {
     Kotlin_AtomicReference_checkIfFrozen(newValue);
     AtomicReferenceLayout* ref = asAtomicReference(thiz);
-    SetRefLocked(&ref->value_, newValue, &ref->lock_);
+    SetHeapRefLocked(&ref->value_, newValue, &ref->lock_);
 }
 
 OBJ_GETTER(Kotlin_AtomicReference_get, KRef thiz) {

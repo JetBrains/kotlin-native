@@ -17,7 +17,7 @@ ALWAYS_INLINE inline T atomicSub(volatile T* where, T what) {
 #ifndef KONAN_NO_THREADS
     return __sync_sub_and_fetch(where, what);
 #else
-    return *where += what;
+    return *where -= what;
 #endif
 }
 

@@ -102,6 +102,7 @@ enum ProcessingStrategy {
 
 struct FrameOverlay {
   ArenaContainer* arena;
+  FrameOverlay* previous;
 };
 
 // A little hack that allows to enable -O2 optimizations.
@@ -308,6 +309,7 @@ struct MemoryState {
   int32_t gcEpoque;
   int32_t gcOps;
   ProcessingStrategy processingStrategy;
+  FrameOverlay* lastFrame;
 #endif // USE_GC
 
 #if COLLECT_STATISTIC
@@ -515,7 +517,7 @@ void DeinitInstanceBody(const TypeInfo* typeInfo, void* body) {
   for (int index = 0; index < typeInfo->objOffsetsCount_; index++) {
     ObjHeader** location = reinterpret_cast<ObjHeader**>(
         reinterpret_cast<uintptr_t>(body) + typeInfo->objOffsets_[index]);
-    UpdateRef(location, nullptr);
+    ZeroHeapRef(location);
   }
 }
 
@@ -726,6 +728,8 @@ void enqueueCyclic(ContainerHeader* container) {
   }
 #endif
   mutationTrigger(state);
+  // TODO: we have a subtle race here between GC interrupt which will promote epoque and code adding
+  //  GC candidates to the current epoque. Think over what are the consequences.
   auto epoqueIndex = state->gcEpoque % 2;
   auto count = state->refcountBufferSize[epoqueIndex];
   if (count < kRefcountBufferSize) {
@@ -984,7 +988,7 @@ void CollectWhite(MemoryState* state, ContainerHeader* start) {
         auto* childContainer = ref->container();
         RuntimeAssert(!isArena(childContainer), "A reference to local object is encountered");
         if (Shareable(childContainer)) {
-          UpdateRef(location, nullptr);
+          ZeroHeapRef(location);
         } else {
           toVisit.push_front(childContainer);
         }
@@ -1011,6 +1015,19 @@ inline void AddRef(ContainerHeader* header) {
   }
 }
 
+inline void AddHeapRef(ContainerHeader* container) {
+  AddRef(container);
+}
+
+inline void AddHeapRef(ObjHeader* header) {
+  auto* container = header->container();
+  if (container != nullptr) AddRef(container);
+}
+
+inline void AddStackRef(ContainerHeader* container) {
+  AddRef(container);
+}
+
 inline void ReleaseRef(ContainerHeader* header) {
   // Looking at container type we may want to skip ReleaseRef() totally
   // (non-escaping stack objects, constant objects).
@@ -1025,6 +1042,24 @@ inline void ReleaseRef(ContainerHeader* header) {
       DecrementRC</* Atomic = */ true, /* UseCyclicCollector = */ false>(header);
       break;
   }
+}
+
+inline void ReleaseHeapRef(ContainerHeader* container) {
+  ReleaseRef(container);
+}
+
+inline void ReleaseStackRef(ContainerHeader* container) {
+  ReleaseRef(container);
+}
+
+inline void ReleaseHeapRef(ObjHeader* header) {
+  auto* container = header->container();
+  if (container != nullptr) ReleaseHeapRef(container);
+}
+
+inline void ReleaseStackRef(ObjHeader* header) {
+  auto* container = header->container();
+  if (container != nullptr) ReleaseStackRef(container);
 }
 
 // We use first slot as place to store frame-local arena container.
@@ -1079,7 +1114,7 @@ void ObjHeader::destroyMetaObject(TypeInfo** location) {
   *const_cast<const TypeInfo**>(location) = meta->typeInfo_;
   if (meta->counter_ != nullptr) {
     WeakReferenceCounterClear(meta->counter_);
-    UpdateRef(&meta->counter_, nullptr);
+    ZeroHeapRef(&meta->counter_);
   }
 
 #ifdef KONAN_OBJC_INTEROP
@@ -1158,7 +1193,7 @@ void FreeContainer(ContainerHeader* container) {
 
   // Now let's clean all object's fields in this container.
   traverseContainerObjectFields(container, [](ObjHeader** location) {
-    UpdateRef(location, nullptr);
+    ZeroHeapRef(location);
   });
 
   // And release underlying memory.
@@ -1424,7 +1459,7 @@ OBJ_GETTER(InitInstance,
 
   ObjHeader* object = AllocInstance(type_info, OBJ_RESULT);
   MEMORY_LOG("Calling UpdateRef from InitInstance\n")
-  UpdateRef(location, object);
+  UpdateHeapRef(location, object);
 #if KONAN_NO_EXCEPTIONS
   ctor(object);
   return object;
@@ -1433,8 +1468,8 @@ OBJ_GETTER(InitInstance,
     ctor(object);
     return object;
   } catch (...) {
-    UpdateRef(OBJ_RESULT, nullptr);
-    UpdateRef(location, nullptr);
+    ZeroStackRef(OBJ_RESULT);
+    ZeroHeapRef(location);
     throw;
   }
 #endif
@@ -1480,24 +1515,24 @@ OBJ_GETTER(InitSharedInstance,
   ObjHeader* object = AllocInstance(type_info, OBJ_RESULT);
   RuntimeAssert(object->container()->normal() , "Shared object cannot be co-allocated");
   MEMORY_LOG("Calling UpdateRef from InitSharedInstance\n")
-  UpdateRef(localLocation, object);
+  UpdateHeapRef(localLocation, object);
 #if KONAN_NO_EXCEPTIONS
   ctor(object);
   FreezeSubgraph(object);
-  UpdateRef(location, object);
+  UpdateHeapRef(location, object);
   synchronize();
   return object;
 #else
   try {
     ctor(object);
     FreezeSubgraph(object);
-    UpdateRef(location, object);
+    UpdateHeapRef(location, object);
     synchronize();
     return object;
   } catch (...) {
-    UpdateRef(OBJ_RESULT, nullptr);
-    UpdateRef(location, nullptr);
-    UpdateRef(localLocation, nullptr);
+    ZeroStackRef(OBJ_RESULT);
+    ZeroHeapRef(location);
+    ZeroHeapRef(localLocation);
     synchronize();
     throw;
   }
@@ -1505,11 +1540,29 @@ OBJ_GETTER(InitSharedInstance,
 #endif
 }
 
-void SetRef(ObjHeader** location, const ObjHeader* object) {
-  MEMORY_LOG("SetRef *%p: %p\n", location, object)
+void SetHeapRef(ObjHeader** location, const ObjHeader* object) {
+  MEMORY_LOG("SetHeapRef *%p: %p\n", location, object)
   *const_cast<const ObjHeader**>(location) = object;
   if (object != nullptr)
     AddRef(object);
+}
+
+void ZeroHeapRef(ObjHeader** location) {
+  MEMORY_LOG("ZeroHeapRef %p\n", location)
+  auto* value = *location;
+  if (value != nullptr) {
+    *location = nullptr;
+    ReleaseHeapRef(value);
+  }
+}
+
+void ZeroStackRef(ObjHeader** location) {
+  MEMORY_LOG("ZeroStackRef %p\n", location)
+  auto* value = *location;
+  if (value != nullptr) {
+    *location = nullptr;
+    ReleaseStackRef(value);
+  }
 }
 
 ObjHeader** GetReturnSlotIfArena(ObjHeader** returnSlot, ObjHeader** localSlot) {
@@ -1540,6 +1593,14 @@ void UpdateRef(ObjHeader** location, const ObjHeader* object) {
   }
 }
 
+void UpdateStackRef(ObjHeader** location, const ObjHeader* object) {
+  UpdateRef(location, object);
+}
+
+void UpdateHeapRef(ObjHeader** location, const ObjHeader* object) {
+  UpdateRef(location, object);
+}
+
 inline ObjHeader** slotAddressFor(ObjHeader** returnSlot, const ObjHeader* value) {
     if (!isArenaSlot(returnSlot)) return returnSlot;
     // Not a subject of reference counting.
@@ -1553,30 +1614,30 @@ inline void updateReturnRefAdded(ObjHeader** returnSlot, const ObjHeader* value)
   ObjHeader* old = *returnSlot;
   *const_cast<const ObjHeader**>(returnSlot) = value;
   if (old != nullptr) {
-    ReleaseRef(old);
+    ReleaseStackRef(old);
   }
 }
 
 void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* value) {
   returnSlot = slotAddressFor(returnSlot, value);
   if (returnSlot == nullptr) return;
-  UpdateRef(returnSlot, value);
+  UpdateStackRef(returnSlot, value);
 }
 
-void UpdateRefIfNull(ObjHeader** location, const ObjHeader* object) {
+void UpdateHeapRefIfNull(ObjHeader** location, const ObjHeader* object) {
   if (object != nullptr) {
 #if KONAN_NO_THREADS
     ObjHeader* old = *location;
     if (old == nullptr) {
-      AddRef(object);
+      AddHeapRef(const_cast<ObjHeader*>(object));
       *const_cast<const ObjHeader**>(location) = object;
     }
 #else
-    AddRef(object);
+    AddHeapRef(const_cast<ObjHeader*>(object));
     auto old = __sync_val_compare_and_swap(location, nullptr, const_cast<ObjHeader*>(object));
     if (old != nullptr) {
       // Failed to store, was not null.
-      ReleaseRef(object);
+      ReleaseHeapRef(const_cast<ObjHeader*>(object));
     }
 #endif
   }
@@ -1584,11 +1645,31 @@ void UpdateRefIfNull(ObjHeader** location, const ObjHeader* object) {
 
 void EnterFrame(ObjHeader** start, int parameters, int count) {
   MEMORY_LOG("EnterFrame %p .. %p\n", start, start + count + parameters)
+  auto* state = memoryState;
+  auto* frame = reinterpret_cast<FrameOverlay*>(start);
+  frame->previous = state->lastFrame;
+  state->lastFrame = frame;
+}
+
+inline void releaseStackRefs(MemoryState* state, ObjHeader** start, int count) {
+  MEMORY_LOG("ReleaseStackRefs %p .. %p\n", start, start + count)
+  ObjHeader** current = start;
+  while (count-- > 0) {
+    ObjHeader* object = *current;
+    if (object != nullptr) {
+      ReleaseStackRef(object);
+      // Just for sanity, optional.
+      *current = nullptr;
+    }
+    current++;
+  }
 }
 
 void LeaveFrame(ObjHeader** start, int parameters, int count) {
   MEMORY_LOG("LeaveFrame %p .. %p\n", start, start + count + parameters)
-  ReleaseRefs(start + parameters + kFrameOverlaySlots, count - kFrameOverlaySlots - parameters);
+  auto* state = memoryState;
+  releaseStackRefs(state, start + parameters + kFrameOverlaySlots, count - kFrameOverlaySlots - parameters);
+  state->lastFrame = reinterpret_cast<FrameOverlay*>(start)->previous;
   if (*start != nullptr) {
     auto arena = initedArena(start);
     MEMORY_LOG("LeaveFrame: free arena %p\n", arena)
@@ -1598,20 +1679,6 @@ void LeaveFrame(ObjHeader** start, int parameters, int count) {
   }
 }
 
-void ReleaseRefs(ObjHeader** start, int count) {
-  MEMORY_LOG("ReleaseRefs %p .. %p\n", start, start + count)
-  ObjHeader** current = start;
-  auto state = memoryState;
-  while (count-- > 0) {
-    ObjHeader* object = *current;
-    if (object != nullptr) {
-      ReleaseRef(object);
-      // Just for sanity, optional.
-      *current = nullptr;
-    }
-    current++;
-  }
-}
 
 #if USE_GC
 
@@ -1718,14 +1785,14 @@ KInt Kotlin_native_internal_GC_getThreshold(KRef) {
 
 KNativePtr CreateStablePointer(KRef any) {
   if (any == nullptr) return nullptr;
-  AddRef(any);
+  AddHeapRef(any);
   return reinterpret_cast<KNativePtr>(any);
 }
 
 void DisposeStablePointer(KNativePtr pointer) {
   if (pointer == nullptr) return;
   KRef ref = reinterpret_cast<KRef>(pointer);
-  ReleaseRef(ref);
+  ReleaseHeapRef(ref);
 }
 
 OBJ_GETTER(DerefStablePointer, KNativePtr pointer) {
@@ -1736,7 +1803,8 @@ OBJ_GETTER(DerefStablePointer, KNativePtr pointer) {
 OBJ_GETTER(AdoptStablePointer, KNativePtr pointer) {
   synchronize();
   KRef ref = reinterpret_cast<KRef>(pointer);
-  UpdateRef(OBJ_RESULT, nullptr);
+  // TODO: as it is called from C runtime,
+  ZeroHeapRef(OBJ_RESULT);
   // Somewhat hacky.
   *OBJ_RESULT = ref;
   return ref;
@@ -2032,7 +2100,7 @@ OBJ_GETTER(SwapRefLocked,
   ObjHeader* oldValue = *location;
   // We do not use UpdateRef() here to avoid having ReleaseRef() on return slot under the lock.
   if (oldValue == expectedValue) {
-    SetRef(location, newValue);
+    SetHeapRef(location, newValue);
   } else {
     // We create an additional reference to the [oldValue] in the return slot.
     if (oldValue != nullptr && isRefCounted(oldValue)) {
@@ -2046,14 +2114,14 @@ OBJ_GETTER(SwapRefLocked,
   return oldValue;
 }
 
-void SetRefLocked(ObjHeader** location, ObjHeader* newValue, int32_t* spinlock) {
+void SetHeapRefLocked(ObjHeader** location, ObjHeader* newValue, int32_t* spinlock) {
   spinLock(spinlock);
   ObjHeader* oldValue = *location;
   // We do not use UpdateRef() here to avoid having ReleaseRef() on old value under the lock.
-  SetRef(location, newValue);
+  SetHeapRef(location, newValue);
   spinUnlock(spinlock);
   if (oldValue != nullptr)
-    ReleaseRef(oldValue);
+    ReleaseHeapRef(oldValue);
 }
 
 OBJ_GETTER(ReadRefLocked, ObjHeader** location, int32_t* spinlock) {
