@@ -162,7 +162,7 @@ fun prepareBuildsResponse(builds: Collection<String>, type: String): List<Build>
             error("Build description $it doesn't contain all necessary information. " +
                     "File with data could be corrupted.")
         }
-        if (tokens[5] == type) {
+        if (tokens[5] == type || type == "day") {
             buildsObjects.add(Build(tokens[0], tokens[1], tokens[2], tokens[3],
                     tokens[4], tokens[5], tokens[6].toInt(), tokens[7], tokens[8], tokens[9],
                     if (tokens[10] == "-") null else tokens[10]))

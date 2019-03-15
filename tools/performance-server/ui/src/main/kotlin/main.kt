@@ -27,6 +27,7 @@ external class ChartistPlugins {
 }
 
 external object Chartist {
+    class Svg(form: String, parameters: dynamic, chartArea: String)
     val plugins: ChartistPlugins
     fun Line(query: String, data: dynamic, options: dynamic): dynamic
 }
@@ -87,6 +88,72 @@ fun getChartOptions(samples: Array<String>): dynamic {
     return chartOptions
 }
 
+fun customizeChart(chart: dynamic, chartContainer: String, jquerySelector: dynamic, builds: List<Build>,
+                   parameters: Map<String, String>) {
+    chart.on("draw", { data ->
+        var element = data.element
+        if (data.type == "point") {
+            val pointSize = 12
+            val currentBuild = builds.get(data.index)
+            // Higlight builds with failures.
+            if (currentBuild.failuresNumber > 0) {
+                val svgParameters: dynamic = object{}
+                svgParameters["d"] = arrayOf("M", data.x, data.y - pointSize,
+                        "L", data.x - pointSize, data.y + pointSize/2,
+                        "L", data.x + pointSize, data.y + pointSize/2, "z").joinToString(" ")
+                svgParameters["style"] = "fill:rgb(255,0,0);stroke-width:0"
+                val triangle = Chartist.Svg("path", svgParameters, chartContainer)
+                element = data.element._node.replace(triangle)
+            } else if (currentBuild.buildNumber == parameters["build"]) {
+                // Higlight choosen build.
+                val svgParameters: dynamic = object{}
+                svgParameters["x"] = data.x - pointSize/2
+                svgParameters["y"] = data.y - pointSize/2
+                svgParameters["height"] = pointSize
+                svgParameters["width"] = pointSize
+                svgParameters["style"] = "fill:rgb(0,0,255);stroke-width:0"
+                val rectangle = Chartist.Svg("rect", svgParameters, "ct-point")
+                element = data.element.replace(rectangle)
+            }
+            // Add tooltips.
+            val linkToDetailedInfo = "https://kotlin-native-performance.labs.jb.gg/?report=bintray:" +
+                    "${currentBuild.buildNumber}:${parameters["target"]}:nativeReport.json" +
+                    "${if (data.index - 1 >= 0)
+                        "&compareTo=bintray:${builds.get(data.index - 1).buildNumber}:${parameters["target"]}:nativeReport.json"
+                    else ""}"
+            val information = buildString {
+                append("<a href=\"$linkToDetailedInfo\">${currentBuild.buildNumber}</a><br>")
+                if (currentBuild.failuresNumber > 0) {
+                    append("failures: ${currentBuild.failuresNumber}<br>")
+                }
+                append("branch: ${currentBuild.branch}<br>")
+                append("date: ${currentBuild.date}<br>")
+                append("time: ${currentBuild.formattedStartTime}-${currentBuild.formattedFinishTime}<br>")
+                append("Commits:<br>")
+                val commitsList = currentBuild.commits.split(";")
+                commitsList.forEach {
+                    if (!it.isEmpty())
+                        append("${it.substringBefore("by").substring(0, 7)} by ${it.substringAfter("by ")}<br>")
+                }
+
+            }
+            element._node.setAttribute("title", information)
+            element._node.setAttribute("data-chart-tooltip", chartContainer)
+            element._node.addEventListener("click", {
+                window.location.replace(linkToDetailedInfo)
+            })
+        }
+    })
+    chart.on("created", {
+        val currentChart = jquerySelector
+        val parameters: dynamic = object{}
+        parameters["selector"] = "[data-chart-tooltip=\"$chartContainer\"]"
+        parameters["container"] = "#$chartContainer"
+        parameters["html"] = true
+        currentChart.tooltip(parameters)
+    })
+}
+
 fun main(args: Array<String>) {
     val serverUrl = "http://localhost:3000/builds"
 
@@ -121,13 +188,49 @@ fun main(args: Array<String>) {
 
     // Fill autocomplete list.
     val buildsNumbers = builds.map { json("value" to it.buildNumber, "data" to it.buildNumber) }.toTypedArray()
-    js("$( \"#highligted_build\" ).autocomplete({ lookup: buildsNumbers });")
 
     // Change inputs values connected with parameters and add events listeners.
     document.querySelector("#inputGroupTarget [value=\"${parameters["target"]}\"]")?.setAttribute("selected", "true")
     document.querySelector("#inputGroupBuildType [value=\"${parameters["type"]}\"]")?.setAttribute("selected", "true")
     (document.getElementById("highligted_build") as HTMLInputElement).value = parameters["build"]!!
-    // TODO - add onChange events for fields.
+
+    // Add onChange events for fields.
+    js("$('#inputGroupTarget')").change({
+        val newValue = js("$(this).val()")
+        if (newValue != parameters["target"]) {
+            val newLink = "http://${window.location.host}/?target=$newValue&type=${parameters["type"]}" +
+                    "${if (parameters["build"]!!.isEmpty()) "" else "&build=${parameters["build"]}"}"
+            window.location.replace(newLink)
+        }
+    })
+    js("$('#inputGroupBuildType')").change({
+        val newValue = js("$(this).val()")
+        if (newValue != parameters["type"]) {
+            val newLink = "http://${window.location.host}/?target=${parameters["target"]}&type=$newValue" +
+                    "${if (parameters["build"]!!.isEmpty()) "" else "&build=${parameters["build"]}"}"
+            window.location.replace(newLink)
+        }
+    })
+
+    val autocompleteParameters: dynamic = object{}
+    autocompleteParameters["lookup"] = buildsNumbers
+    autocompleteParameters["onSelect"] = { suggestion ->
+        if (suggestion.value != parameters["build"]) {
+            val newLink = "http://${window.location.host}/?target=${parameters["target"]}&type=${parameters["type"]}" +
+                    "${if (suggestion.value.isEmpty()) "" else "&build=${suggestion.value}"}"
+            window.location.replace(newLink)
+        }
+    }
+    js("$( \"#highligted_build\" )").autocomplete(autocompleteParameters)
+    js("$('#highligted_build')").change({
+        val newValue = js("$(this).val()").toString()
+        if (newValue.isEmpty() || newValue in builds.map {it.buildNumber}) {
+            val newLink = "http://${window.location.host}/?target=${parameters["target"]}&type=${parameters["type"]}" +
+                    "${if (newValue.isEmpty()) "" else "&build=$newValue"}"
+            window.location.replace(newLink)
+        }
+    })
+
 
     // Collect information for charts library.
     val labels = mutableListOf<String>()
@@ -137,7 +240,12 @@ fun main(args: Array<String>) {
     val bundleSize = mutableListOf<Int?>()
 
     builds.forEach {
-        labels.add(it.buildNumber)
+        // Choose labels on x axis.
+        if (parameters["type"] == "day") {
+            labels.add(it.date)
+        } else {
+            labels.add(it.buildNumber)
+        }
         separateValues(it.executionTime, executionTime) { value -> value.toDouble() }
         separateValues(it.compileTime, compileTime) { value -> value.toDouble() }
         separateValues(it.codeSize, codeSize) { value -> value.toInt() }
@@ -145,16 +253,18 @@ fun main(args: Array<String>) {
     }
 
     // Draw charts.
-    Chartist.Line("#exec_chart", getChartData(labels, executionTime.values),
+    val execChart = Chartist.Line("#exec_chart", getChartData(labels, executionTime.values),
             getChartOptions(executionTime.keys.toTypedArray()))
-    Chartist.Line("#compile_chart", getChartData(labels, compileTime.values),
+    val compileChart = Chartist.Line("#compile_chart", getChartData(labels, compileTime.values),
             getChartOptions(compileTime.keys.toTypedArray()))
-    Chartist.Line("#codesize_chart", getChartData(labels, codeSize.values),
+    val codeSizeChart = Chartist.Line("#codesize_chart", getChartData(labels, codeSize.values),
             getChartOptions(codeSize.keys.toTypedArray()))
-    Chartist.Line("#bundlesize_chart", getChartData(labels, listOf(bundleSize)),
+    val bundleSizeChart = Chartist.Line("#bundlesize_chart", getChartData(labels, listOf(bundleSize)),
             getChartOptions(arrayOf("Bundle size")))
 
-    // TODO - tooltips.
-    // TODO - highligted build.
-    // TODO - builds with failures.
+    // Tooltips and higlights.
+    customizeChart(execChart, "exec_chart", js("$(\"#exec_chart\")"), builds, parameters)
+    customizeChart(compileChart, "compile_chart", js("$(\"#compile_chart\")"), builds, parameters)
+    customizeChart(codeSizeChart, "codesize_chart", js("$(\"#codesize_chart\")"), builds, parameters)
+    customizeChart(bundleSizeChart, "bundlesize_chart", js("$(\"#bundlesize_chart\")"), builds, parameters)
 }
