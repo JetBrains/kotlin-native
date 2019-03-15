@@ -153,6 +153,7 @@ fun main(args: Array<String>) {
             getChartOptions(codeSize.keys.toTypedArray()))
     Chartist.Line("#bundlesize_chart", getChartData(labels, listOf(bundleSize)),
             getChartOptions(arrayOf("Bundle size")))
+
     // TODO - tooltips.
     // TODO - highligted build.
     // TODO - builds with failures.

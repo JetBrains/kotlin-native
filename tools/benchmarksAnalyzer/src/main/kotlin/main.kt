@@ -77,11 +77,8 @@ fun getFileContent(fileName: String, user: String? = null): String {
     }
 }
 
-fun getBenchmarkReport(fileName: String, user: String? = null): BenchmarksReport {
-    val benchsResults = getFileContent(fileName, user)
-    val reportElement = JsonTreeParser.parse(benchsResults)
-    return BenchmarksReport.create(reportElement)
-}
+fun getBenchmarkReport(fileName: String, user: String? = null) =
+        BenchmarksReport.create(JsonTreeParser.parse(getFileContent(fileName, user)))
 
 // Prints text summary by users request.
 fun summaryAction(argParser: ArgParser) {
