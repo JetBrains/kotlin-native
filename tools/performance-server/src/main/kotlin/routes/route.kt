@@ -74,7 +74,7 @@ object LocalCache {
     operator fun get(target: String, buildId: String? = null): Collection<String> {
         val builds = getBuilds(target, buildId)
 
-        if (builds == null || builds.isEmpty()) {
+        if (builds.isNullOrEmpty()) {
             // No suitable builds were found.
             // Refill cache.
             clean(target)
