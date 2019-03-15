@@ -154,7 +154,7 @@ fun getBuildsInfoFromBintray(target: String) =
         sendGetRequest("$downloadBintrayUrl/$target/$buildsFileName")
 
 // Parse  and postprocess result of response with build description.
-fun prepareBuildsResponse(builds: Collection<String>, type: String): List<Build> {
+fun prepareBuildsResponse(builds: Collection<String>, type: String, buildNumber: String? = null): List<Build> {
     val buildsObjects = mutableListOf<Build>()
     builds.forEach {
         val tokens = it.split(",").map { it.trim() }
@@ -162,7 +162,7 @@ fun prepareBuildsResponse(builds: Collection<String>, type: String): List<Build>
             error("Build description $it doesn't contain all necessary information. " +
                     "File with data could be corrupted.")
         }
-        if (tokens[5] == type || type == "day") {
+        if (tokens[5] == type || type == "day" || tokens[0] == buildNumber) {
             buildsObjects.add(Build(tokens[0], tokens[1], tokens[2], tokens[3],
                     tokens[4], tokens[5], tokens[6].toInt(), tokens[7], tokens[8], tokens[9],
                     if (tokens[10] == "-") null else tokens[10]))
@@ -211,7 +211,7 @@ fun router() {
     // Get list of builds.
     router.get("/builds/:target/:type/:id", { request, response ->
         val builds = LocalCache[request.params.target, request.params.id]
-        response.json(prepareBuildsResponse(builds, request.params.type))
+        response.json(prepareBuildsResponse(builds, request.params.type, request.params.id))
     })
 
     router.get("/builds/:target/:type", { request, response ->

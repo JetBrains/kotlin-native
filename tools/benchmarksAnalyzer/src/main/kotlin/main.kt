@@ -85,7 +85,7 @@ fun summaryAction(argParser: ArgParser) {
     val benchsReport = SummaryBenchmarksReport(getBenchmarkReport(argParser.get<String>("mainReport")!!, argParser.get<String>("user")))
     val results = mutableListOf<String>()
     results.apply {
-        add(benchsReport.failedBenchmarks.size)
+        add(benchsReport.failedBenchmarks.size.toString())
         argParser.getAll<String>("exec-samples")?. let {
             val filter = if (it.first() == "all") null else it
             add(benchsReport.getResultsByMetric(SummaryBenchmarksReport.Metric.EXECUTION_TIME,
