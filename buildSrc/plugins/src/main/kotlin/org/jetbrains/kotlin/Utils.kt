@@ -33,8 +33,11 @@ val Project.testOutputFramework
     get() = (findProperty("testOutputFramework") as File).toString()
 
 @Suppress("UNCHECKED_CAST")
-val Project.globalTestArgs
-    get() = findProperty("globalTestArgs") as List<String>
+val Project.globalTestArgs: List<String>
+    get() = with(findProperty("globalTestArgs")) {
+            if (this is Array<*>) this.toList() as List<String>
+            else this as List<String>
+    }
 
 //endregion
 
