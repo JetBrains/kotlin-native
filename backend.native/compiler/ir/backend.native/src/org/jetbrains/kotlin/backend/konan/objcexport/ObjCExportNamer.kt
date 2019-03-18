@@ -26,6 +26,7 @@ interface ObjCExportNamer {
 
     fun getFileClassName(file: SourceFile): ClassOrProtocolName
     fun getClassOrProtocolName(descriptor: ClassDescriptor): ClassOrProtocolName
+    fun getGenericTypeParams(descriptor: ClassDescriptor): String
     fun getSelector(method: FunctionDescriptor): String
     fun getSwiftName(method: FunctionDescriptor): String
     fun getPropertyName(property: PropertyDescriptor): String
@@ -39,6 +40,8 @@ interface ObjCExportNamer {
     val mutableMapName: ClassOrProtocolName
     val kotlinNumberName: ClassOrProtocolName
 }
+
+
 
 fun createNamer(moduleDescriptor: ModuleDescriptor,
                 topLevelNamePrefix: String = moduleDescriptor.namePrefix): ObjCExportNamer =
@@ -63,6 +66,18 @@ internal class ObjCExportNamerImpl(
         private val topLevelNamePrefix: String,
         private val local: Boolean
 ) : ObjCExportNamer {
+    override fun getGenericTypeParams(descriptor: ClassDescriptor): String {
+        return if (!descriptor.isInterface && descriptor.declaredTypeParameters.isNotEmpty()){
+            val generics = descriptor.declaredTypeParameters.map { typeParam ->
+                typeParam.name.asString()
+            }
+            val sb = StringBuilder()
+            generics.joinTo(sb, separator = ", ", prefix = "<", postfix = ">")
+            sb.toString()
+        }else{
+            ""
+        }
+    }
 
     private fun String.toUnmangledClassOrProtocolName(): ObjCExportNamer.ClassOrProtocolName =
             ObjCExportNamer.ClassOrProtocolName(swiftName = this, objCName = this)

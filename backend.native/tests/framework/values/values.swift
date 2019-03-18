@@ -387,17 +387,17 @@ func testEnum() throws {
 }
 
 func testDataClass() throws {
-    let f = "1"
-    let s = "2"
-    let t = "3"
+    let f = "1" as? NSString
+    let s = "2" as? NSString
+    let t = "3" as? NSString
 
-    let tripleVal = TripleVals(first: f, second: s, third: t)
+    let tripleVal = TripleVals<NSString>(first: f, second: s, third: t)
     try assertEquals(actual: tripleVal.first as! String, expected: f, "Data class' value")
     try assertEquals(actual: tripleVal.component2() as! String, expected: s, "Data class' component")
     print(tripleVal)
     try assertEquals(actual: String(describing: tripleVal), expected: "TripleVals(first=\(f), second=\(s), third=\(t))")
 
-    let tripleVar = TripleVars(first: f, second: s, third: t)
+    let tripleVar = TripleVars<NSString>(first: f, second: s, third: t)
     try assertEquals(actual: tripleVar.first as! String, expected: f, "Data class' value")
     try assertEquals(actual: tripleVar.component2() as! String, expected: s, "Data class' component")
     print(tripleVar)
@@ -426,7 +426,7 @@ func testInlineClasses() throws {
     let ic1N = ValuesKt.box(ic1: 17)
     let ic2 = "foo"
     let ic2N = "bar"
-    let ic3 = TripleVals(first: 1, second: 2, third: 3)
+    let ic3 = TripleVals<Any?>(first: 1, second: 2, third: 3)
     let ic3N = ValuesKt.box(ic3: nil)
 
     try assertEquals(

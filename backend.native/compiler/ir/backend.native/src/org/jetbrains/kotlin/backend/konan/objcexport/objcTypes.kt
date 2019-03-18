@@ -5,6 +5,12 @@
 
 package org.jetbrains.kotlin.backend.konan.objcexport
 
+import org.jetbrains.kotlin.types.KotlinType
+import org.jetbrains.kotlin.types.TypeUtils
+import org.jetbrains.kotlin.types.typeUtil.asTypeProjection
+import org.jetbrains.kotlin.types.typeUtil.supertypes
+
+
 sealed class ObjCType {
     final override fun toString(): String = this.render()
 
@@ -24,7 +30,7 @@ class ObjCRawType(
 
 sealed class ObjCReferenceType : ObjCType()
 
-sealed class ObjCNonNullReferenceType : ObjCReferenceType()
+sealed class ObjCNonNullReferenceType() : ObjCReferenceType()
 
 data class ObjCNullableReferenceType(
         val nonNullType: ObjCNonNullReferenceType
@@ -46,6 +52,15 @@ class ObjCClassType(
         }
         append(" *")
         append(attrsAndName)
+    }
+}
+
+class ObjCGenericType(
+        val genericName: String,
+        val type: KotlinType
+) : ObjCNonNullReferenceType(){
+    override fun render(attrsAndName: String): String{
+        return genericName.withAttrsAndName(attrsAndName)
     }
 }
 
