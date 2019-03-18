@@ -133,13 +133,7 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
         }
     }
 
-    enum class Metric(val suffix: Regex) {
-        EXECUTION_TIME(Regex("(?<!(\\.(codeSize|compileTime)))$")),
-        CODE_SIZE(Regex("\\.codeSize$")),
-        COMPILE_TIME(Regex("\\.compileTime$"))
-    }
-
-    fun getResultsByMetric(metric: Metric, getGeoMean: Boolean = true, filter: List<String>? = null): List<Double>  {
+    fun getResultsByMetric(metric: BenchmarkResult.Metric, getGeoMean: Boolean = true, filter: List<String>? = null): List<Double>  {
         val benchmarks = filter?.let {
             mergedReport.filter { entry ->
                 filter.find {
@@ -150,11 +144,11 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
         if (benchmarks.isEmpty()) {
             error("There is no benchmarks from provided list")
         }
-        val filteredBenchmarks = benchmarks.filter { entry -> metric.suffix.find(entry.key) != null }
+        val filteredBenchmarks = benchmarks.filter { entry -> entry.value.first!!.meanBenchmark.metric == metric }
         if (filteredBenchmarks.isEmpty()) {
             error("There is no benchmarks for metric $metric")
         }
-        val results = filteredBenchmarks.map { entry -> metric.suffix.replace(entry.key, "") to entry.value.first!!.meanBenchmark.score }.toMap()
+        val results = filteredBenchmarks.map { entry -> entry.key.removeSuffix(metric.suffix) to entry.value.first!!.meanBenchmark.score }.toMap()
         if (getGeoMean) {
             return listOf(geometricMean(results.values))
         }

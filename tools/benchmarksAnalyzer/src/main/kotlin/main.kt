@@ -20,6 +20,7 @@ import org.jetbrains.analyzer.SummaryBenchmarksReport
 import org.jetbrains.kliopt.*
 import org.jetbrains.renders.*
 import org.jetbrains.report.BenchmarksReport
+import org.jetbrains.report.BenchmarkResult
 import org.jetbrains.report.json.JsonTreeParser
 
 abstract class Connector {
@@ -88,17 +89,17 @@ fun summaryAction(argParser: ArgParser) {
         add(benchsReport.failedBenchmarks.size.toString())
         argParser.getAll<String>("exec-samples")?. let {
             val filter = if (it.first() == "all") null else it
-            add(benchsReport.getResultsByMetric(SummaryBenchmarksReport.Metric.EXECUTION_TIME,
+            add(benchsReport.getResultsByMetric(BenchmarkResult.Metric.EXECUTION_TIME,
                     argParser.get<String>("exec")!! == "geomean", filter).joinToString(";"))
         }
         argParser.getAll<String>("compile-samples")?. let {
             val filter = if (it.first() == "all") null else it
-            add(benchsReport.getResultsByMetric(SummaryBenchmarksReport.Metric.COMPILE_TIME,
+            add(benchsReport.getResultsByMetric(BenchmarkResult.Metric.COMPILE_TIME,
                     argParser.get<String>("compile")!! == "geomean", filter).joinToString(";"))
         }
         argParser.getAll<String>("codesize-samples")?. let {
             val filter = if (it.first() == "all") null else it
-            add(benchsReport.getResultsByMetric(SummaryBenchmarksReport.Metric.CODE_SIZE,
+            add(benchsReport.getResultsByMetric(BenchmarkResult.Metric.CODE_SIZE,
                     argParser.get<String>("codesize")!! == "geomean", filter).joinToString(";"))
         }
     }
