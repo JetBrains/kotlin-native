@@ -155,7 +155,7 @@ fun customizeChart(chart: dynamic, chartContainer: String, jquerySelector: dynam
 }
 
 fun main(args: Array<String>) {
-    val serverUrl = "http://localhost:3000/builds"
+    val serverUrl = "https://kotlin-native-perf-summary.labs.jb.gg/builds"
 
     // Get parameters from request.
     val url = window.location.href

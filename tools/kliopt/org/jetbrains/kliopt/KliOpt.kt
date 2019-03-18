@@ -122,7 +122,7 @@ class ArgDescriptor(
 
 // Arguments parser.
 class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescriptor> = listOf<ArgDescriptor>(),
-                val actions: Map<String, Action> = mapOf<String, Action>(), useDefaultHelpShortName: Boolean = true) {
+                val actions: Map<String, Action> = emptyMap(), useDefaultHelpShortName: Boolean = true) {
     private val options = optionsList.union(if (useDefaultHelpShortName)
         listOf(OptionDescriptor(ArgType.Boolean(), "help", "h", "Usage info"))
             else
