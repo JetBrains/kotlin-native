@@ -3383,7 +3383,7 @@ standaloneTest("coverage_basic_library") {
 
     doBefore {
         def konancScript = isWindows() ? "konanc.bat" : "konanc"
-        def konanc = "$dist/bin/$konancScript"
+        def konanc = "$distDir/bin/$konancScript"
         "$konanc $projectDir/coverage/basic/library/library.kt -p library -o $dir/lib_to_cover".execute().waitFor()
     }
     
