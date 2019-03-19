@@ -140,10 +140,7 @@ object StubRenderer {
         }
 
         fun appendGenerics() {
-            val generics = generics
-            if (generics.isNotEmpty()) {
-                generics.joinTo(this, separator = ", ", prefix = "<", postfix = ">")
-            }
+            formatGenerics(this, generics)
         }
 
         fun appendCategoryName() {
@@ -187,6 +184,12 @@ object StubRenderer {
         operator fun List<String>.unaryPlus() {
             collection += this
         }
+    }
+}
+
+internal fun formatGenerics(buffer: Appendable, generics:List<String>) {
+    if (generics.isNotEmpty()) {
+        generics.joinTo(buffer, separator = ", ", prefix = "<", postfix = ">")
     }
 }
 

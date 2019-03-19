@@ -318,8 +318,8 @@ func testGenericsFoo() throws {
 }
 
 func testVararg() throws {
-    let ktArray = KotlinArray(size: 3, init: { (_) -> Int in return 42 })
-    let arr: [Int] = ValuesKt.varargToList(args: ktArray) as! [Int]
+    let ktArray = KotlinArray<KotlinInt>(size: 3, init: { (_) -> KotlinInt in return KotlinInt(int:42) })
+    let arr: [Int] = ValuesKt.varargToList(args: ktArray as! KotlinArray<AnyObject>) as! [Int]
     try assertEquals(actual: arr, expected: [42, 42, 42])
 }
 
@@ -387,26 +387,27 @@ func testEnum() throws {
 }
 
 func testDataClass() throws {
-    let f = "1" as? NSString
-    let s = "2" as? NSString
-    let t = "3" as? NSString
+    let f = "1" as NSString
+    let s = "2" as NSString
+    let t = "3" as NSString
 
     let tripleVal = TripleVals<NSString>(first: f, second: s, third: t)
-    try assertEquals(actual: tripleVal.first as! String, expected: f, "Data class' value")
-    try assertEquals(actual: tripleVal.component2() as! String, expected: s, "Data class' component")
+    try assertEquals(actual: tripleVal.first, expected: f, "Data class' value")
+    try assertEquals(actual: tripleVal.first, expected: "1", "Data class' value literal")
+    try assertEquals(actual: tripleVal.component2(), expected: s, "Data class' component")
     print(tripleVal)
     try assertEquals(actual: String(describing: tripleVal), expected: "TripleVals(first=\(f), second=\(s), third=\(t))")
 
     let tripleVar = TripleVars<NSString>(first: f, second: s, third: t)
-    try assertEquals(actual: tripleVar.first as! String, expected: f, "Data class' value")
-    try assertEquals(actual: tripleVar.component2() as! String, expected: s, "Data class' component")
+    try assertEquals(actual: tripleVar.first, expected: f, "Data class' value")
+    try assertEquals(actual: tripleVar.component2(), expected: s, "Data class' component")
     print(tripleVar)
     try assertEquals(actual: String(describing: tripleVar), expected: "[\(f), \(s), \(t)]")
 
     tripleVar.first = t
     tripleVar.second = f
     tripleVar.third = s
-    try assertEquals(actual: tripleVar.component2() as! String, expected: f, "Data class' component")
+    try assertEquals(actual: tripleVar.component2(), expected: f, "Data class' component")
     try assertEquals(actual: String(describing: tripleVar), expected: "[\(t), \(f), \(s)]")
 }
 
@@ -426,7 +427,7 @@ func testInlineClasses() throws {
     let ic1N = ValuesKt.box(ic1: 17)
     let ic2 = "foo"
     let ic2N = "bar"
-    let ic3 = TripleVals<Any?>(first: 1, second: 2, third: 3)
+    let ic3 = TripleVals<AnyObject>(first: KotlinInt(int:1), second: KotlinInt(int:2), third: KotlinInt(int:3))
     let ic3N = ValuesKt.box(ic3: nil)
 
     try assertEquals(

@@ -62,7 +62,9 @@ internal class ObjCExportTranslatorImpl(
         generator?.requireClassOrInterface(descriptor)
 
         return translateClassOrInterfaceName(descriptor).also {
-            generator?.referenceClass(it.objCName, descriptor)
+            val sb = StringBuilder(it.objCName)
+            formatGenerics(sb, descriptor.genericParamNames())
+            generator?.referenceClass(sb.toString(), descriptor)
         }
     }
 
@@ -212,15 +214,10 @@ internal class ObjCExportTranslatorImpl(
         val attributes = if (descriptor.isFinalOrEnum) listOf("objc_subclassing_restricted") else emptyList()
 
         val name = translateClassOrInterfaceName(descriptor)
-        val generics = descriptor.declaredTypeParameters.map { typeParam ->
-//            val constraints = typeParam.upperBounds.joinToString(separator = ", ") {
-//                ma
-//            }
-            typeParam.name.asString()
-        }
+
         return objCInterface(
                 name,
-                generics = generics,
+                generics = descriptor.genericParamNames(),
                 descriptor = descriptor,
                 superClass = superName.objCName,
                 superProtocols = superProtocols,
@@ -1020,4 +1017,8 @@ internal class FunctionTypeParamProvider(val method:FunctionDescriptor): TypePar
 
 internal object NoneTypeParamProvider: TypeParamProvider{
     override fun typeAvailable(typeName: String): Boolean = false
+}
+
+internal fun ClassDescriptor.genericParamNames(): List<String> = declaredTypeParameters.map { typeParam ->
+    typeParam.name.asString()
 }
