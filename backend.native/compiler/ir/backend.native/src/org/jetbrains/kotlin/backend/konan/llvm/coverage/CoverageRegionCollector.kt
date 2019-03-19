@@ -38,7 +38,7 @@ internal class CoverageRegionCollector(private val fileFilter: (IrFile) -> Boole
         }
 
         override fun visitFunction(declaration: IrFunction) {
-            if (!declaration.isInline && !declaration.isExternal) {
+            if (!declaration.isInline && !declaration.isExternal && !declaration.isGeneratedByCompiler) {
                 declaration.body?.let {
                     val regionsCollector = IrFunctionRegionsCollector(fileFilter, file)
                     regionsCollector.visitBody(it)
@@ -52,6 +52,13 @@ internal class CoverageRegionCollector(private val fileFilter: (IrFile) -> Boole
         }
     }
 }
+
+// User doesn't bother about compiler-generated declarations.
+// So lets filter them.
+private val IrDeclaration.isGeneratedByCompiler: Boolean
+    get() {
+        return origin != IrDeclarationOrigin.DEFINED
+    }
 
 /**
  * Very similar to [org.jetbrains.kotlin.backend.konan.llvm.CodeGeneratorVisitor] but instead of bitcode generation we collect regions.

@@ -84,6 +84,9 @@ allprojects {
 
     // backend.native/tests/framework
     ext.testOutputFramework = rootProject.file("$testOutputRoot/framework")
+    
+    // backent.native/tests/coverage
+    ext.testOutputCoverage = rootProject.file("$testOutputRoot/coverage")
 }
 
 konanArtifacts {
@@ -3212,66 +3215,57 @@ task runKonanRegexTests(type: RunKonanTest) {
     runnerLogger = RunKonanTest.Logger.GTEST
 }
 
-task coverage_basic_program(type: RunStandaloneKonanTest) {
-
-    disabled = getTarget(project).name != "ios_x64" && getTarget(project).name != "macos_x64"
-
-    description = "Test that `-Xcoverage` generates correct __llvm_coverage information"
-
-    def dir = buildDir.absolutePath
-    createOutputDirectory()
-    
-    flags = ["-Xcoverage-file=$dir/program.profraw", "-Xcoverage", "-entry", "coverage.basic.program.main"]
-    source = "$projectDir/coverage/basic/program/main.kt"
-
-    doLast {
-        execLlvm("llvm-profdata") {
-            args "merge"
-            args "$dir/program.profraw"
-            args "-o", "$dir/program.profdata"
-        }
-        // Should fail in case of corrupted __llvm_coverage.
-        execLlvm("llvm-cov") {
-            def program = buildExePath()
-            def suffix = target.family.exeSuffix
-            args "report"
-            args "$program.$suffix"
-            args "-instr-profile", "$dir/program.profdata"
+if (getTarget(project).name == "ios_x64" || getTarget(project).name == "macos_x64") {
+    task coverage_basic_program(type: CoverageTest) {
+        
+        binaryName = "CoverageBasic"
+        numberOfCoveredFunctions = 1
+        numberOfCoveredLines = 1
+        
+        konanArtifacts {
+            program(binaryName, targets: [ target ]) {
+                srcDir 'coverage/basic/program'
+                baseDir "$testOutputCoverage/$binaryName"
+                entryPoint "coverage.basic.program.main"
+                extraOpts "-Xcoverage", "-Xcoverage-file=$profrawFile"
+            }
         }
     }
-}
 
-task coverage_basic_library(type: RunStandaloneKonanTest) {
+    task coverage_basic_library(type: CoverageTest) {
 
-    disabled = getTarget(project).name != "ios_x64" && getTarget(project).name != "macos_x64"
+        binaryName = "CoverageBasicLibrary"
+        numberOfCoveredFunctions = 1
+        numberOfCoveredLines = 1
 
-    description = "Test that `-Xlibrary-to-cover` generates correct __llvm_coverage information"
-
-    def dir = buildDir.absolutePath
-    createOutputDirectory()
-
-    doFirst {
-        def konancScript = isWindows() ? "konanc.bat" : "konanc"
-        def konanc = "$dist/bin/$konancScript"
-        "$konanc $projectDir/coverage/basic/library/library.kt -p library -o $dir/lib_to_cover".execute().waitFor()
-    }
-    
-    flags = ["-Xcoverage-file=$dir/program.profraw", "-l", "$dir/lib_to_cover", "-Xlibrary-to-cover=$dir/lib_to_cover.klib", "-entry", "coverage.basic.library.main"]
-    source = "$projectDir/coverage/basic/library/main.kt"
-
-    doLast {
-        execLlvm("llvm-profdata") {
-            args "merge"
-            args "$dir/program.profraw"
-            args "-o", "$dir/program.profdata"
+        konanArtifacts {
+            library("lib_to_cover") {
+                srcFiles 'coverage/basic/library/library.kt'
+            }
+            program(binaryName, targets: [ target ]) {
+                srcFiles 'coverage/basic/library/main.kt'
+                libraries {
+                    artifact konanArtifacts.lib_to_cover
+                }
+                baseDir "$testOutputCoverage/$binaryName"
+                entryPoint "coverage.basic.library.main"
+                extraOpts "-Xcoverage-file=$profrawFile", "-Xlibrary-to-cover=${konanArtifacts.lib_to_cover.getArtifactByTarget(target.name)}"
+            }
         }
-        // Should fail in case of corrupted __llvm_coverage.
-        execLlvm("llvm-cov") {
-            def program = buildExePath()
-            def suffix = target.family.exeSuffix
-            args "report"
-            args "$program.$suffix"
-            args "-instr-profile", "$dir/program.profdata"
+    }
+
+    task coverage_smoke0(type: CoverageTest) {
+        binaryName = "CoverageSmoke0"
+        numberOfCoveredFunctions = 2
+        numberOfCoveredLines = 3
+
+        konanArtifacts {
+            program(binaryName, targets: [ target ]) {
+                srcDir 'coverage/basic/smoke0'
+                baseDir "$testOutputCoverage/$binaryName"
+                entryPoint "coverage.basic.smoke0.main"
+                extraOpts "-Xcoverage", "-Xcoverage-file=$profrawFile"
+            }
         }
     }
 }
