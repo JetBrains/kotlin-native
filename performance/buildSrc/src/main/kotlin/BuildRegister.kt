@@ -132,7 +132,6 @@ open class BuildRegister : DefaultTask() {
             append("\"codeSize\": \"$codeSizeInfo\",")
             append("\"bundleSize\": ${bundleSize?.let {"\"$bundleSize\""} ?: bundleSize}}")
         }
-        println(requestBody)
         println(sendPostRequest("$performanceServer/register", requestBody))
     }
 }
