@@ -37,7 +37,7 @@
 // Define to 1 to print all memory operations.
 #define TRACE_MEMORY 0
 // Collect memory manager events statistics.
-#define COLLECT_STATISTIC 1
+#define COLLECT_STATISTIC 0
 // Auto-adjust GC thresholds.
 #define GC_ERGONOMICS 1
 
