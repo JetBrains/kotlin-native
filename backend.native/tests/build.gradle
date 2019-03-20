@@ -3349,7 +3349,7 @@ KotlinNativeTestKt.createTest(project, 'harmonyRegexTest', KonanGTest) { task ->
 
 standaloneTest("coverage_basic_program") {
 
-    disabled = isAppleTarget(project)
+    disabled = !isAppleTarget(project)
 
     description = "Test that `-Xcoverage` generates correct __llvm_coverage information"
 
@@ -3375,7 +3375,7 @@ standaloneTest("coverage_basic_program") {
 
 standaloneTest("coverage_basic_library") {
 
-    disabled = isAppleTarget(project)
+    disabled = !isAppleTarget(project)
 
     description = "Test that `-Xlibrary-to-cover` generates correct __llvm_coverage information"
 
