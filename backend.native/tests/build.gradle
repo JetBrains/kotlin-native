@@ -3349,7 +3349,7 @@ KotlinNativeTestKt.createTest(project, 'harmonyRegexTest', KonanGTest) { task ->
 
 standaloneTest("coverage_basic_program") {
 
-    disabled = getTarget(project).name != "ios_x64" && getTarget(project).name != "macos_x64"
+    disabled = isAppleTarget(project)
 
     description = "Test that `-Xcoverage` generates correct __llvm_coverage information"
 
@@ -3367,7 +3367,7 @@ standaloneTest("coverage_basic_program") {
         // Should fail in case of corrupted __llvm_coverage.
         execLlvm("llvm-cov") {
             args "report"
-            args executable
+            args executable ?: ""
             args "-instr-profile", "$dir/program.profdata"
         }
     }
@@ -3375,7 +3375,7 @@ standaloneTest("coverage_basic_program") {
 
 standaloneTest("coverage_basic_library") {
 
-    disabled = getTarget(project).name != "ios_x64" && getTarget(project).name != "macos_x64"
+    disabled = isAppleTarget(project)
 
     description = "Test that `-Xlibrary-to-cover` generates correct __llvm_coverage information"
 
@@ -3399,7 +3399,7 @@ standaloneTest("coverage_basic_library") {
         // Should fail in case of corrupted __llvm_coverage.
         execLlvm("llvm-cov") {
             args "report"
-            args executable
+            args executable ?: ""
             args "-instr-profile", "$dir/program.profdata"
         }
     }
