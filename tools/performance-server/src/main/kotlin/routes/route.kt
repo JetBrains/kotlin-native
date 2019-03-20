@@ -233,6 +233,9 @@ fun router() {
         val uploadUrl = "$uploadBintrayUrl/$bintrayPackage/latest/${register.target}/${buildsFileName}?publish=1&override=1"
         sendUploadRequest(uploadUrl, buildsDescription, register.bintrayUser, register.bintrayPassword)
 
+        LocalCache.clean(register.target)
+        LocalCache.fill(register.target)
+
         // Send response.
         response.sendStatus(200)
     })

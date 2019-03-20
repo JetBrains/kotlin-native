@@ -170,8 +170,7 @@ fun customizeChart(chart: dynamic, chartContainer: String, jquerySelector: dynam
 }
 
 fun main(args: Array<String>) {
-    //val serverUrl = "https://kotlin-native-perf-summary.labs.jb.gg/builds"
-    val serverUrl = "http://localhost:3000/builds"
+    val serverUrl = "https://kotlin-native-perf-summary.labs.jb.gg/builds"
 
     // Get parameters from request.
     val url = window.location.href
@@ -181,9 +180,7 @@ fun main(args: Array<String>) {
         val parsedParameter = it.split("=", limit = 2)
         if (parsedParameter.size == 2) {
             val (key, value) = parsedParameter
-            if (parameters.containsKey(key)) {
-                parameters[key] = value
-            }
+            parameters[key] = value
         }
     }
 
@@ -283,4 +280,12 @@ fun main(args: Array<String>) {
     customizeChart(compileChart, "compile_chart", js("$(\"#compile_chart\")"), builds, parameters)
     customizeChart(codeSizeChart, "codesize_chart", js("$(\"#codesize_chart\")"), builds, parameters)
     customizeChart(bundleSizeChart, "bundlesize_chart", js("$(\"#bundlesize_chart\")"), builds, parameters)
+
+    // Auto reload.
+    parameters["refresh"]?.let {
+        // Set event.
+        window.setInterval({
+            window.location.reload()
+        }, it.toInt() * 1000)
+    }
 }
