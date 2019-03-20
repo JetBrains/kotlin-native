@@ -124,8 +124,6 @@ fun <T: KonanTest> Project.createTest(name: String, type: Class<T>, config: Clos
             if (enabled) {
                 // Configure test task.
                 val target = project.testTarget
-                executable = "$outputDirectory/${target.name}/$name.${target.family.exeSuffix}"
-
                 val compileTask = project.tasks.getByName("compileKonan${name.capitalize()}${target.name.capitalize()}")
                 // If run task depends on something, compile task should also depend on this.
                 val dependencies = dependsOn.toList() // save to the list, otherwise it will cause cyclic dependency.

@@ -3367,7 +3367,7 @@ standaloneTest("coverage_basic_program") {
         // Should fail in case of corrupted __llvm_coverage.
         execLlvm("llvm-cov") {
             args "report"
-            args executable ?: ""
+            args "$testOutputLocal/$name/${target.name}/$name.${target.family.exeSuffix}"
             args "-instr-profile", "$dir/program.profdata"
         }
     }
@@ -3399,7 +3399,7 @@ standaloneTest("coverage_basic_library") {
         // Should fail in case of corrupted __llvm_coverage.
         execLlvm("llvm-cov") {
             args "report"
-            args executable ?: ""
+            args "$testOutputLocal/$name/${target.name}/$name.${target.family.exeSuffix}"
             args "-instr-profile", "$dir/program.profdata"
         }
     }
