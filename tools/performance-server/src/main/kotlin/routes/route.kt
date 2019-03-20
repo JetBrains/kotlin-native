@@ -64,20 +64,26 @@ object LocalCache {
     fun buildExists(target: String, buildNumber: String) =
             buildsInfo[target][buildNumber]?.let { true } ?: false
 
-    fun delete(target: String, builds: Iterable<String>, bintrayUser: String, bintrayPassword: String) {
+    fun delete(target: String, builds: Iterable<String>, bintrayUser: String, bintrayPassword: String): Boolean {
         // Delete from bintray.
         val buildsDescription = getBuildsInfoFromBintray(target).lines()
+        val initialBuildsNumber = buildsDescription.size
         buildsDescription.filter {
             val buildNumber = it.substringBefore(',')
             buildNumber !in builds
         }
-        // Upload new version of file.
-        val uploadUrl = "$uploadBintrayUrl/$bintrayPackage/latest/$target/$buildsFileName?publish=1&override=1"
-        sendUploadRequest(uploadUrl, buildsDescription.joinToString("\n"), bintrayUser, bintrayPassword)
 
-        // Reload values.
-        clean(target)
-        fill(target)
+        if (buildsDescription.size < initialBuildsNumber) {
+            // Upload new version of file.
+            val uploadUrl = "$uploadBintrayUrl/$bintrayPackage/latest/$target/$buildsFileName?publish=1&override=1"
+            sendUploadRequest(uploadUrl, buildsDescription.joinToString("\n"), bintrayUser, bintrayPassword)
+
+            // Reload values.
+            clean(target)
+            fill(target)
+            return true
+        }
+        return false
     }
 
     private fun getBuilds(target: String, buildNumber: String? = null) =
@@ -263,8 +269,11 @@ fun router() {
 
     router.get("/delete/:target", { request, response ->
         val buildsToDelete: List<String> = request.query.builds.toString().split(",").map { it.trim() }
-        LocalCache.delete(request.params.target, buildsToDelete, request.query.user, request.query.key)
-        response.sendStatus(200)
+        val result = LocalCache.delete(request.params.target, buildsToDelete, request.query.user, request.query.key)
+        if (result) {
+            response.sendStatus(200)
+        }
+        response.sendStatus(404)
     })
 
     // Main page.
