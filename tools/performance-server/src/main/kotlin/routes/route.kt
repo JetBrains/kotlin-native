@@ -64,6 +64,22 @@ object LocalCache {
     fun buildExists(target: String, buildNumber: String) =
             buildsInfo[target][buildNumber]?.let { true } ?: false
 
+    fun delete(target: String, builds: Iterable<String>, bintrayUser: String, bintrayPassword: String) {
+        // Delete from bintray.
+        val buildsDescription = getBuildsInfoFromBintray(target).lines()
+        buildsDescription.filter {
+            val buildNumber = it.substringBefore(',')
+            buildNumber !in builds
+        }
+        // Upload new version of file.
+        val uploadUrl = "$uploadBintrayUrl/$bintrayPackage/latest/$target/$buildsFileName?publish=1&override=1"
+        sendUploadRequest(uploadUrl, buildsDescription.joinToString("\n"), bintrayUser, bintrayPassword)
+
+        // Reload values.
+        clean(target)
+        fill(target)
+    }
+
     private fun getBuilds(target: String, buildNumber: String? = null) =
             buildsInfo[target]?.let { buildsList ->
                 buildNumber?.let {
@@ -125,12 +141,12 @@ data class BuildRegister(val buildId: String, val teamCityUser: String, val team
         val currentTime = Date()
         val timeZone = currentTime.getTimezoneOffset() / -60    // Convert to hours.
         // Get finish time as current time, because buid on TeamCity isn't finished.
-        val finishTime = "${format(currentTime.getFullYear())}" +
-                "${format(currentTime.getMonth() + 1)}" +
-                "${format(currentTime.getDate())}" +
-                "T${format(currentTime.getHours())}" +
-                "${format(currentTime.getMinutes())}" +
-                "${format(currentTime.getSeconds())}" +
+        val finishTime = "${format(currentTime.getUTCFullYear())}" +
+                "${format(currentTime.getUTCMonth() + 1)}" +
+                "${format(currentTime.getUTCDate())}" +
+                "T${format(currentTime.getUTCHours())}" +
+                "${format(currentTime.getUTCMinutes())}" +
+                "${format(currentTime.getUTCSeconds())}" +
                 "${if (timeZone > 0) "+" else "-"}${format(timeZone)}${format(0)}"
         return BuildInfo(buildNumber, branch, startTime, finishTime)
     }
@@ -239,6 +255,12 @@ fun router() {
 
     router.get("/fill", { request, response ->
         LocalCache.fill()
+        response.sendStatus(200)
+    })
+
+    router.get("/delete/:target", { request, response ->
+        val buildsToDelete: List<String> = request.query.builds.toString().split(",").map { it.trim() }
+        LocalCache.delete(request.params.target, buildsToDelete, request.query.user, request.query.key)
         response.sendStatus(200)
     })
 
