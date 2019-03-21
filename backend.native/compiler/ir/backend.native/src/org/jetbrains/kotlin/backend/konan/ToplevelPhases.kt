@@ -72,15 +72,14 @@ internal val psiToIrPhase = konanUnitPhase(
 
             val forwardDeclarationsModuleDescriptor = moduleDescriptor.allDependencyModules.firstOrNull { it.isForwardDeclarationModule }
 
-            val deserializer = KonanIrModuleDeserializer(
+            val deserializer = KonanIrLinker(
                     moduleDescriptor,
                     this as LoggingContext,
                     generatorContext.irBuiltIns,
                     generatorContext.symbolTable,
-                    forwardDeclarationsModuleDescriptor
+                    forwardDeclarationsModuleDescriptor,
+                    getExportedDependencies()
             )
-
-            val modules = mutableMapOf<String, IrModuleFragment>()
 
             var dependenciesCount = 0
             while (true) {
@@ -89,25 +88,17 @@ internal val psiToIrPhase = konanUnitPhase(
                     config.librariesWithDependencies(moduleDescriptor).contains(it.konanLibrary)
                 }
                 for (dependency in dependencies) {
-                    val konanLibrary = dependency.konanLibrary!!
-                    if (modules.containsKey(konanLibrary.libraryName)) continue
-                    konanLibrary.irHeader?.let { header ->
-                        // TODO: consider skip deserializing explicitly exported declarations for libraries.
-                        // Now it's not valid because of all dependencies that must be computed.
-                        val deserializationStrategy = DeserializationStrategy.EXPLICITLY_EXPORTED
-                        modules[konanLibrary.libraryName] = deserializer.deserializeIrModuleHeader(dependency, header, deserializationStrategy)
-                    }
+                    deserializer.deserializeIrModuleHeader(dependency)
                 }
                 if (dependencies.size == dependenciesCount) break
                 dependenciesCount = dependencies.size
             }
 
-
             val symbols = KonanSymbols(this, generatorContext.symbolTable, generatorContext.symbolTable.lazyWrapper)
             val module = translator.generateModuleFragment(generatorContext, environment.getSourceFiles(), deserializer)
 
             irModule = module
-            irModules = modules
+            irModules = deserializer.modules
             ir.symbols = symbols
 
 //        validateIrModule(this, module)
@@ -149,7 +140,7 @@ internal val patchDeclarationParents0Phase = konanUnitPhase(
 internal val serializerPhase = konanUnitPhase(
         op = {
             val declarationTable = DeclarationTable(irModule!!.irBuiltins, DescriptorTable())
-            val serializedIr = IrModuleSerializer(this, declarationTable).serializedIrModule(irModule!!)
+            val serializedIr = KonanIrModuleSerializer(this, declarationTable).serializedIrModule(irModule!!)
             val serializer = KonanSerializationUtil(this, config.configuration.get(CommonConfigurationKeys.METADATA_VERSION)!!, declarationTable)
             serializedLinkData =
                     serializer.serializeModule(moduleDescriptor, /*if (!config.isInteropStubs) serializedIr else null*/ serializedIr)

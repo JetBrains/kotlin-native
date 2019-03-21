@@ -1,24 +1,12 @@
 /*
- * Copyright 2010-2017 JetBrains s.r.o.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Copyright 2010-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
+ * that can be found in the license/LICENSE.txt file.
  */
 
 package org.jetbrains.kotlin.backend.konan.serialization
 
 import org.jetbrains.kotlin.backend.common.LoggingContext
 import org.jetbrains.kotlin.backend.common.ir.ir2string
-import org.jetbrains.kotlin.backend.konan.RuntimeNames
 import org.jetbrains.kotlin.backend.konan.descriptors.findTopLevelDeclaration
 import org.jetbrains.kotlin.backend.konan.descriptors.isExpectMember
 import org.jetbrains.kotlin.backend.konan.descriptors.isSerializableExpectClass
@@ -32,26 +20,21 @@ import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.SourceManager
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.declarations.impl.IrFunctionBase
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrBinaryPrimitiveImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrNullaryPrimitiveImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrUnaryPrimitiveImpl
 import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.types.*
-import org.jetbrains.kotlin.ir.types.impl.IrStarProjectionImpl
-import org.jetbrains.kotlin.ir.util.dump
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.konan.library.impl.CombinedIrFileWriter
 import org.jetbrains.kotlin.konan.library.impl.DeclarationId
 import org.jetbrains.kotlin.metadata.KonanIr
-import org.jetbrains.kotlin.types.SimpleType
-import org.jetbrains.kotlin.types.StarProjectionImpl
 import org.jetbrains.kotlin.types.Variance
 
-internal class IrModuleSerializer(
+open class IrModuleSerializer(
     val logger: LoggingContext,
     val declarationTable: DeclarationTable,
     val bodiesOnlyForInlines: Boolean = false
@@ -1059,6 +1042,9 @@ internal class IrModuleSerializer(
         .addAllLineStartOffsets(entry.lineStartOffsets.asIterable())
         .build()
 
+    open fun backendSpecificExplicitRoot(declaration: IrFunction) = false
+    open fun backendSpecificExplicitRoot(declaration: IrClass) = false
+
     fun serializeIrFile(file: IrFile): KonanIr.IrFile {
         val proto = KonanIr.IrFile.newBuilder()
             .setFileEntry(serializeFileEntry(file.fileEntry))
@@ -1089,15 +1075,16 @@ internal class IrModuleSerializer(
             }
 
             override fun visitFunction(declaration: IrFunction) {
-                if (declaration.descriptor.annotations.hasAnnotation(RuntimeNames.exportForCppRuntime)
-                        || declaration.descriptor.annotations.hasAnnotation(RuntimeNames.exportForCompilerAnnotation))
+                if (backendSpecificExplicitRoot(declaration)) {
                     proto.addExplicitlyExportedToCompiler(serializeIrSymbol(declaration.symbol))
+                }
                 super.visitDeclaration(declaration)
             }
 
             override fun visitClass(declaration: IrClass) {
-                if (declaration.descriptor.annotations.hasAnnotation(RuntimeNames.exportTypeInfoAnnotation))
+                if (backendSpecificExplicitRoot(declaration)) {
                     proto.addExplicitlyExportedToCompiler(serializeIrSymbol(declaration.symbol))
+                }
                 super.visitDeclaration(declaration)
             }
         })
@@ -1132,7 +1119,6 @@ internal class IrModuleSerializer(
 
         return proto.build()
     }
-
 
     fun serializedIrModule(module: IrModuleFragment): SerializedIr {
         val moduleHeader = serializeModule(module).toByteArray()
