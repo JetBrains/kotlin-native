@@ -83,7 +83,6 @@ typedef KStdVector<KRef*> KRefPtrList;
 
 struct FrameOverlay {
   ArenaContainer* arena;
-  FrameOverlay* previous;
 };
 
 // A little hack that allows to enable -O2 optimizations
@@ -884,7 +883,7 @@ void CollectWhite(MemoryState* state, ContainerHeader* start) {
 }
 #endif
 
-inline void addRef(ContainerHeader* header) {
+ALWAYS_INLINE inline void addRef(ContainerHeader* header) {
   // Looking at container type we may want to skip AddRef() totally
   // (non-escaping stack objects, constant objects).
   switch (header->refCount_ & CONTAINER_TAG_MASK) {
@@ -900,25 +899,25 @@ inline void addRef(ContainerHeader* header) {
   }
 }
 
-inline void AddHeapRef(ContainerHeader* container) {
+ALWAYS_INLINE inline void AddHeapRef(ContainerHeader* container) {
   addRef(container);
 }
 
-inline void AddHeapRef(ObjHeader* header) {
+ALWAYS_INLINE inline void AddHeapRef(ObjHeader* header) {
   auto* container = header->container();
   if (container != nullptr) AddHeapRef(container);
 }
 
-inline void AddStackRef(ContainerHeader* container) {
+ALWAYS_INLINE inline void AddStackRef(ContainerHeader* container) {
   addRef(container);
 }
 
-inline void AddStackRef(ObjHeader* header) {
+ALWAYS_INLINE inline void AddStackRef(ObjHeader* header) {
   auto* container = header->container();
   if (container != nullptr) AddStackRef(container);
 }
 
-inline void releaseRef(ContainerHeader* header) {
+ALWAYS_INLINE inline void releaseRef(ContainerHeader* header) {
   // Looking at container type we may want to skip ReleaseRef() totally
   // (non-escaping stack objects, constant objects).
   switch (header->tag()) {
@@ -934,20 +933,20 @@ inline void releaseRef(ContainerHeader* header) {
   }
 }
 
-inline void ReleaseHeapRef(ContainerHeader* container) {
+ALWAYS_INLINE inline void ReleaseHeapRef(ContainerHeader* container) {
   releaseRef(container);
 }
 
-inline void ReleaseStackRef(ContainerHeader* container) {
+ALWAYS_INLINE inline void ReleaseStackRef(ContainerHeader* container) {
   releaseRef(container);
 }
 
-inline void ReleaseHeapRef(ObjHeader* header) {
+ALWAYS_INLINE inline void ReleaseHeapRef(ObjHeader* header) {
   auto* container = header->container();
   if (container != nullptr) ReleaseHeapRef(container);
 }
 
-inline void ReleaseStackRef(ObjHeader* header) {
+ALWAYS_INLINE inline void ReleaseStackRef(ObjHeader* header) {
   auto* container = header->container();
   if (container != nullptr) ReleaseStackRef(container);
 }
@@ -1465,7 +1464,7 @@ ObjHeader** GetParamSlotIfArena(ObjHeader* param, ObjHeader** localSlot) {
   return reinterpret_cast<ObjHeader**>(reinterpret_cast<uintptr_t>(&chunk->arena) | ARENA_BIT);
 }
 
-void updateRef(ObjHeader** location, const ObjHeader* object) {
+ALWAYS_INLINE void updateRef(ObjHeader** location, const ObjHeader* object) {
   RuntimeAssert(!isArenaSlot(location), "must not be a slot");
   ObjHeader* old = *location;
   if (old != object) {
@@ -1489,14 +1488,14 @@ void UpdateHeapRef(ObjHeader** location, const ObjHeader* object) {
   updateRef(location, object);
 }
 
-inline ObjHeader** slotAddressFor(ObjHeader** returnSlot, const ObjHeader* value) {
+ALWAYS_INLINE inline ObjHeader** slotAddressFor(ObjHeader** returnSlot, const ObjHeader* value) {
     if (!isArenaSlot(returnSlot)) return returnSlot;
     // Not a subject of reference counting.
     if (value == nullptr || !isRefCounted(value)) return nullptr;
     return initedArena(asArenaSlot(returnSlot))->getSlot();
 }
 
-inline void updateReturnRefAdded(ObjHeader** returnSlot, const ObjHeader* value) {
+ALWAYS_INLINE inline void updateReturnRefAdded(ObjHeader** returnSlot, const ObjHeader* value) {
   returnSlot = slotAddressFor(returnSlot, value);
   if (returnSlot == nullptr) return;
   ObjHeader* old = *returnSlot;
