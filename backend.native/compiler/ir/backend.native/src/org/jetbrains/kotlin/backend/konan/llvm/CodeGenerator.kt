@@ -270,7 +270,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         val value = LLVMBuildLoad(builder, address, name)!!
         if (isObjectRef(value) && isVar) {
             val slot = alloca(LLVMTypeOf(value), variableLocation = null)
-            storeRef(value, slot, true)
+            storeStackRef(value, slot)
         }
         return value
     }
@@ -281,13 +281,17 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         LLVMBuildStore(builder, value, ptr)
     }
 
-    fun storeRef(value: LLVMValueRef, ptr: LLVMValueRef, onStack: Boolean) {
-        updateRef(value, ptr, onStack)
+    fun storeHeapRef(value: LLVMValueRef, ptr: LLVMValueRef) {
+        updateRef(value, ptr, onStack = false)
+    }
+
+    fun storeStackRef(value: LLVMValueRef, ptr: LLVMValueRef) {
+        updateRef(value, ptr, onStack = true)
     }
 
     fun storeAny(value: LLVMValueRef, ptr: LLVMValueRef, onStack: Boolean) {
         if (isObjectRef(value)) {
-            storeRef(value, ptr, onStack)
+            if (onStack) storeStackRef(value, ptr) else storeHeapRef(value, ptr)
         } else {
             LLVMBuildStore(builder, value, ptr)
         }

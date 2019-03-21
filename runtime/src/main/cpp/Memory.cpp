@@ -92,8 +92,8 @@ struct FrameOverlay {
 FrameOverlay exportFrameOverlay;
 
 // Current number of allocated containers.
-int allocCount = 0;
-int aliveMemoryStatesCount = 0;
+volatile int allocCount = 0;
+volatile int aliveMemoryStatesCount = 0;
 
 // Forward declarations.
 void FreeContainer(ContainerHeader* header);
@@ -104,9 +104,9 @@ public:
   // UpdateRef per-object type counters.
   uint64_t updateCounters[10][10];
   // Alloc per container type counters.
-  uint64_t containerAllocs[10][2];
+  uint64_t containerAllocs[2];
   // Free per container type counters.
-  uint64_t objectAllocs[10][2];
+  uint64_t objectAllocs[5];
   // Histogram of allocation size distribution.
   KStdUnorderedMap<int, int>* allocationHistogram;
   // Number of allocation cache hits.
@@ -160,20 +160,16 @@ public:
   }
 
   void incAlloc(size_t size, const ContainerHeader* header) {
-    containerAllocs[toIndex(header, 0)][0]++;
+    containerAllocs[0]++;
     ++(*allocationHistogram)[size];
   }
 
   void incFree(const ContainerHeader* header) {
-    containerAllocs[toIndex(header, 0)][1]++;
+    containerAllocs[1]++;
   }
 
   void incAlloc(size_t size, const ObjHeader* header) {
-    objectAllocs[toIndex(header, 0)][0]++;
-  }
-
-  void incFree(const ObjHeader* header) {
-    objectAllocs[toIndex(header, 0)][1]++;
+    objectAllocs[toIndex(header, 0)]++;
   }
 
   static int toIndex(const ObjHeader* obj, int stack) {
@@ -195,35 +191,53 @@ public:
   }
 
   static double percents(uint64_t value, uint64_t all) {
-   return ((double)value / (double)all) * 100.0;
+   return all == 0 ? 0 : ((double)value / (double)all) * 100.0;
   }
 
   void printStatistic() {
     konan::consolePrintf("\nMemory manager statistic:\n\n");
-    for (int i = 0; i < 2; i++) {
-      konan::consolePrintf("Container %s alloc: %lld, free: %lld\n",
-                           indexToName[i], containerAllocs[i][0],
-                           containerAllocs[i][1]);
+    konan::consolePrintf("Container alloc: %lld, free: %lld\n",
+                           containerAllocs[0], containerAllocs[1]);
+    for (int i = 0; i < 5; i++) {
+      // Only normal and frozen can be allocated.
+      if (i == 0 || i == 3)
+        konan::consolePrintf("Object %s alloc: %lld\n", indexToName[i], objectAllocs[i]);
     }
-    for (int i = 0; i < 2; i++) {
-      konan::consolePrintf("Object %s alloc: %lld, free: %lld\n",
-                           indexToName[i], objectAllocs[i][0],
-                           objectAllocs[i][1]);
-    }
-
     konan::consolePrintf("\n");
+
+    uint64_t allUpdateRefs = 0, heapUpdateRefs = 0, stackUpdateRefs = 0;
+    for (int i = 0; i < 10; i++) {
+      for (int j = 0; j < 10; j++) {
+         allUpdateRefs += updateCounters[i][j];
+         if (i < 5 && j < 5)
+           heapUpdateRefs += updateCounters[i][j];
+         if (i >= 5 && j >= 5)
+           stackUpdateRefs += updateCounters[i][j];
+      }
+    }
+    konan::consolePrintf("Total updates: %lld, stack: %lld(%.2lf%%), heap: %lld(%.2lf%%)\n",
+        allUpdateRefs,
+        stackUpdateRefs, percents(stackUpdateRefs, allUpdateRefs),
+        heapUpdateRefs, percents(heapUpdateRefs, allUpdateRefs));
     for (int i = 0; i < 5; i++) {
       for (int j = 0; j < 5; j++) {
-        konan::consolePrintf("UpdateHeapRef[%s -> %s]: %lld\n",
-                             indexToName[i], indexToName[j], updateCounters[i][j]);
+        if (updateCounters[i][j] != 0)
+            konan::consolePrintf("UpdateHeapRef[%s -> %s]: %lld (%.2lf%% of all, %.2lf%% of heap)\n",
+                             indexToName[i], indexToName[j], updateCounters[i][j],
+                             percents(updateCounters[i][j], allUpdateRefs),
+                             percents(updateCounters[i][j], heapUpdateRefs));
       }
     }
     for (int i = 5; i < 10; i++) {
-          for (int j = 5; j < 10; j++) {
-            konan::consolePrintf("UpdateStackRef[%s -> %s]: %lld\n",
-                                 indexToName[i - 5], indexToName[j - 5], updateCounters[i][j]);
-          }
+        for (int j = 5; j < 10; j++) {
+            if (updateCounters[i][j] != 0)
+                konan::consolePrintf("UpdateStackRef[%s -> %s]: %lld (%.2lf%% of all, %.2lf%% of stack)\n",
+                                 indexToName[i - 5], indexToName[j - 5],
+                                 updateCounters[i][j],
+                                 percents(updateCounters[i][j], allUpdateRefs),
+                                 percents(updateCounters[i][j], stackUpdateRefs));
         }
+    }
     konan::consolePrintf("\n");
 
     konan::consolePrintf("Allocation histogram:\n");
@@ -233,18 +247,23 @@ public:
       keys[index++] = it.first;
     }
     std::sort(keys.begin(), keys.end());
+    int perLine = 4;
+    int count = 0;
     for (auto it : keys) {
       konan::consolePrintf(
-          "%d bytes -> %d times\n", it, (*allocationHistogram)[it]);
+          "%d bytes -> %d times  ", it, (*allocationHistogram)[it]);
+      if (++count % perLine == (perLine - 1) || (count == keys.size()))
+        konan::consolePrintf("\n");
     }
+
 
     uint64_t allAddRefs = addRefs + atomicAddRefs;
     uint64_t allReleases = releaseRefs + atomicReleaseRefs + releaseCyclicRefs;
-    konan::consolePrintf("AddRefs:\t%lld/%lld (%lf%% of atomic)\n"
-                         "Releases:\t%lld/%lld (%lf%% of atomic)\n"
-                         "ReleaseRefs for cycle collector   : %lld (%lf%% of cyclic)\n",
+    konan::consolePrintf("AddRefs:\t%lld/%lld (%.2lf%% of atomic)\n"
+                         "Releases:\t%lld/%lld (%.2lf%% of atomic)\n"
+                         "ReleaseRefs affecting cycle collector   : %lld (%.2lf%% of cyclic)\n",
                          addRefs, atomicAddRefs, percents(atomicAddRefs, allAddRefs),
-                         releaseRefs, atomicReleaseRefs, percents(atomicAddRefs, allReleases),
+                         releaseRefs, atomicReleaseRefs, percents(atomicReleaseRefs, allReleases),
                          releaseCyclicRefs, percents(releaseCyclicRefs, allReleases));
   }
 };
@@ -289,13 +308,11 @@ struct MemoryState {
 
 #if COLLECT_STATISTIC
   #define CONTAINER_ALLOC_STAT(state, size, container) state->statistic.incAlloc(size, container);
-  #define CONTAINER_FREE_STAT(state, container)
   #define CONTAINER_DESTROY_STAT(state, container) \
     state->statistic.incFree(container);
   #define OBJECT_ALLOC_STAT(state, size, object) \
-    state->statistic.incAlloc(size, object);
-  #define OBJECT_FREE_STAT(state, size, object) \
-    state->statistic.incFree(object);
+    state->statistic.incAlloc(size, object); \
+    state->statistic.incAddRef(object->container(), 0, 0);
   #define UPDATE_REF_STAT(state, oldRef, newRef, slot, stack) \
     state->statistic.incUpdateRef(oldRef, newRef, stack);
   #define UPDATE_ADDREF_STAT(state, obj, atomic, stack) \
@@ -311,10 +328,8 @@ struct MemoryState {
   MemoryStatistic statistic;
 #else
   #define CONTAINER_ALLOC_STAT(state, size, container)
-  #define CONTAINER_FREE_STAT(state, container)
   #define CONTAINER_DESTROY_STAT(state, container)
   #define OBJECT_ALLOC_STAT(state, size, object)
-  #define OBJECT_FREE_STAT(state, object)
   #define UPDATE_REF_STAT(state, oldRef, newRef, slot, stack)
   #define UPDATE_ADDREF_STAT(state, obj, atomic, stack)
   #define UPDATE_RELEASEREF_STAT(state, obj, atomic, cyclic, stack)
@@ -336,14 +351,10 @@ struct MemoryState {
 #endif
 #define CONTAINER_ALLOC_TRACE(state, size, container) \
   MEMORY_LOG("Container alloc %d at %p\n", size, container)
-#define CONTAINER_FREE_TRACE(state, container)  \
-  MEMORY_LOG("Container free %p\n", container)
 #define CONTAINER_DESTROY_TRACE(state, container) \
   MEMORY_LOG("Container destroy %p\n", container)
 #define OBJECT_ALLOC_TRACE(state, size, object) \
   MEMORY_LOG("Object alloc %d at %p\n", size, object)
-#define OBJECT_FREE_TRACE(state, object) \
-  MEMORY_LOG("Object free %p\n", object)
 #define UPDATE_REF_TRACE(state, oldRef, newRef, slot, stack) \
   MEMORY_LOG("UpdateRef %s*%p: %p -> %p\n", stack ? "stack " : "", slot, oldRef, newRef)
 
@@ -359,10 +370,6 @@ struct MemoryState {
 #define CONTAINER_ALLOC_EVENT(state, size, container) \
   CONTAINER_ALLOC_STAT(state, size, container) \
   CONTAINER_ALLOC_TRACE(state, size, container)
-// Called on container freeing (memory is still in use).
-#define CONTAINER_FREE_EVENT(state, container) \
-  CONTAINER_FREE_STAT(state, container) \
-  CONTAINER_FREE_TRACE(state, container)
 // Called on container destroy (memory is released to allocator).
 #define CONTAINER_DESTROY_EVENT(state, container) \
   CONTAINER_DESTROY_STAT(state, container) \
@@ -580,9 +587,9 @@ inline void scheduleDestroyContainer(MemoryState* state, ContainerHeader* contai
     processFinalizerQueue(state);
   }
 #else
-  atomicAdd(&allocCount, -1);
-  CONTAINER_DESTROY_EVENT(state, container)
   konanFreeMemory(container);
+  atomicAdd(&allocCount, -1);
+  CONTAINER_DESTROY_EVENT(state, container);
 #endif
 }
 
@@ -591,7 +598,6 @@ inline void scheduleDestroyContainer(MemoryState* state, ContainerHeader* contai
 template <bool Atomic>
 inline void IncrementRC(ContainerHeader* container) {
   container->incRefCount<Atomic>();
-  UPDATE_ADDREF_STAT(memoryState, container, Atomic);
 }
 
 template <bool Atomic, bool UseCycleCollector>
@@ -599,7 +605,6 @@ inline void DecrementRC(ContainerHeader* container) {
   if (container->decRefCount<Atomic>() == 0) {
     FreeContainer(container);
   }
-  UPDATE_RELEASEREF_STAT(memoryState, container, Atomic, false);
 }
 
 #else // USE_GC
@@ -612,13 +617,11 @@ template <bool Atomic>
 inline void IncrementRC(ContainerHeader* container) {
   container->incRefCount<Atomic>();
   container->setColorUnlessGreen(CONTAINER_TAG_GC_BLACK);
-  UPDATE_ADDREF_STAT(memoryState, container, Atomic, 0);
 }
 
 template <bool Atomic, bool UseCycleCollector>
 inline void DecrementRC(ContainerHeader* container) {
   if (container->decRefCount<Atomic>() == 0) {
-    UPDATE_RELEASEREF_STAT(memoryState, container, Atomic, false, 0);
     FreeContainer(container);
   } else if (UseCycleCollector) { // Possible root.
     RuntimeAssert(!Atomic, "Cycle collector shalln't be used with shared objects yet");
@@ -629,7 +632,6 @@ inline void DecrementRC(ContainerHeader* container) {
     // Also do not use cycle collector for provable acyclic objects.
     int color = container->color();
     if (color != CONTAINER_TAG_GC_PURPLE && color != CONTAINER_TAG_GC_GREEN) {
-      UPDATE_RELEASEREF_STAT(memoryState, container, Atomic, true, 0);
       container->setColorAssertIfGreen(CONTAINER_TAG_GC_PURPLE);
       if (!container->buffered()) {
         container->setBuffered();
@@ -639,8 +641,6 @@ inline void DecrementRC(ContainerHeader* container) {
           GarbageCollect();
         }
       }
-    } else {
-      UPDATE_RELEASEREF_STAT(memoryState, container, Atomic, false, 0);
     }
   }
 }
@@ -883,23 +883,34 @@ void CollectWhite(MemoryState* state, ContainerHeader* start) {
 }
 #endif
 
-ALWAYS_INLINE inline void addRef(ContainerHeader* header) {
+inline bool needAtomicAccess(ContainerHeader* container) {
+  return container->shareable();
+}
+
+inline bool canBeCyclic(ContainerHeader* container) {
+  if (container->refCount() == 1) return false;
+  if (container->color() == CONTAINER_TAG_GC_GREEN) return false;
+  return true;
+}
+
+ALWAYS_INLINE inline void addRef(ContainerHeader* container) {
   // Looking at container type we may want to skip AddRef() totally
   // (non-escaping stack objects, constant objects).
-  switch (header->refCount_ & CONTAINER_TAG_MASK) {
+  switch (container->refCount_ & CONTAINER_TAG_MASK) {
     case CONTAINER_TAG_STACK:
       break;
     case CONTAINER_TAG_NORMAL:
-      IncrementRC</* Atomic = */ false>(header);
+      IncrementRC</* Atomic = */ false>(container);
       break;
     /* case CONTAINER_TAG_FROZEN: case CONTAINER_TAG_ATOMIC: */
     default:
-      IncrementRC</* Atomic = */ true>(header);
+      IncrementRC</* Atomic = */ true>(container);
       break;
   }
 }
 
 ALWAYS_INLINE inline void AddHeapRef(ContainerHeader* container) {
+  UPDATE_ADDREF_STAT(memoryState, container, needAtomicAccess(container), 0);
   addRef(container);
 }
 
@@ -909,6 +920,7 @@ ALWAYS_INLINE inline void AddHeapRef(ObjHeader* header) {
 }
 
 ALWAYS_INLINE inline void AddStackRef(ContainerHeader* container) {
+  UPDATE_ADDREF_STAT(memoryState, container, needAtomicAccess(container), 1);
   addRef(container);
 }
 
@@ -934,10 +946,12 @@ ALWAYS_INLINE inline void releaseRef(ContainerHeader* header) {
 }
 
 ALWAYS_INLINE inline void ReleaseHeapRef(ContainerHeader* container) {
+  UPDATE_RELEASEREF_STAT(memoryState, container, needAtomicAccess(container), canBeCyclic(container), 0);
   releaseRef(container);
 }
 
 ALWAYS_INLINE inline void ReleaseStackRef(ContainerHeader* container) {
+  UPDATE_RELEASEREF_STAT(memoryState, container, needAtomicAccess(container), canBeCyclic(container), 1);
   releaseRef(container);
 }
 
@@ -1070,8 +1084,6 @@ void FreeAggregatingFrozenContainer(ContainerHeader* container) {
 void FreeContainer(ContainerHeader* container) {
   RuntimeAssert(container != nullptr, "this kind of container shalln't be freed");
   auto state = memoryState;
-
-  CONTAINER_FREE_EVENT(state, container)
 
   if (isAggregatingFrozenContainer(container)) {
     FreeAggregatingFrozenContainer(container);
@@ -1428,6 +1440,7 @@ OBJ_GETTER(InitSharedInstance,
 
 void SetHeapRef(ObjHeader** location, const ObjHeader* object) {
   MEMORY_LOG("SetHeapRef *%p: %p\n", location, object)
+  UPDATE_REF_EVENT(memoryState, *location, object, location, 0);
   *const_cast<const ObjHeader**>(location) = object;
   if (object != nullptr)
     AddHeapRef(const_cast<ObjHeader*>(object));
@@ -1437,6 +1450,7 @@ void ZeroHeapRef(ObjHeader** location) {
   MEMORY_LOG("ZeroHeapRef %p\n", location)
   auto* value = *location;
   if (value != nullptr) {
+    UPDATE_REF_EVENT(memoryState, value, nullptr, location, 0);
     *location = nullptr;
     ReleaseHeapRef(value);
   }
@@ -1446,6 +1460,7 @@ void ZeroStackRef(ObjHeader** location) {
   MEMORY_LOG("ZeroStackRef %p\n", location)
   auto* value = *location;
   if (value != nullptr) {
+    UPDATE_REF_EVENT(memoryState, value, nullptr, location, 1);
     *location = nullptr;
     ReleaseStackRef(value);
   }
@@ -1479,12 +1494,12 @@ ALWAYS_INLINE void updateRef(ObjHeader** location, const ObjHeader* object) {
 }
 
 void UpdateStackRef(ObjHeader** location, const ObjHeader* object) {
-  UPDATE_REF_EVENT(memoryState, *location, object, location, 1)
+  UPDATE_REF_EVENT(memoryState, *location, object, location, 1);
   updateRef(location, object);
 }
 
 void UpdateHeapRef(ObjHeader** location, const ObjHeader* object) {
-  UPDATE_REF_EVENT(memoryState, *location, object, location, 0)
+  UPDATE_REF_EVENT(memoryState, *location, object, location, 0);
   updateRef(location, object);
 }
 
@@ -1499,6 +1514,7 @@ ALWAYS_INLINE inline void updateReturnRefAdded(ObjHeader** returnSlot, const Obj
   returnSlot = slotAddressFor(returnSlot, value);
   if (returnSlot == nullptr) return;
   ObjHeader* old = *returnSlot;
+  UPDATE_REF_EVENT(memoryState, old, value, returnSlot, 1);
   *const_cast<const ObjHeader**>(returnSlot) = value;
   if (old != nullptr) {
     ReleaseStackRef(old);
@@ -1527,6 +1543,7 @@ void UpdateHeapRefIfNull(ObjHeader** location, const ObjHeader* object) {
       ReleaseHeapRef(const_cast<ObjHeader*>(object));
     }
 #endif
+    UPDATE_REF_EVENT(memoryState, old, object, location, 0);
   }
 }
 
@@ -1540,6 +1557,7 @@ inline void releaseStackRefs(MemoryState* state, ObjHeader** start, int count) {
   while (count-- > 0) {
     ObjHeader* object = *current;
     if (object != nullptr) {
+      UPDATE_REF_EVENT(memoryState, object, nullptr, current, 1);
       ReleaseStackRef(object);
       // Just for sanity, optional.
       *current = nullptr;

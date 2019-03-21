@@ -398,10 +398,10 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                         // Only if a subject for memory management.
                         if (it.type.binaryTypeIsReference() && it.storageClass == FieldStorage.THREAD_LOCAL) {
                             val address = context.llvmDeclarations.forStaticField(it).storage
-                            storeRef(codegen.kNullObjHeaderPtr, address, false)
+                            storeHeapRef(codegen.kNullObjHeaderPtr, address)
                         }
                     }
-                    context.llvm.objects.forEach { storeRef(codegen.kNullObjHeaderPtr, it, false) }
+                    context.llvm.objects.forEach { storeHeapRef(codegen.kNullObjHeaderPtr, it) }
                     ret(null)
                 }
 
@@ -411,10 +411,10 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                             .forEach {
                                 if (it.type.binaryTypeIsReference() && it.storageClass != FieldStorage.THREAD_LOCAL) {
                                     val address = context.llvmDeclarations.forStaticField(it).storage
-                                    storeRef(codegen.kNullObjHeaderPtr, address, false)
+                                    storeHeapRef(codegen.kNullObjHeaderPtr, address)
                                 }
                             }
-                    context.llvm.sharedObjects.forEach { storeRef(codegen.kNullObjHeaderPtr, it, false) }
+                    context.llvm.sharedObjects.forEach { storeHeapRef(codegen.kNullObjHeaderPtr, it) }
                     ret(null)
                 }
             }

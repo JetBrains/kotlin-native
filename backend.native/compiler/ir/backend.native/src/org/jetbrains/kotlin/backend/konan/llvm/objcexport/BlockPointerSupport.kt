@@ -63,9 +63,7 @@ internal class BlockAdapterToFunctionGenerator(val objCExportCodeGenerator: ObjC
     ) {
         val blockPtr = bitcast(pointerType(blockLiteralType), param(0))
         val slot = structGep(blockPtr, 1)
-        // Although value is actually on the stack, it's not in normal slot area, so we cannot handle it
-        // as if it was on the stack.
-        storeRef(kNullObjHeaderPtr, slot, false) // TODO: can dispose_helper write to the block?
+        storeHeapRef(kNullObjHeaderPtr, slot) // TODO: can dispose_helper write to the block?
 
         ret(null)
     }.also {
@@ -86,7 +84,7 @@ internal class BlockAdapterToFunctionGenerator(val objCExportCodeGenerator: ObjC
         // Kotlin reference was `memcpy`ed from src to dst, "revert" this:
         storeRefUnsafe(kNullObjHeaderPtr, dstSlot)
         // and copy properly:
-        storeRef(loadSlot(srcSlot, isVar = false), dstSlot, true)
+        storeHeapRef(loadSlot(srcSlot, isVar = false), dstSlot)
 
         ret(null)
     }.also {
@@ -195,7 +193,7 @@ internal class BlockAdapterToFunctionGenerator(val objCExportCodeGenerator: ObjC
             listOf(bitcast(int8TypePtr, isa), flags, reserved, invoke, descriptor).forEachIndexed { index, value ->
                 // Although value is actually on the stack, it's not in normal slot area, so we cannot handle it
                 // as if it was on the stack.
-                storeAny(value, structGep(blockOnStackBase, index), false)
+                store(value, structGep(blockOnStackBase, index))
             }
 
             // Note: it is the slot in the block located on stack, so no need to manage it properly:
