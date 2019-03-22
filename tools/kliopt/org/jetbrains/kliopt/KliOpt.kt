@@ -55,6 +55,8 @@ sealed class ArgType(val hasParameter: kotlin.Boolean) {
     }
 }
 
+data class Action(val callback: (parser: ArgParser) -> Unit, val parser: ArgParser)
+
 // Common descriptor both for options and positional arguments.
 abstract class Descriptor(val type: ArgType,
                           val longName: String,
@@ -120,7 +122,7 @@ class ArgDescriptor(
 
 // Arguments parser.
 class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescriptor> = listOf<ArgDescriptor>(),
-                useDefaultHelpShortName: Boolean = true) {
+                val actions: Map<String, Action> = emptyMap(), useDefaultHelpShortName: Boolean = true) {
     private val options = optionsList.union(if (useDefaultHelpShortName)
         listOf(OptionDescriptor(ArgType.Boolean(), "help", "h", "Usage info"))
             else
@@ -128,6 +130,9 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
     ).toList()
     private val arguments = argsList
     private lateinit var parsedValues: MutableMap<String, ParsedArg?>
+    private lateinit var valuesOrigin: MutableMap<String, ValueOrigin?>
+
+    enum class ValueOrigin { SET_BY_USER, SET_DEFAULT_VALUE, UNSET }
 
     inner class ParsedArg(val descriptor: Descriptor, val values: List<String>) {
         init {
@@ -166,6 +171,9 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
         error("$message\n${makeUsage()}")
     }
 
+    // Get origin of option value.
+    fun getOrigin(name: String) = valuesOrigin[name] ?: printError("No option/argument $name in list of avaliable options")
+
     private fun saveAsArg(argDescriptors: Map<String, ArgDescriptor>, arg: String, processedValues: Map<String, MutableList<String>>): Boolean {
         // Find uninitialized arguments.
         val nullArgs = argDescriptors.keys.filter { processedValues.getValue(it).isEmpty() }
@@ -203,8 +211,19 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
         val descriptorsKeys = optDescriptors.keys.union(argDescriptors.keys).toList()
         val processedValues = descriptorsKeys.map { it to mutableListOf<String>() }.toMap().toMutableMap()
         parsedValues = descriptorsKeys.map { it to null }.toMap().toMutableMap()
+        valuesOrigin = descriptorsKeys.map { it to ValueOrigin.UNSET }.toMap().toMutableMap()
         while (index < args.size) {
             val arg = args[index]
+            // Check for actions.
+            actions.forEach { (name, action) ->
+                if (arg == name) {
+                    // Use parser for this action.
+                    val parseResult = action.parser.parse(args.slice(index + 1..args.size - 1).toTypedArray())
+                    if (parseResult)
+                        action.callback(action.parser)
+                    return false
+                }
+            }
             if (arg.startsWith('-')) {
                 // Option is found.
                 val name = shortNames[arg.substring(1)] ?: arg.substring(1)
@@ -246,6 +265,7 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
             if (value.isEmpty()) {
                 descriptor.defaultValue?. let {
                     parsedValues[key] = ParsedArg(descriptor, listOf(descriptor.defaultValue))
+                    valuesOrigin[key] = ValueOrigin.SET_DEFAULT_VALUE
                 } ?: run {
                     if (descriptor.isRequired) {
                         printError("Please, provide value for ${descriptor.textDescription}. It should be always set")
@@ -255,6 +275,7 @@ class ArgParser(optionsList: List<OptionDescriptor>, argsList: List<ArgDescripto
                 }
             } else {
                 parsedValues[key] = ParsedArg(descriptor, value)
+                valuesOrigin[key] = ValueOrigin.SET_BY_USER
             }
         }
         return true

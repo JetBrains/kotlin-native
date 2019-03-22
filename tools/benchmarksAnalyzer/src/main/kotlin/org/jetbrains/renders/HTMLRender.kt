@@ -554,7 +554,9 @@ class HTMLRender: Render() {
 
     private fun TableBlock.renderBenchmarksDetails(fullSet: Map<String, SummaryBenchmark>,
                                                    bucket: Map<String, ScoreChange>? = null, rowStyle: String? = null) {
-        if (bucket != null) {
+        if (bucket != null && !bucket.isEmpty()) {
+            // Find max ratio.
+            val maxRatio = bucket.values.map { it.second.mean }.max()!!
             // There are changes in performance.
             // Output changed benchmarks.
             for ((name, change) in bucket) {
@@ -566,20 +568,20 @@ class HTMLRender: Render() {
                     td { +"${fullSet.getValue(name).first}" }
                     td { +"${fullSet.getValue(name).second}" }
                     td {
-                        attributes["bgcolor"] = ColoredCell(change.first.mean / abs(bucket.values.first().first.mean))
+                        attributes["bgcolor"] = ColoredCell(if (bucket.values.first().first.mean == 0.0) null
+                            else change.first.mean / abs(bucket.values.first().first.mean))
                                 .backgroundStyle
                         +"${change.first.toString() + " %"}"
                     }
                     td {
-                        val scaledRatio = if (change.first.mean < 0)
-                                            (1 - change.second.mean) / (-1 + bucket.values.first().second.mean)
-                                            else (change.second.mean / bucket.values.first().second.mean)
-                        attributes["bgcolor"] = ColoredCell(scaledRatio).backgroundStyle
+                        val scaledRatio = if (maxRatio == 0.0) null else change.second.mean / maxRatio
+                        attributes["bgcolor"] = ColoredCell(scaledRatio,
+                                borderPositive = { cellValue -> cellValue > 1.0 / maxRatio }).backgroundStyle
                         +"${change.second}"
                     }
                 }
             }
-        } else {
+        } else if (bucket == null) {
             // Output all values without performance changes.
             val placeholder = "-"
             for ((name, value) in fullSet) {
@@ -649,23 +651,25 @@ class HTMLRender: Render() {
             }
     }
 
-    class ColoredCell(val scaledValue: Double, val reverse: Boolean = false) {
+    class ColoredCell(val scaledValue: Double?, val reverse: Boolean = false,
+                      val borderPositive: (cellValue: Double) -> Boolean = { cellValue -> cellValue > 0 }) {
         val value: Double
         val neutralColor = Color(1.0,1.0 , 1.0)
         val negativeColor = Color(0.0, 1.0, 0.0)
         val positiveColor = Color(1.0, 0.0, 0.0)
 
         init {
-            value = if (abs(scaledValue) <= 1.0) scaledValue else error ("Value should be scaled in range [-1.0; 1.0]")
+            value = scaledValue?.let { if (abs(scaledValue) <= 1.0) scaledValue else error ("Value should be scaled in range [-1.0; 1.0]") }
+                    ?: 0.0
         }
 
         val backgroundStyle: String
-            get() = getColor().toString()
+            get() = scaledValue?.let { getColor().toString() } ?: ""
 
         fun getColor(): Color {
             val currentValue = clamp(value, -1.0, 1.0)
             val cellValue = if (reverse) -currentValue else currentValue
-            val baseColor = if (cellValue < 0) negativeColor else positiveColor
+            val baseColor = if (borderPositive(cellValue)) positiveColor else negativeColor
             // Smooth mapping to put first 20% of change into 50% of range,
             // although really we should compensate for luma.
             val color = sin((abs(cellValue).pow(.477)) * kotlin.math.PI * .5)

@@ -24,51 +24,6 @@ import java.net.URL
 import java.util.Base64
 import java.util.Properties
 
-// Run command line from string.
-fun Array<String>.runCommand(workingDir: File = File("."),
-                      timeoutAmount: Long = 60,
-                      timeoutUnit: TimeUnit = TimeUnit.SECONDS): String {
-    return try {
-        ProcessBuilder(*this)
-                .directory(workingDir)
-                .redirectOutput(ProcessBuilder.Redirect.PIPE)
-                .redirectError(ProcessBuilder.Redirect.PIPE)
-                .start().apply {
-                    waitFor(timeoutAmount, timeoutUnit)
-                }.inputStream.bufferedReader().readText()
-    } catch (e: IOException) {
-        error("Couldn't run command $this")
-    }
-}
-
-data class Commit(val revision: String, val developer: String, val webUrlWithDescription: String)
-
-// List of commits.
-class CommitsList(data: JsonElement): ConvertedFromJson {
-
-    val commits: List<Commit>
-
-    init {
-        if (data !is JsonObject) {
-            error("Commits description is expected to be a json object!")
-        }
-        val changesElement = data.getOptionalField("change")
-        commits = changesElement?.let {
-            if (changesElement !is JsonArray) {
-                error("Change field is expected to be an array. Please, check source.")
-            }
-           changesElement.jsonArray.map {
-                with(it as JsonObject) {
-                    Commit(elementToString(getRequiredField("version"), "version"),
-                            elementToString(getRequiredField("username"), "username"),
-                            elementToString(getRequiredField("webUrl"), "webUrl")
-                    )
-                }
-           }
-        } ?: listOf<Commit>()
-    }
-}
-
 /**
  * Task to produce regressions report and send it to slack. Requires a report with current benchmarks result
  * and path to analyzer tool
@@ -78,10 +33,11 @@ class CommitsList(data: JsonElement): ConvertedFromJson {
  * @property htmlReport name of result html report
  * @property defaultBranch name of default branch
  * @property summaryFile name of file with short summary
+ * @property bundleBuild property to show if current build is full or not
  */
 open class RegressionsReporter : DefaultTask() {
 
-    val teamCityUrl = "http://buildserver.labs.intellij.net"
+
     val slackUsers = mapOf(
             "olonho" to "nikolay.igotti",
             "nikolay.igotti" to "nikolay.igotti",
@@ -114,46 +70,20 @@ open class RegressionsReporter : DefaultTask() {
     @Input
     lateinit var summaryFile: String
 
+    @Input
+    var bundleBuild: Boolean = false
+
     private fun tabUrl(buildId: String, buildTypeId: String, tab: String) =
             "$teamCityUrl/viewLog.html?buildId=$buildId&buildTypeId=$buildTypeId&tab=$tab"
 
     private fun testReportUrl(buildId: String, buildTypeId: String) =
             tabUrl(buildId, buildTypeId, "testsInfo")
 
-    private fun buildsUrl(buildLocator: String) =
-            "$teamCityUrl/app/rest/builds/?locator=$buildLocator"
-
     private fun previousBuildLocator(buildTypeId: String, branchName: String) =
             "buildType:id:$buildTypeId,branch:name:$branchName,status:SUCCESS,state:finished,count:1"
 
     private fun changesListUrl(buildLocator: String) =
             "$teamCityUrl/app/rest/changes/?locator=build:$buildLocator"
-
-    private fun sendGetRequest(url: String, username: String? = null, password: String? = null) : String {
-        val connection = URL(url).openConnection() as HttpURLConnection
-        if (username != null && password != null) {
-            val auth = Base64.getEncoder().encode((username + ":" + password).toByteArray()).toString(Charsets.UTF_8)
-            connection.addRequestProperty("Authorization", "Basic $auth")
-        }
-        connection.setRequestProperty("Accept", "application/json");
-        connection.connect()
-        return connection.inputStream.use { it.reader().use { reader -> reader.readText() } }
-    }
-
-    private fun getBuild(buildLocator: String, user: String, password: String) =
-            try {
-                sendGetRequest(buildsUrl(buildLocator), user, password)
-            } catch (t: Throwable) {
-                error("Try to get build! TeamCity is unreachable!")
-            }
-
-    private fun getBuildProperty(buildJsonDescription: String, property: String) =
-            with(JsonTreeParser.parse(buildJsonDescription) as JsonObject) {
-                if (getPrimitive("count").int == 0) {
-                    error("No build information on TeamCity for $buildJsonDescription!")
-                }
-                (getArray("build").getObject(0).getPrimitive(property) as JsonLiteral).unquoted()
-            }
 
     private fun getCommits(buildLocator: String, user: String, password: String): CommitsList {
         val changes = try {
@@ -222,11 +152,14 @@ open class RegressionsReporter : DefaultTask() {
         arrayOf("$analyzer", "-r", "statistics", "$currentBenchmarksReportFile", "bintray:$compareToBuildNumber:$target:$bintrayFileName", "-o", "$summaryFile")
                 .runCommand()
 
-        val reportLink = "http://kotlin-native-performance.labs.jb.gg/?" +
+        val reportLink = "https://kotlin-native-perf-summary.labs.jb.gg/?target=$target&build=$buildNumber"
+        val detailedReportLink = "https://kotlin-native-performance.labs.jb.gg/?" +
                 "report=bintray:$buildNumber:$target:$bintrayFileName&" +
                 "compareTo=bintray:$compareToBuildNumber:$target:$bintrayFileName"
 
-        val title = "\n*Performance report for target $target (build $buildNumber)* - $reportLink\n"
+        val title = "\n*Performance report for target $target (build $buildNumber)* - $reportLink\n" +
+                "*Detailed info - * $detailedReportLink"
+
         val header = "$title\n$changesInfo\n\nCompare to build $compareToBuildNumber: $compareToBuildLink\n\n"
         val footer = "*Benchmarks statistics:* $testReportUrl"
         val message = "$header\n$footer\n"
@@ -236,8 +169,10 @@ open class RegressionsReporter : DefaultTask() {
         session.connect()
 
         if (branch == defaultBranch) {
-            val channel = session.findChannelByName(buildProperties.getProperty("konan-channel-name"))
-            session.sendMessage(channel, message)
+            if (bundleBuild) {
+                val channel = session.findChannelByName(buildProperties.getProperty("konan-channel-name"))
+                session.sendMessage(channel, message)
+            }
         } else {
             changesList.commits.filter { it.developer in slackUsers }. map { it.developer }
                     .toSet().forEach {
