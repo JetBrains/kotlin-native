@@ -122,7 +122,7 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
                 put(LIBRARY_FILES,
                         arguments.libraries.toNonNullList())
 
-                put(LINKER_ARGS, arguments.linkerArguments.toNonNullList())
+                put(LINKER_ARGS, arguments.linkerArguments?.let { parseSpaceSeparatedArgs(it) } ?: emptyList())
                 arguments.moduleName ?. let{ put(MODULE_NAME, it) }
                 arguments.target ?.let{ put(TARGET, it) }
 

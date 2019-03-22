@@ -2894,6 +2894,20 @@ task inline_defaultArgs_linkTest(type: LinkKonanTest) {
     lib = "codegen/inline/defaultArgs_linkTest_lib.kt"
 }
 
+def generateWithSpaceDefFile() {
+    def file = new File("${projectDir}/interop/basics/withSpaces.def")
+    file.write """
+headers = stdio.h "${projectDir}/interop/basics/custom headers/custom.h"
+
+---
+
+int customCompare(const char* str1, const char* str2) {
+    return custom_strcmp(str1, str2);
+}
+"""
+    return 'interop/basics/withSpaces.def'
+}
+
 kotlinNativeInterop {
     target project.testTarget ?: 'host'
     flavor 'native'
@@ -2942,6 +2956,10 @@ kotlinNativeInterop {
 
     ccallbacksAndVarargs {
         defFile 'interop/basics/ccallbacksAndVarargs.def'
+    }
+
+    withSpaces {
+        defFile generateWithSpaceDefFile()
     }
 
     if (isAppleTarget(project)) {
@@ -3048,6 +3066,12 @@ task interop_callbacksAndVarargs(type: RunInteropKonanTest) {
     disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
     source = "interop/basics/callbacksAndVarargs.kt"
     interop = 'ccallbacksAndVarargs'
+}
+
+task interop_withSpaces(type: RunInteropKonanTest) {
+    disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
+    source = "interop/basics/withSpaces.kt"
+    interop = 'withSpaces'
 }
 
 task interop_echo_server(type: RunInteropKonanTest) {
