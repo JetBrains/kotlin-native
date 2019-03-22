@@ -30,7 +30,7 @@ OBJ_GETTER(setupArgs, int argc, const char** argv) {
   ArrayHeader* array = result->array();
   for (int index = 1; index < argc; index++) {
     CreateStringFromCString(
-      argv[index], ArrayAddressOfElementAt(array, index - 1));
+      argv[index], HEAP_RETURN_SLOT(ArrayAddressOfElementAt(array, index - 1)));
   }
   return result;
 }

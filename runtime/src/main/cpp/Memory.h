@@ -140,6 +140,16 @@ struct ContainerHeader {
     return value >> CONTAINER_TAG_SHIFT;
   }
 
+  inline int decRefCount() {
+  #ifdef KONAN_NO_THREADS
+      int value = refCount_ -= CONTAINER_TAG_INCREMENT;
+  #else
+      int value = shareable() ?
+         __sync_sub_and_fetch(&refCount_, CONTAINER_TAG_INCREMENT) : refCount_ -= CONTAINER_TAG_INCREMENT;
+  #endif
+      return value >> CONTAINER_TAG_SHIFT;
+  }
+
   inline unsigned tag() const {
     return refCount_ & CONTAINER_TAG_MASK;
   }
@@ -336,6 +346,8 @@ inline bool PermanentOrFrozen(ObjHeader* obj) {
 
 // Class representing arbitrary placement container.
 class Container {
+ public:
+  ContainerHeader* header() const { return header_; }
  protected:
   // Data where everything is being stored.
   ContainerHeader* header_;
@@ -438,9 +450,8 @@ class ArenaContainer {
 extern "C" {
 #endif
 
-// Bit or'ed to slot pointer, marking the fact that allocation shall happen
-// in arena pointed by the slot.
-#define ARENA_BIT 1
+// Bit or'ed to slot pointer, marking the fact that returned value is stored on the heap.
+#define HEAP_RETURN_BIT 1
 #define OBJ_RESULT __result__
 #define OBJ_GETTER0(name) ObjHeader* name(ObjHeader** OBJ_RESULT)
 #define OBJ_GETTER(name, ...) ObjHeader* name(__VA_ARGS__, ObjHeader** OBJ_RESULT)
@@ -455,6 +466,8 @@ extern "C" {
     ObjHeader* result = name(__VA_ARGS__, OBJ_RESULT);  \
     return result;                                      \
   }
+#define HEAP_RETURN_SLOT(slot) \
+  (reinterpret_cast<ObjHeader**>(reinterpret_cast<uintptr_t>(slot) | static_cast<uintptr_t>(HEAP_RETURN_BIT)))
 
 struct MemoryState;
 
@@ -528,15 +541,11 @@ OBJ_GETTER(SwapHeapRefLocked,
 // Sets reference with taken lock.
 void SetHeapRefLocked(ObjHeader** location, ObjHeader* newValue, int32_t* spinlock) RUNTIME_NOTHROW;
 // Reads reference with taken lock.
-OBJ_GETTER(ReadRefLocked, ObjHeader** location, int32_t* spinlock) RUNTIME_NOTHROW;
+OBJ_GETTER(ReadHeapRefLocked, ObjHeader** location, int32_t* spinlock) RUNTIME_NOTHROW;
 // Called on frame enter, if it has object slots.
 void EnterFrame(ObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
 // Called on frame leave, if it has object slots.
 void LeaveFrame(ObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
-// Tries to use returnSlot's arena for allocation.
-ObjHeader** GetReturnSlotIfArena(ObjHeader** returnSlot, ObjHeader** localSlot) RUNTIME_NOTHROW;
-// Tries to use param's arena for allocation.
-ObjHeader** GetParamSlotIfArena(ObjHeader* param, ObjHeader** localSlot) RUNTIME_NOTHROW;
 // Collect garbage, which cannot be found by reference counting (cycles).
 void GarbageCollect() RUNTIME_NOTHROW;
 // Clears object subgraph references from memory subsystem, and optionally
@@ -574,8 +583,13 @@ class ObjHolder {
    }
 
    ObjHeader* obj() { return obj_; }
+
    const ObjHeader* obj() const { return obj_; }
-   ObjHeader** slot() { return &obj_; }
+
+   ObjHeader** slot() {
+     return reinterpret_cast<ObjHeader**>(reinterpret_cast<uintptr_t>(&obj_) | HEAP_RETURN_BIT);
+   }
+
    void clear() { ::ZeroHeapRef(&obj_); }
 
   private:

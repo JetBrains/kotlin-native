@@ -156,7 +156,7 @@ OBJ_GETTER0(GetCurrentStackTrace) {
 OBJ_GETTER(GetStackTraceStrings, KConstRef stackTrace) {
 #if OMIT_BACKTRACE
   ObjHeader* result = AllocArrayInstance(theArrayTypeInfo, 1, OBJ_RESULT);
-  CreateStringFromCString("<UNIMPLEMENTED>", ArrayAddressOfElementAt(result->array(), 0));
+  CreateStringFromCString("<UNIMPLEMENTED>", HEAP_RETURN_SLOT(ArrayAddressOfElementAt(result->array(), 0)));
   return result;
 #else
   uint32_t size = stackTrace->array()->count_;
@@ -172,7 +172,7 @@ OBJ_GETTER(GetStackTraceStrings, KConstRef stackTrace) {
     }
     char line[512];
     konan::snprintf(line, sizeof(line) - 1, "%s (%p)", symbol, (void*)(intptr_t)address);
-    CreateStringFromCString(line, ArrayAddressOfElementAt(strings->array(), index));
+    CreateStringFromCString(line, HEAP_RETURN_SLOT(ArrayAddressOfElementAt(strings->array(), index)));
   }
 #else
   if (size > 0) {
@@ -195,7 +195,7 @@ OBJ_GETTER(GetStackTraceStrings, KConstRef stackTrace) {
       } else {
         result = symbol;
       }
-      CreateStringFromCString(result, ArrayAddressOfElementAt(strings->array(), index));
+      CreateStringFromCString(result, HEAP_RETURN_SLOT(ArrayAddressOfElementAt(strings->array(), index)));
     }
   }
 #endif
