@@ -104,26 +104,25 @@ internal class CallGraphBuilder(val context: Context,
             addNode(symbol)
             val function = moduleDFG.functions[symbol] ?: externalModulesDFG.functionDFGs[symbol]
             val body = function!!.body
-            body
-                    .forEachCallSite { call ->
-                        val devirtualizedCallSite = (call as? DataFlowIR.Node.VirtualCall)?.let { devirtualizedCallSites?.get(it) }
-                        if (devirtualizedCallSite == null) {
-                            val callee = call.callee.resolved()
-                            callGraph.addEdge(symbol, CallGraphNode.CallSite(call, call is DataFlowIR.Node.VirtualCall, callee))
-                            if (callee is DataFlowIR.FunctionSymbol.Declared
-                                    && call !is DataFlowIR.Node.VirtualCall
-                                    && !directEdges.containsKey(callee))
-                                dfs(callee)
-                        } else {
-                            devirtualizedCallSite.possibleCallees.forEach {
-                                val callee = it.callee.resolved()
-                                callGraph.addEdge(symbol, CallGraphNode.CallSite(call, false, callee))
-                                if (callee is DataFlowIR.FunctionSymbol.Declared
-                                        && !directEdges.containsKey(callee))
-                                    dfs(callee)
-                            }
-                        }
+            body.forEachCallSite { call ->
+                val devirtualizedCallSite = (call as? DataFlowIR.Node.VirtualCall)?.let { devirtualizedCallSites?.get(it) }
+                if (devirtualizedCallSite == null) {
+                    val callee = call.callee.resolved()
+                    callGraph.addEdge(symbol, CallGraphNode.CallSite(call, call is DataFlowIR.Node.VirtualCall, callee))
+                    if (callee is DataFlowIR.FunctionSymbol.Declared
+                            && call !is DataFlowIR.Node.VirtualCall
+                            && !directEdges.containsKey(callee))
+                        dfs(callee)
+                } else {
+                    devirtualizedCallSite.possibleCallees.forEach {
+                        val callee = it.callee.resolved()
+                        callGraph.addEdge(symbol, CallGraphNode.CallSite(call, false, callee))
+                        if (callee is DataFlowIR.FunctionSymbol.Declared
+                                && !directEdges.containsKey(callee))
+                            dfs(callee)
                     }
+                }
+            }
             body.nodes.filterIsInstance<DataFlowIR.Node.FunctionReference>()
                     .forEach {
                         val callee = it.symbol.resolved()
@@ -141,32 +140,31 @@ internal class CallGraphBuilder(val context: Context,
                 local = false
             }
             val body = function.body
-            body
-                    .forEachCallSite { call ->
-                        val devirtualizedCallSite = (call as? DataFlowIR.Node.VirtualCall)?.let { devirtualizedCallSites?.get(it) }
-                        if (devirtualizedCallSite == null) {
-                            val callee = call.callee.resolved()
-                            if (moduleDFG.functions.containsKey(callee))
-                                addNode(callee)
-                            if (local)
-                                callGraph.addEdge(symbol, CallGraphNode.CallSite(call, call is DataFlowIR.Node.VirtualCall, callee))
-                            if (callee is DataFlowIR.FunctionSymbol.Declared
-                                    && call !is DataFlowIR.Node.VirtualCall
-                                    && !visitedFunctions.contains(callee))
-                                dfs(callee)
-                        } else {
-                            devirtualizedCallSite.possibleCallees.forEach {
-                                val callee = it.callee.resolved()
-                                if (moduleDFG.functions.containsKey(callee))
-                                    addNode(callee)
-                                if (local)
-                                    callGraph.addEdge(symbol, CallGraphNode.CallSite(call, false, callee))
-                                if (callee is DataFlowIR.FunctionSymbol.Declared
-                                        && !visitedFunctions.contains(callee))
-                                    dfs(callee)
-                            }
-                        }
+            body.forEachCallSite { call ->
+                val devirtualizedCallSite = (call as? DataFlowIR.Node.VirtualCall)?.let { devirtualizedCallSites?.get(it) }
+                if (devirtualizedCallSite == null) {
+                    val callee = call.callee.resolved()
+                    if (moduleDFG.functions.containsKey(callee))
+                        addNode(callee)
+                    if (local)
+                        callGraph.addEdge(symbol, CallGraphNode.CallSite(call, call is DataFlowIR.Node.VirtualCall, callee))
+                    if (callee is DataFlowIR.FunctionSymbol.Declared
+                            && call !is DataFlowIR.Node.VirtualCall
+                            && !visitedFunctions.contains(callee))
+                        dfs(callee)
+                } else {
+                    devirtualizedCallSite.possibleCallees.forEach {
+                        val callee = it.callee.resolved()
+                        if (moduleDFG.functions.containsKey(callee))
+                            addNode(callee)
+                        if (local)
+                            callGraph.addEdge(symbol, CallGraphNode.CallSite(call, false, callee))
+                        if (callee is DataFlowIR.FunctionSymbol.Declared
+                                && !visitedFunctions.contains(callee))
+                            dfs(callee)
                     }
+                }
+            }
             body.nodes.filterIsInstance<DataFlowIR.Node.FunctionReference>()
                     .forEach {
                         val callee = it.symbol.resolved()
