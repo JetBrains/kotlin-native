@@ -623,21 +623,21 @@ internal object DFGSerializer {
         var singleton    : Singleton?     = null
         var allocInstance: AllocInstance? = null
         var functionReference: FunctionReference? = null
-        var fieldRead    : FieldRead?     = null
-        var fieldWrite   : FieldWrite?    = null
-        var arrayRead    : ArrayRead?     = null
-        var arrayWrite   : ArrayWrite?    = null
-        var variable     : Variable?      = null
+        var fieldRead        : FieldRead?         = null
+        var fieldWrite       : FieldWrite?        = null
+        var arrayRead        : ArrayRead?         = null
+        var arrayWrite       : ArrayWrite?        = null
+        var variable         : Variable?          = null
 
         val type get() = when {
-            parameter     != null -> NodeType.PARAMETER
-            const         != null -> NodeType.CONST
-            staticCall    != null -> NodeType.STATIC_CALL
-            newObject     != null -> NodeType.NEW_OBJECT
-            vtableCall    != null -> NodeType.VTABLE_CALL
-            itableCall    != null -> NodeType.ITABLE_CALL
-            singleton     != null -> NodeType.SINGLETON
-            allocInstance != null -> NodeType.ALLOC_INSTANCE
+            parameter         != null -> NodeType.PARAMETER
+            const             != null -> NodeType.CONST
+            staticCall        != null -> NodeType.STATIC_CALL
+            newObject         != null -> NodeType.NEW_OBJECT
+            vtableCall        != null -> NodeType.VTABLE_CALL
+            itableCall        != null -> NodeType.ITABLE_CALL
+            singleton         != null -> NodeType.SINGLETON
+            allocInstance     != null -> NodeType.ALLOC_INSTANCE
             functionReference != null -> NodeType.FUNCTION_REFERENCE
             fieldRead     != null -> NodeType.FIELD_READ
             fieldWrite    != null -> NodeType.FIELD_WRITE
@@ -650,20 +650,20 @@ internal object DFGSerializer {
 
         fun write(result: ArraySlice) {
             result.writeByte(type.ordinal.toByte())
-            parameter    ?.write(result)
-            const        ?.write(result)
-            staticCall   ?.write(result)
-            newObject    ?.write(result)
-            vtableCall   ?.write(result)
-            itableCall   ?.write(result)
-            singleton    ?.write(result)
-            allocInstance?.write(result)
+            parameter        ?.write(result)
+            const            ?.write(result)
+            staticCall       ?.write(result)
+            newObject        ?.write(result)
+            vtableCall       ?.write(result)
+            itableCall       ?.write(result)
+            singleton        ?.write(result)
+            allocInstance    ?.write(result)
             functionReference?.write(result)
-            fieldRead    ?.write(result)
-            fieldWrite   ?.write(result)
-            arrayRead    ?.write(result)
-            arrayWrite   ?.write(result)
-            variable     ?.write(result)
+            fieldRead        ?.write(result)
+            fieldWrite       ?.write(result)
+            arrayRead        ?.write(result)
+            arrayWrite       ?.write(result)
+            variable         ?.write(result)
         }
 
         companion object {
@@ -725,12 +725,12 @@ internal object DFGSerializer {
                     NodeType.SINGLETON      -> result.singleton     = Singleton    (data)
                     NodeType.ALLOC_INSTANCE -> result.allocInstance = AllocInstance(data)
                     NodeType.FUNCTION_REFERENCE -> result.functionReference = FunctionReference(data)
-                    NodeType.FIELD_READ     -> result.fieldRead     = FieldRead    (data)
-                    NodeType.FIELD_WRITE    -> result.fieldWrite    = FieldWrite   (data)
-                    NodeType.ARRAY_READ     -> result.arrayRead     = ArrayRead    (data)
-                    NodeType.ARRAY_WRITE    -> result.arrayWrite    = ArrayWrite   (data)
-                    NodeType.VARIABLE       -> result.variable      = Variable     (data)
-                    else                    -> { }
+                    NodeType.FIELD_READ         -> result.fieldRead         = FieldRead        (data)
+                    NodeType.FIELD_WRITE        -> result.fieldWrite        = FieldWrite       (data)
+                    NodeType.ARRAY_READ         -> result.arrayRead         = ArrayRead        (data)
+                    NodeType.ARRAY_WRITE        -> result.arrayWrite        = ArrayWrite       (data)
+                    NodeType.VARIABLE           -> result.variable          = Variable         (data)
+                    else                        -> { }
                 }
                 return result
             }
