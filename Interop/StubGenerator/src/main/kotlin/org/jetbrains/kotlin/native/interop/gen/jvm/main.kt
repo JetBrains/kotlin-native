@@ -176,10 +176,10 @@ private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = 
     val tool = prepareTool(argParser.get<String>("target"), flavor)
 
     val def = DefFile(defFile, tool.substitutions)
-    val linkerOptsOrigin = (argParser.getOrigin("linkerOpts") == ArgParser.ValueOrigin.SET_BY_USER) ||
+    val isLinkerOptsSetByUser = (argParser.getOrigin("linkerOpts") == ArgParser.ValueOrigin.SET_BY_USER) ||
             (argParser.getOrigin("linkerOpt") == ArgParser.ValueOrigin.SET_BY_USER) ||
             (argParser.getOrigin("lopt") == ArgParser.ValueOrigin.SET_BY_USER)
-    if (flavorName == "native" && linkerOptsOrigin) {
+    if (flavorName == "native" && isLinkerOptsSetByUser) {
         warn("-linkerOpt(s)/-lopt option is not supported by cinterop. Please add linker options to .def file or binary compilation instead.")
     }
 

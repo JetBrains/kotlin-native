@@ -64,7 +64,10 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     var nopack: Boolean = false
 
     @Argument(value="-linker-options", deprecatedName = "-linkerOpts", valueDescription = "<arg>", description = "Pass arguments to linker", delimiter = " ")
-    var linkerArguments: String? = null
+    var linkerArguments: Array<String>? = null
+
+    @Argument(value="-linker-option", valueDescription = "<arg>", description = "Pass argument to linker", delimiter = "")
+    var singleLinkerArguments: Array<String>? = null
 
     @Argument(value = "-nostdlib", description = "Don't link with stdlib")
     var nostdlib: Boolean = false
