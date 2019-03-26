@@ -2895,7 +2895,7 @@ task inline_defaultArgs_linkTest(type: LinkKonanTest) {
 }
 
 def generateWithSpaceDefFile() {
-    def file = new File("${projectDir}/interop/basics/withSpaces.def")
+    def file = new File("${buildDir}/withSpaces.def")
     file.write """
 headers = stdio.h "${projectDir}/interop/basics/custom headers/custom.h"
 
@@ -2905,7 +2905,7 @@ int customCompare(const char* str1, const char* str2) {
     return custom_strcmp(str1, str2);
 }
 """
-    return 'interop/basics/withSpaces.def'
+    return "${buildDir}/withSpaces.def"
 }
 
 kotlinNativeInterop {
