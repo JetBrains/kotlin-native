@@ -197,11 +197,7 @@ fun checkBuildType(currentType: String, targetType: String): Boolean {
 fun prepareBuildsResponse(builds: Collection<String>, type: String, branch: String, buildNumber: String? = null): List<Build> {
     val buildsObjects = mutableListOf<Build>()
     builds.forEach {
-        val tokens = it.split(",").map { it.trim() }
-        if (tokens.size != buildsInfoPartsNumber) {
-            error("Build description $it doesn't contain all necessary information. " +
-                    "File with data could be corrupted.")
-        }
+        val tokens = buildDescriptionToTokens(it)
         if ((checkBuildType(tokens[5], type) || type == "day") && (branch == tokens[3] || branch == "all")
                 || tokens[0] == buildNumber) {
             buildsObjects.add(Build(tokens[0], tokens[1], tokens[2], tokens[3],
@@ -210,6 +206,15 @@ fun prepareBuildsResponse(builds: Collection<String>, type: String, branch: Stri
         }
     }
     return buildsObjects
+}
+
+fun buildDescriptionToTokens(buildDescription: String): List<String> {
+    val tokens = buildDescription.split(",").map { it.trim() }
+    if (tokens.size != buildsInfoPartsNumber) {
+        error("Build description $buildDescription doesn't contain all necessary information. " +
+                "File with data could be corrupted.")
+    }
+    return tokens
 }
 
 // Routing of requests to current server.
@@ -271,6 +276,16 @@ fun router() {
     router.get("/builds/:target/:type/:branch", { request, response ->
         val builds = LocalCache[request.params.target]
         response.json(prepareBuildsResponse(builds, request.params.type, request.params.branch))
+    })
+
+    router.get("/branches/:target", { request, response ->
+        val builds = LocalCache[request.params.target]
+        response.json(builds.map { buildDescriptionToTokens(it)[3] })
+    })
+
+    router.get("/buildsNumbers/:target", { request, response ->
+        val builds = LocalCache[request.params.target]
+        response.json(builds.map { buildDescriptionToTokens(it)[0] })
     })
 
     router.get("/clean", { _, response ->
