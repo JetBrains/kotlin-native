@@ -397,10 +397,10 @@ abstract class KotlinIrLinker(
 
                 val classDescriptor = it.descriptor as ClassDescriptor
                 val declaration = symbolTable.declareClass(
-                    UNDEFINED_OFFSET, UNDEFINED_OFFSET, irrelevantOrigin,
+                    UNDEFINED_OFFSET, UNDEFINED_OFFSET, IRRELEVANT_ORIGIN,
                     classDescriptor,
                     classDescriptor.modality
-                ) { symbol: IrClassSymbol -> IrClassImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, irrelevantOrigin, symbol) }
+                ) { symbol: IrClassSymbol -> IrClassImpl(UNDEFINED_OFFSET, UNDEFINED_OFFSET, IRRELEVANT_ORIGIN, symbol) }
                     .also {
                         it.parent = file
                     }

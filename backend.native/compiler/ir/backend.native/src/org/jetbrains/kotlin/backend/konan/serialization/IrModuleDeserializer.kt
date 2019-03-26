@@ -685,7 +685,7 @@ abstract class IrModuleDeserializer(
         val name = deserializeName(proto.name)
         val variance = deserializeIrTypeVariance(proto.variance)
 
-        val parameter = symbolTable.declareGlobalTypeParameter(UNDEFINED_OFFSET, UNDEFINED_OFFSET, irrelevantOrigin,
+        val parameter = symbolTable.declareGlobalTypeParameter(UNDEFINED_OFFSET, UNDEFINED_OFFSET, IRRELEVANT_ORIGIN,
             symbol.descriptor, { symbol ->
                 IrTypeParameterImpl(start, end, origin, symbol, name, proto.index, proto.isReified, variance)
             }
@@ -752,7 +752,7 @@ abstract class IrModuleDeserializer(
         val symbol = deserializeIrSymbol(proto.symbol) as IrClassSymbol
 
         val modality = deserializeModality(proto.modality)
-        val clazz = symbolTable.declareClass(UNDEFINED_OFFSET, UNDEFINED_OFFSET, irrelevantOrigin,
+        val clazz = symbolTable.declareClass(UNDEFINED_OFFSET, UNDEFINED_OFFSET, IRRELEVANT_ORIGIN,
             symbol.descriptor, modality) {
             IrClassImpl(
                         start, end, origin,
@@ -818,7 +818,7 @@ abstract class IrModuleDeserializer(
         logger.log { "### deserializing IrFunction ${proto.base.name}" }
         val symbol = deserializeIrSymbol(proto.symbol) as IrSimpleFunctionSymbol
 
-        val function = symbolTable.declareSimpleFunction(UNDEFINED_OFFSET, UNDEFINED_OFFSET, irrelevantOrigin,
+        val function = symbolTable.declareSimpleFunction(UNDEFINED_OFFSET, UNDEFINED_OFFSET, IRRELEVANT_ORIGIN,
             symbol.descriptor, {
                 IrFunctionImpl(
                     start, end, origin, it,
@@ -876,7 +876,7 @@ abstract class IrModuleDeserializer(
         val enumEntry = symbolTable.declareEnumEntry(
             UNDEFINED_OFFSET,
             UNDEFINED_OFFSET,
-            irrelevantOrigin,
+            IRRELEVANT_ORIGIN,
             symbol.descriptor
         ) {
             IrEnumEntryImpl(start, end, origin, it, deserializeName(proto.name))
@@ -925,7 +925,7 @@ abstract class IrModuleDeserializer(
     ): IrConstructor {
         val symbol = deserializeIrSymbol(proto.symbol) as IrConstructorSymbol
 
-        val constructor = symbolTable.declareConstructor(UNDEFINED_OFFSET, UNDEFINED_OFFSET, irrelevantOrigin,
+        val constructor = symbolTable.declareConstructor(UNDEFINED_OFFSET, UNDEFINED_OFFSET, IRRELEVANT_ORIGIN,
             symbol.descriptor, {
                 IrConstructorImpl(
                     start, end, origin,
@@ -950,7 +950,7 @@ abstract class IrModuleDeserializer(
         val type = deserializeIrType(proto.type)
         val field = symbolTable.declareField(UNDEFINED_OFFSET,
             UNDEFINED_OFFSET,
-            irrelevantOrigin,
+            IRRELEVANT_ORIGIN,
             symbol.descriptor,
             type,
             { IrFieldImpl(
@@ -1037,7 +1037,10 @@ abstract class IrModuleDeserializer(
     }
 
     private val allKnownOrigins =
-        IrDeclarationOrigin::class.nestedClasses.toList() + DeclarationFactory.FIELD_FOR_OUTER_THIS::class
+        IrDeclarationOrigin::class.nestedClasses.toList() +
+                DeclarationFactory.FIELD_FOR_OUTER_THIS::class +
+                DESERIALIZED_SERIALIZABLE_PLUGIN_ORIGIN::class
+
     val originIndex = allKnownOrigins.map { it.objectInstance as IrDeclarationOriginImpl }.associateBy { it.name }
     fun deserializeIrDeclarationOrigin(proto: KonanIr.IrDeclarationOrigin) = originIndex[deserializeString(proto.custom)]!!
 
@@ -1105,4 +1108,5 @@ abstract class IrModuleDeserializer(
     }
 }
 
-val irrelevantOrigin = object : IrDeclarationOriginImpl("irrelevant") {}
+val IRRELEVANT_ORIGIN = object : IrDeclarationOriginImpl("irrelevant") {}
+val DESERIALIZED_SERIALIZABLE_PLUGIN_ORIGIN = object : IrDeclarationOriginImpl("SERIALIZER") {}
