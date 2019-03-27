@@ -94,7 +94,7 @@ internal class CallGraphBuilder(val context: Context,
                     is DataFlowIR.Node.Call -> block(node)
 
                     is DataFlowIR.Node.Singleton ->
-                        node.constructor?.let { block(DataFlowIR.Node.Call(it, emptyList(), null)) }
+                        node.constructor?.let { block(DataFlowIR.Node.Call(it, emptyList(), node.type, null)) }
                 }
             }
 

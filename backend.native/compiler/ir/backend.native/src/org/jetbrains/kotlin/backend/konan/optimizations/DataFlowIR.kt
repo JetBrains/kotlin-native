@@ -30,6 +30,7 @@ import org.jetbrains.kotlin.ir.types.isUnit
 import org.jetbrains.kotlin.ir.util.fqNameSafe
 import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.isSuspend
+import org.jetbrains.kotlin.ir.util.dump
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.load.java.BuiltinMethodsWithSpecialGenericSignature
@@ -226,35 +227,34 @@ internal object DataFlowIR {
 
         object Null : Node()
 
-        open class Call(val callee: FunctionSymbol, val arguments: List<Edge>,
+        open class Call(val callee: FunctionSymbol, val arguments: List<Edge>, val returnType: Type,
                         open val irCallSite: IrFunctionAccessExpression?) : Node()
 
         class StaticCall(callee: FunctionSymbol, arguments: List<Edge>,
-                         val receiverType: Type?, irCallSite: IrFunctionAccessExpression?)
-            : Call(callee, arguments, irCallSite)
+                         val receiverType: Type?, returnType: Type, irCallSite: IrFunctionAccessExpression?)
+            : Call(callee, arguments, returnType, irCallSite)
 
         // TODO: It can be replaced with a pair(AllocInstance, constructor Call), remove.
-        class NewObject(constructor: FunctionSymbol, arguments: List<Edge>, val constructedType: Type,
-                        override val irCallSite: IrConstructorCall?)
-            : Call(constructor, arguments, irCallSite)
+        class NewObject(constructor: FunctionSymbol, arguments: List<Edge>, val constructedType: Type, override val irCallSite: IrConstructorCall?)
+            : Call(constructor, arguments, constructedType, irCallSite)
 
         open class VirtualCall(callee: FunctionSymbol, arguments: List<Edge>,
-                                   val receiverType: Type, override val irCallSite: IrCall?)
-            : Call(callee, arguments, irCallSite)
+                                   val receiverType: Type, returnType: Type, override val irCallSite: IrCall?)
+            : Call(callee, arguments, returnType, irCallSite)
 
         class VtableCall(callee: FunctionSymbol, receiverType: Type, val calleeVtableIndex: Int,
-                         arguments: List<Edge>, irCallSite: IrCall?)
-            : VirtualCall(callee, arguments, receiverType, irCallSite)
+                         arguments: List<Edge>, returnType: Type, irCallSite: IrCall?)
+            : VirtualCall(callee, arguments, receiverType, returnType, irCallSite)
 
         class ItableCall(callee: FunctionSymbol, receiverType: Type, val calleeHash: Long,
-                         arguments: List<Edge>, irCallSite: IrCall?)
-            : VirtualCall(callee, arguments, receiverType, irCallSite)
+                         arguments: List<Edge>, returnType: Type, irCallSite: IrCall?)
+            : VirtualCall(callee, arguments, receiverType, returnType, irCallSite)
 
         class Singleton(val type: Type, val constructor: FunctionSymbol?) : Node()
 
         class AllocInstance(val type: Type) : Node()
 
-        class FunctionReference(val symbol: FunctionSymbol, val type: Type) : Node()
+        class FunctionReference(val symbol: FunctionSymbol, val type: Type, val returnType: Type) : Node()
 
         class FieldRead(val receiver: Edge?, val field: Field, val ir: IrGetField?) : Node()
 
@@ -554,7 +554,8 @@ internal object DataFlowIR {
                             primitiveBinaryType,
                             module,
                             -1,
-                            null
+                            null,
+                            takeName { primitiveBinaryType.name }
                     )
                 }
 

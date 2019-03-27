@@ -248,7 +248,7 @@ internal object Devirtualization {
                     addInstantiatingClass(symbolTable.mapType(context.irBuiltIns.stringType))
                 }
                 // Traverse call graph from the roots.
-                rootSet.forEach { dfs(it) }
+                rootSet.forEach { dfs(it, it.returnParameter.type) }
                 return instantiatingClasses
             }
 
@@ -277,7 +277,7 @@ internal object Devirtualization {
 
                     else -> error("Unreachable")
                 }
-                dfs(callee)
+                dfs(callee, virtualCall.returnType)
             }
 
             private fun checkSupertypes(type: DataFlowIR.Type.Declared,
@@ -312,13 +312,13 @@ internal object Devirtualization {
                         .forEach { checkSupertypes(it, inheritor, seenTypes) }
             }
 
-            private fun dfs(symbol: DataFlowIR.FunctionSymbol) {
+            private fun dfs(symbol: DataFlowIR.FunctionSymbol, returnType: DataFlowIR.Type) {
                 val resolvedFunctionSymbol = symbol.resolved()
                 if (resolvedFunctionSymbol is DataFlowIR.FunctionSymbol.External) {
 
                     DEBUG_OUTPUT(1) { println("Function $resolvedFunctionSymbol is external") }
 
-                    val resolvedReturnType = symbol.returnParameter.type.resolved()
+                    val resolvedReturnType = returnType.resolved()
                     if (resolvedReturnType.isFinal) {
 
                         DEBUG_OUTPUT(1) { println("Adding return type as it is final") }
@@ -341,12 +341,12 @@ internal object Devirtualization {
                     when (node) {
                         is DataFlowIR.Node.NewObject -> {
                             addInstantiatingClass(node.constructedType)
-                            dfs(node.callee)
+                            dfs(node.callee, node.constructedType)
                         }
 
                         is DataFlowIR.Node.Singleton -> {
                             addInstantiatingClass(node.type)
-                            node.constructor?.let { dfs(it) }
+                            node.constructor?.let { dfs(it, node.type) }
                         }
 
                         is DataFlowIR.Node.AllocInstance -> {
@@ -356,10 +356,10 @@ internal object Devirtualization {
                         is DataFlowIR.Node.Const -> addInstantiatingClass(node.type)
 
                         is DataFlowIR.Node.StaticCall ->
-                            dfs(node.callee)
+                            dfs(node.callee, node.returnType)
 
                         is DataFlowIR.Node.FunctionReference ->
-                            dfs(node.symbol)
+                            dfs(node.symbol, node.returnType)
 
                         is DataFlowIR.Node.FieldRead ->
                             if (entryPoint == null && node.field.type.isFinal)
@@ -875,7 +875,7 @@ internal object Devirtualization {
                             function.parameters[node.index]
 
                         is DataFlowIR.Node.StaticCall ->
-                            doCall(node.callee, node.arguments, node.callee.returnParameter.type.resolved(),
+                            doCall(node.callee, node.arguments, node.returnType.resolved(),
                                     node.receiverType?.resolved())
 
                         is DataFlowIR.Node.NewObject -> {
@@ -919,7 +919,7 @@ internal object Devirtualization {
                                 println()
                             }
 
-                            val returnType = node.callee.returnParameter.type.resolved()
+                            val returnType = node.returnType.resolved()
                             val receiverNode = edgeToConstraintNode(node.arguments[0])
                             if (receiverType == DataFlowIR.Type.Virtual)
                                 constraintGraph.virtualNode.addEdge(receiverNode)

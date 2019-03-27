@@ -451,13 +451,14 @@ internal object DFGSerializer {
         }
     }
 
-    class Call(val callee: Int, val arguments: Array<Edge>) {
+    class Call(val callee: Int, val arguments: Array<Edge>, val returnType: Int) {
 
-        constructor(data: ArraySlice) : this(data.readInt(), data.readArray { Edge(this) })
+        constructor(data: ArraySlice) : this(data.readInt(), data.readArray { Edge(this) }, data.readInt())
 
         fun write(result: ArraySlice) {
             result.writeInt(callee)
             result.writeArray(arguments) { it.write(this) }
+            result.writeInt(returnType)
         }
     }
 
@@ -530,13 +531,14 @@ internal object DFGSerializer {
         }
     }
 
-    class FunctionReference(val symbol: Int, val type: Int) {
+    class FunctionReference(val symbol: Int, val type: Int, val returnType: Int) {
 
-        constructor(data: ArraySlice) : this(data.readInt(), data.readInt())
+        constructor(data: ArraySlice) : this(data.readInt(), data.readInt(), data.readInt())
 
         fun write(result: ArraySlice) {
             result.writeInt(symbol)
             result.writeInt(type)
+            result.writeInt(returnType)
         }
     }
 
@@ -693,8 +695,8 @@ internal object DFGSerializer {
             fun allocInst(type: Int) =
                     Node().also { it.allocInstance = AllocInstance(type) }
 
-            fun functionReference(symbol: Int, type: Int) =
-                    Node().also { it.functionReference = FunctionReference(symbol, type) }
+            fun functionReference(symbol: Int, type: Int, returnType: Int) =
+                    Node().also { it.functionReference = FunctionReference(symbol, type, returnType) }
 
             fun fieldRead(receiver: Edge?, field: Field) =
                     Node().also { it.fieldRead = FieldRead(receiver, field) }
@@ -897,7 +899,8 @@ internal object DFGSerializer {
                                 fun buildCall(call: DataFlowIR.Node.Call) =
                                         Call(
                                                 functionSymbolMap[call.callee]!!,
-                                                call.arguments.map { buildEdge(it) }.toTypedArray()
+                                                call.arguments.map { buildEdge(it) }.toTypedArray(),
+                                                typeMap[call.returnType]!!
                                         )
 
                                 fun buildVirtualCall(virtualCall: DataFlowIR.Node.VirtualCall) =
@@ -932,7 +935,7 @@ internal object DFGSerializer {
                                         Node.allocInst(typeMap[node.type]!!)
 
                                     is DataFlowIR.Node.FunctionReference ->
-                                        Node.functionReference(functionSymbolMap[node.symbol]!!, typeMap[node.type]!!)
+                                        Node.functionReference(functionSymbolMap[node.symbol]!!, typeMap[node.type]!!, typeMap[node.returnType]!!)
 
                                     is DataFlowIR.Node.FieldRead ->
                                         Node.fieldRead(node.receiver?.let { buildEdge(it) }, buildField(node.field))
@@ -1110,6 +1113,7 @@ internal object DFGSerializer {
                         DataFlowIR.Node.Call(
                                 functionSymbols[call.callee],
                                 call.arguments.map { deserializeEdge(it) },
+                                types[call.returnType],
                                 irCallSite = null
                         )
 
@@ -1119,6 +1123,7 @@ internal object DFGSerializer {
                             call.callee,
                             call.arguments,
                             types[virtualCall.receiverType],
+                            types[virtualCall.call.returnType],
                             irCallSite = null
                     )
                 }
@@ -1141,7 +1146,7 @@ internal object DFGSerializer {
                                 val staticCall = it.staticCall!!
                                 val call = deserializeCall(staticCall.call)
                                 val receiverType = staticCall.receiverType?.let { types[it] }
-                                DataFlowIR.Node.StaticCall(call.callee, call.arguments, receiverType, irCallSite = null)
+                                DataFlowIR.Node.StaticCall(call.callee, call.arguments, receiverType, call.returnType, irCallSite = null)
                             }
 
                             NodeType.NEW_OBJECT -> {
@@ -1158,6 +1163,7 @@ internal object DFGSerializer {
                                         virtualCall.receiverType,
                                         vtableCall.calleeVtableIndex,
                                         virtualCall.arguments,
+                                        virtualCall.returnType,
                                         virtualCall.irCallSite
                                 )
                             }
@@ -1170,6 +1176,7 @@ internal object DFGSerializer {
                                         virtualCall.receiverType,
                                         itableCall.calleeHash,
                                         virtualCall.arguments,
+                                        virtualCall.returnType,
                                         virtualCall.irCallSite
                                 )
                             }
@@ -1185,7 +1192,7 @@ internal object DFGSerializer {
 
                             NodeType.FUNCTION_REFERENCE -> {
                                 val functionReference = it.functionReference!!
-                                DataFlowIR.Node.FunctionReference(functionSymbols[functionReference.symbol], types[functionReference.type])
+                                DataFlowIR.Node.FunctionReference(functionSymbols[functionReference.symbol], types[functionReference.type], types[functionReference.returnType])
                             }
 
                             NodeType.FIELD_READ -> {
