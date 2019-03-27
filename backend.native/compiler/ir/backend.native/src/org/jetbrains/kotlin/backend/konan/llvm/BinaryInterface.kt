@@ -194,19 +194,6 @@ internal val IrFunction.functionName: String
                 if ((this@functionName as? IrSimpleFunction)?.correspondingProperty != null) {
                     append("#Accessor")
                 }
-
-                // We happen to have the clashing combinations such as
-                //@ObjCMethod("issueChallengeToPlayers:message:", "objcKniBridge1165")
-                //external fun GKScore.issueChallengeToPlayers(playerIDs: List<*>?, message: String?): Unit
-                //@ObjCMethod("issueChallengeToPlayers:message:", "objcKniBridge1172")
-                //external fun GKScore.issueChallengeToPlayers(playerIDs: List<*>?, message: String?): Unit
-                // So disambiguate by the name of the bridge for now.
-                // TODO: idealy we'd never generate such identical declarations.
-
-                if (this@functionName is IrSimpleFunction && this@functionName.hasObjCMethodAnnotation()) {
-                    this@functionName.objCMethodArgValue("selector") ?.let { append("#$it") }
-                    this@functionName.objCMethodArgValue("bridge") ?.let { append("#$it") }
-                }
             }
         }
 
