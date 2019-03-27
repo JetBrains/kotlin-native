@@ -280,12 +280,12 @@ fun router() {
 
     router.get("/branches/:target", { request, response ->
         val builds = LocalCache[request.params.target]
-        response.json(builds.map { buildDescriptionToTokens(it)[3] })
+        response.json(builds.map { buildDescriptionToTokens(it)[3] }.distinct())
     })
 
     router.get("/buildsNumbers/:target", { request, response ->
         val builds = LocalCache[request.params.target]
-        response.json(builds.map { buildDescriptionToTokens(it)[0] })
+        response.json(builds.map { buildDescriptionToTokens(it)[0] }.distinct())
     })
 
     router.get("/clean", { _, response ->
