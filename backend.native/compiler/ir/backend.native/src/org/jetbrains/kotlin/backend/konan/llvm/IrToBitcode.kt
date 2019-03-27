@@ -2177,7 +2177,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     private fun call(function: IrFunction, llvmFunction: LLVMValueRef, args: List<LLVMValueRef>,
                      resultLifetime: Lifetime): LLVMValueRef {
         val result = call(llvmFunction, args, resultLifetime)
-        if (function.returnType.isNothing()) {
+        if (!function.isSuspend && function.returnType.isNothing()) {
             functionGenerationContext.unreachable()
         }
 
