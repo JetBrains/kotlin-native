@@ -1108,5 +1108,5 @@ abstract class IrModuleDeserializer(
     }
 }
 
-val IRRELEVANT_ORIGIN = object : IrDeclarationOriginImpl("irrelevant") {}
-val DESERIALIZED_SERIALIZABLE_PLUGIN_ORIGIN = object : IrDeclarationOriginImpl("SERIALIZER") {}
+object IRRELEVANT_ORIGIN : IrDeclarationOriginImpl("irrelevant")
+object DESERIALIZED_SERIALIZABLE_PLUGIN_ORIGIN : IrDeclarationOriginImpl("SERIALIZER")
