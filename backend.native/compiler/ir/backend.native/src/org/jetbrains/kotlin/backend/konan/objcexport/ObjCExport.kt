@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.backend.konan.objcexport
 
 import org.jetbrains.kotlin.backend.konan.descriptors.getPackageFragments
+import org.jetbrains.kotlin.backend.konan.descriptors.isInterface
 import org.jetbrains.kotlin.backend.konan.isNativeBinary
 import org.jetbrains.kotlin.backend.konan.llvm.CodeGenerator
 import org.jetbrains.kotlin.backend.konan.llvm.objcexport.ObjCExportCodeGenerator
@@ -13,7 +14,9 @@ import org.jetbrains.kotlin.descriptors.CallableMemberDescriptor
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.descriptors.SourceFile
+import org.jetbrains.kotlin.konan.exec.Command
 import org.jetbrains.kotlin.konan.file.File
+import org.jetbrains.kotlin.konan.file.createTempFile
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.target.Family
@@ -80,7 +83,10 @@ internal class ObjCExport(val codegen: CodeGenerator) {
         val headerName = frameworkName + ".h"
         val header = headers.child(headerName)
         headers.mkdirs()
-        header.writeLines(headerGenerator.build())
+        val headerLines = headerGenerator.build()
+        header.writeLines(headerLines)
+
+        generateWorkaroundForSwiftSR10177(headerGenerator.namer, headerGenerator.generatedClasses, headerLines)
 
         val modules = frameworkContents.child("Modules")
         modules.mkdirs()
@@ -199,6 +205,52 @@ internal class ObjCExport(val codegen: CodeGenerator) {
         // TODO: Xcode also add some number of DT* keys.
 
         file.writeBytes(contents.toString().toByteArray())
+    }
+
+    // See https://bugs.swift.org/browse/SR-10177
+    private fun generateWorkaroundForSwiftSR10177(
+            namer: ObjCExportNamer,
+            generatedClasses: Set<ClassDescriptor>,
+            headerLines: List<String>
+    ) {
+        // Code for all protocols from the header should get into the binary.
+        // Objective-C protocols ABI is complicated (consider e.g. undocumented extended type encoding),
+        // so the easiest way to achieve this (quickly) is to compile a stub by clang.
+
+        val protocolsStub = listOf(
+                "__attribute__((used)) static void __workaroundSwiftSR10177() {",
+                buildString {
+                    append("    ")
+                    generatedClasses.forEach {
+                        if (it.isInterface) {
+                            val protocolName = namer.getClassOrProtocolName(it).objCName
+                            append("@protocol($protocolName); ")
+                        }
+                    }
+                },
+                "}"
+        )
+
+        val source = createTempFile("protocols", ".m").deleteOnExit()
+        source.writeLines(headerLines + protocolsStub)
+
+        val bitcode = createTempFile("protocols", ".bc").deleteOnExit()
+
+        val clangCommand = context.config.clang.clangC(
+                source.absolutePath,
+                "-O2",
+                "-emit-llvm",
+                "-c", "-o", bitcode.absolutePath
+        )
+
+        val result = Command(clangCommand).getResult(withErrors = true)
+
+        if (result.exitCode == 0) {
+            context.llvm.additionalProducedBitcodeFiles += bitcode.absolutePath
+        } else {
+            // Note: ignoring compile errors intentionally.
+            // In this case resulting framework will likely be unusable due to compile errors when importing it.
+        }
     }
 }
 
