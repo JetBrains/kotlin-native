@@ -24,6 +24,7 @@ const val teamCityUrl = "https://buildserver.labs.intellij.net/app/rest"
 const val downloadBintrayUrl = "https://dl.bintray.com/content/lepilkinaelena/KotlinNativePerformance"
 const val uploadBintrayUrl = "https://api.bintray.com/content/lepilkinaelena/KotlinNativePerformance"
 const val buildsFileName = "buildsSummary.csv"
+const val goldenResultsFileName = "goldenResults.csv"
 const val bintrayPackage = "builds"
 const val buildsInfoPartsNumber = 11
 
@@ -108,6 +109,9 @@ object LocalCache {
         return builds
     }
 }
+
+data class GoldenResult(val benchmarkName: String, val metric: String, val value: Double)
+data class GoldenResultsInfo(val bintrayUser: String, val bintrayPassword: String, val goldenResults: Array<GoldenResult>)
 
 // Build information provided from request.
 data class BuildInfo(val buildNumber: String, val branch: String, val startTime: String,
@@ -263,6 +267,20 @@ fun router() {
         LocalCache.clean(register.target)
         LocalCache.fill(register.target)
 
+        // Send response.
+        response.sendStatus(200)
+    })
+
+    // Register golden results to normalize on Bintray.
+    router.post("/registerGolden", { request, response ->
+        val goldenResultsInfo = JSON.parse<GoldenResultsInfo>(JSON.stringify(request.body))
+        val buildsDescription = StringBuilder(sendGetRequest("$downloadBintrayUrl/$goldenResultsFileName"))
+        goldenResultsInfo.goldenResults.forEach {
+            buildsDescription.append("${it.benchmarkName}, ${it.metric}, ${it.value}\n")
+        }
+        // Upload new version of file.
+        val uploadUrl = "$uploadBintrayUrl/$bintrayPackage/latest/$goldenResultsFileName?publish=1&override=1"
+        sendUploadRequest(uploadUrl, buildsDescription.toString(), goldenResultsInfo.bintrayUser, goldenResultsInfo.bintrayPassword)
         // Send response.
         response.sendStatus(200)
     })

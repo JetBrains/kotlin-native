@@ -31,6 +31,7 @@ external class ChartistPlugins {
 external object Chartist {
     class Svg(form: String, parameters: dynamic, chartArea: String)
     val plugins: ChartistPlugins
+    val Interpolation: dynamic
     fun Line(query: String, data: dynamic, options: dynamic): dynamic
 }
 
@@ -115,6 +116,9 @@ fun getChartOptions(samples: Array<String>, yTitle: String, classNames: Array<St
     axisYTitle["textAnchor"] = "middle"
     axisYTitle["flipTitle"] = true
     titleObject["axisY"] = axisYTitle
+    val interpolationObject: dynamic = {}
+    interpolationObject["fillHoles"] = true
+    chartOptions["lineSmooth"] = Chartist.Interpolation.simple(interpolationObject)
     chartOptions["plugins"] = arrayOf(Chartist.plugins.legend(legendObject), Chartist.plugins.ctAxisTitle(titleObject))
     return chartOptions
 }
@@ -158,6 +162,7 @@ fun customizeChart(chart: dynamic, chartContainer: String, jquerySelector: dynam
                     else ""}"
             val information = buildString {
                 append("<a href=\"$linkToDetailedInfo\">${currentBuild.buildNumber}</a><br>")
+                append("Value: ${data.value.y.toFixed(4)}<br>")
                 if (currentBuild.failuresNumber > 0) {
                     append("failures: ${currentBuild.failuresNumber}<br>")
                 }
@@ -190,8 +195,7 @@ fun customizeChart(chart: dynamic, chartContainer: String, jquerySelector: dynam
 }
 
 fun main(args: Array<String>) {
-    //val serverUrl = "https://kotlin-native-perf-summary.labs.jb.gg"
-    val serverUrl = "http://localhost:3000"
+    val serverUrl = "https://kotlin-native-perf-summary.labs.jb.gg"
 
     // Get parameters from request.
     val url = window.location.href
@@ -317,7 +321,7 @@ fun main(args: Array<String>) {
             getChartOptions(compileTime.keys.toTypedArray(), "Time, milliseconds"))
     val codeSizeChart = Chartist.Line("#codesize_chart", getChartData(labels, codeSize.values, sizeClassName),
             getChartOptions(codeSize.keys.toTypedArray(), "Size, KB", arrayOf("ct-series-2")))
-    val bundleSizeChart = Chartist.Line("#bundlesize_chart", getChartData(labels, listOf(bundleSize), "ct-series-d"),
+    val bundleSizeChart = Chartist.Line("#bundlesize_chart", getChartData(labels, listOf(bundleSize), sizeClassName),
             getChartOptions(arrayOf("Bundle size"), "Size, MB", arrayOf("ct-series-2")))
 
     // Tooltips and higlights.
