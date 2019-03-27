@@ -44,6 +44,8 @@ internal class LinkStage(val context: Context) {
     private val bitcodeLibraries = context.llvm.bitcodeToLink
     private val nativeDependencies = context.llvm.nativeDependenciesToLink
 
+    private val additionalBitcodeFilesToLink = context.llvm.additionalProducedBitcodeFiles
+
     private fun MutableList<String>.addNonEmpty(elements: List<String>) {
         addAll(elements.filter { !it.isEmpty() })
     }
@@ -211,7 +213,7 @@ internal class LinkStage(val context: Context) {
     val objectFiles = mutableListOf<String>()
 
     fun makeObjectFiles() {
-        val bitcodeFiles = listOf(emitted) +
+        val bitcodeFiles = listOf(emitted) + additionalBitcodeFilesToLink +
                 bitcodeLibraries.map { it.bitcodePaths }.flatten().filter { it.isBitcode }
 
         objectFiles.add(when (platform.configurables) {
