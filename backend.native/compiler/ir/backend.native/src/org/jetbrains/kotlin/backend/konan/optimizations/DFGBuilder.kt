@@ -549,7 +549,10 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
 
                             is IrFunctionReference -> {
                                 val callee = value.symbol.owner
-                                DataFlowIR.Node.FunctionReference(symbolTable.mapFunction(callee), symbolTable.mapType(value.type))
+                                DataFlowIR.Node.FunctionReference(
+                                        symbolTable.mapFunction(callee),
+                                        symbolTable.mapType(value.type),
+                                        /*TODO: substitute*/symbolTable.mapType(callee.returnType))
                             }
 
                             is IrConst<*> ->
@@ -599,6 +602,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                             symbolTable.mapFunction(callee),
                                             arguments,
                                             symbolTable.mapClassReferenceType(callee.constructedClass),
+                                            symbolTable.mapClassReferenceType(symbols.unit.owner),
                                             null
                                     )
                                 }
@@ -645,6 +649,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                                         receiverType,
                                                         calleeHash,
                                                         arguments,
+                                                        symbolTable.mapType(value.type),
                                                         value
                                                 )
                                             } else {
@@ -655,6 +660,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                                         receiverType,
                                                         vtableIndex,
                                                         arguments,
+                                                        symbolTable.mapType(value.type),
                                                         value
                                                 )
                                             }
@@ -664,6 +670,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                                     symbolTable.mapFunction(actualCallee),
                                                     arguments,
                                                     actualCallee.dispatchReceiverParameter?.let { symbolTable.mapType(it.type) },
+                                                    symbolTable.mapType(value.type),
                                                     value
                                             )
                                         }
@@ -680,6 +687,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                         symbolTable.mapFunction(value.symbol.owner),
                                         arguments.map { expressionToEdge(it) },
                                         symbolTable.mapType(thiz.type),
+                                        symbolTable.mapClassReferenceType(symbols.unit.owner),
                                         value
                                 )
                             }
