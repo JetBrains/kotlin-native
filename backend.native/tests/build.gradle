@@ -2905,7 +2905,7 @@ int customCompare(const char* str1, const char* str2) {
     return custom_strcmp(str1, str2);
 }
 """
-    return "${buildDir}/withSpaces.def"
+    return file.absolutePath
 }
 
 kotlinNativeInterop {
