@@ -28,6 +28,8 @@ class DescriptorReferenceSerializer(val declarationTable: DeclarationTable, val 
 
         if (descriptor is ParameterDescriptor || (descriptor is VariableDescriptor && descriptor !is PropertyDescriptor) || descriptor is TypeParameterDescriptor) return null
 
+        if (declaration is IrConstructor && (declaration.origin as? IrDeclarationOriginImpl)?.name == "SERIALIZER") return null
+
         val containingDeclaration = descriptor.containingDeclaration!!
 
         val (packageFqName, classFqName) = when (containingDeclaration) {
