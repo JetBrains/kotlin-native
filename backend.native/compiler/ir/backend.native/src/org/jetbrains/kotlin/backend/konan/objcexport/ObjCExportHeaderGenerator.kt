@@ -18,6 +18,7 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.*
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeUtils
+import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.types.typeUtil.isTypeParameter
 import org.jetbrains.kotlin.types.typeUtil.supertypes
 import org.jetbrains.kotlin.utils.addIfNotNull
@@ -63,7 +64,7 @@ internal class ObjCExportTranslatorImpl(
 
         return translateClassOrInterfaceName(descriptor).also {
             val sb = StringBuilder(it.objCName)
-            formatGenerics(sb, descriptor.genericParamNames())
+            formatGenerics(sb, descriptor.genericParamDeclaration())
             generator?.referenceClass(sb.toString(), descriptor)
         }
     }
@@ -217,7 +218,7 @@ internal class ObjCExportTranslatorImpl(
 
         return objCInterface(
                 name,
-                generics = descriptor.genericParamNames(),
+                generics = descriptor.genericParamDeclaration(),
                 descriptor = descriptor,
                 superClass = superName.objCName,
                 superProtocols = superProtocols,
@@ -930,8 +931,6 @@ abstract class ObjCExportHeaderGenerator internal constructor(
 
     internal fun generateClass(descriptor: ClassDescriptor) {
         if (!generatedClasses.add(descriptor)) return
-        if(descriptor.name.asString().contains("SimpleGenUse"))
-            println("SimpleGenUse Heyo")
         stubs.add(translator.translateClass(descriptor))
     }
 
@@ -1019,6 +1018,12 @@ internal object NoneTypeParamProvider: TypeParamProvider{
     override fun typeAvailable(typeName: String): Boolean = false
 }
 
-internal fun ClassDescriptor.genericParamNames(): List<String> = declaredTypeParameters.map { typeParam ->
-    typeParam.name.asString()
+internal fun ClassDescriptor.genericParamDeclaration(): List<String> = declaredTypeParameters.map { typeParam ->
+    "${typeParam.variance.objcDeclaration()}${typeParam.name.asString()}"
+}
+
+private fun Variance.objcDeclaration():String = when(this){
+    Variance.OUT_VARIANCE -> "__covariant "
+    Variance.IN_VARIANCE -> "__contravariant "
+    else -> ""
 }
