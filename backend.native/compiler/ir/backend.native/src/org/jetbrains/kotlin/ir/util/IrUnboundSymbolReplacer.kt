@@ -25,11 +25,6 @@ internal fun IrModuleFragment.replaceUnboundSymbols(context: Context) {
     with(collector) {
         with(irBuiltins) {
             for (op in arrayOf(eqeqeqSymbol, eqeqSymbol, throwNpeSymbol, noWhenBranchMatchedExceptionSymbol) +
-                    lessFunByOperandType.values +
-                    lessOrEqualFunByOperandType.values +
-                    greaterOrEqualFunByOperandType.values +
-                    greaterFunByOperandType.values +
-                    ieee754equalsFunByOperandType.values) {
                 register(op)
             }
         }

@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.types.isUnit
 import org.jetbrains.kotlin.types.SimpleType
+import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 
 /**
  * List of all implemented interfaces (including those which implemented by a super class)
