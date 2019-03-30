@@ -2101,7 +2101,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
         with(functionGenerationContext) {
             return when {
-                function == ib.eqeqeqFun -> icmpEq(args[0], args[1])
+                function.symbol == ib.eqeqeqSymbol -> icmpEq(args[0], args[1])
                 function.symbol == ib.booleanNotSymbol -> icmpNe(args[0], kTrue)
 
                 function.isComparisonFunction(ib.greaterFunByOperandType) -> {
