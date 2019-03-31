@@ -653,13 +653,14 @@ inline void DecrementRC(ContainerHeader* container) {
   if (container->decRefCount<Atomic>() == 0) {
     FreeContainer(container);
   } else if (UseCycleCollector) { // Possible root.
-    RuntimeAssert(!Atomic, "Cycle collector shalln't be used with shared objects yet");
+    RuntimeAssert(!Atomic && !container->shareable(), "Cycle collector shalln't be used with shared objects yet");
     RuntimeAssert(container->objectCount() == 1, "cycle collector shall only work with single object containers");
     // We do not use cycle collector for frozen objects, as we already detected
     // possible cycles during freezing.
     // Also do not use cycle collector for provable acyclic objects.
     int color = container->color();
     if (color != CONTAINER_TAG_GC_PURPLE && color != CONTAINER_TAG_GC_GREEN) {
+      RuntimeAssert(!container->shareable(), "Shareable cannot be cycle collected");
       container->setColorAssertIfGreen(CONTAINER_TAG_GC_PURPLE);
       if (!container->buffered()) {
         container->setBuffered();
@@ -736,9 +737,9 @@ void dumpContainerContent(ContainerHeader* container) {
                colorNames[container->color()], container, container->objectCount(), container->refCount());
     ContainerHeader** subContainer = reinterpret_cast<ContainerHeader**>(container + 1);
     for (int i = 0; i < container->objectCount(); ++i) {
-      ObjHeader* obj = reinterpret_cast<ObjHeader*>(subContainer + 1);
-      MEMORY_LOG("    object %p of type %p: ", obj, obj->type_info());
-      dumpObject(obj, 4);
+      ContainerHeader* sub = *subContainer++;
+      MEMORY_LOG("    container %p\n ", sub);
+      dumpContainerContent(sub);
     }
   } else {
     MEMORY_LOG("%s regular %s%scontainer %p with %d objects rc=%d\n",
@@ -755,13 +756,15 @@ void dumpContainerContent(ContainerHeader* container) {
 void dumpWorker(const char* prefix, ContainerHeader* header, ContainerHeaderSet* seen) {
   dumpContainerContent(header);
   seen->insert(header);
-  traverseContainerReferredObjects(header, [prefix, seen](ObjHeader* ref) {
-    auto* child = ref->container();
-    RuntimeAssert(!isArena(child), "A reference to local object is encountered");
-    if (child != nullptr && (seen->count(child) == 0)) {
-      dumpWorker(prefix, child, seen);
-    }
-  });
+  if (!isAggregatingFrozenContainer(header)) {
+    traverseContainerReferredObjects(header, [prefix, seen](ObjHeader* ref) {
+      auto* child = ref->container();
+      RuntimeAssert(!isArena(child), "A reference to local object is encountered");
+      if (child != nullptr && (seen->count(child) == 0)) {
+        dumpWorker(prefix, child, seen);
+      }
+    });
+  }
 }
 
 void dumpReachable(const char* prefix, const ContainerHeaderSet* roots) {
@@ -1668,9 +1671,10 @@ void incrementStack(MemoryState* state) {
   }
 }
 
-void incrementNewlyFrozenOnStack(MemoryState* state, const ContainerHeaderSet* newlyFrozen) {
+void actualizeNewlyFrozenOnStack(MemoryState* state, const ContainerHeaderSet* newlyFrozen) {
+  // For all frozen objects in stack slots - perform reference increment.
   FrameOverlay* frame = state->currentFrame;
-  MEMORY_LOG("incrementNewlyFrozenOnStack: newly frozen size is %d\n", newlyFrozen->size())
+  MEMORY_LOG("actualizeNewlyFrozenOnStack: newly frozen size is %d\n", newlyFrozen->size())
   while (frame != nullptr) {
     MEMORY_LOG("current frame %p: %d parameters %d locals\n", frame, frame->parameters, frame->count)
     ObjHeader** current = reinterpret_cast<ObjHeader**>(frame + 1) + frame->parameters;
@@ -1681,14 +1685,23 @@ void incrementNewlyFrozenOnStack(MemoryState* state, const ContainerHeaderSet* n
       if (obj != nullptr) {
         auto* container = obj->container();
         // No need to use atomic increment yet, object is still local.
-        if (container != nullptr &&
-            container->tag() == CONTAINER_TAG_FROZEN &&
-            newlyFrozen->count(container) != 0) {
+        if (container != nullptr && container->frozen() && newlyFrozen->count(container) != 0) {
           IncrementRC<false>(container);
         }
       }
     }
     frame = frame->previous;
+  }
+
+  // And actualize RC of those objects using toRelease set.
+  for (auto& container : *(state->toRelease)) {
+    if (!isMarkedAsRemoved(container) && container->frozen()) {
+      RuntimeAssert(newlyFrozen->count(container) != 0, "Must be newly frozen");
+      ContainerHeader* realContainer = reinterpret_cast<ObjHeader*>(container + 1)->container();
+      auto oldRc = realContainer->decRefCount<false>();
+      MEMORY_LOG("decremented rc of %p to %d\n", realContainer, oldRc);
+      container = markAsRemoved(container);
+    }
   }
 }
 
@@ -1859,7 +1872,8 @@ OBJ_GETTER(AdoptStablePointer, KNativePtr pointer) {
     MEMORY_LOG("adopting stable pointer %p, rc=%d\n", ref, (ref->container() != nullptr) ? ref->container()->refCount() : -1)
     auto* container = ref->container();
     *getReturnSlot(OBJ_RESULT) = ref;
-    // We just adopted an object, if it is adopted on the stack, we need to schedule RC decrement.
+    // We just adopted an object, if it is adopted on the stack, we need to schedule RC decrement,
+    // as for this worker it looks like if it was
     if (container != nullptr && container->tag() == CONTAINER_TAG_NORMAL && !isHeapReturnSlot(OBJ_RESULT))
       EnqueueDecrementRC</* CanCollect = */true>(container);
   }
@@ -1885,71 +1899,66 @@ bool hasExternalRefs(ContainerHeader* start, ContainerHeaderSet* visited) {
   }
   return false;
 }
-#endif
+#endif  // USE_GC
 
 bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
 #if USE_GC
-  if (root != nullptr) {
-    auto state = memoryState;
-    auto* container = root->container();
+  if (root == nullptr) return true;
+  auto state = memoryState;
+  auto* container = root->container();
 
-    if (container == nullptr || container->frozen())
-      // We assume, that frozen objects can be safely passed and are already removed
-      // from the GC candidate list.
-      return true;
+  if (Shareable(container))
+    // We assume, that frozen/shareable objects can be safely passed and not present
+    // in the GC candidate list.
+    // TODO: assert for that?
+    return true;
 
-    // Now compute how much time we shall decrement RC for reachibility analysis.
-    // Initial 1 is for holder holding the object.
-    int rcDecrement = 1;
+  ContainerHeaderSet visited;
+  if (!checked) {
+    hasExternalRefs(container, &visited);
+  } else {
+    // Now decrement RC of elements in toRelease set for reachibility analysis.
     for (auto it = state->toRelease->begin(); it != state->toRelease->end(); ++it) {
       auto released = *it;
-      // Actually first check is excessive, just for clarity of intentions.
-      if (!isMarkedAsRemoved(released) && container == released) {
-        rcDecrement++;
-        *it = markAsRemoved(released);
+      if (!isMarkedAsRemoved(released) && released->tag() == CONTAINER_TAG_NORMAL) {
+        released->decRefCount<false>();
       }
     }
-
-    ContainerHeaderSet visited;
-    if (!checked) {
-      hasExternalRefs(container, &visited);
-    } else {
-      if (!Shareable(container)) {
-        for (int i = 0; i < rcDecrement; i++)
-          container->decRefCount<false>();
-        MarkGray<false>(container);
-        auto bad = hasExternalRefs(container, &visited);
-        ScanBlack<false>(container);
-        if (bad) {
-           // Restore original RC if the check failed.
-           for (int i = 0; i < rcDecrement; i++) container->incRefCount<false>();
-           return false;
-        }
-        container->incRefCount<false>();
-      }
-    }
-
-    // Remove all no longer owned containers from GC structures.
-    state->gcSuspendCount++;
-    // TODO: not very efficient traversal.
-    for (auto it = state->toFree->begin(); it != state->toFree->end(); ++it) {
-      auto container = *it;
-      if (visited.count(container) != 0) {
-        MEMORY_LOG("removing %p from the toFree list", container)
-        container->resetBuffered();
-        container->setColorAssertIfGreen(CONTAINER_TAG_GC_BLACK);
-        *it = markAsRemoved(container);
-      }
-    }
+    container->decRefCount<false>();
+    MarkGray<false>(container);
+    auto bad = hasExternalRefs(container, &visited);
+    ScanBlack<false>(container);
+    // Restore original RC.
+    container->incRefCount<false>();
     for (auto it = state->toRelease->begin(); it != state->toRelease->end(); ++it) {
-      auto container = *it;
-      if (!isMarkedAsRemoved(container) && visited.count(container) != 0) {
-        MEMORY_LOG("removing %p from the toRelease list", container)
-        DecrementRC(container);
-        *it = markAsRemoved(container);
-      }
+       auto released = *it;
+       if (!isMarkedAsRemoved(released) && released->tag() == CONTAINER_TAG_NORMAL) {
+         released->incRefCount<false>();
+       }
     }
-    state->gcSuspendCount--;
+    if (bad) {
+      return false;
+    }
+  }
+
+  // Remove all no longer owned containers from GC structures.
+  // TODO: not very efficient traversal.
+  for (auto it = state->toFree->begin(); it != state->toFree->end(); ++it) {
+    auto container = *it;
+    if (visited.count(container) != 0) {
+      MEMORY_LOG("removing %p from the toFree list", container)
+      container->resetBuffered();
+      container->setColorAssertIfGreen(CONTAINER_TAG_GC_BLACK);
+      *it = markAsRemoved(container);
+    }
+  }
+  for (auto it = state->toRelease->begin(); it != state->toRelease->end(); ++it) {
+    auto container = *it;
+    if (!isMarkedAsRemoved(container) && visited.count(container) != 0) {
+      MEMORY_LOG("removing %p from the toRelease list", container)
+      container->decRefCount<false>();
+      *it = markAsRemoved(container);
+    }
   }
 #endif  // USE_GC
   return true;
@@ -2174,11 +2183,13 @@ void FreezeSubgraph(ObjHeader* root) {
   // and use it when analyzing toFree during collection.
   auto state = memoryState;
   for (auto& container : *(state->toFree)) {
-      if (!isMarkedAsRemoved(container) && container->frozen())
-        container = markAsRemoved(container);
+    if (!isMarkedAsRemoved(container) && container->frozen()) {
+      RuntimeAssert(newlyFrozen.count(container) != 0, "Must be newly frozen");
+      container = markAsRemoved(container);
+    }
   }
   // Actualize reference counters of newly frozen objects.
-  incrementNewlyFrozenOnStack(memoryState, &newlyFrozen);
+  actualizeNewlyFrozenOnStack(memoryState, &newlyFrozen);
 #endif
 }
 

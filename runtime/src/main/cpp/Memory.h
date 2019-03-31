@@ -109,8 +109,8 @@ struct ContainerHeader {
     return (refCount_ & CONTAINER_TAG_MASK) == CONTAINER_TAG_STACK;
   }
 
-  inline unsigned refCount() const {
-    return refCount_ >> CONTAINER_TAG_SHIFT;
+  inline int refCount() const {
+    return (int)refCount_ >> CONTAINER_TAG_SHIFT;
   }
 
   inline void setRefCount(unsigned refCount) {
