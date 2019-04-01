@@ -112,6 +112,7 @@ volatile int allocCount = 0;
 volatile int aliveMemoryStatesCount = 0;
 
 // Forward declarations.
+
 void FreeContainer(ContainerHeader* header);
 
 #if COLLECT_STATISTIC
@@ -432,6 +433,11 @@ inline container_size_t alignUp(container_size_t size, int alignment) {
   return (size + alignment - 1) & ~(alignment - 1);
 }
 
+inline ContainerHeader* realFrozenContainer(ContainerHeader* container) {
+  RuntimeAssert(container->frozen(), "Only makes sense on frozen objects");
+  return reinterpret_cast<ObjHeader*>(container + 1)->container();
+}
+
 inline uint32_t arrayObjectSize(const TypeInfo* typeInfo, uint32_t count) {
   // Note: array body is aligned, but for size computation it is enough to align the sum.
   static_assert(kObjectAlignment % alignof(KLong) == 0, "");
@@ -650,9 +656,12 @@ inline void IncrementRC(ContainerHeader* container) {
 
 template <bool Atomic, bool UseCycleCollector>
 inline void DecrementRC(ContainerHeader* container) {
+  // TODO: enable me, once account for inner references in frozen objects correctly.
+  // RuntimeAssert(container->refCount() > 0, "Must be positive");
   if (container->decRefCount<Atomic>() == 0) {
     FreeContainer(container);
   } else if (UseCycleCollector) { // Possible root.
+    RuntimeAssert(container->refCount() > 0, "Must be positive");
     RuntimeAssert(!Atomic && !container->shareable(), "Cycle collector shalln't be used with shared objects yet");
     RuntimeAssert(container->objectCount() == 1, "cycle collector shall only work with single object containers");
     // We do not use cycle collector for frozen objects, as we already detected
@@ -677,10 +686,13 @@ inline void DecrementRC(ContainerHeader* container) {
 }
 
 inline void DecrementRC(ContainerHeader* container) {
+   // TODO: enable me, once account for inner references in frozen objects correctly.
+  // RuntimeAssert(container->refCount() > 0, "Must be positive");
   bool useCycleCollector = container->tag() == CONTAINER_TAG_NORMAL;
   if (container->decRefCount() == 0) {
     FreeContainer(container);
   } else if (useCycleCollector) {
+      RuntimeAssert(container->refCount() > 0, "Must be positive");
       RuntimeAssert(!container->shareable(), "Cycle collector shalln't be used with shared objects yet");
       RuntimeAssert(container->objectCount() == 1, "cycle collector shall only work with single object containers");
       // We do not use cycle collector for frozen objects, as we already detected
@@ -988,6 +1000,7 @@ ALWAYS_INLINE inline void AddStackRef(ContainerHeader* container) {
       break;
     /* case CONTAINER_TAG_FROZEN: case CONTAINER_TAG_ATOMIC: */
     default:
+      MEMORY_LOG("AddStackRef %p: rc=%d\n", container, container->refCount())
       IncrementRC</* Atomic = */ true>(container);
       break;
   }
@@ -1023,6 +1036,7 @@ ALWAYS_INLINE inline void ReleaseStackRef(ContainerHeader* container) {
       break;
     /* case CONTAINER_TAG_FROZEN: case CONTAINER_TAG_ATOMIC: */
     default:
+      MEMORY_LOG("ReleaseStackRef %p: rc=%d\n", container, container->refCount())
       DecrementRC</* Atomic = */ true, /* UseCyclicCollector = */ false>(container);
       break;
   }
@@ -1157,7 +1171,6 @@ void FreeAggregatingFrozenContainer(ContainerHeader* container) {
 
 void FreeContainer(ContainerHeader* container) {
   RuntimeAssert(container != nullptr, "this kind of container shalln't be freed");
-  auto state = memoryState;
 
   if (isAggregatingFrozenContainer(container)) {
     FreeAggregatingFrozenContainer(container);
@@ -1167,15 +1180,15 @@ void FreeContainer(ContainerHeader* container) {
   runDeallocationHooks(container);
 
   // Now let's clean all object's fields in this container.
-  traverseContainerObjectFields(container, [](ObjHeader** location) {
-    ZeroHeapRef(location);
+  traverseContainerObjectFields(container, [container](ObjHeader** location) {
+      ZeroHeapRef(location);
   });
 
   // And release underlying memory.
   if (isFreeable(container)) {
     container->setColorEvenIfGreen(CONTAINER_TAG_GC_BLACK);
     if (!container->buffered())
-      scheduleDestroyContainer(state, container);
+      scheduleDestroyContainer(memoryState, container);
   }
 }
 
@@ -1686,7 +1699,8 @@ void actualizeNewlyFrozenOnStack(MemoryState* state, const ContainerHeaderSet* n
         auto* container = obj->container();
         // No need to use atomic increment yet, object is still local.
         if (container != nullptr && container->frozen() && newlyFrozen->count(container) != 0) {
-          IncrementRC<false>(container);
+          container->incRefCount<false>();
+          MEMORY_LOG("incremented rc of %p to %d\n", container, container->refCount());
         }
       }
     }
@@ -1697,9 +1711,10 @@ void actualizeNewlyFrozenOnStack(MemoryState* state, const ContainerHeaderSet* n
   for (auto& container : *(state->toRelease)) {
     if (!isMarkedAsRemoved(container) && container->frozen()) {
       RuntimeAssert(newlyFrozen->count(container) != 0, "Must be newly frozen");
-      ContainerHeader* realContainer = reinterpret_cast<ObjHeader*>(container + 1)->container();
-      auto oldRc = realContainer->decRefCount<false>();
-      MEMORY_LOG("decremented rc of %p to %d\n", realContainer, oldRc);
+      // To account for aggregating containers.
+      ContainerHeader* realContainer = realFrozenContainer(container);
+      auto newRc = realContainer->decRefCount<false>();
+      MEMORY_LOG("decremented rc of %p to %d\n", realContainer, newRc);
       container = markAsRemoved(container);
     }
   }
@@ -2126,7 +2141,10 @@ void freezeCyclic(ContainerHeader* rootContainer,
     // Create fictitious container for the whole component.
     auto superContainer = component.size() == 1 ? component[0] : AllocAggregatingFrozenContainer(component);
     // Don't count internal references.
+    MEMORY_LOG("Setting aggregating %p rc to %d (total %d inner %d)\n", \
+        superContainer, totalCount - internalRefsCount, totalCount, internalRefsCount)
     superContainer->setRefCount(totalCount - internalRefsCount);
+    newlyFrozen->insert(superContainer);
   }
 }
 
