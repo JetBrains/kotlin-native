@@ -579,11 +579,6 @@ inline bool isHeapReturnSlot(ObjHeader** slot) {
   return (reinterpret_cast<uintptr_t>(slot) & HEAP_RETURN_BIT) != 0;
 }
 
-inline bool isHeapReturnSlotOrAtomicRef(ObjHeader** slot, ObjHeader* ref) {
-  return isHeapReturnSlot(slot) || (
-    ref->container() != nullptr && ref->container()->tag() == CONTAINER_TAG_FROZEN);
-}
-
 inline ObjHeader** getReturnSlot(ObjHeader** slot) {
   return reinterpret_cast<ObjHeader**>(
              reinterpret_cast<uintptr_t>(slot) & ~static_cast<uintptr_t>(HEAP_RETURN_BIT));
@@ -2253,8 +2248,13 @@ OBJ_GETTER(ReadHeapRefLocked, ObjHeader** location, int32_t* spinlock) {
   lock(spinlock);
   ObjHeader* value = *location;
   // We do not use UpdateRef() here to avoid having ReleaseRef() on return slot under the lock.
-  if (value != nullptr && isHeapReturnSlotOrAtomicRef(OBJ_RESULT, value))
-    AddHeapRef(value);
+  if (value != nullptr) {
+    if (isHeapReturnSlot(OBJ_RESULT))
+      AddHeapRef(value);
+    else
+      AddStackRef(value);
+
+  }
   unlock(spinlock);
   updateReturnRefAdded(OBJ_RESULT, value);
   return value;
