@@ -46,7 +46,7 @@ kotlin {
             kotlin.srcDir "$toolsPath/benchmarksAnalyzer/src/main/kotlin-native"
         }
     }
-    
+
     configure([macosX64("macos")]) {
         compilations.main.cinterops {
             libcurl {
@@ -78,7 +78,7 @@ task konanJsonReport {
         def applicationName = "Framework"
         def nativeExecutable = kotlin.macosX64("macos").binaries.
                 getFramework('benchmarksAnalyzer', kotlin.macosX64("macos").binaries.RELEASE).outputFile.absolutePath
-        def nativeCompileTime = MPPTools.getNativeCompileTime(applicationName, ['compileKotlinMacos', 
+        def nativeCompileTime = MPPTools.getNativeCompileTime(applicationName, ['compileKotlinMacos',
                                                                                 'linkBenchmarksAnalyzerReleaseFrameworkMacos',
                                                                                 'cinteropLibcurlMacos'])
         def properties = getCommonProperties() + ['type': 'native',
@@ -86,7 +86,7 @@ task konanJsonReport {
                                                   'flags': [],
                                                   'benchmarks': '[]',
                                                   'compileTime': [nativeCompileTime],
-                                                  'codeSize': MPPTools.getCodeSizeBenchmark(applicationName, nativeExecutable) ]
+                                                  'codeSize': MPPTools.getCodeSizeBenchmark(applicationName, nativeExecutable, true) ]
         def output = MPPTools.createJsonReport(properties)
         new File("${buildDir.absolutePath}/${nativeJson}").write(output)
     }
