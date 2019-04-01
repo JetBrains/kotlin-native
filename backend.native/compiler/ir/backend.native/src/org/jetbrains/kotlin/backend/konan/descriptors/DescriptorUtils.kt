@@ -219,8 +219,10 @@ internal tailrec fun IrDeclaration.findPackage(): IrPackageFragment {
             ?: (parent as IrDeclaration).findPackage()
 }
 
-fun IrFunction.isComparisonFunction(map: Map<SimpleType, IrSimpleFunctionSymbol>): Boolean =
-        this.symbol in map.values
+fun IrDeclaration.isIrBuiltIn() = this.findPackage().packageFragmentDescriptor is IrBuiltinsPackageFragmentDescriptor
+
+fun IrFunction.isComparisonFunction(map: Map<SimpleType, IrSimpleFunctionSymbol>) =
+        this.symbol.descriptor in map.values.map {it.descriptor}
 
 val IrDeclaration.isPropertyAccessor get() =
     this is IrSimpleFunction && this.correspondingProperty != null
