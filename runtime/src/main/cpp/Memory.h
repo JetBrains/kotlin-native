@@ -592,6 +592,13 @@ class ObjHolder {
 
    void clear() { ::ZeroHeapRef(&obj_); }
 
+   void* transfer() {
+     auto* result = obj_;
+     obj_ = nullptr;
+     return result;
+   }
+
+
   private:
    ObjHeader* obj_;
 };

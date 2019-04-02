@@ -62,17 +62,10 @@ enum {
 THREAD_LOCAL_VARIABLE KInt g_currentWorkerId = 0;
 
 KNativePtr transfer(ObjHolder* holder, KInt mode) {
-  switch (mode) {
-    case CHECKED:
-    case UNCHECKED:
-      if (!ClearSubgraphReferences(holder->obj(), mode == CHECKED)) {
-        ThrowWorkerInvalidState();
-      }
-      auto* result = CreateStablePointer(holder->obj());
-      holder->clear();
-      return result;
+  if (!ClearSubgraphReferences(holder->obj(), mode == CHECKED)) {
+    ThrowWorkerInvalidState();
   }
-  return nullptr;
+  return holder->transfer();
 }
 
 class Locker {
@@ -384,7 +377,6 @@ void* workerRoutine(void* argument) {
         theState()->removeWorkerUnlocked(worker->id());
         break;
       }
-
       KRef argument = AdoptStablePointer(job.argument, argumentHolder.slot());
       KNativePtr result = nullptr;
       bool ok = true;
@@ -396,11 +388,10 @@ void* workerRoutine(void* argument) {
       } catch (ObjHolder& e) {
         ok = false;
         if (worker->errorReporting())
-            ReportUnhandledException(e.obj());
+          ReportUnhandledException(e.obj());
       }
       // Notify the future.
       job.future->storeResultUnlocked(result, ok);
-      resultHolder.clear();
     }
   }
 
@@ -465,8 +456,9 @@ KNativePtr detachObjectGraphInternal(KInt transferMode, KRef producer) {
    WorkerLaunchpad(producer, result.slot());
    if (result.obj() != nullptr) {
      return transfer(&result, transferMode);
-   } else
+   } else {
      return nullptr;
+   }
 }
 
 #else

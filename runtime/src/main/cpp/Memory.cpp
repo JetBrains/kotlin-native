@@ -1876,17 +1876,10 @@ OBJ_GETTER(DerefStablePointer, KNativePtr pointer) {
 OBJ_GETTER(AdoptStablePointer, KNativePtr pointer) {
   synchronize();
   KRef ref = reinterpret_cast<KRef>(pointer);
-  UpdateReturnRef(OBJ_RESULT, nullptr);
-  if (ref != nullptr) {
-    // Somewhat hacky.
-    MEMORY_LOG("adopting stable pointer %p, rc=%d\n", ref, (ref->container() != nullptr) ? ref->container()->refCount() : -1)
-    auto* container = ref->container();
-    *getReturnSlot(OBJ_RESULT) = ref;
-    // We just adopted an object, if it is adopted on the stack, we need to schedule RC decrement,
-    // as for this worker it looks like if it was just allocated.
-    if (container != nullptr && container->tag() == CONTAINER_TAG_NORMAL && !isHeapReturnSlot(OBJ_RESULT))
-      EnqueueDecrementRC</* CanCollect = */true>(container);
-  }
+  MEMORY_LOG("adopting stable pointer %p, rc=%d\n", \
+     ref, (ref && ref->container()) ? ref->container()->refCount() : -1)
+  UpdateReturnRef(OBJ_RESULT, ref);
+  DisposeStablePointer(pointer);
   return ref;
 }
 
@@ -1915,6 +1908,7 @@ bool hasExternalRefs(ContainerHeader* start, ContainerHeaderSet* visited) {
 
 bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
 #if USE_GC
+  MEMORY_LOG("ClearSubgraphReferences %p\n", root)
   if (root == nullptr) return true;
   auto state = memoryState;
   auto* container = root->container();
