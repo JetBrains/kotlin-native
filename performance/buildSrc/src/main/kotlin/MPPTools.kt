@@ -96,9 +96,8 @@ fun getFolderSize(folderPath: String): Long? {
     return length
 }
 
-@JvmOverloads
-fun getCodeSizeBenchmark(programName: String, filePath: String, isFramework: Boolean = false): BenchmarkResult {
-    val codeSize = if (isFramework) getFolderSize(filePath) else getFileSize(filePath)
+fun getCodeSizeBenchmark(programName: String, filePath: String): BenchmarkResult {
+    val codeSize = getFileSize(filePath)
     return BenchmarkResult("$programName",
             codeSize?. let { BenchmarkResult.Status.PASSED } ?: run { BenchmarkResult.Status.FAILED },
             codeSize?.toDouble() ?: 0.0, BenchmarkResult.Metric.CODE_SIZE, codeSize?.toDouble() ?: 0.0, 1, 0)

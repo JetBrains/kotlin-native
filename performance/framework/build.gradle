@@ -33,6 +33,7 @@ repositories {
 }
 
 def toolsPath = '../../tools'
+def frameworkName = 'benchmarksAnalyzer'
 
 kotlin {
     sourceSets {
@@ -51,13 +52,12 @@ kotlin {
         compilations.main.cinterops {
             libcurl {
                 defFile "$toolsPath/benchmarksAnalyzer/src/nativeInterop/cinterop/libcurl.def"
-                includeDirs.headerFilterOnly '/opt/local/include', '/usr/local/include'
             }
         }
     }
 
     macosX64("macos").binaries {
-        framework('benchmarksAnalyzer', [RELEASE])
+        framework(frameworkName, [RELEASE])
     }
 }
 
@@ -76,8 +76,9 @@ task jvmRun(type: RunJvmTask)  {
 task konanJsonReport {
     doLast {
         def applicationName = "Framework"
-        def nativeExecutable = kotlin.macosX64("macos").binaries.
-                getFramework('benchmarksAnalyzer', kotlin.macosX64("macos").binaries.RELEASE).outputFile.absolutePath
+        def frameworkPath = kotlin.macosX64("macos").binaries.
+                getFramework(frameworkName, kotlin.macosX64("macos").binaries.RELEASE).outputFile.absolutePath
+        def nativeExecutable = new File("$frameworkPath/$frameworkName").canonicalPath
         def nativeCompileTime = MPPTools.getNativeCompileTime(applicationName, ['compileKotlinMacos',
                                                                                 'linkBenchmarksAnalyzerReleaseFrameworkMacos',
                                                                                 'cinteropLibcurlMacos'])
@@ -86,7 +87,7 @@ task konanJsonReport {
                                                   'flags': [],
                                                   'benchmarks': '[]',
                                                   'compileTime': [nativeCompileTime],
-                                                  'codeSize': MPPTools.getCodeSizeBenchmark(applicationName, nativeExecutable, true) ]
+                                                  'codeSize': MPPTools.getCodeSizeBenchmark(applicationName, nativeExecutable) ]
         def output = MPPTools.createJsonReport(properties)
         new File("${buildDir.absolutePath}/${nativeJson}").write(output)
     }
