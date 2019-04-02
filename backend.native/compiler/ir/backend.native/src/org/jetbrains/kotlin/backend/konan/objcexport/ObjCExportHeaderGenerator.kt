@@ -45,11 +45,15 @@ internal class ObjCExportTranslatorImpl(
         val builtIns: KotlinBuiltIns,
         val mapper: ObjCExportMapper,
         val namer: ObjCExportNamer,
-        val warningCollector: ObjCExportWarningCollector,
-        val writeGenerics:Boolean = true //Figure out how to config this externally
+        val warningCollector: ObjCExportWarningCollector
 ) : ObjCExportTranslator {
 
     private val kotlinAnyName = namer.kotlinAnyName
+
+    //Flag to enable generic output
+    private val writeGenerics:Boolean by lazy {
+        System.getProperty("framework.writeGenerics", "false").toBoolean()
+    }
 
     internal fun translateKotlinObjCClassAsUnavailableStub(descriptor: ClassDescriptor): ObjCInterface = objCInterface(
             namer.getClassOrProtocolName(descriptor),
