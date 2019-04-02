@@ -592,13 +592,8 @@ internal class ObjCExportTranslatorImpl(
             return it.mapper.mapType(it.type, this, typeParamProvider)
         }
 
-        if(kotlinType.isTypeParameter() && typeParamProvider.typeAvailable(kotlinType.toString())){
-            return ObjCGenericType(kotlinType.toString(), kotlinType)
-            /*val container = method.containingDeclaration
-            val typeParamName = kotlinType.toString()
-            if(container is ClassDescriptor && !container.isInterface && container.declaredTypeParameters.any { it.name.asString() == typeParamName }) {
-                return ObjCGenericType(kotlinType.toString())
-            }*/
+        if(kotlinType.isTypeParameter() && typeParamProvider.typeAvailable(kotlinType)){
+            return ObjCGenericType(kotlinType.typeParameterName(), kotlinType)
         }
 
         val classDescriptor = kotlinType.getErasedTypeClass()
@@ -621,6 +616,23 @@ internal class ObjCExportTranslatorImpl(
                 mapReferenceTypeIgnoringNullability(typeProjection.type, typeParamProvider)
             }
             ObjCClassType(referenceClass(classDescriptor).objCName, typeArgs)
+        }
+    }
+
+    internal fun ClassDescriptor.genericParamDeclaration(): List<String> = declaredTypeParameters.map { typeParam ->
+        val upperBounds = typeParam.upperBounds
+        val upperBoundTypes = upperBounds
+                .filter { kt ->
+                    val classDescriptor = kt.getErasedTypeClass()
+                    !(classDescriptor == builtIns.any || classDescriptor.classId in mapper.hiddenTypes || classDescriptor.isInlined() || classDescriptor.defaultType.isObjCObjectType())
+                }
+                .map { mapReferenceTypeIgnoringNullability(it, NoneTypeParamProvider) }
+        val param = "${typeParam.variance.objcDeclaration()}${typeParam.name.asString()}"
+
+        if(upperBoundTypes.size == 1){
+            "$param : ${upperBoundTypes[0].render()}"
+        } else {
+            param
         }
     }
 
@@ -996,7 +1008,7 @@ private fun swiftNameAttribute(swiftName: String) = "swift_name(\"$swiftName\")"
 private fun objcRuntimeNameAttribute(name: String) = "objc_runtime_name(\"$name\")"
 
 interface TypeParamProvider{
-    fun typeAvailable(typeName: String):Boolean
+    fun typeAvailable(kotlinType: KotlinType):Boolean
 }
 
 internal class FunctionTypeParamProvider(val method:FunctionDescriptor): TypeParamProvider {
@@ -1011,19 +1023,33 @@ internal class FunctionTypeParamProvider(val method:FunctionDescriptor): TypePar
         }
     }
 
-    override fun typeAvailable(typeName: String): Boolean = nameSet.contains(typeName)
+    override fun typeAvailable(kotlinType: KotlinType): Boolean =
+            nameSet.contains(kotlinType.typeParameterName())
 }
 
 internal object NoneTypeParamProvider: TypeParamProvider{
-    override fun typeAvailable(typeName: String): Boolean = false
+    override fun typeAvailable(kotlinType: KotlinType): Boolean = false
 }
 
-internal fun ClassDescriptor.genericParamDeclaration(): List<String> = declaredTypeParameters.map { typeParam ->
-    "${typeParam.variance.objcDeclaration()}${typeParam.name.asString()}"
-}
 
 private fun Variance.objcDeclaration():String = when(this){
     Variance.OUT_VARIANCE -> "__covariant "
     Variance.IN_VARIANCE -> "__contravariant "
     else -> ""
+}
+
+//To anybody reviewing this code, I don't know my way
+//around the Kotlin parsed type system too well. What
+//I'm looking for here is generic type name minus the '?'
+//I'm sure there's a much simpler way to get that
+internal fun KotlinType.typeParameterName(): String {
+    return if (this.isMarkedNullable) {
+        val ts = this.toString()
+        if (ts.endsWith("?"))
+            ts.substring(0, ts.length - 1)
+        else
+            ts
+    } else {
+        this.toString()
+    }
 }
