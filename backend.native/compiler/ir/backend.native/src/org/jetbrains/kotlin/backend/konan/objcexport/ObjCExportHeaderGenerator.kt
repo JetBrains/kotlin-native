@@ -45,7 +45,8 @@ internal class ObjCExportTranslatorImpl(
         val builtIns: KotlinBuiltIns,
         val mapper: ObjCExportMapper,
         val namer: ObjCExportNamer,
-        val warningCollector: ObjCExportWarningCollector
+        val warningCollector: ObjCExportWarningCollector,
+        val writeGenerics:Boolean = true //Figure out how to config this externally
 ) : ObjCExportTranslator {
 
     private val kotlinAnyName = namer.kotlinAnyName
@@ -60,12 +61,19 @@ internal class ObjCExportTranslatorImpl(
     private fun referenceClass(descriptor: ClassDescriptor): ObjCExportNamer.ClassOrProtocolName {
         assert(mapper.shouldBeExposed(descriptor))
         assert(!descriptor.isInterface)
-        generator?.requireClassOrInterface(descriptor)
+        val translateName = translateClassOrInterfaceName(descriptor)
+        val referenceClassExists = generator?.referenceClassExists(descriptor)
+        return if(referenceClassExists != null && referenceClassExists){
+            translateName
+        } else {
+            generator?.requireClassOrInterface(descriptor)
 
-        return translateClassOrInterfaceName(descriptor).also {
-            val sb = StringBuilder(it.objCName)
-            formatGenerics(sb, descriptor.genericParamDeclaration())
-            generator?.referenceClass(sb.toString(), descriptor)
+            return translateName.also {
+                val sb = StringBuilder(it.objCName)
+                if(writeGenerics)
+                    formatGenerics(sb, descriptor.genericParamDeclaration(ClassParamProvider(descriptor)))
+                generator?.referenceClass(sb.toString(), descriptor)
+            }
         }
     }
 
@@ -216,9 +224,15 @@ internal class ObjCExportTranslatorImpl(
 
         val name = translateClassOrInterfaceName(descriptor)
 
+        val generics = if (writeGenerics) {
+            descriptor.genericParamDeclaration(ClassParamProvider(descriptor))
+        } else {
+            emptyList()
+        }
+
         return objCInterface(
                 name,
-                generics = descriptor.genericParamDeclaration(),
+                generics = generics,
                 descriptor = descriptor,
                 superClass = superName.objCName,
                 superProtocols = superProtocols,
@@ -432,7 +446,8 @@ internal class ObjCExportTranslatorImpl(
 
             val usedNames = mutableSetOf<String>()
 
-            val typeParamProvider = FunctionTypeParamProvider(method)
+            val typeParamProvider = genericTypeParamFactory(method)
+
             valueParametersAssociated.forEach { (bridge: MethodBridgeValueParameter, p: ParameterDescriptor?) ->
                 val candidateName: String = when (bridge) {
                     is MethodBridgeValueParameter.Mapped -> {
@@ -533,10 +548,12 @@ internal class ObjCExportTranslatorImpl(
         method.allOverriddenDescriptors.forEach { exportThrown(it) }
     }
 
+    private fun genericTypeParamFactory(method: FunctionDescriptor) = if(writeGenerics){ClassParamProvider(method)}else{NoneTypeParamProvider}
+
     private fun mapReturnType(returnBridge: MethodBridge.ReturnValue, method: FunctionDescriptor): ObjCType = when (returnBridge) {
         MethodBridge.ReturnValue.Void -> ObjCVoidType
         MethodBridge.ReturnValue.HashCode -> ObjCPrimitiveType("NSUInteger")
-        is MethodBridge.ReturnValue.Mapped -> mapType(method.returnType!!, returnBridge.bridge, FunctionTypeParamProvider(method))
+        is MethodBridge.ReturnValue.Mapped -> mapType(method.returnType!!, returnBridge.bridge, genericTypeParamFactory(method))
         MethodBridge.ReturnValue.WithError.Success -> ObjCPrimitiveType("BOOL")
         is MethodBridge.ReturnValue.WithError.RefOrNull -> {
             val successReturnType = mapReturnType(returnBridge.successBridge, method) as? ObjCNonNullReferenceType
@@ -592,8 +609,8 @@ internal class ObjCExportTranslatorImpl(
             return it.mapper.mapType(it.type, this, typeParamProvider)
         }
 
-        if(kotlinType.isTypeParameter() && typeParamProvider.typeAvailable(kotlinType)){
-            return ObjCGenericType(kotlinType.typeParameterName(), kotlinType)
+        if(writeGenerics && kotlinType.isTypeParameter() && typeParamProvider.typeAvailable(kotlinType)){
+            return ObjCGenericType(kotlinType.typeParameterName())
         }
 
         val classDescriptor = kotlinType.getErasedTypeClass()
@@ -612,25 +629,41 @@ internal class ObjCExportTranslatorImpl(
         return if (classDescriptor.isInterface) {
             ObjCProtocolType(referenceProtocol(classDescriptor).objCName)
         } else {
-            val typeArgs = kotlinType.arguments.map { typeProjection ->
-                mapReferenceTypeIgnoringNullability(typeProjection.type, typeParamProvider)
+            val typeArgs = if (writeGenerics) {
+                kotlinType.arguments.map { typeProjection ->
+                    mapReferenceTypeIgnoringNullability(typeProjection.type, typeParamProvider)
+                }
+            } else {
+                emptyList()
             }
             ObjCClassType(referenceClass(classDescriptor).objCName, typeArgs)
         }
     }
 
-    internal fun ClassDescriptor.genericParamDeclaration(): List<String> = declaredTypeParameters.map { typeParam ->
-        val upperBounds = typeParam.upperBounds
-        val upperBoundTypes = upperBounds
-                .filter { kt ->
-                    val classDescriptor = kt.getErasedTypeClass()
-                    !(classDescriptor == builtIns.any || classDescriptor.classId in mapper.hiddenTypes || classDescriptor.isInlined() || classDescriptor.defaultType.isObjCObjectType())
-                }
-                .map { mapReferenceTypeIgnoringNullability(it, NoneTypeParamProvider) }
+    internal fun ClassDescriptor.genericParamDeclaration(paramProvider: TypeParamProvider, includeUpperBounds:Boolean = false): List<String> = declaredTypeParameters.map { typeParam ->
         val param = "${typeParam.variance.objcDeclaration()}${typeParam.name.asString()}"
 
-        if(upperBoundTypes.size == 1){
-            "$param : ${upperBoundTypes[0].render()}"
+        if(includeUpperBounds) {
+            val upperBounds = typeParam.upperBounds
+            val upperBoundTypes = upperBounds
+                    .filter { kt ->
+                        val classDescriptor = kt.getErasedTypeClass()
+                        !(classDescriptor == builtIns.any || classDescriptor.classId in mapper.hiddenTypes || classDescriptor.isInlined() || classDescriptor.defaultType.isObjCObjectType())
+                    }
+                    .map { kt ->
+                        val erasedTypeClass = kt.getErasedTypeClass()
+                        if(erasedTypeClass.isInterface)
+                            referenceProtocol(erasedTypeClass)
+                        else
+                            referenceClass(erasedTypeClass)
+                        mapReferenceTypeIgnoringNullability(kt, paramProvider)
+                    }
+
+            if (upperBoundTypes.size == 1) {
+                "$param : ${upperBoundTypes[0].render()}"
+            } else {
+                param
+            }
         } else {
             param
         }
@@ -964,6 +997,8 @@ abstract class ObjCExportHeaderGenerator internal constructor(
     internal fun referenceProtocol(objCName: String, descriptor: ClassDescriptor? = null) {
         if (descriptor !in generatedClasses) protocolForwardDeclarations += objCName
     }
+
+    internal fun referenceClassExists(descriptor: ClassDescriptor):Boolean = descriptor in generatedClasses
 }
 
 private fun objCInterface(
@@ -1011,11 +1046,11 @@ interface TypeParamProvider{
     fun typeAvailable(kotlinType: KotlinType):Boolean
 }
 
-internal class FunctionTypeParamProvider(val method:FunctionDescriptor): TypeParamProvider {
+internal class ClassParamProvider(container:DeclarationDescriptor): TypeParamProvider {
+    constructor(method: FunctionDescriptor) : this(method.containingDeclaration)
     private val nameSet:Set<String>
     init {
         nameSet = mutableSetOf()
-        val container = method.containingDeclaration
         if(container is ClassDescriptor && !container.isInterface) {
             container.declaredTypeParameters.forEach {
                 nameSet.add(it.name.asString())
