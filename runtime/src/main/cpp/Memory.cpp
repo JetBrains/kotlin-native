@@ -1883,7 +1883,7 @@ OBJ_GETTER(AdoptStablePointer, KNativePtr pointer) {
     auto* container = ref->container();
     *getReturnSlot(OBJ_RESULT) = ref;
     // We just adopted an object, if it is adopted on the stack, we need to schedule RC decrement,
-    // as for this worker it looks like if it was
+    // as for this worker it looks like if it was just allocated.
     if (container != nullptr && container->tag() == CONTAINER_TAG_NORMAL && !isHeapReturnSlot(OBJ_RESULT))
       EnqueueDecrementRC</* CanCollect = */true>(container);
   }
@@ -1898,8 +1898,10 @@ bool hasExternalRefs(ContainerHeader* start, ContainerHeaderSet* visited) {
     auto* container = toVisit.front();
     toVisit.pop_front();
     visited->insert(container);
-    MEMORY_LOG("container %p with rc %d blocks transfer\n", container, container->refCount())
-    if (container->refCount() > 0) return true;
+    if (container->refCount() > 0) {
+      MEMORY_LOG("container %p with rc %d blocks transfer\n", container, container->refCount())
+      return true;
+    }
     traverseContainerReferredObjects(container, [&toVisit, visited](ObjHeader* ref) {
         auto* child = ref->container();
         if (!Shareable(child) && (visited->count(child) == 0)) {
@@ -1965,7 +1967,7 @@ bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
   for (auto it = state->toRelease->begin(); it != state->toRelease->end(); ++it) {
     auto container = *it;
     if (!isMarkedAsRemoved(container) && visited.count(container) != 0) {
-      MEMORY_LOG("removing %p from the toRelease list", container)
+      MEMORY_LOG("removing %p from the toRelease list\n", container)
       container->decRefCount<false>();
       *it = markAsRemoved(container);
     }

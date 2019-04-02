@@ -61,14 +61,16 @@ enum {
 
 THREAD_LOCAL_VARIABLE KInt g_currentWorkerId = 0;
 
-KNativePtr transfer(KRef object, KInt mode) {
+KNativePtr transfer(ObjHolder* holder, KInt mode) {
   switch (mode) {
     case CHECKED:
     case UNCHECKED:
-      if (!ClearSubgraphReferences(object, mode == CHECKED)) {
+      if (!ClearSubgraphReferences(holder->obj(), mode == CHECKED)) {
         ThrowWorkerInvalidState();
       }
-      return CreateStablePointer(object);
+      auto* result = CreateStablePointer(holder->obj());
+      holder->clear();
+      return result;
   }
   return nullptr;
 }
@@ -390,7 +392,7 @@ void* workerRoutine(void* argument) {
         job.function(argument, resultHolder.slot());
         argumentHolder.clear();
         // Transfer the result.
-        result = transfer(resultHolder.obj(), job.transferMode);
+        result = transfer(&resultHolder, job.transferMode);
       } catch (ObjHolder& e) {
         ok = false;
         if (worker->errorReporting())
@@ -425,7 +427,7 @@ KInt schedule(KInt id, KInt transferMode, KRef producer, KNativePtr jobFunction)
   Job job;
   ObjHolder holder;
   WorkerLaunchpad(producer, holder.slot());
-  KNativePtr jobArgument = transfer(holder.obj(), transferMode);
+  KNativePtr jobArgument = transfer(&holder, transferMode);
   Future* future = theState()->addJobToWorkerUnlocked(id, jobFunction, jobArgument, false, transferMode);
   if (future == nullptr) ThrowWorkerInvalidState();
   return future->id();
@@ -461,9 +463,8 @@ OBJ_GETTER(attachObjectGraphInternal, KNativePtr stable) {
 KNativePtr detachObjectGraphInternal(KInt transferMode, KRef producer) {
    ObjHolder result;
    WorkerLaunchpad(producer, result.slot());
-   KRef ref = result.obj();
-   if (ref != nullptr) {
-     return transfer(ref, transferMode);
+   if (result.obj() != nullptr) {
+     return transfer(&result, transferMode);
    } else
      return nullptr;
 }
