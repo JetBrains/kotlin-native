@@ -320,7 +320,7 @@ fun main(args: Array<String>) {
     val compileChart = Chartist.Line("#compile_chart", getChartData(labels, compileTime.values),
             getChartOptions(compileTime.keys.toTypedArray(), "Time, milliseconds"))
     val codeSizeChart = Chartist.Line("#codesize_chart", getChartData(labels, codeSize.values, sizeClassName),
-            getChartOptions(codeSize.keys.toTypedArray(), "Normalized size", arrayOf("ct-series-3)))
+            getChartOptions(codeSize.keys.toTypedArray(), "Normalized size", arrayOf("ct-series-3")))
     val bundleSizeChart = Chartist.Line("#bundlesize_chart", getChartData(labels, listOf(bundleSize), sizeClassName),
             getChartOptions(arrayOf("Bundle size"), "Size, MB", arrayOf("ct-series-3")))
 

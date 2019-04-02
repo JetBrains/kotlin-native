@@ -73,7 +73,8 @@
   stroke: limegreen;
 }
 
-.ct-series-d .ct-line {
+.ct-series-d .ct-line,
+.ct-series-d .ct-point {
   /* Set the colour of this series line */
   stroke: mediumorchid;
 }
