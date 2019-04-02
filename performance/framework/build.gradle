@@ -75,7 +75,7 @@ task jvmRun(type: RunJvmTask)  {
 
 task konanJsonReport {
     doLast {
-        def applicationName = "Framework"
+        def applicationName = "FrameworkBenchmarksAnalyzer"
         def frameworkPath = kotlin.macosX64("macos").binaries.
                 getFramework(frameworkName, kotlin.macosX64("macos").binaries.RELEASE).outputFile.absolutePath
         def nativeExecutable = new File("$frameworkPath/$frameworkName").canonicalPath
