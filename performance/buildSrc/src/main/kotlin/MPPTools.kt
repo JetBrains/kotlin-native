@@ -84,18 +84,6 @@ fun getFileSize(filePath: String): Long? {
     return if (file.exists()) file.length() else null
 }
 
-fun getFolderSize(folderPath: String): Long? {
-    val folder = File(folderPath)
-    if (!folder.exists()) {
-        return null
-    }
-    var length = 0L
-    folder.listFiles().forEach { file ->
-        length += if (file.isFile()) file.length() else getFolderSize(file.absolutePath) ?: 0
-    }
-    return length
-}
-
 fun getCodeSizeBenchmark(programName: String, filePath: String): BenchmarkResult {
     val codeSize = getFileSize(filePath)
     return BenchmarkResult("$programName",
