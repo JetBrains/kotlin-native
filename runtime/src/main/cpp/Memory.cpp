@@ -315,8 +315,6 @@ struct MemoryState {
   size_t gcThreshold;
   // If collection is in progress.
   bool gcInProgress;
-  // Current frame pointer.
-  FrameOverlay* currentFrame;
   // Objects to be released.
   ContainerHeaderList* toRelease;
 
@@ -414,6 +412,7 @@ namespace {
 
 // TODO: can we pass this variable as an explicit argument?
 THREAD_LOCAL_VARIABLE MemoryState* memoryState = nullptr;
+THREAD_LOCAL_VARIABLE FrameOverlay* currentFrame = nullptr;
 
 constexpr int kFrameOverlaySlots = sizeof(FrameOverlay) / sizeof(ObjHeader**);
 
@@ -1629,8 +1628,8 @@ void EnterFrame(ObjHeader** start, int parameters, int count) {
   MEMORY_LOG("EnterFrame %p: %d parameters %d locals\n", start, parameters, count)
   FrameOverlay* frame = reinterpret_cast<FrameOverlay*>(start);
   auto* state = memoryState;
-  frame->previous = state->currentFrame;
-  state->currentFrame = frame;
+  frame->previous = currentFrame;
+  currentFrame = frame;
   // TODO: maybe compress in single value somehow.
   frame->parameters = parameters;
   frame->count = count;
@@ -1652,18 +1651,17 @@ ALWAYS_INLINE inline void releaseStackRefs(MemoryState* state, ObjHeader** start
 
 void LeaveFrame(ObjHeader** start, int parameters, int count) {
   MEMORY_LOG("LeaveFrame %p: %d parameters %d locals\n", start, parameters, count)
-  auto* state = memoryState;
   FrameOverlay* frame = reinterpret_cast<FrameOverlay*>(start);
   ObjHeader** slots = reinterpret_cast<ObjHeader**>(frame + 1) + parameters;
-  releaseStackRefs(state, slots, count - kFrameOverlaySlots - parameters);
-  state->currentFrame = frame->previous;
+  releaseStackRefs(memoryState, slots, count - kFrameOverlaySlots - parameters);
+  currentFrame = frame->previous;
 }
 
 
 #if USE_GC
 
 void incrementStack(MemoryState* state) {
-  FrameOverlay* frame = state->currentFrame;
+  FrameOverlay* frame = currentFrame;
   while (frame != nullptr) {
     ObjHeader** current = reinterpret_cast<ObjHeader**>(frame + 1) + frame->parameters;
     ObjHeader** end = current + frame->count - kFrameOverlaySlots - frame->parameters;
@@ -1681,7 +1679,7 @@ void incrementStack(MemoryState* state) {
 
 void actualizeNewlyFrozenOnStack(MemoryState* state, const ContainerHeaderSet* newlyFrozen) {
   // For all frozen objects in stack slots - perform reference increment.
-  FrameOverlay* frame = state->currentFrame;
+  FrameOverlay* frame = currentFrame;
   MEMORY_LOG("actualizeNewlyFrozenOnStack: newly frozen size is %d\n", newlyFrozen->size())
   while (frame != nullptr) {
     MEMORY_LOG("current frame %p: %d parameters %d locals\n", frame, frame->parameters, frame->count)
@@ -1730,7 +1728,7 @@ void processDecrements(MemoryState* state) {
 
 void decrementStack(MemoryState* state) {
   state->gcSuspendCount++;
-  FrameOverlay* frame = state->currentFrame;
+  FrameOverlay* frame = currentFrame;
   while (frame != nullptr) {
     ObjHeader** current = reinterpret_cast<ObjHeader**>(frame + 1) + frame->parameters;
     ObjHeader** end = current + frame->count - kFrameOverlaySlots - frame->parameters;
