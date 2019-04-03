@@ -1303,6 +1303,12 @@ task delegatedProperty_map(type: RunKonanTest) {
     source = "codegen/delegatedProperty/map.kt"
 }
 
+task delegatedProperty_localLinkTest(type: LinkKonanTest) {
+    goldValue = goldValue = "x\n42\n"
+    source = "codegen/delegatedProperty/localUse.kt"
+    lib = "codegen/delegatedProperty/localLib.kt"
+}
+
 task propertyCallableReference_valClass(type: RunKonanTest) {
     goldValue = "42\n117\n"
     source = "codegen/propertyCallableReference/valClass.kt"

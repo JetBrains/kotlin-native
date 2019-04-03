@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.backend.common.LoggingContext
 import org.jetbrains.kotlin.backend.common.descriptors.*
 import org.jetbrains.kotlin.backend.common.ir.DeclarationFactory
 import org.jetbrains.kotlin.backend.common.ir.ir2string
+import org.jetbrains.kotlin.backend.konan.descriptors.WrappedVariableDescriptorWithAccessors
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
@@ -33,6 +34,8 @@ import org.jetbrains.kotlin.metadata.KonanIr.IrTypeArgument.KindCase.STAR
 import org.jetbrains.kotlin.metadata.KonanIr.IrTypeArgument.KindCase.TYPE
 import org.jetbrains.kotlin.metadata.KonanIr.IrVarargElement.VarargElementCase
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.resolve.constants.ConstantValue
+import org.jetbrains.kotlin.types.TypeSubstitutor
 import org.jetbrains.kotlin.types.Variance
 
 // TODO: This code still has some uses of descriptors:
@@ -382,6 +385,29 @@ abstract class IrModuleDeserializer(
         return IrInstanceInitializerCallImpl(start, end, symbol, builtIns.unitType)
     }
 
+    private fun deserializeIrLocalDelegatedPropertyReference(
+        proto: KonanIr.IrLocalDelegatedPropertyReference,
+        start: Int,
+        end: Int,
+        type: IrType
+    ): IrLocalDelegatedPropertyReference {
+
+        val delegate =  deserializeIrSymbol(proto.delegate) as IrVariableSymbol
+        val getter = deserializeIrSymbol(proto.getter) as IrSimpleFunctionSymbol
+        val setter = if (proto.hasSetter()) deserializeIrSymbol(proto.setter) as IrSimpleFunctionSymbol else null
+        val descriptor = variableToPropertyDescriptorMap.getOrPut(delegate) { WrappedVariableDescriptorWithAccessors() }
+
+        val callable = IrLocalDelegatedPropertyReferenceImpl(start, end, type,
+            descriptor,
+            delegate,
+            getter,
+            setter
+        )
+
+        return callable
+    }
+
+    private val variableToPropertyDescriptorMap = mutableMapOf<IrVariableSymbol, WrappedVariableDescriptorWithAccessors>()
     private val getterToPropertyDescriptorMap = mutableMapOf<IrSimpleFunctionSymbol, WrappedPropertyDescriptor>()
 
     private fun deserializePropertyReference(
@@ -638,6 +664,8 @@ abstract class IrModuleDeserializer(
             -> deserializeGetValue(proto.getValue, start, end, type)
             INSTANCE_INITIALIZER_CALL
             -> deserializeInstanceInitializerCall(proto.instanceInitializerCall, start, end)
+            LOCAL_DELEGATED_PROPERTY_REFERENCE
+            -> deserializeIrLocalDelegatedPropertyReference(proto.localDelegatedPropertyReference, start, end, type)
             PROPERTY_REFERENCE
             -> deserializePropertyReference(proto.propertyReference, start, end, type)
             RETURN
@@ -905,7 +933,8 @@ abstract class IrModuleDeserializer(
     }
 
     private fun deserializeVisibility(value: KonanIr.Visibility): Visibility { // TODO: switch to enum
-        return when (deserializeString(value.name)) {
+        val stringValue = deserializeString(value.name)
+        return when (stringValue) {
             "public" -> Visibilities.PUBLIC
             "private" -> Visibilities.PRIVATE
             "private_to_this" -> Visibilities.PRIVATE_TO_THIS
@@ -913,7 +942,7 @@ abstract class IrModuleDeserializer(
             "internal" -> Visibilities.INTERNAL
             "invisible_fake" -> Visibilities.INVISIBLE_FAKE // TODO: eventually we should not serialize fake overrides, so this will be gone.
             "local" -> Visibilities.LOCAL
-            else -> error("Unexpected visibility value: $value")
+            else -> error("Unexpected visibility value: $stringValue")
         }
     }
 
@@ -977,6 +1006,38 @@ abstract class IrModuleDeserializer(
         KonanIr.ModalityKind.SEALED_MODALITY -> Modality.SEALED
         KonanIr.ModalityKind.FINAL_MODALITY -> Modality.FINAL
         KonanIr.ModalityKind.ABSTRACT_MODALITY -> Modality.ABSTRACT
+    }
+
+    private fun deserializeIrLocalDelegatedProperty(
+        proto: KonanIr.IrLocalDelegatedProperty,
+        start: Int,
+        end: Int,
+        origin: IrDeclarationOrigin
+    ): IrLocalDelegatedProperty {
+
+        val delegate = deserializeIrVariable(proto.delegate, start, end, origin)
+        val getter = deserializeIrFunction(proto.getter, start, end, origin)
+        val setter = if (proto.hasSetter()) deserializeIrFunction(proto.setter, start, end, origin) else null
+
+        delegate.let { (it.descriptor as? WrappedVariableDescriptor)?.bind(it) }
+        getter.let { (it.descriptor as? WrappedSimpleFunctionDescriptor)?.bind(it) }
+        setter?.let { (it.descriptor as? WrappedSimpleFunctionDescriptor)?.bind(it) }
+
+
+        val descriptor = variableToPropertyDescriptorMap.getOrPut(delegate.symbol) { WrappedVariableDescriptorWithAccessors() }
+
+        return IrLocalDelegatedPropertyImpl(start, end, origin,
+            descriptor,
+            deserializeName(proto.name),
+            deserializeIrType(proto.type),
+            proto.isVar
+        ).also {
+            descriptor.bind(it)
+
+            it.delegate = delegate
+            it.getter = getter
+            it.setter = setter
+        }
     }
 
     private fun deserializeIrProperty(
@@ -1075,6 +1136,8 @@ abstract class IrModuleDeserializer(
             -> deserializeIrValueParameter(declarator.irValueParameter, start, end, origin)
             IR_ENUM_ENTRY
             -> deserializeIrEnumEntry(declarator.irEnumEntry, start, end, origin)
+            IR_LOCAL_DELEGATED_PROPERTY
+            -> deserializeIrLocalDelegatedProperty(declarator.irLocalDelegatedProperty, start, end, origin)
             DECLARATOR_NOT_SET
             -> error("Declaration deserialization not implemented: ${declarator.declaratorCase}")
         }

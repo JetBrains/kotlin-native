@@ -411,6 +411,20 @@ open class IrModuleSerializer(
     }
 
 
+    private fun serializeIrLocalDelegatedPropertyReference(
+        callable: IrLocalDelegatedPropertyReference
+    ): KonanIr.IrLocalDelegatedPropertyReference {
+        // The descriptors for local delegated properties are always un-exported,
+        // so don't bother with descriptor reference.
+        val proto = KonanIr.IrLocalDelegatedPropertyReference.newBuilder()
+            .setDelegate(serializeIrSymbol(callable.delegate))
+            .setGetter(serializeIrSymbol(callable.getter))
+
+        callable.setter?.let { proto.setSetter(serializeIrSymbol(it)) }
+
+        return proto.build()
+    }
+
     private fun serializePropertyReference(callable: IrPropertyReference): KonanIr.IrPropertyReference {
         val proto = KonanIr.IrPropertyReference.newBuilder()
             .setMemberAccess(serializeMemberAccessCommon(callable))
@@ -721,6 +735,8 @@ open class IrModuleSerializer(
             -> operationProto.getObject = serializeGetObject(expression)
             is IrInstanceInitializerCall
             -> operationProto.instanceInitializerCall = serializeInstanceInitializerCall(expression)
+            is IrLocalDelegatedPropertyReference
+            -> operationProto.localDelegatedPropertyReference = serializeIrLocalDelegatedPropertyReference(expression)
             is IrPropertyReference
             -> operationProto.propertyReference = serializePropertyReference(expression)
             is IrReturn -> operationProto.`return` = serializeReturn(expression)
@@ -907,6 +923,22 @@ open class IrModuleSerializer(
         return proto.build()
     }
 
+    private fun serializeIrLocalDelegatedProperty(variable: IrLocalDelegatedProperty): KonanIr.IrLocalDelegatedProperty {
+        // The descriptors for local delegated properties are always un-exported,
+        // so don't bother with descriptor reference.
+
+        val proto = KonanIr.IrLocalDelegatedProperty.newBuilder()
+            .setName(serializeString(variable.name.toString()))
+            .setIsVar(variable.isVar)
+            .setType(serializeIrType(variable.type))
+            .setDelegate(serializeIrVariable(variable.delegate))
+            .setGetter(serializeIrFunction(variable.getter as IrSimpleFunction)) // TODO: can it be non simple?
+
+        variable.setter?.let { proto.setSetter(serializeIrFunction(it as IrSimpleFunction)) } // TODO: ditto.
+
+        return proto.build()
+    }
+
     private fun serializeIrField(field: IrField): KonanIr.IrField {
         val proto = KonanIr.IrField.newBuilder()
             .setSymbol(serializeIrSymbol(field.symbol))
@@ -1017,6 +1049,8 @@ open class IrModuleSerializer(
             -> declarator.irEnumEntry = serializeIrEnumEntry(declaration)
             is IrProperty
             -> declarator.irProperty = serializeIrProperty(declaration)
+            is IrLocalDelegatedProperty
+            -> declarator.irLocalDelegatedProperty = serializeIrLocalDelegatedProperty(declaration)
             else
             -> TODO("Declaration serialization not supported yet: $declaration")
         }
