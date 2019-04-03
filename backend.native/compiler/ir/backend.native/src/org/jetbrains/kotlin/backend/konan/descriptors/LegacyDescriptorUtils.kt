@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.backend.konan.descriptors
 
 import org.jetbrains.kotlin.backend.common.atMostOne
+import org.jetbrains.kotlin.backend.common.descriptors.WrappedCallableDescriptor
 import org.jetbrains.kotlin.backend.konan.RuntimeNames
 import org.jetbrains.kotlin.backend.konan.binaryTypeIsReference
 import org.jetbrains.kotlin.backend.konan.isObjCClass
@@ -28,9 +29,14 @@ import org.jetbrains.kotlin.resolve.DescriptorFactory
 import org.jetbrains.kotlin.resolve.OverridingUtil
 import org.jetbrains.kotlin.resolve.constants.StringValue
 import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.declarations.IrLocalDelegatedProperty
+import org.jetbrains.kotlin.ir.declarations.IrVariable
+import org.jetbrains.kotlin.ir.declarations.impl.IrLocalDelegatedPropertyImpl
+import org.jetbrains.kotlin.ir.types.toKotlinType
 import org.jetbrains.kotlin.ir.util.isFunction
 import org.jetbrains.kotlin.ir.util.isKFunction
 import org.jetbrains.kotlin.resolve.checkers.ExpectedActualDeclarationChecker
+import org.jetbrains.kotlin.resolve.constants.ConstantValue
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
@@ -38,6 +44,7 @@ import org.jetbrains.kotlin.serialization.deserialization.descriptors.Deserializ
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.DeserializedSimpleFunctionDescriptor
 import org.jetbrains.kotlin.serialization.konan.KonanPackageFragment
 import org.jetbrains.kotlin.types.KotlinType
+import org.jetbrains.kotlin.types.TypeSubstitutor
 import org.jetbrains.kotlin.types.typeUtil.isNothing
 import org.jetbrains.kotlin.types.typeUtil.isUnit
 import org.jetbrains.kotlin.util.OperatorNameConventions
@@ -309,3 +316,42 @@ fun createAnnotation(
 )
 
 val ModuleDescriptor.konanLibrary get() = (this.konanModuleOrigin as? DeserializedKonanModuleOrigin)?.library
+
+class WrappedVariableDescriptorWithAccessors
+    : VariableDescriptorWithAccessors, WrappedCallableDescriptor<IrLocalDelegatedProperty>(Annotations.EMPTY, SourceElement.NO_SOURCE) {
+    override val getter: VariableAccessorDescriptor?
+        get() = error("Don't ask wrapped descriptor for so many details.")
+    override val setter: VariableAccessorDescriptor?
+        get() = error("Don't ask wrapped descriptor for so many details.")
+    override val isDelegated: Boolean
+        get() = error("Don't ask wrapped descriptor for so many details.")
+
+    override fun getContainingDeclaration() = (owner.parent as IrFunction).descriptor
+    override fun getType() = owner.type.toKotlinType()
+    override fun getReturnType() = getType()
+    override fun getName() = owner.name
+    override fun isConst() = false
+    override fun isVar() = owner.isVar
+    override fun isLateInit() = false
+
+    override fun getCompileTimeInitializer(): ConstantValue<*>? {
+        TODO("")
+    }
+
+    override fun getOverriddenDescriptors(): Collection<VariableDescriptor> {
+        TODO("Not Implemented")
+    }
+
+    override fun getOriginal() = this
+
+    override fun substitute(substitutor: TypeSubstitutor): VariableDescriptor {
+        TODO("")
+    }
+
+    override fun <R, D> accept(visitor: DeclarationDescriptorVisitor<R, D>?, data: D): R =
+        visitor!!.visitVariableDescriptor(this, data)
+
+    override fun acceptVoid(visitor: DeclarationDescriptorVisitor<Void, Void>?) {
+        visitor!!.visitVariableDescriptor(this, null)
+    }
+}
