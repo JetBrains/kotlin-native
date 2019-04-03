@@ -15,7 +15,7 @@
  */
 
 import Foundation
-import Values
+import ValuesGenerics
 
 // -------- Tests --------
 
@@ -318,8 +318,8 @@ func testGenericsFoo() throws {
 }
 
 func testVararg() throws {
-    let ktArray = KotlinArray(size: 3, init: { (_) -> Int in return 42 })
-    let arr: [Int] = ValuesKt.varargToList(args: ktArray) as! [Int]
+    let ktArray = KotlinArray<KotlinInt>(size: 3, init: { (_) -> KotlinInt in return KotlinInt(int:42) })
+    let arr: [Int] = ValuesKt.varargToList(args: ktArray as! KotlinArray<AnyObject>) as! [Int]
     try assertEquals(actual: arr, expected: [42, 42, 42])
 }
 
@@ -387,26 +387,27 @@ func testEnum() throws {
 }
 
 func testDataClass() throws {
-    let f = "1"
-    let s = "2"
-    let t = "3"
+    let f = "1" as NSString
+    let s = "2" as NSString
+    let t = "3" as NSString
 
-    let tripleVal = TripleVals(first: f, second: s, third: t)
-    try assertEquals(actual: tripleVal.first as! String, expected: f, "Data class' value")
-    try assertEquals(actual: tripleVal.component2() as! String, expected: s, "Data class' component")
+    let tripleVal = TripleVals<NSString>(first: f, second: s, third: t)
+    try assertEquals(actual: tripleVal.first, expected: f, "Data class' value")
+    try assertEquals(actual: tripleVal.first, expected: "1", "Data class' value literal")
+    try assertEquals(actual: tripleVal.component2(), expected: s, "Data class' component")
     print(tripleVal)
     try assertEquals(actual: String(describing: tripleVal), expected: "TripleVals(first=\(f), second=\(s), third=\(t))")
 
-    let tripleVar = TripleVars(first: f, second: s, third: t)
-    try assertEquals(actual: tripleVar.first as! String, expected: f, "Data class' value")
-    try assertEquals(actual: tripleVar.component2() as! String, expected: s, "Data class' component")
+    let tripleVar = TripleVars<NSString>(first: f, second: s, third: t)
+    try assertEquals(actual: tripleVar.first, expected: f, "Data class' value")
+    try assertEquals(actual: tripleVar.component2(), expected: s, "Data class' component")
     print(tripleVar)
     try assertEquals(actual: String(describing: tripleVar), expected: "[\(f), \(s), \(t)]")
 
     tripleVar.first = t
     tripleVar.second = f
     tripleVar.third = s
-    try assertEquals(actual: tripleVar.component2() as! String, expected: f, "Data class' component")
+    try assertEquals(actual: tripleVar.component2(), expected: f, "Data class' component")
     try assertEquals(actual: String(describing: tripleVar), expected: "[\(t), \(f), \(s)]")
 }
 
@@ -426,7 +427,7 @@ func testInlineClasses() throws {
     let ic1N = ValuesKt.box(ic1: 17)
     let ic2 = "foo"
     let ic2N = "bar"
-    let ic3 = TripleVals(first: 1, second: 2, third: 3)
+    let ic3 = TripleVals<AnyObject>(first: KotlinInt(int:1), second: KotlinInt(int:2), third: KotlinInt(int:3))
     let ic3N = ValuesKt.box(ic3: nil)
 
     try assertEquals(
@@ -496,9 +497,69 @@ func testNames() throws {
     try assertEquals(actual: CKeywords(float: 1.0, enum : 42, goto: true).goto_, expected: true)
 }
 
+func testGeneric() throws {
+    let a = SomeGeneric<SomeData>(t: SomeData(num: 52))
+    try assertEquals(actual: a.myVal()?.num, expected: 52)
+
+    let nulls = GenOpen<SomeData>(arg: SomeData(num: 62))
+    let isnull = GenOpen<SomeData>(arg: nil)
+    let nonnulls = GenNonNull<SomeData>(arg: SomeData(num: 72))
+
+    try assertEquals(actual: nulls.arg?.num, expected: 62)
+    try assertEquals(actual: isnull.arg, expected: nil)
+    try assertEquals(actual: nonnulls.arg.num, expected: 72)
+
+    let sd = SomeData(num: 33)
+    let nullColl = GenCollectionsNull<SomeData>(arg: sd, coll: [sd])
+    let nonNullColl = GenCollectionsNonNull<SomeData>(arg: sd, coll: [sd])
+
+    try assertEquals(actual: (nullColl.coll[0] as! SomeData).num, expected: 33)
+    try assertEquals(actual: nonNullColl.coll[0].num, expected: 33)
+    try assertEquals(actual: nonNullColl.arg.num, expected: 33)
+}
+
+//Swift ignores the variance and lets you force-cast to whatever you need, for better or worse.
+//This would *not* work with direct Swift interop.
+func testGenericVariance() throws {
+    let sd = SomeData(num: 22)
+
+    let variOut = GenVarOut<SomeData>(arg: sd)
+    let variOutAny : GenVarOut<BaseData> = variOut as! GenVarOut<BaseData>
+    let variOutOther : GenVarOut<SomeOtherData> = variOut as! GenVarOut<SomeOtherData>
+
+    let variOutCheck = "variOut: \(variOut.arg.asString()), variOutAny: \(variOutAny.arg.asString()), variOutOther: \(variOutOther.arg.asString())"
+    try assertEquals(actual: variOutCheck, expected: "variOut: 22, variOutAny: 22, variOutOther: 22")
+
+    let variIn = GenVarIn<SomeData>(tArg: sd)
+    let variInAny : GenVarIn<BaseData> = variIn as! GenVarIn<BaseData>
+    let variInOther : GenVarIn<SomeOtherData> = variIn as! GenVarIn<SomeOtherData>
+
+    let varInCheck = "variIn: \(variIn.valString()), variInAny: \(variInAny.valString()), variInOther: \(variInOther.valString())"
+    try assertEquals(actual: varInCheck, expected: "variIn: SomeData(num=22), variInAny: SomeData(num=22), variInOther: SomeData(num=22)")
+
+    let variCoType:GenVarOut<BaseData> = ValuesKt.variCoType()
+    try assertEquals(actual: "890", expected: variCoType.arg.asString())
+
+    let variContraType:GenVarIn<SomeData> = ValuesKt.variContraType()
+    try assertEquals(actual: "SomeData(num=1890)", expected: variContraType.valString())
+}
+
+func testGenericInterface() throws {
+    let a: NoGeneric = SomeGeneric<SomeData>(t: SomeData(num: 52))
+    try assertEquals(actual: (a.myVal() as! SomeData).num, expected: 52)
+}
+
+func testGenericInheritance() throws {
+    let ge = GenEx<SomeData, SomeOtherData>(myT:SomeOtherData(str:"Hello"), baseT:SomeData(num: 11))
+    try assertEquals(actual: ge.t.num, expected: 11)
+    try assertEquals(actual: ge.myT.str, expected: "Hello")
+    let geBase = ge as! GenBase<SomeData>
+    try assertEquals(actual: geBase.t.num, expected: 11)
+}
+
 // -------- Execution of the test --------
 
-class ValuesTests : TestProvider {
+class ValuesGenericsTests : TestProvider {
     var tests: [TestCase] = []
 
     init() {
@@ -533,6 +594,10 @@ class ValuesTests : TestProvider {
             TestCase(name: "TestShared", method: withAutorelease(testShared)),
             TestCase(name: "TestPureSwiftClasses", method: withAutorelease(testPureSwiftClasses)),
             TestCase(name: "TestNames", method: withAutorelease(testNames)),
+            TestCase(name: "TestGeneric", method: withAutorelease(testGeneric)),
+            TestCase(name: "TestGenericVariance", method: withAutorelease(testGenericVariance)),
+            TestCase(name: "TestGenericInheritance", method: withAutorelease(testGenericInheritance)),
+            TestCase(name: "TestGenericInterface", method: withAutorelease(testGenericInterface)),
         ]
     }
 }

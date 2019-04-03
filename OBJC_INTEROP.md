@@ -219,14 +219,26 @@ foo {
 
 ### Generics
 
-Objective-C supports "lightweight generics" defined on classes, with a relatively limited feature set. Generics on 
-functions are not supported. Swift can impost generics defined on classes to help provide additional type information
-to the compiler.
+Objective-C supports "lightweight generics" defined on classes, with a relatively limited feature set. Swift can import 
+generics defined on classes to help provide additional type information to the compiler.
 
 Generic feature support for Objc and Swift differ from Kotlin, so the translation will inevitably lose some information,
 but the features supported retain meaningful information.
 
+### To Use
+
+Generics are currently not enabled be default. To have the framework header written with generics, set 
+`framework.writeGenerics=true` in java system properties on your build. The simplest way to accomplish this is by 
+adding the following to your 'gradle.properties' file:
+
+``` 
+systemProp.framework.writeGenerics=true
+```
+
 #### Limitations
+
+Objective-C generics do not support all features of either Kotlin or Swift, so there will be some information lost
+in the translation.
 
 Generics can only be defined on classes, not on interfaces (protocols in Objc and Swift) or functions.
 
