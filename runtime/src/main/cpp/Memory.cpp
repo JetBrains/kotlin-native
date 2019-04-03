@@ -70,9 +70,7 @@ static_assert(sizeof(ContainerHeader) % kObjectAlignment == 0, "sizeof(Container
 #if USE_GC
 // Collection threshold default (collect after having so many elements in the
 // release candidates set).
-constexpr size_t kGcThreshold = 32 * 1024;
-// Threshold of release candidate set.
-constexpr size_t kMaxReleaseSetSize = kGcThreshold;
+constexpr size_t kGcThreshold = 16 * 1024;
 #if GC_ERGONOMICS
 // Ergonomic thresholds.
 // If GC to computations time ratio is above that value,
@@ -311,7 +309,7 @@ struct MemoryState {
   ContainerHeaderList* roots; // Real candidates excluding those with refcount = 0.
   // How many GC suspend requests happened.
   int gcSuspendCount;
-  // How many candidate elements in toFree shall trigger collection.
+  // How many candidate elements in toRelease shall trigger collection.
   size_t gcThreshold;
   // If collection is in progress.
   bool gcInProgress;
@@ -639,10 +637,6 @@ inline void EnqueueDecrementRC(ContainerHeader* container) {
 
 #else // USE_GC
 
-inline uint32_t freeableSize(MemoryState* state) {
-  return state->toFree->size();
-}
-
 template <bool Atomic>
 inline void IncrementRC(ContainerHeader* container) {
   container->incRefCount<Atomic>();
@@ -650,11 +644,12 @@ inline void IncrementRC(ContainerHeader* container) {
 
 template <bool Atomic, bool UseCycleCollector>
 inline void DecrementRC(ContainerHeader* container) {
+  auto* state = memoryState;
   // TODO: enable me, once account for inner references in frozen objects correctly.
   // RuntimeAssert(container->refCount() > 0, "Must be positive");
   if (container->decRefCount<Atomic>() == 0) {
     FreeContainer(container);
-  } else if (UseCycleCollector) { // Possible root.
+  } else if (UseCycleCollector && state->toFree != nullptr) { // Possible root.
     RuntimeAssert(container->refCount() > 0, "Must be positive");
     RuntimeAssert(!Atomic && !container->shareable(), "Cycle collector shalln't be used with shared objects yet");
     RuntimeAssert(container->objectCount() == 1, "cycle collector shall only work with single object containers");
@@ -663,15 +658,13 @@ inline void DecrementRC(ContainerHeader* container) {
     // Also do not use cycle collector for provable acyclic objects.
     int color = container->color();
     if (color != CONTAINER_TAG_GC_PURPLE && color != CONTAINER_TAG_GC_GREEN) {
-      RuntimeAssert(!container->shareable(), "Shareable cannot be cycle collected");
       container->setColorAssertIfGreen(CONTAINER_TAG_GC_PURPLE);
       if (!container->buffered()) {
         container->setBuffered();
-        auto state = memoryState;
         state->toFree->push_back(container);
         GC_LOG("toFree is now %d\n", state->toFree->size());
-        if (state->gcSuspendCount == 0 &&
-            (state->toFree->size() >= state->gcThreshold || state->toRelease->size() >= state->gcThreshold)) {
+        if (state->gcSuspendCount == 0 && state->toRelease->size() >= state->gcThreshold) {
+          GC_LOG("Calling GC from DecrementRC: %d\n", state->toRelease->size())
           GarbageCollect();
         }
       }
@@ -680,12 +673,13 @@ inline void DecrementRC(ContainerHeader* container) {
 }
 
 inline void DecrementRC(ContainerHeader* container) {
-   // TODO: enable me, once account for inner references in frozen objects correctly.
+  auto* state = memoryState;
+  // TODO: enable me, once account for inner references in frozen objects correctly.
   // RuntimeAssert(container->refCount() > 0, "Must be positive");
   bool useCycleCollector = container->tag() == CONTAINER_TAG_NORMAL;
   if (container->decRefCount() == 0) {
     FreeContainer(container);
-  } else if (useCycleCollector) {
+  } else if (useCycleCollector && state->toFree != nullptr) {
       RuntimeAssert(container->refCount() > 0, "Must be positive");
       RuntimeAssert(!container->shareable(), "Cycle collector shalln't be used with shared objects yet");
       RuntimeAssert(container->objectCount() == 1, "cycle collector shall only work with single object containers");
@@ -697,7 +691,7 @@ inline void DecrementRC(ContainerHeader* container) {
         container->setColorAssertIfGreen(CONTAINER_TAG_GC_PURPLE);
         if (!container->buffered()) {
           container->setBuffered();
-          memoryState->toFree->push_back(container);
+          state->toFree->push_back(container);
         }
       }
   }
@@ -705,9 +699,16 @@ inline void DecrementRC(ContainerHeader* container) {
 
 template <bool CanCollect>
 inline void EnqueueDecrementRC(ContainerHeader* container) {
-  auto state = memoryState;
+  auto* state = memoryState;
+  if (state->toRelease == nullptr) {
+    // GC is turned off.
+    DecrementRC(container);
+    return;
+  }
+
   if (CanCollect) {
-    if (state->toRelease->size() > kMaxReleaseSetSize - 64 && state->gcSuspendCount == 0) {
+    if (state->toRelease->size() >= state->gcThreshold && state->gcSuspendCount == 0) {
+      GC_LOG("Calling GC from EnqueueDecrementRC: %d\n", state->toRelease->size())
       GarbageCollect();
     }
   }
@@ -1337,7 +1338,6 @@ MemoryState* InitMemory() {
   memoryState->toFree = konanConstructInstance<ContainerHeaderList>();
   memoryState->roots = konanConstructInstance<ContainerHeaderList>();
   memoryState->toRelease = konanConstructInstance<ContainerHeaderList>();
-  memoryState->toRelease->reserve(kMaxReleaseSetSize);
   memoryState->gcInProgress = false;
   initThreshold(memoryState, kGcThreshold);
   memoryState->gcSuspendCount = 0;
@@ -1349,6 +1349,7 @@ MemoryState* InitMemory() {
 void DeinitMemory(MemoryState* memoryState) {
 #if USE_GC
   do {
+    GC_LOG("Calling GarbageCollect from DeinitMemory()")
     GarbageCollect();
   } while (memoryState->toRelease->size() > 0);
   RuntimeAssert(memoryState->toFree->size() == 0, "Some memory have not been released after GC");
@@ -1749,7 +1750,8 @@ void GarbageCollect() {
   MemoryState* state = memoryState;
   RuntimeAssert(!state->gcInProgress, "Recursive GC is disallowed");
 
-  GC_LOG(">>> GC: toFree %d toRelease %d\n", state->toFree->size(), state->toRelease->size())
+  GC_LOG(">>> GC: threshold = %d toFree %d toRelease %d\n", \
+     state->gcThreshold, state->toFree->size(), state->toRelease->size())
 
 #if GC_ERGONOMICS
   auto gcStartTime = konan::getTimeMicros();
@@ -1759,7 +1761,17 @@ void GarbageCollect() {
 
   incrementStack(state);
   processDecrements(state);
+  size_t beforeDecrements = state->toRelease->size();
   decrementStack(state);
+  size_t afterDecrements = state->toRelease->size();
+  ssize_t stackReferences = afterDecrements - beforeDecrements;
+  if (stackReferences * 5 > state->gcThreshold) {
+     auto newThreshold = state->gcThreshold * 3 / 2 + 1;
+     if (newThreshold < kMaxErgonomicThreshold) {
+       state->gcThreshold = newThreshold;
+       GC_LOG("||| GC: too many stack references, increased threshold to \n", state->gcThreshold);
+     }
+  }
 
   GC_LOG("||| GC: toFree %d toRelease %d\n", state->toFree->size(), state->toRelease->size())
 
@@ -1793,12 +1805,14 @@ void GarbageCollect() {
 
 void Kotlin_native_internal_GC_collect(KRef) {
 #if USE_GC
+  GC_LOG("Kotlin_native_internal_GC_collect\n")
   GarbageCollect();
 #endif
 }
 
 void Kotlin_native_internal_GC_suspend(KRef) {
 #if USE_GC
+   GC_LOG("Kotlin_native_internal_GC_suspend\n")
   memoryState->gcSuspendCount++;
 #endif
 }
@@ -1808,7 +1822,10 @@ void Kotlin_native_internal_GC_resume(KRef) {
   MemoryState* state = memoryState;
   if (state->gcSuspendCount > 0) {
     state->gcSuspendCount--;
-    if (state->toFree != nullptr && freeableSize(state) >= state->gcThreshold) {
+    if (state->toRelease != nullptr &&
+        state->toRelease->size() >= state->gcThreshold &&
+        state->gcSuspendCount == 0) {
+      GC_LOG("Kotlin_native_internal_GC_resume\n")
       GarbageCollect();
     }
   }
@@ -1817,28 +1834,35 @@ void Kotlin_native_internal_GC_resume(KRef) {
 
 void Kotlin_native_internal_GC_stop(KRef) {
 #if USE_GC
-  if (memoryState->toFree != nullptr) {
+  GC_LOG("Kotlin_native_internal_GC_stop\n")
+  if (memoryState->toRelease != nullptr) {
     GarbageCollect();
-    // TODO: what shall we do with toRelease here? Just leak?
+    konanDestructInstance(memoryState->toRelease);
     konanDestructInstance(memoryState->toFree);
     konanDestructInstance(memoryState->roots);
+    memoryState->toRelease = nullptr;
     memoryState->toFree = nullptr;
     memoryState->roots = nullptr;
+    state->gcSuspendCount = 0;
   }
 #endif
 }
 
 void Kotlin_native_internal_GC_start(KRef) {
 #if USE_GC
+  GC_LOG("Kotlin_native_internal_GC_start\n")
   if (memoryState->toFree == nullptr) {
     memoryState->toFree = konanConstructInstance<ContainerHeaderList>();
+    memoryState->toRelease = konanConstructInstance<ContainerHeaderList>();
     memoryState->roots = konanConstructInstance<ContainerHeaderList>();
+    state->gcSuspendCount = 0;
   }
 #endif
 }
 
 void Kotlin_native_internal_GC_setThreshold(KRef, KInt value) {
 #if USE_GC
+  GC_LOG("Kotlin_native_internal_setThreshold %d\n", value)
   if (value > 0) {
     initThreshold(memoryState, value);
   }
@@ -1847,6 +1871,7 @@ void Kotlin_native_internal_GC_setThreshold(KRef, KInt value) {
 
 KInt Kotlin_native_internal_GC_getThreshold(KRef) {
 #if USE_GC
+  GC_LOG("Kotlin_native_internal_getThreshold %d\n")
   return memoryState->gcThreshold;
 #else
   return -1;
