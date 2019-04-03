@@ -53,8 +53,8 @@
   border-color: mediumorchid;
 }
 .ct-legend .ct-series-4:before {
-  background-color: #d17905;
-  border-color: #d17905;
+  background-color: navy;
+  border-color: navy;
 }
 .ct-legend .ct-series-5:before {
   background-color: #453d3f;
@@ -77,5 +77,11 @@
 .ct-series-d .ct-point {
   /* Set the colour of this series line */
   stroke: mediumorchid;
+}
+
+.ct-series-e .ct-line,
+.ct-series-e .ct-point {
+  /* Set the colour of this series line */
+  stroke: navy;
 }
 .tooltip { pointer-events: none; }
