@@ -127,13 +127,3 @@ open class FrameworkTest : DefaultTask() {
         check(output.toFile().exists(), { "Compiler swiftc hasn't produced an output file: $output" })
     }
 }
-
-open class WriteGenericsTask : DefaultTask() {
-    @Input
-    var writeGenerics = false
-
-    @TaskAction
-    fun run() {
-        System.setProperty("framework.writeGenerics", writeGenerics.toString())
-    }
-}

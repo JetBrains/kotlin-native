@@ -3178,14 +3178,6 @@ if (isAppleTarget(project)) {
         swiftSources = ['framework/values/values.swift']
     }
 
-    task testEnableGenerics(type: WriteGenericsTask){
-        writeGenerics = true
-    }
-
-    task testDisableGenerics(type: WriteGenericsTask){
-        writeGenerics = false
-    }
-    
     task testValuesGenericsFramework(type: FrameworkTest) {
         frameworkName = 'ValuesGenerics'
         konanArtifacts {
@@ -3202,11 +3194,18 @@ if (isAppleTarget(project)) {
         }
         swiftSources = ['framework/values_generics/values.swift']
     }
-    
+
+    //Enable/Disable flag to write generics
     afterEvaluate {
-        def valGenTask = project.tasks.getByName("compileKonanValuesGenerics")
-        valGenTask.dependsOn("testEnableGenerics")
-        valGenTask.finalizedBy("testDisableGenerics")
+        def headerGenTask = project.tasks.getByName("compileKonanValuesGenericsMacos_x64")
+        headerGenTask.doFirst {
+            System.setProperty("framework.writeGenerics", "true")
+        }
+        
+        def testDoneTask = project.tasks.getByName("compileKonanValuesGenerics")
+        testDoneTask.doLast {
+            System.setProperty("framework.writeGenerics", "false")
+        }
     }
 
     task testStdlibFramework(type: FrameworkTest) {
