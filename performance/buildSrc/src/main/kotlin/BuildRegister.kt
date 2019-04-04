@@ -48,7 +48,7 @@ open class BuildRegister : DefaultTask() {
 
     val buildInfoTokens: Int = 4
     val frameworkInfoTokens: Int = 3
-    val compileTimeSamplesNumber: Int = 3
+    val compileTimeSamplesNumber: Int = 2
     val buildNumberTokens: Int = 3
     val performanceServer = "https://kotlin-native-perf-summary.labs.jb.gg"
 
