@@ -64,7 +64,9 @@ kotlin {
 MPPTools.addTimeListener(project)
 
 task konanRun {
-    dependsOn 'build'
+    if (MPPTools.isMacos()) {
+        dependsOn 'build'
+    }
 }
 
 task jvmRun(type: RunJvmTask)  {
@@ -75,20 +77,24 @@ task jvmRun(type: RunJvmTask)  {
 
 task konanJsonReport {
     doLast {
-        def applicationName = "FrameworkBenchmarksAnalyzer"
-        def frameworkPath = kotlin.macosX64("macos").binaries.
-                getFramework(frameworkName, kotlin.macosX64("macos").binaries.RELEASE).outputFile.absolutePath
-        def nativeExecutable = new File("$frameworkPath/$frameworkName").canonicalPath
-        def nativeCompileTime = MPPTools.getNativeCompileTime(applicationName, ['compileKotlinMacos',
-                                                                                'linkBenchmarksAnalyzerReleaseFrameworkMacos',
-                                                                                'cinteropLibcurlMacos'])
-        def properties = getCommonProperties() + ['type': 'native',
-                                                  'compilerVersion': "${konanVersion}".toString(),
-                                                  'flags': [],
-                                                  'benchmarks': '[]',
-                                                  'compileTime': [nativeCompileTime],
-                                                  'codeSize': MPPTools.getCodeSizeBenchmark(applicationName, nativeExecutable) ]
-        def output = MPPTools.createJsonReport(properties)
+        def output = ""
+    
+        if (MPPTools.isMacos()) {
+            def applicationName = "FrameworkBenchmarksAnalyzer"
+            def frameworkPath = kotlin.macosX64("macos").binaries.
+                    getFramework(frameworkName, kotlin.macosX64("macos").binaries.RELEASE).outputFile.absolutePath
+            def nativeExecutable = new File("$frameworkPath/$frameworkName").canonicalPath
+            def nativeCompileTime = MPPTools.getNativeCompileTime(applicationName, ['compileKotlinMacos',
+                                                                                    'linkBenchmarksAnalyzerReleaseFrameworkMacos',
+                                                                                    'cinteropLibcurlMacos'])
+            def properties = getCommonProperties() + ['type'           : 'native',
+                                                      'compilerVersion': "${konanVersion}".toString(),
+                                                      'flags'          : [],
+                                                      'benchmarks'     : '[]',
+                                                      'compileTime'    : [nativeCompileTime],
+                                                      'codeSize'       : MPPTools.getCodeSizeBenchmark(applicationName, nativeExecutable)]
+            output = MPPTools.createJsonReport(properties)
+        }
         new File("${buildDir.absolutePath}/${nativeJson}").write(output)
     }
 }

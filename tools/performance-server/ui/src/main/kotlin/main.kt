@@ -142,7 +142,7 @@ fun customizeChart(chart: dynamic, chartContainer: String, jquerySelector: dynam
                         "L", data.x + pointSize, data.y + pointSize/2, "z").joinToString(" ")
                 svgParameters["style"] = "fill:rgb(255,0,0);stroke-width:0"
                 val triangle = Chartist.Svg("path", svgParameters, chartContainer)
-                element = data.element._node.replace(triangle)
+                element = data.element.replace(triangle)
             } else if (currentBuild.buildNumber == parameters["build"]) {
                 // Higlight choosen build.
                 val svgParameters: dynamic = object{}
