@@ -1,5 +1,9 @@
 package org.jetbrains.kotlin.backend.konan.serialization
 
+import org.jetbrains.kotlin.backend.common.serialization.DescriptorReferenceDeserializer
+import org.jetbrains.kotlin.backend.common.serialization.DescriptorUniqIdAware
+import org.jetbrains.kotlin.backend.common.serialization.UniqId
+import org.jetbrains.kotlin.backend.common.serialization.UniqIdKey
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.name.ClassId
@@ -13,63 +17,31 @@ import org.jetbrains.kotlin.serialization.deserialization.descriptors.Deserializ
 // tree of deserialized descriptors. Think of it as base + offset.
 // packageFqName + classFqName + index allow to localize some deserialized descriptor.
 // Then the rest of the fields allow to find the needed descriptor relative to the one with index.
-class DescriptorReferenceDeserializer(val currentModule: ModuleDescriptor, val resolvedForwardDeclarations: MutableMap<UniqIdKey, UniqIdKey>) {
+class KonanDescriptorReferenceDeserializer(
+    currentModule: ModuleDescriptor,
+    resolvedForwardDeclarations: MutableMap<UniqIdKey, UniqIdKey>)
+    : DescriptorReferenceDeserializer(currentModule, resolvedForwardDeclarations),
+      DescriptorUniqIdAware by KonanDescriptorUniqIdAware{
 
-    private fun getContributedDescriptors(packageFqNameString: String, name: String): Collection<DeclarationDescriptor> {
-        val packageFqName = packageFqNameString.let {
-            if (it == "<root>") FqName.ROOT else FqName(it)
-        }// TODO: whould we store an empty string in the protobuf?
+    // TODO: these are dummies. Eliminate them.
+    override fun resolveSpecialDescriptor(fqn: FqName): DeclarationDescriptor = currentModule
+    override fun checkIfSpecialDescriptorId(id: Long): Boolean = false
+    override fun getDescriptorIdOrNull(descriptor: DeclarationDescriptor): Long? = null
 
-        val memberScope = currentModule.getPackage(packageFqName).memberScope
-        return getContributedDescriptors(memberScope, name)
-    }
-
-    private fun getContributedDescriptors(memberScope: MemberScope, name: String): Collection<DeclarationDescriptor> {
-        val contributedNameString = if (name.startsWith("<get-") || name.startsWith("<set-")) {
-            name.substring(5, name.length - 1) // FIXME: rework serialization format.
-        } else {
-            name
-        }
-        val contributedName = Name.identifier(contributedNameString)
-        return memberScope.getContributedFunctions(contributedName, NoLookupLocation.FROM_BACKEND) +
-                memberScope.getContributedVariables(contributedName, NoLookupLocation.FROM_BACKEND) +
-                listOfNotNull(memberScope.getContributedClassifier(contributedName, NoLookupLocation.FROM_BACKEND))
-    }
-
-    private class ClassMembers(val defaultConstructor: ClassConstructorDescriptor?,
-                               val members: Map<Long, DeclarationDescriptor>,
-                               val realMembers: Map<Long, DeclarationDescriptor>)
-
-    private fun getMembers(members: Collection<DeclarationDescriptor>): ClassMembers {
-        val allMembersMap = mutableMapOf<Long, DeclarationDescriptor>()
-        val realMembersMap = mutableMapOf<Long, DeclarationDescriptor>()
-        var classConstructorDescriptor: ClassConstructorDescriptor? = null
-        members.forEach { member ->
-            if (member is ClassConstructorDescriptor)
-                classConstructorDescriptor = member
-            val realMembers =
-                    if (member is CallableMemberDescriptor && member.kind == CallableMemberDescriptor.Kind.FAKE_OVERRIDE)
-                        member.resolveFakeOverrideMaybeAbstract()
-                    else
-                        setOf(member)
-
-            member.getUniqId()?.index?.let { allMembersMap[it] = member }
-            realMembers.mapNotNull { it.getUniqId()?.index }.forEach { realMembersMap[it] = member }
-        }
-        return ClassMembers(classConstructorDescriptor, allMembersMap, realMembersMap)
-    }
-
-    fun deserializeDescriptorReference(
+    // Most of this function duplicates the parent, but it deals with forward declarations.
+    // TODO: Refactor me.
+    override fun deserializeDescriptorReference(
         packageFqNameString: String,
         classFqNameString: String,
         name: String,
         index: Long?,
-        isEnumEntry: Boolean = false,
-        isEnumSpecial: Boolean = false,
-        isDefaultConstructor: Boolean = false,
-        isFakeOverride: Boolean = false,
-        isGetter: Boolean = false,
-        isSetter: Boolean = false
+        isEnumEntry: Boolean,
+        isEnumSpecial: Boolean,
+        isDefaultConstructor: Boolean,
+        isFakeOverride: Boolean,
+        isGetter: Boolean,
+        isSetter: Boolean,
+        isTypeParameter: Boolean
     ): DeclarationDescriptor {
         val packageFqName = packageFqNameString.let {
             if (it == "<root>") FqName.ROOT else FqName(it)
@@ -82,7 +54,7 @@ class DescriptorReferenceDeserializer(val currentModule: ModuleDescriptor, val r
             Pair(null, getContributedDescriptors(packageFqNameString, name))
         } else {
             val clazz = currentModule.findClassAcrossModuleDependencies(ClassId(packageFqName, classFqName, false))!!
-            Pair(clazz, getContributedDescriptors(clazz.unsubstitutedMemberScope, name) + clazz.getConstructors())
+            Pair(clazz, clazz.unsubstitutedMemberScope.getContributedDescriptors() + clazz.getConstructors())
         }
 
         if (packageFqNameString.startsWith("cnames.") || packageFqNameString.startsWith("objcnames.")) {
@@ -93,7 +65,7 @@ class DescriptorReferenceDeserializer(val currentModule: ModuleDescriptor, val r
                 )
             ) {
                 if (descriptor is DeserializedClassDescriptor) {
-                    val uniqId = UniqId(descriptor.getUniqId()!!.index, false)
+                    val uniqId = UniqId(descriptor.getUniqId()!!, false)
                     val newKey = UniqIdKey(null, uniqId)
                     val oldKey = UniqIdKey(null, UniqId(protoIndex!!, false))
 
@@ -113,6 +85,10 @@ class DescriptorReferenceDeserializer(val currentModule: ModuleDescriptor, val r
         if (isEnumSpecial) {
             return clazz!!.getStaticScope()
                 .getContributedFunctions(Name.identifier(name), NoLookupLocation.FROM_BACKEND).single()
+        }
+
+        if (isTypeParameter) {
+            return clazz!!.declaredTypeParameters.first { it.name.asString() == name }
         }
 
         val membersWithIndices = getMembers(members)

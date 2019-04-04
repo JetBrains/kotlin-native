@@ -133,6 +133,36 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
         }
     }
 
+    fun getResultsByMetric(metric: BenchmarkResult.Metric, getGeoMean: Boolean = true, filter: List<String>? = null,
+                           normalizeData: Map<String, Map<String, Double>>? = null): List<Double>  {
+        val benchmarks = filter?.let {
+            mergedReport.filter { entry ->
+                filter.find {
+                    entry.key.startsWith(it)
+                } != null
+            }
+        } ?: mergedReport
+        if (benchmarks.isEmpty()) {
+            error("There is no benchmarks from provided list")
+        }
+        val filteredBenchmarks = benchmarks.filter { entry -> entry.value.first!!.meanBenchmark.metric == metric }
+        if (filteredBenchmarks.isEmpty()) {
+            error("There is no benchmarks for metric $metric")
+        }
+        val results = filteredBenchmarks.map { entry ->
+            val score = entry.value.first!!.meanBenchmark.score
+            val name = entry.key.removeSuffix(metric.suffix)
+            val value = normalizeData?.let {
+                it.get(name)?.get("$metric")?.let { score / it }
+                        ?: error("No normalization data for benchmark $name and metric $metric")
+            } ?: score
+            name to value }.toMap()
+        if (getGeoMean) {
+            return listOf(geometricMean(results.values))
+        }
+        return filter?.let { it.map { results[it] ?: error("Benchmark $it for metric $metric doesn't exist.") }.toList() } ?: results.values.toList()
+    }
+
     private fun getMaximumChange(bucket: Map<String, ScoreChange>): Double =
         // Maps of regressions and improvements are sorted.
         if (bucket.isEmpty()) 0.0 else bucket.values.map { it.first.mean }.first()

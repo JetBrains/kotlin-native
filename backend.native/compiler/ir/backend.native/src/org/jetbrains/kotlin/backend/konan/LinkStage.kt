@@ -18,7 +18,7 @@ typealias ExecutableFile = String
 private fun determineLinkerOutput(context: Context): LinkerOutputKind =
     when (context.config.produce) {
         CompilerOutputKind.FRAMEWORK -> {
-            val staticFramework = context.config.configuration.getBoolean(KonanConfigKeys.STATIC_FRAMEWORK)
+            val staticFramework = context.config.produceStaticFramework
             if (staticFramework) LinkerOutputKind.STATIC_LIBRARY else LinkerOutputKind.DYNAMIC_LIBRARY
         }
         CompilerOutputKind.DYNAMIC -> LinkerOutputKind.DYNAMIC_LIBRARY
@@ -40,7 +40,12 @@ internal class LinkStage(val context: Context) {
 
     private val nomain = config.get(KonanConfigKeys.NOMAIN) ?: false
     private val emitted = context.bitcodeFileName
-    private val libraries = context.llvm.librariesToLink
+
+    private val bitcodeLibraries = context.llvm.bitcodeToLink
+    private val nativeDependencies = context.llvm.nativeDependenciesToLink
+
+    private val additionalBitcodeFilesToLink = context.llvm.additionalProducedBitcodeFiles
+
     private fun MutableList<String>.addNonEmpty(elements: List<String>) {
         addAll(elements.filter { !it.isEmpty() })
     }
@@ -220,8 +225,8 @@ internal class LinkStage(val context: Context) {
 
     fun makeObjectFiles() {
 
-        val bitcodeFiles = listOf(emitted) +
-                libraries.map { it.bitcodePaths }.flatten().filter { it.isBitcode }
+        val bitcodeFiles = listOf(emitted) + additionalBitcodeFilesToLink +
+                bitcodeLibraries.map { it.bitcodePaths }.flatten().filter { it.isBitcode }
 
         objectFiles.add(when (platform.configurables) {
             is WasmConfigurables
@@ -235,10 +240,10 @@ internal class LinkStage(val context: Context) {
 
     fun linkStage() {
         val includedBinaries =
-                libraries.map { it.includedPaths }.flatten()
+                nativeDependencies.map { it.includedPaths }.flatten()
 
         val libraryProvidedLinkerFlags =
-                libraries.map { it.linkerOpts }.flatten()
+                nativeDependencies.map { it.linkerOpts }.flatten()
 
         link(objectFiles, includedBinaries, libraryProvidedLinkerFlags)
     }

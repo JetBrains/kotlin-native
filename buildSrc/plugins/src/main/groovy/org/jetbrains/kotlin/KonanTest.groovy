@@ -47,6 +47,9 @@ abstract class KonanTest extends JavaExec {
     List<String> arguments = null
     List<String> flags = null
 
+    boolean multiRuns = false
+    List<List<String>> multiArguments = null
+
     boolean enabled = true
     boolean expectedFail = false
     boolean run = true
@@ -208,6 +211,49 @@ abstract class KonanTest extends JavaExec {
             |    abstract fun resumeWithException(exception: Throwable)
             |    abstract fun resume(value: T)
             |}
+            |class StateMachineCheckerClass {
+            |    private var counter = 0
+            |    var finished = false
+            |
+            |    var proceed: () -> Unit = {}
+            |    fun reset() {
+            |        counter = 0
+            |        finished = false
+            |        proceed = {}
+            |     }
+            |
+            |    suspend fun suspendHere() = suspendCoroutine<Unit> { c ->
+            |        counter++
+            |        proceed = { c.resume(Unit) }
+            |    }
+            |
+            |    fun check(numberOfSuspensions: Int) {
+            |        for (i in 1..numberOfSuspensions) {
+            |            if (counter != i) error("Wrong state-machine generated: suspendHere called should be called exactly once in one state. Expected " + i + ", got " + counter)
+            |            proceed()
+            |        }
+            |        if (counter != numberOfSuspensions)
+            |            error("Wrong state-machine generated: suspendHere called should be called exactly once in one state. Expected " + numberOfSuspensions + ", got " + counter)
+            |        if (finished) error("Wrong state-machine generated: it is finished early")
+            |        proceed()
+            |        if (!finished) error("Wrong state-machine generated: it is not finished yet")
+            |    }
+            |}            
+            |val StateMachineChecker = StateMachineCheckerClass()
+            |object CheckStateMachineContinuation: ContinuationAdapter<Unit>() {
+            |    override val context: CoroutineContext
+            |        get() = EmptyCoroutineContext
+            |
+            |    override fun resume(value: Unit) {
+            |        StateMachineChecker.proceed = {
+            |            StateMachineChecker.finished = true
+            |        }
+            |    }
+            |
+            |    override fun resumeWithException(exception: Throwable) {
+            |        throw exception
+            |    }
+            |}
         """.stripMargin()
     }
 
@@ -281,34 +327,41 @@ abstract class KonanTest extends JavaExec {
 
         out = new ByteArrayOutputStream()
         //TODO Add test timeout
-        ExecResult execResult = project.execute {
 
-            commandLine exe
+        def times = multiRuns ? multiArguments.size() : 1
 
-            if (arguments != null) {
-                args arguments
+        def exitCodeMismatch = false
+        for (int i = 0; i < times; i++) {
+            ExecResult execResult = project.execute {
+
+                commandLine exe
+
+                if (arguments != null) {
+                    args arguments
+                }
+                if (multiRuns && multiArguments[i] != null) {
+                    args multiArguments[i]
+                }
+                if (testData != null) {
+                    standardInput = new ByteArrayInputStream(testData.bytes)
+                }
+                standardOutput = out
+
+                ignoreExitValue = true
             }
-            if (testData != null) {
-                standardInput = new ByteArrayInputStream(testData.bytes)
-            }
-            standardOutput = out
 
-            ignoreExitValue = true
+            exitCodeMismatch |= execResult.exitValue != expectedExitStatus
+            if (exitCodeMismatch) {
+                def message = "Expected exit status: $expectedExitStatus, actual: ${execResult.exitValue}"
+                if (this.expectedFail) {
+                    println("Expected failure. $message")
+                } else {
+                    throw new TestFailedException("Test failed on iteration $i. $message\n ${out.toString("UTF-8")}")
+                }
+            }
         }
         def result = compilerMessagesText + out.toString("UTF-8")
-
         println(result)
-
-        def exitCodeMismatch = execResult.exitValue != expectedExitStatus
-        if (exitCodeMismatch) {
-            def message = "Expected exit status: $expectedExitStatus, actual: ${execResult.exitValue}"
-            if (this.expectedFail) {
-                println("Expected failure. $message")
-            } else {
-                throw new TestFailedException("Test failed. $message")
-            }
-        }
-
         result = result.replace(System.lineSeparator(), "\n")
         def goldValueMismatch = !outputChecker.apply(result)
         if (goldValueMismatch) {

@@ -56,6 +56,7 @@ task slackReport(type: RegressionsReporter) {
         defaultBranch = project.findProperty('kotlin.native.default.branch') ?: "master"
         def target = System.getProperty("os.name")
         summaryFile = "${targetsResults}/${target}.txt"
+        bundleBuild = project.findProperty('kotlin.bundleBuild') == null ? false : true
     }
 }
 
@@ -77,6 +78,23 @@ private def uploadBenchmarkResultToBintray(String fileName) {
         MPPTools.uploadFileToBintray("${bintrayUrl}", "${bintrayRepo}",
                 buildNumber, "${bintrayPackage}", "${target}/${buildNumber}/${fileName}",
                 "${buildDir.absolutePath}/${fileName}", user, password)
+    }
+}
+
+task registerBuild(type: BuildRegister) {
+    def analyzerBinary = MPPTools.findFile("${analyzerTool}${MPPTools.getNativeProgramExtension()}",
+            "${rootBuildDirectory}/${analyzerToolDirectory}")
+    if (analyzerBinary != null) {
+        onlyBranch = project.findProperty('kotlin.register.branch')
+        // Get bundle size.
+        bundleSize = null
+        if (project.findProperty('kotlin.bundleBuild') != null) {
+            def dist = findProperty('org.jetbrains.kotlin.native.home') ?: 'dist'
+            dist = (new File(dist)).isAbsolute() ? dist : "${project.getProjectDir()}/$dist"
+            bundleSize = (new File(dist)).directorySize()
+        }
+        currentBenchmarksReportFile = "${buildDir.absolutePath}/${nativeJson}"
+        analyzer = analyzerBinary
     }
 }
 

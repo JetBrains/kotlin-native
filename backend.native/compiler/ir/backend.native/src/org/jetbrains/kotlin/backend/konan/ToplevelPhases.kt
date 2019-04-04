@@ -3,6 +3,7 @@ package org.jetbrains.kotlin.backend.konan
 import org.jetbrains.kotlin.backend.common.LoggingContext
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.common.phaser.*
+import org.jetbrains.kotlin.backend.common.serialization.DeserializationStrategy
 import org.jetbrains.kotlin.backend.konan.descriptors.isForwardDeclarationModule
 import org.jetbrains.kotlin.backend.konan.descriptors.konanLibrary
 import org.jetbrains.kotlin.backend.konan.ir.KonanSymbols
@@ -13,6 +14,7 @@ import org.jetbrains.kotlin.backend.konan.serialization.*
 import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.languageVersionSettings
+import org.jetbrains.kotlin.backend.common.serialization.DescriptorTable
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.util.patchDeclarationParents
@@ -67,15 +69,14 @@ internal val psiToIrPhase = konanUnitPhase(
 
             val forwardDeclarationsModuleDescriptor = moduleDescriptor.allDependencyModules.firstOrNull { it.isForwardDeclarationModule }
 
-            val deserializer = KonanIrModuleDeserializer(
+            val deserializer = KonanIrLinker(
                     moduleDescriptor,
                     this as LoggingContext,
                     generatorContext.irBuiltIns,
                     generatorContext.symbolTable,
-                    forwardDeclarationsModuleDescriptor
+                    forwardDeclarationsModuleDescriptor,
+                    getExportedDependencies()
             )
-
-            val modules = mutableMapOf<String, IrModuleFragment>()
 
             var dependenciesCount = 0
             while (true) {
@@ -84,26 +85,17 @@ internal val psiToIrPhase = konanUnitPhase(
                     config.librariesWithDependencies(moduleDescriptor).contains(it.konanLibrary)
                 }
                 for (dependency in dependencies) {
-                    val konanLibrary = dependency.konanLibrary!!
-                    if (modules.containsKey(konanLibrary.libraryName)) continue
-                    konanLibrary.irHeader?.let { header ->
-                        // TODO: consider skip deserializing explicitly exported declarations for libraries.
-                        // Now it's not valid because of all dependencies that must be computed.
-                        val deserializationStrategy = if (getExportedDependencies().contains(dependency))
-                            DeserializationStrategy.ALL else DeserializationStrategy.EXPLICITLY_EXPORTED
-                        modules[konanLibrary.libraryName] = deserializer.deserializeIrModuleHeader(dependency, header, deserializationStrategy)
-                    }
+                    deserializer.deserializeIrModuleHeader(dependency)
                 }
                 if (dependencies.size == dependenciesCount) break
                 dependenciesCount = dependencies.size
             }
 
-
             val symbols = KonanSymbols(this, generatorContext.symbolTable, generatorContext.symbolTable.lazyWrapper)
             val module = translator.generateModuleFragment(generatorContext, environment.getSourceFiles(), deserializer)
 
             irModule = module
-            irModules = modules
+            irModules = deserializer.modules
             ir.symbols = symbols
 
 //        validateIrModule(this, module)
@@ -144,8 +136,8 @@ internal val patchDeclarationParents0Phase = konanUnitPhase(
 
 internal val serializerPhase = konanUnitPhase(
         op = {
-            val declarationTable = DeclarationTable(irModule!!.irBuiltins, DescriptorTable())
-            val serializedIr = IrModuleSerializer(this, declarationTable).serializedIrModule(irModule!!)
+            val declarationTable = KonanDeclarationTable(irModule!!.irBuiltins, DescriptorTable())
+            val serializedIr = KonanIrModuleSerializer(this, declarationTable).serializedIrModule(irModule!!)
             val serializer = KonanSerializationUtil(this, config.configuration.get(CommonConfigurationKeys.METADATA_VERSION)!!, declarationTable)
             serializedLinkData =
                     serializer.serializeModule(moduleDescriptor, /*if (!config.isInteropStubs) serializedIr else null*/ serializedIr)
@@ -266,6 +258,8 @@ internal val bitcodePhase = namedIrModulePhase(
         lower = contextLLVMSetupPhase then
                 RTTIPhase then
                 generateDebugInfoHeaderPhase then
+                buildDFGPhase then
+                serializeDFGPhase then
                 deserializeDFGPhase then
                 devirtualizationPhase then
                 escapeAnalysisPhase then
@@ -275,7 +269,8 @@ internal val bitcodePhase = namedIrModulePhase(
                 cStubsPhase
 )
 
-internal val toplevelPhase = namedUnitPhase(
+// Have to hide Context as type parameter in order to expose toplevelPhase outside of this module.
+val toplevelPhase: CompilerPhase<*, Unit, Unit> = namedUnitPhase(
         name = "Compiler",
         description = "The whole compilation process",
         lower = frontendPhase then
@@ -293,8 +288,6 @@ internal val toplevelPhase = namedUnitPhase(
                                 dependenciesLowerPhase then // Then lower all libraries in topological order.
                                                             // With that we guarantee that inline functions are unlowered while being inlined.
                                 moduleIndexForCodegenPhase then
-                                buildDFGPhase then
-                                serializeDFGPhase then
                                 bitcodePhase then
                                 produceOutputPhase then
                                 verifyBitcodePhase then
@@ -307,9 +300,7 @@ internal val toplevelPhase = namedUnitPhase(
 internal fun PhaseConfig.konanPhasesConfig(config: KonanConfig) {
     with(config.configuration) {
         disable(compileTimeEvaluatePhase)
-        disable(buildDFGPhase)
         disable(deserializeDFGPhase)
-        disable(devirtualizationPhase)
         disable(escapeAnalysisPhase)
         disable(serializeDFGPhase)
 

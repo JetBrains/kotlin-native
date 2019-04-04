@@ -100,7 +100,7 @@ external fun getReceiverOrSuper(receiver: NativePtr, superClass: NativePtr): COp
 @Retention(AnnotationRetention.BINARY)
 annotation class ExternalObjCClass(val protocolGetter: String = "", val binaryName: String = "")
 
-@Target(AnnotationTarget.FUNCTION)
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.PROPERTY_GETTER, AnnotationTarget.PROPERTY_SETTER)
 @Retention(AnnotationRetention.BINARY)
 annotation class ObjCMethod(val selector: String, val bridge: String)
 
@@ -124,6 +124,10 @@ annotation class InteropStubs()
 @Target(AnnotationTarget.FUNCTION)
 @Retention(AnnotationRetention.SOURCE)
 internal annotation class ObjCMethodImp(val selector: String, val encoding: String)
+
+@PublishedApi
+@TypedIntrinsic(IntrinsicType.OBJC_GET_SELECTOR)
+internal external fun objCGetSelector(selector: String): COpaquePointer
 
 @kotlin.native.internal.ExportForCppRuntime("Kotlin_Interop_getObjCClass")
 private fun getObjCClassByName(name: NativePtr): NativePtr {

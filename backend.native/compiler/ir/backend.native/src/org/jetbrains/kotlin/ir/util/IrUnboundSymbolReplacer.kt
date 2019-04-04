@@ -19,36 +19,6 @@ import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.types.toKotlinType
 import org.jetbrains.kotlin.ir.visitors.*
 
-@Deprecated("")
-internal fun IrModuleFragment.replaceUnboundSymbols(context: Context) {
-    val collector = DeclarationSymbolCollector()
-    with(collector) {
-        with(irBuiltins) {
-            for (op in arrayOf(eqeqeqFun, eqeqFun, throwNpeFun, booleanNotFun, noWhenBranchMatchedExceptionFun) +
-                    lessFunByOperandType.values +
-                    lessOrEqualFunByOperandType.values +
-                    greaterOrEqualFunByOperandType.values +
-                    greaterFunByOperandType.values +
-                    ieee754equalsFunByOperandType.values) {
-                register(op.symbol)
-            }
-        }
-    }
-    this.acceptVoid(collector)
-
-    val symbolTable = context.ir.symbols.symbolTable
-
-    this.transformChildrenVoid(IrUnboundSymbolReplacer(symbolTable, collector.descriptorToSymbol, context))
-
-    // Generate missing external stubs:
-    @Suppress("DEPRECATION")
-    ExternalDependenciesGenerator(
-            context.moduleDescriptor,
-            symbolTable = context.psi2IrGeneratorContext.symbolTable,
-            irBuiltIns = context.irBuiltIns
-    ).generateUnboundSymbolsAsDependencies()
-}
-
 private fun IrModuleFragment.mergeFrom(other: IrModuleFragment): Unit {
     assert(this.files.isEmpty())
     assert(other.files.isEmpty())
@@ -319,7 +289,7 @@ private class IrUnboundSymbolReplacer(
 
         expression.transformChildrenVoid(this)
         return with(expression) {
-            IrLocalDelegatedPropertyReferenceImpl(startOffset, endOffset, type, descriptor,
+            IrLocalDelegatedPropertyReferenceImpl(startOffset, endOffset, type, symbol,
                     delegate, getter, setter, origin).also {
 
                 it.copyArgumentsFrom(this)

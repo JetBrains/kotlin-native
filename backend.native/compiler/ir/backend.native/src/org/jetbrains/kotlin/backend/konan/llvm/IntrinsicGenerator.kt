@@ -4,12 +4,16 @@ import kotlinx.cinterop.cValuesOf
 import llvm.*
 import org.jetbrains.kotlin.backend.konan.descriptors.TypedIntrinsic
 import org.jetbrains.kotlin.backend.konan.descriptors.isTypedIntrinsic
+import org.jetbrains.kotlin.backend.konan.llvm.objc.genObjCSelector
+import org.jetbrains.kotlin.backend.konan.ir.isSuspend
 import org.jetbrains.kotlin.backend.konan.reportCompilationError
 import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.types.getClass
+import org.jetbrains.kotlin.ir.util.dump
 import org.jetbrains.kotlin.name.Name
 
 internal enum class IntrinsicType {
@@ -51,6 +55,7 @@ internal enum class IntrinsicType {
     OBJC_GET_OBJC_CLASS,
     OBJC_GET_RECEIVER_OR_SUPER,
     OBJC_INIT_BY,
+    OBJC_GET_SELECTOR,
     // Other
     GET_CLASS_TYPE_INFO,
     CREATE_UNINITIALIZED_INSTANCE,
@@ -62,6 +67,7 @@ internal enum class IntrinsicType {
     // Coroutines
     GET_CONTINUATION,
     RETURN_IF_SUSPEND,
+    COROUTINE_LAUNCHPAD,
     // Interop
     INTEROP_READ_BITS,
     INTEROP_WRITE_BITS,
@@ -96,7 +102,7 @@ internal interface IntrinsicGeneratorEnvironment {
 
     fun calculateLifetime(element: IrElement): Lifetime
 
-    fun evaluateCall(function: IrFunction, args: List<LLVMValueRef>, resultLifetime: Lifetime): LLVMValueRef
+    fun evaluateCall(function: IrFunction, args: List<LLVMValueRef>, resultLifetime: Lifetime, superClass: IrClass? = null): LLVMValueRef
 
     fun evaluateExplicitArgs(expression: IrMemberAccessExpression): List<LLVMValueRef>
 
@@ -148,16 +154,30 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
                 environment.evaluateCall(constructorDescriptor, args, Lifetime.IRRELEVANT)
                 receiver
             }
+            IntrinsicType.OBJC_GET_SELECTOR -> {
+                val selector = (callSite.getValueArgument(0) as IrConst<*>).value as String
+                environment.functionGenerationContext.genObjCSelector(selector)
+            }
             IntrinsicType.INIT_INSTANCE -> {
-                val callee = callSite as IrCall
-                val initializer = callee.getValueArgument(1) as IrCall
-                val thiz = environment.evaluateExpression(callee.getValueArgument(0)!!)
+                val initializer = callSite.getValueArgument(1) as IrCall
+                val thiz = environment.evaluateExpression(callSite.getValueArgument(0)!!)
                 environment.evaluateCall(
                         initializer.symbol.owner,
                         listOf(thiz) + environment.evaluateExplicitArgs(initializer),
                         environment.calculateLifetime(initializer)
                 )
                 codegen.theUnitInstanceRef.llvm
+            }
+            IntrinsicType.COROUTINE_LAUNCHPAD -> {
+                val suspendFunctionCall = callSite.getValueArgument(0) as IrCall
+                val continuation = environment.evaluateExpression(callSite.getValueArgument(1)!!)
+                val suspendFunction = suspendFunctionCall.symbol.owner
+                assert(suspendFunction.isSuspend) { "Call to a suspend function expected but was ${suspendFunction.dump()}" }
+                environment.evaluateCall(suspendFunction,
+                        environment.evaluateExplicitArgs(suspendFunctionCall) + listOf(continuation),
+                        environment.calculateLifetime(suspendFunctionCall),
+                        suspendFunction.parent as? IrClass // Call non-virtually.
+                )
             }
             else -> null
         }
@@ -232,6 +252,8 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
                     reportNonLoweredIntrinsic(intrinsicType)
                 IntrinsicType.INIT_INSTANCE,
                 IntrinsicType.OBJC_INIT_BY,
+                IntrinsicType.COROUTINE_LAUNCHPAD,
+                IntrinsicType.OBJC_GET_SELECTOR,
                 IntrinsicType.IMMUTABLE_BLOB ->
                     reportSpecialIntrinsic(intrinsicType)
             }

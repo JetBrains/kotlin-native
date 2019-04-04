@@ -49,7 +49,7 @@ repositories {
 
 dependencies {
     cli_bc project(path: ':backend.native', configuration: 'cli_bc')
-    update_tests (group: 'org',  name: 'Kotlin_dev_CompilerAllPlugins', version: testKotlinVersion) {
+    update_tests (group: 'org',  name: 'Kotlin_dev_Compiler', version: testKotlinVersion) {
         artifact {
             name = 'internal/kotlin-test-data'
             type = 'zip'
@@ -1543,6 +1543,11 @@ task coroutines_controlFlow_while2(type: RunKonanTest) {
     source = "codegen/coroutines/controlFlow_while2.kt"
 }
 
+task coroutines_returnsNothing1(type: RunKonanTest) {
+    goldValue = "OK\n"
+    source = "codegen/coroutines/returnsNothing1.kt"
+}
+
 task coroutines_returnsUnit1(type: RunKonanTest) {
     goldValue = "117\ns1\n0\n"
     source = "codegen/coroutines/returnsUnit1.kt"
@@ -2228,6 +2233,16 @@ task args0(type: RunStandaloneKonanTest) {
     source = "runtime/basic/args0.kt"
 }
 
+task multiargs(type: RunStandaloneKonanTest) {
+    arguments = ["AAA", "BB", "C"]
+    multiRuns = true
+    multiArguments = [["1", "2", "3"], ["---"], ["Hello", "world"]]
+    goldValue = "AAA\nBB\nC\n1\n2\n3\n" +
+            "AAA\nBB\nC\n---\n" +
+            "AAA\nBB\nC\nHello\nworld\n"
+    source = "runtime/basic/args0.kt"
+}
+
 task spread_operator_0(type: RunKonanTest) {
     goldValue = "[K, o, t, l, i, n,  , i, s,  , c, o, o, l,  , l, a, n, g, u, a, g, e]\n"
     source = "codegen/basics/spread_operator_0.kt"
@@ -2879,6 +2894,27 @@ task inline_defaultArgs_linkTest(type: LinkKonanTest) {
     lib = "codegen/inline/defaultArgs_linkTest_lib.kt"
 }
 
+def generateWithSpaceDefFile() {
+    def mapOption = "--Map \"${buildDir}/cutom map.map\""
+    if (isAppleTarget(project)) {
+        mapOption = "-map \"${buildDir}/cutom map.map\""
+    } else if (isWindowsTarget(project)) {
+        mapOption = "\"-Wl,--Map,${buildDir}/cutom map.map\""
+    }
+
+    def file = new File("${buildDir}/withSpaces.def")
+    file.write """
+headers = stdio.h "${projectDir}/interop/basics/custom headers/custom.h"
+linkerOpts = $mapOption
+---
+
+int customCompare(const char* str1, const char* str2) {
+    return custom_strcmp(str1, str2);
+}
+"""
+    return file.absolutePath
+}
+
 kotlinNativeInterop {
     target project.testTarget ?: 'host'
     flavor 'native'
@@ -3034,6 +3070,31 @@ task interop_callbacksAndVarargs(type: RunInteropKonanTest) {
     source = "interop/basics/callbacksAndVarargs.kt"
     interop = 'ccallbacksAndVarargs'
 }
+
+// TODO: merge with new tests infrastructure.
+// Now after clean without calling dist task get error 'Classpath of the tool is empty: cinterop'
+/*task interop_withSpaces() {
+    if (project.testTarget != 'wasm32') {
+        if (!project.ext.useCustomDist) {
+            dependsOn ':dist'
+        }
+        dependsOn 'build'
+        konanArtifacts {
+            interop('withSpacesInterop') {
+                defFile generateWithSpaceDefFile()
+            }
+            program("withSpaces") {
+                srcDir "interop/basics/withSpaces.kt"
+                libraries {
+                    artifact 'withSpacesInterop'
+                }
+            }
+        }
+        doLast {
+            assert file("${buildDir}/cutom map.map").exists()
+        }
+    }
+}*/
 
 task interop_echo_server(type: RunInteropKonanTest) {
     disabled = isWasmTarget(project) || isWindowsTarget(project)
