@@ -121,7 +121,7 @@ open class BuildRegister : DefaultTask() {
         if (compileTimeSamples.size != compileTimeSamplesNumber) {
             error("Problems with getting compile time samples value. Expected at least $compileTimeSamplesNumber samples, got ${compileTimeSamples.size}")
         }
-        val (helloWorldCompile, videoplayerCompile, frameworkCompile) = compileTimeSamples
+        val (helloWorldCompile, videoplayerCompile) = compileTimeSamples
         var compileTimeInfo = "HelloWorld-$helloWorldCompile;Videoplayer-$videoplayerCompile"
 
         // Collect framework run details.
