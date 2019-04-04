@@ -117,7 +117,7 @@ fun mergeReports(reports: List<File>): String {
         BenchmarksReport.create(reportElement)
 
     }
-    return reportsToMerge.reduce { result, it -> result + it }.toJson()
+    return if (reportsToMerge.isEmpty()) "" else reportsToMerge.reduce { result, it -> result + it }.toJson()
 }
 
 // Find file with set name in directory.
