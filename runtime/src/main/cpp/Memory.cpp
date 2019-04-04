@@ -1843,7 +1843,7 @@ void Kotlin_native_internal_GC_stop(KRef) {
     memoryState->toRelease = nullptr;
     memoryState->toFree = nullptr;
     memoryState->roots = nullptr;
-    state->gcSuspendCount = 0;
+    memoryState->gcSuspendCount = 0;
   }
 #endif
 }
@@ -1855,7 +1855,7 @@ void Kotlin_native_internal_GC_start(KRef) {
     memoryState->toFree = konanConstructInstance<ContainerHeaderList>();
     memoryState->toRelease = konanConstructInstance<ContainerHeaderList>();
     memoryState->roots = konanConstructInstance<ContainerHeaderList>();
-    state->gcSuspendCount = 0;
+    memoryState->gcSuspendCount = 0;
   }
 #endif
 }
