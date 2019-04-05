@@ -1234,12 +1234,12 @@ ContainerHeader* AllocContainer(MemoryState* state, size_t size) {
 #endif
   if (result == nullptr) {
     result = konanConstructSizedInstance<ContainerHeader>(alignUp(size, kObjectAlignment));
+    atomicAdd(&allocCount, 1);
   }
   CONTAINER_ALLOC_EVENT(state, size, result);
 #if TRACE_MEMORY
   state->containers->insert(result);
 #endif
-  atomicAdd(&allocCount, 1);
   return result;
 }
 
@@ -1611,7 +1611,7 @@ MemoryState* InitMemory() {
 void DeinitMemory(MemoryState* memoryState) {
 #if USE_GC
   do {
-    GC_LOG("Calling GarbageCollect from DeinitMemory()")
+    GC_LOG("Calling GarbageCollect from DeinitMemory()\n")
     garbageCollect(memoryState, true);
   } while (memoryState->toRelease->size() > 0);
   RuntimeAssert(memoryState->toFree->size() == 0, "Some memory have not been released after GC");
