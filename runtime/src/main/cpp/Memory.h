@@ -39,8 +39,9 @@ typedef enum {
   // Mask for container type.
   CONTAINER_TAG_MASK = CONTAINER_TAG_INCREMENT - 1,
 
-  // Shift to get actual object count.
-  CONTAINER_TAG_GC_SHIFT     = 6,
+  // Shift to get actual object count, if has it.
+  CONTAINER_TAG_GC_SHIFT     = 7,
+  CONTAINER_TAG_GC_MASK      = (1 << CONTAINER_TAG_GC_SHIFT) - 1,
   CONTAINER_TAG_GC_INCREMENT = 1 << CONTAINER_TAG_GC_SHIFT,
   // Color mask of a container.
   CONTAINER_TAG_COLOR_SHIFT   = 3,
@@ -64,7 +65,9 @@ typedef enum {
   // Individual state bits used during GC and freezing.
   CONTAINER_TAG_GC_MARKED   = 1 << CONTAINER_TAG_COLOR_SHIFT,
   CONTAINER_TAG_GC_BUFFERED = 1 << (CONTAINER_TAG_COLOR_SHIFT + 1),
-  CONTAINER_TAG_GC_SEEN     = 1 << (CONTAINER_TAG_COLOR_SHIFT + 2)
+  CONTAINER_TAG_GC_SEEN     = 1 << (CONTAINER_TAG_COLOR_SHIFT + 2),
+  // If indeed has more that one object.
+  CONTAINER_TAG_GC_HAS_OBJECT_COUNT = 1 << (CONTAINER_TAG_COLOR_SHIFT + 3)
 } ContainerTag;
 
 typedef enum {
@@ -155,15 +158,35 @@ struct ContainerHeader {
   }
 
   inline unsigned objectCount() const {
-    return objectCount_ >> CONTAINER_TAG_GC_SHIFT;
+    return (objectCount_ & CONTAINER_TAG_GC_HAS_OBJECT_COUNT) != 0 ?
+        (objectCount_ >> CONTAINER_TAG_GC_SHIFT) : 1;
   }
 
   inline void incObjectCount() {
+    RuntimeAssert((objectCount_ & CONTAINER_TAG_GC_HAS_OBJECT_COUNT) != 0, "Must have object count");
     objectCount_ += CONTAINER_TAG_GC_INCREMENT;
   }
 
   inline void setObjectCount(int count) {
-    objectCount_ = count << CONTAINER_TAG_GC_SHIFT;
+    if (count == 1) {
+      objectCount_ &= ~CONTAINER_TAG_GC_HAS_OBJECT_COUNT;
+    } else {
+      objectCount_ = (count << CONTAINER_TAG_GC_SHIFT) | CONTAINER_TAG_GC_HAS_OBJECT_COUNT;
+    }
+  }
+
+  inline unsigned containerSize() const {
+    RuntimeAssert((objectCount_ & CONTAINER_TAG_GC_HAS_OBJECT_COUNT) == 0, "Must be single-object");
+    return (objectCount_ >> CONTAINER_TAG_GC_SHIFT);
+  }
+
+  inline void setContainerSize(unsigned size) {
+    RuntimeAssert((objectCount_ & CONTAINER_TAG_GC_HAS_OBJECT_COUNT) == 0, "Must not have object count");
+    objectCount_ = (objectCount_ & CONTAINER_TAG_GC_MASK) | (size << CONTAINER_TAG_GC_SHIFT);
+  }
+
+  inline bool hasContainerSize() {
+    return (objectCount_ & CONTAINER_TAG_GC_HAS_OBJECT_COUNT) == 0;
   }
 
   inline unsigned color() const {
@@ -223,6 +246,7 @@ struct ContainerHeader {
     objectCount_ &= ~CONTAINER_TAG_GC_SEEN;
   }
 
+  // Following operations only work on freed container which is in finalization queue.
   // We cannot use 'this' here, as it conflicts with aliasing analysis in clang.
   inline void setNextLink(ContainerHeader* next) {
     *reinterpret_cast<ContainerHeader**>(this + 1) = next;
@@ -360,90 +384,6 @@ class Container {
     if ((type_info->flags_ & TF_ACYCLIC) != 0)
       header_->setColorEvenIfGreen(CONTAINER_TAG_GC_GREEN);
   }
-};
-
-// Container for a single object.
-class ObjectContainer : public Container {
- public:
-  // Single instance.
-  explicit ObjectContainer(const TypeInfo* type_info) {
-    Init(type_info);
-  }
-
-  // Object container shalln't have any dtor, as it's being freed by
-  // ::Release().
-
-  ObjHeader* GetPlace() const {
-    return reinterpret_cast<ObjHeader*>(header_ + 1);
-  }
-
- private:
-  void Init(const TypeInfo* type_info);
-};
-
-
-class ArrayContainer : public Container {
- public:
-  ArrayContainer(const TypeInfo* type_info, uint32_t elements) {
-    Init(type_info, elements);
-  }
-
-  // Array container shalln't have any dtor, as it's being freed by ::Release().
-
-  ArrayHeader* GetPlace() const {
-    return reinterpret_cast<ArrayHeader*>(header_ + 1);
-  }
-
- private:
-  void Init(const TypeInfo* type_info, uint32_t elements);
-};
-
-// Class representing arena-style placement container.
-// Container is used for reference counting, and it is assumed that objects
-// with related placement will share container. Only
-// whole container can be freed, individual objects are not taken into account.
-class ArenaContainer;
-
-struct ContainerChunk {
-  ContainerChunk* next;
-  ArenaContainer* arena;
-  // Then we have ContainerHeader here.
-  ContainerHeader* asHeader() {
-    return reinterpret_cast<ContainerHeader*>(this + 1);
-  }
-};
-
-class ArenaContainer {
- public:
-  void Init();
-  void Deinit();
-
-  // Place individual object in this container.
-  ObjHeader* PlaceObject(const TypeInfo* type_info);
-
-  // Places an array of certain type in this container. Note that array_type_info
-  // is type info for an array, not for an individual element. Also note that exactly
-  // same operation could be used to place strings.
-  ArrayHeader* PlaceArray(const TypeInfo* array_type_info, container_size_t count);
-
-  ObjHeader** getSlot();
-
- private:
-  void* place(container_size_t size);
-
-  bool allocContainer(container_size_t minSize);
-
-  void setHeader(ObjHeader* obj, const TypeInfo* typeInfo) {
-    obj->typeInfoOrMeta_ = const_cast<TypeInfo*>(typeInfo);
-    obj->setContainer(currentChunk_->asHeader());
-    // Here we do not take into account typeInfo's immutability for ARC strategy, as there's no ARC.
-  }
-
-  ContainerChunk* currentChunk_;
-  uint8_t* current_;
-  uint8_t* end_;
-  ArrayHeader* slots_;
-  uint32_t slotsCount_;
 };
 
 #ifdef __cplusplus

@@ -91,7 +91,7 @@ typedef KStdVector<KRef*> KRefPtrList;
 typedef KStdDeque<ContainerHeader*> ContainerHeaderDeque;
 
 struct FrameOverlay {
-  ArenaContainer* arena;
+  void* arena;
   FrameOverlay* previous;
   // As they go in pair, sizeof(FrameOverlay) % sizeof(void*) == 0 is always held.
   int32_t parameters;
@@ -408,6 +408,91 @@ struct MemoryState {
   PRINT_STAT(state)
 
 namespace {
+
+// Container for a single object.
+class ObjectContainer : public Container {
+ public:
+  // Single instance.
+  explicit ObjectContainer(MemoryState* state, const TypeInfo* type_info) {
+    Init(state, type_info);
+  }
+
+  // Object container shalln't have any dtor, as it's being freed by
+  // ::Release().
+
+  ObjHeader* GetPlace() const {
+    return reinterpret_cast<ObjHeader*>(header_ + 1);
+  }
+
+ private:
+  void Init(MemoryState* state, const TypeInfo* type_info);
+};
+
+
+class ArrayContainer : public Container {
+ public:
+  ArrayContainer(MemoryState* state, const TypeInfo* type_info, uint32_t elements) {
+    Init(state, type_info, elements);
+  }
+
+  // Array container shalln't have any dtor, as it's being freed by ::Release().
+
+  ArrayHeader* GetPlace() const {
+    return reinterpret_cast<ArrayHeader*>(header_ + 1);
+  }
+
+ private:
+  void Init(MemoryState* state, const TypeInfo* type_info, uint32_t elements);
+};
+
+// Class representing arena-style placement container.
+// Container is used for reference counting, and it is assumed that objects
+// with related placement will share container. Only
+// whole container can be freed, individual objects are not taken into account.
+class ArenaContainer;
+
+struct ContainerChunk {
+  ContainerChunk* next;
+  ArenaContainer* arena;
+  // Then we have ContainerHeader here.
+  ContainerHeader* asHeader() {
+    return reinterpret_cast<ContainerHeader*>(this + 1);
+  }
+};
+
+class ArenaContainer {
+ public:
+  void Init();
+  void Deinit();
+
+  // Place individual object in this container.
+  ObjHeader* PlaceObject(const TypeInfo* type_info);
+
+  // Places an array of certain type in this container. Note that array_type_info
+  // is type info for an array, not for an individual element. Also note that exactly
+  // same operation could be used to place strings.
+  ArrayHeader* PlaceArray(const TypeInfo* array_type_info, container_size_t count);
+
+  ObjHeader** getSlot();
+
+ private:
+  void* place(container_size_t size);
+
+  bool allocContainer(container_size_t minSize);
+
+  void setHeader(ObjHeader* obj, const TypeInfo* typeInfo) {
+    obj->typeInfoOrMeta_ = const_cast<TypeInfo*>(typeInfo);
+    obj->setContainer(currentChunk_->asHeader());
+    // Here we do not take into account typeInfo's immutability for ARC strategy, as there's no ARC.
+  }
+
+  ContainerChunk* currentChunk_;
+  uint8_t* current_;
+  uint8_t* end_;
+  ArrayHeader* slots_;
+  uint32_t slotsCount_;
+};
+
 
 // TODO: can we pass this variable as an explicit argument?
 THREAD_LOCAL_VARIABLE MemoryState* memoryState = nullptr;
@@ -1069,7 +1154,7 @@ ALWAYS_INLINE inline void ReleaseStackRef(const ObjHeader* header) {
 // do two allocations per frame (ArenaContainer + actual container).
 inline ArenaContainer* initedArena(ObjHeader** auxSlot) {
   auto frame = asFrameOverlay(auxSlot);
-  auto arena = frame->arena;
+  auto arena = reinterpret_cast<ArenaContainer*>(frame->arena);
   if (!arena) {
     arena = konanConstructInstance<ArenaContainer>();
     MEMORY_LOG("Initializing arena in %p\n", frame)
@@ -1125,13 +1210,31 @@ void ObjHeader::destroyMetaObject(TypeInfo** location) {
   konanFreeMemory(meta);
 }
 
-ContainerHeader* AllocContainer(size_t size) {
-  auto state = memoryState;
+ContainerHeader* AllocContainer(MemoryState* state, size_t size) {
+ ContainerHeader* result = nullptr;
 #if USE_GC
-  // TODO: try to reuse elements of finalizer queue for new allocations, question
-  // is how to get actual size of container.
+  // We recycle elements of finalizer queue for new allocations, to avoid trashing memory manager.
+  ContainerHeader *container = state->finalizerQueue, *previous = nullptr;
+  while (container != nullptr) {
+    // TODO: shall it be >= or ==?
+    if (container->hasContainerSize() && container->containerSize() == size) {
+      MEMORY_LOG("recycle %p for request %d\n", container, size)
+      result = container;
+      if (previous == nullptr)
+        state->finalizerQueue = container->nextLink();
+      else
+        previous->setNextLink(container->nextLink());
+      state->finalizerQueueSize--;
+      memset(container, 0, size);
+      break;
+    }
+    previous = container;
+    container = container->nextLink();
+  }
 #endif
-  ContainerHeader* result = konanConstructSizedInstance<ContainerHeader>(alignUp(size, kObjectAlignment));
+  if (result == nullptr) {
+    result = konanConstructSizedInstance<ContainerHeader>(alignUp(size, kObjectAlignment));
+  }
   CONTAINER_ALLOC_EVENT(state, size, result);
 #if TRACE_MEMORY
   state->containers->insert(result);
@@ -1142,7 +1245,7 @@ ContainerHeader* AllocContainer(size_t size) {
 
 ContainerHeader* AllocAggregatingFrozenContainer(KStdVector<ContainerHeader*>& containers) {
   auto componentSize = containers.size();
-  auto* superContainer = AllocContainer(sizeof(ContainerHeader) + sizeof(void*) * componentSize);
+  auto* superContainer = AllocContainer(memoryState, sizeof(ContainerHeader) + sizeof(void*) * componentSize);
   auto* place = reinterpret_cast<ContainerHeader**>(superContainer + 1);
   for (auto* container : containers) {
     *place++ = container;
@@ -1202,29 +1305,31 @@ void freeContainer(ContainerHeader* container) {
   }
 }
 
-void ObjectContainer::Init(const TypeInfo* typeInfo) {
+void ObjectContainer::Init(MemoryState* state, const TypeInfo* typeInfo) {
   RuntimeAssert(typeInfo->instanceSize_ >= 0, "Must be an object");
   uint32_t alloc_size = sizeof(ContainerHeader) + typeInfo->instanceSize_;
-  header_ = AllocContainer(alloc_size);
+  header_ = AllocContainer(state, alloc_size);
   RuntimeCheck(header_ != nullptr, "Cannot alloc memory");
   if (header_) {
-    // One object in this container.
-    header_->setObjectCount(1);
-     // header->refCount_ is zero initialized by AllocContainer().
+    // One object in this container, no need to set.
+    header_->setContainerSize(alloc_size);
+    RuntimeAssert(header_->objectCount() == 1, "Must work properly");
+    // header->refCount_ is zero initialized by AllocContainer().
     SetHeader(GetPlace(), typeInfo);
     OBJECT_ALLOC_EVENT(memoryState, typeInfo->instanceSize_, GetPlace())
   }
 }
 
-void ArrayContainer::Init(const TypeInfo* typeInfo, uint32_t elements) {
+void ArrayContainer::Init(MemoryState* state, const TypeInfo* typeInfo, uint32_t elements) {
   RuntimeAssert(typeInfo->instanceSize_ < 0, "Must be an array");
   uint32_t alloc_size =
       sizeof(ContainerHeader) + arrayObjectSize(typeInfo, elements);
-  header_ = AllocContainer(alloc_size);
+  header_ = AllocContainer(state, alloc_size);
   RuntimeCheck(header_ != nullptr, "Cannot alloc memory");
   if (header_) {
-    // One object in this container.
-    header_->setObjectCount(1);
+    // One object in this container, no need to set.
+    header_->setContainerSize(alloc_size);
+    RuntimeAssert(header_->objectCount() == 1, "Must work properly");
     // header->refCount_ is zero initialized by AllocContainer().
     GetPlace()->count_ = elements;
     SetHeader(GetPlace()->obj(), typeInfo);
@@ -1553,7 +1658,7 @@ void ResumeMemory(MemoryState* state) {
 
 OBJ_GETTER(AllocInstance, const TypeInfo* type_info) {
   RuntimeAssert(type_info->instanceSize_ >= 0, "must be an object");
-  auto container = ObjectContainer(type_info);
+  auto container = ObjectContainer(memoryState, type_info);
   ContainerHeader* header = container.header();
   // We cannot collect until reference will be stored into the stack slot.
   if (header->tag() == CONTAINER_TAG_NORMAL && !isHeapReturnSlot(OBJ_RESULT)) {
@@ -1566,7 +1671,7 @@ OBJ_GETTER(AllocInstance, const TypeInfo* type_info) {
 OBJ_GETTER(AllocArrayInstance, const TypeInfo* type_info, int32_t elements) {
   RuntimeAssert(type_info->instanceSize_ < 0, "must be an array");
   if (elements < 0) ThrowIllegalArgumentException();
-  auto container = ArrayContainer(type_info, elements);
+  auto container = ArrayContainer(memoryState, type_info, elements);
   ContainerHeader* header = container.header();
   // We cannot collect until reference will be stored into the stack slot.
   if (header->tag() == CONTAINER_TAG_NORMAL && !isHeapReturnSlot(OBJ_RESULT)) {
