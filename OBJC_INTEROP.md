@@ -277,8 +277,7 @@ That will force the Objc header to mark `myVal` as non-null.
 #### Variance
 
 Objective-C allows generics to be declared covariant or contravariant. Swift has no support for variance. Generic classes coming
-from Objective-C can be force-cast as needed. Classes defined in Swift would not be able to do this, which is a potential 
-future consideration if direct Swift interop is ever added.
+from Objective-C can be force-cast as needed.
 
 ```kotlin
 data class SomeData(val num:Int = 42):BaseData()
@@ -289,6 +288,12 @@ class GenVarOut<out T:Any>(val arg:T)
 let variOut = GenVarOut<SomeData>(arg: sd)
 let variOutAny : GenVarOut<BaseData> = variOut as! GenVarOut<BaseData>
 ```
+
+#### Constraints
+
+In Kotlin you can provide upper bounds for a generic type. Objective-C also supports this, but that support is unavailable 
+in more complex cases, and is currently not supported in the Kotlin - Objective-C interop. The exception here being a non-null
+upper bound will make Objective-C methods/properties non-null.
 
 ## Casting between mapped types
 
