@@ -81,6 +81,8 @@ constexpr size_t kMaxErgonomicThreshold = 1024 * 1024;
 #endif  // GC_ERGONOMICS
 // Threshold of size for toFree set, triggering actual cycle collector.
 constexpr size_t kMaxToFreeSize = 8 * 1024;
+// How many elements in finalizer queue allowed before cleaning it up.
+constexpr size_t kFinalizerQueueThreshold = 512;
 #endif  // USE_GC
 
 }  // namespace
@@ -691,7 +693,8 @@ inline void scheduleDestroyContainer(MemoryState* state, ContainerHeader* contai
   state->finalizerQueue = container;
   state->finalizerQueueSize++;
   // We cannot clean finalizer queue while in GC.
-  if (!state->gcInProgress && state->finalizerQueueSuspendCount == 0 && state->finalizerQueueSize > 256) {
+  if (!state->gcInProgress && state->finalizerQueueSuspendCount == 0 &&
+      state->finalizerQueueSize >= kFinalizerQueueThreshold) {
     processFinalizerQueue(state);
   }
 #else
@@ -754,7 +757,7 @@ inline void DecrementRC(ContainerHeader* container) {
       if (!container->buffered()) {
         container->setBuffered();
         state->toFree->push_back(container);
-        GC_LOG("toFree is now %d\n", state->toFree->size());
+        MEMORY_LOG("toFree is now %d\n", state->toFree->size())
         if (state->gcSuspendCount == 0 && state->toRelease->size() >= state->gcThreshold) {
           GC_LOG("Calling GC from DecrementRC: %d\n", state->toRelease->size())
           garbageCollect(state, false);
@@ -766,6 +769,7 @@ inline void DecrementRC(ContainerHeader* container) {
 
 inline void DecrementRC(ContainerHeader* container) {
   auto* state = memoryState;
+  RuntimeAssert(state->gcInProgress, "Must only be called during GC");
   // TODO: enable me, once account for inner references in frozen objects correctly.
   // RuntimeAssert(container->refCount() > 0, "Must be positive");
   bool useCycleCollector = container->tag() == CONTAINER_TAG_NORMAL;
@@ -784,10 +788,6 @@ inline void DecrementRC(ContainerHeader* container) {
         if (!container->buffered()) {
           container->setBuffered();
           state->toFree->push_back(container);
-          if (state->gcSuspendCount == 0 && state->toFree->size() >= state->gcThreshold) {
-              GC_LOG("Calling GC from DecrementRC: %d\n", state->toRelease->size())
-              garbageCollect(state, false);
-          }
         }
       }
   }
