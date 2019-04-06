@@ -227,12 +227,14 @@ but the features supported retain meaningful information.
 
 ### To Use
 
-Generics are currently not enabled be default. To have the framework header written with generics, set 
-`framework.writeGenerics=true` in java system properties on your build. The simplest way to accomplish this is by 
-adding the following to your 'gradle.properties' file:
+Generics are currently not enabled be default. To have the framework header written with generics, add an experimental
+flag to the compiler config:
 
-``` 
-systemProp.framework.writeGenerics=true
+```
+compilations.main {
+    outputKinds("framework")
+    extraOpts "-Xobjc-generics"
+}
 ```
 
 #### Limitations

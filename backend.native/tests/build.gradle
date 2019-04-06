@@ -3243,6 +3243,7 @@ if (isAppleTarget(project)) {
         frameworkName = 'ValuesGenerics'
         konanArtifacts {
             framework(frameworkName, targets: [ target ]) {
+                srcDir 'framework/values'
                 srcDir 'framework/values_generics'
                 baseDir "$testOutputFramework/$frameworkName"
 
@@ -3250,23 +3251,10 @@ if (isAppleTarget(project)) {
                     dependsOn ":${target}CrossDistRuntime", ':commonDistRuntime', ':distCompiler'
                 }
 
-                extraOpts "-Xembed-bitcode-marker"
+                extraOpts "-Xembed-bitcode-marker", "-Xobjc-generics"
             }
         }
         swiftSources = ['framework/values_generics/values.swift']
-    }
-
-    //Enable/Disable flag to write generics
-    afterEvaluate {
-        def headerGenTask = project.tasks.getByName("compileKonanValuesGenericsMacos_x64")
-        headerGenTask.doFirst {
-            System.setProperty("framework.writeGenerics", "true")
-        }
-        
-        def testDoneTask = project.tasks.getByName("compileKonanValuesGenerics")
-        testDoneTask.doLast {
-            System.setProperty("framework.writeGenerics", "false")
-        }
     }
 
     task testStdlibFramework(type: FrameworkTest) {
