@@ -330,10 +330,11 @@ struct ObjHeader {
 
   ContainerHeader* container() const {
     unsigned bits = getPointerBits(typeInfoOrMeta_, OBJECT_TAG_MASK);
-    if ((bits & OBJECT_TAG_PERMANENT_CONTAINER) != 0) return nullptr;
-    return (bits & OBJECT_TAG_NONTRIVIAL_CONTAINER) != 0 ?
-         (reinterpret_cast<MetaObjHeader*>(clearPointerBits(typeInfoOrMeta_, OBJECT_TAG_MASK)))->container_ :
-         reinterpret_cast<ContainerHeader*>(const_cast<ObjHeader*>(this)) - 1;
+    if ((bits & (OBJECT_TAG_PERMANENT_CONTAINER | OBJECT_TAG_NONTRIVIAL_CONTAINER)) == 0)
+      return reinterpret_cast<ContainerHeader*>(const_cast<ObjHeader*>(this)) - 1;
+    if ((bits & OBJECT_TAG_PERMANENT_CONTAINER) != 0)
+      return nullptr;
+    return (reinterpret_cast<MetaObjHeader*>(clearPointerBits(typeInfoOrMeta_, OBJECT_TAG_MASK)))->container_;
   }
 
   // Unsafe cast to ArrayHeader. Use carefully!
