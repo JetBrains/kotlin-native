@@ -154,6 +154,21 @@ func testGenericInheritance() throws {
     try assertEquals(actual: geBase.t.num, expected: 11)
 }
 
+func testGenericInnerClass() throws {
+
+    let nestedClass = GenOuter.GenNested<SomeData>(b: SomeData(num: 543))
+    try assertEquals(actual: nestedClass.b.num, expected: 543)
+
+    let innerClass = GenOuter.GenInner<SomeData>(GenOuter<SomeOtherData>(a: SomeOtherData(str: "ggg")) as! GenOuter<AnyObject>, c: SomeData(num: 66), aInner: SomeOtherData(str: "ttt") as AnyObject)
+    try assertEquals(actual: innerClass.c.num, expected: 66)
+
+    let nestedClassSame = GenOuterSame.GenNestedSame<SomeData>(a: SomeData(num: 545))
+    try assertEquals(actual: nestedClassSame.a.num, expected: 545)
+
+    let innerClassSame = GenOuterSame.GenInnerSame<SomeOtherData>(GenOuterSame<SomeData>(a: SomeData(num: 44)) as! GenOuterSame<AnyObject>, a: SomeOtherData(str: "rrr"))
+    try assertEquals(actual: innerClassSame.a.str, expected: "rrr")
+}
+
 // -------- Execution of the test --------
 
 class ValuesGenericsTests : TestProvider {
@@ -170,6 +185,7 @@ class ValuesGenericsTests : TestProvider {
             TestCase(name: "TestGenericUseSiteVariance", method: withAutorelease(testGenericUseSiteVariance)),
             TestCase(name: "TestGenericInheritance", method: withAutorelease(testGenericInheritance)),
             TestCase(name: "TestGenericInterface", method: withAutorelease(testGenericInterface)),
+            TestCase(name: "TestGenericInnerClass", method: withAutorelease(testGenericInnerClass)),
         ]
     }
 }

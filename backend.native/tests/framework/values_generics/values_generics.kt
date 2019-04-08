@@ -76,7 +76,7 @@ fun variContraType():GenVarIn<SomeData>{
 }
 
 open class GenBase<T:Any>(val t:T)
-class GenEx<TT:Any, T:Any>(val myT:T, baseT:TT):GenBase<TT>(baseT)
+class GenEx<T:Any, S:Any>(val myT:S, baseT:T):GenBase<T>(baseT)
 
 class GenNullability<T:Any>(val arg: T, val nArg:T?){
     fun asNullable():T? = arg
@@ -88,3 +88,12 @@ fun starGeneric(arg: GenNonNull<*>):Any{
     return arg.arg
 }
 
+class GenOuter<A:Any>(val a:A){
+    class GenNested<B:Any>(val b:B)
+    inner class GenInner<C:Any>(val c:C, val aInner:A)
+}
+
+class GenOuterSame<A:Any>(val a:A){
+    class GenNestedSame<A:Any>(val a:A)
+    inner class GenInnerSame<A:Any>(val a:A)
+}

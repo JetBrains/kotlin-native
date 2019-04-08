@@ -46,7 +46,7 @@ internal class ObjCExportTranslatorImpl(
         val mapper: ObjCExportMapper,
         val namer: ObjCExportNamer,
         val warningCollector: ObjCExportWarningCollector,
-        val objcGenerics:Boolean
+        val objcGenerics: Boolean
 ) : ObjCExportTranslator {
 
     private val kotlinAnyName = namer.kotlinAnyName
@@ -186,7 +186,7 @@ internal class ObjCExportTranslatorImpl(
                     )
                 }
                 ClassKind.ENUM_CLASS -> {
-                    val type = mapType(descriptor.defaultType, ReferenceBridge, NoneTypeParameterProvider)
+                    val type = mapType(descriptor.defaultType, ReferenceBridge, ObjCNoneExportScope)
 
                     descriptor.enumEntries.forEach {
                         val entryName = namer.getEnumEntrySelector(it)
@@ -548,7 +548,7 @@ internal class ObjCExportTranslatorImpl(
         method.allOverriddenDescriptors.forEach { exportThrown(it) }
     }
 
-    private fun genericTypeParameterFactory(method: FunctionDescriptor) = if(objcGenerics){ClassParameterProvider(method)}else{NoneTypeParameterProvider}
+    private fun genericTypeParameterFactory(method: FunctionDescriptor) = if(objcGenerics){ObjCClassExportScope(method)}else{ObjCNoneExportScope}
 
     private fun mapReturnType(returnBridge: MethodBridge.ReturnValue, method: FunctionDescriptor): ObjCType = when (returnBridge) {
         MethodBridge.ReturnValue.Void -> ObjCVoidType
@@ -566,8 +566,8 @@ internal class ObjCExportTranslatorImpl(
         MethodBridge.ReturnValue.Instance.FactoryResult -> ObjCInstanceType
     }
 
-    internal fun mapReferenceType(kotlinType: KotlinType, typeParameterProvider: TypeParameterProvider): ObjCReferenceType =
-            mapReferenceTypeIgnoringNullability(kotlinType, typeParameterProvider).let {
+    internal fun mapReferenceType(kotlinType: KotlinType, objCExportScope: ObjCExportScope): ObjCReferenceType =
+            mapReferenceTypeIgnoringNullability(kotlinType, objCExportScope).let {
                 if (kotlinType.binaryRepresentationIsNullable()) {
                     ObjCNullableReferenceType(it)
                 } else {
@@ -575,7 +575,7 @@ internal class ObjCExportTranslatorImpl(
                 }
             }
 
-    internal fun mapReferenceTypeIgnoringNullability(kotlinType: KotlinType, typeParameterProvider: TypeParameterProvider): ObjCNonNullReferenceType {
+    internal fun mapReferenceTypeIgnoringNullability(kotlinType: KotlinType, objCExportScope: ObjCExportScope): ObjCNonNullReferenceType {
         class TypeMappingMatch(val type: KotlinType, val descriptor: ClassDescriptor, val mapper: CustomTypeMapper)
 
         val typeMappingMatches = (listOf(kotlinType) + kotlinType.supertypes()).mapNotNull { type ->
@@ -606,11 +606,13 @@ internal class ObjCExportTranslatorImpl(
         }
 
         mostSpecificMatches.firstOrNull()?.let {
-            return it.mapper.mapType(it.type, this, typeParameterProvider)
+            return it.mapper.mapType(it.type, this, objCExportScope)
         }
 
-        if(objcGenerics && kotlinType.isTypeParameter() && typeParameterProvider.typeAvailable(kotlinType)){
-            return ObjCGenericType(kotlinType.typeParameterName())
+        if(objcGenerics && kotlinType.isTypeParameter()){
+            val typeParameterName = objCExportScope.getName(TypeUtils.getTypeParameterDescriptorOrNull(kotlinType))
+            if(typeParameterName != null)
+                return ObjCGenericType(typeParameterName)
         }
 
         val classDescriptor = kotlinType.getErasedTypeClass()
@@ -631,7 +633,7 @@ internal class ObjCExportTranslatorImpl(
         } else {
             val typeArgs = if (objcGenerics) {
                 kotlinType.arguments.map { typeProjection ->
-                    mapReferenceTypeIgnoringNullability(typeProjection.type, typeParameterProvider)
+                    mapReferenceTypeIgnoringNullability(typeProjection.type, objCExportScope)
                 }
             } else {
                 emptyList()
@@ -668,8 +670,8 @@ internal class ObjCExportTranslatorImpl(
         return ObjCIdType
     }
 
-    private fun mapType(kotlinType: KotlinType, typeBridge: TypeBridge, typeParameterProvider: TypeParameterProvider): ObjCType = when (typeBridge) {
-        ReferenceBridge -> mapReferenceType(kotlinType, typeParameterProvider)
+    private fun mapType(kotlinType: KotlinType, typeBridge: TypeBridge, objCExportScope: ObjCExportScope): ObjCType = when (typeBridge) {
+        ReferenceBridge -> mapReferenceType(kotlinType, objCExportScope)
         is ValueTypeBridge -> {
             when (typeBridge.objCValueType) {
                 ObjCValueType.BOOL -> ObjCPrimitiveType("BOOL")
@@ -1019,28 +1021,31 @@ private fun ObjCExportNamer.ClassOrProtocolName.toNameAttributes(): List<String>
 private fun swiftNameAttribute(swiftName: String) = "swift_name(\"$swiftName\")"
 private fun objcRuntimeNameAttribute(name: String) = "objc_runtime_name(\"$name\")"
 
-interface TypeParameterProvider{
-    fun typeAvailable(kotlinType: KotlinType):Boolean
+interface ObjCExportScope{
+    fun getName(typeParameterDescriptor: TypeParameterDescriptor?): String?
 }
 
-internal class ClassParameterProvider(container:DeclarationDescriptor): TypeParameterProvider {
-    constructor(method: FunctionDescriptor) : this(method.containingDeclaration)
-    private val nameSet:Set<String>
+internal class ObjCClassExportScope constructor(method: FunctionDescriptor): ObjCExportScope {
+    private val types:List<TypeParameterDescriptor>
     init {
-        nameSet = mutableSetOf()
-        if(container is ClassDescriptor && !container.isInterface) {
-            container.declaredTypeParameters.forEach {
-                nameSet.add(it.name.asString())
-            }
+        val container = method.containingDeclaration
+        types = if(container is ClassDescriptor && !container.isInterface) {
+            container.declaredTypeParameters
+        } else {
+            emptyList()
         }
     }
 
-    override fun typeAvailable(kotlinType: KotlinType): Boolean =
-            nameSet.contains(kotlinType.typeParameterName())
+    override fun getName(typeParameterDescriptor: TypeParameterDescriptor?): String? =
+            if(typeParameterDescriptor != null && types.contains(typeParameterDescriptor)){
+                typeParameterDescriptor.name.asString()
+            } else {
+                null
+            }
 }
 
-internal object NoneTypeParameterProvider: TypeParameterProvider{
-    override fun typeAvailable(kotlinType: KotlinType): Boolean = false
+internal object ObjCNoneExportScope: ObjCExportScope{
+    override fun getName(typeParameterDescriptor: TypeParameterDescriptor?): String? = null
 }
 
 
@@ -1048,20 +1053,4 @@ private fun Variance.objcDeclaration():String = when(this){
     Variance.OUT_VARIANCE -> "__covariant "
     Variance.IN_VARIANCE -> "__contravariant "
     else -> ""
-}
-
-//To anybody reviewing this code, I don't know my way
-//around the Kotlin parsed type system too well. What
-//I'm looking for here is generic type name minus the '?'
-//I'm sure there's a much simpler way to get that
-internal fun KotlinType.typeParameterName(): String {
-    return if (this.isMarkedNullable) {
-        val ts = this.toString()
-        if (ts.endsWith("?"))
-            ts.substring(0, ts.length - 1)
-        else
-            ts
-    } else {
-        this.toString()
-    }
 }
