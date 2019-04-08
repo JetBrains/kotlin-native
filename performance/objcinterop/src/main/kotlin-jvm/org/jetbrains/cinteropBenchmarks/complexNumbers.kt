@@ -17,11 +17,33 @@
 package org.jetbrains.complexNumbers
 
 actual class ComplexNumbersBenchmark actual constructor() {
-    actual fun generateNumbersSequence(size: Int) {
+    actual fun generateNumbersSequence(): List<Any> {
         error("Benchmark generateNumbersSequence is unsupported on JVM!")
     }
 
     actual fun sumComplex() {
-        error("Benchmark structBenchmark is unsupported on JVM!")
+        error("Benchmark sumComplex is unsupported on JVM!")
+    }
+
+    actual fun subComplex() {
+        error("Benchmark subComplex is unsupported on JVM!")
+    }
+    actual fun classInheritance() {
+        error("Benchmark classInheritance is unsupported on JVM!")
+    }
+    actual fun categoryMethods() {
+        error("Benchmark categoryMethods is unsupported on JVM!")
+    }
+    actual fun stringToObjC() {
+        error("Benchmark stringToObjC is unsupported on JVM!")
+    }
+    actual fun stringFromObjC() {
+        error("Benchmark stringToObjC is unsupported on JVM!")
+    }
+    actual fun fft() {
+        error("Benchmark fft is unsupported on JVM!")
+    }
+    actual fun invertFft() {
+        error("Benchmark invertFft is unsupported on JVM!")
     }
 }

@@ -20,9 +20,18 @@ import org.jetbrains.complexNumbers.*
 import org.jetbrains.kliopt.*
 
 class ObjCInteropLauncher(numWarmIterations: Int, numberOfAttempts: Int, prefix: String): Launcher(numWarmIterations, numberOfAttempts, prefix) {
+    val complexNumbersBecnhmark = ComplexNumbersBenchmark()
     override val benchmarks = BenchmarksCollection(
             mutableMapOf(
-                    "struct" to ::structBenchmark
+                    "generateNumbersSequence" to complexNumbersBecnhmark::generateNumbersSequence,
+                    "sumComplex" to complexNumbersBecnhmark::sumComplex,
+                    "subComplex" to complexNumbersBecnhmark::subComplex,
+                    "classInheritance" to complexNumbersBecnhmark::classInheritance,
+                    "categoryMethods" to complexNumbersBecnhmark::categoryMethods,
+                    "stringToObjC" to complexNumbersBecnhmark::stringToObjC,
+                    "stringFromObjC" to complexNumbersBecnhmark::stringFromObjC,
+                    "fft" to complexNumbersBecnhmark::fft,
+                    "invertFft" to complexNumbersBecnhmark::invertFft
             )
     )
 }

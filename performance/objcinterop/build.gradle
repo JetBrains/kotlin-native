@@ -3,9 +3,10 @@ project.ext {
     commonSrcDirs = ['../../tools/benchmarks/shared/src', 'src/main/kotlin', '../shared/src/main/kotlin', '../../tools/kliopt']
     jvmSrcDirs = ['src/main/kotlin-jvm', '../shared/src/main/kotlin-jvm']
     nativeSrcDirs = ['src/main/kotlin-native', '../shared/src/main/kotlin-native']
-
 }
 apply from: rootProject.file("${rootProject.rootDir}/gradle/benchmark.gradle")
-kotlin.targets.native.compilations.main.cinterops { 
-    classes
+kotlin.targets.native.compilations.main.cinterops {
+    classes {
+        headers "$projectDir/src/nativeInterop/cinterop/complexNumbers.h"
+    }
 }
