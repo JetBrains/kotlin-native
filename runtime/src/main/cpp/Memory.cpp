@@ -82,7 +82,7 @@ constexpr size_t kMaxErgonomicThreshold = 1024 * 1024;
 // Threshold of size for toFree set, triggering actual cycle collector.
 constexpr size_t kMaxToFreeSize = 8 * 1024;
 // How many elements in finalizer queue allowed before cleaning it up.
-constexpr size_t kFinalizerQueueThreshold = 256;
+constexpr size_t kFinalizerQueueThreshold = 32;
 #endif  // USE_GC
 
 }  // namespace
