@@ -16,7 +16,16 @@
 
 package org.jetbrains.complexNumbers
 
-expect class ComplexNumbersBenchmark {
-    fun generateNumbersSequence(size: Int)
+const val benchmarkSize = 10000
+
+expect class ComplexNumbersBenchmark() {
+    fun generateNumbersSequence(): List<Any>
     fun sumComplex()
+    fun subComplex()
+    fun classInheritance()
+    fun categoryMethods()
+    fun stringToObjC()
+    fun stringFromObjC()
+    fun fft()
+    fun invertFft()
 }
