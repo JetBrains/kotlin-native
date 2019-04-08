@@ -381,7 +381,8 @@ void* workerRoutine(void* argument) {
       KNativePtr result = nullptr;
       bool ok = true;
       try {
-        job.function(argument, resultHolder.slot());
+        job.function(argument, resultHolder.slotAsStack());
+        resultHolder.incrementIfStack();
         argumentHolder.clear();
         // Transfer the result.
         result = transfer(&resultHolder, job.transferMode);
@@ -417,7 +418,8 @@ KInt currentWorker() {
 KInt schedule(KInt id, KInt transferMode, KRef producer, KNativePtr jobFunction) {
   Job job;
   ObjHolder holder;
-  WorkerLaunchpad(producer, holder.slot());
+  WorkerLaunchpad(producer, holder.slotAsStack());
+  holder.incrementIfStack();
   KNativePtr jobArgument = transfer(&holder, transferMode);
   Future* future = theState()->addJobToWorkerUnlocked(id, jobFunction, jobArgument, false, transferMode);
   if (future == nullptr) ThrowWorkerInvalidState();
@@ -453,7 +455,8 @@ OBJ_GETTER(attachObjectGraphInternal, KNativePtr stable) {
 
 KNativePtr detachObjectGraphInternal(KInt transferMode, KRef producer) {
    ObjHolder result;
-   WorkerLaunchpad(producer, result.slot());
+   WorkerLaunchpad(producer, result.slotAsStack());
+   result.incrementIfStack();
    if (result.obj() != nullptr) {
      return transfer(&result, transferMode);
    } else {

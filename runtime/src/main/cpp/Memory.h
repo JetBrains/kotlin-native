@@ -531,6 +531,12 @@ class ObjHolder {
      return reinterpret_cast<ObjHeader**>(reinterpret_cast<uintptr_t>(&obj_) | HEAP_RETURN_BIT);
    }
 
+   ObjHeader** slotAsStack() {
+     return &obj_;
+   }
+
+   void incrementIfStack();
+
    void clear() { ::ZeroHeapRef(&obj_); }
 
    void* transfer() {
@@ -539,8 +545,7 @@ class ObjHolder {
      return result;
    }
 
-
-  private:
+ private:
    ObjHeader* obj_;
 };
 

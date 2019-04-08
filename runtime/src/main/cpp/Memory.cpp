@@ -584,6 +584,16 @@ void KRefSharedHolder::verifyRefOwner() const {
   }
 }
 
+void ObjHolder::incrementIfStack() {
+  // What we do here is following: if the value stored to this holder was not reference counted
+  // increment it, so that we hold it.
+  if (obj_ != nullptr) {
+    ContainerHeader* container = obj_->container();
+    if (container != nullptr && !container->shareable())
+      container->incRefCount<false>();
+  }
+}
+
 extern "C" {
 
 void objc_release(void* ptr);
