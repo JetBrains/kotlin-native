@@ -79,6 +79,7 @@ internal class KonanSharedVariablesManager(val context: KonanBackendContext) : S
                 sharedVariableDescriptor, refConstructorCall.type
         ).apply {
             initializer = refConstructorCall
+            parent = originalDeclaration.parent
         }
     }
 
