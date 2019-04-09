@@ -103,10 +103,9 @@ volatile int allocCount = 0;
 volatile int aliveMemoryStatesCount = 0;
 
 // Forward declarations.
-__attribute__((noinline))
-void freeContainer(ContainerHeader* header);
+void freeContainer(ContainerHeader* header) NO_INLINE;
 #if USE_GC
-NO_INLINE void garbageCollect(MemoryState* state, bool force);
+void garbageCollect(MemoryState* state, bool force) NO_INLINE;
 #endif  // USE_GC
 
 #if COLLECT_STATISTIC
@@ -1284,14 +1283,12 @@ void ObjectContainer::Init(MemoryState* state, const TypeInfo* typeInfo) {
   uint32_t alloc_size = sizeof(ContainerHeader) + typeInfo->instanceSize_;
   header_ = AllocContainer(state, alloc_size);
   RuntimeCheck(header_ != nullptr, "Cannot alloc memory");
-  if (header_) {
-    // One object in this container, no need to set.
-    header_->setContainerSize(alloc_size);
-    RuntimeAssert(header_->objectCount() == 1, "Must work properly");
-    // header->refCount_ is zero initialized by AllocContainer().
-    SetHeader(GetPlace(), typeInfo);
-    OBJECT_ALLOC_EVENT(memoryState, typeInfo->instanceSize_, GetPlace())
-  }
+  // One object in this container, no need to set.
+  header_->setContainerSize(alloc_size);
+  RuntimeAssert(header_->objectCount() == 1, "Must work properly");
+  // header->refCount_ is zero initialized by AllocContainer().
+  SetHeader(GetPlace(), typeInfo);
+  OBJECT_ALLOC_EVENT(memoryState, typeInfo->instanceSize_, GetPlace())
 }
 
 void ArrayContainer::Init(MemoryState* state, const TypeInfo* typeInfo, uint32_t elements) {
@@ -1300,16 +1297,13 @@ void ArrayContainer::Init(MemoryState* state, const TypeInfo* typeInfo, uint32_t
       sizeof(ContainerHeader) + arrayObjectSize(typeInfo, elements);
   header_ = AllocContainer(state, alloc_size);
   RuntimeCheck(header_ != nullptr, "Cannot alloc memory");
-  if (header_) {
-    // One object in this container, no need to set.
-    header_->setContainerSize(alloc_size);
-    RuntimeAssert(header_->objectCount() == 1, "Must work properly");
-    // header->refCount_ is zero initialized by AllocContainer().
-    GetPlace()->count_ = elements;
-    SetHeader(GetPlace()->obj(), typeInfo);
-    OBJECT_ALLOC_EVENT(
-        memoryState, arrayObjectSize(typeInfo, elements), GetPlace()->obj())
-  }
+  // One object in this container, no need to set.
+  header_->setContainerSize(alloc_size);
+  RuntimeAssert(header_->objectCount() == 1, "Must work properly");
+  // header->refCount_ is zero initialized by AllocContainer().
+  GetPlace()->count_ = elements;
+  SetHeader(GetPlace()->obj(), typeInfo);
+  OBJECT_ALLOC_EVENT(memoryState, arrayObjectSize(typeInfo, elements), GetPlace()->obj())
 }
 
 // TODO: store arena containers in some reuseable data structure, similar to
@@ -1783,12 +1777,14 @@ void UpdateStackRef(ObjHeader** location, const ObjHeader* object) {
   UPDATE_REF_EVENT(memoryState, *location, object, location, 1)
   RuntimeAssert(object != reinterpret_cast<ObjHeader*>(1), "Markers disallowed here");
   ObjHeader* old = *location;
-  if (object != nullptr) {
-    AddStackRef(object);
-  }
-  *const_cast<const ObjHeader**>(location) = object;
-  if (old != nullptr ) {
-    ReleaseStackRef(old);
+  if (old != object) {
+    if (object != nullptr) {
+      AddStackRef(object);
+    }
+    *const_cast<const ObjHeader**>(location) = object;
+    if (old != nullptr ) {
+      ReleaseStackRef(old);
+    }
   }
 }
 
