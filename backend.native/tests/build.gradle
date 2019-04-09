@@ -3184,6 +3184,7 @@ task produce_dynamic(type: DynamicKonanTest) {
                 "enum100 = 100\n" +
                 "object = 42\n" +
                 "singleton = I am single\n" +
+                "mutable = foo\n" +
                 "topLevel = 777 3\n"
 }
 

@@ -92,14 +92,6 @@ typedef KStdVector<ContainerHeader*> ContainerHeaderList;
 typedef KStdVector<KRef*> KRefPtrList;
 typedef KStdDeque<ContainerHeader*> ContainerHeaderDeque;
 
-struct FrameOverlay {
-  void* arena;
-  FrameOverlay* previous;
-  // As they go in pair, sizeof(FrameOverlay) % sizeof(void*) == 0 is always held.
-  int32_t parameters;
-  int32_t count;
-};
-
 // A little hack that allows to enable -O2 optimizations
 // Prevents clang from replacing FrameOverlay struct
 // with single pointer.
@@ -584,16 +576,6 @@ void KRefSharedHolder::verifyRefOwner() const {
   }
 }
 
-void ObjHolder::incrementIfStack() {
-  // What we do here is following: if the value stored to this holder was not reference counted
-  // increment it, so that we hold it.
-  if (obj_ != nullptr) {
-    ContainerHeader* container = obj_->container();
-    if (container != nullptr && !container->shareable())
-      container->incRefCount<false>();
-  }
-}
-
 extern "C" {
 
 void objc_release(void* ptr);
@@ -654,15 +636,6 @@ inline void traverseContainerReferredObjects(ContainerHeader* container, func pr
     ObjHeader* ref = *location;
     if (ref != nullptr) process(ref);
   });
-}
-
-inline bool isHeapReturnSlot(ObjHeader** slot) {
-  return (reinterpret_cast<uintptr_t>(slot) & HEAP_RETURN_BIT) != 0;
-}
-
-inline ObjHeader** getReturnSlot(ObjHeader** slot) {
-  return reinterpret_cast<ObjHeader**>(
-             reinterpret_cast<uintptr_t>(slot) & ~static_cast<uintptr_t>(HEAP_RETURN_BIT));
 }
 
 inline bool isMarkedAsRemoved(ContainerHeader* container) {
@@ -1218,7 +1191,7 @@ ContainerHeader* AllocContainer(MemoryState* state, size_t size) {
   while (container != nullptr) {
     // TODO: shall it be == instead?
     if (container->hasContainerSize() &&
-        container->containerSize() >= size && container->containerSize() <= 2 * size) {
+        container->containerSize() >= size && container->containerSize() <= size + 16) {
       MEMORY_LOG("recycle %p for request %d\n", container, size)
       result = container;
       if (previous == nullptr)
@@ -1662,7 +1635,7 @@ OBJ_GETTER(AllocInstance, const TypeInfo* type_info) {
   auto container = ObjectContainer(memoryState, type_info);
   ContainerHeader* header = container.header();
   // We cannot collect until reference will be stored into the stack slot.
-  if (header->tag() == CONTAINER_TAG_NORMAL && !isHeapReturnSlot(OBJ_RESULT)) {
+  if (header->tag() == CONTAINER_TAG_NORMAL) {
     IncrementRC<false>(header);
     EnqueueDecrementRC</* CanCollect = */ true>(header);
   }
@@ -1675,7 +1648,7 @@ OBJ_GETTER(AllocArrayInstance, const TypeInfo* type_info, int32_t elements) {
   auto container = ArrayContainer(memoryState, type_info, elements);
   ContainerHeader* header = container.header();
   // We cannot collect until reference will be stored into the stack slot.
-  if (header->tag() == CONTAINER_TAG_NORMAL && !isHeapReturnSlot(OBJ_RESULT)) {
+  if (header->tag() == CONTAINER_TAG_NORMAL) {
     IncrementRC<false>(header);
     EnqueueDecrementRC</* CanCollect = */ true>(header);
   }
@@ -1684,7 +1657,6 @@ OBJ_GETTER(AllocArrayInstance, const TypeInfo* type_info, int32_t elements) {
 
 OBJ_GETTER(InitInstance,
     ObjHeader** location, const TypeInfo* type_info, void (*ctor)(ObjHeader*)) {
-  RuntimeAssert(!isHeapReturnSlot(location), "Slot bit disallowed here");
   ObjHeader* value = *location;
   if (value != nullptr) {
     // OK'ish, inited by someone else.
@@ -1709,8 +1681,6 @@ OBJ_GETTER(InitInstance,
 
 OBJ_GETTER(InitSharedInstance,
     ObjHeader** location, ObjHeader** localLocation, const TypeInfo* type_info, void (*ctor)(ObjHeader*)) {
-  RuntimeAssert(!isHeapReturnSlot(location), "Slot bit disallowed here");
-  RuntimeAssert(!isHeapReturnSlot(localLocation), "Slot bit disallowed here");
 #if KONAN_NO_THREADS
   ObjHeader* value = *location;
   if (value != nullptr) {
@@ -1773,17 +1743,23 @@ OBJ_GETTER(InitSharedInstance,
 #endif
 }
 
+void SetStackRef(ObjHeader** location, const ObjHeader* object) {
+  MEMORY_LOG("SetStackRef *%p: %p\n", location, object)
+  UPDATE_REF_EVENT(memoryState, nullptr, object, location, 1);
+  if (object != nullptr)
+      AddStackRef(const_cast<ObjHeader*>(object));
+  *const_cast<const ObjHeader**>(location) = object;
+}
+
 void SetHeapRef(ObjHeader** location, const ObjHeader* object) {
-  RuntimeAssert(!isHeapReturnSlot(location), "Slot bit disallowed here");
   MEMORY_LOG("SetHeapRef *%p: %p\n", location, object)
   UPDATE_REF_EVENT(memoryState, nullptr, object, location, 0);
-  *const_cast<const ObjHeader**>(location) = object;
   if (object != nullptr)
     AddHeapRef(const_cast<ObjHeader*>(object));
+  *const_cast<const ObjHeader**>(location) = object;
 }
 
 void ZeroHeapRef(ObjHeader** location) {
-  RuntimeAssert(!isHeapReturnSlot(location), "Slot bit disallowed here");
   MEMORY_LOG("ZeroHeapRef %p\n", location)
   auto* value = *location;
   if (value != nullptr) {
@@ -1794,7 +1770,6 @@ void ZeroHeapRef(ObjHeader** location) {
 }
 
 void ZeroStackRef(ObjHeader** location) {
-  RuntimeAssert(!isHeapReturnSlot(location), "Slot bit disallowed here");
   MEMORY_LOG("ZeroStackRef %p\n", location)
   auto* value = *location;
   if (value != nullptr) {
@@ -1806,7 +1781,6 @@ void ZeroStackRef(ObjHeader** location) {
 
 void UpdateStackRef(ObjHeader** location, const ObjHeader* object) {
   UPDATE_REF_EVENT(memoryState, *location, object, location, 1)
-  RuntimeAssert(!isHeapReturnSlot(location), "Slot bit disallowed here");
   RuntimeAssert(object != reinterpret_cast<ObjHeader*>(1), "Markers disallowed here");
   ObjHeader* old = *location;
   if (object != nullptr) {
@@ -1819,7 +1793,6 @@ void UpdateStackRef(ObjHeader** location, const ObjHeader* object) {
 }
 
 void UpdateHeapRef(ObjHeader** location, const ObjHeader* object) {
-  RuntimeAssert(!isHeapReturnSlot(location), "Slot bit must be cleared here")
   UPDATE_REF_EVENT(memoryState, *location, object, location, 0);
   ObjHeader* old = *location;
   if (old != object) {
@@ -1845,32 +1818,19 @@ ObjHeader** GetParamSlotIfArena(ObjHeader** returnSlot, ObjHeader** localSlot) {
 
 inline void updateReturnRefAdded(ObjHeader** returnSlot, const ObjHeader* value) {
   MEMORY_LOG("updateReturnRefAdded %p\n", returnSlot)
-  bool isHeap = isHeapReturnSlot(returnSlot);
-  returnSlot = getReturnSlot(returnSlot);
   ObjHeader* old = *returnSlot;
-  UPDATE_REF_EVENT(memoryState, old, value, returnSlot, isHeap ? 0 : 1)
+  UPDATE_REF_EVENT(memoryState, old, value, returnSlot, 1)
   *const_cast<const ObjHeader**>(returnSlot) = value;
   if (old != nullptr) {
-    if (isHeap)
-      ReleaseHeapRef(old);
-    else
-      ReleaseStackRef(old);
+    ReleaseStackRef(old);
   }
 }
 
 void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* value) {
-  if (isHeapReturnSlot(returnSlot))
-    UpdateHeapRef(getReturnSlot(returnSlot), value);
-  else
-    UpdateStackRef(returnSlot, value);
-}
-
-void UpdateStackReturnRef(ObjHeader** returnSlot, const ObjHeader* value) {
   UpdateStackRef(returnSlot, value);
 }
 
 void UpdateHeapRefIfNull(ObjHeader** location, const ObjHeader* object) {
-  RuntimeAssert(!isHeapReturnSlot(location), "Slot bit disallowed here");
   if (object != nullptr) {
 #if KONAN_NO_THREADS
     ObjHeader* old = *location;
@@ -1908,10 +1868,7 @@ void LeaveFrame(ObjHeader** start, int parameters, int count) {
   while (current < end) {
     ObjHeader* object = *current++;
     if (object != nullptr) {
-      ContainerHeader* container = object->container();
-      if (container != nullptr && container->shareable() && container->decRefCount<true>() == 0) {
-        freeContainer(container);
-      }
+      ReleaseStackRef(object);
     }
   }
   FrameOverlay* frame = reinterpret_cast<FrameOverlay*>(start);
@@ -2391,11 +2348,7 @@ OBJ_GETTER(ReadHeapRefLocked, ObjHeader** location, int32_t* spinlock) {
   ObjHeader* value = *location;
   // We do not use UpdateRef() here to avoid having ReleaseRef() on return slot under the lock.
   if (value != nullptr) {
-    if (isHeapReturnSlot(OBJ_RESULT))
-      AddHeapRef(value);
-    else
-      AddStackRef(value);
-
+    AddStackRef(value);
   }
   unlock(spinlock);
   updateReturnRefAdded(OBJ_RESULT, value);

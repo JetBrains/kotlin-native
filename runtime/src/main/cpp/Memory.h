@@ -391,8 +391,6 @@ class Container {
 extern "C" {
 #endif
 
-// Bit or'ed to slot pointer, marking the fact that returned value is stored on the heap.
-#define HEAP_RETURN_BIT 1
 #define OBJ_RESULT __result__
 #define OBJ_GETTER0(name) ObjHeader* name(ObjHeader** OBJ_RESULT)
 #define OBJ_GETTER(name, ...) ObjHeader* name(__VA_ARGS__, ObjHeader** OBJ_RESULT)
@@ -407,8 +405,6 @@ extern "C" {
     ObjHeader* result = name(__VA_ARGS__, OBJ_RESULT);  \
     return result;                                      \
   }
-#define HEAP_RETURN_SLOT(slot) \
-  (reinterpret_cast<ObjHeader**>(reinterpret_cast<uintptr_t>(slot) | static_cast<uintptr_t>(HEAP_RETURN_BIT)))
 
 struct MemoryState;
 
@@ -462,6 +458,8 @@ void WeakReferenceCounterClear(ObjHeader* counter);
 //    in intermediate frames when throwing
 //
 
+// Sets stack location.
+void SetStackRef(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
 // Sets heap location.
 void SetHeapRef(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
 // Zeroes heap location.
@@ -511,16 +509,29 @@ void EnsureNeverFrozen(ObjHeader* obj);
 }
 #endif
 
+
+struct FrameOverlay {
+  void* arena;
+  FrameOverlay* previous;
+  // As they go in pair, sizeof(FrameOverlay) % sizeof(void*) == 0 is always held.
+  int32_t parameters;
+  int32_t count;
+};
+
 // Class holding reference to an object, holding object during C++ scope.
 class ObjHolder {
  public:
-   ObjHolder() : obj_(nullptr) {}
+   ObjHolder() : obj_(nullptr) {
+     EnterFrame(frame(), 0, sizeof(*this)/sizeof(void*));
+   }
 
    explicit ObjHolder(const ObjHeader* obj) {
-     ::SetHeapRef(&obj_, obj);
+     EnterFrame(frame(), 0, sizeof(*this)/sizeof(void*));
+     ::SetStackRef(slot(), obj);
    }
+
    ~ObjHolder() {
-     ::ZeroHeapRef(&obj_);
+     LeaveFrame(frame(), 0, sizeof(*this)/sizeof(void*));
    }
 
    ObjHeader* obj() { return obj_; }
@@ -528,16 +539,10 @@ class ObjHolder {
    const ObjHeader* obj() const { return obj_; }
 
    ObjHeader** slot() {
-     return reinterpret_cast<ObjHeader**>(reinterpret_cast<uintptr_t>(&obj_) | HEAP_RETURN_BIT);
-   }
-
-   ObjHeader** slotAsStack() {
      return &obj_;
    }
 
-   void incrementIfStack();
-
-   void clear() { ::ZeroHeapRef(&obj_); }
+   void clear() { ::ZeroStackRef(&obj_); }
 
    void* transfer() {
      auto* result = obj_;
@@ -546,8 +551,30 @@ class ObjHolder {
    }
 
  private:
+   ObjHeader** frame() { return reinterpret_cast<ObjHeader**>(&frame_); }
+
+   FrameOverlay frame_;
    ObjHeader* obj_;
 };
+
+class ExceptionObjHolder {
+ public:
+   explicit ExceptionObjHolder(const ObjHeader* obj) {
+     ::SetHeapRef(&obj_, obj);
+   }
+
+   ~ExceptionObjHolder() {
+     ZeroHeapRef(&obj_);
+   }
+
+   ObjHeader* obj() { return obj_; }
+
+   const ObjHeader* obj() const { return obj_; }
+
+ private:
+   ObjHeader* obj_;
+};
+
 
 class KRefSharedHolder {
  public:
