@@ -562,11 +562,9 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             if (function != null) {
                 parameters.forEach{
                     val parameter = it.key
-
-                    val local = functionGenerationContext.vars.createParameter(parameter,
-                            debugInfoIfNeeded(function, parameter))
+                    val local = functionGenerationContext.vars.createParameter(
+                            parameter, debugInfoIfNeeded(function, parameter))
                     functionGenerationContext.mapParameterForDebug(local, it.value)
-
                 }
             }
         }
@@ -585,7 +583,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
      * The [CodeContext] enclosing the entire function body.
      */
     private inner class FunctionScope (val declaration: IrFunction?, val functionGenerationContext: FunctionGenerationContext) : InnerScopeImpl() {
-
 
         constructor(llvmFunction:LLVMValueRef, name:String, functionGenerationContext: FunctionGenerationContext):
                 this(null, functionGenerationContext) {

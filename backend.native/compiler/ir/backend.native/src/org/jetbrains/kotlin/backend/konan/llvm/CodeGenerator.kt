@@ -812,7 +812,6 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
 
     private fun position() = basicBlockToLastLocation[currentBlock]
 
-
     internal fun mapParameterForDebug(index: Int, value: LLVMValueRef) {
         appendingTo(localsInitBb) {
             LLVMBuildStore(builder, value, vars.addressOf(index))
@@ -834,7 +833,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
 
     internal fun epilogue() {
         appendingTo(prologueBb) {
-            val slots = if (needSlots)
+            val slots = if (needSlotsPhi)
                 LLVMBuildArrayAlloca(builder, kObjHeaderPtr, Int32(slotCount).llvm, "")!!
             else
                 kNullObjHeaderPtrPtr
@@ -846,7 +845,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                                 Int32(slotCount * codegen.runtime.pointerSize).llvm,
                                 Int32(codegen.runtime.pointerAlignment).llvm,
                                 Int1(0).llvm))
-                call(context.llvm.enterFrameFunction, listOf(slots, Int32(vars.skip).llvm, Int32(slotCount).llvm))
+                call(context.llvm.enterFrameFunction, listOf(slots, Int32(vars.skipSlots).llvm, Int32(slotCount).llvm))
             }
             addPhiIncoming(slotsPhi!!, prologueBb to slots)
             memScoped {
@@ -1033,13 +1032,19 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
 
     private val needSlots: Boolean
         get() {
+            return slotCount - vars.skipSlots > frameOverlaySlotCount
+        }
+
+    private val needSlotsPhi: Boolean
+        get() {
             return slotCount > frameOverlaySlotCount || localAllocs > 0
         }
+
 
     private fun releaseVars() {
         if (needSlots) {
             call(context.llvm.leaveFrameFunction,
-                    listOf(slotsPhi!!, Int32(vars.skip).llvm, Int32(slotCount).llvm))
+                    listOf(slotsPhi!!, Int32(vars.skipSlots).llvm, Int32(slotCount).llvm))
         }
     }
 }
