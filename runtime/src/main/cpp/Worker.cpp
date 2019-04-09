@@ -62,10 +62,11 @@ enum {
 THREAD_LOCAL_VARIABLE KInt g_currentWorkerId = 0;
 
 KNativePtr transfer(ObjHolder* holder, KInt mode) {
+  holder->hold();
   if (!ClearSubgraphReferences(holder->obj(), mode == CHECKED)) {
     ThrowWorkerInvalidState();
   }
-  return holder->transfer();
+  return holder->transferHeld();
 }
 
 class Locker {

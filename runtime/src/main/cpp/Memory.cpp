@@ -824,6 +824,10 @@ void dumpObject(ObjHeader* ref, int indent) {
 }
 
 void dumpContainerContent(ContainerHeader* container) {
+  if (container->refCount() <= 0) {
+    MEMORY_LOG("%p has non-positive RC, likely a memory bug\n", container)
+    return;
+  }
   if (isAggregatingFrozenContainer(container)) {
     MEMORY_LOG("%s aggregating container %p with %d objects rc=%d\n",
                colorNames[container->color()], container, container->objectCount(), container->refCount());
@@ -1630,7 +1634,7 @@ OBJ_GETTER(AllocInstance, const TypeInfo* type_info) {
   ContainerHeader* header = container.header();
   // We cannot collect until reference will be stored into the stack slot.
   if (header->tag() == CONTAINER_TAG_NORMAL) {
-    IncrementRC<false>(header);
+    IncrementRC</* Atomic = */ false>(header);
     EnqueueDecrementRC</* CanCollect = */ true>(header);
   }
   RETURN_OBJ(container.GetPlace());
@@ -1643,7 +1647,7 @@ OBJ_GETTER(AllocArrayInstance, const TypeInfo* type_info, int32_t elements) {
   ContainerHeader* header = container.header();
   // We cannot collect until reference will be stored into the stack slot.
   if (header->tag() == CONTAINER_TAG_NORMAL) {
-    IncrementRC<false>(header);
+    IncrementRC</* Atomic = */ false>(header);
     EnqueueDecrementRC</* CanCollect = */ true>(header);
   }
   RETURN_OBJ(container.GetPlace()->obj());
@@ -1978,8 +1982,33 @@ OBJ_GETTER(AdoptStablePointer, KNativePtr pointer) {
   MEMORY_LOG("adopting stable pointer %p, rc=%d\n", \
      ref, (ref && ref->container()) ? ref->container()->refCount() : -1)
   UpdateReturnRef(OBJ_RESULT, ref);
+  if (ref != nullptr) {
+    auto* container = ref->container();
+    // Effectively adoption is like allocation, so for the normal objects - do the same thing.
+    if (container != nullptr && container->tag() == CONTAINER_TAG_NORMAL) {
+      IncrementRC</* Atomic = */ false>(container);
+      EnqueueDecrementRC</* CanCollect = */ true>(container);
+    }
+  }
   DisposeStablePointer(pointer);
   return ref;
+}
+
+void ObjHolder::hold() {
+  if (obj_ != nullptr) {
+    MEMORY_LOG("Holding %p, rc=%d\n", obj_, obj_->container() ? obj_->container()->refCount() : -1)
+    AddHeapRef(obj_);
+  }
+}
+
+void* ObjHolder::transferHeld() {
+  auto* result = obj_;
+  if (result != nullptr) {
+    auto* container = result->container();
+    MEMORY_LOG("Transferring %p, rc=%d\n", result, container ? container->refCount() : -1)
+    clear();
+  }
+  return result;
 }
 
 #if USE_GC
@@ -2051,7 +2080,7 @@ bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
   for (auto it = state->toFree->begin(); it != state->toFree->end(); ++it) {
     auto container = *it;
     if (visited.count(container) != 0) {
-      MEMORY_LOG("removing %p from the toFree list", container)
+      MEMORY_LOG("removing %p from the toFree list\n", container)
       container->resetBuffered();
       container->setColorAssertIfGreen(CONTAINER_TAG_GC_BLACK);
       *it = markAsRemoved(container);
@@ -2065,6 +2094,14 @@ bool ClearSubgraphReferences(ObjHeader* root, bool checked) {
       *it = markAsRemoved(container);
     }
   }
+
+#if TRACE_MEMORY
+  // Forget transferred containers.
+  for (auto* it: visited) {
+    state->containers->erase(it);
+  }
+#endif
+
 #endif  // USE_GC
   return true;
 }
@@ -2153,6 +2190,7 @@ void freezeAcyclic(ContainerHeader* rootContainer, ContainerHeaderSet* newlyFroz
     // color and similar attributes shall not be used.
     if (current->tag() == CONTAINER_TAG_NORMAL)
       newlyFrozen->insert(current);
+    MEMORY_LOG("freezeing %p\n", current)
     current->freeze();
     traverseContainerReferredObjects(current, [current, &queue](ObjHeader* obj) {
         ContainerHeader* objContainer = obj->container();
@@ -2223,6 +2261,7 @@ void freezeCyclic(ContainerHeader* rootContainer,
         newlyFrozen->insert(container);
       // Note, that once object is frozen, it could be concurrently accessed, so
       // color and similar attributes shall not be used.
+      MEMORY_LOG("freezeing %p\n", container)
       container->freeze();
       // We set refcount of original container to zero, so that it is seen as such after removal
       // meta-object, where aggregating container is stored.
