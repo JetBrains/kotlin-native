@@ -1982,33 +1982,8 @@ OBJ_GETTER(AdoptStablePointer, KNativePtr pointer) {
   MEMORY_LOG("adopting stable pointer %p, rc=%d\n", \
      ref, (ref && ref->container()) ? ref->container()->refCount() : -1)
   UpdateReturnRef(OBJ_RESULT, ref);
-  if (ref != nullptr) {
-    auto* container = ref->container();
-    // Effectively adoption is like allocation, so for the normal objects - do the same thing.
-    if (container != nullptr && container->tag() == CONTAINER_TAG_NORMAL) {
-      IncrementRC</* Atomic = */ false>(container);
-      EnqueueDecrementRC</* CanCollect = */ true>(container);
-    }
-  }
   DisposeStablePointer(pointer);
   return ref;
-}
-
-void ObjHolder::hold() {
-  if (obj_ != nullptr) {
-    MEMORY_LOG("Holding %p, rc=%d\n", obj_, obj_->container() ? obj_->container()->refCount() : -1)
-    AddHeapRef(obj_);
-  }
-}
-
-void* ObjHolder::transferHeld() {
-  auto* result = obj_;
-  if (result != nullptr) {
-    auto* container = result->container();
-    MEMORY_LOG("Transferring %p, rc=%d\n", result, container ? container->refCount() : -1)
-    clear();
-  }
-  return result;
 }
 
 #if USE_GC

@@ -544,10 +544,6 @@ class ObjHolder {
 
    void clear() { ::ZeroStackRef(&obj_); }
 
-
-   void hold();
-   void* transferHeld();
-
  private:
    ObjHeader** frame() { return reinterpret_cast<ObjHeader**>(&frame_); }
 
