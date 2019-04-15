@@ -39,17 +39,19 @@ val kotlinNativeDataPath by lazy {
 @JvmOverloads
 fun defaultHostPreset(
     subproject: Project,
-    whitelist: List<KotlinTargetPreset<*>> = listOf(subproject.kotlin.presets.macosX64, subproject.kotlin.presets.linuxX64, subproject.kotlin.presets.mingwX64)
+    whitelist: List<KotlinTargetPreset<*>> = with(subproject.kotlin.presets) { listOf(macosX64, linuxX64, mingwX64) }
 ): KotlinTargetPreset<*> {
 
     if (whitelist.isEmpty())
         throw Exception("Preset whitelist must not be empty in Kotlin/Native ${subproject.displayName}.")
 
-    val presetCandidate = when {
-        isMacos -> subproject.kotlin.presets.macosX64
-        isLinux -> subproject.kotlin.presets.linuxX64
-        isWindows -> subproject.kotlin.presets.mingwX64
-        else -> null
+    val presetCandidate = with(subproject.kotlin.presets) {
+        when {
+            isMacos -> macosX64
+            isLinux -> linuxX64
+            isWindows -> mingwX64
+            else -> null
+        }
     }
 
     return if (presetCandidate != null && presetCandidate in whitelist)
