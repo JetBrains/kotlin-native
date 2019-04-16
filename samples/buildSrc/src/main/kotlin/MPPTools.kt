@@ -10,6 +10,8 @@ import org.gradle.api.Project
 import org.gradle.api.Task
 import org.jetbrains.kotlin.gradle.plugin.KotlinTarget
 import org.jetbrains.kotlin.gradle.plugin.KotlinTargetPreset
+import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTargetPreset
+import org.jetbrains.kotlin.konan.target.KonanTarget
 import java.nio.file.Paths
 
 /*
@@ -27,8 +29,12 @@ val isWindows by lazy { hostOs.startsWith("Windows") }
 val isLinux by lazy { hostOs == "Linux" }
 
 // Short-cuts for mostly used paths.
-@get:JvmName("mingwPath")
-val mingwPath by lazy { System.getenv("MINGW64_DIR") ?: "c:/msys64/mingw64" }
+@JvmOverloads
+fun mingwPath(preset: KotlinNativeTargetPreset? = null) = when (preset?.konanTarget) {
+    null, is KonanTarget.MINGW_X64 -> mingwX64Path
+    is KonanTarget.MINGW_X86 -> mingwX86Path
+    else -> error("Not a MinGW preset: $preset")
+}
 
 @get:JvmName("kotlinNativeDataPath")
 val kotlinNativeDataPath by lazy {
