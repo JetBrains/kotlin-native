@@ -397,7 +397,7 @@ internal class KonanSymbols(context: Context, val symbolTable: SymbolTable, val 
                     Name.identifier("toString"), NoLookupLocation.FROM_BACKEND)
                     .single { it.extensionReceiverParameter?.type == builtIns.nullableAnyType})
 
-    val getContinuation = internalFunction("getContinuation")
+    override val getContinuation = internalFunction("getContinuation")
 
     val returnIfSuspended = internalFunction("returnIfSuspended")
 

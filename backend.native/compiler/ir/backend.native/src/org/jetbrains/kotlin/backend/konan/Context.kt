@@ -209,6 +209,8 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
 
     override val configuration get() = config.configuration
 
+    override val internalPackageFqn: FqName = FqName.fromSegments(listOf("kotlin", "native", "internal"))
+
     val phaseConfig = config.phaseConfig
 
     private val packageScope by lazy { builtIns.builtInsModule.getPackage(KonanFqNames.internalPackageName).memberScope }
