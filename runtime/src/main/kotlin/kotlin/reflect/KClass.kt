@@ -27,6 +27,11 @@ public actual interface KClass<T : Any> : KDeclarationContainer, KAnnotatedEleme
     public val qualifiedName: String?
 
     /**
+     * Returns custom pointer associated with this type.
+     */
+    public var customInfo: kotlinx.cinterop.COpaquePointer?
+
+    /**
      * Returns `true` if [value] is an instance of this class on a given platform.
      */
     @SinceKotlin("1.1")

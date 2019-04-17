@@ -83,7 +83,7 @@ struct TypeInfoObjCExportAddition {
   const ObjCTypeAdapter* typeAdapter;
 };
 
-struct WritableTypeInfo {
+struct CustomTypeInfo {
   TypeInfoObjCExportAddition objCExport;
 };
 
@@ -315,7 +315,7 @@ static const ObjCTypeAdapter* findProtocolAdapter(Protocol* prot) {
 }
 
 static const ObjCTypeAdapter* getTypeAdapter(const TypeInfo* typeInfo) {
-  return typeInfo->writableInfo_->objCExport.typeAdapter;
+  return typeInfo->customInfo_->objCExport.typeAdapter;
 }
 
 static Protocol* getProtocolForInterface(const TypeInfo* interfaceInfo) {
@@ -621,7 +621,7 @@ static ALWAYS_INLINE id Kotlin_ObjCExport_refToObjCImpl(ObjHeader* obj) {
 
   // TODO: propagate [retainAutorelease] to the code below.
 
-  convertReferenceToObjC converter = (convertReferenceToObjC)obj->type_info()->writableInfo_->objCExport.convert;
+  convertReferenceToObjC converter = (convertReferenceToObjC)obj->type_info()->customInfo_->objCExport.convert;
   if (converter != nullptr) {
     return converter(obj);
   }
@@ -656,7 +656,7 @@ extern "C" OBJ_GETTER(Kotlin_ObjCExport_refFromObjC, id obj) {
 }
 
 static id convertKotlinObject(ObjHeader* obj) {
-  Class clazz = obj->type_info()->writableInfo_->objCExport.objCClass;
+  Class clazz = obj->type_info()->customInfo_->objCExport.objCClass;
   RuntimeAssert(clazz != nullptr, "");
   return [clazz createWrapper:obj];
 }
@@ -666,7 +666,7 @@ static convertReferenceToObjC findConverterFromInterfaces(const TypeInfo* typeIn
 
   for (int i = 0; i < typeInfo->implementedInterfacesCount_; ++i) {
     const TypeInfo* interfaceTypeInfo = typeInfo->implementedInterfaces_[i];
-    if (interfaceTypeInfo->writableInfo_->objCExport.convert != nullptr) {
+    if (interfaceTypeInfo->customInfo_->objCExport.convert != nullptr) {
       if (foundTypeInfo == nullptr || IsSubInterface(interfaceTypeInfo, foundTypeInfo)) {
         foundTypeInfo = interfaceTypeInfo;
       } else if (!IsSubInterface(foundTypeInfo, interfaceTypeInfo)) {
@@ -680,7 +680,7 @@ static convertReferenceToObjC findConverterFromInterfaces(const TypeInfo* typeIn
 
   return foundTypeInfo == nullptr ?
     nullptr :
-    (convertReferenceToObjC)foundTypeInfo->writableInfo_->objCExport.convert;
+    (convertReferenceToObjC)foundTypeInfo->customInfo_->objCExport.convert;
 }
 
 static id Kotlin_ObjCExport_refToObjC_slowpath(ObjHeader* obj) {
@@ -694,7 +694,7 @@ static id Kotlin_ObjCExport_refToObjC_slowpath(ObjHeader* obj) {
     converter = (typeInfo == theUnitTypeInfo) ? &Kotlin_ObjCExport_convertUnit : &convertKotlinObject;
   }
 
-  typeInfo->writableInfo_->objCExport.convert = (void*)converter;
+  typeInfo->customInfo_->objCExport.convert = (void*)converter;
 
   return converter(obj);
 }
@@ -745,7 +745,8 @@ static const TypeInfo* createTypeInfo(
 
   result->packageName_ = nullptr;
   result->relativeName_ = nullptr; // TODO: add some info.
-  result->writableInfo_ = (WritableTypeInfo*)konanAllocMemory(sizeof(WritableTypeInfo));
+  result->flags_ |= TF_CUSTOM_INFO_RUNTIME_USED;
+  result->customInfo_ = (CustomTypeInfo*)konanAllocMemory(sizeof(CustomTypeInfo));
 
   for (int i = 0; i < vtable.size(); ++i) result->vtable()[i] = vtable[i];
 
@@ -930,7 +931,7 @@ static const TypeInfo* createTypeInfo(Class clazz, const TypeInfo* superType) {
   const TypeInfo* result = createTypeInfo(superType, addedInterfaces, vtable, methodTable);
 
   // TODO: it will probably never be requested, since such a class can't be instantiated in Kotlin.
-  result->writableInfo_->objCExport.objCClass = clazz;
+  result->customInfo_->objCExport.objCClass = clazz;
   return result;
 }
 
@@ -1018,7 +1019,7 @@ static Class createClass(const TypeInfo* typeInfo, Class superClass) {
 }
 
 static Class getOrCreateClass(const TypeInfo* typeInfo) {
-  Class result = typeInfo->writableInfo_->objCExport.objCClass;
+  Class result = typeInfo->customInfo_->objCExport.objCClass;
   if (result != nullptr) {
     return result;
   }
@@ -1027,17 +1028,17 @@ static Class getOrCreateClass(const TypeInfo* typeInfo) {
   if (typeAdapter != nullptr) {
     result = objc_getClass(typeAdapter->objCName);
     RuntimeAssert(result != nullptr, "");
-    typeInfo->writableInfo_->objCExport.objCClass = result;
+    typeInfo->customInfo_->objCExport.objCClass = result;
   } else {
     Class superClass = getOrCreateClass(typeInfo->superType_);
 
     LockGuard<SimpleMutex> lockGuard(classCreationMutex); // Note: non-recursive
 
-    result = typeInfo->writableInfo_->objCExport.objCClass; // double-checking.
+    result = typeInfo->customInfo_->objCExport.objCClass; // double-checking.
     if (result == nullptr) {
       result = createClass(typeInfo, superClass);
       RuntimeAssert(result != nullptr, "");
-      typeInfo->writableInfo_->objCExport.objCClass = result;
+      typeInfo->customInfo_->objCExport.objCClass = result;
     }
   }
 

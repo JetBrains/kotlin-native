@@ -34,8 +34,4 @@
 
 #define ARRAY_SIZE(a) (sizeof(a) / sizeof(a[0]))
 
-#if KONAN_OBJC_INTEROP
-#define KONAN_TYPE_INFO_HAS_WRITABLE_PART 1
-#endif
-
 #endif // RUNTIME_COMMON_H

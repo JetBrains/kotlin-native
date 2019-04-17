@@ -30,6 +30,10 @@ internal class KClassImpl<T : Any>(private val typeInfo: NativePtr) : KClass<T> 
             }
         }
 
+    override var customInfo: kotlinx.cinterop.COpaquePointer?
+        set(value) = setCustomInfo(typeInfo, value)
+        get() = getCustomInfo(typeInfo)
+
     override fun isInstance(value: Any?): Boolean = value != null && isInstance(value, this.typeInfo)
 
     override fun equals(other: Any?): Boolean =
@@ -41,6 +45,12 @@ internal class KClassImpl<T : Any>(private val typeInfo: NativePtr) : KClass<T> 
         return "class " + (qualifiedName ?: simpleName ?: "<anonymous>")
     }
 }
+
+@SymbolName("Kotlin_KClass_getCustomInfo")
+external private fun getCustomInfo(typeInfo: NativePtr): kotlinx.cinterop.COpaquePointer?
+
+@SymbolName("Kotlin_KClass_setCustomInfo")
+external private fun setCustomInfo(typeInfo: NativePtr, info: kotlinx.cinterop.COpaquePointer?): Unit
 
 @PublishedApi
 internal class KClassUnsupportedImpl(private val message: String) : KClass<Any> {

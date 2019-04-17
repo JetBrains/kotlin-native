@@ -22,10 +22,7 @@
 #include "Common.h"
 #include "Names.h"
 
-#if KONAN_TYPE_INFO_HAS_WRITABLE_PART
-struct WritableTypeInfo;
-#endif
-
+struct CustomTypeInfo;
 struct ObjHeader;
 
 // An element of sorted by hash in-place array representing methods.
@@ -54,7 +51,9 @@ enum Konan_RuntimeType {
 enum Konan_TypeFlags {
   TF_IMMUTABLE = 1 << 0,
   TF_ACYCLIC   = 1 << 1,
-  TF_INTERFACE = 1 << 2
+  TF_INTERFACE = 1 << 2,
+  // If custom info field is used by runtime and cannot be reassigned.
+  TF_CUSTOM_INFO_RUNTIME_USED = 1 << 3
 };
 
 enum Konan_MetaFlags {
@@ -110,9 +109,8 @@ struct TypeInfo {
     // Various flags.
     int32_t flags_;
 
-#if KONAN_TYPE_INFO_HAS_WRITABLE_PART
-    WritableTypeInfo* writableInfo_;
-#endif
+    // Custom per-type information.
+    CustomTypeInfo* customInfo_;
 
     // vtable starts just after declared contents of the TypeInfo:
     // void* const vtable_[];

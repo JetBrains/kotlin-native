@@ -56,4 +56,14 @@ void* LookupOpenMethod(const TypeInfo* info, MethodNameHash nameSignature) {
 
 #endif
 
+void* Kotlin_KClass_getCustomInfo(TypeInfo* typeInfo) {
+  if ((typeInfo->flags_ & TF_CUSTOM_INFO_RUNTIME_USED) != 0) return nullptr;
+  return typeInfo->customInfo_;
 }
+
+void Kotlin_KClass_setCustomInto(TypeInfo* typeInfo, void* info) {
+  if ((typeInfo->flags_ & TF_CUSTOM_INFO_RUNTIME_USED) != 0) return;
+  typeInfo->customInfo_ = reinterpret_cast<CustomTypeInfo*>(info);
+}
+
+}  // extern "C"
