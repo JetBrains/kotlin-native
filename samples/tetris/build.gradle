@@ -131,8 +131,7 @@ private boolean isRaspberryPiBuild() {
     MPPTools.isLinux() && Boolean.parseBoolean(project.findProperty('tetris.raspberrypi.build') as String)
 }
 
+// If host platform is Windows and x86 target is activated.
 private boolean isMingwX86Build() {
-    MPPTools.isWindows() && (
-            System.getenv("ProgramFiles(x86)") == null 
-                    || Boolean.parseBoolean(project.findProperty('tetris.mingwX86.build') as String))
+    MPPTools.isWindows() && Boolean.parseBoolean(project.findProperty('tetris.mingwX86.build') as String)
 }
