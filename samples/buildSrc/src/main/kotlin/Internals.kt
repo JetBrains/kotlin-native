@@ -20,7 +20,7 @@ internal val hostOs by lazy { System.getProperty("os.name") }
 internal val userHome by lazy { System.getProperty("user.home") }
 
 internal val mingwX64Path by lazy { System.getenv("MINGW64_DIR") ?: "c:/msys64/mingw64" }
-internal val mingwX86Path by lazy { System.getenv("MINGW32_DIR") ?: "c:/msys64/mingw32" }
+internal val mingwX86Path by lazy { System.getenv("MINGW32_DIR") ?: "c:/msys32/mingw32" }
 
 
 internal val Project.kotlin: KotlinMultiplatformExtension
