@@ -84,6 +84,7 @@ struct TypeInfoObjCExportAddition {
 };
 
 struct CustomTypeInfo {
+  void* customInfo;
   TypeInfoObjCExportAddition objCExport;
 };
 

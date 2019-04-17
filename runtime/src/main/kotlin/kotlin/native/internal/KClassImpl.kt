@@ -58,6 +58,10 @@ internal class KClassUnsupportedImpl(private val message: String) : KClass<Any> 
 
     override val qualifiedName: String? get() = error(message)
 
+    override var customInfo: kotlinx.cinterop.COpaquePointer?
+        set(value) { error(message) }
+        get() = error(message)
+
     override fun isInstance(value: Any?): Boolean = error(message)
 
     override fun equals(other: Any?): Boolean = error(message)

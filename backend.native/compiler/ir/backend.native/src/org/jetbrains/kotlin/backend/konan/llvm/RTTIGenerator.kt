@@ -114,7 +114,7 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
 
                     Int32(flags),
 
-                    *listOfNotNull(writableTypeInfo).toTypedArray()
+                    writableTypeInfo
             )
 
     private fun kotlinStringLiteral(string: String?): ConstPointer = if (string == null) {

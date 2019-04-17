@@ -40,7 +40,7 @@ class CStubsManager(private val target: KonanTarget) {
 
         val result = Command(clangCommand).getResult(withErrors = true)
         if (result.exitCode != 0) {
-            reportCompilationErrors(cSourcePath, result, messageCollector, verbose)
+            reportCompilationErrors(cSourcePath, result, messageCollector, true)
         }
 
         return bitcode

@@ -362,7 +362,7 @@ private fun ObjCExportCodeGenerator.setObjCExportTypeInfo(
     )
 
     val writableTypeInfoType = runtime.writableTypeInfoType!!
-    val writableTypeInfoValue = Struct(writableTypeInfoType, objCExportAddition)
+    val writableTypeInfoValue = Struct(writableTypeInfoType, NullPointer(int8Type), objCExportAddition)
 
     val global = if (codegen.isExternal(irClass)) {
         // Note: this global replaces the external one with common linkage.

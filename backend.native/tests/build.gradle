@@ -1411,6 +1411,10 @@ task kclass1(type: RunKonanTest) {
     source = "codegen/kclass/kclass1.kt"
 }
 
+task kclass2(type: RunKonanTest) {
+    source = "codegen/kclass/kclass2.kt"
+}
+
 task kclassEnumArgument(type: RunKonanTest) {
     goldValue = "String\n"
     source = "codegen/kclass/kClassEnumArgument.kt"
