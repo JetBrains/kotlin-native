@@ -19,6 +19,7 @@ import org.w3c.xhr.*
 import org.jetbrains.report.json.*
 import org.jetbrains.build.Build
 import kotlin.js.*
+import kotlin.math.ceil
 import org.w3c.dom.*
 
 // API for interop with JS library Chartist.
@@ -30,6 +31,7 @@ external class ChartistPlugins {
 external object Chartist {
     class Svg(form: String, parameters: dynamic, chartArea: String)
     val plugins: ChartistPlugins
+    val Interpolation: dynamic
     fun Line(query: String, data: dynamic, options: dynamic): dynamic
 }
 
@@ -67,13 +69,13 @@ fun <T : Any> separateValues(values: String, valuesContainer: MutableMap<String,
     }
 }
 
-fun getChartData(labels: List<String>, valuesList: Collection<List<*>>, className: String? = null): dynamic {
+fun getChartData(labels: List<String>, valuesList: Collection<List<*>>, classNames: Array<String>? = null): dynamic {
     val chartData: dynamic = object{}
     chartData["labels"] = labels.toTypedArray()
-    chartData["series"] = valuesList.map {
+    chartData["series"] = valuesList.mapIndexed { index, it ->
         val series: dynamic = object{}
         series["data"] = it.toTypedArray()
-        className?.let { series["className"] = className }
+        classNames?.let { series["className"] = classNames[index] }
         series
     }.toTypedArray()
     return chartData
@@ -87,6 +89,15 @@ fun getChartOptions(samples: Array<String>, yTitle: String, classNames: Array<St
     chartOptions["chartPadding"] = paddingObject
     val axisXObject: dynamic = object{}
     axisXObject["offset"] = 40
+    axisXObject["labelInterpolationFnc"] = { value, index, labels ->
+        val labelsCount = 30
+        val skipNumber = ceil((labels.length as Int).toDouble() / labelsCount).toInt()
+        if (skipNumber > 1) {
+            if (index % skipNumber  == 0) value else null
+        } else {
+            value
+        }
+    }
     chartOptions["axisX"] = axisXObject
     val axisYObject: dynamic = object{}
     axisYObject["offset"] = 90
@@ -105,6 +116,9 @@ fun getChartOptions(samples: Array<String>, yTitle: String, classNames: Array<St
     axisYTitle["textAnchor"] = "middle"
     axisYTitle["flipTitle"] = true
     titleObject["axisY"] = axisYTitle
+    val interpolationObject: dynamic = {}
+    interpolationObject["fillHoles"] = true
+    chartOptions["lineSmooth"] = Chartist.Interpolation.simple(interpolationObject)
     chartOptions["plugins"] = arrayOf(Chartist.plugins.legend(legendObject), Chartist.plugins.ctAxisTitle(titleObject))
     return chartOptions
 }
@@ -128,7 +142,7 @@ fun customizeChart(chart: dynamic, chartContainer: String, jquerySelector: dynam
                         "L", data.x + pointSize, data.y + pointSize/2, "z").joinToString(" ")
                 svgParameters["style"] = "fill:rgb(255,0,0);stroke-width:0"
                 val triangle = Chartist.Svg("path", svgParameters, chartContainer)
-                element = data.element._node.replace(triangle)
+                element = data.element.replace(triangle)
             } else if (currentBuild.buildNumber == parameters["build"]) {
                 // Higlight choosen build.
                 val svgParameters: dynamic = object{}
@@ -148,6 +162,7 @@ fun customizeChart(chart: dynamic, chartContainer: String, jquerySelector: dynam
                     else ""}"
             val information = buildString {
                 append("<a href=\"$linkToDetailedInfo\">${currentBuild.buildNumber}</a><br>")
+                append("Value: ${data.value.y.toFixed(4)}<br>")
                 if (currentBuild.failuresNumber > 0) {
                     append("failures: ${currentBuild.failuresNumber}<br>")
                 }
@@ -180,7 +195,7 @@ fun customizeChart(chart: dynamic, chartContainer: String, jquerySelector: dynam
 }
 
 fun main(args: Array<String>) {
-    val serverUrl = "https://kotlin-native-perf-summary.labs.jb.gg/builds"
+    val serverUrl = "https://kotlin-native-perf-summary.labs.jb.gg"
 
     // Get parameters from request.
     val url = window.location.href
@@ -196,7 +211,7 @@ fun main(args: Array<String>) {
 
     // Get builds.
     val buildsUrl = buildString {
-        append("$serverUrl")
+        append("$serverUrl/builds")
         append("/${parameters["target"]}")
         append("/${parameters["type"]}")
         append("/${parameters["branch"]}")
@@ -208,10 +223,22 @@ fun main(args: Array<String>) {
     if (data !is JsonArray) {
         error("Response is expected to be an array.")
     }
-    val builds = data.jsonArray.map { Build.create(it as JsonObject) }
+    val builds = data.jsonArray.map { Build.create(it as JsonObject) }.sortedBy { it.buildNumber.substringAfterLast("-") }
+
+    val branchesUrl = "$serverUrl/branches/${parameters["target"]}"
+
+    val branches: Array<String> = JSON.parse(sendGetRequest(branchesUrl))
+    val releaseBranches = branches.filter { "^v\\d+\\.\\d+\\.\\d+-fixes$".toRegex().find(it) != null }
 
     // Fill autocomplete list.
-    val buildsNumbers = builds.map { json("value" to it.buildNumber, "data" to it.buildNumber) }.toTypedArray()
+    val buildsNumbersUrl = "$serverUrl/buildsNumbers/${parameters["target"]}"
+    val buildsNumbers: Array<String> = JSON.parse(sendGetRequest(buildsNumbersUrl))
+
+    // Add release branches to selector.
+    releaseBranches.forEach {
+        val option = Option(it, it)
+        js("$('#inputGroupBranch')").append(js("$(option)"))
+    }
 
     // Change inputs values connected with parameters and add events listeners.
     document.querySelector("#inputGroupTarget [value=\"${parameters["target"]}\"]")?.setAttribute("selected", "true")
@@ -250,12 +277,13 @@ fun main(args: Array<String>) {
     autocompleteParameters["onSelect"] = { suggestion ->
         if (suggestion.value != parameters["build"]) {
             val newLink = "http://${window.location.host}/?target=${parameters["target"]}&type=${parameters["type"]}" +
-                    "${if (suggestion.value.isEmpty()) "" else "&build=${suggestion.value}"}"
+                    "${if ((suggestion.value as String).isEmpty()) "" else "&build=${suggestion.value}"}"
             window.location.href = newLink
         }
     }
     js("$( \"#highligted_build\" )").autocomplete(autocompleteParameters)
-    js("$('#highligted_build')").change({
+    js("$('#highligted_build')").change({ value ->
+        println(value)
         val newValue = js("$(this).val()").toString()
         if (newValue.isEmpty() || newValue in builds.map {it.buildNumber}) {
             val newLink = "http://${window.location.host}/?target=${parameters["target"]}&type=${parameters["type"]}" +
@@ -281,21 +309,21 @@ fun main(args: Array<String>) {
         }
         separateValues(it.executionTime, executionTime) { value -> value.toDouble() }
         separateValues(it.compileTime, compileTime) { value -> value.toDouble() / 1000 }
-        separateValues(it.codeSize, codeSize) { value -> value.toDouble() / 1024.0 }
+        separateValues(it.codeSize, codeSize) { value -> value.toDouble() }
         bundleSize.add(it.bundleSize?.toInt()?. let { it / 1024 / 1024 })
     }
 
-    val sizeClassName = "ct-series-c"
+    val sizeClassNames = arrayOf("ct-series-d", "ct-series-e")
 
     // Draw charts.
     val execChart = Chartist.Line("#exec_chart", getChartData(labels, executionTime.values),
-            getChartOptions(executionTime.keys.toTypedArray(), "Time, microseconds"))
+            getChartOptions(executionTime.keys.toTypedArray(), "Normalized time"))
     val compileChart = Chartist.Line("#compile_chart", getChartData(labels, compileTime.values),
             getChartOptions(compileTime.keys.toTypedArray(), "Time, milliseconds"))
-    val codeSizeChart = Chartist.Line("#codesize_chart", getChartData(labels, codeSize.values, sizeClassName),
-            getChartOptions(codeSize.keys.toTypedArray(), "Size, KB", arrayOf("ct-series-2")))
-    val bundleSizeChart = Chartist.Line("#bundlesize_chart", getChartData(labels, listOf(bundleSize), sizeClassName),
-            getChartOptions(arrayOf("Bundle size"), "Size, MB", arrayOf("ct-series-2")))
+    val codeSizeChart = Chartist.Line("#codesize_chart", getChartData(labels, codeSize.values, sizeClassNames),
+            getChartOptions(codeSize.keys.toTypedArray(), "Normalized size", arrayOf("ct-series-3", "ct-series-4")))
+    val bundleSizeChart = Chartist.Line("#bundlesize_chart", getChartData(labels, listOf(bundleSize), sizeClassNames),
+            getChartOptions(arrayOf("Bundle size"), "Size, MB", arrayOf("ct-series-3")))
 
     // Tooltips and higlights.
     customizeChart(execChart, "exec_chart", js("$(\"#exec_chart\")"), builds, parameters)
