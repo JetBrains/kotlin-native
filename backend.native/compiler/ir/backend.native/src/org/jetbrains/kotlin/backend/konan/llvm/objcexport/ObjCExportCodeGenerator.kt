@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.backend.common.descriptors.allParameters
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.constructedClass
+import org.jetbrains.kotlin.backend.konan.irasdescriptors.isOverridable
 import org.jetbrains.kotlin.backend.konan.llvm.*
 import org.jetbrains.kotlin.backend.konan.llvm.objc.ObjCCodeGenerator
 import org.jetbrains.kotlin.backend.konan.llvm.objc.ObjCDataGenerator
@@ -918,7 +919,7 @@ private fun ObjCExportCodeGenerator.createTypeAdapter(
         val baseMethods = mapper.getBaseMethods(method)
         val hasSelectorAmbiguity = baseMethods.map { namer.getSelector(it) }.distinct().size > 1
 
-        if (method.isOverridable && !hasSelectorAmbiguity) {
+        if (context.ir.get(method).isOverridable && !hasSelectorAmbiguity) {
             val baseMethod = baseMethods.first()
 
             val presentVtableBridges = mutableSetOf<Int?>(null)
