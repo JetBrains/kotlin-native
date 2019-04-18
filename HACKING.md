@@ -127,6 +127,10 @@ To update the blackbox compiler tests set TeamCity build number in `gradle.prope
 
     ../gradlew :ring:konanRun --filter=String.*,Loop.* -PnativeJson=stringsAndLoops.json
 
+ You can use the `compilerArgs` property to pass flags to the compiler used to compile the benchmarks:
+
+    ../gradlew konanRun -PcompilerArgs="--time -g"
+
  To compare different results run benchmarksAnalyzer tool:
  
     cd tools/benchmarksAnalyzer/build/bin/<target>/benchmarksAnalyzerReleaseExecutable/
