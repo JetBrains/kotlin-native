@@ -76,7 +76,7 @@ fun variContraType():GenVarIn<SomeData>{
 }
 
 open class GenBase<T:Any>(val t:T)
-class GenEx<T:Any, S:Any>(val myT:S, baseT:T):GenBase<T>(baseT)
+class GenEx<TT:Any, T:Any>(val myT:T, baseT:TT):GenBase<TT>(baseT)
 
 class GenNullability<T:Any>(val arg: T, val nArg:T?){
     fun asNullable():T? = arg
@@ -97,3 +97,4 @@ class GenOuterSame<A:Any>(val a:A){
     class GenNestedSame<A:Any>(val a:A)
     inner class GenInnerSame<A:Any>(val a:A)
 }
+
