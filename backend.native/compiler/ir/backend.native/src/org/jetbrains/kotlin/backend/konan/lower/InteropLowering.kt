@@ -20,7 +20,6 @@ import org.jetbrains.kotlin.backend.konan.descriptors.allOverriddenFunctions
 import org.jetbrains.kotlin.backend.konan.descriptors.isInterface
 import org.jetbrains.kotlin.backend.konan.descriptors.synthesizedName
 import org.jetbrains.kotlin.backend.konan.irasdescriptors.*
-import org.jetbrains.kotlin.backend.konan.objcexport.namePrefix
 import org.jetbrains.kotlin.backend.konan.llvm.IntrinsicType
 import org.jetbrains.kotlin.backend.konan.llvm.llvmSymbolOrigin
 import org.jetbrains.kotlin.backend.konan.llvm.tryGetIntrinsicType
@@ -789,7 +788,7 @@ private class InteropTransformer(val context: Context, val irFile: IrFile) : IrB
             }
 
             override fun getUniqueCName(prefix: String) =
-                    "_${context.moduleDescriptor.namePrefix}_${context.cStubsManager.getUniqueName(prefix)}"
+                    "_${context.cStubsManager.getUniqueName(prefix)}" // Ok in absence of separate compilation
 
             override val target get() = context.config.target
 
