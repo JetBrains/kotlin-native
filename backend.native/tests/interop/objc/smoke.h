@@ -114,3 +114,19 @@ void useCustomRetainMethods(id<CustomRetainMethods> p) {
   [p consume:p];
   [p consumeSelf];
 }
+
+@interface MultipleInheritanceClashBase : NSObject
+@property (nonnull) MultipleInheritanceClashBase* delegate;
+@end;
+
+@protocol MultipleInheritanceClash
+@optional
+@property (nullable) id<MultipleInheritanceClash> delegate;
+@end;
+
+@interface MultipleInheritanceClash1 : MultipleInheritanceClashBase <MultipleInheritanceClash>
+@end;
+
+@interface MultipleInheritanceClash2 : MultipleInheritanceClashBase <MultipleInheritanceClash>
+@property MultipleInheritanceClashBase* delegate;
+@end;
