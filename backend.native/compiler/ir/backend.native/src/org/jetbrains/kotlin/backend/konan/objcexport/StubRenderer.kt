@@ -137,11 +137,11 @@ object StubRenderer {
     private fun ObjCInterface.renderInterfaceHeader() = buildString {
         fun appendSuperClass() {
             if (superClass != null) append(" : $superClass")
-            formatGenerics(this, superClassGenerics)
+            formatGenerics(this, superClassGenerics.map { it.render() })
         }
 
         fun appendGenerics() {
-            formatGenerics(this, generics)
+            formatGenerics(this, generics.map { it.render() })
         }
 
         fun appendCategoryName() {

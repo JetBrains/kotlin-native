@@ -25,10 +25,10 @@ class ObjCProtocol(name: String,
                    attributes: List<String> = emptyList()) : ObjCClass<ClassDescriptor>(name, descriptor, superProtocols, members, attributes)
 
 class ObjCInterface(name: String,
-                    val generics: List<String> = emptyList(),
+                    val generics: List<ObjCGenericTypeParameter> = emptyList(),
                     descriptor: ClassDescriptor? = null,
                     val superClass: String? = null,
-                    val superClassGenerics: List<String> = emptyList(),
+                    val superClassGenerics: List<ObjCNonNullReferenceType> = emptyList(),
                     superProtocols: List<String> = emptyList(),
                     val categoryName: String? = null,
                     members: List<Stub<*>> = emptyList(),

@@ -31,6 +31,7 @@ interface ObjCExportNamer {
     fun getPropertyName(property: PropertyDescriptor): String
     fun getObjectInstanceSelector(descriptor: ClassDescriptor): String
     fun getEnumEntrySelector(descriptor: ClassDescriptor): String
+    fun getTypeParameterName(typeParameterDescriptor: TypeParameterDescriptor): String
 
     fun numberBoxName(classId: ClassId): ClassOrProtocolName
 
@@ -63,7 +64,6 @@ internal class ObjCExportNamerImpl(
         private val topLevelNamePrefix: String,
         private val local: Boolean
 ) : ObjCExportNamer {
-
     private fun String.toUnmangledClassOrProtocolName(): ObjCExportNamer.ClassOrProtocolName =
             ObjCExportNamer.ClassOrProtocolName(swiftName = this, objCName = this)
 
@@ -121,6 +121,8 @@ internal class ObjCExportNamerImpl(
 
     // Classes and protocols share the same namespace in Swift.
     private val swiftClassAndProtocolNames = GlobalNameMapping<Any, String>()
+    private val typeParameterNames = mutableMapOf<TypeParameterDescriptor, String>()
+    private val typeParameterNameClassOverrides = mutableMapOf<ClassDescriptor, MutableSet<String>>()
 
     private abstract inner class ClassPropertyNameMapping<T : Any> : Mapping<T, String>() {
 
@@ -364,6 +366,27 @@ internal class ObjCExportNamerImpl(
         }
     }
 
+    override fun getTypeParameterName(typeParameterDescriptor: TypeParameterDescriptor): String {
+        return typeParameterNames.getOrPut(typeParameterDescriptor) {
+            assert(typeParameterDescriptor.containingDeclaration is ClassDescriptor)
+            val clashingNames = typeParameterNameClassOverrides.getOrPut(typeParameterDescriptor.containingDeclaration as ClassDescriptor) {
+                mutableSetOf("id", "NSObject", "NSArray", "NSCopying", "NSNumber", "NSInteger",
+                        "NSUInteger", "NSString", "NSSet", "NSDictionary", "NSMutableArray", "int", "unsigned", "short",
+                        "char", "long", "float", "double", "int32_t", "int64_t", "int16_t", "int8_t", "unichar")
+            }
+
+            var candidateName = typeParameterDescriptor.name.asString()
+
+            while (objCClassNames.nameExists(candidateName) || objCProtocolNames.nameExists(candidateName) || candidateName in clashingNames) {
+                candidateName = "_$candidateName"
+            }
+
+            clashingNames.add(candidateName)
+            candidateName
+        }
+    }
+
+
     init {
         val any = builtIns.any
 
@@ -430,6 +453,7 @@ internal class ObjCExportNamerImpl(
 
         abstract fun conflict(first: T, second: T): Boolean
         open fun reserved(name: N) = false
+        fun nameExists(name: N) = nameToElements.containsKey(name)
 
         fun getOrPut(element: T, nameCandidates: () -> Sequence<N>): N {
             getIfAssigned(element)?.let { return it }
