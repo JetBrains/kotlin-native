@@ -6,18 +6,14 @@
 - (id<CustomNumber>)sub: (id<CustomNumber>)other;
 @end
 
-@interface Complex : NSObject<CustomNumber> {
-    double re;
-    double im;
-    NSString *format;
-}
+@interface Complex : NSObject<CustomNumber>
 
 @property (nonatomic, readonly) double re;
 @property (nonatomic, readonly) double im;
 @property (retain, nonatomic, readwrite) NSString *format;
 
 - (id)initWithRe: (double)re andIm: (double)im;
-+ (Complex *)complexWithRe: (double)re andIm: (double)im;
++ (Complex *)complexWithRe: (double)re im: (double)im;
 - (void)setFormat: (NSString *)newFormat;
 @end
 

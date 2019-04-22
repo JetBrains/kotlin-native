@@ -1,11 +1,12 @@
 #import <stdio.h>
 #import "complexNumbers.h"
 
-@interface Complex ()
-- (void)zeroComplex;
-@end
-
 @implementation Complex
+{
+    double re;
+    double im;
+    NSString *format;
+}
 - (id)init {
     return [self initWithRe: 0.0 andIm: 0.0];
 }
@@ -19,14 +20,23 @@
     return self;
 }
 
-+ (Complex *)complexWithRe: (double)re andIm: (double)im {
++ (Complex *)complexWithRe: (double)re im: (double)im {
     return [[Complex alloc] initWithRe: re andIm: im];
 }
-- (Complex *)add: (Complex *)other {
-    return [[Complex alloc] initWithRe: re + other->re andIm: im + other->im];
+- (id<CustomNumber>)add: (id<CustomNumber>)other {
+    if ([self isKindOfClass:[Complex class]]) {
+        Complex * otherComplex = (Complex *)other;
+        return [[Complex alloc] initWithRe: re + otherComplex->re andIm: im + otherComplex->im];
+    }
+    return NULL;
 }
-- (Complex *)sub: (Complex *)other {
-    return [[Complex alloc] initWithRe: re - other.re andIm: im - other.im];
+
+- (id<CustomNumber>)sub: (id<CustomNumber>)other {
+    if ([self isKindOfClass:[Complex class]]) {
+        Complex * otherComplex = (Complex *)other;
+        return [[Complex alloc] initWithRe: re - otherComplex->re andIm: im - otherComplex->im];
+    }
+    return NULL;
 }
 
 - (NSString *)description {
@@ -34,18 +44,13 @@
 }
 
 - (void)setFormat: (NSString *)newFormat {
-    format = newFormat
-}
-
-- (void)zeroComplex {
-    re = 0;
-    im = 0;
+    format = newFormat;
 }
 @end
 
 @implementation Complex (CategorizedComplex)
 - (Complex *)mul: (Complex *)other {
-    return [Complex complexWithRe: re * other.re - im * other.im andIm: re * other.im + im * other.re];
+    return [Complex complexWithRe: re * other.re - im * other.im im: re * other.im + im * other.re];
 }
 - (Complex *)div: (Complex *)other {
     double retRe;
@@ -56,6 +61,6 @@
         return nil;
     retRe = (re * other.re + im * other.im) / denominator;
     retIm = (im * other.re - re * other.im) / denominator;
-    return [Complex complexWithRe: retRe andIm: retIm];
+    return [Complex complexWithRe: retRe im: retIm];
 }
 @end
