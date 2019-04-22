@@ -102,10 +102,13 @@ class GenClashId<id : Any, id_ : Any>(val arg: id, val arg2: id_){
     fun x(): Any = "Foo"
 }
 
-class GenClashClass<ValuesGenericsSomeData : Any, NSArray : Any, int32_t : Any, ValuesGenericsValues_genericsKt : Any>(
-        val arg: ValuesGenericsSomeData, val arg2: NSArray, val arg3: int32_t, val arg4: ValuesGenericsValues_genericsKt
+class GenClashClass<ValuesGenericsClashingData : Any, NSArray : Any, int32_t : Any>(
+        val arg: ValuesGenericsClashingData, val arg2: NSArray, val arg3: int32_t
 ) {
     fun sd(): SomeData = SomeData(88)
     fun list(): List<SomeData> = listOf(SomeData(11), SomeData(22))
     fun int(): Int = 55
+    fun clash(): ClashingData = ClashingData("aaa")
 }
+
+data class ClashingData(val str:String)
