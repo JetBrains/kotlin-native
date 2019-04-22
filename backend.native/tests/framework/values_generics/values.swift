@@ -169,6 +169,22 @@ func testGenericInnerClass() throws {
     try assertEquals(actual: innerClassSame.a.str, expected: "rrr")
 }
 
+func testGenericClashing() throws {
+    let gcId = GenClashId<SomeData, SomeOtherData>(arg: SomeData(num: 22), arg2: SomeOtherData(str: "lll"))
+    try assertTrue(gcId.x() is NSString, "Any not NSString")
+    try assertTrue(gcId.arg is SomeData, "arg not SomeData")
+    try assertTrue(gcId.arg2 is SomeOtherData, "arg2 not SomeOtherData")
+
+    let gcClass = GenClashClass<SomeOtherData, SomeOtherData, NSString, SomeData>(arg: SomeOtherData(str: "jjj"), arg2: SomeOtherData(str: "lll"), arg3: "Bar", arg4: SomeData(num: 99))
+    try assertEquals(actual: gcClass.int(), expected: 55)
+    try assertEquals(actual: gcClass.sd().num, expected: 88)
+    try assertEquals(actual: gcClass.list()[1].num, expected: 22)
+    try assertEquals(actual: gcClass.arg.str, expected: "jjj")
+    try assertEquals(actual: gcClass.arg2.str, expected: "lll")
+    try assertEquals(actual: gcClass.arg3, expected: "Bar")
+    try assertEquals(actual: gcClass.arg4.num, expected: 99)
+}
+
 // -------- Execution of the test --------
 
 class ValuesGenericsTests : TestProvider {
@@ -186,6 +202,7 @@ class ValuesGenericsTests : TestProvider {
             TestCase(name: "TestGenericInheritance", method: withAutorelease(testGenericInheritance)),
             TestCase(name: "TestGenericInterface", method: withAutorelease(testGenericInterface)),
             TestCase(name: "TestGenericInnerClass", method: withAutorelease(testGenericInnerClass)),
+            TestCase(name: "TestGenericClashing", method: withAutorelease(testGenericClashing)),
         ]
     }
 }

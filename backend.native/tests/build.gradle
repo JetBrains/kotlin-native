@@ -3254,7 +3254,7 @@ if (isAppleTarget(project)) {
                 extraOpts "-Xembed-bitcode-marker", "-Xobjc-generics"
             }
         }
-        swiftSources = ['framework/values/values.swift', 'framework/values_generics/values.swift']
+        swiftSources = ['framework/values_generics/values.swift']
     }
 
     task testStdlibFramework(type: FrameworkTest) {

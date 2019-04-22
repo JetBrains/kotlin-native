@@ -98,3 +98,14 @@ class GenOuterSame<A:Any>(val a:A){
     inner class GenInnerSame<A:Any>(val a:A)
 }
 
+class GenClashId<id : Any, id_ : Any>(val arg: id, val arg2: id_){
+    fun x(): Any = "Foo"
+}
+
+class GenClashClass<ValuesGenericsSomeData : Any, NSArray : Any, int32_t : Any, ValuesGenericsValues_genericsKt : Any>(
+        val arg: ValuesGenericsSomeData, val arg2: NSArray, val arg3: int32_t, val arg4: ValuesGenericsValues_genericsKt
+) {
+    fun sd(): SomeData = SomeData(88)
+    fun list(): List<SomeData> = listOf(SomeData(11), SomeData(22))
+    fun int(): Int = 55
+}

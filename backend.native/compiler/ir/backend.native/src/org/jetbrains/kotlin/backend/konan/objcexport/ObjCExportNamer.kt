@@ -121,8 +121,8 @@ internal class ObjCExportNamerImpl(
 
     // Classes and protocols share the same namespace in Swift.
     private val swiftClassAndProtocolNames = GlobalNameMapping<Any, String>()
-    private val typeParameterNames = mutableMapOf<TypeParameterDescriptor, String>()
-    private val typeParameterNameClassOverrides = mutableMapOf<ClassDescriptor, MutableSet<String>>()
+
+    private val genericTypeParameterNameMapping = GenericTypeParameterNameMapping()
 
     private abstract inner class ClassPropertyNameMapping<T : Any> : Mapping<T, String>() {
 
@@ -367,25 +367,14 @@ internal class ObjCExportNamerImpl(
     }
 
     override fun getTypeParameterName(typeParameterDescriptor: TypeParameterDescriptor): String {
-        return typeParameterNames.getOrPut(typeParameterDescriptor) {
-            assert(typeParameterDescriptor.containingDeclaration is ClassDescriptor)
-            val clashingNames = typeParameterNameClassOverrides.getOrPut(typeParameterDescriptor.containingDeclaration as ClassDescriptor) {
-                mutableSetOf("id", "NSObject", "NSArray", "NSCopying", "NSNumber", "NSInteger",
-                        "NSUInteger", "NSString", "NSSet", "NSDictionary", "NSMutableArray", "int", "unsigned", "short",
-                        "char", "long", "float", "double", "int32_t", "int64_t", "int16_t", "int8_t", "unichar")
+        return genericTypeParameterNameMapping.getOrPut(typeParameterDescriptor) {
+            StringBuilder().apply {
+                append(typeParameterDescriptor.name.asString())
+            }.mangledSequence {
+                append('_')
             }
-
-            var candidateName = typeParameterDescriptor.name.asString()
-
-            while (objCClassNames.nameExists(candidateName) || objCProtocolNames.nameExists(candidateName) || candidateName in clashingNames) {
-                candidateName = "_$candidateName"
-            }
-
-            clashingNames.add(candidateName)
-            candidateName
         }
     }
-
 
     init {
         val any = builtIns.any
@@ -446,6 +435,75 @@ internal class ObjCExportNamerImpl(
 
     private fun String.startsWithWords(words: String) = this.startsWith(words) &&
             (this.length == words.length || !this[words.length].isLowerCase())
+
+    private inner class GenericTypeParameterNameMapping: CustomMapping<TypeParameterDescriptor, String>() {
+        private val typeParameterNameClassOverrides = mutableMapOf<ClassDescriptor, MutableSet<String>>()
+
+        override fun reserved(name: String): Boolean {
+            return name in reservedNames
+        }
+
+        override fun assignName(element: TypeParameterDescriptor, name: String) {
+            super.assignName(element, name)
+            classNameSet(element).add(name)
+        }
+
+        override fun validName(element: TypeParameterDescriptor, name: String): Boolean {
+            assert(element.containingDeclaration is ClassDescriptor)
+
+            val nameSet = classNameSet(element)
+            return !objCClassNames.nameExists(name) && !objCProtocolNames.nameExists(name) && name !in nameSet
+        }
+
+        private fun classNameSet(element: TypeParameterDescriptor): MutableSet<String> {
+            return typeParameterNameClassOverrides.getOrPut(element.containingDeclaration as ClassDescriptor) {
+                mutableSetOf()
+            }
+        }
+
+        private val reservedNames = setOf("id", "NSObject", "NSArray", "NSCopying", "NSNumber", "NSInteger",
+                "NSUInteger", "NSString", "NSSet", "NSDictionary", "NSMutableArray", "int", "unsigned", "short",
+                "char", "long", "float", "double", "int32_t", "int64_t", "int16_t", "int8_t", "unichar")
+    }
+
+    private abstract inner class CustomMapping<in T : Any, N> () {
+        private val elementToName = mutableMapOf<T, N>()
+        open fun reserved(name: N) = false
+
+        fun getOrPut(element: T, nameCandidates: () -> Sequence<N>): N {
+            getIfAssigned(element)?.let { return it }
+
+            nameCandidates().forEach {
+                if (tryAssign(element, it)) {
+                    return it
+                }
+            }
+
+            error("name candidates run out")
+        }
+
+        private fun tryAssign(element: T, name: N): Boolean {
+            if (element in elementToName) error(element)
+
+            if (reserved(name)) return false
+
+            if (!validName(element, name)) return false
+
+            assignName(element, name)
+
+            return true
+        }
+
+        open fun assignName(element: T, name: N) {
+            if (!local) {
+                elementToName[element] = name
+            }
+        }
+
+        abstract fun validName(element: T, name: N): Boolean
+
+        private fun getIfAssigned(element: T): N? = elementToName[element]
+    }
 
     private abstract inner class Mapping<in T : Any, N>() {
         private val elementToName = mutableMapOf<T, N>()
