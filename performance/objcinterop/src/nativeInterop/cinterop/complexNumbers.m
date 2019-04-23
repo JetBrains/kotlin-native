@@ -42,10 +42,6 @@
 - (NSString *)description {
     return [NSString stringWithFormat: format, re, im];
 }
-
-- (void)setFormat: (NSString *)newFormat {
-    format = newFormat;
-}
 @end
 
 @implementation Complex (CategorizedComplex)

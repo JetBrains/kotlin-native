@@ -4,8 +4,10 @@
  */
 package org.jetbrains.complexNumbers
 
+actual class ComplexNumber() {}
+
 actual class ComplexNumbersBenchmark actual constructor() {
-    actual fun generateNumbersSequence(): List<Any> {
+    actual fun generateNumbersSequence(): List<ComplexNumber> {
         error("Benchmark generateNumbersSequence is unsupported on JVM!")
     }
 
