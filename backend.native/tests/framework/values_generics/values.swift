@@ -180,10 +180,15 @@ func testGenericClashing() throws {
     try assertEquals(actual: gcClass.sd().num, expected: 88)
     try assertEquals(actual: gcClass.list()[1].num, expected: 22)
     try assertEquals(actual: gcClass.arg.num, expected: 432)
-    //This will fail until we can prime the namer with class names
-    //try assertEquals(actual: gcClass.clash().str, expected: "aaa")
+    try assertEquals(actual: gcClass.clash().str, expected: "aaa")
     try assertEquals(actual: gcClass.arg2.str, expected: "lll")
     try assertEquals(actual: gcClass.arg3, expected: "Bar")
+
+    //GenClashNames uses type parameter names that force the Objc class name itself to be mangled. Swift keeps names however
+    let clashNames = GenClashNames<SomeData, SomeData, SomeData>()
+    try assertEquals(actual: (clashNames.foo() as! ClashnameClass).str, expected: "nnn")
+
+    try assertEquals(actual: Values_genericsKt.classClash().str, expected: "ttt")
 }
 
 // -------- Execution of the test --------

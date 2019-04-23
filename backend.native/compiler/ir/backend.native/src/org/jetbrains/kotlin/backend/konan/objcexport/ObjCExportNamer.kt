@@ -116,8 +116,13 @@ internal class ObjCExportNamerImpl(
         final override fun conflict(first: T, second: T): Boolean = true
     }
 
-    private val objCClassNames = GlobalNameMapping<Any, String>()
-    private val objCProtocolNames = GlobalNameMapping<ClassDescriptor, String>()
+    private open inner class GlobalObjcNameMapping<in T : Any, N> : GlobalNameMapping<T, N>() {
+        override fun reserved(name: N): Boolean =
+                genericTypeParameterNameMapping.nameExists(name.toString())
+    }
+
+    private val objCClassNames = GlobalObjcNameMapping<Any, String>()
+    private val objCProtocolNames = GlobalObjcNameMapping<ClassDescriptor, String>()
 
     // Classes and protocols share the same namespace in Swift.
     private val swiftClassAndProtocolNames = GlobalNameMapping<Any, String>()
@@ -456,6 +461,8 @@ internal class ObjCExportNamerImpl(
             error("name candidates run out")
         }
 
+        fun nameExists(name: String) = name in globalClassProtocolNames
+
         private fun tryAssign(element: TypeParameterDescriptor, name: String): Boolean {
             if (element in elementToName) error(element)
 
@@ -473,13 +480,14 @@ internal class ObjCExportNamerImpl(
                 elementToName[element] = name
             }
             classNameSet(element).add(name)
+            globalClassProtocolNames.add(name)
         }
 
         private fun validName(element: TypeParameterDescriptor, name: String): Boolean {
             assert(element.containingDeclaration is ClassDescriptor)
 
             val nameSet = classNameSet(element)
-            return name !in globalClassProtocolNames && name !in nameSet
+            return !objCClassNames.nameExists(name) && !objCProtocolNames.nameExists(name) && name !in nameSet
         }
 
         private fun classNameSet(element: TypeParameterDescriptor): MutableSet<String> {
@@ -489,11 +497,6 @@ internal class ObjCExportNamerImpl(
         }
 
         private fun getIfAssigned(element: TypeParameterDescriptor): String? = elementToName[element]
-
-        //This currently does nothing. Should discuss priming the namer.
-        private fun excludeClass(classDescriptor: ClassDescriptor) {
-            globalClassProtocolNames.add(getClassOrProtocolObjCName(classDescriptor))
-        }
 
         private val globalClassProtocolNames = mutableSetOf<String>()
         private val reservedNames = setOf("id", "NSObject", "NSArray", "NSCopying", "NSNumber", "NSInteger",
@@ -518,6 +521,8 @@ internal class ObjCExportNamerImpl(
 
             error("name candidates run out")
         }
+
+        fun nameExists(name: N) = nameToElements.containsKey(name)
 
         private fun getIfAssigned(element: T): N? = elementToName[element]
 

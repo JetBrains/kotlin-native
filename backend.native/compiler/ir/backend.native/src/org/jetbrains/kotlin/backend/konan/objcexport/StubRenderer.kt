@@ -141,7 +141,7 @@ object StubRenderer {
         }
 
         fun appendGenerics() {
-            formatGenerics(this, generics.map { it.render() })
+            formatGenerics(this, generics)
         }
 
         fun appendCategoryName() {

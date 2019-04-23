@@ -258,7 +258,7 @@ internal class ObjCExportTranslatorImpl(
 
         val generics = if (objcGenerics) {
             descriptor.declaredTypeParameters.map {
-                ObjCGenericTypeParameterClass(it, namer)
+                "${it.variance.objcDeclaration()}${namer.getTypeParameterName(it)}"
             }
         } else {
             emptyList()
@@ -840,14 +840,14 @@ abstract class ObjCExportHeaderGenerator internal constructor(
         // TODO: only if appears
         stubs.add(objCInterface(
                 namer.mutableSetName,
-                generics = listOf(ObjCGenericTypeParameterLiteral("ObjectType")),
+                generics = listOf("ObjectType"),
                 superClass = "NSMutableSet<ObjectType>"
         ))
 
         // TODO: only if appears
         stubs.add(objCInterface(
                 namer.mutableMapName,
-                generics = listOf(ObjCGenericTypeParameterLiteral("KeyType"), ObjCGenericTypeParameterLiteral("ObjectType")),
+                generics = listOf("KeyType", "ObjectType"),
                 superClass = "NSMutableDictionary<KeyType, ObjectType>"
         ))
 
@@ -1027,7 +1027,7 @@ abstract class ObjCExportHeaderGenerator internal constructor(
 
 private fun objCInterface(
         name: ObjCExportNamer.ClassOrProtocolName,
-        generics: List<ObjCGenericTypeParameter> = emptyList(),
+        generics: List<String> = emptyList(),
         descriptor: ClassDescriptor? = null,
         superClass: String? = null,
         superClassGenerics: List<ObjCNonNullReferenceType> = emptyList(),
@@ -1112,21 +1112,12 @@ private fun computeSuperClassType(descriptor: ClassDescriptor): KotlinType? {
     }
 }
 
-/**
- * Only for forward declarations. Actual type parameter names are unimportant. Real class declarations delay writing type
- * parameter names until all classes and potential name clashes are known.
- */
 private fun forwardDeclarationObjcClassName(objcGenerics: Boolean, descriptor: ClassDescriptor, namer:ObjCExportNamer): String {
-    fun genericParameterName(parameterCount: Int): String =
-            parameterCount.toString(26).asSequence().map { c ->
-                'A' + c.toString().toInt(26)
-            }.joinToString(separator = "")
-
     val className = namer.getClassOrProtocolName(descriptor)
     val builder = StringBuilder(className.objCName)
     if (objcGenerics)
-        formatGenerics(builder, descriptor.declaredTypeParameters.mapIndexed { index, typeParameterDescriptor ->
-            "${typeParameterDescriptor.variance.objcDeclaration()}${genericParameterName(index)}"
+        formatGenerics(builder, descriptor.declaredTypeParameters.map { typeParameterDescriptor ->
+            "${typeParameterDescriptor.variance.objcDeclaration()}${namer.getTypeParameterName(typeParameterDescriptor)}"
         })
     return builder.toString()
 }

@@ -111,4 +111,15 @@ class GenClashClass<ValuesGenericsClashingData : Any, NSArray : Any, int32_t : A
     fun clash(): ClashingData = ClashingData("aaa")
 }
 
-data class ClashingData(val str:String)
+data class ClashingData(val str: String)
+
+class GenClashNames<ValuesGenericsClashnameClass, ValuesGenericsClashnameProtocol, ValuesGenericsValues_genericsKt>() {
+    fun foo(): Any = ClashnameClass("nnn")
+}
+
+data class ClashnameClass(val str: String)
+interface ClashnameProtocol {
+    val str: String
+}
+
+fun classClash(): ClashnameClass = ClashnameClass("ttt")

@@ -51,30 +51,11 @@ class ObjCClassType(
     }
 }
 
-abstract class ObjCGenericTypeParameter : ObjCNonNullReferenceType()
-
-class ObjCGenericTypeParameterClass(
-        val typeParameterDescriptor: TypeParameterDescriptor,
-        val namer: ObjCExportNamer
-) : ObjCGenericTypeParameter(){
-    override fun render(attrsAndName: String): String{
-        return "${typeParameterDescriptor.variance.objcDeclaration()}${namer.getTypeParameterName(typeParameterDescriptor)}".withAttrsAndName(attrsAndName)
-    }
-}
-
-class ObjCGenericTypeParameterLiteral(
-        val genericName: String
-) : ObjCGenericTypeParameter(){
-    override fun render(attrsAndName: String): String{
-        return genericName.withAttrsAndName(attrsAndName)
-    }
-}
-
 class ObjCGenericTypeDeclaration(
         val typeParameterDescriptor: TypeParameterDescriptor,
         val namer: ObjCExportNamer
-) : ObjCNonNullReferenceType(){
-    override fun render(attrsAndName: String): String{
+) : ObjCNonNullReferenceType() {
+    override fun render(attrsAndName: String): String {
         return namer.getTypeParameterName(typeParameterDescriptor).withAttrsAndName(attrsAndName)
     }
 }
