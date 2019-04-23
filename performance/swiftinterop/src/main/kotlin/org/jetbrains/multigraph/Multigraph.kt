@@ -16,6 +16,9 @@ data class Edge<T>(val id: UInt, val from: T, val to: T, val cost: Cost) {
     override operator fun equals(other: Any?): Boolean {
         return if (other is Edge<*>) (from == other.from && to == other.to && cost == other.cost) else false
     }
+
+    override fun hashCode(): Int =
+            id.toInt()
 }
 
 class EdgeAbsenceMultigraphException(message: String): Exception(message) {}
@@ -29,7 +32,7 @@ class Multigraph<T>() {
         get() {
             val outerVertexes = edges.keys
             val innerVertexes = edges.map { (key, values) ->
-                values.map { it.to }.filter { it in outerVertexes }
+                values.map { it.to }.filter { it !in outerVertexes }
             }.flatten()
             return outerVertexes.union(innerVertexes)
         }
@@ -47,7 +50,7 @@ class Multigraph<T>() {
         throw EdgeAbsenceMultigraphException("Edge with id $id wasn't found.")
     }
 
-    fun copy(other: Multigraph<T>): Multigraph<T> {
+    fun copyMultigraph(): Multigraph<T> {
         val newInstance = Multigraph<T>()
         edges.forEach { (vertex, edges) ->
             edges.forEach { edge ->
@@ -75,11 +78,14 @@ class Multigraph<T>() {
 
     fun removeVertex(vertex: T) {
         edges.remove(vertex)
-        edges.map { (key, values) ->
-            Pair(key, values.filter {
+        val edgesToRemove = edges.map { (_, values) ->
+            values.filter {
                 it.to == vertex
-            })
-        }.toMap()
+            }
+        }.flatten()
+        edgesToRemove.forEach {
+            removeEdge(it.id)
+        }
     }
 
     fun checkVertexExistance(vertex: T): Boolean {

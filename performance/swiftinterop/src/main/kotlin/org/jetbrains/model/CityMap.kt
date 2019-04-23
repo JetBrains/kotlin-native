@@ -35,8 +35,11 @@ data class RouteCost(val moneyCost: Double, val timeCost: Double, val interests:
                 when {
                     this == other -> 0
                     moneyCost < other.moneyCost -> -1
+                    moneyCost > other.moneyCost -> 1
                     timeCost < other.timeCost -> -1
+                    timeCost > other.timeCost -> 1
                     interests.size < other.interests.size -> -1
+                    interests.size > other.interests.size -> 1
                     transport.size < other.transport.size -> -1
                     else -> 1
                 }
@@ -45,26 +48,27 @@ data class RouteCost(val moneyCost: Double, val timeCost: Double, val interests:
             }
 }
 
-class Place(val geoCoordinateX: Double, val geoCoordinateY: Double, val name: String, val interestCategory: Interest) {
-    companion object {
-        var counter = 0u
-    }
+internal var placeCounter = 0u
+
+data class Place(val geoCoordinateX: Double, val geoCoordinateY: Double, val name: String, val interestCategory: Interest) {
     val id: UInt
     init {
-        id = counter
-        counter++
+        id = placeCounter
+        placeCounter++
     }
 
-    override operator fun equals(other: Any?): Boolean {
-        return if (other is Place) geoCoordinateX == other.geoCoordinateX && geoCoordinateY == other.geoCoordinateY &&
-                name == other.name && interestCategory == other.interestCategory
-        else false
+    val fullDescription: String
+        get() = "Place $name($geoCoordinateX;$geoCoordinateY)"
+
+    override fun hashCode(): Int {
+        return id.toInt()
     }
 
     fun compareTo(other: Place): Int {
         return when {
             this == other -> 0
             geoCoordinateX < other.geoCoordinateX -> -1
+            geoCoordinateX > other.geoCoordinateX -> 1
             geoCoordinateY < other.geoCoordinateY -> -1
             else -> 1
         }

@@ -23,7 +23,8 @@ runner.runBenchmarks(args: args, run: { (parser: ArgParser) -> [BenchmarkResult]
     swiftLauncher.benchmarks["getAllPlacesWithStraightRoutesTo"] =  swiftBenchmarks.getAllPlacesWithStraightRoutesTo
     swiftLauncher.benchmarks["goToAllAvailablePlaces"] =  swiftBenchmarks.goToAllAvailablePlaces
     swiftLauncher.benchmarks["removeVertexAndEdgesSwiftMultigraph"] =  swiftBenchmarks.removeVertexAndEdgesSwiftMultigraph
-    swiftLauncher.benchmarks["removePlacesAndRoutes"] = swiftBenchmarks.removePlacesAndRoutes
+    swiftLauncher.benchmarks["stringInterop"] =  swiftBenchmarks.stringInterop
+    swiftLauncher.benchmarks["simpleFunction"] =  swiftBenchmarks.simpleFunction
     return swiftLauncher.launch(benchmarksToRun: parser.getAll(name: "filter"))
 }, parseArgs: runner.parse, collect: { (benchmarks: [BenchmarkResult], parser: ArgParser) -> KotlinUnit in
     runner.collect(results: benchmarks, parser: parser)
