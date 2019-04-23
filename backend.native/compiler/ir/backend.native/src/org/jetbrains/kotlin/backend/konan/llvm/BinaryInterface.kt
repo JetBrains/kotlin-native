@@ -8,7 +8,6 @@ package org.jetbrains.kotlin.backend.konan.llvm
 import llvm.LLVMTypeRef
 import org.jetbrains.kotlin.backend.common.serialization.KotlinMangler
 import org.jetbrains.kotlin.backend.common.serialization.KotlinManglerImpl
-import org.jetbrains.kotlin.backend.common.serialization.isVararg
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.externalSymbolOrThrow
 import org.jetbrains.kotlin.backend.konan.descriptors.getAnnotationValue
@@ -24,6 +23,9 @@ import org.jetbrains.kotlin.descriptors.Visibility
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.*
+import org.jetbrains.kotlin.ir.util.fqNameSafe
+import org.jetbrains.kotlin.ir.util.isSuspend
+import org.jetbrains.kotlin.ir.util.isVararg
 import org.jetbrains.kotlin.konan.library.uniqueName
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
@@ -104,19 +106,6 @@ object KonanMangler : KotlinManglerImpl() {
 
                         if ((this@platformSpecificFunctionName as? IrSimpleFunction)?.correspondingProperty != null) {
                             append("#Accessor")
-                        }
-
-                        // We happen to have the clashing combinations such as
-                        //@ObjCMethod("issueChallengeToPlayers:message:", "objcKniBridge1165")
-                        //external fun GKScore.issueChallengeToPlayers(playerIDs: List<*>?, message: String?): Unit
-                        //@ObjCMethod("issueChallengeToPlayers:message:", "objcKniBridge1172")
-                        //external fun GKScore.issueChallengeToPlayers(playerIDs: List<*>?, message: String?): Unit
-                        // So disambiguate by the name of the bridge for now.
-                        // TODO: idealy we'd never generate such identical declarations.
-
-                        if (this@platformSpecificFunctionName is IrSimpleFunction && this@platformSpecificFunctionName.hasObjCMethodAnnotation()) {
-                            this@platformSpecificFunctionName.objCMethodArgValue("selector")?.let { append("#$it") }
-                            this@platformSpecificFunctionName.objCMethodArgValue("bridge")?.let { append("#$it") }
                         }
                     }
                 }

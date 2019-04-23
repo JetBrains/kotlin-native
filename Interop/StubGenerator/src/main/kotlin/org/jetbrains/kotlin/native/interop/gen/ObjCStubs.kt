@@ -19,36 +19,35 @@ package org.jetbrains.kotlin.native.interop.gen
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.native.interop.gen.jvm.StubGenerator
 import org.jetbrains.kotlin.native.interop.indexer.*
-import org.jetbrains.kotlin.utils.addIfNotNull
 
 private fun ObjCMethod.getKotlinParameterNames(forConstructorOrFactory: Boolean = false): List<String> {
     val selectorParts = this.selector.split(":")
 
     val result = mutableListOf<String>()
 
+    fun String.mangled(): String {
+        var mangled = this
+        while (mangled in result) {
+            mangled = "_$mangled"
+        }
+        return mangled
+    }
+
     // The names of all parameters except first must depend only on the selector:
     this.parameters.forEachIndexed { index, _ ->
         if (index > 0) {
-            var name = selectorParts[index]
-            if (name.isEmpty()) {
-                name = "_$index"
-            }
-
-            while (name in result) {
-                name = "_$name"
-            }
-
-            result.add(name)
+            val name = selectorParts[index].takeIf { it.isNotEmpty() } ?: "_$index"
+            result.add(name.mangled())
         }
     }
 
     this.parameters.firstOrNull()?.let {
-        var name = this.getFirstKotlinParameterNameCandidate(forConstructorOrFactory)
+        val name = this.getFirstKotlinParameterNameCandidate(forConstructorOrFactory)
+        result.add(0, name.mangled())
+    }
 
-        while (name in result) {
-            name = "_$name"
-        }
-        result.add(0, name)
+    if (this.isVariadic) {
+        result.add("args".mangled())
     }
 
     return result
@@ -66,6 +65,32 @@ private fun ObjCMethod.getFirstKotlinParameterNameCandidate(forConstructorOrFact
     return this.parameters.first().name?.takeIf { it.isNotEmpty() } ?: "_0"
 }
 
+private fun ObjCMethod.getKotlinParameters(
+        stubGenerator: StubGenerator,
+        forConstructorOrFactory: Boolean
+): List<KotlinParameter> {
+    val names = getKotlinParameterNames(forConstructorOrFactory) // TODO: consider refactoring.
+    val result = mutableListOf<KotlinParameter>()
+
+    this.parameters.mapIndexedTo(result) { index, it ->
+        val kotlinType = stubGenerator.mirror(it.type).argType
+        val name = names[index]
+        val annotations = if (it.nsConsumed) listOf("@CCall.Consumed") else emptyList()
+        KotlinParameter(name, kotlinType, isVararg = false, annotations = annotations)
+    }
+
+    if (this.isVariadic) {
+        result += KotlinParameter(
+                names.last(),
+                KotlinTypes.any.makeNullable(),
+                isVararg = true,
+                annotations = emptyList()
+        )
+    }
+
+    return result
+}
+
 class ObjCMethodStub(private val stubGenerator: StubGenerator,
                      val method: ObjCMethod,
                      private val container: ObjCContainer,
@@ -74,25 +99,22 @@ class ObjCMethodStub(private val stubGenerator: StubGenerator,
     override fun generate(context: StubGenerationContext): Sequence<String> =
             if (context.nativeBridges.isSupported(this)) {
                 val result = mutableListOf<String>()
-                result.add(objCMethodAnnotation)
-                if (method.nsConsumesSelf) result.add("@CCall.ConsumesReceiver")
-                if (method.nsReturnsRetained) result.add("@CCall.ReturnsRetained")
+                result.addAll(objCMethodAnnotations)
                 result.add(header)
 
                 if (method.isInit) {
+                    // TODO: generate only constructor/factory in this case.
                     val kotlinScope = stubGenerator.kotlinFile
 
-                    val newParameterNames = method.getKotlinParameterNames(forConstructorOrFactory = true)
-                    val parameters = kotlinParameters.zip(newParameterNames) { parameter, newName ->
-                        KotlinParameter(newName, parameter.type)
-                    }.renderParameters(kotlinScope)
+                    val parameters = method.getKotlinParameters(stubGenerator, forConstructorOrFactory = true)
+                            .renderParameters(kotlinScope)
 
                     when (container) {
                         is ObjCClass -> {
                             result.add(0,
                                     deprecatedInit(
                                             container.kotlinClassName(method.isClass),
-                                            kotlinParameters.map { it.name },
+                                            kotlinMethodParameters.map { it.name },
                                             factory = false
                                     )
                             )
@@ -115,7 +137,7 @@ class ObjCMethodStub(private val stubGenerator: StubGenerator,
                             result.add(0,
                                     deprecatedInit(
                                             className,
-                                            kotlinParameters.map { it.name },
+                                            kotlinMethodParameters.map { it.name },
                                             factory = true
                                     )
                             )
@@ -132,25 +154,12 @@ class ObjCMethodStub(private val stubGenerator: StubGenerator,
                             }
 
                             result.add("")
-                            result.add("@ObjCFactory".applyToStrings(bridgeName))
+                            result.addAll(buildObjCMethodAnnotations("@ObjCFactory"))
                             result.add("external fun <T : $className> $receiver.create($parameters): $returnType")
                         }
                         is ObjCProtocol -> {} // Nothing to do.
                     }
                 }
-
-                val objCBridge = "@ObjCBridge".applyToStrings(
-                        *mutableListOf<String>().apply {
-                            add(method.selector)
-                            add(method.encoding)
-                            addIfNotNull(implementationTemplate)
-                        }.toTypedArray()
-                )
-
-                context.addTopLevelDeclaration(
-                        listOf("@kotlin.native.internal.ExportForCompiler", objCBridge)
-                                + block(bridgeHeader, bodyLines)
-                )
 
                 result.asSequence()
             } else {
@@ -160,61 +169,18 @@ class ObjCMethodStub(private val stubGenerator: StubGenerator,
                 )
             }
 
-    private val bodyLines: List<String>
-    private val kotlinParameters: List<KotlinParameter>
+    private val kotlinMethodParameters: List<KotlinParameter>
     private val kotlinReturnType: String
     private val header: String
-    private val implementationTemplate: String?
-    internal val bridgeName: String
-    private val bridgeHeader: String
-    internal val objCMethodAnnotation: String
+    internal val objCMethodAnnotations: List<String>
+    private val isStret: Boolean
 
     init {
-        val bodyGenerator = KotlinCodeBuilder(scope = stubGenerator.kotlinFile)
-
-        kotlinParameters = mutableListOf()
-        val kotlinObjCBridgeParameters = mutableListOf<KotlinParameter>()
-        val nativeBridgeArguments = mutableListOf<TypedKotlinValue>()
-
-        val kniReceiverParameter = "kniR"
-        val kniSuperClassParameter = "kniSC"
-        val kniSelectorParameter = "kniSEL"
-
-        val voidPtr = PointerType(VoidType)
+        kotlinMethodParameters = method.getKotlinParameters(stubGenerator, forConstructorOrFactory = false)
 
         val returnType = method.getReturnType(container.classOrProtocol)
 
-        val messengerGetter =
-                if (returnType.isStret(stubGenerator.configuration.target)) "getMessengerStret" else "getMessenger"
-
-        kotlinObjCBridgeParameters.add(KotlinParameter(kniSuperClassParameter, KotlinTypes.nativePtr))
-        nativeBridgeArguments.add(TypedKotlinValue(voidPtr, "$messengerGetter($kniSuperClassParameter)"))
-
-        if (method.nsConsumesSelf) {
-            // TODO: do this later due to possible exceptions
-            bodyGenerator.out("objc_retain($kniReceiverParameter)")
-        }
-
-        kotlinObjCBridgeParameters.add(KotlinParameter(kniReceiverParameter, KotlinTypes.nativePtr))
-        nativeBridgeArguments.add(
-                TypedKotlinValue(voidPtr,
-                        "getReceiverOrSuper($kniReceiverParameter, $kniSuperClassParameter)"))
-
-        kotlinObjCBridgeParameters.add(KotlinParameter(kniSelectorParameter, KotlinTypes.cOpaquePointer))
-        nativeBridgeArguments.add(TypedKotlinValue(voidPtr, kniSelectorParameter))
-
-        val kotlinParameterNames = method.getKotlinParameterNames()
-
-        method.parameters.forEachIndexed { index, it ->
-            val name = kotlinParameterNames[index]
-
-            val kotlinType = stubGenerator.mirror(it.type).argType
-            val annotatedName = if (it.nsConsumed) "@CCall.Consumed $name" else name
-            kotlinParameters.add(KotlinParameter(annotatedName, kotlinType))
-
-            kotlinObjCBridgeParameters.add(KotlinParameter(name, kotlinType))
-            nativeBridgeArguments.add(TypedKotlinValue(it.type, name.asSimpleName()))
-        }
+        isStret = returnType.isStret(stubGenerator.configuration.target)
 
         this.kotlinReturnType = if (returnType.unwrapTypedefs() is VoidType) {
             KotlinTypes.unit
@@ -222,57 +188,9 @@ class ObjCMethodStub(private val stubGenerator: StubGenerator,
             stubGenerator.mirror(returnType).argType
         }.render(stubGenerator.kotlinFile)
 
-        val result = stubGenerator.mappingBridgeGenerator.kotlinToNative(
-                bodyGenerator,
-                this@ObjCMethodStub,
-                returnType,
-                nativeBridgeArguments,
-                independent = when (container) {
-                    is ObjCClassOrProtocol -> true // Every proper instance has this method in its method table.
-                    is ObjCCategory -> false // Method is contributed by native dependency.
-                }
-        ) { nativeValues ->
-            val messengerParameterTypes = mutableListOf<String>()
-            messengerParameterTypes.add("void*")
-            messengerParameterTypes.add("SEL")
-            method.parameters.forEach {
-                messengerParameterTypes.add(it.getTypeStringRepresentation())
-            }
+        objCMethodAnnotations = buildObjCMethodAnnotations("@ObjCMethod")
 
-            val messengerReturnType = returnType.getStringRepresentation()
-
-            val messengerType =
-                    "$messengerReturnType (* ${method.cAttributes}) (${messengerParameterTypes.joinToString()})"
-
-            val messenger = "(($messengerType) ${nativeValues.first()})"
-
-            val messengerArguments = nativeValues.drop(1)
-
-            "$messenger(${messengerArguments.joinToString()})"
-        }
-        bodyGenerator.returnResult(result)
-
-        this.implementationTemplate = if (needsImplementationTemplate()) {
-            genImplementationTemplate(stubGenerator)
-        } else {
-            null
-        }
-
-        this.bodyLines = bodyGenerator.build()
-
-        bridgeName = "objcKniBridge${stubGenerator.nextUniqueId()}"
-        objCMethodAnnotation = "@ObjCMethod".applyToStrings(method.selector, bridgeName)
-
-        this.bridgeHeader = buildString {
-            append("internal fun ")
-            append(bridgeName)
-            append('(')
-            kotlinObjCBridgeParameters.renderParametersTo(stubGenerator.kotlinFile, this)
-            append("): ")
-            append(kotlinReturnType)
-        }
-
-        val joinedKotlinParameters = kotlinParameters.renderParameters(stubGenerator.kotlinFile)
+        val joinedKotlinParameters = kotlinMethodParameters.renderParameters(stubGenerator.kotlinFile)
 
         this.header = buildString {
             if (container !is ObjCProtocol) append("external ")
@@ -302,28 +220,30 @@ class ObjCMethodStub(private val stubGenerator: StubGenerator,
         }
     }
 
-    private fun needsImplementationTemplate(): Boolean =
-            method.getReturnType(container.classOrProtocol).isBlockPointer() ||
-                    method.parameters.any { it.type.isBlockPointer() }
+    private fun buildObjCMethodAnnotations(main: String) = listOfNotNull(
+            buildObjCMethodAnnotation(main),
+            "@CCall.ConsumesReceiver".takeIf { method.nsConsumesSelf },
+            "@CCall.ReturnsRetained".takeIf { method.nsReturnsRetained }
+    )
 
-    private fun genImplementationTemplate(stubGenerator: StubGenerator): String = when (container) {
-        is ObjCClassOrProtocol -> {
-            val codeBuilder = NativeCodeBuilder(stubGenerator.simpleBridgeGenerator.topLevelNativeScope)
-
-            val result = codeBuilder.genMethodImp(stubGenerator, this, method, container)
-            stubGenerator.simpleBridgeGenerator.insertNativeBridge(this, emptyList(), codeBuilder.lines)
-            result
+    private fun buildObjCMethodAnnotation(annotation: String) = buildString {
+        append(annotation)
+        append('(')
+        append(method.selector.quoteAsKotlinLiteral())
+        append(", ")
+        append(method.encoding.quoteAsKotlinLiteral())
+        if (isStret) {
+            append(", ")
+            append("true")
         }
-        is ObjCCategory -> ""
+        append(')')
     }
 }
-
-private fun Type.isBlockPointer() = this.unwrapTypedefs() is ObjCBlockPointer
 
 private fun deprecatedInit(className: String, initParameterNames: List<String>, factory: Boolean): String {
     val replacement = if (factory) "$className.create" else className
     val replacementKind = if (factory) "factory method" else "constructor"
-    val replaceWith = "$replacement(${initParameterNames.joinToString()})"
+    val replaceWith = "$replacement(${initParameterNames.joinToString { it.asSimpleName() }})"
 
     return deprecated("Use $replacementKind instead", replaceWith)
 }
@@ -720,11 +640,11 @@ class ObjCPropertyStub(
         }
         val result = mutableListOf(
                 "$modifiers$kind $receiver${property.name.asSimpleName()}: $kotlinType",
-                "    ${getterStub.objCMethodAnnotation} external get"
+                "    ${getterStub.objCMethodAnnotations.joinToString(" ")} external get"
         )
 
         property.setter?.let {
-            result.add("    ${setterStub!!.objCMethodAnnotation} external set")
+            result.add("    ${setterStub!!.objCMethodAnnotations.joinToString(" ")} external set")
         }
 
         return result.asSequence()
@@ -739,85 +659,6 @@ fun ObjCClassOrProtocol.kotlinClassName(isMeta: Boolean): String {
     }
 
     return if (isMeta) "${baseClassName}Meta" else baseClassName
-}
-
-private fun Parameter.getTypeStringRepresentation() =
-        (if (this.nsConsumed) "__attribute__((ns_consumed)) " else "") + type.getStringRepresentation()
-
-private fun ObjCMethod.getSelfTypeStringRepresentation() = if (this.nsConsumesSelf) {
-    "__attribute__((ns_consumed)) id"
-} else {
-    "id"
-}
-
-val ObjCMethod.cAttributes get() = if (this.nsReturnsRetained) {
-    "__attribute__((ns_returns_retained)) "
-} else {
-    ""
-}
-
-private fun NativeCodeBuilder.genMethodImp(
-        stubGenerator: StubGenerator,
-        nativeBacked: NativeBacked,
-        method: ObjCMethod,
-        container: ObjCClassOrProtocol
-): String {
-
-    val returnType = method.getReturnType(container)
-    val cReturnType = returnType.getStringRepresentation()
-
-    val bridgeArguments = mutableListOf<TypedNativeValue>()
-
-    val parameters = mutableListOf<Pair<String, String>>()
-
-    parameters.add("self" to method.getSelfTypeStringRepresentation())
-
-    val receiverType = ObjCIdType(ObjCPointer.Nullability.NonNull, protocols = emptyList())
-    bridgeArguments.add(TypedNativeValue(receiverType, "self"))
-
-    parameters.add("_cmd" to "SEL")
-
-    method.parameters.forEachIndexed { index, parameter ->
-        val name = "p$index"
-        parameters.add(name to parameter.getTypeStringRepresentation())
-        bridgeArguments.add(TypedNativeValue(parameter.type, name))
-    }
-
-    val functionName = "knimi_" + stubGenerator.pkgName.replace('.', '_') + stubGenerator.nextUniqueId()
-    val functionAttr = method.cAttributes
-
-    out("$cReturnType $functionName(${parameters.joinToString { it.second + " " + it.first }}) $functionAttr{")
-
-    val callExpr = stubGenerator.mappingBridgeGenerator.nativeToKotlin(
-            this,
-            nativeBacked,
-            returnType,
-            bridgeArguments
-    ) { kotlinValues ->
-
-        val kotlinReceiverType = stubGenerator.declarationMapper
-                .getKotlinClassFor(container, isMeta = method.isClass)
-                .type.render(stubGenerator.kotlinFile)
-
-        val kotlinRawReceiver = kotlinValues.first()
-        val kotlinReceiver = "$kotlinRawReceiver.uncheckedCast<$kotlinReceiverType>()"
-
-        val namedArguments = kotlinValues.drop(1).zip(method.getKotlinParameterNames()) { value, name ->
-            "${name.asSimpleName()} = $value"
-        }
-
-        "${kotlinReceiver}.${method.kotlinName.asSimpleName()}(${namedArguments.joinToString()})"
-    }
-
-    if (returnType.unwrapTypedefs() is VoidType) {
-        out("    $callExpr;")
-    } else {
-        out("    return $callExpr;")
-    }
-
-    out("}")
-
-    return functionName
 }
 
 private fun genProtocolGetter(

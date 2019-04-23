@@ -18,6 +18,12 @@ fun run() {
     testTypeOps()
     testConversions()
     testWeakRefs()
+    testExceptions()
+    testBlocks()
+    testCustomRetain()
+    testVarargs()
+    testOverrideInit()
+    testMultipleInheritanceClash()
 
     assertEquals(2, ForwardDeclaredEnum.TWO.value)
 
@@ -87,24 +93,6 @@ fun run() {
     createObjectWithFactory(object : NSObject(), ObjectFactoryProtocol {
         override fun create() = autoreleasepool { NSObject() }
     })
-
-    assertEquals(222, callProvidedBlock(object : NSObject(), BlockProviderProtocol {
-        override fun block(): (Int) -> Int = { it * 2 }
-    }, 111))
-
-    assertEquals(322, callPlusOneBlock(object : NSObject(), BlockConsumerProtocol {
-        override fun callBlock(block: ((Int) -> Int)?, argument: Int) = block!!(argument)
-    }, 321))
-
-    autoreleasepool {
-        useCustomRetainMethods(object : Foo(), CustomRetainMethodsProtocol {
-            override fun returnRetained(obj: Any?) = obj
-            override fun consume(obj: Any?) {}
-            override fun consumeSelf() {}
-        })
-    }
-
-    assertFalse(unexpectedDeallocation)
 
 }
 
@@ -185,7 +173,7 @@ fun testMethodsOfAny(kotlinObject: Any, equalNsObject: NSObject, otherObject: An
 }
 
 fun testWeakRefs() {
-    testWeakReference({ NSObject.new()!! })
+    testWeakReference({ createNSObject()!! })
 
     createAndAbandonWeakRef(NSObject())
 
@@ -196,6 +184,8 @@ fun testWeakReference(block: () -> NSObject) {
     val ref = autoreleasepool {
         createAndTestWeakReference(block)
     }
+
+    kotlin.native.internal.GC.collect()
 
     assertNull(ref.get())
 }
@@ -211,6 +201,129 @@ fun createWeakReference(block: () -> NSObject) = WeakReference(block())
 
 fun createAndAbandonWeakRef(obj: NSObject) {
     WeakReference(obj)
+}
+
+fun testExceptions() {
+    assertFailsWith<MyException> {
+        ExceptionThrowerManager.throwExceptionWith(object : NSObject(), ExceptionThrowerProtocol {
+            override fun throwException() {
+                throw MyException()
+            }
+        })
+    }
+}
+
+fun testBlocks() {
+    assertTrue(Blocks.blockIsNull(null))
+    assertFalse(Blocks.blockIsNull({}))
+
+    assertEquals(null, Blocks.nullBlock)
+    assertNotEquals(null, Blocks.notNullBlock)
+
+    assertEquals(10, Blocks.same({ a, b, c, d -> a + b + c + d })!!(1, 2, 3, 4))
+
+    assertEquals(222, callProvidedBlock(object : NSObject(), BlockProviderProtocol {
+        override fun block(): (Int) -> Int = { it * 2 }
+    }, 111))
+
+    assertEquals(322, callPlusOneBlock(object : NSObject(), BlockConsumerProtocol {
+        override fun callBlock(block: ((Int) -> Int)?, argument: Int) = block!!(argument)
+    }, 321))
+}
+
+private lateinit var retainedMustNotBeDeallocated: MustNotBeDeallocated
+
+fun testCustomRetain() {
+    fun test() {
+        useCustomRetainMethods(object : Foo(), CustomRetainMethodsProtocol {
+            override fun returnRetained(obj: Any?) = obj
+            override fun consume(obj: Any?) {}
+            override fun consumeSelf() {}
+            override fun returnRetainedBlock(block: (() -> Unit)?) = block
+        })
+
+        CustomRetainMethodsImpl().let {
+            it.returnRetained(Any())
+            retainedMustNotBeDeallocated = MustNotBeDeallocated() // Retain to detect possible over-release.
+            it.consume(retainedMustNotBeDeallocated)
+            it.consumeSelf()
+            it.returnRetainedBlock({})!!()
+        }
+    }
+
+    autoreleasepool {
+        test()
+        kotlin.native.internal.GC.collect()
+    }
+
+    assertFalse(unexpectedDeallocation)
+}
+
+fun testVarargs() {
+    assertEquals(
+            "a b -1",
+            TestVarargs.testVarargsWithFormat(
+                    "%@ %s %d",
+                    "a" as NSString, "b".cstr, (-1).toByte()
+            ).formatted
+    )
+
+    assertEquals(
+            "2 3 9223372036854775807",
+            TestVarargs(
+                    "%d %d %lld",
+                    2.toShort(), 3, Long.MAX_VALUE
+            ).formatted
+    )
+
+    assertEquals(
+            "0.1 0.2 1 0",
+            TestVarargs.create(
+                    "%.1f %.1lf %d %d",
+                    0.1.toFloat(), 0.2, true, false
+            ).formatted
+    )
+
+    assertEquals(
+            "1 2 3",
+            TestVarargs(
+                    format = "%d %d %d",
+                    args = *arrayOf(1, 2, 3)
+            ).formatted
+    )
+
+    assertEquals(
+            "4 5 6",
+            TestVarargs(
+                    args = *arrayOf(4, *arrayOf(5, 6)),
+                    format = "%d %d %d"
+            ).formatted
+    )
+}
+
+fun testOverrideInit() {
+    assertEquals(42, (TestOverrideInitImpl.createWithValue(42) as TestOverrideInitImpl).value)
+}
+
+class TestOverrideInitImpl @OverrideInit constructor(val value: Int) : TestOverrideInit(value) {
+    companion object : TestOverrideInitMeta()
+}
+
+private class MyException : Throwable()
+
+fun testMultipleInheritanceClash() {
+    val clash1 = MultipleInheritanceClash1()
+    val clash2 = MultipleInheritanceClash2()
+
+    clash1.delegate = clash1
+    assertEquals(clash1, clash1.delegate)
+    clash1.setDelegate(clash2)
+    assertEquals(clash2, clash1.delegate())
+
+    clash2.delegate = clash1
+    assertEquals(clash1, clash2.delegate)
+    clash2.setDelegate(clash2)
+    assertEquals(clash2, clash2.delegate())
 }
 
 fun nsArrayOf(vararg elements: Any): NSArray = NSMutableArray().apply {

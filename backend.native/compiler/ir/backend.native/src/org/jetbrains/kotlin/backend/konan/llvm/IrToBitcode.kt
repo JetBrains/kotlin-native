@@ -12,7 +12,9 @@ import org.jetbrains.kotlin.backend.common.ir.ir2string
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.backend.konan.ir.*
+import org.jetbrains.kotlin.backend.konan.ir.NaiveSourceBasedFileEntryImpl
 import org.jetbrains.kotlin.backend.konan.llvm.coverage.*
+import org.jetbrains.kotlin.backend.konan.llvm.objcexport.is64Bit
 import org.jetbrains.kotlin.backend.konan.optimizations.*
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.builtins.UnsignedType
@@ -26,9 +28,7 @@ import org.jetbrains.kotlin.ir.descriptors.IrPropertyDelegateDescriptor
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.types.*
-import org.jetbrains.kotlin.ir.util.defaultType
-import org.jetbrains.kotlin.ir.util.getArguments
-import org.jetbrains.kotlin.ir.util.parentAsClass
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
@@ -295,7 +295,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     }
 
     private fun appendCAdapters() {
-        CAdapterGenerator(context, codegen).generateBindings()
+        context.cAdapterGenerator.generateBindings(codegen)
     }
 
     //-------------------------------------------------------------------------//
@@ -562,11 +562,9 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             if (function != null) {
                 parameters.forEach{
                     val parameter = it.key
-
-                    val local = functionGenerationContext.vars.createParameter(parameter,
-                            debugInfoIfNeeded(function, parameter))
+                    val local = functionGenerationContext.vars.createParameter(
+                            parameter, debugInfoIfNeeded(function, parameter))
                     functionGenerationContext.mapParameterForDebug(local, it.value)
-
                 }
             }
         }
@@ -586,7 +584,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
      */
     private inner class FunctionScope(val declaration: IrFunction?, val functionGenerationContext: FunctionGenerationContext) : InnerScopeImpl() {
 
-
         constructor(llvmFunction:LLVMValueRef, name:String, functionGenerationContext: FunctionGenerationContext):
                 this(null, functionGenerationContext) {
             this.llvmFunction = llvmFunction
@@ -596,7 +593,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         var llvmFunction: LLVMValueRef? = declaration?.let{
             codegen.llvmFunction(it)
         }
-
 
         val coverageInstrumentation: LLVMCoverageInstrumentation? =
                 context.coverage.tryGetInstrumentation(declaration) { function, args -> functionGenerationContext.call(function, args) }
@@ -685,7 +681,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         }
 
 
-        if (declaration.descriptor.retainAnnotation) {
+        if (declaration.descriptor.retainAnnotation(context.config.target)) {
             context.llvm.usedFunctions.add(codegen.llvmFunction(declaration))
         }
 
@@ -1581,16 +1577,14 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     }
 
     //-------------------------------------------------------------------------//
-    val dummyFile = IrFileImpl(NaiveSourceBasedFileEntryImpl("no source file"))
-
     private inner class ReturnableBlockScope(val returnableBlock: IrReturnableBlock) :
-            FileScope(returnableBlock.sourceFileSymbol?.owner ?: dummyFile) {
+            FileScope(returnableBlock.sourceFileSymbol?.owner ?: (currentCodeContext.fileScope() as? FileScope)?.file ?: error("returnable block should belong to current file at least") ) {
 
         var bbExit : LLVMBasicBlockRef? = null
         var resultPhi : LLVMValueRef? = null
 
         private fun getExit(): LLVMBasicBlockRef {
-            if (bbExit == null) bbExit = functionGenerationContext.basicBlock("returnable_block_exit", null)
+            if (bbExit == null) bbExit = functionGenerationContext.basicBlock("returnable_block_exit", returnableBlock.startLocation)
             return bbExit!!
         }
 
@@ -1618,6 +1612,15 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         }
 
         override fun returnableBlockScope(): CodeContext? = this
+
+        override fun location(line: Int, column: Int): LocationInfo? {
+            return if (returnableBlock.inlineFunctionSymbol != null) {
+                val diScope = returnableBlock.inlineFunctionSymbol?.owner?.scope() ?: return null
+                LocationInfo(diScope, line, column, outerContext.location(returnableBlock.startLine(), returnableBlock.endLine()))
+            } else {
+                outerContext.location(line, column)
+            }
+        }
 
 
         /**
@@ -1833,24 +1836,39 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     private fun IrFunction.scope(startLine:Int): DIScopeOpaqueRef? {
         if (codegen.isExternal(this) || !context.shouldContainDebugInfo())
             return null
-        return context.debugInfo.subprograms.getOrPut(codegen.llvmFunction(this)) {
-            memScoped {
-                val subroutineType = subroutineType(context, codegen.llvmTargetData)
-                val functionLlvmValue = codegen.llvmFunction(this@scope)
-                diFunctionScope(name.asString(), functionLlvmValue.name!!, startLine, subroutineType, functionLlvmValue)
-            }
-        }  as DIScopeOpaqueRef
+        val functionLlvmValue = codegen.llvmFunctionOrNull(this)
+        return if (functionLlvmValue != null) {
+            context.debugInfo.subprograms.getOrPut(functionLlvmValue) {
+                memScoped {
+                    val subroutineType = subroutineType(context, codegen.llvmTargetData)
+                    val functionLlvmValue = codegen.llvmFunction(this@scope)
+                    diFunctionScope(name.asString(), functionLlvmValue.name!!, startLine, subroutineType).also {
+                        DIFunctionAddSubprogram(functionLlvmValue, it)
+                    }
+                }
+            } as DIScopeOpaqueRef
+        } else {
+            context.debugInfo.inlinedSubprograms.getOrPut(this) {
+                memScoped {
+                    val subroutineType = subroutineType(context, codegen.llvmTargetData)
+                    diFunctionScope(name.asString(), "<inlined-out:$name>", startLine, subroutineType)
+                }
+            } as DIScopeOpaqueRef
+        }
+
     }
 
     @Suppress("UNCHECKED_CAST")
     private fun LLVMValueRef.scope(startLine:Int, subroutineType: DISubroutineTypeRef): DIScopeOpaqueRef? {
         return context.debugInfo.subprograms.getOrPut(this) {
-            diFunctionScope(name!!, name!!, startLine, subroutineType, this)
+            diFunctionScope(name!!, name!!, startLine, subroutineType).also {
+                DIFunctionAddSubprogram(this@scope, it)
+            }
         }  as DIScopeOpaqueRef
     }
-    private fun diFunctionScope(name: String, linkageName: String, startLine: Int, subroutineType: DISubroutineTypeRef, functionLlvmValue: LLVMValueRef): DISubprogramRef {
-        @Suppress("UNCHECKED_CAST")
-        val diFunction = DICreateFunction(
+
+    @Suppress("UNCHECKED_CAST")
+    private fun diFunctionScope(name: String, linkageName: String, startLine: Int, subroutineType: DISubroutineTypeRef) = DICreateFunction(
                 builder = context.debugInfo.builder,
                 scope = (currentCodeContext.fileScope() as FileScope).file.file() as DIScopeOpaqueRef,
                 name = name,
@@ -1861,10 +1879,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 //TODO: need more investigations.
                 isLocal = 0,
                 isDefinition = 1,
-                scopeLine = 0)
-        DIFunctionAddSubprogram(functionLlvmValue, diFunction)
-        return diFunction!!
-    }
+                scopeLine = 0)!!
 
     //-------------------------------------------------------------------------//
 
@@ -2101,26 +2116,46 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
         with(functionGenerationContext) {
             val functionSymbol = function.symbol
-            return when {
-                functionSymbol == ib.eqeqeqSymbol -> icmpEq(args[0], args[1])
-                functionSymbol == ib.booleanNotSymbol -> icmpNe(args[0], kTrue)
-                functionSymbol.isComparisonFunction(ib.greaterFunByOperandType) -> {
-                    if (args[0].type.isFloatingPoint()) fcmpGt(args[0], args[1])
-                    else icmpGt(args[0], args[1])
+            return when (functionSymbol) {
+                ib.eqeqeqSymbol -> icmpEq(args[0], args[1])
+                ib.booleanNotSymbol -> icmpNe(args[0], kTrue)
+                else -> {
+                    val isFloatingPoint = args[0].type.isFloatingPoint()
+                    // LLVM does not distinguish between signed/unsigned integers, so we must check
+                    // the parameter type.
+                    val shouldUseUnsignedComparison = function.valueParameters[0].type.isChar()
+                    when {
+                        functionSymbol.isComparisonFunction(ib.greaterFunByOperandType) -> {
+                            when {
+                                isFloatingPoint -> fcmpGt(args[0], args[1])
+                                shouldUseUnsignedComparison -> icmpUGt(args[0], args[1])
+                                else -> icmpGt(args[0], args[1])
+                            }
+                        }
+                        functionSymbol.isComparisonFunction(ib.greaterOrEqualFunByOperandType) -> {
+                            when {
+                                isFloatingPoint -> fcmpGe(args[0], args[1])
+                                shouldUseUnsignedComparison -> icmpUGe(args[0], args[1])
+                                else -> icmpGe(args[0], args[1])
+                            }
+                        }
+                        functionSymbol.isComparisonFunction(ib.lessFunByOperandType) -> {
+                            when {
+                                isFloatingPoint -> fcmpLt(args[0], args[1])
+                                shouldUseUnsignedComparison -> icmpULt(args[0], args[1])
+                                else -> icmpLt(args[0], args[1])
+                            }
+                        }
+                        functionSymbol.isComparisonFunction(ib.lessOrEqualFunByOperandType) -> {
+                            when {
+                                isFloatingPoint -> fcmpLe(args[0], args[1])
+                                shouldUseUnsignedComparison -> icmpULe(args[0], args[1])
+                                else -> icmpLe(args[0], args[1])
+                            }
+                        }
+                        else -> TODO(function.name.toString())
+                    }
                 }
-                functionSymbol.isComparisonFunction(ib.greaterOrEqualFunByOperandType) -> {
-                    if (args[0].type.isFloatingPoint()) fcmpGe(args[0], args[1])
-                    else icmpGe(args[0], args[1])
-                }
-                functionSymbol.isComparisonFunction(ib.lessFunByOperandType) -> {
-                    if (args[0].type.isFloatingPoint()) fcmpLt(args[0], args[1])
-                    else icmpLt(args[0], args[1])
-                }
-                functionSymbol.isComparisonFunction(ib.lessOrEqualFunByOperandType) -> {
-                    if (args[0].type.isFloatingPoint()) fcmpLe(args[0], args[1])
-                    else icmpLe(args[0], args[1])
-                }
-                else -> TODO(function.name.toString())
             }
         }
     }
@@ -2147,7 +2182,13 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     private fun call(function: IrFunction, llvmFunction: LLVMValueRef, args: List<LLVMValueRef>,
                      resultLifetime: Lifetime): LLVMValueRef {
-        val result = call(llvmFunction, args, resultLifetime)
+        val exceptionHandler = if (function.hasAnnotation(RuntimeNames.filterExceptions)) {
+            functionGenerationContext.filteringExceptionHandler(currentCodeContext)
+        } else {
+            currentCodeContext.exceptionHandler
+        }
+
+        val result = call(llvmFunction, args, resultLifetime, exceptionHandler)
         if (!function.isSuspend && function.returnType.isNothing()) {
             functionGenerationContext.unreachable()
         }
@@ -2175,8 +2216,9 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     }
 
     private fun call(function: LLVMValueRef, args: List<LLVMValueRef>,
-                     resultLifetime: Lifetime = Lifetime.IRRELEVANT): LLVMValueRef {
-        return functionGenerationContext.call(function, args, resultLifetime, currentCodeContext.exceptionHandler)
+                     resultLifetime: Lifetime = Lifetime.IRRELEVANT,
+                     exceptionHandler: ExceptionHandler = currentCodeContext.exceptionHandler): LLVMValueRef {
+        return functionGenerationContext.call(function, args, resultLifetime, exceptionHandler)
     }
 
     //-------------------------------------------------------------------------//
@@ -2187,7 +2229,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         val constructedClass = functionGenerationContext.constructedClass!!
         val thisPtr = currentCodeContext.genGetValue(constructedClass.thisReceiver!!)
 
-        if (constructor.constructedClass.isExternalObjCClass()) {
+        if (constructor.constructedClass.isExternalObjCClass() || constructor.constructedClass.isAny()) {
             assert(args.isEmpty())
             return codegen.theUnitInstanceRef.llvm
         }
@@ -2350,9 +2392,12 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     }
 }
 
-internal data class LocationInfo(val scope: DIScopeOpaqueRef,
-                                 val line: Int,
-                                 val column: Int) {
+
+
+internal class LocationInfo(val scope: DIScopeOpaqueRef,
+                            val line: Int,
+                            val column: Int,
+                            val inlinedAt: LocationInfo? = null) {
     init {
         assert(line != 0)
     }

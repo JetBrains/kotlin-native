@@ -24,10 +24,7 @@ import org.jetbrains.kotlin.ir.expressions.impl.*
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.*
-import org.jetbrains.kotlin.ir.util.constructors
-import org.jetbrains.kotlin.ir.util.getArguments
-import org.jetbrains.kotlin.ir.util.parentAsClass
-import org.jetbrains.kotlin.ir.util.simpleFunctions
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
@@ -545,8 +542,13 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                             is IrGetValue -> getNode(value)
 
                             is IrVararg,
-                            is IrConst<*>,
                             is IrFunctionReference -> DataFlowIR.Node.Const(symbolTable.mapType(value.type))
+
+                            is IrConst<*> ->
+                                if (value.value == null)
+                                    DataFlowIR.Node.Null
+                                else
+                                    DataFlowIR.Node.Const(symbolTable.mapType(value.type))
 
                             is IrGetObjectValue -> DataFlowIR.Node.Singleton(
                                     symbolTable.mapType(value.type),

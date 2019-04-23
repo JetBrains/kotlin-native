@@ -76,3 +76,91 @@ BOOL unexpectedDeallocation = NO;
   unexpectedDeallocation = YES;
 }
 @end;
+
+static CustomRetainMethodsImpl* retainedCustomRetainMethodsImpl;
+
+@implementation CustomRetainMethodsImpl
+-(id)returnRetained:(id)obj __attribute__((ns_returns_retained)) {
+    return obj;
+}
+
+-(void)consume:(id) __attribute__((ns_consumed)) obj {
+}
+
+-(void)consumeSelf __attribute__((ns_consumes_self)) {
+  retainedCustomRetainMethodsImpl = self; // Retain to detect possible over-release.
+}
+
+-(void (^)(void))returnRetainedBlock:(void (^)(void))block __attribute__((ns_returns_retained)) {
+    return block;
+}
+@end;
+
+@implementation ExceptionThrowerManager
++(void)throwExceptionWith:(id<ExceptionThrower>)thrower {
+    [thrower throwException];
+}
+@end;
+
+@implementation Blocks
++(BOOL)blockIsNull:(void (^)(void))block {
+    return block == nil;
+}
+
++(int (^)(int, int, int, int))same:(int (^)(int, int, int, int))block {
+    return block;
+}
+
++(void (^)(void)) nullBlock {
+    return nil;
+}
+
++(void (^)(void)) notNullBlock {
+    return ^{};
+}
+
+@end;
+
+@implementation TestVarargs
+-(instancetype _Nonnull)initWithFormat:(NSString*)format, ... {
+    self = [super init];
+
+    va_list args;
+    va_start(args, format);
+    self.formatted = [[NSString alloc] initWithFormat:format arguments:args];
+    va_end(args);
+
+    return self;
+}
+
++(instancetype _Nonnull)testVarargsWithFormat:(NSString*)format, ... {
+    TestVarargs* result = [[TestVarargs alloc] init];
+
+    va_list args;
+    va_start(args, format);
+    result.formatted = [[NSString alloc] initWithFormat:format arguments:args];
+    va_end(args);
+
+    return result;
+}
+
+@end;
+
+@implementation TestOverrideInit
+-(instancetype)initWithValue:(int)value {
+    return self = [super init];
+}
+
++(instancetype)createWithValue:(int)value {
+    return [[self alloc] initWithValue:value];
+}
+@end;
+
+@implementation MultipleInheritanceClashBase
+@end;
+
+@implementation MultipleInheritanceClash1
+@end;
+
+@implementation MultipleInheritanceClash2
+@end;

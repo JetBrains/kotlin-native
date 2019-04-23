@@ -10,7 +10,6 @@ import llvm.LLVMModuleRef
 import org.jetbrains.kotlin.backend.common.DumpIrTreeWithDescriptorsVisitor
 import org.jetbrains.kotlin.backend.common.descriptors.WrappedSimpleFunctionDescriptor
 import org.jetbrains.kotlin.backend.common.descriptors.WrappedTypeParameterDescriptor
-import org.jetbrains.kotlin.backend.common.phaser.PhaseConfig
 import org.jetbrains.kotlin.backend.common.validateIrModule
 import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.backend.konan.ir.KonanIr
@@ -43,7 +42,6 @@ import org.jetbrains.kotlin.ir.symbols.impl.IrSimpleFunctionSymbolImpl
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.psi2ir.generators.GeneratorContext
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
 import org.jetbrains.kotlin.resolve.scopes.MemberScope
@@ -60,7 +58,6 @@ import org.jetbrains.kotlin.ir.symbols.impl.IrTypeParameterSymbolImpl
 /**
  * Offset for synthetic elements created by lowerings and not attributable to other places in the source code.
  */
-internal const val SYNTHETIC_OFFSET = -2
 
 internal class SpecialDeclarationsFactory(val context: Context) : KotlinMangler by KonanMangler {
     private val enumSpecialDeclarationsFactory by lazy { EnumSpecialDeclarationsFactory(context) }
@@ -204,11 +201,15 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
 
     lateinit var objCExport: ObjCExport
 
+    lateinit var cAdapterGenerator: CAdapterGenerator
+
     override val builtIns: KonanBuiltIns by lazy(PUBLICATION) {
         moduleDescriptor.builtIns as KonanBuiltIns
     }
 
     override val configuration get() = config.configuration
+
+    override val internalPackageFqn: FqName = RuntimeNames.kotlinNativeInternalPackageName
 
     val phaseConfig = config.phaseConfig
 
@@ -222,8 +223,12 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
 
     val specialDeclarationsFactory = SpecialDeclarationsFactory(this)
 
-    class LazyMember<T>(val initializer: Context.() -> T) {
+    open class LazyMember<T>(val initializer: Context.() -> T) {
         operator fun getValue(thisRef: Context, property: KProperty<*>): T = thisRef.getValue(this)
+    }
+
+    class LazyVarMember<T>(initializer: Context.() -> T) : LazyMember<T>(initializer) {
+        operator fun setValue(thisRef: Context, property: KProperty<*>, newValue: T) = thisRef.setValue(this, newValue)
     }
 
     companion object {
@@ -236,12 +241,18 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
             }
             result
         }
+
+        fun <T> nullValue() = LazyVarMember<T?>({ null })
     }
 
     private val lazyValues = mutableMapOf<LazyMember<*>, Any?>()
 
     fun <T> getValue(member: LazyMember<T>): T =
             @Suppress("UNCHECKED_CAST") (lazyValues.getOrPut(member, { member.initializer(this) }) as T)
+
+    fun <T> setValue(member: LazyVarMember<T>, newValue: T) {
+        lazyValues[member] = newValue
+    }
 
     val reflectionTypes: KonanReflectionTypes by lazy(PUBLICATION) {
         KonanReflectionTypes(moduleDescriptor, KonanFqNames.internalPackageName)
@@ -259,9 +270,6 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     // to dump this information into generated file.
     var serializedLinkData: LinkData? = null
     var dataFlowGraph: ByteArray? = null
-
-    @Deprecated("")
-    lateinit var psi2IrGeneratorContext: GeneratorContext
 
     val librariesWithDependencies by lazy {
         config.librariesWithDependencies(moduleDescriptor)
@@ -316,7 +324,7 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     lateinit var bitcodeFileName: String
     lateinit var library: KonanLibraryWriter
 
-    val cStubsManager = CStubsManager()
+    val cStubsManager = CStubsManager(config.target)
 
     val coverage = CoverageManager(this)
 

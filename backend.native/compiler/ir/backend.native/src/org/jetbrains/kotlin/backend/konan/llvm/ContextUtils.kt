@@ -15,6 +15,9 @@ import org.jetbrains.kotlin.descriptors.konan.CompiledKonanModuleOrigin
 import org.jetbrains.kotlin.descriptors.konan.CurrentKonanModuleOrigin
 import org.jetbrains.kotlin.descriptors.konan.DeserializedKonanModuleOrigin
 import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.util.file
+import org.jetbrains.kotlin.ir.util.fqNameSafe
+import org.jetbrains.kotlin.ir.util.isEffectivelyExternal
 import org.jetbrains.kotlin.konan.library.KonanLibrary
 import org.jetbrains.kotlin.konan.library.resolver.TopologicalLibraryOrder
 import org.jetbrains.kotlin.konan.target.KonanTarget
@@ -141,6 +144,10 @@ internal interface ContextUtils : RuntimeAware {
     val staticData: StaticData
         get() = context.llvm.staticData
 
+    /**
+     * TODO: maybe it'd be better to replace with [IrDeclaration::isEffectivelyExternal()],
+     * or just drop all [else] branches of corresponding conditionals.
+     */
     fun isExternal(declaration: IrDeclaration): Boolean {
         return false
     }
@@ -150,6 +157,9 @@ internal interface ContextUtils : RuntimeAware {
      * It may be declared as external function prototype.
      */
     val IrFunction.llvmFunction: LLVMValueRef
+    get() = llvmFunctionOrNull ?: error("$name in $file/${parent.fqNameSafe}")
+
+    val IrFunction.llvmFunctionOrNull: LLVMValueRef?
         get() {
             assert(this.isReal)
 
@@ -157,7 +167,7 @@ internal interface ContextUtils : RuntimeAware {
                 context.llvm.externalFunction(this.symbolName, getLlvmFunctionType(this),
                         origin = this.llvmSymbolOrigin)
             } else {
-                context.llvmDeclarations.forFunction(this).llvmFunction
+                context.llvmDeclarations.forFunctionOrNull(this)?.llvmFunction
             }
         }
 
@@ -294,6 +304,16 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
         val parameterTypes = cValuesOf(int8TypePtr, int8TypePtr, int32Type, int1Type)
         val functionType = LLVMFunctionType(LLVMVoidType(), parameterTypes, 4, 0)
         return LLVMAddFunction(llvmModule, "llvm.memcpy.p0i8.p0i8.i32", functionType)!!
+    }
+
+    private fun llvmIntrinsic(name: String, type: LLVMTypeRef, vararg attributes: String): LLVMValueRef {
+        val result = LLVMAddFunction(llvmModule, name, type)!!
+        attributes.forEach {
+            val kindId = getLlvmAttributeKindId(it)
+            val attribute = LLVMCreateEnumAttribute(LLVMGetTypeContext(type), kindId, 0)!!
+            LLVMAddAttributeAtIndex(result, LLVMAttributeFunctionIndex, attribute)
+        }
+        return result
     }
 
     internal fun externalFunction(
@@ -455,6 +475,12 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
         else -> "__gxx_personality_v0"
     }
 
+    val cxxStdTerminate = externalNounwindFunction(
+            "_ZSt9terminatev", // mangled C++ 'std::terminate'
+            functionType(voidType, false),
+            origin = context.standardLlvmSymbolsOrigin
+    )
+
     val gxxPersonalityFunction = externalNounwindFunction(
             personalityFunctionName,
             functionType(int32Type, true),
@@ -473,6 +499,18 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
 
     val memsetFunction = importMemset()
     //val memcpyFunction = importMemcpy()
+
+    val llvmTrap = llvmIntrinsic(
+            "llvm.trap",
+            functionType(voidType, false),
+            "cold", "noreturn", "nounwind"
+    )
+
+    val llvmEhTypeidFor = llvmIntrinsic(
+            "llvm.eh.typeid.for",
+            functionType(int32Type, false, int8TypePtr),
+            "nounwind", "readnone"
+    )
 
     val usedFunctions = mutableListOf<LLVMValueRef>()
     val usedGlobals = mutableListOf<LLVMValueRef>()

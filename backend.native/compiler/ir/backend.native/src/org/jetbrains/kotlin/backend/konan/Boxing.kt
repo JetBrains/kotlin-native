@@ -9,7 +9,6 @@ import llvm.*
 import org.jetbrains.kotlin.backend.common.descriptors.WrappedSimpleFunctionDescriptor
 import org.jetbrains.kotlin.backend.common.descriptors.WrappedValueParameterDescriptor
 import org.jetbrains.kotlin.backend.konan.ir.KonanSymbols
-import org.jetbrains.kotlin.backend.konan.ir.fqNameSafe
 import org.jetbrains.kotlin.backend.konan.llvm.*
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
@@ -26,18 +25,9 @@ import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.name.Name
-import org.jetbrains.kotlin.types.KotlinType
 
 internal fun KonanSymbols.getTypeConversion(actualType: IrType, expectedType: IrType): IrSimpleFunctionSymbol? =
-        getTypeConversionImpl(actualType.getInlinedClass(), expectedType.getInlinedClass())
-
-internal fun KonanSymbols.getTypeConversion(actualType: KotlinType, expectedType: KotlinType): IrSimpleFunctionSymbol? {
-    // TODO: rework all usages and remove this method.
-    val actualInlinedClass = actualType.getInlinedClass()?.let { context.ir.get(it) }
-    val expectedInlinedClass = expectedType.getInlinedClass()?.let { context.ir.get(it) }
-
-    return getTypeConversionImpl(actualInlinedClass, expectedInlinedClass)
-}
+        getTypeConversionImpl(actualType.getInlinedClassNative(), expectedType.getInlinedClassNative())
 
 private fun KonanSymbols.getTypeConversionImpl(
         actualInlinedClass: IrClass?,

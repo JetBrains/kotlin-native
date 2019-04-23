@@ -24,6 +24,14 @@ public annotation class SymbolName(val name: String)
 @Retention(AnnotationRetention.BINARY)
 public annotation class Retain
 
+/**
+ * Preserve the function entry point during global optimizations, only for the given target.
+ */
+@Target(AnnotationTarget.FUNCTION, AnnotationTarget.CLASS)
+@Retention(AnnotationRetention.BINARY)
+public annotation class RetainForTarget(val target: String)
+
+
 // TODO: merge with [kotlin.jvm.Throws]
 /**
  * This annotation indicates what exceptions should be declared by a function when compiled to a platform method.
@@ -37,7 +45,7 @@ public annotation class Retain
  * @property exceptionClasses the list of checked exception classes that may be thrown by the function.
  */
 @Target(AnnotationTarget.FUNCTION, AnnotationTarget.CONSTRUCTOR)
-@Retention(AnnotationRetention.SOURCE)
+@Retention(AnnotationRetention.BINARY)
 public annotation class Throws(vararg val exceptionClasses: KClass<out Throwable>)
 
 public typealias ThreadLocal = kotlin.native.concurrent.ThreadLocal

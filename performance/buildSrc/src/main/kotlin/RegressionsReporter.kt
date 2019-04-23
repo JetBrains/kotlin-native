@@ -116,26 +116,20 @@ open class RegressionsReporter : DefaultTask() {
 
         // Get previous build on branch.
         val builds = getBuild(previousBuildLocator(buildTypeId,branch), user, password)
-        val previousBuildsExist = (JsonTreeParser.parse(builds) as JsonObject).getPrimitive("count").int != 0
 
         // Get changes description.
         val changesList = getCommits("id:$buildId", user, password)
         val changesInfo = "*Changes* in branch *$branch:*\n" + buildString {
             changesList.commits.forEach {
-                append("        - Change ${it.revision} by <@${it.developer}> (details: ${it.webUrlWithDescription})\n")
+                append("        - Change ${it.revision} by ${it.developer} (details: ${it.webUrlWithDescription})\n")
             }
         }
-
-        println("defaul Branch: $defaultBranch")
-
-        // If branch differs from default and it's first build compare to master, otherwise compare to previous build on branch.
-        val compareToBranch = if (previousBuildsExist) branch else defaultBranch
 
         // File name on bintray is the same as current.
         val bintrayFileName = currentBenchmarksReportFile.substringAfterLast("/")
 
         // Get compare to build.
-        val compareToBuild = getBuild(previousBuildLocator(buildTypeId, compareToBranch), user, password)
+        val compareToBuild = getBuild(previousBuildLocator(buildTypeId, defaultBranch), user, password)
         val compareToBuildLink = getBuildProperty(compareToBuild,"webUrl")
         val compareToBuildNumber = getBuildProperty(compareToBuild,"number")
         val target = System.getProperty("os.name").replace("\\s".toRegex(), "")
@@ -173,13 +167,6 @@ open class RegressionsReporter : DefaultTask() {
                 val channel = session.findChannelByName(buildProperties.getProperty("konan-channel-name"))
                 session.sendMessage(channel, message)
             }
-        } else {
-            changesList.commits.filter { it.developer in slackUsers }. map { it.developer }
-                    .toSet().forEach {
-                        val slackUser = session.findUserByUserName(slackUsers[it])
-                        session.sendMessageToUser(slackUser, message, null)
-
-                    }
         }
         session.disconnect()
     }

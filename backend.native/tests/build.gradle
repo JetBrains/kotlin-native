@@ -574,6 +574,12 @@ task unchecked_cast3(type: RunKonanTest) {
     source = "codegen/basics/unchecked_cast3.kt"
 }
 
+task unchecked_cast4(type: RunKonanTest) {
+    expectedFail = (project.testTarget == 'wasm32') // Uses exceptions.
+    goldValue = "Ok\n"
+    source = "codegen/basics/unchecked_cast4.kt"
+}
+
 task null_check(type: RunKonanTest) {
     source = "codegen/basics/null_check.kt"
 }
@@ -2065,7 +2071,7 @@ task extend_exception(type: RunKonanTest) {
 }
 
 task check_stacktrace_format(type: RunStandaloneKonanTest) {
-    disabled = !isAppleTarget(project)
+    disabled = true // !isAppleTarget(project)
     flags = ['-g']
     source = "runtime/exceptions/check_stacktrace_format.kt"
 }
@@ -2231,6 +2237,11 @@ task args0(type: RunStandaloneKonanTest) {
     arguments = ["AAA", "BB", "C"]
     goldValue = "AAA\nBB\nC\n"
     source = "runtime/basic/args0.kt"
+}
+
+task devirtualization_lateinitInterface(type: RunStandaloneKonanTest) {
+    goldValue = "42\n"
+    source = "codegen/devirtualization/lateinitInterface.kt"
 }
 
 task multiargs(type: RunStandaloneKonanTest) {
@@ -2875,6 +2886,107 @@ task testing_library_usage(type: RunStandaloneKonanTest) {
     arguments = ['--ktest_logger=SILENT']
 }
 
+class Filter {
+    List<String> positive
+    List<String> negative
+    List<String> expectedTests
+
+    Filter(List<String> positive, List<String> negative, List<String> expectedTests) {
+        this.positive = positive
+        this.negative = negative
+        this.expectedTests = expectedTests
+    }
+
+    List<String> args() {
+        List<String> result = []
+        if (positive != null && !positive.isEmpty()) {
+            result += "--ktest_gradle_filter=${asListOfPatterns(positive)}"
+        }
+        if (negative != null && !negative.isEmpty()) {
+            result += "--ktest_negative_gradle_filter=${asListOfPatterns(negative)}"
+        }
+        return result
+    }
+
+    static private String asListOfPatterns(List<String> input) {
+        return input.collect { "kotlin.test.tests.$it" }.join(",")
+    }
+}
+
+task testing_filters(type: RunStandaloneKonanTest) {
+    source = "testing/filters.kt"
+    flags = ['-tr', '-ea']
+    def filters = [
+        new Filter(["A.foo1", "B", "FiltersKt.foo1"], [], ["A.foo1", "B.foo1", "B.foo2", "B.bar", "FiltersKt.foo1"]),
+        new Filter([], ["A.foo1", "B", "FiltersKt.foo1"], ["A.foo2", "A.bar", "FiltersKt.foo2", "FiltersKt.bar"]),
+        new Filter(["A", "FiltersKt"], ["A.foo1", "FiltersKt.foo1"], ["A.foo2", "A.bar", "FiltersKt.foo2", "FiltersKt.bar"]),
+        new Filter(["A.foo*", "B.*"], [], ["A.foo1", "A.foo2", "B.foo1", "B.foo2", "B.bar"]),
+        new Filter([], ["A.foo*", "B.*"], ["A.bar", "FiltersKt.foo1", "FiltersKt.foo2", "FiltersKt.bar"]),
+        new Filter(["*.foo*"], ["B"], ["A.foo1", "A.foo2", "FiltersKt.foo1", "FiltersKt.foo2"]),
+        new Filter(["A"], ["*.foo*"], ["A.bar"])
+    ]
+    multiRuns = true
+    multiArguments = filters.collect { it.args() + '--ktest_logger=SIMPLE' }
+    outputChecker = { String output ->
+        // The first chunk is empty - drop it.
+        def outputs = output.split("Starting testing\n").drop(1)
+        if (outputs.size() != filters.size()) {
+            println("Incorrect number of test runs. Expected: ${filters.size()}, actual: ${outputs.size()}")
+            return false
+        }
+
+        // Check the correct set of tests was executed in each run.
+        for (int i = 0; i < outputs.size(); i++) {
+            def actualMessages = outputs[i].split('\n').findAll { it.startsWith("Passed: ") }
+            def expectedMessages = filters[i].expectedTests.collect { String test ->
+                def method = test.substring(test.lastIndexOf('.') + 1)
+                def suite = test.substring(0, test.lastIndexOf('.'))
+                "Passed: $method (kotlin.test.tests.$suite)".toString()
+            }
+
+            if (actualMessages.size() != expectedMessages.size()) {
+                println("Incorrect number of tests executed for filters[$i]. Expected: ${expectedMessages.size()}. Actual: ${actualMessages.size()}")
+                return false
+            }
+
+            for (message in expectedMessages) {
+                if (!actualMessages.contains(message)) {
+                    println("Test run output for filters[$i] doesn't contain the expected message '$message'")
+                    return false
+                }
+            }
+        }
+        return true
+    }
+}
+
+// Check that stacktraces and ignored suite are correctly reported in the TC logger.
+task testing_stacktrace(type: RunStandaloneKonanTest) {
+    source = "testing/stacktrace.kt"
+    flags = ['-tr', '-ea']
+    arguments = ["--ktest_logger=TEAMCITY", "--ktest_no_exit_code"]
+    expectedFail = (project.testTarget == 'wasm32') // Uses exceptions.
+    // This test prints TeamCity service messages about failed test causing false negative failure at CI.
+    // So we need to suppress printing these messages to stdout.
+    printOutput = false
+    outputChecker = { String output ->
+        def ignoredOutput = """\
+            |##teamcity[testSuiteStarted name='kotlin.test.tests.Ignored' locationHint='ktest:suite://kotlin.test.tests.Ignored']
+            |##teamcity[testIgnored name='foo']
+            |##teamcity[testSuiteFinished name='kotlin.test.tests.Ignored']""".stripMargin()
+        def failedOutput = """\
+            |##teamcity[testSuiteStarted name='kotlin.test.tests.Failed' locationHint='ktest:suite://kotlin.test.tests.Failed']
+            |##teamcity[testStarted name='bar' locationHint='ktest:test://kotlin.test.tests.Failed.bar']
+            |##teamcity[testFailed name='bar' message='Bar' details='kotlin.Exception: Bar|n""".stripMargin()
+
+        def shownInnerException = output.readLines()
+                .find { it.startsWith("##teamcity[testFailed name='bar'") }
+                ?.contains("Caused by: kotlin.Exception: Baz") ?: false
+
+        return output.contains(ignoredOutput) && output.contains(failedOutput) && shownInnerException
+    }
+}
+
 // Just check that the driver is able to produce runnable binaries.
 task driver0(type: RunDriverKonanTest) {
     goldValue = "Hello, world!\n"
@@ -3112,13 +3224,14 @@ task interop_opengl_teapot(type: RunStandaloneKonanTest) {
 
 task interop_objc_smoke(type: RunInteropKonanTest) {
     disabled = !isAppleTarget(project)
-    goldValue = "84\nFoo\nHello, World!\nKotlin says: Hello, everybody!\nHello from Kotlin\n2, 1\n" +
+    goldValue = "84\nFoo\nDeallocated\n" +
+            "Hello, World!\nKotlin says: Hello, everybody!\nHello from Kotlin\n2, 1\n" +
             "true\ntrue\n" +
             "Global string\nAnother global string\nnull\nglobal object\n" +
             "5\n" +
             "String macro\n" +
             "CFString macro\n" +
-            "Deallocated\nDeallocated\nDeallocated\n"
+            "Deallocated\nDeallocated\n"
 
     if (isAppleTarget(project)) {
         source = "interop/objc/smoke.kt"
@@ -3183,6 +3296,7 @@ task produce_dynamic(type: DynamicKonanTest) {
                 "enum100 = 100\n" +
                 "object = 42\n" +
                 "singleton = I am single\n" +
+                "mutable = foo\n" +
                 "topLevel = 777 3\n"
 }
 

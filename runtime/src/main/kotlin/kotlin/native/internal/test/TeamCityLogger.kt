@@ -40,13 +40,20 @@ internal class TeamCityLogger : BaseTestLogger() {
     override fun startSuite(suite: TestSuite) = report("testSuiteStarted" +
             " name='${suite.tcName}'" +
             " locationHint='ktest:suite://${suite.tcName}'")
+
+    override fun ignoreSuite(suite: TestSuite) {
+        startSuite(suite)
+        suite.testCases.values.forEach { ignore(it) }
+        finishSuite(suite, 0L)
+    }
+
     override fun finishSuite(suite: TestSuite, timeMillis: Long) = report("testSuiteFinished name='${suite.tcName}'")
 
     override fun pass(testCase: TestCase, timeMillis: Long) = finish(testCase, timeMillis)
     override fun fail(testCase: TestCase, e: Throwable, timeMillis: Long) {
-        // TODO: Add 'details=...' command with the stack trace (need to implement stacktrace dumping as a string)
-        e.printStackTrace()
-        report("testFailed name='${testCase.tcName}' message='${e.message?.escapeForTC()}'")
+        val stackTrace = e.dumpStackTrace().escapeForTC()
+        val message = e.message?.escapeForTC()
+        report("testFailed name='${testCase.tcName}' message='$message' details='$stackTrace'")
         finish(testCase, timeMillis)
     }
 

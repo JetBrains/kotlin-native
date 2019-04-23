@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.backend.common.serialization.DescriptorTable
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
+import org.jetbrains.kotlin.ir.util.SymbolTable
 import org.jetbrains.kotlin.ir.util.patchDeclarationParents
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.psi2ir.Psi2IrConfiguration
@@ -50,22 +51,50 @@ internal val frontendPhase = konanUnitPhase(
         description = "Frontend builds AST"
 )
 
+/**
+ * Valid from [createSymbolTablePhase] until [destroySymbolTablePhase].
+ */
+private var Context.symbolTable: SymbolTable? by Context.nullValue()
+
+internal val createSymbolTablePhase = konanUnitPhase(
+        op = {
+            this.symbolTable = SymbolTable()
+        },
+        name = "CreateSymbolTable",
+        description = "Create SymbolTable"
+)
+
 internal val objCExportPhase = konanUnitPhase(
         op = {
-            objCExport = ObjCExport(this)
+            objCExport = ObjCExport(this, symbolTable!!)
         },
         name = "ObjCExport",
-        description = "Objective-C header generation"
+        description = "Objective-C header generation",
+        prerequisite = setOf(createSymbolTablePhase)
+)
+
+internal val buildCExportsPhase = konanUnitPhase(
+        op = {
+            if (this.isNativeLibrary) {
+                this.cAdapterGenerator = CAdapterGenerator(this).also {
+                    it.buildExports(this.symbolTable!!)
+                }
+            }
+        },
+        name = "BuildCExports",
+        description = "Build C exports",
+        prerequisite = setOf(createSymbolTablePhase)
 )
 
 internal val psiToIrPhase = konanUnitPhase(
         op = {
             // Translate AST to high level IR.
+
+            val symbolTable = symbolTable!!
+
             val translator = Psi2IrTranslator(config.configuration.languageVersionSettings,
                     Psi2IrConfiguration(false))
-            val generatorContext = translator.createGeneratorContext(moduleDescriptor, bindingContext)
-            @Suppress("DEPRECATION")
-            psi2IrGeneratorContext = generatorContext
+            val generatorContext = translator.createGeneratorContext(moduleDescriptor, bindingContext, symbolTable)
 
             val forwardDeclarationsModuleDescriptor = moduleDescriptor.allDependencyModules.firstOrNull { it.isForwardDeclarationModule }
 
@@ -73,7 +102,7 @@ internal val psiToIrPhase = konanUnitPhase(
                     moduleDescriptor,
                     this as LoggingContext,
                     generatorContext.irBuiltIns,
-                    generatorContext.symbolTable,
+                    symbolTable,
                     forwardDeclarationsModuleDescriptor,
                     getExportedDependencies()
             )
@@ -91,7 +120,7 @@ internal val psiToIrPhase = konanUnitPhase(
                 dependenciesCount = dependencies.size
             }
 
-            val symbols = KonanSymbols(this, generatorContext.symbolTable, generatorContext.symbolTable.lazyWrapper)
+            val symbols = KonanSymbols(this, symbolTable, symbolTable.lazyWrapper)
             val module = translator.generateModuleFragment(generatorContext, environment.getSourceFiles(), deserializer)
 
             irModule = module
@@ -101,7 +130,17 @@ internal val psiToIrPhase = konanUnitPhase(
 //        validateIrModule(this, module)
         },
         name = "Psi2Ir",
-        description = "Psi to IR conversion"
+        description = "Psi to IR conversion",
+        prerequisite = setOf(createSymbolTablePhase)
+)
+
+internal val destroySymbolTablePhase = konanUnitPhase(
+        op = {
+            this.symbolTable = null // TODO: invalidate symbolTable itself.
+        },
+        name = "DestroySymbolTable",
+        description = "Destroy SymbolTable",
+        prerequisite = setOf(createSymbolTablePhase)
 )
 
 internal val irGeneratorPluginsPhase = konanUnitPhase(
@@ -122,7 +161,7 @@ internal val irGeneratorPluginsPhase = konanUnitPhase(
 // That requires some design and implementation work.
 internal val copyDefaultValuesToActualPhase = konanUnitPhase(
         op = {
-            irModule!!.files.forEach(ExpectToActualDefaultValueCopier(this)::lower)
+            ExpectToActualDefaultValueCopier(irModule!!).process()
         },
         name = "CopyDefaultValuesToActual",
         description = "Copy default values from expect to actual declarations"
@@ -274,8 +313,11 @@ val toplevelPhase: CompilerPhase<*, Unit, Unit> = namedUnitPhase(
         name = "Compiler",
         description = "The whole compilation process",
         lower = frontendPhase then
+                createSymbolTablePhase then
                 objCExportPhase then
+                buildCExportsPhase then
                 psiToIrPhase then
+                destroySymbolTablePhase then
                 irGeneratorPluginsPhase then
                 copyDefaultValuesToActualPhase then
                 patchDeclarationParents0Phase then
@@ -287,7 +329,6 @@ val toplevelPhase: CompilerPhase<*, Unit, Unit> = namedUnitPhase(
                                 allLoweringsPhase then // Lower current module first.
                                 dependenciesLowerPhase then // Then lower all libraries in topological order.
                                                             // With that we guarantee that inline functions are unlowered while being inlined.
-                                moduleIndexForCodegenPhase then
                                 bitcodePhase then
                                 produceOutputPhase then
                                 verifyBitcodePhase then
