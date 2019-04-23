@@ -30,30 +30,27 @@ actual class ComplexNumbersBenchmark actual constructor() {
     }
 
     actual fun sumComplex() {
-        complexNumbersSequence.map { it.add(it) }.reduce { acc, it -> acc?.add(it) }
+        complexNumbersSequence.map { it.add(it) }.reduce { acc, it -> acc.add(it) }
     }
 
     actual fun subComplex() {
-        complexNumbersSequence.map { it.sub(it) }.reduce { acc, it -> acc?.sub(it) }
+        complexNumbersSequence.map { it.sub(it) }.reduce { acc, it -> acc.sub(it) }
     }
 
     actual fun classInheritance() {
          class InvertedNumber(val value: Double) : CustomNumberProtocol, NSObject() {
-            override fun add(other: CustomNumberProtocol?) : CustomNumberProtocol? =
-                    other?.let {
-                        if (it is InvertedNumber)
-                            InvertedNumber(-value + sqrt(it.value))
-                        else
-                            error("Expected object of InvertedNumber class")
-                    }
+            override fun add(other: CustomNumberProtocol) : CustomNumberProtocol =
+                    if (other is InvertedNumber)
+                        InvertedNumber(-value + sqrt(other.value))
+                    else
+                        error("Expected object of InvertedNumber class")
 
-            override fun sub(other: CustomNumberProtocol?) : CustomNumberProtocol? =
-                    other?.let {
-                        if (it is InvertedNumber)
-                            InvertedNumber(-value - sqrt(it.value))
-                        else
-                            error("Expected object of InvertedNumber class")
-                    }
+
+            override fun sub(other: CustomNumberProtocol) : CustomNumberProtocol =
+                    if (other is InvertedNumber)
+                        InvertedNumber(-value - sqrt(other.value))
+                    else
+                        error("Expected object of InvertedNumber class")
         }
 
         val result = InvertedNumber(0.0)
@@ -65,8 +62,8 @@ actual class ComplexNumbersBenchmark actual constructor() {
     }
 
     actual fun categoryMethods() {
-        complexNumbersSequence.map { it.mul(it) }.reduce { acc, it -> acc?.mul(it) }
-        complexNumbersSequence.map { it.div(it) }.reduce { acc, it -> acc?.mul(it) }
+        complexNumbersSequence.map { it.mul(it) }.reduce { acc, it -> acc.mul(it) }
+        complexNumbersSequence.map { it.div(it) }.reduce { acc, it -> acc.mul(it) }
     }
 
     actual fun stringToObjC() {
