@@ -1093,24 +1093,13 @@ inline void AddStackRef(const ObjHeader* header) {
 inline void ReleaseHeapRef(ContainerHeader* container) {
   MEMORY_LOG("ReleaseHeapRef %p: rc=%d\n", container, container->refCount())
   UPDATE_RELEASEREF_STAT(memoryState, container, needAtomicAccess(container), canBeCyclic(container), 0)
-  switch (container->tag()) {
-      case CONTAINER_TAG_STACK:
-        break;
-      case CONTAINER_TAG_NORMAL:
-        EnqueueDecrementRC</* CanCollect = */ true>(container);
-        break;
-      /* case CONTAINER_TAG_FROZEN: case CONTAINER_TAG_ATOMIC: */
-      default:
-        DecrementRC</* Atomic = */ true, /* UseCyclicCollector = */ false>(container);
-        break;
-    }
+  if (container->tag() != CONTAINER_TAG_STACK) {
+    EnqueueDecrementRC</* CanCollect = */ true>(container);
+  }
 }
 
 inline void ReleaseStackRef(ContainerHeader* container) {
-  UPDATE_RELEASEREF_STAT(memoryState, container, needAtomicAccess(container), canBeCyclic(container), 1);
-  if (container->shareable() && container->decRefCount<true>() == 0) {
-    freeContainer(container);
-  }
+  UPDATE_RELEASEREF_STAT(memoryState, container, needAtomicAccess(container), canBeCyclic(container), 1)
 }
 
 inline void ReleaseHeapRef(const ObjHeader* header) {
@@ -1424,47 +1413,15 @@ void incrementStack(MemoryState* state) {
       ObjHeader* obj = *current++;
       if (obj != nullptr) {
         auto* container = obj->container();
-        if (container != nullptr && container->tag() == CONTAINER_TAG_NORMAL)
+        if (container == nullptr) continue;
+        if (container->shareable()) {
+          IncrementRC<true>(container);
+        } else {
           IncrementRC<false>(container);
-      }
-    }
-    frame = frame->previous;
-  }
-}
-
-void actualizeNewlySharedOnStack(MemoryState* state, const ContainerHeaderSet* newlyShared) {
-  // For all frozen objects in stack slots - perform reference increment.
-  FrameOverlay* frame = currentFrame;
-  MEMORY_LOG("actualizeNewlySharedOnStack: newly shared size is %d\n", newlyShared->size())
-  while (frame != nullptr) {
-    MEMORY_LOG("current frame %p: %d parameters %d locals\n", frame, frame->parameters, frame->count)
-    ObjHeader** current = reinterpret_cast<ObjHeader**>(frame + 1) + frame->parameters;
-    ObjHeader** end = current + frame->count - kFrameOverlaySlots - frame->parameters;
-    while (current < end) {
-      ObjHeader* obj = *current;
-      current++;
-      if (obj != nullptr) {
-        auto* container = obj->container();
-        // No need to use atomic increment yet, object is still local.
-        if (container != nullptr && container->shareable() && newlyShared->count(container) != 0) {
-          container->incRefCount<false>();
-          MEMORY_LOG("incremented rc of %p to %d\n", container, container->refCount());
         }
       }
     }
     frame = frame->previous;
-  }
-
-  // And actualize RC of those objects using toRelease set.
-  for (auto& container : *(state->toRelease)) {
-    if (!isMarkedAsRemoved(container) && container->shareable()) {
-      RuntimeAssert(newlyShared->count(container) != 0, "Must be newly shared");
-      // To account for aggregating containers.
-      ContainerHeader* realContainer = realShareableContainer(container);
-      auto newRc = realContainer->decRefCount<false>();
-      MEMORY_LOG("decremented rc of %p to %d\n", realContainer, newRc);
-      container = markAsRemoved(container);
-    }
   }
 }
 
@@ -1491,7 +1448,7 @@ void decrementStack(MemoryState* state) {
       ObjHeader* obj = *current++;
       if (obj != nullptr) {
         auto* container = obj->container();
-        if (container != nullptr && container->tag() == CONTAINER_TAG_NORMAL)
+        if (container != nullptr)
           EnqueueDecrementRC</* CanCollect = */ false>(container);
       }
     }
@@ -1633,11 +1590,13 @@ void ResumeMemory(MemoryState* state) {
 
 OBJ_GETTER(AllocInstance, const TypeInfo* type_info) {
   RuntimeAssert(type_info->instanceSize_ >= 0, "must be an object");
-  auto container = ObjectContainer(memoryState, type_info);
-  ContainerHeader* header = container.header();
-  // We cannot collect until reference will be stored into the stack slot.
-  if (header->tag() == CONTAINER_TAG_NORMAL) {
+  auto* state = memoryState;
+  auto container = ObjectContainer(state, type_info);
+  // Instances can be allocated before actual runtime init - be prepared for that.
+  if (state != nullptr) {
+    ContainerHeader* header = container.header();
     IncrementRC</* Atomic = */ false>(header);
+    // We cannot collect until reference will be stored into the stack slot.
     EnqueueDecrementRC</* CanCollect = */ true>(header);
   }
   RETURN_OBJ(container.GetPlace());
@@ -1646,10 +1605,11 @@ OBJ_GETTER(AllocInstance, const TypeInfo* type_info) {
 OBJ_GETTER(AllocArrayInstance, const TypeInfo* type_info, int32_t elements) {
   RuntimeAssert(type_info->instanceSize_ < 0, "must be an array");
   if (elements < 0) ThrowIllegalArgumentException();
-  auto container = ArrayContainer(memoryState, type_info, elements);
-  ContainerHeader* header = container.header();
-  // We cannot collect until reference will be stored into the stack slot.
-  if (header->tag() == CONTAINER_TAG_NORMAL) {
+  auto* state = memoryState;
+  auto container = ArrayContainer(state, type_info, elements);
+  // Instances can be allocated before actual runtime init - be prepared for that.
+  if (state != nullptr) {
+    ContainerHeader* header = container.header();
     IncrementRC</* Atomic = */ false>(header);
     EnqueueDecrementRC</* CanCollect = */ true>(header);
   }
@@ -1747,8 +1707,6 @@ OBJ_GETTER(InitSharedInstance,
 void SetStackRef(ObjHeader** location, const ObjHeader* object) {
   MEMORY_LOG("SetStackRef *%p: %p\n", location, object)
   UPDATE_REF_EVENT(memoryState, nullptr, object, location, 1);
-  if (object != nullptr)
-      AddStackRef(const_cast<ObjHeader*>(object));
   *const_cast<const ObjHeader**>(location) = object;
 }
 
@@ -1772,27 +1730,21 @@ void ZeroHeapRef(ObjHeader** location) {
 
 void ZeroStackRef(ObjHeader** location) {
   MEMORY_LOG("ZeroStackRef %p\n", location)
+#if TRACE_MEMORY
   auto* value = *location;
   if (value != nullptr) {
     UPDATE_REF_EVENT(memoryState, value, nullptr, location, 1);
     *location = nullptr;
-    ReleaseStackRef(value);
   }
+#else
+  *location = nullptr;
+#endif
 }
 
 void UpdateStackRef(ObjHeader** location, const ObjHeader* object) {
   UPDATE_REF_EVENT(memoryState, *location, object, location, 1)
   RuntimeAssert(object != reinterpret_cast<ObjHeader*>(1), "Markers disallowed here");
-  ObjHeader* old = *location;
-  if (old != object) {
-    if (object != nullptr) {
-      AddStackRef(object);
-    }
-    *const_cast<const ObjHeader**>(location) = object;
-    if (old != nullptr ) {
-      ReleaseStackRef(old);
-    }
-  }
+  *const_cast<const ObjHeader**>(location) = object;
 }
 
 void UpdateHeapRef(ObjHeader** location, const ObjHeader* object) {
@@ -1817,16 +1769,6 @@ ObjHeader** GetReturnSlotIfArena(ObjHeader** returnSlot, ObjHeader** localSlot) 
 ObjHeader** GetParamSlotIfArena(ObjHeader** returnSlot, ObjHeader** localSlot) {
   RuntimeCheck(false, "No longer supported");
   return nullptr;
-}
-
-inline void updateReturnRefAdded(ObjHeader** returnSlot, const ObjHeader* value) {
-  MEMORY_LOG("updateReturnRefAdded %p\n", returnSlot)
-  ObjHeader* old = *returnSlot;
-  UPDATE_REF_EVENT(memoryState, old, value, returnSlot, 1)
-  *const_cast<const ObjHeader**>(returnSlot) = value;
-  if (old != nullptr) {
-    ReleaseStackRef(old);
-  }
 }
 
 void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* value) {
@@ -1865,15 +1807,6 @@ void EnterFrame(ObjHeader** start, int parameters, int count) {
 
 void LeaveFrame(ObjHeader** start, int parameters, int count) {
   MEMORY_LOG("LeaveFrame %p: %d parameters %d locals\n", start, parameters, count)
-  MemoryState* state = memoryState;
-  ObjHeader** current = start + parameters + kFrameOverlaySlots;
-  ObjHeader** end = start + count;
-  while (current < end) {
-    ObjHeader* object = *current++;
-    if (object != nullptr) {
-      ReleaseStackRef(object);
-    }
-  }
   FrameOverlay* frame = reinterpret_cast<FrameOverlay*>(start);
   currentFrame = frame->previous;
 }
@@ -2313,8 +2246,6 @@ void FreezeSubgraph(ObjHeader* root) {
       container = markAsRemoved(container);
     }
   }
-  // Actualize reference counters of newly frozen objects.
-  actualizeNewlySharedOnStack(state, &newlyFrozen);
 #endif
 }
 
@@ -2329,19 +2260,17 @@ OBJ_GETTER(SwapHeapRefLocked,
     ObjHeader** location, ObjHeader* expectedValue, ObjHeader* newValue, int32_t* spinlock) {
   lock(spinlock);
   ObjHeader* oldValue = *location;
+  bool shallRelease = false;
   // We do not use UpdateRef() here to avoid having ReleaseRef() on return slot under the lock.
   if (oldValue == expectedValue) {
     SetHeapRef(location, newValue);
-  } else {
-    // We create an additional reference to the [oldValue] in the return slot.
-    if (oldValue != nullptr && isRefCounted(oldValue)) {
-      AddHeapRef(oldValue);
-    }
+    shallRelease = oldValue != nullptr;
   }
   unlock(spinlock);
-  // [oldValue] ownership was either transferred from *location to return slot if CAS succeeded, or
-  // we explicitly added a new reference if CAS failed.
-  updateReturnRefAdded(OBJ_RESULT, oldValue);
+  if (shallRelease) {
+    ReleaseHeapRef(oldValue);
+  }
+  UpdateReturnRef(OBJ_RESULT, oldValue);
   return oldValue;
 }
 
@@ -2359,12 +2288,8 @@ OBJ_GETTER(ReadHeapRefLocked, ObjHeader** location, int32_t* spinlock) {
   MEMORY_LOG("ReadHeapRefLocked: %p\n", location)
   lock(spinlock);
   ObjHeader* value = *location;
-  // We do not use UpdateRef() here to avoid having ReleaseRef() on return slot under the lock.
-  if (value != nullptr) {
-    AddStackRef(value);
-  }
   unlock(spinlock);
-  updateReturnRefAdded(OBJ_RESULT, value);
+  UpdateReturnRef(OBJ_RESULT, value);
   return value;
 }
 
@@ -2424,9 +2349,6 @@ void Kotlin_Any_share(ObjHeader* obj) {
     if (Shareable(container)) return;
     RuntimeCheck(container->objectCount() == 1, "Must be a single object container");
     container->makeShareable();
-    ContainerHeaderSet newlyShared;
-    newlyShared.insert(container);
-    actualizeNewlySharedOnStack(memoryState, &newlyShared);
 }
 
 } // extern "C"
