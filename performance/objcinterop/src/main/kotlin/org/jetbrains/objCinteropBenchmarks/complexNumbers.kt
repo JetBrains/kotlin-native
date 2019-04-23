@@ -7,8 +7,10 @@ package org.jetbrains.complexNumbers
 
 const val benchmarkSize = 10000
 
+expect class ComplexNumber
+
 expect class ComplexNumbersBenchmark() {
-    fun generateNumbersSequence(): List<Any>
+    fun generateNumbersSequence(): List<ComplexNumber>
     fun sumComplex()
     fun subComplex()
     fun classInheritance()

@@ -14,12 +14,14 @@ import kotlin.random.Random
 import platform.Foundation.*
 import platform.darwin.*
 
+actual typealias ComplexNumber = Complex
+
 actual class ComplexNumbersBenchmark actual constructor() {
     val complexNumbersSequence = generateNumbersSequence()
 
     fun randomNumber() = Random.nextDouble(0.0, benchmarkSize.toDouble())
 
-    actual fun generateNumbersSequence(): List<Any> {
+    actual fun generateNumbersSequence(): List<Complex> {
         val result = mutableListOf<Complex>()
         for (i in 1..benchmarkSize) {
             result.add(Complex(randomNumber(), randomNumber()))
@@ -28,11 +30,11 @@ actual class ComplexNumbersBenchmark actual constructor() {
     }
 
     actual fun sumComplex() {
-        complexNumbersSequence.map { (it as Complex).add(it) }.reduce { acc, it -> (acc as Complex).add(it) }
+        complexNumbersSequence.map { it.add(it) }.reduce { acc, it -> acc?.add(it) }
     }
 
     actual fun subComplex() {
-        complexNumbersSequence.map { (it as Complex).sub(it) }.reduce { acc, it -> (acc as Complex).sub(it) }
+        complexNumbersSequence.map { it.sub(it) }.reduce { acc, it -> acc?.sub(it) }
     }
 
     actual fun classInheritance() {
@@ -63,19 +65,19 @@ actual class ComplexNumbersBenchmark actual constructor() {
     }
 
     actual fun categoryMethods() {
-        complexNumbersSequence.map { (it as Complex).mul(it) }.reduce { acc, it -> acc?.mul(it) }
-        complexNumbersSequence.map { (it as Complex).div(it) }.reduce { acc, it -> acc?.mul(it) }
+        complexNumbersSequence.map { it.mul(it) }.reduce { acc, it -> acc?.mul(it) }
+        complexNumbersSequence.map { it.div(it) }.reduce { acc, it -> acc?.mul(it) }
     }
 
     actual fun stringToObjC() {
         complexNumbersSequence.forEach {
-            (it as Complex).setFormat("%.1lf|%.1lf")
+            it.setFormat("%.1lf|%.1lf")
         }
     }
 
     actual fun stringFromObjC() {
         complexNumbersSequence.forEach {
-            (it as Complex).description()?.split(" ")
+            it.description()?.split(" ")
         }
     }
 
@@ -89,7 +91,7 @@ actual class ComplexNumbersBenchmark actual constructor() {
         return result
     }
 
-    inline private fun fftRoutine(invert:Boolean = false): Array<Any> {
+    inline private fun fftRoutine(invert:Boolean = false): Array<Complex> {
         var lg = 0
         while ((1 shl lg) < complexNumbersSequence.size) {
             lg++
@@ -109,10 +111,10 @@ actual class ComplexNumbersBenchmark actual constructor() {
             for (i in 0 until complexNumbersSequence.size step length) {
                 var value = Complex(1.0, 1.0)
                 for (j in 0 until length/2) {
-                    val first = sequence[i + j] as Complex
-                    val second = (sequence[i + j + length/2] as Complex).mul(value)
-                    sequence[i + j] = first.add(second)!!
-                    sequence[i + j + length/2] = first.sub(second)!!
+                    val first = sequence[i + j]
+                    val second = sequence[i + j + length/2].mul(value)
+                    sequence[i + j] = (first.add(second) as Complex)!!
+                    sequence[i + j + length/2] = (first.sub(second) as Complex)!!
                     value = value.mul(base)!!
                 }
             }
@@ -128,7 +130,7 @@ actual class ComplexNumbersBenchmark actual constructor() {
         val sequence = fftRoutine(true)
 
         sequence.forEachIndexed { index, _ ->
-            sequence[index] = (sequence[index] as Complex).div(Complex(sequence.size.toDouble(), 0.0))!!
+            sequence[index] = sequence[index].div(Complex(sequence.size.toDouble(), 0.0))!!
         }
     }
 }
