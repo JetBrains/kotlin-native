@@ -7,7 +7,7 @@ import Foundation
 import CityMap
 
 class SimpleCost: Cost {
-    var value: Int
+    let value: Int
 
     init(cost: Int) {
         value = cost
@@ -149,7 +149,7 @@ class SwiftInteropBenchmarks {
     }
 
     func removeVertexAndEdgesSwiftMultigraph() {
-        var multigraphCopy = multigraph.copy() as! Multigraph
+        var multigraphCopy = multigraph.doCopyMultigraph()
         var edges = multigraphCopy.allEdges
         while (!edges.isEmpty) {
             multigraphCopy.removeEdge(id: UInt32(edges.randomElement()!))
@@ -159,12 +159,17 @@ class SwiftInteropBenchmarks {
         }
     }
 
-    func removePlacesAndRoutes() {
-        var cityMapCopy = cityMap.copy() as! CityMap
-        var routes = cityMapCopy.allRoutes
-        while (!cityMapCopy.isEmpty()) {
-            cityMapCopy.removeRouteById(id: routes.first!.id)
-            routes = cityMapCopy.allRoutes
+    func stringInterop() {
+        let place = cityMap.allPlaces.first!
+        for _ in 0...BENCHMARK_SIZE {
+            let description = place.fullDescription
+        }
+    }
+
+    func simpleFunction() {
+        let place = cityMap.allPlaces.first!
+        for _ in 0...BENCHMARK_SIZE {
+            let result = place.compareTo(other:place)
         }
     }
 }
