@@ -2,8 +2,8 @@
 
 @protocol CustomNumber
 @required
-- (id<CustomNumber>)add: (id<CustomNumber>)other;
-- (id<CustomNumber>)sub: (id<CustomNumber>)other;
+- (id<CustomNumber> _Nonnull)add: (id<CustomNumber> _Nonnull)other;
+- (id<CustomNumber> _Nonnull)sub: (id<CustomNumber> _Nonnull)other;
 @end
 
 @interface Complex : NSObject<CustomNumber>
@@ -17,6 +17,6 @@
 @end
 
 @interface Complex (CategorizedComplex)
-- (Complex *)mul: (Complex *)other;
-- (Complex *)div: (Complex *)other;
+- (Complex * _Nonnull)mul: (Complex * _Nonnull)other;
+- (Complex * _Nonnull)div: (Complex * _Nonnull)other;
 @end
