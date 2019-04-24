@@ -5,6 +5,8 @@
 
 package org.jetbrains.multigraph
 
+import kotlin.math.pow
+
 interface Cost {
     operator fun plus(other: Cost): Cost
     operator fun minus(other: Cost): Cost
@@ -18,7 +20,7 @@ data class Edge<T>(val id: UInt, val from: T, val to: T, val cost: Cost) {
     }
 
     override fun hashCode(): Int =
-            id.toInt()
+            from.hashCode() * 31.0.pow(2.0).toInt() + to.hashCode() * 31 + cost.hashCode()
 }
 
 class EdgeAbsenceMultigraphException(message: String): Exception(message) {}
@@ -31,7 +33,7 @@ class Multigraph<T>() {
     val allVertexes: Set<T>
         get() {
             val outerVertexes = edges.keys
-            val innerVertexes = edges.map { (key, values) ->
+            val innerVertexes = edges.map { (_, values) ->
                 values.map { it.to }.filter { it !in outerVertexes }
             }.flatten()
             return outerVertexes.union(innerVertexes)
