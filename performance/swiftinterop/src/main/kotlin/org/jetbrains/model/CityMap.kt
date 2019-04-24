@@ -6,6 +6,7 @@
 package org.jetbrains.model
 
 import org.jetbrains.multigraph.*
+import kotlin.comparisons.compareBy
 
 enum class Transport { CAR, UNDERGROUND, BUS, TROLLEYBUS, TRAM, TAXI, FOOT }
 enum class Interest { SIGHT, CULTURE, PARK, ENTERTAINMENT }
@@ -13,6 +14,8 @@ enum class Interest { SIGHT, CULTURE, PARK, ENTERTAINMENT }
 class PlaceAbsenceException(message: String): Exception(message) {}
 
 data class RouteCost(val moneyCost: Double, val timeCost: Double, val interests: Set<Interest>, val transport: Set<Transport>): Cost {
+    private val comparator = compareBy<RouteCost>({ it.moneyCost }, { it.timeCost }, { it.interests.size }, { it.transport.size })
+
     override operator fun plus(other: Cost) =
             if (other is RouteCost) {
                 RouteCost(moneyCost + other.moneyCost, timeCost + other.timeCost,
@@ -32,17 +35,7 @@ data class RouteCost(val moneyCost: Double, val timeCost: Double, val interests:
 
     override operator fun compareTo(other: Cost) =
             if (other is RouteCost) {
-                when {
-                    this == other -> 0
-                    moneyCost < other.moneyCost -> -1
-                    moneyCost > other.moneyCost -> 1
-                    timeCost < other.timeCost -> -1
-                    timeCost > other.timeCost -> 1
-                    interests.size < other.interests.size -> -1
-                    interests.size > other.interests.size -> 1
-                    transport.size < other.transport.size -> -1
-                    else -> 1
-                }
+                comparator.compare(this, other)
             } else {
                 error("Expected type is RouteCost")
             }
@@ -51,6 +44,8 @@ data class RouteCost(val moneyCost: Double, val timeCost: Double, val interests:
 internal var placeCounter = 0u
 
 data class Place(val geoCoordinateX: Double, val geoCoordinateY: Double, val name: String, val interestCategory: Interest) {
+    private val comparator = compareBy<Place>({ it.geoCoordinateX }, { it.geoCoordinateY })
+
     val id: UInt
     init {
         id = placeCounter
@@ -60,19 +55,8 @@ data class Place(val geoCoordinateX: Double, val geoCoordinateY: Double, val nam
     val fullDescription: String
         get() = "Place $name($geoCoordinateX;$geoCoordinateY)"
 
-    override fun hashCode(): Int {
-        return id.toInt()
-    }
-
-    fun compareTo(other: Place): Int {
-        return when {
-            this == other -> 0
-            geoCoordinateX < other.geoCoordinateX -> -1
-            geoCoordinateX > other.geoCoordinateX -> 1
-            geoCoordinateY < other.geoCoordinateY -> -1
-            else -> 1
-        }
-    }
+    fun compareTo(other: Place) =
+            comparator.compare(this, other)
 }
 
 data class Path(val from: Place, val to: Place, val cost: RouteCost)
@@ -107,7 +91,7 @@ object CityMap {
     }
 
     fun removePlaceById(id: UInt) {
-        graph.allVertexes.forEach { it
+        graph.allVertexes.forEach {
             if (it.id == id) {
                 graph.removeVertex(it)
                 return
