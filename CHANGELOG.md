@@ -1,3 +1,11 @@
+# v1.2.1 (Apr 2019)
+  * Fix Objective-C interop with React (GH-2872)
+  * Fix “not in vtable” compiler crash when generating frameworks (GH-2865)
+  * Implement some optimizations (GH-2854)
+  * Fix release build for 32-bit Windows (GH-2848)
+  * Fix casts to type parameters with multiple bounds (GH-2888)
+  * Fix “could not get descriptor uniq id for deserialized class FlagEnum” compiler crash when generating framework (GH-2874)
+
 # v1.2.0 (Apr 2019)
   * New intermediate representation based library format allowing global optimizations
   * Exception backtraces in debug mode on macOS and iOS targets contains symbolic information
