@@ -148,6 +148,7 @@ func testGenericInterface() throws {
 
 func testGenericInheritance() throws {
     let ge = GenEx<SomeData, SomeOtherData>(myT:SomeOtherData(str:"Hello"), baseT:SomeData(num: 11))
+    try assertTrue(ge.t is SomeData, "base property not SomeData")
     try assertEquals(actual: ge.t.num, expected: 11)
     try assertEquals(actual: ge.myT.str, expected: "Hello")
     let geBase = ge as! GenBase<SomeData>
@@ -185,10 +186,18 @@ func testGenericClashing() throws {
     try assertEquals(actual: gcClass.arg3, expected: "Bar")
 
     //GenClashNames uses type parameter names that force the Objc class name itself to be mangled. Swift keeps names however
-    let clashNames = GenClashNames<SomeData, SomeData, SomeData>()
-    try assertEquals(actual: (clashNames.foo() as! ClashnameClass).str, expected: "nnn")
+    let clashNames = GenClashNames<SomeData, SomeData, SomeData, SomeData>()
+    try assertEquals(actual: clashNames.foo().str, expected: "nnn")
+    try assertEquals(actual: clashNames.bar().str, expected: "qqq")
+    try assertTrue(clashNames.baz(arg: ClashnameParam(str: "meh")), "ClashnameParam issue")
 
-    try assertEquals(actual: Values_genericsKt.classClash().str, expected: "ttt")
+    let clashNamesEx = GenClashEx<SomeData>()
+
+    let geClash = GenExClash<SomeOtherData>(myT:SomeOtherData(str:"Hello"))
+    try assertTrue(geClash.t is SomeData, "base property not SomeData")
+    try assertEquals(actual: geClash.t.num, expected: 55)
+    try assertTrue(geClash.myT is SomeOtherData, "property not SomeOtherData")
+    try assertEquals(actual: geClash.myT.str, expected: "Hello")
 }
 
 // -------- Execution of the test --------

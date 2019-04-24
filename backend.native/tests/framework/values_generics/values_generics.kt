@@ -113,13 +113,30 @@ class GenClashClass<ValuesGenericsClashingData : Any, NSArray : Any, int32_t : A
 
 data class ClashingData(val str: String)
 
-class GenClashNames<ValuesGenericsClashnameClass, ValuesGenericsClashnameProtocol, ValuesGenericsValues_genericsKt>() {
-    fun foo(): Any = ClashnameClass("nnn")
+class GenClashNames<ValuesGenericsClashnameClass, ValuesGenericsClashnameProtocol, ValuesGenericsClashnameParam, ValuesGenericsValues_genericsKt>() {
+    fun foo() = ClashnameClass("nnn")
+
+    fun bar(): ClashnameProtocol = object : ClashnameProtocol{
+        override val str = "qqq"
+    }
+
+    fun baz(arg: ClashnameParam): Boolean {
+        return arg.str == "meh"
+    }
 }
 
-data class ClashnameClass(val str: String)
+class GenClashEx<ValuesGenericsClashnameClass>: ClashnameClass("ttt"){
+    fun foo() = ClashnameClass("nnn")
+}
+
+open class ClashnameClass(val str: String)
 interface ClashnameProtocol {
     val str: String
 }
+data class ClashnameParam(val str: String)
 
-fun classClash(): ClashnameClass = ClashnameClass("ttt")
+class GenExClash<ValuesGenericsSomeData:Any>(val myT:ValuesGenericsSomeData):GenBase<SomeData>(SomeData(55))
+
+open class GenBasic<T>()
+
+class SelfRef : GenBasic<SelfRef>()

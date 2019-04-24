@@ -1097,20 +1097,7 @@ internal fun Variance.objcDeclaration():String = when(this){
     else -> ""
 }
 
-private fun computeSuperClassType(descriptor: ClassDescriptor): KotlinType? {
-    return if(descriptor is LazyClassDescriptor) {
-        val method = descriptor.javaClass.declaredMethods.filter { it.name.equals("computeSupertypes") }
-                .first()
-
-        method.isAccessible = true
-        val superTypes = (method.invoke(descriptor) as Collection<KotlinType>).filter { !it.isInterface() }
-
-        //This assumes 'computeSupertypes' will only return one parent class
-        return superTypes.atMostOne()
-    } else {
-        null
-    }
-}
+private fun computeSuperClassType(descriptor: ClassDescriptor): KotlinType? = descriptor.typeConstructor.supertypes.filter { !it.isInterface() }.firstOrNull()
 
 private fun forwardDeclarationObjcClassName(objcGenerics: Boolean, descriptor: ClassDescriptor, namer:ObjCExportNamer): String {
     val className = namer.getClassOrProtocolName(descriptor)

@@ -116,13 +116,8 @@ internal class ObjCExportNamerImpl(
         final override fun conflict(first: T, second: T): Boolean = true
     }
 
-    private open inner class GlobalObjcNameMapping<in T : Any, N> : GlobalNameMapping<T, N>() {
-        override fun reserved(name: N): Boolean =
-                genericTypeParameterNameMapping.nameExists(name.toString())
-    }
-
-    private val objCClassNames = GlobalObjcNameMapping<Any, String>()
-    private val objCProtocolNames = GlobalObjcNameMapping<ClassDescriptor, String>()
+    private val objCClassNames = GlobalNameMapping<Any, String>()
+    private val objCProtocolNames = GlobalNameMapping<ClassDescriptor, String>()
 
     // Classes and protocols share the same namespace in Swift.
     private val swiftClassAndProtocolNames = GlobalNameMapping<Any, String>()
@@ -461,8 +456,6 @@ internal class ObjCExportNamerImpl(
             error("name candidates run out")
         }
 
-        fun nameExists(name: String) = name in globalClassProtocolNames
-
         private fun tryAssign(element: TypeParameterDescriptor, name: String): Boolean {
             if (element in elementToName) error(element)
 
@@ -480,7 +473,6 @@ internal class ObjCExportNamerImpl(
                 elementToName[element] = name
             }
             classNameSet(element).add(name)
-            globalClassProtocolNames.add(name)
         }
 
         private fun validName(element: TypeParameterDescriptor, name: String): Boolean {
@@ -498,7 +490,6 @@ internal class ObjCExportNamerImpl(
 
         private fun getIfAssigned(element: TypeParameterDescriptor): String? = elementToName[element]
 
-        private val globalClassProtocolNames = mutableSetOf<String>()
         private val reservedNames = setOf("id", "NSObject", "NSArray", "NSCopying", "NSNumber", "NSInteger",
                 "NSUInteger", "NSString", "NSSet", "NSDictionary", "NSMutableArray", "int", "unsigned", "short",
                 "char", "long", "float", "double", "int32_t", "int64_t", "int16_t", "int8_t", "unichar")
