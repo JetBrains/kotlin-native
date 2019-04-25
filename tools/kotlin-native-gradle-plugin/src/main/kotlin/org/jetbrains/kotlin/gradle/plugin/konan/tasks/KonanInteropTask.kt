@@ -85,7 +85,7 @@ open class KonanInteropTask @Inject constructor(val workerExecutor: WorkerExecut
         addFileArgs("-header", headers)
 
         compilerOpts.forEach {
-            addArg("-copt", it)
+            addArg("-compiler-option", it)
         }
 
         val linkerOpts = mutableListOf<String>().apply { addAll(linkerOpts) }
