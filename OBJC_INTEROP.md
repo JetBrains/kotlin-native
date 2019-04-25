@@ -227,7 +227,7 @@ but the features supported retain meaningful information.
 
 ### To Use
 
-Generics are currently not enabled be default. To have the framework header written with generics, add an experimental
+Generics are currently not enabled by default. To have the framework header written with generics, add an experimental
 flag to the compiler config:
 
 ```

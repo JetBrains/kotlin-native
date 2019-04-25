@@ -137,6 +137,9 @@ data class ClashnameParam(val str: String)
 
 class GenExClash<ValuesGenericsSomeData:Any>(val myT:ValuesGenericsSomeData):GenBase<SomeData>(SomeData(55))
 
+class SelfRef : GenBasic<SelfRef>()
+
 open class GenBasic<T>()
 
-class SelfRef : GenBasic<SelfRef>()
+//Extensions
+fun <T:Any> GenNonNull<T>.foo(): T = arg

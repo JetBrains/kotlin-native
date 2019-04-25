@@ -200,6 +200,11 @@ func testGenericClashing() throws {
     try assertEquals(actual: geClash.myT.str, expected: "Hello")
 }
 
+func testGenericExtensions() throws {
+    let gnn = GenNonNull<SomeData>(arg: SomeData(num: 432))
+    try assertEquals(actual: (gnn.foo() as! SomeData).num, expected: 432)
+}
+
 // -------- Execution of the test --------
 
 class ValuesGenericsTests : TestProvider {
@@ -218,6 +223,7 @@ class ValuesGenericsTests : TestProvider {
             TestCase(name: "TestGenericInterface", method: withAutorelease(testGenericInterface)),
             TestCase(name: "TestGenericInnerClass", method: withAutorelease(testGenericInnerClass)),
             TestCase(name: "TestGenericClashing", method: withAutorelease(testGenericClashing)),
+            TestCase(name: "TestGenericExtensions", method: withAutorelease(testGenericExtensions)),
         ]
     }
 }
