@@ -83,11 +83,12 @@ func testGeneric() throws {
     try assertEquals(actual: a.myVal()?.num, expected: 52)
 
     let nulls = GenOpen<SomeData>(arg: SomeData(num: 62))
-    let isnull = GenOpen<SomeData>(arg: nil)
-    let nonnulls = GenNonNull<SomeData>(arg: SomeData(num: 72))
-
     try assertEquals(actual: nulls.arg?.num, expected: 62)
+
+    let isnull = GenOpen<SomeData>(arg: nil)
     try assertEquals(actual: isnull.arg, expected: nil)
+
+    let nonnulls = GenNonNull<SomeData>(arg: SomeData(num: 72))
     try assertEquals(actual: nonnulls.arg.num, expected: 72)
     try assertEquals(actual: (Values_genericsKt.starGeneric(arg: nonnulls as! GenNonNull<AnyObject>) as! SomeData).num, expected: 72)
 
@@ -148,11 +149,15 @@ func testGenericInterface() throws {
 
 func testGenericInheritance() throws {
     let ge = GenEx<SomeData, SomeOtherData>(myT:SomeOtherData(str:"Hello"), baseT:SomeData(num: 11))
-    try assertTrue(ge.t is SomeData, "base property not SomeData")
     try assertEquals(actual: ge.t.num, expected: 11)
     try assertEquals(actual: ge.myT.str, expected: "Hello")
-    let geBase = ge as! GenBase<SomeData>
+    let geBase = ge as GenBase<SomeData>
     try assertEquals(actual: geBase.t.num, expected: 11)
+
+    let geAny = GenExAny<SomeData, SomeOtherData>(myT:SomeOtherData(str:"Hello"), baseT:SomeData(num: 131))
+    try assertEquals(actual: (geAny.t as! SomeData).num, expected: 131)
+    let geBaseAny = geAny as! GenBase<SomeData>
+    try assertEquals(actual: geBaseAny.t.num, expected: 131)
 }
 
 func testGenericInnerClass() throws {
@@ -172,9 +177,9 @@ func testGenericInnerClass() throws {
 
 func testGenericClashing() throws {
     let gcId = GenClashId<SomeData, SomeOtherData>(arg: SomeData(num: 22), arg2: SomeOtherData(str: "lll"))
-    try assertTrue(gcId.x() is NSString, "Any not NSString")
-    try assertTrue(gcId.arg is SomeData, "arg not SomeData")
-    try assertTrue(gcId.arg2 is SomeOtherData, "arg2 not SomeOtherData")
+    try assertEquals(actual: gcId.x() as! NSString, expected: "Foo")
+    try assertEquals(actual: gcId.arg.num, expected: 22)
+    try assertEquals(actual: gcId.arg2.str, expected: "lll")
 
     let gcClass = GenClashClass<SomeData, SomeOtherData, NSString>(arg: SomeData(num: 432), arg2: SomeOtherData(str: "lll"), arg3: "Bar")
     try assertEquals(actual: gcClass.int(), expected: 55)
@@ -194,9 +199,7 @@ func testGenericClashing() throws {
     let clashNamesEx = GenClashEx<SomeData>()
 
     let geClash = GenExClash<SomeOtherData>(myT:SomeOtherData(str:"Hello"))
-    try assertTrue(geClash.t is SomeData, "base property not SomeData")
     try assertEquals(actual: geClash.t.num, expected: 55)
-    try assertTrue(geClash.myT is SomeOtherData, "property not SomeOtherData")
     try assertEquals(actual: geClash.myT.str, expected: "Hello")
 }
 
