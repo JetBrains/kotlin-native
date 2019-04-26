@@ -1051,10 +1051,6 @@ abstract class IrModuleDeserializer(
         val getter = if (proto.hasGetter()) deserializeIrFunction(proto.getter, start, end, origin) else null
         val setter = if (proto.hasSetter()) deserializeIrFunction(proto.setter, start, end, origin) else null
 
-        backingField?.let { (it.descriptor as? WrappedFieldDescriptor)?.bind(it) }
-        getter?.let { (it.descriptor as? WrappedSimpleFunctionDescriptor)?.bind(it) }
-        setter?.let { (it.descriptor as? WrappedSimpleFunctionDescriptor)?.bind(it) }
-
         val descriptor =
                 if (proto.hasDescriptor())
                     deserializeDescriptorReference(proto.descriptor) as PropertyDescriptor
@@ -1081,9 +1077,26 @@ abstract class IrModuleDeserializer(
         property.getter = getter
         property.setter = setter
 
-        backingField?.let { it.correspondingProperty = property }
-        getter?.let { it.correspondingProperty = property }
-        setter?.let { it.correspondingProperty = property }
+        backingField?.let {
+            val fieldDescriptor = it.descriptor
+            when (fieldDescriptor) {
+                is WrappedFieldDescriptor ->
+                    fieldDescriptor.bind(it)
+                is WrappedPropertyDescriptor ->
+                    // We can end up with two wrapped property descriptors for property and its field.
+                    // In that case we need to bind the field's one here.
+                    if (descriptor != fieldDescriptor) fieldDescriptor.bind(property)
+            }
+            it.correspondingProperty = property
+        }
+        getter?.let {
+            (it.descriptor as? WrappedSimpleFunctionDescriptor)?.bind(it)
+            it.correspondingProperty = property
+        }
+        setter?.let {
+            (it.descriptor as? WrappedSimpleFunctionDescriptor)?.bind(it)
+            it.correspondingProperty = property
+        }
 
         return property
     }
