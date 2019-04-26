@@ -316,7 +316,7 @@ class KonanProxyTypeProvider:
 
 def print_this_command(debugger, command, result, internal_dict):
     pthis = lldb.frame.FindVariable('<this>')
-    print(pthis)
+    log(pthis)
 
 def clear_cache_command(debugger, command, result, internal_dict):
     SYNTHETIC_OBJECT_LAYOUT_CACHE.clear()
