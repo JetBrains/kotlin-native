@@ -62,6 +62,24 @@ OBJ_GETTER(Kotlin_TypeInfo_getRelativeName, KNativePtr typeInfo) {
   RETURN_OBJ(reinterpret_cast<const TypeInfo*>(typeInfo)->relativeName_);
 }
 
+OBJ_GETTER(Kotlin_TypeInfo_getAssociatedObject, KNativePtr typeInfo, KNativePtr key) {
+  void** associatedObjects = reinterpret_cast<const TypeInfo*>(typeInfo)->associatedObjects;
+  if (associatedObjects == nullptr) {
+    RETURN_OBJ(nullptr);
+  }
+
+  for (;; associatedObjects += 2) {
+    void* storedKey = associatedObjects[0];
+    if (storedKey == nullptr) break;
+    if (storedKey == key) {
+      KRef (*getAssociatedObject)(KRef*) = reinterpret_cast<KRef (*)(KRef*)>(associatedObjects[1]);
+      RETURN_RESULT_OF0(getAssociatedObject);
+    }
+  }
+
+  RETURN_OBJ(nullptr);
+}
+
 bool IsSubInterface(const TypeInfo* thiz, const TypeInfo* other) {
   for (int i = 0; i < thiz->implementedInterfacesCount_; ++i) {
     if (thiz->implementedInterfaces_[i] == other) {

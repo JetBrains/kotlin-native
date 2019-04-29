@@ -114,6 +114,9 @@ struct TypeInfo {
     WritableTypeInfo* writableInfo_;
 #endif
 
+    // Null-terminated array of pairs (TypeInfo*, OBJ_GETTER0(getAssociatedObjectInstance)).
+    void** associatedObjects;
+
     // vtable starts just after declared contents of the TypeInfo:
     // void* const vtable_[];
 #ifdef __cplusplus
