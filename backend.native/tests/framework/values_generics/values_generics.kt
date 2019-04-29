@@ -77,6 +77,8 @@ fun variContraType():GenVarIn<SomeData>{
 
 open class GenBase<T:Any>(val t:T)
 class GenEx<TT:Any, T:Any>(val myT:T, baseT:TT):GenBase<TT>(baseT)
+class GenEx2<T:Any, S:Any>(val myT:S, baseT:T):GenBase<T>(baseT)
+
 class GenExAny<TT:Any, T:Any>(val myT:T, baseT:TT):GenBase<Any>(baseT)
 
 class GenNullability<T:Any>(val arg: T, val nArg:T?){

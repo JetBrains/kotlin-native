@@ -80,16 +80,19 @@ func testInlineClasses() throws {
 
 func testGeneric() throws {
     let a = SomeGeneric<SomeData>(t: SomeData(num: 52))
-    try assertEquals(actual: a.myVal()?.num, expected: 52)
+    let asd : SomeData = a.myVal()!
+    try assertEquals(actual: asd.num, expected: 52)
 
     let nulls = GenOpen<SomeData>(arg: SomeData(num: 62))
-    try assertEquals(actual: nulls.arg?.num, expected: 62)
+    let nullssd : SomeData = nulls.arg!
+    try assertEquals(actual: nullssd.num, expected: 62)
 
     let isnull = GenOpen<SomeData>(arg: nil)
     try assertEquals(actual: isnull.arg, expected: nil)
 
     let nonnulls = GenNonNull<SomeData>(arg: SomeData(num: 72))
-    try assertEquals(actual: nonnulls.arg.num, expected: 72)
+    let nonnullssd : SomeData = nonnulls.arg
+    try assertEquals(actual: nonnullssd.num, expected: 72)
     try assertEquals(actual: (Values_genericsKt.starGeneric(arg: nonnulls as! GenNonNull<AnyObject>) as! SomeData).num, expected: 72)
 
     let sd = SomeData(num: 33)
@@ -97,12 +100,15 @@ func testGeneric() throws {
     let nonNullColl = GenCollectionsNonNull<SomeData>(arg: sd, coll: [sd])
 
     try assertEquals(actual: (nullColl.coll[0] as! SomeData).num, expected: 33)
-    try assertEquals(actual: nonNullColl.coll[0].num, expected: 33)
-    try assertEquals(actual: nonNullColl.arg.num, expected: 33)
+    let nonNullCollSd : SomeData = nonNullColl.coll[0]
+    try assertEquals(actual: nonNullCollSd.num, expected: 33)
+    try assertEquals(actual: nonNullColl.arg, expected: nonNullCollSd)
 
     let mixed = GenNullability<SomeData>(arg: sd, nArg: sd)
     try assertEquals(actual: mixed.asNullable()?.num, expected: 33)
     try assertEquals(actual: mixed.pAsNullable?.num, expected: 33)
+    let mixedSd : SomeData? = mixed.pAsNullable
+    try assertEquals(actual: mixedSd, expected: mixed.nArg)
 }
 
 // Swift ignores the variance and lets you force-cast to whatever you need, for better or worse.
@@ -149,37 +155,56 @@ func testGenericInterface() throws {
 
 func testGenericInheritance() throws {
     let ge = GenEx<SomeData, SomeOtherData>(myT:SomeOtherData(str:"Hello"), baseT:SomeData(num: 11))
-    try assertEquals(actual: ge.t.num, expected: 11)
-    try assertEquals(actual: ge.myT.str, expected: "Hello")
+    let geT : SomeData = ge.t
+    try assertEquals(actual: geT.num, expected: 11)
+    let gemyT : SomeOtherData = ge.myT
+    try assertEquals(actual: gemyT.str, expected: "Hello")
     let geBase = ge as GenBase<SomeData>
-    try assertEquals(actual: geBase.t.num, expected: 11)
+    let geBaseT : SomeData = geBase.t
+    try assertEquals(actual: geBaseT.num, expected: 11)
+
+    //Similar to above but param names don't match and will dupe property definitions on child class
+    //Functional, but should be fixed
+    let ge2 = GenEx2<SomeData, SomeOtherData>(myT:SomeOtherData(str:"Hello2"), baseT:SomeData(num: 22))
+    let ge2Val : SomeData = ge2.t
+    let ge2SODVal : SomeOtherData = ge2.myT
+    let ge2base : GenBase<SomeData> = ge2 as GenBase<SomeData>
+    let ge2BaseVal : SomeData = ge2base.t
+    try assertEquals(actual: ge2Val, expected: ge2BaseVal)
 
     let geAny = GenExAny<SomeData, SomeOtherData>(myT:SomeOtherData(str:"Hello"), baseT:SomeData(num: 131))
     try assertEquals(actual: (geAny.t as! SomeData).num, expected: 131)
     let geBaseAny = geAny as! GenBase<SomeData>
-    try assertEquals(actual: geBaseAny.t.num, expected: 131)
+    let geBaseAnyT : SomeData = geBaseAny.t
+    try assertEquals(actual: geBaseAnyT.num, expected: 131)
 }
 
 func testGenericInnerClass() throws {
 
     let nestedClass = GenOuter.GenNested<SomeData>(b: SomeData(num: 543))
-    try assertEquals(actual: nestedClass.b.num, expected: 543)
+    let nestedClassB : SomeData = nestedClass.b
+    try assertEquals(actual: nestedClassB.num, expected: 543)
 
     let innerClass = GenOuter.GenInner<SomeData>(GenOuter<SomeOtherData>(a: SomeOtherData(str: "ggg")) as! GenOuter<AnyObject>, c: SomeData(num: 66), aInner: SomeOtherData(str: "ttt") as AnyObject)
-    try assertEquals(actual: innerClass.c.num, expected: 66)
+    let innerClassC : SomeData = innerClass.c
+    try assertEquals(actual: innerClassC.num, expected: 66)
 
     let nestedClassSame = GenOuterSame.GenNestedSame<SomeData>(a: SomeData(num: 545))
-    try assertEquals(actual: nestedClassSame.a.num, expected: 545)
+    let nestedClassSameA : SomeData = nestedClassSame.a
+    try assertEquals(actual: nestedClassSameA.num, expected: 545)
 
     let innerClassSame = GenOuterSame.GenInnerSame<SomeOtherData>(GenOuterSame<SomeData>(a: SomeData(num: 44)) as! GenOuterSame<AnyObject>, a: SomeOtherData(str: "rrr"))
+    let innerClassSameA : SomeOtherData = innerClassSame.a
     try assertEquals(actual: innerClassSame.a.str, expected: "rrr")
 }
 
 func testGenericClashing() throws {
     let gcId = GenClashId<SomeData, SomeOtherData>(arg: SomeData(num: 22), arg2: SomeOtherData(str: "lll"))
     try assertEquals(actual: gcId.x() as! NSString, expected: "Foo")
-    try assertEquals(actual: gcId.arg.num, expected: 22)
-    try assertEquals(actual: gcId.arg2.str, expected: "lll")
+    let gcIdArg : SomeData = gcId.arg
+    try assertEquals(actual: gcIdArg.num, expected: 22)
+    let gcIdArg2 : SomeOtherData = gcId.arg2
+    try assertEquals(actual: gcIdArg2.str, expected: "lll")
 
     let gcClass = GenClashClass<SomeData, SomeOtherData, NSString>(arg: SomeData(num: 432), arg2: SomeOtherData(str: "lll"), arg3: "Bar")
     try assertEquals(actual: gcClass.int(), expected: 55)
