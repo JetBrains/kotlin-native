@@ -3,6 +3,7 @@ package runtime.workers.worker10
 import kotlin.test.*
 
 import kotlin.native.concurrent.*
+import kotlin.native.ref.WeakReference
 import kotlinx.cinterop.StableRef
 
 class Data(val x: Int)
@@ -114,6 +115,50 @@ val semaphore = AtomicInt(0)
     }
     while (semaphore.value != 1) {}
     stableRef.dispose()
+    kotlin.native.internal.GC.collect()
+    semaphore.increment()
+    future.result
+    worker.requestTermination().result
+}
+
+fun <T: Any> ensureWeakIs(weak: WeakReference<T>, expected: T?) {
+    assertEquals(expected, weak.get())
+}
+
+val stableHolder1 = StableRef.create(("hello" to "world").freeze())
+
+@Test fun runTest4() {
+    val worker = Worker.start()
+    semaphore.value = 0
+    val future = worker.execute(TransferMode.SAFE, { WeakReference(stableHolder1.get()) }) {
+        ensureWeakIs(it, "hello" to "world")
+        semaphore.increment()
+        while (semaphore.value != 2) {}
+        kotlin.native.internal.GC.collect()
+        ensureWeakIs(it, null)
+    }
+    while (semaphore.value != 1) {}
+    stableHolder1.dispose()
+    kotlin.native.internal.GC.collect()
+    semaphore.increment()
+    future.result
+    worker.requestTermination().result
+}
+
+val stableHolder2 = StableRef.create(("hello" to "world").freeze())
+
+@Test fun runTest5() {
+    val worker = Worker.start()
+    semaphore.value = 0
+    val future = worker.execute(TransferMode.SAFE, { WeakReference(stableHolder2.get()) }) {
+        val value = it.get()
+        semaphore.increment()
+        while (semaphore.value != 2) {}
+        kotlin.native.internal.GC.collect()
+        assertEquals("hello" to "world", value)
+    }
+    while (semaphore.value != 1) {}
+    stableHolder2.dispose()
     kotlin.native.internal.GC.collect()
     semaphore.increment()
     future.result

@@ -558,11 +558,6 @@ inline void unlock(KInt* spinlock) {
 
 ObjHeader* KRefSharedHolder::ref() const {
   verifyRefOwner();
-#if USE_GC
-  if (obj_ != nullptr && owner_ != memoryState)
-    rememberNewContainer(obj_->container());
-#endif  // USE_GC
-
   return obj_;
 }
 
