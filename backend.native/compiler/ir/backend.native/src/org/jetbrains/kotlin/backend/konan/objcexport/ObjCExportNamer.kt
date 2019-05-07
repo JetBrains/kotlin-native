@@ -62,7 +62,8 @@ internal class ObjCExportNamerImpl(
         builtIns: KotlinBuiltIns,
         private val mapper: ObjCExportMapper,
         private val topLevelNamePrefix: String,
-        private val local: Boolean
+        private val local: Boolean,
+        private val objcGenerics: Boolean = false
 ) : ObjCExportNamer {
     private fun String.toUnmangledClassOrProtocolName(): ObjCExportNamer.ClassOrProtocolName =
             ObjCExportNamer.ClassOrProtocolName(swiftName = this, objCName = this)
@@ -191,37 +192,50 @@ internal class ObjCExportNamerImpl(
             descriptor: ClassDescriptor
     ): String = swiftClassAndProtocolNames.getOrPut(descriptor) {
         StringBuilder().apply {
-            val containingDeclaration = descriptor.containingDeclaration
-            if (containingDeclaration is ClassDescriptor) {
-                append(getClassOrProtocolSwiftName(containingDeclaration))
-
-                val importAsMember = when {
-                    descriptor.isInterface || containingDeclaration.isInterface -> {
-                        // Swift doesn't support neither nested nor outer protocols.
-                        false
-                    }
-
-                    this.contains('.') -> {
-                        // Swift doesn't support swift_name with deeply nested names.
-                        // It seems to support "OriginalObjCName.SwiftName" though,
-                        // but this doesn't seem neither documented nor reliable.
-                        false
-                    }
-
-                    else -> true
-                }
-                if (importAsMember) {
-                    append(".").append(descriptor.name.asString())
-                } else {
-                    append(descriptor.name.asString().capitalize())
-                }
-            } else if (containingDeclaration is PackageFragmentDescriptor) {
-                appendTopLevelClassBaseName(descriptor)
-            } else {
-                error("unexpected class parent: $containingDeclaration")
-            }
+            generateClassOrProtocolSwiftName(descriptor)
         }.mangledBySuffixUnderscores()
     }
+
+    private fun StringBuilder.generateClassOrProtocolSwiftName(
+            descriptor: ClassDescriptor,
+            hadGenericsDefined: Boolean = false
+    ){
+        val containingDeclaration = descriptor.containingDeclaration
+        if (containingDeclaration is ClassDescriptor) {
+            val hasGenericsDefined = descriptor.hasGenericsDefined() || hadGenericsDefined
+            generateClassOrProtocolSwiftName(containingDeclaration, hasGenericsDefined)
+
+            val importAsMember = when {
+                objcGenerics && hasGenericsDefined -> false
+
+                descriptor.isInterface || containingDeclaration.isInterface -> {
+                    // Swift doesn't support neither nested nor outer protocols.
+                    false
+                }
+
+                this.contains('.') -> {
+                    // Swift doesn't support swift_name with deeply nested names.
+                    // It seems to support "OriginalObjCName.SwiftName" though,
+                    // but this doesn't seem neither documented nor reliable.
+                    false
+                }
+
+                else -> true
+            }
+            if (importAsMember) {
+                append(".").append(descriptor.name.asString())
+            } else {
+                append(descriptor.name.asString().capitalize())
+            }
+        } else if (containingDeclaration is PackageFragmentDescriptor) {
+            appendTopLevelClassBaseName(descriptor)
+        } else {
+            error("unexpected class parent: $containingDeclaration")
+        }
+    }
+
+    private fun ClassDescriptor.hasGenericsDefined(): Boolean =
+            this.typeConstructor.parameters.isNotEmpty()
 
     private fun getClassOrProtocolObjCName(descriptor: ClassDescriptor): String {
         val objCMapping = if (descriptor.isInterface) objCProtocolNames else objCClassNames

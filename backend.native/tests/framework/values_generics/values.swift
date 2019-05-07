@@ -181,11 +181,11 @@ func testGenericInheritance() throws {
 
 func testGenericInnerClass() throws {
 
-    let nestedClass = GenOuter.GenNested<SomeData>(b: SomeData(num: 543))
+    let nestedClass = GenOuterGenNested<SomeData>(b: SomeData(num: 543))
     let nestedClassB : SomeData = nestedClass.b
     try assertEquals(actual: nestedClassB.num, expected: 543)
 
-    let innerClass = GenOuter.GenInner<SomeData, SomeOtherData>(GenOuter<SomeOtherData>(a: SomeOtherData(str: "ggg")), c: SomeData(num: 66), aInner: SomeOtherData(str: "ttt"))
+    let innerClass = GenOuterGenInner<SomeData, SomeOtherData>(GenOuter<SomeOtherData>(a: SomeOtherData(str: "ggg")), c: SomeData(num: 66), aInner: SomeOtherData(str: "ttt"))
     let innerClassC : SomeData = innerClass.c
     try assertEquals(actual: innerClassC.num, expected: 66)
     let outerFun : SomeOtherData = innerClass.outerFun()
@@ -193,21 +193,45 @@ func testGenericInnerClass() throws {
     try assertEquals(actual: outerFun, expected: outerVal)
     try assertEquals(actual: outerFun.str, expected: "ggg")
 
-    //Swift compile crashes on class names with a '.' and with generic type params.
-    //Values_genericsKt.genInnerFunc(obj: innerClass)
-    //Values_genericsKt.genInnerFuncAny(obj: innerClass as! GenOuter.GenInner<AnyObject, AnyObject>)
+    Values_genericsKt.genInnerFunc(obj: innerClass)
+    Values_genericsKt.genInnerFuncAny(obj: innerClass as! GenOuterGenInner<AnyObject, AnyObject>)
 
-    //let innerReturned = Values_genericsKt.genInnerCreate()
-    //let innerReturnedInner : SomeOtherData = innerReturned.c
-    //try assertEquals(actual: innerReturnedInner.str, expected: "ppp")
+    let innerReturned : GenOuterGenInner<SomeOtherData, SomeData> = Values_genericsKt.genInnerCreate()
+    let innerReturnedInner : SomeOtherData = innerReturned.c
+    try assertEquals(actual: innerReturnedInner.str, expected: "ppp")
 
-    let nestedClassSame = GenOuterSame.GenNestedSame<SomeData>(a: SomeData(num: 545))
+    let nestedClassSame = GenOuterSameGenNestedSame<SomeData>(a: SomeData(num: 545))
     let nestedClassSameA : SomeData = nestedClassSame.a
     try assertEquals(actual: nestedClassSameA.num, expected: 545)
 
-    let innerClassSame = GenOuterSame.GenInnerSame<SomeOtherData, SomeData>(GenOuterSame<SomeData>(a: SomeData(num: 44)), a: SomeOtherData(str: "rrr"))
+    let innerClassSame = GenOuterSameGenInnerSame<SomeOtherData, SomeData>(GenOuterSame<SomeData>(a: SomeData(num: 44)), a: SomeOtherData(str: "rrr"))
     let innerClassSameA : SomeOtherData = innerClassSame.a
     try assertEquals(actual: innerClassSame.a.str, expected: "rrr")
+
+    let gob : GenOuterBlankGenInner<SomeOtherData> = GenOuterBlankGenInner<SomeOtherData>(GenOuterBlank(sd: SomeData(num: 321)), arg: SomeOtherData(str: "aaa"))
+    let gob2 : GenOuterBlank2GenInner<SomeOtherData> = GenOuterBlank2GenInner<SomeOtherData>(GenOuterBlank2(oarg: SomeOtherData(str: "ooo")), arg: SomeOtherData(str: "bbb"))
+
+    let gobsod : SomeOtherData = gob.arg!
+    try assertEquals(actual: gobsod.str, expected: "aaa")
+
+    let gob2arg : SomeOtherData = gob2.arg!
+    let gob2out : SomeOtherData = gob2.fromOuter()!
+
+    try assertEquals(actual: gob2arg.str, expected: "bbb")
+    try assertEquals(actual: gob2out.str, expected: "ooo")
+
+    let inarg = GenOuterDeepGenShallowInner<SomeOtherData>(GenOuterDeep<SomeOtherData>(oarg: SomeOtherData(str: "fff")))
+    let godeep : GenOuterDeepGenShallowInnerGenDeepInner<SomeOtherData> = GenOuterDeepGenShallowInnerGenDeepInner<SomeOtherData>(inarg)
+    let deepval : SomeOtherData = godeep.o()!
+    try assertEquals(actual: deepval.str, expected: "fff")
+
+    let deep2 = GenOuterDeep2()
+    let deep2soi = GenOuterDeep2.GenShallowOuterInner(deep2)
+    let deep2si = GenOuterDeep2GenShallowOuterInnerGenShallowInner<SomeData>(deep2soi)
+    let deep2i = GenOuterDeep2GenShallowOuterInnerGenShallowInnerGenDeepInner<SomeData>(deep2si)
+
+    let gbb : GenBothBlank.GenInner = GenBothBlank.GenInner(GenBothBlank(a: SomeData(num: 22)), b: SomeOtherData(str: "ttt"))
+    try assertEquals(actual: gbb.b.str, expected: "ttt")
 }
 
 func testGenericClashing() throws {

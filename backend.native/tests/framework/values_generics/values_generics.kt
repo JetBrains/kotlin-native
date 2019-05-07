@@ -110,6 +110,38 @@ fun <A:Any, C:Any> genInnerFuncAny(obj: GenOuter<A>.GenInner<C>){}
 fun genInnerCreate(): GenOuter<SomeData>.GenInner<SomeOtherData> =
         GenOuter(SomeData(33)).GenInner(SomeOtherData("ppp"), SomeData(77))
 
+class GenOuterBlank(val sd: SomeData) {
+    inner class GenInner<T>(val arg: T){
+        fun fromOuter(): SomeData = sd
+    }
+}
+
+class GenOuterBlank2<T>(val oarg: T) {
+    inner class GenInner(val arg: T){
+        fun fromOuter(): T = oarg
+    }
+}
+
+class GenOuterDeep<T>(val oarg: T) {
+    inner class GenShallowInner(){
+        inner class GenDeepInner(){
+            fun o(): T = oarg
+        }
+    }
+}
+
+class GenOuterDeep2() {
+    inner class GenShallowOuterInner() {
+        inner class GenShallowInner<T>() {
+            inner class GenDeepInner()
+        }
+    }
+}
+
+class GenBothBlank(val a: SomeData) {
+    inner class GenInner(val b: SomeOtherData)
+}
+
 class GenClashId<id : Any, id_ : Any>(val arg: id, val arg2: id_){
     fun x(): Any = "Foo"
 }

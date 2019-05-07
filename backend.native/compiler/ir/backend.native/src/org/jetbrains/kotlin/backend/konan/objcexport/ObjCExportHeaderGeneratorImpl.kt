@@ -6,7 +6,6 @@
 package org.jetbrains.kotlin.backend.konan.objcexport
 
 import org.jetbrains.kotlin.backend.konan.Context
-import org.jetbrains.kotlin.backend.konan.KonanConfigKeys
 import org.jetbrains.kotlin.backend.konan.reportCompilationWarning
 import org.jetbrains.kotlin.cli.common.messages.CompilerMessageSeverity
 import org.jetbrains.kotlin.cli.common.messages.MessageUtil
@@ -20,8 +19,9 @@ internal class ObjCExportHeaderGeneratorImpl(
         val context: Context,
         moduleDescriptors: List<ModuleDescriptor>,
         mapper: ObjCExportMapper,
-        namer: ObjCExportNamer
-) : ObjCExportHeaderGenerator(moduleDescriptors, context.builtIns, mapper, namer, context.configuration.getBoolean(KonanConfigKeys.OBJC_GENERICS)) {
+        namer: ObjCExportNamer,
+        objcGenerics: Boolean
+) : ObjCExportHeaderGenerator(moduleDescriptors, context.builtIns, mapper, namer, objcGenerics) {
 
     override fun reportWarning(text: String) {
         context.reportCompilationWarning(text)
