@@ -181,7 +181,7 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     @Argument(value = "-Xcoverage-file", valueDescription = "<path>", description = "Save coverage information to the given file")
     var coverageFile: String? = null
 
-    @Argument(value = "-Xobjc-generics", description = "Write objc header with generics support")
+    @Argument(value = "-Xobjc-generics", description = "Enable experimental generics support for framework header")
     var objcGenerics: Boolean = false
 
     override fun configureAnalysisFlags(collector: MessageCollector): MutableMap<AnalysisFlag<*>, Any> =

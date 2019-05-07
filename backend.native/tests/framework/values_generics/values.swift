@@ -185,15 +185,27 @@ func testGenericInnerClass() throws {
     let nestedClassB : SomeData = nestedClass.b
     try assertEquals(actual: nestedClassB.num, expected: 543)
 
-    let innerClass = GenOuter.GenInner<SomeData>(GenOuter<SomeOtherData>(a: SomeOtherData(str: "ggg")) as! GenOuter<AnyObject>, c: SomeData(num: 66), aInner: SomeOtherData(str: "ttt") as AnyObject)
+    let innerClass = GenOuter.GenInner<SomeData, SomeOtherData>(GenOuter<SomeOtherData>(a: SomeOtherData(str: "ggg")), c: SomeData(num: 66), aInner: SomeOtherData(str: "ttt"))
     let innerClassC : SomeData = innerClass.c
     try assertEquals(actual: innerClassC.num, expected: 66)
+    let outerFun : SomeOtherData = innerClass.outerFun()
+    let outerVal : SomeOtherData = innerClass.outerVal
+    try assertEquals(actual: outerFun, expected: outerVal)
+    try assertEquals(actual: outerFun.str, expected: "ggg")
+
+    //Swift compile crashes on class names with a '.' and with generic type params.
+    //Values_genericsKt.genInnerFunc(obj: innerClass)
+    //Values_genericsKt.genInnerFuncAny(obj: innerClass as! GenOuter.GenInner<AnyObject, AnyObject>)
+
+    //let innerReturned = Values_genericsKt.genInnerCreate()
+    //let innerReturnedInner : SomeOtherData = innerReturned.c
+    //try assertEquals(actual: innerReturnedInner.str, expected: "ppp")
 
     let nestedClassSame = GenOuterSame.GenNestedSame<SomeData>(a: SomeData(num: 545))
     let nestedClassSameA : SomeData = nestedClassSame.a
     try assertEquals(actual: nestedClassSameA.num, expected: 545)
 
-    let innerClassSame = GenOuterSame.GenInnerSame<SomeOtherData>(GenOuterSame<SomeData>(a: SomeData(num: 44)) as! GenOuterSame<AnyObject>, a: SomeOtherData(str: "rrr"))
+    let innerClassSame = GenOuterSame.GenInnerSame<SomeOtherData, SomeData>(GenOuterSame<SomeData>(a: SomeData(num: 44)), a: SomeOtherData(str: "rrr"))
     let innerClassSameA : SomeOtherData = innerClassSame.a
     try assertEquals(actual: innerClassSame.a.str, expected: "rrr")
 }

@@ -93,13 +93,22 @@ fun starGeneric(arg: GenNonNull<*>):Any{
 
 class GenOuter<A:Any>(val a:A){
     class GenNested<B:Any>(val b:B)
-    inner class GenInner<C:Any>(val c:C, val aInner:A)
+    inner class GenInner<C:Any>(val c:C, val aInner:A) {
+        fun outerFun(): A = a
+        val outerVal: A = a
+    }
 }
 
 class GenOuterSame<A:Any>(val a:A){
     class GenNestedSame<A:Any>(val a:A)
     inner class GenInnerSame<A:Any>(val a:A)
 }
+
+fun genInnerFunc(obj: GenOuter<SomeOtherData>.GenInner<SomeData>) {}
+fun <A:Any, C:Any> genInnerFuncAny(obj: GenOuter<A>.GenInner<C>){}
+
+fun genInnerCreate(): GenOuter<SomeData>.GenInner<SomeOtherData> =
+        GenOuter(SomeData(33)).GenInner(SomeOtherData("ppp"), SomeData(77))
 
 class GenClashId<id : Any, id_ : Any>(val arg: id, val arg2: id_){
     fun x(): Any = "Foo"

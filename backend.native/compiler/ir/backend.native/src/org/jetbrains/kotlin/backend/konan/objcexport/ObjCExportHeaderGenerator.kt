@@ -72,7 +72,7 @@ internal class ObjCExportTranslatorImpl(
             val className = namer.getClassOrProtocolName(descriptor)
             val builder = StringBuilder(className.objCName)
             if (objcGenerics)
-                formatGenerics(builder, descriptor.declaredTypeParameters.map { typeParameterDescriptor ->
+                formatGenerics(builder, descriptor.typeConstructor.parameters.map { typeParameterDescriptor ->
                     "${typeParameterDescriptor.variance.objcDeclaration()}${namer.getTypeParameterName(typeParameterDescriptor)}"
                 })
             return builder.toString()
@@ -249,7 +249,7 @@ internal class ObjCExportTranslatorImpl(
         val name = translateClassOrInterfaceName(descriptor)
 
         val generics = if (objcGenerics) {
-            descriptor.declaredTypeParameters.map {
+            descriptor.typeConstructor.parameters.map {
                 "${it.variance.objcDeclaration()}${namer.getTypeParameterName(it)}"
             }
         } else {
@@ -1052,17 +1052,23 @@ interface ObjCExportScope{
 
 internal class ObjCClassExportScope constructor(container:DeclarationDescriptor, val namer: ObjCExportNamer): ObjCExportScope {
     private val typeNames = if(container is ClassDescriptor && !container.isInterface) {
-        container.declaredTypeParameters
+        container.typeConstructor.parameters
     } else {
         emptyList<TypeParameterDescriptor>()
     }
 
-    override fun getGenericDeclaration(typeParameterDescriptor: TypeParameterDescriptor?): ObjCGenericTypeDeclaration? =
-            if(typeParameterDescriptor != null && typeNames.contains(typeParameterDescriptor)){
-                ObjCGenericTypeDeclaration(typeParameterDescriptor, namer)
-            } else {
-                null
-            }
+    override fun getGenericDeclaration(typeParameterDescriptor: TypeParameterDescriptor?): ObjCGenericTypeDeclaration? {
+        val localTypeParam = typeNames.firstOrNull {
+            typeParameterDescriptor != null &&
+                    (it == typeParameterDescriptor || (it.isCapturedFromOuterDeclaration && it.original == typeParameterDescriptor))
+        }
+
+        return if(localTypeParam == null) {
+            null
+        } else {
+            ObjCGenericTypeDeclaration(localTypeParam, namer)
+        }
+    }
 }
 
 internal object ObjCNoneExportScope: ObjCExportScope{
