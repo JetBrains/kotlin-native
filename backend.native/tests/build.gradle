@@ -3456,7 +3456,7 @@ task buildKonanStdlibTests(type: BuildKonanTest) {
     flags = [ "-Xmulti-platform", "-friend-modules",  project.rootProject.file("${project.properties['konan.home']}/klib/common/stdlib") ]
     def testSources = externalStdlibTestsDir.absolutePath
     compileList = [ "$testSources/stdlib/test", "$testSources/stdlib/common",
-                    "stdlib_external/utils.kt", "stdlib_external/jsCollectionFactoriesActuals.kt" ]
+                    "stdlib_external/utils.kt", "stdlib_external/text/StringEncodingTestNative.kt", "stdlib_external/jsCollectionFactoriesActuals.kt" ]
     excludeList = [ "$testSources/stdlib/test/internalAnnotations.kt" ]
 }
 
