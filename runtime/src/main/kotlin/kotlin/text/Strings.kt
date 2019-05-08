@@ -283,7 +283,7 @@ public actual fun String.toCharArray(startIndex: Int, endIndex: Int): CharArray 
 public actual fun ByteArray.decodeToString(startIndex: Int, endIndex: Int, throwOnInvalidSequence: Boolean): String {
     AbstractList.checkBoundsIndexes(startIndex, endIndex, size)
     return if (throwOnInvalidSequence)
-        stringFromUtf8OrThrow(startIndex, endIndex - startIndex)
+        stringFromUtf8OrThrowImpl(startIndex, endIndex - startIndex)
     else
         stringFromUtf8Impl(startIndex, endIndex - startIndex)
 }
