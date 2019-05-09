@@ -175,9 +175,9 @@ public actual external fun String.toUpperCase(): String
 public actual external fun String.toLowerCase(): String
 
 /**
- * Returns a new character array containing the characters from this string.
+ * Returns a [CharArray] containing characters of this string.
  */
-public fun String.toCharArray(): CharArray = toCharArray(this, 0, length)
+public actual fun String.toCharArray(): CharArray = toCharArray(this, 0, length)
 
 @SymbolName("Kotlin_String_toCharArray")
 private external fun toCharArray(string: String, start: Int, size: Int): CharArray
@@ -238,6 +238,13 @@ public actual fun String(chars: CharArray, offset: Int, length: Int): String {
 }
 
 /**
+ * Concatenates characters in this [CharArray] into a String.
+ */
+@SinceKotlin("1.3")
+@ExperimentalStdlibApi
+public actual fun CharArray.concatToString(): String = fromCharArray(this, 0, size)
+
+/**
  * Concatenates characters in this [CharArray] or its subrange into a String.
  *
  * @param startIndex the beginning (inclusive) of the subrange of characters, 0 by default.
@@ -270,6 +277,15 @@ public actual fun String.toCharArray(startIndex: Int, endIndex: Int): CharArray 
 }
 
 /**
+ * Decodes a string from the bytes in UTF-8 encoding in this array.
+ *
+ * Malformed byte sequences are replaced by the replacement char `\uFFFD`.
+ */
+@SinceKotlin("1.3")
+@ExperimentalStdlibApi
+public actual fun ByteArray.decodeToString(): String = stringFromUtf8Impl(0, size)
+
+/**
  * Decodes a string from the bytes in UTF-8 encoding in this array or its subrange.
  *
  * @param startIndex the beginning (inclusive) of the subrange to decode, 0 by default.
@@ -280,6 +296,8 @@ public actual fun String.toCharArray(startIndex: Int, endIndex: Int): CharArray 
  * @throws IllegalArgumentException if [startIndex] is greater than [endIndex].
  * @throws CharacterCodingException if the byte array contains malformed UTF-8 byte sequence and [throwOnInvalidSequence] is true.
  */
+@SinceKotlin("1.3")
+@ExperimentalStdlibApi
 public actual fun ByteArray.decodeToString(startIndex: Int, endIndex: Int, throwOnInvalidSequence: Boolean): String {
     AbstractList.checkBoundsIndexes(startIndex, endIndex, size)
     return if (throwOnInvalidSequence)
@@ -287,6 +305,15 @@ public actual fun ByteArray.decodeToString(startIndex: Int, endIndex: Int, throw
     else
         stringFromUtf8Impl(startIndex, endIndex - startIndex)
 }
+
+/**
+ * Encodes this string to an array of bytes in UTF-8 encoding.
+ *
+ * Any malformed char sequence is replaced by the replacement byte sequence.
+ */
+@SinceKotlin("1.3")
+@ExperimentalStdlibApi
+public actual fun String.encodeToByteArray(): ByteArray = toUtf8Impl(0, length)
 
 /**
  * Encodes this string or its substring to an array of bytes in UTF-8 encoding.
