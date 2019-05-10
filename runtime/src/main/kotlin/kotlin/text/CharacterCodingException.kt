@@ -24,11 +24,3 @@ package kotlin.text
 public actual open class CharacterCodingException(message: String?) : Exception(message) {
     actual constructor() : this(null)
 }
-
-@UseExperimental(ExperimentalStdlibApi::class)
-public open class IllegalCharacterConversionException : CharacterCodingException {
-
-    constructor(): super()
-
-    constructor(message: String?) : super(message)
-}

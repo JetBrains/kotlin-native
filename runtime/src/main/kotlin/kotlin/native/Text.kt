@@ -22,7 +22,11 @@ internal external fun ByteArray.stringFromUtf8Impl(start: Int, size: Int) : Stri
  */
 public fun ByteArray.stringFromUtf8OrThrow(start: Int = 0, size: Int = this.size) : String {
     AbstractList.checkBoundsIndexes(start, start + size, this.size)
-    return stringFromUtf8OrThrowImpl(start, size)
+    try {
+        return stringFromUtf8OrThrowImpl(start, size)
+    } catch (e: Throwable) {
+        throw IllegalCharacterConversionException(e.message)
+    }
 }
 
 @SymbolName("Kotlin_ByteArray_stringFromUtf8OrThrow")
@@ -45,7 +49,11 @@ internal external fun String.toUtf8Impl(start: Int, size: Int) : ByteArray
  */
 public fun String.toUtf8OrThrow(start: Int = 0, size: Int = this.length) : ByteArray {
     AbstractList.checkBoundsIndexes(start, start + size, this.length)
-    return toUtf8OrThrowImpl(start, size)
+    try {
+        return toUtf8OrThrowImpl(start, size)
+    } catch (e: Throwable) {
+        throw IllegalCharacterConversionException(e.message)
+    }
 }
 
 @SymbolName("Kotlin_String_toUtf8OrThrow")

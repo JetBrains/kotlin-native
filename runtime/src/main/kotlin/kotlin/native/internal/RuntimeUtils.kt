@@ -70,8 +70,8 @@ internal fun ThrowNotImplementedError(): Nothing {
 }
 
 @ExportForCppRuntime
-internal fun ThrowIllegalCharacterConversionException(): Nothing {
-    throw IllegalCharacterConversionException()
+internal fun ThrowCharacterCodingException(): Nothing {
+    throw CharacterCodingException()
 }
 
 @ExportForCppRuntime
