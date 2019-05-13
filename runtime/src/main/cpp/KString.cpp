@@ -712,6 +712,7 @@ OBJ_GETTER(CreateStringFromUtf8, const char* utf8, uint32_t lengthBytes) {
 }
 
 char* CreateCStringFromString(KConstRef kref) {
+  if (kref == nullptr) return nullptr;
   KString kstring = kref->array();
   const KChar* utf16 = CharArrayAddressOfElementAt(kstring, 0);
   KStdString utf8;

@@ -3290,7 +3290,7 @@ task produce_dynamic(type: DynamicKonanTest) {
                 "Child.fooParam: c 3\n" +
                 "Impl1.I: d 4 Impl1\n" +
                 "Impl2.I: e 5 Impl2\n" +
-                "String is Kotlin/Native\n" +
+                "String is Kotlin/Native nullable is Hi null is OK\n" +
                 "RO property is 42\n" +
                 "RW property is 239\n" +
                 "enum100 = 100\n" +

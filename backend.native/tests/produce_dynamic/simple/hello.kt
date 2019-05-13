@@ -97,7 +97,6 @@ fun useInlineClasses(ic1: IC1, ic2: IC2, ic3: IC3) {
     assert(ic2.value == "bar")
     assert(ic3.value is Base)
 }
-
 fun setCErrorHandler(callback: CPointer<CFunction<(CPointer<ByteVar>) -> Unit>>?) {
     setUnhandledExceptionHook({
         throwable: Throwable ->
@@ -110,4 +109,12 @@ fun setCErrorHandler(callback: CPointer<CFunction<(CPointer<ByteVar>) -> Unit>>?
 
 fun throwException() {
     throw Error("Expected error")
+}
+
+fun getNullableString(param: Int) : String? {
+    if (param == 0) {
+        return "Hi"
+    } else {
+        return null
+    }
 }
