@@ -27,6 +27,7 @@ struct WritableTypeInfo;
 #endif
 
 struct ObjHeader;
+struct AssociatedObjectTableRecord;
 
 // An element of sorted by hash in-place array representing methods.
 // For systems where introspection is not needed - only open methods are in
@@ -114,8 +115,8 @@ struct TypeInfo {
     WritableTypeInfo* writableInfo_;
 #endif
 
-    // Null-terminated array of pairs (TypeInfo*, OBJ_GETTER0(getAssociatedObjectInstance)).
-    void** associatedObjects;
+    // Null-terminated array.
+    const AssociatedObjectTableRecord* associatedObjects;
 
     // vtable starts just after declared contents of the TypeInfo:
     // void* const vtable_[];

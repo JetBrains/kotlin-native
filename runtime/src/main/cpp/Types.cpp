@@ -62,18 +62,20 @@ OBJ_GETTER(Kotlin_TypeInfo_getRelativeName, KNativePtr typeInfo) {
   RETURN_OBJ(reinterpret_cast<const TypeInfo*>(typeInfo)->relativeName_);
 }
 
+struct AssociatedObjectTableRecord {
+  const TypeInfo* key;
+  OBJ_GETTER0((*getAssociatedObjectInstance));
+};
+
 OBJ_GETTER(Kotlin_TypeInfo_getAssociatedObject, KNativePtr typeInfo, KNativePtr key) {
-  void** associatedObjects = reinterpret_cast<const TypeInfo*>(typeInfo)->associatedObjects;
+  const AssociatedObjectTableRecord* associatedObjects = reinterpret_cast<const TypeInfo*>(typeInfo)->associatedObjects;
   if (associatedObjects == nullptr) {
     RETURN_OBJ(nullptr);
   }
 
-  for (;; associatedObjects += 2) {
-    void* storedKey = associatedObjects[0];
-    if (storedKey == nullptr) break;
-    if (storedKey == key) {
-      KRef (*getAssociatedObject)(KRef*) = reinterpret_cast<KRef (*)(KRef*)>(associatedObjects[1]);
-      RETURN_RESULT_OF0(getAssociatedObject);
+  for (int index = 0; associatedObjects[index].key != nullptr; ++index) {
+    if (associatedObjects[index].key == key) {
+      RETURN_RESULT_OF0(associatedObjects[index].getAssociatedObjectInstance);
     }
   }
 

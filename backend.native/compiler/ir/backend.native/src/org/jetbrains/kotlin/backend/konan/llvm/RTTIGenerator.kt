@@ -318,7 +318,7 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
             return null
         }
 
-        val associatedObjectValues = associatedObjects.flatMap { (key, value) ->
+        val associatedObjectTableRecords = associatedObjects.map { (key, value) ->
             val associatedObjectGetter = generateFunction(
                     CodeGenerator(context),
                     functionType(kObjHeaderPtr, false, kObjHeaderPtrPtr),
@@ -327,13 +327,13 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
                 ret(getObjectValue(value, ExceptionHandler.Caller, locationInfo = null))
             }
 
-            listOf(key.typeInfoPtr.bitcast(int8TypePtr), constPointer(associatedObjectGetter).bitcast(int8TypePtr))
+            Struct(runtime.associatedObjectTableRecordType, key.typeInfoPtr, constPointer(associatedObjectGetter))
         }
 
         return staticData.placeGlobalConstArray(
                 name = "kassociatedobjects:${irClass.fqNameSafe}",
-                elemType = int8TypePtr,
-                elements = associatedObjectValues + listOf(NullPointer(int8Type))
+                elemType = runtime.associatedObjectTableRecordType,
+                elements = associatedObjectTableRecords + Struct(runtime.associatedObjectTableRecordType, null, null)
         )
     }
 
