@@ -131,11 +131,13 @@ class GenOuterDeep<T>(val oarg: T) {
 }
 
 class GenOuterDeep2() {
+    inner class Before()
     inner class GenShallowOuterInner() {
         inner class GenShallowInner<T>() {
             inner class GenDeepInner()
         }
     }
+    inner class After()
 }
 
 class GenBothBlank(val a: SomeData) {
