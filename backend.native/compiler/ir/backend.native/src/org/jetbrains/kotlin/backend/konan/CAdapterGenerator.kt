@@ -354,7 +354,7 @@ private class ExportedElement(val kind: ElementKind,
 
     fun makeClassDeclaration(): String {
         assert(isClass)
-        val typeGetter = "extern \"C\" ${owner.prefix}_KType* ${cname}_type(void);"
+        val typeGetter = "extern \"C\" KType* ${cname}_type(void);"
         val instanceGetter = if (isSingletonObject) {
             val objectClassC = owner.translateType(declaration as ClassDescriptor)
             """
@@ -432,6 +432,7 @@ private class ExportedElement(val kind: ElementKind,
         val isStringReturned = owner.isMappedToString(cfunction[0].second)
         // TODO: do we really need that in every function?
         builder.append("  Kotlin_initRuntimeIfNeeded();\n")
+        builder.append("   try {\n")
         if (isObjectReturned || isStringReturned) {
             builder.append("  KObjHolder result_holder;\n")
             args += "result_holder.slot()"
@@ -455,6 +456,8 @@ private class ExportedElement(val kind: ElementKind,
                     "result", cfunction[0].second, Direction.KOTLIN_TO_C, builder)
             builder.append("  return $result;\n")
         }
+        builder.append("   } catch (KExceptionObjHolder& e) { TerminateWithUnhandledException(e.obj()); } \n")
+
         builder.append("}\n")
 
         return builder.toString()
@@ -731,7 +734,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
                     element.isFunction ->
                         output(element.makeFunctionPointerString(), indent)
                     element.isClass -> {
-                        output("${prefix}_KType* (*_type)(void);", indent)
+                        output("KType* (*_type)(void);", indent)
                         if (element.isSingletonObject) {
                             output("${translateType(element.declaration as ClassDescriptor)} (*_instance)();", indent)
                         }
@@ -838,8 +841,8 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         output("typedef float              ${prefix}_KFloat;")
         output("typedef double             ${prefix}_KDouble;")
         output("typedef void*              ${prefix}_KNativePtr;")
-        output("struct ${prefix}_KType;")
-        output("typedef struct ${prefix}_KType ${prefix}_KType;")
+        output("struct KType;")
+        output("typedef struct KType KType;")
 
         output("")
         defineUsedTypes(top, 0)
@@ -852,7 +855,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         output("/* Service functions. */", 1)
         output("void (*DisposeStablePointer)(${prefix}_KNativePtr ptr);", 1)
         output("void (*DisposeString)(const char* string);", 1)
-        output("${prefix}_KBoolean (*IsInstance)(${prefix}_KNativePtr ref, const ${prefix}_KType* type);", 1)
+        output("${prefix}_KBoolean (*IsInstance)(${prefix}_KNativePtr ref, const KType* type);", 1)
 
         output("")
         output("/* User functions. */", 1)
@@ -885,6 +888,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         |
         |#define RUNTIME_NOTHROW __attribute__((nothrow))
         |#define RUNTIME_USED __attribute__((used))
+        |#define RUNTIME_NORETURN __attribute__((noreturn))
         |
         |extern "C" {
         |void UpdateHeapRef(KObjHeader**, const KObjHeader*) RUNTIME_NOTHROW;
@@ -897,6 +901,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         |void EnterFrame(KObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
         |void LeaveFrame(KObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
         |void Kotlin_initRuntimeIfNeeded();
+        |void TerminateWithUnhandledException(KObjHeader*) RUNTIME_NORETURN;
         |
         |KObjHeader* CreateStringFromCString(const char*, KObjHeader**);
         |char* CreateCStringFromString(const KObjHeader*);
@@ -930,13 +935,27 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         |
         |  KObjHeader** frame() { return reinterpret_cast<KObjHeader**>(&frame_); }
         |};
+        |
+        |class KExceptionObjHolder {
+        | public:
+        |  explicit KExceptionObjHolder(const KObjHeader* obj): obj_(nullptr) {
+        |    ::UpdateHeapRef(&obj_, obj);
+        |  }
+        |  ~KExceptionObjHolder() {
+        |    UpdateHeapRef(&obj_, nullptr);
+        |  }
+        |  KObjHeader* obj() { return obj_; }
+        | private:
+        |  KObjHeader* obj_;
+        |};
+        |
         |static void DisposeStablePointerImpl(${prefix}_KNativePtr ptr) {
         |  DisposeStablePointer(ptr);
         |}
         |static void DisposeStringImpl(const char* ptr) {
         |  DisposeCString((char*)ptr);
         |}
-        |static ${prefix}_KBoolean IsInstanceImpl(${prefix}_KNativePtr ref, const ${prefix}_KType* type) {
+        |static ${prefix}_KBoolean IsInstanceImpl(${prefix}_KNativePtr ref, const KType* type) {
         |  KObjHolder holder;
         |  return IsInstance(DerefStablePointer(ref, holder.slot()), (const KTypeInfo*)type);
         |}
