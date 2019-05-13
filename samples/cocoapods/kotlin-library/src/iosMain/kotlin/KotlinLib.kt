@@ -1,5 +1,7 @@
-import cocoapods.AFNetworking.AFHTTPResponseSerializer
-import cocoapods.AFNetworking.AFHTTPSessionManager
+//import cocoapods.AFNetworking.AFHTTPResponseSerializer
+//import cocoapods.AFNetworking.AFHTTPSessionManager
+import cocoapods.Crashlytics.Crashlytics
+import cocoapods.Crashlytics.CrashlyticsKit
 import platform.Foundation.*
 import platform.UIKit.NSDocumentTypeDocumentAttribute
 import platform.UIKit.NSHTMLTextDocumentType
@@ -14,21 +16,27 @@ import kotlin.toString
  * Retrieves the content by the given URL and shows it at the given WebKitView
  */
 fun getAndShow(url: String, contentView: UITextView) {
-    val manager = AFHTTPSessionManager()
-    manager.responseSerializer = AFHTTPResponseSerializer()
-    val onSuccess = { _: NSURLSessionDataTask?, response: Any? ->
-        val html = NSAttributedString.create(
-            data = response as NSData,
-            options = mapOf(NSDocumentTypeDocumentAttribute as Any? to NSHTMLTextDocumentType),
-            documentAttributes = null,
-            error = null
-        )!!
-        contentView.attributedText = html
-    }
-    val onError = { _: NSURLSessionDataTask?, error: NSError? ->
-        NSLog("Cannot get ${url}.")
-        NSLog(error.toString())
-    }
 
-    manager.GET(url, null, onSuccess, onError)
+    println(Crashlytics.sharedInstance().debugMode)
+
+//    val manager = AFHTTPSessionManager()
+//    manager.responseSerializer = AFHTTPResponseSerializer()
+//    val onSuccess = { _: NSURLSessionDataTask?, response: Any? ->
+//        val html = NSAttributedString.create(
+//            data = response as NSData,
+//            options = mapOf(NSDocumentTypeDocumentAttribute as Any? to NSHTMLTextDocumentType),
+//            documentAttributes = null,
+//            error = null
+//        )!!
+//        contentView.attributedText = html
+//    }
+//    val onError = { _: NSURLSessionDataTask?, error: NSError? ->
+//        NSLog("Cannot get ${url}.")
+//        NSLog(error.toString())
+//    }
+//
+//    manager.GET(url, null, onSuccess, onError)
+
+    println(42)
+
 }

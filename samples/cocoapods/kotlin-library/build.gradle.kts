@@ -32,6 +32,10 @@ kotlin {
         homepage = "https://github.com/JetBrains/kotlin-native"
         
         // Configure a dependency on AFNetworking. It will be added in all macOS and iOS targets.
-        pod("AFNetworking", "~> 3.2.0")
+        pod("FirebaseCore")
+        pod("FirebaseAnalytics")
+        pod("FirebaseInAppMessagingDisplay")
+        pod("Fabric", "~> 1.9.0")
+        pod("Crashlytics", "~> 3.12.0")
     }
 }
