@@ -204,6 +204,8 @@ func testGenericInnerClass() throws {
     let nestedClassSameA : SomeData = nestedClassSame.a
     try assertEquals(actual: nestedClassSameA.num, expected: 545)
 
+    let nested = GenOuterSameNestedNoGeneric()
+
     let innerClassSame = GenOuterSameGenInnerSame<SomeOtherData, SomeData>(GenOuterSame<SomeData>(a: SomeData(num: 44)), a: SomeOtherData(str: "rrr"))
     let innerClassSameA : SomeOtherData = innerClassSame.a
     try assertEquals(actual: innerClassSame.a.str, expected: "rrr")

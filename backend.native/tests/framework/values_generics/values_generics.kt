@@ -102,6 +102,7 @@ class GenOuter<A:Any>(val a:A){
 class GenOuterSame<A:Any>(val a:A){
     class GenNestedSame<A:Any>(val a:A)
     inner class GenInnerSame<A:Any>(val a:A)
+    class NestedNoGeneric()
 }
 
 fun genInnerFunc(obj: GenOuter<SomeOtherData>.GenInner<SomeData>) {}

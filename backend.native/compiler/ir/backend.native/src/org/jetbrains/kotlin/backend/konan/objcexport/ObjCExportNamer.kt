@@ -235,7 +235,10 @@ internal class ObjCExportNamerImpl(
                                     it.hasGenericsChildren()
                         }
 
-        return typeConstructor.parameters.isNotEmpty() || hasGenericsChildren()
+        val upGenerics = generateSequence(this) { it.containingDeclaration as? ClassDescriptor }
+                .any { it.typeConstructor.parameters.isNotEmpty() }
+
+        return upGenerics || hasGenericsChildren()
     }
 
     private fun getClassOrProtocolObjCName(descriptor: ClassDescriptor): String {
