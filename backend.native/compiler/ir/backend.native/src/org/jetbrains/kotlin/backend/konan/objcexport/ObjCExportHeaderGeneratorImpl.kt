@@ -39,5 +39,5 @@ internal class ObjCExportHeaderGeneratorImpl(
     }
 
     override fun getAdditionalImports(): List<String> =
-            context.config.configuration.getNotNull(KonanConfigKeys.FRAMEWORK_IMPORTS)
+            context.config.configuration.getNotNull(KonanConfigKeys.FRAMEWORK_IMPORT_HEADERS)
 }

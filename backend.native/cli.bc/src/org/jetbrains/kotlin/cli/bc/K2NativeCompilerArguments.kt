@@ -120,11 +120,11 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     var exportedLibraries: Array<String>? = null
 
     @Argument(
-            value = "-Xframework-import",
+            value = "-Xframework-import-header",
             valueDescription = "<header>",
-            description = "Add additional import to framework header"
+            description = "Add additional header import to framework header"
     )
-    var frameworkImports: Array<String>? = null
+    var frameworkImportHeaders: Array<String>? = null
 
     @Argument(value = "-Xprint-bitcode", deprecatedName = "--print_bitcode", description = "Print llvm bitcode")
     var printBitCode: Boolean = false
