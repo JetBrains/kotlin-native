@@ -456,7 +456,7 @@ private class ExportedElement(val kind: ElementKind,
                     "result", cfunction[0].second, Direction.KOTLIN_TO_C, builder)
             builder.append("  return $result;\n")
         }
-        builder.append("   } catch (KExceptionObjHolder& e) { TerminateWithUnhandledException(e.obj()); } \n")
+        builder.append("   } catch (ExceptionObjHolder& e) { TerminateWithUnhandledException(e.obj()); } \n")
 
         builder.append("}\n")
 
@@ -936,12 +936,12 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         |  KObjHeader** frame() { return reinterpret_cast<KObjHeader**>(&frame_); }
         |};
         |
-        |class KExceptionObjHolder {
+        |class ExceptionObjHolder {
         | public:
-        |  explicit KExceptionObjHolder(const KObjHeader* obj): obj_(nullptr) {
+        |  explicit ExceptionObjHolder(const KObjHeader* obj): obj_(nullptr) {
         |    ::UpdateHeapRef(&obj_, obj);
         |  }
-        |  ~KExceptionObjHolder() {
+        |  ~ExceptionObjHolder() {
         |    UpdateHeapRef(&obj_, nullptr);
         |  }
         |  KObjHeader* obj() { return obj_; }
