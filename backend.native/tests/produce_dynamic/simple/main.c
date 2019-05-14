@@ -30,9 +30,9 @@ int main(void) {
 
     __ kotlin.root.hello();
     __ kotlin.root.Base.foo(base);
-    __ kotlin.root.Base.fooParam(base, "a", 1);
-    __ kotlin.root.Child.fooParam(child, "b", 2);
-    __ kotlin.root.Base.fooParam(casted_child, "c", 3);
+    __ kotlin.root.Base.fooParam(base, "a", 1, "q");
+    __ kotlin.root.Child.fooParam(child, "b", 2, (char*)0);
+    __ kotlin.root.Base.fooParam(casted_child, "c", 3, (char*)0);
     __ kotlin.root.I.foo(casted_impl1, "d", 4, casted_impl1);
     __ kotlin.root.I.foo(casted_impl2, "e", 5, casted_impl2);
 

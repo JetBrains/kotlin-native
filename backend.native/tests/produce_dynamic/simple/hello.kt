@@ -23,7 +23,8 @@ fun getMutable() = Data("foo")
 open class Base {
     open fun foo() = println("Base.foo")
 
-    open fun fooParam(arg0: String, arg1: Int) = println("Base.fooParam: $arg0 $arg1")
+    open fun fooParam(arg0: String, arg1: Int, arg2: String?) =
+            println("Base.fooParam: $arg0 $arg1 ${arg2 ?: "null"}")
 
     @CName(externName = "", shortName = "strangeName") fun странноеИмя() = 111
 
@@ -60,7 +61,8 @@ object Singleton {
 }
 
 class Child : Base() {
-    override fun fooParam(arg0: String, arg1: Int) = println("Child.fooParam: $arg0 $arg1")
+    override fun fooParam(arg0: String, arg1: Int, arg2: String?) =
+            println("Child.fooParam: $arg0 $arg1 ${arg2 ?: "null"}")
 
     val roProperty: Int
         get() = 42
