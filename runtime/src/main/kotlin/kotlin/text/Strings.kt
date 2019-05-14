@@ -256,7 +256,7 @@ public actual fun CharArray.concatToString(): String = fromCharArray(this, 0, si
 @SinceKotlin("1.3")
 @ExperimentalStdlibApi
 public actual fun CharArray.concatToString(startIndex: Int, endIndex: Int): String {
-    AbstractList.checkBoundsIndexes(startIndex, endIndex, size)
+    checkBoundsIndexes(startIndex, endIndex, size)
     return fromCharArray(this, startIndex, endIndex - startIndex)
 }
 
@@ -272,7 +272,7 @@ public actual fun CharArray.concatToString(startIndex: Int, endIndex: Int): Stri
 @SinceKotlin("1.3")
 @ExperimentalStdlibApi
 public actual fun String.toCharArray(startIndex: Int, endIndex: Int): CharArray {
-    AbstractList.checkBoundsIndexes(startIndex, endIndex, length)
+    checkBoundsIndexes(startIndex, endIndex, length)
     return toCharArray(this, startIndex, endIndex - startIndex)
 }
 
@@ -299,7 +299,7 @@ public actual fun ByteArray.decodeToString(): String = stringFromUtf8Impl(0, siz
 @SinceKotlin("1.3")
 @ExperimentalStdlibApi
 public actual fun ByteArray.decodeToString(startIndex: Int, endIndex: Int, throwOnInvalidSequence: Boolean): String {
-    AbstractList.checkBoundsIndexes(startIndex, endIndex, size)
+    checkBoundsIndexes(startIndex, endIndex, size)
     return if (throwOnInvalidSequence)
         stringFromUtf8OrThrowImpl(startIndex, endIndex - startIndex)
     else
@@ -329,7 +329,7 @@ public actual fun String.encodeToByteArray(): ByteArray = toUtf8Impl(0, length)
 @SinceKotlin("1.3")
 @ExperimentalStdlibApi
 public actual fun String.encodeToByteArray(startIndex: Int, endIndex: Int, throwOnInvalidSequence: Boolean): ByteArray {
-    AbstractList.checkBoundsIndexes(startIndex, endIndex, length)
+    checkBoundsIndexes(startIndex, endIndex, length)
     return if (throwOnInvalidSequence)
         toUtf8OrThrowImpl(startIndex, endIndex - startIndex)
     else
