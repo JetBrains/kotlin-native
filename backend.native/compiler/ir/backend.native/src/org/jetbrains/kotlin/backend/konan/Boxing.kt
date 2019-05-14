@@ -63,7 +63,7 @@ internal val Context.getBoxFunction: (IrClass) -> IrSimpleFunction by Context.la
             startOffset, endOffset,
             IrDeclarationOrigin.DEFINED,
             IrSimpleFunctionSymbolImpl(descriptor),
-            Name.special("<box>"),
+            Name.special("<${inlinedClass.fqNameSafe}-box>"),
             Visibilities.PUBLIC,
             Modality.FINAL,
             returnType,
@@ -89,7 +89,7 @@ internal val Context.getBoxFunction: (IrClass) -> IrSimpleFunction by Context.la
             }
         })
         descriptor.bind(function)
-        function.parent = inlinedClass
+        function.parent = inlinedClass.getContainingFile()!!
     }
 }
 
@@ -113,7 +113,7 @@ internal val Context.getUnboxFunction: (IrClass) -> IrSimpleFunction by Context.
             startOffset, endOffset,
             IrDeclarationOrigin.DEFINED,
             IrSimpleFunctionSymbolImpl(descriptor),
-            Name.special("<unbox>"),
+            Name.special("<${inlinedClass.fqNameSafe}-unbox>"),
             Visibilities.PUBLIC,
             Modality.FINAL,
             returnType,
@@ -139,7 +139,7 @@ internal val Context.getUnboxFunction: (IrClass) -> IrSimpleFunction by Context.
             }
         })
         descriptor.bind(function)
-        function.parent = inlinedClass
+        function.parent = inlinedClass.getContainingFile()!!
     }
 }
 
