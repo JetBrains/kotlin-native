@@ -554,7 +554,10 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
 
                             is IrFunctionReference -> {
                                 val callee = value.symbol.owner
-                                DataFlowIR.Node.FunctionReference(symbolTable.mapFunction(callee), symbolTable.mapType(value.type))
+                                DataFlowIR.Node.FunctionReference(
+                                        symbolTable.mapFunction(callee),
+                                        symbolTable.mapType(value.type),
+                                        /*TODO: substitute*/symbolTable.mapType(callee.returnType))
                             }
 
                             is IrConst<*> ->
@@ -584,11 +587,17 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                             is IrCall -> when (value.symbol) {
                                 getContinuationSymbol -> getContinuation()
 
-                                arrayGetSymbol -> DataFlowIR.Node.ArrayRead(expressionToEdge(value.dispatchReceiver!!),
-                                        expressionToEdge(value.getValueArgument(0)!!), value)
+                                arrayGetSymbol -> DataFlowIR.Node.ArrayRead(
+                                        array = expressionToEdge(value.dispatchReceiver!!),
+                                        index = expressionToEdge(value.getValueArgument(0)!!),
+                                        type = symbolTable.mapType(value.type),
+                                        irCallSite = value)
 
-                                arraySetSymbol -> DataFlowIR.Node.ArrayWrite(expressionToEdge(value.dispatchReceiver!!),
-                                        expressionToEdge(value.getValueArgument(0)!!), expressionToEdge(value.getValueArgument(1)!!))
+                                arraySetSymbol -> DataFlowIR.Node.ArrayWrite(
+                                        array = expressionToEdge(value.dispatchReceiver!!),
+                                        index = expressionToEdge(value.getValueArgument(0)!!),
+                                        value = expressionToEdge(value.getValueArgument(1)!!),
+                                        type = symbolTable.mapType(value.getValueArgument(1)!!.type))
 
                                 createUninitializedInstanceSymbol ->
                                     DataFlowIR.Node.AllocInstance(symbolTable.mapClassReferenceType(
@@ -606,6 +615,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                             symbolTable.mapFunction(callee),
                                             arguments,
                                             symbolTable.mapClassReferenceType(callee.constructedClass),
+                                            symbolTable.mapClassReferenceType(symbols.unit.owner),
                                             null
                                     )
                                 }
@@ -652,6 +662,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                                         receiverType,
                                                         calleeHash,
                                                         arguments,
+                                                        symbolTable.mapType(value.type),
                                                         value
                                                 )
                                             } else {
@@ -661,6 +672,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                                         receiverType,
                                                         vtableIndex,
                                                         arguments,
+                                                        symbolTable.mapType(value.type),
                                                         value
                                                 )
                                             }
@@ -670,6 +682,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                                     symbolTable.mapFunction(actualCallee),
                                                     arguments,
                                                     actualCallee.dispatchReceiverParameter?.let { symbolTable.mapType(it.type) },
+                                                    symbolTable.mapType(value.type),
                                                     value
                                             )
                                         }
@@ -686,6 +699,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                         symbolTable.mapFunction(value.symbol.owner),
                                         arguments.map { expressionToEdge(it) },
                                         symbolTable.mapType(thiz.type),
+                                        symbolTable.mapClassReferenceType(symbols.unit.owner),
                                         value
                                 )
                             }
@@ -702,6 +716,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                                 name.localHash.value,
                                                 takeName { name }
                                         ),
+                                        symbolTable.mapType(value.type),
                                         value
                                 )
                             }
@@ -718,7 +733,8 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                                 name.localHash.value,
                                                 takeName { name }
                                         ),
-                                        expressionToEdge(value.value)
+                                        expressionToEdge(value.value),
+                                        symbolTable.mapType(value.value.type)
                                 )
                             }
 
