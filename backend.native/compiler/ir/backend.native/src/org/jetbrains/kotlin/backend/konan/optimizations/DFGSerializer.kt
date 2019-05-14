@@ -542,24 +542,26 @@ internal object DFGSerializer {
         }
     }
 
-    class FieldRead(val receiver: Edge?, val field: Field) {
+    class FieldRead(val receiver: Edge?, val field: Field, val type: Int) {
 
-        constructor(data: ArraySlice) : this(data.readNullable { Edge(this) }, Field(data))
+        constructor(data: ArraySlice) : this(data.readNullable { Edge(this) }, Field(data), data.readInt())
 
         fun write(result: ArraySlice) {
             result.writeNullable(receiver) { it.write(this) }
             field.write(result)
+            result.writeInt(type)
         }
     }
 
-    class FieldWrite(val receiver: Edge?, val field: Field, val value: Edge) {
+    class FieldWrite(val receiver: Edge?, val field: Field, val value: Edge, val type: Int) {
 
-        constructor(data: ArraySlice) : this(data.readNullable { Edge(this) }, Field(data), Edge(data))
+        constructor(data: ArraySlice) : this(data.readNullable { Edge(this) }, Field(data), Edge(data), data.readInt())
 
         fun write(result: ArraySlice) {
             result.writeNullable(receiver) { it.write(this) }
             field.write(result)
             value.write(result)
+            result.writeInt(type)
         }
     }
 
@@ -700,11 +702,11 @@ internal object DFGSerializer {
             fun functionReference(symbol: Int, type: Int, returnType: Int) =
                     Node().also { it.functionReference = FunctionReference(symbol, type, returnType) }
 
-            fun fieldRead(receiver: Edge?, field: Field) =
-                    Node().also { it.fieldRead = FieldRead(receiver, field) }
+            fun fieldRead(receiver: Edge?, field: Field, type: Int) =
+                    Node().also { it.fieldRead = FieldRead(receiver, field, type) }
 
-            fun fieldWrite(receiver: Edge?, field: Field, value: Edge) =
-                    Node().also { it.fieldWrite = FieldWrite(receiver, field, value) }
+            fun fieldWrite(receiver: Edge?, field: Field, value: Edge, type: Int) =
+                    Node().also { it.fieldWrite = FieldWrite(receiver, field, value, type) }
 
             fun arrayRead(array: Edge, index: Edge, type: Int) =
                     Node().also { it.arrayRead = ArrayRead(array, index, type) }
@@ -940,10 +942,10 @@ internal object DFGSerializer {
                                         Node.functionReference(functionSymbolMap[node.symbol]!!, typeMap[node.type]!!, typeMap[node.returnType]!!)
 
                                     is DataFlowIR.Node.FieldRead ->
-                                        Node.fieldRead(node.receiver?.let { buildEdge(it) }, buildField(node.field))
+                                        Node.fieldRead(node.receiver?.let { buildEdge(it) }, buildField(node.field), typeMap[node.type]!!)
 
                                     is DataFlowIR.Node.FieldWrite ->
-                                        Node.fieldWrite(node.receiver?.let { buildEdge(it) }, buildField(node.field), buildEdge(node.value))
+                                        Node.fieldWrite(node.receiver?.let { buildEdge(it) }, buildField(node.field), buildEdge(node.value), typeMap[node.type]!!)
 
                                     is DataFlowIR.Node.ArrayRead ->
                                         Node.arrayRead(buildEdge(node.array), buildEdge(node.index), typeMap[node.type]!!)
@@ -1200,13 +1202,13 @@ internal object DFGSerializer {
                             NodeType.FIELD_READ -> {
                                 val fieldRead = it.fieldRead!!
                                 val receiver = fieldRead.receiver?.let { deserializeEdge(it) }
-                                DataFlowIR.Node.FieldRead(receiver, deserializeField(fieldRead.field), null)
+                                DataFlowIR.Node.FieldRead(receiver, deserializeField(fieldRead.field), types[fieldRead.type], null)
                             }
 
                             NodeType.FIELD_WRITE -> {
                                 val fieldWrite = it.fieldWrite!!
                                 val receiver = fieldWrite.receiver?.let { deserializeEdge(it) }
-                                DataFlowIR.Node.FieldWrite(receiver, deserializeField(fieldWrite.field), deserializeEdge(fieldWrite.value))
+                                DataFlowIR.Node.FieldWrite(receiver, deserializeField(fieldWrite.field), deserializeEdge(fieldWrite.value), types[fieldWrite.type])
                             }
 
                             NodeType.ARRAY_READ -> {

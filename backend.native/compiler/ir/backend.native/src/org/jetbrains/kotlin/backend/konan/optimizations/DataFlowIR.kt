@@ -257,9 +257,9 @@ internal object DataFlowIR {
         class FunctionReference(val symbol: FunctionSymbol, val type: Type, val returnType: Type) : Node()
 
         // TODO: Add type (similar to arrays)?
-        class FieldRead(val receiver: Edge?, val field: Field, val ir: IrGetField?) : Node()
+        class FieldRead(val receiver: Edge?, val field: Field, val type: Type, val ir: IrGetField?) : Node()
 
-        class FieldWrite(val receiver: Edge?, val field: Field, val value: Edge) : Node()
+        class FieldWrite(val receiver: Edge?, val field: Field, val value: Edge, val type: Type) : Node()
 
         class ArrayRead(val array: Edge, val index: Edge, val type: Type, val irCallSite: IrCall?) : Node()
 

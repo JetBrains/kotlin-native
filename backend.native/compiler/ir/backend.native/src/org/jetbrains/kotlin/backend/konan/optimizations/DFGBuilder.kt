@@ -713,6 +713,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                                 name.localHash.value,
                                                 takeName { name }
                                         ),
+                                        symbolTable.mapType(value.type),
                                         value
                                 )
                             }
@@ -729,7 +730,8 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                                 name.localHash.value,
                                                 takeName { name }
                                         ),
-                                        expressionToEdge(value.value)
+                                        expressionToEdge(value.value),
+                                        symbolTable.mapType(value.value.type)
                                 )
                             }
 
