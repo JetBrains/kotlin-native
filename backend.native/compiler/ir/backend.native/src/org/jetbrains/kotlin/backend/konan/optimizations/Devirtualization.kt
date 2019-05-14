@@ -980,11 +980,11 @@ internal object Devirtualization {
                         }
 
                         is DataFlowIR.Node.ArrayRead ->
-                            fieldNode(constraintGraph.arrayItemField)
+                            doCast(function, fieldNode(constraintGraph.arrayItemField), node.type.resolved())
 
                         is DataFlowIR.Node.ArrayWrite -> {
                             val fieldNode = fieldNode(constraintGraph.arrayItemField)
-                            edgeToConstraintNode(node.value).addEdge(fieldNode)
+                            doCast(function, edgeToConstraintNode(node.value), node.type.resolved()).addEdge(fieldNode)
                             constraintGraph.voidNode
                         }
 

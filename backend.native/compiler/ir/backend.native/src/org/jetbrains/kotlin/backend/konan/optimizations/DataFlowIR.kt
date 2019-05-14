@@ -256,13 +256,14 @@ internal object DataFlowIR {
 
         class FunctionReference(val symbol: FunctionSymbol, val type: Type, val returnType: Type) : Node()
 
+        // TODO: Add type (similar to arrays)?
         class FieldRead(val receiver: Edge?, val field: Field, val ir: IrGetField?) : Node()
 
         class FieldWrite(val receiver: Edge?, val field: Field, val value: Edge) : Node()
 
-        class ArrayRead(val array: Edge, val index: Edge, val irCallSite: IrCall?) : Node()
+        class ArrayRead(val array: Edge, val index: Edge, val type: Type, val irCallSite: IrCall?) : Node()
 
-        class ArrayWrite(val array: Edge, val index: Edge, val value: Edge) : Node()
+        class ArrayWrite(val array: Edge, val index: Edge, val value: Edge, val type: Type) : Node()
 
         class Variable(values: List<Edge>, val type: Type, val kind: VariableKind) : Node() {
             val values = mutableListOf<Edge>().also { it += values }

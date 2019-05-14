@@ -583,11 +583,17 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                             is IrCall -> when (value.symbol) {
                                 getContinuationSymbol -> getContinuation()
 
-                                arrayGetSymbol -> DataFlowIR.Node.ArrayRead(expressionToEdge(value.dispatchReceiver!!),
-                                        expressionToEdge(value.getValueArgument(0)!!), value)
+                                arrayGetSymbol -> DataFlowIR.Node.ArrayRead(
+                                        array = expressionToEdge(value.dispatchReceiver!!),
+                                        index = expressionToEdge(value.getValueArgument(0)!!),
+                                        type = symbolTable.mapType(value.type),
+                                        irCallSite = value)
 
-                                arraySetSymbol -> DataFlowIR.Node.ArrayWrite(expressionToEdge(value.dispatchReceiver!!),
-                                        expressionToEdge(value.getValueArgument(0)!!), expressionToEdge(value.getValueArgument(1)!!))
+                                arraySetSymbol -> DataFlowIR.Node.ArrayWrite(
+                                        array = expressionToEdge(value.dispatchReceiver!!),
+                                        index = expressionToEdge(value.getValueArgument(0)!!),
+                                        value = expressionToEdge(value.getValueArgument(1)!!),
+                                        type = symbolTable.mapType(value.getValueArgument(1)!!.type))
 
                                 createUninitializedInstanceSymbol ->
                                     DataFlowIR.Node.AllocInstance(symbolTable.mapClassReferenceType(
