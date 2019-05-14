@@ -230,6 +230,22 @@ public actual fun String(chars: CharArray): String = fromCharArray(chars, 0, cha
  */
 public actual fun String(chars: CharArray, offset: Int, length: Int): String = fromCharArray(chars, offset, length)
 
+@SinceKotlin("1.3")
+@ExperimentalStdlibApi
+public actual fun CharArray.concatToString(startIndex: Int, endIndex: Int): String = TODO()
+
+@SinceKotlin("1.3")
+@ExperimentalStdlibApi
+public actual fun String.toCharArray(startIndex: Int, endIndex: Int): CharArray = TODO()
+
+@SinceKotlin("1.3")
+@ExperimentalStdlibApi
+public actual fun ByteArray.decodeToString(startIndex: Int, endIndex: Int, throwOnInvalidSequence: Boolean): String = TODO()
+
+@SinceKotlin("1.3")
+@ExperimentalStdlibApi
+public actual fun String.encodeToByteArray(startIndex: Int, endIndex: Int, throwOnInvalidSequence: Boolean): ByteArray = TODO()
+
 @SymbolName("Kotlin_String_compareToIgnoreCase")
 internal external fun compareToIgnoreCase(thiz: String, other: String): Int
 
