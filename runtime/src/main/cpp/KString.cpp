@@ -51,6 +51,9 @@ OBJ_GETTER(utf8ToUtf16Impl, const char* rawString, const char* end, uint32_t cha
 template<utf16to8 conversion>
 OBJ_GETTER(utf16ToUtf8Impl, KString thiz, KInt start, KInt size) {
   RuntimeAssert(thiz->type_info() == theStringTypeInfo, "Must use String");
+  if (start < 0 || size < 0 || (size > static_cast<KInt>(thiz->count_) - start)) {
+    ThrowArrayIndexOutOfBoundsException();
+  }
   const KChar* utf16 = CharArrayAddressOfElementAt(thiz, start);
   KStdString utf8;
   conversion(utf16, utf16 + size, back_inserter(utf8));
@@ -773,6 +776,9 @@ KInt Kotlin_String_getStringLength(KString thiz) {
 const char* byteArrayAsCString(KConstRef thiz, KInt start, KInt size) {
   const ArrayHeader* array = thiz->array();
   RuntimeAssert(array->type_info() == theByteArrayTypeInfo, "Must use a byte array");
+  if (start < 0 || size < 0 || size > array->count_ - start) {
+    ThrowArrayIndexOutOfBoundsException();
+  }
   return reinterpret_cast<const char*>(ByteArrayAddressOfElementAt(array, start));
 }
 
@@ -803,6 +809,9 @@ OBJ_GETTER(Kotlin_String_toUtf8OrThrow, KString thiz, KInt start, KInt size) {
 OBJ_GETTER(Kotlin_String_fromCharArray, KConstRef thiz, KInt start, KInt size) {
   const ArrayHeader* array = thiz->array();
   RuntimeAssert(array->type_info() == theCharArrayTypeInfo, "Must use a char array");
+  if (start < 0 || size < 0 || size > array->count_ - start) {
+    ThrowArrayIndexOutOfBoundsException();
+  }
 
   if (size == 0) {
     RETURN_RESULT_OF0(TheEmptyString);
