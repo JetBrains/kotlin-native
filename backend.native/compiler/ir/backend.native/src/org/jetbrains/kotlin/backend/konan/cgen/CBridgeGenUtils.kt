@@ -5,20 +5,18 @@ import org.jetbrains.kotlin.backend.common.descriptors.WrappedValueParameterDesc
 import org.jetbrains.kotlin.backend.common.ir.simpleFunctions
 import org.jetbrains.kotlin.backend.common.lower.irBlock
 import org.jetbrains.kotlin.backend.common.lower.irThrow
-import org.jetbrains.kotlin.backend.konan.descriptors.createAnnotation
 import org.jetbrains.kotlin.backend.konan.ir.KonanSymbols
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
-import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrFunctionImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrValueParameterImpl
-import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrMemberAccessExpression
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstructorCallImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrTryImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrSimpleFunctionSymbolImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrValueParameterSymbolImpl
@@ -105,16 +103,7 @@ private fun createKotlinBridge(
         symbols: KonanSymbols,
         isExternal: Boolean
 ): IrFunctionImpl {
-    val bridgeAnnotations = Annotations.create(
-            listOf(
-                    if (isExternal) {
-                        createAnnotation(symbols.symbolName.descriptor, "value" to cBridgeName)
-                    } else {
-                        createAnnotation(symbols.exportForCppRuntime.descriptor, "name" to cBridgeName)
-                    }
-            )
-    )
-    val bridgeDescriptor = WrappedSimpleFunctionDescriptor(bridgeAnnotations)
+    val bridgeDescriptor = WrappedSimpleFunctionDescriptor()
     val bridge = IrFunctionImpl(
             startOffset,
             endOffset,
@@ -131,9 +120,20 @@ private fun createKotlinBridge(
     )
     bridgeDescriptor.bind(bridge)
     if (isExternal) {
-        val constructor = symbols.filterExceptions.owner.constructors.single()
-        bridge.annotations +=
-                IrConstructorCallImpl.fromSymbolOwner(startOffset, endOffset, constructor.returnType, constructor.symbol)
+        bridge.annotations += symbols.symbolName.owner.constructors.single().let {
+            IrConstructorCallImpl.fromSymbolOwner(startOffset, endOffset, it.returnType, it.symbol).apply {
+                putValueArgument(0, IrConstImpl.string(startOffset, endOffset, symbols.string.owner.defaultType, cBridgeName))
+            }
+        }
+        bridge.annotations += symbols.filterExceptions.owner.constructors.single().let {
+            IrConstructorCallImpl.fromSymbolOwner(startOffset, endOffset, it.returnType, it.symbol)
+        }
+    } else {
+        bridge.annotations += symbols.exportForCppRuntime.owner.constructors.single().let {
+            IrConstructorCallImpl.fromSymbolOwner(startOffset, endOffset, it.returnType, it.symbol).apply {
+                putValueArgument(0, IrConstImpl.string(startOffset, endOffset, symbols.string.owner.defaultType, cBridgeName))
+            }
+        }
     }
     return bridge
 }

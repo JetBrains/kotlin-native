@@ -24,7 +24,6 @@ import org.jetbrains.kotlin.backend.konan.llvm.llvmSymbolOrigin
 import org.jetbrains.kotlin.backend.konan.llvm.tryGetIntrinsicType
 import org.jetbrains.kotlin.builtins.UnsignedTypes
 import org.jetbrains.kotlin.descriptors.*
-import org.jetbrains.kotlin.descriptors.ClassConstructorDescriptor
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.descriptors.TypeParameterDescriptor
 import org.jetbrains.kotlin.descriptors.ValueParameterDescriptor
@@ -390,12 +389,9 @@ internal class InteropLoweringPart1(val context: Context) : BaseInteropIrTransfo
             }
         }
 
-        // Annotations to be detected in KotlinObjCClassInfoGenerator:
-        val annotations = createObjCMethodImpAnnotations(selector = selector, encoding = signatureEncoding)
-
         val newDescriptor = SimpleFunctionDescriptorImpl.create(
                 function.descriptor.containingDeclaration,
-                annotations,
+                Annotations.EMPTY,
                 ("imp:" + selector).synthesizedName,
                 CallableMemberDescriptor.Kind.SYNTHESIZED,
                 SourceElement.NO_SOURCE
@@ -441,6 +437,15 @@ internal class InteropLoweringPart1(val context: Context) : BaseInteropIrTransfo
                         it,
                         null
                 )
+            }
+        }
+
+        // Annotations to be detected in KotlinObjCClassInfoGenerator:
+
+        newFunction.annotations += symbols.objCMethodImp.owner.constructors.single().let {
+            IrConstructorCallImpl.fromSymbolOwner(function.startOffset, function.endOffset, it.returnType, it.symbol).apply {
+                putValueArgument(0, IrConstImpl.string(startOffset, endOffset, symbols.string.owner.defaultType, selector))
+                putValueArgument(1, IrConstImpl.string(startOffset, endOffset, symbols.string.owner.defaultType, signatureEncoding))
             }
         }
 

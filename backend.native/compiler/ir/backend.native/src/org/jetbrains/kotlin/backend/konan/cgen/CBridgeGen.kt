@@ -12,14 +12,12 @@ import org.jetbrains.kotlin.backend.common.lower.at
 import org.jetbrains.kotlin.backend.common.lower.irNot
 import org.jetbrains.kotlin.backend.konan.PrimitiveBinaryType
 import org.jetbrains.kotlin.backend.konan.RuntimeNames
-import org.jetbrains.kotlin.backend.konan.descriptors.createAnnotation
 import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.backend.konan.isObjCMetaClass
 import org.jetbrains.kotlin.builtins.UnsignedType
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
-import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
@@ -32,6 +30,7 @@ import org.jetbrains.kotlin.ir.declarations.impl.IrValueParameterImpl
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrConstructorCallImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrFunctionReferenceImpl
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.IrClassSymbolImpl
@@ -534,19 +533,7 @@ private fun KotlinStubs.createFakeKotlinExternalFunction(
         cFunctionName: String,
         isObjCMethod: Boolean
 ): IrSimpleFunction {
-    val objCMethodImpAnnotation = if (isObjCMethod) {
-        val methodInfo = signature.getObjCMethodInfo()!!
-        createObjCMethodImpAnnotation(methodInfo.selector, methodInfo.encoding, symbols)
-    } else {
-        null
-    }
-    val bridgeAnnotations = Annotations.create(
-            listOfNotNull(
-                    createAnnotation(symbols.symbolName.descriptor, "value" to cFunctionName),
-                    objCMethodImpAnnotation
-            )
-    )
-    val bridgeDescriptor = WrappedSimpleFunctionDescriptor(bridgeAnnotations)
+    val bridgeDescriptor = WrappedSimpleFunctionDescriptor()
     val bridge = IrFunctionImpl(
             UNDEFINED_OFFSET,
             UNDEFINED_OFFSET,
@@ -563,11 +550,24 @@ private fun KotlinStubs.createFakeKotlinExternalFunction(
     )
     bridgeDescriptor.bind(bridge)
 
+    bridge.annotations += symbols.symbolName.owner.constructors.single().let {
+        IrConstructorCallImpl.fromSymbolOwner(UNDEFINED_OFFSET, UNDEFINED_OFFSET, it.returnType, it.symbol).apply {
+            putValueArgument(0, IrConstImpl.string(startOffset, endOffset, symbols.string.owner.defaultType, cFunctionName))
+        }
+    }
+
+    if (isObjCMethod) {
+        bridge.annotations += symbols.objCMethodImp.owner.constructors.single().let {
+            IrConstructorCallImpl.fromSymbolOwner(UNDEFINED_OFFSET, UNDEFINED_OFFSET, it.returnType, it.symbol).apply {
+                val methodInfo = signature.getObjCMethodInfo()!!
+                putValueArgument(0, IrConstImpl.string(startOffset, endOffset, symbols.string.owner.defaultType, methodInfo.selector))
+                putValueArgument(1, IrConstImpl.string(startOffset, endOffset, symbols.string.owner.defaultType, methodInfo.encoding))
+            }
+        }
+    }
+
     return bridge
 }
-
-private fun createObjCMethodImpAnnotation(selector: String, encoding: String, symbols: KonanSymbols) =
-        createAnnotation(symbols.objCMethodImp.descriptor, "selector" to selector, "encoding" to encoding)
 
 private val cCall = RuntimeNames.cCall
 
