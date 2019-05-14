@@ -204,6 +204,11 @@ class Worker {
       }
     }
 
+    for (auto job : delayed_) {
+       RuntimeAssert(job.kind == JOB_EXECUTE_AFTER, "Must be delayed");
+       DisposeStablePointer(job.executeAfter.operation);
+    }
+
     pthread_mutex_destroy(&lock_);
     pthread_cond_destroy(&cond_);
   }
@@ -258,7 +263,8 @@ class Worker {
   void waitForQueueLocked() {
     while (queue_.size() == 0) {
       KLong closestToRun = checkDelayedLocked();
-      if (closestToRun >= 0) {
+      if (closestToRun == 0) continue;
+      if (closestToRun > 0) {
         struct timeval tv;
         struct timespec ts;
         gettimeofday(&tv, nullptr);
@@ -323,16 +329,14 @@ class State {
       KInt id, KNativePtr jobFunction, KNativePtr jobArgument, bool toFront, KInt transferMode) {
     Future* future = nullptr;
     Worker* worker = nullptr;
-    {
-      Locker locker(&lock_);
+    Locker locker(&lock_);
 
-      auto it = workers_.find(id);
-      if (it == workers_.end()) return nullptr;
-      worker = it->second;
+    auto it = workers_.find(id);
+    if (it == workers_.end()) return nullptr;
+    worker = it->second;
 
-      future = konanConstructInstance<Future>(nextFutureId());
-      futures_[future->id()] = future;
-    }
+    future = konanConstructInstance<Future>(nextFutureId());
+    futures_[future->id()] = future;
 
     Job job;
     if (jobFunction == nullptr) {
@@ -354,14 +358,11 @@ class State {
 
   bool executeJobAfterInWorkerUnlocked(KInt id, KRef operation, KLong afterMicroseconds) {
     Worker* worker = nullptr;
-    {
-      Locker locker(&lock_);
+    Locker locker(&lock_);
 
-      auto it = workers_.find(id);
-      if (it == workers_.end()) return false;
-      worker = it->second;
-
-    }
+    auto it = workers_.find(id);
+    if (it == workers_.end()) return false;
+    worker = it->second;
     Job job;
     job.kind = JOB_EXECUTE_AFTER;
     job.executeAfter.operation = CreateStablePointer(operation);
@@ -415,7 +416,7 @@ class State {
     struct timeval tv;
     struct timespec ts;
     gettimeofday(&tv, nullptr);
-    KLong nsDelta = millis * 10000000LL;
+    KLong nsDelta = millis * 1000LL * 1000LL;
     ts.tv_nsec = (tv.tv_usec * 1000LL + nsDelta) % 1000000000LL;
     ts.tv_sec =  (tv.tv_sec * 1000000000LL + nsDelta) / 1000000000LL;
     pthread_cond_timedwait(&cond_, &lock_, &ts);
