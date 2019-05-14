@@ -9,13 +9,16 @@ import org.jetbrains.kotlin.backend.konan.ir.containsNull
 import org.jetbrains.kotlin.builtins.PrimitiveType
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classifierOrFail
+import org.jetbrains.kotlin.ir.types.classifierOrNull
 import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.ir.util.constructors
 import org.jetbrains.kotlin.ir.util.defaultType
+import org.jetbrains.kotlin.ir.util.dump
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqNameUnsafe
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameUnsafe
@@ -275,6 +278,18 @@ private object IrTypeInlineClassesSupport : InlineClassesSupport<IrClass, IrType
             .firstOrNull { it.descriptor.fqNameUnsafe == InteropFqNames.nativePointed }
 
     override fun getInlinedClassUnderlyingType(clazz: IrClass): IrType =
-            clazz.constructors.first { it.isPrimary }.valueParameters.single().type
+            //clazz.constructors.first { it.isPrimary }.valueParameters.single().type
+            clazz.constructors.firstOrNull { it.isPrimary }?.valueParameters?.single()?.type
+                    ?: clazz.declarations.filterIsInstance<IrProperty>().single { it.backingField != null }.backingField!!.type
+
+//            clazz.declarations.filterIsInstance<IrProperty>().single { it.backingField != null }.backingField!!.type
+//            ?:
+//                    error("QXX")
+//            (clazz.constructors.firstOrNull { it.isPrimary }?.valueParameters?.single()?.type
+//                ?:
+//                    error("ZZZ")).also {
+//                if (it.classifierOrNull != clazz.declarations.filterIsInstance<IrProperty>().single { it.backingField != null }.backingField!!.type.classifierOrNull)
+//                    println("BUGBUGBUG: ${clazz.dump()}")
+//            }
 
 }

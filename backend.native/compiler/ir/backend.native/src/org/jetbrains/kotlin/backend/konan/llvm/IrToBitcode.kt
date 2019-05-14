@@ -91,7 +91,7 @@ internal fun verifyModule(llvmModule: LLVMModuleRef, current: String = "") {
     }
 }
 
-internal class RTTIGeneratorVisitor(context: Context) : IrElementVisitorVoid {
+internal class RTTIGeneratorVisitor(val context: Context) : IrElementVisitorVoid {
     val generator = RTTIGenerator(context)
 
     val kotlinObjCClassInfoGenerator = KotlinObjCClassInfoGenerator(context)
@@ -103,7 +103,9 @@ internal class RTTIGeneratorVisitor(context: Context) : IrElementVisitorVoid {
     override fun visitClass(declaration: IrClass) {
         super.visitClass(declaration)
 
-        generator.generate(declaration)
+        assert (declaration.isInterface || declaration.isAbstract() || declaration.isExternalObjCClass() || context.vtableBuilders.containsKey(declaration)) { "vtable for ${declaration.fqNameSafe} has not been built" }
+        //if (context.referencedClasses?.contains(declaration) != false)
+            generator.generate(declaration)
 
         if (declaration.isKotlinObjCClass()) {
             kotlinObjCClassInfoGenerator.generate(declaration)
@@ -660,6 +662,9 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 || declaration.isExternal
                 || body == null)
             return
+
+//        if (declaration.name.asString() == "toKStringFromUtf8")
+//            println("ZZZ: ${declaration.dump()}")
 
         generateFunction(codegen, declaration,
                 declaration.location(start = true),
@@ -1745,6 +1750,11 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     private fun evaluateCall(value: IrFunctionAccessExpression): LLVMValueRef {
         context.log{"evaluateCall                   : ${ir2string(value)}"}
 
+//        if (value.symbol.owner.name.asString().contains("NativePointed-unbox")
+//                && functionGenerationContext.irFunction!!.name.asString() == "toKStringFromUtf8") {
+//            println("ZZZ")
+//        }
+
         intrinsicGenerator.tryEvaluateSpecialCall(value)?.let { return it }
 
         val args = evaluateExplicitArgs(value)
@@ -1885,8 +1895,11 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     //-------------------------------------------------------------------------//
 
-    private val invokeSuspendFunction = context.ir.symbols.baseContinuationImpl.owner.declarations
-            .filterIsInstance<IrSimpleFunction>().single { it.name.asString() == "invokeSuspend" }
+// TODO
+//    private val invokeSuspendFunction by lazy {
+//        context.ir.symbols.baseContinuationImpl.owner.declarations
+//                .filterIsInstance<IrSimpleFunction>().single { it.name.asString() == "invokeSuspend" }
+//    }
 
     private fun getContinuation(): LLVMValueRef {
         val caller = functionGenerationContext.irFunction!!
@@ -1894,8 +1907,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             codegen.param(caller, caller.allParameters.size)    // The last argument.
         else {
             // Suspend call from non-suspend function - must be [BaseContinuationImpl].
-            assert ((caller as IrSimpleFunction).overrides(invokeSuspendFunction),
-                    { "Expected 'BaseContinuationImpl.invokeSuspend' but was '$caller'" })
+//            assert ((caller as IrSimpleFunction).overrides(invokeSuspendFunction),
+//                    { "Expected 'BaseContinuationImpl.invokeSuspend' but was '$caller'" })
             currentCodeContext.genGetValue(caller.dispatchReceiverParameter!!)
         }
     }

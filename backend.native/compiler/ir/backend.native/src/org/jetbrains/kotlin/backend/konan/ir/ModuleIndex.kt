@@ -28,6 +28,8 @@ class ModuleIndex(val module: IrModuleFragment) {
     init {
         classes = mutableMapOf()
         functions = mutableMapOf()
+        var classesCount = 0
+        var functionsCount = 0
 
         module.acceptVoid(object : IrElementVisitorVoid {
             override fun visitElement(element: IrElement) {
@@ -38,12 +40,16 @@ class ModuleIndex(val module: IrModuleFragment) {
                 super.visitClass(declaration)
 
                 classes[declaration.descriptor] = declaration
+                ++classesCount
             }
 
             override fun visitFunction(declaration: IrFunction) {
                 super.visitFunction(declaration)
                 functions[declaration.descriptor] = declaration
+                ++functionsCount
             }
         })
+
+        //println("#classes: $classesCount, #functions: $functionsCount")
     }
 }

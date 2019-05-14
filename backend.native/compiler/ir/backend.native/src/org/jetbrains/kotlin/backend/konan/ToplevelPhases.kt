@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.backend.common.serialization.DescriptorTable
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
+import org.jetbrains.kotlin.ir.util.dump
 import org.jetbrains.kotlin.ir.util.SymbolTable
 import org.jetbrains.kotlin.ir.util.patchDeclarationParents
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
@@ -294,13 +295,15 @@ internal val dependenciesLowerPhase = SameTypeNamedPhaseWrapper(
 internal val bitcodePhase = namedIrModulePhase(
         name = "Bitcode",
         description = "LLVM Bitcode generation",
-        lower = contextLLVMSetupPhase then
-                RTTIPhase then
-                generateDebugInfoHeaderPhase then
-                buildDFGPhase then
+        lower = buildDFGPhase then
                 serializeDFGPhase then
                 deserializeDFGPhase then
                 devirtualizationPhase then
+                dceClassesPhase then
+                dceFunctionsPhase then
+                contextLLVMSetupPhase then
+                RTTIPhase then
+                generateDebugInfoHeaderPhase then
                 escapeAnalysisPhase then
                 codegenPhase then
                 finalizeDebugInfoPhase then
@@ -344,6 +347,8 @@ internal fun PhaseConfig.konanPhasesConfig(config: KonanConfig) {
         disable(deserializeDFGPhase)
         disable(escapeAnalysisPhase)
         disable(serializeDFGPhase)
+        //disable(devirtualizationPhase)
+        //disable(buildDFGPhase)
 
         // Don't serialize anything to a final executable.
         switch(serializerPhase, config.produce == CompilerOutputKind.LIBRARY)

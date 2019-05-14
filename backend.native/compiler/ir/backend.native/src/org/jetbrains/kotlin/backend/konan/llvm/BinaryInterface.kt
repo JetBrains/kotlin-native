@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.fqNameSafe
+import org.jetbrains.kotlin.backend.konan.isInlinedNative
 import org.jetbrains.kotlin.ir.util.isSuspend
 import org.jetbrains.kotlin.ir.util.isVararg
 import org.jetbrains.kotlin.konan.library.uniqueName
@@ -36,6 +37,9 @@ import org.jetbrains.kotlin.name.Name
 // TODO: do not serialize descriptors of non-exported declarations.
 
 object KonanMangler : KotlinManglerImpl() {
+
+    override val IrType.isInlined
+        get() = this.isInlinedNative()
 
     override val String.hashMangle get() = this.localHash.value
 

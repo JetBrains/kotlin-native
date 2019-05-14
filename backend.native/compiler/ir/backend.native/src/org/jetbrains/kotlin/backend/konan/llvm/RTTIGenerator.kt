@@ -16,9 +16,7 @@ import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.types.*
-import org.jetbrains.kotlin.ir.util.fqNameSafe
-import org.jetbrains.kotlin.ir.util.isAnnotationClass
-import org.jetbrains.kotlin.ir.util.isInterface
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.konan.KonanAbiVersion
 import org.jetbrains.kotlin.name.FqName
 
@@ -49,7 +47,7 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
     private fun checkAcyclicClass(irClass: IrClass): Boolean = when {
         irClass.symbol == context.ir.symbols.array -> false
         irClass.isArray -> true
-        context.llvmDeclarations.forClass(irClass).fields.all { checkAcyclicFieldType(it.type) } -> true
+        context.getAllFieldsBuilder(irClass).fields.all { checkAcyclicFieldType(it.type) } -> true
         else -> false
     }
 
@@ -246,7 +244,7 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
         // TODO: compile-time resolution limits binary compatibility.
         val vtableEntries = context.getVtableBuilder(irClass).vtableEntries.map {
             val implementation = it.implementation
-            if (implementation == null || implementation.isExternalObjCClassMethod()) {
+            if (implementation == null || implementation.isExternalObjCClassMethod() || context.referencedFunctions?.contains(implementation) == false) {
                 NullPointer(int8Type)
             } else {
                 implementation.entryPointAddress
@@ -266,7 +264,10 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
 
             // TODO: compile-time resolution limits binary compatibility.
             val implementation = it.implementation
-            val methodEntryPoint = implementation?.entryPointAddress
+            val methodEntryPoint =
+                if (implementation == null || context.referencedFunctions?.contains(implementation) == false)
+                    null
+                else implementation.entryPointAddress
             MethodTableRecord(nameSignature, methodEntryPoint)
         }.sortedBy { it.nameSignature.value }
     }
@@ -291,11 +292,11 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
                     NullPointer(int32Type), NullPointer(int8Type), NullPointer(kInt8Ptr))
         } else {
             data class FieldRecord(val offset: Int, val type: Int, val name: String)
-            val fields = getStructElements(bodyType).drop(1).mapIndexedNotNull { index, type ->
+            val fields = getStructElements(bodyType).drop(1).mapIndexed { index, type ->
                 FieldRecord(
                         LLVMOffsetOfElement(llvmTargetData, bodyType, index + 1).toInt(),
                         mapRuntimeType(type),
-                        llvmDeclarations.fields[index].name.asString())
+                        context.getAllFieldsBuilder(irClass).fields[index].name.asString())
             }
             val offsetsPtr = staticData.placeGlobalConstArray("kextoff:$className", int32Type,
                     fields.map { Int32(it.offset) })

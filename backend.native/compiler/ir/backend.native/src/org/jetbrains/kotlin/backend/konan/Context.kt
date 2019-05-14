@@ -40,7 +40,6 @@ import org.jetbrains.kotlin.builtins.konan.KonanBuiltIns
 import org.jetbrains.kotlin.cli.jvm.compiler.KotlinCoreEnvironment
 import org.jetbrains.kotlin.ir.symbols.impl.IrSimpleFunctionSymbolImpl
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
-import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.BindingContext
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
@@ -54,6 +53,7 @@ import org.jetbrains.kotlin.backend.common.serialization.KotlinMangler
 import org.jetbrains.kotlin.backend.konan.objcexport.ObjCExport
 import org.jetbrains.kotlin.backend.konan.llvm.coverage.CoverageManager
 import org.jetbrains.kotlin.ir.symbols.impl.IrTypeParameterSymbolImpl
+import org.jetbrains.kotlin.name.FqName
 
 /**
  * Offset for synthetic elements created by lowerings and not attributable to other places in the source code.
@@ -216,6 +216,7 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     private val packageScope by lazy { builtIns.builtInsModule.getPackage(KonanFqNames.internalPackageName).memberScope }
 
     val nativePtr by lazy { packageScope.getContributedClassifier(NATIVE_PTR_NAME) as ClassDescriptor }
+    val nonNullNativePtr by lazy { packageScope.getContributedClassifier(NON_NULL_NATIVE_PTR_NAME) as ClassDescriptor }
     val getNativeNullPtr  by lazy { packageScope.getContributedFunctions("getNativeNullPtr").single() }
     val immutableBlobOf by lazy {
         builtIns.builtInsModule.getPackage(KonanFqNames.packageName).memberScope.getContributedFunctions("immutableBlobOf").single()
@@ -258,10 +259,17 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
         KonanReflectionTypes(moduleDescriptor, KonanFqNames.internalPackageName)
     }
 
-    private val vtableBuilders = mutableMapOf<IrClass, ClassVtablesBuilder>()
+    // TODO: Merge VtableBuilder with AllFieldsBuilder.
+    val vtableBuilders = mutableMapOf<IrClass, ClassVtablesBuilder>()
 
-    fun getVtableBuilder(classDescriptor: IrClass) = vtableBuilders.getOrPut(classDescriptor) {
-        ClassVtablesBuilder(classDescriptor, this)
+    fun getVtableBuilder(irClass: IrClass) = vtableBuilders.getOrPut(irClass) {
+        ClassVtablesBuilder(irClass, this)
+    }
+
+    val allFieldsBuilders = mutableMapOf<IrClass, ClassAllFieldsBuilder>()
+
+    fun getAllFieldsBuilder(irClass: IrClass) = allFieldsBuilders.getOrPut(irClass) {
+        ClassAllFieldsBuilder(irClass, this)
     }
 
     // We serialize untouched descriptor tree and inline IR bodies
@@ -460,6 +468,9 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     lateinit var lifetimes: MutableMap<IrElement, Lifetime>
     lateinit var codegenVisitor: CodeGeneratorVisitor
     var devirtualizationAnalysisResult: Devirtualization.AnalysisResult? = null
+
+    var referencedClasses: Set<IrClass>? = null
+    var referencedFunctions: Set<IrFunction>? = null
 
     val isNativeLibrary: Boolean by lazy {
         val kind = config.configuration.get(KonanConfigKeys.PRODUCE)

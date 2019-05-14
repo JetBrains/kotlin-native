@@ -9,10 +9,9 @@ import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.isAbstract
 import org.jetbrains.kotlin.backend.konan.descriptors.target
 import org.jetbrains.kotlin.backend.konan.ir.*
-import org.jetbrains.kotlin.backend.konan.llvm.functionName
-import org.jetbrains.kotlin.backend.konan.llvm.isExported
-import org.jetbrains.kotlin.backend.konan.llvm.localHash
-import org.jetbrains.kotlin.backend.konan.llvm.symbolName
+import org.jetbrains.kotlin.backend.konan.llvm.*
+import org.jetbrains.kotlin.backend.konan.llvm.KonanMangler.functionName
+import org.jetbrains.kotlin.backend.konan.llvm.KonanMangler.symbolName
 import org.jetbrains.kotlin.backend.konan.lower.bridgeTarget
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
@@ -27,10 +26,7 @@ import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.types.isNothing
 import org.jetbrains.kotlin.ir.types.isUnit
-import org.jetbrains.kotlin.ir.util.fqNameSafe
-import org.jetbrains.kotlin.ir.util.isInterface
-import org.jetbrains.kotlin.ir.util.isSuspend
-import org.jetbrains.kotlin.ir.util.dump
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.load.java.BuiltinMethodsWithSpecialGenericSignature
@@ -122,6 +118,7 @@ internal object DataFlowIR {
         val IS_GLOBAL_INITIALIZER = 1
         val RETURNS_UNIT = 2
         val RETURNS_NOTHING = 4
+        val EXPLICITLY_EXPORTED = 8
     }
 
     class FunctionParameter(val type: Type, val boxFunction: FunctionSymbol?, val unboxFunction: FunctionSymbol?)
@@ -133,6 +130,7 @@ internal object DataFlowIR {
         val isGlobalInitializer = attributes.and(FunctionAttributes.IS_GLOBAL_INITIALIZER) != 0
         val returnsUnit = attributes.and(FunctionAttributes.RETURNS_UNIT) != 0
         val returnsNothing = attributes.and(FunctionAttributes.RETURNS_NOTHING) != 0
+        val explicitlyExported = attributes.and(FunctionAttributes.EXPLICITLY_EXPORTED) != 0
 
         var escapes: Int? = null
         var pointsTo: IntArray? = null
@@ -546,19 +544,19 @@ internal object DataFlowIR {
             return erasure.singleOrNull { !it.isInterface } ?: context.ir.symbols.any.owner
         }
 
-        private fun mapPrimitiveBinaryType(primitiveBinaryType: PrimitiveBinaryType): Type =
-                primitiveMap.getOrPut(primitiveBinaryType) {
-                    Type.Public(
-                            primitiveBinaryType.ordinal.toLong(),
-                            true,
-                            false,
-                            primitiveBinaryType,
-                            module,
-                            -1,
-                            null,
-                            takeName { primitiveBinaryType.name }
-                    )
-                }
+        private fun mapPrimitiveBinaryType(primitiveBinaryType: PrimitiveBinaryType): Type {
+            val irClass = when (primitiveBinaryType) {
+                PrimitiveBinaryType.BOOLEAN -> context.irBuiltIns.booleanClass.owner
+                PrimitiveBinaryType.BYTE -> context.irBuiltIns.byteClass.owner
+                PrimitiveBinaryType.SHORT -> context.irBuiltIns.shortClass.owner
+                PrimitiveBinaryType.INT -> context.irBuiltIns.intClass.owner
+                PrimitiveBinaryType.LONG -> context.irBuiltIns.longClass.owner
+                PrimitiveBinaryType.FLOAT -> context.irBuiltIns.floatClass.owner
+                PrimitiveBinaryType.DOUBLE -> context.irBuiltIns.doubleClass.owner
+                PrimitiveBinaryType.POINTER -> context.ir.symbols.nonNullNativePtr.owner
+            }
+            return mapClassReferenceType(irClass)
+        }
 
         fun mapType(type: IrType, eraseLocalObjects: Boolean = true): Type {
             val binaryType = type.computeBinaryType()
@@ -574,12 +572,6 @@ internal object DataFlowIR {
                             inlinedClass?.let { mapFunction(context.getUnboxFunction(it)) })
                 }
 
-        // TODO: use from LlvmDeclarations.
-        private fun getFqName(declaration: IrDeclaration): FqName =
-                declaration.parent.fqNameSafe.child(declaration.name)
-
-        private val IrFunction.internalName get() = getFqName(this).asString() + "#internal"
-
         fun mapFunction(declaration: IrDeclaration): FunctionSymbol = when (declaration) {
             is IrFunction -> mapFunction(declaration)
             is IrField -> mapPropertyInitializer(declaration)
@@ -589,7 +581,13 @@ internal object DataFlowIR {
         private fun mapFunction(function: IrFunction): FunctionSymbol = function.target.let {
             functionMap[it]?.let { return it }
 
-            val name = if (it.isExported()) it.symbolName else it.internalName
+            val parent = it.parent
+
+            val containingDeclarationPart = parent.fqNameSafe.let {
+                if (it.isRoot) "" else "$it."
+            }
+            val name = "kfun:$containingDeclarationPart${it.functionName}"
+
             val returnsUnit = it is IrConstructor || (!it.isSuspend && it.returnType.isUnit())
             val returnsNothing = !it.isSuspend && it.returnType.isNothing()
             var attributes = 0
@@ -597,6 +595,11 @@ internal object DataFlowIR {
                 attributes = attributes or FunctionAttributes.RETURNS_UNIT
             if (returnsNothing)
                 attributes = attributes or FunctionAttributes.RETURNS_NOTHING
+            if (it.hasAnnotation(RuntimeNames.exportForCppRuntime)
+                    || (it.getExternalObjCMethodInfo() != null)
+                    || it.hasAnnotation(RuntimeNames.objCMethodImp)) {
+                attributes = attributes or FunctionAttributes.EXPLICITLY_EXPORTED
+            }
             val symbol = when {
                 it.isExternal || (it.symbol in context.irBuiltIns.irBuiltInsSymbols) -> {
                     val escapesAnnotation = it.descriptor.annotations.findAnnotation(FQ_NAME_ESCAPES)

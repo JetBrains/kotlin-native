@@ -165,6 +165,7 @@ private fun initCache(cache: BoxCache, context: Context, cacheName: String,
                       rangeStartName: String, rangeEndName: String) {
 
     val kotlinType = context.irBuiltIns.getKotlinClass(cache)
+    //if (context.referencedClasses?.contains(kotlinType) == false) return
     val staticData = context.llvm.staticData
     val llvmType = staticData.getLLVMType(kotlinType.defaultType)
 

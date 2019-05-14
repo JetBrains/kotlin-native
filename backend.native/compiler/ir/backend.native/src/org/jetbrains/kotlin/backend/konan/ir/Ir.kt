@@ -53,7 +53,9 @@ internal class KonanSymbols(context: Context, private val symbolTable: SymbolTab
     val string = symbolTable.referenceClass(builtIns.string)
     val enum = symbolTable.referenceClass(builtIns.enum)
     val nativePtr = symbolTable.referenceClass(context.nativePtr)
+    val nativePointed = symbolTable.referenceClass(context.interopBuiltIns.nativePointed)
     val nativePtrType = nativePtr.typeWith(arguments = emptyList())
+    val nonNullNativePtr = symbolTable.referenceClass(context.nonNullNativePtr)
 
     private fun unsignedClass(unsignedType: UnsignedType): IrClassSymbol = classById(unsignedType.classId)
 

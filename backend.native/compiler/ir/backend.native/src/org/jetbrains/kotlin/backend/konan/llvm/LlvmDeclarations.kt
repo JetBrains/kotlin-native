@@ -13,14 +13,12 @@ import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.types.isNothing
-import org.jetbrains.kotlin.ir.util.defaultType
-import org.jetbrains.kotlin.ir.util.fqNameSafe
-import org.jetbrains.kotlin.ir.util.hasAnnotation
-import org.jetbrains.kotlin.ir.util.file
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.utils.addToStdlib.assertedCast
 
 internal fun createLlvmDeclarations(context: Context): LlvmDeclarations {
     val generator = DeclarationsGeneratorVisitor(context)
@@ -44,14 +42,14 @@ internal class LlvmDeclarations(
     private val fields: Map<IrField, FieldLlvmDeclarations>,
     private val staticFields: Map<IrField, StaticFieldLlvmDeclarations>,
     private val unique: Map<UniqueKind, UniqueLlvmDeclarations>) {
-    fun forFunction(function: IrFunction) = forFunctionOrNull(function) ?: with(function){error("$name in $file/${parent.fqNameSafe}")}
+    fun forFunction(function: IrFunction) = forFunctionOrNull(function) ?: error("${function.name} in ${(function.parent as? IrDeclaration)?.name ?: "<file: ${(function.parent as IrFile).fqName}>"}")
     fun forFunctionOrNull(function: IrFunction) = functions[function]
 
     fun forClass(irClass: IrClass) = classes[irClass] ?:
             error(irClass.descriptor.toString())
 
     fun forField(field: IrField) = fields[field] ?:
-            error(field.descriptor.toString())
+            error("${field.name} in ${(field.parent as? IrDeclaration)?.name ?: "<file: ${(field.parent as IrFile).fqName}>"}")
 
     fun forStaticField(field: IrField) = staticFields[field] ?:
             error(field.descriptor.toString())
@@ -65,7 +63,6 @@ internal class LlvmDeclarations(
 
 internal class ClassLlvmDeclarations(
         val bodyType: LLVMTypeRef,
-        val fields: List<IrField>, // TODO: it is not an LLVM declaration.
         val typeInfoGlobal: StaticData.Global,
         val writableTypeInfoGlobal: StaticData.Global?,
         val typeInfo: ConstPointer,
@@ -87,53 +84,6 @@ internal class FieldLlvmDeclarations(val index: Int, val classBodyType: LLVMType
 internal class StaticFieldLlvmDeclarations(val storage: LLVMValueRef)
 
 internal class UniqueLlvmDeclarations(val pointer: ConstPointer)
-
-// TODO: rework getFields and getDeclaredFields.
-
-/**
- * All fields of the class instance.
- * The order respects the class hierarchy, i.e. a class [fields] contains superclass [fields] as a prefix.
- */
-internal fun ContextUtils.getFields(irClass: IrClass) = context.getFields(irClass)
-
-internal fun Context.getFields(irClass: IrClass): List<IrField> {
-    val superClass = irClass.getSuperClassNotAny() // TODO: what if Any has fields?
-    val superFields = if (superClass != null) getFields(superClass) else emptyList()
-
-    return superFields + getDeclaredFields(irClass)
-}
-
-/**
- * Fields declared in the class.
- */
-private fun Context.getDeclaredFields(irClass: IrClass): List<IrField> {
-    // TODO: Here's what is going on here:
-    // The existence of a backing field for a property is only described in the IR,
-    // but not in the PropertyDescriptor.
-    //
-    // We mark serialized properties with a Konan protobuf extension bit,
-    // so it is present in DeserializedPropertyDescriptor.
-    //
-    // In this function we check the presence of the backing field
-    // two ways: first we check IR, then we check the protobuf extension.
-
-    val fields = irClass.declarations.mapNotNull {
-        when (it) {
-            is IrField -> it.takeIf { it.isReal }
-            is IrProperty -> it.takeIf { it.isReal }?.konanBackingField
-            else -> null
-        }
-    }
-    // TODO: hack over missed parents in deserialized fields/property declarations.
-    fields.forEach{it.parent = irClass}
-
-    if (irClass.hasAnnotation(FqName.fromSegments(listOf("kotlin", "native", "internal", "NoReorderFields"))))
-        return fields
-
-    return fields.sortedBy {
-        it.fqNameSafe.localHash.value
-    }
-}
 
 private fun ContextUtils.createClassBodyType(name: String, fields: List<IrField>): LLVMTypeRef {
     val fieldTypes = listOf(runtime.objHeaderType) + fields.map { getLLVMType(it.type) }
@@ -205,7 +155,8 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
     }
 
     override fun visitClass(declaration: IrClass) {
-        this.classes[declaration] = createClassDeclarations(declaration)
+        //if (context.referencedClasses?.contains(declaration) != false)
+            this.classes[declaration] = createClassDeclarations(declaration)
 
         super.visitClass(declaration)
     }
@@ -213,7 +164,7 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
     private fun createClassDeclarations(declaration: IrClass): ClassLlvmDeclarations {
         val internalName = qualifyInternalName(declaration)
 
-        val fields = getFields(declaration)
+        val fields = context.getAllFieldsBuilder(declaration).fields
         val bodyType = createClassBodyType("kclassbody:$internalName", fields)
 
         val typeInfoPtr: ConstPointer
@@ -225,7 +176,8 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
             "ktype:$internalName"
         }
 
-        if (declaration.typeInfoHasVtableAttached) {
+        if (declaration.typeInfoHasVtableAttached
+                /*&& context.referencedClasses?.contains(declaration) != false*/) {
             // Create the special global consisting of TypeInfo and vtable.
 
             val typeInfoGlobalName = "ktypeglobal:$internalName"
@@ -290,7 +242,7 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
             it.setZeroInitializer()
         }
 
-        return ClassLlvmDeclarations(bodyType, fields, typeInfoGlobal, writableTypeInfoGlobal, typeInfoPtr,
+        return ClassLlvmDeclarations(bodyType, typeInfoGlobal, writableTypeInfoGlobal, typeInfoPtr,
                 singletonDeclarations, objCDeclarations)
     }
 
@@ -365,9 +317,11 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
 
         val containingClass = declaration.parent as? IrClass
         if (containingClass != null) {
+//            if (context.referencedClasses?.contains(containingClass) == false)
+//                return
             val classDeclarations = this.classes[containingClass] ?:
                 error(containingClass.descriptor.toString())
-            val allFields = classDeclarations.fields
+            val allFields = context.getAllFieldsBuilder(containingClass).fields
             this.fields[declaration] = FieldLlvmDeclarations(
                     allFields.indexOf(declaration) + 1, // First field is ObjHeader.
                     classDeclarations.bodyType
@@ -386,9 +340,17 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
     override fun visitFunction(declaration: IrFunction) {
         super.visitFunction(declaration)
 
-        if (!declaration.isReal) return
+        if (!declaration.isReal || context.referencedFunctions?.contains(declaration) == false) return
+
+//        if (declaration.name.asString().contains("NativePointed-unbox"))
+//            println("QXX")
 
         val llvmFunctionType = getLlvmFunctionType(declaration)
+
+//        if (declaration.name.asString().contains("NativePointed-unbox")) {
+//            println(llvmtype2string(llvmFunctionType))
+//            println(declaration.returnType.computePrimitiveBinaryTypeOrNull())
+//        }
 
         if ((declaration is IrConstructor && declaration.isObjCConstructor)) {
             return
