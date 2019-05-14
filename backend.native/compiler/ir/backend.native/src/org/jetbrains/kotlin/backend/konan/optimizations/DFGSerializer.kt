@@ -563,24 +563,26 @@ internal object DFGSerializer {
         }
     }
 
-    class ArrayRead(val array: Edge, val index: Edge) {
+    class ArrayRead(val array: Edge, val index: Edge, val type: Int) {
 
-        constructor(data: ArraySlice) : this(Edge(data), Edge(data))
+        constructor(data: ArraySlice) : this(Edge(data), Edge(data), data.readInt())
 
         fun write(result: ArraySlice) {
             array.write(result)
             index.write(result)
+            result.writeInt(type)
         }
     }
 
-    class ArrayWrite(val array: Edge, val index: Edge, val value: Edge) {
+    class ArrayWrite(val array: Edge, val index: Edge, val value: Edge, val type: Int) {
 
-        constructor(data: ArraySlice) : this(Edge(data), Edge(data), Edge(data))
+        constructor(data: ArraySlice) : this(Edge(data), Edge(data), Edge(data), data.readInt())
 
         fun write(result: ArraySlice) {
             array.write(result)
             index.write(result)
             value.write(result)
+            result.writeInt(type)
         }
     }
 
@@ -704,11 +706,11 @@ internal object DFGSerializer {
             fun fieldWrite(receiver: Edge?, field: Field, value: Edge) =
                     Node().also { it.fieldWrite = FieldWrite(receiver, field, value) }
 
-            fun arrayRead(array: Edge, index: Edge) =
-                    Node().also { it.arrayRead = ArrayRead(array, index) }
+            fun arrayRead(array: Edge, index: Edge, type: Int) =
+                    Node().also { it.arrayRead = ArrayRead(array, index, type) }
 
-            fun arrayWrite(array: Edge, index: Edge, value: Edge) =
-                    Node().also { it.arrayWrite = ArrayWrite(array, index, value) }
+            fun arrayWrite(array: Edge, index: Edge, value: Edge, type: Int) =
+                    Node().also { it.arrayWrite = ArrayWrite(array, index, value, type) }
 
             fun variable(values: Array<Edge>, type: Int, kind: DataFlowIR.VariableKind) =
                     Node().also { it.variable = Variable(values, type, kind.ordinal.toByte()) }
@@ -944,10 +946,10 @@ internal object DFGSerializer {
                                         Node.fieldWrite(node.receiver?.let { buildEdge(it) }, buildField(node.field), buildEdge(node.value))
 
                                     is DataFlowIR.Node.ArrayRead ->
-                                        Node.arrayRead(buildEdge(node.array), buildEdge(node.index))
+                                        Node.arrayRead(buildEdge(node.array), buildEdge(node.index), typeMap[node.type]!!)
 
                                     is DataFlowIR.Node.ArrayWrite ->
-                                        Node.arrayWrite(buildEdge(node.array), buildEdge(node.index), buildEdge(node.value))
+                                        Node.arrayWrite(buildEdge(node.array), buildEdge(node.index), buildEdge(node.value), typeMap[node.type]!!)
 
                                     is DataFlowIR.Node.Variable ->
                                         Node.variable(node.values.map { buildEdge(it) }.toTypedArray(), typeMap[node.type]!!, node.kind)
@@ -1209,12 +1211,12 @@ internal object DFGSerializer {
 
                             NodeType.ARRAY_READ -> {
                                 val arrayRead = it.arrayRead!!
-                                DataFlowIR.Node.ArrayRead(deserializeEdge(arrayRead.array), deserializeEdge(arrayRead.index), null)
+                                DataFlowIR.Node.ArrayRead(deserializeEdge(arrayRead.array), deserializeEdge(arrayRead.index), types[arrayRead.type], null)
                             }
 
                             NodeType.ARRAY_WRITE -> {
                                 val arrayWrite = it.arrayWrite!!
-                                DataFlowIR.Node.ArrayWrite(deserializeEdge(arrayWrite.array), deserializeEdge(arrayWrite.index), deserializeEdge(arrayWrite.value))
+                                DataFlowIR.Node.ArrayWrite(deserializeEdge(arrayWrite.array), deserializeEdge(arrayWrite.index), deserializeEdge(arrayWrite.value), types[arrayWrite.type])
                             }
 
                             NodeType.VARIABLE -> {
