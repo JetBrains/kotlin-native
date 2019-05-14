@@ -354,7 +354,7 @@ private class ExportedElement(val kind: ElementKind,
 
     fun makeClassDeclaration(): String {
         assert(isClass)
-        val typeGetter = "extern \"C\" KType* ${cname}_type(void);"
+        val typeGetter = "extern \"C\" ${owner.prefix}_KType* ${cname}_type(void);"
         val instanceGetter = if (isSingletonObject) {
             val objectClassC = owner.translateType(declaration as ClassDescriptor)
             """
@@ -734,7 +734,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
                     element.isFunction ->
                         output(element.makeFunctionPointerString(), indent)
                     element.isClass -> {
-                        output("KType* (*_type)(void);", indent)
+                        output("${prefix}_KType* (*_type)(void);", indent)
                         if (element.isSingletonObject) {
                             output("${translateType(element.declaration as ClassDescriptor)} (*_instance)();", indent)
                         }
@@ -841,8 +841,8 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         output("typedef float              ${prefix}_KFloat;")
         output("typedef double             ${prefix}_KDouble;")
         output("typedef void*              ${prefix}_KNativePtr;")
-        output("struct KType;")
-        output("typedef struct KType KType;")
+        output("struct ${prefix}_KType;")
+        output("typedef struct ${prefix}_KType ${prefix}_KType;")
 
         output("")
         defineUsedTypes(top, 0)
@@ -855,7 +855,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         output("/* Service functions. */", 1)
         output("void (*DisposeStablePointer)(${prefix}_KNativePtr ptr);", 1)
         output("void (*DisposeString)(const char* string);", 1)
-        output("${prefix}_KBoolean (*IsInstance)(${prefix}_KNativePtr ref, const KType* type);", 1)
+        output("${prefix}_KBoolean (*IsInstance)(${prefix}_KNativePtr ref, const ${prefix}_KType* type);", 1)
 
         output("")
         output("/* User functions. */", 1)
@@ -955,7 +955,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         |static void DisposeStringImpl(const char* ptr) {
         |  DisposeCString((char*)ptr);
         |}
-        |static ${prefix}_KBoolean IsInstanceImpl(${prefix}_KNativePtr ref, const KType* type) {
+        |static ${prefix}_KBoolean IsInstanceImpl(${prefix}_KNativePtr ref, const ${prefix}_KType* type) {
         |  KObjHolder holder;
         |  return IsInstance(DerefStablePointer(ref, holder.slot()), (const KTypeInfo*)type);
         |}
