@@ -67,7 +67,7 @@ struct AssociatedObjectTableRecord {
   OBJ_GETTER0((*getAssociatedObjectInstance));
 };
 
-OBJ_GETTER(Kotlin_TypeInfo_getAssociatedObject, KNativePtr typeInfo, KNativePtr key) {
+OBJ_GETTER(Kotlin_TypeInfo_findAssociatedObject, KNativePtr typeInfo, KNativePtr key) {
   const AssociatedObjectTableRecord* associatedObjects = reinterpret_cast<const TypeInfo*>(typeInfo)->associatedObjects;
   if (associatedObjects == nullptr) {
     RETURN_OBJ(nullptr);

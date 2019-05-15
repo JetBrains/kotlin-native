@@ -11,9 +11,11 @@ import kotlin.reflect.*
 @Test
 @UseExperimental(ExperimentalAssociatedObjects::class)
 fun runTest() {
-    assertSame(Bar, Foo::class.getAssociatedObject(Associated1::class))
-    assertSame(Baz, Foo::class.getAssociatedObject(Associated2::class))
-    assertSame(null, Foo::class.getAssociatedObject(Associated3::class))
+    assertSame(Bar, Foo::class.findAssociatedObject<Associated1>())
+    assertSame(Baz, Foo::class.findAssociatedObject<Associated2>())
+    assertSame(null, Foo::class.findAssociatedObject<Associated3>())
+
+    assertSame(null, Bar::class.findAssociatedObject<Associated1>())
 }
 
 @UseExperimental(ExperimentalAssociatedObjects::class)

@@ -17,9 +17,5 @@ annotation class ExperimentalAssociatedObjects
 annotation class AssociatedObjectKey
 
 @ExperimentalAssociatedObjects
-fun KClass<*>.getAssociatedObject(key: KClass<*>): Any? =
-        if (this is KClassImpl<*> && key is KClassImpl<*>) {
-            this.getAssociatedObjectImpl(key)
-        } else {
-            null
-        }
+inline fun <reified T> KClass<*>.findAssociatedObject(): Any? =
+        this.findAssociatedObject(T::class)
