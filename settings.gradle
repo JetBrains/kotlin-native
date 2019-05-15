@@ -29,7 +29,13 @@ include ':common'
 include ':backend.native:tests'
 include ':backend.native:debugger-tests'
 include ':utilities'
-//include ':performance'    TODO: return when there is one HostManager class version
+include ':performance'    //TODO: return when there is one HostManager class version
+include ':performance:ring'
+include ':performance:cinterop'
+include ':performance:helloworld'
+include ':performance:videoplayer'
+include ':performance:framework'
+include ':performance:objcinterop'
 //include ':tools:benchmarksAnalyzer'
 include ':platformLibs'
 

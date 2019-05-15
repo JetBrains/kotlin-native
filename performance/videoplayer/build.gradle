@@ -47,4 +47,4 @@ project.ext {
                                       "-Xmulti-platform", "$dist/../samples/videoplayer/src/videoPlayerMain/kotlin",
                                       "-entry", "sample.videoplayer.main"] + linkerOpts]
 }
-apply from: rootProject.file("${rootProject.rootDir}/gradle/compileBenchmark.gradle")
+apply from: rootProject.file("${rootProject.rootDir}/performance/gradle/compileBenchmark.gradle")

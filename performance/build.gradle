@@ -1,3 +1,10 @@
+import org.jetbrains.kotlin.RegressionsReporter
+import org.jetbrains.kotlin.RegressionsSummaryReporter
+import org.jetbrains.kotlin.BuildRegister
+import org.jetbrains.kotlin.MPPTools
+import org.jetbrains.kotlin.RunKotlinNativeTask
+import org.jetbrains.kotlin.RunJvmTask
+
 buildscript {
     ext.rootBuildDirectory = file('..')
 

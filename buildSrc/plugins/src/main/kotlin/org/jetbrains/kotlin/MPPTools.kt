@@ -5,6 +5,8 @@
 
 @file:JvmName("MPPTools")
 
+package org.jetbrains.kotlin
+
 import groovy.lang.Closure
 import org.gradle.api.Project
 import org.gradle.api.Task
@@ -27,16 +29,6 @@ import java.util.Base64
  * This file includes short-cuts that may potentially be implemented in Kotlin MPP Gradle plugin in the future.
  */
 
-// Short-cuts for detecting the host OS.
-@get:JvmName("isMacos")
-val isMacos by lazy { hostOs == "Mac OS X" }
-
-@get:JvmName("isWindows")
-val isWindows by lazy { hostOs.startsWith("Windows") }
-
-@get:JvmName("isLinux")
-val isLinux by lazy { hostOs == "Linux" }
-
 // Short-cuts for mostly used paths.
 @get:JvmName("mingwPath")
 val mingwPath by lazy { System.getenv("MINGW64_DIR") ?: "c:/msys64/mingw64" }
@@ -57,9 +49,9 @@ fun defaultHostPreset(
         throw Exception("Preset whitelist must not be empty in Kotlin/Native ${subproject.displayName}.")
 
     val presetCandidate = when {
-        isMacos -> subproject.kotlin.presets.macosX64
-        isLinux -> subproject.kotlin.presets.linuxX64
-        isWindows -> subproject.kotlin.presets.mingwX64
+        PlatformInfo.isMac() -> subproject.kotlin.presets.macosX64
+        PlatformInfo.isLinux() -> subproject.kotlin.presets.linuxX64
+        PlatformInfo.isWindows() -> subproject.kotlin.presets.mingwX64
         else -> null
     }
 
@@ -70,9 +62,9 @@ fun defaultHostPreset(
 }
 
 fun getNativeProgramExtension(): String = when {
-    isMacos -> ".kexe"
-    isLinux -> ".kexe"
-    isWindows -> ".exe"
+    PlatformInfo.isMac() -> ".kexe"
+    PlatformInfo.isLinux() -> ".kexe"
+    PlatformInfo.isWindows() -> ".exe"
     else -> error("Unknown host")
 }
 
