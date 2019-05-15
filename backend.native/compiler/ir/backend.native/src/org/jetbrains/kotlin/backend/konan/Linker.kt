@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.konan.KonanExternalToolFailure
 import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.Family
+import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.target.LinkerOutputKind
 
 internal fun determineLinkerOutput(context: Context): LinkerOutputKind =
@@ -17,6 +18,13 @@ internal fun determineLinkerOutput(context: Context): LinkerOutputKind =
             CompilerOutputKind.PROGRAM -> LinkerOutputKind.EXECUTABLE
             else -> TODO("${context.config.produce} should not reach native linker stage")
         }
+
+// TODO: Move to a more appropriate place.
+internal val KonanTarget.isAppleTarget: Boolean
+        get() = family == Family.IOS || family == Family.OSX
+
+internal val KonanTarget.isTvOs: Boolean
+        get() = this == KonanTarget.TVOS_ARM64 || this == KonanTarget.TVOS_X64
 
 // TODO: We have a Linker.kt file in the shared module.
 internal class Linker(val context: Context) {

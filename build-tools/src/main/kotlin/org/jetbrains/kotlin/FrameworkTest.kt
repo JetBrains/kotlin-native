@@ -93,6 +93,8 @@ open class FrameworkTest : DefaultTask() {
         val swiftPlatform = when (target) {
             KonanTarget.IOS_X64 -> "iphonesimulator"
             KonanTarget.IOS_ARM32, KonanTarget.IOS_ARM64 -> "iphoneos"
+            KonanTarget.TVOS_X64 -> "appletvsimulator"
+            KonanTarget.TVOS_ARM64 -> "appletvos"
             KonanTarget.MACOS_X64 -> "macosx"
             else -> throw IllegalStateException("Test target $target is not supported")
         }
@@ -101,7 +103,7 @@ open class FrameworkTest : DefaultTask() {
                 ?: throw RuntimeException("Executor wasn't found")
         // Hopefully, lexicographical comparison will work.
         val newMacos = System.getProperty("os.version").compareTo("10.14.4") >= 0
-        val dyldLibraryPathKey = if (target == KonanTarget.IOS_X64) {
+        val dyldLibraryPathKey = if (target == KonanTarget.IOS_X64 || target == KonanTarget.TVOS_X64) {
             "SIMCTL_CHILD_DYLD_LIBRARY_PATH"
         } else {
             "DYLD_LIBRARY_PATH"
@@ -131,9 +133,10 @@ open class FrameworkTest : DefaultTask() {
         val bitcodeBuildTool = "${configurables.absoluteAdditionalToolsDir}/bin/bitcode-build-tool"
         val ldPath = "${configurables.absoluteTargetToolchain}/usr/bin/ld"
         val sdk = when (testTarget) {
-            KonanTarget.IOS_X64 -> return // bitcode-build-tool doesn't support iPhone Simulator.
+            KonanTarget.IOS_X64, KonanTarget.TVOS_X64 -> return // bitcode-build-tool doesn't support iPhone Simulator.
             KonanTarget.IOS_ARM64, KonanTarget.IOS_ARM32 -> Xcode.current.iphoneosSdk
             KonanTarget.MACOS_X64 -> Xcode.current.macosxSdk
+            KonanTarget.TVOS_ARM64 -> Xcode.current.appletvosSdk
             else -> error("Cannot validate bitcode for test target $testTarget")
         }
 

@@ -250,21 +250,21 @@ private fun selectBitcodeEmbeddingMode(
         outputKind: CompilerOutputKind
 ): BitcodeEmbedding.Mode {
 
-    if (outputKind != CompilerOutputKind.FRAMEWORK) {
-        return BitcodeEmbedding.Mode.NONE.also {
-            val flag = when {
-                arguments.embedBitcodeMarker -> EMBED_BITCODE_MARKER_FLAG
-                arguments.embedBitcode -> EMBED_BITCODE_FLAG
-                else -> return@also
-            }
-
-            configuration.report(
-                    STRONG_WARNING,
-                    "'$flag' is only supported when producing frameworks, " +
-                            "but the compiler is producing ${outputKind.name.toLowerCase()}"
-            )
-        }
-    }
+//    if (outputKind != CompilerOutputKind.FRAMEWORK) {
+//        return BitcodeEmbedding.Mode.NONE.also {
+//            val flag = when {
+//                arguments.embedBitcodeMarker -> EMBED_BITCODE_MARKER_FLAG
+//                arguments.embedBitcode -> EMBED_BITCODE_FLAG
+//                else -> return@also
+//            }
+//
+//            configuration.report(
+//                    STRONG_WARNING,
+//                    "'$flag' is only supported when producing frameworks, " +
+//                            "but the compiler is producing ${outputKind.name.toLowerCase()}"
+//            )
+//        }
+//    }
 
     return when {
         arguments.embedBitcodeMarker -> {

@@ -25,6 +25,8 @@ interface Xcode {
     val iphoneosSdk: String
     val iphonesimulatorSdk: String
     val version: String
+    val appletvosSdk: String
+    val appletvsimulatorSdk: String
     // Xcode.app/Contents/Developer/usr
     val additionalTools: String
 
@@ -50,6 +52,8 @@ private object CurrentXcode : Xcode {
     override val macosxSdk by lazy { getSdkPath("macosx") }
     override val iphoneosSdk by lazy { getSdkPath("iphoneos") }
     override val iphonesimulatorSdk by lazy { getSdkPath("iphonesimulator") }
+    override val appletvosSdk by lazy { getSdkPath("appletvos") }
+    override val appletvsimulatorSdk by lazy { getSdkPath("appletvsimulator") }
 
     override val version by lazy {
         xcrun("xcodebuild", "-version")

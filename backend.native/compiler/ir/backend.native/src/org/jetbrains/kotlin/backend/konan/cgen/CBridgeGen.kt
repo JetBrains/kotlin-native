@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.backend.common.lower.irNot
 import org.jetbrains.kotlin.backend.konan.PrimitiveBinaryType
 import org.jetbrains.kotlin.backend.konan.RuntimeNames
 import org.jetbrains.kotlin.backend.konan.ir.*
+import org.jetbrains.kotlin.backend.konan.isAppleTarget
 import org.jetbrains.kotlin.backend.konan.isObjCMetaClass
 import org.jetbrains.kotlin.builtins.UnsignedType
 import org.jetbrains.kotlin.descriptors.ClassKind
@@ -809,7 +810,7 @@ private fun KotlinStubs.mapType(
 }
 
 private fun KotlinStubs.isObjCReferenceType(type: IrType): Boolean {
-    if (target.family != Family.OSX && target.family != Family.IOS) return false
+    if (!target.isAppleTarget) return false
 
     // Handle the same types as produced by [objCPointerMirror] in Interop/StubGenerator/.../Mappings.kt.
 
