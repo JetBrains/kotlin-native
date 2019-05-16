@@ -113,7 +113,7 @@ afterEvaluate {
 
 private def determinePreset() {
     def preset = null
-    if (isRaspberryPiBuild()) {
+    if (isRaspberryPi32Build()) {
         preset = kotlin.presets.linuxArm32Hfp // aka RaspberryPi
     } else if (isMingwX86Build()) {
         preset = kotlin.presets.mingwX86
@@ -126,9 +126,9 @@ private def determinePreset() {
     preset
 }
 
-// If host platform is Linux and RaspberryPi target is activated.
-private boolean isRaspberryPiBuild() {
-    MPPTools.isLinux() && Boolean.parseBoolean(project.findProperty('tetris.raspberrypi.build') as String)
+// If host platform is Linux and RaspberryPi 32-bit target is activated.
+private boolean isRaspberryPi32Build() {
+    MPPTools.isLinux() && Boolean.parseBoolean(project.findProperty('tetris.raspberrypi_32.build') as String)
 }
 
 // If host platform is Windows and x86 target is activated.
