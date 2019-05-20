@@ -21,7 +21,9 @@ buildscript {
     }
 
     ext.konanHome = distDir.absolutePath
-    def jvmArguments = [project.findProperty("platformLibsJvmArgs") ?: "-Xmx6G", *HostManager.defaultJvmArgs]
+    // We must use -Xrs (reduce signals) to avoid nasty race condition in libclang's llvm::sys::fs::TempFile::create
+    // which install signal handler to ensure temporary file is always deleted.
+    def jvmArguments = [project.findProperty("platformLibsJvmArgs") ?: "-Xmx6G", *HostManager.defaultJvmArgs, "-Xrs"]
     ext.jvmArgs = jvmArguments.join(" ")
     ext.setProperty("org.jetbrains.kotlin.native.home", konanHome)
     ext.setProperty("konan.jvmArgs", jvmArgs)
