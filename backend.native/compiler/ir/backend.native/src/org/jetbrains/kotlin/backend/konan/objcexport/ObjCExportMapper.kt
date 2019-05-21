@@ -147,6 +147,7 @@ private fun ObjCExportMapper.bridgeType(
 )
 
 private fun ObjCExportMapper.bridgeFunctionType(kotlinType: KotlinType): TypeBridge {
+    // kotlinType.arguments include return type: <P1, P2, ..., Pn, R>
     val numberOfParameters = kotlinType.arguments.size - 1
 
     val returnType = kotlinType.getReturnTypeFromFunctionType()
