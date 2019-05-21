@@ -27,8 +27,8 @@ public annotation class ExperimentalAssociatedObjects
  * Makes the annotated annotation class an associated object key.
  *
  * An associated object key annotation should have single [KClass] parameter.
- * When applied to a class with reference to a singleton as an argument, it binds
- * the singleton instance to the class, making this binding discoverable at runtime using [findAssociatedObject].
+ * When applied to a class with reference to an object declaration as an argument, it binds
+ * the object to the class, making this binding discoverable at runtime using [findAssociatedObject].
  */
 @ExperimentalAssociatedObjects
 @Retention(AnnotationRetention.BINARY)
@@ -37,10 +37,10 @@ public annotation class AssociatedObjectKey
 
 /**
  * If [T] is an @[AssociatedObjectKey]-annotated annotation class and [this] class is annotatated with @[T] (`S::class`),
- * returns the instance of singleton `S`.
+ * returns object `S`.
  *
  * Otherwise returns `null`.
  */
 @ExperimentalAssociatedObjects
-public inline fun <reified T> KClass<*>.findAssociatedObject(): Any? =
+public inline fun <reified T : Annotation> KClass<*>.findAssociatedObject(): Any? =
         this.findAssociatedObject(T::class)
