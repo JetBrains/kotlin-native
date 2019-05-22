@@ -24,6 +24,11 @@ import org.jetbrains.kotlin.konan.target.*
 import org.jetbrains.kotlin.konan.library.resolver.TopologicalLibraryOrder
 import org.jetbrains.kotlin.konan.library.toUnresolvedLibraries
 
+enum class MemoryModel {
+    STRICT,
+    RELAXED
+}
+
 class KonanConfig(val project: Project, val configuration: CompilerConfiguration) {
 
     internal val distribution = Distribution(

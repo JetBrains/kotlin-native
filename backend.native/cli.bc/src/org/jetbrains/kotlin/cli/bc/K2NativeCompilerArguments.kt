@@ -102,6 +102,9 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     @Argument(value="-Xcompatible-compiler-version", valueDescription = "<version>", description = "Assume the given compiler version to be binary compatible")
     var compatibleCompilerVersions: Array<String>? = null
 
+    @Argument(value="-Xrelaxed-memory-model", description = "Generate code for relaxed memory model")
+    var relaxedMemoryModel: Boolean = false
+
     @Argument(value = EMBED_BITCODE_FLAG, description = "Embed LLVM IR bitcode as data")
     var embedBitcode: Boolean = false
 

@@ -50,6 +50,8 @@ class KonanConfigKeys {
                 = CompilerConfigurationKey.create("list available targets")
         val MANIFEST_FILE: CompilerConfigurationKey<String?> 
                 = CompilerConfigurationKey.create("provide manifest addend file")
+        val MEMORY_MODEL: CompilerConfigurationKey<Boolean>
+                = CompilerConfigurationKey.create("don't link with the default libraries")
         val META_INFO: CompilerConfigurationKey<List<String>> 
                 = CompilerConfigurationKey.create("generate metadata")
         val MODULE_KIND: CompilerConfigurationKey<ModuleKind> 
