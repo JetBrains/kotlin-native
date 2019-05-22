@@ -102,7 +102,7 @@ actual class ComplexNumbersBenchmark actual constructor() {
         }
 
         var length = 2
-        while (length <= complexNumbersSequence.size) {
+        while (length < complexNumbersSequence.size) {
             val angle = 2 * PI / length * if (invert) -1 else 1
             val base = Complex(cos(angle), sin(angle))
             for (i in 0 until complexNumbersSequence.size step length) {
@@ -115,6 +115,7 @@ actual class ComplexNumbersBenchmark actual constructor() {
                     value = value.mul(base)!!
                 }
             }
+            length = length shl 1
         }
         return sequence
     }
