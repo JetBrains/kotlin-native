@@ -1,12 +1,27 @@
-project.ext {
-    applicationName = 'ObjCInterop'
-    commonSrcDirs = ['../../tools/benchmarks/shared/src', 'src/main/kotlin', '../shared/src/main/kotlin', '../../tools/kliopt']
-    jvmSrcDirs = ['src/main/kotlin-jvm', '../shared/src/main/kotlin-jvm']
-    nativeSrcDirs = ['src/main/kotlin-native', '../shared/src/main/kotlin-native']
-}
-apply from: rootProject.file("${rootProject.rootDir}/performance/gradle/benchmark.gradle")
-kotlin.targets.native.compilations.main.cinterops {
-    classes {
-        headers "$projectDir/src/nativeInterop/cinterop/complexNumbers.h"
+import org.jetbrains.kotlin.konan.target.HostManager
+import org.jetbrains.kotlin.PlatformInfo
+
+if (PlatformInfo.isAppleTarget(HostManager.host)) {
+    project.ext {
+        applicationName = 'ObjCInterop'
+        commonSrcDirs = ['../../tools/benchmarks/shared/src', 'src/main/kotlin', '../shared/src/main/kotlin', '../../tools/kliopt']
+        jvmSrcDirs = ['src/main/kotlin-jvm', '../shared/src/main/kotlin-jvm']
+        nativeSrcDirs = ['src/main/kotlin-native', '../shared/src/main/kotlin-native']
+        linkerOpts = ["-L$buildDir".toString(), "-lcomplexnumbers".toString()]
     }
+    mkdir buildDir.absolutePath
+    execKonanClang(HostManager.host) {
+        args "$projectDir/src/nativeInterop/cinterop/complexNumbers.m"
+        args "-lobjc", '-fobjc-arc'
+        args '-fPIC', '-shared', '-o', "$buildDir/libcomplexnumbers.dylib"
+    }
+
+    apply from: rootProject.file("${rootProject.rootDir}/performance/gradle/benchmark.gradle")
+    kotlin.targets.native.compilations.main.cinterops {
+        classes {
+            headers "$projectDir/src/nativeInterop/cinterop/complexNumbers.h"
+        }
+    }
+} else {
+    println("Skip Objective C benchmarks which are expected to run on Apple targets.")
 }

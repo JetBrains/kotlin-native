@@ -19,6 +19,11 @@ object PlatformInfo {
     }
 
     @JvmStatic
+    fun isAppleTarget(target: KonanTarget): Boolean {
+        return target.family == Family.IOS || target.family == Family.OSX
+    }
+
+    @JvmStatic
     fun isWindowsTarget(project: Project) = getTarget(project).family == Family.MINGW
 
     @JvmStatic

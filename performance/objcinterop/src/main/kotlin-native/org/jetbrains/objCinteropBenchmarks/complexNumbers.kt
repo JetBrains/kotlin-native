@@ -96,7 +96,7 @@ actual class ComplexNumbersBenchmark actual constructor() {
         val sequence = complexNumbersSequence.toTypedArray()
 
         sequence.forEachIndexed { index, number ->
-            if (index < revert(index, lg)) {
+            if (index < revert(index, lg) && revert(index, lg) < sequence.size) {
                 sequence[index] = sequence[revert(index, lg)].also { sequence[revert(index, lg)] = sequence[index] }
             }
         }

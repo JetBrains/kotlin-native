@@ -12,6 +12,7 @@ import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.tasks.TaskState
 import org.gradle.api.execution.TaskExecutionListener
+import org.gradle.api.tasks.AbstractExecTask
 import org.jetbrains.kotlin.gradle.plugin.KotlinTargetPreset
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.report.*
@@ -153,10 +154,10 @@ fun sendUploadRequest(url: String, fileName: String, username: String? = null, p
 fun createRunTask(
         subproject: Project,
         name: String,
-        target: KotlinNativeTarget,
+        runTask: AbstractExecTask<*>,
         configureClosure: Closure<Any>? = null
 ): Task {
-    val task = subproject.tasks.create(name, RunKotlinNativeTask::class.java, target)
+    val task = subproject.tasks.create(name, RunKotlinNativeTask::class.java, runTask)
     task.configure(configureClosure ?: task.emptyConfigureClosure())
     return task
 }
