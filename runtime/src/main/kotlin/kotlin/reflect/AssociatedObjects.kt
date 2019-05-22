@@ -8,12 +8,7 @@ package kotlin.reflect
 import kotlin.native.internal.*
 
 /**
- * This annotation marks the associated objects API that is considered experimental and is not subject to the
- * [general compatibility guarantees](https://kotlinlang.org/docs/reference/evolution/components-stability.html) given for the standard library:
- * the behavior of such API may be changed or the API may be removed completely in any further release.
- *
- * > Beware using the annotated API especially if you're developing a library, since your library might become binary incompatible
- * with the future versions of the standard library.
+ * The experimental marker for associated objects API.
  *
  * Any usage of a declaration annotated with `@ExperimentalAssociatedObjects` must be accepted either by
  * annotating that usage with the [UseExperimental] annotation, e.g. `@UseExperimental(ExperimentalAssociatedObjects::class)`,
