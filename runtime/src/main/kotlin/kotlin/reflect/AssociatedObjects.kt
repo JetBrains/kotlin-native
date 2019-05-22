@@ -31,7 +31,7 @@ public annotation class ExperimentalAssociatedObjects
 public annotation class AssociatedObjectKey
 
 /**
- * If [T] is an @[AssociatedObjectKey]-annotated annotation class and [this] class is annotatated with @[T] (`S::class`),
+ * If [T] is an @[AssociatedObjectKey]-annotated annotation class and [this] class is annotated with @[T] (`S::class`),
  * returns object `S`.
  *
  * Otherwise returns `null`.
