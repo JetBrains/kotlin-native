@@ -96,7 +96,7 @@ actual class ComplexNumbersBenchmark actual constructor() {
         val sequence = complexNumbersSequence.toTypedArray()
 
         sequence.forEachIndexed { index, number ->
-            if (index < revert(index, lg) && revert(index, lg) < sequence.size) {
+            if (index < revert(index, lg) && revert(index, lg) < complexNumbersSequence.size) {
                 sequence[index] = sequence[revert(index, lg)].also { sequence[revert(index, lg)] = sequence[index] }
             }
         }
@@ -105,7 +105,7 @@ actual class ComplexNumbersBenchmark actual constructor() {
         while (length < complexNumbersSequence.size) {
             val angle = 2 * PI / length * if (invert) -1 else 1
             val base = Complex(cos(angle), sin(angle))
-            for (i in 0 until complexNumbersSequence.size step length) {
+            for (i in 0 until complexNumbersSequence.size / 2 step length) {
                 var value = Complex(1.0, 1.0)
                 for (j in 0 until length/2) {
                     val first = sequence[i + j]
@@ -127,8 +127,8 @@ actual class ComplexNumbersBenchmark actual constructor() {
     actual fun invertFft() {
         val sequence = fftRoutine(true)
 
-        sequence.forEachIndexed { index, _ ->
-            sequence[index] = sequence[index].div(Complex(sequence.size.toDouble(), 0.0))!!
+        sequence.forEachIndexed { index, number ->
+            sequence[index] = number.div(Complex(sequence.size.toDouble(), 0.0)) ?: Complex(0.0, 0.0)
         }
     }
 }
