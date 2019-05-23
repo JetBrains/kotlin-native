@@ -57,17 +57,20 @@ internal fun ThrowWorkerInvalidState(): Unit =
 internal fun WorkerLaunchpad(function: () -> Any?) = function()
 
 @PublishedApi
-@SymbolName("Kotlin_Worker_detachObjectGraphInternal")
+@SymbolName("Kotlin_Concurrent_detachObjectGraphInternal")
 external internal fun detachObjectGraphInternal(mode: Int, producer: () -> Any?): NativePtr
 
 @PublishedApi
-@SymbolName("Kotlin_Worker_attachObjectGraphInternal")
+@SymbolName("Kotlin_Concurrent_attachObjectGraphInternal")
 external internal fun attachObjectGraphInternal(stable: NativePtr): Any?
 
-@SymbolName("Kotlin_Worker_freezeInternal")
+@SymbolName("Kotlin_Concurrent_freezeInternal")
 internal external fun freezeInternal(it: Any?)
 
-@SymbolName("Kotlin_Worker_isFrozenInternal")
+@SymbolName("Kotlin_Concurrent_toFrozenInternal")
+internal external fun toFrozenInternal(it: Any?): Any?
+
+@SymbolName("Kotlin_Concurrent_isFrozenInternal")
 internal external fun isFrozenInternal(it: Any?): Boolean
 
 @ExportForCppRuntime

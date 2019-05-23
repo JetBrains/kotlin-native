@@ -88,6 +88,7 @@ constexpr size_t kFinalizerQueueThreshold = 32;
 }  // namespace
 
 typedef KStdUnorderedSet<ContainerHeader*> ContainerHeaderSet;
+typedef KStdUnorderedMap<ObjHeader*, ObjHeader*> ObjHeaderMap;
 typedef KStdVector<ContainerHeader*> ContainerHeaderList;
 typedef KStdVector<KRef*> KRefPtrList;
 typedef KStdDeque<ContainerHeader*> ContainerHeaderDeque;
@@ -2250,6 +2251,56 @@ void FreezeSubgraph(ObjHeader* root) {
     }
   }
 #endif
+}
+
+void deepFrozenCopyTo(ObjHeader* to, ObjHeader* from, ObjHeaderMap* translationMap);
+
+void changeToCopyIfNeeded(ObjHeader** location, ObjHeaderMap* translationMap) {
+  auto* object = *location;
+  if (object == nullptr) return;
+  if (PermanentOrFrozen(object)) {
+    AddHeapRef(object);
+    return;
+  }
+  auto substitution = translationMap->find(object);
+  if (substitution != translationMap->end()) {
+    *location = substitution->second;
+    AddHeapRef(*location);
+  } else {
+    ObjHolder result;
+    auto* clone = AllocInstance(object->type_info(), result.slot());
+    SetHeapRef(location, clone);
+    deepFrozenCopyTo(clone, object, translationMap);
+  }
+}
+
+void deepFrozenCopyTo(ObjHeader* to, ObjHeader* from, ObjHeaderMap* translationMap) {
+   (*translationMap)[from] = to;
+   ::memcpy(to, from, objectSize(from));
+   // Now, translate references.
+   const TypeInfo* typeInfo = to->type_info();
+   if (typeInfo != theArrayTypeInfo) {
+     for (int index = 0; index < typeInfo->objOffsetsCount_; index++) {
+       ObjHeader** location = reinterpret_cast<ObjHeader**>(
+          reinterpret_cast<uintptr_t>(to) + typeInfo->objOffsets_[index]);
+       changeToCopyIfNeeded(location, translationMap);
+     }
+   } else {
+     ArrayHeader* array = to->array();
+     for (int index = 0; index < array->count_; index++) {
+       changeToCopyIfNeeded(ArrayAddressOfElementAt(array, index), translationMap);
+     }
+   }
+}
+
+OBJ_GETTER(ToFrozenForm, ObjHeader* object) {
+  RuntimeAssert(object != nullptr && !PermanentOrFrozen(object), "Must be mutable object");
+  ObjHolder result;
+  ObjHeaderMap translationMap;
+  auto* clone = AllocInstance(object->type_info(), result.slot());
+  deepFrozenCopyTo(clone, object, &translationMap);
+  FreezeSubgraph(clone);
+  RETURN_OBJ(clone);
 }
 
 // This function is called from field mutators to check if object's header is frozen.

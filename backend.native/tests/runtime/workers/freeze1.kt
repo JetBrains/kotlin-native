@@ -11,6 +11,15 @@ import kotlin.native.concurrent.*
 
 data class Node(var previous: Node?, var data: Int)
 
+fun makeAcyclic(count: Int): Node {
+    val first = Node(null, 0)
+    var current = first
+    for (index in 1 .. count - 1) {
+        current = Node(current, index)
+    }
+    return current
+}
+
 fun makeCycle(count: Int): Node {
     val first = Node(null, 0)
     var current = first
@@ -31,7 +40,7 @@ fun makeDiamond(): Node2 {
     return Node2(mid1, mid2)
 }
 
-@Test fun runTest() {
+@Test fun runTest0() {
     makeCycle(10).freeze()
 
     // Must be able to freeze diamond shaped graph.
@@ -43,4 +52,17 @@ fun makeDiamond(): Node2 {
     } catch (e: InvalidMutabilityException) {
         println("OK, cannot mutate frozen")
     }
+}
+
+@Test fun runTest1() {
+    val simple = "Hello"
+    assert(simple.toFrozen() === simple)
+
+    val cycleFrozen = makeCycle(10).toFrozen()
+    assert(cycleFrozen.isFrozen)
+    assert(cycleFrozen === cycleFrozen.toFrozen())
+
+    val diamondFrozen = makeDiamond().toFrozen()
+    assert(diamondFrozen.isFrozen)
+    assert(diamondFrozen === diamondFrozen.toFrozen())
 }

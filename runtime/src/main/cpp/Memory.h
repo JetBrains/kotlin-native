@@ -503,6 +503,8 @@ OBJ_GETTER(AdoptStablePointer, void*) RUNTIME_NOTHROW;
 void MutationCheck(ObjHeader* obj);
 // Freeze object subgraph.
 void FreezeSubgraph(ObjHeader* obj);
+// Transform object to frozen form.
+OBJ_GETTER(ToFrozenForm, ObjHeader* object);
 // Ensure this object shall block freezing.
 void EnsureNeverFrozen(ObjHeader* obj);
 #ifdef __cplusplus

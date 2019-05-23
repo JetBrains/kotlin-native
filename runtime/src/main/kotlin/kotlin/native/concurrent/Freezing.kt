@@ -42,6 +42,19 @@ public fun <T> T.freeze(): T {
 public val Any?.isFrozen
     get() = isFrozenInternal(this)
 
+
+/**
+ * Transforms an object to the frozen form by creating frozen version of the object, by either
+ * deep copy of mutable objects and reusing frozen references. Note, that consequent calls
+ * of this function may return different instances.
+ *
+ * @return the frozen object form
+ * @see ensureNeverFrozen
+ */
+public inline fun <reified T> T.toFrozen(): T =
+        @Suppress("UNCHECKED_CAST", "NON_PUBLIC_CALL_FROM_PUBLIC_INLINE")
+        (toFrozenInternal(this) as T)
+
 /**
  * This function ensures that if we see such an object during freezing attempt - freeze fails and
  * [FreezingException] is thrown.
@@ -49,5 +62,5 @@ public val Any?.isFrozen
  * @throws FreezingException thrown immediately if this object is already frozen
  * @see freeze
  */
-@SymbolName("Kotlin_Worker_ensureNeverFrozen")
+@SymbolName("Kotlin_Concurrent_ensureNeverFrozen")
 public external fun Any.ensureNeverFrozen()

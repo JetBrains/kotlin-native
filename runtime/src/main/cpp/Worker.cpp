@@ -717,24 +717,30 @@ KInt Kotlin_Worker_versionToken() {
   return versionToken();
 }
 
-OBJ_GETTER(Kotlin_Worker_attachObjectGraphInternal, KNativePtr stable) {
+OBJ_GETTER(Kotlin_Concurrent_attachObjectGraphInternal, KNativePtr stable) {
   RETURN_RESULT_OF(attachObjectGraphInternal, stable);
 }
 
-KNativePtr Kotlin_Worker_detachObjectGraphInternal(KInt transferMode, KRef producer) {
+KNativePtr Kotlin_Concurrent_detachObjectGraphInternal(KInt transferMode, KRef producer) {
   return detachObjectGraphInternal(transferMode, producer);
 }
 
-void Kotlin_Worker_freezeInternal(KRef object) {
+void Kotlin_Concurrent_freezeInternal(KRef object) {
   if (object != nullptr)
     FreezeSubgraph(object);
 }
 
-KBoolean Kotlin_Worker_isFrozenInternal(KRef object) {
+KBoolean Kotlin_Concurrent_isFrozenInternal(KRef object) {
   return object == nullptr || PermanentOrFrozen(object);
 }
 
-void Kotlin_Worker_ensureNeverFrozen(KRef object) {
+OBJ_GETTER(Kotlin_Concurrent_toFrozenInternal, KRef object) {
+  if (Kotlin_Concurrent_isFrozenInternal(object))
+    RETURN_OBJ(object);
+  RETURN_RESULT_OF(ToFrozenForm, object);
+}
+
+void Kotlin_Concurrent_ensureNeverFrozen(KRef object) {
   EnsureNeverFrozen(object);
 }
 
