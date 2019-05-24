@@ -14,3 +14,42 @@ linkerOpts = -fPIC
 strictEnums = CXErrorCode CXCursorKind CXTypeKind CXDiagnosticSeverity CXLoadDiag_Error CXSaveError \
     CXTUResourceUsageKind CXLinkageKind CXVisibilityKind CXLanguageKind CXCallingConv CXChildVisitResult \
     CXTokenKind CXEvalResultKind CXVisitorResult CXResult CXIdxEntityKind
+
+---
+#include <dlfcn.h>
+#include <stdio.h>
+#include <signal.h>
+
+#define NUM_PATCHES 1
+
+__attribute__((constructor))
+void initSignalChaining() {
+  const char* toPatch[NUM_PATCHES] = { "sigaction" };
+  void* toPatchGlobal[NUM_PATCHES];
+  void* toPatchInJsig[NUM_PATCHES];
+  void* clang_dso = dlopen("./libclang.dylib", RTLD_GLOBAL | RTLD_FIRST | RTLD_NOW);
+  void* jsig_dso = dlopen("/Library/Java/JavaVirtualMachines/jdk-11.0.2.jdk/Contents/Home/lib/libjsig.dylib", RTLD_GLOBAL | RTLD_NOW);
+  void* clang_sym = dlsym(clang_dso, "clang_createIndex");
+  void** base;
+  int patched = 0;
+  Dl_info info;
+
+  for (int i = 0; i < NUM_PATCHES; i++) {
+    toPatchGlobal[i] = dlsym(RTLD_DEFAULT, toPatch[i]);
+    toPatchInJsig[i] = dlsym(jsig_dso, toPatch[i]);
+  }
+
+  if (!clang_dso || !jsig_dso) return;
+  if (dladdr(clang_sym, &info) == 0) return;
+  base = info.dli_fbase;
+  for (int index = 0; patched < NUM_PATCHES; index++) {
+    void* value = base[index];
+    for (int j = 0; j < NUM_PATCHES; j++) {
+      if (value == toPatchGlobal[j]) {
+        printf("patching %s at %x: %p\n", toPatch[j], index * sizeof(void*), base + index);
+        base[index] = toPatchInJsig[j];
+        patched++;
+      }
+    }
+  }
+}
