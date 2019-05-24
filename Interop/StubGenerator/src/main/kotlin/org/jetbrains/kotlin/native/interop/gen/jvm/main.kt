@@ -24,6 +24,8 @@ import org.jetbrains.kotlin.native.interop.gen.wasm.processIdlLib
 import org.jetbrains.kotlin.native.interop.indexer.*
 import org.jetbrains.kotlin.native.interop.tool.*
 import org.jetbrains.kliopt.ArgParser
+import org.jetbrains.kotlin.konan.target.Family
+import org.jetbrains.kotlin.konan.target.HostManager
 import java.io.File
 import java.lang.IllegalArgumentException
 import java.nio.file.*
@@ -293,6 +295,19 @@ private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = 
 internal fun prepareTool(target: String?, flavor: KotlinPlatform): ToolConfig {
     val tool = ToolConfig(target, flavor)
     tool.downloadDependencies()
+
+    val requiredEnvironmentVariables = listOf("LIBCLANG_DISABLE_CRASH_RECOVERY") + when (HostManager.host.family) {
+        Family.OSX -> listOf("DYLD_FORCE_FLAT_NAMESPACE", "DYLD_INSERT_LIBRARIES")
+        Family.LINUX -> listOf("LD_PRELOAD")
+        else -> emptyList()
+    }
+
+    // Note: to be removed before merging.
+    requiredEnvironmentVariables.forEach {
+        if (System.getenv(it) == null) {
+            error("Missing environment variable: $it")
+        }
+    }
 
     System.load(tool.libclang)
 
