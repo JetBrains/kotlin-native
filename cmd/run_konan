@@ -101,13 +101,23 @@ findJreDir() {
   "$JAVACMD" -cp "$KONAN_CLASSPATH" org.jetbrains.kotlin.cli.utilities.PrintJreDirKt
 }
 
-# See https://docs.oracle.com/javase/10/vm/signal-chaining.htm
-case "$OSTYPE" in
-  darwin*)  environment=("${environment[@]}" "DYLD_FORCE_FLAT_NAMESPACE=0" \
-                                             "DYLD_INSERT_LIBRARIES=$(findJreDir)/lib/libjsig.dylib") ;;
+if [ "$TOOL_NAME" == "cinterop" ]; then
+  # See https://docs.oracle.com/javase/10/vm/signal-chaining.htm
+  case "$OSTYPE" in
+    darwin*)
+      jreDir=$(findJreDir)
+      environment=("${environment[@]}" "DYLD_FORCE_FLAT_NAMESPACE=0" \
+                                       "DYLD_INSERT_LIBRARIES=$jreDir/lib/libjsig.dylib")
 
-  linux*)   environment=("${environment[@]}" "LD_PRELOAD=$(findJreDir)/lib/amd64/libjsig.so") ;;
-esac
+      # Try to avoid using /System java launcher protected from DYLD_* by SIP:
+      JAVACMD="$jreDir/bin/java"
+      ;;
+
+    linux*)
+      environment=("${environment[@]}" "LD_PRELOAD=$(findJreDir)/lib/amd64/libjsig.so")
+      ;;
+  esac
+fi
 
 env "${environment[@]}" \
 $TIMECMD "$JAVACMD" "${java_opts[@]}" "${java_args[@]}" -cp "$KONAN_CLASSPATH" "$TOOL_CLASS" "$TOOL_NAME" "${konan_args[@]}"
