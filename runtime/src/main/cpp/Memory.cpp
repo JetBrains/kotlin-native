@@ -2253,9 +2253,34 @@ void FreezeSubgraph(ObjHeader* root) {
 #endif
 }
 
-void deepFrozenCopyTo(ObjHeader* to, ObjHeader* from, ObjHeaderMap* translationMap);
+void deepFrozenCopyTo(ObjHeader* to, ObjHeader* from, ObjHeaderMap* translationMapm, ObjHeader** firstBlocker);
 
-void changeToCopyIfNeeded(ObjHeader** location, ObjHeaderMap* translationMap) {
+bool cannotClone(ObjHeader* original) {
+  if (original == nullptr)
+    return false;
+  if ((original->type_info()->flags_ & TF_NON_CLONEABLE) != 0)
+    return true;
+  if (original->has_meta_object() && ((original->meta_object()->flags_ & MF_NEVER_FROZEN) != 0))
+    return true;
+  return false;
+}
+
+OBJ_GETTER(makeShallowClone, ObjHeader* original) {
+  RuntimeAssert(!cannotClone(original), "Must be cloneable");
+  ObjHeader* clone;
+  if (IsArray(original)) {
+    clone = AllocArrayInstance(original->type_info(), original->array()->count_, OBJ_RESULT);
+    // Copy content only.
+    ::memcpy(clone->array() + 1, original->array() + 1, objectSize(original) - sizeof(ArrayHeader));
+  } else {
+    clone = AllocInstance(original->type_info(), OBJ_RESULT);
+    // Copy content only.
+    ::memcpy(clone + 1, original + 1, objectSize(original) - sizeof(ObjHeader));
+  }
+  RETURN_OBJ(clone);
+}
+
+void changeToCopyIfNeeded(ObjHeader** location, ObjHeaderMap* translationMap, ObjHeader** firstBlocker) {
   auto* object = *location;
   if (object == nullptr) return;
   if (PermanentOrFrozen(object)) {
@@ -2267,28 +2292,32 @@ void changeToCopyIfNeeded(ObjHeader** location, ObjHeaderMap* translationMap) {
     *location = substitution->second;
     AddHeapRef(*location);
   } else {
+    if (cannotClone(object)) {
+      SetHeapRef(location, nullptr);
+      if (*firstBlocker == nullptr) *firstBlocker = object;
+      return;
+    }
     ObjHolder result;
-    auto* clone = AllocInstance(object->type_info(), result.slot());
+    auto* clone = makeShallowClone(object, result.slot());
+    deepFrozenCopyTo(clone, object, translationMap, firstBlocker);
     SetHeapRef(location, clone);
-    deepFrozenCopyTo(clone, object, translationMap);
   }
 }
 
-void deepFrozenCopyTo(ObjHeader* to, ObjHeader* from, ObjHeaderMap* translationMap) {
+void deepFrozenCopyTo(ObjHeader* to, ObjHeader* from, ObjHeaderMap* translationMap, ObjHeader** firstBlocker) {
    (*translationMap)[from] = to;
-   ::memcpy(to, from, objectSize(from));
    // Now, translate references.
    const TypeInfo* typeInfo = to->type_info();
    if (typeInfo != theArrayTypeInfo) {
      for (int index = 0; index < typeInfo->objOffsetsCount_; index++) {
        ObjHeader** location = reinterpret_cast<ObjHeader**>(
           reinterpret_cast<uintptr_t>(to) + typeInfo->objOffsets_[index]);
-       changeToCopyIfNeeded(location, translationMap);
+       changeToCopyIfNeeded(location, translationMap, firstBlocker);
      }
    } else {
      ArrayHeader* array = to->array();
      for (int index = 0; index < array->count_; index++) {
-       changeToCopyIfNeeded(ArrayAddressOfElementAt(array, index), translationMap);
+       changeToCopyIfNeeded(ArrayAddressOfElementAt(array, index), translationMap, firstBlocker);
      }
    }
 }
@@ -2296,9 +2325,20 @@ void deepFrozenCopyTo(ObjHeader* to, ObjHeader* from, ObjHeaderMap* translationM
 OBJ_GETTER(ToFrozenForm, ObjHeader* object) {
   RuntimeAssert(object != nullptr && !PermanentOrFrozen(object), "Must be mutable object");
   ObjHolder result;
+  ObjHeader* firstBlocker = nullptr;
   ObjHeaderMap translationMap;
-  auto* clone = AllocInstance(object->type_info(), result.slot());
-  deepFrozenCopyTo(clone, object, &translationMap);
+  ObjHeader* clone = nullptr;
+  if (cannotClone(object)) {
+    firstBlocker = object;
+  } else {
+    memoryState->gcSuspendCount++;
+    clone = makeShallowClone(object, result.slot());
+    deepFrozenCopyTo(clone, object, &translationMap, &firstBlocker);
+    memoryState->gcSuspendCount--;
+  }
+  if (firstBlocker != nullptr) {
+    ThrowFreezingException(object, firstBlocker);
+  }
   FreezeSubgraph(clone);
   RETURN_OBJ(clone);
 }

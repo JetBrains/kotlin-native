@@ -65,4 +65,33 @@ fun makeDiamond(): Node2 {
     val diamondFrozen = makeDiamond().toFrozen()
     assert(diamondFrozen.isFrozen)
     assert(diamondFrozen === diamondFrozen.toFrozen())
+
+    val mapClone = mapOf("me" to "you", "they" to "them").toFrozen()
+    assertEquals(mapClone["me"], "you")
+    assertEquals(mapClone["they"], "them")
+
+    val diamond = makeDiamond()
+    diamond.leaf1!!.ensureNeverFrozen()
+    assertFailsWith<FreezingException> { diamond.toFrozen() }
+}
+
+@Test fun runTest3() {
+    val list = makeAcyclic(4)
+    var current: Node? = list
+    repeat(4) {
+        current = current!!.previous
+    }
+    // Structurally equivalent.
+    assertEquals(current, null)
+
+    val cyclicList = makeCycle(16)
+    current = cyclicList
+    repeat(12) {
+        current = current!!.previous
+    }
+    assert(current != cyclicList)
+    repeat(4) {
+        current = current!!.previous
+    }
+    assert(current == cyclicList)
 }
