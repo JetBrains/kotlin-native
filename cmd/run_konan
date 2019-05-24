@@ -95,6 +95,20 @@ VERSION_JAR="${KONAN_HOME}/konan/lib/version.jar"
 KONAN_CLASSPATH="$KOTLIN_JAR:$KOTLIN_STDLIB_JAR:$KOTLIN_REFLECT_JAR:$KOTLIN_SCRIPT_RUNTIME_JAR:$INTEROP_JAR:$STUB_GENERATOR_JAR:$INTEROP_INDEXER_JAR:$KONAN_JAR:$KLIB_JAR:$UTILITIES_JAR:$SHARED_JAR:$EXTRACTED_METADATA_JAR:$EXTRACTED_SERIALIZER_JAR:$TROVE_JAR:$VERSION_JAR"
 TOOL_CLASS=org.jetbrains.kotlin.cli.utilities.MainKt
 
-LIBCLANG_DISABLE_CRASH_RECOVERY=1 \
+environment=("LIBCLANG_DISABLE_CRASH_RECOVERY=1")
+
+findJreDir() {
+  "$JAVACMD" -cp "$KONAN_CLASSPATH" org.jetbrains.kotlin.cli.utilities.PrintJreDirKt
+}
+
+# See https://docs.oracle.com/javase/10/vm/signal-chaining.htm
+case "$OSTYPE" in
+  darwin*)  environment=("${environment[@]}" "DYLD_FORCE_FLAT_NAMESPACE=0" \
+                                             "DYLD_INSERT_LIBRARIES=$(findJreDir)/lib/libjsig.dylib") ;;
+
+  linux*)   environment=("${environment[@]}" "LD_PRELOAD=$(findJreDir)/lib/amd64/libjsig.so") ;;
+esac
+
+env "${environment[@]}" \
 $TIMECMD "$JAVACMD" "${java_opts[@]}" "${java_args[@]}" -cp "$KONAN_CLASSPATH" "$TOOL_CLASS" "$TOOL_NAME" "${konan_args[@]}"
 

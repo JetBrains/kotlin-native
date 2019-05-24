@@ -206,6 +206,23 @@ class NamedNativeInteropConfig implements Named {
             systemProperties "konan.home": project.rootProject.projectDir
             environment "LIBCLANG_DISABLE_CRASH_RECOVERY": "1"
 
+            // See https://docs.oracle.com/javase/10/vm/signal-chaining.htm
+            final String jre = System.getProperty("java.home")
+            switch (HostManager.host.family) {
+                case Family.OSX:
+                    environment "DYLD_FORCE_FLAT_NAMESPACE": "0"
+                    environment "DYLD_INSERT_LIBRARIES": "$jre/lib/libjsig.dylib"
+                    break;
+
+                case Family.LINUX:
+                    environment "LD_PRELOAD": "$jre/lib/amd64/libjsig.so"
+                    break
+
+                default:
+                    /* No signal chaining required. */
+                    break;
+            }
+
             outputs.dir generatedSrcDir
             outputs.dir nativeLibsDir
             outputs.dir temporaryFilesDir
