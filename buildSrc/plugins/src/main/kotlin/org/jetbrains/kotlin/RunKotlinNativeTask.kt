@@ -39,7 +39,8 @@ open class RunKotlinNativeTask @Inject constructor(
 
     @TaskAction
     fun run() {
-        runTask.run { val filterArgs = filter.splitCommaSeparatedOption("-f")
+        runTask.run {
+            val filterArgs = filter.splitCommaSeparatedOption("-f")
             val filterRegexArgs = filterRegex.splitCommaSeparatedOption("-fr")
             runTask.args(filterArgs)
             runTask.args(filterRegexArgs)

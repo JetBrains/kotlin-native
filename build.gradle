@@ -465,6 +465,12 @@ task samples {
     dependsOn 'samplesZip', 'samplesTar'
 }
 
+task performance {
+    dependsOn 'dist'
+    dependsOn ':performance:clean'
+    dependsOn ':performance:konanRun'
+}
+
 task samplesZip(type: Zip)
 task samplesTar(type: Tar) {
     extension = 'tar.gz'
@@ -525,12 +531,6 @@ task uploadBundle {
         }
     }
 }
-
-// TODO return when problems with HostManagers will be solved
-/*task performance {
-    dependsOn 'dist'
-    dependsOn ':performance:bench'
-}*/
 
 task teamcityKonanVersion {
     doLast {

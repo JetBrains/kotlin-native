@@ -40,6 +40,7 @@ include ':performance:videoplayer'
 include ':performance:framework'
 if (PlatformInfo.isAppleTarget(HostManager.host)) {
     include ':performance:objcinterop'
+    include ':performance:swiftinterop'
 }
 include ':platformLibs'
 

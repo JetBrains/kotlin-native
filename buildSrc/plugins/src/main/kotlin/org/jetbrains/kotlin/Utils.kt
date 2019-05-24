@@ -1,6 +1,7 @@
 package org.jetbrains.kotlin
 
 import org.gradle.api.Project
+import org.jetbrains.kotlin.konan.target.AppleConfigurables
 import org.jetbrains.kotlin.konan.target.HostManager
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.target.PlatformManager
@@ -13,6 +14,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Base64
 import org.jetbrains.report.json.*
+import java.nio.file.Path
 
 fun Project.platformManager() = findProperty("platformManager") as PlatformManager
 fun Project.testTarget() = findProperty("target") as KonanTarget
@@ -113,3 +115,34 @@ fun getBuildProperty(buildJsonDescription: String, property: String) =
             }
             (getArray("build").getObject(0).getPrimitive(property) as JsonLiteral).unquoted()
         }
+
+@JvmOverloads
+fun compileSwift(project: Project, target: KonanTarget, sources: List<String>, options: List<String>,
+                 output: Path, fullBitcode: Boolean = false) {
+    val platform = project.platformManager().platform(target)
+    assert(platform.configurables is AppleConfigurables)
+    val configs = platform.configurables as AppleConfigurables
+    val compiler = configs.absoluteTargetToolchain + "/usr/bin/swiftc"
+
+    val swiftTarget = when (target) {
+        KonanTarget.IOS_X64   -> "x86_64-apple-ios" + configs.osVersionMin
+        KonanTarget.IOS_ARM64 -> "arm64_64-apple-ios" + configs.osVersionMin
+        KonanTarget.MACOS_X64 -> "x86_64-apple-macosx" + configs.osVersionMin
+        else -> throw IllegalStateException("Test target $target is not supported")
+    }
+
+    val args = listOf("-sdk", configs.absoluteTargetSysRoot, "-target", swiftTarget) +
+            options + "-o" + output.toString() + sources +
+            if (fullBitcode) listOf("-embed-bitcode", "-Xlinker", "-bitcode_verify") else listOf("-embed-bitcode-marker")
+
+    val (stdOut, stdErr, exitCode) = runProcess(executor = localExecutor(project), executable = compiler, args = args)
+
+    println("""
+        |$compiler finished with exit code: $exitCode
+        |options: ${args.joinToString(separator = " ")}
+        |stdout: $stdOut
+        |stderr: $stdErr
+        """.trimMargin())
+    check(exitCode == 0, { "Compilation failed" })
+    check(output.toFile().exists(), { "Compiler swiftc hasn't produced an output file: $output" })
+}

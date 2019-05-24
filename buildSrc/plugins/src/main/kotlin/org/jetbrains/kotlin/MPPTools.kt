@@ -162,6 +162,17 @@ fun createRunTask(
     return task
 }
 
+@JvmOverloads
+fun createBenchmarksRunTask(
+        subproject: Project,
+        name: String,
+        configureClosure: Closure<Any>? = null
+): Task {
+    val task = subproject.tasks.create(name, RunBenchmarksExecutableTask::class.java)
+    task.configure(configureClosure ?: task.emptyConfigureClosure())
+    return task
+}
+
 fun getJvmCompileTime(programName: String): BenchmarkResult =
         TaskTimerListener.getBenchmarkResult(programName, listOf("compileKotlinMetadata", "jvmJar"))
 
@@ -200,7 +211,7 @@ class TaskTimerListener: TaskExecutionListener {
         fun getTime(taskName: String) = tasksTimes[taskName] ?: 0.0
     }
 
-    private var startTime = System.currentTimeMillis()
+    private var startTime = System.nanoTime()
 
     override fun beforeExecute(task: Task) {
         startTime = System.nanoTime()

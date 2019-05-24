@@ -7,8 +7,8 @@ import Foundation
 import CityMap
 
 var runner = BenchmarksRunner()
-let args = KotlinArray(size: Int32(CommandLine.arguments.count), init: {index in
-    CommandLine.arguments[Int(truncating: index)]
+let args = KotlinArray(size: Int32(CommandLine.arguments.count - 1), init: {index in
+    CommandLine.arguments[Int(truncating: index) + 1]
 })
 runner.runBenchmarks(args: args, run: { (parser: ArgParser) -> [BenchmarkResult] in
     var swiftBenchmarks = SwiftInteropBenchmarks()
@@ -25,8 +25,7 @@ runner.runBenchmarks(args: args, run: { (parser: ArgParser) -> [BenchmarkResult]
     swiftLauncher.benchmarks["removeVertexAndEdgesSwiftMultigraph"] =  swiftBenchmarks.removeVertexAndEdgesSwiftMultigraph
     swiftLauncher.benchmarks["stringInterop"] =  swiftBenchmarks.stringInterop
     swiftLauncher.benchmarks["simpleFunction"] =  swiftBenchmarks.simpleFunction
-    return swiftLauncher.launch(benchmarksToRun: parser.getAll(name: "filter"))
-}, parseArgs: runner.parse, collect: { (benchmarks: [BenchmarkResult], parser: ArgParser) -> KotlinUnit in
+    return swiftLauncher.launch(filters: parser.getAll(name: "filter"), filterRegexes: parser.getAll(name: "filterRegex"))
+}, parseArgs: runner.parse, collect: { (benchmarks: [BenchmarkResult], parser: ArgParser) -> Void in
     runner.collect(results: benchmarks, parser: parser)
-    return KotlinUnit()
 })
