@@ -9,7 +9,7 @@ import kotlin.test.*
 
 import kotlin.native.concurrent.*
 
-data class Node(var previous: Node?, var data: Int)
+class Node(var previous: Node?, var data: Int)
 
 fun makeAcyclic(count: Int): Node {
     val first = Node(null, 0)
