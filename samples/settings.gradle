@@ -47,7 +47,6 @@ if (MPPTools.isMacos()) {
     include ':opengl'
     include ':symbolication'
     include ':uikit'
-    include ':coverage'
 }
 
 if (MPPTools.isWindows()) {
