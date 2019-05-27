@@ -26,8 +26,11 @@ abstract class Launcher(val numWarmIterations: Int, val numberOfAttempts: Int, v
 
     abstract val benchmarks: BenchmarksCollection
 
-    fun add(name: String, benchmark: KFunction0<Any>) {
-        benchmarks[name] = benchmark
+    fun add(name: String, benchmark:() -> Any?) {
+        fun benchmarkWrapper() {
+            benchmark()
+        }
+        benchmarks[name] = ::benchmarkWrapper
     }
 
     fun launch(filters: Collection<String>? = null,
