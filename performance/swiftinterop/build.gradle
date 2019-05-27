@@ -57,20 +57,9 @@ kotlin {
             dependsOn commonMain
             kotlin.srcDir "../shared/src/main/kotlin-native"
         }
-        iosMain {
-            dependsOn commonMain
-            kotlin.srcDir "../shared/src/main/kotlin-native"
-        }
     }
 
     macosX64("macos") {
-        compilations.main.extraOpts = (project.hasProperty('compilerArgs') ? compilerArgs.split() : []) + '-opt'
-        binaries {
-            framework(frameworkName, [RELEASE])
-        }
-    }
-
-    iosX64("ios") {
         compilations.main.extraOpts = (project.hasProperty('compilerArgs') ? compilerArgs.split() : []) + '-opt'
         binaries {
             framework(frameworkName, [RELEASE])
