@@ -61,7 +61,7 @@ data class Place(val geoCoordinateX: Double, val geoCoordinateY: Double, val nam
 
 data class Path(val from: Place, val to: Place, val cost: RouteCost)
 
-object CityMap {
+class CityMap {
     data class RouteId(val id: UInt, val from: UInt, val to: UInt)
     private val graph = Multigraph<Place>()
 
