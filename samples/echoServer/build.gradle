@@ -6,14 +6,12 @@ plugins {
 def hostPreset = MPPTools.defaultHostPreset(project)
 
 kotlin {
-    targets {
-        fromPreset(hostPreset, 'echoServer') {
-            compilations.main.outputKinds 'EXECUTABLE'
-            compilations.main.entryPoint 'sample.echoserver.main'
+    targetFromPreset(hostPreset, 'echoServer') {
+        binaries {
+            executable() {
+                entryPoint = 'sample.echoserver.main'
+                runTask.args(3000)
+            }
         }
     }
-}
-
-MPPTools.createRunTask(project, 'runProgram', kotlin.targets.echoServer) {
-    args 3000
 }
