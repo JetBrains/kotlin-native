@@ -71,7 +71,6 @@ internal fun ThrowNotImplementedError(): Nothing {
 
 @ExportForCppRuntime
 internal fun ThrowCharacterCodingException(): Nothing {
-    @UseExperimental(ExperimentalStdlibApi::class)
     throw CharacterCodingException()
 }
 
@@ -159,7 +158,7 @@ fun KonanObjectToUtf8Array(value: Any?): ByteArray {
         is DoubleArray -> value.contentToString()
         else -> value.toString()
     }
-    return string.toUtf8()
+    return string.encodeToByteArray()
 }
 
 @TypedIntrinsic(IntrinsicType.LIST_OF_INTERNAL)
