@@ -89,7 +89,7 @@ static void initSignalChaining() {
   {
     // On Linux we have to be a bit tricky, as there's unmapped gap between code and GOT.
      struct link_map* linkmap = 0;
-     if (dladdr1((void*)clang_sym, &info, (void**)&linkmap, RTLD_DL_LINKMAP) == 0) return;
+     if (dladdr1((void*)&clang_toggleCrashRecovery, &info, (void**)&linkmap, RTLD_DL_LINKMAP) == 0) return;
      base = (void**)linkmap->l_ld;
   }
 #endif
