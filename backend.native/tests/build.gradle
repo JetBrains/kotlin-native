@@ -3447,7 +3447,7 @@ task runKonanRegexTests(type: RunKonanTest) {
 
 task coverage_basic_program(type: RunStandaloneKonanTest) {
 
-    disabled = PlatformInfo.isAppleTarget(project)
+    disabled = PlatformInfo.getTarget(project).name != "ios_x64" && PlatformInfo.getTarget(project).name != "macos_x64"
 
     description = "Test that `-Xcoverage` generates correct __llvm_coverage information"
 
