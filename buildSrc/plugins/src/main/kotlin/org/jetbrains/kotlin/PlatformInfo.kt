@@ -30,7 +30,8 @@ object PlatformInfo {
     fun isWasmTarget(project: Project) =
         getTarget(project).family == Family.WASM
 
-    private fun getTarget(project: Project): KonanTarget {
+    @JvmStatic
+    fun getTarget(project: Project): KonanTarget {
         val platformManager = project.rootProject.platformManager()
         val targetName = project.project.testTarget().name
         return platformManager.targetManager(targetName).target
