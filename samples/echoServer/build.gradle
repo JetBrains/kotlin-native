@@ -10,7 +10,7 @@ kotlin {
         binaries {
             executable() {
                 entryPoint = 'sample.echoserver.main'
-                runTask.args(3000)
+                runTask?.args(3000)
             }
         }
     }
