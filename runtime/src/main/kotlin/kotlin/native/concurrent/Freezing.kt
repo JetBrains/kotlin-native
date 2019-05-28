@@ -50,6 +50,7 @@ public val Any?.isFrozen
  *
  * @return the frozen object form
  * @see ensureNeverFrozen
+ * @see ensureNeverCloned
  */
 public inline fun <reified T> T.toFrozen(): T =
         @Suppress("UNCHECKED_CAST", "NON_PUBLIC_CALL_FROM_PUBLIC_INLINE")
@@ -64,3 +65,12 @@ public inline fun <reified T> T.toFrozen(): T =
  */
 @SymbolName("Kotlin_Concurrent_ensureNeverFrozen")
 public external fun Any.ensureNeverFrozen()
+
+/**
+ * This function ensures that if we see such an object during object cloning part of [toFrozen]
+ * [IllegalArgumentException] is thrown.
+ *
+ * @see toFrozen
+ */
+@SymbolName("Kotlin_Concurrent_ensureNeverCloned")
+public external fun Any.ensureNeverCloned()

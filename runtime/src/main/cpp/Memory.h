@@ -507,6 +507,8 @@ void FreezeSubgraph(ObjHeader* obj);
 OBJ_GETTER(ToFrozenForm, ObjHeader* object);
 // Ensure this object shall block freezing.
 void EnsureNeverFrozen(ObjHeader* obj);
+// Ensure this object shall block cloning.
+void EnsureNeverCloned(ObjHeader* obj);
 #ifdef __cplusplus
 }
 #endif

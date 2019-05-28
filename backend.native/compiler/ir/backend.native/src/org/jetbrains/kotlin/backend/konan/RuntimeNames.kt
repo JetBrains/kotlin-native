@@ -3,6 +3,7 @@ package org.jetbrains.kotlin.backend.konan
 import org.jetbrains.kotlin.name.FqName
 
 object RuntimeNames {
+    val shareByValueAnnotation = FqName("kotlin.ShareByValue")
     val symbolName = FqName("kotlin.native.SymbolName")
     val exportForCppRuntime = FqName("kotlin.native.internal.ExportForCppRuntime")
     val exportForCompilerAnnotation = FqName("kotlin.native.internal.ExportForCompiler")

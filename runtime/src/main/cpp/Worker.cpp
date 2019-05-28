@@ -744,4 +744,8 @@ void Kotlin_Concurrent_ensureNeverFrozen(KRef object) {
   EnsureNeverFrozen(object);
 }
 
+void Kotlin_Concurrent_ensureNeverCloned(KRef object) {
+  EnsureNeverCloned(object);
+}
+
 }  // extern "C"

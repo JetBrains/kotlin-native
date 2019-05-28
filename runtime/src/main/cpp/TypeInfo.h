@@ -56,11 +56,12 @@ enum Konan_TypeFlags {
   TF_IMMUTABLE = 1 << 0,
   TF_ACYCLIC   = 1 << 1,
   TF_INTERFACE = 1 << 2,
-  TF_NON_CLONEABLE = 1 << 3
+  TF_CLONEABLE = 1 << 3
 };
 
 enum Konan_MetaFlags {
-  MF_NEVER_FROZEN = 1 << 0
+  MF_NEVER_FROZEN = 1 << 0,
+  MF_NEVER_CLONED = 1 << 1
 };
 
 // Extended information about a type.

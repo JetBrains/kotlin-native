@@ -17,6 +17,7 @@ import kotlin.native.internal.PointsTo
  * for more information on arrays.
  */
 @ExportTypeInfo("theArrayTypeInfo")
+@ShareByValue
 public final class Array<T> {
 
     /**

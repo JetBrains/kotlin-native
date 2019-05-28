@@ -9,6 +9,7 @@ import kotlin.test.*
 
 import kotlin.native.concurrent.*
 
+@ShareByValue
 class Node(var previous: Node?, var data: Int)
 
 fun makeAcyclic(count: Int): Node {
@@ -30,6 +31,7 @@ fun makeCycle(count: Int): Node {
     return first
 }
 
+@ShareByValue
 data class Node2(var leaf1: Node2?, var leaf2: Node2?)
 
 fun makeDiamond(): Node2 {
@@ -72,10 +74,13 @@ fun makeDiamond(): Node2 {
 
     val diamond = makeDiamond()
     diamond.leaf1!!.ensureNeverFrozen()
-    assertFailsWith<FreezingException> { diamond.toFrozen() }
+    // Ensure that not freezing bit doesn't propagate on clone.
+    assert(diamond.toFrozen() != null)
+    diamond.ensureNeverCloned()
+    assertFailsWith<IllegalArgumentException> { diamond.toFrozen() }
 }
 
-@Test fun runTest3() {
+@Test fun runTest2() {
     val list = makeAcyclic(4)
     var current: Node? = list
     repeat(4) {
@@ -94,4 +99,24 @@ fun makeDiamond(): Node2 {
         current = current!!.previous
     }
     assert(current == cyclicList)
+}
+
+data class EasyShare(val name: String)
+
+@Test fun runTest3() {
+    // Failing clone.
+    assertFailsWith<IllegalArgumentException> { Any().toFrozen() }
+    assertFailsWith<IllegalArgumentException> { listOf(Any()).toFrozen() }
+    assertFailsWith<IllegalArgumentException> { arrayOf(Any()).toFrozen() }
+    assertFailsWith<IllegalArgumentException> { setOf(Any()).toFrozen() }
+    assertFailsWith<IllegalArgumentException> { mapOf(Any() to Any()).toFrozen() }
+
+    // Succesful clone.
+    assert("Hello".toFrozen() == "Hello")
+    assertEquals(EasyShare("Hi"), EasyShare("Hi").toFrozen())
+    assertEquals(2, setOf(1, 1, 2).toFrozen().size)
+    // Not yet supported.
+    //assertEquals(3, listOf(1, 2, 3).toFrozen()[2])
+    assertEquals(5, arrayOf(4, 5, 6).toFrozen()[1])
+    assertEquals(3, mapOf(1 to 3).toFrozen()[1])
 }

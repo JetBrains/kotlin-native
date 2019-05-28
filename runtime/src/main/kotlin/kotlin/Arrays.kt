@@ -19,6 +19,7 @@ import kotlin.native.internal.TypedIntrinsic
  * @constructor Creates a new array of the specified [size], with all elements initialized to zero.
  */
 @ExportTypeInfo("theByteArrayTypeInfo")
+@ShareByValue
 public final class ByteArray {
     // Constructors are handled with compiler magic.
     public constructor(@Suppress("UNUSED_PARAMETER") size: Int) {}
@@ -80,6 +81,7 @@ private class ByteIteratorImpl(val collection: ByteArray) : ByteIterator() {
  * @constructor Creates a new array of the specified [size], with all elements initialized to zero.
  */
 @ExportTypeInfo("theCharArrayTypeInfo")
+@ShareByValue
 public final class CharArray {
     // Constructors are handled with the compiler magic.
     public constructor(@Suppress("UNUSED_PARAMETER") size: Int) {}
@@ -142,6 +144,7 @@ private class CharIteratorImpl(val collection: CharArray) : CharIterator() {
  * @constructor Creates a new array of the specified [size], with all elements initialized to zero.
  */
 @ExportTypeInfo("theShortArrayTypeInfo")
+@ShareByValue
 public final class ShortArray {
     // Constructors are handled with the compiler magic.
     public constructor(@Suppress("UNUSED_PARAMETER") size: Int) {}
@@ -204,6 +207,7 @@ private class ShortIteratorImpl(val collection: ShortArray) : ShortIterator() {
  * @constructor Creates a new array of the specified [size], with all elements initialized to zero.
  */
 @ExportTypeInfo("theIntArrayTypeInfo")
+@ShareByValue
 public final class IntArray {
     // Constructors are handled with the compiler magic.
     public constructor(@Suppress("UNUSED_PARAMETER") size: Int) {}
@@ -266,6 +270,7 @@ private class IntIteratorImpl(val collection: IntArray) : IntIterator() {
  * @constructor Creates a new array of the specified [size], with all elements initialized to zero.
  */
 @ExportTypeInfo("theLongArrayTypeInfo")
+@ShareByValue
 public final class LongArray {
     // Constructors are handled with the compiler magic.
     public constructor(@Suppress("UNUSED_PARAMETER") size: Int) {}
@@ -328,6 +333,7 @@ private class LongIteratorImpl(val collection: LongArray) : LongIterator() {
  * @constructor Creates a new array of the specified [size], with all elements initialized to zero.
  */
 @ExportTypeInfo("theFloatArrayTypeInfo")
+@ShareByValue
 public final class FloatArray {
     // Constructors are handled with the compiler magic.
     public constructor(@Suppress("UNUSED_PARAMETER") size: Int) {}
@@ -386,6 +392,7 @@ private class FloatIteratorImpl(val collection: FloatArray) : FloatIterator() {
 }
 
 @ExportTypeInfo("theDoubleArrayTypeInfo")
+@ShareByValue
 public final class DoubleArray {
     // Constructors are handled with the compiler magic.
     public constructor(@Suppress("UNUSED_PARAMETER") size: Int) {}
@@ -444,6 +451,7 @@ private class DoubleIteratorImpl(val collection: DoubleArray) : DoubleIterator()
 }
 
 @ExportTypeInfo("theBooleanArrayTypeInfo")
+@ShareByValue
 public final class BooleanArray {
     // Constructors are handled with the compiler magic.
     public constructor(@Suppress("UNUSED_PARAMETER") size: Int) {}

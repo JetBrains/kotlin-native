@@ -587,6 +587,7 @@ extern "C" {
 void objc_release(void* ptr);
 void Kotlin_ObjCExport_releaseAssociatedObject(void* associatedObject);
 RUNTIME_NORETURN void ThrowFreezingException(KRef toFreeze, KRef blocker);
+RUNTIME_NORETURN void ThrowCannotCloneException(KRef original, KRef blocker);
 
 }  // extern "C"
 
@@ -2258,11 +2259,9 @@ void deepFrozenCopyTo(ObjHeader* to, ObjHeader* from, ObjHeaderMap* translationM
 bool cannotClone(ObjHeader* original) {
   if (original == nullptr)
     return false;
-  if ((original->type_info()->flags_ & TF_NON_CLONEABLE) != 0)
+  if (original->has_meta_object() && ((original->meta_object()->flags_ & MF_NEVER_CLONED) != 0))
     return true;
-  if (original->has_meta_object() && ((original->meta_object()->flags_ & MF_NEVER_FROZEN) != 0))
-    return true;
-  return false;
+  return (original->type_info()->flags_ & TF_CLONEABLE) == 0;
 }
 
 OBJ_GETTER(makeShallowClone, ObjHeader* original) {
@@ -2337,7 +2336,7 @@ OBJ_GETTER(ToFrozenForm, ObjHeader* object) {
     memoryState->gcSuspendCount--;
   }
   if (firstBlocker != nullptr) {
-    ThrowFreezingException(object, firstBlocker);
+    ThrowCannotCloneException(object, firstBlocker);
   }
   FreezeSubgraph(clone);
   RETURN_OBJ(clone);
@@ -2412,6 +2411,14 @@ void EnsureNeverFrozen(ObjHeader* object) {
    // TODO: note, that this API could not not be called on frozen objects, so no need to care much about concurrency,
    // although there's subtle race with case, where other thread freezes the same object after check.
    object->meta_object()->flags_ |= MF_NEVER_FROZEN;
+}
+
+void EnsureNeverCloned(ObjHeader* object) {
+   auto* container = object->container();
+   // If object is permanent or frozen it cannot be cloned.
+   if (container == nullptr || container->frozen())
+      return;
+   object->meta_object()->flags_ |= MF_NEVER_CLONED;
 }
 
 KBoolean Konan_ensureAcyclicAndSet(ObjHeader* where, KInt index, ObjHeader* what) {

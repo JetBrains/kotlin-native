@@ -8,6 +8,8 @@ package org.jetbrains.kotlin.backend.konan.llvm
 import llvm.*
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.RuntimeNames.shareByValueAnnotation
+import org.jetbrains.kotlin.backend.konan.computePrimitiveBinaryTypeOrNull
 import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.backend.konan.ir.isAnonymousObject
@@ -63,6 +65,8 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
         }
         if (irClass.isInterface)
             result = result or TF_INTERFACE
+        if (irClass.hasAnnotation(shareByValueAnnotation) || irClass.isData)
+            result = result or TF_CLONEABLE
         return result
     }
 
@@ -465,3 +469,5 @@ private fun getAssociatedObjects(irClass: IrClass): Map<IrClass, IrClass> {
 private const val TF_IMMUTABLE = 1
 private const val TF_ACYCLIC   = 2
 private const val TF_INTERFACE = 4
+private const val TF_CLONEABLE = 8
+

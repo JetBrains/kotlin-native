@@ -5,6 +5,7 @@
 
 package kotlin.collections
 
+@ShareByValue
 actual class ArrayList<E> private constructor(
         private var array: Array<E>,
         private var offset: Int,

@@ -149,3 +149,12 @@ public annotation class DslMarker
 @MustBeDocumented
 @SinceKotlin("1.1")
 public annotation class PublishedApi
+
+/**
+ * When applied to class marks the fact, that its instances could be copied by value with [toFrozen()]
+ * function by cloning object instance, and so when used in models could be safely cloned.
+ */
+// TODO: how to properly mark as experimental?
+@Target(AnnotationTarget.CLASS)
+@Retention(AnnotationRetention.BINARY)
+public annotation class ShareByValue

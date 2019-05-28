@@ -7,6 +7,7 @@ package kotlin.collections
 
 import kotlin.native.concurrent.isFrozen
 
+@ShareByValue
 actual class HashMap<K, V> private constructor(
         private var keysArray: Array<K>,
         private var valuesArray: Array<V>?, // allocated only when actually used, always null in pure HashSet
@@ -618,6 +619,7 @@ actual class HashMap<K, V> private constructor(
     }
 }
 
+@ShareByValue
 internal class HashMapValues<V> internal constructor(
         val backing: HashMap<*, V>
 ) : MutableCollection<V> {
@@ -658,6 +660,7 @@ internal class HashMapValues<V> internal constructor(
     }
 }
 
+@ShareByValue
 internal class HashMapEntrySet<K, V> internal constructor(
         val backing: HashMap<K, V>
 ) : MutableSet<MutableMap.MutableEntry<K, V>>, kotlin.native.internal.KonanSet<MutableMap.MutableEntry<K, V>> {

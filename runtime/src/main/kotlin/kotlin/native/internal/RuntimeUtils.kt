@@ -81,6 +81,14 @@ internal fun ThrowIncorrectDereferenceException() {
 }
 
 @ExportForCppRuntime
+internal fun ThrowCannotCloneException(original: Any, blocker: Any): Nothing {
+    val originalName = original::class.qualifiedName ?: original::class.simpleName ?: "<object>"
+    val blockerName = blocker::class.qualifiedName ?: blocker::class.simpleName ?: "<object>"
+    throw IllegalArgumentException(
+            "Error trying to clone $original ($originalName) because $blocker ($blockerName) cannot be cloned")
+}
+
+@ExportForCppRuntime
 internal fun PrintThrowable(throwable: Throwable) {
     println(throwable)
 }
