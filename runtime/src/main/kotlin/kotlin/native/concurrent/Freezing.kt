@@ -23,11 +23,15 @@ public class InvalidMutabilityException(message: String) : RuntimeException(mess
 
 /**
  * Freezes object subgraph reachable from this object. Frozen objects can be freely
- * shared between threads/workers.
+ * shared between threads/workers. Note, that state is transitively frozen, so it may be rather
+ * intrusive operation. If you do not want to actually freeze your state,
+ * but willing to create a frozen copy of class' mutable state, use [toFrozen] operation instead.
+ * It will not copy frozen state, but will copy all mutable state explicitly agreed on that.
  *
  * @throws FreezingException if freezing is not possible
  * @return the object itself
  * @see ensureNeverFrozen
+ * @see toFrozen
  */
 public fun <T> T.freeze(): T {
     freezeInternal(this)
@@ -44,16 +48,18 @@ public val Any?.isFrozen
 
 
 /**
- * Transforms an object to the frozen form by creating frozen version of the object, by either
+ * Transforms an object to the frozen form by creating frozen version of the object, by
  * deep copy of mutable objects and reusing frozen references. Note, that consequent calls
- * of this function may return different instances.
+ * of this function may return different instances. To make a clone class must be eitehr data class or
+ * explicitly marked by [kotlin.ShareByValue] annotation.
  *
  * @return the frozen object form
  * @see ensureNeverFrozen
  * @see ensureNeverCloned
+ * @see kotlin.ShareByValue
  */
 public inline fun <reified T> T.toFrozen(): T =
-        @Suppress("UNCHECKED_CAST", "NON_PUBLIC_CALL_FROM_PUBLIC_INLINE")
+        @Suppress("UNCHECKED_CAST")
         (toFrozenInternal(this) as T)
 
 /**

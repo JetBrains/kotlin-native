@@ -111,7 +111,7 @@ data class EasyShare(val name: String)
     assertFailsWith<IllegalArgumentException> { setOf(Any()).toFrozen() }
     assertFailsWith<IllegalArgumentException> { mapOf(Any() to Any()).toFrozen() }
 
-    // Succesful clone.
+    // Successful clone.
     assert("Hello".toFrozen() == "Hello")
     assertEquals(EasyShare("Hi"), EasyShare("Hi").toFrozen())
     assertEquals(2, setOf(1, 1, 2).toFrozen().size)

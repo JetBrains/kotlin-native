@@ -68,6 +68,7 @@ external internal fun attachObjectGraphInternal(stable: NativePtr): Any?
 internal external fun freezeInternal(it: Any?)
 
 @SymbolName("Kotlin_Concurrent_toFrozenInternal")
+@PublishedApi
 internal external fun toFrozenInternal(it: Any?): Any?
 
 @SymbolName("Kotlin_Concurrent_isFrozenInternal")

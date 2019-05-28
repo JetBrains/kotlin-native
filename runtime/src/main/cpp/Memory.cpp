@@ -2254,7 +2254,7 @@ void FreezeSubgraph(ObjHeader* root) {
 #endif
 }
 
-void deepFrozenCopyTo(ObjHeader* to, ObjHeader* from, ObjHeaderMap* translationMapm, ObjHeader** firstBlocker);
+void deepFrozenCopyTo(ObjHeader* to, ObjHeader* from, ObjHeaderMap* translationMap, ObjHeader** firstBlocker);
 
 bool cannotClone(ObjHeader* original) {
   if (original == nullptr)
