@@ -39,8 +39,12 @@ ext {
     distDir = file('dist')
     dependenciesDir = DependencyProcessor.defaultDependenciesRoot
     experimentalEnabled = project.hasProperty("org.jetbrains.kotlin.native.experimentalTargets")
-    platformManager = new PlatformManager(DistributionKt.buildDistribution(projectDir.absolutePath),
-            ext.experimentalEnabled)
+
+    final Distribution distribution = DistributionKt.buildDistribution(projectDir.absolutePath)
+    distribution.properties.setProperty("useFixedXcodeVersion",
+            distribution.properties.getProperty("referenceXcodeVersion"))
+
+    platformManager = new PlatformManager(distribution, ext.experimentalEnabled)
 
     kotlinCompilerModule="org.jetbrains.kotlin:kotlin-compiler:${kotlinVersion}"
     kotlinStdLibModule="org.jetbrains.kotlin:kotlin-stdlib:${kotlinVersion}"
