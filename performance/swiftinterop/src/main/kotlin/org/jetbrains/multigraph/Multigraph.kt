@@ -124,18 +124,17 @@ class Multigraph<T>() {
             throw(VertexAbsenceMultigraphException("Finish vertex wasn't found in graph."))
         }
 
-        edges.keys.forEach {
+        allVertexes.forEach {
             currentStepsState[it] = WaveStep()
         }
-
         while (!oldFront.isEmpty()) {
             oldFront.forEach {
-                val currentStepState = currentStepsState[it]!!
-                val newRoutes = mutableListOf<UInt>()
+                val currentStepState = currentStepsState[it] ?: WaveStep()
                 // Lookup all edges from vertex.
-                val values = edges.get(it)!!
+                val values = edges.get(it) ?: mutableListOf<Edge<T>>()
                 values.forEach { edge ->
-                    val toStep = currentStepsState[edge.to]!!
+                    val newRoutes = mutableListOf<UInt>()
+                    val toStep = currentStepsState[edge.to] ?: WaveStep()
 
                     // Create new pathes and count their costs.
                     if (currentStepState.routes.isEmpty()) {
@@ -154,12 +153,24 @@ class Multigraph<T>() {
                         }
                     } else {
                         currentStepState.routes.forEachIndexed { index, it ->
-                            val newRoutes = listOf(it)
+                            val newRoutes = it.toMutableList()
                             val oldCost = currentStepState.costs.get(index)
                             val newCost = edge.cost + oldCost
-                            val newVertexes = listOf(currentStepState.vertexes.get(index))
-                            if (newCost <= limits && edge.to != currentStepState.vertexes.get(index)) {
-                                newFront.add(edge.to)
+                            val newVertexes = currentStepState.vertexes.get(index).toMutableList()
+                            if (newCost <= limits && edge.to !in currentStepState.vertexes.get(index)) {
+                                newRoutes.add(edge.id)
+                                newVertexes.add(edge.to)
+                                var addNewSequence = true
+
+                                if (newRoutes !in toStep.routes) {
+                                    toStep.routes.add(newRoutes)
+                                    toStep.costs.add(newCost)
+                                    toStep.vertexes.add(newVertexes)
+                                    currentStepsState[edge.to] = toStep
+                                    if (edge.to != finish && edge.to !in oldFront) {
+                                        newFront.add(edge.to)
+                                    }
+                                }
                             }
                         }
                     }
@@ -168,6 +179,6 @@ class Multigraph<T>() {
             oldFront = newFront.toMutableSet()
             newFront.clear()
         }
-        return currentStepsState[finish]!!.routes
+        return currentStepsState[finish]?.routes ?: listOf<List<UInt>>()
     }
 }
