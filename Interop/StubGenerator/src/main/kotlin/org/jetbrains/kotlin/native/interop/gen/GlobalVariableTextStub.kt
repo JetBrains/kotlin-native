@@ -36,9 +36,9 @@ class GlobalVariableTextStub(global: GlobalDecl, stubGenerator: TextStubGenerato
 
     private val setterStub = object : NativeBacked {}
 
-    val header: String
-    val getter: KotlinTextExpression
-    val setter: KotlinTextExpression?
+    private val header: String
+    private val getter: KotlinTextExpression
+    private val setter: KotlinTextExpression?
 
     init {
         val kotlinScope = stubGenerator.kotlinFile

@@ -184,7 +184,7 @@ sealed class TypeInfo {
     }
 }
 
-fun mirrorPrimitiveType(type: PrimitiveType, declarationMapper: DeclarationMapper): TypeMirror.ByValue {
+private fun mirrorPrimitiveType(type: PrimitiveType, declarationMapper: DeclarationMapper): TypeMirror.ByValue {
     val varClassName = when (type) {
         is CharType -> "ByteVar"
         is BoolType -> "BooleanVar"
