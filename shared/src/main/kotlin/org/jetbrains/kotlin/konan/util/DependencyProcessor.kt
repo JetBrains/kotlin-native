@@ -286,9 +286,9 @@ internal object InternalServer {
         val envKey = "KONAN_USE_INTERNAL_SERVER"
         val envValue = System.getenv(envKey)
         when (envValue) {
-            "0" -> false
+            null, "0" -> false
             "1" -> true
-            null -> checkAccessible()
+            "auto" -> checkAccessible()
             else -> error("unexpected environment: $envKey=$envValue")
         }
     }
