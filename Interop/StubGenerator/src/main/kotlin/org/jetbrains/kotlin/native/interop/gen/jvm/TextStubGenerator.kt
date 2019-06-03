@@ -32,7 +32,7 @@ class TextStubGenerator(
         verbose: Boolean = false,
         val platform: KotlinPlatform = KotlinPlatform.JVM,
         val imports: Imports
-) : StubGenerator<KotlinTextStub>(nativeIndex, verbose, configuration) {
+) : StubGenerator<KotlinTextStub>(nativeIndex, verbose, configuration), TextualContext {
 
     private val jvmFileClassName = if (pkgName.isEmpty()) {
         libName

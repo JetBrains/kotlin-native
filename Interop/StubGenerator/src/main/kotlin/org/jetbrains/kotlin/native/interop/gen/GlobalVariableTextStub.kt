@@ -21,7 +21,7 @@ import org.jetbrains.kotlin.native.interop.indexer.ArrayType
 import org.jetbrains.kotlin.native.interop.indexer.GlobalDecl
 import org.jetbrains.kotlin.native.interop.indexer.unwrapTypedefs
 
-class GlobalVariableTextStub(global: GlobalDecl, stubGenerator: TextStubGenerator) : KotlinTextStub, NativeBacked {
+class GlobalVariableTextStub(global: GlobalDecl, stubGenerator: TextStubGenerator) : KotlinTextStub, NativeBacked, TextualContext {
 
     private val getAddressExpression: KotlinTextExpression by lazy {
         stubGenerator.simpleBridgeGenerator.kotlinToNative(
@@ -103,7 +103,7 @@ class GlobalVariableTextStub(global: GlobalDecl, stubGenerator: TextStubGenerato
     }
 
     // Try to use the provided name. If failed, mangle it with underscore and try again:
-    private tailrec fun getDeclarationName(scope: KotlinTextScope, name: String): String =
+    private tailrec fun getDeclarationName(scope: KotlinScope, name: String): String =
             scope.declareProperty(name) ?: getDeclarationName(scope, name + "_")
 
     override fun generate(context: StubGenerationContext): Sequence<String> {

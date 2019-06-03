@@ -84,9 +84,9 @@ val annotationForUnableToImport
 fun String.applyToStrings(vararg arguments: String) =
         "${this}(${arguments.joinToString { it.quoteAsKotlinLiteral() }})"
 
-fun List<KotlinParameter>.renderParameters(scope: KotlinTextScope) = buildString {
+fun List<KotlinParameter>.renderParameters(scope: KotlinScope) = buildString {
     this@renderParameters.renderParametersTo(scope, this)
 }
 
-fun List<KotlinParameter>.renderParametersTo(scope: KotlinTextScope, buffer: Appendable) =
+fun List<KotlinParameter>.renderParametersTo(scope: KotlinScope, buffer: Appendable) =
         this.joinTo(buffer, ", ") { it.render(scope) }

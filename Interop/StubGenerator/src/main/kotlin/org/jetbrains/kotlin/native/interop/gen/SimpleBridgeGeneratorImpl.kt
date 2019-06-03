@@ -27,7 +27,7 @@ class SimpleBridgeGeneratorImpl(
         private val jvmFileClassName: String,
         private val libraryForCStubs: NativeLibrary,
         override val topLevelNativeScope: NativeScope,
-        private val topLevelKotlinScope: KotlinTextScope
+        private val topLevelKotlinScope: KotlinScope
 ) : SimpleBridgeGenerator {
 
     private var nextUniqueId = 0

@@ -28,7 +28,7 @@ import org.jetbrains.kotlin.native.interop.indexer.unwrapTypedefs
 class MappingBridgeGeneratorImpl(
         val declarationMapper: DeclarationMapper,
         val simpleBridgeGenerator: SimpleBridgeGenerator
-) : MappingBridgeGenerator {
+) : MappingBridgeGenerator, TextualContext {
 
     override fun kotlinToNative(
             builder: KotlinCodeBuilder,
@@ -191,7 +191,7 @@ class MappingBridgeGeneratorImpl(
             }
         }
 
-        val result = when (unwrappedReturnType) {
+        return when (unwrappedReturnType) {
             is VoidType -> callExpr
             is RecordType -> {
                 builder.out("$callExpr;")
@@ -201,7 +201,5 @@ class MappingBridgeGeneratorImpl(
                 mirror(declarationMapper, returnType).info.cFromBridged(callExpr, builder.scope, nativeBacked)
             }
         }
-
-        return result
     }
 }

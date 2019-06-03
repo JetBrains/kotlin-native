@@ -18,7 +18,7 @@ package org.jetbrains.kotlin.native.interop.gen
 
 import kotlin.reflect.KProperty
 
-interface KotlinTextScope {
+interface KotlinScope {
     /**
      * @return the string to be used to reference the classifier in current scope.
      */
@@ -77,7 +77,7 @@ data class Classifier(
     }
 }
 
-val Classifier.type
+val Classifier.type: KotlinClassifierType
     get() = KotlinClassifierType(this, arguments = emptyList(), nullable = false)
 
 fun Classifier.typeWith(vararg arguments: KotlinTypeArgument) =
@@ -87,11 +87,11 @@ interface KotlinTypeArgument {
     /**
      * @return the string to be used in the given scope to denote this.
      */
-    fun render(scope: KotlinTextScope): String
+    fun render(scope: KotlinScope): String
 }
 
 object StarProjection : KotlinTypeArgument {
-    override fun render(scope: KotlinTextScope) = "*"
+    override fun render(scope: KotlinScope) = "*"
 }
 
 interface KotlinType : KotlinTypeArgument {
@@ -111,7 +111,7 @@ data class KotlinClassifierType(
         this.copy(nullable = nullable)
     }
 
-    override fun render(scope: KotlinTextScope): String = buildString {
+    override fun render(scope: KotlinScope): String = buildString {
         append(scope.reference(classifier))
         if (arguments.isNotEmpty()) {
             append('<')
@@ -142,7 +142,7 @@ data class KotlinFunctionType(
         Classifier.topLevel("kotlin", "Function${parameterTypes.size}")
     }
 
-    override fun render(scope: KotlinTextScope) = buildString {
+    override fun render(scope: KotlinScope) = buildString {
         if (nullable) append("(")
 
         append('(')
@@ -231,7 +231,7 @@ object KotlinTypes {
 abstract class KotlinTextFile(
         val pkg: String,
         namesToBeDeclared: List<String>
-) : KotlinTextScope {
+) : KotlinScope {
 
     // Note: all names are related to classifiers currently.
 
@@ -328,7 +328,7 @@ data class KotlinParameter(
         val isVararg: Boolean,
         val annotations: List<String>
 ) {
-    fun render(scope: KotlinTextScope) = buildString {
+    fun render(scope: KotlinScope) = buildString {
         annotations.forEach { append("$it ") }
         if (isVararg) append("vararg ")
         append(name.asSimpleName())
