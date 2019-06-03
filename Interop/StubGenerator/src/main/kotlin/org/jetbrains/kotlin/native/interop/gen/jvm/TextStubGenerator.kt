@@ -168,7 +168,7 @@ class TextStubGenerator(
     override fun generateKotlinFragmentBy(block: () -> Unit): KotlinTextStub {
         val lines = generateLinesBy(block)
         return object : KotlinTextStub {
-            override fun generate(context: StubGenerationContext) = lines.asSequence()
+            override fun generate(context: TextStubGenerationContext) = lines.asSequence()
         }
     }
 
@@ -500,7 +500,7 @@ class TextStubGenerator(
     private fun FunctionDecl.returnsVoid(): Boolean = this.returnType.unwrapTypedefs() is VoidType
 
     private inner class KotlinFunctionTextStub(val func: FunctionDecl) : KotlinTextStub, NativeBacked {
-        override fun generate(context: StubGenerationContext): Sequence<String> =
+        override fun generate(context: TextStubGenerationContext): Sequence<String> =
                 if (isCCall) {
                     sequenceOf("@CCall".applyToStrings(cCallSymbolName!!), "external $header")
                 } else if (context.nativeBridges.isSupported(this)) {
@@ -754,7 +754,7 @@ class TextStubGenerator(
         out("// NOTE THIS FILE IS AUTO-GENERATED")
         out("")
 
-        val context = object : StubGenerationContext {
+        val context = object : TextStubGenerationContext {
             val topLevelDeclarationLines = mutableListOf<String>()
 
             override val nativeBridges: NativeTextBridges get() = nativeBridges

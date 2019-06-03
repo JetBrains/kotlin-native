@@ -106,7 +106,7 @@ class GlobalVariableTextStub(global: GlobalDecl, stubGenerator: TextStubGenerato
     private tailrec fun getDeclarationName(scope: KotlinScope, name: String): String =
             scope.declareProperty(name) ?: getDeclarationName(scope, name + "_")
 
-    override fun generate(context: StubGenerationContext): Sequence<String> {
+    override fun generate(context: TextStubGenerationContext): Sequence<String> {
         val lines = mutableListOf<String>()
         if (context.nativeBridges.isSupported(this)) {
             val mutable = setter != null && context.nativeBridges.isSupported(setterStub)

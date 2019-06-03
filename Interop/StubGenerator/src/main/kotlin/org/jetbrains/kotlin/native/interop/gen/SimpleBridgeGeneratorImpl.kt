@@ -83,8 +83,7 @@ class SimpleBridgeGeneratorImpl(
 
         val nativeLines = kotlinToNativeNativePart(kotlinFunctionName, symbolName, returnType, kotlinValues, block)
         val kotlinLines = kotlinToNativeKotlinPart(kotlinFunctionName, symbolName, returnType, kotlinValues, independent)
-        val nativeBridge = NativeBridge(kotlinLines, nativeLines)
-        nativeBridges.add(nativeBacked to nativeBridge)
+        insertNativeBridge(nativeBacked, kotlinLines, nativeLines)
         return "$kotlinFunctionName(${kotlinValues.joinToString { it.value }})"
     }
 

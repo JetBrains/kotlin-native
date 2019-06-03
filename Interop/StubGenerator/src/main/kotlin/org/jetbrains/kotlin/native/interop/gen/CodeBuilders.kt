@@ -102,11 +102,11 @@ inline fun buildKotlinCodeLines(scope: KotlinScope, block: KotlinCodeBuilder.() 
     return builder.build()
 }
 
-interface StubGenerationContext {
+interface TextStubGenerationContext {
     val nativeBridges: NativeTextBridges
     fun addTopLevelDeclaration(lines: List<String>)
 }
 
 interface KotlinTextStub : KotlinStub {
-    fun generate(context: StubGenerationContext): Sequence<String>
+    fun generate(context: TextStubGenerationContext): Sequence<String>
 }
