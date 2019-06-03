@@ -769,7 +769,7 @@ class TextStubGenerator(
         }
 
         context.topLevelDeclarationLines.forEach(out)
-        nativeBridges.kotlinLines.forEach(out)
+        nativeBridges.kotlinParts.forEach(out)
         if (platform == KotlinPlatform.JVM) {
             out("private val loadLibrary = System.loadLibrary(\"$libName\")")
         }
@@ -806,7 +806,7 @@ class TextStubGenerator(
         out("// NOTE THIS FILE IS AUTO-GENERATED")
         out("")
 
-        bridges.nativeLines.forEach {
+        bridges.nativeParts.forEach {
             out(it)
         }
 

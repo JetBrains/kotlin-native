@@ -43,13 +43,7 @@ data class BridgeTypedNativeValue(val type: BridgedType, val value: NativeTextEx
  */
 interface NativeBacked
 
-/**
- * Generates simple bridges between Kotlin and native, passing [BridgedType] values.
- */
-interface SimpleBridgeGenerator {
-
-    val topLevelNativeScope: NativeScope
-
+interface KotlinToNativeBridgeGenerator<CallbackTy, RetTy, NativePartTy, KotlinPartTy> {
     /**
      * Generates the expression to convert given Kotlin values to native counterparts, pass through the bridge,
      * use inside the native code produced by [block] and then return the result back.
@@ -61,9 +55,27 @@ interface SimpleBridgeGenerator {
             returnType: BridgedType,
             kotlinValues: List<BridgeTypedKotlinValue>,
             independent: Boolean,
-            block: NativeCodeBuilder.(nativeValues: List<NativeTextExpression>) -> NativeTextExpression
-    ): KotlinTextExpression
+            block: CallbackTy
+    ): RetTy
 
+    fun kotlinToNativeKotlinPart(
+            kotlinFunctionName: String,
+            symbolName: String,
+            returnType: BridgedType,
+            kotlinValues: List<BridgeTypedKotlinValue>,
+            independent: Boolean
+    ): KotlinPartTy
+
+    fun kotlinToNativeNativePart(
+            kotlinFunctionName: String,
+            symbolName: String,
+            returnType: BridgedType,
+            kotlinValues: List<BridgeTypedKotlinValue>,
+            block: CallbackTy
+    ): NativePartTy
+}
+
+interface NativeToKotlinBridgeGenerator<CallbackTy, RetTy, NativePartTy, KotlinPartTy> {
     /**
      * Generates the expression to convert given native values to Kotlin counterparts, pass through the bridge,
      * use inside the Kotlin code produced by [block] and then return the result back.
@@ -73,18 +85,21 @@ interface SimpleBridgeGenerator {
             returnType: BridgedType,
             nativeValues: List<BridgeTypedNativeValue>,
             block: KotlinCodeBuilder.(kotlinValues: List<KotlinTextExpression>) -> KotlinTextExpression
-    ): NativeTextExpression
+    ): RetTy
 
-    fun insertNativeBridge(
-            nativeBacked: NativeBacked,
-            kotlinLines: List<String>,
-            nativeLines: List<String>
-    )
+    fun buildNativeToKotlinNativePart(
+            symbolName: String,
+            nativeValues: List<BridgeTypedNativeValue>,
+            returnType: BridgedType
+    ): NativePartTy
 
-    /**
-     * Prepares all requested native bridges.
-     */
-    fun prepare(): NativeTextBridges
+    fun buildNativeToKotlinKotlinPart(
+            kotlinFunctionName: String,
+            symbolName: String,
+            returnType: BridgedType,
+            nativeValues: List<BridgeTypedNativeValue>,
+            block: CallbackTy
+    ): KotlinPartTy
 }
 
 interface NativeTextBridges {
@@ -94,7 +109,51 @@ interface NativeTextBridges {
      */
     fun isSupported(nativeBacked: NativeBacked): Boolean
 
-    val kotlinLines: Sequence<String>
-    val nativeLines: Sequence<String>
+    val kotlinParts: Sequence<String>
+    val nativeParts: Sequence<String>
+}
+
+interface NativeBridgesManager<NativePartTy, KotlinPartTy> {
+    fun insertNativeBridge(
+            nativeBacked: NativeBacked,
+            kotlinPart: KotlinPartTy,
+            nativePart: NativePartTy
+    )
+
+    /**
+     * Prepares all requested native bridges.
+     */
+    fun prepare(): NativeTextBridges
+}
+
+/**
+ * Generates simple bridges between Kotlin and native, passing [BridgedType] values.
+ */
+
+// TODO: better naming
+typealias NativeTextCallback = NativeCodeBuilder.(nativeValues: List<NativeTextExpression>) -> NativeTextExpression
+typealias KotlinTextCallback = KotlinCodeBuilder.(kotlinValues: List<KotlinTextExpression>) -> KotlinTextExpression
+
+interface SimpleBridgeGenerator :
+        KotlinToNativeBridgeGenerator<NativeTextCallback, KotlinTextExpression, List<String>, List<String>>,
+        NativeToKotlinBridgeGenerator<KotlinTextCallback, NativeTextExpression, List<String>, List<String>>,
+        NativeBridgesManager<List<String>, List<String>> {
+
+    val topLevelNativeScope: NativeScope
+
+    override fun kotlinToNative(
+            nativeBacked: NativeBacked,
+            returnType: BridgedType,
+            kotlinValues: List<BridgeTypedKotlinValue>,
+            independent: Boolean,
+            block: NativeCodeBuilder.(nativeValues: List<NativeTextExpression>) -> NativeTextExpression
+    ): KotlinTextExpression
+
+    override fun nativeToKotlin(
+            nativeBacked: NativeBacked,
+            returnType: BridgedType,
+            nativeValues: List<BridgeTypedNativeValue>,
+            block: KotlinCodeBuilder.(kotlinValues: List<KotlinTextExpression>) -> KotlinTextExpression
+    ): NativeTextExpression
 }
 

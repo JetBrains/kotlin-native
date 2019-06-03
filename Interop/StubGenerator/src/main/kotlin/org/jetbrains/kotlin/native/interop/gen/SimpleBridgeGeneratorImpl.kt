@@ -88,7 +88,7 @@ class SimpleBridgeGeneratorImpl(
         return "$kotlinFunctionName(${kotlinValues.joinToString { it.value }})"
     }
 
-    private fun kotlinToNativeKotlinPart(
+    override fun kotlinToNativeKotlinPart(
             kotlinFunctionName: String,
             symbolName: String,
             returnType: BridgedType,
@@ -109,7 +109,7 @@ class SimpleBridgeGeneratorImpl(
         return kotlinLines
     }
 
-    private fun kotlinToNativeNativePart(
+    override fun kotlinToNativeNativePart(
             kotlinFunctionName: String,
             symbolName: String,
             returnType: BridgedType,
@@ -187,7 +187,7 @@ class SimpleBridgeGeneratorImpl(
         return "$symbolName(${nativeValues.joinToString { it.value }})"
     }
 
-    private fun buildNativeToKotlinNativePart(
+    override fun buildNativeToKotlinNativePart(
             symbolName: String,
             nativeValues: List<BridgeTypedNativeValue>,
             returnType: BridgedType
@@ -204,7 +204,7 @@ class SimpleBridgeGeneratorImpl(
         return nativeLines
     }
 
-    private fun buildNativeToKotlinKotlinPart(
+    override fun buildNativeToKotlinKotlinPart(
             kotlinFunctionName: String,
             symbolName: String,
             returnType: BridgedType,
@@ -238,8 +238,8 @@ class SimpleBridgeGeneratorImpl(
         return kotlinLines
     }
 
-    override fun insertNativeBridge(nativeBacked: NativeBacked, kotlinLines: List<String>, nativeLines: List<String>) {
-        val nativeBridge = NativeBridge(kotlinLines, nativeLines)
+    override fun insertNativeBridge(nativeBacked: NativeBacked, kotlinPart: List<String>, nativePart: List<String>) {
+        val nativeBridge = NativeBridge(kotlinPart, nativePart)
         nativeBridges.add(nativeBacked to nativeBridge)
     }
 
@@ -269,10 +269,10 @@ class SimpleBridgeGeneratorImpl(
 
         return object : NativeTextBridges {
 
-            override val kotlinLines: Sequence<String>
+            override val kotlinParts: Sequence<String>
                 get() = includedBridges.asSequence().flatMap { it.kotlinLines.asSequence() }
 
-            override val nativeLines: Sequence<String>
+            override val nativeParts: Sequence<String>
                 get() = includedBridges.asSequence().flatMap { it.nativeLines.asSequence() }
 
             override fun isSupported(nativeBacked: NativeBacked): Boolean =
