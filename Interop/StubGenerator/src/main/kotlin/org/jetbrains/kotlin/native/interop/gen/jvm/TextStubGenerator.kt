@@ -19,7 +19,6 @@ package org.jetbrains.kotlin.native.interop.gen.jvm
 import org.jetbrains.kotlin.native.interop.gen.*
 import org.jetbrains.kotlin.native.interop.indexer.*
 import java.lang.IllegalStateException
-import java.util.*
 
 enum class KotlinPlatform {
     JVM,
@@ -27,16 +26,13 @@ enum class KotlinPlatform {
 }
 
 class TextStubGenerator(
-        private val nativeIndex: NativeIndex,
+        nativeIndex: NativeIndex,
         configuration: InteropConfiguration,
         private val libName: String,
         verbose: Boolean = false,
         val platform: KotlinPlatform = KotlinPlatform.JVM,
         val imports: Imports
-) : StubGenerator(verbose, configuration) {
-
-    val pkgName: String
-        get() = configuration.pkgName
+) : StubGenerator<KotlinTextStub>(nativeIndex, verbose, configuration) {
 
     private val jvmFileClassName = if (pkgName.isEmpty()) {
         libName
@@ -47,75 +43,6 @@ class TextStubGenerator(
     val generatedObjCCategoriesMembers = mutableMapOf<ObjCClass, GeneratedObjCCategoriesMembers>()
 
     private val platformWStringTypes = setOf("LPCWSTR")
-
-    /**
-     * The names that should not be used for struct classes to prevent name clashes
-     */
-    private val forbiddenStructNames = run {
-        val typedefNames = nativeIndex.typedefs.map { it.name }
-        typedefNames.toSet()
-    }
-
-    private val anonymousStructKotlinNames = mutableMapOf<StructDecl, String>()
-
-    /**
-     * The name to be used for this struct in Kotlin
-     */
-    val StructDecl.kotlinName: String
-        get() {
-            if (this.isAnonymous) {
-                val names = anonymousStructKotlinNames
-                return names.getOrPut(this) {
-                    "anonymousStruct${names.size + 1}"
-                }
-            }
-
-            val strippedCName = if (spelling.startsWith("struct ") || spelling.startsWith("union ")) {
-                spelling.substringAfter(' ')
-            } else {
-                spelling
-            }
-
-            // TODO: don't mangle struct names because it wouldn't work if the struct
-            // is imported into another interop library.
-            return if (strippedCName !in forbiddenStructNames) strippedCName else (strippedCName + "Struct")
-        }
-
-    /**
-     * Indicates whether this enum should be represented as Kotlin enum.
-     */
-    val EnumDef.isStrictEnum: Boolean
-            // TODO: if an anonymous enum defines e.g. a function return value or struct field type,
-            // then it probably should be represented as Kotlin enum
-        get() {
-            if (this.isAnonymous) {
-                return false
-            }
-
-            val name = this.kotlinName
-
-            if (name in configuration.strictEnums) {
-                return true
-            }
-
-            if (name in configuration.nonStrictEnums) {
-                return false
-            }
-
-            // Let the simple heuristic decide:
-            return !this.constants.any { it.isExplicitlyDefined }
-        }
-
-    /**
-     * The name to be used for this enum in Kotlin
-     */
-    val EnumDef.kotlinName: String
-        get() = if (spelling.startsWith("enum ")) {
-            spelling.substringAfter(' ')
-        } else {
-            assert (!isAnonymous)
-            spelling
-        }
 
     val declarationMapper = object : DeclarationMapper {
         override fun getKotlinClassForPointed(structDecl: StructDecl): Classifier {
@@ -147,8 +74,6 @@ class TextStubGenerator(
     }
 
     fun mirror(type: Type): TypeMirror = mirror(declarationMapper, type)
-
-    private val functionsToBind = nativeIndex.functions.filter { it.name !in excludedFunctions }
 
     private val macroConstantsByName = (nativeIndex.macroConstants + nativeIndex.wrappedMacros).associateBy { it.name }
 
@@ -240,7 +165,7 @@ class TextStubGenerator(
         return withOutput({ appendable.appendln(it) }, action)
     }
 
-    private fun generateKotlinFragmentBy(block: () -> Unit): KotlinTextStub {
+    override fun generateKotlinFragmentBy(block: () -> Unit): KotlinTextStub {
         val lines = generateLinesBy(block)
         return object : KotlinTextStub {
             override fun generate(context: StubGenerationContext) = lines.asSequence()
@@ -328,10 +253,10 @@ class TextStubGenerator(
     /**
      * Produces to [out] the definition of Kotlin class representing the reference to given struct.
      */
-    private fun generateStruct(decl: StructDecl) {
-        val def = decl.def
+    override fun generateStruct(struct: StructDecl) {
+        val def = struct.def
         if (def == null) {
-            generateForwardStruct(decl)
+            generateForwardStruct(struct)
             return
         }
 
@@ -345,7 +270,7 @@ class TextStubGenerator(
             }
         }
 
-        val kotlinName = kotlinFile.declare(declarationMapper.getKotlinClassForPointed(decl))
+        val kotlinName = kotlinFile.declare(declarationMapper.getKotlinClassForPointed(struct))
 
         block("class $kotlinName(rawPtr: NativePtr) : CStructVar(rawPtr)") {
             out("")
@@ -383,7 +308,7 @@ class TextStubGenerator(
                     }
                     out("")
                 } catch (e: Throwable) {
-                    log("Warning: cannot generate definition for field ${decl.kotlinName}.${field.name}")
+                    log("Warning: cannot generate definition for field ${struct.kotlinName}.${field.name}")
                 }
             }
 
@@ -438,7 +363,7 @@ class TextStubGenerator(
     /**
      * Produces to [out] the Kotlin definitions for given enum.
      */
-    private fun generateEnum(e: EnumDef) {
+    override fun generateEnum(e: EnumDef) {
         if (!e.isStrictEnum) {
             generateEnumAsConstants(e)
             return
@@ -538,7 +463,7 @@ class TextStubGenerator(
         }
     }
 
-    private fun generateTypedef(def: TypedefDef) {
+    override fun generateTypedef(def: TypedefDef) {
         val mirror = mirror(Typedef(def))
         val baseMirror = mirror(def.aliased)
 
@@ -559,7 +484,7 @@ class TextStubGenerator(
         }
     }
 
-    private fun generateStubsForFunctions(functions: List<FunctionDecl>): List<KotlinTextStub> {
+    override fun generateStubsForFunctions(functions: List<FunctionDecl>): List<KotlinTextStub> {
         val stubs = functions.mapNotNull {
             try {
                 KotlinFunctionTextStub(it)
@@ -608,30 +533,35 @@ class TextStubGenerator(
 
                 val representAsValuesRef = representCFunctionParameterAsValuesRef(parameter.type)
 
-                val bridgeArgument = if (representCFunctionParameterAsString(func, parameter.type)) {
-                    val annotations = when (platform) {
-                        KotlinPlatform.JVM -> ""
-                        KotlinPlatform.NATIVE -> "@CCall.CString "
+                val bridgeArgument = when {
+                    representCFunctionParameterAsString(func, parameter.type) -> {
+                        val annotations = when (platform) {
+                            KotlinPlatform.JVM -> ""
+                            KotlinPlatform.NATIVE -> "@CCall.CString "
+                        }
+                        kotlinParameters.add(annotations + parameterName to KotlinTypes.string.makeNullable())
+                        bodyGenerator.pushMemScoped()
+                        "$parameterName?.cstr?.getPointer(memScope)"
                     }
-                    kotlinParameters.add(annotations + parameterName to KotlinTypes.string.makeNullable())
-                    bodyGenerator.pushMemScoped()
-                    "$parameterName?.cstr?.getPointer(memScope)"
-                } else if (representCFunctionParameterAsWString(func, parameter.type)) {
-                    val annotations = when (platform) {
-                        KotlinPlatform.JVM -> ""
-                        KotlinPlatform.NATIVE -> "@CCall.WCString "
+                    representCFunctionParameterAsWString(func, parameter.type) -> {
+                        val annotations = when (platform) {
+                            KotlinPlatform.JVM -> ""
+                            KotlinPlatform.NATIVE -> "@CCall.WCString "
+                        }
+                        kotlinParameters.add(annotations + parameterName to KotlinTypes.string.makeNullable())
+                        bodyGenerator.pushMemScoped()
+                        "$parameterName?.wcstr?.getPointer(memScope)"
                     }
-                    kotlinParameters.add(annotations + parameterName to KotlinTypes.string.makeNullable())
-                    bodyGenerator.pushMemScoped()
-                    "$parameterName?.wcstr?.getPointer(memScope)"
-                } else if (representAsValuesRef != null) {
-                    kotlinParameters.add(parameterName to representAsValuesRef)
-                    bodyGenerator.pushMemScoped()
-                    bodyGenerator.getNativePointer(parameterName)
-                } else {
-                    val mirror = mirror(parameter.type)
-                    kotlinParameters.add(parameterName to mirror.argType)
-                    parameterName
+                    representAsValuesRef != null -> {
+                        kotlinParameters.add(parameterName to representAsValuesRef)
+                        bodyGenerator.pushMemScoped()
+                        bodyGenerator.getNativePointer(parameterName)
+                    }
+                    else -> {
+                        val mirror = mirror(parameter.type)
+                        kotlinParameters.add(parameterName to mirror.argType)
+                        parameterName
+                    }
                 }
                 bridgeArguments.add(TypedKotlinValue(parameter.type, bridgeArgument))
             }
@@ -736,7 +666,7 @@ class TextStubGenerator(
     private fun topLevelConstVal(name: String, type: KotlinType, initializer: String): String =
             "const val ${name.asSimpleName()}: ${type.render(kotlinFile)} = $initializer"
 
-    private fun generateConstant(constant: ConstantDef) {
+    override fun generateConstant(constant: ConstantDef) {
         val kotlinName = constant.name
         val declaration = when (constant) {
             is IntegerConstantDef -> {
@@ -765,90 +695,6 @@ class TextStubGenerator(
 
         // TODO: consider using `const` modifier in all cases.
         // Note: It is not currently possible for floating literals.
-    }
-
-    private fun generateStubs(): List<KotlinTextStub> {
-        val stubs = mutableListOf<KotlinTextStub>()
-
-        stubs.addAll(generateStubsForFunctions(functionsToBind))
-
-        nativeIndex.objCProtocols.forEach {
-            if (!it.isForwardDeclaration) {
-                stubs.add(ObjCProtocolTextStub(this, it))
-            }
-        }
-
-        nativeIndex.objCClasses.forEach {
-            if (!it.isForwardDeclaration && !it.isNSStringSubclass()) {
-                stubs.add(ObjCClassTextStub(this, it))
-            }
-        }
-
-        nativeIndex.objCCategories.filter { !it.clazz.isNSStringSubclass() }.mapTo(stubs) {
-            ObjCCategoryTextStub(this, it)
-        }
-
-        nativeIndex.macroConstants.filter { it.name !in excludedMacros }.forEach {
-            try {
-                stubs.add(
-                        generateKotlinFragmentBy { generateConstant(it) }
-                )
-            } catch (e: Throwable) {
-                log("Warning: cannot generate stubs for constant ${it.name}")
-            }
-        }
-
-        nativeIndex.wrappedMacros.filter { it.name !in excludedMacros }.forEach {
-            try {
-                stubs.add(
-                        GlobalVariableTextStub(GlobalDecl(it.name, it.type, isConst = true), this)
-                )
-            } catch (e: Throwable) {
-                log("Warning: cannot generate stubs for macro ${it.name}")
-            }
-        }
-
-        nativeIndex.globals.filter { it.name !in excludedFunctions }.forEach {
-            try {
-                stubs.add(
-                        GlobalVariableTextStub(it, this)
-                )
-            } catch (e: Throwable) {
-                log("Warning: cannot generate stubs for global ${it.name}")
-            }
-        }
-
-        nativeIndex.structs.forEach { s ->
-            try {
-                stubs.add(
-                    generateKotlinFragmentBy { generateStruct(s) }
-                )
-            } catch (e: Throwable) {
-                log("Warning: cannot generate definition for struct ${s.kotlinName}")
-            }
-        }
-
-        nativeIndex.enums.forEach {
-            try {
-                stubs.add(
-                        generateKotlinFragmentBy { generateEnum(it) }
-                )
-            } catch (e: Throwable) {
-                log("Warning: cannot generate definition for enum ${it.spelling}")
-            }
-        }
-
-        nativeIndex.typedefs.forEach { t ->
-            try {
-                stubs.add(
-                        generateKotlinFragmentBy { generateTypedef(t) }
-                )
-            } catch (e: Throwable) {
-                log("Warning: cannot generate typedef ${t.name}")
-            }
-        }
-
-        return stubs
     }
 
     /**
@@ -988,20 +834,6 @@ class TextStubGenerator(
         }
     }
 
-    fun addManifestProperties(properties: Properties) {
-        val exportForwardDeclarations = configuration.exportForwardDeclarations.toMutableList()
-
-        nativeIndex.structs
-                .filter { it.def == null }
-                .mapTo(exportForwardDeclarations) {
-                    "$cnamesStructsPackageName.${it.kotlinName}"
-                }
-
-        properties["exportForwardDeclarations"] = exportForwardDeclarations.joinToString(" ")
-
-        // TODO: consider exporting Objective-C class and protocol forward refs.
-    }
-
     val simpleBridgeGenerator: SimpleBridgeGenerator =
             SimpleBridgeGeneratorImpl(
                     platform,
@@ -1021,4 +853,16 @@ class TextStubGenerator(
     companion object {
         private val VALID_PACKAGE_NAME_REGEX = "[a-zA-Z0-9_.]+".toRegex()
     }
+
+    override fun generateObjCProtocolStub(protocol: ObjCProtocol): KotlinTextStub =
+            ObjCProtocolTextStub(this, protocol)
+
+    override fun generateObjCClassStub(klass: ObjCClass): KotlinTextStub =
+            ObjCClassTextStub(this, klass)
+
+    override fun generateObjCCategory(category: ObjCCategory): KotlinTextStub =
+            ObjCCategoryTextStub(this, category)
+
+    override fun generateGlobalVariableStub(globalVariable: GlobalDecl): KotlinTextStub =
+            GlobalVariableTextStub(globalVariable, this)
 }
