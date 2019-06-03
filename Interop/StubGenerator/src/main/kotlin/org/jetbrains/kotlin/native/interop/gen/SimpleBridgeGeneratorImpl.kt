@@ -75,15 +75,48 @@ class SimpleBridgeGeneratorImpl(
             block: NativeCodeBuilder.(nativeValues: List<NativeTextExpression>) -> NativeTextExpression
     ): KotlinTextExpression {
 
-        val kotlinLines = mutableListOf<String>()
-        val nativeLines = mutableListOf<String>()
-
         val kotlinFunctionName = "kniBridge${nextUniqueId++}"
+
+        val symbolName by lazy {
+            pkgName.replace(INVALID_CLANG_IDENTIFIER_REGEX, "_") + "_$kotlinFunctionName"
+        }
+
+        val nativeLines = kotlinToNativeNativePart(kotlinFunctionName, symbolName, returnType, kotlinValues, block)
+        val kotlinLines = kotlinToNativeKotlinPart(kotlinFunctionName, symbolName, returnType, kotlinValues, independent)
+        val nativeBridge = NativeBridge(kotlinLines, nativeLines)
+        nativeBridges.add(nativeBacked to nativeBridge)
+        return "$kotlinFunctionName(${kotlinValues.joinToString { it.value }})"
+    }
+
+    private fun kotlinToNativeKotlinPart(
+            kotlinFunctionName: String,
+            symbolName: String,
+            returnType: BridgedType,
+            kotlinValues: List<BridgeTypedKotlinValue>,
+            independent: Boolean
+    ): List<String> {
+        val kotlinLines = mutableListOf<String>()
+        val kotlinReturnType = returnType.kotlinType.render(topLevelKotlinScope)
         val kotlinParameters = kotlinValues.withIndex().joinToString {
             "p${it.index}: ${it.value.type.kotlinType.render(topLevelKotlinScope)}"
         }
+        if (platform == KotlinPlatform.NATIVE) {
+            if (independent) kotlinLines.add("@" + topLevelKotlinScope.reference(KotlinTypes.independent))
+            kotlinLines.add("@SymbolName(${symbolName.quoteAsKotlinLiteral()})")
+        }
+        kotlinLines.add("private external fun $kotlinFunctionName($kotlinParameters): $kotlinReturnType")
 
-        val callExpr = "$kotlinFunctionName(${kotlinValues.joinToString { it.value }})"
+        return kotlinLines
+    }
+
+    private fun kotlinToNativeNativePart(
+            kotlinFunctionName: String,
+            symbolName: String,
+            returnType: BridgedType,
+            kotlinValues: List<BridgeTypedKotlinValue>,
+            block: NativeCodeBuilder.(nativeValues: List<NativeTextExpression>) -> NativeTextExpression
+    ): List<String> {
+        val nativeLines = mutableListOf<String>()
 
         val cFunctionParameters = when (platform) {
             KotlinPlatform.JVM -> mutableListOf(
@@ -96,10 +129,8 @@ class SimpleBridgeGeneratorImpl(
         kotlinValues.withIndex().mapTo(cFunctionParameters) {
             "p${it.index}" to it.value.type.nativeType
         }
-
         val joinedCParameters = cFunctionParameters.joinToString { (name, type) -> "$type $name" }
         val cReturnType = returnType.nativeType
-
         val cFunctionHeader = when (platform) {
             KotlinPlatform.JVM -> {
                 val funcFullName = buildString {
@@ -116,12 +147,10 @@ class SimpleBridgeGeneratorImpl(
                 "JNIEXPORT $cReturnType JNICALL $functionName ($joinedCParameters)"
             }
             KotlinPlatform.NATIVE -> {
-                val functionName = pkgName.replace(INVALID_CLANG_IDENTIFIER_REGEX, "_") + "_$kotlinFunctionName"
-                if (independent) kotlinLines.add("@" + topLevelKotlinScope.reference(KotlinTypes.independent))
-                kotlinLines.add("@SymbolName(${functionName.quoteAsKotlinLiteral()})")
-                "$cReturnType $functionName ($joinedCParameters)"
+                "$cReturnType $symbolName ($joinedCParameters)"
             }
         }
+
         nativeLines.add(cFunctionHeader + " {")
 
         buildNativeCodeLines(topLevelNativeScope) {
@@ -132,7 +161,6 @@ class SimpleBridgeGeneratorImpl(
         }.forEach {
             nativeLines.add("    $it")
         }
-
         if (libraryForCStubs.language == Language.OBJECTIVE_C) {
             // Prevent Objective-C exceptions from passing to Kotlin:
             nativeLines.add(1, "@try {")
@@ -140,15 +168,8 @@ class SimpleBridgeGeneratorImpl(
             // 'objc_terminate' will report the exception.
             // TODO: consider implementing this in bitcode generator.
         }
-
         nativeLines.add("}")
-        val kotlinReturnType = returnType.kotlinType.render(topLevelKotlinScope)
-        kotlinLines.add("private external fun $kotlinFunctionName($kotlinParameters): $kotlinReturnType")
-
-        val nativeBridge = NativeBridge(kotlinLines, nativeLines)
-        nativeBridges.add(nativeBacked to nativeBridge)
-
-        return callExpr
+        return nativeLines
     }
 
     override fun nativeToKotlin(
@@ -157,34 +178,50 @@ class SimpleBridgeGeneratorImpl(
             nativeValues: List<BridgeTypedNativeValue>,
             block: KotlinCodeBuilder.(arguments: List<KotlinTextExpression>) -> KotlinTextExpression
     ): NativeTextExpression {
-
         if (platform != KotlinPlatform.NATIVE) TODO()
-
-        val kotlinLines = mutableListOf<String>()
-        val nativeLines = mutableListOf<String>()
-
         val kotlinFunctionName = "kniBridge${nextUniqueId++}"
-        val kotlinParameters = nativeValues.withIndex().map {
-            "p${it.index}" to it.value.type.kotlinType
-        }
-        val joinedKotlinParameters = kotlinParameters.joinToString {
-            "${it.first}: ${it.second.render(topLevelKotlinScope)}"
-        }
+        val symbolName = pkgName.replace(INVALID_CLANG_IDENTIFIER_REGEX, "_") + "_$kotlinFunctionName"
+        val kotlinPart = buildNativeToKotlinKotlinPart(kotlinFunctionName, symbolName, returnType, nativeValues, block)
+        val nativePart = buildNativeToKotlinNativePart(symbolName, nativeValues, returnType)
+        insertNativeBridge(nativeBacked, kotlinPart, nativePart)
+        return "$symbolName(${nativeValues.joinToString { it.value }})"
+    }
 
+    private fun buildNativeToKotlinNativePart(
+            symbolName: String,
+            nativeValues: List<BridgeTypedNativeValue>,
+            returnType: BridgedType
+    ): List<String> {
+        val nativeLines = mutableListOf<String>()
         val cFunctionParameters = nativeValues.withIndex().map {
             "p${it.index}" to it.value.type.nativeType
         }
         val joinedCParameters = cFunctionParameters.joinToString { (name, type) -> "$type $name" }
         val cReturnType = returnType.nativeType
-
-        val symbolName = pkgName.replace(INVALID_CLANG_IDENTIFIER_REGEX, "_") + "_$kotlinFunctionName"
-        kotlinLines.add("@kotlin.native.internal.ExportForCppRuntime(${symbolName.quoteAsKotlinLiteral()})")
         val cFunctionHeader = "$cReturnType $symbolName($joinedCParameters)"
-
         nativeLines.add("$cFunctionHeader;")
-        val kotlinReturnType = returnType.kotlinType.render(topLevelKotlinScope)
-        kotlinLines.add("private fun $kotlinFunctionName($joinedKotlinParameters): $kotlinReturnType {")
 
+        return nativeLines
+    }
+
+    private fun buildNativeToKotlinKotlinPart(
+            kotlinFunctionName: String,
+            symbolName: String,
+            returnType: BridgedType,
+            nativeValues: List<BridgeTypedNativeValue>,
+            block: KotlinCodeBuilder.(arguments: List<KotlinTextExpression>) -> KotlinTextExpression
+    ): List<String> {
+        val kotlinLines = mutableListOf<String>()
+        val kotlinReturnType = returnType.kotlinType.render(topLevelKotlinScope)
+        val kotlinParameters = nativeValues.withIndex().map {
+            "p${it.index}" to it.value.type.kotlinType
+        }
+
+        val joinedKotlinParameters = kotlinParameters.joinToString {
+            "${it.first}: ${it.second.render(topLevelKotlinScope)}"
+        }
+        kotlinLines.add("@kotlin.native.internal.ExportForCppRuntime(${symbolName.quoteAsKotlinLiteral()})")
+        kotlinLines.add("private fun $kotlinFunctionName($joinedKotlinParameters): $kotlinReturnType {")
         buildKotlinCodeLines(topLevelKotlinScope) {
             var kotlinExpr = block(kotlinParameters.map { (name, _) -> name })
             if (returnType == BridgedType.OBJC_POINTER) {
@@ -197,13 +234,8 @@ class SimpleBridgeGeneratorImpl(
         }.forEach {
             kotlinLines.add("    $it")
         }
-
         kotlinLines.add("}")
-
-        insertNativeBridge(nativeBacked, kotlinLines, nativeLines)
-
-        return "$symbolName(${nativeValues.joinToString { it.value }})"
-
+        return kotlinLines
     }
 
     override fun insertNativeBridge(nativeBacked: NativeBacked, kotlinLines: List<String>, nativeLines: List<String>) {
