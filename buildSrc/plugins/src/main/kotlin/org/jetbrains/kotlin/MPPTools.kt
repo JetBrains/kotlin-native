@@ -178,7 +178,7 @@ fun getJvmCompileTime(programName: String): BenchmarkResult =
 
 @JvmOverloads
 fun getNativeCompileTime(programName: String,
-                         tasks: List<String> = listOf("compileKotlinNative", "linkBenchmarkReleaseExecutableNative")): BenchmarkResult =
+                         tasks: List<String> = listOf("linkBenchmarkReleaseExecutableNative")): BenchmarkResult =
         TaskTimerListener.getBenchmarkResult(programName, tasks)
 
 fun getCompileBenchmarkTime(programName: String, tasksNames: Iterable<String>, repeats: Int, exitCodes: Map<String, Int>) =

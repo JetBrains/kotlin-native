@@ -7,11 +7,16 @@ project.ext {
     nativeSrcDirs = ['src/main/kotlin-native', '../shared/src/main/kotlin-native']
     linkerOpts = ["-L$buildDir".toString(), "-lcomplexnumbers".toString()]
 }
-mkdir buildDir.absolutePath
-execKonanClang(HostManager.host) {
-    args "$projectDir/src/nativeInterop/cinterop/complexNumbers.m"
-    args "-lobjc", '-fobjc-arc'
-    args '-fPIC', '-shared', '-o', "$buildDir/libcomplexnumbers.dylib"
+
+task compileLibrary {
+    doFirst {
+        mkdir buildDir.absolutePath
+        execKonanClang(HostManager.host) {
+            args "$projectDir/src/nativeInterop/cinterop/complexNumbers.m"
+            args "-lobjc", '-fobjc-arc'
+            args '-fPIC', '-shared', '-o', "$buildDir/libcomplexnumbers.dylib"
+        }
+    }
 }
 
 apply from: rootProject.file("${rootProject.rootDir}/performance/gradle/benchmark.gradle")
@@ -20,3 +25,5 @@ kotlin.targets.native.compilations.main.cinterops {
         headers "$projectDir/src/nativeInterop/cinterop/complexNumbers.h"
     }
 }
+
+kotlin.targets.native.binaries.getExecutable("benchmark", "RELEASE").linkTask.dependsOn 'compileLibrary'
