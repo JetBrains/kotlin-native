@@ -38,16 +38,16 @@ class MappingBridgeGeneratorImpl(
             independent: Boolean,
             block: NativeCodeBuilder.(nativeValues: List<NativeTextExpression>) -> NativeTextExpression
     ): KotlinTextExpression {
-        val bridgeArguments = mutableListOf<BridgeTypedKotlinValue>()
+        val bridgeArguments = mutableListOf<BridgeTypedKotlinTextValue>()
 
         kotlinValues.forEach { (type, value) ->
             if (type.unwrapTypedefs() is RecordType) {
                 builder.pushMemScoped()
                 val bridgeArgument = "$value.getPointer(memScope).rawValue"
-                bridgeArguments.add(BridgeTypedKotlinValue(BridgedType.NATIVE_PTR, bridgeArgument))
+                bridgeArguments.add(BridgeTypedKotlinTextValue(BridgedType.NATIVE_PTR, bridgeArgument))
             } else {
                 val info = mirror(declarationMapper, type).info
-                bridgeArguments.add(BridgeTypedKotlinValue(info.bridgedType, info.argToBridged(value)))
+                bridgeArguments.add(BridgeTypedKotlinTextValue(info.bridgedType, info.argToBridged(value)))
             }
         }
 
@@ -61,7 +61,7 @@ class MappingBridgeGeneratorImpl(
                 // We clear in the finally block.
                 builder.out("val $tmpVarName = nativeHeap.alloc<${mirror.pointedType.render(builder.scope)}>()")
                 builder.pushBlock(start = "try {", end = "} finally { nativeHeap.free($tmpVarName) }")
-                bridgeArguments.add(BridgeTypedKotlinValue(BridgedType.NATIVE_PTR, "$tmpVarName.rawPtr"))
+                bridgeArguments.add(BridgeTypedKotlinTextValue(BridgedType.NATIVE_PTR, "$tmpVarName.rawPtr"))
                 BridgedType.VOID
             }
             else -> {
@@ -131,14 +131,14 @@ class MappingBridgeGeneratorImpl(
             block: KotlinCodeBuilder.(kotlinValues: List<KotlinTextExpression>) -> KotlinTextExpression
     ): NativeTextExpression {
 
-        val bridgeArguments = mutableListOf<BridgeTypedNativeValue>()
+        val bridgeArguments = mutableListOf<BridgeTypedNativeTextValue>()
 
         nativeValues.forEachIndexed { _, (type, value) ->
             val bridgeArgument = if (type.unwrapTypedefs() is RecordType) {
-                BridgeTypedNativeValue(BridgedType.NATIVE_PTR, "&$value")
+                BridgeTypedNativeTextValue(BridgedType.NATIVE_PTR, "&$value")
             } else {
                 val info = mirror(declarationMapper, type).info
-                BridgeTypedNativeValue(info.bridgedType, value)
+                BridgeTypedNativeTextValue(info.bridgedType, value)
             }
             bridgeArguments.add(bridgeArgument)
         }
@@ -150,7 +150,7 @@ class MappingBridgeGeneratorImpl(
             is RecordType -> {
                 val tmpVarName = kniRetVal
                 builder.out("${unwrappedReturnType.decl.spelling} $tmpVarName;")
-                bridgeArguments.add(BridgeTypedNativeValue(BridgedType.NATIVE_PTR, "&$tmpVarName"))
+                bridgeArguments.add(BridgeTypedNativeTextValue(BridgedType.NATIVE_PTR, "&$tmpVarName"))
                 BridgedType.VOID
             }
             else -> {

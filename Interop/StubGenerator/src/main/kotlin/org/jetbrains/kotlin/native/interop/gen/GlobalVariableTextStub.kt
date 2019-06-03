@@ -68,7 +68,7 @@ class GlobalVariableTextStub(global: GlobalDecl, stubGenerator: TextStubGenerato
                 setter = if (global.isConst) {
                     null
                 } else {
-                    val bridgedValue = BridgeTypedKotlinValue(mirror.info.bridgedType, mirror.info.argToBridged("value"))
+                    val bridgedValue = BridgeTypedKotlinTextValue(mirror.info.bridgedType, mirror.info.argToBridged("value"))
 
                     stubGenerator.simpleBridgeGenerator.kotlinToNative(
                             nativeBacked = setterStub,

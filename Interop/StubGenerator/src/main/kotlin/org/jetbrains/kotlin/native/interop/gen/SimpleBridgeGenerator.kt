@@ -35,8 +35,25 @@ enum class BridgedType(val kotlinType: KotlinClassifierType, val convertor: Stri
     VOID(KotlinTypes.unit)
 }
 
-data class BridgeTypedKotlinValue(val type: BridgedType, val value: KotlinTextExpression)
-data class BridgeTypedNativeValue(val type: BridgedType, val value: NativeTextExpression)
+interface BridgeTypedKotlinValue<KotlinPartTy> {
+    val type: BridgedType
+    val value: KotlinPartTy
+}
+
+interface BridgeTypedNativeValue<NativePartTy> {
+    val type: BridgedType
+    val value: NativePartTy
+}
+
+data class BridgeTypedKotlinTextValue(
+        override val type: BridgedType,
+        override val value: KotlinTextExpression
+) : BridgeTypedKotlinValue<KotlinTextExpression>
+
+data class BridgeTypedNativeTextValue(
+        override val type: BridgedType,
+        override val value: NativeTextExpression
+) : BridgeTypedNativeValue<NativeTextExpression>
 
 /**
  * The entity which depends on native bridges.
@@ -53,7 +70,7 @@ interface KotlinToNativeBridgeGenerator<CallbackTy, RetTy, NativePartTy, KotlinP
     fun kotlinToNative(
             nativeBacked: NativeBacked,
             returnType: BridgedType,
-            kotlinValues: List<BridgeTypedKotlinValue>,
+            kotlinValues: List<BridgeTypedKotlinValue<KotlinPartTy>>,
             independent: Boolean,
             block: CallbackTy
     ): RetTy
@@ -62,7 +79,7 @@ interface KotlinToNativeBridgeGenerator<CallbackTy, RetTy, NativePartTy, KotlinP
             kotlinFunctionName: String,
             symbolName: String,
             returnType: BridgedType,
-            kotlinValues: List<BridgeTypedKotlinValue>,
+            kotlinValues: List<BridgeTypedKotlinValue<KotlinPartTy>>,
             independent: Boolean
     ): KotlinPartTy
 
@@ -70,7 +87,7 @@ interface KotlinToNativeBridgeGenerator<CallbackTy, RetTy, NativePartTy, KotlinP
             kotlinFunctionName: String,
             symbolName: String,
             returnType: BridgedType,
-            kotlinValues: List<BridgeTypedKotlinValue>,
+            kotlinValues: List<BridgeTypedKotlinValue<KotlinPartTy>>,
             block: CallbackTy
     ): NativePartTy
 }
@@ -83,13 +100,13 @@ interface NativeToKotlinBridgeGenerator<CallbackTy, RetTy, NativePartTy, KotlinP
     fun nativeToKotlin(
             nativeBacked: NativeBacked,
             returnType: BridgedType,
-            nativeValues: List<BridgeTypedNativeValue>,
+            nativeValues: List<BridgeTypedNativeValue<NativePartTy>>,
             block: KotlinCodeBuilder.(kotlinValues: List<KotlinTextExpression>) -> KotlinTextExpression
     ): RetTy
 
     fun buildNativeToKotlinNativePart(
             symbolName: String,
-            nativeValues: List<BridgeTypedNativeValue>,
+            nativeValues: List<BridgeTypedNativeValue<NativePartTy>>,
             returnType: BridgedType
     ): NativePartTy
 
@@ -97,7 +114,7 @@ interface NativeToKotlinBridgeGenerator<CallbackTy, RetTy, NativePartTy, KotlinP
             kotlinFunctionName: String,
             symbolName: String,
             returnType: BridgedType,
-            nativeValues: List<BridgeTypedNativeValue>,
+            nativeValues: List<BridgeTypedNativeValue<NativePartTy>>,
             block: CallbackTy
     ): KotlinPartTy
 }
@@ -144,7 +161,7 @@ interface SimpleBridgeGenerator :
     override fun kotlinToNative(
             nativeBacked: NativeBacked,
             returnType: BridgedType,
-            kotlinValues: List<BridgeTypedKotlinValue>,
+            kotlinValues: List<BridgeTypedKotlinTextValue>,
             independent: Boolean,
             block: NativeCodeBuilder.(nativeValues: List<NativeTextExpression>) -> NativeTextExpression
     ): KotlinTextExpression
@@ -152,7 +169,7 @@ interface SimpleBridgeGenerator :
     override fun nativeToKotlin(
             nativeBacked: NativeBacked,
             returnType: BridgedType,
-            nativeValues: List<BridgeTypedNativeValue>,
+            nativeValues: List<BridgeTypedNativeTextValue>,
             block: KotlinCodeBuilder.(kotlinValues: List<KotlinTextExpression>) -> KotlinTextExpression
     ): NativeTextExpression
 }

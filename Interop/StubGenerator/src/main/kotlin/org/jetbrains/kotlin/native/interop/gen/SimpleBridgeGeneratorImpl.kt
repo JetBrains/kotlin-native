@@ -70,7 +70,7 @@ class SimpleBridgeGeneratorImpl(
     override fun kotlinToNative(
             nativeBacked: NativeBacked,
             returnType: BridgedType,
-            kotlinValues: List<BridgeTypedKotlinValue>,
+            kotlinValues: List<BridgeTypedKotlinTextValue>,
             independent: Boolean,
             block: NativeCodeBuilder.(nativeValues: List<NativeTextExpression>) -> NativeTextExpression
     ): KotlinTextExpression {
@@ -91,7 +91,7 @@ class SimpleBridgeGeneratorImpl(
             kotlinFunctionName: String,
             symbolName: String,
             returnType: BridgedType,
-            kotlinValues: List<BridgeTypedKotlinValue>,
+            kotlinValues: List<BridgeTypedKotlinTextValue>,
             independent: Boolean
     ): List<String> {
         val kotlinLines = mutableListOf<String>()
@@ -112,7 +112,7 @@ class SimpleBridgeGeneratorImpl(
             kotlinFunctionName: String,
             symbolName: String,
             returnType: BridgedType,
-            kotlinValues: List<BridgeTypedKotlinValue>,
+            kotlinValues: List<BridgeTypedKotlinTextValue>,
             block: NativeCodeBuilder.(nativeValues: List<NativeTextExpression>) -> NativeTextExpression
     ): List<String> {
         val nativeLines = mutableListOf<String>()
@@ -174,7 +174,7 @@ class SimpleBridgeGeneratorImpl(
     override fun nativeToKotlin(
             nativeBacked: NativeBacked,
             returnType: BridgedType,
-            nativeValues: List<BridgeTypedNativeValue>,
+            nativeValues: List<BridgeTypedNativeTextValue>,
             block: KotlinCodeBuilder.(arguments: List<KotlinTextExpression>) -> KotlinTextExpression
     ): NativeTextExpression {
         if (platform != KotlinPlatform.NATIVE) TODO()
@@ -188,7 +188,7 @@ class SimpleBridgeGeneratorImpl(
 
     override fun buildNativeToKotlinNativePart(
             symbolName: String,
-            nativeValues: List<BridgeTypedNativeValue>,
+            nativeValues: List<BridgeTypedNativeTextValue>,
             returnType: BridgedType
     ): List<String> {
         val nativeLines = mutableListOf<String>()
@@ -207,7 +207,7 @@ class SimpleBridgeGeneratorImpl(
             kotlinFunctionName: String,
             symbolName: String,
             returnType: BridgedType,
-            nativeValues: List<BridgeTypedNativeValue>,
+            nativeValues: List<BridgeTypedNativeTextValue>,
             block: KotlinCodeBuilder.(arguments: List<KotlinTextExpression>) -> KotlinTextExpression
     ): List<String> {
         val kotlinLines = mutableListOf<String>()
