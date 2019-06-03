@@ -16,14 +16,14 @@
 
 package org.jetbrains.kotlin.native.interop.gen
 
-import org.jetbrains.kotlin.native.interop.gen.jvm.StubGenerator
+import org.jetbrains.kotlin.native.interop.gen.jvm.TextStubGenerator
 import org.jetbrains.kotlin.native.interop.indexer.ArrayType
 import org.jetbrains.kotlin.native.interop.indexer.GlobalDecl
 import org.jetbrains.kotlin.native.interop.indexer.unwrapTypedefs
 
-class GlobalVariableStub(global: GlobalDecl, stubGenerator: StubGenerator) : KotlinStub, NativeBacked {
+class GlobalVariableTextStub(global: GlobalDecl, stubGenerator: TextStubGenerator) : KotlinTextStub, NativeBacked {
 
-    private val getAddressExpression: KotlinExpression by lazy {
+    private val getAddressExpression: KotlinTextExpression by lazy {
         stubGenerator.simpleBridgeGenerator.kotlinToNative(
                 nativeBacked = this,
                 returnType = BridgedType.NATIVE_PTR,
@@ -37,8 +37,8 @@ class GlobalVariableStub(global: GlobalDecl, stubGenerator: StubGenerator) : Kot
     private val setterStub = object : NativeBacked {}
 
     val header: String
-    val getter: KotlinExpression
-    val setter: KotlinExpression?
+    val getter: KotlinTextExpression
+    val setter: KotlinTextExpression?
 
     init {
         val kotlinScope = stubGenerator.kotlinFile
@@ -103,7 +103,7 @@ class GlobalVariableStub(global: GlobalDecl, stubGenerator: StubGenerator) : Kot
     }
 
     // Try to use the provided name. If failed, mangle it with underscore and try again:
-    private tailrec fun getDeclarationName(scope: KotlinScope, name: String): String =
+    private tailrec fun getDeclarationName(scope: KotlinTextScope, name: String): String =
             scope.declareProperty(name) ?: getDeclarationName(scope, name + "_")
 
     override fun generate(context: StubGenerationContext): Sequence<String> {

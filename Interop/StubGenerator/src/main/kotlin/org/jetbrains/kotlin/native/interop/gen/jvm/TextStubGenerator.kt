@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2017 JetBrains s.r.o.
+ * Copyright 2010-2019 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -26,23 +26,14 @@ enum class KotlinPlatform {
     NATIVE
 }
 
-class StubGenerator(
-        val nativeIndex: NativeIndex,
-        val configuration: InteropConfiguration,
-        val libName: String,
-        val verbose: Boolean = false,
+class TextStubGenerator(
+        private val nativeIndex: NativeIndex,
+        configuration: InteropConfiguration,
+        private val libName: String,
+        verbose: Boolean = false,
         val platform: KotlinPlatform = KotlinPlatform.JVM,
         val imports: Imports
-) {
-
-    private var theCounter = 0
-    fun nextUniqueId() = theCounter++
-
-    private fun log(message: String) {
-        if (verbose) {
-            println(message)
-        }
-    }
+) : StubGenerator(verbose, configuration) {
 
     val pkgName: String
         get() = configuration.pkgName
@@ -55,27 +46,17 @@ class StubGenerator(
 
     val generatedObjCCategoriesMembers = mutableMapOf<ObjCClass, GeneratedObjCCategoriesMembers>()
 
-    val excludedFunctions: Set<String>
-        get() = configuration.excludedFunctions
-
-    val excludedMacros: Set<String>
-        get() = configuration.excludedMacros
-
-    val noStringConversion: Set<String>
-        get() = configuration.noStringConversion
-
-
-    val platformWStringTypes = setOf("LPCWSTR")
+    private val platformWStringTypes = setOf("LPCWSTR")
 
     /**
      * The names that should not be used for struct classes to prevent name clashes
      */
-    val forbiddenStructNames = run {
+    private val forbiddenStructNames = run {
         val typedefNames = nativeIndex.typedefs.map { it.name }
         typedefNames.toSet()
     }
 
-    val anonymousStructKotlinNames = mutableMapOf<StructDecl, String>()
+    private val anonymousStructKotlinNames = mutableMapOf<StructDecl, String>()
 
     /**
      * The name to be used for this struct in Kotlin
@@ -167,13 +148,13 @@ class StubGenerator(
 
     fun mirror(type: Type): TypeMirror = mirror(declarationMapper, type)
 
-    val functionsToBind = nativeIndex.functions.filter { it.name !in excludedFunctions }
+    private val functionsToBind = nativeIndex.functions.filter { it.name !in excludedFunctions }
 
     private val macroConstantsByName = (nativeIndex.macroConstants + nativeIndex.wrappedMacros).associateBy { it.name }
 
-    val kotlinFile = object : KotlinFile(pkgName, namesToBeDeclared = computeNamesToBeDeclared()) {
+    val kotlinFile = object : KotlinTextFile(pkgName, namesToBeDeclared = computeNamesToBeDeclared()) {
         override val mappingBridgeGenerator: MappingBridgeGenerator
-            get() = this@StubGenerator.mappingBridgeGenerator
+            get() = this@TextStubGenerator.mappingBridgeGenerator
     }
 
     private fun computeNamesToBeDeclared(): MutableList<String> {
@@ -239,7 +220,7 @@ class StubGenerator(
         throw IllegalStateException()
     }
 
-    fun <R> withOutput(output: (String) -> Unit, action: () -> R): R {
+    private fun <R> withOutput(output: (String) -> Unit, action: () -> R): R {
         val oldOut = out
         out = output
         try {
@@ -249,19 +230,19 @@ class StubGenerator(
         }
     }
 
-    fun generateLinesBy(action: () -> Unit): List<String> {
+    private fun generateLinesBy(action: () -> Unit): List<String> {
         val result = mutableListOf<String>()
         withOutput({ result.add(it) }, action)
         return result
     }
 
-    fun <R> withOutput(appendable: Appendable, action: () -> R): R {
+    private fun <R> withOutput(appendable: Appendable, action: () -> R): R {
         return withOutput({ appendable.appendln(it) }, action)
     }
 
-    private fun generateKotlinFragmentBy(block: () -> Unit): KotlinStub {
+    private fun generateKotlinFragmentBy(block: () -> Unit): KotlinTextStub {
         val lines = generateLinesBy(block)
-        return object : KotlinStub {
+        return object : KotlinTextStub {
             override fun generate(context: StubGenerationContext) = lines.asSequence()
         }
     }
@@ -316,7 +297,7 @@ class StubGenerator(
         return false
     }
 
-    fun representCFunctionParameterAsString(function: FunctionDecl, type: Type): Boolean {
+    private fun representCFunctionParameterAsString(function: FunctionDecl, type: Type): Boolean {
         val unwrappedType = type.unwrapTypedefs()
         return unwrappedType is PointerType && unwrappedType.pointeeIsConst &&
                 unwrappedType.pointeeType.unwrapTypedefs() == CharType &&
@@ -324,7 +305,7 @@ class StubGenerator(
     }
 
     // We take this approach as generic 'const short*' shall not be used as String.
-    fun representCFunctionParameterAsWString(function: FunctionDecl, type: Type) = type.isAliasOf(platformWStringTypes)
+    private fun representCFunctionParameterAsWString(function: FunctionDecl, type: Type) = type.isAliasOf(platformWStringTypes)
             && !noStringConversion.contains(function.name)
 
     private fun getArrayLength(type: ArrayType): Long {
@@ -578,10 +559,10 @@ class StubGenerator(
         }
     }
 
-    private fun generateStubsForFunctions(functions: List<FunctionDecl>): List<KotlinStub> {
+    private fun generateStubsForFunctions(functions: List<FunctionDecl>): List<KotlinTextStub> {
         val stubs = functions.mapNotNull {
             try {
-                KotlinFunctionStub(it)
+                KotlinFunctionTextStub(it)
             } catch (e: Throwable) {
                 log("Warning: cannot generate stubs for function ${it.name}")
                 null
@@ -593,7 +574,7 @@ class StubGenerator(
 
     private fun FunctionDecl.returnsVoid(): Boolean = this.returnType.unwrapTypedefs() is VoidType
 
-    private inner class KotlinFunctionStub(val func: FunctionDecl) : KotlinStub, NativeBacked {
+    private inner class KotlinFunctionTextStub(val func: FunctionDecl) : KotlinTextStub, NativeBacked {
         override fun generate(context: StubGenerationContext): Sequence<String> =
                 if (isCCall) {
                     sequenceOf("@CCall".applyToStrings(cCallSymbolName!!), "external $header")
@@ -786,25 +767,25 @@ class StubGenerator(
         // Note: It is not currently possible for floating literals.
     }
 
-    private fun generateStubs(): List<KotlinStub> {
-        val stubs = mutableListOf<KotlinStub>()
+    private fun generateStubs(): List<KotlinTextStub> {
+        val stubs = mutableListOf<KotlinTextStub>()
 
         stubs.addAll(generateStubsForFunctions(functionsToBind))
 
         nativeIndex.objCProtocols.forEach {
             if (!it.isForwardDeclaration) {
-                stubs.add(ObjCProtocolStub(this, it))
+                stubs.add(ObjCProtocolTextStub(this, it))
             }
         }
 
         nativeIndex.objCClasses.forEach {
             if (!it.isForwardDeclaration && !it.isNSStringSubclass()) {
-                stubs.add(ObjCClassStub(this, it))
+                stubs.add(ObjCClassTextStub(this, it))
             }
         }
 
         nativeIndex.objCCategories.filter { !it.clazz.isNSStringSubclass() }.mapTo(stubs) {
-            ObjCCategoryStub(this, it)
+            ObjCCategoryTextStub(this, it)
         }
 
         nativeIndex.macroConstants.filter { it.name !in excludedMacros }.forEach {
@@ -820,7 +801,7 @@ class StubGenerator(
         nativeIndex.wrappedMacros.filter { it.name !in excludedMacros }.forEach {
             try {
                 stubs.add(
-                        GlobalVariableStub(GlobalDecl(it.name, it.type, isConst = true), this)
+                        GlobalVariableTextStub(GlobalDecl(it.name, it.type, isConst = true), this)
                 )
             } catch (e: Throwable) {
                 log("Warning: cannot generate stubs for macro ${it.name}")
@@ -830,7 +811,7 @@ class StubGenerator(
         nativeIndex.globals.filter { it.name !in excludedFunctions }.forEach {
             try {
                 stubs.add(
-                        GlobalVariableStub(it, this)
+                        GlobalVariableTextStub(it, this)
                 )
             } catch (e: Throwable) {
                 log("Warning: cannot generate stubs for global ${it.name}")
@@ -873,7 +854,7 @@ class StubGenerator(
     /**
      * Produces to [out] the contents of file with Kotlin bindings.
      */
-    private fun generateKotlinFile(nativeBridges: NativeBridges, stubs: List<KotlinStub>) {
+    private fun generateKotlinFile(nativeBridges: NativeTextBridges, stubs: List<KotlinTextStub>) {
         if (platform == KotlinPlatform.JVM) {
             out("@file:JvmName(${jvmFileClassName.quoteAsKotlinLiteral()})")
         }
@@ -930,7 +911,7 @@ class StubGenerator(
         val context = object : StubGenerationContext {
             val topLevelDeclarationLines = mutableListOf<String>()
 
-            override val nativeBridges: NativeBridges get() = nativeBridges
+            override val nativeBridges: NativeTextBridges get() = nativeBridges
             override fun addTopLevelDeclaration(lines: List<String>) {
                 topLevelDeclarationLines.addAll(lines)
             }
@@ -970,7 +951,7 @@ class StubGenerator(
     /**
      * Produces to [out] the contents of C source file to be compiled into native lib used for Kotlin bindings impl.
      */
-    private fun generateCFile(bridges: NativeBridges, entryPoint: String?) {
+    private fun generateCFile(bridges: NativeTextBridges, entryPoint: String?) {
         libraryForCStubs.preambleLines.forEach {
             out(it)
         }
@@ -994,9 +975,9 @@ class StubGenerator(
     }
 
     fun generateFiles(ktFile: Appendable, cFile: Appendable, entryPoint: String?) {
-        val stubs = generateStubs()
+        val stubs: List<KotlinTextStub> = generateStubs()
 
-        val nativeBridges = simpleBridgeGenerator.prepare()
+        val nativeBridges: NativeTextBridges = simpleBridgeGenerator.prepare()
 
         withOutput(cFile) {
             generateCFile(nativeBridges, entryPoint)
@@ -1029,7 +1010,7 @@ class StubGenerator(
                     libraryForCStubs,
                     topLevelNativeScope = object : NativeScope {
                         override val mappingBridgeGenerator: MappingBridgeGenerator
-                            get() = this@StubGenerator.mappingBridgeGenerator
+                            get() = this@TextStubGenerator.mappingBridgeGenerator
                     },
                     topLevelKotlinScope = kotlinFile
             )

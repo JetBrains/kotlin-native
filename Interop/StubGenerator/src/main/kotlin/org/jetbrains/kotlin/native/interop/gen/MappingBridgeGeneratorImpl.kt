@@ -36,8 +36,8 @@ class MappingBridgeGeneratorImpl(
             returnType: Type,
             kotlinValues: List<TypedKotlinValue>,
             independent: Boolean,
-            block: NativeCodeBuilder.(nativeValues: List<NativeExpression>) -> NativeExpression
-    ): KotlinExpression {
+            block: NativeCodeBuilder.(nativeValues: List<NativeTextExpression>) -> NativeTextExpression
+    ): KotlinTextExpression {
         val bridgeArguments = mutableListOf<BridgeTypedKotlinValue>()
 
         kotlinValues.forEach { (type, value) ->
@@ -128,8 +128,8 @@ class MappingBridgeGeneratorImpl(
             nativeBacked: NativeBacked,
             returnType: Type,
             nativeValues: List<TypedNativeValue>,
-            block: KotlinCodeBuilder.(kotlinValues: List<KotlinExpression>) -> KotlinExpression
-    ): NativeExpression {
+            block: KotlinCodeBuilder.(kotlinValues: List<KotlinTextExpression>) -> KotlinTextExpression
+    ): NativeTextExpression {
 
         val bridgeArguments = mutableListOf<BridgeTypedNativeValue>()
 

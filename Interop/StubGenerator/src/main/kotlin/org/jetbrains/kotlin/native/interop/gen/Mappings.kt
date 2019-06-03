@@ -126,26 +126,26 @@ sealed class TypeInfo {
     /**
      * The conversion from [TypeMirror.argType] to [bridgedType].
      */
-    abstract fun argToBridged(expr: KotlinExpression): KotlinExpression
+    abstract fun argToBridged(expr: KotlinTextExpression): KotlinTextExpression
 
     /**
      * The conversion from [bridgedType] to [TypeMirror.argType].
      */
     abstract fun argFromBridged(
-            expr: KotlinExpression,
-            scope: KotlinScope,
+            expr: KotlinTextExpression,
+            scope: KotlinTextScope,
             nativeBacked: NativeBacked
-    ): KotlinExpression
+    ): KotlinTextExpression
 
     abstract val bridgedType: BridgedType
 
     open fun cFromBridged(
-            expr: NativeExpression,
+            expr: NativeTextExpression,
             scope: NativeScope,
             nativeBacked: NativeBacked
-    ): NativeExpression = expr
+    ): NativeTextExpression = expr
 
-    open fun cToBridged(expr: NativeExpression): NativeExpression = expr
+    open fun cToBridged(expr: NativeTextExpression): NativeTextExpression = expr
 
     /**
      * If this info is for [TypeMirror.ByValue], then this method describes how to
@@ -155,32 +155,32 @@ sealed class TypeInfo {
 
     class Primitive(override val bridgedType: BridgedType, val varClass: Classifier) : TypeInfo() {
 
-        override fun argToBridged(expr: KotlinExpression) = expr
-        override fun argFromBridged(expr: KotlinExpression, scope: KotlinScope, nativeBacked: NativeBacked) = expr
+        override fun argToBridged(expr: KotlinTextExpression) = expr
+        override fun argFromBridged(expr: KotlinTextExpression, scope: KotlinTextScope, nativeBacked: NativeBacked) = expr
 
         override fun constructPointedType(valueType: KotlinType) = varClass.typeWith(valueType)
     }
 
     class Boolean : TypeInfo() {
-        override fun argToBridged(expr: KotlinExpression) = "$expr.toByte()"
+        override fun argToBridged(expr: KotlinTextExpression) = "$expr.toByte()"
 
-        override fun argFromBridged(expr: KotlinExpression, scope: KotlinScope, nativeBacked: NativeBacked) =
+        override fun argFromBridged(expr: KotlinTextExpression, scope: KotlinTextScope, nativeBacked: NativeBacked) =
                 "$expr.toBoolean()"
 
         override val bridgedType: BridgedType get() = BridgedType.BYTE
 
-        override fun cFromBridged(expr: NativeExpression, scope: NativeScope, nativeBacked: NativeBacked) =
+        override fun cFromBridged(expr: NativeTextExpression, scope: NativeScope, nativeBacked: NativeBacked) =
                 "($expr) ? 1 : 0"
 
-        override fun cToBridged(expr: NativeExpression) = "($expr) ? 1 : 0"
+        override fun cToBridged(expr: NativeTextExpression) = "($expr) ? 1 : 0"
 
         override fun constructPointedType(valueType: KotlinType) = KotlinTypes.booleanVarOf.typeWith(valueType)
     }
 
     class Enum(val clazz: Classifier, override val bridgedType: BridgedType) : TypeInfo() {
-        override fun argToBridged(expr: KotlinExpression) = "$expr.value"
+        override fun argToBridged(expr: KotlinTextExpression) = "$expr.value"
 
-        override fun argFromBridged(expr: KotlinExpression, scope: KotlinScope, nativeBacked: NativeBacked) =
+        override fun argFromBridged(expr: KotlinTextExpression, scope: KotlinTextScope, nativeBacked: NativeBacked) =
                 scope.reference(clazz) + ".byValue($expr)"
 
         override fun constructPointedType(valueType: KotlinType) =
@@ -191,13 +191,13 @@ sealed class TypeInfo {
     class Pointer(val pointee: KotlinType, val cPointee: Type) : TypeInfo() {
         override fun argToBridged(expr: String) = "$expr.rawValue"
 
-        override fun argFromBridged(expr: KotlinExpression, scope: KotlinScope, nativeBacked: NativeBacked) =
+        override fun argFromBridged(expr: KotlinTextExpression, scope: KotlinTextScope, nativeBacked: NativeBacked) =
                 "interpretCPointer<${pointee.render(scope)}>($expr)"
 
         override val bridgedType: BridgedType
             get() = BridgedType.NATIVE_PTR
 
-        override fun cFromBridged(expr: NativeExpression, scope: NativeScope, nativeBacked: NativeBacked) =
+        override fun cFromBridged(expr: NativeTextExpression, scope: NativeScope, nativeBacked: NativeBacked) =
                 "(${getPointerTypeStringRepresentation(cPointee)})$expr"
 
         override fun constructPointedType(valueType: KotlinType) = KotlinTypes.cPointerVarOf.typeWith(valueType)
@@ -206,7 +206,7 @@ sealed class TypeInfo {
     class ObjCPointerInfo(val kotlinType: KotlinType, val type: ObjCPointer) : TypeInfo() {
         override fun argToBridged(expr: String) = "$expr.objcPtr()"
 
-        override fun argFromBridged(expr: KotlinExpression, scope: KotlinScope, nativeBacked: NativeBacked) =
+        override fun argFromBridged(expr: KotlinTextExpression, scope: KotlinTextScope, nativeBacked: NativeBacked) =
                 "interpretObjCPointerOrNull<${kotlinType.render(scope)}>($expr)" +
                         if (type.isNullable) "" else "!!"
 
@@ -225,13 +225,13 @@ sealed class TypeInfo {
         // it first gets wrapped by a holder in [argToBridged],
         // and then converted to block in [cFromBridged].
 
-        override fun argToBridged(expr: KotlinExpression): KotlinExpression = "createKotlinObjectHolder($expr)"
+        override fun argToBridged(expr: KotlinTextExpression): KotlinTextExpression = "createKotlinObjectHolder($expr)"
 
         override fun cFromBridged(
-                expr: NativeExpression,
+                expr: NativeTextExpression,
                 scope: NativeScope,
                 nativeBacked: NativeBacked
-        ): NativeExpression {
+        ): NativeTextExpression {
             val mappingBridgeGenerator = scope.mappingBridgeGenerator
 
             val blockParameters = type.parameterTypes.mapIndexed { index, it ->
@@ -277,13 +277,13 @@ sealed class TypeInfo {
         // When passing block pointer as Kotlin function from native to Kotlin,
         // it is converted to Kotlin function in [cFromBridged].
 
-        override fun cToBridged(expr: NativeExpression): NativeExpression = expr
+        override fun cToBridged(expr: NativeTextExpression): NativeTextExpression = expr
 
         override fun argFromBridged(
-                expr: KotlinExpression,
-                scope: KotlinScope,
+                expr: KotlinTextExpression,
+                scope: KotlinTextScope,
                 nativeBacked: NativeBacked
-        ): KotlinExpression {
+        ): KotlinTextExpression {
             val mappingBridgeGenerator = scope.mappingBridgeGenerator
 
             val funParameters = type.parameterTypes.mapIndexed { index, _ ->
@@ -335,10 +335,10 @@ sealed class TypeInfo {
 
     class ByRef(val pointed: KotlinType) : TypeInfo() {
         override fun argToBridged(expr: String) = error(pointed)
-        override fun argFromBridged(expr: KotlinExpression, scope: KotlinScope, nativeBacked: NativeBacked) =
+        override fun argFromBridged(expr: KotlinTextExpression, scope: KotlinTextScope, nativeBacked: NativeBacked) =
                 error(pointed)
         override val bridgedType: BridgedType get() = error(pointed)
-        override fun cFromBridged(expr: NativeExpression, scope: NativeScope, nativeBacked: NativeBacked) =
+        override fun cFromBridged(expr: NativeTextExpression, scope: NativeScope, nativeBacked: NativeBacked) =
                 error(pointed)
         override fun cToBridged(expr: String) = error(pointed)
 

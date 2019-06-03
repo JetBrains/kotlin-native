@@ -235,7 +235,7 @@ private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = 
 
     val nativeIndex = buildNativeIndex(library, verbose)
 
-    val gen = StubGenerator(nativeIndex, configuration, libName, verbose, flavor, imports)
+    val gen = TextStubGenerator(nativeIndex, configuration, libName, verbose, flavor, imports)
 
     outKtFile.parentFile.mkdirs()
 

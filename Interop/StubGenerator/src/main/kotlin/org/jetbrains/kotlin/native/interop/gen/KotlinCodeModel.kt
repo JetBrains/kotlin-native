@@ -18,7 +18,7 @@ package org.jetbrains.kotlin.native.interop.gen
 
 import kotlin.reflect.KProperty
 
-interface KotlinScope {
+interface KotlinTextScope {
     /**
      * @return the string to be used to reference the classifier in current scope.
      */
@@ -87,11 +87,11 @@ interface KotlinTypeArgument {
     /**
      * @return the string to be used in the given scope to denote this.
      */
-    fun render(scope: KotlinScope): String
+    fun render(scope: KotlinTextScope): String
 }
 
 object StarProjection : KotlinTypeArgument {
-    override fun render(scope: KotlinScope) = "*"
+    override fun render(scope: KotlinTextScope) = "*"
 }
 
 interface KotlinType : KotlinTypeArgument {
@@ -111,7 +111,7 @@ data class KotlinClassifierType(
         this.copy(nullable = nullable)
     }
 
-    override fun render(scope: KotlinScope): String = buildString {
+    override fun render(scope: KotlinTextScope): String = buildString {
         append(scope.reference(classifier))
         if (arguments.isNotEmpty()) {
             append('<')
@@ -142,7 +142,7 @@ data class KotlinFunctionType(
         Classifier.topLevel("kotlin", "Function${parameterTypes.size}")
     }
 
-    override fun render(scope: KotlinScope) = buildString {
+    override fun render(scope: KotlinTextScope) = buildString {
         if (nullable) append("(")
 
         append('(')
@@ -228,10 +228,10 @@ object KotlinTypes {
 
 }
 
-abstract class KotlinFile(
+abstract class KotlinTextFile(
         val pkg: String,
         namesToBeDeclared: List<String>
-) : KotlinScope {
+) : KotlinTextScope {
 
     // Note: all names are related to classifiers currently.
 
@@ -328,7 +328,7 @@ data class KotlinParameter(
         val isVararg: Boolean,
         val annotations: List<String>
 ) {
-    fun render(scope: KotlinScope) = buildString {
+    fun render(scope: KotlinTextScope) = buildString {
         annotations.forEach { append("$it ") }
         if (isVararg) append("vararg ")
         append(name.asSimpleName())

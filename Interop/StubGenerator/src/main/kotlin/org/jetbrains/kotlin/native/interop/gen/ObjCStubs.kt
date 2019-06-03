@@ -17,7 +17,7 @@
 package org.jetbrains.kotlin.native.interop.gen
 
 import org.jetbrains.kotlin.konan.target.KonanTarget
-import org.jetbrains.kotlin.native.interop.gen.jvm.StubGenerator
+import org.jetbrains.kotlin.native.interop.gen.jvm.TextStubGenerator
 import org.jetbrains.kotlin.native.interop.indexer.*
 
 private fun ObjCMethod.getKotlinParameterNames(forConstructorOrFactory: Boolean = false): List<String> {
@@ -66,7 +66,7 @@ private fun ObjCMethod.getFirstKotlinParameterNameCandidate(forConstructorOrFact
 }
 
 private fun ObjCMethod.getKotlinParameters(
-        stubGenerator: StubGenerator,
+        stubGenerator: TextStubGenerator,
         forConstructorOrFactory: Boolean
 ): List<KotlinParameter> {
     val names = getKotlinParameterNames(forConstructorOrFactory) // TODO: consider refactoring.
@@ -91,10 +91,10 @@ private fun ObjCMethod.getKotlinParameters(
     return result
 }
 
-class ObjCMethodStub(private val stubGenerator: StubGenerator,
-                     val method: ObjCMethod,
-                     private val container: ObjCContainer,
-                     private val isDesignatedInitializer: Boolean) : KotlinStub, NativeBacked {
+class ObjCMethodTextStub(private val stubGenerator: TextStubGenerator,
+                         val method: ObjCMethod,
+                         private val container: ObjCContainer,
+                         private val isDesignatedInitializer: Boolean) : KotlinTextStub, NativeBacked {
 
     override fun generate(context: StubGenerationContext): Sequence<String> =
             if (context.nativeBridges.isSupported(this)) {
@@ -395,10 +395,10 @@ private fun ObjCClass.getDesignatedInitializerSelectors(result: MutableSet<Strin
 private fun ObjCMethod.isOverride(container: ObjCClassOrProtocol): Boolean =
         container.superTypes.any { superType -> superType.methods.any(this::replaces) }
 
-abstract class ObjCContainerStub(stubGenerator: StubGenerator,
-                                 private val container: ObjCClassOrProtocol,
-                                 protected val metaContainerStub: ObjCContainerStub?
-) : KotlinStub {
+abstract class ObjCContainerTextStub(stubGenerator: TextStubGenerator,
+                                     private val container: ObjCClassOrProtocol,
+                                     protected val metaContainerStub: ObjCContainerTextStub?
+) : KotlinTextStub {
 
     private val isMeta: Boolean get() = metaContainerStub == null
 
@@ -453,7 +453,7 @@ abstract class ObjCContainerStub(stubGenerator: StubGenerator,
     }
 
     private val methodToStub = methods.map {
-        it to ObjCMethodStub(
+        it to ObjCMethodTextStub(
                 stubGenerator, it, container,
                 isDesignatedInitializer = it.selector in designatedInitializerSelectors
         )
@@ -550,23 +550,23 @@ abstract class ObjCContainerStub(stubGenerator: StubGenerator,
     override fun generate(context: StubGenerationContext): Sequence<String> = block(classHeader, generateBody(context))
 }
 
-open class ObjCClassOrProtocolStub(
-        stubGenerator: StubGenerator,
+open class ObjCClassOrProtocolTextStub(
+        stubGenerator: TextStubGenerator,
         private val container: ObjCClassOrProtocol
-) : ObjCContainerStub(
+) : ObjCContainerTextStub(
         stubGenerator,
         container,
-        metaContainerStub = object : ObjCContainerStub(stubGenerator, container, metaContainerStub = null) {}
+        metaContainerStub = object : ObjCContainerTextStub(stubGenerator, container, metaContainerStub = null) {}
 ) {
     override fun generate(context: StubGenerationContext) =
             metaContainerStub!!.generate(context) + "" + super.generate(context)
 }
 
-class ObjCProtocolStub(stubGenerator: StubGenerator, protocol: ObjCProtocol) :
-        ObjCClassOrProtocolStub(stubGenerator, protocol)
+class ObjCProtocolTextStub(stubGenerator: TextStubGenerator, protocol: ObjCProtocol) :
+        ObjCClassOrProtocolTextStub(stubGenerator, protocol)
 
-class ObjCClassStub(private val stubGenerator: StubGenerator, private val clazz: ObjCClass) :
-        ObjCClassOrProtocolStub(stubGenerator, clazz) {
+class ObjCClassTextStub(private val stubGenerator: TextStubGenerator, private val clazz: ObjCClass) :
+        ObjCClassOrProtocolTextStub(stubGenerator, clazz) {
 
     override fun generateBody(context: StubGenerationContext): Sequence<String> {
         val companionSuper = stubGenerator.declarationMapper
@@ -594,9 +594,9 @@ class GeneratedObjCCategoriesMembers {
 
 }
 
-class ObjCCategoryStub(
-        private val stubGenerator: StubGenerator, private val category: ObjCCategory
-) : KotlinStub {
+class ObjCCategoryTextStub(
+        private val stubGenerator: TextStubGenerator, private val category: ObjCCategory
+) : KotlinTextStub {
 
     private val generatedMembers = stubGenerator.generatedObjCCategoriesMembers
             .getOrPut(category.clazz, { GeneratedObjCCategoriesMembers() })
@@ -604,7 +604,7 @@ class ObjCCategoryStub(
     // TODO: consider removing members that are also present in the class or its supertypes.
 
     private val methodToStub = category.methods.filter { generatedMembers.register(it) }.map {
-        it to ObjCMethodStub(stubGenerator, it, category, isDesignatedInitializer = false)
+        it to ObjCMethodTextStub(stubGenerator, it, category, isDesignatedInitializer = false)
     }.toMap()
 
     private val methodStubs get() = methodToStub.values
@@ -623,22 +623,22 @@ class ObjCCategoryStub(
 }
 
 private fun createObjCPropertyStub(
-        stubGenerator: StubGenerator,
+        stubGenerator: TextStubGenerator,
         property: ObjCProperty,
         container: ObjCContainer,
-        methodToStub: Map<ObjCMethod, ObjCMethodStub>
-): ObjCPropertyStub? {
+        methodToStub: Map<ObjCMethod, ObjCMethodTextStub>
+): ObjCPropertyTextStub? {
     // Note: the code below assumes that if the property is generated,
     // then its accessors are also generated as explicit methods.
     val getterStub = methodToStub[property.getter] ?: return null
     val setterStub = property.setter?.let { methodToStub[it] ?: return null }
-    return ObjCPropertyStub(stubGenerator, property, container, getterStub, setterStub)
+    return ObjCPropertyTextStub(stubGenerator, property, container, getterStub, setterStub)
 }
 
-class ObjCPropertyStub(
-        val stubGenerator: StubGenerator, val property: ObjCProperty, val container: ObjCContainer,
-        val getterStub: ObjCMethodStub, val setterStub: ObjCMethodStub?
-) : KotlinStub {
+class ObjCPropertyTextStub(
+        val stubGenerator: TextStubGenerator, val property: ObjCProperty, val container: ObjCContainer,
+        val getterStub: ObjCMethodTextStub, val setterStub: ObjCMethodTextStub?
+) : KotlinTextStub {
 
     override fun generate(context: StubGenerationContext): Sequence<String> {
         val type = property.getType(container.classOrProtocol)
@@ -677,7 +677,7 @@ fun ObjCClassOrProtocol.kotlinClassName(isMeta: Boolean): String {
 }
 
 private fun genProtocolGetter(
-        stubGenerator: StubGenerator,
+        stubGenerator: TextStubGenerator,
         nativeBacked: NativeBacked,
         protocol: ObjCProtocol
 ): String {

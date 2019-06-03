@@ -43,7 +43,7 @@ private class Block(val nesting: Int, val start: String, val end: String) {
     fun indentBraces(line: String) = "    ".repeat(nesting - 1) + line
 }
 
-class KotlinCodeBuilder(val scope: KotlinScope) {
+class KotlinCodeBuilder(val scope: KotlinTextScope) {
 
     private val blocks = mutableListOf<Block>()
 
@@ -96,17 +96,17 @@ class KotlinCodeBuilder(val scope: KotlinScope) {
     }
 }
 
-inline fun buildKotlinCodeLines(scope: KotlinScope, block: KotlinCodeBuilder.() -> Unit): List<String> {
+inline fun buildKotlinCodeLines(scope: KotlinTextScope, block: KotlinCodeBuilder.() -> Unit): List<String> {
     val builder = KotlinCodeBuilder(scope)
     builder.block()
     return builder.build()
 }
 
 interface StubGenerationContext {
-    val nativeBridges: NativeBridges
+    val nativeBridges: NativeTextBridges
     fun addTopLevelDeclaration(lines: List<String>)
 }
 
-interface KotlinStub {
+interface KotlinTextStub : KotlinStub {
     fun generate(context: StubGenerationContext): Sequence<String>
 }

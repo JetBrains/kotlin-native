@@ -27,12 +27,12 @@ val kotlinKeywords = setOf(
 /**
  * The expression written in native language.
  */
-typealias NativeExpression = String
+typealias NativeTextExpression = String
 
 /**
  * The expression written in Kotlin.
  */
-typealias KotlinExpression = String
+typealias KotlinTextExpression = String
 
 /**
  * For this identifier constructs the string to be parsed by Kotlin as `SimpleName`
@@ -48,7 +48,7 @@ fun String.asSimpleName(): String = if (this in kotlinKeywords || this.contains(
  * Returns the expression to be parsed by Kotlin as string literal with given contents,
  * i.e. transforms `foo$bar` to `"foo\$bar"`.
  */
-fun String.quoteAsKotlinLiteral(): KotlinExpression = buildString {
+fun String.quoteAsKotlinLiteral(): KotlinTextExpression = buildString {
     append('"')
 
     this@quoteAsKotlinLiteral.forEach { c ->
@@ -84,9 +84,9 @@ val annotationForUnableToImport
 fun String.applyToStrings(vararg arguments: String) =
         "${this}(${arguments.joinToString { it.quoteAsKotlinLiteral() }})"
 
-fun List<KotlinParameter>.renderParameters(scope: KotlinScope) = buildString {
+fun List<KotlinParameter>.renderParameters(scope: KotlinTextScope) = buildString {
     this@renderParameters.renderParametersTo(scope, this)
 }
 
-fun List<KotlinParameter>.renderParametersTo(scope: KotlinScope, buffer: Appendable) =
+fun List<KotlinParameter>.renderParametersTo(scope: KotlinTextScope, buffer: Appendable) =
         this.joinTo(buffer, ", ") { it.render(scope) }

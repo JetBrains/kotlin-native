@@ -27,7 +27,7 @@ class SimpleBridgeGeneratorImpl(
         private val jvmFileClassName: String,
         private val libraryForCStubs: NativeLibrary,
         override val topLevelNativeScope: NativeScope,
-        private val topLevelKotlinScope: KotlinScope
+        private val topLevelKotlinScope: KotlinTextScope
 ) : SimpleBridgeGenerator {
 
     private var nextUniqueId = 0
@@ -72,8 +72,8 @@ class SimpleBridgeGeneratorImpl(
             returnType: BridgedType,
             kotlinValues: List<BridgeTypedKotlinValue>,
             independent: Boolean,
-            block: NativeCodeBuilder.(nativeValues: List<NativeExpression>) -> NativeExpression
-    ): KotlinExpression {
+            block: NativeCodeBuilder.(nativeValues: List<NativeTextExpression>) -> NativeTextExpression
+    ): KotlinTextExpression {
 
         val kotlinLines = mutableListOf<String>()
         val nativeLines = mutableListOf<String>()
@@ -155,8 +155,8 @@ class SimpleBridgeGeneratorImpl(
             nativeBacked: NativeBacked,
             returnType: BridgedType,
             nativeValues: List<BridgeTypedNativeValue>,
-            block: KotlinCodeBuilder.(arguments: List<KotlinExpression>) -> KotlinExpression
-    ): NativeExpression {
+            block: KotlinCodeBuilder.(arguments: List<KotlinTextExpression>) -> KotlinTextExpression
+    ): NativeTextExpression {
 
         if (platform != KotlinPlatform.NATIVE) TODO()
 
@@ -213,7 +213,7 @@ class SimpleBridgeGeneratorImpl(
 
     private val nativeBridges = mutableListOf<Pair<NativeBacked, NativeBridge>>()
 
-    override fun prepare(): NativeBridges {
+    override fun prepare(): NativeTextBridges {
         val includedBridges = mutableListOf<NativeBridge>()
         val excludedClients = mutableSetOf<NativeBacked>()
 
@@ -235,7 +235,7 @@ class SimpleBridgeGeneratorImpl(
 
         // TODO: exclude unused bridges.
 
-        return object : NativeBridges {
+        return object : NativeTextBridges {
 
             override val kotlinLines: Sequence<String>
                 get() = includedBridges.asSequence().flatMap { it.kotlinLines.asSequence() }

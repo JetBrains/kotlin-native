@@ -18,8 +18,8 @@ package org.jetbrains.kotlin.native.interop.gen
 
 import org.jetbrains.kotlin.native.interop.indexer.Type
 
-data class TypedKotlinValue(val type: Type, val value: KotlinExpression)
-data class TypedNativeValue(val type: Type, val value: NativeExpression)
+data class TypedKotlinValue(val type: Type, val value: KotlinTextExpression)
+data class TypedNativeValue(val type: Type, val value: NativeTextExpression)
 
 /**
  * Generates bridges between Kotlin and native, passing arbitrary native-typed values.
@@ -33,14 +33,14 @@ interface MappingBridgeGenerator {
             returnType: Type,
             kotlinValues: List<TypedKotlinValue>,
             independent: Boolean,
-            block: NativeCodeBuilder.(nativeValues: List<NativeExpression>) -> NativeExpression
-    ): KotlinExpression
+            block: NativeCodeBuilder.(nativeValues: List<NativeTextExpression>) -> NativeTextExpression
+    ): KotlinTextExpression
 
     fun nativeToKotlin(
             builder: NativeCodeBuilder,
             nativeBacked: NativeBacked,
             returnType: Type,
             nativeValues: List<TypedNativeValue>,
-            block: KotlinCodeBuilder.(kotlinValues: List<KotlinExpression>) -> KotlinExpression
-    ): NativeExpression
+            block: KotlinCodeBuilder.(kotlinValues: List<KotlinTextExpression>) -> KotlinTextExpression
+    ): NativeTextExpression
 }

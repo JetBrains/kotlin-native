@@ -35,8 +35,8 @@ enum class BridgedType(val kotlinType: KotlinClassifierType, val convertor: Stri
     VOID(KotlinTypes.unit)
 }
 
-data class BridgeTypedKotlinValue(val type: BridgedType, val value: KotlinExpression)
-data class BridgeTypedNativeValue(val type: BridgedType, val value: NativeExpression)
+data class BridgeTypedKotlinValue(val type: BridgedType, val value: KotlinTextExpression)
+data class BridgeTypedNativeValue(val type: BridgedType, val value: NativeTextExpression)
 
 /**
  * The entity which depends on native bridges.
@@ -61,8 +61,8 @@ interface SimpleBridgeGenerator {
             returnType: BridgedType,
             kotlinValues: List<BridgeTypedKotlinValue>,
             independent: Boolean,
-            block: NativeCodeBuilder.(nativeValues: List<NativeExpression>) -> NativeExpression
-    ): KotlinExpression
+            block: NativeCodeBuilder.(nativeValues: List<NativeTextExpression>) -> NativeTextExpression
+    ): KotlinTextExpression
 
     /**
      * Generates the expression to convert given native values to Kotlin counterparts, pass through the bridge,
@@ -72,8 +72,8 @@ interface SimpleBridgeGenerator {
             nativeBacked: NativeBacked,
             returnType: BridgedType,
             nativeValues: List<BridgeTypedNativeValue>,
-            block: KotlinCodeBuilder.(kotlinValues: List<KotlinExpression>) -> KotlinExpression
-    ): NativeExpression
+            block: KotlinCodeBuilder.(kotlinValues: List<KotlinTextExpression>) -> KotlinTextExpression
+    ): NativeTextExpression
 
     fun insertNativeBridge(
             nativeBacked: NativeBacked,
@@ -84,10 +84,10 @@ interface SimpleBridgeGenerator {
     /**
      * Prepares all requested native bridges.
      */
-    fun prepare(): NativeBridges
+    fun prepare(): NativeTextBridges
 }
 
-interface NativeBridges {
+interface NativeTextBridges {
     /**
      * @return `true` iff given entity is supported by these bridges,
      * i.e. all bridges it depends on can be successfully generated.
