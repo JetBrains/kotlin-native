@@ -159,11 +159,7 @@ class MappingBridgeGeneratorImpl(
             }
         }
 
-        val callExpr = simpleBridgeGenerator.nativeToKotlin(
-                nativeBacked,
-                bridgeReturnType,
-                bridgeArguments
-        ) { bridgeKotlinValues ->
+        val codeBuilder: KotlinTextBuildingAction = { bridgeKotlinValues ->
             val kotlinValues = mutableListOf<String>()
             nativeValues.forEachIndexed { index, (type, _) ->
                 val mirror = mirror(declarationMapper, type)
@@ -190,6 +186,10 @@ class MappingBridgeGeneratorImpl(
                 }
             }
         }
+        val callExpr = simpleBridgeGenerator.nativeToKotlin(
+                       nativeBacked,
+                       bridgeReturnType,
+                       bridgeArguments, codeBuilder)
 
         return when (unwrappedReturnType) {
             is VoidType -> callExpr

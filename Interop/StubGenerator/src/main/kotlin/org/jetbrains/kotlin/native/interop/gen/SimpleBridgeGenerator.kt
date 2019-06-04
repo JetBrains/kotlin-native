@@ -24,9 +24,8 @@ import org.jetbrains.kotlin.native.interop.indexer.mapFragmentIsCompilable
 typealias TextualStub = List<String>
 typealias NativeTextBridges = NativeBridges<TextualStub, TextualStub>
 
-// TODO: better naming
-typealias NativeTextCallback = NativeCodeBuilder.(nativeValues: List<NativeTextExpression>) -> NativeTextExpression
-typealias KotlinTextCallback = KotlinCodeBuilder.(kotlinValues: List<KotlinTextExpression>) -> KotlinTextExpression
+typealias NativeTextBuildingAction = NativeCodeBuilder.(nativeValues: List<NativeTextExpression>) -> NativeTextExpression
+typealias KotlinTextBuildingAction = KotlinCodeBuilder.(kotlinValues: List<KotlinTextExpression>) -> KotlinTextExpression
 
 /**
  * Generates simple bridges between Kotlin and native, passing [BridgedType] values.
@@ -40,17 +39,16 @@ interface SimpleBridgeGenerator : NativeBridgesManager<TextualStub, TextualStub>
             returnType: BridgedType,
             kotlinValues: List<BridgeTypedKotlinTextValue>,
             independent: Boolean,
-            block: NativeTextCallback
+            block: NativeTextBuildingAction
     ): KotlinTextExpression
 
     fun nativeToKotlin(
             nativeBacked: NativeBacked,
             returnType: BridgedType,
             nativeValues: List<BridgeTypedNativeTextValue>,
-            block: KotlinTextCallback
+            block: KotlinTextBuildingAction
     ): NativeTextExpression
 }
-
 
 class SimpleBridgeGeneratorImpl(
         private val platform: KotlinPlatform,
@@ -61,13 +59,13 @@ class SimpleBridgeGeneratorImpl(
         private val topLevelKotlinScope: KotlinScope
 ) : SimpleBridgeGenerator {
 
-    private val kotlinToNative = object : KotlinToNativeBridgeGenerator<NativeTextCallback, KotlinTextExpression, TextualStub, TextualStub> {
+    private val kotlinToNative = object : KotlinToNativeBridgeGenerator<NativeTextBuildingAction, KotlinTextExpression, TextualStub, TextualStub> {
         override fun generateBridge(
                 nativeBacked: NativeBacked,
                 returnType: BridgedType,
                 kotlinValues: List<BridgeTypedKotlinValue<String>>,
                 independent: Boolean,
-                block: NativeTextCallback
+                block: NativeTextBuildingAction
         ): KotlinTextExpression {
             val kotlinFunctionName = "kniBridge${nextUniqueId++}"
 
@@ -107,7 +105,7 @@ class SimpleBridgeGeneratorImpl(
                 symbolName: String,
                 returnType: BridgedType,
                 kotlinValues: List<BridgeTypedKotlinValue<String>>,
-                block: NativeTextCallback
+                block: NativeTextBuildingAction
         ): TextualStub {
             val nativeLines = mutableListOf<String>()
 
@@ -166,7 +164,7 @@ class SimpleBridgeGeneratorImpl(
         }
     }
 
-    private val nativeToKotlin = object : NativeToKotlinBridgeGenerator<KotlinTextCallback, NativeTextExpression, TextualStub, TextualStub> {
+    private val nativeToKotlin = object : NativeToKotlinBridgeGenerator<KotlinTextBuildingAction, NativeTextExpression, TextualStub, TextualStub> {
         override fun generateBridge(
                 nativeBacked: NativeBacked,
                 returnType: BridgedType,
@@ -204,7 +202,7 @@ class SimpleBridgeGeneratorImpl(
                 symbolName: String,
                 returnType: BridgedType,
                 nativeValues: List<BridgeTypedNativeValue<String>>,
-                block: KotlinTextCallback
+                block: KotlinTextBuildingAction
         ): TextualStub {
             val kotlinLines = mutableListOf<String>()
             val kotlinReturnType = returnType.kotlinType.render(topLevelKotlinScope)
