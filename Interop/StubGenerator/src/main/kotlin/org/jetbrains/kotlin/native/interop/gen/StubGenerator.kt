@@ -23,7 +23,7 @@ import java.util.*
 
 interface KotlinStub
 
-abstract class StubGenerator<StubTy : KotlinStub, CStubsBuilder, KotlinStubsBuilder>(
+abstract class StubGenerator<StubTy : KotlinStub, CStubsBuilder, KotlinStubsBuilder, NativeBridgesTy : NativeBridges<*, *>>(
         protected val nativeIndex: NativeIndex,
         private val verbose: Boolean,
         val configuration: InteropConfiguration,
@@ -222,16 +222,16 @@ abstract class StubGenerator<StubTy : KotlinStub, CStubsBuilder, KotlinStubsBuil
         return stubs
     }
 
-    protected abstract fun prepareNativeBridges(): NativeTextBridges
+    protected abstract fun prepareNativeBridges(): NativeBridgesTy
 
-    protected abstract fun generateCFile(nativeBridges: NativeTextBridges, cFile: CStubsBuilder, entryPoint: String?)
+    protected abstract fun generateCFile(nativeBridges: NativeBridgesTy, cFile: CStubsBuilder, entryPoint: String?)
 
-    protected abstract fun generateKotlinFile(nativeBridges: NativeTextBridges, ktFile: KotlinStubsBuilder, stubs: List<StubTy>)
+    protected abstract fun generateKotlinFile(nativeBridges: NativeBridgesTy, ktFile: KotlinStubsBuilder, stubs: List<StubTy>)
 
     fun generate(ktFile: KotlinStubsBuilder, cFile: CStubsBuilder, entryPoint: String?) {
         val stubs: List<StubTy> = generateStubs()
 
-        val nativeBridges: NativeTextBridges = prepareNativeBridges()
+        val nativeBridges: NativeBridgesTy = prepareNativeBridges()
 
         generateCFile(nativeBridges, cFile, entryPoint)
 

@@ -119,15 +119,20 @@ interface NativeToKotlinBridgeGenerator<CallbackTy, RetTy, BridgeNativeTy, Bridg
     ): List<BridgeKotlinTy>
 }
 
-interface NativeTextBridges {
+interface NativeBridges<BridgeKotlinTy, BridgeNativeTy> {
+    val kotlinParts: Sequence<BridgeKotlinTy>
+    val nativeParts: Sequence<BridgeNativeTy>
+}
+
+interface NativeTextBridges : NativeBridges<String, String> {
     /**
      * @return `true` iff given entity is supported by these bridges,
      * i.e. all bridges it depends on can be successfully generated.
      */
     fun isSupported(nativeBacked: NativeBacked): Boolean
 
-    val kotlinParts: Sequence<String>
-    val nativeParts: Sequence<String>
+    override val kotlinParts: Sequence<String>
+    override val nativeParts: Sequence<String>
 }
 
 interface NativeBridgesManager<BridgeNativeTy, BridgeKotlinTy> {
