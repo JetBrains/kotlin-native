@@ -23,7 +23,7 @@ import java.util.*
 
 interface KotlinStub
 
-abstract class StubGenerator<T : KotlinStub, CStubsBuilder, KotlinStubsBuilder>(
+abstract class StubGenerator<StubTy : KotlinStub, CStubsBuilder, KotlinStubsBuilder>(
         protected val nativeIndex: NativeIndex,
         private val verbose: Boolean,
         val configuration: InteropConfiguration,
@@ -108,11 +108,11 @@ abstract class StubGenerator<T : KotlinStub, CStubsBuilder, KotlinStubsBuilder>(
 
     private val functionsToBind = nativeIndex.functions.filter { it.name !in excludedFunctions }
 
-    protected abstract fun generateKotlinFragmentBy(block: () -> Unit): T
+    protected abstract fun generateKotlinFragmentBy(block: () -> Unit): StubTy
 
-    protected abstract fun generateStubsForFunctions(functions: List<FunctionDecl>): Collection<T>
+    protected abstract fun generateStubsForFunctions(functions: List<FunctionDecl>): Collection<StubTy>
 
-    protected abstract fun generateGlobalVariableStub(globalVariable: GlobalDecl): T
+    protected abstract fun generateGlobalVariableStub(globalVariable: GlobalDecl): StubTy
 
     protected abstract fun generateConstant(constant: ConstantDef)
 
@@ -122,11 +122,11 @@ abstract class StubGenerator<T : KotlinStub, CStubsBuilder, KotlinStubsBuilder>(
 
     protected abstract fun generateTypedef(typedef: TypedefDef)
 
-    protected abstract fun generateObjCProtocolStub(protocol: ObjCProtocol) : T
+    protected abstract fun generateObjCProtocolStub(protocol: ObjCProtocol) : StubTy
 
-    protected abstract fun generateObjCClassStub(klass: ObjCClass): T
+    protected abstract fun generateObjCClassStub(klass: ObjCClass): StubTy
 
-    protected abstract fun generateObjCCategory(category: ObjCCategory): T
+    protected abstract fun generateObjCCategory(category: ObjCCategory): StubTy
 
     fun addManifestProperties(properties: Properties) {
         val exportForwardDeclarations = configuration.exportForwardDeclarations.toMutableList()
@@ -142,8 +142,8 @@ abstract class StubGenerator<T : KotlinStub, CStubsBuilder, KotlinStubsBuilder>(
         // TODO: consider exporting Objective-C class and protocol forward refs.
     }
 
-    protected fun generateStubs(): List<T> {
-        val stubs = mutableListOf<T>()
+    private fun generateStubs(): List<StubTy> {
+        val stubs = mutableListOf<StubTy>()
 
         stubs.addAll(generateStubsForFunctions(functionsToBind))
 
@@ -226,10 +226,10 @@ abstract class StubGenerator<T : KotlinStub, CStubsBuilder, KotlinStubsBuilder>(
 
     protected abstract fun generateCFile(nativeBridges: NativeTextBridges, cFile: CStubsBuilder, entryPoint: String?)
 
-    protected abstract fun generateKotlinFile(nativeBridges: NativeTextBridges, ktFile: KotlinStubsBuilder, stubs: List<T>)
+    protected abstract fun generateKotlinFile(nativeBridges: NativeTextBridges, ktFile: KotlinStubsBuilder, stubs: List<StubTy>)
 
     fun generate(ktFile: KotlinStubsBuilder, cFile: CStubsBuilder, entryPoint: String?) {
-        val stubs: List<T> = generateStubs()
+        val stubs: List<StubTy> = generateStubs()
 
         val nativeBridges: NativeTextBridges = prepareNativeBridges()
 
