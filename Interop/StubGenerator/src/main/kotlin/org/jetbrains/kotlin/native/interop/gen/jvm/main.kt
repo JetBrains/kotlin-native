@@ -235,7 +235,7 @@ private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = 
 
     val nativeIndex = buildNativeIndex(library, verbose)
 
-    val gen = TextStubGenerator(nativeIndex, configuration, libName, verbose, flavor, imports)
+    val gen: StubGenerator<KotlinTextStub, Appendable, Appendable> = TextStubGenerator(nativeIndex, configuration, libName, verbose, flavor, imports)
 
     outKtFile.parentFile.mkdirs()
 
@@ -244,7 +244,7 @@ private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = 
 
     outKtFile.bufferedWriter().use { ktFile ->
         File(outCFile.absolutePath).bufferedWriter().use { cFile ->
-            gen.generateFiles(ktFile = ktFile, cFile = cFile, entryPoint = entryPoint)
+            gen.generate(ktFile = ktFile, cFile = cFile, entryPoint = entryPoint)
         }
     }
 

@@ -30,9 +30,9 @@ class TextStubGenerator(
         configuration: InteropConfiguration,
         private val libName: String,
         verbose: Boolean = false,
-        val platform: KotlinPlatform = KotlinPlatform.JVM,
+        platform: KotlinPlatform = KotlinPlatform.JVM,
         val imports: Imports
-) : StubGenerator<KotlinTextStub>(nativeIndex, verbose, configuration), TextualContext {
+) : StubGenerator<KotlinTextStub, Appendable, Appendable>(nativeIndex, verbose, configuration, platform), TextualContext {
 
     private val jvmFileClassName = if (pkgName.isEmpty()) {
         libName
@@ -775,25 +775,6 @@ class TextStubGenerator(
         }
     }
 
-    val libraryForCStubs = configuration.library.copy(
-            includes = mutableListOf<String>().apply {
-                add("stdint.h")
-                add("string.h")
-                if (platform == KotlinPlatform.JVM) {
-                    add("jni.h")
-                }
-                addAll(configuration.library.includes)
-            },
-
-            compilerArgs = configuration.library.compilerArgs,
-
-            additionalPreambleLines = configuration.library.additionalPreambleLines +
-                    when (configuration.library.language) {
-                        Language.C -> emptyList()
-                        Language.OBJECTIVE_C -> listOf("void objc_terminate();")
-                    }
-    )
-
     /**
      * Produces to [out] the contents of C source file to be compiled into native lib used for Kotlin bindings impl.
      */
@@ -820,15 +801,16 @@ class TextStubGenerator(
         }
     }
 
-    fun generateFiles(ktFile: Appendable, cFile: Appendable, entryPoint: String?) {
-        val stubs: List<KotlinTextStub> = generateStubs()
+    override fun prepareNativeBridges(): NativeTextBridges =
+            simpleBridgeGenerator.prepare()
 
-        val nativeBridges: NativeTextBridges = simpleBridgeGenerator.prepare()
-
+    override fun generateCFile(nativeBridges: NativeTextBridges, cFile: Appendable, entryPoint: String?) {
         withOutput(cFile) {
             generateCFile(nativeBridges, entryPoint)
         }
+    }
 
+    override fun generateKotlinFile(nativeBridges: NativeTextBridges, ktFile: Appendable, stubs: List<KotlinTextStub>) {
         withOutput(ktFile) {
             generateKotlinFile(nativeBridges, stubs)
         }

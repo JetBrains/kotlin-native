@@ -17,15 +17,17 @@
 package org.jetbrains.kotlin.native.interop.gen
 
 import org.jetbrains.kotlin.native.interop.gen.jvm.InteropConfiguration
+import org.jetbrains.kotlin.native.interop.gen.jvm.KotlinPlatform
 import org.jetbrains.kotlin.native.interop.indexer.*
 import java.util.*
 
 interface KotlinStub
 
-abstract class StubGenerator<T : KotlinStub>(
+abstract class StubGenerator<T : KotlinStub, CStubsBuilder, KotlinStubsBuilder>(
         protected val nativeIndex: NativeIndex,
         private val verbose: Boolean,
-        val configuration: InteropConfiguration
+        val configuration: InteropConfiguration,
+        val platform: KotlinPlatform = KotlinPlatform.JVM
 ) {
     private var theCounter = 0
 
@@ -64,6 +66,26 @@ abstract class StubGenerator<T : KotlinStub>(
             // Let the simple heuristic decide:
             return !this.constants.any { it.isExplicitlyDefined }
         }
+
+
+    val libraryForCStubs = configuration.library.copy(
+            includes = mutableListOf<String>().apply {
+                add("stdint.h")
+                add("string.h")
+                if (platform == KotlinPlatform.JVM) {
+                    add("jni.h")
+                }
+                addAll(configuration.library.includes)
+            },
+
+            compilerArgs = configuration.library.compilerArgs,
+
+            additionalPreambleLines = configuration.library.additionalPreambleLines +
+                    when (configuration.library.language) {
+                        Language.C -> emptyList()
+                        Language.OBJECTIVE_C -> listOf("void objc_terminate();")
+                    }
+    )
 
     /**
      * The names that should not be used for struct classes to prevent name clashes
@@ -120,7 +142,7 @@ abstract class StubGenerator<T : KotlinStub>(
         // TODO: consider exporting Objective-C class and protocol forward refs.
     }
 
-    fun generateStubs(): List<T> {
+    protected fun generateStubs(): List<T> {
         val stubs = mutableListOf<T>()
 
         stubs.addAll(generateStubsForFunctions(functionsToBind))
@@ -198,6 +220,22 @@ abstract class StubGenerator<T : KotlinStub>(
         }
 
         return stubs
+    }
+
+    protected abstract fun prepareNativeBridges(): NativeTextBridges
+
+    protected abstract fun generateCFile(nativeBridges: NativeTextBridges, cFile: CStubsBuilder, entryPoint: String?)
+
+    protected abstract fun generateKotlinFile(nativeBridges: NativeTextBridges, ktFile: KotlinStubsBuilder, stubs: List<T>)
+
+    fun generate(ktFile: KotlinStubsBuilder, cFile: CStubsBuilder, entryPoint: String?) {
+        val stubs: List<T> = generateStubs()
+
+        val nativeBridges: NativeTextBridges = prepareNativeBridges()
+
+        generateCFile(nativeBridges, cFile, entryPoint)
+
+        generateKotlinFile(nativeBridges, ktFile, stubs)
     }
 
     /**
