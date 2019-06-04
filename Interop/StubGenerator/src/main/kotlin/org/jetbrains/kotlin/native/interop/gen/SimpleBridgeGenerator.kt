@@ -35,14 +35,14 @@ enum class BridgedType(val kotlinType: KotlinClassifierType) {
     VOID(KotlinTypes.unit)
 }
 
-interface BridgeTypedKotlinValue<KotlinPartTy> {
+interface BridgeTypedKotlinValue<KotlinExprTy> {
     val type: BridgedType
-    val value: KotlinPartTy
+    val value: KotlinExprTy
 }
 
-interface BridgeTypedNativeValue<NativePartTy> {
+interface BridgeTypedNativeValue<NativeExprTy> {
     val type: BridgedType
-    val value: NativePartTy
+    val value: NativeExprTy
 }
 
 data class BridgeTypedKotlinTextValue(
@@ -60,7 +60,7 @@ data class BridgeTypedNativeTextValue(
  */
 interface NativeBacked
 
-interface KotlinToNativeBridgeGenerator<CallbackTy, RetTy, BridgeNativeTy, BridgeKotlinTy> {
+interface KotlinToNativeBridgeGenerator<CallbackTy, KotlinExprTy, BridgeNativeTy, BridgeKotlinTy> {
     /**
      * Generates the expression to convert given Kotlin values to native counterparts, pass through the bridge,
      * use inside the native code produced by [block] and then return the result back.
@@ -70,29 +70,29 @@ interface KotlinToNativeBridgeGenerator<CallbackTy, RetTy, BridgeNativeTy, Bridg
     fun generateBridge(
             nativeBacked: NativeBacked,
             returnType: BridgedType,
-            kotlinValues: List<BridgeTypedKotlinValue<BridgeKotlinTy>>,
+            kotlinValues: List<BridgeTypedKotlinValue<KotlinExprTy>>,
             independent: Boolean,
             block: CallbackTy
-    ): RetTy
+    ): KotlinExprTy
 
     fun kotlinPart(
             kotlinFunctionName: String,
             symbolName: String,
             returnType: BridgedType,
-            kotlinValues: List<BridgeTypedKotlinValue<BridgeKotlinTy>>,
+            kotlinValues: List<BridgeTypedKotlinValue<KotlinExprTy>>,
             independent: Boolean
-    ): List<BridgeKotlinTy>
+    ): BridgeKotlinTy
 
     fun nativePart(
             kotlinFunctionName: String,
             symbolName: String,
             returnType: BridgedType,
-            kotlinValues: List<BridgeTypedKotlinValue<BridgeKotlinTy>>,
+            kotlinValues: List<BridgeTypedKotlinValue<KotlinExprTy>>,
             block: CallbackTy
-    ): List<BridgeNativeTy>
+    ): BridgeNativeTy
 }
 
-interface NativeToKotlinBridgeGenerator<CallbackTy, RetTy, BridgeNativeTy, BridgeKotlinTy> {
+interface NativeToKotlinBridgeGenerator<CallbackTy, NativeExprTy, BridgeNativeTy, BridgeKotlinTy> {
     /**
      * Generates the expression to convert given native values to Kotlin counterparts, pass through the bridge,
      * use inside the Kotlin code produced by [block] and then return the result back.
@@ -100,23 +100,23 @@ interface NativeToKotlinBridgeGenerator<CallbackTy, RetTy, BridgeNativeTy, Bridg
     fun generateBridge(
             nativeBacked: NativeBacked,
             returnType: BridgedType,
-            nativeValues: List<BridgeTypedNativeValue<BridgeNativeTy>>,
+            nativeValues: List<BridgeTypedNativeValue<NativeExprTy>>,
             block: KotlinCodeBuilder.(kotlinValues: List<KotlinTextExpression>) -> KotlinTextExpression
-    ): RetTy
+    ): NativeExprTy
 
     fun nativePart(
             symbolName: String,
-            nativeValues: List<BridgeTypedNativeValue<BridgeNativeTy>>,
+            nativeValues: List<BridgeTypedNativeValue<NativeExprTy>>,
             returnType: BridgedType
-    ): List<BridgeNativeTy>
+    ): BridgeNativeTy
 
     fun kotlinPart(
             kotlinFunctionName: String,
             symbolName: String,
             returnType: BridgedType,
-            nativeValues: List<BridgeTypedNativeValue<BridgeNativeTy>>,
+            nativeValues: List<BridgeTypedNativeValue<NativeExprTy>>,
             block: CallbackTy
-    ): List<BridgeKotlinTy>
+    ): BridgeKotlinTy
 }
 
 interface NativeBridges<BridgeKotlinTy, BridgeNativeTy> {
@@ -124,15 +124,17 @@ interface NativeBridges<BridgeKotlinTy, BridgeNativeTy> {
     val nativeParts: Sequence<BridgeNativeTy>
 }
 
-interface NativeTextBridges : NativeBridges<String, String> {
+typealias TextualStub = List<String>
+
+interface NativeTextBridges : NativeBridges<TextualStub, TextualStub> {
     /**
      * @return `true` iff given entity is supported by these bridges,
      * i.e. all bridges it depends on can be successfully generated.
      */
     fun isSupported(nativeBacked: NativeBacked): Boolean
 
-    override val kotlinParts: Sequence<String>
-    override val nativeParts: Sequence<String>
+    override val kotlinParts: Sequence<TextualStub>
+    override val nativeParts: Sequence<TextualStub>
 }
 
 interface NativeBridgesManager<BridgeNativeTy, BridgeKotlinTy> {

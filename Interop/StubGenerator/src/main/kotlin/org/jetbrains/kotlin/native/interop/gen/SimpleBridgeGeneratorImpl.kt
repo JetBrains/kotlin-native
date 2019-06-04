@@ -30,7 +30,7 @@ class SimpleBridgeGeneratorImpl(
         private val topLevelKotlinScope: KotlinScope
 ) : SimpleBridgeGenerator {
 
-    private val kotlinToNative = object : KotlinToNativeBridgeGenerator<NativeTextCallback, KotlinTextExpression, String, String> {
+    private val kotlinToNative = object : KotlinToNativeBridgeGenerator<NativeTextCallback, KotlinTextExpression, TextualStub, TextualStub> {
         override fun generateBridge(
                 nativeBacked: NativeBacked,
                 returnType: BridgedType,
@@ -56,7 +56,7 @@ class SimpleBridgeGeneratorImpl(
                 returnType: BridgedType,
                 kotlinValues: List<BridgeTypedKotlinValue<String>>,
                 independent: Boolean
-        ): List<String> {
+        ): TextualStub {
             val kotlinLines = mutableListOf<String>()
             val kotlinReturnType = returnType.kotlinType.render(topLevelKotlinScope)
             val kotlinParameters = kotlinValues.withIndex().joinToString {
@@ -77,7 +77,7 @@ class SimpleBridgeGeneratorImpl(
                 returnType: BridgedType,
                 kotlinValues: List<BridgeTypedKotlinValue<String>>,
                 block: NativeTextCallback
-        ): List<String> {
+        ): TextualStub {
             val nativeLines = mutableListOf<String>()
 
             val cFunctionParameters = when (platform) {
@@ -135,7 +135,7 @@ class SimpleBridgeGeneratorImpl(
         }
     }
 
-    private val nativeToKotlin = object : NativeToKotlinBridgeGenerator<KotlinTextCallback, NativeTextExpression, String, String> {
+    private val nativeToKotlin = object : NativeToKotlinBridgeGenerator<KotlinTextCallback, NativeTextExpression, TextualStub, TextualStub> {
         override fun generateBridge(
                 nativeBacked: NativeBacked,
                 returnType: BridgedType,
@@ -155,7 +155,7 @@ class SimpleBridgeGeneratorImpl(
                 symbolName: String,
                 nativeValues: List<BridgeTypedNativeValue<String>>,
                 returnType: BridgedType
-        ): List<String> {
+        ): TextualStub {
             val nativeLines = mutableListOf<String>()
             val cFunctionParameters = nativeValues.withIndex().map {
                 "p${it.index}" to it.value.type.nativeType
@@ -174,7 +174,7 @@ class SimpleBridgeGeneratorImpl(
                 returnType: BridgedType,
                 nativeValues: List<BridgeTypedNativeValue<String>>,
                 block: KotlinTextCallback
-        ): List<String> {
+        ): TextualStub {
             val kotlinLines = mutableListOf<String>()
             val kotlinReturnType = returnType.kotlinType.render(topLevelKotlinScope)
             val kotlinParameters = nativeValues.withIndex().map {
@@ -286,11 +286,11 @@ class SimpleBridgeGeneratorImpl(
 
         return object : NativeTextBridges {
 
-            override val kotlinParts: Sequence<String>
-                get() = includedBridges.asSequence().flatMap { it.kotlinLines.asSequence() }
+            override val kotlinParts: Sequence<TextualStub>
+                get() = includedBridges.asSequence().map { it.kotlinLines }
 
-            override val nativeParts: Sequence<String>
-                get() = includedBridges.asSequence().flatMap { it.nativeLines.asSequence() }
+            override val nativeParts: Sequence<TextualStub>
+                get() = includedBridges.asSequence().map { it.nativeLines }
 
             override fun isSupported(nativeBacked: NativeBacked): Boolean =
                     nativeBacked !in excludedClients
