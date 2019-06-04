@@ -755,12 +755,7 @@ class TextStubGenerator(
         out("")
 
         val context = object : TextStubGenerationContext {
-            val topLevelDeclarationLines = mutableListOf<String>()
-
             override val nativeBridges: NativeTextBridges get() = nativeBridges
-            override fun addTopLevelDeclaration(lines: List<String>) {
-                topLevelDeclarationLines.addAll(lines)
-            }
         }
 
         stubs.forEach {
@@ -768,7 +763,6 @@ class TextStubGenerator(
             out("")
         }
 
-        context.topLevelDeclarationLines.forEach(out)
         nativeBridges.kotlinParts.forEach(out)
         if (platform == KotlinPlatform.JVM) {
             out("private val loadLibrary = System.loadLibrary(\"$libName\")")

@@ -104,7 +104,6 @@ inline fun buildKotlinCodeLines(scope: KotlinScope, block: KotlinCodeBuilder.() 
 
 interface TextStubGenerationContext {
     val nativeBridges: NativeTextBridges
-    fun addTopLevelDeclaration(lines: List<String>)
 }
 
 interface KotlinTextStub : KotlinStub {
