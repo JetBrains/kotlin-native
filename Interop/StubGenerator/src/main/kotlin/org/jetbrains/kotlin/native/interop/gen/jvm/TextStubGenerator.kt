@@ -795,7 +795,7 @@ class TextStubGenerator(
         }
     }
 
-    override fun prepareNativeBridges(): NativeTextBridges =
+    override fun prepareNativeBridges() =
             simpleBridgeGenerator.prepare()
 
     override fun generateCFile(nativeBridges: NativeTextBridges, cFile: Appendable, entryPoint: String?) {
