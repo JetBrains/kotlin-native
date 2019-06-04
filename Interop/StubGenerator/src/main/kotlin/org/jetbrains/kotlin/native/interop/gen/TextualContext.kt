@@ -162,4 +162,21 @@ interface TextualContext {
         is TypeInfo.ObjCBlockPointerInfo -> expr
         is TypeInfo.ByRef -> error(pointed)
     }
+
+    val BridgedType.convertor: String?
+        get() = when (this) {
+            BridgedType.BYTE -> "toByte"
+            BridgedType.SHORT -> "toShort"
+            BridgedType.INT -> "toInt"
+            BridgedType.LONG -> "toLong"
+            BridgedType.UBYTE -> "toUByte"
+            BridgedType.USHORT -> "toUShort"
+            BridgedType.UINT -> "toUInt"
+            BridgedType.ULONG -> "toULong"
+            BridgedType.FLOAT -> "toFloat"
+            BridgedType.DOUBLE -> "toDouble"
+            BridgedType.NATIVE_PTR -> null
+            BridgedType.OBJC_POINTER -> null
+            BridgedType.VOID -> null
+        }
 }
