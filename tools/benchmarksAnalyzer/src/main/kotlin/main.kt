@@ -104,7 +104,7 @@ fun parseNormalizeResults(results: String): Map<String, Map<String, Double>> {
 }
 
 // Prints text summary by users request.
-fun summaryAction(argParser: ArgParser) {
+/*fun summaryAction(argParser: ArgParser) {
     val benchsReport = SummaryBenchmarksReport(getBenchmarkReport(argParser.get<String>("mainReport")!!, argParser.get<String>("user")))
     val results = mutableListOf<String>()
     val executionNormalize = argParser.get<String>("exec-normalize")?.let {
@@ -135,11 +135,11 @@ fun summaryAction(argParser: ArgParser) {
         }
     }
     println(results.joinToString())
-}
+}*/
 
 fun main(args: Array<String>) {
 
-    val actions = mapOf( "summary" to Action(
+    /*val actions = mapOf( "summary" to Action(
             ::summaryAction,
             ArgParser(
                     listOf(
@@ -168,43 +168,36 @@ fun main(args: Array<String>) {
                 ), listOf(ArgDescriptor(ArgType.String(), "mainReport", "Main report for analysis"))
             )
         )
-    )
-
-    val options = listOf(
-            OptionDescriptor(ArgType.String(), "output", "o", "Output file"),
-            OptionDescriptor(ArgType.Double(), "eps", "e", "Meaningful performance changes", "1.0"),
-            OptionDescriptor(ArgType.Boolean(), "short", "s", "Show short version of report", "false"),
-            OptionDescriptor(ArgType.Choice(listOf("text", "html", "teamcity", "statistics", "metrics")),
-                    "renders", "r", "Renders for showing information", "text", isMultiple = true),
-            OptionDescriptor(ArgType.String(), "user", "u", "User access information for authorization")
-    )
-
-    val arguments = listOf(
-            ArgDescriptor(ArgType.String(), "mainReport", "Main report for analysis"),
-            ArgDescriptor(ArgType.String(), "compareToReport", "Report to compare to", isRequired = false)
-    )
+    )*/
 
     // Parse args.
-    val argParser = ArgParser(options, arguments, actions)
+    val argParser = ArgParser("benchmarksAnalyzer")
+    val mainReportName by argParser.argument(ArgType.String(), "mainReport", "Main report for analysis")
+    val compareToReportName by argParser.argument(ArgType.String(), "compareToReport", "Report to compare to", isRequired = false)
+
+    val output by argParser.option(ArgType.String(), "output", "o", "Output file")
+    val epsValue by argParser.option(ArgType.Double(), "eps", "e", "Meaningful performance changes", "1.0")
+    val useShortForm by argParser.option(ArgType.Boolean(), "short", "s", "Show short version of report", "false")
+    val renders by argParser.options(ArgType.Choice(listOf("text", "html", "teamcity", "statistics", "metrics")),
+        "renders", "r", "Renders for showing information", "text", isMultiple = true)
+    val user by argParser.option(ArgType.String(), "user", "u", "User access information for authorization")
+
     if (argParser.parse(args)) {
         // Read contents of file.
-        val mainBenchsReport = getBenchmarkReport(argParser.get<String>("mainReport")!!, argParser.get<String>("user"))
-        var compareToBenchsReport = argParser.get<String>("compareToReport")?.let {
-            getBenchmarkReport(it, argParser.get<String>("user"))
+        val mainBenchsReport = getBenchmarkReport(mainReportName!!, user)
+        var compareToBenchsReport = compareToReportName?.let {
+            getBenchmarkReport(it, user)
         }
-
-        val renders = argParser.getAll<String>("renders")
 
         // Generate comparasion report.
         val summaryReport = SummaryBenchmarksReport(mainBenchsReport,
                 compareToBenchsReport,
-                argParser.get<Double>("eps")!!)
+                epsValue!!)
 
-        var output = argParser.get<String>("output")
-
+        var outputFile = output
         renders?.forEach {
-            Render.getRenderByName(it).print(summaryReport, argParser.get<Boolean>("short")!!, output)
-            output = null
+            Render.getRenderByName(it).print(summaryReport, useShortForm!!, outputFile)
+            outputFile = null
         }
     }
 }

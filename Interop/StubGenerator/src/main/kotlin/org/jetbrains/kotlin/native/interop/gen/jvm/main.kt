@@ -159,7 +159,8 @@ private fun findFilesByGlobs(roots: List<Path>, globs: List<String>): Map<Path, 
 
 
 private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = mapOf()): Array<String>? {
-    val argParser = ArgParser(getCInteropArguments(), useDefaultHelpShortName = false)
+    val argParser = ArgParser(getCInteropArguments(), useDefaultHelpShortName = false,
+            prefixStyle = ArgParser.OPTION_PREFIX_STYLE.JVM)
     if (!argParser.parse(args))
         return null
     val ktGenRoot = argParser.get<String>("generated")
