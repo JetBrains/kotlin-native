@@ -282,16 +282,18 @@ internal object InternalServer {
 
     private val internalDomain = "labs.intellij.net"
 
-    val isAvailable by lazy {
+    val isAvailable: Boolean get() {
         val envKey = "KONAN_USE_INTERNAL_SERVER"
         val envValue = System.getenv(envKey)
-        when (envValue) {
+        return when (envValue) {
             null, "0" -> false
             "1" -> true
-            "auto" -> checkAccessible()
+            "auto" -> isAccessible
             else -> error("unexpected environment: $envKey=$envValue")
         }
     }
+
+    private val isAccessible by lazy { checkAccessible() }
 
     private fun checkAccessible() = try {
         if (!InetAddress.getLocalHost().canonicalHostName.endsWith(".$internalDomain")) {
