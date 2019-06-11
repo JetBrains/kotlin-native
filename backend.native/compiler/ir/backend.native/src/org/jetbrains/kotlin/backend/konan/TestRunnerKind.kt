@@ -3,7 +3,6 @@
  * that can be found in the LICENSE file.
  */
 
-
 package org.jetbrains.kotlin.backend.konan
 
 enum class TestRunnerKind {
@@ -11,4 +10,9 @@ enum class TestRunnerKind {
     MAIN_THREAD,
     WORKER,
     MAIN_THREAD_NO_EXIT
+}
+
+enum class MemoryModel {
+    STRICT,
+    RELAXED
 }

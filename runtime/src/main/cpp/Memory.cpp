@@ -1756,6 +1756,7 @@ void UpdateHeapRef(ObjHeader** location, const ObjHeader* object) {
   }
 }
 
+
 ObjHeader** GetReturnSlotIfArena(ObjHeader** returnSlot, ObjHeader** localSlot) {
   RuntimeCheck(false, "No longer supported");
   return nullptr;

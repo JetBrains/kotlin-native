@@ -419,15 +419,19 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
 
     private fun importRtFunction(name: String) = importFunction(name, runtime.llvmModule)
 
+    private fun importRtMemoryFunction(name: String) = importFunction(
+            name + context.memoryModel.toString().capitalize(), runtime.llvmModule)
+
+
     private fun importRtGlobal(name: String) = importGlobal(name, runtime.llvmModule)
 
-    val allocInstanceFunction = importRtFunction("AllocInstance")
-    val allocArrayFunction = importRtFunction("AllocArrayInstance")
-    val initInstanceFunction = importRtFunction("InitInstance")
-    val initSharedInstanceFunction = importRtFunction("InitSharedInstance")
-    val updateHeapRefFunction = importRtFunction("UpdateHeapRef")
-    val enterFrameFunction = importRtFunction("EnterFrame")
-    val leaveFrameFunction = importRtFunction("LeaveFrame")
+    val allocInstanceFunction = importRtMemoryFunction("AllocInstance")
+    val allocArrayFunction = importRtMemoryFunction("AllocArrayInstance")
+    val initInstanceFunction = importRtMemoryFunction("InitInstance")
+    val initSharedInstanceFunction = importRtMemoryFunction("InitSharedInstance")
+    val updateHeapRefFunction = importRtMemoryFunction("UpdateHeapRef")
+    val enterFrameFunction = importRtMemoryFunction("EnterFrame")
+    val leaveFrameFunction = importRtMemoryFunction("LeaveFrame")
     val getReturnSlotIfArenaFunction = importRtFunction("GetReturnSlotIfArena")
     val getParamSlotIfArenaFunction = importRtFunction("GetParamSlotIfArena")
     val lookupOpenMethodFunction = importRtFunction("LookupOpenMethod")

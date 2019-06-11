@@ -177,6 +177,11 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
 
                 put(ENABLE_ASSERTIONS, arguments.enableAssertions)
 
+                put(MEMORY_MODEL, when (arguments.memoryModel) {
+                    "relaxed" -> MemoryModel.RELAXED
+                    else -> MemoryModel.STRICT
+                })
+
                 when {
                     arguments.generateWorkerTestRunner -> put(GENERATE_TEST_RUNNER, TestRunnerKind.WORKER)
                     arguments.generateTestRunner -> put(GENERATE_TEST_RUNNER, TestRunnerKind.MAIN_THREAD)
