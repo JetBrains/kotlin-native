@@ -2617,7 +2617,7 @@ standaloneTest("mpp_optional_expectation") {
     source = "codegen/mpp/mpp_optional_expectation.kt"
     def outputRoot = project.ext.testOutputLocal.toString()
     def srcPath = "$outputRoot/$name/mpp_optional_expectation.kt".with {
-        isWindows() ? it.replaceAll("/", "\\") : it
+        isWindows() ? it.replaceAll("/", "\\\\") : it
     }
     flags = [
             '-Xmulti-platform',
