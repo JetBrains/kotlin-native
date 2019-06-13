@@ -395,7 +395,7 @@ extern "C" {
 #define OBJ_GETTER0(name) ObjHeader* name(ObjHeader** OBJ_RESULT)
 #define OBJ_GETTER(name, ...) ObjHeader* name(__VA_ARGS__, ObjHeader** OBJ_RESULT)
 #define RETURN_OBJ(value) { ObjHeader* obj = value; \
-    UpdateReturnRef(OBJ_RESULT, obj);               \
+    UpdateReturnRefStrict(OBJ_RESULT, obj);               \
     return obj; }
 #define RETURN_RESULT_OF0(name) {       \
     ObjHeader* obj = name(OBJ_RESULT);  \
@@ -424,13 +424,20 @@ void ResumeMemory(MemoryState* state);
 // Arena containers are not reference counted, and is explicitly freed when leaving
 // its owner frame.
 // Escape analysis algorithm is the provider of information for decision on exact aux slot
-// selection, and comes from upper bound esteemation of object lifetime.
+// selection, and comes from upper bound estimation of object lifetime.
 //
-OBJ_GETTER(AllocInstance, const TypeInfo* type_info) RUNTIME_NOTHROW;
-OBJ_GETTER(AllocArrayInstance, const TypeInfo* type_info, int32_t elements);
-void DeinitInstanceBody(const TypeInfo* typeInfo, void* body);
-OBJ_GETTER(InitInstance, ObjHeader** location, const TypeInfo* type_info,
+OBJ_GETTER(AllocInstanceStrict, const TypeInfo* type_info) RUNTIME_NOTHROW;
+OBJ_GETTER(AllocInstanceRelaxed, const TypeInfo* type_info) RUNTIME_NOTHROW;
+
+OBJ_GETTER(AllocArrayInstanceStrict, const TypeInfo* type_info, int32_t elements);
+OBJ_GETTER(AllocArrayInstanceRelaxed, const TypeInfo* type_info, int32_t elements);
+
+OBJ_GETTER(InitInstanceStrict, ObjHeader** location, const TypeInfo* type_info,
            void (*ctor)(ObjHeader*));
+OBJ_GETTER(InitInstanceRelaxed, ObjHeader** location, const TypeInfo* type_info,
+           void (*ctor)(ObjHeader*));
+
+void DeinitInstanceBody(const TypeInfo* typeInfo, void* body);
 
 // Weak reference operations.
 // Atomically clears counter object reference.
@@ -459,21 +466,37 @@ void WeakReferenceCounterClear(ObjHeader* counter);
 //
 
 // Sets stack location.
-void SetStackRef(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
+void SetStackRefStrict(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
+void SetStackRefRelaxed(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
+
 // Sets heap location.
-void SetHeapRef(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
+void SetHeapRefStrict(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
+void SetHeapRefRelaxed(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
+
 // Zeroes heap location.
-void ZeroHeapRef(ObjHeader** location) RUNTIME_NOTHROW;
+void ZeroHeapRefStrict(ObjHeader** location) RUNTIME_NOTHROW;
+void ZeroHeapRefRelaxed(ObjHeader** location) RUNTIME_NOTHROW;
+
 // Zeroes stack location.
-void ZeroStackRef(ObjHeader** location) RUNTIME_NOTHROW;
+void ZeroStackRefStrict(ObjHeader** location) RUNTIME_NOTHROW;
+void ZeroStackRefRelaxed(ObjHeader** location) RUNTIME_NOTHROW;
+
 // Updates stack location.
-void UpdateStackRef(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
+void UpdateStackRefStrict(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
+void UpdateStackRefRelaxed(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
+
 // Updates heap/static data location.
-void UpdateHeapRef(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
+void UpdateHeapRefStrict(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
+void UpdateHeapRefRelaxed(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
+
 // Updates location if it is null, atomically.
-void UpdateHeapRefIfNull(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
+void UpdateHeapRefIfNullStrict(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
+void UpdateHeapRefIfNullRelaxed(ObjHeader** location, const ObjHeader* object) RUNTIME_NOTHROW;
+
 // Updates reference in return slot.
-void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* object) RUNTIME_NOTHROW;
+void UpdateReturnRefStrict(ObjHeader** returnSlot, const ObjHeader* object) RUNTIME_NOTHROW;
+void UpdateReturnRefRelaxed(ObjHeader** returnSlot, const ObjHeader* object) RUNTIME_NOTHROW;
+
 // Compares and swaps reference with taken lock.
 OBJ_GETTER(SwapHeapRefLocked,
     ObjHeader** location, ObjHeader* expectedValue, ObjHeader* newValue, int32_t* spinlock) RUNTIME_NOTHROW;
@@ -481,12 +504,18 @@ OBJ_GETTER(SwapHeapRefLocked,
 void SetHeapRefLocked(ObjHeader** location, ObjHeader* newValue, int32_t* spinlock) RUNTIME_NOTHROW;
 // Reads reference with taken lock.
 OBJ_GETTER(ReadHeapRefLocked, ObjHeader** location, int32_t* spinlock) RUNTIME_NOTHROW;
+
 // Called on frame enter, if it has object slots.
-void EnterFrame(ObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
+void EnterFrameStrict(ObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
+void EnterFrameRelaxed(ObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
+
 // Called on frame leave, if it has object slots.
-void LeaveFrame(ObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
+void LeaveFrameStrict(ObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
+void LeaveFramerelaxed(ObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
+
 // Collect garbage, which cannot be found by reference counting (cycles).
 void GarbageCollect() RUNTIME_NOTHROW;
+
 // Clears object subgraph references from memory subsystem, and optionally
 // checks if subgraph referenced by given root is disjoint from the rest of
 // object graph, i.e. no external references exists.
@@ -499,12 +528,16 @@ void DisposeStablePointer(void* pointer) RUNTIME_NOTHROW;
 OBJ_GETTER(DerefStablePointer, void*) RUNTIME_NOTHROW;
 // Move stable pointer ownership.
 OBJ_GETTER(AdoptStablePointer, void*) RUNTIME_NOTHROW;
+
 // Check mutability state.
 void MutationCheck(ObjHeader* obj);
-// Freeze object subgraph.
+
+// Freeze subgraph rooted a the argument.
 void FreezeSubgraph(ObjHeader* obj);
+
 // Ensure this object shall block freezing.
 void EnsureNeverFrozen(ObjHeader* obj);
+
 #ifdef __cplusplus
 }
 #endif
@@ -522,16 +555,16 @@ struct FrameOverlay {
 class ObjHolder {
  public:
    ObjHolder() : obj_(nullptr) {
-     EnterFrame(frame(), 0, sizeof(*this)/sizeof(void*));
+     EnterFrameStrict(frame(), 0, sizeof(*this)/sizeof(void*));
    }
 
    explicit ObjHolder(const ObjHeader* obj) {
-     EnterFrame(frame(), 0, sizeof(*this)/sizeof(void*));
-     ::SetStackRef(slot(), obj);
+     EnterFrameStrict(frame(), 0, sizeof(*this)/sizeof(void*));
+     SetStackRefStrict(slot(), obj);
    }
 
    ~ObjHolder() {
-     LeaveFrame(frame(), 0, sizeof(*this)/sizeof(void*));
+     LeaveFrameStrict(frame(), 0, sizeof(*this)/sizeof(void*));
    }
 
    ObjHeader* obj() { return obj_; }
@@ -542,7 +575,9 @@ class ObjHolder {
      return &obj_;
    }
 
-   void clear() { ::ZeroStackRef(&obj_); }
+   void clear() {
+     ZeroStackRefStrict(&obj_);
+   }
 
  private:
    ObjHeader** frame() { return reinterpret_cast<ObjHeader**>(&frame_); }
@@ -554,11 +589,11 @@ class ObjHolder {
 class ExceptionObjHolder {
  public:
    explicit ExceptionObjHolder(const ObjHeader* obj) {
-     ::SetHeapRef(&obj_, obj);
+     SetHeapRefStrict(&obj_, obj);
    }
 
    ~ExceptionObjHolder() {
-     ZeroHeapRef(&obj_);
+     ZeroHeapRefStrict(&obj_);
    }
 
    ObjHeader* obj() { return obj_; }
@@ -577,14 +612,14 @@ class KRefSharedHolder {
   }
 
   inline void init(ObjHeader* obj) {
-    SetHeapRef(slotToInit(), obj);
+    SetHeapRefStrict(slotToInit(), obj);
   }
 
   ObjHeader* ref() const;
 
   inline void dispose() {
     verifyRefOwner();
-    ZeroHeapRef(&obj_);
+    ZeroHeapRefStrict(&obj_);
   }
 
  private:

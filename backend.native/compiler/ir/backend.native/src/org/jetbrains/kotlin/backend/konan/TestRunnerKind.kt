@@ -12,7 +12,7 @@ enum class TestRunnerKind {
     MAIN_THREAD_NO_EXIT
 }
 
-enum class MemoryModel {
-    STRICT,
-    RELAXED
+enum class MemoryModel(val suffix: String) {
+    STRICT("Strict"),
+    RELAXED("Relaxed)")
 }

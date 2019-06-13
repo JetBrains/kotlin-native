@@ -163,10 +163,12 @@ RuntimeState* RUNTIME_USED Kotlin_getRuntime() {
   return ::runtimeState;
 }
 
-void CheckIsMainThread() {
+void CheckIsMainThreadStrict() {
   if (!isMainThread)
     ThrowIncorrectDereferenceException();
 }
+
+void CheckIsMainThreadRelaxed() {}
 
 int Konan_Platform_canAccessUnaligned() {
 #if KONAN_NO_UNALIGNED_ACCESS

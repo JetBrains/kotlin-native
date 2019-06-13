@@ -9,7 +9,6 @@ import kotlinx.cinterop.*
 import llvm.*
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.hash.GlobalHash
-import org.jetbrains.kotlin.backend.konan.ir.isReal
 import org.jetbrains.kotlin.backend.konan.ir.llvmSymbolOrigin
 import org.jetbrains.kotlin.descriptors.konan.CompiledKonanModuleOrigin
 import org.jetbrains.kotlin.descriptors.konan.CurrentKonanModuleOrigin
@@ -17,7 +16,6 @@ import org.jetbrains.kotlin.descriptors.konan.DeserializedKonanModuleOrigin
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.util.file
 import org.jetbrains.kotlin.ir.util.fqNameForIrSerialization
-import org.jetbrains.kotlin.ir.util.isEffectivelyExternal
 import org.jetbrains.kotlin.ir.util.isReal
 import org.jetbrains.kotlin.konan.library.KonanLibrary
 import org.jetbrains.kotlin.konan.library.resolver.TopologicalLibraryOrder
@@ -419,21 +417,17 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
 
     private fun importRtFunction(name: String) = importFunction(name, runtime.llvmModule)
 
-    private fun importRtMemoryFunction(name: String) = importFunction(
-            name + context.memoryModel.toString().capitalize(), runtime.llvmModule)
+    private fun importRtMemoryModelSpecificFunction(name: String) = importFunction(
+            name + context.memoryModel.suffix, runtime.llvmModule)
 
-
-    private fun importRtGlobal(name: String) = importGlobal(name, runtime.llvmModule)
-
-    val allocInstanceFunction = importRtMemoryFunction("AllocInstance")
-    val allocArrayFunction = importRtMemoryFunction("AllocArrayInstance")
-    val initInstanceFunction = importRtMemoryFunction("InitInstance")
-    val initSharedInstanceFunction = importRtMemoryFunction("InitSharedInstance")
-    val updateHeapRefFunction = importRtMemoryFunction("UpdateHeapRef")
-    val enterFrameFunction = importRtMemoryFunction("EnterFrame")
-    val leaveFrameFunction = importRtMemoryFunction("LeaveFrame")
-    val getReturnSlotIfArenaFunction = importRtFunction("GetReturnSlotIfArena")
-    val getParamSlotIfArenaFunction = importRtFunction("GetParamSlotIfArena")
+    val allocInstanceFunction = importRtMemoryModelSpecificFunction("AllocInstance")
+    val allocArrayFunction = importRtMemoryModelSpecificFunction("AllocArrayInstance")
+    val initInstanceFunction = importRtMemoryModelSpecificFunction("InitInstance")
+    val initSharedInstanceFunction = importRtMemoryModelSpecificFunction("InitSharedInstance")
+    val updateStackRefFunction = importRtMemoryModelSpecificFunction("UpdateStackRef")
+    val updateHeapRefFunction = importRtMemoryModelSpecificFunction("UpdateHeapRef")
+    val enterFrameFunction = importRtMemoryModelSpecificFunction("EnterFrame")
+    val leaveFrameFunction = importRtMemoryModelSpecificFunction("LeaveFrame")
     val lookupOpenMethodFunction = importRtFunction("LookupOpenMethod")
     val isInstanceFunction = importRtFunction("IsInstance")
     val checkInstanceFunction = importRtFunction("CheckInstance")
@@ -442,7 +436,7 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
     val initRuntimeIfNeeded = importRtFunction("Kotlin_initRuntimeIfNeeded")
     val mutationCheck = importRtFunction("MutationCheck")
     val freezeSubgraph = importRtFunction("FreezeSubgraph")
-    val checkMainThread = importRtFunction("CheckIsMainThread")
+    val checkMainThread = importRtMemoryModelSpecificFunction("CheckIsMainThread")
 
     val createKotlinObjCClass by lazy { importRtFunction("CreateKotlinObjCClass") }
     val getObjCKotlinTypeInfo by lazy { importRtFunction("GetObjCKotlinTypeInfo") }

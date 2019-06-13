@@ -106,6 +106,7 @@ volatile int aliveMemoryStatesCount = 0;
 void freeContainer(ContainerHeader* header) NO_INLINE;
 #if USE_GC
 void garbageCollect(MemoryState* state, bool force) NO_INLINE;
+template <bool Strict>
 void rememberNewContainer(ContainerHeader* container);
 #endif  // USE_GC
 
@@ -1060,6 +1061,7 @@ inline bool canBeCyclic(ContainerHeader* container) {
   return true;
 }
 
+template <bool Strict>
 inline void AddHeapRef(ContainerHeader* container) {
   MEMORY_LOG("AddHeapRef %p: rc=%d\n", container, container->refCount())
   UPDATE_ADDREF_STAT(memoryState, container, needAtomicAccess(container), 0)
@@ -1067,7 +1069,7 @@ inline void AddHeapRef(ContainerHeader* container) {
     case CONTAINER_TAG_STACK:
       break;
     case CONTAINER_TAG_NORMAL:
-      IncrementRC</* Atomic = */ false>(container);
+      IncrementRC</* Atomic = */ Strict ? false : true>(container);
       break;
     /* case CONTAINER_TAG_FROZEN: case CONTAINER_TAG_ATOMIC: */
     default:
@@ -1076,24 +1078,27 @@ inline void AddHeapRef(ContainerHeader* container) {
   }
 }
 
+template <bool Strict>
 inline void AddHeapRef(const ObjHeader* header) {
   auto* container = header->container();
   if (container != nullptr)
-    AddHeapRef(const_cast<ContainerHeader*>(container));
+    AddHeapRef<Strict>(const_cast<ContainerHeader*>(container));
 }
 
+template <bool Strict>
 inline void ReleaseHeapRef(ContainerHeader* container) {
   MEMORY_LOG("ReleaseHeapRef %p: rc=%d\n", container, container->refCount())
   UPDATE_RELEASEREF_STAT(memoryState, container, needAtomicAccess(container), canBeCyclic(container), 0)
   if (container->tag() != CONTAINER_TAG_STACK) {
-    EnqueueDecrementRC</* CanCollect = */ true>(container);
+    EnqueueDecrementRC</* CanCollect = */ Strict ? true : false>(container);
   }
 }
 
+template <bool Strict>
 inline void ReleaseHeapRef(const ObjHeader* header) {
   auto* container = header->container();
   if (container != nullptr)
-    ReleaseHeapRef(const_cast<ContainerHeader*>(container));
+    ReleaseHeapRef<Strict>(const_cast<ContainerHeader*>(container));
 }
 
 // We use first slot as place to store frame-local arena container.
@@ -1386,11 +1391,13 @@ ArrayHeader* ArenaContainer::PlaceArray(const TypeInfo* type_info, uint32_t coun
 }
 
 void AddRefFromAssociatedObject(const ObjHeader* object) {
-  AddHeapRef(const_cast<ObjHeader*>(object));
+  // TODO: memory model.
+  AddHeapRef<true>(const_cast<ObjHeader*>(object));
 }
 
 void ReleaseRefFromAssociatedObject(const ObjHeader* object) {
-  ReleaseHeapRef(const_cast<ObjHeader*>(object));
+  // TODO: memory model.
+  ReleaseHeapRef<true>(const_cast<ObjHeader*>(object));
 }
 
 #if USE_GC
@@ -1503,6 +1510,7 @@ void garbageCollect(MemoryState* state, bool force) {
   GC_LOG("<<< GC: toFree %d toRelease %d\n", state->toFree->size(), state->toRelease->size())
 }
 
+template <bool Strict>
 void rememberNewContainer(ContainerHeader* container) {
   if (container == nullptr) return;
   // Instances can be allocated before actual runtime init - be prepared for that.
@@ -1515,7 +1523,346 @@ void rememberNewContainer(ContainerHeader* container) {
 
 #endif  // USE_GC
 
+template <bool Strict>
+void SetStackRef(ObjHeader** location, const ObjHeader* object) {
+  MEMORY_LOG("SetStackRef *%p: %p\n", location, object)
+  UPDATE_REF_EVENT(memoryState, nullptr, object, location, 1);
+  *const_cast<const ObjHeader**>(location) = object;
+}
+
+template <bool Strict>
+void SetHeapRef(ObjHeader** location, const ObjHeader* object) {
+  MEMORY_LOG("SetHeapRef *%p: %p\n", location, object)
+  UPDATE_REF_EVENT(memoryState, nullptr, object, location, 0);
+  if (object != nullptr)
+    AddHeapRef<Strict>(const_cast<ObjHeader*>(object));
+  *const_cast<const ObjHeader**>(location) = object;
+}
+
+template <bool Strict>
+void ZeroHeapRef(ObjHeader** location) {
+  MEMORY_LOG("ZeroHeapRef %p\n", location)
+  auto* value = *location;
+  if (value != nullptr) {
+    UPDATE_REF_EVENT(memoryState, value, nullptr, location, 0);
+    *location = nullptr;
+    ReleaseHeapRef<Strict>(value);
+  }
+}
+
+template <bool Strict>
+void ZeroStackRef(ObjHeader** location) {
+  MEMORY_LOG("ZeroStackRef %p\n", location)
+#if TRACE_MEMORY
+  auto* value = *location;
+  if (value != nullptr) {
+    UPDATE_REF_EVENT(memoryState, value, nullptr, location, 1);
+    *location = nullptr;
+  }
+#else
+  *location = nullptr;
+#endif
+}
+
+template <bool Strict>
+void UpdateStackRef(ObjHeader** location, const ObjHeader* object) {
+  UPDATE_REF_EVENT(memoryState, *location, object, location, 1)
+  RuntimeAssert(object != reinterpret_cast<ObjHeader*>(1), "Markers disallowed here");
+  if (Strict)
+    *const_cast<const ObjHeader**>(location) = object;
+  else
+    RuntimeAssert(false, "Not yet");
+}
+
+template <bool Strict>
+void UpdateHeapRef(ObjHeader** location, const ObjHeader* object) {
+  UPDATE_REF_EVENT(memoryState, *location, object, location, 0);
+  ObjHeader* old = *location;
+  if (old != object) {
+    if (object != nullptr) {
+      AddHeapRef<Strict>(object);
+    }
+    *const_cast<const ObjHeader**>(location) = object;
+    if (reinterpret_cast<uintptr_t>(old) > 1) {
+      ReleaseHeapRef<Strict>(old);
+    }
+  }
+}
+
+template <bool Strict>
+void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* value) {
+  UpdateStackRef<Strict>(returnSlot, value);
+}
+
+template <bool Strict>
+OBJ_GETTER(AllocInstance, const TypeInfo* type_info) {
+  RuntimeAssert(type_info->instanceSize_ >= 0, "must be an object");
+  auto* state = memoryState;
+  auto container = ObjectContainer(state, type_info);
+#if USE_GC
+  rememberNewContainer<Strict>(container.header());
+#endif  // USE_GC
+  RETURN_OBJ(container.GetPlace());
+}
+
+template <bool Strict>
+OBJ_GETTER(AllocArrayInstance, const TypeInfo* type_info, int32_t elements) {
+  RuntimeAssert(type_info->instanceSize_ < 0, "must be an array");
+  if (elements < 0) ThrowIllegalArgumentException();
+  auto* state = memoryState;
+  auto container = ArrayContainer(state, type_info, elements);
+#if USE_GC
+  rememberNewContainer<Strict>(container.header());
+#endif  // USE_GC
+  RETURN_OBJ(container.GetPlace()->obj());
+}
+
+template <bool Strict>
+OBJ_GETTER(InitInstance,
+    ObjHeader** location, const TypeInfo* type_info, void (*ctor)(ObjHeader*)) {
+  ObjHeader* value = *location;
+  if (value != nullptr) {
+    // OK'ish, inited by someone else.
+    RETURN_OBJ(value);
+  }
+  ObjHeader* object = AllocInstance(type_info, OBJ_RESULT);
+  UpdateHeapRef<Strict>(location, object);
+#if KONAN_NO_EXCEPTIONS
+  ctor(object);
+  return object;
+#else
+  try {
+    ctor(object);
+    return object;
+  } catch (...) {
+    UpdateReturnRef<Strict>(OBJ_RESULT, nullptr);
+    ZeroHeapRef<Strict>(location);
+    throw;
+  }
+#endif
+}
+
+template <bool Strict>
+OBJ_GETTER(InitSharedInstance,
+    ObjHeader** location, ObjHeader** localLocation, const TypeInfo* type_info, void (*ctor)(ObjHeader*)) {
+#if KONAN_NO_THREADS
+  ObjHeader* value = *location;
+  if (value != nullptr) {
+    // OK'ish, inited by someone else.
+    RETURN_OBJ(value);
+  }
+  ObjHeader* object = AllocInstance<Strict>(type_info, OBJ_RESULT);
+  UpdateHeapRef<Strict>(location, object);
+#if KONAN_NO_EXCEPTIONS
+  ctor(object);
+  FreezeSubgraph(object);
+  return object;
+#else
+  try {
+    ctor(object);
+    FreezeSubgraph(object);
+    return object;
+  } catch (...) {
+    UpdateReturnRef<Strict>(OBJ_RESULT, nullptr);
+    ZeroHeapRef<Strict>(location);
+    throw;
+  }
+#endif
+#else
+  ObjHeader* value = *localLocation;
+  if (value != nullptr) RETURN_OBJ(value);
+
+  ObjHeader* initializing = reinterpret_cast<ObjHeader*>(1);
+
+  // Spin lock.
+  while ((value = __sync_val_compare_and_swap(location, nullptr, initializing)) == initializing);
+  if (value != nullptr) {
+    // OK'ish, inited by someone else.
+    RETURN_OBJ(value);
+  }
+  ObjHeader* object = AllocInstance<Strict>(type_info, OBJ_RESULT);
+  RuntimeAssert(object->container()->normal() , "Shared object cannot be co-allocated");
+  UpdateHeapRef<Strict>(localLocation, object);
+#if KONAN_NO_EXCEPTIONS
+  ctor(object);
+  FreezeSubgraph(object);
+  UpdateHeapRef<Strict>(location, object);
+  synchronize();
+  return object;
+#else
+  try {
+    ctor(object);
+    FreezeSubgraph(object);
+    UpdateHeapRef<Strict>(location, object);
+    synchronize();
+    return object;
+  } catch (...) {
+    UpdateReturnRef<Strict>(OBJ_RESULT, nullptr);
+    ZeroHeapRef<Strict>(location);
+    ZeroHeapRef<Strict>(localLocation);
+    synchronize();
+    throw;
+  }
+#endif
+#endif
+}
+
+template <bool Strict>
+void UpdateHeapRefIfNull(ObjHeader** location, const ObjHeader* object) {
+  if (object != nullptr) {
+#if KONAN_NO_THREADS
+    ObjHeader* old = *location;
+    if (old == nullptr) {
+      AddHeapRef<Strict>(const_cast<ObjHeader*>(object));
+      *const_cast<const ObjHeader**>(location) = object;
+    }
+#else
+    AddHeapRef<Strict>(const_cast<ObjHeader*>(object));
+    auto old = __sync_val_compare_and_swap(location, nullptr, const_cast<ObjHeader*>(object));
+    if (old != nullptr) {
+      // Failed to store, was not null.
+      ReleaseHeapRef<Strict>(const_cast<ObjHeader*>(object));
+    }
+#endif
+    UPDATE_REF_EVENT(memoryState, old, object, location, 0);
+  }
+}
+
+template <bool Strict>
+void EnterFrame(ObjHeader** start, int parameters, int count) {
+  MEMORY_LOG("EnterFrame %p: %d parameters %d locals\n", start, parameters, count)
+  FrameOverlay* frame = reinterpret_cast<FrameOverlay*>(start);
+  frame->previous = currentFrame;
+  currentFrame = frame;
+  // TODO: maybe compress in single value somehow.
+  frame->parameters = parameters;
+  frame->count = count;
+}
+
+template <bool Strict>
+void LeaveFrame(ObjHeader** start, int parameters, int count) {
+  MEMORY_LOG("LeaveFrame %p: %d parameters %d locals\n", start, parameters, count)
+  FrameOverlay* frame = reinterpret_cast<FrameOverlay*>(start);
+  currentFrame = frame->previous;
+}
+
 extern "C" {
+
+OBJ_GETTER(AllocInstanceStrict, const TypeInfo* typeInfo) {
+  RETURN_RESULT_OF(AllocInstance<true>, typeInfo);
+}
+
+OBJ_GETTER(AllocInstanceRelaxed, const TypeInfo* typeInfo) {
+  RETURN_RESULT_OF(AllocInstance<false>, typeInfo);
+}
+
+OBJ_GETTER(AllocArrayInstanceStrict, const TypeInfo* typeInfo, int32_t elements) {
+  RETURN_RESULT_OF(AllocArrayInstance<true>, typeInfo, elements);
+}
+
+OBJ_GETTER(AllocArrayInstanceRelaxed, const TypeInfo* typeInfo, int32_t elements) {
+  RETURN_RESULT_OF(AllocArrayInstance<false>, typeInfo, elements);
+}
+
+OBJ_GETTER(InitInstanceStrict,
+    ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
+  RETURN_RESULT_OF(InitInstance<true>, location, typeInfo, ctor);
+}
+
+OBJ_GETTER(InitInstanceRelaxed,
+    ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
+  RETURN_RESULT_OF(InitInstance<false>, location, typeInfo, ctor);
+}
+
+OBJ_GETTER(InitSharedInstanceStrict,
+    ObjHeader** location, ObjHeader** localLocation, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
+  RETURN_RESULT_OF(InitSharedInstance<true>, location, localLocation, typeInfo, ctor);
+}
+
+OBJ_GETTER(InitSharedInstanceRelaxed,
+    ObjHeader** location, ObjHeader** localLocation, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
+  RETURN_RESULT_OF(InitSharedInstance<false>, location, localLocation, typeInfo, ctor);
+}
+
+void SetStackRefStrict(ObjHeader** location, const ObjHeader* object) {
+  SetStackRef<true>(location, object);
+}
+
+void SetStackRefRelaxed(ObjHeader** location, const ObjHeader* object) {
+  SetStackRef<false>(location, object);
+}
+
+void SetHeapRefStrict(ObjHeader** location, const ObjHeader* object) {
+  SetHeapRef<true>(location, object);
+}
+
+void SetHeapRefRelaxed(ObjHeader** location, const ObjHeader* object) {
+  SetHeapRef<false>(location, object);
+}
+
+void ZeroHeapRefStrict(ObjHeader** location) {
+  ZeroHeapRef<true>(location);
+}
+
+void ZeroHeapRefRelaxed(ObjHeader** location) {
+  ZeroHeapRef<false>(location);
+}
+
+void ZeroStackRefStrict(ObjHeader** location) {
+  ZeroStackRef<true>(location);
+}
+
+void ZeroStackRefRelaxed(ObjHeader** location) {
+  ZeroStackRef<false>(location);
+}
+
+void UpdateStackRefStrict(ObjHeader** location, const ObjHeader* object) {
+  UpdateStackRef<true>(location, object);
+}
+
+void UpdateStackRefRelaxed(ObjHeader** location, const ObjHeader* object) {
+  UpdateStackRef<false>(location, object);
+}
+
+void UpdateHeapRefStrict(ObjHeader** location, const ObjHeader* object) {
+  UpdateHeapRef<true>(location, object);
+}
+
+void UpdateHeapRefRelaxed(ObjHeader** location, const ObjHeader* object) {
+  UpdateHeapRef<false>(location, object);
+}
+
+void UpdateReturnRefStrict(ObjHeader** location, const ObjHeader* object) {
+  UpdateReturnRef<true>(location, object);
+}
+
+void UpdateReturnRefRelaxed(ObjHeader** location, const ObjHeader* object) {
+  UpdateReturnRef<false>(location, object);
+}
+
+void UpdateHeapRefIfNullStrict(ObjHeader** location, const ObjHeader* object) {
+  UpdateHeapRefIfNull<true>(location, object);
+}
+
+void UpdateHeapRefIfNullRelaxed(ObjHeader** location, const ObjHeader* object) {
+  UpdateHeapRefIfNull<false>(location, object);
+}
+
+void EnterFrameStrict(ObjHeader** start, int parameters, int count) {
+  EnterFrame<true>(start, parameters, count);
+}
+
+void EnterFrameRelaxed(ObjHeader** start, int parameters, int count) {
+  EnterFrame<false>(start, parameters, count);
+}
+
+void LeaveFrameStrict(ObjHeader** start, int parameters, int count) {
+  LeaveFrame<true>(start, parameters, count);
+}
+
+void LeaveFrameRelaxed(ObjHeader** start, int parameters, int count) {
+  LeaveFrame<false>(start, parameters, count);
+}
 
 MemoryState* InitMemory() {
   RuntimeAssert(offsetof(ArrayHeader, typeInfoOrMeta_)
@@ -1590,222 +1937,7 @@ void ResumeMemory(MemoryState* state) {
     ::memoryState = state;
 }
 
-OBJ_GETTER(AllocInstance, const TypeInfo* type_info) {
-  RuntimeAssert(type_info->instanceSize_ >= 0, "must be an object");
-  auto* state = memoryState;
-  auto container = ObjectContainer(state, type_info);
-#if USE_GC
-  rememberNewContainer(container.header());
-#endif  // USE_GC
-  RETURN_OBJ(container.GetPlace());
-}
 
-OBJ_GETTER(AllocArrayInstance, const TypeInfo* type_info, int32_t elements) {
-  RuntimeAssert(type_info->instanceSize_ < 0, "must be an array");
-  if (elements < 0) ThrowIllegalArgumentException();
-  auto* state = memoryState;
-  auto container = ArrayContainer(state, type_info, elements);
-#if USE_GC
-  rememberNewContainer(container.header());
-#endif  // USE_GC
-  RETURN_OBJ(container.GetPlace()->obj());
-}
-
-OBJ_GETTER(InitInstance,
-    ObjHeader** location, const TypeInfo* type_info, void (*ctor)(ObjHeader*)) {
-  ObjHeader* value = *location;
-  if (value != nullptr) {
-    // OK'ish, inited by someone else.
-    RETURN_OBJ(value);
-  }
-  ObjHeader* object = AllocInstance(type_info, OBJ_RESULT);
-  UpdateHeapRef(location, object);
-#if KONAN_NO_EXCEPTIONS
-  ctor(object);
-  return object;
-#else
-  try {
-    ctor(object);
-    return object;
-  } catch (...) {
-    UpdateReturnRef(OBJ_RESULT, nullptr);
-    ZeroHeapRef(location);
-    throw;
-  }
-#endif
-}
-
-OBJ_GETTER(InitSharedInstance,
-    ObjHeader** location, ObjHeader** localLocation, const TypeInfo* type_info, void (*ctor)(ObjHeader*)) {
-#if KONAN_NO_THREADS
-  ObjHeader* value = *location;
-  if (value != nullptr) {
-    // OK'ish, inited by someone else.
-    RETURN_OBJ(value);
-  }
-  ObjHeader* object = AllocInstance(type_info, OBJ_RESULT);
-  UpdateHeapRef(location, object);
-#if KONAN_NO_EXCEPTIONS
-  ctor(object);
-  FreezeSubgraph(object);
-  return object;
-#else
-  try {
-    ctor(object);
-    FreezeSubgraph(object);
-    return object;
-  } catch (...) {
-    UpdateReturnRef(OBJ_RESULT, nullptr);
-    ZeroHeapRef(location);
-    throw;
-  }
-#endif
-#else
-  ObjHeader* value = *localLocation;
-  if (value != nullptr) RETURN_OBJ(value);
-
-  ObjHeader* initializing = reinterpret_cast<ObjHeader*>(1);
-
-  // Spin lock.
-  while ((value = __sync_val_compare_and_swap(location, nullptr, initializing)) == initializing);
-  if (value != nullptr) {
-    // OK'ish, inited by someone else.
-    RETURN_OBJ(value);
-  }
-  ObjHeader* object = AllocInstance(type_info, OBJ_RESULT);
-  RuntimeAssert(object->container()->normal() , "Shared object cannot be co-allocated");
-  UpdateHeapRef(localLocation, object);
-#if KONAN_NO_EXCEPTIONS
-  ctor(object);
-  FreezeSubgraph(object);
-  UpdateHeapRef(location, object);
-  synchronize();
-  return object;
-#else
-  try {
-    ctor(object);
-    FreezeSubgraph(object);
-    UpdateHeapRef(location, object);
-    synchronize();
-    return object;
-  } catch (...) {
-    UpdateReturnRef(OBJ_RESULT, nullptr);
-    ZeroHeapRef(location);
-    ZeroHeapRef(localLocation);
-    synchronize();
-    throw;
-  }
-#endif
-#endif
-}
-
-void SetStackRef(ObjHeader** location, const ObjHeader* object) {
-  MEMORY_LOG("SetStackRef *%p: %p\n", location, object)
-  UPDATE_REF_EVENT(memoryState, nullptr, object, location, 1);
-  *const_cast<const ObjHeader**>(location) = object;
-}
-
-void SetHeapRef(ObjHeader** location, const ObjHeader* object) {
-  MEMORY_LOG("SetHeapRef *%p: %p\n", location, object)
-  UPDATE_REF_EVENT(memoryState, nullptr, object, location, 0);
-  if (object != nullptr)
-    AddHeapRef(const_cast<ObjHeader*>(object));
-  *const_cast<const ObjHeader**>(location) = object;
-}
-
-void ZeroHeapRef(ObjHeader** location) {
-  MEMORY_LOG("ZeroHeapRef %p\n", location)
-  auto* value = *location;
-  if (value != nullptr) {
-    UPDATE_REF_EVENT(memoryState, value, nullptr, location, 0);
-    *location = nullptr;
-    ReleaseHeapRef(value);
-  }
-}
-
-void ZeroStackRef(ObjHeader** location) {
-  MEMORY_LOG("ZeroStackRef %p\n", location)
-#if TRACE_MEMORY
-  auto* value = *location;
-  if (value != nullptr) {
-    UPDATE_REF_EVENT(memoryState, value, nullptr, location, 1);
-    *location = nullptr;
-  }
-#else
-  *location = nullptr;
-#endif
-}
-
-void UpdateStackRef(ObjHeader** location, const ObjHeader* object) {
-  UPDATE_REF_EVENT(memoryState, *location, object, location, 1)
-  RuntimeAssert(object != reinterpret_cast<ObjHeader*>(1), "Markers disallowed here");
-  *const_cast<const ObjHeader**>(location) = object;
-}
-
-void UpdateHeapRef(ObjHeader** location, const ObjHeader* object) {
-  UPDATE_REF_EVENT(memoryState, *location, object, location, 0);
-  ObjHeader* old = *location;
-  if (old != object) {
-    if (object != nullptr) {
-      AddHeapRef(object);
-    }
-    *const_cast<const ObjHeader**>(location) = object;
-    if (reinterpret_cast<uintptr_t>(old) > 1) {
-      ReleaseHeapRef(old);
-    }
-  }
-}
-
-
-ObjHeader** GetReturnSlotIfArena(ObjHeader** returnSlot, ObjHeader** localSlot) {
-  RuntimeCheck(false, "No longer supported");
-  return nullptr;
-}
-
-ObjHeader** GetParamSlotIfArena(ObjHeader** returnSlot, ObjHeader** localSlot) {
-  RuntimeCheck(false, "No longer supported");
-  return nullptr;
-}
-
-void UpdateReturnRef(ObjHeader** returnSlot, const ObjHeader* value) {
-  UpdateStackRef(returnSlot, value);
-}
-
-void UpdateHeapRefIfNull(ObjHeader** location, const ObjHeader* object) {
-  if (object != nullptr) {
-#if KONAN_NO_THREADS
-    ObjHeader* old = *location;
-    if (old == nullptr) {
-      AddHeapRef(const_cast<ObjHeader*>(object));
-      *const_cast<const ObjHeader**>(location) = object;
-    }
-#else
-    AddHeapRef(const_cast<ObjHeader*>(object));
-    auto old = __sync_val_compare_and_swap(location, nullptr, const_cast<ObjHeader*>(object));
-    if (old != nullptr) {
-      // Failed to store, was not null.
-      ReleaseHeapRef(const_cast<ObjHeader*>(object));
-    }
-#endif
-    UPDATE_REF_EVENT(memoryState, old, object, location, 0);
-  }
-}
-
-void EnterFrame(ObjHeader** start, int parameters, int count) {
-  MEMORY_LOG("EnterFrame %p: %d parameters %d locals\n", start, parameters, count)
-  FrameOverlay* frame = reinterpret_cast<FrameOverlay*>(start);
-  frame->previous = currentFrame;
-  currentFrame = frame;
-  // TODO: maybe compress in single value somehow.
-  frame->parameters = parameters;
-  frame->count = count;
-}
-
-void LeaveFrame(ObjHeader** start, int parameters, int count) {
-  MEMORY_LOG("LeaveFrame %p: %d parameters %d locals\n", start, parameters, count)
-  FrameOverlay* frame = reinterpret_cast<FrameOverlay*>(start);
-  currentFrame = frame->previous;
-}
 
 #if USE_GC
 
@@ -1893,21 +2025,24 @@ KInt Kotlin_native_internal_GC_getThreshold(KRef) {
 KNativePtr CreateStablePointer(KRef any) {
   if (any == nullptr) return nullptr;
   MEMORY_LOG("CreateStablePointer for %p rc=%d\n", any, any->container() ? any->container()->refCount() : 0)
-  AddHeapRef(any);
+  // TODO: memory model!
+  AddHeapRef<true>(any);
   return reinterpret_cast<KNativePtr>(any);
 }
 
 void DisposeStablePointer(KNativePtr pointer) {
   if (pointer == nullptr) return;
   KRef ref = reinterpret_cast<KRef>(pointer);
-  ReleaseHeapRef(ref);
+  // TODO: memory model!
+  ReleaseHeapRef<true>(ref);
 }
 
 OBJ_GETTER(DerefStablePointer, KNativePtr pointer) {
   KRef ref = reinterpret_cast<KRef>(pointer);
+  // TODO: memory model!
 #if USE_GC
   if (ref != nullptr)
-    rememberNewContainer(ref->container());
+    rememberNewContainer<true>(ref->container());
 #endif  // USE_GC
   RETURN_OBJ(ref);
 }
@@ -1917,7 +2052,8 @@ OBJ_GETTER(AdoptStablePointer, KNativePtr pointer) {
   KRef ref = reinterpret_cast<KRef>(pointer);
   MEMORY_LOG("adopting stable pointer %p, rc=%d\n", \
      ref, (ref && ref->container()) ? ref->container()->refCount() : -1)
-  UpdateReturnRef(OBJ_RESULT, ref);
+  // TODO: memory model!
+  UpdateReturnRef<true>(OBJ_RESULT, ref);
   DisposeStablePointer(pointer);
   return ref;
 }
@@ -2262,36 +2398,39 @@ void MutationCheck(ObjHeader* obj) {
 
 OBJ_GETTER(SwapHeapRefLocked,
     ObjHeader** location, ObjHeader* expectedValue, ObjHeader* newValue, int32_t* spinlock) {
+  // TODO: memory model.
   lock(spinlock);
   ObjHeader* oldValue = *location;
   bool shallRelease = false;
   // We do not use UpdateRef() here to avoid having ReleaseRef() on return slot under the lock.
   if (oldValue == expectedValue) {
-    SetHeapRef(location, newValue);
+    SetHeapRef<true>(location, newValue);
     shallRelease = oldValue != nullptr;
   }
   unlock(spinlock);
   if (shallRelease) {
-    ReleaseHeapRef(oldValue);
+    ReleaseHeapRef<true>(oldValue);
   }
   // No need to rememberNewContainer(), as oldValue is already
   // present on this worker.
-  UpdateReturnRef(OBJ_RESULT, oldValue);
+  UpdateReturnRef<true>(OBJ_RESULT, oldValue);
   return oldValue;
 }
 
 void SetHeapRefLocked(ObjHeader** location, ObjHeader* newValue, int32_t* spinlock) {
+  // TODO: memory model.
   lock(spinlock);
   ObjHeader* oldValue = *location;
   // We do not use UpdateRef() here to avoid having ReleaseRef() on old value under the lock.
-  SetHeapRef(location, newValue);
+  SetHeapRef<true>(location, newValue);
   unlock(spinlock);
   if (oldValue != nullptr)
-    ReleaseHeapRef(oldValue);
+    ReleaseHeapRef<true>(oldValue);
 }
 
 OBJ_GETTER(ReadHeapRefLocked, ObjHeader** location, int32_t* spinlock) {
   MEMORY_LOG("ReadHeapRefLocked: %p\n", location)
+  // TODO: memory model.
   lock(spinlock);
   ObjHeader* value = *location;
   auto* container = value ? value->container() : nullptr;
@@ -2304,13 +2443,14 @@ OBJ_GETTER(ReadHeapRefLocked, ObjHeader** location, int32_t* spinlock) {
 }
 
 OBJ_GETTER(ReadHeapRefNoLock, ObjHeader* object, KInt index) {
+  // TODO: memory model.
   MEMORY_LOG("ReadHeapRefNoLock: %p index %d\n", object, index)
   ObjHeader** location = reinterpret_cast<ObjHeader**>(
     reinterpret_cast<uintptr_t>(object) + object->type_info()->objOffsets_[index]);
   ObjHeader* value = *location;
 #if USE_GC
   if (value != nullptr)
-    rememberNewContainer(value->container());
+    rememberNewContainer<true>(value->container());
 #endif  // USE_GC
   RETURN_OBJ(value);
 }
@@ -2365,8 +2505,6 @@ KBoolean Konan_ensureAcyclicAndSet(ObjHeader* where, KInt index, ObjHeader* what
     // Fence on updated location?
     return true;
 }
-
-
 
 void Kotlin_Any_share(ObjHeader* obj) {
     auto* container = obj->container();

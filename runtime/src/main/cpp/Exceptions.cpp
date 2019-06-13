@@ -123,7 +123,7 @@ extern "C" {
 // however it is better to have an inexact stacktrace than not to have any.
 OBJ_GETTER0(GetCurrentStackTrace) {
 #if OMIT_BACKTRACE
-  return AllocArrayInstance(theNativePtrArrayTypeInfo, 0, OBJ_RESULT);
+  return AllocArrayInstanceStrict(theNativePtrArrayTypeInfo, 0, OBJ_RESULT);
 #else
   // Skips first 3 elements as irrelevant.
   constexpr int kSkipFrames = 3;
@@ -141,10 +141,10 @@ OBJ_GETTER0(GetCurrentStackTrace) {
 
   int size = backtrace(buffer, maxSize);
   if (size < kSkipFrames)
-      return AllocArrayInstance(theNativePtrArrayTypeInfo, 0, OBJ_RESULT);
+      return AllocArrayInstanceStrict(theNativePtrArrayTypeInfo, 0, OBJ_RESULT);
 
   ObjHolder resultHolder;
-  ObjHeader* result = AllocArrayInstance(theNativePtrArrayTypeInfo, size - kSkipFrames, resultHolder.slot());
+  ObjHeader* result = AllocArrayInstanceStrict(theNativePtrArrayTypeInfo, size - kSkipFrames, resultHolder.slot());
   for (int index = kSkipFrames; index < size; ++index) {
     Kotlin_NativePtrArray_set(result, index - kSkipFrames, buffer[index]);
   }

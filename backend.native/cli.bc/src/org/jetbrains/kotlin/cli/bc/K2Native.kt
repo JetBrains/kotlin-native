@@ -179,7 +179,8 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
 
                 put(MEMORY_MODEL, when (arguments.memoryModel) {
                     "relaxed" -> MemoryModel.RELAXED
-                    else -> MemoryModel.STRICT
+                    "strict" -> MemoryModel.STRICT
+                    else -> throw UnsupportedOperationException("Unsupported memory model")
                 })
 
                 when {
