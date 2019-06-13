@@ -21,11 +21,19 @@ public fun ByteArray.stringFromUtf8() : String {
 @Deprecated("Use decodeToString instead", ReplaceWith("decodeToString(start, start + size)"))
 public fun ByteArray.stringFromUtf8(start: Int = 0, size: Int = this.size) : String {
     checkBoundsIndexes(start, start + size, this.size)
-    return stringFromUtf8Impl(start, size)
+    return stringFromUtf8Impl(start, realSize(this, size))
 }
 
 @SymbolName("Kotlin_ByteArray_stringFromUtf8")
 internal external fun ByteArray.stringFromUtf8Impl(start: Int, size: Int) : String
+
+private fun realSize(byteArray: ByteArray, size: Int): Int {
+    var realSize = 0
+    while (realSize < size && byteArray[realSize] != 0.toByte()) {
+        realSize++
+    }
+    return realSize
+}
 
 /**
  * Converts an UTF-8 array into a [String].
@@ -45,7 +53,7 @@ public fun ByteArray.stringFromUtf8OrThrow() : String {
 public fun ByteArray.stringFromUtf8OrThrow(start: Int = 0, size: Int = this.size) : String {
     checkBoundsIndexes(start, start + size, this.size)
     try {
-        return stringFromUtf8OrThrowImpl(start, size)
+        return stringFromUtf8OrThrowImpl(start, realSize(this, size))
     } catch (e: CharacterCodingException) {
         @Suppress("DEPRECATION")
         throw IllegalCharacterConversionException()
