@@ -14,10 +14,9 @@ data class Job(val index: Int, var input: Int, var counter: Int)
 
 fun initJobs(count: Int) = Array<Job?>(count) { i -> Job(i, i * 2, i)}
 
-@Test fun runTest() {
-    val COUNT = 100
-    val workers = Array(COUNT, { _ -> Worker.start() })
-    val jobs = initJobs(COUNT)
+@Test fun runTest0() {
+    val workers = Array(100, { _ -> Worker.start() })
+    val jobs = initJobs(workers.size)
     val futures = Array(workers.size, { workerIndex ->
         workers[workerIndex].execute(TransferMode.SAFE, {
             val job = jobs[workerIndex]
@@ -40,9 +39,49 @@ fun initJobs(count: Int) = Array<Job?>(count) { i -> Job(i, i * 2, i)}
             consumed++
         }
     }
-    assertEquals(consumed, COUNT)
+    assertEquals(consumed, workers.size)
     workers.forEach {
         it.requestTermination().result
     }
     println("OK")
+}
+
+val COUNT = 2
+
+@SharedImmutable
+val counters = Array(COUNT) { AtomicInt(0) }.freeze()
+
+@Test fun runTest1() {
+  val workers = Array(COUNT) { Worker.start() }
+  // Ensure processQueue() can only be called on current Worker.
+  workers.forEach {
+      assertFailsWith<IllegalStateException> {
+          it.processQueue()
+      }
+  }
+  val futures = Array(workers.size) { workerIndex ->
+      workers[workerIndex].execute(TransferMode.SAFE, {
+          workerIndex
+      }) {
+          index ->
+          assertEquals(0, counters[index].value)
+          // Process following request.
+          while (!Worker.current!!.processQueue()) {}
+          // Ensure it has an effect.
+          assertEquals(1, counters[index].value)
+      }
+  }
+  val futures2 = Array(workers.size) { workerIndex ->
+      workers[workerIndex].execute(TransferMode.SAFE, {
+          workerIndex
+      }) { index ->
+          assertEquals(0, counters[index].value)
+          counters[index].increment()
+      }
+  }
+  futures2.forEach { it.result }
+  futures.forEach { it.result }
+  workers.forEach {
+    it.requestTermination().result
+  }
 }
