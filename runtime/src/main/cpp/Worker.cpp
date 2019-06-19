@@ -233,10 +233,11 @@ class Worker {
     pthread_cond_signal(&cond_);
   }
 
-  bool waitDelayed() {
+  bool waitDelayed(bool blocking) {
     Locker locker(&lock_);
     if (delayed_.size() == 0) return false;
-    waitForQueueLocked();
+    if (blocking)
+        waitForQueueLocked();
     return true;
   }
 
@@ -396,7 +397,8 @@ class State {
       if (it == workers_.end()) return false;
       worker = it->second;
     }
-    return worker->processQueueElement(false) != JOB_NONE;
+    JobKind kind = worker->processQueueElement(false);
+    return kind != JOB_NONE && kind != JOB_TERMINATE;
   }
 
   KInt stateOfFutureUnlocked(KInt id) {
@@ -529,15 +531,15 @@ JobKind Worker::processQueueElement(bool blocking) {
     }
     case JOB_TERMINATE: {
       if (job.terminationRequest.waitDelayed) {
-        if (waitDelayed()) {
+        if (waitDelayed(blocking)) {
           putJob(job, false);
           return JOB_NONE;
         }
       }
       terminated_ = true;
-      // Termination request, notify the future.
-      job.terminationRequest.future->storeResultUnlocked(nullptr, true);
+      // Termination request, remove the worker and notify the future.
       theState()->removeWorkerUnlocked(id());
+      job.terminationRequest.future->storeResultUnlocked(nullptr, true);
       break;
     }
     case JOB_EXECUTE_AFTER: {

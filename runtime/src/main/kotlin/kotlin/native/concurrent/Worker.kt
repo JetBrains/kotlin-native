@@ -105,7 +105,7 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
 
 
     /**
-     * Process pending job(s) on the queue of this worker, returns `true` is something was processed
+     * Process pending job(s) on the queue of this worker, returns `true` if something was processed
      * and `false` otherwise. Note that jobs scheduled with [executeAfter] using non-zero timeout are
      * not processed this way. If termination request arrives while processing the queue via this API,
      * worker is marked as terminated and will exit once the current request is done with.

@@ -69,6 +69,8 @@ val counters = Array(COUNT) { AtomicInt(0) }.freeze()
           while (!Worker.current!!.processQueue()) {}
           // Ensure it has an effect.
           assertEquals(1, counters[index].value)
+          // No more non-terminating tasks in this worker queue.
+          assertEquals(false, Worker.current!!.processQueue())
       }
   }
   val futures2 = Array(workers.size) { workerIndex ->
@@ -82,6 +84,11 @@ val counters = Array(COUNT) { AtomicInt(0) }.freeze()
   futures2.forEach { it.result }
   futures.forEach { it.result }
   workers.forEach {
-    it.requestTermination().result
+      it.requestTermination().result
+  }
+
+  // Ensure terminated workers are no longer there.
+  workers.forEach {
+    assertFailsWith<IllegalStateException> { it.execute(TransferMode.SAFE, { Unit }) { println("ERROR") } }
   }
 }
