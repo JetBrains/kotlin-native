@@ -121,6 +121,7 @@ internal object DataFlowIR {
         val IS_GLOBAL_INITIALIZER = 1
         val RETURNS_UNIT = 2
         val RETURNS_NOTHING = 4
+        val EXPLICITLY_EXPORTED = 8
     }
 
     class FunctionParameter(val type: Type, val boxFunction: FunctionSymbol?, val unboxFunction: FunctionSymbol?)
@@ -132,6 +133,7 @@ internal object DataFlowIR {
         val isGlobalInitializer = attributes.and(FunctionAttributes.IS_GLOBAL_INITIALIZER) != 0
         val returnsUnit = attributes.and(FunctionAttributes.RETURNS_UNIT) != 0
         val returnsNothing = attributes.and(FunctionAttributes.RETURNS_NOTHING) != 0
+        val explicitlyExported = attributes.and(FunctionAttributes.EXPLICITLY_EXPORTED) != 0
 
         var escapes: Int? = null
         var pointsTo: IntArray? = null
@@ -590,6 +592,11 @@ internal object DataFlowIR {
                 attributes = attributes or FunctionAttributes.RETURNS_UNIT
             if (returnsNothing)
                 attributes = attributes or FunctionAttributes.RETURNS_NOTHING
+            if (it.descriptor.annotations.hasAnnotation(RuntimeNames.exportForCppRuntime)
+                    || it.getExternalObjCMethodInfo() != null // TODO-DCE-OBJC-INIT
+                    || it.descriptor.annotations.hasAnnotation(RuntimeNames.objCMethodImp)) {
+                attributes = attributes or FunctionAttributes.EXPLICITLY_EXPORTED
+            }
             val symbol = when {
                 it.isExternal || (it.symbol in context.irBuiltIns.irBuiltInsSymbols) -> {
                     val escapesAnnotation = it.descriptor.annotations.findAnnotation(FQ_NAME_ESCAPES)
