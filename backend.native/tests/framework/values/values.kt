@@ -421,3 +421,14 @@ object UnitBlockCoercionImpl : UnitBlockCoercion<() -> Unit> {
     override fun coerce(block: () -> Unit): () -> Unit = block
     override fun uncoerce(block: () -> Unit): () -> Unit = block
 }
+
+// https://kotlinlang.slack.com/archives/C3SGXARS6/p1560954372179300
+interface ForwardI2 : ForwardI1
+interface ForwardI1 {
+    fun getForwardI2(): ForwardI2
+}
+
+abstract class ForwardC2 : ForwardC1()
+abstract class ForwardC1 {
+    abstract fun getForwardC2(): ForwardC2
+}
