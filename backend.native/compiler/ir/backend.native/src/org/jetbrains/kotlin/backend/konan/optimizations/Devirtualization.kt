@@ -67,7 +67,7 @@ internal object Devirtualization {
                     listOf(moduleDFG.symbolTable.mapFunction(entryPoint).resolved())
                 else
                 // In a library every public function and every function accessible via virtual call belongs to the rootset.
-                    moduleDFG.functions.keys.filterIsInstance<DataFlowIR.FunctionSymbol.Public>() +
+                    moduleDFG.symbolTable.functionMap.values.filterIsInstance<DataFlowIR.FunctionSymbol.Public>() +
                     moduleDFG.symbolTable.classMap.values
                             .filterIsInstance<DataFlowIR.Type.Declared>()
                             .flatMap { it.vtable + it.itable.values }
@@ -75,11 +75,14 @@ internal object Devirtualization {
                             .filter { moduleDFG.functions.containsKey(it) }
         // TODO: Are globals inititalizers always called whether they are actually reachable from roots or not?
         val globalInitializers =
-                moduleDFG.functions.keys.filter { it.isGlobalInitializer } +
+                moduleDFG.symbolTable.functionMap.values.filter { it.isGlobalInitializer } +
                 externalModulesDFG.functionDFGs.keys.filter { it.isGlobalInitializer }
 
-        return (exportedFunctions + globalInitializers).distinct()
+        val explicitlyExportedFunctions =
+                moduleDFG.symbolTable.functionMap.values.filter { it.explicitlyExported } +
+                externalModulesDFG.functionDFGs.keys.filter { it.explicitlyExported }
 
+        return (exportedFunctions + globalInitializers + explicitlyExportedFunctions).distinct()
     }
 
     fun BitSet.format(allTypes: List<DataFlowIR.Type.Declared>): String {
@@ -333,7 +336,7 @@ internal object Devirtualization {
 
                 val function = (moduleDFG.functions[resolvedFunctionSymbol]
                         ?: externalModulesDFG.functionDFGs[resolvedFunctionSymbol])
-                        ?: error("Unknown function $resolvedFunctionSymbol")
+                        ?: return
 
                 DEBUG_OUTPUT(1) { function.debugOutput() }
 
@@ -716,10 +719,10 @@ internal object Devirtualization {
                             fieldNode(constraintGraph.arrayItemField)
                     )
                 }
-                rootSet.forEach { createFunctionConstraintGraph(it, true)!! }
+                rootSet.forEach { createFunctionConstraintGraph(it, true) }
                 while (stack.isNotEmpty()) {
                     val symbol = stack.pop()
-                    val function = functions[symbol] ?: error("Unknown function: $symbol")
+                    val function = functions[symbol] ?: continue
                     val body = function.body
                     val functionConstraintGraph = constraintGraph.functions[symbol]!!
 
