@@ -374,14 +374,14 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     // Returns true if all arguments were parsed, otherwise return false and print help message.
     fun parse(args: Array<String>): Boolean {
         // Add help option.
-        val helpDescriptor = if (useDefaultHelpShortName) OptionDescriptor(ArgType.Boolean(),
+        val helpDescriptor = if (useDefaultHelpShortName) OptionDescriptor(ArgType.Boolean,
                 "help", "h", "Usage info")
-            else OptionDescriptor(ArgType.Boolean(), "help", description = "Usage info")
+            else OptionDescriptor(ArgType.Boolean, "help", description = "Usage info")
         options["help"] = ParsingValue(helpDescriptor, ArgumentSingleValue(helpDescriptor.type.convertion))
 
         // Add default list with arguments if there can be extra free arguments.
         if (skipExtraArguments) {
-            arguments(ArgType.String())
+            arguments(ArgType.String)
         }
         val argumentsQueue = ArgumentsQueue(arguments.map { it.value.descriptor as ArgDescriptor<*> })
 

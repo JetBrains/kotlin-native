@@ -15,7 +15,7 @@ sealed class ArgType<T : Any>(val hasParameter: kotlin.Boolean) {
     abstract val convertion: (value: kotlin.String, name: kotlin.String, helpMessage: kotlin.String)->T
 
     // Flags that can be only set/unset.
-    class Boolean : ArgType<kotlin.Boolean>(false) {
+    object Boolean : ArgType<kotlin.Boolean>(false) {
         override val description: kotlin.String
             get() = ""
 
@@ -23,7 +23,7 @@ sealed class ArgType<T : Any>(val hasParameter: kotlin.Boolean) {
             get() = { value, _ , _ -> if (value == "false") false else true }
     }
 
-    class String : ArgType<kotlin.String>(true) {
+    object String : ArgType<kotlin.String>(true) {
         override val description: kotlin.String
             get() = "{ String }"
 
@@ -31,7 +31,7 @@ sealed class ArgType<T : Any>(val hasParameter: kotlin.Boolean) {
             get() = { value, _, _ -> value }
     }
 
-    class Int : ArgType<kotlin.Int>(true) {
+    object Int : ArgType<kotlin.Int>(true) {
         override val description: kotlin.String
             get() = "{ Int }"
 
@@ -40,7 +40,7 @@ sealed class ArgType<T : Any>(val hasParameter: kotlin.Boolean) {
                     ?: error("Option $name is expected to be integer number. $value is provided.\n$helpMessage") }
     }
 
-    class Double : ArgType<kotlin.Double>(true) {
+    object Double : ArgType<kotlin.Double>(true) {
         override val description: kotlin.String
             get() = "{ Double }"
 

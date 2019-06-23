@@ -11,10 +11,10 @@ class SubcommandsTests {
     @Test
     fun testSubcommand() {
         val argParser = ArgParser("testParser")
-        val output by argParser.option(ArgType.String(), "output", "o", "Output file")
+        val output by argParser.option(ArgType.String, "output", "o", "Output file")
         class Summary: Subcommand("summary") {
-            val invert by option(ArgType.Boolean(), "invert", "i", "Invert results")
-            val addendums by arguments(ArgType.Int(), "addendums", description = "Addendums")
+            val invert by option(ArgType.Boolean, "invert", "i", "Invert results")
+            val addendums by arguments(ArgType.Int, "addendums", description = "Addendums")
             var result: Int = 0
 
             override fun execute() {
@@ -32,10 +32,10 @@ class SubcommandsTests {
     @Test
     fun testCommonOptions() {
         abstract class CommonOptions(name: String): Subcommand(name) {
-            val numbers by arguments(ArgType.Int(), "numbers", description = "Numbers")
+            val numbers by arguments(ArgType.Int, "numbers", description = "Numbers")
         }
         class Summary: CommonOptions("summary") {
-            val invert by option(ArgType.Boolean(), "invert", "i", "Invert results")
+            val invert by option(ArgType.Boolean, "invert", "i", "Invert results")
             var result: Int = 0
 
             override fun execute() {
@@ -70,7 +70,7 @@ class SubcommandsTests {
         val argParser = ArgParser("testParser")
 
         class Summary: Subcommand("summary") {
-            val addendums by arguments(ArgType.Int(), "addendums", description = "Addendums")
+            val addendums by arguments(ArgType.Int, "addendums", description = "Addendums")
             var result: Int = 0
 
             override fun execute() {
@@ -82,7 +82,7 @@ class SubcommandsTests {
             init {
                 subcommands(Summary())
             }
-            val invert by option(ArgType.Boolean(), "invert", "i", "Invert results")
+            val invert by option(ArgType.Boolean, "invert", "i", "Invert results")
             var result: Int = 0
 
             override fun execute() {

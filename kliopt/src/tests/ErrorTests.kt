@@ -11,9 +11,9 @@ class ErrorTests {
     @Test
     fun testExtraArguments() {
         val argParser = ArgParser("testParser")
-        val addendums by argParser.arguments(ArgType.Int(), "addendums", 2, description = "Addendums")
-        val output by argParser.argument(ArgType.String(), "output", "Output file")
-        val debugMode by argParser.option(ArgType.Boolean(), "debug", "d", "Debug mode")
+        val addendums by argParser.arguments(ArgType.Int, "addendums", 2, description = "Addendums")
+        val output by argParser.argument(ArgType.String, "output", "Output file")
+        val debugMode by argParser.option(ArgType.Boolean, "debug", "d", "Debug mode")
         val exception = assertFailsWith<IllegalStateException> { argParser.parse(
                 arrayOf("2", "-d", "3", "out.txt", "something", "else", "in", "string")) }
         assertTrue("Too many arguments! Couldn't proccess argument something" in exception.message!!)
@@ -22,8 +22,8 @@ class ErrorTests {
     @Test
     fun testUnknownOption() {
         val argParser = ArgParser("testParser")
-        val output by argParser.option(ArgType.String(), "output", "o", "Output file")
-        val input by argParser.option(ArgType.String(), "input", "i", "Input file")
+        val output by argParser.option(ArgType.String, "output", "o", "Output file")
+        val input by argParser.option(ArgType.String, "input", "i", "Input file")
         val exception = assertFailsWith<IllegalStateException> {
             argParser.parse(arrayOf("-o", "out.txt", "-d", "-i", "input.txt"))
         }
@@ -33,7 +33,7 @@ class ErrorTests {
     @Test
     fun testWrongFormat() {
         val argParser = ArgParser("testParser")
-        val number by argParser.option(ArgType.Int(), "number", description = "Integer number")
+        val number by argParser.option(ArgType.Int, "number", description = "Integer number")
         val exception = assertFailsWith<IllegalStateException> {
             argParser.parse(arrayOf("--number", "out.txt"))
         }
@@ -43,7 +43,7 @@ class ErrorTests {
     @Test
     fun testWrongChoice() {
         val argParser = ArgParser("testParser")
-        val useShortForm by argParser.option(ArgType.Boolean(), "short", "s", "Show short version of report", "false")
+        val useShortForm by argParser.option(ArgType.Boolean, "short", "s", "Show short version of report", "false")
         val renders by argParser.options(ArgType.Choice(listOf("text", "html")),
                 "renders", "r", "Renders for showing information", "text", isMultiple = true)
         val exception = assertFailsWith<IllegalStateException> {
