@@ -49,7 +49,7 @@ fun initJobs(count: Int) = Array<Job?>(count) { i -> Job(i, i * 2, i)}
 val COUNT = 2
 
 @SharedImmutable
-val counters = Array(COUNT) { AtomicInt(0) }.freeze()
+val counters = Array(COUNT) { AtomicInt(0) }
 
 @Test fun runTest1() {
   val workers = Array(COUNT) { Worker.start() }
@@ -91,4 +91,27 @@ val counters = Array(COUNT) { AtomicInt(0) }.freeze()
   workers.forEach {
     assertFailsWith<IllegalStateException> { it.execute(TransferMode.SAFE, { Unit }) { println("ERROR") } }
   }
+}
+
+@Test fun runTest2() {
+    val workers = Array(COUNT) { Worker.start() }
+    val futures = Array(workers.size) { workerIndex ->
+        workers[workerIndex].execute(TransferMode.SAFE, { null }) {
+            // Here we processed termination request.
+            assertEquals(false, Worker.current!!.processQueue())
+        }
+    }
+    workers.forEach {
+        it.executeAfter(1000*1000, {
+            println("DELAY EXECUTED")
+            assert(false)
+        }.freeze())
+    }
+    workers.forEach {
+        it.requestTermination(processScheduledJobs = false).result
+    }
+    // Process futures, ignoring possible cancelled ones.
+    futures.forEach {
+        try { it.result } catch (e: IllegalStateException) {}
+    }
 }

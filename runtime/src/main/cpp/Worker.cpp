@@ -589,9 +589,9 @@ void* workerRoutine(void* argument) {
     if (worker->processQueueElement(true) == JOB_TERMINATE) break;
   } while (true);
 
-  Kotlin_deinitRuntimeIfNeeded();
-
   konanDestructInstance(worker);
+
+  Kotlin_deinitRuntimeIfNeeded();
 
   return nullptr;
 }
