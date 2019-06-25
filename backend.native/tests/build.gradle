@@ -277,6 +277,12 @@ task slackReportNightly(type:NightlyReporter) {
     externalWindowsReport = "external_windows_results/reports.json"
 }
 
+task localDelegatedPropertyLink(type: LinkKonanTest) {
+    goldValue = "OK\n"
+    source = "lower/local_delegated_property_link/main.kt"
+    lib = "lower/local_delegated_property_link/lib.kt"
+}
+
 task sum (type:RunKonanTest) {
     source = "codegen/function/sum.kt"
 }
