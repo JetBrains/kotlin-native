@@ -8,7 +8,7 @@ package sample.gitchurn
 import kotlinx.cinterop.*
 import libgit2.*
 
-class GitDiff(val repository: GitRepository, val handle: CPointer<git_diff>) {
+class GitDiff(private val handle: CPointer<git_diff>) {
     fun deltas(): List<GifDiffDelta> {
         val size = git_diff_num_deltas(handle).toInt()
         val results = ArrayList<GifDiffDelta>(size)

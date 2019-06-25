@@ -8,7 +8,7 @@ package sample.gitchurn
 import kotlinx.cinterop.*
 import libgit2.*
 
-class GitTree(val repository: GitRepository, val handle: CPointer<git_tree>) {
+class GitTree(internal val repository_handle: CPointer<git_repository>, val handle: CPointer<git_tree>) {
     fun close() = git_tree_free(handle)
 
     fun entries(): List<GitTreeEntry> = memScoped {
@@ -21,7 +21,7 @@ class GitTree(val repository: GitRepository, val handle: CPointer<git_tree>) {
                 GIT_OBJ_TREE -> memScoped {
                     val id = git_tree_entry_id(treeEntry)
                     val treePtr = allocPointerTo<git_tree>()
-                    git_tree_lookup(treePtr.ptr, repository.handle, id)
+                    git_tree_lookup(treePtr.ptr, repository_handle, id)
                     GitTreeEntry.Folder(this@GitTree, treeEntry, treePtr.value!!)
                 }
                 GIT_OBJ_BLOB -> GitTreeEntry.File(this@GitTree, treeEntry)
@@ -34,8 +34,8 @@ class GitTree(val repository: GitRepository, val handle: CPointer<git_tree>) {
 
     fun diff(other: GitTree): GitDiff = memScoped {
         val diffPtr = allocPointerTo<git_diff>()
-        git_diff_tree_to_tree(diffPtr.ptr, repository.handle, handle, other.handle, null).errorCheck()
-        GitDiff(repository, diffPtr.value!!)
+        git_diff_tree_to_tree(diffPtr.ptr, repository_handle, handle, other.handle, null).errorCheck()
+        GitDiff(diffPtr.value!!)
     }
 }
 
@@ -43,7 +43,7 @@ sealed class GitTreeEntry(val tree: GitTree, val handle: CPointer<git_tree_entry
     val name: String get() = git_tree_entry_name(handle)!!.toKString()
 
     class Folder(tree: GitTree, handle: CPointer<git_tree_entry>, val subtreeHandle: CPointer<git_tree>) : GitTreeEntry(tree, handle) {
-        val subtree = GitTree(tree.repository, subtreeHandle)
+        val subtree = GitTree(tree.repository_handle, subtreeHandle)
     }
 
     class File(tree: GitTree, handle: CPointer<git_tree_entry>) : GitTreeEntry(tree, handle)

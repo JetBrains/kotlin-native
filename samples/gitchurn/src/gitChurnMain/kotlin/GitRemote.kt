@@ -8,7 +8,7 @@ package sample.gitchurn
 import kotlinx.cinterop.*
 import libgit2.*
 
-class GitRemote(val repository: GitRepository, val handle: CPointer<git_remote>) {
+class GitRemote(private val handle: CPointer<git_remote>) {
     fun close() = git_remote_free(handle)
 
     val url: String get() = git_remote_url(handle)!!.toKString()

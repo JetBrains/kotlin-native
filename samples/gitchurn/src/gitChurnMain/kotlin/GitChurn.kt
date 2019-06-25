@@ -35,21 +35,25 @@ fun main(args: Array<String>) {
 private fun calculateChurn(workDir: String, limit: Int) {
     println("Opening…")
     val repository = git.repository(workDir)
-    val map = mutableMapOf<String, Int>()
+    data class WhoAndWhere(val authorEmail: String = "", val filePath: String = "")
+    val modificationsByAuthor = mutableMapOf<WhoAndWhere, Int>()
     var count = 0
-    val commits = repository.commits()
-    val limited = commits.take(limit)
+    val commits = repository.commits().take(limit)
     println("Calculating…")
-    limited.forEach { commit ->
+    commits.forEach { commit ->
         if (count % 100 == 0)
-            println("Commit #$count [${commit.time.format()}]: ${commit.summary}")
+            println("Commit #$count [${commit.time.format()}] by ${commit.author.name!!.toKString()}: ${commit.summary}")
 
         commit.parents.forEach { parent ->
             val diff = commit.tree.diff(parent.tree)
             diff.deltas().forEach { delta ->
-                val path = delta.newPath
-                val n = map[path] ?: 0
-                map.put(path, n + 1)
+                val path = if (delta.newPath == delta.newPath.substringBefore('/'))
+                        delta.newPath
+                    else
+                        delta.newPath.substringBefore('/') + "/"
+                val key = WhoAndWhere(commit.author.email!!.toKString().toLowerCase(), path)
+                val n = modificationsByAuthor[key] ?: 0
+                modificationsByAuthor[key] = n + 1
             }
             diff.close()
             parent.close()
@@ -57,11 +61,23 @@ private fun calculateChurn(workDir: String, limit: Int) {
         commit.close()
         count++
     }
-    println("Report:")
-    map.toList().sortedByDescending { it.second }.take(10).forEach {
-        println("File: ${it.first}")
-        println("      ${it.second}")
-        println()
+    println("Named Report:")
+    modificationsByAuthor.toList().groupBy { it.first.authorEmail }.values.forEach { listOfAuthorsChanges ->
+        println("Author: ${listOfAuthorsChanges[0].first.authorEmail}")
+        var changedFilesSum = 0
+        listOfAuthorsChanges.sortedByDescending { it.second }.forEach { (modification, counter) ->
+            if(modification.filePath.contains("/")){
+                print("Dir:  ")
+            }else{
+                print("File: ")
+            }
+            println(modification.filePath)
+            println("      $counter")
+            println()
+            changedFilesSum += counter
+        }
+        println("Made $changedFilesSum modifications in total")
+        println("________________________")
     }
 
     repository.close()
