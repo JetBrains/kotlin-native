@@ -1606,27 +1606,41 @@ void resumeMemory(MemoryState* state) {
     ::memoryState = state;
 }
 
+void makeShareable(ContainerHeader* container) {
+  if (!container->frozen())
+    container->makeShareable();
+}
+
+template <bool Strict>
 OBJ_GETTER(allocInstance, const TypeInfo* type_info) {
   RuntimeAssert(type_info->instanceSize_ >= 0, "must be an object");
   auto* state = memoryState;
   auto container = ObjectContainer(state, type_info);
 #if USE_GC
-  rememberNewContainer(container.header());
+  if (Strict)
+    rememberNewContainer(container.header());
+  else
+    makeShareable(container.header());
 #endif  // USE_GC
   RETURN_OBJ(container.GetPlace());
 }
 
+template <bool Strict>
 OBJ_GETTER(allocArrayInstance, const TypeInfo* type_info, int32_t elements) {
   RuntimeAssert(type_info->instanceSize_ < 0, "must be an array");
   if (elements < 0) ThrowIllegalArgumentException();
   auto* state = memoryState;
   auto container = ArrayContainer(state, type_info, elements);
 #if USE_GC
-  rememberNewContainer(container.header());
+  if (Strict)
+    rememberNewContainer(container.header());
+  else
+    makeShareable(container.header());
 #endif  // USE_GC
   RETURN_OBJ(container.GetPlace()->obj());
 }
 
+template <bool Strict>
 OBJ_GETTER(initInstance,
     ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
   ObjHeader* value = *location;
@@ -1634,7 +1648,7 @@ OBJ_GETTER(initInstance,
     // OK'ish, inited by someone else.
     RETURN_OBJ(value);
   }
-  ObjHeader* object = allocInstance(typeInfo, OBJ_RESULT);
+  ObjHeader* object = allocInstance<Strict>(typeInfo, OBJ_RESULT);
   UpdateHeapRef(location, object);
 #if KONAN_NO_EXCEPTIONS
   ctor(object);
@@ -1651,6 +1665,7 @@ OBJ_GETTER(initInstance,
 #endif
 }
 
+template <bool Strict>
 OBJ_GETTER(initSharedInstance,
     ObjHeader** location, ObjHeader** localLocation, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
 #if KONAN_NO_THREADS
@@ -1659,7 +1674,7 @@ OBJ_GETTER(initSharedInstance,
     // OK'ish, inited by someone else.
     RETURN_OBJ(value);
   }
-  ObjHeader* object = allocInstance(typeInfo, OBJ_RESULT);
+  ObjHeader* object = allocInstance<Strict>(typeInfo, OBJ_RESULT);
   UpdateHeapRef(location, object);
 #if KONAN_NO_EXCEPTIONS
   ctor(object);
@@ -1668,7 +1683,8 @@ OBJ_GETTER(initSharedInstance,
 #else
   try {
     ctor(object);
-    FreezeSubgraph(object);
+    if (Strict)
+      FreezeSubgraph(object);
     return object;
   } catch (...) {
     UpdateReturnRef(OBJ_RESULT, nullptr);
@@ -1688,19 +1704,21 @@ OBJ_GETTER(initSharedInstance,
     // OK'ish, inited by someone else.
     RETURN_OBJ(value);
   }
-  ObjHeader* object = allocInstance(typeInfo, OBJ_RESULT);
+  ObjHeader* object = allocInstance<Strict>(typeInfo, OBJ_RESULT);
   RuntimeAssert(object->container()->normal() , "Shared object cannot be co-allocated");
   UpdateHeapRef(localLocation, object);
 #if KONAN_NO_EXCEPTIONS
   ctor(object);
-  FreezeSubgraph(object);
+  if (Strict)
+    FreezeSubgraph(object);
   UpdateHeapRef(location, object);
   synchronize();
   return object;
 #else  // KONAN_NO_EXCEPTIONS
   try {
     ctor(object);
-    FreezeSubgraph(object);
+    if (Strict)
+      FreezeSubgraph(object);
     UpdateHeapRef(location, object);
     synchronize();
     return object;
@@ -1921,8 +1939,6 @@ KInt getGCThreshold() {
   GC_LOG("Kotlin_native_internal_getThreshold %d\n")
   return memoryState->gcThreshold;
 }
-
-#endif  // USE_GC
 
 KNativePtr createStablePointer(KRef any) {
   if (any == nullptr) return nullptr;
@@ -2347,22 +2363,40 @@ void ResumeMemory(MemoryState* state) {
   resumeMemory(state);
 }
 
-OBJ_GETTER(AllocInstance, const TypeInfo* type_info) {
-  RETURN_RESULT_OF(allocInstance, type_info);
+OBJ_GETTER(AllocInstanceStrict, const TypeInfo* type_info) {
+  RETURN_RESULT_OF(allocInstance<true>, type_info);
 }
 
-OBJ_GETTER(AllocArrayInstance, const TypeInfo* typeInfo, int32_t elements) {
-  RETURN_RESULT_OF(allocArrayInstance, typeInfo, elements);
+OBJ_GETTER(AllocInstanceRelaxed, const TypeInfo* type_info) {
+  RETURN_RESULT_OF(allocInstance<false>, type_info);
 }
 
-OBJ_GETTER(InitInstance,
+OBJ_GETTER(AllocArrayInstanceStrict, const TypeInfo* typeInfo, int32_t elements) {
+  RETURN_RESULT_OF(allocArrayInstance<true>, typeInfo, elements);
+}
+
+OBJ_GETTER(AllocArrayInstanceRelaxed, const TypeInfo* typeInfo, int32_t elements) {
+  RETURN_RESULT_OF(allocArrayInstance<false>, typeInfo, elements);
+}
+
+OBJ_GETTER(InitInstanceStrict,
     ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
-  RETURN_RESULT_OF(initInstance, location, typeInfo, ctor);
+  RETURN_RESULT_OF(initInstance<true>, location, typeInfo, ctor);
 }
 
-OBJ_GETTER(InitSharedInstance,
+OBJ_GETTER(InitInstanceRelaxed,
+    ObjHeader** location, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
+  RETURN_RESULT_OF(initInstance<false>, location, typeInfo, ctor);
+}
+
+OBJ_GETTER(InitSharedInstanceStrict,
     ObjHeader** location, ObjHeader** localLocation, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
-  RETURN_RESULT_OF(initSharedInstance, location, localLocation, typeInfo, ctor);
+  RETURN_RESULT_OF(initSharedInstance<true>, location, localLocation, typeInfo, ctor);
+}
+
+OBJ_GETTER(InitSharedInstanceRelaxed,
+    ObjHeader** location, ObjHeader** localLocation, const TypeInfo* typeInfo, void (*ctor)(ObjHeader*)) {
+  RETURN_RESULT_OF(initSharedInstance<false>, location, localLocation, typeInfo, ctor);
 }
 
 void SetStackRef(ObjHeader** location, const ObjHeader* object) {
