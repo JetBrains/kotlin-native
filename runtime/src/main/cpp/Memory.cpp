@@ -70,7 +70,7 @@ static_assert(sizeof(ContainerHeader) % kObjectAlignment == 0, "sizeof(Container
 #if USE_GC
 // Collection threshold default (collect after having so many elements in the
 // release candidates set).
-constexpr size_t kGcThreshold = 4 * 1024;
+constexpr size_t kGcThreshold = 8 * 1024;
 #if GC_ERGONOMICS
 // Ergonomic thresholds.
 // If GC to computations time ratio is above that value,
