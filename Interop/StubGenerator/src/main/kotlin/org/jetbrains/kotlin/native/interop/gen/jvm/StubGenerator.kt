@@ -182,12 +182,12 @@ class StubGenerator(
                 getTypeDeclaringNames(Typedef(it), this)
             }
 
-            nativeIndex.objCProtocols.forEach {
+            nativeIndex.objCProtocols.filter { !it.isForwardDeclaration }.forEach {
                 add(it.kotlinClassName(isMeta = false))
                 add(it.kotlinClassName(isMeta = true))
             }
 
-            nativeIndex.objCClasses.forEach {
+            nativeIndex.objCClasses.filter { !it.isForwardDeclaration && !it.isNSStringSubclass() }.forEach {
                 add(it.kotlinClassName(isMeta = false))
                 add(it.kotlinClassName(isMeta = true))
             }
@@ -259,9 +259,12 @@ class StubGenerator(
         return withOutput({ appendable.appendln(it) }, action)
     }
 
-    private fun generateKotlinFragmentBy(block: () -> Unit): KotlinStub {
+    private fun generateKotlinFragmentBy(stubType: StubType, block: () -> Unit): KotlinStub {
         val lines = generateLinesBy(block)
         return object : KotlinStub {
+            override val stubType: StubType
+                get() = stubType
+
             override fun generate(context: StubGenerationContext) = lines.asSequence()
         }
     }
@@ -367,9 +370,7 @@ class StubGenerator(
         val kotlinName = kotlinFile.declare(declarationMapper.getKotlinClassForPointed(decl))
 
         block("class $kotlinName(rawPtr: NativePtr) : CStructVar(rawPtr)") {
-            out("")
             out("companion object : Type(${def.size}, ${def.align})") // FIXME: align
-            out("")
             for (field in def.fields) {
                 try {
                     assert(field.name.isNotEmpty())
@@ -400,7 +401,6 @@ class StubGenerator(
                             out("    get() = memberAt($offset)")
                         }
                     }
-                    out("")
                 } catch (e: Throwable) {
                     log("Warning: cannot generate definition for field ${decl.kotlinName}.${field.name}")
                 }
@@ -425,8 +425,7 @@ class StubGenerator(
 
                     val rawValue = typeInfo.argToBridged("value")
                     val setExpr = "writeBits(this.rawPtr, ${field.offset}, ${field.size}, $rawValue.toLong())"
-                    out("    set(value) = $setExpr")
-                    out("")
+                    out("    set(value) { $setExpr }")
                 }
             }
         }
@@ -486,18 +485,15 @@ class StubGenerator(
                 out("${it.name.asSimpleName()}($literal),")
             }
             out(";")
-            out("")
             block("companion object") {
                 aliasConstants.forEach {
                     val mainConstant = canonicalsByValue[it.value]!!
                     out("val ${it.name.asSimpleName()} = ${mainConstant.name.asSimpleName()}")
                 }
-                if (aliasConstants.isNotEmpty()) out("")
 
                 out("fun byValue(value: $baseKotlinType) = " +
                         "${e.kotlinName.asSimpleName()}.values().find { it.value == value }!!")
             }
-            out("")
             block("class Var(rawPtr: NativePtr) : CEnumVar(rawPtr)") {
                 val basePointedTypeName = baseTypeMirror.pointedType.render(kotlinFile)
                 out("companion object : Type($basePointedTypeName.size.toInt())")
@@ -531,12 +527,21 @@ class StubGenerator(
             }
 
             kotlinType = baseKotlinType
+            for (constant in constants) {
+                val literal = integerLiteral(e.baseType, constant.value) ?: continue
+                out(topLevelValWithGetter(constant.name, kotlinType, literal))
+            }
         } else {
             val typeMirror = mirror(EnumType(e))
             if (typeMirror !is TypeMirror.ByValue) {
                 error("unexpected enum type mirror: $typeMirror")
             }
 
+            kotlinType = typeMirror.valueType
+            for (constant in constants) {
+                val literal = integerLiteral(e.baseType, constant.value) ?: continue
+                out(topLevelValWithGetter(constant.name, kotlinType, literal))
+            }
             // Generate as typedef:
             val varTypeName = typeMirror.info.constructPointedType(typeMirror.valueType).render(kotlinFile)
             val varTypeClassifier = typeMirror.pointedType.classifier
@@ -544,16 +549,8 @@ class StubGenerator(
             out("typealias ${kotlinFile.declare(varTypeClassifier)} = $varTypeName")
             out("typealias ${kotlinFile.declare(valueTypeClassifier)} = ${baseKotlinType.render(kotlinFile)}")
 
-            if (constants.isNotEmpty()) {
-                out("")
-            }
 
-            kotlinType = typeMirror.valueType
-        }
 
-        for (constant in constants) {
-            val literal = integerLiteral(e.baseType, constant.value) ?: continue
-            out(topLevelValWithGetter(constant.name, kotlinType, literal))
         }
     }
 
@@ -594,6 +591,10 @@ class StubGenerator(
     private fun FunctionDecl.returnsVoid(): Boolean = this.returnType.unwrapTypedefs() is VoidType
 
     private inner class KotlinFunctionStub(val func: FunctionDecl) : KotlinStub, NativeBacked {
+
+        override val stubType: StubType
+            get() = StubType.FUNCTION
+
         override fun generate(context: StubGenerationContext): Sequence<String> =
                 if (isCCall) {
                     sequenceOf("@CCall".applyToStrings(cCallSymbolName!!), "external $header")
@@ -788,9 +789,6 @@ class StubGenerator(
 
     private fun generateStubs(): List<KotlinStub> {
         val stubs = mutableListOf<KotlinStub>()
-
-        stubs.addAll(generateStubsForFunctions(functionsToBind))
-
         nativeIndex.objCProtocols.forEach {
             if (!it.isForwardDeclaration) {
                 stubs.add(ObjCProtocolStub(this, it))
@@ -807,10 +805,52 @@ class StubGenerator(
             ObjCCategoryStub(this, it)
         }
 
+        nativeIndex.structs.forEach { s ->
+            try {
+                stubs.add(
+                        generateKotlinFragmentBy(StubType.CLASS) { generateStruct(s) }
+                )
+            } catch (e: Throwable) {
+                log("Warning: cannot generate definition for struct ${s.kotlinName}")
+            }
+        }
+
+        nativeIndex.enums.forEach {
+            try {
+                stubs.add(
+                        generateKotlinFragmentBy(if (it.isStrictEnum) StubType.ENUM else StubType.CONTAINER) { generateEnum(it) }
+                )
+            } catch (e: Throwable) {
+                log("Warning: cannot generate definition for enum ${it.spelling}")
+            }
+        }
+
+        stubs.addAll(generateStubsForFunctions(functionsToBind))
+
+        nativeIndex.typedefs.forEach { t ->
+            try {
+                stubs.add(
+                        generateKotlinFragmentBy(StubType.TYPEALIAS) { generateTypedef(t) }
+                )
+            } catch (e: Throwable) {
+                log("Warning: cannot generate typedef ${t.name}")
+            }
+        }
+
+        nativeIndex.globals.filter { it.name !in excludedFunctions }.forEach {
+            try {
+                stubs.add(
+                        GlobalVariableStub(it, this)
+                )
+            } catch (e: Throwable) {
+                log("Warning: cannot generate stubs for global ${it.name}")
+            }
+        }
+
         nativeIndex.macroConstants.filter { it.name !in excludedMacros }.forEach {
             try {
                 stubs.add(
-                        generateKotlinFragmentBy { generateConstant(it) }
+                        generateKotlinFragmentBy(StubType.PROPERTY) { generateConstant(it) }
                 )
             } catch (e: Throwable) {
                 log("Warning: cannot generate stubs for constant ${it.name}")
@@ -826,47 +866,6 @@ class StubGenerator(
                 log("Warning: cannot generate stubs for macro ${it.name}")
             }
         }
-
-        nativeIndex.globals.filter { it.name !in excludedFunctions }.forEach {
-            try {
-                stubs.add(
-                        GlobalVariableStub(it, this)
-                )
-            } catch (e: Throwable) {
-                log("Warning: cannot generate stubs for global ${it.name}")
-            }
-        }
-
-        nativeIndex.structs.forEach { s ->
-            try {
-                stubs.add(
-                    generateKotlinFragmentBy { generateStruct(s) }
-                )
-            } catch (e: Throwable) {
-                log("Warning: cannot generate definition for struct ${s.kotlinName}")
-            }
-        }
-
-        nativeIndex.enums.forEach {
-            try {
-                stubs.add(
-                        generateKotlinFragmentBy { generateEnum(it) }
-                )
-            } catch (e: Throwable) {
-                log("Warning: cannot generate definition for enum ${it.spelling}")
-            }
-        }
-
-        nativeIndex.typedefs.forEach { t ->
-            try {
-                stubs.add(
-                        generateKotlinFragmentBy { generateTypedef(t) }
-                )
-            } catch (e: Throwable) {
-                log("Warning: cannot generate typedef ${t.name}")
-            }
-        }
-
         return stubs
     }
 
@@ -925,7 +924,6 @@ class StubGenerator(
         out("")
 
         out("// NOTE THIS FILE IS AUTO-GENERATED")
-        out("")
 
         val context = object : StubGenerationContext {
             val topLevelDeclarationLines = mutableListOf<String>()
@@ -935,10 +933,23 @@ class StubGenerator(
                 topLevelDeclarationLines.addAll(lines)
             }
         }
-
-        stubs.forEach {
+        stubs.filter { it.stubType == StubType.CLASS }.forEach {
             it.generate(context).forEach(out)
-            out("")
+        }
+        stubs.filter { it.stubType == StubType.ENUM }.forEach {
+            it.generate(context).forEach(out)
+        }
+        stubs.filter { it.stubType == StubType.FUNCTION }.forEach {
+            it.generate(context).forEach(out)
+        }
+        stubs.filter { it.stubType == StubType.PROPERTY }.forEach {
+            it.generate(context).forEach(out)
+        }
+        stubs.filter { it.stubType == StubType.TYPEALIAS }.forEach {
+            it.generate(context).forEach(out)
+        }
+        stubs.filter { it.stubType == StubType.CONTAINER }.forEach {
+            it.generate(context).forEach(out)
         }
 
         context.topLevelDeclarationLines.forEach(out)

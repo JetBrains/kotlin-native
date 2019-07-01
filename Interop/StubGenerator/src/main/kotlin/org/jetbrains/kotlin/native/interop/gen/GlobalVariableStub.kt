@@ -34,6 +34,9 @@ class GlobalVariableStub(global: GlobalDecl, stubGenerator: StubGenerator) : Kot
         }
     }
 
+    override val stubType: StubType
+        get() = StubType.PROPERTY
+
     private val setterStub = object : NativeBacked {}
 
     val header: String

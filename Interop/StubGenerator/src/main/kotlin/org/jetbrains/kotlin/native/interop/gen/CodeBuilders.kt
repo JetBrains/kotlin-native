@@ -107,6 +107,13 @@ interface StubGenerationContext {
     fun addTopLevelDeclaration(lines: List<String>)
 }
 
+enum class StubType {
+    CLASS, ENUM, CONTAINER, FUNCTION, PROPERTY, TYPEALIAS
+}
+
+
 interface KotlinStub {
+    val stubType: StubType
+
     fun generate(context: StubGenerationContext): Sequence<String>
 }

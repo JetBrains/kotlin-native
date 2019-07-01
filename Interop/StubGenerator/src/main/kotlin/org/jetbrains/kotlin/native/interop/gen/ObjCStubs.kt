@@ -96,6 +96,9 @@ class ObjCMethodStub(private val stubGenerator: StubGenerator,
                      private val container: ObjCContainer,
                      private val isDesignatedInitializer: Boolean) : KotlinStub, NativeBacked {
 
+    override val stubType: StubType
+        get() = StubType.FUNCTION
+
     override fun generate(context: StubGenerationContext): Sequence<String> =
             if (context.nativeBridges.isSupported(this)) {
                 val result = mutableListOf<String>()
@@ -123,7 +126,6 @@ class ObjCMethodStub(private val stubGenerator: StubGenerator,
                             val designated = isDesignatedInitializer ||
                                     stubGenerator.configuration.disableDesignatedInitializerChecks
 
-                            result.add("")
                             result.add("@ObjCConstructor(${method.selector.quoteAsKotlinLiteral()}, $designated)")
                             result.add("constructor($parameters) {}")
                         }
@@ -153,7 +155,6 @@ class ObjCMethodStub(private val stubGenerator: StubGenerator,
                                 this.kotlinReturnType
                             }
 
-                            result.add("")
                             result.addAll(buildObjCMethodAnnotations("@ObjCFactory"))
                             result.add("external fun <T : $className> $receiver.create($parameters): $returnType")
                         }
@@ -529,44 +530,59 @@ abstract class ObjCContainerStub(stubGenerator: StubGenerator,
             }
         }
 
-        this.classHeader = "$externalObjCClassAnnotation $keywords $name : $supersString"
+        this.classHeader = "${externalObjCClassAnnotation}\n$keywords $name : $supersString"
     }
 
     open fun generateBody(context: StubGenerationContext): Sequence<String> {
         var result = (propertyStubs.asSequence() + methodStubs.asSequence())
-                .flatMap { sequenceOf("") + it.generate(context) }
+                .flatMap { it.generate(context) }
 
         if (container is ObjCClass && methodStubs.none {
             it.method.isInit && it.method.parameters.isEmpty() && context.nativeBridges.isSupported(it)
         }) {
             // Always generate default constructor.
             // If it is not produced for an init method, then include it manually:
-            result += sequenceOf("", "protected constructor() {}")
+            result += sequenceOf("protected constructor() {}")
         }
 
         return result
     }
 
-    override fun generate(context: StubGenerationContext): Sequence<String> = block(classHeader, generateBody(context))
+    override fun generate(context: StubGenerationContext): Sequence<String> {
+        val body = generateBody(context)
+        return if (body.toList().isEmpty())
+            sequenceOf(classHeader)
+        else
+            block(classHeader, body)
+    }
 }
 
-open class ObjCClassOrProtocolStub(
+abstract class ObjCClassOrProtocolStub(
         stubGenerator: StubGenerator,
         private val container: ObjCClassOrProtocol
 ) : ObjCContainerStub(
         stubGenerator,
         container,
-        metaContainerStub = object : ObjCContainerStub(stubGenerator, container, metaContainerStub = null) {}
+        metaContainerStub = object : ObjCContainerStub(stubGenerator, container, metaContainerStub = null) {
+            override val stubType: StubType
+                get() = StubType.CLASS
+        }
 ) {
     override fun generate(context: StubGenerationContext) =
-            metaContainerStub!!.generate(context) + "" + super.generate(context)
+            metaContainerStub!!.generate(context) + super.generate(context)
 }
 
 class ObjCProtocolStub(stubGenerator: StubGenerator, protocol: ObjCProtocol) :
-        ObjCClassOrProtocolStub(stubGenerator, protocol)
+        ObjCClassOrProtocolStub(stubGenerator, protocol) {
+    override val stubType: StubType
+        get() = StubType.CLASS
+}
 
 class ObjCClassStub(private val stubGenerator: StubGenerator, private val clazz: ObjCClass) :
         ObjCClassOrProtocolStub(stubGenerator, clazz) {
+
+    override val stubType: StubType
+        get() = StubType.CLASS
 
     override fun generateBody(context: StubGenerationContext): Sequence<String> {
         val companionSuper = stubGenerator.declarationMapper
@@ -577,7 +593,7 @@ class ObjCClassStub(private val stubGenerator: StubGenerator, private val clazz:
                 stubGenerator.declarationMapper.getKotlinClassFor(clazz, isMeta = false).type
         ).render(stubGenerator.kotlinFile)
 
-        return sequenceOf( "companion object : $companionSuper(), $objCClassType {}") +
+        return sequenceOf( "companion object : $companionSuper(), $objCClassType") +
                 super.generateBody(context)
     }
 }
@@ -598,6 +614,9 @@ class ObjCCategoryStub(
         private val stubGenerator: StubGenerator, private val category: ObjCCategory
 ) : KotlinStub {
 
+    override val stubType: StubType
+        get() = StubType.CONTAINER
+
     private val generatedMembers = stubGenerator.generatedObjCCategoriesMembers
             .getOrPut(category.clazz, { GeneratedObjCCategoriesMembers() })
 
@@ -616,8 +635,8 @@ class ObjCCategoryStub(
     override fun generate(context: StubGenerationContext): Sequence<String> {
         val description = "${category.clazz.name} (${category.name})"
         return sequenceOf("// @interface $description") +
-                propertyStubs.asSequence().flatMap { sequenceOf("") + it.generate(context) } +
-                methodStubs.asSequence().flatMap { sequenceOf("") + it.generate(context) } +
+                methodStubs.asSequence().flatMap { it.generate(context) } +
+                propertyStubs.asSequence().flatMap { it.generate(context) } +
                 sequenceOf("// @end; // $description")
     }
 }
@@ -639,6 +658,9 @@ class ObjCPropertyStub(
         val stubGenerator: StubGenerator, val property: ObjCProperty, val container: ObjCContainer,
         val getterStub: ObjCMethodStub, val setterStub: ObjCMethodStub?
 ) : KotlinStub {
+
+    override val stubType: StubType
+        get() = StubType.PROPERTY
 
     override fun generate(context: StubGenerationContext): Sequence<String> {
         val type = property.getType(container.classOrProtocol)
