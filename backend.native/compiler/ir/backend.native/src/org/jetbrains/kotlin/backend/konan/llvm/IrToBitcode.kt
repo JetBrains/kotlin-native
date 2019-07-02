@@ -1724,8 +1724,11 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 }
             }
 
-            assert(value.type.isUnit())
-            return codegen.theUnitInstanceRef.llvm
+            return when {
+                value.type.isUnit() -> codegen.theUnitInstanceRef.llvm
+                value.type.isNothing() -> codegen.kNothingFakeValue
+                else -> error("Unexpected container expression type: ${value.type.render()}")
+            }
         }
     }
 

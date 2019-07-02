@@ -1810,6 +1810,11 @@ task when_with_try1(type: KonanLocalTest) {
     source = "codegen/branching/when_with_try1.kt"
 }
 
+task when_empty_nothing_block(type: KonanLocalTest) {
+    goldValue = ""
+    source = "codegen/branching/empty_nothing_block.kt"
+}
+
 task bool_yes(type: KonanLocalTest) {
     source = "codegen/function/boolean.kt"
 }
