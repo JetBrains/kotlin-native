@@ -1792,9 +1792,10 @@ OBJ_GETTER(swapHeapRefLocked,
     shallRelease = oldValue != nullptr;
   }
   unlock(spinlock);
-  // No need to rememberNewContainer(), as oldValue is already
-  // present on this worker.
+
   UpdateReturnRef(OBJ_RESULT, oldValue);
+  // No need to rememberNewContainer(), as if `oldValue` is not null - it is explicitly released
+  // anyway, and thus can not escape GC.
   if (shallRelease) {
     ReleaseHeapRef(oldValue);
   }
@@ -1819,9 +1820,10 @@ OBJ_GETTER(readHeapRefLocked, ObjHeader** location, int32_t* spinlock) {
   if (container != nullptr)
     incrementRC<true>(container);
   unlock(spinlock);
+  UpdateReturnRef(OBJ_RESULT, value);
   if (value != nullptr)
     ReleaseHeapRef(value);
-  RETURN_OBJ(value);
+  return value;
 }
 
 OBJ_GETTER(readHeapRefNoLock, ObjHeader* object, KInt index) {
@@ -2509,7 +2511,7 @@ void ZeroStackRefStrict(ObjHeader** location) {
   zeroStackRef<true>(location);
 }
 void ZeroStackRefRelaxed(ObjHeader** location) {
-  zeroStackRef<true>(location);
+  zeroStackRef<false>(location);
 }
 
 void UpdateStackRefStrict(ObjHeader** location, const ObjHeader* object) {
