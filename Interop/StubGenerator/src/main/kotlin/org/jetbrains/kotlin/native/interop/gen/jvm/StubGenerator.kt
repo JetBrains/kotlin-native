@@ -655,6 +655,12 @@ class StubGenerator(
                 }
                 bridgeArguments.add(TypedKotlinValue(parameter.type, bridgeArgument))
             }
+            val returnType = if (func.returnsVoid()) {
+                KotlinTypes.unit
+            } else {
+                mirror(func.returnType).argType
+            }.render(kotlinFile)
+
 
             if (!func.isVararg || platform != KotlinPlatform.NATIVE) {
                 val result = mappingBridgeGenerator.kotlinToNative(
@@ -681,16 +687,10 @@ class StubGenerator(
                                 "extern const void* $cCallSymbolName = &${func.name};")
                 )
             }
-
-            val returnType = if (func.returnsVoid()) {
-                KotlinTypes.unit
-            } else {
-                mirror(func.returnType).argType
-            }.render(kotlinFile)
-
             val joinedKotlinParameters = kotlinParameters.joinToString { (name, type) ->
                 "$name: ${type.render(kotlinFile)}"
             }
+
             this.header = "fun ${func.name.asSimpleName()}($joinedKotlinParameters): $returnType"
 
             this.bodyLines = bodyGenerator.build()
