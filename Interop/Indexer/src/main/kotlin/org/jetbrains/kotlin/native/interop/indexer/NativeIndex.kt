@@ -265,10 +265,16 @@ object CBoolType : BoolType()
 
 object ObjCBoolType : BoolType()
 
-data class IntegerType(val size: Int, val isSigned: Boolean, val spelling: String) : PrimitiveType
+class IntegerType(val size: Int, val isSigned: Boolean, spelling: String) : PrimitiveType {
+    // We omit `const` qualifier for IntegerType and FloatingType to make `CBridgeGen` simpler.
+    // See KT-28102.
+    val spelling: String = spelling.substringAfterLast("const ")
+}
 
 // TODO: floating type is not actually defined entirely by its size.
-data class FloatingType(val size: Int, val spelling: String) : PrimitiveType
+class FloatingType(val size: Int, spelling: String) : PrimitiveType {
+    val spelling: String = spelling.substringAfterLast("const ")
+}
 
 object VoidType : Type
 
