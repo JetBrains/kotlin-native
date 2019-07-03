@@ -1,6 +1,7 @@
 package org.jetbrains.ring
 
 import kotlin.experimental.and
+import kotlin.system.measureTimeMillis
 
 class CoordinatesSolverBenchmark {
     val solver: Solver
@@ -133,8 +134,6 @@ class CoordinatesSolverBenchmark {
 
                 var ss: List<Coordinate>? = null
                 while (ss == null) {
-                    //println("o$o, limit: $limit")
-
                     if (o == 0) {
                         ss = solveWithLimit(limit, MAZE_START) { it[it.size - 1] == objects[0] }
                     } else {
@@ -342,7 +341,11 @@ class CoordinatesSolverBenchmark {
         val output = solver.solve()
 
         for (c in output.steps) {
-            val value = if (c == null) { "felvesz" } else { "${c.x} ${c.y}" }
+            val value = if (c == null) {
+                "felvesz"
+            } else {
+                "${c.x} ${c.y}"
+            }
         }
     }
 }

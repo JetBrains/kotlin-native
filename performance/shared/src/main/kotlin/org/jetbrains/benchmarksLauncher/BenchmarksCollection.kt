@@ -16,8 +16,15 @@
 
 package org.jetbrains.benchmarksLauncher
 
-import kotlin.reflect.KFunction0
+interface BenchmarkEntry
 
-class BenchmarksCollection(private val benchmarks: MutableMap<String, KFunction0<Any?>> = mutableMapOf()) :
-        MutableMap<String, KFunction0<Any?>> by benchmarks {
+class InstanceBenchmarkEntry(val ctor: ()->Any, val lambda: (Any) -> Any?): BenchmarkEntry {
+    companion object {
+        inline fun <reified T: Any> create(noinline ctor: ()->T, crossinline lambda: T.() -> Any?) = InstanceBenchmarkEntry(ctor) { (it as T).lambda() }
+    }
 }
+
+class FunctionBenchmarkEntry(val lambda: () -> Any?) : BenchmarkEntry
+
+class BenchmarksCollection(private val benchmarks: MutableMap<String, BenchmarkEntry> = mutableMapOf()) :
+        MutableMap<String, BenchmarkEntry> by benchmarks
