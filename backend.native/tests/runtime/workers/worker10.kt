@@ -164,3 +164,21 @@ val stableHolder2 = StableRef.create(("hello" to "world").freeze())
     future.result
     worker.requestTermination().result
 }
+
+@Test fun runTest6() {
+    semaphore.value = 0
+    atomicRef.value = Any().freeze()
+    val worker = Worker.start()
+    val future = worker.execute(TransferMode.SAFE, { null }) {
+        val value = atomicRef.compareAndSwap(null, null)
+        semaphore.increment()
+        while (semaphore.value != 2) {}
+        assertEquals(true, value.toString() != "")
+    }
+    while (semaphore.value != 1) {}
+    atomicRef.value = null
+    kotlin.native.internal.GC.collect()
+    semaphore.increment()
+    future.result
+    worker.requestTermination().result
+}
