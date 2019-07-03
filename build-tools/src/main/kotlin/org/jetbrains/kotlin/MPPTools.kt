@@ -152,10 +152,11 @@ fun createRunTask(
         subproject: Project,
         name: String,
         runTask: AbstractExecTask<*>,
-        configureClosure: Closure<Any>? = null
+        linkTaskName: String,
+        outputFileName: String? = null
 ): Task {
-    val task = subproject.tasks.create(name, RunKotlinNativeTask::class.java, runTask)
-    task.configure(configureClosure ?: task.emptyConfigureClosure())
+    val task = subproject.tasks.create(name, RunKotlinNativeTask::class.java, runTask, linkTaskName)
+    task.configure(outputFileName?.let { task.configureClosure(it) } ?: task.emptyConfigureClosure())
     return task
 }
 
