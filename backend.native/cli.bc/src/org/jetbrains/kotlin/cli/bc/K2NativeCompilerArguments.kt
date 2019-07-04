@@ -126,6 +126,9 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     )
     var exportedLibraries: Array<String>? = null
 
+    @Argument(value = "-Xlight-debug", description = "Add light debug information")
+    var lightDebug: Boolean = false
+
     @Argument(
             value = "-Xframework-import-header",
             valueDescription = "<header>",
