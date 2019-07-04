@@ -1790,6 +1790,9 @@ OBJ_GETTER(swapHeapRefLocked,
   if (oldValue == expectedValue) {
     SetHeapRef(location, newValue);
     shallRelease = oldValue != nullptr;
+  } else {
+    if (IsStrictMemoryModel && oldValue != nullptr)
+      rememberNewContainer(oldValue->container());
   }
   unlock(spinlock);
 
@@ -1798,9 +1801,6 @@ OBJ_GETTER(swapHeapRefLocked,
     // No need to rememberNewContainer() on this path, as if `oldValue` is not null - it is explicitly released
     // anyway, and thus can not escape GC.
     ReleaseHeapRef(oldValue);
-  } else {
-    if (IsStrictMemoryModel && oldValue != expectedValue)
-      rememberNewContainer(oldValue->container());
   }
   return oldValue;
 }
