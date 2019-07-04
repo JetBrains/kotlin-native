@@ -216,8 +216,8 @@ task gradlePluginCheck {
 
 task gradlePluginUpload {
     dependsOn gradle.includedBuild('kotlin-native-gradle-plugin').task(':bintrayUpload')
-    // Publish releases to the plugin-portal too.
-    if (konanVersionFull.meta == MetaVersion.RELEASE) {
+    // Publish to the plugin portal only builds with manually specified versions.
+    if (project.hasProperty("pluginVersionOverride")) {
         dependsOn gradle.includedBuild('kotlin-native-gradle-plugin').task(':publishPlugins')
     }
 }
