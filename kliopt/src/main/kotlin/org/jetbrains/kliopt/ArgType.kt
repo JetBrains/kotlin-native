@@ -6,8 +6,7 @@
 package org.jetbrains.kliopt
 
 // Possible types of arguments.
-// TODO Make extension points for new types? Not sealed?
-sealed class ArgType<T : Any>(val hasParameter: kotlin.Boolean) {
+open abstract class ArgType<T : Any>(val hasParameter: kotlin.Boolean) {
     // Type description for help messages.
     abstract val description: kotlin.String
     // Function to convert string argument value to its type.

@@ -68,8 +68,8 @@ kotlin {
     }
 
     targets {
-        fromPreset(presets.mingwX64, 'windows')
-        fromPreset(presets.linuxX64, 'linux')
+        //fromPreset(presets.mingwX64, 'windows')
+        //fromPreset(presets.linuxX64, 'linux')
         fromPreset(presets.macosX64, 'macos')
     }
 }

@@ -24,11 +24,11 @@ class ArgumentsTests {
     fun testArgumetsWithAnyNumberOfValues() {
         val argParser = ArgParser("testParser")
         val output by argParser.argument(ArgType.String, "output", "Output file")
-        val inputs by argParser.arguments(ArgType.String    , description = "Input files")
+        val inputs by argParser.arguments(ArgType.String, description = "Input files")
         argParser.parse(arrayOf("out.txt", "input1.txt", "input2.txt", "input3.txt",
                 "input4.txt"))
         assertEquals("out.txt", output)
-        assertEquals(4, inputs!!.size)
+        assertEquals(4, inputs.size)
     }
 
     @Test
@@ -39,8 +39,8 @@ class ArgumentsTests {
         val debugMode by argParser.option(ArgType.Boolean, "debug", "d", "Debug mode")
         argParser.parse(arrayOf("2", "-d", "3", "out.txt"))
         assertEquals("out.txt", output)
-        val (first, second) = addendums!!
-        assertEquals(2, addendums!!.size)
+        val (first, second) = addendums
+        assertEquals(2, addendums.size)
         assertEquals(2, first)
         assertEquals(3, second)
     }

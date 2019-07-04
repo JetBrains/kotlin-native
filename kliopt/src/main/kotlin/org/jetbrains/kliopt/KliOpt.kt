@@ -40,7 +40,7 @@ abstract class Subcommand(val name: String): ArgParser(name) {
 abstract class Descriptor<T : Any>(val type: ArgType<T>,
                           val fullName: String,
                           val description: String? = null,
-                          val defaultValue: String? = null,
+                          val defaultValue: List<T> = emptyList(),
                           val isRequired: Boolean = false,
                           val deprecatedWarning: String? = null) {
     abstract val textDescription: String
@@ -75,12 +75,12 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
         printError("There is no option or argument with name $key")
 
     // Option descriptor.
-    inner class OptionDescriptor<T: Any>(
+    inner class OptionDescriptor<T : Any>(
             type: ArgType<T>,
             fullName: String,
             val shortName: String ? = null,
             description: String? = null,
-            defaultValue: String? = null,
+            defaultValue: List<T> = emptyList(),
             isRequired: Boolean = false,
             val isMultiple: Boolean = false,
             val delimiter: String? = null,
@@ -95,7 +95,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                 val result = StringBuilder()
                 result.append("    $optionFullFormPrefix$fullName")
                 shortName?.let { result.append(", $optionShortFromPrefix$it") }
-                defaultValue?.let { result.append(" [$it]") }
+                (defaultValue.joinToString(",") { it.toString() }).also { if (!it.isEmpty()) result.append(" [$it]") }
                 description?.let {result.append(" -> ${it}")}
                 if (isRequired) result.append(" (always required)")
                 result.append(" ${type.description}")
@@ -111,7 +111,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             fullName: String,
             val number: Int? = null,
             description: String? = null,
-            defaultValue: String? = null,
+            defaultValue: List<T> = emptyList(),
             isRequired: Boolean = true,
             deprecatedWarning: String? = null) : Descriptor<T> (type, fullName, description, defaultValue,
             isRequired, deprecatedWarning) {
@@ -131,7 +131,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             get() {
                 val result = StringBuilder()
                 result.append("    ${fullName}")
-                defaultValue?.let { result.append(" [$it]") }
+                (defaultValue.joinToString(",") { it.toString() }).also { if (!it.isEmpty()) result.append(" [$it]") }
                 description?.let { result.append(" -> ${it}") }
                 if (!isRequired) result.append(" (optional)")
                 result.append(" ${type.description}")
@@ -141,69 +141,164 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             }
     }
 
+    inner class SingleNullableOptionLoader<T : Any>(val type: ArgType<T>,
+                    val fullName: String? = null,
+                    val shortName: String ? = null,
+                    val description: String? = null,
+                    val isRequired: Boolean = false,
+                    val deprecatedWarning: String? = null) {
+        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueInterface<T?> {
+            val name = fullName ?: prop.name
+            val descriptor = OptionDescriptor(type, name, shortName, description, emptyList(),
+                    isRequired, deprecatedWarning = deprecatedWarning)
+            val cliElement = ArgumentSingleNullableValue(type.convertion)
+            options[name] = ParsingValue(descriptor, cliElement)
+            return cliElement
+        }
+    }
+
+    inner class SingleOptionWithDefaultLoader<T : Any>(val type: ArgType<T>,
+                                                       val fullName: String? = null,
+                                                       val shortName: String ? = null,
+                                                       val description: String? = null,
+                                                       val defaultValue: T,
+                                                       val isRequired: Boolean = false,
+                                                       val deprecatedWarning: String? = null) {
+        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueInterface<T> {
+            val name = fullName ?: prop.name
+            val descriptor = OptionDescriptor(type, name, shortName, description, listOf(defaultValue),
+                    isRequired, deprecatedWarning = deprecatedWarning)
+            val cliElement = ArgumentSingleValueWithDefault(type.convertion)
+            options[name] = ParsingValue(descriptor, cliElement)
+            return cliElement
+        }
+    }
+
+    inner class MultipleOptionsLoader<T : Any>(val type: ArgType<T>,
+                                               val fullName: String? = null,
+                                               val shortName: String ? = null,
+                                               val description: String? = null,
+                                               val defaultValue: List<T> = emptyList(),
+                                               val isRequired: Boolean = false,
+                                               val isMultiple: Boolean = false,
+                                               val delimiter: String? = null,
+                                               val deprecatedWarning: String? = null) {
+        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueInterface<MutableList<T>> {
+            val name = fullName ?: prop.name
+            val descriptor = OptionDescriptor(type, name, shortName, description, defaultValue,
+                    isRequired, isMultiple, delimiter, deprecatedWarning)
+            if (!isMultiple && delimiter == null)
+                printError("Several values are expected for option $name. " +
+                        "Option must be used multiple times or split with delimiter.")
+            val cliElement = ArgumentMultipleValues(type.convertion)
+            options[name] = ParsingValue(descriptor, cliElement)
+            return cliElement
+        }
+    }
+
     // Add option and get delegator to its value.
     fun <T : Any>option(type: ArgType<T>,
-               fullName: String,
+               fullName: String? = null,
                shortName: String ? = null,
                description: String? = null,
-               defaultValue: String? = null,
                isRequired: Boolean = false,
-               deprecatedWarning: String? = null): ArgumentValue<T> {
-        val descriptor = OptionDescriptor(type, fullName, shortName, description, defaultValue,
-                isRequired, deprecatedWarning = deprecatedWarning)
-        val cliElement = ArgumentSingleValue(type.convertion)
-        options[fullName] = ParsingValue(descriptor, cliElement)
-        return cliElement
-    }
+               deprecatedWarning: String? = null) = SingleNullableOptionLoader(type, fullName, shortName,
+            description, isRequired, deprecatedWarning)
+
+    fun <T : Any>option(type: ArgType<T>,
+                        fullName: String? = null,
+                        shortName: String ? = null,
+                        description: String? = null,
+                        defaultValue: T,
+                        isRequired: Boolean = false,
+                        deprecatedWarning: String? = null) = SingleOptionWithDefaultLoader(type, fullName, shortName,
+            description, defaultValue, isRequired, deprecatedWarning)
 
     // Add options with multiple values and get delegator to its value.
     fun <T : Any>options(type: ArgType<T>,
-                        fullName: String,
+                        fullName: String? = null,
                         shortName: String ? = null,
                         description: String? = null,
-                        defaultValue: String? = null,
+                        defaultValue: List<T> = emptyList(),
                         isRequired: Boolean = false,
                         isMultiple: Boolean = false,
                         delimiter: String? = null,
-                        deprecatedWarning: String? = null): ArgumentValue<MutableList<T>> {
-        val descriptor = OptionDescriptor(type, fullName, shortName, description, defaultValue,
-                isRequired, isMultiple, delimiter, deprecatedWarning)
-        if (!isMultiple && delimiter == null)
-            printError("Several values are expected for option $fullName. " +
-                    "Option must be used multiple times or split with delimiter.")
-        val cliElement = ArgumentMultipleValues(type.convertion)
-        options[fullName] = ParsingValue(descriptor, cliElement)
-        return cliElement
+                        deprecatedWarning: String? = null) = MultipleOptionsLoader(type, fullName, shortName,
+            description, defaultValue, isRequired, isMultiple, delimiter, deprecatedWarning)
+
+    inner class SingleNullableArgumentLoader<T : Any>(val type: ArgType<T>,
+                                                      val fullName: String? = null,
+                                                      val description: String? = null,
+                                                      val isRequired: Boolean = true,
+                                                      val deprecatedWarning: String? = null) {
+        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueInterface<T?> {
+            val name = fullName ?: prop.name
+            val descriptor = ArgDescriptor(type, name, 1, description,
+                    emptyList(), isRequired, deprecatedWarning)
+            val cliElement = ArgumentSingleNullableValue(type.convertion)
+            arguments[name] = ParsingValue(descriptor, cliElement)
+            return cliElement
+        }
+    }
+
+    inner class SingleArgumentWithDefaultLoader<T : Any>(val type: ArgType<T>,
+                                                         val fullName: String? = null,
+                                                         val description: String? = null,
+                                                         val defaultValue: T,
+                                                         val isRequired: Boolean = true,
+                                                         val deprecatedWarning: String? = null) {
+        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueInterface<T> {
+            val name = fullName ?: prop.name
+            val descriptor = ArgDescriptor(type, name, 1, description,
+                    listOf(defaultValue), isRequired, deprecatedWarning)
+            val cliElement = ArgumentSingleValueWithDefault(type.convertion)
+            arguments[name] = ParsingValue(descriptor, cliElement)
+            return cliElement
+        }
+    }
+
+    inner class MultipleArgumentsLoader<T : Any>(val type: ArgType<T>,
+                                               val fullName: String? = null,
+                                               val number: Int? = null,
+                                               val description: String? = null,
+                                               val defaultValue: List<T> = emptyList(),
+                                               val isRequired: Boolean = true,
+                                               val deprecatedWarning: String? = null) {
+        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueInterface<MutableList<T>> {
+            val name = fullName ?: prop.name
+            val descriptor = ArgDescriptor(type, name, number, description,
+                    defaultValue, isRequired, deprecatedWarning)
+            val cliElement = ArgumentMultipleValues(type.convertion)
+            arguments[name] = ParsingValue(descriptor, cliElement)
+            return cliElement
+        }
     }
 
     // Add argument and get delegator to its value.
     fun <T : Any>argument(type: ArgType<T>,
-                 fullName: String,
+                 fullName: String? = null,
                  description: String? = null,
-                 defaultValue: String? = null,
                  isRequired: Boolean = true,
-                 deprecatedWarning: String? = null): ArgumentValue<T> {
-        val descriptor = ArgDescriptor(type, fullName, 1, description,
-                defaultValue, isRequired, deprecatedWarning)
-        val cliElement = ArgumentSingleValue(type.convertion)
-        arguments[fullName] = ParsingValue(descriptor, cliElement)
-        return cliElement
-    }
+                 deprecatedWarning: String? = null) = SingleNullableArgumentLoader(type, fullName, description,
+            isRequired, deprecatedWarning)
+
+    fun <T : Any>argument(type: ArgType<T>,
+                          fullName: String? = null,
+                          description: String? = null,
+                          defaultValue: T,
+                          isRequired: Boolean = true,
+                          deprecatedWarning: String? = null) = SingleArgumentWithDefaultLoader(type, fullName,
+            description, defaultValue, isRequired, deprecatedWarning )
 
     // Add argument with several and get delegator to its value.
     fun <T : Any>arguments(type: ArgType<T>,
-                           fullName: String,
+                           fullName: String? = null,
                            number: Int? = null,
                            description: String? = null,
-                           defaultValue: String? = null,
+                           defaultValue: List<T> = emptyList(),
                            isRequired: Boolean = true,
-                           deprecatedWarning: String? = null): ArgumentValue<MutableList<T>> {
-        val descriptor = ArgDescriptor(type, fullName, number, description,
-                defaultValue, isRequired, deprecatedWarning)
-        val cliElement = ArgumentMultipleValues(type.convertion)
-        arguments[fullName] = ParsingValue(descriptor, cliElement)
-        return cliElement
-    }
+                           deprecatedWarning: String? = null) = MultipleArgumentsLoader(type, fullName, number,
+            description, defaultValue, isRequired, deprecatedWarning)
 
     // Add subcommands.
     fun subcommands(vararg subcommandsList: Subcommand) {
@@ -222,9 +317,9 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     // Get all free arguments as unnamed list.
     fun <T : Any>arguments(type: ArgType<T>,
                            description: String? = null,
-                           defaultValue: String? = null,
+                           defaultValue: List<T> = emptyList(),
                            isRequired: Boolean = true,
-                           deprecatedWarning: String? = null): ArgumentValue<MutableList<T>> {
+                           deprecatedWarning: String? = null): ArgumentValueInterface<MutableList<T>> {
         val descriptor = ArgDescriptor(type, "", null, description,
                 defaultValue, isRequired, deprecatedWarning)
         val cliElement = ArgumentMultipleValues(type.convertion)
@@ -263,18 +358,18 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
 
         // Set default value to option.
         fun addDefaultValue() {
-            descriptor.defaultValue?.let {
-                addValue(it, ArgumentValue<U>::addDefaultValue)
-            } ?: run {
-                // Boolean flags has default type false.
-                if (descriptor.type is ArgType.Boolean) {
-                    addValue("false", ArgumentValue<U>::addDefaultValue)
-                }
+            if (!descriptor.defaultValue.isEmpty()) {
+                addValue(descriptor.defaultValue.toString(), ArgumentValue<U>::addDefaultValue)
+            } else {
                 if (descriptor.isRequired) {
                     printError("Please, provide value for ${descriptor.textDescription}. It should be always set.")
                 }
             }
         }
+    }
+
+    interface ArgumentValueInterface<T> {
+        operator fun getValue(thisRef: Any?, property: KProperty<*>): T
     }
 
     // Argument/option value.
@@ -293,7 +388,6 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
 
         abstract fun isEmpty(): Boolean
         protected fun valuesAreInitialized() = ::values.isInitialized
-        operator fun getValue(thisRef: Any?, property: KProperty<*>): T? = if (!isEmpty()) values else null
         operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
             values = value
             valueOrigin = ValueOrigin.REDEFINED
@@ -301,7 +395,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     }
 
     // Single argument value.
-    inner class ArgumentSingleValue<T : Any>(conversion: (value: String, name: String, helpMessage: String)->T):
+    inner abstract class ArgumentSingleValue<T : Any>(conversion: (value: String, name: String, helpMessage: String)->T):
             ArgumentValue<T>(conversion) {
 
         override fun addValue(stringValue: String, argumentName: String) {
@@ -316,12 +410,26 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
         override fun isEmpty(): Boolean = !valuesAreInitialized()
     }
 
+    inner class ArgumentSingleNullableValue<T : Any>(conversion: (value: String, name: String, helpMessage: String)->T):
+            ArgumentSingleValue<T>(conversion), ArgumentValueInterface<T?> {
+        override operator fun getValue(thisRef: Any?, property: KProperty<*>): T? = if (!isEmpty()) values else null
+    }
+
+    inner class ArgumentSingleValueWithDefault<T : Any>(conversion: (value: String, name: String, helpMessage: String)->T):
+            ArgumentSingleValue<T>(conversion), ArgumentValueInterface<T> {
+        override operator fun getValue(thisRef: Any?, property: KProperty<*>): T = values
+    }
+
     inner class ArgumentMultipleValues<T : Any>(conversion: (value: String, name: String, helpMessage: String)->T):
-            ArgumentValue<MutableList<T>>({ value, name, _ -> mutableListOf(conversion(value, name, makeUsage())) }) {
+            ArgumentValue<MutableList<T>> (
+            { value, name, _ -> mutableListOf(conversion(value, name, makeUsage())) }
+    ), ArgumentValueInterface<MutableList<T>> {
 
         init {
             values = mutableListOf()
         }
+
+        override operator fun getValue(thisRef: Any?, property: KProperty<*>): MutableList<T> = values
 
         override fun addValue(stringValue: String, argumentName: String) {
             values.addAll(conversion(stringValue, argumentName, makeUsage()))
@@ -377,7 +485,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
         val helpDescriptor = if (useDefaultHelpShortName) OptionDescriptor(ArgType.Boolean,
                 "help", "h", "Usage info")
             else OptionDescriptor(ArgType.Boolean, "help", description = "Usage info")
-        options["help"] = ParsingValue(helpDescriptor, ArgumentSingleValue(helpDescriptor.type.convertion))
+        options["help"] = ParsingValue(helpDescriptor, ArgumentSingleNullableValue(helpDescriptor.type.convertion))
 
         // Add default list with arguments if there can be extra free arguments.
         if (skipExtraArguments) {

@@ -21,8 +21,8 @@ class OptionsTests {
     @Test
     fun testFullForm() {
         val argParser = ArgParser("testParser")
-        val output by argParser.option(ArgType.String, "output", "o", "Output file")
-        val input by argParser.option(ArgType.String, "input", "i", "Input file")
+        val output by argParser.option(ArgType.String, shortName = "o", description = "Output file")
+        val input by argParser.option(ArgType.String, shortName = "i", description = "Input file")
         argParser.parse(arrayOf("--output", "out.txt", "--input", "input.txt"))
         assertEquals("out.txt", output)
         assertEquals("input.txt", input)
@@ -41,13 +41,13 @@ class OptionsTests {
     @Test
     fun testMultipleOptions() {
         val argParser = ArgParser("testParser")
-        val useShortForm by argParser.option(ArgType.Boolean, "short", "s", "Show short version of report", "false")
+        val useShortForm by argParser.option(ArgType.Boolean, "short", "s", "Show short version of report", defaultValue = false)
         val renders by argParser.options(ArgType.Choice(listOf("text", "html", "xml", "json")),
-                "renders", "r", "Renders for showing information", "text", isMultiple = true)
+                "renders", "r", "Renders for showing information", listOf("text"), isMultiple = true)
         argParser.parse(arrayOf("-s", "-r", "text", "-r", "json"))
         assertEquals(true, useShortForm)
-        assertEquals(2, renders!!.size)
-        val (firstRender, secondRender) = renders!!
+        assertEquals(2, renders.size)
+        val (firstRender, secondRender) = renders
         assertEquals("text", firstRender)
         assertEquals("json", secondRender)
     }
@@ -55,12 +55,12 @@ class OptionsTests {
     @Test
     fun testDefaultOptions() {
         val argParser = ArgParser("testParser")
-        val useShortForm by argParser.option(ArgType.Boolean, "short", "s", "Show short version of report", "false")
+        val useShortForm by argParser.option(ArgType.Boolean, "short", "s", "Show short version of report", defaultValue = false)
         val renders by argParser.options(ArgType.Choice(listOf("text", "html", "xml", "json")),
-                "renders", "r", "Renders for showing information", "text", isMultiple = true)
+                "renders", "r", "Renders for showing information", listOf("text"), isMultiple = true)
         val output by argParser.option(ArgType.String, "output", "o", "Output file")
         argParser.parse(arrayOf("-o", "out.txt"))
         assertEquals(false, useShortForm)
-        assertEquals("text", renders!![0])
+        assertEquals("text", renders[0])
     }
 }

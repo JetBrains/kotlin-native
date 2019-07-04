@@ -43,9 +43,10 @@ class ErrorTests {
     @Test
     fun testWrongChoice() {
         val argParser = ArgParser("testParser")
-        val useShortForm by argParser.option(ArgType.Boolean, "short", "s", "Show short version of report", "false")
+        val useShortForm by argParser.option(ArgType.Boolean, "short", "s", "Show short version of report",
+                defaultValue = false)
         val renders by argParser.options(ArgType.Choice(listOf("text", "html")),
-                "renders", "r", "Renders for showing information", "text", isMultiple = true)
+                "renders", "r", "Renders for showing information", listOf("text"), isMultiple = true)
         val exception = assertFailsWith<IllegalStateException> {
             argParser.parse(arrayOf("-r", "xml"))
         }

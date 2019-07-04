@@ -18,7 +18,7 @@ class SubcommandsTests {
             var result: Int = 0
 
             override fun execute() {
-                result = addendums!!.sum()
+                result = addendums.sum()
                 result = if (invert!!) -1 * result else result
             }
         }
@@ -39,8 +39,8 @@ class SubcommandsTests {
             var result: Int = 0
 
             override fun execute() {
-                result = numbers!!.sum()
-                result = if (invert!!) -1 * result else result
+                result = numbers.sum()
+                result = invert?.let { -1 * result } ?: result
             }
         }
 
@@ -48,7 +48,7 @@ class SubcommandsTests {
             var result: Int = 0
 
             override fun execute() {
-                result = numbers!!.map { -it }.sum()
+                result = numbers.map { -it }.sum()
             }
         }
 
@@ -74,7 +74,7 @@ class SubcommandsTests {
             var result: Int = 0
 
             override fun execute() {
-                result = addendums!!.sum()
+                result = addendums.sum()
             }
         }
 
