@@ -11,7 +11,7 @@ let args = KotlinArray(size: Int32(CommandLine.arguments.count - 1), init: {inde
     CommandLine.arguments[Int(truncating: index) + 1]
 })
 
-let companion = InstanceBenchmarkEntry.Companion()
+let companion = BenchmarkEntryWithInit.Companion()
 
 var swiftLauncher = SwiftLauncher()
 

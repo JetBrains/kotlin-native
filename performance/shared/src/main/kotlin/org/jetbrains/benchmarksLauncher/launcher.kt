@@ -16,7 +16,6 @@
 
 package org.jetbrains.benchmarksLauncher
 
-import kotlin.math.sqrt
 import org.jetbrains.report.BenchmarkResult
 import org.jetbrains.kliopt.*
 
@@ -24,13 +23,13 @@ import org.jetbrains.kliopt.*
 abstract class Launcher {
     abstract val benchmarks: BenchmarksCollection
 
-    fun add(name: String, benchmark: BenchmarkEntry) {
+    fun add(name: String, benchmark: AbstractBenchmarkEntry) {
         benchmarks[name] = benchmark
     }
 
-    fun runBenchmark(benchmarkInstance: Any?, benchmark: BenchmarkEntry, repeatNumber: Int): Long {
+    fun runBenchmark(benchmarkInstance: Any?, benchmark: AbstractBenchmarkEntry, repeatNumber: Int): Long {
         var i = repeatNumber
-        return if (benchmark is InstanceBenchmarkEntry) {
+        return if (benchmark is BenchmarkEntryWithInit) {
             cleanup()
             measureNanoTime {
                 while (i-- > 0) benchmark.lambda(benchmarkInstance!!)
@@ -39,7 +38,7 @@ abstract class Launcher {
         } else {
             cleanup()
             measureNanoTime {
-                if (benchmark is FunctionBenchmarkEntry) {
+                if (benchmark is BenchmarkEntry) {
                     while (i-- > 0) benchmark.lambda()
                     cleanup()
                 }
@@ -62,7 +61,7 @@ abstract class Launcher {
             error("No matching benchmarks found")
         val benchmarkResults = mutableListOf<BenchmarkResult>()
         for ((name, benchmark) in runningBenchmarks) {
-            val benchmarkInstance = (benchmark as? InstanceBenchmarkEntry)?.ctor?.invoke()
+            val benchmarkInstance = (benchmark as? BenchmarkEntryWithInit)?.ctor?.invoke()
             var i = numWarmIterations
             runBenchmark(benchmarkInstance, benchmark, i)
             var autoEvaluatedNumberOfMeasureIteration = 1

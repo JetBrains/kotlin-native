@@ -1,7 +1,6 @@
 package org.jetbrains.ring
 
 import kotlin.experimental.and
-import kotlin.system.measureTimeMillis
 
 class CoordinatesSolverBenchmark {
     val solver: Solver

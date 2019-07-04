@@ -24,15 +24,15 @@ import org.jetbrains.kliopt.*
 class CinteropLauncher : Launcher() {
     override val benchmarks = BenchmarksCollection(
             mutableMapOf(
-                    "macros" to FunctionBenchmarkEntry(::macrosBenchmark),
-                    "struct" to FunctionBenchmarkEntry(::structBenchmark),
-                    "union" to FunctionBenchmarkEntry(::unionBenchmark),
-                    "enum" to FunctionBenchmarkEntry(::enumBenchmark),
-                    "stringToC" to InstanceBenchmarkEntry.create(::StringBenchmark, { stringToCBenchmark() }),
-                    "stringToKotlin" to InstanceBenchmarkEntry.create(::StringBenchmark, { stringToKotlinBenchmark() }),
-                    "intMatrix" to InstanceBenchmarkEntry.create(::IntMatrixBenchmark, { intMatrixBenchmark() }),
-                    "int" to InstanceBenchmarkEntry.create(::IntBenchmark, { intBenchmark() }),
-                    "boxedInt" to InstanceBenchmarkEntry.create(::BoxedIntBenchmark, { boxedIntBenchmark() })
+                    "macros" to BenchmarkEntry(::macrosBenchmark),
+                    "struct" to BenchmarkEntry(::structBenchmark),
+                    "union" to BenchmarkEntry(::unionBenchmark),
+                    "enum" to BenchmarkEntry(::enumBenchmark),
+                    "stringToC" to BenchmarkEntryWithInit.create(::StringBenchmark, { stringToCBenchmark() }),
+                    "stringToKotlin" to BenchmarkEntryWithInit.create(::StringBenchmark, { stringToKotlinBenchmark() }),
+                    "intMatrix" to BenchmarkEntryWithInit.create(::IntMatrixBenchmark, { intMatrixBenchmark() }),
+                    "int" to BenchmarkEntryWithInit.create(::IntBenchmark, { intBenchmark() }),
+                    "boxedInt" to BenchmarkEntryWithInit.create(::BoxedIntBenchmark, { boxedIntBenchmark() })
             )
     )
 }

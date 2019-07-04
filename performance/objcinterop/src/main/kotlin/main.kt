@@ -11,15 +11,15 @@ import org.jetbrains.kliopt.*
 class ObjCInteropLauncher: Launcher() {
     override val benchmarks = BenchmarksCollection(
             mutableMapOf(
-                    "generateNumbersSequence" to InstanceBenchmarkEntry.create(::ComplexNumbersBenchmark, { generateNumbersSequence() }),
-                    "sumComplex" to InstanceBenchmarkEntry.create(::ComplexNumbersBenchmark, { sumComplex() }),
-                    "subComplex" to InstanceBenchmarkEntry.create(::ComplexNumbersBenchmark, { subComplex() }),
-                    "classInheritance" to InstanceBenchmarkEntry.create(::ComplexNumbersBenchmark, { classInheritance() }),
-                    "categoryMethods" to InstanceBenchmarkEntry.create(::ComplexNumbersBenchmark, { categoryMethods() }),
-                    "stringToObjC" to InstanceBenchmarkEntry.create(::ComplexNumbersBenchmark, { stringToObjC() }),
-                    "stringFromObjC" to InstanceBenchmarkEntry.create(::ComplexNumbersBenchmark, { stringFromObjC() }),
-                    "fft" to InstanceBenchmarkEntry.create(::ComplexNumbersBenchmark, { fft() }),
-                    "invertFft" to InstanceBenchmarkEntry.create(::ComplexNumbersBenchmark, { invertFft() })
+                    "generateNumbersSequence" to BenchmarkEntryWithInit.create(::ComplexNumbersBenchmark, { generateNumbersSequence() }),
+                    "sumComplex" to BenchmarkEntryWithInit.create(::ComplexNumbersBenchmark, { sumComplex() }),
+                    "subComplex" to BenchmarkEntryWithInit.create(::ComplexNumbersBenchmark, { subComplex() }),
+                    "classInheritance" to BenchmarkEntryWithInit.create(::ComplexNumbersBenchmark, { classInheritance() }),
+                    "categoryMethods" to BenchmarkEntryWithInit.create(::ComplexNumbersBenchmark, { categoryMethods() }),
+                    "stringToObjC" to BenchmarkEntryWithInit.create(::ComplexNumbersBenchmark, { stringToObjC() }),
+                    "stringFromObjC" to BenchmarkEntryWithInit.create(::ComplexNumbersBenchmark, { stringFromObjC() }),
+                    "fft" to BenchmarkEntryWithInit.create(::ComplexNumbersBenchmark, { fft() }),
+                    "invertFft" to BenchmarkEntryWithInit.create(::ComplexNumbersBenchmark, { invertFft() })
             )
     )
 }

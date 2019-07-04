@@ -16,15 +16,15 @@
 
 package org.jetbrains.benchmarksLauncher
 
-interface BenchmarkEntry
+interface AbstractBenchmarkEntry
 
-class InstanceBenchmarkEntry(val ctor: ()->Any, val lambda: (Any) -> Any?): BenchmarkEntry {
+class BenchmarkEntryWithInit(val ctor: ()->Any, val lambda: (Any) -> Any?): AbstractBenchmarkEntry {
     companion object {
-        inline fun <reified T: Any> create(noinline ctor: ()->T, crossinline lambda: T.() -> Any?) = InstanceBenchmarkEntry(ctor) { (it as T).lambda() }
+        inline fun <reified T: Any> create(noinline ctor: ()->T, crossinline lambda: T.() -> Any?) = BenchmarkEntryWithInit(ctor) { (it as T).lambda() }
     }
 }
 
-class FunctionBenchmarkEntry(val lambda: () -> Any?) : BenchmarkEntry
+class BenchmarkEntry(val lambda: () -> Any?) : AbstractBenchmarkEntry
 
-class BenchmarksCollection(private val benchmarks: MutableMap<String, BenchmarkEntry> = mutableMapOf()) :
-        MutableMap<String, BenchmarkEntry> by benchmarks
+class BenchmarksCollection(private val benchmarks: MutableMap<String, AbstractBenchmarkEntry> = mutableMapOf()) :
+        MutableMap<String, AbstractBenchmarkEntry> by benchmarks
