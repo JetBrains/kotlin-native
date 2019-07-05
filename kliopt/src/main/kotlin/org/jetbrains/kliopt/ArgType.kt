@@ -5,15 +5,29 @@
 
 package org.jetbrains.kliopt
 
-// Possible types of arguments.
-open abstract class ArgType<T : Any>(val hasParameter: kotlin.Boolean) {
-    // Type description for help messages.
+/**
+ * Possible types of arguments.
+ *
+ * Inheritors describe type of argument value. New types can be added by user.
+ * In case of options type can have parameter or not.
+ */
+abstract class ArgType<T : Any>(val hasParameter: kotlin.Boolean) {
+    /**
+     * Text description of type for helpMessage.
+     */
     abstract val description: kotlin.String
-    // Function to convert string argument value to its type.
-    // In case of error during convertion also provide help message.
+
+    /**
+     * Function to convert string argument value to its type.
+     * In case of error during convertion also provides help message.
+     *
+     * @param value value
+     */
     abstract val convertion: (value: kotlin.String, name: kotlin.String, helpMessage: kotlin.String)->T
 
-    // Flags that can be only set/unset.
+    /**
+     * Argument type for flags that can be only set/unset.
+     */
     object Boolean : ArgType<kotlin.Boolean>(false) {
         override val description: kotlin.String
             get() = ""
@@ -22,6 +36,9 @@ open abstract class ArgType<T : Any>(val hasParameter: kotlin.Boolean) {
             get() = { value, _ , _ -> if (value == "false") false else true }
     }
 
+    /**
+     * Argument type for string values.
+     */
     object String : ArgType<kotlin.String>(true) {
         override val description: kotlin.String
             get() = "{ String }"
@@ -30,6 +47,9 @@ open abstract class ArgType<T : Any>(val hasParameter: kotlin.Boolean) {
             get() = { value, _, _ -> value }
     }
 
+    /**
+     * Argument type for integer values.
+     */
     object Int : ArgType<kotlin.Int>(true) {
         override val description: kotlin.String
             get() = "{ Int }"
@@ -39,6 +59,9 @@ open abstract class ArgType<T : Any>(val hasParameter: kotlin.Boolean) {
                     ?: error("Option $name is expected to be integer number. $value is provided.\n$helpMessage") }
     }
 
+    /**
+     * Argument type for double values.
+     */
     object Double : ArgType<kotlin.Double>(true) {
         override val description: kotlin.String
             get() = "{ Double }"
@@ -49,6 +72,9 @@ open abstract class ArgType<T : Any>(val hasParameter: kotlin.Boolean) {
                     ?: error("Option $name is expected to be double number. $value is provided.\n$helpMessage") }
     }
 
+    /**
+     * Type for arguments that have limited set of possible values.
+     */
     class Choice(val values: List<kotlin.String>) : ArgType<kotlin.String>(true) {
         override val description: kotlin.String
             get() = "{ Value should be one of $values }"

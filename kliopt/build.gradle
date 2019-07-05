@@ -65,11 +65,25 @@ kotlin {
                 implementation kotlin('test-junit')
             }
         }
+
+        jvm().compilations.all {
+            kotlinOptions {
+                freeCompilerArgs = ["-Xuse-experimental=org.jetbrains.kliopt.ExperimentalCli"]
+                suppressWarnings = true
+            }
+        }
     }
 
     targets {
         //fromPreset(presets.mingwX64, 'windows')
         //fromPreset(presets.linuxX64, 'linux')
-        fromPreset(presets.macosX64, 'macos')
+        fromPreset(presets.macosX64, 'macos') {
+            compilations.all {
+                kotlinOptions {
+                    freeCompilerArgs = ["-Xuse-experimental=org.jetbrains.kliopt.ExperimentalCli"]
+                    suppressWarnings = true
+                }
+            }
+        }
     }
 }

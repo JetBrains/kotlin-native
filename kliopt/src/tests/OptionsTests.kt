@@ -43,7 +43,7 @@ class OptionsTests {
         val argParser = ArgParser("testParser")
         val useShortForm by argParser.option(ArgType.Boolean, "short", "s", "Show short version of report", defaultValue = false)
         val renders by argParser.options(ArgType.Choice(listOf("text", "html", "xml", "json")),
-                "renders", "r", "Renders for showing information", listOf("text"), isMultiple = true)
+                "renders", "r", "Renders for showing information", listOf("text"), multiple = true)
         argParser.parse(arrayOf("-s", "-r", "text", "-r", "json"))
         assertEquals(true, useShortForm)
         assertEquals(2, renders.size)
@@ -57,7 +57,7 @@ class OptionsTests {
         val argParser = ArgParser("testParser")
         val useShortForm by argParser.option(ArgType.Boolean, "short", "s", "Show short version of report", defaultValue = false)
         val renders by argParser.options(ArgType.Choice(listOf("text", "html", "xml", "json")),
-                "renders", "r", "Renders for showing information", listOf("text"), isMultiple = true)
+                "renders", "r", "Renders for showing information", listOf("text"), multiple = true)
         val output by argParser.option(ArgType.String, "output", "o", "Output file")
         argParser.parse(arrayOf("-o", "out.txt"))
         assertEquals(false, useShortForm)

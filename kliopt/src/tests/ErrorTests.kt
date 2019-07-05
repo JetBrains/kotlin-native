@@ -46,7 +46,7 @@ class ErrorTests {
         val useShortForm by argParser.option(ArgType.Boolean, "short", "s", "Show short version of report",
                 defaultValue = false)
         val renders by argParser.options(ArgType.Choice(listOf("text", "html")),
-                "renders", "r", "Renders for showing information", listOf("text"), isMultiple = true)
+                "renders", "r", "Renders for showing information", listOf("text"), multiple = true)
         val exception = assertFailsWith<IllegalStateException> {
             argParser.parse(arrayOf("-r", "xml"))
         }
