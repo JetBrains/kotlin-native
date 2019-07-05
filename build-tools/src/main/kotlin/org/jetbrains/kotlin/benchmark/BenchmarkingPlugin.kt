@@ -1,6 +1,5 @@
 package org.jetbrains.kotlin.benchmark
 
-import groovy.lang.Closure
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -138,11 +137,10 @@ open class BenchmarkingPlugin: Plugin<Project> {
                 // Specify settings configured by a user in the benchmark extension.
                 afterEvaluate {
                     linkerOpts.addAll(benchmark.linkerOpts)
-                    runTask!!.args(
-                        "-w", nativeWarmup,
-                        "-r", attempts,
-                        "-p", "${benchmark.applicationName}::"
-                    )
+                    runTask!!.apply {
+                        group = ""
+                        enabled = false
+                    }
                 }
 
             }
@@ -161,8 +159,9 @@ open class BenchmarkingPlugin: Plugin<Project> {
         // Native run task.
         val nativeTarget = kotlin.targets.getByName(NATIVE_TARGET_NAME) as KotlinNativeTarget
         val nativeExecutable = nativeTarget.binaries.getExecutable(NATIVE_EXECUTABLE_NAME, NativeBuildType.RELEASE)
-        val konanRun = createRunTask(this, "konanRun", nativeExecutable.runTask!!,
-                nativeExecutable.linkTaskName, buildDir.resolve(nativeBenchResults).absolutePath).apply {
+        val konanRun = createRunTask(this, "konanRun", nativeExecutable.linkTask,
+                buildDir.resolve(nativeBenchResults).absolutePath,
+                nativeWarmup, attempts, "${benchmark.applicationName}::").apply {
             group = BENCHMARKING_GROUP
             description = "Runs the benchmark for Kotlin/Native."
         }
