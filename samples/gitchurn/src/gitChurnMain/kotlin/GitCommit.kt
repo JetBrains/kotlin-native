@@ -13,6 +13,7 @@ class GitCommit(val repository_handle: CPointer<git_repository>, val commit: CPo
 
     val summary: String get() = git_commit_summary(commit)!!.toKString()
     val time: git_time_t get() = git_commit_time(commit)
+    val author: git_signature get() = git_commit_author(commit)!!.pointed
 
     val tree: GitTree get() = memScoped {
         val treePtr = allocPointerTo<git_tree>()
