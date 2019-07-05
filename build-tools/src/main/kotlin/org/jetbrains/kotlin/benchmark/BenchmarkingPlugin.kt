@@ -134,15 +134,15 @@ open class BenchmarkingPlugin: Plugin<Project> {
                     linkerOpts.add("-L${mingwPath}/lib")
                 }
 
+                runTask!!.apply {
+                    group = ""
+                    enabled = false
+                }
+
                 // Specify settings configured by a user in the benchmark extension.
                 afterEvaluate {
                     linkerOpts.addAll(benchmark.linkerOpts)
-                    runTask!!.apply {
-                        group = ""
-                        enabled = false
-                    }
                 }
-
             }
         }
     }
