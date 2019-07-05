@@ -160,10 +160,16 @@ open class BenchmarkingPlugin: Plugin<Project> {
         val nativeTarget = kotlin.targets.getByName(NATIVE_TARGET_NAME) as KotlinNativeTarget
         val nativeExecutable = nativeTarget.binaries.getExecutable(NATIVE_EXECUTABLE_NAME, NativeBuildType.RELEASE)
         val konanRun = createRunTask(this, "konanRun", nativeExecutable.linkTask,
-                buildDir.resolve(nativeBenchResults).absolutePath,
-                nativeWarmup, attempts, "${benchmark.applicationName}::").apply {
+                buildDir.resolve(nativeBenchResults).absolutePath).apply {
             group = BENCHMARKING_GROUP
             description = "Runs the benchmark for Kotlin/Native."
+        }
+        afterEvaluate {
+            (konanRun as RunKotlinNativeTask).args(
+                    "-w", nativeWarmup.toString(),
+                    "-r", attempts.toString(),
+                    "-p", "${benchmark.applicationName}::"
+            )
         }
 
         // JVM run task.

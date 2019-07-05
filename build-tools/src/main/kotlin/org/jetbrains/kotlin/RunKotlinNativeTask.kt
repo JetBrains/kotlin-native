@@ -15,8 +15,7 @@ import java.io.File
 import javax.inject.Inject
 
 open class RunKotlinNativeTask @Inject constructor(private val linkTask: KotlinNativeLink,
-                                                   private val outputFileName: String,
-                                                   val warmup: Int, val attempts: Int, val prefix: String
+                                                   private val outputFileName: String
 ) : DefaultTask() {
     @Input
     var buildType = "RELEASE"
@@ -27,6 +26,8 @@ open class RunKotlinNativeTask @Inject constructor(private val linkTask: KotlinN
     @Option(option = "filterRegex", description = "Benchmarks to run, described by regular expressions (comma-separated)")
     var filterRegex: String = ""
 
+    private val argumentsList = mutableListOf<String>()
+
     init {
         this.dependsOn += linkTask.name
         this.finalizedBy("konanJsonReport")
@@ -34,6 +35,10 @@ open class RunKotlinNativeTask @Inject constructor(private val linkTask: KotlinN
 
     fun depends(taskName: String) {
         this.dependsOn += taskName
+    }
+
+    fun args(vararg arguments: String) {
+        argumentsList.addAll(arguments.toList())
     }
 
     @TaskAction
@@ -51,11 +56,12 @@ open class RunKotlinNativeTask @Inject constructor(private val linkTask: KotlinN
         val benchmarksToRun = if (filterArgs.isNotEmpty() || regexes.isNotEmpty()) {
             benchmarks.filter { benchmark -> benchmark in filterArgs || regexes.any { it.matches(benchmark) } }
         } else benchmarks.filter { !it.isEmpty() }
+
         val results = benchmarksToRun.map { benchmark ->
             output = ByteArrayOutputStream()
             project.exec {
                 it.executable = linkTask.binary.outputFile.absolutePath
-                it.args("-w", warmup, "-r", attempts, "-p", prefix)
+                it.args(argumentsList)
                 it.args("-f", benchmark)
                 it.standardOutput = output
             }

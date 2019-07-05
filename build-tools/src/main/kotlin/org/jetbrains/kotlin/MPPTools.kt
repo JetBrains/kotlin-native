@@ -153,11 +153,9 @@ fun createRunTask(
         subproject: Project,
         name: String,
         linkTask: KotlinNativeLink,
-        outputFileName: String,
-        warmup: Int, attempts: Int, prefix: String
+        outputFileName: String
 ): Task {
-    return subproject.tasks.create(name, RunKotlinNativeTask::class.java, linkTask,
-            outputFileName, warmup, attempts, prefix)
+    return subproject.tasks.create(name, RunKotlinNativeTask::class.java, linkTask, outputFileName)
 }
 
 @JvmOverloads
