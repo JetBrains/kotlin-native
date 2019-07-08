@@ -8,9 +8,7 @@ package org.jetbrains.kotlin.backend.konan.llvm
 import llvm.LLVMStoreSizeOfType
 import llvm.LLVMValueRef
 import org.jetbrains.kotlin.backend.common.atMostOne
-import org.jetbrains.kotlin.backend.common.ir.simpleFunctions
 import org.jetbrains.kotlin.backend.konan.*
-import org.jetbrains.kotlin.backend.konan.descriptors.getStringValue
 import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
@@ -114,17 +112,17 @@ internal class KotlinObjCClassInfoGenerator(override val context: Context) : Con
             staticData.cStringLiteral(encoding)
     )
 
-    private fun IrClass.generateImpMethodDescs(): List<ObjCMethodDesc> = this.declarations
-            .filterIsInstance<IrSimpleFunction>()
-            .mapNotNull {
-                val annotation =
-                        it.descriptor.annotations.findAnnotation(context.interopBuiltIns.objCMethodImp.fqNameSafe) ?:
-                                return@mapNotNull null
-
-                ObjCMethodDesc(
-                        annotation.getStringValue("selector"),
-                        annotation.getStringValue("encoding"),
-                        it.llvmFunction
-                )
-            }
+    private fun IrClass.generateImpMethodDescs(): List<ObjCMethodDesc> {
+        val objCMethodImpFqName = context.interopBuiltIns.objCMethodImp.fqNameSafe
+        return this.declarations
+                .filterIsInstance<IrSimpleFunction>()
+                .filter { it.annotations.hasAnnotation(objCMethodImpFqName) }
+                .map {
+                    val selector = it.getAnnotationArgumentValue<String>(objCMethodImpFqName, "selector")
+                            ?: context.reportCompilationError("Annotation @ObjCMethod is missing `selector` field.")
+                    val encoding = it.getAnnotationArgumentValue<String>(objCMethodImpFqName, "encoding")
+                            ?: context.reportCompilationError("Annotation @ObjCMethod is missing `encoding` field.")
+                    ObjCMethodDesc(selector, encoding, it.llvmFunction)
+                }
+    }
 }
