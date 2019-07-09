@@ -10,7 +10,7 @@ import kotlinx.cinterop.*
 import libgit2.*
 
 /**
- * This class provides revwalk functionality by wrapping imported C functions to be the one entity
+ * This class provides revwalk functionality by wrapping imported C functions to be the one entity.
  */
 class GitRevwalk (private val repository_handle: CPointer<git_repository>, val sort: git_sort_t) {
     private val arena = Arena()
@@ -43,7 +43,8 @@ class GitRevwalk (private val repository_handle: CPointer<git_repository>, val s
     }
 
     fun nextCommit() : GitCommit? {
-        val commitPtr = arena.allocPointerTo<git_commit>()// here i can take iterated oids pointing to different commits, sorted by ^
+        //Here i can take iterated oids pointing to different commits, sorted by asc.
+        val commitPtr = arena.allocPointerTo<git_commit>()
         val o = arena.alloc<git_oid>()
         return when(val n = git_revwalk_next(o.ptr, handle)){
             0 -> {
