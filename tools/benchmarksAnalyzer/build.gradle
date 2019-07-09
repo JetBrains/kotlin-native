@@ -48,8 +48,7 @@ kotlin {
             }
             kotlin.srcDir '../benchmarks/shared/src'
             kotlin.srcDir 'src/main/kotlin'
-            kotlin.srcDir '../kliopt'
-
+            kotlin.srcDir '../../defaultLibraries/kliopt/src/main'
         }
         commonTest {
             dependencies {

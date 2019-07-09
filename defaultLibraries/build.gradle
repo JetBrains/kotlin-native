@@ -1,0 +1,27 @@
+def defaultLibrariesList = ['kliopt']
+
+task clean {
+    doLast {
+        delete buildDir
+    }
+}
+
+task build {
+    dependsOn "kliopt:build"
+}
+
+// Build all default libraries.
+targetList.each { target ->
+    task("${target}DefaultLibraries", type: Copy) {
+        defaultLibrariesList.each { library ->
+            dependsOn "$library:${target}${library.capitalize()}"
+        }
+        destinationDir project.buildDir
+        defaultLibrariesList.each { library ->
+            from(project("$library").file("build/${target}${library.capitalize()}")) {
+                include('**')
+                into("$library")
+            }
+        }
+    }
+}

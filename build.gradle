@@ -239,6 +239,7 @@ task distCompiler(type: Copy) {
     dependsOn ':utilities:jar'
     dependsOn ':klib:jar'
     dependsOn ':sharedJar'
+    dependsOn ':defaultLibraries:build'
 
     destinationDir distDir
 
@@ -298,6 +299,10 @@ task distCompiler(type: Copy) {
         into('konan/lib')
     }
 
+    from(project(':defaultLibraries:kliopt').file('build/libs')) {
+        into('konan/lib')
+    }
+
     from(file("${gradle.includedBuild('kotlin-native-shared').projectDir}/build/libs")) {
         into('konan/lib')
     }
@@ -336,7 +341,13 @@ task distRuntime(type: Copy) {
     dependsOn('commonDistRuntime')
 }
 
+task distDefaultLibraries {
+    dependsOn "${hostName}CrossDistDefaultLibraries"
+}
+
 def stdlib = 'klib/common/stdlib'
+def defaultLibs = 'klib/common/defaultLibraries'
+def defaultLibsBase = 'klib/common'
 
 task commonDistRuntime(type: Copy) {
     destinationDir distDir
@@ -351,6 +362,10 @@ task commonDistRuntime(type: Copy) {
 task crossDistRuntime(type: Copy) {
     dependsOn.addAll(targetList.collect { "${it}CrossDistRuntime" })
     dependsOn('commonDistRuntime')
+}
+
+task crossDistDefaultLibraries(type: Copy) {
+    dependsOn.addAll(targetList.collect { "${it}CrossDistDefaultLibraries" })
 }
 
 task crossDistPlatformLibs {
@@ -391,7 +406,17 @@ targetList.each { target ->
     }
 
     task("${target}CrossDist") {
-        dependsOn "${target}CrossDistRuntime", 'distCompiler', 'commonDistRuntime'
+        dependsOn "${target}CrossDistRuntime", 'distCompiler', 'commonDistRuntime', "${target}CrossDistDefaultLibraries"
+    }
+
+    task("${target}CrossDistDefaultLibraries", type: Copy) {
+        dependsOn ":defaultLibraries:${target}DefaultLibraries"
+
+        destinationDir distDir
+        from(project(':defaultLibraries').file("build")) {
+            include('**')
+            into("$defaultLibsBase")
+        }
     }
 }
 
@@ -400,11 +425,11 @@ task distPlatformLibs {
 }
 
 task dist {
-    dependsOn 'distCompiler', 'distRuntime'
+    dependsOn 'distCompiler', 'distRuntime', 'distDefaultLibraries'
 }
 
 task crossDist {
-    dependsOn 'crossDistRuntime', 'distCompiler'
+    dependsOn 'crossDistRuntime', 'distCompiler', 'crossDistDefaultLibraries'
 }
 
 task bundle(type: (isWindows()) ? Zip : Tar) {

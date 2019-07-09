@@ -19,14 +19,13 @@ import org.jetbrains.kotlin.native.interop.tool.*
 // The interaction of interop and the compler should be streamlined.
 
 fun invokeInterop(flavor: String, args: Array<String>): Array<String>? {
-    val argParser = ArgParser(if (flavor == "native") getCInteropArguments() else getJSInteropArguments(),
-            useDefaultHelpShortName = false)
-    if (!argParser.parse(args))
+    val arguments = if (flavor == "native") CInteropArguments() else JSInteropArguments()
+    if (!arguments.argParser.parse(args))
         return null
-    val outputFileName = argParser.get<String>("output")!!
-    val noDefaultLibs = argParser.get<Boolean>(NODEFAULTLIBS)!!
-    val purgeUserLibs = argParser.get<Boolean>(PURGE_USER_LIBS)!!
-    val temporaryFilesDir = argParser.get<String>(TEMP_DIR)
+    val outputFileName = arguments.output
+    val noDefaultLibs = arguments.nodefaultlibs
+    val purgeUserLibs = arguments.purgeUserLibs
+    val temporaryFilesDir = arguments.tempDir
 
     val buildDir = File("$outputFileName-build")
     val generatedDir = File(buildDir, "kotlin")
@@ -40,9 +39,10 @@ fun invokeInterop(flavor: String, args: Array<String>): Array<String>? {
     val additionalProperties = mutableMapOf<String, Any>(
             "manifest" to manifest.path)
     val cstubsName ="cstubs"
-    val libraries = argParser.getAll<String>("library") ?: listOf<String>()
-    val repos = argParser.getAll<String>("repo") ?: listOf<String>()
-    val targetRequest = argParser.get<String>("target")!!
+    val libraries = arguments.library
+    val repos = arguments.repo
+    val targetRequest = if (arguments is CInteropArguments) arguments.target
+        else (arguments as JSInteropArguments).target
     val target = PlatformManager().targetManager(targetRequest).target
 
     if (flavor == "native") {

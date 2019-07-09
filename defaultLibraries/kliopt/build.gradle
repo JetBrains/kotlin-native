@@ -1,9 +1,6 @@
+import org.jetbrains.kotlin.konan.target.HostManager
+
 buildscript {
-    ext.rootBuildDirectory = file('..')
-
-    apply from: "$rootBuildDirectory/gradle/loadRootProperties.gradle"
-    apply from: "$rootBuildDirectory/gradle/kotlinGradlePlugin.gradle"
-
     repositories {
         maven {
             url 'https://cache-redirector.jetbrains.com/jcenter'
@@ -48,12 +45,6 @@ kotlin {
             }
             kotlin.srcDir 'src/tests'
         }
-        nativeMain {
-            dependsOn commonMain
-        }
-        linuxMain { dependsOn nativeMain }
-        windowsMain { dependsOn nativeMain }
-        macosMain {dependsOn nativeMain }
         jvm().compilations.main.defaultSourceSet {
             dependencies {
                 implementation kotlin('stdlib-jdk8')
@@ -73,17 +64,39 @@ kotlin {
             }
         }
     }
+}
 
-    targets {
-        //fromPreset(presets.mingwX64, 'windows')
-        //fromPreset(presets.linuxX64, 'linux')
-        fromPreset(presets.macosX64, 'macos') {
-            compilations.all {
-                kotlinOptions {
-                    freeCompilerArgs = ["-Xuse-experimental=org.jetbrains.kliopt.ExperimentalCli"]
-                    suppressWarnings = true
-                }
-            }
-        }
+def commonSrc = new File("$projectDir/src/main")
+
+targetList.each { target ->
+    def konanJvmArgs =  [*HostManager.regularJvmArgs,
+                         "-Dkonan.home=${rootProject.projectDir}/dist",
+                         "-Djava.library.path=${project.buildDir}/nativelibs/$hostName",
+    ]
+
+    def defaultArgs = ['-nopack', '-nodefaultlibs']
+    if (target != "wasm32") defaultArgs += '-g'
+    def konanArgs = [*defaultArgs,
+                     '-target', target,
+                     "-Xruntime=${project(':runtime').file('build/' + target + '/runtime.bc')}",
+                     *project.globalBuildArgs]
+
+    task("${target}Kliopt", type: JavaExec) {
+        dependsOn ":${target}CrossDistRuntime"
+
+        main = 'org.jetbrains.kotlin.cli.bc.K2NativeKt'
+        classpath = project(":backend.native").configurations.cli_bc
+        jvmArgs = konanJvmArgs
+        args = [*konanArgs,
+                '-output', project.file("build/${target}Kliopt"),
+                '-produce', 'library', '-module-name', 'kliopt', '-XXLanguage:+AllowContractsForCustomFunctions',
+                '-Xmulti-platform', '-Xuse-experimental=org.jetbrains.kliopt.ExperimentalCli',
+                '-Xuse-experimental=kotlin.ExperimentalMultiplatform',
+                '-Xallow-result-return-type',
+                commonSrc.absolutePath,
+                "-Xcommon-sources=${commonSrc.absolutePath}",
+                commonSrc]
+        inputs.dir(commonSrc)
+        outputs.dir(project.file("build/${target}Kliopt"))
     }
 }
