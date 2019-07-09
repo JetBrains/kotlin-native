@@ -7,6 +7,7 @@ package runtime.text.utf8
 
 import kotlin.test.*
 import kotlin.reflect.KClass
+import kotlinx.cinterop.toKString
 
 // region Util
 fun assertEquals(expected: ByteArray, actual: ByteArray, message: String) =
@@ -70,7 +71,7 @@ fun checkUtf8to16(expected: String, array: IntArray, conversion: ByteArray.() ->
 
 fun checkZeroTerminatedUtf8to16Replacing(expected: String, array: IntArray) {
     checkUtf8to16(expected, array) { stringFromUtf8() }
-    checkUtf8to16(expected, array) { decodeZeroTerminatedToString() }
+    checkUtf8to16(expected, array) { toKString() }
 }
 fun checkUtf8to16Replacing(expected: String, array: IntArray) {
     checkUtf8to16(expected, array) { stringFromUtf8() }
@@ -79,7 +80,7 @@ fun checkUtf8to16Replacing(expected: String, array: IntArray) {
 }
 fun checkZeroTerminatedUtf8to16Throwing(expected: String, array: IntArray) {
     checkUtf8to16(expected, array) { stringFromUtf8OrThrow() }
-    checkUtf8to16(expected, array) { decodeZeroTerminatedToString(throwOnInvalidSequence = true) }
+    checkUtf8to16(expected, array) { toKString(throwOnInvalidSequence = true) }
 }
 fun checkUtf8to16Throwing(expected: String, array: IntArray) {
     checkUtf8to16(expected, array) { decodeToString(throwOnInvalidSequence = true) }
@@ -97,7 +98,7 @@ fun checkValidZeroTerminatedUtf8to16(expected: String, array: IntArray) {
 
 fun checkZeroTerminatedUtf8to16Replacing(expected: String, array: IntArray, start: Int, size: Int) {
     checkUtf8to16(expected, array) { stringFromUtf8(start, size) }
-    checkUtf8to16(expected, array) { decodeZeroTerminatedToString(start, start + size) }
+    checkUtf8to16(expected, array) { toKString(start, start + size) }
 }
 fun checkUtf8to16Replacing(expected: String, array: IntArray, start: Int, size: Int) {
     checkUtf8to16(expected, array) { decodeToString(start, start + size) }
@@ -106,7 +107,7 @@ fun checkUtf8to16Replacing(expected: String, array: IntArray, start: Int, size: 
 }
 fun checkZeroTerminatedUtf8to16Throwing(expected: String, array: IntArray, start: Int, size: Int) {
     checkUtf8to16(expected, array) { stringFromUtf8OrThrow(start, size) }
-    checkUtf8to16(expected, array) { decodeZeroTerminatedToString(start, start + size, true) }
+    checkUtf8to16(expected, array) { toKString(start, start + size, true) }
 }
 fun checkUtf8to16Throwing(expected: String, array: IntArray, start: Int, size: Int) {
     checkUtf8to16(expected, array) { decodeToString(start, start + size, true) }
@@ -131,7 +132,7 @@ fun <T: Any> checkThrows(e: KClass<T>, string: String, action: () -> Unit) {
     } catch (e: Throwable) {
         exception = e
     }
-    assertNotNull(exception, "No excpetion was thrown for string: $string")
+    assertNotNull(exception, "No exception was thrown for string: $string")
     assertTrue(e.isInstance(exception),"""
                 Wrong exception was thrown for string: $string
                 Expected: ${e.qualifiedName}
@@ -161,7 +162,7 @@ fun <T: Any> checkUtf8to16Throws(e: KClass<T>, string: String, array: IntArray, 
 
 fun checkZeroTerminatedUtf8to16Throws(string: String, array: IntArray) {
     checkUtf8to16Throws(IllegalCharacterConversionException::class, string, array) { stringFromUtf8OrThrow() }
-    checkUtf8to16Throws(CharacterCodingException::class, string, array) { decodeZeroTerminatedToString(throwOnInvalidSequence = true) }
+    checkUtf8to16Throws(CharacterCodingException::class, string, array) { toKString(throwOnInvalidSequence = true) }
 }
 fun checkUtf8to16Throws(string: String, array: IntArray) {
     checkUtf8to16Throws(CharacterCodingException::class, string, array) { decodeToString(throwOnInvalidSequence = true) }
@@ -170,7 +171,7 @@ fun checkUtf8to16Throws(string: String, array: IntArray) {
 }
 fun checkZeroTerminatedUtf8to16Throws(string: String, array: IntArray, start: Int, size: Int) {
     checkUtf8to16Throws(IllegalCharacterConversionException::class, string, array) { stringFromUtf8OrThrow(start, size) }
-    checkUtf8to16Throws(CharacterCodingException::class, string, array) { decodeZeroTerminatedToString(start, start + size, true) }
+    checkUtf8to16Throws(CharacterCodingException::class, string, array) { toKString(start, start + size, true) }
 }
 fun checkUtf8to16Throws(string: String, array: IntArray, start: Int, size: Int) {
     checkUtf8to16Throws(CharacterCodingException::class, string, array) { decodeToString(start, start + size, true) }
@@ -207,7 +208,7 @@ fun <T: Any> checkOutOfBoundsUtf16to8(e: KClass<T>, string: String, start: Int, 
 // utils for checking invalid-bounds-exception thrown by UTF-8 -> UTF-16 conversion
 fun <T: Any> checkOutOfBoundsZeroTerminatedUtf8to16Replacing(e: KClass<T>, string: String, byteArray: ByteArray, start: Int, size: Int) {
     checkThrows(e, string) { byteArray.stringFromUtf8(start, size) }
-    checkThrows(e, string) { byteArray.decodeZeroTerminatedToString(start, start + size) }
+    checkThrows(e, string) { byteArray.toKString(start, start + size) }
 }
 fun <T: Any> checkOutOfBoundsUtf8to16Replacing(e: KClass<T>, string: String, byteArray: ByteArray, start: Int, size: Int) {
     checkThrows(e, string) { byteArray.decodeToString(start, start + size) }
@@ -215,7 +216,7 @@ fun <T: Any> checkOutOfBoundsUtf8to16Replacing(e: KClass<T>, string: String, byt
 }
 fun <T: Any> checkOutOfBoundsZeroTerminatedUtf8to16Throwing(e: KClass<T>, string: String, byteArray: ByteArray, start: Int, size: Int) {
     checkThrows(e, string) { byteArray.stringFromUtf8OrThrow(start, size) }
-    checkThrows(e, string) { byteArray.decodeZeroTerminatedToString(start, start + size, true) }
+    checkThrows(e, string) { byteArray.toKString(start, start + size, true) }
 }
 fun <T: Any> checkOutOfBoundsUtf8to16Throwing(e: KClass<T>, string: String, byteArray: ByteArray, start: Int, size: Int) {
     checkThrows(e, string) { byteArray.decodeToString(start, start + size, true) }
@@ -235,7 +236,7 @@ fun <T: Any> checkOutOfBoundsZeroTerminatedUtf8to16(e: KClass<T>, string: String
 fun convertUtf8to16(byteArray: ByteArray, action: (String) -> Unit) {
     byteArray.stringFromUtf8().let { action(it) }
     byteArray.decodeToString().let { action(it) }
-    byteArray.decodeZeroTerminatedToString().let { action(it) }
+    byteArray.toKString().let { action(it) }
 }
 // endregion
 

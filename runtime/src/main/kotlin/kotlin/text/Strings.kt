@@ -205,7 +205,7 @@ public actual fun CharSequence.repeat(n: Int): String {
         else -> {
             when (length) {
                 0 -> ""
-                1 -> this[0].let { char -> unsafeFromCharArray(CharArray(n) { char }, 0, n) }
+                1 -> this[0].let { char -> CharArray(n) { char }.concatToString() }
                 else -> {
                     val sb = StringBuilder(n * length)
                     for (i in 1..n) {
