@@ -58,7 +58,7 @@ internal class Linker(val context: Context) {
             if (arg.startsWith("-Wl,")) {
                 result.addAll(arg.substring(4).split(','))
             } else {
-                result.add(arg)
+                result.addAll(arg.split(" "))
             }
         }
         return result
