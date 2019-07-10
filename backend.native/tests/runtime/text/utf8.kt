@@ -9,7 +9,7 @@ import kotlin.test.*
 import kotlin.reflect.KClass
 import kotlinx.cinterop.toKString
 
-// region Util
+// -------------------------------------- Utils --------------------------------------
 fun assertEquals(expected: ByteArray, actual: ByteArray, message: String) =
         assertTrue(expected.contentEquals(actual), message)
 
@@ -27,7 +27,7 @@ fun checkUtf16to8(string: String, expected: IntArray, conversion: String.() -> B
     """.trimIndent())
 }
 
-// utils for checking successful UTF-16 -> UTF-8 conversion
+// Utils for checking successful UTF-16 to UTF-8 conversion.
 fun checkUtf16to8Replacing(string: String, expected: IntArray) {
     checkUtf16to8(string, expected) { toUtf8() }
     checkUtf16to8(string, expected) { encodeToByteArray() }
@@ -55,7 +55,7 @@ fun checkValidUtf16to8(string: String, expected: IntArray, start: Int, size: Int
 }
 
 
-// utils for checking successful UTF-8 -> UTF-16 conversion
+// Utils for checking successful UTF-8 to UTF-16 conversion.
 fun checkUtf8to16(expected: String, array: IntArray, conversion: ByteArray.() -> String) {
     array.forEach {
         assertTrue(it in Byte.MIN_VALUE..Byte.MAX_VALUE, "Expected array contains illegal values")
@@ -124,7 +124,7 @@ fun checkValidZeroTerminatedUtf8to16(expected: String, array: IntArray, start: I
 }
 
 
-// utils for checking malformed UTF-16 -> UTF-8 conversion
+// Utils for checking malformed UTF-16 to UTF-8 conversion.
 fun <T: Any> checkThrows(e: KClass<T>, string: String, action: () -> Unit) {
     var exception: Throwable? = null
     try {
@@ -150,7 +150,7 @@ fun checkUtf16to8Throws(string: String, start: Int, size: Int) {
 }
 
 
-// utils for checking malformed UTF-8 -> UTF-16 conversion
+// Utils for checking malformed UTF-8 to UTF-16 conversion.
 fun <T: Any> checkUtf8to16Throws(e: KClass<T>, string: String, array: IntArray, conversion: ByteArray.() -> String)
         = checkThrows(e, string) {
     array.forEach {
@@ -180,7 +180,7 @@ fun checkUtf8to16Throws(string: String, array: IntArray, start: Int, size: Int) 
 }
 
 
-// utils for checking String -> floating-point number conversion
+// Utils for checking String to floating-point number conversion.
 fun checkDoubleConversionThrows(string: String) = checkThrows(NumberFormatException::class, string) {
     string.toDouble()
 }
@@ -190,7 +190,7 @@ fun checkFloatConversionThrows(string: String) = checkThrows(NumberFormatExcepti
 }
 
 
-// utils for checking invalid-bounds-exception thrown by UTF-16 -> UTF-8 conversion
+// Utils for checking invalid-bounds-exception thrown by UTF-16 to UTF-8 conversion.
 fun <T: Any> checkOutOfBoundsUtf16to8Replacing(e: KClass<T>, string: String, start: Int, size: Int) {
     checkThrows(e, string) { string.toUtf8(start, size) }
     checkThrows(e, string) { string.encodeToByteArray(start, start + size) }
@@ -205,7 +205,7 @@ fun <T: Any> checkOutOfBoundsUtf16to8(e: KClass<T>, string: String, start: Int, 
 }
 
 
-// utils for checking invalid-bounds-exception thrown by UTF-8 -> UTF-16 conversion
+// Utils for checking invalid-bounds-exception thrown by UTF-8 to UTF-16 conversion.
 fun <T: Any> checkOutOfBoundsZeroTerminatedUtf8to16Replacing(e: KClass<T>, string: String, byteArray: ByteArray, start: Int, size: Int) {
     checkThrows(e, string) { byteArray.stringFromUtf8(start, size) }
     checkThrows(e, string) { byteArray.toKString(start, start + size) }
@@ -232,15 +232,14 @@ fun <T: Any> checkOutOfBoundsZeroTerminatedUtf8to16(e: KClass<T>, string: String
 }
 
 
-// util for performing action on result of UTF-8 -> UTF-16 conversion
+// Util for performing action on result of UTF-8 to UTF-16 conversion.
 fun convertUtf8to16(byteArray: ByteArray, action: (String) -> Unit) {
     byteArray.stringFromUtf8().let { action(it) }
     byteArray.decodeToString().let { action(it) }
     byteArray.toKString().let { action(it) }
 }
-// endregion
 
-// region UTF-16 -> UTF-8 conversion
+// ------------------------- Test UTF-16 to UTF-8 conversion -------------------------
 fun test16to8() {
     // Valid strings.
     checkValidUtf16to8("Hello", intArrayOf('H'.toInt(), 'e'.toInt(), 'l'.toInt(), 'l'.toInt(), 'o'.toInt()))
@@ -353,14 +352,13 @@ fun testPrint() {
 
     // https://github.com/JetBrains/kotlin-native/issues/1091
     val array = byteArrayOf(0xF0.toByte(), 0x9F.toByte(), 0x98.toByte(), 0xA5.toByte())
-    convertUtf8to16(array) { badStr ->
-        assertEquals(2, badStr.length)
-        println(badStr)
+    convertUtf8to16(array) { badString ->
+        assertEquals(2, badString.length)
+        println(badString)
     }
 }
-// endregion
 
-// region UTF-8 -> UTF-16 conversion
+// ------------------------- Test UTF-8 to UTF-16 conversion -------------------------
 fun test8to16() {
     // Valid strings.
     checkValidUtf8to16("Hello", intArrayOf('H'.toInt(), 'e'.toInt(), 'l'.toInt(), 'l'.toInt(), 'o'.toInt()))
@@ -436,9 +434,8 @@ fun test8to16CustomBorders() {
     checkUtf8to16Throws("\uFFFD2", intArrayOf('1'.toInt(), -16, -97, -104, '2'.toInt(), '3'.toInt()), 1, 4)
     checkUtf8to16Throws("2\uFFFD", intArrayOf('1'.toInt(), '2'.toInt(), -16, -97, -104),  1, 4)
 }
-// endregion
 
-// region zero-terminated UTF-8 -> UTF-16 conversion
+// ----------------- Test zero-terminated UTF-8 to UTF-16 conversion -----------------
 fun testZeroTerminated8To16() {
     // Valid strings.
     checkValidZeroTerminatedUtf8to16("Hell", intArrayOf('H'.toInt(), 'e'.toInt(), 'l'.toInt(), 'l'.toInt(), 0, 'o'.toInt()))
@@ -483,8 +480,8 @@ fun testZeroTerminated8To16CustomBorders() {
     checkOutOfBoundsZeroTerminatedUtf8to16(IndexOutOfBoundsException::class, "aaa0bbb0", byteArray, 10, 0)
     checkOutOfBoundsZeroTerminatedUtf8to16(IllegalArgumentException::class, "aaa0bbb0", byteArray, 3, -2)
 }
-// endregion
 
+// ------------------------------------ Run tests ------------------------------------
 @Test fun runTest() {
     test16to8()
     test16to8CustomBorders()
