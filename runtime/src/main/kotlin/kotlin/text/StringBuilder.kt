@@ -53,12 +53,12 @@ actual class StringBuilder private constructor (
 
     actual override fun subSequence(startIndex: Int, endIndex: Int): CharSequence = substring(startIndex, endIndex)
 
-    override fun toString(): String = unsafeFromCharArray(array, 0, _length)
+    override fun toString(): String = unsafeStringFromCharArray(array, 0, _length)
 
     fun substring(startIndex: Int, endIndex: Int): String {
         checkInsertIndex(startIndex)
         checkInsertIndexFrom(endIndex, startIndex)
-        return unsafeFromCharArray(array, startIndex, endIndex - startIndex)
+        return unsafeStringFromCharArray(array, startIndex, endIndex - startIndex)
     }
 
     fun trimToSize() {

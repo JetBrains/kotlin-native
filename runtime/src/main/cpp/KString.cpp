@@ -788,7 +788,7 @@ OBJ_GETTER(Kotlin_String_toLowerCase, KString thiz) {
   RETURN_OBJ(result->obj());
 }
 
-OBJ_GETTER(Kotlin_String_unsafeFromCharArray, KConstRef thiz, KInt start, KInt size) {
+OBJ_GETTER(Kotlin_String_unsafeStringFromCharArray, KConstRef thiz, KInt start, KInt size) {
   const ArrayHeader* array = thiz->array();
   RuntimeAssert(array->type_info() == theCharArrayTypeInfo, "Must use a char array");
 
@@ -894,11 +894,11 @@ OBJ_GETTER(Kotlin_ByteArray_unsafeStringFromUtf8, KConstRef thiz, KInt start, KI
   RETURN_RESULT_OF(utf8ToUtf16, rawString, size);
 }
 
-OBJ_GETTER(Kotlin_String_unsafeToUtf8, KString thiz, KInt start, KInt size) {
+OBJ_GETTER(Kotlin_String_unsafeStringToUtf8, KString thiz, KInt start, KInt size) {
   RETURN_RESULT_OF(unsafeUtf16ToUtf8Impl<utf8::with_replacement::utf16to8>, thiz, start, size);
 }
 
-OBJ_GETTER(Kotlin_String_unsafeToUtf8OrThrow, KString thiz, KInt start, KInt size) {
+OBJ_GETTER(Kotlin_String_unsafeStringToUtf8OrThrow, KString thiz, KInt start, KInt size) {
   RETURN_RESULT_OF(unsafeUtf16ToUtf8Impl<utf16toUtf8OrThrow>, thiz, start, size);
 }
 

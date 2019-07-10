@@ -75,7 +75,7 @@ public fun String.toUtf8() : ByteArray {
 @Deprecated("Use encodeToByteArray instead", ReplaceWith("encodeToByteArray(start, start + size)"))
 public fun String.toUtf8(start: Int = 0, size: Int = this.length) : ByteArray {
     checkBoundsIndexes(start, start + size, this.length)
-    return unsafeToUtf8Impl(start, size)
+    return unsafeStringToUtf8(start, size)
 }
 
 /**
@@ -96,7 +96,7 @@ public fun String.toUtf8OrThrow() : ByteArray {
 public fun String.toUtf8OrThrow(start: Int = 0, size: Int = this.length) : ByteArray {
     checkBoundsIndexes(start, start + size, this.length)
     try {
-        return unsafeToUtf8OrThrowImpl(start, size)
+        return unsafeStringToUtf8OrThrow(start, size)
     } catch (e: CharacterCodingException) {
         @Suppress("DEPRECATION")
         throw IllegalCharacterConversionException()
@@ -113,19 +113,19 @@ internal fun checkBoundsIndexes(startIndex: Int, endIndex: Int, size: Int) {
 }
 
 @SymbolName("Kotlin_ByteArray_unsafeStringFromUtf8")
-internal external fun ByteArray.unsafeStringFromUtf8Impl(start: Int, size: Int) : String
+internal external fun ByteArray.unsafeStringFromUtf8(start: Int, size: Int) : String
 
 @SymbolName("Kotlin_ByteArray_unsafeStringFromUtf8OrThrow")
-internal external fun ByteArray.unsafeStringFromUtf8OrThrowImpl(start: Int, size: Int) : String
+internal external fun ByteArray.unsafeStringFromUtf8OrThrow(start: Int, size: Int) : String
 
-@SymbolName("Kotlin_String_unsafeToUtf8")
-internal external fun String.unsafeToUtf8Impl(start: Int, size: Int) : ByteArray
+@SymbolName("Kotlin_String_unsafeStringToUtf8")
+internal external fun String.unsafeStringToUtf8(start: Int, size: Int) : ByteArray
 
-@SymbolName("Kotlin_String_unsafeToUtf8OrThrow")
-internal external fun String.unsafeToUtf8OrThrowImpl(start: Int, size: Int) : ByteArray
+@SymbolName("Kotlin_String_unsafeStringToUtf8OrThrow")
+internal external fun String.unsafeStringToUtf8OrThrow(start: Int, size: Int) : ByteArray
 
-@SymbolName("Kotlin_String_unsafeFromCharArray")
-internal external fun unsafeFromCharArray(array: CharArray, start: Int, size: Int) : String
+@SymbolName("Kotlin_String_unsafeStringFromCharArray")
+internal external fun unsafeStringFromCharArray(array: CharArray, start: Int, size: Int) : String
 
 @SymbolName("Kotlin_StringBuilder_insertString")
 internal external fun insertString(array: CharArray, start: Int, value: String): Int
