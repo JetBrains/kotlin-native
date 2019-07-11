@@ -1831,12 +1831,12 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         if (codegen.isExternal(this) || !context.shouldContainDebugInfo())
             return null
         val functionLlvmValue = codegen.llvmFunctionOrNull(this)
-        return if (functionLlvmValue != null) {
+        return if (functionLlvmValue != null && !isInline) {
             context.debugInfo.subprograms.getOrPut(functionLlvmValue) {
                 memScoped {
                     val subroutineType = subroutineType(context, codegen.llvmTargetData)
                     val functionLlvmValue = codegen.llvmFunction(this@scope)
-                    diFunctionScope(name.asString(), functionLlvmValue.name!!, startLine, subroutineType).also {
+                    diFunctionScope(name.asString(), functionLlvmValue.name!!, startLine, subroutineType, 0).also {
                         DIFunctionAddSubprogram(functionLlvmValue, it)
                     }
                 }
@@ -1845,7 +1845,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             context.debugInfo.inlinedSubprograms.getOrPut(this) {
                 memScoped {
                     val subroutineType = subroutineType(context, codegen.llvmTargetData)
-                    diFunctionScope(name.asString(), "<inlined-out:$name>", startLine, subroutineType)
+                    diFunctionScope(name.asString(), null, startLine, subroutineType, 1.shl(8))
                 }
             } as DIScopeOpaqueRef
         }
@@ -1855,14 +1855,14 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     @Suppress("UNCHECKED_CAST")
     private fun LLVMValueRef.scope(startLine:Int, subroutineType: DISubroutineTypeRef): DIScopeOpaqueRef? {
         return context.debugInfo.subprograms.getOrPut(this) {
-            diFunctionScope(name!!, name!!, startLine, subroutineType).also {
+            diFunctionScope(name!!, name!!, startLine, subroutineType, 0).also {
                 DIFunctionAddSubprogram(this@scope, it)
             }
         }  as DIScopeOpaqueRef
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun diFunctionScope(name: String, linkageName: String, startLine: Int, subroutineType: DISubroutineTypeRef) = DICreateFunction(
+    private fun diFunctionScope(name: String, linkageName: String?, startLine: Int, subroutineType: DISubroutineTypeRef, flags:Int) = DICreateFunction(
                 builder = context.debugInfo.builder,
                 scope = (currentCodeContext.fileScope() as FileScope).file.file() as DIScopeOpaqueRef,
                 name = name,
@@ -1873,7 +1873,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 //TODO: need more investigations.
                 isLocal = 0,
                 isDefinition = 1,
-                scopeLine = 0)!!
+                scopeLine = 0,
+                flags = flags)!!
 
     //-------------------------------------------------------------------------//
 

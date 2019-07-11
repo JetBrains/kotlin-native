@@ -88,7 +88,7 @@ DISubprogramRef DICreateFunction(DIBuilderRef builder, DIScopeOpaqueRef scope,
                                  const char* name, const char *linkageName,
                                  DIFileRef file, unsigned lineNo,
                                  DISubroutineTypeRef type, int isLocal,
-                                 int isDefinition, unsigned scopeLine) {
+                                 int isDefinition, unsigned scopeLine, uint32_t flags) {
   return llvm::wrap(llvm::unwrap(builder)->createFunction(llvm::unwrap(scope),
                                                           name,
                                                           linkageName,
@@ -97,7 +97,7 @@ DISubprogramRef DICreateFunction(DIBuilderRef builder, DIScopeOpaqueRef scope,
                                                           llvm::unwrap(type),
                                                           isLocal,
                                                           isDefinition,
-                                                          scopeLine));
+                                                          scopeLine, static_cast<llvm::DINode::DIFlags>(flags)));
 }
 
 DIScopeOpaqueRef DICreateLexicalBlockFile(DIBuilderRef builderRef, DIScopeOpaqueRef scopeRef, DIFileRef fileRef) {
