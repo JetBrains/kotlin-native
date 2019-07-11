@@ -6,8 +6,10 @@ task clean {
     }
 }
 
-task build {
-    dependsOn "kliopt:build"
+task jvmJar {
+    defaultLibrariesList.each { library ->
+        dependsOn "$library:jvmJar"
+    }
 }
 
 // Build all default libraries.

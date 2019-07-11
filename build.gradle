@@ -239,7 +239,7 @@ task distCompiler(type: Copy) {
     dependsOn ':utilities:jar'
     dependsOn ':klib:jar'
     dependsOn ':sharedJar'
-    dependsOn ':defaultLibraries:build'
+    dependsOn ':defaultLibraries:jvmJar'
 
     destinationDir distDir
 
