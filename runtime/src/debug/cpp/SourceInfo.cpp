@@ -40,11 +40,18 @@ typedef struct _CSRange {
 
 typedef unsigned long long CSArchitecture;
 
-#define kCSNow LONG_MAX
+/**
+ * see https://github.com/mountainstorm/CoreSymbolication/issues/2
+ */
+#define kCSNow 0x80000000
 
 namespace {
 
 CSSymbolicatorRef (*CSSymbolicatorCreateWithPid)(pid_t pid);
+
+CSSymbolicatorRef (*CSSymbolicatorCreateWithPidFlagsAndNotification)(pid_t pid, uint32_t flags, uint32_t unused);
+uint32_t (*CSSymbolicatorGetFlagsForDsymOnlyData)(void);
+uint32_t (*CSSymbolicatorGetFlagsForDwarfOnlyData)(void);
 
 CSSymbolOwnerRef (*CSSymbolicatorGetSymbolOwnerWithAddressAtTime)(
     CSSymbolicatorRef symbolicator,
@@ -76,6 +83,9 @@ bool TryInitializeCoreSymbolication() {
 #define KONAN_CS_LOOKUP(name) name = (decltype(name)) dlsym(cs, #name); if (!name) return false;
 
   KONAN_CS_LOOKUP(CSSymbolicatorCreateWithPid)
+  KONAN_CS_LOOKUP(CSSymbolicatorCreateWithPidFlagsAndNotification)
+  KONAN_CS_LOOKUP(CSSymbolicatorGetFlagsForDsymOnlyData)
+  KONAN_CS_LOOKUP(CSSymbolicatorGetFlagsForDwarfOnlyData)
   KONAN_CS_LOOKUP(CSSymbolicatorGetSymbolOwnerWithAddressAtTime)
   KONAN_CS_LOOKUP(CSSymbolOwnerGetSourceInfoWithAddress)
   KONAN_CS_LOOKUP(CSSourceInfoGetPath)
@@ -84,8 +94,10 @@ bool TryInitializeCoreSymbolication() {
   KONAN_CS_LOOKUP(CSIsNull)
 
 #undef KONAN_CS_LOOKUP
-
-  symbolicator = CSSymbolicatorCreateWithPid(getpid());
+  uint32_t flags = CSSymbolicatorGetFlagsForDsymOnlyData();
+  symbolicator = CSSymbolicatorCreateWithPidFlagsAndNotification(getpid(), flags, 0);
+  //symbolicator = CSSymbolicatorCreateWithPid(getpid());
+  
   return !CSIsNull(symbolicator);
 }
 
