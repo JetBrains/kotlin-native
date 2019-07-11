@@ -221,7 +221,7 @@ public actual fun CharSequence.repeat(n: Int): String {
 /**
  * Converts the characters in the specified array to a string.
  */
-public actual fun String(chars: CharArray): String = unsafeStringFromCharArray(chars, 0, chars.size)
+public actual fun String(chars: CharArray): String = chars.concatToString()
 
 /**
  * Converts the characters from a portion of the specified array to a string.
