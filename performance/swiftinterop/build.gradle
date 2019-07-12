@@ -39,7 +39,7 @@ kotlin {
             }
             kotlin.srcDir "src"
             kotlin.srcDir "../shared/src/main/kotlin"
-            kotlin.srcDir "$toolsPath/kliopt"
+            kotlin.srcDir "$rootProject.projectDir/defaultLibraries/kliopt/src/main"
             kotlin.srcDir "$toolsPath/benchmarks/shared/src"
         }
         macosMain {

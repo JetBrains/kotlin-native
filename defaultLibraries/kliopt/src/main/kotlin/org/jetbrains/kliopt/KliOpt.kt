@@ -139,7 +139,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     /**
      * Get value of option/argument by name.
      */
-    operator fun get(key: String): ArgumentValue<*> =
+    operator fun <T : Any> get(key: String): T =
         options[key]?.argumentValue ?: arguments[key]?.argumentValue ?:
         printError("There is no option or argument with name $key")
 
