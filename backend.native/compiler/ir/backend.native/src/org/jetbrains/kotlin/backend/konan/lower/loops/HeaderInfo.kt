@@ -8,6 +8,7 @@ import org.jetbrains.kotlin.ir.declarations.IrValueDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
+import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
@@ -65,7 +66,25 @@ internal interface HeaderInfoHandler<T> {
         null
     }
 }
-internal typealias ProgressionHandler = HeaderInfoHandler<ProgressionType>
+
+internal interface ProgressionHandler : HeaderInfoHandler<ProgressionType> {
+    override fun handle(irCall: IrCall, data: ProgressionType): HeaderInfo? {
+        return if (matcher(irCall)) {
+            build(irCall, data)
+        } else {
+            val receiver = (irCall.dispatchReceiver ?: return null) as? IrGetValue
+                    ?: return null
+            if (receiver.symbol.owner !is IrVariable) return null
+            val variable = receiver.symbol.owner as IrVariable
+            val initializer = variable.initializer
+            return if (initializer is IrCall && matcher(initializer)) {
+                build(irCall, data)
+            } else {
+                null
+            }
+        }
+    }
+}
 
 // We need to wrap builder into visitor because of `StepHandler` which has to visit it's subtree
 // to get information about underlying progression.
