@@ -36,6 +36,8 @@ cross-compilation targets.  `Kotlin/Native` distribution provides access to
 `OpenGL`, `zlib` and other popular native libraries on
 applicable platforms.
 
+> Note : Some libraries are not included with Kotlin on all operating systems, for example OpenGL is not available directly with Kotlin on Windows.
+
 On Apple platforms `objc` library is provided for interoperability with [Objective-C](https://en.wikipedia.org/wiki/Objective-C).
 
 Inspect the contents of `dist/klib/platform/$target` of the distribution for the details.
