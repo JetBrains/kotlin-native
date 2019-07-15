@@ -391,16 +391,15 @@ fun generateJs(interfaces: List<Interface>): String =
 const val idlMathPackage = "kotlinx.interop.wasm.math"
 const val idlDomPackage = "kotlinx.interop.wasm.dom"
 
-fun processIdlLib(args: Array<String>, additionalArgs: Map<String, Any> = mapOf()): Array<String>? {
+fun processIdlLib(args: Array<String>, additionalArgs: Map<String, Any> = mapOf()): Array<String> {
     val jsInteropArguments = JSInteropArguments()
-    if (!jsInteropArguments.argParser.parse(args))
-        return null
+    jsInteropArguments.argParser.parse(args)
     // TODO: Refactor me.
     val ktGenRoot = File(jsInteropArguments.generated).mkdirs()
     val nativeLibsDir = File(jsInteropArguments.natives).mkdirs()
 
     val idl = when (jsInteropArguments.pkg) {
-        idlMathPackage-> idlMath
+        idlMathPackage -> idlMath
         idlDomPackage -> idlDom
         else -> throw IllegalArgumentException("Please choose either $idlMathPackage or $idlDomPackage for -pkg argument")
     }

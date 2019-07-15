@@ -158,10 +158,9 @@ private fun findFilesByGlobs(roots: List<Path>, globs: List<String>): Map<Path, 
 }
 
 
-private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = mapOf()): Array<String>? {
+private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = mapOf()): Array<String> {
     val cinteropArguments = CInteropArguments()
-    if (!cinteropArguments.argParser.parse(args))
-        return null
+    cinteropArguments.argParser.parse(args)
     val ktGenRoot = cinteropArguments.generated
     val nativeLibsDir = cinteropArguments.natives
     val flavorName = cinteropArguments.flavor

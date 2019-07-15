@@ -9,7 +9,7 @@ plugins {
 
 benchmark {
     applicationName = "Ring"
-    commonSrcDirs = listOf("../../tools/benchmarks/shared/src", "src/main/kotlin", "../shared/src/main/kotlin", "../../defaultLibraries/kliopt/src/main")
-    jvmSrcDirs = listOf("src/main/kotlin-jvm", "../shared/src/main/kotlin-jvm")
-    nativeSrcDirs = listOf("src/main/kotlin-native", "../shared/src/main/kotlin-native")
+    commonSrcDirs = listOf("../../tools/benchmarks/shared/src", "src/main/kotlin", "../shared/src/main/kotlin", "../../defaultLibraries/kliopt/src/main/kotlin")
+    jvmSrcDirs = listOf("src/main/kotlin-jvm", "../shared/src/main/kotlin-jvm", "../../defaultLibraries/kliopt/src/main/kotlin-jvm")
+    nativeSrcDirs = listOf("src/main/kotlin-native", "../shared/src/main/kotlin-native", "../../defaultLibraries/kliopt/src/main/kotlin-native")
 }

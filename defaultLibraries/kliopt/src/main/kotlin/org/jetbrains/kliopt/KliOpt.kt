@@ -7,6 +7,8 @@ package org.jetbrains.kliopt
 
 import kotlin.reflect.KProperty
 
+internal expect fun exitProcess(status: Int): Nothing
+
 /**
  * Queue of arguments descriptors.
  * Arguments can have several values, so one descriptor can be returned several times.
@@ -77,6 +79,14 @@ abstract class Descriptor<T : Any>(val type: ArgType<T>,
 }
 
 /**
+ * Argument parsing result.
+ * Contains name of subcommand which was called.
+ *
+ * @property commandName name of command which was called.
+ */
+class ArgParserResult(val commandName: String)
+
+/**
  * Arguments parser.
  *
  * @property programName name of current program.
@@ -135,13 +145,6 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      * JVM - JVM style, both for full and short forms of options "-"
      */
     enum class OPTION_PREFIX_STYLE { LINUX, JVM }
-
-    /**
-     * Get value of option/argument by name.
-     */
-    operator fun <T : Any> get(key: String): T =
-        options[key]?.argumentValue ?: arguments[key]?.argumentValue ?:
-        printError("There is no option or argument with name $key")
 
     /**
      * Option descriptor.
@@ -753,7 +756,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      *
      * @return true if all arguments were parsed successfully, otherwise return false and print help message.
      */
-    fun parse(args: Array<String>): Boolean {
+    fun parse(args: Array<String>): ArgParserResult {
         // Add help option.
         val helpDescriptor = if (useDefaultHelpShortName) OptionDescriptor(ArgType.Boolean,
                 "help", "h", "Usage info")
@@ -778,10 +781,10 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             subcommands.forEach { (name, subcommand) ->
                 if (arg == name) {
                     // Use parser for this subcommand.
-                    val parseResult = subcommand.parse(args.slice(index + 1..args.size - 1).toTypedArray())
-                    if (parseResult)
-                        subcommand.execute()
-                    return true
+                    subcommand.parse(args.slice(index + 1..args.size - 1).toTypedArray())
+                    subcommand.execute()
+
+                    return ArgParserResult(name)
                 }
             }
             // Parse argumnets from command line.
@@ -802,7 +805,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                         // Boolean flags.
                         if (argValue.descriptor.fullName == "help") {
                             println(makeUsage())
-                            return false
+                            exitProcess(0)
                         }
                         saveAsOption(argValue, "true")
                     }
@@ -828,7 +831,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                 value.addDefaultValue()
             }
         }
-        return true
+        return ArgParserResult(programName)
     }
 
     /**

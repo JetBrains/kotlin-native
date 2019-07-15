@@ -49,6 +49,7 @@ kotlin {
             dependencies {
                 implementation kotlin('stdlib-jdk8')
             }
+            kotlin.srcDir 'src/main/kotlin-jvm'
         }
         // JVM-specific tests and their dependencies:
         jvm().compilations.test.defaultSourceSet {
@@ -66,7 +67,8 @@ kotlin {
     }
 }
 
-def commonSrc = new File("$projectDir/src/main")
+def commonSrc = new File("$projectDir/src/main/kotlin")
+def nativeSrc = new File("$projectDir/src/main/kotlin-native")
 
 targetList.each { target ->
     def konanJvmArgs =  [*HostManager.regularJvmArgs,
@@ -95,7 +97,8 @@ targetList.each { target ->
                 '-Xallow-result-return-type',
                 commonSrc.absolutePath,
                 "-Xcommon-sources=${commonSrc.absolutePath}",
-                commonSrc]
+                nativeSrc]
+        inputs.dir(nativeSrc)
         inputs.dir(commonSrc)
         outputs.dir(project.file("build/${target}Kliopt"))
     }

@@ -94,8 +94,23 @@ abstract class Launcher {
     }
 }
 
+abstract class BenchmarkArguments(argParser: ArgParser)
+
+class BaseBenchmarkArguments(argParser: ArgParser): BenchmarkArguments(argParser) {
+    val warmup by argParser.option(ArgType.Int, shortName = "w", description = "Number of warm up iterations",
+            defaultValue = 20)
+    val repeat by argParser.option(ArgType.Int, shortName = "r", description = "Number of each benchmark run",
+            defaultValue = 60)
+    val prefix by argParser.option(ArgType.String, shortName = "p", description = "Prefix added to benchmark name",
+            defaultValue = "")
+    val output by argParser.option(ArgType.String, shortName = "o", description = "Output file")
+    val filter by argParser.options(ArgType.String, shortName = "f", description = "Benchmark to run", multiple = true)
+    val filterRegex by argParser.options(ArgType.String, shortName = "fr",
+            description = "Benchmark to run, described by a regular expression", multiple = true)
+}
+
 object BenchmarksRunner {
-    fun parse(args: Array<String>, benchmarksListAction: ()->Unit): ArgParser? {
+    fun parse(args: Array<String>, benchmarksListAction: ()->Unit): BenchmarkArguments? {
         class List: Subcommand("list") {
             override fun execute() {
                 benchmarksListAction()
@@ -105,28 +120,25 @@ object BenchmarksRunner {
         // Parse args.
         val argParser = ArgParser("benchmark")
         argParser.subcommands(List())
-        argParser.option(ArgType.Int, "warmup", "w", "Number of warm up iterations", 20)
-        argParser.option(ArgType.Int, "repeat", "r",  "Number of each benchmark run", 60)
-        argParser.option(ArgType.String, "prefix", "p", "Prefix added to benchmark name", "")
-        argParser.option(ArgType.String, "output", "o", "Output file")
-        argParser.option(ArgType.String, "filter", "f", "Benchmark to run", multiple = true)
-        argParser.option(ArgType.String, "filterRegex", "fr", "Benchmark to run, described by a regular expression", multiple = true)
-        return if (argParser.parse(args)) argParser else null
+        val argumentsValues = BaseBenchmarkArguments(argParser)
+        return if (argParser.parse(args).commandName == "benchmark") argumentsValues else null
     }
 
-    fun collect(results: List<BenchmarkResult>, parser: ArgParser) {
-        JsonReportCreator(results).printJsonReport(parser.get<String>("output"))
+    fun collect(results: List<BenchmarkResult>, arguments: BenchmarkArguments) {
+        if (arguments is BaseBenchmarkArguments) {
+            JsonReportCreator(results).printJsonReport(arguments.output)
+        }
     }
 
     fun runBenchmarks(args: Array<String>,
-                      run: (parser: ArgParser) -> List<BenchmarkResult>,
-                      parseArgs: (args: Array<String>, benchmarksListAction: ()->Unit) -> ArgParser? = this::parse,
-                      collect: (results: List<BenchmarkResult>, parser: ArgParser) -> Unit = this::collect,
+                      run: (parser: BenchmarkArguments) -> List<BenchmarkResult>,
+                      parseArgs: (args: Array<String>, benchmarksListAction: ()->Unit) -> BenchmarkArguments? = this::parse,
+                      collect: (results: List<BenchmarkResult>, arguments: BenchmarkArguments) -> Unit = this::collect,
                       benchmarksListAction: ()->Unit) {
-        val parser = parseArgs(args, benchmarksListAction)
-        parser?.let {
-            val results = run(parser)
-            collect(results, parser)
+        val arguments = parseArgs(args, benchmarksListAction)
+        arguments?.let {
+            val results = run(arguments)
+            collect(results, arguments)
         }
     }
 }

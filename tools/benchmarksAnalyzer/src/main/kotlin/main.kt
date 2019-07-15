@@ -175,7 +175,7 @@ fun main(args: Array<String>) {
         shortName = "r", description = "Renders for showing information", defaultValue = listOf("text"), multiple = true)
     val user by argParser.option(ArgType.String, shortName = "u", description = "User access information for authorization")
 
-    if (argParser.parse(args)) {
+    if (argParser.parse(args).commandName == "benchmarksAnalyzer") {
         // Read contents of file.
         val mainBenchsReport = getBenchmarkReport(mainReport!!, user)
         var compareToBenchsReport = compareToReport?.let {
