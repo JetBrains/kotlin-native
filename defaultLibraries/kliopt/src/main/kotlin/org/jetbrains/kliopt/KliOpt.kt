@@ -128,6 +128,11 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     protected val optionShortFromPrefix = "-"
 
     /**
+     * Name with all commands that should be executed.
+     */
+    protected val fullCommandName = mutableListOf<String>(programName)
+
+    /**
      * Origin of option/argument value.
      *
      * Possible values:
@@ -492,6 +497,9 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             // Set same settings as main parser.
             it.prefixStyle = prefixStyle
             it.useDefaultHelpShortName = useDefaultHelpShortName
+            fullCommandName.forEachIndexed { index, namePart ->
+                it.fullCommandName.add(index, namePart)
+            }
             subcommands[it.name] = it
         }
     }
@@ -837,9 +845,9 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     /**
      * Create message with usage description.
      */
-    private fun makeUsage(): String {
+    internal fun makeUsage(): String {
         val result = StringBuilder()
-        result.append("Usage: $programName options_list\n")
+        result.append("Usage: ${fullCommandName.joinToString(" ")} options_list\n")
         if (!arguments.isEmpty()) {
             result.append("Arguments: \n")
             arguments.forEach {

@@ -102,10 +102,10 @@ open class BuildRegister : DefaultTask() {
         val target = System.getProperty("os.name").replace("\\s".toRegex(), "")
 
         // Get summary information.
-        val output = arrayOf("$analyzer", "summary", "-exec-samples", "all", "-compile", "samples",
-                "-compile-samples", "HelloWorld,Videoplayer", "-codesize-samples", "all",
-                "-exec-normalize", "bintray:goldenResults.csv",
-                "-codesize-normalize", "bintray:goldenResults.csv", "$currentBenchmarksReportFile")
+        val output = arrayOf("$analyzer", "summary", "--exec-samples", "all", "--compile", "samples",
+                "--compile-samples", "HelloWorld,Videoplayer", "--codesize-samples", "all",
+                "--exec-normalize", "bintray:goldenResults.csv",
+                "--codesize-normalize", "bintray:goldenResults.csv", "$currentBenchmarksReportFile")
                 .runCommand()
 
         // Postprocess information.
