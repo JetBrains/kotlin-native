@@ -72,10 +72,12 @@ internal interface ProgressionHandler : HeaderInfoHandler<ProgressionType> {
         return if (matcher(irCall)) {
             build(irCall, data)
         } else {
+            // Support cases where we trying to call `iterator` on variable of progression type.
             val receiver = (irCall.dispatchReceiver ?: return null) as? IrGetValue
                     ?: return null
             if (receiver.symbol.owner !is IrVariable) return null
             val variable = receiver.symbol.owner as IrVariable
+            if (variable.isVar) return null
             val initializer = variable.initializer
             return if (initializer is IrCall && matcher(initializer)) {
                 build(irCall, data)
