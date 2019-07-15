@@ -56,7 +56,7 @@ dependencies {
         update_tests files(Paths.get(project.property("kotlinProjectPath").toString(), "dist", "kotlin-test-data.zip").toFile())
         update_stdlib_tests files(Paths.get(project.property("kotlinProjectPath").toString(), "dist", "kotlin-stdlib-tests.zip").toFile())
     } else {
-        update_tests(group: 'org', name: 'Kotlin_dev_Compiler', version: testKotlinCompilerVersion) {
+        update_tests(group: 'org', name: 'Kotlin_1350_Compiler', version: testKotlinCompilerVersion) {
             artifact {
                 name = 'internal/kotlin-test-data'
                 type = 'zip'
