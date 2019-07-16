@@ -13,7 +13,7 @@ import org.jetbrains.kotlin.library.toUnresolvedLibraries
 import org.jetbrains.kotlin.native.interop.tool.*
 
 // TODO: this function should eventually be eliminated from 'utilities'. 
-// The interaction of interop and the compler should be streamlined.
+// The interaction of interop and the compiler should be streamlined.
 
 fun invokeInterop(flavor: String, args: Array<String>): Array<String> {
     val arguments = if (flavor == "native") CInteropArguments() else JSInteropArguments()

@@ -239,7 +239,7 @@ task distCompiler(type: Copy) {
     dependsOn ':utilities:jar'
     dependsOn ':klib:jar'
     dependsOn ':sharedJar'
-    dependsOn ':defaultLibraries:jvmJar'
+    dependsOn ':endorsedLibraries:jvmJar'
 
     destinationDir distDir
 
@@ -299,7 +299,7 @@ task distCompiler(type: Copy) {
         into('konan/lib')
     }
 
-    from(project(':defaultLibraries:kliopt').file('build/libs')) {
+    from(project(':endorsedLibraries:kliopt').file('build/libs')) {
         into('konan/lib')
     }
 
@@ -341,13 +341,13 @@ task distRuntime(type: Copy) {
     dependsOn('commonDistRuntime')
 }
 
-task distDefaultLibraries {
-    dependsOn "${hostName}CrossDistDefaultLibraries"
+task distEndorsedLibraries {
+    dependsOn "${hostName}CrossDistEndorsedLibraries"
 }
 
 def stdlib = 'klib/common/stdlib'
-def defaultLibs = 'klib/common/defaultLibraries'
-def defaultLibsBase = 'klib/common'
+def endorsedLibs = 'klib/common/endorsedLibraries'
+def endorsedLibsBase = 'klib/common'
 
 task commonDistRuntime(type: Copy) {
     destinationDir distDir
@@ -364,8 +364,8 @@ task crossDistRuntime(type: Copy) {
     dependsOn('commonDistRuntime')
 }
 
-task crossDistDefaultLibraries(type: Copy) {
-    dependsOn.addAll(targetList.collect { "${it}CrossDistDefaultLibraries" })
+task crossDistEndorsedLibraries(type: Copy) {
+    dependsOn.addAll(targetList.collect { "${it}CrossDistEndorsedLibraries" })
 }
 
 task crossDistPlatformLibs {
@@ -406,16 +406,16 @@ targetList.each { target ->
     }
 
     task("${target}CrossDist") {
-        dependsOn "${target}CrossDistRuntime", 'distCompiler', 'commonDistRuntime', "${target}CrossDistDefaultLibraries"
+        dependsOn "${target}CrossDistRuntime", 'distCompiler', 'commonDistRuntime', "${target}CrossDistEndorsedLibraries"
     }
 
-    task("${target}CrossDistDefaultLibraries", type: Copy) {
-        dependsOn ":defaultLibraries:${target}DefaultLibraries"
+    task("${target}CrossDistEndorsedLibraries", type: Copy) {
+        dependsOn ":endorsedLibraries:${target}EndorsedLibraries"
 
         destinationDir distDir
-        from(project(':defaultLibraries').file("build")) {
+        from(project(':endorsedLibraries').file("build")) {
             include('**')
-            into("$defaultLibsBase")
+            into("$endorsedLibsBase")
         }
     }
 }
@@ -425,11 +425,11 @@ task distPlatformLibs {
 }
 
 task dist {
-    dependsOn 'distCompiler', 'distRuntime', 'distDefaultLibraries'
+    dependsOn 'distCompiler', 'distRuntime', 'distEndorsedLibraries'
 }
 
 task crossDist {
-    dependsOn 'crossDistRuntime', 'distCompiler', 'crossDistDefaultLibraries'
+    dependsOn 'crossDistRuntime', 'distCompiler', 'crossDistEndorsedLibraries'
 }
 
 task bundle(type: (isWindows()) ? Zip : Tar) {

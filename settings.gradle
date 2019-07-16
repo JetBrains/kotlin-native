@@ -43,8 +43,8 @@ if (System.getProperty("os.name") == "Mac OS X") {
 }
 
 include ':platformLibs'
-include ':defaultLibraries'
-include ':defaultLibraries:kliopt'
+include ':endorsedLibraries'
+include ':endorsedLibraries:kliopt'
 
 if (hasProperty("kotlinProjectPath")) {
     include ':runtime:generator'
