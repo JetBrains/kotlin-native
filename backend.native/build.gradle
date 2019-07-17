@@ -191,6 +191,9 @@ targetList.each { target ->
             "-Dkonan.home=${rootProject.projectDir}/dist",
             "-Djava.library.path=${project.buildDir}/nativelibs/$hostName",
     ]
+    if (project.hasProperty("appCds")) {
+        konanJvmArgs += appCds.useArchiveArgs
+    }
 
     def defaultArgs = ['-nopack', '-nostdlib', '-nodefaultlibs']
     if (target != "wasm32") defaultArgs += '-g'

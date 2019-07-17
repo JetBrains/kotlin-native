@@ -91,6 +91,7 @@ allprojects {
     loadCommandLineProperties()
     loadLocalProperties()
     setupClang(project)
+    setupAppCDS()
 }
 
 void setupHostAndTarget() {
@@ -161,6 +162,14 @@ void loadCommandLineProperties() {
     ext.globalBuildArgs = project.hasProperty("build_flags") ? ext.build_flags.split() : []
     ext.globalTestArgs = project.hasProperty("test_flags") ? ext.test_flags.split() : []
     ext.testTarget = project.hasProperty("test_target") ? ext.test_target : null
+}
+
+void setupAppCDS() {
+    if (JavaVersion.current().isJava11Compatible()) {
+        if (System.getProperty("java.vm.name").contains("HotSpot")) {
+            ext.appCds = new org.jetbrains.kotlin.AppCDS(project)
+        }
+    }
 }
 
 configurations {
@@ -388,6 +397,12 @@ task distPlatformLibs {
 
 task dist {
     dependsOn 'distCompiler', 'distRuntime'
+    if (project.hasProperty("appCds")) {
+        def dumpTask = appCds.dumpArchiveTask()
+        dumpTask.dependsOn('distCompiler')
+        dependsOn(dumpTask)
+        project.tasks.getByName('distRuntime').dependsOn(dumpTask)
+    }
 }
 
 task crossDist {

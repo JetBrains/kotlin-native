@@ -64,6 +64,10 @@ KONAN_HOME="$(findHome)"
 
 NATIVE_LIB="${KONAN_HOME}/konan/nativelib"
 
+if [ -f "${KONAN_HOME}/tools/appcds_archive" ]; then
+    JAVA_OPTS="-Xshare:auto -XX:+UnlockDiagnosticVMOptions -XX:SharedArchiveFile=${KONAN_HOME}/tools/appcds_archive ${JAVA_OPTS}"
+fi
+
 java_opts=(-ea \
             -Xmx3G \
             -XX:TieredStopAtLevel=1 \
