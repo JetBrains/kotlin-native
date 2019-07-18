@@ -61,7 +61,7 @@ open class Command(initialCommand: List<String>) {
 
     open fun execute() {
         log()
-
+        println("BBBBBB ${command.joinToString(" ")}")
         val code = runProcess()
         handleExitCode(code)
     }

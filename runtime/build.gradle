@@ -3,6 +3,7 @@
  * that can be found in the LICENSE file.
  */
 import org.jetbrains.kotlin.CompileCppToBitcode
+import org.jetbrains.kotlin.CompileCToBitcode
 
 // TODO: consider using some Gradle plugins to build and test
 
@@ -27,7 +28,12 @@ targetList.each { targetName ->
         target targetName
         includeRuntime(delegate)
         linkerArgs project.file("../common/build/$targetName/hash.bc").path
+        includeCSources true
+        cHeadersDirs file("src/main/c/mimalloc/include")
+        excludedCFiles "**/alloc-override*.c", "**/page-queue.c"
     }
+    //tasks.create("${targetName}Mimalloc", CompileCToBitcode, "mimalloc", targetName, file("src/main"), file("src/main/c/mimalloc/include"),
+      //      ["**/alloc-override*.c", "**/page-queue.c"])
 
     task("${targetName}Launcher", type: CompileCppToBitcode) {
         name "launcher"

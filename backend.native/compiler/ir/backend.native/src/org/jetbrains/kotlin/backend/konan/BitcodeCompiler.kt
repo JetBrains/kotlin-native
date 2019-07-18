@@ -48,6 +48,7 @@ internal class BitcodeCompiler(val context: Context) {
     }
 
     private fun clang(configurables: ClangFlags, file: BitcodeFile): ObjectFile {
+        println("cCCCCC started clang")
         val objectFile = temporary("result", ".o")
 
         val profilingFlags = llvmProfilingFlags().map { listOf("-mllvm", it) }.flatten()
@@ -80,7 +81,7 @@ internal class BitcodeCompiler(val context: Context) {
             addNonEmpty(profilingFlags)
         }
         if (configurables is AppleConfigurables) {
-            targetTool("clang++", *flags.toTypedArray(), file, "-o", objectFile)
+            hostLlvmTool("clang++", *flags.toTypedArray(), file, "-o", objectFile)
         } else {
             hostLlvmTool("clang++", *flags.toTypedArray(), file, "-o", objectFile)
         }
