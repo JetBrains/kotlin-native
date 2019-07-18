@@ -65,15 +65,12 @@ private fun calculateChurn(workDir: String, limit: Int) {
     modificationsByAuthor.toList().groupBy { it.first.authorEmail }.values.forEach { listOfAuthorsChanges ->
         println("Author: ${listOfAuthorsChanges[0].first.authorEmail}")
         var changedFilesSum = 0
-        var flag = 1
-        listOfAuthorsChanges.sortedByDescending { it.second }.forEach { (modification, counter) ->
-            print(" ${modification.filePath}:  $counter \t")
-            if (flag > 3){
-                print("\n")
-                flag = 0
-            }
-            flag++
-            changedFilesSum += counter
+        listOfAuthorsChanges.sortedByDescending { it.second }.chunked( 4).forEach { chunk ->
+                chunk.forEach{ (modification, counter) ->
+                    print(" ${modification.filePath}:  $counter \t")
+                    changedFilesSum += counter
+                }
+            print("\n")
         }
         println("\n Made $changedFilesSum modifications in total")
         println("________________________")
