@@ -17,7 +17,7 @@ import kotlin.annotation.AnnotationTarget.*
  * annotating that usage with the [UseExperimental] annotation, e.g. `@UseExperimental(ExperimentalCli::class)`,
  * or by using the compiler argument `-Xuse-experimental=org.jetbrains.kliopt.ExperimentalCli`.
  */
-@Experimental(level = Experimental.Level.ERROR)
+@Experimental(level = Experimental.Level.WARNING)
 @Retention(AnnotationRetention.BINARY)
 @Target(
         CLASS,

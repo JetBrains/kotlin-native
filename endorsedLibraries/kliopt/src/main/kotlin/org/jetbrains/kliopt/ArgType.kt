@@ -19,11 +19,11 @@ abstract class ArgType<T : Any>(val hasParameter: kotlin.Boolean) {
 
     /**
      * Function to convert string argument value to its type.
-     * In case of error during convertion also provides help message.
+     * In case of error during conversion also provides help message.
      *
      * @param value value
      */
-    abstract val convertion: (value: kotlin.String, name: kotlin.String, helpMessage: kotlin.String)->T
+    abstract val conversion: (value: kotlin.String, name: kotlin.String, helpMessage: kotlin.String)->T
 
     /**
      * Argument type for flags that can be only set/unset.
@@ -32,7 +32,7 @@ abstract class ArgType<T : Any>(val hasParameter: kotlin.Boolean) {
         override val description: kotlin.String
             get() = ""
 
-        override val convertion: (value: kotlin.String, name: kotlin.String, _: kotlin.String) -> kotlin.Boolean
+        override val conversion: (value: kotlin.String, name: kotlin.String, _: kotlin.String) -> kotlin.Boolean
             get() = { value, _ , _ -> if (value == "false") false else true }
     }
 
@@ -43,7 +43,7 @@ abstract class ArgType<T : Any>(val hasParameter: kotlin.Boolean) {
         override val description: kotlin.String
             get() = "{ String }"
 
-        override val convertion: (value: kotlin.String, name: kotlin.String, _: kotlin.String) -> kotlin.String
+        override val conversion: (value: kotlin.String, name: kotlin.String, _: kotlin.String) -> kotlin.String
             get() = { value, _, _ -> value }
     }
 
@@ -54,7 +54,7 @@ abstract class ArgType<T : Any>(val hasParameter: kotlin.Boolean) {
         override val description: kotlin.String
             get() = "{ Int }"
 
-        override val convertion: (value: kotlin.String, name: kotlin.String, helpMessage: kotlin.String) -> kotlin.Int
+        override val conversion: (value: kotlin.String, name: kotlin.String, helpMessage: kotlin.String) -> kotlin.Int
             get() = { value, name, helpMessage -> value.toIntOrNull()
                     ?: error("Option $name is expected to be integer number. $value is provided.\n$helpMessage") }
     }
@@ -66,7 +66,7 @@ abstract class ArgType<T : Any>(val hasParameter: kotlin.Boolean) {
         override val description: kotlin.String
             get() = "{ Double }"
 
-        override val convertion: (value: kotlin.String, name: kotlin.String,
+        override val conversion: (value: kotlin.String, name: kotlin.String,
                                   helpMessage: kotlin.String) -> kotlin.Double
             get() = { value, name, helpMessage -> value.toDoubleOrNull()
                     ?: error("Option $name is expected to be double number. $value is provided.\n$helpMessage") }
@@ -79,7 +79,7 @@ abstract class ArgType<T : Any>(val hasParameter: kotlin.Boolean) {
         override val description: kotlin.String
             get() = "{ Value should be one of $values }"
 
-        override val convertion: (value: kotlin.String, name: kotlin.String,
+        override val conversion: (value: kotlin.String, name: kotlin.String,
                                   helpMessage: kotlin.String) -> kotlin.String
             get() = { value, name, helpMessage -> if (value in values) value
             else error("Option $name is expected to be one of $values. $value is provided.\n$helpMessage") }

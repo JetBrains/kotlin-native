@@ -257,7 +257,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             val name = fullName ?: prop.name
             val descriptor = OptionDescriptor(type, name, shortName, description, emptyList(),
                     required, deprecatedWarning = deprecatedWarning)
-            val cliElement = ArgumentSingleNullableValue(type.convertion)
+            val cliElement = ArgumentSingleNullableValue(type.conversion)
             options[name] = ParsingValue(descriptor, cliElement)
             return cliElement
         }
@@ -277,7 +277,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             val name = fullName ?: prop.name
             val descriptor = OptionDescriptor(type, name, shortName, description, listOf(defaultValue),
                     required, deprecatedWarning = deprecatedWarning)
-            val cliElement = ArgumentSingleValueWithDefault(type.convertion)
+            val cliElement = ArgumentSingleValueWithDefault(type.conversion)
             options[name] = ParsingValue(descriptor, cliElement)
             return cliElement
         }
@@ -302,7 +302,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             if (!multiple && delimiter == null)
                 printError("Several values are expected for option $name. " +
                         "Option must be used multiple times or split with delimiter.")
-            val cliElement = ArgumentMultipleValues(type.convertion)
+            val cliElement = ArgumentMultipleValues(type.conversion)
             options[name] = ParsingValue(descriptor, cliElement)
             return cliElement
         }
@@ -382,7 +382,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             val name = fullName ?: prop.name
             val descriptor = ArgDescriptor(type, name, 1, description,
                     emptyList(), required, deprecatedWarning)
-            val cliElement = ArgumentSingleNullableValue(type.convertion)
+            val cliElement = ArgumentSingleNullableValue(type.conversion)
             arguments[name] = ParsingValue(descriptor, cliElement)
             return cliElement
         }
@@ -401,7 +401,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             val name = fullName ?: prop.name
             val descriptor = ArgDescriptor(type, name, 1, description,
                     listOf(defaultValue), required, deprecatedWarning)
-            val cliElement = ArgumentSingleValueWithDefault(type.convertion)
+            val cliElement = ArgumentSingleValueWithDefault(type.conversion)
             arguments[name] = ParsingValue(descriptor, cliElement)
             return cliElement
         }
@@ -421,7 +421,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             val name = fullName ?: prop.name
             val descriptor = ArgDescriptor(type, name, number, description,
                     defaultValue, required, deprecatedWarning)
-            val cliElement = ArgumentMultipleValues(type.convertion)
+            val cliElement = ArgumentMultipleValues(type.conversion)
             arguments[name] = ParsingValue(descriptor, cliElement)
             return cliElement
         }
@@ -520,7 +520,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                            deprecatedWarning: String? = null): ArgumentValueInterface<MutableList<T>> {
         val descriptor = ArgDescriptor(type, "", null, description,
                 defaultValue, required, deprecatedWarning)
-        val cliElement = ArgumentMultipleValues(type.convertion)
+        val cliElement = ArgumentMultipleValues(type.conversion)
         if ("" in arguments) {
             printError("You can have only one unnamed list with positional arguments.")
         }
@@ -769,7 +769,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
         val helpDescriptor = if (useDefaultHelpShortName) OptionDescriptor(ArgType.Boolean,
                 "help", "h", "Usage info")
             else OptionDescriptor(ArgType.Boolean, "help", description = "Usage info")
-        options["help"] = ParsingValue(helpDescriptor, ArgumentSingleNullableValue(helpDescriptor.type.convertion))
+        options["help"] = ParsingValue(helpDescriptor, ArgumentSingleNullableValue(helpDescriptor.type.conversion))
 
         // Add default list with arguments if there can be extra free arguments.
         if (skipExtraArguments) {
