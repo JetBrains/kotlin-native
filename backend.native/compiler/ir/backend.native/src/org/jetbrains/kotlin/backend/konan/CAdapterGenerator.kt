@@ -854,18 +854,6 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         output("typedef float              ${prefix}_KFloat;")
         output("typedef double             ${prefix}_KDouble;")
         output("typedef void*              ${prefix}_KNativePtr;")
-
-        output("typedef signed char        ${prefix}_KByte;")
-        output("typedef short              ${prefix}_KShort;")
-        output("typedef int                ${prefix}_KInt;")
-        output("typedef long long          ${prefix}_KLong;")
-        output("typedef unsigned char      ${prefix}_KUByte;")
-        output("typedef unsigned short     ${prefix}_KUShort;")
-        output("typedef unsigned int       ${prefix}_KUInt;")
-        output("typedef unsigned long long ${prefix}_KULong;")
-        output("typedef float              ${prefix}_KFloat;")
-        output("typedef double             ${prefix}_KDouble;")
-        output("typedef void*              ${prefix}_KNativePtr;")
         output("struct ${prefix}_KType;")
         output("typedef struct ${prefix}_KType ${prefix}_KType;")
 
@@ -883,8 +871,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         output("${prefix}_KBoolean (*IsInstance)(${prefix}_KNativePtr ref, const ${prefix}_KType* type);", 1)
         predefinedTypes.forEach {
             val nullableIt = it.makeNullable()
-            val needArgument = !it.isUnit() && !it.isNothing()
-            val argument = if (needArgument) translateType(it) else "void"
+            val argument = if (!it.isUnit()) translateType(it) else "void"
             output("${translateType(nullableIt)} (*${it.createNullableName})($argument);", 1)
         }
 
