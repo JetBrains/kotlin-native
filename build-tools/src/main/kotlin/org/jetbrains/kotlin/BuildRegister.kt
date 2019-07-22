@@ -129,9 +129,9 @@ open class BuildRegister : DefaultTask() {
         // Collect framework run details.
         if (target == "MacOSX") {
 
-            val frameworkOutput = arrayOf("$analyzer", "summary", "-compile", "samples",
-                    "-compile-samples", "FrameworkBenchmarksAnalyzer", "-codesize-samples", "FrameworkBenchmarksAnalyzer",
-                    "-codesize-normalize", "bintray:goldenResults.csv", "$currentBenchmarksReportFile")
+            val frameworkOutput = arrayOf("$analyzer", "summary", "--compile", "samples",
+                    "--compile-samples", "FrameworkBenchmarksAnalyzer", "--codesize-samples", "FrameworkBenchmarksAnalyzer",
+                    "--codesize-normalize", "bintray:goldenResults.csv", "$currentBenchmarksReportFile")
                     .runCommand()
 
             val buildInfoPartsFramework = frameworkOutput.split(',')
