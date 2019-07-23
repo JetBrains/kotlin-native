@@ -177,7 +177,7 @@ internal class ObjCExportLazyImpl(
 
     private fun translateFileClass(file: KtFile, declarations: List<KtCallableDeclaration>): ObjCInterface {
         val name = nameTranslator.getFileClassName(file)
-        return LazyObjCFileFunctionsInterface(name, file, declarations, this)
+        return LazyObjCFileInterface(name, file, declarations, this)
     }
 
     private fun translateExtensions(
@@ -193,7 +193,7 @@ internal class ObjCExportLazyImpl(
             namer.getClassOrProtocolName(classDescriptor)
         }
 
-        return LazyObjCExtensionFunctionsInterface(name, nameTranslator.getCategoryName(file), classDescriptor, declarations, this)
+        return LazyObjCExtensionInterface(name, nameTranslator.getCategoryName(file), classDescriptor, declarations, this)
     }
 
     private fun resolveDeclaration(ktDeclaration: KtDeclaration): DeclarationDescriptor =
@@ -310,7 +310,7 @@ internal class ObjCExportLazyImpl(
         override fun computeRealStub(): ObjCInterface = lazy.translator.translateClass(descriptor)
     }
 
-    private class LazyObjCFileFunctionsInterface(
+    private class LazyObjCFileInterface(
         name: ObjCExportNamer.ClassOrProtocolName,
         private val file: KtFile,
         private val declarations: List<KtCallableDeclaration>,
@@ -332,7 +332,7 @@ internal class ObjCExportLazyImpl(
         )
     }
 
-    private class LazyObjCExtensionFunctionsInterface(
+    private class LazyObjCExtensionInterface(
         name: ObjCExportNamer.ClassOrProtocolName,
         categoryName: String,
         private val classDescriptor: ClassDescriptor,
