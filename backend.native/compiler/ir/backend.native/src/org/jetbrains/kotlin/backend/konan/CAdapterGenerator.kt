@@ -985,11 +985,11 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
             val (parameter, maybeComma) = if (needArgument)
                 ("${translateType(it)} value" to ",") else ("" to "")
             val argument = if (needArgument) "value, " else ""
-            output("extern \"C\" KObjHeader* Konan_${it.shortNameForPredefinedType}_createInstance($parameter$maybeComma KObjHeader**);")
+            output("extern \"C\" KObjHeader* Kotlin_box${it.shortNameForPredefinedType}($parameter$maybeComma KObjHeader**);")
             output("static ${translateType(nullableIt)} ${it.createNullableNameForPredefinedType}Impl($parameter) {")
             output("KObjHolder result_holder;", 1)
             output("Kotlin_initRuntimeIfNeeded();", 1)
-            output("KObjHeader* result = Konan_${it.shortNameForPredefinedType}_createInstance($argument result_holder.slot());", 1)
+            output("KObjHeader* result = Kotlin_box${it.shortNameForPredefinedType}($argument result_holder.slot());", 1)
             output("return ${translateType(nullableIt)} { .pinned = CreateStablePointer(result) };", 1)
             output("}")
         }
