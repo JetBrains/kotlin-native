@@ -63,12 +63,12 @@ private operator fun String.times(count: Int): String {
     return builder.toString()
 }
 
-private val KotlinType.shortName
+private val KotlinType.shortNameForPredefinedType
     get() = this.toString().split('.').last()
 
 
-private val KotlinType.createNullableName
-        get() = "createNullable${this.shortName}"
+private val KotlinType.createNullableNameForPredefinedType
+        get() = "createNullable${this.shortNameForPredefinedType}"
 
 internal val cKeywords = setOf(
         // Actual C keywords.
@@ -872,7 +872,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         predefinedTypes.forEach {
             val nullableIt = it.makeNullable()
             val argument = if (!it.isUnit()) translateType(it) else "void"
-            output("${translateType(nullableIt)} (*${it.createNullableName})($argument);", 1)
+            output("${translateType(nullableIt)} (*${it.createNullableNameForPredefinedType})($argument);", 1)
         }
 
         output("")
@@ -985,11 +985,11 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
             val (parameter, maybeComma) = if (needArgument)
                 ("${translateType(it)} value" to ",") else ("" to "")
             val argument = if (needArgument) "value, " else ""
-            output("extern \"C\" KObjHeader* Konan_${it.shortName}_createInstance($parameter$maybeComma KObjHeader**);")
-            output("static ${translateType(nullableIt)} ${it.createNullableName}Impl($parameter) {")
+            output("extern \"C\" KObjHeader* Konan_${it.shortNameForPredefinedType}_createInstance($parameter$maybeComma KObjHeader**);")
+            output("static ${translateType(nullableIt)} ${it.createNullableNameForPredefinedType}Impl($parameter) {")
             output("KObjHolder result_holder;", 1)
             output("Kotlin_initRuntimeIfNeeded();", 1)
-            output("KObjHeader* result = Konan_${it.shortName}_createInstance($argument result_holder.slot());", 1)
+            output("KObjHeader* result = Konan_${it.shortNameForPredefinedType}_createInstance($argument result_holder.slot());", 1)
             output("return ${translateType(nullableIt)} { .pinned = CreateStablePointer(result) };", 1)
             output("}")
         }
@@ -999,7 +999,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         output(".DisposeString = DisposeStringImpl,", 1)
         output(".IsInstance = IsInstanceImpl,", 1)
         predefinedTypes.forEach {
-            output(".${it.createNullableName} = ${it.createNullableName}Impl,", 1)
+            output(".${it.createNullableNameForPredefinedType} = ${it.createNullableNameForPredefinedType}Impl,", 1)
         }
 
         makeScopeDefinitions(top, DefinitionKind.C_SOURCE_STRUCT, 1)
