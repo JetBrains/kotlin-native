@@ -43,7 +43,6 @@ if (isMacos) {
     include(":objc")
     include(":opengl")
     include(":uikit")
-    include(":coverage")
 }
 
 if (isWindows) {

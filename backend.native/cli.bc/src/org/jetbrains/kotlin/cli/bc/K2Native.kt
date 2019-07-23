@@ -208,9 +208,6 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
 
                 put(BITCODE_EMBEDDING_MODE, selectBitcodeEmbeddingMode(this, arguments, outputKind))
                 put(DEBUG_INFO_VERSION, arguments.debugInfoFormatVersion.toInt())
-                put(COVERAGE, arguments.coverage)
-                put(LIBRARIES_TO_COVER, arguments.coveredLibraries.toNonNullList())
-                arguments.coverageFile?.let { put(PROFRAW_PATH, it) }
                 put(OBJC_GENERICS, arguments.objcGenerics)
             }
         }
