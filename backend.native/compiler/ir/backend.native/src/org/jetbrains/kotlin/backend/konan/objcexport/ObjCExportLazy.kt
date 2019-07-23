@@ -141,7 +141,7 @@ internal class ObjCExportLazyImpl(
             LazyObjCInterfaceImpl(name,
                                   attributes,
                                   generics = if (configuration.objcGenerics) TODO() else emptyList(),
-                                  ktClassOrObject = ktClassOrObject,
+                                  psi = ktClassOrObject,
                                   lazy = this)
         }
     }
@@ -290,13 +290,10 @@ internal class ObjCExportLazyImpl(
 
     private class LazyObjCProtocolImpl(
         name: ObjCExportNamer.ClassOrProtocolName,
-        private val ktClassOrObject: KtClassOrObject,
+        override val psi: KtClassOrObject,
         private val lazy: ObjCExportLazyImpl
     ) : LazyObjCProtocol(name) {
-        override val descriptor: ClassDescriptor by lazy { lazy.resolve(ktClassOrObject) }
-
-        override val psi: PsiElement?
-            get() = ktClassOrObject
+        override val descriptor: ClassDescriptor by lazy { lazy.resolve(psi) }
 
         override fun computeRealStub(): ObjCProtocol = lazy.translator.translateInterface(descriptor)
     }
@@ -305,13 +302,10 @@ internal class ObjCExportLazyImpl(
         name: ObjCExportNamer.ClassOrProtocolName,
         attributes: List<String>,
         generics: List<String>,
-        private val ktClassOrObject: KtClassOrObject,
+        override val psi: KtClassOrObject,
         private val lazy: ObjCExportLazyImpl
     ) : LazyObjCInterface(name, generics, null, attributes) {
-        override val descriptor: ClassDescriptor by lazy { lazy.resolve(ktClassOrObject) }
-
-        override val psi: PsiElement?
-            get() = ktClassOrObject
+        override val descriptor: ClassDescriptor by lazy { lazy.resolve(psi) }
 
         override fun computeRealStub(): ObjCInterface = lazy.translator.translateClass(descriptor)
     }
