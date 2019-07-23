@@ -304,7 +304,7 @@ internal class ObjCExportLazyImpl(
         generics: List<String>,
         override val psi: KtClassOrObject,
         private val lazy: ObjCExportLazyImpl
-    ) : LazyObjCInterface(name, generics, null, attributes) {
+    ) : LazyObjCInterface(name = name, generics = generics, categoryName = null, attributes = attributes) {
         override val descriptor: ClassDescriptor by lazy { lazy.resolve(psi) }
 
         override fun computeRealStub(): ObjCInterface = lazy.translator.translateClass(descriptor)
@@ -315,7 +315,7 @@ internal class ObjCExportLazyImpl(
         private val file: KtFile,
         private val declarations: List<KtCallableDeclaration>,
         private val lazy: ObjCExportLazyImpl
-    ) : LazyObjCInterface(name, emptyList(), null, listOf(OBJC_SUBCLASSING_RESTRICTED)) {
+    ) : LazyObjCInterface(name = name, generics = emptyList(), categoryName = null, attributes = listOf(OBJC_SUBCLASSING_RESTRICTED)) {
         override val descriptor: ClassDescriptor?
             get() = null
 
@@ -338,7 +338,7 @@ internal class ObjCExportLazyImpl(
         private val classDescriptor: ClassDescriptor,
         private val declarations: List<KtCallableDeclaration>,
         private val lazy: ObjCExportLazyImpl
-    ) : LazyObjCInterface(name.objCName, emptyList(), categoryName, emptyList()) {
+    ) : LazyObjCInterface(name = name.objCName, generics = emptyList(), categoryName = categoryName, attributes = emptyList()) {
         override val descriptor: ClassDescriptor?
             get() = null
 
