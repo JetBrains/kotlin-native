@@ -51,6 +51,10 @@ CXCursor clang_Type_getProtocol(CXType type, unsigned index);
 
 unsigned clang_Cursor_isObjCInitMethod(CXCursor cursor);
 
+int isVector(CXType type);
+
+int isExtVector(CXType type);
+
 #ifdef __cplusplus
 }
 #endif

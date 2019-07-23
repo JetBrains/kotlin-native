@@ -291,6 +291,10 @@ data class VariableArrayType(override val elemType: Type) : ArrayType
 
 data class Typedef(val def: TypedefDef) : Type
 
+// TODO: Are non-primitive vectors possible?
+// TODO: What about recursive vector madnesses?
+data class VectorType(val elemType: PrimitiveType, val elemCount: Int): Type
+
 sealed class ObjCPointer : Type {
     enum class Nullability {
         Nullable, NonNull, Unspecified

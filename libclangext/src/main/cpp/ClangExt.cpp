@@ -193,4 +193,13 @@ extern "C" {
     return 0;
   }
 
+  // Actually bool
+  int isVector(CXType type) {
+      return  unwrapCXType(type).split().Ty->isVectorType() ? 1 : 0;
+  }
+
+  int isExtVector(CXType type) {
+      return  unwrapCXType(type).split().Ty->isExtVectorType() ? 1 : 0;
+  }
+
 }

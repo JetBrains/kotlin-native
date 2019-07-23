@@ -500,6 +500,9 @@ internal class NativeIndexImpl(val library: NativeLibrary, val verbose: Boolean 
     }
 
     fun convertType(type: CValue<CXType>, typeAttributes: CValue<CXTypeAttributes>? = null): Type {
+        val isVec = isVector(type)
+        val isExtVec = isExtVector(type)
+        println("Vec: $isVec, ExtVec: $isExtVec")
         val primitiveType = convertUnqualifiedPrimitiveType(type)
         if (primitiveType != UnsupportedType) {
             return primitiveType

@@ -5,6 +5,7 @@
 
 package kotlin
 
+import kotlin.native.internal.ExportForCppRuntime
 import kotlin.native.internal.ExportTypeInfo
 
 /**
@@ -51,3 +52,12 @@ public open class Any {
 @PublishedApi
 @SymbolName("Kotlin_Any_hashCode")
 external internal fun Any.identityHashCode(): Int
+
+@ExportForCppRuntime("ttt")
+fun ttt(obj: Any) {
+    println("RESULT")
+    println(obj::class.qualifiedName)
+    println("NAMED")
+    println(obj.toString())
+    println("PRINTED")
+}

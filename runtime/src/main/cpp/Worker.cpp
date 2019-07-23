@@ -71,6 +71,7 @@ THREAD_LOCAL_VARIABLE KInt g_currentWorkerId = 0;
 KNativePtr transfer(ObjHolder* holder, KInt mode) {
   void* result = CreateStablePointer(holder->obj());
   if (!ClearSubgraphReferences(holder->obj(), mode == CHECKED)) {
+    printf("FAIL!!!!");
     DisposeStablePointer(result);
     ThrowWorkerInvalidState();
   }
@@ -562,6 +563,7 @@ JobKind Worker::processQueueElement(bool blocking) {
         job.regularJob.function(argument, resultHolder.slot());
         argumentHolder.clear();
         // Transfer the result.
+        printf("Transfer!");
         result = transfer(&resultHolder, job.regularJob.transferMode);
        } catch (ExceptionObjHolder& e) {
          ok = false;

@@ -45,6 +45,9 @@
 #include <algorithm>
 #endif
 
+extern "C" void Kotlin_io_Console_println(KString message);
+extern "C" void ttt(ObjHeader* obj);
+
 namespace {
 
 // Granularity of arena container chunks.
@@ -54,6 +57,8 @@ constexpr container_size_t kObjectAlignment = 8;
 
 // Required e.g. for object size computations to be correct.
 static_assert(sizeof(ContainerHeader) % kObjectAlignment == 0, "sizeof(ContainerHeader) is not aligned");
+
+#define TRACE_MEMORY 1
 
 #if TRACE_MEMORY
 #undef TRACE_GC
@@ -737,6 +742,16 @@ void processFinalizerQueue(MemoryState* state) {
   RuntimeAssert(state->finalizerQueueSize == 0, "Queue must be empty here");
 }
 
+void traverse_ttt(ContainerHeader* container) {
+    ObjHeader* obj = reinterpret_cast<ObjHeader*>(container + 1);
+    for (int object = 0; object < container->objectCount(); object++) {
+        MEMORY_LOG("Print obj: %p\n", obj)
+        ttt(obj);
+        obj = reinterpret_cast<ObjHeader*>(
+                reinterpret_cast<uintptr_t>(obj) + objectSize(obj));
+    }
+}
+
 bool hasExternalRefs(ContainerHeader* start, ContainerHeaderSet* visited) {
   ContainerHeaderDeque toVisit;
   toVisit.push_back(start);
@@ -746,6 +761,10 @@ bool hasExternalRefs(ContainerHeader* start, ContainerHeaderSet* visited) {
     visited->insert(container);
     if (container->refCount() > 0) {
       MEMORY_LOG("container %p with rc %d blocks transfer\n", container, container->refCount())
+      MEMORY_LOG("objects in the container: %d\n", container->objectCount())
+      MEMORY_LOG("Frozen: %d\n", container->frozen())
+
+      traverse_ttt(container);
       return true;
     }
     traverseContainerReferredObjects(container, [&toVisit, visited](ObjHeader* ref) {
