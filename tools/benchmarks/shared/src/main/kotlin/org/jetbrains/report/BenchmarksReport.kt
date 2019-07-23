@@ -1,19 +1,7 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Copyright 2010-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
+ * that can be found in the LICENSE file.
  */
-
 
 package org.jetbrains.report
 
@@ -34,7 +22,7 @@ interface EntityFromJsonFactory<T>: ConvertedFromJson {
     fun create(data: JsonElement): T
 }
 
-// Class for benchcmarks report with all information of run.
+// Class for benchmarks report with all information of run.
 class BenchmarksReport(val env: Environment, benchmarksList: List<BenchmarkResult>, val compiler: Compiler):
         JsonSerializable {
 
@@ -257,7 +245,8 @@ class BenchmarkResult(val name: String, val status: Status,
     enum class Metric(val suffix: String, val value: String) {
         EXECUTION_TIME("", "EXECUTION_TIME"),
         CODE_SIZE(".codeSize", "CODE_SIZE"),
-        COMPILE_TIME(".compileTime", "COMPILE_TIME")
+        COMPILE_TIME(".compileTime", "COMPILE_TIME"),
+        BUNDLE_SIZE(".bundleSize", "BUNDLE_SIZE")
     }
 
     constructor(name: String, score: Double) : this(name, Status.PASSED, score, Metric.EXECUTION_TIME, 0.0, 0, 0)

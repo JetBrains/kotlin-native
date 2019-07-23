@@ -36,7 +36,6 @@ dependencies {
     compile "org.jetbrains.kotlin:kotlin-stdlib-js:$kotlinVersion"
 }
 
-
 sourceSets {
     main.resources.srcDirs += "resources"
     main.kotlin.srcDirs += "src"

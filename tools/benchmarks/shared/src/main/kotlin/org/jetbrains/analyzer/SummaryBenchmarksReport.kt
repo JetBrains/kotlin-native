@@ -1,19 +1,7 @@
 /*
- * Copyright 2010-2018 JetBrains s.r.o.
- *
- * Licensed under the Apache License, Version 2.0 (the "License");
- * you may not use this file except in compliance with the License.
- * You may obtain a copy of the License at
- *
- * http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
+ * Copyright 2010-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
+ * that can be found in the LICENSE file.
  */
-
 
 package org.jetbrains.analyzer
 
@@ -134,7 +122,7 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
     }
 
     fun getResultsByMetric(metric: BenchmarkResult.Metric, getGeoMean: Boolean = true, filter: List<String>? = null,
-                           normalizeData: Map<String, Map<String, Double>>? = null): List<Double>  {
+                           normalizeData: Map<String, Map<String, Double>>? = null): List<Double?>  {
         val benchmarks = filter?.let {
             mergedReport.filter { entry ->
                 filter.find {
@@ -142,25 +130,21 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
                 } != null
             }
         } ?: mergedReport
-        if (benchmarks.isEmpty()) {
-            error("There is no benchmarks from provided list")
-        }
-        val filteredBenchmarks = benchmarks.filter { entry -> entry.value.first!!.meanBenchmark.metric == metric }
-        if (filteredBenchmarks.isEmpty()) {
-            error("There is no benchmarks for metric $metric")
-        }
-        val results = filteredBenchmarks.map { entry ->
-            val score = entry.value.first!!.meanBenchmark.score
+        val results = benchmarks.map { entry ->
             val name = entry.key.removeSuffix(metric.suffix)
-            val value = normalizeData?.let {
-                it.get(name)?.get("$metric")?.let { score / it }
-                        ?: error("No normalization data for benchmark $name and metric $metric")
-            } ?: score
-            name to value }.toMap()
+            if (entry.value.first!!.meanBenchmark.metric == metric) {
+                val score = entry.value.first!!.meanBenchmark.score
+                val value = normalizeData?.let {
+                    it.get(name)?.get("$metric")?.let { score / it }
+                            ?: error("No normalization data for benchmark $name and metric $metric")
+                } ?: score
+                name to value
+            } else name to null
+        }.toMap()
         if (getGeoMean) {
-            return listOf(geometricMean(results.values))
+            return listOf(geometricMean(results.values.filterNotNull()))
         }
-        return filter?.let { it.map { results[it] ?: error("Benchmark $it for metric $metric doesn't exist.") }.toList() } ?: results.values.toList()
+        return filter?.let { it.map { results[it] }.toList() } ?: results.values.toList()
     }
 
     private fun getMaximumChange(bucket: Map<String, ScoreChange>): Double =
