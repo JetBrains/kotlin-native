@@ -41,3 +41,9 @@ actual inline fun measureNanoTime(block: () -> Unit): Long {
 actual fun cleanup() {
     GC.collect()
 }
+
+actual fun printlnStderr(message: String) {
+    val STDERR = fdopen(2, "w")
+    fprintf(STDERR, message + "\n")
+    fflush(STDERR)
+}

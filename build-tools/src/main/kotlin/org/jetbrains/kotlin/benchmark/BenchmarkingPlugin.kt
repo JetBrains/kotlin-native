@@ -128,7 +128,7 @@ open class BenchmarkingPlugin: Plugin<Project> {
 
     private fun Project.configureNativeTarget(hostPreset: KotlinNativeTargetPreset) {
         kotlin.targetFromPreset(hostPreset, NATIVE_TARGET_NAME) {
-            compilations.getByName("main").kotlinOptions.freeCompilerArgs = project.compilerArgs + "-opt"
+            compilations.getByName("main").kotlinOptions.freeCompilerArgs = project.compilerArgs
             binaries.executable(NATIVE_EXECUTABLE_NAME, listOf(RELEASE)) {
                 if (HostManager.hostIsMingw) {
                     linkerOpts.add("-L${mingwPath}/lib")

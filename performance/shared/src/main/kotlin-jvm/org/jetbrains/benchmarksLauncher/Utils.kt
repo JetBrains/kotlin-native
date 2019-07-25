@@ -36,3 +36,7 @@ actual inline fun measureNanoTime(block: () -> Unit): Long {
 
 actual fun cleanup() {}
 
+actual fun printlnStderr(message: String) {
+    System.err.println(message)
+}
+

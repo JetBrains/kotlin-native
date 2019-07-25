@@ -23,3 +23,5 @@ expect fun assert(value: Boolean)
 expect inline fun measureNanoTime(block: () -> Unit): Long
 
 expect fun cleanup()
+
+expect fun printlnStderr(message: String)
