@@ -3,8 +3,10 @@
  * that can be found in the LICENSE file.
  */
 
-package org.jetbrains.kliopt
+package kotlinx.cli
 
+import kotlinx.cli.ArgParser
+import kotlinx.cli.ArgType
 import kotlin.test.*
 
 class ErrorTests {

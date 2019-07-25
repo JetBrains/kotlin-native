@@ -3,7 +3,7 @@
  * that can be found in the LICENSE file.
  */
 
-package org.jetbrains.kliopt
+package kotlinx.cli
 
 import kotlin.reflect.KProperty
 
@@ -175,7 +175,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             required: Boolean = false,
             val multiple: Boolean = false,
             val delimiter: String? = null,
-            deprecatedWarning: String? = null) : Descriptor<T> (type, fullName, description, defaultValue,
+            deprecatedWarning: String? = null) : Descriptor<T>(type, fullName, description, defaultValue,
             required, deprecatedWarning) {
 
         override val textDescription: String
@@ -216,7 +216,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             description: String? = null,
             defaultValue: List<T> = emptyList(),
             required: Boolean = true,
-            deprecatedWarning: String? = null) : Descriptor<T> (type, fullName, description, defaultValue,
+            deprecatedWarning: String? = null) : Descriptor<T>(type, fullName, description, defaultValue,
             required, deprecatedWarning) {
 
         init {
@@ -677,7 +677,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      * @property conversion conversion function from string value from command line to expected type.
      */
     inner class ArgumentMultipleValues<T : Any>(conversion: (value: String, name: String, helpMessage: String)->T):
-            ArgumentValue<MutableList<T>> (
+            ArgumentValue<MutableList<T>>(
             { value, name, _ -> mutableListOf(conversion(value, name, makeUsage())) }
     ), ArgumentValueInterface<MutableList<T>> {
 

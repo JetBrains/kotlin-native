@@ -3,8 +3,12 @@
  * that can be found in the LICENSE file.
  */
 @file:UseExperimental(ExperimentalCli::class)
-package org.jetbrains.kliopt
+package kotlinx.cli
 
+import kotlinx.cli.ArgParser
+import kotlinx.cli.ArgType
+import kotlinx.cli.ExperimentalCli
+import kotlinx.cli.Subcommand
 import kotlin.math.exp
 import kotlin.test.*
 

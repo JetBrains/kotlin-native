@@ -16,7 +16,9 @@
 
 package org.jetbrains.kotlin.native.interop.tool
 
-import org.jetbrains.kliopt.*
+import kotlinx.cli.ArgParser
+import kotlinx.cli.ArgType
+import kotlinx.cli.*
 
 const val HEADER_FILTER_ADDITIONAL_SEARCH_PREFIX = "headerFilterAdditionalSearchPrefix"
 const val NODEFAULTLIBS = "nodefaultlibs"

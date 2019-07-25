@@ -17,7 +17,7 @@
 package org.jetbrains.benchmarksLauncher
 
 import org.jetbrains.report.BenchmarkResult
-import org.jetbrains.kliopt.*
+import kotlinx.cli.*
 
 
 abstract class Launcher {

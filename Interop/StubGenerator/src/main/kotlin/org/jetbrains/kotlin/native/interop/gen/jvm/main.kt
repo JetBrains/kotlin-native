@@ -23,7 +23,7 @@ import org.jetbrains.kotlin.native.interop.gen.*
 import org.jetbrains.kotlin.native.interop.gen.wasm.processIdlLib
 import org.jetbrains.kotlin.native.interop.indexer.*
 import org.jetbrains.kotlin.native.interop.tool.*
-import org.jetbrains.kliopt.ArgParser
+import kotlinx.cli.ArgParser
 import java.io.File
 import java.lang.IllegalArgumentException
 import java.nio.file.*

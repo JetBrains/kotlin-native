@@ -17,7 +17,7 @@
 import org.jetbrains.analyzer.sendGetRequest
 import org.jetbrains.analyzer.readFile
 import org.jetbrains.analyzer.SummaryBenchmarksReport
-import org.jetbrains.kliopt.*
+import kotlinx.cli.*
 import org.jetbrains.renders.*
 import org.jetbrains.report.BenchmarksReport
 import org.jetbrains.report.BenchmarkResult
