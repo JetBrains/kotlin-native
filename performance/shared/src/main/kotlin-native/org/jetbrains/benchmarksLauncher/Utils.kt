@@ -18,6 +18,7 @@ package org.jetbrains.benchmarksLauncher
 
 import kotlin.native.internal.GC
 import platform.posix.*
+import kotlinx.cinterop.*
 
 actual fun writeToFile(fileName: String, text: String) {
     val file = fopen(fileName, "wt") ?: error("Cannot write file '$fileName'")
@@ -42,8 +43,21 @@ actual fun cleanup() {
     GC.collect()
 }
 
-actual fun printlnStderr(message: String) {
+actual fun printStderr(message: String) {
     val STDERR = fdopen(2, "w")
-    fprintf(STDERR, message + "\n")
+    fprintf(STDERR, message)
     fflush(STDERR)
 }
+
+actual fun currentTime() =
+    memScoped {
+        val timeVal = alloc<timeval>()
+        gettimeofday(timeVal.ptr, null)
+        val sec = alloc<LongVar>()
+        sec.value = timeVal.tv_sec
+        val nowtm = localtime(sec.ptr)
+        var timeBuffer = ByteArray(1024)
+        strftime(timeBuffer.refTo(0), timeBuffer.size.toULong(), "%H:%M:%S", nowtm)
+
+        timeBuffer.toKString()
+    }

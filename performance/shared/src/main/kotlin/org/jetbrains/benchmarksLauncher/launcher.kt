@@ -49,9 +49,14 @@ abstract class Launcher {
     enum class LogLevel { DEBUG, OFF }
 
     class Logger(val level: LogLevel = LogLevel.OFF) {
-         fun log(message: String, messageLevel: LogLevel = LogLevel.DEBUG) {
+         fun log(message: String, messageLevel: LogLevel = LogLevel.DEBUG, usePrefix: Boolean = true) {
             if (messageLevel == level) {
-                printlnStderr("[$level] $message")
+                if (usePrefix) {
+                    printStderr("[$level][${currentTime()}] $message")
+                } else {
+                    printStderr("$message")
+                }
+
             }
         }
     }
@@ -75,7 +80,7 @@ abstract class Launcher {
         for ((name, benchmark) in runningBenchmarks) {
             val benchmarkInstance = (benchmark as? BenchmarkEntryWithInit)?.ctor?.invoke()
             var i = numWarmIterations
-            logger.log("Warm up iterations for benchmark $name")
+            logger.log("Warm up iterations for benchmark $name\n")
             runBenchmark(benchmarkInstance, benchmark, i)
             var autoEvaluatedNumberOfMeasureIteration = 1
             while (true) {
@@ -85,9 +90,10 @@ abstract class Launcher {
                     break
                 autoEvaluatedNumberOfMeasureIteration *= 2
             }
-            logger.log("Running benchmark $name")
+            logger.log("Running benchmark $name ")
             val samples = DoubleArray(numberOfAttempts)
             for (k in samples.indices) {
+                logger.log(".", usePrefix = false)
                 i = autoEvaluatedNumberOfMeasureIteration
                 val time = runBenchmark(benchmarkInstance, benchmark, i)
                 val scaledTime = time * 1.0 / autoEvaluatedNumberOfMeasureIteration
@@ -97,6 +103,7 @@ abstract class Launcher {
                         scaledTime / 1000, BenchmarkResult.Metric.EXECUTION_TIME, scaledTime / 1000,
                         k + 1, numWarmIterations))
             }
+            logger.log("\n", usePrefix = false)
         }
         return benchmarkResults
     }

@@ -24,4 +24,6 @@ expect inline fun measureNanoTime(block: () -> Unit): Long
 
 expect fun cleanup()
 
-expect fun printlnStderr(message: String)
+expect fun printStderr(message: String)
+
+expect fun currentTime(): String
