@@ -78,7 +78,7 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
      * the future, can use result of worker's computations.
      * Note, that some technically disjoint subgraphs may lead to `kotlin.IllegalStateException`
      * so `kotlin.native.internal.GC.collect()` could be called in the end of `producer` and `job`
-     * if garbage cyclic structures refer to to value being transferred.
+     * if garbage cyclic structures or other uncollected objects refer to the value being transferred.
      *
      * @return the future with the computation result of [job]
      */
