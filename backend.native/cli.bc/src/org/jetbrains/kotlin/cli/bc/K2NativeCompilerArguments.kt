@@ -126,15 +126,15 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     )
     var exportedLibraries: Array<String>? = null
 
-    @Argument(value = "-Xlight-debug", description = "Add light debug information")
-    var lightDebug: Boolean = false
-
     @Argument(
             value = "-Xframework-import-header",
             valueDescription = "<header>",
             description = "Add additional header import to framework header"
     )
     var frameworkImportHeaders: Array<String>? = null
+
+    @Argument(value = "-Xg0", description = "Add light debug information")
+    var lightDebug: Boolean = false
 
     @Argument(value = "-Xprint-bitcode", deprecatedName = "--print_bitcode", description = "Print llvm bitcode")
     var printBitCode: Boolean = false

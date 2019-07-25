@@ -429,7 +429,7 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
 
     fun shouldContainDebugInfo() = config.debug
     fun shouldContainLocationDebugInfo() = shouldContainDebugInfo() || config.lightDebug
-    fun shouldContainSomeDebugInfo() = shouldContainDebugInfo() || shouldContainLocationDebugInfo()
+    fun shouldContainAnyDebugInfo() = shouldContainDebugInfo() || shouldContainLocationDebugInfo()
 
     fun shouldOptimize() = config.configuration.getBoolean(KonanConfigKeys.OPTIMIZATION)
 
