@@ -15,7 +15,7 @@ import kotlin.annotation.AnnotationTarget.*
  *
  * Any usage of a declaration annotated with `@ExperimentalCli` must be accepted either by
  * annotating that usage with the [UseExperimental] annotation, e.g. `@UseExperimental(ExperimentalCli::class)`,
- * or by using the compiler argument `-Xuse-experimental=org.jetbrains.kotlinx.cli.ExperimentalCli`.
+ * or by using the compiler argument `-Xuse-experimental=kotlinx.cli.ExperimentalCli`.
  */
 @Experimental(level = Experimental.Level.WARNING)
 @Retention(AnnotationRetention.BINARY)
