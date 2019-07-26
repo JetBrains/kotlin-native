@@ -9,6 +9,23 @@ import org.jetbrains.kliopt.*
 expect class NumericalLauncher() : Launcher {
 }
 
+
+    val launcher = NumericalLauncher()
+    BenchmarksRunner.runBenchmarks(args, { arguments: BenchmarkArguments ->
+        if (arguments is BaseBenchmarkArguments) {
+            launcher.launch(arguments.warmup, arguments.repeat, arguments.prefix,
+                    arguments.filter, arguments.filterRegex, arguments.verbose)
+        } else emptyList()
+    }, benchmarksListAction = launcher::benchmarksListAction)
+
+class NumericalLauncher : Launcher() {
+    override val benchmarks = BenchmarksCollection(
+            mutableMapOf(
+                    "bellardPi" to BenchmarkEntry(::bellardPi)
+            )
+    )
+}
+
 fun main(args: Array<String>) {
     val launcher = NumericalLauncher()
     BenchmarksRunner.runBenchmarks(args, { arguments: BenchmarkArguments ->
