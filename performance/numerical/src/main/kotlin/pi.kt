@@ -8,8 +8,6 @@
  * to get a running time of O(n^2) instead of O(n^3log(n)^3).
  */
 
-package pi
-
 import kotlin.math.ln
 import kotlin.math.sqrt
 
