@@ -25,7 +25,7 @@ actual fun currentTime() =
             val timeVal = alloc<timeval>()
             mingw_gettimeofday(timeVal.ptr, null)
             val sec = alloc<LongVar>()
-            sec.value = timeVal.tv_sec
+            sec.value = timeVal.tv_sec.convert()
             val nowtm = localtime(sec.ptr)
             var timeBuffer = ByteArray(1024)
             strftime(timeBuffer.refTo(0), timeBuffer.size.toULong(), "%H:%M:%S", nowtm)
