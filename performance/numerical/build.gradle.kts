@@ -14,9 +14,9 @@ plugins {
 
 benchmark {
     applicationName = "BellardPi"
-    commonSrcDirs = listOf("../../tools/benchmarks/shared/src", "src/main/kotlin", "../shared/src/main/kotlin")
-    jvmSrcDirs = listOf("../shared/src/main/kotlin-jvm")
-    nativeSrcDirs = listOf("../shared/src/main/kotlin-native/common")
+    commonSrcDirs = listOf("../../tools/benchmarks/shared/src", "src/main/kotlin", "../shared/src/main/kotlin", "../../endorsedLibraries/kliopt/src/main/kotlin")
+    jvmSrcDirs = listOf("../shared/src/main/kotlin-jvm", "../../endorsedLibraries/kliopt/src/main/kotlin-jvm")
+    nativeSrcDirs = listOf("../shared/src/main/kotlin-native/common", "../../endorsedLibraries/kliopt/src/main/kotlin-native")
     mingwSrcDirs = listOf("../shared/src/main/kotlin-native/mingw")
     posixSrcDirs = listOf("../shared/src/main/kotlin-native/posix")
     linkerOpts = listOf("$buildDir/pi.o")
