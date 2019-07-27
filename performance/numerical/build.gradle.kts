@@ -14,9 +14,9 @@ plugins {
 
 benchmark {
     applicationName = "BellardPi"
-    commonSrcDirs = listOf("../../tools/benchmarks/shared/src", "src/main/kotlin", "../shared/src/main/kotlin", "../../endorsedLibraries/kliopt/src/main/kotlin")
-    jvmSrcDirs = listOf("../shared/src/main/kotlin-jvm", "../../endorsedLibraries/kliopt/src/main/kotlin-jvm")
-    nativeSrcDirs = listOf("../shared/src/main/kotlin-native/common", "../../endorsedLibraries/kliopt/src/main/kotlin-native")
+    commonSrcDirs = listOf("src/main/kotlin", "../../tools/benchmarks/shared/src", "../shared/src/main/kotlin", "../../endorsedLibraries/kliopt/src/main/kotlin")
+    jvmSrcDirs = listOf("src/main/kotlin-jvm", "../shared/src/main/kotlin-jvm", "../../endorsedLibraries/kliopt/src/main/kotlin-jvm")
+    nativeSrcDirs = listOf("src/main/kotlin-native", "../shared/src/main/kotlin-native/common", "../../endorsedLibraries/kliopt/src/main/kotlin-native")
     mingwSrcDirs = listOf("../shared/src/main/kotlin-native/mingw")
     posixSrcDirs = listOf("../shared/src/main/kotlin-native/posix")
     linkerOpts = listOf("$buildDir/pi.o")
@@ -39,7 +39,7 @@ val compileLibary by tasks.creating {
 val native = kotlin.targets.getByName("native") as KotlinNativeTarget
 native.apply {
     compilations["main"].cinterops {
-        create("pi") {
+        create("cinterop") {
             headers("$projectDir/src/nativeInterop/cinterop/pi.h")
         }
     }

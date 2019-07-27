@@ -1,24 +1,10 @@
 /*
- * Copyright 2010-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
- * that can be found in the LICENSE file.
+ * Copyright 2010-2019 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Use of this source code is governed by the Apache 2.0 license that can be found in the licenses/LICENSE.txt file.
  */
-
 
 import org.jetbrains.benchmarksLauncher.*
 import org.jetbrains.kliopt.*
-
-fun bellardPi() {
-    for (n in 1 .. 1000 step 9)
-            pi_nth_digit(n)
-}
-
-class NumericalLauncher : Launcher() {
-    override val benchmarks = BenchmarksCollection(
-            mutableMapOf(
-                    "bellardPi" to BenchmarkEntry(::bellardPi)
-            )
-    )
-}
 
 fun main(args: Array<String>) {
     val launcher = NumericalLauncher()
