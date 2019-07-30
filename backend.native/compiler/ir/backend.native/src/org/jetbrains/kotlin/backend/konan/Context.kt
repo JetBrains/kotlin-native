@@ -423,6 +423,8 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
 
     fun shouldPrintBitCode() = config.configuration.getBoolean(KonanConfigKeys.PRINT_BITCODE)
 
+    fun shouldPrintDescriptors() = config.configuration.getBoolean(KonanConfigKeys.PRINT_DESCRIPTORS)
+
     fun shouldPrintLocations() = config.configuration.getBoolean(KonanConfigKeys.PRINT_LOCATIONS)
 
     fun shouldProfilePhases() = config.phaseConfig.needProfiling

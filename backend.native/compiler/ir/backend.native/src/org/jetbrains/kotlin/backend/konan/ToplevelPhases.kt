@@ -90,6 +90,16 @@ internal val frontendPhase = konanUnitPhase(
         description = "Frontend builds AST"
 )
 
+internal val printDescriptorsPhase = konanUnitPhase(
+        op = {
+            if (shouldPrintDescriptors()) {
+                printDescriptors()
+            }
+        },
+        name = "PrintDescriptors",
+        description = "Print descriptors"
+)
+
 /**
  * Valid from [createSymbolTablePhase] until [destroySymbolTablePhase].
  */
@@ -333,6 +343,7 @@ val toplevelPhase: CompilerPhase<*, Unit, Unit> = namedUnitPhase(
         name = "Compiler",
         description = "The whole compilation process",
         lower = frontendPhase then
+                printDescriptorsPhase then
                 createSymbolTablePhase then
                 objCExportPhase then
                 buildCExportsPhase then
