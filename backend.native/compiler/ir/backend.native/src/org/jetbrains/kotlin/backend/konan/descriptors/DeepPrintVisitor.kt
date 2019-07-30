@@ -10,13 +10,11 @@ import org.jetbrains.kotlin.descriptors.*
 
 class DeepPrintVisitor(worker: DeclarationDescriptorVisitor<Boolean, Int>): DeepVisitor<Int>(worker) {
 
-    override fun visitChildren(descriptor: DeclarationDescriptor?, data: Int): Boolean {
-        return super.visitChildren(descriptor, data + 1)
-    }
+    override fun visitChildren(descriptors: Collection<DeclarationDescriptor>, data: Int) =
+            super.visitChildren(descriptors, data + 1)
 
-    override fun visitChildren(descriptors: Collection<DeclarationDescriptor>, data: Int): Boolean {
-        return super.visitChildren(descriptors, data + 1)
-    }
+    override fun visitChild(descriptor: DeclarationDescriptor?, data: Int) =
+            super.visitChild(descriptor, data + 1)
 }
 
 class PrintVisitor: DeclarationDescriptorVisitor<Boolean, Int> {

@@ -7,118 +7,121 @@ package org.jetbrains.kotlin.backend.konan.descriptors
 
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.name.FqName
-import org.jetbrains.kotlin.resolve.DescriptorUtils
 
-open class DeepVisitor<D>(
-        private val worker: DeclarationDescriptorVisitor<Boolean, D>
-) : DeclarationDescriptorVisitor<Boolean, D> {
+open class DeepVisitor<DataType>(
+        private val worker: DeclarationDescriptorVisitor<Boolean, DataType>
+) : DeclarationDescriptorVisitor<Boolean, DataType> {
 
-    open fun visitChildren(descriptors: Collection<DeclarationDescriptor>, data: D): Boolean {
+    open fun visitChildren(descriptors: Collection<DeclarationDescriptor>, data: DataType): Boolean {
         for (descriptor in descriptors) {
             if (!descriptor.accept(this, data)) return false
         }
         return true
     }
 
-    open fun visitChildren(descriptor: DeclarationDescriptor?, data: D): Boolean {
+    open fun visitChild(descriptor: DeclarationDescriptor?, data: DataType): Boolean {
         if (descriptor == null) return true
 
         return descriptor.accept(this, data)
     }
 
-    private fun applyWorker(descriptor: DeclarationDescriptor, data: D): Boolean {
-        return descriptor.accept(worker, data)
+    private fun <DescriptorType : DeclarationDescriptor> processDescriptor(
+            descriptor: DescriptorType,
+            data: DataType,
+            visitChildrenBlock: DeepVisitor<DataType>.(DescriptorType) -> Boolean = { true }
+    ): Boolean {
+        // first, process the descriptor itself
+        if (!descriptor.accept(worker, data)) return false
+
+        // then, visit children
+        return visitChildrenBlock(descriptor)
     }
 
-    private fun processCallable(descriptor: CallableDescriptor, data: D): Boolean {
-        return applyWorker(descriptor, data)
-                && visitChildren(descriptor.typeParameters, data)
-                && visitChildren(descriptor.extensionReceiverParameter, data)
-                && visitChildren(descriptor.valueParameters, data)
+    private fun <DescriptorType : CallableDescriptor> processCallableDescriptor(
+            descriptor: DescriptorType,
+            data: DataType,
+            visitChildrenBlock: DeepVisitor<DataType>.(DescriptorType) -> Boolean = { true }
+    ): Boolean {
+        return processDescriptor(descriptor, data) {
+            visitChildren(descriptor.typeParameters, data)
+                    && visitChild(descriptor.extensionReceiverParameter, data)
+                    && visitChildren(descriptor.valueParameters, data)
+                    && visitChildrenBlock(descriptor)
+        }
     }
 
-    override fun visitPackageFragmentDescriptor(descriptor: PackageFragmentDescriptor, data: D): Boolean? {
-        return applyWorker(descriptor, data) && visitChildren(DescriptorUtils.getAllDescriptors(descriptor.getMemberScope()), data)
-    }
+    private val PackageViewDescriptor.fragmentsToRecurse: List<PackageFragmentDescriptor>
+        get() = fragments.filter { it.containingDeclaration == module }
 
-    override fun visitPackageViewDescriptor(descriptor: PackageViewDescriptor, data: D): Boolean? {
-        return applyWorker(descriptor, data) && visitChildren(DescriptorUtils.getAllDescriptors(descriptor.memberScope), data)
-    }
+    private val ModuleDescriptor.fragmentsToRecurse: List<PackageFragmentDescriptor>
+        get() {
+            val fragments = mutableListOf<PackageFragmentDescriptor>()
 
-    override fun visitVariableDescriptor(descriptor: VariableDescriptor, data: D): Boolean? {
-        return processCallable(descriptor, data)
-    }
+            fun recurse(packageView: PackageViewDescriptor) {
+                fragments += packageView.fragmentsToRecurse
+                getSubPackagesOf(packageView.fqName) { true }.forEach { recurse(getPackage(it)) }
+            }
 
-    override fun visitPropertyDescriptor(descriptor: PropertyDescriptor, data: D): Boolean? {
-        return processCallable(descriptor, data)
-                && visitChildren(descriptor.getter, data)
-                && visitChildren(descriptor.setter, data)
-    }
+            recurse(getPackage(FqName.ROOT))
 
-    override fun visitFunctionDescriptor(descriptor: FunctionDescriptor, data: D): Boolean? {
-        return processCallable(descriptor, data)
-    }
+            return fragments.sortedBy { it.fqName.asString() }
+        }
 
-    override fun visitTypeParameterDescriptor(descriptor: TypeParameterDescriptor, data: D): Boolean? {
-        return applyWorker(descriptor, data)
-    }
+    override fun visitPackageFragmentDescriptor(descriptor: PackageFragmentDescriptor, data: DataType) =
+            processDescriptor(descriptor, data) {
+                visitChildren(descriptor.getMemberScope().getContributedDescriptors(), data)
+            }
 
-    override fun visitClassDescriptor(descriptor: ClassDescriptor, data: D): Boolean? {
-        return applyWorker(descriptor, data)
-                && visitChildren(descriptor.thisAsReceiverParameter, data)
-                && visitChildren(descriptor.constructors, data)
-                && visitChildren(descriptor.typeConstructor.parameters, data)
-                && visitChildren(DescriptorUtils.getAllDescriptors(descriptor.defaultType.memberScope), data)
-    }
+    override fun visitPackageViewDescriptor(descriptor: PackageViewDescriptor, data: DataType) =
+            processDescriptor(descriptor, data) {
+                visitChildren(descriptor.fragmentsToRecurse, data)
+            }
 
-    override fun visitTypeAliasDescriptor(descriptor: TypeAliasDescriptor, data: D): Boolean? {
-        return applyWorker(descriptor, data) && visitChildren(descriptor.declaredTypeParameters, data)
-    }
+    override fun visitVariableDescriptor(descriptor: VariableDescriptor, data: DataType) =
+            processCallableDescriptor(descriptor, data)
 
-    override fun visitModuleDeclaration(descriptor: ModuleDescriptor, data: D): Boolean? {
-        return applyWorker(descriptor, data) && visitChildren(descriptor.getPackage(FqName.ROOT), data)
-    }
+    override fun visitPropertyDescriptor(descriptor: PropertyDescriptor, data: DataType) =
+            processCallableDescriptor(descriptor, data)
 
-    override fun visitConstructorDescriptor(constructorDescriptor: ConstructorDescriptor, data: D): Boolean? {
-        return visitFunctionDescriptor(constructorDescriptor, data)
-    }
+    override fun visitFunctionDescriptor(descriptor: FunctionDescriptor, data: DataType) =
+            processCallableDescriptor(descriptor, data)
 
-    override fun visitScriptDescriptor(scriptDescriptor: ScriptDescriptor, data: D): Boolean? {
-        return visitClassDescriptor(scriptDescriptor, data)
-    }
+    override fun visitTypeParameterDescriptor(descriptor: TypeParameterDescriptor, data: DataType) =
+            processDescriptor(descriptor, data)
 
-    override fun visitValueParameterDescriptor(descriptor: ValueParameterDescriptor, data: D): Boolean? {
-        return visitVariableDescriptor(descriptor, data)
-    }
+    override fun visitClassDescriptor(descriptor: ClassDescriptor, data: DataType) =
+            processDescriptor(descriptor, data) {
+                visitChild(descriptor.thisAsReceiverParameter, data)
+                        && visitChildren(descriptor.constructors, data)
+                        && visitChildren(descriptor.typeConstructor.parameters, data)
+                        && visitChildren(descriptor.defaultType.memberScope.getContributedDescriptors(), data)
+            }
 
-    override fun visitPropertyGetterDescriptor(descriptor: PropertyGetterDescriptor, data: D): Boolean? {
-        return visitFunctionDescriptor(descriptor, data)
-    }
+    override fun visitTypeAliasDescriptor(descriptor: TypeAliasDescriptor, data: DataType) =
+            processDescriptor(descriptor, data) {
+                visitChildren(descriptor.declaredTypeParameters, data)
+            }
 
-    override fun visitPropertySetterDescriptor(descriptor: PropertySetterDescriptor, data: D): Boolean? {
-        return visitFunctionDescriptor(descriptor, data)
-    }
+    override fun visitModuleDeclaration(descriptor: ModuleDescriptor, data: DataType) =
+            processDescriptor(descriptor, data) {
+                visitChildren(descriptor.fragmentsToRecurse, data)
+            }
 
-    override fun visitReceiverParameterDescriptor(descriptor: ReceiverParameterDescriptor, data: D): Boolean? {
-        return applyWorker(descriptor, data)
-    }
+    override fun visitConstructorDescriptor(constructorDescriptor: ConstructorDescriptor, data: DataType) =
+            visitFunctionDescriptor(constructorDescriptor, data)
+
+    override fun visitScriptDescriptor(scriptDescriptor: ScriptDescriptor, data: DataType) =
+            visitClassDescriptor(scriptDescriptor, data)
+
+    override fun visitValueParameterDescriptor(descriptor: ValueParameterDescriptor, data: DataType) =
+            visitVariableDescriptor(descriptor, data)
+
+    override fun visitPropertyGetterDescriptor(descriptor: PropertyGetterDescriptor, data: DataType) =
+            visitFunctionDescriptor(descriptor, data)
+
+    override fun visitPropertySetterDescriptor(descriptor: PropertySetterDescriptor, data: DataType) =
+            visitFunctionDescriptor(descriptor, data)
+
+    override fun visitReceiverParameterDescriptor(descriptor: ReceiverParameterDescriptor, data: DataType) =
+            processDescriptor(descriptor, data)
 }
-
-open public class EmptyDescriptorVisitorVoid: DeclarationDescriptorVisitor<Boolean, Unit> {
-    override fun visitPackageFragmentDescriptor(descriptor: PackageFragmentDescriptor, data: Unit) = true
-    override fun visitPackageViewDescriptor(descriptor: PackageViewDescriptor, data: Unit) = true
-    override fun visitVariableDescriptor(descriptor: VariableDescriptor, data: Unit) = true
-    override fun visitFunctionDescriptor(descriptor: FunctionDescriptor, data: Unit) = true
-    override fun visitTypeParameterDescriptor(descriptor: TypeParameterDescriptor, data: Unit) = true
-    override fun visitClassDescriptor(descriptor: ClassDescriptor, data: Unit) = true
-    override fun visitTypeAliasDescriptor(descriptor: TypeAliasDescriptor, data: Unit) = true
-    override fun visitModuleDeclaration(descriptor: ModuleDescriptor, data: Unit) = true
-    override fun visitConstructorDescriptor(descriptor: ConstructorDescriptor, data: Unit) = true
-    override fun visitScriptDescriptor(descriptor: ScriptDescriptor, data: Unit) = true
-    override fun visitPropertyDescriptor(descriptor: PropertyDescriptor, data: Unit) = true
-    override fun visitValueParameterDescriptor(descriptor: ValueParameterDescriptor, data: Unit) = true
-    override fun visitPropertyGetterDescriptor(descriptor: PropertyGetterDescriptor, data: Unit) = true
-    override fun visitPropertySetterDescriptor(descriptor: PropertySetterDescriptor, data: Unit) = true
-    override fun visitReceiverParameterDescriptor(descriptor: ReceiverParameterDescriptor, data: Unit) = true
-}
-

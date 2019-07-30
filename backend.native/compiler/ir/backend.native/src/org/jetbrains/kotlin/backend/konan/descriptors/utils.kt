@@ -6,8 +6,8 @@
 package org.jetbrains.kotlin.backend.konan.descriptors
 
 import org.jetbrains.kotlin.descriptors.*
-import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.metadata.konan.KonanProtoBuf
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.serialization.deserialization.descriptors.*
 
 val DeserializedPropertyDescriptor.konanBackingField: PropertyDescriptor?
@@ -17,7 +17,7 @@ val DeserializedPropertyDescriptor.konanBackingField: PropertyDescriptor?
         else null
 
 fun DeclarationDescriptor.deepPrint() {
-    this.accept(DeepPrintVisitor(PrintVisitor()), 0)
+    accept(DeepPrintVisitor(PrintVisitor()), 0)
 }
 
 internal val String.synthesizedName get() = Name.identifier(this.synthesizedString)
