@@ -6,6 +6,9 @@
 import org.jetbrains.benchmarksLauncher.*
 import org.jetbrains.kliopt.*
 
+expect class NumericalLauncher() : Launcher {
+}
+
 fun main(args: Array<String>) {
     val launcher = NumericalLauncher()
     BenchmarksRunner.runBenchmarks(args, { arguments: BenchmarkArguments ->
