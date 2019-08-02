@@ -8,45 +8,69 @@ package org.jetbrains.kotlin.backend.konan.descriptors
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.name.FqName
 
-open class DeepVisitor<DataType>(
-        private val worker: DeclarationDescriptorVisitor<Boolean, DataType>
-) : DeclarationDescriptorVisitor<Boolean, DataType> {
+class TraversalContext private constructor(
+        val parent: TraversalContext?,
+        val fieldName: String?,
+        val lastChild: Boolean
+) {
+    constructor() : this(null, null, true)
 
-    open fun visitChildren(descriptors: Collection<DeclarationDescriptor>, data: DataType): Boolean {
-        for (descriptor in descriptors) {
-            if (!descriptor.accept(this, data)) return false
-        }
-        return true
-    }
+    val depth: Int = parent?.let { it.depth + 1 } ?: 0
 
-    open fun visitChild(descriptor: DeclarationDescriptor?, data: DataType): Boolean {
-        if (descriptor == null) return true
+    fun levelDown(fieldName: String? = null, lastChild: Boolean) = TraversalContext(this, fieldName, lastChild)
+}
 
-        return descriptor.accept(this, data)
+class DeepVisitor(
+        private val wrapped: DeclarationDescriptorVisitor<Boolean, TraversalContext>
+) : DeclarationDescriptorVisitor<Boolean, TraversalContext> {
+
+    private interface Collector {
+        fun add(fieldName: String, child: DeclarationDescriptor?)
+        fun add(fieldName: String, children: Collection<DeclarationDescriptor>)
     }
 
     private fun <DescriptorType : DeclarationDescriptor> processDescriptor(
             descriptor: DescriptorType,
-            data: DataType,
-            visitChildrenBlock: DeepVisitor<DataType>.(DescriptorType) -> Boolean = { true }
+            context: TraversalContext,
+            collectChildren: Collector.() -> Unit = {}
     ): Boolean {
         // first, process the descriptor itself
-        if (!descriptor.accept(worker, data)) return false
+        if (!descriptor.accept(wrapped, context)) return false
 
-        // then, visit children
-        return visitChildrenBlock(descriptor)
+        // need to collect all children before traversing down in order to know which child is the "last one"
+        val collector = object : Collector {
+            val children = mutableListOf<Pair<String, DeclarationDescriptor>>()
+
+            override fun add(fieldName: String, child: DeclarationDescriptor?) {
+                if (child != null) children += fieldName to child
+            }
+
+            override fun add(fieldName: String, children: Collection<DeclarationDescriptor>) {
+                for (child in children) add(fieldName, child)
+            }
+        }
+
+        collectChildren(collector)
+
+        for ((index, entry) in collector.children.withIndex()) {
+            val lastChild = index + 1 == collector.children.size
+            val (fieldName, child) = entry
+            if (!child.accept(this, context.levelDown(fieldName, lastChild))) return false
+        }
+
+        return true
     }
 
     private fun <DescriptorType : CallableDescriptor> processCallableDescriptor(
             descriptor: DescriptorType,
-            data: DataType,
-            visitChildrenBlock: DeepVisitor<DataType>.(DescriptorType) -> Boolean = { true }
+            context: TraversalContext,
+            collectChildren: Collector.() -> Unit = {}
     ): Boolean {
-        return processDescriptor(descriptor, data) {
-            visitChildren(descriptor.typeParameters, data)
-                    && visitChild(descriptor.extensionReceiverParameter, data)
-                    && visitChildren(descriptor.valueParameters, data)
-                    && visitChildrenBlock(descriptor)
+        return processDescriptor(descriptor, context) {
+            add("typeParameter", descriptor.typeParameters)
+            add("extensionReceiverParameter", descriptor.extensionReceiverParameter)
+            add("valueParameter", descriptor.valueParameters)
+            collectChildren()
         }
     }
 
@@ -67,61 +91,61 @@ open class DeepVisitor<DataType>(
             return fragments.sortedBy { it.fqName.asString() }
         }
 
-    override fun visitPackageFragmentDescriptor(descriptor: PackageFragmentDescriptor, data: DataType) =
+    override fun visitPackageFragmentDescriptor(descriptor: PackageFragmentDescriptor, data: TraversalContext) =
             processDescriptor(descriptor, data) {
-                visitChildren(descriptor.getMemberScope().getContributedDescriptors(), data)
+                add("contributedDescriptor", descriptor.getMemberScope().getContributedDescriptors())
             }
 
-    override fun visitPackageViewDescriptor(descriptor: PackageViewDescriptor, data: DataType) =
+    override fun visitPackageViewDescriptor(descriptor: PackageViewDescriptor, data: TraversalContext) =
             processDescriptor(descriptor, data) {
-                visitChildren(descriptor.fragmentsToRecurse, data)
+                add("packageFragment", descriptor.fragmentsToRecurse)
             }
 
-    override fun visitVariableDescriptor(descriptor: VariableDescriptor, data: DataType) =
+    override fun visitVariableDescriptor(descriptor: VariableDescriptor, data: TraversalContext) =
             processCallableDescriptor(descriptor, data)
 
-    override fun visitPropertyDescriptor(descriptor: PropertyDescriptor, data: DataType) =
+    override fun visitPropertyDescriptor(descriptor: PropertyDescriptor, data: TraversalContext) =
             processCallableDescriptor(descriptor, data)
 
-    override fun visitFunctionDescriptor(descriptor: FunctionDescriptor, data: DataType) =
+    override fun visitFunctionDescriptor(descriptor: FunctionDescriptor, data: TraversalContext) =
             processCallableDescriptor(descriptor, data)
 
-    override fun visitTypeParameterDescriptor(descriptor: TypeParameterDescriptor, data: DataType) =
+    override fun visitTypeParameterDescriptor(descriptor: TypeParameterDescriptor, data: TraversalContext) =
             processDescriptor(descriptor, data)
 
-    override fun visitClassDescriptor(descriptor: ClassDescriptor, data: DataType) =
+    override fun visitClassDescriptor(descriptor: ClassDescriptor, data: TraversalContext) =
             processDescriptor(descriptor, data) {
-                visitChild(descriptor.thisAsReceiverParameter, data)
-                        && visitChildren(descriptor.constructors, data)
-                        && visitChildren(descriptor.typeConstructor.parameters, data)
-                        && visitChildren(descriptor.defaultType.memberScope.getContributedDescriptors(), data)
+                add("thisAsReceiverParameter", descriptor.thisAsReceiverParameter)
+                add("constructor", descriptor.constructors)
+                add("typeConstructor.parameter", descriptor.typeConstructor.parameters)
+                add("contributedDescriptor", descriptor.defaultType.memberScope.getContributedDescriptors())
             }
 
-    override fun visitTypeAliasDescriptor(descriptor: TypeAliasDescriptor, data: DataType) =
+    override fun visitTypeAliasDescriptor(descriptor: TypeAliasDescriptor, data: TraversalContext) =
             processDescriptor(descriptor, data) {
-                visitChildren(descriptor.declaredTypeParameters, data)
+                add("declaredTypeParameter", descriptor.declaredTypeParameters)
             }
 
-    override fun visitModuleDeclaration(descriptor: ModuleDescriptor, data: DataType) =
+    override fun visitModuleDeclaration(descriptor: ModuleDescriptor, data: TraversalContext) =
             processDescriptor(descriptor, data) {
-                visitChildren(descriptor.fragmentsToRecurse, data)
+                add("packageFragment", descriptor.fragmentsToRecurse)
             }
 
-    override fun visitConstructorDescriptor(constructorDescriptor: ConstructorDescriptor, data: DataType) =
+    override fun visitConstructorDescriptor(constructorDescriptor: ConstructorDescriptor, data: TraversalContext) =
             visitFunctionDescriptor(constructorDescriptor, data)
 
-    override fun visitScriptDescriptor(scriptDescriptor: ScriptDescriptor, data: DataType) =
+    override fun visitScriptDescriptor(scriptDescriptor: ScriptDescriptor, data: TraversalContext) =
             visitClassDescriptor(scriptDescriptor, data)
 
-    override fun visitValueParameterDescriptor(descriptor: ValueParameterDescriptor, data: DataType) =
+    override fun visitValueParameterDescriptor(descriptor: ValueParameterDescriptor, data: TraversalContext) =
             visitVariableDescriptor(descriptor, data)
 
-    override fun visitPropertyGetterDescriptor(descriptor: PropertyGetterDescriptor, data: DataType) =
+    override fun visitPropertyGetterDescriptor(descriptor: PropertyGetterDescriptor, data: TraversalContext) =
             visitFunctionDescriptor(descriptor, data)
 
-    override fun visitPropertySetterDescriptor(descriptor: PropertySetterDescriptor, data: DataType) =
+    override fun visitPropertySetterDescriptor(descriptor: PropertySetterDescriptor, data: TraversalContext) =
             visitFunctionDescriptor(descriptor, data)
 
-    override fun visitReceiverParameterDescriptor(descriptor: ReceiverParameterDescriptor, data: DataType) =
+    override fun visitReceiverParameterDescriptor(descriptor: ReceiverParameterDescriptor, data: TraversalContext) =
             processDescriptor(descriptor, data)
 }

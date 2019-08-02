@@ -17,7 +17,7 @@ val DeserializedPropertyDescriptor.konanBackingField: PropertyDescriptor?
         else null
 
 fun DeclarationDescriptor.deepPrint() {
-    accept(DeepPrintVisitor(PrintVisitor()), 0)
+    accept(DeepVisitor(PrintVisitor(showTreeBranches = true)), TraversalContext())
 }
 
 internal val String.synthesizedName get() = Name.identifier(this.synthesizedString)
