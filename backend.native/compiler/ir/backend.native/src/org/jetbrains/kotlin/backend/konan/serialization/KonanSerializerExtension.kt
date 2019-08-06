@@ -79,6 +79,11 @@ internal class KonanSerializerExtension(val context: Context, override val metad
         super.serializeProperty(descriptor, proto, versionRequirementTable, childSerializer)
     }
 
+    override fun serializeTypeAlias(typeAlias: TypeAliasDescriptor, proto: ProtoBuf.TypeAlias.Builder) {
+        uniqId(typeAlias)?.let { proto.setExtension(KonanProtoBuf.typeAliasUniqId, it) }
+        super.serializeTypeAlias(typeAlias, proto)
+    }
+
     override fun releaseCoroutines(): Boolean =
             context.config.configuration.languageVersionSettings.supportsFeature(LanguageFeature.ReleaseCoroutines)
 
