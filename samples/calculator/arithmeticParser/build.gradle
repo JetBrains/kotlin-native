@@ -1,4 +1,5 @@
-apply plugin: 'org.jetbrains.kotlin.multiplatform'
+// apply plugin: 'org.jetbrains.kotlin.multiplatform'
+apply from: "../../../../kotlin/build/gradle/kotlinGradlePlugin.gradle"
 
 kotlin {
     targets {
@@ -8,6 +9,7 @@ kotlin {
             }
         }
 
+        println(presets)
         fromPreset(presets.jvm, 'jvm')
     }
 
@@ -34,6 +36,8 @@ configurations {
 // Otherwise build for iPhone simulator (by default).
 def determineIosPreset() {
     String presetName = project.hasProperty('calculator.preset.name') ? project.properties['calculator.preset.name'] : 'iosX64'
+    println("$presetName came from Xcode.")
+    println(project.kotlin.presets["iosmacX64"])
     def preset = project.kotlin.presets[presetName]
     println("$project has been configured for $presetName platform.")
     preset

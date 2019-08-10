@@ -49,6 +49,7 @@ private class LlvmPipelineConfiguration(context: Context) {
         KonanTarget.MINGW_X86 -> "pentium4"
         KonanTarget.MINGW_X64 -> "x86-64"
         KonanTarget.MACOS_X64 -> "core2"
+        KonanTarget.IOSMAC_X64 -> "core2"
         KonanTarget.LINUX_ARM32_HFP -> "arm1136jf-s"
         KonanTarget.LINUX_ARM64 -> "cortex-a57"
         KonanTarget.ANDROID_ARM32 -> "armv7"

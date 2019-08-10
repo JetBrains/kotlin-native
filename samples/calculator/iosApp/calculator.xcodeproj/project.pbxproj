@@ -14,7 +14,18 @@
 		2C3F384F1FD1738300151601 /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 2C3F384D1FD1738300151601 /* LaunchScreen.storyboard */; };
 		7FE128BF205854BA0064CE74 /* arithmeticParser.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = 7FF94AD92058464C00590D0D /* arithmeticParser.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		7FF94AE32058483900590D0D /* arithmeticParser.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7FF94AD92058464C00590D0D /* arithmeticParser.framework */; };
+		D4FCE75922CD2D0600D97B74 /* build.gradle in Resources */ = {isa = PBXBuildFile; fileRef = D4FCE75822CD2D0600D97B74 /* build.gradle */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		D4FCE75A22CD2DDC00D97B74 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 2C3F38391FD1738300151601 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7FF94AD82058464C00590D0D;
+			remoteInfo = arithmeticParser;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXCopyFilesBuildPhase section */
 		7FE128BE2058549E0064CE74 /* Embed Frameworks */ = {
@@ -40,6 +51,8 @@
 		2C3F38501FD1738300151601 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		7FF94AD92058464C00590D0D /* arithmeticParser.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = arithmeticParser.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		7FF94AEA2058485300590D0D /* Parser.kt */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; path = Parser.kt; sourceTree = "<group>"; };
+		D4FCE75522CD2C3B00D97B74 /* KotlinCalculator.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = KotlinCalculator.entitlements; sourceTree = "<group>"; };
+		D4FCE75822CD2D0600D97B74 /* build.gradle */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text; name = build.gradle; path = ../arithmeticParser/build.gradle; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -57,6 +70,8 @@
 		2C3F38381FD1738300151601 = {
 			isa = PBXGroup;
 			children = (
+				D4FCE75522CD2C3B00D97B74 /* KotlinCalculator.entitlements */,
+				D4FCE75822CD2D0600D97B74 /* build.gradle */,
 				2C3F38431FD1738300151601 /* calculator */,
 				7FF94ADA2058464C00590D0D /* arithmeticParser */,
 				2C3F38421FD1738300151601 /* Products */,
@@ -141,6 +156,7 @@
 			buildRules = (
 			);
 			dependencies = (
+				D4FCE75B22CD2DDC00D97B74 /* PBXTargetDependency */,
 			);
 			name = KotlinCalculator;
 			productName = calculator;
@@ -206,6 +222,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				D4FCE75922CD2D0600D97B74 /* build.gradle in Resources */,
 				2C3F384F1FD1738300151601 /* LaunchScreen.storyboard in Resources */,
 				2C3F384C1FD1738300151601 /* Assets.xcassets in Resources */,
 				2C3F384A1FD1738300151601 /* Main.storyboard in Resources */,
@@ -242,6 +259,14 @@
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		D4FCE75B22CD2DDC00D97B74 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7FF94AD82058464C00590D0D /* arithmeticParser */;
+			targetProxy = D4FCE75A22CD2DDC00D97B74 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin PBXVariantGroup section */
 		2C3F38481FD1738300151601 /* Main.storyboard */ = {
@@ -373,9 +398,16 @@
 		2C3F38541FD1738300151601 /* Debug */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = (
+					"$(ARCHS_STANDARD)",
+					x86_64h,
+				);
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = KotlinCalculator.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = "";
+				DERIVE_UIKITFORMAC_PRODUCT_BUNDLE_IDENTIFIER = YES;
+				DEVELOPMENT_TEAM = 49PJNAT2WC;
 				ENABLE_BITCODE = NO;
 				FRAMEWORK_SEARCH_PATHS = $BUILT_PRODUCTS_DIR;
 				INFOPLIST_FILE = calculator/Info.plist;
@@ -383,18 +415,26 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = org.jetbrains.konan.calculator;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTS_UIKITFORMAC = YES;
 				SWIFT_VERSION = 4.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				VALID_ARCHS = arm64;
+				VALID_ARCHS = "arm64 x86_64h x86_64";
 			};
 			name = Debug;
 		};
 		2C3F38551FD1738300151601 /* Release */ = {
 			isa = XCBuildConfiguration;
 			buildSettings = {
+				ARCHS = (
+					"$(ARCHS_STANDARD)",
+					x86_64h,
+				);
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_ENTITLEMENTS = KotlinCalculator.entitlements;
+				"CODE_SIGN_IDENTITY[sdk=macosx*]" = "-";
 				CODE_SIGN_STYLE = Automatic;
-				DEVELOPMENT_TEAM = "";
+				DERIVE_UIKITFORMAC_PRODUCT_BUNDLE_IDENTIFIER = YES;
+				DEVELOPMENT_TEAM = 49PJNAT2WC;
 				ENABLE_BITCODE = NO;
 				FRAMEWORK_SEARCH_PATHS = $BUILT_PRODUCTS_DIR;
 				INFOPLIST_FILE = calculator/Info.plist;
@@ -402,9 +442,10 @@
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = org.jetbrains.konan.calculator;
 				PRODUCT_NAME = "$(TARGET_NAME)";
+				SUPPORTS_UIKITFORMAC = YES;
 				SWIFT_VERSION = 4.0;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				VALID_ARCHS = arm64;
+				VALID_ARCHS = "arm64 x86_64h x86_64";
 			};
 			name = Release;
 		};
@@ -424,6 +465,7 @@
 				IPHONEOS_DEPLOYMENT_TARGET = 11.2;
 				"KOTLIN_NATIVE_PRESET[sdk=iphoneos*]" = iosArm64;
 				"KOTLIN_NATIVE_PRESET[sdk=iphonesimulator*]" = iosX64;
+				"KOTLIN_NATIVE_PRESET[sdk=macosx10.15]" = iosmacX64;
 				LD_RUNPATH_SEARCH_PATHS = "$(inherited) @executable_path/Frameworks @loader_path/Frameworks";
 				PRODUCT_BUNDLE_IDENTIFIER = JetBrains.arithmeticParser;
 				PRODUCT_MODULE_NAME = "_$(PRODUCT_NAME:c99extidentifier)";
@@ -431,7 +473,7 @@
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				VALID_ARCHS = arm64;
+				VALID_ARCHS = "arm64 x86_64 x86_64h";
 				VERSIONING_SYSTEM = "apple-generic";
 				VERSION_INFO_PREFIX = "";
 			};
@@ -460,7 +502,7 @@
 				PROVISIONING_PROFILE_SPECIFIER = "";
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = "1,2";
-				VALID_ARCHS = arm64;
+				VALID_ARCHS = "arm64 x86_64 x86_64h";
 				VERSIONING_SYSTEM = "apple-generic";
 				VERSION_INFO_PREFIX = "";
 			};

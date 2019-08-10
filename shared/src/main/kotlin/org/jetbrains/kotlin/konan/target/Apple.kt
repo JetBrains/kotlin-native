@@ -26,9 +26,9 @@ class AppleConfigurablesImpl(
         baseDir: String?
 ) : AppleConfigurables, KonanPropertiesLoader(target, properties, baseDir) {
 
-    private val sdkDependency = this.targetSysRoot!!
-    private val toolchainDependency = this.targetToolchain!!
-    private val xcodeAddonDependency = this.additionalToolsDir!!
+    private val sdkDependency = this.targetSysRoot ?: error("No target sys root")
+    private val toolchainDependency = this.targetToolchain ?: error("No target toolchain")
+    private val xcodeAddonDependency = this.additionalToolsDir ?: error("No additional tools dir")
 
     override val absoluteTargetSysRoot: String get() = when (xcodePartsProvider) {
         is XcodePartsProvider.Local -> when (target) {
