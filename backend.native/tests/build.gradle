@@ -138,7 +138,9 @@ task installTestLibrary(type: KlibInstall) {
 // Gets tests from the same Kotlin compiler build
 def update_external_tests() {
     // Copy only used tests into the test directory.
-    delete(externalTestsDir)
+    if (externalTestsDir.exists()) {
+        delete(externalTestsDir)
+    }
     externalTestsDir.mkdirs()
 
     def compilerTestsFiles = configurations.update_tests.asFileTree
@@ -153,7 +155,9 @@ def update_external_tests() {
         }
     }
 
-    delete(externalStdlibTestsDir)
+    if (externalStdlibTestsDir.exists()) {
+        delete(externalStdlibTestsDir)
+    }
     externalStdlibTestsDir.mkdirs()
     def stdlibTestsFiles = configurations.update_stdlib_tests.asFileTree
     copy {
@@ -1691,6 +1695,26 @@ task coroutines_anonymousObject(type: KonanLocalTest) {
     source = "codegen/coroutines/anonymousObject.kt"
 }
 
+task coroutines_functionReference_simple(type: KonanLocalTest) {
+    goldValue = "42\n"
+    source = "codegen/coroutines/functionReference_simple.kt"
+}
+
+task coroutines_functionReference_eqeq_name(type: KonanLocalTest) {
+    goldValue = ""
+    source = "codegen/coroutines/functionReference_eqeq_name.kt"
+}
+
+task coroutines_functionReference_invokeAsFunction(type: KonanLocalTest) {
+    goldValue = "159\n"
+    source = "codegen/coroutines/functionReference_invokeAsFunction.kt"
+}
+
+task coroutines_functionReference_lambdaAsSuspendLambda(type: KonanLocalTest) {
+    goldValue = ""
+    source = "codegen/coroutines/functionReference_lambdaAsSuspendLambda.kt"
+}
+
 task AbstractMutableCollection(type: KonanLocalTest) {
     expectedExitStatus = 0
     source = "runtime/collections/AbstractMutableCollection.kt"
@@ -2159,7 +2183,7 @@ task indexof(type: KonanLocalTest) {
 
 task utf8(type: KonanLocalTest) {
     expectedFail = (project.testTarget == 'wasm32') // Uses exceptions.
-    goldValue = "Hello\nПривет\n\uD800\uDC00\n\n\uFFFD\uFFFD\n\uFFFD12\n\uFFFD12\n12\uFFFD\n\uD83D\uDE25\n"
+    goldValue = "Hello\nПривет\n\uD800\uDC00\n\n\uFFFD\uFFFD\n\uFFFD12\n\uFFFD12\n12\uFFFD\n\uD83D\uDE25\n\uD83D\uDE25\n\uD83D\uDE25\n"
     source = "runtime/text/utf8.kt"
 }
 
@@ -3229,6 +3253,12 @@ if (PlatformInfo.isAppleTarget(project)) {
         it.headers "$projectDir/interop/objc/smoke.h"
         it.linkerOpts "-L$buildDir",  "-lobjcsmoke"
     }
+
+    createInterop("objcMisc") {
+        it.defFile 'interop/objc_with_initializer/objc_misc.def'
+        it.headers "$projectDir/interop/objc_with_initializer/objc_misc.h"
+        it.linkerOpts "-L$buildDir",  "-lobjcmisc"
+    }
 }
 
 createInterop("withSpaces") {
@@ -3417,6 +3447,27 @@ interopTest("interop_objc_smoke") {
         }
     }
 }
+
+interopTest("interop_objc_global_initializer") {
+    disabled = !isAppleTarget(project)
+    goldValue = "OK\n"
+
+    source = "interop/objc_with_initializer/objc_test.kt"
+    interop = 'objcMisc'
+    flags = ['-g']
+
+    doBefore {
+        execKonanClang(project.target) {
+            args "$projectDir/interop/objc_with_initializer/objc_misc.m"
+            args "-lobjc", '-fobjc-arc'
+            args '-fPIC', '-shared', '-o', "$buildDir/libobjcmisc.dylib"
+        }
+        if (project.target instanceof KonanTarget.IOS_X64) {
+            UtilsKt.codesign(project, "$buildDir/libobjcmisc.dylib")
+        }
+    }
+}
+
 
 standaloneTest("jsinterop_math") {
     doBefore {

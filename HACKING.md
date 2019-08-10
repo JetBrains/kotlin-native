@@ -117,6 +117,15 @@ To update the blackbox compiler tests set TeamCity build number in `gradle.prope
  
     ./gradlew :performance:ring:konanRun --filterRegex=String.*,Loop.*
     
+ There us also verbose mode to follow progress of running benchmarks
+ 
+    ./gradlew :performance:cinterop:konanRun --verbose
+    
+    > Task :performance:cinterop:konanRun
+    [DEBUG] Warm up iterations for benchmark macros
+    [DEBUG] Running benchmark macros
+    ...
+    
  There are also tasks for running benchmarks on JVM (pay attention, some benchmarks e.g. cinterop benchmarks can't be run on JVM)
  
     ./gradlew :performance:jvmRun
@@ -135,9 +144,9 @@ To update the blackbox compiler tests set TeamCity build number in `gradle.prope
     cd tools/benchmarksAnalyzer/build/bin/<target>/benchmarksAnalyzerReleaseExecutable/
     ./benchmarksAnalyzer.kexe <file1> <file2>
     
- Tool has several renders which allow produce output report in different forms (text, html, etc.). To set up render use flag `-render/-r`.
- Output can be redirected to file with flag `-output/-o`.
- To get detailed information about supported options, please use `-help/-h`.
+ Tool has several renders which allow produce output report in different forms (text, html, etc.). To set up render use flag `--render/-r`.
+ Output can be redirected to file with flag `--output/-o`.
+ To get detailed information about supported options, please use `--help/-h`.
  
  Analyzer tool can compare both local files and files placed on Bintray/TeamCity.
  

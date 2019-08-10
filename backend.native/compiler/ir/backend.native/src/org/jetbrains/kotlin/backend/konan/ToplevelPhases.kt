@@ -239,6 +239,7 @@ internal val allLoweringsPhase = namedIrModulePhase(
         description = "IR Lowering",
         lower = removeExpectDeclarationsPhase then
                 lowerBeforeInlinePhase then
+                provisionalFunctionExpressionPhase then
                 inlinePhase then
                 lowerAfterInlinePhase then
                 interopPart1Phase then
@@ -357,6 +358,14 @@ val toplevelPhase: CompilerPhase<*, Unit, Unit> = namedUnitPhase(
                 linkPhase
 )
 
+internal fun PhaseConfig.disableIf(phase: AnyNamedPhase, condition: Boolean) {
+    if (condition) disable(phase)
+}
+
+internal fun PhaseConfig.disableUnless(phase: AnyNamedPhase, condition: Boolean) {
+    if (!condition) disable(phase)
+}
+
 internal fun PhaseConfig.konanPhasesConfig(config: KonanConfig) {
     with(config.configuration) {
         disable(compileTimeEvaluatePhase)
@@ -365,14 +374,14 @@ internal fun PhaseConfig.konanPhasesConfig(config: KonanConfig) {
         disable(serializeDFGPhase)
 
         // Don't serialize anything to a final executable.
-        switch(serializerPhase, config.produce == CompilerOutputKind.LIBRARY)
-        switch(dependenciesLowerPhase, config.produce != CompilerOutputKind.LIBRARY)
-        switch(bitcodePhase, config.produce != CompilerOutputKind.LIBRARY)
-        switch(linkPhase, config.produce.isNativeBinary)
-        switch(testProcessorPhase, getNotNull(KonanConfigKeys.GENERATE_TEST_RUNNER) != TestRunnerKind.NONE)
-        switch(buildDFGPhase, config.configuration.getBoolean(KonanConfigKeys.OPTIMIZATION))
-        switch(devirtualizationPhase, config.configuration.getBoolean(KonanConfigKeys.OPTIMIZATION))
-        switch(dcePhase, config.configuration.getBoolean(KonanConfigKeys.OPTIMIZATION))
-        switch(verifyBitcodePhase, config.needCompilerVerification || config.configuration.getBoolean(KonanConfigKeys.VERIFY_BITCODE))
+        disableUnless(serializerPhase, config.produce == CompilerOutputKind.LIBRARY)
+        disableIf(dependenciesLowerPhase, config.produce == CompilerOutputKind.LIBRARY)
+        disableIf(bitcodePhase, config.produce == CompilerOutputKind.LIBRARY)
+        disableUnless(linkPhase, config.produce.isNativeBinary)
+        disableIf(testProcessorPhase, getNotNull(KonanConfigKeys.GENERATE_TEST_RUNNER) == TestRunnerKind.NONE)
+        disableUnless(buildDFGPhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
+        disableUnless(devirtualizationPhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
+        disableUnless(dcePhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
+        disableUnless(verifyBitcodePhase, config.needCompilerVerification || getBoolean(KonanConfigKeys.VERIFY_BITCODE))
     }
 }

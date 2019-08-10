@@ -53,12 +53,12 @@ actual class StringBuilder private constructor (
 
     actual override fun subSequence(startIndex: Int, endIndex: Int): CharSequence = substring(startIndex, endIndex)
 
-    override fun toString(): String = fromCharArray(array, 0, _length)
+    override fun toString(): String = unsafeStringFromCharArray(array, 0, _length)
 
     fun substring(startIndex: Int, endIndex: Int): String {
         checkInsertIndex(startIndex)
         checkInsertIndexFrom(endIndex, startIndex)
-        return fromCharArray(array, startIndex, endIndex - startIndex)
+        return unsafeStringFromCharArray(array, startIndex, endIndex - startIndex)
     }
 
     fun trimToSize() {
@@ -227,6 +227,10 @@ actual class StringBuilder private constructor (
         val toAppend = csq ?: "null"
         if (start < 0 || end < start || start > toAppend.length) throw IndexOutOfBoundsException()
         ensureExtraCapacity(end - start)
+        (toAppend as? String)?.let {
+            _length += insertString(array, _length, it, start, end - start)
+            return this
+        }
         var index = start
         while (index < end)
             array[_length++] = toAppend[index++]

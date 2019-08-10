@@ -33,15 +33,6 @@ internal class KonanSerializerExtension(val context: Context, override val metad
         return index?.let { newKonanDescriptorUniqId(it) }
     }
 
-    override fun serializeType(type: KotlinType, proto: ProtoBuf.Type.Builder) {
-        // TODO: For debugging purpose we store the textual
-        // representation of serialized types.
-        // To be removed.
-        proto.setExtension(KonanProtoBuf.typeText, type.toString())
-
-        super.serializeType(type, proto)
-    }
-
     override fun serializeTypeParameter(typeParameter: TypeParameterDescriptor, proto: ProtoBuf.TypeParameter.Builder) {
         uniqId(typeParameter) ?.let { proto.setExtension(KonanProtoBuf.typeParamUniqId, it) }
         super.serializeTypeParameter(typeParameter, proto)
@@ -85,9 +76,6 @@ internal class KonanSerializerExtension(val context: Context, override val metad
                                    childSerializer: DescriptorSerializer) {
         proto.setExtension(KonanProtoBuf.propertyFile, sourceFileMap.assign(descriptor.source.containingFile))
         uniqId(descriptor) ?.let { proto.setExtension(KonanProtoBuf.propertyUniqId, it) }
-        proto.setExtension(KonanProtoBuf.hasBackingField,
-            context.ir.propertiesWithBackingFields.contains(descriptor))
-
         super.serializeProperty(descriptor, proto, versionRequirementTable, childSerializer)
     }
 

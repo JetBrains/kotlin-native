@@ -37,7 +37,8 @@ kotlin {
             }
             kotlin.srcDir "$toolsPath/benchmarks/shared/src"
             kotlin.srcDir "$toolsPath/benchmarksAnalyzer/src/main/kotlin"
-            kotlin.srcDir "$toolsPath/kliopt"
+            kotlin.srcDir "$rootProject.projectDir/endorsedLibraries/kliopt/src/main/kotlin"
+            kotlin.srcDir "$rootProject.projectDir/endorsedLibraries/kliopt/src/main/kotlin-native"
             kotlin.srcDir "$toolsPath/benchmarksAnalyzer/src/main/kotlin-native"
         }
     }
@@ -51,7 +52,7 @@ kotlin {
     }
 
     macosX64("macos").binaries {
-        framework(frameworkName, [RELEASE])
+        framework(frameworkName, [DEBUG])
     }
 }
 
@@ -74,10 +75,10 @@ task konanJsonReport {
         if (PlatformInfo.isMac()) {
             def applicationName = "FrameworkBenchmarksAnalyzer"
             def frameworkPath = kotlin.macosX64("macos").binaries.
-                    getFramework(frameworkName, kotlin.macosX64("macos").binaries.RELEASE).outputFile.absolutePath
+                    getFramework(frameworkName, kotlin.macosX64("macos").binaries.DEBUG).outputFile.absolutePath
             def nativeExecutable = new File("$frameworkPath/$frameworkName").canonicalPath
             def nativeCompileTime = MPPTools.getNativeCompileTime(applicationName, ['compileKotlinMacos',
-                                                                                    'linkBenchmarksAnalyzerReleaseFrameworkMacos',
+                                                                                    'linkBenchmarksAnalyzerDebugFrameworkMacos',
                                                                                     'cinteropLibcurlMacos'])
             def properties = getCommonProperties() + ['type'           : 'native',
                                                       'compilerVersion': "${konanVersion}".toString(),

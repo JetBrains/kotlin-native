@@ -688,7 +688,8 @@ ContainerHeader* allocContainer(MemoryState* state, size_t size) {
 #endif
   if (result == nullptr) {
 #if USE_GC
-    state->allocSinceLastGc += size;
+    if (state != nullptr)
+        state->allocSinceLastGc += size;
 #endif
     result = konanConstructSizedInstance<ContainerHeader>(alignUp(size, kObjectAlignment));
     atomicAdd(&allocCount, 1);
@@ -1551,7 +1552,6 @@ MemoryState* suspendMemory() {
 }
 
 void resumeMemory(MemoryState* state) {
-    RuntimeAssert(::memoryState == nullptr, "Cannot schedule on existing state");
     ::memoryState = state;
 }
 
@@ -1581,7 +1581,7 @@ void setHeapRef(ObjHeader** location, const ObjHeader* object) {
 void zeroHeapRef(ObjHeader** location) {
   MEMORY_LOG("ZeroHeapRef %p\n", location)
   auto* value = *location;
-  if (value != nullptr) {
+  if (reinterpret_cast<uintptr_t>(value) > 1) {
     UPDATE_REF_EVENT(memoryState, value, nullptr, location, 0);
     *location = nullptr;
     ReleaseHeapRef(value);
@@ -1661,7 +1661,7 @@ void updateHeapRefIfNull(ObjHeader** location, const ObjHeader* object) {
 }
 
 inline void checkIfGcNeeded(MemoryState* state) {
-  if (state->allocSinceLastGc > state->allocSinceLastGcThreshold) {
+  if (state != nullptr && state->allocSinceLastGc > state->allocSinceLastGcThreshold) {
     // To avoid GC trashing check that at least 10ms passed since last GC.
     if (konan::getTimeMicros() - state->lastGcTimestamp > 10 * 1000) {
       garbageCollect(state, false);
@@ -2488,7 +2488,6 @@ MemoryState* InitMemory() {
 }
 
 void DeinitMemory(MemoryState* memoryState) {
-  ::memoryState = memoryState;
   deinitMemory(memoryState);
 }
 
