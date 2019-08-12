@@ -8,7 +8,7 @@ import org.jetbrains.benchmarksLauncher.*
 actual class NumericalLauncher : Launcher() {
     override val benchmarks = BenchmarksCollection(
             mutableMapOf(
-                    "JVM" to BenchmarkEntry(::jvmBellardPi)
+                    "BellardPi" to BenchmarkEntry(::jvmBellardPi)
             )
     )
 }

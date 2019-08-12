@@ -8,18 +8,18 @@ import org.jetbrains.benchmarksLauncher.*
 actual class NumericalLauncher : Launcher() {
     override val benchmarks = BenchmarksCollection(
             mutableMapOf(
-                    "Clang" to BenchmarkEntry(::clangBellardPi),
-                    "Konan" to BenchmarkEntry(::konanBellardPi)
+                    "BellardPi" to BenchmarkEntry(::konanBellardPi),
+                    "BellardPiCinterop" to BenchmarkEntry(::clangBellardPi)
             )
     )
-}
-
-fun clangBellardPi() {
-    for (n in 1 .. 1000 step 9)
-            cinterop.pi_nth_digit(n)
 }
 
 fun konanBellardPi() {
     for (n in 1 .. 1000 step 9)
             pi_nth_digit(n)
+}
+
+fun clangBellardPi() {
+    for (n in 1 .. 1000 step 9)
+            cinterop.pi_nth_digit(n)
 }

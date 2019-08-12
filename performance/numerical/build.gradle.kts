@@ -13,7 +13,7 @@ plugins {
 }
 
 benchmark {
-    applicationName = "BellardPi"
+    applicationName = "Numerical"
     commonSrcDirs = listOf("src/main/kotlin", "../../tools/benchmarks/shared/src", "../shared/src/main/kotlin", "../../endorsedLibraries/kliopt/src/main/kotlin")
     jvmSrcDirs = listOf("src/main/kotlin-jvm", "../shared/src/main/kotlin-jvm", "../../endorsedLibraries/kliopt/src/main/kotlin-jvm")
     nativeSrcDirs = listOf("src/main/kotlin-native", "../shared/src/main/kotlin-native/common", "../../endorsedLibraries/kliopt/src/main/kotlin-native")
