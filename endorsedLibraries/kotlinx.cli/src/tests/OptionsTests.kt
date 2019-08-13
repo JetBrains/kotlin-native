@@ -65,4 +65,23 @@ class OptionsTests {
         assertEquals(false, useShortForm)
         assertEquals("text", renders[0])
     }
+
+    @Test
+    fun testResetOptionsValues() {
+        val argParser = ArgParser("testParser")
+        var useShortForm by argParser.option(ArgType.Boolean, "short", "s", "Show short version of report", defaultValue = false)
+        var renders by argParser.options(ArgType.Choice(listOf("text", "html", "xml", "json")),
+                "renders", "r", "Renders for showing information", listOf("text"), multiple = true)
+        var output by argParser.option(ArgType.String, "output", "o", "Output file")
+        argParser.parse(arrayOf("-o", "out.txt"))
+        output = null
+        useShortForm = true
+        renders = listOf()
+        assertEquals(true, useShortForm)
+        assertEquals(null, output)
+        assertEquals(0, renders.size)
+        assertEquals(ArgParser.ValueOrigin.REDEFINED, argParser.getOrigin("output"))
+        assertEquals(ArgParser.ValueOrigin.REDEFINED, argParser.getOrigin("short"))
+        assertEquals(ArgParser.ValueOrigin.REDEFINED, argParser.getOrigin("renders"))
+    }
 }
