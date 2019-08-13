@@ -298,6 +298,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             val descriptor = OptionDescriptor(type, name, shortName, description, listOf(defaultValue),
                     required, deprecatedWarning = deprecatedWarning)
             val cliElement = ArgumentSingleValueWithDefault(type.conversion)
+            cliElement.initDefaultValue(defaultValue)
             addOption(descriptor, ParsingValue(descriptor, cliElement))
             return cliElement
         }
@@ -323,6 +324,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                 printError("Several values are expected for option $name. " +
                         "Option must be used multiple times or split with delimiter.")
             val cliElement = ArgumentMultipleValues(type.conversion)
+            cliElement.initDefaultValue(defaultValue.toMutableList())
             addOption(descriptor, ParsingValue(descriptor, cliElement))
             return cliElement
         }
@@ -447,6 +449,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             val descriptor = ArgDescriptor(type, name, 1, description,
                     listOf(defaultValue), required, deprecatedWarning)
             val cliElement = ArgumentSingleValueWithDefault(type.conversion)
+            cliElement.initDefaultValue(defaultValue)
             addArgument(name, ParsingValue(descriptor, cliElement))
             return cliElement
         }
@@ -467,6 +470,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             val descriptor = ArgDescriptor(type, name, number, description,
                     defaultValue, required, deprecatedWarning)
             val cliElement = ArgumentMultipleValues(type.conversion)
+            cliElement.initDefaultValue(defaultValue.toMutableList())
             addArgument(name, ParsingValue(descriptor, cliElement))
             return cliElement
         }
@@ -586,6 +590,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
         val descriptor = ArgDescriptor(type, "", null, description,
                 defaultValue, required, deprecatedWarning)
         val cliElement = ArgumentMultipleValues(type.conversion)
+        cliElement.initDefaultValue(defaultValue.toMutableList())
         if ("" in arguments) {
             printError("You can have only one unnamed list with positional arguments.")
         }
@@ -601,8 +606,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
         /**
          * Add parsed value from command line.
          */
-        fun addValue(stringValue: String,
-                     setValue: ArgumentValue<U>.(String, String) -> Unit = ArgumentValue<U>::addValue) {
+        fun addValue(stringValue: String) {
             // Check of possibility to set several values to one option/argument.
             if (descriptor is OptionDescriptor<*> && !descriptor.multiple &&
                     !argumentValue.isEmpty() && descriptor.delimiter == null) {
@@ -616,10 +620,10 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             // Split value if needed.
             if (descriptor is OptionDescriptor<*> && descriptor.delimiter != null) {
                 stringValue.split(descriptor.delimiter).forEach {
-                    argumentValue.setValue(it, descriptor.fullName)
+                    argumentValue.addValue(it, descriptor.fullName)
                 }
             } else {
-                argumentValue.setValue(stringValue, descriptor.fullName)
+                argumentValue.addValue(stringValue, descriptor.fullName)
             }
         }
 
@@ -627,11 +631,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
          * Set default value to option.
          */
         fun addDefaultValue() {
-            descriptor.defaultValue.forEach {
-                addValue(it.toString(), ArgumentValue<U>::addDefaultValue)
-            }
-
-            if (descriptor.defaultValue.isEmpty() && descriptor.required) {
+            if (!argumentValue.addDefaultValue() && descriptor.required) {
                 printError("Please, provide value for ${descriptor.textDescription}. It should be always set.")
             }
         }
@@ -649,6 +649,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      * Argument/option value.
      */
     abstract class ArgumentValue<T : Any>(val conversion: (value: String, name: String, helpMessage: String)->T) {
+        private lateinit var defaultValues: T
         /**
          * Values of arguments.
          */
@@ -673,9 +674,13 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
          * @param stringValue value from command line.
          * @param argumentName name of argument value is added for.
          */
-        fun addDefaultValue(stringValue: String, argumentName: String) {
-            addValue(stringValue, argumentName)
+        fun addDefaultValue(): Boolean {
+            if (!::defaultValues.isInitialized) {
+                return false
+            }
+            values = defaultValues
             valueOrigin = ValueOrigin.SET_DEFAULT_VALUE
+            return true
         }
 
         /**
@@ -694,6 +699,10 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
         fun setValue(value: T) {
             values = value
             valueOrigin = ValueOrigin.REDEFINED
+        }
+
+        fun initDefaultValue(defaultValue: T) {
+            defaultValues = defaultValue
         }
     }
 
