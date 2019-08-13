@@ -273,7 +273,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                                                     val description: String? = null,
                                                     val required: Boolean = false,
                                                     val deprecatedWarning: String? = null) {
-        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueInterface<T?> {
+        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T?> {
             val name = fullName ?: prop.name
             val descriptor = OptionDescriptor(type, name, shortName, description, emptyList(),
                     required, deprecatedWarning = deprecatedWarning)
@@ -293,7 +293,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                                                        val defaultValue: T,
                                                        val required: Boolean = false,
                                                        val deprecatedWarning: String? = null) {
-        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueInterface<T> {
+        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T> {
             val name = fullName ?: prop.name
             val descriptor = OptionDescriptor(type, name, shortName, description, listOf(defaultValue),
                     required, deprecatedWarning = deprecatedWarning)
@@ -315,7 +315,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                                                val multiple: Boolean = false,
                                                val delimiter: String? = null,
                                                val deprecatedWarning: String? = null) {
-        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueInterface<List<T>> {
+        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<List<T>> {
             val name = fullName ?: prop.name
             val descriptor = OptionDescriptor(type, name, shortName, description, defaultValue,
                     required, multiple, delimiter, deprecatedWarning)
@@ -423,7 +423,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                                                       val description: String? = null,
                                                       val required: Boolean = true,
                                                       val deprecatedWarning: String? = null) {
-        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueInterface<T?> {
+        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T?> {
             val name = fullName ?: prop.name
             val descriptor = ArgDescriptor(type, name, 1, description,
                     emptyList(), required, deprecatedWarning)
@@ -442,7 +442,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                                                          val defaultValue: T,
                                                          val required: Boolean = true,
                                                          val deprecatedWarning: String? = null) {
-        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueInterface<T> {
+        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T> {
             val name = fullName ?: prop.name
             val descriptor = ArgDescriptor(type, name, 1, description,
                     listOf(defaultValue), required, deprecatedWarning)
@@ -462,7 +462,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                                                  val defaultValue: List<T> = emptyList(),
                                                  val required: Boolean = true,
                                                  val deprecatedWarning: String? = null) {
-        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueInterface<List<T>> {
+        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<List<T>> {
             val name = fullName ?: prop.name
             val descriptor = ArgDescriptor(type, name, number, description,
                     defaultValue, required, deprecatedWarning)
@@ -582,7 +582,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                            description: String? = null,
                            defaultValue: List<T> = emptyList(),
                            required: Boolean = true,
-                           deprecatedWarning: String? = null): ArgumentValueInterface<List<T>> {
+                           deprecatedWarning: String? = null): ArgumentValueDelegate<List<T>> {
         val descriptor = ArgDescriptor(type, "", null, description,
                 defaultValue, required, deprecatedWarning)
         val cliElement = ArgumentMultipleValues(type.conversion)
@@ -640,7 +640,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     /**
      * Interface of argument value.
      */
-    interface ArgumentValueInterface<T> {
+    interface ArgumentValueDelegate<T> {
         operator fun getValue(thisRef: Any?, property: KProperty<*>): T
         operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T)
     }
@@ -723,7 +723,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      * @property conversion conversion function from string value from command line to expected type.
      */
     inner class ArgumentSingleNullableValue<T : Any>(conversion: (value: String, name: String, helpMessage: String)->T):
-            ArgumentSingleValue<T>(conversion), ArgumentValueInterface<T?> {
+            ArgumentSingleValue<T>(conversion), ArgumentValueDelegate<T?> {
         private var setToNull = false
         override operator fun getValue(thisRef: Any?, property: KProperty<*>): T? = if (!isEmpty() && !setToNull) values else null
         override operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T?) {
@@ -743,7 +743,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      * @property conversion conversion function from string value from command line to expected type.
      */
     inner class ArgumentSingleValueWithDefault<T : Any>(conversion: (value: String, name: String, helpMessage: String)->T):
-            ArgumentSingleValue<T>(conversion), ArgumentValueInterface<T> {
+            ArgumentSingleValue<T>(conversion), ArgumentValueDelegate<T> {
         override operator fun getValue(thisRef: Any?, property: KProperty<*>): T = values
         override operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
             setValue(value)
@@ -758,7 +758,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     inner class ArgumentMultipleValues<T : Any>(conversion: (value: String, name: String, helpMessage: String)->T):
             ArgumentValue<MutableList<T>>(
             { value, name, _ -> mutableListOf(conversion(value, name, makeUsage())) }
-    ), ArgumentValueInterface<List<T>> {
+    ), ArgumentValueDelegate<List<T>> {
 
         init {
             values = mutableListOf()
