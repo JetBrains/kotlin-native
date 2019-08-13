@@ -57,12 +57,12 @@ abstract class Subcommand(val name: String): ArgParser(name) {
  *
  * @property type option/argument type, one of [ArgType].
  * @property fullName option/argument full name.
- * @property description text descrition of option/argument.
+ * @property description text description of option/argument.
  * @property defaultValue default value for option/argument.
  * @property required if option/argument is required or not. If it's required and not provided in command line and have no default value, error will be generated.
  * @property deprecatedWarning text message with information in case if option is deprecated.
  */
-abstract class Descriptor<T : Any>(val type: ArgType<T>,
+internal abstract class Descriptor<T : Any>(val type: ArgType<T>,
                                    val fullName: String,
                                    val description: String? = null,
                                    val defaultValue: List<T> = emptyList(),
@@ -90,7 +90,7 @@ class ArgParserResult(val commandName: String)
  * Arguments parser.
  *
  * @property programName name of current program.
- * @property useDefaultHelpShortName add or not -h flag for hrlp message.
+ * @property useDefaultHelpShortName add or not -h flag for help message.
  * @property prefixStyle style of expected options prefix.
  * @property skipExtraArguments just skip extra arhuments in command line string without producing error message.
  */
@@ -101,11 +101,11 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     /**
      * Map of options: key - fullname of option, value - pair of descriptor and parsed values.
      */
-    protected val options = mutableMapOf<String, ParsingValue<*, *>>()
+    internal val options = mutableMapOf<String, ParsingValue<*, *>>()
     /**
      * Map of arguments: key - fullname of argument, value - pair of descriptor and parsed values.
      */
-    protected val arguments = mutableMapOf<String, ParsingValue<*, *>>()
+    internal val arguments = mutableMapOf<String, ParsingValue<*, *>>()
     /**
      * Map of subcommands.
      */
@@ -159,14 +159,14 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      * @property type option type, one of [ArgType].
      * @property fullName option full name.
      * @property shortName option short name.
-     * @property description text descrition of option.
+     * @property description text description of option.
      * @property defaultValue default value for option.
      * @property required if option is required or not. If it's required and not provided in command line and have no default value, error will be generated.
      * @property multiple if option can be repeated several times in command line with different values. All values are stored.
      * @property delimiter delimiter that separate option provided as one string to several values.
      * @property deprecatedWarning text message with information in case if option is deprecated.
      */
-     inner class OptionDescriptor<T : Any>(
+     internal inner class OptionDescriptor<T : Any>(
             type: ArgType<T>,
             fullName: String,
             val shortName: String ? = null,
@@ -209,7 +209,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      * @property required if argument is required or not. If it's required and not provided in command line and have no default value, error will be generated.
      * @property deprecatedWarning text message with information in case if argument is deprecated.
      */
-     inner class ArgDescriptor<T : Any>(
+     internal inner class ArgDescriptor<T : Any>(
             type: ArgType<T>,
             fullName: String,
             val number: Int? = null,
@@ -342,9 +342,8 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                         shortName: String ? = null,
                         description: String? = null,
                         defaultValue: T,
-                        required: Boolean = false,
                         deprecatedWarning: String? = null) = SingleOptionWithDefaultLoader(type, fullName, shortName,
-            description, defaultValue, required, deprecatedWarning)
+            description, defaultValue, true, deprecatedWarning)
 
     /**
      * Add option with multiple possible values and get delegator to its values.
@@ -354,7 +353,6 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      * @param shortName option short name.
      * @param description text descrition of option.
      * @param defaultValue default value for option.
-     * @param required if option is required or not. If it's required and not provided in command line and have no default value, error will be generated.
      * @param multiple if option can be repeated several times in command line with different values. All values are stored.
      * @param delimiter delimiter that separate option provided as one string to several values.
      * @param deprecatedWarning text message with information in case if option is deprecated.
@@ -363,12 +361,39 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                          fullName: String? = null,
                          shortName: String ? = null,
                          description: String? = null,
-                         defaultValue: List<T> = emptyList(),
+                         defaultValue: List<T>,
+                         multiple: Boolean = false,
+                         delimiter: String? = null,
+                         deprecatedWarning: String? = null): MultipleOptionsLoader<T> {
+        // Default value can't be empty list.
+        if (defaultValue.isEmpty()) {
+            error("List with default values should contain at least one element.")
+        }
+        return MultipleOptionsLoader(type, fullName, shortName,
+            description, defaultValue, true, multiple, delimiter, deprecatedWarning)
+    }
+
+    /**
+     * Add option with multiple possible values and get delegator to its values.
+     *
+     * @param type option type, one of [ArgType].
+     * @param fullName option full name.
+     * @param shortName option short name.
+     * @param description text description of option.
+     * @param required if option is required or not. If it's required and not provided in command line and have no default value, error will be generated.
+     * @param multiple if option can be repeated several times in command line with different values. All values are stored.
+     * @param delimiter delimiter that separate option provided as one string to several values.
+     * @param deprecatedWarning text message with information in case if option is deprecated.
+     */
+    fun <T : Any>options(type: ArgType<T>,
+                         fullName: String? = null,
+                         shortName: String ? = null,
+                         description: String? = null,
                          required: Boolean = false,
                          multiple: Boolean = false,
                          delimiter: String? = null,
                          deprecatedWarning: String? = null) = MultipleOptionsLoader(type, fullName, shortName,
-            description, defaultValue, required, multiple, delimiter, deprecatedWarning)
+            description, emptyList(), required, multiple, delimiter, deprecatedWarning)
 
     /**
      * Loader for argument with single possible value which is nullable.
@@ -531,7 +556,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     /**
      * Parsing value of option/argument.
      */
-     protected inner class ParsingValue<T: Any, U: Any>(val descriptor: Descriptor<T>, val argumentValue: ArgumentValue<U>) {
+     internal inner class ParsingValue<T: Any, U: Any>(val descriptor: Descriptor<T>, val argumentValue: ArgumentValue<U>) {
 
         /**
          * Add parsed value from command line.
@@ -742,7 +767,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      *
      * @param candidate string with candidate in options.
      */
-    protected fun recognizeOptionFullForm(candidate: String) =
+    internal fun recognizeOptionFullForm(candidate: String) =
         if (candidate.startsWith(optionFullFormPrefix))
             options[candidate.substring(optionFullFormPrefix.length)]
         else null
@@ -752,7 +777,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      *
      * @param candidate string with candidate in options.
      */
-    protected fun recognizeOptionShortForm(candidate: String) =
+    internal fun recognizeOptionShortForm(candidate: String) =
             if (candidate.startsWith(optionShortFromPrefix))
                 shortNames[candidate.substring(optionShortFromPrefix.length)]
             else null
