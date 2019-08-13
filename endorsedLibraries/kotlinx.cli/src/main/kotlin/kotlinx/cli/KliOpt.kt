@@ -115,7 +115,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     /**
      * Mapping for short options names for quick search.
      */
-    private lateinit var shortNames: Map<String, ParsingValue<*, *>>
+    private var shortNames = mutableMapOf<String, ParsingValue<*, *>>()
 
     /**
      * Used prefix form for full option form.
@@ -244,12 +244,32 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             }
     }
 
+    internal fun addOption(descriptor: OptionDescriptor<*>, value: ParsingValue<*, *>) {
+        if (options.containsKey(descriptor.fullName)) {
+            error("Option with full name ${descriptor.fullName} was already added.")
+        }
+        if (descriptor.shortName != null && shortNames.containsKey(descriptor.shortName)) {
+            error("Option with short name ${descriptor.shortName} was already added.")
+        }
+        options[descriptor.fullName] = value
+        descriptor.shortName?.let {
+            shortNames[it] = value
+        }
+    }
+
+    internal fun addArgument(name: String, value: ParsingValue<*, *>) {
+        if (arguments.containsKey(name)) {
+            error("Option with full name $name was already added.")
+        }
+        arguments[name] = value
+    }
+
     /**
      * Loader for option with single possible value which is nullable.
      */
     inner class SingleNullableOptionLoader<T : Any>(val type: ArgType<T>,
                                                     val fullName: String? = null,
-                                                    val shortName: String ? = null,
+                                                    val shortName: String? = null,
                                                     val description: String? = null,
                                                     val required: Boolean = false,
                                                     val deprecatedWarning: String? = null) {
@@ -258,7 +278,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             val descriptor = OptionDescriptor(type, name, shortName, description, emptyList(),
                     required, deprecatedWarning = deprecatedWarning)
             val cliElement = ArgumentSingleNullableValue(type.conversion)
-            options[name] = ParsingValue(descriptor, cliElement)
+            addOption(descriptor, ParsingValue(descriptor, cliElement))
             return cliElement
         }
     }
@@ -278,7 +298,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             val descriptor = OptionDescriptor(type, name, shortName, description, listOf(defaultValue),
                     required, deprecatedWarning = deprecatedWarning)
             val cliElement = ArgumentSingleValueWithDefault(type.conversion)
-            options[name] = ParsingValue(descriptor, cliElement)
+            addOption(descriptor, ParsingValue(descriptor, cliElement))
             return cliElement
         }
     }
@@ -303,7 +323,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                 printError("Several values are expected for option $name. " +
                         "Option must be used multiple times or split with delimiter.")
             val cliElement = ArgumentMultipleValues(type.conversion)
-            options[name] = ParsingValue(descriptor, cliElement)
+            addOption(descriptor, ParsingValue(descriptor, cliElement))
             return cliElement
         }
     }
@@ -343,7 +363,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                         description: String? = null,
                         defaultValue: T,
                         deprecatedWarning: String? = null) = SingleOptionWithDefaultLoader(type, fullName, shortName,
-            description, defaultValue, true, deprecatedWarning)
+            description, defaultValue, false, deprecatedWarning)
 
     /**
      * Add option with multiple possible values and get delegator to its values.
@@ -370,7 +390,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             error("List with default values should contain at least one element.")
         }
         return MultipleOptionsLoader(type, fullName, shortName,
-            description, defaultValue, true, multiple, delimiter, deprecatedWarning)
+            description, defaultValue, false, multiple, delimiter, deprecatedWarning)
     }
 
     /**
@@ -408,7 +428,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             val descriptor = ArgDescriptor(type, name, 1, description,
                     emptyList(), required, deprecatedWarning)
             val cliElement = ArgumentSingleNullableValue(type.conversion)
-            arguments[name] = ParsingValue(descriptor, cliElement)
+            addArgument(name, ParsingValue(descriptor, cliElement))
             return cliElement
         }
     }
@@ -427,7 +447,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             val descriptor = ArgDescriptor(type, name, 1, description,
                     listOf(defaultValue), required, deprecatedWarning)
             val cliElement = ArgumentSingleValueWithDefault(type.conversion)
-            arguments[name] = ParsingValue(descriptor, cliElement)
+            addArgument(name, ParsingValue(descriptor, cliElement))
             return cliElement
         }
     }
@@ -447,7 +467,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             val descriptor = ArgDescriptor(type, name, number, description,
                     defaultValue, required, deprecatedWarning)
             val cliElement = ArgumentMultipleValues(type.conversion)
-            arguments[name] = ParsingValue(descriptor, cliElement)
+            addArgument(name, ParsingValue(descriptor, cliElement))
             return cliElement
         }
     }
@@ -832,17 +852,13 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
         val helpDescriptor = if (useDefaultHelpShortName) OptionDescriptor(ArgType.Boolean,
                 "help", "h", "Usage info")
             else OptionDescriptor(ArgType.Boolean, "help", description = "Usage info")
-        options["help"] = ParsingValue(helpDescriptor, ArgumentSingleNullableValue(helpDescriptor.type.conversion))
+        addOption(helpDescriptor, ParsingValue(helpDescriptor, ArgumentSingleNullableValue(helpDescriptor.type.conversion)))
 
         // Add default list with arguments if there can be extra free arguments.
         if (skipExtraArguments) {
             arguments(ArgType.String)
         }
         val argumentsQueue = ArgumentsQueue(arguments.map { it.value.descriptor as ArgDescriptor<*> })
-
-        // Fill map with short names of options.
-        shortNames = options.filter { (it.value.descriptor as? OptionDescriptor<*>)?.shortName != null }.
-                map { (it.value.descriptor as OptionDescriptor<*>).shortName!! to it.value }.toMap()
 
         var index = 0
         while (index < args.size) {
@@ -917,9 +933,11 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                 result.append(it.value.descriptor.helpMessage)
             }
         }
-        result.append("Options: \n")
-        options.forEach {
-            result.append(it.value.descriptor.helpMessage)
+        if (options.isEmpty()) {
+            result.append("Options: \n")
+            options.forEach {
+                result.append(it.value.descriptor.helpMessage)
+            }
         }
         return result.toString()
     }

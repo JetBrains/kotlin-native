@@ -29,7 +29,7 @@ class HelpTests {
         argParser.parse(arrayOf("-h"))
         val helpOutput = argParser.makeUsage().trimIndent()
         val expectedOutput = """
-            Usage: test options_list
+Usage: test options_list
 Arguments: 
     mainReport -> Main report for analysis { String }
     compareToReport -> Report to compare to (optional) { String }
@@ -41,7 +41,7 @@ Options:
     --user, -u -> User access information for authorization { String }
     --help, -h -> Usage info 
         """.trimIndent()
-        assertEquals(helpOutput, expectedOutput)
+        assertEquals(expectedOutput, helpOutput)
     }
 
     @Test
@@ -80,9 +80,9 @@ Options:
         val argParser = ArgParser("test")
         argParser.subcommands(action)
         argParser.parse(arrayOf("summary", "-h"))
-        val helpOutput = argParser.makeUsage().trimIndent()
+        val helpOutput = action.makeUsage().trimIndent()
         val expectedOutput = """
-            Usage: test summary options_list
+Usage: test summary options_list
 Arguments: 
     mainReport -> Main report for analysis { String }
     compareToReport -> Report to compare to (optional) { String }
@@ -94,6 +94,6 @@ Options:
     --user, -u -> User access information for authorization { String }
     --help, -h -> Usage info 
         """.trimIndent()
-        assertEquals(helpOutput, expectedOutput)
+        assertEquals(expectedOutput, helpOutput)
     }
 }
