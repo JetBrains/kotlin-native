@@ -473,18 +473,40 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      *
      * @param type argument type, one of [ArgType].
      * @param fullName argument full name.
-     * @param description text descrition of argument.
+     * @param description text description of argument.
      * @param defaultValue default value for argument.
-     * @param required if argument is required or not. If it's required and not provided in command line and have no default value, error will be generated.
      * @param deprecatedWarning text message with information in case if argument is deprecated.
      */
     fun <T : Any>argument(type: ArgType<T>,
                           fullName: String? = null,
                           description: String? = null,
                           defaultValue: T,
-                          required: Boolean = true,
                           deprecatedWarning: String? = null) = SingleArgumentWithDefaultLoader(type, fullName,
-            description, defaultValue, required, deprecatedWarning )
+            description, defaultValue, true, deprecatedWarning)
+
+    /**
+     * Add argument with [number] possible values and get delegator to its value.
+     *
+     * @param type argument type, one of [ArgType].
+     * @param fullName argument full name.
+     * @param number expected number of values. Null means any possible number of values.
+     * @param description text description of argument.
+     * @param defaultValue default value for argument.
+     * @param deprecatedWarning text message with information in case if argument is deprecated.
+     */
+    fun <T : Any>arguments(type: ArgType<T>,
+                           fullName: String? = null,
+                           number: Int? = null,
+                           description: String? = null,
+                           defaultValue: List<T>,
+                           deprecatedWarning: String? = null): MultipleArgumentsLoader<T> {
+        // Default value can't be empty list.
+        if (defaultValue.isEmpty()) {
+            error("List with default values should contain at least one element.")
+        }
+        return MultipleArgumentsLoader(type, fullName, number,
+                description, defaultValue, true, deprecatedWarning)
+    }
 
     /**
      * Add argument with [number] possible values and get delegator to its value.
@@ -493,7 +515,6 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      * @param fullName argument full name.
      * @param number expected number of values. Null means any possible number of values.
      * @param description text descrition of argument.
-     * @param defaultValue default value for argument.
      * @param required if argument is required or not. If it's required and not provided in command line and have no default value, error will be generated.
      * @param deprecatedWarning text message with information in case if argument is deprecated.
      */
@@ -501,10 +522,9 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                            fullName: String? = null,
                            number: Int? = null,
                            description: String? = null,
-                           defaultValue: List<T> = emptyList(),
                            required: Boolean = true,
                            deprecatedWarning: String? = null) = MultipleArgumentsLoader(type, fullName, number,
-            description, defaultValue, required, deprecatedWarning)
+            description, emptyList(), required, deprecatedWarning)
 
     /**
      * Add subcommands.
