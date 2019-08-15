@@ -40,6 +40,18 @@ internal class ArgumentsQueue(argumentsDescriptors: List<ArgParser.ArgDescriptor
     }
 }
 
+interface DelegateProvider<T> {
+    operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T>
+}
+
+/**
+ * Interface of argument value.
+ */
+interface ArgumentValueDelegate<T> {
+    operator fun getValue(thisRef: Any?, property: KProperty<*>): T
+    operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T)
+}
+
 /**
  * Abstract base class for subcommands.
  */
@@ -77,7 +89,12 @@ internal abstract class Descriptor<T : Any, TResult : Any>(val type: ArgType<T>,
      */
     abstract val helpMessage: String
 
-    fun valueDescription(value: TResult?) = defaultValue?.let {
+    /**
+     * Provide text description of value.
+     *
+     * @param value value got getting text description for.
+     */
+    fun valueDescription(value: TResult?) = value?.let {
         if (it is List<*> && !it.isEmpty())
             " [${it.joinToString { it.toString() }}]"
         else if (it !is List<*>)
@@ -85,6 +102,9 @@ internal abstract class Descriptor<T : Any, TResult : Any>(val type: ArgType<T>,
         else null
     }
 
+    /**
+     * Flag to check if descriptor has set default value for option/argument.
+     */
     val defaultValueSet by lazy {
         defaultValue != null && (defaultValue is List<*> && defaultValue.isNotEmpty() || defaultValue !is List<*>)
     }
@@ -97,6 +117,84 @@ internal abstract class Descriptor<T : Any, TResult : Any>(val type: ArgType<T>,
  * @property commandName name of command which was called.
  */
 class ArgParserResult(val commandName: String)
+
+/**
+ * Parsing value of option/argument.
+ */
+internal abstract class ParsingValue<T: Any, TResult: Any>(val descriptor: Descriptor<T, TResult>) {
+    /**
+     * Values of arguments.
+     */
+    protected lateinit var value: TResult
+
+    /**
+     * Value origin.
+     */
+    var valueOrigin = ArgParser.ValueOrigin.UNSET
+        protected set
+
+    /**
+     * Check if values of argument are empty.
+     */
+    abstract fun isEmpty(): Boolean
+
+    /**
+     * Check if value of argument was initialized.
+     */
+    protected fun valueIsInitialized() = ::value.isInitialized
+
+    /**
+     * Sace value from command line.
+     *
+     * @param stringValue value from command line.
+     */
+    protected abstract fun saveValue(stringValue: String)
+
+    /**
+     * Set value of delegated property.
+     */
+    fun setDelegatedValue(providedValue: TResult) {
+        value = providedValue
+        valueOrigin = ArgParser.ValueOrigin.REDEFINED
+    }
+
+    /**
+     * Add parsed value from command line.
+     */
+    fun addValue(stringValue: String) {
+        // Check of possibility to set several values to one option/argument.
+        if (descriptor is ArgParser.OptionDescriptor<*, *> && !descriptor.multiple &&
+                !isEmpty() && descriptor.delimiter == null) {
+            throw ParsingException("Try to provide more than one value for ${descriptor.fullName}.")
+        }
+        // Show deprecated warning only first time of using option/argument.
+        descriptor.deprecatedWarning?.let {
+            if (isEmpty())
+                println ("Warning: $it")
+        }
+        // Split value if needed.
+        if (descriptor is ArgParser.OptionDescriptor<*, *> && descriptor.delimiter != null) {
+            stringValue.split(descriptor.delimiter).forEach {
+                saveValue(it)
+            }
+        } else {
+            saveValue(stringValue)
+        }
+    }
+
+    /**
+     * Set default value to option.
+     */
+    fun addDefaultValue() {
+        if (!descriptor.defaultValueSet && descriptor.required) {
+            throw ParsingException("Please, provide value for ${descriptor.textDescription}. It should be always set.")
+        }
+        if (descriptor.defaultValueSet) {
+            value = descriptor.defaultValue!!
+            valueOrigin = ArgParser.ValueOrigin.SET_DEFAULT_VALUE
+        }
+    }
+}
 
 /**
  * Arguments parser.
@@ -113,11 +211,12 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     /**
      * Map of options: key - fullname of option, value - pair of descriptor and parsed values.
      */
-    internal val options = mutableMapOf<String, ParsingValue<*, *>>()
+    private val options = mutableMapOf<String, ParsingValue<*, *>>()
     /**
      * Map of arguments: key - fullname of argument, value - pair of descriptor and parsed values.
      */
-    internal val arguments = mutableMapOf<String, ParsingValue<*, *>>()
+    private val arguments = mutableMapOf<String, ParsingValue<*, *>>()
+
     /**
      * Map of subcommands.
      */
@@ -154,6 +253,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      * REDEFINED - value of option was redefined in source code after parsing.
      */
     enum class ValueOrigin { SET_BY_USER, SET_DEFAULT_VALUE, UNSET, REDEFINED }
+
     /**
      * Options prefix style.
      *
@@ -218,7 +318,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      * @property type argument type, one of [ArgType].
      * @property fullName argument full name.
      * @property number expected number of values. Null means any possible number of values.
-     * @property description text descrition of argument.
+     * @property description text description of argument.
      * @property defaultValue default value for argument.
      * @property required if argument is required or not. If it's required and not provided in command line and have no default value, error will be generated.
      * @property deprecatedWarning text message with information in case if argument is deprecated.
@@ -260,7 +360,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             }
     }
 
-    internal fun addOption(descriptor: OptionDescriptor<*, *>, value: ParsingValue<*, *>) {
+    private fun addOption(descriptor: OptionDescriptor<*, *>, value: ParsingValue<*, *>) {
         if (options.containsKey(descriptor.fullName)) {
             error("Option with full name ${descriptor.fullName} was already added.")
         }
@@ -273,29 +373,25 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
         }
     }
 
-    internal fun addArgument(name: String, value: ParsingValue<*, *>) {
+    private fun addArgument(name: String, value: ParsingValue<*, *>) {
         if (arguments.containsKey(name)) {
             error("Option with full name $name was already added.")
         }
         arguments[name] = value
     }
 
-    interface DelegateProvider<T> {
-        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T>
-    }
-
     /**
      * Loader for option with multiple possible values.
      */
-    inner class MultipleOptionsLoader<T : Any>(val type: ArgType<T>,
-                                               val fullName: String? = null,
-                                               val shortName: String ? = null,
-                                               val description: String? = null,
-                                               val defaultValue: List<T> = emptyList(),
-                                               val required: Boolean = false,
-                                               val multiple: Boolean = false,
-                                               val delimiter: String? = null,
-                                               val deprecatedWarning: String? = null) : DelegateProvider<List<T>> {
+    inner class MultipleOptionsLoader<T : Any>(private val type: ArgType<T>,
+                                               private val fullName: String? = null,
+                                               private val shortName: String? = null,
+                                               private val description: String? = null,
+                                               private val defaultValue: List<T> = emptyList(),
+                                               private val required: Boolean = false,
+                                               private val multiple: Boolean = false,
+                                               private val delimiter: String? = null,
+                                               private val deprecatedWarning: String? = null) : DelegateProvider<List<T>> {
         override operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<List<T>> {
             val name = fullName ?: prop.name
             val descriptor = OptionDescriptor(type, name, shortName, description, defaultValue.toMutableList(),
@@ -315,7 +411,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      * @param type argument type, one of [ArgType].
      * @param fullName argument full name.
      * @param shortName option short name.
-     * @param description text descrition of option.
+     * @param description text description of option.
      * @param required if option is required or not. If it's required and not provided in command line and have no default value, error will be generated.
      * @param deprecatedWarning text message with information in case if option is deprecated.
      */
@@ -341,7 +437,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      * @param type option type, one of [ArgType].
      * @param fullName option full name.
      * @param shortName option short name.
-     * @param description text descrition of option.
+     * @param description text description of option.
      * @param defaultValue default value for option.
      * @param required if option is required or not. If it's required and not provided in command line and have no default value, error will be generated.
      * @param deprecatedWarning text message with information in case if option is deprecated.
@@ -368,7 +464,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      * @param type option type, one of [ArgType].
      * @param fullName option full name.
      * @param shortName option short name.
-     * @param description text descrition of option.
+     * @param description text description of option.
      * @param defaultValue default value for option.
      * @param multiple if option can be repeated several times in command line with different values. All values are stored.
      * @param delimiter delimiter that separate option provided as one string to several values.
@@ -415,13 +511,13 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     /**
      * Loader for option with multiple possible values.
      */
-    inner class MultipleArgumentsLoader<T : Any>(val type: ArgType<T>,
-                                                 val fullName: String? = null,
-                                                 val number: Int? = null,
-                                                 val description: String? = null,
-                                                 val defaultValue: List<T> = emptyList(),
-                                                 val required: Boolean = true,
-                                                 val deprecatedWarning: String? = null) : DelegateProvider<List<T>> {
+    inner class MultipleArgumentsLoader<T : Any>(private val type: ArgType<T>,
+                                                 private val fullName: String? = null,
+                                                 private val number: Int? = null,
+                                                 private val description: String? = null,
+                                                 private val defaultValue: List<T> = emptyList(),
+                                                 private val required: Boolean = true,
+                                                 private val deprecatedWarning: String? = null) : DelegateProvider<List<T>> {
         override operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<List<T>> {
             val name = fullName ?: prop.name
             val descriptor = ArgDescriptor(type, name, number, description,
@@ -437,7 +533,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      *
      * @param type argument type, one of [ArgType].
      * @param fullName argument full name.
-     * @param description text descrition of argument.
+     * @param description text description of argument.
      * @param required if argument is required or not. If it's required and not provided in command line and have no default value, error will be generated.
      * @param deprecatedWarning text message with information in case if argument is deprecated.
      */
@@ -510,7 +606,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      * @param type argument type, one of [ArgType].
      * @param fullName argument full name.
      * @param number expected number of values. Null means any possible number of values.
-     * @param description text descrition of argument.
+     * @param description text description of argument.
      * @param required if argument is required or not. If it's required and not provided in command line and have no default value, error will be generated.
      * @param deprecatedWarning text message with information in case if argument is deprecated.
      */
@@ -549,7 +645,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      * Get all free arguments as unnamed list.
      *
      * @param type argument type, one of [ArgType].
-     * @param description text descrition of argument.
+     * @param description text description of argument.
      * @param defaultValue default value for argument.
      * @param required if argument is required or not. If it's required and not provided in command line and have no default value, error will be generated.
      * @param deprecatedWarning text message with information in case if argument is deprecated.
@@ -570,95 +666,9 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     }
 
     /**
-     * Parsing value of option/argument.
-     */
-    internal abstract class ParsingValue<T: Any, TResult: Any>(val descriptor: Descriptor<T, TResult>) {
-        /**
-         * Values of arguments.
-         */
-        protected lateinit var value: TResult
-
-        /**
-         * Value origin.
-         */
-        var valueOrigin = ValueOrigin.UNSET
-            protected set
-
-        /**
-         * Check if values of argument are empty.
-         */
-        abstract fun isEmpty(): Boolean
-
-        /**
-         * Check if value of argument was initialized.
-         */
-        protected fun valueIsInitialized() = ::value.isInitialized
-
-        /**
-         * Sace value from command line.
-         *
-         * @param stringValue value from command line.
-         */
-        protected abstract fun saveValue(stringValue: String)
-
-        /**
-         * Set value of delegated property.
-         */
-        fun setDelegatedValue(providedValue: TResult) {
-            value = providedValue
-            valueOrigin = ValueOrigin.REDEFINED
-        }
-
-        /**
-         * Add parsed value from command line.
-         */
-        fun addValue(stringValue: String) {
-            // Check of possibility to set several values to one option/argument.
-            if (descriptor is OptionDescriptor<*, *> && !descriptor.multiple &&
-                    !isEmpty() && descriptor.delimiter == null) {
-                throw ParsingException("Try to provide more than one value for ${descriptor.fullName}.")
-            }
-            // Show deprecated warning only first time of using option/argument.
-            descriptor.deprecatedWarning?.let {
-                if (isEmpty())
-                    println ("Warning: $it")
-            }
-            // Split value if needed.
-            if (descriptor is OptionDescriptor<*, *> && descriptor.delimiter != null) {
-                stringValue.split(descriptor.delimiter).forEach {
-                    saveValue(it)
-                }
-            } else {
-                saveValue(stringValue)
-            }
-        }
-
-        /**
-         * Set default value to option.
-         */
-        fun addDefaultValue() {
-            if (!descriptor.defaultValueSet && descriptor.required) {
-                throw ParsingException("Please, provide value for ${descriptor.textDescription}. It should be always set.")
-            }
-            if (descriptor.defaultValueSet) {
-                value = descriptor.defaultValue!!
-                valueOrigin = ValueOrigin.SET_DEFAULT_VALUE
-            }
-        }
-    }
-
-    /**
-     * Interface of argument value.
-     */
-    interface ArgumentValueDelegate<T> {
-        operator fun getValue(thisRef: Any?, property: KProperty<*>): T
-        operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T)
-    }
-
-    /**
      * Single argument value.
      *
-     * @property conversion conversion function from string value from command line to expected type.
+     * @property descriptor descriptor of option/argument.
      */
     internal abstract class ArgumentSingleValue<T : Any>(descriptor: Descriptor<T, T>):
             ParsingValue<T, T>(descriptor) {
@@ -678,7 +688,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     /**
      * Single nullable argument value.
      *
-     * @property conversion conversion function from string value from command line to expected type.
+     * @property descriptor descriptor of option/argument.
      */
     internal inner class ArgumentSingleNullableValue<T : Any>(descriptor: Descriptor<T, T>):
             ArgumentSingleValue<T>(descriptor), ArgumentValueDelegate<T?> {
@@ -698,7 +708,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     /**
      * Single argument value with default.
      *
-     * @property conversion conversion function from string value from command line to expected type.
+     * @property descriptor descriptor of option/argument.
      */
     internal inner class ArgumentSingleValueWithDefault<T : Any>(descriptor: Descriptor<T, T>):
             ArgumentSingleValue<T>(descriptor), ArgumentValueDelegate<T> {
@@ -711,7 +721,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     /**
      * Multiple argument values.
      *
-     * @property conversion conversion function from string value from command line to expected type.
+     * @property descriptor descriptor of option/argument.
      */
     internal inner class ArgumentMultipleValues<T : Any>(descriptor: Descriptor<T, MutableList<T>>):
     ParsingValue<T, MutableList<T>>(descriptor), ArgumentValueDelegate<List<T>> {
@@ -739,7 +749,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      *
      * @param message error message.
      */
-    fun printError(message: String): Nothing {
+    internal fun printError(message: String): Nothing {
         error("$message\n${makeUsage()}")
     }
 
@@ -749,7 +759,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      * @param name name of argument/option.
      */
     fun getOrigin(name: String) = options[name]?.valueOrigin ?:
-        arguments[name]?.valueOrigin ?: printError("No option/argument $name in list of avaliable options")
+        arguments[name]?.valueOrigin ?: printError("No option/argument $name in list of available options")
 
     /**
      * Save value as argument value.
@@ -781,7 +791,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      *
      * @param candidate string with candidate in options.
      */
-    internal fun recognizeOptionFullForm(candidate: String) =
+    private fun recognizeOptionFullForm(candidate: String) =
         if (candidate.startsWith(optionFullFormPrefix))
             options[candidate.substring(optionFullFormPrefix.length)]
         else null
@@ -791,7 +801,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      *
      * @param candidate string with candidate in options.
      */
-    internal fun recognizeOptionShortForm(candidate: String) =
+    private fun recognizeOptionShortForm(candidate: String) =
             if (candidate.startsWith(optionShortFromPrefix))
                 shortNames[candidate.substring(optionShortFromPrefix.length)]
             else null
@@ -864,7 +874,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                 } else {
                     // Argument is found.
                     if (!saveAsArg(arg, argumentsQueue)) {
-                        printError("Too many arguments! Couldn't proccess argument $arg!")
+                        printError("Too many arguments! Couldn't process argument $arg!")
                     }
                 }
                 index++
@@ -889,7 +899,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     internal fun makeUsage(): String {
         val result = StringBuilder()
         result.append("Usage: ${fullCommandName.joinToString(" ")} options_list\n")
-        if (!arguments.isEmpty()) {
+        if (arguments.isNotEmpty()) {
             result.append("Arguments: \n")
             arguments.forEach {
                 result.append(it.value.descriptor.helpMessage)
