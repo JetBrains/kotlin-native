@@ -612,7 +612,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     /**
      * Parsing value of option/argument.
      */
-    internal abstract inner class ParsingValue<T: Any, TResult: Any>(val descriptor: Descriptor<T, TResult>) {
+    internal abstract class ParsingValue<T: Any, TResult: Any>(val descriptor: Descriptor<T, TResult>) {
         /**
          * Values of arguments.
          */
@@ -656,7 +656,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             // Check of possibility to set several values to one option/argument.
             if (descriptor is OptionDescriptor<*, *> && !descriptor.multiple &&
                     !isEmpty() && descriptor.delimiter == null) {
-                printError("Try to provide more than one value for ${descriptor.fullName}.")
+                throw ParsingException("Try to provide more than one value for ${descriptor.fullName}.")
             }
             // Show deprecated warning only first time of using option/argument.
             descriptor.deprecatedWarning?.let {
@@ -678,7 +678,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
          */
         fun addDefaultValue() {
             if (!descriptor.defaultValueSet && descriptor.required) {
-                printError("Please, provide value for ${descriptor.textDescription}. It should be always set.")
+                throw ParsingException("Please, provide value for ${descriptor.textDescription}. It should be always set.")
             }
             if (descriptor.defaultValueSet) {
                 value = descriptor.defaultValue!!
@@ -700,15 +700,15 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      *
      * @property conversion conversion function from string value from command line to expected type.
      */
-    internal inner abstract class ArgumentSingleValue<T : Any>(descriptor: Descriptor<T, T>):
+    internal abstract class ArgumentSingleValue<T : Any>(descriptor: Descriptor<T, T>):
             ParsingValue<T, T>(descriptor) {
 
         override fun saveValue(stringValue: String) {
             if (!valueIsInitialized()) {
-                value = descriptor.type.conversion(stringValue, descriptor.fullName, makeUsage())
+                value = descriptor.type.conversion(stringValue, descriptor.fullName)
                 valueOrigin = ValueOrigin.SET_BY_USER
             } else {
-                printError("Try to provide more than one value $value and $stringValue for ${descriptor.fullName}.")
+                throw ParsingException("Try to provide more than one value $value and $stringValue for ${descriptor.fullName}.")
             }
         }
 
@@ -763,7 +763,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
         override operator fun getValue(thisRef: Any?, property: KProperty<*>): List<T> = value
 
         override fun saveValue(stringValue: String) {
-            value.add(descriptor.type.conversion(stringValue, descriptor.fullName, makeUsage()))
+            value.add(descriptor.type.conversion(stringValue, descriptor.fullName))
             valueOrigin = ValueOrigin.SET_BY_USER
         }
 
@@ -859,63 +859,67 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
         val argumentsQueue = ArgumentsQueue(arguments.map { it.value.descriptor as ArgDescriptor<*, *> })
 
         var index = 0
-        while (index < args.size) {
-            val arg = args[index]
-            // Check for subcommands.
-            @UseExperimental(ExperimentalCli::class)
-            subcommands.forEach { (name, subcommand) ->
-                if (arg == name) {
-                    // Use parser for this subcommand.
-                    subcommand.parse(args.slice(index + 1..args.size - 1))
-                    subcommand.execute()
+        try {
+            while (index < args.size) {
+                val arg = args[index]
+                // Check for subcommands.
+                @UseExperimental(ExperimentalCli::class)
+                subcommands.forEach { (name, subcommand) ->
+                    if (arg == name) {
+                        // Use parser for this subcommand.
+                        subcommand.parse(args.slice(index + 1..args.size - 1))
+                        subcommand.execute()
 
-                    return ArgParserResult(name)
+                        return ArgParserResult(name)
+                    }
                 }
-            }
-            // Parse argumnets from command line.
-            if (arg.startsWith('-')) {
-                // Candidate in being option.
-                // Option is found.
-                val argValue = recognizeOptionShortForm(arg) ?: recognizeOptionFullForm(arg)
-                argValue?.descriptor?.let {
-                    if (argValue.descriptor.type.hasParameter) {
-                        if (index < args.size - 1) {
-                            saveAsOption(argValue, args[index + 1])
-                            index++
+                // Parse arguments from command line.
+                if (arg.startsWith('-')) {
+                    // Candidate in being option.
+                    // Option is found.
+                    val argValue = recognizeOptionShortForm(arg) ?: recognizeOptionFullForm(arg)
+                    argValue?.descriptor?.let {
+                        if (argValue.descriptor.type.hasParameter) {
+                            if (index < args.size - 1) {
+                                saveAsOption(argValue, args[index + 1])
+                                index++
+                            } else {
+                                // An error, option with value without value.
+                                printError("No value for ${argValue.descriptor.textDescription}")
+                            }
                         } else {
-                            // An error, option with value without value.
-                            printError("No value for ${argValue.descriptor.textDescription}")
+                            // Boolean flags.
+                            if (argValue.descriptor.fullName == "help") {
+                                println(makeUsage())
+                                exitProcess(0)
+                            }
+                            saveAsOption(argValue, "true")
                         }
-                    } else {
-                        // Boolean flags.
-                        if (argValue.descriptor.fullName == "help") {
-                            println(makeUsage())
-                            exitProcess(0)
+                    } ?: run {
+                        // Try save as argument.
+                        if (!saveAsArg(arg, argumentsQueue)) {
+                            printError("Unknown option $arg")
                         }
-                        saveAsOption(argValue, "true")
                     }
-                } ?: run {
-                    // Try save as argument.
+                } else {
+                    // Argument is found.
                     if (!saveAsArg(arg, argumentsQueue)) {
-                        printError("Unknown option $arg")
+                        printError("Too many arguments! Couldn't proccess argument $arg!")
                     }
                 }
-            } else {
-                // Argument is found.
-                if (!saveAsArg(arg, argumentsQueue)) {
-                    printError("Too many arguments! Couldn't proccess argument $arg!")
+                index++
+            }
+            // Postprocess results of parsing.
+            options.values.union(arguments.values).forEach { value ->
+                // Not inited, append default value if needed.
+                if (value.isEmpty()) {
+                    value.addDefaultValue()
                 }
             }
-            index++
+        } catch (exception: ParsingException) {
+            printError(exception.message!!)
         }
 
-        // Postprocess results of parsing.
-        options.values.union(arguments.values).forEach { value ->
-            // Not inited, append default value if needed.
-            if (value.isEmpty()) {
-                value.addDefaultValue()
-            }
-        }
         return ArgParserResult(programName)
     }
 
