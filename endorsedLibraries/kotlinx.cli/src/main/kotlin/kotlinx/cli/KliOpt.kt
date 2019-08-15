@@ -523,8 +523,35 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             val descriptor = ArgDescriptor(type, name, number, description,
                     defaultValue.toMutableList(), required, deprecatedWarning)
             val cliElement = ArgumentMultipleValues(descriptor)
+            // Inspect usage of default and required.
+            inspectRequiredUsage(required, name)
             addArgument(name, cliElement)
             return cliElement
+        }
+    }
+
+    /**
+     * Check convenance of required property usage for arguments.
+     * Make sense only for several last arguments.
+     *
+     * @param required required flag for current argument.
+     * @param fullName full name of current argument.
+     */
+    private fun inspectRequiredUsage(required: Boolean, fullName: String) {
+        if (required) {
+            val previousArgument = arguments.values.lastOrNull()
+            previousArgument?.let {
+                // Previous argument is optional.
+                if (!it.descriptor.required) {
+                    printWarning("Argument ${previousArgument.descriptor.fullName} will be always required, " +
+                            "because next argument $fullName is always required.")
+                }
+                // Previous argument has default value.
+                it.descriptor.defaultValueSet?.let {
+                    printWarning("Default value of argument ${previousArgument.descriptor.fullName} will be unused,  " +
+                            "because next argument $fullName is always required.")
+                }
+            }
         }
     }
 
@@ -547,6 +574,8 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             val descriptor = ArgDescriptor<T, T>(type, name, 1, description,
                     null, required, deprecatedWarning)
             val cliElement = ArgumentSingleNullableValue(descriptor)
+            // Inspect usage of default and required.
+            inspectRequiredUsage(required, name)
             addArgument(name, cliElement)
             return cliElement
         }
@@ -571,6 +600,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             val descriptor = ArgDescriptor(type, name, 1, description,
                     defaultValue, false, deprecatedWarning)
             val cliElement = ArgumentSingleValueWithDefault(descriptor)
+
             addArgument(name, cliElement)
             return cliElement
         }
@@ -616,7 +646,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                            description: String? = null,
                            required: Boolean = true,
                            deprecatedWarning: String? = null) = MultipleArgumentsLoader(type, fullName, number,
-            description, emptyList(), required, deprecatedWarning)
+                description, emptyList(), required, deprecatedWarning)
 
     /**
      * Add subcommands.
@@ -751,6 +781,15 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      */
     internal fun printError(message: String): Nothing {
         error("$message\n${makeUsage()}")
+    }
+
+    /**
+     * Output warning
+     *
+     * @param message warning message.
+     */
+    internal fun printWarning(message: String) {
+        println("WARNING $message")
     }
 
     /**
