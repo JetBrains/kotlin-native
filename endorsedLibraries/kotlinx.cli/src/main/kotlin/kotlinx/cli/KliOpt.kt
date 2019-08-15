@@ -280,43 +280,8 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
         arguments[name] = value
     }
 
-    /**
-     * Loader for option with single possible value which is nullable.
-     */
-    inner class SingleNullableOptionLoader<T : Any>(val type: ArgType<T>,
-                                                    val fullName: String? = null,
-                                                    val shortName: String? = null,
-                                                    val description: String? = null,
-                                                    val required: Boolean = false,
-                                                    val deprecatedWarning: String? = null) {
-        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T?> {
-            val name = fullName ?: prop.name
-            val descriptor = OptionDescriptor<T, T>(type, name, shortName, description, null,
-                    required, deprecatedWarning = deprecatedWarning)
-            val cliElement = ArgumentSingleNullableValue(descriptor)
-            addOption(descriptor, cliElement)
-            return cliElement
-        }
-    }
-
-    /**
-     * Loader for option with single possible value which has default value.
-     */
-    inner class SingleOptionWithDefaultLoader<T : Any>(val type: ArgType<T>,
-                                                       val fullName: String? = null,
-                                                       val shortName: String ? = null,
-                                                       val description: String? = null,
-                                                       val defaultValue: T,
-                                                       val required: Boolean = false,
-                                                       val deprecatedWarning: String? = null) {
-        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T> {
-            val name = fullName ?: prop.name
-            val descriptor = OptionDescriptor(type, name, shortName, description, defaultValue,
-                    required, deprecatedWarning = deprecatedWarning)
-            val cliElement = ArgumentSingleValueWithDefault(descriptor)
-            addOption(descriptor, cliElement)
-            return cliElement
-        }
+    interface DelegateProvider<T> {
+        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T>
     }
 
     /**
@@ -330,8 +295,8 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                                                val required: Boolean = false,
                                                val multiple: Boolean = false,
                                                val delimiter: String? = null,
-                                               val deprecatedWarning: String? = null) {
-        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<List<T>> {
+                                               val deprecatedWarning: String? = null) : DelegateProvider<List<T>> {
+        override operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<List<T>> {
             val name = fullName ?: prop.name
             val descriptor = OptionDescriptor(type, name, shortName, description, defaultValue.toMutableList(),
                     required, multiple, delimiter, deprecatedWarning)
@@ -359,8 +324,16 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                         shortName: String ? = null,
                         description: String? = null,
                         required: Boolean = false,
-                        deprecatedWarning: String? = null) = SingleNullableOptionLoader(type, fullName, shortName,
-            description, required, deprecatedWarning)
+                        deprecatedWarning: String? = null) = object : DelegateProvider<T?> {
+        override operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T?> {
+            val name = fullName ?: prop.name
+            val descriptor = OptionDescriptor<T, T>(type, name, shortName, description, null,
+                    required, deprecatedWarning = deprecatedWarning)
+            val cliElement = ArgumentSingleNullableValue(descriptor)
+            addOption(descriptor, cliElement)
+            return cliElement
+        }
+    }
 
     /**
      * Add option with single possible value with default and get delegator to its value.
@@ -378,8 +351,16 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                         shortName: String ? = null,
                         description: String? = null,
                         defaultValue: T,
-                        deprecatedWarning: String? = null) = SingleOptionWithDefaultLoader(type, fullName, shortName,
-            description, defaultValue, false, deprecatedWarning)
+                        deprecatedWarning: String? = null) = object : DelegateProvider<T> {
+        override operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T> {
+            val name = fullName ?: prop.name
+            val descriptor = OptionDescriptor(type, name, shortName, description, defaultValue,
+                    false, deprecatedWarning = deprecatedWarning)
+            val cliElement = ArgumentSingleValueWithDefault(descriptor)
+            addOption(descriptor, cliElement)
+            return cliElement
+        }
+    }
 
     /**
      * Add option with multiple possible values and get delegator to its values.
@@ -432,43 +413,6 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             description, emptyList(), required, multiple, delimiter, deprecatedWarning)
 
     /**
-     * Loader for argument with single possible value which is nullable.
-     */
-    inner class SingleNullableArgumentLoader<T : Any>(val type: ArgType<T>,
-                                                      val fullName: String? = null,
-                                                      val description: String? = null,
-                                                      val required: Boolean = true,
-                                                      val deprecatedWarning: String? = null) {
-        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T?> {
-            val name = fullName ?: prop.name
-            val descriptor = ArgDescriptor<T, T>(type, name, 1, description,
-                    null, required, deprecatedWarning)
-            val cliElement = ArgumentSingleNullableValue(descriptor)
-            addArgument(name, cliElement)
-            return cliElement
-        }
-    }
-
-    /**
-     * Loader for argument with single possible value which has default one.
-     */
-    inner class SingleArgumentWithDefaultLoader<T : Any>(val type: ArgType<T>,
-                                                         val fullName: String? = null,
-                                                         val description: String? = null,
-                                                         val defaultValue: T,
-                                                         val required: Boolean = true,
-                                                         val deprecatedWarning: String? = null) {
-        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T> {
-            val name = fullName ?: prop.name
-            val descriptor = ArgDescriptor(type, name, 1, description,
-                    defaultValue, required, deprecatedWarning)
-            val cliElement = ArgumentSingleValueWithDefault(descriptor)
-            addArgument(name, cliElement)
-            return cliElement
-        }
-    }
-
-    /**
      * Loader for option with multiple possible values.
      */
     inner class MultipleArgumentsLoader<T : Any>(val type: ArgType<T>,
@@ -477,8 +421,8 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                                                  val description: String? = null,
                                                  val defaultValue: List<T> = emptyList(),
                                                  val required: Boolean = true,
-                                                 val deprecatedWarning: String? = null) {
-        operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<List<T>> {
+                                                 val deprecatedWarning: String? = null) : DelegateProvider<List<T>> {
+        override operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<List<T>> {
             val name = fullName ?: prop.name
             val descriptor = ArgDescriptor(type, name, number, description,
                     defaultValue.toMutableList(), required, deprecatedWarning)
@@ -501,8 +445,16 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                           fullName: String? = null,
                           description: String? = null,
                           required: Boolean = true,
-                          deprecatedWarning: String? = null) = SingleNullableArgumentLoader(type, fullName, description,
-            required, deprecatedWarning)
+                          deprecatedWarning: String? = null) = object : DelegateProvider<T?> {
+        override operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T?> {
+            val name = fullName ?: prop.name
+            val descriptor = ArgDescriptor<T, T>(type, name, 1, description,
+                    null, required, deprecatedWarning)
+            val cliElement = ArgumentSingleNullableValue(descriptor)
+            addArgument(name, cliElement)
+            return cliElement
+        }
+    }
 
     /**
      * Add argument with single value with default and get delegator to its value.
@@ -517,8 +469,16 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                           fullName: String? = null,
                           description: String? = null,
                           defaultValue: T,
-                          deprecatedWarning: String? = null) = SingleArgumentWithDefaultLoader(type, fullName,
-            description, defaultValue, false, deprecatedWarning)
+                          deprecatedWarning: String? = null) = object : DelegateProvider<T> {
+        override operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T> {
+            val name = fullName ?: prop.name
+            val descriptor = ArgDescriptor(type, name, 1, description,
+                    defaultValue, false, deprecatedWarning)
+            val cliElement = ArgumentSingleValueWithDefault(descriptor)
+            addArgument(name, cliElement)
+            return cliElement
+        }
+    }
 
     /**
      * Add argument with [number] possible values and get delegator to its value.
