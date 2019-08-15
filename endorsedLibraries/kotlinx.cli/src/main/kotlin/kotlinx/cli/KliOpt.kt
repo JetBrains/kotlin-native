@@ -13,7 +13,7 @@ internal expect fun exitProcess(status: Int): Nothing
  * Queue of arguments descriptors.
  * Arguments can have several values, so one descriptor can be returned several times.
  */
-internal class ArgumentsQueue(argumentsDescriptors: List<ArgParser.ArgDescriptor<*>>) {
+internal class ArgumentsQueue(argumentsDescriptors: List<ArgParser.ArgDescriptor<*, *>>) {
     /**
      * Map of arguments descriptors and their current usage number.
      */
@@ -62,10 +62,10 @@ abstract class Subcommand(val name: String): ArgParser(name) {
  * @property required if option/argument is required or not. If it's required and not provided in command line and have no default value, error will be generated.
  * @property deprecatedWarning text message with information in case if option is deprecated.
  */
-internal abstract class Descriptor<T : Any>(val type: ArgType<T>,
+internal abstract class Descriptor<T : Any, TResult : Any>(val type: ArgType<T>,
                                    val fullName: String,
                                    val description: String? = null,
-                                   val defaultValue: List<T> = emptyList(),
+                                   val defaultValue: TResult? = null,
                                    val required: Boolean = false,
                                    val deprecatedWarning: String? = null) {
     /**
@@ -76,6 +76,18 @@ internal abstract class Descriptor<T : Any>(val type: ArgType<T>,
      * Help message for descriptor.
      */
     abstract val helpMessage: String
+
+    fun valueDescription(value: TResult?) = defaultValue?.let {
+        if (it is List<*> && !it.isEmpty())
+            " [${it.joinToString { it.toString() }}]"
+        else if (it !is List<*>)
+            " [$it]"
+        else null
+    }
+
+    val defaultValueSet by lazy {
+        defaultValue != null && (defaultValue is List<*> && defaultValue.isNotEmpty() || defaultValue !is List<*>)
+    }
 }
 
 /**
@@ -166,16 +178,16 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      * @property delimiter delimiter that separate option provided as one string to several values.
      * @property deprecatedWarning text message with information in case if option is deprecated.
      */
-     internal inner class OptionDescriptor<T : Any>(
+     internal inner class OptionDescriptor<T : Any, TResult: Any>(
             type: ArgType<T>,
             fullName: String,
             val shortName: String ? = null,
             description: String? = null,
-            defaultValue: List<T> = emptyList(),
+            defaultValue: TResult? = null,
             required: Boolean = false,
             val multiple: Boolean = false,
             val delimiter: String? = null,
-            deprecatedWarning: String? = null) : Descriptor<T>(type, fullName, description, defaultValue,
+            deprecatedWarning: String? = null) : Descriptor<T, TResult>(type, fullName, description, defaultValue,
             required, deprecatedWarning) {
 
         override val textDescription: String
@@ -186,7 +198,9 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                 val result = StringBuilder()
                 result.append("    $optionFullFormPrefix$fullName")
                 shortName?.let { result.append(", $optionShortFromPrefix$it") }
-                (defaultValue.joinToString(",") { it.toString() }).also { if (!it.isEmpty()) result.append(" [$it]") }
+                valueDescription(defaultValue)?.let {
+                    result.append(" [$it]")
+                }
                 description?.let {result.append(" -> ${it}")}
                 if (required) result.append(" (always required)")
                 result.append(" ${type.description}")
@@ -209,14 +223,14 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      * @property required if argument is required or not. If it's required and not provided in command line and have no default value, error will be generated.
      * @property deprecatedWarning text message with information in case if argument is deprecated.
      */
-     internal inner class ArgDescriptor<T : Any>(
+     internal inner class ArgDescriptor<T : Any, TResult : Any>(
             type: ArgType<T>,
             fullName: String,
             val number: Int? = null,
             description: String? = null,
-            defaultValue: List<T> = emptyList(),
+            defaultValue: TResult? = null,
             required: Boolean = true,
-            deprecatedWarning: String? = null) : Descriptor<T>(type, fullName, description, defaultValue,
+            deprecatedWarning: String? = null) : Descriptor<T, TResult>(type, fullName, description, defaultValue,
             required, deprecatedWarning) {
 
         init {
@@ -234,7 +248,9 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             get() {
                 val result = StringBuilder()
                 result.append("    ${fullName}")
-                (defaultValue.joinToString(",") { it.toString() }).also { if (!it.isEmpty()) result.append(" [$it]") }
+                valueDescription(defaultValue)?.let {
+                    result.append(" [$it]")
+                }
                 description?.let { result.append(" -> ${it}") }
                 if (!required) result.append(" (optional)")
                 result.append(" ${type.description}")
@@ -244,7 +260,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             }
     }
 
-    internal fun addOption(descriptor: OptionDescriptor<*>, value: ParsingValue<*, *>) {
+    internal fun addOption(descriptor: OptionDescriptor<*, *>, value: ParsingValue<*, *>) {
         if (options.containsKey(descriptor.fullName)) {
             error("Option with full name ${descriptor.fullName} was already added.")
         }
@@ -275,10 +291,10 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                                                     val deprecatedWarning: String? = null) {
         operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T?> {
             val name = fullName ?: prop.name
-            val descriptor = OptionDescriptor(type, name, shortName, description, emptyList(),
+            val descriptor = OptionDescriptor<T, T>(type, name, shortName, description, null,
                     required, deprecatedWarning = deprecatedWarning)
-            val cliElement = ArgumentSingleNullableValue(type.conversion)
-            addOption(descriptor, ParsingValue(descriptor, cliElement))
+            val cliElement = ArgumentSingleNullableValue(descriptor)
+            addOption(descriptor, cliElement)
             return cliElement
         }
     }
@@ -295,11 +311,10 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                                                        val deprecatedWarning: String? = null) {
         operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T> {
             val name = fullName ?: prop.name
-            val descriptor = OptionDescriptor(type, name, shortName, description, listOf(defaultValue),
+            val descriptor = OptionDescriptor(type, name, shortName, description, defaultValue,
                     required, deprecatedWarning = deprecatedWarning)
-            val cliElement = ArgumentSingleValueWithDefault(type.conversion)
-            cliElement.initDefaultValue(defaultValue)
-            addOption(descriptor, ParsingValue(descriptor, cliElement))
+            val cliElement = ArgumentSingleValueWithDefault(descriptor)
+            addOption(descriptor, cliElement)
             return cliElement
         }
     }
@@ -318,14 +333,13 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                                                val deprecatedWarning: String? = null) {
         operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<List<T>> {
             val name = fullName ?: prop.name
-            val descriptor = OptionDescriptor(type, name, shortName, description, defaultValue,
+            val descriptor = OptionDescriptor(type, name, shortName, description, defaultValue.toMutableList(),
                     required, multiple, delimiter, deprecatedWarning)
             if (!multiple && delimiter == null)
                 printError("Several values are expected for option $name. " +
                         "Option must be used multiple times or split with delimiter.")
-            val cliElement = ArgumentMultipleValues(type.conversion)
-            cliElement.initDefaultValue(defaultValue.toMutableList())
-            addOption(descriptor, ParsingValue(descriptor, cliElement))
+            val cliElement = ArgumentMultipleValues(descriptor)
+            addOption(descriptor, cliElement)
             return cliElement
         }
     }
@@ -427,10 +441,10 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                                                       val deprecatedWarning: String? = null) {
         operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T?> {
             val name = fullName ?: prop.name
-            val descriptor = ArgDescriptor(type, name, 1, description,
-                    emptyList(), required, deprecatedWarning)
-            val cliElement = ArgumentSingleNullableValue(type.conversion)
-            addArgument(name, ParsingValue(descriptor, cliElement))
+            val descriptor = ArgDescriptor<T, T>(type, name, 1, description,
+                    null, required, deprecatedWarning)
+            val cliElement = ArgumentSingleNullableValue(descriptor)
+            addArgument(name, cliElement)
             return cliElement
         }
     }
@@ -447,10 +461,9 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
         operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T> {
             val name = fullName ?: prop.name
             val descriptor = ArgDescriptor(type, name, 1, description,
-                    listOf(defaultValue), required, deprecatedWarning)
-            val cliElement = ArgumentSingleValueWithDefault(type.conversion)
-            cliElement.initDefaultValue(defaultValue)
-            addArgument(name, ParsingValue(descriptor, cliElement))
+                    defaultValue, required, deprecatedWarning)
+            val cliElement = ArgumentSingleValueWithDefault(descriptor)
+            addArgument(name, cliElement)
             return cliElement
         }
     }
@@ -468,10 +481,9 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
         operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<List<T>> {
             val name = fullName ?: prop.name
             val descriptor = ArgDescriptor(type, name, number, description,
-                    defaultValue, required, deprecatedWarning)
-            val cliElement = ArgumentMultipleValues(type.conversion)
-            cliElement.initDefaultValue(defaultValue.toMutableList())
-            addArgument(name, ParsingValue(descriptor, cliElement))
+                    defaultValue.toMutableList(), required, deprecatedWarning)
+            val cliElement = ArgumentMultipleValues(descriptor)
+            addArgument(name, cliElement)
             return cliElement
         }
     }
@@ -506,7 +518,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                           description: String? = null,
                           defaultValue: T,
                           deprecatedWarning: String? = null) = SingleArgumentWithDefaultLoader(type, fullName,
-            description, defaultValue, true, deprecatedWarning)
+            description, defaultValue, false, deprecatedWarning)
 
     /**
      * Add argument with [number] possible values and get delegator to its value.
@@ -529,7 +541,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             error("List with default values should contain at least one element.")
         }
         return MultipleArgumentsLoader(type, fullName, number,
-                description, defaultValue, true, deprecatedWarning)
+                description, defaultValue, false, deprecatedWarning)
     }
 
     /**
@@ -588,42 +600,76 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                            required: Boolean = true,
                            deprecatedWarning: String? = null): ArgumentValueDelegate<List<T>> {
         val descriptor = ArgDescriptor(type, "", null, description,
-                defaultValue, required, deprecatedWarning)
-        val cliElement = ArgumentMultipleValues(type.conversion)
-        cliElement.initDefaultValue(defaultValue.toMutableList())
+                defaultValue.toMutableList(), required, deprecatedWarning)
+        val cliElement = ArgumentMultipleValues(descriptor)
         if ("" in arguments) {
             printError("You can have only one unnamed list with positional arguments.")
         }
-        arguments[""] = ParsingValue(descriptor, cliElement)
+        arguments[""] = cliElement
         return cliElement
     }
 
     /**
      * Parsing value of option/argument.
      */
-     internal inner class ParsingValue<T: Any, U: Any>(val descriptor: Descriptor<T>, val argumentValue: ArgumentValue<U>) {
+    internal abstract inner class ParsingValue<T: Any, TResult: Any>(val descriptor: Descriptor<T, TResult>) {
+        /**
+         * Values of arguments.
+         */
+        protected lateinit var value: TResult
+
+        /**
+         * Value origin.
+         */
+        var valueOrigin = ValueOrigin.UNSET
+            protected set
+
+        /**
+         * Check if values of argument are empty.
+         */
+        abstract fun isEmpty(): Boolean
+
+        /**
+         * Check if value of argument was initialized.
+         */
+        protected fun valueIsInitialized() = ::value.isInitialized
+
+        /**
+         * Sace value from command line.
+         *
+         * @param stringValue value from command line.
+         */
+        protected abstract fun saveValue(stringValue: String)
+
+        /**
+         * Set value of delegated property.
+         */
+        fun setDelegatedValue(providedValue: TResult) {
+            value = providedValue
+            valueOrigin = ValueOrigin.REDEFINED
+        }
 
         /**
          * Add parsed value from command line.
          */
         fun addValue(stringValue: String) {
             // Check of possibility to set several values to one option/argument.
-            if (descriptor is OptionDescriptor<*> && !descriptor.multiple &&
-                    !argumentValue.isEmpty() && descriptor.delimiter == null) {
+            if (descriptor is OptionDescriptor<*, *> && !descriptor.multiple &&
+                    !isEmpty() && descriptor.delimiter == null) {
                 printError("Try to provide more than one value for ${descriptor.fullName}.")
             }
             // Show deprecated warning only first time of using option/argument.
             descriptor.deprecatedWarning?.let {
-                if (argumentValue.isEmpty())
+                if (isEmpty())
                     println ("Warning: $it")
             }
             // Split value if needed.
-            if (descriptor is OptionDescriptor<*> && descriptor.delimiter != null) {
+            if (descriptor is OptionDescriptor<*, *> && descriptor.delimiter != null) {
                 stringValue.split(descriptor.delimiter).forEach {
-                    argumentValue.addValue(it, descriptor.fullName)
+                    saveValue(it)
                 }
             } else {
-                argumentValue.addValue(stringValue, descriptor.fullName)
+                saveValue(stringValue)
             }
         }
 
@@ -631,8 +677,12 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
          * Set default value to option.
          */
         fun addDefaultValue() {
-            if (!argumentValue.addDefaultValue() && descriptor.required) {
+            if (!descriptor.defaultValueSet && descriptor.required) {
                 printError("Please, provide value for ${descriptor.textDescription}. It should be always set.")
+            }
+            if (descriptor.defaultValueSet) {
+                value = descriptor.defaultValue!!
+                valueOrigin = ValueOrigin.SET_DEFAULT_VALUE
             }
         }
     }
@@ -646,84 +696,23 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     }
 
     /**
-     * Argument/option value.
-     */
-    abstract class ArgumentValue<T : Any>(val conversion: (value: String, name: String, helpMessage: String)->T) {
-        private lateinit var defaultValues: T
-        /**
-         * Values of arguments.
-         */
-        protected lateinit var values: T
-        /**
-         * Value origin.
-         */
-        var valueOrigin = ValueOrigin.UNSET
-            protected set
-
-        /**
-         * Add value from command line.
-         *
-         * @param stringValue value from command line.
-         * @param argumentName name of argument value is added for.
-         */
-        abstract fun addValue(stringValue: String, argumentName: String)
-
-        /**
-         * Add default value.
-         *
-         * @param stringValue value from command line.
-         * @param argumentName name of argument value is added for.
-         */
-        fun addDefaultValue(): Boolean {
-            if (!::defaultValues.isInitialized) {
-                return false
-            }
-            values = defaultValues
-            valueOrigin = ValueOrigin.SET_DEFAULT_VALUE
-            return true
-        }
-
-        /**
-         * Check if values of argument are empty.
-         */
-        abstract fun isEmpty(): Boolean
-
-        /**
-         * Check if value of argument was initialized.
-         */
-        protected fun valuesAreInitialized() = ::values.isInitialized
-
-        /**
-         * Set value from delegated property.
-         */
-        fun setValue(value: T) {
-            values = value
-            valueOrigin = ValueOrigin.REDEFINED
-        }
-
-        fun initDefaultValue(defaultValue: T) {
-            defaultValues = defaultValue
-        }
-    }
-
-    /**
      * Single argument value.
      *
      * @property conversion conversion function from string value from command line to expected type.
      */
-    inner abstract class ArgumentSingleValue<T : Any>(conversion: (value: String, name: String, helpMessage: String)->T):
-            ArgumentValue<T>(conversion) {
+    internal inner abstract class ArgumentSingleValue<T : Any>(descriptor: Descriptor<T, T>):
+            ParsingValue<T, T>(descriptor) {
 
-        override fun addValue(stringValue: String, argumentName: String) {
-            if (!valuesAreInitialized()) {
-                values = conversion(stringValue, argumentName, makeUsage())
+        override fun saveValue(stringValue: String) {
+            if (!valueIsInitialized()) {
+                value = descriptor.type.conversion(stringValue, descriptor.fullName, makeUsage())
                 valueOrigin = ValueOrigin.SET_BY_USER
             } else {
-                printError("Try to provide more than one value $values and $stringValue for $argumentName.")
+                printError("Try to provide more than one value $value and $stringValue for ${descriptor.fullName}.")
             }
         }
 
-        override fun isEmpty(): Boolean = !valuesAreInitialized()
+        override fun isEmpty(): Boolean = !valueIsInitialized()
     }
 
     /**
@@ -731,13 +720,13 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      *
      * @property conversion conversion function from string value from command line to expected type.
      */
-    inner class ArgumentSingleNullableValue<T : Any>(conversion: (value: String, name: String, helpMessage: String)->T):
-            ArgumentSingleValue<T>(conversion), ArgumentValueDelegate<T?> {
+    internal inner class ArgumentSingleNullableValue<T : Any>(descriptor: Descriptor<T, T>):
+            ArgumentSingleValue<T>(descriptor), ArgumentValueDelegate<T?> {
         private var setToNull = false
-        override operator fun getValue(thisRef: Any?, property: KProperty<*>): T? = if (!isEmpty() && !setToNull) values else null
-        override operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T?) {
-            value?.let {
-                setValue(value)
+        override operator fun getValue(thisRef: Any?, property: KProperty<*>): T? = if (!isEmpty() && !setToNull) value else null
+        override operator fun setValue(thisRef: Any?, property: KProperty<*>, providedValue: T?) {
+            providedValue?.let {
+                setDelegatedValue(it)
                 setToNull = false
             } ?: run {
                 setToNull = true
@@ -751,11 +740,11 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      *
      * @property conversion conversion function from string value from command line to expected type.
      */
-    inner class ArgumentSingleValueWithDefault<T : Any>(conversion: (value: String, name: String, helpMessage: String)->T):
-            ArgumentSingleValue<T>(conversion), ArgumentValueDelegate<T> {
-        override operator fun getValue(thisRef: Any?, property: KProperty<*>): T = values
+    internal inner class ArgumentSingleValueWithDefault<T : Any>(descriptor: Descriptor<T, T>):
+            ArgumentSingleValue<T>(descriptor), ArgumentValueDelegate<T> {
+        override operator fun getValue(thisRef: Any?, property: KProperty<*>): T = value
         override operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
-            setValue(value)
+            setDelegatedValue(value)
         }
     }
 
@@ -764,26 +753,24 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      *
      * @property conversion conversion function from string value from command line to expected type.
      */
-    inner class ArgumentMultipleValues<T : Any>(conversion: (value: String, name: String, helpMessage: String)->T):
-            ArgumentValue<MutableList<T>>(
-            { value, name, _ -> mutableListOf(conversion(value, name, makeUsage())) }
-    ), ArgumentValueDelegate<List<T>> {
+    internal inner class ArgumentMultipleValues<T : Any>(descriptor: Descriptor<T, MutableList<T>>):
+    ParsingValue<T, MutableList<T>>(descriptor), ArgumentValueDelegate<List<T>> {
 
         init {
-            values = mutableListOf()
+            value = mutableListOf()
         }
 
-        override operator fun getValue(thisRef: Any?, property: KProperty<*>): List<T> = values
+        override operator fun getValue(thisRef: Any?, property: KProperty<*>): List<T> = value
 
-        override fun addValue(stringValue: String, argumentName: String) {
-            values.addAll(conversion(stringValue, argumentName, makeUsage()))
+        override fun saveValue(stringValue: String) {
+            value.add(descriptor.type.conversion(stringValue, descriptor.fullName, makeUsage()))
             valueOrigin = ValueOrigin.SET_BY_USER
         }
 
-        override fun isEmpty() = values.isEmpty()
+        override fun isEmpty() = value.isEmpty()
 
         override operator fun setValue(thisRef: Any?, property: KProperty<*>, value: List<T>) {
-            setValue(value.toMutableList())
+            setDelegatedValue(value.toMutableList())
         }
     }
 
@@ -801,8 +788,8 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      *
      * @param name name of argument/option.
      */
-    fun getOrigin(name: String) = options[name]?.argumentValue?.valueOrigin ?:
-        arguments[name]?.argumentValue?.valueOrigin ?: printError("No option/argument $name in list of avaliable options")
+    fun getOrigin(name: String) = options[name]?.valueOrigin ?:
+        arguments[name]?.valueOrigin ?: printError("No option/argument $name in list of avaliable options")
 
     /**
      * Save value as argument value.
@@ -856,18 +843,20 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      *
      * @return true if all arguments were parsed successfully, otherwise return false and print help message.
      */
-    fun parse(args: Array<String>): ArgParserResult {
+    fun parse(args: Array<String>) = parse(args.asList())
+
+    protected fun parse(args: List<String>): ArgParserResult {
         // Add help option.
-        val helpDescriptor = if (useDefaultHelpShortName) OptionDescriptor(ArgType.Boolean,
+        val helpDescriptor = if (useDefaultHelpShortName) OptionDescriptor<Boolean, Boolean>(ArgType.Boolean,
                 "help", "h", "Usage info")
             else OptionDescriptor(ArgType.Boolean, "help", description = "Usage info")
-        addOption(helpDescriptor, ParsingValue(helpDescriptor, ArgumentSingleNullableValue(helpDescriptor.type.conversion)))
+        addOption(helpDescriptor, ArgumentSingleNullableValue(helpDescriptor))
 
         // Add default list with arguments if there can be extra free arguments.
         if (skipExtraArguments) {
             arguments(ArgType.String)
         }
-        val argumentsQueue = ArgumentsQueue(arguments.map { it.value.descriptor as ArgDescriptor<*> })
+        val argumentsQueue = ArgumentsQueue(arguments.map { it.value.descriptor as ArgDescriptor<*, *> })
 
         var index = 0
         while (index < args.size) {
@@ -877,7 +866,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
             subcommands.forEach { (name, subcommand) ->
                 if (arg == name) {
                     // Use parser for this subcommand.
-                    subcommand.parse(args.slice(index + 1..args.size - 1).toTypedArray())
+                    subcommand.parse(args.slice(index + 1..args.size - 1))
                     subcommand.execute()
 
                     return ArgParserResult(name)
@@ -923,7 +912,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
         // Postprocess results of parsing.
         options.values.union(arguments.values).forEach { value ->
             // Not inited, append default value if needed.
-            if (value.argumentValue.isEmpty()) {
+            if (value.isEmpty()) {
                 value.addDefaultValue()
             }
         }
