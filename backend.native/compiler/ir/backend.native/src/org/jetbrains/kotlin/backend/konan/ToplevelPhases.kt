@@ -18,6 +18,8 @@ import org.jetbrains.kotlin.descriptors.konan.isKonanStdlib
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.util.SymbolTable
+import org.jetbrains.kotlin.ir.util.addChild
+import org.jetbrains.kotlin.ir.util.file
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.psi2ir.Psi2IrConfiguration
 import org.jetbrains.kotlin.psi2ir.Psi2IrTranslator
@@ -315,6 +317,9 @@ internal val dependenciesLowerPhase = SameTypeNamedPhaseWrapper(
                             input.files += libModule.files
                         }
                 input.files += files
+
+                if (context.config.produce == CompilerOutputKind.PROGRAM)
+                    context.ir.symbols.entryPoint!!.owner.file.addChild(makeEntryPoint(context))
 
                 return input
             }

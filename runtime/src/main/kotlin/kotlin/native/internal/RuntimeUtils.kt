@@ -181,3 +181,12 @@ internal fun <T> listOfInternal(vararg elements: T): List<T> {
         result.add(elements[i])
     return result
 }
+
+
+@PublishedApi
+internal fun OnUnhandledException(throwable: Throwable) {
+    OnUnhandledExceptionImpl(throwable)
+}
+
+@SymbolName("OnUnhandledExceptionImpl")
+external internal fun OnUnhandledExceptionImpl(throwable: Throwable)
