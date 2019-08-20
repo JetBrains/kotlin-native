@@ -383,7 +383,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     /**
      * Loader for option with multiple possible values.
      */
-    inner class MultipleOptionsLoader<T : Any>(private val type: ArgType<T>,
+    internal inner class MultipleOptionsLoader<T : Any>(private val type: ArgType<T>,
                                                private val fullName: String? = null,
                                                private val shortName: String? = null,
                                                private val description: String? = null,
@@ -477,7 +477,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                          defaultValue: List<T>,
                          multiple: Boolean = false,
                          delimiter: String? = null,
-                         deprecatedWarning: String? = null): MultipleOptionsLoader<T> {
+                         deprecatedWarning: String? = null): DelegateProvider<List<T>> {
         // Default value can't be empty list.
         if (defaultValue.isEmpty()) {
             error("List with default values should contain at least one element.")
@@ -505,13 +505,14 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                          required: Boolean = false,
                          multiple: Boolean = false,
                          delimiter: String? = null,
-                         deprecatedWarning: String? = null) = MultipleOptionsLoader(type, fullName, shortName,
-            description, emptyList(), required, multiple, delimiter, deprecatedWarning)
+                         deprecatedWarning: String? = null): DelegateProvider<List<T>> =
+            MultipleOptionsLoader(type, fullName, shortName, description, emptyList(), required,
+                    multiple, delimiter, deprecatedWarning)
 
     /**
      * Loader for option with multiple possible values.
      */
-    inner class MultipleArgumentsLoader<T : Any>(private val type: ArgType<T>,
+    internal inner class MultipleArgumentsLoader<T : Any>(private val type: ArgType<T>,
                                                  private val fullName: String? = null,
                                                  private val number: Int? = null,
                                                  private val description: String? = null,
@@ -621,7 +622,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                            number: Int? = null,
                            description: String? = null,
                            defaultValue: List<T>,
-                           deprecatedWarning: String? = null): MultipleArgumentsLoader<T> {
+                           deprecatedWarning: String? = null): DelegateProvider<List<T>> {
         // Default value can't be empty list.
         if (defaultValue.isEmpty()) {
             error("List with default values should contain at least one element.")
@@ -645,8 +646,8 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                            number: Int? = null,
                            description: String? = null,
                            required: Boolean = true,
-                           deprecatedWarning: String? = null) = MultipleArgumentsLoader(type, fullName, number,
-                description, emptyList(), required, deprecatedWarning)
+                           deprecatedWarning: String? = null): DelegateProvider<List<T>> =
+            MultipleArgumentsLoader(type, fullName, number, description, emptyList(), required, deprecatedWarning)
 
     /**
      * Add subcommands.
@@ -779,7 +780,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
      *
      * @param message error message.
      */
-    internal fun printError(message: String): Nothing {
+    fun printError(message: String): Nothing {
         error("$message\n${makeUsage()}")
     }
 
