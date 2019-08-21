@@ -225,7 +225,7 @@ OBJ_GETTER(Kotlin_setUnhandledExceptionHook, KRef hook) {
     &currentUnhandledExceptionHook, currentUnhandledExceptionHook, hook, &currentUnhandledExceptionHookLock);
 }
 
-void OnUnhandledExceptionImpl(KRef throwable) {
+void OnUnhandledException(KRef throwable) {
   ObjHolder handlerHolder;
   auto* handler = SwapHeapRefLocked(&currentUnhandledExceptionHook, currentUnhandledExceptionHook, nullptr,
      &currentUnhandledExceptionHookLock, handlerHolder.slot());
@@ -242,7 +242,7 @@ static SimpleMutex terminatingMutex;
 #endif
 
 RUNTIME_NORETURN void TerminateWithUnhandledException(KRef throwable) {
-  OnUnhandledExceptionImpl(throwable);
+  OnUnhandledException(throwable);
 
 #if KONAN_REPORT_BACKTRACE_TO_IOS_CRASH_LOG
   {
