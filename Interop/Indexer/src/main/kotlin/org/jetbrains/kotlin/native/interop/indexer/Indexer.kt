@@ -87,7 +87,7 @@ private fun getParentName(cursor: CValue<CXCursor>, pkg: List<String> = emptyLis
 
     // skip this (zero) level:
 
-    var parent = clang_getCursorSemanticParent(cursor)
+    val parent = clang_getCursorSemanticParent(cursor)
     if (clang_isDeclaration(parent.kind) == 0)
         return if (pkg.isNotEmpty()) pkg.joinToString("::") else null
 
@@ -95,8 +95,8 @@ private fun getParentName(cursor: CValue<CXCursor>, pkg: List<String> = emptyLis
     if (type.kind == CXTypeKind.CXType_Record)
         return clang_getTypeSpelling(type).convertAndDispose()
 
-    val name = getCursorSpelling(parent)
-    return getParentName(parent, listOf(name) + pkg)
+    val nextPkg = if (parent.kind == CXCursorKind.CXCursor_Namespace) listOf(parent.spelling) + pkg else pkg
+    return getParentName(parent, nextPkg)
 }
 
 
