@@ -26,10 +26,6 @@
   url: cocoapods.html
   title: "CocoaPods Integration"
 
-- md: GRADLE_PLUGIN.md
-  url: gradle_plugin.html
-  title: "Gradle Plugin"
-
 - md: DEBUGGING.md
   url: debugging.html
   title: "Debugging"
