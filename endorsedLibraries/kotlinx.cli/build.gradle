@@ -76,7 +76,7 @@ targetList.each { target ->
                          "-Djava.library.path=${project.buildDir}/nativelibs/$hostName",
     ]
 
-    def defaultArgs = ['-nopack', '-nodefaultlibs']
+    def defaultArgs = ['-nopack', '-nodefaultlibs', '-noendorsedlibs']
     if (target != "wasm32") defaultArgs += '-g'
     def konanArgs = [*defaultArgs,
                      '-target', target,

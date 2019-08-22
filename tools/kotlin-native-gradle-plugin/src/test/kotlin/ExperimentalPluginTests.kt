@@ -630,6 +630,7 @@ class ExperimentalPluginTests {
                         implementation project(':libBar')
                         cinterop('mystdio') {
                             extraOpts '-nodefaultlibs'
+                            extraOpts '-noendorsedlibs'
                         }
                     }
                 }

@@ -214,6 +214,7 @@ abstract class KonanCompileTask: KonanBuildingTask(), KonanCompileSpec {
         addKey("-Xtime", measureTime)
         addKey("-Xprofile-phases", measureTime)
         addKey("-nodefaultlibs", noDefaultLibs)
+        addKey("-noendorsedlibs", noEndorsedLibs)
         addKey("-Xmulti-platform", enableMultiplatform)
 
         if (libraries.friends.isNotEmpty())
