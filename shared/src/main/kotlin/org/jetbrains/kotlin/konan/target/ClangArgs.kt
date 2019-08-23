@@ -73,7 +73,7 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                     listOf("-stdlib=libc++", "-isysroot", absoluteTargetSysRoot, "-miphoneos-version-min=9.0.0")
 
                 KonanTarget.IOSMAC_X64 ->
-                    listOf("-stdlib=libc++", "-isysroot", "-target", "x86_64-apple-ios-macabi", absoluteTargetSysRoot, "-miphoneos-version-min=13.0.0")
+                    listOf("-stdlib=libc++", "-arch", "x86_64", "-isysroot", absoluteTargetSysRoot, "-target", "x86_64-apple-ios13-macabi", "-miphoneos-version-min=13.0.0")
 
                 KonanTarget.ANDROID_ARM32 ->
                     listOf("-target", targetArg!!,
@@ -324,7 +324,6 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
         fun filterGradleNativeSoftwareFlags(args: MutableList<String>) {
             args.remove("/usr/include") // HACK: over gradle-4.4.
             args.remove("-nostdinc") // HACK: over gradle-5.1.
-            println("host: ${HostManager.host}")
             when (HostManager.host) {
                 KonanTarget.LINUX_X64 -> args.remove("/usr/include/x86_64-linux-gnu")  // HACK: over gradle-4.4.
                 KonanTarget.MACOS_X64 -> {

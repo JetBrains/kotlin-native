@@ -244,7 +244,7 @@ internal fun Type.isStret(target: KonanTarget): Boolean {
         KonanTarget.IOS_ARM64 ->
             false // On aarch64 stret is never the case, since an implicit argument gets passed on x8.
 
-        KonanTarget.IOS_X64, KonanTarget.MACOS_X64 -> when (unwrappedType) {
+        KonanTarget.IOS_X64, KonanTarget.MACOS_X64, KonanTarget.IOSMAC_X64 -> when (unwrappedType) {
             is RecordType -> unwrappedType.decl.def!!.size > 16 || this.hasUnalignedMembers()
             else -> false
         }
