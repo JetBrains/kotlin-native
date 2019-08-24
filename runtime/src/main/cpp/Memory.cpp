@@ -89,6 +89,7 @@ constexpr size_t kMaxGcAllocThreshold = 8 * 1024 * 1024;
 
 typedef KStdUnorderedSet<ContainerHeader*> ContainerHeaderSet;
 typedef KStdVector<ContainerHeader*> ContainerHeaderList;
+typedef KStdVector<KRef> KRefList;
 typedef KStdVector<KRef*> KRefPtrList;
 typedef KStdDeque<ContainerHeader*> ContainerHeaderDeque;
 
@@ -291,11 +292,89 @@ inline bool isShareable(ContainerHeader* container) {
 
 }  // namespace
 
+struct MemoryStateProxy {
+  MemoryState* state_;
+  int refCount_;
+  int lock_;
+  KRefList toAdd_;
+  KRefList toRelease_;
+
+  MemoryStateProxy(MemoryState* state) : refCount_(1), lock_(0), state_(state) {}
+
+  ~MemoryStateProxy() {
+    RuntimeAssert(toAdd_.size() == 0, "Must be empty");
+    RuntimeAssert(toRelease_.size() == 0, "Must be empty");
+  }
+
+  void addRef() {
+    atomicAdd(&refCount_, 1);
+  }
+
+  void releaseRef() {
+    if (atomicAdd(&refCount_, -1) == 0) {
+      konanDestructInstance(this);
+    }
+  }
+
+  void lock();
+  void unlock();
+
+  void clear() {
+     lock();
+     RuntimeAssert(state_ != nullptr, "Must not be yet cleared");
+     processScheduledIncrementsUnlocked();
+     processScheduledDecrementsUnlocked();
+     state_ = nullptr;
+     unlock();
+  }
+
+  bool scheduleHoldObject(ObjHeader* object) {
+    bool result = true;
+    lock();
+    if (state_ == nullptr) {
+      result = false;
+    } else {
+      toAdd_.push_back(object);
+    }
+    unlock();
+    return result;
+  }
+
+  bool scheduleReleaseObject(ObjHeader* object) {
+     bool result = true;
+     lock();
+     if (state_ == nullptr) {
+       result = false;
+     } else {
+       toRelease_.push_back(object);
+     }
+     unlock();
+     return result;
+  }
+
+  void processScheduledIncrementsUnlocked();
+  void processScheduledDecrementsUnlocked();
+
+  void processScheduledIncrements() {
+    lock();
+    processScheduledIncrementsUnlocked();
+    unlock();
+  }
+
+  void processScheduledDecrements() {
+    lock();
+    processScheduledDecrementsUnlocked();
+    unlock();
+  }
+};
+
 struct MemoryState {
 #if TRACE_MEMORY
   // Set of all containers.
   ContainerHeaderSet* containers;
 #endif
+
+  MemoryStateProxy* stateProxy;
 
 #if USE_GC
   // Finalizer queue - linked list of containers scheduled for finalization.
@@ -941,7 +1020,6 @@ template <bool Atomic>
 inline void incrementRC(ContainerHeader* container) {
   container->incRefCount<Atomic>();
 }
-
 template <bool Atomic, bool UseCycleCollector>
 inline void decrementRC(ContainerHeader* container) {
   // TODO: enable me, once account for inner references in frozen objects correctly.
@@ -1026,6 +1104,13 @@ inline void increaseGcThreshold(MemoryState* state) {
 }
 
 #endif // USE_GC
+
+inline void incrementRC(ContainerHeader* container) {
+  if (isShareable(container))
+    incrementRC<true>(container);
+  else
+    incrementRC<false>(container);
+}
 
 #if TRACE_MEMORY && USE_GC
 
@@ -1421,7 +1506,9 @@ void garbageCollect(MemoryState* state, bool force) {
   state->gcInProgress = true;
 
   incrementStack(state);
+  state->stateProxy->processScheduledIncrements();
   processDecrements(state);
+  state->stateProxy->processScheduledDecrements();
   size_t beforeDecrements = state->toRelease->size();
   decrementStack(state);
   size_t afterDecrements = state->toRelease->size();
@@ -1503,15 +1590,18 @@ MemoryState* initMemory() {
   memoryState->allocSinceLastGcThreshold = kMaxGcAllocThreshold;
   memoryState->gcErgonomics = true;
 #endif
+  memoryState->stateProxy = konanConstructInstance<MemoryStateProxy>(memoryState);
   atomicAdd(&aliveMemoryStatesCount, 1);
   return memoryState;
 }
 
 void deinitMemory(MemoryState* memoryState) {
+  memoryState->stateProxy->clear();
+  memoryState->stateProxy->releaseRef();
 #if USE_GC
   // Actual GC only implemented in strict memory model at the moment.
   do {
-    GC_LOG("Calling garbageCollect from DeinitMemory()\n")
+    GC_LOG("Calling garba   geCollect from DeinitMemory()\n")
     garbageCollect(memoryState, true);
   } while (memoryState->toRelease->size() > 0);
   RuntimeAssert(memoryState->toFree->size() == 0, "Some memory have not been released after GC");
@@ -2726,6 +2816,69 @@ KBoolean Konan_ensureAcyclicAndSet(ObjHeader* where, KInt index, ObjHeader* what
 
 void Kotlin_Any_share(ObjHeader* obj) {
   shareAny(obj);
+}
+
+void MemoryStateProxy::lock() {
+  ::lock(&lock_);
+}
+
+void MemoryStateProxy::unlock() {
+  ::unlock(&lock_);
+}
+
+void MemoryStateProxy::processScheduledIncrementsUnlocked() {
+  for (auto* ref : toAdd_) {
+    incrementRC(ref->container());
+  }
+  toAdd_.clear();
+}
+
+void MemoryStateProxy::processScheduledDecrementsUnlocked() {
+  for (auto* ref : toRelease_) {
+    decrementRC(ref->container());
+  }
+  toRelease_.clear();
+}
+
+MemoryStateProxy* InitSafeRef(ObjHeader* object) {
+  if (!IsStrictMemoryModel) return nullptr;
+
+  if (isShareable(object->container()))
+    return nullptr;
+  else {
+    auto* stateProxy = memoryState->stateProxy;
+    stateProxy->addRef();
+    return stateProxy;
+  }
+}
+
+void DeinitSafeRef(ObjHeader* object, MemoryStateProxy* stateProxy) {
+  if (stateProxy != nullptr)
+    stateProxy->releaseRef();
+}
+
+void AddRefSafe(ObjHeader* object, MemoryStateProxy* proxy) {
+  if (IsStrictMemoryModel) {
+    if (memoryState == nullptr)
+      Kotlin_initRuntimeIfNeeded();
+    if (proxy == nullptr || proxy == memoryState->stateProxy || !proxy->scheduleHoldObject(object)) {
+      addHeapRef(object);
+    }
+  } else {
+    addHeapRef(object);
+  }
+}
+
+void ReleaseRefSafe(ObjHeader* object, MemoryStateProxy* proxy) {
+  if (IsStrictMemoryModel) {
+    if (memoryState == nullptr)
+       Kotlin_initRuntimeIfNeeded();
+    if (proxy == nullptr || proxy == memoryState->stateProxy || !proxy->scheduleReleaseObject(object)) {
+      releaseHeapRef<true>(object);
+    }
+   } else {
+    releaseHeapRef<false>(object);
+  }
 }
 
 } // extern "C"

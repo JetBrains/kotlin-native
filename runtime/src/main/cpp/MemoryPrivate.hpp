@@ -29,6 +29,14 @@ void DeinitInstanceBody(const TypeInfo* typeInfo, void* body);
 
 void Kotlin_ObjCExport_releaseAssociatedObject(void* associatedObject);
 
+struct MemoryStateProxy;
+
+MemoryStateProxy* InitSafeRef(ObjHeader* object);
+void DeinitSafeRef(ObjHeader* object, MemoryStateProxy* proxy);
+
+void AddRefSafe(ObjHeader* object, MemoryStateProxy* proxy);
+void ReleaseRefSafe(ObjHeader* object, MemoryStateProxy* proxy);
+
 }  // extern "C"
 
 #endif // RUNTIME_MEMORYPRIVATE_HPP
