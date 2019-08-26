@@ -175,16 +175,16 @@ private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = 
     val tool = prepareTool(cinteropArguments.target, flavor)
 
     val def = DefFile(defFile, tool.substitutions)
-    val isLinkerOptsSetByUser = (cinteropArguments.argParser.getOrigin("linkerOpts") == ArgParser.ValueOrigin.SET_BY_USER) ||
-            (cinteropArguments.argParser.getOrigin("linker-option") == ArgParser.ValueOrigin.SET_BY_USER) ||
-            (cinteropArguments.argParser.getOrigin("linker-options") == ArgParser.ValueOrigin.SET_BY_USER) ||
-            (cinteropArguments.argParser.getOrigin("lopt") == ArgParser.ValueOrigin.SET_BY_USER)
+    val isLinkerOptsSetByUser = (cinteropArguments.linkerOpts.valueOrigin == ArgParser.ValueOrigin.SET_BY_USER) ||
+            (cinteropArguments.linkerOptions.valueOrigin == ArgParser.ValueOrigin.SET_BY_USER) ||
+            (cinteropArguments.linkerOption.valueOrigin == ArgParser.ValueOrigin.SET_BY_USER) ||
+            (cinteropArguments.lopt.valueOrigin == ArgParser.ValueOrigin.SET_BY_USER)
     if (flavorName == "native" && isLinkerOptsSetByUser) {
         warn("-linker-option(s)/-linkerOpts/-lopt option is not supported by cinterop. Please add linker options to .def file or binary compilation instead.")
     }
 
-    val additionalLinkerOpts = cinteropArguments.linkerOpts.toTypedArray() + cinteropArguments.linkerOption.toTypedArray() +
-            cinteropArguments.linkerOptions.toTypedArray() + cinteropArguments.lopt.toTypedArray()
+    val additionalLinkerOpts = cinteropArguments.linkerOpts.value.value.toTypedArray() + cinteropArguments.linkerOption.value.value.toTypedArray() +
+            cinteropArguments.linkerOptions.value.value.toTypedArray() + cinteropArguments.lopt.value.value.toTypedArray()
     val verbose = cinteropArguments.verbose
 
     val language = selectNativeLanguage(def.config)
