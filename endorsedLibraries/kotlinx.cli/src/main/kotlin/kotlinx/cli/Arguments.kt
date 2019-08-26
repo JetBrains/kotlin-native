@@ -7,7 +7,7 @@ package kotlinx.cli
 import kotlin.reflect.KProperty
 
 /**
- * Interface for CLI.
+ * Interface for CLI entity - argument/option.
  */
 interface CLIEntity<T : Any, TResult> {
     /**
@@ -155,7 +155,7 @@ fun <T: Any, TResult> AbstractSingleArgument<T, TResult>.default(value: T): Sing
     this as AbstractSingleArgumentImpl
     val newArgument = with((cliElement as ParsingValue<T, T>).descriptor as ArgDescriptor) {
         if (required) {
-            println("You can use optional(), because option with default value is defined.")
+            printWarning("You can use optional(), because option with default value is defined.")
         }
         SingleArgumentImpl(ArgDescriptor(type, fullName, number, description, value, required, deprecatedWarning), owner)
     }
@@ -172,7 +172,7 @@ fun <T: Any, TResult: Collection<T>> MultipleArgument<T, TResult>.default(value:
     this as MultipleArgumentImpl
     val newArgument = with((cliElement as ParsingValue<T, TResult>).descriptor as ArgDescriptor) {
         if (required) {
-            println("You can use optional(), because option with default value is defined.")
+            printWarning("You can use optional(), because option with default value is defined.")
         }
         MultipleArgumentImpl(ArgDescriptor(type, fullName, number, description, value.toMutableList(),
                 required, deprecatedWarning), owner)

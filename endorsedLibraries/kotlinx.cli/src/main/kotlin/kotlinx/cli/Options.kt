@@ -133,7 +133,7 @@ fun <T: Any, TResult> AbstractSingleOption<T, TResult>.default(value: T): Single
     this as AbstractSingleOptionImpl
     val newOption = with((cliElement as ParsingValue<T, T>).descriptor as OptionDescriptor) {
         if (required) {
-            println("required() is unneeded, because option with default value is defined.")
+            printWarning("required() is unneeded, because option with default value is defined.")
         }
         SingleOptionImpl(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type, fullName, shortName,
                 description, value, required, multiple, delimiter, deprecatedWarning), owner)
@@ -151,7 +151,7 @@ fun <T: Any, TResult: Collection<T>> MultipleOption<T, TResult>.default(value: T
     this as MultipleOptionImpl
     val newOption = with((cliElement as ParsingValue<T, TResult>).descriptor as OptionDescriptor) {
         if (required) {
-            println("required() is unneeded, because option with default value is defined.")
+            printWarning("required() is unneeded, because option with default value is defined.")
         }
         MultipleOptionImpl(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type, fullName,
                 shortName, description, value.toMutableList(),
@@ -168,7 +168,7 @@ fun <T: Any, TResult> AbstractSingleOption<T, TResult>.required(): SingleOption<
     this as AbstractSingleOptionImpl
     val newOption = with((cliElement as ParsingValue<T, T>).descriptor as OptionDescriptor) {
         defaultValue?.let {
-            println("required() is unneeded, because option with default value is defined.")
+            printWarning("required() is unneeded, because option with default value is defined.")
         }
         SingleOptionImpl(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type, fullName,
                 shortName, description, defaultValue,
@@ -185,7 +185,7 @@ fun <T: Any, TResult: Collection<T>> MultipleOption<T, TResult>.required(): Mult
     this as MultipleOptionImpl
     val newOption = with((cliElement as ParsingValue<T, TResult>).descriptor as OptionDescriptor) {
         if (required) {
-            println("required() is unneeded, because option with default value is defined.")
+            printWarning("required() is unneeded, because option with default value is defined.")
         }
         MultipleOptionImpl(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type, fullName, shortName,
                 description, defaultValue?.toMutableList() ?: mutableListOf(),
