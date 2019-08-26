@@ -227,8 +227,8 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     fun <T : Any>argument(type: ArgType<T>,
                           fullName: String? = null,
                           description: String? = null,
-                          deprecatedWarning: String? = null) : SingleNullableArgument<T> {
-        val argument = SingleNullableArgumentImpl(ArgDescriptor(type, fullName, 1,
+                          deprecatedWarning: String? = null) : SingleArgument<T> {
+        val argument = SingleArgumentImpl(ArgDescriptor(type, fullName, 1,
                 description, deprecatedWarning = deprecatedWarning), this)
         addArgument(argument)
         return argument
