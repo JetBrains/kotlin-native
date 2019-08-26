@@ -177,14 +177,13 @@ private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = 
     val def = DefFile(defFile, tool.substitutions)
     val isLinkerOptsSetByUser = (cinteropArguments.linkerOpts.valueOrigin == ArgParser.ValueOrigin.SET_BY_USER) ||
             (cinteropArguments.linkerOptions.valueOrigin == ArgParser.ValueOrigin.SET_BY_USER) ||
-            (cinteropArguments.linkerOption.valueOrigin == ArgParser.ValueOrigin.SET_BY_USER) ||
-            (cinteropArguments.lopt.valueOrigin == ArgParser.ValueOrigin.SET_BY_USER)
+            (cinteropArguments.linkerOption.valueOrigin == ArgParser.ValueOrigin.SET_BY_USER)
     if (flavorName == "native" && isLinkerOptsSetByUser) {
-        warn("-linker-option(s)/-linkerOpts/-lopt option is not supported by cinterop. Please add linker options to .def file or binary compilation instead.")
+        warn("-linker-option(s)/-linkerOpts option is not supported by cinterop. Please add linker options to .def file or binary compilation instead.")
     }
 
     val additionalLinkerOpts = cinteropArguments.linkerOpts.value.value.toTypedArray() + cinteropArguments.linkerOption.value.value.toTypedArray() +
-            cinteropArguments.linkerOptions.value.value.toTypedArray() + cinteropArguments.lopt.value.value.toTypedArray()
+            cinteropArguments.linkerOptions.value.value.toTypedArray()
     val verbose = cinteropArguments.verbose
 
     val language = selectNativeLanguage(def.config)
@@ -305,10 +304,9 @@ internal fun buildNativeLibrary(
         arguments: CInteropArguments,
         imports: ImportsImpl
 ): NativeLibrary {
-    val additionalHeaders = (arguments.header + arguments.shortHeaderForm).toTypedArray()
+    val additionalHeaders = (arguments.header).toTypedArray()
     val additionalCompilerOpts = (arguments.compilerOpts +
-            arguments.compilerOptions + arguments.compilerOption +
-            arguments.copt).toTypedArray()
+            arguments.compilerOptions + arguments.compilerOption).toTypedArray()
 
     val headerFiles = def.config.headers + additionalHeaders
     val language = selectNativeLanguage(def.config)

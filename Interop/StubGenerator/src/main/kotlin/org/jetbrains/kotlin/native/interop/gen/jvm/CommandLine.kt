@@ -58,14 +58,12 @@ open class CommonInteropArguments(val argParser: ArgParser) {
 }
 
 class CInteropArguments(argParser: ArgParser =
-                                ArgParser("cinterop", useDefaultHelpShortName = false,
+                                ArgParser("cinterop",
                                         prefixStyle = ArgParser.OPTION_PREFIX_STYLE.JVM)): CommonInteropArguments(argParser) {
     val target by argParser.option(ArgType.String, description = "native target to compile to").default("host")
     val def by argParser.option(ArgType.String, description = "the library definition file")
     val header by argParser.option(ArgType.String, description = "header file to produce kotlin bindings for")
             .multiple().delimiter(",")
-    val shortHeaderForm by argParser.option(ArgType.String, "h", description = "header file to produce kotlin bindings for",
-            deprecatedWarning = "Option -h is deprecated. Please use -header.").multiple().delimiter(",")
     val headerFilterPrefix by argParser.option(ArgType.String, HEADER_FILTER_ADDITIONAL_SEARCH_PREFIX, "hfasp",
             "header file to produce kotlin bindings for").multiple().delimiter(",")
     val compilerOpts by argParser.option(ArgType.String,
@@ -84,16 +82,10 @@ class CInteropArguments(argParser: ArgParser =
             description = "additional compiler option").multiple()
     val linkerOption = argParser.option(ArgType.String, "linker-option",
             description = "additional linker option").multiple()
-    val copt by argParser.option(ArgType.String,
-            description = "additional compiler options (allows to add several options separated by spaces)",
-            deprecatedWarning = "Option -copt is deprecated. Please use -compiler-options.").multiple().delimiter(" ")
-    val lopt = argParser.option(ArgType.String, "lopt",
-            description = "additional linker options (allows to add several options separated by spaces)",
-            deprecatedWarning = "Option -lopt is deprecated. Please use -linker-options.").multiple().delimiter(" ")
     val linker by argParser.option(ArgType.String, description = "use specified linker")
 }
 
-class JSInteropArguments(argParser: ArgParser = ArgParser("jsinterop", useDefaultHelpShortName = false,
+class JSInteropArguments(argParser: ArgParser = ArgParser("jsinterop",
         prefixStyle = ArgParser.OPTION_PREFIX_STYLE.JVM)): CommonInteropArguments(argParser) {
     val target by argParser.option(ArgType.Choice(listOf("wasm32")),
             description = "wasm target to compile to").default("wasm32")
