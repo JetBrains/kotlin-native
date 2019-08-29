@@ -115,7 +115,7 @@ internal fun KotlinStubs.generateCCall(expression: IrCall, builder: IrBuilderWit
 
     val callBuilder = KotlinToCCallBuilder(builder, this, isObjCMethod = false)
 
-    val callee = expression.symbol.owner as IrSimpleFunction
+    val callee = expression.symbol.owner as IrFunction
 
     // TODO: consider computing all arguments before converting.
 
@@ -619,7 +619,7 @@ private fun IrValueParameter.isConsumed() = hasCCallAnnotation("Consumed")
 
 private fun IrSimpleFunction.consumesReceiver() = hasCCallAnnotation("ConsumesReceiver")
 
-private fun IrSimpleFunction.returnsRetained() = hasCCallAnnotation("ReturnsRetained")
+private fun IrFunction.returnsRetained() = hasCCallAnnotation("ReturnsRetained")
 
 private fun getStructSpelling(kotlinClass: IrClass): String? =
         kotlinClass.getAnnotationArgumentValue(FqName("kotlinx.cinterop.internal.CStruct"), "spelling")
@@ -700,7 +700,7 @@ private sealed class TypeLocation(val element: IrElement) {
 private fun KotlinStubs.mapReturnType(
         type: IrType,
         location: TypeLocation,
-        signature: IrSimpleFunction?
+        signature: IrFunction?
 ): ValueReturning = when {
     type.isUnit() -> VoidReturning
     else -> mapType(type, retained = signature?.returnsRetained() ?: false, variadic = false, location = location)

@@ -21,6 +21,41 @@ import org.jetbrains.kotlin.native.interop.indexer.CompilationWithPCH
 import org.jetbrains.kotlin.native.interop.indexer.Language
 import org.jetbrains.kotlin.native.interop.indexer.mapFragmentIsCompilable
 
+internal val INVALID_CLANG_IDENTIFIER_REGEX = "[^a-zA-Z1-9_]".toRegex()
+
+internal fun BridgedType.getNativeType(platform: KotlinPlatform) = when (platform) {
+    KotlinPlatform.JVM -> when (this) {
+        BridgedType.BYTE -> "jbyte"
+        BridgedType.SHORT -> "jshort"
+        BridgedType.INT -> "jint"
+        BridgedType.LONG -> "jlong"
+        BridgedType.UBYTE -> "jbyte"
+        BridgedType.USHORT -> "jshort"
+        BridgedType.UINT -> "jint"
+        BridgedType.ULONG -> "jlong"
+        BridgedType.FLOAT -> "jfloat"
+        BridgedType.DOUBLE -> "jdouble"
+        BridgedType.NATIVE_PTR -> "jlong"
+        BridgedType.OBJC_POINTER -> TODO()
+        BridgedType.VOID -> "void"
+    }
+    KotlinPlatform.NATIVE -> when (this) {
+        BridgedType.BYTE -> "int8_t"
+        BridgedType.SHORT -> "int16_t"
+        BridgedType.INT -> "int32_t"
+        BridgedType.LONG -> "int64_t"
+        BridgedType.UBYTE -> "uint8_t"
+        BridgedType.USHORT -> "uint16_t"
+        BridgedType.UINT -> "uint32_t"
+        BridgedType.ULONG -> "uint64_t"
+        BridgedType.FLOAT -> "float"
+        BridgedType.DOUBLE -> "double"
+        BridgedType.NATIVE_PTR -> "void*"
+        BridgedType.OBJC_POINTER -> "id"
+        BridgedType.VOID -> "void"
+    }
+}
+
 class SimpleBridgeGeneratorImpl(
         private val platform: KotlinPlatform,
         private val pkgName: String,
@@ -32,38 +67,7 @@ class SimpleBridgeGeneratorImpl(
 
     private var nextUniqueId = 0
 
-    private val BridgedType.nativeType: String get() = when (platform) {
-        KotlinPlatform.JVM -> when (this) {
-            BridgedType.BYTE -> "jbyte"
-            BridgedType.SHORT -> "jshort"
-            BridgedType.INT -> "jint"
-            BridgedType.LONG -> "jlong"
-            BridgedType.UBYTE -> "jbyte"
-            BridgedType.USHORT -> "jshort"
-            BridgedType.UINT -> "jint"
-            BridgedType.ULONG -> "jlong"
-            BridgedType.FLOAT -> "jfloat"
-            BridgedType.DOUBLE -> "jdouble"
-            BridgedType.NATIVE_PTR -> "jlong"
-            BridgedType.OBJC_POINTER -> TODO()
-            BridgedType.VOID -> "void"
-        }
-        KotlinPlatform.NATIVE -> when (this) {
-            BridgedType.BYTE -> "int8_t"
-            BridgedType.SHORT -> "int16_t"
-            BridgedType.INT -> "int32_t"
-            BridgedType.LONG -> "int64_t"
-            BridgedType.UBYTE -> "uint8_t"
-            BridgedType.USHORT -> "uint16_t"
-            BridgedType.UINT -> "uint32_t"
-            BridgedType.ULONG -> "uint64_t"
-            BridgedType.FLOAT -> "float"
-            BridgedType.DOUBLE -> "double"
-            BridgedType.NATIVE_PTR -> "void*"
-            BridgedType.OBJC_POINTER -> "id"
-            BridgedType.VOID -> "void"
-        }
-    }
+    private val BridgedType.nativeType: String get() = getNativeType(platform)
 
     private inner class NativeBridge(val kotlinLines: List<String>, val nativeLines: List<String>)
 
@@ -245,9 +249,5 @@ class SimpleBridgeGeneratorImpl(
             override fun isSupported(nativeBacked: NativeBacked): Boolean =
                     nativeBacked !in excludedClients
         }
-    }
-
-    companion object {
-        internal val INVALID_CLANG_IDENTIFIER_REGEX = "[^a-zA-Z1-9_]".toRegex()
     }
 }

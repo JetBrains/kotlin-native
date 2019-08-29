@@ -450,14 +450,26 @@ internal class GlobalStubBuilder(
             when (mirror) {
                 is TypeMirror.ByValue -> {
                     kotlinType = mirror.argType
-                    val getter = PropertyAccessor.Getter.SimpleGetter()
                     val getterExtra = BridgeGenerationComponents.GlobalGetterBridgeInfo(global.name, mirror.info, isArray = false)
+                    val getter = when (context.platform) {
+                        KotlinPlatform.JVM -> PropertyAccessor.Getter.SimpleGetter()
+                        KotlinPlatform.NATIVE -> {
+                            val cCallAnnotation = AnnotationStub.CCall.Symbol(context.generateNextUniqueId("knifunptr_") + "_${global.name}_getter")
+                            PropertyAccessor.Getter.ExternalGetter(listOf(cCallAnnotation))
+                        }
+                    }
                     context.bridgeComponentsBuilder.getterToBridgeInfo[getter] = getterExtra
                     kind = if (global.isConst) {
                         PropertyStub.Kind.Val(getter)
                     } else {
-                        val setter = PropertyAccessor.Setter.SimpleSetter()
                         val setterExtra = BridgeGenerationComponents.GlobalSetterBridgeInfo(global.name, mirror.info)
+                        val setter = when (context.platform) {
+                            KotlinPlatform.JVM -> PropertyAccessor.Setter.SimpleSetter()
+                            KotlinPlatform.NATIVE -> {
+                                val cCallAnnotation = AnnotationStub.CCall.Symbol(context.generateNextUniqueId("knifunptr_") + "_${global.name}_setter")
+                                PropertyAccessor.Setter.ExternalSetter(listOf(cCallAnnotation))
+                            }
+                        }
                         context.bridgeComponentsBuilder.setterToBridgeInfo[setter] = setterExtra
                         PropertyStub.Kind.Var(getter, setter)
                     }
