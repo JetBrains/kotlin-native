@@ -69,7 +69,7 @@ Kotlin constructors are imported as initializers to Swift/Objective-C.
 
 ### Setters
 
-Protocol in Objective_C is an instrument to set requirements on properties and methods. Property requirements specify it's name and type, also it can be asked to be able for read and/or write access. This requirements must be met by actual class that implement the protocol, but property's access can be extended, as example, from read-only to read-write. In such cases, classes' properties will be represented in Kotlin/Native still as read-only properties, with generated public setter function. For example, for any Objective C `foo` property there will be generated the `setFoo()` for every writeable occurrence of it.
+Protocol in Objective-C is an instrument to set requirements on properties and methods. Property requirements specify its name and type, also it can be asked to be able for read and/or write access. This requirements must be met by actual class that implement the protocol, but property's access can be extended, as example, from read-only to read-write. In such cases, classes' properties will be represented in Kotlin/Native still as read-only properties, with generated public setter function. For example, for any Objective-C `foo` property there will be generated the `setFoo()` for every writeable occurrence of it.
 
 ### Top-level functions and properties
 
