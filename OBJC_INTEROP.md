@@ -69,7 +69,9 @@ Kotlin constructors are imported as initializers to Swift/Objective-C.
 
 ### Setters
 
-Reassignable Objective-C properties, that are overrides of the read-only properties, are being represented in Kotlin/Native as read-only properties, with public `set()` function.
+Objective C provides an ability to override superclasses read-only properties with writeable ones.
+These properties are being represented in Kotlin/Native as read-only properties, with generated public setter function.
+For example, for any Objective C `foo` property there will be generated the `setFoo()` for every writeable occurrence of it.
 
 ### Top-level functions and properties
 
