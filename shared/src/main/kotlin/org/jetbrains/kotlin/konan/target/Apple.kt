@@ -32,9 +32,9 @@ class AppleConfigurablesImpl(
 
     override val absoluteTargetSysRoot: String get() = when (xcodePartsProvider) {
         is XcodePartsProvider.Local -> when (target) {
-            KonanTarget.MACOS_X64 -> xcodePartsProvider.xcode.macosxSdk
+            KonanTarget.MACOS_X64, KonanTarget.IOSMAC_X64 -> xcodePartsProvider.xcode.macosxSdk
             KonanTarget.IOS_ARM32, KonanTarget.IOS_ARM64 -> xcodePartsProvider.xcode.iphoneosSdk
-            KonanTarget.IOS_X64, KonanTarget.IOSMAC_X64 -> xcodePartsProvider.xcode.iphonesimulatorSdk
+            KonanTarget.IOS_X64 -> xcodePartsProvider.xcode.iphonesimulatorSdk
             else -> error(target)
         }
         XcodePartsProvider.InternalServer -> absolute(sdkDependency)

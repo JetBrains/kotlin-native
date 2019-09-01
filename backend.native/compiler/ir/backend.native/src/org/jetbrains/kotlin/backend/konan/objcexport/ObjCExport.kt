@@ -141,7 +141,7 @@ internal class ObjCExport(val context: Context, symbolTable: SymbolTable) {
     private fun emitInfoPlist(frameworkContents: File, name: String) {
         val directory = when {
             target.family == Family.IOS -> frameworkContents
-            target == KonanTarget.MACOS_X64 -> frameworkContents.child("Resources").also { it.mkdirs() }
+            target == KonanTarget.MACOS_X64 || target == KonanTarget.IOSMAC_X64 -> frameworkContents.child("Resources").also { it.mkdirs() }
             else -> error(target)
         }
 
@@ -152,7 +152,7 @@ internal class ObjCExport(val context: Context, symbolTable: SymbolTable) {
         val platform = when (target) {
             KonanTarget.IOS_ARM32, KonanTarget.IOS_ARM64 -> "iPhoneOS"
             KonanTarget.IOS_X64 -> "iPhoneSimulator"
-            KonanTarget.MACOS_X64 -> "MacOSX"
+            KonanTarget.MACOS_X64, KonanTarget.IOSMAC_X64 -> "MacOSX"
             else -> error(target)
         }
         val properties = context.config.platform.configurables as AppleConfigurables
