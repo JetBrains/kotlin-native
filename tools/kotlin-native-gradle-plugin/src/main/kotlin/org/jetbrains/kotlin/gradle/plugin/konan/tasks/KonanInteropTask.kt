@@ -105,8 +105,8 @@ open class KonanInteropTask @Inject constructor(val workerExecutor: WorkerExecut
         addArgs("-library", libraries.namedKlibs)
         addArgs("-library", libraries.artifacts.map { it.artifact.canonicalPath })
 
-        addKey("-nodefaultlibs", noDefaultLibs)
-        addKey("-noendorsedlibs", noEndorsedLibs)
+        addKey("-no-default-libs", noDefaultLibs)
+        addKey("-no-endorsed-libs", noEndorsedLibs)
 
         addAll(extraOpts)
     }

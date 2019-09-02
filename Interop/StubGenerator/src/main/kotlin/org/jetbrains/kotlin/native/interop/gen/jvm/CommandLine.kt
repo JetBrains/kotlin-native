@@ -21,8 +21,9 @@ import kotlinx.cli.ArgType
 import kotlinx.cli.*
 
 const val HEADER_FILTER_ADDITIONAL_SEARCH_PREFIX = "headerFilterAdditionalSearchPrefix"
-const val NODEFAULTLIBS = "nodefaultlibs"
-const val NOENDORSEDLIBS = "noendorsedlibs"
+const val NODEFAULTLIBS_DEPRECATED = "nodefaultlibs"
+const val NODEFAULTLIBS = "no-default-libs"
+const val NOENDORSEDLIBS = "no-endorsed-libs"
 const val PURGE_USER_LIBS = "Xpurge-user-libs"
 const val TEMP_DIR = "Xtemporary-files-dir"
 
@@ -49,6 +50,9 @@ open class CommonInteropArguments(val argParser: ArgParser) {
             .multiple()
     val nodefaultlibs by argParser.option(ArgType.Boolean, NODEFAULTLIBS,
             description = "don't link the libraries from dist/klib automatically").default(false)
+    val nodefaultlibsDeprecated by argParser.option(ArgType.Boolean, NODEFAULTLIBS_DEPRECATED,
+            description = "don't link the libraries from dist/klib automatically",
+            deprecatedWarning = "Old form of flag. Please, use $NODEFAULTLIBS.").default(false)
     val noendorsedlibs by argParser.option(ArgType.Boolean, NOENDORSEDLIBS,
             description = "don't link the endorsed libraries from dist automatically").default(false)
     val purgeUserLibs by argParser.option(ArgType.Boolean, PURGE_USER_LIBS,

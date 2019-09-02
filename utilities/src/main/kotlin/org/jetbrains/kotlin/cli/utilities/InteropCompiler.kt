@@ -19,7 +19,7 @@ fun invokeInterop(flavor: String, args: Array<String>): Array<String> {
     val arguments = if (flavor == "native") CInteropArguments() else JSInteropArguments()
     arguments.argParser.parse(args)
     val outputFileName = arguments.output
-    val noDefaultLibs = arguments.nodefaultlibs
+    val noDefaultLibs = arguments.nodefaultlibs || arguments.nodefaultlibsDeprecated
     val noEndorsedLibs = arguments.noendorsedlibs
     val purgeUserLibs = arguments.purgeUserLibs
     val temporaryFilesDir = arguments.tempDir
