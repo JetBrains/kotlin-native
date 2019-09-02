@@ -235,6 +235,7 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DUSE_ELF_SYMBOLS=1",
                         "-DELFSIZE=32",
                         "-DKONAN_ANDROID=1",
+                        "-D__ANDROID_API__=${Android.API}",
                         "-DKONAN_ARM32=1",
                         "-DKONAN_NO_UNALIGNED_ACCESS=1")
 
@@ -244,6 +245,7 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DUSE_ELF_SYMBOLS=1",
                         "-DELFSIZE=64",
                         "-DKONAN_ANDROID=1",
+                        "-D__ANDROID_API__=${Android.API}",
                         "-DKONAN_ARM64=1",
                         "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1")
 
@@ -253,6 +255,7 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DUSE_ELF_SYMBOLS=1",
                         "-DELFSIZE=64",
                         "-DKONAN_ANDROID=1",
+                        "-D__ANDROID_API__=${Android.API}",
                         "-DKONAN_X64=1",
                         "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1")
 

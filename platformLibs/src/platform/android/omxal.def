@@ -2,4 +2,6 @@ depends = posix
 package = platform.omxal
 headers = OMXAL/OpenMAXAL.h OMXAL/OpenMAXAL_Android.h OMXAL/OpenMAXAL_Platform.h
 headerFilter = OMXAL/**
+# TODO: make it uniform.
+compilerOpts = -D__ANDROID_API__=21
 linkerOpts = -lOpenMAXAL

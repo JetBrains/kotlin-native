@@ -2,4 +2,6 @@ depends = glesCommon posix
 package = platform.gles2
 headers = GLES2/gl2.h GLES2/gl2ext.h GLES2/gl2platform.h
 headerFilter = GLES2/**
+# TODO: make it uniform.
+compilerOpts = -D__ANDROID_API__=21
 linkerOpts = -lGLESv2

@@ -2,4 +2,6 @@ depends = glesCommon posix
 package = platform.gles3
 headers = GLES3/gl3.h GLES3/gl3ext.h GLES3/gl3platform.h
 headerFilter = GLES3/**
+# TODO: make it uniform.
+compilerOpts = -D__ANDROID_API__=21
 linkerOpts = -lGLESv3

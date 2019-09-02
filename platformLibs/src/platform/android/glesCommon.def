@@ -2,3 +2,5 @@ depends = posix
 package = platform.glescommon
 headers = KHR/khrplatform.h
 headerFilter = KHR/**
+# TODO: make it uniform.
+compilerOpts = -D__ANDROID_API__=21

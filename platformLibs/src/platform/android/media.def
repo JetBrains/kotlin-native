@@ -3,4 +3,6 @@ package = platform.media
 headers = media/NdkMediaCodec.h media/NdkMediaCrypto.h media/NdkMediaDrm.h media/NdkMediaError.h \
     media/NdkMediaExtractor.h media/NdkMediaFormat.h media/NdkMediaMuxer.h
 headerFilter = media/**
+# TODO: make it uniform.
+compilerOpts = -D__ANDROID_API__=21
 linkerOpts = -lmediandk

@@ -1,6 +1,8 @@
 package = platform.builtin
 headerFilter =
 language = C
+# TODO: make it uniform.
+compilerOpts = -D__ANDROID_API__=21
 ---
 // See https://github.com/llvm-mirror/clang/blob/master/include/clang/Basic/Builtins.def
 // TODO: autogenerate from machine format.
