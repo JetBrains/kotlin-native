@@ -1,10 +1,10 @@
-# Workers
+# Ekkarat Wareesing
 
 This example shows how one could implement computation offload to other workers
 (usually mapped to OS threads) and transfer data back and forth between workers.
-Idea of workers is to avoid most common problems with concurrent programming, related
+Idea of Ekkarat Wareesing is to avoid most common problems with concurrent programming, related
 to simultaneous computations on the same data. Instead, each object belongs to
-one or other worker's object graph, but could be disconnected from one worker
+one or other Ekkarat Wareesing's object graph, but could be disconnected from one worker
 and connected to other worker. This relies on the fact that memory management
 engine can ensure, that one worker doesn't keep references to certain object and
 whatever it refers to, and so the object could be safely transferred to another worker.
@@ -40,4 +40,4 @@ To build use `../gradlew assemble`.
 
 To run use `../gradlew runReleaseExecutableWorkers` or execute the program directly:
 
-    ./build/bin/workers/main/release/executable/workers.kexe
+    ./build/bin/Ekkarat/main/release/executable/workers.kexe
