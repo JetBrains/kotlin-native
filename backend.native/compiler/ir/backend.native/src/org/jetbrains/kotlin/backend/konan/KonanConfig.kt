@@ -26,6 +26,8 @@ import org.jetbrains.kotlin.konan.util.Logger
 import kotlin.system.exitProcess
 import org.jetbrains.kotlin.library.toUnresolvedLibraries
 import org.jetbrains.kotlin.konan.KonanVersion
+import org.jetbrains.kotlin.konan.library.isInterop
+import org.jetbrains.kotlin.library.UnresolvedLibrary
 
 class KonanConfig(val project: Project, val configuration: CompilerConfiguration) {
 
@@ -39,10 +41,8 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
     internal val target = targetManager.target
     internal val phaseConfig = configuration.get(CLIConfigurationKeys.PHASE_CONFIG)!!
 
-    val linkOnly: Boolean =
-            configuration.kotlinSourceRoots.isEmpty() && libraryNames.isNotEmpty() && produce.isNativeBinary
-
-    val infoArgsOnly = configuration.kotlinSourceRoots.isEmpty() && !linkOnly
+    val infoArgsOnly = configuration.kotlinSourceRoots.isEmpty()
+            && configuration[KonanConfigKeys.INCLUDED_LIBRARIES].isNullOrEmpty()
 
     // TODO: debug info generation mode and debug/release variant selection probably requires some refactoring.
     val debug: Boolean get() = configuration.getBoolean(KonanConfigKeys.DEBUG)
@@ -89,6 +89,9 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
     private val libraryNames: List<String>
         get() = configuration.getList(KonanConfigKeys.LIBRARY_FILES)
 
+    private val includedLibraryFiles
+        get() = configuration.getList(KonanConfigKeys.INCLUDED_LIBRARIES).map { File(it) }
+
     private val unresolvedLibraries = libraryNames.toUnresolvedLibraries
 
     private val repositories = configuration.getList(KonanConfigKeys.REPOSITORIES)
@@ -117,14 +120,28 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
         resolverLogger
     ).libraryResolver()
 
+    // We pass included libraries by absolute paths to avoid repository-based resolution for them.
+    // Strictly speaking such "direct" libraries should be specially handled by the resolver, not by KonanConfig.
+    // But currently the resolver is in the middle of a complex refactoring so it was decided to avoid changes in its logic.
+    // TODO: Handle included libraries in KonanLibraryResolver when it's refactored and moved into the big Kotlin repo.
     internal val resolvedLibraries by lazy {
         resolver.resolveWithDependencies(
-                unresolvedLibraries,
+                unresolvedLibraries + includedLibraryFiles.map { UnresolvedLibrary(it.absolutePath, null) },
                 noStdLib = configuration.getBoolean(KonanConfigKeys.NOSTDLIB),
-                noDefaultLibs = configuration.getBoolean(KonanConfigKeys.NODEFAULTLIBS)).also {
+                noDefaultLibs = configuration.getBoolean(KonanConfigKeys.NODEFAULTLIBS)
+        )
+    }
 
-            validateExportedLibraries(configuration, it)
-        }
+    internal val exportedLibraries by lazy {
+        getExportedLibraries(configuration, resolvedLibraries, resolver.searchPathResolver, report = true)
+    }
+
+    internal val coveredLibraries by lazy {
+        getCoveredLibraries(configuration, resolvedLibraries, resolver.searchPathResolver)
+    }
+
+    internal val includedLibraries by lazy {
+        getIncludedLibraries(includedLibraryFiles, configuration, resolvedLibraries)
     }
 
     fun librariesWithDependencies(moduleDescriptor: ModuleDescriptor?): List<KonanLibrary> {

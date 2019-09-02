@@ -70,11 +70,6 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
             configuration.put(CommonConfigurationKeys.METADATA_VERSION, KonanMetadataVersion.INSTANCE)
         }
 
-        if (konanConfig.linkOnly) {
-            configuration.report(WARNING, "You have not specified any source files. " +
-                    "Only libraries will be used to produce the output binary.")
-        }
-
         try {
             runTopLevelPhases(konanConfig, environment)
         } catch (e: KonanCompilationException) {
@@ -95,7 +90,7 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
     }
 
     val K2NativeCompilerArguments.isUsefulWithoutFreeArgs: Boolean
-        get() = this.listTargets || this.listPhases || this.checkDependencies || this.libraries?.isNotEmpty() ?: false
+        get() = listTargets || listPhases || checkDependencies || !includes.isNullOrEmpty()
 
     fun Array<String>?.toNonNullList(): List<String> {
         return this?.asList<String>() ?: listOf<String>()
@@ -195,15 +190,17 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
                     else -> put(GENERATE_TEST_RUNNER, TestRunnerKind.NONE)
                 }
                 // We need to download dependencies only if we use them ( = there are files to compile).
-                put(CHECK_DEPENDENCIES, if (configuration.kotlinSourceRoots.isNotEmpty()) {
-                    true
-                } else {
-                    arguments.checkDependencies
-                })
+                put(
+                    CHECK_DEPENDENCIES,
+                    configuration.kotlinSourceRoots.isNotEmpty()
+                            || !arguments.includes.isNullOrEmpty()
+                            || arguments.checkDependencies
+                )
                 if (arguments.friendModules != null)
                     put(FRIEND_MODULES, arguments.friendModules!!.split(File.pathSeparator).filterNot(String::isEmpty))
 
                 put(EXPORTED_LIBRARIES, selectExportedLibraries(configuration, arguments, outputKind))
+                put(INCLUDED_LIBRARIES, selectIncludes(configuration, arguments, outputKind))
                 put(FRAMEWORK_IMPORT_HEADERS, arguments.frameworkImportHeaders.toNonNullList())
                 arguments.emitLazyObjCHeader?.let { put(EMIT_LAZY_OBJC_HEADER_FILE, it) }
 
@@ -302,6 +299,26 @@ private fun selectExportedLibraries(
         emptyList()
     } else {
         exportedLibraries
+    }
+}
+
+private fun selectIncludes(
+    configuration: CompilerConfiguration,
+    arguments: K2NativeCompilerArguments,
+    outputKind: CompilerOutputKind
+): List<String> {
+    val includes = arguments.includes?.toList().orEmpty()
+    val produceBinaryOrBitcode = outputKind.let { it.isNativeBinary || it == CompilerOutputKind.BITCODE }
+
+    return if (includes.isNotEmpty() && !produceBinaryOrBitcode) {
+        configuration.report(
+            ERROR,
+            "The $INCLUDE_ARG flag is only supported when producing native binaries or bitcode files, " +
+                    "but the compiler is producing ${outputKind.name.toLowerCase()}"
+        )
+        emptyList()
+    } else {
+        includes
     }
 }
 

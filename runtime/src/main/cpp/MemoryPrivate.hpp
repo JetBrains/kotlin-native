@@ -21,13 +21,20 @@
 
 extern "C" {
 
+bool TryAddHeapRef(const ObjHeader* object);
+
 MODEL_VARIANTS(void, ReleaseHeapRef, const ObjHeader* object);
 
-void AddRefFromAssociatedObject(const ObjHeader* object) RUNTIME_NOTHROW;
-void ReleaseRefFromAssociatedObject(const ObjHeader* object) RUNTIME_NOTHROW;
 void DeinitInstanceBody(const TypeInfo* typeInfo, void* body);
 
 void Kotlin_ObjCExport_releaseAssociatedObject(void* associatedObject);
+
+ForeignRefContext InitLocalForeignRef(ObjHeader* object);
+
+ForeignRefContext InitForeignRef(ObjHeader* object);
+void DeinitForeignRef(ObjHeader* object, ForeignRefContext context);
+
+bool IsForeignRefAccessible(ObjHeader* object, ForeignRefContext context);
 
 }  // extern "C"
 

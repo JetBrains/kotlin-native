@@ -6,6 +6,7 @@
 package org.jetbrains.kotlin.backend.konan.llvm.objcexport
 
 import llvm.*
+import org.jetbrains.kotlin.backend.common.ir.simpleFunctions
 import org.jetbrains.kotlin.backend.konan.llvm.*
 import org.jetbrains.kotlin.backend.konan.objcexport.BlockPointerBridge
 import org.jetbrains.kotlin.descriptors.konan.CurrentKonanModuleOrigin
@@ -15,7 +16,7 @@ import org.jetbrains.kotlin.util.OperatorNameConventions
 internal fun ObjCExportCodeGenerator.generateBlockToKotlinFunctionConverter(
         bridge: BlockPointerBridge
 ): LLVMValueRef {
-    val irInterface = symbols.functions[bridge.numberOfParameters].owner
+    val irInterface = symbols.functionN(bridge.numberOfParameters).owner
     val invokeMethod = irInterface.declarations.filterIsInstance<IrSimpleFunction>()
             .single { it.name == OperatorNameConventions.INVOKE }
 
@@ -135,9 +136,11 @@ private val BlockPointerBridge.nameSuffix: String
 internal class BlockAdapterToFunctionGenerator(val objCExportCodeGenerator: ObjCExportCodeGenerator) {
     private val codegen get() = objCExportCodeGenerator.codegen
 
+    private val kRefSharedHolderType = LLVMGetTypeByName(codegen.runtime.llvmModule, "class.KRefSharedHolder")!!
+
     private val blockLiteralType = structType(
             codegen.runtime.getStructType("Block_literal_1"),
-            codegen.kObjHeaderPtr
+            kRefSharedHolderType
     )
 
     private val blockDescriptorType = codegen.runtime.getStructType("Block_descriptor_1")
@@ -148,8 +151,8 @@ internal class BlockAdapterToFunctionGenerator(val objCExportCodeGenerator: ObjC
             "blockDisposeHelper"
     ) {
         val blockPtr = bitcast(pointerType(blockLiteralType), param(0))
-        val slot = structGep(blockPtr, 1)
-        storeHeapRef(kNullObjHeaderPtr, slot) // TODO: can dispose_helper write to the block?
+        val refHolder = structGep(blockPtr, 1)
+        call(context.llvm.kRefSharedHolderDispose, listOf(refHolder))
 
         ret(null)
     }.also {
@@ -162,15 +165,22 @@ internal class BlockAdapterToFunctionGenerator(val objCExportCodeGenerator: ObjC
             "blockCopyHelper"
     ) {
         val dstBlockPtr = bitcast(pointerType(blockLiteralType), param(0))
-        val dstSlot = structGep(dstBlockPtr, 1)
+        val dstRefHolder = structGep(dstBlockPtr, 1)
 
         val srcBlockPtr = bitcast(pointerType(blockLiteralType), param(1))
-        val srcSlot = structGep(srcBlockPtr, 1)
+        val srcRefHolder = structGep(srcBlockPtr, 1)
 
-        // Kotlin reference was `memcpy`ed from src to dst, "revert" this:
-        storeRefUnsafe(kNullObjHeaderPtr, dstSlot)
-        // and copy properly:
-        storeHeapRef(loadSlot(srcSlot, isVar = false), dstSlot)
+        // Note: in current implementation copy helper is invoked only for stack-allocated blocks from the same thread,
+        // so it is technically not necessary to check owner.
+        // However this is not guaranteed by Objective-C runtime, so keep it suboptimal but reliable:
+        val ref = call(
+                context.llvm.kRefSharedHolderRef,
+                listOf(srcRefHolder),
+                exceptionHandler = ExceptionHandler.Caller,
+                verbatim = true
+        )
+
+        call(context.llvm.kRefSharedHolderInit, listOf(dstRefHolder, ref))
 
         ret(null)
     }.also {
@@ -210,29 +220,24 @@ internal class BlockAdapterToFunctionGenerator(val objCExportCodeGenerator: ObjC
 
 
 
-    private fun FunctionGenerationContext.storeRefUnsafe(value: LLVMValueRef, slot: LLVMValueRef) {
-        assert(value.type == kObjHeaderPtr)
-        assert(slot.type == kObjHeaderPtrPtr)
-
-        store(
-                bitcast(int8TypePtr, value),
-                bitcast(pointerType(int8TypePtr), slot)
-        )
-    }
-
     private fun ObjCExportCodeGenerator.generateInvoke(bridge: BlockPointerBridge): ConstPointer {
         val numberOfParameters = bridge.numberOfParameters
 
         val result = generateFunction(codegen, bridge.blockInvokeLlvmType, "invokeBlock${bridge.nameSuffix}") {
             val blockPtr = bitcast(pointerType(blockLiteralType), param(0))
-            val kotlinFunction = loadSlot(structGep(blockPtr, 1), isVar = false)
+            val kotlinFunction = call(
+                    context.llvm.kRefSharedHolderRef,
+                    listOf(structGep(blockPtr, 1)),
+                    exceptionHandler = ExceptionHandler.Caller,
+                    verbatim = true
+            )
 
             val args = (1 .. numberOfParameters).map { index ->
                 objCReferenceToKotlin(param(index), Lifetime.ARGUMENT)
             }
 
-            val invokeMethod = context.ir.symbols.functions[numberOfParameters].owner.declarations
-                    .filterIsInstance<IrSimpleFunction>().single { it.name == OperatorNameConventions.INVOKE }
+            val invokeMethod = context.ir.symbols.functionN(numberOfParameters).owner.simpleFunctions()
+                    .single { it.name == OperatorNameConventions.INVOKE }
 
             val callee = lookupVirtualImpl(kotlinFunction, invokeMethod)
 
@@ -281,7 +286,7 @@ internal class BlockAdapterToFunctionGenerator(val objCExportCodeGenerator: ObjC
 
             val blockOnStack = alloca(blockLiteralType)
             val blockOnStackBase = structGep(blockOnStack, 0)
-            val slot = structGep(blockOnStack, 1)
+            val refHolder = structGep(blockOnStack, 1)
 
             listOf(bitcast(int8TypePtr, isa), flags, reserved, invoke, descriptor).forEachIndexed { index, value ->
                 // Although value is actually on the stack, it's not in normal slot area, so we cannot handle it
@@ -289,8 +294,7 @@ internal class BlockAdapterToFunctionGenerator(val objCExportCodeGenerator: ObjC
                 store(value, structGep(blockOnStackBase, index))
             }
 
-            // Note: it is the slot in the block located on stack, so no need to manage it properly:
-            storeRefUnsafe(kotlinRef, slot)
+            call(context.llvm.kRefSharedHolderInitLocal, listOf(refHolder, kotlinRef))
 
             val copiedBlock = callFromBridge(retainBlock, listOf(bitcast(int8TypePtr, blockOnStack)))
 

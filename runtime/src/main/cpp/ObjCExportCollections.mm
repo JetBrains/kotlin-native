@@ -15,6 +15,7 @@
  */
 
 #import "Memory.h"
+#import "MemorySharedRefs.hpp"
 #import "Types.h"
 
 #if KONAN_OBJC_INTEROP
@@ -366,7 +367,9 @@ static inline id KSet_getElement(KRef set, id object) {
 -(instancetype)init {
   if (self = [super init]) {
     Kotlin_initRuntimeIfNeeded();
-    Kotlin_MutableSet_createWithCapacity(8, self->setHolder.slotToInit());
+    ObjHolder holder;
+    KRef set = Kotlin_MutableSet_createWithCapacity(8, holder.slot());
+    self->setHolder.init(set);
   }
 
   return self;
@@ -375,7 +378,9 @@ static inline id KSet_getElement(KRef set, id object) {
 - (instancetype)initWithCapacity:(NSUInteger)numItems {
   if (self = [super init]) {
     Kotlin_initRuntimeIfNeeded();
-    Kotlin_MutableSet_createWithCapacity(objCCapacityToKotlin(numItems), self->setHolder.slotToInit());
+    ObjHolder holder;
+    KRef set = Kotlin_MutableSet_createWithCapacity(objCCapacityToKotlin(numItems), holder.slot());
+    self->setHolder.init(set);
   }
 
   return self;
@@ -396,6 +401,9 @@ static inline id KSet_getElement(KRef set, id object) {
 // ?
 
 -(void)dealloc {
+  // Note: since setHolder initialization is not performed directly with alloc,
+  // it is possible that it wasn't initialized properly.
+  // Fortunately setHolder.dispose() handles the zero-initialized case too.
   setHolder.dispose();
   [super dealloc];
 }
@@ -504,6 +512,9 @@ static inline id KMap_get(KRef map, id aKey) {
 }
 
 -(void)dealloc {
+  // Note: since mapHolder initialization is not performed directly with alloc,
+  // it is possible that it wasn't initialized properly.
+  // Fortunately mapHolder.dispose() handles the zero-initialized case too.
   mapHolder.dispose();
   [super dealloc];
 }
@@ -511,7 +522,9 @@ static inline id KMap_get(KRef map, id aKey) {
 -(instancetype)init {
   if (self = [super init]) {
     Kotlin_initRuntimeIfNeeded();
-    Kotlin_MutableMap_createWithCapacity(8, self->mapHolder.slotToInit());
+    ObjHolder holder;
+    KRef map = Kotlin_MutableMap_createWithCapacity(8, holder.slot());
+    self->mapHolder.init(map);
   }
   return self;
 }
@@ -525,7 +538,9 @@ static inline id KMap_get(KRef map, id aKey) {
 - (instancetype)initWithCapacity:(NSUInteger)numItems {
   if (self = [super init]) {
     Kotlin_initRuntimeIfNeeded();
-    Kotlin_MutableMap_createWithCapacity(objCCapacityToKotlin(numItems), self->mapHolder.slotToInit());
+    ObjHolder holder;
+    KRef map = Kotlin_MutableMap_createWithCapacity(objCCapacityToKotlin(numItems), holder.slot());
+    self->mapHolder.init(map);
   }
   return self;
 }

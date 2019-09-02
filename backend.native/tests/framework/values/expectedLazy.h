@@ -951,6 +951,38 @@ __attribute__((swift_name("TopLevelHidden.InnerInner")))
 @interface ValuesTopLevelHiddenInnerInner : NSObject
 @end;
 
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("TestWeakRefs")))
+@interface ValuesTestWeakRefs : KotlinBase
+- (instancetype)initWithFrozen:(BOOL)frozen __attribute__((swift_name("init(frozen:)"))) __attribute__((objc_designated_initializer));
+- (id)getObj __attribute__((swift_name("getObj()")));
+- (void)clearObj __attribute__((swift_name("clearObj()")));
+- (NSArray<id> *)createCycle __attribute__((swift_name("createCycle()")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("SharedRefs")))
+@interface ValuesSharedRefs : KotlinBase
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+- (ValuesSharedRefsMutableData *)createRegularObject __attribute__((swift_name("createRegularObject()")));
+- (void (^)(void))createLambda __attribute__((swift_name("createLambda()")));
+- (NSMutableArray<id> *)createCollection __attribute__((swift_name("createCollection()")));
+- (ValuesSharedRefsMutableData *)createFrozenRegularObject __attribute__((swift_name("createFrozenRegularObject()")));
+- (void (^)(void))createFrozenLambda __attribute__((swift_name("createFrozenLambda()")));
+- (NSMutableArray<id> *)createFrozenCollection __attribute__((swift_name("createFrozenCollection()")));
+- (BOOL)hasAliveObjects __attribute__((swift_name("hasAliveObjects()")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("SharedRefs.MutableData")))
+@interface ValuesSharedRefsMutableData : KotlinBase
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+- (void)update __attribute__((swift_name("update()")));
+@property int32_t x __attribute__((swift_name("x")));
+@end;
+
 @interface ValuesEnumeration (ValuesKt)
 - (ValuesEnumeration *)getAnswer __attribute__((swift_name("getAnswer()")));
 @end;
@@ -1029,6 +1061,7 @@ __attribute__((swift_name("ValuesKt")))
 + (void)takeForwardDeclaredProtocolObj:(id<ForwardDeclared>)obj __attribute__((swift_name("takeForwardDeclaredProtocol(obj:)")));
 + (void)error __attribute__((swift_name("error()"))) __attribute__((unavailable("error")));
 + (void)warning __attribute__((swift_name("warning()"))) __attribute__((deprecated("warning")));
++ (void)gc __attribute__((swift_name("gc()")));
 @property (class, readonly) double dbl __attribute__((swift_name("dbl")));
 @property (class, readonly) float flt __attribute__((swift_name("flt")));
 @property (class, readonly) int32_t integer __attribute__((swift_name("integer")));

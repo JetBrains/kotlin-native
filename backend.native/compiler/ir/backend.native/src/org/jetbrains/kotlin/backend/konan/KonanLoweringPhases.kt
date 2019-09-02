@@ -2,12 +2,13 @@ package org.jetbrains.kotlin.backend.konan
 
 import org.jetbrains.kotlin.backend.common.*
 import org.jetbrains.kotlin.backend.common.lower.*
+import org.jetbrains.kotlin.backend.common.lower.inline.FunctionInlining
+import org.jetbrains.kotlin.backend.common.lower.loops.ForLoopsLowering
 import org.jetbrains.kotlin.backend.common.phaser.*
 import org.jetbrains.kotlin.backend.konan.lower.*
 import org.jetbrains.kotlin.backend.konan.lower.ExpectDeclarationsRemoving
 import org.jetbrains.kotlin.backend.konan.lower.FinallyBlocksLowering
 import org.jetbrains.kotlin.backend.konan.lower.InitializersLowering
-import org.jetbrains.kotlin.backend.konan.lower.loops.ForLoopsLowering
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 
@@ -67,10 +68,22 @@ internal val removeExpectDeclarationsPhase = makeKonanModuleLoweringPhase(
         description = "Expect declarations removing"
 )
 
+internal val stripTypeAliasDeclarationsPhase = makeKonanModuleLoweringPhase(
+        { StripTypeAliasDeclarationsLowering() },
+        name = "StripTypeAliasDeclarations",
+        description = "Strip typealias declarations"
+)
+
 internal val lowerBeforeInlinePhase = makeKonanModuleLoweringPhase(
         ::PreInlineLowering,
         name = "LowerBeforeInline",
         description = "Special operations processing before inlining"
+)
+
+internal val arrayConstructorPhase = makeKonanModuleLoweringPhase(
+        ::ArrayConstructorLowering,
+        name = "ArrayConstructor",
+        description = "Transform `Array(size) { index -> value }` into a loop"
 )
 
 internal val inlinePhase = namedIrModulePhase(
@@ -82,7 +95,7 @@ internal val inlinePhase = namedIrModulePhase(
         },
         name = "Inline",
         description = "Functions inlining",
-        prerequisite = setOf(lowerBeforeInlinePhase),
+        prerequisite = setOf(lowerBeforeInlinePhase, arrayConstructorPhase),
         nlevels = 0,
         actions = modulePhaseActions
 )

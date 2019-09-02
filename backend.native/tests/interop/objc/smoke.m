@@ -254,3 +254,38 @@ static CustomRetainMethodsImpl* retainedCustomRetainMethodsImpl;
     return YES;
 }
 @end;
+
+@implementation TestInitWithCustomSelector
+
+-(instancetype)initCustom {
+    if (self = [super init]) {
+        self.custom = YES;
+    }
+    return self;
+}
+
+-(instancetype)init {
+    if (self = [super init]) {
+        self.custom = NO;
+    }
+    return self;
+}
+
++(instancetype)createCustom {
+    return [[self alloc] initCustom];
+}
+
+@end;
+
+@implementation TestAllocNoRetain
+-(instancetype)init {
+    __weak id weakSelf = self;
+    self = [TestAllocNoRetain alloc];
+    if (self = [super init]) {
+        // Ensure that original self value was deallocated:
+        self.ok = (weakSelf == nil);
+        // So it's RC was 1, which means there wasn't redundant retain applied to it.
+    }
+    return self;
+}
+@end;

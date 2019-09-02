@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.backend.common.reportWarning
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.descriptors.isAbstract
 import org.jetbrains.kotlin.backend.konan.descriptors.synthesizedName
+import org.jetbrains.kotlin.backend.konan.getIncludedLibraryDescriptors
 import org.jetbrains.kotlin.backend.konan.ir.typeWithStarProjections
 import org.jetbrains.kotlin.backend.konan.ir.typeWithoutArguments
 import org.jetbrains.kotlin.backend.konan.reportCompilationError
@@ -600,10 +601,17 @@ internal class TestProcessor (val context: Context) {
     }
     // endregion
 
+    private fun shouldProcessFile(irFile: IrFile): Boolean = irFile.packageFragmentDescriptor.module.let {
+        // Process test annotations in source libraries too.
+        it == context.moduleDescriptor || it in context.getIncludedLibraryDescriptors()
+    }
+
     fun process(irFile: IrFile) {
         // TODO: uses descriptors.
-        if (irFile.packageFragmentDescriptor.module != context.moduleDescriptor)
+        if (!shouldProcessFile(irFile)) {
             return
+        }
+
         val annotationCollector = AnnotationCollector(irFile)
         irFile.acceptChildrenVoid(annotationCollector)
         createTestSuites(irFile, annotationCollector)

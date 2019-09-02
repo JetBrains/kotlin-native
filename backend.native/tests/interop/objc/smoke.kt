@@ -25,6 +25,9 @@ fun run() {
     testOverrideInit()
     testMultipleInheritanceClash()
     testClashingWithAny()
+    testInitWithCustomSelector()
+    testAllocNoRetain()
+    testNSOutputStreamToMemoryConstructor()
 
     assertEquals(2, ForwardDeclaredEnum.TWO.value)
 
@@ -372,6 +375,57 @@ fun testClashingWithAny() {
     assertEquals(4, TestClashingWithAny3().hashCode(3))
     assertFalse(TestClashingWithAny3().equals(TestClashingWithAny3()))
     assertTrue(TestClashingWithAny3().equals())
+}
+
+fun testInitWithCustomSelector() {
+    assertFalse(TestInitWithCustomSelector().custom)
+    assertTrue(TestInitWithCustomSelector(custom = Unit).custom)
+
+    val customSubclass: TestInitWithCustomSelector = TestInitWithCustomSelectorSubclass.createCustom()
+    assertTrue(customSubclass is TestInitWithCustomSelectorSubclass)
+    assertTrue(customSubclass.custom)
+
+    // Test side effect:
+    var ok = false
+    assertTrue(TestInitWithCustomSelector(run { ok = true }).custom)
+    assertTrue(ok)
+}
+
+private class TestInitWithCustomSelectorSubclass : TestInitWithCustomSelector {
+    @OverrideInit constructor(custom: Unit) : super(custom) {
+        assertSame(Unit, custom)
+    }
+
+    companion object : TestInitWithCustomSelectorMeta()
+}
+
+fun testAllocNoRetain() {
+    // Ensure that calling Kotlin constructor generated for Objective-C initializer doesn't result in
+    // redundant retain-release sequence for `alloc` result, since it may provoke specific bugs to reproduce, e.g.
+    // the one found in [[NSOutputStream alloc] initToMemory] sequence where initToMemory deallocates its receiver
+    // forcibly when replacing it with other object: (to be compiled with ARC enabled)
+    /*
+    #import <Foundation/Foundation.h>
+
+    void* mem;
+    NSOutputStream* allocated = nil;
+
+    int main() {
+        allocated = [NSOutputStream alloc];
+        NSOutputStream* initialized = [allocated initToMemory];
+        mem = calloc(1, 0x10); // To corrupt the 'allocated' object header.
+        allocated = nil; // Crashes here in objc_release.
+
+        return 0;
+    }
+     */
+
+    assertTrue(TestAllocNoRetain().ok)
+}
+
+fun testNSOutputStreamToMemoryConstructor() {
+    val stream: Any = NSOutputStream(toMemory = Unit)
+    assertTrue(stream is NSOutputStream)
 }
 
 fun nsArrayOf(vararg elements: Any): NSArray = NSMutableArray().apply {

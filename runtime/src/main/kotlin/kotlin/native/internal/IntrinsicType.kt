@@ -53,10 +53,14 @@ class IntrinsicType {
         const val IDENTITY                      = "IDENTITY"
         const val IMMUTABLE_BLOB                = "IMMUTABLE_BLOB"
         const val INIT_INSTANCE                 = "INIT_INSTANCE"
-        const val SELECT_ENTRY_POINT            = "SELECT_ENTRY_POINT"
 
+        // Enums
+        const val ENUM_VALUES                   = "ENUM_VALUES"
+        const val ENUM_VALUE_OF                 = "ENUM_VALUE_OF"
+
+        // Coroutines
         const val GET_CONTINUATION              = "GET_CONTINUATION"
-        const val RETURN_IF_SUSPEND             = "RETURN_IF_SUSPEND"
+        const val RETURN_IF_SUSPENDED           = "RETURN_IF_SUSPENDED"
         const val COROUTINE_LAUNCHPAD           = "COROUTINE_LAUNCHPAD"
 
         // Interop
