@@ -51,7 +51,7 @@ internal abstract class ParsingValue<T: Any, TResult: Any>(val descriptor: Descr
      *
      * @param stringValue value from command line.
      */
-    fun addValue(stringValue: String) {
+    internal fun addValue(stringValue: String) {
         // Check of possibility to set several values to one option/argument.
         if (descriptor is OptionDescriptor<*, *> && !descriptor.multiple &&
                 !isEmpty() && descriptor.delimiter == null) {
