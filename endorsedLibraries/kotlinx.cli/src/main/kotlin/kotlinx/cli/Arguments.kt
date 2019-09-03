@@ -23,16 +23,14 @@ interface CLIEntity<T : Any, TResult> {
     operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<TResult>
 }
 
+internal data class CLIEntityWrapper(var entity: CLIEntityImpl<*, *>? = null)
+
 /**
  * Command line entity.
  *
  * @property owner parser which owns current entity.
  */
-internal abstract class CLIEntityImpl<T : Any, TResult>(val owner: ArgParser): CLIEntity<T, TResult> {
-    /**
-     * Unique id.
-     */
-    var id: Int? = null
+internal abstract class CLIEntityImpl<T : Any, TResult>(val owner: CLIEntityWrapper): CLIEntity<T, TResult> {
     /**
      * CLI element value.
      */
@@ -66,14 +64,9 @@ interface SingleNullableArgument<T : Any> : AbstractSingleArgument<T, T?>
  */
 interface MultipleArgument<T : Any, TResult : Collection<T>> : Argument<T, TResult>
 
-internal abstract class ArgumentImpl<T : Any, TResult>(owner: ArgParser): CLIEntityImpl<T, TResult>(owner), Argument<T, TResult> {
-    fun replaceArgument(newArgument: ArgumentImpl<*, *>) {
-        newArgument.id = id
-        owner.addArgument(newArgument)
-    }
-}
+internal abstract class ArgumentImpl<T : Any, TResult>(owner: CLIEntityWrapper): CLIEntityImpl<T, TResult>(owner), Argument<T, TResult>
 
-internal abstract class AbstractSingleArgumentImpl<T: Any, TResult>(owner: ArgParser): ArgumentImpl<T, TResult>(owner),
+internal abstract class AbstractSingleArgumentImpl<T: Any, TResult>(owner: CLIEntityWrapper): ArgumentImpl<T, TResult>(owner),
         AbstractSingleArgument<T, TResult> {
     /**
      * Check descriptor for this kind of argument.
@@ -85,7 +78,7 @@ internal abstract class AbstractSingleArgumentImpl<T: Any, TResult>(owner: ArgPa
     }
 }
 
-internal class SingleArgumentImpl<T : Any>(descriptor: ArgDescriptor<T, T>, owner: ArgParser):
+internal class SingleArgumentImpl<T : Any>(descriptor: ArgDescriptor<T, T>, owner: CLIEntityWrapper):
         AbstractSingleArgumentImpl<T, T>(owner),
         SingleArgument<T> {
     init {
@@ -99,7 +92,7 @@ internal class SingleArgumentImpl<T : Any>(descriptor: ArgDescriptor<T, T>, owne
     }
 }
 
-internal class SingleNullableArgumentImpl<T : Any>(descriptor: ArgDescriptor<T, T>, owner: ArgParser):
+internal class SingleNullableArgumentImpl<T : Any>(descriptor: ArgDescriptor<T, T>, owner: CLIEntityWrapper):
         AbstractSingleArgumentImpl<T, T?>(owner),
         SingleNullableArgument<T> {
     init {
@@ -113,7 +106,7 @@ internal class SingleNullableArgumentImpl<T : Any>(descriptor: ArgDescriptor<T, 
     }
 }
 
-internal class MultipleArgumentImpl<T : Any>(descriptor: ArgDescriptor<T, MutableList<T>>, owner: ArgParser):
+internal class MultipleArgumentImpl<T : Any>(descriptor: ArgDescriptor<T, List<T>>, owner: CLIEntityWrapper):
         ArgumentImpl<T, List<T>>(owner), MultipleArgument<T, List<T>> {
     init {
         if (descriptor.number != null && descriptor.number == 1) {
@@ -139,10 +132,10 @@ fun <T : Any, TResult> AbstractSingleArgument<T, TResult>.number(value: Int? = n
         error("number() modifier with value 1 is unavailable. It's already set to 1.")
     }
     val newArgument = with((cliElement as ParsingValue<T, T>).descriptor as ArgDescriptor) {
-        MultipleArgumentImpl(ArgDescriptor(type, fullName, value, description, defaultValue?.let { mutableListOf(it) } ?: mutableListOf(),
+        MultipleArgumentImpl(ArgDescriptor(type, fullName, value, description, listOfNotNull(defaultValue),
                 required, deprecatedWarning), owner)
     }
-    replaceArgument(newArgument)
+    owner.entity = newArgument
     return newArgument
 }
 
@@ -159,7 +152,7 @@ fun <T: Any, TResult> AbstractSingleArgument<T, TResult>.default(value: T): Sing
         }
         SingleArgumentImpl(ArgDescriptor(type, fullName, number, description, value, required, deprecatedWarning), owner)
     }
-    replaceArgument(newArgument)
+    owner.entity = newArgument
     return newArgument
 }
 
@@ -174,10 +167,10 @@ fun <T: Any, TResult: Collection<T>> MultipleArgument<T, TResult>.default(value:
         if (required) {
             printWarning("You can use optional(), because option with default value is defined.")
         }
-        MultipleArgumentImpl(ArgDescriptor(type, fullName, number, description, value.toMutableList(),
+        MultipleArgumentImpl(ArgDescriptor(type, fullName, number, description, value.toList(),
                 required, deprecatedWarning), owner)
     }
-    replaceArgument(newArgument)
+    owner.entity = newArgument
     return newArgument
 }
 
@@ -190,7 +183,7 @@ fun <T: Any, TResult> AbstractSingleArgument<T, TResult>.optional(): SingleNulla
         SingleNullableArgumentImpl(ArgDescriptor(type, fullName, number, description, defaultValue,
                 false, deprecatedWarning), owner)
     }
-    replaceArgument(newArgument)
+    owner.entity = newArgument
     return newArgument
 }
 
@@ -201,8 +194,8 @@ fun <T: Any, TResult: Collection<T>> MultipleArgument<T, TResult>.optional(): Mu
     this as MultipleArgumentImpl
     val newArgument = with((cliElement as ParsingValue<T, TResult>).descriptor as ArgDescriptor) {
         MultipleArgumentImpl(ArgDescriptor(type, fullName, number, description,
-                defaultValue?.toMutableList() ?: mutableListOf(), false, deprecatedWarning), owner)
+                defaultValue?.toList() ?: listOf(), false, deprecatedWarning), owner)
     }
-    replaceArgument(newArgument)
+    owner.entity = newArgument
     return newArgument
 }

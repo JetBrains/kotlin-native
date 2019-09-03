@@ -22,20 +22,36 @@ interface SingleOption<T : Any> : AbstractSingleOption<T, T>
  * Option with single nullable value.
  */
 interface SingleNullableOption<T : Any> : AbstractSingleOption<T, T?>
+
+/**
+ * Base interface for all possible types of options with multiple values.
+ */
+interface MultipleOptionType
+
+/**
+ * Type of option with multiple values that can be provided several times in command line.
+ */
+class RepeatedOption: MultipleOptionType
+
+/**
+ * Type of option with multiple values that are provided using delimiter.
+ */
+class DelimitedOption: MultipleOptionType
+
+/**
+ * Type of option with multiple values that can be both provided several times in command line and using delimiter.
+ */
+class RepeatedDelimitedOption: MultipleOptionType
+
 /**
  * Option with multiple values.
  */
-interface MultipleOption<T : Any, TResult : Collection<T>> : Option<T, TResult>
+interface MultipleOption<T : Any, TResult : Collection<T>, OptionType: MultipleOptionType> : Option<T, TResult>
 
-internal abstract class OptionImpl<T : Any, TResult>(owner: ArgParser): CLIEntityImpl<T, TResult>(owner),
-        Option<T, TResult> {
-    fun replaceOption(newOption: OptionImpl<*, *>) {
-        newOption.id = id
-        owner.addOption(newOption)
-    }
-}
+internal abstract class OptionImpl<T : Any, TResult>(owner: CLIEntityWrapper): CLIEntityImpl<T, TResult>(owner),
+        Option<T, TResult>
 
-internal abstract class AbstractSingleOptionImpl<T: Any, TResult>(owner: ArgParser): OptionImpl<T, TResult>(owner),
+internal abstract class AbstractSingleOptionImpl<T: Any, TResult>(owner: CLIEntityWrapper): OptionImpl<T, TResult>(owner),
         AbstractSingleOption<T, TResult> {
     /**
      * Check descriptor for this kind of option.
@@ -47,7 +63,7 @@ internal abstract class AbstractSingleOptionImpl<T: Any, TResult>(owner: ArgPars
     }
 }
 
-internal class SingleOptionImpl<T : Any>(descriptor: OptionDescriptor<T, T>, owner: ArgParser):
+internal class SingleOptionImpl<T : Any>(descriptor: OptionDescriptor<T, T>, owner: CLIEntityWrapper):
         AbstractSingleOptionImpl<T, T>(owner),
         SingleOption<T> {
     init {
@@ -61,7 +77,7 @@ internal class SingleOptionImpl<T : Any>(descriptor: OptionDescriptor<T, T>, own
     }
 }
 
-internal class SingleNullableOptionImpl<T : Any>(descriptor: OptionDescriptor<T, T>, owner: ArgParser):
+internal class SingleNullableOptionImpl<T : Any>(descriptor: OptionDescriptor<T, T>, owner: CLIEntityWrapper):
         AbstractSingleOptionImpl<T, T?>(owner),
         SingleNullableOption<T> {
     init {
@@ -75,8 +91,8 @@ internal class SingleNullableOptionImpl<T : Any>(descriptor: OptionDescriptor<T,
     }
 }
 
-internal class MultipleOptionImpl<T : Any>(descriptor: OptionDescriptor<T, MutableList<T>>, owner: ArgParser):
-        OptionImpl<T, List<T>>(owner), MultipleOption<T, List<T>> {
+internal class MultipleOptionImpl<T : Any, OptionType: MultipleOptionType>(descriptor: OptionDescriptor<T, List<T>>, owner: CLIEntityWrapper):
+        OptionImpl<T, List<T>>(owner), MultipleOption<T, List<T>, OptionType> {
     init {
         if (!descriptor.multiple && descriptor.delimiter == null) {
             error("Option with multiple values can't be initialized with descriptor for single one.")
@@ -93,34 +109,31 @@ internal class MultipleOptionImpl<T : Any>(descriptor: OptionDescriptor<T, Mutab
 /**
  * Allow option have several values.
  */
-fun <T : Any, TResult> AbstractSingleOption<T, TResult>.multiple(): MultipleOption<T, List<T>> {
+fun <T : Any, TResult> AbstractSingleOption<T, TResult>.multiple(): MultipleOption<T, List<T>, RepeatedOption> {
     this as AbstractSingleOptionImpl
     val newOption = with((cliElement as ParsingValue<T, T>).descriptor as OptionDescriptor) {
-        if (multiple) {
-            error("Try to use modifier multiple() twice on option ${fullName ?: ""}")
-        }
-        MultipleOptionImpl(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type, fullName, shortName,
-                description, defaultValue?.let { mutableListOf(it) } ?: mutableListOf(),
+        MultipleOptionImpl<T, RepeatedOption>(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type, fullName, shortName,
+                description, listOfNotNull(defaultValue),
                 required, true, delimiter, deprecatedWarning), owner)
     }
-    replaceOption(newOption)
+    owner.entity = newOption
     return newOption
 }
 
 /**
  * Allow option have several values.
  */
-fun <T : Any, TResult: Collection<T>> MultipleOption<T, TResult>.multiple(): MultipleOption<T, List<T>> {
+fun <T : Any, TResult: Collection<T>> MultipleOption<T, TResult, DelimitedOption>.multiple(): MultipleOption<T, List<T>, RepeatedDelimitedOption> {
     this as MultipleOptionImpl
     val newOption = with((cliElement as ParsingValue<T, Collection<T>>).descriptor as OptionDescriptor) {
         if (multiple) {
             error("Try to use modifier multiple() twice on option ${fullName ?: ""}")
         }
-        MultipleOptionImpl(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type, fullName, shortName,
-                description, defaultValue?.toMutableList() ?: mutableListOf(),
+        MultipleOptionImpl<T, RepeatedDelimitedOption>(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type, fullName, shortName,
+                description, defaultValue?.toList() ?: listOf(),
                 required, true, delimiter, deprecatedWarning), owner)
     }
-    replaceOption(newOption)
+    owner.entity = newOption
     return newOption
 }
 
@@ -138,7 +151,7 @@ fun <T: Any, TResult> AbstractSingleOption<T, TResult>.default(value: T): Single
         SingleOptionImpl(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type, fullName, shortName,
                 description, value, required, multiple, delimiter, deprecatedWarning), owner)
     }
-    replaceOption(newOption)
+    owner.entity = newOption
     return newOption
 }
 
@@ -147,17 +160,18 @@ fun <T: Any, TResult> AbstractSingleOption<T, TResult>.default(value: T): Single
  *
  * @param value default value.
  */
-fun <T: Any, TResult: Collection<T>> MultipleOption<T, TResult>.default(value: TResult): MultipleOption<T, List<T>> {
+fun <T: Any, TResult: Collection<T>, OptionType: MultipleOptionType>
+        MultipleOption<T, TResult, OptionType>.default(value: TResult): MultipleOption<T, List<T>, OptionType> {
     this as MultipleOptionImpl
     val newOption = with((cliElement as ParsingValue<T, TResult>).descriptor as OptionDescriptor) {
         if (required) {
             printWarning("required() is unneeded, because option with default value is defined.")
         }
-        MultipleOptionImpl(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type, fullName,
-                shortName, description, value.toMutableList(),
+        MultipleOptionImpl<T, OptionType>(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type, fullName,
+                shortName, description, value.toList(),
                 required, multiple, delimiter, deprecatedWarning), owner)
     }
-    replaceOption(newOption)
+    owner.entity = newOption
     return newOption
 }
 
@@ -174,24 +188,25 @@ fun <T: Any, TResult> AbstractSingleOption<T, TResult>.required(): SingleOption<
                 shortName, description, defaultValue,
                 true, multiple, delimiter, deprecatedWarning), owner)
     }
-    replaceOption(newOption)
+    owner.entity = newOption
     return newOption
 }
 
 /**
  * Require option to be always provided in command line.
  */
-fun <T: Any, TResult: Collection<T>> MultipleOption<T, TResult>.required(): MultipleOption<T, List<T>> {
+fun <T: Any, TResult: Collection<T>, OptionType: MultipleOptionType>
+        MultipleOption<T, TResult, OptionType>.required(): MultipleOption<T, List<T>, OptionType> {
     this as MultipleOptionImpl
     val newOption = with((cliElement as ParsingValue<T, TResult>).descriptor as OptionDescriptor) {
         if (required) {
             printWarning("required() is unneeded, because option with default value is defined.")
         }
-        MultipleOptionImpl(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type, fullName, shortName,
-                description, defaultValue?.toMutableList() ?: mutableListOf(),
+        MultipleOptionImpl<T, OptionType>(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type, fullName, shortName,
+                description, defaultValue?.toList() ?: listOf(),
                 true, multiple, delimiter, deprecatedWarning), owner)
     }
-    replaceOption(newOption)
+    owner.entity = newOption
     return newOption
 }
 
@@ -200,14 +215,14 @@ fun <T: Any, TResult: Collection<T>> MultipleOption<T, TResult>.required(): Mult
  *
  * @param delimiterValue delimiter used to separate string value to option values.
  */
-fun <T : Any, TResult> AbstractSingleOption<T, TResult>.delimiter(delimiterValue: String): MultipleOption<T, List<T>> {
+fun <T : Any, TResult> AbstractSingleOption<T, TResult>.delimiter(delimiterValue: String): MultipleOption<T, List<T>, DelimitedOption> {
     this as AbstractSingleOptionImpl
     val newOption = with((cliElement as ParsingValue<T, T>).descriptor as OptionDescriptor) {
-        MultipleOptionImpl(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type, fullName, shortName,
-                description, defaultValue?.let { mutableListOf(it) } ?: mutableListOf(),
+        MultipleOptionImpl<T, DelimitedOption>(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type, fullName, shortName,
+                description, listOfNotNull(defaultValue),
                 required, multiple, delimiterValue, deprecatedWarning), owner)
     }
-    replaceOption(newOption)
+    owner.entity = newOption
     return newOption
 }
 
@@ -216,13 +231,13 @@ fun <T : Any, TResult> AbstractSingleOption<T, TResult>.delimiter(delimiterValue
  *
  * @param delimiterValue delimiter used to separate string value to option values.
  */
-fun <T : Any, TResult: Collection<T>> MultipleOption<T, TResult>.delimiter(delimiterValue: String): MultipleOption<T, List<T>> {
+fun <T : Any, TResult: Collection<T>> MultipleOption<T, TResult, RepeatedOption>.delimiter(delimiterValue: String): MultipleOption<T, List<T>, RepeatedDelimitedOption> {
     this as MultipleOptionImpl
     val newOption = with((cliElement as ParsingValue<T, Collection<T>>).descriptor as OptionDescriptor) {
-        MultipleOptionImpl(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type, fullName, shortName,
-                description, defaultValue?.toMutableList() ?: mutableListOf(),
+        MultipleOptionImpl<T, RepeatedDelimitedOption>(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type, fullName, shortName,
+                description, defaultValue?.toList() ?: listOf(),
                 required, multiple, delimiterValue, deprecatedWarning), owner)
     }
-    replaceOption(newOption)
+    owner.entity = newOption
     return newOption
 }

@@ -155,24 +155,25 @@ internal class ArgumentSingleNullableValue<T : Any>(descriptor: Descriptor<T, T>
  *
  * @property descriptor descriptor of option/argument.
  */
-internal class ArgumentMultipleValues<T : Any>(descriptor: Descriptor<T, MutableList<T>>):
-        ParsingValue<T, MutableList<T>>(descriptor), ArgumentValueDelegate<List<T>> {
+internal class ArgumentMultipleValues<T : Any>(descriptor: Descriptor<T, List<T>>):
+        ParsingValue<T, List<T>>(descriptor), ArgumentValueDelegate<List<T>> {
 
+    private val addedValue = mutableListOf<T>()
     init {
-        parsedValue = mutableListOf()
+        parsedValue = addedValue
     }
 
     override val value: List<T>
         get() = parsedValue
 
     override fun saveValue(stringValue: String) {
-        parsedValue.add(descriptor.type.conversion(stringValue, descriptor.fullName!!))
+        addedValue.add(descriptor.type.conversion(stringValue, descriptor.fullName!!))
         valueOrigin = ArgParser.ValueOrigin.SET_BY_USER
     }
 
     override fun isEmpty() = parsedValue.isEmpty()
 
     override operator fun setValue(thisRef: Any?, property: KProperty<*>, value: List<T>) {
-        setDelegatedValue(value.toMutableList())
+        setDelegatedValue(value)
     }
 }

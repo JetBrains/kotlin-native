@@ -93,12 +93,12 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     /**
      * Map with declared options.
      */
-    private val declaredOptions = mutableMapOf<Int, OptionImpl<*, *>>()
+    private val declaredOptions = mutableListOf<CLIEntityWrapper>()
 
     /**
      * Map with declared arguments.
      */
-    private val declaredArguments = mutableMapOf<Int, ArgumentImpl<*, *>>()
+    private val declaredArguments = mutableListOf<CLIEntityWrapper>()
 
     /**
      * Map of subcommands.
@@ -147,30 +147,6 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
     enum class OPTION_PREFIX_STYLE { LINUX, JVM }
 
     /**
-     * Add/replace declared option by id.
-     *
-     * @param option declared option.
-     */
-    internal fun addOption(option: OptionImpl<*, *>) {
-        option.id ?: run {
-            option.id = declaredOptions.size
-        }
-        declaredOptions[option.id!!] = option
-    }
-
-    /**
-     * Add/replace declared argument by id.
-     *
-     * @param option declared option.
-     */
-    internal fun addArgument(argument: ArgumentImpl<*, *>) {
-        argument.id ?: run {
-            argument.id = declaredArguments.size
-        }
-        declaredArguments[argument.id!!] = argument
-    }
-
-    /**
      * Add option with single possible value and get delegator to its value.
      *
      * @param type argument type, one of [ArgType].
@@ -185,8 +161,9 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                         description: String? = null,
                         deprecatedWarning: String? = null): SingleNullableOption<T> {
         val option = SingleNullableOptionImpl(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type,
-                fullName, shortName, description, deprecatedWarning = deprecatedWarning), this)
-        addOption(option)
+                fullName, shortName, description, deprecatedWarning = deprecatedWarning), CLIEntityWrapper())
+        option.owner.entity = option
+        declaredOptions.add(option.owner)
         return option
     }
 
@@ -229,8 +206,9 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                           description: String? = null,
                           deprecatedWarning: String? = null) : SingleArgument<T> {
         val argument = SingleArgumentImpl(ArgDescriptor(type, fullName, 1,
-                description, deprecatedWarning = deprecatedWarning), this)
-        addArgument(argument)
+                description, deprecatedWarning = deprecatedWarning), CLIEntityWrapper())
+        argument.owner.entity = argument
+        declaredArguments.add(argument.owner)
         return argument
     }
 
@@ -327,7 +305,9 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                 "help", "h", "Usage info")
             else OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix,
                 ArgType.Boolean, "help", description = "Usage info")
-        addOption(SingleNullableOptionImpl(helpDescriptor, this))
+        val helpOption = SingleNullableOptionImpl(helpDescriptor, CLIEntityWrapper())
+        helpOption.owner.entity = helpOption
+        declaredOptions.add(helpOption.owner)
 
         // Add default list with arguments if there can be extra free arguments.
         if (skipExtraArguments) {
@@ -335,8 +315,8 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
         }
 
         // Map declared options and arguments to maps.
-        declaredOptions.forEach { (_, option) ->
-            val value = option.cliElement as ParsingValue<*, *>
+        declaredOptions.forEachIndexed { index, option ->
+            val value = option.entity?.cliElement as ParsingValue<*, *>
             value.descriptor.fullName?.let {
                 // Add option.
                 if (options.containsKey(it)) {
@@ -352,18 +332,18 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                 }
                 options[it] = value
 
-            } ?: error("Option was added, but unnamed. Added option under №${option.id!! + 1}")
+            } ?: error("Option was added, but unnamed. Added option under №${index + 1}")
         }
 
-        declaredArguments.forEach { (_, argument) ->
-            val value = argument.cliElement as ParsingValue<*, *>
+        declaredArguments.forEachIndexed { index, argument ->
+            val value = argument.entity?.cliElement as ParsingValue<*, *>
             value.descriptor.fullName?.let {
                 // Add option.
                 if (arguments.containsKey(it)) {
                     error("Argument with full name $it was already added.")
                 }
                 arguments[it] = value
-            } ?: error("Argument was added, but unnamed. Added argument under №${argument.id!! + 1}")
+            } ?: error("Argument was added, but unnamed. Added argument under №${index + 1}")
         }
         // Make inspections for arguments.
         inspectRequiredAndDefaultUsage()

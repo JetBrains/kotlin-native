@@ -70,12 +70,12 @@ class OptionsTests {
     fun testResetOptionsValues() {
         val argParser = ArgParser("testParser")
         val useShortFormOption = argParser.option(ArgType.Boolean, "short", "s", "Show short version of report").default(false)
-        var useShortForm by useShortFormOption.value
+        var useShortForm by useShortFormOption
         val rendersOption = argParser.option(ArgType.Choice(listOf("text", "html", "xml", "json")),
                 "renders", "r", "Renders for showing information").multiple().default(listOf("text"))
-        var renders by rendersOption.value
+        var renders by rendersOption
         val outputOption = argParser.option(ArgType.String, "output", "o", "Output file")
-        var output by outputOption.value
+        var output by outputOption
         argParser.parse(arrayOf("-o", "out.txt"))
         output = null
         useShortForm = true
