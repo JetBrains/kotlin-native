@@ -2,6 +2,4 @@ depends = glesCommon posix
 package = platform.egl
 headers = EGL/egl.h EGL/eglext.h EGL/eglplatform.h
 headerFilter = EGL/**
-# TODO: make it uniform.
-compilerOpts = -D__ANDROID_API__=21
 linkerOpts = -lEGL

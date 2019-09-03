@@ -11,6 +11,4 @@ headers.android_arm32 = time64.h
 
 headerFilter = **
 
-# TODO: make it uniform.
-compilerOpts = -D__ANDROID_API__=21
 linkerOpts = -ldl

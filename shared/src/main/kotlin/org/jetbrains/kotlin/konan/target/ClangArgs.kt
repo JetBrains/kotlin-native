@@ -89,14 +89,14 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                     val architectureDir = Android.architectureForTarget(target)
                     val toolchainSysroot = "$absoluteTargetToolchain/sysroot"
                     listOf("-target", clangTarget,
+                            "-D__ANDROID_API__=${Android.API}",
                             "--sysroot=$absoluteTargetSysRoot/android-${Android.API}/arch-$architectureDir",
                             "-I$toolchainSysroot/usr/include/c++/v1",
                             "-I$toolchainSysroot/usr/include",
                             "-I$toolchainSysroot/usr/include/$clangTarget")
                 }
 
-                // By default wasm target forces `hidden` visibility which causes
-                // linkage problems.
+                // By default WASM target forces `hidden` visibility which causes linkage problems.
                 KonanTarget.WASM32 ->
                     listOf("-target", targetArg!!,
                             "-fno-rtti",
@@ -235,7 +235,6 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DUSE_ELF_SYMBOLS=1",
                         "-DELFSIZE=32",
                         "-DKONAN_ANDROID=1",
-                        "-D__ANDROID_API__=${Android.API}",
                         "-DKONAN_ARM32=1",
                         "-DKONAN_NO_UNALIGNED_ACCESS=1")
 
@@ -245,7 +244,6 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DUSE_ELF_SYMBOLS=1",
                         "-DELFSIZE=64",
                         "-DKONAN_ANDROID=1",
-                        "-D__ANDROID_API__=${Android.API}",
                         "-DKONAN_ARM64=1",
                         "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1")
 
@@ -255,7 +253,6 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DUSE_ELF_SYMBOLS=1",
                         "-DELFSIZE=64",
                         "-DKONAN_ANDROID=1",
-                        "-D__ANDROID_API__=${Android.API}",
                         "-DKONAN_X64=1",
                         "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1")
 
