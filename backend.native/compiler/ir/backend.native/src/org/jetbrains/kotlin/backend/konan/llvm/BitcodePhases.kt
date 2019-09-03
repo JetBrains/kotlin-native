@@ -194,6 +194,14 @@ internal val escapeAnalysisPhase = makeKonanModuleOpPhase(
         }
 )
 
+internal var simpleEAPass = makeKonanModuleOpPhase(
+    name = "Simple Escape Analysis",
+    description = "Simple intraprocedural escape analysis",
+    prerequisite = setOf(buildDFGPhase/*, deserializeDFGPhase*/),
+    op = { context, _ ->
+        SimpleEscapeAnalysis.computeLifetimes(context, context.moduleDFG!!, context.lifetimes)
+    }
+)
 internal val serializeDFGPhase = makeKonanModuleOpPhase(
         name = "SerializeDFG",
         description = "Data flow graph serializing",

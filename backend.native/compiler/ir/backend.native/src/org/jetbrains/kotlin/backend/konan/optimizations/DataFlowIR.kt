@@ -278,7 +278,7 @@ internal object DataFlowIR {
                 println("    NODE #${ids[it]!!}")
                 printNode(it, ids)
             }
-            println("    RETURNS")
+            println("    RETURNS #${ids[body.returns]!!}")
             printNode(body.returns, ids)
         }
 
@@ -380,7 +380,7 @@ internal object DataFlowIR {
                         result.appendln()
                     else
                         result.appendln(" CASTED TO ${node.receiver.castToType}")
-                    print("            VALUE #${ids[node.value.node]!!}")
+                    result.append("            VALUE #${ids[node.value.node]!!}")
                     if (node.value.castToType == null)
                         result.appendln()
                     else
@@ -417,7 +417,7 @@ internal object DataFlowIR {
                         result.appendln()
                     else
                         result.appendln(" CASTED TO ${node.index.castToType}")
-                    print("            VALUE #${ids[node.value.node]!!}")
+                    result.append("            VALUE #${ids[node.value.node]!!}")
                     if (node.value.castToType == null)
                         result.appendln()
                     else
@@ -427,7 +427,7 @@ internal object DataFlowIR {
 
                 is Node.Variable -> {
                     val result = StringBuilder()
-                    result.appendln("       ${node.kind}")
+                    result.appendln("       VAR ${node.kind}")
                     node.values.forEach {
                         result.append("            VAL #${ids[it.node]!!}")
                         if (it.castToType == null)
