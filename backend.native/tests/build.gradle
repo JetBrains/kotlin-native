@@ -54,8 +54,20 @@ dependencies {
          * unfortuantly `buildBy` on ConfigurableFileCollection doesn't work as desired and added dependsOn `:kotlin:zipTestData` in tasks
          * using `update_external_tests` fails on evaluation phase.
          */
-        update_tests files(Paths.get(project.property("kotlinProjectPath").toString(), "dist", "kotlin-test-data.zip").toFile())
-        update_stdlib_tests files(Paths.get(project.property("kotlinProjectPath").toString(), "dist", "kotlin-stdlib-tests.zip").toFile())
+        def testDataZip = Paths.get(project.property("kotlinProjectPath").toString(), "dist", "kotlin-test-data.zip").toFile()
+        if (testDataZip.exists()) {
+            update_tests files(testDataZip)
+        } else {
+            println("WARN: using tests provided by gradle.properties")
+            ext.updateLocalTestData = true
+        }
+        def stdlibTestsZip = Paths.get(project.property("kotlinProjectPath").toString(), "dist", "kotlin-stdlib-tests.zip").toFile()
+        if (stdlibTestsZip.exists()) {
+            update_stdlib_tests files(stdlibTestsZip)
+        } else {
+            println("WARN: using stdlib tests provided by gradle.properties")
+            ext.updateLocalTestData = true
+        }
     } else {
         update_tests(group: 'org', name: 'Kotlin_KotlinPublic_Compiler', version: testKotlinCompilerVersion) {
             artifact {
