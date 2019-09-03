@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.backend.konan.PrimitiveBinaryType
 import org.jetbrains.kotlin.backend.konan.RuntimeNames
 import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.backend.konan.isObjCMetaClass
+import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.builtins.UnsignedType
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
@@ -41,6 +42,7 @@ import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.konan.target.Family
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.name.FqNameUnsafe
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.util.OperatorNameConventions
@@ -750,6 +752,9 @@ private fun KotlinStubs.mapBlockType(
 private fun KotlinStubs.mapType(type: IrType, retained: Boolean, variadic: Boolean, location: TypeLocation): ValuePassing =
         mapType(type, retained, variadic, location, { reportUnsupportedType(it, type, location) })
 
+private fun IrType.isNullLiteral(): Boolean = this is IrSimpleType && hasQuestionMark
+        && classifier.isClassWithFqName(KotlinBuiltIns.FQ_NAMES.nothing)
+
 private fun KotlinStubs.mapType(
         type: IrType,
         retained: Boolean,
@@ -773,6 +778,12 @@ private fun KotlinStubs.mapType(
     type.isUShort() -> UnsignedValuePassing(type, CTypes.short, CTypes.unsignedShort)
     type.isUInt() -> UnsignedValuePassing(type, CTypes.int, CTypes.unsignedInt)
     type.isULong() -> UnsignedValuePassing(type, CTypes.longLong, CTypes.unsignedLongLong)
+
+    type.isNullLiteral() -> if (variadic) {
+        TrivialValuePassing(type, CTypes.voidPtr)
+    } else {
+        reportUnsupportedType("doesn't correspond to any C type")
+    }
 
     type.isCEnumType() -> {
         val enumClass = type.getClass()!!
