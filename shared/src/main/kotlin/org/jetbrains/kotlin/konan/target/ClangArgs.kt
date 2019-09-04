@@ -110,10 +110,14 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                             "-Xclang", "-isystem$absoluteTargetSysRoot/include/libc")
 
                 KonanTarget.ANDROID_X64 -> TODO("implement me")
+                KonanTarget.ANDROID_X86 -> TODO("implement me")
+                KonanTarget.WATCHOS_ARM32 -> TODO("implement me")
+                KonanTarget.WATCHOS_X86 -> TODO("implement me")
                 KonanTarget.WATCHOS_ARM64 -> TODO("implement me")
                 KonanTarget.WATCHOS_X64 -> TODO("implement me")
                 KonanTarget.TVOS_ARM64 -> TODO("implement me")
                 KonanTarget.TVOS_X64 -> TODO("implement me")
+
 
                 is KonanTarget.ZEPHYR ->
                     listOf("-target", targetArg!!,
@@ -272,6 +276,9 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DKONAN_NO_CTORS_SECTION=1")
 
             KonanTarget.ANDROID_X64 -> TODO("implement me")
+            KonanTarget.ANDROID_X86 -> TODO("implement me")
+            KonanTarget.WATCHOS_ARM32 -> TODO("implement me")
+            KonanTarget.WATCHOS_X86 -> TODO("implement me")
             KonanTarget.WATCHOS_ARM64 -> TODO("implement me")
             KonanTarget.WATCHOS_X64 -> TODO("implement me")
 

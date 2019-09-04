@@ -441,6 +441,9 @@ fun linker(configurables: Configurables): LinkerFlags =
             KonanTarget.WASM32 ->
                 WasmLinker(configurables as WasmConfigurables)
             KonanTarget.ANDROID_X64 -> TODO("implement me")
+            KonanTarget.ANDROID_X86 -> TODO("implement me")
+            KonanTarget.WATCHOS_ARM32 -> TODO("implement me")
+            KonanTarget.WATCHOS_X86 -> TODO("implement me")
             KonanTarget.WATCHOS_ARM64 -> TODO("implement me")
             KonanTarget.WATCHOS_X64 -> TODO("implement me")
             KonanTarget.TVOS_ARM64 -> TODO("implement me")

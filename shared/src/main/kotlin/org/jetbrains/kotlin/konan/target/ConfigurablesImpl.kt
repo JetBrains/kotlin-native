@@ -53,7 +53,11 @@ fun loadConfigurables(target: KonanTarget, properties: Properties, baseDir: Stri
         KonanTarget.WASM32 ->
             WasmConfigurablesImpl(target, properties, baseDir)
         KonanTarget.ANDROID_X64 -> TODO("unimplemented: $target")
-        KonanTarget.WATCHOS_ARM64, KonanTarget.WATCHOS_X64 -> TODO("unimplemented: $target")
+        KonanTarget.ANDROID_X86 -> TODO("implement me")
+        KonanTarget.WATCHOS_ARM32 -> TODO("implement me")
+        KonanTarget.WATCHOS_X86 -> TODO("implement me")
+        KonanTarget.WATCHOS_ARM64,
+        KonanTarget.WATCHOS_X64 -> TODO("unimplemented: $target")
         is KonanTarget.ZEPHYR ->
                 ZephyrConfigurablesImpl(target, properties, baseDir)
     }
