@@ -27,7 +27,8 @@ internal object Android {
             KonanTarget.ANDROID_ARM64 to "arm64"
     )
 
-    fun architectureForTarget(target: KonanTarget) = architectureMap.getValue(target)
+    fun architectureDirForTarget(target: KonanTarget) =
+            "android-${API}/arch-${architectureMap.getValue(target)}"
 }
 
 class ClangArgs(private val configurables: Configurables) : Configurables by configurables {
@@ -86,11 +87,11 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
 
                 KonanTarget.ANDROID_ARM32, KonanTarget.ANDROID_ARM64, KonanTarget.ANDROID_X64 -> {
                     val clangTarget = targetArg!!
-                    val architectureDir = Android.architectureForTarget(target)
+                    val architectureDir = Android.architectureDirForTarget(target)
                     val toolchainSysroot = "$absoluteTargetToolchain/sysroot"
                     listOf("-target", clangTarget,
                             "-D__ANDROID_API__=${Android.API}",
-                            "--sysroot=$absoluteTargetSysRoot/android-${Android.API}/arch-$architectureDir",
+                            "--sysroot=$absoluteTargetSysRoot/$architectureDir",
                             "-I$toolchainSysroot/usr/include/c++/v1",
                             "-I$toolchainSysroot/usr/include",
                             "-I$toolchainSysroot/usr/include/$clangTarget")

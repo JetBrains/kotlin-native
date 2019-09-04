@@ -109,7 +109,8 @@ open class AndroidLinker(targetProperties: AndroidConfigurables)
 
         val dynamic = kind == LinkerOutputKind.DYNAMIC_LIBRARY
         val toolchainSysroot = "${absoluteTargetToolchain}/sysroot"
-        val apiSysroot = "${absoluteTargetSysRoot}/android-${Android.API}/arch-${Android.architectureForTarget(target)}"
+        val architectureDir = Android.architectureDirForTarget(target)
+        val apiSysroot = "$absoluteTargetSysRoot/$architectureDir"
         val clangTarget = targetArg!!
         val libDirs = listOf(
                 "--sysroot=$apiSysroot",
