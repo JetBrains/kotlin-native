@@ -774,16 +774,11 @@ private fun KotlinStubs.mapType(
     type.isFloat() -> TrivialValuePassing(irBuiltIns.floatType, CTypes.float)
     type.isDouble() -> TrivialValuePassing(irBuiltIns.doubleType, CTypes.double)
     type.classifierOrNull == symbols.interopCPointer -> TrivialValuePassing(type, CTypes.voidPtr)
+    type.isNullLiteral() && variadic  -> TrivialValuePassing(type, CTypes.voidPtr)
     type.isUByte() -> UnsignedValuePassing(type, CTypes.signedChar, CTypes.unsignedChar)
     type.isUShort() -> UnsignedValuePassing(type, CTypes.short, CTypes.unsignedShort)
     type.isUInt() -> UnsignedValuePassing(type, CTypes.int, CTypes.unsignedInt)
     type.isULong() -> UnsignedValuePassing(type, CTypes.longLong, CTypes.unsignedLongLong)
-
-    type.isNullLiteral() -> if (variadic) {
-        TrivialValuePassing(type, CTypes.voidPtr)
-    } else {
-        reportUnsupportedType("doesn't correspond to any C type")
-    }
 
     type.isCEnumType() -> {
         val enumClass = type.getClass()!!
