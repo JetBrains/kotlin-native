@@ -160,7 +160,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                         shortName: String ? = null,
                         description: String? = null,
                         deprecatedWarning: String? = null): SingleNullableOption<T> {
-        val option = SingleNullableOptionImpl(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type,
+        val option = SingleNullableOption(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type,
                 fullName, shortName, description, deprecatedWarning = deprecatedWarning), CLIEntityWrapper())
         option.owner.entity = option
         declaredOptions.add(option.owner)
@@ -205,7 +205,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                           fullName: String? = null,
                           description: String? = null,
                           deprecatedWarning: String? = null) : SingleArgument<T> {
-        val argument = SingleArgumentImpl(ArgDescriptor(type, fullName, 1,
+        val argument = SingleArgument(ArgDescriptor(type, fullName, 1,
                 description, deprecatedWarning = deprecatedWarning), CLIEntityWrapper())
         argument.owner.entity = argument
         declaredArguments.add(argument.owner)
@@ -305,7 +305,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                 "help", "h", "Usage info")
             else OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix,
                 ArgType.Boolean, "help", description = "Usage info")
-        val helpOption = SingleNullableOptionImpl(helpDescriptor, CLIEntityWrapper())
+        val helpOption = SingleNullableOption(helpDescriptor, CLIEntityWrapper())
         helpOption.owner.entity = helpOption
         declaredOptions.add(helpOption.owner)
 

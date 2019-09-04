@@ -6,31 +6,14 @@ package kotlinx.cli
 
 import kotlin.reflect.KProperty
 
-/**
- * Interface for CLI entity - argument/option.
- */
-interface CLIEntity<T : Any, TResult> {
-    /**
-     * Argument value.
-     */
-    val value: ArgumentValueDelegate<TResult>
-    /**
-     * Origin of argument value.
-     */
-    val valueOrigin: ArgParser.ValueOrigin
-        get() = (value as ParsingValue<*, *>).valueOrigin
-
-    operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<TResult>
-}
-
-internal data class CLIEntityWrapper(var entity: CLIEntityImpl<*, *>? = null)
+internal data class CLIEntityWrapper(var entity: CLIEntity<*, *>? = null)
 
 /**
  * Command line entity.
  *
  * @property owner parser which owns current entity.
  */
-internal abstract class CLIEntityImpl<T : Any, TResult>(val owner: CLIEntityWrapper): CLIEntity<T, TResult> {
+abstract class CLIEntity<T : Any, TResult> internal constructor(val owner: CLIEntityWrapper) {
     /**
      * CLI element value.
      */
@@ -39,48 +22,42 @@ internal abstract class CLIEntityImpl<T : Any, TResult>(val owner: CLIEntityWrap
      * Wrapper  for element - read only property.
      * Needed to close set of variable [cliElement].
      */
-    override val value: ArgumentValueDelegate<TResult>
+    val value: ArgumentValueDelegate<TResult>
         get() = cliElement
+
+    /**
+     * Origin of argument value.
+     */
+    val valueOrigin: ArgParser.ValueOrigin
+        get() = (value as ParsingValue<*, *>).valueOrigin
+
+    abstract operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<TResult>
 }
 
 /**
- * Argument instance interface.
+ * Argument instance.
  */
-interface Argument<T : Any, TResult>: CLIEntity<T, TResult>
-/**
- * Common single argument instance interface.
- */
-interface AbstractSingleArgument<T : Any, TResult> : Argument<T, TResult>
-/**
- * Argument with single non-nullable value.
- */
-interface SingleArgument<T : Any> : AbstractSingleArgument<T, T>
-/**
- * Argument with single nullable value.
- */
-interface SingleNullableArgument<T : Any> : AbstractSingleArgument<T, T?>
-/**
- * Argument with multiple values.
- */
-interface MultipleArgument<T : Any, TResult : Collection<T>> : Argument<T, TResult>
+abstract class Argument<T : Any, TResult> internal constructor(owner: CLIEntityWrapper): CLIEntity<T, TResult>(owner)
 
-internal abstract class ArgumentImpl<T : Any, TResult>(owner: CLIEntityWrapper): CLIEntityImpl<T, TResult>(owner), Argument<T, TResult>
-
-internal abstract class AbstractSingleArgumentImpl<T: Any, TResult>(owner: CLIEntityWrapper): ArgumentImpl<T, TResult>(owner),
-        AbstractSingleArgument<T, TResult> {
+/**
+ * Common single argument instance.
+ */
+abstract class AbstractSingleArgument<T: Any, TResult> internal constructor(owner: CLIEntityWrapper): Argument<T, TResult>(owner) {
     /**
      * Check descriptor for this kind of argument.
      */
-    fun checkDescriptor(descriptor: ArgDescriptor<*, *>) {
+    internal fun checkDescriptor(descriptor: ArgDescriptor<*, *>) {
         if (descriptor.number == null || descriptor.number > 1) {
             error("Argument with single value can't be initialized with descriptor for multiple values.")
         }
     }
 }
 
-internal class SingleArgumentImpl<T : Any>(descriptor: ArgDescriptor<T, T>, owner: CLIEntityWrapper):
-        AbstractSingleArgumentImpl<T, T>(owner),
-        SingleArgument<T> {
+/**
+ * Argument with single non-nullable value.
+ */
+class SingleArgument<T : Any> internal constructor(descriptor: ArgDescriptor<T, T>, owner: CLIEntityWrapper):
+        AbstractSingleArgument<T, T>(owner) {
     init {
         checkDescriptor(descriptor)
         cliElement = ArgumentSingleValue(descriptor)
@@ -92,9 +69,11 @@ internal class SingleArgumentImpl<T : Any>(descriptor: ArgDescriptor<T, T>, owne
     }
 }
 
-internal class SingleNullableArgumentImpl<T : Any>(descriptor: ArgDescriptor<T, T>, owner: CLIEntityWrapper):
-        AbstractSingleArgumentImpl<T, T?>(owner),
-        SingleNullableArgument<T> {
+/**
+ * Argument with single nullable value.
+ */
+class SingleNullableArgument<T : Any> internal constructor(descriptor: ArgDescriptor<T, T>, owner: CLIEntityWrapper):
+        AbstractSingleArgument<T, T?>(owner){
     init {
         checkDescriptor(descriptor)
         cliElement = ArgumentSingleNullableValue(descriptor)
@@ -106,8 +85,11 @@ internal class SingleNullableArgumentImpl<T : Any>(descriptor: ArgDescriptor<T, 
     }
 }
 
-internal class MultipleArgumentImpl<T : Any>(descriptor: ArgDescriptor<T, List<T>>, owner: CLIEntityWrapper):
-        ArgumentImpl<T, List<T>>(owner), MultipleArgument<T, List<T>> {
+/**
+ * Argument with multiple values.
+ */
+class MultipleArgument<T : Any> internal constructor(descriptor: ArgDescriptor<T, List<T>>, owner: CLIEntityWrapper):
+        Argument<T, List<T>>(owner) {
     init {
         if (descriptor.number != null && descriptor.number == 1) {
             error("Argument with multiple values can't be initialized with descriptor for single one.")
@@ -126,13 +108,12 @@ internal class MultipleArgumentImpl<T : Any>(descriptor: ArgDescriptor<T, List<T
  *
  * @param number number of arguments are expected. In case of null value any number of arguments can be set.
  */
-fun <T : Any, TResult> AbstractSingleArgument<T, TResult>.number(value: Int? = null): MultipleArgument<T, List<T>> {
-    this as AbstractSingleArgumentImpl
+fun <T : Any, TResult> AbstractSingleArgument<T, TResult>.number(value: Int? = null): MultipleArgument<T> {
     if (value != null && value == 1) {
         error("number() modifier with value 1 is unavailable. It's already set to 1.")
     }
     val newArgument = with((cliElement as ParsingValue<T, T>).descriptor as ArgDescriptor) {
-        MultipleArgumentImpl(ArgDescriptor(type, fullName, value, description, listOfNotNull(defaultValue),
+        MultipleArgument(ArgDescriptor(type, fullName, value, description, listOfNotNull(defaultValue),
                 required, deprecatedWarning), owner)
     }
     owner.entity = newArgument
@@ -145,12 +126,11 @@ fun <T : Any, TResult> AbstractSingleArgument<T, TResult>.number(value: Int? = n
  * @param value default value.
  */
 fun <T: Any, TResult> AbstractSingleArgument<T, TResult>.default(value: T): SingleArgument<T> {
-    this as AbstractSingleArgumentImpl
     val newArgument = with((cliElement as ParsingValue<T, T>).descriptor as ArgDescriptor) {
         if (required) {
             printWarning("You can use optional(), because option with default value is defined.")
         }
-        SingleArgumentImpl(ArgDescriptor(type, fullName, number, description, value, required, deprecatedWarning), owner)
+        SingleArgument(ArgDescriptor(type, fullName, number, description, value, required, deprecatedWarning), owner)
     }
     owner.entity = newArgument
     return newArgument
@@ -161,13 +141,12 @@ fun <T: Any, TResult> AbstractSingleArgument<T, TResult>.default(value: T): Sing
  *
  * @param value default value.
  */
-fun <T: Any, TResult: Collection<T>> MultipleArgument<T, TResult>.default(value: TResult): MultipleArgument<T, List<T>> {
-    this as MultipleArgumentImpl
+fun <T: Any, TResult: Collection<T>> MultipleArgument<T>.default(value: TResult): MultipleArgument<T> {
     val newArgument = with((cliElement as ParsingValue<T, TResult>).descriptor as ArgDescriptor) {
         if (required) {
             printWarning("You can use optional(), because option with default value is defined.")
         }
-        MultipleArgumentImpl(ArgDescriptor(type, fullName, number, description, value.toList(),
+        MultipleArgument(ArgDescriptor(type, fullName, number, description, value.toList(),
                 required, deprecatedWarning), owner)
     }
     owner.entity = newArgument
@@ -178,9 +157,8 @@ fun <T: Any, TResult: Collection<T>> MultipleArgument<T, TResult>.default(value:
  * Allow argument be unprovided in command line.
  */
 fun <T: Any, TResult> AbstractSingleArgument<T, TResult>.optional(): SingleNullableArgument<T> {
-    this as AbstractSingleArgumentImpl
     val newArgument = with((cliElement as ParsingValue<T, T>).descriptor as ArgDescriptor) {
-        SingleNullableArgumentImpl(ArgDescriptor(type, fullName, number, description, defaultValue,
+        SingleNullableArgument(ArgDescriptor(type, fullName, number, description, defaultValue,
                 false, deprecatedWarning), owner)
     }
     owner.entity = newArgument
@@ -190,10 +168,9 @@ fun <T: Any, TResult> AbstractSingleArgument<T, TResult>.optional(): SingleNulla
 /**
  * Allow argument be unprovided in command line.
  */
-fun <T: Any, TResult: Collection<T>> MultipleArgument<T, TResult>.optional(): MultipleArgument<T, List<T>> {
-    this as MultipleArgumentImpl
-    val newArgument = with((cliElement as ParsingValue<T, TResult>).descriptor as ArgDescriptor) {
-        MultipleArgumentImpl(ArgDescriptor(type, fullName, number, description,
+fun <T: Any> MultipleArgument<T>.optional(): MultipleArgument<T> {
+    val newArgument = with((cliElement as ParsingValue<T, List<T>>).descriptor as ArgDescriptor) {
+        MultipleArgument(ArgDescriptor(type, fullName, number, description,
                 defaultValue?.toList() ?: listOf(), false, deprecatedWarning), owner)
     }
     owner.entity = newArgument
