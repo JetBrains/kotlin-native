@@ -32,6 +32,7 @@ var done = false
     }.freeze())
     while (!done)
         worker.processQueue()
+    Worker.deinit()
 }
 
 @Test fun runTest2() {
@@ -40,6 +41,7 @@ var done = false
     worker.processQueue()
     assertEquals(future.state, FutureState.COMPUTED)
     future.consume {}
+    Worker.deinit()
 }
 
 @Test fun runTest3() {
