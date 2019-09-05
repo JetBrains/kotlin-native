@@ -54,7 +54,7 @@ abstract class AbstractSingleArgument<T: Any, TResult> internal constructor(owne
      */
     internal fun checkDescriptor(descriptor: ArgDescriptor<*, *>) {
         if (descriptor.number == null || descriptor.number > 1) {
-            error("Argument with single value can't be initialized with descriptor for multiple values.")
+            failAssertion("Argument with single value can't be initialized with descriptor for multiple values.")
         }
     }
 }
@@ -88,7 +88,7 @@ class MultipleArgument<T : Any> internal constructor(descriptor: ArgDescriptor<T
         Argument<List<T>>(owner) {
     init {
         if (descriptor.number != null && descriptor.number == 1) {
-            error("Argument with multiple values can't be initialized with descriptor for single one.")
+            failAssertion("Argument with multiple values can't be initialized with descriptor for single one.")
         }
         delegate = ArgumentMultipleValues(descriptor)
     }
@@ -161,3 +161,5 @@ fun <T: Any> MultipleArgument<T>.optional(): MultipleArgument<T> {
     owner.entity = newArgument
     return newArgument
 }
+
+fun failAssertion(message: String): Nothing = throw AssertionError(message)

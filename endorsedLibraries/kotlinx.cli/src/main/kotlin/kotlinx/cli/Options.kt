@@ -40,7 +40,7 @@ abstract class AbstractSingleOption<T: Any, TResult> internal constructor(owner:
      */
     internal fun checkDescriptor(descriptor: OptionDescriptor<*, *>) {
         if (descriptor.multiple || descriptor.delimiter != null) {
-            error("Option with single value can't be initialized with descriptor for multiple values.")
+            failAssertion("Option with single value can't be initialized with descriptor for multiple values.")
         }
     }
 }
@@ -74,7 +74,7 @@ class MultipleOption<T : Any, OptionType: MultipleOptionType> internal construct
         Option<List<T>>(owner) {
     init {
         if (!descriptor.multiple && descriptor.delimiter == null) {
-            error("Option with multiple values can't be initialized with descriptor for single one.")
+            failAssertion("Option with multiple values can't be initialized with descriptor for single one.")
         }
         delegate = ArgumentMultipleValues(descriptor)
     }
