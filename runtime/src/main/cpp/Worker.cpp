@@ -594,6 +594,14 @@ void* workerRoutine(void* argument) {
   return nullptr;
 }
 
+KInt initAsWorker(KBoolean errorReporting) {
+  if (g_currentWorkerId != 0) return g_currentWorkerId;
+  Worker* worker = theState()->addWorkerUnlocked(errorReporting != 0);
+  if (worker == nullptr) return 0;
+  g_currentWorkerId = worker->id();
+  return g_currentWorkerId;
+}
+
 KInt startWorker(KBoolean errorReporting) {
   Worker* worker = theState()->addWorkerUnlocked(errorReporting != 0);
   if (worker == nullptr) return -1;
@@ -669,6 +677,11 @@ KInt startWorker(KBoolean errorReporting) {
   return -1;
 }
 
+KInt initAsWorker(KBoolean errorReporting) {
+  ThrowWorkerUnsupported();
+  return -1;
+}
+
 KInt stateOfFuture(KInt id) {
   ThrowWorkerUnsupported();
   return 0;
@@ -730,6 +743,10 @@ extern "C" {
 
 KInt Kotlin_Worker_startInternal(KBoolean noErrorReporting) {
   return startWorker(noErrorReporting);
+}
+
+KInt Kotlin_Worker_initInternal(KBoolean noErrorReporting) {
+  return initAsWorker(noErrorReporting);
 }
 
 KInt Kotlin_Worker_currentInternal() {

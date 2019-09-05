@@ -34,14 +34,24 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
          * Typically new worker may be needed for computations offload to another core, for IO it may be
          * better to use non-blocking IO combined with more lightweight coroutines.
          *
+         * @see init to initialize worker context on the current thread
          * @param errorReporting controls if an uncaught exceptions in the worker will be printed out
          */
         public fun start(errorReporting: Boolean = true): Worker = Worker(startInternal(errorReporting))
 
         /**
-         * Return the current worker, if known, null otherwise. null value will be returned in the main thread
-         * or platform thread without an associated worker, non-null - if called inside worker started with
-         * [Worker.start].
+         * Init worker event queue on the current thread, if not yet init. This operation allows to associate
+         * a work queue to any thread, not just thread created to host a worker with [Worker.start].
+         */
+        public fun init(): Worker {
+            val id = initInternal(true)
+            return if (id != 0) Worker(id) else throw Error("Cannot init as worker")
+        }
+
+        /**
+         * Return the current worker, if known, null otherwise. null value will be returned in platform thread without
+         * an associated worker, non-null - if called inside worker started with [Worker.start] or in any thread
+         * where [Worker.init] is called.
          */
         public val current: Worker? get() {
             val id = currentInternal()

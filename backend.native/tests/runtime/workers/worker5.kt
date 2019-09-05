@@ -20,3 +20,24 @@ import kotlin.native.concurrent.*
     worker.requestTermination().result
     println("OK")
 }
+
+var done = false
+
+@Test fun runTest1() {
+    val worker = Worker.init()
+    done = false
+    // Here we request execution of the operation on the current worker.
+    worker.executeAfter(0, {
+        done = true
+    }.freeze())
+    while (!done)
+        worker.processQueue()
+}
+
+@Test fun runTest2() {
+    val worker = Worker.init()
+    val future = worker.requestTermination(false)
+    worker.processQueue()
+    assertEquals(future.state, FutureState.COMPUTED)
+    future.consume {}
+}
