@@ -73,7 +73,13 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                     listOf("-stdlib=libc++", "-isysroot", absoluteTargetSysRoot, "-miphoneos-version-min=9.0.0")
 
                 KonanTarget.IOSMAC_X64 ->
-                    listOf("-stdlib=libc++", "--static", "-arch_only", "x86_64", "-isysroot", absoluteTargetSysRoot, "-target", "x86_64-apple-ios13.0-macabi", "-miphoneos-version-min=13.0.0", "-isystem", "$absoluteTargetSysRoot/System/iOSSupport/usr/include", "-iframework", "$absoluteTargetSysRoot/System/iOSSupport/System/Library/Frameworks")
+                    listOf("-stdlib=libc++", "--static", "-arch_only", "x86_64",
+                            "-isysroot", absoluteTargetSysRoot,
+                            "-target", "x86_64-apple-ios13.0-macabi",
+                            "-miphoneos-version-min=13.0.0", "-isystem",
+                            "$absoluteTargetSysRoot/System/iOSSupport/usr/include",
+                            "-iframework",
+                            "$absoluteTargetSysRoot/System/iOSSupport/System/Library/Frameworks")
 
                 KonanTarget.ANDROID_ARM32 ->
                     listOf("-target", targetArg!!,
