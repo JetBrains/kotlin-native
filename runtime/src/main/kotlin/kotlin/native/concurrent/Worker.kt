@@ -40,12 +40,20 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
         public fun start(errorReporting: Boolean = true): Worker = Worker(startInternal(errorReporting))
 
         /**
-         * Init worker event queue on the current thread, if not yet init. This operation allows to associate
+         * Init worker event queue on the current thread, if not yet inited. This operation allows to associate
          * a work queue to any thread, not just thread created to host a worker with [Worker.start].
          */
         public fun init(): Worker {
             val id = initInternal(true)
             return if (id != 0) Worker(id) else throw Error("Cannot init as worker")
+        }
+
+        /**
+         * Deinit worker event queue on the current thread. If called in worker context will lead to termination
+         * of the worker.
+         */
+        public fun deinit() {
+            deinitInternal()
         }
 
         /**

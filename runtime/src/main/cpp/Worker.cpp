@@ -336,6 +336,15 @@ class State {
     workers_.erase(it);
   }
 
+  void destoryWorkerUnlocked(KInt id) {
+    Locker locker(&lock_);
+    auto it = workers_.find(id);
+    auto* worker = it->second;
+    if (it == workers_.end()) return;
+    workers_.erase(it);
+    konanDestructInstance(worker);
+  }
+
   Future* addJobToWorkerUnlocked(
       KInt id, KNativePtr jobFunction, KNativePtr jobArgument, bool toFront, KInt transferMode) {
     Future* future = nullptr;
@@ -587,9 +596,10 @@ void* workerRoutine(void* argument) {
 
   do {
     if (worker->processQueueElement(true) == JOB_TERMINATE) break;
-  } while (true);
+  } while (g_currentWorkerId != 0);
 
-  konanDestructInstance(worker);
+  if (g_currentWorkerId != 0)
+    konanDestructInstance(worker);
 
   return nullptr;
 }
@@ -600,6 +610,13 @@ KInt initAsWorker(KBoolean errorReporting) {
   if (worker == nullptr) return 0;
   g_currentWorkerId = worker->id();
   return g_currentWorkerId;
+}
+
+void deinitWorker() {
+  if (g_currentWorkerId != 0) {
+    theState()->destoryWorkerUnlocked(g_currentWorkerId);
+    g_currentWorkerId = 0;
+  }
 }
 
 KInt startWorker(KBoolean errorReporting) {
@@ -682,6 +699,10 @@ KInt initAsWorker(KBoolean errorReporting) {
   return -1;
 }
 
+void deinitWorker() {
+  ThrowWorkerUnsupported();
+}
+
 KInt stateOfFuture(KInt id) {
   ThrowWorkerUnsupported();
   return 0;
@@ -747,6 +768,10 @@ KInt Kotlin_Worker_startInternal(KBoolean noErrorReporting) {
 
 KInt Kotlin_Worker_initInternal(KBoolean noErrorReporting) {
   return initAsWorker(noErrorReporting);
+}
+
+void Kotlin_Worker_deinitInternal() {
+  return deinitWorker();
 }
 
 KInt Kotlin_Worker_currentInternal() {

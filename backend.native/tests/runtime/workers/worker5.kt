@@ -41,3 +41,12 @@ var done = false
     assertEquals(future.state, FutureState.COMPUTED)
     future.consume {}
 }
+
+@Test fun runTest3() {
+    val worker = Worker.start()
+    worker.execute(TransferMode.SAFE, { }) {
+        Worker.deinit()
+    }.result
+    // Ensure worker is terminated.
+    assertFailsWith<IllegalStateException> { worker.execute(TransferMode.SAFE, { }) { println("BUG") }.result }
+}
