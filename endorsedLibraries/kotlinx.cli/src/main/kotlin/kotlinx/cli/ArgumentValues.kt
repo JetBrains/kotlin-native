@@ -122,11 +122,9 @@ internal abstract class AbstractArgumentSingleValue<T: Any>(descriptor: Descript
  */
 internal class ArgumentSingleValue<T: Any>(descriptor: Descriptor<T, T>): AbstractArgumentSingleValue<T>(descriptor),
         ArgumentValueDelegate<T> {
-    override val value: T
+    override var value: T
         get() = parsedValue
-    override operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
-        setDelegatedValue(value)
-    }
+        set(value) = setDelegatedValue(value)
 }
 
 /**
@@ -137,17 +135,15 @@ internal class ArgumentSingleValue<T: Any>(descriptor: Descriptor<T, T>): Abstra
 internal class ArgumentSingleNullableValue<T : Any>(descriptor: Descriptor<T, T>):
         AbstractArgumentSingleValue<T>(descriptor), ArgumentValueDelegate<T?> {
     private var setToNull = false
-    override val value: T?
+    override var value: T?
         get() = if (!isEmpty() && !setToNull) parsedValue else null
-    override operator fun setValue(thisRef: Any?, property: KProperty<*>, providedValue: T?) {
-        providedValue?.let {
-            setDelegatedValue(it)
-            setToNull = false
-        } ?: run {
-            setToNull = true
-            valueOrigin = ArgParser.ValueOrigin.REDEFINED
-        }
-    }
+        set(providedValue) = providedValue?.let {
+                setDelegatedValue(it)
+                setToNull = false
+            } ?: run {
+                setToNull = true
+                valueOrigin = ArgParser.ValueOrigin.REDEFINED
+            }
 }
 
 /**
@@ -163,8 +159,9 @@ internal class ArgumentMultipleValues<T : Any>(descriptor: Descriptor<T, List<T>
         parsedValue = addedValue
     }
 
-    override val value: List<T>
+    override var value: List<T>
         get() = parsedValue
+        set(value) = setDelegatedValue(value)
 
     override fun saveValue(stringValue: String) {
         addedValue.add(descriptor.type.conversion(stringValue, descriptor.fullName!!))
@@ -172,8 +169,4 @@ internal class ArgumentMultipleValues<T : Any>(descriptor: Descriptor<T, List<T>
     }
 
     override fun isEmpty() = parsedValue.isEmpty()
-
-    override operator fun setValue(thisRef: Any?, property: KProperty<*>, value: List<T>) {
-        setDelegatedValue(value)
-    }
 }

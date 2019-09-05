@@ -44,9 +44,11 @@ internal class ArgumentsQueue(argumentsDescriptors: List<ArgDescriptor<*, *>>) {
  * Interface of argument value.
  */
 interface ArgumentValueDelegate<T> {
-    val value: T
+    var value: T
     operator fun getValue(thisRef: Any?, property: KProperty<*>): T = value
-    operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T)
+    operator fun setValue(thisRef: Any?, property: KProperty<*>, value: T) {
+        this.value = value
+    }
 }
 
 /**

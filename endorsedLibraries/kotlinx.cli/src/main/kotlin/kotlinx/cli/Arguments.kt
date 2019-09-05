@@ -26,7 +26,7 @@ abstract class CLIEntity<TResult> internal constructor(internal val owner: CLIEn
      */
     var value: TResult
         get() = delegate.value
-        set(value) = delegate.setValue(null, ::value, value)
+        set(value) { delegate.value = value }
 
     /**
      * Origin of argument value.
