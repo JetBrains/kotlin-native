@@ -29,12 +29,12 @@ class RepeatedDelimitedOption: MultipleOptionType
 /**
  * Option instance.
  */
-abstract class Option<T : Any, TResult> internal constructor(owner: CLIEntityWrapper): CLIEntity<T, TResult>(owner)
+abstract class Option<TResult> internal constructor(owner: CLIEntityWrapper): CLIEntity<TResult>(owner)
 
 /**
  * Common single option instance.
  */
-abstract class AbstractSingleOption<T: Any, TResult> internal constructor(owner: CLIEntityWrapper): Option<T, TResult>(owner) {
+abstract class AbstractSingleOption<T: Any, TResult> internal constructor(owner: CLIEntityWrapper): Option<TResult>(owner) {
     /**
      * Check descriptor for this kind of option.
      */
@@ -54,11 +54,6 @@ class SingleOption<T : Any> internal constructor(descriptor: OptionDescriptor<T,
         checkDescriptor(descriptor)
         cliElement = ArgumentSingleValue(descriptor)
     }
-
-    override operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T> {
-        (cliElement as ParsingValue<T, T>).provideName(prop.name)
-        return cliElement
-    }
 }
 
 /**
@@ -70,28 +65,18 @@ class SingleNullableOption<T : Any> internal constructor(descriptor: OptionDescr
         checkDescriptor(descriptor)
         cliElement = ArgumentSingleNullableValue(descriptor)
     }
-
-    override operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T?> {
-        (cliElement as ParsingValue<T, T>).provideName(prop.name)
-        return cliElement
-    }
 }
 
 /**
  * Option with multiple values.
  */
 class MultipleOption<T : Any, OptionType: MultipleOptionType> internal constructor(descriptor: OptionDescriptor<T, List<T>>, owner: CLIEntityWrapper):
-        Option<T, List<T>>(owner) {
+        Option<List<T>>(owner) {
     init {
         if (!descriptor.multiple && descriptor.delimiter == null) {
             error("Option with multiple values can't be initialized with descriptor for single one.")
         }
         cliElement = ArgumentMultipleValues(descriptor)
-    }
-
-    override operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<List<T>> {
-        (cliElement as ParsingValue<T, List<T>>).provideName(prop.name)
-        return cliElement
     }
 }
 
@@ -112,7 +97,7 @@ fun <T : Any, TResult> AbstractSingleOption<T, TResult>.multiple(): MultipleOpti
  * Allow option have several values.
  */
 fun <T : Any> MultipleOption<T, DelimitedOption>.multiple(): MultipleOption<T, RepeatedDelimitedOption> {
-    val newOption = with((cliElement as ParsingValue<T, Collection<T>>).descriptor as OptionDescriptor) {
+    val newOption = with((cliElement as ParsingValue<T, List<T>>).descriptor as OptionDescriptor) {
         if (multiple) {
             error("Try to use modifier multiple() twice on option ${fullName ?: ""}")
         }
@@ -146,9 +131,9 @@ fun <T: Any, TResult> AbstractSingleOption<T, TResult>.default(value: T): Single
  *
  * @param value default value.
  */
-fun <T: Any, TResult: Collection<T>, OptionType: MultipleOptionType>
-        MultipleOption<T, OptionType>.default(value: TResult): MultipleOption<T, OptionType> {
-    val newOption = with((cliElement as ParsingValue<T, TResult>).descriptor as OptionDescriptor) {
+fun <T: Any, OptionType: MultipleOptionType>
+        MultipleOption<T, OptionType>.default(value: Collection<T>): MultipleOption<T, OptionType> {
+    val newOption = with((cliElement as ParsingValue<T, List<T>>).descriptor as OptionDescriptor) {
         if (required) {
             printWarning("required() is unneeded, because option with default value is defined.")
         }
@@ -214,7 +199,7 @@ fun <T : Any, TResult> AbstractSingleOption<T, TResult>.delimiter(delimiterValue
  * @param delimiterValue delimiter used to separate string value to option values.
  */
 fun <T : Any> MultipleOption<T, RepeatedOption>.delimiter(delimiterValue: String): MultipleOption<T, RepeatedDelimitedOption> {
-    val newOption = with((cliElement as ParsingValue<T, Collection<T>>).descriptor as OptionDescriptor) {
+    val newOption = with((cliElement as ParsingValue<T, List<T>>).descriptor as OptionDescriptor) {
         MultipleOption<T, RepeatedDelimitedOption>(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type, fullName, shortName,
                 description, defaultValue?.toList() ?: listOf(),
                 required, multiple, delimiterValue, deprecatedWarning), owner)

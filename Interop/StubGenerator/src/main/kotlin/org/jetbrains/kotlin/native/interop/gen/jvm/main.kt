@@ -182,8 +182,8 @@ private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = 
         warn("-linker-option(s)/-linkerOpts option is not supported by cinterop. Please add linker options to .def file or binary compilation instead.")
     }
 
-    val additionalLinkerOpts = cinteropArguments.linkerOpts.value.value.toTypedArray() + cinteropArguments.linkerOption.value.value.toTypedArray() +
-            cinteropArguments.linkerOptions.value.value.toTypedArray()
+    val additionalLinkerOpts = cinteropArguments.linkerOpts.value.toTypedArray() + cinteropArguments.linkerOption.value.toTypedArray() +
+            cinteropArguments.linkerOptions.value.toTypedArray()
     val verbose = cinteropArguments.verbose
 
     val language = selectNativeLanguage(def.config)

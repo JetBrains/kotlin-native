@@ -6,14 +6,14 @@ package kotlinx.cli
 
 import kotlin.reflect.KProperty
 
-internal data class CLIEntityWrapper(var entity: CLIEntity<*, *>? = null)
+internal data class CLIEntityWrapper(var entity: CLIEntity<*>? = null)
 
 /**
  * Command line entity.
  *
  * @property owner parser which owns current entity.
  */
-abstract class CLIEntity<T : Any, TResult> internal constructor(val owner: CLIEntityWrapper) {
+abstract class CLIEntity<TResult> internal constructor(internal val owner: CLIEntityWrapper) {
     /**
      * CLI element value.
      */
@@ -22,27 +22,37 @@ abstract class CLIEntity<T : Any, TResult> internal constructor(val owner: CLIEn
      * Wrapper  for element - read only property.
      * Needed to close set of variable [cliElement].
      */
-    val value: ArgumentValueDelegate<TResult>
+    val delegate: ArgumentValueDelegate<TResult>
         get() = cliElement
+
+    /**
+     * Value of entity.
+     */
+    var value: TResult
+        get() = cliElement.value
+        set(value) = delegate.setValue(null, ::value, value)
 
     /**
      * Origin of argument value.
      */
     val valueOrigin: ArgParser.ValueOrigin
-        get() = (value as ParsingValue<*, *>).valueOrigin
+        get() = (delegate as ParsingValue<*, *>).valueOrigin
 
-    abstract operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<TResult>
+    operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<TResult> {
+        (cliElement as ParsingValue<*, *>).provideName(prop.name)
+        return cliElement
+    }
 }
 
 /**
  * Argument instance.
  */
-abstract class Argument<T : Any, TResult> internal constructor(owner: CLIEntityWrapper): CLIEntity<T, TResult>(owner)
+abstract class Argument<TResult> internal constructor(owner: CLIEntityWrapper): CLIEntity<TResult>(owner)
 
 /**
  * Common single argument instance.
  */
-abstract class AbstractSingleArgument<T: Any, TResult> internal constructor(owner: CLIEntityWrapper): Argument<T, TResult>(owner) {
+abstract class AbstractSingleArgument<T: Any, TResult> internal constructor(owner: CLIEntityWrapper): Argument<TResult>(owner) {
     /**
      * Check descriptor for this kind of argument.
      */
@@ -62,11 +72,6 @@ class SingleArgument<T : Any> internal constructor(descriptor: ArgDescriptor<T, 
         checkDescriptor(descriptor)
         cliElement = ArgumentSingleValue(descriptor)
     }
-
-    override operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T> {
-        (cliElement as ParsingValue<T, T>).provideName(prop.name)
-        return cliElement
-    }
 }
 
 /**
@@ -78,28 +83,18 @@ class SingleNullableArgument<T : Any> internal constructor(descriptor: ArgDescri
         checkDescriptor(descriptor)
         cliElement = ArgumentSingleNullableValue(descriptor)
     }
-
-    override operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<T?> {
-        (cliElement as ParsingValue<T, T>).provideName(prop.name)
-        return cliElement
-    }
 }
 
 /**
  * Argument with multiple values.
  */
 class MultipleArgument<T : Any> internal constructor(descriptor: ArgDescriptor<T, List<T>>, owner: CLIEntityWrapper):
-        Argument<T, List<T>>(owner) {
+        Argument<List<T>>(owner) {
     init {
         if (descriptor.number != null && descriptor.number == 1) {
             error("Argument with multiple values can't be initialized with descriptor for single one.")
         }
         cliElement = ArgumentMultipleValues(descriptor)
-    }
-
-    override operator fun provideDelegate(thisRef: Any?, prop: KProperty<*>): ArgumentValueDelegate<List<T>> {
-        (cliElement as ParsingValue<T, List<T>>).provideName(prop.name)
-        return cliElement
     }
 }
 
@@ -141,8 +136,8 @@ fun <T: Any, TResult> AbstractSingleArgument<T, TResult>.default(value: T): Sing
  *
  * @param value default value.
  */
-fun <T: Any, TResult: Collection<T>> MultipleArgument<T>.default(value: TResult): MultipleArgument<T> {
-    val newArgument = with((cliElement as ParsingValue<T, TResult>).descriptor as ArgDescriptor) {
+fun <T: Any> MultipleArgument<T>.default(value: Collection<T>): MultipleArgument<T> {
+    val newArgument = with((cliElement as ParsingValue<T, List<T>>).descriptor as ArgDescriptor) {
         if (required) {
             printWarning("You can use optional(), because option with default value is defined.")
         }
