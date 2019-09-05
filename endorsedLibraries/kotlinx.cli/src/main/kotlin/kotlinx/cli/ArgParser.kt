@@ -316,7 +316,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
 
         // Map declared options and arguments to maps.
         declaredOptions.forEachIndexed { index, option ->
-            val value = option.entity?.cliElement as ParsingValue<*, *>
+            val value = option.entity?.delegate as ParsingValue<*, *>
             value.descriptor.fullName?.let {
                 // Add option.
                 if (options.containsKey(it)) {
@@ -336,7 +336,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
         }
 
         declaredArguments.forEachIndexed { index, argument ->
-            val value = argument.entity?.cliElement as ParsingValue<*, *>
+            val value = argument.entity?.delegate as ParsingValue<*, *>
             value.descriptor.fullName?.let {
                 // Add option.
                 if (arguments.containsKey(it)) {
