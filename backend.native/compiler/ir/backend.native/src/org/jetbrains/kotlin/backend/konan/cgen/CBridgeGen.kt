@@ -45,8 +45,6 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.util.OperatorNameConventions
-import kotlinx.cinterop.CPointer
-import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeImpl
 
 internal interface KotlinStubs {
     val irBuiltIns: IrBuiltIns
