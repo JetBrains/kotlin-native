@@ -32,12 +32,6 @@ internal fun executeImpl(worker: Worker, mode: TransferMode, producer: () -> Any
 @SymbolName("Kotlin_Worker_startInternal")
 external internal fun startInternal(errorReporting: Boolean): Int
 
-@SymbolName("Kotlin_Worker_initInternal")
-external internal fun initInternal(errorReporting: Boolean): Int
-
-@SymbolName("Kotlin_Worker_deinitInternal")
-external internal fun deinitInternal(): Unit
-
 @SymbolName("Kotlin_Worker_currentInternal")
 external internal fun currentInternal(): Int
 

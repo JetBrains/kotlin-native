@@ -40,31 +40,9 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
         public fun start(errorReporting: Boolean = true): Worker = Worker(startInternal(errorReporting))
 
         /**
-         * Get or init worker event queue of the current thread, if not yet inited. This operation allows to use
-         * a work queue to any thread, not just thread created to host a worker with [Worker.start].
+         * Return the current worker.
          */
-        public val currentOrInit: Worker get() {
-            val id = initInternal(true)
-            return if (id != 0) Worker(id) else throw Error("Cannot init as worker")
-        }
-
-        /**
-         * Deinit worker event queue on the current thread. If called in worker context will lead to termination
-         * of the worker.
-         */
-        public fun currentDeinit() {
-            deinitInternal()
-        }
-
-        /**
-         * Return the current worker, if known, null otherwise. null value will be returned in platform thread without
-         * an associated worker, non-null - if called inside worker started with [Worker.start] or in any thread
-         * where [Worker.currentOrInit] succeeded.
-         */
-        public val current: Worker? get() {
-            val id = currentInternal()
-            return if (id != 0) Worker(id) else null
-        }
+        public val current: Worker get() = Worker(currentInternal())
 
         /**
          * Create worker object from a C pointer.
