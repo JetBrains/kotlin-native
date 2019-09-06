@@ -91,7 +91,7 @@ targetList.each { target ->
         jvmArgs = konanJvmArgs
         args = [*konanArgs,
                 '-output', project.file("build/${target}KotlinxCli"),
-                '-produce', 'library', '-module-name', 'kotlinxcli', '-XXLanguage:+AllowContractsForCustomFunctions',
+                '-produce', 'library', '-module-name', 'kotlinx.cli', '-XXLanguage:+AllowContractsForCustomFunctions',
                 '-Xmulti-platform', '-Xuse-experimental=kotlinx.cli.ExperimentalCli',
                 '-Xuse-experimental=kotlin.ExperimentalMultiplatform',
                 '-Xallow-result-return-type',
