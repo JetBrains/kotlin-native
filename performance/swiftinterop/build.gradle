@@ -47,7 +47,7 @@ kotlin {
             kotlin.srcDir "../shared/src/main/kotlin-native/common"
             kotlin.srcDir "../shared/src/main/kotlin-native/posix"
              
-            // Exclude kliopt added in commonMain dependencies and inherited by macosMain.
+            // Exclude kotlinx.cli added in commonMain dependencies and inherited by macosMain.
             configurations.getByName(implementationConfigurationName) {
                 exclude module: "kotlinx.cli"
             }

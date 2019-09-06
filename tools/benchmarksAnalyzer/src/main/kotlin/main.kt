@@ -129,7 +129,7 @@ fun main(args: Array<String>) {
         val mainReport by argument(ArgType.String, description = "Main report for analysis")
 
         override fun execute() {
-            val benchsReport = SummaryBenchmarksReport(getBenchmarkReport(mainReport!!, user))
+            val benchsReport = SummaryBenchmarksReport(getBenchmarkReport(mainReport, user))
             val results = mutableListOf<String>()
             val executionNormalize = execNormalize?.let {
                 parseNormalizeResults(getFileContent(it))
@@ -183,7 +183,7 @@ fun main(args: Array<String>) {
 
     if (argParser.parse(args).commandName == "benchmarksAnalyzer") {
         // Read contents of file.
-        val mainBenchsReport = getBenchmarkReport(mainReport!!, user)
+        val mainBenchsReport = getBenchmarkReport(mainReport, user)
         var compareToBenchsReport = compareToReport?.let {
             getBenchmarkReport(it, user)
         }
