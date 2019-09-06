@@ -3,13 +3,11 @@
  * that can be found in the LICENSE file.
  */
 
-package runtime.workers.worker5
-
 import kotlin.test.*
 
 import kotlin.native.concurrent.*
 
-@Test fun runTest() {
+@Test fun runTest0() {
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, { "zzz" }) {
         input -> input.length
@@ -45,4 +43,10 @@ var done = false
     assertFailsWith<IllegalStateException> { worker.executeAfter(0, {
         println("BUG!")
     }.freeze()) }
+}
+
+fun main() {
+    runTest0()
+    runTest1()
+    runTest2()
 }
