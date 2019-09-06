@@ -65,7 +65,7 @@ See the samples coming with the distribution.
 
  Download _Kotlin/Native_ distribution and unpack it. You can run command line compiler with
 
-    bin/kotlinc <some_file>.kt <dir_with_kt_files> -o <program_name>
+    cmd/kotlinc <some_file>.kt <dir_with_kt_files> -o <program_name>
 
   During the first run it will download all the external dependencies, such as LLVM.
 
