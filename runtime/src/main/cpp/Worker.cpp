@@ -264,14 +264,14 @@ class State {
     workers_.erase(it);
   }
 
-  void destroyWorkerUnlocked(KInt id) {
-    Worker* worker = nullptr;
+  void destroyWorkerUnlocked(Worker* worker) {
     {
       Locker locker(&lock_);
+      auto id = worker->id();
       auto it = workers_.find(id);
-      if (it == workers_.end()) return;
-      worker = it->second;
-      workers_.erase(it);
+      if (it != workers_.end()) {
+        workers_.erase(it);
+      }
     }
     konanDestructInstance(worker);
   }
@@ -350,6 +350,7 @@ class State {
       auto it = futures_.find(id);
       if (it == futures_.end()) ThrowWorkerInvalidState();
       future = it->second;
+
     }
 
     KRef result = future->consumeResultUnlocked(OBJ_RESULT);
@@ -434,10 +435,10 @@ void Future::storeResultUnlocked(KNativePtr result, bool ok) {
     Locker locker(&lock_);
     state_ = ok ? COMPUTED : THROWN;
     result_ = result;
-    // Beware here: although manual clearly says that pthread_cond_signal() could be called outside
+    // Beware here: although manual clearly says that pthread_cond_broadcast() could be called outside
     // of the taken lock, it's not on macOS (as of 10.13.1). If moved outside of the lock,
     // some notifications are missing.
-    pthread_cond_signal(&cond_);
+    pthread_cond_broadcast(&cond_);
   }
   theState()->signalAnyFuture();
 }
@@ -447,7 +448,7 @@ void Future::cancelUnlocked() {
     Locker locker(&lock_);
     state_ = CANCELLED;
     result_ = nullptr;
-    pthread_cond_signal(&cond_);
+    pthread_cond_broadcast(&cond_);
   }
   theState()->signalAnyFuture();
 }
@@ -623,7 +624,7 @@ Worker* WorkerInit(KBoolean errorReporting) {
 void WorkerDeinit(Worker* worker) {
 #if WITH_WORKERS
   ::g_worker = nullptr;
-  theState()->destroyWorkerUnlocked(worker->id());
+  theState()->destroyWorkerUnlocked(worker);
 #endif  // WITH_WORKERS
 }
 
