@@ -339,8 +339,8 @@ class State {
   void destoryWorkerUnlocked(KInt id) {
     Locker locker(&lock_);
     auto it = workers_.find(id);
-    auto* worker = it->second;
     if (it == workers_.end()) return;
+    auto* worker = it->second;
     workers_.erase(it);
     konanDestructInstance(worker);
   }

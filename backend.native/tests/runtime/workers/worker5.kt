@@ -24,7 +24,7 @@ import kotlin.native.concurrent.*
 var done = false
 
 @Test fun runTest1() {
-    val worker = Worker.init()
+    val worker = Worker.currentOrInit
     done = false
     // Here we request execution of the operation on the current worker.
     worker.executeAfter(0, {
@@ -32,22 +32,22 @@ var done = false
     }.freeze())
     while (!done)
         worker.processQueue()
-    Worker.deinit()
+    Worker.currentDeinit()
 }
 
 @Test fun runTest2() {
-    val worker = Worker.init()
+    val worker = Worker.currentOrInit
     val future = worker.requestTermination(false)
     worker.processQueue()
     assertEquals(future.state, FutureState.COMPUTED)
     future.consume {}
-    Worker.deinit()
+    Worker.currentDeinit()
 }
 
 @Test fun runTest3() {
     val worker = Worker.start()
     worker.execute(TransferMode.SAFE, { }) {
-        Worker.deinit()
+        Worker.currentDeinit()
     }.result
     // Ensure worker is terminated.
     assertFailsWith<IllegalStateException> { worker.execute(TransferMode.SAFE, { }) { println("BUG") }.result }

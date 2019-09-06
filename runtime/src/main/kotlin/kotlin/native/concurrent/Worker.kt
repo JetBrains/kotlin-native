@@ -40,10 +40,10 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
         public fun start(errorReporting: Boolean = true): Worker = Worker(startInternal(errorReporting))
 
         /**
-         * Init worker event queue on the current thread, if not yet inited. This operation allows to associate
+         * Get or init worker event queue of the current thread, if not yet inited. This operation allows to use
          * a work queue to any thread, not just thread created to host a worker with [Worker.start].
          */
-        public fun init(): Worker {
+        public val currentOrInit: Worker get() {
             val id = initInternal(true)
             return if (id != 0) Worker(id) else throw Error("Cannot init as worker")
         }
@@ -52,14 +52,14 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
          * Deinit worker event queue on the current thread. If called in worker context will lead to termination
          * of the worker.
          */
-        public fun deinit() {
+        public fun currentDeinit() {
             deinitInternal()
         }
 
         /**
          * Return the current worker, if known, null otherwise. null value will be returned in platform thread without
          * an associated worker, non-null - if called inside worker started with [Worker.start] or in any thread
-         * where [Worker.init] is called.
+         * where [Worker.currentOrInit] succeeded.
          */
         public val current: Worker? get() {
             val id = currentInternal()
@@ -110,7 +110,6 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
              */
             throw RuntimeException("Shall not be called directly")
 
-
     /**
      * Plan job for further execution in the worker. [operation] parameter must be either frozen, or execution to be
      * planned on the current worker. Otherwise [IllegalStateException] will be thrown.
@@ -123,7 +122,6 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
         if (afterMicroseconds < 0) throw IllegalArgumentException("Timeout parameter must be non-negative")
         executeAfterInternal(id, operation, afterMicroseconds)
     }
-
 
     /**
      * Process pending job(s) on the queue of this worker, returns `true` if something was processed
