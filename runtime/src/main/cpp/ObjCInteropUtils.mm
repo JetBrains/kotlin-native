@@ -46,6 +46,18 @@ namespace {
 
 extern "C" {
 
+void objc_terminate();
+id objc_allocWithZone(Class clazz);
+
+id Kotlin_objc_allocWithZone(Class clazz) {
+	@try {
+		return objc_allocWithZone(clazz);
+	}
+	@catch (...) {
+		objc_terminate();
+	}
+}
+
 id Kotlin_ObjCExport_CreateNSStringFromKString(ObjHeader* str);
 
 id Kotlin_Interop_CreateNSStringFromKString(ObjHeader* str) {

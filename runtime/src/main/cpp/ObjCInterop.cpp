@@ -201,10 +201,6 @@ void Kotlin_objc_autoreleasePoolPop(void* ptr) {
   objc_autoreleasePoolPop(ptr);
 }
 
-id Kotlin_objc_allocWithZone(Class clazz) {
-  return objc_allocWithZone(clazz);
-}
-
 id Kotlin_objc_retain(id ptr) {
   return objc_retain(ptr);
 }
