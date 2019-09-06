@@ -34,13 +34,14 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
          * Typically new worker may be needed for computations offload to another core, for IO it may be
          * better to use non-blocking IO combined with more lightweight coroutines.
          *
-         * @see init to initialize worker context on the current thread
          * @param errorReporting controls if an uncaught exceptions in the worker will be printed out
          */
         public fun start(errorReporting: Boolean = true): Worker = Worker(startInternal(errorReporting))
 
         /**
-         * Return the current worker.
+         * Return the current worker. Worker context is accessible to any valid Kotlin context,
+         * but only actual active worker produced with [Worker.start] automatically processes execution requests.
+         * For other situations [processQueue] must be called explicitly to process request queue.
          */
         public val current: Worker get() = Worker(currentInternal())
 
