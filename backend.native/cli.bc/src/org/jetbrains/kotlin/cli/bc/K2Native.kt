@@ -119,7 +119,12 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
                         arguments.libraries.toNonNullList())
                 put(LINKER_ARGS, arguments.linkerArguments.toNonNullList() +
                         arguments.singleLinkerArguments.toNonNullList())
-                arguments.moduleName ?. let{ put(MODULE_NAME, it) }
+                arguments.moduleName ?. let {
+                    if (it.contains('.')) {
+                        report(WARNING, "Module name with points may cause problems during using in ObjectiveC interop.")
+                    }
+                    put(MODULE_NAME, it)
+                }
                 arguments.target ?.let{ put(TARGET, it) }
 
                 put(INCLUDED_BINARY_FILES,
