@@ -3225,6 +3225,7 @@ void createInterop(String name, Closure conf) {
         interop(name, targets: [target.name]) {
             conf(it)
             noDefaultLibs(true)
+            noEndorsedLibs(true)
             baseDir "$testOutputLocal/$name"
         }
     }
@@ -3460,8 +3461,7 @@ standaloneTest("interop_opengl_teapot") {
 */
 
 interopTest("interop_objc_smoke") {
-    // Cannot be executed in the two-stage mode due to KT-33160.
-    disabled = !isAppleTarget(project) || twoStageEnabled
+    disabled = !isAppleTarget(project)
     goldValue = "84\nFoo\nDeallocated\n" +
             "Hello, World!\nKotlin says: Hello, everybody!\nHello from Kotlin\n2, 1\n" +
             "true\ntrue\n" +
@@ -3473,6 +3473,12 @@ interopTest("interop_objc_smoke") {
 
     source = "interop/objc/smoke.kt"
     interop = 'objcSmoke'
+
+    if (twoStageEnabled) {
+        // Without this flag the test fails in the two-stage mode due to KT-33160.
+        // TODO: Remove this flag when the bug is fixed.
+        flags += "-nodefaultlibs"
+    }
 
     doBefore {
         execKonanClang(project.target) {
@@ -3627,6 +3633,7 @@ if (isAppleTarget(project)) {
 
                 extraOpts "-Xembed-bitcode-marker"
                 extraOpts "-Xemit-lazy-objc-header=$lazyHeader"
+                extraOpts project.globalTestArgs
             }
         }
         swiftSources = ['framework/values/values.swift']
@@ -3645,6 +3652,7 @@ if (isAppleTarget(project)) {
                 }
 
                 extraOpts "-Xembed-bitcode-marker", "-Xobjc-generics"
+                extraOpts project.globalTestArgs
             }
         }
         swiftSources = ['framework/values_generics/values.swift']
@@ -3663,6 +3671,7 @@ if (isAppleTarget(project)) {
                 }
 
                 extraOpts "-Xembed-bitcode"
+                extraOpts project.globalTestArgs
             }
         }
         swiftSources = ['framework/stdlib/stdlib.swift']
