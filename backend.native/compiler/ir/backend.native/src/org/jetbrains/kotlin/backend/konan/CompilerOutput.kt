@@ -22,6 +22,9 @@ val CompilerOutputKind.isNativeBinary: Boolean get() = when (this) {
     CompilerOutputKind.LIBRARY, CompilerOutputKind.BITCODE -> false
 }
 
+val CompilerOutputKind.involvesBitcodeGeneration: Boolean
+    get() = this != CompilerOutputKind.LIBRARY
+
 internal fun produceCStubs(context: Context) {
     val llvmModule = context.llvmModule!!
     context.cStubsManager.compile(context.config.clang, context.messageCollector, context.inVerbosePhase)?.let {
