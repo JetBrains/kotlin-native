@@ -42,7 +42,7 @@ internal class ObjCExport(val context: Context, symbolTable: SymbolTable) {
     private fun produceInterface(): ObjCExportedInterface? {
         if (!target.family.isAppleFamily) return null
 
-        if (!context.config.produce.isNativeBinary) return null // TODO: emit RTTI to the same modules as classes belong to.
+        if (!context.config.produce.isFinalBinary) return null // TODO: emit RTTI to the same modules as classes belong to.
 
         val produceFramework = context.config.produce == CompilerOutputKind.FRAMEWORK
 
@@ -69,7 +69,7 @@ internal class ObjCExport(val context: Context, symbolTable: SymbolTable) {
     internal fun generate(codegen: CodeGenerator) {
         if (!target.family.isAppleFamily) return
 
-        if (!context.config.produce.isNativeBinary) return // TODO: emit RTTI to the same modules as classes belong to.
+        if (!context.config.produce.isFinalBinary) return // TODO: emit RTTI to the same modules as classes belong to.
 
         val mapper = exportedInterface?.mapper ?: ObjCExportMapper()
         val namer = exportedInterface?.namer ?: ObjCExportNamerImpl(
