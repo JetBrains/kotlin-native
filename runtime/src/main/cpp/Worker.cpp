@@ -478,7 +478,8 @@ KInt startWorker(KBoolean errorReporting) {
 }
 
 KInt currentWorker() {
-  return ::g_worker == nullptr ? 0 : ::g_worker->id();
+  if (g_worker == nullptr) ThrowWorkerInvalidState();
+  return ::g_worker->id();
 }
 
 KInt execute(KInt id, KInt transferMode, KRef producer, KNativePtr jobFunction) {
@@ -542,15 +543,6 @@ KNativePtr detachObjectGraphInternal(KInt transferMode, KRef producer) {
 KInt startWorker(KBoolean errorReporting) {
   ThrowWorkerUnsupported();
   return -1;
-}
-
-KInt initAsWorker(KBoolean errorReporting) {
-  ThrowWorkerUnsupported();
-  return -1;
-}
-
-void deinitWorker() {
-  ThrowWorkerUnsupported();
 }
 
 KInt stateOfFuture(KInt id) {
@@ -812,14 +804,6 @@ extern "C" {
 
 KInt Kotlin_Worker_startInternal(KBoolean noErrorReporting) {
   return startWorker(noErrorReporting);
-}
-
-KInt Kotlin_Worker_initInternal(KBoolean noErrorReporting) {
-#if WITH_WORKERS
-  return WorkerInit(noErrorReporting)->id();
-#else
-  return 0;
-#endif
 }
 
 KInt Kotlin_Worker_currentInternal() {
