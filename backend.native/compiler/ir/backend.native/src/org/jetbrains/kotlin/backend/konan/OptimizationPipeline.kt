@@ -64,9 +64,6 @@ private class LlvmPipelineConfiguration(context: Context) {
         KonanTarget.LINUX_MIPS32 -> "mips32r2"
         KonanTarget.LINUX_MIPSEL32 -> "mips32r2"
         KonanTarget.ANDROID_X64,
-        KonanTarget.ANDROID_X86,
-        KonanTarget.WATCHOS_ARM32,
-        KonanTarget.WATCHOS_X86,
         KonanTarget.WATCHOS_ARM64,
         KonanTarget.WATCHOS_X64,
         KonanTarget.WASM32,
