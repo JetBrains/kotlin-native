@@ -117,20 +117,12 @@ internal class OptionDescriptor<T : Any, TResult>(
 internal class ArgDescriptor<T : Any, TResult>(
         type: ArgType<T>,
         fullName: String?,
-        val number: Int? = null,
+        val number: UInt? = null,
         description: String? = null,
         defaultValue: TResult? = null,
         required: Boolean = true,
         deprecatedWarning: String? = null) : Descriptor<T, TResult>(type, fullName, description, defaultValue,
         required, deprecatedWarning) {
-
-    init {
-        // Check arguments number correctness.
-        number?.let {
-            if (it < 0)
-                error("Number of arguments for argument description $fullName should be greater than zero.")
-        }
-    }
 
     override val textDescription: String
         get() = "argument $fullName"

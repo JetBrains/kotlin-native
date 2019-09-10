@@ -53,7 +53,7 @@ abstract class AbstractSingleArgument<T: Any, TResult> internal constructor(owne
      * Check descriptor for this kind of argument.
      */
     internal fun checkDescriptor(descriptor: ArgDescriptor<*, *>) {
-        if (descriptor.number == null || descriptor.number > 1) {
+        if (descriptor.number == null || descriptor.number > 1U) {
             failAssertion("Argument with single value can't be initialized with descriptor for multiple values.")
         }
     }
@@ -87,7 +87,7 @@ class SingleNullableArgument<T : Any> internal constructor(descriptor: ArgDescri
 class MultipleArgument<T : Any> internal constructor(descriptor: ArgDescriptor<T, List<T>>, owner: CLIEntityWrapper):
         Argument<List<T>>(owner) {
     init {
-        if (descriptor.number != null && descriptor.number == 1) {
+        if (descriptor.number != null && descriptor.number < 2U) {
             failAssertion("Argument with multiple values can't be initialized with descriptor for single one.")
         }
         delegate = ArgumentMultipleValues(descriptor)
@@ -97,14 +97,26 @@ class MultipleArgument<T : Any> internal constructor(descriptor: ArgDescriptor<T
 /**
  * Allow argument have several values.
  *
- * @param number number of arguments are expected. In case of null value any number of arguments can be set.
+ * @param value number of arguments are expected. In case of null value any number of arguments can be set.
  */
-fun <T : Any, TResult> AbstractSingleArgument<T, TResult>.number(value: Int? = null): MultipleArgument<T> {
-    if (value != null && value == 1) {
-        error("number() modifier with value 1 is unavailable. It's already set to 1.")
+fun <T : Any, TResult> AbstractSingleArgument<T, TResult>.multiple(value: UInt): MultipleArgument<T> {
+    if (value < 2U) {
+        error("multiple() modifier with value less than 2 is unavailable. It's already set to 1.")
     }
     val newArgument = with((delegate as ParsingValue<T, T>).descriptor as ArgDescriptor) {
         MultipleArgument(ArgDescriptor(type, fullName, value, description, listOfNotNull(defaultValue),
+                required, deprecatedWarning), owner)
+    }
+    owner.entity = newArgument
+    return newArgument
+}
+
+/**
+ * Allow argument have several values.
+ */
+fun <T : Any, TResult> AbstractSingleArgument<T, TResult>.vararg(): MultipleArgument<T> {
+    val newArgument = with((delegate as ParsingValue<T, T>).descriptor as ArgDescriptor) {
+        MultipleArgument(ArgDescriptor(type, fullName, null, description, listOfNotNull(defaultValue),
                 required, deprecatedWarning), owner)
     }
     owner.entity = newArgument
