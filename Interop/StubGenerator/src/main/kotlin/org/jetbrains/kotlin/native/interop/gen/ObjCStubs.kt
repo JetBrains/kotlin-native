@@ -16,7 +16,6 @@
 
 package org.jetbrains.kotlin.native.interop.gen
 
-import org.jetbrains.kotlin.konan.target.Architecture
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.native.interop.indexer.*
 
@@ -248,15 +247,15 @@ internal val ObjCContainer.classOrProtocol: ObjCClassOrProtocol
  */
 internal fun Type.isStret(target: KonanTarget): Boolean {
     val unwrappedType = this.unwrapTypedefs()
-    return when (target.architecture) {
-        Architecture.ARM64 ->
+    return when (target) {
+        KonanTarget.IOS_ARM64 ->
             false // On aarch64 stret is never the case, since an implicit argument gets passed on x8.
 
-        Architecture.X64 -> when (unwrappedType) {
+        KonanTarget.IOS_X64, KonanTarget.MACOS_X64 -> when (unwrappedType) {
             is RecordType -> unwrappedType.decl.def!!.size > 16 || this.hasUnalignedMembers()
             else -> false
         }
-        Architecture.ARM32 -> {
+        KonanTarget.IOS_ARM32 -> {
             when (unwrappedType) {
                 is RecordType -> !this.isIntegerLikeType()
                 else -> false
