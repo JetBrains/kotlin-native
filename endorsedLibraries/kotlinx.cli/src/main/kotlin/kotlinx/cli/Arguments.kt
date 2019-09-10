@@ -143,7 +143,7 @@ fun <T: Any, TResult> AbstractSingleArgument<T, TResult>.default(value: T): Sing
  */
 fun <T: Any> MultipleArgument<T>.default(value: Collection<T>): MultipleArgument<T> {
     if (value.isEmpty()) {
-        error("Default value for option can't be empty collection.")
+        error("Default value for argument can't be empty collection.")
     }
     val newArgument = with((delegate as ParsingValue<T, List<T>>).descriptor as ArgDescriptor) {
         MultipleArgument(ArgDescriptor(type, fullName, number, description, value.toList(),
@@ -156,7 +156,7 @@ fun <T: Any> MultipleArgument<T>.default(value: Collection<T>): MultipleArgument
 /**
  * Allow argument be unprovided in command line.
  */
-fun <T: Any, TResult> AbstractSingleArgument<T, TResult>.optional(): SingleNullableArgument<T> {
+fun <T: Any> SingleArgument<T>.optional(): SingleNullableArgument<T> {
     val newArgument = with((delegate as ParsingValue<T, T>).descriptor as ArgDescriptor) {
         SingleNullableArgument(ArgDescriptor(type, fullName, number, description, defaultValue,
                 false, deprecatedWarning), owner)

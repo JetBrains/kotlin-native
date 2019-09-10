@@ -114,7 +114,7 @@ fun <T : Any> MultipleOption<T, DelimitedOption>.multiple(): MultipleOption<T, R
  *
  * @param value default value.
  */
-fun <T: Any> SingleNullableOption<T>.default(value: T): SingleOption<T> {
+fun <T: Any, TResult> AbstractSingleOption<T, TResult>.default(value: T): SingleOption<T> {
     val newOption = with((delegate as ParsingValue<T, T>).descriptor as OptionDescriptor) {
         SingleOption(OptionDescriptor(optionFullFormPrefix, optionShortFromPrefix, type, fullName, shortName,
                 description, value, required, multiple, delimiter, deprecatedWarning), owner)
