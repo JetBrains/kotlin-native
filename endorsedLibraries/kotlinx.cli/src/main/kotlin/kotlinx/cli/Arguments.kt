@@ -142,6 +142,9 @@ fun <T: Any, TResult> AbstractSingleArgument<T, TResult>.default(value: T): Sing
  * @param value default value.
  */
 fun <T: Any> MultipleArgument<T>.default(value: Collection<T>): MultipleArgument<T> {
+    if (value.isEmpty()) {
+        error("Default value for option can't be empty collection.")
+    }
     val newArgument = with((delegate as ParsingValue<T, List<T>>).descriptor as ArgDescriptor) {
         MultipleArgument(ArgDescriptor(type, fullName, number, description, value.toList(),
                 required, deprecatedWarning), owner)
