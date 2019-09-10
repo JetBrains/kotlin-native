@@ -18,7 +18,7 @@
 import org.jetbrains.ring.*
 import octoTest
 import org.jetbrains.benchmarksLauncher.*
-import org.jetbrains.kliopt.*
+import kotlinx.cli.*
 
 class RingLauncher : Launcher() {
 
@@ -199,10 +199,13 @@ class RingLauncher : Launcher() {
                     "Calls.interfaceMethodMonomorphic" to BenchmarkEntryWithInit.create(::CallsBenchmark, { interfaceMethodCall_MonomorphicCallsite() }),
                     "Calls.interfaceMethodBimorphic" to BenchmarkEntryWithInit.create(::CallsBenchmark, { interfaceMethodCall_BimorphicCallsite() }),
                     "Calls.interfaceMethodTrimorphic" to BenchmarkEntryWithInit.create(::CallsBenchmark, { interfaceMethodCall_TrimorphicCallsite() }),
+                    "Calls.interfaceMethodHexamorphic" to BenchmarkEntryWithInit.create(::CallsBenchmark, { interfaceMethodCall_HexamorphicCallsite() }),
                     "Calls.returnBoxUnboxFolding" to BenchmarkEntryWithInit.create(::CallsBenchmark, { returnBoxUnboxFolding() }),
                     "Calls.parameterBoxUnboxFolding" to BenchmarkEntryWithInit.create(::CallsBenchmark, { parameterBoxUnboxFolding() }),
                     "CoordinatesSolver.solve" to BenchmarkEntryWithInit.create(::CoordinatesSolverBenchmark, { solve() }),
-                    "GraphSolver.solve" to BenchmarkEntryWithInit.create(::GraphSolverBenchmark, { solve() })
+                    "GraphSolver.solve" to BenchmarkEntryWithInit.create(::GraphSolverBenchmark, { solve() }),
+                    "Casts.classCast" to BenchmarkEntryWithInit.create(::CastsBenchmark, { classCast() }),
+                    "Casts.interfaceCast" to BenchmarkEntryWithInit.create(::CastsBenchmark, { interfaceCast() })
             )
     )
 }
