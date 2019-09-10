@@ -29,7 +29,7 @@ internal class ArgumentsQueue(argumentsDescriptors: List<ArgDescriptor<*, *>>) {
         val (currentDescriptor, usageNumber) = argumentsUsageNumber.iterator().next()
         currentDescriptor.number?.let {
             // Parse all arguments for current argument description.
-            if ((usageNumber + 1).toUInt() >= currentDescriptor.number) {
+            if (usageNumber + 1 >= currentDescriptor.number) {
                 // All needed arguments were provided.
                 argumentsUsageNumber.remove(currentDescriptor)
             } else {
@@ -207,7 +207,7 @@ open class ArgParser(val programName: String, var useDefaultHelpShortName: Boole
                           fullName: String? = null,
                           description: String? = null,
                           deprecatedWarning: String? = null) : SingleArgument<T> {
-        val argument = SingleArgument(ArgDescriptor(type, fullName, 1U,
+        val argument = SingleArgument(ArgDescriptor(type, fullName, 1,
                 description, deprecatedWarning = deprecatedWarning), CLIEntityWrapper())
         argument.owner.entity = argument
         declaredArguments.add(argument.owner)

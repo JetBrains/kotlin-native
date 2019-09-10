@@ -36,7 +36,7 @@ class ArgumentsTests {
     @Test
     fun testArgumetsWithSeveralValues() {
         val argParser = ArgParser("testParser")
-        val addendums by argParser.argument(ArgType.Int, "addendums", description = "Addendums").multiple(2U)
+        val addendums by argParser.argument(ArgType.Int, "addendums", description = "Addendums").multiple(2)
         val output by argParser.argument(ArgType.String, "output", "Output file")
         val debugMode by argParser.option(ArgType.Boolean, "debug", "d", "Debug mode")
         argParser.parse(arrayOf("2", "-d", "3", "out.txt"))
@@ -50,7 +50,7 @@ class ArgumentsTests {
     @Test
     fun testSkippingExtraArguments() {
         val argParser = ArgParser("testParser", skipExtraArguments = true)
-        val addendums by argParser.argument(ArgType.Int, "addendums", description = "Addendums").multiple(2U)
+        val addendums by argParser.argument(ArgType.Int, "addendums", description = "Addendums").multiple(2)
         val output by argParser.argument(ArgType.String, "output", "Output file")
         val debugMode by argParser.option(ArgType.Boolean, "debug", "d", "Debug mode")
         argParser.parse(arrayOf("2", "-d", "3", "out.txt", "something", "else", "in", "string"))
