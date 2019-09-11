@@ -4,23 +4,23 @@
  */
 
 import platform.Foundation.*
+import platform.objc.*
 import kotlin.test.*
 
 import kotlinx.cinterop.*
 import platform.posix.*
 import kotlin.system.exitProcess
 
-fun sigabrt_handler(signum: Int) : Unit {
-    println("Exception handled successfully, signum = $signum")
+fun exc_handler(x: Any?) : Unit {
+    println("Uncaught exception handler")
+    println(x.toString())
     exitProcess(0)
 }
 
-class A : NSJSONSerialization()
-
 fun main() {
-    signal(SIGABRT, staticCFunction(::sigabrt_handler))
+    objc_setUncaughtExceptionHandler(staticCFunction(::exc_handler))
 
-    // The following should fail with exception; if exception handled we'll trap SIGABRT and exit gracefully.
-    // Otherwise, unhandled exception cause Segmentation fault with exit code 139
-    println(A())
+    // The following should fail with exception that shall be processed by FilterException and stop at exc_handler
+    // Otherwise, ReportUnhandledException will fail with Segmentation fault (exit code 139) on attempt to printStackTrace
+    println(NSJSONSerialization())
 }
