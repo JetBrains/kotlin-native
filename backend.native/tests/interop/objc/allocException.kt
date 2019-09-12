@@ -20,7 +20,5 @@ fun exc_handler(x: Any?) : Unit {
 fun main() {
     objc_setUncaughtExceptionHandler(staticCFunction(::exc_handler))
 
-    // The following should fail with exception that shall be processed by FilterException and stop at exc_handler
-    // Otherwise, ReportUnhandledException will fail with Segmentation fault (exit code 139) on attempt to printStackTrace
     println(NSJSONSerialization())
 }
