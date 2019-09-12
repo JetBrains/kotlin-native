@@ -12,9 +12,7 @@ import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.tasks.TaskState
 import org.gradle.api.execution.TaskExecutionListener
-import org.gradle.api.tasks.AbstractExecTask
 import org.jetbrains.kotlin.gradle.plugin.KotlinTargetPreset
-import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.tasks.KotlinNativeLink
 import org.jetbrains.report.*
 import org.jetbrains.report.json.*
@@ -82,6 +80,16 @@ fun getCodeSizeBenchmark(programName: String, filePath: String): BenchmarkResult
             codeSize?.toDouble() ?: 0.0, BenchmarkResult.Metric.CODE_SIZE, codeSize?.toDouble() ?: 0.0, 1, 0)
 }
 
+fun toCodeSizeBenchmark(metricDescription: String, status: String, programName: String): BenchmarkResult {
+    if (!metricDescription.startsWith("CODE_SIZE")) {
+        error("Wrong metric is tried to use as code size.")
+    }
+    val codeSize = metricDescription.split(' ')[1].toDouble()
+    return BenchmarkResult("$programName",
+            if (status == "PASSED") BenchmarkResult.Status.PASSED else BenchmarkResult.Status.FAILED,
+            codeSize, BenchmarkResult.Metric.CODE_SIZE, codeSize, 1, 0)
+}
+
 // Create benchmarks json report based on information get from gradle project
 fun createJsonReport(projectProperties: Map<String, Any>): String {
     fun getValue(key: String): String = projectProperties[key] as? String ?: "unknown"
@@ -96,18 +104,19 @@ fun createJsonReport(projectProperties: Map<String, Any>): String {
     val benchmarksArray = JsonTreeParser.parse(benchDesc)
     val benchmarks = BenchmarksReport.parseBenchmarksArray(benchmarksArray)
             .union(projectProperties["compileTime"] as List<BenchmarkResult>).union(
-                    listOf(projectProperties["codeSize"] as BenchmarkResult)).toList()
+                    listOf(projectProperties["codeSize"] as? BenchmarkResult).filterNotNull()).toList()
     val report = BenchmarksReport(env, benchmarks, kotlin)
     return report.toJson()
 }
 
 fun mergeReports(reports: List<File>): String {
     val reportsToMerge = reports.map {
-        val json = it.inputStream().bufferedReader().use { it.readText() }
-        val reportElement = JsonTreeParser.parse(json)
-        BenchmarksReport.create(reportElement)
-
-    }
+        if (it.exists()) {
+            val json = it.inputStream().bufferedReader().use { it.readText() }
+            val reportElement = JsonTreeParser.parse(json)
+            BenchmarksReport.create(reportElement)
+        } else null
+    }.filterNotNull()
     return if (reportsToMerge.isEmpty()) "" else reportsToMerge.reduce { result, it -> result + it }.toJson()
 }
 
@@ -189,6 +198,15 @@ fun getCompileBenchmarkTime(programName: String, tasksNames: Iterable<String>, r
         BenchmarkResult("$programName", status, time, BenchmarkResult.Metric.COMPILE_TIME, time, number, 0)
     }.toList()
 
+fun toCompileBenchmark(metricDescription: String, status: String, programName: String): BenchmarkResult {
+    if (!metricDescription.startsWith("COMPILE_TIME")) {
+        error("Wrong metric is tried to use as compile time.")
+    }
+    val time = metricDescription.split(' ')[1].toDouble()
+    return BenchmarkResult("$programName",
+            if (status == "PASSED") BenchmarkResult.Status.PASSED else BenchmarkResult.Status.FAILED,
+            time, BenchmarkResult.Metric.COMPILE_TIME, time, 1, 0)
+}
 
 // Class time tracker for all tasks.
 class TaskTimerListener: TaskExecutionListener {
