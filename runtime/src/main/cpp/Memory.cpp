@@ -742,6 +742,10 @@ inline bool canFreeze(ContainerHeader* container) {
     return container != nullptr && !container->frozen();
 }
 
+inline bool isFreezableAtomic(ObjHeader* obj) {
+  return obj->type_info() == theFreezableAtomicReferenceTypeInfo;
+}
+
 ContainerHeader* allocContainer(MemoryState* state, size_t size) {
  ContainerHeader* result = nullptr;
 #if USE_GC
@@ -2262,44 +2266,48 @@ void freezeAcyclic(ContainerHeader* rootContainer, ContainerHeaderSet* newlyFroz
   }
 }
 
-void freezeCyclic(ContainerHeader* rootContainer,
+void freezeCyclic(ObjHeader* root,
                   const KStdVector<ContainerHeader*>& order,
                   ContainerHeaderSet* newlyFrozen) {
   KStdUnorderedMap<ContainerHeader*, KStdVector<ContainerHeader*>> reversedEdges;
-  KStdDeque<ContainerHeader*> queue;
-  queue.push_back(rootContainer);
+  KStdDeque<ObjHeader*> queue;
+  queue.push_back(root);
   while (!queue.empty()) {
-    ContainerHeader* current = queue.front();
+    ObjHeader* current = queue.front();
     queue.pop_front();
-    current->unMark();
-    reversedEdges.emplace(current, KStdVector<ContainerHeader*>(0));
-    traverseContainerReferredObjects(current, [current, &queue, &reversedEdges](ObjHeader* obj) {
+    ContainerHeader* currentContainer = current->container();
+    currentContainer->unMark();
+    reversedEdges.emplace(currentContainer, KStdVector<ContainerHeader*>(0));
+    traverseContainerReferredObjects(currentContainer, [current, currentContainer, &queue, &reversedEdges](ObjHeader* obj) {
           ContainerHeader* objContainer = obj->container();
           if (canFreeze(objContainer)) {
             if (objContainer->marked())
-              queue.push_back(objContainer);
-            reversedEdges.emplace(objContainer, KStdVector<ContainerHeader*>(0)).first->second.push_back(current);
+              queue.push_back(obj);
+            // We ignore FreezableAtomicsReference during condensation, to avoid KT-33824.
+            if (!isFreezableAtomic(current))
+              reversedEdges.emplace(objContainer, KStdVector<ContainerHeader*>(0)).
+                first->second.push_back(currentContainer);
           }
       });
-    }
+   }
 
-    KStdVector<KStdVector<ContainerHeader*>> components;
-    MEMORY_LOG("Condensation:\n");
-    // Enumerate in the topological order.
-    for (auto it = order.rbegin(); it != order.rend(); ++it) {
-      auto* container = *it;
-      if (container->marked()) continue;
-      KStdVector<ContainerHeader*> component;
-      traverseStronglyConnectedComponent(container, &reversedEdges, &component);
-      MEMORY_LOG("SCC:\n");
+   KStdVector<KStdVector<ContainerHeader*>> components;
+   MEMORY_LOG("Condensation:\n");
+   // Enumerate in the topological order.
+   for (auto it = order.rbegin(); it != order.rend(); ++it) {
+     auto* container = *it;
+     if (container->marked()) continue;
+     KStdVector<ContainerHeader*> component;
+     traverseStronglyConnectedComponent(container, &reversedEdges, &component);
+     MEMORY_LOG("SCC:\n");
   #if TRACE_MEMORY
-      for (auto c: component)
-        konan::consolePrintf("    %p\n", c);
+     for (auto c: component)
+       konan::consolePrintf("    %p\n", c);
   #endif
-      components.push_back(std::move(component));
-    }
+     components.push_back(std::move(component));
+   }
 
-    // Enumerate strongly connected components in reversed topological order.
+  // Enumerate strongly connected components in reversed topological order.
   for (auto it = components.rbegin(); it != components.rend(); ++it) {
     auto& component = *it;
     int internalRefsCount = 0;
@@ -2308,8 +2316,9 @@ void freezeCyclic(ContainerHeader* rootContainer,
       totalCount += container->refCount();
       traverseContainerReferredObjects(container, [&internalRefsCount](ObjHeader* obj) {
           auto* container = obj->container();
-          if (canFreeze(container))
-              ++internalRefsCount;
+          // We ignore FreezableAtomicsReference during condensation, to avoid KT-33824.
+          if (canFreeze(container) && !isFreezableAtomic(obj))
+            ++internalRefsCount;
         });
       }
 
@@ -2327,11 +2336,12 @@ void freezeCyclic(ContainerHeader* rootContainer,
       // meta-object, where aggregating container is stored.
       container->setRefCount(0);
     }
+
     // Create fictitious container for the whole component.
     auto superContainer = component.size() == 1 ? component[0] : allocAggregatingFrozenContainer(component);
     // Don't count internal references.
     MEMORY_LOG("Setting aggregating %p rc to %d (total %d inner %d)\n", \
-        superContainer, totalCount - internalRefsCount, totalCount, internalRefsCount)
+       superContainer, totalCount - internalRefsCount, totalCount, internalRefsCount)
     superContainer->setRefCount(totalCount - internalRefsCount);
     newlyFrozen->insert(superContainer);
   }
@@ -2382,7 +2392,7 @@ void freezeSubgraph(ObjHeader* root) {
   ContainerHeaderSet newlyFrozen;
   // Now unmark all marked objects, and freeze them, if no cycles detected.
   if (hasCycles) {
-    freezeCyclic(rootContainer, order, &newlyFrozen);
+    freezeCyclic(root, order, &newlyFrozen);
   } else {
     freezeAcyclic(rootContainer, &newlyFrozen);
   }
