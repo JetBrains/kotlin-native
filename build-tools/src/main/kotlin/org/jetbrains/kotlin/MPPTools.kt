@@ -82,7 +82,7 @@ fun getCodeSizeBenchmark(programName: String, filePath: String): BenchmarkResult
 
 fun toCodeSizeBenchmark(metricDescription: String, status: String, programName: String): BenchmarkResult {
     if (!metricDescription.startsWith("CODE_SIZE")) {
-        error("Wrong metric is tried to use as code size.")
+        error("Wrong metric is used as code size.")
     }
     val codeSize = metricDescription.split(' ')[1].toDouble()
     return BenchmarkResult("$programName",
@@ -200,7 +200,7 @@ fun getCompileBenchmarkTime(programName: String, tasksNames: Iterable<String>, r
 
 fun toCompileBenchmark(metricDescription: String, status: String, programName: String): BenchmarkResult {
     if (!metricDescription.startsWith("COMPILE_TIME")) {
-        error("Wrong metric is tried to use as compile time.")
+        error("Wrong metric is used as compile time.")
     }
     val time = metricDescription.split(' ')[1].toDouble()
     return BenchmarkResult("$programName",
