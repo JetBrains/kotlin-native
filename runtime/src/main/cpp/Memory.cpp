@@ -2316,11 +2316,10 @@ void freezeCyclic(ObjHeader* root,
       totalCount += container->refCount();
       traverseContainerReferredObjects(container, [&internalRefsCount](ObjHeader* obj) {
           auto* container = obj->container();
-          // We ignore FreezableAtomicsReference during condensation, to avoid KT-33824.
-          if (canFreeze(container) && !isFreezableAtomic(obj))
+          if (canFreeze(container))
             ++internalRefsCount;
         });
-      }
+    }
 
     // Freeze component.
     for (auto* container : component) {

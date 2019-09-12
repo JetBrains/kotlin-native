@@ -9,8 +9,8 @@ import kotlin.test.*
 import kotlin.native.concurrent.*
 
 
-data class Hi(val s:String)
-data class Nested(val hi:Hi)
+data class Hi(val s: String)
+data class Nested(val hi: Hi)
 
 @Test
 fun ensureNeverFrozenNoFreezeChild(){
@@ -38,7 +38,7 @@ fun createInvalidRef1(): FreezableAtomicReference<Any?> {
     val ref = FreezableAtomicReference<Any?>(null)
     ref.value = ref
     ref.freeze()
-    ref.value = null
+
     return ref
 }
 
@@ -53,20 +53,35 @@ fun ensureFreezableHandlesCycles1() {
     global = obj.hashCode()
 }
 
-fun createInvalidRef2(): FreezableAtomicReference<Any?> {
-    val ref1 = FreezableAtomicReference<Any?>(null)
-    val ref2 = FreezableAtomicReference<Any?>(ref1)
-    val ref3 = FreezableAtomicReference<Any?>(ref1)
-    ref1.value = ref2
+class Node(var ref: Any?)
 
-    return ref3
+/**
+ *    ref1 -> Node <- ref3
+ *             |        /\
+ *             V        |
+ *             ref2  ---
+ */
+fun createInvalidRef2(): FreezableAtomicReference<Node?> {
+    val ref1 = FreezableAtomicReference<Node?>(null)
+
+    val node = Node(null)
+    val ref3 = FreezableAtomicReference<Any?>(node)
+    val ref2 = FreezableAtomicReference<Any?>(ref3)
+    node.ref = ref2
+
+    ref1.value = node
+
+    ref1.freeze()
+    ref2.value = null
+    ref3.value = null
+
+    return ref1
 }
 
 @Test
 fun ensureFreezableHandlesCycles2() {
     val ref = createInvalidRef2()
-    ref.freeze()
     kotlin.native.internal.GC.collect()
 
-    global = ref.hashCode()
+    global = ref.value!!.ref!!.hashCode()
 }
