@@ -75,7 +75,7 @@ fun getFileSize(filePath: String): Long? {
 
 fun getCodeSizeBenchmark(programName: String, filePath: String): BenchmarkResult {
     val codeSize = getFileSize(filePath)
-    return BenchmarkResult("$programName",
+    return BenchmarkResult(programName,
             codeSize?. let { BenchmarkResult.Status.PASSED } ?: run { BenchmarkResult.Status.FAILED },
             codeSize?.toDouble() ?: 0.0, BenchmarkResult.Metric.CODE_SIZE, codeSize?.toDouble() ?: 0.0, 1, 0)
 }
@@ -85,7 +85,7 @@ fun toCodeSizeBenchmark(metricDescription: String, status: String, programName: 
         error("Wrong metric is used as code size.")
     }
     val codeSize = metricDescription.split(' ')[1].toDouble()
-    return BenchmarkResult("$programName",
+    return BenchmarkResult(programName,
             if (status == "PASSED") BenchmarkResult.Status.PASSED else BenchmarkResult.Status.FAILED,
             codeSize, BenchmarkResult.Metric.CODE_SIZE, codeSize, 1, 0)
 }
@@ -110,13 +110,11 @@ fun createJsonReport(projectProperties: Map<String, Any>): String {
 }
 
 fun mergeReports(reports: List<File>): String {
-    val reportsToMerge = reports.map {
-        if (it.exists()) {
-            val json = it.inputStream().bufferedReader().use { it.readText() }
-            val reportElement = JsonTreeParser.parse(json)
-            BenchmarksReport.create(reportElement)
-        } else null
-    }.filterNotNull()
+    val reportsToMerge = reports.filter { it.exists() }.map {
+        val json = it.inputStream().bufferedReader().use { it.readText() }
+        val reportElement = JsonTreeParser.parse(json)
+        BenchmarksReport.create(reportElement)
+    }
     return if (reportsToMerge.isEmpty()) "" else reportsToMerge.reduce { result, it -> result + it }.toJson()
 }
 
@@ -195,7 +193,7 @@ fun getCompileBenchmarkTime(programName: String, tasksNames: Iterable<String>, r
             status = if (exitCodes["$it$number"] != 0) BenchmarkResult.Status.FAILED else status
         }
 
-        BenchmarkResult("$programName", status, time, BenchmarkResult.Metric.COMPILE_TIME, time, number, 0)
+        BenchmarkResult(programName, status, time, BenchmarkResult.Metric.COMPILE_TIME, time, number, 0)
     }.toList()
 
 fun toCompileBenchmark(metricDescription: String, status: String, programName: String): BenchmarkResult {
@@ -203,7 +201,7 @@ fun toCompileBenchmark(metricDescription: String, status: String, programName: S
         error("Wrong metric is used as compile time.")
     }
     val time = metricDescription.split(' ')[1].toDouble()
-    return BenchmarkResult("$programName",
+    return BenchmarkResult(programName,
             if (status == "PASSED") BenchmarkResult.Status.PASSED else BenchmarkResult.Status.FAILED,
             time, BenchmarkResult.Metric.COMPILE_TIME, time, 1, 0)
 }
@@ -217,7 +215,7 @@ class TaskTimerListener: TaskExecutionListener {
             val time = tasksNames.map { tasksTimes[it] ?: 0.0 }.sum()
             // TODO get this info from gradle plugin with exit code end stacktrace.
             val status = tasksNames.map { tasksTimes.containsKey(it) }.reduce { a, b -> a && b }
-            return BenchmarkResult("$programName",
+            return BenchmarkResult(programName,
                                     if (status) BenchmarkResult.Status.PASSED else BenchmarkResult.Status.FAILED,
                                     time, BenchmarkResult.Metric.COMPILE_TIME, time, 1, 0)
         }
