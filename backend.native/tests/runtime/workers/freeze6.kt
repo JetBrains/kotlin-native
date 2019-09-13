@@ -34,10 +34,11 @@ fun ensureNeverFrozenFailsTarget(){
     println("OK")
 }
 
-fun createInvalidRef1(): FreezableAtomicReference<Any?> {
+fun createRef1(): FreezableAtomicReference<Any?> {
     val ref = FreezableAtomicReference<Any?>(null)
     ref.value = ref
     ref.freeze()
+    ref.value = null
 
     return ref
 }
@@ -46,7 +47,7 @@ var global = 0
 
 @Test
 fun ensureFreezableHandlesCycles1() {
-    val ref = createInvalidRef1()
+    val ref = createRef1()
     kotlin.native.internal.GC.collect()
 
     val obj: Any = ref
@@ -61,18 +62,17 @@ class Node(var ref: Any?)
  *             V        |
  *             ref2  ---
  */
-fun createInvalidRef2(): FreezableAtomicReference<Node?> {
+fun createRef2(): FreezableAtomicReference<Node?> {
     val ref1 = FreezableAtomicReference<Node?>(null)
 
     val node = Node(null)
     val ref3 = FreezableAtomicReference<Any?>(node)
     val ref2 = FreezableAtomicReference<Any?>(ref3)
-    node.ref = ref2
 
+    node.ref = ref2
     ref1.value = node
 
     ref1.freeze()
-    ref2.value = null
     ref3.value = null
 
     return ref1
@@ -80,8 +80,28 @@ fun createInvalidRef2(): FreezableAtomicReference<Node?> {
 
 @Test
 fun ensureFreezableHandlesCycles2() {
-    val ref = createInvalidRef2()
+    val ref = createRef2()
     kotlin.native.internal.GC.collect()
 
+    assert(ref.value.toString().length > 0)
     global = ref.value!!.ref!!.hashCode()
+}
+
+fun createRef3(): FreezableAtomicReference<Any?> {
+    val ref = FreezableAtomicReference<Any?>(null)
+    val node = Node(ref)
+    ref.value = node
+    ref.freeze()
+    return ref
+}
+
+@Test
+fun ensureFreezableHandlesCycles3() {
+    val ref = createRef3()
+    ref.value = null
+    kotlin.native.internal.GC.collect()
+
+    val obj: Any = ref
+    assert(obj.toString().length > 0)
+    global = obj.hashCode()
 }

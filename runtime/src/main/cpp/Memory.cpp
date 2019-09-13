@@ -2313,7 +2313,13 @@ void freezeCyclic(ObjHeader* root,
     int internalRefsCount = 0;
     int totalCount = 0;
     for (auto* container : component) {
+      RuntimeAssert(!isAggregatingFrozenContainer(container), "Must not be called on such containers");
       totalCount += container->refCount();
+      auto* obj = reinterpret_cast<ObjHeader*>(container + 1);
+      if (isFreezableAtomic(obj)) {
+        RuntimeAssert(component.size() == 1, "Must be trivial condensation");
+        continue;
+      }
       traverseContainerReferredObjects(container, [&internalRefsCount](ObjHeader* obj) {
           auto* container = obj->container();
           if (canFreeze(container))
