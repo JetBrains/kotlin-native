@@ -44,11 +44,11 @@ class ToolConfig(userProvidedTargetName: String?, flavor: KotlinPlatform) {
     val platformCompilerOpts = if (flavor == KotlinPlatform.JVM)
             platform.clang.hostCompilerArgsForJni.toList() else emptyList()
 
-    val llvmHome = platform.absoluteLlvmHome
+    val llvmHome = "/Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr"
     val sysRoot = platform.absoluteTargetSysRoot
 
     val libclang = when (host) {
         KonanTarget.MINGW_X64 -> "$llvmHome/bin/libclang.dll"
-        else -> "$llvmHome/lib/${System.mapLibraryName("clang")}"
+        else -> "/Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/${System.mapLibraryName("clang")}"
     }
 }
