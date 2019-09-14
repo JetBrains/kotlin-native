@@ -3199,6 +3199,13 @@ enum class CXCursorKind(override val value: Int) : CEnum {
     CXCursor_VisibilityAttr(417),
     CXCursor_DLLExport(418),
     CXCursor_DLLImport(419),
+    CXCursor_ObjCRootClass(431),
+    CXCursor_ObjCSubclassingRestricted(432),
+    CXCursor_ObjCExplicitProtocolImpl(433),
+    CXCursor_ObjCDesignatedInitializer(434),
+    CXCursor_ObjCRuntimeVisible(435),
+    CXCursor_ObjCBoxable(436),
+    CXCursor_FlagEnum(437),
     CXCursor_PreprocessingDirective(500),
     CXCursor_MacroDefinition(501),
     CXCursor_MacroExpansion(502),
@@ -3230,7 +3237,7 @@ enum class CXCursorKind(override val value: Int) : CEnum {
         val CXCursor_FriendDecl = CXCursor_LastExtraDecl
         val CXCursor_FirstExtraDecl = CXCursor_ModuleImportDecl
         
-        fun byValue(value: Int) = CXCursorKind.values().find { it.value == value }!!
+        fun byValue(value: Int) = CXCursorKind.values().find { it.value == value } ?: error("Can't find CXCursor code=${value}")
     }
     
     class Var(rawPtr: NativePtr) : CEnumVar(rawPtr) {
