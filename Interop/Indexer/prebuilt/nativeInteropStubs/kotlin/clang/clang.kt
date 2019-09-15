@@ -3199,6 +3199,17 @@ enum class CXCursorKind(override val value: Int) : CEnum {
     CXCursor_VisibilityAttr(417),
     CXCursor_DLLExport(418),
     CXCursor_DLLImport(419),
+    CXCursor_NSReturnsRetained (420),
+    CXCursor_NSReturnsNotRetained(421),
+    CXCursor_NSReturnsAutoreleased(422),
+    CXCursor_NSConsumesSelf(423),
+    CXCursor_NSConsumed(424),
+    CXCursor_ObjCException(425),
+    CXCursor_ObjCNSObject(426),
+    CXCursor_ObjCIndependentClass(427),
+    CXCursor_ObjCPreciseLifetime(428),
+    CXCursor_ObjCReturnsInnerPointer(429),
+    CXCursor_ObjCRequiresSuper(430),
     CXCursor_ObjCRootClass(431),
     CXCursor_ObjCSubclassingRestricted(432),
     CXCursor_ObjCExplicitProtocolImpl(433),
@@ -3408,13 +3419,16 @@ enum class CXTypeKind(override val value: Int) : CEnum {
     CXType_OCLEvent(158),
     CXType_OCLQueue(159),
     CXType_OCLReserveID(160),
+    CXType_ObjCObject(161),
+    CXType_ObjCTypeParam(162),
+    CXType_Attributed(163),
     ;
     
     companion object {
         val CXType_FirstBuiltin = CXType_Void
         val CXType_LastBuiltin = CXType_Float16
         
-        fun byValue(value: Int) = CXTypeKind.values().find { it.value == value }!!
+        fun byValue(value: Int) = CXTypeKind.values().find { it.value == value } ?: error("CXTypeKind with $value not found")
     }
     
     class Var(rawPtr: NativePtr) : CEnumVar(rawPtr) {
