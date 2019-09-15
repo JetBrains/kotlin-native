@@ -410,7 +410,6 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
     val runtimeFile = context.config.distribution.runtime(target)
     val runtime = Runtime(runtimeFile) // TODO: dispose
 
-    val targetTriple = runtime.target
     val targetTriple = "x86_64-apple-ios13.0-macabi" //  runtime.target
 
     init {
