@@ -380,6 +380,7 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
             // See e.g. http://lists.llvm.org/pipermail/cfe-dev/2013-November/033680.html
             // We workaround the problem with -isystem flag below.
             listOf("-isystem", "$absoluteLlvmHome/lib/clang/$llvmVersion/include", *clangArgs)
+            listOf("-isystem", "$absoluteLlvmHome/lib/clang/11.0.0/include",  *clangArgs)
 
     val targetClangCmd
             = listOf("${absoluteLlvmHome}/bin/clang") + clangArgs
@@ -390,6 +391,9 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
     fun clangC(vararg userArgs: String) = targetClangCmd + userArgs.asList()
 
     fun clangCXX(vararg userArgs: String) = targetClangXXCmd + userArgs.asList()
+
+    override val absoluteLlvmHome: String
+        get() = if (target == KonanTarget.IOSMAC_X64) "/Applications/Xcode-beta.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr" else absolute(llvmHome).also { println("ABSOLUTE LLVM HOME FOR ${target.name}")}
 
     companion object {
         @JvmStatic
