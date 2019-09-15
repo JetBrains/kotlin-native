@@ -61,6 +61,10 @@ internal open class Struct(val type: LLVMTypeRef?, val elements: List<ConstValue
                     "Unexpected type at $index: expected ${LLVMPrintTypeToString(expectedType)!!.toKString()} " +
                             "got ${LLVMPrintTypeToString(it.type)!!.toKString()}"
                 }
+//                assert(it.type == expectedType) {
+//                    "Unexpected type at $index: expected ${LLVMPrintTypeToString(expectedType)!!.toKString()} " +
+//                            "got ${LLVMPrintTypeToString(it.type)!!.toKString()}"
+//                }
             }
         }
     }.toCValues(), elements.size)!!
