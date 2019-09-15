@@ -411,6 +411,7 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
     val runtime = Runtime(runtimeFile) // TODO: dispose
 
     val targetTriple = runtime.target
+    val targetTriple = "x86_64-apple-ios13.0-macabi" //  runtime.target
 
     init {
         LLVMSetDataLayout(llvmModule, runtime.dataLayout)
