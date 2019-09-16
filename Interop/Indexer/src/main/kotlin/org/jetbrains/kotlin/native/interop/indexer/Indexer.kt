@@ -220,6 +220,7 @@ internal class NativeIndexImpl(val library: NativeLibrary, val verbose: Boolean 
             if (name.isNotEmpty()) {
                 val fieldType = convertCursorType(fieldCursor)
                 val offset = clang_Type_getOffsetOf(structType, name)
+println("name = $name, offset = $offset")
                 val member = if (offset < 0) {
                     IncompleteField(name, fieldType)
                 } else if (clang_Cursor_isBitField(fieldCursor) == 0) {

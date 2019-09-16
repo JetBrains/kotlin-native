@@ -96,8 +96,8 @@ DISubprogramRef DICreateFunction(DIBuilderRef builder, DIScopeOpaqueRef scope,
                                                           lineNo,
                                                           llvm::unwrap(type),
                                                           isLocal,
-                                                          isDefinition,
-                                                          scopeLine));
+                                                          (llvm::DINode::DIFlags)isDefinition,
+                                                          (llvm::DISubprogram::DISPFlags)scopeLine));
 }
 
 DIScopeOpaqueRef DICreateLexicalBlockFile(DIBuilderRef builderRef, DIScopeOpaqueRef scopeRef, DIFileRef fileRef) {

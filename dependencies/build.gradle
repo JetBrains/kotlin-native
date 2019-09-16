@@ -31,7 +31,7 @@ buildscript {
  * The set of dependencies is determined by konanPropertiesLoader.
  */
 class NativeDep extends DefaultTask {
-    static final String baseUrl = "https://cache-redirector.jetbrains.com/download.jetbrains.com/kotlin/native"
+    static final String baseUrl = "http://localhost:8000"
 
     KonanPropertiesLoader konanPropertiesLoader = null
 

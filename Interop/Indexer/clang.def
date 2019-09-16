@@ -9,7 +9,7 @@ linkerOpts.linux = -Wl,-z,noexecstack
 
 linker = clang++
 
-linkerOpts = -fPIC
+linkerOpts = -fPIC -v
 
 strictEnums = CXErrorCode CXCursorKind CXTypeKind CXDiagnosticSeverity CXLoadDiag_Error CXSaveError \
     CXTUResourceUsageKind CXLinkageKind CXVisibilityKind CXLanguageKind CXCallingConv CXChildVisitResult \
