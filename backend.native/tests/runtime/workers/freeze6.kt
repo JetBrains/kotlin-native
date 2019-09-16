@@ -7,7 +7,7 @@ package runtime.workers.freeze6
 
 import kotlin.test.*
 import kotlin.native.concurrent.*
-
+import kotlin.native.ref.*
 
 data class Hi(val s: String)
 data class Nested(val hi: Hi)
@@ -75,6 +75,11 @@ fun createRef2(): FreezableAtomicReference<Node?> {
     ref1.freeze()
     ref3.value = null
 
+    assert(node.isFrozen)
+    assert(ref1.isFrozen)
+    assert(ref2.isFrozen)
+    assert(ref3.isFrozen)
+
     return ref1
 }
 
@@ -92,6 +97,10 @@ fun createRef3(): FreezableAtomicReference<Any?> {
     val node = Node(ref)
     ref.value = node
     ref.freeze()
+
+    assert(node.isFrozen)
+    assert(ref.isFrozen)
+
     return ref
 }
 
@@ -104,4 +113,25 @@ fun ensureFreezableHandlesCycles3() {
     val obj: Any = ref
     assert(obj.toString().length > 0)
     global = obj.hashCode()
+}
+
+lateinit var weakRef: WeakReference<Any>
+
+fun createRef4(): FreezableAtomicReference<Any?> {
+    val ref = FreezableAtomicReference<Any?>(null)
+    val node = Node(ref)
+    weakRef = WeakReference(node)
+    ref.value = node
+    ref.freeze()
+    return ref
+}
+
+@Test
+fun ensureWeakRefNotLeaks() {
+    val ref = createRef4()
+    assert(weakRef.get() != null)
+    ref.value = null
+    kotlin.native.internal.GC.collect()
+
+    assert(weakRef.get() == null)
 }
