@@ -45,7 +45,7 @@ internal fun produceCStubs(context: Context) {
     }
 }
 
-private fun linkAllDependecies(context: Context, generatedBitcodeFiles: List<String>) {
+private fun linkAllDependencies(context: Context, generatedBitcodeFiles: List<String>) {
     val runtimeNativeLibraries = context.config.runtimeNativeLibraries
             .takeIf { context.producedLlvmModuleContainsStdlib }.orEmpty()
     val launcherNativeLibraries = context.config.launcherNativeLibraries
@@ -108,7 +108,7 @@ internal fun produceOutput(context: Context) {
             if (produce == CompilerOutputKind.FRAMEWORK && context.config.produceStaticFramework) {
                 embedAppleLinkerOptionsToBitcode(context.llvm, context.config)
             }
-            linkAllDependecies(context, generatedBitcodeFiles)
+            linkAllDependencies(context, generatedBitcodeFiles)
             runLlvmPipeline(context)
             // Insert `_main` after pipeline so we won't worry about optimizations
             // corrupting entry point.

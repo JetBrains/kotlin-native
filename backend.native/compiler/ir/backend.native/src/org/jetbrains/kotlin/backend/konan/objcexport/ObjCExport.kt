@@ -42,7 +42,11 @@ internal class ObjCExport(val context: Context, symbolTable: SymbolTable) {
     private fun produceInterface(): ObjCExportedInterface? {
         if (!target.family.isAppleFamily) return null
 
-        if (!context.config.produce.isFinalBinary) return null // TODO: emit RTTI to the same modules as classes belong to.
+        if (!context.config.produce.isFinalBinary) return null
+
+        // TODO: emit RTTI to the same modules as classes belong to.
+        //   Not possible yet, since ObjCExport translates the entire "world" API at once
+        //   and can't do this per-module, e.g. due to global name conflict resolution.
 
         val produceFramework = context.config.produce == CompilerOutputKind.FRAMEWORK
 
