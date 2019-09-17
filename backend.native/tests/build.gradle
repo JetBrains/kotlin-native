@@ -3335,6 +3335,13 @@ Task interopTest(String name, Closure<KonanInteropTest> configureClosure) {
     }
 }
 
+
+standaloneTest("interop_objc_allocException") {
+    disabled = !isAppleTarget(project)
+    expectedExitStatus = 0
+    source = "interop/objc/allocException.kt"
+}
+
 interopTest("interop0") {
     disabled = (project.testTarget == 'wasm32') ||         // No interop for wasm yet.
                (project.testTarget == 'linux_mips32') ||   //  st_uid of '/' is not equal to 0 when using qemu
@@ -3558,6 +3565,7 @@ dynamicTest("produce_dynamic") {
                 "RO property is 42\n" +
                 "RW property is 239\n" +
                 "enum100 = 100\n" +
+                "enum42 = 42\n" +
                 "object = 42\n" +
                 "singleton = I am single\n" +
                 "mutable = foo\n" +

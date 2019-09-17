@@ -150,7 +150,7 @@ internal interface ContextUtils : RuntimeAware {
      * or just drop all [else] branches of corresponding conditionals.
      */
     fun isExternal(declaration: IrDeclaration): Boolean {
-        return false
+        return !context.llvmModuleSpecification.containsDeclaration(declaration)
     }
 
     /**
@@ -399,6 +399,8 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
         context.config.resolvedLibraries
                 .getFullList(TopologicalLibraryOrder)
                 .filter { (!it.isDefault && !context.config.purgeUserLibs) || imports.bitcodeIsUsed(it) }
+                // TODO: the filter above is incorrect when compiling to multiple LLVM modules.
+                .filter { context.llvmModuleSpecification.containsLibrary(it) }
     }
 
     val additionalProducedBitcodeFiles = mutableListOf<String>()
@@ -524,7 +526,7 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
     val usedFunctions = mutableListOf<LLVMValueRef>()
     val usedGlobals = mutableListOf<LLVMValueRef>()
     val compilerUsedGlobals = mutableListOf<LLVMValueRef>()
-    val staticInitializers = mutableListOf<LLVMValueRef>()
+    val staticInitializers = mutableListOf<StaticInitializer>()
     val fileInitializers = mutableListOf<IrField>()
     val objects = mutableSetOf<LLVMValueRef>()
     val sharedObjects = mutableSetOf<LLVMValueRef>()
@@ -546,3 +548,5 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
     val llvmFloat = LLVMFloatType()!!
     val llvmDouble = LLVMDoubleType()!!
 }
+
+class StaticInitializer(val file: IrFile, val initializer: LLVMValueRef)
