@@ -63,7 +63,7 @@ if (libclangextIsEnabled) {
             "clangToolingCore",
             "clangTooling", "clangFormat", "LLVMTarget", "LLVMMC", "LLVMLinker", "LLVMTransformUtils",
             "LLVMBitWriter", "LLVMBitReader", "LLVMAnalysis", "LLVMProfileData", "LLVMCore",
-            "LLVMSupport", "LLVMBinaryFormat", "LLVMDemangle", "LLVMRemarks"
+            "LLVMSupport", "LLVMBinaryFormat", "LLVMDemangle"
     ].collect { "$llvmDir/lib/lib${it}.a".toString() }
 
     ldflags.addAll(llvmLibs)

@@ -87,6 +87,7 @@ fun invokeInterop(flavor: String, args: Array<String>): Array<String> {
         (if (noEndorsedLibs) arrayOf("-$NOENDORSEDLIBS") else emptyArray()) +
         (if (purgeUserLibs) arrayOf("-$PURGE_USER_LIBS") else emptyArray())
 
+println(konancArgs.joinToString { " " })
     return konancArgs
 }
 

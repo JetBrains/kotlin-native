@@ -198,6 +198,7 @@ open class KonanInteropTask @Inject constructor(val workerExecutor: WorkerExecut
 
 
         override fun run() {
+            println(args)
             val toolRunner = interchangeBox.remove(taskName) ?: error(":(")
             toolRunner.run(args)
         }
