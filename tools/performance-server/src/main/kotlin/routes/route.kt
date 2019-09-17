@@ -14,12 +14,6 @@ import org.jetbrains.analyzer.*
 import org.jetbrains.report.*
 
 const val teamCityUrl = "https://buildserver.labs.intellij.net/app/rest"
-const val downloadBintrayUrl = "https://dl.bintray.com/content/lepilkinaelena/KotlinNativePerformance"
-const val uploadBintrayUrl = "https://api.bintray.com/content/lepilkinaelena/KotlinNativePerformance"
-const val buildsFileName = "buildsSummary.csv"
-const val goldenResultsFileName = "goldenResults.csv"
-const val bintrayPackage = "builds"
-const val buildsInfoPartsNumber = 11
 
 operator fun <K, V> Map<K, V>?.get(key: K) = this?.get(key)
 
@@ -172,12 +166,11 @@ fun router() {
             }
         }
         getBuildsForParameters(branch, target).then { results ->
-            val filteredBuildNumbers = orderedBuildNumbers((results as List<String>), "${request.params.type}")
+            val filteredBuildNumbers = orderedBuildNumbers(results, "${request.params.type}")
             val responseLists = filteredBuildNumbers.map {
                 // Select needed measurements.
                 measurement.select(measurement.all(), (measurement.tag("environment.machine.os") eq target) and
-                        (measurement.field("build.number") eq FieldType.InfluxString(it))).then { dbResponse ->
-                    val measurements = (dbResponse as List<BenchmarkMeasurement>)
+                        (measurement.field("build.number") eq FieldType.InfluxString(it))).then { measurements ->
                     val report = measurements.toReport()
                     val failuresNumber = report?.let { report ->
                         val summaryReport = SummaryBenchmarksReport(report)
@@ -233,7 +226,7 @@ fun router() {
         val golden = GoldenResultMeasurement()
         val goldenResults = golden.select(golden.all()).then { results ->
             val parsedNormalizeResults = mutableMapOf<String, MutableMap<String, Double>>()
-            (results as List<GoldenResultMeasurement>).forEach {
+            results.forEach {
                 parsedNormalizeResults.getOrPut(it.benchmarkName!!,
                         { mutableMapOf<String, Double>() })[it.benchmarkMetric!!] = it.benchmarkScore!!.value
             }
@@ -247,12 +240,12 @@ fun router() {
 
         Promise.all(arrayOf(buildsNumbers, goldenResults)).then { results ->
             val (buildsNumbers, goldenResults) = results
-            val filteredBuildNumbers = orderedBuildNumbers((buildsNumbers as List<String>), "${request.params.type}")
+            val filteredBuildNumbers = orderedBuildNumbers(buildsNumbers, "${request.params.type}")
             val responseLists = filteredBuildNumbers.map {
                 // Get points for this build.
                 measurement.select(measurement.all(), (measurement.tag("environment.machine.os") eq target) and
                         (measurement.field("build.number") eq FieldType.InfluxString(it))).then { dbResponse ->
-                    val report = (dbResponse as List<BenchmarkMeasurement>).toReport()
+                    val report = dbResponse.toReport()
                     report?.let { report ->
                         val dataForNormalization = if (normalize)
                             { goldenResults as Map<String, Map<String, Double>> } else null

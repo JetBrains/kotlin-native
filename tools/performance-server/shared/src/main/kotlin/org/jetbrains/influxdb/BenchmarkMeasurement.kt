@@ -20,7 +20,7 @@ class CommitsList(data: JsonElement): ConvertedFromJson {
 
     init {
         if (data !is JsonObject) {
-            error("Commits description is expected to be a json object!")
+            error("Commits description is expected to be a JSON object!")
         }
         val changesElement = data.getOptionalField("change")
         commits = changesElement?.let {
@@ -45,7 +45,7 @@ data class BuildInfo(val number: String, val startTime: String, val endTime: Str
                      val branch: String)
 
 // Database instance describing golden result value.
-class GoldenResultMeasurement(name: String = "", metric: String = "", score: Double = 0.0): Measurement("goldenResults") {
+class GoldenResultMeasurement(name: String = "", metric: String = "", score: Double = 0.0): Measurement<GoldenResultMeasurement>("goldenResults") {
     var benchmarkName by Tag<String>("benchmark.name")
     var benchmarkScore by Field<FieldType.InfluxFloat>("benchmark.score")
     var benchmarkMetric by Tag<String>("benchmark.metric")
@@ -56,7 +56,7 @@ class GoldenResultMeasurement(name: String = "", metric: String = "", score: Dou
         benchmarkMetric = metric
     }
 
-    override fun fromInfluxJson(data: JsonElement): List<Measurement> {
+    override fun fromInfluxJson(data: JsonElement): List<GoldenResultMeasurement> {
         val points = mutableListOf<GoldenResultMeasurement>()
         var columnsIndexes: Map<String, Int>
         if (data is JsonObject) {
@@ -109,7 +109,7 @@ fun List<BenchmarkMeasurement>.toReport(): BenchmarksReport? {
 }
 
 // Database instance describing benchmark.
-class BenchmarkMeasurement : Measurement("benchmarks") {
+class BenchmarkMeasurement : Measurement<BenchmarkMeasurement>("benchmarks") {
     fun initBuildInfo(buildInfo: BuildInfo) {
         buildNumber = FieldType.InfluxString(buildInfo.number)
         buildBranch = FieldType.InfluxString(buildInfo.branch)
@@ -266,7 +266,7 @@ class BenchmarkMeasurement : Measurement("benchmarks") {
         }
     }
 
-    override fun fromInfluxJson(data: JsonElement): List<Measurement> {
+    override fun fromInfluxJson(data: JsonElement): List<BenchmarkMeasurement> {
         val points = mutableListOf<BenchmarkMeasurement>()
         var columnsIndexes: Map<String, Int>
         if (data is JsonObject) {
