@@ -127,11 +127,32 @@ fun createRef4(): FreezableAtomicReference<Any?> {
 }
 
 @Test
-fun ensureWeakRefNotLeaks() {
+fun ensureWeakRefNotLeaks1() {
     val ref = createRef4()
     assert(weakRef.get() != null)
     ref.value = null
     kotlin.native.internal.GC.collect()
 
     assert(weakRef.get() == null)
+}
+
+lateinit var node1: Node
+lateinit var weakNode2: WeakReference<Node>
+
+fun createRef5() {
+    val ref = FreezableAtomicReference<Any?>(null)
+    node1 = Node(ref)
+    val node2 = Node(node1)
+    weakNode2 = WeakReference(node2)
+    ref.value = node2
+    node1.freeze()
+    assert(weakNode2.get() != null)
+    ref.value = null
+}
+
+@Test
+fun ensureWeakRefNotLeaks2() {
+    createRef5()
+    kotlin.native.internal.GC.collect()
+    assert(weakNode2.get() == null)
 }
