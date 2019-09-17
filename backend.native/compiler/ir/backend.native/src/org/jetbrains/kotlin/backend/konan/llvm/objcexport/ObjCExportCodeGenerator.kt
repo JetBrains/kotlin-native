@@ -27,6 +27,7 @@ import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.isReal
 import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.konan.target.Family
+import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.name.Name
 
 internal fun TypeBridge.makeNothing() = when (this) {
@@ -1324,4 +1325,9 @@ private val TypeBridge.objCEncoding: String get() = when (this) {
     is ValueTypeBridge -> this.objCValueType.encoding
 }
 
-internal fun Context.is64Bit(): Boolean = this.config.target.architecture.bitness == 64
+// TODO: In presence of arm64_32 target semantics of this function became unclear.
+//   Maybe separate into `is64BitLong`, `is64BitPointer`?
+internal fun Context.is64Bit(): Boolean = this.config.target.let {
+    // We work with watchos_arm64 the same as we work with watchos_arm32.
+    it.architecture.bitness == 64 && it != KonanTarget.WATCHOS_ARM64
+}
