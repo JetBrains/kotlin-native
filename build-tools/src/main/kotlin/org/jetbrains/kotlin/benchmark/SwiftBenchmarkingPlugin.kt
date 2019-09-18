@@ -5,15 +5,15 @@ import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.artifacts.Dependency
-import org.gradle.jvm.tasks.Jar
 import org.gradle.util.ConfigureUtil
 import org.jetbrains.kotlin.*
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTargetPreset
 import org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType
-import org.jetbrains.kotlin.konan.target.HostManager
+import java.io.File
 import javax.inject.Inject
+import java.nio.file.Paths
 
 private val NamedDomainObjectContainer<KotlinSourceSet>.commonMain
     get() = maybeCreate("commonMain")
@@ -21,17 +21,11 @@ private val NamedDomainObjectContainer<KotlinSourceSet>.commonMain
 private val NamedDomainObjectContainer<KotlinSourceSet>.nativeMain
     get() = maybeCreate("nativeMain")
 
-private val NamedDomainObjectContainer<KotlinSourceSet>.jvmMain
-    get() = maybeCreate("jvmMain")
-
-private val Project.benchmark: BenchmarkExtension
-    get() = extensions.getByName(BenchmarkingPlugin.BENCHMARK_EXTENSION_NAME) as BenchmarkExtension
+private val Project.benchmark: SwiftBenchmarkExtension
+    get() = extensions.getByName(SwiftBenchmarkingPlugin.BENCHMARK_EXTENSION_NAME) as SwiftBenchmarkExtension
 
 private val Project.nativeWarmup: Int
     get() = (property("nativeWarmup") as String).toInt()
-
-private val Project.jvmWarmup: Int
-    get() = (property("jvmWarmup") as String).toInt()
 
 private val Project.attempts: Int
     get() = (property("attempts") as String).toInt()
@@ -39,47 +33,19 @@ private val Project.attempts: Int
 private val Project.nativeBenchResults: String
     get() = property("nativeBenchResults") as String
 
-private val Project.jvmBenchResults: String
-    get() = property("jvmBenchResults") as String
-
 private val Project.compilerArgs: List<String>
     get() = (findProperty("compilerArgs") as String?)?.split("\\s").orEmpty()
 
-internal val Project.kotlinVersion: String
-    get() = property("kotlinVersion") as String
+enum class CodeSizeEntity { FRAMEWORK, EXECUTABLE }
 
-internal val Project.konanVersion: String
-    get() = property("konanVersion") as String
-
-internal val Project.kotlinStdlibVersion: String
-    get() = property("kotlinStdlibVersion") as String
-
-internal val Project.kotlinStdlibRepo: String
-    get() = property("kotlinStdlibRepo") as String
-
-internal val Project.nativeJson: String
-    get() = project.property("nativeJson") as String
-
-internal val Project.jvmJson: String
-    get() = project.property("jvmJson") as String
-
-internal val Project.commonBenchmarkProperties: Map<String, Any>
-    get() = mapOf(
-        "cpu" to System.getProperty("os.arch"),
-        "os" to System.getProperty("os.name"),
-        "jdkVersion" to System.getProperty("java.version"),
-        "jdkVendor" to System.getProperty("java.vendor"),
-        "kotlinVersion" to kotlinVersion
-    )
-
-open class BenchmarkExtension @Inject constructor(val project: Project) {
+open class SwiftBenchmarkExtension @Inject constructor(val project: Project) {
     var applicationName: String = project.name
     var commonSrcDirs: Collection<Any> = emptyList()
-    var jvmSrcDirs: Collection<Any> = emptyList()
     var nativeSrcDirs: Collection<Any> = emptyList()
-    var mingwSrcDirs: Collection<Any> = emptyList()
-    var posixSrcDirs: Collection<Any> = emptyList()
+    var swiftSources: List<String> = emptyList()
     var linkerOpts: Collection<String> = emptyList()
+    var compileTasks: List<String> = emptyList()
+    var useCodeSize: CodeSizeEntity = CodeSizeEntity.FRAMEWORK         // use as code size metric framework size or executable
 
     val dependencies: BenchmarkDependencies = BenchmarkDependencies()
 
@@ -103,10 +69,6 @@ open class BenchmarkExtension @Inject constructor(val project: Project) {
             implementation(notation)
         }
 
-        fun jvm(notation: Any) = sourceSets.jvmMain.dependencies {
-            implementation(notation)
-        }
-
         fun native(notation: Any) = sourceSets.nativeMain.dependencies {
             implementation(notation)
         }
@@ -116,23 +78,13 @@ open class BenchmarkExtension @Inject constructor(val project: Project) {
 /**
  * A plugin configuring a benchmark Kotlin/Native project.
  */
-open class BenchmarkingPlugin: Plugin<Project> {
-
-    private val mingwPath: String = System.getenv("MINGW64_DIR") ?: "c:/msys64/mingw64"
-
-    private fun Project.determinePreset(): KotlinNativeTargetPreset =
-        defaultHostPreset(this).also { preset ->
-            logger.quiet("$project has been configured for ${preset.name} platform.")
-        } as KotlinNativeTargetPreset
+open class SwiftBenchmarkingPlugin: Plugin<Project> {
+    private fun Project.determinePreset(): KotlinNativeTargetPreset = kotlin.presets.macosX64 as KotlinNativeTargetPreset
 
     private fun Project.configureSourceSets(kotlinVersion: String) {
         with(kotlin.sourceSets) {
             commonMain.dependencies {
                 implementation("org.jetbrains.kotlin:kotlin-stdlib-common:$kotlinStdlibVersion")
-            }
-
-            jvmMain.dependencies {
-                implementation("org.jetbrains.kotlin:kotlin-stdlib-jdk8:$kotlinStdlibVersion")
             }
 
             project.configurations.getByName(nativeMain.implementationConfigurationName).apply {
@@ -148,24 +100,7 @@ open class BenchmarkingPlugin: Plugin<Project> {
             afterEvaluate {
                 benchmark.let {
                     commonMain.kotlin.srcDirs(*it.commonSrcDirs.toTypedArray())
-                    if (HostManager.hostIsMingw) {
-                        nativeMain.kotlin.srcDirs(*(it.nativeSrcDirs + it.mingwSrcDirs).toTypedArray())
-                    } else {
-                       nativeMain.kotlin.srcDirs(*(it.nativeSrcDirs + it.posixSrcDirs).toTypedArray())
-                    }
-                    jvmMain.kotlin.srcDirs(*it.jvmSrcDirs.toTypedArray())
-                }
-            }
-        }
-    }
-
-    private fun Project.configureJVMTarget() {
-        kotlin.jvm {
-            compilations.all {
-                it.compileKotlinTask.kotlinOptions {
-                    jvmTarget = "1.8"
-                    suppressWarnings = true
-                    freeCompilerArgs = project.compilerArgs
+                    nativeMain.kotlin.srcDirs(*(it.nativeSrcDirs).toTypedArray())
                 }
             }
         }
@@ -173,18 +108,8 @@ open class BenchmarkingPlugin: Plugin<Project> {
 
     private fun Project.configureNativeTarget(hostPreset: KotlinNativeTargetPreset) {
         kotlin.targetFromPreset(hostPreset, NATIVE_TARGET_NAME) {
-            compilations.getByName("main").kotlinOptions.freeCompilerArgs = project.compilerArgs
-            compilations.getByName("main").enableEndorsedLibs = true
-            binaries.executable(NATIVE_EXECUTABLE_NAME, listOf(RELEASE)) {
-                if (HostManager.hostIsMingw) {
-                    linkerOpts.add("-L${mingwPath}/lib")
-                }
-
-                runTask!!.apply {
-                    group = ""
-                    enabled = false
-                }
-
+            compilations.getByName("main").kotlinOptions.freeCompilerArgs = project.compilerArgs + listOf("-l", "kotlinx-cli")
+            binaries.framework(NATIVE_FRAMEWORK_NAME, listOf(RELEASE)) {
                 // Specify settings configured by a user in the benchmark extension.
                 afterEvaluate {
                     linkerOpts.addAll(benchmark.linkerOpts)
@@ -193,20 +118,29 @@ open class BenchmarkingPlugin: Plugin<Project> {
         }
     }
 
-
     private fun Project.configureMPPExtension() {
         configureSourceSets(kotlinVersion)
-        configureJVMTarget()
         configureNativeTarget(determinePreset())
     }
 
-
     private fun Project.configureTasks() {
-        // Native run task.
         val nativeTarget = kotlin.targets.getByName(NATIVE_TARGET_NAME) as KotlinNativeTarget
-        val nativeExecutable = nativeTarget.binaries.getExecutable(NATIVE_EXECUTABLE_NAME, NativeBuildType.RELEASE)
-        val konanRun = createRunTask(this, "konanRun", nativeExecutable.linkTask,
-                nativeExecutable.linkTask.binary.outputFile.absolutePath,
+        val executable = Paths.get(buildDir.absolutePath, benchmark.applicationName)
+        // Build executable from swift code.
+        val framework = nativeTarget.binaries.getFramework(NATIVE_FRAMEWORK_NAME, NativeBuildType.RELEASE)
+        val buildSwift = tasks.create("buildSwift") { task ->
+            task.dependsOn(framework.linkTaskName)
+            task.doLast {
+                val frameworkParentDirPath = framework.outputDirectory.absolutePath
+                val options = listOf("-Xlinker", "-rpath", "-Xlinker", frameworkParentDirPath, "-F", frameworkParentDirPath)
+                compileSwift(project, nativeTarget.konanTarget, benchmark.swiftSources, options,
+                        Paths.get(buildDir.absolutePath, benchmark.applicationName), false)
+            }
+        }
+        framework.linkTask.finalizedBy(buildSwift)
+
+        // Native run task.
+        val konanRun = createRunTask(this, "konanRun", buildSwift, executable.toString(),
                 buildDir.resolve(nativeBenchResults).absolutePath).apply {
             group = BENCHMARKING_GROUP
             description = "Runs the benchmark for Kotlin/Native."
@@ -219,28 +153,6 @@ open class BenchmarkingPlugin: Plugin<Project> {
             )
         }
 
-        // JVM run task.
-        val jvmRun = tasks.create("jvmRun", RunJvmTask::class.java) { task ->
-            task.dependsOn("build")
-            val mainCompilation = kotlin.jvm().compilations.getByName("main")
-            val runtimeDependencies = configurations.getByName(mainCompilation.runtimeDependencyConfigurationName)
-            task.classpath(files(mainCompilation.output.allOutputs, runtimeDependencies))
-            task.main = "MainKt"
-
-            task.group = BENCHMARKING_GROUP
-            task.description = "Runs the benchmark for Kotlin/JVM."
-
-            // Specify settings configured by a user in the benchmark extension.
-            afterEvaluate {
-                task.args(
-                    "-w", jvmWarmup,
-                    "-r", attempts,
-                    "-o", buildDir.resolve(jvmBenchResults),
-                    "-p", "${benchmark.applicationName}::"
-                )
-            }
-        }
-
         // Native report task.
         val konanJsonReport = tasks.create("konanJsonReport") {
 
@@ -249,8 +161,13 @@ open class BenchmarkingPlugin: Plugin<Project> {
 
             it.doLast {
                 val applicationName = benchmark.applicationName
-                val nativeCompileTime = getNativeCompileTime(applicationName, listOf("buildSwift"))
+                val nativeCompileTime = getNativeCompileTime(applicationName, benchmark.compileTasks)
                 val benchContents = buildDir.resolve(nativeBenchResults).readText()
+                val frameworkPath = framework.outputFile.absolutePath
+                val codeSizeEntity = if (benchmark.useCodeSize == CodeSizeEntity.FRAMEWORK)
+                    File("$frameworkPath/$NATIVE_FRAMEWORK_NAME").canonicalPath
+                else
+                    executable.toString()
 
                 val properties = commonBenchmarkProperties + mapOf(
                     "type" to "native",
@@ -258,11 +175,18 @@ open class BenchmarkingPlugin: Plugin<Project> {
                     "flags" to nativeTarget.compilations.main.kotlinOptions.freeCompilerArgs.map { "\"$it\"" },
                     "benchmarks" to benchContents,
                     "compileTime" to listOf(nativeCompileTime),
-                    "codeSize" to getCodeSizeBenchmark(applicationName, nativeExecutable.outputFile.absolutePath)
+                    "codeSize" to getCodeSizeBenchmark(applicationName, codeSizeEntity)
                 )
 
                 val output = createJsonReport(properties)
                 buildDir.resolve(nativeJson).writeText(output)
+            }
+        }
+
+        // JVM run task.
+        val jvmRun = tasks.create("jvmRun", RunJvmTask::class.java) {
+            it.doLast {
+                println("JVM run is unsupported")
             }
         }
 
@@ -273,21 +197,7 @@ open class BenchmarkingPlugin: Plugin<Project> {
             it.description = "Builds the benchmarking report for Kotlin/JVM."
 
             it.doLast {
-                val applicationName = benchmark.applicationName
-                val jarPath = (tasks.getByName("jvmJar") as Jar).archiveFile.get().asFile
-                val jvmCompileTime = getJvmCompileTime(applicationName)
-                val benchContents = buildDir.resolve(jvmBenchResults).readText()
-
-                val properties: Map<String, Any> = commonBenchmarkProperties + mapOf(
-                    "type" to "jvm",
-                    "compilerVersion" to kotlinVersion,
-                    "benchmarks" to benchContents,
-                    "compileTime" to listOf(jvmCompileTime),
-                    "codeSize" to getCodeSizeBenchmark(applicationName, jarPath.absolutePath)
-                )
-
-                val output = createJsonReport(properties)
-                buildDir.resolve(jvmJson).writeText(output)
+                println("JVM run is unsupported")
             }
 
             jvmRun.finalizedBy(it)
@@ -300,7 +210,7 @@ open class BenchmarkingPlugin: Plugin<Project> {
         // Use Kotlin compiler version specified by the project property.
         dependencies.add("kotlinCompilerClasspath", "org.jetbrains.kotlin:kotlin-compiler-embeddable:$kotlinVersion")
 
-        extensions.create(BENCHMARK_EXTENSION_NAME, BenchmarkExtension::class.java, this)
+        extensions.create(BENCHMARK_EXTENSION_NAME, SwiftBenchmarkExtension::class.java, this)
         configureMPPExtension()
         addTimeListener(this)
         configureTasks()
@@ -308,8 +218,8 @@ open class BenchmarkingPlugin: Plugin<Project> {
 
     companion object {
         const val NATIVE_TARGET_NAME = "native"
-        const val NATIVE_EXECUTABLE_NAME = "benchmark"
-        const val BENCHMARK_EXTENSION_NAME = "benchmark"
+        const val NATIVE_FRAMEWORK_NAME = "benchmark"
+        const val BENCHMARK_EXTENSION_NAME = "swiftBenchmark"
 
         const val BENCHMARKING_GROUP = "benchmarking"
     }

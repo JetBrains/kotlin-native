@@ -69,6 +69,10 @@ gradlePlugin {
             id = "compile-benchmarking"
             implementationClass = "org.jetbrains.kotlin.benchmark.CompileBenchmarkingPlugin"
         }
+        create("swiftBenchmarking") {
+            id = "swift-benchmarking"
+            implementationClass = "org.jetbrains.kotlin.benchmark.SwiftBenchmarkingPlugin"
+        }
     }
 }
 
