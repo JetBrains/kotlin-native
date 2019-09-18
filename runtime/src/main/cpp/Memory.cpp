@@ -746,12 +746,6 @@ inline bool isFreezableAtomic(ObjHeader* obj) {
   return obj->type_info() == theFreezableAtomicReferenceTypeInfo;
 }
 
-inline bool isFreezableAtomic(ContainerHeader* container) {
-  RuntimeAssert(!isAggregatingFrozenContainer(container), "Must be single object");
-  ObjHeader* obj = reinterpret_cast<ObjHeader*>(container + 1);
-  return isFreezableAtomic(obj);
-}
-
 ContainerHeader* allocContainer(MemoryState* state, size_t size) {
  ContainerHeader* result = nullptr;
 #if USE_GC
@@ -2214,7 +2208,8 @@ void traverseStronglyConnectedComponent(ContainerHeader* start,
     toVisit.pop_front();
     component->push_back(container);
     auto it = reversedEdges->find(container);
-    RuntimeAssert(it != reversedEdges->end(), "unknown node during condensation building");
+    //RuntimeAssert(it != reversedEdges->end(), "unknown node during condensation building");
+    if (it == reversedEdges->end()) continue;
     for (auto* nextContainer : it->second) {
       if (!nextContainer->marked()) {
           nextContainer->mark();
@@ -2224,91 +2219,12 @@ void traverseStronglyConnectedComponent(ContainerHeader* start,
   }
 }
 
-void zeroOutFreezableReferencesAndRebuildOrder(ObjHeader* root,
-    KStdVector<std::pair<ObjHeader**, ObjHeader*>>* patchedLocations,
-    KStdVector<ContainerHeader*>* order, KStdDeque<ObjHeader*>* rootsQueue) {
-  // Here graph is marked, so unmark while iterating.
-  KStdDeque<ObjHeader*> queue;
-  queue.push_back(root);
-  rootsQueue->push_back(root);
-  while (!queue.empty()) {
-    ObjHeader* current = queue.front();
-    queue.pop_front();
-    ContainerHeader* currentContainer = current->container();
-    currentContainer->unMark();
-    traverseContainerObjectFields(currentContainer, [&queue, &current, patchedLocations, rootsQueue](ObjHeader** location) {
-         ObjHeader* obj = *location;
-         if (obj == nullptr) return;
-         ContainerHeader* objContainer = obj->container();
-         if (canFreeze(objContainer)) {
-           // Zero-out references *from* FreezableAtomic.
-           if (isFreezableAtomic(current)) {
-             *location = nullptr;
-             patchedLocations->push_back(std::make_pair(location, obj));
-             rootsQueue->push_back(obj);
-             rootsQueue->push_back(current);
-           }
-           if (objContainer->marked()) {
-             queue.push_back(obj);
-             if (isFreezableAtomic(obj)) {
-                 // Zero-out references *to* FreezableAtomic.
-                *location = nullptr;
-                patchedLocations->push_back(std::make_pair(location, obj));
-             }
-           }
-         }
-      });
-  }
-#if TRACE_MEMORY
-  MEMORY_LOG("patched locations\n")
-  for (auto& pair: *patchedLocations) {
-     MEMORY_LOG("*%p -> %p\n", pair.first, pair.second)
-  }
-#endif  // TRACE_MEMORY
-  // How restore marked state and rebuild order.
-  // Queue is empty again.
-  for (auto* c : *rootsQueue) queue.push_back(c);
-  while (!queue.empty()) {
-      auto* obj = queue.front();
-      queue.pop_front();
-      auto* container = obj->container();
-      if (container->marked()) continue;
-      order->push_back(container);
-      container->mark();
-      traverseContainerReferredObjects(container, [&queue](ObjHeader* obj) {
-            ContainerHeader* objContainer = obj->container();
-            if (canFreeze(objContainer)) {
-              // Go deeper if WHITE.
-              if (!objContainer->marked()) {
-                queue.push_front(obj);
-              }
-            }
-          });
-   }
-#if TRACE_MEMORY
-  MEMORY_LOG("new order\n")
-  for (auto* obj: *order) {
-    MEMORY_LOG("%p\n", obj)
-  }
-#endif  // TRACE_MEMORY
-}
-
-void freezeCyclic(ObjHeader* root, bool hasFreezableAtomics,
-                  KStdVector<ContainerHeader*>* order, ContainerHeaderSet* newlyFrozen) {
+void freezeCyclic(ObjHeader* root,
+                  const KStdVector<ContainerHeader*>& order,
+                  ContainerHeaderSet* newlyFrozen) {
   KStdUnorderedMap<ContainerHeader*, KStdVector<ContainerHeader*>> reversedEdges;
   KStdDeque<ObjHeader*> queue;
-  KStdVector<std::pair<ObjHeader**, ObjHeader*>>* patchedLocations = nullptr;
-
-  MEMORY_LOG("freeze cyclic graph %s FreezableAtomic\n", hasFreezableAtomics ? "with" : "without")
-  if (hasFreezableAtomics) {
-    // If there are freezable atomics, order need to be recomputed with the altered graph, namely one
-    // where freezable atomics are zeroed out.
-    patchedLocations = konanConstructInstance<KStdVector<std::pair<ObjHeader**, ObjHeader*>>>();
-    order = konanConstructInstance<KStdVector<ContainerHeader*>>();
-    zeroOutFreezableReferencesAndRebuildOrder(root, patchedLocations, order, &queue);
-  } else {
-    queue.push_back(root);
-  }
+  queue.push_back(root);
   while (!queue.empty()) {
     ObjHeader* current = queue.front();
     queue.pop_front();
@@ -2320,9 +2236,12 @@ void freezeCyclic(ObjHeader* root, bool hasFreezableAtomics,
           if (canFreeze(objContainer)) {
             if (objContainer->marked())
               queue.push_back(obj);
+            // We ignore FreezableAtomicsReference references in both directions during condensation, to avoid KT-33824.
+            if (!isFreezableAtomic(current) && !isFreezableAtomic(obj)) {
               MEMORY_LOG("reversed %p -> %p\n", objContainer, currentContainer)
               reversedEdges.emplace(objContainer, KStdVector<ContainerHeader*>(0)).
                 first->second.push_back(currentContainer);
+             }
           }
       });
    }
@@ -2330,7 +2249,7 @@ void freezeCyclic(ObjHeader* root, bool hasFreezableAtomics,
    KStdVector<KStdVector<ContainerHeader*>> components;
    MEMORY_LOG("Condensation of %p:\n", root);
    // Enumerate in the topological order.
-   for (auto it = order->rbegin(); it != order->rend(); ++it) {
+   for (auto it = order.rbegin(); it != order.rend(); ++it) {
      auto* container = *it;
      if (container->marked()) continue;
      KStdVector<ContainerHeader*> component;
@@ -2352,11 +2271,11 @@ void freezeCyclic(ObjHeader* root, bool hasFreezableAtomics,
     for (auto* container : component) {
       RuntimeAssert(!isAggregatingFrozenContainer(container), "Must not be called on such containers");
       totalCount += container->refCount();
-#if TRACE_MEMORY
-      if (isFreezableAtomic(container)) {
+      auto* obj = reinterpret_cast<ObjHeader*>(container + 1);
+      if (isFreezableAtomic(obj)) {
         RuntimeAssert(component.size() == 1, "Must be trivial condensation");
+        continue;
       }
-#endif
       traverseContainerReferredObjects(container, [&internalRefsCount](ObjHeader* obj) {
           auto* container = obj->container();
           if (canFreeze(container))
@@ -2387,15 +2306,6 @@ void freezeCyclic(ObjHeader* root, bool hasFreezableAtomics,
     superContainer->setRefCount(totalCount - internalRefsCount);
     newlyFrozen->insert(superContainer);
   }
-
-  if (hasFreezableAtomics) {
-    // Fix patched locations.
-    for (auto it : *patchedLocations) {
-      *(it.first) = it.second;
-    }
-    konanDestructInstance(patchedLocations);
-    konanDestructInstance(order);
-  }
 }
 
 /**
@@ -2405,7 +2315,7 @@ void freezeCyclic(ObjHeader* root, bool hasFreezableAtomics,
   *  - not 'marked' and not 'seen' as WHITE marker (object is unprocessed)
   * When we see GREY during DFS, it means we see cycle.
   */
-void depthFirstTraversal(ContainerHeader* start, bool* hasCycles, bool* hasFreezableAtomics,
+void depthFirstTraversal(ContainerHeader* start, bool* hasCycles,
                          KRef* firstBlocker, KStdVector<ContainerHeader*>* order) {
   ContainerHeaderDeque toVisit;
   toVisit.push_back(start);
@@ -2422,8 +2332,6 @@ void depthFirstTraversal(ContainerHeader* start, bool* hasCycles, bool* hasFreez
       order->push_back(container);
       continue;
     }
-    if (canFreeze(container) && isFreezableAtomic(container))
-        *hasFreezableAtomics = true;
     toVisit.push_front(markAsRemoved(container));
     traverseContainerReferredObjects(container, [hasCycles, firstBlocker, &order, &toVisit](ObjHeader* obj) {
       if (*firstBlocker != nullptr)
@@ -2482,19 +2390,18 @@ void freezeSubgraph(ObjHeader* root) {
 
   // Do DFS cycle detection.
   bool hasCycles = false;
-  bool hasFreezableAtomics = false;
   KRef firstBlocker = root->has_meta_object() && ((root->meta_object()->flags_ & MF_NEVER_FROZEN) != 0) ?
     root : nullptr;
   KStdVector<ContainerHeader*> order;
-  depthFirstTraversal(rootContainer, &hasCycles, &hasFreezableAtomics, &firstBlocker, &order);
+  depthFirstTraversal(rootContainer, &hasCycles, &firstBlocker, &order);
   if (firstBlocker != nullptr) {
     MEMORY_LOG("See freeze blocker for %p: %p\n", root, firstBlocker)
     ThrowFreezingException(root, firstBlocker);
   }
   ContainerHeaderSet newlyFrozen;
-  // Now unmark all marked objects, and freeze them.
+  // Now unmark all marked objects, and freeze them, if no cycles detected.
   if (hasCycles) {
-    freezeCyclic(root, hasFreezableAtomics, &order, &newlyFrozen);
+    freezeCyclic(root, order, &newlyFrozen);
   } else {
     freezeAcyclic(rootContainer, &newlyFrozen);
   }
