@@ -174,6 +174,7 @@ abstract class BenchmarkingPlugin: Plugin<Project> {
     protected open fun Project.configureNativeTask(nativeTarget: KotlinNativeTarget): Task {
         val konanRun = createRunTask(this, "konanRun", nativeLinkTask,
                 nativeExecutable, buildDir.resolve(nativeBenchResults).absolutePath).apply {
+                nativeExecutable.linkTask.binary.outputFile.absolutePath,
             group = BENCHMARKING_GROUP
             description = "Runs the benchmark for Kotlin/Native."
         }
