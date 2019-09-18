@@ -922,6 +922,77 @@ void freeContainer(ContainerHeader* container) {
   }
 }
 
+/**
+  * Do DFS cycle detection with three colors:
+  *  - 'marked' bit as BLACK marker (object and its descendants processed)
+  *  - 'seen' bit as GRAY marker (object is being processed)
+  *  - not 'marked' and not 'seen' as WHITE marker (object is unprocessed)
+  * When we see GREY during DFS, it means we see cycle.
+  */
+void depthFirstTraversal(ContainerHeader* start, bool* hasCycles,
+                         KRef* firstBlocker, KStdVector<ContainerHeader*>* order) {
+  ContainerHeaderDeque toVisit;
+  toVisit.push_back(start);
+  start->setSeen();
+
+  while (!toVisit.empty()) {
+    auto* container = toVisit.front();
+    toVisit.pop_front();
+    if (isMarkedAsRemoved(container)) {
+      container = clearRemoved(container);
+      // Mark BLACK.
+      container->resetSeen();
+      container->mark();
+      order->push_back(container);
+      continue;
+    }
+    toVisit.push_front(markAsRemoved(container));
+    traverseContainerReferredObjects(container, [hasCycles, firstBlocker, &order, &toVisit](ObjHeader* obj) {
+      if (*firstBlocker != nullptr)
+        return;
+      if (obj->has_meta_object() && ((obj->meta_object()->flags_ & MF_NEVER_FROZEN) != 0)) {
+          *firstBlocker = obj;
+          return;
+      }
+      ContainerHeader* objContainer = obj->container();
+      if (canFreeze(objContainer)) {
+        // Marked GREY, there's cycle.
+        if (objContainer->seen()) *hasCycles = true;
+
+        // Go deeper if WHITE.
+        if (!objContainer->seen() && !objContainer->marked()) {
+          // Mark GRAY.
+          objContainer->setSeen();
+          toVisit.push_front(objContainer);
+        }
+      }
+    });
+  }
+}
+
+void traverseStronglyConnectedComponent(ContainerHeader* start,
+                                        KStdUnorderedMap<ContainerHeader*,
+                                            KStdVector<ContainerHeader*>> const* reversedEdges,
+                                        KStdVector<ContainerHeader*>* component) {
+  ContainerHeaderDeque toVisit;
+  toVisit.push_back(start);
+  start->mark();
+
+  while (!toVisit.empty()) {
+    auto* container = toVisit.front();
+    toVisit.pop_front();
+    component->push_back(container);
+    auto it = reversedEdges->find(container);
+    RuntimeAssert(it != reversedEdges->end(), "unknown node during condensation building");
+    for (auto* nextContainer : it->second) {
+      if (!nextContainer->marked()) {
+          nextContainer->mark();
+          toVisit.push_front(nextContainer);
+      }
+    }
+  }
+}
+
 template <bool Atomic>
 inline bool tryIncrementRC(ContainerHeader* container) {
   return container->tryIncRefCount<Atomic>();
@@ -2195,30 +2266,6 @@ void freezeAcyclic(ContainerHeader* rootContainer, ContainerHeaderSet* newlyFroz
   }
 }
 
-void traverseStronglyConnectedComponent(ContainerHeader* start,
-                                        KStdUnorderedMap<ContainerHeader*,
-                                            KStdVector<ContainerHeader*>> const* reversedEdges,
-                                        KStdVector<ContainerHeader*>* component) {
-  ContainerHeaderDeque toVisit;
-  toVisit.push_back(start);
-  start->mark();
-
-  while (!toVisit.empty()) {
-    auto* container = toVisit.front();
-    toVisit.pop_front();
-    component->push_back(container);
-    auto it = reversedEdges->find(container);
-    //RuntimeAssert(it != reversedEdges->end(), "unknown node during condensation building");
-    if (it == reversedEdges->end()) continue;
-    for (auto* nextContainer : it->second) {
-      if (!nextContainer->marked()) {
-          nextContainer->mark();
-          toVisit.push_front(nextContainer);
-      }
-    }
-  }
-}
-
 void freezeCyclic(ObjHeader* root,
                   const KStdVector<ContainerHeader*>& order,
                   ContainerHeaderSet* newlyFrozen) {
@@ -2236,27 +2283,24 @@ void freezeCyclic(ObjHeader* root,
           if (canFreeze(objContainer)) {
             if (objContainer->marked())
               queue.push_back(obj);
-            // We ignore FreezableAtomicsReference references in both directions during condensation, to avoid KT-33824.
-            if (!isFreezableAtomic(current) && !isFreezableAtomic(obj)) {
-              MEMORY_LOG("reversed %p -> %p\n", objContainer, currentContainer)
+            // We ignore FreezableAtomicsReference during condensation, to avoid KT-33824.
+            if (!isFreezableAtomic(current))
               reversedEdges.emplace(objContainer, KStdVector<ContainerHeader*>(0)).
                 first->second.push_back(currentContainer);
-             }
           }
       });
    }
 
    KStdVector<KStdVector<ContainerHeader*>> components;
-   MEMORY_LOG("Condensation of %p:\n", root);
+   MEMORY_LOG("Condensation:\n");
    // Enumerate in the topological order.
    for (auto it = order.rbegin(); it != order.rend(); ++it) {
      auto* container = *it;
      if (container->marked()) continue;
      KStdVector<ContainerHeader*> component;
-     MEMORY_LOG("Condensation component %p\n", container)
      traverseStronglyConnectedComponent(container, &reversedEdges, &component);
-  #if TRACE_MEMORY
      MEMORY_LOG("SCC:\n");
+  #if TRACE_MEMORY
      for (auto c: component)
        konan::consolePrintf("    %p\n", c);
   #endif
@@ -2305,54 +2349,6 @@ void freezeCyclic(ObjHeader* root,
        superContainer, totalCount - internalRefsCount, totalCount, internalRefsCount)
     superContainer->setRefCount(totalCount - internalRefsCount);
     newlyFrozen->insert(superContainer);
-  }
-}
-
-/**
-  * Do DFS cycle detection with three colors:
-  *  - 'marked' bit as BLACK marker (object and its descendants processed)
-  *  - 'seen' bit as GRAY marker (object is being processed)
-  *  - not 'marked' and not 'seen' as WHITE marker (object is unprocessed)
-  * When we see GREY during DFS, it means we see cycle.
-  */
-void depthFirstTraversal(ContainerHeader* start, bool* hasCycles,
-                         KRef* firstBlocker, KStdVector<ContainerHeader*>* order) {
-  ContainerHeaderDeque toVisit;
-  toVisit.push_back(start);
-  start->setSeen();
-
-  while (!toVisit.empty()) {
-    auto* container = toVisit.front();
-    toVisit.pop_front();
-    if (isMarkedAsRemoved(container)) {
-      container = clearRemoved(container);
-      // Mark BLACK.
-      container->resetSeen();
-      container->mark();
-      order->push_back(container);
-      continue;
-    }
-    toVisit.push_front(markAsRemoved(container));
-    traverseContainerReferredObjects(container, [hasCycles, firstBlocker, &order, &toVisit](ObjHeader* obj) {
-      if (*firstBlocker != nullptr)
-        return;
-      if (obj->has_meta_object() && ((obj->meta_object()->flags_ & MF_NEVER_FROZEN) != 0)) {
-          *firstBlocker = obj;
-          return;
-      }
-      ContainerHeader* objContainer = obj->container();
-      if (canFreeze(objContainer)) {
-        // Marked GREY, there's cycle.
-        if (objContainer->seen()) *hasCycles = true;
-
-        // Go deeper if WHITE.
-        if (!objContainer->seen() && !objContainer->marked()) {
-          // Mark GRAY.
-          objContainer->setSeen();
-          toVisit.push_front(objContainer);
-        }
-      }
-    });
   }
 }
 
