@@ -746,6 +746,12 @@ inline bool isFreezableAtomic(ObjHeader* obj) {
   return obj->type_info() == theFreezableAtomicReferenceTypeInfo;
 }
 
+inline bool isFreezableAtomic(ContainerHeader* container) {
+  RuntimeAssert(!isAggregatingFrozenContainer(container), "Must be single object");
+  ObjHeader* obj = reinterpret_cast<ObjHeader*>(container + 1);
+  return isFreezableAtomic(obj);
+}
+
 ContainerHeader* allocContainer(MemoryState* state, size_t size) {
  ContainerHeader* result = nullptr;
 #if USE_GC
@@ -947,7 +953,7 @@ void depthFirstTraversal(ContainerHeader* start, bool* hasCycles,
       continue;
     }
     toVisit.push_front(markAsRemoved(container));
-    traverseContainerReferredObjects(container, [hasCycles, firstBlocker, &order, &toVisit](ObjHeader* obj) {
+    traverseContainerReferredObjects(container, [container, hasCycles, firstBlocker, &order, &toVisit](ObjHeader* obj) {
       if (*firstBlocker != nullptr)
         return;
       if (obj->has_meta_object() && ((obj->meta_object()->flags_ & MF_NEVER_FROZEN) != 0)) {
@@ -963,7 +969,11 @@ void depthFirstTraversal(ContainerHeader* start, bool* hasCycles,
         if (!objContainer->seen() && !objContainer->marked()) {
           // Mark GRAY.
           objContainer->setSeen();
-          toVisit.push_front(objContainer);
+          if (isFreezableAtomic(container)) {
+            toVisit.push_back(objContainer);
+          } else {
+            toVisit.push_front(objContainer);
+          }
         }
       }
     });
