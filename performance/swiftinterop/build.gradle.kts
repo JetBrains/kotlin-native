@@ -8,7 +8,6 @@ plugins {
 }
 
 val toolsPath = "../../tools"
-val targetExtension = "Macos"
 
 swiftBenchmark {
     applicationName = "swiftInterop"
