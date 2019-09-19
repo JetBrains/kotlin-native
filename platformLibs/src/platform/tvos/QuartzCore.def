@@ -1,0 +1,7 @@
+depends = CFNetwork CoreFoundation CoreGraphics Foundation Metal OpenGLES Security darwin posix
+language = Objective-C
+package = platform.QuartzCore
+modules = QuartzCore
+
+compilerOpts = -framework QuartzCore
+linkerOpts = -framework QuartzCore

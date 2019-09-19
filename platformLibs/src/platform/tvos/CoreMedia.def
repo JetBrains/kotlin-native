@@ -1,0 +1,7 @@
+depends = AudioToolbox CFNetwork CoreAudio CoreFoundation CoreGraphics CoreVideo Foundation IOSurface Metal OpenGLES Security darwin posix
+language = Objective-C
+package = platform.CoreMedia
+modules = CoreMedia
+
+compilerOpts = -framework CoreMedia
+linkerOpts = -framework CoreMedia

@@ -1,0 +1,7 @@
+depends = CFNetwork CoreFoundation CoreGraphics CoreImage CoreText CoreVideo Foundation IOSurface ImageIO Metal OpenGLES QuartzCore Security UIKit darwin posix
+language = Objective-C
+package = platform.MultipeerConnectivity
+modules = MultipeerConnectivity
+
+compilerOpts = -framework MultipeerConnectivity
+linkerOpts = -framework MultipeerConnectivity
