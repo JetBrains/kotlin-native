@@ -41,6 +41,8 @@ include ':performance:framework'
 if (System.getProperty("os.name") == "Mac OS X") {
     include ':performance:objcinterop'
     include ':performance:swiftinterop'
+    include ':performance:KotlinVsSwift'
+    include ':performance:KotlinVsSwift:ring'
 }
 
 include ':platformLibs'
