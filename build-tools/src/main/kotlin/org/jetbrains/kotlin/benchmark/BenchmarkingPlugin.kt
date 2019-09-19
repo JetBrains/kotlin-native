@@ -249,7 +249,7 @@ open class BenchmarkingPlugin: Plugin<Project> {
 
             it.doLast {
                 val applicationName = benchmark.applicationName
-                val nativeCompileTime = getNativeCompileTime(applicationName, listOf("buildSwift"))
+                val nativeCompileTime = getNativeCompileTime(applicationName)
                 val benchContents = buildDir.resolve(nativeBenchResults).readText()
 
                 val properties = commonBenchmarkProperties + mapOf(
