@@ -7,7 +7,7 @@ More info about crash reports can be found
 Crash reports generally require symbolication to become properly readable:
 symbolication turns raw hex addresses into human-readable source locations.
 The document below describes some specific details of symbolicating crash reports
-from applications using Kotlin.
+from iOS applications using Kotlin.
 
 ## Enable .dSYM for release Kotlin binaries
 
