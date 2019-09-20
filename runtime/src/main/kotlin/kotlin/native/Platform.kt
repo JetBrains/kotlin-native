@@ -81,6 +81,14 @@ public object Platform {
     public val isDebugBinary: Boolean
         get() = Platform_isDebugBinary()
 
+    /**
+     * If the memory leak checker is activated, by default true in debug mode, false in release.
+     * When memory leak checker is activated, and leak detected on process termination process
+     * is terminated with non-zero exit code.
+     */
+    public var hasMemoryLeakChecker: Boolean
+        get() = Platform_getMemoryLeakChecker()
+        set(value) = Platform_setMemoryLeakChecker(value)
 }
 
 @SymbolName("Konan_Platform_canAccessUnaligned")
@@ -100,3 +108,9 @@ private external fun Platform_getMemoryModel(): Int
 
 @SymbolName("Konan_Platform_isDebugBinary")
 private external fun Platform_isDebugBinary(): Boolean
+
+@SymbolName("Konan_Platform_getMemoryLeakChecker")
+private external fun Platform_getMemoryLeakChecker(): Boolean
+
+@SymbolName("Konan_Platform_setMemoryLeakChecker")
+private external fun Platform_setMemoryLeakChecker(value: Boolean): Unit
