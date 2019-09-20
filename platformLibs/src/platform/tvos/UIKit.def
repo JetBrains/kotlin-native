@@ -1,4 +1,4 @@
-depends = CFNetwork CoreFoundation CoreGraphics CoreImage CoreText CoreVideo Foundation IOSurface ImageIO Metal OpenGLES QuartzCore Security darwin posix
+depends = CFNetwork CoreFoundation CoreGraphics CoreImage CoreText CoreVideo EAGL Foundation IOSurface ImageIO Metal OpenGLESCommon QuartzCore Security darwin posix
 language = Objective-C
 package = platform.UIKit
 modules = UIKit

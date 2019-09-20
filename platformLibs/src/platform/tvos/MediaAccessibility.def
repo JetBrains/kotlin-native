@@ -1,4 +1,4 @@
-depends = CFNetwork CoreFoundation CoreGraphics CoreText Foundation Metal OpenGLES QuartzCore Security darwin posix
+depends = CFNetwork CoreFoundation CoreGraphics CoreText EAGL Foundation Metal QuartzCore Security darwin posix
 language = Objective-C
 package = platform.MediaAccessibility
 modules = MediaAccessibility
