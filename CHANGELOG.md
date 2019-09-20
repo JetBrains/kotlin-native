@@ -1,3 +1,27 @@
+# v1.3.60 (Oct 2019)
+  * New compiler targets:
+    * watchOS targets, watchos_x86 and watchos_arm32 (GH-3323, GH-3344)
+    * tvOS targets tvos_x64 and tvos_arm64 (GH-3303, GH-3363)
+    * native Android targets android_x86 and android_x64 (GH-3306, GH-3314)
+  * Standard CLI library kotlinx.cli is shipped with the compiler distribution (GH-3125)
+  * Improved debug information for inline functions (KT-28929, GH-3292)
+  * Improved runtime performance of interface calls, up to 5x faster (GH-????)
+  * Improved runtime performance of type checks, up to 50x faster (GH-3291)
+  * Produce native binaries directly from klibs (GH-3246)
+  * Supported arbitrary (up to 256) function arity in compiler (GH-3253)
+  * Supported callable references on suspend functions (GH-3197)
+  * Implemented experimental -Xg0 switch, symbolication of release binaries for iOS (GH-3233, GH-3367)
+  * Interop:
+    * Supported nullable primitive types in reverse C interop (GH-3198)
+    * Allow passing untyped null as variadic function's parameter (GH-3312, KT-33525)
+  * Standard library:
+    * Optimize StringBuilder for certain cases (GH-3202)
+    * Implemented Array.fill API (GH-3244)
+    * Allow scheduling jobs in arbitrary K/N context, not only Worker (GH-3316)
+  * Important bug fixes:
+    * Boxed negative values can lead to crashes on ios_arm64 (GH-3296)
+    * Implemented thread-safe tracking of Objective-C references to Kotlin objects (GH-3267)
+
 # v1.3.50 (Aug 2019)
   * Kotlin/Native versioning now aligned with Kotlin versioning
   * Exhaustive platform libraries on macOS (GH-3141)
