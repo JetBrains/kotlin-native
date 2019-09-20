@@ -20,7 +20,6 @@ open class SwiftBenchmarkExtension @Inject constructor(project: Project) : Bench
     var swiftSources: List<String> = emptyList()
     var useCodeSize: CodeSizeEntity = CodeSizeEntity.FRAMEWORK         // use as code size metric framework size or executable
 }
-
 /**
  * A plugin configuring a benchmark Kotlin/Native project.
  */
@@ -31,7 +30,6 @@ open class SwiftBenchmarkingPlugin : BenchmarkingPlugin() {
             jvmRun.finalizedBy(it)
         }
     }
-
     override fun Project.configureJvmTask(): Task {
         return tasks.create("jvmRun") { task ->
             task.doLast {
@@ -41,6 +39,7 @@ open class SwiftBenchmarkingPlugin : BenchmarkingPlugin() {
     }
 
     override val benchmarkExtensionClass: KClass<*>
+        get() = SwiftBenchmarkExtension::class
         get() = SwiftBenchmarkExtension::class
 
     override val Project.benchmark: SwiftBenchmarkExtension
@@ -59,6 +58,9 @@ open class SwiftBenchmarkingPlugin : BenchmarkingPlugin() {
 
     override fun NamedDomainObjectContainer<KotlinSourceSet>.configureSources(project: Project) {
         project.benchmark.let {
+
+    override fun NamedDomainObjectContainer<KotlinSourceSet>.configureSources(project: Project) {
+        project.benchmark.let {
             commonMain.kotlin.srcDirs(*it.commonSrcDirs.toTypedArray())
             nativeMain.kotlin.srcDirs(*(it.nativeSrcDirs).toTypedArray())
         }
@@ -73,8 +75,6 @@ open class SwiftBenchmarkingPlugin : BenchmarkingPlugin() {
                 linkerOpts.addAll(project.benchmark.linkerOpts)
             }
         }
-    }
-
     override fun Project.configureExtraTasks() {
         val nativeTarget = kotlin.targets.getByName(NATIVE_TARGET_NAME) as KotlinNativeTarget
         // Build executable from swift code.
