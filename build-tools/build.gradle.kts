@@ -63,7 +63,7 @@ gradlePlugin {
     plugins {
         create("benchmarkPlugin") {
             id = "benchmarking"
-            implementationClass = "org.jetbrains.kotlin.benchmark.BenchmarkingPlugin"
+            implementationClass = "org.jetbrains.kotlin.benchmark.KotlinNativeBenchmarkingPlugin"
         }
         create("compileBenchmarking") {
             id = "compile-benchmarking"
