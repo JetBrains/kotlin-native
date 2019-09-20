@@ -2304,8 +2304,8 @@ void freezeCyclic(ObjHeader* root,
           if (canFreeze(objContainer)) {
             if (objContainer->marked())
               queue.push_back(obj);
-            // We ignore FreezableAtomicsReference during condensation, to avoid KT-33824.
-            if (!isFreezableAtomic(current) && !isFreezableAtomic(obj))
+            // We ignore references from FreezableAtomicsReference during condensation, to avoid KT-33824.
+            if (!isFreezableAtomic(current))
               reversedEdges.emplace(objContainer, KStdVector<ContainerHeader*>(0)).
                 first->second.push_back(currentContainer);
           }
@@ -2336,12 +2336,10 @@ void freezeCyclic(ObjHeader* root,
     for (auto* container : component) {
       RuntimeAssert(!isAggregatingFrozenContainer(container), "Must not be called on such containers");
       totalCount += container->refCount();
-#if TRACE_MEMORY
-     if (isFreezableAtomic(container)) {
-       RuntimeAssert(component.size() == 1, "Must be trivial condensation");
-       continue;
-     }
-#endif  // TRACE_MEMORY
+      if (isFreezableAtomic(container)) {
+        RuntimeAssert(component.size() == 1, "Must be trivial condensation");
+        continue;
+      }
       traverseContainerReferredObjects(container, [&internalRefsCount](ObjHeader* obj) {
           auto* container = obj->container();
           if (canFreeze(container))
