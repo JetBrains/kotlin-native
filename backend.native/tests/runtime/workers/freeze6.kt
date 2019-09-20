@@ -61,7 +61,7 @@ class Node(var ref: Any?)
  *             V        |
  *             ref2  ---
  */
-fun createRef2(): FreezableAtomicReference<Node?> {
+fun createRef2(): Pair<FreezableAtomicReference<Node?>, Any> {
     val ref1 = FreezableAtomicReference<Node?>(null)
 
     val node = Node(null)
@@ -79,15 +79,15 @@ fun createRef2(): FreezableAtomicReference<Node?> {
     assertTrue(ref2.isFrozen)
     assertTrue(ref3.isFrozen)
 
-    return ref1
+    return ref1 to ref2
 }
 
 @Test
 fun ensureFreezableHandlesCycles2() {
-    val ref = createRef2()
+    val (ref, obj) = createRef2()
     kotlin.native.internal.GC.collect()
 
-    assertTrue(ref.value.toString().length > 0)
+    assertTrue(obj.toString().length > 0)
     global = ref.value!!.ref!!.hashCode()
 }
 
