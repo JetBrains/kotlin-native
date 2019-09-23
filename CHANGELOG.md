@@ -8,8 +8,8 @@
   * Improved runtime performance of interface calls, up to 5x faster (GH-????)
   * Improved runtime performance of type checks, up to 50x faster (GH-3291)
   * Produce native binaries directly from klibs (GH-3246)
-  * Supported arbitrary (up to 256) function arity in compiler (GH-3253)
-  * Supported callable references on suspend functions (GH-3197)
+  * Supported arbitrary (up to 255 inclusive) function arity (GH-3253)
+  * Supported callable references to suspend functions (GH-3197)
   * Implemented experimental -Xg0 switch, symbolication of release binaries for iOS (GH-3233, GH-3367)
   * Interop:
     * Supported nullable primitive types in reverse C interop (GH-3198)
