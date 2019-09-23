@@ -1728,8 +1728,11 @@ void deinitMemory(MemoryState* memoryState) {
 #if USE_GC
   if (IsStrictMemoryModel && lastMemoryState && allocCount > 0 && g_checkLeaks) {
     char buf[1024];
-    konan::snprintf(buf, sizeof(buf), "Memory leaks detected, %d objects leaked\n", allocCount);
+    konan::snprintf(buf, sizeof(buf),
+        "Memory leaks detected, %d objects leaked!\n"
+        "Use `Platform.isMemoryLeakCheckerActive = false` to avoid this check.\n", allocCount);
     konan::consoleErrorUtf8(buf, konan::strnlen(buf, sizeof(buf)));
+    konan::abort();
   }
 #endif  // USE_GC
 #endif  // TRACE_MEMORY
