@@ -83,9 +83,11 @@ public object Platform {
 
     /**
      * If the memory leak checker is activated, by default `true` in debug mode, `false` in release.
-     * When memory leak checker is activated, and leak is detected during last Kotlin/Native runtime
+     * When memory leak checker is activated, and leak is detected during last Kotlin context
      * deinitialization process - error message with leak information is printed and application
      * execution is aborted.
+     *
+     * @see isDebugBinary
      */
     public var isMemoryLeakCheckerActive: Boolean
         get() = Platform_getMemoryLeakChecker()
