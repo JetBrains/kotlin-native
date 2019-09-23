@@ -386,7 +386,6 @@ internal class NativeIndexImpl(val library: NativeLibrary, val verbose: Boolean 
     }
 
     private fun addChildrenToObjCContainer(cursor: CValue<CXCursor>, result: ObjCContainerImpl) {
-println("addChildrenToObjCContainer> name = ${cursor.spelling}")
         visitChildren(cursor) { child, _ ->
             when (child.kind) {
                 CXCursorKind.CXCursor_ObjCSuperClassRef -> {
