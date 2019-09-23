@@ -80,7 +80,6 @@ open class SwiftBenchmarkingPlugin : BenchmarkingPlugin() {
                         Paths.get(buildDir.absolutePath, benchmark.applicationName), false)
             }
         }
-        framework.linkTask.finalizedBy(buildSwift)
     }
 
     override fun Project.collectCodeSize(applicationName: String) =
