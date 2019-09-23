@@ -63,7 +63,7 @@ extension Sequence {
 
 class EulerBenchmark {
     func problem1bySequence() -> Int {
-        return AnySequence<Int>(1...Constants.BENCHMARK_SIZE).sum( { $0 % 3 == 0 || $0 % 5 == 0} )
+        return AnySequence<Int>(1...Constants.BENCHMARK_SIZE).lazy.sum( { $0 % 3 == 0 || $0 % 5 == 0} )
     }
     
     func problem1() -> Int {
@@ -152,7 +152,7 @@ class EulerBenchmark {
     func problem9() -> Int64 {
         for c in Constants.BENCHMARK_SIZE/3...Constants.BENCHMARK_SIZE-3 {
             let c2 = Int64(c) * Int64(c)
-            for b in (Constants.BENCHMARK_SIZE-c)/2...c-1 {
+            for b in (Constants.BENCHMARK_SIZE-c)/2..<c {
                 if (b+c >= Constants.BENCHMARK_SIZE) {
                     break
                 }

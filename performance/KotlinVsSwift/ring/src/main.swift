@@ -101,15 +101,24 @@ swiftLauncher.add(name: "Euler.problem1", benchmark: companion.create(ctor: { re
 swiftLauncher.add(name: "Euler.problem2", benchmark: companion.create(ctor: { return EulerBenchmark() },
         lambda: { ($0 as! EulerBenchmark).problem2() }))
 swiftLauncher.add(name: "Euler.problem4", benchmark: companion.create(ctor: { return EulerBenchmark() },
-        lambda: { ($0 as! EulerBenchmark).problem4 }))
+        lambda: { ($0 as! EulerBenchmark).problem4() }))
 swiftLauncher.add(name: "Euler.problem8", benchmark: companion.create(ctor: { return EulerBenchmark() },
-        lambda: { ($0 as! EulerBenchmark).problem8 }))
+        lambda: { ($0 as! EulerBenchmark).problem8() }))
 swiftLauncher.add(name: "Euler.problem9", benchmark: companion.create(ctor: { return EulerBenchmark() },
-        lambda: { ($0 as! EulerBenchmark).problem9 }))
+        lambda: { ($0 as! EulerBenchmark).problem9() }))
 swiftLauncher.add(name: "Euler.problem14", benchmark: companion.create(ctor: { return EulerBenchmark() },
-        lambda: { ($0 as! EulerBenchmark).problem14 }))
+        lambda: { ($0 as! EulerBenchmark).problem14() }))
 swiftLauncher.add(name: "Euler.problem14full", benchmark: companion.create(ctor: { return EulerBenchmark() },
-        lambda: { ($0 as! EulerBenchmark).problem14full }))
+        lambda: { ($0 as! EulerBenchmark).problem14full() }))
+
+swiftLauncher.add(name: "Fibonacci.calcClassic", benchmark: companion.create(ctor: { return FibonacciBenchmark() },
+        lambda: { ($0 as! FibonacciBenchmark).calcClassic() }))
+swiftLauncher.add(name: "Fibonacci.calc", benchmark: companion.create(ctor: { return FibonacciBenchmark() },
+        lambda: { ($0 as! FibonacciBenchmark).calc() }))
+swiftLauncher.add(name: "Fibonacci.calcWithProgression", benchmark: companion.create(ctor: { return FibonacciBenchmark() },
+        lambda: { ($0 as! FibonacciBenchmark).calcWithProgression() }))
+swiftLauncher.add(name: "Fibonacci.calcSquare", benchmark: companion.create(ctor: { return FibonacciBenchmark() },
+        lambda: { ($0 as! FibonacciBenchmark).calcSquare() }))
 
 swiftLauncher.add(name: "Calls.finalMethod", benchmark: companion.create(ctor: { return CallsBenchmarks() },
         lambda: { ($0 as! CallsBenchmarks).finalMethodCall() }))

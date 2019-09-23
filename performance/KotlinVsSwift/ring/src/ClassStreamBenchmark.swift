@@ -21,24 +21,24 @@ class ClassStreamBenchmark {
     
     func copyManual() -> [Value] {
         var list: [Value] = []
-        for item in data {
+        for item in data.lazy {
             list.append(item)
         }
         return list
     }
     
     func filterAndCount() -> Int {
-        return data.filter { filterLoad($0) }.count
+        return data.lazy.filter { filterLoad($0) }.count
     }
     
     func filterAndMap() {
-        for item in (data.filter { filterLoad($0) }.map { mapLoad($0) }) {
+        for item in (data.lazy.filter { filterLoad($0) }.map { mapLoad($0) }) {
             Blackhole.consume(item)
         }
     }
     
     func filterAndMapManual() {
-        for it in data {
+        for it in data.lazy {
             if (filterLoad(it)) {
                 let item = mapLoad(it)
                 Blackhole.consume(item)
@@ -47,13 +47,13 @@ class ClassStreamBenchmark {
     }
     
     func filter() {
-        for item in (data.filter { filterLoad($0) }) {
+        for item in (data.lazy.filter { filterLoad($0) }) {
             Blackhole.consume(item)
         }
     }
     
     func filterManual() {
-        for it in data {
+        for it in data.lazy {
             if (filterLoad(it)) {
                 Blackhole.consume(it)
             }
@@ -62,7 +62,7 @@ class ClassStreamBenchmark {
     
     func countFilteredManual() -> Int {
         var count = 0
-        for it in data {
+        for it in data.lazy {
             if (filterLoad(it)) {
                 count += 1
             }
@@ -72,6 +72,6 @@ class ClassStreamBenchmark {
     
     
     func reduce() -> Int {
-        return data.reduce(0) {if (filterLoad($1)) { return $0 + 1 } else { return $0 }}
+        return data.lazy.reduce(0) {if (filterLoad($1)) { return $0 + 1 } else { return $0 }}
     }
 }
