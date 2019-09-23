@@ -96,6 +96,10 @@ internal class VarargInjectionLowering constructor(val context: KonanBackendCont
                 expression.transformChildrenVoid(transformer)
 
                 val hasSpreadElement = hasSpreadElement(expression)
+                if (!hasSpreadElement && expression.elements.all { it is IrConst<*> && it.type.isString() }) {
+                    log { "skipped vararg expression because it's string array literal" }
+                    return expression
+                }
                 val irBuilder = context.createIrBuilder(owner, expression.startOffset, expression.endOffset)
                 return irBuilder.irBlock(expression, null, expression.type) {
                     val type = expression.varargElementType

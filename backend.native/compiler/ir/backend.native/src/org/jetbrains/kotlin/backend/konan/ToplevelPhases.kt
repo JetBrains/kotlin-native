@@ -409,7 +409,6 @@ internal fun PhaseConfig.disableUnless(phase: AnyNamedPhase, condition: Boolean)
 
 internal fun PhaseConfig.konanPhasesConfig(config: KonanConfig) {
     with(config.configuration) {
-        disable(compileTimeEvaluatePhase)
         disable(deserializeDFGPhase)
         disable(escapeAnalysisPhase)
         disable(serializeDFGPhase)
