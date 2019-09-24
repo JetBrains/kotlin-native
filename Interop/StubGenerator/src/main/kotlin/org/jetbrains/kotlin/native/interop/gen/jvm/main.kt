@@ -184,7 +184,7 @@ private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = 
 
     val additionalLinkerOpts = cinteropArguments.linkerOpts.value.toTypedArray() + cinteropArguments.linkerOption.value.toTypedArray() +
             cinteropArguments.linkerOptions.value.toTypedArray()
-    val verbose = true // cinteropArguments.verbose
+    val verbose = cinteropArguments.verbose
 
     val language = selectNativeLanguage(def.config)
 

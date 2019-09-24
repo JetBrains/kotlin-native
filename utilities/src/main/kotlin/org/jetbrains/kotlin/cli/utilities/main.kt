@@ -16,8 +16,6 @@ fun main(args: Array<String>) {
             konancMain(utilityArgs)
         "cinterop" -> {
             val konancArgs = invokeInterop("native", utilityArgs)
-            val zzz = konancArgs.joinToString { " " }
-            println("cinterop $zzz")
             konancArgs?.let { konancMain(it) }
         }
         "jsinterop" -> {

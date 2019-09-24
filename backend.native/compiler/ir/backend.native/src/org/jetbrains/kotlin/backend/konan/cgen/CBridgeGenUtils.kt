@@ -102,8 +102,6 @@ private fun createKotlinBridge(
         stubs: KotlinStubs,
         isExternal: Boolean
 ): IrFunctionImpl {
-    println("createKotlinBridge")
-
     val bridgeDescriptor = WrappedSimpleFunctionDescriptor()
     val bridge = IrFunctionImpl(
             startOffset,
@@ -187,8 +185,6 @@ internal class KotlinCallBuilder(private val irBuilder: IrBuilderWithScope, priv
             function: IrFunction,
             transformCall: (IrMemberAccessExpression) -> IrExpression = { it }
     ): IrExpression {
-        println("KotlinCallBuilder.build")
-
         val arguments = this.arguments.toMutableList()
 
         val kotlinCall = irBuilder.irCall(function).run {

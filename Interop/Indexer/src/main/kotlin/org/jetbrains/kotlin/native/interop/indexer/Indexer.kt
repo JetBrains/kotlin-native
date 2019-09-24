@@ -220,7 +220,6 @@ internal class NativeIndexImpl(val library: NativeLibrary, val verbose: Boolean 
             if (name.isNotEmpty()) {
                 val fieldType = convertCursorType(fieldCursor)
                 val offset = clang_Type_getOffsetOf(structType, name)
-//println("name = $name, offset = $offset")
                 val member = if (offset < 0) {
                     IncompleteField(name, fieldType)
                 } else if (clang_Cursor_isBitField(fieldCursor) == 0) {
@@ -652,9 +651,6 @@ internal class NativeIndexImpl(val library: NativeLibrary, val verbose: Boolean 
 
     private fun convertFunctionType(type: CValue<CXType>): Type {
         val kind = type.kind
-
-//        println("convertFunctionType> [${clang_getTypeSpelling(type).convertAndDispose()}] kind = $kind")
-        if (kind == CXType_FunctionNoProto) return VoidType // make this function pointer opaque.
         assert(kind == CXType_Unexposed || kind == CXType_FunctionProto)
 
         if (clang_isFunctionTypeVariadic(type) != 0) {
@@ -925,7 +921,6 @@ internal class NativeIndexImpl(val library: NativeLibrary, val verbose: Boolean 
     }
 
     private fun getFunctionParameters(cursor: CValue<CXCursor>): List<Parameter> {
-//        println("getFunctionParameters> ${clang_getCursorSpelling(cursor).convertAndDispose()}")
         val argNum = clang_Cursor_getNumArguments(cursor)
         val args = (0..argNum - 1).map {
             val argCursor = clang_Cursor_getArgument(cursor, it)
@@ -964,7 +959,7 @@ fun buildNativeIndexImpl(library: NativeLibrary, verbose: Boolean): IndexerResul
 }
 
 private fun indexDeclarations(nativeIndex: NativeIndexImpl): CompilationWithPCH {
-    withIndex( displayDiagnostics = true) { index ->
+    withIndex { index ->
         val translationUnit = nativeIndex.library.parse(
                 index,
                 options = CXTranslationUnit_DetailedPreprocessingRecord or CXTranslationUnit_ForSerialization
@@ -973,8 +968,6 @@ private fun indexDeclarations(nativeIndex: NativeIndexImpl): CompilationWithPCH 
             translationUnit.ensureNoCompileErrors()
 
             val compilation = nativeIndex.library.withPrecompiledHeader(translationUnit)
-
-println("indexDeclarations> ${compilation.compilerArgs.joinToString { " " }}")
 
             val headers = getFilteredHeaders(nativeIndex, index, translationUnit)
 

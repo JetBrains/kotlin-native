@@ -86,7 +86,7 @@ kotlinNativeInterop {
         if (!project.parent.convention.plugins.platformInfo.isWindows())
             compilerOpts "-fPIC"
         compilerOpts "-I$llvmDir/include", "-I${project(':llvmDebugInfoC').projectDir}/src/main/include", "-I${project(':llvmCoverageMappingC').projectDir}/src/main/include"
-        linkerOpts "-v", "-L$llvmDir/lib", "-L${project(':llvmDebugInfoC').buildDir}/libs/debugInfo/static", "-L${project(':llvmCoverageMappingC').buildDir}/libs/coverageMapping/static"
+        linkerOpts "-L$llvmDir/lib", "-L${project(':llvmDebugInfoC').buildDir}/libs/debugInfo/static", "-L${project(':llvmCoverageMappingC').buildDir}/libs/coverageMapping/static"
     }
 
     hash { // TODO: copy-pasted from ':common:compileHash'

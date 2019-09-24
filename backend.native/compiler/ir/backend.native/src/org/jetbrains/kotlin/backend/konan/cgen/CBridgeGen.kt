@@ -111,7 +111,6 @@ private fun KotlinToCCallBuilder.buildKotlinBridgeCall(transformCall: (IrMemberA
         )
 
 internal fun KotlinStubs.generateCCall(expression: IrCall, builder: IrBuilderWithScope, isInvoke: Boolean): IrExpression {
-    println("generateCCall")
     require(expression.dispatchReceiver == null)
 
     val callBuilder = KotlinToCCallBuilder(builder, this, isObjCMethod = false)

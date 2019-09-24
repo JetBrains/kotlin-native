@@ -43,13 +43,10 @@ internal class BitcodeCompiler(val context: Context) {
 
     private fun hostLlvmTool(tool: String, vararg arg: String) {
         val absoluteToolName = "${platform.absoluteLlvmHome}/bin/$tool"
-        println("hostLlvmTool> $absoluteToolName")
         runTool(absoluteToolName, *arg)
     }
 
     private fun opt(optFlags: OptFlags, bitcodeFile: BitcodeFile): BitcodeFile {
-        println("opt>")
-
         val flags = (optFlags.optFlags + when {
             optimize -> optFlags.optOptFlags
             debug -> optFlags.optDebugFlags
@@ -68,8 +65,6 @@ internal class BitcodeCompiler(val context: Context) {
     }
 
     private fun llc(llcFlags: LlcFlags, bitcodeFile: BitcodeFile): ObjectFile {
-        println("llc>")
-
         val flags = (llcFlags.llcFlags + when {
             optimize -> llcFlags.llcOptFlags
             debug -> llcFlags.llcDebugFlags
@@ -104,7 +99,6 @@ internal class BitcodeCompiler(val context: Context) {
     }
 
     private fun clang(configurables: ClangFlags, file: BitcodeFile): ObjectFile {
-        println("clang>")
         val objectFile = temporary("result", ".o")
 
         val profilingFlags = llvmProfilingFlags().map { listOf("-mllvm", it) }.flatten()
