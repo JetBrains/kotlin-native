@@ -5,7 +5,7 @@ More info about crash reports can be found
 [in the official documentation](https://developer.apple.com/library/archive/technotes/tn2151/_index.html).
 
 Crash reports generally require symbolication to become properly readable:
-symbolication turns raw hex addresses into human-readable source locations.
+symbolication turns machine code addresses into human-readable source locations.
 The document below describes some specific details of symbolicating crash reports
 from iOS applications using Kotlin.
 
@@ -20,12 +20,10 @@ compiler flag: it enables debug info and `.dSYM` bundle generation for produced
 release binaries. To enable it in Gradle, use
 
 ```kotlin
-this.targets.forEach {
-    if (it is KotlinNativeTarget) {
-        it.compilations.all {
-            kotlinOptions {
-                freeCompilerArgs += "-Xg0"
-            }
+kotlin {
+    targets.withType<KotlinNativeTarget> {
+        binaries.all {
+            freeCompilerArgs += "-Xg0"
         }
     }
 }
@@ -47,10 +45,10 @@ seems discarded and not downloadable from App Store Connect.
 So in this case it may be required to make the framework static, e.g. with
 
 ```kotlin
-this.targets.forEach {
-    if (it is KotlinNativeTarget) {
-        it.binaries.withType<Framework>().forEach {
-            it.isStatic = true
+kotlin {
+    targets.withType<KotlinNativeTarget> {
+        binaries.withType<Framework> {
+            isStatic = true
         }
     }
 }
