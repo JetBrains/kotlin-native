@@ -142,6 +142,11 @@ private fun Diagnostic.isError() = (severity == CXDiagnosticSeverity.CXDiagnosti
 internal fun CXTranslationUnit.hasCompileErrors() = (this.getCompileErrors().firstOrNull() != null)
 
 internal fun CXTranslationUnit.ensureNoCompileErrors(): CXTranslationUnit {
+    this.getCompileErrors().let {
+        val l = it.toList()
+        if (l.isNotEmpty())
+            println(l.joinToString(separator = "; "))
+    }
     val firstError = this.getCompileErrors().firstOrNull() ?: return this
     throw Error(firstError)
 }
