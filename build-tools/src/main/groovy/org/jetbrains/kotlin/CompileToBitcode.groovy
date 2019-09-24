@@ -111,7 +111,7 @@ class CompileCppToBitcode extends DefaultTask {
         project.execKonanClang(this.target) {
             workingDir objDir
             executable "clang++"
-            args '-std=c++11'
+            args '-std=c++14'
             args '-O2'
             args compilerArgs
 

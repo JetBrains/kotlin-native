@@ -50,11 +50,6 @@ internal open class ModularCompilation(compilation: Compilation): Compilation by
     override fun dispose() {
         moduleCacheDirectory?.deleteRecursively()
     }
-
-    override fun toString(): String {
-        return "ModularCompilation: compilerArgs ${compilerArgs.joinToString(separator = " ")} " +
-                "moduleCacheDirectory ${moduleCacheDirectory.toString()}"
-    }
 }
 
 private fun getModulesASTFiles(index: CXIndex, compilation: ModularCompilation, modules: List<String>): List<String> {
@@ -63,8 +58,6 @@ private fun getModulesASTFiles(index: CXIndex, compilation: ModularCompilation, 
     )
 
     val result = linkedSetOf<String>()
-
-    println("compiling $compilationWithImports")
 
     val translationUnit = compilationWithImports.parse(
             index,
