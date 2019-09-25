@@ -3845,6 +3845,18 @@ fun clang_Cursor_isObjCInitMethod(cursor: CValue<CXCursor>): Int {
     }
 }
 
+fun clang_Cursor_isObjCReturningRetainedMethod(cursor: CValue<CXCursor>): Int {
+    memScoped {
+        return kniBridge339(cursor.getPointer(memScope).rawValue)
+    }
+}
+
+fun clang_Cursor_isObjCConsumingSelfMethod(cursor: CValue<CXCursor>): Int {
+    memScoped {
+        return kniBridge340(cursor.getPointer(memScope).rawValue)
+    }
+}
+
 val CINDEX_VERSION_MAJOR: Int get() = 0
 
 val CINDEX_VERSION_MINOR: Int get() = 59
@@ -4736,4 +4748,6 @@ private external fun kniBridge335(p0: NativePtr, p1: NativePtr): Int
 private external fun kniBridge336(p0: NativePtr): Int
 private external fun kniBridge337(p0: NativePtr, p1: Int, p2: NativePtr): Unit
 private external fun kniBridge338(p0: NativePtr): Int
+private external fun kniBridge339(p0: NativePtr): Int
+private external fun kniBridge340(p0: NativePtr): Int
 private val loadLibrary = System.loadLibrary("clangstubs")
