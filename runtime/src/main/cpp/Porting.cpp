@@ -303,11 +303,12 @@ uint32_t inPages(uint32_t value) {
 extern "C" void Konan_notify_memory_grow();
 
 uint32_t memorySize() {
-  return __builtin_wasm_current_memory();
+  // return __builtin_wasm_current_memory();
+  return __builtin_wasm_memory_size(0);
 }
 
 int32_t growMemory(uint32_t delta) {
-  int32_t oldLength = __builtin_wasm_grow_memory(delta);
+  int32_t oldLength =  __builtin_wasm_memory_grow(0, delta); // __builtin_wasm_grow_memory(delta);
   Konan_notify_memory_grow();
   return oldLength;
 }
