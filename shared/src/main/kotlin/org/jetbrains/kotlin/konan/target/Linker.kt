@@ -92,8 +92,12 @@ abstract class LinkerFlags(val configurables: Configurables)
 open class AndroidLinker(targetProperties: AndroidConfigurables)
     : LinkerFlags(targetProperties), AndroidConfigurables by targetProperties {
 
-    private val prefix = "$absoluteTargetToolchain/bin/"
-    private val clang = if (HostManager.hostIsMingw) "$prefix/clang.cmd" else "$prefix/clang"
+    private val clangQuad = when (targetProperties.targetArg) {
+        "arm-linux-androideabi" -> "armv7a-linux-androideabi"
+        else -> targetProperties.targetArg
+    }
+    private val prefix = "$absoluteTargetToolchain/bin/${clangQuad}${Android.API}"
+    private val clang = if (HostManager.hostIsMingw) "$prefix-clang.cmd" else "$prefix-clang"
     private val ar = "$absoluteTargetToolchain/${targetProperties.targetArg}/bin/ar"
 
     override val useCompilerDriverAsLinker: Boolean get() = true
@@ -445,23 +449,27 @@ fun linker(configurables: Configurables): LinkerFlags =
         when (configurables.target) {
             KonanTarget.LINUX_X64, KonanTarget.LINUX_ARM32_HFP,  KonanTarget.LINUX_ARM64 ->
                 LinuxBasedLinker(configurables as LinuxConfigurables)
+
             KonanTarget.LINUX_MIPS32, KonanTarget.LINUX_MIPSEL32 ->
                 LinuxBasedLinker(configurables as LinuxMIPSConfigurables)
-            KonanTarget.MACOS_X64, KonanTarget.IOSMAC_X64,
-                KonanTarget.TVOS_X64, KonanTarget.TVOS_ARM64,
-            KonanTarget.IOS_ARM32, KonanTarget.IOS_ARM64, KonanTarget.IOS_X64 ->
+            KonanTarget.MACOS_X64,
+            KonanTarget.IOSMAC_X64,
+            KonanTarget.TVOS_X64, KonanTarget.TVOS_ARM64,
+            KonanTarget.IOS_ARM32, KonanTarget.IOS_ARM64, KonanTarget.IOS_X64,
+            KonanTarget.WATCHOS_ARM64, KonanTarget.WATCHOS_ARM32,
+            KonanTarget.WATCHOS_X64, KonanTarget.WATCHOS_X86 ->
                 MacOSBasedLinker(configurables as AppleConfigurables)
+
             KonanTarget.ANDROID_ARM32, KonanTarget.ANDROID_ARM64,
             KonanTarget.ANDROID_X86, KonanTarget.ANDROID_X64 ->
                 AndroidLinker(configurables as AndroidConfigurables)
+
             KonanTarget.MINGW_X64, KonanTarget.MINGW_X86 ->
                 MingwLinker(configurables as MingwConfigurables)
+
             KonanTarget.WASM32 ->
                 WasmLinker(configurables as WasmConfigurables)
-            KonanTarget.WATCHOS_ARM64 -> TODO("implement me")
-            KonanTarget.WATCHOS_ARM32 -> TODO("implement me")
-            KonanTarget.WATCHOS_X64 -> TODO("implement me")
-            KonanTarget.WATCHOS_X86 -> TODO("implement me")
+
             is KonanTarget.ZEPHYR ->
                 ZephyrLinker(configurables as ZephyrConfigurables)
         }

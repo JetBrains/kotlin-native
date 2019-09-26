@@ -51,6 +51,7 @@ import org.jetbrains.kotlin.backend.common.serialization.KotlinMangler
 import org.jetbrains.kotlin.backend.konan.objcexport.ObjCExport
 import org.jetbrains.kotlin.backend.konan.llvm.coverage.CoverageManager
 import org.jetbrains.kotlin.ir.symbols.impl.IrTypeParameterSymbolImpl
+import org.jetbrains.kotlin.konan.library.KonanLibrary
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.konan.library.KonanLibraryLayout
 import org.jetbrains.kotlin.library.SerializedIrModule
@@ -266,6 +267,8 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
         ClassLayoutBuilder(irClass, this)
     }
 
+    lateinit var globalHierarchyAnalysisResult: GlobalHierarchyAnalysisResult
+
     // We serialize untouched descriptor tree and IR.
     // But we have to wait until the code generation phase,
     // to dump this information into generated file.
@@ -432,6 +435,7 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     fun shouldContainAnyDebugInfo() = shouldContainDebugInfo() || shouldContainLocationDebugInfo()
 
     fun shouldOptimize() = config.configuration.getBoolean(KonanConfigKeys.OPTIMIZATION)
+    fun ghaEnabled() = ::globalHierarchyAnalysisResult.isInitialized
 
     val memoryModel = config.memoryModel
 
@@ -460,6 +464,15 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
         get() = this.builtIns.any.module
 
     lateinit var compilerOutput: List<ObjectFile>
+
+    val llvmModuleSpecification: LlvmModuleSpecification = object : LlvmModuleSpecification {
+        // Currently all code is compiled to single LLVM module.
+        override fun importsKotlinDeclarationsFromOtherObjectFiles(): Boolean = false
+        override fun containsLibrary(library: KonanLibrary): Boolean = true
+        override fun containsModule(module: ModuleDescriptor): Boolean = true
+        override fun containsModule(module: IrModuleFragment): Boolean = true
+        override fun containsDeclaration(declaration: IrDeclaration): Boolean = true
+    }
 }
 
 private fun MemberScope.getContributedClassifier(name: String) =

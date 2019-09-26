@@ -16,6 +16,7 @@ import org.jetbrains.kotlin.backend.konan.llvm.*
 import org.jetbrains.kotlin.backend.konan.llvm.objc.ObjCCodeGenerator
 import org.jetbrains.kotlin.backend.konan.llvm.objc.ObjCDataGenerator
 import org.jetbrains.kotlin.backend.konan.objcexport.*
+import org.jetbrains.kotlin.backend.konan.serialization.resolveFakeOverrideMaybeAbstract
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.konan.CurrentKonanModuleOrigin
 import org.jetbrains.kotlin.ir.declarations.*
@@ -23,7 +24,9 @@ import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.constructedClass
 import org.jetbrains.kotlin.ir.util.isInterface
+import org.jetbrains.kotlin.ir.util.isReal
 import org.jetbrains.kotlin.ir.util.parentAsClass
+import org.jetbrains.kotlin.konan.target.Family
 import org.jetbrains.kotlin.name.Name
 
 internal fun TypeBridge.makeNothing() = when (this) {
@@ -261,8 +264,8 @@ internal class ObjCExportCodeGenerator(
                 val sortedAdaptersPointer = staticData.placeGlobalConstArray("", type, sortedAdapters)
 
                 // Note: this globals replace runtime globals with weak linkage:
-                staticData.placeGlobal(prefix, sortedAdaptersPointer, isExported = true)
-                staticData.placeGlobal("${prefix}Num", Int32(sortedAdapters.size), isExported = true)
+                replaceExternalWeakOrCommonGlobal(prefix, sortedAdaptersPointer)
+                replaceExternalWeakOrCommonGlobal("${prefix}Num", Int32(sortedAdapters.size))
             }
         }
 
@@ -316,12 +319,15 @@ internal class ObjCExportCodeGenerator(
     inner class KotlinToObjCMethodAdapter(
             selector: String,
             nameSignature: Long,
+            itablePlace: ClassLayoutBuilder.InterfaceTablePlace,
             vtableIndex: Int,
             kotlinImpl: ConstPointer
     ) : Struct(
             runtime.kotlinToObjCMethodAdapter,
             staticData.cStringLiteral(selector),
             Int64(nameSignature),
+            Int32(itablePlace.interfaceId),
+            Int32(itablePlace.methodIndex),
             Int32(vtableIndex),
             kotlinImpl
     )
@@ -332,6 +338,7 @@ internal class ObjCExportCodeGenerator(
             vtable: ConstPointer?,
             vtableSize: Int,
             methodTable: List<RTTIGenerator.MethodTableRecord>,
+            itableSize: Int,
             val objCName: String,
             directAdapters: List<ObjCToKotlinMethodAdapter>,
             classAdapters: List<ObjCToKotlinMethodAdapter>,
@@ -346,6 +353,8 @@ internal class ObjCExportCodeGenerator(
 
             staticData.placeGlobalConstArray("", runtime.methodTableRecordType, methodTable),
             Int32(methodTable.size),
+
+            Int32(itableSize),
 
             staticData.cStringLiteral(objCName),
 
@@ -380,6 +389,16 @@ internal class ObjCExportCodeGenerator(
 
 }
 
+private fun ObjCExportCodeGenerator.replaceExternalWeakOrCommonGlobal(name: String, value: ConstValue) {
+    val global = staticData.placeGlobal(name, value, isExported = true)
+
+    if (context.llvmModuleSpecification.importsKotlinDeclarationsFromOtherObjectFiles()) {
+        // Note: actually this is required only if global's weak/common definition is in other object file,
+        // but it is simpler to do this for all globals, considering that all usages can't be removed by DCE anyway.
+        context.llvm.usedGlobals += global.llvmGlobal
+    }
+}
+
 private fun ObjCExportCodeGenerator.setObjCExportTypeInfo(
         irClass: IrClass,
         converter: ConstPointer? = null,
@@ -399,20 +418,14 @@ private fun ObjCExportCodeGenerator.setObjCExportTypeInfo(
     val writableTypeInfoType = runtime.writableTypeInfoType!!
     val writableTypeInfoValue = Struct(writableTypeInfoType, objCExportAddition)
 
-    val global = if (codegen.isExternal(irClass)) {
+    if (codegen.isExternal(irClass)) {
         // Note: this global replaces the external one with common linkage.
-        staticData.createGlobal(
-                writableTypeInfoType,
-                irClass.writableTypeInfoSymbolName,
-                isExported = true
-        )
+        replaceExternalWeakOrCommonGlobal(irClass.writableTypeInfoSymbolName, writableTypeInfoValue)
     } else {
         context.llvmDeclarations.forClass(irClass).writableTypeInfoGlobal!!.also {
             it.setLinkage(LLVMLinkage.LLVMExternalLinkage)
-        }
+        }.setInitializer(writableTypeInfoValue)
     }
-
-    global.setInitializer(writableTypeInfoValue)
 }
 
 private val ObjCExportCodeGenerator.kotlinToObjCFunctionType: LLVMTypeRef
@@ -479,7 +492,7 @@ private fun ObjCExportCodeGenerator.emitBlockToKotlinFunctionConverters() {
     ).pointer.getElementPtr(0)
 
     // Note: this global replaces the weak global defined in runtime.
-    staticData.placeGlobal("Kotlin_ObjCExport_blockToFunctionConverters", ptr, isExported = true)
+    replaceExternalWeakOrCommonGlobal("Kotlin_ObjCExport_blockToFunctionConverters", ptr)
 }
 
 private fun ObjCExportCodeGenerator.emitSpecialClassesConvertions() {
@@ -837,7 +850,8 @@ private fun ObjCExportCodeGenerator.createReverseAdapter(
         irFunction: IrFunction,
         baseMethod: IrFunction,
         functionName: String,
-        vtableIndex: Int?
+        vtableIndex: Int?,
+        itablePlace: ClassLayoutBuilder.InterfaceTablePlace?
 ): ObjCExportCodeGenerator.KotlinToObjCMethodAdapter {
 
     val nameSignature = functionName.localHash.value
@@ -848,7 +862,10 @@ private fun ObjCExportCodeGenerator.createReverseAdapter(
             baseMethod
     ).bitcast(int8TypePtr)
 
-    return KotlinToObjCMethodAdapter(selector, nameSignature, vtableIndex ?: -1, kotlinToObjC)
+    return KotlinToObjCMethodAdapter(selector, nameSignature,
+            itablePlace ?: ClassLayoutBuilder.InterfaceTablePlace.INVALID,
+            vtableIndex ?: -1,
+            kotlinToObjC)
 }
 
 private fun ObjCExportCodeGenerator.createMethodVirtualAdapter(
@@ -912,6 +929,17 @@ private fun ObjCExportCodeGenerator.vtableIndex(irFunction: IrSimpleFunction): I
     }
 }
 
+private fun ObjCExportCodeGenerator.itablePlace(irFunction: IrSimpleFunction): ClassLayoutBuilder.InterfaceTablePlace? {
+    assert(irFunction.isOverridable)
+    val irClass = irFunction.parentAsClass
+    return if (irClass.isInterface && context.ghaEnabled()
+            && (irFunction.isReal || irFunction.resolveFakeOverrideMaybeAbstract().parent != context.irBuiltIns.anyClass.owner)) {
+        context.getLayoutBuilder(irClass).itablePlace(irFunction)
+    } else {
+        null
+    }
+}
+
 private fun ObjCExportCodeGenerator.createTypeAdapterForFileClass(
         fileClass: ObjCClassForKotlinFile
 ): ObjCExportCodeGenerator.ObjCTypeAdapter {
@@ -925,6 +953,7 @@ private fun ObjCExportCodeGenerator.createTypeAdapterForFileClass(
             vtable = null,
             vtableSize = -1,
             methodTable = emptyList(),
+            itableSize = -1,
             objCName = name,
             directAdapters = emptyList(),
             classAdapters = adapters,
@@ -998,6 +1027,10 @@ private fun ObjCExportCodeGenerator.createTypeAdapter(
         emptyList()
     }
 
+    val itableSize = if (irClass.isInterface)
+        context.getLayoutBuilder(irClass).interfaceTableEntries.size
+    else -1
+
     when (irClass.kind) {
         ClassKind.OBJECT -> {
             classAdapters += if (irClass.isUnit()) {
@@ -1017,6 +1050,7 @@ private fun ObjCExportCodeGenerator.createTypeAdapter(
             vtable,
             vtableSize,
             methodTable,
+            itableSize,
             objCName,
             adapters,
             classAdapters,
@@ -1042,6 +1076,7 @@ private fun ObjCExportCodeGenerator.createReverseAdapters(
 
             val presentVtableBridges = mutableSetOf<Int?>(null)
             val presentMethodTableBridges = mutableSetOf<String>()
+            val presentItableBridges = mutableSetOf<ClassLayoutBuilder.InterfaceTablePlace?>(null)
 
             val allOverriddenMethods = method.allOverriddenFunctions
 
@@ -1052,16 +1087,20 @@ private fun ObjCExportCodeGenerator.createReverseAdapters(
             inherited.forEach {
                 presentVtableBridges += vtableIndex(it)
                 presentMethodTableBridges += it.functionName
+                presentItableBridges += itablePlace(it)
             }
 
             uninherited.forEach {
                 val vtableIndex = vtableIndex(it)
                 val functionName = it.functionName
+                val itablePlace = itablePlace(it)
 
-                if (vtableIndex !in presentVtableBridges || functionName !in presentMethodTableBridges) {
+                if (vtableIndex !in presentVtableBridges || functionName !in presentMethodTableBridges
+                        || itablePlace !in presentItableBridges) {
                     presentVtableBridges += vtableIndex
                     presentMethodTableBridges += functionName
-                    result += createReverseAdapter(it, baseMethod, functionName, vtableIndex)
+                    presentItableBridges += itablePlace
+                    result += createReverseAdapter(it, baseMethod, functionName, vtableIndex, itablePlace)
                 }
             }
 
@@ -1083,7 +1122,8 @@ private fun ObjCExportCodeGenerator.nonOverridableAdapter(
     namer.getSelector(baseMethod),
     -1,
     vtableIndex = if (hasSelectorAmbiguity) -2 else -1, // Describes the reason.
-    kotlinImpl = NullPointer(int8Type)
+    kotlinImpl = NullPointer(int8Type),
+    itablePlace = ClassLayoutBuilder.InterfaceTablePlace.INVALID
 )
 
 private val ObjCTypeForKotlinType.kotlinMethods: List<ObjCMethodForKotlinMethod>
@@ -1242,15 +1282,27 @@ internal fun ObjCExportCodeGenerator.getEncoding(methodBridge: MethodBridge): St
         }
     }
 
-    val returnTypeEncoding = methodBridge.returnBridge.objCEncoding
+    val targetFamily = context.config.target.family
+    val returnTypeEncoding = methodBridge.returnBridge.getObjCEncoding(targetFamily)
 
     val paramSize = paramOffset
     return "$returnTypeEncoding$paramSize$params"
 }
 
-private val MethodBridge.ReturnValue.objCEncoding: String get() = when (this) {
+// https://developer.apple.com/documentation/objectivec/nsuinteger?language=objc
+// `typedef unsigned long NSUInteger` on iOS, macOS, tvOS.
+// `typedef unsigned int NSInteger` on watchOS.
+private val Family.nsUIntegerEncoding: String get() = when (this) {
+    Family.OSX,
+    Family.IOS,
+    Family.TVOS -> "L"
+    Family.WATCHOS -> "I"
+    else -> error("Unexpected target platform: $this")
+}
+
+private fun MethodBridge.ReturnValue.getObjCEncoding(targetFamily: Family): String = when (this) {
     MethodBridge.ReturnValue.Void -> "v"
-    MethodBridge.ReturnValue.HashCode -> "L" // NSUInteger = unsigned long; // TODO: `unsigned int` on watchOS
+    MethodBridge.ReturnValue.HashCode -> targetFamily.nsUIntegerEncoding
     is MethodBridge.ReturnValue.Mapped -> this.bridge.objCEncoding
     MethodBridge.ReturnValue.WithError.Success -> ObjCValueType.BOOL.encoding
 

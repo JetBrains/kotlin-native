@@ -25,6 +25,7 @@
 #endif
 
 #include <deque>
+#include <map>
 #include <string>
 #include <set>
 #include <unordered_map>
@@ -70,8 +71,10 @@ template<class Value>
 using KStdUnorderedSet = std::unordered_set<Value,
   std::hash<Value>, std::equal_to<Value>,
   KonanAllocator<Value>>;
-template<class Value, class Compare>
+template<class Value, class Compare = std::less<Value>>
 using KStdOrderedSet = std::set<Value, Compare, KonanAllocator<Value>>;
+template<class Key, class Value, class Compare = std::less<Key>>
+using KStdOrderedMap = std::map<Key, Value, Compare, KonanAllocator<std::pair<const Key, Value>>>;
 template<class Value>
 using KStdVector = std::vector<Value, KonanAllocator<Value>>;
 
@@ -81,20 +84,22 @@ extern "C" {
 
 extern const TypeInfo* theAnyTypeInfo;
 extern const TypeInfo* theArrayTypeInfo;
+extern const TypeInfo* theBooleanArrayTypeInfo;
 extern const TypeInfo* theByteArrayTypeInfo;
 extern const TypeInfo* theCharArrayTypeInfo;
-extern const TypeInfo* theShortArrayTypeInfo;
+extern const TypeInfo* theDoubleArrayTypeInfo;
+extern const TypeInfo* theForeignObjCObjectTypeInfo;
 extern const TypeInfo* theIntArrayTypeInfo;
 extern const TypeInfo* theLongArrayTypeInfo;
+extern const TypeInfo* theNativePtrArrayTypeInfo;
 extern const TypeInfo* theFloatArrayTypeInfo;
-extern const TypeInfo* theDoubleArrayTypeInfo;
-extern const TypeInfo* theBooleanArrayTypeInfo;
+extern const TypeInfo* theForeignObjCObjectTypeInfo;
+extern const TypeInfo* theFreezableAtomicReferenceTypeInfo;
+extern const TypeInfo* theObjCObjectWrapperTypeInfo;
+extern const TypeInfo* theShortArrayTypeInfo;
 extern const TypeInfo* theStringTypeInfo;
 extern const TypeInfo* theThrowableTypeInfo;
 extern const TypeInfo* theUnitTypeInfo;
-extern const TypeInfo* theForeignObjCObjectTypeInfo;
-extern const TypeInfo* theObjCObjectWrapperTypeInfo;
-extern const TypeInfo* theNativePtrArrayTypeInfo;
 
 KBoolean IsInstance(const ObjHeader* obj, const TypeInfo* type_info) RUNTIME_PURE;
 void CheckCast(const ObjHeader* obj, const TypeInfo* type_info);

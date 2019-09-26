@@ -361,6 +361,7 @@ internal val bitcodePhase = namedIrModulePhase(
                 devirtualizationPhase then
                 dcePhase then
                 contextLLVMSetupPhase then
+                ghaPhase then
                 RTTIPhase then
                 generateDebugInfoHeaderPhase then
                 escapeAnalysisPhase then
@@ -419,11 +420,12 @@ internal fun PhaseConfig.konanPhasesConfig(config: KonanConfig) {
         disableIf(dependenciesLowerPhase, config.produce == CompilerOutputKind.LIBRARY)
         disableUnless(entryPointPhase, config.produce == CompilerOutputKind.PROGRAM)
         disableIf(bitcodePhase, config.produce == CompilerOutputKind.LIBRARY)
-        disableUnless(linkPhase, config.produce.isNativeBinary)
+        disableUnless(linkPhase, config.produce.involvesLinkStage)
         disableIf(testProcessorPhase, getNotNull(KonanConfigKeys.GENERATE_TEST_RUNNER) == TestRunnerKind.NONE)
         disableUnless(buildDFGPhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
         disableUnless(devirtualizationPhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
         disableUnless(dcePhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
+        disableUnless(ghaPhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
         disableUnless(verifyBitcodePhase, config.needCompilerVerification || getBoolean(KonanConfigKeys.VERIFY_BITCODE))
     }
 }

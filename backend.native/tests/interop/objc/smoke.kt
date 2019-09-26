@@ -71,7 +71,14 @@ fun run() {
     }
 
     // hashCode (directly):
-    if (foo.hashCode() == foo.hash().let { it.toInt() xor (it shr 32).toInt() }) {
+    // hash() returns value of NSUInteger type.
+    val hash = when (Platform.osFamily) {
+        // `typedef unsigned int NSInteger` on watchOS.
+        OsFamily.WATCHOS -> foo.hash().toInt()
+        // `typedef unsigned long NSUInteger` on iOS, macOS, tvOS.
+        else -> foo.hash().let { it.toInt() xor (it shr 32).toInt() }
+    }
+    if (foo.hashCode() == hash) {
         // toString (virtually):
         if (Platform.memoryModel == MemoryModel.STRICT)
             println(map.keys.map { it.toString() }.min() == foo.description())
@@ -134,6 +141,8 @@ class MutablePairImpl(first: Int, second: Int) : NSObject(), MutablePairProtocol
     constructor() : this(123, 321)
 }
 
+interface Zzz
+
 fun testTypeOps() {
     assertTrue(99.asAny() is NSNumber)
     assertTrue(null.asAny() is NSNumber?)
@@ -142,6 +151,7 @@ fun testTypeOps() {
     assertTrue("bar".asAny() is NSString)
 
     assertTrue(Foo.asAny() is FooMeta)
+    assertFalse(Foo.asAny() is Zzz)
     assertTrue(Foo.asAny() is NSObjectMeta)
     assertTrue(Foo.asAny() is NSObject)
     assertFalse(Foo.asAny() is Foo)

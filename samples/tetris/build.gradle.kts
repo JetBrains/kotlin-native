@@ -69,6 +69,8 @@ kotlin {
                 }
             }
         }
+
+        compilations["main"].enableEndorsedLibs = true
     }
 }
 

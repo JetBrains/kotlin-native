@@ -42,7 +42,11 @@ internal class ObjCExport(val context: Context, symbolTable: SymbolTable) {
     private fun produceInterface(): ObjCExportedInterface? {
         if (!target.family.isAppleFamily) return null
 
-        if (!context.config.produce.isNativeBinary) return null // TODO: emit RTTI to the same modules as classes belong to.
+        if (!context.config.produce.isFinalBinary) return null
+
+        // TODO: emit RTTI to the same modules as classes belong to.
+        //   Not possible yet, since ObjCExport translates the entire "world" API at once
+        //   and can't do this per-module, e.g. due to global name conflict resolution.
 
         val produceFramework = context.config.produce == CompilerOutputKind.FRAMEWORK
 
@@ -69,7 +73,7 @@ internal class ObjCExport(val context: Context, symbolTable: SymbolTable) {
     internal fun generate(codegen: CodeGenerator) {
         if (!target.family.isAppleFamily) return
 
-        if (!context.config.produce.isNativeBinary) return // TODO: emit RTTI to the same modules as classes belong to.
+        if (!context.config.produce.isFinalBinary) return // TODO: emit RTTI to the same modules as classes belong to.
 
         val mapper = exportedInterface?.mapper ?: ObjCExportMapper()
         val namer = exportedInterface?.namer ?: ObjCExportNamerImpl(
@@ -154,6 +158,8 @@ internal class ObjCExport(val context: Context, symbolTable: SymbolTable) {
             KonanTarget.TVOS_ARM64 -> "AppleTVOS"
             KonanTarget.TVOS_X64 -> "AppleTVSimulator"
             KonanTarget.MACOS_X64, KonanTarget.IOSMAC_X64 -> "MacOSX"
+            KonanTarget.WATCHOS_ARM32, KonanTarget.WATCHOS_ARM64 -> "WatchOS"
+            KonanTarget.WATCHOS_X86, KonanTarget.WATCHOS_X64 -> "WatchSimulator"
             else -> error(target)
         }
         val properties = context.config.platform.configurables as AppleConfigurables

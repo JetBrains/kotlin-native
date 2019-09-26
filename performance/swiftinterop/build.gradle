@@ -55,7 +55,8 @@ kotlin {
     }
 
     macosX64("macos") {
-        compilations.main.extraOpts = (project.hasProperty('compilerArgs') ? compilerArgs.split() : []) + '-opt'
+        compilations.main.kotlinOptions.freeCompilerArgs = (project.hasProperty('compilerArgs') ? compilerArgs.split() : [])
+        compilations.main.enableEndorsedLibs = true
         binaries {
             framework(frameworkName, [RELEASE])
         }

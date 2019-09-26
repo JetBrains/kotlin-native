@@ -38,17 +38,17 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
     else null
 
     private val osVersionMin: String
-            get() {
-                require(configurables is AppleConfigurables)
-                return configurables.osVersionMin
-            }
+        get() {
+            require(configurables is AppleConfigurables)
+            return configurables.osVersionMin
+        }
 
     val specificClangArgs: List<String>
         get() {
-            val result = when (target) {
+            return when (target) {
                 KonanTarget.LINUX_X64 ->
                     listOf("--sysroot=$absoluteTargetSysRoot") +
-                    if (target != host) listOf("-target", targetArg!!) else emptyList()
+                            if (target != host) listOf("-target", targetArg!!) else emptyList()
 
                 KonanTarget.LINUX_ARM32_HFP ->
                     listOf("-target", targetArg!!,
@@ -88,14 +88,16 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                 KonanTarget.IOS_ARM64 ->
                     listOf("-stdlib=libc++", "-arch", "arm64", "-isysroot", absoluteTargetSysRoot, "-miphoneos-version-min=$osVersionMin")
 
+                KonanTarget.IOS_X64 ->
+                    listOf("-stdlib=libc++", "-isysroot", absoluteTargetSysRoot, "-miphoneos-version-min=$osVersionMin")
+
                 KonanTarget.TVOS_ARM64 ->
                     listOf("-stdlib=libc++", "-arch", "arm64", "-isysroot", absoluteTargetSysRoot, "-mtvos-version-min=$osVersionMin")
 
                 KonanTarget.IOSMAC_X64 ->
-                    listOf("-stdlib=libc++", "--static", "-arch_only", "x86_64",
+                    listOf("-target", "x86_64-apple-ios13.0-macabi",
                             "-isysroot", absoluteTargetSysRoot,
-                            "-target", "x86_64-apple-ios13.0-macabi",
-                            "-miphoneos-version-min=13.0.0", "-isystem",
+                            "-isystem",
                             "$absoluteTargetSysRoot/System/iOSSupport/usr/include",
                             "-iframework",
                             "$absoluteTargetSysRoot/System/iOSSupport/System/Library/Frameworks")
@@ -103,8 +105,14 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                 KonanTarget.TVOS_X64 ->
                     listOf("-stdlib=libc++", "-isysroot", absoluteTargetSysRoot, "-mtvos-simulator-version-min=$osVersionMin")
 
-                KonanTarget.IOS_X64 ->
-                    listOf("-stdlib=libc++", "-isysroot", absoluteTargetSysRoot, "-miphoneos-version-min=$osVersionMin")
+                KonanTarget.WATCHOS_ARM32 ->
+                    listOf("-stdlib=libc++", "-arch", "armv7k", "-isysroot", absoluteTargetSysRoot, "-mwatchos-version-min=$osVersionMin")
+
+                KonanTarget.WATCHOS_X86 ->
+                    listOf("-stdlib=libc++", "-arch", "i386", "-isysroot", absoluteTargetSysRoot, "-mwatchos-simulator-version-min=$osVersionMin")
+
+                KonanTarget.WATCHOS_ARM64 -> TODO("implement me")
+                KonanTarget.WATCHOS_X64 -> TODO("implement me")
 
                 KonanTarget.ANDROID_ARM32, KonanTarget.ANDROID_ARM64,
                 KonanTarget.ANDROID_X86, KonanTarget.ANDROID_X64 -> {
@@ -135,13 +143,9 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                             "-Xclang", "-isystem$absoluteTargetSysRoot/include/compat",
                             "-Xclang", "-isystem$absoluteTargetSysRoot/include/libc")
 
-                KonanTarget.WATCHOS_ARM64 -> TODO("implement me")
-                KonanTarget.WATCHOS_ARM32 -> TODO("implement me")
-                KonanTarget.WATCHOS_X64 -> TODO("implement me")
-                KonanTarget.WATCHOS_X86 -> TODO("implement me")
-
                 is KonanTarget.ZEPHYR ->
                     listOf("-target", targetArg!!,
+
                         "-fno-rtti",
                         "-fno-exceptions",
                         "-fno-asynchronous-unwind-tables",
@@ -157,9 +161,8 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-isystem$absoluteTargetSysRoot/include/libc"
                         ) +
                     (configurables as ZephyrConfigurables).boardSpecificClangFlags
-
             }
-            return result
+
         }
 
     val clangArgsSpecificForKonanSources
@@ -251,7 +254,7 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DKONAN_X64=1",
                         "-DKONAN_CORE_SYMBOLICATION=1",
                         "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1")
-//
+
             KonanTarget.IOSMAC_X64 ->
                 listOf("-DKONAN_OBJC_INTEROP=1",
                         "-DKONAN_IOS=1",
@@ -261,7 +264,7 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
 
             KonanTarget.TVOS_ARM64 ->
                 listOf("-DKONAN_OBJC_INTEROP=1",
-                        "-DKONAN_IOS=1",
+                        "-DKONAN_TVOS=1",
                         "-DKONAN_ARM64=1",
                         "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1",
                         "-DKONAN_REPORT_BACKTRACE_TO_IOS_CRASH_LOG=1",
@@ -269,10 +272,31 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
 
             KonanTarget.TVOS_X64 ->
                 listOf("-DKONAN_OBJC_INTEROP=1",
-                        "-DKONAN_IOS=1",
+                        "-DKONAN_TVOS=1",
                         "-DKONAN_X64=1",
                         "-DKONAN_CORE_SYMBOLICATION=1",
                         "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1")
+
+            KonanTarget.WATCHOS_ARM32 ->
+                listOf("-DKONAN_OBJC_INTEROP=1",
+                        "-DKONAN_WATCHOS",
+                        "-DKONAN_ARM32=1",
+                        "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1",
+                        "-DKONAN_REPORT_BACKTRACE_TO_IOS_CRASH_LOG=1",
+                        "-DMACHSIZE=32",
+                        // See explanation for ios_arm32 above.
+                        "-DKONAN_NO_64BIT_ATOMIC=1",
+                        "-DKONAN_NO_UNALIGNED_ACCESS=1")
+
+            KonanTarget.WATCHOS_X86 ->
+                listOf("-DKONAN_OBJC_INTEROP=1",
+                        "-DKONAN_WATCHOS=1",
+                        "-DKONAN_X86=1",
+                        "-DKONAN_CORE_SYMBOLICATION=1",
+                        "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1")
+
+            KonanTarget.WATCHOS_ARM64 -> TODO("implement me")
+            KonanTarget.WATCHOS_X64 -> TODO("implement me")
 
             KonanTarget.ANDROID_ARM32 ->
                 listOf("-D__ANDROID__",
@@ -321,13 +345,8 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DKONAN_NO_MEMMEM",
                         "-DKONAN_NO_CTORS_SECTION=1")
 
-            KonanTarget.WATCHOS_ARM64 -> TODO("implement me")
-            KonanTarget.WATCHOS_ARM32 -> TODO("implement me")
-            KonanTarget.WATCHOS_X64 -> TODO("implement me")
-            KonanTarget.WATCHOS_X86 -> TODO("implement me")
-
             is KonanTarget.ZEPHYR ->
-                listOf( "-DKONAN_ZEPHYR=1",
+                listOf("-DKONAN_ZEPHYR=1",
                         "-DKONAN_NO_FFI=1",
                         "-DKONAN_NO_THREADS=1",
                         "-DKONAN_NO_EXCEPTIONS=1",
@@ -337,6 +356,8 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DKONAN_NO_MEMMEM=1",
                         "-DKONAN_NO_CTORS_SECTION=1",
                         "-DKONAN_NO_UNALIGNED_ACCESS=1")
+
+            else -> TODO("CLangArgs ${target} not implemented")
         }
 
     private val host = HostManager.host
@@ -375,18 +396,15 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
             clangArgs + clangArgsSpecificForKonanSources
 
     val targetLibclangArgs: List<String> =
-            // libclang works not exactly the same way as the clang binary and
-            // (in particular) uses different default header search path.
-            // See e.g. http://lists.llvm.org/pipermail/cfe-dev/2013-November/033680.html
+    // libclang works not exactly the same way as the clang binary and
+    // (in particular) uses different default header search path.
+    // See e.g. http://lists.llvm.org/pipermail/cfe-dev/2013-November/033680.html
             // We workaround the problem with -isystem flag below.
-            listOf("-isystem", "$absoluteLlvmHome/lib/clang/$llvmVersion/include", *clangArgs)
             listOf("-isystem", "$absoluteLlvmHome/lib/clang/11.0.0/include",  *clangArgs)
 
-    val targetClangCmd
-            = listOf("${absoluteLlvmHome}/bin/clang") + clangArgs
+    val targetClangCmd = listOf("${absoluteLlvmHome}/bin/clang") + clangArgs
 
-    val targetClangXXCmd
-            = listOf("${absoluteLlvmHome}/bin/clang++") + clangArgs
+    val targetClangXXCmd = listOf("${absoluteLlvmHome}/bin/clang++") + clangArgs
 
     fun clangC(vararg userArgs: String) = targetClangCmd + userArgs.asList()
 
@@ -403,7 +421,7 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
             when (HostManager.host) {
                 KonanTarget.LINUX_X64 -> args.remove("/usr/include/x86_64-linux-gnu")  // HACK: over gradle-4.4.
                 KonanTarget.MACOS_X64 -> {
-                    val indexToRemove = args.indexOf(args.find { it.contains("MacOSX.platform")})  // HACK: over gradle-4.7.
+                    val indexToRemove = args.indexOf(args.find { it.contains("MacOSX.platform") })  // HACK: over gradle-4.7.
                     if (indexToRemove != -1) {
                         args.removeAt(indexToRemove - 1) // drop -I.
                         args.removeAt(indexToRemove - 1) // drop /Application/Xcode.app/...

@@ -209,10 +209,11 @@ task sanity {
             update_external_tests()
         }
     }
-    dependsOn(tasksOf(KonanTest.class) {
-        (it instanceof KonanLocalTest || it instanceof KonanStandaloneTest) &&
-        !it.getDependsOn().contains(':distPlatformLibs') && 
-        it.name != "library_mismatch" // This test requires the wasm32 stdlib which is unavailable during a sanity run.
+    def platformLibsTasks = targetList.collect { "${it}PlatformLibs" } + ["distPlatformLibs"]
+    dependsOn(tasksOf(KonanTest.class) { task ->
+        (task instanceof KonanLocalTest || task instanceof KonanStandaloneTest) &&
+        task.getDependsOn().every { !platformLibsTasks.contains(it) } &&
+        task.name != "library_mismatch" // This test requires the wasm32 stdlib which is unavailable during a sanity run.
     })
     dependsOn(tasksOf(KonanTest.class, { it instanceof KonanGTest }))
 }
@@ -287,10 +288,11 @@ def createTestTasks(File testRoot, Class<Task> taskType, Closure taskConfigurati
 
 void dependsOnPlatformLibs(Task t) {
     if (!useCustomDist) {
-        t.dependsOn(':distPlatformLibs')
         def testTarget = project.testTarget
         if (testTarget != null && testTarget != project.hostName) {
             t.dependsOn(":${testTarget}PlatformLibs")
+        } else {
+            t.dependsOn(':distPlatformLibs')
         }
     }
 }
@@ -873,7 +875,8 @@ task worker4(type: KonanLocalTest) {
     source = "runtime/workers/worker4.kt"
 }
 
-task worker5(type: KonanLocalTest) {
+// This tests changes main thread worker queue state, so better be executed alone.
+standaloneTest("worker5") {
     enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
     goldValue = "Got 3\nOK\n"
     source = "runtime/workers/worker5.kt"
@@ -2428,6 +2431,11 @@ standaloneTest("devirtualization_anonymousObject") {
     source = "codegen/devirtualization/anonymousObject.kt"
 }
 
+task interfaceCallsNCasts_conservativeItable(type: KonanLocalTest) {
+    goldValue = "539\n5050\n26551140\n"
+    source = "codegen/interfaceCallsNCasts/conservativeItable.kt"
+}
+
 standaloneTest("multiargs") {
     arguments = ["AAA", "BB", "C"]
     multiRuns = true
@@ -3334,6 +3342,14 @@ Task interopTest(String name, Closure<KonanInteropTest> configureClosure) {
     }
 }
 
+
+standaloneTest("interop_objc_allocException") {
+    dependsOnPlatformLibs(it)
+    disabled = !isAppleTarget(project)
+    expectedExitStatus = 0
+    source = "interop/objc/allocException.kt"
+}
+
 interopTest("interop0") {
     disabled = (project.testTarget == 'wasm32') ||         // No interop for wasm yet.
                (project.testTarget == 'linux_mips32') ||   //  st_uid of '/' is not equal to 0 when using qemu
@@ -3557,6 +3573,7 @@ dynamicTest("produce_dynamic") {
                 "RO property is 42\n" +
                 "RW property is 239\n" +
                 "enum100 = 100\n" +
+                "enum42 = 42\n" +
                 "object = 42\n" +
                 "singleton = I am single\n" +
                 "mutable = foo\n" +
