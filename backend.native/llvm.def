@@ -40,10 +40,19 @@ linkerOpts.osx = -fPIC \
 
 
 # ./llvm-config --libs analysis bitreader bitwriter core linker target coverage analysis ipo instrumentation lto arm aarch64 x86 mips
-linkerOpts.linux= -lLLVMMipsDisassembler -lLLVMMipsCodeGen -lLLVMMipsAsmParser -lLLVMMipsDesc -lLLVMMipsInfo -lLLVMMipsAsmPrinter -lLLVMX86Disassembler -lLLVMX86AsmParser -lLLVMX86CodeGen -lLLVMX86Desc -lLLVMX86Info -lLLVMX86AsmPrinter -lLLVMX86Utils -lLLVMAArch64Disassembler -lLLVMAArch64CodeGen -lLLVMAArch64AsmParser -lLLVMAArch64Desc -lLLVMAArch64Info -lLLVMAArch64AsmPrinter -lLLVMAArch64Utils -lLLVMARMDisassembler -lLLVMARMCodeGen -lLLVMGlobalISel -lLLVMSelectionDAG -lLLVMAsmPrinter -lLLVMDebugInfoCodeView -lLLVMDebugInfoMSF -lLLVMARMAsmParser -lLLVMARMDesc -lLLVMMCDisassembler -lLLVMARMInfo -lLLVMARMAsmPrinter -lLLVMARMUtils -lLLVMLTO -lLLVMPasses -lLLVMObjCARCOpts -lLLVMCodeGen -lLLVMipo -lLLVMInstrumentation -lLLVMVectorize -lLLVMScalarOpts -lLLVMIRReader -lLLVMAsmParser -lLLVMInstCombine -lLLVMCoverage -lLLVMTarget -lLLVMLinker -lLLVMTransformUtils -lLLVMBitWriter -lLLVMAnalysis -lLLVMProfileData -lLLVMObject -lLLVMMCParser -lLLVMMC -lLLVMBitReader -lLLVMCore -lLLVMBinaryFormat -lLLVMSupport -lLLVMDemangle \
-     -fPIC \
+linkerOpts.linux =  -fPIC \
      -Wl,-z,noexecstack \
-     -lrt -ldl -lpthread -lz -lm
+     -lrt -ldl -lpthread -lz -lm \
+-lLLVMMipsDisassembler -lLLVMMipsCodeGen -lLLVMMipsAsmParser -lLLVMMipsDesc -lLLVMMipsInfo \
+-lLLVMMipsAsmPrinter -lLLVMX86Disassembler -lLLVMX86AsmParser -lLLVMX86CodeGen -lLLVMX86Desc -lLLVMX86Info \
+-lLLVMX86AsmPrinter -lLLVMX86Utils -lLLVMAArch64Disassembler -lLLVMAArch64CodeGen -lLLVMAArch64AsmParser \
+-lLLVMAArch64Desc -lLLVMAArch64Info -lLLVMAArch64AsmPrinter -lLLVMAArch64Utils -lLLVMARMDisassembler \
+-lLLVMARMCodeGen -lLLVMGlobalISel -lLLVMSelectionDAG -lLLVMAsmPrinter -lLLVMARMAsmParser -lLLVMARMDesc \
+-lLLVMMCDisassembler -lLLVMARMInfo -lLLVMARMAsmPrinter -lLLVMARMUtils -lLLVMLTO -lLLVMPasses -lLLVMObjCARCOpts \
+-lLLVMCodeGen -lLLVMipo -lLLVMInstrumentation -lLLVMVectorize -lLLVMScalarOpts -lLLVMIRReader -lLLVMAsmParser \
+-lLLVMInstCombine -lLLVMAggressiveInstCombine -lLLVMCoverage -lLLVMTarget -lLLVMLinker -lLLVMTransformUtils \
+-lLLVMBitWriter -lLLVMAnalysis -lLLVMProfileData -lLLVMObject -lLLVMMCParser -lLLVMMC -lLLVMDebugInfoCodeView \
+-lLLVMDebugInfoMSF -lLLVMBitReader -lLLVMCore -lLLVMBinaryFormat -lLLVMSupport -lLLVMDemangle
 
 # ./llvm-config --libs analysis bitreader bitwriter core linker target coverage analysis ipo instrumentation lto arm aarch64 x86
 linkerOpts.mingw = -lLLVMX86Disassembler -lLLVMX86AsmParser -lLLVMX86CodeGen -lLLVMX86Desc -lLLVMX86Info -lLLVMX86AsmPrinter -lLLVMX86Utils -lLLVMAArch64Disassembler -lLLVMAArch64CodeGen -lLLVMAArch64AsmParser -lLLVMAArch64Desc -lLLVMAArch64Info -lLLVMAArch64AsmPrinter -lLLVMAArch64Utils -lLLVMARMDisassembler -lLLVMARMCodeGen -lLLVMGlobalISel -lLLVMSelectionDAG -lLLVMAsmPrinter -lLLVMDebugInfoCodeView -lLLVMDebugInfoMSF -lLLVMARMAsmParser -lLLVMARMDesc -lLLVMMCDisassembler -lLLVMARMInfo -lLLVMARMAsmPrinter -lLLVMARMUtils -lLLVMLTO -lLLVMPasses -lLLVMObjCARCOpts -lLLVMCodeGen -lLLVMipo -lLLVMInstrumentation -lLLVMVectorize -lLLVMScalarOpts -lLLVMIRReader -lLLVMAsmParser -lLLVMInstCombine -lLLVMCoverage -lLLVMTarget -lLLVMLinker -lLLVMTransformUtils -lLLVMBitWriter -lLLVMAnalysis -lLLVMProfileData -lLLVMObject -lLLVMMCParser -lLLVMMC -lLLVMBitReader -lLLVMCore -lLLVMBinaryFormat -lLLVMSupport -lLLVMDemangle \

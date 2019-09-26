@@ -1,4 +1,5 @@
 #include <stdint.h>
+#include <string.h>
 #include <jni.h>
 #include <clang-c/Index.h>
 #include <clang-c/ext.h>
