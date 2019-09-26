@@ -1051,7 +1051,6 @@ enum class CXCursorKind(override val value: Int) : CEnum {
     CXCursor_OMPTargetTeamsDistributeParallelForDirective(277),
     CXCursor_OMPTargetTeamsDistributeParallelForSimdDirective(278),
     CXCursor_OMPTargetTeamsDistributeSimdDirective(279),
-    CXCursor_BuiltinBitCastExpr(280),
     CXCursor_TranslationUnit(300),
     CXCursor_UnexposedAttr(400),
     CXCursor_IBActionAttr(401),
@@ -1117,7 +1116,7 @@ enum class CXCursorKind(override val value: Int) : CEnum {
         val CXCursor_LastExpr = CXCursor_FixedPointLiteral
         val CXCursor_FirstStmt = CXCursor_UnexposedStmt
         val CXCursor_AsmStmt = CXCursor_GCCAsmStmt
-        val CXCursor_LastStmt = CXCursor_BuiltinBitCastExpr
+        val CXCursor_LastStmt = CXCursor_OMPTargetTeamsDistributeSimdDirective
         val CXCursor_FirstAttr = CXCursor_UnexposedAttr
         val CXCursor_LastAttr = CXCursor_AlignedAttr
         val CXCursor_FirstPreprocessing = CXCursor_PreprocessingDirective
@@ -4035,8 +4034,6 @@ val CXTranslationUnit_IncludeAttributedTypes: CXTranslationUnit_Flags get() = 40
 val CXTranslationUnit_VisitImplicitAttributes: CXTranslationUnit_Flags get() = 8192
 
 val CXTranslationUnit_IgnoreNonErrorsFromIncludedFiles: CXTranslationUnit_Flags get() = 16384
-
-val CXTranslationUnit_RetainExcludedConditionalBlocks: CXTranslationUnit_Flags get() = 32768
 
 typealias CXTranslationUnit_FlagsVar = IntVarOf<CXTranslationUnit_Flags>
 
