@@ -173,7 +173,6 @@ open class FrameworkTest : DefaultTask() {
         }
 
         val args = listOf("--sdk", sdk, "-v", "-t", ldPath, frameworkBinary)
-        println("would run '$bitcodeBuildTool' with '$args")
         val (stdOut, stdErr, exitCode) = runProcess(executor = localExecutor(project), executable = bitcodeBuildTool, args = args)
         check(exitCode == 0) {
             """
