@@ -118,8 +118,7 @@ internal class BitcodeCompiler(val context: Context) {
             addNonEmpty(profilingFlags)
         }
         if (configurables is AppleConfigurables) {
-            // targetTool("clang++", *flags.toTypedArray(), file, "-o", objectFile)
-            hostLlvmTool("clang++", *flags.toTypedArray(), file, "-o", objectFile)
+            targetTool("clang++", *flags.toTypedArray(), file, "-o", objectFile)
         } else {
             hostLlvmTool("clang++", *flags.toTypedArray(), file, "-o", objectFile)
         }
