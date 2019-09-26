@@ -113,7 +113,9 @@ class CompileCppToBitcode extends DefaultTask {
             executable "clang++"
             args '-std=c++14'
             args '-O2'
-            args '-fPIC'
+            if (!project.parent.convention.plugins.platformInfo.isWindows()) {
+                args '-fPIC'
+            }
             args compilerArgs
 
             args "-I$headersDir"
