@@ -1,4 +1,6 @@
 # v1.3.60 (Oct 2019)
+  * Support XCode 11
+  * Switch to LLVM 8.0
   * New compiler targets:
     * watchOS targets, watchos_x86 and watchos_arm32 (GH-3323, GH-3344)
     * tvOS targets tvos_x64 and tvos_arm64 (GH-3303, GH-3363)
