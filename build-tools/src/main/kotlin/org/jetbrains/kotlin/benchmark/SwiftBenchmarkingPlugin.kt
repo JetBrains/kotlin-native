@@ -30,6 +30,7 @@ open class SwiftBenchmarkingPlugin : BenchmarkingPlugin() {
             jvmRun.finalizedBy(it)
         }
     }
+
     override fun Project.configureJvmTask(): Task {
         return tasks.create("jvmRun") { task ->
             task.doLast {
@@ -39,7 +40,6 @@ open class SwiftBenchmarkingPlugin : BenchmarkingPlugin() {
     }
 
     override val benchmarkExtensionClass: KClass<*>
-        get() = SwiftBenchmarkExtension::class
         get() = SwiftBenchmarkExtension::class
 
     override val Project.benchmark: SwiftBenchmarkExtension

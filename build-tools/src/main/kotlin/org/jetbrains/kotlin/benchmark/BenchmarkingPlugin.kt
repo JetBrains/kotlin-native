@@ -14,7 +14,6 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.AbstractKotlinNativeTargetPreset
 import org.jetbrains.kotlin.konan.target.HostManager
 import javax.inject.Inject
 import kotlin.reflect.KClass
-import kotlin.reflect.jvm.internal.impl.resolve.constants.KClassValue
 
 internal val NamedDomainObjectContainer<KotlinSourceSet>.commonMain
     get() = maybeCreate("commonMain")
@@ -162,17 +161,16 @@ abstract class BenchmarkingPlugin: Plugin<Project> {
 
     protected open fun Project.configureNativeTarget(hostPreset: KotlinNativeTargetPreset) {
         kotlin.targetFromPreset(hostPreset, NATIVE_TARGET_NAME) {
-            compilations.getByName("main").kotlinOptions.freeCompilerArgs = project.compilerArgs + listOf("-l", "kotlinx-cli")
-            configureNativeOutput(this@configureNativeTarget)
-        }
-
-    protected fun Project.configureNativeTarget(hostPreset: AbstractKotlinNativeTargetPreset<*>) {
-        kotlin.targetFromPreset(hostPreset, NATIVE_TARGET_NAME) {
             compilations.getByName("main").kotlinOptions.freeCompilerArgs = project.compilerArgs
             compilations.getByName("main").enableEndorsedLibs = true
             configureNativeOutput(this@configureNativeTarget)
         }
-        configureAdditionalExtensions()
+
+    protected open fun configureMPPExtension(project: Project) {
+        project.configureSourceSets(project.kotlinVersion)
+        project.configureNativeTarget(project.determinePreset())
+            compilations.getByName("main").enableEndorsedLibs = true
+            configureNativeOutput(this@configureNativeTarget)
     }
 
     protected open fun configureMPPExtension(project: Project) {
@@ -196,16 +194,6 @@ abstract class BenchmarkingPlugin: Plugin<Project> {
     }
 
     protected abstract fun Project.configureJvmTask(): Task
-            jvmParameters?.let { (jvmWarmup, jvmBenchResults) ->
-
-    protected open fun Project.getCompilerFlags(nativeTarget: KotlinNativeTarget) =
-            nativeTarget.compilations.main.kotlinOptions.freeCompilerArgs.map { "\"$it\"" }
-            } ?: run {
-                task.doLast {
-                    println("JVM run is unsupported")
-                }
-            }
-        }
 
     protected open fun Project.collectCodeSize(applicationName: String) =
         getCodeSizeBenchmark(applicationName, nativeExecutable)
@@ -240,23 +228,6 @@ abstract class BenchmarkingPlugin: Plugin<Project> {
     }
 
     protected abstract fun Project.configureJvmJsonTask(jvmRun: Task): Task
-    protected open fun Project.configureExtraTasks() {}
-
-    private fun Project.configureTasks() {
-        val nativeTarget = kotlin.targets.getByName(NATIVE_TARGET_NAME) as KotlinNativeTarget
-        configureExtraTasks()
-        // Native run task.
-        configureNativeTask(nativeTarget)
-
-        // JVM run task.
-        val jvmRun = configureJvmTask()
-
-        // Native report task.
-        configureKonanJsonTask(nativeTarget)
-
-        // JVM report task.
-        configureJvmJsonTask(jvmRun)
-    }
 
     protected open fun Project.configureExtraTasks() {}
 
