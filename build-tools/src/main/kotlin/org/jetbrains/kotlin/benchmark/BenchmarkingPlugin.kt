@@ -6,17 +6,14 @@ import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.artifacts.Dependency
-import org.gradle.jvm.tasks.Jar
 import org.gradle.util.ConfigureUtil
 import org.jetbrains.kotlin.*
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTargetPreset
-import org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType
 import org.jetbrains.kotlin.konan.target.HostManager
 import javax.inject.Inject
 import kotlin.reflect.KClass
-import kotlin.reflect.jvm.internal.impl.resolve.constants.KClassValue
 
 internal val NamedDomainObjectContainer<KotlinSourceSet>.commonMain
     get() = maybeCreate("commonMain")
@@ -105,7 +102,6 @@ abstract class BenchmarkingPlugin: Plugin<Project> {
     protected abstract val Project.nativeExecutable: String
     protected abstract val Project.nativeLinkTask: Task
     protected abstract val Project.benchmark: BenchmarkExtension
-    protected abstract val Project.jvmParameters: Pair<Int, String>?
     protected abstract val benchmarkExtensionName: String
     protected abstract val benchmarkExtensionClass: KClass<*>
 
@@ -145,7 +141,6 @@ abstract class BenchmarkingPlugin: Plugin<Project> {
     }
 
     protected open fun KotlinNativeTarget.configureNativeOutput(project: Project) {
-            compilations.getByName("main").enableEndorsedLibs = true
         binaries.executable(NATIVE_EXECUTABLE_NAME, listOf(RELEASE)) {
             if (HostManager.hostIsMingw) {
                 linkerOpts.add("-L${mingwPath}/lib")
@@ -165,18 +160,15 @@ abstract class BenchmarkingPlugin: Plugin<Project> {
 
     protected open fun Project.configureNativeTarget(hostPreset: KotlinNativeTargetPreset) {
         kotlin.targetFromPreset(hostPreset, NATIVE_TARGET_NAME) {
-            compilations.getByName("main").kotlinOptions.freeCompilerArgs = project.compilerArgs + listOf("-l", "kotlinx-cli")
+            compilations.getByName("main").kotlinOptions.freeCompilerArgs = project.compilerArgs
+            compilations.getByName("main").enableEndorsedLibs = true
             configureNativeOutput(this@configureNativeTarget)
         }
     }
 
-    protected open fun Project.configureAdditionalExtensions() {
-    }
-
-    protected open fun Project.configureMPPExtension() {
-        configureSourceSets(kotlinVersion)
-        configureNativeTarget(determinePreset())
-        configureAdditionalExtensions()
+    protected open fun configureMPPExtension(project: Project) {
+        project.configureSourceSets(project.kotlinVersion)
+        project.configureNativeTarget(project.determinePreset())
     }
 
     protected open fun Project.configureNativeTask(nativeTarget: KotlinNativeTarget): Task {
@@ -195,34 +187,7 @@ abstract class BenchmarkingPlugin: Plugin<Project> {
         return konanRun
     }
 
-    protected open fun Project.configureJvmTask(): Task {
-        return tasks.create("jvmRun", RunJvmTask::class.java) { task ->
-            jvmParameters?.let { (jvmWarmup, jvmBenchResults) ->
-                task.dependsOn("build")
-                val mainCompilation = kotlin.jvm().compilations.getByName("main")
-                val runtimeDependencies = configurations.getByName(mainCompilation.runtimeDependencyConfigurationName)
-                task.classpath(files(mainCompilation.output.allOutputs, runtimeDependencies))
-                task.main = "MainKt"
-
-                task.group = BENCHMARKING_GROUP
-                task.description = "Runs the benchmark for Kotlin/JVM."
-
-                // Specify settings configured by a user in the benchmark extension.
-                afterEvaluate {
-                    task.args(
-                            "-w", jvmWarmup,
-                            "-r", attempts,
-                            "-o", buildDir.resolve(jvmBenchResults),
-                            "-p", "${benchmark.applicationName}::"
-                    )
-                }
-            } ?: run {
-                task.doLast {
-                    println("JVM run is unsupported")
-                }
-            }
-        }
-    }
+    protected abstract fun Project.configureJvmTask(): Task
 
     protected open fun Project.getCompilerFlags(nativeTarget: KotlinNativeTarget) =
             nativeTarget.compilations.main.kotlinOptions.freeCompilerArgs.map { "\"$it\"" }
@@ -256,34 +221,7 @@ abstract class BenchmarkingPlugin: Plugin<Project> {
         }
     }
 
-    protected open fun Project.configureJvmJsonTask(jvmRun: Task): Task {
-        return tasks.create("jvmJsonReport") {
-            it.group = BENCHMARKING_GROUP
-            it.description = "Builds the benchmarking report for Kotlin/JVM."
-
-            it.doLast {
-                jvmParameters?.let { (_, jvmBenchResults) ->
-                    val applicationName = benchmark.applicationName
-                    val jarPath = (tasks.getByName("jvmJar") as Jar).archiveFile.get().asFile
-                    val jvmCompileTime = getJvmCompileTime(applicationName)
-                    val benchContents = buildDir.resolve(jvmBenchResults).readText()
-
-                    val properties: Map<String, Any> = commonBenchmarkProperties + mapOf(
-                            "type" to "jvm",
-                            "compilerVersion" to kotlinVersion,
-                            "benchmarks" to benchContents,
-                            "compileTime" to listOf(jvmCompileTime),
-                            "codeSize" to getCodeSizeBenchmark(applicationName, jarPath.absolutePath)
-                    )
-
-                    val output = createJsonReport(properties)
-                    buildDir.resolve(jvmJson).writeText(output)
-                } ?: println("JVM run is unsupported")
-            }
-
-            jvmRun.finalizedBy(it)
-        }
-    }
+    protected abstract fun Project.configureJvmJsonTask(jvmRun: Task): Task
 
     protected open fun Project.configureExtraTasks() {}
 
@@ -311,7 +249,7 @@ abstract class BenchmarkingPlugin: Plugin<Project> {
         addTimeListener(this)
 
         extensions.create(benchmarkExtensionName, benchmarkExtensionClass.java, this)
-        configureMPPExtension()
+        configureMPPExtension(this)
         configureTasks()
     }
 

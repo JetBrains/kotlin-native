@@ -1,12 +1,8 @@
 package org.jetbrains.kotlin.benchmark
 
-import groovy.lang.Closure
 import org.gradle.api.NamedDomainObjectContainer
-import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
-import org.gradle.api.artifacts.Dependency
-import org.gradle.util.ConfigureUtil
 import org.jetbrains.kotlin.*
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet
 import org.jetbrains.kotlin.gradle.plugin.mpp.Framework
@@ -29,11 +25,23 @@ open class SwiftBenchmarkExtension @Inject constructor(project: Project) : Bench
  * A plugin configuring a benchmark Kotlin/Native project.
  */
 open class SwiftBenchmarkingPlugin : BenchmarkingPlugin() {
+    override fun Project.configureJvmJsonTask(jvmRun: Task): Task {
+        return tasks.create("jvmJsonReport") {
+            logger.info("JVM run is unsupported")
+            jvmRun.finalizedBy(it)
+        }
+    }
+
+    override fun Project.configureJvmTask(): Task {
+        return tasks.create("jvmRun") { task ->
+            task.doLast {
+                logger.info("JVM run is unsupported")
+            }
+        }
+    }
+
     override val benchmarkExtensionClass: KClass<*>
         get() = SwiftBenchmarkExtension::class
-
-    override val Project.jvmParameters: Pair<Int, String>?
-        get() = null
 
     override val Project.benchmark: SwiftBenchmarkExtension
         get() = extensions.getByName(benchmarkExtensionName) as SwiftBenchmarkExtension

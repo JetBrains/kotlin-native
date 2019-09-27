@@ -1,18 +1,13 @@
 package org.jetbrains.kotlin.benchmark
 
-import groovy.lang.Closure
+import org.gradle.jvm.tasks.Jar
 import org.gradle.api.NamedDomainObjectContainer
-import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
-import org.gradle.api.artifacts.Dependency
-import org.gradle.jvm.tasks.Jar
-import org.gradle.util.ConfigureUtil
 import org.jetbrains.kotlin.*
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSet
 import org.jetbrains.kotlin.gradle.plugin.mpp.Executable
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
-import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTargetPreset
 import org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType
 import org.jetbrains.kotlin.konan.target.HostManager
 import javax.inject.Inject
@@ -41,6 +36,56 @@ open class KotlinNativeBenchmarkExtension @Inject constructor(project: Project) 
  * A plugin configuring a benchmark Kotlin/Native project.
  */
 open class KotlinNativeBenchmarkingPlugin: BenchmarkingPlugin() {
+    override fun Project.configureJvmJsonTask(jvmRun: Task): Task {
+        return tasks.create("jvmJsonReport") {
+            it.group = BENCHMARKING_GROUP
+            it.description = "Builds the benchmarking report for Kotlin/JVM."
+
+            it.doLast {
+                val applicationName = benchmark.applicationName
+                val jarPath = (tasks.getByName("jvmJar") as Jar).archiveFile.get().asFile
+                val jvmCompileTime = getJvmCompileTime(applicationName)
+                val benchContents = buildDir.resolve(jvmBenchResults).readText()
+
+                val properties: Map<String, Any> = commonBenchmarkProperties + mapOf(
+                        "type" to "jvm",
+                        "compilerVersion" to kotlinVersion,
+                        "benchmarks" to benchContents,
+                        "compileTime" to listOf(jvmCompileTime),
+                        "codeSize" to getCodeSizeBenchmark(applicationName, jarPath.absolutePath)
+                )
+
+                val output = createJsonReport(properties)
+                buildDir.resolve(jvmJson).writeText(output)
+            }
+
+            jvmRun.finalizedBy(it)
+        }
+    }
+
+    override fun Project.configureJvmTask(): Task {
+        return tasks.create("jvmRun", RunJvmTask::class.java) { task ->
+            task.dependsOn("build")
+            val mainCompilation = kotlin.jvm().compilations.getByName("main")
+            val runtimeDependencies = configurations.getByName(mainCompilation.runtimeDependencyConfigurationName)
+            task.classpath(files(mainCompilation.output.allOutputs, runtimeDependencies))
+            task.main = "MainKt"
+
+            task.group = BENCHMARKING_GROUP
+            task.description = "Runs the benchmark for Kotlin/JVM."
+
+            // Specify settings configured by a user in the benchmark extension.
+            afterEvaluate {
+                task.args(
+                        "-w", jvmWarmup,
+                        "-r", attempts,
+                        "-o", buildDir.resolve(jvmBenchResults),
+                        "-p", "${benchmark.applicationName}::"
+                )
+            }
+        }
+    }
+
     override val benchmarkExtensionClass: KClass<*>
         get() = KotlinNativeBenchmarkExtension::class
 
@@ -59,11 +104,9 @@ open class KotlinNativeBenchmarkingPlugin: BenchmarkingPlugin() {
     override val Project.nativeLinkTask: Task
         get() = nativeBinary.linkTask
 
-    override val Project.jvmParameters: Pair<Int, String>?
-        get() = jvmWarmup to jvmBenchResults
-
-    override fun Project.configureAdditionalExtensions() {
-        configureJVMTarget()
+    override fun configureMPPExtension(project: Project) {
+        super.configureMPPExtension(project)
+        project.configureJVMTarget()
     }
 
     override fun NamedDomainObjectContainer<KotlinSourceSet>.configureSources(project: Project) {
