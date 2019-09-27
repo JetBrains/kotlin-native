@@ -85,7 +85,7 @@ open class SwiftBenchmarkingPlugin : BenchmarkingPlugin() {
                 val frameworkParentDirPath = framework.outputDirectory.absolutePath
                 val options = listOf("-Xlinker", "-rpath", "-Xlinker", frameworkParentDirPath, "-F", frameworkParentDirPath)
                 compileSwift(project, nativeTarget.konanTarget, benchmark.swiftSources, options,
-                        executable, false)
+                        Paths.get(buildDir.absolutePath, benchmark.applicationName), false)
             }
         }
     }

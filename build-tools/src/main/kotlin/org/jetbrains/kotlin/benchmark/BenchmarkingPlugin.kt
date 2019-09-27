@@ -180,7 +180,6 @@ abstract class BenchmarkingPlugin: Plugin<Project> {
     protected open fun Project.configureNativeTask(nativeTarget: KotlinNativeTarget): Task {
         val konanRun = createRunTask(this, "konanRun", nativeLinkTask,
                 nativeExecutable, buildDir.resolve(nativeBenchResults).absolutePath).apply {
-                nativeExecutable.linkTask.binary.outputFile.absolutePath,
             group = BENCHMARKING_GROUP
             description = "Runs the benchmark for Kotlin/Native."
         }
@@ -209,7 +208,6 @@ abstract class BenchmarkingPlugin: Plugin<Project> {
 
             it.doLast {
                 val applicationName = benchmark.applicationName
-                val nativeCompileTime = getNativeCompileTime(applicationName)
                 val benchContents = buildDir.resolve(nativeBenchResults).readText()
                 val nativeCompileTime = if (benchmark.compileTasks.isEmpty()) getNativeCompileTime(applicationName)
                     else getNativeCompileTime(applicationName, benchmark.compileTasks)
