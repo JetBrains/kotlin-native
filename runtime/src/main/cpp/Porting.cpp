@@ -382,6 +382,11 @@ extern "C" {
         }
         return prime;
     }
+
+    int _ZNSt3__212__next_primeEm(int n) {
+       return _ZNSt3__212__next_primeEj(n);
+    }
+
     int _ZNSt3__112__next_primeEj(unsigned long n) {
         return _ZNSt3__212__next_primeEj(n);
     }
