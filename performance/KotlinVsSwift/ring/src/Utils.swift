@@ -15,4 +15,5 @@ class Blackhole {
 struct Constants {
     static let BENCHMARK_SIZE = 10000
     static let RUNS = 1_000_000
+    static var globalAddendum = 0
 }

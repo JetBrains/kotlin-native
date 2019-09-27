@@ -59,7 +59,7 @@ public func filterSome(_ v: Int) -> Bool {
     return v % 7 == 0 || v % 11 == 0
 }
 
-public func filterPrime(v: Int) -> Bool {
+public func filterPrime(_ v: Int) -> Bool {
     if (v <= 1) {
         return false
     }
