@@ -21,7 +21,7 @@ release binaries. To enable it in Gradle, use
 
 ```kotlin
 kotlin {
-    targets.withType<KotlinNativeTarget> {
+    targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
         binaries.all {
             freeCompilerArgs += "-Xg0"
         }
@@ -46,8 +46,8 @@ So in this case it may be required to make the framework static, e.g. with
 
 ```kotlin
 kotlin {
-    targets.withType<KotlinNativeTarget> {
-        binaries.withType<Framework> {
+    targets.withType<org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget> {
+        binaries.withType<org.jetbrains.kotlin.gradle.plugin.mpp.Framework> {
             isStatic = true
         }
     }
@@ -65,7 +65,7 @@ missing. If this is the case, consider using `lldb` to process crash report
 that is already symbolicated by Xcode, for example:
 
 ```bash
-$ lldb -b -o "script import lldb.macosx" -o "crashlog \"$CRASHLOG\""
+$ lldb -b -o "script import lldb.macosx" -o "crashlog file.crash"
 ```
 
 This command should output crash report that is additionally processed and
