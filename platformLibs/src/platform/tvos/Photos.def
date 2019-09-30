@@ -1,4 +1,4 @@
-depends = UIKit AVFoundation AudioToolbox CFNetwork CoreAudio CoreAudioTypes CoreFoundation CoreGraphics CoreImage CoreLocation CoreMedia CoreVideo EAGL Foundation IOSurface ImageIO MediaToolbox Metal OpenGLESCommon QuartzCore Security darwin posix
+depends = AVFoundation AudioToolbox CFNetwork CoreAudio CoreAudioTypes CoreFoundation CoreGraphics CoreImage CoreLocation CoreMedia CoreText CoreVideo EAGL Foundation IOSurface ImageIO MediaToolbox Metal OpenGLESCommon QuartzCore Security UserNotifications darwin posix
 language = Objective-C
 package = platform.Photos
 modules = UIKit Photos
