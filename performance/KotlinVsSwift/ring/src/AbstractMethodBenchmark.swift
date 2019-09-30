@@ -30,10 +30,7 @@ class AbstractMethodBenchmark {
     
     func sortStringsWithComparator() -> Set<String> {
         var res = Set<String>()
-        var size = arr.count
-        if (Constants.BENCHMARK_SIZE < size) {
-            size = Constants.BENCHMARK_SIZE
-        }
+        var size = Constants.BENCHMARK_SIZE < arr.count ? Constants.BENCHMARK_SIZE : arr.count
         arr[0..<size].forEach { (member) in
             res.insert(member)
         }
