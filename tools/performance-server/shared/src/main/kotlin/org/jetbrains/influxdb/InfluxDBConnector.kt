@@ -9,23 +9,8 @@ import kotlin.js.Promise            // TODO - migrate to multiplatform.
 import org.jetbrains.report.json.*
 
 // Connector with InfluxDB.
-object InfluxDBConnector {
-    private lateinit var host: String
-    private lateinit var databaseName: String
-    private var port: Int = 8086
-    private var user: String? = null
-    private var password: String? = null
-
-    // Initialize connection.
-    fun initConnection(host: String, databaseName: String, port: Int = 8086, user: String? = null,
-                       password: String? = null) {
-        this.host = host
-        this.databaseName = databaseName
-        this.port = port
-        this.user = user
-        this.password = password
-    }
-
+class InfluxDBConnector(private val host: String, private val databaseName: String, private val port: Int = 8086,
+                        private val user: String? = null, private val password: String? = null) {
     // Execute InfluxDb query.
     fun query(query: String): Promise<String> {
         checkConnection()
@@ -68,9 +53,9 @@ object InfluxDBConnector {
     }
 
     // Execute select of [columns] with condition [where].
-    fun select(columns: Expression<String>, from: Expression<String>, where: WhereExpression? = null):
+    fun select(columns: Expression<String>):
             Promise<List<String>> {
-        val query = "SELECT ${columns.lineProtocol} FROM (${from.lineProtocol}) ${where?.lineProtocol ?: ""}"
+        val query = "SELECT ${columns.lineProtocol}"
         return selectQuery<String>(query)
     }
 

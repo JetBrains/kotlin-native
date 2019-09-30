@@ -83,16 +83,15 @@ fun orderedBuildNumbers(buildNumbers: List<String>, type: String) = buildNumbers
                 { it.substringAfterLast("-").toInt() }))
 
 // Get builds numbers from DB which have needed parameters.
-fun getBuildsForParameters(branch: String?, target: dynamic): Promise<List<String>> {
-    val measurement = BenchmarkMeasurement()
+fun getBuildsForParameters(branch: String?, target: dynamic, connector: InfluxDBConnector): Promise<List<String>> {
+    val measurement = BenchmarkMeasurement(connector)
     val selectExpr = branch?.let {
         (measurement.tag("environment.machine.os") eq target) and
                 /*(measurement.field("build.number") match ".+-${request.params.type}-.+") and*/
                 (measurement.field("build.branch") eq FieldType.InfluxString(branch))
     } ?: (measurement.tag("environment.machine.os") eq target)
 
-    return InfluxDBConnector.select(measurement.distinct("build.number"),
-            measurement.field("build.number")
+    return connector.select(measurement.distinct("build.number") from measurement.field("build.number")
                     .select(selectExpr)).then { dbResponse ->
         dbResponse.toString().replace("\\[|\\]| ".toRegex(), "").split(",")
     }
@@ -102,7 +101,7 @@ fun getBuildsForParameters(branch: String?, target: dynamic): Promise<List<Strin
 fun router() {
     val express = require("express")
     val router = express.Router()
-    InfluxDBConnector.initConnection("https://biff-9a16f218.influxcloud.net", "kotlin_native",
+    val connector = InfluxDBConnector("https://biff-9a16f218.influxcloud.net", "kotlin_native",
             user = "elena_lepikina", password = "KMFBsyhrae6gLrCZ4Tmq")
 
     // Register build on Bintray.
@@ -116,7 +115,7 @@ fun router() {
                 val commitsList = CommitsList(JsonTreeParser.parse(changes))
                 // Get artifact.
                 register.sendTeamCityRequest(register.teamCityArtifactsUrl).then { resultsContent ->
-                    val results = BenchmarkMeasurement.create(JsonTreeParser.parse(resultsContent),
+                    val results = BenchmarkMeasurement.create(JsonTreeParser.parse(resultsContent), connector,
                             BuildInfo(buildInfo.buildNumber, buildInfo.startTime, buildInfo.finishTime,
                                     commitsList, buildInfo.branch)).toMutableList()
                     if (results.isNotEmpty() && register.bundleSize != null) {
@@ -132,7 +131,7 @@ fun router() {
                         results.add(bundleSizeBenchmark)
                     }
                     // Save results in database.
-                    Promise.all(InfluxDBConnector.insert(results)).then { _ ->
+                    Promise.all(connector.insert(results)).then { _ ->
                         response.sendStatus(200)
                     }.catch {
                         response.sendStatus(400)
@@ -146,9 +145,9 @@ fun router() {
     router.post("/registerGolden", { request, response ->
         val goldenResultsInfo = JSON.parse<GoldenResultsInfo>(JSON.stringify(request.body))
         val resultPoints = goldenResultsInfo.goldenResults.map {
-            GoldenResultMeasurement(it.benchmarkName, it.metric, it.value)
+            GoldenResultMeasurement(it.benchmarkName, it.metric, it.value, connector)
         }
-        Promise.all(InfluxDBConnector.insert(resultPoints)).then { _ ->
+        Promise.all(connector.insert(resultPoints)).then { _ ->
             response.sendStatus(200)
         }.catch {
             response.sendStatus(400)
@@ -157,20 +156,20 @@ fun router() {
 
     // Get builds description with additional information.
     router.get("/buildsDesc/:target/:type", { request, response ->
-        val measurement = BenchmarkMeasurement()
-        val target = request.params.target.toString().replace('_', ' ').asDynamic()
+        val measurement = BenchmarkMeasurement(connector)
+        val target = request.params.target.toString().replace('_', ' ')
         var branch: String? = null
         if (request.query != undefined) {
             if (request.query.branch != undefined) {
                 branch = request.query.branch
             }
         }
-        getBuildsForParameters(branch, target).then { results ->
+        getBuildsForParameters(branch, target, connector).then { results ->
             val filteredBuildNumbers = orderedBuildNumbers(results, "${request.params.type}")
             val responseLists = filteredBuildNumbers.map {
                 // Select needed measurements.
-                measurement.select(measurement.all(), (measurement.tag("environment.machine.os") eq target) and
-                        (measurement.field("build.number") eq FieldType.InfluxString(it))).then { measurements ->
+                measurement.select(measurement.all() where ((measurement.tag("environment.machine.os") eq target)  and
+                        (measurement.field("build.number") eq FieldType.InfluxString(it)) as Condition<String>)).then { measurements ->
                     val report = measurements.toReport()
                     val failuresNumber = report?.let { report ->
                         val summaryReport = SummaryBenchmarksReport(report)
@@ -198,7 +197,7 @@ fun router() {
 
     // Get values of current metric.
     router.get("/metricValue/:target/:type/:metric", { request, response ->
-        val measurement = BenchmarkMeasurement()
+        val measurement = BenchmarkMeasurement(connector)
         val metric = request.params.metric
         val target = request.params.target.toString().replace('_', ' ').asDynamic()
         var samples: List<String>? = null
@@ -223,7 +222,7 @@ fun router() {
         }
 
         // Get golden results to normalize data.
-        val golden = GoldenResultMeasurement()
+        val golden = GoldenResultMeasurement(connector = connector)
         val goldenResults = golden.select(golden.all()).then { results ->
             val parsedNormalizeResults = mutableMapOf<String, MutableMap<String, Double>>()
             results.forEach {
@@ -236,15 +235,15 @@ fun router() {
         }
 
         // Get builds numbers.
-        val buildsNumbers = getBuildsForParameters(branch, target)
+        val buildsNumbers = getBuildsForParameters(branch, target, connector)
 
         Promise.all(arrayOf(buildsNumbers, goldenResults)).then { results ->
             val (buildsNumbers, goldenResults) = results
             val filteredBuildNumbers = orderedBuildNumbers(buildsNumbers, "${request.params.type}")
             val responseLists = filteredBuildNumbers.map {
                 // Get points for this build.
-                measurement.select(measurement.all(), (measurement.tag("environment.machine.os") eq target) and
-                        (measurement.field("build.number") eq FieldType.InfluxString(it))).then { dbResponse ->
+                measurement.select(measurement.all() where ((measurement.tag("environment.machine.os") eq target) and
+                        (measurement.field("build.number") eq FieldType.InfluxString(it)))).then { dbResponse ->
                     val report = dbResponse.toReport()
                     report?.let { report ->
                         val dataForNormalization = if (normalize)
@@ -292,22 +291,20 @@ fun router() {
 
     // Get branches for [target].
     router.get("/branches/:target", { request, response ->
-        val measurement = BenchmarkMeasurement()
+        val measurement = BenchmarkMeasurement(connector)
         val target = request.params.target.toString().replace('_', ' ').asDynamic()
-        InfluxDBConnector.select(measurement.distinct("build.branch"),
-                measurement.field("build.branch")
-                        .select(measurement.tag("environment.machine.os") eq target)).then { dbResponse ->
+        connector.select(measurement.distinct("build.branch") from measurement.field("build.branch")
+                        .select( measurement.tag("environment.machine.os") eq target)).then { dbResponse ->
             response.json(dbResponse)
         }
     })
 
     // Get build numbers for [target].
     router.get("/buildsNumbers/:target", { request, response ->
-        val measurement = BenchmarkMeasurement()
+        val measurement = BenchmarkMeasurement(connector)
         val target = request.params.target.toString().replace('_', ' ').asDynamic()
 
-        InfluxDBConnector.select(measurement.distinct("build.number"),
-                measurement.field("build.number")
+        connector.select(measurement.distinct("build.number") from measurement.field("build.number")
                         .select(measurement.tag("environment.machine.os") eq target)).then { dbResponse ->
             response.json(dbResponse)
         }
