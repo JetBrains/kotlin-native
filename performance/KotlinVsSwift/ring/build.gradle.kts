@@ -12,7 +12,7 @@ plugins {
 val toolsPath = "../../../tools"
 
 swiftBenchmark {
-    applicationName = "swiftRing"
+    applicationName = "Ring"
     commonSrcDirs = listOf("$toolsPath/benchmarks/shared/src/main/kotlin", "../../shared/src/main/kotlin")
     nativeSrcDirs = listOf("../../shared/src/main/kotlin-native/common", "../../shared/src/main/kotlin-native/posix")
     swiftSources = File("$projectDir/src").list().map { "$projectDir/src/$it" }.toList()

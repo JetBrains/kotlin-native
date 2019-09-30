@@ -39,7 +39,7 @@ class IntArrayBenchmark {
     }
 
     func filterSomeAndCount() -> Int {
-        return data.filter { ring.filterSome($0) }.count
+        return data.filter { Ring.filterSome($0) }.count
     }
 
     func filterAndMap() -> [String] {
@@ -62,11 +62,11 @@ class IntArrayBenchmark {
     }
 
     func filterSome() -> [Int] {
-        return data.filter { ring.filterSome($0) }
+        return data.filter { Ring.filterSome($0) }
     }
 
     func filterPrime() -> [Int] {
-        return data.filter { ring.filterPrime($0) }
+        return data.filter { Ring.filterPrime($0) }
     }
 
     func filterManual() -> [Int] {
@@ -82,7 +82,7 @@ class IntArrayBenchmark {
     func filterSomeManual() -> [Int] {
         var list: [Int] = []
         for it in data {
-            if (ring.filterSome(it)) {
+            if (Ring.filterSome(it)) {
                 list.append(it)
             }
         }
@@ -102,7 +102,7 @@ class IntArrayBenchmark {
     func countFilteredSomeManual() -> Int {
         var count = 0
         for it in data {
-            if (ring.filterSome(it)) {
+            if (Ring.filterSome(it)) {
                 count += 1
             }
         }
@@ -112,7 +112,7 @@ class IntArrayBenchmark {
     func countFilteredPrimeManual() -> Int {
         var count = 0
         for it in data {
-            if (ring.filterPrime(it)) {
+            if (Ring.filterPrime(it)) {
                 count += 1
             }
         }
@@ -124,11 +124,11 @@ class IntArrayBenchmark {
     }
 
     func countFilteredSome() -> Int {
-        return data.count { ring.filterSome($0) }
+        return data.count { Ring.filterSome($0) }
     }
 
     func countFilteredPrime() -> Int {
-        let res = data.count { ring.filterPrime($0) }
+        let res = data.count { Ring.filterPrime($0) }
         return res
     }
 
@@ -137,7 +137,7 @@ class IntArrayBenchmark {
     }
 
     func countFilteredSomeLocal() -> Int {
-        return data.cnt { ring.filterSome($0) }
+        return data.cnt { Ring.filterSome($0) }
     }
 
     func reduce() -> Int {

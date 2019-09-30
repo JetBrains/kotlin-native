@@ -83,7 +83,7 @@ open class SwiftBenchmarkingPlugin : BenchmarkingPlugin() {
             task.dependsOn(framework.linkTaskName)
             task.doLast {
                 val frameworkParentDirPath = framework.outputDirectory.absolutePath
-                val options = listOf("-Xlinker", "-rpath", "-Xlinker", frameworkParentDirPath, "-F", frameworkParentDirPath)
+                val options = listOf("-O", "-Xlinker", "-rpath", "-Xlinker", frameworkParentDirPath, "-F", frameworkParentDirPath)
                 compileSwift(project, nativeTarget.konanTarget, benchmark.swiftSources, options,
                         Paths.get(buildDir.absolutePath, benchmark.applicationName), false)
             }
@@ -99,5 +99,5 @@ open class SwiftBenchmarkingPlugin : BenchmarkingPlugin() {
             )
 
     override fun Project.getCompilerFlags(nativeTarget: KotlinNativeTarget) =
-            listOf<String>()
+            listOf("-O")
 }
