@@ -29,11 +29,11 @@
 extern "C" {
 
 // Any.kt
-KBoolean Kotlin_Any_equals(KConstRef thiz, KConstRef other) {
+ALWAYS_INLINE KBoolean Kotlin_Any_equals(KConstRef thiz, KConstRef other) {
   return thiz == other;
 }
 
-KInt Kotlin_Any_hashCode(KConstRef thiz) {
+ALWAYS_INLINE KInt Kotlin_Any_hashCode(KConstRef thiz) {
   // Here we will use different mechanism for stable hashcode, using meta-objects
   // if moving collector will be used.
   return reinterpret_cast<uintptr_t>(thiz);
