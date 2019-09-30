@@ -8,15 +8,25 @@ package org.jetbrains.influxdb
 // Base class for expression of InfluxDB query.
 abstract class Expression<T: Any>() {
     abstract val lineProtocol: String
+
+    infix fun where(condition: Condition<*>) = WhereExpression<T>(condition)
+    infix fun from(expression: Expression<String>): Expression<T> = object : Expression<T>() {
+        override val lineProtocol: String =
+                "FROM ${expression.lineProtocol}"
+    }
+}
+
+abstract class Condition<T: Any>: Expression<T>() {
+    // AND InfluxDb operator to combine several conditions.
+    infix fun and(other: Condition<T>): Condition<T> = object : Condition<T>() {
+        override val lineProtocol: String =
+                "${this@Condition.lineProtocol} AND ${other.lineProtocol}"
+    }
 }
 
 // Base class for InfluxDB expression describing condition of selected points.
-abstract class WhereExpression: Expression<String>() {
-    // AND InfluxDb operator to combine sevral conditions.
-    infix fun and(other: WhereExpression) = object : WhereExpression() {
-        override val lineProtocol: String =
-                "WHERE ${this@WhereExpression.lineProtocol.replace("WHERE", "")} AND ${other.lineProtocol.replace("WHERE", "")}"
-    }
+class WhereExpression<T: Any>(val condition: Condition<*>): Expression<T>() {
+    override val lineProtocol: String = "WHERE ${condition.lineProtocol}"
 }
 
 // Base class for InfluxDB functions.

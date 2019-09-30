@@ -20,7 +20,7 @@ sealed class FieldType<T : Any>(val value: T) {
 }
 
 // Base class for measurements.
-abstract class Measurement<T : Measurement<T>>(val name: String) {
+abstract class Measurement<T : Measurement<T>>(val name: String, protected val connector: InfluxDBConnector) {
     var timestamp: Long? = null
         protected set
     val fields = mutableMapOf<String, ColumnEntity.FieldEntity<FieldType<*>>>()
@@ -86,9 +86,9 @@ abstract class Measurement<T : Measurement<T>>(val name: String) {
     }
 
     // Execute select from measurement with [where] condition.
-    inline fun <reified U: Any>select(columns: Expression<U>, where: WhereExpression? = null): Promise<List<U>> {
-        val query = "SELECT ${columns.lineProtocol} FROM \"$name\" ${where?.lineProtocol ?: ""}"
-        return InfluxDBConnector.selectQuery<U>(query, this)
+    inline fun <reified U: Any>select(columns: Expression<U>): Promise<List<U>> {
+        val query = "SELECT ${columns.lineProtocol} FROM \"$name\""
+        return connector.selectQuery<U>(query, this)
     }
 
     // Get expression describing all fields/tags in measurement.
@@ -111,17 +111,17 @@ sealed class ColumnEntity<T : Any>(val name: String, val measurement: String): E
     }
 
     // Get expression checking equality of entity to value.
-    infix fun eq(value: T) = object : WhereExpression() {
-        override val lineProtocol: String = "WHERE \"$name\"='$value'"
+    infix fun <U : Any> eq(value: U) = object : Condition<U>() {
+        override val lineProtocol: String = "\"$name\"='$value'"
     }
 
     // Get expression checking matching entity value to some regex.
-    infix fun match(regex: String) = object : WhereExpression() {
-        override val lineProtocol: String = "WHERE \"$name\"=~/$regex/"
+    infix fun match(regex: String) = object : Condition<T>() {
+        override val lineProtocol: String = "\"$name\"=~/$regex/"
     }
 
     // Select entity with some [where] condition.
-    infix fun select(where: WhereExpression) = object : Expression<String>() {
+    infix fun select(where: Condition<String>) = object : Expression<String>() {
         override val lineProtocol: String = "SELECT \"$name\" FROM $measurement ${where.lineProtocol}"
     }
 

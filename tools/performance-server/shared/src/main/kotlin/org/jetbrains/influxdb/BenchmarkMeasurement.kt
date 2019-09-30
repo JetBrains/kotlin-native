@@ -45,7 +45,8 @@ data class BuildInfo(val number: String, val startTime: String, val endTime: Str
                      val branch: String)
 
 // Database instance describing golden result value.
-class GoldenResultMeasurement(name: String = "", metric: String = "", score: Double = 0.0): Measurement<GoldenResultMeasurement>("goldenResults") {
+class GoldenResultMeasurement(name: String = "", metric: String = "", score: Double = 0.0, connector: InfluxDBConnector):
+        Measurement<GoldenResultMeasurement>("goldenResults", connector) {
     var benchmarkName by Tag<String>("benchmark.name")
     var benchmarkScore by Field<FieldType.InfluxFloat>("benchmark.score")
     var benchmarkMetric by Tag<String>("benchmark.metric")
@@ -76,7 +77,7 @@ class GoldenResultMeasurement(name: String = "", metric: String = "", score: Dou
                                 val name = (values[columnsIndexes["benchmark.name"]!!] as JsonLiteral).unquoted()
                                 val score = (values[columnsIndexes["benchmark.score"]!!] as JsonLiteral).double
                                 val metric = (values[columnsIndexes["benchmark.metric"]!!] as JsonLiteral).unquoted()
-                                points.add(GoldenResultMeasurement(name, metric, score))
+                                points.add(GoldenResultMeasurement(name, metric, score, connector))
                             }
                         }
                     }
@@ -109,7 +110,7 @@ fun List<BenchmarkMeasurement>.toReport(): BenchmarksReport? {
 }
 
 // Database instance describing benchmark.
-class BenchmarkMeasurement : Measurement<BenchmarkMeasurement>("benchmarks") {
+class BenchmarkMeasurement(connector: InfluxDBConnector) : Measurement<BenchmarkMeasurement>("benchmarks", connector) {
     fun initBuildInfo(buildInfo: BuildInfo) {
         buildNumber = FieldType.InfluxString(buildInfo.number)
         buildBranch = FieldType.InfluxString(buildInfo.branch)
@@ -119,7 +120,7 @@ class BenchmarkMeasurement : Measurement<BenchmarkMeasurement>("benchmarks") {
     }
 
     fun copy(): BenchmarkMeasurement {
-        val point = BenchmarkMeasurement()
+        val point = BenchmarkMeasurement(connector)
         point.envMachineCpu = envMachineCpu
         point.envMachineOs = envMachineOs
         point.envJDKVendor = envJDKVendor
@@ -147,12 +148,14 @@ class BenchmarkMeasurement : Measurement<BenchmarkMeasurement>("benchmarks") {
     }
 
     companion object: EntityFromJsonFactory<List<BenchmarkMeasurement>> {
+        private lateinit var connector: InfluxDBConnector
         // Convert from standard benchmarks report to measurements instances.
-        fun fromReport(benchmarksReport: BenchmarksReport, buildInfo: BuildInfo?): List<BenchmarkMeasurement> {
+        fun fromReport(benchmarksReport: BenchmarksReport, buildInfo: BuildInfo?, connector: InfluxDBConnector):
+                List<BenchmarkMeasurement> {
             val points = mutableListOf<BenchmarkMeasurement>()
             benchmarksReport.benchmarks.forEach { (name, results) ->
                 results.forEach {
-                    val point = BenchmarkMeasurement()
+                    val point = BenchmarkMeasurement(connector)
                     point.envMachineCpu = benchmarksReport.env.machine.cpu
                     point.envMachineOs = benchmarksReport.env.machine.os
                     point.envJDKVendor = FieldType.InfluxString(benchmarksReport.env.jdk.vendor)
@@ -179,7 +182,9 @@ class BenchmarkMeasurement : Measurement<BenchmarkMeasurement>("benchmarks") {
             return points
         }
 
-        fun create(data: JsonElement, buildInfo: BuildInfo? = null): List<BenchmarkMeasurement> {
+        fun create(data: JsonElement, connector: InfluxDBConnector, buildInfo: BuildInfo? = null):
+                List<BenchmarkMeasurement> {
+            this.connector = connector
             val results = create(data)
             buildInfo?.let {
                 results.forEach {
@@ -229,7 +234,7 @@ class BenchmarkMeasurement : Measurement<BenchmarkMeasurement>("benchmarks") {
                                 val repeat = elementToInt(it.getRequiredField("repeat"), "repeat")
                                 val warmup = elementToInt(it.getRequiredField("warmup"), "warmup")
 
-                                val point = BenchmarkMeasurement()
+                                val point = BenchmarkMeasurement(connector)
                                 point.envMachineCpu = cpu
                                 point.envMachineOs = os
                                 point.envJDKVendor = FieldType.InfluxString(jdkVendor)
@@ -282,7 +287,7 @@ class BenchmarkMeasurement : Measurement<BenchmarkMeasurement>("benchmarks") {
                             }.toMap()
                             val valuesArrays = it.getRequiredField("values") as JsonArray
                             valuesArrays.forEach {
-                                val point = BenchmarkMeasurement()
+                                val point = BenchmarkMeasurement(connector)
                                 val values = it as JsonArray
                                 point.envMachineCpu = (values[columnsIndexes["environment.machine.cpu"]!!] as JsonLiteral)
                                         .unquoted()
