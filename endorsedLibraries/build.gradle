@@ -33,3 +33,25 @@ targetList.each { target ->
         }
     }
 }
+
+task endorsedLibsCommonSources(type: Copy) {
+    destinationDir file("$buildDir/sources-common")
+    endorsedLibrariesList.each { library ->
+        from(project("$library").file('src/main/kotlin')) {
+            includeEmptyDirs = false
+            include('**/*.kt')
+            into("${library.replaceAll("\\.", "-")}")
+        }
+    }
+}
+
+task endorsedLibsNativeSources(type: Copy) {
+    destinationDir file("$buildDir/sources-native")
+    endorsedLibrariesList.each { library ->
+        from(project("$library").file('src/main/kotlin-native')) {
+            includeEmptyDirs = false
+            include('**/*.kt')
+            into("${library.replaceAll("\\.", "-")}")
+        }
+    }
+}

@@ -216,9 +216,39 @@ task distNativeSources(type: Zip) {
     }
 }
 
+task distEndorsedCommonSources(type: Zip) {
+    dependsOn ":endorsedLibraries:endorsedLibsCommonSources"
+
+    destinationDirectory = file("$distDir/sources")
+    archiveFileName = "kotlin-endorsed-common-sources.zip"
+
+    includeEmptyDirs = false
+    include('**/*.kt')
+
+    from(project(':endorsedLibraries').file('build/sources-common'))
+}
+
+task distEndorsedNativeSources(type: Zip) {
+    dependsOn ":endorsedLibraries:endorsedLibsNativeSources"
+
+    destinationDirectory = file("$distDir/sources")
+    archiveFileName = "kotlin-endorsed-native-sources.zip"
+
+    includeEmptyDirs = false
+    include('**/*.kt')
+
+    from(project(':endorsedLibraries').file('build/sources-native'))
+}
+
+task distEndorsedSources {
+    dependsOn(distEndorsedCommonSources)
+    dependsOn(distEndorsedNativeSources)
+}
+
 task distSources {
     dependsOn(distCommonSources)
     dependsOn(distNativeSources)
+    dependsOn(distEndorsedSources)
 }
 
 task distCompiler(type: Copy) {
