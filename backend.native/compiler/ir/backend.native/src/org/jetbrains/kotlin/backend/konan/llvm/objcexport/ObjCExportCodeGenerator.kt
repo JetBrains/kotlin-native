@@ -680,7 +680,7 @@ private fun ObjCExportCodeGenerator.generateObjCImp(
         MethodBridge.ReturnValue.Void -> null
         MethodBridge.ReturnValue.HashCode -> {
             val kotlinHashCode = targetResult!!
-            if (codegen.context.is64BitLong()) zext(kotlinHashCode, int64Type) else kotlinHashCode
+            if (codegen.context.is64BitNSInteger()) zext(kotlinHashCode, int64Type) else kotlinHashCode
         }
         is MethodBridge.ReturnValue.Mapped -> kotlinToObjC(targetResult!!, returnBridge.bridge)
         MethodBridge.ReturnValue.WithError.Success -> Int8(1).llvm // true
@@ -782,7 +782,7 @@ private fun ObjCExportCodeGenerator.generateKotlinToObjCBridge(
             MethodBridge.ReturnValue.Void -> null
 
             MethodBridge.ReturnValue.HashCode -> {
-                if (codegen.context.is64BitLong()) {
+                if (codegen.context.is64BitNSInteger()) {
                     val low = trunc(targetResult, int32Type)
                     val high = trunc(shr(targetResult, 32, signed = false), int32Type)
                     xor(low, high)
@@ -1257,7 +1257,7 @@ private val MethodBridgeParameter.objCType: LLVMTypeRef get() = when (this) {
 private fun MethodBridge.ReturnValue.objCType(context: Context): LLVMTypeRef {
     return when (this) {
         MethodBridge.ReturnValue.Void -> voidType
-        MethodBridge.ReturnValue.HashCode -> if (context.is64BitLong()) int64Type else int32Type
+        MethodBridge.ReturnValue.HashCode -> if (context.is64BitNSInteger()) int64Type else int32Type
         is MethodBridge.ReturnValue.Mapped -> this.bridge.objCType
         MethodBridge.ReturnValue.WithError.Success -> ObjCValueType.BOOL.llvmType
 
@@ -1325,7 +1325,7 @@ private val TypeBridge.objCEncoding: String get() = when (this) {
     is ValueTypeBridge -> this.objCValueType.encoding
 }
 
-internal fun Context.is64BitLong(): Boolean = this.config.target.let {
+internal fun Context.is64BitNSInteger(): Boolean = this.config.target.let {
     // We work with watchos_arm64 the same as we work with watchos_arm32.
     it.architecture.bitness == 64 && it != KonanTarget.WATCHOS_ARM64
 }
