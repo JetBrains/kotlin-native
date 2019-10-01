@@ -35,37 +35,34 @@ class CastsBenchmark {
     private func foo_class(_ c: Any, _ x: Int, _ i: Int) -> Int {
         var x = x
         if (c is C0) {
-            x += i
+            x = x &+ i
         }
         if (c is C1) {
             x = x ^ i
         }
         if (c is C2) {
-            x += i
+            x = x &+ i
         }
         if (c is C3) {
             x = x ^ i
         }
         if (c is C4) {
-            x += i
+            x = x &+ i
         }
         if (c is C5) {
             x = x ^ i
         }
         if (c is C6) {
-            x += i
+            x = x &+ i
         }
         if (c is C7) {
             x = x ^ i
         }
         if (c is C8) {
-            x += i
+            x = x &+ i
         }
         if (c is C9) {
             x = x ^ i
-        }
-        if (x > Int.max / 2) {
-            x = 0
         }
         return x
     }
@@ -73,37 +70,34 @@ class CastsBenchmark {
     private func foo_iface(_ c: Any, _ x: Int, _ i: Int) -> Int {
         var x = x
         if (c is I0) {
-            x += i
+            x = x &+ i
         }
         if (c is I1) {
             x = x ^ i
         }
         if (c is I2) {
-            x += i
+            x = x &+ i
         }
         if (c is I3) {
             x = x ^ i
         }
         if (c is I4) {
-            x += i
+            x = x &+ i
         }
         if (c is I5) {
             x = x ^ i
         }
         if (c is I6) {
-            x += i
+            x = x &+ i
         }
         if (c is I7) {
             x = x ^ i
         }
         if (c is I8) {
-            x += i
+            x = x &+ i
         }
         if (c is I9) {
             x = x ^ i
-        }
-        if (x > Int.max / 2) {
-            x = 0
         }
         return x
     }
@@ -122,16 +116,16 @@ class CastsBenchmark {
 
         var x = 0
         for i in 0..<RunsInfo.RUNS {
-            x += foo_class(c0, x, i)
-            x += foo_class(c1, x, i)
-            x += foo_class(c2, x, i)
-            x += foo_class(c3, x, i)
-            x += foo_class(c4, x, i)
-            x += foo_class(c5, x, i)
-            x += foo_class(c6, x, i)
-            x += foo_class(c7, x, i)
-            x += foo_class(c8, x, i)
-            x += foo_class(c9, x, i)
+            x = x &+ foo_class(c0, x, i)
+            x = x &+ foo_class(c1, x, i)
+            x = x &+ foo_class(c2, x, i)
+            x = x &+ foo_class(c3, x, i)
+            x = x &+ foo_class(c4, x, i)
+            x = x &+ foo_class(c5, x, i)
+            x = x &+ foo_class(c6, x, i)
+            x = x &+ foo_class(c7, x, i)
+            x = x &+ foo_class(c8, x, i)
+            x = x &+ foo_class(c9, x, i)
         }
         return x
     }
@@ -150,16 +144,16 @@ class CastsBenchmark {
 
         var x = 0
         for i in 0..<RunsInfo.RUNS {
-            x += foo_iface(c0, x, i)
-            x += foo_iface(c1, x, i)
-            x += foo_iface(c2, x, i)
-            x += foo_iface(c3, x, i)
-            x += foo_iface(c4, x, i)
-            x += foo_iface(c5, x, i)
-            x += foo_iface(c6, x, i)
-            x += foo_iface(c7, x, i)
-            x += foo_iface(c8, x, i)
-            x += foo_iface(c9, x, i)
+            x = x &+ foo_iface(c0, x, i)
+            x = x &+ foo_iface(c1, x, i)
+            x = x &+ foo_iface(c2, x, i)
+            x = x &+ foo_iface(c3, x, i)
+            x = x &+ foo_iface(c4, x, i)
+            x = x &+ foo_iface(c5, x, i)
+            x = x &+ foo_iface(c6, x, i)
+            x = x &+ foo_iface(c7, x, i)
+            x = x &+ foo_iface(c8, x, i)
+            x = x &+ foo_iface(c9, x, i)
         }
         return x
     }

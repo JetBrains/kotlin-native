@@ -8,7 +8,7 @@ import Foundation
 class Blackhole {
     static var consumer = 0
     static func consume<T: Hashable>(_ value: T) {
-        consumer = value.hashValue
+        consumer &= value.hashValue
     }
 }
 

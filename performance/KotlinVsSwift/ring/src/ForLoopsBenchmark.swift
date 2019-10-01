@@ -36,7 +36,7 @@ class ForLoopsBenchmark {
     func stringLoop() -> Int64 {
         var sum: Int64 = 0
         for e in string {
-            sum += sum < (Int64.max - Int64(Int.max) - 1) ? Int64(e.hashValue) : 0
+            sum = sum &+ Int64(e.hashValue)
         }
         return sum
     }
@@ -68,7 +68,7 @@ class ForLoopsBenchmark {
     func stringIndicesLoop() -> Int64 {
         var sum: Int64 = 0
         for i in string.indices {
-            sum += sum < (Int64.max - Int64(Int.max) - 1) ? Int64(string[i].hashValue) : 0
+            sum = sum &+ Int64(string[i].hashValue)
         }
         return sum
     }

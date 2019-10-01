@@ -11,9 +11,9 @@ class FibonacciBenchmark {
         var b: Int64 = 2
         let size = Constants.BENCHMARK_SIZE
         for _ in 0...size-1 {
-            let next = a + b
+            let next = a &+ b
             a = b
-            b = (next < Int64.max/2) ? next : 0
+            b = next
         }
         return b
     }
@@ -22,9 +22,9 @@ class FibonacciBenchmark {
         var a: Int64 = 1
         var b: Int64 = 2
         for _ in stride(from: Constants.BENCHMARK_SIZE, through: 1, by: -1) {
-            let next = a + b
+            let next = a &+ b
             a = b
-            b = (next < Int64.max/2) ? next : 0
+            b = next
         }
         return b
     }
@@ -33,9 +33,9 @@ class FibonacciBenchmark {
         var a: Int64 = 1
         var b: Int64 = 2
         for _ in stride(from: 1, through: 2*Constants.BENCHMARK_SIZE-1, by: 2) {
-            let next = a + b
+            let next = a &+ b
             a = b
-            b = (next < Int64.max/2) ? next : 0
+            b = next
         }
         return b
     }
@@ -47,9 +47,9 @@ class FibonacciBenchmark {
         let limit = s*s
         
         for _ in stride(from: limit, through: 1, by: -1) {
-            let next = a + b
+            let next = a &+ b
             a = b
-            b = (next < Int64.max/2) ? next : 0
+            b = next
         }
         return b
     }
