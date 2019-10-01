@@ -222,6 +222,7 @@ private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = 
 
     // Our current approach to arm64_32 support is to compile armv7k version of bitcode
     // for arm64_32. That's the reason for this substitution.
+    // TODO: Add proper support with the next LLVM update.
     val target = when (tool.target) {
         KonanTarget.WATCHOS_ARM64 -> KonanTarget.WATCHOS_ARM32
         else -> tool.target

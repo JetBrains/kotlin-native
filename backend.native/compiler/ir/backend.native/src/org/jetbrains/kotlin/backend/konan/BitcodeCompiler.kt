@@ -103,7 +103,8 @@ internal class BitcodeCompiler(val context: Context) {
 
         val profilingFlags = llvmProfilingFlags().map { listOf("-mllvm", it) }.flatten()
 
-        // LLVM Pipeline that we use know nothing about arm64_32 so we override it here.
+        // LLVM we use does not have support for arm64_32.
+        // TODO: fix with LLVM update.
         val targetTriple = when (context.config.target) {
             KonanTarget.WATCHOS_ARM64 -> {
                 require(configurables is AppleConfigurables)

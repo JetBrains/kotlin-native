@@ -41,7 +41,7 @@ private class LlvmPipelineConfiguration(context: Context) {
 
     val targetTriple: String = context.llvm.targetTriple
 
-    // Most of these values are copied from corresponding runtime.bc
+    // Some of these values are copied from corresponding runtime.bc
     // which is using "generic" target CPU for many case.
     // This approach is suboptimal because target-cpu="generic" limits
     // the set of used cpu features.
