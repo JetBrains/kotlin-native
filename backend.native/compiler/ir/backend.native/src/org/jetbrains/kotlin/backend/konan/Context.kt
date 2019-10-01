@@ -267,6 +267,8 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
         ClassLayoutBuilder(irClass, this)
     }
 
+    lateinit var globalHierarchyAnalysisResult: GlobalHierarchyAnalysisResult
+
     // We serialize untouched descriptor tree and IR.
     // But we have to wait until the code generation phase,
     // to dump this information into generated file.
@@ -433,6 +435,7 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     fun shouldContainAnyDebugInfo() = shouldContainDebugInfo() || shouldContainLocationDebugInfo()
 
     fun shouldOptimize() = config.configuration.getBoolean(KonanConfigKeys.OPTIMIZATION)
+    fun ghaEnabled() = ::globalHierarchyAnalysisResult.isInitialized
 
     val memoryModel = config.memoryModel
 

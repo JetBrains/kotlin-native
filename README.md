@@ -12,7 +12,7 @@ without the need to ship an additional execution runtime.
 
 Prerequisites:
 *   install JDK for your platform, instead of JRE. The build requires ```tools.jar```, which is not included in JRE;
-*   on macOS install Xcode 10.2
+*   on macOS install Xcode 11
 *   on Fedora 26+ ```yum install ncurses-compat-libs``` may be needed
 *   on recent Ubuntu ```apt install libncurses5``` is needed
 
@@ -37,11 +37,6 @@ To include Kotlin compiler in [composite build](https://docs.gradle.org/current/
 against it, use the `kotlinProjectPath` project property:
 
     ./gradlew dist -PkotlinProjectPath=path/to/kotlin/project
-
-To include [Kotlin/Native Shared](https://github.com/JetBrains/kotlin-native-shared) in a composite build and build against
-it, use the `sharedProjectPath` project property:
-
-    ./gradlew dist -PsharedProjectPath=path/to/kotlin/native/shared
 
 It's possible to include in a composite build both Kotlin compiler and Kotlin/Native Shared simultaneously.
 

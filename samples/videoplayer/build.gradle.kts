@@ -45,6 +45,8 @@ kotlin {
                 }
             }
         }
+
+        compilations["main"].enableEndorsedLibs = true
     }
 
     // Enable experimental stdlib API used by the sample.

@@ -9,6 +9,7 @@ import kotlinx.cinterop.*
 import llvm.*
 import org.jetbrains.kotlin.backend.common.descriptors.allParameters
 import org.jetbrains.kotlin.backend.common.ir.ir2string
+import org.jetbrains.kotlin.backend.common.lower.inline.InlinerExpressionLocationHint
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.backend.konan.ir.*
@@ -22,6 +23,7 @@ import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
+import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
@@ -277,6 +279,40 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         }
     }
 
+    private fun <T:IrElement> findCodeContext(entry: T, context:CodeContext?, predicate: CodeContext.(T) -> Boolean): CodeContext? {
+        if(context == null)
+            //TODO: replace `return null` with `throw NoContextFound()` ASAP.
+            return null
+        if (context.predicate(entry))
+            return context
+        return findCodeContext(entry, (context as? InnerScope)?.outerContext, predicate)
+    }
+
+
+    private inline fun <R> switchSymbolizationContextTo(symbol: IrFunctionSymbol, block: () -> R): R? {
+        val functionContext = findCodeContext(symbol.owner, currentCodeContext) {
+            val declaration = (this as? FunctionScope)?.declaration
+            val returnableBlock = (this as? ReturnableBlockScope)?.returnableBlock
+            val inlinedFunction = returnableBlock?.inlineFunctionSymbol?.owner
+            declaration == it || inlinedFunction == it
+        } ?: return null
+
+        /**
+         * We can't switch context safely, only for symbolzation needs: location, scope detection.
+         */
+        using(object: InnerScopeImpl() {
+            override fun location(line: Int, column: Int): LocationInfo? {
+                return functionContext.location(line, column)
+            }
+
+            override fun scope(): DIScopeOpaqueRef? {
+                return functionContext.scope()
+            }
+
+        }) {
+            return block()
+        }
+    }
     private fun appendCAdapters() {
         context.cAdapterGenerator.generateBindings(codegen)
     }
@@ -639,8 +675,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
         if ((declaration as? IrSimpleFunction)?.modality == Modality.ABSTRACT
                 || declaration.isExternal
-                || body == null
-                || declaration.isReifiedInline)
+                || body == null)
             return
 
         generateFunction(codegen, declaration,
@@ -651,6 +686,13 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 using(parameterScope) {
                     using(VariableScope()) {
                         recordCoverage(body)
+                        if (declaration.isReifiedInline) {
+                            callDirect(context.ir.symbols.throwIllegalStateExceptionWithMessage.owner,
+                                    listOf(context.llvm.staticData.kotlinStringLiteral(
+                                            "unsupported call of reified inlined function `${declaration.fqNameForIrSerialization}`").llvm),
+                                    Lifetime.IRRELEVANT)
+                            return@using
+                        }
                         when (body) {
                             is IrBlockBody -> body.statements.forEach { generateStatement(it) }
                             is IrExpressionBody -> generateStatement(body.expression)
@@ -1198,7 +1240,15 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     private fun generateVariable(variable: IrVariable) {
         context.log{"generateVariable               : ${ir2string(variable)}"}
-        val value = variable.initializer?.let { evaluateExpression(it) }
+        val value = variable.initializer?.let {
+            val callSiteOrigin = (it as? IrBlock)?.origin as? InlinerExpressionLocationHint
+            val inlineAtFunctionSymbol = callSiteOrigin?.inlineAtSymbol as? IrFunctionSymbol
+            inlineAtFunctionSymbol?.run {
+                switchSymbolizationContextTo(inlineAtFunctionSymbol) {
+                    evaluateExpression(it)
+                }
+            } ?: evaluateExpression(it)
+        }
         currentCodeContext.genDeclareVariable(
                 variable, value, debugInfoIfNeeded(
                 (currentCodeContext.functionScope() as FunctionScope).declaration, variable))
@@ -1341,13 +1391,23 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         }
 
         val srcObjInfoPtr = functionGenerationContext.bitcast(codegen.kObjHeaderPtr, obj)
-        return if (context.shouldOptimize() && !dstClass.isInterface) {
-            val dstHierarchyInfo = context.getLayoutBuilder(dstClass).hierarchyInfo
-            call(context.llvm.isInstanceOfClassFastFunction,
-                    listOf(srcObjInfoPtr, Int32(dstHierarchyInfo.classIdLo).llvm, Int32(dstHierarchyInfo.classIdHi).llvm))
+
+        return if (!context.ghaEnabled()) {
+            call(context.llvm.isInstanceFunction, listOf(srcObjInfoPtr, codegen.typeInfoValue(dstClass)))
         } else {
-            val dstTypeInfo = codegen.typeInfoValue(dstClass)
-            call(context.llvm.isInstanceFunction, listOf(srcObjInfoPtr, dstTypeInfo))
+            val dstHierarchyInfo = context.getLayoutBuilder(dstClass).hierarchyInfo
+            if (!dstClass.isInterface) {
+                call(context.llvm.isInstanceOfClassFastFunction,
+                        listOf(srcObjInfoPtr, Int32(dstHierarchyInfo.classIdLo).llvm, Int32(dstHierarchyInfo.classIdHi).llvm))
+            } else {
+                // Essentially: typeInfo.itable[place(interfaceId)].id == interfaceId
+                val interfaceId = dstHierarchyInfo.interfaceId
+                val typeInfo = functionGenerationContext.loadTypeInfo(srcObjInfoPtr)
+                with(functionGenerationContext) {
+                    val interfaceTableRecord = lookupInterfaceTableRecord(typeInfo, interfaceId)
+                    icmpEq(load(structGep(interfaceTableRecord, 0 /* id */)), Int32(interfaceId).llvm)
+                }
+            }
         }
     }
 
@@ -2383,7 +2443,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     }
 }
 
-
+class NoContextFound : Throwable()
 
 internal class LocationInfo(val scope: DIScopeOpaqueRef,
                             val line: Int,
