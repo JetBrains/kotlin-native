@@ -48,17 +48,17 @@ class StringBenchmark {
     }
     
     func stringBuilderConcat() -> String {
-        var string = ""
+        var string: String = ""
         for it in data {
-            string = "\(string)\(it)"
+            string += it
         }
         return string
     }
     
     func stringBuilderConcatNullable() -> String {
-        var string : String? = ""
+        var string: String? = ""
         for it in data {
-            string = "\(string ?? "")\(it)"
+            string? += it
         }
         return string!
     }
