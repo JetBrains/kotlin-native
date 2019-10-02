@@ -36,7 +36,7 @@ class ForLoopsBenchmark {
     func stringLoop() -> Int64 {
         var sum: Int64 = 0
         for e in string {
-            sum = sum &+ Int64(e.hashValue)
+            sum = sum &+ (Int64(String(e)) ?? 0)
         }
         return sum
     }

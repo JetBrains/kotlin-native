@@ -15,9 +15,7 @@ public class Value: Hashable {
     }
     
     public var hashValue: Int {
-        var hasher = Hasher()
-        self.hash(into: &hasher)
-        return hasher.finalize()
+        return value.hashValue
     }
 
     var value: Int

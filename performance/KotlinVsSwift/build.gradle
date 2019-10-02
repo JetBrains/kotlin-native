@@ -1,8 +1,3 @@
-import org.jetbrains.kotlin.RegressionsReporter
-import org.jetbrains.kotlin.RegressionsSummaryReporter
-import org.jetbrains.kotlin.BuildRegister
-import org.jetbrains.kotlin.MPPTools
-
 buildscript {
     apply from: "$rootProject.projectDir/gradle/kotlinGradlePlugin.gradle"
     repositories {

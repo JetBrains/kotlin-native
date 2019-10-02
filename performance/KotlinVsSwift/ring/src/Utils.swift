@@ -6,9 +6,13 @@
 import Foundation
 
 class Blackhole {
-    static var consumer = 0
-    static func consume<T: Hashable>(_ value: T) {
-        consumer = consumer &+ value.hashValue
+    @inline(never)
+    static var flag: Bool = false
+    @inline(never)
+    static func consume<T: Any>(_ value: T) {
+        if (flag) {
+            print(value)
+        }
     }
 }
 
