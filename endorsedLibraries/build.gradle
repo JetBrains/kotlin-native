@@ -34,24 +34,24 @@ targetList.each { target ->
     }
 }
 
-task endorsedLibsCommonSources(type: Copy) {
-    destinationDir file("$buildDir/sources-common")
-    endorsedLibrariesList.each { library ->
-        from(project("$library").file('src/main/kotlin')) {
-            includeEmptyDirs = false
-            include('**/*.kt')
-            into("${library.replaceAll("\\.", "-")}")
-        }
-    }
+configurations {
+    nativeSources
 }
 
-task endorsedLibsNativeSources(type: Copy) {
-    destinationDir file("$buildDir/sources-native")
-    endorsedLibrariesList.each { library ->
-        from(project("$library").file('src/main/kotlin-native')) {
+
+endorsedLibrariesList.each { library ->
+    def taskName = "${toTaskName(library)}NativeSources"
+    def zip = task(taskName, type: Zip) {
+        group = "Sources"
+        destinationDirectory = file("$buildDir/sources")
+        archiveFileName = "${library.replaceAll("\\.", "-")}-sources.zip"
+        from(project(library).file('src/main/kotlin-native')) {
             includeEmptyDirs = false
             include('**/*.kt')
-            into("${library.replaceAll("\\.", "-")}")
         }
+    }
+    // TODO: Common sources
+    artifacts {
+        nativeSources zip
     }
 }

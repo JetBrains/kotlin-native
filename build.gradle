@@ -166,6 +166,7 @@ void loadCommandLineProperties() {
 configurations {
     ftpAntTask
     kotlinCommonSources
+    endorsedNativeSources
 }
 
 dependencies {
@@ -173,6 +174,7 @@ dependencies {
     [kotlinCommonStdlibModule, kotlinTestCommonModule, kotlinTestAnnotationsCommonModule].each {
         kotlinCommonSources(it) { transitive = false }
     }
+    endorsedNativeSources project(path: ":endorsedLibraries", configuration: "nativeSources")
 }
 
 task sharedJar {
@@ -217,27 +219,12 @@ task distNativeSources(type: Zip) {
 }
 
 task distEndorsedCommonSources(type: Zip) {
-    dependsOn ":endorsedLibraries:endorsedLibsCommonSources"
-
-    destinationDirectory = file("$distDir/sources")
-    archiveFileName = "kotlin-endorsed-common-sources.zip"
-
-    includeEmptyDirs = false
-    include('**/*.kt')
-
-    from(project(':endorsedLibraries').file('build/sources-common'))
+    // TODO
 }
 
-task distEndorsedNativeSources(type: Zip) {
-    dependsOn ":endorsedLibraries:endorsedLibsNativeSources"
-
-    destinationDirectory = file("$distDir/sources")
-    archiveFileName = "kotlin-endorsed-native-sources.zip"
-
-    includeEmptyDirs = false
-    include('**/*.kt')
-
-    from(project(':endorsedLibraries').file('build/sources-native'))
+task distEndorsedNativeSources(type: Copy) {
+    destinationDir = file("$distDir/sources")
+    from(configurations.endorsedNativeSources)
 }
 
 task distEndorsedSources {
