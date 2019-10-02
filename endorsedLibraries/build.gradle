@@ -34,24 +34,30 @@ targetList.each { target ->
     }
 }
 
-task endorsedLibsCommonSources(type: Copy) {
-    destinationDir file("$buildDir/sources-common")
-    endorsedLibrariesList.each { library ->
-        from(project("$library").file('src/main/kotlin')) {
-            includeEmptyDirs = false
-            include('**/*.kt')
-            into("${library.replaceAll("\\.", "-")}")
-        }
+endorsedLibrariesList.each { library ->
+    task("${toTaskName(library)}CommonSources", type: Zip) {
+        destinationDirectory = file("${rootProject.projectDir}/dist/sources")
+        archiveFileName = "${library.replaceAll("\\.", "-")}-common-sources.zip"
+
+        includeEmptyDirs = false
+        include('**/*.kt')
+
+        from(project(":endorsedLibraries:${library}").file('src/main/kotlin'))
+    }
+    task("${toTaskName(library)}NativeSources", type: Zip) {
+        destinationDirectory = file("${rootProject.projectDir}/dist/sources")
+        archiveFileName = "${library.replaceAll("\\.", "-")}-native-sources.zip"
+
+        includeEmptyDirs = false
+        include('**/*.kt')
+
+        from(project(":endorsedLibraries:${library}").file('src/main/kotlin-native'))
     }
 }
 
-task endorsedLibsNativeSources(type: Copy) {
-    destinationDir file("$buildDir/sources-native")
+task endorsedLibsSources {
     endorsedLibrariesList.each { library ->
-        from(project("$library").file('src/main/kotlin-native')) {
-            includeEmptyDirs = false
-            include('**/*.kt')
-            into("${library.replaceAll("\\.", "-")}")
-        }
+        dependsOn "${toTaskName(library)}CommonSources"
+        dependsOn "${toTaskName(library)}NativeSources"
     }
 }
