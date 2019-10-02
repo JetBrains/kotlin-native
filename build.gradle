@@ -607,6 +607,6 @@ task clean {
 task pusher(type:  KotlinBuildPusher){
     kotlinVersion = project.kotlinVersion
     konanVersion = KonanVersionGeneratedKt.getCurrentKonanVersion()
-    buildServer = "teamcity.jetbrains.com"
+    buildServer = "buildserver.labs.intellij.net"
     token = project.findProperty("teamcityBearToken") ?: System.getenv("TEAMCITY_BEAR_TOKEN")
 }
