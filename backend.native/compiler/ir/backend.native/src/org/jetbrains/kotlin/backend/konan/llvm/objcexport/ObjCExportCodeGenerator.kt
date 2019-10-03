@@ -18,7 +18,7 @@ import org.jetbrains.kotlin.backend.konan.llvm.objc.ObjCDataGenerator
 import org.jetbrains.kotlin.backend.konan.objcexport.*
 import org.jetbrains.kotlin.backend.konan.serialization.resolveFakeOverrideMaybeAbstract
 import org.jetbrains.kotlin.descriptors.*
-import org.jetbrains.kotlin.descriptors.konan.CurrentKonanModuleOrigin
+import org.jetbrains.kotlin.descriptors.konan.CurrentKlibModuleOrigin
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.types.*
@@ -27,6 +27,7 @@ import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.ir.util.isReal
 import org.jetbrains.kotlin.ir.util.parentAsClass
 import org.jetbrains.kotlin.konan.target.Family
+import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.name.Name
 
 internal fun TypeBridge.makeNothing() = when (this) {
@@ -51,7 +52,7 @@ internal class ObjCExportCodeGenerator(
         context.llvm.externalFunction(
                 "objc_terminate",
                 functionType(voidType, false),
-                CurrentKonanModuleOrigin
+                CurrentKlibModuleOrigin
         ).also {
             setFunctionNoUnwind(it)
         }
@@ -679,7 +680,7 @@ private fun ObjCExportCodeGenerator.generateObjCImp(
         MethodBridge.ReturnValue.Void -> null
         MethodBridge.ReturnValue.HashCode -> {
             val kotlinHashCode = targetResult!!
-            if (codegen.context.is64Bit()) zext(kotlinHashCode, int64Type) else kotlinHashCode
+            if (codegen.context.is64BitNSInteger()) zext(kotlinHashCode, int64Type) else kotlinHashCode
         }
         is MethodBridge.ReturnValue.Mapped -> kotlinToObjC(targetResult!!, returnBridge.bridge)
         MethodBridge.ReturnValue.WithError.Success -> Int8(1).llvm // true
@@ -781,7 +782,7 @@ private fun ObjCExportCodeGenerator.generateKotlinToObjCBridge(
             MethodBridge.ReturnValue.Void -> null
 
             MethodBridge.ReturnValue.HashCode -> {
-                if (codegen.context.is64Bit()) {
+                if (codegen.context.is64BitNSInteger()) {
                     val low = trunc(targetResult, int32Type)
                     val high = trunc(shr(targetResult, 32, signed = false), int32Type)
                     xor(low, high)
@@ -1256,7 +1257,7 @@ private val MethodBridgeParameter.objCType: LLVMTypeRef get() = when (this) {
 private fun MethodBridge.ReturnValue.objCType(context: Context): LLVMTypeRef {
     return when (this) {
         MethodBridge.ReturnValue.Void -> voidType
-        MethodBridge.ReturnValue.HashCode -> if (context.is64Bit()) int64Type else int32Type
+        MethodBridge.ReturnValue.HashCode -> if (context.is64BitNSInteger()) int64Type else int32Type
         is MethodBridge.ReturnValue.Mapped -> this.bridge.objCType
         MethodBridge.ReturnValue.WithError.Success -> ObjCValueType.BOOL.llvmType
 
@@ -1324,4 +1325,54 @@ private val TypeBridge.objCEncoding: String get() = when (this) {
     is ValueTypeBridge -> this.objCValueType.encoding
 }
 
-internal fun Context.is64Bit(): Boolean = this.config.target.architecture.bitness == 64
+private fun Context.is64BitNSInteger(): Boolean = when (val target = this.config.target) {
+    KonanTarget.IOS_X64,
+    KonanTarget.IOS_ARM64,
+    KonanTarget.TVOS_ARM64,
+    KonanTarget.TVOS_X64,
+    KonanTarget.MACOS_X64 -> true
+    KonanTarget.WATCHOS_ARM64,
+    KonanTarget.WATCHOS_ARM32,
+    KonanTarget.WATCHOS_X86,
+    KonanTarget.IOS_ARM32 -> false
+    KonanTarget.ANDROID_X64,
+    KonanTarget.ANDROID_X86,
+    KonanTarget.ANDROID_ARM32,
+    KonanTarget.ANDROID_ARM64,
+    KonanTarget.LINUX_X64,
+    KonanTarget.MINGW_X86,
+    KonanTarget.MINGW_X64,
+    KonanTarget.LINUX_ARM64,
+    KonanTarget.LINUX_ARM32_HFP,
+    KonanTarget.LINUX_MIPS32,
+    KonanTarget.LINUX_MIPSEL32,
+    KonanTarget.WASM32,
+    is KonanTarget.ZEPHYR -> error("Target $target has no support for NSInteger type.")
+    KonanTarget.WATCHOS_X64 -> error("Target $target is not supported.")
+}
+
+internal fun Context.is64BitLong(): Boolean = when (val target = this.config.target) {
+    KonanTarget.IOS_X64,
+    KonanTarget.IOS_ARM64,
+    KonanTarget.TVOS_ARM64,
+    KonanTarget.TVOS_X64,
+    KonanTarget.ANDROID_X64,
+    KonanTarget.ANDROID_ARM64,
+    KonanTarget.LINUX_ARM64,
+    KonanTarget.MINGW_X64,
+    KonanTarget.LINUX_X64,
+    KonanTarget.MACOS_X64 -> true
+    KonanTarget.WATCHOS_ARM64,
+    KonanTarget.WATCHOS_ARM32,
+    KonanTarget.ANDROID_X86,
+    KonanTarget.ANDROID_ARM32,
+    KonanTarget.WATCHOS_X86,
+    KonanTarget.MINGW_X86,
+    KonanTarget.LINUX_ARM32_HFP,
+    KonanTarget.LINUX_MIPS32,
+    KonanTarget.LINUX_MIPSEL32,
+    KonanTarget.WASM32,
+    is KonanTarget.ZEPHYR,
+    KonanTarget.IOS_ARM32 -> false
+    KonanTarget.WATCHOS_X64 -> error("Target $target is not supported.")
+}
