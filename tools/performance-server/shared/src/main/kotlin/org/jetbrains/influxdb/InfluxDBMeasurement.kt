@@ -55,27 +55,30 @@ abstract class Measurement<T : Measurement<T>>(val name: String, protected val c
         }
     }
 
-    val lineProtocol =
-        with(StringBuilder("$name,")) {
-            var prefix = ""
-            tags.values.forEach {
-                it.value?.let { _ ->
-                    append("${prefix}${it.lineProtocol}")
-                    prefix = ","
-                } ?: println("Tag ${it.name} isn't initialized.")
+    val lineProtocol: String
+        get() =
+            with(StringBuilder("$name,")) {
+                var prefix = ""
+                println(tags.values)
+                println(fields.values)
+                tags.values.forEach {
+                    it.value?.let { _ ->
+                        append("${prefix}${it.lineProtocol}")
+                        prefix = ","
+                    } ?: println("Tag ${it.name} isn't initialized.")
+                }
+                prefix = " "
+                fields.values.forEach {
+                    it.value?.let { _ ->
+                        append("${prefix}${it.lineProtocol}")
+                        prefix = ","
+                    } ?: println("Field ${it.name} isn't initialized.")
+                }
+                timestamp?.let {
+                    append(" $timestamp")
+                }
+                toString()
             }
-            prefix = " "
-            fields.values.forEach {
-                it.value?.let { _ ->
-                    append("${prefix}${it.lineProtocol}")
-                    prefix = ","
-                } ?: println("Field ${it.name} isn't initialized.")
-            }
-            timestamp?.let {
-                append(" $timestamp")
-            }
-            toString()
-        }
 
     // Execute DISTINCT InfluxDb function by [fieldName].
     fun distinct(fieldName: String): DistinctFunction {
@@ -127,7 +130,8 @@ sealed class ColumnEntity<T : Any>(val name: String, val measurement: String): E
 
     // InfluxDB field.
     class FieldEntity<T : FieldType<*>>(name: String, measurement: String) : ColumnEntity<T>(name, measurement) {
-         override val lineProtocol =
+         override val lineProtocol
+             get() =
                  value?.let {
                      when(it) {
                          is FieldType.InfluxInt -> "$name=${it.value}i"
@@ -142,6 +146,7 @@ sealed class ColumnEntity<T : Any>(val name: String, val measurement: String): E
     class TagEntity<T : Any>(name: String, measurement: String) : ColumnEntity<T>(name, measurement) {
         private fun escape() = "$value".replace(" |,|=".toRegex()) { match -> "\\${match.value}" }
 
-        override val lineProtocol = "$name=${escape()}"
+        override val lineProtocol
+            get() = "$name=${escape()}"
     }
 }
