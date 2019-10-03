@@ -52,23 +52,23 @@ internal class CWrappersGenerator(private val context: StubIrContext) {
                 } else {
                     "return $callExpression"
                 }
-                val zzz = createWrapper(symbolName, wrapperName, returnType, parameters, wrapperBody)
-                CCalleeWrapper(zzz)
+                val wrapper = createWrapper(symbolName, wrapperName, returnType, parameters, wrapperBody)
+                CCalleeWrapper(wrapper)
             }
 
     fun generateCGlobalGetter(getterInfo: BridgeGenerationComponents.GlobalGetterBridgeInfo, symbolName: String): CCalleeWrapper {
         val wrapperName = generateFunctionWrapperName("${getterInfo.cGlobalName}_getter")
         val returnType = getterInfo.typeInfo.bridgedType.getNativeType(context.platform)
         val wrapperBody = "return ${getterInfo.cGlobalName};"
-        val zzz = createWrapper(symbolName, wrapperName, returnType, emptyList(), wrapperBody)
-        return CCalleeWrapper(zzz)
+        val wrapper = createWrapper(symbolName, wrapperName, returnType, emptyList(), wrapperBody)
+        return CCalleeWrapper(wrapper)
     }
 
     fun generateCGlobalSetter(setterInfo: BridgeGenerationComponents.GlobalSetterBridgeInfo, symbolName: String): CCalleeWrapper {
         val wrapperName = generateFunctionWrapperName("${setterInfo.cGlobalName}_setter")
         val wrapperBody = "${setterInfo.cGlobalName} = p1;"
         val globalType = setterInfo.typeInfo.bridgedType.getNativeType(context.platform)
-        val zzz = createWrapper(symbolName, wrapperName, "void", listOf(globalType to "p1"), wrapperBody)
-        return CCalleeWrapper(zzz)
+        val wrapper = createWrapper(symbolName, wrapperName, "void", listOf(globalType to "p1"), wrapperBody)
+        return CCalleeWrapper(wrapper)
     }
 }
