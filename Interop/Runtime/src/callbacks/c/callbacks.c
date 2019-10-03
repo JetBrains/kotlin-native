@@ -182,7 +182,7 @@ static void ffi_fun(ffi_cif *cif, void *ret, void **args, void *user_data) {
     }
 
     jlong retAndArgs[2] = { (jlong)ret, (jlong)args }; // Unpacked in [ffiClosureImpl].
-    (*env)->CallVoidMethod(env, (jobject) user_data, acceptFun, (jlong)retAndArgs);
+    (*env)->CallVoidMethod(env, (jobject) user_data, acceptFun, (jlong)(intptr_t)&retAndArgs[0]);
     checkException(env);
 }
 
