@@ -110,9 +110,8 @@ internal class StructStubBuilder(
             val signed = field.type.isIntegerTypeSigned()
             val readBits = PropertyAccessor.Getter.ReadBits(field.offset, field.size, signed)
             val writeBits = PropertyAccessor.Setter.WriteBits(field.offset, field.size)
-            // TODO: Use something instead of [GlobalGetterBridgeInfo].
-            context.bridgeComponentsBuilder.getterToBridgeInfo[readBits] = BridgeGenerationComponents.GlobalGetterBridgeInfo("", typeInfo, false)
-            context.bridgeComponentsBuilder.setterToBridgeInfo[writeBits] = BridgeGenerationComponents.GlobalSetterBridgeInfo("", typeInfo)
+            context.bridgeComponentsBuilder.getterToBridgeInfo[readBits] = BridgeGenerationInfo("", typeInfo)
+            context.bridgeComponentsBuilder.setterToBridgeInfo[writeBits] = BridgeGenerationInfo("", typeInfo)
             val kind = PropertyStub.Kind.Var(readBits, writeBits)
             PropertyStub(field.name, WrapperStubType(kotlinType), kind)
         }
@@ -443,14 +442,14 @@ internal class GlobalStubBuilder(
         if (unwrappedType is ArrayType) {
             kotlinType = (mirror as TypeMirror.ByValue).valueType
             val getter = PropertyAccessor.Getter.SimpleGetter()
-            val extra = BridgeGenerationComponents.GlobalGetterBridgeInfo(global.name, mirror.info, isArray = true)
-            context.bridgeComponentsBuilder.getterToBridgeInfo[getter] = extra
+            val extra = BridgeGenerationInfo(global.name, mirror.info)
+            context.bridgeComponentsBuilder.arrayGetterBridgeInfo[getter] = extra
             kind = PropertyStub.Kind.Val(getter)
         } else {
             when (mirror) {
                 is TypeMirror.ByValue -> {
                     kotlinType = mirror.argType
-                    val getterExtra = BridgeGenerationComponents.GlobalGetterBridgeInfo(global.name, mirror.info, isArray = false)
+                    val getterExtra = BridgeGenerationInfo(global.name, mirror.info)
                     val getter = when (context.platform) {
                         KotlinPlatform.JVM -> PropertyAccessor.Getter.SimpleGetter()
                         KotlinPlatform.NATIVE -> {
@@ -462,7 +461,7 @@ internal class GlobalStubBuilder(
                     kind = if (global.isConst) {
                         PropertyStub.Kind.Val(getter)
                     } else {
-                        val setterExtra = BridgeGenerationComponents.GlobalSetterBridgeInfo(global.name, mirror.info)
+                        val setterExtra = BridgeGenerationInfo(global.name, mirror.info)
                         val setter = when (context.platform) {
                             KotlinPlatform.JVM -> PropertyAccessor.Setter.SimpleSetter()
                             KotlinPlatform.NATIVE -> {

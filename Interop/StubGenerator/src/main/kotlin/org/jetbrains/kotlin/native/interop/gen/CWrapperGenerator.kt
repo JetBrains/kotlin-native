@@ -1,6 +1,7 @@
 package org.jetbrains.kotlin.native.interop.gen
 
 import org.jetbrains.kotlin.native.interop.indexer.FunctionDecl
+import org.jetbrains.kotlin.native.interop.indexer.GlobalDecl
 import org.jetbrains.kotlin.native.interop.indexer.VoidType
 import org.jetbrains.kotlin.native.interop.indexer.unwrapTypedefs
 
@@ -56,18 +57,18 @@ internal class CWrappersGenerator(private val context: StubIrContext) {
                 CCalleeWrapper(wrapper)
             }
 
-    fun generateCGlobalGetter(getterInfo: BridgeGenerationComponents.GlobalGetterBridgeInfo, symbolName: String): CCalleeWrapper {
-        val wrapperName = generateFunctionWrapperName("${getterInfo.cGlobalName}_getter")
-        val returnType = getterInfo.typeInfo.bridgedType.getNativeType(context.platform)
-        val wrapperBody = "return ${getterInfo.cGlobalName};"
+    fun generateCGlobalGetter(globalDecl: GlobalDecl, symbolName: String): CCalleeWrapper {
+        val wrapperName = generateFunctionWrapperName("${globalDecl.name}_getter")
+        val returnType = globalDecl.type.getStringRepresentation()
+        val wrapperBody = "return ${globalDecl.name};"
         val wrapper = createWrapper(symbolName, wrapperName, returnType, emptyList(), wrapperBody)
         return CCalleeWrapper(wrapper)
     }
 
-    fun generateCGlobalSetter(setterInfo: BridgeGenerationComponents.GlobalSetterBridgeInfo, symbolName: String): CCalleeWrapper {
-        val wrapperName = generateFunctionWrapperName("${setterInfo.cGlobalName}_setter")
-        val wrapperBody = "${setterInfo.cGlobalName} = p1;"
-        val globalType = setterInfo.typeInfo.bridgedType.getNativeType(context.platform)
+    fun generateCGlobalSetter(globalDecl: GlobalDecl, symbolName: String): CCalleeWrapper {
+        val wrapperName = generateFunctionWrapperName("${globalDecl.name}_setter")
+        val wrapperBody = "${globalDecl.name} = p1;"
+        val globalType = globalDecl.type.getStringRepresentation()
         val wrapper = createWrapper(symbolName, wrapperName, "void", listOf(globalType to "p1"), wrapperBody)
         return CCalleeWrapper(wrapper)
     }

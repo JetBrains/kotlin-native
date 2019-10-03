@@ -135,14 +135,11 @@ class StubIrBridgeBuilder(
         override fun visitPropertyAccessor(accessor: PropertyAccessor, owner: StubContainer?) {
             when (accessor) {
                 is PropertyAccessor.Getter.SimpleGetter -> {
-                    if (accessor in builderResult.bridgeGenerationComponents.getterToBridgeInfo) {
-                        val extra = builderResult.bridgeGenerationComponents.getterToBridgeInfo.getValue(accessor)
-                        val typeInfo = extra.typeInfo
-                        val expression = if (extra.isArray) {
-                            val getAddressExpression = getGlobalAddressExpression(extra.cGlobalName, accessor)
-                            typeInfo.argFromBridged(getAddressExpression, kotlinFile, nativeBacked = accessor) + "!!"
-                        } else {
-                            typeInfo.argFromBridged(simpleBridgeGenerator.kotlinToNative(
+                    when (accessor) {
+                        in builderResult.bridgeGenerationComponents.getterToBridgeInfo -> {
+                            val extra = builderResult.bridgeGenerationComponents.getterToBridgeInfo.getValue(accessor)
+                            val typeInfo = extra.typeInfo
+                            propertyAccessorBridgeBodies[accessor] = typeInfo.argFromBridged(simpleBridgeGenerator.kotlinToNative(
                                     nativeBacked = accessor,
                                     returnType = typeInfo.bridgedType,
                                     kotlinValues = emptyList(),
@@ -151,7 +148,12 @@ class StubIrBridgeBuilder(
                                 typeInfo.cToBridged(expr = extra.cGlobalName)
                             }, kotlinFile, nativeBacked = accessor)
                         }
-                        propertyAccessorBridgeBodies[accessor] = expression
+                        in builderResult.bridgeGenerationComponents.arrayGetterInfo -> {
+                            val extra = builderResult.bridgeGenerationComponents.arrayGetterInfo.getValue(accessor)
+                            val typeInfo = extra.typeInfo
+                            val getAddressExpression = getGlobalAddressExpression(extra.cGlobalName, accessor)
+                            propertyAccessorBridgeBodies[accessor] = typeInfo.argFromBridged(getAddressExpression, kotlinFile, nativeBacked = accessor) + "!!"
+                        }
                     }
                 }
 
@@ -197,21 +199,21 @@ class StubIrBridgeBuilder(
                 }
 
                 is PropertyAccessor.Getter.ExternalGetter -> {
-                    if (accessor in builderResult.bridgeGenerationComponents.getterToBridgeInfo) {
-                        val extra = builderResult.bridgeGenerationComponents.getterToBridgeInfo.getValue(accessor)
+                    if (accessor in builderResult.wrapperGenerationComponents.getterToWrapperInfo) {
+                        val extra = builderResult.wrapperGenerationComponents.getterToWrapperInfo.getValue(accessor)
                         val cCallAnnotation = accessor.annotations.firstIsInstanceOrNull<AnnotationStub.CCall.Symbol>()
-                                ?: error("external getter for ${extra.cGlobalName} wasn't marked with @CCall")
-                        val (wrapperLines) = wrapperGenerator.generateCGlobalGetter(extra, cCallAnnotation.symbolName)
+                                ?: error("external getter for ${extra.global.name} wasn't marked with @CCall")
+                        val (wrapperLines) = wrapperGenerator.generateCGlobalGetter(extra.global, cCallAnnotation.symbolName)
                         simpleBridgeGenerator.insertNativeBridge(accessor, emptyList(), wrapperLines)
                     }
                 }
 
                 is PropertyAccessor.Setter.ExternalSetter -> {
-                    if (accessor in builderResult.bridgeGenerationComponents.setterToBridgeInfo) {
-                        val extra = builderResult.bridgeGenerationComponents.setterToBridgeInfo.getValue(accessor)
+                    if (accessor in builderResult.wrapperGenerationComponents.setterToWrapperInfo) {
+                        val extra = builderResult.wrapperGenerationComponents.setterToWrapperInfo.getValue(accessor)
                         val cCallAnnotation = accessor.annotations.firstIsInstanceOrNull<AnnotationStub.CCall.Symbol>()
-                                ?: error("external setter for ${extra.cGlobalName} wasn't marked with @CCall")
-                        val (wrapperLines) = wrapperGenerator.generateCGlobalSetter(extra, cCallAnnotation.symbolName)
+                                ?: error("external setter for ${extra.global.name} wasn't marked with @CCall")
+                        val (wrapperLines) = wrapperGenerator.generateCGlobalSetter(extra.global, cCallAnnotation.symbolName)
                         simpleBridgeGenerator.insertNativeBridge(accessor, emptyList(), wrapperLines)
                     }
                 }
