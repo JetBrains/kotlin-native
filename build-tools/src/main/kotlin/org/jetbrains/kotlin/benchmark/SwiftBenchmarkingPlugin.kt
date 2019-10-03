@@ -20,6 +20,7 @@ open class SwiftBenchmarkExtension @Inject constructor(project: Project) : Bench
     var swiftSources: List<String> = emptyList()
     var useCodeSize: CodeSizeEntity = CodeSizeEntity.FRAMEWORK         // use as code size metric framework size or executable
 }
+
 /**
  * A plugin configuring a benchmark Kotlin/Native project.
  */
@@ -58,9 +59,6 @@ open class SwiftBenchmarkingPlugin : BenchmarkingPlugin() {
 
     override fun NamedDomainObjectContainer<KotlinSourceSet>.configureSources(project: Project) {
         project.benchmark.let {
-
-    override fun NamedDomainObjectContainer<KotlinSourceSet>.configureSources(project: Project) {
-        project.benchmark.let {
             commonMain.kotlin.srcDirs(*it.commonSrcDirs.toTypedArray())
             nativeMain.kotlin.srcDirs(*(it.nativeSrcDirs).toTypedArray())
         }
@@ -75,6 +73,8 @@ open class SwiftBenchmarkingPlugin : BenchmarkingPlugin() {
                 linkerOpts.addAll(project.benchmark.linkerOpts)
             }
         }
+    }
+
     override fun Project.configureExtraTasks() {
         val nativeTarget = kotlin.targets.getByName(NATIVE_TARGET_NAME) as KotlinNativeTarget
         // Build executable from swift code.
@@ -83,7 +83,7 @@ open class SwiftBenchmarkingPlugin : BenchmarkingPlugin() {
             task.dependsOn(framework.linkTaskName)
             task.doLast {
                 val frameworkParentDirPath = framework.outputDirectory.absolutePath
-                val options = listOf("-O", "-whole-module-optimization", "-Xlinker", "-rpath", "-Xlinker", frameworkParentDirPath, "-F", frameworkParentDirPath)
+                val options = listOf("-O", "-wmo", "-Xlinker", "-rpath", "-Xlinker", frameworkParentDirPath, "-F", frameworkParentDirPath)
                 compileSwift(project, nativeTarget.konanTarget, benchmark.swiftSources, options,
                         Paths.get(buildDir.absolutePath, benchmark.applicationName), false)
             }
@@ -99,5 +99,9 @@ open class SwiftBenchmarkingPlugin : BenchmarkingPlugin() {
             )
 
     override fun Project.getCompilerFlags(nativeTarget: KotlinNativeTarget) =
-            listOf("-O")
+            if (benchmark.useCodeSize == CodeSizeEntity.FRAMEWORK) {
+                nativeTarget.compilations.main.kotlinOptions.freeCompilerArgs.map { "\"$it\"" }
+            } else {
+                listOf("-O", "-wmo")
+            }
 }
