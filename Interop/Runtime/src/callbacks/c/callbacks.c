@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <jni.h>
