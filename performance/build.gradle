@@ -56,7 +56,8 @@ private String findAnalyzerBinary() {
 
 // Produce and send slack report.
 task slackReport(type: RegressionsReporter) {
-    def analyzerBinary = findAnalyzerBinary()
+    def analyzerBinary = MPPTools.findFile("${analyzerTool}${MPPTools.getNativeProgramExtension()}",
+            "${rootBuildDirectory}/${analyzerToolDirectory}")
     def teamcityConfig = System.getenv("TEAMCITY_BUILD_PROPERTIES_FILE")
     if (teamcityConfig && analyzerBinary != null) {
         // Create folder for report (root Kotlin project settings make create report in separate folder).

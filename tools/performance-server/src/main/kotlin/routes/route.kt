@@ -110,6 +110,7 @@ fun router() {
 
     // Register build on Artifactory.
     router.post("/register", { request, response ->
+        println("register request")
         val register = BuildRegister.create(JSON.stringify(request.body))
 
         // Get information from TeamCity.
