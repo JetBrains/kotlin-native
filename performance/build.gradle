@@ -132,19 +132,13 @@ task registerExternalBenchmarks {
 }
 
 task registerBuild(type: BuildRegister) {
-    def analyzerBinary = MPPTools.findFile("${analyzerTool}${MPPTools.getNativeProgramExtension()}",
-            "${rootBuildDirectory}/${analyzerToolDirectory}")
-    if (analyzerBinary != null) {
-        onlyBranch = project.findProperty('kotlin.register.branch')
-        // Get bundle size.
-        bundleSize = null
-        if (project.findProperty('kotlin.bundleBuild') != null) {
-            def dist = findProperty('org.jetbrains.kotlin.native.home') ?: 'dist'
-            dist = (new File(dist)).isAbsolute() ? dist : "${project.getProjectDir()}/$dist"
-            bundleSize = (new File(dist)).directorySize()
-        }
-        currentBenchmarksReportFile = "${buildDir.absolutePath}/${nativeJson}"
-        analyzer = analyzerBinary
+    onlyBranch = project.findProperty('kotlin.register.branch')
+    // Get bundle size.
+    bundleSize = null
+    if (project.findProperty('kotlin.bundleBuild') != null) {
+        def dist = findProperty('org.jetbrains.kotlin.native.home') ?: 'dist'
+        dist = (new File(dist)).isAbsolute() ? dist : "${project.getProjectDir()}/$dist"
+        bundleSize = (new File(dist)).directorySize()
     }
 }
 
