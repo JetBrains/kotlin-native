@@ -98,9 +98,9 @@ open class SwiftBenchmarkingPlugin : BenchmarkingPlugin() {
                         nativeExecutable
             )
 
-    override fun Project.getCompilerFlags(nativeTarget: KotlinNativeTarget) =
-            if (benchmark.useCodeSize == CodeSizeEntity.FRAMEWORK) {
-                nativeTarget.compilations.main.kotlinOptions.freeCompilerArgs.map { "\"$it\"" }
+    override fun getCompilerFlags(project: Project, nativeTarget: KotlinNativeTarget) =
+            if (project.benchmark.useCodeSize == CodeSizeEntity.FRAMEWORK) {
+                super.getCompilerFlags(project, nativeTarget)
             } else {
                 listOf("-O", "-wmo")
             }

@@ -67,7 +67,6 @@ open class BenchmarkExtension @Inject constructor(val project: Project) {
     var compilerOpts: List<String> = emptyList()
     var buildType: NativeBuildType = NativeBuildType.RELEASE
 
-
     val dependencies: BenchmarkDependencies = BenchmarkDependencies()
 
     fun dependencies(action: BenchmarkDependencies.() -> Unit) =
@@ -190,19 +189,19 @@ abstract class BenchmarkingPlugin: Plugin<Project> {
 
     protected abstract fun Project.configureJvmTask(): Task
 
-    protected fun Project.compilerFlagsFromBinary(): List<String> {
+    protected fun compilerFlagsFromBinary(project: Project): List<String> {
         val result = mutableListOf<String>()
-        if (benchmark.buildType.optimized) {
+        if (project.benchmark.buildType.optimized) {
             result.add("-opt")
         }
-        if (benchmark.buildType.debuggable) {
+        if (project.benchmark.buildType.debuggable) {
             result.add("-g")
         }
         return result
     }
 
-    protected open fun Project.getCompilerFlags(nativeTarget: KotlinNativeTarget) =
-            compilerFlagsFromBinary() + nativeTarget.compilations.main.kotlinOptions.freeCompilerArgs.map { "\"$it\"" }
+    protected open fun getCompilerFlags(project: Project, nativeTarget: KotlinNativeTarget) =
+            compilerFlagsFromBinary(project) + nativeTarget.compilations.main.kotlinOptions.freeCompilerArgs.map { "\"$it\"" }
 
     protected open fun Project.collectCodeSize(applicationName: String) =
             getCodeSizeBenchmark(applicationName, nativeExecutable)
@@ -221,7 +220,7 @@ abstract class BenchmarkingPlugin: Plugin<Project> {
                 val properties = commonBenchmarkProperties + mapOf(
                         "type" to "native",
                         "compilerVersion" to konanVersion,
-                        "flags" to getCompilerFlags(nativeTarget),
+                        "flags" to getCompilerFlags(project, nativeTarget),
                         "benchmarks" to benchContents,
                         "compileTime" to listOf(nativeCompileTime),
                         "codeSize" to collectCodeSize(applicationName)
