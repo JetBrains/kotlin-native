@@ -22,6 +22,11 @@ internal class CWrappersGenerator(private val context: StubIrContext) {
         return "${packageName}_${functionName}_wrapper${currentFunctionWrapperId++}"
     }
 
+    private fun bindSymbolToFunction(symbol: String, function: String): List<String> = listOf(
+            "const void* $symbol __asm(${symbol.quoteAsKotlinLiteral()});",
+            "const void* $symbol = &$function;"
+    )
+
     private fun createWrapper(
             symbolName: String,
             wrapperName: String,
@@ -33,13 +38,12 @@ internal class CWrappersGenerator(private val context: StubIrContext) {
             "$returnType $wrapperName(${parameters.joinToString { "${it.second} ${it.first}" }}) {",
             body,
             "}",
-            "const void* $symbolName __asm(${symbolName.quoteAsKotlinLiteral()});",
-            "const void* $symbolName = &$wrapperName;"
+            *bindSymbolToFunction(symbolName, wrapperName).toTypedArray()
     )
 
     fun generateCCalleeWrapper(function: FunctionDecl, symbolName: String): CCalleeWrapper =
             if (function.isVararg) {
-                CCalleeWrapper(emptyList())
+                CCalleeWrapper(bindSymbolToFunction(symbolName, function.name))
             } else {
                 val wrapperName = generateFunctionWrapperName(function.name)
 
