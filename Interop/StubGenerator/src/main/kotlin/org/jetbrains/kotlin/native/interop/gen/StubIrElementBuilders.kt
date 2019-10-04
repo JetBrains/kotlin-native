@@ -449,27 +449,37 @@ internal class GlobalStubBuilder(
             when (mirror) {
                 is TypeMirror.ByValue -> {
                     kotlinType = mirror.argType
-                    val getterExtra = BridgeGenerationInfo(global.name, mirror.info)
                     val getter = when (context.platform) {
-                        KotlinPlatform.JVM -> PropertyAccessor.Getter.SimpleGetter()
+                        KotlinPlatform.JVM -> {
+                            PropertyAccessor.Getter.SimpleGetter().also {
+                                val getterExtra = BridgeGenerationInfo(global.name, mirror.info)
+                                context.bridgeComponentsBuilder.getterToBridgeInfo[it] = getterExtra
+                            }
+                        }
                         KotlinPlatform.NATIVE -> {
                             val cCallAnnotation = AnnotationStub.CCall.Symbol(context.generateNextUniqueId("knifunptr_") + "_${global.name}_getter")
-                            PropertyAccessor.Getter.ExternalGetter(listOf(cCallAnnotation))
+                            PropertyAccessor.Getter.ExternalGetter(listOf(cCallAnnotation)).also {
+                                context.wrapperComponentsBuilder.getterToWrapperInfo[it] = WrapperGenerationInfo(global)
+                            }
                         }
                     }
-                    context.bridgeComponentsBuilder.getterToBridgeInfo[getter] = getterExtra
                     kind = if (global.isConst) {
                         PropertyStub.Kind.Val(getter)
                     } else {
-                        val setterExtra = BridgeGenerationInfo(global.name, mirror.info)
                         val setter = when (context.platform) {
-                            KotlinPlatform.JVM -> PropertyAccessor.Setter.SimpleSetter()
+                            KotlinPlatform.JVM -> {
+                                PropertyAccessor.Setter.SimpleSetter().also {
+                                    val setterExtra = BridgeGenerationInfo(global.name, mirror.info)
+                                    context.bridgeComponentsBuilder.setterToBridgeInfo[it] = setterExtra
+                                }
+                            }
                             KotlinPlatform.NATIVE -> {
                                 val cCallAnnotation = AnnotationStub.CCall.Symbol(context.generateNextUniqueId("knifunptr_") + "_${global.name}_setter")
-                                PropertyAccessor.Setter.ExternalSetter(listOf(cCallAnnotation))
+                                PropertyAccessor.Setter.ExternalSetter(listOf(cCallAnnotation)).also {
+                                    context.wrapperComponentsBuilder.setterToWrapperInfo[it] = WrapperGenerationInfo(global)
+                                }
                             }
                         }
-                        context.bridgeComponentsBuilder.setterToBridgeInfo[setter] = setterExtra
                         PropertyStub.Kind.Var(getter, setter)
                     }
                 }
