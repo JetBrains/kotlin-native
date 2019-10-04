@@ -128,6 +128,15 @@ fun mergeReports(reports: List<File>): String {
     return if (jsons.isEmpty()) "" else if (jsons.size == 1) jsons[0] else jsons.joinToString(prefix = "[", postfix = "]")
 }
 
+fun getCompileOnlyBenchmarksOpts(project: Project, defaultCompilerOpts: List<String>) =
+        (project.findProperty("nativeBuildType") as String?)?.let {
+            if (it.equals("RELEASE", true))
+                listOf("-opt")
+            else if (it.equals("DEBUG", true))
+                listOf("-g")
+            else listOf()
+        } ?: defaultCompilerOpts
+
 // Find file with set name in directory.
 fun findFile(fileName: String, directory: String): String? =
     File(directory).walkBottomUp().find { it.name == fileName }?.getAbsolutePath()
