@@ -31,6 +31,7 @@ internal val Project.attempts: Int
 internal val Project.nativeBenchResults: String
     get() = property("nativeBenchResults") as String
 
+// Gradle property to add flags to benchmarks run from command line.
 internal val Project.compilerArgs: List<String>
     get() = (findProperty("compilerArgs") as String?)?.split("\\s").orEmpty()
 
@@ -158,6 +159,8 @@ abstract class BenchmarkingPlugin: Plugin<Project> {
             project.afterEvaluate {
                 linkerOpts.addAll(project.benchmark.linkerOpts)
             }
+
+            freeCompilerArgs = project.benchmark.compilerOpts + project.compilerArgs
         }
     }
 

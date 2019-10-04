@@ -118,14 +118,14 @@ fun mergeReports(reports: List<File>): String {
     }
     val structuredReports = mutableMapOf<String, MutableList<BenchmarksReport>>()
     reportsToMerge.map { it.compiler.backend.flags.joinToString() to it }.forEach {
-        if (it.first in structuredReports) {
-            structuredReports[it.first]!!.add(it.second)
-        } else {
-            structuredReports[it.first] = mutableListOf(it.second)
-        }
+        structuredReports.getOrPut(it.first) { mutableListOf<BenchmarksReport>() }.add(it.second)
     }
     val jsons = structuredReports.map { (_, value) -> value.reduce { result, it -> result + it }.toJson() }
-    return if (jsons.isEmpty()) "" else if (jsons.size == 1) jsons[0] else jsons.joinToString(prefix = "[", postfix = "]")
+    return when(jsons.size) {
+        0 -> ""
+        1 -> jsons[0]
+        else -> jsons.joinToString(prefix = "[", postfix = "]")
+    }
 }
 
 fun getCompileOnlyBenchmarksOpts(project: Project, defaultCompilerOpts: List<String>) =

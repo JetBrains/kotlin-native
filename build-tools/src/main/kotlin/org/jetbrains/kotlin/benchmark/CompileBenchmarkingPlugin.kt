@@ -107,7 +107,7 @@ open class CompileBenchmarkingPlugin : Plugin<Project> {
     }
 
     private fun getCompilerFlags(benchmarkExtension: CompileBenchmarkExtension) =
-            benchmarkExtension.compilerOpts.sorted()
+            benchmarkExtension.compilerOpts
 
     private fun Project.configureJvmRun(
         benchmarkExtension: CompileBenchmarkExtension

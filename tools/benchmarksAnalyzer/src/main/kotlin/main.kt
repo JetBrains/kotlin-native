@@ -86,14 +86,10 @@ fun getFileContent(fileName: String, user: String? = null): String {
 
 fun getBenchmarkReport(fileName: String, user: String? = null): List<BenchmarksReport> {
     val jsonEntity = JsonTreeParser.parse(getFileContent(fileName, user))
-    return if (jsonEntity is JsonObject) {
-        listOf(BenchmarksReport.create(jsonEntity))
-    } else if (jsonEntity is JsonArray) {
-        jsonEntity.map {
-            BenchmarksReport.create(it)
-        }
-    } else {
-        error("Wrong format of report. Expected object or array of objects.")
+    return when (jsonEntity) {
+        is JsonObject -> listOf(BenchmarksReport.create(jsonEntity))
+        is JsonArray -> jsonEntity.map { BenchmarksReport.create(it) }
+        else -> error("Wrong format of report. Expected object or array of objects.")
     }
 }
 
