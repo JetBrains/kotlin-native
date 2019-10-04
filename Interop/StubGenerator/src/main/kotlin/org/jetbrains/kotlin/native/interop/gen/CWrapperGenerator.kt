@@ -27,15 +27,17 @@ internal class CWrappersGenerator(private val context: StubIrContext) {
             "const void* $symbol = &$function;"
     )
 
+    private data class Parameter(val type: String, val name: String)
+
     private fun createWrapper(
             symbolName: String,
             wrapperName: String,
             returnType: String,
-            parameters: List<Pair<String, String>>,
+            parameters: List<Parameter>,
             body: String
     ): List<String> = listOf(
             "__attribute__((always_inline))",
-            "$returnType $wrapperName(${parameters.joinToString { "${it.second} ${it.first}" }}) {",
+            "$returnType $wrapperName(${parameters.joinToString { "${it.type} ${it.name}" }}) {",
             body,
             "}",
             *bindSymbolToFunction(symbolName, wrapperName).toTypedArray()
@@ -49,9 +51,9 @@ internal class CWrappersGenerator(private val context: StubIrContext) {
 
                 val returnType = function.returnType.getStringRepresentation()
                 val parameters = function.parameters.mapIndexed { index, parameter ->
-                    "p$index" to parameter.type.getStringRepresentation()
+                    Parameter(parameter.type.getStringRepresentation(), "p$index")
                 }
-                val callExpression = "${function.name}(${parameters.joinToString { it.first }});"
+                val callExpression = "${function.name}(${parameters.joinToString { it.name }});"
                 val wrapperBody = if (function.returnType.unwrapTypedefs() is VoidType) {
                     callExpression
                 } else {
@@ -71,9 +73,10 @@ internal class CWrappersGenerator(private val context: StubIrContext) {
 
     fun generateCGlobalSetter(globalDecl: GlobalDecl, symbolName: String): CCalleeWrapper {
         val wrapperName = generateFunctionWrapperName("${globalDecl.name}_setter")
-        val wrapperBody = "${globalDecl.name} = p1;"
         val globalType = globalDecl.type.getStringRepresentation()
-        val wrapper = createWrapper(symbolName, wrapperName, "void", listOf(globalType to "p1"), wrapperBody)
+        val parameter = Parameter(globalType, "p1")
+        val wrapperBody = "${globalDecl.name} = ${parameter.name};"
+        val wrapper = createWrapper(symbolName, wrapperName, "void", listOf(parameter), wrapperBody)
         return CCalleeWrapper(wrapper)
     }
 }
