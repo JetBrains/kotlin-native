@@ -31,6 +31,9 @@ internal val Project.attempts: Int
 internal val Project.nativeBenchResults: String
     get() = property("nativeBenchResults") as String
 
+internal val Project.compilerArgs: List<String>
+    get() = (findProperty("compilerArgs") as String?)?.split("\\s").orEmpty()
+
 internal val Project.kotlinVersion: String
     get() = property("kotlinVersion") as String
 
@@ -160,7 +163,7 @@ abstract class BenchmarkingPlugin: Plugin<Project> {
 
     protected fun Project.configureNativeTarget(hostPreset: AbstractKotlinNativeTargetPreset<*>) {
         kotlin.targetFromPreset(hostPreset, NATIVE_TARGET_NAME) {
-            compilations.getByName("main").kotlinOptions.freeCompilerArgs = benchmark.compilerOpts
+            compilations.getByName("main").kotlinOptions.freeCompilerArgs = benchmark.compilerOpts + project.compilerArgs
             compilations.getByName("main").enableEndorsedLibs = true
             configureNativeOutput(this@configureNativeTarget)
         }
@@ -220,7 +223,7 @@ abstract class BenchmarkingPlugin: Plugin<Project> {
                 val properties = commonBenchmarkProperties + mapOf(
                         "type" to "native",
                         "compilerVersion" to konanVersion,
-                        "flags" to getCompilerFlags(project, nativeTarget),
+                        "flags" to getCompilerFlags(project, nativeTarget).sorted(),
                         "benchmarks" to benchContents,
                         "compileTime" to listOf(nativeCompileTime),
                         "codeSize" to collectCodeSize(applicationName)

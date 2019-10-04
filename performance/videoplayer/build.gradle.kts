@@ -50,6 +50,7 @@ var includeDirsSdl = when {
 compileBenchmark {
     applicationName = "Videoplayer"
     repeatNumber = 10
+    compilerOpts = listOf("-g")
     buildSteps {
         step("runCinteropFfmpeg") {
             command = listOf(

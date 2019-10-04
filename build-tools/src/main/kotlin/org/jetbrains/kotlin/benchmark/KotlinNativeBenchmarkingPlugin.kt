@@ -133,7 +133,7 @@ open class KotlinNativeBenchmarkingPlugin: BenchmarkingPlugin() {
                 it.compileKotlinTask.kotlinOptions {
                     jvmTarget = "1.8"
                     suppressWarnings = true
-                    freeCompilerArgs = project.benchmark.compilerOpts
+                    freeCompilerArgs = project.benchmark.compilerOpts + project.compilerArgs
                 }
             }
         }

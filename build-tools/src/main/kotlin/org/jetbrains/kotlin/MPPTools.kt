@@ -13,6 +13,7 @@ import org.gradle.api.Task
 import org.gradle.api.tasks.TaskState
 import org.gradle.api.execution.TaskExecutionListener
 import org.jetbrains.kotlin.gradle.plugin.KotlinTargetPreset
+import org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType
 import org.jetbrains.kotlin.gradle.tasks.KotlinNativeLink
 import org.jetbrains.report.*
 import org.jetbrains.report.json.*
@@ -115,7 +116,16 @@ fun mergeReports(reports: List<File>): String {
         val reportElement = JsonTreeParser.parse(json)
         BenchmarksReport.create(reportElement)
     }
-    return if (reportsToMerge.isEmpty()) "" else reportsToMerge.reduce { result, it -> result + it }.toJson()
+    val structuredReports = mutableMapOf<String, MutableList<BenchmarksReport>>()
+    reportsToMerge.map { it.compiler.backend.flags.joinToString() to it }.forEach {
+        if (it.first in structuredReports) {
+            structuredReports[it.first]!!.add(it.second)
+        } else {
+            structuredReports[it.first] = mutableListOf(it.second)
+        }
+    }
+    val jsons = structuredReports.map { (_, value) -> value.reduce { result, it -> result + it }.toJson() }
+    return if (jsons.isEmpty()) "" else if (jsons.size == 1) jsons[0] else jsons.joinToString(prefix = "[", postfix = "]")
 }
 
 // Find file with set name in directory.
