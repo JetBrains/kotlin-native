@@ -59,8 +59,6 @@ abstract class Measurement<T : Measurement<T>>(val name: String, protected val c
         get() =
             with(StringBuilder("$name,")) {
                 var prefix = ""
-                println(tags.values)
-                println(fields.values)
                 tags.values.forEach {
                     it.value?.let { _ ->
                         append("${prefix}${it.lineProtocol}")

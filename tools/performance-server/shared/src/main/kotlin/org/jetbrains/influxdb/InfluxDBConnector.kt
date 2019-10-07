@@ -91,9 +91,7 @@ class InfluxDBConnector(private val host: String, private val databaseName: Stri
         checkConnection()
         // InfluxDb has limitations to 5,000 points in one request.
         val insertLimit = 5000
-        println("Insert function")
         return points.chunked(insertLimit).map {
-            println("In chunked")
             val description = it.joinToString(separator = "\n") { it.lineProtocol }
             val writeUrl = "$host:$port/write?db=$databaseName"
             sendRequest(RequestMethod.POST, writeUrl, user, password, body = description)

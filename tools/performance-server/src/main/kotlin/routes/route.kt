@@ -110,7 +110,6 @@ fun router() {
 
     // Register build on Artifactory.
     router.post("/register", { request, response ->
-        println("register request")
         val register = BuildRegister.create(JSON.stringify(request.body))
 
         // Get information from TeamCity.
@@ -204,7 +203,7 @@ fun router() {
     router.get("/metricValue/:target/:type/:metric", { request, response ->
         val measurement = BenchmarkMeasurement(connector)
         val metric = request.params.metric
-        val target = request.params.target.toString().replace('_', ' ').asDynamic()
+        val target = request.params.target.toString().replace('_', ' ')
         var samples: List<String>? = null
         var agregation = "geomean"
         var normalize = false
@@ -248,7 +247,7 @@ fun router() {
             val responseLists = filteredBuildNumbers.map {
                 // Get points for this build.
                 measurement.select(measurement.all() where ((measurement.tag("environment.machine.os") eq target) and
-                        (measurement.field("build.number") eq FieldType.InfluxString(it)))).then { dbResponse ->
+                        (measurement.field("build.number") eq it))).then { dbResponse ->
                     val report = dbResponse.toReport()
                     report?.let { report ->
                         val dataForNormalization = if (normalize)
@@ -297,7 +296,7 @@ fun router() {
     // Get branches for [target].
     router.get("/branches/:target", { request, response ->
         val measurement = BenchmarkMeasurement(connector)
-        val target = request.params.target.toString().replace('_', ' ').asDynamic()
+        val target = request.params.target.toString().replace('_', ' ')
         connector.select(measurement.distinct("build.branch") from measurement.field("build.branch")
                         .select( measurement.tag("environment.machine.os") eq target)).then { dbResponse ->
             response.json(dbResponse)
@@ -307,11 +306,82 @@ fun router() {
     // Get build numbers for [target].
     router.get("/buildsNumbers/:target", { request, response ->
         val measurement = BenchmarkMeasurement(connector)
-        val target = request.params.target.toString().replace('_', ' ').asDynamic()
+        val target = request.params.target.toString().replace('_', ' ')
 
         connector.select(measurement.distinct("build.number") from measurement.field("build.number")
                         .select(measurement.tag("environment.machine.os") eq target)).then { dbResponse ->
             response.json(dbResponse)
+        }
+    })
+
+    router.get("/convert/:target", { request, response ->
+        val target = request.params.target.toString()
+        var buildNumber: String? = null
+        if (request.query != undefined) {
+            if (request.query.buildNumber != undefined) {
+                buildNumber = request.query.buildNumber
+            }
+        }
+        getBuildsInfoFromBintray(target).then { buildInfo ->
+            val buildsDescription = buildInfo.lines().drop(1)
+            var shouldConvert = buildNumber?.let { false } ?: true
+            buildsDescription.forEach {
+                if (!it.isEmpty()) {
+                    val currentBuildNumber = it.substringBefore(',')
+                    if (!"\\d+(\\.\\d+)+-\\w+-\\d+".toRegex().matches(currentBuildNumber)) {
+                        error("Build number $currentBuildNumber differs from expected format. File with data for " +
+                                "target $target could be corrupted.")
+                    }
+                    if (!shouldConvert && buildNumber != null && buildNumber == currentBuildNumber) {
+                        shouldConvert = true
+                    }
+                    if (shouldConvert) {
+                        // Save data from Bintray into database.
+                        val bintrayUrl = "https://dl.bintray.com/content/lepilkinaelena/KotlinNativePerformance"
+                        val fileName = "nativeReport.json"
+                        val accessFileUrl = "$bintrayUrl/$target/$currentBuildNumber/$fileName"
+                        val infoParts = it.split(", ")
+                        sendRequest(RequestMethod.GET, accessFileUrl).then { jsonReport ->
+                            val results = BenchmarkMeasurement.create(JsonTreeParser.parse(jsonReport), connector,
+                                    BuildInfo(currentBuildNumber,infoParts[1], infoParts[2],
+                                            CommitsList.parse(infoParts[4]), infoParts[3])).toMutableList()
+
+                            val bundleSize = if (infoParts[10] != "-") infoParts[10] else null
+                            // Save bundle size if exists.
+                            if (results.isNotEmpty() && bundleSize != null) {
+                                // Add bundle size.
+                                val bundleSizeBenchmark = results[0].copy()
+                                bundleSizeBenchmark.benchmarkName = "Kotlin/Native"
+                                bundleSizeBenchmark.benchmarkStatus = FieldType.InfluxString("PASSED")
+                                bundleSizeBenchmark.benchmarkScore = FieldType.InfluxFloat(bundleSize.toDouble())
+                                bundleSizeBenchmark.benchmarkMetric = "BUNDLE_SIZE"
+                                bundleSizeBenchmark.benchmarkRuntime = FieldType.InfluxFloat(0.0)
+                                bundleSizeBenchmark.benchmarkRepeat = FieldType.InfluxInt(1)
+                                bundleSizeBenchmark.benchmarkWarmup = FieldType.InfluxInt(0)
+                                results.add(bundleSizeBenchmark)
+                            }
+
+                            // Change compiler flags.
+                            results.forEach {
+                                val options = getOptsForBenchmark(it.benchmarkName!!)
+                                it.kotlinBackendFlags = options
+                            }
+                            // Save results in database.
+                            Promise.all(connector.insert(results)).then { _ ->
+                                println("Success insert")
+                            }.catch { errorResponse ->
+                                println("Failed to insert data for build")
+                                println(errorResponse)
+                            }
+                        }.catch {
+                            // There is no such buid.
+                            println("There is no build $currentBuildNumber")
+                        }
+                    }
+                }
+            }
+        }.catch {
+            response.sendStatus(400)
         }
     })
 
@@ -325,4 +395,25 @@ fun router() {
     })
 
     return router
+}
+
+fun getOptsForBenchmark(benchmarkName: String): List<String> {
+    val optimizedBenchmarks = listOf("Cinterop", "Numerical", "ObjCInterop", "Ring", "swiftInterop")
+    val debuggableBenchmark = listOf("FrameworkBenchmarksAnalyzer", "HelloWorld", "Videoplayer")
+
+    optimizedBenchmarks.forEach {
+        if (benchmarkName.contains(it, true)) return listOf("-opt")
+    }
+
+    debuggableBenchmark.forEach {
+        if (benchmarkName.contains(it, true)) return listOf("-g")
+    }
+
+    return listOf<String>()
+}
+
+fun getBuildsInfoFromBintray(target: String): Promise<String> {
+    val downloadBintrayUrl = "https://dl.bintray.com/content/lepilkinaelena/KotlinNativePerformance"
+    val buildsFileName = "buildsSummary.csv"
+    return sendRequest(RequestMethod.GET, "$downloadBintrayUrl/$target/$buildsFileName")
 }
