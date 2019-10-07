@@ -11,14 +11,24 @@ import kotlin.js.Date               // TODO - migrate to multiplatform.
 
 data class Commit(val revision: String, val developer: String) {
     override fun toString() = "$revision by $developer"
+    companion object {
+        fun parse(description: String) = if (description != "...") {
+            description.split(" by ").let {
+                val (currentRevision, currentDeveloper) = it
+                Commit(currentRevision, currentRevision)
+            }
+        } else {
+            Commit("unknown", "unknown")
+        }
+    }
 }
 
 // List of commits.
-class CommitsList(data: JsonElement): ConvertedFromJson {
+class CommitsList: ConvertedFromJson {
 
     val commits: List<Commit>
 
-    init {
+    constructor(data: JsonElement) {
         if (data !is JsonObject) {
             error("Commits description is expected to be a JSON object!")
         }
@@ -37,8 +47,17 @@ class CommitsList(data: JsonElement): ConvertedFromJson {
         } ?: listOf<Commit>()
     }
 
+    private constructor(_commits: List<Commit>) {
+        commits = _commits
+    }
+
     override fun toString(): String =
         commits.toString()
+    companion object {
+        fun parse(description: String) = CommitsList(description.split(";").filter { it.isNotEmpty() }.map {
+            Commit.parse(it)
+        })
+    }
 }
 
 data class BuildInfo(val number: String, val startTime: String, val endTime: String, val commitsList: CommitsList,
