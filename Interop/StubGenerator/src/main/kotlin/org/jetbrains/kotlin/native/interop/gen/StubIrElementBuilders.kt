@@ -356,7 +356,7 @@ internal class FunctionStubBuilder(
                 val type = WrapperStubType(KotlinTypes.any.makeNullable())
                 parameters += FunctionParameterStub("variadicArguments", type, isVararg = true)
             }
-            annotations = listOf(AnnotationStub.CCall.Symbol(context.generateNextUniqueId("knifunptr_") + "_${func.name}"))
+            annotations = listOf(AnnotationStub.CCall.Symbol("${context.generateNextUniqueId("knifunptr_")}_${func.name}"))
             mustBeExternal = true
         }
         val functionStub = FunctionStub(
@@ -457,7 +457,7 @@ internal class GlobalStubBuilder(
                             }
                         }
                         KotlinPlatform.NATIVE -> {
-                            val cCallAnnotation = AnnotationStub.CCall.Symbol(context.generateNextUniqueId("knifunptr_") + "_${global.name}_getter")
+                            val cCallAnnotation = AnnotationStub.CCall.Symbol("${context.generateNextUniqueId("knifunptr_")}_${global.name}_getter")
                             PropertyAccessor.Getter.ExternalGetter(listOf(cCallAnnotation)).also {
                                 context.wrapperComponentsBuilder.getterToWrapperInfo[it] = WrapperGenerationInfo(global)
                             }
@@ -474,7 +474,7 @@ internal class GlobalStubBuilder(
                                 }
                             }
                             KotlinPlatform.NATIVE -> {
-                                val cCallAnnotation = AnnotationStub.CCall.Symbol(context.generateNextUniqueId("knifunptr_") + "_${global.name}_setter")
+                                val cCallAnnotation = AnnotationStub.CCall.Symbol("${context.generateNextUniqueId("knifunptr_")}_${global.name}_setter")
                                 PropertyAccessor.Setter.ExternalSetter(listOf(cCallAnnotation)).also {
                                     context.wrapperComponentsBuilder.setterToWrapperInfo[it] = WrapperGenerationInfo(global)
                                 }

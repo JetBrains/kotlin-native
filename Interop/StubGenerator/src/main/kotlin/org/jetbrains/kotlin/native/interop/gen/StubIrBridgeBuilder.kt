@@ -106,8 +106,8 @@ class StubIrBridgeBuilder(
                     ?: return
             val cCallAnnotation = function.annotations.firstIsInstanceOrNull<AnnotationStub.CCall.Symbol>()
                     ?: return
-            val (wrapperLines) = wrapperGenerator.generateCCalleeWrapper(origin.function, cCallAnnotation.symbolName)
-            simpleBridgeGenerator.insertNativeBridge(function, emptyList(), wrapperLines)
+            val wrapper = wrapperGenerator.generateCCalleeWrapper(origin.function, cCallAnnotation.symbolName)
+            simpleBridgeGenerator.insertNativeBridge(function, emptyList(), wrapper.lines)
         }
 
         override fun visitProperty(element: PropertyStub, owner: StubContainer?) {
@@ -203,8 +203,8 @@ class StubIrBridgeBuilder(
                         val extra = builderResult.wrapperGenerationComponents.getterToWrapperInfo.getValue(accessor)
                         val cCallAnnotation = accessor.annotations.firstIsInstanceOrNull<AnnotationStub.CCall.Symbol>()
                                 ?: error("external getter for ${extra.global.name} wasn't marked with @CCall")
-                        val (wrapperLines) = wrapperGenerator.generateCGlobalGetter(extra.global, cCallAnnotation.symbolName)
-                        simpleBridgeGenerator.insertNativeBridge(accessor, emptyList(), wrapperLines)
+                        val wrapper = wrapperGenerator.generateCGlobalGetter(extra.global, cCallAnnotation.symbolName)
+                        simpleBridgeGenerator.insertNativeBridge(accessor, emptyList(), wrapper.lines)
                     }
                 }
 
@@ -213,8 +213,8 @@ class StubIrBridgeBuilder(
                         val extra = builderResult.wrapperGenerationComponents.setterToWrapperInfo.getValue(accessor)
                         val cCallAnnotation = accessor.annotations.firstIsInstanceOrNull<AnnotationStub.CCall.Symbol>()
                                 ?: error("external setter for ${extra.global.name} wasn't marked with @CCall")
-                        val (wrapperLines) = wrapperGenerator.generateCGlobalSetter(extra.global, cCallAnnotation.symbolName)
-                        simpleBridgeGenerator.insertNativeBridge(accessor, emptyList(), wrapperLines)
+                        val wrapper = wrapperGenerator.generateCGlobalSetter(extra.global, cCallAnnotation.symbolName)
+                        simpleBridgeGenerator.insertNativeBridge(accessor, emptyList(), wrapper.lines)
                     }
                 }
             }
