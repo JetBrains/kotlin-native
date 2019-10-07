@@ -79,6 +79,11 @@ class BenchmarksReport(val env: Environment, benchmarksList: List<BenchmarkResul
 
     fun merge(other: BenchmarksReport): BenchmarksReport {
         val mergedBenchmarks = HashMap(benchmarks)
+        other.benchmarks.forEach {
+            if (it.key in mergedBenchmarks) {
+                error("${it.key} already exists in report!")
+            }
+        }
         mergedBenchmarks.putAll(other.benchmarks)
         return BenchmarksReport(env, mergedBenchmarks.flatMap{it.value}, compiler)
     }

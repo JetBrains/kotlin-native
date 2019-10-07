@@ -158,9 +158,8 @@ abstract class BenchmarkingPlugin: Plugin<Project> {
             // Specify settings configured by a user in the benchmark extension.
             project.afterEvaluate {
                 linkerOpts.addAll(project.benchmark.linkerOpts)
+                freeCompilerArgs = project.benchmark.compilerOpts + project.compilerArgs
             }
-
-            freeCompilerArgs = project.benchmark.compilerOpts + project.compilerArgs
         }
     }
 
