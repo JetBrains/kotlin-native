@@ -12,6 +12,7 @@ import org.jetbrains.influxdb.*
 import org.jetbrains.build.Build
 import org.jetbrains.analyzer.*
 import org.jetbrains.report.*
+import kotlin.coroutines.*
 
 const val teamCityUrl = "https://buildserver.labs.intellij.net/app/rest"
 const val artifactoryUrl = "https://repo.labs.intellij.net/kotlin-native-benchmarks"
@@ -323,59 +324,61 @@ fun router() {
             }
         }
         getBuildsInfoFromBintray(target).then { buildInfo ->
-            val buildsDescription = buildInfo.lines().drop(1)
-            var shouldConvert = buildNumber?.let { false } ?: true
-            buildsDescription.forEach {
-                if (!it.isEmpty()) {
-                    val currentBuildNumber = it.substringBefore(',')
-                    if (!"\\d+(\\.\\d+)+-\\w+-\\d+".toRegex().matches(currentBuildNumber)) {
-                        error("Build number $currentBuildNumber differs from expected format. File with data for " +
-                                "target $target could be corrupted.")
-                    }
-                    if (!shouldConvert && buildNumber != null && buildNumber == currentBuildNumber) {
-                        shouldConvert = true
-                    }
-                    if (shouldConvert) {
-                        // Save data from Bintray into database.
-                        val bintrayUrl = "https://dl.bintray.com/content/lepilkinaelena/KotlinNativePerformance"
-                        val fileName = "nativeReport.json"
-                        val accessFileUrl = "$bintrayUrl/$target/$currentBuildNumber/$fileName"
-                        val infoParts = it.split(", ")
-                        sendRequest(RequestMethod.GET, accessFileUrl).then { jsonReport ->
-                            val results = BenchmarkMeasurement.create(JsonTreeParser.parse(jsonReport), connector,
-                                    BuildInfo(currentBuildNumber,infoParts[1], infoParts[2],
-                                            CommitsList.parse(infoParts[4]), infoParts[3])).toMutableList()
+            launch {
+                val buildsDescription = buildInfo.lines().drop(1)
+                var shouldConvert = buildNumber?.let { false } ?: true
+                buildsDescription.forEach {
+                    if (!it.isEmpty()) {
+                        val currentBuildNumber = it.substringBefore(',')
+                        if (!"\\d+(\\.\\d+)+-\\w+-\\d+".toRegex().matches(currentBuildNumber)) {
+                            error("Build number $currentBuildNumber differs from expected format. File with data for " +
+                                    "target $target could be corrupted.")
+                        }
+                        if (!shouldConvert && buildNumber != null && buildNumber == currentBuildNumber) {
+                            shouldConvert = true
+                        }
+                        if (shouldConvert) {
+                            // Save data from Bintray into database.
+                            val bintrayUrl = "https://dl.bintray.com/content/lepilkinaelena/KotlinNativePerformance"
+                            val fileName = "nativeReport.json"
+                            val accessFileUrl = "$bintrayUrl/$target/$currentBuildNumber/$fileName"
+                            val infoParts = it.split(", ")
+                            try {
+                                val jsonReport = sendRequest(RequestMethod.GET, accessFileUrl).await()
+                                val results = BenchmarkMeasurement.create(JsonTreeParser.parse(jsonReport), connector,
+                                        BuildInfo(currentBuildNumber, infoParts[1], infoParts[2],
+                                                CommitsList.parse(infoParts[4]), infoParts[3])).toMutableList()
 
-                            val bundleSize = if (infoParts[10] != "-") infoParts[10] else null
-                            // Save bundle size if exists.
-                            if (results.isNotEmpty() && bundleSize != null) {
-                                // Add bundle size.
-                                val bundleSizeBenchmark = results[0].copy()
-                                bundleSizeBenchmark.benchmarkName = "Kotlin/Native"
-                                bundleSizeBenchmark.benchmarkStatus = FieldType.InfluxString("PASSED")
-                                bundleSizeBenchmark.benchmarkScore = FieldType.InfluxFloat(bundleSize.toDouble())
-                                bundleSizeBenchmark.benchmarkMetric = "BUNDLE_SIZE"
-                                bundleSizeBenchmark.benchmarkRuntime = FieldType.InfluxFloat(0.0)
-                                bundleSizeBenchmark.benchmarkRepeat = FieldType.InfluxInt(1)
-                                bundleSizeBenchmark.benchmarkWarmup = FieldType.InfluxInt(0)
-                                results.add(bundleSizeBenchmark)
-                            }
+                                val bundleSize = if (infoParts[10] != "-") infoParts[10] else null
+                                // Save bundle size if exists.
+                                if (results.isNotEmpty() && bundleSize != null) {
+                                    // Add bundle size.
+                                    val bundleSizeBenchmark = results[0].copy()
+                                    bundleSizeBenchmark.benchmarkName = "Kotlin/Native"
+                                    bundleSizeBenchmark.benchmarkStatus = FieldType.InfluxString("PASSED")
+                                    bundleSizeBenchmark.benchmarkScore = FieldType.InfluxFloat(bundleSize.toDouble())
+                                    bundleSizeBenchmark.benchmarkMetric = "BUNDLE_SIZE"
+                                    bundleSizeBenchmark.benchmarkRuntime = FieldType.InfluxFloat(0.0)
+                                    bundleSizeBenchmark.benchmarkRepeat = FieldType.InfluxInt(1)
+                                    bundleSizeBenchmark.benchmarkWarmup = FieldType.InfluxInt(0)
+                                    results.add(bundleSizeBenchmark)
+                                }
 
-                            // Change compiler flags.
-                            results.forEach {
-                                val options = getOptsForBenchmark(it.benchmarkName!!)
-                                it.kotlinBackendFlags = options
+                                // Change compiler flags.
+                                results.forEach {
+                                    val options = getOptsForBenchmark(it.benchmarkName!!)
+                                    it.kotlinBackendFlags = options
+                                }
+                                // Save results in database.
+                                Promise.all(connector.insert(results)).then { _ ->
+                                    println("Success insert")
+                                }.catch { errorResponse ->
+                                    println("Failed to insert data for build")
+                                    println(errorResponse)
+                                }
+                            } catch (e: Exception) {
+                                println(e.message)
                             }
-                            // Save results in database.
-                            Promise.all(connector.insert(results)).then { _ ->
-                                println("Success insert")
-                            }.catch { errorResponse ->
-                                println("Failed to insert data for build")
-                                println(errorResponse)
-                            }
-                        }.catch {
-                            // There is no such buid.
-                            println("There is no build $currentBuildNumber")
                         }
                     }
                 }
@@ -417,3 +420,14 @@ fun getBuildsInfoFromBintray(target: String): Promise<String> {
     val buildsFileName = "buildsSummary.csv"
     return sendRequest(RequestMethod.GET, "$downloadBintrayUrl/$target/$buildsFileName")
 }
+
+suspend fun <T> Promise<T>.await(): T = suspendCoroutine { cont ->
+    then({ cont.resume(it) }, { cont.resumeWithException(it) })
+}
+
+fun launch(context: CoroutineContext = EmptyCoroutineContext, block: suspend () -> Unit) =
+    block.startCoroutine(Continuation(context) { result ->
+        result.onFailure { exception ->
+            throw exception
+        }
+    })
