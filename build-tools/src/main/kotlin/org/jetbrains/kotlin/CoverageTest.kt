@@ -74,6 +74,7 @@ open class CoverageTest : DefaultTask() {
         } catch (e: TestFailedException) {
             // Show report in message to make debug easier.
             val show = exec("llvm-cov", "show", pathToBinary, "-instr-profile", profdataFile).stdOut
+            // llvm-cov output contains '|' so another symbol is used as margin prefix.
             throw TestFailedException("""
                 >${e.message}
                 >$show

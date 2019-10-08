@@ -3781,7 +3781,7 @@ if (UtilsKt.testTargetSupportsCodeCoverage(project)) {
         numberOfCoveredLines = 1
 
         konanArtifacts {
-            library("lib_to_cover") {
+            library("lib_to_cover", targets: [targetName]) {
                 srcFiles 'coverage/basic/library/library.kt'
             }
             program(binaryName, targets: [ target ]) {
