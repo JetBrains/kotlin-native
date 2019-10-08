@@ -30,13 +30,13 @@ data class TCBuildInfo(val buildNumber: String, val branch: String, val startTim
                        val finishTime: String)
 
 data class BuildRegister(val buildId: String, val teamCityUser: String, val teamCityPassword: String,
-                    val bundleSize: String?) {
+                    val bundleSize: String?, val fileWithResult: String) {
     companion object {
         fun create(json: String): BuildRegister {
             val requestDetails = JSON.parse<BuildRegister>(json)
             // Parse method doesn't create real instance with all methods. So create it by hands.
             return BuildRegister(requestDetails.buildId, requestDetails.teamCityUser, requestDetails.teamCityPassword,
-                    requestDetails.bundleSize)
+                    requestDetails.bundleSize, requestDetails.fileWithResult)
         }
     }
 
@@ -46,9 +46,7 @@ data class BuildRegister(val buildId: String, val teamCityUser: String, val team
         "$teamCityUrl/changes/?locator=build:id:$buildId"
     }
 
-    private val fileWithResults = "nativeReport.json"
-
-    val teamCityArtifactsUrl: String by lazy { "$teamCityUrl/builds/id:$buildId/artifacts/content/$fileWithResults" }
+    val teamCityArtifactsUrl: String by lazy { "$teamCityUrl/builds/id:$buildId/artifacts/content/$fileWithResult" }
 
     fun sendTeamCityRequest(url: String, json: Boolean = false) = sendRequest(RequestMethod.GET, url, teamCityUser,
             teamCityPassword, json)
