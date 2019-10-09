@@ -9,7 +9,12 @@ package org.jetbrains.influxdb
 abstract class Expression<T: Any>() {
     abstract val lineProtocol: String
 
-    infix fun where(condition: Condition<*>) = WhereExpression<T>(condition)
+    infix fun where(condition: Condition<*>): Expression<T> = object : Expression<T>() {
+        override val lineProtocol: String =
+                "${this@Expression.lineProtocol} ${WhereExpression<T>(condition).lineProtocol}"
+
+    }
+
     infix fun from(expression: Expression<String>): Expression<T> = object : Expression<T>() {
         override val lineProtocol: String =
                 "FROM ${expression.lineProtocol}"
@@ -33,6 +38,6 @@ class WhereExpression<T: Any>(val condition: Condition<*>): Expression<T>() {
 abstract class InfluxFunction<T : Any>(val entity: ColumnEntity<*>): Expression<T>()
 
 // DISTINCT InfluxDB function.
-class DistinctFunction(field: ColumnEntity.FieldEntity<*>) : InfluxFunction<String>(field) {
-    override val lineProtocol = "DISTINCT(\"${entity.name}\")"
+class DistinctFunction(field: ColumnEntity.FieldEntity<*>, from: String? = null) : InfluxFunction<String>(field) {
+    override val lineProtocol = "DISTINCT(\"${entity.name}\")${from?.let {" FROM $from"}}"
 }
