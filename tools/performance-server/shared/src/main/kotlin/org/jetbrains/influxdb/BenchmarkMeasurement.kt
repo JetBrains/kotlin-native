@@ -213,8 +213,7 @@ class BenchmarkMeasurement(connector: InfluxDBConnector) : Measurement<Benchmark
             return results
         }
 
-        // Create measurements from json format of standard benchmarks report.
-        override fun create(data: JsonElement): List<BenchmarkMeasurement> {
+        fun createFromJsonElement(data: JsonElement): List<BenchmarkMeasurement> {
             val points = mutableListOf<BenchmarkMeasurement>()
             if (data is JsonObject) {
                 val env = data.getRequiredField("env") as JsonObject
@@ -288,6 +287,17 @@ class BenchmarkMeasurement(connector: InfluxDBConnector) : Measurement<Benchmark
             }
             return points
         }
+
+        // Create measurements from json format of standard benchmarks report.
+        override fun create(data: JsonElement): List<BenchmarkMeasurement> =
+                if (data is JsonArray) {
+                    data.map { createFromJsonElement(it) }.flatten()
+                } else if (data is JsonObject) {
+                    createFromJsonElement(data)
+                } else {
+                    error("Top level entity is expected to be an object or an array of objects." +
+                            " Please, check origin files.")
+                }
     }
 
     override fun fromInfluxJson(data: JsonElement): List<BenchmarkMeasurement> {
