@@ -76,7 +76,7 @@ fun checkBuildType(currentType: String, targetType: String): Boolean {
 }
 
 // Get builds numbers in right order.
-fun orderedBuildNumbers(buildNumbers: List<String>, type: String) = buildNumbers.filter { checkBuildType(it, type) }
+fun orderedBuildNumbers(buildNumbers: List<String>, type: String) = buildNumbers.filter { checkBuildType(it.substringAfter("-").substringBeforeLast("-"), type) }
         .sortedWith(compareBy ( { it.substringBefore(".").toInt() },
                 { it.substringAfter(".").substringBefore("-").toDouble() },
                 { it.substringAfterLast("-").toInt() }))
@@ -90,7 +90,7 @@ fun getBuildsForParameters(branch: String?, target: dynamic, connector: InfluxDB
                 (measurement.field("build.branch") eq FieldType.InfluxString(branch))
     } ?: (measurement.tag("environment.machine.os") eq target)
 
-    return connector.select(measurement.distinct("build.number") from measurement.field("build.number")
+    return connector.select(distinct("build.number") from measurement.field("build.number")
                     .select(selectExpr)).then { dbResponse ->
         dbResponse.toString().replace("\\[|\\]| ".toRegex(), "").split(",")
     }
@@ -167,7 +167,7 @@ fun router() {
             val filteredBuildNumbers = orderedBuildNumbers(results, "${request.params.type}")
             val responseLists = filteredBuildNumbers.map {
                 // Select needed measurements.
-                measurement.select(measurement.all() where ((measurement.tag("environment.machine.os") eq target)  and
+                measurement.select(measurement.all() where ((measurement.tag("environment.machine.os") eq target) and
                         (measurement.field("build.number") eq FieldType.InfluxString(it)) as Condition<String>)).then { measurements ->
                     val report = measurements.toReport()
                     val failuresNumber = report?.let { report ->
@@ -182,6 +182,7 @@ fun router() {
                 }.catch {
                     response.sendStatus(400)
                 }
+
             }
 
             Promise.all(responseLists.toTypedArray()).then { resultList ->
