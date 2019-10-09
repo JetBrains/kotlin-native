@@ -17,7 +17,7 @@ abstract class Expression<T: Any>() {
 
     infix fun from(expression: Expression<String>): Expression<T> = object : Expression<T>() {
         override val lineProtocol: String =
-                "FROM ${expression.lineProtocol}"
+                "${this@Expression.lineProtocol} FROM (${expression.lineProtocol})"
     }
 }
 
@@ -35,9 +35,12 @@ class WhereExpression<T: Any>(val condition: Condition<*>): Expression<T>() {
 }
 
 // Base class for InfluxDB functions.
-abstract class InfluxFunction<T : Any>(val entity: ColumnEntity<*>): Expression<T>()
+abstract class InfluxFunction<T : Any>(val entity: Any): Expression<T>()
 
 // DISTINCT InfluxDB function.
-class DistinctFunction(field: ColumnEntity.FieldEntity<*>, from: String? = null) : InfluxFunction<String>(field) {
-    override val lineProtocol = "DISTINCT(\"${entity.name}\")${from?.let {" FROM $from"}}"
+class DistinctFunction(field: String, from: String? = null) : InfluxFunction<String>(field) {
+    override val lineProtocol = "DISTINCT(\"${field}\")${from?.let {" FROM $from"} ?: ""}"
 }
+
+// Execute DISTINCT InfluxDb function by [fieldName].
+fun distinct(fieldName: String) = DistinctFunction(fieldName)

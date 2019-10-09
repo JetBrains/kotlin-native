@@ -78,23 +78,15 @@ abstract class Measurement<T : Measurement<T>>(val name: String, protected val c
                 toString()
             }
 
-    // Execute DISTINCT InfluxDb function by [fieldName].
-    fun distinct(fieldName: String): DistinctFunction {
-        if (fieldName !in fields.keys) {
-            error("There is no field with $fieldName in measurement $name.")
-        }
-        return fields[fieldName]!!.distinct()
-    }
-
     // Execute select from measurement with [where] condition.
     inline fun <reified U: Any>select(columns: Expression<U>): Promise<List<U>> {
-        val query = "SELECT ${columns.lineProtocol} FROM \"$name\""
+        val query = "SELECT ${columns.lineProtocol}"
         return connector.selectQuery<U>(query, this)
     }
 
     // Get expression describing all fields/tags in measurement.
     fun all() = object : Expression<T>() {
-        override val lineProtocol: String = "*"
+        override val lineProtocol: String = "* FROM $name"
     }
 
     // Parse InfluxDb json format to instances.
@@ -139,7 +131,7 @@ sealed class ColumnEntity<T : Any>(val name: String, val measurement: String): E
                      }
                  } ?: ""
 
-        fun distinct() = DistinctFunction(this, measurement)
+        fun distinct() = DistinctFunction(name, measurement)
     }
 
     // InfluxDb tag.

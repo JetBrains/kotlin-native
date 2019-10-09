@@ -200,7 +200,7 @@ var stageToShow = 0
 var buildsNumberToShow: Int? = null
 
 fun main(args: Array<String>) {
-    val serverUrl = "https://kotlin-native-perf-summary.labs.jb.gg"
+    val serverUrl = "http://localhost:3000"//"https://kotlin-native-perf-summary.labs.jb.gg"
     buildsNumberToShow = null
     stageToShow = 0
     val zoomRatio = 3
