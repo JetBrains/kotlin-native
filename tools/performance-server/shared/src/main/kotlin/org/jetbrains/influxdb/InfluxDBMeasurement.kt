@@ -83,7 +83,7 @@ abstract class Measurement<T : Measurement<T>>(val name: String, protected val c
         if (fieldName !in fields.keys) {
             error("There is no field with $fieldName in measurement $name.")
         }
-        return fields[fieldName]!!.let { DistinctFunction(it) }
+        return fields[fieldName]!!.distinct()
     }
 
     // Execute select from measurement with [where] condition.
@@ -123,7 +123,7 @@ sealed class ColumnEntity<T : Any>(val name: String, val measurement: String): E
 
     // Select entity with some [where] condition.
     infix fun select(where: Condition<String>) = object : Expression<String>() {
-        override val lineProtocol: String = "SELECT \"$name\" FROM $measurement ${where.lineProtocol}"
+        override val lineProtocol: String = "SELECT \"$name\" FROM $measurement WHERE ${where.lineProtocol}"
     }
 
     // InfluxDB field.
@@ -138,6 +138,8 @@ sealed class ColumnEntity<T : Any>(val name: String, val measurement: String): E
                          else -> "$name=\"$it\""
                      }
                  } ?: ""
+
+        fun distinct() = DistinctFunction(this, measurement)
     }
 
     // InfluxDb tag.

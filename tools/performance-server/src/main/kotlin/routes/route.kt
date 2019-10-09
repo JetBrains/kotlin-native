@@ -296,8 +296,8 @@ fun router() {
     router.get("/branches/:target", { request, response ->
         val measurement = BenchmarkMeasurement(connector)
         val target = request.params.target.toString().replace('_', ' ')
-        connector.select(measurement.distinct("build.branch") from measurement.field("build.branch")
-                        .select( measurement.tag("environment.machine.os") eq target)).then { dbResponse ->
+        connector.select(measurement.field("build.branch").distinct()
+                where (measurement.tag("environment.machine.os") eq target)).then { dbResponse ->
             response.json(dbResponse)
         }
     })
@@ -307,8 +307,8 @@ fun router() {
         val measurement = BenchmarkMeasurement(connector)
         val target = request.params.target.toString().replace('_', ' ')
 
-        connector.select(measurement.distinct("build.number") from measurement.field("build.number")
-                        .select(measurement.tag("environment.machine.os") eq target)).then { dbResponse ->
+        connector.select(measurement.field("build.number").distinct()
+                where (measurement.tag("environment.machine.os") eq target)).then { dbResponse ->
             response.json(dbResponse)
         }
     })
