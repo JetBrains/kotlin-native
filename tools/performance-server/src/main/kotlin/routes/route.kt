@@ -341,46 +341,49 @@ fun router() {
                             val fileName = "nativeReport.json"
                             val accessFileUrl = "$bintrayUrl/$target/$currentBuildNumber/$fileName"
                             val infoParts = it.split(", ")
-                            try {
-                                val jsonReport = sendRequest(RequestMethod.GET, accessFileUrl).await()
-                                val results = BenchmarkMeasurement.create(JsonTreeParser.parse(jsonReport), connector,
-                                        BuildInfo(currentBuildNumber, infoParts[1], infoParts[2],
-                                                CommitsList.parse(infoParts[4]), infoParts[3])).toMutableList()
+                            if (infoParts[3] == "master" || "eap" in currentBuildNumber || "release" in currentBuildNumber) {
+                                try {
+                                    val jsonReport = sendRequest(RequestMethod.GET, accessFileUrl).await()
+                                    val results = BenchmarkMeasurement.create(JsonTreeParser.parse(jsonReport), connector,
+                                            BuildInfo(currentBuildNumber, infoParts[1], infoParts[2],
+                                                    CommitsList.parse(infoParts[4]), infoParts[3])).toMutableList()
 
-                                val bundleSize = if (infoParts[10] != "-") infoParts[10] else null
-                                // Save bundle size if exists.
-                                if (results.isNotEmpty() && bundleSize != null) {
-                                    // Add bundle size.
-                                    val bundleSizeBenchmark = results[0].copy()
-                                    bundleSizeBenchmark.benchmarkName = "Kotlin/Native"
-                                    bundleSizeBenchmark.benchmarkStatus = FieldType.InfluxString("PASSED")
-                                    bundleSizeBenchmark.benchmarkScore = FieldType.InfluxFloat(bundleSize.toDouble())
-                                    bundleSizeBenchmark.benchmarkMetric = "BUNDLE_SIZE"
-                                    bundleSizeBenchmark.benchmarkRuntime = FieldType.InfluxFloat(0.0)
-                                    bundleSizeBenchmark.benchmarkRepeat = FieldType.InfluxInt(1)
-                                    bundleSizeBenchmark.benchmarkWarmup = FieldType.InfluxInt(0)
-                                    results.add(bundleSizeBenchmark)
-                                }
+                                    val bundleSize = if (infoParts[10] != "-") infoParts[10] else null
+                                    // Save bundle size if exists.
+                                    if (results.isNotEmpty() && bundleSize != null) {
+                                        // Add bundle size.
+                                        val bundleSizeBenchmark = results[0].copy()
+                                        bundleSizeBenchmark.benchmarkName = "Kotlin/Native"
+                                        bundleSizeBenchmark.benchmarkStatus = FieldType.InfluxString("PASSED")
+                                        bundleSizeBenchmark.benchmarkScore = FieldType.InfluxFloat(bundleSize.toDouble())
+                                        bundleSizeBenchmark.benchmarkMetric = "BUNDLE_SIZE"
+                                        bundleSizeBenchmark.benchmarkRuntime = FieldType.InfluxFloat(0.0)
+                                        bundleSizeBenchmark.benchmarkRepeat = FieldType.InfluxInt(1)
+                                        bundleSizeBenchmark.benchmarkWarmup = FieldType.InfluxInt(0)
+                                        results.add(bundleSizeBenchmark)
+                                    }
 
-                                // Change compiler flags.
-                                results.forEach {
-                                    val options = getOptsForBenchmark(it.benchmarkName!!)
-                                    it.kotlinBackendFlags = options
+                                    // Change compiler flags.
+                                    results.forEach {
+                                        val options = getOptsForBenchmark(it.benchmarkName!!)
+                                        it.kotlinBackendFlags = options
+                                    }
+                                    // Save results in database.
+                                    Promise.all(connector.insert(results)).then { _ ->
+                                        println("Success insert")
+                                    }.catch { errorResponse ->
+                                        println("Failed to insert data for build")
+                                        println(errorResponse)
+                                    }
+                                } catch (e: Exception) {
+                                    println(e.message)
                                 }
-                                // Save results in database.
-                                Promise.all(connector.insert(results)).then { _ ->
-                                    println("Success insert")
-                                }.catch { errorResponse ->
-                                    println("Failed to insert data for build")
-                                    println(errorResponse)
-                                }
-                            } catch (e: Exception) {
-                                println(e.message)
                             }
                         }
                     }
                 }
             }
+            response.sendStatus(200)
         }.catch {
             response.sendStatus(400)
         }
