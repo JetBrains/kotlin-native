@@ -72,14 +72,14 @@ class CInteropArguments(argParser: ArgParser =
             "header file to produce kotlin bindings for").multiple().delimiter(",")
     val compilerOpts by argParser.option(ArgType.String,
             description = "additional compiler options (allows to add several options separated by spaces)",
-            deprecatedWarning = "-compilerOpts are deprecated. Please, use -compiler-options.")
+            deprecatedWarning = "-compilerOpts are deprecated. Please use -compiler-options.")
             .multiple().delimiter(" ")
     val compilerOptions by argParser.option(ArgType.String, "compiler-options",
             description = "additional compiler options (allows to add several options separated by spaces)")
             .multiple().delimiter(" ")
     val linkerOpts = argParser.option(ArgType.String, "linkerOpts",
             description = "additional linker options (allows to add several options separated by spaces)",
-            deprecatedWarning = "-linkerOpts are deprecated. Please, use -linker-options.")
+            deprecatedWarning = "-linkerOpts are deprecated. Please use -linker-options.")
             .multiple().delimiter(" ")
     val linkerOptions = argParser.option(ArgType.String, "linker-options",
             description = "additional linker options (allows to add several options separated by spaces)")
