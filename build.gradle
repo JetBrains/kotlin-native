@@ -226,11 +226,11 @@ task distSources {
     dependsOn(distEndorsedSources)
 }
 
-def jarContent(def jarTask, FileTree baseFileTree) {
+def jarContent(def jarTask, FileTree baseFileTree, Iterable<String> excludedList = []) {
     jarTask.from {
         baseFileTree
                 .matching { include("*.jar") }
-                .collect { zipTree("${it.absolutePath}") }
+                .collect { zipTree("${it.absolutePath}").matching { exclude(excludedList) } }
     }
 }
 
@@ -244,8 +244,8 @@ task mergeJars(type: Jar) {
     archiveFileName = 'kotlin-native.jar'
     destinationDirectory = file("$distDir/konan/lib")
     
-    // Order is important, some entities should be rewritten.
-    jarContent(it, project(':backend.native').fileTree('build/external_jars'))
+    jarContent(it, project(':backend.native').fileTree('build/external_jars'),
+            ['META-INF/services/org.jetbrains.kotlin.resolve.ExternalOverridabilityCondition'])
     jarContent(it, project(':backend.native').fileTree('build/libs'))
     jarContent(it, project(':utilities').fileTree('build/libs'))
     jarContent(it, project('Interop').fileTree('Runtime/build/libs'))
