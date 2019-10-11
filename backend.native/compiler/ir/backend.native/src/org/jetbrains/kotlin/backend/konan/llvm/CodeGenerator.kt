@@ -11,17 +11,17 @@ import llvm.*
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.ClassGlobalHierarchyInfo
 import org.jetbrains.kotlin.backend.konan.llvm.objc.*
+import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.util.*
-import org.jetbrains.kotlin.konan.target.*
 import org.jetbrains.kotlin.backend.konan.descriptors.resolveFakeOverride
 import org.jetbrains.kotlin.backend.konan.ir.*
-import org.jetbrains.kotlin.descriptors.konan.CompiledKonanModuleOrigin
+import org.jetbrains.kotlin.descriptors.konan.CompiledKlibModuleOrigin
 
 internal class CodeGenerator(override val context: Context) : ContextUtils {
 
-    fun llvmFunction(function: IrFunction): LLVMValueRef = llvmFunctionOrNull(function) ?: error("no function ${function.name} in ${function.file}")
+    fun llvmFunction(function: IrFunction): LLVMValueRef = llvmFunctionOrNull(function) ?: error("no function ${function.name} in ${function.file.fqName}")
     fun llvmFunctionOrNull(function: IrFunction): LLVMValueRef? = function.llvmFunctionOrNull
     val intPtrType = LLVMIntPtrType(llvmTargetData)!!
     internal val immOneIntPtrType = LLVMConstInt(intPtrType, 1, 1)!!
@@ -117,7 +117,7 @@ internal inline fun<R> generateFunction(codegen: CodeGenerator,
                                         function: IrFunction,
                                         startLocation: LocationInfo? = null,
                                         endLocation: LocationInfo? = null,
-                                        code:FunctionGenerationContext.(FunctionGenerationContext) -> R) {
+                                        code: FunctionGenerationContext.(FunctionGenerationContext) -> R) {
     val llvmFunction = codegen.llvmFunction(function)
 
     generateFunctionBody(FunctionGenerationContext(
@@ -126,6 +126,10 @@ internal inline fun<R> generateFunction(codegen: CodeGenerator,
             startLocation,
             endLocation,
             function), code)
+
+    // To perform per-function validation.
+    if (false)
+        LLVMVerifyFunction(llvmFunction, LLVMVerifierFailureAction.LLVMAbortProcessAction)
 }
 
 
@@ -926,7 +930,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         }
     }
 
-    fun getObjCClass(binaryName: String, llvmSymbolOrigin: CompiledKonanModuleOrigin): LLVMValueRef {
+    fun getObjCClass(binaryName: String, llvmSymbolOrigin: CompiledKlibModuleOrigin): LLVMValueRef {
         context.llvm.imports.add(llvmSymbolOrigin)
         return load(codegen.objCDataGenerator!!.genClassRef(binaryName).llvm)
     }
@@ -969,7 +973,6 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                 call(context.llvm.memsetFunction,
                         listOf(slotsMem, Int8(0).llvm,
                                 Int32(slotCount * codegen.runtime.pointerSize).llvm,
-                                Int32(codegen.runtime.pointerAlignment).llvm,
                                 Int1(0).llvm))
                 call(context.llvm.enterFrameFunction, listOf(slots, Int32(vars.skipSlots).llvm, Int32(slotCount).llvm))
             }

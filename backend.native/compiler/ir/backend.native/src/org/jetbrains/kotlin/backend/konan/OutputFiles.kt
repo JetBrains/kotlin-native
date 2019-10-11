@@ -4,9 +4,9 @@
  */
 package org.jetbrains.kotlin.backend.konan
 
-import org.jetbrains.kotlin.konan.util.prefixBaseNameIfNot
-import org.jetbrains.kotlin.konan.util.removeSuffixIfPresent
-import org.jetbrains.kotlin.konan.util.suffixIfNot
+import org.jetbrains.kotlin.util.prefixBaseNameIfNot
+import org.jetbrains.kotlin.util.removeSuffixIfPresent
+import org.jetbrains.kotlin.util.suffixIfNot
 import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.KonanTarget
@@ -27,7 +27,7 @@ class OutputFiles(outputPath: String?, target: KonanTarget, produce: CompilerOut
      * Header file for dynamic library.
      */
     val cAdapterHeader      by lazy { File("${outputName}_api.h") }
-    val cAdapterDef         by lazy { File("${outputName}_symbols.def") }
+    val cAdapterDef         by lazy { File("${outputName}.def") }
 
     /**
      * Main compiler's output file.

@@ -41,8 +41,8 @@ private class LlvmPipelineConfiguration(context: Context) {
 
     val targetTriple: String = context.llvm.targetTriple
 
-    // Most of these values are copied from corresponding runtime.bc
-    // Which is using "generic" target CPU for many case.
+    // Some of these values are copied from corresponding runtime.bc
+    // which is using "generic" target CPU for many case.
     // This approach is suboptimal because target-cpu="generic" limits
     // the set of used cpu features.
     // TODO: refactor KonanTarget so that we can explicitly specify
@@ -55,6 +55,7 @@ private class LlvmPipelineConfiguration(context: Context) {
         KonanTarget.TVOS_X64 -> "core2"
         KonanTarget.WATCHOS_X86 -> "i386"
         KonanTarget.WATCHOS_X64 -> "core2"
+        KonanTarget.WATCHOS_ARM64,
         KonanTarget.WATCHOS_ARM32 -> "cortex-a7"
         KonanTarget.LINUX_X64 -> "x86-64"
         KonanTarget.MINGW_X86 -> "pentium4"
@@ -69,7 +70,6 @@ private class LlvmPipelineConfiguration(context: Context) {
         KonanTarget.ANDROID_X86 -> "i686"
         KonanTarget.LINUX_MIPS32 -> "mips32r2"
         KonanTarget.LINUX_MIPSEL32 -> "mips32r2"
-        KonanTarget.WATCHOS_ARM64,
         KonanTarget.WASM32,
         is KonanTarget.ZEPHYR -> error("There is no support for ${target.name} target yet.")
     }
@@ -115,7 +115,9 @@ internal fun runClosedWorldCleanup(context: Context) {
     initializeLlvmGlobalPassRegistry()
     val llvmModule = context.llvmModule!!
     val modulePasses = LLVMCreatePassManager()
-    LLVMAddInternalizePass(modulePasses, 0)
+    if (context.llvmModuleSpecification.isFinal) {
+        LLVMAddInternalizePass(modulePasses, 0)
+    }
     LLVMAddGlobalDCEPass(modulePasses)
     LLVMRunPassManager(modulePasses, llvmModule)
     LLVMDisposePassManager(modulePasses)
@@ -150,9 +152,11 @@ internal fun runLlvmOptimizationPipeline(context: Context) {
         LLVMKotlinAddTargetLibraryInfoWrapperPass(modulePasses, config.targetTriple)
         // TargetTransformInfo pass.
         LLVMAddAnalysisPasses(targetMachine, modulePasses)
-        // Since we are in a "closed world" internalization and global dce
-        // can be safely used to reduce size of a bitcode.
-        LLVMAddInternalizePass(modulePasses, 0)
+        if (context.llvmModuleSpecification.isFinal) {
+            // Since we are in a "closed world" internalization can be safely used
+            // to reduce size of a bitcode with global dce.
+            LLVMAddInternalizePass(modulePasses, 0)
+        }
         LLVMAddGlobalDCEPass(modulePasses)
 
         config.customInlineThreshold?.let { threshold ->

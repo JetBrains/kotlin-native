@@ -78,18 +78,12 @@ int32_t consoleReadUtf8(void* utf8, uint32_t maxSizeBytes) {
 #ifdef KONAN_ZEPHYR
   return 0;
 #else
-#ifdef KONAN_WASM
-  FILE* file = nullptr;
-#else
-  FILE* file = stdin;
-#endif
-  char* result = ::fgets(reinterpret_cast<char*>(utf8), maxSizeBytes - 1, file);
-  if (result == nullptr) return -1;
-  int32_t length = ::strlen(result);
-  // fgets reads until EOF or newline so we need to remove linefeeds.
-  char* current = result + length - 1;
+  auto length = ::read(STDIN_FILENO, utf8, maxSizeBytes - 1);
+  if (length <= 0) return -1;
+  char* start = reinterpret_cast<char*>(utf8);
+  char* current = start + length - 1;
   bool isTrimming = true;
-  while (current >= result && isTrimming) {
+  while (current >= start && isTrimming) {
     switch (*current) {
       case '\n':
       case '\r':
@@ -263,16 +257,19 @@ uint64_t getTimeNanos() {
 // Time operations.
 using namespace std::chrono;
 
+// Get steady clock as a source of time
+using steady_time_clock = std::conditional<high_resolution_clock::is_steady, high_resolution_clock, steady_clock>::type;
+
 uint64_t getTimeMillis() {
-  return duration_cast<milliseconds>(high_resolution_clock::now().time_since_epoch()).count();
+  return duration_cast<milliseconds>(steady_time_clock::now().time_since_epoch()).count();
 }
 
 uint64_t getTimeNanos() {
-  return duration_cast<nanoseconds>(high_resolution_clock::now().time_since_epoch()).count();
+  return duration_cast<nanoseconds>(steady_time_clock::now().time_since_epoch()).count();
 }
 
 uint64_t getTimeMicros() {
-  return duration_cast<microseconds>(high_resolution_clock::now().time_since_epoch()).count();
+  return duration_cast<microseconds>(steady_time_clock::now().time_since_epoch()).count();
 }
 #endif
 
@@ -303,11 +300,11 @@ uint32_t inPages(uint32_t value) {
 extern "C" void Konan_notify_memory_grow();
 
 uint32_t memorySize() {
-  return __builtin_wasm_current_memory();
+  return __builtin_wasm_memory_size(0);
 }
 
 int32_t growMemory(uint32_t delta) {
-  int32_t oldLength = __builtin_wasm_grow_memory(delta);
+  int32_t oldLength =  __builtin_wasm_memory_grow(0, delta);
   Konan_notify_memory_grow();
   return oldLength;
 }
@@ -382,6 +379,11 @@ extern "C" {
         }
         return prime;
     }
+
+    int _ZNSt3__212__next_primeEm(int n) {
+       return _ZNSt3__212__next_primeEj(n);
+    }
+
     int _ZNSt3__112__next_primeEj(unsigned long n) {
         return _ZNSt3__212__next_primeEj(n);
     }

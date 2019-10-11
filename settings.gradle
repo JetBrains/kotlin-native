@@ -41,6 +41,10 @@ include ':performance:framework'
 if (System.getProperty("os.name") == "Mac OS X") {
     include ':performance:objcinterop'
     include ':performance:swiftinterop'
+    if (hasProperty("runExcludedBenchmarks")) {
+        include ':performance:KotlinVsSwift'
+        include ':performance:KotlinVsSwift:ring'
+    }
 }
 
 include ':platformLibs'
@@ -56,6 +60,7 @@ if (hasProperty("kotlinProjectPath")) {
             substitute module("org.jetbrains.kotlin:kotlin-stdlib-gen:$kotlinStdlibVersion") with project(':tools:kotlin-stdlib-gen')
             substitute module("org.jetbrains.kotlin:kotlin-util-io:$kotlinVersion") with project(':kotlin-util-io')
             substitute module("org.jetbrains.kotlin:kotlin-util-klib:$kotlinVersion") with project(':kotlin-util-klib')
+            substitute module("org.jetbrains.kotlin:kotlin-util-klib-metadata:$kotlinVersion") with project(':kotlin-util-klib-metadata')
             substitute module("org.jetbrains.kotlin:kotlin-native-utils:$kotlinVersion") with project(':kotlin-native:kotlin-native-utils')
         }
     }

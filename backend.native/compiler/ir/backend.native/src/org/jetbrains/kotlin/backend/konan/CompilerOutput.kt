@@ -5,7 +5,6 @@
 package org.jetbrains.kotlin.backend.konan
 
 import llvm.*
-import org.jetbrains.kotlin.backend.konan.library.impl.buildLibrary
 import org.jetbrains.kotlin.backend.konan.llvm.*
 import org.jetbrains.kotlin.backend.konan.llvm.Llvm
 import org.jetbrains.kotlin.konan.CURRENT
@@ -15,6 +14,7 @@ import org.jetbrains.kotlin.konan.file.isBitcode
 import org.jetbrains.kotlin.library.*
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.Family
+import org.jetbrains.kotlin.konan.library.impl.buildLibrary
 
 /**
  * Supposed to be true for a single LLVM module within final binary.
@@ -40,6 +40,9 @@ val CompilerOutputKind.involvesLinkStage: Boolean
         CompilerOutputKind.LIBRARY, CompilerOutputKind.BITCODE -> false
     }
 
+val CompilerOutputKind.isCache: Boolean
+    get() = (this == CompilerOutputKind.STATIC_CACHE || this == CompilerOutputKind.DYNAMIC_CACHE)
+
 internal fun produceCStubs(context: Context) {
     val llvmModule = context.llvmModule!!
     context.cStubsManager.compile(context.config.clang, context.messageCollector, context.inVerbosePhase)?.let {
@@ -48,11 +51,20 @@ internal fun produceCStubs(context: Context) {
 }
 
 private fun linkAllDependencies(context: Context, generatedBitcodeFiles: List<String>) {
-    val runtimeNativeLibraries = context.config.runtimeNativeLibraries
+    val config = context.config
+
+    val runtimeNativeLibraries = config.runtimeNativeLibraries
             .takeIf { context.producedLlvmModuleContainsStdlib }.orEmpty()
-    val launcherNativeLibraries = context.config.launcherNativeLibraries
-            .takeIf { context.config.produce == CompilerOutputKind.PROGRAM }.orEmpty()
-    val nativeLibraries = context.config.nativeLibraries + runtimeNativeLibraries + launcherNativeLibraries
+
+    val launcherNativeLibraries = config.launcherNativeLibraries
+            .takeIf { config.produce == CompilerOutputKind.PROGRAM }.orEmpty()
+
+    val objCNativeLibraries = config.objCNativeLibraries
+            .takeIf { config.produce.isFinalBinary && config.target.family.isAppleFamily }.orEmpty()
+
+    val nativeLibraries = config.nativeLibraries + runtimeNativeLibraries +
+            launcherNativeLibraries + objCNativeLibraries
+
     val bitcodeLibraries = context.llvm.bitcodeToLink.map { it.bitcodePaths }.flatten().filter { it.isBitcode }
     val additionalBitcodeFilesToLink = context.llvm.additionalProducedBitcodeFiles
     val bitcodeFiles = (nativeLibraries + generatedBitcodeFiles + additionalBitcodeFilesToLink + bitcodeLibraries).toSet()
@@ -96,6 +108,8 @@ internal fun produceOutput(context: Context) {
         CompilerOutputKind.STATIC,
         CompilerOutputKind.DYNAMIC,
         CompilerOutputKind.FRAMEWORK,
+        CompilerOutputKind.DYNAMIC_CACHE,
+        CompilerOutputKind.STATIC_CACHE,
         CompilerOutputKind.PROGRAM -> {
             val output = tempFiles.nativeBinaryFileName
             context.bitcodeFileName = output
@@ -134,19 +148,18 @@ internal fun produceOutput(context: Context) {
             val manifestProperties = context.config.manifestProperties
 
             val library = buildLibrary(
-                context.config.nativeLibraries,
-                context.config.includeBinaries,
-                neededLibraries,
-                context.serializedMetadata!!,
-                context.serializedIr!!,
-                versions,
-                target,
-                output,
-                libraryName,
-                null,
-                nopack,
-                manifestProperties,
-                context.dataFlowGraph)
+                    context.config.nativeLibraries,
+                    context.config.includeBinaries,
+                    neededLibraries,
+                    context.serializedMetadata!!,
+                    context.serializedIr!!,
+                    versions,
+                    target,
+                    output,
+                    libraryName,
+                    nopack,
+                    manifestProperties,
+                    context.dataFlowGraph)
 
             context.bitcodeFileName = library.mainBitcodeFileName
         }

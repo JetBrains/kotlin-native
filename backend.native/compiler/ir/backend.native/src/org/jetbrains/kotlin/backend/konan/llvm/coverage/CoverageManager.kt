@@ -13,9 +13,7 @@ import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.konan.file.File
-import org.jetbrains.kotlin.konan.target.CompilerOutputKind
-import org.jetbrains.kotlin.konan.target.KonanTarget
-import org.jetbrains.kotlin.konan.util.removeSuffixIfPresent
+import org.jetbrains.kotlin.konan.target.supportsCodeCoverage
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
 
 /**
@@ -23,8 +21,8 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.module
  */
 internal class CoverageManager(val context: Context) {
 
-    private val shouldCoverProgram: Boolean =
-            context.config.configuration.getBoolean(KonanConfigKeys.COVERAGE)
+    private val shouldCoverSources: Boolean =
+            context.config.shouldCoverSources
 
     private val librariesToCover: Set<String> =
             context.config.coveredLibraries.map { it.libraryName }.toSet()
@@ -41,18 +39,18 @@ internal class CoverageManager(val context: Context) {
                     ?: defaultOutputFilePath
 
     val enabled: Boolean =
-            shouldCoverProgram || librariesToCover.isNotEmpty()
+            shouldCoverSources || librariesToCover.isNotEmpty()
 
     init {
         if (enabled && !checkRestrictions()) {
-            context.reportCompilationError("Coverage is only supported for macOS and iOS simulator binaries for now.")
+            context.reportCompilationError("Coverage is not supported for ${context.config.target}.")
         }
     }
 
     private fun checkRestrictions(): Boolean  {
         val isKindAllowed = context.config.produce.involvesBitcodeGeneration
         val target = context.config.target
-        val isTargetAllowed = target == KonanTarget.MACOS_X64 || target == KonanTarget.IOS_X64
+        val isTargetAllowed = target.supportsCodeCoverage()
         return isKindAllowed && isTargetAllowed
     }
 
@@ -62,10 +60,10 @@ internal class CoverageManager(val context: Context) {
             filesRegionsInfo.flatMap { it.functions }.firstOrNull { it.function == irFunction }
 
     private val coveredModules: Set<ModuleDescriptor> by lazy {
-        val coveredUserCode = if (shouldCoverProgram) setOf(context.moduleDescriptor) else emptySet()
+        val coveredUserCode = if (shouldCoverSources) setOf(context.moduleDescriptor) else emptySet()
         val coveredLibs = context.irModules.filter { it.key in librariesToCover }.values
                 .map { it.descriptor }.toSet()
-        val coveredIncludedLibs = if (shouldCoverProgram) context.getIncludedLibraryDescriptors().toSet() else emptySet()
+        val coveredIncludedLibs = if (shouldCoverSources) context.getIncludedLibraryDescriptors().toSet() else emptySet()
         coveredLibs + coveredUserCode + coveredIncludedLibs
     }
 

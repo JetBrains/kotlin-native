@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.backend.common.*
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.common.phaser.*
 import org.jetbrains.kotlin.backend.common.serialization.DescriptorTable
+import org.jetbrains.kotlin.backend.common.serialization.metadata.KlibMetadataMonolithicSerializer
 import org.jetbrains.kotlin.backend.konan.descriptors.isForwardDeclarationModule
 import org.jetbrains.kotlin.backend.konan.descriptors.konanLibrary
 import org.jetbrains.kotlin.backend.konan.ir.KonanSymbols
@@ -16,18 +17,13 @@ import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.descriptors.konan.isKonanStdlib
-import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
-import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.util.SymbolTable
-import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
-import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
-import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.ir.util.addChild
+import org.jetbrains.kotlin.ir.util.addFile
 import org.jetbrains.kotlin.ir.util.file
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
-import org.jetbrains.kotlin.library.KotlinLibrary
 import org.jetbrains.kotlin.psi2ir.Psi2IrConfiguration
 import org.jetbrains.kotlin.psi2ir.Psi2IrTranslator
 import org.jetbrains.kotlin.utils.DFS
@@ -145,13 +141,20 @@ internal val psiToIrPhase = konanUnitPhase(
 
             val forwardDeclarationsModuleDescriptor = moduleDescriptor.allDependencyModules.firstOrNull { it.isForwardDeclarationModule }
 
+            val modulesWithoutDCE = moduleDescriptor.allDependencyModules
+                    .filter { !llvmModuleSpecification.isFinal && llvmModuleSpecification.containsModule(it) }
+
+            // Note: using [llvmModuleSpecification] since this phase produces IR for generating single LLVM module.
+
+            val exportedDependencies = (getExportedDependencies() + modulesWithoutDCE).distinct()
+
             val deserializer = KonanIrLinker(
                     moduleDescriptor,
                     this as LoggingContext,
                     generatorContext.irBuiltIns,
                     symbolTable,
                     forwardDeclarationsModuleDescriptor,
-                    getExportedDependencies()
+                    exportedDependencies
             )
 
             var dependenciesCount = 0
@@ -180,12 +183,16 @@ internal val psiToIrPhase = konanUnitPhase(
             val module = translator.generateModuleFragment(generatorContext, environment.getSourceFiles(),
                     deserializer, listOf(functionIrClassFactory))
 
+            if (this.stdlibModule in modulesWithoutDCE) {
+                functionIrClassFactory.buildAllClasses()
+            }
+
             irModule = module
-            irModules = deserializer.modules
+            irModules = deserializer.modules.filterValues { llvmModuleSpecification.containsModule(it) }
             ir.symbols = symbols
 
             functionIrClassFactory.module =
-                    (listOf(irModule!!) + irModules.values)
+                    (listOf(irModule!!) + deserializer.modules.values)
                             .single { it.descriptor.isKonanStdlib() }
         },
         name = "Psi2Ir",
@@ -230,9 +237,11 @@ internal val copyDefaultValuesToActualPhase = konanUnitPhase(
 internal val serializerPhase = konanUnitPhase(
         op = {
             val descriptorTable = DescriptorTable()
-//            val declarationTable = KonanDeclarationTable(irModule!!.irBuiltins)
             serializedIr = KonanIrModuleSerializer(this, irModule!!.irBuiltins, descriptorTable).serializedIrModule(irModule!!)
-            val serializer = KonanSerializationUtil(this, config.configuration.get(CommonConfigurationKeys.METADATA_VERSION)!!, descriptorTable)
+            val serializer = KlibMetadataMonolithicSerializer(
+                this.config.configuration.languageVersionSettings,
+                config.configuration.get(CommonConfigurationKeys.METADATA_VERSION
+            )!!, descriptorTable, bindingContext)
             serializedMetadata = serializer.serializeModule(moduleDescriptor)
         },
         name = "Serializer",
@@ -346,7 +355,21 @@ internal val entryPointPhase = SameTypeNamedPhaseWrapper(
             override fun invoke(phaseConfig: PhaseConfig, phaserState: PhaserState<IrModuleFragment>,
                                 context: Context, input: IrModuleFragment): IrModuleFragment {
                 assert(context.config.produce == CompilerOutputKind.PROGRAM)
-                context.ir.symbols.entryPoint!!.owner.file.addChild(makeEntryPoint(context))
+
+                val originalFile = context.ir.symbols.entryPoint!!.owner.file
+                val originalModule = originalFile.packageFragmentDescriptor.containingDeclaration
+                val file = if (context.llvmModuleSpecification.containsModule(originalModule)) {
+                    originalFile
+                } else {
+                    // `main` function is compiled to other LLVM module.
+                    // For example, test running support uses `main` defined in stdlib.
+                    context.irModule!!.addFile(originalFile.fileEntry, originalFile.fqName)
+                }
+
+                require(context.llvmModuleSpecification.containsModule(
+                        file.packageFragmentDescriptor.containingDeclaration))
+
+                file.addChild(makeEntryPoint(context))
                 return input
             }
         }

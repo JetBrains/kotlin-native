@@ -34,13 +34,13 @@ class KonanIrLinker(
         forwardModuleDescriptor: ModuleDescriptor?,
         exportedDependencies: List<ModuleDescriptor>
 ) : KotlinIrLinker(logger, builtIns, symbolTable, exportedDependencies, forwardModuleDescriptor, 0L),
-        DescriptorUniqIdAware by KonanDescriptorUniqIdAware {
+    DescriptorUniqIdAware by DeserializedDescriptorUniqIdAware {
 
     override val descriptorReferenceDeserializer =
             KonanDescriptorReferenceDeserializer(currentModule, KonanMangler, builtIns, resolvedForwardDeclarations)
 
     override fun reader(moduleDescriptor: ModuleDescriptor, fileIndex: Int, uniqId: UniqId) =
-            moduleDescriptor.konanLibrary!!.irDeclaration(uniqId.index, uniqId.isLocal, fileIndex)
+            moduleDescriptor.konanLibrary!!.irDeclaration(uniqId.index, fileIndex)
 
     override fun readSymbol(moduleDescriptor: ModuleDescriptor, fileIndex: Int, symbolIndex: Int) =
             moduleDescriptor.konanLibrary!!.symbol(symbolIndex, fileIndex)
