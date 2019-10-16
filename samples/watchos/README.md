@@ -5,14 +5,18 @@ iWatch or simulator.
 
 To build and run the sample do the following:
 
-1.  Fix bundleIdPrefix and DEVELOPMENT_TEAM in project.yml and generate XCode project
+1.  Open watchosSample.xcodeproj and fix bundle and development team in project settings
+   or
+1a.  Fix bundleIdPrefix, DEVELOPMENT_TEAM and WKAppBundleIdentifier in project.yml and generate XCode project
     with xcodegen (https://github.com/yonaskolb/XcodeGen/).
+    Open generated `watchosSample.xcodeproj` with Xcode.
 
-2.  Open generated `watchosSample.xcodeproj` with Xcode.
+2. Update property WKAppBundleIdentifier in plists/Ext/Info.plist with new ID of the watch application.
 
-3.  Now build and run the application on a connected iPhone with Xcode or simulator.
+3.  Now build and run the application on a connected iPhone with paired iWatch or simulator.
 
 Note that in this example we do not use storyboards, and instead create user interface
 components programmatically.
 
-
+First run of application on the physical watch could be blocked, so run it from watch menu
+and explicitly confirm that developer is trusted.

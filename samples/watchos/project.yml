@@ -1,6 +1,6 @@
 name: watchosSample
 options:
-  bundleIdPrefix: com.jetbrains.watchapp
+  bundleIdPrefix: com.jetbrains.watchapp2
 settings:
   DEVELOPMENT_TEAM: N462MKSJ7M
   CODE_SIGN_IDENTITY: "iPhone Developer"
@@ -26,7 +26,7 @@ targets:
         WKExtensionDelegateClassName: Watchapp3ExtensionDelegate
         NSExtension:
           NSExtensionAttributes:
-            WKAppBundleIdentifier: com.jetbrains.watchapp.watchapp3.watchkitapp
+            WKAppBundleIdentifier: com.jetbrains.watchapp2.watchapp3.watchkitapp
           NSExtensionPointIdentifier: com.apple.watchkit
   watchapp3.watchkitapp:
     type: application.watchapp2
