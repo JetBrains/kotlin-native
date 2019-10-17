@@ -31,18 +31,17 @@ open class CollisionDetector : DefaultTask() {
     val resolvingRules = mutableMapOf<String, String>()
     @Input
     val resolvingRulesWithRegexes = mutableMapOf<Regex, String>()
-    val resolvedConflicts = mutableMapOf<String, File>()
     @Input
     val librariesWithIgnoredClassCollisions = mutableListOf<String>()
+    val resolvedConflicts = mutableMapOf<String, File>()
 
     // Key - filename, value - jar file contained it.
-    private val filesInfo = mutableMapOf<String, ResolvedArtifact>()
+    private val filesInfo = mutableMapOf<String, String>()
 
     @TaskAction
     fun run() {
         configurations.forEach { configuration ->
-            configuration.resolvedConfiguration.resolvedArtifacts.filter { it.name.endsWith(".jar") }.forEach { artifact ->
-                val processedFile = artifact.file
+            configuration.files.filter { it.name.endsWith(".jar") }.forEach { processedFile ->
                 project.zipTree("${processedFile.absolutePath}").matching{ it.exclude(ignoredFiles) }.forEach {
                     val outputPath = it.absolutePath.substringAfter(processedFile.name).substringAfter("/")
                     if (outputPath in filesInfo.keys) {
@@ -60,20 +59,26 @@ open class CollisionDetector : DefaultTask() {
                             resolvedConflicts[outputPath] = processedFile
                         } else {
                             // Skip class files from ignored libraries if version of libraries had collision are the same.
-                            val currentVersion = artifact.moduleVersion.id.version
-                            val collisionLibVersion = filesInfo[outputPath]!!.moduleVersion.id.version
+                            val versionRegex = "\\d+\\.\\d+(\\.\\d+)?-\\w+(-\\d+)?".toRegex()
+                            val currentVersion = versionRegex.find(processedFile.name)?.groupValues?.get(0)
+                            val collisionLibVersion = versionRegex.find(filesInfo[outputPath]!!)?.groupValues?.get(0)
                             if (outputPath.endsWith(".class") && currentVersion == collisionLibVersion) {
-                                librariesWithIgnoredClassCollisions.forEach {
-                                    if (processedFile.name.startsWith(it)) {
-                                        ignoreJar = true
+                                if (processedFile.name == filesInfo[outputPath]) {
+                                    ignoreJar = true
+                                } else {
+                                    librariesWithIgnoredClassCollisions.forEach {
+                                        if (processedFile.name.startsWith(it)) {
+                                            ignoreJar = true
+                                        }
                                     }
                                 }
                             }
                         }
-                        if (rule == null && !ignoreJar)
+                        if (rule == null && !ignoreJar) {
                             error("Collision is detected. File $outputPath is found in ${filesInfo[outputPath]} and ${processedFile.name}")
+                        }
                     } else {
-                        filesInfo[outputPath] = artifact
+                        filesInfo[outputPath] = processedFile.name
                     }
                 }
             }

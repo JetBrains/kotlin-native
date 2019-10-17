@@ -269,6 +269,8 @@ task detectJarCollision(type: CollisionDetector) {
     resolvingRules["kotlin/kotlin.kotlin_builtins"] = "kotlin-compiler"
     resolvingRules["kotlin/ranges/ranges.kotlin_builtins"] = "kotlin-compiler"
     resolvingRules["kotlin/reflect/reflect.kotlin_builtins"] = "kotlin-compiler"
+    resolvingRules["META-INF/maven/com.google.protobuf/protobuf-java/pom.properties"] = "kotlin-compiler"
+    resolvingRules["META-INF/maven/com.google.protobuf/protobuf-java/pom.xml"] = "kotlin-compiler"
     resolvingRulesWithRegexes[new Regex(".+\\.kotlin_builtins")] = "kotlin-compiler"
     librariesWithIgnoredClassCollisions.addAll(["kotlin-util-klib", "kotlin-util-io"])
 }
