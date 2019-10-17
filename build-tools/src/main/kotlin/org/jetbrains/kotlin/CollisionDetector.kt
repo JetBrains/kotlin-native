@@ -8,6 +8,8 @@ package org.jetbrains.kotlin
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.artifacts.Configuration
+import org.gradle.api.artifacts.ResolvedArtifact
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import java.io.File
 
@@ -23,22 +25,27 @@ import java.io.File
 open class CollisionDetector : DefaultTask() {
     @InputFiles
     var configurations = listOf<Configuration>()
+    @Input
     val ignoredFiles = mutableListOf<String>()
+    @Input
     val resolvingRules = mutableMapOf<String, String>()
+    @Input
     val resolvingRulesWithRegexes = mutableMapOf<Regex, String>()
     val resolvedConflicts = mutableMapOf<String, File>()
+    @Input
     val librariesWithIgnoredClassCollisions = mutableListOf<String>()
 
     // Key - filename, value - jar file contained it.
-    private val filesInfo = mutableMapOf<String, String>()
+    private val filesInfo = mutableMapOf<String, ResolvedArtifact>()
 
     @TaskAction
     fun run() {
         configurations.forEach { configuration ->
-            configuration.files.forEach { processedFile ->
-                if (processedFile.name.endsWith(".jar")) {
-                    project.zipTree("${processedFile.absolutePath}").matching{ it.exclude(ignoredFiles) }.forEach {
-                        val outputPath = it.absolutePath.substringAfter(processedFile.name).substringAfter("/")
+            configuration.resolvedConfiguration.resolvedArtifacts.filter { it.name.endsWith(".jar") }.forEach { artifact ->
+                val processedFile = artifact.file
+                project.zipTree("${processedFile.absolutePath}").matching{ it.exclude(ignoredFiles) }.forEach {
+                    val outputPath = it.absolutePath.substringAfter(processedFile.name).substringAfter("/")
+                    if (outputPath in filesInfo.keys) {
                         val rule = resolvingRules.getOrElse(outputPath) {
                             var foundValue: String? = null
                             resolvingRulesWithRegexes.forEach {
@@ -48,17 +55,13 @@ open class CollisionDetector : DefaultTask() {
                             }
                             foundValue
                         }
-
+                        var ignoreJar = false
                         if (rule != null && processedFile.name.startsWith(rule)) {
                             resolvedConflicts[outputPath] = processedFile
-                        }
-
-                        if (outputPath in filesInfo.keys) {
+                        } else {
                             // Skip class files from ignored libraries if version of libraries had collision are the same.
-                            var ignoreJar = false
-                            val versionRegex = "\\d+\\.\\d+(\\.\\d+)?-\\w+-\\d+".toRegex()
-                            val currentVersion = versionRegex.find(processedFile.name)?.groupValues?.get(0)
-                            val collisionLibVersion = versionRegex.find(filesInfo[outputPath]!!)?.groupValues?.get(0)
+                            val currentVersion = artifact.moduleVersion.id.version
+                            val collisionLibVersion = filesInfo[outputPath]!!.moduleVersion.id.version
                             if (outputPath.endsWith(".class") && currentVersion == collisionLibVersion) {
                                 librariesWithIgnoredClassCollisions.forEach {
                                     if (processedFile.name.startsWith(it)) {
@@ -66,11 +69,11 @@ open class CollisionDetector : DefaultTask() {
                                     }
                                 }
                             }
-                            if (rule == null && !ignoreJar)
-                                error("Collision is detected. File $outputPath is found in ${filesInfo[outputPath]} and ${processedFile.name}")
-                        } else {
-                            filesInfo[outputPath] = processedFile.name
                         }
+                        if (rule == null && !ignoreJar)
+                            error("Collision is detected. File $outputPath is found in ${filesInfo[outputPath]} and ${processedFile.name}")
+                    } else {
+                        filesInfo[outputPath] = artifact
                     }
                 }
             }
