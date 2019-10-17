@@ -335,8 +335,10 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
             DIDispose(debugInfo.builder)
         if (llvmModule != null)
             LLVMDisposeModule(llvmModule)
-        if (::llvm.isInitialized)
+        if (::llvm.isInitialized) {
+            LLVMDisposeTargetData(llvm.runtime.targetData)
             LLVMDisposeModule(llvm.runtime.llvmModule)
+        }
         tryDisposeLLVMContext()
         llvmDisposed = true
     }
