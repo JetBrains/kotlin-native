@@ -1,6 +1,6 @@
 name: watchosSample
 options:
-  bundleIdPrefix: com.jetbrains.watchapp2
+  bundleIdPrefix: com.jetbrains.watchapp0
 settings:
   DEVELOPMENT_TEAM: N462MKSJ7M
   CODE_SIGN_IDENTITY: "iPhone Developer"
@@ -15,7 +15,7 @@ targets:
     sources:
       - "plists/Ext"
     prebuildScripts:
-      - script: $SRCROOT/../gradlew -p $SRCROOT/.. packForXCode
+      - script: cd "$SRCROOT" && ../gradlew -p .. packForXCode
         name: GradleCompile
     info:
       path: plists/Ext/Info.plist
@@ -26,7 +26,7 @@ targets:
         WKExtensionDelegateClassName: Watchapp3ExtensionDelegate
         NSExtension:
           NSExtensionAttributes:
-            WKAppBundleIdentifier: com.jetbrains.watchapp2.watchapp3.watchkitapp
+            WKAppBundleIdentifier: com.jetbrains.watchapp0.watchapp3.watchkitapp
           NSExtensionPointIdentifier: com.apple.watchkit
   watchapp3.watchkitapp:
     type: application.watchapp2

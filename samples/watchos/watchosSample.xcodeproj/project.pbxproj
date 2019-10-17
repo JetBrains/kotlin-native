@@ -224,7 +224,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "$SRCROOT/../gradlew -p $SRCROOT packForXCode\n";
+			shellScript = "cd \"$SRCROOT\" && ../gradlew -p .. packForXCode";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -329,7 +329,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.jetbrains.watchapp2.watchapp3;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jetbrains.watchapp0.watchapp3;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};
@@ -341,7 +341,7 @@
 				ENABLE_BITCODE = YES;
 				INFOPLIST_FILE = plists/App/Info.plist;
 				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.jetbrains.watchapp2.watchapp3.watchkitapp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jetbrains.watchapp0.watchapp3.watchkitapp;
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = 4;
@@ -419,7 +419,7 @@
 				ENABLE_BITCODE = YES;
 				INFOPLIST_FILE = plists/App/Info.plist;
 				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_BUNDLE_IDENTIFIER = com.jetbrains.watchapp2.watchapp3.watchkitapp;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jetbrains.watchapp0.watchapp3.watchkitapp;
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = 4;
@@ -437,7 +437,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.jetbrains.watchapp2.watchapp3.watchkitapp.watchkitextension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jetbrains.watchapp0.watchapp3.watchkitapp.watchkitextension;
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = 4;
@@ -454,7 +454,7 @@
 					"@executable_path/Frameworks",
 					"@executable_path/../../Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.jetbrains.watchapp2.watchapp3.watchkitapp.watchkitextension;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jetbrains.watchapp0.watchapp3.watchkitapp.watchkitextension;
 				SDKROOT = watchos;
 				SKIP_INSTALL = YES;
 				TARGETED_DEVICE_FAMILY = 4;
@@ -468,7 +468,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.jetbrains.watchapp2.watchapp3;
+				PRODUCT_BUNDLE_IDENTIFIER = com.jetbrains.watchapp0.watchapp3;
 				SDKROOT = iphoneos;
 				TARGETED_DEVICE_FAMILY = "1,2";
 			};

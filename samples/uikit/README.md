@@ -5,14 +5,16 @@ Apple devices, such as an iPhone.
 
 To build and run the sample do the following:
 
-1.  Open  `UIKitSample.xcodeproj` with Xcode and fix bundle ID and development team.
+1.  Open  `UIKitSample.xcodeproj` with Xcode, set development team to your own
+   and make bundle ID unique in project settings.
   or
-1a.  Fix bundleIdPrefix and DEVELOPMENT_TEAM in project.yml and generate XCode project
-    with xcodegen (https://github.com/yonaskolb/XcodeGen/).
+1a.  Similarly modify `bundleIdPrefix` and `DEVELOPMENT_TEAM` in `project.yml` and
+    then generate XCode project with `xcodegen` (https://github.com/yonaskolb/XcodeGen/).
 
-2.  Now build and run the application on a connected iPhone with Xcode or simulator.
+2.  Now build and run the application with Xcode on a connected iPhone  or simulator.
 
 Note that in this example we do not use storyboards, and instead create user interface
-components programmatically.
+components programmatically. Defining UI with storyboards in pure Kotlin iOS applications
+is supported as well.
 
 

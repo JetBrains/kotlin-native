@@ -26,14 +26,13 @@ class ViewController : UIViewController {
     lateinit var label: UILabel
 
     @ObjCOutlet
-    lateinit var textField: UITextField
-
-    @ObjCOutlet
     lateinit var button: UIButton
+
+    var pressed = 0
 
     @ObjCAction
     fun buttonPressed() {
-        label.text = "Hello from Konan!"
+        label.text = "Hello #${pressed++} from Konan!"
         println("Button pressed")
     }
 

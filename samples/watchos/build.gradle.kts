@@ -69,6 +69,7 @@ kotlin {
     val appleMain by sourceSets.creating {
         dependsOn(sourceSets["commonMain"])
     }
+
     sourceSets["iosMain"].dependsOn(appleMain)
     sourceSets["watchosMain"].dependsOn(appleMain)
 }
@@ -92,71 +93,16 @@ val packForXCode = if (sdkName == null || targetBuildDir == null || executablePa
     tasks.create("packForXCode", Copy::class.java) {
         dependsOn(kotlinBinary.linkTask)
         destinationDir = file(targetBuildDir)
+
+        val dsymSource = kotlinBinary.outputFile.absolutePath + ".dSYM"
+        if (file(dsymSource).exists()) {
+            val executableDestination = File(destinationDir, executablePath).absolutePath
+            val dsymDestination = File(executableDestination).parentFile.absolutePath.replace(".app", ".dSYM")
+            from(dsymSource)
+            into(dsymDestination)
+        }
+
         from(kotlinBinary.outputFile)
         rename { executablePath }
     }
 }
-
-packForXCode.apply {
-    group = xcodeIntegrationGroup
-    description = "Copies the Kotlin/Native executable into the Xcode output directory (executed by Xcode)."
-}
-
-val startSimulator by tasks.creating(Exec::class.java) {
-    group = xcodeIntegrationGroup
-    description = "Starts an iOS simulator."
-
-    executable = "open"
-    args("/Applications/Xcode.app/Contents/Developer/Applications/Simulator.app")
-}
-
-val shutdownSimulator by tasks.creating(Exec::class.java) {
-    group = xcodeIntegrationGroup
-    description = "Stops a running iOS simulator."
-
-    executable = "sh"
-    args("-c", "xcrun simctl shutdown booted")
-}
-
-val xcodeProject = file("konf-demo.xcodeproj")
-val xcodeAppName = "konf-demo"
-val xcodeBundleId = "org.jetbrains.kotlin.native-demo"
-val xcodeDerivedDataPath = file("$buildDir/xcode-build")
-
-val buildXcode by tasks.creating(Exec::class.java) {
-    dependsOn(kotlinBinary.linkTask, startSimulator)
-    group = xcodeIntegrationGroup
-    description = "Builds the iOS application bundle using Xcode."
-
-    workingDir = xcodeProject
-    executable = "sh"
-    args("-c", """
-        xcrun xcodebuild \
-            -scheme $xcodeAppName \
-            -project . \
-            -configuration Debug \
-            -destination 'platform=iOS Simulator,name=iPhone X,OS=latest' \
-            -derivedDataPath '$xcodeDerivedDataPath'
-        """.trimIndent()
-    )
-}
-
-val installSimulator by tasks.creating(Exec::class.java) {
-    dependsOn(buildXcode)
-    group = xcodeIntegrationGroup
-    description = "Installs the application bundle on an iOS simulator."
-
-    executable = "sh"
-    val appFolder = xcodeDerivedDataPath.resolve("Build/Products/Debug-iphonesimulator/$xcodeAppName.app")
-    args("-c", "xcrun simctl install booted '${appFolder.absolutePath}'")
-}
-
-val launchSimulator by tasks.creating(Exec::class.java) {
-    dependsOn(installSimulator)
-    group = xcodeIntegrationGroup
-    description = "Launches the application on an iOS simulator."
-
-    executable = "sh"
-    args("-c", "xcrun simctl launch booted $xcodeBundleId")
-}
-

@@ -12,7 +12,7 @@ import platform.darwin.NSObject
 
 // Standard entry point for WatchKit applications.
 @SymbolName("WKExtensionMain")
-external fun WKExtensionMain(argc: Int, argv: CValues<CPointerVar<ByteVar>>)
+external fun WKExtensionMain(argc: Int, argv: CPointer<CPointerVar<ByteVar>>)
 
 fun main(args: Array<String>) {
     memScoped {
@@ -20,8 +20,7 @@ fun main(args: Array<String>) {
         val argv = (arrayOf("konan") + args).map { it.cstr.ptr }.toCValues()
 
         autoreleasepool {
-            println("main entered")
-            WKExtensionMain(argc, argv)
+            WKExtensionMain(argc, argv.ptr)
         }
     }
 }
@@ -30,8 +29,6 @@ fun main(args: Array<String>) {
 @ExportObjCClass
 @Suppress("CONFLICTING_OVERLOADS")
 class Watchapp3ExtensionDelegate : NSObject, WKExtensionDelegateProtocol {
-
-    companion object : NSObject(), WKExtensionDelegateProtocolMeta {}
 
     @OverrideInit constructor() : super() {
         println("constructor Watchapp3ExtensionDelegate")
@@ -45,21 +42,15 @@ class Watchapp3ExtensionDelegate : NSObject, WKExtensionDelegateProtocol {
 // Name of this class is mentioned in Interface.plist.
 @ExportObjCClass
 class Watchapp3InterfaceController : WKInterfaceController {
-    var showInput = true
-
     @OverrideInit constructor() : super() {
         println("constructor Watchapp3InterfaceController")
     }
 
     override fun didAppear() {
         println("didAppear")
-        if (showInput) {
-          presentTextInputControllerWithSuggestions(null, WKTextInputMode.WKTextInputModeAllowAnimatedEmoji) {
+        presentTextInputControllerWithSuggestions(null, WKTextInputMode.WKTextInputModeAllowAnimatedEmoji) {
             results ->
             println("printed $results")
-            showInput = true
-          }
-          showInput = false
         }
     }
 
