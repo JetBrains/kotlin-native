@@ -94,7 +94,7 @@ val packForXCode = if (sdkName == null || targetBuildDir == null || executablePa
         dependsOn(kotlinBinary.linkTask)
         destinationDir = file(targetBuildDir)
         val dsymSource = kotlinBinary.outputFile.absolutePath + ".dSYM"
-        val dsymDestination = java.io.File(executablePath).parentFile.name + ".dSYM"
+        val dsymDestination = file(executablePath).parentFile.name + ".dSYM"
         val oldExecName = kotlinBinary.outputFile.name
         val newExecName = file(executablePath).name
 
