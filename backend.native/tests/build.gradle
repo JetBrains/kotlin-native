@@ -3309,6 +3309,12 @@ if (PlatformInfo.isAppleTarget(project)) {
         it.headers "$projectDir/interop/objc_with_initializer/objc_misc.h"
         it.linkerOpts "-L$buildDir",  "-lobjcmisc"
     }
+    createInterop("objcKt34467") {
+        it.defFile 'interop/objc/kt34467/module_library.def'
+        def moduleMap = file("interop/objc/kt34467/module_library.modulemap").absolutePath
+        def includePath = file("interop/objc/kt34467").absolutePath
+        it.compilerOpts "-fmodule-map-file=$moduleMap", "-I$includePath"
+    }
 }
 
 createInterop("withSpaces") {
@@ -3477,7 +3483,7 @@ task interop_echo_server(type: RunInteropKonanTest) {
 */
 
 /*
-TODO: This test isn't run automatically 
+TODO: This test isn't run automatically
 standaloneTest("interop_opengl_teapot") {
     enabled = isAppleTarget(project) && project.testTarget != 'ios_x64'  // No GLUT in iOS
     dependsOnPlatformLibs(it as Task)
@@ -3538,6 +3544,13 @@ interopTest("interop_objc_global_initializer") {
     }
 }
 
+
+interopTest("interop_objc_kt34467") {
+    disabled = !isAppleTarget(project)
+    source = "interop/objc/kt34467/foo.kt"
+    interop = 'objcKt34467'
+    goldValue = "OK\n42\n"
+}
 
 standaloneTest("jsinterop_math") {
     doBefore {
@@ -3737,7 +3750,7 @@ KotlinNativeTestKt.createTest(project, 'harmonyRegexTest', KonanGTest) { task ->
             extraOpts project.globalTestArgs
         }
     }
-    
+
     task.finalizedBy("resultsTask")
 }
 
@@ -3781,7 +3794,7 @@ standaloneTest("coverage_basic_library") {
         def konanc = "$dist/bin/$konancScript"
         "$konanc -target ${PlatformInfo.getTarget(project).name} $projectDir/coverage/basic/library/library.kt -p library -o $dir/lib_to_cover".execute().waitFor()
     }
-    
+
     flags = ["-Xcoverage-file=$dir/program.profraw", "-l", "$dir/lib_to_cover", "-Xlibrary-to-cover=$dir/lib_to_cover.klib", "-entry", "coverage.basic.library.main"]
     source = "$projectDir/coverage/basic/library/main.kt"
 
@@ -3815,7 +3828,7 @@ KotlinNativeTestKt.createTest(project, 'stdlibTest', KonanGTest) { task ->
             srcFiles sources
             baseDir "$testOutputStdlib/stdlibTest"
             enableMultiplatform true
-            extraOpts '-tr', '-Xuse-experimental=kotlin.Experimental,kotlin.ExperimentalStdlibApi', 
+            extraOpts '-tr', '-Xuse-experimental=kotlin.Experimental,kotlin.ExperimentalStdlibApi',
                     "-friend-modules", project.rootProject.file("${project.properties['konan.home']}/klib/common/stdlib").absolutePath
             extraOpts project.globalTestArgs
         }
