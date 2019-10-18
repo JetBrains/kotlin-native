@@ -35,14 +35,14 @@ open class CollisionDetector : DefaultTask() {
     val librariesWithIgnoredClassCollisions = mutableListOf<String>()
     val resolvedConflicts = mutableMapOf<String, File>()
 
-    // Key - filename, value - jar file contained it.
+    // Key - filename, value - jar file containing it.
     private val filesInfo = mutableMapOf<String, String>()
 
     @TaskAction
     fun run() {
         configurations.forEach { configuration ->
             configuration.files.filter { it.name.endsWith(".jar") }.forEach { processedFile ->
-                project.zipTree("${processedFile.absolutePath}").matching{ it.exclude(ignoredFiles) }.forEach {
+                project.zipTree(processedFile.absolutePath).matching { it.exclude(ignoredFiles) }.forEach {
                     val outputPath = it.absolutePath.substringAfter(processedFile.name).substringAfter("/")
                     if (outputPath in filesInfo.keys) {
                         val rule = resolvingRules.getOrElse(outputPath) {
@@ -61,7 +61,7 @@ open class CollisionDetector : DefaultTask() {
                             // Skip class files from ignored libraries if version of libraries had collision are the same.
                             val versionRegex = "\\d+\\.\\d+(\\.\\d+)?-\\w+(-\\d+)?".toRegex()
                             val currentVersion = versionRegex.find(processedFile.name)?.groupValues?.get(0)
-                            val collisionLibVersion = versionRegex.find(filesInfo[outputPath]!!)?.groupValues?.get(0)
+                            val collisionLibVersion = versionRegex.find(filesInfo.getValue(outputPath))?.groupValues?.get(0)
                             if (outputPath.endsWith(".class") && currentVersion == collisionLibVersion) {
                                 if (processedFile.name == filesInfo[outputPath]) {
                                     ignoreJar = true
