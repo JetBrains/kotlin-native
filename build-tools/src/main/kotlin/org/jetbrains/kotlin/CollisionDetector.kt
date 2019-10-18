@@ -12,10 +12,10 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import java.io.File
 
-fun <K, V, T> Map<K, V>.firstOrNull(askedKey: T, predicate:(K, T) -> Boolean): V? {
+fun <K, V> Map<K, V>.firstOrNull(predicate:(K, V) -> Boolean): V? {
     var foundValue: V? = null
     forEach {
-        if (predicate(it.key, askedKey)) {
+        if (predicate(it.key, it.value)) {
             foundValue = it.value
             return@forEach
         }
@@ -57,7 +57,7 @@ open class CollisionDetector : DefaultTask() {
                     val outputPath = it.absolutePath.substringAfter(processedFile.name).substringAfter("/")
                     if (outputPath in filesInfo.keys) {
                         val rule = resolvingRules.getOrElse(outputPath) {
-                            resolvingRulesWithRegexes.firstOrNull(outputPath) { key, askedKey -> key.matches(askedKey) }
+                            resolvingRulesWithRegexes.firstOrNull { key, _ -> key.matches(outputPath) }
                         }
                         var ignoreJar = false
                         if (rule != null && processedFile.name.startsWith(rule)) {
