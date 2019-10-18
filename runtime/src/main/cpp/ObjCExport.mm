@@ -364,6 +364,10 @@ static void Kotlin_ObjCExport_initializeImpl() {
   }
 }
 
+// Initializes ObjCExport for current process (if not initialized yet).
+// Generally this is equal to some "binary patching" (which is usually done at link time
+// but postponed until runtime here due to various reasons):
+// adds methods to Objective-C classes, initializes static memory with "constant" values etc.
 extern "C" void Kotlin_ObjCExport_initialize() {
   static dispatch_once_t onceToken;
   dispatch_once(&onceToken, ^{
