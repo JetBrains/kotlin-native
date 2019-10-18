@@ -38,11 +38,8 @@ class CollisionTransformer: Transformer {
             entry.time = TransformerContext.getEntryTimestamp(preserveFileTimestamps, entry.time)
             jos.putNextEntry(entry)
             val archive = ZipFile(resolvedConflicts[it])
-            val inputStream = archive.getInputStream(archive.getEntry(it))
-            try {
-                IOUtils.copyLarge(inputStream, jos)
-            } finally {
-                inputStream.close()
+            archive.getInputStream(archive.getEntry(it)).use {
+                IOUtils.copyLarge(it, jos)
             }
             jos.closeEntry()
         }
