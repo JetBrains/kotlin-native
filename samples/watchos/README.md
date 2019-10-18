@@ -9,7 +9,7 @@ To build and run the sample do the following:
     in project setting.
    or
 1a.  Similarly modify `bundleIdPrefix`, `DEVELOPMENT_TEAM` and `WKAppBundleIdentifier` in `project.yml`
-    and generate XCode project with `xcodegen` (https://github.com/yonaskolb/XcodeGen/).
+    and generate Xcode project with `xcodegen` (https://github.com/yonaskolb/XcodeGen/).
     Open generated `watchosSample.xcodeproj` with Xcode.
 
 2. Update property `WKAppBundleIdentifier` in `plists/Ext/Info.plist` with new ID of the watch application,

@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
 import org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType
 
 plugins {
-    kotlin("multiplatform")
+    kotlin("multiplatform") // version "1.3.60-eap-23" apply true
 }
 
 allprojects {
@@ -95,14 +95,17 @@ val packForXCode = if (sdkName == null || targetBuildDir == null || executablePa
         destinationDir = file(targetBuildDir)
 
         val dsymSource = kotlinBinary.outputFile.absolutePath + ".dSYM"
-        if (file(dsymSource).exists()) {
-            val executableDestination = File(destinationDir, executablePath).absolutePath
-            val dsymDestination = File(executableDestination).parentFile.absolutePath.replace(".app", ".dSYM")
-            from(dsymSource)
+        val dsymDestination = File(executablePath).parentFile.name + ".dSYM"
+        val oldExecName = kotlinBinary.outputFile.name
+        val newExecName = File(executablePath).name
+
+        from(dsymSource) {
             into(dsymDestination)
+            rename(oldExecName, newExecName)
         }
 
-        from(kotlinBinary.outputFile)
-        rename { executablePath }
+        from(kotlinBinary.outputFile) {
+            rename { executablePath }
+        }
     }
 }

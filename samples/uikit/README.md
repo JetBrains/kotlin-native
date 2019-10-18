@@ -9,7 +9,7 @@ To build and run the sample do the following:
    and make bundle ID unique in project settings.
   or
 1a.  Similarly modify `bundleIdPrefix` and `DEVELOPMENT_TEAM` in `project.yml` and
-    then generate XCode project with `xcodegen` (https://github.com/yonaskolb/XcodeGen/).
+    then generate Xcode project with `xcodegen` (https://github.com/yonaskolb/XcodeGen/).
 
 2.  Now build and run the application with Xcode on a connected iPhone  or simulator.
 
