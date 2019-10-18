@@ -132,6 +132,25 @@ class KonanHelperProvider(lldb.SBSyntheticValueProvider):
             valobj.GetType().GetBasicType(lldb.eBasicTypeBool)
         ]
 
+        fallback = valobj.GetValue()
+        buff_len = evaluate(
+            '(int)Konan_DebugObjectToUtf8Array({}, (char *)Konan_DebugBuffer(), (int)Konan_DebugBufferSize());'.format(
+                self._ptr)
+        ).unsigned
+
+        if not buff_len:
+            self._representation = fallback
+            return
+
+        buff_addr = evaluate("(char *)Konan_DebugBuffer()").unsigned
+
+        error = lldb.SBError()
+        s = self._process.ReadCStringFromMemory(int(buff_addr), int(buff_len), error)
+        if not error.Success():
+            raise DebuggerException()
+        self._representation = s if error.Success() else fallback
+
+
     def _read_string(self, expr, error):
         return self._process.ReadCStringFromMemory(evaluate(expr).unsigned, 0x1000, error)
 
@@ -170,6 +189,9 @@ class KonanHelperProvider(lldb.SBSyntheticValueProvider):
     def _field_type(self, index):
         return evaluate("(int)Konan_DebugGetFieldType({}, {})".format(self._ptr, index)).unsigned
 
+    def to_string(self):
+        return self._representation
+
 class KonanStringSyntheticProvider(KonanHelperProvider):
     def __init__(self, valobj):
         super(KonanStringSyntheticProvider, self).__init__(valobj)
@@ -207,9 +229,6 @@ class KonanStringSyntheticProvider(KonanHelperProvider):
     def get_child_at_index(self, _):
         return None
 
-    def to_string(self):
-        return self._representation
-
 
 class DebuggerException(Exception):
     pass
@@ -243,7 +262,6 @@ class KonanObjectSyntheticProvider(KonanHelperProvider):
         self._children = SYNTHETIC_OBJECT_LAYOUT_CACHE[tip]
         self._values = [self._read_value(index) for index in range(self._children_count)]
 
-
     def _field_name(self, index):
         error = lldb.SBError()
         name =  self._read_string("(const char *)Konan_DebugGetFieldName({}, (int){})".format(self._ptr, index), error)
@@ -266,10 +284,6 @@ class KonanObjectSyntheticProvider(KonanHelperProvider):
 
     def get_child_at_index(self, index):
         return self._values[index]
-
-    # TODO: fix cyclic structures stringification.
-    def to_string(self):
-        return dict([(self._children[i].name(), self._deref_or_obj_summary(i)) for i in range(self._children_count)])
 
 
 class KonanArraySyntheticProvider(KonanHelperProvider):
@@ -298,9 +312,6 @@ class KonanArraySyntheticProvider(KonanHelperProvider):
 
     def get_child_at_index(self, index):
         return self._values[index]
-
-    def to_string(self):
-        return [self._deref_or_obj_summary(i) for i in range(self._children_count)]
 
 
 class KonanProxyTypeProvider:
