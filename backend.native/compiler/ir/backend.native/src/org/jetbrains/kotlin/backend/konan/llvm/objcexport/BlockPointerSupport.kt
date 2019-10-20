@@ -33,6 +33,7 @@ internal fun ObjCExportCodeGenerator.generateBlockToKotlinFunctionConverter(
     val invokeImpl = generateFunction(
             codegen,
             codegen.getLlvmFunctionType(invokeMethod),
+            context.debugInfo.compilerGeneratedBuilder,
             "invokeFunction${bridge.nameSuffix}"
     ) {
         val args = (0 until bridge.numberOfParameters).map { index ->
@@ -74,6 +75,7 @@ internal fun ObjCExportCodeGenerator.generateBlockToKotlinFunctionConverter(
     return generateFunction(
             codegen,
             functionType(codegen.kObjHeaderPtr, false, int8TypePtr, codegen.kObjHeaderPtrPtr),
+            context.debugInfo.compilerGeneratedBuilder,
             "convertBlock${bridge.nameSuffix}"
     ) {
         val blockPtr = param(0)
@@ -148,6 +150,7 @@ internal class BlockAdapterToFunctionGenerator(val objCExportCodeGenerator: ObjC
     val disposeHelper = generateFunction(
             codegen,
             functionType(voidType, false, int8TypePtr),
+            codegen.context.debugInfo.compilerGeneratedBuilder,
             "blockDisposeHelper"
     ) {
         val blockPtr = bitcast(pointerType(blockLiteralType), param(0))
@@ -162,6 +165,7 @@ internal class BlockAdapterToFunctionGenerator(val objCExportCodeGenerator: ObjC
     val copyHelper = generateFunction(
             codegen,
             functionType(voidType, false, int8TypePtr, int8TypePtr),
+            codegen.context.debugInfo.compilerGeneratedBuilder,
             "blockCopyHelper"
     ) {
         val dstBlockPtr = bitcast(pointerType(blockLiteralType), param(0))
@@ -223,7 +227,8 @@ internal class BlockAdapterToFunctionGenerator(val objCExportCodeGenerator: ObjC
     private fun ObjCExportCodeGenerator.generateInvoke(bridge: BlockPointerBridge): ConstPointer {
         val numberOfParameters = bridge.numberOfParameters
 
-        val result = generateFunction(codegen, bridge.blockInvokeLlvmType, "invokeBlock${bridge.nameSuffix}") {
+        val result = generateFunction(codegen, bridge.blockInvokeLlvmType,
+                context.debugInfo.compilerGeneratedBuilder, "invokeBlock${bridge.nameSuffix}") {
             val blockPtr = bitcast(pointerType(blockLiteralType), param(0))
             val kotlinFunction = call(
                     context.llvm.kRefSharedHolderRef,
@@ -264,6 +269,7 @@ internal class BlockAdapterToFunctionGenerator(val objCExportCodeGenerator: ObjC
         return generateFunction(
                 codegen,
                 functionType(int8TypePtr, false, codegen.kObjHeaderPtr),
+                context.debugInfo.compilerGeneratedBuilder,
                 "convertFunction${bridge.nameSuffix}"
         ) {
             val kotlinRef = param(0)

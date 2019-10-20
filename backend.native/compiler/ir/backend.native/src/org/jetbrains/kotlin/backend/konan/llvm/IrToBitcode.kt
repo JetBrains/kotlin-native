@@ -362,7 +362,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     private fun createInitBody(): LLVMValueRef {
         val initFunction = LLVMAddFunction(context.llvmModule, "", kInitFuncType)!!
-        generateFunction(codegen, initFunction) {
+        val fileScope = currentCodeContext.fileScope() as FileScope
+        generateFunction(codegen, initFunction, fileScope.diBuilder) {
             using(FunctionScope(initFunction, "init_body", it)) {
                 val bbInit = basicBlock("init", null)
                 val bbLocalInit = basicBlock("local_init", null)
@@ -456,7 +457,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     private fun createInitCtor(initNodePtr: LLVMValueRef): LLVMValueRef {
         val ctorFunction = LLVMAddFunction(context.llvmModule, "", kVoidFuncType)!!
-        generateFunction(codegen, ctorFunction) {
+        val fileScope = currentCodeContext.fileScope() as FileScope
+        generateFunction(codegen, ctorFunction, fileScope.diBuilder) {
             call(context.llvm.appendToInitalizersTail, listOf(initNodePtr))
             ret(null)
         }
@@ -679,7 +681,9 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 || body == null)
             return
 
+        val fileScope = currentCodeContext.fileScope() as FileScope
         generateFunction(codegen, declaration,
+                fileScope.diBuilder,
                 declaration.location(start = true),
                 declaration.location(start = false)) {
             using(FunctionScope(declaration, it)) {
@@ -1208,10 +1212,11 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         if (function == null || !element.needDebugInfo(context) || currentCodeContext.scope() == null) return null
         val locationInfo = element.startLocation ?: return null
         val location = codegen.generateLocationInfo(locationInfo)
-        val file = (currentCodeContext.fileScope() as FileScope).file.file()
+        val fileScope = currentCodeContext.fileScope() as FileScope
+        val file = fileScope.file.file()
         return when (element) {
             is IrVariable -> if (shouldGenerateDebugInfo(element)) debugInfoLocalVariableLocation(
-                    builder       = context.debugInfo.builder,
+                    builder       = fileScope.diBuilder,
                     functionScope = locationInfo.scope,
                     diType        = element.type.diType(context, codegen.llvmTargetData),
                     name          = element.descriptor.name,
@@ -1220,7 +1225,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                     location      = location)
                     else null
             is IrValueParameter -> debugInfoParameterLocation(
-                    builder       = context.debugInfo.builder,
+                    builder       = fileScope.diBuilder,
                     functionScope = locationInfo.scope,
                     diType        = element.type.diType(context, codegen.llvmTargetData),
                     name          = element.descriptor.name,
@@ -1670,8 +1675,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         private val scope by lazy {
             if (!context.shouldContainLocationDebugInfo() || returnableBlock.startOffset == UNDEFINED_OFFSET)
                 return@lazy null
-            val lexicalBlockFile = DICreateLexicalBlockFile(context.debugInfo.builder, functionScope()!!.scope(), super.file.file())
-            DICreateLexicalBlock(context.debugInfo.builder, lexicalBlockFile, super.file.file(), returnableBlock.startLine(), returnableBlock.startColumn())!!
+            val lexicalBlockFile = DICreateLexicalBlockFile(super.diBuilder, functionScope()!!.scope(), super.file.file())
+            DICreateLexicalBlock(super.diBuilder, lexicalBlockFile, super.file.file(), returnableBlock.startLine(), returnableBlock.startColumn())!!
         }
 
         override fun scope() = scope
@@ -1693,6 +1698,12 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         }
 
         override fun scope() = scope
+
+        val diBuilder by lazy {
+            // NO debug
+            context.debugInfo.getBuilder(file.fileEntry.name)
+        }
+
     }
 
     //-------------------------------------------------------------------------//
@@ -1702,12 +1713,13 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             get() = clazz.isExported()
         var offsetInBits = 0L
         val members = mutableListOf<DIDerivedTypeRef>()
+        val fileScope = currentCodeContext.fileScope() as FileScope
         @Suppress("UNCHECKED_CAST")
         val scope = if (isExported && context.shouldContainDebugInfo())
             DICreateReplaceableCompositeType(
                     tag        = DwarfTag.DW_TAG_structure_type.value,
-                    refBuilder = context.debugInfo.builder,
-                    refScope   = (currentCodeContext.fileScope() as FileScope).file.file() as DIScopeOpaqueRef,
+                    refBuilder = fileScope.diBuilder,
+                    refScope   = fileScope.file.file() as DIScopeOpaqueRef,
                     name       = clazz.typeInfoSymbolName,
                     refFile    = file().file(),
                     line       = clazz.startLine()) as DITypeOpaqueRef
@@ -1830,14 +1842,15 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     private fun debugFieldDeclaration(expression: IrField) {
         val scope = currentCodeContext.classScope() as? ClassScope ?: return
         if (!scope.isExported || !context.shouldContainDebugInfo()) return
-        val irFile = (currentCodeContext.fileScope() as FileScope).file
+        val fileScope = currentCodeContext.fileScope() as FileScope
+        val irFile = fileScope.file
         val sizeInBits = expression.type.size(context)
         scope.offsetInBits += sizeInBits
         val alignInBits = expression.type.alignment(context)
         scope.offsetInBits = alignTo(scope.offsetInBits, alignInBits)
         @Suppress("UNCHECKED_CAST")
         scope.members.add(DICreateMemberType(
-                refBuilder   = context.debugInfo.builder,
+                refBuilder   = fileScope.diBuilder,
                 refScope     = scope.scope as DIScopeOpaqueRef,
                 name         = expression.symbolName,
                 file         = irFile.file(),
@@ -1852,21 +1865,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
 
     //-------------------------------------------------------------------------//
-    private fun IrFile.file(): DIFileRef {
-        return context.debugInfo.files.getOrPut(this.fileEntry.name) {
-            val path = this.fileEntry.name.toFileAndFolder()
-            DICreateCompilationUnit(
-                    builder     = context.debugInfo.builder,
-                    lang        = DWARF.language(context.config),
-                    File        = path.file,
-                    dir         = path.folder,
-                    producer    = DWARF.producer,
-                    isOptimized = 0,
-                    flags       = "",
-                    rv          = DWARF.runtimeVersion(context.config))
-            DICreateFile(context.debugInfo.builder, path.file, path.folder)!!
-        }
-    }
+    //TODO: ???
+    private fun IrFile.file() = context.debugInfo.files[this.fileEntry.name]!!
 
     //-------------------------------------------------------------------------//
 
@@ -1913,9 +1913,11 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     }
 
     @Suppress("UNCHECKED_CAST")
-    private fun diFunctionScope(name: String, linkageName: String, startLine: Int, subroutineType: DISubroutineTypeRef) = DICreateFunction(
-                builder = context.debugInfo.builder,
-                scope = (currentCodeContext.fileScope() as FileScope).file.file() as DIScopeOpaqueRef,
+    private fun diFunctionScope(name: String, linkageName: String, startLine: Int, subroutineType: DISubroutineTypeRef): DISubprogramRef {
+        val fileScope = currentCodeContext.fileScope() as FileScope
+        return DICreateFunction(
+                builder = fileScope.diBuilder,
+                scope = fileScope.file.file() as DIScopeOpaqueRef,
                 name = name,
                 linkageName = linkageName,
                 file = file().file(),
@@ -1925,6 +1927,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 isLocal = 0,
                 isDefinition = 1,
                 scopeLine = 0)!!
+    }
 
     //-------------------------------------------------------------------------//
 
@@ -2378,7 +2381,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     }
 
     private fun appendStaticInitializers(ctorFunction: LLVMValueRef, initializers: List<LLVMValueRef>) {
-        generateFunction(codegen, ctorFunction) {
+        generateFunction(codegen, ctorFunction, context.debugInfo.compilerGeneratedBuilder) {
             val initGuardName = ctorFunction.name.orEmpty() + "_guard"
             val initGuard = LLVMAddGlobal(context.llvmModule, int32Type, initGuardName)
             LLVMSetInitializer(initGuard, kImmZero)
@@ -2411,7 +2414,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             // Generate function calling all [ctorFunctions].
             val globalCtorFunction = LLVMAddFunction(context.llvmModule, "_Konan_constructors", kVoidFuncType)!!
             LLVMSetLinkage(globalCtorFunction, LLVMLinkage.LLVMPrivateLinkage)
-            generateFunction(codegen, globalCtorFunction) {
+            generateFunction(codegen, globalCtorFunction, context.debugInfo.compilerGeneratedBuilder) {
                 ctorFunctions.forEach {
                     call(it, emptyList(), Lifetime.IRRELEVANT,
                             exceptionHandler = ExceptionHandler.Caller, verbatim = true)

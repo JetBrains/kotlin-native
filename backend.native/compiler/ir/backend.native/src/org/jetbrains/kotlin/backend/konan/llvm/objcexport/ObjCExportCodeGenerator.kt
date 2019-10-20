@@ -300,7 +300,7 @@ internal class ObjCExportCodeGenerator(
     private fun emitStaticInitializers() {
         if (externalGlobalInitializers.isEmpty()) return
 
-        val initializer = generateFunction(codegen, functionType(voidType, false), "initObjCExportGlobals") {
+        val initializer = generateFunction(codegen, functionType(voidType, false), context.debugInfo.compilerGeneratedBuilder, "initObjCExportGlobals") {
             externalGlobalInitializers.forEach { (global, value) ->
                 store(value.llvm, global)
             }
@@ -328,7 +328,7 @@ internal class ObjCExportCodeGenerator(
 
     private fun emitSelectorsHolder() {
         val impType = functionType(voidType, false, int8TypePtr, int8TypePtr)
-        val imp = generateFunction(codegen, impType, "") {
+        val imp = generateFunction(codegen, impType, context.debugInfo.compilerGeneratedBuilder, "") {
             unreachable()
         }
 
@@ -511,7 +511,7 @@ private fun ObjCExportCodeGenerator.emitBoxConverter(
     val boxClass = boxClassSymbol.owner
     val name = "${boxClass.name}ToNSNumber"
 
-    val converter = generateFunction(codegen, kotlinToObjCFunctionType, name) {
+    val converter = generateFunction(codegen, kotlinToObjCFunctionType, context.debugInfo.compilerGeneratedBuilder, name) {
         val unboxFunction = context.getUnboxFunction(boxClass).llvmFunction
         val kotlinValue = callFromBridge(
                 unboxFunction,
@@ -615,7 +615,7 @@ private inline fun ObjCExportCodeGenerator.generateObjCImpBy(
 ): LLVMValueRef {
     val result = LLVMAddFunction(context.llvmModule, "objc2kotlin", objCFunctionType(context, methodBridge))!!
 
-    generateFunction(codegen, result) {
+    generateFunction(codegen, result, context.debugInfo.compilerGeneratedBuilder) {
         genBody()
     }
 
@@ -791,7 +791,7 @@ private fun ObjCExportCodeGenerator.generateKotlinToObjCBridge(
 
     val functionType = codegen.getLlvmFunctionType(irFunction)
 
-    val result = generateFunction(codegen, functionType, "kotlin2objc") {
+    val result = generateFunction(codegen, functionType, context.debugInfo.compilerGeneratedBuilder, "kotlin2objc") {
         var errorOutPtr: LLVMValueRef? = null
         var kotlinResultOutPtr: LLVMValueRef? = null
         lateinit var kotlinResultOutBridge: TypeBridge
@@ -1238,7 +1238,7 @@ private inline fun ObjCExportCodeGenerator.generateObjCToKotlinSyntheticGetter(
     )
 
     val encoding = getEncoding(methodBridge)
-    val imp = generateFunction(codegen, objCFunctionType(context, methodBridge), "objc2kotlin") {
+    val imp = generateFunction(codegen, objCFunctionType(context, methodBridge), context.debugInfo.compilerGeneratedBuilder, "objc2kotlin") {
         block()
     }
 

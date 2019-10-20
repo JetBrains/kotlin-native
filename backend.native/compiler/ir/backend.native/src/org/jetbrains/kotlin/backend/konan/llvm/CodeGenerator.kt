@@ -115,6 +115,7 @@ val LLVMValueRef.isConst:Boolean
 
 internal inline fun<R> generateFunction(codegen: CodeGenerator,
                                         function: IrFunction,
+                                        diBuilder: DIBuilderRef?,
                                         startLocation: LocationInfo? = null,
                                         endLocation: LocationInfo? = null,
                                         code: FunctionGenerationContext.(FunctionGenerationContext) -> R) {
@@ -123,6 +124,7 @@ internal inline fun<R> generateFunction(codegen: CodeGenerator,
     val functionGenerationContext = FunctionGenerationContext(
             llvmFunction,
             codegen,
+            diBuilder,
             startLocation,
             endLocation,
             function)
@@ -138,9 +140,9 @@ internal inline fun<R> generateFunction(codegen: CodeGenerator,
 }
 
 
-internal inline fun<R> generateFunction(codegen: CodeGenerator, function: LLVMValueRef,
+internal inline fun<R> generateFunction(codegen: CodeGenerator, function: LLVMValueRef, diBuilder: DIBuilderRef?,
                                         code:FunctionGenerationContext.(FunctionGenerationContext) -> R) {
-    val functionGenerationContext = FunctionGenerationContext(function, codegen, null, null)
+    val functionGenerationContext = FunctionGenerationContext(function, codegen, diBuilder, null, null)
     try {
         generateFunctionBody(functionGenerationContext, code)
     } finally {
@@ -151,11 +153,12 @@ internal inline fun<R> generateFunction(codegen: CodeGenerator, function: LLVMVa
 internal inline fun generateFunction(
         codegen: CodeGenerator,
         functionType: LLVMTypeRef,
+        diBuilder: DIBuilderRef?,
         name: String,
         block: FunctionGenerationContext.(FunctionGenerationContext) -> Unit
 ): LLVMValueRef {
     val function = LLVMAddFunction(codegen.context.llvmModule, name, functionType)!!
-    generateFunction(codegen, function, block)
+    generateFunction(codegen, function, diBuilder, block)
     return function
 }
 
@@ -182,6 +185,7 @@ internal data class LocationInfoRange(var start: LocationInfo, var end: Location
 
 internal class FunctionGenerationContext(val function: LLVMValueRef,
                                          val codegen: CodeGenerator,
+                                         val diBuilder: DIBuilderRef?,
                                          startLocation: LocationInfo?,
                                          endLocation: LocationInfo?,
                                          internal val irFunction: IrFunction? = null): ContextUtils {
@@ -261,7 +265,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             val slotAddress = LLVMBuildAlloca(builder, type, name)!!
             variableLocation?.let {
                 DIInsertDeclaration(
-                        builder       = codegen.context.debugInfo.builder,
+                        builder       = diBuilder,
                         value         = slotAddress,
                         localVariable = it.localVariable,
                         location      = it.location,
@@ -550,12 +554,10 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             LLVMBuildExtractValue(builder, aggregate, index, name)!!
 
     fun gxxLandingpad(numClauses: Int, name: String = ""): LLVMValueRef {
-        val personalityFunction = LLVMConstBitCast(context.llvm.gxxPersonalityFunction, int8TypePtr)
-
         // Type of `landingpad` instruction result (depends on personality function):
         val landingpadType = structType(int8TypePtr, int32Type)
 
-        return LLVMBuildLandingPad(builder, landingpadType, personalityFunction, numClauses, name)!!
+        return LLVMBuildLandingPad(builder, landingpadType, context.llvm.gxxPersonalityFunction, numClauses, name)!!
     }
 
     fun filteringExceptionHandler(codeContext: CodeContext): ExceptionHandler {
@@ -996,7 +998,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                     val expr = longArrayOf(DwarfOp.DW_OP_plus_uconst.value,
                             runtime.pointerSize * slot.toLong()).toCValues()
                     DIInsertDeclaration(
-                            builder       = codegen.context.debugInfo.builder,
+                            builder       = diBuilder,
                             value         = slots,
                             localVariable = variable.localVariable,
                             location      = variable.location,

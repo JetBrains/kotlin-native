@@ -422,6 +422,7 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
             val associatedObjectGetter = generateFunction(
                     CodeGenerator(context),
                     functionType(kObjHeaderPtr, false, kObjHeaderPtrPtr),
+                    context.debugInfo.compilerGeneratedBuilder,
                     ""
             ) {
                 ret(getObjectValue(value, ExceptionHandler.Caller, startLocationInfo = null))

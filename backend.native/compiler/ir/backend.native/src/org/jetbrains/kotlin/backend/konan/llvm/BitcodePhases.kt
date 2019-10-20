@@ -233,7 +233,7 @@ internal val finalizeDebugInfoPhase = makeKonanModuleOpPhase(
         description = "Finalize debug info",
         op = { context, _ ->
             if (context.shouldContainAnyDebugInfo()) {
-                DIFinalize(context.debugInfo.builder)
+                context.debugInfo.builders.values.forEach { DIFinalize(it) }
             }
         }
 )

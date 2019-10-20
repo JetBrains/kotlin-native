@@ -215,7 +215,7 @@ private class ExportedElement(val kind: ElementKind,
                 val bridge = if (!DescriptorUtils.isTopLevelDeclaration(function) && !function.isExtension &&
                         irFunction.isOverridable) {
                     // We need LLVMGetElementType() as otherwise type is function pointer.
-                    generateFunction(owner.codegen, LLVMGetElementType(llvmFunction.type)!!, cname) {
+                    generateFunction(owner.codegen, LLVMGetElementType(llvmFunction.type)!!, context.debugInfo.compilerGeneratedBuilder, cname) {
                         val receiver = param(0)
                         val numParams = LLVMCountParams(llvmFunction)
                         val args = (0 .. numParams - 1).map { index -> param(index) }
@@ -240,7 +240,9 @@ private class ExportedElement(val kind: ElementKind,
                 LLVMDisposeBuilder(builder)
                 // Produce instance getter if needed.
                 if (isSingletonObject) {
-                    generateFunction(owner.codegen, owner.kGetObjectFuncType, "${cname}_instance") {
+                    generateFunction(owner.codegen, owner.kGetObjectFuncType,
+                            context.debugInfo.compilerGeneratedBuilder,
+                            "${cname}_instance") {
                         val value = getObjectValue(irClass, ExceptionHandler.Caller, null)
                         ret(value)
                     }
@@ -249,7 +251,8 @@ private class ExportedElement(val kind: ElementKind,
             isEnumEntry -> {
                 // Produce entry getter.
                 cname = "_konan_function_${owner.nextFunctionIndex()}"
-                generateFunction(owner.codegen, owner.kGetObjectFuncType, cname) {
+                generateFunction(owner.codegen, owner.kGetObjectFuncType,
+                        context.debugInfo.compilerGeneratedBuilder, cname) {
                     val irEnumEntry = irSymbol.owner as IrEnumEntry
                     val value = getEnumEntry(irEnumEntry, ExceptionHandler.Caller)
                     ret(value)

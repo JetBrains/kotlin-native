@@ -61,6 +61,7 @@ fun KonanConfig.debugInfoVersion():Int = configuration[KonanConfigKeys.DEBUG_INF
 
 internal class DebugInfo internal constructor(override val context: Context):ContextUtils {
     val files = mutableMapOf<String, DIFileRef>()
+    val builders = mutableMapOf<String, DIBuilderRef>()
     val subprograms = mutableMapOf<LLVMValueRef, DISubprogramRef>()
     /* Some functions are inlined on all callsites and body is eliminated by DCE, so there's no LLVM value */
     val inlinedSubprograms = mutableMapOf<IrFunction, DISubprogramRef>()
@@ -84,8 +85,30 @@ internal class DebugInfo internal constructor(override val context: Context):Con
     val otherTypeSize = LLVMSizeOfTypeInBits(llvmTargetData, otherLlvmType)
     val otherTypeAlignment = LLVMPreferredAlignmentOfType(llvmTargetData, otherLlvmType)
 
+    fun getBuilder(fileName: String) = builders.getOrPut(fileName) {
+        val builder = DICreateBuilder(context.llvmModule)!!
+        val path = fileName.toFileAndFolder()
+        DICreateCompilationUnit(
+                builder     = builder,
+                lang        = DWARF.language(context.config),
+                File        = path.file,
+                dir         = path.folder,
+                producer    = DWARF.producer,
+                isOptimized = 0,
+                flags       = "",
+                rv          = DWARF.runtimeVersion(context.config))
+        files[fileName] = DICreateFile(builder, path.file, path.folder)!!
+        builder
+    }
+
+    private val compilerGeneratedFileNamed = "<compiler-generated>"
+    val compilerGeneratedBuilder by lazy {
+        getBuilder(compilerGeneratedFileNamed)
+    }
+
     val compilerGeneratedFile by lazy {
-        DICreateFile(builder, "<compiler-generated>", "")!!
+        compilerGeneratedBuilder
+        files[compilerGeneratedFileNamed]!!
     }
 }
 
