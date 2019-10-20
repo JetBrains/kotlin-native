@@ -20,13 +20,19 @@ inline static void SetAssociatedObject(ObjHeader* obj, id value) {
   obj->meta_object()->associatedObject_ = (void*)value;
 }
 
+inline static id AtomicCompareAndSwapAssociatedObject(ObjHeader* obj, id expectedValue, id newValue) {
+  id* location = reinterpret_cast<id*>(&obj->meta_object()->associatedObject_);
+  return __sync_val_compare_and_swap(location, expectedValue, newValue);
+}
+
+inline static OBJ_GETTER(AllocInstanceWithAssociatedObject, const TypeInfo* typeInfo, id associatedObject) {
+  ObjHeader* result = AllocInstance(typeInfo, OBJ_RESULT);
+  SetAssociatedObject(result, associatedObject);
+  return result;
+}
+
 extern "C" id Kotlin_ObjCExport_refToObjC(ObjHeader* obj);
 extern "C" OBJ_GETTER(Kotlin_ObjCExport_refFromObjC, id obj);
-
-@protocol ConvertibleToKotlin
-@required
--(KRef)toKotlin:(KRef*)OBJ_RESULT;
-@end;
 
 extern "C" id Kotlin_Interop_CreateNSStringFromKString(KRef str);
 extern "C" OBJ_GETTER(Kotlin_Interop_CreateKStringFromNSString, NSString* str);

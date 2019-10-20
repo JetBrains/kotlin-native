@@ -32,6 +32,9 @@ import org.jetbrains.kotlin.utils.KotlinPaths
 
 private class K2NativeCompilerPerformanceManager: CommonCompilerPerformanceManager("Kotlin to Native Compiler")
 class K2Native : CLICompiler<K2NativeCompilerArguments>() {
+
+    override fun MutableList<String>.addPlatformOptions(arguments: K2NativeCompilerArguments) {}
+
     override fun createMetadataVersion(versionArray: IntArray): BinaryVersion = KlibMetadataVersion(*versionArray)
 
     override val performanceManager:CommonCompilerPerformanceManager by lazy {
@@ -90,7 +93,8 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
     }
 
     val K2NativeCompilerArguments.isUsefulWithoutFreeArgs: Boolean
-        get() = listTargets || listPhases || checkDependencies || !includes.isNullOrEmpty()
+        get() = listTargets || listPhases || checkDependencies || !includes.isNullOrEmpty() ||
+                !librariesToCache.isNullOrEmpty()
 
     fun Array<String>?.toNonNullList(): List<String> {
         return this?.asList<String>() ?: listOf<String>()
@@ -211,6 +215,10 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
                 put(LIBRARIES_TO_COVER, arguments.coveredLibraries.toNonNullList())
                 arguments.coverageFile?.let { put(PROFRAW_PATH, it) }
                 put(OBJC_GENERICS, arguments.objcGenerics)
+
+                put(LIBRARIES_TO_CACHE, parseLibrariesToCache(arguments, configuration, outputKind))
+                put(CACHE_DIRECTORIES, arguments.cacheDirectories.toNonNullList())
+                put(CACHED_LIBRARIES, parseCachedLibraries(arguments, configuration))
             }
         }
     }
@@ -223,6 +231,12 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
         @JvmStatic fun main(args: Array<String>) {
             profile("Total compiler main()") {
                 doMain(K2Native(), args)
+            }
+        }
+        @JvmStatic fun mainNoExit(args: Array<String>) {
+            profile("Total compiler main()") {
+                if (CLITool.doMainNoExit(K2Native(), args) != ExitCode.OK)
+                    throw KonanCompilationException("Compilation finished with errors")
             }
         }
     }
@@ -301,5 +315,36 @@ private fun selectIncludes(
     }
 }
 
-fun main(args: Array<String>) = K2Native.main(args)
+private fun parseCachedLibraries(
+        arguments: K2NativeCompilerArguments,
+        configuration: CompilerConfiguration
+): Map<String, String> = arguments.cachedLibraries?.asList().orEmpty().mapNotNull {
+    val libraryAndCache = it.split(",")
+    if (libraryAndCache.size != 2) {
+        configuration.report(
+                ERROR,
+                "incorrect $CACHED_LIBRARY format: expected '<library>,<cache>', got '$it'"
+        )
+        null
+    } else {
+        libraryAndCache[0] to libraryAndCache[1]
+    }
+}.toMap()
 
+private fun parseLibrariesToCache(
+        arguments: K2NativeCompilerArguments,
+        configuration: CompilerConfiguration,
+        outputKind: CompilerOutputKind
+): List<String> {
+    val input = arguments.librariesToCache?.asList().orEmpty()
+
+    return if (input.isNotEmpty() && !outputKind.isCache) {
+        configuration.report(ERROR, "$MAKE_CACHE can't be used when not producing cache")
+        emptyList()
+    } else {
+        input
+    }
+}
+
+fun main(args: Array<String>) = K2Native.main(args)
+fun mainNoExit(args: Array<String>) = K2Native.mainNoExit(args)

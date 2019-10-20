@@ -296,14 +296,12 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
     }
 
     private fun importMemset(): LLVMValueRef {
-        val parameterTypes = cValuesOf(int8TypePtr, int8Type, int32Type, int1Type)
-        val functionType = LLVMFunctionType(LLVMVoidType(), parameterTypes, 4, 0)
+        val functionType = functionType(voidType, false, int8TypePtr, int8Type, int32Type, int1Type)
         return LLVMAddFunction(llvmModule, "llvm.memset.p0i8.i32", functionType)!!
     }
 
     private fun importMemcpy(): LLVMValueRef {
-        val parameterTypes = cValuesOf(int8TypePtr, int8TypePtr, int32Type, int1Type)
-        val functionType = LLVMFunctionType(LLVMVoidType(), parameterTypes, 4, 0)
+        val functionType = functionType(voidType, false, int8TypePtr, int8TypePtr, int32Type, int1Type)
         return LLVMAddFunction(llvmModule, "llvm.memcpy.p0i8.p0i8.i32", functionType)!!
     }
 
@@ -400,9 +398,20 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
 
     val bitcodeToLink: List<KonanLibrary> by lazy {
         (context.config.resolvedLibraries.getFullList(TopologicalLibraryOrder) as List<KonanLibrary>)
-                .filter { (!it.isDefault && !context.config.purgeUserLibs) || imports.bitcodeIsUsed(it) }
-                // TODO: the filter above is incorrect when compiling to multiple LLVM modules.
-                .filter { context.llvmModuleSpecification.containsLibrary(it) }
+                .filter { shouldContainBitcode(it) }
+    }
+
+    private fun shouldContainBitcode(library: KonanLibrary): Boolean {
+        if (!context.llvmModuleSpecification.containsLibrary(library)) {
+            return false
+        }
+
+        if (!context.llvmModuleSpecification.isFinal) {
+            return true
+        }
+
+        // Apply some DCE:
+        return (!library.isDefault && !context.config.purgeUserLibs) || imports.bitcodeIsUsed(library)
     }
 
     val additionalProducedBitcodeFiles = mutableListOf<String>()
@@ -462,12 +471,6 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
     val Kotlin_ObjCExport_refToObjC by lazyRtFunction
     val Kotlin_ObjCExport_refFromObjC by lazyRtFunction
     val Kotlin_ObjCExport_CreateNSStringFromKString by lazyRtFunction
-    val Kotlin_Interop_CreateNSArrayFromKList by lazyRtFunction
-    val Kotlin_Interop_CreateNSMutableArrayFromKList by lazyRtFunction
-    val Kotlin_Interop_CreateNSSetFromKSet by lazyRtFunction
-    val Kotlin_Interop_CreateKotlinMutableSetFromKSet by lazyRtFunction
-    val Kotlin_Interop_CreateNSDictionaryFromKMap by lazyRtFunction
-    val Kotlin_Interop_CreateKotlinMutableDictonaryFromKMap by lazyRtFunction
     val Kotlin_ObjCExport_convertUnit by lazyRtFunction
     val Kotlin_ObjCExport_GetAssociatedObject by lazyRtFunction
     val Kotlin_ObjCExport_AbstractMethodCalled by lazyRtFunction
@@ -529,7 +532,8 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
     val usedFunctions = mutableListOf<LLVMValueRef>()
     val usedGlobals = mutableListOf<LLVMValueRef>()
     val compilerUsedGlobals = mutableListOf<LLVMValueRef>()
-    val staticInitializers = mutableListOf<StaticInitializer>()
+    val irStaticInitializers = mutableListOf<IrStaticInitializer>()
+    val otherStaticInitializers = mutableListOf<LLVMValueRef>()
     val fileInitializers = mutableListOf<IrField>()
     val objects = mutableSetOf<LLVMValueRef>()
     val sharedObjects = mutableSetOf<LLVMValueRef>()
@@ -544,12 +548,12 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
             override fun getValue(thisRef: Llvm, property: KProperty<*>): LLVMValueRef = value
         }
     }
-    val llvmInt8 = LLVMInt8Type()!!
-    val llvmInt16 = LLVMInt16Type()!!
-    val llvmInt32 = LLVMInt32Type()!!
-    val llvmInt64 = LLVMInt64Type()!!
-    val llvmFloat = LLVMFloatType()!!
-    val llvmDouble = LLVMDoubleType()!!
+    val llvmInt8 = int8Type
+    val llvmInt16 = int16Type
+    val llvmInt32 = int32Type
+    val llvmInt64 = int64Type
+    val llvmFloat = floatType
+    val llvmDouble = doubleType
 }
 
-class StaticInitializer(val file: IrFile, val initializer: LLVMValueRef)
+class IrStaticInitializer(val file: IrFile, val initializer: LLVMValueRef)

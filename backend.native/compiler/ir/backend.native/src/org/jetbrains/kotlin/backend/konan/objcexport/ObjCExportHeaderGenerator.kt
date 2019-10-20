@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.backend.konan.objcexport
 
+import org.jetbrains.kotlin.backend.common.serialization.findSourceFile
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
@@ -90,7 +91,8 @@ internal class ObjCExportTranslatorImpl(
                 superClass = "NSMutableDictionary<KeyType, ObjectType>"
         ))
 
-        stubs.add(ObjCInterfaceImpl("NSError", categoryName = "NSErrorKotlinException", members = buildMembers {
+        val nsErrorCategoryName = "NSError${namer.topLevelNamePrefix}KotlinException"
+        stubs.add(ObjCInterfaceImpl("NSError", categoryName = nsErrorCategoryName, members = buildMembers {
             +ObjCProperty("kotlinException", null, ObjCNullableReferenceType(ObjCIdType), listOf("readonly"))
         }))
 

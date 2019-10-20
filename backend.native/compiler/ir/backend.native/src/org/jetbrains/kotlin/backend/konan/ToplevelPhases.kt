@@ -21,6 +21,7 @@ import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.util.SymbolTable
 import org.jetbrains.kotlin.ir.util.addChild
+import org.jetbrains.kotlin.ir.util.addFile
 import org.jetbrains.kotlin.ir.util.file
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.psi2ir.Psi2IrConfiguration
@@ -140,13 +141,20 @@ internal val psiToIrPhase = konanUnitPhase(
 
             val forwardDeclarationsModuleDescriptor = moduleDescriptor.allDependencyModules.firstOrNull { it.isForwardDeclarationModule }
 
+            val modulesWithoutDCE = moduleDescriptor.allDependencyModules
+                    .filter { !llvmModuleSpecification.isFinal && llvmModuleSpecification.containsModule(it) }
+
+            // Note: using [llvmModuleSpecification] since this phase produces IR for generating single LLVM module.
+
+            val exportedDependencies = (getExportedDependencies() + modulesWithoutDCE).distinct()
+
             val deserializer = KonanIrLinker(
                     moduleDescriptor,
                     this as LoggingContext,
                     generatorContext.irBuiltIns,
                     symbolTable,
                     forwardDeclarationsModuleDescriptor,
-                    getExportedDependencies()
+                    exportedDependencies
             )
 
             var dependenciesCount = 0
@@ -175,12 +183,16 @@ internal val psiToIrPhase = konanUnitPhase(
             val module = translator.generateModuleFragment(generatorContext, environment.getSourceFiles(),
                     deserializer, listOf(functionIrClassFactory))
 
+            if (this.stdlibModule in modulesWithoutDCE) {
+                functionIrClassFactory.buildAllClasses()
+            }
+
             irModule = module
-            irModules = deserializer.modules
+            irModules = deserializer.modules.filterValues { llvmModuleSpecification.containsModule(it) }
             ir.symbols = symbols
 
             functionIrClassFactory.module =
-                    (listOf(irModule!!) + irModules.values)
+                    (listOf(irModule!!) + deserializer.modules.values)
                             .single { it.descriptor.isKonanStdlib() }
         },
         name = "Psi2Ir",
@@ -343,7 +355,21 @@ internal val entryPointPhase = SameTypeNamedPhaseWrapper(
             override fun invoke(phaseConfig: PhaseConfig, phaserState: PhaserState<IrModuleFragment>,
                                 context: Context, input: IrModuleFragment): IrModuleFragment {
                 assert(context.config.produce == CompilerOutputKind.PROGRAM)
-                context.ir.symbols.entryPoint!!.owner.file.addChild(makeEntryPoint(context))
+
+                val originalFile = context.ir.symbols.entryPoint!!.owner.file
+                val originalModule = originalFile.packageFragmentDescriptor.containingDeclaration
+                val file = if (context.llvmModuleSpecification.containsModule(originalModule)) {
+                    originalFile
+                } else {
+                    // `main` function is compiled to other LLVM module.
+                    // For example, test running support uses `main` defined in stdlib.
+                    context.irModule!!.addFile(originalFile.fileEntry, originalFile.fqName)
+                }
+
+                require(context.llvmModuleSpecification.containsModule(
+                        file.packageFragmentDescriptor.containingDeclaration))
+
+                file.addChild(makeEntryPoint(context))
                 return input
             }
         }
@@ -352,12 +378,13 @@ internal val entryPointPhase = SameTypeNamedPhaseWrapper(
 internal val bitcodePhase = namedIrModulePhase(
         name = "Bitcode",
         description = "LLVM Bitcode generation",
-        lower = buildDFGPhase then
+        lower = contextLLVMSetupPhase then
+                buildDFGPhase then
                 serializeDFGPhase then
                 deserializeDFGPhase then
                 devirtualizationPhase then
                 dcePhase then
-                contextLLVMSetupPhase then
+                createLLVMDeclarationsPhase then
                 ghaPhase then
                 RTTIPhase then
                 generateDebugInfoHeaderPhase then
@@ -392,6 +419,7 @@ val toplevelPhase: CompilerPhase<*, Unit, Unit> = namedUnitPhase(
                                 verifyBitcodePhase then
                                 printBitcodePhase then
                                 produceOutputPhase then
+                                disposeLLVMPhase then
                                 unitSink()
                 ) then
                 linkPhase

@@ -5,8 +5,7 @@
 
 package org.jetbrains.kotlin.backend.konan
 
-import llvm.LLVMDumpModule
-import llvm.LLVMModuleRef
+import llvm.*
 import org.jetbrains.kotlin.backend.common.DumpIrTreeWithDescriptorsVisitor
 import org.jetbrains.kotlin.backend.common.descriptors.WrappedSimpleFunctionDescriptor
 import org.jetbrains.kotlin.backend.common.descriptors.WrappedTypeParameterDescriptor
@@ -51,7 +50,6 @@ import org.jetbrains.kotlin.backend.common.serialization.KotlinMangler
 import org.jetbrains.kotlin.backend.konan.objcexport.ObjCExport
 import org.jetbrains.kotlin.backend.konan.llvm.coverage.CoverageManager
 import org.jetbrains.kotlin.ir.symbols.impl.IrTypeParameterSymbolImpl
-import org.jetbrains.kotlin.konan.library.KonanLibrary
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.konan.library.KonanLibraryLayout
 import org.jetbrains.kotlin.library.SerializedIrModule
@@ -329,6 +327,20 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     lateinit var bitcodeFileName: String
     lateinit var library: KonanLibraryLayout
 
+    private var llvmDisposed = false
+
+    fun disposeLlvm() {
+        if (llvmDisposed) return
+        if (::debugInfo.isInitialized)
+            DIDispose(debugInfo.builder)
+        if (llvmModule != null)
+            LLVMDisposeModule(llvmModule)
+        if (::llvm.isInitialized)
+            LLVMDisposeModule(llvm.runtime.llvmModule)
+        tryDisposeLLVMContext()
+        llvmDisposed = true
+    }
+
     val cStubsManager = CStubsManager(config.target)
 
     val coverage = CoverageManager(this)
@@ -465,14 +477,11 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
 
     lateinit var compilerOutput: List<ObjectFile>
 
-    val llvmModuleSpecification: LlvmModuleSpecification = object : LlvmModuleSpecification {
-        // Currently all code is compiled to single LLVM module.
-        override fun importsKotlinDeclarationsFromOtherObjectFiles(): Boolean = false
-        override fun containsLibrary(library: KonanLibrary): Boolean = true
-        override fun containsModule(module: ModuleDescriptor): Boolean = true
-        override fun containsModule(module: IrModuleFragment): Boolean = true
-        override fun containsDeclaration(declaration: IrDeclaration): Boolean = true
-    }
+    val llvmModuleSpecification: LlvmModuleSpecification = LlvmModuleSpecificationImpl(
+            config.cachedLibraries,
+            producingCache = config.produce.isCache,
+            librariesToCache = config.librariesToCache
+    )
 }
 
 private fun MemberScope.getContributedClassifier(name: String) =
