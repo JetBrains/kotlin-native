@@ -101,11 +101,8 @@ DISubprogramRef DICreateFunction(DIBuilderRef builderRef, DIScopeOpaqueRef scope
                                             lineNo,
                                             llvm::unwrap(type),
                                             scopeLine, llvm::DINode::DIFlags::FlagZero, llvm::DISubprogram::toSPFlags(false, true, false));
-  auto tmp = subprogram->getRetainedNodes().get();
-  if (!tmp && tmp->isTemporary())
-    llvm::MDTuple::deleteTemporary(tmp);
 
-  builder->finalizeSubprogram(subprogram);
+  //builder->finalizeSubprogram(subprogram);
   return llvm::wrap(subprogram);
 }
 
