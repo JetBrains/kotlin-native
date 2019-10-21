@@ -17,8 +17,8 @@ garbage.
 
 A: Use the `-produce dynamic` compiler switch, or `binaries.sharedLib()` in Gradle, i.e.
 ```groovy
-targets {
-    fromPreset(presets.iosArm64, 'mylib') {
+kotlin {
+    iosArm64("mylib") {
         binaries.sharedLib()
     }
 }
@@ -33,8 +33,8 @@ Kotlin/Native.
 
 A: Use the `-produce static` compiler switch, or `binaries.staticLib()` in Gradle, i.e.
 ```groovy
-targets {
-    fromPreset(presets.iosArm64, 'mylib') {
+kotlin {
+    iosArm64("mylib") {
         binaries.staticLib()
     }
 }
@@ -57,10 +57,11 @@ A: Use the `-module-name` compiler option or matching Gradle DSL statement, i.e.
 <div class="sample" markdown="1" theme="idea" mode="groovy">
 
 ```groovy
-targets {
-    fromPreset(presets.iosArm64, 'myapp') {
-        binaries.framework()
-        compilations.main.extraOpts '-module-name', 'TheName'
+kotlin {
+    iosArm64("myapp") {
+        binaries.framework {
+            freeCompilerArgs += ["-module-name", "TheName"]
+        }
     }
 }
 ```
@@ -72,8 +73,8 @@ targets {
 A: Use the `baseName` option. This will also set the module name.
 
 ```groovy
-targets {
-    fromPreset(presets.iosArm64, 'myapp') {
+kotlin {
+    iosArm64("myapp") {
        binaries {
           framework {
               baseName = "TheName"
@@ -95,13 +96,13 @@ Setting this in a Gradle DSL:
 <div class="sample" markdown="1" theme="idea" mode="groovy">
 
 ```groovy
-targets {
-    fromPreset(presets.iosArm64, 'myapp') {
+kotlin {
+    iosArm64("myapp") {
         binaries {
             framework {
                 // Use "marker" to embed the bitcode marker (for debug builds).
                 // Use "disable" to disable embedding.
-                embedBitcode "bitcode" // for release binaries.
+                embedBitcode("bitcode") // for release binaries.
             }
         }
     }

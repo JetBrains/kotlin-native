@@ -237,12 +237,15 @@ but the features supported retain meaningful information.
 Generics are currently not enabled by default. To have the framework header written with generics, add an experimental
 flag to the compiler config:
 
-```
-compilations.main {
-    outputKinds("framework")
-    extraOpts "-Xobjc-generics"
+<div class="sample" markdown="1" theme="idea" data-highlight-only>
+
+```kotlin
+binaries.framework {
+     freeCompilerArgs += "-Xobjc-generics"
 }
 ```
+
+</div>
 
 #### Limitations
 
