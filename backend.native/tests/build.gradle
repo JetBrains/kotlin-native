@@ -56,14 +56,14 @@ dependencies {
             update_tests files(testDataZip)
             updateTestData = false
         } else {
-            println("WARN: using tests provided by gradle.properties")
+            println("WARN: using tests provided by gradle.properties. Please execute :kotlin:zipTestData")
         }
         def stdlibTestsZip = Paths.get(kotlinProj, "dist", "kotlin-stdlib-tests.zip").toFile()
         if (stdlibTestsZip.exists()) {
             update_stdlib_tests files(stdlibTestsZip)
             updateTestData = false
         } else {
-            println("WARN: using stdlib tests provided by gradle.properties")
+            println("WARNING: using stdlib tests provided by gradle.properties. Please execute :kotlin:zipTestData")
         }
     }
     if (updateTestData) {
