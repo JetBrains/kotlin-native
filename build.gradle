@@ -272,6 +272,21 @@ task detectJarCollision(type: CollisionDetector) {
     resolvingRules["META-INF/maven/com.google.protobuf/protobuf-java/pom.properties"] = "kotlin-compiler"
     resolvingRules["META-INF/maven/com.google.protobuf/protobuf-java/pom.xml"] = "kotlin-compiler"
     librariesWithIgnoredClassCollisions.addAll(["kotlin-util-klib", "kotlin-util-io"])
+    if (project.hasProperty('kotlinProjectPath')) {
+        resolvingRulesWithRegexes[new Regex("META-INF/.+\\.kotlin_module")] = "kotlin-compiler"
+        resolvingRules["META-INF/extensions/compiler.xml"] = "kotlin-compiler"
+        resolvingRules["kotlinManifest.properties"] = "kotlin-compiler"
+        librariesWithIgnoredClassCollisions.addAll(["util", "container", "resolution", "serialization", "psi", "frontend",
+                                                    "frontend.common", "frontend.java", "cli-common", "ir.tree",
+                                                    "ir.psi2ir", "ir.backend.common", "backend.jvm", "backend.js",
+                                                    "backend.wasm", "ir.serialization.common", "ir.serialization.js",
+                                                    "backend-common", "backend", "plugin-api", "light-classes", "cli",
+                                                    "cli-js", "incremental-compilation-impl", "js.ast", "js.serializer",
+                                                    "js.parser", "js.frontend", "js.translator", "js.dce", "metadata",
+                                                    "metadata.jvm", "descriptors", "descriptors.jvm", "descriptors.runtime",
+                                                    "deserialization", "util.runtime", "type-system", "cones", "resolve",
+                                                    "tree", "psi2fir", "fir2ir", "java", "kotlin-build-common"])
+    }
 }
 
 task shadowJar(type: ShadowJar) {
