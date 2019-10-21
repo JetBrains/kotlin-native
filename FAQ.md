@@ -16,6 +16,9 @@ garbage.
 ### Q: How do I create a shared library?
 
 A: Use the `-produce dynamic` compiler switch, or `binaries.sharedLib()` in Gradle, i.e.
+
+<div class="sample" markdown="1" theme="idea" mode="groovy">
+
 ```groovy
 kotlin {
     iosArm64("mylib") {
@@ -23,6 +26,9 @@ kotlin {
     }
 }
 ```
+
+</div>
+
 It will produce a platform-specific shared object (.so on Linux, .dylib on macOS, and .dll on Windows targets) and a
 C language header, allowing the use of all public APIs available in your Kotlin/Native program from C/C++ code.
 See `samples/python_extension` for an example of using such a shared object to provide a bridge between Python and
@@ -32,6 +38,9 @@ Kotlin/Native.
 ### Q: How do I create a static library or an object file?
 
 A: Use the `-produce static` compiler switch, or `binaries.staticLib()` in Gradle, i.e.
+
+<div class="sample" markdown="1" theme="idea" mode="groovy">
+
 ```groovy
 kotlin {
     iosArm64("mylib") {
@@ -39,6 +48,9 @@ kotlin {
     }
 }
 ```
+
+</div>
+
 It will produce a platform-specific static object (.a library format) and a C language header, allowing you to
 use all the public APIs available in your Kotlin/Native program from C/C++ code.
 
@@ -72,6 +84,8 @@ kotlin {
 
 A: Use the `baseName` option. This will also set the module name.
 
+<div class="sample" markdown="1" theme="idea" mode="groovy">
+
 ```groovy
 kotlin {
     iosArm64("myapp") {
@@ -83,6 +97,8 @@ kotlin {
     }
 }
 ```
+
+</div>
 
 ### Q: How do I enable bitcode for my Kotlin framework?
 
@@ -109,10 +125,10 @@ kotlin {
 }
 ```
 
+</div>
+
 These options have nearly the same effect as clang's `-fembed-bitcode`/`-fembed-bitcode-marker`
 and swiftc's `-embed-bitcode`/`-embed-bitcode-marker`.
-
-</div>
 
 ### Q: Why do I see `InvalidMutabilityException`?
 
