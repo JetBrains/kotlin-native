@@ -21,6 +21,7 @@
 #include <llvm/IR/DebugInfoMetadata.h>
 #include <llvm/IR/Instruction.h>
 #include <llvm/Support/Casting.h>
+#include <llvm-c/DebugInfo.h>
 #include "DebugInfoC.h"
 /**
  * c++ --std=c++14 llvmDebugInfoC/src/DebugInfoC.cpp -IllvmDebugInfoC/include/ -Idependencies/all/clang+llvm-3.9.0-darwin-macos/include -Ldependencies/all/clang+llvm-3.9.0-darwin-macos/lib  -lLLVMCore -lLLVMSupport -lncurses -shared -o libLLVMDebugInfoC.dylib
@@ -51,19 +52,30 @@ DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DIExpression,     DIExpressionRef)
  */
 #define DI_FORWARD_DECLARAION (4)
 extern "C" {
-
+//static volatile int zzz = 1;
 DIBuilderRef DICreateBuilder(LLVMModuleRef module) {
-  return llvm::wrap(new llvm::DIBuilder(* llvm::unwrap(module)));
+
+  return LLVMCreateDIBuilder(module);
+}
+
+uint32_t getPreservedLabelsSize(DIBuilderRef builder) {
+  auto diBuilder = llvm::unwrap(builder);
+  return diBuilder->PreservedLabels.NumBuckets;
+}
+
+void preservedLabelsClear(DIBuilderRef builder) {
+  auto diBuilder = llvm::unwrap(builder);
+  return diBuilder->PreservedLabels.clear();
 }
 
 void DIFinalize(DIBuilderRef builder) {
   auto diBuilder = llvm::unwrap(builder);
+  fprintf(stderr, "finalize builder: %p\n", builder);
   diBuilder->finalize();
 }
 
 void DIDispose(DIBuilderRef builder) {
-  auto diBuilder = llvm::unwrap(builder);
-  delete diBuilder;
+  LLVMDisposeDIBuilder(builder);
 }
 
 DICompileUnitRef DICreateCompilationUnit(DIBuilderRef builder, unsigned int lang,
@@ -102,8 +114,13 @@ DISubprogramRef DICreateFunction(DIBuilderRef builderRef, DIScopeOpaqueRef scope
                                             llvm::unwrap(type),
                                             scopeLine, llvm::DINode::DIFlags::FlagZero, llvm::DISubprogram::toSPFlags(false, true, false));
 
-  //builder->finalizeSubprogram(subprogram);
+  fprintf(stderr, "PreservedLabels.size = %u\n", getPreservedLabelsSize(builderRef));
+  fprintf(stderr, "name: %s\n", subprogram->getName().str().c_str());
   return llvm::wrap(subprogram);
+}
+
+void DIFunctionFinalize(DIBuilderRef builderRef, DISubprogramRef subprogramRef) {
+  llvm::unwrap(builderRef)->finalizeSubprogram(llvm::unwrap(subprogramRef));
 }
 
 DIScopeOpaqueRef DICreateLexicalBlockFile(DIBuilderRef builderRef, DIScopeOpaqueRef scopeRef, DIFileRef fileRef) {

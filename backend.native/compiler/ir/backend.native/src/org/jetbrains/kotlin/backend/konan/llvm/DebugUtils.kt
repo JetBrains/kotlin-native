@@ -65,7 +65,7 @@ internal class DebugInfo internal constructor(override val context: Context):Con
     val subprograms = mutableMapOf<LLVMValueRef, DISubprogramRef>()
     /* Some functions are inlined on all callsites and body is eliminated by DCE, so there's no LLVM value */
     val inlinedSubprograms = mutableMapOf<IrFunction, DISubprogramRef>()
-    var builder: DIBuilderRef? = null
+    //var builder: DIBuilderRef? = null
     var module: DIModuleRef? = null
     var objHeaderPointerType: DITypeOpaqueRef? = null
     var types = mutableMapOf<IrType, DITypeOpaqueRef>()
@@ -110,6 +110,8 @@ internal class DebugInfo internal constructor(override val context: Context):Con
         compilerGeneratedBuilder
         files[compilerGeneratedFileNamed]!!
     }
+
+    val builder get() = compilerGeneratedBuilder
 }
 
 /**
@@ -187,7 +189,7 @@ internal fun generateDebugInfoHeader(context: Context) {
                 // TODO: here should be DIFile as scope.
                 scope         = null,
                 name          = "ObjHeader",
-                file          = null,
+                file          = context.debugInfo.compilerGeneratedFile,
                 lineNumber    = 0,
                 sizeInBits    = 0,
                 alignInBits   = 0,

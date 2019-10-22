@@ -29,7 +29,7 @@ internal val contextLLVMSetupPhase = makeKonanModuleOpPhase(
             llvmContext = LLVMContextCreate()!!
             val llvmModule = LLVMModuleCreateWithNameInContext("out", llvmContext)!!
             context.llvmModule = llvmModule
-            context.debugInfo.builder = DICreateBuilder(llvmModule)
+            //context.debugInfo.builder = DICreateBuilder(llvmModule)
         }
 )
 
@@ -232,7 +232,9 @@ internal val finalizeDebugInfoPhase = makeKonanModuleOpPhase(
         name = "FinalizeDebugInfo",
         description = "Finalize debug info",
         op = { context, _ ->
+            //LLVMDumpModule(context.llvmModule)
             if (context.shouldContainAnyDebugInfo()) {
+                //DIFinalize(context.debugInfo.builder)
                 context.debugInfo.builders.values.forEach { DIFinalize(it) }
             }
         }

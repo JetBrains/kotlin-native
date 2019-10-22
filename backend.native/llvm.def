@@ -8,7 +8,7 @@ headerFilter = llvm-c/* llvm-c/**/* DebugInfoC.h CoverageMappingC.h
 compilerOpts = -std=c99 \
     -Wall -W -Wno-unused-parameter -Wwrite-strings -Wmissing-field-initializers \
     -pedantic -Wno-long-long -Wcovered-switch-default -Wdelete-non-virtual-dtor \
-    -DNDEBUG -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS
+    -D_DEBUG -D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS
 
 
 linker = clang++

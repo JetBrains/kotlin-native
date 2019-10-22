@@ -1866,7 +1866,13 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     //-------------------------------------------------------------------------//
     //TODO: ???
-    private fun IrFile.file() = context.debugInfo.files[this.fileEntry.name]!!
+    private fun IrFile.file(): DIFileRef {
+        context.debugInfo.getBuilder(this.fileEntry.name)
+        return context.debugInfo.files[this.fileEntry.name]!!
+    }
+//            context.debugInfo.files[this.fileEntry.name]
+//            ?:
+//            error("No debug info for ${this.fileEntry.name}")
 
     //-------------------------------------------------------------------------//
 

@@ -95,6 +95,8 @@ DISubprogramRef DICreateFunction(DIBuilderRef builder, DIScopeOpaqueRef scope,
                                  DISubroutineTypeRef type, int isLocal,
                                  int isDefinition, unsigned scopeLine);
 
+void DIFunctionFinalize(DIBuilderRef builderRef, DISubprogramRef subprogramRef);
+
 DISubroutineTypeRef DICreateSubroutineType(DIBuilderRef builder,
                                            DITypeOpaqueRef* types,
                                            unsigned typesCount);

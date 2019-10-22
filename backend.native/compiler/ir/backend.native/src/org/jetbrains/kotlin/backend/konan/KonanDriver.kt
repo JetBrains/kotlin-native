@@ -26,6 +26,9 @@ fun runTopLevelPhases(konanConfig: KonanConfig, environment: KotlinCoreEnvironme
 
     try {
         (toplevelPhase as CompilerPhase<Context, Unit, Unit>).invokeToplevel(context.phaseConfig, context, Unit)
+    } catch (t: Throwable) {
+        println(t.message)
+        t.printStackTrace()
     } finally {
         context.disposeLlvm()
     }
