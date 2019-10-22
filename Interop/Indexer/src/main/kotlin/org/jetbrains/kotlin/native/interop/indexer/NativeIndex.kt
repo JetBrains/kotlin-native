@@ -18,6 +18,7 @@ package org.jetbrains.kotlin.native.interop.indexer
 
 enum class Language(val sourceFileExtension: String) {
     C("c"),
+    C_PLUSPLUS("cpp"),
     OBJECTIVE_C("m")
 }
 

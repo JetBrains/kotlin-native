@@ -31,6 +31,7 @@ class StubIrContext(
             additionalPreambleLines = configuration.library.additionalPreambleLines +
                     when (configuration.library.language) {
                         Language.C -> emptyList()
+                        Language.C_PLUSPLUS -> emptyList()
                         Language.OBJECTIVE_C -> listOf("void objc_terminate();")
                     }
     ).precompileHeaders()

@@ -86,6 +86,7 @@ private fun Properties.putAndRunOnReplace(key: Any, newValue: Any, beforeReplace
 private fun selectNativeLanguage(config: DefFile.DefFileConfig): Language {
     val languages = mapOf(
             "C" to Language.C,
+            "C++" to Language.C_PLUSPLUS,
             "Objective-C" to Language.OBJECTIVE_C
     )
 
@@ -325,6 +326,7 @@ internal fun buildNativeLibrary(
         addAll(getCompilerFlagsForVfsOverlay(arguments.headerFilterPrefix.toTypedArray(), def))
         addAll(when (language) {
             Language.C -> emptyList()
+            Language.C_PLUSPLUS -> listOf("-I/usr/local/include -L/usr/local/lib")
             Language.OBJECTIVE_C -> {
                 // "Objective-C" within interop means "Objective-C with ARC":
                 listOf("-fobjc-arc")

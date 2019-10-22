@@ -466,6 +466,7 @@ internal class NativeIndexImpl(val library: NativeLibrary, val verbose: Boolean 
 
     private inline fun objCType(supplier: () -> ObjCPointer) = when (library.language) {
         Language.C -> UnsupportedType
+        Language.C_PLUSPLUS -> supplier()
         Language.OBJECTIVE_C -> supplier()
     }
 
@@ -862,7 +863,7 @@ internal class NativeIndexImpl(val library: NativeLibrary, val verbose: Boolean 
         val parameters = getFunctionParameters(cursor)
 
         val binaryName = when (library.language) {
-            Language.C, Language.OBJECTIVE_C -> clang_Cursor_getMangling(cursor).convertAndDispose()
+            Language.C, Language.C_PLUSPLUS, Language.OBJECTIVE_C -> clang_Cursor_getMangling(cursor).convertAndDispose()
         }
 
         val definitionCursor = clang_getCursorDefinition(cursor)
