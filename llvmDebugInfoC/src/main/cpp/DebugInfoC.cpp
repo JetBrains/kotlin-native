@@ -58,16 +58,6 @@ DIBuilderRef DICreateBuilder(LLVMModuleRef module) {
   return LLVMCreateDIBuilder(module);
 }
 
-uint32_t getPreservedLabelsSize(DIBuilderRef builder) {
-  auto diBuilder = llvm::unwrap(builder);
-  return diBuilder->PreservedLabels.NumBuckets;
-}
-
-void preservedLabelsClear(DIBuilderRef builder) {
-  auto diBuilder = llvm::unwrap(builder);
-  return diBuilder->PreservedLabels.clear();
-}
-
 void DIFinalize(DIBuilderRef builder) {
   auto diBuilder = llvm::unwrap(builder);
   fprintf(stderr, "finalize builder: %p\n", builder);
@@ -114,8 +104,6 @@ DISubprogramRef DICreateFunction(DIBuilderRef builderRef, DIScopeOpaqueRef scope
                                             llvm::unwrap(type),
                                             scopeLine, llvm::DINode::DIFlags::FlagZero, llvm::DISubprogram::toSPFlags(false, true, false));
 
-  fprintf(stderr, "PreservedLabels.size = %u\n", getPreservedLabelsSize(builderRef));
-  fprintf(stderr, "name: %s\n", subprogram->getName().str().c_str());
   return llvm::wrap(subprogram);
 }
 
@@ -142,7 +130,17 @@ DICompositeTypeRef DICreateStructType(DIBuilderRef refBuilder,
                                       DICompositeTypeRef refPlace) {
   auto builder = llvm::unwrap(refBuilder);
   if ((flags & DI_FORWARD_DECLARAION) != 0) {
-    return llvm::wrap(builder->createStructType(llvm::unwrap(scope), name, NULL, 0, 0, 0, (llvm::DINode::DIFlags)flags, NULL, NULL));
+    fprintf(stderr, "DICreateStructType\n");
+    //auto tmp = builder->createStructType(llvm::unwrap(scope), name, NULL, 0, 0, 0, (llvm::DINode::DIFlags)flags, NULL, NULL);
+//    auto tmp = llvm::unwrap(refBuilder)->createReplaceableCompositeType(
+//                                              tag, name, llvm::unwrap(refScope), llvm::unwrap(refFile), line))
+    auto tmp = builder->createReplaceableCompositeType(
+        llvm::dwarf::DW_TAG_structure_type, name, llvm::unwrap(scope), llvm::unwrap(file), lineNumber, 0, sizeInBits, alignInBits,
+        (llvm::DINode::DIFlags)flags);
+    //llvm::unwrap(scope), name, NULL, 0, 0, 0, (llvm::DINode::DIFlags)flags, NULL, NULL);
+    builder->replaceTemporary(llvm::TempDIType(tmp), tmp);
+    fprintf(stderr, "tmp: temporary %d uniq:%d\n", tmp->isTemporary(), tmp->isUniqued());
+    return llvm::wrap(tmp);
   }
   std::vector<llvm::Metadata *> typeElements;
   for(int i = 0; i < elementsCount; ++i) {
@@ -159,7 +157,7 @@ DICompositeTypeRef DICreateStructType(DIBuilderRef refBuilder,
   return llvm::wrap(composite);
 }
 
-
+//0x000000011df00048
 DICompositeTypeRef DICreateArrayType(DIBuilderRef refBuilder,
                                       uint64_t size, uint64_t alignInBits,
                                       DITypeOpaqueRef refType,
@@ -199,6 +197,7 @@ DICompositeTypeRef DICreateReplaceableCompositeType(DIBuilderRef refBuilder,
                                                     DIScopeOpaqueRef refScope,
                                                     DIFileRef refFile,
                                                     unsigned line) {
+  printf("REPLACEBLE!!!!!\n");
   return llvm::wrap(llvm::unwrap(refBuilder)->createReplaceableCompositeType(
                       tag, name, llvm::unwrap(refScope), llvm::unwrap(refFile), line));
 }

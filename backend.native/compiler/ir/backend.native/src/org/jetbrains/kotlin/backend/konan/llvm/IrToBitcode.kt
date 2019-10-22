@@ -1716,13 +1716,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         val fileScope = currentCodeContext.fileScope() as FileScope
         @Suppress("UNCHECKED_CAST")
         val scope = if (isExported && context.shouldContainDebugInfo())
-            DICreateReplaceableCompositeType(
-                    tag        = DwarfTag.DW_TAG_structure_type.value,
-                    refBuilder = fileScope.diBuilder,
-                    refScope   = fileScope.file.file() as DIScopeOpaqueRef,
-                    name       = clazz.typeInfoSymbolName,
-                    refFile    = file().file(),
-                    line       = clazz.startLine()) as DITypeOpaqueRef
+            context.debugInfo.objHeaderPointerType
         else null
         override fun classScope(): CodeContext? = this
     }
