@@ -332,7 +332,6 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     fun disposeLlvm() {
         if (llvmDisposed) return
         if (::debugInfo.isInitialized) {
-            //DIDispose(debugInfo.builder)
             debugInfo.builders.values.forEach { DIDispose(it) }
         }
         if (llvmModule != null)

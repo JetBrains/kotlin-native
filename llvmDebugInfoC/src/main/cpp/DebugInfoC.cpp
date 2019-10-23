@@ -107,6 +107,10 @@ DISubprogramRef DICreateFunction(DIBuilderRef builderRef, DIScopeOpaqueRef scope
   return llvm::wrap(subprogram);
 }
 
+void DIRetainType(DIBuilderRef builderRef, DIScopeRef scopeRef) {
+  llvm::unwrap(builderRef)->retainType(llvm::unwrap(scopeRef));
+}
+
 void DIFunctionFinalize(DIBuilderRef builderRef, DISubprogramRef subprogramRef) {
   llvm::unwrap(builderRef)->finalizeSubprogram(llvm::unwrap(subprogramRef));
 }
@@ -142,6 +146,7 @@ DICompositeTypeRef DICreateStructType(DIBuilderRef refBuilder,
     fprintf(stderr, "tmp: temporary %d uniq:%d\n", tmp->isTemporary(), tmp->isUniqued());
     return llvm::wrap(tmp);
   }
+  fprintf(stderr, "WHAT???!!!\n");
   std::vector<llvm::Metadata *> typeElements;
   for(int i = 0; i < elementsCount; ++i) {
     typeElements.push_back(llvm::unwrap(elements[i]));

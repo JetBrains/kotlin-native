@@ -114,6 +114,7 @@ const char* LLVMBuilderGetCurrentBbName(LLVMBuilderRef builder);
 const char *DIGetSubprogramLinkName(DISubprogramRef sp);
 LLVMValueRef LLVMBuilderGetCurrentFunction(LLVMBuilderRef builder);
 int DISubprogramDescribesFunction(DISubprogramRef sp, LLVMValueRef fn);
+void DIRetainType(DIBuilderRef builderRef, DIScopeRef scopeRef);
 # ifdef __cplusplus
 }
 # endif
