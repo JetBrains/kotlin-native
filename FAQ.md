@@ -17,9 +17,9 @@ garbage.
 
 A: Use the `-produce dynamic` compiler switch, or `binaries.sharedLib()` in Gradle, i.e.
 
-<div class="sample" markdown="1" theme="idea" mode="groovy">
+<div class="sample" markdown="1" theme="idea" mode="kotlin">
 
-```groovy
+```kotlin
 kotlin {
     iosArm64("mylib") {
         binaries.sharedLib()
@@ -39,9 +39,9 @@ Kotlin/Native.
 
 A: Use the `-produce static` compiler switch, or `binaries.staticLib()` in Gradle, i.e.
 
-<div class="sample" markdown="1" theme="idea" mode="groovy">
+<div class="sample" markdown="1" theme="idea" mode="kotlin">
 
-```groovy
+```kotlin
 kotlin {
     iosArm64("mylib") {
         binaries.staticLib()
@@ -66,13 +66,13 @@ or set it via the `JAVA_OPTS` environment variable.
 
 A: Use the `-module-name` compiler option or matching Gradle DSL statement, i.e.
 
-<div class="sample" markdown="1" theme="idea" mode="groovy">
+<div class="sample" markdown="1" theme="idea" mode="kotlin">
 
-```groovy
+```kotlin
 kotlin {
     iosArm64("myapp") {
         binaries.framework {
-            freeCompilerArgs += ["-module-name", "TheName"]
+            freeCompilerArgs += listOf("-module-name", "TheName")
         }
     }
 }
@@ -84,9 +84,9 @@ kotlin {
 
 A: Use the `baseName` option. This will also set the module name.
 
-<div class="sample" markdown="1" theme="idea" mode="groovy">
+<div class="sample" markdown="1" theme="idea" mode="kotlin">
 
-```groovy
+```kotlin
 kotlin {
     iosArm64("myapp") {
        binaries {
@@ -109,9 +109,9 @@ A: By default gradle plugin adds it on iOS target.
 Or commandline arguments: `-Xembed-bitcode` (for release) and `-Xembed-bitcode-marker` (debug)
 
 Setting this in a Gradle DSL: 
-<div class="sample" markdown="1" theme="idea" mode="groovy">
+<div class="sample" markdown="1" theme="idea" mode="kotlin">
 
-```groovy
+```kotlin
 kotlin {
     iosArm64("myapp") {
         binaries {
