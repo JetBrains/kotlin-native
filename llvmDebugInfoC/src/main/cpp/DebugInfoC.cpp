@@ -14,6 +14,7 @@
  * limitations under the License.
  */
 
+#include <assert.h>
 #include <llvm/IR/DebugInfo.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
@@ -53,17 +54,9 @@ DEFINE_SIMPLE_CONVERSION_FUNCTIONS(DIExpression,     DIExpressionRef)
 #define DI_FORWARD_DECLARAION (4)
 extern "C" {
 
-DIBuilderRef DICreateBuilder(LLVMModuleRef module) {
-  return LLVMCreateDIBuilder(module);
-}
-
 void DIFinalize(DIBuilderRef builder) {
   auto diBuilder = llvm::unwrap(builder);
   diBuilder->finalize();
-}
-
-void DIDispose(DIBuilderRef builder) {
-  LLVMDisposeDIBuilder(builder);
 }
 
 DICompileUnitRef DICreateCompilationUnit(DIBuilderRef builder, unsigned int lang,
@@ -135,7 +128,7 @@ DICompositeTypeRef DICreateStructType(DIBuilderRef refBuilder,
     builder->retainType(tmp);
     return llvm::wrap(tmp);
   }
-  *(int*)1=1;
+  assert(false);
   return nullptr;
 }
 
