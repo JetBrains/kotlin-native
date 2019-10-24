@@ -115,7 +115,7 @@ val LLVMValueRef.isConst:Boolean
 
 internal inline fun<R> generateFunction(codegen: CodeGenerator,
                                         function: IrFunction,
-                                        diBuilder: DIBuilderRef?,
+                                        diBuilder: DebugInfoBuilder?,
                                         startLocation: LocationInfo? = null,
                                         endLocation: LocationInfo? = null,
                                         code: FunctionGenerationContext.(FunctionGenerationContext) -> R) {
@@ -131,11 +131,7 @@ internal inline fun<R> generateFunction(codegen: CodeGenerator,
     try {
         generateFunctionBody(functionGenerationContext, code)
     } finally {
-        diBuilder?.let { builder ->
-            codegen.context.debugInfo.subprograms[llvmFunction]?.let {
-                DIFunctionFinalize(builder, it)
-            }
-        }
+        diBuilder?.finalizeLlvmFunction(llvmFunction)
         functionGenerationContext.dispose()
     }
 
@@ -145,7 +141,7 @@ internal inline fun<R> generateFunction(codegen: CodeGenerator,
 }
 
 
-internal inline fun<R> generateFunction(codegen: CodeGenerator, function: LLVMValueRef, diBuilder: DIBuilderRef?,
+internal inline fun<R> generateFunction(codegen: CodeGenerator, function: LLVMValueRef, diBuilder: DebugInfoBuilder?,
                                         code:FunctionGenerationContext.(FunctionGenerationContext) -> R) {
     val functionGenerationContext = FunctionGenerationContext(function, codegen, diBuilder, null, null)
     try {
@@ -158,7 +154,7 @@ internal inline fun<R> generateFunction(codegen: CodeGenerator, function: LLVMVa
 internal inline fun generateFunction(
         codegen: CodeGenerator,
         functionType: LLVMTypeRef,
-        diBuilder: DIBuilderRef?,
+        diBuilder: DebugInfoBuilder?,
         name: String,
         block: FunctionGenerationContext.(FunctionGenerationContext) -> Unit
 ): LLVMValueRef {
@@ -190,7 +186,7 @@ internal data class LocationInfoRange(var start: LocationInfo, var end: Location
 
 internal class FunctionGenerationContext(val function: LLVMValueRef,
                                          val codegen: CodeGenerator,
-                                         val diBuilder: DIBuilderRef?,
+                                         val diBuilder: DebugInfoBuilder?,
                                          startLocation: LocationInfo?,
                                          endLocation: LocationInfo?,
                                          internal val irFunction: IrFunction? = null): ContextUtils {
@@ -269,14 +265,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         appendingTo(prologueBb) {
             val slotAddress = LLVMBuildAlloca(builder, type, name)!!
             variableLocation?.let {
-                DIInsertDeclaration(
-                        builder       = diBuilder,
-                        value         = slotAddress,
-                        localVariable = it.localVariable,
-                        location      = it.location,
-                        bb            = prologueBb,
-                        expr          = null,
-                        exprCount     = 0)
+                diBuilder?.insertDeclaration(slotAddress, it.localVariable, it.location, prologueBb)
             }
             return slotAddress
         }
@@ -1002,14 +991,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                 slotToVariableLocation.forEach { slot, variable ->
                     val expr = longArrayOf(DwarfOp.DW_OP_plus_uconst.value,
                             runtime.pointerSize * slot.toLong()).toCValues()
-                    DIInsertDeclaration(
-                            builder       = diBuilder,
-                            value         = slots,
-                            localVariable = variable.localVariable,
-                            location      = variable.location,
-                            bb            = prologueBb,
-                            expr          = expr,
-                            exprCount     = 2)
+                    diBuilder?.insertDeclaration(slots, variable.localVariable, variable.location, prologueBb, expr, 2)
                 }
             }
             br(localsInitBb)

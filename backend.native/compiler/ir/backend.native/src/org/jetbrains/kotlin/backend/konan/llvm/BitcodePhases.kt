@@ -235,7 +235,7 @@ internal val finalizeDebugInfoPhase = makeKonanModuleOpPhase(
             //LLVMDumpModule(context.llvmModule)
             if (context.shouldContainAnyDebugInfo()) {
                 //DIFinalize(context.debugInfo.builder)
-                context.debugInfo.builders.values.forEach { DIFinalize(it) }
+                context.debugInfo.builders.values.forEach{ it.finalize() }
             }
         }
 )

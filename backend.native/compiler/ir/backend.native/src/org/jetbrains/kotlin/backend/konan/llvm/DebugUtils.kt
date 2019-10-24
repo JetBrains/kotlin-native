@@ -5,9 +5,7 @@
 
 package org.jetbrains.kotlin.backend.konan.llvm
 
-import kotlinx.cinterop.allocArrayOf
-import kotlinx.cinterop.memScoped
-import kotlinx.cinterop.reinterpret
+import kotlinx.cinterop.*
 import llvm.*
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.ir.SourceManager.FileEntry
@@ -22,6 +20,7 @@ import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.konan.CURRENT
 import org.jetbrains.kotlin.konan.KonanVersion
 import org.jetbrains.kotlin.konan.file.File
+import org.jetbrains.kotlin.name.Name
 
 internal object DWARF {
     val producer                       = "konanc ${KonanVersion.CURRENT} / kotlin-compiler: ${KotlinVersion.CURRENT}"
@@ -97,7 +96,7 @@ internal class DebugInfo internal constructor(override val context: Context):Con
     val builder get() = compilerGeneratedBuilder
 }
 
-internal class DebugInfoBuilder(context: Context, val targetData:LLVMTargetDataRef, fileName: String) {
+internal class DebugInfoBuilder(val context: Context, val targetData:LLVMTargetDataRef, fileName: String) {
     val builder = DICreateBuilder(context.llvmModule)!!
     val path = fileName.toFileAndFolder()
     val cu = DICreateCompilationUnit(
@@ -115,12 +114,13 @@ internal class DebugInfoBuilder(context: Context, val targetData:LLVMTargetDataR
     val types = mutableMapOf<IrType, DITypeOpaqueRef>()
     val pointerTypes = mutableMapOf<DITypeOpaqueRef, DITypeOpaqueRef>()
     val name2type = mutableMapOf<String, DITypeOpaqueRef>()
+    val file = DICreateFile(builder, path.file, path.folder)
     val objHeaderType = DICreateStructType(
             refBuilder    = builder,
             // TODO: here should be DIFile as scope.
             scope         = null,
             name          = "ObjHeader",
-            file          = context.debugInfo.compilerGeneratedFile,
+            file          = file,
             lineNumber    = 0,
             sizeInBits    = 0,
             alignInBits   = 0,
@@ -132,7 +132,6 @@ internal class DebugInfoBuilder(context: Context, val targetData:LLVMTargetDataR
     val objHeaderPointerType = pointerType(objHeaderType)
 
 
-    val file = DICreateFile(builder, path.file, path.folder)
 
     @Suppress("UNCHECKED_CAST")
     fun createBaseType(typeName:String, type:LLVMTypeRef, encoding:Int) = name2type.getOrPut(typeName) {
@@ -146,6 +145,65 @@ internal class DebugInfoBuilder(context: Context, val targetData:LLVMTargetDataR
     fun pointerType(type: DITypeOpaqueRef) = pointerTypes.getOrPut(type) {
             DICreatePointerType(builder, type) as DITypeOpaqueRef
     }
+
+    fun createFunction(name: String, linkageName: String, args: List<IrType>, lineNumber: Int) = createFunction(name, linkageName, subroutineType(context, this, args), lineNumber)
+
+
+    fun createFunction(name: String, linkageName: String, subroutineType: DISubroutineTypeRef, lineNumber: Int) = DICreateFunction(
+            builder = builder,
+            scope = file?.reinterpret(),
+            name = name,
+            linkageName = linkageName,
+            file = file,
+            lineNo = lineNumber,
+            type = subroutineType, // TODO: use proper type.
+            isLocal = 0,
+            isDefinition = 1,
+            scopeLine = 0
+    )
+
+    fun finalizeSubprogram(subprogram: DISubprogramRef) = DIFunctionFinalize(builder, subprogram)
+    fun finalizeLlvmFunction(function: LLVMValueRef) {
+        subprograms[function]?.let {
+            finalizeSubprogram(it)
+        }
+    }
+
+    fun insertDeclaration(slotAddress: LLVMValueRef, variableRef: DILocalVariableRef, locationRef: DILocationRef?, bb: LLVMBasicBlockRef, expr: CValues<LongVar>? = null, exprSize: Long = 0) = DIInsertDeclaration(
+            builder       = builder,
+            value         = slotAddress,
+            localVariable = variableRef,
+            location      = locationRef,
+            bb            = bb,
+            expr          = expr,
+            exprCount     = exprSize)
+
+    private var isDisposed = false
+    fun dispose() {
+        if (isDisposed) {
+            DIDispose(builder).also { isDisposed = true }
+        }
+    }
+
+    fun createLocalVariable(scope: DIScopeOpaqueRef, type: IrType,
+                            name: String, file: DIFileRef, line: Int) = DICreateAutoVariable(
+                builder = builder,
+                scope = scope,
+                name = name,
+                file = file,
+                line = line,
+                type = type.diType(context, this))
+    fun createParameter(scope: DIScopeOpaqueRef, type: IrType,
+                        name:String, argNo: Int, file: DIFileRef, line: Int) = DICreateParameterVariable(
+            builder = builder,
+            scope = scope,
+            name = name,
+            argNo = argNo,
+            file = file,
+            line = line,
+            type = type.diType(context, this))
+
+    fun finalize() = DIFinalize(builder)
 }
 
 /**
@@ -237,7 +295,9 @@ internal fun IrType.dwarfType(context: Context, debugInfoBuilder: DebugInfoBuild
 
 internal fun IrType.diType(context: Context, debugInfoBuilder: DebugInfoBuilder): DITypeOpaqueRef =
         debugInfoBuilder.types.getOrPut(this) {
-            dwarfType(context, debugInfoBuilder)
+            val type = dwarfType(context, debugInfoBuilder)
+            DIRetainType(debugInfoBuilder.builder, type as DIScopeOpaqueRef)
+            type
         }
 
 
@@ -297,21 +357,9 @@ internal fun setupBridgeDebugInfo(context: Context, function: LLVMValueRef): Loc
         return null
     }
 
-    val file = context.debugInfo.compilerGeneratedFile
-
     // TODO: can we share the scope among all bridges?
-    val scope: DIScopeOpaqueRef = DICreateFunction(
-            builder = context.debugInfo.builder,
-            scope = file.reinterpret(),
-            name = function.name,
-            linkageName = function.name,
-            file = file,
-            lineNo = 0,
-            type = subroutineType(context, context.llvm.runtime.targetData, emptyList()), // TODO: use proper type.
-            isLocal = 0,
-            isDefinition = 1,
-            scopeLine = 0
-    )!!.also {
+    @Suppress("UNCHECKED_CAST")
+    val scope: DIScopeOpaqueRef = context.debugInfo.builder.createFunction(function.name!!, function.name!!, emptyList(), 0)!!.also {
         DIFunctionAddSubprogram(function, it)
     }.reinterpret()
 

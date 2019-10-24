@@ -56,31 +56,9 @@ DICompositeTypeRef DICreateStructType(DIBuilderRef refBuilder,
                                       DIDerivedTypeRef *elements,
                                       uint64_t elementsCount,
                                       DICompositeTypeRef refPlace);
-DICompositeTypeRef DICreateArrayType(DIBuilderRef refBuilder,
-                                      uint64_t size, uint64_t alignInBits,
-                                      DITypeOpaqueRef type,
-                                      uint64_t elementsCount);
 
 DIDerivedTypeRef DICreateReferenceType(DIBuilderRef refBuilder, DITypeOpaqueRef refType);
 DIDerivedTypeRef DICreatePointerType(DIBuilderRef refBuilder, DITypeOpaqueRef refType);
-DICompositeTypeRef DICreateReplaceableCompositeType(DIBuilderRef refBuilder,
-                                                    int tag,
-                                                    const char *name,
-                                                    DIScopeOpaqueRef refScope,
-                                                    DIFileRef refFile,
-                                                    unsigned line);
-DIDerivedTypeRef DICreateMemberType(DIBuilderRef refBuilder,
-                                    DIScopeOpaqueRef refScope,
-                                    const char *name,
-                                    DIFileRef file,
-                                    unsigned lineNum,
-                                    uint64_t sizeInBits,
-                                    uint64_t alignInBits,
-                                    uint64_t offsetInBits,
-                                    unsigned flags,
-                                    DITypeOpaqueRef type);
-
-
 DIModuleRef DICreateModule(DIBuilderRef builder, DIScopeOpaqueRef scope,
                            const char* name, const char* configurationMacro,
                            const char* includePath, const char *iSysRoot);
@@ -94,8 +72,6 @@ DISubprogramRef DICreateFunction(DIBuilderRef builder, DIScopeOpaqueRef scope,
                                  DIFileRef file, unsigned lineNo,
                                  DISubroutineTypeRef type, int isLocal,
                                  int isDefinition, unsigned scopeLine);
-
-void DIFunctionFinalize(DIBuilderRef builderRef, DISubprogramRef subprogramRef);
 
 DISubroutineTypeRef DICreateSubroutineType(DIBuilderRef builder,
                                            DITypeOpaqueRef* types,
@@ -114,7 +90,7 @@ const char* LLVMBuilderGetCurrentBbName(LLVMBuilderRef builder);
 const char *DIGetSubprogramLinkName(DISubprogramRef sp);
 LLVMValueRef LLVMBuilderGetCurrentFunction(LLVMBuilderRef builder);
 int DISubprogramDescribesFunction(DISubprogramRef sp, LLVMValueRef fn);
-void DIRetainType(DIBuilderRef builderRef, DIScopeRef scopeRef);
+void DIRetainType(DIBuilderRef builderRef, DIScopeOpaqueRef scopeRef);
 # ifdef __cplusplus
 }
 # endif

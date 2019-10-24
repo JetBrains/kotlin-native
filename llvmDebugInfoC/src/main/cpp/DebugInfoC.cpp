@@ -103,16 +103,12 @@ DISubprogramRef DICreateFunction(DIBuilderRef builderRef, DIScopeOpaqueRef scope
                                             lineNo,
                                             llvm::unwrap(type),
                                             scopeLine, llvm::DINode::DIFlags::FlagZero, llvm::DISubprogram::toSPFlags(false, true, false));
-
+  llvm::unwrap(builderRef)->finalizeSubprogram(subprogram);
   return llvm::wrap(subprogram);
 }
 
-void DIRetainType(DIBuilderRef builderRef, DIScopeRef scopeRef) {
+void DIRetainType(DIBuilderRef builderRef, DIScopeOpaqueRef scopeRef) {
   llvm::unwrap(builderRef)->retainType(llvm::unwrap(scopeRef));
-}
-
-void DIFunctionFinalize(DIBuilderRef builderRef, DISubprogramRef subprogramRef) {
-  llvm::unwrap(builderRef)->finalizeSubprogram(llvm::unwrap(subprogramRef));
 }
 
 DIScopeOpaqueRef DICreateLexicalBlockFile(DIBuilderRef builderRef, DIScopeOpaqueRef scopeRef, DIFileRef fileRef) {
@@ -135,76 +131,14 @@ DICompositeTypeRef DICreateStructType(DIBuilderRef refBuilder,
   auto builder = llvm::unwrap(refBuilder);
   if ((flags & DI_FORWARD_DECLARAION) != 0) {
     fprintf(stderr, "DICreateStructType\n");
-    //auto tmp = builder->createStructType(llvm::unwrap(scope), name, NULL, 0, 0, 0, (llvm::DINode::DIFlags)flags, NULL, NULL);
-//    auto tmp = llvm::unwrap(refBuilder)->createReplaceableCompositeType(
-//                                              tag, name, llvm::unwrap(refScope), llvm::unwrap(refFile), line))
     auto tmp = builder->createReplaceableCompositeType(
         llvm::dwarf::DW_TAG_structure_type, name, llvm::unwrap(scope), llvm::unwrap(file), lineNumber, 0, sizeInBits, alignInBits,
         (llvm::DINode::DIFlags)flags);
-    //llvm::unwrap(scope), name, NULL, 0, 0, 0, (llvm::DINode::DIFlags)flags, NULL, NULL);
     builder->replaceTemporary(llvm::TempDIType(tmp), tmp);
-    fprintf(stderr, "tmp: temporary %d uniq:%d\n", tmp->isTemporary(), tmp->isUniqued());
     return llvm::wrap(tmp);
   }
-  fprintf(stderr, "WHAT???!!!\n");
-  std::vector<llvm::Metadata *> typeElements;
-  for(int i = 0; i < elementsCount; ++i) {
-    typeElements.push_back(llvm::unwrap(elements[i]));
-  }
-  auto elementsArray = builder->getOrCreateArray(typeElements);
-  auto composite = builder->createStructType(llvm::unwrap(scope),
-                                              name, llvm::unwrap(file),
-                                              lineNumber,
-                                              sizeInBits, alignInBits, (llvm::DINode::DIFlags)flags,
-                                              llvm::unwrap(derivedFrom),
-                                              elementsArray);
-  builder->replaceTemporary(llvm::TempDIType(llvm::unwrap(refPlace)), composite);
-  return llvm::wrap(composite);
-}
-
-//0x000000011df00048
-DICompositeTypeRef DICreateArrayType(DIBuilderRef refBuilder,
-                                      uint64_t size, uint64_t alignInBits,
-                                      DITypeOpaqueRef refType,
-                                     uint64_t elementsCount) {
-  auto builder = llvm::unwrap(refBuilder);
-  auto range = std::vector<llvm::Metadata*>({llvm::dyn_cast<llvm::Metadata>(builder->getOrCreateSubrange(0, size))});
-  return llvm::wrap(builder->createArrayType(size, alignInBits, llvm::unwrap(refType),
-                                             builder->getOrCreateArray(range)));
-}
-
-
-DIDerivedTypeRef DICreateMemberType(DIBuilderRef refBuilder,
-                                    DIScopeOpaqueRef refScope,
-                                    const char *name,
-                                    DIFileRef file,
-                                    unsigned lineNum,
-                                    uint64_t sizeInBits,
-                                    uint64_t alignInBits,
-                                    uint64_t offsetInBits,
-                                    unsigned flags,
-                                    DITypeOpaqueRef type) {
-  return llvm::wrap(llvm::unwrap(refBuilder)->createMemberType(
-                      llvm::unwrap(refScope),
-                      name,
-                      llvm::unwrap(file),
-                      lineNum,
-                      sizeInBits,
-                      alignInBits,
-                      offsetInBits,
-                      (llvm::DINode::DIFlags)flags,
-                      llvm::unwrap(type)));
-}
-
-DICompositeTypeRef DICreateReplaceableCompositeType(DIBuilderRef refBuilder,
-                                                    int tag,
-                                                    const char *name,
-                                                    DIScopeOpaqueRef refScope,
-                                                    DIFileRef refFile,
-                                                    unsigned line) {
-  printf("REPLACEBLE!!!!!\n");
-  return llvm::wrap(llvm::unwrap(refBuilder)->createReplaceableCompositeType(
-                      tag, name, llvm::unwrap(refScope), llvm::unwrap(refFile), line));
+  *(int *)1 = 1;
+  return nullptr;
 }
 
 DIDerivedTypeRef DICreateReferenceType(DIBuilderRef refBuilder, DITypeOpaqueRef refType) {

@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrValueDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrVariable
+import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.name.Name
 
 internal fun IrElement.needDebugInfo(context: Context) = context.shouldContainDebugInfo() || (this is IrVariable && this.isVar)
@@ -138,32 +139,30 @@ internal class VariableManager(val functionGenerationContext: FunctionGeneration
 
 internal data class VariableDebugLocation(val localVariable: DILocalVariableRef, val location:DILocationRef?, val file:DIFileRef, val line:Int)
 
-internal fun debugInfoLocalVariableLocation(builder: DIBuilderRef?,
-        functionScope: DIScopeOpaqueRef, diType: DITypeOpaqueRef, name:Name, file: DIFileRef, line: Int,
+internal fun debugInfoLocalVariableLocation(builder: DebugInfoBuilder?,
+        functionScope: DIScopeOpaqueRef, type: IrType, name:String, file: DIFileRef, line: Int,
         location: DILocationRef?): VariableDebugLocation {
-    val variableDeclaration = DICreateAutoVariable(
-            builder = builder,
+    val variableDeclaration = builder?.createLocalVariable(
             scope = functionScope,
-            name = name.asString(),
+            name = name,
             file = file,
             line = line,
-            type = diType)
+            type = type)
 
     return VariableDebugLocation(localVariable = variableDeclaration!!, location = location, file = file, line = line)
 }
 
-internal fun debugInfoParameterLocation(builder: DIBuilderRef?,
-                                        functionScope: DIScopeOpaqueRef, diType: DITypeOpaqueRef,
-                                        name:Name, argNo: Int, file: DIFileRef, line: Int,
+internal fun debugInfoParameterLocation(builder: DebugInfoBuilder?,
+                                        functionScope: DIScopeOpaqueRef, type: IrType,
+                                        name:String, argNo: Int, file: DIFileRef, line: Int,
                                         location: DILocationRef?): VariableDebugLocation {
-    val variableDeclaration = DICreateParameterVariable(
-            builder = builder,
+    val variableDeclaration = builder?.createParameter(
             scope = functionScope,
-            name = name.asString(),
+            name = name,
             argNo = argNo,
             file = file,
             line = line,
-            type = diType)
+            type = type)
 
     return VariableDebugLocation(localVariable = variableDeclaration!!, location = location, file = file, line = line)
 }
