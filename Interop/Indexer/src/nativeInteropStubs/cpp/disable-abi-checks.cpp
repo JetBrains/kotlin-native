@@ -1,3 +1,4 @@
+#ifdef __linux__
 namespace llvm {
 /**
  * http://lists.llvm.org/pipermail/llvm-dev/2017-January/109621.html
@@ -5,3 +6,4 @@ namespace llvm {
  */  
 int DisableABIBreakingChecks = 1;
 }
+#endif
