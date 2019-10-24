@@ -66,6 +66,7 @@ or set it via the `JAVA_OPTS` environment variable.
 
 A: Use the `-module-name` compiler option or matching Gradle DSL statement, i.e.
 
+<div class="multi-language-sample" data-lang="kotlin">
 <div class="sample" markdown="1" theme="idea" mode="kotlin">
 
 ```kotlin
@@ -78,6 +79,23 @@ kotlin {
 }
 ```
 
+</div>
+</div>
+
+<div class="multi-language-sample" data-lang="groovy">
+<div class="sample" markdown="1" theme="idea" mode="groovy">
+
+```groovy
+kotlin {
+    iosArm64("myapp") {
+        binaries.framework {
+            freeCompilerArgs += ["-module-name", "TheName"]
+        }
+    }
+}
+```
+
+</div>
 </div>
 
 ### Q: How do I rename the iOS framework? (default name is _\<project name\>_.framework)
