@@ -131,7 +131,6 @@ internal inline fun<R> generateFunction(codegen: CodeGenerator,
     try {
         generateFunctionBody(functionGenerationContext, code)
     } finally {
-        diBuilder?.finalizeLlvmFunction(llvmFunction)
         functionGenerationContext.dispose()
     }
 

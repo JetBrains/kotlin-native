@@ -162,13 +162,6 @@ internal class DebugInfoBuilder(val context: Context, val targetData:LLVMTargetD
             scopeLine = 0
     )
 
-    fun finalizeSubprogram(subprogram: DISubprogramRef) = DIFunctionFinalize(builder, subprogram)
-    fun finalizeLlvmFunction(function: LLVMValueRef) {
-        subprograms[function]?.let {
-            finalizeSubprogram(it)
-        }
-    }
-
     fun insertDeclaration(slotAddress: LLVMValueRef, variableRef: DILocalVariableRef, locationRef: DILocationRef?, bb: LLVMBasicBlockRef, expr: CValues<LongVar>? = null, exprSize: Long = 0) = DIInsertDeclaration(
             builder       = builder,
             value         = slotAddress,
