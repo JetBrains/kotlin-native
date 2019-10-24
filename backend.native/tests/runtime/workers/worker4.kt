@@ -9,7 +9,7 @@ import kotlin.test.*
 
 import kotlin.native.concurrent.*
 
-@Test fun runTest() {
+@Test fun runTest1() {
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, { 41 }) {
         input -> input + 1
@@ -19,4 +19,52 @@ import kotlin.native.concurrent.*
     }
     worker.requestTermination().result
     println("OK")
+}
+
+@Test fun runTest2() {
+    val worker = Worker.start()
+    val counter = AtomicInt(0)
+
+    worker.executeAfter(0, {
+        assertTrue(Worker.current.park(10_000_000, false))
+        assertEquals(counter.value, 0)
+        assertTrue(Worker.current.processQueue())
+        assertEquals(1, counter.value)
+        // Let main proceed.
+        counter.increment()  // counter becomes 2 here.
+        assertTrue(Worker.current.park(10_000_000, true))
+        assertEquals(3, counter.value)
+    }.freeze())
+
+    worker.executeAfter(0, {
+        counter.increment()
+    }.freeze())
+
+    while (counter.value == 1) { Worker.current.park(1000) }
+
+    worker.executeAfter(0, {
+        counter.increment()
+    }.freeze())
+
+    while (counter.value == 2) { Worker.current.park(1000) }
+
+    worker.requestTermination().result
+}
+
+@Test fun runTest3() {
+    val worker = Worker.start(name = "Lumberjack")
+    val counter = AtomicInt(0)
+    worker.executeAfter(0, {
+        assertEquals("Lumberjack", Worker.current.name)
+        counter.increment()
+    }.freeze())
+
+    while (counter.value == 0) {
+        Worker.current.park(1000)
+    }
+    assertEquals("Lumberjack", worker.name)
+    worker.requestTermination().result
+    assertFailsWith<IllegalStateException> {
+        println(worker.name)
+    }
 }

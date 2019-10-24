@@ -35,8 +35,10 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
          * better to use non-blocking IO combined with more lightweight coroutines.
          *
          * @param errorReporting controls if an uncaught exceptions in the worker will be printed out
+         * @param name defines
          */
-        public fun start(errorReporting: Boolean = true): Worker = Worker(startInternal(errorReporting))
+        public fun start(errorReporting: Boolean = true, name: String? = null): Worker
+                = Worker(startInternal(errorReporting, name))
 
         /**
          * Return the current worker. Worker context is accessible to any valid Kotlin context,
@@ -92,8 +94,10 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
     /**
      * Plan job for further execution in the worker. [operation] parameter must be either frozen, or execution to be
      * planned on the current worker. Otherwise [IllegalStateException] will be thrown.
-     * [afterMicroseconds] defines after how many microseconds delay execution shall happen, 0 means immediately,
-     * on negative values [IllegalArgumentException] is thrown.
+     *
+     * @param afterMicroseconds defines after how many microseconds delay execution shall happen, 0 means immediately,
+     * @throws [IllegalArgumentException] on negative values of [afterMicroseconds].
+     * @throws [IllegalStateException] if [operation] parameter is not frozen and worker is not current.
      */
     public fun executeAfter(afterMicroseconds: Long = 0, operation: () -> Unit): Unit {
         val current = currentInternal()
@@ -103,17 +107,45 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
     }
 
     /**
-     * Process pending job(s) on the queue of this worker, returns `true` if something was processed
-     * and `false` otherwise. Note that jobs scheduled with [executeAfter] using non-zero timeout are
+     * Process pending job(s) on the queue of this worker.
+     * Note that jobs scheduled with [executeAfter] using non-zero timeout are
      * not processed this way. If termination request arrives while processing the queue via this API,
      * worker is marked as terminated and will exit once the current request is done with.
+     *
+     * @throws [IllegalArgumentException] if this request is executed on non-current [Worker].
+     * @return `true` if request(s) was processed and `false` otherwise.
      */
     public fun processQueue(): Boolean = processQueueInternal(id)
 
     /**
+     * Park execution of the current worker until a new request arrives or timeout specified in
+     * [timeoutMicroseconds] elapsed. If [processQueue] is true, pending queue elements are processed the same way,
+     * as specified in [processQueue] function.
+     *
+     * @param timeoutMicroseconds defines how long to park worker if no requests arrive.
+     * @param process defines if arrived request(s) shall be processed.
+     * @throws [IllegalArgumentException] if this request is executed on non-current [Worker].
+     * @return `true` if request(s) was processed and `false` otherwise if [process] was `true`.
+     * @return `true` if request arrived and `false` if timeout happens if [process] was `false`.
+     */
+    public fun park(timeoutMicroseconds: Long = 0, process: Boolean = true): Boolean =
+            parkInternal(id, timeoutMicroseconds, process)
+
+    /**
+     * Name or the worker, as specified in [Worker.start] or "worker $id" by default,
+     *
+     * @throws [IllegalArgumentException] if this request is executed on terminated worker
+     */
+    public val name: String
+        get() {
+            val customName = getWorkerNameInternal(id)
+            return if (customName == null) "worker $id" else customName
+        }
+
+    /**
      * String representation of this worker.
      */
-    override public fun toString(): String = "worker $id"
+    override public fun toString(): String = name
 
     /**
      * Convert worker to a COpaquePointer value that could be passed via native void* pointer.
