@@ -35,7 +35,8 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
          * better to use non-blocking IO combined with more lightweight coroutines.
          *
          * @param errorReporting controls if an uncaught exceptions in the worker will be printed out
-         * @param name defines
+         * @param name defines the optional name of this worker, if none - default naming is used.
+         * @return worker object, usable across multiple concurrent contexts.
          */
         public fun start(errorReporting: Boolean = true, name: String? = null): Worker
                 = Worker(startInternal(errorReporting, name))
@@ -44,15 +45,16 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
          * Return the current worker. Worker context is accessible to any valid Kotlin context,
          * but only actual active worker produced with [Worker.start] automatically processes execution requests.
          * For other situations [processQueue] must be called explicitly to process request queue.
+         * @return current worker object, usable across multiple concurrent contexts.
          */
         public val current: Worker get() = Worker(currentInternal())
 
         /**
          * Create worker object from a C pointer.
          *
-         *  @param pointer value returned earlier by [Worker.asCPointer]
+         * @param pointer value returned earlier by [Worker.asCPointer]
          */
-        public fun fromCPointer(pointer: COpaquePointer?) =
+        public fun fromCPointer(pointer: COpaquePointer?): Worker =
                 if (pointer != null) Worker(pointer.toLong().toInt()) else throw IllegalArgumentException()
     }
 
@@ -63,7 +65,7 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
      * or terminate immediately. If there are jobs to be execucted with [executeAfter] their execution
      * is awaited for.
      */
-    public fun requestTermination(processScheduledJobs: Boolean = true) =
+    public fun requestTermination(processScheduledJobs: Boolean = true): Future<Unit> =
             Future<Unit>(requestTerminationInternal(id, processScheduledJobs))
 
     /**
@@ -79,7 +81,7 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
      * so `kotlin.native.internal.GC.collect()` could be called in the end of `producer` and `job`
      * if garbage cyclic structures or other uncollected objects refer to the value being transferred.
      *
-     * @return the future with the computation result of [job]
+     * @return the future with the computation result of [job].
      */
     @Suppress("UNUSED_PARAMETER")
     @TypedIntrinsic(IntrinsicType.WORKER_EXECUTE)
@@ -112,29 +114,29 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
      * not processed this way. If termination request arrives while processing the queue via this API,
      * worker is marked as terminated and will exit once the current request is done with.
      *
-     * @throws [IllegalArgumentException] if this request is executed on non-current [Worker].
+     * @throws [IllegalStateException] if this request is executed on non-current [Worker].
      * @return `true` if request(s) was processed and `false` otherwise.
      */
     public fun processQueue(): Boolean = processQueueInternal(id)
 
     /**
      * Park execution of the current worker until a new request arrives or timeout specified in
-     * [timeoutMicroseconds] elapsed. If [processQueue] is true, pending queue elements are processed the same way,
+     * [timeoutMicroseconds] elapsed. If [process] is true, pending queue elements are processed the same way,
      * as specified in [processQueue] function.
      *
      * @param timeoutMicroseconds defines how long to park worker if no requests arrive.
      * @param process defines if arrived request(s) shall be processed.
-     * @throws [IllegalArgumentException] if this request is executed on non-current [Worker].
      * @return `true` if request(s) was processed and `false` otherwise if [process] was `true`.
      * @return `true` if request arrived and `false` if timeout happens if [process] was `false`.
+     * @throws [IllegalStateException] if this request is executed on non-current [Worker].
      */
-    public fun park(timeoutMicroseconds: Long = 0, process: Boolean = true): Boolean =
+    public fun park(timeoutMicroseconds: Long, process: Boolean = false): Boolean =
             parkInternal(id, timeoutMicroseconds, process)
 
     /**
-     * Name or the worker, as specified in [Worker.start] or "worker $id" by default,
+     * Name of the worker, as specified in [Worker.start] or "worker $id" by default,
      *
-     * @throws [IllegalArgumentException] if this request is executed on terminated worker
+     * @throws [IllegalArgumentException] if this request is executed on invalid worker.
      */
     public val name: String
         get() {
@@ -143,13 +145,15 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
         }
 
     /**
-     * String representation of this worker.
+     * String representation of the worker.
      */
-    override public fun toString(): String = name
+    override public fun toString(): String = "Worker $name"
 
     /**
      * Convert worker to a COpaquePointer value that could be passed via native void* pointer.
      * Can be used as an argument of [Worker.fromCPointer].
+     *
+     * @return worker identifier as C pointer.
      */
     public fun asCPointer() : COpaquePointer? = id.toLong().toCPointer()
 }
