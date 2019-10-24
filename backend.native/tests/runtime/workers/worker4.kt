@@ -26,13 +26,13 @@ import kotlin.native.concurrent.*
     val counter = AtomicInt(0)
 
     worker.executeAfter(0, {
-        assertTrue(Worker.current.park(10_000_000, false))
+        assertTrue(Worker.current.park(10_000_000_000, false))
         assertEquals(counter.value, 0)
         assertTrue(Worker.current.processQueue())
         assertEquals(1, counter.value)
         // Let main proceed.
         counter.increment()  // counter becomes 2 here.
-        assertTrue(Worker.current.park(10_000_000, true))
+        assertTrue(Worker.current.park(10_000_000_000, true))
         assertEquals(3, counter.value)
     }.freeze())
 
@@ -40,13 +40,13 @@ import kotlin.native.concurrent.*
         counter.increment()
     }.freeze())
 
-    while (counter.value == 1) { Worker.current.park(1000) }
+    while (counter.value == 1) { Worker.current.park(1_000_000) }
 
     worker.executeAfter(0, {
         counter.increment()
     }.freeze())
 
-    while (counter.value == 2) { Worker.current.park(1000) }
+    while (counter.value == 2) { Worker.current.park(1_000_000) }
 
     worker.requestTermination().result
 }
@@ -60,7 +60,7 @@ import kotlin.native.concurrent.*
     }.freeze())
 
     while (counter.value == 0) {
-        Worker.current.park(1000)
+        Worker.current.park(1_000_000)
     }
     assertEquals("Lumberjack", worker.name)
     worker.requestTermination().result
