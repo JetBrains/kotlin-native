@@ -17,7 +17,7 @@ garbage.
 
 A: Use the `-produce dynamic` compiler switch, or `binaries.sharedLib()` in Gradle, i.e.
 
-<div class="sample" markdown="1" theme="idea" mode="kotlin">
+<div class="sample" markdown="1" theme="idea" mode="kotlin" data-highlight-only>
 
 ```kotlin
 kotlin {
@@ -39,7 +39,7 @@ Kotlin/Native.
 
 A: Use the `-produce static` compiler switch, or `binaries.staticLib()` in Gradle, i.e.
 
-<div class="sample" markdown="1" theme="idea" mode="kotlin">
+<div class="sample" markdown="1" theme="idea" mode="kotlin" data-highlight-only>
 
 ```kotlin
 kotlin {
@@ -67,7 +67,7 @@ or set it via the `JAVA_OPTS` environment variable.
 A: Use the `-module-name` compiler option or matching Gradle DSL statement, i.e.
 
 <div class="multi-language-sample" data-lang="kotlin">
-<div class="sample" markdown="1" theme="idea" mode="kotlin">
+<div class="sample" markdown="1" theme="idea" mode="kotlin" data-highlight-only>
 
 ```kotlin
 kotlin {
@@ -102,7 +102,7 @@ kotlin {
 
 A: Use the `baseName` option. This will also set the module name.
 
-<div class="sample" markdown="1" theme="idea" mode="kotlin">
+<div class="sample" markdown="1" theme="idea" mode="kotlin" data-highlight-only>
 
 ```kotlin
 kotlin {
@@ -127,7 +127,7 @@ A: By default gradle plugin adds it on iOS target.
 Or commandline arguments: `-Xembed-bitcode` (for release) and `-Xembed-bitcode-marker` (debug)
 
 Setting this in a Gradle DSL: 
-<div class="sample" markdown="1" theme="idea" mode="kotlin">
+<div class="sample" markdown="1" theme="idea" mode="kotlin" data-highlight-only>
 
 ```kotlin
 kotlin {
