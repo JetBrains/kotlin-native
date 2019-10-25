@@ -123,7 +123,7 @@ class Worker {
 
   KLong checkDelayedLocked();
 
-  bool waitForQueueLocked(KLong timeoutMicroseconds);
+  bool waitForQueueLocked(KLong timeoutMicroseconds, KLong* remaining);
 
   JobKind processQueueElement(bool blocking);
 
@@ -728,7 +728,7 @@ void Worker::putDelayedJob(Job job) {
 bool Worker::waitDelayed(bool blocking) {
   Locker locker(&lock_);
   if (delayed_.size() == 0) return false;
-  if (blocking) waitForQueueLocked(-1);
+  if (blocking) waitForQueueLocked(-1, nullptr);
   return true;
 }
 
@@ -736,7 +736,7 @@ Job Worker::getJob(bool blocking) {
   Locker locker(&lock_);
   RuntimeAssert(!terminated_, "Must not be terminated");
   if (queue_.size() == 0 && !blocking) return Job { .kind = JOB_NONE };
-  waitForQueueLocked(-1);
+  waitForQueueLocked(-1, nullptr);
   auto result = queue_.front();
   queue_.pop_front();
   return result;
@@ -759,14 +759,18 @@ KLong Worker::checkDelayedLocked() {
   }
 }
 
-bool Worker::waitForQueueLocked(KLong timeoutMicroseconds) {
+bool Worker::waitForQueueLocked(KLong timeoutMicroseconds, KLong* remaining) {
   while (queue_.size() == 0) {
     KLong closestToRun = checkDelayedLocked();
     if (closestToRun == 0) {
         continue;
     }
-    if (timeoutMicroseconds >= 0)
+    if (timeoutMicroseconds >= 0) {
         closestToRun = timeoutMicroseconds < closestToRun || closestToRun < 0 ? timeoutMicroseconds : closestToRun;
+        if (remaining) *remaining = timeoutMicroseconds - closestToRun;
+    } else {
+        if (remaining) *remaining = 0;
+    }
     if (closestToRun > 0) {
       struct timeval tv;
       struct timespec ts;
@@ -789,7 +793,11 @@ bool Worker::park(KLong timeoutMicroseconds, bool process) {
     if (terminated_) {
         return false;
     }
-    auto arrived = waitForQueueLocked(timeoutMicroseconds);
+    auto arrived = false;
+    KLong remaining = timeoutMicroseconds;
+    do {
+      arrived = waitForQueueLocked(remaining, &remaining);
+    } while (remaining != 0 && !arrived);
     if (!process) {
         return arrived;
     }

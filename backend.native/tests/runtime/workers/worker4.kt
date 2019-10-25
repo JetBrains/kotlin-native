@@ -26,13 +26,13 @@ import kotlin.native.concurrent.*
         val counter = AtomicInt(0)
 
         executeAfter(0, {
-            assertTrue(Worker.current.park(10_000_000_000, false))
+            assertTrue(Worker.current.park(10_000_000, false))
             assertEquals(counter.value, 0)
             assertTrue(Worker.current.processQueue())
             assertEquals(1, counter.value)
             // Let main proceed.
             counter.increment()  // counter becomes 2 here.
-            assertTrue(Worker.current.park(10_000_000_000, true))
+            assertTrue(Worker.current.park(10_000_000, true))
             assertEquals(3, counter.value)
         }.freeze())
 
@@ -40,8 +40,8 @@ import kotlin.native.concurrent.*
             counter.increment()
         }.freeze())
 
-        while (counter.value == 1) {
-            Worker.current.park(1_000_000)
+        while (counter.value < 2) {
+            Worker.current.park(1_000)
         }
 
         executeAfter(0, {
@@ -49,7 +49,7 @@ import kotlin.native.concurrent.*
         }.freeze())
 
         while (counter.value == 2) {
-            Worker.current.park(1_000_000)
+            Worker.current.park(1_000)
         }
     }
 }
@@ -63,11 +63,20 @@ import kotlin.native.concurrent.*
     }.freeze())
 
     while (counter.value == 0) {
-        Worker.current.park(1_000_000)
+        Worker.current.park(1_000)
     }
     assertEquals("Lumberjack", worker.name)
     worker.requestTermination().result
     assertFailsWith<IllegalStateException> {
         println(worker.name)
     }
+}
+
+@Test fun runTest4() {
+    val counter = AtomicInt(0)
+    Worker.current.executeAfter(10_000, {
+        counter.increment()
+    }.freeze())
+    assertTrue(Worker.current.park(1_000_000, process = true))
+    assertEquals(1, counter.value)
 }

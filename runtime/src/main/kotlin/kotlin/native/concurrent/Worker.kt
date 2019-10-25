@@ -121,17 +121,17 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
 
     /**
      * Park execution of the current worker until a new request arrives or timeout specified in
-     * [timeoutMicroseconds] elapsed. If [process] is true, pending queue elements are processed the same way,
-     * as specified in [processQueue] function.
+     * [timeoutMicroseconds] elapsed. If [process] is true, pending queue elements are processed,
+     * including delayed requests. Note that multiple requests could be processed this way.
      *
-     * @param timeoutNanoseconds defines how long to park worker if no requests arrive.
+     * @param timeoutMicroseconds defines how long to park worker if no requests arrive.
      * @param process defines if arrived request(s) shall be processed.
      * @return if [process] is `true`: if request(s) was processed `true` and `false` otherwise.
      *   if [process] is `false`:` true` if request(s) has arrived and `false` if timeout happens.
      * @throws [IllegalStateException] if this request is executed on non-current [Worker].
      */
-    public fun park(timeoutNanoseconds: Long, process: Boolean = false): Boolean =
-            parkInternal(id, timeoutNanoseconds / 1000, process)
+    public fun park(timeoutMicroseconds: Long, process: Boolean = false): Boolean =
+            parkInternal(id, timeoutMicroseconds, process)
 
     /**
      * Name of the worker, as specified in [Worker.start] or "worker $id" by default,
@@ -159,17 +159,18 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
 }
 
 /**
- * Executes [block] in new [Worker], by starting a worker, calling provided [block] and terminating
- * worker after block is completed. Note that this operaation is pretty heavyweight, use preconfigured
- * worker or worker pool if need to execute it frequently.
+ * Executes [block] with new [Worker] as resource, by starting the new worker, calling provided [block]
+ * (in current context) with newly started worker as [this] and terminating worker after the block completes.
+ * Note that this operaation is pretty heavyweight, use preconfigured worker or worker pool if need to
+ * execute it frequently.
  *
  * @param name of the started worker.
- * @param reportErrors controls if uncaught errors in worker to be reported.
+ * @param errorReporting controls if uncaught errors in worker to be reported.
  * @param block to be executed.
- * @return value returned by block.
+ * @return value returned by the block.
  */
-public inline fun <R> withWorker(name: String? = null, reportErrors: Boolean = true, block: Worker.() -> R): R {
-    val worker = Worker.start(reportErrors, name)
+public inline fun <R> withWorker(name: String? = null, errorReporting: Boolean = true, block: Worker.() -> R): R {
+    val worker = Worker.start(errorReporting, name)
     try {
         return worker.block()
     } finally {
