@@ -53,6 +53,9 @@ internal object nativeMemUtils {
     @TypedIntrinsic(IntrinsicType.INTEROP_READ_PRIMITIVE) external fun getNativePtr(mem: NativePointed): NativePtr
     @TypedIntrinsic(IntrinsicType.INTEROP_WRITE_PRIMITIVE) external fun putNativePtr(mem: NativePointed, value: NativePtr)
 
+    @TypedIntrinsic(IntrinsicType.INTEROP_READ_PRIMITIVE) external fun getVector(mem: NativePointed): NativeVector
+    @TypedIntrinsic(IntrinsicType.INTEROP_WRITE_PRIMITIVE) external fun putVector(mem: NativePointed, value: NativeVector)
+
     // TODO: optimize
     fun getByteArray(source: NativePointed, dest: ByteArray, length: Int) {
         val sourceArray = source.reinterpret<ByteVar>().ptr

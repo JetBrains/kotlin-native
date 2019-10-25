@@ -499,6 +499,19 @@ internal class NativeIndexImpl(val library: NativeLibrary, val verbose: Boolean 
                 spelling = clang_getTypeSpelling(type).convertAndDispose().dropConstQualifier()
         )
 
+        CXType_Vector -> {
+            val elementType = convertType(clang_getElementType(type))
+            val size = clang_Type_getSizeOf(type)
+            val elemSize = clang_Type_getSizeOf(clang_getElementType(type))
+            val length = size / elemSize
+            val spelling = type.name // ex: __attribute__((__vector_size__(4 * sizeof(const float)))) const float
+            if (size == 16L) {
+                VectorType(elementType, length, spelling)
+            } else {
+                UnsupportedType
+            }
+        }
+
         CXTypeKind.CXType_Bool -> CBoolType
 
         else -> UnsupportedType

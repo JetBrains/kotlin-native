@@ -757,6 +757,14 @@ private fun KotlinStubs.mapType(type: IrType, retained: Boolean, variadic: Boole
 private fun IrType.isTypeOfNullLiteral(): Boolean = this is IrSimpleType && hasQuestionMark
         && classifier.isClassWithFqName(KotlinBuiltIns.FQ_NAMES.nothing)
 
+private fun IrType.isVector(): Boolean {
+    if (this is IrSimpleType) {
+        val fqName = FqName("kotlinx.cinterop.NativeVector").toUnsafe()  // FIXME
+        return classifier.isClassWithFqName(fqName)
+    }
+    return false
+}
+
 private fun KotlinStubs.mapType(
         type: IrType,
         retained: Boolean,
@@ -781,6 +789,8 @@ private fun KotlinStubs.mapType(
     type.isUShort() -> UnsignedValuePassing(type, CTypes.short, CTypes.unsignedShort)
     type.isUInt() -> UnsignedValuePassing(type, CTypes.int, CTypes.unsignedInt)
     type.isULong() -> UnsignedValuePassing(type, CTypes.longLong, CTypes.unsignedLongLong)
+
+    type.isVector() -> TrivialValuePassing(type, CTypes.vector16)
 
     type.isCEnumType() -> {
         val enumClass = type.getClass()!!
@@ -953,6 +963,18 @@ private class BooleanValuePassing(override val cType: CType, private val irBuilt
     override fun bridgedToC(expression: String): String = cType.cast(expression)
 
     override fun cToBridged(expression: String): String = cBridgeType.cast(expression)
+}
+
+private class VectorTypePassing(private val kotlinClass: IrClass, val cType: CType) : KotlinToCArgumentPassing {
+    override fun KotlinToCCallBuilder.passValue(expression: IrExpression): CExpression {
+        val cBridgeValue = passThroughBridge(
+                cValuesRefToPointer(expression),
+                symbols.interopCPointer.typeWithStarProjections,
+                CTypes.pointer(cType)
+        ).name
+
+        return CExpression("*$cBridgeValue", cType)
+    }
 }
 
 private class StructValuePassing(private val kotlinClass: IrClass, override val cType: CType) : ValuePassing {

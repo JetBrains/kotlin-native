@@ -75,6 +75,9 @@ fun PrimitiveType.getKotlinType(declarationMapper: DeclarationMapper): KotlinCla
         else -> TODO(this.toString())
     }
 
+    is VectorType -> {
+        KotlinTypes.nativeVector
+    }
     else -> throw NotImplementedError()
 }
 
@@ -372,6 +375,9 @@ fun mirrorPrimitiveType(type: PrimitiveType, declarationMapper: DeclarationMappe
             4 -> "FloatVar"
             8 -> "DoubleVar"
             else -> TODO(type.toString())
+        }
+        is VectorType -> {
+            "VectorVar"
         }
         else -> TODO(type.toString())
     }

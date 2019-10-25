@@ -46,6 +46,7 @@ class SimpleBridgeGeneratorImpl(
             BridgedType.ULONG -> "jlong"
             BridgedType.FLOAT -> "jfloat"
             BridgedType.DOUBLE -> "jdouble"
+            BridgedType.NATIVE_VECTOR -> TODO()
             BridgedType.NATIVE_PTR -> "jlong"
             BridgedType.OBJC_POINTER -> TODO()
             BridgedType.VOID -> "void"
@@ -61,6 +62,7 @@ class SimpleBridgeGeneratorImpl(
             BridgedType.ULONG -> "uint64_t"
             BridgedType.FLOAT -> "float"
             BridgedType.DOUBLE -> "double"
+            BridgedType.NATIVE_VECTOR -> "NOT USED???" // "float __attribute__ ((__vector_size__ (16)))"
             BridgedType.NATIVE_PTR -> "void*"
             BridgedType.OBJC_POINTER -> "id"
             BridgedType.VOID -> "void"

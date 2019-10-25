@@ -30,6 +30,7 @@ enum class BridgedType(val kotlinType: KotlinClassifierType, val convertor: Stri
     ULONG(KotlinTypes.uLong, "toULong"),
     FLOAT(KotlinTypes.float, "toFloat"),
     DOUBLE(KotlinTypes.double, "toDouble"),
+    NATIVE_VECTOR(KotlinTypes.nativeVector),
     NATIVE_PTR(KotlinTypes.nativePtr),
     OBJC_POINTER(KotlinTypes.nativePtr),
     VOID(KotlinTypes.unit)
