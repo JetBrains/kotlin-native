@@ -259,4 +259,8 @@ KBoolean Konan_Platform_isDebugBinary() {
   return KonanNeedDebugInfo ? true : false;
 }
 
+void Kotlin_zeroOutTLSGlobals() {
+  InitOrDeinitGlobalVariables(DEINIT_THREAD_LOCAL_GLOBALS);
+}
+
 }  // extern "C"
