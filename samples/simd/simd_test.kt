@@ -4,7 +4,7 @@ import kotlin.test.*
 import simd_wrapper.*
 
 //import kotlin.math.*
-//import platform.Accelerate.*
+import platform.Accelerate.*
 //
 //fun test_dist() {
 //    var v1 = vectorOf(-1f, 0f, 0f, -7f)
@@ -29,8 +29,8 @@ class Box<T>(t: T) {
 
 fun main() {
 
-    val v = vectorOf(42f, 1f, 2f, 3f)
-    val box: Box<NativeVector> = Box<NativeVector>(v)
+//    val v = vectorOf(42f, 1f, 2f, 3f)
+//    val box: Box<NativeVector> = Box<NativeVector>(v)
 
 //    printVFloat(v)
 //
@@ -39,9 +39,9 @@ fun main() {
 ////    val ln = kotlin.math.ln(2.718)
 ////    println("log(2.718) = $ln")
 //
-//    val f2 = vectorOf(1f, 3.162f, 10f, 31f)
-//    val lg = vlog10f(f2)
-//    printVFloat(lg)
+    val f2 = vectorOf(1f, 3.162f, 10f, 31f)
+    val lg = vlog10f(f2)
+    printVFloat(lg)
 //    runTest()
 
 //    println(lg)
