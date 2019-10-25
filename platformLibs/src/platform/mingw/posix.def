@@ -1,11 +1,114 @@
 package = platform.posix
-headers = assert.h complex.h ctype.h dirent.h errno.h fcntl.h \
-    fenv.h float.h ftw.h getopt.h inttypes.h libgen.h limits.h \
-    locale.h math.h memory.h pthread.h sched.h search.h semaphore.h \
-    setjmp.h signal.h stdint.h stdio.h stdlib.h string.h \
-    time.h uchar.h unistd.h utime.h wchar.h wctype.h
+
+headers = \
+    assert.h \
+    complex.h \
+    ctype.h \
+    dirent.h \
+    errno.h \
+    fcntl.h \
+    fenv.h \
+    float.h \
+    ftw.h \
+    getopt.h \
+    inttypes.h \
+    libgen.h \
+    limits.h \
+    locale.h \
+    math.h \
+    memory.h \
+    pthread.h \
+    sched.h \
+    search.h \
+    semaphore.h \
+    setjmp.h \
+    signal.h \
+    stdint.h \
+    stdio.h \
+    stdlib.h \
+    string.h \
+    time.h \
+    uchar.h \
+    unistd.h \
+    utime.h \
+    wchar.h \
+    wctype.h \
+    winsock2.h
+
+headerFilter = \
+    _bsd_types.h \
+    _mingw.h \
+    _mingw_mac.h \
+    _mingw_off_t.h \
+    _mingw_secapi.h \
+    _mingw_stat64.h \
+    _mingw_unicode.h \
+    _timeval.h \
+    assert.h \
+    complex.h \
+    ctype.h \
+    corecrt.h \
+    corecrt_startup.h \
+    corecrt_wstdlib.h \
+    crtdefs.h \
+    dirent.h \
+    errno.h \
+    fcntl.h \
+    fenv.h \
+    float.h \
+    ftw.h \
+    getopt.h \
+    inaddr.h \
+    inttypes.h \
+    io.h \
+    libgen.h \
+    limits.h \
+    locale.h \
+    malloc.h \
+    math.h \
+    memory.h \
+    process.h \
+    psdk_inc/_fd_types.h \
+    psdk_inc/_ip_types.h \
+    psdk_inc/_socket_types.h \
+    pthread.h \
+    pthread_compat.h \
+    pthread_signal.h \
+    pthread_time.h \
+    pthread_unistd.h \
+    sched.h \
+    search.h \
+    sec_api/search_s.h \
+    sec_api/stdio_s.h \
+    sec_api/stdlib_s.h \
+    sec_api/string_s.h \
+    sec_api/sys/timeb_s.h \
+    sec_api/wchar_s.h \
+    semaphore.h \
+    setjmp.h \
+    signal.h \
+    stddef.h \
+    stdint.h \
+    stdio.h \
+    stdlib.h \
+    string.h \
+    swprintf.inl \
+    sys/stat.h \
+    sys/timeb.h \
+    sys/types.h \
+    sys/utime.h \
+    syslimits.h \
+    time.h \
+    uchar.h \
+    unistd.h \
+    utime.h \
+    vadefs.h \
+    wchar.h \
+    wctype.h
+
+excludedFunctions = __WSAFDIsSet
 noStringConversion = send sendto recv
-linkerOpts = -lWs2_32
+linkerOpts = -lws2_32
 
 ---
 // Wrapper to access errno variable.
@@ -20,50 +123,6 @@ static void set_posix_errno(int value) {
 static short posix_htons(short x) {
     return htons(x);
 }
-
-// Hacks to make MinGW Windows headers look more modular than they are.
-#ifdef _WIN64
-#define UINT_PTR    unsigned __int64
-#define ULONG_PTR   unsigned __int64
-#else
-#define UINT_PTR    unsigned int
-#define ULONG_PTR   unsigned long
-#endif
-#define DWORD_PTR   ULONG_PTR
-#define BYTE        unsigned char
-#define WORD        unsigned short
-#define DWORD       unsigned __LONG32
-#define ULONG       DWORD
-#define INT         int
-#define UINT        unsigned int
-#define CHAR        char
-#define WCHAR       WORD
-#define LPBYTE      BYTE*
-#define LPINT       INT*
-#define LPWORD      WORD*
-#define LPLONG      __LONG32*
-#define LPDWORD     DWORD*
-#define LPTSTR      WCHAR*
-#define VOID        void
-#define PVOID       void*
-#define LPVOID      void*
-#define LPSTR       CHAR*
-#define LPWSTR      WCHAR*
-#define WINBOOL     int
-#define WPARAM      UINT_PTR
-#define HANDLE      LPVOID
-#define LPHANDLE    HANDLE*
-#define HWND        HANDLE
-#define FARPROC     void*
-#define WINAPI      __stdcall
-#define CALLBACK    __stdcall
-#define PASCAL      __pascal
-
-#define _INC_WINDOWS
-#define RPC_NO_WINDOWS_H
-#define COM_NO_WINDOWS_H
-#define __INSIDE_CYGWIN__
-#include <winsock2.h>
 
 // Wrapper to access h_errno variable.
 static int posix_h_errno() {
@@ -92,3 +151,327 @@ static void posix_FD_SET(int bit, fd_set *set) {
 static int posix_FD_ISSET(int bit, fd_set *set) {
     return FD_ISSET(bit, set);
 }
+
+///////////////////////////////////////////////////////////////////////////////////////
+// Hack: don't know how to cleanly separate POSIX and non-POSIX parts of winsock2.h :(
+//       So gave up and just copy-pasted POSIX part here.
+
+#define IOCPARM_MASK 0x7f
+#define IOC_VOID 0x20000000
+#define IOC_OUT 0x40000000
+#define IOC_IN 0x80000000
+#define IOC_INOUT (IOC_IN|IOC_OUT)
+
+#define _IO(x,y) (IOC_VOID|((x)<<8)|(y))
+#define _IOR(x,y,t) (IOC_OUT|(((__LONG32)sizeof(t)&IOCPARM_MASK)<<16)|((x)<<8)|(y))
+#define _IOW(x,y,t) (IOC_IN|(((__LONG32)sizeof(t)&IOCPARM_MASK)<<16)|((x)<<8)|(y))
+
+#define FIONREAD _IOR('f',127,u_long)
+#define FIONBIO _IOW('f',126,u_long)
+#define FIOASYNC _IOW('f',125,u_long)
+
+#define SIOCSHIWAT _IOW('s',0,u_long)
+#define SIOCGHIWAT _IOR('s',1,u_long)
+#define SIOCSLOWAT _IOW('s',2,u_long)
+#define SIOCGLOWAT _IOR('s',3,u_long)
+#define SIOCATMARK _IOR('s',7,u_long)
+
+#define IPPROTO_IP 0
+#define IPPROTO_HOPOPTS 0
+#define IPPROTO_ICMP 1
+#define IPPROTO_IGMP 2
+#define IPPROTO_GGP 3
+#define IPPROTO_IPV4 4
+#define IPPROTO_ST 5
+#define IPPROTO_TCP 6
+#define IPPROTO_CBT 7
+#define IPPROTO_EGP 8
+#define IPPROTO_IGP 9
+#define IPPROTO_PUP 12
+#define IPPROTO_UDP 17
+#define IPPROTO_IDP 22
+#define IPPROTO_RDP 27
+#define IPPROTO_IPV6 41
+#define IPPROTO_ROUTING 43
+#define IPPROTO_FRAGMENT 44
+#define IPPROTO_ESP 50
+#define IPPROTO_AH 51
+#define IPPROTO_ICMPV6 58
+#define IPPROTO_NONE 59
+#define IPPROTO_DSTOPTS 60
+#define IPPROTO_ND 77
+#define IPPROTO_ICLFXBM 78
+#define IPPROTO_PIM 103
+#define IPPROTO_PGM 113
+#define IPPROTO_L2TP 115
+#define IPPROTO_SCTP 132
+
+#define IPPROTO_RAW 255
+#define IPPROTO_MAX 256
+
+#define IPPORT_ECHO 7
+#define IPPORT_DISCARD 9
+#define IPPORT_SYSTAT 11
+#define IPPORT_DAYTIME 13
+#define IPPORT_NETSTAT 15
+#define IPPORT_FTP 21
+#define IPPORT_TELNET 23
+#define IPPORT_SMTP 25
+#define IPPORT_TIMESERVER 37
+#define IPPORT_NAMESERVER 42
+#define IPPORT_WHOIS 43
+#define IPPORT_MTP 57
+
+#define IPPORT_TFTP 69
+#define IPPORT_RJE 77
+#define IPPORT_FINGER 79
+#define IPPORT_TTYLINK 87
+#define IPPORT_SUPDUP 95
+
+#define IPPORT_EXECSERVER 512
+#define IPPORT_LOGINSERVER 513
+#define IPPORT_CMDSERVER 514
+#define IPPORT_EFSSERVER 520
+
+#define IPPORT_BIFFUDP 512
+#define IPPORT_WHOSERVER 513
+#define IPPORT_ROUTESERVER 520
+
+#define IPPORT_RESERVED 1024
+
+#define IMPLINK_IP 155
+#define IMPLINK_LOWEXPER 156
+#define IMPLINK_HIGHEXPER 158
+
+#define IN_CLASSA(i) (((__LONG32)(i) & 0x80000000)==0)
+#define IN_CLASSA_NET 0xff000000
+#define IN_CLASSA_NSHIFT 24
+#define IN_CLASSA_HOST 0x00ffffff
+#define IN_CLASSA_MAX 128
+
+#define IN_CLASSB(i) (((__LONG32)(i) & 0xc0000000)==0x80000000)
+#define IN_CLASSB_NET 0xffff0000
+#define IN_CLASSB_NSHIFT 16
+#define IN_CLASSB_HOST 0x0000ffff
+#define IN_CLASSB_MAX 65536
+
+#define IN_CLASSC(i) (((__LONG32)(i) & 0xe0000000)==0xc0000000)
+#define IN_CLASSC_NET 0xffffff00
+#define IN_CLASSC_NSHIFT 8
+#define IN_CLASSC_HOST 0x000000ff
+
+#define IN_CLASSD(i) (((__LONG32)(i) & 0xf0000000)==0xe0000000)
+#define IN_CLASSD_NET 0xf0000000
+#define IN_CLASSD_NSHIFT 28
+#define IN_CLASSD_HOST 0x0fffffff
+#define IN_MULTICAST(i) IN_CLASSD(i)
+
+#define INADDR_ANY (u_long)0x00000000
+#define INADDR_LOOPBACK 0x7f000001
+#define INADDR_BROADCAST (u_long)0xffffffff
+#define INADDR_NONE 0xffffffff
+
+#define ADDR_ANY INADDR_ANY
+
+#define FROM_PROTOCOL_INFO (-1)
+
+#define SOCK_STREAM 1
+#define SOCK_DGRAM 2
+#define SOCK_RAW 3
+#define SOCK_RDM 4
+#define SOCK_SEQPACKET 5
+
+#define SO_DEBUG 0x0001
+#define SO_ACCEPTCONN 0x0002
+#define SO_REUSEADDR 0x0004
+#define SO_KEEPALIVE 0x0008
+#define SO_DONTROUTE 0x0010
+#define SO_BROADCAST 0x0020
+#define SO_USELOOPBACK 0x0040
+#define SO_LINGER 0x0080
+#define SO_OOBINLINE 0x0100
+
+#define SO_DONTLINGER (int)(~SO_LINGER)
+#define SO_EXCLUSIVEADDRUSE ((int)(~SO_REUSEADDR))
+
+#define SO_SNDBUF 0x1001
+#define SO_RCVBUF 0x1002
+#define SO_SNDLOWAT 0x1003
+#define SO_RCVLOWAT 0x1004
+#define SO_SNDTIMEO 0x1005
+#define SO_RCVTIMEO 0x1006
+#define SO_ERROR 0x1007
+#define SO_TYPE 0x1008
+
+#define SO_GROUP_ID 0x2001
+#define SO_GROUP_PRIORITY 0x2002
+#define SO_MAX_MSG_SIZE 0x2003
+#define SO_PROTOCOL_INFOA 0x2004
+#define SO_PROTOCOL_INFOW 0x2005
+
+#define SO_PROTOCOL_INFO __MINGW_NAME_AW(SO_PROTOCOL_INFO)
+
+#define PVD_CONFIG 0x3001
+#define SO_CONDITIONAL_ACCEPT 0x3002
+
+#define TCP_NODELAY 0x0001
+
+#define AF_UNSPEC 0
+
+#define AF_UNIX 1
+#define AF_INET 2
+#define AF_IMPLINK 3
+#define AF_PUP 4
+#define AF_CHAOS 5
+#define AF_NS 6
+#define AF_IPX AF_NS
+#define AF_ISO 7
+#define AF_OSI AF_ISO
+#define AF_ECMA 8
+#define AF_DATAKIT 9
+#define AF_CCITT 10
+#define AF_SNA 11
+#define AF_DECnet 12
+#define AF_DLI 13
+#define AF_LAT 14
+#define AF_HYLINK 15
+#define AF_APPLETALK 16
+#define AF_NETBIOS 17
+#define AF_VOICEVIEW 18
+#define AF_FIREFOX 19
+#define AF_UNKNOWN1 20
+#define AF_BAN 21
+#define AF_ATM 22
+#define AF_INET6 23
+#define AF_CLUSTER 24
+#define AF_12844 25
+#define AF_IRDA 26
+#define AF_NETDES 28
+#define AF_TCNPROCESS 29
+#define AF_TCNMESSAGE 30
+#define AF_ICLFXBM 31
+#define AF_BTH 32
+#define AF_MAX 33
+
+#define _SS_MAXSIZE 128
+#define _SS_ALIGNSIZE (8)
+
+#define _SS_PAD1SIZE (_SS_ALIGNSIZE - sizeof (short))
+#define _SS_PAD2SIZE (_SS_MAXSIZE - (sizeof (short) + _SS_PAD1SIZE + _SS_ALIGNSIZE))
+
+#define PF_UNSPEC AF_UNSPEC
+#define PF_UNIX AF_UNIX
+#define PF_INET AF_INET
+#define PF_IMPLINK AF_IMPLINK
+#define PF_PUP AF_PUP
+#define PF_CHAOS AF_CHAOS
+#define PF_NS AF_NS
+#define PF_IPX AF_IPX
+#define PF_ISO AF_ISO
+#define PF_OSI AF_OSI
+#define PF_ECMA AF_ECMA
+#define PF_DATAKIT AF_DATAKIT
+#define PF_CCITT AF_CCITT
+#define PF_SNA AF_SNA
+#define PF_DECnet AF_DECnet
+#define PF_DLI AF_DLI
+#define PF_LAT AF_LAT
+#define PF_HYLINK AF_HYLINK
+#define PF_APPLETALK AF_APPLETALK
+#define PF_VOICEVIEW AF_VOICEVIEW
+#define PF_FIREFOX AF_FIREFOX
+#define PF_UNKNOWN1 AF_UNKNOWN1
+#define PF_BAN AF_BAN
+#define PF_ATM AF_ATM
+#define PF_INET6 AF_INET6
+#define PF_BTH AF_BTH
+
+#define PF_MAX AF_MAX
+
+#define SOL_SOCKET 0xffff
+
+#define SOMAXCONN 0x7fffffff
+
+#define MSG_OOB 0x1
+#define MSG_PEEK 0x2
+#define MSG_DONTROUTE 0x4
+
+#if(_WIN32_WINNT >= 0x0502)
+#define MSG_WAITALL 0x8
+#endif
+
+#if(_WIN32_WINNT >= 0x0603)
+#define MSG_PUSH_IMMEDIATE 0x20
+#endif
+
+#define MSG_PARTIAL 0x8000
+
+#define MSG_INTERRUPT 0x10
+
+#define MSG_MAXIOVLEN 16
+
+#define MAXGETHOSTSTRUCT 1024
+
+#define FD_READ_BIT 0
+#define FD_READ (1 << FD_READ_BIT)
+
+#define FD_WRITE_BIT 1
+#define FD_WRITE (1 << FD_WRITE_BIT)
+
+#define FD_OOB_BIT 2
+#define FD_OOB (1 << FD_OOB_BIT)
+
+#define FD_ACCEPT_BIT 3
+#define FD_ACCEPT (1 << FD_ACCEPT_BIT)
+
+#define FD_CONNECT_BIT 4
+#define FD_CONNECT (1 << FD_CONNECT_BIT)
+
+#define FD_CLOSE_BIT 5
+#define FD_CLOSE (1 << FD_CLOSE_BIT)
+
+#define FD_QOS_BIT 6
+#define FD_QOS (1 << FD_QOS_BIT)
+
+#define FD_GROUP_QOS_BIT 7
+#define FD_GROUP_QOS (1 << FD_GROUP_QOS_BIT)
+
+#define FD_ROUTING_INTERFACE_CHANGE_BIT 8
+#define FD_ROUTING_INTERFACE_CHANGE (1 << FD_ROUTING_INTERFACE_CHANGE_BIT)
+
+#define FD_ADDRESS_LIST_CHANGE_BIT 9
+#define FD_ADDRESS_LIST_CHANGE (1 << FD_ADDRESS_LIST_CHANGE_BIT)
+
+#define FD_MAX_EVENTS 10
+#define FD_ALL_EVENTS ((1 << FD_MAX_EVENTS) - 1)
+
+WINSOCK_API_LINKAGE SOCKET WSAAPI accept(SOCKET s,struct sockaddr *addr,int *addrlen);
+WINSOCK_API_LINKAGE int WSAAPI bind(SOCKET s,const struct sockaddr *name,int namelen);
+WINSOCK_API_LINKAGE int WSAAPI closesocket(SOCKET s);
+WINSOCK_API_LINKAGE int WSAAPI connect(SOCKET s,const struct sockaddr *name,int namelen);
+WINSOCK_API_LINKAGE int WSAAPI ioctlsocket(SOCKET s,__LONG32 cmd,u_long *argp);
+WINSOCK_API_LINKAGE int WSAAPI getpeername(SOCKET s,struct sockaddr *name,int *namelen);
+WINSOCK_API_LINKAGE int WSAAPI getsockname(SOCKET s,struct sockaddr *name,int *namelen);
+WINSOCK_API_LINKAGE int WSAAPI getsockopt(SOCKET s,int level,int optname,char *optval,int *optlen);
+WINSOCK_API_LINKAGE u_long WSAAPI htonl(u_long hostlong);
+WINSOCK_API_LINKAGE u_short WSAAPI htons(u_short hostshort);
+WINSOCK_API_LINKAGE unsigned __LONG32 WSAAPI inet_addr(const char *cp);
+WINSOCK_API_LINKAGE char *WSAAPI inet_ntoa(struct in_addr in);
+WINSOCK_API_LINKAGE int WSAAPI listen(SOCKET s,int backlog);
+WINSOCK_API_LINKAGE u_long WSAAPI ntohl(u_long netlong);
+WINSOCK_API_LINKAGE u_short WSAAPI ntohs(u_short netshort);
+WINSOCK_API_LINKAGE int WSAAPI recv(SOCKET s,char *buf,int len,int flags);
+WINSOCK_API_LINKAGE int WSAAPI recvfrom(SOCKET s,char *buf,int len,int flags,struct sockaddr *from,int *fromlen);
+WINSOCK_API_LINKAGE int WSAAPI select(int nfds,fd_set *readfds,fd_set *writefds,fd_set *exceptfds,const PTIMEVAL timeout);
+WINSOCK_API_LINKAGE int WSAAPI send(SOCKET s,const char *buf,int len,int flags);
+WINSOCK_API_LINKAGE int WSAAPI sendto(SOCKET s,const char *buf,int len,int flags,const struct sockaddr *to,int tolen);
+WINSOCK_API_LINKAGE int WSAAPI setsockopt(SOCKET s,int level,int optname,const char *optval,int optlen);
+WINSOCK_API_LINKAGE int WSAAPI shutdown(SOCKET s,int how);
+WINSOCK_API_LINKAGE SOCKET WSAAPI socket(int af,int type,int protocol);
+WINSOCK_API_LINKAGE struct hostent *WSAAPI gethostbyaddr(const char *addr,int len,int type);
+WINSOCK_API_LINKAGE struct hostent *WSAAPI gethostbyname(const char *name);
+WINSOCK_API_LINKAGE int WSAAPI gethostname(char *name,int namelen);
+WINSOCK_API_LINKAGE struct servent *WSAAPI getservbyport(int port,const char *proto);
+WINSOCK_API_LINKAGE struct servent *WSAAPI getservbyname(const char *name,const char *proto);
+WINSOCK_API_LINKAGE struct protoent *WSAAPI getprotobynumber(int number);
+WINSOCK_API_LINKAGE struct protoent *WSAAPI getprotobyname(const char *name);
