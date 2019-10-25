@@ -124,14 +124,17 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
      * [timeoutMicroseconds] elapsed. If [process] is true, pending queue elements are processed,
      * including delayed requests. Note that multiple requests could be processed this way.
      *
-     * @param timeoutMicroseconds defines how long to park worker if no requests arrive.
+     * @param timeoutMicroseconds defines how long to park worker if no requests arrive, waits forever if -1.
      * @param process defines if arrived request(s) shall be processed.
      * @return if [process] is `true`: if request(s) was processed `true` and `false` otherwise.
      *   if [process] is `false`:` true` if request(s) has arrived and `false` if timeout happens.
      * @throws [IllegalStateException] if this request is executed on non-current [Worker].
+     * @throws [IllegalArgumentException] if timeout value is incorrect.
      */
-    public fun park(timeoutMicroseconds: Long, process: Boolean = false): Boolean =
-            parkInternal(id, timeoutMicroseconds, process)
+    public fun park(timeoutMicroseconds: Long, process: Boolean = false): Boolean {
+        if (timeoutMicroseconds < -1) throw IllegalArgumentException()
+        return parkInternal(id, timeoutMicroseconds, process)
+    }
 
     /**
      * Name of the worker, as specified in [Worker.start] or "worker $id" by default,
