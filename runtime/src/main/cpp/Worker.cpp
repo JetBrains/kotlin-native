@@ -767,9 +767,6 @@ bool Worker::waitForQueueLocked(KLong timeoutMicroseconds, KLong* remaining) {
     }
     if (timeoutMicroseconds >= 0) {
         closestToRun = timeoutMicroseconds < closestToRun || closestToRun < 0 ? timeoutMicroseconds : closestToRun;
-        if (remaining) *remaining = timeoutMicroseconds - closestToRun;
-    } else {
-        if (remaining) *remaining = 0;
     }
     if (closestToRun > 0) {
       struct timeval tv;
@@ -779,8 +776,16 @@ bool Worker::waitForQueueLocked(KLong timeoutMicroseconds, KLong* remaining) {
       ts.tv_nsec = (tv.tv_usec * 1000LL + nsDelta) % 1000000000LL;
       ts.tv_sec = (tv.tv_sec * 1000000000LL + nsDelta) / 1000000000LL;
       pthread_cond_timedwait(&cond_, &lock_, &ts);
+      if (remaining) {
+        struct timeval tvAfter;
+        gettimeofday(&tvAfter, nullptr);
+        KLong usBefore = tv.tv_sec * 1000000LL + tv.tv_usec;
+        KLong usAfter = tvAfter.tv_sec * 1000000LL + tvAfter.tv_usec;
+        *remaining = timeoutMicroseconds - (usAfter - usBefore);
+      }
     } else {
       pthread_cond_wait(&cond_, &lock_);
+      if (remaining) *remaining = 0;
     }
     if (timeoutMicroseconds >= 0) return queue_.size() != 0;
   }
@@ -791,18 +796,18 @@ bool Worker::park(KLong timeoutMicroseconds, bool process) {
   {
     Locker locker(&lock_);
     if (terminated_) {
-        return false;
+      return false;
     }
     auto arrived = false;
     KLong remaining = timeoutMicroseconds;
     do {
       arrived = waitForQueueLocked(remaining, &remaining);
-    } while (remaining != 0 && !arrived);
+    } while (remaining > 0 && !arrived);
     if (!process) {
-        return arrived;
+      return arrived;
     }
     if (!arrived) {
-        return false;
+      return false;
     }
   }
   int processed = 0;

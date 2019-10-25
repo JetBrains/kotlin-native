@@ -161,7 +161,7 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
 /**
  * Executes [block] with new [Worker] as resource, by starting the new worker, calling provided [block]
  * (in current context) with newly started worker as [this] and terminating worker after the block completes.
- * Note that this operaation is pretty heavyweight, use preconfigured worker or worker pool if need to
+ * Note that this operation is pretty heavyweight, use preconfigured worker or worker pool if need to
  * execute it frequently.
  *
  * @param name of the started worker.

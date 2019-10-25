@@ -80,3 +80,17 @@ import kotlin.native.concurrent.*
     assertTrue(Worker.current.park(1_000_000, process = true))
     assertEquals(1, counter.value)
 }
+
+@Test fun runTest5() {
+    val main = Worker.current
+    val counter = AtomicInt(0)
+    withWorker {
+        executeAfter(1000, {
+            main.executeAfter(1, {
+                counter.increment()
+            }.freeze())
+        }.freeze())
+        assertTrue(main.park(1000L * 1000 * 1000, process = true))
+        assertEquals(1, counter.value)
+    }
+}
