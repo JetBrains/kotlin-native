@@ -3,6 +3,9 @@ headers = wtypes.h minwindef.h windows.h commctrl.h dwmapi.h shlobj.h shlwapi.h 
     urlmon.h usp10.h uxtheme.h vfw.h wininet.h winsock2.h ws2tcpip.h ws2def.h
 compilerOpts = -DUNICODE -DWINVER=0x0601 -D_WIN32_WINNT=0x0601 -DWINAPI_FAMILY=3 -DOEMRESOURCE \
     -Wno-incompatible-pointer-types -Wno-deprecated-declarations
-linkerOpts = -lcomctl32 -lcrypt32 -lshlwapi -lshell32 -limm32 -lusp10 -lwininet -lgdi32 -luser32 -lkernel32 -lbcrypt -luuid
+linkerOpts = -lcomctl32 -lcrypt32 -lshlwapi -lshell32 -limm32 -lusp10 -lwininet -lgdi32 -luser32 -lkernel32 -lbcrypt -luuid \
+    -ladvapi32 -lcomdlg32 -lcryptnet -lcryptsp -ldpapi -ldwmapi -lfwpuclnt -lmpr -lmsacm32 -lmsimg32 \
+    -lncrypt -lnormaliz -lntdll -lole32 -loleaut32 -lopengl32 -lrpcdiag -lrpchttp -lrpcns4 -lrpcrt4 \
+    -lurlmon -luxtheme -lversion -lvfw32 -lvirtdisk -lwinmm -lwinscard -lwinspool
 noStringConversion = LoadCursorA LoadBitmapA LoadIconA LoadImageA LoadCursorW LoadBitmapW LoadIconW LoadImageW
 depends = posix
