@@ -386,6 +386,18 @@ func testLambda() throws {
     }
     try assertTrue(uncoercedUnitBlock() == Void())
     try assertEquals(actual: blockRuns, expected: 5)
+
+    let blockMustBeFunction0: @convention(block) () -> AnyObject? = { return nil }
+    try assertTrue(ValuesKt.isFunction0(obj: blockMustBeFunction0))
+    try assertFalse(ValuesKt.isFunction(obj: NSObject()))
+    try assertFalse(ValuesKt.isFunction0(obj: NSObject()))
+
+    // Test no function class for dynamic conversion:
+    let blockAsMissingFunction: @convention(block) (AnyObject?, AnyObject?, AnyObject?, AnyObject?, AnyObject?) -> AnyObject?
+            = { return $0 ?? $1 ?? $2 ?? $3 ?? $4 }
+
+    try assertTrue(ValuesKt.isFunction(obj: blockAsMissingFunction))
+    try assertFalse(ValuesKt.isFunction0(obj: blockAsMissingFunction))
 }
 
 // -------- Tests for classes and interfaces -------
