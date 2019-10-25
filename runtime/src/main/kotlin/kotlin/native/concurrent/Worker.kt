@@ -157,3 +157,22 @@ public inline class Worker @PublishedApi internal constructor(val id: Int) {
      */
     public fun asCPointer() : COpaquePointer? = id.toLong().toCPointer()
 }
+
+/**
+ * Executes [block] in new [Worker], by starting a worker, calling provided [block] and terminating
+ * worker after block is completed. Note that this operaation is pretty heavyweight, use preconfigured
+ * worker or worker pool if need to execute it frequently.
+ *
+ * @param name of the started worker.
+ * @param reportErrors controls if uncaught errors in worker to be reported.
+ * @param block to be executed.
+ * @return value returned by block.
+ */
+public inline fun <R> withWorker(name: String? = null, reportErrors: Boolean = true, block: Worker.() -> R): R {
+    val worker = Worker.start(reportErrors, name)
+    try {
+        return worker.block()
+    } finally {
+        worker.requestTermination().result
+    }
+}
