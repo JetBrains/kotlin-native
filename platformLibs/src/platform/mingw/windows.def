@@ -19,7 +19,6 @@ headers = \
     shlwapi.h \
     shobjidl.h \
     urlmon.h \
-    usp10.h \
     vfw.h
 
 headerFilter = \
@@ -131,7 +130,6 @@ headerFilter = \
     unknwn.h \
     unknwnbase.h \
     urlmon.h \
-    usp10.h \
     utilapiset.h \
     vfw.h \
     virtdisk.h \
@@ -175,7 +173,6 @@ linkerOpts = \
     -lshlwapi \
     -lshell32 \
     -limm32 \
-    -lusp10 \
     -lgdi32 \
     -luser32 \
     -lkernel32 \
