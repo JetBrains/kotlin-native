@@ -168,8 +168,6 @@ headerFilter = \
     winnt.h \
     winperf.h \
     winreg.h \
-    winscard.h \
-    winsmcrd.h \
     winsock.h \
     winsock2.h \
     winspool.h \
@@ -231,5 +229,4 @@ linkerOpts = \
     -lvfw32 \
     -lvirtdisk \
     -lwinmm \
-    -lwinscard \
     -lwinspool
