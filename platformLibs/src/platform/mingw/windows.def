@@ -22,7 +22,6 @@ headers = \
     usp10.h \
     uxtheme.h \
     vfw.h \
-    wininet.h \
     winsock2.h \
     ws2tcpip.h \
     ws2def.h
@@ -159,7 +158,6 @@ headerFilter = \
     winefs.h \
     winerror.h \
     wingdi.h \
-    wininet.h \
     winioctl.h \
     winnetwk.h \
     winnls.h \
@@ -197,7 +195,6 @@ linkerOpts = \
     -lshell32 \
     -limm32 \
     -lusp10 \
-    -lwininet \
     -lgdi32 \
     -luser32 \
     -lkernel32 \
