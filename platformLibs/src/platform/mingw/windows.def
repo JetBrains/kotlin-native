@@ -14,10 +14,7 @@ headers = \
     wtypes.h \
     minwindef.h \
     windows.h \
-    commctrl.h \
-    shlobj.h \
-    shlwapi.h \
-    shobjidl.h
+    commctrl.h
 
 headerFilter = \
     apiset.h \
@@ -103,14 +100,6 @@ headerFilter = \
     securityappcontainer.h \
     securitybaseapi.h \
     servprov.h \
-    shellapi.h \
-    sherrors.h \
-    shldisp.h \
-    shlguid.h \
-    shlobj.h \
-    shlwapi.h \
-    shobjidl.h \
-    shtypes.h \
     specstrings.h \
     stralign.h \
     stringapiset.h \
@@ -161,8 +150,6 @@ noStringConversion = \
 
 linkerOpts = \
     -lcomctl32 \
-    -lshlwapi \
-    -lshell32 \
     -limm32 \
     -lgdi32 \
     -luser32 \
