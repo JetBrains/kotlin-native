@@ -1,6 +1,106 @@
 package = platform.builtin
-headerFilter =
 language = C
+
+compilerOpts = \
+    -DUNICODE \
+    -DWINVER=0x0601 \
+    -D_WIN32_WINNT=0x0601 \
+    -DWINAPI_FAMILY=3 \
+    -DOEMRESOURCE \
+    -Wno-incompatible-pointer-types \
+    -Wno-deprecated-declarations
+
+headers = x86intrin.h
+
+headerFilter = \
+    __wmmintrin_aes.h \
+    __wmmintrin_pclmul.h \
+    adxintrin.h \
+    ammintrin.h \
+    avx2intrin.h \
+    avx512bf16intrin.h \
+    avx512bitalgintrin.h \
+    avx512bwintrin.h \
+    avx512cdintrin.h \
+    avx512dqintrin.h \
+    avx512erintrin.h \
+    avx512fintrin.h \
+    avx512ifmaintrin.h \
+    avx512ifmavlintrin.h \
+    avx512pfintrin.h \
+    avx512vbmi2intrin.h \
+    avx512vbmiintrin.h \
+    avx512vbmivlintrin.h \
+    avx512vlbf16intrin.h \
+    avx512vlbitalgintrin.h \
+    avx512vlbwintrin.h \
+    avx512vlcdintrin.h \
+    avx512vldqintrin.h \
+    avx512vlintrin.h \
+    avx512vlvbmi2intrin.h \
+    avx512vlvnniintrin.h \
+    avx512vlvp2intersectintrin.h \
+    avx512vnniintrin.h \
+    avx512vp2intersectintrin.h \
+    avx512vpopcntdqintrin.h \
+    avx512vpopcntdqvlintrin.h \
+    avxintrin.h \
+    bmi2intrin.h \
+    bmiintrin.h \
+    cetintrin.h \
+    cldemoteintrin.h \
+    clflushoptintrin.h \
+    clwbintrin.h \
+    clzerointrin.h \
+    emmintrin.h \
+    enqcmdintrin.h \
+    f16cintrin.h \
+    fma4intrin.h \
+    fmaintrin.h \
+    fxsrintrin.h \
+    gfniintrin.h \
+    ia32intrin.h \
+    immintrin.h \
+    invpcidintrin.h \
+    lwpintrin.h \
+    lzcntintrin.h \
+    mm3dnow.h \
+    mmintrin.h \
+    movdirintrin.h \
+    mwaitxintrin.h \
+    pconfigintrin.h \
+    pkuintrin.h \
+    pmmintrin.h \
+    popcntintrin.h \
+    prfchwintrin.h \
+    ptwriteintrin.h \
+    rdseedintrin.h \
+    rtmintrin.h \
+    sgxintrin.h \
+    shaintrin.h \
+    smmintrin.h \
+    tbmintrin.h \
+    tmmintrin.h \
+    vaesintrin.h \
+    vpclmulqdqintrin.h \
+    waitpkgintrin.h \
+    wbnoinvdintrin.h \
+    wmmintrin.h \
+    x86intrin.h \
+    xmmintrin.h \
+    xopintrin.h \
+    xsavecintrin.h \
+    xsaveintrin.h \
+    xsaveoptintrin.h \
+    xsavesintrin.h \
+    xtestintrin.h \
+    psdk_inc/intrin-impl.h
+
+nonStrictEnums = \
+    _MM_CMPINT_ENUM \
+    _MM_MANTISSA_NORM_ENUM \
+    _MM_MANTISSA_SIGN_ENUM
+
 ---
 // See https://github.com/llvm-mirror/clang/blob/master/include/clang/Basic/Builtins.def
 // TODO: autogenerate from machine format.
