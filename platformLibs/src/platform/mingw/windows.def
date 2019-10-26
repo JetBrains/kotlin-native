@@ -15,7 +15,6 @@ headers = \
     minwindef.h \
     windows.h \
     commctrl.h \
-    dwmapi.h \
     shlobj.h \
     shlwapi.h \
     shobjidl.h \
@@ -48,7 +47,6 @@ headerFilter = \
     docobj.h \
     dpapi.h \
     driverspecs.h \
-    dwmapi.h \
     errhandlingapi.h \
     excpt.h \
     exdisp.h \
@@ -210,7 +208,6 @@ linkerOpts = \
     -lcryptnet \
     -lcryptsp \
     -ldpapi \
-    -ldwmapi \
     -lfwpuclnt \
     -lmpr \
     -lmsacm32 \
