@@ -20,7 +20,6 @@ headers = \
     shobjidl.h \
     urlmon.h \
     usp10.h \
-    uxtheme.h \
     vfw.h
 
 headerFilter = \
@@ -134,7 +133,6 @@ headerFilter = \
     urlmon.h \
     usp10.h \
     utilapiset.h \
-    uxtheme.h \
     vfw.h \
     virtdisk.h \
     winapifamily.h \
@@ -200,7 +198,6 @@ linkerOpts = \
     -lrpcns4 \
     -lrpcrt4 \
     -lurlmon \
-    -luxtheme \
     -lversion \
     -lvfw32 \
     -lvirtdisk \
