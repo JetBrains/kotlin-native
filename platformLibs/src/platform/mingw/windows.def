@@ -17,8 +17,7 @@ headers = \
     commctrl.h \
     shlobj.h \
     shlwapi.h \
-    shobjidl.h \
-    vfw.h
+    shobjidl.h
 
 headerFilter = \
     apiset.h \
@@ -129,7 +128,6 @@ headerFilter = \
     unknwn.h \
     unknwnbase.h \
     utilapiset.h \
-    vfw.h \
     virtdisk.h \
     winapifamily.h \
     winbase.h \
@@ -193,7 +191,6 @@ linkerOpts = \
     -lrpcns4 \
     -lrpcrt4 \
     -lversion \
-    -lvfw32 \
     -lvirtdisk \
     -lwinmm \
     -lwinspool
