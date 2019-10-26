@@ -18,7 +18,6 @@ headers = \
     shlobj.h \
     shlwapi.h \
     shobjidl.h \
-    urlmon.h \
     vfw.h
 
 headerFilter = \
@@ -129,7 +128,6 @@ headerFilter = \
     tvout.h \
     unknwn.h \
     unknwnbase.h \
-    urlmon.h \
     utilapiset.h \
     vfw.h \
     virtdisk.h \
@@ -194,7 +192,6 @@ linkerOpts = \
     -lopengl32 \
     -lrpcns4 \
     -lrpcrt4 \
-    -lurlmon \
     -lversion \
     -lvfw32 \
     -lvirtdisk \
