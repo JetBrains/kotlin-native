@@ -93,7 +93,7 @@ internal open class ObjCExportCodeGeneratorBase(codegen: CodeGenerator) : ObjCCo
 
 internal class ObjCExportBlockCodeGenerator(codegen: CodeGenerator) : ObjCExportCodeGeneratorBase(codegen) {
     init {
-        // Must be generated among with stdlib:
+        // Must be generated along with stdlib:
         // 1. Enumerates [BuiltInFictitiousFunctionIrClassFactory] built classes, which may be incomplete otherwise.
         // 2. Modifies stdlib global initializers.
         // 3. Defines runtime-declared globals.
