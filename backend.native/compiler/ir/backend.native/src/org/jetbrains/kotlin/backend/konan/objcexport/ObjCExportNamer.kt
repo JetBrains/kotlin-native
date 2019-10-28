@@ -98,7 +98,7 @@ internal open class ObjCExportNameTranslatorImpl(
     private fun getClassOrProtocolSwiftName(
             ktClassOrObject: KtClassOrObject
     ): String = buildString {
-        val ownName = ktClassOrObject.name!!.toIdentifier()
+        val ownName = ktClassOrObject.name?.toIdentifier() ?: "ERROR"
         val outerClass = ktClassOrObject.getStrictParentOfType<KtClassOrObject>()
         if (outerClass != null) {
             append(getClassOrProtocolSwiftName(outerClass))
