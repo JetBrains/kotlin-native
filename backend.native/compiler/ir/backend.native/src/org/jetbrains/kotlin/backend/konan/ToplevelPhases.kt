@@ -251,8 +251,8 @@ internal val serializerPhase = konanUnitPhase(
             serializedIr = KonanIrModuleSerializer(this, irModule!!.irBuiltins, descriptorTable).serializedIrModule(irModule!!)
             val serializer = KlibMetadataMonolithicSerializer(
                 this.config.configuration.languageVersionSettings,
-                config.configuration.get(CommonConfigurationKeys.METADATA_VERSION
-            )!!, descriptorTable, bindingContext)
+                config.configuration.get(CommonConfigurationKeys.METADATA_VERSION)!!,
+                moduleDescriptor, descriptorTable, bindingContext)
             serializedMetadata = serializer.serializeModule(moduleDescriptor)
         },
         name = "Serializer",
