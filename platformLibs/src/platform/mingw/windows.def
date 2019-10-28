@@ -21,10 +21,7 @@ headers = \
     urlmon.h \
     usp10.h \
     uxtheme.h \
-    vfw.h \
-    winsock2.h \
-    ws2tcpip.h \
-    ws2def.h
+    vfw.h
 
 headerFilter = \
     apiset.h \
@@ -94,15 +91,6 @@ headerFilter = \
     propkeydef.h \
     propsys.h \
     prsht.h \
-    psdk_inc/_ip_mreq1.h \
-    psdk_inc/_ws1_undef.h \
-    psdk_inc/_wsa_errnos.h \
-    psdk_inc/_wsadata.h \
-    psdk_inc/_xmitfile.h \
-    pshpack1.h \
-    pshpack2.h \
-    pshpack4.h \
-    pshpack8.h \
     qos.h \
     realtimeapiset.h \
     reason.h \
@@ -164,17 +152,12 @@ headerFilter = \
     winnt.h \
     winperf.h \
     winreg.h \
-    winsock.h \
-    winsock2.h \
     winspool.h \
     winsvc.h \
     winuser.h \
     winver.h \
     wnnc.h \
     wow64apiset.h \
-    ws2def.h \
-    ws2ipdef.h \
-    ws2tcpip.h \
     wtypes.h \
     wtypesbase.h
 
@@ -205,7 +188,6 @@ linkerOpts = \
     -lcryptnet \
     -lcryptsp \
     -ldpapi \
-    -lfwpuclnt \
     -lmpr \
     -lmsacm32 \
     -lmsimg32 \
