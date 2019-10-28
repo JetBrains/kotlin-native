@@ -1829,7 +1829,6 @@ task sort1(type: KonanLocalTest) {
 
 task sortWith(type: KonanLocalTest) {
     source = "runtime/collections/SortWith.kt"
-    arguments = ['--ktest_logger=SILENT']
 }
 
 task if_else(type: KonanLocalTest) {
