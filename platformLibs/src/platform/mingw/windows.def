@@ -114,7 +114,6 @@ headerFilter = \
     unknwn.h \
     unknwnbase.h \
     utilapiset.h \
-    virtdisk.h \
     winapifamily.h \
     winbase.h \
     wincon.h \
@@ -167,6 +166,5 @@ linkerOpts = \
     -lrpcns4 \
     -lrpcrt4 \
     -lversion \
-    -lvirtdisk \
     -lwinmm \
     -lwinspool
