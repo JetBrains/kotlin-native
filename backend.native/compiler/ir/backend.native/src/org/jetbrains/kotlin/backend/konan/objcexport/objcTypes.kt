@@ -34,10 +34,16 @@ data class ObjCNullableReferenceType(
     override fun render(attrsAndName: String) = nonNullType.render(" _Nullable".withAttrsAndName(attrsAndName))
 }
 
+sealed class ObjCClassOrProtocolType(val importedFromModules: List<String>) : ObjCNonNullReferenceType() {
+    val importedFromModule: String?
+        get() = importedFromModules.singleOrNull()
+}
+
 class ObjCClassType(
         val className: String,
-        val typeArguments: List<ObjCNonNullReferenceType> = emptyList()
-) : ObjCNonNullReferenceType() {
+        val typeArguments: List<ObjCNonNullReferenceType> = emptyList(),
+        importedFromModules: List<String> = emptyList()
+) : ObjCClassOrProtocolType(importedFromModules) {
 
     override fun render(attrsAndName: String) = buildString {
         append(className)
@@ -61,8 +67,9 @@ class ObjCGenericTypeDeclaration(
 }
 
 class ObjCProtocolType(
-        val protocolName: String
-) : ObjCNonNullReferenceType() {
+        val protocolName: String,
+        importedFromModules: List<String> = emptyList()
+) : ObjCClassOrProtocolType(importedFromModules) {
     override fun render(attrsAndName: String) = "id<$protocolName>".withAttrsAndName(attrsAndName)
 }
 

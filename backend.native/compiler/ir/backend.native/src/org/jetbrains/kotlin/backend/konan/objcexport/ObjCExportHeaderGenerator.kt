@@ -14,6 +14,8 @@ import org.jetbrains.kotlin.builtins.getReceiverTypeFromFunctionType
 import org.jetbrains.kotlin.builtins.getReturnTypeFromFunctionType
 import org.jetbrains.kotlin.builtins.getValueParameterTypesFromFunctionType
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.konan.library.KonanLibrary
+import org.jetbrains.kotlin.konan.library.interopModules
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.resolve.constants.ArrayValue
@@ -648,7 +650,7 @@ internal class ObjCExportTranslatorImpl(
                 val type = when (bridge) {
                     is MethodBridgeValueParameter.Mapped -> mapType(p!!.type, bridge.bridge, objCExportScope)
                     MethodBridgeValueParameter.ErrorOutParameter ->
-                        ObjCPointerType(ObjCNullableReferenceType(ObjCClassType("NSError")), nullable = true)
+                        ObjCPointerType(ObjCNullableReferenceType(nsErrorType), nullable = true)
 
                     is MethodBridgeValueParameter.KotlinResultOutParameter -> {
                         val resultType = mapType(method.returnType!!, bridge.bridge, objCExportScope)
@@ -829,7 +831,7 @@ internal class ObjCExportTranslatorImpl(
         // TODO: more precise types can be used.
 
         if (descriptor.isObjCMetaClass()) return ObjCMetaClassType
-        if (descriptor.isObjCProtocolClass()) return foreignClassType("Protocol")
+        if (descriptor.isObjCProtocolClass()) return foreignClassType("Protocol", emptyList())
 
         if (descriptor.isExternalObjCClass() || descriptor.isObjCForwardDeclaration()) {
             return if (descriptor.isInterface) {
@@ -837,7 +839,8 @@ internal class ObjCExportTranslatorImpl(
                 foreignProtocolType(name)
             } else {
                 val name = descriptor.name.asString()
-                foreignClassType(name)
+                val modules = (descriptor.module.konanLibrary as? KonanLibrary)?.interopModules.orEmpty()
+                foreignClassType(name, importedFromModules = modules)
             }
         }
 
@@ -853,9 +856,9 @@ internal class ObjCExportTranslatorImpl(
         return ObjCProtocolType(name)
     }
 
-    private fun foreignClassType(name: String): ObjCClassType {
+    private fun foreignClassType(name: String, importedFromModules: List<String>): ObjCClassType {
         generator?.referenceClass(name)
-        return ObjCClassType(name)
+        return ObjCClassType(name, importedFromModules = importedFromModules)
     }
 
     internal fun mapFunctionTypeIgnoringNullability(
@@ -1229,3 +1232,5 @@ private fun Deprecation.toDeprecationAttribute(): String {
 
     return "$attribute(\"$message\")"
 }
+
+private val nsErrorType = ObjCClassType("NSError", importedFromModules = listOf("Foundation"))

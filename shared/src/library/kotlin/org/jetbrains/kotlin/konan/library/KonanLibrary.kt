@@ -3,12 +3,16 @@ package org.jetbrains.kotlin.konan.library
 import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.properties.Properties
 import org.jetbrains.kotlin.konan.properties.propertyList
+import org.jetbrains.kotlin.konan.util.DEFFILE_PROPERTY_MODULES
 import org.jetbrains.kotlin.library.*
 
 const val KLIB_PROPERTY_LINKED_OPTS = "linkerOpts"
 const val KLIB_PROPERTY_INTEROP = "interop"
 const val KLIB_PROPERTY_EXPORT_FORWARD_DECLARATIONS = "exportForwardDeclarations"
 const val KLIB_PROPERTY_INCLUDED_HEADERS = "includedHeaders"
+
+// .def file properties are copied to manifest as is:
+const val KLIB_PROPERTY_INTEROP_MODULES: String = DEFFILE_PROPERTY_MODULES
 
 interface TargetedLibrary {
     val targetList: List<String>
@@ -38,3 +42,6 @@ val KonanLibrary.exportForwardDeclarations
 
 val KonanLibrary.includedHeaders
     get() = manifestProperties.propertyList(KLIB_PROPERTY_INCLUDED_HEADERS, escapeInQuotes = true)
+
+val KonanLibrary.interopModules: List<String>
+    get() = manifestProperties.propertyList(KLIB_PROPERTY_INTEROP_MODULES, escapeInQuotes = true)

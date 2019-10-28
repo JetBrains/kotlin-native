@@ -22,6 +22,8 @@ import java.io.File
 import java.io.StringReader
 import java.util.*
 
+internal const val DEFFILE_PROPERTY_MODULES = "modules"
+
 class DefFile(val file:File?, val config:DefFileConfig, val manifestAddendProperties:Properties, val defHeaderLines:List<String>) {
     private constructor(file0:File?, triple: Triple<Properties, Properties, List<String>>): this(file0, DefFileConfig(triple.first), triple.second, triple.third)
     constructor(file:File?, substitutions: Map<String, String>) : this(file, parseDefFile(file, substitutions))
@@ -35,7 +37,7 @@ class DefFile(val file:File?, val config:DefFileConfig, val manifestAddendProper
         }
 
         val modules by lazy {
-            properties.getSpaceSeparated("modules")
+            properties.getSpaceSeparated(DEFFILE_PROPERTY_MODULES)
         }
 
         val language by lazy {
