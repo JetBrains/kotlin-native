@@ -1,0 +1,31 @@
+package = platform.wincrypt
+depends = windows
+
+compilerOpts = \
+    -DUNICODE \
+    -DWINVER=0x0601 \
+    -D_WIN32_WINNT=0x0601 \
+    -DWINAPI_FAMILY=3 \
+    -DOEMRESOURCE \
+    -Wno-incompatible-pointer-types \
+    -Wno-deprecated-declarations
+
+headers = windows.h \
+     wincrypt.h \
+     bcrypt.h \
+     ncrypt.h
+
+headerFilter = \
+     wincrypt.h \
+     bcrypt.h \
+     ncrypt.h \
+     dpapi.h
+
+linkerOpts = \
+    -lcrypt32 \
+    -lcryptnet \
+    -lcryptsp \
+    -lbcrypt \
+    -lncrypt \
+    -ldpapi \
+    -ladvapi32

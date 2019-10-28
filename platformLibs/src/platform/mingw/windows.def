@@ -23,7 +23,6 @@ headerFilter = \
     apiset.h \
     apisetcconv.h \
     basetsd.h \
-    bcrypt.h \
     bemapiset.h \
     cderr.h \
     cguid.h \
@@ -37,7 +36,6 @@ headerFilter = \
     debugapi.h \
     dlgs.h \
     docobj.h \
-    dpapi.h \
     driverspecs.h \
     errhandlingapi.h \
     excpt.h \
@@ -69,7 +67,6 @@ headerFilter = \
     namedpipeapi.h \
     namespaceapi.h \
     nb30.h \
-    ncrypt.h \
     oaidl.h \
     objbase.h \
     objectarray.h \
@@ -132,7 +129,6 @@ headerFilter = \
     winapifamily.h \
     winbase.h \
     wincon.h \
-    wincrypt.h \
     windef.h \
     windows.h \
     winefs.h \
@@ -165,24 +161,17 @@ noStringConversion = \
 
 linkerOpts = \
     -lcomctl32 \
-    -lcrypt32 \
     -lshlwapi \
     -lshell32 \
     -limm32 \
     -lgdi32 \
     -luser32 \
     -lkernel32 \
-    -lbcrypt \
     -luuid \
-    -ladvapi32 \
     -lcomdlg32 \
-    -lcryptnet \
-    -lcryptsp \
-    -ldpapi \
     -lmpr \
     -lmsacm32 \
     -lmsimg32 \
-    -lncrypt \
     -lnormaliz \
     -lntdll \
     -lole32 \
