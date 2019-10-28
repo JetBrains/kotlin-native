@@ -12,7 +12,7 @@ import org.jetbrains.kotlin.resolve.inline.ReasonableInlineRule
 import org.jetbrains.kotlin.resolve.jvm.checkers.SuperCallWithDefaultArgumentsChecker
 
 object KonanPlatformConfigurator : PlatformConfiguratorBase(
-    additionalDeclarationCheckers = listOf(ExpectedActualDeclarationChecker(ModuleStructureOracle.SingleModule, emptyList())),
+    //additionalDeclarationCheckers = listOf(ExpectedActualDeclarationChecker(ModuleStructureOracle.SingleModule, emptyList())),
     additionalCallCheckers = listOf(SuperCallWithDefaultArgumentsChecker())
 ) {
     override fun configureModuleComponents(container: StorageComponentContainer) {
