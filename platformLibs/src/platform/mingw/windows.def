@@ -128,7 +128,6 @@ headerFilter = \
     winnt.h \
     winperf.h \
     winreg.h \
-    winspool.h \
     winsvc.h \
     winuser.h \
     winver.h \
@@ -166,5 +165,4 @@ linkerOpts = \
     -lrpcns4 \
     -lrpcrt4 \
     -lversion \
-    -lwinmm \
-    -lwinspool
+    -lwinmm
