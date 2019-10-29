@@ -788,3 +788,15 @@ fun testClassTypeCheck(x: Any) = x is ClassForTypeCheck
 interface InterfaceForTypeCheck
 
 fun testInterfaceTypeCheck(x: Any) = x is InterfaceForTypeCheck
+
+interface IAbstractInterface {
+    fun foo(): Int
+}
+
+fun testAbstractInterfaceCall(x: IAbstractInterface) = x.foo()
+
+abstract class AbstractInterfaceBase : IAbstractInterface {
+    override fun foo() = bar()
+
+    abstract fun bar(): Int
+}

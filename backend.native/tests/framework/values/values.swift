@@ -1029,6 +1029,17 @@ func testInterfaceTypeCheck() throws {
     try assertFalse(ValuesKt.testInterfaceTypeCheck(x: ClassForInterfaceTypeCheck_Fail()))
 }
 
+class AbstractInterface : AbstractInterfaceBase {
+    override func bar() -> Int32 {
+        return 42
+    }
+}
+
+// See https://github.com/JetBrains/kotlin-native/issues/3503
+func testGH3503() throws {
+    try assertEquals(actual: ValuesKt.testAbstractInterfaceCall(x: AbstractInterface()), expected: 42)
+}
+
 // -------- Execution of the test --------
 
 class ValuesTests : TestProvider {
@@ -1081,6 +1092,7 @@ class ValuesTests : TestProvider {
             TestCase(name: "TestClassTypeCheck", method: withAutorelease(testClassTypeCheck)),
             TestCase(name: "TestInterfaceTypeCheck", method: withAutorelease(testInterfaceTypeCheck)),
             TestCase(name: "TestGH2931", method: withAutorelease(testGH2931)),
+            TestCase(name: "TestGH3503", method: withAutorelease(testGH3503)),
         ]
     }
 }
