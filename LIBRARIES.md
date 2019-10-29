@@ -206,13 +206,13 @@ Have fun!
 
 When given a `-library foo` flag, the compiler searches the `foo` library in the following order:
 
-    * Current compilation directory or an absolute path.
+* Current compilation directory or an absolute path.
 
-    * All repositories specified with `-repo` flag.
+* All repositories specified with the `-repo` flag.
 
-    * Libraries installed in the default repository (For now the default is  `~/.konan`, however it could be changed by setting **KONAN_DATA_DIR** environment variable).
+* Libraries installed in the default repository. (For now the default is  `~/.konan`, however it could be changed by setting the **KONAN_DATA_DIR** environment variable).
 
-    * Libraries installed in `$installation/klib` directory.
+* Libraries installed in the `$installation/klib` directory.
 
 ## The library format
 
@@ -238,5 +238,5 @@ directory structure, with the following layout:
     - manifest - A file in *java property* format describing the library.
 ```
 
-An example layout can be found in `klib/stdlib` directory of your installation.
+An example layout can be found in the `klib/stdlib` directory of your installation.
 
