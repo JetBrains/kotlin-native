@@ -987,12 +987,31 @@ __attribute__((swift_name("IAbstractInterface")))
 - (int32_t)foo __attribute__((swift_name("foo()")));
 @end;
 
+__attribute__((swift_name("IAbstractInterface2")))
+@protocol ValuesIAbstractInterface2
+@required
+- (int32_t)foo __attribute__((swift_name("foo()")));
+@end;
+
 __attribute__((swift_name("AbstractInterfaceBase")))
 @interface ValuesAbstractInterfaceBase : ValuesBase <ValuesIAbstractInterface>
 - (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
 + (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
 - (int32_t)foo __attribute__((swift_name("foo()")));
 - (int32_t)bar __attribute__((swift_name("bar()")));
+@end;
+
+__attribute__((swift_name("AbstractInterfaceBase2")))
+@interface ValuesAbstractInterfaceBase2 : ValuesBase <ValuesIAbstractInterface2>
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@end;
+
+__attribute__((swift_name("AbstractInterfaceBase3")))
+@interface ValuesAbstractInterfaceBase3 : ValuesBase <ValuesIAbstractInterface>
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+- (int32_t)foo __attribute__((swift_name("foo()")));
 @end;
 
 @interface ValuesEnumeration (ValuesKt)
@@ -1079,6 +1098,7 @@ __attribute__((swift_name("ValuesKt")))
 + (BOOL)testClassTypeCheckX:(id)x __attribute__((swift_name("testClassTypeCheck(x:)")));
 + (BOOL)testInterfaceTypeCheckX:(id)x __attribute__((swift_name("testInterfaceTypeCheck(x:)")));
 + (int32_t)testAbstractInterfaceCallX:(id<ValuesIAbstractInterface>)x __attribute__((swift_name("testAbstractInterfaceCall(x:)")));
++ (int32_t)testAbstractInterfaceCall2X:(id<ValuesIAbstractInterface2>)x __attribute__((swift_name("testAbstractInterfaceCall2(x:)")));
 @property (class, readonly) double dbl __attribute__((swift_name("dbl")));
 @property (class, readonly) float flt __attribute__((swift_name("flt")));
 @property (class, readonly) int32_t integer __attribute__((swift_name("integer")));
