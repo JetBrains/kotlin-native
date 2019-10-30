@@ -59,11 +59,11 @@ internal fun CPointer<*>.cPointerToString() = "CPointer(raw=$rawValue)"
 
 public final class NativeVector private constructor()
 
-public class VectorVarOf<T : NativeVector>(rawPtr: NativePtr) : CVariable(rawPtr)
+public class NativeVectorVarOf<T : NativeVector>(rawPtr: NativePtr) : CVariable(rawPtr)
 
-public typealias VectorVar = VectorVarOf<NativeVector>
+public typealias NativeVectorVar = NativeVectorVarOf<NativeVector>
 
-public var <T : NativeVector> VectorVarOf<T>.value: T
+public var <T : NativeVector> NativeVectorVarOf<T>.value: T
     get() = nativeMemUtils.getVector(this) as T
     set(value) = nativeMemUtils.putVector(this, value)
 

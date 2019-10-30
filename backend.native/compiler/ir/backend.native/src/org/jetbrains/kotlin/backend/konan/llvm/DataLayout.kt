@@ -23,7 +23,7 @@ private fun RuntimeAware.getLlvmType(primitiveBinaryType: PrimitiveBinaryType?) 
     PrimitiveBinaryType.FLOAT -> floatType
     PrimitiveBinaryType.DOUBLE -> doubleType
 
-    PrimitiveBinaryType.VECTOR16 -> vectorType
+    PrimitiveBinaryType.VECTOR16 -> vector16Type
     PrimitiveBinaryType.POINTER -> int8TypePtr
 }
 

@@ -500,11 +500,18 @@ internal class NativeIndexImpl(val library: NativeLibrary, val verbose: Boolean 
         )
 
         CXType_Vector -> {
-            val elementType = convertType(clang_getElementType(type))
+            val elementCXType = clang_getElementType(type)
+            val elementType = convertType(elementCXType)
             val size = clang_Type_getSizeOf(type)
-            val elemSize = clang_Type_getSizeOf(clang_getElementType(type))
+            val elemSize = clang_Type_getSizeOf(elementCXType)
             val length = size / elemSize
-            val spelling = type.name // ex: __attribute__((__vector_size__(4 * sizeof(const float)))) const float
+            assert(elemSize * length == size)
+
+            // Spelling example: `__attribute__((__vector_size__(4 * sizeof(float)))) const float`
+            // Re-generate spelling removing constness and typedefs to limit number of variants for bridge generator
+            // Supposed to be the same (i.e. natively compatible) as clang_getTypeSpelling(type) aka type.name
+            val spelling = "__attribute__((__vector_size__($size))) ${clang_getCanonicalType(elementCXType).name}"
+
             if (size == 16L) {
                 VectorType(elementType, length, spelling)
             } else {

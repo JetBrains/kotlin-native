@@ -758,7 +758,7 @@ private fun IrType.isTypeOfNullLiteral(): Boolean = this is IrSimpleType && hasQ
         && classifier.isClassWithFqName(KotlinBuiltIns.FQ_NAMES.nothing)
 
 private fun IrType.isVector(): Boolean {
-    if (this is IrSimpleType) {
+    if (this is IrSimpleType && !this.hasQuestionMark) {
         val fqName = FqName("kotlinx.cinterop.NativeVector").toUnsafe()  // FIXME
         return classifier.isClassWithFqName(fqName)
     }
@@ -963,18 +963,6 @@ private class BooleanValuePassing(override val cType: CType, private val irBuilt
     override fun bridgedToC(expression: String): String = cType.cast(expression)
 
     override fun cToBridged(expression: String): String = cBridgeType.cast(expression)
-}
-
-private class VectorTypePassing(private val kotlinClass: IrClass, val cType: CType) : KotlinToCArgumentPassing {
-    override fun KotlinToCCallBuilder.passValue(expression: IrExpression): CExpression {
-        val cBridgeValue = passThroughBridge(
-                cValuesRefToPointer(expression),
-                symbols.interopCPointer.typeWithStarProjections,
-                CTypes.pointer(cType)
-        ).name
-
-        return CExpression("*$cBridgeValue", cType)
-    }
 }
 
 private class StructValuePassing(private val kotlinClass: IrClass, override val cType: CType) : ValuePassing {

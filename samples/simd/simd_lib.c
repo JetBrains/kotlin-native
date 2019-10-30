@@ -4,6 +4,7 @@
 
 
 #include <stdio.h>
+
 ////typedef __attribute__((__ext_vector_type__(2))) float simd_float2
 //simd_float2 getSimd8(float f1, float f2) {
 //	simd_float2 f = {f1, f2};

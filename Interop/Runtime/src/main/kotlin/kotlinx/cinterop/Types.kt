@@ -471,4 +471,3 @@ public typealias CArrayPointerVar<T> = CPointerVar<T>
  * The C function.
  */
 public class CFunction<T : Function<*>>(rawPtr: NativePtr) : CPointed(rawPtr)
-

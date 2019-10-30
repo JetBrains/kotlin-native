@@ -110,7 +110,7 @@ internal val int64Type get() = LLVMInt64TypeInContext(llvmContext)!!
 internal val int8TypePtr get() = pointerType(int8Type)
 internal val floatType get() = LLVMFloatTypeInContext(llvmContext)!!
 internal val doubleType get() = LLVMDoubleTypeInContext(llvmContext)!!
-internal val vectorType get() = LLVMVectorType(LLVMFloatTypeInContext(llvmContext), 4)!!
+internal val vector16Type get() = LLVMVectorType(floatType, 4)!!
 
 internal val voidType get() = LLVMVoidTypeInContext(llvmContext)!!
 
