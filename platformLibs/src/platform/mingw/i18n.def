@@ -1,0 +1,38 @@
+package = platform.i18n
+depends = windows
+
+compilerOpts = \
+    -DUNICODE \
+    -DWINVER=0x0601 \
+    -D_WIN32_WINNT=0x0601 \
+    -DWINAPI_FAMILY=3 \
+    -DOEMRESOURCE \
+    -Wno-incompatible-pointer-types \
+    -Wno-deprecated-declarations
+
+headers = \
+    windows.h \
+    datetimeapi.h \
+    elscore.h \
+    gb18030.h \
+    imm.h \
+    muiload.h \
+    stringapiset.h \
+    usp10.h \
+    winnls.h
+
+headerFilter = \
+    datetimeapi.h \
+    elscore.h \
+    gb18030.h \
+    imm.h \
+    muiload.h \
+    stringapiset.h \
+    usp10 \
+    winnls.h
+
+linkerOpts = \
+    -lelscore \
+    -limm32 \
+    -lkernel32 \
+    -lnormaliz

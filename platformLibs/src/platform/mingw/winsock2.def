@@ -1,0 +1,31 @@
+package = platform.winsock2
+depends = windows
+
+compilerOpts = \
+    -DUNICODE \
+    -DWINVER=0x0601 \
+    -D_WIN32_WINNT=0x0601 \
+    -DWINAPI_FAMILY=3 \
+    -DOEMRESOURCE \
+    -Wno-incompatible-pointer-types \
+    -Wno-deprecated-declarations
+
+headers = \
+    winsock2.h \
+    ws2def.h \
+    ws2tcpip.h
+
+headerFilter = \
+    mstcpip.h \
+    qos.h \
+    winsock2.h \
+    ws2def.h \
+    ws2ipdef.h \
+    ws2tcpip.h \
+    psdk_inc/_wsa_errnos.h \
+    psdk_inc/_wsadata.h \
+    psdk_inc/_xmitfile.h
+
+linkerOpts = \
+    -lws2_32 \
+    -lfwpuclnt

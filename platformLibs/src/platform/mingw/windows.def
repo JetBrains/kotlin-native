@@ -1,8 +1,195 @@
 package = platform.windows
-headers = wtypes.h minwindef.h windows.h commctrl.h dwmapi.h shlobj.h shlwapi.h shobjidl.h \
-    urlmon.h usp10.h uxtheme.h vfw.h wininet.h winsock2.h ws2tcpip.h ws2def.h
-compilerOpts = -DUNICODE -DWINVER=0x0601 -D_WIN32_WINNT=0x0601 -DWINAPI_FAMILY=3 -DOEMRESOURCE \
-    -Wno-incompatible-pointer-types -Wno-deprecated-declarations
-linkerOpts = -lcomctl32 -lcrypt32 -lshlwapi -lshell32 -limm32 -lusp10 -lwininet -lgdi32 -luser32 -lkernel32 -lbcrypt -luuid
-noStringConversion = LoadCursorA LoadBitmapA LoadIconA LoadImageA LoadCursorW LoadBitmapW LoadIconW LoadImageW
-depends = posix
+depends = posix builtin
+
+compilerOpts = \
+    -DUNICODE \
+    -DWINVER=0x0601 \
+    -D_WIN32_WINNT=0x0601 \
+    -DWINAPI_FAMILY=3 \
+    -DOEMRESOURCE \
+    -DWIN32_LEAN_AND_MEAN \
+    -DNOSERVICE \
+    -DNOIME \
+    -Wno-incompatible-pointer-types \
+    -Wno-deprecated-declarations
+
+headers = windows.h \
+    cderr.h \
+    commctrl.h \
+    commdlg.h \
+    dde.h \
+    ddeml.h \
+    lzexpand.h \
+    nb30.h \
+    winperf.h \
+    wtypes.h \
+    wtypesbase.h
+
+headerFilter = \
+    basetsd.h \
+    cderr.h \
+    commctrl.h \
+    commdlg.h \
+    dde.h \
+    ddeml.h \
+    debugapi.h \
+    errhandlingapi.h \
+    fibersapi.h \
+    fileapi.h \
+    fltwinerror.h \
+    guiddef.h \
+    handleapi.h \
+    heapapi.h \
+    interlockedapi.h \
+    ioapiset.h \
+    jobapi.h \
+    libloaderapi.h \
+    lzexpand.h \
+    memoryapi.h \
+    mcx.h \
+    minwinbase.h \
+    minwindef.h \
+    namedpipeapi.h \
+    namespaceapi.h \
+    nb30.h \
+    processenv.h \
+    processthreadsapi.h \
+    processtopologyapi.h \
+    profileapi.h \
+    prsht.h \
+    realtimeapiset.h \
+    reason.h \
+    securitybaseapi.h \
+    synchapi.h \
+    sysinfoapi.h \
+    systemtopologyapi.h \
+    threadpoolapiset.h \
+    threadpoollegacyapiset.h \
+    timezoneapi.h \
+    tvout.h \
+    utilapiset.h \
+    virtdisk.h \
+    winbase.h \
+    wincon.h \
+    windef.h \
+    winerror.h \
+    wingdi.h \
+    winnetwk.h \
+    winnt.h \
+    winperf.h \
+    winreg.h \
+    winuser.h \
+    winver.h \
+    wnnc.h \
+    wow64apiset.h \
+    wtypes.h \
+    wtypesbase.h
+
+# list of functions not found in mingw implibs
+# probably mingw bugs, but still need to fix
+excludedFunctions = \
+    __getcallerseflags \
+    __mulh \
+    __segmentlimit \
+    __shiftleft128 \
+    __shiftright128 \
+    __umulh \
+    _InterlockedAnd16 \
+    _InterlockedAnd8 \
+    _InterlockedOr16 \
+    _InterlockedOr8 \
+    _InterlockedXor16 \
+    _InterlockedXor8 \
+    _mul128 \
+    _rotl16 \
+    _rotl8 \
+    _rotr16 \
+    _rotr8 \
+    _umul128 \
+    CheckForHiberboot \
+    GetClassLongPtrA \
+    GetClassLongPtrW \
+    GetCurrentFiber \
+    GetDisplayAutoRotationPreferencesByProcessId \
+    GetFiberData \
+    GetOsSafeBootMode \
+    GetWindowLongPtrA \
+    GetWindowLongPtrW \
+    Handle32ToHandle \
+    HandleToLong \
+    HandleToULong \
+    IntToPtr \
+    LongToHandle \
+    LongToPtr \
+    LookupAccountNameLocalA \
+    LookupAccountNameLocalW \
+    LookupAccountSidLocalA \
+    LookupAccountSidLocalW \
+    MultiplyExtract128 \
+    Ptr32ToPtr \
+    PtrToInt \
+    PtrToLong \
+    PtrToPtr32 \
+    PtrToShort \
+    PtrToUint \
+    PtrToUlong \
+    PtrToUshort \
+    QueryOptionalDelayLoadedAPI \
+    RtlAddFunctionTable \
+    RtlDeleteFunctionTable \
+    RtlInstallFunctionTableCallback \
+    RtlLookupFunctionEntry \
+    RtlRestoreContext \
+    RtlUnwindEx \
+    RtlVirtualUnwind \
+    SetClassLongPtrA \
+    SetClassLongPtrW \
+    SetProcessGroupAffinity \
+    SetWindowLongPtrA \
+    SetWindowLongPtrW \
+    TpDestroyCallbackEnviron \
+    TpInitializeCallbackEnviron \
+    TpSetCallbackActivationContext \
+    TpSetCallbackCleanupGroup \
+    TpSetCallbackFinalizationCallback \
+    TpSetCallbackLongFunction \
+    TpSetCallbackNoActivationContext \
+    TpSetCallbackPersistent \
+    TpSetCallbackPriority \
+    TpSetCallbackRaceWithDll \
+    TpSetCallbackThreadpool \
+    UIntToPtr \
+    ULongToHandle \
+    ULongToPtr \
+    UnsignedMultiplyExtract128 \
+    WinMain \
+    WNetRestoreConnectionA \
+    WNetRestoreSingleConnectionW \
+    Wow64Win32ApiEntry \
+    wWinMain
+
+noStringConversion = \
+    LoadCursorA \
+    LoadCursorW \
+    LoadBitmapA \
+    LoadBitmapW \
+    LoadIconA \
+    LoadIconW \
+    LoadImageA \
+    LoadImageW
+
+linkerOpts = \
+    -ladvapi32 \
+    -lcomctl32 \
+    -lgdi32 \
+    -lkernel32 \
+    -lmpr \
+    -lmsimg32 \
+    -lnormaliz \
+    -lntdll \
+    -lopengl32 \
+    -lsynchronization \
+    -luser32 \
+    -lversion \
+    -lvirtdisk \
+    -lwinspool

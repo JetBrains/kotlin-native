@@ -1,0 +1,35 @@
+package = platform.shell32
+depends = windows
+
+compilerOpts = \
+    -DUNICODE \
+    -DWINVER=0x0601 \
+    -D_WIN32_WINNT=0x0601 \
+    -DWINAPI_FAMILY=3 \
+    -DOEMRESOURCE \
+    -Wno-incompatible-pointer-types \
+    -Wno-deprecated-declarations
+
+headers = windows.h \
+    shlobj.h \
+    shlwapi.h \
+    shfolder.h \
+    shellapi.h
+
+headerFilter = \
+    isguids.h \
+    knownfolders.h \
+    shlobj.h \
+    shobjidl.h \
+    sherrors.h \
+    shtypes.h \
+    shldisp.h \
+    shlguid.h \
+    shlwapi.h \
+    shfolder.h \
+    shellapi.h
+
+linkerOpts = \
+    -lshell32 \
+    -lshlwapi \
+    -lole32

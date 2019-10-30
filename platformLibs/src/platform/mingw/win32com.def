@@ -1,0 +1,85 @@
+# Component Object Model (COM)
+package = platform.win32com
+depends = windows
+
+compilerOpts = \
+    -DUNICODE \
+    -DWINVER=0x0601 \
+    -D_WIN32_WINNT=0x0601 \
+    -DWINAPI_FAMILY=3 \
+    -DOEMRESOURCE \
+    -Wno-incompatible-pointer-types \
+    -Wno-deprecated-declarations
+
+headers = windows.h \
+    accctrl.h \
+    callobj.h \
+    combaseapi.h \
+    comcat.h \
+    ctxtcall.h \
+    dmerror.h \
+    docobj.h \
+    eventsys.h \
+    guiddef.h \
+    iaccess.h \
+    objbase.h \
+    objidl.h \
+    objidlbase.h \
+    ocidl.h \
+    ole2.h \
+    oledlg.h \
+    oleidl.h \
+    roapi.h \
+    rpcdce.h \
+    unknwn.h \
+    unknwnbase.h
+
+headerFilter = \
+    accctrl.h \
+    activation.h \
+    apiset.h \
+    apisetcconv.h \
+    callobj.h \
+    cguid.h \
+    combaseapi.h \
+    comcat.h \
+    ctxtcall.h \
+    dmerror.h \
+    docobj.h \
+    eventsys.h \
+    iaccess.h \
+    oaidl.h \
+    objbase.h \
+    objectarray.h \
+    objidl.h \
+    objidlbase.h \
+    ocidl.h \
+    ole2.h \
+    oleauto.h \
+    oledlg.h \
+    oleidl.h \
+    propidl.h \
+    rpc.h \
+    rpcasync.h \
+    rpcdce.h \
+    rpcdcep.h \
+    rpcnsi.h \
+    rpcnsip.h \
+    rpcnterr.h \
+    rpcsal.h \
+    servprov.h \
+    structuredquerycondition.h \
+    unknwn.h \
+    unknwnbase.h
+
+linkerOpts = \
+    libole32 \
+    liboleaut32 \
+    libolecli32 \
+    liboledlg \
+    librpcdce4 \
+    librpcdiag \
+    librpchttp \
+    librpcns4 \
+    librpcrt4 \
+    libshell32
