@@ -245,7 +245,8 @@ open class KonanLocalTest : KonanTest() {
             val compilationLog = project.file("$executable.compilation.log").readText()
             // TODO: ugly hack to fix irrelevant warnings.
             val filteredCompilationLog = compilationLog.split('\n').filter {
-                it != "warning: relaxed memory model is not yet fully functional"
+                it != "warning: relaxed memory model is not yet fully functional" &&
+                        !it.contains("warning: [IR VALIDATION]")
             }.joinToString(separator = "\n")
             output.stdOut = filteredCompilationLog + output.stdOut
         }
