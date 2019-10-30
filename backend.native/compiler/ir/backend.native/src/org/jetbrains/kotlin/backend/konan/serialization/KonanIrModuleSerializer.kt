@@ -32,13 +32,13 @@ private class KonanDeclarationTable(
 class KonanIrModuleSerializer(
     logger: LoggingContext,
     irBuiltIns: IrBuiltIns,
-    private val descriptorTable: DescriptorTable
+    private val descriptorTable: DescriptorTable,
+    val skipExpects: Boolean
 ) : IrModuleSerializer<KonanIrFileSerializer>(logger) {
 
 
     private val globalDeclarationTable = KonanGlobalDeclarationTable(irBuiltIns)
 
     override fun createSerializerForFile(file: IrFile): KonanIrFileSerializer =
-            KonanIrFileSerializer(logger, KonanDeclarationTable(descriptorTable, globalDeclarationTable, 0))
-
+            KonanIrFileSerializer(logger, KonanDeclarationTable(descriptorTable, globalDeclarationTable, 0), skipExpects = skipExpects)
 }

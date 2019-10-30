@@ -11,8 +11,9 @@ import org.jetbrains.kotlin.ir.util.hasAnnotation
 class KonanIrFileSerializer(
         logger: LoggingContext,
         declarationTable: DeclarationTable,
+        skipExpects: Boolean,
         bodiesOnlyForInlines: Boolean = false
-): IrFileSerializer(logger, declarationTable, bodiesOnlyForInlines) {
+): IrFileSerializer(logger, declarationTable, skipExpects = skipExpects, bodiesOnlyForInlines = bodiesOnlyForInlines) {
 
     override fun backendSpecificExplicitRoot(declaration: IrFunction) =
             declaration.annotations.hasAnnotation(RuntimeNames.exportForCppRuntime)
