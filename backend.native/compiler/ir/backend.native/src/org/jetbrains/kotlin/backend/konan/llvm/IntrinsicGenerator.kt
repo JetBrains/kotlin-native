@@ -47,6 +47,7 @@ internal enum class IntrinsicType {
     UNSIGNED_COMPARE_TO,
     NOT,
     REINTERPRET,
+    EXTRACT_ELEMENT,
     ARE_EQUAL_BY_VALUE,
     IEEE_754_EQUALS,
     // OBJC
@@ -213,6 +214,7 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
                 IntrinsicType.UNSIGNED_COMPARE_TO -> emitUnsignedCompareTo(args)
                 IntrinsicType.NOT -> emitNot(args)
                 IntrinsicType.REINTERPRET -> emitReinterpret(callSite, args)
+                IntrinsicType.EXTRACT_ELEMENT -> emitExtractElement(callSite, args)
                 IntrinsicType.SIGN_EXTEND -> emitSignExtend(callSite, args)
                 IntrinsicType.ZERO_EXTEND -> emitZeroExtend(callSite, args)
                 IntrinsicType.INT_TRUNCATE -> emitIntTruncate(callSite, args)
@@ -508,6 +510,24 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
     private fun FunctionGenerationContext.emitReinterpret(callSite: IrCall, args: List<LLVMValueRef>) =
             bitcast(callSite.llvmReturnType, args[0])
 
+    private fun FunctionGenerationContext.emitExtractElement(callSite: IrCall, args: List<LLVMValueRef>): LLVMValueRef {
+        val (vector, index) = args
+        val elementSize = LLVMSizeOfTypeInBits(codegen.llvmTargetData, callSite.llvmReturnType).toInt()
+        val vectorSize = LLVMSizeOfTypeInBits(codegen.llvmTargetData, vector.type).toInt()
+
+        assert(callSite.llvmReturnType.isVectorElementType()
+                && vectorSize % elementSize == 0
+        ) { "Invalid vector element type ${LLVMGetTypeKind(callSite.llvmReturnType)}"}
+
+        val elementCount = vectorSize / elementSize
+        emitThrowIfOOB(index, Int32((elementCount)).llvm)
+
+        val targetType = LLVMVectorType(callSite.llvmReturnType, elementCount)!!
+        return LLVMBuildExtractElement(builder,
+                (if (targetType == vector.type) vector else bitcast(targetType, vector)),
+                index, "")!!
+    }
+
     private fun FunctionGenerationContext.emitNot(args: List<LLVMValueRef>) =
             not(args[0])
 
@@ -606,6 +626,14 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
     private fun FunctionGenerationContext.emitThrowIfZero(divider: LLVMValueRef) {
         ifThen(icmpEq(divider, Zero(divider.type).llvm)) {
             val throwArithExc = codegen.llvmFunction(context.ir.symbols.throwArithmeticException.owner)
+            call(throwArithExc, emptyList(), Lifetime.GLOBAL, environment.exceptionHandler)
+            unreachable()
+        }
+    }
+
+    private fun FunctionGenerationContext.emitThrowIfOOB(index: LLVMValueRef, size: LLVMValueRef) {
+        ifThen(icmpUGe(index, size)) {
+            val throwArithExc = codegen.llvmFunction(context.ir.symbols.throwIndexOutOfBoundsException.owner)
             call(throwArithExc, emptyList(), Lifetime.GLOBAL, environment.exceptionHandler)
             unreachable()
         }

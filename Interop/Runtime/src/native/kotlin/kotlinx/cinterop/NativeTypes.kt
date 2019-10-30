@@ -57,7 +57,31 @@ external fun CPointer<*>.getRawValue(): NativePtr
 internal fun CPointer<*>.cPointerToString() = "CPointer(raw=$rawValue)"
 
 
-public final class NativeVector private constructor()
+public final class NativeVector private constructor() {
+    @TypedIntrinsic(IntrinsicType.EXTRACT_ELEMENT)
+    external fun getByte(index: Int): Byte
+
+    @TypedIntrinsic(IntrinsicType.EXTRACT_ELEMENT)
+    external fun getInt(index: Int): Int
+
+    @TypedIntrinsic(IntrinsicType.EXTRACT_ELEMENT)
+    external fun getLong(index: Int): Long
+
+    @TypedIntrinsic(IntrinsicType.EXTRACT_ELEMENT)
+    external fun getFloat(index: Int): Float
+
+    @TypedIntrinsic(IntrinsicType.EXTRACT_ELEMENT)
+    external fun getDouble(index: Int): Double
+
+    @TypedIntrinsic(IntrinsicType.EXTRACT_ELEMENT)
+    external fun getUByte(index: Int): UByte
+
+    @TypedIntrinsic(IntrinsicType.EXTRACT_ELEMENT)
+    external fun getUInt(index: Int): UInt
+
+    @TypedIntrinsic(IntrinsicType.EXTRACT_ELEMENT)
+    external fun getULong(index: Int): ULong
+}
 
 public class NativeVectorVarOf<T : NativeVector>(rawPtr: NativePtr) : CVariable(rawPtr)
 
