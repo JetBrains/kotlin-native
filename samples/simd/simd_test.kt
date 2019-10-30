@@ -55,8 +55,8 @@ fun testOOB() {
 
 fun main() {
 
-//    val v = vectorOf(42f, 1f, 2f, 3f)
-//    val box: Box<NativeVector> = Box<NativeVector>(v)
+    val v = vectorOf(42f, 1f, 2f, 3f)
+    val box: Box<NativeVector> = Box<NativeVector>(v)
 
 //    printVFloat(v)
 //
