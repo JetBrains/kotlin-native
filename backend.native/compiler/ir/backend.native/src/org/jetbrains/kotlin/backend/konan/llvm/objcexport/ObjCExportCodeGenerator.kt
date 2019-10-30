@@ -339,6 +339,7 @@ internal class ObjCExportCodeGenerator(
             vtable: ConstPointer?,
             vtableSize: Int,
             methodTable: List<RTTIGenerator.MethodTableRecord>,
+            itable: List<RTTIGenerator.InterfaceTableRecord>,
             itableSize: Int,
             val objCName: String,
             directAdapters: List<ObjCToKotlinMethodAdapter>,
@@ -355,6 +356,7 @@ internal class ObjCExportCodeGenerator(
             staticData.placeGlobalConstArray("", runtime.methodTableRecordType, methodTable),
             Int32(methodTable.size),
 
+            staticData.placeGlobalConstArray("", runtime.interfaceTableRecordType, itable),
             Int32(itableSize),
 
             staticData.cStringLiteral(objCName),
@@ -969,6 +971,7 @@ private fun ObjCExportCodeGenerator.createTypeAdapterForFileClass(
             vtable = null,
             vtableSize = -1,
             methodTable = emptyList(),
+            itable = emptyList(),
             itableSize = -1,
             objCName = name,
             directAdapters = emptyList(),
@@ -1043,9 +1046,11 @@ private fun ObjCExportCodeGenerator.createTypeAdapter(
         emptyList()
     }
 
-    val itableSize = if (irClass.isInterface)
-        context.getLayoutBuilder(irClass).interfaceTableEntries.size
-    else -1
+    val (itable, itableSize) = when {
+        irClass.isInterface -> Pair(emptyList(), context.getLayoutBuilder(irClass).interfaceTableEntries.size)
+        irClass.isAbstract() && context.ghaEnabled() -> rttiGenerator.interfaceTableRecords(irClass)
+        else -> Pair(emptyList(), -1)
+    }
 
     when (irClass.kind) {
         ClassKind.OBJECT -> {
@@ -1066,6 +1071,7 @@ private fun ObjCExportCodeGenerator.createTypeAdapter(
             vtable,
             vtableSize,
             methodTable,
+            itable,
             itableSize,
             objCName,
             adapters,
