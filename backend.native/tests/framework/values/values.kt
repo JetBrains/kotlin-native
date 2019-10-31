@@ -16,6 +16,9 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
 import kotlinx.cinterop.*
 
+// Ensure loaded function IR classes aren't ordered by arity:
+internal fun referenceFunction1(block: (Any?) -> Unit) {}
+
 // Constants
 const val dbl: Double = 3.14
 const val flt: Float = 2.73F
@@ -431,6 +434,9 @@ object UnitBlockCoercionImpl : UnitBlockCoercion<() -> Unit> {
     override fun coerce(block: () -> Unit): () -> Unit = block
     override fun uncoerce(block: () -> Unit): () -> Unit = block
 }
+
+fun isFunction(obj: Any?): Boolean = obj is Function<*>
+fun isFunction0(obj: Any?): Boolean = obj is Function0<*>
 
 abstract class MyAbstractList : List<Any?>
 
