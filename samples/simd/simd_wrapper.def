@@ -1,4 +1,0 @@
-headers = simd_lib.h
-headerFilter = simd_lib.h
-#language = C
-#compilerOpts = -I.
