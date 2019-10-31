@@ -22,6 +22,7 @@ import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.builtins.konan.KonanBuiltIns
 import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
+import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.name.Name
@@ -33,6 +34,8 @@ internal abstract class KonanBackendContext(val config: KonanConfig) : CommonBac
 
     override val transformedFunction: MutableMap<IrFunctionSymbol, IrSimpleFunctionSymbol>
         get() = TODO("not implemented")
+
+    override val lateinitNullableFields = mutableMapOf<IrField, IrField>()
     override val scriptMode: Boolean = false
 
     override val sharedVariablesManager by lazy {
