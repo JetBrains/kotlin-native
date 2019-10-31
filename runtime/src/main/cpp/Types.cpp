@@ -93,9 +93,9 @@ bool IsSubInterface(const TypeInfo* thiz, const TypeInfo* other) {
   return false;
 }
 
-typedef float vFloat __attribute__ ((__vector_size__ (16)));
+typedef float KVector4f __attribute__ ((__vector_size__ (16)));
 
-vFloat Kotlin_Vector_of(KFloat f0, KFloat f1, KFloat f2, KFloat f3) {
+KVector4f Kotlin_Vector_of(KFloat f0, KFloat f1, KFloat f2, KFloat f3) {
 	return {f0, f1, f2, f3};
 }
 

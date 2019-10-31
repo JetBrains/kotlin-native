@@ -18,6 +18,25 @@
 //    return len;
 //}
 
+typedef int __attribute__((__vector_size__(16))) v4i32;
+typedef int8_t  __attribute__((__vector_size__(4))) v4i8;
+typedef uint64_t  __attribute__((__vector_size__(16))) v2u64;
+
+void vec_equals(vFloat v1, vFloat v2) {
+//	v4i8 x =  (v1 == v2);
+
+	fprintf(stderr, "Compare(%d, %d, %d, %d)\n", (v1 == v2)[0], (v1 == v2)[1], (v1 == v2)[2], (v1 == v2)[3]);
+}
+
+//int32_t vec_equals2(vFloat v1, vFloat v2) {
+//	v4i8 y = (v4i8)(v1 == v2);
+//	return y;
+//}
+
+_Bool cast2Bool(__uint128_t x) {
+	return x;
+}
+
 vFloat getVFloat(float f0, float f1, float f2, float f3) {
 	vU128 v;
 	vFloat ret = {f0, f1, f2, f3};
@@ -37,17 +56,6 @@ void printVFloat(vFloat v) {
 	fprintf(stderr, "vFloat(%f, %f, %f, %f)\n", v[0], v[1], v[2], v[3]);
 }
 
-void Kotlin_Vector_set(vFloat* thiz, uint32_t index, float value) {
-	if (index < 4) {
-		((float*)thiz)[index] = value;
-	}
-}
-
-void setDouble(double x) {
-	static double f;
-	f = x;
-}
-
 #ifdef MAIN
 
 typedef __int128_t i128;
@@ -57,6 +65,9 @@ int main(void) {
 
 	vFloat v1 = getVFloat(-1,0,0,-7); //  {-1,0,0,-7};
 	vFloat v2 = getVFloat(1,4,3,7);
+
+	vec_equals(v1, v2);
+
 	float dist = my_simd_distance(v1, v2);
 
 //	i128 v1 = (i128)getVFloat(-1,0,0,-7); //  {-1,0,0,-7};
@@ -68,7 +79,7 @@ int main(void) {
 	printVFloat(ceil);
 
 	vFloat f2 = {1, 3.162, 10, 31};
-	vFloat lg = vlog10f(f2);
+//	vFloat lg = vlog10f(f2);
 	printVFloat(ceil);
 
 	return 0;

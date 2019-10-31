@@ -3,15 +3,14 @@ import kotlin.test.*
 
 import simd_wrapper.*
 
-//import kotlin.math.*
 import platform.Accelerate.*
-//
-//fun test_dist() {
-//    var v1 = vectorOf(-1f, 0f, 0f, -7f)
-//    var v2 = vectorOf(1f, 4f, 3f, 7f);
-//    val len = my_simd_distance(v1, v2)
-//    println(len)
-//}
+
+fun test_dist() {
+    var v1 = vectorOf(-1f, 0f, 0f, -7f)
+    var v2 = vectorOf(1f, 4f, 3f, 7f);
+    val len = my_simd_distance(v1, v2)
+    println(len)
+}
 
 fun test_Accelerate() {
     var v1 = vectorOf(1f, 2f, 4f, 9f)
@@ -19,21 +18,12 @@ fun test_Accelerate() {
 }
 
 class Box<T>(t: T) {
-//    var value = t
+    var value = t
 }
 
-//fun runTest() {
-//    val dBox: Box<Double> = Box<Double>(21.0)
-////    println(dBox.value)
-//    val v = vectorOf(42f, 1f, 2f, 3f)
-//    val box: Box<NativeVector> = Box<NativeVector>(v)
-////    println(box.value)
-////    printVFloat(box.value)
-//}
 
-fun testOOB() {
+fun test_OOB() {
     val f = vectorOf(1f, 3.162f, 10f, 31f)
-//    println(f.getFloat(-1))
     println("getByte(15) is OK: ${f.getByte(15)}")
     var result = "PASSED"
     try {
@@ -53,32 +43,45 @@ fun testOOB() {
     println("Exception test $result")
 }
 
+fun test_equals() {
+    var v1 = vectorOf(-1f, 0f, 0f, -7f)
+    var v2 = vectorOf(1f, 4f, 3f, 7f)
+    println("v1.equals(v2) = ${v1.equals(v2)}")
+    v1 = v2
+    println("Now v1.equals(v2) = ${v1.equals(v2)}")
+    val d = 42f
+    println("v1.equals(d) = ${v1.equals(d)}")
+
+    println("(v1 == v2) is ${(v1 == v2)}") // <4 x i1> not supported yet
+    println("(v1 == v1) is ${(v1 == v1)}") // <4 x i1> not supported yet
+}
+
+fun test_hash() {
+    val h1 = vectorOf(1f, 4f, 3f, 7f).hashCode()
+    val h2 = vectorOf(3f, 7f, 1f, 4f).hashCode()
+    println("(h1 == h2) is ${(h1 == h2)}")
+}
+
 fun main() {
 
     val v = vectorOf(42f, 1f, 2f, 3f)
     val box: Box<NativeVector> = Box<NativeVector>(v)
 
-//    printVFloat(v)
-//
-//    test_dist()
-//
-////    val ln = kotlin.math.ln(2.718)
-////    println("log(2.718) = $ln")
-//
     val f2 = vectorOf(1f, 3.162f, 10f, 31f)
     println(f2.getFloat(1))
-//    println(f2.getInt(0))
+    println(f2.getInt(0))
     println(f2.getByte(0))
     println(f2.getUByte(1))
     println(f2.getUByte(2))
     println(f2.getByte(3))
 
-    val lg = vlog10f(f2)
-    printVFloat(lg)
-//    runTest()
+    println("vlog10f($f2) = ${vlog10f(f2)}")
+
+    test_equals()
+
+    test_hash()
 
     test_Accelerate()
-    testOOB()
 
-//    println(lg)
+    test_OOB()
 }

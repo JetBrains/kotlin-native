@@ -131,6 +131,9 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
     private val IrCall.llvmReturnType: LLVMTypeRef
         get() = LLVMGetReturnType(codegen.getLlvmFunctionType(symbol.owner))!!
 
+
+    private fun LLVMTypeRef.sizeInBits() = LLVMSizeOfTypeInBits(codegen.llvmTargetData, this).toInt()
+
     /**
      * Some intrinsics have to be processed before evaluation of their arguments.
      * So this method looks at [callSite] and if it is call to "special" intrinsic
@@ -488,11 +491,15 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
 
         return when (val typeKind = LLVMGetTypeKind(first.type)) {
             llvm.LLVMTypeKind.LLVMFloatTypeKind, llvm.LLVMTypeKind.LLVMDoubleTypeKind -> {
-                val numBits = llvm.LLVMSizeOfTypeInBits(codegen.llvmTargetData, first.type).toInt()
-                val integerType = LLVMIntTypeInContext(llvmContext, numBits)!!
+                val integerType = LLVMIntTypeInContext(llvmContext, first.type.sizeInBits())!!
                 icmpEq(bitcast(integerType, first), bitcast(integerType, second))
             }
             llvm.LLVMTypeKind.LLVMIntegerTypeKind, llvm.LLVMTypeKind.LLVMPointerTypeKind -> icmpEq(first, second)
+            LLVMTypeKind.LLVMVectorTypeKind -> {
+                assert(first.type.sizeInBits() == 128)
+                val integerType = LLVMInt128TypeInContext(llvmContext)!!
+                icmpEq(bitcast(integerType, first), bitcast(integerType, second))
+            }
             else -> error(typeKind)
         }
     }
@@ -523,9 +530,9 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
         emitThrowIfOOB(index, Int32((elementCount)).llvm)
 
         val targetType = LLVMVectorType(callSite.llvmReturnType, elementCount)!!
-        return LLVMBuildExtractElement(builder,
+        return extractElement(
                 (if (targetType == vector.type) vector else bitcast(targetType, vector)),
-                index, "")!!
+                index)
     }
 
     private fun FunctionGenerationContext.emitNot(args: List<LLVMValueRef>) =
@@ -633,8 +640,8 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
 
     private fun FunctionGenerationContext.emitThrowIfOOB(index: LLVMValueRef, size: LLVMValueRef) {
         ifThen(icmpUGe(index, size)) {
-            val throwArithExc = codegen.llvmFunction(context.ir.symbols.throwIndexOutOfBoundsException.owner)
-            call(throwArithExc, emptyList(), Lifetime.GLOBAL, environment.exceptionHandler)
+            val throwIndexOutOfBoundsException = codegen.llvmFunction(context.ir.symbols.throwIndexOutOfBoundsException.owner)
+            call(throwIndexOutOfBoundsException, emptyList(), Lifetime.GLOBAL, environment.exceptionHandler)
             unreachable()
         }
     }
