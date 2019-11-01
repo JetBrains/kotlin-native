@@ -187,7 +187,7 @@ object KotlinTypes {
     val map by CollectionClassifier
 
     val nativePtr by InteropType
-    val nativeVector by InteropType
+    val vector128 by InteropType
 
     val cOpaque by InteropType
     val cOpaquePointer by InteropType

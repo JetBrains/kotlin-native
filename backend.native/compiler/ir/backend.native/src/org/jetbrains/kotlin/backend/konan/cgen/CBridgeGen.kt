@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.backend.common.ir.createParameterDeclarations
 import org.jetbrains.kotlin.backend.common.ir.simpleFunctions
 import org.jetbrains.kotlin.backend.common.lower.at
 import org.jetbrains.kotlin.backend.common.lower.irNot
+import org.jetbrains.kotlin.backend.konan.KonanFqNames
 import org.jetbrains.kotlin.backend.konan.PrimitiveBinaryType
 import org.jetbrains.kotlin.backend.konan.RuntimeNames
 import org.jetbrains.kotlin.backend.konan.ir.*
@@ -759,8 +760,7 @@ private fun IrType.isTypeOfNullLiteral(): Boolean = this is IrSimpleType && hasQ
 
 private fun IrType.isVector(): Boolean {
     if (this is IrSimpleType && !this.hasQuestionMark) {
-        val fqName = FqName("kotlinx.cinterop.NativeVector").toUnsafe()  // FIXME
-        return classifier.isClassWithFqName(fqName)
+        return classifier.isClassWithFqName(KonanFqNames.Vector128.toUnsafe())
     }
     return false
 }
@@ -790,7 +790,7 @@ private fun KotlinStubs.mapType(
     type.isUInt() -> UnsignedValuePassing(type, CTypes.int, CTypes.unsignedInt)
     type.isULong() -> UnsignedValuePassing(type, CTypes.longLong, CTypes.unsignedLongLong)
 
-    type.isVector() -> TrivialValuePassing(type, CTypes.vector16)
+    type.isVector() -> TrivialValuePassing(type, CTypes.vector128)
 
     type.isCEnumType() -> {
         val enumClass = type.getClass()!!

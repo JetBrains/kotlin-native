@@ -28,7 +28,7 @@ internal class KonanDefaultParameterInjector(private val konanContext: KonanBack
             PrimitiveBinaryType.FLOAT -> IrConstImpl.float(startOffset, endOffset, type, 0.0F)
             PrimitiveBinaryType.DOUBLE -> IrConstImpl.double(startOffset, endOffset, type, 0.0)
             PrimitiveBinaryType.POINTER -> irCall(startOffset, endOffset, symbols.getNativeNullPtr.owner, emptyList())
-            PrimitiveBinaryType.VECTOR16 -> TODO()
+            PrimitiveBinaryType.VECTOR128 -> TODO()
         }
 
         return irCall(

@@ -83,7 +83,7 @@ enum class KonanPrimitiveType(val classId: ClassId, val binaryType: BinaryType.P
     FLOAT(PrimitiveType.FLOAT, PrimitiveBinaryType.FLOAT),
     DOUBLE(PrimitiveType.DOUBLE, PrimitiveBinaryType.DOUBLE),
     NON_NULL_NATIVE_PTR(ClassId.topLevel(KonanFqNames.nonNullNativePtr.toSafe()), PrimitiveBinaryType.POINTER),
-    VECTOR16(ClassId.topLevel(FqName("kotlinx.cinterop.NativeVector")), PrimitiveBinaryType.VECTOR16) // FIXME use KonanFqNames
+    VECTOR128(ClassId.topLevel(KonanFqNames.Vector128), PrimitiveBinaryType.VECTOR128)
 
     ;
 

@@ -77,7 +77,7 @@ fun PrimitiveType.getKotlinType(declarationMapper: DeclarationMapper): KotlinCla
 
     is VectorType -> {
         /// @todo assert elementType and size here
-        KotlinTypes.nativeVector
+        KotlinTypes.vector128
     }
     else -> throw NotImplementedError()
 }
@@ -378,7 +378,7 @@ fun mirrorPrimitiveType(type: PrimitiveType, declarationMapper: DeclarationMappe
             else -> TODO(type.toString())
         }
         is VectorType -> {
-            "NativeVectorVar"
+            "Vector128Var"
         }
         else -> TODO(type.toString())
     }

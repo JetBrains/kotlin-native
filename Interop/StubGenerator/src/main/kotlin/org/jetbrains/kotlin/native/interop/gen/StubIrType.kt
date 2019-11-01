@@ -92,7 +92,7 @@ private object PredefinedTypesHandler {
             KotlinTypes.byte, KotlinTypes.short, KotlinTypes.int, KotlinTypes.long,
             KotlinTypes.uByte, KotlinTypes.uShort, KotlinTypes.uInt, KotlinTypes.uLong,
             KotlinTypes.float, KotlinTypes.double,
-            KotlinTypes.nativeVector
+            KotlinTypes.vector128
     )
 
     /**

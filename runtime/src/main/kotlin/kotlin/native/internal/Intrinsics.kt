@@ -8,7 +8,6 @@ package kotlin.native.internal
 import kotlinx.cinterop.CPointer
 import kotlinx.cinterop.NativePointed
 import kotlinx.cinterop.NativePtr
-import kotlinx.cinterop.NativeVector
 
 import kotlin.native.internal.TypedIntrinsic
 import kotlin.native.internal.IntrinsicType
@@ -23,7 +22,7 @@ import kotlin.native.internal.IntrinsicType
 // Bitwise equality:
 @TypedIntrinsic(IntrinsicType.ARE_EQUAL_BY_VALUE) @PublishedApi external internal fun areEqualByValue(first: Float, second: Float): Boolean
 @TypedIntrinsic(IntrinsicType.ARE_EQUAL_BY_VALUE) @PublishedApi external internal fun areEqualByValue(first: Double, second: Double): Boolean
-@TypedIntrinsic(IntrinsicType.ARE_EQUAL_BY_VALUE) @PublishedApi external internal fun areEqualByValue(first: NativeVector, second: NativeVector): Boolean
+@TypedIntrinsic(IntrinsicType.ARE_EQUAL_BY_VALUE) @PublishedApi external internal fun areEqualByValue(first: Vector128, second: Vector128): Boolean
 
 // IEEE754 equality:
 @TypedIntrinsic(IntrinsicType.IEEE_754_EQUALS) @PublishedApi external internal fun ieee754Equals(first: Float, second: Float): Boolean

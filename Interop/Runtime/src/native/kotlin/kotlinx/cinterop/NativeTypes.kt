@@ -56,61 +56,13 @@ external fun CPointer<*>.getRawValue(): NativePtr
 
 internal fun CPointer<*>.cPointerToString() = "CPointer(raw=$rawValue)"
 
+public class Vector128VarOf<T : Vector128>(rawPtr: NativePtr) : CVariable(rawPtr)
 
-public final class NativeVector private constructor() {
-    @TypedIntrinsic(IntrinsicType.EXTRACT_ELEMENT)
-    external fun getByte(index: Int): Byte
+public typealias Vector128Var = Vector128VarOf<Vector128>
 
-    @TypedIntrinsic(IntrinsicType.EXTRACT_ELEMENT)
-    external fun getInt(index: Int): Int
-
-    @TypedIntrinsic(IntrinsicType.EXTRACT_ELEMENT)
-    external fun getLong(index: Int): Long
-
-    @TypedIntrinsic(IntrinsicType.EXTRACT_ELEMENT)
-    external fun getFloat(index: Int): Float
-
-    @TypedIntrinsic(IntrinsicType.EXTRACT_ELEMENT)
-    external fun getDouble(index: Int): Double
-
-    @TypedIntrinsic(IntrinsicType.EXTRACT_ELEMENT)
-    external fun getUByte(index: Int): UByte
-
-    @TypedIntrinsic(IntrinsicType.EXTRACT_ELEMENT)
-    external fun getUInt(index: Int): UInt
-
-    @TypedIntrinsic(IntrinsicType.EXTRACT_ELEMENT)
-    external fun getULong(index: Int): ULong
-
-    public override fun toString() = "(0x{getInt(0).toString(16)}, 0x{getInt(1).toString(16)}, 0x{getInt(2).toString(16)}, 0x{getInt(3).toString(16)}})"
-
-    // Not as good for floating types
-    public fun equals(other: NativeVector): Boolean =
-            getLong(0) == other.getLong(0) && getLong(1) == other.getLong(1)
-
-    public override fun equals(other: Any?): Boolean =
-            other is NativeVector && this.equals(other)
-
-    override fun hashCode(): Int {
-        val x0 = getLong(0)
-        val x1 = getLong(1)
-        return 31 * (x0 xor (x0 shr 32)).toInt() + (x1 xor (x1 shr 32)).toInt()
-    }
-}
-
-public class NativeVectorVarOf<T : NativeVector>(rawPtr: NativePtr) : CVariable(rawPtr)
-
-public typealias NativeVectorVar = NativeVectorVarOf<NativeVector>
-
-public var <T : NativeVector> NativeVectorVarOf<T>.value: T
+public var <T : Vector128> Vector128VarOf<T>.value: T
     get() = nativeMemUtils.getVector(this) as T
     set(value) = nativeMemUtils.putVector(this, value)
-
-@SymbolName("Kotlin_Vector4f_of")
-external fun vectorOf(f0: Float, f1: Float, f2: Float, f3: Float): NativeVector
-
-@SymbolName("Kotlin_Vector4i32_of")
-external fun vectorOf(f0: Int, f1: Int, f2: Int, f3: Int): NativeVector
 
 /**
  * Returns a pointer to C function which calls given Kotlin *static* function.
