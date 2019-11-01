@@ -82,7 +82,7 @@ public final class NativeVector private constructor() {
     @TypedIntrinsic(IntrinsicType.EXTRACT_ELEMENT)
     external fun getULong(index: Int): ULong
 
-    public override fun toString() = "(${getFloat(0)}, ${getFloat(1)}, ${getFloat(2)}, ${getFloat(3)})"
+    public override fun toString() = "(0x{getInt(0).toString(16)}, 0x{getInt(1).toString(16)}, 0x{getInt(2).toString(16)}, 0x{getInt(3).toString(16)}})"
 
     // Not as good for floating types
     public fun equals(other: NativeVector): Boolean =
@@ -106,8 +106,11 @@ public var <T : NativeVector> NativeVectorVarOf<T>.value: T
     get() = nativeMemUtils.getVector(this) as T
     set(value) = nativeMemUtils.putVector(this, value)
 
-@SymbolName("Kotlin_Vector_of")
+@SymbolName("Kotlin_Vector4f_of")
 external fun vectorOf(f0: Float, f1: Float, f2: Float, f3: Float): NativeVector
+
+@SymbolName("Kotlin_Vector4i32_of")
+external fun vectorOf(f0: Int, f1: Int, f2: Int, f3: Int): NativeVector
 
 /**
  * Returns a pointer to C function which calls given Kotlin *static* function.
