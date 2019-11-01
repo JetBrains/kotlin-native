@@ -1007,7 +1007,7 @@ __attribute__((swift_name("IAbstractInterface2")))
 @end;
 
 __attribute__((swift_name("AbstractInterfaceBase")))
-@interface ValuesAbstractInterfaceBase : ValuesBase <ValuesIAbstractInterface>
+@interface ValuesAbstractInterfaceBase : KotlinBase <ValuesIAbstractInterface>
 - (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
 + (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
 - (int32_t)foo __attribute__((swift_name("foo()")));
@@ -1015,13 +1015,13 @@ __attribute__((swift_name("AbstractInterfaceBase")))
 @end;
 
 __attribute__((swift_name("AbstractInterfaceBase2")))
-@interface ValuesAbstractInterfaceBase2 : ValuesBase <ValuesIAbstractInterface2>
+@interface ValuesAbstractInterfaceBase2 : KotlinBase <ValuesIAbstractInterface2>
 - (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
 + (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
 @end;
 
 __attribute__((swift_name("AbstractInterfaceBase3")))
-@interface ValuesAbstractInterfaceBase3 : ValuesBase <ValuesIAbstractInterface>
+@interface ValuesAbstractInterfaceBase3 : KotlinBase <ValuesIAbstractInterface>
 - (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
 + (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
 - (int32_t)foo __attribute__((swift_name("foo()")));
