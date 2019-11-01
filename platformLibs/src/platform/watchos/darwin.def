@@ -4,23 +4,22 @@ package = platform.darwin
 headers =  AssertMacros.h Availability.h AvailabilityInternal.h \
     AvailabilityMacros.h Block.h ConditionalMacros.h MacTypes.h \
     TargetConditionals.h __cxxabi_config.h _locale.h _types.h _wctype.h \
-    aio.h asl.h bitstring.h bzlib.h \
+    asl.h bitstring.h bzlib.h \
     cache.h cache_callbacks.h checkint.h compression.h copyfile.h \
-    cpio.h cxxabi.h db.h \
+    cxxabi.h db.h \
     dns.h dns_sd.h dns_util.h execinfo.h \
-    fmtmsg.h fstab.h \
-    gethostuuid.h glob.h ifaddrs.h inttypes.h iso646.h \
-    langinfo.h \
+    fstab.h \
+    gethostuuid.h ifaddrs.h inttypes.h iso646.h \
     libgen.h libunwind.h \
-    membership.h monetary.h mpool.h \
-    nameser.h ndbm.h nl_types.h \
+    membership.h mpool.h \
+    nameser.h ndbm.h \
     notify.h notify_keys.h ntsid.h \
     printf.h \
     readpassphrase.h removefile.h \
     runetype.h sandbox.h standards.h \
-    stringlist.h sysdir.h sysexits.h tar.h \
+    stringlist.h sysdir.h sysexits.h \
     ttyent.h \
-    unwind.h util.h utmpx.h vis.h wordexp.h xattr_flags.h \
+    unwind.h util.h vis.h xattr_flags.h \
     bank/bank_types.h \
     bsm/audit.h \
     os/activity.h os/availability.h os/base.h os/lock.h \

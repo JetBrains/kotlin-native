@@ -10,7 +10,11 @@ headers = alloca.h ar.h assert.h complex.h ctype.h dirent.h dlfcn.h err.h errno.
     netinet/ip.h netinet/ip6.h netinet/ip_icmp.h netinet/tcp.h netinet/udp.h \
     sys/ioctl.h sys/ipc.h sys/mman.h sys/poll.h sys/ptrace.h \
     sys/queue.h sys/select.h sys/shm.h sys/stat.h sys/socket.h \
-    sys/time.h sys/times.h sys/utsname.h sys/wait.h
+    sys/time.h sys/times.h sys/utsname.h sys/wait.h \
+    aio.h arpa/inet.h cpio.h fmtmsg.h glob.h langinfo.h monetary.h mqueue.h \
+    nl_types.h spawn.h stropts.h tar.h tgmath.h ulimit.h utmpx.h wordexp.h \
+    sys/msg.h sys/resource.h sys/sem.h sys/statvfs.h sys/timeb.h sys/types.h \
+    sys/uio.h sys/un.h sys/syslog.h
 
 compilerOpts = -D_ANSI_SOURCE -D_POSIX_C_SOURCE=199309 -D_BSD_SOURCE \
                -D_XOPEN_SOURCE=700 -D__need_error_t
@@ -34,7 +38,8 @@ excludedFunctions = bindresvport6 __p_section __res_nisourserver __res_npquery \
 		    __erfcf __lgammaf __tgammaf __gammaf __lgammaf_r __rintf __nextafterf \
 		    __remainderf __scalbnf __ilogbf __scalblnf __nearbyintf __roundf __truncf \
 		    __remquof __lrintf __llrintf __lroundf __llroundf __fdimf __fmaxf __fminf \
-		    __fmaf __scalbf _ns_flagdata
+		    __fmaf __scalbf _ns_flagdata \
+            __tg_promote
 ---
 // cinterop -target linux -def klib/src/platform/linux/posix.def -o platform.posix.klib
 
