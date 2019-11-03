@@ -8,32 +8,22 @@ package org.jetbrains.kotlin.cli.utilities
 import org.jetbrains.kotlin.cli.bc.K2Native
 import org.jetbrains.kotlin.konan.file.File
 import java.util.concurrent.*
+import kotlinx.cli.*
 
 fun generatePlatformLibraries(args: Array<String>) {
-    var inputDirectory: File? = null
-    var outputDirectory: File? = null
-    var target: String? = null
-    var index = 0
-    var saveTemps = false
-    while (index < args.size) {
-        when (args[index++]) {
-            "-target" ->
-                target = args[index++]
-            "-output" -> {
-                if (outputDirectory != null) throw Error("Only one output directory is allowed")
-                outputDirectory = File(args[index++])
-            }
-            "-input" -> {
-                if (inputDirectory != null) throw Error("Only one input directory is allowed")
-                inputDirectory = File(args[index++])
-            }
-            "-save-temps" ->
-                saveTemps = true
-        }
-    }
-    if (target == null) throw Error("-target argument is required")
-    if (inputDirectory == null) throw Error("-input argument is required")
-    if (outputDirectory == null) throw Error("-output argument is required")
+    val argParser = ArgParser("generate-platform")
+    val inputDirectoryPath by argParser.option(
+            ArgType.String, "input-directory", "i", "Input directory").required()
+    val outputDirectoryPath by argParser.option(
+            ArgType.String, "output-directory", "o", "Output directory").required()
+    val target by argParser.option(
+            ArgType.String, "target", "t", "Compilation target").required()
+    val saveTemps by argParser.argument(
+            ArgType.Boolean, "save-temps", "Save temporary files").default(false)
+    argParser.parse(args)
+
+    val inputDirectory = File(inputDirectoryPath)
+    val outputDirectory = File(outputDirectoryPath)
 
     if (!inputDirectory.exists) throw Error("input directory doesn't exist")
     if (!outputDirectory.exists) {
@@ -131,14 +121,14 @@ private fun generatePlatformLibraries(target: String, inputDirectory: File, outp
         }
     }
     val sorted = topoSort(defFiles.values.toList())
-    val executorPool = ThreadPoolExecutor(2, Runtime.getRuntime().availableProcessors(),
+    val numCores = Runtime.getRuntime().availableProcessors()
+    val executorPool = ThreadPoolExecutor(numCores, numCores,
             10, TimeUnit.SECONDS, ArrayBlockingQueue(1000),
             Executors.defaultThreadFactory(), RejectedExecutionHandler { r, executor ->
         println("Execution rejected: $r")
         throw Error("Must not happen!")
     })
-    val built = ConcurrentHashMap(sorted.associateWith { _ -> 0 })
-
+    val built = ConcurrentHashMap(sorted.associateWith { 0 })
     // Now run interop tool on toposorted dependencies.
     sorted.forEach { def ->
         executorPool.execute {
