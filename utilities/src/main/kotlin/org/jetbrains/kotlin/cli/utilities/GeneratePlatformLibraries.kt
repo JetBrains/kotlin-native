@@ -7,6 +7,7 @@ package org.jetbrains.kotlin.cli.utilities
 
 import org.jetbrains.kotlin.cli.bc.K2Native
 import org.jetbrains.kotlin.konan.file.File
+import java.util.concurrent.*
 
 fun generatePlatformLibraries(args: Array<String>) {
     var inputDirectory: File? = null
@@ -51,6 +52,10 @@ private class DefFile(val name: String, val depends: MutableList<DefFile>) {
         return false
     }
 
+    override fun hashCode(): Int {
+        return name.hashCode()
+    }
+
     override fun equals(other: Any?): Boolean {
         return other is DefFile && other.name == name
     }
@@ -83,6 +88,28 @@ private fun topoSort(defFiles: List<DefFile>): List<DefFile> {
 }
 
 private fun generatePlatformLibraries(target: String, inputDirectory: File, outputDirectory: File, saveTemps: Boolean) {
+    fun buildKlib(def: DefFile) {
+        val file = File("$inputDirectory/${def.name}.def")
+        File("${outputDirectory.absolutePath}/build-${def.name}").mkdirs()
+        val outKlib = "${outputDirectory.absolutePath}/build-${def.name}/${def.name}.klib"
+        val args = arrayOf("-o", outKlib,
+                "-target", target,
+                "-def", file.absolutePath,
+                "-compiler-option", "-fmodules-cache-path=$outputDirectory/clangModulesCache",
+                "-repo",  "${outputDirectory.absolutePath}",
+                "-no-default-libs", "-no-endorsed-libs", "-Xpurge-user-libs",
+                *def.depends.flatMap { listOf("-l", "$outputDirectory/${it.name}") }.toTypedArray())
+        println("Processing ${def.name}...")
+        K2Native.mainNoExit(invokeInterop("native", args))
+        org.jetbrains.kotlin.cli.klib.main(arrayOf(
+                "install", outKlib,
+                "-target", target,
+                "-repository", "${outputDirectory.absolutePath}"
+        ))
+        if (!saveTemps)  {
+            File("$outputDirectory/build-${def.name}").deleteRecursively()
+        }
+    }
     println("generate platform libraries from $inputDirectory to $outputDirectory for $target")
     // Build dependencies graph.
     val defFiles = mutableMapOf<String, DefFile>()
@@ -104,19 +131,24 @@ private fun generatePlatformLibraries(target: String, inputDirectory: File, outp
         }
     }
     val sorted = topoSort(defFiles.values.toList())
+    val executorPool = ThreadPoolExecutor(2, Runtime.getRuntime().availableProcessors(),
+            10, TimeUnit.SECONDS, ArrayBlockingQueue(1000),
+            Executors.defaultThreadFactory(), RejectedExecutionHandler { r, executor ->
+        println("Execution rejected: $r")
+        throw Error("Must not happen!")
+    })
+    val built = ConcurrentHashMap(sorted.associateWith { _ -> 0 })
+
     // Now run interop tool on toposorted dependencies.
     sorted.forEach { def ->
-        val file = File("$inputDirectory/${def.name}.def")
-        val args = arrayOf("-o", "$outputDirectory/${def.name}.klib",
-                "-target", target,
-                "-def", file.absolutePath,
-                "-compiler-option", "-fmodules-cache-path=$outputDirectory/clangModulesCache",
-                "-no-default-libs", "-no-endorsed-libs", "-Xpurge-user-libs",
-                *def.depends.flatMap { listOf("-l", "$outputDirectory/${it.name}.klib") }.toTypedArray())
-        println("Processing ${def.name}...")
-        K2Native.mainNoExit(invokeInterop("native", args))
-        if (!saveTemps) {
-            File("$outputDirectory/${def.name}.klib-build").deleteRecursively()
+        executorPool.execute {
+            // A bit ugly, we just block here until all dependencies are built.
+            while (def.depends.any { built[it] == 0 }) {
+                Thread.sleep(100)
+            }
+            buildKlib(def)
+            built[def] = 1
         }
     }
+    executorPool.shutdown()
 }
