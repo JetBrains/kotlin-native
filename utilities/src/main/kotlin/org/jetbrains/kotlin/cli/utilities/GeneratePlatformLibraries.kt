@@ -11,15 +11,15 @@ import java.util.concurrent.*
 import kotlinx.cli.*
 
 fun generatePlatformLibraries(args: Array<String>) {
-    val argParser = ArgParser("generate-platform")
+    val argParser = ArgParser("generate-platform", prefixStyle = ArgParser.OPTION_PREFIX_STYLE.JVM)
     val inputDirectoryPath by argParser.option(
             ArgType.String, "input-directory", "i", "Input directory").required()
     val outputDirectoryPath by argParser.option(
             ArgType.String, "output-directory", "o", "Output directory").required()
     val target by argParser.option(
             ArgType.String, "target", "t", "Compilation target").required()
-    val saveTemps by argParser.argument(
-            ArgType.Boolean, "save-temps", "Save temporary files").default(false)
+    val saveTemps by argParser.option(
+            ArgType.Boolean, "save-temps", "s", "Save temporary files").default(false)
     argParser.parse(args)
 
     val inputDirectory = File(inputDirectoryPath)
@@ -34,13 +34,6 @@ fun generatePlatformLibraries(args: Array<String>) {
 }
 
 private class DefFile(val name: String, val depends: MutableList<DefFile>) {
-    fun dependsOn(defFile: DefFile): Boolean {
-        if (defFile == this) return true
-        for (dependency in this.depends) {
-            if (defFile.dependsOn(dependency)) return true
-        }
-        return false
-    }
 
     override fun hashCode(): Int {
         return name.hashCode()
@@ -91,8 +84,7 @@ private fun generatePlatformLibraries(target: String, inputDirectory: File, outp
                 *def.depends.flatMap { listOf("-l", "$outputDirectory/${it.name}") }.toTypedArray())
         println("Processing ${def.name}...")
         K2Native.mainNoExit(invokeInterop("native", args))
-        org.jetbrains.kotlin.cli.klib.main(arrayOf(
-                "install", outKlib,
+        org.jetbrains.kotlin.cli.klib.main(arrayOf("install", outKlib,
                 "-target", target,
                 "-repository", "${outputDirectory.absolutePath}"
         ))
