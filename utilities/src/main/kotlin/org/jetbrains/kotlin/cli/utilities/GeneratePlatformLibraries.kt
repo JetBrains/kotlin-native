@@ -34,14 +34,6 @@ fun generatePlatformLibraries(args: Array<String>) {
 }
 
 private class DefFile(val name: String, val depends: MutableList<DefFile>) {
-
-    override fun hashCode(): Int {
-        return name.hashCode()
-    }
-
-    override fun equals(other: Any?): Boolean {
-        return other is DefFile && other.name == name
-    }
     override fun toString(): String = "$name: [${depends.joinToString(separator = ", ") { it.name }}]"
 }
 
@@ -116,7 +108,7 @@ private fun generatePlatformLibraries(target: String, inputDirectory: File, outp
     val numCores = Runtime.getRuntime().availableProcessors()
     val executorPool = ThreadPoolExecutor(numCores, numCores,
             10, TimeUnit.SECONDS, ArrayBlockingQueue(1000),
-            Executors.defaultThreadFactory(), RejectedExecutionHandler { r, executor ->
+            Executors.defaultThreadFactory(), RejectedExecutionHandler { r, _ ->
         println("Execution rejected: $r")
         throw Error("Must not happen!")
     })
@@ -128,8 +120,16 @@ private fun generatePlatformLibraries(target: String, inputDirectory: File, outp
             while (def.depends.any { built[it] == 0 }) {
                 Thread.sleep(100)
             }
-            buildKlib(def)
-            built[def] = 1
+            try {
+                if (def.depends.any { built[it] == 2 }) {
+                    throw Error("There are failed dependencies for $def")
+                }
+                buildKlib(def)
+                built[def] = 1
+            } catch(e: Throwable) {
+                built[def] = 2
+                throw e
+            }
         }
     }
     executorPool.shutdown()
