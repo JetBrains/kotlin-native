@@ -490,16 +490,13 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
         assert (first.type == second.type) { "Types are different: '${llvmtype2string(first.type)}' and '${llvmtype2string(second.type)}'" }
 
         return when (val typeKind = LLVMGetTypeKind(first.type)) {
-            llvm.LLVMTypeKind.LLVMFloatTypeKind, llvm.LLVMTypeKind.LLVMDoubleTypeKind -> {
+            llvm.LLVMTypeKind.LLVMFloatTypeKind, llvm.LLVMTypeKind.LLVMDoubleTypeKind,
+            LLVMTypeKind.LLVMVectorTypeKind -> {
+                // TODO LLVMIntTypeInContext works for 128 bits but may return null for longer types. Provide meaningful diag message instead of NPE
                 val integerType = LLVMIntTypeInContext(llvmContext, first.type.sizeInBits())!!
                 icmpEq(bitcast(integerType, first), bitcast(integerType, second))
             }
             llvm.LLVMTypeKind.LLVMIntegerTypeKind, llvm.LLVMTypeKind.LLVMPointerTypeKind -> icmpEq(first, second)
-            LLVMTypeKind.LLVMVectorTypeKind -> {
-                assert(first.type.sizeInBits() == 128)
-                val integerType = LLVMInt128TypeInContext(llvmContext)!!
-                icmpEq(bitcast(integerType, first), bitcast(integerType, second))
-            }
             else -> error(typeKind)
         }
     }
