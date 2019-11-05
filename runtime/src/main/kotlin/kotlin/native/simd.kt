@@ -4,8 +4,8 @@
  */
 package kotlin.native
 
-import kotlin.native.internal.*
-import kotlinx.cinterop.*
+import kotlin.native.internal.TypedIntrinsic
+import kotlin.native.internal.IntrinsicType
 
 
 public final class Vector128 private constructor() {
