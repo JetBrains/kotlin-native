@@ -15,10 +15,6 @@ import org.gradle.api.tasks.options.Option
 @Suppress("UnstableApiUsage")
 open class KotlinBuildPusher : DefaultTask() {
     @Input
-    @Option(option = "token", description = "Teamcity Bear token")
-    var token: String? = ""
-
-    @Input
     @Option(option = "buildServer", description = "Teamcity server")
     var buildServer: String = ""
 
@@ -40,16 +36,13 @@ open class KotlinBuildPusher : DefaultTask() {
 
     @TaskAction
     fun run() {
-        requireNotNull(token, { "Teamcity Bear token required" })
         val client = HttpClient()
         runBlocking {
             val buildId = client.get<String>(
                 scheme = "https",
                 host = buildServer,
-                path = "/app/rest/builds/buildType:(id:$compilerConfigurationId),number:$kotlinVersion/id"
-            ) {
-                header("Authorization", "Bearer $token")
-            }
+                path = "/guestAuth/app/rest/builds/buildType:(id:$compilerConfigurationId),number:$kotlinVersion/id"
+            )
             project.logger.info("pusher: buildId: $buildId")
 
             /**
@@ -79,9 +72,8 @@ open class KotlinBuildPusher : DefaultTask() {
             val res = client.post<String>(
                 scheme = "https",
                 host = buildServer,
-                path = "/app/rest/buildQueue"
+                path = "/guestAuth/app/rest/buildQueue"
             ) {
-                header("Authorization", "Bearer $token")
                 header("Origin", "https://$buildServer")
                 body = TextContent(content, ContentType.Application.Xml)
             }
