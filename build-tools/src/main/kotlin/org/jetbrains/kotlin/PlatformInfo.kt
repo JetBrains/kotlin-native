@@ -37,5 +37,18 @@ object PlatformInfo {
         return platformManager.targetManager(targetName).target
     }
 
+    @JvmStatic
+    fun checkXcodeVersion(project: Project) {
+        if(!DependencyProcessor.isInternalSeverAvailable) {
+            val currentXcodeVersion = Xcode.current.version
+            val requiredXcodeVersion = project.property("xcodeVersion") as String
+            if (currentXcodeVersion != requiredXcodeVersion) {
+                throw IllegalStateException(
+                        "Incorrect Xcode version: ${currentXcodeVersion}. Required Xcode version is ${requiredXcodeVersion}."
+                )
+            }
+        }
+    }
+
     fun unsupportedPlatformException() = TargetSupportException()
 }
