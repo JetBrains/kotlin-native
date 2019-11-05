@@ -386,6 +386,19 @@ func testLambda() throws {
     }
     try assertTrue(uncoercedUnitBlock() == Void())
     try assertEquals(actual: blockRuns, expected: 5)
+
+    let blockMustBeFunction0: @convention(block) () -> AnyObject? = { return nil }
+    try assertTrue(ValuesKt.isFunction(obj: blockMustBeFunction0))
+    try assertTrue(ValuesKt.isFunction0(obj: blockMustBeFunction0))
+    try assertFalse(ValuesKt.isFunction(obj: NSObject()))
+    try assertFalse(ValuesKt.isFunction0(obj: NSObject()))
+
+    // Test no function class for dynamic conversion:
+    let blockAsMissingFunction: @convention(block) (AnyObject?, AnyObject?, AnyObject?, AnyObject?, AnyObject?) -> AnyObject?
+            = { return $0 ?? $1 ?? $2 ?? $3 ?? $4 }
+
+    try assertTrue(ValuesKt.isFunction(obj: blockAsMissingFunction))
+    try assertFalse(ValuesKt.isFunction0(obj: blockAsMissingFunction))
 }
 
 // -------- Tests for classes and interfaces -------
@@ -1016,6 +1029,54 @@ func testInterfaceTypeCheck() throws {
     try assertFalse(ValuesKt.testInterfaceTypeCheck(x: ClassForInterfaceTypeCheck_Fail()))
 }
 
+class AbstractInterface : AbstractInterfaceBase {
+    override func bar() -> Int32 {
+        return 42
+    }
+}
+
+// See https://github.com/JetBrains/kotlin-native/issues/3503
+func testGH3503_1() throws {
+    try assertEquals(actual: ValuesKt.testAbstractInterfaceCall(x: AbstractInterface()), expected: 42)
+}
+
+class AbstractInterface2 : AbstractInterfaceBase2 {
+
+}
+
+func testGH3503_2() throws {
+    try assertEquals(actual: ValuesKt.testAbstractInterfaceCall2(x: AbstractInterface2()), expected: 42)
+}
+
+class AbstractInterface3 : AbstractInterfaceBase3 {
+    override func foo() -> Int32 {
+        return 42
+    }
+}
+
+func testGH3503_3() throws {
+    try assertEquals(actual: ValuesKt.testAbstractInterfaceCall(x: AbstractInterface3()), expected: 42)
+}
+
+func testGH3525() throws {
+    try assertEquals(actual: ValuesKt.gh3525BaseInitCount, expected: 0)
+    try assertEquals(actual: ValuesKt.gh3525InitCount, expected: 0)
+
+    let gh3525_1 = GH3525()
+    try assertTrue(gh3525_1 is GH3525)
+
+    try assertEquals(actual: ValuesKt.gh3525BaseInitCount, expected: 1)
+    try assertEquals(actual: ValuesKt.gh3525InitCount, expected: 1)
+
+    let gh3525_2 = GH3525()
+    try assertTrue(gh3525_2 is GH3525)
+
+    try assertEquals(actual: ValuesKt.gh3525BaseInitCount, expected: 1)
+    try assertEquals(actual: ValuesKt.gh3525InitCount, expected: 1)
+
+    try assertTrue(gh3525_1 === gh3525_2)
+}
+
 // -------- Execution of the test --------
 
 class ValuesTests : TestProvider {
@@ -1067,6 +1128,12 @@ class ValuesTests : TestProvider {
             TestCase(name: "TestSharedRefs", method: withAutorelease(TestSharedRefs().test)),
             TestCase(name: "TestClassTypeCheck", method: withAutorelease(testClassTypeCheck)),
             TestCase(name: "TestInterfaceTypeCheck", method: withAutorelease(testInterfaceTypeCheck)),
+            TestCase(name: "TestGH3503_1", method: withAutorelease(testGH3503_1)),
+            TestCase(name: "TestGH3503_2", method: withAutorelease(testGH3503_2)),
+            TestCase(name: "TestGH3503_3", method: withAutorelease(testGH3503_3)),
+            TestCase(name: "TestGH3525", method: withAutorelease(testGH3525)),
+
+            // Stress test, must remain the last one:
             TestCase(name: "TestGH2931", method: withAutorelease(testGH2931)),
         ]
     }

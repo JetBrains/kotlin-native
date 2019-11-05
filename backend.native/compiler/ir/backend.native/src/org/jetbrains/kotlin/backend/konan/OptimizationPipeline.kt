@@ -5,7 +5,9 @@ import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.value
 import llvm.*
+import org.jetbrains.kotlin.konan.target.Configurables
 import org.jetbrains.kotlin.konan.target.KonanTarget
+import org.jetbrains.kotlin.konan.target.ZephyrConfigurables
 
 private fun initializeLlvmGlobalPassRegistry() {
     val passRegistry = LLVMGetGlobalPassRegistry()
@@ -38,6 +40,7 @@ internal fun runLateBitcodePasses(context: Context, llvmModule: LLVMModuleRef) {
 private class LlvmPipelineConfiguration(context: Context) {
 
     private val target = context.config.target
+    private val configurables: Configurables = context.config.platform.configurables
 
     val targetTriple: String = context.llvm.targetTriple
 
@@ -69,8 +72,11 @@ private class LlvmPipelineConfiguration(context: Context) {
         KonanTarget.ANDROID_X86 -> "i686"
         KonanTarget.LINUX_MIPS32 -> "mips32r2"
         KonanTarget.LINUX_MIPSEL32 -> "mips32r2"
-        KonanTarget.WASM32,
-        is KonanTarget.ZEPHYR -> error("There is no support for ${target.name} target yet.")
+        KonanTarget.WASM32 -> "generic"
+        is KonanTarget.ZEPHYR -> (configurables as ZephyrConfigurables).targetCpu ?: run {
+            context.reportCompilationWarning("targetCpu for target $target was not set. Targeting `generic` cpu.")
+            "generic"
+        }
     }
 
     val cpuFeatures: String = when (target) {
@@ -79,22 +85,29 @@ private class LlvmPipelineConfiguration(context: Context) {
         else -> ""
     }
 
+    /**
+     * Null value means that LLVM should use default inliner params
+     * for the provided optimization and size level.
+     */
     val customInlineThreshold: Int? = when {
-        context.shouldOptimize() -> 100
+        context.shouldOptimize() -> INLINE_THRESHOLD_OPT
         context.shouldContainDebugInfo() -> null
         else -> null
     }
 
-    val optimizationLevel: Int = when {
-        context.shouldOptimize() -> 3
-        context.shouldContainDebugInfo() -> 0
-        else -> 1
+    val optimizationLevel: LlvmOptimizationLevel = when {
+        context.shouldOptimize() -> LlvmOptimizationLevel.AGGRESSIVE
+        context.shouldContainDebugInfo() -> LlvmOptimizationLevel.NONE
+        else -> LlvmOptimizationLevel.DEFAULT
     }
 
-    val sizeLevel: Int = when {
-        context.shouldOptimize() -> 0
-        context.shouldContainDebugInfo() -> 0
-        else -> 0
+    val sizeLevel: LlvmSizeLevel = when {
+        // We try to optimize code as much as possible on embedded targets.
+        target is KonanTarget.ZEPHYR ||
+        target == KonanTarget.WASM32 -> LlvmSizeLevel.AGGRESSIVE
+        context.shouldOptimize() -> LlvmSizeLevel.NONE
+        context.shouldContainDebugInfo() -> LlvmSizeLevel.NONE
+        else -> LlvmSizeLevel.NONE
     }
 
     val codegenOptimizationLevel: LLVMCodeGenOptLevel = when {
@@ -106,20 +119,27 @@ private class LlvmPipelineConfiguration(context: Context) {
     val relocMode: LLVMRelocMode = LLVMRelocMode.LLVMRelocDefault
 
     val codeModel: LLVMCodeModel = LLVMCodeModel.LLVMCodeModelDefault
-}
 
-// Since we are in a "closed world" internalization and global dce
-// can be safely used to reduce size of a bitcode.
-internal fun runClosedWorldCleanup(context: Context) {
-    initializeLlvmGlobalPassRegistry()
-    val llvmModule = context.llvmModule!!
-    val modulePasses = LLVMCreatePassManager()
-    if (context.llvmModuleSpecification.isFinal) {
-        LLVMAddInternalizePass(modulePasses, 0)
+    companion object {
+        // By default LLVM uses 250 for -03 builds.
+        // We use a smaller value since default value leads to
+        // unreasonably bloated runtime code without any measurable
+        // performance benefits.
+        // This value still has to be tuned for different targets, though.
+        private const val INLINE_THRESHOLD_OPT = 100
     }
-    LLVMAddGlobalDCEPass(modulePasses)
-    LLVMRunPassManager(modulePasses, llvmModule)
-    LLVMDisposePassManager(modulePasses)
+
+    enum class LlvmOptimizationLevel(val value: Int) {
+        NONE(0),
+        DEFAULT(1),
+        AGGRESSIVE(3)
+    }
+
+    enum class LlvmSizeLevel(val value: Int) {
+        NONE(0),
+        DEFAULT(1),
+        AGGRESSIVE(2)
+    }
 }
 
 internal fun runLlvmOptimizationPipeline(context: Context) {
@@ -132,8 +152,8 @@ internal fun runLlvmOptimizationPipeline(context: Context) {
         initializeLlvmGlobalPassRegistry()
         val passBuilder = LLVMPassManagerBuilderCreate()
         val modulePasses = LLVMCreatePassManager()
-        LLVMPassManagerBuilderSetOptLevel(passBuilder, config.optimizationLevel)
-        LLVMPassManagerBuilderSetSizeLevel(passBuilder, config.sizeLevel)
+        LLVMPassManagerBuilderSetOptLevel(passBuilder, config.optimizationLevel.value)
+        LLVMPassManagerBuilderSetSizeLevel(passBuilder, config.sizeLevel.value)
         // TODO: use LLVMGetTargetFromName instead.
         val target = alloc<LLVMTargetRefVar>()
         val foundLlvmTarget = LLVMGetTargetFromTriple(config.targetTriple, target.ptr, null) == 0

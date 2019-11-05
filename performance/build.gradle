@@ -64,18 +64,16 @@ task slackSummary(type: RegressionsSummaryReporter) {
                           'Windows': "${rootBuildDirectory}/targetsResults/Windows 10.txt".toString()]
 }
 
-private def uploadBenchmarkResultToBintray(String fileName) {
+private def uploadBenchmarkResultToArtifactory(String fileName) {
     def teamcityConfig = System.getenv("TEAMCITY_BUILD_PROPERTIES_FILE")
     if (teamcityConfig) {
         def buildProperties = new Properties()
         buildProperties.load(new FileInputStream(teamcityConfig))
-        def user = buildProperties.getProperty("bintray.user")
-        def password = buildProperties.getProperty("bintray.apikey")
+        def password = buildProperties.getProperty("artifactory.apikey")
         def buildNumber = buildProperties.getProperty("build.number")
         def target = System.getProperty("os.name").replaceAll("\\s", "")
-        MPPTools.uploadFileToBintray("${bintrayUrl}", "${bintrayRepo}",
-                buildNumber, "${bintrayPackage}", "${target}/${buildNumber}/${fileName}",
-                "${buildDir.absolutePath}/${fileName}", user, password)
+        MPPTools.uploadFileToArtifactory("${artifactoryUrl}", "${artifactoryRepo}",
+                "${target}/${buildNumber}/${fileName}", "${buildDir.absolutePath}/${fileName}", password)
     }
 }
 
@@ -90,19 +88,29 @@ task registerExternalBenchmarks {
                 return
 
             def lines = reportFile.readLines()
-            if (lines.size < 3) {
-                println("Couldn't use report to register benchmarks. Wrong format.")
+            if (lines.size < 4) {
+                project.logger.warn("Couldn't use report to register benchmarks. Wrong format.")
                 return
             }
             def name = lines[0]
-            def status = lines[1]
-            def compileTime = lines[2]
+            def options = lines[1]
+            if (!options.startsWith("OPTIONS")) {
+                project.logger.warn("Couldn't use report to register benchmarks. Wrong format in options description.")
+                return
+            }
+            def optionsList = options.replace("OPTIONS ", "").replaceAll("\\[|\\]", "").split(",\\s*").toList()
+            def status = lines[2]
+            def compileTime = null
             def codeSize = null
-            if (lines.size > 3) {
-                codeSize = lines[3]
+            lines.drop(3).each {
+                if (it.startsWith("COMPILE_TIME")) {
+                    compileTime = it
+                }
+                if (it.startsWith("CODE_SIZE")) {
+                    codeSize = it
+                }
             }
             // Create benchmarks report.
-            def compileBenchmark = MPPTools.toCompileBenchmark(compileTime, status, name)
             def properties = [
                     "cpu": System.getProperty("os.arch"),
                     "os": System.getProperty("os.name"),
@@ -111,9 +119,12 @@ task registerExternalBenchmarks {
                     "kotlinVersion": kotlinVersion,
                     "type": "native",
                     "compilerVersion": konanVersion,
-                    "flags": ["-g"],
-                    "benchmarks": "[]",
-                    "compileTime": [compileBenchmark]]
+                    "flags": optionsList,
+                    "benchmarks": "[]"]
+            if (compileTime != null) {
+                def compileBenchmark = MPPTools.toCompileBenchmark(compileTime, status, name)
+                properties += ["compileTime": [compileBenchmark]]
+            }
             if (codeSize != null) {
                 properties += ["codeSize": MPPTools.toCodeSizeBenchmark(codeSize, status, name)]
             }
@@ -126,7 +137,7 @@ task registerExternalBenchmarks {
         if (!merged.isEmpty()) {
             mkdir buildDir.absolutePath
             new File(buildDir, externalBenchmarksReport).write(merged)
-            uploadBenchmarkResultToBintray(externalBenchmarksReport)
+            uploadBenchmarkResultToArtifactory(externalBenchmarksReport)
         }
     }
 }
@@ -164,14 +175,14 @@ def mergeReports(String fileName) {
 task mergeNativeReports {
     doLast {
         mergeReports(nativeJson)
-        uploadBenchmarkResultToBintray(nativeJson)
+        uploadBenchmarkResultToArtifactory(nativeJson)
     }
 }
 
 task mergeJvmReports {
     doLast {
         mergeReports(jvmJson)
-        uploadBenchmarkResultToBintray(jvmJson)
+        uploadBenchmarkResultToArtifactory(jvmJson)
     }
 }
 

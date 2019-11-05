@@ -141,7 +141,8 @@ internal class SpecialDeclarationsFactory(val context: Context) : KotlinMangler 
                 isTailrec = false,
                 isSuspend = function.isSuspend,
                 returnType = returnType,
-                isExpect = false
+                isExpect = false,
+                isFakeOverride = false
         ).apply {
             descriptor.bind(this)
             parent = function.parent
@@ -191,6 +192,7 @@ internal class SpecialDeclarationsFactory(val context: Context) : KotlinMangler 
 }
 
 internal class Context(config: KonanConfig) : KonanBackendContext(config) {
+    override val lateinitNullableFields = mutableMapOf<IrField, IrField>()
     lateinit var frontendServices: FrontendServices
     lateinit var environment: KotlinCoreEnvironment
     lateinit var bindingContext: BindingContext
@@ -333,7 +335,7 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     fun disposeLlvm() {
         if (llvmDisposed) return
         if (::debugInfo.isInitialized)
-            DIDispose(debugInfo.builder)
+            LLVMDisposeDIBuilder(debugInfo.builder)
         if (llvmModule != null)
             LLVMDisposeModule(llvmModule)
         if (::llvm.isInitialized)

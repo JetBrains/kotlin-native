@@ -27,6 +27,8 @@ private fun mainImpl(args: Array<String>, konancMain: (Array<String>) -> Unit) {
             klibMain(utilityArgs)
         "defFileDependencies" ->
             defFileDependencies(utilityArgs)
+        "generatePlatformLibraries" ->
+            generatePlatformLibraries(utilityArgs)
         else ->
             error("Unexpected utility name")
     }

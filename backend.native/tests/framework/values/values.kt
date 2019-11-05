@@ -16,6 +16,9 @@ import kotlin.reflect.KClass
 import kotlin.reflect.KProperty
 import kotlinx.cinterop.*
 
+// Ensure loaded function IR classes aren't ordered by arity:
+internal fun referenceFunction1(block: (Any?) -> Unit) {}
+
 // Constants
 const val dbl: Double = 3.14
 const val flt: Float = 2.73F
@@ -432,6 +435,9 @@ object UnitBlockCoercionImpl : UnitBlockCoercion<() -> Unit> {
     override fun uncoerce(block: () -> Unit): () -> Unit = block
 }
 
+fun isFunction(obj: Any?): Boolean = obj is Function<*>
+fun isFunction0(obj: Any?): Boolean = obj is Function0<*>
+
 abstract class MyAbstractList : List<Any?>
 
 fun takeForwardDeclaredClass(obj: objcnames.classes.ForwardDeclaredClass) {}
@@ -782,3 +788,42 @@ fun testClassTypeCheck(x: Any) = x is ClassForTypeCheck
 interface InterfaceForTypeCheck
 
 fun testInterfaceTypeCheck(x: Any) = x is InterfaceForTypeCheck
+
+interface IAbstractInterface {
+    fun foo(): Int
+}
+
+interface IAbstractInterface2 {
+    fun foo() = 42
+}
+
+fun testAbstractInterfaceCall(x: IAbstractInterface) = x.foo()
+fun testAbstractInterfaceCall2(x: IAbstractInterface2) = x.foo()
+
+abstract class AbstractInterfaceBase : IAbstractInterface {
+    override fun foo() = bar()
+
+    abstract fun bar(): Int
+}
+
+abstract class AbstractInterfaceBase2 : IAbstractInterface2
+
+abstract class AbstractInterfaceBase3 : IAbstractInterface {
+    abstract override fun foo(): Int
+}
+
+var gh3525BaseInitCount = 0
+
+open class GH3525Base {
+    init {
+        gh3525BaseInitCount++
+    }
+}
+
+var gh3525InitCount = 0
+
+object GH3525 : GH3525Base() {
+    init {
+        gh3525InitCount++
+    }
+}

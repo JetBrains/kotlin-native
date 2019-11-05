@@ -48,15 +48,25 @@ repositories {
 
 dependencies {
     cli_bc project(path: ':backend.native', configuration: 'cli_bc')
+    def updateTestData = true
     if (project.hasProperty("kotlinProjectPath")) {
-        /**
-         * TODO: It's desired to get archives from composite build automatically, but still user have to execute :kotlin:zipTestData,
-         * unfortuantly `buildBy` on ConfigurableFileCollection doesn't work as desired and added dependsOn `:kotlin:zipTestData` in tasks
-         * using `update_external_tests` fails on evaluation phase.
-         */
-        update_tests files(Paths.get(project.property("kotlinProjectPath").toString(), "dist", "kotlin-test-data.zip").toFile())
-        update_stdlib_tests files(Paths.get(project.property("kotlinProjectPath").toString(), "dist", "kotlin-stdlib-tests.zip").toFile())
-    } else {
+        def kotlinProj = project.property("kotlinProjectPath").toString()
+        def testDataZip = Paths.get(kotlinProj, "dist", "kotlin-test-data.zip").toFile()
+        if (testDataZip.exists()) {
+            update_tests files(testDataZip)
+            updateTestData = false
+        } else {
+            println("WARN: using tests provided by gradle.properties. Please execute :kotlin:zipTestData")
+        }
+        def stdlibTestsZip = Paths.get(kotlinProj, "dist", "kotlin-stdlib-tests.zip").toFile()
+        if (stdlibTestsZip.exists()) {
+            update_stdlib_tests files(stdlibTestsZip)
+            updateTestData = false
+        } else {
+            println("WARNING: using stdlib tests provided by gradle.properties. Please execute :kotlin:zipTestData")
+        }
+    }
+    if (updateTestData) {
         update_tests(group: 'org', name: 'Kotlin_KotlinPublic_Compiler', version: testKotlinCompilerVersion) {
             artifact {
                 name = 'internal/kotlin-test-data'
@@ -87,6 +97,21 @@ project.convention.plugins.executor = ExecutorServiceKt.create(project)
 
 // Do not generate run tasks for konan built artifacts
 ext.konanNoRun = true
+
+final CacheTesting cacheTesting = CacheTestingKt.configureCacheTesting(project)
+if (cacheTesting != null) {
+    // Note: can't do this in [CacheTesting.configure] since task classes aren't accessible there.
+
+    tasks.withType(KonanCompileNativeBinary.class) {
+        dependsOn cacheTesting.buildCacheTask
+        extraOpts cacheTesting.compilerArgs
+    }
+
+    tasks.withType(RunExternalTestGroup.class) {
+        dependsOn cacheTesting.buildCacheTask
+        flags = (flags ?: []) + cacheTesting.compilerArgs
+    }
+}
 
 // Enable two-stage test compilation if the test_two_stage property is set.
 ext.twoStageEnabled = project.hasProperty("test_two_stage")
@@ -1597,6 +1622,10 @@ task coroutines_correctOrder1(type: KonanLocalTest) {
     source = "codegen/coroutines/correctOrder1.kt"
 }
 
+task coroutines_controlFlow_chain(type: KonanLocalTest) {
+    source = "codegen/coroutines/controlFlow_chain.kt"
+}
+
 task coroutines_controlFlow_if1(type: KonanLocalTest) {
     goldValue = "f1\ns1\nf3\n84\n"
     source = "codegen/coroutines/controlFlow_if1.kt"
@@ -1802,12 +1831,8 @@ task sort1(type: KonanLocalTest) {
     source = "runtime/collections/sort1.kt"
 }
 
-// TODO: Enable devirtualization and make the test not standalone
-// when KT-26315 is fixed.
-standaloneTest("sortWith") {
+task sortWith(type: KonanLocalTest) {
     source = "runtime/collections/SortWith.kt"
-    flags = ['-tr', '-Xdisable=devirtualization']
-    arguments = ['--ktest_logger=SILENT']
 }
 
 task if_else(type: KonanLocalTest) {
@@ -2417,18 +2442,21 @@ standaloneTest("args0") {
 }
 
 standaloneTest("devirtualization_lateinitInterface") {
+    disabled = (cacheTesting != null) // Cache is not compatible with -opt.
     goldValue = "42\n"
     flags = ["-opt"]
     source = "codegen/devirtualization/lateinitInterface.kt"
 }
 
 standaloneTest("devirtualization_getter_looking_as_box_function") {
+    disabled = (cacheTesting != null) // Cache is not compatible with -opt.
     goldValue = "box\n"
     flags = ["-opt"]
     source = "codegen/devirtualization/getter_looking_as_box_function.kt"
 }
 
 standaloneTest("devirtualization_anonymousObject") {
+    disabled = (cacheTesting != null) // Cache is not compatible with -opt.
     goldValue = "zzz\n"
     flags = ["-opt"]
     source = "codegen/devirtualization/anonymousObject.kt"
@@ -3197,6 +3225,7 @@ task driver0(type: KonanDriverTest) {
 }
 
 task driver_opt(type: KonanDriverTest) {
+    disabled = (cacheTesting != null) // Cache is not compatible with -opt.
     goldValue = "Hello, world!\n"
     source = "runtime/basic/driver0.kt"
     flags = ["-opt"]
@@ -3317,6 +3346,13 @@ if (PlatformInfo.isAppleTarget(project)) {
         it.defFile 'interop/objc/msg_send/messaging.def'
         it.headers "$projectDir/interop/objc/msg_send/messaging.h"
         it.linkerOpts "-L$buildDir", "-lobjcmessaging"
+    }
+
+    createInterop("objcKt34467") {
+        it.defFile 'interop/objc/kt34467/module_library.def'
+        def moduleMap = file("interop/objc/kt34467/module_library.modulemap").absolutePath
+        def includePath = file("interop/objc/kt34467").absolutePath
+        it.compilerOpts "-fmodule-map-file=$moduleMap", "-I$includePath"
     }
 }
 
@@ -3565,6 +3601,13 @@ interopTest("interop_objc_msg_send") {
     }
 }
 
+interopTest("interop_objc_kt34467") {
+    disabled = !isAppleTarget(project)
+    source = "interop/objc/kt34467/foo.kt"
+    interop = 'objcKt34467'
+    goldValue = "OK\n42\n"
+}
+
 standaloneTest("jsinterop_math") {
     doBefore {
         def jsinteropScript = isWindows() ? "jsinterop.bat" : "jsinterop"
@@ -3719,7 +3762,7 @@ if (isAppleTarget(project)) {
         final String frameworkName = 'Stdlib'
         testName = frameworkName
         frameworkNames = [frameworkName]
-        fullBitcode = true
+        if (cacheTesting == null) fullBitcode = true
         konanArtifacts {
             framework(frameworkName, targets: [ targetName ]) {
                 srcDir 'framework/stdlib'
@@ -3736,7 +3779,9 @@ if (isAppleTarget(project)) {
         swiftSources = ['framework/stdlib/stdlib.swift']
     }
 
-    task testMultipleFrameworks(type: FrameworkTest) {
+    if (cacheTesting != null && cacheTesting.isDynamic) {
+        // testMultipleFrameworks disabled until https://youtrack.jetbrains.com/issue/KT-34262 is fixed.
+    } else task testMultipleFrameworks(type: FrameworkTest) {
         testName = "MultipleFrameworks"
         final String firstFrameworkName = 'First'
         final String secondFrameworkName = 'Second'
@@ -3814,7 +3859,7 @@ if (UtilsKt.testTargetSupportsCodeCoverage(project)) {
 
         binaryName = "CoverageBasic"
         numberOfCoveredFunctions = 1
-        numberOfCoveredLines = 1
+        numberOfCoveredLines = 3
 
         konanArtifacts {
             program(binaryName, targets: [ target ]) {
@@ -3851,7 +3896,7 @@ if (UtilsKt.testTargetSupportsCodeCoverage(project)) {
     task coverage_smoke0(type: CoverageTest) {
         binaryName = "CoverageSmoke0"
         numberOfCoveredFunctions = 2
-        numberOfCoveredLines = 3
+        numberOfCoveredLines = 5
 
         konanArtifacts {
             program(binaryName, targets: [ target ]) {
