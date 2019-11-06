@@ -39,9 +39,14 @@ object PlatformInfo {
 
     @JvmStatic
     fun checkXcodeVersion(project: Project) {
-        if(!DependencyProcessor.isInternalSeverAvailable) {
+        val properties = PropertiesProvider(project)
+        val requiredXcodeVersion = properties.xcodeVersion
+
+        if (!DependencyProcessor.isInternalSeverAvailable
+                && properties.checkXcodeVersion
+                && requiredXcodeVersion != null
+        ) {
             val currentXcodeVersion = Xcode.current.version
-            val requiredXcodeVersion = project.property("xcodeVersion") as String
             if (currentXcodeVersion != requiredXcodeVersion) {
                 throw IllegalStateException(
                         "Incorrect Xcode version: ${currentXcodeVersion}. Required Xcode version is ${requiredXcodeVersion}."
