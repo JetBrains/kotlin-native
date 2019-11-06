@@ -492,7 +492,7 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
         return when (val typeKind = LLVMGetTypeKind(first.type)) {
             llvm.LLVMTypeKind.LLVMFloatTypeKind, llvm.LLVMTypeKind.LLVMDoubleTypeKind,
             LLVMTypeKind.LLVMVectorTypeKind -> {
-                // TODO LLVMIntTypeInContext works for 128 bits but may return null for longer types. Provide meaningful diag message instead of NPE
+                // TODO LLVM API does not provide guarantee for LLVMIntTypeInContext availability for longer types; consider meaningful diag message instead of NPE
                 val integerType = LLVMIntTypeInContext(llvmContext, first.type.sizeInBits())!!
                 icmpEq(bitcast(integerType, first), bitcast(integerType, second))
             }
