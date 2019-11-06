@@ -6,7 +6,7 @@ import java.util.*
 class PropertiesProvider(val project: Project) {
     private val localProperties by lazy {
         Properties().apply {
-            project.file("local.properties").takeIf { it.isFile }?.inputStream().use {
+            project.file("local.properties").takeIf { it.isFile }?.inputStream()?.use {
                 load(it)
             }
         }
@@ -21,8 +21,8 @@ class PropertiesProvider(val project: Project) {
     fun hasProperty(name: String): Boolean =
             project.hasProperty(name) || localProperties.containsKey(name)
 
-    val xcodeVersion: String?
-        get() = findProperty("xcodeVersion") as String?
+    val xcodeMajorVersion: String?
+        get() = findProperty("xcodeMajorVersion") as String?
 
     val checkXcodeVersion: Boolean
         get() = findProperty("checkXcodeVersion")?.let {

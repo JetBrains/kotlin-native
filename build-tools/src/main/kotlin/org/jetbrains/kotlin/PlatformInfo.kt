@@ -40,16 +40,17 @@ object PlatformInfo {
     @JvmStatic
     fun checkXcodeVersion(project: Project) {
         val properties = PropertiesProvider(project)
-        val requiredXcodeVersion = properties.xcodeVersion
+        val requiredMajorVersion = properties.xcodeMajorVersion
 
         if (!DependencyProcessor.isInternalSeverAvailable
                 && properties.checkXcodeVersion
-                && requiredXcodeVersion != null
+                && requiredMajorVersion != null
         ) {
             val currentXcodeVersion = Xcode.current.version
-            if (currentXcodeVersion != requiredXcodeVersion) {
+            val currentMajorVersion = currentXcodeVersion.splitToSequence('.').first()
+            if (currentMajorVersion != requiredMajorVersion) {
                 throw IllegalStateException(
-                        "Incorrect Xcode version: ${currentXcodeVersion}. Required Xcode version is ${requiredXcodeVersion}."
+                        "Incorrect Xcode version: ${currentXcodeVersion}. Required major Xcode version is ${requiredMajorVersion}."
                 )
             }
         }
