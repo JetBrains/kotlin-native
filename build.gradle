@@ -357,7 +357,7 @@ task distDef(type: Copy) {
 
     from(project("platformLibs").file("src/platform")) {
         into('konan/platformDef')
-        exclude '**/*.sh'
+        include '**/*.def'
     }
 }
 
@@ -483,6 +483,7 @@ task bundle(type: (isWindows()) ? Zip : Tar) {
 }
 
 task bundleRestricted(type: Tar) {
+    dependsOn("distDef")
     def simpleOsName = HostManager.simpleOsName()
     baseName = "kotlin-native-restricted-$simpleOsName-$konanVersionFull"
     from("$project.rootDir/dist") {
