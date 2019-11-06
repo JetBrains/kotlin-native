@@ -34,7 +34,7 @@ public final class Vector128 private constructor() {
     external fun getULongAt(index: Int): ULong
 
     public override fun toString() =
-            "(0x${getIntAt(0).toString(16)}, 0x${getIntAt(1).toString(16)}, 0x${getIntAt(2).toString(16)}, 0x${getIntAt(3).toString(16)}})"
+            "(0x${getIntAt(0).toString(16)}, 0x${getIntAt(1).toString(16)}, 0x${getIntAt(2).toString(16)}, 0x${getIntAt(3).toString(16)})"
 
     // Not as good for floating types
     public fun equals(other: Vector128): Boolean =
