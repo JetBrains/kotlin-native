@@ -75,13 +75,16 @@ private fun generatePlatformLibraries(target: String, inputDirectory: File, outp
                 "-no-default-libs", "-no-endorsed-libs", "-Xpurge-user-libs",
                 *def.depends.flatMap { listOf("-l", "$outputDirectory/${it.name}") }.toTypedArray())
         println("Processing ${def.name}...")
-        invokeInterop("native", args)?.let { K2Native.mainNoExit(it) }
-        org.jetbrains.kotlin.cli.klib.main(arrayOf("install", outKlib,
-                "-target", target,
-                "-repository", "${outputDirectory.absolutePath}"
-        ))
-        if (!saveTemps)  {
-            File("$outputDirectory/build-${def.name}").deleteRecursively()
+        try {
+            invokeInterop("native", args)?.let { K2Native.mainNoExit(it) }
+            org.jetbrains.kotlin.cli.klib.main(arrayOf("install", outKlib,
+                    "-target", target,
+                    "-repository", "${outputDirectory.absolutePath}"
+            ))
+        } finally {
+            if (!saveTemps) {
+                File("$outputDirectory/build-${def.name}").deleteRecursively()
+            }
         }
     }
     println("generate platform libraries from $inputDirectory to $outputDirectory for $target")
@@ -133,4 +136,7 @@ private fun generatePlatformLibraries(target: String, inputDirectory: File, outp
         }
     }
     executorPool.shutdown()
+    if (!saveTemps) {
+        File("$outputDirectory/clangModulesCache").deleteRecursively()
+    }
 }
