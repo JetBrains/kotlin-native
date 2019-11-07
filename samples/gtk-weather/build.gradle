@@ -1,0 +1,113 @@
+plugins {
+    id 'org.jetbrains.kotlin.multiplatform' version '1.3.50'
+}
+repositories {
+    mavenCentral()
+}
+kotlin {
+    // For ARM, should be changed to iosArm32 or iosArm64
+    // For Linux, should be changed to e.g. linuxX64
+    // For MacOS, should be changed to e.g. macosX64
+    // For Windows, should be changed to e.g. mingwX64
+    linuxX64("linux") {
+        binaries {
+            executable {
+                // Change to specify fully qualified name of your application's entry point:
+               entryPoint = 'sample.main'
+                // Specify command-line arguments, if necessary:
+                runTask?.args('')
+            }
+        }
+    }
+    sourceSets {
+        // Note: To enable common source sets please comment out 'kotlin.import.noCommonSourceSets' property
+        // in gradle.properties file and re-import your project in IDE.
+        linuxMain {
+        }
+        linuxTest {
+        }
+    }
+}
+
+// Use the following Gradle tasks to run your application:
+// :runReleaseExecutableLinux - without debug symbols
+// :runDebugExecutableLinux - with debug symbols
+
+build {
+
+    //Generate Resource File
+    mkdir("$buildDir/g_resources/")
+    ext.outputFile = file("$buildDir/g_resources/glibresources.gresource.xml")
+    outputFile.text = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
+    outputFile.text += "\n<gresources>"
+
+
+    //kotlin.linuxX64("linux").compilations.main.freeCompilerArgs = mutableListOf("-include-binary", "$buildDir/libui.a")
+
+
+    
+    kotlin.linuxX64("linux").compilations.main {
+        cinterops {
+            libgtk3
+        }
+    }
+
+    kotlin.sourceSets.linuxMain.resources.srcDirs.each { src ->
+
+        outputFile.text += "\n  <gresource prefix=\"/org/gtk/example\">"
+        fileTree("${src.path}/layout").filter { it.name.endsWith('.ui') }.files.each { file ->
+            outputFile.text += "\n    <file>layout/${file.name}</file>"
+
+            copy {
+                from file.path
+                into "$buildDir/g_resources/layout"
+            }
+        }
+        outputFile.text += "\n  </gresource>"
+
+
+        outputFile.text += "\n  <gresource prefix=\"/org/gtk/example/\">"
+        fileTree("${src.path}/raw").filter { it.isFile() }.files.each { file ->
+            outputFile.text += "\n    <file>raw/${file.name}</file>"
+
+            copy {
+                from file.path
+                into "$buildDir/g_resources/raw"
+            }
+        }
+        outputFile.text += "\n  </gresource>"
+    }
+
+    outputFile.text += "\n</gresources>"
+
+
+
+
+    exec {
+        workingDir "$buildDir/g_resources"
+        executable 'glib-compile-resources' args "glibresources.gresource.xml", "--generate-source", "--target=glibresources.c"
+    }
+
+    exec {
+        workingDir "$buildDir/g_resources"
+        executable 'glib-compile-resources' args "glibresources.gresource.xml", "--generate-header", "--target=glibresources.h"
+    }
+
+
+    exec {
+        workingDir "$buildDir/g_resources"
+        executable 'bash' args '-c', 'sed -i -e "s:gio.h>:gio.h>\\n#include \\"glibresources.h\\":" glibresources.c'
+    }
+
+
+    exec {
+        workingDir "$buildDir/g_resources"
+        executable 'gcc' args '-c', "-I$buildDir/g_resources", '-c', "-I/usr/include/glib-2.0", '-c', "-I/usr/lib64/glib-2.0/include", 'glibresources.c', '-o', 'glibresources.o'
+    }
+
+
+    exec {
+        workingDir "$buildDir/g_resources"
+        executable 'ar' args 'rcs', 'glibresources.a', 'glibresources.o'
+    }
+}
