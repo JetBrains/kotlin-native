@@ -209,6 +209,10 @@ OBJ_GETTER(GetStackTraceStrings, KConstRef stackTrace) {
 #endif  // !OMIT_BACKTRACE
 }
 
+#if KONAN_WINDOWS
+THREAD_LOCAL_VARIABLE KRef currentException = nullptr;
+#endif
+
 void ThrowException(KRef exception) {
   RuntimeAssert(exception != nullptr && IsInstance(exception, theThrowableTypeInfo),
                 "Throwing something non-throwable");
@@ -216,6 +220,10 @@ void ThrowException(KRef exception) {
   PrintThrowable(exception);
   RuntimeCheck(false, "Exceptions unsupported");
 #else
+#if KONAN_WINDOWS
+  // As throws object already holds exception, we could use naked pointer here.
+  currentException = exception;
+#endif
   throw ExceptionObjHolder(exception);
 #endif
 }
@@ -291,16 +299,32 @@ static void KonanTerminateHandler() {
   }
 }
 
+#if KONAN_WINDOWS
+#include <windows.h>
+
+LONG WINAPI KonanUnhandledExceptionFilter(EXCEPTION_POINTERS* ExceptionInfo) {
+  if (currentException != nullptr) {
+    auto e = currentException;
+    currentException = nullptr;
+    TerminateWithUnhandledException(e);
+  }
+  return EXCEPTION_CONTINUE_SEARCH;
+}
+#endif
+
 static SimpleMutex konanTerminateHandlerInitializationMutex;
 
 void SetKonanTerminateHandler() {
   if (oldTerminateHandler != nullptr) return; // Already initialized.
 
   LockGuard<SimpleMutex> lockGuard(konanTerminateHandlerInitializationMutex);
-
   if (oldTerminateHandler != nullptr) return; // Already initialized.
-
+#if KONAN_WINDOWS
+  oldTerminateHandler = ::abort;
+  SetUnhandledExceptionFilter(KonanUnhandledExceptionFilter);
+#else
   oldTerminateHandler = std::set_terminate(&KonanTerminateHandler);
+#endif
 }
 
 #else // KONAN_OBJC_INTEROP
