@@ -45,6 +45,7 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.util.OperatorNameConventions
+import org.jetbrains.kotlin.backend.konan.getObjCMethodInfo
 
 internal interface KotlinStubs {
     val irBuiltIns: IrBuiltIns
@@ -537,7 +538,6 @@ internal fun KotlinStubs.generateCFunctionPointer(
             expression.endOffset,
             expression.type,
             fakeFunction.symbol,
-            fakeFunction.descriptor,
             0
     )
 }
@@ -1501,6 +1501,6 @@ private fun KotlinStubs.reportUnsupportedType(reason: String, type: IrType, loca
 
     val typeLocation: String = location.render()
 
-    reportError(location.element, "type ${type.toKotlinType()}$typeLocation is not supported here" +
+    reportError(location.element, "type ${type.render()} $typeLocation is not supported here" +
             if (reason.isNotEmpty()) ": $reason" else "")
 }
