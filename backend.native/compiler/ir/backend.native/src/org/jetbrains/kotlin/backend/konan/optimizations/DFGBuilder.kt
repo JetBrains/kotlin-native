@@ -574,7 +574,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                 if (value.value == null)
                                     DataFlowIR.Node.Null
                                 else
-                                    DataFlowIR.Node.Const(symbolTable.mapType(value.type))
+                                    DataFlowIR.Node.SimpleConst(symbolTable.mapType(value.type), value.value!!)
 
                             is IrGetObjectValue -> DataFlowIR.Node.Singleton(
                                     symbolTable.mapType(value.type),

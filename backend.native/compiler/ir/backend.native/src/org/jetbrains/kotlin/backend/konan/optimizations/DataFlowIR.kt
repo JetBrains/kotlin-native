@@ -217,7 +217,9 @@ internal object DataFlowIR {
     sealed class Node {
         class Parameter(val index: Int) : Node()
 
-        class Const(val type: Type) : Node()
+        open class Const(val type: Type) : Node()
+
+        class SimpleConst<T : Any>(type: Type, val value: T) : Const(type)
 
         object Null : Node()
 
@@ -506,7 +508,6 @@ internal object DataFlowIR {
             val isFinal = irClass.isFinal()
             val isAbstract = irClass.isAbstract()
             val name = irClass.fqNameForIrSerialization.asString()
-
             classMap[irClass]?.let { return it }
 
             val placeToClassTable = true
