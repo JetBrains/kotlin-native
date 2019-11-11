@@ -42,10 +42,12 @@ external public fun pushIntToArena(arena: Arena, value: Int)
 const val upperWord = 0xffffffff.toLong() shl 32
 
 @ExportForCppRuntime
+@RetainForTarget("wasm32")
 fun doubleUpper(value: Double): Int =
     ((value.toBits() and upperWord) ushr 32) .toInt()
 
 @ExportForCppRuntime
+@RetainForTarget("wasm32")
 fun doubleLower(value: Double): Int =
     (value.toBits() and 0x00000000ffffffff) .toInt()
 

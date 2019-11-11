@@ -13,17 +13,19 @@ import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
 import org.jetbrains.kotlin.ir.util.hasAnnotation
+import org.jetbrains.kotlin.konan.target.KonanTarget
 
 class KonanIrModuleSerializer(
-    logger: LoggingContext,
-    irBuiltIns: IrBuiltIns,
-    private val descriptorTable: DescriptorTable
+        val target: KonanTarget,
+        logger: LoggingContext,
+        irBuiltIns: IrBuiltIns,
+        private val descriptorTable: DescriptorTable
 ) : IrModuleSerializer<KonanIrFileSerializer>(logger) {
 
 
     private val globalDeclarationTable = KonanGlobalDeclarationTable(irBuiltIns)
 
     override fun createSerializerForFile(file: IrFile): KonanIrFileSerializer =
-            KonanIrFileSerializer(logger, DeclarationTable(descriptorTable, globalDeclarationTable, 0))
+            KonanIrFileSerializer(target, logger, DeclarationTable(descriptorTable, globalDeclarationTable, 0))
 
 }

@@ -20,3 +20,8 @@ internal fun IrFunction.retainAnnotation(target: KonanTarget): Boolean {
     if (forTarget != null && forTarget.getAnnotationValue() == target.name) return true
     return false
 }
+
+internal fun IrFunction.neverRetainFor(target: KonanTarget): Boolean {
+    val forTarget = this.annotations.findAnnotation(retainForTargetAnnotationName) ?: return false
+    return forTarget.getAnnotationValue() != target.name
+}

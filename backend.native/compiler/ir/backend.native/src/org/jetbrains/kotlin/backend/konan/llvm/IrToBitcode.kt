@@ -705,7 +705,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             }
         }
 
-
         if (declaration.retainAnnotation(context.config.target)) {
             context.llvm.usedFunctions.add(codegen.llvmFunction(declaration))
         }
