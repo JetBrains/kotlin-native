@@ -66,8 +66,8 @@ repositories {
 }
 
 dependencies {
-    compile "org.jetbrains.kotlin:kotlin-stdlib:$buildKotlinVersion"
-    compile "org.jetbrains.kotlin:kotlin-reflect:$buildKotlinVersion"
+    compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
+    compile "org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion"
 }
 
 sourceSets.main.kotlin.srcDirs += "src/jvm/kotlin"
