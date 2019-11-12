@@ -375,21 +375,21 @@ private:
 
   void processAbandoned() {
     if (this->releaseList != nullptr) {
-      bool hadNoRuntimeInitialized = (memoryState == nullptr);
+      bool hadNoStateInitialized = (memoryState == nullptr);
 
-      if (hadNoRuntimeInitialized) {
-        Kotlin_initRuntimeIfNeeded(); // Required by ReleaseHeapRef.
+      if (hadNoStateInitialized) {
+        memoryState = InitMemory(); // Required by ReleaseHeapRef.
       }
 
       processEnqueuedReleaseRefsWith([](ObjHeader* obj) {
         ReleaseHeapRef(obj);
       });
 
-      if (hadNoRuntimeInitialized) {
+      if (hadNoStateInitialized) {
         // This thread is likely not intended to run Kotlin code.
         // In this case it has no chances to process the release-refs enqueued above using
         // the general heuristics, so do this manually:
-        garbageCollect();
+        DeinitMemory(memoryState);
         // TODO: how to handle subsequent processAbandoned() calls?
       }
     }
