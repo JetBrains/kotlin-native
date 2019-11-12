@@ -15,17 +15,14 @@ sealed class ManglingContext {
     abstract val prefix: String
 
     class Module(name: String) : ManglingContext() {
-        override val prefix: String = name
+        override val prefix: String = "$name."
     }
 
     /**
      * Used to represent containers like structures, classes, etc.
      */
-    class Entity(name: String, parentContext: ManglingContext? = null) : ManglingContext() {
-        override val prefix: String = run {
-            val parent = if (parentContext != null) "${parentContext.prefix}." else ""
-            "$parent$name"
-        }
+    class Entity(name: String, parentContext: ManglingContext = Empty) : ManglingContext() {
+        override val prefix: String = "${parentContext.prefix}$name."
     }
 
     object Empty : ManglingContext() {
@@ -43,7 +40,7 @@ interface InteropMangler {
     val ObjCClass.uniqueSymbolName: String
     val ObjCClass.metaClassUniqueSymbolName: String
     val ObjCProtocol.uniqueSymbolName: String
-    val ObjCCategory.uniqueSymbolName: String
+    val ObjCProtocol.metaClassUniqueSymbolName: String
     val ObjCMethod.uniqueSymbolName: String
     val ObjCProperty.uniqueSymbolName: String
     val TypedefDef.uniqueSymbolName: String
@@ -75,11 +72,11 @@ class KotlinLikeInteropMangler(val context: ManglingContext = ManglingContext.Em
     override val ObjCProtocol.uniqueSymbolName: String
         get() = "objcprotocol:$prefix$name"
 
-    override val ObjCCategory.uniqueSymbolName: String
-        get() = "objccategory:$prefix${clazz.name}+$name"
+    override val ObjCProtocol.metaClassUniqueSymbolName: String
+        get() = "objcmetaprotocol:$prefix$name"
 
     override val ObjCMethod.uniqueSymbolName: String
-        get() = "objcmethod:$prefix$selector$encoding"
+        get() = "objcmethod:$prefix$selector"
 
     override val ObjCProperty.uniqueSymbolName: String
         get() = "objcproperty:$prefix$name"

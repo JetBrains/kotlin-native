@@ -73,15 +73,32 @@ class ManglingSmokeTests {
     }
 
     @Test
-    fun `objc method signature matters`() {
+    fun `objc methods with same names but different parameters`() {
         val nsStringPtrType = ObjCObjectPointer(nsStringClass, ObjCPointer.Nullability.Nullable, listOf())
 
-        val methodA = ObjCMethod("name", "v28@0:8@16i24",
+        val methodA = ObjCMethod("name::", "v28@0:8@16i24",
                 listOf(Parameter("name", nsStringPtrType, false), Parameter("age", int32Type, false)), VoidType,
                 false, false, false, false, false, false, false)
 
-        val methodB = ObjCMethod("name", "v20@0:8i16",
+        val methodB = ObjCMethod("name:", "v20@0:8i16",
                 listOf(Parameter("age", int32Type, false)), VoidType,
+                false, false, false, false, false, false, false)
+
+        with (mangler) {
+            assertNotEquals(methodA.uniqueSymbolName, methodB.uniqueSymbolName)
+        }
+    }
+
+    @Test
+    fun `objc methods with same names but different parameter names`() {
+        val nsStringPtrType = ObjCObjectPointer(nsStringClass, ObjCPointer.Nullability.Nullable, listOf())
+
+        val methodA = ObjCMethod("desc:a:", "v28@0:8@16i24",
+                listOf(Parameter("name", int32Type, false), Parameter("a", int32Type, false)), VoidType,
+                false, false, false, false, false, false, false)
+
+        val methodB = ObjCMethod("desc:b:", "v28@0:8@16i24",
+                listOf(Parameter("name", int32Type, false), Parameter("b", int32Type, false)), VoidType,
                 false, false, false, false, false, false, false)
 
         with (mangler) {
