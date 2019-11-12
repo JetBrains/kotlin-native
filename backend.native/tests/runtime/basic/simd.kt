@@ -14,6 +14,7 @@ import kotlin.test.*
     testOOB()
     testEquals()
     testHash()
+    testDefaultValue()
 }
 
 fun testSetGet() {
@@ -33,23 +34,20 @@ fun testString() {
 
 fun testOOB() {
     val f = vectorOf(1f, 3.162f, 10f, 31f)
-    f.getByteAt(15)
-    var result = "PASSED"
-    try {
-        println("getFloatAt(4) should fail: ${f.getFloatAt(4)}")
-        result = "FAILED"
-    } catch (e: IndexOutOfBoundsException) {}
 
-    try {
-        println(f.getIntAt(-1))
-        result = "FAILED"
-    } catch (e: IndexOutOfBoundsException) {}
+    println("f.getByteAt(15) is OK ${f.getByteAt(15)}")
 
-    try {
-        println(f.getFloatAt(4))
-        result = "FAILED"
-    } catch (e: IndexOutOfBoundsException) {}
-    assertEquals("PASSED", result)
+    assertFailsWith<IndexOutOfBoundsException>("f.getByteAt(16) should fail") {
+        f.getByteAt(16)
+    }
+
+    assertFailsWith<IndexOutOfBoundsException>("f.getIntAt(-1) should fail") {
+        f.getIntAt(-1)
+    }
+
+    assertFailsWith<IndexOutOfBoundsException>("f.getFloatAt(4) should fail") {
+        f.getFloatAt(4)
+    }
 }
 
 fun testEquals() {
@@ -74,4 +72,8 @@ fun testHash() {
     assertEquals(true, vectorOf(1, 0, 0, 0).hashCode() == vectorOf(0, 0, 31, 0).hashCode())
 }
 
-fun testDefaultValue(v: Vector128 = vectorOf(1.0f, 2.0f, 3.0f, 4.0f)) = v
+private fun funDefaultValue(v: Vector128 = vectorOf(1.0f, 2.0f, 3.0f, 4.0f)) = v
+
+fun testDefaultValue() {
+    assertEquals(vectorOf(1.0f, 2.0f, 3.0f, 4.0f), funDefaultValue())
+}
