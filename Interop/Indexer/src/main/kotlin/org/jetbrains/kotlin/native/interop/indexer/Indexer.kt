@@ -522,7 +522,7 @@ internal class NativeIndexImpl(val library: NativeLibrary, val verbose: Boolean 
             val size = clang_Type_getSizeOf(type)
             val elemSize = clang_Type_getSizeOf(elementCXType)
             val elementCount = clang_getNumElements(type)
-            assert(elemSize * elementCount == size)
+            assert(size >= elemSize * elementCount && size % elemSize == 0L)
 
             // Spelling example: `__attribute__((__vector_size__(4 * sizeof(float)))) const float`
             // Re-generate spelling removing constness and typedefs to limit number of variants for bridge generator
