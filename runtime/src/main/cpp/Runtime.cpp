@@ -82,7 +82,7 @@ inline bool isValidRuntime() {
   return ::runtimeState != kInvalidRuntime;
 }
 
-int aliveRuntimesCount = 0;
+volatile int aliveRuntimesCount = 0;
 
 RuntimeState* initRuntime() {
   SetKonanTerminateHandler();
