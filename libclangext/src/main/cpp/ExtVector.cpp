@@ -28,10 +28,6 @@ static inline QualType GetQualType(CXType CT) {
   return QualType::getFromOpaquePtr(CT.data[0]);
 }
 
-static inline CXTranslationUnit GetTU(CXType CT) {
-  return static_cast<CXTranslationUnit>(CT.data[1]);
-}
-
 extern "C"
 int clang_isExtVectorType(CXType CT) {
   static_assert(CINDEX_VERSION < 59, "Use CXType_ExtVector for this libclang version");
