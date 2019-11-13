@@ -378,6 +378,10 @@ private:
       bool hadNoStateInitialized = (memoryState == nullptr);
 
       if (hadNoStateInitialized) {
+        // Disregard request if all runtimes are no longer alive.
+        if (atomicGet(&aliveMemoryStatesCount) == 0)
+          return;
+
         memoryState = InitMemory(); // Required by ReleaseHeapRef.
       }
 
@@ -386,11 +390,8 @@ private:
       });
 
       if (hadNoStateInitialized) {
-        // This thread is likely not intended to run Kotlin code.
-        // In this case it has no chances to process the release-refs enqueued above using
-        // the general heuristics, so do this manually:
+        // Discard the memory state.
         DeinitMemory(memoryState);
-        // TODO: how to handle subsequent processAbandoned() calls?
       }
     }
   }
