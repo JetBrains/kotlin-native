@@ -54,12 +54,10 @@ internal object nativeMemUtils {
     @TypedIntrinsic(IntrinsicType.INTEROP_WRITE_PRIMITIVE) external fun putNativePtr(mem: NativePointed, value: NativePtr)
 
     // TODO: optimize
-    fun getByteArray(source: NativePointed, dest: ByteArray, length: Int) {
+    fun getByteArray(source: NativePointed, dest: ByteArray, index: Int, length: Int) {
         val sourceArray = source.reinterpret<ByteVar>().ptr
-        var index = 0
-        while (index < length) {
-            dest[index] = sourceArray[index]
-            ++index
+        for (i in index until index + length) {
+            dest[i - index] = sourceArray[i]
         }
     }
 
