@@ -632,8 +632,8 @@ public inline fun <R> memScoped(block: MemScope.()->R): R {
     }
 }
 
-public fun COpaquePointer.readBytes(count: Int): ByteArray {
+public fun COpaquePointer.readBytes(from: Int, count: Int): ByteArray {
     val result = ByteArray(count)
-    nativeMemUtils.getByteArray(this.reinterpret<ByteVar>().pointed, result, 0, count)
+    nativeMemUtils.getByteArray(this.reinterpret<ByteVar>().pointed, result, from, count)
     return result
 }
