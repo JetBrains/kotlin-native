@@ -29,7 +29,7 @@ fun testSetGet() {
 
 fun testString() {
     val v4i = vectorOf(100, 1024, Int.MAX_VALUE, Int.MIN_VALUE)
-    assertEquals("(0x64, 0x400, 0x7fffffff, 0x-80000000)", v4i.toString())
+    assertEquals("(0x64, 0x400, 0x7fffffff, 0x80000000)", v4i.toString())
 }
 
 fun testOOB() {
