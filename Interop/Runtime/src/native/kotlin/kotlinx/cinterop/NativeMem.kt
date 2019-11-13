@@ -56,8 +56,8 @@ internal object nativeMemUtils {
     // TODO: optimize
     fun getByteArray(source: NativePointed, dest: ByteArray, index: Int, length: Int) {
         val sourceArray = source.reinterpret<ByteVar>().ptr
-        for (i in index until index + size) {
-            dest[i - from] = sourceArray[i]
+        for (i in index until index + length) {
+            dest[i - index] = sourceArray[i]
         }
     }
 
@@ -74,8 +74,8 @@ internal object nativeMemUtils {
     // TODO: optimize
     fun getCharArray(source: NativePointed, dest: CharArray, index: Int, length: Int) {
         val sourceArray = source.reinterpret<ShortVar>().ptr
-        for (i in index until index + size) {
-            dest[i - from] = sourceArray[i].toChar()
+        for (i in index until index + length) {
+            dest[i - index] = sourceArray[i].toChar()
         }
     }
 
