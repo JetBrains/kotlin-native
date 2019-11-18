@@ -188,7 +188,7 @@ open class BuildRegister : DefaultTask() {
             append("\"artifactoryApiKey\":\"$apiKey\",")
             append("\"target\": \"$target\",")
             append("\"buildType\": \"$buildType\",")
-            append("\"failuresNumber\": $failures,")
+            append("\"failuresNumber\": $failuresNumber,")
             append("\"executionTime\": \"$executionTimeInfo\",")
             append("\"compileTime\": \"$compileTimeInfo\",")
             append("\"codeSize\": \"$codeSizeInfo\",")
