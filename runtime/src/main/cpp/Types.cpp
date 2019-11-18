@@ -104,7 +104,7 @@ KVector4f Kotlin_Vector4f_of(KFloat f0, KFloat f1, KFloat f2, KFloat f3) {
  * return type MUST be <4 x float> and explicit type cast is done on the variable type.
  */
 KVector4f Kotlin_Vector4i32_of(KInt f0, KInt f1, KInt f2, KInt f3) {
-	KVector4i32 v4i = {f0, f1, f2, f3};
+	KInt __attribute__ ((__vector_size__(16))) v4i = {f0, f1, f2, f3};
 	return (KVector4f)v4i;
 }
 
