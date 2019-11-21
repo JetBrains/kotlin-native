@@ -51,6 +51,7 @@ typedef uint64_t KULong;
 typedef float   KFloat;
 typedef double  KDouble;
 typedef void*   KNativePtr;
+typedef KFloat __attribute__ ((__vector_size__ (16)))   KVector4f;
 
 typedef const void* KConstNativePtr;
 

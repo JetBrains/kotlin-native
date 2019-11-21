@@ -3,7 +3,7 @@ package org.jetbrains.kotlin.backend.konan.llvm
 import kotlinx.cinterop.cValuesOf
 import llvm.*
 import org.jetbrains.kotlin.backend.konan.RuntimeNames
-import org.jetbrains.kotlin.backend.konan.descriptors.getAnnotationValue
+import org.jetbrains.kotlin.backend.konan.descriptors.getAnnotationStringValue
 import org.jetbrains.kotlin.backend.konan.descriptors.isTypedIntrinsic
 import org.jetbrains.kotlin.backend.konan.llvm.objc.genObjCSelector
 import org.jetbrains.kotlin.backend.konan.reportCompilationError
@@ -47,6 +47,7 @@ internal enum class IntrinsicType {
     UNSIGNED_COMPARE_TO,
     NOT,
     REINTERPRET,
+    EXTRACT_ELEMENT,
     ARE_EQUAL_BY_VALUE,
     IEEE_754_EQUALS,
     // OBJC
@@ -106,7 +107,7 @@ internal interface IntrinsicGeneratorEnvironment {
 
     fun evaluateCall(function: IrFunction, args: List<LLVMValueRef>, resultLifetime: Lifetime, superClass: IrClass? = null): LLVMValueRef
 
-    fun evaluateExplicitArgs(expression: IrMemberAccessExpression): List<LLVMValueRef>
+    fun evaluateExplicitArgs(expression: IrFunctionAccessExpression): List<LLVMValueRef>
 
     fun evaluateExpression(value: IrExpression): LLVMValueRef
 }
@@ -117,7 +118,7 @@ internal fun tryGetIntrinsicType(callSite: IrFunctionAccessExpression): Intrinsi
 private fun getIntrinsicType(callSite: IrFunctionAccessExpression): IntrinsicType {
     val function = callSite.symbol.owner
     val annotation = function.annotations.findAnnotation(RuntimeNames.typedIntrinsicAnnotation)!!
-    val value = annotation.getAnnotationValue()!!
+    val value = annotation.getAnnotationStringValue()!!
     return IntrinsicType.valueOf(value)
 }
 
@@ -129,6 +130,9 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
 
     private val IrCall.llvmReturnType: LLVMTypeRef
         get() = LLVMGetReturnType(codegen.getLlvmFunctionType(symbol.owner))!!
+
+
+    private fun LLVMTypeRef.sizeInBits() = LLVMSizeOfTypeInBits(codegen.llvmTargetData, this).toInt()
 
     /**
      * Some intrinsics have to be processed before evaluation of their arguments.
@@ -213,6 +217,7 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
                 IntrinsicType.UNSIGNED_COMPARE_TO -> emitUnsignedCompareTo(args)
                 IntrinsicType.NOT -> emitNot(args)
                 IntrinsicType.REINTERPRET -> emitReinterpret(callSite, args)
+                IntrinsicType.EXTRACT_ELEMENT -> emitExtractElement(callSite, args)
                 IntrinsicType.SIGN_EXTEND -> emitSignExtend(callSite, args)
                 IntrinsicType.ZERO_EXTEND -> emitZeroExtend(callSite, args)
                 IntrinsicType.INT_TRUNCATE -> emitIntTruncate(callSite, args)
@@ -447,8 +452,7 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
     private val kImmOne      = LLVMConstInt(int32Type,  1, 1)!!
 
     private fun FunctionGenerationContext.emitGetObjCClass(callSite: IrCall): LLVMValueRef {
-        val descriptor = callSite.descriptor.original
-        val typeArgument = callSite.getTypeArgument(descriptor.typeParameters.single())
+        val typeArgument = callSite.getTypeArgument(0)
         return getObjCClass(typeArgument!!.getClass()!!, environment.exceptionHandler)
     }
 
@@ -485,9 +489,10 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
         assert (first.type == second.type) { "Types are different: '${llvmtype2string(first.type)}' and '${llvmtype2string(second.type)}'" }
 
         return when (val typeKind = LLVMGetTypeKind(first.type)) {
-            llvm.LLVMTypeKind.LLVMFloatTypeKind, llvm.LLVMTypeKind.LLVMDoubleTypeKind -> {
-                val numBits = llvm.LLVMSizeOfTypeInBits(codegen.llvmTargetData, first.type).toInt()
-                val integerType = LLVMIntTypeInContext(llvmContext, numBits)!!
+            llvm.LLVMTypeKind.LLVMFloatTypeKind, llvm.LLVMTypeKind.LLVMDoubleTypeKind,
+            LLVMTypeKind.LLVMVectorTypeKind -> {
+                // TODO LLVM API does not provide guarantee for LLVMIntTypeInContext availability for longer types; consider meaningful diag message instead of NPE
+                val integerType = LLVMIntTypeInContext(llvmContext, first.type.sizeInBits())!!
                 icmpEq(bitcast(integerType, first), bitcast(integerType, second))
             }
             llvm.LLVMTypeKind.LLVMIntegerTypeKind, llvm.LLVMTypeKind.LLVMPointerTypeKind -> icmpEq(first, second)
@@ -507,6 +512,24 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
 
     private fun FunctionGenerationContext.emitReinterpret(callSite: IrCall, args: List<LLVMValueRef>) =
             bitcast(callSite.llvmReturnType, args[0])
+
+    private fun FunctionGenerationContext.emitExtractElement(callSite: IrCall, args: List<LLVMValueRef>): LLVMValueRef {
+        val (vector, index) = args
+        val elementSize = LLVMSizeOfTypeInBits(codegen.llvmTargetData, callSite.llvmReturnType).toInt()
+        val vectorSize = LLVMSizeOfTypeInBits(codegen.llvmTargetData, vector.type).toInt()
+
+        assert(callSite.llvmReturnType.isVectorElementType()
+                && vectorSize % elementSize == 0
+        ) { "Invalid vector element type ${LLVMGetTypeKind(callSite.llvmReturnType)}"}
+
+        val elementCount = vectorSize / elementSize
+        emitThrowIfOOB(index, Int32((elementCount)).llvm)
+
+        val targetType = LLVMVectorType(callSite.llvmReturnType, elementCount)!!
+        return extractElement(
+                (if (targetType == vector.type) vector else bitcast(targetType, vector)),
+                index)
+    }
 
     private fun FunctionGenerationContext.emitNot(args: List<LLVMValueRef>) =
             not(args[0])
@@ -607,6 +630,14 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
         ifThen(icmpEq(divider, Zero(divider.type).llvm)) {
             val throwArithExc = codegen.llvmFunction(context.ir.symbols.throwArithmeticException.owner)
             call(throwArithExc, emptyList(), Lifetime.GLOBAL, environment.exceptionHandler)
+            unreachable()
+        }
+    }
+
+    private fun FunctionGenerationContext.emitThrowIfOOB(index: LLVMValueRef, size: LLVMValueRef) {
+        ifThen(icmpUGe(index, size)) {
+            val throwIndexOutOfBoundsException = codegen.llvmFunction(context.ir.symbols.throwIndexOutOfBoundsException.owner)
+            call(throwIndexOutOfBoundsException, emptyList(), Lifetime.GLOBAL, environment.exceptionHandler)
             unreachable()
         }
     }

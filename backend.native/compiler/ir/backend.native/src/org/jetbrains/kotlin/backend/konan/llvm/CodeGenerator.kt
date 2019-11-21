@@ -318,13 +318,12 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         updateRef(value, ptr, onStack = true)
     }
 
-    fun storeAny(value: LLVMValueRef, ptr: LLVMValueRef, onStack: Boolean) {
-        if (isObjectRef(value)) {
+    fun storeAny(value: LLVMValueRef, ptr: LLVMValueRef, onStack: Boolean) = if (isObjectRef(value)) {
             if (onStack) storeStackRef(value, ptr) else storeHeapRef(value, ptr)
+            null
         } else {
             LLVMBuildStore(builder, value, ptr)
         }
-    }
 
     fun freeze(value: LLVMValueRef, exceptionHandler: ExceptionHandler) {
         if (isObjectRef(value))
@@ -556,6 +555,10 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         val landingpadType = structType(int8TypePtr, int32Type)
 
         return LLVMBuildLandingPad(builder, landingpadType, personalityFunction, numClauses, name)!!
+    }
+
+    fun extractElement(vector: LLVMValueRef, index: LLVMValueRef, name: String = ""): LLVMValueRef {
+        return LLVMBuildExtractElement(builder, vector, index, name)!!
     }
 
     fun filteringExceptionHandler(codeContext: CodeContext): ExceptionHandler {
