@@ -78,6 +78,13 @@ object GC {
         get() = getTuneThreshold()
         set(value) = setTuneThreshold(value)
 
+    /**
+     * Detect cyclic references going via atomic references and return list of cycle-inducing objects
+     * or null if the leak detector is not available.
+     */
+    @SymbolName("Kotlin_native_internal_GC_detectCycles")
+    external fun detectCycles(): Array<Any>?
+
     @SymbolName("Kotlin_native_internal_GC_getThreshold")
     private external fun getThreshold(): Int
 

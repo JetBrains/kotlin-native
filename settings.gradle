@@ -27,7 +27,7 @@ include ':klib'
 include ':backend.native'
 include ':runtime'
 include ':common'
-include ':backend.native:tests'
+//include ':backend.native:tests'
 include ':backend.native:debugger-tests'
 include ':utilities'
 

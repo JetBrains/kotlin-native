@@ -89,8 +89,11 @@ constexpr size_t kMaxGcAllocThreshold = 8 * 1024 * 1024;
 
 typedef KStdUnorderedSet<ContainerHeader*> ContainerHeaderSet;
 typedef KStdVector<ContainerHeader*> ContainerHeaderList;
-typedef KStdVector<KRef*> KRefPtrList;
 typedef KStdDeque<ContainerHeader*> ContainerHeaderDeque;
+typedef KStdVector<KRef> KRefList;
+typedef KStdVector<KRef*> KRefPtrList;
+typedef KStdUnorderedSet<KRef> KRefSet;
+typedef KStdDeque<KRef> KRefDeque;
 
 // A little hack that allows to enable -O2 optimizations
 // Prevents clang from replacing FrameOverlay struct
@@ -103,6 +106,10 @@ volatile int allocCount = 0;
 volatile int aliveMemoryStatesCount = 0;
 
 KBoolean g_checkLeaks = KonanNeedDebugInfo;
+
+// Only used by the leak detector.
+volatile KRef g_leakCheckerGlobalList = nullptr;
+KInt g_leakCheckerGlobalLock = 0;
 
 // TODO: can we pass this variable as an explicit argument?
 THREAD_LOCAL_VARIABLE MemoryState* memoryState = nullptr;
@@ -896,14 +903,30 @@ void freeAggregatingFrozenContainer(ContainerHeader* container) {
 
 void runDeallocationHooks(ContainerHeader* container) {
   ObjHeader* obj = reinterpret_cast<ObjHeader*>(container + 1);
-
   for (int index = 0; index < container->objectCount(); index++) {
-    if (obj->has_meta_object()) {
-      ObjHeader::destroyMetaObject(&obj->typeInfoOrMeta_);
+    if (KonanNeedDebugInfo && g_checkLeaks && (obj->type_info()->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0) {
+      // Remove the object from the double-linked list of potentially cyclic objects.
+      auto* meta = obj->meta_object();
+      lock(&g_leakCheckerGlobalLock);
+      // Get previous.
+      auto* previous = meta->LeakDetector.previous_;
+      auto* previousMeta = (previous != nullptr) ? previous->meta_object() : nullptr;
+      auto* next = meta->LeakDetector.next_;
+      auto* nextMeta = (next != nullptr) ? next->meta_object() : nullptr;
+      // Remove current.
+      if (previous != nullptr)
+        previous->meta_object()->LeakDetector.next_ = next;
+      if (next != nullptr)
+        next->meta_object()->LeakDetector.previous_ = previous;
+      if (obj == g_leakCheckerGlobalList) {
+        g_leakCheckerGlobalList = next;
+      }
+      unlock(&g_leakCheckerGlobalLock);
+   }
+   if (obj->has_meta_object()) {
+     ObjHeader::destroyMetaObject(&obj->typeInfoOrMeta_);
     }
-
-    obj = reinterpret_cast<ObjHeader*>(
-      reinterpret_cast<uintptr_t>(obj) + objectSize(obj));
+    obj = reinterpret_cast<ObjHeader*>(reinterpret_cast<uintptr_t>(obj) + objectSize(obj));
   }
 }
 
@@ -1363,8 +1386,8 @@ void collectWhite(MemoryState* state, ContainerHeader* start) {
           toVisit.push_front(childContainer);
         }
      });
-    runDeallocationHooks(container);
-    scheduleDestroyContainer(state, container);
+     runDeallocationHooks(container);
+     scheduleDestroyContainer(state, container);
   }
 }
 #endif
@@ -1876,6 +1899,18 @@ OBJ_GETTER(allocInstance, const TypeInfo* type_info) {
   checkIfGcNeeded(state);
 #endif  // USE_GC
   auto container = ObjectContainer(state, type_info);
+  ObjHeader* obj = container.GetPlace();
+  if (KonanNeedDebugInfo && g_checkLeaks && (type_info->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0) {
+    // Add newly allocated object to the double-linked list of potentially cyclic objects.
+    MetaObjHeader* meta = obj->meta_object();
+    lock(&g_leakCheckerGlobalLock);
+    KRef old = g_leakCheckerGlobalList;
+    g_leakCheckerGlobalList = obj;
+    meta->LeakDetector.next_ = old;
+    if (old != nullptr)
+      old->meta_object()->LeakDetector.previous_ = obj;
+    unlock(&g_leakCheckerGlobalLock);
+  }
 #if USE_GC
   if (Strict) {
     rememberNewContainer(container.header());
@@ -1883,7 +1918,7 @@ OBJ_GETTER(allocInstance, const TypeInfo* type_info) {
     makeShareable(container.header());
   }
 #endif  // USE_GC
-  RETURN_OBJ(container.GetPlace());
+  RETURN_OBJ(obj);
 }
 
 template <bool Strict>
@@ -2503,6 +2538,51 @@ void shareAny(ObjHeader* obj) {
   container->makeShared();
 }
 
+OBJ_GETTER0(detectCyclicReferences) {
+  // Collect rootset, hold references to simplify remaining code.
+  KRefList rootset;
+  lock(&g_leakCheckerGlobalLock);
+  auto* candidate = g_leakCheckerGlobalList;
+  while (candidate != nullptr) {
+    CreateStablePointer(candidate);
+    rootset.push_back(candidate);
+    candidate = candidate->meta_object()->LeakDetector.next_;
+  }
+  unlock(&g_leakCheckerGlobalLock);
+  KRefSet cyclic;
+  KRefSet seen;
+  KRefDeque toVisit;
+  for (auto* it: rootset) {
+    seen.clear();
+    toVisit.push_back(it);
+    while (!toVisit.empty()) {
+      auto* current = toVisit.front();
+      toVisit.pop_front();
+      seen.insert(current);
+      if (current == it) {
+         cyclic.insert(it);
+         break;
+      }
+      traverseContainerReferredObjects(current->container(), [&seen, &toVisit](ObjHeader* obj) {
+        if (seen.count(obj) == 0) toVisit.push_back(obj);
+      });
+    }
+  }
+  int numElements = cyclic.size();
+  MEMORY_LOG("%d cyclic elements\n", numElements);
+  ArrayHeader* result = AllocArrayInstance(theArrayTypeInfo, numElements, OBJ_RESULT)->array();
+  KRef* place = ArrayAddressOfElementAt(result, 0);
+  for (auto* it: cyclic) {
+    UpdateHeapRef(place++, it);
+  }
+
+  for (auto* it: rootset) {
+    DisposeStablePointer(it);
+  }
+
+  RETURN_OBJ(result->obj());
+}
+
 }  // namespace
 
 MetaObjHeader* ObjHeader::createMetaObject(TypeInfo** location) {
@@ -2534,9 +2614,9 @@ MetaObjHeader* ObjHeader::createMetaObject(TypeInfo** location) {
 void ObjHeader::destroyMetaObject(TypeInfo** location) {
   MetaObjHeader* meta = clearPointerBits(*(reinterpret_cast<MetaObjHeader**>(location)), OBJECT_TAG_MASK);
   *const_cast<const TypeInfo**>(location) = meta->typeInfo_;
-  if (meta->counter_ != nullptr) {
-    WeakReferenceCounterClear(meta->counter_);
-    ZeroHeapRef(&meta->counter_);
+  if (meta->WeakReference.counter_ != nullptr) {
+    WeakReferenceCounterClear(meta->WeakReference.counter_);
+    ZeroHeapRef(&meta->WeakReference.counter_);
   }
 
 #ifdef KONAN_OBJC_INTEROP
@@ -2903,6 +2983,11 @@ KBoolean Kotlin_native_internal_GC_getTuneThreshold(KRef) {
 #else
   return false;
 #endif
+}
+
+OBJ_GETTER(Kotlin_native_internal_GC_detectCycles, KRef) {
+  if (!KonanNeedDebugInfo || !g_checkLeaks) RETURN_OBJ(nullptr);
+  RETURN_RESULT_OF0(detectCyclicReferences);
 }
 
 KNativePtr CreateStablePointer(KRef any) {
