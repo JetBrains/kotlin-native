@@ -93,6 +93,7 @@ typedef KStdDeque<ContainerHeader*> ContainerHeaderDeque;
 typedef KStdVector<KRef> KRefList;
 typedef KStdVector<KRef*> KRefPtrList;
 typedef KStdUnorderedSet<KRef> KRefSet;
+typedef KStdUnorderedMap<KRef, KInt> KRefIntMap;
 typedef KStdDeque<KRef> KRefDeque;
 
 // A little hack that allows to enable -O2 optimizations
@@ -662,6 +663,19 @@ inline ContainerHeader* markAsRemoved(ContainerHeader* container) {
 inline ContainerHeader* clearRemoved(ContainerHeader* container) {
   return reinterpret_cast<ContainerHeader*>(
     reinterpret_cast<uintptr_t>(container) & ~static_cast<uintptr_t>(1));
+}
+
+inline bool isMarkedAsRemoved(ObjHeader* obj) {
+  return (reinterpret_cast<uintptr_t>(obj) & 1) != 0;
+}
+
+inline ObjHeader* markAsRemoved(ObjHeader* obj) {
+  return reinterpret_cast<ObjHeader*>(reinterpret_cast<uintptr_t>(obj) | 1);
+}
+
+inline ObjHeader* clearRemoved(ObjHeader* obj) {
+  return reinterpret_cast<ObjHeader*>(
+    reinterpret_cast<uintptr_t>(obj) & ~static_cast<uintptr_t>(1));
 }
 
 inline container_size_t alignUp(container_size_t size, int alignment) {
@@ -2514,6 +2528,7 @@ void ensureNeverFrozen(ObjHeader* object) {
    object->meta_object()->flags_ |= MF_NEVER_FROZEN;
 }
 
+// TODO: incorrect, use 3-color scheme.
 KBoolean ensureAcyclicAndSet(ObjHeader* where, KInt index, ObjHeader* what) {
     RuntimeAssert(where->container() != nullptr && where->container()->frozen(), "Must be used on frozen objects only");
     RuntimeAssert(what == nullptr || isPermanentOrFrozen(what),
@@ -2575,35 +2590,51 @@ OBJ_GETTER0(detectCyclicReferences) {
   }
   unlock(&g_leakCheckerGlobalLock);
   KRefSet cyclic;
-  KRefSet seen;
+  // Coloring map: non-present in the map - WHITE, 1 - GRAY, 2 - BLACK.
+  KRefIntMap seen;
   KRefDeque toVisit;
   for (auto* root: rootset) {
     seen.clear();
-    traverseReferredObjects(root, [&seen, &toVisit](ObjHeader* obj) {
-        toVisit.push_back(obj);
-    });
-    while (!toVisit.empty()) {
+    toVisit.clear();
+    toVisit.push_back(root);
+    bool isCyclic = false;
+    while (!toVisit.empty() && !isCyclic) {
       KRef current = toVisit.front();
       toVisit.pop_front();
-      seen.insert(current);
-      if (current == root) {
-         cyclic.insert(root);
-         break;
+      // To avoid recursive algorithm, we use the same deque to remember the DFS starting point.
+      if (isMarkedAsRemoved(current)) {
+         // Mark BLACK, we finished DFS from this node.
+         current = clearRemoved(current);
+         seen[current] = 2;
+         continue;
       }
-      // TODO: potentially racy against some mutators.
-      traverseReferredObjects(current, [&seen, &toVisit](ObjHeader* obj) {
-        if (seen.count(obj) == 0) toVisit.push_back(obj);
+      // Remember DFS starting point.
+      toVisit.push_front(markAsRemoved(current));
+      // TODO: racy against concurrent mutators.
+      traverseReferredObjects(current, [&toVisit, &isCyclic, &seen, current](ObjHeader* obj) {
+        auto it = seen.find(current);
+        // WHITE.
+        if (it == seen.end()) {
+           // Mark GRAY.
+           seen[current] = 1;
+           toVisit.push_front(current);
+        } else {
+          // We see GRAY - cycle.
+          if (it->second == 1) {
+            isCyclic = true;
+          }
+        }
       });
-
+    }
+    if (isCyclic) {
+      cyclic.insert(root);
     }
   }
   int numElements = cyclic.size();
-  MEMORY_LOG("%d cyclic elements\n", numElements);
-  konan::consolePrintf("%d cycles\n", numElements);
+  konan::consolePrintf("%d cyclic elements\n", numElements);
   ArrayHeader* result = AllocArrayInstance(theArrayTypeInfo, numElements, OBJ_RESULT)->array();
   KRef* place = ArrayAddressOfElementAt(result, 0);
   for (auto* it: cyclic) {
-    konan::consolePrintf("adding %p to %p\n", it, place);
     UpdateHeapRef(place++, it);
   }
 
@@ -2611,6 +2642,58 @@ OBJ_GETTER0(detectCyclicReferences) {
     DisposeStablePointer(root);
   }
 
+  RETURN_OBJ(result->obj());
+}
+
+OBJ_GETTER(findCycle, KRef root) {
+  KRefList path;
+  // Coloring map: non-present in the map - WHITE, 1 - GRAY, 2 - BLACK.
+  KRefIntMap seen;
+  KRefDeque toVisit;
+  bool isFound = false;
+
+  toVisit.push_back(root);
+  while (!toVisit.empty() && !isFound) {
+    KRef current = toVisit.front();
+    toVisit.pop_front();
+    if (isMarkedAsRemoved(current)) {
+      // Mark BLACK, we finished DFS from this node.
+      current = clearRemoved(current);
+      seen[current] = 2;
+      continue;
+    }
+    // Remember DFS starting point.
+    toVisit.push_front(markAsRemoved(current));
+    // TODO: racy against concurrent mutators.
+    traverseReferredObjects(current, [&toVisit, &isFound, &seen, &path, current, root](ObjHeader* obj) {
+       auto it = seen.find(current);
+       // WHITE.
+       if (it == seen.end()) {
+         // Mark GRAY.
+         seen[current] = 1;
+         toVisit.push_front(current);
+       } else {
+         // We see GRAY - cycle.
+         if (it->second == 1) {
+            konan::consolePrintf("Got cycle for %p\n", root);
+            isFound = true;
+            for (auto e: toVisit) {
+               konan::consolePrintf("XXX: %p\n", e);
+            }
+         } else {
+           // Otherwise it's BLACK and we got nothing to do here.
+         }
+       }
+      });
+   }
+  ArrayHeader* result = nullptr;
+  if (isFound) {
+    result = AllocArrayInstance(theArrayTypeInfo, path.size(), OBJ_RESULT)->array();
+    KRef* place = ArrayAddressOfElementAt(result, 0);
+    for (auto* it: path) {
+        UpdateHeapRef(place++, it);
+    }
+  }
   RETURN_OBJ(result->obj());
 }
 
@@ -3019,6 +3102,10 @@ KBoolean Kotlin_native_internal_GC_getTuneThreshold(KRef) {
 OBJ_GETTER(Kotlin_native_internal_GC_detectCycles, KRef) {
   if (!KonanNeedDebugInfo || !g_checkLeaks) RETURN_OBJ(nullptr);
   RETURN_RESULT_OF0(detectCyclicReferences);
+}
+
+OBJ_GETTER(Kotlin_native_internal_GC_findCycle, KRef, KRef root) {
+  RETURN_RESULT_OF(findCycle, root);
 }
 
 KNativePtr CreateStablePointer(KRef any) {
