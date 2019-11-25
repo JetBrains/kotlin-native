@@ -95,6 +95,7 @@ typedef KStdVector<KRef*> KRefPtrList;
 typedef KStdUnorderedSet<KRef> KRefSet;
 typedef KStdUnorderedMap<KRef, KInt> KRefIntMap;
 typedef KStdDeque<KRef> KRefDeque;
+typedef KStdDeque<KRefList> KRefListDeque;
 
 // A little hack that allows to enable -O2 optimizations
 // Prevents clang from replacing FrameOverlay struct
@@ -2597,8 +2598,8 @@ OBJ_GETTER0(detectCyclicReferences) {
     seen.clear();
     toVisit.clear();
     toVisit.push_back(root);
-    bool isCyclic = false;
-    while (!toVisit.empty() && !isCyclic) {
+    bool seenToRoot = false;
+    while (!toVisit.empty()) {
       KRef current = toVisit.front();
       toVisit.pop_front();
       // To avoid recursive algorithm, we use the same deque to remember the DFS starting point.
@@ -2611,81 +2612,74 @@ OBJ_GETTER0(detectCyclicReferences) {
       // Remember DFS starting point.
       toVisit.push_front(markAsRemoved(current));
       // TODO: racy against concurrent mutators.
-      traverseReferredObjects(current, [&toVisit, &isCyclic, &seen, current](ObjHeader* obj) {
-        auto it = seen.find(current);
+      traverseReferredObjects(current, [&toVisit, &seenToRoot, &seen, &cyclic, current, root](ObjHeader* obj) {
+        konan::consolePrintf("%p: %p -> %p\n", root, current, obj);
+        if (obj == root) seenToRoot = true;
+        auto it = seen.find(obj);
         // WHITE.
         if (it == seen.end()) {
            // Mark GRAY.
-           seen[current] = 1;
-           toVisit.push_front(current);
+           seen[obj] = 1;
+           toVisit.push_front(obj);
         } else {
           // We see GRAY - cycle.
-          if (it->second == 1) {
-            isCyclic = true;
+          if (it->second == 1 && seenToRoot && cyclic.count(root) == 0) {
+            konan::consolePrintf("cycle starting %p because of %p\n", root, obj);
+            CreateStablePointer(root);
+            cyclic.insert(root);
           }
         }
       });
     }
-    if (isCyclic) {
-      cyclic.insert(root);
-    }
   }
   int numElements = cyclic.size();
-  konan::consolePrintf("%d cyclic elements\n", numElements);
   ArrayHeader* result = AllocArrayInstance(theArrayTypeInfo, numElements, OBJ_RESULT)->array();
   KRef* place = ArrayAddressOfElementAt(result, 0);
   for (auto* it: cyclic) {
     UpdateHeapRef(place++, it);
+    DisposeStablePointer(it);
   }
-
   for (auto* root: rootset) {
     DisposeStablePointer(root);
   }
-
   RETURN_OBJ(result->obj());
 }
 
 OBJ_GETTER(findCycle, KRef root) {
-  KRefList path;
-  // Coloring map: non-present in the map - WHITE, 1 - GRAY, 2 - BLACK.
-  KRefIntMap seen;
+  KRefSet seen;
+  KRefListDeque queue;
   KRefDeque toVisit;
+  KRefList path;
+  traverseReferredObjects(root, [&toVisit](ObjHeader* obj) { toVisit.push_front(obj); });
   bool isFound = false;
-
-  toVisit.push_back(root);
   while (!toVisit.empty() && !isFound) {
     KRef current = toVisit.front();
     toVisit.pop_front();
-    if (isMarkedAsRemoved(current)) {
-      // Mark BLACK, we finished DFS from this node.
-      current = clearRemoved(current);
-      seen[current] = 2;
-      continue;
+    // Do BFS path search.
+    KRefList first;
+    first.push_back(current);
+    queue.emplace_back(first);
+    seen.clear();
+    while (!queue.empty()) {
+      KRefList currentPath = queue.back();
+      queue.pop_back();
+      KRef node = currentPath[currentPath.size() - 1];
+      if (node == root) {
+         isFound = true;
+         path = currentPath;
+         break;
+      }
+      if (seen.count(current) == 0) {
+        // TODO: racy against concurrent mutators.
+        traverseReferredObjects(current, [&queue, &currentPath](ObjHeader* obj) {
+           KRefList newPath(currentPath);
+           newPath.push_back(obj);
+           queue.emplace_back(newPath);
+        });
+        //seen.insert(node);
+      }
     }
-    // Remember DFS starting point.
-    toVisit.push_front(markAsRemoved(current));
-    // TODO: racy against concurrent mutators.
-    traverseReferredObjects(current, [&toVisit, &isFound, &seen, &path, current, root](ObjHeader* obj) {
-       auto it = seen.find(current);
-       // WHITE.
-       if (it == seen.end()) {
-         // Mark GRAY.
-         seen[current] = 1;
-         toVisit.push_front(current);
-       } else {
-         // We see GRAY - cycle.
-         if (it->second == 1) {
-            konan::consolePrintf("Got cycle for %p\n", root);
-            isFound = true;
-            for (auto e: toVisit) {
-               konan::consolePrintf("XXX: %p\n", e);
-            }
-         } else {
-           // Otherwise it's BLACK and we got nothing to do here.
-         }
-       }
-      });
-   }
+  }
   ArrayHeader* result = nullptr;
   if (isFound) {
     result = AllocArrayInstance(theArrayTypeInfo, path.size(), OBJ_RESULT)->array();
