@@ -666,19 +666,6 @@ inline ContainerHeader* clearRemoved(ContainerHeader* container) {
     reinterpret_cast<uintptr_t>(container) & ~static_cast<uintptr_t>(1));
 }
 
-inline bool isMarkedAsRemoved(ObjHeader* obj) {
-  return (reinterpret_cast<uintptr_t>(obj) & 1) != 0;
-}
-
-inline ObjHeader* markAsRemoved(ObjHeader* obj) {
-  return reinterpret_cast<ObjHeader*>(reinterpret_cast<uintptr_t>(obj) | 1);
-}
-
-inline ObjHeader* clearRemoved(ObjHeader* obj) {
-  return reinterpret_cast<ObjHeader*>(
-    reinterpret_cast<uintptr_t>(obj) & ~static_cast<uintptr_t>(1));
-}
-
 inline container_size_t alignUp(container_size_t size, int alignment) {
   return (size + alignment - 1) & ~(alignment - 1);
 }
@@ -2591,45 +2578,27 @@ OBJ_GETTER0(detectCyclicReferences) {
   }
   unlock(&g_leakCheckerGlobalLock);
   KRefSet cyclic;
-  // Coloring map: non-present in the map - WHITE, 1 - GRAY, 2 - BLACK.
-  KRefIntMap seen;
+  KRefSet seen;
   KRefDeque toVisit;
   for (auto* root: rootset) {
     seen.clear();
     toVisit.clear();
-    toVisit.push_back(root);
+    traverseReferredObjects(root, [&toVisit](ObjHeader* obj) { toVisit.push_front(obj); });
     bool seenToRoot = false;
-    while (!toVisit.empty()) {
+    while (!toVisit.empty() && !seenToRoot) {
       KRef current = toVisit.front();
       toVisit.pop_front();
-      // To avoid recursive algorithm, we use the same deque to remember the DFS starting point.
-      if (isMarkedAsRemoved(current)) {
-         // Mark BLACK, we finished DFS from this node.
-         current = clearRemoved(current);
-         seen[current] = 2;
-         continue;
-      }
-      // Remember DFS starting point.
-      toVisit.push_front(markAsRemoved(current));
+      if (current == root) seenToRoot = true;
       // TODO: racy against concurrent mutators.
-      traverseReferredObjects(current, [&toVisit, &seenToRoot, &seen, &cyclic, current, root](ObjHeader* obj) {
-        konan::consolePrintf("%p: %p -> %p\n", root, current, obj);
-        if (obj == root) seenToRoot = true;
-        auto it = seen.find(obj);
-        // WHITE.
-        if (it == seen.end()) {
-           // Mark GRAY.
-           seen[obj] = 1;
+      if (seen.count(current) == 0) {
+        traverseReferredObjects(current, [&toVisit](ObjHeader* obj) {
            toVisit.push_front(obj);
-        } else {
-          // We see GRAY - cycle.
-          if (it->second == 1 && seenToRoot && cyclic.count(root) == 0) {
-            konan::consolePrintf("cycle starting %p because of %p\n", root, obj);
-            CreateStablePointer(root);
-            cyclic.insert(root);
-          }
-        }
-      });
+        });
+        seen.insert(current);
+      }
+    }
+    if (seenToRoot && cyclic.count(root) == 0) {
+      cyclic.insert(root);
     }
   }
   int numElements = cyclic.size();
@@ -2637,7 +2606,6 @@ OBJ_GETTER0(detectCyclicReferences) {
   KRef* place = ArrayAddressOfElementAt(result, 0);
   for (auto* it: cyclic) {
     UpdateHeapRef(place++, it);
-    DisposeStablePointer(it);
   }
   for (auto* root: rootset) {
     DisposeStablePointer(root);
@@ -2669,14 +2637,14 @@ OBJ_GETTER(findCycle, KRef root) {
          path = currentPath;
          break;
       }
-      if (seen.count(current) == 0) {
+      if (seen.count(node) == 0) {
         // TODO: racy against concurrent mutators.
-        traverseReferredObjects(current, [&queue, &currentPath](ObjHeader* obj) {
+        traverseReferredObjects(node, [&queue, &currentPath](ObjHeader* obj) {
            KRefList newPath(currentPath);
            newPath.push_back(obj);
            queue.emplace_back(newPath);
         });
-        //seen.insert(node);
+        seen.insert(node);
       }
     }
   }
