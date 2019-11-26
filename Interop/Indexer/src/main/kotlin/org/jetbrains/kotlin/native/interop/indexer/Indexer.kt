@@ -267,7 +267,11 @@ internal class NativeIndexImpl(val library: NativeLibrary, val verbose: Boolean 
             val cursorType = clang_getCursorType(cursor)
             val typeSpelling = clang_getTypeSpelling(cursorType).convertAndDispose()
 
-            val baseType = convertType(clang_getEnumDeclIntegerType(cursor))
+            val canonicalBase = clang_getCanonicalType(clang_getEnumDeclIntegerType(cursor))
+            val baseType = when (canonicalBase.kind) {
+                CXType_Char_S, CXType_Char_U -> IntegerType(1, false, canonicalBase.name.dropConstQualifier())
+                else -> convertType(clang_getEnumDeclIntegerType(cursor))
+            }
 
             val enumDef = EnumDefImpl(typeSpelling, baseType, getLocation(cursor))
 
