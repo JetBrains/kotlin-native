@@ -3565,6 +3565,11 @@ interopTest("interop_objc_smoke") {
         if (project.target instanceof KonanTarget.IOS_X64) {
             UtilsKt.codesign(project, "$buildDir/libobjcsmoke.dylib")
         }
+
+        copy {
+            from("interop/objc/Localizable.stringsdict")
+            into("$testOutputLocal/$name/$target/en.lproj/")
+        }
     }
 }
 
@@ -3737,14 +3742,23 @@ if (isAppleTarget(project)) {
         final File lazyHeader = file("$dir/$target-lazy.h")
 
         doLast {
-            final File expectedLazyHeader = file("framework/values/expectedLazy.h")
+            final String expectedLazyHeaderName = "expectedLazy.h"
+            final String expectedLazyHeaderDir = file("framework/values/")
+            final File expectedLazyHeader = new File(expectedLazyHeaderDir, expectedLazyHeaderName)
 
             if (expectedLazyHeader.readLines() != lazyHeader.readLines()) {
                 exec {
                     commandLine 'diff', '-u', expectedLazyHeader, lazyHeader
                     ignoreExitValue = true
                 }
-                throw new Error("$expectedLazyHeader and $lazyHeader files differ")
+
+                copy {
+                    from(lazyHeader)
+                    into(expectedLazyHeaderDir)
+                    rename { expectedLazyHeaderName }
+                }
+
+                throw new Error("$expectedLazyHeader file patched;\nre-run the test and don't forget to commit the patch")
             }
 
         }
@@ -3932,6 +3946,21 @@ if (UtilsKt.testTargetSupportsCodeCoverage(project)) {
                 srcDir 'coverage/basic/smoke0'
                 baseDir "$testOutputCoverage/$binaryName"
                 entryPoint "coverage.basic.smoke0.main"
+                extraOpts "-Xcoverage", "-Xcoverage-file=$profrawFile"
+            }
+        }
+    }
+
+    task coverage_controlflow(type: CoverageTest) {
+        binaryName = "CoverageControlFlow"
+        numberOfCoveredFunctions = 1
+        numberOfCoveredLines = 102
+
+        konanArtifacts {
+            program(binaryName, targets: [ target ]) {
+                srcDir 'coverage/basic/controlflow'
+                baseDir "$testOutputCoverage/$binaryName"
+                entryPoint "coverage.basic.controlflow.main"
                 extraOpts "-Xcoverage", "-Xcoverage-file=$profrawFile"
             }
         }
