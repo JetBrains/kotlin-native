@@ -222,7 +222,7 @@ class StubsBuildingContextImpl(
 
     override fun tryCreateIntegralStub(type: Type, value: Long): IntegralConstantStub? {
         val integerType = when (val unwrappedType = type.unwrapTypedefs()) {
-            is IntegerType -> unwrappedType as IntegerType
+            is IntegerType -> unwrappedType
             CharType -> IntegerType(1, true, "char")
             else -> return null
         }
