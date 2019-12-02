@@ -727,20 +727,9 @@ template <typename func>
 inline void traverseContainerObjectFields(ContainerHeader* container, func process) {
   RuntimeAssert(!isAggregatingFrozenContainer(container), "Must not be called on such containers");
   ObjHeader* obj = reinterpret_cast<ObjHeader*>(container + 1);
+
   for (int object = 0; object < container->objectCount(); object++) {
-    const TypeInfo* typeInfo = obj->type_info();
-    if (typeInfo != theArrayTypeInfo) {
-      for (int index = 0; index < typeInfo->objOffsetsCount_; index++) {
-        ObjHeader** location = reinterpret_cast<ObjHeader**>(
-            reinterpret_cast<uintptr_t>(obj) + typeInfo->objOffsets_[index]);
-        process(location);
-      }
-    } else {
-      ArrayHeader* array = obj->array();
-      for (int index = 0; index < array->count_; index++) {
-        process(ArrayAddressOfElementAt(array, index));
-      }
-    }
+    traverseObjectFields(obj, process);
     obj = reinterpret_cast<ObjHeader*>(
       reinterpret_cast<uintptr_t>(obj) + objectSize(obj));
   }
@@ -932,27 +921,26 @@ void freeAggregatingFrozenContainer(ContainerHeader* container) {
 void runDeallocationHooks(ContainerHeader* container) {
   ObjHeader* obj = reinterpret_cast<ObjHeader*>(container + 1);
   for (int index = 0; index < container->objectCount(); index++) {
-    if (KonanNeedDebugInfo && g_checkLeaks && (obj->type_info()->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0) {
-      // Remove the object from the double-linked list of potentially cyclic objects.
-      auto* meta = obj->meta_object();
-      lock(&g_leakCheckerGlobalLock);
-      // Get previous.
-      auto* previous = meta->LeakDetector.previous_;
-      auto* previousMeta = (previous != nullptr) ? previous->meta_object() : nullptr;
-      auto* next = meta->LeakDetector.next_;
-      auto* nextMeta = (next != nullptr) ? next->meta_object() : nullptr;
-      // Remove current.
-      if (previous != nullptr)
-        previous->meta_object()->LeakDetector.next_ = next;
-      if (next != nullptr)
-        next->meta_object()->LeakDetector.previous_ = previous;
-      if (obj == g_leakCheckerGlobalList) {
-        g_leakCheckerGlobalList = next;
+    if (obj->has_meta_object()) {
+      if (KonanNeedDebugInfo && (obj->type_info()->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0 && g_checkLeaks) {
+        // Remove the object from the double-linked list of potentially cyclic objects.
+        auto* meta = obj->meta_object();
+        lock(&g_leakCheckerGlobalLock);
+        // Get previous.
+        auto* previous = meta->LeakDetector.previous_;
+        auto* previousMeta = (previous != nullptr) ? previous->meta_object() : nullptr;
+        auto* next = meta->LeakDetector.next_;
+        auto* nextMeta = (next != nullptr) ? next->meta_object() : nullptr;
+        // Remove current.
+        if (previous != nullptr)
+          previous->meta_object()->LeakDetector.next_ = next;
+        if (next != nullptr)
+          next->meta_object()->LeakDetector.previous_ = previous;
+        if (obj == g_leakCheckerGlobalList)
+          g_leakCheckerGlobalList = next;
+        unlock(&g_leakCheckerGlobalLock);
       }
-      unlock(&g_leakCheckerGlobalLock);
-   }
-   if (obj->has_meta_object()) {
-     ObjHeader::destroyMetaObject(&obj->typeInfoOrMeta_);
+      ObjHeader::destroyMetaObject(&obj->typeInfoOrMeta_);
     }
     obj = reinterpret_cast<ObjHeader*>(reinterpret_cast<uintptr_t>(obj) + objectSize(obj));
   }
@@ -2573,7 +2561,7 @@ OBJ_GETTER0(detectCyclicReferences) {
   lock(&g_leakCheckerGlobalLock);
   auto* candidate = g_leakCheckerGlobalList;
   while (candidate != nullptr) {
-    CreateStablePointer(candidate);
+    addHeapRef(candidate);
     rootset.push_back(candidate);
     candidate = candidate->meta_object()->LeakDetector.next_;
   }
@@ -2598,7 +2586,7 @@ OBJ_GETTER0(detectCyclicReferences) {
         seen.insert(current);
       }
     }
-    if (seenToRoot && cyclic.count(root) == 0) {
+    if (seenToRoot) {
       cyclic.insert(root);
     }
   }
@@ -2609,7 +2597,7 @@ OBJ_GETTER0(detectCyclicReferences) {
     UpdateHeapRef(place++, it);
   }
   for (auto* root: rootset) {
-    DisposeStablePointer(root);
+    ReleaseHeapRef(root);
   }
   RETURN_OBJ(result->obj());
 }
@@ -2624,7 +2612,7 @@ OBJ_GETTER(findCycle, KRef root) {
   while (!toVisit.empty() && !isFound) {
     KRef current = toVisit.front();
     toVisit.pop_front();
-    // Do BFS path search.
+    // Do DFS path search.
     KRefList first;
     first.push_back(current);
     queue.emplace_back(first);
