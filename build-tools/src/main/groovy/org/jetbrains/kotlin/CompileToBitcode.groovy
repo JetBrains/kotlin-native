@@ -112,6 +112,26 @@ class CompileCppToBitcode extends DefaultTask {
         linkerArgs.addAll(args)
     }
 
+    void excludedCFiles(String... files) {
+        excludedCFiles.addAll(files)
+    }
+
+    void excludedCFiles(List<String> files) {
+        excludedCFiles.addAll(files)
+    }
+
+    void cHeadersDirs(File... files) {
+        cHeadersDirs.addAll(files)
+    }
+
+    void cHeadersDirs(List<File> files) {
+        cHeadersDirs.addAll(files)
+    }
+
+    void includeCSources(Boolean value) {
+        includeCSources = value
+    }
+
     private Boolean targetingMinGW() {
         def hostManager = new HostManager()
         return hostManager.targetByName(this.target).family == Family.MINGW

@@ -105,7 +105,7 @@ internal class Linker(val context: Context) {
 
         try {
             File(executable).delete()
-            println("AAAAAAAAAAAA Linker!!!")
+            //println("AAAAAAAAAAAA Linker!!!")
             linker.linkCommands(objectFiles = objectFiles, executable = executable,
                     libraries = linker.linkStaticLibraries(includedBinaries) + context.config.defaultSystemLibraries +
                             caches.static.takeIf { context.config.produce != CompilerOutputKind.STATIC_CACHE }.orEmpty(),

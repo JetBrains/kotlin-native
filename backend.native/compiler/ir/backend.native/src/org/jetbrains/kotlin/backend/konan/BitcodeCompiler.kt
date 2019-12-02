@@ -48,7 +48,7 @@ internal class BitcodeCompiler(val context: Context) {
     }
 
     private fun clang(configurables: ClangFlags, file: BitcodeFile): ObjectFile {
-        println("cCCCCC started clang")
+        //println("cCCCCC started clang")
         val objectFile = temporary("result", ".o")
 
         val profilingFlags = llvmProfilingFlags().map { listOf("-mllvm", it) }.flatten()
