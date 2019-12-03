@@ -314,6 +314,9 @@ fun router() {
         }
     })
 
+
+    // Replace from Artifactory to DB.
+    // TODO Bintray -> Artifactory.
     router.get("/convert/:target", { request, response ->
         val target = request.params.target.toString()
         var buildNumber: String? = null
