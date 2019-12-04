@@ -448,7 +448,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
     fun allocInstance(irClass: IrClass, lifetime: Lifetime): LLVMValueRef =
             if (lifetime == Lifetime.LOCAL) {
                 val stackSlot = alloca(context.llvmDeclarations.forClass(irClass).bodyType)
-                val objectHeader = structGep(stackSlot, 0)
+                val objectHeader = structGep(stackSlot, 0, "objHeaderField")
                 setTypeInfoForLocalObject(objectHeader)
                 objectHeader
             } else {
@@ -456,7 +456,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             }
 
     // TODO: find better place?
-    val arrayClasses = mapOf(
+    val arrayToElementType = mapOf(
             "kotlin.ByteArray"          to int8Type,
             "kotlin.CharArray"          to int16Type,
             "kotlin.ShortArray"         to int16Type,
@@ -474,7 +474,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         val name = "local#${className}${count}#internal"
         // Create new type or get already created.
         return context.declaredLocalArrays.getOrPut(name) {
-            val fieldTypes = listOf(kArrayHeader, LLVMArrayType(arrayClasses[className]!!, count))
+            val fieldTypes = listOf(kArrayHeader, LLVMArrayType(arrayToElementType[className]!!, count))
             val classType = LLVMStructCreateNamed(LLVMGetModuleContext(context.llvmModule), name)!!
             LLVMStructSetBody(classType, fieldTypes.toCValues(), fieldTypes.size, 1)
             classType
@@ -487,7 +487,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                    exceptionHandler: ExceptionHandler): LLVMValueRef =
             if (lifetime == Lifetime.LOCAL) {
                 val className = irClass.fqNameForIrSerialization.asString()
-                assert(className in arrayClasses)
+                assert(className in arrayToElementType)
                 allocArrayOnStack(className, count)
             } else {
                 call(context.llvm.allocArrayFunction, listOf(codegen.typeInfoValue(irClass), count),
@@ -495,7 +495,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             }
 
     fun setTypeInfoForLocalObject(objectHeader: LLVMValueRef) {
-        val typeInfo = structGep(objectHeader, 0)
+        val typeInfo = structGep(objectHeader, 0, "typeInfoField")
         // Set tag OBJECT_TAG_PERMANENT_CONTAINER.
         val typeInfoValue = intToPtr(or(ptrToInt(alloca(kTypeInfo), int32Type), Int32(1).llvm), kTypeInfoPtr)
         store(typeInfoValue, typeInfo)
@@ -504,9 +504,9 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
     fun allocArrayOnStack(arrayTypeName: String, count: LLVMValueRef): LLVMValueRef {
         val arraySlot = alloca(localArrayType(arrayTypeName, extractConstUnsignedInt(count).toInt()))
         // Set array size in ArrayHeader.
-        val arrayHeaderSlot = structGep(arraySlot, 0)
+        val arrayHeaderSlot = structGep(arraySlot, 0, "arrayHeaderField")
         setTypeInfoForLocalObject(arrayHeaderSlot)
-        val sizeField = structGep(arrayHeaderSlot, 1)
+        val sizeField = structGep(arrayHeaderSlot, 1, "arraySizeField")
         store(count, sizeField)
         return bitcast(kObjHeaderPtr, arrayHeaderSlot)
     }

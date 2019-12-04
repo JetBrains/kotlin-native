@@ -72,9 +72,6 @@ internal object LocalEscapeAnalysis {
                         val escapes = node.callee.escapes?.let {
                             it and (1 shl index) != 0
                         } ?: node.callee.irFunction?.isExternal?.let {
-                            // Case of array_get function when ot returns part of memory.
-                            // TODO: set some flag for safe external functions?
-                            connectObjects(node, arg.node)
                             !(it || node.callee.irFunction.isBuiltInOperator)
                         } ?: true
                         arg.node.escapeState = if (escapes) EscapeState.ARG_ESCAPE else EscapeState.NO_ESCAPE
