@@ -74,6 +74,11 @@ internal object LocalEscapeAnalysis {
                         } ?: node.callee.irFunction?.isExternal?.let {
                             !(it || node.callee.irFunction.isBuiltInOperator)
                         } ?: true
+                        // Connect with all arguments that return value pointsTo.
+                        val returnPointsToMask = node.callee.pointsTo?.elementAtOrNull(node.callee.parameters.size) ?: 0
+                        if (returnPointsToMask and (1 shl index) != 0) {
+                            connectObjects(node, arg.node)
+                        }
                         arg.node.escapeState = if (escapes) EscapeState.ARG_ESCAPE else EscapeState.NO_ESCAPE
                     }
 
@@ -181,7 +186,6 @@ internal object LocalEscapeAnalysis {
                 println("DATA FLOW IR:")
                 function.debugOutput()
             }
-
             FunctionAnalyzer(function, context).analyze(lifetimes)
         }
     }
