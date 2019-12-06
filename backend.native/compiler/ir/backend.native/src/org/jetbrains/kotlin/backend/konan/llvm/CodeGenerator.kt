@@ -8,6 +8,9 @@ package org.jetbrains.kotlin.backend.konan.llvm
 
 import kotlinx.cinterop.*
 import llvm.*
+import org.jetbrains.kotlin.backend.common.ir.ir2string
+import org.jetbrains.kotlin.backend.common.serialization.proto.IrDelegatingConstructorCall
+import org.jetbrains.kotlin.backend.common.serialization.proto.IrReturn
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.ClassGlobalHierarchyInfo
 import org.jetbrains.kotlin.backend.konan.llvm.objc.*
@@ -18,6 +21,23 @@ import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.backend.konan.descriptors.resolveFakeOverride
 import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.descriptors.konan.CompiledKlibModuleOrigin
+import org.jetbrains.kotlin.ir.expressions.impl.IrDelegatingConstructorCallImpl
+import org.jetbrains.kotlin.ir.expressions.impl.IrReturnImpl
+
+enum class ObjectStorageKind {
+    PERMANENT,
+    THREAD_LOCAL,
+    SHARED
+}
+
+internal val IrClass.hasNoStateAndSideEffects: Boolean
+    get() {
+        if (this.fields.firstOrNull() != null)
+            return false
+        return this.constructors.all { constructor -> constructor.body?.statements?.let {
+            it.size == 2 && it[0] is IrDelegatingConstructorCallImpl && it[1] is IrReturnImpl
+        } != false }
+    }
 
 internal class CodeGenerator(override val context: Context) : ContextUtils {
 
@@ -42,7 +62,7 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
     fun functionEntryPointAddress(function: IrFunction) = function.entryPointAddress.llvm
     fun functionHash(function: IrFunction): LLVMValueRef = function.functionName.localHash.llvm
 
-    fun getObjectInstanceStorage(irClass: IrClass, shared: Boolean): LLVMValueRef {
+    fun getObjectInstanceStorage(irClass: IrClass, kind: ObjectStorageKind): LLVMValueRef {
         assert (!irClass.isUnit())
         val llvmGlobal = if (!isExternal(irClass)) {
             context.llvmDeclarations.forSingleton(irClass).instanceFieldRef
@@ -52,13 +72,15 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
                     irClass.objectInstanceFieldSymbolName,
                     llvmType,
                     origin = irClass.llvmSymbolOrigin,
-                    threadLocal = !shared
+                    threadLocal = kind == ObjectStorageKind.THREAD_LOCAL
             )
         }
-        if (shared)
-            context.llvm.sharedObjects += llvmGlobal
-        else
-            context.llvm.objects += llvmGlobal
+        when (kind) {
+            ObjectStorageKind.SHARED -> context.llvm.sharedObjects += llvmGlobal
+            ObjectStorageKind.THREAD_LOCAL -> context.llvm.objects += llvmGlobal
+            ObjectStorageKind.PERMANENT -> { /* Do nothing, no need to free such an instance. */ }
+        }
+
         return llvmGlobal
     }
 
@@ -893,6 +915,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             startLocationInfo: LocationInfo?,
             endLocationInfo: LocationInfo? = null
     ): LLVMValueRef {
+        // TODO: could be processed the same way as other stateless objects.
         if (irClass.isUnit()) {
             return codegen.theUnitInstanceRef.llvm
         }
@@ -911,8 +934,13 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             }
         }
 
+        if (irClass.hasNoStateAndSideEffects) {
+            return loadSlot(codegen.getObjectInstanceStorage(irClass, ObjectStorageKind.PERMANENT), false)
+        }
+
         val shared = irClass.objectIsShared && context.config.threadsAreAllowed
-        val objectPtr = codegen.getObjectInstanceStorage(irClass, shared)
+        val objectPtr = codegen.getObjectInstanceStorage(irClass,
+                if (shared) ObjectStorageKind.SHARED else ObjectStorageKind.THREAD_LOCAL)
         val bbInit = basicBlock("label_init", startLocationInfo, endLocationInfo)
         val bbExit = basicBlock("label_continue", startLocationInfo, endLocationInfo)
         val objectVal = loadSlot(objectPtr, false)

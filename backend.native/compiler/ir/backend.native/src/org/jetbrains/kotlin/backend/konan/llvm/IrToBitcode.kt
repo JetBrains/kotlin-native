@@ -738,6 +738,12 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 it.acceptVoid(this)
             }
         }
+
+        if (declaration.kind.isSingleton && !declaration.isUnit()) {
+            val value = context.llvmDeclarations.forSingleton(declaration).instanceFieldRef
+            LLVMSetInitializer(value, if (declaration.hasNoStateAndSideEffects)
+                context.llvm.staticData.createConstKotlinObject(declaration).llvm else codegen.kNullObjHeaderPtr)
+        }
     }
 
     //-------------------------------------------------------------------------//

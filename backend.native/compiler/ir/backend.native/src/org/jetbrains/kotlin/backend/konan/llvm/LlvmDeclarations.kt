@@ -277,8 +277,6 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
         val instanceFieldRef = addGlobal(
                 symbolName, getLLVMType(irClass.defaultType), isExported = isExported, threadLocal = threadLocal)
 
-        LLVMSetInitializer(instanceFieldRef, kNullObjHeaderPtr)
-
         val instanceShadowFieldRef =
                 if (threadLocal) null
                 else {
