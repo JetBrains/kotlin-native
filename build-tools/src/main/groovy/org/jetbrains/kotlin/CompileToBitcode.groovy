@@ -30,13 +30,9 @@ class CompileCppToBitcode extends DefaultTask {
     private String target = "host"
     private File srcRoot
 
-    protected Boolean includeCSources = false
-    protected List<File> cHeadersDirs = []
-
     protected List<String> compilerArgs = []
-    protected List<String> cCompilerArgs = []
     protected List<String> linkerArgs = []
-    protected List<String> excludedCFiles = []
+    protected List<String> preprocessedBitcodeFolders = []
 
     @InputDirectory
     File getSrcRoot() {
@@ -96,14 +92,6 @@ class CompileCppToBitcode extends DefaultTask {
         compilerArgs.addAll(args)
     }
 
-    void cCompilerArgs(String... args) {
-        cCompilerArgs.addAll(args)
-    }
-
-    void cCompilerArgs(List<String> args) {
-        cCompilerArgs.addAll(args)
-    }
-
     void linkerArgs(String... args) {
         linkerArgs.addAll(args)
     }
@@ -112,24 +100,8 @@ class CompileCppToBitcode extends DefaultTask {
         linkerArgs.addAll(args)
     }
 
-    void excludedCFiles(String... files) {
-        excludedCFiles.addAll(files)
-    }
-
-    void excludedCFiles(List<String> files) {
-        excludedCFiles.addAll(files)
-    }
-
-    void cHeadersDirs(File... files) {
-        cHeadersDirs.addAll(files)
-    }
-
-    void cHeadersDirs(List<File> files) {
-        cHeadersDirs.addAll(files)
-    }
-
-    void includeCSources(Boolean value) {
-        includeCSources = value
+    void preprocessedBitcodeFolders(String... files) {
+        preprocessedBitcodeFolders.addAll(files)
     }
 
     private Boolean targetingMinGW() {
@@ -145,8 +117,10 @@ class CompileCppToBitcode extends DefaultTask {
         List<String> compilerArgs = this.getCompilerArgs()
         List<String> linkerArgs = this.getLinkerArgs()
         File objDir = this.getObjDir()
+        File targetDir = this.getTargetDir()
         objDir.mkdirs()
         Boolean targetingMinGW = this.targetingMinGW()
+
 
         project.execKonanClang(this.target) {
             workingDir objDir
@@ -166,25 +140,14 @@ class CompileCppToBitcode extends DefaultTask {
                 include('**/*.mm') // Objective-C++
             }
         }
-        if (includeCSources) {
-            project.execKonanClang(this.target) {
-                workingDir objDir
-                executable "clang"
-                args "-std=gnu11", "-O3", "-c", "-emit-llvm", "-Wall", "-Wextra", "-Wno-unknown-pragmas", "-ftls-model=initial-exec"
-                cHeadersDirs.each { headerDir ->
-                    args "-I${headerDir.absolutePath}"
-                }
-                args cCompilerArgs
-                args project.fileTree(new File(this.getSrcRoot(), "c")) {
-                    include("**/*.c")
-                    exclude(excludedCFiles)
-                }
-            }
-        }
 
         project.exec {
             executable "$project.llvmDir/bin/llvm-link"
-            args project.fileTree(objDir).include('**/*.bc').sort { a, b -> (a.name <=> b.name) }
+            def bitcodeFiles = project.fileTree(objDir).include('**/*.bc')
+            preprocessedBitcodeFolders.each { folder ->
+                bitcodeFiles += project.fileTree(new File(targetDir, folder)).include('**/*.bc')
+            }
+            args bitcodeFiles.sort { a, b -> (a.name <=> b.name) }
 
             args linkerArgs
 

@@ -173,14 +173,16 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DKONAN_ARM32=1",
                         "-DUSE_ELF_SYMBOLS=1",
                         "-DELFSIZE=32",
-                        "-DKONAN_NO_UNALIGNED_ACCESS=1")
+                        "-DKONAN_NO_UNALIGNED_ACCESS=1",
+                        "-DKONAN_INTERNAL_MIMALLOC=1")
 
             KonanTarget.LINUX_ARM64 ->
                 listOf("-DUSE_GCC_UNWIND=1",
                         "-DKONAN_LINUX=1",
                         "-DKONAN_ARM64=1",
                         "-DUSE_ELF_SYMBOLS=1",
-                        "-DELFSIZE=64")
+                        "-DELFSIZE=64",
+                        "-DKONAN_INTERNAL_MIMALLOC=1")
 
             KonanTarget.LINUX_MIPS32 ->
                 listOf("-DUSE_GCC_UNWIND=1",
@@ -190,7 +192,8 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DELFSIZE=32",
                         // TODO: reconsider, once target MIPS can do proper 64-bit load/store/CAS.
                         "-DKONAN_NO_64BIT_ATOMIC=1",
-                        "-DKONAN_NO_UNALIGNED_ACCESS=1")
+                        "-DKONAN_NO_UNALIGNED_ACCESS=1",
+                        "-DKONAN_INTERNAL_MIMALLOC=1")
 
             KonanTarget.LINUX_MIPSEL32 ->
                 listOf("-DUSE_GCC_UNWIND=1",
@@ -200,7 +203,8 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DELFSIZE=32",
                         // TODO: reconsider, once target MIPS can do proper 64-bit load/store/CAS.
                         "-DKONAN_NO_64BIT_ATOMIC=1",
-                        "-DKONAN_NO_UNALIGNED_ACCESS=1")
+                        "-DKONAN_NO_UNALIGNED_ACCESS=1",
+                        "-DKONAN_INTERNAL_MIMALLOC=1")
 
             KonanTarget.MINGW_X64, KonanTarget.MINGW_X86 ->
                 listOf("-DUSE_GCC_UNWIND=1",
@@ -209,6 +213,7 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         if (target == KonanTarget.MINGW_X64) "-DKONAN_X64=1" else "-DKONAN_X86=1",
                         "-DKONAN_NO_MEMMEM=1",
                         "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1",
+                        "-DKONAN_INTERNAL_MIMALLOC=1",
                         "-DKONAN_INTERNAL_MIMALLOC=1")
 
             KonanTarget.MACOS_X64 ->
@@ -232,7 +237,8 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         // https://developer.apple.com/library/archive/documentation/Xcode/Conceptual/iPhoneOSABIReference/Articles/ARMv6FunctionCallingConventions.html#//apple_ref/doc/uid/TP40009021-SW1
                         // See https://github.com/ktorio/ktor/issues/941 for the context.
                         "-DKONAN_NO_64BIT_ATOMIC=1",
-                        "-DKONAN_NO_UNALIGNED_ACCESS=1")
+                        "-DKONAN_NO_UNALIGNED_ACCESS=1",
+                        "-DKONAN_INTERNAL_MIMALLOC=1")
 
             KonanTarget.IOS_ARM64 ->
                 listOf("-DKONAN_OBJC_INTEROP=1",
@@ -240,14 +246,16 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DKONAN_ARM64=1",
                         "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1",
                         "-DKONAN_REPORT_BACKTRACE_TO_IOS_CRASH_LOG=1",
-                        "-DMACHSIZE=64")
+                        "-DMACHSIZE=64",
+                        "-DKONAN_INTERNAL_MIMALLOC=1")
 
             KonanTarget.IOS_X64 ->
                 listOf("-DKONAN_OBJC_INTEROP=1",
                         "-DKONAN_IOS=1",
                         "-DKONAN_X64=1",
                         "-DKONAN_CORE_SYMBOLICATION=1",
-                        "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1")
+                        "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1",
+                        "-DKONAN_INTERNAL_MIMALLOC=1")
 
             KonanTarget.TVOS_ARM64 ->
                 listOf("-DKONAN_OBJC_INTEROP=1",
@@ -255,14 +263,16 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DKONAN_ARM64=1",
                         "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1",
                         "-DKONAN_REPORT_BACKTRACE_TO_IOS_CRASH_LOG=1",
-                        "-DMACHSIZE=64")
+                        "-DMACHSIZE=64",
+                        "-DKONAN_INTERNAL_MIMALLOC=1")
 
             KonanTarget.TVOS_X64 ->
                 listOf("-DKONAN_OBJC_INTEROP=1",
                         "-DKONAN_TVOS=1",
                         "-DKONAN_X64=1",
                         "-DKONAN_CORE_SYMBOLICATION=1",
-                        "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1")
+                        "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1",
+                        "-DKONAN_INTERNAL_MIMALLOC=1")
 
             KonanTarget.WATCHOS_ARM64,
             KonanTarget.WATCHOS_ARM32 ->
@@ -274,7 +284,8 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DMACHSIZE=32",
                         // See explanation for ios_arm32 above.
                         "-DKONAN_NO_64BIT_ATOMIC=1",
-                        "-DKONAN_NO_UNALIGNED_ACCESS=1")
+                        "-DKONAN_NO_UNALIGNED_ACCESS=1",
+                        "-DKONAN_INTERNAL_MIMALLOC=1")
 
             KonanTarget.WATCHOS_X86 ->
                 listOf("-DKONAN_OBJC_INTEROP=1",
@@ -282,7 +293,8 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DKONAN_NO_64BIT_ATOMIC=1",
                         "-DKONAN_X86=1",
                         "-DKONAN_CORE_SYMBOLICATION=1",
-                        "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1")
+                        "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1",
+                        "-DKONAN_INTERNAL_MIMALLOC=1")
 
             KonanTarget.WATCHOS_X64 -> TODO("implement me")
 
@@ -293,7 +305,8 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DELFSIZE=32",
                         "-DKONAN_ANDROID=1",
                         "-DKONAN_ARM32=1",
-                        "-DKONAN_NO_UNALIGNED_ACCESS=1")
+                        "-DKONAN_NO_UNALIGNED_ACCESS=1",
+                        "-DKONAN_INTERNAL_MIMALLOC=1")
 
             KonanTarget.ANDROID_ARM64 ->
                 listOf("-D__ANDROID__",
@@ -302,7 +315,8 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DELFSIZE=64",
                         "-DKONAN_ANDROID=1",
                         "-DKONAN_ARM64=1",
-                        "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1")
+                        "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1",
+                        "-DKONAN_INTERNAL_MIMALLOC=1")
 
             KonanTarget.ANDROID_X86 ->
                 listOf("-D__ANDROID__",
@@ -311,7 +325,8 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DELFSIZE=32",
                         "-DKONAN_ANDROID=1",
                         "-DKONAN_X86=1",
-                        "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1")
+                        "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1",
+                        "-DKONAN_INTERNAL_MIMALLOC=1")
 
             KonanTarget.ANDROID_X64 ->
                 listOf("-D__ANDROID__",
@@ -320,7 +335,8 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DELFSIZE=64",
                         "-DKONAN_ANDROID=1",
                         "-DKONAN_X64=1",
-                        "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1")
+                        "-DKONAN_HAS_CXX11_EXCEPTION_FUNCTIONS=1",
+                        "-DKONAN_INTERNAL_MIMALLOC=1")
 
             KonanTarget.WASM32 ->
                 listOf("-DKONAN_WASM=1",

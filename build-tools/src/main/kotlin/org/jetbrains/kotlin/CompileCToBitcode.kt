@@ -18,6 +18,7 @@ package org.jetbrains.kotlin
 
 import org.gradle.api.Action
 import org.gradle.api.DefaultTask
+import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
@@ -26,53 +27,49 @@ import org.gradle.process.ExecSpec
 import java.io.File
 import javax.inject.Inject
 
-open class CompileCToBitcode @Inject constructor(val folderName: String, val target: String,  @InputDirectory val srcRoot: File, val headersDir: File,
-                                                 val excludeFiles: List<String>) : DefaultTask() {
-
+open class CompileCToBitcode @Inject constructor(@InputDirectory val srcRoot: File,
+                                                 val folderName: String,
+                                                 val target: String) : DefaultTask() {
     val compilerArgs = mutableListOf<String>()
     val linkerArgs = mutableListOf<String>()
+    val excludeFiles = mutableListOf<String>()
+    val srcDir = File(srcRoot, "c")
+    val headersDir = File(srcDir, "include")
+    var skipLinkagePhase = false
+    var excludedTargets = mutableListOf<String>()
 
-    private val srcDir = File(srcRoot, "c")
+    private val targetDir by lazy { File(project.buildDir, target) }
 
-    private val targetDir = File(project.buildDir, target)
-
-    private val objDir = File(targetDir, folderName)
-
+    private val objDir by lazy { File(targetDir, folderName) }
 
     @OutputFile
     val outFile = File(targetDir, "${folderName}.bc")
 
-    fun addCompilerArgs(vararg args: String) {
-        compilerArgs.addAll(args)
-    }
-
-    fun addLinkerArgs(vararg args: String) {
-        linkerArgs.addAll(args)
-    }
-
     @TaskAction
     fun compile() {
+        if (target in excludedTargets) return
         objDir.mkdirs()
         val plugin = project.convention.getPlugin(ExecClang::class.java)
-        plugin.execKonanClang(this.target, Action<ExecSpec> {
+        plugin.execKonanClang(target, Action {
             it.workingDir = objDir
             it.executable = "clang"
-            it.args = listOf("-std=gnu11", "-O3", "-I$headersDir", "-c", "-emit-llvm", "-Wall", "-Wextra", "-Wno-unknown-pragmas", "-ftls-model=initial-exec") + compilerArgs +
+            it.args = listOf("-std=gnu11", "-O3", "-c", "-emit-llvm", "-I$headersDir", "-Wall",
+                    "-Wextra", "-Wno-unknown-pragmas", "-ftls-model=initial-exec") + compilerArgs +
                     project.fileTree(srcDir) {
-                it.include("**/*.c")
-                    it.exclude(excludeFiles)}.files.map{ it.absolutePath }
-            println(it.commandLine)
+                        it.include("**/*.c")
+                        it.exclude(excludeFiles)
+                    }.files.map{ it.absolutePath }
         })
 
-        /*project.exec {
-            val llvmDir = project.findProperty("llvmDir")
-            it.executable = "$llvmDir/bin/llvm-link"
-            it.args = listOf("-o", outFile.absolutePath) + linkerArgs
-            project.fileTree(objDir) {
-                it.include("*.bc")
-            }.files.map { it.absolutePath }
-
-            println(it.commandLine)
-        }*/
+        if (skipLinkagePhase) {
+            project.exec {
+                val llvmDir = project.findProperty("llvmDir")
+                it.executable = "$llvmDir/bin/llvm-link"
+                it.args = listOf("-o", outFile.absolutePath) + linkerArgs +
+                        project.fileTree(objDir) {
+                            it.include("**/*.bc")
+                        }.files.map { it.absolutePath }
+            }
+        }
     }
 }
