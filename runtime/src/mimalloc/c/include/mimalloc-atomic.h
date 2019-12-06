@@ -213,9 +213,15 @@ static inline void mi_atomic_write(volatile _Atomic(uintptr_t)* p, uintptr_t x) 
   static inline void mi_atomic_yield(void) {
     asm volatile ("pause" ::: "memory");
   }
-#elif defined(__arm__) || defined(__aarch64__)
+#elif defined(__aarch64__)
   static inline void mi_atomic_yield(void) {
     asm volatile("yield");
+  }
+// <Jetbrains> Fix for armv6.
+#elif defined(__arm__)
+  #include <sched.h>
+  static inline void mi_atomic_yield(void) {
+    sched_yield();
   }
 #endif
 #elif defined(__wasi__)
