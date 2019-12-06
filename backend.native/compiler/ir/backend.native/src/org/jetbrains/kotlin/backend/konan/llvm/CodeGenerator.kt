@@ -448,7 +448,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
     fun allocInstance(irClass: IrClass, lifetime: Lifetime): LLVMValueRef =
             if (lifetime == Lifetime.LOCAL) {
                 val stackSlot = alloca(context.llvmDeclarations.forClass(irClass).bodyType)
-                val objectHeader = structGep(stackSlot, 0, "objHeaderField")
+                val objectHeader = structGep(stackSlot, 0, "objHeader")
                 setTypeInfoForLocalObject(objectHeader)
                 objectHeader
             } else {
@@ -495,7 +495,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             }
 
     fun setTypeInfoForLocalObject(objectHeader: LLVMValueRef) {
-        val typeInfo = structGep(objectHeader, 0, "typeInfoField")
+        val typeInfo = structGep(objectHeader, 0, "typeInfoOrMeta_")
         // Set tag OBJECT_TAG_PERMANENT_CONTAINER.
         val typeInfoValue = intToPtr(or(ptrToInt(alloca(kTypeInfo), int32Type), Int32(1).llvm), kTypeInfoPtr)
         store(typeInfoValue, typeInfo)
@@ -504,9 +504,9 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
     fun allocArrayOnStack(arrayTypeName: String, count: LLVMValueRef): LLVMValueRef {
         val arraySlot = alloca(localArrayType(arrayTypeName, extractConstUnsignedInt(count).toInt()))
         // Set array size in ArrayHeader.
-        val arrayHeaderSlot = structGep(arraySlot, 0, "arrayHeaderField")
+        val arrayHeaderSlot = structGep(arraySlot, 0, "arrayHeader")
         setTypeInfoForLocalObject(arrayHeaderSlot)
-        val sizeField = structGep(arrayHeaderSlot, 1, "arraySizeField")
+        val sizeField = structGep(arrayHeaderSlot, 1, "count_")
         store(count, sizeField)
         return bitcast(kObjHeaderPtr, arrayHeaderSlot)
     }

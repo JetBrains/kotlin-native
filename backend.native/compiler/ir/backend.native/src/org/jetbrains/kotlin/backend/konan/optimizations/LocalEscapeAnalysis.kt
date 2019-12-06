@@ -67,17 +67,28 @@ internal object LocalEscapeAnalysis {
             node.escapeState = EscapeState.NO_ESCAPE
             when (node) {
                 is DataFlowIR.Node.Call -> {
+                    val pointsToMasks = (0..node.callee.parameters.size)
+                            .map { node.callee.pointsTo?.elementAtOrNull(it) ?: 0 }
+                    val returnPointsToMask = pointsToMasks[node.callee.parameters.size]
                     node.arguments.forEachIndexed { index, arg ->
                         // Check information about arguments escaping.
                         val escapes = node.callee.escapes?.let {
                             it and (1 shl index) != 0
-                        } ?: node.callee.irFunction?.isExternal?.let {
-                            !(it || node.callee.irFunction.isBuiltInOperator)
-                        } ?: true
-                        // Connect with all arguments that return value pointsTo.
-                        val returnPointsToMask = node.callee.pointsTo?.elementAtOrNull(node.callee.parameters.size) ?: 0
+                        } ?: node.callee !is DataFlowIR.FunctionSymbol.External
+
+                        // Connect with all arguments that return value points to.
                         if (returnPointsToMask and (1 shl index) != 0) {
                             connectObjects(node, arg.node)
+                        }
+
+                        // Connect current argument with other it points to.
+                        (0..node.callee.parameters.size).filter { pointsToMasks[index] and (1 shl it) != 0 }.forEach {
+                            if (it == node.callee.parameters.size) {
+                                // Argument points to this.
+                                connectObjects(arg.node, node)
+                            } else {
+                                connectObjects(arg.node, node.arguments[it].node)
+                            }
                         }
                         arg.node.escapeState = if (escapes) EscapeState.ARG_ESCAPE else EscapeState.NO_ESCAPE
                     }
