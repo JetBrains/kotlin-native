@@ -8,9 +8,6 @@ package org.jetbrains.kotlin.backend.konan.llvm
 
 import kotlinx.cinterop.*
 import llvm.*
-import org.jetbrains.kotlin.backend.common.ir.ir2string
-import org.jetbrains.kotlin.backend.common.serialization.proto.IrDelegatingConstructorCall
-import org.jetbrains.kotlin.backend.common.serialization.proto.IrReturn
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.ClassGlobalHierarchyInfo
 import org.jetbrains.kotlin.backend.konan.llvm.objc.*
@@ -21,8 +18,11 @@ import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.backend.konan.descriptors.resolveFakeOverride
 import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.descriptors.konan.CompiledKlibModuleOrigin
+import org.jetbrains.kotlin.ir.expressions.IrConst
 import org.jetbrains.kotlin.ir.expressions.impl.IrDelegatingConstructorCallImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrReturnImpl
+import org.jetbrains.kotlin.ir.types.isPrimitiveType
+import org.jetbrains.kotlin.ir.types.isString
 
 enum class ObjectStorageKind {
     PERMANENT,
@@ -30,14 +30,27 @@ enum class ObjectStorageKind {
     SHARED
 }
 
-internal val IrClass.hasNoStateAndSideEffects: Boolean
+private val IrConstructor.isAnyConstructorDelegation: Boolean
     get() {
-        if (this.fields.firstOrNull() != null)
-            return false
-        return this.constructors.all { constructor -> constructor.body?.statements?.let {
-            it.size == 2 && it[0] is IrDelegatingConstructorCallImpl && it[1] is IrReturnImpl
-        } != false }
+        val statements = this.body?.statements ?: return false
+        if (statements.size != 2) return false
+        if (statements[1] !is IrReturnImpl) return false
+        val constructorCall = statements[0] as? IrDelegatingConstructorCallImpl ?: return false
+        val constructor = constructorCall.symbol.owner as? IrConstructor ?: return false
+        if (!constructor.constructedClass.isAny()) return false
+        return true
     }
+
+// TODO: shall we memoize that property?
+internal fun IrClass.hasConstStateAndNoSideEffects(context: Context): Boolean {
+    val fields = context.getLayoutBuilder(this).fields
+    if (this.hasAnnotation(KonanFqNames.canBePrecreated)) {
+        assert(fields.all { it.isFinal && (it.type.isPrimitiveType() || it.type.isString()) &&
+                it.initializer?.expression is IrConst<*> })
+        return true
+    }
+    return fields.isEmpty() && this.constructors.all { it.isAnyConstructorDelegation }
+}
 
 internal class CodeGenerator(override val context: Context) : ContextUtils {
 
@@ -934,7 +947,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             }
         }
 
-        if (irClass.hasNoStateAndSideEffects) {
+        if (irClass.hasConstStateAndNoSideEffects(context)) {
             return loadSlot(codegen.getObjectInstanceStorage(irClass, ObjectStorageKind.PERMANENT), false)
         }
 

@@ -230,7 +230,8 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                         println("Analysing global field ${declaration.descriptor}")
                         println("IR: ${ir2stringWhole(declaration)}")
                     }
-                    analyze(declaration, IrSetFieldImpl(it.startOffset, it.endOffset, declaration.symbol, null,
+                    if (it.expression !is IrConst<*>)
+                        analyze(declaration, IrSetFieldImpl(it.startOffset, it.endOffset, declaration.symbol, null,
                             it.expression, context.irBuiltIns.unitType))
                 }
             }

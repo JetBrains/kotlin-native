@@ -14,7 +14,6 @@ import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.backend.konan.llvm.coverage.LLVMCoverageInstrumentation
 import org.jetbrains.kotlin.backend.konan.optimizations.DataFlowIR
-import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.builtins.UnsignedType
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.ir.IrElement
@@ -741,12 +740,30 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
         if (declaration.kind.isSingleton && !declaration.isUnit()) {
             val value = context.llvmDeclarations.forSingleton(declaration).instanceFieldRef
-            LLVMSetInitializer(value, if (declaration.hasNoStateAndSideEffects)
-                context.llvm.staticData.createConstKotlinObject(declaration).llvm else codegen.kNullObjHeaderPtr)
+            LLVMSetInitializer(value, if (declaration.hasConstStateAndNoSideEffects(context))
+                context.llvm.staticData.createConstKotlinObject(declaration,
+                        *computeFields(declaration)).llvm else codegen.kNullObjHeaderPtr)
         }
     }
 
-    //-------------------------------------------------------------------------//
+    private fun computeFields(declaration: IrClass): Array<ConstValue> {
+        val fields = context.getLayoutBuilder(declaration).fields
+        return Array(fields.size) { index ->
+            val initializer = fields[index].initializer!!.expression as IrConst<*>
+            when (initializer.kind) {
+                IrConstKind.Byte -> Int8(initializer.value as Byte)
+                IrConstKind.Short -> Int16(initializer.value as Short)
+                IrConstKind.Int -> Int32(initializer.value as Int)
+                IrConstKind.Long -> Int64(initializer.value as Long)
+                IrConstKind.Float -> Float32(initializer.value as Float)
+                IrConstKind.Double -> Float64(initializer.value as Double)
+                IrConstKind.Char -> Int16((initializer.value as Char).toShort())
+                IrConstKind.Boolean -> Int8(if (initializer.value as Boolean) 1 else 0)
+                IrConstKind.String -> context.llvm.staticData.createKotlinStringLiteral(initializer.value as String)
+                else -> TODO("Unsupported ${initializer.kind}")
+            }
+        }
+    }
 
     override fun visitProperty(declaration: IrProperty) {
         declaration.getter?.acceptVoid(this)
