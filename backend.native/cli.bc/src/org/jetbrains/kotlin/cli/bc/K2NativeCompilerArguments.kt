@@ -231,6 +231,9 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     @Argument(value = "-Xobjc-generics", description = "Enable experimental generics support for framework header")
     var objcGenerics: Boolean = false
 
+    @Argument(value = "-Xcount-box-operations", description = "Count calls to box operations and print the result to console")
+    var countBoxOperations: Boolean = false
+
     override fun configureAnalysisFlags(collector: MessageCollector): MutableMap<AnalysisFlag<*>, Any> =
             super.configureAnalysisFlags(collector).also {
                 val useExperimental = it[AnalysisFlags.useExperimental] as List<*>

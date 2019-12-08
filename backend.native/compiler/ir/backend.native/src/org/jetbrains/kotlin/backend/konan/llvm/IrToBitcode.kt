@@ -10,6 +10,7 @@ import llvm.*
 import org.jetbrains.kotlin.backend.common.ir.ir2string
 import org.jetbrains.kotlin.backend.common.lower.inline.InlinerExpressionLocationHint
 import org.jetbrains.kotlin.backend.konan.*
+import org.jetbrains.kotlin.backend.konan.boxing.isBoxingCounter
 import org.jetbrains.kotlin.backend.konan.descriptors.*
 import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.backend.konan.llvm.coverage.LLVMCoverageInstrumentation
@@ -763,7 +764,11 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             context.llvm.fileInitializers.add(declaration)
 
             // (Cannot do this before the global is initialized).
-            LLVMSetLinkage(globalProperty, LLVMLinkage.LLVMInternalLinkage)
+            if (declaration.isBoxingCounter()) {
+                LLVMSetLinkage(globalProperty, LLVMLinkage.LLVMCommonLinkage)
+            } else {
+                LLVMSetLinkage(globalProperty, LLVMLinkage.LLVMInternalLinkage)
+            }
         }
     }
 

@@ -215,6 +215,7 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
                 put(LIBRARIES_TO_COVER, arguments.coveredLibraries.toNonNullList())
                 arguments.coverageFile?.let { put(PROFRAW_PATH, it) }
                 put(OBJC_GENERICS, arguments.objcGenerics)
+                put(COUNT_BOX_OPERATIONS, arguments.countBoxOperations)
 
                 put(LIBRARIES_TO_CACHE, parseLibrariesToCache(arguments, configuration, outputKind))
                 put(CACHE_DIRECTORIES, arguments.cacheDirectories.toNonNullList())

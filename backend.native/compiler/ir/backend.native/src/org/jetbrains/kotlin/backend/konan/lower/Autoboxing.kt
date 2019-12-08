@@ -13,6 +13,9 @@ import org.jetbrains.kotlin.backend.common.descriptors.WrappedSimpleFunctionDesc
 import org.jetbrains.kotlin.backend.common.ir.copyTo
 import org.jetbrains.kotlin.backend.common.lower.*
 import org.jetbrains.kotlin.backend.konan.*
+import org.jetbrains.kotlin.backend.konan.boxing.IrBoxCounterField
+import org.jetbrains.kotlin.backend.konan.boxing.ifCountBoxOperationsOptionEnabled
+import org.jetbrains.kotlin.backend.konan.boxing.irInc
 import org.jetbrains.kotlin.backend.konan.descriptors.target
 import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.descriptors.Modality
@@ -321,8 +324,11 @@ private class InlineClassTransformer(private val context: Context) : IrBuildingT
     private fun buildBoxFunction(irClass: IrClass, function: IrFunction) {
         val builder = context.createIrBuilder(function.symbol)
         val cache = BoxCache.values().toList().atMostOne { context.irBuiltIns.getKotlinClass(it) == irClass }
-
         function.body = builder.irBlockBody(function) {
+            ifCountBoxOperationsOptionEnabled(this@InlineClassTransformer.context) {
+                +irInc(IrBoxCounterField.get(it))
+            }
+
             val valueToBox = function.valueParameters[0]
             if (valueToBox.type.containsNull()) {
                 +irIfThen(
