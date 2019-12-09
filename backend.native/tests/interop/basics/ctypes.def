@@ -1,4 +1,28 @@
 ---
+
+struct StructWithAnonUnion {
+    int x;
+    union {
+        int a[2];
+        struct {
+            long b;
+        };
+    };
+    double y;
+};
+
+static struct StructWithAnonUnion retByValue() {
+	struct StructWithAnonUnion c;
+	c.x = 37;
+	c.b = 42;
+	c.a[1] = 1;
+	return c;
+}
+
+static int sendByValue(struct StructWithAnonUnion c) {
+	return c.a[0] + 2 * c.a[1];
+}
+
 // KT-28065
 struct StructWithConstFields {
     int x;
