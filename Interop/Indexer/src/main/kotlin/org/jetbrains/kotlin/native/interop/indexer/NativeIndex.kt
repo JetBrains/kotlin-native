@@ -139,6 +139,8 @@ class IncompleteField(name: String, type: Type) : StructMember(name, type) {
     override val offset: Long? get() = null
 }
 
+class AnonymousInnerRecord(type: RecordType, override val offset: Long, val typeSize: Long) : StructMember("", type)
+
 /**
  * C struct declaration.
  */
@@ -162,7 +164,16 @@ abstract class StructDef(val size: Long, val align: Int, val decl: StructDecl) {
     abstract val members: List<StructMember>
     abstract val kind: Kind
 
-    val fields: List<Field> get() = members.filterIsInstance<Field>()
+    val fields: List<Field> get() {
+        val result = mutableListOf<Field>()
+        members.forEach {
+            when (it) {
+                is Field -> result.add(it)
+                is AnonymousInnerRecord -> result.addAll((it.type as RecordType).decl.def!!.fields)
+            }
+        }
+    return result
+    }
     val bitFields: List<BitField> get() = members.filterIsInstance<BitField>()
 }
 

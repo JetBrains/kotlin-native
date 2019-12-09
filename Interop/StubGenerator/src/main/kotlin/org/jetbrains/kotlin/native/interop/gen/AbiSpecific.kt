@@ -105,7 +105,7 @@ private fun Type.isIntegerLikeType(): Boolean = when (this) {
                         when (it) {
                             is BitField -> it.type.isIntegerLikeType()
                             is Field -> it.offset == 0L && it.type.isIntegerLikeType()
-                            is IncompleteField -> false
+                            is IncompleteField, is AnonymousInnerRecord -> false
                         }
                     }
         }

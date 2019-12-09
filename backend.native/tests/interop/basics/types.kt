@@ -3,6 +3,16 @@ import kotlin.test.*
 import ctypes.*
 
 fun main() {
+    val c = retByValue()
+    c.useContents{
+        assertEquals(37, x)
+        assertEquals(42L + 0x100000000, b)
+
+        a[0] = 2
+        a[1] = 5
+        assertEquals(12, sendByValue(this.readValue()))
+    }
+
     getStructWithConstFields().useContents {
         assertEquals(111, x)
         assertEquals(222, y)
