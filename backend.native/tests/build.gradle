@@ -2722,7 +2722,7 @@ standaloneTest("memory_only_gc") {
 }
 
 standaloneTest("leak_detector") {
-    disabled = !isAppleTarget(project) || project.globalTestArgs.contains('-opt')
+    disabled = project.globalTestArgs.contains('-opt')
     flags = ['-g']
     source = "runtime/memory/leak_detector.kt"
 }
