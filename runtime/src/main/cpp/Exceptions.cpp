@@ -55,7 +55,8 @@ class AutoFree {
   AutoFree(void* mem): mem_(mem) {}
 
   ~AutoFree() {
-    konan::free(mem_);
+    // Used to free memory allocated in backtrace_symbols where malloc is used.
+    free(mem_);
   }
 };
 
