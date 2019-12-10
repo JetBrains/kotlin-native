@@ -18,38 +18,33 @@ import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.backend.konan.descriptors.resolveFakeOverride
 import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.descriptors.konan.CompiledKlibModuleOrigin
-import org.jetbrains.kotlin.ir.expressions.IrConst
+import org.jetbrains.kotlin.ir.expressions.IrGetObjectValue
+import org.jetbrains.kotlin.ir.expressions.IrReturn
 import org.jetbrains.kotlin.ir.expressions.impl.IrDelegatingConstructorCallImpl
-import org.jetbrains.kotlin.ir.expressions.impl.IrReturnImpl
-import org.jetbrains.kotlin.ir.types.isPrimitiveType
-import org.jetbrains.kotlin.ir.types.isString
 
-enum class ObjectStorageKind {
+internal enum class ObjectStorageKind {
     PERMANENT,
     THREAD_LOCAL,
     SHARED
 }
 
-private val IrConstructor.isAnyConstructorDelegation: Boolean
-    get() {
+private fun IrConstructor.isAnyConstructorDelegation(context: Context): Boolean {
         val statements = this.body?.statements ?: return false
         if (statements.size != 2) return false
-        if (statements[1] !is IrReturnImpl) return false
+        val lastStatement = statements[1]
+        if (lastStatement !is IrReturn ||
+                (lastStatement.value as? IrGetObjectValue)?.symbol != context.irBuiltIns.unitClass) return false
         val constructorCall = statements[0] as? IrDelegatingConstructorCallImpl ?: return false
         val constructor = constructorCall.symbol.owner as? IrConstructor ?: return false
-        if (!constructor.constructedClass.isAny()) return false
-        return true
+        return constructor.constructedClass.isAny()
     }
 
 // TODO: shall we memoize that property?
 internal fun IrClass.hasConstStateAndNoSideEffects(context: Context): Boolean {
+    if (!context.shouldOptimize()) return false
+    if (this.hasAnnotation(KonanFqNames.canBePrecreated)) return true
     val fields = context.getLayoutBuilder(this).fields
-    if (this.hasAnnotation(KonanFqNames.canBePrecreated)) {
-        assert(fields.all { it.isFinal && (it.type.isPrimitiveType() || it.type.isString()) &&
-                it.initializer?.expression is IrConst<*> })
-        return true
-    }
-    return fields.isEmpty() && this.constructors.all { it.isAnyConstructorDelegation }
+    return fields.isEmpty() && this.constructors.all { it.isAnyConstructorDelegation(context) }
 }
 
 internal class CodeGenerator(override val context: Context) : ContextUtils {

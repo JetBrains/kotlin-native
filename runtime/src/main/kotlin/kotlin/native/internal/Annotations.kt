@@ -125,7 +125,7 @@ annotation class Independent
 
 /**
  * Indicates that given top level signleton object can be created in compile time and thus
- * members access doesn't need to have to use init barrier and allow better optimizations for
+ * members access doesn't need to use an init barrier and allow better optimizations for
  * field access, such as constant folding.
  */
 @Target(AnnotationTarget.CLASS)

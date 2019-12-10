@@ -488,10 +488,10 @@ internal object DataFlowIR {
                 }
 
                 override fun visitField(declaration: IrField) {
-                   declaration.initializer?.let {
-                       if (it.expression !is IrConst<*>)
-                           mapFunction(declaration)
-                   }
+                    if (declaration.parent is IrFile)
+                        declaration.initializer?.let {
+                            mapFunction(declaration)
+                        }
                 }
 
                 override fun visitClass(declaration: IrClass) {
