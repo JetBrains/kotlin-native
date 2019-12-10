@@ -3897,6 +3897,27 @@ KotlinNativeTestKt.createTest(project, 'harmonyRegexTest', KonanGTest) { task ->
     task.finalizedBy("resultsTask")
 }
 
+task expect_actual_link {
+    konanArtifacts {
+        library("expects", targets: [targetName]) {
+            srcFiles 'link/expect/expects.kt'
+            extraOpts "-Xmulti-platform", "-Xmpp-klibs"
+        }
+        library("actuals", targets: [targetName]) {
+            srcFiles 'link/expect/actuals.kt'
+            extraOpts "-Xmulti-platform", "-Xmpp-klibs"
+        }
+        program("expect_actual_link", targets: [targetName]) {
+            srcFiles 'link/expect/main.kt'
+            libraries {
+                artifact konanArtifacts.expects
+                artifact konanArtifacts.actuals
+            }
+            extraOpts "-Xmulti-platform", "-Xmpp-klibs"
+        }
+    }
+}
+
 if (UtilsKt.testTargetSupportsCodeCoverage(project)) {
     task coverage_basic_program(type: CoverageTest) {
 
