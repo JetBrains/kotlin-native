@@ -222,7 +222,6 @@ open class MacOSBasedLinker(targetProperties: AppleConfigurables)
             if (needsProfileLibrary) +profileLibrary!!
             +libraries
             +linkerArgs
-            //+"/Users/elena.lepilkina/mimalloc/out/release/libmimalloc.a"
             +rpath(dynamic)
         }
 
