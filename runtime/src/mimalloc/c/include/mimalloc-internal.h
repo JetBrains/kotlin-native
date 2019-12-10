@@ -464,7 +464,14 @@ static inline uintptr_t _mi_thread_id(void) mi_attr_noexcept {
   #if defined(__i386__)
   __asm__("movl %%gs:0, %0" : "=r" (tid) : : );  // 32-bit always uses GS
   #elif defined(__MACH__)
+  // <Jetbrains>
+  #include <TargetConditionals.h>
+  #if TARGET_OS_EMBEDDED // iOS/tvOS/watchOS devices.
+  asm volatile ("mrc p15, 0, %0, c13, c0, 3" : "=r" (tid));
+  #else
   __asm__("movq %%gs:0, %0" : "=r" (tid) : : );  // x86_64 macOS uses GS
+  #endif
+  // </Jetbrains>
   #elif defined(__x86_64__)
   __asm__("movq %%fs:0, %0" : "=r" (tid) : : );  // x86_64 Linux, BSD uses FS
   #elif defined(__arm__)
