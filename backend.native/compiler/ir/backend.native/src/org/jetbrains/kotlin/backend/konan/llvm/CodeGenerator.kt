@@ -22,12 +22,6 @@ import org.jetbrains.kotlin.ir.expressions.IrDelegatingConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrGetObjectValue
 import org.jetbrains.kotlin.ir.expressions.IrReturn
 
-internal enum class ObjectStorageKind {
-    PERMANENT,
-    THREAD_LOCAL,
-    SHARED
-}
-
 private fun IrConstructor.isAnyConstructorDelegation(context: Context): Boolean {
         val statements = this.body?.statements ?: return false
         if (statements.size != 2) return false
@@ -94,7 +88,7 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
 
     fun getObjectInstanceShadowStorage(irClass: IrClass): LLVMValueRef {
         assert (!irClass.isUnit())
-        assert (irClass.objectIsShared)
+        assert (irClass.storageKind(context) == ObjectStorageKind.SHARED)
         val llvmGlobal = if (!isExternal(irClass)) {
             context.llvmDeclarations.forSingleton(irClass).instanceShadowFieldRef!!
         } else {
@@ -941,14 +935,12 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                 )
             }
         }
-
-        if (irClass.hasConstStateAndNoSideEffects(context)) {
-            return loadSlot(codegen.getObjectInstanceStorage(irClass, ObjectStorageKind.PERMANENT), false)
+        val storageKind = irClass.storageKind(context)
+        if (storageKind == ObjectStorageKind.PERMANENT) {
+            return loadSlot(codegen.getObjectInstanceStorage(irClass, storageKind), false)
         }
 
-        val shared = irClass.objectIsShared && context.config.threadsAreAllowed
-        val objectPtr = codegen.getObjectInstanceStorage(irClass,
-                if (shared) ObjectStorageKind.SHARED else ObjectStorageKind.THREAD_LOCAL)
+        val objectPtr = codegen.getObjectInstanceStorage(irClass, storageKind)
         val bbInit = basicBlock("label_init", startLocationInfo, endLocationInfo)
         val bbExit = basicBlock("label_continue", startLocationInfo, endLocationInfo)
         val objectVal = loadSlot(objectPtr, false)
@@ -961,7 +953,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         val defaultConstructor = irClass.constructors.single { it.valueParameters.size == 0 }
         val ctor = codegen.llvmFunction(defaultConstructor)
         val (initFunction, args) =
-                if (shared) {
+                if (storageKind == ObjectStorageKind.SHARED && context.config.threadsAreAllowed) {
                     val shadowObjectPtr = codegen.getObjectInstanceShadowStorage(irClass)
                     context.llvm.initSharedInstanceFunction to listOf(objectPtr, shadowObjectPtr, typeInfo, ctor)
                 } else {

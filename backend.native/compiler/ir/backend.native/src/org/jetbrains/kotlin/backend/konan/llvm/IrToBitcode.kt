@@ -32,33 +32,43 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.resolve.descriptorUtil.classId
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
 
-internal enum class FieldStorage {
+internal enum class FieldStorageKind {
     MAIN_THREAD,
     SHARED,
     THREAD_LOCAL
 }
 
-// TODO: maybe unannotated singleton objects shall be accessed from main thread only as well?
-val IrClass.objectIsShared get() =
-    !annotations.hasAnnotation(KonanFqNames.threadLocal) || annotations.hasAnnotation(KonanFqNames.canBePrecreated)
+internal enum class ObjectStorageKind {
+    PERMANENT,
+    THREAD_LOCAL,
+    SHARED
+}
 
-internal val IrField.storageClass: FieldStorage get() {
+// TODO: maybe unannotated singleton objects shall be accessed from main thread only as well?
+internal val IrField.storageKind: FieldStorageKind get() {
     // TODO: Is this correct?
     val annotations = correspondingPropertySymbol?.owner?.annotations ?: annotations
     return when {
-        annotations.hasAnnotation(KonanFqNames.threadLocal) -> FieldStorage.THREAD_LOCAL
-        !isFinal -> FieldStorage.MAIN_THREAD
-        annotations.hasAnnotation(KonanFqNames.sharedImmutable) -> FieldStorage.SHARED
+        annotations.hasAnnotation(KonanFqNames.threadLocal) -> FieldStorageKind.THREAD_LOCAL
+        !isFinal -> FieldStorageKind.MAIN_THREAD
+        annotations.hasAnnotation(KonanFqNames.sharedImmutable) -> FieldStorageKind.SHARED
         // TODO: simplify, once IR types are fully there.
         (type.classifierOrNull?.owner as? IrAnnotationContainer)
-                ?.annotations?.hasAnnotation(KonanFqNames.frozen) == true -> FieldStorage.SHARED
-        else -> FieldStorage.MAIN_THREAD
+                ?.annotations?.hasAnnotation(KonanFqNames.frozen) == true -> FieldStorageKind.SHARED
+        else -> FieldStorageKind.MAIN_THREAD
     }
+}
+
+internal fun IrClass.storageKind(context: Context): ObjectStorageKind = when {
+    this.annotations.hasAnnotation(KonanFqNames.threadLocal) &&
+            context.config.threadsAreAllowed -> ObjectStorageKind.THREAD_LOCAL
+    this.hasConstStateAndNoSideEffects(context) -> ObjectStorageKind.PERMANENT
+    else -> ObjectStorageKind.SHARED
 }
 
 val IrField.isMainOnlyNonPrimitive get() = when  {
         descriptor.type.computePrimitiveBinaryTypeOrNull() != null -> false
-        else -> storageClass == FieldStorage.MAIN_THREAD
+        else -> storageKind == FieldStorageKind.MAIN_THREAD
     }
 
 internal fun verifyModule(llvmModule: LLVMModuleRef, current: String = "") {
@@ -383,10 +393,10 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                     context.llvm.fileInitializers
                             .forEach {
                                 if (it.initializer?.expression !is IrConst<*>?) {
-                                    if (it.storageClass != FieldStorage.THREAD_LOCAL) {
+                                    if (it.storageKind != FieldStorageKind.THREAD_LOCAL) {
                                         val initialization = evaluateExpression(it.initializer!!.expression)
                                         val address = context.llvmDeclarations.forStaticField(it).storage
-                                        if (it.storageClass == FieldStorage.SHARED)
+                                        if (it.storageKind == FieldStorageKind.SHARED)
                                             freeze(initialization, currentCodeContext.exceptionHandler)
                                         storeAny(initialization, address, false)
                                     }
@@ -399,7 +409,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                     context.llvm.fileInitializers
                             .forEach {
                                 if (it.initializer?.expression !is IrConst<*>?) {
-                                   if (it.storageClass == FieldStorage.THREAD_LOCAL) {
+                                   if (it.storageKind == FieldStorageKind.THREAD_LOCAL) {
                                        val initialization = evaluateExpression(it.initializer!!.expression)
                                        val address = context.llvmDeclarations.forStaticField(it).storage
                                        storeAny(initialization, address, false)
@@ -412,7 +422,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 appendingTo(bbLocalDeinit) {
                     context.llvm.fileInitializers.forEach {
                         // Only if a subject for memory management.
-                        if (it.type.binaryTypeIsReference() && it.storageClass == FieldStorage.THREAD_LOCAL) {
+                        if (it.type.binaryTypeIsReference() && it.storageKind == FieldStorageKind.THREAD_LOCAL) {
                             val address = context.llvmDeclarations.forStaticField(it).storage
                             storeHeapRef(codegen.kNullObjHeaderPtr, address)
                         }
@@ -425,7 +435,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                     context.llvm.fileInitializers
                             // Only if a subject for memory management.
                             .forEach {
-                                if (it.type.binaryTypeIsReference() && it.storageClass != FieldStorage.THREAD_LOCAL) {
+                                if (it.type.binaryTypeIsReference() && it.storageKind != FieldStorageKind.THREAD_LOCAL) {
                                     val address = context.llvmDeclarations.forStaticField(it).storage
                                     storeHeapRef(codegen.kNullObjHeaderPtr, address)
                                 }
@@ -740,7 +750,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
         if (declaration.kind.isSingleton && !declaration.isUnit()) {
             val value = context.llvmDeclarations.forSingleton(declaration).instanceFieldRef
-            LLVMSetInitializer(value, if (declaration.hasConstStateAndNoSideEffects(context))
+            LLVMSetInitializer(value, if (declaration.storageKind(context) == ObjectStorageKind.PERMANENT)
                 context.llvm.staticData.createConstKotlinObject(declaration,
                         *computeFields(declaration)).llvm else codegen.kNullObjHeaderPtr)
         }
@@ -1539,7 +1549,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             val globalValue = context.llvmDeclarations.forStaticField(value.symbol.owner).storage
             if (context.config.threadsAreAllowed && value.symbol.owner.isMainOnlyNonPrimitive)
                 functionGenerationContext.checkMainThread(currentCodeContext.exceptionHandler)
-            if (value.symbol.owner.storageClass == FieldStorage.SHARED)
+            if (value.symbol.owner.storageKind == FieldStorageKind.SHARED)
                 functionGenerationContext.freeze(valueToAssign, currentCodeContext.exceptionHandler)
             functionGenerationContext.storeAny(valueToAssign, globalValue, false)
         }
