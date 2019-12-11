@@ -242,6 +242,9 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     @Argument(value="-Xoverride-clang-options", valueDescription = "<arg1,arg2,...>", description = "Explicit list of Clang options")
     var clangOptions: Array<String>? = null
 
+    @Argument(value = "-Xmetadata-klib", description = "Produce a klib that only contains the declarations metadata")
+    var metadataKlib: Boolean = false
+
     override fun configureAnalysisFlags(collector: MessageCollector): MutableMap<AnalysisFlag<*>, Any> =
             super.configureAnalysisFlags(collector).also {
                 val useExperimental = it[AnalysisFlags.useExperimental] as List<*>
