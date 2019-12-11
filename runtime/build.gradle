@@ -17,7 +17,7 @@ targetList.each { targetName ->
         name "runtime"
         srcRoot file('src/main')
         dependsOn ":common:${targetName}Hash"
-        dependsOn "${targetName}Mimalloc"
+        dependsOn "${targetName}Jemalloc"
         dependsOn "${targetName}Launcher"
         dependsOn "${targetName}Debug"
         dependsOn "${targetName}Release"
@@ -29,13 +29,12 @@ targetList.each { targetName ->
         target targetName
         includeRuntime(delegate)
         linkerArgs project.file("../common/build/$targetName/hash.bc").path
-        preprocessedBitcodeFolders 'mimalloc'
+        preprocessedBitcodeFolders 'jemalloc'
     }
 
-    tasks.create("${targetName}Mimalloc", CompileCToBitcode, file('src/mimalloc'), "mimalloc", targetName).configure {
-        excludeFiles.addAll(["**/alloc-override*.c", "**/page-queue.c", "**/static.c"])
+    tasks.create("${targetName}Jemalloc", CompileCToBitcode, file('src/jemalloc'), "jemalloc", targetName).configure {
         skipLinkagePhase = true
-        excludedTargets.add('wasm32')
+        //excludedTargets.add('wasm32')
     }
 
     task("${targetName}Launcher", type: CompileCppToBitcode) {

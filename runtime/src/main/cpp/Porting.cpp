@@ -215,11 +215,11 @@ extern "C" void* dlcalloc(size_t, size_t);
 extern "C" void dlfree(void*);
 #define calloc_impl dlcalloc
 #define free_impl dlfree
-#elif KONAN_INTERNAL_MIMALLOC
-extern "C" void* mi_calloc(size_t, size_t);
-extern "C" void mi_free(void*);
-#define calloc_impl mi_calloc
-#define free_impl mi_free
+#elif KONAN_INTERNAL_JEMALLOC
+extern "C" void* je_calloc(size_t, size_t);
+extern "C" void je_free(void*);
+#define calloc_impl je_calloc
+#define free_impl je_free
 #else
 #define calloc_impl ::calloc
 #define free_impl ::free

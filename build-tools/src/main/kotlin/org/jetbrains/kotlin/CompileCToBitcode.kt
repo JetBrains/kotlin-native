@@ -23,6 +23,8 @@ import org.gradle.api.tasks.InputDirectory
 import org.gradle.api.tasks.OutputFile
 import org.gradle.api.tasks.TaskAction
 import org.gradle.process.ExecSpec
+import org.jetbrains.kotlin.konan.target.Family
+import org.jetbrains.kotlin.konan.target.HostManager
 
 import java.io.File
 import javax.inject.Inject
@@ -53,8 +55,10 @@ open class CompileCToBitcode @Inject constructor(@InputDirectory val srcRoot: Fi
         plugin.execKonanClang(target, Action {
             it.workingDir = objDir
             it.executable = "clang"
+            val picFlags = if (HostManager().targetByName(target).family == Family.MINGW) listOf("-fPIC", "-DPIC") else emptyList()
             it.args = listOf("-std=gnu11", "-O3", "-c", "-emit-llvm", "-I$headersDir", "-Wall",
-                    "-Wextra", "-Wno-unknown-pragmas", "-ftls-model=initial-exec") + compilerArgs +
+                    "-Wextra", "-Wshorten-64-to-32", "-Wsign-compare", "-Wundef", "-Wno-format-zero-length",
+                    "-funroll-loops", "-D_REENTRANT") + picFlags + compilerArgs +
                     project.fileTree(srcDir) {
                         it.include("**/*.c")
                         it.exclude(excludeFiles)
