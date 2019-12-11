@@ -192,8 +192,8 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DELFSIZE=32",
                         // TODO: reconsider, once target MIPS can do proper 64-bit load/store/CAS.
                         "-DKONAN_NO_64BIT_ATOMIC=1",
-                        "-DKONAN_NO_UNALIGNED_ACCESS=1",
-                        "-DKONAN_INTERNAL_MIMALLOC=1")
+                        "-DKONAN_NO_UNALIGNED_ACCESS=1"//,
+                        /*"-DKONAN_INTERNAL_MIMALLOC=1"*/)
 
             KonanTarget.LINUX_MIPSEL32 ->
                 listOf("-DUSE_GCC_UNWIND=1",
@@ -203,8 +203,8 @@ class ClangArgs(private val configurables: Configurables) : Configurables by con
                         "-DELFSIZE=32",
                         // TODO: reconsider, once target MIPS can do proper 64-bit load/store/CAS.
                         "-DKONAN_NO_64BIT_ATOMIC=1",
-                        "-DKONAN_NO_UNALIGNED_ACCESS=1",
-                        "-DKONAN_INTERNAL_MIMALLOC=1")
+                        "-DKONAN_NO_UNALIGNED_ACCESS=1"//,
+                        /*"-DKONAN_INTERNAL_MIMALLOC=1"*/)
 
             KonanTarget.MINGW_X64, KonanTarget.MINGW_X86 ->
                 listOf("-DUSE_GCC_UNWIND=1",
