@@ -18,9 +18,9 @@ import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.backend.konan.descriptors.resolveFakeOverride
 import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.descriptors.konan.CompiledKlibModuleOrigin
+import org.jetbrains.kotlin.ir.expressions.IrDelegatingConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrGetObjectValue
 import org.jetbrains.kotlin.ir.expressions.IrReturn
-import org.jetbrains.kotlin.ir.expressions.impl.IrDelegatingConstructorCallImpl
 
 internal enum class ObjectStorageKind {
     PERMANENT,
@@ -34,7 +34,7 @@ private fun IrConstructor.isAnyConstructorDelegation(context: Context): Boolean 
         val lastStatement = statements[1]
         if (lastStatement !is IrReturn ||
                 (lastStatement.value as? IrGetObjectValue)?.symbol != context.irBuiltIns.unitClass) return false
-        val constructorCall = statements[0] as? IrDelegatingConstructorCallImpl ?: return false
+        val constructorCall = statements[0] as? IrDelegatingConstructorCall ?: return false
         val constructor = constructorCall.symbol.owner as? IrConstructor ?: return false
         return constructor.constructedClass.isAny()
     }

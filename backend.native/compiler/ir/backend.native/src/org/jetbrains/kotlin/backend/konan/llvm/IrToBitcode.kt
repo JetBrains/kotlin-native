@@ -40,13 +40,12 @@ internal enum class FieldStorage {
 
 // TODO: maybe unannotated singleton objects shall be accessed from main thread only as well?
 val IrClass.objectIsShared get() =
-    !annotations.hasAnnotation(KonanFqNames.threadLocal)
+    !annotations.hasAnnotation(KonanFqNames.threadLocal) || annotations.hasAnnotation(KonanFqNames.canBePrecreated)
 
 internal val IrField.storageClass: FieldStorage get() {
     // TODO: Is this correct?
     val annotations = correspondingPropertySymbol?.owner?.annotations ?: annotations
     return when {
-        annotations.hasAnnotation(KonanFqNames.canBePrecreated) -> FieldStorage.SHARED
         annotations.hasAnnotation(KonanFqNames.threadLocal) -> FieldStorage.THREAD_LOCAL
         !isFinal -> FieldStorage.MAIN_THREAD
         annotations.hasAnnotation(KonanFqNames.sharedImmutable) -> FieldStorage.SHARED
