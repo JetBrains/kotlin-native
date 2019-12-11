@@ -65,10 +65,10 @@
 /*
  * Defined if os_unfair_lock_*() functions are available, as provided by Darwin.
  */
-#define JEMALLOC_OS_UNFAIR_LOCK 
+/* #undef JEMALLOC_OS_UNFAIR_LOCK */
 
 /* Defined if syscall(2) is usable. */
-/* #undef JEMALLOC_USE_SYSCALL */
+#define JEMALLOC_USE_SYSCALL 
 
 /*
  * Defined if secure_getenv(3) is available.
@@ -342,7 +342,7 @@
 /*
  * If defined, all the features necessary for background threads are present.
  */
-/* #undef JEMALLOC_BACKGROUND_THREAD */
+#define JEMALLOC_BACKGROUND_THREAD 1
 
 /*
  * If defined, jemalloc symbols are not exported (doesn't work when
