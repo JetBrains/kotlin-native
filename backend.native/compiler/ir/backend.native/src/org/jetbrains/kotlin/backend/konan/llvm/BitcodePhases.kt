@@ -211,6 +211,15 @@ internal val escapeAnalysisPhase = makeKonanModuleOpPhase(
         }
 )
 
+internal val localEscapeAnalysisPhase = makeKonanModuleOpPhase(
+        name = "LocalEscapeAnalysis",
+        description = "Local escape analysis",
+        prerequisite = setOf(buildDFGPhase, devirtualizationPhase),
+        op = { context, _ ->
+            LocalEscapeAnalysis.computeLifetimes(context, context.moduleDFG!!, context.lifetimes)
+        }
+)
+
 internal val serializeDFGPhase = makeKonanModuleOpPhase(
         name = "SerializeDFG",
         description = "Data flow graph serializing",
@@ -242,6 +251,18 @@ internal val cStubsPhase = makeKonanModuleOpPhase(
         name = "CStubs",
         description = "C stubs compilation",
         op = { context, _ -> produceCStubs(context) }
+)
+
+internal val linkBitcodeDependenciesPhase = makeKonanModuleOpPhase(
+        name = "LinkBitcodeDependencies",
+        description = "Link bitcode dependencies",
+        op = { context, _ -> linkBitcodeDependencies(context) }
+)
+
+internal val bitcodeOptimizationPhase = makeKonanModuleOpPhase(
+        name = "BitcodeOptimization",
+        description = "Optimize bitcode",
+        op = { context, _ -> runLlvmOptimizationPipeline(context) }
 )
 
 internal val produceOutputPhase = makeKonanModuleOpPhase(

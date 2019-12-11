@@ -22,6 +22,8 @@ import org.gradle.api.file.FileCollection
 import org.gradle.api.tasks.*
 import org.gradle.util.ConfigureUtil
 import org.gradle.workers.IsolationMode
+import org.gradle.workers.WorkAction
+import org.gradle.workers.WorkParameters
 import org.gradle.workers.WorkerExecutor
 import org.jetbrains.kotlin.gradle.plugin.konan.*
 import org.jetbrains.kotlin.gradle.plugin.konan.KonanInteropSpec.IncludeDirectoriesSpec
@@ -41,10 +43,10 @@ import javax.inject.Inject
  * A task executing cinterop tool with the given args and compiling the stubs produced by this tool.
  */
 
-open class KonanInteropTask @Inject constructor(val workerExecutor: WorkerExecutor) : KonanBuildingTask(), KonanInteropSpec {
+open class KonanInteropTask @Inject constructor(@Internal val workerExecutor: WorkerExecutor) : KonanBuildingTask(), KonanInteropSpec {
 
-    @Internal override val toolRunner: KonanToolRunner =
-        KonanInteropRunner(project, project.konanExtension.jvmArgs)
+    @get:Internal
+    override val toolRunner: KonanToolRunner = KonanInteropRunner(project, project.konanExtension.jvmArgs)
 
     override fun init(config: KonanBuildingConfig<*>, destinationDir: File, artifactName: String, target: KonanTarget) {
         super.init(config, destinationDir, artifactName, target)
@@ -191,15 +193,15 @@ open class KonanInteropTask @Inject constructor(val workerExecutor: WorkerExecut
     }
     // endregion
 
-    internal class RunTool @Inject constructor(
-            val taskName: String,
-            val args: List<String>
-    ) : Runnable {
+    internal interface RunToolParameters: WorkParameters {
+        var taskName: String
+        var args: List<String>
+    }
 
-
-        override fun run() {
-            val toolRunner = interchangeBox.remove(taskName) ?: error(":(")
-            toolRunner.run(args)
+    internal abstract class RunTool @Inject constructor() : WorkAction<RunToolParameters> {
+        override fun execute() {
+            val toolRunner = interchangeBox.remove(parameters.taskName) ?: error(":(")
+            toolRunner.run(parameters.args)
         }
     }
 
@@ -210,10 +212,11 @@ open class KonanInteropTask @Inject constructor(val workerExecutor: WorkerExecut
         }
         val args = buildArgs()
         if (enableParallel) {
+            val workQueue = workerExecutor.noIsolation()
             interchangeBox[this.path] = toolRunner
-            workerExecutor.submit(RunTool::class.java) {
-                it.isolationMode = IsolationMode.NONE
-                it.params(this.path, args)
+            workQueue.submit(RunTool::class.java) {
+                it.taskName = this.path
+                it.args = args
             }
         } else {
             toolRunner.run(args)

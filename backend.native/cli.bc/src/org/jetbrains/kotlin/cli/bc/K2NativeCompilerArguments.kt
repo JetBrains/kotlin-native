@@ -163,6 +163,14 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     )
     var librariesToCache: Array<String>? = null
 
+    @Argument(
+            value = ADD_CACHE,
+            valueDescription = "<path>",
+            description = "Path to the library to be added to cache",
+            delimiter = ""
+    )
+    var libraryToAddToCache: String? = null
+
     @Argument(value = "-Xprint-bitcode", deprecatedName = "--print_bitcode", description = "Print llvm bitcode")
     var printBitCode: Boolean = false
 
@@ -231,6 +239,9 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     @Argument(value = "-Xobjc-generics", description = "Enable experimental generics support for framework header")
     var objcGenerics: Boolean = false
 
+    @Argument(value="-Xoverride-clang-options", valueDescription = "<arg1,arg2,...>", description = "Explicit list of Clang options")
+    var clangOptions: Array<String>? = null
+
     override fun configureAnalysisFlags(collector: MessageCollector): MutableMap<AnalysisFlag<*>, Any> =
             super.configureAnalysisFlags(collector).also {
                 val useExperimental = it[AnalysisFlags.useExperimental] as List<*>
@@ -246,3 +257,4 @@ const val STATIC_FRAMEWORK_FLAG = "-Xstatic-framework"
 const val INCLUDE_ARG = "-Xinclude"
 const val CACHED_LIBRARY = "-Xcached-library"
 const val MAKE_CACHE = "-Xmake-cache"
+const val ADD_CACHE = "-Xadd-cache"

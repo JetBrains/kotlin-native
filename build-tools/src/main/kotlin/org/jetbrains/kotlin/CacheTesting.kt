@@ -49,8 +49,9 @@ fun configureCacheTesting(project: Project): CacheTesting? {
         it.commandLine(
                 "$dist/bin/konanc",
                 "-p", cacheKind.visibleName,
-                "-o", cacheFile,
+                "-o", "$cacheDir/stdlib-cache",
                 "-Xmake-cache=$stdlib",
+                "-no-default-libs", "-nostdlib",
                 "-g"
         )
     }

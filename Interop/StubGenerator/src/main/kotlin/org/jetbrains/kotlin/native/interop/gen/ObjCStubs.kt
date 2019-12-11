@@ -132,7 +132,7 @@ private class ObjCMethodStubBuilder(
                     MemberStubModality.OVERRIDE
                 } else when (container) {
                     is ObjCClass -> MemberStubModality.OPEN
-                    is ObjCProtocol -> MemberStubModality.OPEN
+                    is ObjCProtocol -> MemberStubModality.ABSTRACT
                 }
             }
             is ObjCCategory -> MemberStubModality.FINAL
@@ -574,7 +574,8 @@ private class ObjCPropertyStubBuilder(
             is ObjCClassOrProtocol -> null
             is ObjCCategory -> ClassifierStubType(context.getKotlinClassFor(container.clazz, isMeta = property.getter.isClass))
         }
-        return listOf(PropertyStub(property.name, kotlinType.toStubIrType(), kind, modality, receiver))
+        val origin = StubOrigin.ObjCProperty(property, container)
+        return listOf(PropertyStub(property.name, kotlinType.toStubIrType(), kind, modality, receiver, origin = origin))
     }
 }
 
