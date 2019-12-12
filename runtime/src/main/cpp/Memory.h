@@ -362,7 +362,8 @@ struct ObjHeader {
 
   inline bool local() const {
     unsigned bits = getPointerBits(typeInfoOrMeta_, OBJECT_TAG_MASK);
-    return (bits & (OBJECT_TAG_PERMANENT_CONTAINER | OBJECT_TAG_NONTRIVIAL_CONTAINER)) == 3;
+    return (bits & (OBJECT_TAG_PERMANENT_CONTAINER | OBJECT_TAG_NONTRIVIAL_CONTAINER)) ==
+        (OBJECT_TAG_PERMANENT_CONTAINER | OBJECT_TAG_NONTRIVIAL_CONTAINER);
   }
 
   // Unsafe cast to ArrayHeader. Use carefully!
