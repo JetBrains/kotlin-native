@@ -159,9 +159,15 @@ internal class NativeIndexImpl(val library: NativeLibrary, val verbose: Boolean 
 
     private fun getDeclarationId(cursor: CValue<CXCursor>): DeclarationID {
         val usr = clang_getCursorUSR(cursor).convertAndDispose()
+        val kind = cursor.kind
+        val spelling = getCursorSpelling(cursor)
+        
+        // anonymous structs which differ only by member names may have the same usr
+        val anonStructHash = if (spelling.isEmpty() && (kind == CXCursorKind.CXCursor_StructDecl || kind == CXCursorKind.CXCursor_UnionDecl) ) {
+            cursor.type.name.hashCode().toString(16)
+        } else ""
+
         if (usr == "") {
-            val kind = cursor.kind
-            val spelling = getCursorSpelling(cursor)
             return when (kind to spelling) {
                 CXCursorKind.CXCursor_StructDecl to "__va_list_tag" -> DeclarationID.VaListTag
                 CXCursorKind.CXCursor_StructDecl to "__va_list" -> DeclarationID.VaList
@@ -171,7 +177,7 @@ internal class NativeIndexImpl(val library: NativeLibrary, val verbose: Boolean 
             }
         }
 
-        return DeclarationID.USR(usr)
+        return DeclarationID.USR("$usr\$$anonStructHash")
     }
 
     private fun getStructDeclAt(
@@ -215,7 +221,7 @@ internal class NativeIndexImpl(val library: NativeLibrary, val verbose: Boolean 
 
     private fun findNamedParent(cursor: CValue<CXCursor>): CValue<CXCursor> {
         var parent = cursor
-        while (clang_Cursor_isAnonymous(parent) == 1)
+        while (clang_isDeclaration(parent.kind) != 0 && clang_Cursor_isAnonymous(parent) != 0)
             parent = clang_getCursorSemanticParent(parent)
         return parent
     }
