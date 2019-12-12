@@ -173,7 +173,8 @@ internal val psiToIrPhase = konanUnitPhase(
                     generatorContext.irBuiltIns,
                     symbolTable,
                     forwardDeclarationsModuleDescriptor,
-                    exportedDependencies
+                    exportedDependencies,
+                    config.configuration.get(CommonConfigurationKeys.KLIB_MPP)?:false
             )
 
             var dependenciesCount = 0
