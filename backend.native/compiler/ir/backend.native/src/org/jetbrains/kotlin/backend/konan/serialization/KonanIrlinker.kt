@@ -36,9 +36,8 @@ class KonanIrLinker(
     builtIns: IrBuiltIns,
     symbolTable: SymbolTable,
     forwardModuleDescriptor: ModuleDescriptor?,
-    exportedDependencies: List<ModuleDescriptor>,
-    klibMpp: Boolean
-) : KotlinIrLinker(logger, builtIns, symbolTable, exportedDependencies, forwardModuleDescriptor, KonanMangler, klibMpp),
+    exportedDependencies: List<ModuleDescriptor>
+) : KotlinIrLinker(logger, builtIns, symbolTable, exportedDependencies, forwardModuleDescriptor, KonanMangler),
     DescriptorUniqIdAware by DeserializedDescriptorUniqIdAware {
 
     override val descriptorReferenceDeserializer =

@@ -173,8 +173,7 @@ internal val psiToIrPhase = konanUnitPhase(
                     generatorContext.irBuiltIns,
                     symbolTable,
                     forwardDeclarationsModuleDescriptor,
-                    exportedDependencies,
-                    config.configuration.get(CommonConfigurationKeys.KLIB_MPP)?:false
+                    exportedDependencies
             )
 
             var dependenciesCount = 0
@@ -197,7 +196,6 @@ internal val psiToIrPhase = konanUnitPhase(
                 dependenciesCount = dependencies.size
             }
 
-
             deserializer.initializeExpectActualLinker()
 
             val functionIrClassFactory = BuiltInFictitiousFunctionIrClassFactory(
@@ -213,6 +211,8 @@ internal val psiToIrPhase = konanUnitPhase(
 
             expectDescriptorToSymbol = mutableMapOf<DeclarationDescriptor, IrSymbol>()
             val module = translator.generateModuleFragment(generatorContext, environment.getSourceFiles(), irProviders, expectDescriptorToSymbol)
+
+            deserializer.finalizeExpectActualLinker()
 
             if (this.stdlibModule in modulesWithoutDCE) {
                 functionIrClassFactory.buildAllClasses()
