@@ -15,12 +15,13 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
+import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 
 internal fun createLlvmDeclarations(context: Context): LlvmDeclarations {
     val generator = DeclarationsGeneratorVisitor(context)
-    context.ir.irModule.acceptChildrenVoid(generator)
+    context.ir.irModule.acceptVoid(generator)
     return with(generator) {
         LlvmDeclarations(
                 functions, classes, fields, staticFields, uniques
@@ -67,7 +68,7 @@ internal class ClassLlvmDeclarations(
         val singletonDeclarations: SingletonLlvmDeclarations?,
         val objCDeclarations: KotlinObjCClassLlvmDeclarations?)
 
-internal class SingletonLlvmDeclarations(val instanceFieldRef: LLVMValueRef, val instanceShadowFieldRef: LLVMValueRef?)
+internal class SingletonLlvmDeclarations(val instanceGetter: ValueAccess, val instanceAddressGetter: AddressAccess)
 
 internal class KotlinObjCClassLlvmDeclarations(
         val classPointerGlobal: StaticData.Global,
@@ -79,7 +80,7 @@ internal class FunctionLlvmDeclarations(val llvmFunction: LLVMValueRef)
 
 internal class FieldLlvmDeclarations(val index: Int, val classBodyType: LLVMTypeRef)
 
-internal class StaticFieldLlvmDeclarations(val storage: LLVMValueRef)
+internal class StaticFieldLlvmDeclarations(val storageAddressAccess: AddressAccess)
 
 internal class UniqueLlvmDeclarations(val pointer: ConstPointer)
 
@@ -262,35 +263,113 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
     }
 
     private fun createSingletonDeclarations(irClass: IrClass): SingletonLlvmDeclarations? {
-
         if (irClass.isUnit()) {
             return null
         }
 
         val isExported = irClass.isExported()
-        val symbolName = if (isExported) {
-            irClass.objectInstanceFieldSymbolName
+        val valueGetterName = if (isExported) {
+            irClass.objectInstanceGetterSymbolName
         } else {
-            "kobjref:" + qualifyInternalName(irClass)
+            null
         }
-        val threadLocal = irClass.storageKind(context) == ObjectStorageKind.THREAD_LOCAL
-        val instanceFieldRef = addGlobal(
-                symbolName, getLLVMType(irClass.defaultType), isExported = isExported, threadLocal = threadLocal)
+        val addressGetterName = if (isExported) {
+            irClass.objectInstanceAddressSymbolName
+        } else {
+            null
+        }
 
-        val instanceShadowFieldRef =
-                if (threadLocal) null
-                else {
-                    val shadowSymbolName = if (isExported) {
-                        irClass.objectInstanceShadowFieldSymbolName
-                    } else {
-                        "kshadowobjref:" + qualifyInternalName(irClass)
+        // If object is imported - access it via getter functions.
+        if (isExternal(irClass)) {
+            assert(valueGetterName != null)
+            assert(addressGetterName != null)
+            val valueGetterFunction = LLVMGetNamedFunction(context.llvmModule, valueGetterName)!!
+            val addressGetterFunction = LLVMGetNamedFunction(context.llvmModule, addressGetterName)!!
+            val instanceGetter = object: ValueAccess() {
+                override fun getValue(generationContext: FunctionGenerationContext?,
+                                      exceptionHandler: ExceptionHandler,
+                                      startLocation: LocationInfo?, endLocation: LocationInfo?): LLVMValueRef {
+                    with(generationContext!!) {
+                        return call(valueGetterFunction, listOf(), exceptionHandler = exceptionHandler)
                     }
-                    addGlobal(shadowSymbolName, getLLVMType(irClass.defaultType), isExported = isExported, threadLocal = true)
                 }
+            }
+            val addressGetter = object: AddressAccess() {
+                override fun getAddress(generationContext: FunctionGenerationContext?): LLVMValueRef {
+                    with(generationContext!!) {
+                        return call(addressGetterFunction, listOf())
+                    }
+                }
+            }
+            return SingletonLlvmDeclarations(instanceGetter, addressGetter)
+        }
 
-        instanceShadowFieldRef?.let { LLVMSetInitializer(it, kNullObjHeaderPtr) }
+        val threadLocal = irClass.storageKind(context) == ObjectStorageKind.THREAD_LOCAL
+        val symbolName = "kobjref:" + qualifyInternalName(irClass)
+        val instanceAddress = addKotlinGlobal(symbolName, getLLVMType(irClass.defaultType), threadLocal = threadLocal)
 
-        return SingletonLlvmDeclarations(instanceFieldRef, instanceShadowFieldRef)
+        val instanceShadowAddress = if (threadLocal) null else {
+            val shadowSymbolName = "kshadowobjref:" + qualifyInternalName(irClass)
+            addKotlinGlobal(shadowSymbolName, getLLVMType(irClass.defaultType), threadLocal = true)
+        }
+
+        val instanceGetter = object: ValueAccess() {
+            override fun prepare(codegen: CodeGenerator) {
+                if (valueGetterName != null) {
+                    generateFunction(codegen, LLVMFunctionType(kObjHeaderPtr, cValuesOf(kObjHeaderPtrPtr), 1, 0)!!,
+                            valueGetterName) {
+                        val value = getValue(this, ExceptionHandler.Caller, null, null)
+                        ret(value)
+                    }
+                }
+                if (addressGetterName != null) {
+                    generateFunction(codegen, LLVMFunctionType(kObjHeaderPtrPtr, null, 0, 0)!!,
+                            addressGetterName) {
+                        ret(instanceAddress.getAddress(this))
+                    }
+                }
+            }
+            override fun getValue(generationContext: FunctionGenerationContext?,
+                                  exceptionHandler: ExceptionHandler,
+                                  startLocation: LocationInfo?, endLocation: LocationInfo?): LLVMValueRef {
+                val storageKind = irClass.storageKind(context)
+                with (generationContext!!) {
+                    if (storageKind == ObjectStorageKind.PERMANENT) {
+                        return loadSlot(instanceAddress.getAddress(generationContext), false)
+                    }
+                    val objectPtr = instanceAddress.getAddress(generationContext)
+                    val bbInit = basicBlock("label_init", startLocation, endLocation)
+                    val bbExit = basicBlock("label_continue", startLocation, endLocation)
+                    val objectVal = loadSlot(objectPtr, false)
+                    val objectInitialized = icmpUGt(ptrToInt(objectVal, codegen.intPtrType), codegen.immOneIntPtrType)
+                    val bbCurrent = currentBlock
+                    condBr(objectInitialized, bbExit, bbInit)
+
+                    positionAtEnd(bbInit)
+                    val typeInfo = codegen.typeInfoForAllocation(irClass)
+                    val defaultConstructor = irClass.constructors.single { it.valueParameters.size == 0 }
+                    val ctor = codegen.llvmFunction(defaultConstructor)
+                    val (initFunction, args) =
+                            if (storageKind == ObjectStorageKind.SHARED && context.config.threadsAreAllowed) {
+                                val shadowObjectPtr = instanceShadowAddress!!.getAddress(this)
+                                context.llvm.initSharedInstanceFunction to listOf(objectPtr, shadowObjectPtr, typeInfo, ctor)
+                            } else {
+                                context.llvm.initInstanceFunction to listOf(objectPtr, typeInfo, ctor)
+                            }
+                    val newValue = call(initFunction, args, Lifetime.GLOBAL, exceptionHandler)
+                    val bbInitResult = currentBlock
+                    br(bbExit)
+
+                    positionAtEnd(bbExit)
+                    val valuePhi = phi(codegen.getLLVMType(irClass.defaultType))
+                    addPhiIncoming(valuePhi, bbCurrent to objectVal, bbInitResult to newValue)
+
+                    return valuePhi
+                }
+            }
+        }
+
+        return SingletonLlvmDeclarations(instanceGetter, instanceAddress)
     }
 
     private fun createKotlinObjCClassDeclarations(irClass: IrClass): KotlinObjCClassLlvmDeclarations {
@@ -325,9 +404,8 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
         } else {
             // Fields are module-private, so we use internal name:
             val name = "kvar:" + qualifyInternalName(declaration)
-            val storage = addGlobal(
-                    name, getLLVMType(declaration.type), isExported = false,
-                    threadLocal = declaration.storageKind == FieldStorageKind.THREAD_LOCAL)
+            val storage = addKotlinGlobal(
+                    name, getLLVMType(declaration.type), threadLocal = declaration.storageKind == FieldStorageKind.THREAD_LOCAL)
 
             this.staticFields[declaration] = StaticFieldLlvmDeclarations(storage)
         }

@@ -81,6 +81,8 @@ typedef enum {
 
 typedef uint32_t container_size_t;
 
+struct InitNode;
+
 // Header of all container objects. Contains reference counter.
 struct ContainerHeader {
   // Reference counter of container. Uses CONTAINER_TAG_SHIFT, lower bits of counter
@@ -548,6 +550,13 @@ void MutationCheck(ObjHeader* obj);
 void FreezeSubgraph(ObjHeader* obj);
 // Ensure this object shall block freezing.
 void EnsureNeverFrozen(ObjHeader* obj);
+// Add TLS object storage, called by the generated code.
+void AddTLSRecord(MemoryState* memory, int module, int size) RUNTIME_NOTHROW;
+// Clear TLS object storage, called by the generated code.
+void ClearTLSRecord(MemoryState* memory, int module) RUNTIME_NOTHROW;
+// Lookup element in TLS object storage.
+ObjHeader** LookupTLS(int module, int index) RUNTIME_NOTHROW;
+
 #ifdef __cplusplus
 }
 #endif

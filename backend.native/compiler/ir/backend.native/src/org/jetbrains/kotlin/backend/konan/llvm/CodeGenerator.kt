@@ -64,46 +64,6 @@ internal class CodeGenerator(override val context: Context) : ContextUtils {
     fun functionEntryPointAddress(function: IrFunction) = function.entryPointAddress.llvm
     fun functionHash(function: IrFunction): LLVMValueRef = function.functionName.localHash.llvm
 
-    fun getObjectInstanceStorage(irClass: IrClass, kind: ObjectStorageKind): LLVMValueRef {
-        assert (!irClass.isUnit())
-        val llvmGlobal = if (!isExternal(irClass)) {
-            context.llvmDeclarations.forSingleton(irClass).instanceFieldRef
-        } else {
-            val llvmType = getLLVMType(irClass.defaultType)
-            importGlobal(
-                    irClass.objectInstanceFieldSymbolName,
-                    llvmType,
-                    origin = irClass.llvmSymbolOrigin,
-                    threadLocal = kind == ObjectStorageKind.THREAD_LOCAL
-            )
-        }
-        when (kind) {
-            ObjectStorageKind.SHARED -> context.llvm.sharedObjects += llvmGlobal
-            ObjectStorageKind.THREAD_LOCAL -> context.llvm.objects += llvmGlobal
-            ObjectStorageKind.PERMANENT -> { /* Do nothing, no need to free such an instance. */ }
-        }
-
-        return llvmGlobal
-    }
-
-    fun getObjectInstanceShadowStorage(irClass: IrClass): LLVMValueRef {
-        assert (!irClass.isUnit())
-        assert (irClass.storageKind(context) == ObjectStorageKind.SHARED)
-        val llvmGlobal = if (!isExternal(irClass)) {
-            context.llvmDeclarations.forSingleton(irClass).instanceShadowFieldRef!!
-        } else {
-            val llvmType = getLLVMType(irClass.defaultType)
-            importGlobal(
-                    irClass.objectInstanceShadowFieldSymbolName,
-                    llvmType,
-                    origin = irClass.llvmSymbolOrigin,
-                    threadLocal = true
-            )
-        }
-        context.llvm.objects += llvmGlobal
-        return llvmGlobal
-    }
-
     fun typeInfoForAllocation(constructedClass: IrClass): LLVMValueRef {
         assert(!constructedClass.isObjCClass())
         return typeInfoValue(constructedClass)
@@ -935,39 +895,16 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                 )
             }
         }
+
         val storageKind = irClass.storageKind(context)
-        if (storageKind == ObjectStorageKind.PERMANENT) {
-            return loadSlot(codegen.getObjectInstanceStorage(irClass, storageKind), false)
+        when (storageKind) {
+            ObjectStorageKind.SHARED -> context.llvm.sharedObjects += irClass
+            ObjectStorageKind.THREAD_LOCAL -> context.llvm.objects += irClass
+            ObjectStorageKind.PERMANENT -> { /* Do nothing, no need to free such an instance. */ }
         }
 
-        val objectPtr = codegen.getObjectInstanceStorage(irClass, storageKind)
-        val bbInit = basicBlock("label_init", startLocationInfo, endLocationInfo)
-        val bbExit = basicBlock("label_continue", startLocationInfo, endLocationInfo)
-        val objectVal = loadSlot(objectPtr, false)
-        val objectInitialized = icmpUGt(ptrToInt(objectVal, codegen.intPtrType), codegen.immOneIntPtrType)
-        val bbCurrent = currentBlock
-        condBr(objectInitialized, bbExit, bbInit)
-
-        positionAtEnd(bbInit)
-        val typeInfo = codegen.typeInfoForAllocation(irClass)
-        val defaultConstructor = irClass.constructors.single { it.valueParameters.size == 0 }
-        val ctor = codegen.llvmFunction(defaultConstructor)
-        val (initFunction, args) =
-                if (storageKind == ObjectStorageKind.SHARED && context.config.threadsAreAllowed) {
-                    val shadowObjectPtr = codegen.getObjectInstanceShadowStorage(irClass)
-                    context.llvm.initSharedInstanceFunction to listOf(objectPtr, shadowObjectPtr, typeInfo, ctor)
-                } else {
-                    context.llvm.initInstanceFunction to listOf(objectPtr, typeInfo, ctor)
-                }
-        val newValue = call(initFunction, args, Lifetime.GLOBAL, exceptionHandler)
-        val bbInitResult = currentBlock
-        br(bbExit)
-
-        positionAtEnd(bbExit)
-        val valuePhi = phi(codegen.getLLVMType(irClass.defaultType))
-        addPhiIncoming(valuePhi, bbCurrent to objectVal, bbInitResult to newValue)
-
-        return valuePhi
+        return context.llvmDeclarations.forSingleton(irClass).instanceGetter.getValue(this,
+                exceptionHandler, startLocationInfo, endLocationInfo)
     }
 
     /**

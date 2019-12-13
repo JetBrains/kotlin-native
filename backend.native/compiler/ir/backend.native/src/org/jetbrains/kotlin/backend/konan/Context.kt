@@ -277,6 +277,12 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     var serializedIr: SerializedIrModule? = null
     var dataFlowGraph: ByteArray? = null
 
+    val moduleId by lazy {
+        irModule!!.name.asString().localHash.value.toInt()
+    }
+
+    var tlsCount = 0
+
     val librariesWithDependencies by lazy {
         config.librariesWithDependencies(moduleDescriptor)
     }
@@ -347,9 +353,6 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     val cStubsManager = CStubsManager(config.target)
 
     val coverage = CoverageManager(this)
-
-    // Cache used for source offset->(line,column) mapping.
-    val fileEntryCache = mutableMapOf<String, SourceManager.FileEntry>()
 
     protected fun separator(title: String) {
         println("\n\n--- ${title} ----------------------\n")
