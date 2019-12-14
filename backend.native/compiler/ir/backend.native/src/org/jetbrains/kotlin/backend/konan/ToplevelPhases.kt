@@ -291,6 +291,7 @@ internal val allLoweringsPhase = namedIrModulePhase(
                                 innerClassPhase then
                                 dataClassesPhase then
                                 builtinOperatorPhase then
+                                createBoxingCounterPhase then
                                 finallyBlocksPhase then
                                 testProcessorPhase then
                                 enumClassPhase then
@@ -303,7 +304,8 @@ internal val allLoweringsPhase = namedIrModulePhase(
                                 typeOperatorPhase then
                                 bridgesPhase then
                                 autoboxPhase then
-                                returnsInsertionPhase
+                                returnsInsertionPhase then
+                                countBoxingsPhase
                 ),
         actions = setOf(defaultDumper, ::moduleValidationCallback)
 )
@@ -367,7 +369,6 @@ internal val entryPointPhase = SameTypeNamedPhaseWrapper(
                 require(context.llvmModuleSpecification.containsModule(
                         file.packageFragmentDescriptor.containingDeclaration))
 
-                IrBoxCounterField.get(context).tryAddTo(file)
                 file.addChild(makeEntryPoint(context))
                 return input
             }
@@ -451,5 +452,7 @@ internal fun PhaseConfig.konanPhasesConfig(config: KonanConfig) {
         disableUnless(dcePhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
         disableUnless(ghaPhase, getBoolean(KonanConfigKeys.OPTIMIZATION))
         disableUnless(verifyBitcodePhase, config.needCompilerVerification || getBoolean(KonanConfigKeys.VERIFY_BITCODE))
+        disableUnless(createBoxingCounterPhase, getBoolean(KonanConfigKeys.COUNT_BOX_OPERATIONS))
+        disableUnless(countBoxingsPhase, getBoolean(KonanConfigKeys.COUNT_BOX_OPERATIONS))
     }
 }

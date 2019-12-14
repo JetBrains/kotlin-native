@@ -9,9 +9,6 @@ import org.jetbrains.kotlin.backend.common.descriptors.WrappedSimpleFunctionDesc
 import org.jetbrains.kotlin.backend.common.descriptors.WrappedValueParameterDescriptor
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irBlockBody
-import org.jetbrains.kotlin.backend.konan.boxing.IrBoxCounterField
-import org.jetbrains.kotlin.backend.konan.boxing.ifCountBoxOperationsOptionEnabled
-import org.jetbrains.kotlin.backend.konan.boxing.irPrintln
 import org.jetbrains.kotlin.backend.konan.ir.buildSimpleAnnotation
 import org.jetbrains.kotlin.descriptors.Modality
 import org.jetbrains.kotlin.descriptors.Visibilities
@@ -76,9 +73,6 @@ internal fun makeEntryPoint(context: Context): IrFunction {
                 +irCall(actualMain).apply {
                     if (actualMain.valueParameters.size != 0)
                         putValueArgument(0, irGet(entryPoint.valueParameters[0]))
-                }
-                ifCountBoxOperationsOptionEnabled(context) {
-                    +irPrintln(IrBoxCounterField.get(it))
                 }
                 +irReturn(irInt(0))
             }

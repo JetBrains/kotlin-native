@@ -213,11 +213,18 @@ internal val builtinOperatorPhase = makeKonanFileLoweringPhase(
         prerequisite = setOf(defaultParameterExtentPhase)
 )
 
+internal val createBoxingCounterPhase = makeKonanFileLoweringPhase(
+        ::CreateBoxingCounterLowering,
+        name = "BoxingCounterCreation",
+        description = "Boxing counter creation",
+        prerequisite = setOf(initializersPhase, localFunctionsPhase, tailrecPhase)
+)
+
 internal val finallyBlocksPhase = makeKonanFileLoweringPhase(
         ::FinallyBlocksLowering,
         name = "FinallyBlocks",
         description = "Finally blocks lowering",
-        prerequisite = setOf(initializersPhase, localFunctionsPhase, tailrecPhase)
+        prerequisite = setOf(initializersPhase, localFunctionsPhase, tailrecPhase, createBoxingCounterPhase)
 )
 
 internal val testProcessorPhase = makeKonanFileOpPhase(
@@ -303,4 +310,11 @@ internal val returnsInsertionPhase = makeKonanFileLoweringPhase(
         name = "ReturnsInsertion",
         description = "Returns insertion for Unit functions",
         prerequisite = setOf(autoboxPhase, coroutinesPhase, enumClassPhase)
+)
+
+internal val countBoxingsPhase = makeKonanFileLoweringPhase(
+        ::CountBoxingsLowering,
+        name = "CountBoxings",
+        description = "Counts boxings",
+        prerequisite = setOf(autoboxPhase)
 )

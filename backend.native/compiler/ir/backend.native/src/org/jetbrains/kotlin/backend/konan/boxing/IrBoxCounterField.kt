@@ -17,7 +17,7 @@ import org.jetbrains.kotlin.ir.util.addChild
 import org.jetbrains.kotlin.ir.util.nameForIrSerialization
 import org.jetbrains.kotlin.ir.util.setDeclarationsParent
 
-internal class IrBoxCounterField private constructor(val context: Context) {
+internal class IrBoxCounterField private constructor(val context: Context, val suffix: String = "") {
 
     val field: IrField by lazy {
         val descriptor = WrappedFieldDescriptor()
@@ -52,29 +52,7 @@ internal class IrBoxCounterField private constructor(val context: Context) {
         private val counters = mutableMapOf<Context, IrBoxCounterField>()
         private var containingFile: IrFile? = null
 
-        fun get(context: Context) = counters.getOrPut(context) { IrBoxCounterField(context) }
-    }
-}
-
-internal fun IrBuilderWithScope.irPrintln(counter: IrBoxCounterField): IrFunctionAccessExpression {
-    val context = counter.context
-    val stdlib = context.irModules.filterKeys { it.endsWith("stdlib") }.values.firstOrNull()
-            ?: context.ir.irModule
-
-    // TODO improve search (at least get rid of explicit indexing)
-    val printlnFunction = stdlib.files
-            .first { it.fqName.toString() == "kotlin.io" && it.declarations.size == 3 }
-            .declarations[1] as IrFunction
-    val intClass = stdlib.files
-            .first { it.fqName.toString() == "kotlin" && it.fileEntry.name.endsWith("Primitives.kt") }
-            .declarations
-            .first { it.nameForIrSerialization.toString() == "Int" } as IrClass
-
-    val boxCall = irCall(context.getBoxFunction(intClass)).also {
-        it.putValueArgument(0, irGetField(null, counter.field))
-    }
-    return irCall(printlnFunction).also {
-        it.putValueArgument(0, boxCall)
+        fun get(context: Context, suffix: String = "") = counters.getOrPut(context) { IrBoxCounterField(context, suffix) }
     }
 }
 
@@ -92,9 +70,3 @@ internal fun IrBuilderWithScope.irInc(counter: IrBoxCounterField): IrSetFieldImp
 }
 
 internal fun IrField.isBoxingCounter() = name.toString() == "${"$"}boxingCounter"
-
-internal fun ifCountBoxOperationsOptionEnabled(context: Context, block: (Context) -> Unit) {
-    if (context.configuration.get(COUNT_BOX_OPERATIONS) == true) {
-        block(context)
-    }
-}
