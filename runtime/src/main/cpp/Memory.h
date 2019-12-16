@@ -81,8 +81,6 @@ typedef enum {
 
 typedef uint32_t container_size_t;
 
-struct InitNode;
-
 // Header of all container objects. Contains reference counter.
 struct ContainerHeader {
   // Reference counter of container. Uses CONTAINER_TAG_SHIFT, lower bits of counter

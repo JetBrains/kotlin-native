@@ -138,15 +138,6 @@ internal val IrClass.objectInstanceGetterSymbolName: String
         return "kobjget:$fqNameForIrSerialization"
     }
 
-internal val IrClass.objectInstanceAddressSymbolName: String
-    get() {
-        assert (this.isExported())
-        assert (this.kind.isSingleton)
-        assert (!this.isUnit())
-
-        return "kobjaddr:$fqNameForIrSerialization"
-    }
-
 val IrFunction.functionName get() = with(KonanMangler) { functionName }
 
 val IrFunction.symbolName get() = with(KonanMangler) { symbolName }

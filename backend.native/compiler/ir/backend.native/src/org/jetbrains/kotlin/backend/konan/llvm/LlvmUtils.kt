@@ -271,7 +271,7 @@ internal abstract class AddressAccess {
 
 internal abstract class ValueAccess {
     open fun prepare(codeGenerator: CodeGenerator) {}
-    abstract fun getValue(generationContext: FunctionGenerationContext?,
+    abstract fun getValue(generationContext: FunctionGenerationContext,
                           exceptionHandler: ExceptionHandler,
                           startLocation: LocationInfo?, endLocation: LocationInfo?): LLVMValueRef
 }

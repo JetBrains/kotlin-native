@@ -1757,6 +1757,7 @@ void deinitMemory(MemoryState* memoryState) {
   konanDestructInstance(memoryState->toFree);
   konanDestructInstance(memoryState->roots);
   konanDestructInstance(memoryState->toRelease);
+  RuntimeAssert(memoryState->tlsMap->size() == 0, "Must be already cleared");
   konanDestructInstance(memoryState->tlsMap);
   RuntimeAssert(memoryState->finalizerQueue == nullptr, "Finalizer queue must be empty");
   RuntimeAssert(memoryState->finalizerQueueSize == 0, "Finalizer queue must be empty");

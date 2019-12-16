@@ -456,8 +456,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                                     storeHeapRef(codegen.kNullObjHeaderPtr, address)
                                 }
                             }
-                    context.llvm.sharedObjects.forEach {irClass ->
-                        val address = context.llvmDeclarations.forSingleton(irClass).instanceAddressGetter.getAddress(
+                    context.llvm.sharedObjects.forEach { irClass ->
+                        val address = context.llvmDeclarations.forSingleton(irClass).instanceStorage.getAddress(
                                 functionGenerationContext
                         )
                         storeHeapRef(codegen.kNullObjHeaderPtr, address)
@@ -772,13 +772,21 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
         if (declaration.kind.isSingleton && !declaration.isUnit()) {
             val singleton = context.llvmDeclarations.forSingleton(declaration)
-            val access = singleton.instanceAddressGetter
+            val access = singleton.instanceStorage
             if (access is GlobalAddressAccess) {
                 LLVMSetInitializer(access.getAddress(null), if (declaration.storageKind(context) == ObjectStorageKind.PERMANENT)
                     context.llvm.staticData.createConstKotlinObject(declaration,
                             *computeFields(declaration)).llvm else codegen.kNullObjHeaderPtr)
             }
-            singleton.instanceGetter.prepare(codegen)
+            if (declaration.isExported() && !declaration.isEnumClass && !declaration.isEnumEntry) {
+                val valueGetterName = declaration.objectInstanceGetterSymbolName
+                generateFunction(codegen,
+                        LLVMFunctionType(codegen.kObjHeaderPtr, cValuesOf(codegen.kObjHeaderPtrPtr), 1, 0)!!,
+                        valueGetterName) {
+                    val value = getObjectValue(declaration, ExceptionHandler.Caller, null, null)
+                    ret(value)
+                }
+            }
         }
     }
 

@@ -8,6 +8,7 @@ package org.jetbrains.kotlin.backend.konan.llvm
 
 import kotlinx.cinterop.*
 import llvm.*
+import org.jetbrains.kotlin.backend.common.ir.ir2string
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.ClassGlobalHierarchyInfo
 import org.jetbrains.kotlin.backend.konan.llvm.objc.*
@@ -871,11 +872,8 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         return null
     }
 
-    fun getObjectValue(
-            irClass: IrClass,
-            exceptionHandler: ExceptionHandler,
-            startLocationInfo: LocationInfo?,
-            endLocationInfo: LocationInfo? = null
+    fun getObjectValue(irClass: IrClass, exceptionHandler: ExceptionHandler,
+            startLocationInfo: LocationInfo?, endLocationInfo: LocationInfo? = null
     ): LLVMValueRef {
         // TODO: could be processed the same way as other stateless objects.
         if (irClass.isUnit()) {
@@ -886,7 +884,6 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             val parent = irClass.parent as IrClass
             if (parent.isObjCClass()) {
                 // TODO: cache it too.
-
                 return call(
                         codegen.llvmFunction(context.ir.symbols.interopInterpretObjCPointer.owner),
                         listOf(getObjCClass(parent, exceptionHandler)),
@@ -896,15 +893,59 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             }
         }
 
+        // If object is imported - access it via getter function.
+        if (isExternal(irClass)) {
+            val valueGetterName = irClass.objectInstanceGetterSymbolName
+            val valueGetterFunction = LLVMGetNamedFunction(context.llvmModule, valueGetterName) ?:
+                LLVMAddFunction(context.llvmModule, valueGetterName,
+                        LLVMFunctionType(kObjHeaderPtr, cValuesOf(kObjHeaderPtrPtr), 1, 0))
+            return call(valueGetterFunction!!,
+                        listOf(),
+                        resultLifetime = Lifetime.GLOBAL,
+                        exceptionHandler = exceptionHandler)
+        }
+
         val storageKind = irClass.storageKind(context)
         when (storageKind) {
             ObjectStorageKind.SHARED -> context.llvm.sharedObjects += irClass
             ObjectStorageKind.THREAD_LOCAL -> context.llvm.objects += irClass
             ObjectStorageKind.PERMANENT -> { /* Do nothing, no need to free such an instance. */ }
         }
+        val singleton = context.llvmDeclarations.forSingleton(irClass)
+        val instanceAddress = singleton.instanceStorage
+        val instanceShadowAddress = singleton.instanceShadowStorage
 
-        return context.llvmDeclarations.forSingleton(irClass).instanceGetter.getValue(this,
-                exceptionHandler, startLocationInfo, endLocationInfo)
+        if (storageKind == ObjectStorageKind.PERMANENT) {
+            return loadSlot(instanceAddress.getAddress(this), false)
+        }
+        val objectPtr = instanceAddress.getAddress(this)
+        val bbInit = basicBlock("label_init", startLocationInfo, endLocationInfo)
+        val bbExit = basicBlock("label_continue", startLocationInfo, endLocationInfo)
+        val objectVal = loadSlot(objectPtr, false)
+        val objectInitialized = icmpUGt(ptrToInt(objectVal, codegen.intPtrType), codegen.immOneIntPtrType)
+        val bbCurrent = currentBlock
+        condBr(objectInitialized, bbExit, bbInit)
+
+        positionAtEnd(bbInit)
+        val typeInfo = codegen.typeInfoForAllocation(irClass)
+        val defaultConstructor = irClass.constructors.single { it.valueParameters.size == 0 }
+        val ctor = codegen.llvmFunction(defaultConstructor)
+        val (initFunction, args) =
+                if (storageKind == ObjectStorageKind.SHARED && context.config.threadsAreAllowed) {
+                    val shadowObjectPtr = instanceShadowAddress!!.getAddress(this)
+                    context.llvm.initSharedInstanceFunction to listOf(objectPtr, shadowObjectPtr, typeInfo, ctor)
+                } else {
+                    context.llvm.initInstanceFunction to listOf(objectPtr, typeInfo, ctor)
+                }
+        val newValue = call(initFunction, args, Lifetime.GLOBAL, exceptionHandler)
+        val bbInitResult = currentBlock
+        br(bbExit)
+
+        positionAtEnd(bbExit)
+        val valuePhi = phi(codegen.getLLVMType(irClass.defaultType))
+        addPhiIncoming(valuePhi, bbCurrent to objectVal, bbInitResult to newValue)
+
+        return valuePhi
     }
 
     /**

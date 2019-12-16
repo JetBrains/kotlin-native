@@ -15,13 +15,12 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
-import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 
 internal fun createLlvmDeclarations(context: Context): LlvmDeclarations {
     val generator = DeclarationsGeneratorVisitor(context)
-    context.ir.irModule.acceptVoid(generator)
+    context.ir.irModule.acceptChildrenVoid(generator)
     return with(generator) {
         LlvmDeclarations(
                 functions, classes, fields, staticFields, uniques
@@ -68,7 +67,7 @@ internal class ClassLlvmDeclarations(
         val singletonDeclarations: SingletonLlvmDeclarations?,
         val objCDeclarations: KotlinObjCClassLlvmDeclarations?)
 
-internal class SingletonLlvmDeclarations(val instanceGetter: ValueAccess, val instanceAddressGetter: AddressAccess)
+internal class SingletonLlvmDeclarations(val instanceStorage: AddressAccess, val instanceShadowStorage: AddressAccess?)
 
 internal class KotlinObjCClassLlvmDeclarations(
         val classPointerGlobal: StaticData.Global,
@@ -273,103 +272,18 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
         } else {
             null
         }
-        val addressGetterName = if (isExported) {
-            irClass.objectInstanceAddressSymbolName
-        } else {
-            null
-        }
 
-        // If object is imported - access it via getter functions.
-        if (isExternal(irClass)) {
-            assert(valueGetterName != null)
-            assert(addressGetterName != null)
-            val valueGetterFunction = LLVMGetNamedFunction(context.llvmModule, valueGetterName)!!
-            val addressGetterFunction = LLVMGetNamedFunction(context.llvmModule, addressGetterName)!!
-            val instanceGetter = object: ValueAccess() {
-                override fun getValue(generationContext: FunctionGenerationContext?,
-                                      exceptionHandler: ExceptionHandler,
-                                      startLocation: LocationInfo?, endLocation: LocationInfo?): LLVMValueRef {
-                    with(generationContext!!) {
-                        return call(valueGetterFunction, listOf(), exceptionHandler = exceptionHandler)
-                    }
-                }
-            }
-            val addressGetter = object: AddressAccess() {
-                override fun getAddress(generationContext: FunctionGenerationContext?): LLVMValueRef {
-                    with(generationContext!!) {
-                        return call(addressGetterFunction, listOf())
-                    }
-                }
-            }
-            return SingletonLlvmDeclarations(instanceGetter, addressGetter)
-        }
-
-        val threadLocal = irClass.storageKind(context) == ObjectStorageKind.THREAD_LOCAL
+        val storageKind = irClass.storageKind(context)
+        val threadLocal = storageKind == ObjectStorageKind.THREAD_LOCAL
         val symbolName = "kobjref:" + qualifyInternalName(irClass)
         val instanceAddress = addKotlinGlobal(symbolName, getLLVMType(irClass.defaultType), threadLocal = threadLocal)
 
-        val instanceShadowAddress = if (threadLocal) null else {
+        val instanceShadowAddress = if (threadLocal || storageKind == ObjectStorageKind.PERMANENT) null else {
             val shadowSymbolName = "kshadowobjref:" + qualifyInternalName(irClass)
             addKotlinGlobal(shadowSymbolName, getLLVMType(irClass.defaultType), threadLocal = true)
         }
 
-        val instanceGetter = object: ValueAccess() {
-            override fun prepare(codegen: CodeGenerator) {
-                if (valueGetterName != null) {
-                    generateFunction(codegen, LLVMFunctionType(kObjHeaderPtr, cValuesOf(kObjHeaderPtrPtr), 1, 0)!!,
-                            valueGetterName) {
-                        val value = getValue(this, ExceptionHandler.Caller, null, null)
-                        ret(value)
-                    }
-                }
-                if (addressGetterName != null) {
-                    generateFunction(codegen, LLVMFunctionType(kObjHeaderPtrPtr, null, 0, 0)!!,
-                            addressGetterName) {
-                        ret(instanceAddress.getAddress(this))
-                    }
-                }
-            }
-            override fun getValue(generationContext: FunctionGenerationContext?,
-                                  exceptionHandler: ExceptionHandler,
-                                  startLocation: LocationInfo?, endLocation: LocationInfo?): LLVMValueRef {
-                val storageKind = irClass.storageKind(context)
-                with (generationContext!!) {
-                    if (storageKind == ObjectStorageKind.PERMANENT) {
-                        return loadSlot(instanceAddress.getAddress(generationContext), false)
-                    }
-                    val objectPtr = instanceAddress.getAddress(generationContext)
-                    val bbInit = basicBlock("label_init", startLocation, endLocation)
-                    val bbExit = basicBlock("label_continue", startLocation, endLocation)
-                    val objectVal = loadSlot(objectPtr, false)
-                    val objectInitialized = icmpUGt(ptrToInt(objectVal, codegen.intPtrType), codegen.immOneIntPtrType)
-                    val bbCurrent = currentBlock
-                    condBr(objectInitialized, bbExit, bbInit)
-
-                    positionAtEnd(bbInit)
-                    val typeInfo = codegen.typeInfoForAllocation(irClass)
-                    val defaultConstructor = irClass.constructors.single { it.valueParameters.size == 0 }
-                    val ctor = codegen.llvmFunction(defaultConstructor)
-                    val (initFunction, args) =
-                            if (storageKind == ObjectStorageKind.SHARED && context.config.threadsAreAllowed) {
-                                val shadowObjectPtr = instanceShadowAddress!!.getAddress(this)
-                                context.llvm.initSharedInstanceFunction to listOf(objectPtr, shadowObjectPtr, typeInfo, ctor)
-                            } else {
-                                context.llvm.initInstanceFunction to listOf(objectPtr, typeInfo, ctor)
-                            }
-                    val newValue = call(initFunction, args, Lifetime.GLOBAL, exceptionHandler)
-                    val bbInitResult = currentBlock
-                    br(bbExit)
-
-                    positionAtEnd(bbExit)
-                    val valuePhi = phi(codegen.getLLVMType(irClass.defaultType))
-                    addPhiIncoming(valuePhi, bbCurrent to objectVal, bbInitResult to newValue)
-
-                    return valuePhi
-                }
-            }
-        }
-
-        return SingletonLlvmDeclarations(instanceGetter, instanceAddress)
+        return SingletonLlvmDeclarations(instanceAddress, instanceShadowAddress)
     }
 
     private fun createKotlinObjCClassDeclarations(irClass: IrClass): KotlinObjCClassLlvmDeclarations {
