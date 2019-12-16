@@ -38,6 +38,9 @@ targetList.each { targetName ->
         if (!new HostManager().targetByName(targetName).family.appleFamily) {
             excludeFiles.add("*zone.c")
         }
+        if (targetName.contains('_hfp')) {
+            compilerArgs.add('-DTARGET_USE_FP')
+        }
         excludedTargets.add('wasm32')
     }
 

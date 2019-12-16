@@ -81,12 +81,14 @@
 #endif
 
 /* Defined if syscall(2) is usable. */
-/* #undef JEMALLOC_USE_SYSCALL */
+#if __linux__
+#define JEMALLOC_USE_SYSCALL
+#endif
 
 /*
  * Defined if secure_getenv(3) is available.
  */
-/* #undef JEMALLOC_HAVE_SECURE_GETENV */
+//#define JEMALLOC_HAVE_SECURE_GETENV
 
 /*
  * Defined if issetugid(2) is available.
@@ -101,17 +103,19 @@
 #endif
 
 /* Defined if pthread_setname_np(3) is available. */
-/* #undef JEMALLOC_HAVE_PTHREAD_SETNAME_NP */
-
+#if __linux__
+#define JEMALLOC_HAVE_PTHREAD_SETNAME_NP
 /*
  * Defined if clock_gettime(CLOCK_MONOTONIC_COARSE, ...) is available.
  */
-/* #undef JEMALLOC_HAVE_CLOCK_MONOTONIC_COARSE */
+#define JEMALLOC_HAVE_CLOCK_MONOTONIC_COARSE */
 
 /*
  * Defined if clock_gettime(CLOCK_MONOTONIC, ...) is available.
  */
-/* #undef JEMALLOC_HAVE_CLOCK_MONOTONIC */
+#define JEMALLOC_HAVE_CLOCK_MONOTONIC */
+#endif
+
 
 /*
  * Defined if mach_absolute_time() is available.
@@ -231,7 +235,9 @@
 #endif
 
 /* TLS is used to map arenas and magazine caches to threads. */
-/* #undef JEMALLOC_TLS */
+#if __linux__
+#undef JEMALLOC_TLS
+#endif
 
 /*
  * Used to mark unreachable code to quiet "end of non-void" compiler warnings.
@@ -355,34 +361,44 @@
 /* sizeof(intmax_t) == 2^LG_SIZEOF_INTMAX_T. */
 #define LG_SIZEOF_INTMAX_T 3
 
+#ifdef __linux__
+#if !(defined(ANDROID) || defined(__ANDROID__))
 /* glibc malloc hooks (__malloc_hook, __realloc_hook, __free_hook). */
-/* #undef JEMALLOC_GLIBC_MALLOC_HOOK */
+#define JEMALLOC_GLIBC_MALLOC_HOOK
+#endif
 
 /* glibc memalign hook. */
-/* #undef JEMALLOC_GLIBC_MEMALIGN_HOOK */
+#define JEMALLOC_GLIBC_MEMALIGN_HOOK
+#endif
 
 /* pthread support */
 #if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 #define JEMALLOC_HAVE_PTHREAD
 #endif
 
+#if !defined(__linux__) && (!defined(__arm__) && !defined(__aarch64__))
 /* dlsym() support */
-#define JEMALLOC_HAVE_DLSYM 
+#define JEMALLOC_HAVE_DLSYM
+#endif
 
+#if __linux__
 /* Adaptive mutex support in pthreads. */
-/* #undef JEMALLOC_HAVE_PTHREAD_MUTEX_ADAPTIVE_NP */
+#define JEMALLOC_HAVE_PTHREAD_MUTEX_ADAPTIVE_NP
 
 /* GNU specific sched_getcpu support */
-/* #undef JEMALLOC_HAVE_SCHED_GETCPU */
+#define JEMALLOC_HAVE_SCHED_GETCPU
 
+#if !(defined(ANDROID) || defined(__ANDROID__))
 /* GNU specific sched_setaffinity support */
-/* #undef JEMALLOC_HAVE_SCHED_SETAFFINITY */
+#define JEMALLOC_HAVE_SCHED_SETAFFINITY
+#endif
+
 
 /*
  * If defined, all the features necessary for background threads are present.
  */
-/* #undef JEMALLOC_BACKGROUND_THREAD */
-
+#define JEMALLOC_BACKGROUND_THREAD
+#endif
 /*
  * If defined, jemalloc symbols are not exported (doesn't work when
  * JEMALLOC_PREFIX is not defined).
@@ -395,10 +411,12 @@
 /* If defined, jemalloc takes the malloc/free/etc. symbol names. */
 /* #undef JEMALLOC_IS_MALLOC */
 
+#if __linux__
 /*
  * Defined if strerror_r returns char * if _GNU_SOURCE is defined.
  */
-/* #undef JEMALLOC_STRERROR_R_RETURNS_CHAR_WITH_GNU_SOURCE */
+#define JEMALLOC_STRERROR_R_RETURNS_CHAR_WITH_GNU_SOURCE
+#endif
 
 /* Performs additional safety checks when defined. */
 /* #undef JEMALLOC_OPT_SAFETY_CHECKS */
