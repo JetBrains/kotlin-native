@@ -290,10 +290,13 @@ internal fun ContextUtils.addKotlinGlobal(name: String, type: LLVMTypeRef, threa
         } else {
             GlobalAddressAccess(LLVMAddGlobal(context.llvmModule, type, name)!!.also {
                 LLVMSetThreadLocalMode(it, context.llvm.tlsMode)
+                LLVMSetLinkage(it, LLVMLinkage.LLVMInternalLinkage)
             })
         }
     }
-    return GlobalAddressAccess(LLVMAddGlobal(context.llvmModule, type, name)!!)
+    return GlobalAddressAccess(LLVMAddGlobal(context.llvmModule, type, name)!!.also {
+        LLVMSetLinkage(it, LLVMLinkage.LLVMInternalLinkage)
+    })
 }
 
 internal fun functionType(returnType: LLVMTypeRef, isVarArg: Boolean = false, vararg paramTypes: LLVMTypeRef) =
