@@ -277,12 +277,6 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     var serializedIr: SerializedIrModule? = null
     var dataFlowGraph: ByteArray? = null
 
-    val moduleId by lazy {
-        irModule!!.name.asString().localHash.value.toInt()
-    }
-
-    var tlsCount = 0
-
     val librariesWithDependencies by lazy {
         config.librariesWithDependencies(moduleDescriptor)
     }

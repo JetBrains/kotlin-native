@@ -488,6 +488,15 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
         }
     }
 
+    var tlsCount = 0
+
+    val tlsKey by lazy {
+        val global = LLVMAddGlobal(llvmModule, kInt8Ptr, "__KonanTlsKey")!!
+        LLVMSetLinkage(global, LLVMLinkage.LLVMInternalLinkage)
+        LLVMSetInitializer(global, LLVMConstNull(kInt8Ptr))
+        global
+    }
+
     private val personalityFunctionName = when (target) {
         KonanTarget.IOS_ARM32 -> "__gxx_personality_sj0"
         KonanTarget.MINGW_X64 -> "__gxx_personality_seh0"
@@ -551,8 +560,6 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
         }
     }
 
-    val llvmObjHeaderPtr = runtime.objHeaderPtrType
-    val llvmObjHeaderPtrPtr = runtime.objHeaderPtrPtrType
     val llvmInt8 = int8Type
     val llvmInt16 = int16Type
     val llvmInt32 = int32Type

@@ -394,10 +394,10 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 // Globals initalizers may contain accesses to objects, so visit them first.
                 appendingTo(bbInit) {
                     // Bit clumsy, global init may need access to TLS, thus it has to be ready to that point.
-                    if (context.tlsCount > 0) {
+                    if (context.llvm.tlsCount > 0) {
                         val memory = LLVMGetParam(initFunction, 1)!!
-                        call(context.llvm.addTLSRecord, listOf(memory, Int32(context.moduleId).llvm,
-                                Int32(context.tlsCount).llvm))
+                        call(context.llvm.addTLSRecord, listOf(memory, context.llvm.tlsKey,
+                                Int32(context.llvm.tlsCount).llvm))
                     }
                     context.llvm.fileInitializers
                             .forEach { irField ->
@@ -417,10 +417,10 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 }
 
                 appendingTo(bbLocalInit) {
-                    if (context.tlsCount > 0) {
+                    if (context.llvm.tlsCount > 0) {
                         val memory = LLVMGetParam(initFunction, 1)!!
-                        call(context.llvm.addTLSRecord, listOf(memory, Int32(context.moduleId).llvm,
-                                Int32(context.tlsCount).llvm))
+                        call(context.llvm.addTLSRecord, listOf(memory, context.llvm.tlsKey,
+                                Int32(context.llvm.tlsCount).llvm))
                     }
                     context.llvm.fileInitializers
                             .forEach {irField ->
@@ -438,9 +438,9 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 }
 
                 appendingTo(bbLocalDeinit) {
-                    if (context.tlsCount > 0) {
+                    if (context.llvm.tlsCount > 0) {
                         val memory = LLVMGetParam(initFunction, 1)!!
-                        call(context.llvm.clearTLSRecord, listOf(memory, Int32(context.moduleId).llvm))
+                        call(context.llvm.clearTLSRecord, listOf(memory, context.llvm.tlsKey))
                     }
                     ret(null)
                 }

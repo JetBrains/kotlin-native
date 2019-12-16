@@ -269,13 +269,6 @@ internal abstract class AddressAccess {
     abstract fun getAddress(generationContext: FunctionGenerationContext?): LLVMValueRef
 }
 
-internal abstract class ValueAccess {
-    open fun prepare(codeGenerator: CodeGenerator) {}
-    abstract fun getValue(generationContext: FunctionGenerationContext,
-                          exceptionHandler: ExceptionHandler,
-                          startLocation: LocationInfo?, endLocation: LocationInfo?): LLVMValueRef
-}
-
 internal class GlobalAddressAccess(private val address: LLVMValueRef): AddressAccess() {
     override fun getAddress(generationContext: FunctionGenerationContext?): LLVMValueRef = address
 }
@@ -285,14 +278,14 @@ internal class TLSAddressAccess(
 
     override fun getAddress(generationContext: FunctionGenerationContext?): LLVMValueRef {
         return generationContext!!.call(context.llvm.lookupTLS,
-                listOf(Int32(context.moduleId).llvm, Int32(index).llvm))
+                listOf(context.llvm.tlsKey, Int32(index).llvm))
     }
 }
 
 internal fun ContextUtils.addKotlinGlobal(name: String, type: LLVMTypeRef, threadLocal: Boolean): AddressAccess {
     if (threadLocal) {
         return if (isObjectType(type)) {
-            val index = context.tlsCount++
+            val index = context.llvm.tlsCount++
             TLSAddressAccess(context, index)
         } else {
             GlobalAddressAccess(LLVMAddGlobal(context.llvmModule, type, name)!!.also {

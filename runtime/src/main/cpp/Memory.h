@@ -549,11 +549,11 @@ void FreezeSubgraph(ObjHeader* obj);
 // Ensure this object shall block freezing.
 void EnsureNeverFrozen(ObjHeader* obj);
 // Add TLS object storage, called by the generated code.
-void AddTLSRecord(MemoryState* memory, int module, int size) RUNTIME_NOTHROW;
+void AddTLSRecord(MemoryState* memory, void** key, int size) RUNTIME_NOTHROW;
 // Clear TLS object storage, called by the generated code.
-void ClearTLSRecord(MemoryState* memory, int module) RUNTIME_NOTHROW;
+void ClearTLSRecord(MemoryState* memory, void** key) RUNTIME_NOTHROW;
 // Lookup element in TLS object storage.
-ObjHeader** LookupTLS(int module, int index) RUNTIME_NOTHROW;
+ObjHeader** LookupTLS(void** key, int index) RUNTIME_NOTHROW;
 
 #ifdef __cplusplus
 }

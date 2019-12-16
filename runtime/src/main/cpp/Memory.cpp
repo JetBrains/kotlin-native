@@ -96,7 +96,7 @@ typedef KStdUnorderedSet<KRef> KRefSet;
 typedef KStdUnorderedMap<KRef, KInt> KRefIntMap;
 typedef KStdDeque<KRef> KRefDeque;
 typedef KStdDeque<KRefList> KRefListDeque;
-typedef KStdUnorderedMap<int, std::pair<KRef*,int>> KThreadLocalStorageMap;
+typedef KStdUnorderedMap<void**, std::pair<KRef*,int>> KThreadLocalStorageMap;
 
 // A little hack that allows to enable -O2 optimizations
 // Prevents clang from replacing FrameOverlay struct
@@ -415,7 +415,7 @@ struct MemoryState {
 
   KThreadLocalStorageMap* tlsMap;
   KRef* tlsMapLastStart;
-  int tlsMapLastModule;
+  void* tlsMapLastKey;
 
 #if USE_GC
   // Finalizer queue - linked list of containers scheduled for finalization.
@@ -3119,20 +3119,20 @@ void Konan_Platform_setMemoryLeakChecker(KBoolean value) {
   g_checkLeaks = value;
 }
 
-void AddTLSRecord(MemoryState* memory, int module, int size) {
+void AddTLSRecord(MemoryState* memory, void** key, int size) {
   auto* tlsMap = memory->tlsMap;
-  auto it = tlsMap->find(module);
+  auto it = tlsMap->find(key);
   if (it != tlsMap->end()) {
     RuntimeAssert(it->second.second == size, "Size must be consistent");
     return;
   }
   KRef* start = reinterpret_cast<KRef*>(konanAllocMemory(size * sizeof(KRef)));
-  tlsMap->emplace(module, std::make_pair(start, size));
+  tlsMap->emplace(key, std::make_pair(start, size));
 }
 
-void ClearTLSRecord(MemoryState* memory, int module) {
+void ClearTLSRecord(MemoryState* memory, void** key) {
   auto* tlsMap = memory->tlsMap;
-  auto it = tlsMap->find(module);
+  auto it = tlsMap->find(key);
   if (it != tlsMap->end()) {
     KRef* start = it->second.first;
     int count = it->second.second;
@@ -3144,18 +3144,18 @@ void ClearTLSRecord(MemoryState* memory, int module) {
   }
 }
 
-KRef* LookupTLS(int module, int index) {
+KRef* LookupTLS(void** key, int index) {
   auto* state = memoryState;
   auto* tlsMap = state->tlsMap;
   // In many cases there is only one module, so this one element cache.
-  if (state->tlsMapLastModule == module) {
+  if (state->tlsMapLastKey == key) {
     return state->tlsMapLastStart + index;
   }
-  auto it = tlsMap->find(module);
+  auto it = tlsMap->find(key);
   RuntimeAssert(it != tlsMap->end(), "Must be there");
   RuntimeAssert(index < it->second.second, "Out of bound in TLS access");
   KRef* start = it->second.first;
-  state->tlsMapLastModule = module;
+  state->tlsMapLastKey = key;
   state->tlsMapLastStart = start;
   return start + index;
 }
