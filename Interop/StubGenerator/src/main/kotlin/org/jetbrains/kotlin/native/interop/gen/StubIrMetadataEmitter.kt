@@ -6,6 +6,7 @@ package org.jetbrains.kotlin.native.interop.gen
 
 import kotlinx.metadata.*
 import kotlinx.metadata.klib.*
+import org.jetbrains.kotlin.metadata.serialization.Interner
 import org.jetbrains.kotlin.utils.addIfNotNull
 
 class StubIrMetadataEmitter(
@@ -20,313 +21,461 @@ class StubIrMetadataEmitter(
     }
 
     private fun emitModuleFragments(): List<KmModuleFragment> =
-        ModuleMetadataEmitter(context.configuration.pkgName).let {
-            builderResult.stubs.accept(it, null)
-            listOf(it.writeModule())
-        }
+            ModuleMetadataEmitter(context.configuration.pkgName, builderResult.stubs).emit().let(::listOf)
 }
 
 /**
  * Translates single [StubContainer] to [KmModuleFragment].
  */
 internal class ModuleMetadataEmitter(
-        private val packageFqName: String
-) : StubIrVisitor<StubContainer?, Unit> {
+        private val packageFqName: String,
+        private val module: SimpleStubContainer
+) {
 
-    private val uniqIds = StubIrUniqIdProvider()
+    fun emit(): KmModuleFragment {
+        val uniqIdProvider = StubIrUniqIdProvider(ManglingContext.Module(packageFqName))
+        val context = VisitingContext(uniqIds = uniqIdProvider)
+        val elements = KmElements(visitor.visitSimpleStubContainer(module, context))
+        return writeModule(elements)
+    }
 
-    private val classes = mutableListOf<KmClass>()
-    private val properties = mutableListOf<KmProperty>()
-    private val typeAliases = mutableListOf<KmTypeAlias>()
-    private val functions = mutableListOf<KmFunction>()
-
-    fun writeModule(): KmModuleFragment = KmModuleFragment().also { km ->
+    private fun writeModule(elements: KmElements) = KmModuleFragment().also { km ->
         km.fqName = packageFqName
-        km.classes += classes
-        km.pkg = writePackage()
+        km.classes += elements.classes.toList()
+        km.className += elements.classes.map(KmClass::name)
+        km.pkg = writePackage(elements)
     }
 
-    private fun writePackage() = KmPackage().also { km ->
+    private fun writePackage(elements: KmElements) = KmPackage().also { km ->
         km.fqName = packageFqName
-        km.typeAliases += typeAliases
-        km.properties += properties
-        km.functions += functions
+        km.typeAliases += elements.typeAliases.toList()
+        km.properties += elements.properties.toList()
+        km.functions += elements.functions.toList()
     }
 
-    override fun visitClass(element: ClassStub, data: StubContainer?) {
-        // TODO("not implemented")
+    /**
+     * StubIr translation result. Since Km* classes don't have common hierarchy we need
+     * to use list of Any.
+     */
+    private class KmElements(result: List<Any>) {
+        val classes: List<KmClass> = result.filterIsInstance<List<KmClass>>().flatten()
+        val properties: List<KmProperty> = result.filterIsInstance<KmProperty>()
+        val typeAliases: List<KmTypeAlias> = result.filterIsInstance<KmTypeAlias>()
+        val functions: List<KmFunction> = result.filterIsInstance<KmFunction>()
+        val constructors: List<KmConstructor> = result.filterIsInstance<KmConstructor>()
     }
 
-    override fun visitTypealias(element: TypealiasStub, data: StubContainer?) {
-        KmTypeAlias(element.flags, element.alias.topLevelName).apply {
-            uniqId = uniqIds.uniqIdForTypeAlias(element)
-            underlyingType = element.aliasee.map(shouldExpandTypeAliases = false)
-            expandedType = element.aliasee.map()
-        }.let(typeAliases::add)
-    }
+    /**
+     * Used to pass data between parents and children when visiting StubIr elements.
+     */
+    private data class VisitingContext(
+            val container: StubContainer? = null,
+            val uniqIds: StubIrUniqIdProvider,
+            val typeParametersInterner: Interner<TypeParameterStub> = Interner()
+    )
 
-    override fun visitFunction(element: FunctionStub, data: StubContainer?) {
-        KmFunction(element.flags, element.name).apply {
-            element.annotations.mapTo(annotations, AnnotationStub::map)
-            returnType = element.returnType.map()
-            element.parameters.mapTo(valueParameters, FunctionParameterStub::map)
-            element.typeParameters.mapTo(typeParameters, TypeParameterStub::map)
-            uniqId = uniqIds.uniqIdForFunction(element)
-        }.let(functions::add)
-    }
+    private val visitor = object : StubIrVisitor<VisitingContext, Any> {
 
-    override fun visitProperty(element: PropertyStub, data: StubContainer?) {
-        KmProperty(element.flags, element.name, element.getterFlags, element.setterFlags).apply {
-            element.annotations.mapTo(annotations, AnnotationStub::map)
-            uniqId = uniqIds.uniqIdForProperty(element)
-            returnType = element.type.map()
-            if (element.kind is PropertyStub.Kind.Var) {
-                val setter = element.kind.setter
-                setter.annotations.mapTo(setterAnnotations, AnnotationStub::map)
-                // TODO: Maybe it's better to explicitly add setter parameter in stub.
-                setterParameter = FunctionParameterStub("value", element.type).map()
+        override fun visitClass(element: ClassStub, data: VisitingContext): List<KmClass> {
+            val classVisitingContext = VisitingContext(
+                    container = element,
+                    uniqIds = data.uniqIds.createChild(element.nestedName()),
+                    typeParametersInterner = Interner(data.typeParametersInterner)
+            )
+            val children = element.children + if (element is ClassStub.Companion) {
+                listOf(ConstructorStub(isPrimary = true, visibility = VisibilityModifier.PRIVATE, origin = StubOrigin.SyntheticDefaultConstructor))
+            } else emptyList()
+            val elements = KmElements(children.map { it.accept(this, classVisitingContext) })
+            val kmClass = with (MappingExtensions(data.typeParametersInterner)) {
+                KmClass().also { km ->
+                    element.annotations.mapTo(km.annotations) { it.map() }
+                    km.flags = element.flags
+                    km.name = element.classifier.fqNameSerialized
+                    element.superClassInit?.let { km.supertypes += it.type.map() }
+                    element.interfaces.mapTo(km.supertypes) { it.map() }
+                    element.classes.mapTo(km.nestedClasses) { it.nestedName() }
+                    km.typeAliases += elements.typeAliases.toList()
+                    km.properties += elements.properties.toList()
+                    km.functions += elements.functions.toList()
+                    km.constructors += elements.constructors.toList()
+                    km.companionObject = element.companion?.nestedName()
+                    km.uniqId = data.uniqIds.uniqIdForClass(element)
+                }
             }
-            getterAnnotations += when (element.kind) {
-                is PropertyStub.Kind.Val -> element.kind.getter.annotations.map(AnnotationStub::map)
-                is PropertyStub.Kind.Var -> element.kind.getter.annotations.map(AnnotationStub::map)
-                is PropertyStub.Kind.Constant -> emptyList()
-            }
-            if (element.kind is PropertyStub.Kind.Constant) {
-                compileTimeValue = element.kind.constant.map()
-            }
-        }.let(properties::add)
-    }
-
-    override fun visitConstructor(constructorStub: ConstructorStub, data: StubContainer?) {
-        // TODO("not implemented")
-    }
-
-    override fun visitPropertyAccessor(propertyAccessor: PropertyAccessor, data: StubContainer?) {
-        // TODO("not implemented")
-    }
-
-    override fun visitSimpleStubContainer(simpleStubContainer: SimpleStubContainer, data: StubContainer?) {
-        simpleStubContainer.children.forEach { it.accept(this, simpleStubContainer) }
-    }
-}
-
-private val FunctionStub.flags: Flags
-    get() = listOfNotNull(
-            Flag.Common.IS_PUBLIC,
-            Flag.Function.IS_EXTERNAL,
-            Flag.HAS_ANNOTATIONS.takeIf { annotations.isNotEmpty() },
-            Flag.IS_FINAL.takeIf { modality == MemberStubModality.FINAL },
-            Flag.IS_OPEN.takeIf { modality == MemberStubModality.OPEN },
-            Flag.IS_ABSTRACT.takeIf { modality == MemberStubModality.ABSTRACT }
-    ).let { flagsOf(*it.toTypedArray()) }
-
-private val Classifier.fqNameSerialized: String
-    get() = buildString {
-        if (pkg.isNotEmpty()) {
-            append(pkg.replace('.', '/'))
-            append('/')
+            // Metadata stores classes as flat list.
+            return listOf(kmClass) + elements.classes
         }
-        // Nested classes should dot-separated.
-        append(relativeFqName)
+
+        override fun visitTypealias(element: TypealiasStub, data: VisitingContext): KmTypeAlias =
+                with (MappingExtensions(data.typeParametersInterner)) {
+                    KmTypeAlias(element.flags, element.alias.topLevelName).also { km ->
+                        km.uniqId = data.uniqIds.uniqIdForTypeAlias(element)
+                        km.underlyingType = element.aliasee.map(shouldExpandTypeAliases = false)
+                        km.expandedType = element.aliasee.map()
+                    }
+                }
+
+        override fun visitFunction(element: FunctionStub, data: VisitingContext) =
+                with (MappingExtensions(data.typeParametersInterner)) {
+                    KmFunction(element.flags, element.name).also { km ->
+                        element.typeParameters.mapTo(km.typeParameters) { it.map() }
+                        element.parameters.mapTo(km.valueParameters) { it.map() }
+                        element.annotations.mapTo(km.annotations) { it.map() }
+                        km.returnType = element.returnType.map()
+                        km.uniqId = data.uniqIds.uniqIdForFunction(element)
+                    }
+                }
+
+        override fun visitProperty(element: PropertyStub, data: VisitingContext) =
+                with (MappingExtensions(data.typeParametersInterner)) {
+                    KmProperty(element.flags, element.name, element.getterFlags, element.setterFlags).also { km ->
+                        element.annotations.mapTo(km.annotations) { it.map() }
+                        km.uniqId = data.uniqIds.uniqIdForProperty(element)
+                        km.returnType = element.type.map()
+                        if (element.kind is PropertyStub.Kind.Var) {
+                            val setter = element.kind.setter
+                            setter.annotations.mapTo(km.setterAnnotations) { it.map() }
+                            // TODO: Maybe it's better to explicitly add setter parameter in stub.
+                            km.setterParameter = FunctionParameterStub("value", element.type).map()
+                        }
+                        km.getterAnnotations += when (element.kind) {
+                            is PropertyStub.Kind.Val -> element.kind.getter.annotations.map { it.map() }
+                            is PropertyStub.Kind.Var -> element.kind.getter.annotations.map { it.map() }
+                            is PropertyStub.Kind.Constant -> emptyList()
+                        }
+                        if (element.kind is PropertyStub.Kind.Constant) {
+                            km.compileTimeValue = element.kind.constant.mapToAnnotationArgument()
+                        }
+                    }
+                }
+
+        override fun visitConstructor(constructorStub: ConstructorStub, data: VisitingContext) =
+                with (MappingExtensions(data.typeParametersInterner)) {
+                    KmConstructor(constructorStub.flags).apply {
+                        constructorStub.parameters.mapTo(valueParameters, { it.map() })
+                        constructorStub.annotations.mapTo(annotations, { it.map() })
+                        uniqId = data.uniqIds.uniqIdForConstructor(constructorStub)
+                    }
+                }
+
+        override fun visitPropertyAccessor(propertyAccessor: PropertyAccessor, data: VisitingContext) {
+            // TODO("not implemented")
+        }
+
+        override fun visitSimpleStubContainer(simpleStubContainer: SimpleStubContainer, data: VisitingContext): List<Any> =
+                simpleStubContainer.children.map { it.accept(this, data) } +
+                        simpleStubContainer.simpleContainers.flatMap { visitSimpleStubContainer(it, data) }
     }
-
-private val PropertyStub.flags: Flags
-    get() = listOfNotNull(
-            Flag.IS_PUBLIC,
-            Flag.Property.IS_DECLARATION,
-            Flag.HAS_ANNOTATIONS.takeIf { annotations.isNotEmpty() },
-            Flag.IS_FINAL.takeIf { modality == MemberStubModality.FINAL },
-            when (kind) {
-                is PropertyStub.Kind.Val -> null
-                is PropertyStub.Kind.Var -> Flag.Property.IS_VAR
-                is PropertyStub.Kind.Constant -> Flag.Property.IS_CONST
-            },
-            when (kind) {
-                is PropertyStub.Kind.Constant -> null
-                is PropertyStub.Kind.Val,
-                is PropertyStub.Kind.Var -> Flag.Property.HAS_GETTER
-            },
-            when (kind) {
-                is PropertyStub.Kind.Constant -> null
-                is PropertyStub.Kind.Val -> null
-                is PropertyStub.Kind.Var -> Flag.Property.HAS_SETTER
-            }
-    ).let { flagsOf(*it.toTypedArray()) }
-
-private val PropertyStub.getterFlags: Flags
-    get() = when (kind) {
-        is PropertyStub.Kind.Val -> kind.getter.flags
-        is PropertyStub.Kind.Var -> kind.getter.flags
-        is PropertyStub.Kind.Constant -> flagsOf()
-    }
-
-private val PropertyAccessor.Getter.flags: Flags
-    get() = listOfNotNull(
-            Flag.HAS_ANNOTATIONS.takeIf { annotations.isNotEmpty() },
-            Flag.IS_PUBLIC,
-            Flag.IS_FINAL,
-            Flag.PropertyAccessor.IS_EXTERNAL.takeIf { this is PropertyAccessor.Getter.ExternalGetter }
-    ).let { flagsOf(*it.toTypedArray()) }
-
-private val PropertyStub.setterFlags: Flags
-    get() = if (kind !is PropertyStub.Kind.Var) flagsOf()
-    else kind.setter.flags
-
-private val PropertyAccessor.Setter.flags: Flags
-    get() = listOfNotNull(
-            Flag.HAS_ANNOTATIONS.takeIf { annotations.isNotEmpty() },
-            Flag.IS_PUBLIC,
-            Flag.IS_FINAL,
-            Flag.PropertyAccessor.IS_EXTERNAL.takeIf { this is PropertyAccessor.Setter.ExternalSetter }
-    ).let { flagsOf(*it.toTypedArray()) }
-
-private val StubType.flags: Flags
-    get() = listOfNotNull(
-            Flag.Type.IS_NULLABLE.takeIf { nullable }
-    ).let { flagsOf(*it.toTypedArray()) }
-
-private val TypealiasStub.flags: Flags
-    get() = listOfNotNull(
-            Flag.IS_PUBLIC
-    ).let { flagsOf(*it.toTypedArray()) }
-
-private val FunctionParameterStub.flags: Flags
-    get() = listOfNotNull(
-            Flag.HAS_ANNOTATIONS.takeIf { annotations.isNotEmpty() }
-    ).let { flagsOf(*it.toTypedArray()) }
-
-private fun AnnotationStub.map(): KmAnnotation {
-    val args = when (this) {
-        AnnotationStub.ObjC.ConsumesReceiver -> TODO()
-        AnnotationStub.ObjC.ReturnsRetained -> TODO()
-        is AnnotationStub.ObjC.Method -> TODO()
-        is AnnotationStub.ObjC.Factory -> TODO()
-        AnnotationStub.ObjC.Consumed -> TODO()
-        is AnnotationStub.ObjC.Constructor -> TODO()
-        is AnnotationStub.ObjC.ExternalClass -> TODO()
-        AnnotationStub.CCall.CString -> mapOf()
-        AnnotationStub.CCall.WCString -> mapOf()
-        is AnnotationStub.CCall.Symbol ->
-            mapOf("id" to KmAnnotationArgument.StringValue(symbolName))
-        is AnnotationStub.CStruct -> TODO()
-        is AnnotationStub.CNaturalStruct -> TODO()
-        is AnnotationStub.CLength -> TODO()
-        is AnnotationStub.Deprecated -> TODO()
-    }
-    return KmAnnotation(classifier.fqNameSerialized, args)
 }
 
 /**
- * @param shouldExpandTypeAliases describes how should we write type aliases.
- * If [shouldExpandTypeAliases] is true then type alias-based types are written as
- * ```
- * Type {
- *  abbreviatedType = AbbreviatedType.abbreviatedClassifier
- *  classifier = AbbreviatedType.underlyingType
- *  arguments = AbbreviatedType.underlyingType.typeArguments
- * }
- * ```
- * So we basically replacing type alias with underlying class.
- * Otherwise:
- * ```
- * Type {
- *  classifier = AbbreviatedType.abbreviatedClassifier
- * }
- * ```
- * As of 25 Nov 2019, the latter form is used only for KmTypeAlias.underlyingType.
+ * Collection of extension functions that simplify translation of
+ * StubIr elements to Kotlin Metadata.
  */
-// TODO: Add caching if needed.
-private fun StubType.map(shouldExpandTypeAliases: Boolean = true): KmType = when (this) {
-    is AbbreviatedType -> {
-        val typeAliasClassifier = KmClassifier.TypeAlias(abbreviatedClassifier.fqNameSerialized)
-        if (shouldExpandTypeAliases) {
-            // Abbreviated and expanded types have the same nullability.
-            KmType(flags).also { km ->
-                km.abbreviatedType = KmType(flags).also { it.classifier = typeAliasClassifier }
-                val kmUnderlyingType = underlyingType.map(true)
-                km.arguments += kmUnderlyingType.arguments
-                km.classifier = kmUnderlyingType.classifier
-            }
-        } else {
-            KmType(flags).also { km -> km.classifier = typeAliasClassifier }
-        }
-    }
-    is ClassifierStubType -> KmType(flags).also { km ->
-        typeArguments.mapTo(km.arguments) { it.map(shouldExpandTypeAliases) }
-        km.classifier = KmClassifier.Class(classifier.fqNameSerialized)
-    }
-    is FunctionalType -> KmType(flags).also { km ->
-        typeArguments.mapTo(km.arguments) { it.map(shouldExpandTypeAliases) }
-        km.classifier = KmClassifier.Class(classifier.fqNameSerialized)
-    }
-    is TypeParameterType -> KmType(flags).also { km ->
-        km.classifier = KmClassifier.TypeParameter(id)
-    }
-}
+private class MappingExtensions(
+        private val typeParametersInterner: Interner<TypeParameterStub>
+) {
 
-private fun FunctionParameterStub.map(): KmValueParameter =
-        KmValueParameter(flags, name).also { km ->
-            val kmType = type.map()
-            if (isVararg) {
-                km.varargElementType = kmType
+    private fun flagsOfNotNull(vararg flags: Flag?): Flags =
+            flagsOf(*listOfNotNull(*flags).toTypedArray())
+
+    private fun <K, V> mapOfNotNull(vararg entries: Pair<K, V>?): Map<K, V> =
+            listOfNotNull(*entries).toMap()
+
+    private val VisibilityModifier.flags: Flags
+        get() = flagsOfNotNull(
+                Flag.IS_PUBLIC.takeIf { this == VisibilityModifier.PUBLIC },
+                Flag.IS_PROTECTED.takeIf { this == VisibilityModifier.PROTECTED },
+                Flag.IS_INTERNAL.takeIf { this == VisibilityModifier.INTERNAL },
+                Flag.IS_PRIVATE.takeIf { this == VisibilityModifier.PRIVATE }
+        )
+
+    private val MemberStubModality.flags: Flags
+        get() = flagsOfNotNull(
+                Flag.IS_FINAL.takeIf { this == MemberStubModality.FINAL },
+                Flag.IS_OPEN.takeIf { this == MemberStubModality.OPEN },
+                Flag.IS_ABSTRACT.takeIf { this == MemberStubModality.ABSTRACT }
+        )
+
+    val FunctionStub.flags: Flags
+        get() = flagsOfNotNull(
+                Flag.IS_PUBLIC,
+                Flag.Function.IS_EXTERNAL,
+                Flag.HAS_ANNOTATIONS.takeIf { annotations.isNotEmpty() }
+        ) or modality.flags
+
+    val Classifier.fqNameSerialized: String
+        get() = buildString {
+            if (pkg.isNotEmpty()) {
+                append(pkg.replace('.', '/'))
+                append('/')
+            }
+            // Nested classes should dot-separated.
+            append(relativeFqName)
+        }
+
+    val PropertyStub.flags: Flags
+        get() = flagsOfNotNull(
+                Flag.IS_PUBLIC,
+                Flag.Property.IS_DECLARATION,
+                Flag.HAS_ANNOTATIONS.takeIf { annotations.isNotEmpty() },
+                when (kind) {
+                    is PropertyStub.Kind.Val -> null
+                    is PropertyStub.Kind.Var -> Flag.Property.IS_VAR
+                    is PropertyStub.Kind.Constant -> Flag.Property.IS_CONST
+                },
+                when (kind) {
+                    is PropertyStub.Kind.Constant -> null
+                    is PropertyStub.Kind.Val,
+                    is PropertyStub.Kind.Var -> Flag.Property.HAS_GETTER
+                },
+                when (kind) {
+                    is PropertyStub.Kind.Constant -> null
+                    is PropertyStub.Kind.Val -> null
+                    is PropertyStub.Kind.Var -> Flag.Property.HAS_SETTER
+                }
+        ) or modality.flags
+
+    val PropertyStub.getterFlags: Flags
+        get() = when (kind) {
+            is PropertyStub.Kind.Val -> kind.getter.flags
+            is PropertyStub.Kind.Var -> kind.getter.flags
+            is PropertyStub.Kind.Constant -> flagsOf()
+        }
+
+    private val PropertyAccessor.Getter.flags: Flags
+        get() = flagsOfNotNull(
+                Flag.HAS_ANNOTATIONS.takeIf { annotations.isNotEmpty() },
+                Flag.IS_PUBLIC,
+                Flag.IS_FINAL,
+                Flag.PropertyAccessor.IS_EXTERNAL.takeIf { this is PropertyAccessor.Getter.ExternalGetter }
+        )
+
+    val PropertyStub.setterFlags: Flags
+        get() = if (kind !is PropertyStub.Kind.Var) flagsOf()
+        else kind.setter.flags
+
+    val PropertyAccessor.Setter.flags: Flags
+        get() = flagsOfNotNull(
+                Flag.HAS_ANNOTATIONS.takeIf { annotations.isNotEmpty() },
+                Flag.IS_PUBLIC,
+                Flag.IS_FINAL,
+                Flag.PropertyAccessor.IS_EXTERNAL.takeIf { this is PropertyAccessor.Setter.ExternalSetter }
+        )
+
+    val StubType.flags: Flags
+        get() = flagsOfNotNull(
+                Flag.Type.IS_NULLABLE.takeIf { nullable }
+        )
+
+    val TypealiasStub.flags: Flags
+        get() = flagsOfNotNull(
+                Flag.IS_PUBLIC
+        )
+
+    val FunctionParameterStub.flags: Flags
+        get() = flagsOfNotNull(
+                Flag.HAS_ANNOTATIONS.takeIf { annotations.isNotEmpty() }
+        )
+
+    val ClassStub.flags: Flags
+        get() = flagsOfNotNull(
+                Flag.HAS_ANNOTATIONS.takeIf { annotations.isNotEmpty() },
+                Flag.IS_PUBLIC,
+                Flag.IS_OPEN.takeIf { this is ClassStub.Simple && this.modality == ClassStubModality.OPEN },
+                Flag.IS_FINAL.takeIf { this is ClassStub.Simple && this.modality == ClassStubModality.NONE },
+                Flag.Class.IS_COMPANION_OBJECT.takeIf { this is ClassStub.Companion },
+                Flag.Class.IS_CLASS.takeIf { this is ClassStub.Simple },
+                Flag.Class.IS_ENUM_CLASS.takeIf { this is ClassStub.Enum }
+        )
+
+    // TODO: Looks like [Flag.Constructor.IS_PRIMARY] flag is incorrect.
+    //  Upstream fix to kotlinx-metadata.
+    private val isSecondaryConstructorFlag = Flag(
+            org.jetbrains.kotlin.metadata.deserialization.Flags.IS_SECONDARY.offset,
+            org.jetbrains.kotlin.metadata.deserialization.Flags.IS_SECONDARY.bitWidth,
+            value = 1
+    )
+
+    val ConstructorStub.flags: Flags
+        get() = flagsOfNotNull(
+                isSecondaryConstructorFlag.takeIf { !isPrimary },
+                Flag.HAS_ANNOTATIONS.takeIf { annotations.isNotEmpty() }
+        ) or visibility.flags
+
+    fun AnnotationStub.map(): KmAnnotation {
+        fun Pair<String, String>.asAnnotationArgument() =
+                (first to KmAnnotationArgument.StringValue(second)).takeIf { second.isNotEmpty() }
+
+        fun replaceWith(replaceWith: String) = KmAnnotationArgument.AnnotationValue(KmAnnotation(
+                Classifier.topLevel("kotlin", "ReplaceWith").fqNameSerialized,
+                mapOfNotNull(
+                        "imports" to KmAnnotationArgument.ArrayValue(emptyList()),
+                        ("expression" to replaceWith).asAnnotationArgument()
+                )
+        ))
+
+        fun deprecationLevel(level: DeprecationLevel) = KmAnnotationArgument.EnumValue(
+                Classifier.topLevel("kotlin", "DeprecationLevel").fqNameSerialized,
+                level.name
+        )
+
+        val args = when (this) {
+            AnnotationStub.ObjC.ConsumesReceiver -> emptyMap()
+            AnnotationStub.ObjC.ReturnsRetained -> emptyMap()
+            is AnnotationStub.ObjC.Method -> mapOfNotNull(
+                    ("selector" to selector).asAnnotationArgument(),
+                    ("encoding" to encoding).asAnnotationArgument(),
+                    ("isStret" to KmAnnotationArgument.BooleanValue(isStret))
+            )
+            is AnnotationStub.ObjC.Factory -> mapOfNotNull(
+                    ("selector" to selector).asAnnotationArgument(),
+                    ("encoding" to encoding).asAnnotationArgument(),
+                    ("isStret" to KmAnnotationArgument.BooleanValue(isStret))
+            )
+            AnnotationStub.ObjC.Consumed -> emptyMap()
+            is AnnotationStub.ObjC.Constructor -> mapOfNotNull(
+                    ("designated" to KmAnnotationArgument.BooleanValue(designated)),
+                    ("initSelector" to selector).asAnnotationArgument()
+            )
+            is AnnotationStub.ObjC.ExternalClass -> mapOfNotNull(
+                    ("protocolGetter" to protocolGetter).asAnnotationArgument(),
+                    ("binaryName" to binaryName).asAnnotationArgument()
+            )
+            AnnotationStub.CCall.CString -> emptyMap()
+            AnnotationStub.CCall.WCString -> emptyMap()
+            is AnnotationStub.CCall.Symbol -> mapOfNotNull(
+                    ("id" to symbolName).asAnnotationArgument()
+            )
+            is AnnotationStub.CStruct -> mapOfNotNull(
+                    ("spelling" to struct).asAnnotationArgument()
+            )
+            is AnnotationStub.CNaturalStruct ->
+                error("@CNaturalStruct should not be used for Kotlin/Native interop")
+            is AnnotationStub.CLength -> mapOfNotNull(
+                    "value" to KmAnnotationArgument.LongValue(length)
+            )
+            is AnnotationStub.Deprecated -> mapOfNotNull(
+                    ("message" to message).asAnnotationArgument(),
+                    ("replaceWith" to replaceWith(replaceWith)),
+                    ("level" to deprecationLevel(DeprecationLevel.ERROR))
+            )
+        }
+        return KmAnnotation(classifier.fqNameSerialized, args)
+    }
+
+    /**
+     * @param shouldExpandTypeAliases describes how should we write type aliases.
+     * If [shouldExpandTypeAliases] is true then type alias-based types are written as
+     * ```
+     * Type {
+     *  abbreviatedType = AbbreviatedType.abbreviatedClassifier
+     *  classifier = AbbreviatedType.underlyingType
+     *  arguments = AbbreviatedType.underlyingType.typeArguments
+     * }
+     * ```
+     * So we basically replacing type alias with underlying class.
+     * Otherwise:
+     * ```
+     * Type {
+     *  classifier = AbbreviatedType.abbreviatedClassifier
+     * }
+     * ```
+     * As of 25 Nov 2019, the latter form is used only for KmTypeAlias.underlyingType.
+     */
+    // TODO: Add caching if needed.
+    fun StubType.map(shouldExpandTypeAliases: Boolean = true): KmType = when (this) {
+        is AbbreviatedType -> {
+            val typeAliasClassifier = KmClassifier.TypeAlias(abbreviatedClassifier.fqNameSerialized)
+            if (shouldExpandTypeAliases) {
+                // Abbreviated and expanded types have the same nullability.
+                KmType(flags).also { km ->
+                    km.abbreviatedType = KmType(flags).also { it.classifier = typeAliasClassifier }
+                    val kmUnderlyingType = underlyingType.map(true)
+                    km.arguments += kmUnderlyingType.arguments
+                    km.classifier = kmUnderlyingType.classifier
+                }
             } else {
-                km.type = kmType
+                KmType(flags).also { km -> km.classifier = typeAliasClassifier }
             }
-            annotations.mapTo(km.annotations, AnnotationStub::map)
         }
-
-private fun TypeParameterStub.map(): KmTypeParameter =
-        KmTypeParameter(flagsOf(), name, id, KmVariance.INVARIANT).also { km ->
-            km.upperBounds.addIfNotNull(upperBound?.map())
+        is ClassifierStubType -> KmType(flags).also { km ->
+            typeArguments.mapTo(km.arguments) { it.map(shouldExpandTypeAliases) }
+            km.classifier = KmClassifier.Class(classifier.fqNameSerialized)
         }
-
-private fun TypeArgument.map(expanded: Boolean=true): KmTypeProjection = when (this) {
-    TypeArgument.StarProjection -> KmTypeProjection.STAR
-    is TypeArgumentStub -> KmTypeProjection(variance.map(), type.map(expanded))
-    else -> error("Unexpected TypeArgument: $this")
-}
-
-private fun TypeArgument.Variance.map(): KmVariance = when (this) {
-    TypeArgument.Variance.INVARIANT -> KmVariance.INVARIANT
-    TypeArgument.Variance.IN -> KmVariance.IN
-    TypeArgument.Variance.OUT -> KmVariance.OUT
-}
-
-private fun ConstantStub.map(): KmAnnotationArgument<*> = when (this) {
-    is StringConstantStub -> KmAnnotationArgument.StringValue(value)
-    is IntegralConstantStub -> when (size) {
-        1 -> if (isSigned) {
-            KmAnnotationArgument.ByteValue(value.toByte())
-        } else {
-            KmAnnotationArgument.UByteValue(value.toByte())
+        is FunctionalType -> KmType(flags).also { km ->
+            typeArguments.mapTo(km.arguments) { it.map(shouldExpandTypeAliases) }
+            km.classifier = KmClassifier.Class(classifier.fqNameSerialized)
         }
-        2 -> if (isSigned) {
-            KmAnnotationArgument.ShortValue(value.toShort())
-        } else {
-            KmAnnotationArgument.UShortValue(value.toShort())
+        is TypeParameterType -> KmType(flags).also { km ->
+            km.classifier = KmClassifier.TypeParameter(id)
         }
-        4 -> if (isSigned) {
-            KmAnnotationArgument.IntValue(value.toInt())
-        } else {
-            KmAnnotationArgument.UIntValue(value.toInt())
-        }
-        8 -> if (isSigned) {
-            KmAnnotationArgument.LongValue(value)
-        } else {
-            KmAnnotationArgument.ULongValue(value)
-        }
-
-        else -> error("Integral constant of value $value with unexpected size of $size.")
     }
-    is DoubleConstantStub -> when (size) {
-        4 -> KmAnnotationArgument.FloatValue(value.toFloat())
-        8 -> KmAnnotationArgument.DoubleValue(value)
-        else -> error("Floating-point constant of value $value with unexpected size of $size.")
+
+    fun FunctionParameterStub.map(): KmValueParameter =
+            KmValueParameter(flags, name).also { km ->
+                val kmType = type.map()
+                if (isVararg) {
+                    km.varargElementType = kmType
+                } else {
+                    km.type = kmType
+                }
+                annotations.mapTo(km.annotations, { it.map() })
+            }
+
+    fun TypeParameterStub.map(): KmTypeParameter =
+            KmTypeParameter(flagsOf(), name, id, KmVariance.INVARIANT).also { km ->
+                km.upperBounds.addIfNotNull(upperBound?.map())
+            }
+
+    private fun TypeArgument.map(expanded: Boolean = true): KmTypeProjection = when (this) {
+        TypeArgument.StarProjection -> KmTypeProjection.STAR
+        is TypeArgumentStub -> KmTypeProjection(variance.map(), type.map(expanded))
+        else -> error("Unexpected TypeArgument: $this")
     }
+
+    private fun TypeArgument.Variance.map(): KmVariance = when (this) {
+        TypeArgument.Variance.INVARIANT -> KmVariance.INVARIANT
+        TypeArgument.Variance.IN -> KmVariance.IN
+        TypeArgument.Variance.OUT -> KmVariance.OUT
+    }
+
+    fun ConstantStub.mapToAnnotationArgument(): KmAnnotationArgument<*> = when (this) {
+        is StringConstantStub -> KmAnnotationArgument.StringValue(value)
+        is IntegralConstantStub -> when (size) {
+            1 -> if (isSigned) {
+                KmAnnotationArgument.ByteValue(value.toByte())
+            } else {
+                KmAnnotationArgument.UByteValue(value.toByte())
+            }
+            2 -> if (isSigned) {
+                KmAnnotationArgument.ShortValue(value.toShort())
+            } else {
+                KmAnnotationArgument.UShortValue(value.toShort())
+            }
+            4 -> if (isSigned) {
+                KmAnnotationArgument.IntValue(value.toInt())
+            } else {
+                KmAnnotationArgument.UIntValue(value.toInt())
+            }
+            8 -> if (isSigned) {
+                KmAnnotationArgument.LongValue(value)
+            } else {
+                KmAnnotationArgument.ULongValue(value)
+            }
+
+            else -> error("Integral constant of value $value with unexpected size of $size.")
+        }
+        is DoubleConstantStub -> when (size) {
+            4 -> KmAnnotationArgument.FloatValue(value.toFloat())
+            8 -> KmAnnotationArgument.DoubleValue(value)
+            else -> error("Floating-point constant of value $value with unexpected size of $size.")
+        }
+    }
+
+    private val TypeParameterType.id: Int
+        get() = typeParameterDeclaration.id
+
+    private val TypeParameterStub.id: Int
+        get() = typeParametersInterner.intern(this)
 }
-
-private val TypeParameterType.id: Int
-    get() = TODO()
-
-private val TypeParameterStub.id: Int
-    get() = TODO()

@@ -2249,8 +2249,8 @@ task indexof(type: KonanLocalTest) {
 
 task utf8(type: KonanLocalTest) {
     // Cannot be executed in the two-stage mode due to KT-33175.
-    enabled = !twoStageEnabled
-    expectedFail = (project.testTarget == 'wasm32') // Uses exceptions.
+    // Uses exceptions so cannot run on wasm.
+    enabled = !twoStageEnabled && (project.testTarget != 'wasm32')
     goldValue = "Hello\nПривет\n\uD800\uDC00\n\n\uFFFD\uFFFD\n\uFFFD12\n\uFFFD12\n12\uFFFD\n\uD83D\uDE25\n\uD83D\uDE25\n\uD83D\uDE25\n"
     source = "runtime/text/utf8.kt"
 }
@@ -2723,7 +2723,7 @@ standaloneTest("memory_only_gc") {
 }
 
 standaloneTest("leak_detector") {
-    disabled = project.globalTestArgs.contains('-opt')
+    disabled = project.globalTestArgs.contains('-opt') || (project.testTarget == 'wasm32') // Needs debug build.
     flags = ['-g']
     source = "runtime/memory/leak_detector.kt"
 }
@@ -3961,6 +3961,21 @@ if (UtilsKt.testTargetSupportsCodeCoverage(project)) {
         }
     }
 
+    task coverage_jumps(type: CoverageTest) {
+        binaryName = "CoverageJumps"
+        numberOfCoveredFunctions = 7
+        numberOfCoveredLines = 66
+
+        konanArtifacts {
+            program(binaryName, targets: [ target ]) {
+                srcDir 'coverage/basic/jumps'
+                baseDir "$testOutputCoverage/$binaryName"
+                entryPoint "coverage.basic.jumps.main"
+                extraOpts "-Xcoverage", "-Xcoverage-file=$profrawFile"
+            }
+        }
+    }
+
     task coverage_smoke0(type: CoverageTest) {
         binaryName = "CoverageSmoke0"
         numberOfCoveredFunctions = 2
@@ -4108,7 +4123,7 @@ dependencies {
 if (PlatformInfo.getTarget(project) == KonanTarget.IOS_ARM64.INSTANCE) {
     project.tasks
             .matching { it instanceof KonanTestExecutable }
-            .all {
+            .forEach {
                 ExecutorServiceKt.configureXcodeBuild((KonanTestExecutable) it)
             }
     // Exclude tasks that can not be run on device
@@ -4119,5 +4134,5 @@ if (PlatformInfo.getTarget(project) == KonanTarget.IOS_ARM64.INSTANCE) {
                     it instanceof KonanDynamicTest ||
                     it instanceof KonanLinkTest
             }
-            .all { it.enabled = false }
+            .forEach { it.enabled = false }
 }

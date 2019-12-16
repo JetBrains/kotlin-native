@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin.backend.konan.optimizations
 
+import org.jetbrains.kotlin.backend.common.ir.ir2stringWhole
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.isAbstract
 import org.jetbrains.kotlin.backend.konan.descriptors.target
@@ -131,7 +132,7 @@ internal object DataFlowIR {
         var escapes: Int? = null
         var pointsTo: IntArray? = null
 
-        class External(val hash: Long, attributes: Int, irFunction: IrFunction?, name: String? = null)
+        class External(val hash: Long, attributes: Int, irFunction: IrFunction?, name: String? = null, val isExported: Boolean)
             : FunctionSymbol(attributes, irFunction, name) {
 
             override fun equals(other: Any?): Boolean {
@@ -487,7 +488,10 @@ internal object DataFlowIR {
                 }
 
                 override fun visitField(declaration: IrField) {
-                    declaration.initializer?.let { mapFunction(declaration) }
+                    if (declaration.parent is IrFile)
+                        declaration.initializer?.let {
+                            mapFunction(declaration)
+                        }
                 }
 
                 override fun visitClass(declaration: IrClass) {
@@ -605,7 +609,7 @@ internal object DataFlowIR {
                     val escapesBitMask = (escapesAnnotation?.getValueArgument(0) as? IrConst<Int>)?.value
                     @Suppress("UNCHECKED_CAST")
                     val pointsToBitMask = (pointsToAnnotation?.getValueArgument(0) as? IrVararg)?.elements?.map { (it as IrConst<Int>).value }
-                    FunctionSymbol.External(name.localHash.value, attributes, it, takeName { name }).apply {
+                    FunctionSymbol.External(name.localHash.value, attributes, it, takeName { name }, it.isExported()).apply {
                         escapes  = escapesBitMask
                         pointsTo = pointsToBitMask?.let { it.toIntArray() }
                     }

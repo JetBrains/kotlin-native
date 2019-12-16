@@ -166,7 +166,7 @@ private class ObjCMethodStubBuilder(
                             context.configuration.disableDesignatedInitializerChecks
 
                     val annotations = listOf(AnnotationStub.ObjC.Constructor(method.selector, designated))
-                    val constructor = ConstructorStub(parameters, annotations)
+                    val constructor = ConstructorStub(parameters, annotations, isPrimary = false, origin = origin)
                     constructor
                 }
                 is ObjCCategory -> {
@@ -206,7 +206,7 @@ private class ObjCMethodStubBuilder(
                             receiver = receiver,
                             typeParameters = listOf(typeParameter),
                             external = true,
-                            origin = StubOrigin.None,
+                            origin = StubOrigin.ObjCCategoryInitMethod(method),
                             annotations = annotations,
                             modality = MemberStubModality.FINAL
                     )
@@ -434,7 +434,10 @@ internal abstract class ObjCContainerStubBuilder(
         val defaultConstructor =  if (container is ObjCClass && methodToStub.values.none { it.isDefaultConstructor() }) {
             // Always generate default constructor.
             // If it is not produced for an init method, then include it manually:
-            ConstructorStub(listOf(), listOf(), VisibilityModifier.PROTECTED)
+            ConstructorStub(
+                    isPrimary = false,
+                    visibility = VisibilityModifier.PROTECTED,
+                    origin = StubOrigin.SyntheticDefaultConstructor)
         } else null
 
         return Pair(
@@ -448,7 +451,8 @@ internal abstract class ObjCContainerStubBuilder(
         return ClassStub.Simple(
                 classifier,
                 properties = properties,
-                functions = methods,
+                methods = methods.filterIsInstance<FunctionStub>(),
+                constructors = methods.filterIsInstance<ConstructorStub>(),
                 origin = origin,
                 modality = modality,
                 annotations = listOf(externalObjCAnnotation),
@@ -466,8 +470,13 @@ internal sealed class ObjCClassOrProtocolStubBuilder(
         container,
         metaContainerStub = object : ObjCContainerStubBuilder(context, container, metaContainerStub = null) {
 
-            override fun build(): List<StubIrElement> =
-                    listOf(buildClassStub(StubOrigin.None))
+            override fun build(): List<StubIrElement> {
+                val origin = when (container) {
+                    is ObjCProtocol -> StubOrigin.ObjCProtocol(container, isMeta = true)
+                    is ObjCClass -> StubOrigin.ObjCClass(container, isMeta = true)
+                }
+                return listOf(buildClassStub(origin))
+            }
         }
 )
 
@@ -476,7 +485,7 @@ internal class ObjCProtocolStubBuilder(
         private val protocol: ObjCProtocol
 ) : ObjCClassOrProtocolStubBuilder(context, protocol), StubElementBuilder {
     override fun build(): List<StubIrElement> {
-        val classStub = buildClassStub(StubOrigin.ObjCProtocol(protocol))
+        val classStub = buildClassStub(StubOrigin.ObjCProtocol(protocol, isMeta = false))
         return listOf(*metaContainerStub!!.build().toTypedArray(), classStub)
     }
 }
@@ -493,8 +502,9 @@ internal class ObjCClassStubBuilder(
         ).toStubIrType()
 
         val superClassInit = SuperClassInit(companionSuper)
-        val companion = ClassStub.Companion(superClassInit, listOf(objCClassType))
-        val classStub = buildClassStub(StubOrigin.ObjCClass(clazz), companion)
+        val companionClassifier = context.getKotlinClassFor(clazz, isMeta = false).nested("Companion")
+        val companion = ClassStub.Companion(companionClassifier, emptyList(), superClassInit, listOf(objCClassType))
+        val classStub = buildClassStub(StubOrigin.ObjCClass(clazz, isMeta = false), companion)
         return listOf(*metaContainerStub!!.build().toTypedArray(), classStub)
     }
 }
