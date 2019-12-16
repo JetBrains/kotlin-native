@@ -1,12 +1,12 @@
 package org.jetbrains.kotlin.backend.konan
 
-import org.jetbrains.kotlin.backend.common.*
+import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.common.lower.*
 import org.jetbrains.kotlin.backend.common.lower.inline.FunctionInlining
 import org.jetbrains.kotlin.backend.common.lower.loops.ForLoopsLowering
 import org.jetbrains.kotlin.backend.common.phaser.*
+import org.jetbrains.kotlin.backend.common.runOnFilePostfix
 import org.jetbrains.kotlin.backend.konan.lower.*
-import org.jetbrains.kotlin.backend.konan.lower.ExpectDeclarationsRemoving
 import org.jetbrains.kotlin.backend.konan.lower.FinallyBlocksLowering
 import org.jetbrains.kotlin.backend.konan.lower.InitializersLowering
 import org.jetbrains.kotlin.ir.declarations.IrFile
@@ -298,11 +298,18 @@ internal val bridgesPhase = makeKonanFileOpPhase(
         prerequisite = setOf(coroutinesPhase)
 )
 
+internal val genericsSpecializationPhase = makeKonanFileLoweringPhase(
+        ::GenericsSpecialization,
+        name = "GenericsSpecialization",
+        description = "Specialization of generic function for primitive types",
+        prerequisite = setOf(bridgesPhase)
+)
+
 internal val autoboxPhase = makeKonanFileLoweringPhase(
         ::Autoboxing,
         name = "Autobox",
         description = "Autoboxing of primitive types",
-        prerequisite = setOf(bridgesPhase, coroutinesPhase)
+        prerequisite = setOf(bridgesPhase, coroutinesPhase, genericsSpecializationPhase)
 )
 
 internal val returnsInsertionPhase = makeKonanFileLoweringPhase(
