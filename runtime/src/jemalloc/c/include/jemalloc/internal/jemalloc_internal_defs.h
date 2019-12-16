@@ -96,7 +96,9 @@
 #endif
 
 /* Defined if pthread_atfork(3) is available. */
-#define JEMALLOC_HAVE_PTHREAD_ATFORK 
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+#define JEMALLOC_HAVE_PTHREAD_ATFORK
+#endif
 
 /* Defined if pthread_setname_np(3) is available. */
 /* #undef JEMALLOC_HAVE_PTHREAD_SETNAME_NP */
@@ -360,7 +362,9 @@
 /* #undef JEMALLOC_GLIBC_MEMALIGN_HOOK */
 
 /* pthread support */
-#define JEMALLOC_HAVE_PTHREAD 
+#if defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
+#define JEMALLOC_HAVE_PTHREAD
+#endif
 
 /* dlsym() support */
 #define JEMALLOC_HAVE_DLSYM 
