@@ -38,7 +38,7 @@ targetList.each { targetName ->
         if (!new HostManager().targetByName(targetName).family.appleFamily) {
             excludeFiles.add("*zone.c")
         }
-        //excludedTargets.add('wasm32')
+        excludedTargets.add('wasm32')
     }
 
     task("${targetName}Launcher", type: CompileCppToBitcode) {

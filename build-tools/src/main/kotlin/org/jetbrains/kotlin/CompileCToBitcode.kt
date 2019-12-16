@@ -55,7 +55,7 @@ open class CompileCToBitcode @Inject constructor(@InputDirectory val srcRoot: Fi
         plugin.execKonanClang(target, Action {
             it.workingDir = objDir
             it.executable = "clang"
-            val picFlags = if (HostManager().targetByName(target).family == Family.MINGW) listOf("-fPIC", "-DPIC") else emptyList()
+            val picFlags = if (HostManager().targetByName(target).family != Family.MINGW) listOf("-fPIC", "-DPIC") else emptyList()
             it.args = listOf("-std=gnu11", "-O3", "-c", "-emit-llvm", "-I$headersDir", "-Wall",
                     "-Wextra", "-Wshorten-64-to-32", "-Wsign-compare", "-Wundef", "-Wno-format-zero-length",
                     "-funroll-loops", "-D_REENTRANT") + picFlags + compilerArgs +

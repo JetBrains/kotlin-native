@@ -307,10 +307,11 @@
  *                                 MADV_FREE, though typically with higher
  *                                 system overhead.
  */
-#define JEMALLOC_PURGE_MADVISE_FREE 
-#define JEMALLOC_PURGE_MADVISE_DONTNEED
 #if __linux__
 #define JEMALLOC_PURGE_MADVISE_DONTNEED_ZEROS
+#else
+#define JEMALLOC_PURGE_MADVISE_FREE
+#define JEMALLOC_PURGE_MADVISE_DONTNEED
 #endif
 
 /* Defined if madvise(2) is available but MADV_FREE is not (x86 Linux only). */
