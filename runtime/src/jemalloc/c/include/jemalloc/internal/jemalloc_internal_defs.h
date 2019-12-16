@@ -91,7 +91,9 @@
 /*
  * Defined if issetugid(2) is available.
  */
-#define JEMALLOC_HAVE_ISSETUGID 
+#if !defined(__linux__)
+#define JEMALLOC_HAVE_ISSETUGID
+#endif
 
 /* Defined if pthread_atfork(3) is available. */
 #define JEMALLOC_HAVE_PTHREAD_ATFORK 
