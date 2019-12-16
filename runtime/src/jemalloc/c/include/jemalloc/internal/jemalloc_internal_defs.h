@@ -93,7 +93,7 @@
 /*
  * Defined if issetugid(2) is available.
  */
-#if !defined(__linux__)
+#if !defined(__linux__) && !(defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__))
 #define JEMALLOC_HAVE_ISSETUGID
 #endif
 
@@ -388,11 +388,8 @@
 /* GNU specific sched_getcpu support */
 #define JEMALLOC_HAVE_SCHED_GETCPU
 
-#if !(defined(ANDROID) || defined(__ANDROID__))
 /* GNU specific sched_setaffinity support */
-#define JEMALLOC_HAVE_SCHED_SETAFFINITY
-#endif
-
+//#define JEMALLOC_HAVE_SCHED_SETAFFINITY
 
 /*
  * If defined, all the features necessary for background threads are present.
