@@ -140,7 +140,7 @@
  */
 /* #undef JEMALLOC_THREADED_INIT */
 #define JEMALLOC_THREADED_INIT
-#if __APPLE__
+#if __APPLE__ || defined(WIN32) || defined(_WIN32) || defined(__WIN32__) || defined(__NT__)
 #undef JEMALLOC_THREADED_INIT
 #endif
 
