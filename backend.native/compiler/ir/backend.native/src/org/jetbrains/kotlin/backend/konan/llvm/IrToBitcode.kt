@@ -778,7 +778,9 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                     context.llvm.staticData.createConstKotlinObject(declaration,
                             *computeFields(declaration)).llvm else codegen.kNullObjHeaderPtr)
             }
-            if (declaration.isExported() && !declaration.isEnumClass && !declaration.isEnumEntry) {
+            // If can be exported and can be instantiated.
+            if (declaration.isExported() &&
+                    declaration.constructors.singleOrNull() { it.valueParameters.size == 0 } != null) {
                 val valueGetterName = declaration.objectInstanceGetterSymbolName
                 generateFunction(codegen,
                         LLVMFunctionType(codegen.kObjHeaderPtr, cValuesOf(codegen.kObjHeaderPtrPtr), 1, 0)!!,
