@@ -33,16 +33,27 @@
  * Hyper-threaded CPUs may need a special instruction inside spin loops in
  * order to yield to another virtual CPU.
  */
+#if (defined(__x86_64__) || defined(__i386__))
 #define CPU_SPINWAIT __asm__ volatile("pause")
 /* 1 if CPU_SPINWAIT is defined, 0 otherwise. */
 #define HAVE_CPU_SPINWAIT 1
+#else
+// For android-arm32.
+#define CPU_SPINWAIT
+/* 1 if CPU_SPINWAIT is defined, 0 otherwise. */
+#define HAVE_CPU_SPINWAIT 0
+#endif
 
 /*
  * Number of significant bits in virtual addresses.  This may be less than the
  * total number of bits in a pointer, e.g. on x64, for which the uppermost 16
  * bits are the same as bit 47.
  */
+#if (defined(__x86_64__) || defined(__aarch64__))
 #define LG_VADDR 48
+#else
+#define LG_VADDR 32
+#endif
 
 /* Defined if C11 atomics are available. */
 #define JEMALLOC_C11_ATOMICS 1
@@ -65,7 +76,9 @@
 /*
  * Defined if os_unfair_lock_*() functions are available, as provided by Darwin.
  */
-#define JEMALLOC_OS_UNFAIR_LOCK 
+#if __APPLE__
+#define JEMALLOC_OS_UNFAIR_LOCK
+#endif
 
 /* Defined if syscall(2) is usable. */
 /* #undef JEMALLOC_USE_SYSCALL */
@@ -99,7 +112,9 @@
 /*
  * Defined if mach_absolute_time() is available.
  */
+#if __APPLE__
 #define JEMALLOC_HAVE_MACH_ABSOLUTE_TIME 1
+#endif
 
 /*
  * Defined if _malloc_thread_cleanup() exists.  At least in the case of
@@ -116,6 +131,10 @@
  * triggering allocation in order for threaded allocation to be safe.
  */
 /* #undef JEMALLOC_THREADED_INIT */
+#define JEMALLOC_THREADED_INIT
+#if __APPLE__
+#undef JEMALLOC_THREADED_INIT
+#endif
 
 /*
  * Defined if the pthreads implementation defines
@@ -155,7 +174,10 @@
  * JEMALLOC_DSS enables use of sbrk(2) to allocate extents from the data storage
  * segment (DSS).
  */
-/* #undef JEMALLOC_DSS */
+
+#if __linux__
+#define JEMALLOC_DSS
+#endif
 
 /* Support memory filling (junk/zero). */
 #define JEMALLOC_FILL 
@@ -200,7 +222,9 @@
  * common sequences of mmap()/munmap() calls will cause virtual memory map
  * holes.
  */
-/* #undef JEMALLOC_RETAIN */
+#if (defined(__x86_64__) || defined(__aarch64__)) && __linux__
+#define JEMALLOC_RETAIN
+#endif
 
 /* TLS is used to map arenas and magazine caches to threads. */
 /* #undef JEMALLOC_TLS */
@@ -246,7 +270,9 @@
 /*
  * Darwin (OS X) uses zones to work around Mach-O symbol override shortcomings.
  */
-#define JEMALLOC_ZONE 
+#if defined(__MACH__)
+#define JEMALLOC_ZONE
+#endif
 
 /*
  * Methods for determining whether the OS overcommits.
@@ -255,7 +281,9 @@
  * JEMALLOC_SYSCTL_VM_OVERCOMMIT: FreeBSD's vm.overcommit sysctl.
  */
 /* #undef JEMALLOC_SYSCTL_VM_OVERCOMMIT */
-/* #undef JEMALLOC_PROC_SYS_VM_OVERCOMMIT_MEMORY */
+#if __linux__
+#define JEMALLOC_PROC_SYS_VM_OVERCOMMIT_MEMORY
+#endif
 
 /* Defined if madvise(2) is available. */
 #define JEMALLOC_HAVE_MADVISE 
@@ -280,8 +308,10 @@
  *                                 system overhead.
  */
 #define JEMALLOC_PURGE_MADVISE_FREE 
-#define JEMALLOC_PURGE_MADVISE_DONTNEED 
-/* #undef JEMALLOC_PURGE_MADVISE_DONTNEED_ZEROS */
+#define JEMALLOC_PURGE_MADVISE_DONTNEED
+#if __linux__
+#define JEMALLOC_PURGE_MADVISE_DONTNEED_ZEROS
+#endif
 
 /* Defined if madvise(2) is available but MADV_FREE is not (x86 Linux only). */
 /* #undef JEMALLOC_DEFINE_MADVISE_FREE */
@@ -298,7 +328,9 @@
 /* #undef JEMALLOC_THP */
 
 /* Define if operating system has alloca.h header. */
-/* #undef JEMALLOC_HAS_ALLOCA_H */
+#if __linux__
+#define JEMALLOC_HAS_ALLOCA_H
+#endif
 
 /* C99 restrict keyword supported. */
 #define JEMALLOC_HAS_RESTRICT 1

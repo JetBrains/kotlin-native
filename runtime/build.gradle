@@ -4,6 +4,7 @@
  */
 import org.jetbrains.kotlin.CompileCppToBitcode
 import org.jetbrains.kotlin.CompileCToBitcode
+import org.jetbrains.kotlin.konan.target.HostManager
 
 // TODO: consider using some Gradle plugins to build and test
 
@@ -34,6 +35,9 @@ targetList.each { targetName ->
 
     tasks.create("${targetName}Jemalloc", CompileCToBitcode, file('src/jemalloc'), "jemalloc", targetName).configure {
         skipLinkagePhase = true
+        if (!new HostManager().targetByName(targetName).family.appleFamily) {
+            excludeFiles.add("*zone.c")
+        }
         //excludedTargets.add('wasm32')
     }
 
