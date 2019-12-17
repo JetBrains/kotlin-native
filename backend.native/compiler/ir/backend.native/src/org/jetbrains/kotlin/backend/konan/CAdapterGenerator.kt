@@ -969,7 +969,8 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         |}
         |static ${prefix}_KBoolean IsInstanceImpl(${prefix}_KNativePtr ref, const ${prefix}_KType* type) {
         |  KObjHolder holder;
-        |  return IsInstance(DerefStablePointer(ref, holder.slot()), (const KTypeInfo*)type);
+        |  return static_cast<signed char>(
+        |         IsInstance(DerefStablePointer(ref, holder.slot()), (const KTypeInfo*)type)) != 0;
         |}
         """.trimMargin())
         predefinedTypes.forEach {
