@@ -897,7 +897,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             val valueGetterName = irClass.objectInstanceGetterSymbolName
             val valueGetterFunction = LLVMGetNamedFunction(context.llvmModule, valueGetterName) ?:
                 LLVMAddFunction(context.llvmModule, valueGetterName,
-                        LLVMFunctionType(kObjHeaderPtr, cValuesOf(kObjHeaderPtrPtr), 1, 0))
+                        functionType(kObjHeaderPtr, false, kObjHeaderPtrPtr))
             return call(valueGetterFunction!!,
                         listOf(),
                         resultLifetime = Lifetime.GLOBAL,
