@@ -6,6 +6,7 @@
 package kotlin
 
 import kotlin.native.internal.ExportTypeInfo
+import kotlin.native.internal.identityHashCode
 
 /**
  * The root of the Kotlin class hierarchy. Every Kotlin class has [Any] as a superclass.
@@ -47,7 +48,3 @@ public open class Any {
         return "$className@$hashCodeStr"
     }
 }
-
-@PublishedApi
-@SymbolName("Kotlin_Any_hashCode")
-external internal fun Any.identityHashCode(): Int
