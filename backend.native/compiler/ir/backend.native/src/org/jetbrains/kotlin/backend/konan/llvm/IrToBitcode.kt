@@ -423,15 +423,14 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                                 Int32(context.llvm.tlsCount).llvm))
                     }
                     context.llvm.fileInitializers
-                            .forEach {irField ->
-                                if (irField.initializer?.expression !is IrConst<*>?) {
-                                   if (irField.storageKind == FieldStorageKind.THREAD_LOCAL) {
-                                       val initialization = evaluateExpression(irField.initializer!!.expression)
-                                       val address = context.llvmDeclarations.forStaticField(irField).storageAddressAccess.getAddress(
-                                               functionGenerationContext
-                                       )
-                                       storeAny(initialization, address, false)
-                                    }
+                            .forEach { irField ->
+                                val expression = irField.initializer?.expression
+                                if (irField.storageKind == FieldStorageKind.THREAD_LOCAL) {
+                                    val initialization = evaluateExpression(irField.initializer!!.expression)
+                                    val address = context.llvmDeclarations.forStaticField(irField).storageAddressAccess.getAddress(
+                                            functionGenerationContext
+                                    )
+                                    storeAny(initialization, address, false)
                                 }
                             }
                     ret(null)
