@@ -909,7 +909,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         |KObjHeader* DerefStablePointer(void*, KObjHeader**) RUNTIME_NOTHROW;
         |void* CreateStablePointer(KObjHeader*) RUNTIME_NOTHROW;
         |void DisposeStablePointer(void*) RUNTIME_NOTHROW;
-        |int IsInstance(const KObjHeader*, const KTypeInfo*) RUNTIME_NOTHROW;
+        |${prefix}_KBoolean IsInstance(const KObjHeader*, const KTypeInfo*) RUNTIME_NOTHROW;
         |void EnterFrame(KObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
         |void LeaveFrame(KObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
         |void Kotlin_initRuntimeIfNeeded();
@@ -969,8 +969,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         |}
         |static ${prefix}_KBoolean IsInstanceImpl(${prefix}_KNativePtr ref, const ${prefix}_KType* type) {
         |  KObjHolder holder;
-        |  return static_cast<signed char>(
-        |         IsInstance(DerefStablePointer(ref, holder.slot()), (const KTypeInfo*)type)) != 0;
+        |  return IsInstance(DerefStablePointer(ref, holder.slot()), (const KTypeInfo*)type);
         |}
         """.trimMargin())
         predefinedTypes.forEach {
