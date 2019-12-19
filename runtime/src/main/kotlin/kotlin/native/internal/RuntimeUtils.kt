@@ -206,9 +206,3 @@ internal fun <T> listOfInternal(vararg elements: T): List<T> {
 @PublishedApi
 @SymbolName("OnUnhandledException")
 external internal fun OnUnhandledException(throwable: Throwable)
-
-/**
- * Compute stable identity hash code.
- */
-@SymbolName("Kotlin_Any_hashCode")
-public external fun Any?.identityHashCode(): Int

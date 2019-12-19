@@ -5,8 +5,8 @@
 
 package kotlin
 
+import kotlin.native.identityHashCode
 import kotlin.native.internal.ExportTypeInfo
-import kotlin.native.internal.identityHashCode
 
 /**
  * The root of the Kotlin class hierarchy. Every Kotlin class has [Any] as a superclass.
