@@ -21,6 +21,8 @@ import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrEnumEntry
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.util.SymbolTable
+import org.jetbrains.kotlin.ir.util.isEnumClass
+import org.jetbrains.kotlin.ir.util.isEnumEntry
 import org.jetbrains.kotlin.ir.util.referenceFunction
 import org.jetbrains.kotlin.konan.target.*
 import org.jetbrains.kotlin.name.isChildOf
@@ -909,7 +911,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         |KObjHeader* DerefStablePointer(void*, KObjHeader**) RUNTIME_NOTHROW;
         |void* CreateStablePointer(KObjHeader*) RUNTIME_NOTHROW;
         |void DisposeStablePointer(void*) RUNTIME_NOTHROW;
-        |int IsInstance(const KObjHeader*, const KTypeInfo*) RUNTIME_NOTHROW;
+        |${prefix}_KBoolean IsInstance(const KObjHeader*, const KTypeInfo*) RUNTIME_NOTHROW;
         |void EnterFrame(KObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
         |void LeaveFrame(KObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
         |void Kotlin_initRuntimeIfNeeded();
