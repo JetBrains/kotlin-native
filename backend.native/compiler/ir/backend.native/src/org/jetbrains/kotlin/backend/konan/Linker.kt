@@ -33,7 +33,8 @@ internal class Linker(val context: Context) {
     private val debug = context.config.debug || context.config.lightDebug
 
     fun link(objectFiles: List<ObjectFile>) {
-        val nativeDependencies = context.llvm.nativeDependenciesToLink
+        val nativeDependencies = context.llvm.nativeDependenciesToLink +
+                context.librariesWithDependencies.filter { context.config.cachedLibraries.getLibraryCache(it) != null }
         val includedBinaries = nativeDependencies.map { it.includedPaths }.flatten()
         val libraryProvidedLinkerFlags = nativeDependencies.map { it.linkerOpts }.flatten()
         runLinker(objectFiles, includedBinaries, libraryProvidedLinkerFlags)
