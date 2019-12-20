@@ -46,7 +46,7 @@ internal class Linker(val context: Context) {
         val cachedLibraries = context.librariesWithDependencies
                 .filter { context.config.cachedLibraries.isLibraryCached(it) }
         val libraryProvidedLinkerFlags = (nativeDependencies + cachedLibraries)
-                .map { it.linkerOpts }.flatten()
+                .distinct().map { it.linkerOpts }.flatten()
 
         runLinker(objectFiles, includedBinaries, libraryProvidedLinkerFlags)
         renameOutput()
