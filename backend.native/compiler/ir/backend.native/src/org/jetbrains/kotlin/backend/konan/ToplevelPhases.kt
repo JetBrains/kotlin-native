@@ -461,5 +461,6 @@ internal fun PhaseConfig.konanPhasesConfig(config: KonanConfig) {
         disableUnless(verifyBitcodePhase, config.needCompilerVerification || getBoolean(KonanConfigKeys.VERIFY_BITCODE))
         disableUnless(createBoxingCounterPhase, getBoolean(KonanConfigKeys.COUNT_BOX_OPERATIONS))
         disableUnless(countBoxingsPhase, getBoolean(KonanConfigKeys.COUNT_BOX_OPERATIONS))
+        disableUnless(genericsSpecializationPhase, getBoolean(KonanConfigKeys.EXTRA_BOXING_ELIMINATION))
     }
 }

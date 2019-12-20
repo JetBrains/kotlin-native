@@ -6,8 +6,8 @@
 package org.jetbrains.kotlin.backend.konan
 
 import org.jetbrains.kotlin.config.CompilerConfigurationKey
-import org.jetbrains.kotlin.serialization.js.ModuleKind
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
+import org.jetbrains.kotlin.serialization.js.ModuleKind
 
 class KonanConfigKeys {
     companion object {
@@ -128,6 +128,8 @@ class KonanConfigKeys {
                 = CompilerConfigurationKey.create("write objc header with generics support")
         val COUNT_BOX_OPERATIONS: CompilerConfigurationKey<Boolean>
                 = CompilerConfigurationKey.create("print calls to box operations to console")
+        val EXTRA_BOXING_ELIMINATION: CompilerConfigurationKey<Boolean>
+                = CompilerConfigurationKey.create("remove redundant boxings")
     }
 }
 

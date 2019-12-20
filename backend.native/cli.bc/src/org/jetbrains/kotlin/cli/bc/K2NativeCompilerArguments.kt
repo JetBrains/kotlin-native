@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.cli.bc
 
-import org.jetbrains.kotlin.cli.common.arguments.CommonCompilerArguments
 import org.jetbrains.kotlin.cli.common.arguments.Argument
+import org.jetbrains.kotlin.cli.common.arguments.CommonCompilerArguments
 import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.config.AnalysisFlag
 import org.jetbrains.kotlin.config.AnalysisFlags
@@ -233,6 +233,9 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
 
     @Argument(value = "-Xcount-box-operations", description = "Count calls to box operations and print the result to console")
     var countBoxOperations: Boolean = false
+
+    @Argument(value = "-Xextra-boxing-elimination", description = "Enable redundant boxing elimination")
+    var extraBoxingElimination: Boolean = false
 
     override fun configureAnalysisFlags(collector: MessageCollector): MutableMap<AnalysisFlag<*>, Any> =
             super.configureAnalysisFlags(collector).also {
