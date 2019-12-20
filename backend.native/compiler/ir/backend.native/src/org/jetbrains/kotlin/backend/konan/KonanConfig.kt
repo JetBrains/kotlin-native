@@ -107,15 +107,13 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
 
     val shouldCoverSources = configuration.getBoolean(KonanConfigKeys.COVERAGE)
     val shouldCoverLibraries = !configuration.getList(KonanConfigKeys.LIBRARIES_TO_COVER).isNullOrEmpty()
-    // TODO: Replace to KonanTarget in Kotlin repo as extension property.
-    private val targetsWithoutOptAllocMode = listOf("wasm32", "linux_mips32", "linux_mipsel32", "zephyr")
 
     internal val runtimeNativeLibraries: List<String> = mutableListOf<String>().apply {
         add(if (debug) "debug.bc" else "release.bc")
         add(if (memoryModel == MemoryModel.STRICT) "strict.bc" else "relaxed.bc")
         if (shouldCoverLibraries || shouldCoverSources) add("profileRuntime.bc")
         if (configuration.get(KonanConfigKeys.ALLOCATION_MODE) == "opt") {
-            if (target.name in targetsWithoutOptAllocMode) {
+            if (!target.supportsOptimizedAllocator) {
                 configuration.report(CompilerMessageSeverity.STRONG_WARNING,
                         "Optimized allocation mode isn't supported on target ${target.name}. Used standard mode.")
                 add("std_alloc.bc")
