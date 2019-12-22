@@ -4,15 +4,19 @@ import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.common.descriptors.WrappedSimpleFunctionDescriptor
 import org.jetbrains.kotlin.backend.common.lower.IrBuildingTransformer
 import org.jetbrains.kotlin.backend.common.lower.at
+import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
+import org.jetbrains.kotlin.backend.common.lower.irBlockBody
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.boxing.TypeParameterEliminator
 import org.jetbrains.kotlin.ir.builders.declarations.addValueParameter
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationContainer
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.impl.IrFunctionImpl
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
+import org.jetbrains.kotlin.ir.expressions.IrStatementContainer
 import org.jetbrains.kotlin.ir.symbols.impl.IrSimpleFunctionSymbolImpl
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.toKotlinType
@@ -23,18 +27,47 @@ import org.jetbrains.kotlin.types.Variance
 
 internal class GenericsSpecialization(val context: Context) : FileLoweringPass {
 
-    val transformer = SpecializationTransformer(context)
+    private val transformer = SpecializationTransformer(context)
 
     override fun lower(irFile: IrFile) {
         irFile.transformChildrenVoid(transformer)
-        transformer.newFunctions.forEach(irFile::addChild)
+        transformer.newFunctions.forEach { (specialization, origin) ->
+            when (val parent = origin.parent) {
+                is IrDeclarationContainer -> parent.addChild(specialization)
+                is IrStatementContainer -> {
+                    val originIndex = parent.statements.indexOf(origin)
+                    parent.statements.add(originIndex + 1, specialization)
+                    specialization.parent = parent
+                }
+                is IrFunction -> {
+                    val builder = context.createIrBuilder(parent.symbol)
+                    val statements = parent.body?.statements?.toMutableList()
+                    if (statements == null) {
+                        irFile.addChild(specialization)
+                    }
+                    else {
+                        statements.add(statements.indexOf(origin), specialization)
+                        specialization.parent = parent
+                    }
+                    parent.body = builder.irBlockBody(parent) {
+                        statements?.forEach {
+                            +it
+                        }
+                    }
+                }
+                else -> irFile.addChild(specialization)
+            }
+        }
+        transformer.newFunctions.clear()
     }
 }
 
 internal class SpecializationTransformer(val context: Context): IrBuildingTransformer(context) {
 
     private val currentSpecializations = mutableMapOf<Pair<IrFunction, IrType>, IrFunction>()
-    val newFunctions = mutableSetOf<IrFunction>()
+
+    // specialization -> origin
+    val newFunctions = mutableMapOf<IrFunction, IrFunction>()
 
     override fun visitCall(expression: IrCall): IrExpression {
         if (expression.typeArgumentsCount != 1 || expression.getTypeArgument(0) !in context.irBuiltIns.primitiveIrTypes) {
@@ -42,7 +75,7 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         }
         val primitiveTypeArgument = expression.getTypeArgument(0)!!
         val owner: IrFunction = expression.symbol.owner
-        if (owner.name.asString() !in listOf("eqls", "id") || owner.typeParameters.size != 1) {
+        if (owner.name.asString() !in listOf("eqls__", "id__", "localId__", "anonId__") || owner.typeParameters.size != 1) {
             return expression
         }
         val typeParameter = owner.typeParameters.first()
@@ -95,11 +128,12 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
                     it.annotations.addAll(valueParameter.annotations)
                 }
             }
-            fn.body = this.body?.deepCopyWithSymbols(parent)?.transform(TypeParameterEliminator(context, fn, typeParameters.first(), type), null)
+            fn.annotations.addAll(annotations)
+            fn.body = this.body?.deepCopyWithSymbols(parent)?.transform(TypeParameterEliminator(context, this, fn, typeParameters.first(), type), null)
 
             currentSpecializations[this to type] = fn
             newFunctionDescriptor.bind(fn)
-            newFunctions.add(fn)
+            newFunctions[fn] = this
         }
     }
 }

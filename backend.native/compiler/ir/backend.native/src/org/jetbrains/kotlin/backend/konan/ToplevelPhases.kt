@@ -276,6 +276,7 @@ internal val allLoweringsPhase = namedIrModulePhase(
         description = "IR Lowering",
         lower = removeExpectDeclarationsPhase then
                 stripTypeAliasDeclarationsPhase then
+                genericsSpecializationPhase then
                 lowerBeforeInlinePhase then
                 arrayConstructorPhase then
                 inlinePhase then
@@ -288,7 +289,6 @@ internal val allLoweringsPhase = namedIrModulePhase(
                         lower = lateinitPhase then
                                 forLoopsPhase then
                                 stringConcatenationPhase then
-                                genericsSpecializationPhase then
                                 enumConstructorsPhase then
                                 initializersPhase then
                                 sharedVariablesPhase then

@@ -1,10 +1,13 @@
 
+var previousResult = 0
+
 val callees = mapOf<String, () -> Int>(
-        "lib" to { lib.runCount() }
+        "lib" to { lib.runCount() },
+        "nested" to { nested.runCount() }
 )
 
 fun main(args: Array<String>) {
-    listOf("lib").forEach(::showInfo)
+    listOf("lib", "nested").forEach(::showInfo)
 }
 
 fun showInfo(name: String) {
@@ -13,5 +16,6 @@ fun showInfo(name: String) {
     val callee = callees[name] ?: return
     val result: Int = callee()
     println("----------")
-    println("boxings: ${result - 2}")
+    println("boxings: ${result - previousResult}")
+    previousResult = result
 }

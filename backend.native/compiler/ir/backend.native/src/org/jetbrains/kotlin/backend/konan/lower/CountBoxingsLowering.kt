@@ -9,7 +9,9 @@ import org.jetbrains.kotlin.backend.konan.boxing.irInc
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrFunction
-import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.ir.types.isPrimitiveType
+import org.jetbrains.kotlin.ir.util.nameForIrSerialization
+import org.jetbrains.kotlin.ir.util.statements
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
@@ -28,7 +30,10 @@ internal class BoxingsCounterVisitor(val context: Context) : IrElementVisitorVoi
     override fun visitFile(declaration: IrFile) {
         declaration.acceptChildrenVoid(this)
 
-        val boxFunctions = declaration.declarations.filterIsInstance<IrFunction>().filter { it.nameForIrSerialization.asString().endsWith("-box>") }
+        val boxFunctions = declaration.declarations
+                .filterIsInstance<IrFunction>()
+                .filter { it.nameForIrSerialization.asString().endsWith("-box>") }
+                .filter { it.valueParameters.firstOrNull()?.type?.isPrimitiveType() == true }
         boxFunctions.forEach { function ->
             val builder = context.createIrBuilder(function.symbol)
             val statements = function.body?.statements

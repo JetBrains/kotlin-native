@@ -74,6 +74,13 @@ internal val stripTypeAliasDeclarationsPhase = makeKonanModuleLoweringPhase(
         description = "Strip typealias declarations"
 )
 
+
+internal val genericsSpecializationPhase = makeKonanModuleLoweringPhase(
+        ::GenericsSpecialization,
+        name = "GenericsSpecialization",
+        description = "Specialization of generic function for primitive types"
+)
+
 internal val lowerBeforeInlinePhase = makeKonanModuleLoweringPhase(
         ::PreInlineLowering,
         name = "LowerBeforeInline",
@@ -296,13 +303,6 @@ internal val bridgesPhase = makeKonanFileOpPhase(
         name = "Bridges",
         description = "Bridges building",
         prerequisite = setOf(coroutinesPhase)
-)
-
-internal val genericsSpecializationPhase = makeKonanFileLoweringPhase(
-        ::GenericsSpecialization,
-        name = "GenericsSpecialization",
-        description = "Specialization of generic function for primitive types",
-        prerequisite = setOf(bridgesPhase)
 )
 
 internal val autoboxPhase = makeKonanFileLoweringPhase(
