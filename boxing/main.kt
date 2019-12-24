@@ -3,11 +3,12 @@ var previousResult = 0
 
 val callees = mapOf<String, () -> Int>(
         "lib" to { lib.runCount() },
-        "nested" to { nested.runCount() }
+        "nested" to { nested.runCount() },
+        "receiver" to { receiver.runCount() }
 )
 
 fun main(args: Array<String>) {
-    listOf("lib", "nested").forEach(::showInfo)
+    listOf("lib", "nested", "receiver").forEach(::showInfo)
 }
 
 fun showInfo(name: String) {
