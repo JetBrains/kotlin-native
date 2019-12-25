@@ -66,6 +66,14 @@ ext {
     platformManager = new PlatformManager(DistributionKt.buildDistribution(projectDir.absolutePath),
             ext.experimentalEnabled)
 
+    cacheableTargets = [
+            KonanTarget.MACOS_X64.INSTANCE,
+            KonanTarget.IOS_X64.INSTANCE,
+            KonanTarget.IOS_ARM64.INSTANCE,
+            KonanTarget.IOS_ARM32.INSTANCE
+    ]
+    cacheableTargetNames = cacheableTargets.collect { it.visibleName }
+
     kotlinCompilerModule="org.jetbrains.kotlin:kotlin-compiler:${kotlinVersion}"
     kotlinStdLibModule="org.jetbrains.kotlin:kotlin-stdlib:${kotlinVersion}"
     kotlinCommonStdlibModule="org.jetbrains.kotlin:kotlin-stdlib-common:${kotlinStdlibVersion}:sources"
@@ -446,6 +454,9 @@ targetList.each { target ->
 
     task("${target}PlatformLibs") {
         dependsOn ":platformLibs:${target}Install"
+        if (target in cacheableTargetNames) {
+            dependsOn(":platformLibs:${target}Cache")
+        }
     }
 
     task("${target}CrossDist") {
@@ -465,6 +476,7 @@ targetList.each { target ->
 
 task distPlatformLibs {
     dependsOn ':platformLibs:hostInstall'
+    dependsOn ':platformLibs:hostCache'
 }
 
 task dist {
@@ -505,8 +517,14 @@ task bundleRestricted(type: Tar) {
         exclude 'dependencies'
         exclude 'klib/testLibrary'
         platformManager.targetValues.each { target ->
-            if (PlatformInfo.isAppleTarget(target))
+            if (PlatformInfo.isAppleTarget(target)) {
                 exclude "klib/platform/${target.name}"
+                exclude {
+                    // Exclude platform libraries caches too.
+                    !it.isDirectory && it.relativePath.startsWithAny("klib/cache/${target.name}-g") &&
+                            it.name != "libstdlib-cache.a"
+                }
+            }
         }
         exclude '**/xcode_license.pdf'
         into baseName
