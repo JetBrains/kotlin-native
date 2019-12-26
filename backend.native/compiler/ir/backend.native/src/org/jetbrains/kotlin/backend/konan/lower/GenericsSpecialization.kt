@@ -71,7 +71,7 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         }
         val primitiveTypeArgument = expression.getTypeArgument(0)!!
         val owner: IrFunction = expression.symbol.owner
-        if (owner.name.asString() !in listOf("eqls__", "id__", "localId__", "anonId__", "doDefault__") || owner.typeParameters.size != 1) {
+        if (owner.typeParameters.size != 1) {
             return expression
         }
         val typeParameter = owner.typeParameters.first()

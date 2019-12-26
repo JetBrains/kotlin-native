@@ -19,13 +19,12 @@ import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.expressions.IrReturn
 import org.jetbrains.kotlin.ir.symbols.impl.IrSimpleFunctionSymbolImpl
-import org.jetbrains.kotlin.ir.symbols.impl.IrVariableSymbolImpl
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.toKotlinType
 import org.jetbrains.kotlin.ir.util.deepCopyWithSymbols
 import org.jetbrains.kotlin.ir.util.irCall
-import org.jetbrains.kotlin.ir.util.isTypeParameter
 import org.jetbrains.kotlin.ir.util.nameForIrSerialization
+import org.jetbrains.kotlin.ir.util.substitute
 import org.jetbrains.kotlin.name.Name
 
 internal class TypeParameterEliminator(
@@ -40,11 +39,11 @@ internal class TypeParameterEliminator(
         return IrVariableImpl(
                 declaration.startOffset,
                 declaration.endOffset,
-                IrDeclarationOrigin.IR_TEMPORARY_VARIABLE,
-                IrVariableSymbolImpl(declaration.descriptor),
-                declaration.type
+                declaration.origin,
+                declaration.descriptor,
+                declaration.type.substitute(mapOf(typeParameter.symbol to concreteType)),
+                declaration.initializer?.transform(this@TypeParameterEliminator, null)
         ).apply {
-            initializer = declaration.initializer?.transform(this@TypeParameterEliminator, null)
             val ini = initializer
             parent = when (ini) {
                 is IrGetValue -> ini.symbol.owner.parent
@@ -74,8 +73,6 @@ internal class TypeParameterEliminator(
     }
 
     override fun visitFunction(declaration: IrFunction): IrStatement {
-//        println(declaration.dump())
-//        functionDeclarationStack.add(declaration)
         if (declaration !is IrSimpleFunction) {
             return declaration
         }
@@ -91,7 +88,7 @@ internal class TypeParameterEliminator(
                     Name.identifier("$nameForIrSerialization-${concreteType.toKotlinType()}"),
                     visibility,
                     modality,
-                    returnType.replaceIfNeeded(concreteType),
+                    returnType.substitute(mapOf(typeParameter.symbol to concreteType)),
                     isInline,
                     isExternal,
                     isTailrec,
@@ -103,19 +100,18 @@ internal class TypeParameterEliminator(
                 functionsNesting.add(newFunction)
                 newFunction.annotations.addAll(annotations)
                 extensionReceiverParameter?.let {
-                    newFunction.extensionReceiverParameter = it.copyTo(newFunction, type = it.type.replaceIfNeeded(concreteType))
+                    newFunction.extensionReceiverParameter = it.copyTo(newFunction, type = it.type.substitute(mapOf(typeParameter.symbol to concreteType)))
                 }
                 dispatchReceiverParameter?.let {
-                    newFunction.dispatchReceiverParameter = it.copyTo(newFunction, type = it.type.replaceIfNeeded(concreteType))
+                    newFunction.dispatchReceiverParameter = it.copyTo(newFunction, type = it.type.substitute(mapOf(typeParameter.symbol to concreteType)))
                 }
                 valueParameters.mapTo(newFunction.valueParameters) {
-                    it.copyTo(newFunction, type = it.type.replaceIfNeeded(concreteType))
+                    it.copyTo(newFunction, type = it.type.substitute(mapOf(typeParameter.symbol to concreteType)))
                 }
                 newFunction.body = body?.deepCopyWithSymbols(declaration)?.transform(this@TypeParameterEliminator, null)
                 functionsNesting.removeAt(functionsNesting.lastIndex)
             }
         }
-
     }
 
 
@@ -132,10 +128,5 @@ internal class TypeParameterEliminator(
                 else -> expression
             }
         }
-    }
-
-    private fun IrType.replaceIfNeeded(newType: IrType): IrType {
-        // TODO reconsider condition when there will be elimination for functions with 2+ type parameters
-        return if (isTypeParameter()) newType else this
     }
 }
