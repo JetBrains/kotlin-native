@@ -302,3 +302,45 @@ publishing {
         }
     }
 }
+
+def testCompileModes = ["optimizeBoxingOn", "optimizeBoxingOff"]
+
+testCompileModes.each { taskName ->
+    task("testCompile${taskName.capitalize()}", type: JavaExec) {
+
+        def konanJvmArgs =  [*HostManager.regularJvmArgs,
+                             "-Dkonan.home=${rootProject.projectDir}/dist",
+                             "-Djava.library.path=${project.buildDir}/nativelibs/$hostName",
+        ]
+
+        main = 'org.jetbrains.kotlin.cli.bc.K2NativeKt'
+        classpath = project.configurations.cli_bc
+        jvmArgs = konanJvmArgs
+
+        args = ["${rootProject.projectDir}/boxing/lib.kt",
+                "${rootProject.projectDir}/boxing/nested.kt",
+                "${rootProject.projectDir}/boxing/receiver.kt",
+                "${rootProject.projectDir}/boxing/main.kt",
+                "-Xcount-box-operations",
+                "-opt"]
+
+        stdLibSrc.forEach { inputs.dir(it) }
+        inputs.dir(commonSrc)
+
+        dependsOn 'unzipStdlibSources'
+        dependsOn ":distCompiler"
+    }
+}
+
+testCompileOptimizeBoxingOff {
+    args = [*args,
+            "-o",
+            "${rootProject.projectDir}/boxing/notOptimized"]
+}
+
+testCompileOptimizeBoxingOn {
+    args = [*args,
+            "-o",
+            "${rootProject.projectDir}/boxing/optimized",
+            "-Xextra-boxing-elimination"]
+}
