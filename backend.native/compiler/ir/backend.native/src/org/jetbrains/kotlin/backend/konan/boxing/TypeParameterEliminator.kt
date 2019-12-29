@@ -11,20 +11,17 @@ import org.jetbrains.kotlin.descriptors.VariableDescriptor
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irReturn
-import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
+import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
+import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.declarations.impl.IrFunctionImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrVariableImpl
-import org.jetbrains.kotlin.ir.expressions.IrCall
-import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.expressions.IrGetValue
-import org.jetbrains.kotlin.ir.expressions.IrReturn
+import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.impl.IrSimpleFunctionSymbolImpl
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.toKotlinType
-import org.jetbrains.kotlin.ir.util.deepCopyWithSymbols
-import org.jetbrains.kotlin.ir.util.irCall
-import org.jetbrains.kotlin.ir.util.nameForIrSerialization
-import org.jetbrains.kotlin.ir.util.substitute
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.Name
 
 internal class TypeParameterEliminator(
@@ -127,6 +124,14 @@ internal class TypeParameterEliminator(
                 }
                 else -> expression
             }
+        }
+    }
+
+    override fun visitSetVariable(expression: IrSetVariable): IrExpression {
+        val symbol = expression.symbol
+        val descriptor = symbol.descriptor
+        return context.createIrBuilder(symbol).run {
+            irSetVar(variables[descriptor] ?: return expression, expression.value.transform(this@TypeParameterEliminator, null))
         }
     }
 }
