@@ -70,7 +70,7 @@ internal class TypeParameterEliminator(
     }
 
     override fun visitFunction(declaration: IrFunction): IrStatement {
-        if (declaration !is IrSimpleFunction) {
+        if (declaration !is IrSimpleFunction || declaration.typeParameters.none { it == typeParameter }) {
             return declaration
         }
         with(declaration) {
