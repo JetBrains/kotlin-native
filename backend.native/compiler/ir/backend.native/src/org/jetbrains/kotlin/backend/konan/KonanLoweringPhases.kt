@@ -309,7 +309,7 @@ internal val autoboxPhase = makeKonanFileLoweringPhase(
         ::Autoboxing,
         name = "Autobox",
         description = "Autoboxing of primitive types",
-        prerequisite = setOf(bridgesPhase, coroutinesPhase, genericsSpecializationPhase)
+        prerequisite = setOf(bridgesPhase, coroutinesPhase)
 )
 
 internal val returnsInsertionPhase = makeKonanFileLoweringPhase(
@@ -323,5 +323,5 @@ internal val countBoxingsPhase = makeKonanFileLoweringPhase(
         ::CountBoxingsLowering,
         name = "CountBoxings",
         description = "Counts boxings",
-        prerequisite = setOf(autoboxPhase)
+        prerequisite = setOf(autoboxPhase, createBoxingCounterPhase)
 )
