@@ -117,7 +117,7 @@ internal class TypeParameterEliminator(
         val descriptor = symbol.descriptor
         return context.createIrBuilder(symbol).run {
             when (descriptor) {
-                is ValueParameterDescriptor -> irGet(functionsNesting.last().getIrValueParameter(descriptor))
+                is ValueParameterDescriptor -> irGet(functionsNesting.last().valueParameters[descriptor.index])
                 is VariableDescriptor -> irGet(variables[descriptor] ?: return expression)
                 is ReceiverParameterDescriptor -> {
                     irGet(functionsNesting.last().extensionReceiverParameter!!)
