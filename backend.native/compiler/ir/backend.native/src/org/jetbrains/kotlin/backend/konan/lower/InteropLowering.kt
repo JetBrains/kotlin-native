@@ -830,8 +830,12 @@ private class InteropTransformer(val context: Context, override val irFile: IrFi
         return declaration
     }
 
-    private fun generateCFunctionPointer(function: IrSimpleFunction, expression: IrExpression): IrExpression =
-            generateWithStubs { generateCFunctionPointer(function, function, expression) }
+    private fun generateCFunctionPointer(function: IrSimpleFunction, expression: IrExpression): IrExpression {
+        if (function.hasAnnotation(RuntimeNames.cCall)) {
+            context.llvmImports.add(function.llvmSymbolOrigin)
+        }
+        return generateWithStubs { generateCFunctionPointer(function, function, expression) }
+    }
 
     override fun visitConstructorCall(expression: IrConstructorCall): IrExpression {
         expression.transformChildrenVoid(this)

@@ -545,7 +545,22 @@ internal fun KotlinStubs.generateCFunctionAndFakeKotlinExternalFunction(
         isObjCMethod: Boolean,
         location: IrElement
 ): IrSimpleFunction {
-    val cFunction = generateCFunction(function, signature, isObjCMethod, location)
+    val cFunction = if (function.hasAnnotation(cCall)) {
+        // If function is annotated with @CCall then we don't need to generate C function.
+        // The problem is cCallSymbolName is not mangled by compiler,
+        // but createFakeKotlinExternalFunction create mangled symbol reference.
+        // Thus, we need to create intermediate variable
+        // which binds mangled symbol to cCallSymbolName.
+        val cCallSymbolName = function.getAnnotationArgumentValue<String>(cCall, "id")!!
+        val intermediateVariable = getUniqueCName(cCallSymbolName)
+        this.addC(listOf(
+                "extern const void* $cCallSymbolName __asm(\"$cCallSymbolName\");",
+                "const void* $intermediateVariable = &$cCallSymbolName;"
+        ))
+        intermediateVariable
+    } else {
+        generateCFunction(function, signature, isObjCMethod, location)
+    }
     return createFakeKotlinExternalFunction(signature, cFunction, isObjCMethod)
 }
 
