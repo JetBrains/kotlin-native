@@ -23,6 +23,7 @@ fun invokeInterop(flavor: String, args: Array<String>): Array<String>? {
     val noDefaultLibs = arguments.nodefaultlibs || arguments.nodefaultlibsDeprecated
     val noEndorsedLibs = arguments.noendorsedlibs
     val purgeUserLibs = arguments.purgeUserLibs
+    val nopack = arguments.nopack
     val temporaryFilesDir = arguments.tempDir
 
     val buildDir = File("$outputFileName-build")
@@ -67,7 +68,8 @@ fun invokeInterop(flavor: String, args: Array<String>): Array<String>? {
         repos.flatMap { listOf("-repo", it) } +
         (if (noDefaultLibs) arrayOf("-$NODEFAULTLIBS") else emptyArray()) +
         (if (noEndorsedLibs) arrayOf("-$NOENDORSEDLIBS") else emptyArray()) +
-        (if (purgeUserLibs) arrayOf("-$PURGE_USER_LIBS") else emptyArray())
+        (if (purgeUserLibs) arrayOf("-$PURGE_USER_LIBS") else emptyArray()) +
+        (if (nopack) arrayOf("-$NOPACK") else emptyArray())
 }
 
 
