@@ -7,10 +7,9 @@ import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irBlockBody
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.boxing.TypeParameterEliminator
-import org.jetbrains.kotlin.ir.declarations.IrDeclarationContainer
-import org.jetbrains.kotlin.ir.declarations.IrFile
-import org.jetbrains.kotlin.ir.declarations.IrFunction
-import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
+import org.jetbrains.kotlin.ir.IrStatement
+import org.jetbrains.kotlin.ir.builders.irBlockBody
+import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrStatementContainer
@@ -18,52 +17,53 @@ import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.addChild
 import org.jetbrains.kotlin.ir.util.irCall
 import org.jetbrains.kotlin.ir.util.statements
-import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 import org.jetbrains.kotlin.types.Variance
+import kotlin.collections.MutableMap
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.contains
+import kotlin.collections.first
+import kotlin.collections.forEach
+import kotlin.collections.getOrPut
+import kotlin.collections.mutableMapOf
+import kotlin.collections.set
+import kotlin.collections.toMutableList
 
 internal class GenericsSpecialization(val context: Context) : FileLoweringPass {
 
     private val transformer = SpecializationTransformer(context)
 
     override fun lower(irFile: IrFile) {
-        irFile.transformChildrenVoid(transformer)
-        transformer.newFunctions.forEach { (specialization, origin) ->
-            when (val parent = origin.parent) {
-                is IrDeclarationContainer -> parent.addChild(specialization)
-                is IrStatementContainer -> {
-                    val originIndex = parent.statements.indexOf(origin)
-                    parent.statements.add(originIndex + 1, specialization)
-                    specialization.parent = parent
-                }
-                is IrFunction -> {
-                    val builder = context.createIrBuilder(parent.symbol)
-                    val statements = parent.body?.statements?.toMutableList()
-                    if (statements == null) {
-                        irFile.addChild(specialization)
-                    }
-                    else {
-                        statements.add(statements.indexOf(origin), specialization)
-                        specialization.parent = parent
-                    }
-                    parent.body = builder.irBlockBody(parent) {
-                        statements?.forEach {
-                            +it
-                        }
-                    }
-                }
-                else -> irFile.addChild(specialization)
-            }
-        }
-        transformer.newFunctions.clear()
+        irFile.transform(transformer, null)
     }
 }
+
+// let's define specialization for the function (second argument) and concrete type (third argument)
+// be declared in the scope corresponding to the scope of origin
+internal typealias SpecializationDescriptor = Triple<IrDeclarationParent, IrFunction, IrType>
 
 internal class SpecializationTransformer(val context: Context): IrBuildingTransformer(context) {
 
     private val currentSpecializations = mutableMapOf<Pair<IrFunction, IrType>, IrFunction>()
+    private val typeParameterEliminator = TypeParameterEliminator(this, context)
 
-    // specialization -> origin
-    val newFunctions = mutableMapOf<IrFunction, IrFunction>()
+    // scope -> specialization -> origin
+    val newFunctions = mutableMapOf<IrDeclarationParent, MutableMap<IrFunction, IrFunction>>()
+
+    override fun visitFile(declaration: IrFile): IrFile {
+        return super.visitFile(declaration).also {
+            addNewFunctionsToIr(declaration)
+            newFunctions.forEach { (scope, _) ->
+                addNewFunctionsToIr(scope)
+            }
+        }
+    }
+
+    override fun visitFunction(declaration: IrFunction): IrStatement {
+        return super.visitFunction(declaration).also {
+            addNewFunctionsToIr(declaration)
+        }
+    }
 
     override fun visitCall(expression: IrCall): IrExpression {
         if (expression.typeArgumentsCount != 1 || expression.getTypeArgument(0) !in context.irBuiltIns.primitiveIrTypes) {
@@ -99,9 +99,47 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         if (function != null) {
             return function
         }
-        return (TypeParameterEliminator(context, typeParameters.first(), type).visitFunction(this) as IrFunction).also {
+        typeParameterEliminator.addMapping(typeParameters.first(), type)
+        return typeParameterEliminator.visitFunctionAsCallee(this).also {
             currentSpecializations[this to type] = it
-            newFunctions[it] = this
+            newFunctions.getOrPut(parent) { mutableMapOf() }[it] = this
         }
+    }
+
+    /**
+     * Adds new functions to given [parent]. This function must not be called
+     * when visiting members inside the scope of [parent],
+     * otherwise [ConcurrentModificationException] may be thrown.
+     */
+    private fun addNewFunctionsToIr(parent: IrDeclarationParent) {
+        newFunctions[parent]?.forEach { (specialization, origin) ->
+            when (val scope = origin.parent) {
+                is IrDeclarationContainer -> scope.addChild(specialization)
+                is IrStatementContainer -> {
+                    val originIndex = scope.statements.indexOf(origin)
+                    scope.statements.add(originIndex + 1, specialization)
+                    specialization.parent = scope
+                }
+                is IrFunction -> {
+                    val builder = context.createIrBuilder(scope.symbol)
+                    val statements = scope.body?.statements?.toMutableList()
+                    if (statements == null) {
+                        scope.body = builder.irBlockBody {
+                            +specialization
+                        }
+                    } else {
+                        statements.add(statements.indexOf(origin), specialization)
+                        specialization.parent = scope
+                    }
+                    scope.body = builder.irBlockBody(scope) {
+                        statements?.forEach {
+                            +it
+                        }
+                    }
+                }
+                else -> TODO()
+            }
+        }
+        newFunctions[parent]?.clear()
     }
 }
