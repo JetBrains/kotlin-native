@@ -4,6 +4,7 @@
  */
 package org.jetbrains.kotlin.native.interop.gen
 
+import org.jetbrains.kotlin.native.interop.gen.jvm.GenerationMode
 import org.jetbrains.kotlin.native.interop.gen.jvm.InteropConfiguration
 import org.jetbrains.kotlin.native.interop.gen.jvm.KotlinPlatform
 import org.jetbrains.kotlin.native.interop.indexer.*
@@ -100,6 +101,8 @@ interface StubsBuildingContext {
 
     val platform: KotlinPlatform
 
+    val generationMode: GenerationMode
+
     fun isStrictEnum(enumDef: EnumDef): Boolean
 
     val macroConstantsByName: Map<String, MacroDef>
@@ -132,6 +135,7 @@ class StubsBuildingContextImpl(
 
     override val configuration: InteropConfiguration = stubIrContext.configuration
     override val platform: KotlinPlatform = stubIrContext.platform
+    override val generationMode: GenerationMode = stubIrContext.generationMode
     val imports: Imports = stubIrContext.imports
     private val nativeIndex: NativeIndex = stubIrContext.nativeIndex
 
