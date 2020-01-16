@@ -51,16 +51,16 @@ fun StubContainer.computeNamesToBeDeclared(pkgName: String): List<String> {
     return classNames + typealiasNames + namesFromNestedContainers
 }
 
-val StubContainer.defaultMemberModality: MemberStubModality
+val StubContainer.defaultMemberModifier: InheritanceModifier
     get() = when (this) {
-        is SimpleStubContainer -> MemberStubModality.FINAL
+        is SimpleStubContainer -> InheritanceModifier.FINAL
         is ClassStub.Simple -> if (this.modality == ClassStubModality.INTERFACE) {
-            MemberStubModality.ABSTRACT
+            InheritanceModifier.ABSTRACT
         } else {
-            MemberStubModality.FINAL
+            InheritanceModifier.FINAL
         }
-        is ClassStub.Companion -> MemberStubModality.FINAL
-        is ClassStub.Enum -> MemberStubModality.FINAL
+        is ClassStub.Companion -> InheritanceModifier.FINAL
+        is ClassStub.Enum -> InheritanceModifier.FINAL
     }
 
 /**

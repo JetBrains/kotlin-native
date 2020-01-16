@@ -31,7 +31,7 @@ class StubIrToMetadataTests {
                 annotations = emptyList(),
                 external = true,
                 receiver = null,
-                modality = MemberStubModality.FINAL
+                modifier = InheritanceModifier.FINAL
         )
     }
 

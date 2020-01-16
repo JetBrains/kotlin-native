@@ -73,7 +73,7 @@ internal class StructStubBuilder(
                 val offset = field.offset / 8
                 val fieldRefType = context.mirror(field.type)
                 val unwrappedFieldType = field.type.unwrapTypedefs()
-                val origin = StubOrigin.Synthetic
+                val origin = StubOrigin.StructMember(field)
                 if (unwrappedFieldType is ArrayType) {
                     val type = (fieldRefType as TypeMirror.ByValue).valueType
                     val annotations = if (platform == KotlinPlatform.JVM) {
@@ -115,7 +115,7 @@ internal class StructStubBuilder(
             context.bridgeComponentsBuilder.getterToBridgeInfo[readBits] = BridgeGenerationInfo("", typeInfo)
             context.bridgeComponentsBuilder.setterToBridgeInfo[writeBits] = BridgeGenerationInfo("", typeInfo)
             val kind = PropertyStub.Kind.Var(readBits, writeBits)
-            PropertyStub(field.name, kotlinType.toStubIrType(), kind, origin = StubOrigin.Synthetic)
+            PropertyStub(field.name, kotlinType.toStubIrType(), kind, origin = StubOrigin.StructMember(field))
         }
 
         val superClass = context.platform.getRuntimeType("CStructVar")
@@ -214,8 +214,9 @@ internal class EnumStubBuilder(
                 name = "value",
                 type = baseType,
                 kind = PropertyStub.Kind.Val(PropertyAccessor.Getter.GetConstructorParameter(constructorParameter)),
-                modality = MemberStubModality.OVERRIDE,
-                origin = StubOrigin.Synthetic)
+                modifier = InheritanceModifier.OPEN,
+                origin = StubOrigin.Synthetic.EnumValueField(enumDef),
+                isOverride = true)
 
         val canonicalsByValue = enumDef.constants
                 .groupingBy { it.value }
@@ -300,9 +301,9 @@ internal class EnumStubBuilder(
                     constant.name,
                     kotlinType.toStubIrType(),
                     kind,
-                    MemberStubModality.FINAL,
+                    InheritanceModifier.FINAL,
                     null,
-                    origin = StubOrigin.Synthetic
+                    origin = StubOrigin.EnumEntry(constant)
             )
         }
         val container = SimpleStubContainer(
@@ -332,7 +333,6 @@ internal class FunctionStubBuilder(
             }
 
             val representAsValuesRef = representCFunctionParameterAsValuesRef(parameter.type)
-            val origin = StubOrigin.FunctionParameter(parameter)
             parameters += when {
                 representCFunctionParameterAsString(func, parameter.type) -> {
                     val annotations = when (platform) {
@@ -340,7 +340,7 @@ internal class FunctionStubBuilder(
                         KotlinPlatform.NATIVE -> listOf(AnnotationStub.CCall.CString)
                     }
                     val type = KotlinTypes.string.makeNullable().toStubIrType()
-                    val functionParameterStub = FunctionParameterStub(parameterName, type, annotations, origin = origin)
+                    val functionParameterStub = FunctionParameterStub(parameterName, type, annotations)
                     context.bridgeComponentsBuilder.cStringParameters += functionParameterStub
                     functionParameterStub
                 }
@@ -350,17 +350,17 @@ internal class FunctionStubBuilder(
                         KotlinPlatform.NATIVE -> listOf(AnnotationStub.CCall.WCString)
                     }
                     val type = KotlinTypes.string.makeNullable().toStubIrType()
-                    val functionParameterStub = FunctionParameterStub(parameterName, type, annotations, origin = origin)
+                    val functionParameterStub = FunctionParameterStub(parameterName, type, annotations)
                     context.bridgeComponentsBuilder.wCStringParameters += functionParameterStub
                     functionParameterStub
                 }
                 representAsValuesRef != null -> {
-                    FunctionParameterStub(parameterName, representAsValuesRef.toStubIrType(), origin = origin)
+                    FunctionParameterStub(parameterName, representAsValuesRef.toStubIrType())
                 }
                 else -> {
                     val mirror = context.mirror(parameter.type)
                     val type = mirror.argType.toStubIrType()
-                    FunctionParameterStub(parameterName, type, origin = origin)
+                    FunctionParameterStub(parameterName, type)
                 }
             }
         }
@@ -393,7 +393,7 @@ internal class FunctionStubBuilder(
                 annotations,
                 mustBeExternal,
                 null,
-                MemberStubModality.FINAL
+                InheritanceModifier.FINAL
         )
         return listOf(functionStub)
     }

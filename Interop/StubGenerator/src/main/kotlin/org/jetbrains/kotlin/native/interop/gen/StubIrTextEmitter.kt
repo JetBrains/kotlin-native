@@ -185,8 +185,9 @@ class StubIrTextEmitter(
                 val parameters = element.parameters.joinToString(prefix = "(", postfix = ")") { renderFunctionParameter(it) }
                 val receiver = element.receiver?.let { renderFunctionReceiver(it) + "." } ?: ""
                 val typeParameters = renderTypeParameters(element.typeParameters)
-                val modality = renderMemberModality(element.modality, owner)
-                "${modality}fun$typeParameters $receiver${element.name.asSimpleName()}$parameters: ${renderStubType(element.returnType)}"
+                val modifier = renderInheritanceModifier(element.modifier, owner)
+                val override = if (element.isOverride) "override " else ""
+                "${modifier}${override}fun$typeParameters $receiver${element.name.asSimpleName()}$parameters: ${renderStubType(element.returnType)}"
             }
             if (!nativeBridges.isSupported(element)) {
                 sequenceOf(
@@ -302,7 +303,9 @@ class StubIrTextEmitter(
     private fun emitProperty(element: PropertyStub, owner: StubContainer?) {
         if (element in bridgeBuilderResult.excludedStubs) return
 
-        val modality = renderMemberModality(element.modality, owner)
+        val modifier = renderInheritanceModifier(element.modifier, owner)
+        val override = if (element.isOverride) "override " else ""
+        val modality = "$modifier$override"
         val receiver = if (element.receiverType != null) "${renderStubType(element.receiverType)}." else ""
         val name = if (owner?.isTopLevelContainer == true) {
             getTopLevelPropertyDeclarationName(kotlinFile, element.name)
@@ -369,15 +372,14 @@ class StubIrTextEmitter(
         return "$annotations$vararg${parameter.name.asSimpleName()}: ${renderStubType(parameter.type)}"
     }
 
-    private fun renderMemberModality(modality: MemberStubModality, container: StubContainer?): String =
-            if (container?.defaultMemberModality == modality) {
+    private fun renderInheritanceModifier(modifier: InheritanceModifier, container: StubContainer?): String =
+            if (container?.defaultMemberModifier == modifier) {
                 ""
             } else
-                when (modality) {
-                    MemberStubModality.OVERRIDE -> "override "
-                    MemberStubModality.OPEN -> "open "
-                    MemberStubModality.FINAL -> "final "
-                    MemberStubModality.ABSTRACT -> "abstract "
+                when (modifier) {
+                    InheritanceModifier.OPEN -> "open "
+                    InheritanceModifier.FINAL -> "final "
+                    InheritanceModifier.ABSTRACT -> "abstract "
                 }
 
     private fun renderVisibilityModifier(visibilityModifier: VisibilityModifier) = when (visibilityModifier) {

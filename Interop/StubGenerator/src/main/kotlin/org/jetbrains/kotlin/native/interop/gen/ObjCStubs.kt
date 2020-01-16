@@ -108,7 +108,9 @@ private class ObjCMethodStubBuilder(
     private val receiver: ReceiverParameterStub?
     private val name: String = method.kotlinName
     private val origin = StubOrigin.ObjCMethod(method, container)
-    private val modality: MemberStubModality
+    private val modifier: InheritanceModifier
+    private val isOverride: Boolean =
+            container is ObjCClassOrProtocol && method.isOverride(container)
 
     init {
         val returnType = method.getReturnType(container.classOrProtocol)
@@ -126,16 +128,10 @@ private class ObjCMethodStubBuilder(
         annotations += buildObjCMethodAnnotations(methodAnnotation)
         kotlinMethodParameters = method.getKotlinParameters(context, forConstructorOrFactory = false)
         external = (container !is ObjCProtocol)
-        modality = when (container) {
-            is ObjCClassOrProtocol -> {
-                if (method.isOverride(container)) {
-                    MemberStubModality.OVERRIDE
-                } else when (container) {
-                    is ObjCClass -> MemberStubModality.OPEN
-                    is ObjCProtocol -> MemberStubModality.ABSTRACT
-                }
-            }
-            is ObjCCategory -> MemberStubModality.FINAL
+        modifier = when (container) {
+            is ObjCClass -> InheritanceModifier.OPEN
+            is ObjCProtocol -> InheritanceModifier.ABSTRACT
+            is ObjCCategory -> InheritanceModifier.FINAL
         }
         receiver = if (container is ObjCCategory) {
             val receiverType = ClassifierStubType(context.getKotlinClassFor(container.clazz, isMeta = method.isClass))
@@ -208,7 +204,7 @@ private class ObjCMethodStubBuilder(
                             external = true,
                             origin = StubOrigin.ObjCCategoryInitMethod(method),
                             annotations = annotations,
-                            modality = MemberStubModality.FINAL
+                            modifier = InheritanceModifier.FINAL
                     )
                     createMethod
                 }
@@ -226,7 +222,8 @@ private class ObjCMethodStubBuilder(
                         annotations.toList(),
                         external,
                         receiver,
-                        modality),
+                        modifier,
+                        isOverride = isOverride),
                 replacement
         )
     }
@@ -437,7 +434,7 @@ internal abstract class ObjCContainerStubBuilder(
             ConstructorStub(
                     isPrimary = false,
                     visibility = VisibilityModifier.PROTECTED,
-                    origin = StubOrigin.SyntheticDefaultConstructor)
+                    origin = StubOrigin.Synthetic.DefaultConstructor)
         } else null
 
         return Pair(
@@ -579,7 +576,7 @@ private class ObjCPropertyStubBuilder(
         val getter = PropertyAccessor.Getter.ExternalGetter(annotations = getterBuilder.annotations)
         val setter = property.setter?.let { PropertyAccessor.Setter.ExternalSetter(annotations = setterMethod!!.annotations) }
         val kind = setter?.let { PropertyStub.Kind.Var(getter, it) } ?: PropertyStub.Kind.Val(getter)
-        val modality = MemberStubModality.FINAL
+        val modality = InheritanceModifier.FINAL
         val receiver = when (container) {
             is ObjCClassOrProtocol -> null
             is ObjCCategory -> ClassifierStubType(context.getKotlinClassFor(container.clazz, isMeta = property.getter.isClass))

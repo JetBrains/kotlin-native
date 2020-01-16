@@ -83,7 +83,7 @@ internal class ModuleMetadataEmitter(
                     typeParametersInterner = Interner(data.typeParametersInterner)
             )
             val children = element.children + if (element is ClassStub.Companion) {
-                listOf(ConstructorStub(isPrimary = true, visibility = VisibilityModifier.PRIVATE, origin = StubOrigin.SyntheticDefaultConstructor))
+                listOf(ConstructorStub(isPrimary = true, visibility = VisibilityModifier.PRIVATE, origin = StubOrigin.Synthetic.DefaultConstructor))
             } else emptyList()
             val elements = KmElements(children.map { it.accept(this, classVisitingContext) })
             val kmClass = with (MappingExtensions(data.typeParametersInterner)) {
@@ -190,19 +190,20 @@ private class MappingExtensions(
                 Flag.IS_PRIVATE.takeIf { this == VisibilityModifier.PRIVATE }
         )
 
-    private val MemberStubModality.flags: Flags
+    private val InheritanceModifier.flags: Flags
         get() = flagsOfNotNull(
-                Flag.IS_FINAL.takeIf { this == MemberStubModality.FINAL },
-                Flag.IS_OPEN.takeIf { this == MemberStubModality.OPEN },
-                Flag.IS_ABSTRACT.takeIf { this == MemberStubModality.ABSTRACT }
+                Flag.IS_FINAL.takeIf { this == InheritanceModifier.FINAL },
+                Flag.IS_OPEN.takeIf { this == InheritanceModifier.OPEN },
+                Flag.IS_ABSTRACT.takeIf { this == InheritanceModifier.ABSTRACT }
         )
 
     val FunctionStub.flags: Flags
         get() = flagsOfNotNull(
                 Flag.IS_PUBLIC,
-                Flag.Function.IS_EXTERNAL,
+                Flag.Function.IS_EXTERNAL.takeIf { this.external },
+                Flag.Function.IS_DECLARATION.takeIf { !this.external },
                 Flag.HAS_ANNOTATIONS.takeIf { annotations.isNotEmpty() }
-        ) or modality.flags
+        ) or modifier.flags
 
     val Classifier.fqNameSerialized: String
         get() = buildString {
@@ -234,7 +235,7 @@ private class MappingExtensions(
                     is PropertyStub.Kind.Val -> null
                     is PropertyStub.Kind.Var -> Flag.Property.HAS_SETTER
                 }
-        ) or modality.flags
+        ) or modifier.flags
 
     val PropertyStub.getterFlags: Flags
         get() = when (kind) {

@@ -72,7 +72,7 @@ internal class StubIrUniqIdProvider(private val context: ManglingContext) {
     }.toUniqId()
 
     private fun InteropMangler.uniqSymbolNameForConstructor(origin: StubOrigin): String? = when (origin) {
-        is StubOrigin.SyntheticDefaultConstructor -> "${context.prefix}#Constructor"
+        is StubOrigin.Synthetic.DefaultConstructor -> "${context.prefix}#Constructor"
         is StubOrigin.Enum -> "${origin.enum.uniqueSymbolName}#Constructor"
         is StubOrigin.Struct -> "${origin.struct.uniqueSymbolName}#Constructor"
         is StubOrigin.ObjCMethod -> "${origin.method.uniqueSymbolName}#Constructor"
