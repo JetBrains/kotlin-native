@@ -10,6 +10,7 @@ import org.jetbrains.report.BenchmarkResult
 import org.jetbrains.report.Environment
 import org.jetbrains.report.Compiler
 import org.jetbrains.report.BenchmarksReport
+import org.jetbrains.report.BenchmarksSet
 
 typealias SummaryBenchmark = Pair<MeanVarianceBenchmark?, MeanVarianceBenchmark?>
 typealias BenchmarksTable = Map<String, MeanVarianceBenchmark>
@@ -22,7 +23,7 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
                                val meaningfulChangesValue: Double = 0.5) {
     // Report created by joining comparing reports.
     val mergedReport: Map<String, SummaryBenchmark>
-    val benchmarksDurations: Map<String, Pair<Double?, Double?>>
+    private val benchmarksDurations: Map<String, Pair<Double?, Double?>>
 
     // Lists of benchmarks in different status.
     private val benchmarksWithChangedStatus = mutableListOf<FieldChange<BenchmarkResult.Status>>()
@@ -41,10 +42,13 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
     // Environment and tools.
     val environments: Pair<Environment, Environment?>
     val compilers: Pair<Compiler, Compiler?>
+    val benchmarksSetsInfo: Pair<List<BenchmarksSet.BenchmarksSetInfo>, List<BenchmarksSet.BenchmarksSetInfo>?>
+    // BenchmarkSet name -> list of benchmark name.
+    val benchmarksParents: Pair<Map<String, List<String>>, Map<String, List<String>>>
 
     // Countable properties.
     val failedBenchmarks: List<String>
-        get() = mergedReport.filter { it.value.first?.meanBenchmark?.status == BenchmarkResult.Status.FAILED }
+        get() = mergedReport.filter { it.value.first?.status == BenchmarkResult.Status.FAILED }
                             .map { it.key }
 
     val addedBenchmarks: List<String>
@@ -96,9 +100,24 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
                 mutableListOf<FieldChange<String>>().apply {
                     addFieldChange("Backend type", previousCompiler.backend.type.type, currentCompiler.backend.type.type)
                     addFieldChange("Backend version", previousCompiler.backend.version, currentCompiler.backend.version)
-                    addFieldChange("Backend flags", previousCompiler.backend.flags.toString(),
-                            currentCompiler.backend.flags.toString())
                     addFieldChange("Kotlin version", previousCompiler.kotlinVersion, currentCompiler.kotlinVersion)
+                }
+            } ?: listOf<FieldChange<String>>()
+        }
+
+    val benchmarksSetsChanges: List<FieldChange<String>>
+        get() {
+            val previousSets = benchmarksSetsInfo.second
+            val currentSets = benchmarksSetsInfo.first
+            return previousSets?.let {
+                val previousSetsMap = it.groupBy { it.name }
+                val currentSetsMap = currentSets.groupBy { it.name }
+                mutableListOf<FieldChange<String>>().apply {
+                    currentSetsMap.keys.intersect(previousSetsMap.keys).forEach { key ->
+                        addFieldChange("Benchmarks set $key compiler flags",
+                                previousSetsMap[key]!!.first().compilerFlags.toString(),
+                                currentSetsMap[key]!!.first().compilerFlags.toString())
+                    }
                 }
             } ?: listOf<FieldChange<String>>()
         }
@@ -114,12 +133,21 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
         geoMeanBenchmark = calculateGeoMeanBenchmark(currentBenchmarksTable, previousBenchmarksTable)
         environments = Pair(currentReport.env, previousReport?.env)
         compilers = Pair(currentReport.compiler, previousReport?.compiler)
+        benchmarksSetsInfo = Pair(currentReport.benchmarksSets.map { it.setInfo },
+                previousReport?.benchmarksSets?.map { it.setInfo })
+        benchmarksParents = Pair(getParentsMap(currentReport.benchmarksSets),
+                previousReport?.let{ getParentsMap(it.benchmarksSets) } ?: emptyMap())
 
         if (previousReport != null) {
             // Check changes in environment and tools.
             analyzePerformanceChanges()
         }
     }
+
+    fun getParentsMap(benchmarksSet: List<BenchmarksSet>) =
+        benchmarksSet.map { currentSet ->
+            currentSet.setInfo.name to currentSet.benchmarks.keys.distinct()
+        }.toMap()
 
     fun getResultsByMetric(metric: BenchmarkResult.Metric, getGeoMean: Boolean = true, filter: List<String>? = null,
                            normalizeData: Map<String, Map<String, Double>>? = null): List<Double?>  {
@@ -132,8 +160,8 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
         } ?: mergedReport
         val results = benchmarks.map { entry ->
             val name = entry.key.removeSuffix(metric.suffix)
-            if (entry.value.first!!.meanBenchmark.metric == metric) {
-                val score = entry.value.first!!.meanBenchmark.score
+            if (entry.value.first!!.metric == metric) {
+                val score = entry.value.first!!.score
                 val value = normalizeData?.let {
                     it.get(name)?.get("$metric")?.let { score / it }
                             ?: error("No normalization data for benchmark $name and metric $metric")
@@ -169,11 +197,9 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
     // Create geometric mean.
     private fun createGeoMeanBenchmark(benchTable: BenchmarksTable): MeanVarianceBenchmark {
         val geoMeanBenchmarkName = "Geometric mean"
-        val geoMean = geometricMean(benchTable.toList().map { (_, value) -> value.meanBenchmark.score })
-        val varianceGeoMean = geometricMean(benchTable.toList().map { (_, value) -> value.varianceBenchmark.score })
-        val meanBenchmark = BenchmarkResult(geoMeanBenchmarkName, geoMean)
-        val varianceBenchmark = BenchmarkResult(geoMeanBenchmarkName, varianceGeoMean)
-        return MeanVarianceBenchmark(meanBenchmark, varianceBenchmark)
+        val geoMean = geometricMean(benchTable.toList().map { (_, value) -> value.score })
+        val varianceGeoMean = geometricMean(benchTable.toList().map { (_, value) -> value.variance })
+        return MeanVarianceBenchmark(geoMeanBenchmarkName, geoMean, varianceGeoMean)
     }
 
     // Generate map with summary durations of each benchmark.
@@ -193,16 +219,15 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
         val mergedTable = mutableMapOf<String, SummaryBenchmark>()
         mergedTable.apply {
             currentBenchmarks.forEach { (name, current) ->
-                val currentBenchmark = current.meanBenchmark
                 // Check existance of benchmark in previous results.
                 if (previousBenchmarks == null || name !in previousBenchmarks) {
                     getOrPut(name) { SummaryBenchmark(current, null) }
                 } else {
-                    val previousBenchmark = previousBenchmarks.getValue(name).meanBenchmark
+                    val previousBenchmark = previousBenchmarks.getValue(name)
                     getOrPut(name) { SummaryBenchmark(current, previousBenchmarks[name]) }
                     // Explore change of status.
-                    if (previousBenchmark.status != currentBenchmark.status) {
-                        val statusChange = FieldChange("$name", previousBenchmark.status, currentBenchmark.status)
+                    if (previousBenchmark.status != current.status) {
+                        val statusChange = FieldChange("$name", previousBenchmark.status, current.status)
                         benchmarksWithChangedStatus.add(statusChange)
                     }
                 }

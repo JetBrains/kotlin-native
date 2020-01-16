@@ -19,28 +19,32 @@ data class MeanVariance(val mean: Double, val variance: Double) {
     }
 }
 
-// Composite benchmark which descibes avarage result for several runs and contains mean and variance value.
-data class MeanVarianceBenchmark(val meanBenchmark: BenchmarkResult, val varianceBenchmark: BenchmarkResult) {
+class MeanVarianceBenchmark(name: String, status: BenchmarkResult.Status, score: Double, metric: BenchmarkResult.Metric,
+                            runtimeInUs: Double, repeat: Int, warmup: Int, val variance: Double) :
+        BenchmarkResult(name, status, score, metric, runtimeInUs, repeat, warmup) {
+
+    constructor(name: String, score: Double, variance: Double) : this(name, BenchmarkResult.Status.PASSED, score,
+            BenchmarkResult.Metric.EXECUTION_TIME, 0.0, 0, 0, variance)
 
     // Calculate difference in percentage compare to another.
     fun calcPercentageDiff(other: MeanVarianceBenchmark): MeanVariance {
-        assert(other.meanBenchmark.score >= 0 &&
-                other.varianceBenchmark.score >= 0 &&
-                other.meanBenchmark.score - other.varianceBenchmark.score != 0.0,
+        assert(other.score >= 0 &&
+                other.variance >= 0 &&
+                other.score - other.variance != 0.0,
                 { "Mean and variance should be positive and not equal!" })
-        val exactMean = (meanBenchmark.score - other.meanBenchmark.score) / other.meanBenchmark.score
+        val exactMean = (score - other.score) / other.score
         // Analyze intervals. Calculate difference between border points.
-        val (bigValue, smallValue) = if (meanBenchmark.score > other.meanBenchmark.score) Pair(this, other) else Pair(other, this)
-        val bigValueIntervalStart = bigValue.meanBenchmark.score - bigValue.varianceBenchmark.score
-        val bigValueIntervalEnd = bigValue.meanBenchmark.score + bigValue.varianceBenchmark.score
-        val smallValueIntervalStart = smallValue.meanBenchmark.score - smallValue.varianceBenchmark.score
-        val smallValueIntervalEnd = smallValue.meanBenchmark.score + smallValue.varianceBenchmark.score
+        val (bigValue, smallValue) = if (score > other.score) Pair(this, other) else Pair(other, this)
+        val bigValueIntervalStart = bigValue.score - bigValue.variance
+        val bigValueIntervalEnd = bigValue.score + bigValue.variance
+        val smallValueIntervalStart = smallValue.score - smallValue.variance
+        val smallValueIntervalEnd = smallValue.score + smallValue.variance
         if (smallValueIntervalEnd > bigValueIntervalStart) {
             // Interval intersect.
             return MeanVariance(0.0, 0.0)
         }
         val mean = ((smallValueIntervalEnd - bigValueIntervalStart) / bigValueIntervalStart) *
-                (if (meanBenchmark.score > other.meanBenchmark.score) -1 else 1)
+                (if (score > other.score) -1 else 1)
 
         val maxValueChange = ((bigValueIntervalEnd - smallValueIntervalEnd) / bigValueIntervalEnd)
         val minValueChange =  ((bigValueIntervalStart - smallValueIntervalStart) / bigValueIntervalStart)
@@ -50,20 +54,26 @@ data class MeanVarianceBenchmark(val meanBenchmark: BenchmarkResult, val varianc
 
     // Calculate ratio value compare to another.
     fun calcRatio(other: MeanVarianceBenchmark): MeanVariance {
-        assert(other.meanBenchmark.score >= 0 &&
-                other.varianceBenchmark.score >= 0 &&
-                other.meanBenchmark.score - other.varianceBenchmark.score != 0.0,
+        assert(other.score >= 0 &&
+                other.variance >= 0 &&
+                other.score - other.variance != 0.0,
                 { "Mean and variance should be positive and not equal!" })
-        val mean = meanBenchmark.score / other.meanBenchmark.score
-        val minRatio = (meanBenchmark.score - varianceBenchmark.score) / (other.meanBenchmark.score + other.varianceBenchmark.score)
-        val maxRatio = (meanBenchmark.score + varianceBenchmark.score) / (other.meanBenchmark.score - other.varianceBenchmark.score)
+        val mean = score / other.score
+        val minRatio = (score - variance) / (other.score + other.variance)
+        val maxRatio = (score + variance) / (other.score - other.variance)
         val ratioConfInt = min(abs(minRatio - mean), abs(maxRatio - mean))
         return MeanVariance(mean, ratioConfInt)
     }
 
     override fun toString(): String =
-        "${meanBenchmark.score.format()} ± ${varianceBenchmark.score.format()}"
+            "${score.format()} ± ${variance.format()}"
 
+    override fun serializeFields(): String {
+        return """
+            ${super.serializeFields()},
+            "variance": ${variance.toString()}
+            """
+    }
 }
 
 fun geometricMean(values: Collection<Double>, totalNumber: Int = values.size) =
@@ -117,13 +127,10 @@ fun collectMeanResults(benchmarks: Map<String, List<BenchmarkResult>>): Benchmar
         // Create mean and variance benchmarks result.
         val scoreMeanVariance = computeMeanVariance(resultsSet.map { it.score })
         val runtimeInUsMeanVariance = computeMeanVariance(resultsSet.map { it.runtimeInUs })
-        val meanBenchmark = BenchmarkResult(name, currentStatus, scoreMeanVariance.mean, metric,
+        val meanBenchmark = MeanVarianceBenchmark(name, currentStatus, scoreMeanVariance.mean, metric,
                 runtimeInUsMeanVariance.mean, repeatedSequence[resultsSet.size - 1],
-                currentWarmup)
-        val varianceBenchmark = BenchmarkResult(name, currentStatus, scoreMeanVariance.variance, metric,
-                runtimeInUsMeanVariance.variance, repeatedSequence[resultsSet.size - 1],
-                currentWarmup)
-        name to MeanVarianceBenchmark(meanBenchmark, varianceBenchmark)
+                currentWarmup, scoreMeanVariance.variance)
+        name to meanBenchmark
     }.toMap()
 }
 

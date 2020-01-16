@@ -100,14 +100,17 @@ fun createJsonReport(projectProperties: Map<String, Any>): String {
     val env = Environment(machine, jdk)
     val flags = (projectProperties["flags"] ?: emptyList<String>()) as List<String>
     val backend = Compiler.Backend(Compiler.backendTypeFromString(getValue("type"))!! ,
-                                    getValue("compilerVersion"), flags)
+                                    getValue("compilerVersion"))
     val kotlin = Compiler(backend, getValue("kotlinVersion"))
     val benchDesc = getValue("benchmarks")
     val benchmarksArray = JsonTreeParser.parse(benchDesc)
-    val benchmarks = BenchmarksReport.parseBenchmarksArray(benchmarksArray)
+    val benchmarks = BenchmarksSet.parseBenchmarksArray(benchmarksArray)
             .union(projectProperties["compileTime"] as List<BenchmarkResult>).union(
                     listOf(projectProperties["codeSize"] as? BenchmarkResult).filterNotNull()).toList()
-    val report = BenchmarksReport(env, benchmarks, kotlin)
+    val benchmarksSet = BenchmarksSet(
+            BenchmarksSet.BenchmarksSetInfo(projectProperties["benchmarksSet"] as String, flags), benchmarks)
+
+    val report = BenchmarksReport(env, listOf(benchmarksSet), kotlin)
     return report.toJson()
 }
 
@@ -117,16 +120,8 @@ fun mergeReports(reports: List<File>): String {
         val reportElement = JsonTreeParser.parse(json)
         BenchmarksReport.create(reportElement)
     }
-    val structuredReports = mutableMapOf<String, MutableList<BenchmarksReport>>()
-    reportsToMerge.map { it.compiler.backend.flags.joinToString() to it }.forEach {
-        structuredReports.getOrPut(it.first) { mutableListOf<BenchmarksReport>() }.add(it.second)
-    }
-    val jsons = structuredReports.map { (_, value) -> value.reduce { result, it -> result + it }.toJson() }
-    return when(jsons.size) {
-        0 -> ""
-        1 -> jsons[0]
-        else -> jsons.joinToString(prefix = "[", postfix = "]")
-    }
+
+    return if (reportsToMerge.isEmpty()) "" else reportsToMerge.reduce { result, it -> result + it }.toJson()
 }
 
 fun getCompileOnlyBenchmarksOpts(project: Project, defaultCompilerOpts: List<String>): List<String> {

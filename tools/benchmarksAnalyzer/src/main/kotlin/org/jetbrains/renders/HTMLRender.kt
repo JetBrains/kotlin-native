@@ -226,6 +226,7 @@ class HTMLRender: Render() {
                     p{}
                     renderEnvironmentTable(report.environments)
                     renderCompilerTable(report.compilers)
+                    renderBenchmarksSetTable(report.benchmarksSetsInfo)
                     hr {}
                     renderStatusSummary(report)
                     hr {}
@@ -300,7 +301,6 @@ class HTMLRender: Render() {
                 }
                 formatComparedTableData(compiler.backend.type.type, compareTo?.backend?.type?.type)
                 formatComparedTableData(compiler.backend.version, compareTo?.backend?.version)
-                formatComparedTableData(compiler.backend.flags.joinToString(), compareTo?.backend?.flags?.joinToString())
                 formatComparedTableData(compiler.kotlinVersion, compareTo?.kotlinVersion)
             }
         }
@@ -318,17 +318,58 @@ class HTMLRender: Render() {
             thead {
                 tr {
                     th(rowspan = Natural(2)) { +"Run" }
-                    th(colspan = Natural(3)) { +"Backend" }
+                    th(colspan = Natural(2)) { +"Backend" }
                     th(rowspan = Natural(2)) { +"Kotlin" }
                 }
                 tr {
                     th { + "Type" }
                     th { + "Version" }
-                    th { + "Flags"}
                 }
             }
             renderCompiler(firstCompiler, "First")
             secondCompiler?. let { renderCompiler(it, "Second", firstCompiler) }
+        }
+    }
+
+    private fun BodyTag.renderBenchmarksSetTable(sets: Pair<List<BenchmarksSet.BenchmarksSetInfo>, List<BenchmarksSet.BenchmarksSetInfo>?>) {
+        h4 { +"BenchmarksSets" }
+        table {
+            attributes["class"] = "table table-sm table-bordered table-hover"
+            attributes["style"] = "width:initial;"
+            val firstSet = sets.first
+            val secondSet = sets.second
+
+            // Table header.
+            thead {
+                tr {
+                    th(rowspan = Natural(2)) { +"Benchmarks set" }
+                    th(colspan = Natural(2)) { +"Compiler flags" }
+                }
+                tr {
+                    th { +"First" }
+                    th { +"Second" }
+                }
+            }
+            val secondSetsMap = (secondSet?.groupBy { it.name } ?: emptyMap()).toMutableMap()
+            tbody {
+                firstSet.forEach {
+                    tr {
+                        th { +"${it.name}" }
+                        val previousValue = secondSetsMap[it.name]?.let { it.first().compilerFlags.toString() } ?: "-"
+                        formatComparedTableData(it.compilerFlags.toString(), previousValue)
+                        td { +"$previousValue" }
+                        secondSetsMap.remove(it.name)
+                    }
+                }
+                secondSetsMap.values.forEach {
+                    tr {
+                        th { +"+${it.first().name}" }
+                        td { +"-" }
+                        formatComparedTableData("", it.first().compilerFlags.toString())
+                        td { +"+${it.first().compilerFlags}" }
+                    }
+                }
+            }
         }
     }
 
@@ -607,11 +648,11 @@ class HTMLRender: Render() {
                 }
             }
             val geoMeanChangeMap = report.geoMeanScoreChange?.
-                    let { mapOf(report.geoMeanBenchmark.first!!.meanBenchmark.name to report.geoMeanScoreChange!!) }
+                    let { mapOf(report.geoMeanBenchmark.first!!.name to report.geoMeanScoreChange!!) }
 
             tbody {
                 renderBenchmarksDetails(
-                        mutableMapOf(report.geoMeanBenchmark.first!!.meanBenchmark.name to report.geoMeanBenchmark),
+                        mutableMapOf(report.geoMeanBenchmark.first!!.name to report.geoMeanBenchmark),
                         geoMeanChangeMap, "border-bottom: 2.3pt solid black; border-top: 2.3pt solid black")
                 renderBenchmarksDetails(report.mergedReport, report.regressions)
                 renderBenchmarksDetails(report.mergedReport, report.improvements)

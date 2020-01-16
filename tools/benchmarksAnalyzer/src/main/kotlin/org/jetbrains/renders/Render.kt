@@ -20,7 +20,7 @@ abstract class Render {
                 "html" -> HTMLRender()
                 "teamcity" -> TeamCityStatisticsRender()
                 "statistics" -> StatisticsRender()
-                "metrics" -> MetricResultsRender()
+                "json" -> JsonResultsRender()
                 else -> error("Unknown render $name")
             }
     }
@@ -189,9 +189,9 @@ class TextRender: Render() {
         val tableWidth = printPerformanceTableHeader()
         // Print geometric mean.
         val geoMeanChangeMap = report.geoMeanScoreChange?.
-                let { mapOf(report.geoMeanBenchmark.first!!.meanBenchmark.name to report.geoMeanScoreChange!!) }
+                let { mapOf(report.geoMeanBenchmark.first!!.name to report.geoMeanScoreChange!!) }
         printBenchmarksDetails(
-                mutableMapOf(report.geoMeanBenchmark.first!!.meanBenchmark.name to report.geoMeanBenchmark),
+                mutableMapOf(report.geoMeanBenchmark.first!!.name to report.geoMeanBenchmark),
                 geoMeanChangeMap)
         printTableLineSeparator(tableWidth)
         printBenchmarksDetails(report.mergedReport, report.regressions)
