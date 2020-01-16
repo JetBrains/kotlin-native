@@ -44,6 +44,7 @@ internal class CEnumClassGenerator(
     }
 
     private val enumClassMembersGenerator = EnumClassMembersGenerator(DeclarationGenerator(context))
+    private val cEnumCompanionGenerator = CEnumCompanionGenerator(irBuiltIns, symbolTable, typeTranslator)
 
     /**
      * Searches for an IR class for [classDescriptor] in symbol table.
@@ -75,6 +76,7 @@ internal class CEnumClassGenerator(
                     createEnumEntry(descriptor, entryDescriptor).also { it.parent = enumIrClass }
                 }
                 enumClassMembersGenerator.generateSpecialMembers(enumIrClass)
+                enumIrClass.addChild(cEnumCompanionGenerator.generate(enumIrClass))
             }
 
     /**
