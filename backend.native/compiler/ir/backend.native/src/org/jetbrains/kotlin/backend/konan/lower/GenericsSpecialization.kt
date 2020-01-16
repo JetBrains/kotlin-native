@@ -13,21 +13,17 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrStatementContainer
+import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
+import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.util.addChild
-import org.jetbrains.kotlin.ir.util.irCall
-import org.jetbrains.kotlin.ir.util.statements
+import org.jetbrains.kotlin.ir.types.toKotlinType
+import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.ir.visitors.acceptVoid
+import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.types.Variance
-import kotlin.collections.MutableMap
 import kotlin.collections.component1
 import kotlin.collections.component2
-import kotlin.collections.contains
-import kotlin.collections.first
-import kotlin.collections.forEach
-import kotlin.collections.getOrPut
-import kotlin.collections.mutableMapOf
 import kotlin.collections.set
-import kotlin.collections.toMutableList
 
 internal class GenericsSpecialization(val context: Context) : FileLoweringPass {
 
@@ -38,17 +34,17 @@ internal class GenericsSpecialization(val context: Context) : FileLoweringPass {
     }
 }
 
-// let's define specialization for the function (second argument) and concrete type (third argument)
-// be declared in the scope corresponding to the scope of origin
-internal typealias SpecializationDescriptor = Triple<IrDeclarationParent, IrFunction, IrType>
-
 internal class SpecializationTransformer(val context: Context): IrBuildingTransformer(context) {
 
     private val currentSpecializations = mutableMapOf<Pair<IrFunction, IrType>, IrFunction>()
-    private val typeParameterEliminator = TypeParameterEliminator(this, context)
 
     // scope -> specialization -> origin
-    val newFunctions = mutableMapOf<IrDeclarationParent, MutableMap<IrFunction, IrFunction>>()
+    private val newFunctions = mutableMapOf<IrDeclarationParent, MutableMap<IrFunction, IrFunction>>()
+
+    private val typeParameterMapping = mutableMapOf<IrTypeParameterSymbol, IrType>()
+    private val symbolRemapper = DeepCopySymbolRemapper()
+    private val symbolRenamer = SymbolRenamerWithSpecializedFunctions()
+    private val typeParameterEliminator = TypeParameterEliminator(this, symbolRemapper, symbolRenamer, typeParameterMapping)
 
     override fun visitFile(declaration: IrFile): IrFile {
         return super.visitFile(declaration).also {
@@ -99,8 +95,10 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         if (function != null) {
             return function
         }
-        typeParameterEliminator.addMapping(typeParameters.first(), type)
-        return typeParameterEliminator.visitFunctionAsCallee(this).also {
+        symbolRenamer.addNaming(this, "${nameForIrSerialization}-${type.toKotlinType()}")
+        acceptVoid(symbolRemapper)
+        typeParameterMapping[typeParameters.first().symbol] = type
+        return typeParameterEliminator.visitSimpleFunction(this).patchDeclarationParents(this).also {
             currentSpecializations[this to type] = it
             newFunctions.getOrPut(parent) { mutableMapOf() }[it] = this
         }
@@ -141,5 +139,17 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
             }
         }
         newFunctions[parent]?.clear()
+    }
+}
+
+class SymbolRenamerWithSpecializedFunctions : SymbolRenamer {
+    private val newFunctionNaming =  mutableMapOf<IrSimpleFunction, String>()
+
+    fun addNaming(function: IrSimpleFunction, name: String) {
+        newFunctionNaming[function] = name
+    }
+
+    override fun getFunctionName(symbol: IrSimpleFunctionSymbol): Name {
+        return newFunctionNaming[symbol.owner]?.let { Name.identifier(it) } ?: super.getFunctionName(symbol)
     }
 }
