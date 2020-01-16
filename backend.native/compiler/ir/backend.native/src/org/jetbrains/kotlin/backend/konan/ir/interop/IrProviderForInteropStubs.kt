@@ -2,7 +2,7 @@
  * Copyright 2010-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
  * that can be found in the LICENSE file.
  */
-package org.jetbrains.kotlin.backend.konan.ir
+package org.jetbrains.kotlin.backend.konan.ir.interop
 
 import org.jetbrains.kotlin.backend.konan.descriptors.isFromInteropLibrary
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
@@ -15,16 +15,17 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.module
 /**
  * Generates external IR declarations for descriptors from interop libraries.
  */
-class IrProviderForInteropStubs : LazyIrProvider {
+internal class IrProviderForInteropStubs(
+        private val isSpecialCase: (IrSymbol) -> Boolean
+) : LazyIrProvider {
 
     override lateinit var declarationStubGenerator: DeclarationStubGenerator
 
-    override fun getDeclaration(symbol: IrSymbol): IrLazyDeclarationBase? =
-            if (symbol.descriptor.module.isFromInteropLibrary()) {
-                provideIrDeclaration(symbol)
-            } else {
-                null
-            }
+    override fun getDeclaration(symbol: IrSymbol): IrLazyDeclarationBase? = when {
+        !symbol.descriptor.module.isFromInteropLibrary() -> null
+        isSpecialCase(symbol) -> null
+        else -> provideIrDeclaration(symbol)
+    }
 
     private fun provideIrDeclaration(symbol: IrSymbol): IrLazyDeclarationBase = when (symbol) {
         is IrSimpleFunctionSymbol -> provideIrFunction(symbol)
