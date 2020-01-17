@@ -3,7 +3,7 @@
  * that can be found in the LICENSE file.
  */
 
-package org.jetbrains.influxdb
+package org.jetbrains.elastic
 
 import kotlin.js.Promise            // TODO - migrate to multiplatform.
 import kotlin.js.json               // TODO - migrate to multiplatform.
@@ -22,14 +22,15 @@ enum class RequestMethod {
 }
 
 fun sendRequest(method: RequestMethod, url: String, user: String? = null, password: String? = null,
-                acceptJsonContentType: Boolean = false, body: String? = null): Promise<String> {
+                acceptJsonContentType: Boolean = true, body: String? = null): Promise<String> {
     val request = require("node-fetch")
     val headers = mutableListOf<Pair<String, String>>()
     if (user != null && password != null) {
         headers.add("Authorization" to getAuth(user, password))
     }
     if (acceptJsonContentType) {
-        headers.add("Accept" to "application/json")
+        headers.add("Accept" to "*/*")
+        headers.add("Content-Type" to "application/json")
     }
     return request(url,
             json(
@@ -40,7 +41,7 @@ fun sendRequest(method: RequestMethod, url: String, user: String? = null, passwo
     ).then { response ->
         if (!response.ok)
             error("Error during getting response from $url\n" +
-                    "${response}")
+                    "${response.text()}")
         else
             response.text()
     }

@@ -144,6 +144,14 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
         }
     }
 
+    fun toBenchmarksReport(): BenchmarksReport {
+        val setsInfo = benchmarksSetsInfo.first.groupBy { it.name }
+        val sets = benchmarksParents.first.map { (name, benchmarks) ->
+            BenchmarksSet(setsInfo[name]!!.first(),
+                    benchmarks.map { mergedReport[it]!!.first!! }) }
+        return BenchmarksReport(environments.first, sets, compilers.first)
+    }
+
     fun getParentsMap(benchmarksSet: List<BenchmarksSet>) =
         benchmarksSet.map { currentSet ->
             currentSet.setInfo.name to currentSet.benchmarks.keys.distinct()

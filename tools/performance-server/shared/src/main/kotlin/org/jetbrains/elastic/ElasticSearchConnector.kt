@@ -3,39 +3,23 @@
  * that can be found in the LICENSE file.
  */
 
-package org.jetbrains.influxdb
+package org.jetbrains.elastic
 
 import kotlin.js.Promise            // TODO - migrate to multiplatform.
 import org.jetbrains.report.json.*
 
 // Connector with InfluxDB.
-class InfluxDBConnector(private val host: String, private val databaseName: String, private val port: Int = 8086,
+class ElasticSearchConnector(private val host: String, private val port: Int = 9200,
                         private val user: String? = null, private val password: String? = null) {
-    // Execute InfluxDb query.
-    fun query(query: String): Promise<String> {
-        checkConnection()
 
-        val queryUrl = "$host:$port/query?db=$databaseName&q=$query"
-        return sendRequest(RequestMethod.GET, queryUrl, user, password, true)
-    }
-
-    // Check that connection with database can be set.
-    private fun checkConnection() {
-        if (!::host.isInitialized || !::databaseName.isInitialized) {
-            error("Please, firstly establish connection to Influx database to have opportunity to send requests.")
-        }
-    }
-
-    // Insert measurement.
-    fun <T: Measurement<T>> insert(point: Measurement<T>): Promise<String> {
-        checkConnection()
-        val description = point.lineProtocol
-        val writeUrl = "$host:$port/write?db=$databaseName"
-        return sendRequest(RequestMethod.POST, writeUrl, user, password, body = description)
+    val url = "$host:$port"
+    // Execute ElasticSearch request.
+    fun request(method: RequestMethod, url: String, acceptJsonContentType: Boolean = true, body: String? = null): Promise<String> {
+        return sendRequest(method, url, user, password, acceptJsonContentType, body)
     }
 
     // Execute select query. Can be used to get full measurement or separate field.
-    inline fun <reified T: Any>selectQuery(query: String, measurement: Measurement<*>? = null): Promise<List<T>> {
+    /*inline fun <reified T: Any>selectQuery(query: String, measurement: Measurement<*>? = null): Promise<List<T>> {
         return query(query).then { response ->
             // Parse response.
             if (measurement is T) {
@@ -96,5 +80,5 @@ class InfluxDBConnector(private val host: String, private val databaseName: Stri
             val writeUrl = "$host:$port/write?db=$databaseName"
             sendRequest(RequestMethod.POST, writeUrl, user, password, body = description)
         }.toTypedArray()
-    }
+    }*/
 }

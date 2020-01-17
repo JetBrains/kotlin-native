@@ -13,12 +13,6 @@ class JsonResultsRender: Render() {
     override val name: String
         get() = "json"
 
-    override fun render(report: SummaryBenchmarksReport, onlyChanges: Boolean): String {
-        val setsInfo = report.benchmarksSetsInfo.first.groupBy { it.name }
-        val sets = report.benchmarksParents.first.map { (name, benchmarks) ->
-            BenchmarksSet(setsInfo[name]!!.first(),
-                benchmarks.map { report.mergedReport[it]!!.first!! }) }
-        val resultReport = BenchmarksReport(report.environments.first, sets, report.compilers.first)
-        return resultReport.toJson()
-    }
+    override fun render(report: SummaryBenchmarksReport, onlyChanges: Boolean) =
+            report.toBenchmarksReport().toJson()
 }

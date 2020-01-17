@@ -8,7 +8,7 @@ import kotlin.js.json
 import kotlin.js.Date
 import kotlin.js.Promise
 import org.jetbrains.report.json.*
-import org.jetbrains.influxdb.*
+import org.jetbrains.elastic.*
 import org.jetbrains.build.Build
 import org.jetbrains.analyzer.*
 import org.jetbrains.report.*
@@ -21,9 +21,63 @@ operator fun <K, V> Map<K, V>?.get(key: K) = this?.get(key)
 
 fun getArtifactoryHeader(artifactoryApiKey: String) = Pair("X-JFrog-Art-Api", artifactoryApiKey)
 
+fun convertToNewFormat(data: JsonObject): List<Any> {
+    val env = Environment.create(data.getRequiredField("env"))
+    val benchmarksObj = data.getRequiredField("benchmarks")
+    val compilerDescription = data.getRequiredField("kotlin")
+    val compiler = Compiler.create(compilerDescription)
+    val backend = (compilerDescription as JsonObject).getRequiredField("backend")
+    val flagsArray = (backend as JsonObject).getOptionalField("flags")
+    var flags: List<String> = emptyList()
+    if (flagsArray != null && flagsArray is JsonArray) {
+        flags = flagsArray.jsonArray.map { (it as JsonLiteral).unquoted() }
+    }
+    val benchmarksList = BenchmarksSet.parseBenchmarksArray(benchmarksObj)
+
+    return listOf(env, compiler, benchmarksList, flags)
+}
+
+fun convert(json: String, buildNumber: String): BenchmarksReport {
+    val data = JsonTreeParser.parse(json)
+    val reports = if (data is JsonArray) {
+        data.map { convertToNewFormat(data as JsonObject) }
+    } else listOf(convertToNewFormat(data as JsonObject))
+    val knownFlags = mapOf(
+            "Cinterop" to listOf("-opt"),
+            "FrameworkBenchmarksAnalyzer" to listOf("-g"),
+            "HelloWorld" to listOf("-g"),
+            "Numerical" to listOf("-opt"),
+            "ObjCInterop" to listOf("-opt"),
+            "Ring" to listOf("-opt"),
+            "swiftInterop" to listOf("-opt"),
+            "Videoplayer" to listOf("-g")
+    )
+
+    val fullReport = reports.map { elements ->
+        val benchmarks = (elements[2] as List<BenchmarkResult>).groupBy { it.name.substringBefore('.').substringBefore(':') }
+        val parsedFlags = elements[3] as List<String>
+        val benchmarksSets = benchmarks.map { (setName, results) ->
+            val flags = if (parsedFlags[0] == "-opt") knownFlags[setName]!! else parsedFlags
+            BenchmarksSet(BenchmarksSet.BenchmarksSetInfo(setName, flags), results)
+        }
+        BenchmarksReport(elements[0] as Environment, benchmarksSets, elements[1] as Compiler)
+    }.reduce{ acc, it -> acc + it }
+    fullReport.buildNumber = buildNumber
+    return fullReport
+}
+
 // Local cache for saving information about builds got from Artifactory.
 data class GoldenResult(val benchmarkName: String, val metric: String, val value: Double)
-data class GoldenResultsInfo(val apiKey: String, val goldenResults: Array<GoldenResult>)
+data class GoldenResultsInfo(val goldenResults: Array<GoldenResult>)
+
+fun GoldenResultsInfo.toBenchmarksReport(): BenchmarksReport {
+    val benchmarksSamples = goldenResults.map{ BenchmarkResult (it.benchmarkName, BenchmarkResult.Status.PASSED,
+            it.value, BenchmarkResult.metricFromString(it.metric)!!, it.value, 1, 0) }
+    val compiler = Compiler(Compiler.Backend(Compiler.BackendType.NATIVE, "golden"), "golden")
+    val environment = Environment(Environment.Machine("golden", "golden"), Environment.JDKInstance("golden", "golden"))
+    return BenchmarksReport(environment,
+            listOf(BenchmarksSet(BenchmarksSet.BenchmarksSetInfo("golden", listOf()), benchmarksSamples)), compiler)
+}
 
 // Build information provided from request.
 data class TCBuildInfo(val buildNumber: String, val branch: String, val startTime: String,
@@ -86,17 +140,172 @@ fun orderedBuildNumbers(buildNumbers: List<String>, type: String) = buildNumbers
                 { it.substringAfterLast("-").toInt() }))
 
 // Get builds numbers from DB which have needed parameters.
-fun getBuildsForParameters(branch: String?, target: dynamic, connector: InfluxDBConnector): Promise<List<String>> {
-    val measurement = BenchmarkMeasurement(connector)
-    val selectExpr = branch?.let {
-        (measurement.tag("environment.machine.os") eq target) and
-                /*(measurement.field("build.number") match ".+-${request.params.type}-.+") and*/
-                (measurement.field("build.branch") eq FieldType.InfluxString(branch))
-    } ?: (measurement.tag("environment.machine.os") eq target)
+fun getBaseBuildInfo(target: String, benchmarksIndex: ElasticSearchIndex): Promise<Map<String, String>> {
+    // Search in benchmarks index.
+    val queryDescription = """
+            {
+                "_source": ["buildNumber", "_id"],
+                "size": 1000,
+                "query": {
+                    "nested": {
+                        "path" : "env",
+                        "query" : {
+                            "nested" : {
+                                "path" : "env.machine",
+                                "query" : {
+                                    "bool": {"must": [{"match": { "env.machine.os": "$target" }}]}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        """.trimIndent()
 
-    return connector.select(distinct("build.number") from measurement.field("build.number")
-                    .select(selectExpr)).then { dbResponse ->
-        dbResponse.toString().replace("\\[|\\]| ".toRegex(), "").split(",")
+    return benchmarksIndex.search(queryDescription, listOf("hits.hits._id", "hits.hits._source")).then { responseString ->
+        val dbResponse = JsonTreeParser.parse(responseString).jsonObject
+        dbResponse.getObjectOrNull("hits")?.getArrayOrNull("hits")?.
+                map { (it as JsonObject).getPrimitive("_id").content to
+                        (it as JsonObject).getObject("_source").getPrimitive("buildNumber").content }?.
+                        toMap()
+                ?: error("Wrong response:\n$responseString")
+    }
+}
+
+fun getBuildsInfo(type: String?, branch: String?, documentIds: Iterable<String>, buildInfoIndex: ElasticSearchIndex): Promise<List<BuildInfo>> {
+    val queryDescription = """
+            {   "size": 1000,
+                "query": {
+                    "bool": {
+                        "must": [ 
+                            { "terms" : { "_id" : [${documentIds.map{ "\"$it\""}.joinToString()}] } }
+                            ${type?.let{ """,
+                            { "regexp": { "buildNumber": { "value": "${if (it == "release") ".*eap.*|.*release.*|.*rc.*" else ".*dev.*"}" } } }
+                            """}?:""} 
+                            ${branch?.let{ """,
+                            {"match": { "branch": "$it" }}
+                            """}?:""}
+                        ]
+                    }
+                }
+            }
+        """.trimIndent()
+    return buildInfoIndex.search(queryDescription, listOf("hits.hits._source")).then { responseString ->
+        val dbResponse = JsonTreeParser.parse(responseString).jsonObject
+        dbResponse.getObjectOrNull("hits")?.getArrayOrNull("hits")?.
+                map { BuildInfo.create((it as JsonObject).getObject("_source")) }
+                ?: error("Wrong response:\n$responseString")
+    }
+}
+
+fun getGeometricMean(metricName: String, benchmarksIndex: ElasticSearchIndex, target: String? = null,
+                     buildNumbers: Iterable<String>? = null): Promise<List<Pair<String, List<Double>>>> {
+    val queryDescription = """
+{
+    "_source": false,
+    ${target?.let {"""
+    "query": {
+        "bool": {
+            "must": [
+                {
+                    "nested": {
+                        "path" : "env",
+                        "query" : {
+                            "nested" : {
+                                "path" : "env.machine",
+                                "query" : {
+                                    "bool": {"must": [{"match": { "env.machine.os": "$target" }}]}
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+    }, """} ?: ""}
+    ${buildNumbers?.let{"""
+    "aggs" : {
+        "builds": {
+            "filters" : { 
+                "filters": { 
+                    ${buildNumbers.map {"\"$it\": { \"match\" : { \"buildNumber\" : \"$it\" }}"}.joinToString(",\n")}
+                }
+            },"""} ?: ""}
+            "aggs" : {
+                "benchs" : {
+                    "nested" : {
+                        "path" : "benchmarksSets"
+                    },
+                    "aggs" : {
+                        "metric_build" : {
+                            "nested" : {
+                                "path" : "benchmarksSets.benchmarks"
+                            },
+                            "aggs" : {
+                                "metric_samples": {
+                                    "filters" : { 
+                                        "filters": { "samples": { "match": { "benchmarksSets.benchmarks.metric": "$metricName" } } }
+                                    },
+                                    "aggs" : {
+                                        "sum_log_x": {
+                                            "sum": {
+                                                "field" : "benchmarksSets.benchmarks.score",
+                                                "script" : {
+                                                    "source": "Math.log(_value)"
+                                                }
+                                            }
+                                        },
+                                        "geom_mean": {
+                                            "bucket_script": {
+                                                "buckets_path": {
+                                                    "sum_log_x": "sum_log_x",
+                                                    "x_cnt": "_count"
+                                                },
+                                                "script": "Math.exp(params.sum_log_x/params.x_cnt)"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+               ${buildNumbers?.let{""" }
+            }"""} ?: ""}
+        }
+    }
+}
+"""
+    return benchmarksIndex.search(queryDescription, listOf("aggregations")).then { responseString ->
+        val dbResponse = JsonTreeParser.parse(responseString).jsonObject
+        println("AAAAAA")
+        var aggregations = dbResponse.getObjectOrNull("aggregations") ?: error("Wrong response:\n$responseString")
+        println("BBBBBB")
+        buildNumbers?.let {
+            val buckets = aggregations.getObjectOrNull("builds")?.getObjectOrNull("buckets")
+                    ?: error("Wrong response:\n$responseString")
+            buildNumbers.map {
+                it to listOf(buckets.getObject(it).getObject("benchs").getObject("metric_build").
+                        getObject("metric_samples").getObject("buckets").getObject("samples").
+                        getObject("geom_mean").getPrimitive("value").double)
+            }
+        } ?: listOf("golden" to listOf(aggregations.getObject("benchs").getObject("metric_build").getObject("metric_samples").
+                getObject("buckets").getObject("samples").getObject("geom_mean").getPrimitive("value").double))
+    }
+}
+
+fun distinctValues(field: String, index: ElasticSearchIndex): Promise<List<String>> {
+    val queryDescription = """
+            {
+              "aggs": {
+                    "unique": {"terms": {"field": "$field", "size": 1000}}
+                }
+            }
+        """.trimIndent()
+    return index.search(queryDescription, listOf("aggregations.unique.buckets")).then { responseString ->
+        val dbResponse = JsonTreeParser.parse(responseString).jsonObject
+        dbResponse.getObjectOrNull("aggregations")?.getObjectOrNull("unique")?.
+                getArrayOrNull("buckets")?.map { (it as JsonObject).getPrimitiveOrNull("key")?.content }?.filterNotNull()
+                ?: error("Wrong response:\n$responseString")
     }
 }
 
@@ -104,53 +313,70 @@ fun getBuildsForParameters(branch: String?, target: dynamic, connector: InfluxDB
 fun router() {
     val express = require("express")
     val router = express.Router()
-    val connector = InfluxDBConnector("https://biff-9a16f218.influxcloud.net", "kotlin_native",
-            user = "elena_lepikina", password = "KMFBsyhrae6gLrCZ4Tmq")
+    val process = require("child_process")
+    val fs = require("fs")
+    val connector = ElasticSearchConnector("http://localhost")
+    val benchmarksIndex = BenchmarksIndex(connector)
+    val goldenIndex = GoldenResultsIndex(connector)
+    val buildInfoIndex = BuildInfoIndex(connector)
+    val buildsCache = HashMap<Triple<String, String?, String?>, BuildInfo>()
 
+    router.get("/createMapping") { request, response ->
+        benchmarksIndex.createMapping().then { _ ->
+            response.sendStatus(200)
+        }.catch { _ ->
+            response.sendStatus(400)
+        }
+        buildInfoIndex.createMapping().then { _ ->
+            response.sendStatus(200)
+        }.catch { _ ->
+            response.sendStatus(400)
+        }
+    }
     // Register build on Artifactory.
-    router.post("/register", { request, response ->
+    router.post("/register") { request, response ->
         val register = BuildRegister.create(JSON.stringify(request.body))
 
         // Get information from TeamCity.
         register.getBuildInformation().then { buildInfo ->
             register.sendTeamCityRequest(register.changesListUrl, true).then { changes ->
-
                 val commitsList = CommitsList(JsonTreeParser.parse(changes))
                 // Get artifact.
                 register.sendTeamCityRequest(register.teamCityArtifactsUrl).then { resultsContent ->
-                    val results = BenchmarkMeasurement.create(JsonTreeParser.parse(resultsContent), connector,
-                            BuildInfo(buildInfo.buildNumber, buildInfo.startTime, buildInfo.finishTime,
-                                    commitsList, buildInfo.branch)).toMutableList()
-                    if (results.isNotEmpty() && register.bundleSize != null) {
+                    val buildInfoInstance = BuildInfo(buildInfo.buildNumber, buildInfo.startTime, buildInfo.finishTime,
+                                    commitsList, buildInfo.branch)
+                    var benchmarksReport = BenchmarksReport.create(JsonTreeParser.parse(resultsContent))
+                    benchmarksReport.buildNumber = buildInfo.buildNumber
+                    if (register.bundleSize != null) {
                         // Add bundle size.
-                        val bundleSizeBenchmark = results[0].copy()
-                        bundleSizeBenchmark.benchmarkName = "Kotlin/Native"
-                        bundleSizeBenchmark.benchmarkStatus = FieldType.InfluxString("PASSED")
-                        bundleSizeBenchmark.benchmarkScore = FieldType.InfluxFloat(register.bundleSize.toDouble())
-                        bundleSizeBenchmark.benchmarkMetric = "BUNDLE_SIZE"
-                        bundleSizeBenchmark.benchmarkRuntime = FieldType.InfluxFloat(0.0)
-                        bundleSizeBenchmark.benchmarkRepeat = FieldType.InfluxInt(1)
-                        bundleSizeBenchmark.benchmarkWarmup = FieldType.InfluxInt(0)
-                        results.add(bundleSizeBenchmark)
+                        val bundleSizeBenchmark = BenchmarkResult("Kotlin/Native", BenchmarkResult.Status.PASSED, register.bundleSize.toDouble(),
+                                BenchmarkResult.Metric.BUNDLE_SIZE, 0.0, 1, 0)
+                        val bundleSet = BenchmarksSet(BenchmarksSet.BenchmarksSetInfo("Kotlin/Native", listOf()),
+                                listOf(bundleSizeBenchmark))
+                        benchmarksReport = BenchmarksReport(benchmarksReport.env,
+                                benchmarksReport.benchmarksSets + bundleSet, benchmarksReport.compiler)
                     }
+                    val summaryReport = SummaryBenchmarksReport(benchmarksReport)
                     // Save results in database.
-                    Promise.all(connector.insert(results)).then { _ ->
-                        response.sendStatus(200)
+                    benchmarksIndex.insert(summaryReport.toBenchmarksReport()).then { _ ->
+                        buildInfoIndex.insert(buildInfoInstance).then { _ ->
+                            response.sendStatus(200)
+                        }.catch {
+                            response.sendStatus(400)
+                        }
                     }.catch {
                         response.sendStatus(400)
                     }
                 }
             }
         }
-    })
+    }
 
     // Register golden results to normalize on Artifactory.
     router.post("/registerGolden", { request, response ->
-        val goldenResultsInfo = JSON.parse<GoldenResultsInfo>(JSON.stringify(request.body))
-        val resultPoints = goldenResultsInfo.goldenResults.map {
-            GoldenResultMeasurement(it.benchmarkName, it.metric, it.value, connector)
-        }
-        Promise.all(connector.insert(resultPoints)).then { _ ->
+        val goldenResultsInfo: GoldenResultsInfo = JSON.parse<GoldenResultsInfo>(JSON.stringify(request.body))
+        val goldenReport = goldenResultsInfo.toBenchmarksReport()
+        goldenIndex.insert(goldenReport).then { _ ->
             response.sendStatus(200)
         }.catch {
             response.sendStatus(400)
@@ -158,39 +384,23 @@ fun router() {
     })
 
     // Get builds description with additional information.
-    router.get("/buildsDesc/:target/:type", { request, response ->
-        val measurement = BenchmarkMeasurement(connector)
+    router.get("/buildsDesc/:target", { request, response ->
         val target = request.params.target.toString().replace('_', ' ')
+
         var branch: String? = null
+        var type: String? = null
         if (request.query != undefined) {
             if (request.query.branch != undefined) {
                 branch = request.query.branch
             }
-        }
-        getBuildsForParameters(branch, target, connector).then { results ->
-            val filteredBuildNumbers = orderedBuildNumbers(results, "${request.params.type}")
-            val responseLists = filteredBuildNumbers.map {
-                // Select needed measurements.
-                measurement.select(measurement.all() where ((measurement.tag("environment.machine.os") eq target) and
-                        (measurement.field("build.number") eq FieldType.InfluxString(it)) as Condition<String>)).then { measurements ->
-                    val report = measurements.toReport()
-                    val failuresNumber = report?.let { report ->
-                        val summaryReport = SummaryBenchmarksReport(report)
-                        summaryReport.failedBenchmarks.size
-                    } ?: 0
-                    val buildDescription = measurements.firstOrNull()?.let {
-                        Build(it.buildNumber!!.value, it.buildStartTime!!.value, it.buildEndTime!!.value, it.buildBranch!!.value,
-                                it.buildCommits!!.value, request.params.type, failuresNumber)
-                    }
-                    buildDescription
-                }.catch {
-                    response.sendStatus(400)
-                }
-
+            if (request.query.type != undefined) {
+                type = request.query.type
             }
+        }
 
-            Promise.all(responseLists.toTypedArray()).then { resultList ->
-                response.json(resultList)
+        getBaseBuildInfo(target, benchmarksIndex).then { idsMap ->
+            getBuildsInfo(type, branch, idsMap.keys, buildInfoIndex).then { buildsInfo ->
+                response.json(buildsInfo)
             }.catch {
                 response.sendStatus(400)
             }
@@ -200,14 +410,14 @@ fun router() {
     })
 
     // Get values of current metric.
-    router.get("/metricValue/:target/:type/:metric", { request, response ->
-        val measurement = BenchmarkMeasurement(connector)
+    router.get("/metricValue/:target/:metric", { request, response ->
         val metric = request.params.metric
         val target = request.params.target.toString().replace('_', ' ')
         var samples: List<String>? = null
-        var agregation = "geomean"
+        var aggregation = "geomean"
         var normalize = false
         var branch: String? = null
+        var type: String? = null
 
         // Parse parameters from request if it exists.
         if (request.query != undefined) {
@@ -215,7 +425,7 @@ fun router() {
                 samples = request.query.samples.toString().split(",").map { it.trim() }
             }
             if (request.query.agr != undefined) {
-                agregation = request.query.agr.toString()
+                aggregation = request.query.agr.toString()
             }
             if (request.query.normalize != undefined) {
                 normalize = true
@@ -223,68 +433,33 @@ fun router() {
             if (request.query.branch != undefined) {
                 branch = request.query.branch
             }
+            if (request.query.type != undefined) {
+                type = request.query.type
+            }
         }
 
-        // Get golden results to normalize data.
-        val golden = GoldenResultMeasurement(connector = connector)
-        val goldenResults = golden.select(golden.all()).then { results ->
-            val parsedNormalizeResults = mutableMapOf<String, MutableMap<String, Double>>()
-            results.forEach {
-                parsedNormalizeResults.getOrPut(it.benchmarkName!!,
-                        { mutableMapOf<String, Double>() })[it.benchmarkMetric!!] = it.benchmarkScore!!.value
-            }
-            parsedNormalizeResults
-        }.catch {
-            response.sendStatus(400)
-        }
-
-        // Get builds numbers.
-        val buildsNumbers = getBuildsForParameters(branch, target, connector)
-
-        Promise.all(arrayOf(buildsNumbers, goldenResults)).then { results ->
-            val (buildsNumbers, goldenResults) = results
-            val filteredBuildNumbers = orderedBuildNumbers(buildsNumbers, "${request.params.type}")
-            val responseLists = filteredBuildNumbers.map {
-                // Get points for this build.
-                measurement.select(measurement.all() where ((measurement.tag("environment.machine.os") eq target) and
-                        (measurement.field("build.number") eq it))).then { dbResponse ->
-                    val report = dbResponse.toReport()
-                    report?.let { report ->
-                        val dataForNormalization = if (normalize)
-                            { goldenResults as Map<String, Map<String, Double>> } else null
-                        val summaryReport = SummaryBenchmarksReport(report)
-                        val result = if (samples != null && samples.contains("all")) {
-                            // Case of quering for all benchmarks and for some other separately.
-                            val changedSamples = samples.toMutableList()
-                            changedSamples.remove("all")
-                            summaryReport.getResultsByMetric(
-                                    BenchmarkResult.metricFromString(metric) ?: BenchmarkResult.Metric.EXECUTION_TIME,
-                                    agregation == "geomean", null, dataForNormalization) + if (changedSamples.isNotEmpty()) {
-                                summaryReport.getResultsByMetric(
-                                    BenchmarkResult.metricFromString(metric) ?: BenchmarkResult.Metric.EXECUTION_TIME,
-                                    agregation == "geomean", changedSamples, dataForNormalization)
-                            } else listOf()
-                        } else summaryReport.getResultsByMetric(
-                                BenchmarkResult.metricFromString(metric) ?: BenchmarkResult.Metric.EXECUTION_TIME,
-                                agregation == "geomean", samples, dataForNormalization)
-                        it to result
+        getBaseBuildInfo(target, benchmarksIndex).then { idsMap ->
+            getBuildsInfo(type, branch, idsMap.keys, buildInfoIndex).then { buildsInfo ->
+                val buildNumbers = buildsInfo.map { it.buildNumber }
+                if (aggregation == "geomean") {
+                    // Get geometric mean for samples.
+                    getGeometricMean(metric, benchmarksIndex, target, buildNumbers).then { geoMeansValues ->
+                        if (normalize) {
+                            getGeometricMean(metric, goldenIndex).then { golden ->
+                                val goldenValue = golden[0].second[0]
+                                val results = geoMeansValues.map { it.first to it.second[0]/goldenValue}
+                                response.json(results)
+                            }
+                        } else {
+                            response.json(geoMeansValues)
+                        }
+                    }.catch {
+                        response.sendStatus(400)
                     }
-                }.catch {
-                    response.sendStatus(400)
-                }
-            }
+                } else {
 
-            Promise.all(responseLists.toTypedArray()).then { resultList ->
-                val results = resultList as Array<Pair<String, List<Double?>>>
-                val unzippedLists = mutableListOf<Collection<Any?>>()
-                if (results.isNotEmpty()) {
-                    // Get list of all buildNumbers.
-                    unzippedLists.add(results.map { it.first })
-                    for (i in 0 until results[0].second.size) {
-                        unzippedLists.add(results.map { it.second[i] }.toList())
-                    }
                 }
-                response.json(unzippedLists)
+
             }.catch {
                 response.sendStatus(400)
             }
@@ -294,26 +469,24 @@ fun router() {
     })
 
     // Get branches for [target].
-    router.get("/branches/:target", { request, response ->
-        val measurement = BenchmarkMeasurement(connector)
-        val target = request.params.target.toString().replace('_', ' ')
-        connector.select(measurement.field("build.branch").distinct()
-                where (measurement.tag("environment.machine.os") eq target)).then { dbResponse ->
-            response.json(dbResponse)
+    router.get("/branches", { request, response ->
+        distinctValues("branch.keyword", buildInfoIndex).then { results ->
+            response.json(results.toString())
+        }.catch { errorMessage ->
+            error(errorMessage.message ?: "Failed getting branches list.")
+            response.sendStatus(400)
         }
     })
 
     // Get build numbers for [target].
     router.get("/buildsNumbers/:target", { request, response ->
-        val measurement = BenchmarkMeasurement(connector)
-        val target = request.params.target.toString().replace('_', ' ')
-
-        connector.select(measurement.field("build.number").distinct()
-                where (measurement.tag("environment.machine.os") eq target)).then { dbResponse ->
-            response.json(dbResponse)
+        distinctValues("buildNumber", buildInfoIndex).then { results ->
+            response.json(results.toString())
+        }.catch { errorMessage ->
+            error(errorMessage.message ?: "Failed getting branches list.")
+            response.sendStatus(400)
         }
     })
-
 
     // Replace from Artifactory to DB.
     // TODO Bintray -> Artifactory.
@@ -325,7 +498,7 @@ fun router() {
                 buildNumber = request.query.buildNumber
             }
         }
-        getBuildsInfoFromBintray(target).then { buildInfo ->
+        getBuildsInfoFromArtifactory(target).then { buildInfo ->
             launch {
                 val buildsDescription = buildInfo.lines().drop(1)
                 var shouldConvert = buildNumber?.let { false } ?: true
@@ -341,40 +514,42 @@ fun router() {
                         }
                         if (shouldConvert) {
                             // Save data from Bintray into database.
-                            val bintrayUrl = "https://dl.bintray.com/content/lepilkinaelena/KotlinNativePerformance"
+                            val artifactoryUrl = "https://repo.labs.intellij.net/kotlin-native-benchmarks"
                             val fileName = "nativeReport.json"
-                            val accessFileUrl = "$bintrayUrl/$target/$currentBuildNumber/$fileName"
+                            val accessFileUrl = "$artifactoryUrl/$target/$currentBuildNumber/$fileName"
                             val infoParts = it.split(", ")
                             if (infoParts[3] == "master" || "eap" in currentBuildNumber || "release" in currentBuildNumber) {
                                 try {
                                     val jsonReport = sendRequest(RequestMethod.GET, accessFileUrl).await()
-                                    val results = BenchmarkMeasurement.create(JsonTreeParser.parse(jsonReport), connector,
-                                            BuildInfo(currentBuildNumber, infoParts[1], infoParts[2],
-                                                    CommitsList.parse(infoParts[4]), infoParts[3])).toMutableList()
+                                    var report = convert(jsonReport, currentBuildNumber)
+                                    println(currentBuildNumber)
+                                    val buildInfoRecord = BuildInfo(currentBuildNumber, infoParts[1], infoParts[2],
+                                            CommitsList.parse(infoParts[4]), infoParts[3])
 
                                     val bundleSize = if (infoParts[10] != "-") infoParts[10] else null
-                                    // Save bundle size if exists.
-                                    if (results.isNotEmpty() && bundleSize != null) {
+                                    if (bundleSize != null) {
                                         // Add bundle size.
-                                        val bundleSizeBenchmark = results[0].copy()
-                                        bundleSizeBenchmark.benchmarkName = "Kotlin/Native"
-                                        bundleSizeBenchmark.benchmarkStatus = FieldType.InfluxString("PASSED")
-                                        bundleSizeBenchmark.benchmarkScore = FieldType.InfluxFloat(bundleSize.toDouble())
-                                        bundleSizeBenchmark.benchmarkMetric = "BUNDLE_SIZE"
-                                        bundleSizeBenchmark.benchmarkRuntime = FieldType.InfluxFloat(0.0)
-                                        bundleSizeBenchmark.benchmarkRepeat = FieldType.InfluxInt(1)
-                                        bundleSizeBenchmark.benchmarkWarmup = FieldType.InfluxInt(0)
-                                        results.add(bundleSizeBenchmark)
+                                        val bundleSizeBenchmark = BenchmarkResult("Kotlin/Native",
+                                                BenchmarkResult.Status.PASSED, bundleSize.toDouble(),
+                                                BenchmarkResult.Metric.BUNDLE_SIZE, 0.0, 1, 0)
+                                        val bundleSet = BenchmarksSet(BenchmarksSet.BenchmarksSetInfo("Kotlin/Native", listOf()),
+                                                listOf(bundleSizeBenchmark))
+                                        report = BenchmarksReport(report.env,
+                                                report.benchmarksSets + bundleSet, report.compiler)
                                     }
-
-                                    // Change compiler flags.
-                                    results.forEach {
-                                        val options = getOptsForBenchmark(it.benchmarkName!!)
-                                        it.kotlinBackendFlags = options
-                                    }
+                                    val summaryReport = SummaryBenchmarksReport(report).toBenchmarksReport()
+                                    summaryReport.buildNumber = currentBuildNumber
+                                    //println(buildInfoRecord.toJson())
+                                    //println("AAAAAAAAAAA")
+                                    //println(summaryJson)
                                     // Save results in database.
-                                    Promise.all(connector.insert(results)).then { _ ->
-                                        println("Success insert")
+                                    benchmarksIndex.insert(summaryReport).then { _ ->
+                                        buildInfoIndex.insert(buildInfoRecord).then { _ ->
+                                            println("Success insert")
+                                        }.catch { errorResponse ->
+                                            println("Failed to insert data for build")
+                                            println(errorResponse.message)
+                                        }
                                     }.catch { errorResponse ->
                                         println("Failed to insert data for build")
                                         println(errorResponse)
@@ -405,25 +580,11 @@ fun router() {
     return router
 }
 
-fun getOptsForBenchmark(benchmarkName: String): List<String> {
-    val optimizedBenchmarks = listOf("Cinterop", "Numerical", "ObjCInterop", "Ring", "swiftInterop")
-    val debuggableBenchmark = listOf("FrameworkBenchmarksAnalyzer", "HelloWorld", "Videoplayer")
-
-    optimizedBenchmarks.forEach {
-        if (benchmarkName.contains(it, true)) return listOf("-opt")
-    }
-
-    debuggableBenchmark.forEach {
-        if (benchmarkName.contains(it, true)) return listOf("-g")
-    }
-
-    return listOf<String>()
-}
-
-fun getBuildsInfoFromBintray(target: String): Promise<String> {
-    val downloadBintrayUrl = "https://dl.bintray.com/content/lepilkinaelena/KotlinNativePerformance"
+fun getBuildsInfoFromArtifactory(target: String): Promise<String> {
+    val artifactoryUrl = "https://repo.labs.intellij.net/kotlin-native-benchmarks"
     val buildsFileName = "buildsSummary.csv"
-    return sendRequest(RequestMethod.GET, "$downloadBintrayUrl/$target/$buildsFileName")
+    val artifactoryBuildsDirectory = "builds"
+    return sendRequest(RequestMethod.GET, "$artifactoryUrl/$artifactoryBuildsDirectory/$target/$buildsFileName")
 }
 
 suspend fun <T> Promise<T>.await(): T = suspendCoroutine { cont ->

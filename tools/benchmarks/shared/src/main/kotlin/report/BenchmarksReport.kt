@@ -39,8 +39,11 @@ class BenchmarksReport(val env: Environment, val benchmarksSets: List<Benchmarks
                 val env = Environment.create(data.getRequiredField("env"))
                 val benchmarksObj = data.getRequiredField("benchmarksSets")
                 val compiler = Compiler.create(data.getRequiredField("kotlin"))
+                val buildNumberField = data.getOptionalField("buildNumber")
                 val benchmarksSetsList = parseBenchmarksSets(benchmarksObj)
-                return BenchmarksReport(env, benchmarksSetsList, compiler)
+                val report = BenchmarksReport(env, benchmarksSetsList, compiler)
+                buildNumberField?.let { report.buildNumber = (it as JsonLiteral).unquoted() }
+                return report
             } else {
                 error("Top level entity is expected to be an object. Please, check origin files.")
             }
@@ -58,11 +61,16 @@ class BenchmarksReport(val env: Environment, val benchmarksSets: List<Benchmarks
 
     val benchmarks = benchmarksSets.map { it.benchmarks }.reduce { acc, map -> acc + map }
 
+    var buildNumber: String? = null
+
     override fun serializeFields(): String {
+        val buildNumberField = buildNumber?.let { """,
+            "buildNumber": "$buildNumber"
+        """} ?: ""
         return """
             "env": ${env.toJson()},
             "kotlin": ${compiler.toJson()},
-            "benchmarksSets": ${arrayToJson(benchmarksSets)}
+            "benchmarksSets": ${arrayToJson(benchmarksSets)}$buildNumberField
         """
     }
 
