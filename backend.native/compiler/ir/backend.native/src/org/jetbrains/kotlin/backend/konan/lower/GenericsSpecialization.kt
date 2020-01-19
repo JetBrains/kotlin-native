@@ -40,6 +40,41 @@ internal class GenericsSpecialization(val context: Context) : FileLoweringPass {
     }
 }
 
+/**
+ * Finds calls to generic functions with primitive type arguments and creates specialized versions
+ * of these functions (i.e. copies of functions which have some type parameters erased and replaced
+ * with concrete primitive types) to try to reduce extra boxings.
+ *
+ * It will reduce boxings in some cases. For example:
+ *
+ * ```
+ * fun <T> foo(x: T) = x
+ * ```
+ *
+ * Specialized version for type [Int] can be the following:
+ *
+ * ```
+ * fun foo(x: Int) = x
+ * ```
+ *
+ * Therefore, calls `foo(1)` or `foo(4103934)` will not require box their arguments.
+ *
+ * On the other hand, specialization for the following function:
+ *
+ * ```
+ * fun <T> foo(x: T) {
+ *     when (x) {
+ *         is String -> {}
+ *         is List<*> -> {}
+ *         is Int -> {}
+ *     }
+ * }
+ * ```
+ *
+ * and the type [Int] will require 1 box for each `is` call.
+ * Generic function requires 1 box at all -- variable `x` must be boxed before the function will be called.
+ * Therefore, specialization here can significantly increase total number of box operations.
+ */
 internal class SpecializationTransformer(val context: Context): IrBuildingTransformer(context) {
 
     private val currentSpecializations = mutableMapOf<Pair<IrFunction, IrType>, IrFunction>()
@@ -101,8 +136,16 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         if (function != null) {
             return function
         }
+        // Include concrete primitive type to the name of specialization
+        // to be able to easily spot such functions and to avoid extra overloads
         symbolRenamer.addNaming(this, "${nameForIrSerialization}-${type.toKotlinType()}")
+
+        // Add remapping for all elements of original function to automatically assign new descriptors
+        // to elements of new function
         acceptVoid(symbolRemapper)
+
+        // Remember type parameter to be able to eliminate it in all possible places
+        // TODO works only for functions with one type parameter and (likely) when specialization just for one type is required
         typeParameterMapping[typeParameters.first().symbol] = type
 
         return typeParameterEliminator.visitSimpleFunction(this).also {
