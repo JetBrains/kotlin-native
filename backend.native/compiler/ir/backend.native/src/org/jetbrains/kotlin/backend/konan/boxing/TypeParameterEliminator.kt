@@ -1,5 +1,6 @@
 package org.jetbrains.kotlin.backend.konan.boxing
 
+import org.jetbrains.kotlin.backend.konan.lower.SafeWrappedDescriptorPatcher
 import org.jetbrains.kotlin.backend.konan.lower.SpecializationTransformer
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 import org.jetbrains.kotlin.ir.declarations.IrTypeParametersContainer
@@ -11,6 +12,7 @@ import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeImpl
 import org.jetbrains.kotlin.ir.types.impl.IrTypeAbbreviationImpl
 import org.jetbrains.kotlin.ir.types.impl.makeTypeProjection
 import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import kotlin.collections.set
 
 /**
@@ -20,15 +22,19 @@ internal class TypeParameterEliminator(
         private val specializationTransformer: SpecializationTransformer,
         symbolRemapper: SymbolRemapper,
         symbolRenamer: SymbolRenamer,
-        typeParametersMapping: MutableMap<IrTypeParameterSymbol, IrType>
+        private val typeParametersMapping: MutableMap<IrTypeParameterSymbol, IrType>
 ) : DeepCopyIrTreeWithSymbols(symbolRemapper, TypeRemapperWithParametersElimination(symbolRemapper, typeParametersMapping), symbolRenamer) {
+
+    private fun <E : IrTypeParametersContainer> E.withEliminatedTypeParameters(): E = apply {
+        typeParameters.removeIf { it.symbol in typeParametersMapping }
+    }
 
     override fun visitCall(expression: IrCall): IrCall {
         return super.visitCall(expression).transform(specializationTransformer, null) as IrCall
     }
 
     override fun visitSimpleFunction(declaration: IrSimpleFunction): IrSimpleFunction {
-        return super.visitSimpleFunction(declaration).apply {
+        return super.visitSimpleFunction(declaration).withEliminatedTypeParameters().apply {
             // Little crutch -- assuming that function does not have parent iff it's new (e.g. a specialization).
             // TODO elaborate on it later
             try {
@@ -36,6 +42,7 @@ internal class TypeParameterEliminator(
             } catch (_: UninitializedPropertyAccessException) {
                 parent = declaration.parent
             }
+            acceptVoid(SafeWrappedDescriptorPatcher)
         }
     }
 }

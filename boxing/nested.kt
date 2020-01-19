@@ -33,6 +33,10 @@ fun <T> idDelegate__(x: T) = idLocal2__(x)
 fun <T> idDelegate2__(x: T) = idDelegate__(x)
 fun <T> idDelegate3__(x: T) = idDelegate2__(x)
 
+fun <T> idMixDelegate3__(x: T) = idMixDelegate2__(x)
+fun <T> idMixDelegate1__(x: T) = idDelegate__(x)
+fun <T> idMixDelegate2__(x: T) = idMixDelegate1__(x)
+
 fun runCount(): Int {
     for (i in 1..10) {
         idLocal(i)
@@ -40,8 +44,16 @@ fun runCount(): Int {
         idLocal2__(i)
         idLocal3__(i)
         idDelegate__(i)
-        idDelegate2__(i)
         idDelegate3__(i)
+        idMixDelegate3__(i)
+
+        idLocal(i)
+        idAnonymous(i)
+        idLocal2__(i)
+        idLocal3__(i)
+        idDelegate__(i)
+        idDelegate3__(i)
+        idMixDelegate3__(i)
     }
     return 0
 }
