@@ -23,6 +23,7 @@
 
 import lldb
 import struct
+import re
 
 NULL = 'null'
 
@@ -49,11 +50,23 @@ def evaluate(expr):
     exelog(evallog)
     return result
 
+def _symbol_loaded_address(name, debugger = lldb.debugger):
+    target = debugger.GetSelectedTarget()
+    process = target.GetProcess()
+    thread = process.GetSelectedThread()
+    frame = thread.GetSelectedFrame()
+    candidates = list(filter(lambda x: x.name == name, frame.module.symbols))
+    # take first
+    for candidate in candidates:
+        address = candidate.GetStartAddress().GetLoadAddress(target)
+        log(lambda: "{} {:#x}".format(name, address))
+        return address
+
 def is_instance_of(addr, typeinfo):
     return evaluate("(bool)IsInstance({}, {})".format(addr, typeinfo)).GetValue() == "true"
 
 def is_string_or_array(value):
-    return evaluate("(bool)IsInstance({0}, theStringTypeInfo) ? 1 : ((int)Konan_DebugIsArray({0}) ? 2 : 0)".format(lldb_val_to_ptr(value))).unsigned
+    return evaluate("(int)IsInstance({0}, {1}) ? 1 : ((int)Konan_DebugIsArray({0}) ? 2 : 0)".format(lldb_val_to_ptr(value), _symbol_loaded_address('ktype:kotlin.String'))).unsigned
 
 def type_info(value):
     """This method checks self-referencing of pointer of first member of TypeInfo including case when object has an
@@ -73,7 +86,7 @@ SYNTHETIC_OBJECT_LAYOUT_CACHE = {}
 TO_STRING_DEPTH = 2
 ARRAY_TO_STRING_LIMIT = 10
 
-def kotlin_object_type_summary(lldb_val, internal_dict = []):
+def kotlin_object_type_summary(lldb_val, internal_dict = {}):
     """Hook that is run by lldb to display a Kotlin object."""
     log(lambda: "kotlin_object_type_summary({:#x})".format(lldb_val.unsigned))
     fallback = lldb_val.GetValue()
@@ -97,7 +110,7 @@ def select_provider(lldb_val, tip, internal_dict):
         else __FACTORY['object'](lldb_val, tip, internal_dict)
 
 class KonanHelperProvider(lldb.SBSyntheticValueProvider):
-    def __init__(self, valobj, amString, internal_dict = []):
+    def __init__(self, valobj, amString, internal_dict = {}):
         self._target = lldb.debugger.GetSelectedTarget()
         self._process = self._target.GetProcess()
         self._valobj = valobj
@@ -188,16 +201,15 @@ class KonanStringSyntheticProvider(KonanHelperProvider):
         self._children_count = 0
         super(KonanStringSyntheticProvider, self).__init__(valobj, True)
         fallback = valobj.GetValue()
+        buff_addr = evaluate("(void *)Konan_DebugBuffer()").unsigned
         buff_len = evaluate(
-            '(int)Konan_DebugObjectToUtf8Array({}, (char *)Konan_DebugBuffer(), (int)Konan_DebugBufferSize());'.format(
-                self._ptr)
-        ).unsigned
+            '(int)Konan_DebugObjectToUtf8Array({}, (void *){:#x}, (int)Konan_DebugBufferSize());'.format(
+                self._ptr, buff_addr)
+        ).signed
 
         if not buff_len:
             self._representation = fallback
             return
-
-        buff_addr = evaluate("(char *)Konan_DebugBuffer()").unsigned
 
         error = lldb.SBError()
         s = self._process.ReadCStringFromMemory(int(buff_addr), int(buff_len), error)
@@ -268,7 +280,7 @@ class KonanObjectSyntheticProvider(KonanHelperProvider):
 
     def _field_name(self, index):
         error = lldb.SBError()
-        name =  self._read_string("(const char *)Konan_DebugGetFieldName({}, (int){})".format(self._ptr, index), error)
+        name =  self._read_string("(void *)Konan_DebugGetFieldName({}, (int){})".format(self._ptr, index), error)
         if not error.Success():
             raise DebuggerException()
         return name
@@ -347,9 +359,11 @@ class KonanProxyTypeProvider:
     def __init__(self, valobj, internal_dict):
         log(lambda : "proxy: {:#x}".format(valobj.unsigned))
         tip = type_info(valobj)
+        log(lambda : "KonanProxyTypeProvider: tip: {:#x}".format(tip))
         if not tip:
             return
         self._proxy = select_provider(valobj, tip, internal_dict)
+        log(lambda: "KonanProxyTypeProvider: _proxy: {}".format(self._proxy.__class__.__name__))
         self.update()
 
     def __getattr__(self, item):
@@ -361,6 +375,58 @@ def print_this_command(debugger, command, result, internal_dict):
 
 def clear_cache_command(debugger, command, result, internal_dict):
     SYNTHETIC_OBJECT_LAYOUT_CACHE.clear()
+
+
+def type_name_command(debugger, command, result, internal_dict):
+    result.AppendMessage(evaluate('(char *)Konan_DebugGetTypeName({})'.format(command)).summary)
+
+__KONAN_VARIABLE = re.compile('kvar:(.*)#internal')
+__KONAN_VARIABLE_TYPE = re.compile('^kfun:<get-(.*)>\\(\\)(.*)$')
+__TYPES_KONAN_TO_C = {
+   'kotlin.Byte': ('int8_t', lambda v: v.signed),
+   'kotlin.Short': ('short', lambda v: v.signed),
+   'kotlin.Int': ('int', lambda v: v.signed),
+   'kotlin.Long': ('long', lambda v: v.signed),
+   'kotlin.UByte': ('int8_t', lambda v: v.unsigned),
+   'kotlin.UShort': ('short', lambda v: v.unsigned),
+   'kotlin.UInt': ('int', lambda v: v.unsigned),
+   'kotlin.ULong': ('long', lambda v: v.unsigned),
+   'kotlin.Char': ('short', lambda v: v.signed),
+   'kotlin.Boolean': ('bool', lambda v: v.signed),
+   'kotlin.Float': ('float', lambda v: v.value),
+   'kotlin.Double': ('double', lambda v: v.value)
+}
+
+def konan_globals_command(debugger, command, result, internal_dict):
+    target = debugger.GetSelectedTarget()
+    process = target.GetProcess()
+    thread = process.GetSelectedThread()
+    frame = thread.GetSelectedFrame()
+
+    konan_variable_symbols = list(filter(lambda v: __KONAN_VARIABLE.match(v.name), frame.GetModule().symbols))
+    visited = list()
+    for symbol in konan_variable_symbols:
+       name = __KONAN_VARIABLE.search(symbol.name).group(1)
+
+       if name in visited:
+           continue
+       visited.append(name)
+
+       getters = list(filter(lambda v: re.match('^kfun:<get-{}>\\(\\).*$'.format(name), v.name), frame.module.symbols))
+       if not getters:
+           result.AppendMessage("storage not found for name:{}".format(name))
+           continue
+
+       getter_functions = frame.module.FindFunctions(getters[0].name)
+       if not getter_functions:
+           continue
+
+       address = getter_functions[0].function.GetStartAddress().GetLoadAddress(target)
+       type = __KONAN_VARIABLE_TYPE.search(getters[0].name).group(2)
+       (c_type, extractor) = __TYPES_KONAN_TO_C[type] if type in __TYPES_KONAN_TO_C.keys() else ('struct ObjHeader *', lambda v: kotlin_object_type_summary(v))
+       value = evaluate('(({0} (*)()){1:#x})()'.format(c_type, address))
+       str_value = extractor(value)
+       result.AppendMessage('{} {}: {}'.format(type, name, str_value))
 
 def __lldb_init_module(debugger, _):
     __FACTORY['object'] = lambda x, y, z: KonanObjectSyntheticProvider(x, y, z)
@@ -383,3 +449,5 @@ def __lldb_init_module(debugger, _):
     debugger.HandleCommand('type category enable Kotlin')
     debugger.HandleCommand('command script add -f {}.print_this_command print_this'.format(__name__))
     debugger.HandleCommand('command script add -f {}.clear_cache_command clear_kotlin_cache'.format(__name__))
+    debugger.HandleCommand('command script add -f {}.type_name_command type_name'.format(__name__))
+    debugger.HandleCommand('command script add -f {}.konan_globals_command konan_globals'.format(__name__))

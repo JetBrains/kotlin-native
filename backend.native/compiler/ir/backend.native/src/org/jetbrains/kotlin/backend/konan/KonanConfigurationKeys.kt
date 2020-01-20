@@ -66,6 +66,8 @@ class KonanConfigKeys {
                 = CompilerConfigurationKey.create("memory model")
         val META_INFO: CompilerConfigurationKey<List<String>> 
                 = CompilerConfigurationKey.create("generate metadata")
+        val METADATA_KLIB: CompilerConfigurationKey<Boolean>
+                = CompilerConfigurationKey.create("metadata klib")
         val MODULE_KIND: CompilerConfigurationKey<ModuleKind> 
                 = CompilerConfigurationKey.create("module kind")
         val MODULE_NAME: CompilerConfigurationKey<String?> 
@@ -88,6 +90,8 @@ class KonanConfigKeys {
                 = CompilerConfigurationKey.create("program or library name")
         val OVERRIDE_CLANG_OPTIONS: CompilerConfigurationKey<List<String>>
                 = CompilerConfigurationKey.create("arguments for clang")
+        val ALLOCATION_MODE: CompilerConfigurationKey<String>
+                = CompilerConfigurationKey.create("allocation mode")
         val PRINT_BITCODE: CompilerConfigurationKey<Boolean> 
                 = CompilerConfigurationKey.create("print bitcode")
         val PRINT_DESCRIPTORS: CompilerConfigurationKey<Boolean>

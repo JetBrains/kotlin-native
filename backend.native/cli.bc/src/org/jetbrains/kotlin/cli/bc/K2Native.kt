@@ -140,6 +140,8 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
                 val outputKind = CompilerOutputKind.valueOf(
                     (arguments.produce ?: "program").toUpperCase())
                 put(PRODUCE, outputKind)
+                put(METADATA_KLIB, arguments.metadataKlib)
+
                 arguments.libraryVersion ?. let { put(LIBRARY_VERSION, it) }
 
                 arguments.mainPackage ?.let{ put(ENTRY, it) }
@@ -153,6 +155,7 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
                 put(LIGHT_DEBUG, arguments.lightDebug)
                 put(STATIC_FRAMEWORK, selectFrameworkType(configuration, arguments, outputKind))
                 put(OVERRIDE_CLANG_OPTIONS, arguments.clangOptions.toNonNullList())
+                put(ALLOCATION_MODE, arguments.allocator)
 
                 put(PRINT_IR, arguments.printIr)
                 put(PRINT_IR_WITH_DESCRIPTORS, arguments.printIrWithDescriptors)
