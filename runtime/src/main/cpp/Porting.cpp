@@ -119,7 +119,7 @@ void consolePrintf(const char* format, ...) {
 #if !KONAN_NO_THREADS
 
 pthread_key_t terminationKey;
-pthread_once_t terminationKeyOnceControl =  PTHREAD_ONCE_INIT;
+pthread_once_t terminationKeyOnceControl = PTHREAD_ONCE_INIT;
 
 typedef void (*destructor_t)(void*);
 
@@ -140,7 +140,18 @@ static void onThreadExitCallback(void* value) {
   pthread_setspecific(terminationKey, nullptr);
 }
 
+#if KONAN_LINUX
+static pthread_key_t dummyKey;
+#endif
 static void onThreadExitInit() {
+#if KONAN_LINUX
+  // Due to glibc bug we have to create first key as dummy, to avoid
+  // conflicts with dlfcn error key.
+  // See https://code.woboq.org/userspace/glibc/nptl/pthread_key_create.c.html
+  // and
+  // https://code.woboq.org/userspace/glibc/dlfcn/dlerror.c.html#177
+  pthread_key_create(&dummyKey, nullptr);
+#endif
   pthread_key_create(&terminationKey, onThreadExitCallback);
 }
 
