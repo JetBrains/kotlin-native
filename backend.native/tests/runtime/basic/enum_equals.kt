@@ -18,5 +18,4 @@ enum class EnumB {
 @Test fun run() {
     println(EnumA.A == EnumA.A)
     println(EnumA.A == EnumA.B)
-    println(EnumA.A == EnumB.B)
 }

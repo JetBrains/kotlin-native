@@ -11,9 +11,6 @@ enum class EnumA {
     A, B, C
 }
 
-enum class EnumB {
-    A, B
-}
 
 enum class E {
     ONE, TWO, THREE
@@ -24,7 +21,6 @@ fun produceEntry() = EnumA.A
 // Check that we fail on comparison of different enum types.
 fun differentEnums() {
     println(when (produceEntry()) {
-        EnumB.A -> "EnumB.A"
         EnumA.A -> "EnumA.A"
         EnumA.B -> "EnumA.B"
         else    -> "nah"
