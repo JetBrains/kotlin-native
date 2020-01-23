@@ -2060,47 +2060,31 @@ OBJ_GETTER(swapHeapRefLocked,
     ObjHeader** location, ObjHeader* expectedValue, ObjHeader* newValue, int32_t* spinlock) {
   lock(spinlock);
   ObjHeader* oldValue = *location;
-  bool shallRelease = false;
-  // We do not use UpdateRef() here to avoid having ReleaseRef() on return slot under the lock.
   if (oldValue == expectedValue) {
     SetHeapRef(location, newValue);
-    shallRelease = oldValue != nullptr;
   } else {
     if (IsStrictMemoryModel && oldValue != nullptr)
       rememberNewContainer(oldValue->container());
   }
+  UpdateReturnRef(OBJ_RESULT, oldValue);
   unlock(spinlock);
 
-  UpdateReturnRef(OBJ_RESULT, oldValue);
-  if (shallRelease) {
-    // No need to rememberNewContainer() on this path, as if `oldValue` is not null - it is explicitly released
-    // anyway, and thus can not escape GC.
-    ReleaseHeapRef(oldValue);
-  }
   return oldValue;
 }
 
 void setHeapRefLocked(ObjHeader** location, ObjHeader* newValue, int32_t* spinlock) {
   lock(spinlock);
   ObjHeader* oldValue = *location;
-  // We do not use UpdateRef() here to avoid having ReleaseRef() on old value under the lock.
   SetHeapRef(location, newValue);
   unlock(spinlock);
-  if (oldValue != nullptr)
-    ReleaseHeapRef(oldValue);
 }
 
 OBJ_GETTER(readHeapRefLocked, ObjHeader** location, int32_t* spinlock) {
   MEMORY_LOG("ReadHeapRefLocked: %p\n", location)
   lock(spinlock);
   ObjHeader* value = *location;
-  auto* container = value ? value->container() : nullptr;
-  if (container != nullptr)
-    incrementRC<true>(container);
-  unlock(spinlock);
   UpdateReturnRef(OBJ_RESULT, value);
-  if (value != nullptr)
-    ReleaseHeapRef(value);
+  unlock(spinlock);
   return value;
 }
 
