@@ -191,7 +191,7 @@ internal val defaultParameterExtentPhase = makeKonanFileOpPhase(
             DefaultArgumentStubGenerator(context, skipInlineMethods = false).lower(irFile)
             DefaultParameterPatchOverridenSymbolsLowering(context, skipInlineMethods = false).lower(irFile)
             KonanDefaultParameterInjector(context).lower(irFile)
-            DefaultParameterCleaner(context, replaceDefaultValuesWithStubs = true)
+            DefaultParameterCleaner(context, replaceDefaultValuesWithStubs = true).lower(irFile)
         },
         name = "DefaultParameterExtent",
         description = "Default parameter extent lowering",
