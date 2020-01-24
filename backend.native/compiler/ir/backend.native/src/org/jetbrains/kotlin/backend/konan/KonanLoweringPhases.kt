@@ -183,8 +183,10 @@ internal val tailrecPhase = makeKonanFileLoweringPhase(
 
 internal val defaultParameterExtentPhase = makeKonanFileOpPhase(
         { context, irFile ->
-            DefaultArgumentStubGenerator(context, skipInlineMethods = false).runOnFilePostfix(irFile)
+            DefaultArgumentStubGenerator(context, skipInlineMethods = false).lower(irFile)
+            DefaultParameterPatchOverridenSymbolsLowering(context, skipInlineMethods = false).lower(irFile)
             KonanDefaultParameterInjector(context).lower(irFile)
+            DefaultParameterCleaner(context, replaceDefaultValuesWithStubs = true)
         },
         name = "DefaultParameterExtent",
         description = "Default parameter extent lowering",
