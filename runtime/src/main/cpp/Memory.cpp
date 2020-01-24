@@ -2056,6 +2056,10 @@ OBJ_GETTER(initSharedInstance,
 #endif  // KONAN_NO_THREADS
 }
 
+/**
+ * We keep thread affinity information in atomic references, so that repeating read operations
+ * do not lead to repeating rememberNewContainer().
+ */
 #define COOKIE() (static_cast<int32_t>(reinterpret_cast<intptr_t>(memoryState)))
 
 OBJ_GETTER(swapHeapRefLocked,
@@ -2110,8 +2114,8 @@ OBJ_GETTER(readHeapRefLocked, ObjHeader** location, int32_t* spinlock, int32_t* 
   UpdateReturnRef(OBJ_RESULT, value);
   unlock(spinlock);
 #if USE_GC
-  if (IsStrictMemoryModel && shallRemember) {
-    auto* container = value ? value->container() : nullptr;
+  if (IsStrictMemoryModel && shallRemember && value != nullptr) {
+    auto* container = value->container();
     rememberNewContainer(container);
   }
 #endif  // USE_GC
