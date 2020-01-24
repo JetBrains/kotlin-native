@@ -2056,51 +2056,65 @@ OBJ_GETTER(initSharedInstance,
 #endif  // KONAN_NO_THREADS
 }
 
+#define COOKIE() (static_cast<int32_t>(reinterpret_cast<intptr_t>(memoryState)))
+
 OBJ_GETTER(swapHeapRefLocked,
-    ObjHeader** location, ObjHeader* expectedValue, ObjHeader* newValue, int32_t* spinlock) {
+    ObjHeader** location, ObjHeader* expectedValue, ObjHeader* newValue, int32_t* spinlock, int32_t* cookie) {
   lock(spinlock);
   ObjHeader* oldValue = *location;
   bool shallRelease = false;
+  bool shallRemember = false;
   // We do not use UpdateRef() here to avoid having ReleaseRef() on return slot under the lock.
   if (oldValue == expectedValue) {
     SetHeapRef(location, newValue);
     shallRelease = oldValue != nullptr;
   } else {
-    if (IsStrictMemoryModel && oldValue != nullptr)
-      rememberNewContainer(oldValue->container());
+    if (IsStrictMemoryModel && oldValue != nullptr) {
+      shallRemember = *cookie != COOKIE();
+      if (shallRemember) *cookie = COOKIE();
+    }
   }
+  UpdateReturnRef(OBJ_RESULT, oldValue);
   unlock(spinlock);
 
-  UpdateReturnRef(OBJ_RESULT, oldValue);
   if (shallRelease) {
     // No need to rememberNewContainer() on this path, as if `oldValue` is not null - it is explicitly released
     // anyway, and thus can not escape GC.
     ReleaseHeapRef(oldValue);
+  } else {
+    if (IsStrictMemoryModel && oldValue != nullptr && shallRemember) {
+      rememberNewContainer(oldValue->container());
+    }
   }
   return oldValue;
 }
 
-void setHeapRefLocked(ObjHeader** location, ObjHeader* newValue, int32_t* spinlock) {
+
+void setHeapRefLocked(ObjHeader** location, ObjHeader* newValue, int32_t* spinlock, int32_t* cookie) {
   lock(spinlock);
   ObjHeader* oldValue = *location;
   // We do not use UpdateRef() here to avoid having ReleaseRef() on old value under the lock.
   SetHeapRef(location, newValue);
+  *cookie = COOKIE();
   unlock(spinlock);
   if (oldValue != nullptr)
     ReleaseHeapRef(oldValue);
 }
 
-OBJ_GETTER(readHeapRefLocked, ObjHeader** location, int32_t* spinlock) {
+OBJ_GETTER(readHeapRefLocked, ObjHeader** location, int32_t* spinlock, int32_t* cookie) {
   MEMORY_LOG("ReadHeapRefLocked: %p\n", location)
   lock(spinlock);
   ObjHeader* value = *location;
-  auto* container = value ? value->container() : nullptr;
-  if (container != nullptr)
-    incrementRC<true>(container);
-  unlock(spinlock);
+  bool shallRemember = *cookie != COOKIE();
+  if (shallRemember) *cookie = COOKIE();
   UpdateReturnRef(OBJ_RESULT, value);
-  if (value != nullptr)
-    ReleaseHeapRef(value);
+  unlock(spinlock);
+#if USE_GC
+  if (IsStrictMemoryModel && shallRemember) {
+    auto* container = value ? value->container() : nullptr;
+    rememberNewContainer(container);
+  }
+#endif  // USE_GC
   return value;
 }
 
@@ -2110,8 +2124,10 @@ OBJ_GETTER(readHeapRefNoLock, ObjHeader* object, KInt index) {
     reinterpret_cast<uintptr_t>(object) + object->type_info()->objOffsets_[index]);
   ObjHeader* value = *location;
 #if USE_GC
-  if (IsStrictMemoryModel && value != nullptr)
+  if (IsStrictMemoryModel && (value != nullptr)) {
+    // Maybe not so good to do that under lock.
     rememberNewContainer(value->container());
+  }
 #endif  // USE_GC
   RETURN_OBJ(value);
 }
@@ -2956,16 +2972,16 @@ void UpdateHeapRefIfNull(ObjHeader** location, const ObjHeader* object) {
 }
 
 OBJ_GETTER(SwapHeapRefLocked,
-    ObjHeader** location, ObjHeader* expectedValue, ObjHeader* newValue, int32_t* spinlock) {
-  RETURN_RESULT_OF(swapHeapRefLocked, location, expectedValue, newValue, spinlock);
+    ObjHeader** location, ObjHeader* expectedValue, ObjHeader* newValue, int32_t* spinlock, int32_t* cookie) {
+  RETURN_RESULT_OF(swapHeapRefLocked, location, expectedValue, newValue, spinlock, cookie);
 }
 
-void SetHeapRefLocked(ObjHeader** location, ObjHeader* newValue, int32_t* spinlock) {
-  setHeapRefLocked(location, newValue, spinlock);
+void SetHeapRefLocked(ObjHeader** location, ObjHeader* newValue, int32_t* spinlock, int32_t* cookie) {
+  setHeapRefLocked(location, newValue, spinlock, cookie);
 }
 
-OBJ_GETTER(ReadHeapRefLocked, ObjHeader** location, int32_t* spinlock) {
-  RETURN_RESULT_OF(readHeapRefLocked, location, spinlock);
+OBJ_GETTER(ReadHeapRefLocked, ObjHeader** location, int32_t* spinlock, int32_t* cookie) {
+  RETURN_RESULT_OF(readHeapRefLocked, location, spinlock, cookie);
 }
 
 OBJ_GETTER(ReadHeapRefNoLock, ObjHeader* object, KInt index) {
