@@ -661,6 +661,15 @@ KNativePtr Kotlin_Arrays_getByteArrayAddressOfElement(KRef thiz, KInt index) {
   return AddressOfElementAt<KByte>(array, index);
 }
 
+KNativePtr Kotlin_Arrays_getCharSequenceAddressOfElement (KRef thiz, KInt index) {
+  ArrayHeader* array = thiz->array();
+  if (index < 0 || index >= array->count_) {
+    ThrowArrayIndexOutOfBoundsException();
+  }
+
+  return AddressOfElementAt<KByte>(array, index);
+}
+
 KNativePtr Kotlin_Arrays_getShortArrayAddressOfElement(KRef thiz, KInt index) {
   ArrayHeader* array = thiz->array();
   if (index < 0 || index >= array->count_) {
