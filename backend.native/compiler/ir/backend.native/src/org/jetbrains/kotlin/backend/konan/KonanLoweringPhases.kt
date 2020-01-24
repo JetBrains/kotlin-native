@@ -89,6 +89,11 @@ internal val arrayConstructorPhase = makeKonanModuleLoweringPhase(
 internal val inlinePhase = namedIrModulePhase(
         lower = object : SameTypeCompilerPhase<Context, IrModuleFragment> {
             override fun invoke(phaseConfig: PhaseConfig, phaserState: PhaserState<IrModuleFragment>, context: Context, input: IrModuleFragment): IrModuleFragment {
+                FunctionInlining(context).run {
+                    input.files.forEach {
+                        lower(it)
+                    }
+                }
                 FunctionInlining(context).inline(input)
                 return input
             }
