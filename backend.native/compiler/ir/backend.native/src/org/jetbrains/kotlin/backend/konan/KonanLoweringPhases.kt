@@ -119,8 +119,12 @@ internal val interopPart1Phase = makeKonanModuleLoweringPhase(
 
 /* IrFile phases */
 
-internal val lateinitPhase = makeKonanFileLoweringPhase(
-        ::LateinitLowering,
+internal val lateinitPhase = makeKonanFileOpPhase(
+        { context, irFile ->
+            NullableFieldsForLateinitCreationLowering(context).lower(irFile)
+            NullableFieldsDeclarationLowering(context).lower(irFile)
+            LateinitUsageLowering(context).lower(irFile)
+        },
         name = "Lateinit",
         description = "Lateinit properties lowering",
         prerequisite = setOf(inlinePhase)
