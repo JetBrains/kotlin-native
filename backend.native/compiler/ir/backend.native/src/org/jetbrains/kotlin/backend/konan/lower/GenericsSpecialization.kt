@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrStatementContainer
+import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSimpleFunctionSymbol
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrType
@@ -82,10 +83,11 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
     // scope -> specialization -> origin
     private val newFunctions = mutableMapOf<IrDeclarationParent, MutableMap<IrFunction, IrFunction>>()
 
-    private val typeParameterMapping = mutableMapOf<IrTypeParameterSymbol, IrType>()
-    private val symbolRemapper = DeepCopySymbolRemapper(DescriptorsToIrRemapper)
+    private val typeParametersMapping = mutableMapOf<IrTypeParameterSymbol, IrType>()
     private val symbolRenamer = SymbolRenamerWithSpecializedFunctions()
-    private val typeParameterEliminator = TypeParameterEliminator(this, symbolRemapper, symbolRenamer, typeParameterMapping)
+
+    private val symbolRemapper = NewSymbolRemapper(DescriptorsToIrRemapper)
+    private val typeParameterEliminator = TypeParameterEliminator(this, symbolRemapper, symbolRenamer, typeParametersMapping)
 
     override fun visitFile(declaration: IrFile): IrFile {
         return super.visitFile(declaration).also {
@@ -108,7 +110,7 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         }
         val primitiveTypeArgument = expression.getTypeArgument(0)!!
         val owner: IrFunction = expression.symbol.owner
-        if (owner.typeParameters.size != 1) {
+        if (owner.isInline || owner.typeParameters.size != 1) {
             return expression
         }
         val typeParameter = owner.typeParameters.first()
@@ -116,13 +118,14 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
             return expression
         }
         val newFunction = owner.getSpecialization(primitiveTypeArgument)
-        return builder.at(expression).run {
+        builder.at(expression).run {
             irCall(newFunction).apply {
                 extensionReceiver = expression.extensionReceiver
                 dispatchReceiver = expression.dispatchReceiver
                 for (i in 0 until expression.valueArgumentsCount) {
                     putValueArgument(i, expression.getValueArgument(i))
                 }
+                return this
             }
         }
     }
@@ -146,7 +149,7 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
 
         // Remember type parameter to be able to eliminate it in all possible places
         // TODO works only for functions with one type parameter and (likely) when specialization just for one type is required
-        typeParameterMapping[typeParameters.first().symbol] = type
+        typeParameterEliminator.addMapping(typeParameters.first(), type)
 
         return typeParameterEliminator.visitSimpleFunction(this).also {
             // Bind descriptors to their owners, assign parents
@@ -208,6 +211,39 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
 }
 
 /**
+ * One function can have several specializations (for example, for type Int and for type Byte).
+ * Original remapper does not consider different mappings for different types and remembers only one of them,
+ * so in some cases it can give wrong symbol for function being specialized.
+ *
+ * For example, @see [DeepCopyIrTreeWithSymbols.shallowCopyCall]. If invocation is performed in specialization body,
+ * visiting callee's body will happen AFTER the call will get a copy with eliminated type parameters
+ * (@see [TypeParameterEliminator.visitCall]), therefore copied version can have stale symbols
+ * and cause compilation errors like types mismatch.
+ *
+ * However, it's not necessary for remapper to store symbols for different types. Instead, it can just ignore
+ * current mapping from original function to its specialization when call is copying,
+ * and this will be correct behavior eliminator as a copier. // (TODO prove)
+ * This class implements such ignorance.
+ */
+internal class NewSymbolRemapper(
+        descriptorsRemapper: DescriptorsRemapper = DescriptorsRemapper.Default
+) : DeepCopySymbolRemapper(descriptorsRemapper) {
+
+    private var functionSymbolToIgnore: IrFunctionSymbol? = null
+
+    fun <R> inIgnoreFunctionMappingMode(function: IrFunction, block: NewSymbolRemapper.() -> R): R {
+        functionSymbolToIgnore = function.symbol
+        val result = block()
+        functionSymbolToIgnore = null
+        return result
+    }
+
+    override fun getReferencedFunction(symbol: IrFunctionSymbol): IrFunctionSymbol {
+        return if (symbol == functionSymbolToIgnore) symbol else super.getReferencedFunction(symbol)
+    }
+}
+
+/**
  * Copy of [WrappedDescriptorPatcher] with guarantees that descriptor will not be bound
  * to any declaration more than once.
  *
@@ -233,21 +269,21 @@ internal object SafeWrappedDescriptorPatcher : IrElementVisitorVoid {
 
     override fun visitClass(declaration: IrClass) {
         declaration.addAndRunIfAbsent {
-            (declaration.descriptor as WrappedClassDescriptor).bind(declaration)
+            (declaration.descriptor as? WrappedClassDescriptor)?.bind(declaration)
         }
         declaration.acceptChildrenVoid(this)
     }
 
     override fun visitConstructor(declaration: IrConstructor) {
         declaration.addAndRunIfAbsent {
-            (declaration.descriptor as WrappedClassConstructorDescriptor).bind(declaration)
+            (declaration.descriptor as? WrappedClassConstructorDescriptor)?.bind(declaration)
         }
         declaration.acceptChildrenVoid(this)
     }
 
     override fun visitEnumEntry(declaration: IrEnumEntry) {
         declaration.addAndRunIfAbsent {
-            (declaration.descriptor as WrappedClassDescriptor).bind(
+            (declaration.descriptor as? WrappedClassDescriptor)?.bind(
                     declaration.correspondingClass ?: declaration.parentAsClass
             )
         }
@@ -256,21 +292,21 @@ internal object SafeWrappedDescriptorPatcher : IrElementVisitorVoid {
 
     override fun visitField(declaration: IrField) {
         declaration.addAndRunIfAbsent {
-            (declaration.descriptor as WrappedFieldDescriptor).bind(declaration)
+            (declaration.descriptor as? WrappedFieldDescriptor)?.bind(declaration)
         }
         declaration.acceptChildrenVoid(this)
     }
 
     override fun visitProperty(declaration: IrProperty) {
         declaration.addAndRunIfAbsent {
-            (declaration.descriptor as WrappedPropertyDescriptor).bind(declaration)
+            (declaration.descriptor as? WrappedPropertyDescriptor)?.bind(declaration)
         }
         declaration.acceptChildrenVoid(this)
     }
 
     override fun visitFunction(declaration: IrFunction) {
         declaration.addAndRunIfAbsent {
-            (declaration.descriptor as WrappedSimpleFunctionDescriptor).bind(declaration as IrSimpleFunction)
+            (declaration.descriptor as? WrappedSimpleFunctionDescriptor)?.bind(declaration as IrSimpleFunction)
         }
         declaration.acceptChildrenVoid(this)
     }
@@ -285,14 +321,14 @@ internal object SafeWrappedDescriptorPatcher : IrElementVisitorVoid {
 
     override fun visitTypeParameter(declaration: IrTypeParameter) {
         declaration.addAndRunIfAbsent {
-            (declaration.descriptor as WrappedTypeParameterDescriptor).bind(declaration)
+            (declaration.descriptor as? WrappedTypeParameterDescriptor)?.bind(declaration)
         }
         declaration.acceptChildrenVoid(this)
     }
 
     override fun visitVariable(declaration: IrVariable) {
         declaration.addAndRunIfAbsent {
-            (declaration.descriptor as WrappedVariableDescriptor).bind(declaration)
+            (declaration.descriptor as? WrappedVariableDescriptor)?.bind(declaration)
         }
         declaration.acceptChildrenVoid(this)
     }
