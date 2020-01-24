@@ -560,7 +560,7 @@ ObjHeader** LookupTLS(void** key, int index) RUNTIME_NOTHROW;
 // APIs for the async GC.
 void GC_RegisterWorker(void* worker) RUNTIME_NOTHROW;
 void GC_UnregisterWorker(void* worker) RUNTIME_NOTHROW;
-void GC_RendezvouzCallback(void* worker) RUNTIME_NOTHROW;
+void GC_CollectorCallback(void* worker) RUNTIME_NOTHROW;
 
 #ifdef __cplusplus
 }

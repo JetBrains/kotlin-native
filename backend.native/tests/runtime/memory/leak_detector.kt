@@ -62,9 +62,9 @@ fun test3() {
 
 fun main() {
     // We must disable cyclic collector here, to avoid interfering with cycle detector.
-    kotlin.native.internal.GC.cyclicCollector = false
+    kotlin.native.internal.GC.cyclicCollectorEnabled = false
     test1()
     test2()
     test3()
-    kotlin.native.internal.GC.cyclicCollector = true
+    kotlin.native.internal.GC.cyclicCollectorEnabled = true
 }

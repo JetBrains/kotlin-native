@@ -88,9 +88,9 @@ object GC {
     /**
      * If cyclic collector for atomic references to be deployed.
      */
-    var cyclicCollector: Boolean
-        get() = getCyclicCollector()
-        set(value) = setCyclicCollector(value)
+    var cyclicCollectorEnabled: Boolean
+        get() = getCyclicCollectorEnabled()
+        set(value) = setCyclicCollectorEnabled(value)
 
     /**
      * Detect cyclic references going via atomic references and return list of cycle-inducing objects
@@ -129,8 +129,8 @@ object GC {
     private external fun setTuneThreshold(value: Boolean)
 
     @SymbolName("Kotlin_native_internal_GC_getCyclicCollector")
-    private external fun getCyclicCollector(): Boolean
+    private external fun getCyclicCollectorEnabled(): Boolean
 
     @SymbolName("Kotlin_native_internal_GC_setCyclicCollector")
-    private external fun setCyclicCollector(value: Boolean)
+    private external fun setCyclicCollectorEnabled(value: Boolean)
 }

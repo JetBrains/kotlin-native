@@ -827,8 +827,7 @@ bool Worker::park(KLong timeoutMicroseconds, bool process) {
 }
 
 JobKind Worker::processQueueElement(bool blocking) {
-  // Allow GC safepointing check.
-  GC_RendezvouzCallback(this);
+  GC_CollectorCallback(this);
   ObjHolder argumentHolder;
   ObjHolder resultHolder;
   if (terminated_) return JOB_TERMINATE;

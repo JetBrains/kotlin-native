@@ -344,7 +344,7 @@ class CyclicCollector {
     }
   }
 
-  void rendezvouz(void* worker) {
+  void collectorCallaback(void* worker) {
     if (atomicGet(&gcRunning_) != 0) return;
     releasePendingUnlocked(worker);
     if (checkIfShallCollect()) {
@@ -359,6 +359,11 @@ class CyclicCollector {
     Locker lock(&lock_);
     shallRunCollector_ = true;
     CHECK_CALL(pthread_cond_signal(&cond_), "Cannot signal collector")
+  }
+
+  void localGC() {
+    // We just need to take GC lock here, to avoid release of object we walk on.
+    Locker locker(&lock_);
   }
 
 };
@@ -399,10 +404,10 @@ void cyclicRemoveWorker(void* worker) {
 #endif  // WITH_WORKERS
 }
 
-void cyclicRendezvouz(void* worker) {
+void cyclicCollectorCallback(void* worker) {
 #if WITH_WORKERS
   if (cyclicCollector)
-    cyclicCollector->rendezvouz(worker);
+    cyclicCollector->collectorCallaback(worker);
 #endif  // WITH_WORKERS
 }
 
@@ -431,5 +436,12 @@ void cyclicMutateAtomicRoot(ObjHeader* newValue) {
 #if WITH_WORKERS
   if (cyclicCollector)
     cyclicCollector->mutateRoot(newValue);
+#endif  // WITH_WORKERS
+}
+
+void cyclicLocalGC() {
+#if WITH_WORKERS
+  if (cyclicCollector)
+    cyclicCollector->localGC();
 #endif  // WITH_WORKERS
 }

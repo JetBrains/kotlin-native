@@ -10,7 +10,8 @@ void cyclicRemoveWorker(void* worker);
 void cyclicAddAtomicRoot(ObjHeader* obj);
 void cyclicRemoveAtomicRoot(ObjHeader* obj);
 void cyclicMutateAtomicRoot(ObjHeader* newValue);
-void cyclicRendezvouz(void* worker);
+void cyclicCollectorCallback(void* worker);
+void cyclicLocalGC();
 void cyclicScheduleGarbageCollect();
 
 #endif  // RUNTIME_CYCLIC_COLLECTOR_H
