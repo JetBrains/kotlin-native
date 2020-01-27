@@ -101,6 +101,23 @@ inline void traverseObjectFields(ObjHeader* obj, func process) {
   }
 }
 
+inline bool isEdgeCounted(ObjHeader* obj) {
+  return (reinterpret_cast<uintptr_t>(obj) & 1) != 0;
+}
+
+inline ObjHeader* markEdgeAsCounted(ObjHeader* obj) {
+  return reinterpret_cast<ObjHeader*>(reinterpret_cast<uintptr_t>(obj) | 1);
+}
+
+inline ObjHeader* clearEdgeIsCounted(ObjHeader* obj) {
+  return reinterpret_cast<ObjHeader*>(
+    reinterpret_cast<uintptr_t>(obj) & ~static_cast<uintptr_t>(1));
+}
+
+inline bool isAtomicReference(ObjHeader* obj) {
+  return (obj->type_info()->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0;
+}
+
 #define CHECK_CALL(call, message) RuntimeCheck((call) == 0, message)
 
 class CyclicCollector {
@@ -168,7 +185,7 @@ class CyclicCollector {
            struct timespec ts;
            long long nsDelta = 1000LL * 1000LL;
            ts.tv_nsec = (tv.tv_usec * 1000LL + nsDelta) % 1000000000LL;
-           ts.tv_sec = (tv.tv_sec * 1000000000LL + nsDelta) / 1000000000LL;
+           ts.tv_sec = tv.tv_sec;
            pthread_cond_timedwait(&cond_, &lock_, &ts);
          }
          atomicSet(&mutatedAtomics_, 0);
@@ -194,23 +211,30 @@ class CyclicCollector {
            while (toVisit.size() > 0)  {
              auto* obj = toVisit.front();
              toVisit.pop_front();
+             int increment = isEdgeCounted(obj) ? 1 : 0;
+             obj = clearEdgeIsCounted(obj);
              COLLECTOR_LOG("visit %p\n", obj);
              auto* objContainer = obj->container();
              if (objContainer == nullptr) continue;  // Permanent object.
              if (!objContainer->frozen()) continue;
-             sideRefCounts_[obj]++;
-             visited.insert(obj);
+             sideRefCounts_[obj] += increment;
              if (atomicGet(&mutatedAtomics_) != 0) {
                COLLECTOR_LOG("restarted during rootset visit\n")
                restartCount++;
                goto restart;
              }
-             traverseObjectFields(obj, [&toVisit, &visited](ObjHeader** location) {
-               ObjHeader* ref = *location;
-               if (ref != nullptr && visited.count(ref) == 0) {
-                 toVisit.push_back(ref);
-               }
-             });
+             if (visited.count(obj) == 0) {
+               visited.insert(obj);
+               traverseObjectFields(obj, [&toVisit, &visited, obj](ObjHeader** location) {
+                 ObjHeader* ref = *location;
+                 if (ref != nullptr) {
+                   // We shall not account for edges inside the same frozen container, unless it originates
+                   // from an atomic reference.
+                   bool shallCount = isAtomicReference(obj) || (obj->container() != ref->container());
+                   toVisit.push_back(shallCount ? markEdgeAsCounted(ref) : ref);
+                 }
+               });
+             }
            }
          }
          // Now find all elements with external references, and mark objects reachable from them as non suitable
@@ -221,6 +245,7 @@ class CyclicCollector {
            auto* objContainer = obj->container();
            if (objContainer == nullptr) continue;  // Permanent object.
            if (it.second != objContainer->refCount()) {
+             COLLECTOR_LOG("for %p mismatched RC: %d vs %d, adding as possible root\n", obj, it.second, objContainer->refCount())
              toVisit.push_back(it.first);
            }
          }
@@ -249,7 +274,7 @@ class CyclicCollector {
          for (auto it: sideRefCounts_) {
            auto* obj = it.first;
            // Only do that for atomic rootset elements.
-           if ((obj->type_info()->flags_ & TF_LEAK_DETECTOR_CANDIDATE) == 0) {
+           if (!isAtomicReference(obj)) {
              continue;
            }
            auto* objContainer = obj->container();

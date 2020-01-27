@@ -60,11 +60,18 @@ fun test3() {
     a1.value = null
 }
 
+
+fun test4() {
+    val atomic = AtomicReference<Any?>(null)
+    atomic.value = Pair(atomic, Holder(atomic)).freeze()
+}
+
 fun main() {
     // We must disable cyclic collector here, to avoid interfering with cycle detector.
     kotlin.native.internal.GC.cyclicCollectorEnabled = false
-    test1()
+    /*test1()
     test2()
-    test3()
+    test3() */
+    test4()
     kotlin.native.internal.GC.cyclicCollectorEnabled = true
 }

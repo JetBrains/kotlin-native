@@ -91,13 +91,19 @@ fun test5() {
     assertTrue(holder.value.value != null)
 }
 
+fun test6() {
+    val atomic = AtomicReference<Any?>(null)
+    atomic.value = Pair(atomic, Holder(atomic)).freeze()
+}
+
 fun main() {
     kotlin.native.internal.GC.cyclicCollectorEnabled = true
-    /*test1()
+    test1()
     test2()
     test3()
-    test4()*/
+    test4()
     repeat(10) {
         test5()
     }
+    test6()
 }
