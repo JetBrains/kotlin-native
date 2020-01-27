@@ -2057,10 +2057,20 @@ OBJ_GETTER(initSharedInstance,
 }
 
 /**
- * We keep thread affinity information in atomic references, so that repeating read operations
- * do not lead to repeating rememberNewContainer().
+ * We keep thread affinity and reference value based cookie in the atomic references, so that
+ * repeating read operation of the same value do not lead to the repeating rememberNewContainer() operation.
+ * We must invalidate cookie after the local GC, as otherwise fact that container of the `value` is retained
+ * may change, if the last reference to the value read is lost during GC and we re-read same value from
+ * the same atomic reference. Thus we also include last GC timestamp into the cookie.
  */
-#define COOKIE() (static_cast<int32_t>(reinterpret_cast<intptr_t>(memoryState)))
+inline int32_t computeCookie(ObjHeader* value) {
+  auto* state = memoryState;
+  auto timestamp = state->lastGcTimestamp;
+  return (static_cast<int32_t>(reinterpret_cast<intptr_t>(state))) ^
+    (static_cast<int32_t>(reinterpret_cast<intptr_t>(value))) ^
+    static_cast<int32_t>(timestamp >> 32) ^
+    static_cast<int32_t>(timestamp);
+}
 
 OBJ_GETTER(swapHeapRefLocked,
     ObjHeader** location, ObjHeader* expectedValue, ObjHeader* newValue, int32_t* spinlock, int32_t* cookie) {
@@ -2074,8 +2084,9 @@ OBJ_GETTER(swapHeapRefLocked,
     shallRelease = oldValue != nullptr;
   } else {
     if (IsStrictMemoryModel && oldValue != nullptr) {
-      shallRemember = *cookie != COOKIE();
-      if (shallRemember) *cookie = COOKIE();
+      auto realCookie = computeCookie(oldValue);
+      shallRemember = *cookie != realCookie;
+      if (shallRemember) *cookie = realCookie;
     }
   }
   UpdateReturnRef(OBJ_RESULT, oldValue);
@@ -2099,7 +2110,7 @@ void setHeapRefLocked(ObjHeader** location, ObjHeader* newValue, int32_t* spinlo
   ObjHeader* oldValue = *location;
   // We do not use UpdateRef() here to avoid having ReleaseRef() on old value under the lock.
   SetHeapRef(location, newValue);
-  *cookie = COOKIE();
+  *cookie = computeCookie(newValue);
   unlock(spinlock);
   if (oldValue != nullptr)
     ReleaseHeapRef(oldValue);
@@ -2109,8 +2120,9 @@ OBJ_GETTER(readHeapRefLocked, ObjHeader** location, int32_t* spinlock, int32_t* 
   MEMORY_LOG("ReadHeapRefLocked: %p\n", location)
   lock(spinlock);
   ObjHeader* value = *location;
-  bool shallRemember = *cookie != COOKIE();
-  if (shallRemember) *cookie = COOKIE();
+  auto realCookie = computeCookie(value);
+  bool shallRemember = *cookie != realCookie;
+  if (shallRemember) *cookie = realCookie;
   UpdateReturnRef(OBJ_RESULT, value);
   unlock(spinlock);
 #if USE_GC
