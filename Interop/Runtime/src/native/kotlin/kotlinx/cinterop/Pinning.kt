@@ -50,6 +50,9 @@ fun ByteArray.refTo(index: Int): CValuesRef<ByteVar> = this.usingPinned { addres
 fun Pinned<String>.addressOf(index: Int): CPointer<COpaque> = this.get().addressOfElement(index)
 fun String.refTo(index: Int): CValuesRef<COpaque> = this.usingPinned { addressOf(index) }
 
+fun Pinned<CharArray>.addressOf(index: Int): CPointer<COpaque> = this.get().addressOfElement(index)
+fun CharArray.refTo(index: Int): CValuesRef<COpaque> = this.usingPinned { addressOf(index) }
+
 fun Pinned<ShortArray>.addressOf(index: Int): CPointer<ShortVar> = this.get().addressOfElement(index)
 fun ShortArray.refTo(index: Int): CValuesRef<ShortVar> = this.usingPinned { addressOf(index) }
 
@@ -94,6 +97,9 @@ private external fun ByteArray.addressOfElement(index: Int): CPointer<ByteVar>
 
 @SymbolName("Kotlin_Arrays_getStringAddressOfElement")
 private external fun String.addressOfElement(index: Int): CPointer<COpaque>
+
+@SymbolName("Kotlin_Arrays_getCharArrayAddressOfElement")
+private external fun CharArray.addressOfElement(index: Int): CPointer<COpaque>
 
 @SymbolName("Kotlin_Arrays_getShortArrayAddressOfElement")
 private external fun ShortArray.addressOfElement(index: Int): CPointer<ShortVar>
