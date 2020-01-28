@@ -495,65 +495,47 @@ task crossDist {
 }
 
 task bundle(type: (isWindows()) ? Zip : Tar) {
-    dependsOn("distDef")
-    if (isMac()) {
-      dependsOn('bundleRestricted')
-    }
     def simpleOsName = HostManager.simpleOsName()
-    baseName = "kotlin-native-$simpleOsName-$konanVersionFull"
+    archiveBaseName.set("kotlin-native-$simpleOsName-$konanVersionFull")
     from("$project.rootDir/dist") {
         include '**'
         exclude 'dependencies'
         exclude 'klib/testLibrary'
-        into baseName
-    }
-    from(project.rootDir) {
-        include 'licenses/**'
-        into baseName
-    }
-    if (isWindows()) {
-        zip64 true
-    } else {
-        extension = 'tar.gz'
-        compression = Compression.GZIP
-    }
-}
-
-task bundleRestricted(type: Tar) {
-    dependsOn("distDef")
-    def simpleOsName = HostManager.simpleOsName()
-    baseName = "kotlin-native-restricted-$simpleOsName-$konanVersionFull"
-    from("$project.rootDir/dist") {
-        include '**'
-        exclude 'dependencies'
-        exclude 'klib/testLibrary'
-        platformManager.targetValues.each { target ->
-            if (PlatformInfo.isAppleTarget(target)) {
-                exclude "klib/platform/${target.name}"
-                exclude {
-                    // Exclude platform libraries caches too.
-                    !it.isDirectory() && it.relativePath.startsWithAny("klib/cache/${target.name}-g") &&
-                            it.name != "libstdlib-cache.a"
-                }
-            }
+        // Don't include platform libraries into the bundle (generate them at the user side instead).
+        exclude 'klib/platform'
+        exclude {
+            // Exclude platform libraries caches too.
+            !it.isDirectory() && it.relativePath.startsWithAny("klib/cache") && it.name != "libstdlib-cache.a"
         }
-        exclude '**/xcode_license.pdf'
-        into baseName
+        into archiveBaseName
     }
     from(project.rootDir) {
         include 'licenses/**'
         exclude '**/xcode_license.pdf'
-        into baseName
+        into archiveBaseName
     }
-
-    extension = 'tar.gz'
-    compression = Compression.GZIP
 }
 
-configure([bundle, bundleRestricted]) {
+task bundlePrebuilt(type: (isWindows()) ? Zip : Tar) {
     dependsOn('crossDistPlatformLibs')
+    def simpleOsName = HostManager.simpleOsName()
+    archiveBaseName.set("kotlin-native-prebuilt-$simpleOsName-$konanVersionFull")
+    from("$project.rootDir/dist") {
+        include '**'
+        exclude 'dependencies'
+        exclude 'klib/testLibrary'
+        into archiveBaseName
+    }
+    from(project.rootDir) {
+        include 'licenses/**'
+        into archiveBaseName
+    }
+}
+
+configure([bundle, bundlePrebuilt]) {
     dependsOn('crossDist')
     dependsOn('distSources')
+    dependsOn("distDef")
     from(project.rootDir) {
         include 'DISTRO_README.md'
         rename {
@@ -566,7 +548,14 @@ configure([bundle, bundleRestricted]) {
         into baseName
     }
 
-    destinationDir = file('.')
+    destinationDirectory.set(file('.'))
+
+    if (isWindows()) {
+        zip64 true
+    } else {
+        archiveExtension.set('tar.gz')
+        compression = Compression.GZIP
+    }
 }
 
 task 'tc-dist'(type: (isWindows()) ? Zip : Tar) {
@@ -574,19 +563,19 @@ task 'tc-dist'(type: (isWindows()) ? Zip : Tar) {
     dependsOn('dist')
     dependsOn('distSources')
     def simpleOsName = HostManager.simpleOsName()
-    baseName = "kotlin-native-dist-$simpleOsName-$konanVersionFull"
+    archiveBaseName.set("kotlin-native-dist-$simpleOsName-$konanVersionFull")
     from("$project.rootDir/dist") {
         include '**'
         exclude 'dependencies'
-        into baseName
+        into archiveBaseName
     }
 
-    destinationDir = file('.')
+    destinationDirectory.set(file('.'))
 
     if (isWindows()) {
         zip64 true
     } else {
-        extension = 'tar.gz'
+        archiveExtension.set('tar.gz')
         compression = Compression.GZIP
     }
 }
