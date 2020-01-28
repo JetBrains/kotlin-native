@@ -445,6 +445,7 @@ struct MemoryState {
 
   bool gcErgonomics;
   uint64_t lastGcTimestamp;
+  uint32_t gcEpoque;
 
   uint64_t allocSinceLastGc;
   uint64_t allocSinceLastGcThreshold;
@@ -1596,6 +1597,7 @@ void garbageCollect(MemoryState* state, bool force) {
   auto gcStartTime = konan::getTimeMicros();
 
   state->gcInProgress = true;
+  state->gcEpoque++;
 
   incrementStack(state);
   processDecrements(state);
@@ -2061,45 +2063,36 @@ OBJ_GETTER(initSharedInstance,
  * repeating read operation of the same value do not lead to the repeating rememberNewContainer() operation.
  * We must invalidate cookie after the local GC, as otherwise fact that container of the `value` is retained
  * may change, if the last reference to the value read is lost during GC and we re-read same value from
- * the same atomic reference. Thus we also include last GC timestamp into the cookie.
+ * the same atomic reference. Thus we also include GC epoque into the cookie.
  */
-inline int32_t computeCookie(ObjHeader* value) {
+inline int32_t computeCookie() {
   auto* state = memoryState;
-  auto timestamp = state->lastGcTimestamp;
-  return (static_cast<int32_t>(reinterpret_cast<intptr_t>(state))) ^
-    (static_cast<int32_t>(reinterpret_cast<intptr_t>(value))) ^
-    static_cast<int32_t>(timestamp >> 32) ^
-    static_cast<int32_t>(timestamp);
+  auto epoque = state->gcEpoque;
+  return (static_cast<int32_t>(reinterpret_cast<intptr_t>(state))) ^ static_cast<int32_t>(epoque);
 }
 
 OBJ_GETTER(swapHeapRefLocked,
     ObjHeader** location, ObjHeader* expectedValue, ObjHeader* newValue, int32_t* spinlock, int32_t* cookie) {
   lock(spinlock);
   ObjHeader* oldValue = *location;
-  bool shallRelease = false;
   bool shallRemember = false;
-  // We do not use UpdateRef() here to avoid having ReleaseRef() on return slot under the lock.
+  if (IsStrictMemoryModel) {
+    auto realCookie = computeCookie();
+    shallRemember = *cookie != realCookie;
+    if (shallRemember) *cookie = realCookie;
+  }
   if (oldValue == expectedValue) {
     SetHeapRef(location, newValue);
-    shallRelease = oldValue != nullptr;
-  } else {
-    if (IsStrictMemoryModel && oldValue != nullptr) {
-      auto realCookie = computeCookie(oldValue);
-      shallRemember = *cookie != realCookie;
-      if (shallRemember) *cookie = realCookie;
-    }
   }
   UpdateReturnRef(OBJ_RESULT, oldValue);
+  if (IsStrictMemoryModel && shallRemember && oldValue != nullptr && oldValue != expectedValue) {
+    // Only remember container if it is not known to this thread (i.e. != expectedValue).
+    rememberNewContainer(oldValue->container());
+  }
   unlock(spinlock);
 
-  if (shallRelease) {
-    // No need to rememberNewContainer() on this path, as if `oldValue` is not null - it is explicitly released
-    // anyway, and thus can not escape GC.
+  if (oldValue != nullptr && oldValue == expectedValue) {
     ReleaseHeapRef(oldValue);
-  } else {
-    if (IsStrictMemoryModel && oldValue != nullptr && shallRemember) {
-      rememberNewContainer(oldValue->container());
-    }
   }
   return oldValue;
 }
@@ -2110,7 +2103,7 @@ void setHeapRefLocked(ObjHeader** location, ObjHeader* newValue, int32_t* spinlo
   ObjHeader* oldValue = *location;
   // We do not use UpdateRef() here to avoid having ReleaseRef() on old value under the lock.
   SetHeapRef(location, newValue);
-  *cookie = computeCookie(newValue);
+  *cookie = computeCookie();
   unlock(spinlock);
   if (oldValue != nullptr)
     ReleaseHeapRef(oldValue);
@@ -2120,17 +2113,17 @@ OBJ_GETTER(readHeapRefLocked, ObjHeader** location, int32_t* spinlock, int32_t* 
   MEMORY_LOG("ReadHeapRefLocked: %p\n", location)
   lock(spinlock);
   ObjHeader* value = *location;
-  auto realCookie = computeCookie(value);
+  auto realCookie = computeCookie();
   bool shallRemember = *cookie != realCookie;
   if (shallRemember) *cookie = realCookie;
   UpdateReturnRef(OBJ_RESULT, value);
-  unlock(spinlock);
 #if USE_GC
   if (IsStrictMemoryModel && shallRemember && value != nullptr) {
     auto* container = value->container();
     rememberNewContainer(container);
   }
 #endif  // USE_GC
+  unlock(spinlock);
   return value;
 }
 
