@@ -40,17 +40,17 @@ repositories {
 dependencies {
     compileOnly(gradleApi())
 
-    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
-    implementation("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
+    implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:$buildKotlinVersion")
+    implementation("org.jetbrains.kotlin:kotlin-stdlib:$buildKotlinVersion")
+    implementation("org.jetbrains.kotlin:kotlin-reflect:$buildKotlinVersion")
     implementation("com.ullink.slack:simpleslackapi:1.2.0")
-    implementation("org.jetbrains.kotlinx:kotlinx-serialization-runtime:0.10.0")
+    implementation("org.jetbrains.kotlinx:kotlinx-serialization-runtime:0.14.0")
 
     implementation("io.ktor:ktor-client-auth:1.2.1")
     implementation("io.ktor:ktor-client-core:1.2.1")
     implementation("io.ktor:ktor-client-cio:1.2.1")
 
-    api("org.jetbrains.kotlin:kotlin-native-utils:$kotlinVersion")
+    api("org.jetbrains.kotlin:kotlin-native-utils:$buildKotlinVersion")
 
     // Located in <repo root>/shared and always provided by the composite build.
     api("org.jetbrains.kotlin:kotlin-native-shared:$konanVersion")
