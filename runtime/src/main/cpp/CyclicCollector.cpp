@@ -101,19 +101,6 @@ inline void traverseObjectFields(ObjHeader* obj, func process) {
   }
 }
 
-inline bool isEdgeCounted(ObjHeader* obj) {
-  return (reinterpret_cast<uintptr_t>(obj) & 1) != 0;
-}
-
-inline ObjHeader* markEdgeAsCounted(ObjHeader* obj) {
-  return reinterpret_cast<ObjHeader*>(reinterpret_cast<uintptr_t>(obj) | 1);
-}
-
-inline ObjHeader* clearEdgeIsCounted(ObjHeader* obj) {
-  return reinterpret_cast<ObjHeader*>(
-    reinterpret_cast<uintptr_t>(obj) & ~static_cast<uintptr_t>(1));
-}
-
 inline bool isAtomicReference(ObjHeader* obj) {
   return (obj->type_info()->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0;
 }
@@ -183,9 +170,9 @@ class CyclicCollector {
            COLLECTOR_LOG("wait for some time to avoid GC trashing\n");
            struct timeval tv;
            struct timespec ts;
-           long long nsDelta = 1000LL * 1000LL;
+           long long nsDelta = 1000LL * 1000LL * (restartCount - 10);
            ts.tv_nsec = (tv.tv_usec * 1000LL + nsDelta) % 1000000000LL;
-           ts.tv_sec = tv.tv_sec;
+           ts.tv_sec = (tv.tv_sec * 1000000000LL + tv.tv_usec * 1000000LL + nsDelta) / 1000000000LL ;
            pthread_cond_timedwait(&cond_, &lock_, &ts);
          }
          atomicSet(&mutatedAtomics_, 0);
@@ -197,44 +184,43 @@ class CyclicCollector {
            if (!root->container()->frozen()) continue;
            COLLECTOR_LOG("process root %p\n", root);
            traverseObjectFields(root, [&toVisit, &visited](ObjHeader** location) {
-             ObjHeader* ref = *location;
-             if (ref != nullptr && visited.count(ref) == 0) {
-               toVisit.push_back(ref);
-               COLLECTOR_LOG("adding %p for visiting\n", ref);
-             }
-           });
+              ObjHeader* ref = *location;
+              if (ref != nullptr && visited.count(ref) == 0) {
+                toVisit.push_back(ref);
+                COLLECTOR_LOG("adding %p for visiting\n", ref);
+              }
+            });
+         }
+         while (toVisit.size() > 0)  {
            if (atomicGet(&mutatedAtomics_) != 0) {
-             COLLECTOR_LOG("restarted during visiting collect\n")
+             COLLECTOR_LOG("restarted during rootset visit\n")
              restartCount++;
              goto restart;
            }
-           while (toVisit.size() > 0)  {
-             auto* obj = toVisit.front();
-             toVisit.pop_front();
-             int increment = isEdgeCounted(obj) ? 1 : 0;
-             obj = clearEdgeIsCounted(obj);
-             COLLECTOR_LOG("visit %p\n", obj);
-             auto* objContainer = obj->container();
-             if (objContainer == nullptr) continue;  // Permanent object.
-             if (!objContainer->frozen()) continue;
-             sideRefCounts_[obj] += increment;
-             if (atomicGet(&mutatedAtomics_) != 0) {
-               COLLECTOR_LOG("restarted during rootset visit\n")
-               restartCount++;
-               goto restart;
-             }
-             if (visited.count(obj) == 0) {
-               visited.insert(obj);
-               traverseObjectFields(obj, [&toVisit, &visited, obj](ObjHeader** location) {
-                 ObjHeader* ref = *location;
-                 if (ref != nullptr) {
-                   // We shall not account for edges inside the same frozen container, unless it originates
-                   // from an atomic reference.
-                   bool shallCount = isAtomicReference(obj) || (obj->container() != ref->container());
-                   toVisit.push_back(shallCount ? markEdgeAsCounted(ref) : ref);
-                 }
-               });
-             }
+           auto* obj = toVisit.front();
+           toVisit.pop_front();
+           COLLECTOR_LOG("visit %p\n", obj);
+           auto* objContainer = obj->container();
+           if (objContainer == nullptr) continue;  // Permanent object.
+           RuntimeCheck(objContainer->shareable(), "Must be shareable");
+           if (atomicGet(&mutatedAtomics_) != 0) {
+              COLLECTOR_LOG("restarted during rootset visit\n")
+              restartCount++;
+              goto restart;
+           }
+           if (visited.count(obj) == 0) {
+             visited.insert(obj);
+             traverseObjectFields(obj, [&toVisit, &visited, obj, this](ObjHeader** location) {
+                ObjHeader* ref = *location;
+                if (ref != nullptr) {
+                  // We shall not account for edges inside the same frozen container, unless it originates
+                  // from an atomic reference.
+                  if (isAtomicReference(obj) || (obj->container() != ref->container())) {
+                    sideRefCounts_[ref]++;
+                  }
+                  toVisit.push_back(ref);
+                }
+             });
            }
          }
          // Now find all elements with external references, and mark objects reachable from them as non suitable
@@ -244,6 +230,7 @@ class CyclicCollector {
            auto* obj = it.first;
            auto* objContainer = obj->container();
            if (objContainer == nullptr) continue;  // Permanent object.
+           RuntimeCheck(it.second <= objContainer->refCount(), "Must properly count inner refs");
            if (it.second != objContainer->refCount()) {
              COLLECTOR_LOG("for %p mismatched RC: %d vs %d, adding as possible root\n", obj, it.second, objContainer->refCount())
              toVisit.push_back(it.first);
@@ -255,7 +242,7 @@ class CyclicCollector {
            toVisit.pop_front();
            auto* objContainer = obj->container();
            if (objContainer == nullptr) continue;  // Permanent object.
-           if (!objContainer->frozen()) continue;
+           RuntimeCheck(objContainer->shareable(), "Must be shareable");
            sideRefCounts_[obj] = -1;
            visited.insert(obj);
            if (atomicGet(&mutatedAtomics_) != 0) {
@@ -388,6 +375,7 @@ class CyclicCollector {
 
   void localGC() {
     // We just need to take GC lock here, to avoid release of object we walk on.
+    // TODO: consider optimization without taking the lock and just notifying collector via an atomic.
     Locker locker(&lock_);
   }
 
