@@ -4,7 +4,6 @@ import org.jetbrains.kotlin.backend.common.*
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.common.phaser.*
-import org.jetbrains.kotlin.backend.common.serialization.DescriptorTable
 import org.jetbrains.kotlin.backend.common.serialization.metadata.KlibMetadataMonolithicSerializer
 import org.jetbrains.kotlin.backend.konan.descriptors.isForwardDeclarationModule
 import org.jetbrains.kotlin.backend.konan.descriptors.konanLibrary
@@ -106,7 +105,7 @@ private var Context.symbolTable: SymbolTable? by Context.nullValue()
 
 internal val createSymbolTablePhase = konanUnitPhase(
         op = {
-            this.symbolTable = SymbolTable()
+            this.symbolTable = SymbolTable(KonanIdSignaturer(KonanManglerDesc))
         },
         name = "CreateSymbolTable",
         description = "Create SymbolTable"
@@ -142,7 +141,7 @@ internal val psiToIrPhase = konanUnitPhase(
             val symbolTable = symbolTable!!
 
             val translator = Psi2IrTranslator(config.configuration.languageVersionSettings,
-                    Psi2IrConfiguration(false))
+                    Psi2IrConfiguration(false), KonanIdSignaturer(KonanManglerDesc))
             val generatorContext = translator.createGeneratorContext(moduleDescriptor, bindingContext, symbolTable)
 
             translator.addPostprocessingStep { module ->
@@ -265,18 +264,17 @@ internal val copyDefaultValuesToActualPhase = konanUnitPhase(
 internal val serializerPhase = konanUnitPhase(
         op = {
             val mppKlibs = config.configuration.get(CommonConfigurationKeys.KLIB_MPP)?:false
-            val descriptorTable = DescriptorTable.createDefault()
 
             serializedIr = irModule?.let { ir ->
                 KonanIrModuleSerializer(
-                    this, ir.irBuiltins, descriptorTable, expectDescriptorToSymbol, skipExpects = !mppKlibs
+                    this, ir.irBuiltins, expectDescriptorToSymbol, skipExpects = !mppKlibs
                 ).serializedIrModule(ir)
             }
 
             val serializer = KlibMetadataMonolithicSerializer(
                 this.config.configuration.languageVersionSettings,
                 config.configuration.get(CommonConfigurationKeys.METADATA_VERSION)!!,
-                descriptorTable, !mppKlibs)
+                !mppKlibs)
             serializedMetadata = serializer.serializeModule(moduleDescriptor)
         },
         name = "Serializer",
