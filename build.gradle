@@ -402,6 +402,18 @@ task distEndorsedLibraries {
     dependsOn "${hostName}CrossDistEndorsedLibraries"
 }
 
+task distStdlibCache {
+    if (hostName in cacheableTargetNames) {
+        dependsOn("${hostName}StdlibCache")
+    }
+}
+
+task distEndorsedCache {
+    if (hostName in cacheableTargetNames) {
+        dependsOn("${hostName}EndorsedCache")
+    }
+}
+
 def stdlib = 'klib/common/stdlib'
 def stdlibDefaultComponent = "$stdlib/default"
 def endorsedLibs = 'klib/common/endorsedLibraries'
@@ -428,6 +440,14 @@ task crossDistEndorsedLibraries(type: Copy) {
 
 task crossDistPlatformLibs {
     dependsOn.addAll(targetList.collect { "${it}PlatformLibs" })
+}
+
+task crossDistStdlibCache {
+    dependsOn.addAll(targetList.findAll { it in cacheableTargetNames }.collect { "${it}StdlibCache" })
+}
+
+task crossDistEndorsedCache {
+    dependsOn.addAll(targetList.findAll { it in cacheableTargetNames }.collect { "${it}EndorsedCache" })
 }
 
 targetList.each { target ->
@@ -466,6 +486,16 @@ targetList.each { target ->
         }
     }
 
+    if (target in cacheableTargetNames) {
+        task "${target}StdlibCache" {
+            dependsOn ":platformLibs:${target}StdlibCache"
+        }
+
+        task "${target}EndorsedCache" {
+            dependsOn ":endorsedLibraries:${target}Cache"
+        }
+    }
+
     task("${target}CrossDist") {
         dependsOn "${target}CrossDistRuntime", 'distCompiler', 'commonDistRuntime', "${target}CrossDistEndorsedLibraries"
     }
@@ -494,7 +524,11 @@ task crossDist {
     dependsOn 'crossDistRuntime', 'distCompiler', 'crossDistEndorsedLibraries'
 }
 
-task bundle(type: (isWindows()) ? Zip : Tar) {
+task bundle {
+    dependsOn 'bundleRegular', 'bundlePrebuilt'
+}
+
+task bundleRegular(type: (isWindows()) ? Zip : Tar) {
     def simpleOsName = HostManager.simpleOsName()
     archiveBaseName.set("kotlin-native-$simpleOsName-$konanVersionFull")
     from("$project.rootDir/dist") {
@@ -517,7 +551,7 @@ task bundle(type: (isWindows()) ? Zip : Tar) {
 }
 
 task bundlePrebuilt(type: (isWindows()) ? Zip : Tar) {
-    dependsOn('crossDistPlatformLibs')
+    dependsOn("crossDistPlatformLibs")
     def simpleOsName = HostManager.simpleOsName()
     archiveBaseName.set("kotlin-native-prebuilt-$simpleOsName-$konanVersionFull")
     from("$project.rootDir/dist") {
@@ -532,9 +566,11 @@ task bundlePrebuilt(type: (isWindows()) ? Zip : Tar) {
     }
 }
 
-configure([bundle, bundlePrebuilt]) {
-    dependsOn('crossDist')
-    dependsOn('distSources')
+configure([bundleRegular, bundlePrebuilt]) {
+    dependsOn("crossDist")
+    dependsOn("crossDistStdlibCache")
+    dependsOn("crossDistEndorsedCache")
+    dependsOn("distSources")
     dependsOn("distDef")
     from(project.rootDir) {
         include 'DISTRO_README.md'
