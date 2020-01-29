@@ -116,7 +116,6 @@ class CyclicCollector {
   int gcRunning_;
   int mutatedAtomics_;
   int pendingRelease_;
-  bool shallCollectGarbage_;
   bool shallRunCollector_;
   bool terminateCollector_;
   int32_t currentTick_;
@@ -172,7 +171,7 @@ class CyclicCollector {
            struct timespec ts;
            long long nsDelta = 1000LL * 1000LL * (restartCount - 10);
            ts.tv_nsec = (tv.tv_usec * 1000LL + nsDelta) % 1000000000LL;
-           ts.tv_sec = (tv.tv_sec * 1000000000LL + tv.tv_usec * 1000000LL + nsDelta) / 1000000000LL ;
+           ts.tv_sec = (tv.tv_sec * 1000000000LL + tv.tv_usec * 1000LL + nsDelta) / 1000000000LL ;
            pthread_cond_timedwait(&cond_, &lock_, &ts);
          }
          atomicSet(&mutatedAtomics_, 0);
@@ -183,13 +182,8 @@ class CyclicCollector {
            // We only care about frozen values here, as only they could become part of shared cycles.
            if (!root->container()->frozen()) continue;
            COLLECTOR_LOG("process root %p\n", root);
-           traverseObjectFields(root, [&toVisit, &visited](ObjHeader** location) {
-              ObjHeader* ref = *location;
-              if (ref != nullptr && visited.count(ref) == 0) {
-                toVisit.push_back(ref);
-                COLLECTOR_LOG("adding %p for visiting\n", ref);
-              }
-            });
+           toVisit.push_back(root);
+           sideRefCounts_[root] = 0;
          }
          while (toVisit.size() > 0)  {
            if (atomicGet(&mutatedAtomics_) != 0) {
@@ -199,24 +193,23 @@ class CyclicCollector {
            }
            auto* obj = toVisit.front();
            toVisit.pop_front();
-           COLLECTOR_LOG("visit %p\n", obj);
+           COLLECTOR_LOG("visit %s%p\n", isAtomicReference(obj) ? "atomic " : "", obj);
            auto* objContainer = obj->container();
            if (objContainer == nullptr) continue;  // Permanent object.
            RuntimeCheck(objContainer->shareable(), "Must be shareable");
-           if (atomicGet(&mutatedAtomics_) != 0) {
-              COLLECTOR_LOG("restarted during rootset visit\n")
-              restartCount++;
-              goto restart;
-           }
            if (visited.count(obj) == 0) {
              visited.insert(obj);
-             traverseObjectFields(obj, [&toVisit, &visited, obj, this](ObjHeader** location) {
+             traverseObjectFields(obj, [&toVisit, obj, this](ObjHeader** location) {
                 ObjHeader* ref = *location;
                 if (ref != nullptr) {
+                  COLLECTOR_LOG("object field %p in %p\n", ref, obj);
                   // We shall not account for edges inside the same frozen container, unless it originates
                   // from an atomic reference.
                   if (isAtomicReference(obj) || (obj->container() != ref->container())) {
+                    COLLECTOR_LOG("counting %p -> %p\n", obj, ref)
                     sideRefCounts_[ref]++;
+                  } else {
+                    COLLECTOR_LOG("not counting %p -> %p\n", obj, ref)
                   }
                   toVisit.push_back(ref);
                 }
@@ -293,7 +286,6 @@ class CyclicCollector {
   void removeWorker(void* worker) {
     Locker lock(&lock_);
     // When exiting the worker - we shall collect the cyclic garbage here.
-    shallCollectGarbage_ = true;
     shallRunCollector_ = true;
     CHECK_CALL(pthread_cond_signal(&cond_), "Cannot signal collector")
     currentAliveWorkers_--;
@@ -323,7 +315,6 @@ class CyclicCollector {
 
   bool checkIfShallCollect() {
     auto tick = atomicAdd(&currentTick_, 1);
-    if (shallCollectGarbage_) return true;
     auto delta = tick - atomicGet(&lastTick_);
     if (delta > 10 || delta < 0) {
       auto currentTimestampUs = konan::getTimeMicros();
@@ -332,7 +323,6 @@ class CyclicCollector {
         Locker locker(&lock_);
         lastTick_ = currentTick_;
         lastTimestampUs_ = currentTimestampUs;
-        shallCollectGarbage_ = true;
         return true;
       }
     }

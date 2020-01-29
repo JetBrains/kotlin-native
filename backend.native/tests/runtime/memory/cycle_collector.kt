@@ -96,6 +96,31 @@ fun test6() {
     atomic.value = Pair(atomic, Holder(atomic)).freeze()
 }
 
+fun createRoot(): AtomicReference<Any?> {
+    val ref1 = AtomicReference<Any?>(null)
+    val ref2 = AtomicReference<Any?>(null)
+
+    ref1.value = Holder(ref2).freeze()
+    ref2.value = Any().freeze()
+
+    return ref1
+}
+
+fun test7() {
+    val ref1 = createRoot()
+    kotlin.native.internal.GC.collect()
+
+    kotlin.native.internal.GC.collectCyclic()
+    Worker.current.park(500 * 1000L)
+
+    Worker.start().executeAfter(0L, {}.freeze())
+    Worker.current.park(500 * 1000L)
+
+    val node = ref1.value as Holder
+    val ref2 = node.other as AtomicReference<Any?>
+    assertTrue(ref2.value != null)
+}
+
 fun main() {
     kotlin.native.internal.GC.cyclicCollectorEnabled = true
     test1()
@@ -106,4 +131,5 @@ fun main() {
         test5()
     }
     test6()
+    test7()
 }
