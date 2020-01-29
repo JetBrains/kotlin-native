@@ -28,6 +28,7 @@
 #if WITH_WORKERS
 #include <pthread.h>
 #include <sys/time.h>
+#include <unistd.h>
 #endif
 
 #if WITH_WORKERS
@@ -243,6 +244,7 @@ class CyclicCollector {
              restartCount++;
              goto restart;
            }
+           usleep(150 * 1000);
            traverseObjectFields(obj, [&toVisit, &visited](ObjHeader** location) {
               ObjHeader* ref = *location;
               if (ref != nullptr && (visited.count(ref) == 0)) {

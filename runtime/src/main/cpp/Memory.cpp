@@ -16,6 +16,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include <cstddef> // for offsetof
 
@@ -2123,6 +2124,7 @@ void setHeapRefLocked(ObjHeader** location, ObjHeader* newValue, int32_t* spinlo
   // We do not use UpdateRef() here to avoid having ReleaseRef() on old value under the lock.
   SetHeapRef(location, newValue);
   *cookie = computeCookie();
+  usleep(100 * 1000);
   if (g_hasCyclicCollector)
     cyclicMutateAtomicRoot(newValue);
   unlock(spinlock);
