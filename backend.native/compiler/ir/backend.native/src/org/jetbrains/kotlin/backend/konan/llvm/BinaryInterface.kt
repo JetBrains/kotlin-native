@@ -6,20 +6,17 @@
 package org.jetbrains.kotlin.backend.konan.llvm
 
 import llvm.LLVMTypeRef
-import org.jetbrains.kotlin.backend.common.serialization.KotlinManglerImpl
+import org.jetbrains.kotlin.backend.common.serialization.mangle.classic.ClassicExportChecker
+import org.jetbrains.kotlin.backend.common.serialization.mangle.classic.ClassicKotlinManglerImpl
+import org.jetbrains.kotlin.backend.common.serialization.mangle.classic.ClassicMangleComputer
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.externalSymbolOrThrow
 import org.jetbrains.kotlin.backend.konan.descriptors.getAnnotationStringValue
 import org.jetbrains.kotlin.backend.konan.descriptors.isAbstract
 import org.jetbrains.kotlin.backend.konan.ir.allParameters
-import org.jetbrains.kotlin.backend.konan.getObjCMethodInfo
-import org.jetbrains.kotlin.backend.konan.isObjCClassMethod
 import org.jetbrains.kotlin.backend.konan.ir.isUnit
-import org.jetbrains.kotlin.backend.konan.llvm.KonanMangler.isExported
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.types.getClass
-import org.jetbrains.kotlin.backend.konan.isInlinedNative
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.konan.library.KonanLibrary
 import org.jetbrains.kotlin.library.uniqueName
@@ -29,107 +26,116 @@ import org.jetbrains.kotlin.library.uniqueName
 // TODO: revise the naming scheme to ensure it produces unique names.
 // TODO: do not serialize descriptors of non-exported declarations.
 
-abstract class AbstractKonanMangler : KotlinManglerImpl() {
+abstract class AbstractKonanClassicMangler : ClassicKotlinManglerImpl() {
 
-    override val IrType.isInlined
-        get() = this.isInlinedNative()
+    val IrFunction.functionName: String get() = with(getMangleComputer("")) { functionName }
+    val IrFunction.symbolName: String get() = with(getMangleComputer("") as KonanClassicMangleComputer) { symbolName }
+    val IrField.symbolName: String get() = with(getMangleComputer("") as KonanClassicMangleComputer) { symbolName }
+    val IrClass.typeInfoSymbolName: String get() = with(getMangleComputer("") as KonanClassicMangleComputer) { typeInfoSymbolName }
 
-    /**
-     * Defines whether the declaration is exported, i.e. visible from other modules.
-     *
-     * Exported declarations must have predictable and stable ABI
-     * that doesn't depend on any internal transformations (e.g. IR lowering),
-     * and so should be computable from the descriptor itself without checking a backend state.
-     */
-    override fun IrDeclaration.isPlatformSpecificExported(): Boolean {
-        // TODO: revise
-        if (annotations.hasAnnotation(RuntimeNames.symbolNameAnnotation)) {
-            // Treat any `@SymbolName` declaration as exported.
-            return true
-        }
-        if (annotations.hasAnnotation(RuntimeNames.exportForCppRuntime)) {
-            // Treat any `@ExportForCppRuntime` declaration as exported.
-            return true
-        }
-        if (annotations.hasAnnotation(RuntimeNames.cnameAnnotation)) {
-            // Treat `@CName` declaration as exported.
-            return true
-        }
-        if (annotations.hasAnnotation(RuntimeNames.exportForCompilerAnnotation)) {
-            return true
-        }
+    override fun getExportChecker(): ClassicExportChecker = KonanClassicExportChecker()
 
-        return false
+    override fun getMangleComputer(prefix: String): ClassicMangleComputer = KonanClassicMangleComputer()
+
+    private class KonanClassicExportChecker : ClassicExportChecker() {
+        /**
+         * Defines whether the declaration is exported, i.e. visible from other modules.
+         *
+         * Exported declarations must have predictable and stable ABI
+         * that doesn't depend on any internal transformations (e.g. IR lowering),
+         * and so should be computable from the descriptor itself without checking a backend state.
+         */
+
+        override fun IrDeclaration.isPlatformSpecificExported(): Boolean {
+
+            if (this is IrSimpleFunction) if (isFakeOverride) return false
+
+            // TODO: revise
+            if (annotations.hasAnnotation(RuntimeNames.symbolNameAnnotation)) {
+                // Treat any `@SymbolName` declaration as exported.
+                return true
+            }
+            if (annotations.hasAnnotation(RuntimeNames.exportForCppRuntime)) {
+                // Treat any `@ExportForCppRuntime` declaration as exported.
+                return true
+            }
+            if (annotations.hasAnnotation(RuntimeNames.cnameAnnotation)) {
+                // Treat `@CName` declaration as exported.
+                return true
+            }
+            if (annotations.hasAnnotation(RuntimeNames.exportForCompilerAnnotation)) {
+                return true
+            }
+
+            return false
+        }
     }
 
-    override fun IrFunction.valueParamsPart(typeParameterNamer: (IrTypeParameter) -> String): String {
-        return this.valueParameters.map {
+    private class KonanClassicMangleComputer : ClassicMangleComputer() {
 
-            // TODO: there are clashes originating from ObjectiveC interop.
-            // kotlinx.cinterop.ObjCClassOf<T>.create(format: kotlin.String): T defined in platform.Foundation in file Foundation.kt
-            // and
-            // kotlinx.cinterop.ObjCClassOf<T>.create(string: kotlin.String): T defined in platform.Foundation in file Foundation.kt
 
-            val argName =
-                    if (this.hasObjCMethodAnnotation || this.hasObjCFactoryAnnotation || this.isObjCClassMethod()) "${it.name}:" else ""
-            "$argName${typeToHashString(it.type, typeParameterNamer)}${if (it.isVararg) "_VarArg" else ""}"
-        }.joinToString(";")
-    }
+        override fun IrFunction.valueParamsPart(typeParameterNamer: (IrTypeParameter) -> String?): String {
+            return this.valueParameters.joinToString(";", "(", ")") {
+                // TODO: there are clashes originating from ObjectiveC interop.
+                // kotlinx.cinterop.ObjCClassOf<T>.create(format: kotlin.String): T defined in platform.Foundation in file Foundation.kt
+                // and
+                // kotlinx.cinterop.ObjCClassOf<T>.create(string: kotlin.String): T defined in platform.Foundation in file Foundation.kt
 
-    override val IrFunction.platformSpecificFunctionName: String?
-        get() {
-            (if (this is IrConstructor && this.isObjCConstructor) this.getObjCInitMethod() else this)?.getObjCMethodInfo()
-                ?.let {
-                    return buildString {
-                        if (extensionReceiverParameter != null) {
-                            append(extensionReceiverParameter!!.type.getClass()!!.name)
-                            append(".")
+                val argName = if (this.hasObjCMethodAnnotation || this.hasObjCFactoryAnnotation || this.isObjCClassMethod()) "${it.name}:" else ""
+                "$argName${typeToHashString(it.type, typeParameterNamer)}${if (it.isVararg) "..." else ""}"
+            }
+        }
+
+        override val IrFunction.platformSpecificFunctionName: String?
+            get() {
+                (if (this is IrConstructor && this.isObjCConstructor) this.getObjCInitMethod() else this)?.getObjCMethodInfo()
+                        ?.let {
+                            return buildString {
+                                if (extensionReceiverParameter != null) {
+                                    append(extensionReceiverParameter!!.type.getClass()!!.name)
+                                    append(".")
+                                }
+
+                                append("objc:")
+                                append(it.selector)
+                                if (this@platformSpecificFunctionName is IrConstructor && this@platformSpecificFunctionName.isObjCConstructor) append("#Constructor")
+
+                                if ((this@platformSpecificFunctionName as? IrSimpleFunction)?.correspondingPropertySymbol != null) {
+                                    append("#Accessor")
+                                }
+                            }
                         }
+                return null
+            }
 
-                        append("objc:")
-                        append(it.selector)
-                        if (this@platformSpecificFunctionName is IrConstructor && this@platformSpecificFunctionName.isObjCConstructor) append("#Constructor")
+        internal val IrFunction.symbolName: String
+            get() {
+                if (!this.isExported()) {
+                    throw AssertionError(this.descriptor.toString())
+                }
 
-                        if ((this@platformSpecificFunctionName as? IrSimpleFunction)?.correspondingPropertySymbol != null) {
-                            append("#Accessor")
-                        }
+                if (isExternal) {
+                    this.externalSymbolOrThrow()?.let {
+                        return it
                     }
                 }
-            return null
-        }
 
-    internal val IrFunction.symbolName: String
-        get() {
-            if (!this.isExported()) {
-                throw AssertionError(this.descriptor.toString())
-            }
-
-            if (isExternal) {
-                this.externalSymbolOrThrow()?.let {
-                    return it
+                this.annotations.findAnnotation(RuntimeNames.exportForCppRuntime)?.let {
+                    val name = it.getAnnotationStringValue() ?: this.name.asString()
+                    return name // no wrapping currently required
                 }
-            }
 
-            this.annotations.findAnnotation(RuntimeNames.exportForCppRuntime)?.let {
-                val name = it.getAnnotationStringValue() ?: this.name.asString()
-                return name // no wrapping currently required
-            }
+                val parent = this.parent
 
-            val parent = this.parent
-
-            val containingDeclarationPart = parent.fqNameForIrSerialization.let {
-                if (it.isRoot) "" else "$it."
+                val containingDeclarationPart = parent.fqNameForIrSerialization.let {
+                    if (it.isRoot) "" else "$it."
+                }
+                return "kfun:$containingDeclarationPart$functionName"
             }
-            return "kfun:$containingDeclarationPart$functionName"
-        }
+    }
 }
 
-object KonanMangler : AbstractKonanMangler()
-
-object KonanManglerForBE : AbstractKonanMangler() {
-    override fun mangleTypeParameter(typeParameter: IrTypeParameter, typeParameterNamer: (IrTypeParameter) -> String): String =
-            typeParameter.name.asString()
-}
+object KonanClassicMangler : AbstractKonanClassicMangler()
 
 internal val IrClass.writableTypeInfoSymbolName: String
     get() {
@@ -146,15 +152,15 @@ internal val IrClass.objectInstanceGetterSymbolName: String
         return "kobjget:$fqNameForIrSerialization"
     }
 
-val IrFunction.functionName get() = with(KonanManglerForBE) { functionName }
+val IrFunction.functionName get() = with(KonanClassicMangler) { functionName }
 
-val IrFunction.symbolName get() = with(KonanManglerForBE) { symbolName }
+val IrFunction.symbolName get() = with(KonanClassicMangler) { symbolName }
 
-val IrField.symbolName get() = with(KonanManglerForBE) { symbolName }
+val IrField.symbolName get() = with(KonanClassicMangler) { symbolName }
 
-val IrClass.typeInfoSymbolName get() = with(KonanManglerForBE) { typeInfoSymbolName }
+val IrClass.typeInfoSymbolName get() = with(KonanClassicMangler) { typeInfoSymbolName }
 
-fun IrDeclaration.isExported() = with(KonanManglerForBE) { isExported() }
+fun IrDeclaration.isExported() = with(KonanClassicMangler) { isExported() }
 
 // TODO: bring here dependencies of this method?
 internal fun RuntimeAware.getLlvmFunctionType(function: IrFunction): LLVMTypeRef {
