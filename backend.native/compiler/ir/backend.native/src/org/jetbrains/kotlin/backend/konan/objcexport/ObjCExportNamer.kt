@@ -29,6 +29,8 @@ internal interface ObjCExportNameTranslator {
     fun getClassOrProtocolName(
             ktClassOrObject: KtClassOrObject
     ): ObjCExportNamer.ClassOrProtocolName
+
+    fun getTypeParameterName(ktTypeParameter: KtTypeParameter): String
 }
 
 interface ObjCExportNamer {
@@ -81,7 +83,7 @@ internal open class ObjCExportNameTranslatorImpl(
         configuration: ObjCExportNamer.Configuration
 ) : ObjCExportNameTranslator {
 
-    private val helper = ObjCExportNamingHelper(configuration.topLevelNamePrefix)
+    private val helper = ObjCExportNamingHelper(configuration.topLevelNamePrefix, configuration.objcGenerics)
 
     override fun getFileClassName(file: KtFile): ObjCExportNamer.ClassOrProtocolName =
             helper.getFileClassName(file)
@@ -98,42 +100,38 @@ internal open class ObjCExportNameTranslatorImpl(
     private fun getClassOrProtocolSwiftName(
             ktClassOrObject: KtClassOrObject
     ): String = buildString {
-        val ownName = ktClassOrObject.name!!.toIdentifier()
         val outerClass = ktClassOrObject.getStrictParentOfType<KtClassOrObject>()
         if (outerClass != null) {
-            append(getClassOrProtocolSwiftName(outerClass))
-
-            val importAsMember = when {
-                // FIXME: generics.
-
-                ktClassOrObject.isInterface || outerClass.isInterface -> {
-                    // Swift doesn't support neither nested nor outer protocols.
-                    false
-                }
-
-                this.contains('.') -> {
-                    // Swift doesn't support swift_name with deeply nested names.
-                    // It seems to support "OriginalObjCName.SwiftName" though,
-                    // but this doesn't seem neither documented nor reliable.
-                    false
-                }
-
-                else -> true
-            }
-
-            if (importAsMember) {
-                append(".").append(helper.mangleSwiftNestedClassName(ownName))
-            } else {
-                append(ownName.capitalize())
-            }
+            appendNameWithContainer(ktClassOrObject, outerClass)
         } else {
-            append(ownName)
+            append(ktClassOrObject.name!!.toIdentifier())
         }
+    }
+
+    private fun StringBuilder.appendNameWithContainer(
+            ktClassOrObject: KtClassOrObject,
+            outerClass: KtClassOrObject
+    ) = helper.appendNameWithContainer(
+            this,
+            ktClassOrObject, ktClassOrObject.name!!.toIdentifier(),
+            outerClass, getClassOrProtocolSwiftName(outerClass),
+            object : ObjCExportNamingHelper.ClassInfoProvider<KtClassOrObject> {
+                override fun hasGenerics(clazz: KtClassOrObject): Boolean =
+                        clazz.typeParametersWithOuter.count() != 0
+
+                override fun isInterface(clazz: KtClassOrObject): Boolean = ktClassOrObject.isInterface
+            }
+    )
+
+    override fun getTypeParameterName(ktTypeParameter: KtTypeParameter): String = buildString {
+        append(ktTypeParameter.name!!.toIdentifier())
+        while (helper.isTypeParameterNameReserved(this.toString())) append('_')
     }
 }
 
 private class ObjCExportNamingHelper(
-        private val topLevelNamePrefix: String
+        private val topLevelNamePrefix: String,
+        private val objcGenerics: Boolean
 ) {
 
     fun translateFileName(fileName: String): String =
@@ -157,10 +155,81 @@ private class ObjCExportNamingHelper(
     fun getFileClassName(file: KtFile): ObjCExportNamer.ClassOrProtocolName =
             getFileClassName(file.name)
 
+    fun <T> appendNameWithContainer(
+            builder: StringBuilder,
+            clazz: T,
+            ownName: String,
+            containingClass: T,
+            containerName: String,
+            provider: ClassInfoProvider<T>
+    ) = builder.apply {
+        if (clazz.canBeSwiftInner(provider)) {
+            append(containerName)
+            if (!this.contains('.') && containingClass.canBeSwiftOuter(provider)) {
+                // AB -> AB.C
+                append('.')
+                append(mangleSwiftNestedClassName(ownName))
+            } else {
+                // AB -> ABC
+                // A.B -> A.BC
+                append(ownName.capitalize())
+            }
+        } else {
+            // AB, A.B -> ABC
+            val dotIndex = containerName.indexOf('.')
+            if (dotIndex == -1) {
+                append(containerName)
+            } else {
+                append(containerName.substring(0, dotIndex))
+                append(containerName.substring(dotIndex + 1).capitalize())
+            }
+            append(ownName.capitalize())
+        }
+    }
+
+    interface ClassInfoProvider<T> {
+        fun hasGenerics(clazz: T): Boolean
+        fun isInterface(clazz: T): Boolean
+    }
+
+    private fun <T> T.canBeSwiftOuter(provider: ClassInfoProvider<T>): Boolean = when {
+        objcGenerics && provider.hasGenerics(this) -> {
+            // Swift nested classes are static but capture outer's generics.
+            false
+        }
+
+        provider.isInterface(this) -> {
+            // Swift doesn't support outer protocols.
+            false
+        }
+
+        else -> true
+    }
+
+    private fun <T> T.canBeSwiftInner(provider: ClassInfoProvider<T>): Boolean = when {
+        objcGenerics && provider.hasGenerics(this) -> {
+            // Swift compiler doesn't seem to handle this case properly.
+            false
+        }
+
+        provider.isInterface(this) -> {
+            // Swift doesn't support nested protocols.
+            false
+        }
+
+        else -> true
+    }
+
     fun mangleSwiftNestedClassName(name: String): String = when (name) {
         "Type" -> "${name}_" // See https://github.com/JetBrains/kotlin-native/issues/3167
         else -> name
     }
+
+    fun isTypeParameterNameReserved(name: String): Boolean = name in reservedTypeParameterNames
+
+    private val reservedTypeParameterNames = setOf("id", "NSObject", "NSArray", "NSCopying", "NSNumber", "NSInteger",
+            "NSUInteger", "NSString", "NSSet", "NSDictionary", "NSMutableArray", "int", "unsigned", "short",
+            "char", "long", "float", "double", "int32_t", "int64_t", "int16_t", "int8_t", "unichar")
 }
 
 internal class ObjCExportNamerImpl(
@@ -196,7 +265,7 @@ internal class ObjCExportNamerImpl(
 
     private val objcGenerics get() = configuration.objcGenerics
     override val topLevelNamePrefix get() = configuration.topLevelNamePrefix
-    private val helper = ObjCExportNamingHelper(configuration.topLevelNamePrefix)
+    private val helper = ObjCExportNamingHelper(configuration.topLevelNamePrefix, objcGenerics)
 
     private fun String.toSpecialStandardClassOrProtocolName() = ObjCExportNamer.ClassOrProtocolName(
             swiftName = "Kotlin$this",
@@ -314,31 +383,7 @@ internal class ObjCExportNamerImpl(
         StringBuilder().apply {
             val containingDeclaration = descriptor.containingDeclaration
             if (containingDeclaration is ClassDescriptor) {
-                append(getClassOrProtocolSwiftName(containingDeclaration))
-
-                val importAsMember = when {
-                    objcGenerics && descriptor.hasGenericsInHierarchy() -> false
-
-                    descriptor.isInterface || containingDeclaration.isInterface -> {
-                        // Swift doesn't support neither nested nor outer protocols.
-                        false
-                    }
-
-                    this.contains('.') -> {
-                        // Swift doesn't support swift_name with deeply nested names.
-                        // It seems to support "OriginalObjCName.SwiftName" though,
-                        // but this doesn't seem neither documented nor reliable.
-                        false
-                    }
-
-                    else -> true
-                }
-                val ownName = descriptor.name.asString().toIdentifier()
-                if (importAsMember) {
-                    append(".").append(helper.mangleSwiftNestedClassName(ownName))
-                } else {
-                    append(ownName.capitalize())
-                }
+                appendNameWithContainer(descriptor, containingDeclaration)
             } else if (containingDeclaration is PackageFragmentDescriptor) {
                 appendTopLevelClassBaseName(descriptor)
             } else {
@@ -347,21 +392,20 @@ internal class ObjCExportNamerImpl(
         }.mangledBySuffixUnderscores()
     }
 
-    private fun ClassDescriptor.hasGenericsInHierarchy(): Boolean {
-        fun ClassDescriptor.hasGenericsChildren(): Boolean =
-                unsubstitutedMemberScope.getContributedDescriptors()
-                        .asSequence()
-                        .filterIsInstance<ClassDescriptor>()
-                        .any {
-                            it.typeConstructor.parameters.isNotEmpty() ||
-                                    it.hasGenericsChildren()
-                        }
+    private fun StringBuilder.appendNameWithContainer(
+            clazz: ClassDescriptor,
+            containingClass: ClassDescriptor
+    ) = helper.appendNameWithContainer(
+            this,
+            clazz, clazz.name.asString().toIdentifier(),
+            containingClass, getClassOrProtocolSwiftName(containingClass),
+            object : ObjCExportNamingHelper.ClassInfoProvider<ClassDescriptor> {
+                override fun hasGenerics(clazz: ClassDescriptor): Boolean =
+                        clazz.typeConstructor.parameters.isNotEmpty()
 
-        val upGenerics = generateSequence(this) { it.containingDeclaration as? ClassDescriptor }
-                .any { it.typeConstructor.parameters.isNotEmpty() }
-
-        return upGenerics || hasGenericsChildren()
-    }
+                override fun isInterface(clazz: ClassDescriptor): Boolean = clazz.isInterface
+            }
+    )
 
     private fun getClassOrProtocolObjCName(descriptor: ClassDescriptor): String {
         val objCMapping = if (descriptor.isInterface) objCProtocolNames else objCClassNames
@@ -613,10 +657,6 @@ internal class ObjCExportNamerImpl(
         private val elementToName = mutableMapOf<TypeParameterDescriptor, String>()
         private val typeParameterNameClassOverrides = mutableMapOf<ClassDescriptor, MutableSet<String>>()
 
-        fun reserved(name: String): Boolean {
-            return name in reservedNames
-        }
-
         fun getOrPut(element: TypeParameterDescriptor, nameCandidates: () -> Sequence<String>): String {
             getIfAssigned(element)?.let { return it }
 
@@ -632,7 +672,7 @@ internal class ObjCExportNamerImpl(
         private fun tryAssign(element: TypeParameterDescriptor, name: String): Boolean {
             if (element in elementToName) error(element)
 
-            if (reserved(name)) return false
+            if (helper.isTypeParameterNameReserved(name)) return false
 
             if (!validName(element, name)) return false
 
@@ -644,28 +684,25 @@ internal class ObjCExportNamerImpl(
         private fun assignName(element: TypeParameterDescriptor, name: String) {
             if (!local) {
                 elementToName[element] = name
+                classNameSet(element).add(name)
             }
-            classNameSet(element).add(name)
         }
 
         private fun validName(element: TypeParameterDescriptor, name: String): Boolean {
             assert(element.containingDeclaration is ClassDescriptor)
 
-            val nameSet = classNameSet(element)
-            return !objCClassNames.nameExists(name) && !objCProtocolNames.nameExists(name) && name !in nameSet
+            return !objCClassNames.nameExists(name) && !objCProtocolNames.nameExists(name) &&
+                    (local || name !in classNameSet(element))
         }
 
         private fun classNameSet(element: TypeParameterDescriptor): MutableSet<String> {
+            require(!local)
             return typeParameterNameClassOverrides.getOrPut(element.containingDeclaration as ClassDescriptor) {
                 mutableSetOf()
             }
         }
 
         private fun getIfAssigned(element: TypeParameterDescriptor): String? = elementToName[element]
-
-        private val reservedNames = setOf("id", "NSObject", "NSArray", "NSCopying", "NSNumber", "NSInteger",
-                "NSUInteger", "NSString", "NSSet", "NSDictionary", "NSMutableArray", "int", "unsigned", "short",
-                "char", "long", "float", "double", "int32_t", "int64_t", "int16_t", "int8_t", "unichar")
     }
 
     private abstract inner class Mapping<in T : Any, N>() {

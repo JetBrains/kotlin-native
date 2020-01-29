@@ -3809,7 +3809,7 @@ if (isAppleTarget(project)) {
                     dependsOn ":${target}CrossDistRuntime", ':commonDistRuntime', ':distCompiler'
                 }
 
-                extraOpts "-Xembed-bitcode-marker", "-Xobjc-generics"
+                extraOpts "-Xembed-bitcode-marker"
                 extraOpts project.globalTestArgs
             }
         }

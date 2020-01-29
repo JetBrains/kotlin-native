@@ -23,6 +23,7 @@ struct WeakReferenceCounter {
   ObjHeader header;
   KRef referred;
   KInt lock;
+  KInt cookie;
 };
 
 inline WeakReferenceCounter* asWeakReferenceCounter(ObjHeader* obj) {
@@ -49,10 +50,15 @@ extern "C" {
 
 OBJ_GETTER(makeWeakReferenceCounter, void*);
 OBJ_GETTER(makeObjCWeakReferenceImpl, void*);
+OBJ_GETTER(makePermanentWeakReferenceImpl, ObjHeader*);
 
 // See Weak.kt for implementation details.
 // Retrieve link on the counter object.
 OBJ_GETTER(Konan_getWeakReferenceImpl, ObjHeader* referred) {
+  if (referred->container() == nullptr) {
+    RETURN_RESULT_OF(makePermanentWeakReferenceImpl, referred);
+  }
+
   MetaObjHeader* meta = referred->meta_object();
 
 #if KONAN_OBJC_INTEROP
@@ -76,8 +82,8 @@ OBJ_GETTER(Konan_WeakReferenceCounter_get, ObjHeader* counter) {
 #if KONAN_NO_THREADS
   RETURN_OBJ(*referredAddress);
 #else
-  int32_t* lockAddress = &asWeakReferenceCounter(counter)->lock;
-  RETURN_RESULT_OF(ReadHeapRefLocked, referredAddress, lockAddress);
+  auto* weakCounter = asWeakReferenceCounter(counter);
+  RETURN_RESULT_OF(ReadHeapRefLocked, referredAddress,  &weakCounter->lock,  &weakCounter->cookie);
 #endif
 }
 
