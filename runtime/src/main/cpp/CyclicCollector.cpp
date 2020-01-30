@@ -270,13 +270,19 @@ class CyclicCollector {
          // Now release all atomic roots with matching reference counters, as only their destruction is controlled.
          for (auto it: sideRefCounts) {
            auto* obj = it.first;
-           // Only do that for atomic rootset elements. For the we also do not have sum up references from
-           // other elements of an aggregate.
+           // Only do that for atomic rootset elements. For them we also do not have sum up references from
+           // other elements of an aggregate, as atomic references are always in single object containers.
            if (!isAtomicReference(obj)) {
              continue;
            }
+           if (atomicGet(&mutatedAtomics_) != 0) {
+             COLLECTOR_LOG("restarted during matching check\n")
+             restartCount++;
+             goto restart;
+           }
            auto* objContainer = obj->container();
            if (!objContainer->frozen()) continue;
+           RuntimeAssert(objContainer->objectCount() == 1, "Must be single object");
            COLLECTOR_LOG("for %p inner %d actual %d\n", obj, it.second, objContainer->refCount());
            // All references are inner. We compare the number of counted
            // inner references with the number of non-stack references and per-thread ownership value

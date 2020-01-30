@@ -2098,11 +2098,11 @@ OBJ_GETTER(swapHeapRefLocked,
     if (shallRemember) *cookie = realCookie;
   }
   if (oldValue == expectedValue) {
+    if (g_hasCyclicCollector)
+      cyclicMutateAtomicRoot(newValue);
     SetHeapRef(location, newValue);
   }
   UpdateReturnRef(OBJ_RESULT, oldValue);
-  if (g_hasCyclicCollector)
-    cyclicMutateAtomicRoot(newValue);
 
   if (IsStrictMemoryModel && shallRemember && oldValue != nullptr && oldValue != expectedValue) {
     // Only remember container if it is not known to this thread (i.e. != expectedValue).
@@ -2116,15 +2116,14 @@ OBJ_GETTER(swapHeapRefLocked,
   return oldValue;
 }
 
-
 void setHeapRefLocked(ObjHeader** location, ObjHeader* newValue, int32_t* spinlock, int32_t* cookie) {
   lock(spinlock);
   ObjHeader* oldValue = *location;
+  if (g_hasCyclicCollector)
+    cyclicMutateAtomicRoot(newValue);
   // We do not use UpdateRef() here to avoid having ReleaseRef() on old value under the lock.
   SetHeapRef(location, newValue);
   *cookie = computeCookie();
-  if (g_hasCyclicCollector)
-    cyclicMutateAtomicRoot(newValue);
   unlock(spinlock);
   if (oldValue != nullptr)
     ReleaseHeapRef(oldValue);
