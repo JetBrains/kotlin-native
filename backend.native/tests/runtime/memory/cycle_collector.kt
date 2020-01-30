@@ -121,6 +121,25 @@ fun test7() {
     assertTrue(ref2.value != null)
 }
 
+fun array(size: Int) = Array<Any?>(size, { null })
+
+fun test8() {
+    val ref = AtomicReference<Any?>(null)
+    val obj1 = array(2)
+    val obj2 = array(1)
+    val obj3 = array(2)
+
+    obj1[0] = obj2
+    obj1[1] = obj3
+
+    obj2[0] = obj3
+
+    obj3[0] = obj2
+    obj3[1] = ref
+
+    ref.value = obj1.freeze()
+}
+
 fun main() {
     kotlin.native.internal.GC.cyclicCollectorEnabled = true
     test1()
@@ -132,4 +151,5 @@ fun main() {
     }
     test6()
     test7()
+    test8()
 }

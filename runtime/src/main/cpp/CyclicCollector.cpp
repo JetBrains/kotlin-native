@@ -122,7 +122,6 @@ class CyclicCollector {
   int32_t lastTick_;
   int64_t lastTimestampUs_;
   void* mainWorker_;
-  KStdUnorderedMap<ObjHeader*, int> sideRefCounts_;
   KStdUnorderedSet<ObjHeader*> rootset_;
   KStdUnorderedSet<ObjHeader*> toRelease_;
 
@@ -158,6 +157,7 @@ class CyclicCollector {
        Locker locker(&lock_);
        KStdDeque<ObjHeader*> toVisit;
        KStdUnorderedSet<ObjHeader*> visited;
+       KStdUnorderedMap<ObjHeader*, int> sideRefCounts;
        int restartCount = 0;
        while (!terminateCollector_) {
          CHECK_CALL(pthread_cond_wait(&cond_, &lock_), "Cannot wait collector condition")
@@ -165,6 +165,7 @@ class CyclicCollector {
          atomicSet(&gcRunning_, 1);
          restartCount = 0;
         restart:
+         COLLECTOR_LOG("start cycle GC\n");
          if (restartCount > 10) {
            COLLECTOR_LOG("wait for some time to avoid GC trashing\n");
            struct timeval tv;
@@ -177,13 +178,13 @@ class CyclicCollector {
          atomicSet(&mutatedAtomics_, 0);
          visited.clear();
          toVisit.clear();
-         sideRefCounts_.clear();
+         sideRefCounts.clear();
          for (auto* root: rootset_) {
            // We only care about frozen values here, as only they could become part of shared cycles.
            if (!root->container()->frozen()) continue;
            COLLECTOR_LOG("process root %p\n", root);
            toVisit.push_back(root);
-           sideRefCounts_[root] = 0;
+           sideRefCounts[root] = 0;
          }
          while (toVisit.size() > 0)  {
            if (atomicGet(&mutatedAtomics_) != 0) {
@@ -199,18 +200,21 @@ class CyclicCollector {
            RuntimeCheck(objContainer->shareable(), "Must be shareable");
            if (visited.count(obj) == 0) {
              visited.insert(obj);
-             traverseObjectFields(obj, [&toVisit, obj, this](ObjHeader** location) {
+             traverseObjectFields(obj, [&toVisit, obj, &sideRefCounts](ObjHeader** location) {
                 ObjHeader* ref = *location;
                 if (ref != nullptr) {
-                  COLLECTOR_LOG("object field %p in %p\n", ref, obj);
+                  COLLECTOR_LOG("object field %p in %p\n", ref, obj)
+                  int increment;
                   // We shall not account for edges inside the same frozen container, unless it originates
                   // from an atomic reference.
                   if (isAtomicReference(obj) || (obj->container() != ref->container())) {
                     COLLECTOR_LOG("counting %p -> %p\n", obj, ref)
-                    sideRefCounts_[ref]++;
+                    increment = 1;
                   } else {
                     COLLECTOR_LOG("not counting %p -> %p\n", obj, ref)
+                    increment = 0;
                   }
+                  sideRefCounts[ref] += increment;
                   toVisit.push_back(ref);
                 }
              });
@@ -219,13 +223,26 @@ class CyclicCollector {
          // Now find all elements with external references, and mark objects reachable from them as non suitable
          // for collection by setting their side reference count to -1.
          toVisit.clear();
-         for (auto it: sideRefCounts_) {
+         for (auto it: sideRefCounts) {
            auto* obj = it.first;
            auto* objContainer = obj->container();
            if (objContainer == nullptr) continue;  // Permanent object.
-           RuntimeCheck(it.second <= objContainer->refCount(), "Must properly count inner refs");
-           if (it.second != objContainer->refCount()) {
-             COLLECTOR_LOG("for %p mismatched RC: %d vs %d, adding as possible root\n", obj, it.second, objContainer->refCount())
+           int refCount;
+           // If object is in aggregated container - sum up RC for all elements.
+           if (objContainer->objectCount() != 1) {
+             RuntimeAssert(objContainer->frozen(), "Must be frozen aggregate");
+             ContainerHeader** subContainer = reinterpret_cast<ContainerHeader**>(objContainer + 1);
+             refCount = 0;
+             for (int i = 0; i < objContainer->objectCount(); ++i) {
+                 auto* componentObj = reinterpret_cast<ObjHeader*>((*subContainer) + 1);
+                 refCount += sideRefCounts[componentObj];
+               }
+           } else {
+             refCount = it.second;
+           }
+           RuntimeAssert(refCount <= objContainer->refCount(), "Must properly count inner refs");
+           if (refCount != objContainer->refCount()) {
+             COLLECTOR_LOG("for %p mismatched RC: %d vs %d, adding as possible root\n", obj, refCount, objContainer->refCount())
              toVisit.push_back(it.first);
            }
          }
@@ -236,7 +253,7 @@ class CyclicCollector {
            auto* objContainer = obj->container();
            if (objContainer == nullptr) continue;  // Permanent object.
            RuntimeCheck(objContainer->shareable(), "Must be shareable");
-           sideRefCounts_[obj] = -1;
+           sideRefCounts[obj] = -1;
            visited.insert(obj);
            if (atomicGet(&mutatedAtomics_) != 0) {
              COLLECTOR_LOG("restarted during reachable visit\n")
@@ -251,9 +268,10 @@ class CyclicCollector {
            });
          }
          // Now release all atomic roots with matching reference counters, as only their destruction is controlled.
-         for (auto it: sideRefCounts_) {
+         for (auto it: sideRefCounts) {
            auto* obj = it.first;
-           // Only do that for atomic rootset elements.
+           // Only do that for atomic rootset elements. For the we also do not have sum up references from
+           // other elements of an aggregate.
            if (!isAtomicReference(obj)) {
              continue;
            }
@@ -272,6 +290,7 @@ class CyclicCollector {
            atomicSet(&pendingRelease_, 1);
          atomicSet(&gcRunning_, 0);
          shallRunCollector_ = false;
+         COLLECTOR_LOG("end cycle GC\n");
        }
      }
      atomicSet(&terminateCollector_, false);
