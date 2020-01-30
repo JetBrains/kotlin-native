@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2019 JetBrains s.r.o.
+ * Copyright 2010-2020 JetBrains s.r.o.
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -19,10 +19,15 @@
 
 #include <cstddef> // for offsetof
 
+// Allow concurrent global cycle collector.
+#define USE_CYCLIC_GC 1
+
 #include "Alloc.h"
 #include "KAssert.h"
 #include "Atomic.h"
+#if USE_CYCLIC_GC
 #include "CyclicCollector.h"
+#endif  // USE_CYCLIC_GC
 #include "Exceptions.h"
 #include "KString.h"
 #include "Memory.h"
@@ -929,9 +934,11 @@ void freeAggregatingFrozenContainer(ContainerHeader* container) {
 void runDeallocationHooks(ContainerHeader* container) {
   ObjHeader* obj = reinterpret_cast<ObjHeader*>(container + 1);
   for (int index = 0; index < container->objectCount(); index++) {
+#if USE_CYCLIC_GC
     if ((obj->type_info()->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0) {
       cyclicRemoveAtomicRoot(obj);
     }
+#endif  // USE_CYCLIC_GC
     if (obj->has_meta_object()) {
       if (KonanNeedDebugInfo && (obj->type_info()->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0 && g_checkLeaks) {
         // Remove the object from the double-linked list of potentially cyclic objects.
@@ -1604,7 +1611,12 @@ void garbageCollect(MemoryState* state, bool force) {
   state->gcInProgress = true;
   state->gcEpoque++;
 
-  cyclicLocalGC();
+#if USE_CYCLIC_GC
+  // Block if the concurrent cycle collector is running.
+  // TODO: instead we may consider just not doing local GC.
+  if (g_hasCyclicCollector)
+    cyclicLocalGC();
+#endif  // USE_CYCLIC_GC
 
   incrementStack(state);
   processDecrements(state);
@@ -1752,7 +1764,9 @@ MemoryState* initMemory() {
   memoryState->foreignRefManager = ForeignRefManager::create();
   bool firstMemoryState = atomicAdd(&aliveMemoryStatesCount, 1) == 1;
   if (firstMemoryState) {
+#if USE_CYCLIC_GC
     cyclicInit();
+#endif  // USE_CYCLIC_GC
   }
   return memoryState;
 }
@@ -1762,7 +1776,9 @@ void deinitMemory(MemoryState* memoryState) {
   bool lastMemoryState = atomicAdd(&aliveMemoryStatesCount, -1) == 0;
   if (lastMemoryState) {
    garbageCollect(memoryState, true);
+#if USE_CYCLIC_GC
    cyclicDeinit();
+#endif  // USE_CYCLIC_GC
   }
   // Actual GC only implemented in strict memory model at the moment.
   do {
@@ -1950,9 +1966,11 @@ OBJ_GETTER(allocInstance, const TypeInfo* type_info) {
       old->meta_object()->LeakDetector.previous_ = obj;
     unlock(&g_leakCheckerGlobalLock);
   }
+#if USE_CYCLIC_GC
   if ((obj->type_info()->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0) {
     cyclicAddAtomicRoot(obj);
   }
+#endif  // USE_CYCLIC_GC
 #if USE_GC
   if (Strict) {
     rememberNewContainer(container.header());
@@ -2098,8 +2116,10 @@ OBJ_GETTER(swapHeapRefLocked,
     if (shallRemember) *cookie = realCookie;
   }
   if (oldValue == expectedValue) {
+#if USE_CYCLIC_GC
     if (g_hasCyclicCollector)
       cyclicMutateAtomicRoot(newValue);
+#endif  // USE_CYCLIC_GC
     SetHeapRef(location, newValue);
   }
   UpdateReturnRef(OBJ_RESULT, oldValue);
@@ -2119,8 +2139,10 @@ OBJ_GETTER(swapHeapRefLocked,
 void setHeapRefLocked(ObjHeader** location, ObjHeader* newValue, int32_t* spinlock, int32_t* cookie) {
   lock(spinlock);
   ObjHeader* oldValue = *location;
+#if USE_CYCLIC_GC
   if (g_hasCyclicCollector)
     cyclicMutateAtomicRoot(newValue);
+#endif  // USE_CYCLIC_GC
   // We do not use UpdateRef() here to avoid having ReleaseRef() on old value under the lock.
   SetHeapRef(location, newValue);
   *cookie = computeCookie();
@@ -3037,10 +3059,11 @@ void Kotlin_native_internal_GC_collect(KRef) {
 #endif
 }
 
-
 void Kotlin_native_internal_GC_collectCyclic(KRef) {
-#if USE_GC
+#if USE_CYCLIC_GC
   cyclicScheduleGarbageCollect();
+#else
+  ThrowIllegalArgumentException();
 #endif
 }
 
@@ -3214,24 +3237,39 @@ KRef* LookupTLS(void** key, int index) {
 
 
 void GC_RegisterWorker(void* worker) {
+#if USE_CYCLIC_GC
   cyclicAddWorker(worker);
+#endif  // USE_CYCLIC_GC
 }
 
 void GC_UnregisterWorker(void* worker) {
+#if USE_CYCLIC_GC
   cyclicRemoveWorker(worker);
+#endif  // USE_CYCLIC_GC
 }
 
 void GC_CollectorCallback(void* worker) {
+#if USE_CYCLIC_GC
   if (g_hasCyclicCollector)
     cyclicCollectorCallback(worker);
+#endif   // USE_CYCLIC_GC
 }
 
 KBoolean Kotlin_native_internal_GC_getCyclicCollector() {
+#if USE_CYCLIC_GC
   return g_hasCyclicCollector;
+#else
+  return false;
+#endif  // USE_CYCLIC_GC
 }
 
 void Kotlin_native_internal_GC_setCyclicCollector(KBoolean value) {
+#if USE_CYCLIC_GC
   g_hasCyclicCollector = value;
+#else
+  if (value)
+    ThrowIllegalArgumentException();
+#endif  // USE_CYCLIC_GC
 }
 
 } // extern "C"
