@@ -189,9 +189,8 @@ internal val tailrecPhase = makeKonanFileLoweringPhase(
 internal val defaultParameterExtentPhase = makeKonanFileOpPhase(
         { context, irFile ->
             DefaultArgumentStubGenerator(context, skipInlineMethods = false).lower(irFile)
-            DefaultParameterPatchOverridenSymbolsLowering(context, skipInlineMethods = false).lower(irFile)
-            KonanDefaultParameterInjector(context).lower(irFile)
             DefaultParameterCleaner(context, replaceDefaultValuesWithStubs = true).lower(irFile)
+            KonanDefaultParameterInjector(context).lower(irFile)
         },
         name = "DefaultParameterExtent",
         description = "Default parameter extent lowering",
@@ -278,8 +277,11 @@ internal val compileTimeEvaluatePhase = makeKonanFileLoweringPhase(
         prerequisite = setOf(varargPhase)
 )
 
-internal val coroutinesPhase = makeKonanFileLoweringPhase(
-        ::NativeSuspendFunctionsLowering,
+internal val coroutinesPhase = makeKonanFileOpPhase(
+        { context, irFile ->
+            NativeSuspendFunctionsLowering(context).lower(irFile)
+            RemoveSuspendLambdas().lower(irFile)
+        },
         name = "Coroutines",
         description = "Coroutines lowering",
         prerequisite = setOf(localFunctionsPhase, finallyBlocksPhase)
