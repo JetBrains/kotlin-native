@@ -4,10 +4,7 @@ import org.jetbrains.kotlin.backend.common.serialization.mangle.descriptor.Descr
 import org.jetbrains.kotlin.backend.common.serialization.mangle.descriptor.DescriptorExportCheckerVisitor
 import org.jetbrains.kotlin.backend.common.serialization.mangle.descriptor.DescriptorMangleComputer
 import org.jetbrains.kotlin.backend.konan.*
-import org.jetbrains.kotlin.descriptors.ConstructorDescriptor
-import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
-import org.jetbrains.kotlin.descriptors.FunctionDescriptor
-import org.jetbrains.kotlin.descriptors.ValueParameterDescriptor
+import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
 
@@ -19,6 +16,9 @@ abstract class AbstractKonanDescriptorMangler : DescriptorBasedKotlinManglerImpl
 
     private class KonanDescriptorExportChecker : DescriptorExportCheckerVisitor() {
         override fun DeclarationDescriptor.isPlatformSpecificExported(): Boolean {
+            if (this is SimpleFunctionDescriptor) {
+                if (kind == CallableMemberDescriptor.Kind.FAKE_OVERRIDE) return false
+            }
             // TODO: revise
             if (annotations.hasAnnotation(RuntimeNames.symbolNameAnnotation)) {
                 // Treat any `@SymbolName` declaration as exported.

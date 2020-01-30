@@ -6,8 +6,6 @@
 package org.jetbrains.kotlin.backend.konan.llvm
 
 import llvm.LLVMTypeRef
-import org.jetbrains.kotlin.backend.common.serialization.mangle.KotlinExportChecker
-import org.jetbrains.kotlin.backend.common.serialization.mangle.KotlinMangleComputer
 import org.jetbrains.kotlin.backend.common.serialization.mangle.classic.ClassicExportChecker
 import org.jetbrains.kotlin.backend.common.serialization.mangle.classic.ClassicKotlinManglerImpl
 import org.jetbrains.kotlin.backend.common.serialization.mangle.classic.ClassicMangleComputer
@@ -16,13 +14,9 @@ import org.jetbrains.kotlin.backend.konan.descriptors.externalSymbolOrThrow
 import org.jetbrains.kotlin.backend.konan.descriptors.getAnnotationStringValue
 import org.jetbrains.kotlin.backend.konan.descriptors.isAbstract
 import org.jetbrains.kotlin.backend.konan.ir.allParameters
-import org.jetbrains.kotlin.backend.konan.getObjCMethodInfo
-import org.jetbrains.kotlin.backend.konan.isObjCClassMethod
 import org.jetbrains.kotlin.backend.konan.ir.isUnit
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.types.getClass
-import org.jetbrains.kotlin.backend.konan.isInlinedNative
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.konan.library.KonanLibrary
 import org.jetbrains.kotlin.library.uniqueName
@@ -32,13 +26,12 @@ import org.jetbrains.kotlin.library.uniqueName
 // TODO: revise the naming scheme to ensure it produces unique names.
 // TODO: do not serialize descriptors of non-exported declarations.
 
-//abstract class AbstractKonanMangler : KotlinManglerImpl() {
 abstract class AbstractKonanClassicMangler : ClassicKotlinManglerImpl() {
 
-    val IrFunction.functionName: String get() = TODO("functionName")
+    val IrFunction.functionName: String get() = with(getMangleComputer("")) { functionName }
     val IrFunction.symbolName: String get() = with(getMangleComputer("") as KonanClassicMangleComputer) { symbolName }
-    val IrField.symbolName: String get() = TODO("")
-    val IrClass.typeInfoSymbolName: String get() = TODO("symbolName")
+    val IrField.symbolName: String get() = with(getMangleComputer("") as KonanClassicMangleComputer) { symbolName }
+    val IrClass.typeInfoSymbolName: String get() = with(getMangleComputer("") as KonanClassicMangleComputer) { typeInfoSymbolName }
 
     override fun getExportChecker(): ClassicExportChecker = KonanClassicExportChecker()
 
@@ -54,6 +47,9 @@ abstract class AbstractKonanClassicMangler : ClassicKotlinManglerImpl() {
          */
 
         override fun IrDeclaration.isPlatformSpecificExported(): Boolean {
+
+            if (this is IrSimpleFunction) if (isFakeOverride) return false
+
             // TODO: revise
             if (annotations.hasAnnotation(RuntimeNames.symbolNameAnnotation)) {
                 // Treat any `@SymbolName` declaration as exported.
