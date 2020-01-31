@@ -236,6 +236,7 @@ class CyclicCollector {
              for (int i = 0; i < objContainer->objectCount(); ++i) {
                  auto* componentObj = reinterpret_cast<ObjHeader*>((*subContainer) + 1);
                  refCount += sideRefCounts[componentObj];
+                 subContainer++;
                }
            } else {
              refCount = it.second;
