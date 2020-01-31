@@ -113,12 +113,14 @@ fun test7() {
     kotlin.native.internal.GC.collectCyclic()
     Worker.current.park(500 * 1000L)
 
-    Worker.start().executeAfter(0L, {}.freeze())
-    Worker.current.park(500 * 1000L)
+    withWorker {
+        executeAfter(0L, {}.freeze())
+        Worker.current.park(500 * 1000L)
 
-    val node = ref1.value as Holder
-    val ref2 = node.other as AtomicReference<Any?>
-    assertTrue(ref2.value != null)
+        val node = ref1.value as Holder
+        val ref2 = node.other as AtomicReference<Any?>
+        assertTrue(ref2.value != null)
+    }
 }
 
 fun array(size: Int) = Array<Any?>(size, { null })
