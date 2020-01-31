@@ -246,6 +246,12 @@ internal val callableReferencePhase = makeKonanFileLoweringPhase(
         prerequisite = setOf(delegationPhase) // TODO: make weak dependency on `testProcessorPhase`
 )
 
+internal val singleAbstractMethodPhase = makeKonanFileLoweringPhase(
+        ::NativeSingleAbstractMethodLowering,
+        name = "SingleAbstractMethod",
+        description = "Replace SAM conversions with instances of interface-implementing classes"
+)
+
 internal val interopPart2Phase = makeKonanFileLoweringPhase(
         ::InteropLoweringPart2,
         name = "InteropPart2",
