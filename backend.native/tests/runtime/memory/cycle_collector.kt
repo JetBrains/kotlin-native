@@ -140,6 +140,37 @@ fun test8() {
     ref.value = obj1.freeze()
 }
 
+fun createNode1(): Holder {
+    val ref = AtomicReference<Any?>(null)
+    val node2 = Holder(ref)
+    val node1 = Holder(node2)
+    ref.value = node1.freeze()
+
+    return node1
+}
+
+fun getNode2(): Holder {
+    val node1 = createNode1()
+    GC.collect()
+
+    return node1.other as Holder
+}
+
+fun test9() {
+    val worker = Worker.start()
+    val node2 = getNode2()
+    worker.executeAfter(10 * 1000L, { GC.collectCyclic() }.freeze())
+
+    GC.collect()
+
+    Worker.current.park(50 * 1000L)
+
+    worker.execute(TransferMode.SAFE, {}, {}).result
+
+    val ref = node2.other as AtomicReference<Any?>
+    assertTrue(ref.value != null)
+}
+
 fun main() {
     kotlin.native.internal.GC.cyclicCollectorEnabled = true
     test1()
@@ -152,4 +183,5 @@ fun main() {
     test6()
     test7()
     test8()
+    test9()
 }

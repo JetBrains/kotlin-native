@@ -1611,14 +1611,13 @@ void garbageCollect(MemoryState* state, bool force) {
   state->gcInProgress = true;
   state->gcEpoque++;
 
+  incrementStack(state);
 #if USE_CYCLIC_GC
   // Block if the concurrent cycle collector is running.
-  // TODO: instead we may consider just not doing local GC.
+  // We must do that to ensure collector sees state where actual RC properly upper estimated.
   if (g_hasCyclicCollector)
     cyclicLocalGC();
 #endif  // USE_CYCLIC_GC
-
-  incrementStack(state);
   processDecrements(state);
   size_t beforeDecrements = state->toRelease->size();
   decrementStack(state);
