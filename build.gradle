@@ -539,7 +539,8 @@ task bundleRegular(type: (isWindows()) ? Zip : Tar) {
         exclude 'klib/platform'
         exclude {
             // Exclude platform libraries caches too.
-            !it.isDirectory() && it.relativePath.startsWithAny("klib/cache") && it.name != "libstdlib-cache.a"
+            !it.isDirectory() && it.relativePath.startsWithAny("klib/cache") &&
+                    it.name != "libstdlib-cache.a" && it.name != "libkotlinx-cli-cache.a"
         }
         into archiveBaseName
     }
