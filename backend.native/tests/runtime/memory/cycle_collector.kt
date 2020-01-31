@@ -157,18 +157,19 @@ fun getNode2(): Holder {
 }
 
 fun test9() {
-    val worker = Worker.start()
-    val node2 = getNode2()
-    worker.executeAfter(10 * 1000L, { GC.collectCyclic() }.freeze())
+    withWorker {
+        val node2 = getNode2()
+        executeAfter(10 * 1000L, { GC.collectCyclic() }.freeze())
 
-    GC.collect()
+        GC.collect()
 
-    Worker.current.park(50 * 1000L)
+        Worker.current.park(50 * 1000L)
 
-    worker.execute(TransferMode.SAFE, {}, {}).result
+        execute(TransferMode.SAFE, {}, {}).result
 
-    val ref = node2.other as AtomicReference<Any?>
-    assertTrue(ref.value != null)
+        val ref = node2.other as AtomicReference<Any?>
+        assertTrue(ref.value != null)
+    }
 }
 
 fun main() {
