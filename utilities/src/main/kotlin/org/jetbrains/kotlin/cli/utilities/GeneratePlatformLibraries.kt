@@ -262,7 +262,11 @@ private fun generatePlatformLibraries(target: KonanTarget, inputDirectory: File,
         buildStdlibCache(target, stdlibFile, cacheDirectory, cacheKind, cacheArgs, logger)
     }
 
-    logger.log("Generating platform libraries from $inputDirectory to $outputDirectory for ${target.visibleName}")
+    logger.verbose("Generating platform libraries from $inputDirectory to $outputDirectory for ${target.visibleName}")
+    if (cacheDirectory != null) {
+        logger.verbose("Precompiling platform libraries to $cacheDirectory (cache kind: $cacheKind)")
+    }
+
     val tmpDirectory: File = outputDirectory.child("build").apply { mkdirs() }
     // Delete the tmp directory in case of execution interruption.
     val deleteTmpHook = Thread {
