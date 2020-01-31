@@ -129,6 +129,7 @@ class CyclicCollector {
  public:
   CyclicCollector() {
     CHECK_CALL(pthread_mutex_init(&lock_, nullptr), "Cannot init collector mutex")
+    CHECK_CALL(pthread_mutex_init(&timestampLock_, nullptr), "Cannot init collector timestamp mutex")
     CHECK_CALL(pthread_cond_init(&cond_, nullptr), "Cannot init collector condition")
     CHECK_CALL(pthread_create(&gcThread_, nullptr, gcWorkerRoutine, this), "Cannot start collector thread")
   }
@@ -145,6 +146,7 @@ class CyclicCollector {
     releasePendingUnlocked(nullptr);
     pthread_cond_destroy(&cond_);
     pthread_mutex_destroy(&lock_);
+    pthread_mutex_destroy(&timestampLock_);
   }
 
   static void* gcWorkerRoutine(void* argument) {
