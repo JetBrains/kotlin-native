@@ -83,7 +83,7 @@ class KonanIrLinker(
         }
     }
 
-    private fun IdSignature.isInteropSignature(): Boolean = IdSignatureFlags.IS_NATIVE_INTEROP_LIBRARY.decode(flags())
+    private fun IdSignature.isInteropSignature(): Boolean = IdSignature.Flags.IS_NATIVE_INTEROP_LIBRARY.test()
 
     private fun IdSignature.isForwardDeclarationSignature(): Boolean {
         if (isPublic) {

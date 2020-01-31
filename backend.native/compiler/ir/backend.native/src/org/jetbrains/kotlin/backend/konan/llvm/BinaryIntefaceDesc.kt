@@ -54,9 +54,9 @@ abstract class AbstractKonanDescriptorMangler : DescriptorBasedKotlinManglerImpl
 
                             append("objc:")
                             append(it.selector)
-                            if (this@platformSpecificFunctionName is IrConstructor && this@platformSpecificFunctionName.isObjCConstructor) append("#Constructor")
+                            if (this@platformSpecificFunctionName is ConstructorDescriptor && this@platformSpecificFunctionName.isObjCConstructor) append("#Constructor")
 
-                            if ((this@platformSpecificFunctionName as? IrSimpleFunction)?.correspondingPropertySymbol != null) {
+                            if (this@platformSpecificFunctionName is PropertyAccessorDescriptor) {
                                 append("#Accessor")
                             }
                         }

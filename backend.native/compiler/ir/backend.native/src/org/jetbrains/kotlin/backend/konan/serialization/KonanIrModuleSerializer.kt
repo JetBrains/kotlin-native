@@ -3,6 +3,7 @@ package org.jetbrains.kotlin.backend.konan.serialization
 import org.jetbrains.kotlin.backend.common.LoggingContext
 import org.jetbrains.kotlin.backend.common.serialization.*
 import org.jetbrains.kotlin.backend.common.serialization.signature.IdSignatureSerializer
+import org.jetbrains.kotlin.backend.konan.llvm.KonanManglerIr
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.ir.backend.js.lower.serialization.ir.JsManglerIr
 import org.jetbrains.kotlin.ir.declarations.IrFile
@@ -33,7 +34,7 @@ class KonanIrModuleSerializer(
     val skipExpects: Boolean
 ) : IrModuleSerializer<KonanIrFileSerializer>(logger) {
 
-    private val signaturer = IdSignatureSerializer(JsManglerIr)
+    private val signaturer = IdSignatureSerializer(KonanManglerIr)
     private val globalDeclarationTable = KonanGlobalDeclarationTable(signaturer, irBuiltIns)
 
     override fun createSerializerForFile(file: IrFile): KonanIrFileSerializer =

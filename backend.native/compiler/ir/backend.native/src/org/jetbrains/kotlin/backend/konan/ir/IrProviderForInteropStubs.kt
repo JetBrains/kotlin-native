@@ -22,8 +22,7 @@ class IrProviderForInteropStubs : LazyIrProvider {
 
     override fun getDeclaration(symbol: IrSymbol): IrLazyDeclarationBase? {
 
-//        return if (symbol.descriptor.module.isFromInteropLibrary()) {
-        return if (symbol.isPublicApi && IdSignatureFlags.IS_NATIVE_INTEROP_LIBRARY.decode(symbol.signature.flags())) {
+        return if (symbol.isPublicApi && symbol.signature.run { IdSignature.Flags.IS_NATIVE_INTEROP_LIBRARY.test() }) {
             provideIrDeclaration(symbol)
         } else {
             null
