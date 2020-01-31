@@ -304,12 +304,14 @@ class CyclicCollector {
   }
 
   void addWorker(void* worker) {
+    suggestLockRelease();
     Locker lock(&lock_);
     currentAliveWorkers_++;
     if (mainWorker_ == nullptr) mainWorker_ = worker;
   }
 
   void removeWorker(void* worker) {
+    suggestLockRelease();
     Locker lock(&lock_);
     // When exiting the worker - we shall collect the cyclic garbage here.
     shallRunCollector_ = true;
@@ -321,6 +323,7 @@ class CyclicCollector {
     COLLECTOR_LOG("add root %p\n", obj);
     // TODO: we can only add root when collector is not processing, which looks like a limitation,
     //  instead we can add elements to the side buffer or have a separate lock for that.
+    suggestLockRelease();
     Locker lock(&lock_);
     rootset_.insert(obj);
   }
@@ -328,6 +331,7 @@ class CyclicCollector {
   void removeRoot(ObjHeader* obj) {
     COLLECTOR_LOG("remove root %p\n", obj);
     // Note that we can only remove root when the collector is not processing.
+    suggestLockRelease();
     Locker lock(&lock_);
     toRelease_.erase(obj);
     rootset_.erase(obj);
@@ -339,6 +343,10 @@ class CyclicCollector {
     atomicSet(&mutatedAtomics_, 1);
   }
 
+  void suggestLockRelease() {
+    atomicSet(&mutatedAtomics_, 1);
+  }
+
   bool checkIfShallCollect() {
     auto tick = atomicAdd(&currentTick_, 1);
     auto delta = tick - atomicGet(&lastTick_);
@@ -346,6 +354,7 @@ class CyclicCollector {
       auto currentTimestampUs = konan::getTimeMicros();
       if (currentTimestampUs - atomicGet(&lastTimestampUs_) > 10000) {
         // TODO: maybe take another lock.
+        suggestLockRelease();
         Locker locker(&lock_);
         lastTick_ = currentTick_;
         lastTimestampUs_ = currentTimestampUs;
@@ -359,6 +368,7 @@ class CyclicCollector {
     // We are not doing that on the UI thread, as taking lock is slow, unless
     // it happens on deinit of the collector or if there are no other workers.
     if ((atomicGet(&pendingRelease_) != 0) && ((worker != mainWorker_) || (currentAliveWorkers_ == 1))) {
+      suggestLockRelease();
       Locker locker(&lock_);
       COLLECTOR_LOG("clearing %d release candidates on %p\n", toRelease_.size(), worker);
       for (auto* it: toRelease_) {
@@ -392,6 +402,7 @@ class CyclicCollector {
   void localGC() {
     // We just need to take GC lock here, to avoid release of object we walk on.
     // TODO: consider optimization without taking the lock and just notifying collector via an atomic.
+    suggestLockRelease();
     Locker locker(&lock_);
   }
 
