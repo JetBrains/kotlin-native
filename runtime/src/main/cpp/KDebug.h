@@ -28,40 +28,72 @@
 extern "C" {
 #endif
 
+// PLEASE READ: please do not alter signatures of the existing functions, and when adding
+// the new function please do not forget to add new functions into the debug operations list.
+
 // Get memory buffer where debugger can put data in Konan app process.
-RUNTIME_USED
+RUNTIME_USED RUNTIME_WEAK
 char* Konan_DebugBuffer();
 
 // Get size of memory buffer where debugger can put data in Konan app process.
-RUNTIME_USED
+RUNTIME_USED RUNTIME_WEAK
 int32_t Konan_DebugBufferSize();
 
 // Put string representation of an object to the provided buffer.
-RUNTIME_USED
+RUNTIME_USED RUNTIME_WEAK
 int32_t Konan_DebugObjectToUtf8Array(KRef obj, char* buffer, int bufferSize);
 
 // Print to console string representation of an object.
-RUNTIME_USED
+RUNTIME_USED RUNTIME_WEAK
 int32_t Konan_DebugPrint(KRef obj);
 
 // Returns 1 if obj refers to an array, string or binary blob and 0 otherwise.
-RUNTIME_USED int Konan_DebugIsArray(KRef obj);
+RUNTIME_USED RUNTIME_WEAK
+int Konan_DebugIsArray(KRef obj);
 
 // Returns number of fields in an objects, or elements in an array.
-RUNTIME_USED int Konan_DebugGetFieldCount(KRef obj);
+RUNTIME_USED RUNTIME_WEAK
+int Konan_DebugGetFieldCount(KRef obj);
 
 // Compute type of field or an array element at the index, or 0, if incorrect,
 // see Konan_RuntimeType.
-RUNTIME_USED int Konan_DebugGetFieldType(KRef obj, int index);
+RUNTIME_USED RUNTIME_WEAK
+int Konan_DebugGetFieldType(KRef obj, int index);
 
 // Compute address of field or an array element at the index, or null, if incorrect.
-RUNTIME_USED void* Konan_DebugGetFieldAddress(KRef obj, int index);
+RUNTIME_USED RUNTIME_WEAK
+void* Konan_DebugGetFieldAddress(KRef obj, int index);
 
 // Compute address of field or an array element at the index, or null, if incorrect.
-RUNTIME_USED const char* Konan_DebugGetFieldName(KRef obj, int index);
+RUNTIME_USED RUNTIME_WEAK
+const char* Konan_DebugGetFieldName(KRef obj, int index);
 
 // Returns name of type.
-RUNTIME_USED const char* Konan_DebugGetTypeName(KRef obj);
+RUNTIME_USED RUNTIME_WEAK
+const char* Konan_DebugGetTypeName(KRef obj);
+
+// Never ever change numbering in this enum, as it will break debugging of older binaries.
+enum Konan_DebugOperation {
+  DO_DebugBuffer = 1,
+  DO_DebugBufferSize = 2,
+  DO_DebugObjectToUtf8Array = 3,
+  DO_DebugPrint = 4,
+  DO_DebugIsArray = 5,
+  DO_DebugGetFieldCount = 6,
+  DO_DebugGetFieldType = 7,
+  DO_DebugGetFieldAddress = 8,
+  DO_DebugGetFieldName = 9,
+  DO_DebugGetTypeName = 10,
+  DO_DebugGetOperation = 11
+};
+
+/**
+ * Given an object finds debugger interface operation suitable for manipulation with this object.
+ * Important for cases where multiple K/N runtimes coexist in the same address space and debugger
+ * doesn't know which debug operation to use on particular instance.
+ */
+RUNTIME_USED RUNTIME_WEAK
+void* Konan_DebugGetOperation(KRef obj, /* Konan_DebugOperation */ int operation);
 
 #ifdef __cplusplus
 }

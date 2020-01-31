@@ -64,16 +64,16 @@ constexpr int runtimeTypeAlignment[] = {
 extern "C" {
 
 // Buffer that can be used by debugger for inspections.
-RUNTIME_USED char* Konan_DebugBuffer() {
+RUNTIME_USED RUNTIME_WEAK char* Konan_DebugBuffer() {
   return debugBuffer;
 }
 
-RUNTIME_USED int Konan_DebugBufferSize() {
+RUNTIME_USED RUNTIME_WEAK int Konan_DebugBufferSize() {
   return sizeof(debugBuffer);
 }
 
 // Auxilary function which can be called by developer/debugger to inspect an object.
-RUNTIME_USED KInt Konan_DebugObjectToUtf8Array(KRef obj, char* buffer, KInt bufferSize) {
+RUNTIME_USED RUNTIME_WEAK KInt Konan_DebugObjectToUtf8Array(KRef obj, char* buffer, KInt bufferSize) {
   ObjHolder stringHolder;
   auto data = KonanObjectToUtf8Array(obj, stringHolder.slot())->array();
   if (data == nullptr) return 0;
@@ -83,18 +83,18 @@ RUNTIME_USED KInt Konan_DebugObjectToUtf8Array(KRef obj, char* buffer, KInt buff
   return toCopy + 1;
 }
 
-RUNTIME_USED KInt Konan_DebugPrint(KRef obj) {
+RUNTIME_USED RUNTIME_WEAK KInt Konan_DebugPrint(KRef obj) {
   KInt size = Konan_DebugObjectToUtf8Array(obj, Konan_DebugBuffer(), Konan_DebugBufferSize());
   if (size > 1)
     konan::consoleWriteUtf8(Konan_DebugBuffer(), size - 1);
   return 0;
 }
 
-RUNTIME_USED int Konan_DebugIsArray(KRef obj) {
+RUNTIME_USED RUNTIME_WEAK int Konan_DebugIsArray(KRef obj) {
   return obj == nullptr || IsArray(obj) ? 1 : 0;
 }
 
-RUNTIME_USED int Konan_DebugGetFieldCount(KRef obj) {
+RUNTIME_USED RUNTIME_WEAK int Konan_DebugGetFieldCount(KRef obj) {
   if (obj == nullptr)
     return 0;
 
@@ -111,7 +111,7 @@ RUNTIME_USED int Konan_DebugGetFieldCount(KRef obj) {
 }
 
 
-RUNTIME_USED int Konan_DebugGetFieldType(KRef obj, int index) {
+RUNTIME_USED RUNTIME_WEAK int Konan_DebugGetFieldType(KRef obj, int index) {
   if (obj == nullptr || index < 0)
     return Konan_RuntimeType::RT_INVALID;
 
@@ -130,7 +130,7 @@ RUNTIME_USED int Konan_DebugGetFieldType(KRef obj, int index) {
   return extendedTypeInfo->fieldTypes_[index];
 }
 
-RUNTIME_USED void* Konan_DebugGetFieldAddress(KRef obj, int index) {
+RUNTIME_USED RUNTIME_WEAK void* Konan_DebugGetFieldAddress(KRef obj, int index) {
   if (obj == nullptr || index < 0)
     return nullptr;
 
@@ -157,7 +157,7 @@ RUNTIME_USED void* Konan_DebugGetFieldAddress(KRef obj, int index) {
 }
 
 // Compute address of field or an array element at the index, or null, if incorrect.
-RUNTIME_USED const char* Konan_DebugGetFieldName(KRef obj, int index) {
+RUNTIME_USED RUNTIME_WEAK const char* Konan_DebugGetFieldName(KRef obj, int index) {
   if (obj == nullptr || index < 0)
     return nullptr;
 
@@ -177,7 +177,7 @@ RUNTIME_USED const char* Konan_DebugGetFieldName(KRef obj, int index) {
   return extendedTypeInfo->fieldNames_[index];
 }
 
-RUNTIME_USED const char* Konan_DebugGetTypeName(KRef obj) {
+RUNTIME_USED RUNTIME_WEAK const char* Konan_DebugGetTypeName(KRef obj) {
   if (obj == nullptr)
     return nullptr;
 
@@ -187,6 +187,37 @@ RUNTIME_USED const char* Konan_DebugGetTypeName(KRef obj) {
 
   return CreateCStringFromString(type_info->relativeName_);
 }
+
+RUNTIME_USED RUNTIME_WEAK
+void* Konan_DebugGetOperation(KRef obj, /* Konan_DebugOperation */ int operation) {
+  if (obj == nullptr)
+      return nullptr;
+  auto* typeInfo = obj->type_info();
+  auto* extendedTypeInfo = typeInfo->extendedInfo_;
+
+  if (extendedTypeInfo == nullptr)
+    return nullptr;
+  if (operation <= 0 || operation >= extendedTypeInfo->debugOperationsCount_)
+    return nullptr;
+  return extendedTypeInfo->debugOperations_[operation];
+}
+
+// IMPORTANT: when updating, fix `debugOperationsSize` in RTTIGenerator.kt.
+RUNTIME_USED RUNTIME_WEAK
+const void* Konan_debugOperationsList[] = {
+  nullptr,
+  reinterpret_cast<const void*>(&Konan_DebugBuffer),
+  reinterpret_cast<const void*>(&Konan_DebugBufferSize),
+  reinterpret_cast<const void*>(&Konan_DebugObjectToUtf8Array),
+  reinterpret_cast<const void*>(&Konan_DebugPrint),
+  reinterpret_cast<const void*>(&Konan_DebugIsArray),
+  reinterpret_cast<const void*>(&Konan_DebugGetFieldCount),
+  reinterpret_cast<const void*>(&Konan_DebugGetFieldType),
+  reinterpret_cast<const void*>(&Konan_DebugGetFieldAddress),
+  reinterpret_cast<const void*>(&Konan_DebugGetFieldName),
+  reinterpret_cast<const void*>(&Konan_DebugGetTypeName),
+  reinterpret_cast<const void*>(&Konan_DebugGetOperation)
+};
 
 }  // extern "C"
 
