@@ -109,6 +109,7 @@ inline bool isAtomicReference(ObjHeader* obj) {
 
 class CyclicCollector {
   pthread_mutex_t lock_;
+  pthread_mutex_t timestampLock_;
   pthread_cond_t cond_;
   pthread_t gcThread_;
 
@@ -353,9 +354,8 @@ class CyclicCollector {
     if (delta > 10 || delta < 0) {
       auto currentTimestampUs = konan::getTimeMicros();
       if (currentTimestampUs - atomicGet(&lastTimestampUs_) > 10000) {
-        // TODO: maybe take another lock.
-        suggestLockRelease();
-        Locker locker(&lock_);
+        // Do we care if this lock is not here?
+        Locker locker(&timestampLock_);
         lastTick_ = currentTick_;
         lastTimestampUs_ = currentTimestampUs;
         return true;
