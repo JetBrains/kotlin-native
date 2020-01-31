@@ -22,7 +22,6 @@ private val varTypeAnnotationFqName = FqName("kotlinx.cinterop.internal.CStruct.
 
 internal class CStructVarCompanionGenerator(
         context: GeneratorContext,
-        override val stubGenerator: DeclarationStubGenerator,
         private val interopBuiltIns: InteropBuiltIns
 ) : DescriptorToIrTranslationMixin {
 
