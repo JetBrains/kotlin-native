@@ -16,6 +16,7 @@
 
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 
 #include <cstddef> // for offsetof
 
@@ -1618,6 +1619,7 @@ void garbageCollect(MemoryState* state, bool force) {
     cyclicLocalGC();
 #endif  // USE_CYCLIC_GC
 
+  usleep(15 * 1000);
   incrementStack(state);
   processDecrements(state);
   size_t beforeDecrements = state->toRelease->size();

@@ -28,6 +28,7 @@
 #if WITH_WORKERS
 #include <pthread.h>
 #include <sys/time.h>
+#include <unistd.h>
 #endif
 
 #if WITH_WORKERS
@@ -246,6 +247,7 @@ class CyclicCollector {
              COLLECTOR_LOG("for %p mismatched RC: %d vs %d, adding as possible root\n", obj, refCount, objContainer->refCount())
              toVisit.push_back(it.first);
            }
+           usleep(10 * 1000);
          }
          visited.clear();
          while (toVisit.size() > 0)  {
