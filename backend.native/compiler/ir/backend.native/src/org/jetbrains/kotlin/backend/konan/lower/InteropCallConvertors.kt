@@ -46,7 +46,7 @@ private class InteropCallContext(
         val symbols: KonanSymbols,
         val builder: IrBuilderWithScope
 ) {
-    fun IrType.isCPointer(): Boolean = isSubtypeOfClass(symbols.interopCPointer)
+    fun IrType.isCPointer(): Boolean = this.classOrNull == symbols.interopCPointer
 
     fun IrType.isNativePointed(): Boolean = isSubtypeOfClass(symbols.nativePointed)
 }
@@ -162,10 +162,15 @@ private fun InteropCallContext.convertIntegralToEnum(value: IrExpression, enumTy
     }
 }
 
-private fun InteropCallContext.readEnumValueFromMemory(nativePtr: IrExpression, enumType: IrType): IrExpression {
-    val enumClass = enumType.getClass()!!
-    val enumPrimitiveType = enumClass.properties.single { it.name.asString() == "value" }
+private fun IrType.getCEnumPrimitiveType(): IrType {
+    assert(this.isCEnumType())
+    val enumClass = this.getClass()!!
+    return enumClass.properties.single { it.name.asString() == "value" }
             .getter!!.returnType
+}
+
+private fun InteropCallContext.readEnumValueFromMemory(nativePtr: IrExpression, enumType: IrType): IrExpression {
+    val enumPrimitiveType = enumType.getCEnumPrimitiveType()
     val readMemory = readPrimitiveFromMemory(nativePtr, enumPrimitiveType)
     return convertIntegralToEnum(readMemory, enumType)
 }
@@ -175,6 +180,20 @@ private fun InteropCallContext.writeEnumValueToMemory(nativePtr: IrExpression, v
     return writePrimitiveToMemory(nativePtr, valueToWrite)
 }
 
+private fun InteropCallContext.convertCPointerToNativePtr(cPointer: IrExpression): IrExpression {
+    return builder.irCall(symbols.interopCPointerGetRawValue).also {
+        it.extensionReceiver = cPointer
+    }
+}
+
+
+private fun InteropCallContext.writePointerToMemory(nativePtr: IrExpression, value: IrExpression): IrExpression {
+    val valueToWrite = when {
+        value.type.isCPointer() -> convertCPointerToNativePtr(value)
+        else -> error("Unsupported pointer type")
+    }
+    return writePrimitiveToMemory(nativePtr, valueToWrite)
+}
 
 private fun InteropCallContext.calculateFieldPointer(receiver: IrExpression, offset: Long): IrExpression {
     val base = builder.irCall(symbols.interopNativePointedRawPtrGetter).also {
@@ -191,12 +210,13 @@ private fun InteropCallContext.calculateFieldPointer(receiver: IrExpression, off
 }
 
 private fun InteropCallContext.readPointerFromMemory(nativePtr: IrExpression): IrExpression {
+    val readMemory = readPrimitiveFromMemory(nativePtr, symbols.nativePtrType)
     return builder.irCall(symbols.interopInterpretCPointer).also {
-        it.putValueArgument(0, nativePtr)
+        it.putValueArgument(0, readMemory)
     }
 }
 
-private fun InteropCallContext.readPointedFromMemory(nativePtr: IrExpression): IrExpression {
+private fun InteropCallContext.readPointed(nativePtr: IrExpression): IrExpression {
     return builder.irCall(symbols.interopInterpretNullablePointed).also {
         it.putValueArgument(0, nativePtr)
     }
@@ -245,16 +265,18 @@ private fun InteropCallContext.generateMemberAtAccess(callSite: IrCall): IrExpre
                 type.isCEnumType() -> readEnumValueFromMemory(fieldPointer, type)
                 type.isPrimitiveType() -> readPrimitiveFromMemory(fieldPointer, type)
                 type.isCPointer() -> readPointerFromMemory(fieldPointer)
-                type.isNativePointed() -> readPointedFromMemory(fieldPointer)
+                type.isNativePointed() -> readPointed(fieldPointer)
                 else -> error("Cannot get field type: ${type.getClass()?.name}")
             }
         }
         accessor.isSetter -> {
             val value = callSite.getValueArgument(0)!!
+            val type = accessor.valueParameters[0].type
             when {
-                value.type.isCEnumType() -> writeEnumValueToMemory(fieldPointer, value)
-                value.type.isPrimitiveType() -> writePrimitiveToMemory(fieldPointer, value)
-                else -> error("Cannot set field of type ${value.type.getClass()?.name}")
+                type.isCEnumType() -> writeEnumValueToMemory(fieldPointer, value)
+                type.isPrimitiveType() -> writePrimitiveToMemory(fieldPointer, value)
+                type.isCPointer() -> writePointerToMemory(fieldPointer, value)
+                else -> error("Cannot set field of type ${type.getClass()?.name}")
             }
         }
         else -> error("")
@@ -289,7 +311,12 @@ private fun InteropCallContext.readBits(
         size: Int,
         type: IrType
 ): IrExpression {
-    val isSigned = !type.isUnsigned()
+    val isSigned = when {
+        type.isCEnumType() ->
+            !type.getCEnumPrimitiveType().isUnsigned()
+        else ->
+            !type.isUnsigned()
+    }
     val integralValue = with (builder) {
         irCall(symbols.readBits).also {
             it.putValueArgument(0, base)
