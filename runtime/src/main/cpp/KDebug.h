@@ -35,9 +35,17 @@ extern "C" {
 RUNTIME_USED RUNTIME_WEAK
 char* Konan_DebugBuffer();
 
+// Same, but runtime-specific.
+RUNTIME_USED RUNTIME_WEAK
+char* Konan_DebugBufferWithObject(KRef obj);
+
 // Get size of memory buffer where debugger can put data in Konan app process.
 RUNTIME_USED RUNTIME_WEAK
 int32_t Konan_DebugBufferSize();
+
+// Same, but runtime-specific.
+RUNTIME_USED RUNTIME_WEAK
+int32_t Konan_DebugBufferSizeWithObject(KRef obj);
 
 // Put string representation of an object to the provided buffer.
 RUNTIME_USED RUNTIME_WEAK
@@ -71,23 +79,6 @@ const char* Konan_DebugGetFieldName(KRef obj, int32_t index);
 // Returns name of type.
 RUNTIME_USED RUNTIME_WEAK
 const char* Konan_DebugGetTypeName(KRef obj);
-
-// Never ever change numbering in this enum, as it will break debugging of older binaries.
-enum Konan_DebugOperation {
-  DO_DebugBuffer = 1,
-  DO_DebugBufferSize = 2,
-  DO_DebugBufferWithObject = 3,
-  DO_DebugBufferSizeWithObject = 4,
-  DO_DebugObjectToUtf8Array = 5,
-  DO_DebugPrint = 6,
-  DO_DebugIsArray = 7,
-  DO_DebugGetFieldCount = 8,
-  DO_DebugGetFieldType = 9,
-  DO_DebugGetFieldAddress = 10,
-  DO_DebugGetFieldName = 11,
-  DO_DebugGetTypeName = 12,
-  DO_DebugGetOperation = 13
-};
 
 /**
  * Given an object finds debugger interface operation suitable for manipulation with this object.

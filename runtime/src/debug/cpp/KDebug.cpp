@@ -61,6 +61,22 @@ constexpr int runtimeTypeAlignment[] = {
     16                   // VECTOR128
 };
 
+// Never ever change numbering in this enum, as it will break debugging of older binaries.
+enum Konan_DebugOperation {
+  DO_DebugBuffer = 1,
+  DO_DebugBufferSize = 2,
+  DO_DebugBufferWithObject = 3,
+  DO_DebugBufferSizeWithObject = 4,
+  DO_DebugObjectToUtf8Array = 5,
+  DO_DebugPrint = 6,
+  DO_DebugIsArray = 7,
+  DO_DebugGetFieldCount = 8,
+  DO_DebugGetFieldType = 9,
+  DO_DebugGetFieldAddress = 10,
+  DO_DebugGetFieldName = 11,
+  DO_DebugGetTypeName = 12,
+};
+
 template <typename F>
 F getImpl(KRef obj, Konan_DebugOperation operation) {
   if (obj == nullptr)
@@ -207,19 +223,6 @@ const char* Konan_DebugGetTypeNameImpl(KRef obj) {
   return CreateCStringFromString(type_info->relativeName_);
 }
 
-void* Konan_DebugGetOperationImpl(KRef obj, /* Konan_DebugOperation */ int32_t operation) {
-  if (obj == nullptr)
-      return nullptr;
-  auto* typeInfo = obj->type_info();
-  auto* extendedTypeInfo = typeInfo->extendedInfo_;
-
-  if (extendedTypeInfo == nullptr)
-    return nullptr;
-  if (operation <= 0 || operation >= extendedTypeInfo->debugOperationsCount_)
-    return nullptr;
-  return extendedTypeInfo->debugOperations_[operation];
-}
-
 }  // namespace
 
 extern "C" {
@@ -294,13 +297,6 @@ RUNTIME_USED RUNTIME_WEAK const char* Konan_DebugGetTypeName(KRef obj) {
   return impl(obj);
 }
 
-RUNTIME_USED RUNTIME_WEAK
-void* Konan_DebugGetOperation(KRef obj, /* Konan_DebugOperation */ int32_t operation) {
-  auto* impl = getImpl<void* (*)(KRef, int)>(obj, DO_DebugGetOperation);
-  if (impl == nullptr) return nullptr;
-  return impl(obj, operation);
-}
-
 // IMPORTANT: when updating, fix `debugOperationsSize` in RTTIGenerator.kt.
 RUNTIME_USED RUNTIME_WEAK
 const void* Konan_debugOperationsList[] = {
@@ -316,8 +312,7 @@ const void* Konan_debugOperationsList[] = {
   reinterpret_cast<const void*>(&Konan_DebugGetFieldTypeImpl),
   reinterpret_cast<const void*>(&Konan_DebugGetFieldAddressImpl),
   reinterpret_cast<const void*>(&Konan_DebugGetFieldNameImpl),
-  reinterpret_cast<const void*>(&Konan_DebugGetTypeNameImpl),
-  reinterpret_cast<const void*>(&Konan_DebugGetOperationImpl)
+  reinterpret_cast<const void*>(&Konan_DebugGetTypeNameImpl)
 };
 
 }  // extern "C"
