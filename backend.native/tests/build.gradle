@@ -486,6 +486,9 @@ task objectInitialization1(type: KonanLocalTest) {
 standaloneTest("object_globalInitializer") {
     source = "codegen/object/globalInitializer.kt"
 }
+standaloneTest("test_KT35508") {
+    source = "KT35508.kt"
+}
 
 task check_type(type: KonanLocalTest) {
     goldValue = "true\nfalse\ntrue\ntrue\ntrue\ntrue\n"
