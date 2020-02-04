@@ -7,6 +7,7 @@ package org.jetbrains.elastic
 
 import org.jetbrains.report.*
 import org.jetbrains.report.json.*
+import org.jetbrains.analyzer.MeanVarianceBenchmark
 import kotlin.js.Promise     // TODO - migrate to multiplatform.
 
 data class Commit(val revision: String, val developer: String): JsonSerializable {
@@ -209,4 +210,16 @@ class BuildInfoIndex(connector: ElasticSearchConnector): ElasticSearchIndex("bui
                 "startTime" to ElasticSearchType.DATE,
                 "endTime" to ElasticSearchType.DATE,
                 "commits" to ElasticSearchType.NESTED)
+}
+
+class NormalizedMeanVarianceBenchmark(name: String, status: BenchmarkResult.Status, score: Double, metric: BenchmarkResult.Metric,
+                            runtimeInUs: Double, repeat: Int, warmup: Int, variance: Double, val normalizedScore: Double) :
+        MeanVarianceBenchmark(name, status, score, metric, runtimeInUs, repeat, warmup, variance) {
+
+    override fun serializeFields(): String {
+        return """
+            ${super.serializeFields()},
+            "normalizedScore": $normalizedScore
+            """
+    }
 }

@@ -19,7 +19,7 @@ data class MeanVariance(val mean: Double, val variance: Double) {
     }
 }
 
-class MeanVarianceBenchmark(name: String, status: BenchmarkResult.Status, score: Double, metric: BenchmarkResult.Metric,
+open class MeanVarianceBenchmark(name: String, status: BenchmarkResult.Status, score: Double, metric: BenchmarkResult.Metric,
                             runtimeInUs: Double, repeat: Int, warmup: Int, val variance: Double) :
         BenchmarkResult(name, status, score, metric, runtimeInUs, repeat, warmup) {
 

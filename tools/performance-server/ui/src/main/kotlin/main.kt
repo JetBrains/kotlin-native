@@ -50,7 +50,6 @@ fun getChartData(labels: List<String>, valuesList: Collection<List<*>>, stageToS
     val chartData: dynamic = object{}
     // Show only some part of data.
     val (labelsData, valuesData) = buildsNumber?.let {
-        println("Divide on ${labels.size / buildsNumber}")
         val labelsGroups = labels.chunked(buildsNumber)
         val valuesListGroups = valuesList.map { it.chunked(buildsNumber) }
         val expectedGroup = labelsGroups.size - 1 + stageToShow
@@ -218,19 +217,14 @@ fun main(args: Array<String>) {
     }
 
     // Get branches.
-    val branchesUrl = "$serverUrl/branches/${parameters["target"]}"
-
-    val branches: Array<String> = JSON.parse(sendGetRequest(branchesUrl))
-    val releaseBranches = branches.filter { "^v\\d+\\.\\d+\\.\\d+-fixes$".toRegex().find(it) != null }
-
-    // Fill autocomplete list.
-    val buildsNumbersUrl = "$serverUrl/buildsNumbers/${parameters["target"]}"
-    val buildsNumbers: Array<String> = JSON.parse(sendGetRequest(buildsNumbersUrl))
-
-    // Add release branches to selector.
-    releaseBranches.forEach {
-        val option = Option(it, it)
-        js("$('#inputGroupBranch')").append(js("$(option)"))
+    val branchesUrl = "$serverUrl/branches"
+    sendGetRequest(branchesUrl).then { response ->
+        val branches: Array<String> = JSON.parse(response)
+        // Add release branches to selector.
+        branches.filter{ it != "master" }.forEach {
+            val option = Option(it, it)
+            js("$('#inputGroupBranch')").append(js("$(option)"))
+        }
     }
 
 
@@ -334,7 +328,7 @@ fun main(args: Array<String>) {
     val descriptionUrl = "$serverUrl/buildsDesc/${parameters["target"]}/${parameters["type"]}" +
             "${if (parameters["branch"] != "all") "?branch=${parameters["branch"]}" else ""}"
 
-    val metricUrl = "$serverUrl/metricValue/${parameters["target"]}/${parameters["type"]}/"
+    val metricUrl = "$serverUrl/metricValue/${parameters["target"]}/"
 
     valuesToShow.map { (metric, settings) ->
         val getParameters = with(StringBuilder()) {
@@ -348,37 +342,49 @@ fun main(args: Array<String>) {
             }
             toString()
         }
+        val branchParameter = if (parameters["branch"] != "all")
+            (if (getParameters.isEmpty()) "?" else "&") + "branch=${parameters["branch"]}"
+            else ""
 
         val url = "$metricUrl$metric$getParameters${ 
-            if (parameters["branch"] != "all") 
-                (if (getParameters.isEmpty()) "?" else "&") + "branch=${parameters["branch"]}"
+            if (parameters["type"] != "all") 
+                (if (getParameters.isEmpty()) "?" else "&") + "type=${parameters["type"]}"
             else ""
         }"
 
         // Get metrics values for charts
         sendGetRequest(url).then { response ->
-            val results = response.toString().split("],[").map {
-                it.replace("\\]|\\[".toRegex(), "").split(',')
+            val results = (JsonTreeParser.parse(response) as JsonArray).map {
+                (it as JsonObject).getPrimitive("first").content to
+                        it.getArray("second").map {(it as JsonPrimitive).double}
             }
-            val labels = results[0].map { it.replace("\"", "") }
-            val values = results.drop(1)
+
+            /*val results = response.toString().split("],[").map {
+                it.replace("\\]|\\[".toRegex(), "").split(',')
+            }*/
+            println(results)
+            val labels = results.map{ it.first }
+            println(labels)
+            val values = results[0]?.second?.size?.let{ (0..it-1).map{ i -> results.map{ it.second[i] }} } ?: emptyList()
+            println(values)
+
             when (metric) {
                 // Update chart with gotten data.
                 "COMPILE_TIME" -> {
-                    compileData = labels to values.map { it.map { it.toDoubleOrNull()?.let { it / 1000 } } }
+                    compileData = labels to values.map { it.map { it?.let { it / 1000 } } }
                     compileChart.update(getChartData(labels, compileData.second, stageToShow, buildsNumberToShow))
                 }
                 "EXECUTION_TIME" ->   {
-                    execData = labels to values.map { it.map { it.toDoubleOrNull() } }
+                    execData = labels to values
                     execChart.update(getChartData(labels, execData.second, stageToShow, buildsNumberToShow))
                 }
                 "CODE_SIZE" ->  {
-                    codeSizeData = labels to values.map { it.map { it.toDoubleOrNull() } }
+                    codeSizeData = labels to values
                     codeSizeChart.update(getChartData(labels, codeSizeData.second,
                             stageToShow, buildsNumberToShow, sizeClassNames))
                 }
                 "BUNDLE_SIZE" -> {
-                    bundleSizeData = labels to values.map { it.map { it.toIntOrNull()?.let { it / 1024 / 1024 } } }
+                    bundleSizeData = labels to values.map { it.map { it?.let { it.toInt() / 1024 / 1024 } } }
                     bundleSizeChart.update(getChartData(labels,
                             bundleSizeData.second, stageToShow,
                             buildsNumberToShow, sizeClassNames))
