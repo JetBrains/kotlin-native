@@ -41,7 +41,7 @@ int32_t Konan_DebugBufferSize();
 
 // Put string representation of an object to the provided buffer.
 RUNTIME_USED RUNTIME_WEAK
-int32_t Konan_DebugObjectToUtf8Array(KRef obj, char* buffer, int bufferSize);
+int32_t Konan_DebugObjectToUtf8Array(KRef obj, char* buffer, int32_t bufferSize);
 
 // Print to console string representation of an object.
 RUNTIME_USED RUNTIME_WEAK
@@ -49,24 +49,24 @@ int32_t Konan_DebugPrint(KRef obj);
 
 // Returns 1 if obj refers to an array, string or binary blob and 0 otherwise.
 RUNTIME_USED RUNTIME_WEAK
-int Konan_DebugIsArray(KRef obj);
+int32_t Konan_DebugIsArray(KRef obj);
 
 // Returns number of fields in an objects, or elements in an array.
 RUNTIME_USED RUNTIME_WEAK
-int Konan_DebugGetFieldCount(KRef obj);
+int32_t Konan_DebugGetFieldCount(KRef obj);
 
 // Compute type of field or an array element at the index, or 0, if incorrect,
 // see Konan_RuntimeType.
 RUNTIME_USED RUNTIME_WEAK
-int Konan_DebugGetFieldType(KRef obj, int index);
+int32_t Konan_DebugGetFieldType(KRef obj, int32_t index);
 
 // Compute address of field or an array element at the index, or null, if incorrect.
 RUNTIME_USED RUNTIME_WEAK
-void* Konan_DebugGetFieldAddress(KRef obj, int index);
+void* Konan_DebugGetFieldAddress(KRef obj, int32_t index);
 
 // Compute address of field or an array element at the index, or null, if incorrect.
 RUNTIME_USED RUNTIME_WEAK
-const char* Konan_DebugGetFieldName(KRef obj, int index);
+const char* Konan_DebugGetFieldName(KRef obj, int32_t index);
 
 // Returns name of type.
 RUNTIME_USED RUNTIME_WEAK
@@ -95,7 +95,7 @@ enum Konan_DebugOperation {
  * doesn't know which debug operation to use on particular instance.
  */
 RUNTIME_USED RUNTIME_WEAK
-void* Konan_DebugGetOperation(KRef obj, /* Konan_DebugOperation */ int operation);
+void* Konan_DebugGetOperation(KRef obj, /* Konan_DebugOperation */ int32_t operation);
 
 #ifdef __cplusplus
 }

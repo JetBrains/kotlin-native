@@ -70,7 +70,7 @@ F getImpl(KRef obj, Konan_DebugOperation operation) {
 
   if (extendedTypeInfo == nullptr)
     return nullptr;
-  if (static_cast<int>(operation) >= extendedTypeInfo->debugOperationsCount_)
+  if (static_cast<int32_t>(operation) >= extendedTypeInfo->debugOperationsCount_)
     return nullptr;
   return reinterpret_cast<F>(extendedTypeInfo->debugOperations_[operation]);
 }
@@ -93,7 +93,7 @@ int Konan_DebugBufferSizeWithObjectImpl(KRef obj) {
 }
 
 // Auxilary function which can be called by developer/debugger to inspect an object.
-KInt Konan_DebugObjectToUtf8ArrayImpl(KRef obj, char* buffer, KInt bufferSize) {
+int32_t Konan_DebugObjectToUtf8ArrayImpl(KRef obj, char* buffer, int32_t bufferSize) {
   ObjHolder stringHolder;
   auto data = KonanObjectToUtf8Array(obj, stringHolder.slot())->array();
   if (data == nullptr) return 0;
@@ -103,23 +103,23 @@ KInt Konan_DebugObjectToUtf8ArrayImpl(KRef obj, char* buffer, KInt bufferSize) {
   return toCopy + 1;
 }
 
-KInt Konan_DebugPrintImpl(KRef obj) {
-  KInt size = Konan_DebugObjectToUtf8Array(obj, Konan_DebugBuffer(), Konan_DebugBufferSize());
+int32_t Konan_DebugPrintImpl(KRef obj) {
+  int32_t size = Konan_DebugObjectToUtf8Array(obj, Konan_DebugBuffer(), Konan_DebugBufferSize());
   if (size > 1)
     konan::consoleWriteUtf8(Konan_DebugBuffer(), size - 1);
   return 0;
 }
 
-int Konan_DebugIsArrayImpl(KRef obj) {
+int32_t Konan_DebugIsArrayImpl(KRef obj) {
   return obj == nullptr || IsArray(obj) ? 1 : 0;
 }
 
-int Konan_DebugGetFieldCountImpl(KRef obj) {
+int32_t Konan_DebugGetFieldCountImpl(KRef obj) {
   if (obj == nullptr)
     return 0;
 
-  auto typeInfo = obj->type_info();
-  auto extendedTypeInfo = typeInfo->extendedInfo_;
+  auto* typeInfo = obj->type_info();
+  auto* extendedTypeInfo = typeInfo->extendedInfo_;
 
   if (extendedTypeInfo == nullptr)
     return 0;
@@ -130,7 +130,7 @@ int Konan_DebugGetFieldCountImpl(KRef obj) {
   return extendedTypeInfo->fieldsCount_;
 }
 
-int Konan_DebugGetFieldTypeImpl(KRef obj, int index) {
+int32_t Konan_DebugGetFieldTypeImpl(KRef obj, int32_t index) {
   if (obj == nullptr || index < 0)
     return Konan_RuntimeType::RT_INVALID;
 
@@ -149,7 +149,7 @@ int Konan_DebugGetFieldTypeImpl(KRef obj, int index) {
   return extendedTypeInfo->fieldTypes_[index];
 }
 
-void* Konan_DebugGetFieldAddressImpl(KRef obj, int index) {
+void* Konan_DebugGetFieldAddressImpl(KRef obj, int32_t index) {
   if (obj == nullptr || index < 0)
     return nullptr;
 
@@ -176,7 +176,7 @@ void* Konan_DebugGetFieldAddressImpl(KRef obj, int index) {
 }
 
 // Compute address of field or an array element at the index, or null, if incorrect.
-const char* Konan_DebugGetFieldNameImpl(KRef obj, int index) {
+const char* Konan_DebugGetFieldNameImpl(KRef obj, int32_t index) {
   if (obj == nullptr || index < 0)
     return nullptr;
 
@@ -207,7 +207,7 @@ const char* Konan_DebugGetTypeNameImpl(KRef obj) {
   return CreateCStringFromString(type_info->relativeName_);
 }
 
-void* Konan_DebugGetOperationImpl(KRef obj, /* Konan_DebugOperation */ int operation) {
+void* Konan_DebugGetOperationImpl(KRef obj, /* Konan_DebugOperation */ int32_t operation) {
   if (obj == nullptr)
       return nullptr;
   auto* typeInfo = obj->type_info();
@@ -228,7 +228,7 @@ RUNTIME_USED RUNTIME_WEAK char* Konan_DebugBuffer() {
   return Konan_DebugBufferImpl();
 }
 
-RUNTIME_USED RUNTIME_WEAK int Konan_DebugBufferSize() {
+RUNTIME_USED RUNTIME_WEAK int32_t Konan_DebugBufferSize() {
   return Konan_DebugBufferSizeImpl();
 }
 
@@ -238,52 +238,52 @@ RUNTIME_USED RUNTIME_WEAK char* Konan_DebugBufferWithObject(KRef obj) {
   return impl(obj);
 }
 
-RUNTIME_USED RUNTIME_WEAK int Konan_DebugBufferSizeWithObject(KRef obj) {
-  auto* impl = getImpl<int (*)(KRef)>(obj, DO_DebugBufferSizeWithObject);
+RUNTIME_USED RUNTIME_WEAK int32_t Konan_DebugBufferSizeWithObject(KRef obj) {
+  auto* impl = getImpl<int32_t (*)(KRef)>(obj, DO_DebugBufferSizeWithObject);
   if (impl == nullptr) return 0;
   return impl(obj);
 }
 
 // Auxilary function which can be called by developer/debugger to inspect an object.
-RUNTIME_USED RUNTIME_WEAK int Konan_DebugObjectToUtf8Array(KRef obj, char* buffer, int bufferSize) {
-  auto* impl = getImpl<int (*)(KRef, char*, int)>(obj, DO_DebugObjectToUtf8Array);
+RUNTIME_USED RUNTIME_WEAK int32_t Konan_DebugObjectToUtf8Array(KRef obj, char* buffer, int32_t bufferSize) {
+  auto* impl = getImpl<int32_t (*)(KRef, char*, int32_t)>(obj, DO_DebugObjectToUtf8Array);
   if (impl == nullptr) return 0;
   return impl(obj, buffer, bufferSize);
 }
 
-RUNTIME_USED RUNTIME_WEAK int Konan_DebugPrint(KRef obj) {
-  auto* impl = getImpl<int (*)(KRef)>(obj, DO_DebugPrint);
+RUNTIME_USED RUNTIME_WEAK int32_t Konan_DebugPrint(KRef obj) {
+  auto* impl = getImpl<int32_t (*)(KRef)>(obj, DO_DebugPrint);
   if (impl == nullptr) return 0;
   return impl(obj);
 }
 
-RUNTIME_USED RUNTIME_WEAK int Konan_DebugIsArray(KRef obj) {
-  auto* impl = getImpl<int (*)(KRef)>(obj, DO_DebugIsArray);
+RUNTIME_USED RUNTIME_WEAK int32_t Konan_DebugIsArray(KRef obj) {
+  auto* impl = getImpl<int32_t (*)(KRef)>(obj, DO_DebugIsArray);
   if (impl == nullptr) return 0;
   return impl(obj);
 }
 
-RUNTIME_USED RUNTIME_WEAK int Konan_DebugGetFieldCount(KRef obj) {
-  auto* impl = getImpl<int (*)(KRef)>(obj, DO_DebugGetFieldCount);
+RUNTIME_USED RUNTIME_WEAK int32_t Konan_DebugGetFieldCount(KRef obj) {
+  auto* impl = getImpl<int32_t (*)(KRef)>(obj, DO_DebugGetFieldCount);
   if (impl == nullptr) return 0;
   return impl(obj);
 }
 
-RUNTIME_USED RUNTIME_WEAK int Konan_DebugGetFieldType(KRef obj, int index) {
-  auto* impl = getImpl<int (*)(KRef, int)>(obj, DO_DebugGetFieldType);
+RUNTIME_USED RUNTIME_WEAK int32_t Konan_DebugGetFieldType(KRef obj, int32_t index) {
+  auto* impl = getImpl<int32_t (*)(KRef, int32_t)>(obj, DO_DebugGetFieldType);
   if (impl == nullptr) return 0;
   return impl(obj, index);
 }
 
-RUNTIME_USED RUNTIME_WEAK void* Konan_DebugGetFieldAddress(KRef obj, int index) {
-  auto* impl = getImpl<void* (*)(KRef, int)>(obj, DO_DebugGetFieldAddress);
+RUNTIME_USED RUNTIME_WEAK void* Konan_DebugGetFieldAddress(KRef obj, int32_t index) {
+  auto* impl = getImpl<void* (*)(KRef, int32_t)>(obj, DO_DebugGetFieldAddress);
   if (impl == nullptr) return nullptr;
   return impl(obj, index);
 }
 
 // Compute address of field or an array element at the index, or null, if incorrect.
-RUNTIME_USED RUNTIME_WEAK const char* Konan_DebugGetFieldName(KRef obj, int index) {
-  auto* impl = getImpl<const char* (*)(KRef, int)>(obj, DO_DebugGetFieldName);
+RUNTIME_USED RUNTIME_WEAK const char* Konan_DebugGetFieldName(KRef obj, int32_t index) {
+  auto* impl = getImpl<const char* (*)(KRef, int32_t)>(obj, DO_DebugGetFieldName);
   if (impl == nullptr) return nullptr;
   return impl(obj, index);
 }
@@ -295,7 +295,7 @@ RUNTIME_USED RUNTIME_WEAK const char* Konan_DebugGetTypeName(KRef obj) {
 }
 
 RUNTIME_USED RUNTIME_WEAK
-void* Konan_DebugGetOperation(KRef obj, /* Konan_DebugOperation */ int operation) {
+void* Konan_DebugGetOperation(KRef obj, /* Konan_DebugOperation */ int32_t operation) {
   auto* impl = getImpl<void* (*)(KRef, int)>(obj, DO_DebugGetOperation);
   if (impl == nullptr) return nullptr;
   return impl(obj, operation);
