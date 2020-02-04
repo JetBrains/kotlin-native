@@ -76,15 +76,17 @@ const char* Konan_DebugGetTypeName(KRef obj);
 enum Konan_DebugOperation {
   DO_DebugBuffer = 1,
   DO_DebugBufferSize = 2,
-  DO_DebugObjectToUtf8Array = 3,
-  DO_DebugPrint = 4,
-  DO_DebugIsArray = 5,
-  DO_DebugGetFieldCount = 6,
-  DO_DebugGetFieldType = 7,
-  DO_DebugGetFieldAddress = 8,
-  DO_DebugGetFieldName = 9,
-  DO_DebugGetTypeName = 10,
-  DO_DebugGetOperation = 11
+  DO_DebugBufferWithObject = 3,
+  DO_DebugBufferSizeWithObject = 4,
+  DO_DebugObjectToUtf8Array = 5,
+  DO_DebugPrint = 6,
+  DO_DebugIsArray = 7,
+  DO_DebugGetFieldCount = 8,
+  DO_DebugGetFieldType = 9,
+  DO_DebugGetFieldAddress = 10,
+  DO_DebugGetFieldName = 11,
+  DO_DebugGetTypeName = 12,
+  DO_DebugGetOperation = 13
 };
 
 /**
