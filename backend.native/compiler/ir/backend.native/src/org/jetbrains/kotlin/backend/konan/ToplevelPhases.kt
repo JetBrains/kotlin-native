@@ -339,13 +339,13 @@ internal val allLoweringsPhase = namedIrModulePhase(
                                 defaultParameterExtentPhase then
                                 innerClassPhase then
                                 dataClassesPhase then
+                                singleAbstractMethodPhase then
                                 builtinOperatorPhase then
                                 finallyBlocksPhase then
                                 testProcessorPhase then
                                 enumClassPhase then
                                 delegationPhase then
                                 callableReferencePhase then
-                                singleAbstractMethodPhase then
                                 interopPart2Phase then
                                 varargPhase then
                                 compileTimeEvaluatePhase then
