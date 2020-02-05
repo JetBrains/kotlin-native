@@ -404,7 +404,7 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
     private val debugOperations: ConstValue by lazy {
         if (debugRuntimeOrNull != null) {
             val external = LLVMGetNamedGlobal(debugRuntimeOrNull, "Konan_debugOperationsList")!!
-            val local = LLVMAddGlobal(context.llvmModule, LLVMTypeOf(external),"Konan_debugOperationsList")!!
+            val local = LLVMAddGlobal(context.llvmModule, LLVMGetElementType(LLVMTypeOf(external)),"Konan_debugOperationsList")!!
             constPointer(LLVMConstBitCast(local, kInt8PtrPtr)!!)
         } else {
             Zero(kInt8PtrPtr)
@@ -594,6 +594,10 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
                         .toList().reversed()
                         .joinToString(".") { it.name.asString() }
         )
+    }
+
+    fun dispose() {
+        debugRuntimeOrNull?.let { LLVMDisposeModule(it) }
     }
 }
 
