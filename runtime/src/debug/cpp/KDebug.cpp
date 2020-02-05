@@ -297,8 +297,6 @@ RUNTIME_USED RUNTIME_WEAK const char* Konan_DebugGetTypeName(KRef obj) {
   return impl(obj);
 }
 
-// IMPORTANT: when updating, fix `debugOperationsSize` in RTTIGenerator.kt.
-RUNTIME_USED RUNTIME_WEAK
 const void* Konan_debugOperationsList[] = {
   nullptr,
   reinterpret_cast<const void*>(&Konan_DebugBufferImpl),

@@ -413,8 +413,8 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
 
     val debugOperationsSize: ConstValue by lazy {
         if (debugRuntimeOrNull != null) {
-            // TODO: better compute properly, unfortunately LLVMGetArrayLength() doesn't work as expected.
-            Int32(13)
+            val external = LLVMGetNamedGlobal(debugRuntimeOrNull, "Konan_debugOperationsList")!!
+            Int32(LLVMGetArrayLength(LLVMGetElementType(LLVMTypeOf(external))))
         } else
             Int32(0)
     }
