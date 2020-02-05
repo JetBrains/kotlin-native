@@ -316,9 +316,9 @@ internal fun ObjCMethod.isOverride(container: ObjCClassOrProtocol): Boolean =
 internal abstract class ObjCContainerStubBuilder(
         final override val context: StubsBuildingContext,
         private val container: ObjCClassOrProtocol,
-        protected val metaContainerStub: ObjCContainerStubBuilder?
+        protected val metaContainerStubBuilder: ObjCContainerStubBuilder?
 ) : StubElementBuilder {
-    private val isMeta: Boolean get() = metaContainerStub == null
+    private val isMeta: Boolean get() = metaContainerStubBuilder == null
 
     private val designatedInitializerSelectors = if (container is ObjCClass && !isMeta) {
         container.getDesignatedInitializerSelectors(mutableSetOf())
@@ -370,12 +370,12 @@ internal abstract class ObjCContainerStubBuilder(
         }
     }
 
-    private val methodToStub = methods.map {
+    private val methodToBuilder = methods.map {
         it to ObjCMethodStubBuilder(it, container, it.selector in designatedInitializerSelectors, context)
     }.toMap()
 
     private val propertyBuilders = properties.mapNotNull {
-        createObjCPropertyBuilder(context, it, container, this.methodToStub)
+        createObjCPropertyBuilder(context, it, container, this.methodToBuilder)
     }
 
     private val modality = when (container) {
@@ -387,8 +387,8 @@ internal abstract class ObjCContainerStubBuilder(
 
     private val externalObjCAnnotation = when (container) {
         is ObjCProtocol -> {
-            protocolGetter = if (metaContainerStub != null) {
-                metaContainerStub.protocolGetter!!
+            protocolGetter = if (metaContainerStubBuilder != null) {
+                metaContainerStubBuilder.protocolGetter!!
             } else {
                 // TODO: handle the case when protocol getter stub can't be compiled.
                 context.generateNextUniqueId("kniprot_")
@@ -429,7 +429,7 @@ internal abstract class ObjCContainerStubBuilder(
     }
 
     private fun buildBody(): Pair<List<PropertyStub>, List<FunctionalStub>> {
-        val defaultConstructor =  if (container is ObjCClass && methodToStub.values.none { it.isDefaultConstructor() }) {
+        val defaultConstructor =  if (container is ObjCClass && methodToBuilder.values.none { it.isDefaultConstructor() }) {
             // Always generate default constructor.
             // If it is not produced for an init method, then include it manually:
             ConstructorStub(
@@ -440,7 +440,7 @@ internal abstract class ObjCContainerStubBuilder(
 
         return Pair(
                 propertyBuilders.flatMap { it.build() },
-                methodToStub.values.flatMap { it.build() } + listOfNotNull(defaultConstructor)
+                methodToBuilder.values.flatMap { it.build() } + listOfNotNull(defaultConstructor)
         )
     }
 
@@ -466,7 +466,7 @@ internal sealed class ObjCClassOrProtocolStubBuilder(
 ) : ObjCContainerStubBuilder(
         context,
         container,
-        metaContainerStub = object : ObjCContainerStubBuilder(context, container, metaContainerStub = null) {
+        metaContainerStubBuilder = object : ObjCContainerStubBuilder(context, container, metaContainerStubBuilder = null) {
 
             override fun build(): List<StubIrElement> {
                 val origin = when (container) {
@@ -484,7 +484,7 @@ internal class ObjCProtocolStubBuilder(
 ) : ObjCClassOrProtocolStubBuilder(context, protocol), StubElementBuilder {
     override fun build(): List<StubIrElement> {
         val classStub = buildClassStub(StubOrigin.ObjCProtocol(protocol, isMeta = false))
-        return listOf(*metaContainerStub!!.build().toTypedArray(), classStub)
+        return listOf(*metaContainerStubBuilder!!.build().toTypedArray(), classStub)
     }
 }
 
@@ -503,7 +503,7 @@ internal class ObjCClassStubBuilder(
         val companionClassifier = context.getKotlinClassFor(clazz, isMeta = false).nested("Companion")
         val companion = ClassStub.Companion(companionClassifier, emptyList(), superClassInit, listOf(objCClassType))
         val classStub = buildClassStub(StubOrigin.ObjCClass(clazz, isMeta = false), companion)
-        return listOf(*metaContainerStub!!.build().toTypedArray(), classStub)
+        return listOf(*metaContainerStubBuilder!!.build().toTypedArray(), classStub)
     }
 }
 
@@ -555,13 +555,13 @@ private fun createObjCPropertyBuilder(
         context: StubsBuildingContext,
         property: ObjCProperty,
         container: ObjCContainer,
-        methodToStub: Map<ObjCMethod, ObjCMethodStubBuilder>
+        methodToBuilder: Map<ObjCMethod, ObjCMethodStubBuilder>
 ): ObjCPropertyStubBuilder? {
     // Note: the code below assumes that if the property is generated,
     // then its accessors are also generated as explicit methods.
-    val getterStub = methodToStub[property.getter] ?: return null
-    val setterStub = property.setter?.let { methodToStub[it] ?: return null }
-    return ObjCPropertyStubBuilder(context, property, container, getterStub, setterStub)
+    val getterBuilder = methodToBuilder[property.getter] ?: return null
+    val setterBuilder = property.setter?.let { methodToBuilder[it] ?: return null }
+    return ObjCPropertyStubBuilder(context, property, container, getterBuilder, setterBuilder)
 }
 
 private class ObjCPropertyStubBuilder(
