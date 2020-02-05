@@ -2,14 +2,17 @@ package org.jetbrains.kotlin.backend.konan.boxing
 
 import org.jetbrains.kotlin.backend.common.descriptors.WrappedFieldDescriptor
 import org.jetbrains.kotlin.backend.konan.Context
-import org.jetbrains.kotlin.backend.konan.KonanConfigKeys.Companion.COUNT_BOX_OPERATIONS
 import org.jetbrains.kotlin.backend.konan.descriptors.synthesizedName
-import org.jetbrains.kotlin.backend.konan.getBoxFunction
 import org.jetbrains.kotlin.descriptors.Visibilities
-import org.jetbrains.kotlin.ir.builders.*
-import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
+import org.jetbrains.kotlin.ir.builders.irCall
+import org.jetbrains.kotlin.ir.builders.irGetField
+import org.jetbrains.kotlin.ir.builders.irSetField
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
+import org.jetbrains.kotlin.ir.declarations.IrField
+import org.jetbrains.kotlin.ir.declarations.IrFile
+import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.impl.IrFieldImpl
-import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrSetFieldImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrFieldSymbolImpl
@@ -58,15 +61,10 @@ internal class IrBoxCounterField private constructor(val context: Context, val s
 
 internal fun IrBuilderWithScope.irInc(counter: IrBoxCounterField): IrSetFieldImpl {
     val context = counter.context
-    val stdlib = context.irModules.filterKeys { it.endsWith("stdlib") }.values.firstOrNull()
-            ?: context.ir.irModule
-    val intClass = stdlib.files
-            .first { it.fqName.toString() == "kotlin" && it.fileEntry.name.endsWith("Primitives.kt") }
-            .declarations
-            .first { it.nameForIrSerialization.toString() == "Int" } as IrClass
+    val intClass = context.irBuiltIns.intClass.owner
     val increment = intClass.declarations.first { it.nameForIrSerialization.toString() == "inc" } as IrFunction
 
     return irSetField(null, counter.field, irCall(increment).also { it.dispatchReceiver = irGetField(null, counter.field) })
 }
 
-internal fun IrField.isBoxingCounter() = name.toString() == "${"$"}boxingCounter"
+internal fun IrField.isBoxingCounter() = name.toString() == "\$boxingCounter"
