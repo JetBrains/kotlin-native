@@ -2729,10 +2729,10 @@ standaloneTest("memory_only_gc") {
     source = "runtime/memory/only_gc.kt"
 }
 
-standaloneTest("leak_detector") {
+standaloneTest("cycle_collector") {
     disabled = project.globalTestArgs.contains('-opt') || (project.testTarget == 'wasm32') // Needs debug build.
     flags = ['-g']
-    source = "runtime/memory/leak_detector.kt"
+    source = "runtime/memory/cycle_collector.kt"
 }
 
 standaloneTest("mpp1") {

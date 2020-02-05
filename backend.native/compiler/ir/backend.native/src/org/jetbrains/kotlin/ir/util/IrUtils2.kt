@@ -49,12 +49,17 @@ import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.typeUtil.immediateSupertypes
 import java.lang.reflect.Proxy
 
-internal fun irBuilder(irBuiltIns: IrBuiltIns, scopeOwnerSymbol: IrSymbol): IrBuilderWithScope =
+internal fun irBuilder(
+        irBuiltIns: IrBuiltIns,
+        scopeOwnerSymbol: IrSymbol,
+        startOffset: Int = UNDEFINED_OFFSET,
+        endOffset: Int = UNDEFINED_OFFSET
+): IrBuilderWithScope =
         object : IrBuilderWithScope(
                 IrGeneratorContextBase(irBuiltIns),
                 Scope(scopeOwnerSymbol),
-                UNDEFINED_OFFSET,
-                UNDEFINED_OFFSET
+                startOffset,
+                endOffset
         ) {}
 
 //TODO: delete file on next kotlin dependency update
@@ -159,16 +164,6 @@ internal fun KonanBackendContext.report(declaration: IrDeclaration, message: Str
             isError
     )
     if (isError) throw KonanCompilationException()
-}
-
-fun IrBuilderWithScope.irForceNotNull(expression: IrExpression): IrExpression {
-    if (!expression.type.containsNull()) {
-        return expression
-    }
-
-    return irCall(context.irBuiltIns.checkNotNullSymbol, expression.type.makeNotNull()).apply {
-        putValueArgument(0, expression)
-    }
 }
 
 fun IrFunctionAccessExpression.addArguments(args: Map<IrValueParameter, IrExpression>) {

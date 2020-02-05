@@ -325,17 +325,10 @@ struct MetaObjHeader {
   // Flags for the object state.
   int32_t flags_;
 
-  // TODO: maybe make it a union for the orthogonal features.
   struct {
     // Strong reference to the counter object.
     ObjHeader* counter_;
   } WeakReference;
-  struct {
-    // Leak detector's previous list element.
-    ObjHeader* previous_;
-    // Leak detector's next list element.
-    ObjHeader* next_;
-  } LeakDetector;
 };
 
 // Header of every object.
@@ -556,6 +549,11 @@ void AddTLSRecord(MemoryState* memory, void** key, int size) RUNTIME_NOTHROW;
 void ClearTLSRecord(MemoryState* memory, void** key) RUNTIME_NOTHROW;
 // Lookup element in TLS object storage.
 ObjHeader** LookupTLS(void** key, int index) RUNTIME_NOTHROW;
+
+// APIs for the async GC.
+void GC_RegisterWorker(void* worker) RUNTIME_NOTHROW;
+void GC_UnregisterWorker(void* worker) RUNTIME_NOTHROW;
+void GC_CollectorCallback(void* worker) RUNTIME_NOTHROW;
 
 #ifdef __cplusplus
 }
