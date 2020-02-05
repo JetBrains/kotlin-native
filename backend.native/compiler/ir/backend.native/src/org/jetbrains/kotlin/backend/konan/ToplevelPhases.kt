@@ -15,7 +15,6 @@ import org.jetbrains.kotlin.backend.konan.lower.ExpectToActualDefaultValueCopier
 import org.jetbrains.kotlin.backend.konan.objcexport.ObjCExport
 import org.jetbrains.kotlin.backend.konan.serialization.*
 import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
-import org.jetbrains.kotlin.codegen.SamType
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.descriptors.*
@@ -29,11 +28,8 @@ import org.jetbrains.kotlin.ir.util.addChild
 import org.jetbrains.kotlin.ir.util.addFile
 import org.jetbrains.kotlin.ir.util.file
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
-import org.jetbrains.kotlin.load.java.sam.JavaSingleAbstractMethodUtils
 import org.jetbrains.kotlin.psi2ir.Psi2IrConfiguration
 import org.jetbrains.kotlin.psi2ir.Psi2IrTranslator
-import org.jetbrains.kotlin.psi2ir.generators.GeneratorExtensions
-import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.utils.DFS
 import java.util.Collections.emptySet
 
@@ -137,21 +133,6 @@ internal val buildCExportsPhase = konanUnitPhase(
         prerequisite = setOf(createSymbolTablePhase)
 )
 
-object KonanGeneratorExtensions : GeneratorExtensions() {
-    override val samConversion: SamConversion
-        get() = KonanSamConversion
-
-    open class KonanSamConversion : SamConversion() {
-        override fun isPlatformSamType(type: KotlinType): Boolean =
-                JavaSingleAbstractMethodUtils.isSamType(type)
-
-        override fun getSamTypeForValueParameter(valueParameter: ValueParameterDescriptor): KotlinType? =
-                SamType.createByValueParameter(valueParameter)?.type
-
-        companion object Instance : KonanSamConversion()
-    }
-}
-
 internal val psiToIrPhase = konanUnitPhase(
         op = {
             // Translate AST to high level IR.
@@ -161,7 +142,7 @@ internal val psiToIrPhase = konanUnitPhase(
 
             val translator = Psi2IrTranslator(config.configuration.languageVersionSettings,
                     Psi2IrConfiguration(false))
-            val generatorContext = translator.createGeneratorContext(moduleDescriptor, bindingContext, symbolTable, KonanGeneratorExtensions)
+            val generatorContext = translator.createGeneratorContext(moduleDescriptor, bindingContext, symbolTable)
 
             translator.addPostprocessingStep { module ->
                 val extensions = IrGenerationExtension.getInstances(config.project)
