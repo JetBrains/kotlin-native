@@ -155,7 +155,18 @@ internal fun KotlinStubs.generateCCall(expression: IrCall, builder: IrBuilderWit
         mapReturnType(callee.returnType, TypeLocation.FunctionCallResult(expression), signature = callee)
     }
 
-    val result = callBuilder.buildCall(targetFunctionName, returnValuePassing)
+    val result = callBuilder.buildCall(targetFunctionName, returnValuePassing).let { callResult ->
+        if (callee.shouldInterpretPointed()) {
+            val rawPtr = builder.irCall(symbols.interopCPointerGetRawValue).also {
+                it.extensionReceiver = callResult
+            }
+            builder.irCall(symbols.interopInterpretNullablePointed).also {
+                it.putValueArgument(0, rawPtr)
+            }
+        } else {
+            callResult
+        }
+    }
 
     val targetFunctionVariable = CVariable(CTypes.pointer(callBuilder.cFunctionBuilder.getType()), targetFunctionName)
 
@@ -627,6 +638,8 @@ private fun IrSimpleFunction.consumesReceiver() = hasCCallAnnotation("ConsumesRe
 
 private fun IrSimpleFunction.returnsRetained() = hasCCallAnnotation("ReturnsRetained")
 
+private fun IrSimpleFunction.shouldInterpretPointed() = hasCCallAnnotation("InterpretPointed")
+
 private fun getStructSpelling(kotlinClass: IrClass): String? =
         kotlinClass.getAnnotationArgumentValue(FqName("kotlinx.cinterop.internal.CStruct"), "spelling")
 
@@ -709,7 +722,14 @@ private fun KotlinStubs.mapReturnType(
         signature: IrSimpleFunction?
 ): ValueReturning = when {
     type.isUnit() -> VoidReturning
-    else -> mapType(type, retained = signature?.returnsRetained() ?: false, variadic = false, location = location)
+    else -> {
+        val type = if (signature?.shouldInterpretPointed() == true) {
+            symbols.interopCPointer.starProjectedType
+        } else {
+            type
+        }
+        mapType(type, retained = signature?.returnsRetained() ?: false, variadic = false, location = location)
+    }
 }
 
 private fun KotlinStubs.mapBlockType(

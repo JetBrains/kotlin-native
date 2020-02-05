@@ -196,6 +196,7 @@ sealed class AnnotationStub(val classifier: Classifier) {
     sealed class CCall(classifier: Classifier) : AnnotationStub(classifier) {
         object CString : CCall(cCallClassifier.nested("CString"))
         object WCString : CCall(cCallClassifier.nested("WCString"))
+        object InterpretPointed : CCall(cCallClassifier.nested("InterpretPointed"))
         class Symbol(val symbolName: String) : CCall(cCallClassifier)
     }
 
