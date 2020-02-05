@@ -10,7 +10,6 @@ import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.types.*
@@ -22,22 +21,22 @@ import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.name.Name
 
-internal class DeepCopyIrTreeWithSymbolsForInliner(val context: Context,
-                                                   val typeArguments: Map<IrTypeParameterSymbol, IrType?>?,
-                                                   val parent: IrDeclarationParent?) {
+internal open class DeepCopyIrTreeWithSymbolsForInliner(val context: Context,
+                                                        val typeArguments: Map<IrTypeParameterSymbol, IrType?>?,
+                                                        val parent: IrDeclarationParent?) {
 
-    fun copy(irElement: IrElement): IrElement {
+    open fun copy(irElement: IrElement): IrElement {
         // Create new symbols.
         irElement.acceptVoid(symbolRemapper)
 
         // Make symbol remapper aware of the callsite's type arguments.
-        symbolRemapper.typeArguments = typeArguments
+        (symbolRemapper as SymbolRemapperImpl).typeArguments = typeArguments
 
         // Copy IR.
         val result = irElement.transform(copier, data = null)
 
         // Bind newly created IR with wrapped descriptors.
-        result.acceptVoid(object: IrElementVisitorVoid {
+        result.acceptVoid(object : IrElementVisitorVoid {
             override fun visitElement(element: IrElement) {
                 element.acceptChildrenVoid(this)
             }
@@ -142,9 +141,9 @@ internal class DeepCopyIrTreeWithSymbolsForInliner(val context: Context,
     private inner class InlinerTypeRemapper(val symbolRemapper: SymbolRemapper,
                                             val typeArguments: Map<IrTypeParameterSymbol, IrType?>?) : TypeRemapper {
 
-        override fun enterScope(irTypeParametersContainer: IrTypeParametersContainer) { }
+        override fun enterScope(irTypeParametersContainer: IrTypeParametersContainer) {}
 
-        override fun leaveScope() { }
+        override fun leaveScope() {}
 
         private fun remapTypeArguments(arguments: List<IrTypeArgument>) =
                 arguments.map { argument ->
@@ -159,20 +158,20 @@ internal class DeepCopyIrTreeWithSymbolsForInliner(val context: Context,
             if (substitutedType != null) {
                 substitutedType as IrSimpleType
                 return IrSimpleTypeImpl(
-                        kotlinType      = null,
-                        classifier      = substitutedType.classifier,
+                        kotlinType = null,
+                        classifier = substitutedType.classifier,
                         hasQuestionMark = type.hasQuestionMark or substitutedType.isMarkedNullable(),
-                        arguments       = substitutedType.arguments,
-                        annotations     = substitutedType.annotations
+                        arguments = substitutedType.arguments,
+                        annotations = substitutedType.annotations
                 )
             }
 
             return IrSimpleTypeImpl(
-                    kotlinType      = null,
-                    classifier      = symbolRemapper.getReferencedClassifier(type.classifier),
+                    kotlinType = null,
+                    classifier = symbolRemapper.getReferencedClassifier(type.classifier),
                     hasQuestionMark = type.hasQuestionMark,
-                    arguments       = remapTypeArguments(type.arguments),
-                    annotations     = type.annotations.map { it.transform(copier, null) as IrConstructorCall }
+                    arguments = remapTypeArguments(type.arguments),
+                    annotations = type.annotations.map { it.transform(copier, null) as IrConstructorCall }
             )
         }
     }
@@ -196,10 +195,13 @@ internal class DeepCopyIrTreeWithSymbolsForInliner(val context: Context,
         }
     }
 
-    private val symbolRemapper = SymbolRemapperImpl(DescriptorsToIrRemapper())
-    private val copier = DeepCopyIrTreeWithSymbols(
+    protected val symbolRemapper: DeepCopySymbolRemapper = SymbolRemapperImpl(DescriptorsToIrRemapper())
+    protected val typeRemapper: TypeRemapper = InlinerTypeRemapper(symbolRemapper, typeArguments)
+    protected val symbolRenamer: SymbolRenamer = InlinerSymbolRenamer()
+
+    protected open val copier: DeepCopyIrTreeWithSymbols = DeepCopyIrTreeWithSymbols(
             symbolRemapper,
-            InlinerTypeRemapper(symbolRemapper, typeArguments),
-            InlinerSymbolRenamer()
+            typeRemapper,
+            symbolRenamer
     )
 }

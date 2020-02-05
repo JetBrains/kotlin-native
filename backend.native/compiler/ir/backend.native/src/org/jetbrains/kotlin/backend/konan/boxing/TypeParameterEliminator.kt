@@ -1,148 +1,134 @@
 package org.jetbrains.kotlin.backend.konan.boxing
 
-import org.jetbrains.kotlin.backend.common.descriptors.WrappedPropertyGetterDescriptor
-import org.jetbrains.kotlin.backend.konan.lower.NewSymbolRemapper
-import org.jetbrains.kotlin.backend.konan.lower.SafeWrappedDescriptorPatcher
+import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.lower.DeepCopyIrTreeWithSymbolsForInliner
 import org.jetbrains.kotlin.backend.konan.lower.SpecializationTransformer
-import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
-import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
-import org.jetbrains.kotlin.ir.declarations.IrTypeParametersContainer
+import org.jetbrains.kotlin.ir.IrElement
+import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrCall
-import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
-import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
-import org.jetbrains.kotlin.ir.types.*
-import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeImpl
-import org.jetbrains.kotlin.ir.types.impl.IrTypeAbbreviationImpl
-import org.jetbrains.kotlin.ir.types.impl.makeTypeProjection
-import org.jetbrains.kotlin.ir.util.*
-import org.jetbrains.kotlin.ir.visitors.acceptVoid
-import kotlin.collections.set
+import org.jetbrains.kotlin.ir.symbols.*
+import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.classifierOrNull
+import org.jetbrains.kotlin.ir.types.isPrimitiveType
+import org.jetbrains.kotlin.ir.util.DeepCopyIrTreeWithSymbols
+import org.jetbrains.kotlin.ir.util.SymbolRenamer
+import org.jetbrains.kotlin.name.Name
+
+// Expected that transformer will not change entities of given IR elements, only internals,
+// i.e. for receiver of type T it will return an element of type T.
+@Suppress("UNCHECKED_CAST")
+internal fun <T : IrElement> T.eliminateTypeParameters(transformer: TypeParameterEliminator): T = transformer.copy(this) as T
 
 /**
- * Replaces type parameters with concrete types in scope which this visitor was called on.
+ * Replaces certain type parameters with concrete types. Type parameters that must be removed
+ * stored in [typeParameterMapping], where each parameter is associated with corresponding concrete type.
+ *
+ * This class reuses copy algorithms for inliner (@see [DeepCopyIrTreeWithSymbolsForInliner]),
+ * because inliner does the same work (it must replace type parameters too).
+ *
+ * But it has two differences.
+ *
+ * First, it provides its own [SymbolRenamer] to add concrete type names to the names of generated functions.
+ *
+ * Second, it is intended to be executed many times. Single non-recursive elimination pass can make
+ * some calls fit for further specialization, so it is reasonable to track such calls and pass it back to
+ * [specializationTransformer].
+ * Consider the following example:
+ *
+ * ```
+ * fun <T> id(x: T) = x
+ * fun <U> id2(x: U) = id(x)
+ *
+ * // ...
+ *
+ * id2(41)
+ * ```
+ *
+ * The first pass will result in the following code:
+ *
+ * ```
+ * fun <T> id(x: T) = x
+ * fun <U> id2(x: U) = id(x)
+ * fun id2-Int(x: Int) = id(x)
+ * // ...
+ *
+ * id2-Int(41)
+ * ```
+ *
+ * where the `id` call from `id2-Int` is likely to be specialized.
+ * So it's up to specialization transformer to do something with that call.
+ *
+ * The recursive approach (handle call right after it was encountered) is feasible
+ * but error prone due to rigorous workaround for descriptors, symbols, and parents.
  */
-internal class TypeParameterEliminator(
-        private val specializationTransformer: SpecializationTransformer,
-        private val symbolRemapper: NewSymbolRemapper,
-        symbolRenamer: SymbolRenamer,
-        private val typeParametersMapping: MutableMap<IrTypeParameterSymbol, IrType>,
-        typeRemapper: TypeRemapper = TypeRemapperWithParametersElimination(symbolRemapper, typeParametersMapping)
-) : DeepCopyIrTreeWithSymbols(symbolRemapper, typeRemapper, symbolRenamer) {
+internal class TypeParameterEliminator(private val specializationTransformer: SpecializationTransformer,
+                                       private val typeParameterMapping: Map<IrTypeParameterSymbol, IrType>,
+                                       context: Context,
+                                       parent: IrDeclarationParent)
+    : DeepCopyIrTreeWithSymbolsForInliner(context, typeParameterMapping, parent) {
 
-    init {
-        // TODO refactor
-        (typeRemapper as? TypeRemapperWithParametersElimination)?.let {
-            it.deepCopy = this
+    private val callsFitForSpecialization = mutableSetOf<IrCall>()
+
+    override fun copy(irElement: IrElement): IrElement {
+        val result = super.copy(irElement)
+        specializationTransformer.handleTransformedCalls(callsFitForSpecialization)
+        return result
+    }
+
+    private val newFunctionNames = mutableMapOf<IrSymbol, Name>()
+    fun addNewFunctionName(function: IrFunction, name: String) {
+        newFunctionNames[function.symbol] = Name.identifier(name)
+    }
+
+    private inner class TypeParameterEliminatorSymbolRenamer : SymbolRenamer {
+        override fun getClassName(symbol: IrClassSymbol) = symbol.owner.name
+        override fun getFunctionName(symbol: IrSimpleFunctionSymbol) = newFunctionNames[symbol] ?: symbol.owner.name
+        override fun getFieldName(symbol: IrFieldSymbol) = symbol.owner.name
+        override fun getFileName(symbol: IrFileSymbol) = symbol.owner.fqName
+        override fun getExternalPackageFragmentName(symbol: IrExternalPackageFragmentSymbol) = symbol.owner.fqName
+        override fun getEnumEntryName(symbol: IrEnumEntrySymbol) = symbol.owner.name
+        override fun getVariableName(symbol: IrVariableSymbol) = symbol.owner.name
+        override fun getTypeParameterName(symbol: IrTypeParameterSymbol) = symbol.owner.name
+        override fun getValueParameterName(symbol: IrValueParameterSymbol) = symbol.owner.name
+    }
+
+    override val copier: DeepCopyIrTreeWithSymbols = object : DeepCopyIrTreeWithSymbols(
+            symbolRemapper,
+            typeRemapper,
+            TypeParameterEliminatorSymbolRenamer()
+    ) {
+        override fun visitClass(declaration: IrClass): IrClass {
+            return super.visitClass(declaration).withEliminatedTypeParameters(declaration)
         }
-    }
 
-    fun addMapping(typeParameter: IrTypeParameter, concreteType: IrType) {
-        typeParametersMapping[typeParameter.symbol] = concreteType
-    }
-
-    private fun <E : IrTypeParametersContainer> E.withEliminatedTypeParameters(): E = apply {
-        typeParameters.removeIf { it.symbol in typeParametersMapping }
-    }
-
-    /**
-     * After elimination, it may turn out that this call satisfies condition for the callee to get specialization.
-     *
-     * For example:
-     *
-     * ```
-     * fun <T> id(x: T) = x
-     * fun <U> id2(y: U) = id(y)
-     * ...
-     * id2(42)
-     * ```
-     *
-     * After elimination of type parameter U in `id2-Int` it turns out that `id(y)` is a call to generic function
-     * with primitive type argument, so it makes sense to specialize function `id` too, recursively.
-     */
-    override fun visitCall(expression: IrCall): IrCall {
-        val newCall = if (expression.satisfiesSpecializationCondition(typeParametersMapping)) {
-            symbolRemapper.inIgnoreFunctionMappingMode(expression.symbol.owner) { super.visitCall(expression) }
-        } else {
-            super.visitCall(expression)
+        override fun visitSimpleFunction(declaration: IrSimpleFunction): IrSimpleFunction {
+            return super.visitSimpleFunction(declaration).withEliminatedTypeParameters(declaration)
         }
-        return newCall.transform(specializationTransformer, null) as IrCall
-    }
 
-    override fun visitSimpleFunction(declaration: IrSimpleFunction): IrSimpleFunction {
-        return super.visitSimpleFunction(declaration).withEliminatedTypeParameters().apply {
-            // Little crutch -- assuming that function does not have parent iff it's new (e.g. a specialization).
-            // TODO elaborate on it later
-            try {
-                parent
-            } catch (_: UninitializedPropertyAccessException) {
-                parent = declaration.parent
-            }
-            acceptVoid(SafeWrappedDescriptorPatcher)
-            if (descriptor is WrappedPropertyGetterDescriptor) {
-                this.correspondingPropertySymbol = declaration.correspondingPropertySymbol
-            }
-        }
-    }
-
-    private fun IrCall.satisfiesSpecializationCondition(typeParameterMapping: MutableMap<IrTypeParameterSymbol, IrType>): Boolean {
-        if (typeArgumentsCount != 1) return false
-        val symbol = getTypeArgument(0)?.classifierOrNull
-        return symbol in typeParameterMapping && typeParameterMapping[symbol]?.isPrimitiveType() == true
-    }
-}
-
-/**
- * Copy of [DeepCopyTypeRemapper] with additional remapping for eliminated type parameters.
- * TODO provide delegate
- */
-class TypeRemapperWithParametersElimination(
-        private val symbolRemapper: SymbolRemapper,
-        private val typeParametersMapping: MutableMap<IrTypeParameterSymbol, IrType>
-) : TypeRemapper {
-
-    lateinit var deepCopy: DeepCopyIrTreeWithSymbols
-
-    override fun enterScope(irTypeParametersContainer: IrTypeParametersContainer) {
-        // TODO
-    }
-
-    override fun leaveScope() {
-        // TODO
-    }
-
-    override fun remapType(type: IrType): IrType =
-            if (type !is IrSimpleType)
-                type.substitute(typeParametersMapping)
-            else
-                with (type) {
-                    IrSimpleTypeImpl(
-                            null,
-                            symbolRemapper.getReferencedClassifier(type.classifier),
-                            hasQuestionMark,
-                            arguments.map { remapTypeArgument(it) },
-                            annotations.map { it.transform(deepCopy, null) as IrConstructorCall },
-                            abbreviation?.remapTypeAbbreviation()
-                    ).run {
-                        val originalClassifier = type.classifier
-                        if (classifier !is IrTypeParameterSymbol || originalClassifier !is IrTypeParameterSymbol || !typeParametersMapping.containsKey(originalClassifier)) {
-                            return@run this
-                        }
-                        typeParametersMapping[classifier as IrTypeParameterSymbol] = typeParametersMapping[originalClassifier]!!
-                        substitute(typeParametersMapping)
-                    }
+        override fun visitCall(expression: IrCall): IrCall {
+            return super.visitCall(expression).also {
+                if (expression.satisfiesSpecializationCondition(typeParameterMapping)) {
+                    callsFitForSpecialization.add(it)
                 }
+            }
+        }
 
-    private fun remapTypeArgument(typeArgument: IrTypeArgument): IrTypeArgument =
-            if (typeArgument is IrTypeProjection)
-                makeTypeProjection(this.remapType(typeArgument.type), typeArgument.variance)
-            else
-                typeArgument
+        private fun <E : IrTypeParametersContainer> E.withEliminatedTypeParameters(declaration: E): E = apply {
+            require(declaration.typeParameters.size == typeParameters.size) {
+                "Must be called only for origin and its copy," +
+                        " but origin has ${declaration.typeParameters.size} type parameters," +
+                        " and copy has ${typeParameters.size}"
+            }
+            val typeParametersToEliminate = typeParameters.filterIndexed { index, _ ->
+                declaration.typeParameters[index].symbol in typeParameterMapping
+            }
+            typeParameters.removeAll(typeParametersToEliminate)
+        }
 
-    private fun IrTypeAbbreviation.remapTypeAbbreviation() =
-            IrTypeAbbreviationImpl(
-                    symbolRemapper.getReferencedTypeAlias(typeAlias),
-                    hasQuestionMark,
-                    arguments.map { remapTypeArgument(it) },
-                    annotations
-            )
+        private fun IrCall.satisfiesSpecializationCondition(typeParameterMapping: Map<IrTypeParameterSymbol, IrType?>): Boolean {
+            if (typeArgumentsCount != 1) return false
+            val symbol = getTypeArgument(0)?.classifierOrNull
+            return symbol in typeParameterMapping && typeParameterMapping[symbol]?.isPrimitiveType() == true
+        }
+    }
 }
