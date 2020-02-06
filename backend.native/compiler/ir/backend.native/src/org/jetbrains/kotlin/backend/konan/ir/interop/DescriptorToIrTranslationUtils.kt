@@ -15,6 +15,7 @@ import org.jetbrains.kotlin.ir.expressions.impl.IrInstanceInitializerCallImpl
 import org.jetbrains.kotlin.ir.symbols.IrClassSymbol
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.resolve.descriptorUtil.getSuperClassNotAny
 import org.jetbrains.kotlin.resolve.descriptorUtil.getSuperInterfaces
 import org.jetbrains.kotlin.resolve.descriptorUtil.parentsWithSelf
 import org.jetbrains.kotlin.types.KotlinType
@@ -37,8 +38,6 @@ internal interface DescriptorToIrTranslationMixin {
 
     val typeTranslator: TypeTranslator
 
-    val stubGenerator: DeclarationStubGenerator
-
     fun KotlinType.toIrType() = typeTranslator.translateType(this)
 
     /**
@@ -57,6 +56,7 @@ internal interface DescriptorToIrTranslationMixin {
                     descriptor.typeConstructor.supertypes.mapTo(irClass.superTypes) {
                         it.toIrType()
                     }
+                    irClass.generateAnnotations()
                     irClass.createParameterDeclarations()
                     builder(irClass)
                     createFakeOverrides(descriptor).forEach(irClass::addMember)
@@ -77,19 +77,68 @@ internal interface DescriptorToIrTranslationMixin {
         }
     }
 
-    fun createConstructor(constructorDescriptor: ClassConstructorDescriptor): IrConstructor =
-            stubGenerator.generateMemberStub(constructorDescriptor) as IrConstructor
+    fun createConstructor(constructorDescriptor: ClassConstructorDescriptor): IrConstructor {
+        val irConstructor = symbolTable.declareConstructor(
+                SYNTHETIC_OFFSET, SYNTHETIC_OFFSET,
+                IrDeclarationOrigin.IR_EXTERNAL_DECLARATION_STUB, constructorDescriptor
+        )
+        constructorDescriptor.valueParameters.mapTo(irConstructor.valueParameters) { valueParameterDescriptor ->
+            symbolTable.declareValueParameter(
+                    SYNTHETIC_OFFSET, SYNTHETIC_OFFSET, IrDeclarationOrigin.DEFINED,
+                    valueParameterDescriptor,
+                    valueParameterDescriptor.type.toIrType()).also {
+                it.parent = irConstructor
+            }
+        }
+        irConstructor.returnType = constructorDescriptor.returnType.toIrType()
+        irConstructor.generateAnnotations()
+        return irConstructor
+    }
 
-    fun createProperty(propertyDescriptor: PropertyDescriptor): IrProperty =
-            stubGenerator.generateMemberStub(propertyDescriptor) as IrProperty
+    fun createProperty(propertyDescriptor: PropertyDescriptor): IrProperty {
+        val origin = if (propertyDescriptor.kind == CallableMemberDescriptor.Kind.FAKE_OVERRIDE) {
+            IrDeclarationOrigin.FAKE_OVERRIDE
+        } else {
+            IrDeclarationOrigin.IR_EXTERNAL_DECLARATION_STUB
+        }
+        val irProperty = symbolTable.declareProperty(SYNTHETIC_OFFSET, SYNTHETIC_OFFSET, origin, propertyDescriptor)
+        irProperty.getter = propertyDescriptor.getter?.let {
+            val irGetter = createFunction(it, origin)
+            irGetter.correspondingPropertySymbol = irProperty.symbol
+            irGetter
+        }
+        irProperty.setter = propertyDescriptor.setter?.let {
+            val irSetter = createFunction(it, origin)
+            irSetter.correspondingPropertySymbol = irProperty.symbol
+            irSetter
+        }
+        irProperty.generateAnnotations()
+        return irProperty
+    }
 
     fun createFunction(
             functionDescriptor: FunctionDescriptor,
-            origin: IrDeclarationOrigin? = IrDeclarationOrigin.IR_EXTERNAL_DECLARATION_STUB
-    ): IrSimpleFunction =
-            stubGenerator.generateFunctionStub(functionDescriptor, createPropertyIfNeeded = false).also {
-                if (origin != null) it.origin = origin
+            origin: IrDeclarationOrigin = IrDeclarationOrigin.IR_EXTERNAL_DECLARATION_STUB
+    ): IrSimpleFunction {
+        val irFunction = symbolTable.declareSimpleFunctionWithOverrides(SYNTHETIC_OFFSET, SYNTHETIC_OFFSET, origin, functionDescriptor)
+        symbolTable.withScope(functionDescriptor) {
+            irFunction.returnType = functionDescriptor.returnType!!.toIrType()
+            functionDescriptor.valueParameters.mapTo(irFunction.valueParameters) {
+                symbolTable.declareValueParameter(SYNTHETIC_OFFSET, SYNTHETIC_OFFSET, IrDeclarationOrigin.DEFINED, it, it.type.toIrType())
             }
+            irFunction.dispatchReceiverParameter = functionDescriptor.dispatchReceiverParameter?.let {
+                symbolTable.declareValueParameter(SYNTHETIC_OFFSET, SYNTHETIC_OFFSET, IrDeclarationOrigin.DEFINED, it, it.type.toIrType())
+            }
+            irFunction.generateAnnotations()
+        }
+        return irFunction
+    }
+
+    private fun IrDeclaration.generateAnnotations() {
+        descriptor.annotations.mapTo(annotations) {
+            typeTranslator.constantValueGenerator.generateAnnotationConstructorCall(it)!!
+        }
+    }
 }
 
 internal fun IrBuilder.irInstanceInitializer(classSymbol: IrClassSymbol): IrExpression =
@@ -102,6 +151,9 @@ internal fun IrBuilder.irInstanceInitializer(classSymbol: IrClassSymbol): IrExpr
 internal fun ClassDescriptor.implementsCEnum(interopBuiltIns: InteropBuiltIns): Boolean =
         interopBuiltIns.cEnum in this.getSuperInterfaces()
 
+internal fun ClassDescriptor.inheritsFromCStructVar(interopBuiltIns: InteropBuiltIns): Boolean =
+        interopBuiltIns.cStructVar == this.getSuperClassNotAny()
+
 /**
  * All enums that come from interop library implement CEnum interface.
  * This function checks that given symbol located in subtree of
@@ -111,3 +163,13 @@ internal fun IrSymbol.findCEnumDescriptor(interopBuiltIns: InteropBuiltIns): Cla
         descriptor.parentsWithSelf
                 .filterIsInstance<ClassDescriptor>()
                 .firstOrNull { it.implementsCEnum(interopBuiltIns) }
+
+/**
+ * All structs that come from interop library inherit from CStructVar class.
+ * This function checks that given symbol located in subtree of
+ * CStructVar inheritor.
+ */
+internal fun IrSymbol.findCStructDescriptor(interopBuiltIns: InteropBuiltIns): ClassDescriptor? =
+        descriptor.parentsWithSelf
+                .filterIsInstance<ClassDescriptor>()
+                .firstOrNull { it.inheritsFromCStructVar(interopBuiltIns) }
