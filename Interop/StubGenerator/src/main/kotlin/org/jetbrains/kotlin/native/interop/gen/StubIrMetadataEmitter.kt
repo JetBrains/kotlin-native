@@ -368,6 +368,7 @@ private class MappingExtensions(
             )
             AnnotationStub.CCall.CString -> emptyMap()
             AnnotationStub.CCall.WCString -> emptyMap()
+            AnnotationStub.CCall.InterpretPointed -> emptyMap()
             is AnnotationStub.CCall.Symbol -> mapOfNotNull(
                     ("id" to symbolName).asAnnotationArgument()
             )

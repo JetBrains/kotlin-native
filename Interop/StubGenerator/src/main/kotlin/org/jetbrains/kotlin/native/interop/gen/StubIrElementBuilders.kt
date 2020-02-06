@@ -30,15 +30,28 @@ internal class MacroConstantStubBuilder(
             }
             is FloatingConstantDef -> {
                 val literal = context.tryCreateDoubleStub(constant.type, constant.value) ?: return emptyList()
+                val kind = when (context.generationMode) {
+                    GenerationMode.SOURCE_CODE -> {
+                        PropertyStub.Kind.Val(PropertyAccessor.Getter.SimpleGetter(constant = literal))
+                    }
+                    GenerationMode.METADATA -> {
+                        PropertyStub.Kind.Constant(literal)
+                    }
+                }
                 val kotlinType = context.mirror(constant.type).argType.toStubIrType()
-                val getter = PropertyAccessor.Getter.SimpleGetter(constant = literal)
-                PropertyStub(kotlinName, kotlinType, PropertyStub.Kind.Val(getter), origin = origin)
+                PropertyStub(kotlinName, kotlinType, kind, origin = origin)
             }
             is StringConstantDef -> {
-                val literal = StringConstantStub(constant.value.quoteAsKotlinLiteral())
-                val kotlinType = KotlinTypes.string.toStubIrType()
-                val getter = PropertyAccessor.Getter.SimpleGetter(constant = literal)
-                PropertyStub(kotlinName, kotlinType, PropertyStub.Kind.Val(getter), origin = origin)
+                val literal = StringConstantStub(constant.value)
+                val kind = when (context.generationMode) {
+                    GenerationMode.SOURCE_CODE -> {
+                        PropertyStub.Kind.Val(PropertyAccessor.Getter.SimpleGetter(constant = literal))
+                    }
+                    GenerationMode.METADATA -> {
+                        PropertyStub.Kind.Constant(literal)
+                    }
+                }
+                PropertyStub(kotlinName, KotlinTypes.string.toStubIrType(), kind, origin = origin)
             }
             else -> return emptyList()
         }
@@ -592,9 +605,20 @@ internal class GlobalStubBuilder(
         val kind: PropertyStub.Kind
         if (unwrappedType is ArrayType) {
             kotlinType = (mirror as TypeMirror.ByValue).valueType
-            val getter = PropertyAccessor.Getter.SimpleGetter()
-            val extra = BridgeGenerationInfo(global.name, mirror.info)
-            context.bridgeComponentsBuilder.arrayGetterBridgeInfo[getter] = extra
+            val getter = when (context.platform) {
+                KotlinPlatform.JVM -> {
+                    PropertyAccessor.Getter.SimpleGetter().also {
+                        val extra = BridgeGenerationInfo(global.name, mirror.info)
+                        context.bridgeComponentsBuilder.arrayGetterBridgeInfo[it] = extra
+                    }
+                }
+                KotlinPlatform.NATIVE -> {
+                    val cCallAnnotation = AnnotationStub.CCall.Symbol("${context.generateNextUniqueId("knifunptr_")}_${global.name}_getter")
+                    PropertyAccessor.Getter.ExternalGetter(listOf(cCallAnnotation)).also {
+                        context.wrapperComponentsBuilder.getterToWrapperInfo[it] = WrapperGenerationInfo(global)
+                    }
+                }
+            }
             kind = PropertyStub.Kind.Val(getter)
         } else {
             when (mirror) {
@@ -636,7 +660,17 @@ internal class GlobalStubBuilder(
                 }
                 is TypeMirror.ByRef -> {
                     kotlinType = mirror.pointedType
-                    val getter = PropertyAccessor.Getter.InterpretPointed(global.name, kotlinType.toStubIrType())
+                    val getter = when (context.generationMode) {
+                        GenerationMode.SOURCE_CODE -> {
+                            PropertyAccessor.Getter.InterpretPointed(global.name, kotlinType.toStubIrType())
+                        }
+                        GenerationMode.METADATA -> {
+                            val cCallAnnotation = AnnotationStub.CCall.Symbol("${context.generateNextUniqueId("knifunptr_")}_${global.name}_getter")
+                            PropertyAccessor.Getter.ExternalGetter(listOf(cCallAnnotation, AnnotationStub.CCall.InterpretPointed)).also {
+                                context.wrapperComponentsBuilder.getterToWrapperInfo[it] = WrapperGenerationInfo(global, passViaPointer = true)
+                            }
+                        }
+                    }
                     kind = PropertyStub.Kind.Val(getter)
                 }
             }
