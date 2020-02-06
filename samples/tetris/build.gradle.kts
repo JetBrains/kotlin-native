@@ -85,6 +85,19 @@ kotlin {
                     )
                     presets["linuxArm32Hfp"] -> linkerOpts("-lSDL2")
                 }
+
+                val distTaskName = linkTaskName.replaceFirst("link", "dist")
+                val distTask = tasks.register<Copy>(distTaskName) {
+                    from("src/tetrisMain/resources")
+                    into(linkTask.outputFile.get().parentFile)
+                    exclude("*.rc")
+                    if (!konanTarget.family.isAppleFamily) {
+                        exclude("*.plist")
+                    }
+                    dependsOn(linkTask)
+                }
+                tasks["assemble"].dependsOn(distTask)
+
                 runTask?.workingDir(project.provider {
                     val tetris: KotlinNativeTarget by kotlin.targets
                     tetris.binaries.getExecutable(buildType).outputDirectory
@@ -104,20 +117,5 @@ kotlin {
         }
 
         compilations["main"].enableEndorsedLibs = true
-    }
-}
-
-afterEvaluate {
-    val tetris: KotlinNativeTarget by kotlin.targets
-    val linkTasks = NativeBuildType.values().mapNotNull { tetris.binaries.getExecutable(it).linkTask }
-
-    linkTasks.forEach { linkTask ->
-        linkTask.doLast {
-            copy {
-                from(kotlin.sourceSets["tetrisMain"].resources)
-                into(linkTask.outputFile.get().parentFile)
-                exclude("*.rc")
-            }
-        }
     }
 }
