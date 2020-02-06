@@ -42,11 +42,34 @@ kotlin {
         binaries {
             executable {
                 entryPoint = "sample.tetris.main"
+
+                // Compile Windows Resources
+                if (konanTarget.family == org.jetbrains.kotlin.konan.target.Family.MINGW) {
+                    val taskName = linkTaskName.replaceFirst("link", "windres")
+                    val inFile = File("src/tetrisMain/resources/Tetris.rc")
+                    val outFile = buildDir.resolve("processedResources/$taskName.res")
+                    val windresTask = tasks.register<Exec>(taskName) {
+                        val llvmDir = when (target.konanTarget.architecture.bitness) {
+                            32 -> kotlinNativeDataPath.resolve(
+                                    "dependencies/msys2-mingw-w64-i686-clang-llvm-lld-compiler_rt-8.0.1/bin")
+                            64 -> kotlinNativeDataPath.resolve(
+                                    "dependencies/msys2-mingw-w64-x86_64-clang-llvm-lld-compiler_rt-8.0.1/bin")
+                            else -> throw GradleException("Unsupported bitness")
+                        }.toString()
+                        inputs.file(inFile)
+                        outputs.file(outFile)
+                        commandLine("$llvmDir/windres", inFile, "-O", "coff", "-o", outFile)
+                        environment("PATH", "$llvmDir;${System.getenv("PATH")}")
+                        dependsOn(compilation.compileKotlinTask)
+                    }
+                    linkTask.dependsOn(windresTask)
+                    linkerOpts(outFile.toString())
+                }
+
                 when (preset) {
                     presets["macosX64"] -> linkerOpts("-L/opt/local/lib", "-L/usr/local/lib", "-lSDL2")
                     presets["linuxX64"] -> linkerOpts("-L/usr/lib64", "-L/usr/lib/x86_64-linux-gnu", "-lSDL2")
                     presets["mingwX64"], presets["mingwX86"] -> linkerOpts(
-                        winCompiledResourceFile.toString(),
                         "-L${mingwPath.resolve("lib")}",
                         "-Wl,-Bstatic",
                         "-lstdc++",
@@ -84,37 +107,11 @@ kotlin {
     }
 }
 
-val compileWindowsResources: Exec? = if (isWindows) {
-    val compileWindowsResources: Exec by tasks.creating(Exec::class) {
-        val windresDir = if (isMingwX86Build)
-            kotlinNativeDataPath.resolve("dependencies/msys2-mingw-w64-i686-clang-llvm-lld-compiler_rt-8.0.1/bin")
-        else
-            kotlinNativeDataPath.resolve("dependencies/msys2-mingw-w64-x86_64-clang-llvm-lld-compiler_rt-8.0.1/bin")
-
-        val winResourceFile = kotlin.sourceSets["tetrisMain"].resources.files.first { it.name == "Tetris.rc" }
-        val path = System.getenv("PATH")
-
-        commandLine(
-            windresDir.resolve("windres"),
-            winResourceFile,
-            "-O", "coff",
-            "-o", winCompiledResourceFile
-        )
-        environment("PATH" to "$windresDir;$path")
-
-        inputs.file(winResourceFile)
-        outputs.file(winCompiledResourceFile)
-    }
-
-    compileWindowsResources
-} else null
-
 afterEvaluate {
     val tetris: KotlinNativeTarget by kotlin.targets
     val linkTasks = NativeBuildType.values().mapNotNull { tetris.binaries.getExecutable(it).linkTask }
 
     linkTasks.forEach { linkTask ->
-        if (compileWindowsResources != null) linkTask.dependsOn(compileWindowsResources)
         linkTask.doLast {
             copy {
                 from(kotlin.sourceSets["tetrisMain"].resources)
