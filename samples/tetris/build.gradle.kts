@@ -27,7 +27,18 @@ else
     File(System.getenv("MINGW64_DIR") ?: "C:/msys64/mingw64")
 
 kotlin {
-    createRequestedTarget("tetris").apply {
+    when {
+        isRaspberryPiBuild -> linuxArm32Hfp("tetris") // aka RaspberryPi
+        isMingwX86Build -> mingwX86("tetris")
+        else -> when {
+            hostOs == "Mac OS X" -> macosX64("tetris")
+            hostOs == "Linux" -> linuxX64("tetris")
+            hostOs.startsWith("Windows") -> mingwX64("tetris")
+            else -> throw GradleException("Host OS '$hostOs' is not supported in Kotlin/Native $project.")
+        }
+    }.also {
+        println("$project has been configured for ${it.preset?.name} platform.")
+    }.apply {
         binaries {
             executable {
                 entryPoint = "sample.tetris.main"
@@ -111,20 +122,5 @@ afterEvaluate {
                 exclude("*.rc")
             }
         }
-    }
-}
-
-fun createRequestedTarget(name: String): KotlinNativeTarget = with(kotlin) {
-    return when {
-        isRaspberryPiBuild -> linuxArm32Hfp(name) // aka RaspberryPi
-        isMingwX86Build -> mingwX86(name)
-        else -> when {
-            hostOs == "Mac OS X" -> macosX64(name)
-            hostOs == "Linux" -> linuxX64(name)
-            hostOs.startsWith("Windows") -> mingwX64(name)
-            else -> throw GradleException("Host OS '$hostOs' is not supported in Kotlin/Native $project.")
-        }
-    }.also {
-        println("$project has been configured for ${it.preset?.name} platform.")
     }
 }
