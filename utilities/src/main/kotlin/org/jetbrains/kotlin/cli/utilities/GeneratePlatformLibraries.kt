@@ -174,6 +174,7 @@ private fun generateLibrary(
                 "-compiler-option", "-fmodules-cache-path=${tmpDirectory.child("clangModulesCache").absolutePath}",
                 "-repo", outputDirectory.absolutePath,
                 "-no-default-libs", "-no-endorsed-libs", "-Xpurge-user-libs", "-nopack",
+                "-mode", "metadata",
                 *def.depends.flatMap { listOf("-l", "$outputDirectory/${it.name}") }.toTypedArray()
         )
         logger.verbose("Run cinterop with args: ${cinteropArgs.joinToString(separator = " ")}")
