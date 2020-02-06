@@ -21,6 +21,9 @@ private val serialInfoAnnotationFqName = FqName("kotlinx.serialization.SerialInf
  */
 internal fun IrClass.requiresRtti(): Boolean = when {
     // TODO: Support more cases
+    // Sadly, we still need to emit RTTI for Kotlin inheritors of Obj-C classes.
+    // The reason for it is that we need to know a layout of the object to correctly
+    // deinitialize it.
     this.isExternalObjCClass() -> false
     else -> true
 }
