@@ -446,10 +446,21 @@ internal abstract class ObjCContainerStubBuilder(
 
     protected fun buildClassStub(origin: StubOrigin, companion: ClassStub.Companion? = null): ClassStub {
         val (properties, methods) = buildBody()
+        val objCClass = origin as? StubOrigin.ObjCClass
+        val extensions = objCClass?.let { it.clazz.extensions }
+        val extMethods = mutableListOf<FunctionStub>()
+        val extProperties = mutableListOf<PropertyStub>()
+
+        extensions?.forEach { category ->
+            val extResult = ObjCCategoryStubBuilder(context, category, importToClass = true).build().first() as SimpleStubContainer
+            extMethods.addAll(extResult.functions.filterIsInstance<FunctionStub>())
+            extProperties.addAll(extResult.properties)
+        }
+
         return ClassStub.Simple(
                 classifier,
-                properties = properties,
-                methods = methods.filterIsInstance<FunctionStub>(),
+                properties = properties + extProperties,
+                methods = methods.filterIsInstance<FunctionStub>() + extMethods,
                 constructors = methods.filterIsInstance<ConstructorStub>(),
                 origin = origin,
                 modality = modality,
@@ -521,19 +532,25 @@ class GeneratedObjCCategoriesMembers {
 
 internal class ObjCCategoryStubBuilder(
         override val context: StubsBuildingContext,
-        private val category: ObjCCategory
+        private val category: ObjCCategory,
+        importToClass: Boolean = false
 ) : StubElementBuilder {
+
+    private val container = if (importToClass) category.clazz else category
     private val generatedMembers = context.generatedObjCCategoriesMembers
             .getOrPut(category.clazz, { GeneratedObjCCategoriesMembers() })
 
-    private val methodToBuilder = category.methods.filter { generatedMembers.register(it) }.map {
-        it to ObjCMethodStubBuilder(it, category, isDesignatedInitializer = false, context = context)
+    internal val methods = category.methods.filter { generatedMembers.register(it) }
+    internal val properties = category.properties.filter { generatedMembers.register(it) }
+
+    private val methodToBuilder = methods.map {
+        it to ObjCMethodStubBuilder(it, container, isDesignatedInitializer = false, context = context)
     }.toMap()
 
     private val methodBuilders get() = methodToBuilder.values
 
-    private val propertyBuilders = category.properties.filter { generatedMembers.register(it) }.mapNotNull {
-        createObjCPropertyBuilder(context, it, category, methodToBuilder)
+    private val propertyBuilders = properties.mapNotNull {
+        createObjCPropertyBuilder(context, it, container, methodToBuilder)
     }
 
     override fun build(): List<StubIrElement> {

@@ -214,6 +214,7 @@ data class ObjCProperty(val name: String, val getter: ObjCMethod, val setter: Ob
 abstract class ObjCClass(name: String) : ObjCClassOrProtocol(name) {
     abstract val binaryName: String?
     abstract val baseClass: ObjCClass?
+    val extensions = mutableListOf<ObjCCategory>()
 }
 abstract class ObjCProtocol(name: String) : ObjCClassOrProtocol(name)
 

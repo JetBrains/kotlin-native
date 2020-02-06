@@ -304,9 +304,18 @@ class StubIrBuilder(private val context: StubIrContext) {
     private val buildingContext = StubsBuildingContextImpl(context)
 
     fun build(): StubIrBuilderResult {
+
+        val objCCategories = nativeIndex.objCCategories.filter { it.name.isNotEmpty() }
+                .filter { !it.clazz.isNSStringSubclass() }.toMutableList()
+        nativeIndex.objCClasses.filter { !it.isForwardDeclaration && !it.isNSStringSubclass()}
+                .forEach { clazz ->
+                    clazz.extensions += objCCategories.filter { clazz == it.clazz }
+                    objCCategories.removeAll { clazz == it.clazz }
+                }
+
         nativeIndex.objCProtocols.filter { !it.isForwardDeclaration }.forEach { generateStubsForObjCProtocol(it) }
         nativeIndex.objCClasses.filter { !it.isForwardDeclaration && !it.isNSStringSubclass()} .forEach { generateStubsForObjCClass(it) }
-        nativeIndex.objCCategories.filter { !it.clazz.isNSStringSubclass() }.forEach { generateStubsForObjCCategory(it) }
+        objCCategories.forEach { generateStubsForObjCCategory(it) }
         nativeIndex.structs.forEach { generateStubsForStruct(it) }
         nativeIndex.enums.forEach { generateStubsForEnum(it) }
         nativeIndex.functions.filter { it.name !in excludedFunctions }.forEach { generateStubsForFunction(it) }
