@@ -1,44 +1,33 @@
 import org.jetbrains.kotlin.gradle.plugin.mpp.KotlinNativeTarget
-import org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType
 
 plugins {
     kotlin("multiplatform")
 }
 
-val hostOs = System.getProperty("os.name")
-val isWindows = hostOs.startsWith("Windows")
-
-// If RaspberryPi target is activated.
-val isRaspberryPiBuild =
-    project.findProperty("tetris.raspberrypi.build")?.toString()?.toBoolean() == true
-
-// If host platform is Windows and x86 target is activated.
-val isMingwX86Build =
-    isWindows && project.findProperty("tetris.mingwX86.build")?.toString()?.toBoolean() == true
-
-val winCompiledResourceFile = buildDir.resolve("compiledWindowsResources/Tetris.res")
-
 val kotlinNativeDataPath = System.getenv("KONAN_DATA_DIR")?.let { File(it) }
     ?: File(System.getProperty("user.home")).resolve(".konan")
-
-val mingwPath = if (isMingwX86Build)
-    File(System.getenv("MINGW32_DIR") ?: "C:/msys32/mingw32")
-else
-    File(System.getenv("MINGW64_DIR") ?: "C:/msys64/mingw64")
+val mingw64Path = File(System.getenv("MINGW64_DIR") ?: "C:/msys64/mingw64")
+val mingw32Path = File(System.getenv("MINGW32_DIR") ?: "C:/msys64/mingw32")
 
 kotlin {
-    when {
-        isRaspberryPiBuild -> linuxArm32Hfp("tetris") // aka RaspberryPi
-        isMingwX86Build -> mingwX86("tetris")
-        else -> when {
-            hostOs == "Mac OS X" -> macosX64("tetris")
-            hostOs == "Linux" -> linuxX64("tetris")
-            hostOs.startsWith("Windows") -> mingwX64("tetris")
-            else -> throw GradleException("Host OS '$hostOs' is not supported in Kotlin/Native $project.")
+    val hostOs = System.getProperty("os.name")
+    if (hostOs == "Mac OS X") {
+        macosX64()
+    }
+    if (hostOs == "Linux") {
+        linuxX64()
+    }
+    if (hostOs.startsWith("Windows")) {
+        mingwX64()
+        mingwX86()
+    }
+    linuxArm32Hfp()
+
+    targets.withType<KotlinNativeTarget> {
+        sourceSets["${targetName}Main"].apply {
+            kotlin.srcDir("src/tetrisMain/kotlin")
         }
-    }.also {
-        println("$project has been configured for ${it.preset?.name} platform.")
-    }.apply {
+
         binaries {
             executable {
                 entryPoint = "sample.tetris.main"
@@ -69,8 +58,22 @@ kotlin {
                 when (preset) {
                     presets["macosX64"] -> linkerOpts("-L/opt/local/lib", "-L/usr/local/lib", "-lSDL2")
                     presets["linuxX64"] -> linkerOpts("-L/usr/lib64", "-L/usr/lib/x86_64-linux-gnu", "-lSDL2")
-                    presets["mingwX64"], presets["mingwX86"] -> linkerOpts(
-                        "-L${mingwPath.resolve("lib")}",
+                    presets["mingwX64"] -> linkerOpts(
+                        "-L${mingw64Path.resolve("lib")}",
+                        "-Wl,-Bstatic",
+                        "-lstdc++",
+                        "-static",
+                        "-lSDL2",
+                        "-limm32",
+                        "-lole32",
+                        "-loleaut32",
+                        "-lversion",
+                        "-lwinmm",
+                        "-lsetupapi",
+                        "-mwindows"
+                    )
+                    presets["mingwX86"] -> linkerOpts(
+                        "-L${mingw32Path.resolve("lib")}",
                         "-Wl,-Bstatic",
                         "-lstdc++",
                         "-static",
@@ -98,19 +101,17 @@ kotlin {
                 }
                 tasks["assemble"].dependsOn(distTask)
 
-                runTask?.workingDir(project.provider {
-                    val tetris: KotlinNativeTarget by kotlin.targets
-                    tetris.binaries.getExecutable(buildType).outputDirectory
-                })
+                runTask?.workingDir(project.provider { outputDirectory })
             }
         }
-        
+
         compilations["main"].cinterops {
             val sdl by creating {
                 when (preset) {
                     presets["macosX64"] -> includeDirs("/opt/local/include/SDL2", "/usr/local/include/SDL2")
                     presets["linuxX64"] -> includeDirs("/usr/include/SDL2")
-                    presets["mingwX64"], presets["mingwX86"] -> includeDirs(mingwPath.resolve("include/SDL2"))
+                    presets["mingwX64"] -> includeDirs(mingw64Path.resolve("include/SDL2"))
+                    presets["mingwX86"] -> includeDirs(mingw32Path.resolve("include/SDL2"))
                     presets["linuxArm32Hfp"] -> includeDirs(kotlinNativeDataPath.resolve("dependencies/target-sysroot-2-raspberrypi/usr/include/SDL2"))
                 }
             }
