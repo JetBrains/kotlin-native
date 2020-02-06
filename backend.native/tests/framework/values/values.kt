@@ -255,13 +255,13 @@ fun multiply(int: Int, long: Long) = int * long
 class MyException : Exception()
 
 open class BridgeBase {
-    @Throws
+    @Throws(MyException::class)
     open fun foo1(): Any = Any()
-    @Throws
+    @Throws(MyException::class)
     open fun foo2(): Int = 42
-    @Throws
+    @Throws(MyException::class)
     open fun foo3(): Unit = Unit
-    @Throws
+    @Throws(MyException::class)
     open fun foo4(): Nothing? = throw IllegalStateException()
 }
 
@@ -271,6 +271,9 @@ class Bridge : BridgeBase() {
     override fun foo3() = throw MyException()
     override fun foo4() = throw MyException()
 }
+
+@Throws(NullPointerException::class)
+fun callFoo1(bridge: BridgeBase) = bridge.foo1()
 
 fun Any.same() = this
 
