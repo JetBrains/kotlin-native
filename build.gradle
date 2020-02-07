@@ -397,7 +397,7 @@ task listDist(type: Exec) {
 }
 
 task distRuntime(type: Copy) {
-    dependsOn "${hostName}CrossDistRuntime"
+    dependsOn "${hostName}CrossDistRuntimeAndCache"
     dependsOn('commonDistRuntime')
 }
 
@@ -422,6 +422,11 @@ task commonDistRuntime(type: Copy) {
 
 task crossDistRuntime(type: Copy) {
     dependsOn.addAll(targetList.collect { "${it}CrossDistRuntime" })
+    dependsOn('commonDistRuntime')
+}
+
+task crossDistRuntimeAndCache(type: Copy) {
+    dependsOn.addAll(targetList.collect { "${it}CrossDistRuntimeAndCache" })
     dependsOn('commonDistRuntime')
 }
 
@@ -469,8 +474,15 @@ targetList.each { target ->
         }
     }
 
+    task("${target}CrossDistRuntimeAndCache", type: Copy) {
+        dependsOn "${target}CrossDistRuntime"
+        if (target in cacheableTargetNames) {
+            dependsOn ":platformLibs:${target}StdlibCache"
+        }
+    }
+
     task("${target}CrossDist") {
-        dependsOn "${target}CrossDistRuntime", 'distCompiler', 'commonDistRuntime', "${target}CrossDistEndorsedLibraries"
+        dependsOn "${target}CrossDistRuntimeAndCache", 'distCompiler', 'commonDistRuntime', "${target}CrossDistEndorsedLibraries"
     }
 
     task("${target}CrossDistEndorsedLibraries", type: Copy) {
@@ -494,7 +506,7 @@ task dist {
 }
 
 task crossDist {
-    dependsOn 'crossDistRuntime', 'distCompiler', 'crossDistEndorsedLibraries'
+    dependsOn 'crossDistRuntimeAndCache', 'distCompiler', 'crossDistEndorsedLibraries'
 }
 
 task bundle(type: (isWindows()) ? Zip : Tar) {
