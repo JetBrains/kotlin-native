@@ -52,6 +52,8 @@ private class InteropCallContext(
     fun IrType.isCPointer(): Boolean = this.classOrNull == symbols.interopCPointer
 
     fun IrType.isNativePointed(): Boolean = isSubtypeOfClass(symbols.nativePointed)
+
+    fun IrType.isPrimitiveOrUnsigned(): Boolean = isPrimitiveType() || isUnsigned()
 }
 
 private inline fun <T> generateInteropCall(
@@ -268,7 +270,7 @@ private fun InteropCallContext.generateMemberAtAccess(callSite: IrCall): IrExpre
             val type = accessor.returnType
             when {
                 type.isCEnumType() -> readEnumValueFromMemory(fieldPointer, type)
-                type.isPrimitiveType() -> readPrimitiveFromMemory(fieldPointer, type)
+                type.isPrimitiveOrUnsigned() -> readPrimitiveFromMemory(fieldPointer, type)
                 type.isCPointer() -> readPointerFromMemory(fieldPointer)
                 type.isNativePointed() -> readPointed(fieldPointer)
                 else -> error("Cannot get field type: ${type.getClass()?.name}")
@@ -279,7 +281,7 @@ private fun InteropCallContext.generateMemberAtAccess(callSite: IrCall): IrExpre
             val type = accessor.valueParameters[0].type
             when {
                 type.isCEnumType() -> writeEnumValueToMemory(fieldPointer, value)
-                type.isPrimitiveType() -> writePrimitiveToMemory(fieldPointer, value)
+                type.isPrimitiveOrUnsigned() -> writePrimitiveToMemory(fieldPointer, value)
                 type.isCPointer() -> writePointerToMemory(fieldPointer, value)
                 else -> error("Cannot set field of type ${type.getClass()?.name}")
             }
