@@ -19,6 +19,7 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.*
 import org.jetbrains.kotlin.util.OperatorNameConventions
+import kotlin.random.Random
 
 internal val contextLLVMSetupPhase = makeKonanModuleOpPhase(
         name = "ContextLLVMSetup",
@@ -33,6 +34,16 @@ internal val contextLLVMSetupPhase = makeKonanModuleOpPhase(
             val llvmModule = LLVMModuleCreateWithNameInContext("out", llvmContext)!!
             context.llvmModule = llvmModule
             context.debugInfo.builder = LLVMCreateDIBuilder(llvmModule)
+            context.debugInfo.compilationUnit = if (context.shouldContainLocationDebugInfo()) DICreateCompilationUnit(
+                    builder = context.debugInfo.builder,
+                    lang = DWARF.language(context.config),
+                    File = "kotlin-file-${Random.nextLong()}",
+                    dir = "-",
+                    producer = DWARF.producer,
+                    isOptimized = 0,
+                    flags = "",
+                    rv = DWARF.runtimeVersion(context.config)) as DIScopeOpaqueRef?
+            else null
         }
 )
 
