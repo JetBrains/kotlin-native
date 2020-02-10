@@ -211,8 +211,11 @@ private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = 
 
     val outKtPkg = fqParts.joinToString(".")
 
-    val mode = parseGenerationMode(cinteropArguments.mode)
-            ?: error ("Unexpected interop generation mode: ${cinteropArguments.mode}")
+    val mode = when (flavor) {
+        KotlinPlatform.NATIVE -> parseGenerationMode(cinteropArguments.mode)
+                ?: error ("Unexpected interop generation mode: ${cinteropArguments.mode}")
+        KotlinPlatform.JVM -> GenerationMode.SOURCE_CODE
+    }
 
     val allLibraryDependencies = when (flavor) {
         KotlinPlatform.NATIVE -> resolveDependencies(cinteropArguments, tool.target)
