@@ -123,7 +123,7 @@ internal interface DescriptorToIrTranslationMixin {
         val irFunction = symbolTable.declareSimpleFunctionWithOverrides(SYNTHETIC_OFFSET, SYNTHETIC_OFFSET, origin, functionDescriptor)
         symbolTable.withScope(functionDescriptor) {
             irFunction.returnType = functionDescriptor.returnType!!.toIrType()
-            irFunction.valueParameters +=  functionDescriptor.valueParameters.map{
+            irFunction.valueParameters +=  functionDescriptor.valueParameters.map {
                 symbolTable.declareValueParameter(SYNTHETIC_OFFSET, SYNTHETIC_OFFSET, IrDeclarationOrigin.DEFINED, it, it.type.toIrType())
             }
             irFunction.dispatchReceiverParameter = functionDescriptor.dispatchReceiverParameter?.let {
