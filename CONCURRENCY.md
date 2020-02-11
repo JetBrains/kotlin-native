@@ -186,14 +186,15 @@ the following mechanisms to prevent the unintended sharing of state via global o
 `AtomicInt`, `AtomicLong`, `AtomicNativePtr`, `AtomicReference` and `FreezableAtomicReference` in the package
 `kotlin.native.concurrent`.
 Atomic primitives allows concurrency-safe update operations, such as increment, decrement and compare-and-swap,
-along with value setters and getters. Atomic primitives are considered always frozen by the runtime, and their fields cannot
-be updated with the regular field mutation, but the value can be changed using dedicated operations, so it is possible
-to perform concurrent-safe global counters and similar data structures.
+along with value setters and getters. Atomic primitives are considered always frozen by the runtime, and
+while their fields can be updated with the regular `field.value += 1`, it is not concurrency safe.
+Value must be be changed using dedicated operations, so it is possible to perform concurrent-safe
+global counters and similar data structures.
 
-  Some algorithms require shared mutable references across the multiple workers, for example global mutable configuration
-could be implemented as an immutable instance of properties list atomically replaced with the new version on
-configuration update. This way no concurrency issues may appear and at the same time configuration could be
-updated as needed.
+  Some algorithms require shared mutable references across the multiple workers, for example global mutable
+configuration could be implemented as an immutable instance of properties list atomically replaced with the
+new version on configuration update as the whole in a single transaction. This way no inconsistent configuration
+could be seen, and at the same time configuration could be updated as needed.
 To achieve such functionality Kotlin/Native runtime provides two related classes:
 `kotlin.native.concurrent.AtomicReference` and `kotlin.native.concurrent.FreezableAtomicReference`.
 Atomic reference holds reference to a frozen or immutable object, and its value could be updated by set
