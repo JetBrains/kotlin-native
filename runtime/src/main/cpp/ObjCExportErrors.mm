@@ -52,7 +52,7 @@ extern "C" RUNTIME_NORETURN void Kotlin_ObjCExport_trapOnUndeclaredException(KRe
 
 static char kotlinExceptionOriginChar;
 
-extern "C" void Kotlin_ObjCExport_RethrowExceptionAsNSError(KRef exception, id* outError) {
+extern "C" NO_INLINE void Kotlin_ObjCExport_RethrowExceptionAsNSError(KRef exception, id* outError) {
   if (Kotlin_ObjCExport_isUnchecked(exception)) {
     printlnMessage(uncheckedExceptionMessage);
     TerminateWithUnhandledException(exception);
