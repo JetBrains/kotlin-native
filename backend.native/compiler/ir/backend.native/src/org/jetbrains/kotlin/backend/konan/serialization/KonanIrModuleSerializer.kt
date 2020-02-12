@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.ir.util.UniqId
+import org.jetbrains.kotlin.ir.util.isAccessor
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
 
 private class KonanDeclarationTable(
@@ -26,13 +27,17 @@ private class KonanDeclarationTable(
             if (shouldExtractInteropUniqId(declaration)) extractUniqId(declaration) else null
 
     private fun extractUniqId(declaration: IrDeclaration): UniqId {
-        val index = declaration.descriptor.propertyIfAccessor.getUniqId()
+        val index = declaration.descriptor.getUniqId()
                 ?: error("No uniq id found for ${declaration.descriptor}")
         return UniqId(index)
     }
 
     private fun shouldExtractInteropUniqId(declaration: IrDeclaration): Boolean =
-            declaration.descriptor.module.isFromInteropLibrary() && !declaration.isLocalDeclaration()
+            declaration.descriptor.module.isFromInteropLibrary()
+                    && !declaration.isLocalDeclaration()
+                    // Delegate UniqId computation to default mangler since
+                    // accessors presented only in IR.
+                    && !declaration.isAccessor
 
     // Shameless copy-paste from `DeclarationTable`.
     private fun IrDeclaration.isLocalDeclaration(): Boolean {

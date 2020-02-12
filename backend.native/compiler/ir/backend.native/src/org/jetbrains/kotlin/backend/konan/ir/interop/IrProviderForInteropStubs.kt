@@ -7,11 +7,13 @@ package org.jetbrains.kotlin.backend.konan.ir.interop
 import org.jetbrains.kotlin.backend.konan.descriptors.isFromInteropLibrary
 import org.jetbrains.kotlin.descriptors.CallableMemberDescriptor
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
+import org.jetbrains.kotlin.descriptors.PropertyAccessorDescriptor
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
-import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.lazy.*
 import org.jetbrains.kotlin.ir.symbols.*
-import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.ir.util.DeclarationStubGenerator
+import org.jetbrains.kotlin.ir.util.LazyIrProvider
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
 
 /**
@@ -48,14 +50,21 @@ class IrProviderForInteropStubs(
     }
 
     private fun provideIrFunction(symbol: IrSimpleFunctionSymbol): IrLazyFunction {
-        val origin = computeOrigin(symbol.descriptor)
+        val descriptor = symbol.descriptor
+        val origin = computeOrigin(descriptor)
         return declarationStubGenerator.symbolTable.declareSimpleFunction(
-                UNDEFINED_OFFSET, UNDEFINED_OFFSET, origin, symbol.descriptor
+                UNDEFINED_OFFSET, UNDEFINED_OFFSET, origin, descriptor
         ) {
+            // TODO: Consider delegation to declarationStubGenerator
             IrLazyFunction(
                     UNDEFINED_OFFSET, UNDEFINED_OFFSET, origin, it,
                     declarationStubGenerator, declarationStubGenerator.typeTranslator
-            )
+            ).also {
+                if (descriptor is PropertyAccessorDescriptor) {
+                    val propertySymbol = declarationStubGenerator.symbolTable.referenceProperty(descriptor.correspondingProperty)
+                    it.correspondingPropertySymbol = propertySymbol
+                }
+            }
         } as IrLazyFunction
     }
 
