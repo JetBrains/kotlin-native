@@ -20,17 +20,19 @@ private class KonanDeclarationTable(
 
     /**
      * It is incorrect to compute UniqId for declarations from metadata-based libraries.
-     * Instead we should get precomputed value from metadata.
+     * Instead, we should get precomputed value from metadata.
      */
-    override fun tryComputeBackendSpecificUniqId(declaration: IrDeclaration): UniqId? {
-        return if (declaration.descriptor.module.isFromInteropLibrary() && !declaration.isLocalDeclaration()) {
-            // Property accessor doesn't provide UniqId, so we need to get it from the property itself.
-            UniqId(declaration.descriptor.propertyIfAccessor.getUniqId()
-                    ?: error("No uniq id found for ${declaration.descriptor}"))
-        } else {
-            null
-        }
+    override fun tryComputeBackendSpecificUniqId(declaration: IrDeclaration): UniqId? =
+            if (shouldExtractInteropUniqId(declaration)) extractUniqId(declaration) else null
+
+    private fun extractUniqId(declaration: IrDeclaration): UniqId {
+        val index = declaration.descriptor.propertyIfAccessor.getUniqId()
+                ?: error("No uniq id found for ${declaration.descriptor}")
+        return UniqId(index)
     }
+
+    private fun shouldExtractInteropUniqId(declaration: IrDeclaration): Boolean =
+            declaration.descriptor.module.isFromInteropLibrary() && !declaration.isLocalDeclaration()
 
     // Shameless copy-paste from `DeclarationTable`.
     private fun IrDeclaration.isLocalDeclaration(): Boolean {
@@ -50,8 +52,11 @@ class KonanIrModuleSerializer(
     val skipExpects: Boolean
 ) : IrModuleSerializer<KonanIrFileSerializer>(logger) {
 
-
     private val globalDeclarationTable = KonanGlobalDeclarationTable(irBuiltIns)
+
+    // We skip files that contain generated IR from interop libraries.
+    override fun backendSpecificFileFilter(file: IrFile): Boolean =
+        !file.packageFragmentDescriptor.module.isFromInteropLibrary()
 
     override fun createSerializerForFile(file: IrFile): KonanIrFileSerializer =
             KonanIrFileSerializer(logger, KonanDeclarationTable(descriptorTable, globalDeclarationTable, 0), expectDescriptorToSymbol, skipExpects = skipExpects)

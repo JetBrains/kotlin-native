@@ -83,7 +83,7 @@ project.rootProject.ext.platformManager.enabled.each { target ->
                 libraries {
                     klibs df.config.depends
                 }
-                extraOpts '-Xpurge-user-libs'
+                extraOpts '-Xpurge-user-libs', '-mode', 'metadata'
                 compilerOpts "-fmodules-cache-path=${project.buildDir}/clangModulesCache"
             }
         }
