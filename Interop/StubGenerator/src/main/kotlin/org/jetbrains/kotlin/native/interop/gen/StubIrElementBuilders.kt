@@ -30,15 +30,28 @@ internal class MacroConstantStubBuilder(
             }
             is FloatingConstantDef -> {
                 val literal = context.tryCreateDoubleStub(constant.type, constant.value) ?: return emptyList()
+                val kind = when (context.generationMode) {
+                    GenerationMode.SOURCE_CODE -> {
+                        PropertyStub.Kind.Val(PropertyAccessor.Getter.SimpleGetter(constant = literal))
+                    }
+                    GenerationMode.METADATA -> {
+                        PropertyStub.Kind.Constant(literal)
+                    }
+                }
                 val kotlinType = context.mirror(constant.type).argType.toStubIrType()
-                val getter = PropertyAccessor.Getter.SimpleGetter(constant = literal)
-                PropertyStub(kotlinName, kotlinType, PropertyStub.Kind.Val(getter), origin = origin)
+                PropertyStub(kotlinName, kotlinType, kind, origin = origin)
             }
             is StringConstantDef -> {
-                val literal = StringConstantStub(constant.value.quoteAsKotlinLiteral())
-                val kotlinType = KotlinTypes.string.toStubIrType()
-                val getter = PropertyAccessor.Getter.SimpleGetter(constant = literal)
-                PropertyStub(kotlinName, kotlinType, PropertyStub.Kind.Val(getter), origin = origin)
+                val literal = StringConstantStub(constant.value)
+                val kind = when (context.generationMode) {
+                    GenerationMode.SOURCE_CODE -> {
+                        PropertyStub.Kind.Val(PropertyAccessor.Getter.SimpleGetter(constant = literal))
+                    }
+                    GenerationMode.METADATA -> {
+                        PropertyStub.Kind.Constant(literal)
+                    }
+                }
+                PropertyStub(kotlinName, KotlinTypes.string.toStubIrType(), kind, origin = origin)
             }
             else -> return emptyList()
         }
@@ -84,20 +97,37 @@ internal class StructStubBuilder(
                     } else {
                         emptyList()
                     }
-                    val kind = PropertyStub.Kind.Val(PropertyAccessor.Getter.ArrayMemberAt(offset))
+                    val getter = when (context.generationMode) {
+                        GenerationMode.SOURCE_CODE -> PropertyAccessor.Getter.ArrayMemberAt(offset)
+                        GenerationMode.METADATA -> PropertyAccessor.Getter.ExternalGetter(listOf(AnnotationStub.CStruct.ArrayMemberAt(offset)))
+                    }
+                    val kind = PropertyStub.Kind.Val(getter)
                     // TODO: Should receiver be added?
                     PropertyStub(field.name, type.toStubIrType(), kind, annotations = annotations, origin = origin)
                 } else {
                     val pointedType = fieldRefType.pointedType.toStubIrType()
                     val pointedTypeArgument = TypeArgumentStub(pointedType)
                     if (fieldRefType is TypeMirror.ByValue) {
-                        val kind = PropertyStub.Kind.Var(
-                                PropertyAccessor.Getter.MemberAt(offset, typeArguments = listOf(pointedTypeArgument), hasValueAccessor = true),
-                                PropertyAccessor.Setter.MemberAt(offset, typeArguments = listOf(pointedTypeArgument))
-                        )
+                        val getter: PropertyAccessor.Getter
+                        val setter: PropertyAccessor.Setter
+                        when (context.generationMode) {
+                            GenerationMode.SOURCE_CODE -> {
+                                getter = PropertyAccessor.Getter.MemberAt(offset, typeArguments = listOf(pointedTypeArgument), hasValueAccessor = true)
+                                setter = PropertyAccessor.Setter.MemberAt(offset, typeArguments = listOf(pointedTypeArgument))
+                            }
+                            GenerationMode.METADATA -> {
+                                getter = PropertyAccessor.Getter.ExternalGetter(listOf(AnnotationStub.CStruct.MemberAt(offset)))
+                                setter = PropertyAccessor.Setter.ExternalSetter(listOf(AnnotationStub.CStruct.MemberAt(offset)))
+                            }
+                        }
+                        val kind = PropertyStub.Kind.Var(getter, setter)
                         PropertyStub(field.name, fieldRefType.argType.toStubIrType(), kind, origin = origin)
                     } else {
-                        val kind = PropertyStub.Kind.Val(PropertyAccessor.Getter.MemberAt(offset, hasValueAccessor = false))
+                        val accessor = when (context.generationMode) {
+                            GenerationMode.SOURCE_CODE -> PropertyAccessor.Getter.MemberAt(offset, hasValueAccessor = false)
+                            GenerationMode.METADATA -> PropertyAccessor.Getter.ExternalGetter(listOf(AnnotationStub.CStruct.MemberAt(offset)))
+                        }
+                        val kind = PropertyStub.Kind.Val(accessor)
                         PropertyStub(field.name, pointedType, kind, origin = origin)
                     }
                 }
@@ -111,11 +141,20 @@ internal class StructStubBuilder(
             val typeInfo = typeMirror.info
             val kotlinType = typeMirror.argType
             val signed = field.type.isIntegerTypeSigned()
-            val readBits = PropertyAccessor.Getter.ReadBits(field.offset, field.size, signed)
-            val writeBits = PropertyAccessor.Setter.WriteBits(field.offset, field.size)
-            context.bridgeComponentsBuilder.getterToBridgeInfo[readBits] = BridgeGenerationInfo("", typeInfo)
-            context.bridgeComponentsBuilder.setterToBridgeInfo[writeBits] = BridgeGenerationInfo("", typeInfo)
-            val kind = PropertyStub.Kind.Var(readBits, writeBits)
+            val kind = when (context.generationMode) {
+                GenerationMode.SOURCE_CODE -> {
+                    val readBits = PropertyAccessor.Getter.ReadBits(field.offset, field.size, signed)
+                    val writeBits = PropertyAccessor.Setter.WriteBits(field.offset, field.size)
+                    context.bridgeComponentsBuilder.getterToBridgeInfo[readBits] = BridgeGenerationInfo("", typeInfo)
+                    context.bridgeComponentsBuilder.setterToBridgeInfo[writeBits] = BridgeGenerationInfo("", typeInfo)
+                    PropertyStub.Kind.Var(readBits, writeBits)
+                }
+                GenerationMode.METADATA -> {
+                    val readBits = PropertyAccessor.Getter.ExternalGetter(listOf(AnnotationStub.CStruct.BitField(field.offset, field.size)))
+                    val writeBits = PropertyAccessor.Setter.ExternalSetter(listOf(AnnotationStub.CStruct.BitField(field.offset, field.size)))
+                    PropertyStub.Kind.Var(readBits, writeBits)
+                }
+            }
             PropertyStub(field.name, kotlinType.toStubIrType(), kind, origin = StubOrigin.StructMember(field))
         }
 
@@ -135,7 +174,10 @@ internal class StructStubBuilder(
         val typeSize = listOf(IntegralConstantStub(def.size, 4, true), IntegralConstantStub(def.align.toLong(), 4, true))
         val companionSuperInit = SuperClassInit(companionSuper, typeSize)
         val companionClassifier = classifier.nested("Companion")
-        val companion = ClassStub.Companion(companionClassifier, emptyList(), companionSuperInit)
+        val annotation = AnnotationStub.CStruct.VarType(def.size, def.align).takeIf {
+            context.generationMode == GenerationMode.METADATA
+        }
+        val companion = ClassStub.Companion(companionClassifier,  superClassInit = companionSuperInit, annotations = listOfNotNull(annotation))
 
         return listOf(ClassStub.Simple(
                 classifier,
@@ -412,8 +454,10 @@ internal class EnumStubBuilder(
 
 internal class FunctionStubBuilder(
         override val context: StubsBuildingContext,
-        private val func: FunctionDecl
+        private val func: FunctionDecl,
+        private val skipOverloads: Boolean = false
 ) : StubElementBuilder {
+
     override fun build(): List<StubIrElement> {
         val platform = context.platform
         val parameters = mutableListOf<FunctionParameterStub>()
@@ -466,6 +510,8 @@ internal class FunctionStubBuilder(
             context.mirror(func.returnType).argType
         }.toStubIrType()
 
+        if (skipOverloads && context.isOverloading(func))
+            return emptyList()
 
         val annotations: List<AnnotationStub>
         val mustBeExternal: Boolean
@@ -563,9 +609,20 @@ internal class GlobalStubBuilder(
         val kind: PropertyStub.Kind
         if (unwrappedType is ArrayType) {
             kotlinType = (mirror as TypeMirror.ByValue).valueType
-            val getter = PropertyAccessor.Getter.SimpleGetter()
-            val extra = BridgeGenerationInfo(global.name, mirror.info)
-            context.bridgeComponentsBuilder.arrayGetterBridgeInfo[getter] = extra
+            val getter = when (context.platform) {
+                KotlinPlatform.JVM -> {
+                    PropertyAccessor.Getter.SimpleGetter().also {
+                        val extra = BridgeGenerationInfo(global.name, mirror.info)
+                        context.bridgeComponentsBuilder.arrayGetterBridgeInfo[it] = extra
+                    }
+                }
+                KotlinPlatform.NATIVE -> {
+                    val cCallAnnotation = AnnotationStub.CCall.Symbol("${context.generateNextUniqueId("knifunptr_")}_${global.name}_getter")
+                    PropertyAccessor.Getter.ExternalGetter(listOf(cCallAnnotation)).also {
+                        context.wrapperComponentsBuilder.getterToWrapperInfo[it] = WrapperGenerationInfo(global)
+                    }
+                }
+            }
             kind = PropertyStub.Kind.Val(getter)
         } else {
             when (mirror) {
@@ -607,7 +664,17 @@ internal class GlobalStubBuilder(
                 }
                 is TypeMirror.ByRef -> {
                     kotlinType = mirror.pointedType
-                    val getter = PropertyAccessor.Getter.InterpretPointed(global.name, kotlinType.toStubIrType())
+                    val getter = when (context.generationMode) {
+                        GenerationMode.SOURCE_CODE -> {
+                            PropertyAccessor.Getter.InterpretPointed(global.name, kotlinType.toStubIrType())
+                        }
+                        GenerationMode.METADATA -> {
+                            val cCallAnnotation = AnnotationStub.CCall.Symbol("${context.generateNextUniqueId("knifunptr_")}_${global.name}_getter")
+                            PropertyAccessor.Getter.ExternalGetter(listOf(cCallAnnotation)).also {
+                                context.wrapperComponentsBuilder.getterToWrapperInfo[it] = WrapperGenerationInfo(global, passViaPointer = true)
+                            }
+                        }
+                    }
                     kind = PropertyStub.Kind.Val(getter)
                 }
             }

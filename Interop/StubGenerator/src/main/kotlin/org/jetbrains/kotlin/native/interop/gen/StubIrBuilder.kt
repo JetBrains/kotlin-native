@@ -66,7 +66,7 @@ class BridgeGenerationComponentsBuilder {
 /**
  * Components that are not passed via StubIr but required for generation of wrappers.
  */
-class WrapperGenerationInfo(val global: GlobalDecl)
+class WrapperGenerationInfo(val global: GlobalDecl, val passViaPointer: Boolean = false)
 
 interface WrapperGenerationComponents {
     val getterToWrapperInfo: Map<PropertyAccessor.Getter.ExternalGetter, WrapperGenerationInfo>
@@ -123,6 +123,8 @@ interface StubsBuildingContext {
     fun getKotlinClassFor(objCClassOrProtocol: ObjCClassOrProtocol, isMeta: Boolean = false): Classifier
 
     fun getKotlinClassForPointed(structDecl: StructDecl): Classifier
+
+    fun isOverloading(func: FunctionDecl): Boolean
 }
 
 /**
@@ -145,6 +147,9 @@ class StubsBuildingContextImpl(
     private val nativeIndex: NativeIndex = stubIrContext.nativeIndex
 
     private var theCounter = 0
+
+    private val uniqFunctions = mutableSetOf<String>()
+    override fun isOverloading(func: FunctionDecl) = !uniqFunctions.add(func.name) // TODO: params & return type.
 
     override fun generateNextUniqueId(prefix: String) =
             prefix + pkgName.replace('.', '_') + theCounter++
@@ -358,7 +363,7 @@ class StubIrBuilder(private val context: StubIrContext) {
 
     private fun generateStubsForFunction(func: FunctionDecl) {
         try {
-            addStubs(FunctionStubBuilder(buildingContext, func).build())
+            addStubs(FunctionStubBuilder(buildingContext, func, skipOverloads = true).build())
         } catch (e: Throwable) {
             context.log("Warning: cannot generate stubs for function ${func.name}")
         }

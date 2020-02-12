@@ -86,7 +86,23 @@ internal object Devirtualization {
                 moduleDFG.symbolTable.functionMap.values.filter { it.explicitlyExported } +
                 externalModulesDFG.functionDFGs.keys.filter { it.explicitlyExported }
 
-        return (exportedFunctions + globalInitializers + explicitlyExportedFunctions).distinct()
+        // Conservatively assume each associated object could be instantiated.
+        val associatedObjects = mutableListOf<DataFlowIR.FunctionSymbol>()
+        context.irModule!!.acceptChildrenVoid(object: IrElementVisitorVoid {
+            override fun visitElement(element: IrElement) {
+                element.acceptChildrenVoid(this)
+            }
+
+            override fun visitClass(declaration: IrClass) {
+                context.getLayoutBuilder(declaration).associatedObjects.values.forEach {
+                    assert (it.kind == ClassKind.OBJECT) { "An object expected but was ${it.dump()}" }
+                    associatedObjects += moduleDFG.symbolTable.mapFunction(it.constructors.single())
+                }
+                super.visitClass(declaration)
+            }
+        })
+
+        return (exportedFunctions + globalInitializers + explicitlyExportedFunctions + associatedObjects).distinct()
     }
 
     fun BitSet.format(allTypes: List<DataFlowIR.Type.Declared>): String {
@@ -177,7 +193,7 @@ internal object Devirtualization {
                     symbolTable.mapClassReferenceType(context.irBuiltIns.anyClass.owner), 1, "Array\$Item")
             val functions = mutableMapOf<DataFlowIR.FunctionSymbol, Function>()
             val concreteClasses = mutableMapOf<DataFlowIR.Type.Declared, Node>()
-            val externalFunctions = mutableMapOf<DataFlowIR.FunctionSymbol, Node>()
+            val externalFunctions = mutableMapOf<Pair<DataFlowIR.FunctionSymbol, DataFlowIR.Type>, Node>()
             val fields = mutableMapOf<DataFlowIR.Field, Node>() // Do not distinguish receivers.
             val virtualCallSiteReceivers = mutableMapOf<DataFlowIR.Node.VirtualCall, VirtualCallSiteReceivers>()
 
@@ -1003,7 +1019,7 @@ internal object Devirtualization {
                     val resolvedCallee = callee.resolved()
                     val calleeConstraintGraph = createFunctionConstraintGraph(resolvedCallee, false)
                     return if (calleeConstraintGraph == null) {
-                        constraintGraph.externalFunctions.getOrPut(resolvedCallee) {
+                        constraintGraph.externalFunctions.getOrPut(resolvedCallee to returnType) {
                             val fictitiousReturnNode = ordinaryNode { "External$resolvedCallee" }
                             if (returnType.isFinal)
                                 concreteClass(returnType).addEdge(fictitiousReturnNode)

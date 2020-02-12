@@ -602,7 +602,7 @@ private fun IrType.isUShort() = this.isUnsigned(UnsignedType.USHORT)
 private fun IrType.isUInt() = this.isUnsigned(UnsignedType.UINT)
 private fun IrType.isULong() = this.isUnsigned(UnsignedType.ULONG)
 
-private fun IrType.isCEnumType(): Boolean {
+internal fun IrType.isCEnumType(): Boolean {
     val simpleType = this as? IrSimpleType ?: return false
     if (simpleType.hasQuestionMark) return false
     val enumClass = simpleType.classifier.owner as? IrClass ?: return false
@@ -615,6 +615,8 @@ private fun IrType.isCEnumType(): Boolean {
 // Make sure external stubs always get proper annotaions.
 private fun IrDeclaration.hasCCallAnnotation(name: String): Boolean =
         this.annotations.hasAnnotation(cCall.child(Name.identifier(name)))
+                // LazyIr doesn't pass annotations from descriptor to IrValueParameter.
+                || this.descriptor.annotations.hasAnnotation(cCall.child(Name.identifier(name)))
 
 
 private fun IrValueParameter.isWCStringParameter() = hasCCallAnnotation("WCString")
@@ -816,6 +818,10 @@ private fun KotlinStubs.mapType(
 
         StructValuePassing(kotlinClass, getNamedCStructType(kotlinClass)
                 ?: reportUnsupportedType("not a structure or too complex"))
+    }
+
+    type.classOrNull?.isSubtypeOfClass(symbols.nativePointed) == true -> {
+        TrivialValuePassing(type, CTypes.voidPtr)
     }
 
     type.isFunction() -> if (variadic){
