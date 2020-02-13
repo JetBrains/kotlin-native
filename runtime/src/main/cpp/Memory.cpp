@@ -1747,12 +1747,17 @@ MemoryState* initMemory() {
   return memoryState;
 }
 
+int pendingDeinit = 0;
+
 void deinitMemory(MemoryState* memoryState) {
+  atomicAdd(&pendingDeinit, 1);
 #if USE_GC
   bool lastMemoryState = atomicAdd(&aliveMemoryStatesCount, -1) == 0;
   if (lastMemoryState) {
    garbageCollect(memoryState, true);
 #if USE_CYCLIC_GC
+   // We have to ensure that all other deinit sequences are complete.
+   while (atomicGet(&pendingDeinit) > 1) {}
    cyclicDeinit();
 #endif  // USE_CYCLIC_GC
   }
@@ -1770,8 +1775,9 @@ void deinitMemory(MemoryState* memoryState) {
   konanDestructInstance(memoryState->tlsMap);
   RuntimeAssert(memoryState->finalizerQueue == nullptr, "Finalizer queue must be empty");
   RuntimeAssert(memoryState->finalizerQueueSize == 0, "Finalizer queue must be empty");
-
 #endif // USE_GC
+
+  atomicAdd(&pendingDeinit, -1);
 
 #if TRACE_MEMORY
   if (IsStrictMemoryModel && lastMemoryState && allocCount > 0) {

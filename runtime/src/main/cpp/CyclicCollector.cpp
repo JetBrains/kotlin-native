@@ -162,14 +162,14 @@ class CyclicCollector {
        KStdUnorderedSet<ObjHeader*> visited;
        KStdUnorderedMap<ObjHeader*, int> sideRefCounts;
        int restartCount = 0;
-       while (!terminateCollector_) {
+       while (!terminateCollector_ || shallRunCollector_) {
          CHECK_CALL(pthread_cond_wait(&cond_, &lock_), "Cannot wait collector condition")
          if (!shallRunCollector_) continue;
          atomicSet(&gcRunning_, 1);
          restartCount = 0;
         restart:
          COLLECTOR_LOG("start cycle GC\n");
-         if (restartCount > 10) {
+         if (restartCount > 10 && !terminateCollector_) {
            COLLECTOR_LOG("wait for some time to avoid GC trashing\n");
            struct timeval tv;
            struct timespec ts;
