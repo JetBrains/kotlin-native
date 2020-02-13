@@ -13,10 +13,43 @@ class Leak {
     val leak by lazy { this }
 }
 
-@Test fun runTest() {
+class SelfReference {
+    val x = 17
+    val self by lazy { this }
+    val recursion: Int by lazy {
+        if (x < 17) 42 else recursion
+    }
+    val freezer: Int by lazy {
+        freeze()
+        42
+    }
+}
+
+
+
+@Test fun runTest1() {
+    assertFailsWith<IllegalStateException> {
+        println(SelfReference().recursion)
+    }
+    assertFailsWith<IllegalStateException> {
+        println(SelfReference().freeze().recursion)
+    }
+}
+
+// Disabled, as requires cyclic collector.
+// @Test
+fun runTest2() {
+    var sum = 0
+    for (i in 1 .. 100) {
+        val self = SelfReference().freeze()
+        assertEquals(self, self.self)
+        sum += self.self.hashCode()
+    }
+}
+
+@Test fun runTest3() {
     assertFailsWith<InvalidMutabilityException> {
-        for (i in 1..100)
-            Leak().freeze().leak
+        println(SelfReference().freezer)
     }
     println("OK")
 }
