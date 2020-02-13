@@ -9,14 +9,40 @@ import kotlin.test.*
 
 import kotlin.native.concurrent.*
 
-class Leak {
-    val leak by lazy { this }
+class SelfReference {
+    val x = 17
+    val self by lazy { this }
+    val recursion: Int by lazy {
+        if (x < 17) 42 else recursion
+    }
+    val freezer: Int by lazy {
+        freeze()
+        42
+    }
 }
 
-@Test fun runTest() {
-    assertFailsWith<InvalidMutabilityException> {
-        for (i in 1..100)
-            Leak().freeze().leak
+@Test fun runTest1() {
+    assertFailsWith<IllegalStateException> {
+        println(SelfReference().recursion)
+    }
+    assertFailsWith<IllegalStateException> {
+        println(SelfReference().freeze().recursion)
+    }
+}
+
+@Test fun runTest2() {
+    var sum = 0
+    for (i in 1 .. 100) {
+        val self = SelfReference().freeze()
+        assertEquals(self, self.self)
+        sum += self.self.hashCode()
     }
     println("OK")
+}
+
+
+@Test fun runTest3() {
+    assertFailsWith<InvalidMutabilityException> {
+        println(SelfReference().freezer)
+    }
 }
