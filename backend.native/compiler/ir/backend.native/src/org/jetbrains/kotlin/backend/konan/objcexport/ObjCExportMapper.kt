@@ -317,7 +317,8 @@ private fun ObjCExportMapper.bridgeMethodImpl(descriptor: FunctionDescriptor): M
     val returnBridge = bridgeReturnType(descriptor, convertExceptionsToErrors)
     if (convertExceptionsToErrors) {
         // Add error out parameter before tail block parameters. The convention allows this.
-        // Placing it after would trigger https://github.com/JetBrains/kotlin-native/issues/3825
+        // Placing it after would trigger https://bugs.swift.org/browse/SR-12201
+        // (see also https://github.com/JetBrains/kotlin-native/issues/3825).
         val tailBlocksCount = valueParameters.reversed().takeWhile { it.isBlockPointer() }.count()
         valueParameters.add(valueParameters.size - tailBlocksCount, MethodBridgeValueParameter.ErrorOutParameter)
     }
