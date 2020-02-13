@@ -162,7 +162,7 @@ class CyclicCollector {
        KStdUnorderedSet<ObjHeader*> visited;
        KStdUnorderedMap<ObjHeader*, int> sideRefCounts;
        int restartCount = 0;
-       while (!terminateCollector_ || shallRunCollector_) {
+       while (!terminateCollector_) {
          CHECK_CALL(pthread_cond_wait(&cond_, &lock_), "Cannot wait collector condition")
          if (!shallRunCollector_) continue;
          atomicSet(&gcRunning_, 1);
