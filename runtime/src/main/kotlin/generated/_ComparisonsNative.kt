@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2019 JetBrains s.r.o. and Kotlin Programming Language contributors.
+ * Copyright 2010-2020 JetBrains s.r.o. and Kotlin Programming Language contributors.
  * Use of this source code is governed by the Apache 2.0 license that can be found in the license/LICENSE.txt file.
  */
 
@@ -58,6 +58,8 @@ public actual inline fun maxOf(a: Long, b: Long): Long {
 
 /**
  * Returns the greater of two values.
+ * 
+ * If any of given values is `NaN` returns `NaN`.
  */
 @SinceKotlin("1.1")
 @kotlin.internal.InlineOnly
@@ -67,6 +69,8 @@ public actual inline fun maxOf(a: Float, b: Float): Float {
 
 /**
  * Returns the greater of two values.
+ * 
+ * If any of given values is `NaN` returns `NaN`.
  */
 @SinceKotlin("1.1")
 @kotlin.internal.InlineOnly
@@ -120,6 +124,8 @@ public actual inline fun maxOf(a: Long, b: Long, c: Long): Long {
 
 /**
  * Returns the greater of three values.
+ * 
+ * If any of given values is `NaN` returns `NaN`.
  */
 @SinceKotlin("1.1")
 @kotlin.internal.InlineOnly
@@ -129,6 +135,8 @@ public actual inline fun maxOf(a: Float, b: Float, c: Float): Float {
 
 /**
  * Returns the greater of three values.
+ * 
+ * If any of given values is `NaN` returns `NaN`.
  */
 @SinceKotlin("1.1")
 @kotlin.internal.InlineOnly
@@ -183,6 +191,8 @@ public actual inline fun minOf(a: Long, b: Long): Long {
 
 /**
  * Returns the smaller of two values.
+ * 
+ * If any of given values is `NaN` returns `NaN`.
  */
 @SinceKotlin("1.1")
 @kotlin.internal.InlineOnly
@@ -196,6 +206,8 @@ public actual inline fun minOf(a: Float, b: Float): Float {
 
 /**
  * Returns the smaller of two values.
+ * 
+ * If any of given values is `NaN` returns `NaN`.
  */
 @SinceKotlin("1.1")
 @kotlin.internal.InlineOnly
@@ -253,6 +265,8 @@ public actual inline fun minOf(a: Long, b: Long, c: Long): Long {
 
 /**
  * Returns the smaller of three values.
+ * 
+ * If any of given values is `NaN` returns `NaN`.
  */
 @SinceKotlin("1.1")
 @kotlin.internal.InlineOnly
@@ -262,6 +276,8 @@ public actual inline fun minOf(a: Float, b: Float, c: Float): Float {
 
 /**
  * Returns the smaller of three values.
+ * 
+ * If any of given values is `NaN` returns `NaN`.
  */
 @SinceKotlin("1.1")
 @kotlin.internal.InlineOnly
