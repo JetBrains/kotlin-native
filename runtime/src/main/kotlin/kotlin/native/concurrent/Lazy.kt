@@ -19,7 +19,7 @@ internal class FreezeAwareLazyImpl<out T>(initializer: () -> T) : Lazy<T> {
                 locked(lock_) {
                     var result = value_.value
                     if (result !== UNINITIALIZED) {
-                        if (result == INITIALIZING) {
+                        if (result === INITIALIZING) {
                             throw IllegalStateException("Recursive lazy computation")
                         }
                         @Suppress("UNCHECKED_CAST")
@@ -39,7 +39,7 @@ internal class FreezeAwareLazyImpl<out T>(initializer: () -> T) : Lazy<T> {
             } else {
                 var result = value_.value
                 if (result !== UNINITIALIZED) {
-                    if (result == INITIALIZING) {
+                    if (result === INITIALIZING) {
                         throw IllegalStateException("Recursive lazy computation")
                     }
                     @Suppress("UNCHECKED_CAST")
