@@ -12,45 +12,45 @@ internal class FreezeAwareLazyImpl<out T>(initializer: () -> T) : Lazy<T> {
     private val initializer_ = FreezableAtomicReference<(() -> T)?>(initializer)
     private val lock_ = Lock()
 
+    private fun getOrInit(doFreeze: Boolean): T {
+        var result = value_.value
+        if (result !== UNINITIALIZED) {
+            if (result === INITIALIZING) {
+                value_.value = UNINITIALIZED
+                throw IllegalStateException("Recursive lazy computation")
+            }
+            @Suppress("UNCHECKED_CAST")
+            return result as T
+        }
+        // Set value_ to INITIALIZING.
+        value_.value = INITIALIZING
+        try {
+            result = initializer_.value!!()
+            if (doFreeze) result.freeze()
+        } catch (throwable: Throwable) {
+            value_.value = UNINITIALIZED
+            throw throwable
+        }
+        if (!doFreeze && this.isFrozen) {
+            value_.value = UNINITIALIZED
+            throw InvalidMutabilityException("Frozen during lazy computation")
+        }
+        // Set value_ to actual one.
+        value_.value = result
+        // Clear initializer.
+        initializer_.value = null
+        @Suppress("UNCHECKED_CAST")
+        return result as T
+    }
+
     override val value: T
         get() {
-            if (isFrozen) {
+            return if (isFrozen) {
                 locked(lock_) {
-                    var result = value_.value
-                    if (result !== UNINITIALIZED) {
-                        if (result === INITIALIZING) {
-                            throw IllegalStateException("Recursive lazy computation")
-                        }
-                        @Suppress("UNCHECKED_CAST")
-                        return result as T
-                    }
-                    // Set value_ to INITIALIZING.
-                    value_.value = INITIALIZING
-                    result = initializer_.value!!().freeze()
-                    // Set value_ to actual one.
-                    value_.value = result
-                    // Clear initializer.
-                    initializer_.value = null
-                    @Suppress("UNCHECKED_CAST")
-                    return result as T
+                    getOrInit(true)
                 }
             } else {
-                var result: Any? = value_.value
-                if (result !== UNINITIALIZED) {
-                    if (result === INITIALIZING) {
-                        throw IllegalStateException("Recursive lazy computation")
-                    }
-                    @Suppress("UNCHECKED_CAST")
-                    return result as T
-                }
-                value_.value = INITIALIZING
-                result = initializer_.value!!()
-                if (isFrozen)
-                    throw InvalidMutabilityException("$this got frozen during lazy evaluation" )
-                value_.value = result
-                initializer_.value = null
-                @Suppress("UNCHECKED_CAST")
-                return result as T
+                getOrInit(false)
             }
         }
 

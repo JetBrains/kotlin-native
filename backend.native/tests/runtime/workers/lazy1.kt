@@ -6,10 +6,9 @@
 package runtime.workers.lazy1
 
 import kotlin.test.*
-
 import kotlin.native.concurrent.*
 
-class SelfReference {
+class Lazy {
     val x = 17
     val self by lazy { this }
     val recursion: Int by lazy {
@@ -19,21 +18,25 @@ class SelfReference {
         freeze()
         42
     }
+    val thrower: String by lazy {
+        if (x < 100) throw IllegalArgumentException()
+        "FAIL"
+    }
 }
 
 @Test fun runTest1() {
     assertFailsWith<IllegalStateException> {
-        println(SelfReference().recursion)
+        println(Lazy().recursion)
     }
     assertFailsWith<IllegalStateException> {
-        println(SelfReference().freeze().recursion)
+        println(Lazy().freeze().recursion)
     }
 }
 
 @Test fun runTest2() {
     var sum = 0
     for (i in 1 .. 100) {
-        val self = SelfReference().freeze()
+        val self = Lazy().freeze()
         assertEquals(self, self.self)
         sum += self.self.hashCode()
     }
@@ -43,6 +46,15 @@ class SelfReference {
 
 @Test fun runTest3() {
     assertFailsWith<InvalidMutabilityException> {
-        println(SelfReference().freezer)
+        println(Lazy().freezer)
+    }
+}
+
+@Test fun runTest4() {
+    val self = Lazy()
+    repeat(10) {
+        assertFailsWith<IllegalArgumentException> {
+            println(self.thrower)
+        }
     }
 }
