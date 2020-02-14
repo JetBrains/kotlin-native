@@ -33,17 +33,17 @@ kotlin {
                 entryPoint = "sample.tetris.main"
 
                 // Compile Windows Resources
-                if (konanTarget.family == org.jetbrains.kotlin.konan.target.Family.MINGW) {
+                if (preset == presets["mingwX64"] || preset == presets["mingwX86"]) {
                     val taskName = linkTaskName.replaceFirst("link", "windres")
                     val inFile = File("src/tetrisMain/resources/Tetris.rc")
                     val outFile = buildDir.resolve("processedResources/$taskName.res")
                     val windresTask = tasks.register<Exec>(taskName) {
-                        val llvmDir = when (target.konanTarget.architecture.bitness) {
-                            32 -> kotlinNativeDataPath.resolve(
+                        val llvmDir = when (preset) {
+                            presets["mingwX86"] -> kotlinNativeDataPath.resolve(
                                     "dependencies/msys2-mingw-w64-i686-clang-llvm-lld-compiler_rt-8.0.1/bin")
-                            64 -> kotlinNativeDataPath.resolve(
+                            presets["mingwX64"] -> kotlinNativeDataPath.resolve(
                                     "dependencies/msys2-mingw-w64-x86_64-clang-llvm-lld-compiler_rt-8.0.1/bin")
-                            else -> throw GradleException("Unsupported bitness")
+                            else -> throw GradleException("Unsupported presets")
                         }.toString()
                         inputs.file(inFile)
                         outputs.file(outFile)
