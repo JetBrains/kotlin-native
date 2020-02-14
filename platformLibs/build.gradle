@@ -57,6 +57,7 @@ private String defFileToLibName(String target, String name) {
 project.rootProject.ext.platformManager.enabled.each { target ->
 
     def targetName = target.visibleName
+    def platformPrefix = "org.jetbrains.konan.platform."
 
     ArrayList<Task> installTasks = []
     ArrayList<Task> cacheTasks = []
@@ -77,11 +78,13 @@ project.rootProject.ext.platformManager.enabled.each { target ->
         konanArtifacts {
             interop (libName, targets: [targetName]) {
                 defFile df.file
-                artifactName df.name
+                artifactName "${platformPrefix}${df.name}".toString()
                 noDefaultLibs true
                 noEndorsedLibs true
                 libraries {
-                    klibs df.config.depends
+                    klibs df.config.depends.collect {
+                        "${platformPrefix}${it}".toString()
+                    }
                 }
                 extraOpts '-Xpurge-user-libs'
                 compilerOpts "-fmodules-cache-path=${project.buildDir}/clangModulesCache"

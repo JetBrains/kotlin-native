@@ -10,6 +10,8 @@ import org.jetbrains.kotlin.konan.file.File
 import java.util.concurrent.*
 import kotlinx.cli.*
 
+const val platformPrefix = "org.jetbrains.konan.platform."
+
 fun generatePlatformLibraries(args: Array<String>) {
     val argParser = ArgParser("generate-platform", prefixStyle = ArgParser.OptionPrefixStyle.JVM)
     val inputDirectoryPath by argParser.option(
@@ -80,14 +82,14 @@ private fun generatePlatformLibraries(target: String, inputDirectory: File, outp
     fun buildKlib(def: DefFile) {
         val file = File("$inputDirectory/${def.name}.def")
         File("${outputDirectory.absolutePath}/build-${def.name}").mkdirs()
-        val outKlib = "${outputDirectory.absolutePath}/build-${def.name}/${def.name}.klib"
+        val outKlib = "${outputDirectory.absolutePath}/build-${def.name}/$platformPrefix${def.name}.klib"
         val args = arrayOf("-o", outKlib,
                 "-target", target,
                 "-def", file.absolutePath,
                 "-compiler-option", "-fmodules-cache-path=$outputDirectory/clangModulesCache",
                 "-repo",  "${outputDirectory.absolutePath}",
                 "-no-default-libs", "-no-endorsed-libs", "-Xpurge-user-libs",
-                *def.depends.flatMap { listOf("-l", "$outputDirectory/${it.name}") }.toTypedArray())
+                *def.depends.flatMap { listOf("-l", "$outputDirectory/$platformPrefix${it.name}") }.toTypedArray())
         println("Processing ${def.name}...")
         try {
             invokeInterop("native", args)?.let { K2Native.mainNoExit(it) }
@@ -99,7 +101,7 @@ private fun generatePlatformLibraries(target: String, inputDirectory: File, outp
                 K2Native.mainNoExit(arrayOf("-p", cacheKind,
                     "-target", target,
                     "-repo", "${outputDirectory.absolutePath}",
-                    "-Xadd-cache=${outputDirectory.absolutePath}/${def.name}",
+                    "-Xadd-cache=${outputDirectory.absolutePath}/$platformPrefix${def.name}",
                     "-Xcache-directory=${cacheDirectory.absolutePath}"))
         } finally {
             if (!saveTemps) {

@@ -27,6 +27,7 @@ import kotlinx.cli.ArgParser
 import org.jetbrains.kotlin.konan.library.*
 import org.jetbrains.kotlin.konan.target.Distribution
 import org.jetbrains.kotlin.konan.target.KonanTarget
+import org.jetbrains.kotlin.library.KLIB_PROPERTY_UNIQUE_NAME
 import org.jetbrains.kotlin.library.KotlinLibrary
 import org.jetbrains.kotlin.library.resolver.impl.libraryResolver
 import org.jetbrains.kotlin.library.toUnresolvedLibraries
@@ -50,6 +51,8 @@ fun interop(
 
 // Options, whose values are space-separated and can be escaped.
 val escapedOptions = setOf("-compilerOpts", "-linkerOpts", "-compiler-options", "-linker-options")
+
+const val platformPrefixNoPlatform = "org.jetbrains.konan."
 
 private fun String.asArgList(key: String) =
         if (escapedOptions.contains(key))
@@ -282,7 +285,9 @@ private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = 
         _, oldValue, newValue ->
             warn("The package value `$oldValue` specified in .def file is overridden with explicit $newValue")
     }
-    def.manifestAddendProperties["interop"] = "true"
+    def.manifestAddendProperties[KLIB_PROPERTY_INTEROP] = "true"
+    if (outKtPkg.startsWith("platform."))
+        def.manifestAddendProperties[KLIB_PROPERTY_UNIQUE_NAME] = "$platformPrefixNoPlatform${outKtPkg}"
     if (stubIrOutput is StubIrDriver.Result.Metadata) {
         def.manifestAddendProperties["ir_provider"] = KLIB_INTEROP_IR_PROVIDER_IDENTIFIER
     }
