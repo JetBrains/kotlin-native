@@ -103,6 +103,17 @@ _Unwind_Reason_Code unwindCallback(
 }
 #endif
 
+const char* shorten(const char* path) {
+  if (path == nullptr) return nullptr;
+  auto* current = path;
+  auto* lastComponent = path;
+  while (*current != 0) {
+    if (*current == '/') lastComponent = current + 1;
+    current++;
+  }
+  return *lastComponent != 0 ? lastComponent : path;
+}
+
 }  // namespace
 
 extern "C" {
@@ -179,9 +190,9 @@ OBJ_GETTER(GetStackTraceStrings, KConstRef stackTrace) {
       if (sourceInfo.fileName != nullptr) {
         if (sourceInfo.lineNumber != -1) {
           konan::snprintf(line, sizeof(line) - 1, "%s (%s:%d:%d)",
-                          symbol, sourceInfo.fileName, sourceInfo.lineNumber, sourceInfo.column);
+                          symbol, shorten(sourceInfo.fileName), sourceInfo.lineNumber, sourceInfo.column);
         } else {
-          konan::snprintf(line, sizeof(line) - 1, "%s (%s:<unknown>)", symbol, sourceInfo.fileName);
+          konan::snprintf(line, sizeof(line) - 1, "%s (%s:<unknown>)", symbol, shorten(sourceInfo.fileName));
         }
         result = line;
       } else {
