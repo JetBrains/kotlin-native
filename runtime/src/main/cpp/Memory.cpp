@@ -1747,17 +1747,19 @@ MemoryState* initMemory() {
   return memoryState;
 }
 
-int pendingDeinit = 0;
-
 void deinitMemory(MemoryState* memoryState) {
+  static int pendingDeinit = 0;
   atomicAdd(&pendingDeinit, 1);
 #if USE_GC
   bool lastMemoryState = atomicAdd(&aliveMemoryStatesCount, -1) == 0;
+  bool checkLeaks = g_checkLeaks && lastMemoryState;
   if (lastMemoryState) {
    garbageCollect(memoryState, true);
 #if USE_CYCLIC_GC
-   // We have to ensure that all other deinit sequences are complete.
-   while (atomicGet(&pendingDeinit) > 1) {}
+   // If there are other pending deinits (rare situation) - just skip the leak checker.
+   if (atomicGet(&pendingDeinit) > 1) {
+     checkLeaks = false;
+   }
    cyclicDeinit();
 #endif  // USE_CYCLIC_GC
   }
@@ -1786,7 +1788,7 @@ void deinitMemory(MemoryState* memoryState) {
   }
 #else
 #if USE_GC
-  if (IsStrictMemoryModel && lastMemoryState && allocCount > 0 && g_checkLeaks) {
+  if (IsStrictMemoryModel && allocCount > 0 && checkLeaks) {
     char buf[1024];
     konan::snprintf(buf, sizeof(buf),
         "Memory leaks detected, %d objects leaked!\n"
