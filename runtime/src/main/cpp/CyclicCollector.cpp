@@ -353,7 +353,7 @@ class CyclicCollector {
   bool checkIfShallCollect() {
     auto tick = atomicAdd(&currentTick_, 1);
     auto delta = tick - atomicGet(&lastTick_);
-    if (delta > 10 || delta < 0) {
+    if (delta > 8 || delta < 0) {
       auto currentTimestampUs = konan::getTimeMicros();
 #if KONAN_NO_64BIT_ATOMIC
       if (currentTimestampUs - *(volatile int64_t*)&lastTimestampUs_ > 10000) {
