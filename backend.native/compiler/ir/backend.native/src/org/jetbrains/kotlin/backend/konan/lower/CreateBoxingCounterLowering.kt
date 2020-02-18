@@ -5,20 +5,28 @@ import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irBlockBody
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.boxing.IrBoxCounterField
+import org.jetbrains.kotlin.backend.konan.boxing.irNullize
+import org.jetbrains.kotlin.backend.konan.boxing.irPrintln
 import org.jetbrains.kotlin.ir.IrElement
-import org.jetbrains.kotlin.ir.builders.*
+import org.jetbrains.kotlin.ir.builders.irBlock
+import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationContainer
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.expressions.impl.IrTryImpl
-import org.jetbrains.kotlin.ir.util.findDeclaration
+import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.statements
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
+import org.jetbrains.kotlin.name.FqName
 
 internal class CreateBoxingCounterLowering(val context: Context): FileLoweringPass {
     override fun lower(irFile: IrFile) {
-        irFile.acceptVoid(AutoboxCreator(context))
+        val counter = IrBoxCounterField.get(context)
+        counter.tryAddTo(irFile)
+        val autoboxCreator = AutoboxCreator(context)
+        irFile.acceptVoid(autoboxCreator)
     }
 }
 
@@ -27,17 +35,30 @@ internal class AutoboxCreator(val context: Context) : IrElementVisitorVoid {
         element.acceptChildrenVoid(this)
     }
 
+    override fun visitClass(declaration: IrClass) {
+        visitDeclarationContainer(declaration)
+        super.visitClass(declaration)
+    }
+
     override fun visitFile(declaration: IrFile) {
-        val runCountFunction = declaration.findDeclaration<IrFunction> { it.name.toString() == "runCount" } ?: return
-        val counterField = IrBoxCounterField.get(context)
-        counterField.tryAddTo(declaration)
-        wrap(runCountFunction)
+        visitDeclarationContainer(declaration)
+        super.visitFile(declaration)
+    }
+
+    private fun visitDeclarationContainer(declarationContainer: IrDeclarationContainer) {
+        val annotatedDeclarations = declarationContainer.declarations.filterIsInstance<IrFunction>().filter {
+            it.hasAnnotation(FqName.fromSegments(listOf("org", "jetbrains", "ring", "CountBoxings")))
+        }
+        annotatedDeclarations.forEach {
+            wrap(it)
+        }
     }
 
     private fun wrap(runCountFunction: IrFunction) {
-        runCountFunction.returnType = context.irBuiltIns.intType
+        val counter = IrBoxCounterField.get(context)
         val builder = context.createIrBuilder(runCountFunction.symbol)
         runCountFunction.body = builder.irBlockBody(runCountFunction) {
+            +irNullize(counter)
             +IrTryImpl(
                     runCountFunction.startOffset,
                     runCountFunction.endOffset,
@@ -46,7 +67,7 @@ internal class AutoboxCreator(val context: Context) : IrElementVisitorVoid {
                 tryResult = irBlock {
                     runCountFunction.body?.statements?.forEach { +it }
                 }
-                finallyExpression = irReturn(irGetField(null, IrBoxCounterField.get(this@AutoboxCreator.context).field))
+                finallyExpression = irPrintln(counter)
             }
         }
     }

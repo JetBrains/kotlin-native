@@ -231,7 +231,7 @@ internal val finallyBlocksPhase = makeKonanFileLoweringPhase(
         ::FinallyBlocksLowering,
         name = "FinallyBlocks",
         description = "Finally blocks lowering",
-        prerequisite = setOf(initializersPhase, localFunctionsPhase, tailrecPhase, createBoxingCounterPhase)
+        prerequisite = setOf(initializersPhase, localFunctionsPhase, tailrecPhase)
 )
 
 internal val testProcessorPhase = makeKonanFileOpPhase(

@@ -38,7 +38,8 @@ internal class BoxingsCounterVisitor(val context: Context) : IrElementVisitorVoi
             val builder = context.createIrBuilder(function.symbol)
             val statements = function.body?.statements
             function.body = builder.irBlockBody(function) {
-                +irInc(IrBoxCounterField.get(this@BoxingsCounterVisitor.context))
+                val counter = IrBoxCounterField.get(this@BoxingsCounterVisitor.context)
+                +irInc(counter)
                 statements?.forEach { +it }
             }
         }

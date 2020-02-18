@@ -1,4 +1,6 @@
-package receiver
+package samples
+
+import org.jetbrains.ring.CountBoxings
 
 class Box(val x: Int) {
     fun default__() = x - 1
@@ -26,7 +28,8 @@ fun <T> T.eqls__(other: T) = this == other
 
 fun <T> GenericBox<T>.eqls__(other: T) = this == other
 
-fun runCount(): Int {
+@CountBoxings
+fun runReceiver(): Int {
     for (i in 1..10) {
         Box(i).doDefault__<Int>()                                    // 0 boxings
         GenericBox(i).doDefault__()                                  // 10 boxings

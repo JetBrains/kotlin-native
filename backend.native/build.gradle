@@ -306,7 +306,7 @@ publishing {
 def testCompileModes = ["optimizeBoxingOn", "optimizeBoxingOff"]
 
 testCompileModes.each { taskName ->
-    task("testCompile${taskName.capitalize()}", type: JavaExec) {
+    task("runSamplesMacos${taskName.capitalize()}", type: JavaExec) {
 
         def konanJvmArgs =  [*HostManager.regularJvmArgs,
                              "-Dkonan.home=${rootProject.projectDir}/dist",
@@ -317,10 +317,32 @@ testCompileModes.each { taskName ->
         classpath = project.configurations.cli_bc
         jvmArgs = konanJvmArgs
 
-        args = ["${rootProject.projectDir}/boxing/lib.kt",
-                "${rootProject.projectDir}/boxing/nested.kt",
-                "${rootProject.projectDir}/boxing/receiver.kt",
-                "${rootProject.projectDir}/boxing/main.kt",
+        args = ["${rootProject.projectDir}/backend.native/boxing.perf/src/macosMain/kotlin/samples/",
+                "${rootProject.projectDir}/backend.native/boxing.perf/src/macosMain/kotlin/org.jetbrains.ring/CountBoxings.kt",
+                "-entry", "samples.main",
+                "-Xcount-box-operations",
+                "-opt"]
+
+        stdLibSrc.forEach { inputs.dir(it) }
+        inputs.dir(commonSrc)
+
+        dependsOn 'unzipStdlibSources'
+        dependsOn ":distCompiler"
+    }
+
+    task("runBenchmarkMacos${taskName.capitalize()}", type: JavaExec) {
+
+        def konanJvmArgs =  [*HostManager.regularJvmArgs,
+                             "-Dkonan.home=${rootProject.projectDir}/dist",
+                             "-Djava.library.path=${project.buildDir}/nativelibs/$hostName",
+        ]
+
+        main = 'org.jetbrains.kotlin.cli.bc.K2NativeKt'
+        classpath = project.configurations.cli_bc
+        jvmArgs = konanJvmArgs
+
+        args = ["${rootProject.projectDir}/backend.native/boxing.perf/src/macosMain/kotlin/org.jetbrains.ring/",
+                "-entry", "org.jetbrains.ring.main",
                 "-Xcount-box-operations",
                 "-opt"]
 
@@ -332,15 +354,28 @@ testCompileModes.each { taskName ->
     }
 }
 
-testCompileOptimizeBoxingOff {
+runSamplesMacosOptimizeBoxingOff {
     args = [*args,
             "-o",
-            "${rootProject.projectDir}/boxing/notOptimized"]
+            "${rootProject.projectDir}/backend.native/boxing.perf/samples_notOptimized"]
 }
 
-testCompileOptimizeBoxingOn {
+runSamplesMacosOptimizeBoxingOn {
     args = [*args,
             "-o",
-            "${rootProject.projectDir}/boxing/optimized",
+            "${rootProject.projectDir}/backend.native/boxing.perf/samples_optimized",
+            "-Xextra-boxing-elimination"]
+}
+
+runBenchmarkMacosOptimizeBoxingOff {
+    args = [*args,
+            "-o",
+            "${rootProject.projectDir}/backend.native/boxing.perf/ring_notOptimized"]
+}
+
+runBenchmarkMacosOptimizeBoxingOn {
+    args = [*args,
+            "-o",
+            "${rootProject.projectDir}/backend.native/boxing.perf/ring_optimized",
             "-Xextra-boxing-elimination"]
 }

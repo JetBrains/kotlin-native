@@ -1,4 +1,6 @@
-package nested
+package samples
+
+import org.jetbrains.ring.CountBoxings
 
 fun <U> id__(x: U) = x
 
@@ -40,7 +42,7 @@ fun <T> idMixDelegate1__(x: T) = idDelegate__(x)
 fun <T> idMixDelegate2__(x: T) = idMixDelegate1__(x)
 
 fun <R> idManyTypes1__(x: R): R {
-    return id__(x)
+    return libid__(x)
 }
 
 fun <R> idManyTypes2__(x: R): R {
@@ -51,7 +53,7 @@ fun <R> idManyTypes2__(x: R): R {
 
 fun <R> idManyTypes3__(x: R): R {
     return object : Foo {
-        override fun <T> anonId__(x: T): T = id__(x)
+        override fun <T> anonId__(x: T): T = libid__(x)
     }.anonId__(x)
 }
 
@@ -71,7 +73,8 @@ fun <R> idManyTypes5__(x: R): R {
     }.id__(x)
 }
 
-fun runCount(): Int {
+@CountBoxings
+fun runNested(): Int {
     for (i in 1..10) {
         idLocal(i)
         idAnonymous(i)

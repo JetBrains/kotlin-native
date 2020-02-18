@@ -75,12 +75,14 @@ internal class GenericsSpecialization(val context: Context) : FileLoweringPass {
  */
 internal class SpecializationTransformer(val context: Context): IrBuildingTransformer(context) {
 
-    private val currentSpecializations = mutableMapOf<Pair<IrFunction, IrType>, IrFunction>()
+    companion object {
+        private val currentSpecializations = mutableMapOf<Pair<IrFunction, IrType>, IrFunction>()
 
-    // scope -> specialization -> origin
-    private val newFunctions = mutableMapOf<IrDeclarationParent, MutableMap<IrFunction, IrFunction>>()
+        // scope -> specialization -> origin
+        private val newFunctions = mutableMapOf<IrDeclarationParent, MutableMap<IrFunction, IrFunction>>()
 
-    private val typeParametersMapping = mutableMapOf<IrTypeParameterSymbol, IrType>()
+        private val typeParametersMapping = mutableMapOf<IrTypeParameterSymbol, IrType>()
+    }
 
     // Dumb way to process calls that are likely to be specialized.
     // It causes to pass the whole file every time the previous pass ended with this flag being set.

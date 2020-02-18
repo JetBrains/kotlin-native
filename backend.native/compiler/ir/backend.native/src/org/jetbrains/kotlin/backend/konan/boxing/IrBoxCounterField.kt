@@ -4,15 +4,13 @@ import org.jetbrains.kotlin.backend.common.descriptors.WrappedFieldDescriptor
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.descriptors.synthesizedName
 import org.jetbrains.kotlin.descriptors.Visibilities
-import org.jetbrains.kotlin.ir.builders.IrBuilderWithScope
-import org.jetbrains.kotlin.ir.builders.irCall
-import org.jetbrains.kotlin.ir.builders.irGetField
-import org.jetbrains.kotlin.ir.builders.irSetField
+import org.jetbrains.kotlin.ir.builders.*
 import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrField
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.impl.IrFieldImpl
+import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.impl.IrConstImpl
 import org.jetbrains.kotlin.ir.expressions.impl.IrSetFieldImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrFieldSymbolImpl
@@ -65,6 +63,20 @@ internal fun IrBuilderWithScope.irInc(counter: IrBoxCounterField): IrSetFieldImp
     val increment = intClass.declarations.first { it.nameForIrSerialization.toString() == "inc" } as IrFunction
 
     return irSetField(null, counter.field, irCall(increment).also { it.dispatchReceiver = irGetField(null, counter.field) })
+}
+
+internal fun IrBuilderWithScope.irNullize(counter: IrBoxCounterField): IrSetFieldImpl {
+    return irSetField(null, counter.field, irInt(0))
+}
+
+internal fun IrBuilderWithScope.irPrintln(counter: IrBoxCounterField): IrCall {
+    val println = counter.context.ir.symbols.println
+    val toString = counter.context.ir.symbols.anyNToString
+    return irCall(println).apply {
+        putValueArgument(0, irCall(toString).apply {
+            extensionReceiver = irGetField(null, counter.field)
+        })
+    }
 }
 
 internal fun IrField.isBoxingCounter() = name.toString() == "\$boxingCounter"
