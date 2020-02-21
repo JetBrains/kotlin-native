@@ -336,3 +336,10 @@ BOOL customStringDeallocated = NO;
     return first + second;
 }
 @end;
+
+
+// [KT-36067] mangling
+@implementation FooMangled : NSObject
+@synthesize Companion;
+- (void) $_Companion { printf("-(void) _Companion\n"); }  // may clash when implementing
+@end;

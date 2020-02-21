@@ -33,6 +33,7 @@ fun run() {
     testLocalizedStrings()
     testConstructorReturnsNull()
     testCallableReferences()
+    testMangling()
 
     assertEquals(2, ForwardDeclaredEnum.TWO.value)
 
@@ -512,6 +513,19 @@ fun testCallableReferences() {
     val boundInstanceMethodRef = testCallableReferences::instanceMethod
     assertEquals("instanceMethod", boundInstanceMethodRef.name)
     assertEquals(42, boundInstanceMethodRef())
+}
+
+fun testMangling() {
+    assertEquals(11, myStruct.`$1_Companion`)
+    assertEquals(12, myStruct._Companion)
+    assertEquals(13, myStruct.`$Companion`)
+    assertEquals(14, myStruct.`$_Companion`)
+    assertEquals(15, myStruct.`super`)
+
+    val objc = FooMangled()
+    objc.`$_Companion` = 99
+    assertEquals(99, objc.Companion())
+    assertEquals(99, objc.`$_Companion`)
 }
 
 private val Any.objCClassName: String

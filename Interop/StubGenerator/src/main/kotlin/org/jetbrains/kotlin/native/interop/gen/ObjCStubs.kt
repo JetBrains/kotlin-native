@@ -331,6 +331,8 @@ internal abstract class ObjCContainerStubBuilder(
 
     private val protocolGetter: String?
 
+    private val mangler: Mangler
+
     init {
         val superMethods = container.inheritedMethods(isMeta)
 
@@ -368,6 +370,8 @@ internal abstract class ObjCContainerStubBuilder(
                     // Select only properties that don't override anything:
                     superMethods.none { property.getter.replaces(it) || property.setter?.replaces(it) ?: false }
         }
+
+        this.mangler = Mangler( this.properties.map{it.name}.asSequence() )
     }
 
     private val methodToStub = methods.map {
@@ -375,7 +379,7 @@ internal abstract class ObjCContainerStubBuilder(
     }.toMap()
 
     private val propertyBuilders = properties.mapNotNull {
-        createObjCPropertyBuilder(context, it, container, this.methodToStub)
+        createObjCPropertyBuilder(context, it, container, this.methodToStub, mangler)
     }
 
     private val modality = when (container) {
@@ -555,13 +559,14 @@ private fun createObjCPropertyBuilder(
         context: StubsBuildingContext,
         property: ObjCProperty,
         container: ObjCContainer,
-        methodToStub: Map<ObjCMethod, ObjCMethodStubBuilder>
+        methodToStub: Map<ObjCMethod, ObjCMethodStubBuilder>,
+        mangler: Mangler? = null
 ): ObjCPropertyStubBuilder? {
     // Note: the code below assumes that if the property is generated,
     // then its accessors are also generated as explicit methods.
     val getterStub = methodToStub[property.getter] ?: return null
     val setterStub = property.setter?.let { methodToStub[it] ?: return null }
-    return ObjCPropertyStubBuilder(context, property, container, getterStub, setterStub)
+    return ObjCPropertyStubBuilder(context, property, container, getterStub, setterStub, mangler)
 }
 
 private class ObjCPropertyStubBuilder(
@@ -569,7 +574,8 @@ private class ObjCPropertyStubBuilder(
         private val property: ObjCProperty,
         private val container: ObjCContainer,
         private val getterBuilder: ObjCMethodStubBuilder,
-        private val setterMethod: ObjCMethodStubBuilder?
+        private val setterMethod: ObjCMethodStubBuilder?,
+        private val mangler: Mangler? = null
 ) : StubElementBuilder {
     override fun build(): List<PropertyStub> {
         val type = property.getType(container.classOrProtocol)
@@ -583,7 +589,9 @@ private class ObjCPropertyStubBuilder(
             is ObjCCategory -> ClassifierStubType(context.getKotlinClassFor(container.clazz, isMeta = property.getter.isClass))
         }
         val origin = StubOrigin.ObjCProperty(property, container)
-        return listOf(PropertyStub(property.name, kotlinType.toStubIrType(), kind, modality, receiver, origin = origin))
+        val mangled = mangler?.mangle(property.name) ?: property.name
+        return listOf(PropertyStub(mangled, kotlinType.toStubIrType(), kind, modality, receiver, origin = origin)
+        )
     }
 }
 

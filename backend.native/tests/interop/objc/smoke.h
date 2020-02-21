@@ -249,3 +249,25 @@ extern BOOL customStringDeallocated;
 - (int)instanceMethod;
 + (int)classMethod:(int)first :(int)second;
 @end;
+
+// [KT-36067] cinterop tool fails when there is a structure member named Companion
+
+int Companion = -99;
+
+struct MyStruct {
+	int Companion;      // simple clash
+	int _Companion;
+	int $Companion;
+	int $_Companion;
+	int super;
+};
+
+struct MyStruct myStruct = {11, 12, 13, 14, 15};
+
+@protocol Proto
+@property int Companion;  // clash on implementing
+@end;
+
+@interface FooMangled : NSObject<Proto>
+- (void) $_Companion;  // this may clash after mangling
+@end;
