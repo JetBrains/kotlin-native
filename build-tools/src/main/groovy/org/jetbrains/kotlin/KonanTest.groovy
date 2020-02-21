@@ -21,7 +21,6 @@ import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.TaskAction
 import org.gradle.process.ExecResult
 
-import javax.inject.Inject
 import java.nio.file.Paths
 import java.util.function.Function
 import java.util.regex.Pattern
@@ -334,6 +333,10 @@ class RunExternalTestGroup extends OldKonanTest {
             experimentalSettings.forEach { line ->
                 line.split(" ").toList().forEach { flags.add("-Xuse-experimental=$it") }
             }
+        }
+
+        if (findLinesWithPrefixesRemoved(text, "// KLIB_BASED_MPP").size() != 0) {
+            flags.add("-Xklib-mpp")
         }
     }
 
