@@ -1748,12 +1748,19 @@ MemoryState* initMemory() {
 }
 
 void deinitMemory(MemoryState* memoryState) {
+  static int pendingDeinit = 0;
+  atomicAdd(&pendingDeinit, 1);
 #if USE_GC
   bool lastMemoryState = atomicAdd(&aliveMemoryStatesCount, -1) == 0;
+  bool checkLeaks = g_checkLeaks && lastMemoryState;
   if (lastMemoryState) {
    garbageCollect(memoryState, true);
 #if USE_CYCLIC_GC
-   cyclicDeinit();
+   // If there are other pending deinits (rare situation) - just skip the leak checker.
+   if (atomicGet(&pendingDeinit) > 1) {
+     checkLeaks = false;
+   }
+   cyclicDeinit(g_hasCyclicCollector);
 #endif  // USE_CYCLIC_GC
   }
   // Actual GC only implemented in strict memory model at the moment.
@@ -1770,8 +1777,9 @@ void deinitMemory(MemoryState* memoryState) {
   konanDestructInstance(memoryState->tlsMap);
   RuntimeAssert(memoryState->finalizerQueue == nullptr, "Finalizer queue must be empty");
   RuntimeAssert(memoryState->finalizerQueueSize == 0, "Finalizer queue must be empty");
-
 #endif // USE_GC
+
+  atomicAdd(&pendingDeinit, -1);
 
 #if TRACE_MEMORY
   if (IsStrictMemoryModel && lastMemoryState && allocCount > 0) {
@@ -1780,7 +1788,7 @@ void deinitMemory(MemoryState* memoryState) {
   }
 #else
 #if USE_GC
-  if (IsStrictMemoryModel && lastMemoryState && allocCount > 0 && g_checkLeaks) {
+  if (IsStrictMemoryModel && allocCount > 0 && checkLeaks) {
     char buf[1024];
     konan::snprintf(buf, sizeof(buf),
         "Memory leaks detected, %d objects leaked!\n"
@@ -2545,49 +2553,6 @@ void ensureNeverFrozen(ObjHeader* object) {
    object->meta_object()->flags_ |= MF_NEVER_FROZEN;
 }
 
-// TODO: incorrect, use 3-color scheme.
-KBoolean ensureAcyclicAndSet(ObjHeader* where, KInt index, ObjHeader* what) {
-    RuntimeAssert(where->container() != nullptr && where->container()->frozen(), "Must be used on frozen objects only");
-    RuntimeAssert(what == nullptr || isPermanentOrFrozen(what),
-        "Must be used with an immutable value");
-    if (what != nullptr) {
-        // Now we check that `where` is not reachable from `what`.
-        // As we cannot modify objects while traversing, instead we remember all seen objects in a set.
-        KStdUnorderedSet<ContainerHeader*> seen;
-        KStdDeque<ContainerHeader*> queue;
-        if (what->container() != nullptr)
-            queue.push_back(what->container());
-        bool acyclic = true;
-        while (!queue.empty() && acyclic) {
-            ContainerHeader* current = queue.front();
-            queue.pop_front();
-            seen.insert(current);
-            if (isAggregatingFrozenContainer(current)) {
-                ContainerHeader** subContainer = reinterpret_cast<ContainerHeader**>(current + 1);
-                for (int i = 0; i < current->objectCount(); ++i) {
-                    if (seen.count(*subContainer) == 0)
-                        queue.push_back(*subContainer++);
-                }
-            } else {
-              traverseContainerReferredObjects(current, [where, &queue, &acyclic, &seen](ObjHeader* obj) {
-                if (obj == where) {
-                    acyclic = false;
-                } else {
-                    auto* objContainer = obj->container();
-                    if (objContainer != nullptr && seen.count(objContainer) == 0)
-                        queue.push_back(objContainer);
-                }
-              });
-            }
-          }
-        if (!acyclic) return false;
-    }
-    UpdateHeapRef(reinterpret_cast<ObjHeader**>(
-            reinterpret_cast<uintptr_t>(where) + where->type_info()->objOffsets_[index]), what);
-    // Fence on updated location?
-    return true;
-}
-
 void shareAny(ObjHeader* obj) {
   auto* container = obj->container();
   if (isShareable(container)) return;
@@ -2932,7 +2897,8 @@ void Kotlin_native_internal_GC_collect(KRef) {
 
 void Kotlin_native_internal_GC_collectCyclic(KRef) {
 #if USE_CYCLIC_GC
-  cyclicScheduleGarbageCollect();
+  if (g_hasCyclicCollector)
+    cyclicScheduleGarbageCollect();
 #else
   ThrowIllegalArgumentException();
 #endif
@@ -3040,10 +3006,6 @@ void EnsureNeverFrozen(ObjHeader* object) {
   ensureNeverFrozen(object);
 }
 
-KBoolean Konan_ensureAcyclicAndSet(ObjHeader* where, KInt index, ObjHeader* what) {
-  return ensureAcyclicAndSet(where, index, what);
-}
-
 void Kotlin_Any_share(ObjHeader* obj) {
   shareAny(obj);
 }
@@ -3106,7 +3068,7 @@ void GC_RegisterWorker(void* worker) {
 
 void GC_UnregisterWorker(void* worker) {
 #if USE_CYCLIC_GC
-  cyclicRemoveWorker(worker);
+  cyclicRemoveWorker(worker, g_hasCyclicCollector);
 #endif  // USE_CYCLIC_GC
 }
 
@@ -3117,7 +3079,7 @@ void GC_CollectorCallback(void* worker) {
 #endif   // USE_CYCLIC_GC
 }
 
-KBoolean Kotlin_native_internal_GC_getCyclicCollector() {
+KBoolean Kotlin_native_internal_GC_getCyclicCollector(KRef gc) {
 #if USE_CYCLIC_GC
   return g_hasCyclicCollector;
 #else
@@ -3125,7 +3087,7 @@ KBoolean Kotlin_native_internal_GC_getCyclicCollector() {
 #endif  // USE_CYCLIC_GC
 }
 
-void Kotlin_native_internal_GC_setCyclicCollector(KBoolean value) {
+void Kotlin_native_internal_GC_setCyclicCollector(KRef gc, KBoolean value) {
 #if USE_CYCLIC_GC
   g_hasCyclicCollector = value;
 #else

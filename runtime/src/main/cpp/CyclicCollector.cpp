@@ -134,16 +134,25 @@ class CyclicCollector {
     CHECK_CALL(pthread_create(&gcThread_, nullptr, gcWorkerRoutine, this), "Cannot start collector thread")
   }
 
-  ~CyclicCollector() {
+  void clear() {
+    Locker lock(&lock_);
+    rootset_.clear();
+    toRelease_.clear();
+  }
+
+  void terminate(bool enabled) {
     {
       Locker locker(&lock_);
       terminateCollector_ = true;
-      shallRunCollector_ = true;
+      if (enabled) shallRunCollector_ = true;
       CHECK_CALL(pthread_cond_signal(&cond_), "Cannot signal collector")
     }
     // TODO: improve waiting for collector termination.
     while (atomicGet(&terminateCollector_)) {}
     releasePendingUnlocked(nullptr);
+  }
+
+  ~CyclicCollector() {
     pthread_cond_destroy(&cond_);
     pthread_mutex_destroy(&lock_);
     pthread_mutex_destroy(&timestampLock_);
@@ -169,7 +178,7 @@ class CyclicCollector {
          restartCount = 0;
         restart:
          COLLECTOR_LOG("start cycle GC\n");
-         if (restartCount > 10) {
+         if (restartCount > 10 && !terminateCollector_) {
            COLLECTOR_LOG("wait for some time to avoid GC trashing\n");
            struct timeval tv;
            struct timespec ts;
@@ -313,12 +322,14 @@ class CyclicCollector {
     if (mainWorker_ == nullptr) mainWorker_ = worker;
   }
 
-  void removeWorker(void* worker) {
+  void removeWorker(void* worker, bool enabled) {
     suggestLockRelease();
     Locker lock(&lock_);
     // When exiting the worker - we shall collect the cyclic garbage here.
-    shallRunCollector_ = true;
-    CHECK_CALL(pthread_cond_signal(&cond_), "Cannot signal collector")
+    if (enabled) {
+      shallRunCollector_ = true;
+      CHECK_CALL(pthread_cond_signal(&cond_), "Cannot signal collector")
+    }
     currentAliveWorkers_--;
   }
 
@@ -427,67 +438,80 @@ void cyclicInit() {
 #endif
 }
 
-void cyclicDeinit() {
+void cyclicDeinit(bool enabled) {
 #if WITH_WORKERS
   RuntimeAssert(cyclicCollector != nullptr, "Must be inited");
   auto* local = cyclicCollector;
+  local->terminate(enabled);
   cyclicCollector = nullptr;
-  konanDestructInstance(local);
+  // Workaround data race with threads non-atomically reading and then using [cyclicCollector].
+  // konanDestructInstance(local);
+  // Note: memory leaks here indeed, but usually it happens once per application.
+  // Make best effort to clean some memory:
+  local->clear();
 #endif  // WITH_WORKERS
 }
 
 void cyclicAddWorker(void* worker) {
 #if WITH_WORKERS
-  if (cyclicCollector)
-    cyclicCollector->addWorker(worker);
+  auto* local = cyclicCollector;
+  if (local)
+    local->addWorker(worker);
 #endif  // WITH_WORKERS
 }
 
-void cyclicRemoveWorker(void* worker) {
+void cyclicRemoveWorker(void* worker, bool enabled) {
 #if WITH_WORKERS
-  if (cyclicCollector)
-    cyclicCollector->removeWorker(worker);
+  auto* local = cyclicCollector;
+  if (local)
+    local->removeWorker(worker, enabled);
 #endif  // WITH_WORKERS
 }
 
 void cyclicCollectorCallback(void* worker) {
 #if WITH_WORKERS
-  if (cyclicCollector)
-    cyclicCollector->collectorCallaback(worker);
+  auto* local = cyclicCollector;
+  if (local)
+    local->collectorCallaback(worker);
 #endif  // WITH_WORKERS
 }
 
 void cyclicScheduleGarbageCollect() {
 #if WITH_WORKERS
-  if (cyclicCollector)
-    cyclicCollector->scheduleGarbageCollect();
+  auto* local = cyclicCollector;
+  if (local)
+    local->scheduleGarbageCollect();
 #endif  // WITH_WORKERS
 }
 
 void cyclicAddAtomicRoot(ObjHeader* obj) {
 #if WITH_WORKERS
-  if (cyclicCollector)
-    cyclicCollector->addRoot(obj);
+  auto* local = cyclicCollector;
+  if (local)
+    local->addRoot(obj);
 #endif  // WITH_WORKERS
 }
 
 void cyclicRemoveAtomicRoot(ObjHeader* obj) {
 #if WITH_WORKERS
-  if (cyclicCollector)
-    cyclicCollector->removeRoot(obj);
+  auto* local = cyclicCollector;
+  if (local)
+    local->removeRoot(obj);
 #endif  // WITH_WORKERS
 }
 
 void cyclicMutateAtomicRoot(ObjHeader* newValue) {
 #if WITH_WORKERS
-  if (cyclicCollector)
-    cyclicCollector->mutateRoot(newValue);
+  auto* local = cyclicCollector;
+  if (local)
+    local->mutateRoot(newValue);
 #endif  // WITH_WORKERS
 }
 
 void cyclicLocalGC() {
 #if WITH_WORKERS
-  if (cyclicCollector)
-    cyclicCollector->localGC();
+  auto* local = cyclicCollector;
+  if (local)
+    local->localGC();
 #endif  // WITH_WORKERS
 }
