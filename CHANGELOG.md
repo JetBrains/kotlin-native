@@ -1,3 +1,8 @@
+# v1.4.0-M1 (Mar 2020) milestone
+  * Experimental mimalloc allocator support (-Xallocator=mimalloc) to improve execution time performance.
+  * Improved support for -Xobjc-generics and enabled by default (GH-3778).
+  * Reworked exception handling in ObjC/Swift interop.
+
 # v1.3.70 (Dec 2019)
   * Support compiler caches for debug mode (GH-3650)
   * Support running Kotlin/Native compiler from Gradle daemon (GH-3442)
