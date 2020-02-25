@@ -16,6 +16,7 @@ import org.jetbrains.kotlin.backend.common.push
 import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.cgen.*
 import org.jetbrains.kotlin.backend.konan.descriptors.allOverriddenFunctions
+import org.jetbrains.kotlin.backend.konan.descriptors.isFromInteropLibrary
 import org.jetbrains.kotlin.backend.konan.descriptors.synthesizedName
 import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.backend.konan.ir.companionObject
@@ -881,6 +882,28 @@ private class InteropTransformer(val context: Context, override val irFile: IrFi
         return expression
     }
 
+    /**
+     * Handle `const val`s that come from interop libraries.
+     *
+     * We extract constant value from the backing field, and replace getter invocation with it.
+     */
+    private fun tryGenerateInteropConstantRead(expression: IrCall): IrExpression? {
+        val function = expression.symbol.owner
+
+        if (!function.descriptor.module.isFromInteropLibrary()) return null
+        if (function !is IrSimpleFunction) return null
+
+        val propertySymbol = function.correspondingPropertySymbol
+                ?: return null
+        val property = propertySymbol.owner
+        return if (property.isTopLevelDeclaration && property.isConst) {
+            property.backingField?.initializer?.expression
+                    ?: error("Constant property ${property.name} has no constant value!")
+        } else {
+            null
+        }
+    }
+
     override fun visitCall(expression: IrCall): IrExpression {
 
         expression.transformChildrenVoid(this)
@@ -902,6 +925,8 @@ private class InteropTransformer(val context: Context, override val irFile: IrFi
         }
 
         tryGenerateInteropMemberAccess(expression, symbols, builder)?.let { return it }
+
+        tryGenerateInteropConstantRead(expression)?.let { return it }
 
         val intrinsicType = tryGetIntrinsicType(expression)
 
