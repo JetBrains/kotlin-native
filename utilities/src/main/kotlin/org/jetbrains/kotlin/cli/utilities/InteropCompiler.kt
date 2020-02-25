@@ -68,7 +68,7 @@ fun invokeInterop(flavor: String, args: Array<String>): Array<String>? {
         (if (noDefaultLibs) arrayOf("-$NODEFAULTLIBS") else emptyArray()) +
         (if (noEndorsedLibs) arrayOf("-$NOENDORSEDLIBS") else emptyArray()) +
         (if (purgeUserLibs) arrayOf("-$PURGE_USER_LIBS") else emptyArray()) +
-        (if (arguments.kotlincOption.isNotEmpty()) arguments.kotlincOption else emptyList())
+        arguments.kotlincOption
 }
 
 
