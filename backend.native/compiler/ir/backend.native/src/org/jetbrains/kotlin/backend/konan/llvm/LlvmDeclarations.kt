@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.resolve.descriptorUtil.module
 
 internal fun createLlvmDeclarations(context: Context): LlvmDeclarations {
     val generator = DeclarationsGeneratorVisitor(context)
@@ -340,7 +341,9 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
 
         val llvmFunction = if (declaration.isExternal) {
             if (declaration.isTypedIntrinsic || declaration.isObjCBridgeBased()
-                    || declaration.annotations.hasAnnotation(RuntimeNames.cCall)) return
+                    || declaration.annotations.hasAnnotation(RuntimeNames.cCall)
+                    // TODO: Should it replace CCall check?
+                    || declaration.descriptor.module.isFromInteropLibrary()) return
 
             context.llvm.externalFunction(declaration.symbolName, llvmFunctionType,
                     // Assume that `external fun` is defined in native libs attached to this module:
