@@ -48,6 +48,8 @@ class KonanIrLinker(
     exportedDependencies: List<ModuleDescriptor>
 ) : KotlinIrLinker(logger, builtIns, symbolTable, exportedDependencies, forwardModuleDescriptor) {
 
+    private val descriptorByIdSignatureFinder = DescriptorByIdSignatureFinder(currentModule)
+
     override fun reader(moduleDescriptor: ModuleDescriptor, fileIndex: Int, idSigIndex: Int) =
             moduleDescriptor.konanLibrary!!.irDeclaration(idSigIndex, fileIndex)
 
@@ -93,12 +95,15 @@ class KonanIrLinker(
     }
 
     override fun resolvePlatformDescriptor(idSig: IdSignature): DeclarationDescriptor? {
+        if (idSig.isInteropSignature()) {
+            return descriptorByIdSignatureFinder.findDescriptorBySignature(idSig)
+        }
         if (!idSig.isForwardDeclarationSignature()) return null
 
         val fwdModule = forwardModuleDescriptor ?: error("Forward declaration module should not be null")
 
         return with(idSig as IdSignature.PublicSignature) {
-            val classId = ClassId(packageFqn, classFqn, false)
+            val classId = ClassId(packageFqn, declarationFqn, false)
             fwdModule.findClassAcrossModuleDependencies(classId)
         }
     }

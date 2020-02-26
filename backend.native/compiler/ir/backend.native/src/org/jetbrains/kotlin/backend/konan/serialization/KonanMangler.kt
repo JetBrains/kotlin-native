@@ -8,10 +8,13 @@ import org.jetbrains.kotlin.backend.common.serialization.mangle.ir.IrBasedKotlin
 import org.jetbrains.kotlin.backend.common.serialization.mangle.ir.IrExportCheckerVisitor
 import org.jetbrains.kotlin.backend.common.serialization.mangle.ir.IrMangleComputer
 import org.jetbrains.kotlin.backend.konan.*
+import org.jetbrains.kotlin.backend.konan.descriptors.isFromInteropLibrary
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.util.hasAnnotation
+import org.jetbrains.kotlin.resolve.descriptorUtil.isCompanionObject
+import org.jetbrains.kotlin.resolve.descriptorUtil.module
 
 abstract class AbstractKonanIrMangler : IrBasedKotlinManglerImpl() {
     override fun getExportChecker(): IrExportCheckerVisitor = KonanIrExportChecker()
@@ -145,4 +148,50 @@ abstract class AbstractKonanDescriptorMangler : DescriptorBasedKotlinManglerImpl
     }
 }
 
-object KonanManglerDesc : AbstractKonanDescriptorMangler()
+object KonanManglerDesc : AbstractKonanDescriptorMangler() {
+    override val DeclarationDescriptor.signatureMangle: Long
+        get() = if (this.module.isFromInteropLibrary() && shouldExtractUniqId(this)) {
+            mangleDescriptorFromInteropLibrary(this)
+        } else {
+            signatureString.hashMangle
+        }
+
+    private fun shouldExtractUniqId(descriptor: DeclarationDescriptor) =
+            !isLocalDeclaration(descriptor) && !isSpecialCase(descriptor)
+
+    /**
+     * Some declarations don't have metadata descriptor in the interop library.
+     */
+    private fun isLocalDeclaration(descriptor: DeclarationDescriptor): Boolean {
+        return when (descriptor) {
+            is ValueParameterDescriptor -> true
+            is CallableMemberDescriptor -> when (descriptor.kind) {
+                CallableMemberDescriptor.Kind.FAKE_OVERRIDE,
+                CallableMemberDescriptor.Kind.SYNTHESIZED -> true
+                else -> false
+            }
+            else -> false
+        }
+    }
+
+    /**
+     * Some declarations don't have UniqId, and we should fallback to default behavior.
+     */
+    private fun isSpecialCase(descriptor: DeclarationDescriptor): Boolean {
+        // Linker doesn't need accessor's UniqId, actually.
+        // Instead, it uses accessor's name.
+        if (descriptor is PropertyAccessorDescriptor) {
+            return true
+        }
+        // Companion object constructor is not serialized, so fallback to default behaviour.
+        if (descriptor is ConstructorDescriptor && descriptor.containingDeclaration.isCompanionObject()) {
+            return true
+        }
+        return false
+    }
+
+    private fun mangleDescriptorFromInteropLibrary(descriptor: DeclarationDescriptor): Long {
+        return DeserializedDescriptorUniqIdAware.getUniqId(descriptor)
+                ?: error("$descriptor from interop library has no UniqId!")
+    }
+}
