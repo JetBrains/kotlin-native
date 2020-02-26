@@ -1,6 +1,7 @@
 package org.jetbrains.kotlin.backend.konan.lower
 
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
+import org.jetbrains.kotlin.backend.common.ir.classIfConstructor
 import org.jetbrains.kotlin.backend.common.lower.IrBuildingTransformer
 import org.jetbrains.kotlin.backend.common.lower.at
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
@@ -12,15 +13,13 @@ import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrStatementContainer
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.toKotlinType
-import org.jetbrains.kotlin.ir.util.addChild
-import org.jetbrains.kotlin.ir.util.irCall
-import org.jetbrains.kotlin.ir.util.nameForIrSerialization
-import org.jetbrains.kotlin.ir.util.statements
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.types.Variance
 import kotlin.collections.component1
 import kotlin.collections.component2
@@ -76,10 +75,10 @@ internal class GenericsSpecialization(val context: Context) : FileLoweringPass {
 internal class SpecializationTransformer(val context: Context): IrBuildingTransformer(context) {
 
     companion object {
-        private val currentSpecializations = mutableMapOf<Pair<IrFunction, IrType>, IrFunction>()
+        private val currentSpecializations = mutableMapOf<Pair<IrTypeParametersContainer, IrType>, IrTypeParametersContainer>()
 
         // scope -> specialization -> origin
-        private val newFunctions = mutableMapOf<IrDeclarationParent, MutableMap<IrFunction, IrFunction>>()
+        private val newSpecializations = mutableMapOf<IrDeclarationParent, MutableMap<IrTypeParametersContainer, IrTypeParametersContainer>>()
 
         private val typeParametersMapping = mutableMapOf<IrTypeParameterSymbol, IrType>()
     }
@@ -102,7 +101,7 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
     override fun visitFile(declaration: IrFile): IrFile {
         return super.visitFile(declaration).also {
             addNewFunctionsToIr(declaration)
-            newFunctions.forEach { (scope, _) ->
+            newSpecializations.forEach { (scope, _) ->
                 addNewFunctionsToIr(scope)
             }
         }
@@ -140,13 +139,55 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         }
     }
 
+    override fun visitConstructorCall(expression: IrConstructorCall): IrExpression {
+        if (!expression.symbol.owner.isPrimary) {
+            return super.visitConstructorCall(expression)
+        }
+        val primitiveTypeSubstitutionMap = expression.typeSubstitutionMap
+                .filterValues { it in context.irBuiltIns.primitiveIrTypes }
+        if (primitiveTypeSubstitutionMap.size != 1) {
+            return super.visitConstructorCall(expression)
+        }
+        val newConstructor = when (val newClass = expression.symbol.owner.classIfConstructor.getSpecialization(primitiveTypeSubstitutionMap)) {
+            is IrClass -> newClass.primaryConstructor
+            else -> null
+        } ?: return super.visitConstructorCall(expression)
+
+        builder.at(expression).run {
+            irConstructorCall(expression, newConstructor).apply {
+                return this
+            }
+        }
+    }
+
+    private inline fun <reified T : IrTypeParametersContainer> T.getSpecialization(primitiveTypeSubstitutionMap: Map<IrTypeParameterSymbol, IrType>): T {
+        val (typeParameterSymbol, actualType) = primitiveTypeSubstitutionMap.entries.first()
+        val existingSpecialization = currentSpecializations[this to actualType]
+        if (existingSpecialization is T) {
+            return existingSpecialization
+        }
+        val copier = TypeParameterEliminator(
+                this@SpecializationTransformer,
+                typeParametersMapping,
+                context,
+                parent
+        )
+        copier.addNewDeclarationName(this, "${nameForIrSerialization}-${actualType.toKotlinType()}")
+        typeParametersMapping[typeParameterSymbol] = actualType
+
+        return eliminateTypeParameters(copier).also {
+            currentSpecializations[this to actualType] = it
+            newSpecializations.getOrPut(parent) { mutableMapOf() }[it] = this
+        }
+    }
+
     // TODO generalize
     private fun IrFunction.getSpecialization(type: IrType): IrFunction {
         if (this !is IrSimpleFunction) {
             return this
         }
         val function = currentSpecializations[this to type]
-        if (function != null) {
+        if (function is IrFunction) { // also implies that function != null
             return function
         }
 
@@ -159,13 +200,13 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
 
         // Include concrete primitive type to the name of specialization
         // to be able to easily spot such functions and to avoid extra overloads
-        copier.addNewFunctionName(this, "${nameForIrSerialization}-${type.toKotlinType()}")
+        copier.addNewDeclarationName(this, "${nameForIrSerialization}-${type.toKotlinType()}")
 
         typeParametersMapping[typeParameters.first().symbol] = type
 
         return eliminateTypeParameters(copier).also {
             currentSpecializations[this to type] = it
-            newFunctions.getOrPut(parent) { mutableMapOf() }[it] = this
+            newSpecializations.getOrPut(parent) { mutableMapOf() }[it] = this
         }
     }
 
@@ -175,7 +216,7 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
      * otherwise [ConcurrentModificationException] may be thrown.
      */
     private fun addNewFunctionsToIr(parent: IrDeclarationParent) {
-        newFunctions[parent]?.forEach { (specialization, origin) ->
+        newSpecializations[parent]?.forEach { (specialization, origin) ->
             when (val scope = origin.parent) {
                 is IrDeclarationContainer -> scope.addChild(specialization)
                 is IrStatementContainer -> {
@@ -203,6 +244,6 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
                 else -> TODO()
             }
         }
-        newFunctions[parent]?.clear()
+        newSpecializations[parent]?.clear()
     }
 }

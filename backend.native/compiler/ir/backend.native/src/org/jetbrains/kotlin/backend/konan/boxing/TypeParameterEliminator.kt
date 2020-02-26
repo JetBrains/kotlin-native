@@ -76,12 +76,16 @@ internal class TypeParameterEliminator(private val specializationTransformer: Sp
     }
 
     private val newFunctionNames = mutableMapOf<IrSymbol, Name>()
-    fun addNewFunctionName(function: IrFunction, name: String) {
-        newFunctionNames[function.symbol] = Name.identifier(name)
+    private val newClassNames = mutableMapOf<IrSymbol, Name>()
+    fun <T : IrTypeParametersContainer> addNewDeclarationName(declaration: T, name: String) {
+        when (declaration) {
+            is IrClass -> newClassNames[declaration.symbol] = Name.identifier(name)
+            is IrFunction -> newFunctionNames[declaration.symbol] = Name.identifier(name)
+        }
     }
 
     private inner class TypeParameterEliminatorSymbolRenamer : SymbolRenamer {
-        override fun getClassName(symbol: IrClassSymbol) = symbol.owner.name
+        override fun getClassName(symbol: IrClassSymbol) = newClassNames[symbol] ?: symbol.owner.name
         override fun getFunctionName(symbol: IrSimpleFunctionSymbol) = newFunctionNames[symbol] ?: symbol.owner.name
         override fun getFieldName(symbol: IrFieldSymbol) = symbol.owner.name
         override fun getFileName(symbol: IrFileSymbol) = symbol.owner.fqName
@@ -91,6 +95,7 @@ internal class TypeParameterEliminator(private val specializationTransformer: Sp
         override fun getTypeParameterName(symbol: IrTypeParameterSymbol) = symbol.owner.name
         override fun getValueParameterName(symbol: IrValueParameterSymbol) = symbol.owner.name
     }
+
 
     override val copier: DeepCopyIrTreeWithSymbols = object : DeepCopyIrTreeWithSymbols(
             symbolRemapper,
