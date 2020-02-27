@@ -6,7 +6,11 @@ fun <U> libid__(x: U) = x
 
 fun <T> libeqls__(x: T, y: T) = x == y
 
-class MyHumbleBox<T>(val value: T)
+class MyHumbleBox<T>(val value: T) {
+    constructor(v: T, w: T) : this(v, 42)
+    constructor(v: T, w: T, z: Int) : this(w, z)
+    constructor(v: T, w: Int) : this(v)
+}
 
 @CountBoxings
 fun runLib(): Int {

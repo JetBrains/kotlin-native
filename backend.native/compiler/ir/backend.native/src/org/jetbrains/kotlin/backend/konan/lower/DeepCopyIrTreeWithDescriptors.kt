@@ -47,7 +47,7 @@ internal open class DeepCopyIrTreeWithSymbolsForInliner(val context: Context,
             }
 
             override fun visitConstructor(declaration: IrConstructor) {
-                (declaration.descriptor as WrappedClassConstructorDescriptor).bind(declaration)
+//                (declaration.descriptor as WrappedClassConstructorDescriptor).bind(declaration)
                 declaration.acceptChildrenVoid(this)
             }
 

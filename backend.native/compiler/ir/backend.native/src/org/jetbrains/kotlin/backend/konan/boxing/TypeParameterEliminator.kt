@@ -1,19 +1,18 @@
 package org.jetbrains.kotlin.backend.konan.boxing
 
+import org.jetbrains.kotlin.backend.common.descriptors.WrappedClassConstructorDescriptor
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.lower.DeepCopyIrTreeWithSymbolsForInliner
 import org.jetbrains.kotlin.backend.konan.lower.SpecializationTransformer
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.IrDelegatingConstructorCall
 import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeImpl
 import org.jetbrains.kotlin.ir.types.impl.makeTypeProjection
-import org.jetbrains.kotlin.ir.util.DeepCopyIrTreeWithSymbols
-import org.jetbrains.kotlin.ir.util.SymbolRemapper
-import org.jetbrains.kotlin.ir.util.SymbolRenamer
-import org.jetbrains.kotlin.ir.util.nameForIrSerialization
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.Name
 
 // Expected that transformer will not change entities of given IR elements, only internals,
@@ -138,13 +137,20 @@ internal class TypeParameterEliminator(private val specializationTransformer: Sp
         }
     }
 
-    override val copier: DeepCopyIrTreeWithSymbols = object : DeepCopyIrTreeWithSymbols(
+    internal inner class EliminatingCopier : DeepCopyIrTreeWithSymbols(
             symbolRemapper,
             EliminatorTypeRemapper(symbolRemapper),
             TypeParameterEliminatorSymbolRenamer()
     ) {
+        private val constructorsCopier = ConstructorsCopier()
+
         override fun visitClass(declaration: IrClass): IrClass {
+            constructorsCopier.prepare(declaration)
             return super.visitClass(declaration).withEliminatedTypeParameters(declaration)
+        }
+
+        override fun visitConstructor(declaration: IrConstructor): IrConstructor {
+            return constructorsCopier.getCopied(declaration)
         }
 
         override fun visitSimpleFunction(declaration: IrSimpleFunction): IrSimpleFunction {
@@ -176,5 +182,52 @@ internal class TypeParameterEliminator(private val specializationTransformer: Sp
             val symbol = getTypeArgument(0)?.classifierOrNull
             return symbol in typeParameterMapping && typeParameterMapping[symbol]?.isPrimitiveType() == true
         }
+
+        private inner class ConstructorsCopier {
+            private val constructorsInDelegationOrder = mutableListOf<IrConstructor>()
+            private val copiedConstructors = mutableMapOf<IrConstructor, IrConstructor>()
+
+            fun prepare(declaration: IrClass) {
+                with (constructorsInDelegationOrder) {
+                    clear()
+                    addAll(declaration.constructors.sortedWith(ConstructorDelegationPartialOrder(declaration)))
+                    copiedConstructors.clear()
+                }
+            }
+
+            fun getCopied(oldConstructor: IrConstructor): IrConstructor {
+                if (copiedConstructors.isEmpty()) {
+                    copiedConstructors.putAll(constructorsInDelegationOrder.map {
+                        it to super@EliminatingCopier.visitConstructor(it).also { ctor ->
+                            (ctor.descriptor as WrappedClassConstructorDescriptor).bind(ctor)
+                        }
+                    })
+                }
+                return copiedConstructors[oldConstructor]!!
+            }
+        }
+    }
+
+    override val copier = EliminatingCopier()
+}
+
+class ConstructorDelegationPartialOrder(clazz: IrClass) : Comparator<IrConstructor> {
+    private val constructorsAndDelegates = clazz.constructors
+            .map {
+                it to it.body?.statements?.filterIsInstance<IrDelegatingConstructorCall>()?.single()?.symbol?.owner
+            }
+            .toMap()
+
+    // c1 < c2  => c2 transitively delegates to c1
+    // c1 == c2 => neither constructor delegates to another (or they're the same)
+    override fun compare(c1: IrConstructor?, c2: IrConstructor?): Int {
+        if (c1 == null || c2 == null || c1 === c2) return 0
+        if (c1.constructedClass !== c2.constructedClass) return 0
+        val delegate1 = constructorsAndDelegates[c1]
+        val delegate2 = constructorsAndDelegates[c2]
+        if (delegate1 == null && delegate2 == null) return 0
+        if (delegate1 === c2) return 1
+        if (delegate2 === c1) return -1
+        return 0
     }
 }
