@@ -279,7 +279,7 @@ internal class EnumStubBuilder(
                 .mapIndexed { index, constant ->
                     val literal = context.tryCreateIntegralStub(enumDef.baseType, constant.value)
                             ?: error("Cannot create enum value ${constant.value} of type ${enumDef.baseType}")
-                    val entry = EnumEntryStub(constant.name, literal, StubOrigin.EnumEntry(constant), index)
+                    val entry = EnumEntryStub(mangleSimple(constant.name), literal, StubOrigin.EnumEntry(constant), index)
                     val aliases = aliasConstants
                             .filter { it.value == constant.value }
                             .map { constructAliasProperty(it, entry) }
