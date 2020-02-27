@@ -51,8 +51,8 @@ kotlin {
         summary = "Some description for a Kotlin/Native module"
         homepage = "Link to a Kotlin/Native module homepage"
 
-        // A name of a produced framework can be changed.
-        // By default it's equal to a name of the Gradle project.
+        // The name of the produced framework can be changed.
+        // The name of the Gradle project is used here by default.
         frameworkName = "my_framework"
     }
 }
