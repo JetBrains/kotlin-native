@@ -7,6 +7,7 @@ import org.jetbrains.kotlin.backend.common.lower.at
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irBlockBody
 import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.boxing.SpecializationEncoder
 import org.jetbrains.kotlin.backend.konan.boxing.TypeParameterEliminator
 import org.jetbrains.kotlin.backend.konan.boxing.eliminateTypeParameters
 import org.jetbrains.kotlin.ir.IrStatement
@@ -18,7 +19,6 @@ import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrStatementContainer
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.types.toKotlinType
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.types.Variance
 import kotlin.collections.component1
@@ -87,6 +87,8 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
     // It causes to pass the whole file every time the previous pass ended with this flag being set.
     // TODO find smarter way to handle such calls, or decide the current way is smart enough
     private var hasCallsFitForSpecialization: Boolean = false
+
+    private val encoder = SpecializationEncoder(context)
 
     fun checkTransformedCalls(): Boolean {
         val result = hasCallsFitForSpecialization
@@ -161,7 +163,9 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
     }
 
     private inline fun <reified T : IrTypeParametersContainer> T.getSpecialization(primitiveTypeSubstitutionMap: Map<IrTypeParameterSymbol, IrType>): T {
+        // TODO: now assuming that mapping must contain exactly 1 entry
         val (typeParameterSymbol, actualType) = primitiveTypeSubstitutionMap.entries.first()
+
         val existingSpecialization = currentSpecializations[this to actualType]
         if (existingSpecialization is T) {
             return existingSpecialization
@@ -172,7 +176,7 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
                 context,
                 parent
         )
-        copier.addNewDeclarationName(this, "${nameForIrSerialization}-${actualType.toKotlinType()}")
+        copier.addNewDeclarationName(this, encoder.encode(this, primitiveTypeSubstitutionMap))
         typeParametersMapping[typeParameterSymbol] = actualType
 
         return eliminateTypeParameters(copier).also {
@@ -200,7 +204,7 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
 
         // Include concrete primitive type to the name of specialization
         // to be able to easily spot such functions and to avoid extra overloads
-        copier.addNewDeclarationName(this, "${nameForIrSerialization}-${type.toKotlinType()}")
+        copier.addNewDeclarationName(this, encoder.encode(this, mapOf(typeParameters.first().symbol to type)))
 
         typeParametersMapping[typeParameters.first().symbol] = type
 
