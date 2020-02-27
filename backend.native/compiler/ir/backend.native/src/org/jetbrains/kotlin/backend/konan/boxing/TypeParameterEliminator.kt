@@ -7,11 +7,13 @@ import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.symbols.*
-import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.types.classifierOrNull
-import org.jetbrains.kotlin.ir.types.isPrimitiveType
+import org.jetbrains.kotlin.ir.types.*
+import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeImpl
+import org.jetbrains.kotlin.ir.types.impl.makeTypeProjection
 import org.jetbrains.kotlin.ir.util.DeepCopyIrTreeWithSymbols
+import org.jetbrains.kotlin.ir.util.SymbolRemapper
 import org.jetbrains.kotlin.ir.util.SymbolRenamer
+import org.jetbrains.kotlin.ir.util.nameForIrSerialization
 import org.jetbrains.kotlin.name.Name
 
 // Expected that transformer will not change entities of given IR elements, only internals,
@@ -63,13 +65,18 @@ internal fun <T : IrElement> T.eliminateTypeParameters(transformer: TypeParamete
  */
 internal class TypeParameterEliminator(private val specializationTransformer: SpecializationTransformer,
                                        private val typeParameterMapping: Map<IrTypeParameterSymbol, IrType>,
+                                       private val specializationEncoder: SpecializationEncoder,
                                        context: Context,
                                        parent: IrDeclarationParent)
     : DeepCopyIrTreeWithSymbolsForInliner(context, typeParameterMapping, parent) {
 
     private val callsFitForSpecialization = mutableSetOf<IrCall>()
+    private val specializingClasses = mutableSetOf<IrClass>()
 
     override fun copy(irElement: IrElement): IrElement {
+        if (irElement is IrClass) {
+            specializingClasses += irElement
+        }
         val result = super.copy(irElement)
         specializationTransformer.handleTransformedCalls(callsFitForSpecialization)
         return result
@@ -96,10 +103,44 @@ internal class TypeParameterEliminator(private val specializationTransformer: Sp
         override fun getValueParameterName(symbol: IrValueParameterSymbol) = symbol.owner.name
     }
 
+    /*
+     * Removes obsolete type arguments from types that refer to specialized declarations
+     * (e.g. type arguments in `this` type and constructors return types).
+     */
+    private inner class EliminatorTypeRemapper(symbolRemapper: SymbolRemapper) : InlinerTypeRemapper(symbolRemapper, typeParameterMapping) {
+        override fun remapType(type: IrType): IrType {
+            val newType = super.remapType(type)
+            if (newType !is IrSimpleType || newType.classOrNull?.isBound != true) return newType
+
+            val newTypeOwner = newType.classOrNull?.owner!!
+            if (type.classOrNull?.owner in specializingClasses) {
+                val types = specializationEncoder.decode(newTypeOwner.nameForIrSerialization.asString())
+                return IrSimpleTypeImpl(
+                        newType.classifier,
+                        newType.hasQuestionMark,
+                        remapTypeArguments(newType.arguments, types),
+                        newType.annotations,
+                        newType.abbreviation
+                )
+            }
+            return newType
+        }
+
+        private fun remapTypeArguments(arguments: List<IrTypeArgument>, types: List<IrType?>): List<IrTypeArgument> {
+            require(arguments.size == types.size) {
+                "Expected ${arguments.size} elements but specialization has ${types.size}"
+            }
+            return arguments.filterIndexed { index, _ -> types[index] == null }
+                    .map { argument ->
+                        (argument as? IrTypeProjection)?.let { makeTypeProjection(remapType(it.type), it.variance) }
+                                ?: argument
+                    }
+        }
+    }
 
     override val copier: DeepCopyIrTreeWithSymbols = object : DeepCopyIrTreeWithSymbols(
             symbolRemapper,
-            typeRemapper,
+            EliminatorTypeRemapper(symbolRemapper),
             TypeParameterEliminatorSymbolRenamer()
     ) {
         override fun visitClass(declaration: IrClass): IrClass {

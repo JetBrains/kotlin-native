@@ -173,6 +173,7 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         val copier = TypeParameterEliminator(
                 this@SpecializationTransformer,
                 typeParametersMapping,
+                encoder,
                 context,
                 parent
         )
@@ -198,6 +199,7 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         val copier = TypeParameterEliminator(
                 this@SpecializationTransformer,
                 typeParametersMapping,
+                encoder,
                 context,
                 parent
         )

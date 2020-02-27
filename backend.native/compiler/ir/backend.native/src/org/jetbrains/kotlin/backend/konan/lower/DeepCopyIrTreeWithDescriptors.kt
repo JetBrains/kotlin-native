@@ -138,7 +138,7 @@ internal open class DeepCopyIrTreeWithSymbolsForInliner(val context: Context,
                     WrappedValueParameterDescriptor(descriptor.annotations, descriptor.source)
     }
 
-    private inner class InlinerTypeRemapper(val symbolRemapper: SymbolRemapper,
+    protected open inner class InlinerTypeRemapper(val symbolRemapper: SymbolRemapper,
                                             val typeArguments: Map<IrTypeParameterSymbol, IrType?>?) : TypeRemapper {
 
         override fun enterScope(irTypeParametersContainer: IrTypeParametersContainer) {}
