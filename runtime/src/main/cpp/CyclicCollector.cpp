@@ -183,8 +183,10 @@ class CyclicCollector {
            struct timeval tv;
            struct timespec ts;
            long long nsDelta = 1000LL * 1000LL * (restartCount - 10);
-           ts.tv_nsec = (tv.tv_usec * 1000LL + nsDelta) % 1000000000LL;
-           ts.tv_sec = (tv.tv_sec * 1000000000LL + tv.tv_usec * 1000LL + nsDelta) / 1000000000LL ;
+           constexpr long long nanosecondsInASecond = 1000LL * 1000LL * 1000LL;
+           long long nanoseconds = tv.tv_usec * 1000LL + nsDelta;
+           ts.tv_nsec = nanoseconds % nanosecondsInASecond;
+           ts.tv_sec = tv.tv_sec + nanoseconds / nanosecondsInASecond;
            pthread_cond_timedwait(&cond_, &lock_, &ts);
          }
          atomicSet(&mutatedAtomics_, 0);

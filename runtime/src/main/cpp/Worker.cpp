@@ -413,8 +413,10 @@ class State {
     struct timespec ts;
     gettimeofday(&tv, nullptr);
     KLong nsDelta = millis * 1000LL * 1000LL;
-    ts.tv_nsec = (tv.tv_usec * 1000LL + nsDelta) % 1000000000LL;
-    ts.tv_sec =  (tv.tv_sec * 1000000000LL + nsDelta) / 1000000000LL;
+    constexpr long long nanosecondsInASecond = 1000LL * 1000LL * 1000LL;
+    long long nanoseconds = tv.tv_usec * 1000LL + nsDelta;
+    ts.tv_nsec = nanoseconds % nanosecondsInASecond;
+    ts.tv_sec = tv.tv_sec + nsDelta / nanosecondsInASecond;
     pthread_cond_timedwait(&cond_, &lock_, &ts);
     return true;
   }
@@ -769,25 +771,29 @@ KLong Worker::checkDelayedLocked() {
 
 bool Worker::waitForQueueLocked(KLong timeoutMicroseconds, KLong* remaining) {
   while (queue_.size() == 0) {
-    KLong closestToRun = checkDelayedLocked();
-    if (closestToRun == 0) {
+    KLong closestToRunMicroseconds = checkDelayedLocked();
+    if (closestToRunMicroseconds == 0) {
         continue;
     }
     if (timeoutMicroseconds >= 0) {
-        closestToRun = (timeoutMicroseconds < closestToRun || closestToRun < 0) ? timeoutMicroseconds : closestToRun;
+        closestToRunMicroseconds = (timeoutMicroseconds < closestToRunMicroseconds || closestToRunMicroseconds < 0)
+          ? timeoutMicroseconds
+          : closestToRunMicroseconds;
     }
-    if (closestToRun == 0) {
+    if (closestToRunMicroseconds == 0) {
       // Just no wait at all here.
-    } else if (closestToRun > 0) {
+    } else if (closestToRunMicroseconds > 0) {
       struct timeval tv;
       struct timespec ts;
       gettimeofday(&tv, nullptr);
       // Protect from potential overflow, cutting at 10_000_000 seconds, aka 115 days.
-      if (closestToRun > 10LL * 1000 * 1000 * 1000 * 1000)
-        closestToRun = 10LL * 1000 * 1000 * 1000 * 1000;
-      KLong nsDelta = closestToRun * 1000LL;
-      ts.tv_nsec = (tv.tv_usec * 1000LL + nsDelta) % 1000000000LL;
-      ts.tv_sec = (tv.tv_sec * 1000000000LL + nsDelta) / 1000000000LL;
+      if (closestToRunMicroseconds > 10LL * 1000 * 1000 * 1000 * 1000)
+        closestToRunMicroseconds = 10LL * 1000 * 1000 * 1000 * 1000;
+      KLong nsDelta = closestToRunMicroseconds * 1000LL;
+      constexpr long long nanosecondsInASecond = 1000LL * 1000LL * 1000LL;
+      long long nanoseconds = tv.tv_usec * 1000LL + nsDelta;
+      ts.tv_nsec = nanoseconds % nanosecondsInASecond;
+      ts.tv_sec = tv.tv_sec + nanoseconds / nanosecondsInASecond;
       pthread_cond_timedwait(&cond_, &lock_, &ts);
       if (remaining) {
         struct timeval tvAfter;
