@@ -2,7 +2,10 @@ package org.jetbrains.kotlin.backend.konan.serialization
 
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.util.IdSignature
+import org.jetbrains.kotlin.library.metadata.KlibMetadataProtoBuf
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
+import org.jetbrains.kotlin.serialization.deserialization.descriptors.*
+import org.jetbrains.kotlin.protobuf.GeneratedMessageLite
 
 // The code here is intentionally copy-pasted from DeclarationStubGenerator with
 // minor changes.
@@ -75,3 +78,16 @@ class DescriptorByIdSignatureFinder(
         }
     }
 }
+
+private fun <T, M : GeneratedMessageLite.ExtendableMessage<M>> M.tryGetExtension(extension: GeneratedMessageLite.GeneratedExtension<M, T>) =
+        if (this.hasExtension(extension)) this.getExtension<T>(extension) else null
+
+fun extractDescriptorUniqId(descriptor: DeclarationDescriptor): Long? = when (descriptor) {
+    is DeserializedClassDescriptor -> descriptor.classProto.tryGetExtension(KlibMetadataProtoBuf.classUniqId)
+    is DeserializedSimpleFunctionDescriptor -> descriptor.proto.tryGetExtension(KlibMetadataProtoBuf.functionUniqId)
+    is DeserializedPropertyDescriptor -> descriptor.proto.tryGetExtension(KlibMetadataProtoBuf.propertyUniqId)
+    is DeserializedClassConstructorDescriptor -> descriptor.proto.tryGetExtension(KlibMetadataProtoBuf.constructorUniqId)
+    is DeserializedTypeParameterDescriptor -> descriptor.proto.tryGetExtension(KlibMetadataProtoBuf.typeParamUniqId)
+    is DeserializedTypeAliasDescriptor -> descriptor.proto.tryGetExtension(KlibMetadataProtoBuf.typeAliasUniqId)
+    else -> null
+}?.index

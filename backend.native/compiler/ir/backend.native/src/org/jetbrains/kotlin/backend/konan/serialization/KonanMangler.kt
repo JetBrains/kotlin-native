@@ -13,11 +13,8 @@ import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.util.hasAnnotation
-import org.jetbrains.kotlin.library.metadata.KlibMetadataProtoBuf
 import org.jetbrains.kotlin.resolve.descriptorUtil.isCompanionObject
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
-import org.jetbrains.kotlin.serialization.deserialization.descriptors.*
-import org.jetbrains.kotlin.protobuf.GeneratedMessageLite
 
 abstract class AbstractKonanIrMangler : IrBasedKotlinManglerImpl() {
     override fun getExportChecker(): IrExportCheckerVisitor = KonanIrExportChecker()
@@ -157,7 +154,7 @@ object KonanManglerDesc : AbstractKonanDescriptorMangler() {
             if (this is CallableMemberDescriptor && this.kind == CallableMemberDescriptor.Kind.FAKE_OVERRIDE) {
                 this.resolveFakeOverrideMaybeAbstract().first().signatureMangle
             } else {
-                getUniqId(this)
+                extractDescriptorUniqId(this)
                         ?: error("$this from interop library has no UniqId!")
             }
         } else {
@@ -196,17 +193,4 @@ object KonanManglerDesc : AbstractKonanDescriptorMangler() {
         }
         return false
     }
-
-    private fun <T, M : GeneratedMessageLite.ExtendableMessage<M>> M.tryGetExtension(extension: GeneratedMessageLite.GeneratedExtension<M, T>) =
-            if (this.hasExtension(extension)) this.getExtension<T>(extension) else null
-
-    private fun getUniqId(descriptor: DeclarationDescriptor): Long? = when (descriptor) {
-        is DeserializedClassDescriptor -> descriptor.classProto.tryGetExtension(KlibMetadataProtoBuf.classUniqId)
-        is DeserializedSimpleFunctionDescriptor -> descriptor.proto.tryGetExtension(KlibMetadataProtoBuf.functionUniqId)
-        is DeserializedPropertyDescriptor -> descriptor.proto.tryGetExtension(KlibMetadataProtoBuf.propertyUniqId)
-        is DeserializedClassConstructorDescriptor -> descriptor.proto.tryGetExtension(KlibMetadataProtoBuf.constructorUniqId)
-        is DeserializedTypeParameterDescriptor -> descriptor.proto.tryGetExtension(KlibMetadataProtoBuf.typeParamUniqId)
-        is DeserializedTypeAliasDescriptor -> descriptor.proto.tryGetExtension(KlibMetadataProtoBuf.typeAliasUniqId)
-        else -> null
-    }?.index
 }
