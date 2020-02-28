@@ -8,10 +8,14 @@ import org.jetbrains.kotlin.backend.common.serialization.mangle.ir.IrBasedKotlin
 import org.jetbrains.kotlin.backend.common.serialization.mangle.ir.IrExportCheckerVisitor
 import org.jetbrains.kotlin.backend.common.serialization.mangle.ir.IrMangleComputer
 import org.jetbrains.kotlin.backend.konan.*
+import org.jetbrains.kotlin.backend.konan.descriptors.isFromInteropLibrary
+import org.jetbrains.kotlin.backend.konan.serialization.KonanManglerDesc.signatureMangle
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.util.hasAnnotation
+import org.jetbrains.kotlin.resolve.descriptorUtil.isCompanionObject
+import org.jetbrains.kotlin.resolve.descriptorUtil.module
 
 abstract class AbstractKonanIrMangler : IrBasedKotlinManglerImpl() {
     override fun getExportChecker(): IrExportCheckerVisitor = KonanIrExportChecker()
@@ -145,4 +149,38 @@ abstract class AbstractKonanDescriptorMangler : DescriptorBasedKotlinManglerImpl
     }
 }
 
-object KonanManglerDesc : AbstractKonanDescriptorMangler()
+object KonanManglerDesc : AbstractKonanDescriptorMangler() {
+    override val DeclarationDescriptor.signatureMangle: Long
+        get() = if (this.module.isFromInteropLibrary() && shouldExtractUniqId(this)) {
+            getUniqIdForInteropDeclaration(this)
+        } else {
+            signatureString.hashMangle
+        }
+
+    private fun getUniqIdForInteropDeclaration(descriptor: DeclarationDescriptor) =
+            if (descriptor is CallableMemberDescriptor && descriptor.kind == CallableMemberDescriptor.Kind.FAKE_OVERRIDE) {
+                descriptor.resolveFakeOverrideMaybeAbstract().first().signatureMangle
+            } else {
+                extractDescriptorUniqId(descriptor)
+                        ?: error("$this from interop library has no UniqId!")
+            }
+
+    private fun shouldExtractUniqId(descriptor: DeclarationDescriptor): Boolean {
+        return when (descriptor) {
+            is ValueParameterDescriptor -> false
+            // Linker doesn't need accessor's UniqId, actually.
+            // Instead, it uses accessor's name.
+            is PropertyAccessorDescriptor -> false
+            is CallableMemberDescriptor -> when (descriptor.kind) {
+                CallableMemberDescriptor.Kind.SYNTHESIZED -> false
+                else -> true
+            }
+            is ConstructorDescriptor -> when {
+                // Companion object constructor is not serialized.
+                descriptor.containingDeclaration.isCompanionObject() -> false
+                else -> true
+            }
+            else -> true
+        }
+    }
+}
