@@ -1,10 +1,8 @@
 package org.jetbrains.kotlin.backend.konan.serialization
 
-import org.jetbrains.kotlin.descriptors.ClassDescriptor
-import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
-import org.jetbrains.kotlin.descriptors.ModuleDescriptor
-import org.jetbrains.kotlin.descriptors.PropertyDescriptor
+import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.util.IdSignature
+import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 
 // The code here is intentionally copy-pasted from DeclarationStubGenerator with
 // minor changes.
@@ -42,9 +40,38 @@ class DescriptorByIdSignatureFinder(
                 nextStepCandidates.filter { it.name == current }
             }
         }
+
         return when (candidates.size) {
             1 -> candidates.first()
-            else ->candidates.firstOrNull { signature.id == DeserializedDescriptorUniqIdAware.getUniqId(it) }
+            else -> {
+                val id = signature.id
+                        ?: error("$signature has no id, but there are multiple candidates: ${candidates.joinToString { it.fqNameSafe.toString() }}")
+                findDescriptorByHash(candidates, id)
+                        ?: error("No descriptor found for $signature")
+            }
+        }
+    }
+
+    private fun findDescriptorByHash(candidates: List<DeclarationDescriptor>, hash: Long): DeclarationDescriptor? {
+        candidates.map { candidate ->
+            if (candidate is CallableMemberDescriptor && candidate.kind == CallableMemberDescriptor.Kind.FAKE_OVERRIDE) {
+                if (hashIsAmongRealDescriptors(candidate, hash)) return candidate
+            } else {
+                val candidateHash = with (KonanManglerDesc) { candidate.signatureMangle }
+                if (candidateHash == hash) return candidate
+            }
+        }
+        return null
+    }
+
+    private fun hashIsAmongRealDescriptors(
+            fakeOverrideMemberDescriptor: CallableMemberDescriptor,
+            hash: Long
+    ): Boolean {
+        val overriddenRealMembers = fakeOverrideMemberDescriptor.resolveFakeOverrideMaybeAbstract()
+        return overriddenRealMembers.any { realDescriptor ->
+            val mangle = with (KonanManglerDesc) { realDescriptor.signatureMangle }
+            mangle == hash
         }
     }
 }

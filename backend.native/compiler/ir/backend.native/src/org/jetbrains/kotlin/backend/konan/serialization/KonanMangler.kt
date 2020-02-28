@@ -13,8 +13,11 @@ import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.util.hasAnnotation
+import org.jetbrains.kotlin.library.metadata.KlibMetadataProtoBuf
 import org.jetbrains.kotlin.resolve.descriptorUtil.isCompanionObject
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
+import org.jetbrains.kotlin.serialization.deserialization.descriptors.*
+import org.jetbrains.kotlin.protobuf.GeneratedMessageLite
 
 abstract class AbstractKonanIrMangler : IrBasedKotlinManglerImpl() {
     override fun getExportChecker(): IrExportCheckerVisitor = KonanIrExportChecker()
@@ -151,26 +154,30 @@ abstract class AbstractKonanDescriptorMangler : DescriptorBasedKotlinManglerImpl
 object KonanManglerDesc : AbstractKonanDescriptorMangler() {
     override val DeclarationDescriptor.signatureMangle: Long
         get() = if (this.module.isFromInteropLibrary() && shouldExtractUniqId(this)) {
-            mangleDescriptorFromInteropLibrary(this)
+            if (this is CallableMemberDescriptor && this.kind == CallableMemberDescriptor.Kind.FAKE_OVERRIDE) {
+                this.resolveFakeOverrideMaybeAbstract().first().signatureMangle
+            } else {
+                getUniqId(this)
+                        ?: error("$this from interop library has no UniqId!")
+            }
         } else {
             signatureString.hashMangle
         }
 
     private fun shouldExtractUniqId(descriptor: DeclarationDescriptor) =
-            !isLocalDeclaration(descriptor) && !isSpecialCase(descriptor)
+            isOriginallyInteropDeclaration(descriptor) && !isSpecialCase(descriptor)
 
     /**
      * Some declarations don't have metadata descriptor in the interop library.
      */
-    private fun isLocalDeclaration(descriptor: DeclarationDescriptor): Boolean {
+    private fun isOriginallyInteropDeclaration(descriptor: DeclarationDescriptor): Boolean {
         return when (descriptor) {
-            is ValueParameterDescriptor -> true
+            is ValueParameterDescriptor -> false
             is CallableMemberDescriptor -> when (descriptor.kind) {
-                CallableMemberDescriptor.Kind.FAKE_OVERRIDE,
-                CallableMemberDescriptor.Kind.SYNTHESIZED -> true
-                else -> false
+                CallableMemberDescriptor.Kind.SYNTHESIZED -> false
+                else -> true
             }
-            else -> false
+            else -> true
         }
     }
 
@@ -190,8 +197,16 @@ object KonanManglerDesc : AbstractKonanDescriptorMangler() {
         return false
     }
 
-    private fun mangleDescriptorFromInteropLibrary(descriptor: DeclarationDescriptor): Long {
-        return DeserializedDescriptorUniqIdAware.getUniqId(descriptor)
-                ?: error("$descriptor from interop library has no UniqId!")
-    }
+    private fun <T, M : GeneratedMessageLite.ExtendableMessage<M>> M.tryGetExtension(extension: GeneratedMessageLite.GeneratedExtension<M, T>) =
+            if (this.hasExtension(extension)) this.getExtension<T>(extension) else null
+
+    private fun getUniqId(descriptor: DeclarationDescriptor): Long? = when (descriptor) {
+        is DeserializedClassDescriptor -> descriptor.classProto.tryGetExtension(KlibMetadataProtoBuf.classUniqId)
+        is DeserializedSimpleFunctionDescriptor -> descriptor.proto.tryGetExtension(KlibMetadataProtoBuf.functionUniqId)
+        is DeserializedPropertyDescriptor -> descriptor.proto.tryGetExtension(KlibMetadataProtoBuf.propertyUniqId)
+        is DeserializedClassConstructorDescriptor -> descriptor.proto.tryGetExtension(KlibMetadataProtoBuf.constructorUniqId)
+        is DeserializedTypeParameterDescriptor -> descriptor.proto.tryGetExtension(KlibMetadataProtoBuf.typeParamUniqId)
+        is DeserializedTypeAliasDescriptor -> descriptor.proto.tryGetExtension(KlibMetadataProtoBuf.typeAliasUniqId)
+        else -> null
+    }?.index
 }

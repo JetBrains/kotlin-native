@@ -898,7 +898,7 @@ private class InteropTransformer(val context: Context, override val irFile: IrFi
                 ?.owner
                 ?.takeIf { it.isConst }
                 ?: return null
-
+        // IR duplication!
         return constantProperty.backingField
                 ?.initializer
                 ?.expression
