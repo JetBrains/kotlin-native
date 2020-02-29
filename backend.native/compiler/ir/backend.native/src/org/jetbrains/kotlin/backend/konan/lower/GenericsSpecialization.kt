@@ -1,7 +1,6 @@
 package org.jetbrains.kotlin.backend.konan.lower
 
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
-import org.jetbrains.kotlin.backend.common.ir.classIfConstructor
 import org.jetbrains.kotlin.backend.common.lower.IrBuildingTransformer
 import org.jetbrains.kotlin.backend.common.lower.at
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
@@ -128,13 +127,20 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         if (typeParameter.superTypes.size != 1 || typeParameter.superTypes.first() != context.irBuiltIns.anyNType || typeParameter.variance != Variance.INVARIANT) {
             return super.visitCall(expression)
         }
-        val newFunction = owner.getSpecialization(primitiveTypeArgument)
+        val copier = TypeParameterEliminator(
+                this@SpecializationTransformer,
+                typeParametersMapping,
+                encoder,
+                context,
+                owner.parent
+        )
+        val newFunction = owner.getSpecialization(primitiveTypeArgument, copier)
         builder.at(expression).run {
             irCall(newFunction).apply {
-                extensionReceiver = expression.extensionReceiver
+                extensionReceiver = expression.extensionReceiver?.eliminateTypeParameters(copier)
                 dispatchReceiver = expression.dispatchReceiver
                 for (i in 0 until expression.valueArgumentsCount) {
-                    putValueArgument(i, expression.getValueArgument(i))
+                    putValueArgument(i, expression.getValueArgument(i)?.eliminateTypeParameters(copier))
                 }
                 return this
             }
@@ -150,10 +156,15 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         if (primitiveTypeSubstitutionMap.size != 1) {
             return super.visitConstructorCall(expression)
         }
-        val newConstructor = when (val newClass = expression.symbol.owner.classIfConstructor.getSpecialization(primitiveTypeSubstitutionMap)) {
-            is IrClass -> newClass.primaryConstructor
-            else -> null
-        } ?: return super.visitConstructorCall(expression)
+        val oldClass = expression.symbol.owner.constructedClass
+        val copier = TypeParameterEliminator(
+                this@SpecializationTransformer,
+                typeParametersMapping,
+                encoder,
+                context,
+                oldClass.parent
+        )
+        val newConstructor = oldClass.getSpecialization(primitiveTypeSubstitutionMap, copier).primaryConstructor!!
 
         builder.at(expression).run {
             irConstructorCall(expression, newConstructor).apply {
@@ -162,7 +173,7 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         }
     }
 
-    private inline fun <reified T : IrTypeParametersContainer> T.getSpecialization(primitiveTypeSubstitutionMap: Map<IrTypeParameterSymbol, IrType>): T {
+    private inline fun <reified T : IrTypeParametersContainer> T.getSpecialization(primitiveTypeSubstitutionMap: Map<IrTypeParameterSymbol, IrType>, copier: TypeParameterEliminator): T {
         // TODO: now assuming that mapping must contain exactly 1 entry
         val (typeParameterSymbol, actualType) = primitiveTypeSubstitutionMap.entries.first()
 
@@ -170,13 +181,6 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         if (existingSpecialization is T) {
             return existingSpecialization
         }
-        val copier = TypeParameterEliminator(
-                this@SpecializationTransformer,
-                typeParametersMapping,
-                encoder,
-                context,
-                parent
-        )
         copier.addNewDeclarationName(this, encoder.encode(this, primitiveTypeSubstitutionMap))
         typeParametersMapping[typeParameterSymbol] = actualType
 
@@ -187,7 +191,7 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
     }
 
     // TODO generalize
-    private fun IrFunction.getSpecialization(type: IrType): IrFunction {
+    private fun IrFunction.getSpecialization(type: IrType, copier: TypeParameterEliminator): IrFunction {
         if (this !is IrSimpleFunction) {
             return this
         }
@@ -195,14 +199,6 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         if (function is IrFunction) { // also implies that function != null
             return function
         }
-
-        val copier = TypeParameterEliminator(
-                this@SpecializationTransformer,
-                typeParametersMapping,
-                encoder,
-                context,
-                parent
-        )
 
         // Include concrete primitive type to the name of specialization
         // to be able to easily spot such functions and to avoid extra overloads
