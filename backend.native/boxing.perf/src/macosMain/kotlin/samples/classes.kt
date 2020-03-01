@@ -11,9 +11,9 @@ class NoThatSimpleBox<T3>(val value: T3) {
 }
 
 class ManyConstructorsBox<T>(val value: T) {
-    constructor(v: T, w: T) : this(v, 42)
-    constructor(v: T, w: T, z: Int) : this(w, z)
-    constructor(v: T, w: Int) : this(v)
+    constructor(v: T, w: T) : this(v, 42, true)
+    constructor(v: T, w: T, z: Int) : this(w, v)
+    constructor(v: T, w: Int, t: Boolean) : this(v)
 }
 
 @CountBoxings

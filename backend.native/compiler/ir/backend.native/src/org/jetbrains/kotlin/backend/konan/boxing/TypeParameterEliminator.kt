@@ -1,6 +1,7 @@
 package org.jetbrains.kotlin.backend.konan.boxing
 
 import org.jetbrains.kotlin.backend.common.descriptors.WrappedClassConstructorDescriptor
+import org.jetbrains.kotlin.backend.common.ir.classIfConstructor
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.lower.DeepCopyIrTreeWithSymbolsForInliner
 import org.jetbrains.kotlin.backend.konan.lower.SpecializationTransformer
@@ -14,6 +15,8 @@ import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeImpl
 import org.jetbrains.kotlin.ir.types.impl.makeTypeProjection
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.utils.keysToMap
+import java.util.*
 
 // Expected that transformer will not change entities of given IR elements, only internals,
 // i.e. for receiver of type T it will return an element of type T.
@@ -190,7 +193,7 @@ internal class TypeParameterEliminator(private val specializationTransformer: Sp
             fun prepare(declaration: IrClass) {
                 with (constructorsInDelegationOrder) {
                     clear()
-                    addAll(declaration.constructors.sortedWith(ConstructorDelegationPartialOrder(declaration)))
+                    addAll(ConstructorDelegationPartialOrder(declaration).sort())
                     copiedConstructors.clear()
                 }
             }
@@ -211,23 +214,36 @@ internal class TypeParameterEliminator(private val specializationTransformer: Sp
     override val copier = EliminatingCopier()
 }
 
-class ConstructorDelegationPartialOrder(clazz: IrClass) : Comparator<IrConstructor> {
+class ConstructorDelegationPartialOrder(clazz: IrClass) {
     private val constructorsAndDelegates = clazz.constructors
             .map {
                 it to it.body?.statements?.filterIsInstance<IrDelegatingConstructorCall>()?.single()?.symbol?.owner
             }
             .toMap()
 
-    // c1 < c2  => c2 transitively delegates to c1
-    // c1 == c2 => neither constructor delegates to another (or they're the same)
-    override fun compare(c1: IrConstructor?, c2: IrConstructor?): Int {
-        if (c1 == null || c2 == null || c1 === c2) return 0
-        if (c1.constructedClass !== c2.constructedClass) return 0
-        val delegate1 = constructorsAndDelegates[c1]
-        val delegate2 = constructorsAndDelegates[c2]
-        if (delegate1 == null && delegate2 == null) return 0
-        if (delegate1 === c2) return 1
-        if (delegate2 === c1) return -1
-        return 0
+    fun sort(): List<IrConstructor> {
+        class Node(val constructor: IrConstructor, val dependentConstructors: MutableList<Node> = mutableListOf())
+
+        // Breadth-first traversal of dependency tree gives the right order of copying (delegate before)
+        fun traverse(root: Node): List<IrConstructor> {
+            val queue = LinkedList<Node>()
+            queue.add(root)
+            val result = mutableListOf<IrConstructor>()
+            while (queue.isNotEmpty()) {
+                val current = queue.pop()!!
+                result += current.constructor
+                queue.addAll(current.dependentConstructors)
+            }
+            return result
+        }
+
+        val nodes = constructorsAndDelegates.keys.keysToMap { Node(it) }.toMutableMap()
+        constructorsAndDelegates.forEach { (constructor, delegate) ->
+            if (constructor.classIfConstructor === delegate?.classIfConstructor) {
+                nodes[delegate]!!.dependentConstructors.add(nodes[constructor]!!)
+            }
+        }
+        val root = nodes[constructorsAndDelegates.keys.single { it.isPrimary }]!!
+        return traverse(root)
     }
 }
