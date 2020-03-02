@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.library.KotlinLibraryVersioning
 import org.jetbrains.kotlin.library.KotlinAbiVersion
 import org.jetbrains.kotlin.library.KotlinLibrary
 import org.jetbrains.kotlin.library.SerializedMetadata
+import org.jetbrains.kotlin.library.impl.BuiltInsPlatform
 import org.jetbrains.kotlin.util.removeSuffixIfPresent
 import java.util.*
 
@@ -46,7 +47,8 @@ fun createInteropLibrary(arguments: LibraryCreationArguments) {
             File(outputPathWithoutExtension),
             arguments.moduleName,
             version,
-            arguments.target
+            arguments.target,
+            BuiltInsPlatform.NATIVE
     ).apply {
         val metadata = arguments.metadata.write(ChunkingWriteStrategy())
         addMetadata(SerializedMetadata(metadata.header, metadata.fragments, metadata.fragmentNames))
