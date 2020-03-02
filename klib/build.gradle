@@ -48,6 +48,12 @@ dependencies {
     testCompile "org.jetbrains.kotlin:kotlin-test:$buildKotlinVersion"
 }
 
+compileKotlin {
+    kotlinOptions {
+        freeCompilerArgs = ["-Xskip-metadata-version-check"]
+    }
+}
+
 test {
     dependsOn 'cleanTest'
     systemProperty('konan.home', getProperty("org.jetbrains.kotlin.native.home"))
