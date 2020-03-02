@@ -24,9 +24,6 @@ class KonanIdSignaturer(private val mangler: KotlinMangler.DescriptorMangler) : 
         private fun markInteropDeclaration(descriptor: DeclarationDescriptor) {
             if (descriptor.module.isFromInteropLibrary()) {
                 mask = mask or IdSignature.Flags.IS_NATIVE_INTEROP_LIBRARY.encode(true)
-
-                //
-                if (hashId == null) hashId = extractDescriptorUniqId(descriptor)
             }
         }
 
