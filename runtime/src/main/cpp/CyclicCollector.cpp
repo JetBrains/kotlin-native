@@ -27,7 +27,7 @@
 
 #if WITH_WORKERS
 #include <pthread.h>
-#include <sys/time.h>
+#include "PthreadUtils.h"
 #endif
 
 #if WITH_WORKERS
@@ -179,15 +179,9 @@ class CyclicCollector {
         restart:
          COLLECTOR_LOG("start cycle GC\n");
          if (restartCount > 10 && !terminateCollector_) {
-           COLLECTOR_LOG("wait for some time to avoid GC trashing\n");
-           struct timeval tv;
-           struct timespec ts;
-           long long nsDelta = 1000LL * 1000LL * (restartCount - 10);
-           constexpr long long nanosecondsInASecond = 1000LL * 1000LL * 1000LL;
-           long long nanoseconds = tv.tv_usec * 1000LL + nsDelta;
-           ts.tv_nsec = nanoseconds % nanosecondsInASecond;
-           ts.tv_sec = tv.tv_sec + nanoseconds / nanosecondsInASecond;
-           pthread_cond_timedwait(&cond_, &lock_, &ts);
+           COLLECTOR_LOG("wait for some time to avoid GC thrashing\n");
+           uint64_t nsDelta = 1000LL * 1000LL * (restartCount - 10);
+           WaitOnCondVar(&cond_, &lock_, nsDelta);
          }
          atomicSet(&mutatedAtomics_, 0);
          visited.clear();

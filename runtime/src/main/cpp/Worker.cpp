@@ -24,7 +24,7 @@
 
 #if WITH_WORKERS
 #include <pthread.h>
-#include <sys/time.h>
+#include "PthreadUtils.h"
 #endif
 
 #include "Alloc.h"
@@ -409,15 +409,9 @@ class State {
       pthread_cond_wait(&cond_, &lock_);
       return true;
     }
-    struct timeval tv;
-    struct timespec ts;
-    gettimeofday(&tv, nullptr);
-    KLong nsDelta = millis * 1000LL * 1000LL;
-    constexpr long long nanosecondsInASecond = 1000LL * 1000LL * 1000LL;
-    long long nanoseconds = tv.tv_usec * 1000LL + nsDelta;
-    ts.tv_nsec = nanoseconds % nanosecondsInASecond;
-    ts.tv_sec = tv.tv_sec + nsDelta / nanosecondsInASecond;
-    pthread_cond_timedwait(&cond_, &lock_, &ts);
+
+    uint64_t nsDelta = millis * 1000000LL;
+    WaitOnCondVar(&cond_, &lock_, nsDelta);
     return true;
   }
 
@@ -783,24 +777,14 @@ bool Worker::waitForQueueLocked(KLong timeoutMicroseconds, KLong* remaining) {
     if (closestToRunMicroseconds == 0) {
       // Just no wait at all here.
     } else if (closestToRunMicroseconds > 0) {
-      struct timeval tv;
-      struct timespec ts;
-      gettimeofday(&tv, nullptr);
       // Protect from potential overflow, cutting at 10_000_000 seconds, aka 115 days.
       if (closestToRunMicroseconds > 10LL * 1000 * 1000 * 1000 * 1000)
         closestToRunMicroseconds = 10LL * 1000 * 1000 * 1000 * 1000;
-      KLong nsDelta = closestToRunMicroseconds * 1000LL;
-      constexpr long long nanosecondsInASecond = 1000LL * 1000LL * 1000LL;
-      long long nanoseconds = tv.tv_usec * 1000LL + nsDelta;
-      ts.tv_nsec = nanoseconds % nanosecondsInASecond;
-      ts.tv_sec = tv.tv_sec + nanoseconds / nanosecondsInASecond;
-      pthread_cond_timedwait(&cond_, &lock_, &ts);
+      uint64_t nsDelta = closestToRunMicroseconds * 1000LL;
+      uint64_t microsecondsPassed = 0;
+      WaitOnCondVar(&cond_, &lock_, nsDelta, remaining ? &microsecondsPassed : nullptr);
       if (remaining) {
-        struct timeval tvAfter;
-        gettimeofday(&tvAfter, nullptr);
-        KLong usBefore = tv.tv_sec * 1000000LL + tv.tv_usec;
-        KLong usAfter = tvAfter.tv_sec * 1000000LL + tvAfter.tv_usec;
-        *remaining = timeoutMicroseconds - (usAfter - usBefore);
+        *remaining = timeoutMicroseconds - microsecondsPassed;
       }
     } else {
       pthread_cond_wait(&cond_, &lock_);
