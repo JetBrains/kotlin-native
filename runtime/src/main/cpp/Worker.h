@@ -7,11 +7,10 @@
 class Worker;
 
 Worker* WorkerInit(KBoolean errorReporting);
-void WorkerDeinit(Worker* worker);
+// Returns true if no leaks were detected.
+bool WorkerDeinit(Worker* worker, bool checkLeaks);
 
 Worker* WorkerSuspend();
 void WorkerResume(Worker* worker);
-
-size_t ActiveWorkersCount();
 
 #endif // RUNTIME_WORKER_H

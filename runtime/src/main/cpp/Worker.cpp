@@ -658,10 +658,23 @@ Worker* WorkerInit(KBoolean errorReporting) {
 #endif  // WITH_WORKERS
 }
 
-void WorkerDeinit(Worker* worker) {
+bool WorkerDeinit(Worker* worker, bool checkLeaks) {
 #if WITH_WORKERS
   ::g_worker = nullptr;
   theState()->destroyWorkerUnlocked(worker);
+  if (checkLeaks) {
+    size_t remainingWorkers = theState()->activeWorkersCount();
+    if (remainingWorkers != 0) {
+      konan::consoleErrorf(
+        "Unfinished workers detected, %lu workers leaked!\n"
+        "Use `Platform.isMemoryLeakCheckerActive = false` to avoid this check.\n",
+        remainingWorkers);
+      return false;
+    }
+  }
+  return true;
+#else
+  return true;
 #endif  // WITH_WORKERS
 }
 
@@ -678,14 +691,6 @@ Worker* WorkerSuspend() {
 void WorkerResume(Worker* worker) {
 #if WITH_WORKERS
   ::g_worker = worker;
-#endif  // WITH_WORKERS
-}
-
-size_t ActiveWorkersCount() {
-#if WITH_WORKERS
-  return theState()->activeWorkersCount();
-#else
-  return 0;
 #endif  // WITH_WORKERS
 }
 

@@ -117,17 +117,7 @@ void deinitRuntime(RuntimeState* state) {
     InitOrDeinitGlobalVariables(DEINIT_GLOBALS, state->memoryState);
   const bool checkLeaks = isMainThread && g_checkLeaks;
   bool ok = true;
-  WorkerDeinit(state->worker);
-  if (checkLeaks) {
-    auto remainingWorkers = ActiveWorkersCount();
-    if (remainingWorkers != 0) {
-      konan::consoleErrorf(
-        "Unfinished workers detected, %lu workers leaked!\n"
-        "Use `Platform.isMemoryLeakCheckerActive = false` to avoid this check.\n",
-        remainingWorkers);
-      konan::abort();
-    }
-  }
+  ok = WorkerDeinit(state->worker, checkLeaks) && ok;
   ok = DeinitMemory(state->memoryState, checkLeaks) && ok;
   if (!ok)
     konan::abort();
