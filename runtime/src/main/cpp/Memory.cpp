@@ -114,7 +114,6 @@ FrameOverlay exportFrameOverlay;
 volatile int allocCount = 0;
 volatile int aliveMemoryStatesCount = 0;
 
-KBoolean g_checkLeaks = KonanNeedDebugInfo;
 KBoolean g_hasCyclicCollector = true;
 
 // TODO: can we pass this variable as an explicit argument?
@@ -306,10 +305,6 @@ inline bool isShareable(ContainerHeader* container) {
 
 }  // namespace
 
-bool isMemoryLeakCheckerActive() {
-  return g_checkLeaks;
-}
-
 class ForeignRefManager {
  public:
   static ForeignRefManager* create() {
@@ -406,7 +401,7 @@ private:
 
       if (hadNoStateInitialized) {
         // Discard the memory state.
-        DeinitMemory(memoryState);
+        DeinitMemory(memoryState, /* checkLeaks = */ false);
       }
     }
   }
@@ -1751,12 +1746,11 @@ MemoryState* initMemory() {
   return memoryState;
 }
 
-void deinitMemory(MemoryState* memoryState) {
+bool deinitMemory(MemoryState* memoryState, bool checkLeaks) {
   static int pendingDeinit = 0;
   atomicAdd(&pendingDeinit, 1);
 #if USE_GC
   bool lastMemoryState = atomicAdd(&aliveMemoryStatesCount, -1) == 0;
-  bool checkLeaks = g_checkLeaks && lastMemoryState;
   if (lastMemoryState) {
    garbageCollect(memoryState, true);
 #if USE_CYCLIC_GC
@@ -1796,7 +1790,7 @@ void deinitMemory(MemoryState* memoryState) {
     konan::consoleErrorf(
         "Memory leaks detected, %d objects leaked!\n"
         "Use `Platform.isMemoryLeakCheckerActive = false` to avoid this check.\n", allocCount);
-    konan::abort();
+    return false;
   }
 #endif  // USE_GC
 #endif  // TRACE_MEMORY
@@ -1806,6 +1800,8 @@ void deinitMemory(MemoryState* memoryState) {
 
   konanFreeMemory(memoryState);
   ::memoryState = nullptr;
+
+  return true;
 }
 
 MemoryState* suspendMemory() {
@@ -2766,8 +2762,8 @@ MemoryState* InitMemory() {
   return initMemory();
 }
 
-void DeinitMemory(MemoryState* memoryState) {
-  deinitMemory(memoryState);
+bool DeinitMemory(MemoryState* memoryState, bool checkLeaks) {
+  return deinitMemory(memoryState, checkLeaks);
 }
 
 MemoryState* SuspendMemory() {
@@ -3010,14 +3006,6 @@ void EnsureNeverFrozen(ObjHeader* object) {
 
 void Kotlin_Any_share(ObjHeader* obj) {
   shareAny(obj);
-}
-
-KBoolean Konan_Platform_getMemoryLeakChecker() {
-  return g_checkLeaks;
-}
-
-void Konan_Platform_setMemoryLeakChecker(KBoolean value) {
-  g_checkLeaks = value;
 }
 
 void AddTLSRecord(MemoryState* memory, void** key, int size) {

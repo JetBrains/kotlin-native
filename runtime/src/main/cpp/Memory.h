@@ -402,8 +402,6 @@ inline bool isPermanentOrFrozen(ObjHeader* obj) {
     return container == nullptr || container->frozen();
 }
 
-bool isMemoryLeakCheckerActive();
-
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -430,7 +428,8 @@ extern "C" {
 struct MemoryState;
 
 MemoryState* InitMemory();
-void DeinitMemory(MemoryState*);
+// Returns true if no leaks were detected.
+bool DeinitMemory(MemoryState*, bool checkLeaks);
 
 MemoryState* SuspendMemory();
 void ResumeMemory(MemoryState* state);

@@ -74,6 +74,8 @@ void InitOrDeinitGlobalVariables(int initialize, MemoryState* memory) {
   }
 }
 
+KBoolean g_checkLeaks = KonanNeedDebugInfo;
+
 constexpr RuntimeState* kInvalidRuntime = nullptr;
 
 THREAD_LOCAL_VARIABLE RuntimeState* runtimeState = kInvalidRuntime;
@@ -113,8 +115,10 @@ void deinitRuntime(RuntimeState* state) {
   InitOrDeinitGlobalVariables(DEINIT_THREAD_LOCAL_GLOBALS, state->memoryState);
   if (lastRuntime)
     InitOrDeinitGlobalVariables(DEINIT_GLOBALS, state->memoryState);
+  const bool checkLeaks = isMainThread && g_checkLeaks;
+  bool ok = true;
   WorkerDeinit(state->worker);
-  if (isMainThread && isMemoryLeakCheckerActive()) {
+  if (checkLeaks) {
     auto remainingWorkers = ActiveWorkersCount();
     if (remainingWorkers != 0) {
       konan::consoleErrorf(
@@ -124,7 +128,9 @@ void deinitRuntime(RuntimeState* state) {
       konan::abort();
     }
   }
-  DeinitMemory(state->memoryState);
+  ok = DeinitMemory(state->memoryState, checkLeaks) && ok;
+  if (!ok)
+    konan::abort();
   konanDestructInstance(state);
 }
 
@@ -276,6 +282,14 @@ KBoolean Konan_Platform_isDebugBinary() {
 void Kotlin_zeroOutTLSGlobals() {
   if (runtimeState != nullptr && runtimeState->memoryState != nullptr)
     InitOrDeinitGlobalVariables(DEINIT_THREAD_LOCAL_GLOBALS, runtimeState->memoryState);
+}
+
+KBoolean Konan_Platform_getMemoryLeakChecker() {
+  return g_checkLeaks;
+}
+
+void Konan_Platform_setMemoryLeakChecker(KBoolean value) {
+  g_checkLeaks = value;
 }
 
 }  // extern "C"
