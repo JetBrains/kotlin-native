@@ -31,7 +31,6 @@ import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.resolve.descriptorUtil.classId
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
-import kotlin.random.Random
 
 internal enum class FieldStorageKind {
     MAIN_THREAD,
