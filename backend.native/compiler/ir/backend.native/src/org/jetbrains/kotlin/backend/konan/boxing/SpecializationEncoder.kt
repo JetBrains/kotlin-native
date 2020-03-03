@@ -11,8 +11,8 @@ import org.jetbrains.kotlin.ir.util.nameForIrSerialization
  * and injects it into specialization name.
  *
  * The mapping is as follows:
- * - type parameter weren't replaced    -> 1
- * - type parameter were replaced       -> 2 to 9 depending on concrete type (there are 8 at all).
+ * - type parameter wasn't replaced   -> 1
+ * - type parameter was replaced      -> 2 to 9 depending on concrete type (there are 8 at all).
  */
 internal class SpecializationEncoder(val context: Context) {
     private val primitiveTypes = context.irBuiltIns.primitiveIrTypes
