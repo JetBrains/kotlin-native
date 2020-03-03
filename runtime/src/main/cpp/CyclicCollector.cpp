@@ -182,6 +182,7 @@ class CyclicCollector {
            COLLECTOR_LOG("wait for some time to avoid GC trashing\n");
            struct timeval tv;
            struct timespec ts;
+           gettimeofday(&tv, nullptr);
            long long nsDelta = 1000LL * 1000LL * (restartCount - 10);
            ts.tv_nsec = (tv.tv_usec * 1000LL + nsDelta) % 1000000000LL;
            ts.tv_sec = (tv.tv_sec * 1000000000LL + tv.tv_usec * 1000LL + nsDelta) / 1000000000LL ;
