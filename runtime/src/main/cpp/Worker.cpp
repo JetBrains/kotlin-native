@@ -432,6 +432,11 @@ class State {
   KInt nextWorkerId() { return currentWorkerId_++; }
   KInt nextFutureId() { return currentFutureId_++; }
 
+  size_t activeWorkersCount() {
+    Locker locker(&lock_);
+    return workers_.size();
+  }
+
  private:
   pthread_mutex_t lock_;
   pthread_cond_t cond_;
@@ -673,6 +678,14 @@ Worker* WorkerSuspend() {
 void WorkerResume(Worker* worker) {
 #if WITH_WORKERS
   ::g_worker = worker;
+#endif  // WITH_WORKERS
+}
+
+size_t ActiveWorkersCount() {
+#if WITH_WORKERS
+  return theState()->activeWorkersCount();
+#else
+  return 0;
 #endif  // WITH_WORKERS
 }
 

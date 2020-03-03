@@ -402,6 +402,8 @@ inline bool isPermanentOrFrozen(ObjHeader* obj) {
     return container == nullptr || container->frozen();
 }
 
+bool isMemoryLeakCheckerActive();
+
 #ifdef __cplusplus
 extern "C" {
 #endif

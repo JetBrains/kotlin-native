@@ -114,6 +114,16 @@ void deinitRuntime(RuntimeState* state) {
   if (lastRuntime)
     InitOrDeinitGlobalVariables(DEINIT_GLOBALS, state->memoryState);
   WorkerDeinit(state->worker);
+  if (isMainThread && isMemoryLeakCheckerActive()) {
+    auto remainingWorkers = ActiveWorkersCount();
+    if (remainingWorkers != 0) {
+      konan::consoleErrorf(
+        "Unfinished workers detected, %lu workers leaked!\n"
+        "Use `Platform.isMemoryLeakCheckerActive = false` to avoid this check.\n",
+        remainingWorkers);
+      konan::abort();
+    }
+  }
   DeinitMemory(state->memoryState);
   konanDestructInstance(state);
 }

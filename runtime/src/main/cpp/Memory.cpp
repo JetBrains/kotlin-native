@@ -306,6 +306,10 @@ inline bool isShareable(ContainerHeader* container) {
 
 }  // namespace
 
+bool isMemoryLeakCheckerActive() {
+  return g_checkLeaks;
+}
+
 class ForeignRefManager {
  public:
   static ForeignRefManager* create() {
@@ -1789,11 +1793,9 @@ void deinitMemory(MemoryState* memoryState) {
 #else
 #if USE_GC
   if (IsStrictMemoryModel && allocCount > 0 && checkLeaks) {
-    char buf[1024];
-    konan::snprintf(buf, sizeof(buf),
+    konan::consoleErrorf(
         "Memory leaks detected, %d objects leaked!\n"
         "Use `Platform.isMemoryLeakCheckerActive = false` to avoid this check.\n", allocCount);
-    konan::consoleErrorUtf8(buf, konan::strnlen(buf, sizeof(buf)));
     konan::abort();
   }
 #endif  // USE_GC
