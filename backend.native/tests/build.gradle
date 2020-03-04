@@ -1032,7 +1032,7 @@ task enumIdentity(type: KonanLocalTest) {
 standaloneTest("leakWorker") {
     source = "runtime/workers/leak_worker.kt"
     flags = ['-g']
-    expectedExitStatus = 134
+    expectedExitStatus = isWindowsTarget(project) ? 255 : 134
 }
 
 task superFunCall(type: KonanLocalTest) {
@@ -2743,7 +2743,7 @@ standaloneTest("cycle_collector") {
 standaloneTest("leakMemory") {
     source = "runtime/memory/leak_memory.kt"
     flags = ['-g']
-    expectedExitStatus = 134
+    expectedExitStatus = isWindowsTarget(project) ? 255 : 134
 }
 
 standaloneTest("mpp1") {
