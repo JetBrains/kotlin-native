@@ -6,7 +6,7 @@
 
 class Worker;
 
-Worker* WorkerInit(KBoolean errorReporting);
+Worker* WorkerInit(KBoolean errorReporting, bool isMainThread);
 // Returns true if no leaks were detected.
 bool WorkerDeinit(Worker* worker, bool checkLeaks);
 

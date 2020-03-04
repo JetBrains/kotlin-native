@@ -93,9 +93,9 @@ RuntimeState* initRuntime() {
   if (!result) return kInvalidRuntime;
   RuntimeCheck(!isValidRuntime(), "No active runtimes allowed");
   ::runtimeState = result;
-  result->memoryState = InitMemory();
-  result->worker = WorkerInit(true);
   bool firstRuntime = atomicAdd(&aliveRuntimesCount, 1) == 1;
+  result->memoryState = InitMemory();
+  result->worker = WorkerInit(true, firstRuntime);
   // Keep global variables in state as well.
   if (firstRuntime) {
     isMainThread = 1;

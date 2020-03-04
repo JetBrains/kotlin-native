@@ -71,6 +71,12 @@ enum JobKind {
   JOB_EXECUTE_AFTER = 3
 };
 
+enum class WorkerKind {
+  kNative,      // Workers created using Worker.start public API.
+  kMainThread,  // Worker created from the main thread.
+  kOther,       // Any other kind of workers.
+};
+
 struct Job {
   enum JobKind kind;
   union {
@@ -106,7 +112,11 @@ typedef KStdOrderedSet<Job, JobCompare> DelayedJobSet;
 
 class Worker {
  public:
-  Worker(KInt id, bool errorReporting, KRef customName) : id_(id), errorReporting_(errorReporting), terminated_(false) {
+  Worker(KInt id, bool errorReporting, KRef customName, WorkerKind kind)
+      : id_(id),
+        kind_(kind),
+        errorReporting_(errorReporting),
+        terminated_(false) {
     name_ = customName != nullptr ? CreateStablePointer(customName) : nullptr;
     pthread_mutex_init(&lock_, nullptr);
     pthread_cond_init(&cond_, nullptr);
@@ -135,8 +145,11 @@ class Worker {
 
   KNativePtr name() const { return name_; }
 
+  WorkerKind kind() const { return kind_; }
+
  private:
   KInt id_;
+  WorkerKind kind_;
   KStdDeque<Job> queue_;
   DelayedJobSet delayed_;
   // Stable pointer with worker's name.
@@ -258,11 +271,11 @@ class State {
     pthread_cond_destroy(&cond_);
   }
 
-  Worker* addWorkerUnlocked(bool errorReporting, KRef customName) {
+  Worker* addWorkerUnlocked(bool errorReporting, KRef customName, WorkerKind kind) {
     Worker* worker = nullptr;
     {
       Locker locker(&lock_);
-      worker = konanConstructInstance<Worker>(nextWorkerId(), errorReporting, customName);
+      worker = konanConstructInstance<Worker>(nextWorkerId(), errorReporting, customName, kind);
       if (worker == nullptr) return nullptr;
       workers_[worker->id()] = worker;
     }
@@ -508,8 +521,8 @@ void* workerRoutine(void* argument) {
   return nullptr;
 }
 
-KInt startWorker(KBoolean errorReporting, KRef customName) {
-  Worker* worker = theState()->addWorkerUnlocked(errorReporting != 0, customName);
+KInt startWorker(KBoolean errorReporting, KRef customName, WorkerKind kind) {
+  Worker* worker = theState()->addWorkerUnlocked(errorReporting != 0, customName, kind);
   if (worker == nullptr) return -1;
   pthread_t thread = 0;
   pthread_create(&thread, nullptr, workerRoutine, worker);
@@ -587,7 +600,7 @@ KNativePtr detachObjectGraphInternal(KInt transferMode, KRef producer) {
 
 #else
 
-KInt startWorker(KBoolean errorReporting, KRef customName) {
+KInt startWorker(KBoolean errorReporting, KRef customName, WorkerKind kind) {
   ThrowWorkerUnsupported();
 }
 
@@ -647,10 +660,13 @@ KNativePtr detachObjectGraphInternal(KInt transferMode, KRef producer) {
 
 }  // namespace
 
-Worker* WorkerInit(KBoolean errorReporting) {
+Worker* WorkerInit(KBoolean errorReporting, bool isMainThread) {
 #if WITH_WORKERS
   if (::g_worker != nullptr) return ::g_worker;
-  Worker* worker = theState()->addWorkerUnlocked(errorReporting != 0, nullptr);
+  Worker* worker = theState()->addWorkerUnlocked(
+      errorReporting != 0,
+      nullptr,
+      isMainThread ? WorkerKind::kMainThread : WorkerKind::kOther);
   ::g_worker = worker;
   return worker;
 #else
@@ -899,7 +915,7 @@ JobKind Worker::processQueueElement(bool blocking) {
 extern "C" {
 
 KInt Kotlin_Worker_startInternal(KBoolean noErrorReporting, KRef customName) {
-  return startWorker(noErrorReporting, customName);
+  return startWorker(noErrorReporting, customName, WorkerKind::kNative);
 }
 
 KInt Kotlin_Worker_currentInternal() {
