@@ -72,9 +72,9 @@ enum JobKind {
 };
 
 enum class WorkerKind {
-  kNative,      // Workers created using Worker.start public API.
-  kMainThread,  // Worker created from the main thread.
-  kOther,       // Any other kind of workers.
+  kNative,  // Workers created using Worker.start public API.
+  kMain,    // Worker created from the main entry point. Might not exist.
+  kOther,   // Any other kind of workers.
 };
 
 struct Job {
@@ -665,13 +665,13 @@ KNativePtr detachObjectGraphInternal(KInt transferMode, KRef producer) {
 
 }  // namespace
 
-Worker* WorkerInit(KBoolean errorReporting, bool isMainThread) {
+Worker* WorkerInit(KBoolean errorReporting, bool isMain) {
 #if WITH_WORKERS
   if (::g_worker != nullptr) return ::g_worker;
   Worker* worker = theState()->addWorkerUnlocked(
       errorReporting != 0,
       nullptr,
-      isMainThread ? WorkerKind::kMainThread : WorkerKind::kOther);
+      isMain ? WorkerKind::kMain : WorkerKind::kOther);
   ::g_worker = worker;
   return worker;
 #else
@@ -684,7 +684,7 @@ bool WorkerDeinit(Worker* worker) {
   WorkerKind kind = worker->kind();
   ::g_worker = nullptr;
   theState()->destroyWorkerUnlocked(worker);
-  if (Kotlin_memoryLeakCheckerEnabled() && kind == WorkerKind::kMainThread) {
+  if (Kotlin_memoryLeakCheckerEnabled() && kind == WorkerKind::kMain) {
     size_t remainingWorkers = theState()->activeNativeWorkersCount();
     if (remainingWorkers != 0) {
       konan::consoleErrorf(

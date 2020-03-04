@@ -29,6 +29,8 @@ extern "C" {
 void Kotlin_initRuntimeIfNeeded();
 void Kotlin_deinitRuntimeIfNeeded();
 
+void Kotlin_initMainRuntimeIfNeeded();
+
 // Operations below allow flexible runtime scheduling on different threads.
 // Created runtime is in SUSPENDED state, and need to be resumed for actual execution.
 RuntimeState* Kotlin_createRuntime();
