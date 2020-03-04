@@ -2,10 +2,10 @@ package org.jetbrains.kotlin.backend.konan.lower
 
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.common.lower.IrBuildingTransformer
-import org.jetbrains.kotlin.backend.common.lower.at
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irBlockBody
 import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.boxing.IrOriginToSpec
 import org.jetbrains.kotlin.backend.konan.boxing.SpecializationEncoder
 import org.jetbrains.kotlin.backend.konan.boxing.TypeParameterEliminator
 import org.jetbrains.kotlin.backend.konan.boxing.eliminateTypeParameters
@@ -135,16 +135,9 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
                 owner.parent
         )
         val newFunction = owner.getSpecialization(primitiveTypeArgument, copier)
-        builder.at(expression).run {
-            irCall(newFunction).apply {
-                extensionReceiver = expression.extensionReceiver?.eliminateTypeParameters(copier)
-                dispatchReceiver = expression.dispatchReceiver
-                for (i in 0 until expression.valueArgumentsCount) {
-                    putValueArgument(i, expression.getValueArgument(i)?.eliminateTypeParameters(copier))
-                }
-                return this
-            }
-        }
+        IrOriginToSpec.newFunction(owner, encoder.decode(newFunction.name.asString()), newFunction)
+
+        return super.visitCall(expression)
     }
 
     override fun visitConstructorCall(expression: IrConstructorCall): IrExpression {
@@ -165,12 +158,10 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
                 oldClass.parent
         )
         val newConstructor = oldClass.getSpecialization(primitiveTypeSubstitutionMap, copier).primaryConstructor!!
+        IrOriginToSpec.newClass(expression.type, newConstructor.returnType)
+        IrOriginToSpec.newConstructor(expression.symbol.owner, newConstructor)
 
-        builder.at(expression).run {
-            irConstructorCall(expression, newConstructor).apply {
-                return this
-            }
-        }
+        return super.visitConstructorCall(expression)
     }
 
     private inline fun <reified T : IrTypeParametersContainer> T.getSpecialization(primitiveTypeSubstitutionMap: Map<IrTypeParameterSymbol, IrType>, copier: TypeParameterEliminator): T {
@@ -181,7 +172,7 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         if (existingSpecialization is T) {
             return existingSpecialization
         }
-        copier.addNewDeclarationName(this, encoder.encode(this, primitiveTypeSubstitutionMap))
+        copier.addNewDeclarationName(this, encoder.encode(this, primitiveTypeSubstitutionMap)!!)
         typeParametersMapping[typeParameterSymbol] = actualType
 
         return eliminateTypeParameters(copier).also {
@@ -202,7 +193,7 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
 
         // Include concrete primitive type to the name of specialization
         // to be able to easily spot such functions and to avoid extra overloads
-        copier.addNewDeclarationName(this, encoder.encode(this, mapOf(typeParameters.first().symbol to type)))
+        copier.addNewDeclarationName(this, encoder.encode(this, mapOf(typeParameters.first().symbol to type))!!)
 
         typeParametersMapping[typeParameters.first().symbol] = type
 

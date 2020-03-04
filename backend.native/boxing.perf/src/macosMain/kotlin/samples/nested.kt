@@ -42,7 +42,7 @@ fun <T> idMixDelegate1__(x: T) = idDelegate__(x)
 fun <T> idMixDelegate2__(x: T) = idMixDelegate1__(x)
 
 fun <R> idManyTypes1__(x: R): R {
-    return libid__(x)
+    return id__(x)
 }
 
 fun <R> idManyTypes2__(x: R): R {

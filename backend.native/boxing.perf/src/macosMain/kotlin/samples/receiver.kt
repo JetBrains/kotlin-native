@@ -31,12 +31,12 @@ fun <T> GenericBox<T>.eqls__(other: T) = this == other
 @CountBoxings
 fun runReceiver(): Int {
     for (i in 1..10) {
-        Box(i).doDefault__<Int>()                                    // 0 boxings
-        GenericBox(i).doDefault__()                                  // 10 boxings
-        doDefault__(GenericBox(i + 1))                               // 10 boxings
-        GenericBox(i - 1).doDefault__(GenericBox(i + 1))             // 20 boxings
-        1.eqls__(2)                                                  // 0 boxings
-        GenericBox(1).eqls__(2)                                      // 20 boxings
+        Box(i).doDefault__<Int>()                           // 0 boxings
+        GenericBox(i).doDefault__()                         // 10 boxings
+        doDefault__(GenericBox(i + 1))                      // 10 boxings
+        GenericBox(i - 1).doDefault__(GenericBox(i + 1))    // 20 boxings
+        1.eqls__(2)                                         // 0 boxings
+        GenericBox(1).eqls__(2)                             // 10 boxings
     }
     return 0
 }

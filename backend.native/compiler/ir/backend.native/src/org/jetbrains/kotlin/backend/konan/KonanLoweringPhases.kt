@@ -81,6 +81,12 @@ internal val genericsSpecializationPhase = makeKonanModuleLoweringPhase(
         description = "Specialization of generic function for primitive types"
 )
 
+internal val replaceOriginsWithSpecializationsPhase = makeKonanModuleLoweringPhase(
+        ::ReplaceOriginsWithSpecializationsLowering,
+        name = "ReplaceWithSpecialization",
+        description = "Replaces functions, classes and its usages with related specializations"
+)
+
 internal val lowerBeforeInlinePhase = makeKonanModuleLoweringPhase(
         ::PreInlineLowering,
         name = "LowerBeforeInline",

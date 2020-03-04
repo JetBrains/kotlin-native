@@ -21,15 +21,19 @@ internal class SpecializationEncoder(val context: Context) {
             .toMap()
     private val radix = primitiveTypeEncodings.size + 2
 
-    fun encode(declaration: IrTypeParametersContainer, mapping: Map<IrTypeParameterSymbol, IrType>): String {
+    fun encode(declaration: IrTypeParametersContainer, mapping: Map<IrTypeParameterSymbol, IrType>): String? {
+        return getCode(declaration, mapping)?.let { "${declaration.nameForIrSerialization}-$it" }
+    }
+
+    private fun getCode(declaration: IrTypeParametersContainer, mapping: Map<IrTypeParameterSymbol, IrType>): Int? {
         var num = 0
         for (typeParameter in declaration.typeParameters) {
             num *= radix
             mapping[typeParameter.symbol]?.let { type ->
-                num += primitiveTypeEncodings.getOrElse(type) { throw AssertionError() }
+                num += primitiveTypeEncodings.getOrElse(type) { return null }
             } ?: num++
         }
-        return "${declaration.nameForIrSerialization}-$num"
+        return num
     }
 
     /*

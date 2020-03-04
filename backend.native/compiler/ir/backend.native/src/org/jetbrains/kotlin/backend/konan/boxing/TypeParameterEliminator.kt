@@ -80,6 +80,7 @@ internal class TypeParameterEliminator(private val specializationTransformer: Sp
             specializingClasses += irElement
         }
         val result = super.copy(irElement)
+        copier.handleDeferredMembers()
         specializationTransformer.handleTransformedCalls(callsFitForSpecialization)
         return result
     }
@@ -146,6 +147,7 @@ internal class TypeParameterEliminator(private val specializationTransformer: Sp
             TypeParameterEliminatorSymbolRenamer()
     ) {
         private val constructorsCopier = ConstructorsCopier()
+        private val deferredMemberMappings = mutableListOf<Triple<IrDeclaration, IrType, IrDeclaration>>()
 
         override fun visitClass(declaration: IrClass): IrClass {
             constructorsCopier.prepare(declaration)
@@ -157,7 +159,15 @@ internal class TypeParameterEliminator(private val specializationTransformer: Sp
         }
 
         override fun visitSimpleFunction(declaration: IrSimpleFunction): IrSimpleFunction {
-            return super.visitSimpleFunction(declaration).withEliminatedTypeParameters(declaration)
+            return super.visitSimpleFunction(declaration).withEliminatedTypeParameters(declaration).also {
+                it.dispatchReceiverParameter?.let { dispatchSpec ->
+                    deferredMemberMappings += Triple(declaration, dispatchSpec.type, it)
+                }
+            }
+        }
+
+        fun handleDeferredMembers() {
+            deferredMemberMappings.forEach { (origin, dispatchSpec, spec) -> IrOriginToSpec.newMember(origin, dispatchSpec, spec) }
         }
 
         override fun visitCall(expression: IrCall): IrCall {

@@ -277,6 +277,7 @@ internal val allLoweringsPhase = namedIrModulePhase(
         lower = removeExpectDeclarationsPhase then
                 stripTypeAliasDeclarationsPhase then
                 genericsSpecializationPhase then
+                replaceOriginsWithSpecializationsPhase then
                 lowerBeforeInlinePhase then
                 arrayConstructorPhase then
                 inlinePhase then
@@ -462,5 +463,6 @@ internal fun PhaseConfig.konanPhasesConfig(config: KonanConfig) {
         disableUnless(createBoxingCounterPhase, getBoolean(KonanConfigKeys.COUNT_BOX_OPERATIONS))
         disableUnless(countBoxingsPhase, getBoolean(KonanConfigKeys.COUNT_BOX_OPERATIONS))
         disableUnless(genericsSpecializationPhase, getBoolean(KonanConfigKeys.EXTRA_BOXING_ELIMINATION))
+        disableUnless(replaceOriginsWithSpecializationsPhase, getBoolean(KonanConfigKeys.EXTRA_BOXING_ELIMINATION))
     }
 }
