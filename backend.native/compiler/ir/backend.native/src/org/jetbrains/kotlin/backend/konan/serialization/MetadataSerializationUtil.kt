@@ -15,6 +15,7 @@ private fun <T, M : GeneratedMessageLite.ExtendableMessage<M>> M.tryGetExtension
 
 /**
  * UniqId is required to identify interop declarations from metadata-only libraries.
+ * The value is computed by [org.jetbrains.kotlin.native.interop.gen.StubIrUniqIdProvider].
  */
 internal fun extractDescriptorUniqId(descriptor: DeclarationDescriptor): Long? = when (descriptor) {
     is DeserializedClassDescriptor -> descriptor.classProto.tryGetExtension(KlibMetadataProtoBuf.classUniqId)

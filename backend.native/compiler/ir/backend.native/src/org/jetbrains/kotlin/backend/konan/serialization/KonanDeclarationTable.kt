@@ -23,6 +23,7 @@ class KonanDeclarationTable(
 
     private val signatureIdComposer = DescToIrIdSignatureComputer(KonanIdSignaturer(KonanManglerDesc))
 
+    // TODO: We should get rid of this extension point in favor of proper support in IR-based mangler.
     override fun tryComputeBackendSpecificSignature(declaration: IrDeclaration): IdSignature? =
             if (declaration.descriptor.module.isFromInteropLibrary()) {
                 signatureIdComposer.computeSignature(declaration)
