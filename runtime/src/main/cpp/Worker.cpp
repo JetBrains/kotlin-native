@@ -73,7 +73,6 @@ enum JobKind {
 
 enum class WorkerKind {
   kNative,  // Workers created using Worker.start public API.
-  kMain,    // Worker created from the main entry point. Might not exist.
   kOther,   // Any other kind of workers.
 };
 
@@ -445,14 +444,27 @@ class State {
   KInt nextWorkerId() { return currentWorkerId_++; }
   KInt nextFutureId() { return currentFutureId_++; }
 
-  size_t activeNativeWorkersCount() {
+  bool hasLeakingNativeWorkers() {
     Locker locker(&lock_);
-    size_t count = 0;
+    size_t remainingWorkers = workers_.size();
+    if (remainingWorkers == 0)
+      return false;
+
+    size_t remainingNativeWorkers = 0;
     for (const auto& kvp : workers_) {
       if (kvp.second->kind() == WorkerKind::kNative)
-        ++count;
+        ++remainingNativeWorkers;
     }
-    return count;
+    // If there're non-kNative workers, there aren't any leaks yet.
+    if (remainingWorkers != remainingNativeWorkers)
+      return false;
+
+    konan::consoleErrorf(
+      "Unfinished workers detected, %lu workers leaked!\n"
+      "Use `Platform.isMemoryLeakCheckerActive = false` to avoid this check.\n",
+      remainingNativeWorkers);
+
+    return true;
   }
 
  private:
@@ -526,8 +538,8 @@ void* workerRoutine(void* argument) {
   return nullptr;
 }
 
-KInt startWorker(KBoolean errorReporting, KRef customName, WorkerKind kind) {
-  Worker* worker = theState()->addWorkerUnlocked(errorReporting != 0, customName, kind);
+KInt startWorker(KBoolean errorReporting, KRef customName) {
+  Worker* worker = theState()->addWorkerUnlocked(errorReporting != 0, customName, WorkerKind::kNative);
   if (worker == nullptr) return -1;
   pthread_t thread = 0;
   pthread_create(&thread, nullptr, workerRoutine, worker);
@@ -605,7 +617,7 @@ KNativePtr detachObjectGraphInternal(KInt transferMode, KRef producer) {
 
 #else
 
-KInt startWorker(KBoolean errorReporting, KRef customName, WorkerKind kind) {
+KInt startWorker(KBoolean errorReporting, KRef customName) {
   ThrowWorkerUnsupported();
 }
 
@@ -665,13 +677,10 @@ KNativePtr detachObjectGraphInternal(KInt transferMode, KRef producer) {
 
 }  // namespace
 
-Worker* WorkerInit(KBoolean errorReporting, bool isMain) {
+Worker* WorkerInit(KBoolean errorReporting) {
 #if WITH_WORKERS
   if (::g_worker != nullptr) return ::g_worker;
-  Worker* worker = theState()->addWorkerUnlocked(
-      errorReporting != 0,
-      nullptr,
-      isMain ? WorkerKind::kMain : WorkerKind::kOther);
+  Worker* worker = theState()->addWorkerUnlocked(errorReporting != 0, nullptr, WorkerKind::kOther);
   ::g_worker = worker;
   return worker;
 #else
@@ -681,18 +690,10 @@ Worker* WorkerInit(KBoolean errorReporting, bool isMain) {
 
 bool WorkerDeinit(Worker* worker) {
 #if WITH_WORKERS
-  WorkerKind kind = worker->kind();
   ::g_worker = nullptr;
   theState()->destroyWorkerUnlocked(worker);
-  if (Kotlin_memoryLeakCheckerEnabled() && kind == WorkerKind::kMain) {
-    size_t remainingWorkers = theState()->activeNativeWorkersCount();
-    if (remainingWorkers != 0) {
-      konan::consoleErrorf(
-        "Unfinished workers detected, %lu workers leaked!\n"
-        "Use `Platform.isMemoryLeakCheckerActive = false` to avoid this check.\n",
-        remainingWorkers);
-      return false;
-    }
+  if (Kotlin_memoryLeakCheckerEnabled()) {
+    return !theState()->hasLeakingNativeWorkers();
   }
   return true;
 #else
@@ -921,7 +922,7 @@ JobKind Worker::processQueueElement(bool blocking) {
 extern "C" {
 
 KInt Kotlin_Worker_startInternal(KBoolean noErrorReporting, KRef customName) {
-  return startWorker(noErrorReporting, customName, WorkerKind::kNative);
+  return startWorker(noErrorReporting, customName);
 }
 
 KInt Kotlin_Worker_currentInternal() {

@@ -6,8 +6,7 @@
 
 class Worker;
 
-// isMain should be true for the worker created from the main entry point.
-Worker* WorkerInit(KBoolean errorReporting, bool isMain);
+Worker* WorkerInit(KBoolean errorReporting);
 // Returns true if completed successfully.
 bool WorkerDeinit(Worker* worker);
 

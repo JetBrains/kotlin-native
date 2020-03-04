@@ -401,7 +401,8 @@ private:
 
       if (hadNoStateInitialized) {
         // Discard the memory state.
-        DeinitMemory(memoryState);
+        if (!DeinitMemory(memoryState))
+          konan::abort();
       }
     }
   }
