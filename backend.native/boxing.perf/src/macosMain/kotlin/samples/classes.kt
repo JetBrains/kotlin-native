@@ -29,6 +29,35 @@ class BoxWithEqls<T>(val value: T) {
     fun eqls(other: BoxWithEqls<T>) = value == other.value
 }
 
+class BoxWithCustomGetters<T>(val value1: T, val value2: T) {
+    private val x = value1
+        get() = if (foo()) field else value2
+    private val y = value2
+        get() = if (foo()) value1 else field
+
+    fun foo() = value1 == value2
+    fun bar() = x == y
+}
+
+class BoxWithCustomSetters<T>(val value1: T, val value2: T) {
+    var x = value1
+        set(value) {
+            field = if (!foo()) value2 else value
+        }
+
+    var y = value2
+        set(value) {
+            field = if (!foo()) value else value1
+        }
+
+    fun foo() = value1 == value2
+
+    fun bar(value: T) {
+        x = value
+        y = value
+    }
+}
+
 @CountBoxings
 fun runClasses() {
     for (i in 1..10) {
@@ -43,5 +72,15 @@ fun runClasses() {
         val x8 = x7
         x7.eqls(x8)
         x8.eqls(x7)
+
+        val x9 = BoxWithCustomGetters(i, i + (2 * (i % 2) - 1))
+        val x10 = x9.bar()
+        val x11 = x9.value1
+        val x12 = x9.value2
+
+        val x13 = BoxWithCustomSetters(i, i + (2 * (i % 2) - 1))
+        x13.bar(i + 42)
+        val x14 = x13.x
+        val x15 = x13.y
     }
 }
