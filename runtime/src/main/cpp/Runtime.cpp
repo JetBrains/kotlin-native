@@ -115,9 +115,8 @@ void deinitRuntime(RuntimeState* state) {
   InitOrDeinitGlobalVariables(DEINIT_THREAD_LOCAL_GLOBALS, state->memoryState);
   if (lastRuntime)
     InitOrDeinitGlobalVariables(DEINIT_GLOBALS, state->memoryState);
-  const bool checkLeaks = isMainThread && g_checkLeaks;
   bool ok = true;
-  ok = WorkerDeinit(state->worker, checkLeaks) && ok;
+  ok = WorkerDeinit(state->worker, g_checkLeaks) && ok;
   ok = DeinitMemory(state->memoryState, g_checkLeaks) && ok;
   if (!ok)
     konan::abort();
