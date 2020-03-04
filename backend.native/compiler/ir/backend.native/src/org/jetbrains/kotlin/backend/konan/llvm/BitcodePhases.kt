@@ -35,6 +35,8 @@ internal val contextLLVMSetupPhase = makeKonanModuleOpPhase(
             context.llvmModule = llvmModule
             context.debugInfo.builder = LLVMCreateDIBuilder(llvmModule)
 
+            // we don't split path to filename and directory to provide enough level uniquely for dsymutil to avoid symbol
+            // clashing, which happens on linking with libraries produced from intercepting sources.
             context.debugInfo.compilationUnit = if (context.shouldContainLocationDebugInfo()) DICreateCompilationUnit(
                     builder = context.debugInfo.builder,
                     lang = DWARF.language(context.config),
