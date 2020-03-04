@@ -1029,6 +1029,12 @@ task enumIdentity(type: KonanLocalTest) {
     source = "runtime/workers/enum_identity.kt"
 }
 
+standaloneTest("leakWorker") {
+    source = "runtime/workers/leak_worker.kt"
+    flags = ['-g']
+    expectedExitStatus = 134
+}
+
 task superFunCall(type: KonanLocalTest) {
     goldValue = "<fun:C><fun:C1>\n<fun:C><fun:C3>\n"
     source = "codegen/basics/superFunCall.kt"
@@ -2732,6 +2738,12 @@ standaloneTest("cycle_collector") {
     disabled = project.globalTestArgs.contains('-opt') || (project.testTarget == 'wasm32') // Needs debug build.
     flags = ['-g']
     source = "runtime/memory/cycle_collector.kt"
+}
+
+standaloneTest("leakMemory") {
+    source = "runtime/memory/leak_memory.kt"
+    flags = ['-g']
+    expectedExitStatus = 134
 }
 
 standaloneTest("mpp1") {
