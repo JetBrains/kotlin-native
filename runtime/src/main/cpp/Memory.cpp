@@ -1751,6 +1751,7 @@ bool deinitMemory(MemoryState* memoryState, bool checkLeaks) {
   atomicAdd(&pendingDeinit, 1);
 #if USE_GC
   bool lastMemoryState = atomicAdd(&aliveMemoryStatesCount, -1) == 0;
+  checkLeaks = checkLeaks && lastMemoryState;
   if (lastMemoryState) {
    garbageCollect(memoryState, true);
 #if USE_CYCLIC_GC

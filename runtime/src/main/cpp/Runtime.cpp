@@ -118,7 +118,7 @@ void deinitRuntime(RuntimeState* state) {
   const bool checkLeaks = isMainThread && g_checkLeaks;
   bool ok = true;
   ok = WorkerDeinit(state->worker, checkLeaks) && ok;
-  ok = DeinitMemory(state->memoryState, checkLeaks) && ok;
+  ok = DeinitMemory(state->memoryState, g_checkLeaks) && ok;
   if (!ok)
     konan::abort();
   konanDestructInstance(state);
