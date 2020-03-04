@@ -445,9 +445,14 @@ class State {
   KInt nextWorkerId() { return currentWorkerId_++; }
   KInt nextFutureId() { return currentFutureId_++; }
 
-  size_t activeWorkersCount() {
+  size_t activeNativeWorkersCount() {
     Locker locker(&lock_);
-    return workers_.size();
+    size_t count = 0;
+    for (const auto& kvp : workers_) {
+      if (kvp.second->kind() == WorkerKind::kNative)
+        ++count;
+    }
+    return count;
   }
 
  private:
@@ -680,7 +685,7 @@ bool WorkerDeinit(Worker* worker, bool checkLeaks) {
   ::g_worker = nullptr;
   theState()->destroyWorkerUnlocked(worker);
   if (checkLeaks && kind == WorkerKind::kMainThread) {
-    size_t remainingWorkers = theState()->activeWorkersCount();
+    size_t remainingWorkers = theState()->activeNativeWorkersCount();
     if (remainingWorkers != 0) {
       konan::consoleErrorf(
         "Unfinished workers detected, %lu workers leaked!\n"
