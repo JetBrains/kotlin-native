@@ -428,8 +428,8 @@ extern "C" {
 struct MemoryState;
 
 MemoryState* InitMemory();
-// Returns true if no leaks were detected.
-bool DeinitMemory(MemoryState*, bool checkLeaks);
+// Returns true if completed successfully.
+bool DeinitMemory(MemoryState*);
 
 MemoryState* SuspendMemory();
 void ResumeMemory(MemoryState* state);

@@ -401,7 +401,7 @@ private:
 
       if (hadNoStateInitialized) {
         // Discard the memory state.
-        DeinitMemory(memoryState, /* checkLeaks = */ false);
+        DeinitMemory(memoryState);
       }
     }
   }
@@ -1746,12 +1746,12 @@ MemoryState* initMemory() {
   return memoryState;
 }
 
-bool deinitMemory(MemoryState* memoryState, bool checkLeaks) {
+bool deinitMemory(MemoryState* memoryState) {
   static int pendingDeinit = 0;
   atomicAdd(&pendingDeinit, 1);
 #if USE_GC
   bool lastMemoryState = atomicAdd(&aliveMemoryStatesCount, -1) == 0;
-  checkLeaks = checkLeaks && lastMemoryState;
+  bool checkLeaks = Kotlin_memoryLeakCheckerEnabled() && lastMemoryState;
   if (lastMemoryState) {
    garbageCollect(memoryState, true);
 #if USE_CYCLIC_GC
@@ -2763,8 +2763,8 @@ MemoryState* InitMemory() {
   return initMemory();
 }
 
-bool DeinitMemory(MemoryState* memoryState, bool checkLeaks) {
-  return deinitMemory(memoryState, checkLeaks);
+bool DeinitMemory(MemoryState* memoryState) {
+  return deinitMemory(memoryState);
 }
 
 MemoryState* SuspendMemory() {

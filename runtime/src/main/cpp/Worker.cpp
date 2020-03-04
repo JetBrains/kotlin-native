@@ -679,12 +679,12 @@ Worker* WorkerInit(KBoolean errorReporting, bool isMainThread) {
 #endif  // WITH_WORKERS
 }
 
-bool WorkerDeinit(Worker* worker, bool checkLeaks) {
+bool WorkerDeinit(Worker* worker) {
 #if WITH_WORKERS
   WorkerKind kind = worker->kind();
   ::g_worker = nullptr;
   theState()->destroyWorkerUnlocked(worker);
-  if (checkLeaks && kind == WorkerKind::kMainThread) {
+  if (Kotlin_memoryLeakCheckerEnabled() && kind == WorkerKind::kMainThread) {
     size_t remainingWorkers = theState()->activeNativeWorkersCount();
     if (remainingWorkers != 0) {
       konan::consoleErrorf(

@@ -7,8 +7,8 @@
 class Worker;
 
 Worker* WorkerInit(KBoolean errorReporting, bool isMainThread);
-// Returns true if no leaks were detected.
-bool WorkerDeinit(Worker* worker, bool checkLeaks);
+// Returns true if completed successfully.
+bool WorkerDeinit(Worker* worker);
 
 Worker* WorkerSuspend();
 void WorkerResume(Worker* worker);

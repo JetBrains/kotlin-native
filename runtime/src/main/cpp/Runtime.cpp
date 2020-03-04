@@ -116,8 +116,8 @@ void deinitRuntime(RuntimeState* state) {
   if (lastRuntime)
     InitOrDeinitGlobalVariables(DEINIT_GLOBALS, state->memoryState);
   bool ok = true;
-  ok = WorkerDeinit(state->worker, g_checkLeaks) && ok;
-  ok = DeinitMemory(state->memoryState, g_checkLeaks) && ok;
+  ok = WorkerDeinit(state->worker) && ok;
+  ok = DeinitMemory(state->memoryState) && ok;
   if (!ok)
     konan::abort();
   konanDestructInstance(state);
@@ -271,6 +271,10 @@ KBoolean Konan_Platform_isDebugBinary() {
 void Kotlin_zeroOutTLSGlobals() {
   if (runtimeState != nullptr && runtimeState->memoryState != nullptr)
     InitOrDeinitGlobalVariables(DEINIT_THREAD_LOCAL_GLOBALS, runtimeState->memoryState);
+}
+
+bool Kotlin_memoryLeakCheckerEnabled() {
+  return g_checkLeaks;
 }
 
 KBoolean Konan_Platform_getMemoryLeakChecker() {
