@@ -7,12 +7,15 @@ package codegen.basics.const_infinity
 
 import kotlin.test.*
 
+//Original issue here https://youtrack.jetbrains.com/issue/KT-37212
+@Suppress("DIVISION_BY_ZERO")
 const val fpInfConst = 1.0F / 0.0F
+@Suppress("DIVISION_BY_ZERO")
 val fpInfVal = 1.0F / 0.0F
 
 @Test
 fun runTest() {
-    if (fpInfConst!=Float.POSITIVE_INFINITY) throw Error()
-    if (fpInfVal != Float.POSITIVE_INFINITY) throw Error()
-    if (fpInfConst!=fpInfVal) throw Error()
+    assertEquals(fpInfConst, Float.POSITIVE_INFINITY)
+    assertEquals(fpInfVal, Float.POSITIVE_INFINITY)
+    assertEquals(fpInfConst, fpInfVal)
 }
