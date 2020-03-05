@@ -1035,6 +1035,12 @@ standaloneTest("leakWorker") {
     expectedExitStatus = isWindowsTarget(project) ? 255 : 134
 }
 
+standaloneTest("leakMemoryWithWorkerTermination") {
+    source = "runtime/workers/leak_memory_with_worker_termination.kt"
+    flags = ['-g']
+    expectedExitStatus = isWindowsTarget(project) ? 255 : 134
+}
+
 task superFunCall(type: KonanLocalTest) {
     goldValue = "<fun:C><fun:C1>\n<fun:C><fun:C3>\n"
     source = "codegen/basics/superFunCall.kt"

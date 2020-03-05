@@ -1748,18 +1748,12 @@ MemoryState* initMemory() {
 }
 
 bool deinitMemory(MemoryState* memoryState) {
-  static int pendingDeinit = 0;
-  atomicAdd(&pendingDeinit, 1);
 #if USE_GC
   bool lastMemoryState = atomicAdd(&aliveMemoryStatesCount, -1) == 0;
   bool checkLeaks = Kotlin_memoryLeakCheckerEnabled() && lastMemoryState;
   if (lastMemoryState) {
    garbageCollect(memoryState, true);
 #if USE_CYCLIC_GC
-   // If there are other pending deinits (rare situation) - just skip the leak checker.
-   if (atomicGet(&pendingDeinit) > 1) {
-     checkLeaks = false;
-   }
    cyclicDeinit(g_hasCyclicCollector);
 #endif  // USE_CYCLIC_GC
   }
@@ -1778,8 +1772,6 @@ bool deinitMemory(MemoryState* memoryState) {
   RuntimeAssert(memoryState->finalizerQueue == nullptr, "Finalizer queue must be empty");
   RuntimeAssert(memoryState->finalizerQueueSize == 0, "Finalizer queue must be empty");
 #endif // USE_GC
-
-  atomicAdd(&pendingDeinit, -1);
 
 #if TRACE_MEMORY
   if (IsStrictMemoryModel && lastMemoryState && allocCount > 0) {

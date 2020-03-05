@@ -115,12 +115,14 @@ void deinitRuntime(RuntimeState* state) {
   InitOrDeinitGlobalVariables(DEINIT_THREAD_LOCAL_GLOBALS, state->memoryState);
   if (lastRuntime)
     InitOrDeinitGlobalVariables(DEINIT_GLOBALS, state->memoryState);
+  auto workerId = GetWorkerId(state->worker);
   bool ok = true;
   ok = WorkerDeinit(state->worker) && ok;
   ok = DeinitMemory(state->memoryState) && ok;
   if (!ok)
     konan::abort();
   konanDestructInstance(state);
+  WorkerDestroyThreadDataIfNeeded(workerId);
 }
 
 void Kotlin_deinitRuntimeCallback(void* argument) {
