@@ -52,7 +52,7 @@ external internal fun longToString(value: Long, radix: Int): String
 public actual inline fun Long.toString(radix: Int): String = longToString(this, checkRadix(radix))
 
 /**
- * Returns `true` if this string is not `null` and it's contents is equal to the word "true", ignoring case, and `false` otherwise.
+ * Returns `true` if this string is not `null` and its content is equal to the word "true", ignoring case, and `false` otherwise.
  */
 @SinceKotlin("1.4")
 @kotlin.internal.InlineOnly
