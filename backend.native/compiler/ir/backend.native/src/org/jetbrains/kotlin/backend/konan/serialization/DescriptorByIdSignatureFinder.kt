@@ -6,7 +6,6 @@ package org.jetbrains.kotlin.backend.konan.serialization
 
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.util.IdSignature
-import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 
 // The code here is intentionally copy-pasted from DeclarationStubGenerator with
 // minor changes.
@@ -48,21 +47,21 @@ class DescriptorByIdSignatureFinder(
         return when (candidates.size) {
             1 -> candidates.first()
             else -> {
-                val id = signature.id
-                        ?: error("$signature has no id, but there are multiple candidates: ${candidates.joinToString { it.fqNameSafe.toString() }}")
-                findDescriptorByHash(candidates, id)
+                findDescriptorByHash(candidates, signature.id)
                         ?: error("No descriptor found for $signature")
             }
         }
     }
 
-    private fun findDescriptorByHash(candidates: List<DeclarationDescriptor>, hash: Long): DeclarationDescriptor? {
+    private fun findDescriptorByHash(candidates: List<DeclarationDescriptor>, id: Long?): DeclarationDescriptor? {
         candidates.map { candidate ->
             if (candidate is CallableMemberDescriptor && candidate.kind == CallableMemberDescriptor.Kind.FAKE_OVERRIDE) {
-                if (hashIsAmongRealDescriptors(candidate, hash)) return candidate
+                if (hashIsAmongRealDescriptors(candidate, id)) return candidate
             } else {
+                // We don't compute id for typealiases and classes.
+                if (id == null && (candidate is ClassDescriptor || candidate is TypeAliasDescriptor)) return candidate
                 val candidateHash = with (KonanManglerDesc) { candidate.signatureMangle }
-                if (candidateHash == hash) return candidate
+                if (candidateHash == id) return candidate
             }
         }
         return null
@@ -70,7 +69,7 @@ class DescriptorByIdSignatureFinder(
 
     private fun hashIsAmongRealDescriptors(
             fakeOverrideMemberDescriptor: CallableMemberDescriptor,
-            hash: Long
+            hash: Long?
     ): Boolean {
         val overriddenRealMembers = fakeOverrideMemberDescriptor.resolveFakeOverrideMaybeAbstract()
         return overriddenRealMembers.any { realDescriptor ->
