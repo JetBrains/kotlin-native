@@ -290,11 +290,14 @@ class State {
     return worker;
   }
 
-  void removeNativeWorkerUnlocked(KInt id) {
+  void removeWorkerUnlocked(KInt id) {
     Locker locker(&lock_);
     auto it = workers_.find(id);
     if (it == workers_.end()) return;
-    terminating_native_workers_[id].thread = it->second->thread();
+    Worker* worker = it->second;
+    if (worker->kind() == WorkerKind::kNative) {
+      terminating_native_workers_[id].thread = worker->thread();
+    }
     workers_.erase(it);
   }
 
@@ -952,7 +955,7 @@ JobKind Worker::processQueueElement(bool blocking) {
       }
       terminated_ = true;
       // Termination request, remove the worker and notify the future.
-      theState()->removeNativeWorkerUnlocked(id());
+      theState()->removeWorkerUnlocked(id());
       job.terminationRequest.future->storeResultUnlocked(nullptr, true);
       break;
     }
