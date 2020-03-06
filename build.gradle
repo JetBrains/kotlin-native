@@ -131,6 +131,7 @@ void setupClang(Project project) {
 
     project.convention.plugins.platformManager = project.rootProject.ext.platformManager
     project.convention.plugins.execClang = new org.jetbrains.kotlin.ExecClang(project)
+    project.convention.plugins.execClangFormat = new org.jetbrains.kotlin.ExecClangFormat(project)
 
     project.plugins.withType(NativeComponentPlugin) {
         project.model {
@@ -737,4 +738,12 @@ task pusher(type: KotlinBuildPusher){
     compilerConfigurationId = System.getenv("TEAMCITY_COMPILER_ID") ?: "Kotlin_KotlinDev_Compiler"
     overrideConfigurationId = System.getenv("TEAMCITY_OVERRIDE_NATIVE_ID") ?: "Kotlin_KotlinDev_DeployMavenArtifacts_OverrideNative"
     token = project.findProperty("teamcityBearToken") ?: System.getenv("TEAMCITY_BEAR_TOKEN")
+}
+
+task format {
+    dependsOn ":runtime:format"
+}
+
+task formatCheck {
+    dependsOn ":runtime:formatCheck"
 }
