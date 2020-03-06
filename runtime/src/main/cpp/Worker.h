@@ -14,8 +14,6 @@ void WorkerDeinit(Worker* worker);
 void WorkerDestroyThreadDataIfNeeded(KInt id);
 // Wait until all terminating native workers finish termination. Expected to be called once.
 void WaitNativeWorkersTermination();
-// Expected to be called once.
-void CheckNativeWorkersLeak();
 
 Worker* WorkerSuspend();
 void WorkerResume(Worker* worker);

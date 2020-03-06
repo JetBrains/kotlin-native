@@ -472,6 +472,8 @@ class State {
     {
       Locker locker(&lock_);
 
+      checkNativeWorkersLeakLocked();
+
       for (auto& kvp : terminating_native_workers_) {
         RuntimeAssert(!kvp.second.isJoining, "Joining native worker twice");
         RuntimeAssert(!pthread_equal(kvp.second.thread, pthread_self()), "Native worker is joining with itself");
@@ -488,9 +490,7 @@ class State {
     // via WorkerDestroyThreadDataIfNeeded().
   }
 
-  void checkNativeWorkersLeakUnlocked() {
-    Locker locker(&lock_);
-
+  void checkNativeWorkersLeakLocked() {
     size_t remainingNativeWorkers = 0;
     for (const auto& kvp : workers_) {
       Worker* worker = kvp.second;
@@ -736,12 +736,6 @@ void WorkerDestroyThreadDataIfNeeded(KInt id) {
 void WaitNativeWorkersTermination() {
 #if WITH_WORKERS
   theState()->waitNativeWorkersTerminationUnlocked();
-#endif
-}
-
-void CheckNativeWorkersLeak() {
-#if WITH_WORKERS
-  theState()->checkNativeWorkersLeakUnlocked();
 #endif
 }
 

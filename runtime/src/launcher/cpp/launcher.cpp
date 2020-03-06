@@ -56,18 +56,17 @@ extern "C" RUNTIME_USED int Init_and_run_start(int argc, const char** argv, int 
 
   KInt exitStatus = Konan_run_start(argc, argv);
 
-  if (memoryDeInit) Kotlin_deinitRuntimeIfNeeded();
+  if (memoryDeInit) {
+    if (Kotlin_memoryLeakCheckerEnabled())
+      WaitNativeWorkersTermination();
+    Kotlin_deinitRuntimeIfNeeded();
+  }
 
   return exitStatus;
 }
 
 extern "C" RUNTIME_USED int Konan_main(int argc, const char** argv) {
-    auto retcode = Init_and_run_start(argc, argv, 1);
-    if (Kotlin_memoryLeakCheckerEnabled()) {
-      CheckNativeWorkersLeak();
-      WaitNativeWorkersTermination();
-    }
-    return retcode;
+    return Init_and_run_start(argc, argv, 1);
 }
 
 #ifdef KONAN_WASM
