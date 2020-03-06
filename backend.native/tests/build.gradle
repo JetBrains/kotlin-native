@@ -1032,14 +1032,14 @@ task enumIdentity(type: KonanLocalTest) {
 standaloneTest("leakWorker") {
     source = "runtime/workers/leak_worker.kt"
     flags = ['-g']
-    expectedFail = true
+    expectedExitStatusChecker = { it != 0 }
     outputChecker = { s -> s.contains("Unfinished workers detected, 1 workers leaked!") }
 }
 
 standaloneTest("leakMemoryWithWorkerTermination") {
     source = "runtime/workers/leak_memory_with_worker_termination.kt"
     flags = ['-g']
-    expectedFail = true
+    expectedExitStatusChecker = { it != 0 }
     outputChecker = { s -> s.contains("Memory leaks detected, 1 objects leaked!") }
 }
 
@@ -2751,7 +2751,7 @@ standaloneTest("cycle_collector") {
 standaloneTest("leakMemory") {
     source = "runtime/memory/leak_memory.kt"
     flags = ['-g']
-    expectedFail = true
+    expectedExitStatusChecker = { it != 0 }
     outputChecker = { s -> s.contains("Memory leaks detected, 1 objects leaked!") }
 }
 
