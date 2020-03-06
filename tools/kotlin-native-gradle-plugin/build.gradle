@@ -88,12 +88,6 @@ dependencies {
     }
 }
 
-compileKotlin {
-    kotlinOptions {
-        freeCompilerArgs = ["-Xskip-metadata-version-check"]
-    }
-}
-
 shadowJar {
     from sourceSets.main.output
     configurations = [project.configurations.bundleDependencies]

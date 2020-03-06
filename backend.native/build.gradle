@@ -55,21 +55,11 @@ compileCompilerKotlin {
     // The protobuf plugin specifies this dependency for java by itself,
     // but not for Kotlin.
     dependsOn('generateCompilerProto')
-    kotlinOptions {
-        jvmTarget = "1.8"
-        freeCompilerArgs = ["-Xskip-metadata-version-check"]
-    }
+    kotlinOptions.jvmTarget = "1.8"
 }
 
 compileCompilerJava {
     dependsOn('renamePackage')
-}
-
-compileCli_bcKotlin {
-    kotlinOptions {
-        jvmTarget = "1.8"
-        freeCompilerArgs = ["-Xskip-metadata-version-check"]
-    }
 }
 
 task copyGenerated(type: Copy) {
