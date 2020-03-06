@@ -17,8 +17,9 @@
 package org.jetbrains.kotlin
 
 import groovy.lang.Closure
-import kotlinx.serialization.*
-import kotlinx.serialization.json.*
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonConfiguration
 import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.process.ExecResult
@@ -30,8 +31,10 @@ import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.konan.target.Xcode
 import java.io.*
 
+import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
+import java.nio.file.StandardCopyOption
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
@@ -420,14 +423,14 @@ private fun deviceLauncher(project: Project) = object : ExecutorService {
         }
         return out.toString().run {
             check(isNotEmpty())
-            @kotlinx.serialization.Serializable
+            @Serializable
             data class DeviceTarget(val name: String, val udid: String, val state: String, val type: String)
             split("\n")
                     .filter { it.isNotEmpty() }
-                    .map {
-                        Json(JsonConfiguration.Stable.copy(strictMode = false))
+                    .map { Json(JsonConfiguration.Stable.copy(ignoreUnknownKeys = false))
                             .parse(DeviceTarget.serializer(), it)
-                    }.first {
+                    }
+                    .first {
                         it.type == "device" && deviceName?.run { this == it.name } ?: true
                     }
                     .udid
