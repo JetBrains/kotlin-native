@@ -298,7 +298,6 @@ class State {
     workers_.erase(it);
   }
 
-  // Returns true if finished successfully.
   void destroyWorkerUnlocked(Worker* worker) {
     {
       Locker locker(&lock_);
