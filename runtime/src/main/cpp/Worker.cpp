@@ -299,7 +299,7 @@ class State {
   }
 
   // Returns true if finished successfully.
-  bool destroyWorkerUnlocked(Worker* worker) {
+  void destroyWorkerUnlocked(Worker* worker) {
     {
       Locker locker(&lock_);
       auto id = worker->id();
@@ -309,9 +309,8 @@ class State {
       }
     }
     GC_UnregisterWorker(worker);
-    bool ok = cleanupOnWorkerShutdownUnlocked(worker);
+    cleanupOnWorkerShutdownUnlocked(worker);
     konanDestructInstance(worker);
-    return ok;
   }
 
   void destroyWorkerThreadDataUnlocked(KInt id) {
@@ -467,15 +466,14 @@ class State {
   KInt nextWorkerId() { return currentWorkerId_++; }
   KInt nextFutureId() { return currentFutureId_++; }
 
-  // Returns true if finished successfully.
-  bool cleanupOnWorkerShutdownUnlocked(Worker* worker) {
+  void cleanupOnWorkerShutdownUnlocked(Worker* worker) {
     // Nothing to do if current worker is native.
     if (worker->kind() == WorkerKind::kNative)
-      return true;
+      return;
 
     // Nothing to do if memory leak checker is disabled.
     if (!Kotlin_memoryLeakCheckerEnabled())
-      return true;
+      return;
 
     size_t remainingWorkers = 0;
     std::vector<pthread_t> threadsToWait;
@@ -507,6 +505,7 @@ class State {
         "Unfinished workers detected, %lu workers leaked!\n"
         "Use `Platform.isMemoryLeakCheckerActive = false` to avoid this check.\n",
         remainingNativeWorkers);
+      konan::abort();
     }
 
     // If all non-native workers are gone, wait for terminating native workers.
@@ -518,8 +517,6 @@ class State {
 
     // By now all the threads from threadsToWait were cleaned from terminating_native_workers_
     // via WorkerDestroyThreadDataIfNeeded().
-
-    return !hasLeaks;
   }
 
  private:
@@ -734,12 +731,10 @@ Worker* WorkerInit(KBoolean errorReporting) {
 #endif  // WITH_WORKERS
 }
 
-bool WorkerDeinit(Worker* worker) {
+void WorkerDeinit(Worker* worker) {
 #if WITH_WORKERS
   ::g_worker = nullptr;
-  return theState()->destroyWorkerUnlocked(worker);
-#else
-  return true;
+  theState()->destroyWorkerUnlocked(worker);
 #endif  // WITH_WORKERS
 }
 

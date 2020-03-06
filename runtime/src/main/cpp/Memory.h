@@ -428,8 +428,7 @@ extern "C" {
 struct MemoryState;
 
 MemoryState* InitMemory();
-// Returns true if completed successfully.
-bool DeinitMemory(MemoryState*);
+void DeinitMemory(MemoryState*);
 
 MemoryState* SuspendMemory();
 void ResumeMemory(MemoryState* state);

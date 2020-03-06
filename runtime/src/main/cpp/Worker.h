@@ -9,8 +9,7 @@ class Worker;
 KInt GetWorkerId(Worker* worker);
 
 Worker* WorkerInit(KBoolean errorReporting);
-// Returns true if completed successfully.
-bool WorkerDeinit(Worker* worker);
+void WorkerDeinit(Worker* worker);
 // Clean up all associated thread state, if this was a native worker.
 void WorkerDestroyThreadDataIfNeeded(KInt id);
 

@@ -401,8 +401,7 @@ private:
 
       if (hadNoStateInitialized) {
         // Discard the memory state.
-        if (!DeinitMemory(memoryState))
-          konan::abort();
+        DeinitMemory(memoryState);
       }
     }
   }
@@ -1747,7 +1746,7 @@ MemoryState* initMemory() {
   return memoryState;
 }
 
-bool deinitMemory(MemoryState* memoryState) {
+void deinitMemory(MemoryState* memoryState) {
 #if USE_GC
   bool lastMemoryState = atomicAdd(&aliveMemoryStatesCount, -1) == 0;
   bool checkLeaks = Kotlin_memoryLeakCheckerEnabled() && lastMemoryState;
@@ -1784,7 +1783,7 @@ bool deinitMemory(MemoryState* memoryState) {
     konan::consoleErrorf(
         "Memory leaks detected, %d objects leaked!\n"
         "Use `Platform.isMemoryLeakCheckerActive = false` to avoid this check.\n", allocCount);
-    return false;
+    konan::abort();
   }
 #endif  // USE_GC
 #endif  // TRACE_MEMORY
@@ -1794,8 +1793,6 @@ bool deinitMemory(MemoryState* memoryState) {
 
   konanFreeMemory(memoryState);
   ::memoryState = nullptr;
-
-  return true;
 }
 
 MemoryState* suspendMemory() {
@@ -2756,8 +2753,8 @@ MemoryState* InitMemory() {
   return initMemory();
 }
 
-bool DeinitMemory(MemoryState* memoryState) {
-  return deinitMemory(memoryState);
+void DeinitMemory(MemoryState* memoryState) {
+  deinitMemory(memoryState);
 }
 
 MemoryState* SuspendMemory() {

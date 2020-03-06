@@ -116,11 +116,8 @@ void deinitRuntime(RuntimeState* state) {
   if (lastRuntime)
     InitOrDeinitGlobalVariables(DEINIT_GLOBALS, state->memoryState);
   auto workerId = GetWorkerId(state->worker);
-  bool ok = true;
-  ok = WorkerDeinit(state->worker) && ok;
-  ok = DeinitMemory(state->memoryState) && ok;
-  if (!ok)
-    konan::abort();
+  WorkerDeinit(state->worker);
+  DeinitMemory(state->memoryState);
   konanDestructInstance(state);
   WorkerDestroyThreadDataIfNeeded(workerId);
 }
