@@ -19,6 +19,7 @@
 #include "Runtime.h"
 #include "KString.h"
 #include "Types.h"
+#include "Worker.h"
 
 #ifndef KONAN_ANDROID
 
@@ -61,7 +62,12 @@ extern "C" RUNTIME_USED int Init_and_run_start(int argc, const char** argv, int 
 }
 
 extern "C" RUNTIME_USED int Konan_main(int argc, const char** argv) {
-    return Init_and_run_start(argc, argv, 1);
+    auto retcode = Init_and_run_start(argc, argv, 1);
+    if (Kotlin_memoryLeakCheckerEnabled()) {
+      CheckNativeWorkersLeak();
+      WaitNativeWorkersTermination();
+    }
+    return retcode;
 }
 
 #ifdef KONAN_WASM

@@ -473,12 +473,8 @@ class State {
       Locker locker(&lock_);
 
       for (auto& kvp : terminating_native_workers_) {
-        // If someone else is already joining this thread, skip it.
-        if (kvp.second.isJoining)
-          continue;
-        // Don't try to join with itself.
-        if (pthread_equal(kvp.second.thread, pthread_self()))
-          continue;
+        RuntimeAssert(!kvp.second.isJoining, "Joining native worker twice");
+        RuntimeAssert(!pthread_equal(kvp.second.thread, pthread_self()), "Native worker is joining with itself");
         kvp.second.isJoining = true;
         threadsToWait.push_back(kvp.second.thread);
       }
@@ -493,23 +489,17 @@ class State {
   }
 
   void checkNativeWorkersLeakUnlocked() {
-    size_t remainingWorkers = 0;
-    size_t remainingNativeWorkers = 0;
-    {
-      Locker locker(&lock_);
+    Locker locker(&lock_);
 
-      remainingWorkers = workers_.size();
-      for (const auto& kvp : workers_) {
-        Worker* worker = kvp.second;
-        if (worker->kind() == WorkerKind::kNative) {
-          ++remainingNativeWorkers;
-        }
+    size_t remainingNativeWorkers = 0;
+    for (const auto& kvp : workers_) {
+      Worker* worker = kvp.second;
+      if (worker->kind() == WorkerKind::kNative) {
+        ++remainingNativeWorkers;
       }
     }
 
-    // If all remaining workers are native workers, there's a worker leak.
-    bool hasLeaks = remainingWorkers != 0 && (remainingWorkers == remainingNativeWorkers);
-    if (hasLeaks) {
+    if (remainingNativeWorkers != 0) {
       konan::consoleErrorf(
         "Unfinished workers detected, %lu workers leaked!\n"
         "Use `Platform.isMemoryLeakCheckerActive = false` to avoid this check.\n",

@@ -117,12 +117,6 @@ void deinitRuntime(RuntimeState* state) {
     InitOrDeinitGlobalVariables(DEINIT_GLOBALS, state->memoryState);
   auto workerId = GetWorkerId(state->worker);
   WorkerDeinit(state->worker);
-  if (g_checkLeaks) {
-    CheckNativeWorkersLeak();
-  }
-  if (lastRuntime) {
-    WaitNativeWorkersTermination();
-  }
   DeinitMemory(state->memoryState);
   konanDestructInstance(state);
   WorkerDestroyThreadDataIfNeeded(workerId);
