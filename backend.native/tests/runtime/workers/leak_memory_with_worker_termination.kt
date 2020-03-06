@@ -3,7 +3,8 @@ import kotlinx.cinterop.*
 
 fun main() {
     val worker = Worker.start()
-    Worker.current.park(1000 * 1000);
+    // Make sure worker is initialized.
+    worker.execute(TransferMode.SAFE, {}, {}).result;
     StableRef.create(Any())
     worker.requestTermination().result
 }

@@ -2,7 +2,8 @@ import kotlin.native.concurrent.*
 import kotlinx.cinterop.*
 
 fun main() {
-    Worker.start()
-    Worker.current.park(1000 * 1000);
+    val worker = Worker.start()
+    // Make sure worker is initialized.
+    worker.execute(TransferMode.SAFE, {}, {}).result;
     StableRef.create(Any())
 }
