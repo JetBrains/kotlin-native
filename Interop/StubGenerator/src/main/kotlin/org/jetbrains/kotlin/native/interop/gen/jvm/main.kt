@@ -211,8 +211,17 @@ private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = 
 
     val outKtPkg = fqParts.joinToString(".")
 
-    val mode = parseGenerationMode(cinteropArguments.mode)
-            ?: error ("Unexpected interop generation mode: ${cinteropArguments.mode}")
+    val mode = run {
+        val providedMode = parseGenerationMode(cinteropArguments.mode)
+                ?: error ("Unexpected interop generation mode: ${cinteropArguments.mode}")
+
+        if (providedMode == GenerationMode.METADATA && flavor == KotlinPlatform.JVM) {
+            warn("Metadata mode isn't supported for Kotlin/JVM! Falling back to sourcecode.")
+            GenerationMode.SOURCE_CODE
+        } else {
+            providedMode
+        }
+    }
 
     val allLibraryDependencies = when (flavor) {
         KotlinPlatform.NATIVE -> resolveDependencies(cinteropArguments, tool.target)
@@ -328,7 +337,8 @@ private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = 
                     moduleName = moduleName,
                     outputPath = cinteropArguments.output,
                     manifest = def.manifestAddendProperties,
-                    dependencies = allLibraryDependencies
+                    dependencies = allLibraryDependencies,
+                    nopack = cinteropArguments.nopack
             )
             createInteropLibrary(args)
             return null

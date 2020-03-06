@@ -67,21 +67,24 @@ project.rootProject.ext.platformManager.enabled.each { target ->
             originalKlib = file("$konanHome/klib/common/stdlib")
             cacheRoot = file("$konanHome/klib/cache")
 
-            dependsOn ":${targetName}CrossDist"
+            dependsOn ":${targetName}CrossDistRuntime"
         }
     }
 
     targetDefFiles(target).each { df ->
         def libName = defFileToLibName(targetName, df.name)
+        def fileNamePrefix = PlatformLibsInfo.namePrefix
 
         konanArtifacts {
             interop (libName, targets: [targetName]) {
                 defFile df.file
-                artifactName df.name
+                artifactName "${fileNamePrefix}${df.name}"
                 noDefaultLibs true
                 noEndorsedLibs true
                 libraries {
-                    klibs df.config.depends
+                    klibs df.config.depends.collect {
+                        "${fileNamePrefix}${it}".toString()
+                    }
                 }
                 extraOpts '-Xpurge-user-libs'
                 compilerOpts "-fmodules-cache-path=${project.buildDir}/clangModulesCache"
@@ -108,7 +111,7 @@ project.rootProject.ext.platformManager.enabled.each { target ->
                 originalKlib = tasks[libName].installDir
                 cacheRoot = file("$konanHome/klib/cache")
 
-                dependsOn "${targetName}StdlibCache"
+                dependsOn ":${targetName}StdlibCache"
                 dependsOn tasks[libName]
                 dependsOn df.config.depends.collect {
                     def depName = defFileToLibName(targetName, it)
@@ -157,7 +160,3 @@ task cache {
     group = BasePlugin.BUILD_GROUP
     description = "Builds all the compilation caches"
 }
-
-
-
-
