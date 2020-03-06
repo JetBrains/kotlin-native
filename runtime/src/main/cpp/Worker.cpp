@@ -311,42 +311,6 @@ class State {
     konanDestructInstance(worker);
   }
 
-  void destroyWorkerThreadDataUnlocked(KInt id) {
-    Locker locker(&lock_);
-    auto it = terminating_native_workers_.find(id);
-    if (it == terminating_native_workers_.end()) return;
-    // If this worker is not being joined, detach it to free resources.
-    if (!it->second.isJoining) {
-      pthread_detach(it->second.thread);
-    }
-    terminating_native_workers_.erase(it);
-  }
-
-  void waitNativeWorkersTerminationUnlocked() {
-    std::vector<pthread_t> threadsToWait;
-    {
-      Locker locker(&lock_);
-
-      for (auto& kvp : terminating_native_workers_) {
-        // If someone else is already joining this thread, skip it.
-        if (kvp.second.isJoining)
-          continue;
-        // Don't try to join with itself.
-        if (pthread_equal(kvp.second.thread, pthread_self()))
-          continue;
-        kvp.second.isJoining = true;
-        threadsToWait.push_back(kvp.second.thread);
-      }
-    }
-
-    for (auto thread : threadsToWait) {
-      pthread_join(thread, nullptr);
-    }
-
-    // By now all the threads from threadsToWait were cleaned from terminating_native_workers_
-    // via WorkerDestroyThreadDataIfNeeded().
-  }
-
   Future* addJobToWorkerUnlocked(
       KInt id, KNativePtr jobFunction, KNativePtr jobArgument, bool toFront, KInt transferMode) {
     Future* future = nullptr;
@@ -488,6 +452,42 @@ class State {
   // All those called with lock taken.
   KInt nextWorkerId() { return currentWorkerId_++; }
   KInt nextFutureId() { return currentFutureId_++; }
+
+  void destroyWorkerThreadDataUnlocked(KInt id) {
+    Locker locker(&lock_);
+    auto it = terminating_native_workers_.find(id);
+    if (it == terminating_native_workers_.end()) return;
+    // If this worker is not being joined, detach it to free resources.
+    if (!it->second.isJoining) {
+      pthread_detach(it->second.thread);
+    }
+    terminating_native_workers_.erase(it);
+  }
+
+  void waitNativeWorkersTerminationUnlocked() {
+    std::vector<pthread_t> threadsToWait;
+    {
+      Locker locker(&lock_);
+
+      for (auto& kvp : terminating_native_workers_) {
+        // If someone else is already joining this thread, skip it.
+        if (kvp.second.isJoining)
+          continue;
+        // Don't try to join with itself.
+        if (pthread_equal(kvp.second.thread, pthread_self()))
+          continue;
+        kvp.second.isJoining = true;
+        threadsToWait.push_back(kvp.second.thread);
+      }
+    }
+
+    for (auto thread : threadsToWait) {
+      pthread_join(thread, nullptr);
+    }
+
+    // By now all the threads from threadsToWait were cleaned from terminating_native_workers_
+    // via WorkerDestroyThreadDataIfNeeded().
+  }
 
   void checkNativeWorkersLeakUnlocked() {
     size_t remainingWorkers = 0;
