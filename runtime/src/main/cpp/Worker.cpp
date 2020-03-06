@@ -308,7 +308,7 @@ class State {
       }
     }
     GC_UnregisterWorker(worker);
-    cleanupOnWorkerShutdownUnlocked(worker);
+    checkNativeWorkersLeakUnlocked(worker);
     konanDestructInstance(worker);
   }
 
@@ -321,6 +321,31 @@ class State {
       pthread_detach(it->second.thread);
     }
     terminating_native_workers_.erase(it);
+  }
+
+  void waitNativeWorkersTerminationUnlocked() {
+    std::vector<pthread_t> threadsToWait;
+    {
+      Locker locker(&lock_);
+
+      for (auto& kvp : terminating_native_workers_) {
+        // If someone else is already joining this thread, skip it.
+        if (kvp.second.isJoining)
+          continue;
+        // Don't try to join with itself.
+        if (pthread_equal(kvp.second.thread, pthread_self()))
+          continue;
+        kvp.second.isJoining = true;
+        threadsToWait.push_back(kvp.second.thread);
+      }
+    }
+
+    for (auto thread : threadsToWait) {
+      pthread_join(thread, nullptr);
+    }
+
+    // By now all the threads from threadsToWait were cleaned from terminating_native_workers_
+    // via WorkerDestroyThreadDataIfNeeded().
   }
 
   Future* addJobToWorkerUnlocked(
@@ -465,7 +490,7 @@ class State {
   KInt nextWorkerId() { return currentWorkerId_++; }
   KInt nextFutureId() { return currentFutureId_++; }
 
-  void cleanupOnWorkerShutdownUnlocked(Worker* worker) {
+  void checkNativeWorkersLeakUnlocked(Worker* worker) {
     // Nothing to do if current worker is native.
     if (worker->kind() == WorkerKind::kNative)
       return;
@@ -475,7 +500,6 @@ class State {
       return;
 
     size_t remainingWorkers = 0;
-    std::vector<pthread_t> threadsToWait;
     size_t remainingNativeWorkers = 0;
     {
       Locker locker(&lock_);
@@ -486,14 +510,6 @@ class State {
         if (worker->kind() == WorkerKind::kNative) {
           ++remainingNativeWorkers;
         }
-      }
-
-      for (auto& kvp : terminating_native_workers_) {
-        // If someone else is already joining this thread, skip it.
-        if (kvp.second.isJoining)
-          continue;
-        kvp.second.isJoining = true;
-        threadsToWait.push_back(kvp.second.thread);
       }
     }
 
@@ -506,16 +522,6 @@ class State {
         remainingNativeWorkers);
       konan::abort();
     }
-
-    // If all non-native workers are gone, wait for terminating native workers.
-    if (remainingWorkers == remainingNativeWorkers) {
-      for (auto thread : threadsToWait) {
-        pthread_join(thread, nullptr);
-      }
-    }
-
-    // By now all the threads from threadsToWait were cleaned from terminating_native_workers_
-    // via WorkerDestroyThreadDataIfNeeded().
   }
 
  private:
@@ -740,6 +746,12 @@ void WorkerDeinit(Worker* worker) {
 void WorkerDestroyThreadDataIfNeeded(KInt id) {
 #if WITH_WORKERS
   theState()->destroyWorkerThreadDataUnlocked(id);
+#endif
+}
+
+void WaitNativeWorkersTermination() {
+#if WITH_WORKERS
+  theState()->waitNativeWorkersTerminationUnlocked();
 #endif
 }
 
