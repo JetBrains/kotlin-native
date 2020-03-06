@@ -308,7 +308,6 @@ class State {
       }
     }
     GC_UnregisterWorker(worker);
-    checkNativeWorkersLeakUnlocked(worker);
     konanDestructInstance(worker);
   }
 
@@ -490,15 +489,7 @@ class State {
   KInt nextWorkerId() { return currentWorkerId_++; }
   KInt nextFutureId() { return currentFutureId_++; }
 
-  void checkNativeWorkersLeakUnlocked(Worker* worker) {
-    // Nothing to do if current worker is native.
-    if (worker->kind() == WorkerKind::kNative)
-      return;
-
-    // Nothing to do if memory leak checker is disabled.
-    if (!Kotlin_memoryLeakCheckerEnabled())
-      return;
-
+  void checkNativeWorkersLeakUnlocked() {
     size_t remainingWorkers = 0;
     size_t remainingNativeWorkers = 0;
     {
@@ -752,6 +743,12 @@ void WorkerDestroyThreadDataIfNeeded(KInt id) {
 void WaitNativeWorkersTermination() {
 #if WITH_WORKERS
   theState()->waitNativeWorkersTerminationUnlocked();
+#endif
+}
+
+void CheckNativeWorkersLeak() {
+#if WITH_WORKERS
+  theState()->checkNativeWorkersLeakUnlocked();
 #endif
 }
 
