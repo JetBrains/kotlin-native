@@ -8,7 +8,10 @@ import org.jetbrains.kotlin.backend.konan.boxing.SpecializationEncoder
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.irCall
-import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.declarations.IrFile
+import org.jetbrains.kotlin.ir.declarations.IrTypeParametersContainer
+import org.jetbrains.kotlin.ir.declarations.IrValueParameter
+import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
@@ -62,7 +65,8 @@ internal class ReplaceOriginsWithSpecializationsLowering(val context: Context) :
         }
 
         override fun visitConstructorCall(expression: IrConstructorCall): IrExpression {
-            return IrOriginToSpec.forConstructor(expression.symbol.owner)?.let {
+            val classSpec = IrOriginToSpec.forClass(expression.type) ?: return super.visitConstructorCall(expression)
+            return IrOriginToSpec.forConstructor(expression.symbol.owner, classSpec)?.let {
                 context.createIrBuilder(expression.symbol).run {
                     irConstructorCall(delegate.visitConstructorCall(expression), it)
                 }

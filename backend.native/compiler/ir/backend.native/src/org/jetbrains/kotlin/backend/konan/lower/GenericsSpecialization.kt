@@ -12,10 +12,7 @@ import org.jetbrains.kotlin.backend.konan.boxing.eliminateTypeParameters
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.expressions.IrCall
-import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
-import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.expressions.IrStatementContainer
+import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.*
@@ -95,7 +92,7 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         return result
     }
 
-    fun handleTransformedCalls(transformedCalls: Set<IrCall>) {
+    fun handleTransformedCalls(transformedCalls: Set<IrFunctionAccessExpression>) {
         hasCallsFitForSpecialization = hasCallsFitForSpecialization or transformedCalls.isNotEmpty()
     }
 
@@ -159,7 +156,7 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         )
         val newConstructor = oldClass.getSpecialization(primitiveTypeSubstitutionMap, copier).primaryConstructor!!
         IrOriginToSpec.newClass(expression.type, newConstructor.returnType)
-        IrOriginToSpec.newConstructor(expression.symbol.owner, newConstructor)
+        IrOriginToSpec.newConstructor(expression.symbol.owner, newConstructor.returnType, newConstructor)
 
         return super.visitConstructorCall(expression)
     }

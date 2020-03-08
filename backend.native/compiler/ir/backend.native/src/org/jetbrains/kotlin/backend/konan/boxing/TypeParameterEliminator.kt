@@ -8,7 +8,9 @@ import org.jetbrains.kotlin.backend.konan.lower.SpecializationTransformer
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrCall
+import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrDelegatingConstructorCall
+import org.jetbrains.kotlin.ir.expressions.IrFunctionAccessExpression
 import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.types.*
 import org.jetbrains.kotlin.ir.types.impl.IrSimpleTypeImpl
@@ -72,7 +74,7 @@ internal class TypeParameterEliminator(private val specializationTransformer: Sp
                                        parent: IrDeclarationParent)
     : DeepCopyIrTreeWithSymbolsForInliner(context, typeParameterMapping, parent) {
 
-    private val callsFitForSpecialization = mutableSetOf<IrCall>()
+    private val callsFitForSpecialization = mutableSetOf<IrFunctionAccessExpression>()
     private val specializingClasses = mutableSetOf<IrClass>()
 
     override fun copy(irElement: IrElement): IrElement {
@@ -178,6 +180,14 @@ internal class TypeParameterEliminator(private val specializationTransformer: Sp
             }
         }
 
+        override fun visitConstructorCall(expression: IrConstructorCall): IrConstructorCall {
+            return super.visitConstructorCall(expression).also {
+                if (expression.satisfiesSpecializationCondition(typeParameterMapping)) {
+                    callsFitForSpecialization.add(it)
+                }
+            }
+        }
+
         private fun <E : IrTypeParametersContainer> E.withEliminatedTypeParameters(declaration: E): E = apply {
             require(declaration.typeParameters.size == typeParameters.size) {
                 "Must be called only for origin and its copy," +
@@ -190,7 +200,7 @@ internal class TypeParameterEliminator(private val specializationTransformer: Sp
             typeParameters.removeAll(typeParametersToEliminate)
         }
 
-        private fun IrCall.satisfiesSpecializationCondition(typeParameterMapping: Map<IrTypeParameterSymbol, IrType?>): Boolean {
+        private fun IrFunctionAccessExpression.satisfiesSpecializationCondition(typeParameterMapping: Map<IrTypeParameterSymbol, IrType?>): Boolean {
             if (typeArgumentsCount != 1) return false
             val symbol = getTypeArgument(0)?.classifierOrNull
             return symbol in typeParameterMapping && typeParameterMapping[symbol]?.isPrimitiveType() == true
