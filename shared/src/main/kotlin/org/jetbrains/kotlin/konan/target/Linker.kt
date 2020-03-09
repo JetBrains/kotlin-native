@@ -139,7 +139,7 @@ open class AndroidLinker(targetProperties: AndroidConfigurables)
             +executable
             +"-fPIC"
             +"-target"
-            +targetArg!!
+            +clangTarget
             +libDirs
             +objectFiles
             if (optimize) +linkerOptimizationFlags
