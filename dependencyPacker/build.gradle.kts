@@ -74,6 +74,7 @@ createLlvmPackingTask<Tar>(
         whitelist = file("macos_llvm_whitelist"),
         blacklist = null
 ) {
+    archiveExtension.set("tar.gz")
     compression = Compression.GZIP
 }
 
@@ -82,6 +83,7 @@ createLlvmPackingTask<Tar>(
         whitelist = file("linux_llvm_whitelist"),
         blacklist = file("linux_llvm_blacklist")
 ) {
+    archiveExtension.set("tar.gz")
     compression = Compression.GZIP
 }
 
