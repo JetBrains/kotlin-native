@@ -256,11 +256,6 @@ class Future {
   pthread_cond_t cond_;
 };
 
-struct TerminatingNativeWorkerState {
-  pthread_t thread;
-  bool isJoining = false;
-};
-
 class State {
  public:
   State() {
@@ -296,7 +291,7 @@ class State {
     if (it == workers_.end()) return;
     Worker* worker = it->second;
     if (worker->kind() == WorkerKind::kNative) {
-      terminating_native_workers_[id].thread = worker->thread();
+      terminating_native_workers_[id] = worker->thread();
     }
     workers_.erase(it);
   }
@@ -460,10 +455,8 @@ class State {
     Locker locker(&lock_);
     auto it = terminating_native_workers_.find(id);
     if (it == terminating_native_workers_.end()) return;
-    // If this worker is not being joined, detach it to free resources.
-    if (!it->second.isJoining) {
-      pthread_detach(it->second.thread);
-    }
+    // If this worker was not joined, detach it to free resources.
+    pthread_detach(it->second);
     terminating_native_workers_.erase(it);
   }
 
@@ -475,19 +468,15 @@ class State {
       checkNativeWorkersLeakLocked();
 
       for (auto& kvp : terminating_native_workers_) {
-        RuntimeAssert(!kvp.second.isJoining, "Joining native worker twice");
-        RuntimeAssert(!pthread_equal(kvp.second.thread, pthread_self()), "Native worker is joining with itself");
-        kvp.second.isJoining = true;
-        threadsToWait.push_back(kvp.second.thread);
+        RuntimeAssert(!pthread_equal(kvp.second, pthread_self()), "Native worker is joining with itself");
+        threadsToWait.push_back(kvp.second);
       }
+      terminating_native_workers_.clear();
     }
 
     for (auto thread : threadsToWait) {
       pthread_join(thread, nullptr);
     }
-
-    // By now all the threads from threadsToWait were cleaned from terminating_native_workers_
-    // via WorkerDestroyThreadDataIfNeeded().
   }
 
   void checkNativeWorkersLeakLocked() {
@@ -513,7 +502,7 @@ class State {
   pthread_cond_t cond_;
   KStdUnorderedMap<KInt, Future*> futures_;
   KStdUnorderedMap<KInt, Worker*> workers_;
-  KStdUnorderedMap<KInt, TerminatingNativeWorkerState> terminating_native_workers_;
+  KStdUnorderedMap<KInt, pthread_t> terminating_native_workers_;
   KInt currentWorkerId_;
   KInt currentFutureId_;
   KInt currentVersion_;
