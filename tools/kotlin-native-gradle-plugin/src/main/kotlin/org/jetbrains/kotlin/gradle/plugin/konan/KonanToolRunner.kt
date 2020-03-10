@@ -123,7 +123,7 @@ internal class KonanInteropRunner(
         if (HostManager.host == KonanTarget.MINGW_X64) {
 	    //TODO: Oh-ho-ho fix it in more convinient way.
             environment.put("PATH", DependencyProcessor.defaultDependenciesRoot.absolutePath +
-                    "\\msys2-mingw-w64-x86_64-clang-llvm-lld-compiler_rt-8.0.1" +
+                    "\\msys2-mingw-w64-x86_64-clang-llvm-lld-compiler_rt-8.0.1-compact" +
                     "\\bin;${environment.get("PATH")}")
         }
     }
