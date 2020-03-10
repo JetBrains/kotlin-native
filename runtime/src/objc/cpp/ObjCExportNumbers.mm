@@ -270,6 +270,10 @@ ${if (cType != "double") """
   BOOL value_;
 }
 
+- (void)getValue:(void *)value {
+	*(BOOL*)value = value_;
+}
+
 - (instancetype)initWithBool:(BOOL)value {
   self = [super init];
   value_ = value;
@@ -305,6 +309,10 @@ ${if (cType != "double") """
 
 @implementation KotlinByte {
   char value_;
+}
+
+- (void)getValue:(void *)value {
+	*(char*)value = value_;
 }
 
 - (instancetype)initWithChar:(char)value {
@@ -347,6 +355,10 @@ ${if (cType != "double") """
   short value_;
 }
 
+- (void)getValue:(void *)value {
+	*(short*)value = value_;
+}
+
 - (instancetype)initWithShort:(short)value {
   self = [super init];
   value_ = value;
@@ -385,6 +397,10 @@ ${if (cType != "double") """
 
 @implementation KotlinInt {
   int value_;
+}
+
+- (void)getValue:(void *)value {
+	*(int*)value = value_;
 }
 
 - (instancetype)initWithInt:(int)value {
@@ -427,6 +443,10 @@ ${if (cType != "double") """
   long long value_;
 }
 
+- (void)getValue:(void *)value {
+	*(long long*)value = value_;
+}
+
 - (instancetype)initWithLongLong:(long long)value {
   self = [super init];
   value_ = value;
@@ -465,6 +485,10 @@ ${if (cType != "double") """
 
 @implementation KotlinUByte {
   unsigned char value_;
+}
+
+- (void)getValue:(void *)value {
+	*(unsigned char*)value = value_;
 }
 
 - (instancetype)initWithUnsignedChar:(unsigned char)value {
@@ -507,6 +531,10 @@ ${if (cType != "double") """
   unsigned short value_;
 }
 
+- (void)getValue:(void *)value {
+	*(unsigned short*)value = value_;
+}
+
 - (instancetype)initWithUnsignedShort:(unsigned short)value {
   self = [super init];
   value_ = value;
@@ -545,6 +573,10 @@ ${if (cType != "double") """
 
 @implementation KotlinUInt {
   unsigned int value_;
+}
+
+- (void)getValue:(void *)value {
+	*(unsigned int*)value = value_;
 }
 
 - (instancetype)initWithUnsignedInt:(unsigned int)value {
@@ -587,6 +619,10 @@ ${if (cType != "double") """
   unsigned long long value_;
 }
 
+- (void)getValue:(void *)value {
+	*(unsigned long long*)value = value_;
+}
+
 - (instancetype)initWithUnsignedLongLong:(unsigned long long)value {
   self = [super init];
   value_ = value;
@@ -625,6 +661,10 @@ ${if (cType != "double") """
 
 @implementation KotlinFloat {
   float value_;
+}
+
+- (void)getValue:(void *)value {
+	*(float*)value = value_;
 }
 
 - (instancetype)initWithFloat:(float)value  {
@@ -672,6 +712,10 @@ ${if (cType != "double") """
 
 @implementation KotlinDouble {
   double value_;
+}
+
+- (void)getValue:(void *)value {
+	*(double*)value = value_;
 }
 
 - (instancetype)initWithDouble:(double)value  {
