@@ -36,6 +36,10 @@ void DeinitForeignRef(ObjHeader* object, ForeignRefContext context);
 
 bool IsForeignRefAccessible(ObjHeader* object, ForeignRefContext context);
 
+// If this object is shareable, increments its RC and schedules its decrementing.
+// Should be used when assigning shared objects to a stack variable.
+void InitStackRef(ObjHeader* object);
+
 }  // extern "C"
 
 #endif // RUNTIME_MEMORYPRIVATE_HPP
