@@ -122,6 +122,10 @@ private fun genBoolean(): String = """
   BOOL value_;
 }
 
+- (void)getValue:(void *)value {
+	*(BOOL*)value = value_;
+}
+
 - (instancetype)initWithBool:(BOOL)value {
   self = [super init];
   value_ = value;
@@ -165,6 +169,10 @@ private fun genInteger(
 
 @implementation Kotlin$name {
   $cType value_;
+}
+
+- (void)getValue:(void *)value {
+	*($cType*)value = value_;
 }
 
 - (instancetype)initWith${kind.capitalize()}:($cType)value {
@@ -216,6 +224,10 @@ private fun genFloating(
 
 @implementation Kotlin$name {
   $cType value_;
+}
+
+- (void)getValue:(void *)value {
+	*($cType*)value = value_;
 }
 
 - (instancetype)initWith${kind.capitalize()}:($cType)value  {
