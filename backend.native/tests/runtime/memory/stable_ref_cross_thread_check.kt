@@ -10,7 +10,8 @@ import kotlin.test.*
 import kotlin.native.concurrent.*
 import kotlinx.cinterop.*
 
-@Test fun runTest1() {
+@Test
+fun runTest1() {
     val worker = Worker.start()
 
     val future = worker.execute(TransferMode.SAFE, { }) {
@@ -25,7 +26,8 @@ import kotlinx.cinterop.*
     worker.requestTermination().result
 }
 
-@Test fun runTest2() {
+@Test
+fun runTest2() {
     val worker = Worker.start()
 
     val mainThreadRef = StableRef.create(Any())
@@ -35,7 +37,7 @@ import kotlinx.cinterop.*
         val pointer: COpaquePointer = it.toCPointer()!!
         assertFailsWith<IncorrectDereferenceException> {
             // Even attempting to convert a pointer to StableRef should fail.
-            val otherThreadRef : StableRef<Any> = pointer.asStableRef()
+            val otherThreadRef: StableRef<Any> = pointer.asStableRef()
             println(otherThreadRef.toString())
         }
         Unit
