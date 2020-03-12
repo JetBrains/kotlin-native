@@ -152,7 +152,7 @@ open class KonanGTest : KonanTest() {
     override fun run() {
         doBeforeRun?.execute(this)
         runProcess(
-                executor = project.executor::execute,
+                executor = {project.executor.execute(it)},
                 executable = executable,
                 args = arguments
         ).run {
@@ -197,7 +197,10 @@ open class KonanLocalTest : KonanTest() {
     override var testLogger = Logger.SILENT
 
     @Input @Optional
-    var expectedExitStatus = 0
+    var expectedExitStatus: Int? = null
+
+    @Input @Optional
+    var expectedExitStatusChecker: (Int) -> Boolean = { it == (expectedExitStatus ?: 0) }
 
     /**
      * Should this test fail or not.
@@ -242,9 +245,9 @@ open class KonanLocalTest : KonanTest() {
         for (i in 1..times) {
             val args = arguments + (multiArguments?.get(i - 1) ?: emptyList())
             output += if (testData != null)
-                runProcessWithInput(project.executor::execute, executable, args, testData!!)
+                runProcessWithInput({project.executor.execute(it)}, executable, args, testData!!)
             else
-                runProcess(project.executor::execute, executable, args)
+                runProcess({project.executor.execute(it)}, executable, args)
         }
         if (compilerMessages) {
             // TODO: as for now it captures output only in the driver task.
@@ -266,9 +269,12 @@ open class KonanLocalTest : KonanTest() {
             exitCode + other.exitCode)
 
     private fun ProcessOutput.check() {
-        val exitCodeMismatch = exitCode != expectedExitStatus
+        val exitCodeMismatch = !expectedExitStatusChecker(exitCode)
         if (exitCodeMismatch) {
-            val message = "Expected exit status: $expectedExitStatus, actual: $exitCode"
+            val message = if (expectedExitStatus != null)
+                "Expected exit status: $expectedExitStatus, actual: $exitCode"
+            else
+                "Actual exit status doesn't match with exit status checker: $exitCode"
             check(expectedFail) { """
                     |Test failed. $message
                     |stdout:
