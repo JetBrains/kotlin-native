@@ -27,14 +27,9 @@ fun invokeInterop(flavor: String, args: Array<String>): Array<String>? {
     val temporaryFilesDir = arguments.tempDir
 
     val buildDir = File("$outputFileName-build")
-    val generatedDir = File(buildDir, "kotlin")
-    val nativesDir = File(buildDir, "natives")
+    val generatedDir = File(arguments.generated)
+    val nativesDir = File(arguments.natives)
     val manifest = File(buildDir, "manifest.properties")
-    val additionalArgs = listOf(
-            "-generated", generatedDir.path,
-            "-natives", nativesDir.path,
-            "-flavor", flavor
-    )
     val cstubsName ="cstubs"
     val libraries = arguments.library
     val repos = arguments.repo
@@ -42,7 +37,7 @@ fun invokeInterop(flavor: String, args: Array<String>): Array<String>? {
         else (arguments as JSInteropArguments).target
     val target = PlatformManager().targetManager(targetRequest).target
 
-    val cinteropArgsToCompiler = interop(flavor, args + additionalArgs,
+    val cinteropArgsToCompiler = interop(flavor, args,
             listOfNotNull(
                     "manifest" to manifest.path,
                     ("cstubsName" to cstubsName).takeIf { flavor == "native" }

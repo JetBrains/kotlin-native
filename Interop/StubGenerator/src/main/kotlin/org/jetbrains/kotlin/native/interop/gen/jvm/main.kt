@@ -24,6 +24,8 @@ import org.jetbrains.kotlin.native.interop.gen.wasm.processIdlLib
 import org.jetbrains.kotlin.native.interop.indexer.*
 import org.jetbrains.kotlin.native.interop.tool.*
 import kotlinx.cli.ArgParser
+import kotlinx.cli.ArgType
+import kotlinx.cli.default
 import org.jetbrains.kotlin.konan.library.*
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.Distribution
@@ -38,14 +40,26 @@ import java.nio.file.*
 import java.util.*
 
 fun main(args: Array<String>) {
-    processCLib(args)
+    // Adding flavor option for interop plugin.
+    class FullCInteropArguments: CInteropArguments() {
+        val flavor by argParser.option(ArgType.Choice(listOf("jvm", "native", "wasm")), description = "Interop target")
+                .default("jvm")
+    }
+    val arguments = FullCInteropArguments()
+    arguments.argParser.parse(args)
+    val flavorName = arguments.flavor
+    processCLib(flavorName, arguments)
 }
 
 fun interop(
         flavor: String, args: Array<String>,
         additionalArgs: Map<String, Any> = mapOf()
 ): Array<String>? = when(flavor) {
-            "jvm", "native" -> processCLib(args, additionalArgs)
+            "jvm", "native" -> {
+                val cinteropArguments = CInteropArguments()
+                cinteropArguments.argParser.parse(args)
+                processCLib(flavor, cinteropArguments, additionalArgs)
+            }
             "wasm" -> processIdlLib(args, additionalArgs)
             else -> error("Unexpected flavor")
         }
@@ -166,12 +180,10 @@ private fun findFilesByGlobs(roots: List<Path>, globs: List<String>): Map<Path, 
     return relativeToRoot
 }
 
-private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = mapOf()): Array<String>? {
-    val cinteropArguments = CInteropArguments()
-    cinteropArguments.argParser.parse(args)
+private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments,
+                        additionalArgs: Map<String, Any> = mapOf()): Array<String>? {
     val ktGenRoot = cinteropArguments.generated
     val nativeLibsDir = cinteropArguments.natives
-    val flavorName = cinteropArguments.flavor
     val flavor = KotlinPlatform.values().single { it.name.equals(flavorName, ignoreCase = true) }
     val defFile = cinteropArguments.def?.let { File(it) }
     val manifestAddend = (additionalArgs["manifest"] as? String)?.let { File(it) }
