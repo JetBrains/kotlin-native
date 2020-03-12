@@ -2280,7 +2280,7 @@ void disposeStablePointer(KNativePtr pointer) {
 
 OBJ_GETTER(derefStablePointer, KNativePtr pointer) {
   KRef ref = reinterpret_cast<KRef>(pointer);
-  InitStackRef(ref);
+  AdoptReferenceFromSharedVariable(ref);
   RETURN_OBJ(ref);
 }
 
@@ -2756,7 +2756,7 @@ bool IsForeignRefAccessible(ObjHeader* object, ForeignRefContext context) {
   return isForeignRefAccessible(object, context);
 }
 
-void InitStackRef(ObjHeader* object) {
+void AdoptReferenceFromSharedVariable(ObjHeader* object) {
 #if USE_GC
   if (IsStrictMemoryModel && object != nullptr && isShareable(object->container()))
     rememberNewContainer(object->container());

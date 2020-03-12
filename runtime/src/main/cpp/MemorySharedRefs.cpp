@@ -22,7 +22,7 @@ void KRefSharedHolder::init(ObjHeader* obj) {
 
 ObjHeader* KRefSharedHolder::ref() const {
   ensureRefAccessible();
-  InitStackRef(obj_);
+  AdoptReferenceFromSharedVariable(obj_);
   return obj_;
 }
 
@@ -101,7 +101,7 @@ void BackRefFromAssociatedObject::releaseRef() {
 
 ObjHeader* BackRefFromAssociatedObject::ref() const {
   ensureRefAccessible();
-  InitStackRef(obj_);
+  AdoptReferenceFromSharedVariable(obj_);
   return obj_;
 }
 

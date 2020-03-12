@@ -36,9 +36,9 @@ void DeinitForeignRef(ObjHeader* object, ForeignRefContext context);
 
 bool IsForeignRefAccessible(ObjHeader* object, ForeignRefContext context);
 
-// If this object is shareable, increments its RC and schedules its decrementing.
-// Should be used when assigning shared objects to a stack variable.
-void InitStackRef(ObjHeader* object);
+// Should be used when reference is read from a possibly shared variable,
+// and there's nothing else keeping the object alive.
+void AdoptReferenceFromSharedVariable(ObjHeader* object);
 
 }  // extern "C"
 
