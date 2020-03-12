@@ -219,6 +219,16 @@ internal val dataClassesPhase = makeKonanFileLoweringPhase(
         description = "Data classes lowering"
 )
 
+// TODO this is rather optimization than lowering at all,
+//  but some cases are pretty straightforward to handle them without additional flags.
+//  Maybe include it to another existing lowering?
+internal val nullChecksPhase = makeKonanFileLoweringPhase(
+        ::NullChecksLowering,
+        name = "NullChecks",
+        description = "Redundant null checks lowering",
+        prerequisite = setOf(forLoopsPhase)
+)
+
 internal val builtinOperatorPhase = makeKonanFileLoweringPhase(
         ::BuiltinOperatorLowering,
         name = "BuiltinOperators",

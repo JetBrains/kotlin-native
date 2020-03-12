@@ -80,7 +80,10 @@ val benchmarks = mutableMapOf(
         "DefaultArgument.testOneOfEight"                    to BenchmarkEntry.create(::DefaultArgumentBenchmark) { testOneOfEight() },
         "DefaultArgument.testEightOfEight"                  to BenchmarkEntry.create(::DefaultArgumentBenchmark) { testEightOfEight() },
 
-        "Elvis.testElvis"                                   to BenchmarkEntry.create(::ElvisBenchmark) { testElvis() },
+        "Elvis.testElvis1"                                  to BenchmarkEntry.create(::ElvisBenchmark) { testElvis1() },
+        "Elvis.testElvis2"                                  to BenchmarkEntry.create(::ElvisBenchmark) { testElvis2() },
+        "Elvis.testElvis3"                                  to BenchmarkEntry.create(::ElvisBenchmark) { testElvis3() },
+        "Elvis.testElvis4"                                  to BenchmarkEntry.create(::ElvisBenchmark) { testElvis4() },
 
         "Euler.problem1bySequence"                          to BenchmarkEntry.create(::EulerBenchmark) { problem1bySequence() },
         "Euler.problem1"                                    to BenchmarkEntry.create(::EulerBenchmark) { problem1() },

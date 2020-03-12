@@ -298,6 +298,7 @@ internal val allLoweringsPhase = namedIrModulePhase(
                                 defaultParameterExtentPhase then
                                 innerClassPhase then
                                 dataClassesPhase then
+                                nullChecksPhase then
                                 builtinOperatorPhase then
                                 createBoxingCounterPhase then
                                 finallyBlocksPhase then
