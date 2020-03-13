@@ -16,9 +16,10 @@
 
 package org.jetbrains.kotlin.konan.exec
 
-import java.lang.ProcessBuilder
-import java.lang.ProcessBuilder.Redirect
 import org.jetbrains.kotlin.konan.KonanExternalToolFailure
+import java.io.BufferedReader
+import java.io.InputStreamReader
+import java.lang.ProcessBuilder.Redirect
 
 
 open class Command(initialCommand: List<String>) {
@@ -47,23 +48,23 @@ open class Command(initialCommand: List<String>) {
         return this
     }
 
-    open fun runProcess(): Int {
+    open fun runProcess() {
         val builder = ProcessBuilder(command)
 
         builder.redirectOutput(Redirect.INHERIT)
         builder.redirectInput(Redirect.INHERIT)
-        builder.redirectError(Redirect.INHERIT)
 
         val process = builder.start()
+
+        val reader = BufferedReader(InputStreamReader(process.errorStream))
+
         val exitCode = process.waitFor()
-        return exitCode
+        handleExitCode(exitCode, reader.readLines())
     }
 
     open fun execute() {
         log()
-
-        val code = runProcess()
-        handleExitCode(code)
+        runProcess()
     }
 
     /**
