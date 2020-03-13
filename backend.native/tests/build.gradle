@@ -3350,6 +3350,14 @@ createInterop("ccallbacksAndVarargs") {
     it.defFile 'interop/basics/ccallbacksAndVarargs.def'
 }
 
+createInterop("auxiliaryCppSources") {
+    // We need to provide empty def file to create correct `KonanInteropTask`.
+    it.defFile 'interop/auxiliary_sources/auxiliaryCppSources.def'
+    it.headers "$projectDir/interop/auxiliary_sources/name.h"
+    it.extraOpts "-Xcompile-source", "$projectDir/interop/auxiliary_sources/name.cpp"
+    it.extraOpts "-Xsource-compiler-option", "-std=c++17"
+}
+
 if (PlatformInfo.isAppleTarget(project)) {
     createInterop("objcSmoke") {
         it.defFile 'interop/objc/objcSmoke.def'
@@ -3508,6 +3516,12 @@ interopTest("interop_types") {
     disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
     source = "interop/basics/types.kt"
     interop = 'ctypes'
+}
+
+interopTest("interop_auxiliarySources") {
+    disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
+    source = "interop/auxiliary_sources/main.kt"
+    interop = 'auxiliaryCppSources'
 }
 
 interopTest("interop_values") {
