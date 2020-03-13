@@ -2745,6 +2745,7 @@ standaloneTest("memory_only_gc") {
 }
 
 task memory_stable_ref_cross_thread_check(type: KonanLocalTest) {
+    disabled = project.testTarget == 'wasm32' // Needs workers.
     source = "runtime/memory/stable_ref_cross_thread_check.kt"
 }
 
