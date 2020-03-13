@@ -33,7 +33,15 @@ data class LibraryCreationArguments(
         val dependencies: List<KotlinLibrary>
 )
 
-fun createInteropLibrary(arguments: LibraryCreationArguments) {
+fun createInteropLibrary(
+        metadata: KlibModuleMetadata,
+        outputPath: String,
+        moduleName: String,
+        nativeBitcodeFiles: List<String>,
+        target: KonanTarget,
+        manifest: Properties,
+        dependencies: List<KotlinLibrary>
+) {
     val version = KotlinLibraryVersioning(
             libraryVersion = null,
             abiVersion = KotlinAbiVersion.CURRENT,
@@ -41,18 +49,18 @@ fun createInteropLibrary(arguments: LibraryCreationArguments) {
             metadataVersion = KlibMetadataVersion.INSTANCE.toString(),
             irVersion = KlibIrVersion.INSTANCE.toString()
     )
-    val outputPathWithoutExtension = arguments.outputPath.removeSuffixIfPresent(".klib")
+    val outputPathWithoutExtension = outputPath.removeSuffixIfPresent(".klib")
     KonanLibraryWriterImpl(
             File(outputPathWithoutExtension),
-            arguments.moduleName,
+            moduleName,
             version,
-            arguments.target
+            target
     ).apply {
-        val metadata = arguments.metadata.write(ChunkingWriteStrategy())
+        val metadata = metadata.write(ChunkingWriteStrategy())
         addMetadata(SerializedMetadata(metadata.header, metadata.fragments, metadata.fragmentNames))
-        addNativeBitcode(arguments.nativeBitcodePath)
-        addManifestAddend(arguments.manifest)
-        addLinkDependencies(arguments.dependencies)
+        nativeBitcodeFiles.forEach(this::addNativeBitcode)
+        addManifestAddend(manifest)
+        addLinkDependencies(dependencies)
         commit()
     }
 }
