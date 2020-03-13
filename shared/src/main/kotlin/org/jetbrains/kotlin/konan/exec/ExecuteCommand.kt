@@ -43,12 +43,15 @@ open class Command(initialCommand: List<String>) {
 
     var logger: ((() -> String)->Unit)? = null
 
+    private var stdError: List<String> = emptyList()
+
     fun logWith(newLogger: ((() -> String)->Unit)): Command {
         logger = newLogger
         return this
     }
 
-    open fun runProcess() {
+    open fun runProcess(): Int {
+        stdError = emptyList()
         val builder = ProcessBuilder(command)
 
         builder.redirectOutput(Redirect.INHERIT)
@@ -57,14 +60,16 @@ open class Command(initialCommand: List<String>) {
         val process = builder.start()
 
         val reader = BufferedReader(InputStreamReader(process.errorStream))
+        stdError = reader.readLines()
 
         val exitCode = process.waitFor()
-        handleExitCode(exitCode, reader.readLines())
+        return exitCode
     }
 
     open fun execute() {
         log()
-        runProcess()
+        val code = runProcess()
+        handleExitCode(code, stdError)
     }
 
     /**
@@ -105,8 +110,15 @@ open class Command(initialCommand: List<String>) {
     private fun handleExitCode(code: Int, output: List<String> = emptyList()) {
         if (code != 0) throw KonanExternalToolFailure("""
             The ${command[0]} command returned non-zero exit code: $code.
-            output: ${output.joinToString("\n")}
+            output:
+            ${output.joinToString("\n")}
             """.trimIndent(), command[0])
+        // Show warnings in case of success linkage.
+        if (stdError.isNotEmpty()) {
+            stdError.joinToString("\n").also { message ->
+                logger?.let { it { message } } ?: println(message)
+            }
+        }
     }
 
     private fun log() {
