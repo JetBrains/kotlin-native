@@ -13,10 +13,7 @@ import org.jetbrains.kotlin.backend.konan.descriptors.getAnnotationStringValue
 import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrSimpleFunction
-import org.jetbrains.kotlin.ir.util.constructors
-import org.jetbrains.kotlin.ir.util.findAnnotation
-import org.jetbrains.kotlin.ir.util.fqNameForIrSerialization
-import org.jetbrains.kotlin.ir.util.hasAnnotation
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 
 internal class KotlinObjCClassInfoGenerator(override val context: Context) : ContextUtils {
@@ -132,4 +129,17 @@ internal class KotlinObjCClassInfoGenerator(override val context: Context) : Con
                         it.llvmFunction
                 )
             }
+}
+
+internal fun CodeGenerator.kotlinObjCClassInfo(irClass: IrClass): LLVMValueRef {
+    require(irClass.isKotlinObjCClass())
+    return if (isExternal(irClass)) {
+        importGlobal(
+                irClass.kotlinObjCClassInfoSymbolName,
+                runtime.kotlinObjCClassInfo,
+                origin = irClass.llvmSymbolOrigin
+        )
+    } else {
+        context.llvmDeclarations.forClass(irClass).objCDeclarations!!.classInfoGlobal.llvmGlobal
+    }
 }
