@@ -29,6 +29,7 @@ import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.Distribution
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.library.KotlinLibrary
+import org.jetbrains.kotlin.library.resolver.KotlinLibraryResolveResult
 import org.jetbrains.kotlin.library.resolver.impl.libraryResolver
 import org.jetbrains.kotlin.library.toUnresolvedLibraries
 import org.jetbrains.kotlin.util.removeSuffixIfPresent
@@ -225,16 +226,18 @@ private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = 
         }
     }
 
-    val allLibraryDependencies = when (flavor) {
+
+    val resolveResult = when (flavor) {
         KotlinPlatform.NATIVE -> resolveDependencies(cinteropArguments, tool.target)
-        else -> listOf()
+        else -> null
     }
+
 
     val libName = additionalArgs["cstubsName"] as? String ?: fqParts.joinToString("") + "stubs"
 
     val tempFiles = TempFiles(libName, cinteropArguments.tempDir)
 
-    val imports = parseImports(allLibraryDependencies)
+    val imports = parseImports(resolveResult?.getFullList() ?: emptyList())
 
     val library = buildNativeLibrary(tool, def, cinteropArguments, imports)
 
@@ -337,6 +340,9 @@ private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = 
             argsToCompiler(staticLibraries, libraryPaths) + bitcodePaths
         }
         is StubIrDriver.Result.Metadata -> {
+            val dependencies = resolveResult?.filterRoots { dep ->
+                stubIrOutput.imports.any { import -> dep.library.packageMetadataParts(import).isNotEmpty() }
+            }?.getFullList() ?: emptyList()
             createInteropLibrary(
                     metadata = stubIrOutput.metadata,
                     nativeBitcodeFiles = compiledFiles + nativeOutputPath,
@@ -344,7 +350,7 @@ private fun processCLib(args: Array<String>, additionalArgs: Map<String, Any> = 
                     moduleName = moduleName,
                     outputPath = cinteropArguments.output,
                     manifest = def.manifestAddendProperties,
-                    dependencies = allLibraryDependencies,
+                    dependencies = dependencies,
                     nopack = cinteropArguments.nopack
             )
             return null
@@ -368,7 +374,7 @@ private fun compileSources(
 
 private fun resolveDependencies(
         cinteropArguments: CInteropArguments, target: KonanTarget
-): List<KotlinLibrary> {
+): KotlinLibraryResolveResult {
     val libraries = cinteropArguments.library
     val repos = cinteropArguments.repo
     val noDefaultLibs = cinteropArguments.nodefaultlibs || cinteropArguments.nodefaultlibsDeprecated
@@ -384,7 +390,7 @@ private fun resolveDependencies(
             noStdLib = false,
             noDefaultLibs = noDefaultLibs,
             noEndorsedLibs = noEndorsedLibs
-    ).getFullList()
+    )
 }
 
 internal fun prepareTool(target: String?, flavor: KotlinPlatform): ToolConfig {

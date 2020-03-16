@@ -112,7 +112,10 @@ class StubIrDriver(
     sealed class Result {
         object SourceCode : Result()
 
-        class Metadata(val metadata: KlibModuleMetadata): Result()
+        class Metadata(
+                val metadata: KlibModuleMetadata,
+                val imports: Set<String>
+        ): Result()
     }
 
     fun run(): Result {
@@ -142,8 +145,17 @@ class StubIrDriver(
         return Result.SourceCode
     }
 
-    private fun emitMetadata(builderResult: StubIrBuilderResult, moduleName: String, scope: KotlinScope) =
-            Result.Metadata(StubIrMetadataEmitter(context, builderResult, moduleName, scope).emit())
+    private fun emitMetadata(builderResult: StubIrBuilderResult, moduleName: String, scope: KotlinScope): Result.Metadata {
+        val imports = collectImports(builderResult, context.configuration.pkgName)
+        val metadata = StubIrMetadataEmitter(context, builderResult, moduleName, scope).emit()
+        return Result.Metadata(metadata, imports)
+    }
+
+    private fun collectImports(builderResult: StubIrBuilderResult, pkg: String): Set<String> =
+            StubIrImportsCollector(pkg).let {
+                builderResult.stubs.accept(it, null)
+                it.result.toSet()
+            }
 
     private fun emitCFile(context: StubIrContext, cFile: Appendable, entryPoint: String?, nativeBridges: NativeBridges) {
         val out = { it: String -> cFile.appendln(it) }
