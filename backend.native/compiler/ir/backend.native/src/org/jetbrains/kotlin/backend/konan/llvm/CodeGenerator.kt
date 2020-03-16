@@ -1010,7 +1010,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             }
 
             val classInfo = codegen.kotlinObjCClassInfo(irClass)
-            val classPointerGlobal = load(structGep(classInfo, 12))
+            val classPointerGlobal = load(structGep(classInfo, 12 /* createdClass */))
 
             val storedClass = this.load(classPointerGlobal)
 
