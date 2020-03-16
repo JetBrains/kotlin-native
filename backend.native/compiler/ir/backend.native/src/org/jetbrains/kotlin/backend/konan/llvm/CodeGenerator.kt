@@ -1009,8 +1009,8 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                 error("type-checking against Kotlin classes inheriting Objective-C meta-classes isn't supported yet")
             }
 
-            val objCDeclarations = context.llvmDeclarations.forClass(irClass).objCDeclarations!!
-            val classPointerGlobal = objCDeclarations.classPointerGlobal.llvmGlobal
+            val classInfo = codegen.kotlinObjCClassInfo(irClass)
+            val classPointerGlobal = load(structGep(classInfo, 12))
 
             val storedClass = this.load(classPointerGlobal)
 
@@ -1019,11 +1019,13 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             return this.ifThenElse(storedClassIsNotNull, storedClass) {
                 val newClass = call(
                         context.llvm.createKotlinObjCClass,
-                        listOf(objCDeclarations.classInfoGlobal.llvmGlobal),
+                        listOf(classInfo),
                         exceptionHandler = exceptionHandler
                 )
 
+                // TODO: doesn't seem to be required, `CreateKotlinObjCClass` does this anyway.
                 this.store(newClass, classPointerGlobal)
+
                 newClass
             }
         }

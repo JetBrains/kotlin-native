@@ -146,6 +146,14 @@ internal val IrClass.objectInstanceGetterSymbolName: String
         return "kobjget:$fqNameForIrSerialization"
     }
 
+internal val IrClass.kotlinObjCClassInfoSymbolName: String
+    get() {
+        assert (this.isExported())
+        assert (this.isKotlinObjCClass())
+
+        return "kobjcclassinfo:$fqNameForIrSerialization"
+    }
+
 val IrFunction.functionName get() = with(KonanManglerForBE) { functionName }
 
 val IrFunction.symbolName get() = with(KonanManglerForBE) { symbolName }
