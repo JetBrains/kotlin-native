@@ -133,3 +133,16 @@ internal class KotlinObjCClassInfoGenerator(override val context: Context) : Con
                 )
             }
 }
+
+internal fun CodeGenerator.kotlinObjCClassInfo(irClass: IrClass): LLVMValueRef {
+    require(irClass.isKotlinObjCClass())
+    return if (isExternal(irClass)) {
+        importGlobal(
+                irClass.kotlinObjCClassInfoSymbolName,
+                runtime.kotlinObjCClassInfo,
+                origin = irClass.llvmSymbolOrigin
+        )
+    } else {
+        context.llvmDeclarations.forClass(irClass).objCDeclarations!!.classInfoGlobal.llvmGlobal
+    }
+}

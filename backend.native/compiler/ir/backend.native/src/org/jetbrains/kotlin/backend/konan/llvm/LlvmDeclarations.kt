@@ -292,9 +292,16 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
 
         val classPointerGlobal = staticData.createGlobal(int8TypePtr, "kobjcclassptr:$internalName")
 
+        val isExported = irClass.isExported()
+        val classInfoSymbolName = if (isExported) {
+            irClass.kotlinObjCClassInfoSymbolName
+        } else {
+            "kobjcclassinfo:$internalName"
+        }
         val classInfoGlobal = staticData.createGlobal(
                 context.llvm.runtime.kotlinObjCClassInfo,
-                "kobjcclassinfo:$internalName"
+                classInfoSymbolName,
+                isExported = isExported
         ).apply {
             setConstant(true)
         }
