@@ -1,7 +1,21 @@
 package org.jetbrains.ring
 
-class BenchmarkEntry<R> private constructor(val benchmark: () -> R) {
-    fun run() {
+import kotlin.system.measureNanoTime
+import kotlin.native.internal.GC
+import platform.posix.*
+import kotlinx.cinterop.*
+
+fun writeToFile(fileName: String, text: String) {
+    val file = fopen(fileName, "at") ?: error("Cannot write file '$fileName'")
+    try {
+        if (fputs(text, file) == EOF) throw Error("File write error")
+    } finally {
+        fclose(file)
+    }
+}
+
+open class BenchmarkEntry<R>(val benchmark: () -> R) {
+    open fun run() {
         benchmark()
     }
 
@@ -9,8 +23,41 @@ class BenchmarkEntry<R> private constructor(val benchmark: () -> R) {
         fun <T : Any, R> create(ctor: () -> T, benchmark: T.() -> R) = BenchmarkEntry {
             ctor().benchmark()
         }
+        fun <T : Any, R> createWithInstance(instance: T, benchmark: T.() -> R) = BenchmarkEntry {
+            instance.benchmark()
+        }
+    }
+
+}
+
+class TimerBenchmarkEntry<R>(val entry: BenchmarkEntry<R>): BenchmarkEntry<R>(entry.benchmark) {
+    private val warmupIterations = 20000
+    private val repeatIterations = 50000
+
+    override fun run() {
+        for (i in 1..warmupIterations) {
+            super.run()
+            GC.collect()
+        }
+        var i = repeatIterations
+        GC.collect()
+        val result = mutableListOf<Long>()
+        for (i in 1..repeatIterations) {
+            result.add(measureNanoTime { super.run() })
+            GC.collect()
+        }
+        val answer = """
+            Results:             ${result.joinToString()}
+            Min:                 ${result.min()}
+            Max:                 ${result.max()}
+            Mean:                ${result.sum() / repeatIterations}
+            Median:              ${result.sorted()[result.size / 2]}
+        """.trimIndent()
+        writeToFile("result.txt", "$answer\n\n")
     }
 }
+
+val elvisBenchmark = ElvisBenchmark()
 
 val benchmarks = mutableMapOf(
         "AbstractMethod.sortStrings"                        to BenchmarkEntry.create(::AbstractMethodBenchmark) { sortStrings() },
@@ -80,10 +127,10 @@ val benchmarks = mutableMapOf(
         "DefaultArgument.testOneOfEight"                    to BenchmarkEntry.create(::DefaultArgumentBenchmark) { testOneOfEight() },
         "DefaultArgument.testEightOfEight"                  to BenchmarkEntry.create(::DefaultArgumentBenchmark) { testEightOfEight() },
 
-        "Elvis.testElvis1"                                  to BenchmarkEntry.create(::ElvisBenchmark) { testElvis1() },
-        "Elvis.testElvis2"                                  to BenchmarkEntry.create(::ElvisBenchmark) { testElvis2() },
-        "Elvis.testElvis3"                                  to BenchmarkEntry.create(::ElvisBenchmark) { testElvis3() },
-        "Elvis.testElvis4"                                  to BenchmarkEntry.create(::ElvisBenchmark) { testElvis4() },
+        "Elvis.testElvis1"                                  to BenchmarkEntry.createWithInstance(elvisBenchmark) { testElvis1() },
+        "Elvis.testElvis2"                                  to BenchmarkEntry.createWithInstance(elvisBenchmark) { testElvis2() },
+        "Elvis.testElvis3"                                  to BenchmarkEntry.createWithInstance(elvisBenchmark) { testElvis3() },
+        "Elvis.testElvis4"                                  to BenchmarkEntry.createWithInstance(elvisBenchmark) { testElvis4() },
 
         "Euler.problem1bySequence"                          to BenchmarkEntry.create(::EulerBenchmark) { problem1bySequence() },
         "Euler.problem1"                                    to BenchmarkEntry.create(::EulerBenchmark) { problem1() },
@@ -217,7 +264,7 @@ val benchmarks = mutableMapOf(
 
 fun main() {
     benchmarks.forEach {
-        print("${it.key}: ")
-        it.value.run()
+        writeToFile("result.txt", "${it.key}: ")
+        TimerBenchmarkEntry(it.value).run()
     }
 }
