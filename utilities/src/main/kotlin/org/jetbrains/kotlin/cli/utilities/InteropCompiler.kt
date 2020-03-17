@@ -27,8 +27,8 @@ fun invokeInterop(flavor: String, args: Array<String>): Array<String>? {
     val temporaryFilesDir = arguments.tempDir
 
     val buildDir = File("$outputFileName-build")
-    val generatedDir = File(arguments.generated)
-    val nativesDir = File(arguments.natives)
+    val generatedDir = File(buildDir, "kotlin")
+    val nativesDir = File(buildDir,"natives")
     val manifest = File(buildDir, "manifest.properties")
     val cstubsName ="cstubs"
     val libraries = arguments.library
@@ -40,7 +40,9 @@ fun invokeInterop(flavor: String, args: Array<String>): Array<String>? {
     val cinteropArgsToCompiler = interop(flavor, args,
             listOfNotNull(
                     "manifest" to manifest.path,
-                    ("cstubsName" to cstubsName).takeIf { flavor == "native" }
+                    ("cstubsName" to cstubsName).takeIf { flavor == "native" },
+                    "generated" to generatedDir.absolutePath,
+                    "natives" to nativesDir.absolutePath
             ).toMap()
     ) ?: return null // There is no need in compiler invocation if we're generating only metadata.
 

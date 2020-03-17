@@ -395,8 +395,8 @@ fun processIdlLib(args: Array<String>, additionalArgs: Map<String, Any> = mapOf(
     val jsInteropArguments = JSInteropArguments()
     jsInteropArguments.argParser.parse(args)
     // TODO: Refactor me.
-    val ktGenRoot = File(jsInteropArguments.generated).mkdirs()
-    val nativeLibsDir = File(jsInteropArguments.natives).mkdirs()
+    val ktGenRoot = File(additionalArgs["generated"]!! as String).mkdirs()
+    val nativeLibsDir = File(additionalArgs["natives"]!! as String).mkdirs()
 
     val idl = when (jsInteropArguments.pkg) {
         idlMathPackage -> idlMath
