@@ -101,7 +101,7 @@ fun createKonanLibrary(
 
     val base = BaseKotlinLibraryImpl(baseAccess, isDefault)
     val targeted = TargetedLibraryImpl(targetedAccess, base)
-    val metadata = MetadataLibraryImpl(metadataAccess)
+    val metadata = SafeMetadataLibraryImpl(metadataAccess)
     val ir = IrMonoliticLibraryImpl(irAccess)
     val bitcode = BitcodeLibraryImpl(bitcodeAccess, targeted)
 
@@ -118,4 +118,26 @@ fun createKonanLibraryComponents(
     return base.componentList.map {
         createKonanLibrary(libraryFile, it, target, isDefault)
     }
+}
+
+/**
+ * Similar to MetadataLibraryImpl, but doesn't blow up if there is no such package.
+ */
+class SafeMetadataLibraryImpl(
+        access: MetadataLibraryAccess<MetadataKotlinLibraryLayout>
+) : MetadataLibraryImpl(access) {
+    override fun packageMetadataParts(fqName: String): Set<String> =
+            access.inPlace { inPlaceAccess ->
+                val fileList = inPlaceAccess.packageFragmentsDir(fqName)
+                        .listFilesOrEmpty
+                        .mapNotNull {
+                            it.name
+                                    .substringBeforeLast(KLIB_METADATA_FILE_EXTENSION_WITH_DOT, missingDelimiterValue = "")
+                                    .takeIf { it.isNotEmpty() }
+                        }
+
+                fileList.toSortedSet().also {
+                    require(it.size == fileList.size) { "Duplicated names: ${fileList.groupingBy { it }.eachCount().filter { (_, count) -> count > 1 }}" }
+                }
+            }
 }
