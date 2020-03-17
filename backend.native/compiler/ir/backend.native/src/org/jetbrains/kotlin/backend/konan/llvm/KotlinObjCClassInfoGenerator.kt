@@ -66,12 +66,14 @@ internal class KotlinObjCClassInfoGenerator(override val context: Context) : Con
                 irClass.typeInfoPtr,
                 companionObject?.typeInfoPtr ?: NullPointer(runtime.typeInfoType),
 
-                objCLLvmDeclarations.classPointerGlobal.pointer
+                staticData.placeGlobal(
+                        "kobjcclassptr:${irClass.fqNameForIrSerialization}#internal",
+                        NullPointer(int8Type)
+                ).pointer
         )
 
         objCLLvmDeclarations.classInfoGlobal.setInitializer(info)
 
-        objCLLvmDeclarations.classPointerGlobal.setInitializer(NullPointer(int8Type))
         objCLLvmDeclarations.bodyOffsetGlobal.setInitializer(Int32(0))
     }
 

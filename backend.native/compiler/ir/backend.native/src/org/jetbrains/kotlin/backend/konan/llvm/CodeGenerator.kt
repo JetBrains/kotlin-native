@@ -1013,16 +1013,11 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             val storedClassIsNotNull = this.icmpNe(storedClass, kNullInt8Ptr)
 
             return this.ifThenElse(storedClassIsNotNull, storedClass) {
-                val newClass = call(
+                call(
                         context.llvm.createKotlinObjCClass,
                         listOf(classInfo),
                         exceptionHandler = exceptionHandler
                 )
-
-                // TODO: doesn't seem to be required, `CreateKotlinObjCClass` does this anyway.
-                this.store(newClass, classPointerGlobal)
-
-                newClass
             }
         }
     }
