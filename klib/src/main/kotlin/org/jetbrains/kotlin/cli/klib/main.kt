@@ -20,7 +20,6 @@ import org.jetbrains.kotlin.library.unpackZippedKonanLibraryTo
 import org.jetbrains.kotlin.konan.util.KlibMetadataFactories
 import org.jetbrains.kotlin.konan.utils.createKonanBuiltIns
 import org.jetbrains.kotlin.backend.common.serialization.metadata.DynamicTypeDeserializer
-import org.jetbrains.kotlin.descriptors.deserialization.PlatformDependentTypeTransformer
 import org.jetbrains.kotlin.util.Logger
 import org.jetbrains.kotlin.library.metadata.KlibMetadataProtoBuf
 import org.jetbrains.kotlin.konan.library.KonanLibrary
@@ -30,7 +29,7 @@ import org.jetbrains.kotlin.storage.LockBasedStorageManager
 import java.lang.System.out
 import kotlin.system.exitProcess
 
-object KlibFactories : KlibMetadataFactories(::createKonanBuiltIns, DynamicTypeDeserializer, PlatformDependentTypeTransformer.None)
+object KlibFactories : KlibMetadataFactories(::createKonanBuiltIns, DynamicTypeDeserializer)
 
 fun printUsage() {
     println("Usage: klib <command> <library> <options>")
