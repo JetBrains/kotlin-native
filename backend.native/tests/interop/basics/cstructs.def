@@ -1,6 +1,4 @@
 ---
-typedef float __attribute__ ((__vector_size__ (16)))   KVector4f;
-
 typedef struct {
     int i;
 } Trivial;
@@ -11,7 +9,6 @@ enum E {
 
 struct Complex {
     unsigned int ui;
-    KVector4f vec4f;
     Trivial t;
     struct Complex* next;
     enum E e;
@@ -21,7 +18,6 @@ struct Complex {
 struct Complex produceComplex() {
     struct Complex complex = {
     		.ui = 128,
-		    .vec4f = {1.0, 1.0, 1.0, 1.0},
 		    .t = {1},
 		    .next = 0,
 		    .e = R,
