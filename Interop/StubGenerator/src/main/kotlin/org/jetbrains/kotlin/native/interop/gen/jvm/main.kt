@@ -40,6 +40,9 @@ import java.lang.IllegalArgumentException
 import java.nio.file.*
 import java.util.*
 
+data class InternalInteropOptions(val generated: String, val natives: String, val manifest: String? = null,
+                                  val cstubsName: String? = null)
+
 fun main(args: Array<String>) {
     // Adding flavor option for interop plugin.
     class FullCInteropArguments: CInteropArguments() {
@@ -53,12 +56,12 @@ fun main(args: Array<String>) {
     val arguments = FullCInteropArguments()
     arguments.argParser.parse(args)
     val flavorName = arguments.flavor
-    processCLib(flavorName, arguments, mapOf("generated" to arguments.generated, "natives" to arguments.natives))
+    processCLib(flavorName, arguments, InternalInteropOptions(arguments.generated, arguments.natives))
 }
 
 fun interop(
         flavor: String, args: Array<String>,
-        additionalArgs: Map<String, Any> = mapOf()
+        additionalArgs: InternalInteropOptions
 ): Array<String>? = when(flavor) {
             "jvm", "native" -> {
                 val cinteropArguments = CInteropArguments()
@@ -186,12 +189,12 @@ private fun findFilesByGlobs(roots: List<Path>, globs: List<String>): Map<Path, 
 }
 
 private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments,
-                        additionalArgs: Map<String, Any> = mapOf()): Array<String>? {
-    val ktGenRoot = additionalArgs["generated"]!! as String
-    val nativeLibsDir = additionalArgs["natives"]!! as String
+                        additionalArgs: InternalInteropOptions): Array<String>? {
+    val ktGenRoot = additionalArgs.generated
+    val nativeLibsDir = additionalArgs.natives
     val flavor = KotlinPlatform.values().single { it.name.equals(flavorName, ignoreCase = true) }
     val defFile = cinteropArguments.def?.let { File(it) }
-    val manifestAddend = (additionalArgs["manifest"] as? String)?.let { File(it) }
+    val manifestAddend = additionalArgs.manifest?.let { File(it) }
 
     if (defFile == null && cinteropArguments.pkg == null) {
         cinteropArguments.argParser.printError("-def or -pkg should provided!")
@@ -247,7 +250,7 @@ private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments
         else -> listOf()
     }
 
-    val libName = additionalArgs["cstubsName"] as? String ?: fqParts.joinToString("") + "stubs"
+    val libName = additionalArgs.cstubsName ?: fqParts.joinToString("") + "stubs"
 
     val tempFiles = TempFiles(libName, cinteropArguments.tempDir)
 

@@ -6,6 +6,7 @@ package org.jetbrains.kotlin.cli.utilities
 
 import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.target.PlatformManager
+import org.jetbrains.kotlin.native.interop.gen.jvm.InternalInteropOptions
 import org.jetbrains.kotlin.native.interop.gen.jvm.interop
 import org.jetbrains.kotlin.native.interop.tool.*
 
@@ -38,12 +39,10 @@ fun invokeInterop(flavor: String, args: Array<String>): Array<String>? {
     val target = PlatformManager().targetManager(targetRequest).target
 
     val cinteropArgsToCompiler = interop(flavor, args,
-            listOfNotNull(
-                    "manifest" to manifest.path,
-                    ("cstubsName" to cstubsName).takeIf { flavor == "native" },
-                    "generated" to generatedDir.absolutePath,
-                    "natives" to nativesDir.absolutePath
-            ).toMap()
+            InternalInteropOptions(generatedDir.absolutePath,
+                    nativesDir.absolutePath,manifest.path,
+                    cstubsName.takeIf { flavor == "native" }
+            )
     ) ?: return null // There is no need in compiler invocation if we're generating only metadata.
 
     val nativeStubs =
