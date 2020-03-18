@@ -3609,7 +3609,6 @@ interopTest("interop_structs") {
     disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
     source = "interop/basics/structs.kt"
     interop = 'cstructs'
-    flags = [ "-Xallocator=mimalloc" ]
 }
 
 interopTest("interop_callbacksAndVarargs") {
