@@ -101,7 +101,7 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
 
                     extendedInfo,
 
-                    Int32(KotlinAbiVersion.CURRENT.version),
+                    Int32(0),
 
                     Int32(size),
 
