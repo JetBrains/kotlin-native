@@ -9,6 +9,7 @@ import org.jetbrains.kotlin.ir.builders.irIfNull
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
+import org.jetbrains.kotlin.ir.types.isMarkedNullable
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.transformChildrenVoid
 
@@ -23,19 +24,38 @@ internal class RemoveRedundantNullChecksTransformer(val context: Context, val fu
 
     override fun visitBlock(expression: IrBlock): IrExpression {
         if (expression.origin == IrStatementOrigin.ELVIS) {
-            assert(expression.statements.size == 2)
-            val lhs = (expression.statements[0] as IrVariable).initializer as? IrBlock ?: return super.visitBlock(expression)
-            if (lhs.origin == IrStatementOrigin.SAFE_CALL) {
-                val rhs = expression.statements[1] as IrWhen
-                return lowerElvisWithSafeCallLhs(lhs, rhs) ?: super.visitBlock(expression)
-            }
+            require(expression.statements.size == 2)
+            return lowerIfPossible(expression)
         }
         return super.visitBlock(expression)
     }
 
-    private fun lowerElvisWithSafeCallLhs(lhs: IrBlock, rhs: IrWhen): IrExpression? {
-        assert(lhs.statements.size == 2)
-        assert(rhs.branches.size == 2)
+    private fun lowerIfPossible(elvisBlock: IrBlock): IrExpression {
+        val temporaryElvisVariableValue = (elvisBlock.statements[0] as IrVariable).initializer ?: return super.visitBlock(elvisBlock)
+        val elvisNullCheck = elvisBlock.statements[1] as IrWhen
+        // Assumed that first branch is equality to null, and the second one is else-branch
+        require(elvisNullCheck.branches.size == 2)
+
+        return lowerElvisWithSafeCallLhs(elvisNullCheck, temporaryElvisVariableValue)
+                ?: lowerElvisWithNonNullableLhs(elvisNullCheck, temporaryElvisVariableValue)
+                ?: super.visitBlock(elvisBlock)
+    }
+
+    private fun lowerElvisWithNonNullableLhs(elvisNullCheck: IrWhen, elvisVariableValue: IrExpression): IrExpression? {
+        val isNull = elvisNullCheck.branches[0].condition
+        require(isNull is IrCall && isNull.valueArgumentsCount == 2)
+        return if (elvisVariableValue.type.isMarkedNullable()) null else elvisVariableValue
+    }
+
+    private fun lowerElvisWithSafeCallLhs(elvisNullCheck: IrWhen, elvisVariableValue: IrExpression): IrExpression? {
+        val lhs = elvisVariableValue as? IrBlock
+                ?: return null
+
+        if (lhs.origin != IrStatementOrigin.SAFE_CALL) {
+            return null
+        }
+        require(lhs.statements.size == 2)
+
         val (receiver, call) = lhs.destructSafeCall()
 
         if (call !is IrCall) {
@@ -48,7 +68,7 @@ internal class RemoveRedundantNullChecksTransformer(val context: Context, val fu
                 +irIfNull(
                         call.type,
                         irGet(receiver),
-                        rhs.branches[0].result,
+                        elvisNullCheck.branches[0].result,
                         call
                 )
             }

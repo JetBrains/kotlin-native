@@ -7,5 +7,8 @@ class Blackhole {
         fun consume(value: Any) {
             consumer += value.hashCode()
         }
+        fun consumeInt(value: Int) {
+            consumer += value.hashCode()
+        }
     }
 }

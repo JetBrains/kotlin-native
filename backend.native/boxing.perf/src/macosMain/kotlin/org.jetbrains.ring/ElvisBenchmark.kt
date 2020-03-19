@@ -29,6 +29,8 @@ open class ElvisBenchmark {
     var array3: Array<ValueValueValue?> = arrayOf()
     var array4: Array<ValueNValue> = arrayOf()
 
+    private inline fun Int?.orZero() = this ?: 0
+
     init {
         array = Array(BENCHMARK_SIZE) {
             if (Random.nextInt(BENCHMARK_SIZE) < BENCHMARK_SIZE / 10) null else Value(Random.nextInt(1000000))
@@ -47,7 +49,7 @@ open class ElvisBenchmark {
     @CountBoxings
     fun testElvis1() {
         for (obj in array) {
-            Blackhole.consume(obj?.value ?: 0)
+            Blackhole.consumeInt(obj?.value ?: 0)
         }
     }
 
@@ -55,7 +57,7 @@ open class ElvisBenchmark {
     @CountBoxings
     fun testElvis2() {
         for (obj in array2) {
-            Blackhole.consume(obj?.value?.value ?: 0)
+            Blackhole.consumeInt(obj?.value?.value ?: 0)
         }
     }
 
@@ -63,7 +65,7 @@ open class ElvisBenchmark {
     @CountBoxings
     fun testElvis3() {
         for (obj in array3) {
-            Blackhole.consume(obj?.value?.value?.value ?: 0)
+            Blackhole.consumeInt(obj?.value?.value?.value ?: 0)
         }
     }
 
@@ -71,7 +73,23 @@ open class ElvisBenchmark {
     @CountBoxings
     fun testElvis4() {
         for (obj in array4) {
-            Blackhole.consume(obj?.value?.value ?: 0)
+            Blackhole.consumeInt(obj?.value?.value ?: 0)
+        }
+    }
+
+    //Benchmark
+    @CountBoxings
+    fun testUnnecessaryElvis1() {
+        for (i in 1..BENCHMARK_SIZE) {
+            Blackhole.consumeInt((i % 55) ?: 0)
+        }
+    }
+
+    //Benchmark
+    @CountBoxings
+    fun testUnnecessaryElvis2() {
+        for (i in 1..BENCHMARK_SIZE) {
+            Blackhole.consumeInt((i % 55).orZero())
         }
     }
 }
