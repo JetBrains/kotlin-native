@@ -173,6 +173,10 @@ internal val psiToIrPhase = konanUnitPhase(
             val exportedDependencies = (getExportedDependencies() + modulesWithoutDCE).distinct()
             val functionIrClassFactory = BuiltInFictitiousFunctionIrClassFactory(
                     symbolTable, generatorContext.irBuiltIns, reflectionTypes)
+            val stubGenerator = DeclarationStubGenerator(
+                    moduleDescriptor, symbolTable,
+                    config.configuration.languageVersionSettings
+            )
             val deserializer = KonanIrLinker(
                     moduleDescriptor,
                     functionIrClassFactory,
@@ -180,6 +184,7 @@ internal val psiToIrPhase = konanUnitPhase(
                     generatorContext.irBuiltIns,
                     symbolTable,
                     forwardDeclarationsModuleDescriptor,
+                    stubGenerator,
                     exportedDependencies
             )
 
@@ -205,10 +210,7 @@ internal val psiToIrPhase = konanUnitPhase(
             }
 
             val symbols = KonanSymbols(this, symbolTable, symbolTable.lazyWrapper, functionIrClassFactory)
-            val stubGenerator = DeclarationStubGenerator(
-                    moduleDescriptor, symbolTable,
-                    config.configuration.languageVersionSettings
-            )
+
             val irProviderForCEnumsAndCStructs = IrProviderForCEnumAndCStructStubs(
                     generatorContext, interopBuiltIns, symbols, llvmModuleSpecification::containsModule
             )
@@ -271,7 +273,7 @@ internal val psiToIrPhase = konanUnitPhase(
 internal val destroySymbolTablePhase = konanUnitPhase(
         op = {
             this.symbolTable = null // TODO: invalidate symbolTable itself.
-            ir.symbols.functionIrClassFactory.symbolTable = null
+//            ir.symbols.functionIrClassFactory.symbolTable = null
         },
         name = "DestroySymbolTable",
         description = "Destroy SymbolTable",
