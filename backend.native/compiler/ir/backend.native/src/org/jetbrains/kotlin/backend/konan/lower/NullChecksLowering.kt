@@ -58,7 +58,7 @@ internal class RemoveRedundantNullChecksTransformer(val context: Context, val fu
 
         val (receiver, call) = lhs.destructSafeCall()
 
-        if (call !is IrCall) {
+        if (call !is IrCall || call.type.isMarkedNullable()) {
             return null
         }
 
