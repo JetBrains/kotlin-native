@@ -18,21 +18,27 @@ package org.jetbrains.kotlin.backend.konan .serialization
 
 import org.jetbrains.kotlin.backend.common.LoggingContext
 import org.jetbrains.kotlin.backend.common.serialization.*
+import org.jetbrains.kotlin.backend.common.serialization.encodings.BinarySymbolData
 import org.jetbrains.kotlin.backend.konan.descriptors.isFromInteropLibrary
+import org.jetbrains.kotlin.backend.konan.descriptors.isInteropLibrary
 import org.jetbrains.kotlin.backend.konan.descriptors.konanLibrary
-import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
-import org.jetbrains.kotlin.descriptors.ModuleDescriptor
-import org.jetbrains.kotlin.descriptors.findClassAcrossModuleDependencies
+import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.konan.isKonanStdlib
-import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
+import org.jetbrains.kotlin.descriptors.konan.kotlinLibrary
+import org.jetbrains.kotlin.ir.declarations.*
+import org.jetbrains.kotlin.ir.declarations.impl.IrClassImpl
+import org.jetbrains.kotlin.ir.declarations.impl.IrFileImpl
+import org.jetbrains.kotlin.ir.declarations.impl.IrModuleFragmentImpl
 import org.jetbrains.kotlin.ir.descriptors.IrAbstractFunctionFactory
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
-import org.jetbrains.kotlin.ir.util.IdSignature
-import org.jetbrains.kotlin.ir.util.SymbolTable
+import org.jetbrains.kotlin.ir.symbols.IrSymbol
+import org.jetbrains.kotlin.ir.symbols.impl.IrFileSymbolImpl
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
+import org.jetbrains.kotlin.resolve.descriptorUtil.module
 
 class KonanIrLinker(
     private val currentModule: ModuleDescriptor,
@@ -41,10 +47,9 @@ class KonanIrLinker(
     builtIns: IrBuiltIns,
     symbolTable: SymbolTable,
     private val forwardModuleDescriptor: ModuleDescriptor?,
+    private val stubGenerator: DeclarationStubGenerator,
     exportedDependencies: List<ModuleDescriptor>
-) : KotlinIrLinker(currentModule, logger, builtIns, symbolTable, exportedDependencies, forwardModuleDescriptor) {
-
-    private val descriptorByIdSignatureFinder = DescriptorByIdSignatureFinder(currentModule)
+) : KotlinIrLinker(logger, builtIns, symbolTable, exportedDependencies, forwardModuleDescriptor) {
 
     override fun reader(moduleDescriptor: ModuleDescriptor, fileIndex: Int, idSigIndex: Int) =
             moduleDescriptor.konanLibrary!!.irDeclaration(idSigIndex, fileIndex)
@@ -67,68 +72,153 @@ class KonanIrLinker(
     override fun readFileCount(moduleDescriptor: ModuleDescriptor) =
             moduleDescriptor.run { if (this === forwardModuleDescriptor || moduleDescriptor.isFromInteropLibrary()) 0 else konanLibrary!!.fileCount() }
 
-//    override fun handleNoModuleDeserializerFound(idSignature: IdSignature): DeserializationState<*> {
-//        return globalDeserializationState
-//    }
-
     companion object {
         private val C_NAMES_NAME = Name.identifier("cnames")
         private val OBJC_NAMES_NAME = Name.identifier("objcnames")
-    }
 
-    private fun isSpecialPlatformSignature(idSig: IdSignature): Boolean = idSig.isForwardDeclarationSignature()
+        val FORWARD_DECLARATION_ORIGIN = object : IrDeclarationOriginImpl("FORWARD_DECLARATION_ORIGIN") {}
 
-    private fun postProcessPlatformSpecificDeclaration(idSig: IdSignature, descriptor: DeclarationDescriptor?, block: (IdSignature) -> Unit) {
-        if (descriptor == null) return
-
-        if (!idSig.isForwardDeclarationSignature()) return
-
-        val fqn = descriptor.fqNameSafe
-        if (!fqn.startsWith(C_NAMES_NAME) && !fqn.startsWith(OBJC_NAMES_NAME)) {
-            val signature = IdSignature.PublicSignature(fqn.parent(), FqName(fqn.shortName().asString()), null, 0)
-            block(signature)
-        }
+        const val offset = -2
     }
 
     override fun isBuiltInModule(moduleDescriptor: ModuleDescriptor): Boolean = moduleDescriptor.isKonanStdlib()
 
-    private fun resolvePlatformDescriptor(idSig: IdSignature): DeclarationDescriptor? {
-        if (idSig.isInteropSignature()) {
-            return descriptorByIdSignatureFinder.findDescriptorBySignature(idSig)
-        }
-        if (!idSig.isForwardDeclarationSignature()) return null
-
-        val fwdModule = forwardModuleDescriptor ?: error("Forward declaration module should not be null")
-
-        return with(idSig as IdSignature.PublicSignature) {
-            val classId = ClassId(packageFqn, declarationFqn, false)
-            fwdModule.findClassAcrossModuleDependencies(classId)
-        }
-    }
-
-    private fun IdSignature.isInteropSignature(): Boolean = IdSignature.Flags.IS_NATIVE_INTEROP_LIBRARY.test()
-
-    private fun IdSignature.isForwardDeclarationSignature(): Boolean {
-        if (isPublic) {
-            return packageFqName().run {
-                startsWith(C_NAMES_NAME) || startsWith(OBJC_NAMES_NAME)
-            }
-        }
-
-        return false
-    }
+    private val forwardDeclarationDeserializer = forwardModuleDescriptor?.let { KonanForwardDeclarationModuleDeserialier(it) }
 
     override fun createModuleDeserializer(moduleDescriptor: ModuleDescriptor, strategy: DeserializationStrategy): IrModuleDeserializer {
+        if (moduleDescriptor === forwardModuleDescriptor) {
+            return forwardDeclarationDeserializer ?: error("forward declaration deserializer expected")
+        }
+
+        if (moduleDescriptor.kotlinLibrary.isInteropLibrary()) {
+            return KonanInteropModuleDeserializer(moduleDescriptor)
+        }
+
         return KonanModuleDeserializer(moduleDescriptor, strategy)
     }
 
     private inner class KonanModuleDeserializer(moduleDescriptor: ModuleDescriptor, strategy: DeserializationStrategy):
         KotlinIrLinker.BasicIrModuleDeserializer(moduleDescriptor, strategy)
 
+    private inner class KonanInteropModuleDeserializer(moduleDescriptor: ModuleDescriptor) : IrModuleDeserializer(moduleDescriptor) {
+        init {
+            assert(moduleDescriptor.kotlinLibrary.isInteropLibrary())
+        }
+
+        private val descriptorByIdSignatureFinder = DescriptorByIdSignatureFinder(moduleDescriptor)
+        private fun IdSignature.isInteropSignature(): Boolean = IdSignature.Flags.IS_NATIVE_INTEROP_LIBRARY.test()
+
+        override fun contains(idSig: IdSignature): Boolean {
+
+            if (idSig.isPublic) {
+                if (idSig.isInteropSignature()) {
+                    // TODO: add descriptor cache??
+                    return descriptorByIdSignatureFinder.findDescriptorBySignature(idSig) != null
+                }
+            }
+
+            return false
+        }
+
+        override fun deserializeIrSymbol(idSig: IdSignature, symbolKind: BinarySymbolData.SymbolKind): IrSymbol {
+            val descriptor = descriptorByIdSignatureFinder.findDescriptorBySignature(idSig) ?: error("Expecting descriptor for $idSig")
+
+            val symbolOwner = stubGenerator.generateMemberStub(descriptor) as IrSymbolOwner
+
+            return symbolOwner.symbol
+        }
+
+        override fun addModuleReachableTopLevel(idSig: IdSignature) {
+            error("Is not allowed for Interop library reader (idSig = $idSig)")
+        }
+
+        override fun deserializeReachableDeclarations() {
+            error("Is not allowed for Interop library reader")
+        }
+
+        override fun postProcess() {}
+
+        override val moduleFragment: IrModuleFragment = IrModuleFragmentImpl(moduleDescriptor, builtIns)
+        override val moduleDependencies: Collection<IrModuleDeserializer> = listOfNotNull(forwardDeclarationDeserializer)
+    }
+
+    private inner class KonanForwardDeclarationModuleDeserialier(moduleDescriptor: ModuleDescriptor) : IrModuleDeserializer(moduleDescriptor) {
+        init {
+            assert(moduleDescriptor.isForwardDeclarationModule)
+        }
+
+        private val declaredDeclaration = mutableMapOf<IdSignature, IrClass>()
+        private val packageToFileMap = mutableMapOf<FqName, IrFile>()
+
+        private fun IdSignature.isForwardDeclarationSignature(): Boolean {
+            if (isPublic) {
+                return packageFqName().run {
+                    startsWith(C_NAMES_NAME) || startsWith(OBJC_NAMES_NAME)
+                }
+            }
+
+            return false
+        }
+
+        override fun contains(idSig: IdSignature): Boolean = idSig.isForwardDeclarationSignature()
+
+        private fun resolveDescriptor(idSig: IdSignature): ClassDescriptor =
+            with(idSig as IdSignature.PublicSignature) {
+                val classId = ClassId(packageFqn, declarationFqn, false)
+                moduleDescriptor.findClassAcrossModuleDependencies(classId) ?: error("No declaration found with $idSig")
+            }
+
+        private fun getIrFile(packageFragment: PackageFragmentDescriptor): IrFile {
+            val fqn = packageFragment.fqName
+            return packageToFileMap.getOrPut(packageFragment.fqName) {
+                val fileSymbol = IrFileSymbolImpl(packageFragment)
+                IrFileImpl(NaiveSourceBasedFileEntryImpl("forward declarations for $fqn"), fileSymbol).also {
+                    moduleFragment.files.add(it)
+                }
+            }
+        }
+
+        private fun buildForwardDeclarationStub(idSig: IdSignature, descriptor: ClassDescriptor): IrClass {
+            val packageDescriptor = descriptor.containingDeclaration as PackageFragmentDescriptor
+            val irFile = getIrFile(packageDescriptor)
+
+            val klass = symbolTable.declareClassFromLinker(descriptor, idSig) { s ->
+                IrClassImpl(offset, offset, FORWARD_DECLARATION_ORIGIN, s)
+            }
+
+            klass.parent = irFile
+            irFile.declarations.add(klass)
+
+            return klass
+        }
+
+        override fun deserializeIrSymbol(idSig: IdSignature, symbolKind: BinarySymbolData.SymbolKind): IrSymbol {
+            assert(symbolKind == BinarySymbolData.SymbolKind.CLASS_SYMBOL) { "Only class could be a Forward declaration $idSig (kind $symbolKind)" }
+            val descriptor = resolveDescriptor(idSig)
+            val actualModule = descriptor.module
+            if (actualModule !== moduleDescriptor) {
+                val moduleDeserializer = deserializersForModules[actualModule] ?: error("No module deserializer for $actualModule")
+                moduleDeserializer.addModuleReachableTopLevel(idSig)
+                return symbolTable.referenceClassFromLinker(descriptor, idSig)
+            }
+
+            return declaredDeclaration.getOrPut(idSig) { buildForwardDeclarationStub(idSig, descriptor) }.symbol
+        }
+
+        override fun addModuleReachableTopLevel(idSig: IdSignature) { error("Is not allowed for FWD reader (idSig = $idSig)") }
+
+        override fun deserializeReachableDeclarations() { error("Is not allowed for FWD reader") }
+
+        override fun postProcess() {}
+
+        override val moduleFragment: IrModuleFragment = IrModuleFragmentImpl(moduleDescriptor, builtIns)
+        override val moduleDependencies: Collection<IrModuleDeserializer> = emptyList()
+    }
+
     /**
      * If declaration is from interop library then IR for it is generated by IrProviderForInteropStubs.
      */
-    override fun IdSignature.shouldBeDeserialized(): Boolean = !isInteropSignature() && !isForwardDeclarationSignature()
+//    override fun IdSignature.shouldBeDeserialized(): Boolean = !isInteropSignature() && !isForwardDeclarationSignature()
 
     val modules: Map<String, IrModuleFragment>
         get() = mutableMapOf<String, IrModuleFragment>().apply {
