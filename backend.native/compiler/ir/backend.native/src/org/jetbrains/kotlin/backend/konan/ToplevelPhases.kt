@@ -209,7 +209,17 @@ internal val psiToIrPhase = konanUnitPhase(
                     moduleDescriptor, symbolTable,
                     config.configuration.languageVersionSettings
             )
-            val irProviderForCEnumsAndCStructs = IrProviderForCEnumAndCStructStubs(generatorContext, interopBuiltIns, symbols)
+
+            val generationMode = if (llvmModuleSpecification.isFinal) {
+                IrProviderForCEnumAndCStructStubs.GenerationMode.WholeWorld
+            } else {
+                IrProviderForCEnumAndCStructStubs.GenerationMode.SelectedModules(
+                        modulesWithoutDCE.filter(ModuleDescriptor::isFromInteropLibrary)
+                )
+            }
+            val irProviderForCEnumsAndCStructs = IrProviderForCEnumAndCStructStubs(
+                    generatorContext, interopBuiltIns, symbols, generationMode
+            )
             // We need to run `buildAllEnumsAndStructsFrom` before `generateModuleFragment` because it adds references to symbolTable
             // that should be bound.
             modulesWithoutDCE
@@ -245,9 +255,6 @@ internal val psiToIrPhase = konanUnitPhase(
             if (this.stdlibModule in modulesWithoutDCE) {
                 functionIrClassFactory.buildAllClasses()
             }
-            modulesWithoutDCE
-                    .filter(ModuleDescriptor::isFromInteropLibrary)
-                    .forEach(irProviderForCEnumsAndCStructs::buildAllEnumsAndStructsFrom)
 
             module.acceptVoid(ManglerChecker(KonanManglerIr, Ir2DescriptorManglerAdapter(KonanManglerDesc)))
 

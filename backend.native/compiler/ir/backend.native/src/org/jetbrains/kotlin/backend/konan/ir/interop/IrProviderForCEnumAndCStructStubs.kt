@@ -42,8 +42,30 @@ import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
 internal class IrProviderForCEnumAndCStructStubs(
         context: GeneratorContext,
         private val interopBuiltIns: InteropBuiltIns,
-        symbols: KonanSymbols
+        symbols: KonanSymbols,
+        private val generationMode: GenerationMode
 ) : IrProvider {
+
+    /**
+     * We want to select modules that should be part of compiler's output.
+     *
+     * For example, when we generate compiler cache,
+     * declarations from dependencies should not be added to the current module.
+     */
+    sealed class GenerationMode {
+        abstract fun shouldGenerate(fragment: PackageFragmentDescriptor): Boolean
+
+        object WholeWorld : GenerationMode() {
+            override fun shouldGenerate(fragment: PackageFragmentDescriptor): Boolean =
+                    true
+        }
+        class SelectedModules(
+                private val modules: List<ModuleDescriptor>
+        ) : GenerationMode() {
+            override fun shouldGenerate(fragment: PackageFragmentDescriptor): Boolean =
+                    fragment.module in modules
+        }
+    }
 
     private val symbolTable: SymbolTable = context.symbolTable
 
@@ -67,7 +89,7 @@ internal class IrProviderForCEnumAndCStructStubs(
             if (field != null)
                 error("Module has already been set")
             field = value
-            value.files += filesMap.values
+            value.files += filesMap.filterKeys(generationMode::shouldGenerate).values
         }
 
     fun canHandleSymbol(symbol: IrSymbol): Boolean {
@@ -117,7 +139,9 @@ internal class IrProviderForCEnumAndCStructStubs(
         val packageFragmentDescriptor = descriptor.findPackage()
         return filesMap.getOrPut(packageFragmentDescriptor) {
             IrFileImpl(NaiveSourceBasedFileEntryImpl(cTypeDefinitionsFileName), packageFragmentDescriptor).also {
-                this@IrProviderForCEnumAndCStructStubs.module?.files?.add(it)
+                if (generationMode.shouldGenerate(packageFragmentDescriptor)) {
+                    this@IrProviderForCEnumAndCStructStubs.module?.files?.add(it)
+                }
             }
         }
     }
