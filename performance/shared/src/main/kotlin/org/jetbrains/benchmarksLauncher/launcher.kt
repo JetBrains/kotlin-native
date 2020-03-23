@@ -28,12 +28,28 @@ abstract class Launcher {
         benchmarks[name] = benchmark
     }
 
-    fun measureLambda(repeatNumber: Int, lambda: () -> Any?): Long {
+    fun runBenchmark(benchmarkInstance: Any?, benchmark: AbstractBenchmarkEntry, repeatNumber: Int): Long {
         var i = repeatNumber
-        cleanup()
-        return measureNanoTime {
-            while (i-- > 0) lambda()
+        return if (benchmark is BenchmarkEntryWithInit) {
             cleanup()
+            measureNanoTime {
+                while (i-- > 0) benchmark.lambda(benchmarkInstance!!)
+                cleanup()
+            }
+        } else if (benchmark is BenchmarkEntry) {
+            cleanup()
+            measureNanoTime {
+                while (i-- > 0) benchmark.lambda()
+                cleanup()
+            }
+        } else if (benchmark is BenchmarkEntryStatic) {
+            cleanup()
+            measureNanoTime {
+                while (i-- > 0) benchmark.run()
+                cleanup()
+            }
+        } else {
+            error("Unknown benchmark type $benchmark")
         }
     }
 
@@ -51,18 +67,19 @@ abstract class Launcher {
         }
     }
 
-    fun measureRepeatedly(logger: Logger,
-                          numWarmIterations: Int,
-                          numberOfAttempts: Int,
-                          name: String,
-                          recordMeasurement: RecordTimeMeasurement,
-                          lambda: () -> Any?) {
+    fun runBenchmarkRepeatedly(logger: Logger,
+                               numWarmIterations: Int,
+                               numberOfAttempts: Int,
+                               name: String,
+                               recordMeasurement: RecordTimeMeasurement,
+                               benchmarkInstance: Any?,
+                               benchmark: AbstractBenchmarkEntry) {
         logger.log("Warm up iterations for benchmark $name\n")
-        measureLambda(numWarmIterations, lambda)
+        runBenchmark(benchmarkInstance, benchmark, numWarmIterations)
         var autoEvaluatedNumberOfMeasureIteration = 1
         while (true) {
             var j = autoEvaluatedNumberOfMeasureIteration
-            val time = measureLambda(j, lambda)
+            val time = runBenchmark(benchmarkInstance, benchmark, j)
             if (time >= 100L * 1_000_000) // 100ms
                 break
             autoEvaluatedNumberOfMeasureIteration *= 2
@@ -71,7 +88,7 @@ abstract class Launcher {
         for (k in 0..numberOfAttempts) {
             logger.log(".", usePrefix = false)
             var i = autoEvaluatedNumberOfMeasureIteration
-            val time = measureLambda(i, lambda)
+            val time = runBenchmark(benchmarkInstance, benchmark, i)
             val scaledTime = time * 1.0 / autoEvaluatedNumberOfMeasureIteration
             // Save benchmark object
             recordMeasurement(k, numWarmIterations, scaledTime)
@@ -79,13 +96,14 @@ abstract class Launcher {
         logger.log("\n", usePrefix = false)
     }
 
-    fun measureOnce(logger: Logger,
-                    name: String,
-                    recordMeasurement: RecordTimeMeasurement,
-                    lambda: () -> Any?) {
+    fun runBenchmarkOnce(logger: Logger,
+                         name: String,
+                         recordMeasurement: RecordTimeMeasurement,
+                         benchmarkInstance: Any?,
+                         benchmark: AbstractBenchmarkEntry) {
         logger.log("Skipping warm up for benchmark $name\n")
         logger.log("Running benchmark $name .")
-        val time = measureLambda(1, lambda)
+        val time = runBenchmark(benchmarkInstance, benchmark, 1)
         recordMeasurement(0, 0, time.toDouble())
     }
 
@@ -98,30 +116,32 @@ abstract class Launcher {
         when (benchmark) {
             is BenchmarkEntryWithInit -> {
                 val benchmarkInstance = benchmark.ctor?.invoke()
-                measureRepeatedly(logger,
-                                  numWarmIterations,
-                                  numberOfAttempts,
-                                  name,
-                                  recordMeasurement) {
-                    benchmark.lambda(benchmarkInstance!!)
-                }
+                runBenchmarkRepeatedly(logger,
+                                       numWarmIterations,
+                                       numberOfAttempts,
+                                       name,
+                                       recordMeasurement,
+                                       benchmarkInstance,
+                                       benchmark)
             }
             is BenchmarkEntry -> {
-                measureRepeatedly(logger,
-                                  numWarmIterations,
-                                  numberOfAttempts,
-                                  name,
-                                  recordMeasurement,
-                                  benchmark.lambda)
+                runBenchmarkRepeatedly(logger,
+                                       numWarmIterations,
+                                       numberOfAttempts,
+                                       name,
+                                       recordMeasurement,
+                                       null,
+                                       benchmark)
             }
             is BenchmarkEntryStatic -> {
+
                 // TODO: Static benchmarks still need to be run several times to get proper statistics,
                 // but they need to be run from separate processes.
-                measureOnce(logger,
-                            name,
-                            recordMeasurement) {
-                    benchmark.run()
-                }
+                runBenchmarkOnce(logger,
+                                 name,
+                                 recordMeasurement,
+                                 null,
+                                 benchmark)
             }
             else -> error("unknown benchmark type $benchmark")
         }
