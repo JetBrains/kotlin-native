@@ -42,12 +42,8 @@ abstract class Launcher {
                 while (i-- > 0) benchmark.lambda()
                 cleanup()
             }
-        } else if (benchmark is BenchmarkEntryStatic) {
-            cleanup()
-            measureNanoTime {
-                while (i-- > 0) benchmark.run()
-                cleanup()
-            }
+        } else if (benchmark is BenchmarkEntryManual) {
+            error("runBenchmark cannot run manual benchmark")
         } else {
             error("Unknown benchmark type $benchmark")
         }
@@ -96,17 +92,6 @@ abstract class Launcher {
         logger.log("\n", usePrefix = false)
     }
 
-    fun runBenchmarkOnce(logger: Logger,
-                         name: String,
-                         recordMeasurement: RecordTimeMeasurement,
-                         benchmarkInstance: Any?,
-                         benchmark: AbstractBenchmarkEntry) {
-        logger.log("Skipping warm up for benchmark $name\n")
-        logger.log("Running benchmark $name .")
-        val time = runBenchmark(benchmarkInstance, benchmark, 1)
-        recordMeasurement(0, 0, time.toDouble())
-    }
-
     fun runBenchmark(logger: Logger,
                      numWarmIterations: Int,
                      numberOfAttempts: Int,
@@ -133,15 +118,12 @@ abstract class Launcher {
                                        null,
                                        benchmark)
             }
-            is BenchmarkEntryStatic -> {
-
-                // TODO: Static benchmarks still need to be run several times to get proper statistics,
-                // but they need to be run from separate processes.
-                runBenchmarkOnce(logger,
-                                 name,
-                                 recordMeasurement,
-                                 null,
-                                 benchmark)
+            is BenchmarkEntryManual -> {
+                logger.log("Running manual benchmark $name")
+                val result = benchmark.lambda()
+                for ((i, durationNs) in result.durationsNs.withIndex()) {
+                    recordMeasurement(i, result.warmupCount, durationNs / 1000)
+                }
             }
             else -> error("unknown benchmark type $benchmark")
         }
