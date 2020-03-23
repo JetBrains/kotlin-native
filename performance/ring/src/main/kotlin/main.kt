@@ -175,6 +175,8 @@ class RingLauncher : Launcher() {
                     "PrimeList.calcDirect" to BenchmarkEntryWithInit.create(::PrimeListBenchmark, { calcDirect() }),
                     "PrimeList.calcEratosthenes" to BenchmarkEntryWithInit.create(::PrimeListBenchmark, { calcEratosthenes() }),
                     "Singleton.access" to BenchmarkEntryWithInit.create(::SingletonBenchmark, { access() }),
+                    "Singleton.initialize" to BenchmarkEntryStatic(::singletonInitialize),
+                    "Singleton.initializeNested" to BenchmarkEntryStatic(::singletonInitializeNested),
                     "String.stringConcat" to BenchmarkEntryWithInit.create(::StringBenchmark, { stringConcat() }),
                     "String.stringConcatNullable" to BenchmarkEntryWithInit.create(::StringBenchmark, { stringConcatNullable() }),
                     "String.stringBuilderConcat" to BenchmarkEntryWithInit.create(::StringBenchmark, { stringBuilderConcat() }),

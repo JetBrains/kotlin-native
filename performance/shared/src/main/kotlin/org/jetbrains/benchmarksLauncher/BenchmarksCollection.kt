@@ -26,5 +26,18 @@ class BenchmarkEntryWithInit(val ctor: ()->Any, val lambda: (Any) -> Any?): Abst
 
 class BenchmarkEntry(val lambda: () -> Any?) : AbstractBenchmarkEntry
 
+// Cannot be repeated in the same process.
+class BenchmarkEntryStatic(private val lambda: () -> Any?) : AbstractBenchmarkEntry {
+    private var hasRun = false
+
+    fun run(): Any? {
+        if (hasRun) {
+            error("$this is static and can only be run once.")
+        }
+        hasRun = true
+        return lambda()
+    }
+}
+
 class BenchmarksCollection(private val benchmarks: MutableMap<String, AbstractBenchmarkEntry> = mutableMapOf()) :
         MutableMap<String, AbstractBenchmarkEntry> by benchmarks
