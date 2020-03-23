@@ -10,9 +10,7 @@ import org.jetbrains.kotlin.ir.util.IdSignature
 // The code here is intentionally copy-pasted from DeclarationStubGenerator with
 // minor changes.
 // "Find descriptor by IdSignature" task appears to be common and should be unified later.
-class DescriptorByIdSignatureFinder(
-        private val moduleDescriptor: ModuleDescriptor
-) {
+class DescriptorByIdSignatureFinder(private val moduleDescriptor: ModuleDescriptor) {
     fun findDescriptorBySignature(signature: IdSignature): DeclarationDescriptor? = when (signature) {
         is IdSignature.AccessorSignature -> findDescriptorForAccessorSignature(signature)
         is IdSignature.PublicSignature -> findDescriptorForPublicSignature(signature)
