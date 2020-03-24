@@ -76,6 +76,16 @@ class BoxWithInnerClass<T>(val outerValue: T) {
     }
 }
 
+class BoxWithCompanion<T>(val value: T) {
+    fun foo() = bar(this)
+
+    companion object {
+        val t = 42
+        fun bar(x: Any) = x.getInt(false) + t
+        private fun Any.getInt(f: Boolean) = if (f) hashCode() else 11
+    }
+}
+
 @CountBoxings
 fun runClasses() {
 
@@ -135,6 +145,8 @@ fun runClasses() {
         val x28 = ClashingConstructorsBox(i * 3.1, i)
         val x29 = ClashingConstructorsBox(i + 42, i - 3L)
 
+        val x30 = BoxWithCompanion(i)
+
         assertEquals(i, x2.value)
         assertEquals(i, x3.value)
         assertEquals(i, x4.value)
@@ -177,5 +189,9 @@ fun runClasses() {
         assertEquals(i + 1L, x27.value)
         assertEquals(i * 3.1, x28.value)
         assertEquals(i - 3L, x29.value)
+
+        assertEquals(i, x30.value)
+        assertEquals(53, BoxWithCompanion.Companion.bar(x30))
+        assertEquals(53, x30.foo())
     }
 }
