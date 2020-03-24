@@ -59,11 +59,19 @@ def _symbol_loaded_address(name, debugger = lldb.debugger):
     # take first
     for candidate in candidates:
         address = candidate.GetStartAddress().GetLoadAddress(target)
-        log(lambda: "{} {:#x}".format(name, address))
+        log(lambda: "_symbol_loaded_address:{} {:#x}".format(name, address))
         return address
 
+def _type_info_by_address(address, debugger = lldb.debugger):
+    target = debugger.GetSelectedTarget()
+    process = target.GetProcess()
+    thread = process.GetSelectedThread()
+    frame = thread.GetSelectedFrame()
+    candidates = list(filter(lambda x: x.GetStartAddress().GetLoadAddress(target) == address, frame.module.symbols))
+    return candidates
+
 def is_instance_of(addr, typeinfo):
-    return evaluate("(bool)IsInstance({}, {})".format(addr, typeinfo)).GetValue() == "true"
+    return evaluate("(bool)IsInstance({}, {:#x})".format(addr, typeinfo)).GetValue() == "true"
 
 def is_string_or_array(value):
     return evaluate("(int)IsInstance({0}, {1}) ? 1 : ((int)Konan_DebugIsArray({0}) ? 2 : 0)".format(lldb_val_to_ptr(value), _symbol_loaded_address('kclass:kotlin.String'))).unsigned
@@ -106,6 +114,7 @@ def kotlin_object_type_summary(lldb_val, internal_dict = {}):
 
 def select_provider(lldb_val, tip, internal_dict):
     soa = is_string_or_array(lldb_val)
+    log(lambda : "select_provider: {} : {}".format(lldb_val, soa))
     return __FACTORY['string'](lldb_val, tip, internal_dict) if soa == 1 else __FACTORY['array'](lldb_val, tip, internal_dict) if soa == 2 \
         else __FACTORY['object'](lldb_val, tip, internal_dict)
 
@@ -397,6 +406,33 @@ __TYPES_KONAN_TO_C = {
    'kotlin.Double': ('double', lambda v: v.value)
 }
 
+def type_by_address_command(debugger, command, result, internal_dict):
+    result.AppendMessage("DEBUG: {}".format(command))
+    tokens = command.split()
+    target = debugger.GetSelectedTarget()
+    process = target.GetProcess()
+    thread = process.GetSelectedThread()
+    types = _type_info_by_address(tokens[0])
+    result.AppendMessage("DEBUG: {}".format(types))
+    for t in types:
+        result.AppendMessage("{}: {:#x}".format(t.name, t.GetStartAddress().GetLoadAddress(target)))
+
+def symbol_by_name_command(debugger, command, result, internal_dict):
+    target = debugger.GetSelectedTarget()
+    process = target.GetProcess()
+    thread = process.GetSelectedThread()
+    frame = thread.GetSelectedFrame()
+    tokens = command.split()
+    mask = re.compile(tokens[0])
+    symbols = list(filter(lambda v: mask.match(v.name), frame.GetModule().symbols))
+    visited = list()
+    for symbol in symbols:
+       name = symbol.name
+       if name in visited:
+           continue
+       visited.append(name)
+       result.AppendMessage("{}: {:#x}".format(name, symbol.GetStartAddress().GetLoadAddress(target)))
+
 def konan_globals_command(debugger, command, result, internal_dict):
     target = debugger.GetSelectedTarget()
     process = target.GetProcess()
@@ -450,4 +486,6 @@ def __lldb_init_module(debugger, _):
     debugger.HandleCommand('command script add -f {}.print_this_command print_this'.format(__name__))
     debugger.HandleCommand('command script add -f {}.clear_cache_command clear_kotlin_cache'.format(__name__))
     debugger.HandleCommand('command script add -f {}.type_name_command type_name'.format(__name__))
-    debugger.HandleCommand('command script add -f {}.konan_globals_command konan_globals'.format(__name__))
+    debugger.HandleCommand('command script add -f {}.type_by_address_command type_by_address'.format(__name__))
+    debugger.HandleCommand('command script add -f {}.symbol_by_name_command symbol_by_name'.format(__name__))
+
