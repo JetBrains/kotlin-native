@@ -129,6 +129,12 @@ fun runClasses() {
         val x23 = x22.foo(true)
         val x24 = x22.foo(false)
 
+        val x25 = ManyConstructorsBox(i, i * 2)
+        val x26 = ManyConstructorsBox(i * 2.0, i * 3.0, i)
+        val x27 = ManyConstructorsBox(i + 1L, i * 2, false)
+        val x28 = ClashingConstructorsBox(i * 3.1, i)
+        val x29 = ClashingConstructorsBox(i + 42, i - 3L)
+
         assertEquals(i, x2.value)
         assertEquals(i, x3.value)
         assertEquals(i, x4.value)
@@ -165,5 +171,11 @@ fun runClasses() {
         assertEquals(i * 2, x21_2)
         assertEquals(i, x23)
         assertEquals(i * 2, x24)
+
+        assertEquals(i, x25.value)
+        assertEquals(i * 3.0, x26.value)
+        assertEquals(i + 1L, x27.value)
+        assertEquals(i * 3.1, x28.value)
+        assertEquals(i - 3L, x29.value)
     }
 }

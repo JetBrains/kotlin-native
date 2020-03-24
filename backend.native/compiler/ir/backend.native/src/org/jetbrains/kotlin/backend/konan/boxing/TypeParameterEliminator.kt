@@ -149,8 +149,9 @@ internal class TypeParameterEliminator(private val specializationTransformer: Sp
             TypeParameterEliminatorSymbolRenamer()
     ) {
         private val constructorsCopier = ConstructorsCopier()
-        private val deferredMemberMappings = mutableListOf<Triple<IrDeclaration, IrType, IrDeclaration>>()
-        private val deferredInnerClassConstructorMappings = mutableListOf<Triple<IrConstructor, IrType, IrConstructor>>()
+        private val deferredMemberMappings = mutableListOf<Triple<IrDeclaration, () -> IrType, IrDeclaration>>()
+        private val deferredConstructorMappings = mutableListOf<Triple<IrConstructor, () -> IrType, IrConstructor>>()
+        private val deferredInnerClassConstructorMappings = mutableListOf<Triple<IrConstructor, () -> IrType, IrConstructor>>()
 
         override fun visitClass(declaration: IrClass): IrClass {
             constructorsCopier.prepare(declaration)
@@ -161,8 +162,10 @@ internal class TypeParameterEliminator(private val specializationTransformer: Sp
             return constructorsCopier.visitConstructor(declaration).also {
                 if (declaration.classIfConstructor.let { it is IrClass && it.isInner }) {
                     it.dispatchReceiverParameter?.let { dispatchSpec ->
-                        deferredInnerClassConstructorMappings += Triple(declaration, dispatchSpec.type, it)
+                        deferredInnerClassConstructorMappings += Triple(declaration, { dispatchSpec.type }, it)
                     }
+                } else {
+                    deferredInnerClassConstructorMappings += Triple(declaration, { it.constructedClassType }, it)
                 }
             }
         }
@@ -170,14 +173,15 @@ internal class TypeParameterEliminator(private val specializationTransformer: Sp
         override fun visitSimpleFunction(declaration: IrSimpleFunction): IrSimpleFunction {
             return super.visitSimpleFunction(declaration).withEliminatedTypeParameters(declaration).also {
                 it.dispatchReceiverParameter?.let { dispatchSpec ->
-                    deferredMemberMappings += Triple(declaration, dispatchSpec.type, it)
+                    deferredMemberMappings += Triple(declaration, { dispatchSpec.type }, it)
                 }
             }
         }
 
         fun handleDeferredMembers() {
-            deferredInnerClassConstructorMappings.forEach { (origin, specType, spec) -> IrOriginToSpec.newConstructor(origin, specType, spec) }
-            deferredMemberMappings.forEach { (origin, dispatchSpec, spec) -> IrOriginToSpec.newMember(origin, dispatchSpec, spec) }
+            deferredInnerClassConstructorMappings.forEach { (origin, lazyDispatchSpecType, spec) -> IrOriginToSpec.newConstructor(origin, lazyDispatchSpecType(), spec) }
+            deferredConstructorMappings.forEach { (origin, lazyDispatchSpecType, spec) -> IrOriginToSpec.newConstructor(origin, lazyDispatchSpecType(), spec) }
+            deferredMemberMappings.forEach { (origin, lazyDispatchSpecType, spec) -> IrOriginToSpec.newMember(origin, lazyDispatchSpecType(), spec) }
         }
 
         override fun visitCall(expression: IrCall): IrCall {

@@ -15,7 +15,10 @@ import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.ir.util.addChild
+import org.jetbrains.kotlin.ir.util.constructedClass
+import org.jetbrains.kotlin.ir.util.statements
+import org.jetbrains.kotlin.ir.util.typeSubstitutionMap
 import org.jetbrains.kotlin.types.Variance
 import kotlin.collections.component1
 import kotlin.collections.component2
@@ -142,9 +145,6 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         if (owner.constructedClass.isInner) {
             handleInnerClassConstructor(expression)
         }
-        if (!owner.isPrimary) {
-            return super.visitConstructorCall(expression)
-        }
         val primitiveTypeSubstitutionMap = expression.typeSubstitutionMap
                 .filterValues { it in context.irBuiltIns.primitiveIrTypes }
         if (primitiveTypeSubstitutionMap.size != 1) {
@@ -158,9 +158,8 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
                 context,
                 oldClass.parent
         )
-        val newConstructor = oldClass.getSpecialization(primitiveTypeSubstitutionMap, copier).primaryConstructor!!
-        IrOriginToSpec.newClass(expression.type, newConstructor.returnType)
-        IrOriginToSpec.newConstructor(owner, newConstructor.returnType, newConstructor)
+        val newClass = oldClass.getSpecialization(primitiveTypeSubstitutionMap, copier)
+        IrOriginToSpec.newClass(expression.type, newClass.thisReceiver!!.type)
 
         return super.visitConstructorCall(expression)
     }
