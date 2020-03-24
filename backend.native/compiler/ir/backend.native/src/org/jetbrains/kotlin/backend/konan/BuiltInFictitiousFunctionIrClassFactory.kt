@@ -265,7 +265,7 @@ internal class BuiltInFictitiousFunctionIrClassFactory(
         val fakeOverrideDescriptors = descriptor.unsubstitutedMemberScope.getContributedDescriptors(DescriptorKindFilter.CALLABLES)
                 .filterIsInstance<CallableMemberDescriptor>().filter { it.kind === CallableMemberDescriptor.Kind.FAKE_OVERRIDE }
 
-        fun createFakeOverrideFunction(descriptor: FunctionDescriptor): IrSimpleFunction {
+        fun createFakeOverrideFunction(descriptor: FunctionDescriptor, property: IrPropertySymbol?): IrSimpleFunction {
             val returnType = descriptor.returnType?.let { toIrType(it) } ?: error("No return type for $descriptor")
 
 
@@ -286,6 +286,7 @@ internal class BuiltInFictitiousFunctionIrClassFactory(
             newFunction.dispatchReceiverParameter = descriptor.dispatchReceiverParameter?.let { newFunction.createValueParameter(it) }
             newFunction.extensionReceiverParameter = descriptor.extensionReceiverParameter?.let { newFunction.createValueParameter(it) }
             newFunction.valueParameters = descriptor.valueParameters.map { newFunction.createValueParameter(it) }
+            newFunction.correspondingPropertySymbol = property
 
             return newFunction
         }
@@ -298,8 +299,8 @@ internal class BuiltInFictitiousFunctionIrClassFactory(
                     ?: propertyDeclare(IrPropertySymbolImpl(descriptor))
 
             property.parent = this
-            property.getter = descriptor.getter?.let { g -> createFakeOverrideFunction(g) }
-            property.setter = descriptor.setter?.let { s -> createFakeOverrideFunction(s) }
+            property.getter = descriptor.getter?.let { g -> createFakeOverrideFunction(g, property.symbol) }
+            property.setter = descriptor.setter?.let { s -> createFakeOverrideFunction(s, property.symbol) }
 
             return property
         }
@@ -307,7 +308,7 @@ internal class BuiltInFictitiousFunctionIrClassFactory(
 
         fun createFakeOverride(descriptor: CallableMemberDescriptor): IrDeclaration {
             return when (descriptor) {
-                is FunctionDescriptor -> createFakeOverrideFunction(descriptor)
+                is FunctionDescriptor -> createFakeOverrideFunction(descriptor, null)
                 is PropertyDescriptor -> createFakeOverrideProperty(descriptor)
                 else -> error("Unexpected member $descriptor")
             }
