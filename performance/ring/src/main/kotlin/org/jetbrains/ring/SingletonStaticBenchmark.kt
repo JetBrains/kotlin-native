@@ -6010,8 +6010,14 @@ private object A_9_497 { val a = Random.nextInt(100) }
 private object A_9_498 { val a = Random.nextInt(100) }
 private object A_9_499 { val a = Random.nextInt(100) }
 
+private var singletonInitializeRun = false
 // Benchmark
 fun singletonInitialize(): BenchmarkManualResult {
+    if (singletonInitializeRun) {
+        error("singletonInitialize can only be run once")
+    }
+    singletonInitializeRun = true
+
     var total = 0
     val times = mutableListOf<Double>()
 
@@ -18051,8 +18057,14 @@ private object B_9_497 { val a = B_9_496.a + Random.nextInt(100) }
 private object B_9_498 { val a = B_9_497.a + Random.nextInt(100) }
 private object B_9_499 { val a = B_9_498.a + Random.nextInt(100) }
 
+private var singletonInitializeNestedRun = false
 // Benchmark
 fun singletonInitializeNested(): BenchmarkManualResult {
+    if (singletonInitializeNestedRun) {
+        error("singletonInitializeNested can only be run once")
+    }
+    singletonInitializeNestedRun = true
+
     var total = 0
     val times = mutableListOf<Double>()
 
