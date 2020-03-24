@@ -6,6 +6,7 @@
 package org.jetbrains.ring
 
 import org.jetbrains.benchmarksLauncher.BenchmarkManualResult
+import org.jetbrains.benchmarksLauncher.cleanup
 import org.jetbrains.benchmarksLauncher.measureNanoTime
 
 private object AWarmup_0_0 { val a = Random.nextInt(100) }
@@ -7014,6 +7015,8 @@ fun singletonInitialize(): BenchmarkManualResult {
     total += AWarmup_1_497.a
     total += AWarmup_1_498.a
     total += AWarmup_1_499.a
+    cleanup()
+
     times.add(measureNanoTime {
         total += A_0_0.a
         total += A_0_1.a
@@ -7515,6 +7518,7 @@ fun singletonInitialize(): BenchmarkManualResult {
         total += A_0_497.a
         total += A_0_498.a
         total += A_0_499.a
+        cleanup()
     }.toDouble() / 500)
     times.add(measureNanoTime {
         total += A_1_0.a
@@ -8017,6 +8021,7 @@ fun singletonInitialize(): BenchmarkManualResult {
         total += A_1_497.a
         total += A_1_498.a
         total += A_1_499.a
+        cleanup()
     }.toDouble() / 500)
     times.add(measureNanoTime {
         total += A_2_0.a
@@ -8519,6 +8524,7 @@ fun singletonInitialize(): BenchmarkManualResult {
         total += A_2_497.a
         total += A_2_498.a
         total += A_2_499.a
+        cleanup()
     }.toDouble() / 500)
     times.add(measureNanoTime {
         total += A_3_0.a
@@ -9021,6 +9027,7 @@ fun singletonInitialize(): BenchmarkManualResult {
         total += A_3_497.a
         total += A_3_498.a
         total += A_3_499.a
+        cleanup()
     }.toDouble() / 500)
     times.add(measureNanoTime {
         total += A_4_0.a
@@ -9523,6 +9530,7 @@ fun singletonInitialize(): BenchmarkManualResult {
         total += A_4_497.a
         total += A_4_498.a
         total += A_4_499.a
+        cleanup()
     }.toDouble() / 500)
     times.add(measureNanoTime {
         total += A_5_0.a
@@ -10025,6 +10033,7 @@ fun singletonInitialize(): BenchmarkManualResult {
         total += A_5_497.a
         total += A_5_498.a
         total += A_5_499.a
+        cleanup()
     }.toDouble() / 500)
     times.add(measureNanoTime {
         total += A_6_0.a
@@ -10527,6 +10536,7 @@ fun singletonInitialize(): BenchmarkManualResult {
         total += A_6_497.a
         total += A_6_498.a
         total += A_6_499.a
+        cleanup()
     }.toDouble() / 500)
     times.add(measureNanoTime {
         total += A_7_0.a
@@ -11029,6 +11039,7 @@ fun singletonInitialize(): BenchmarkManualResult {
         total += A_7_497.a
         total += A_7_498.a
         total += A_7_499.a
+        cleanup()
     }.toDouble() / 500)
     times.add(measureNanoTime {
         total += A_8_0.a
@@ -11531,6 +11542,7 @@ fun singletonInitialize(): BenchmarkManualResult {
         total += A_8_497.a
         total += A_8_498.a
         total += A_8_499.a
+        cleanup()
     }.toDouble() / 500)
     times.add(measureNanoTime {
         total += A_9_0.a
@@ -12033,6 +12045,7 @@ fun singletonInitialize(): BenchmarkManualResult {
         total += A_9_497.a
         total += A_9_498.a
         total += A_9_499.a
+        cleanup()
     }.toDouble() / 500)
     return BenchmarkManualResult(total, 2, times)
 }
@@ -18045,35 +18058,47 @@ fun singletonInitializeNested(): BenchmarkManualResult {
 
     total += BWarmup_0_499.a
     total += BWarmup_1_499.a
+    cleanup()
+
     times.add(measureNanoTime {
         total += B_0_499.a
+        cleanup()
     }.toDouble() / 500)
     times.add(measureNanoTime {
         total += B_1_499.a
+        cleanup()
     }.toDouble() / 500)
     times.add(measureNanoTime {
         total += B_2_499.a
+        cleanup()
     }.toDouble() / 500)
     times.add(measureNanoTime {
         total += B_3_499.a
+        cleanup()
     }.toDouble() / 500)
     times.add(measureNanoTime {
         total += B_4_499.a
+        cleanup()
     }.toDouble() / 500)
     times.add(measureNanoTime {
         total += B_5_499.a
+        cleanup()
     }.toDouble() / 500)
     times.add(measureNanoTime {
         total += B_6_499.a
+        cleanup()
     }.toDouble() / 500)
     times.add(measureNanoTime {
         total += B_7_499.a
+        cleanup()
     }.toDouble() / 500)
     times.add(measureNanoTime {
         total += B_8_499.a
+        cleanup()
     }.toDouble() / 500)
     times.add(measureNanoTime {
         total += B_9_499.a
+        cleanup()
     }.toDouble() / 500)
 
     return BenchmarkManualResult(total, 2, times)
