@@ -25,11 +25,7 @@ import org.jetbrains.kotlin.descriptors.konan.isNativeStdlib
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
-import org.jetbrains.kotlin.ir.util.DeclarationStubGenerator
-import org.jetbrains.kotlin.ir.util.SymbolTable
-import org.jetbrains.kotlin.ir.util.addChild
-import org.jetbrains.kotlin.ir.util.addFile
-import org.jetbrains.kotlin.ir.util.file
+import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.psi2ir.Psi2IrConfiguration
@@ -177,6 +173,9 @@ internal val psiToIrPhase = konanUnitPhase(
                     moduleDescriptor, symbolTable,
                     config.configuration.languageVersionSettings
             )
+            val symbols = KonanSymbols(this, symbolTable, symbolTable.lazyWrapper, functionIrClassFactory)
+
+            val irProviderForCEnumsAndCStructs = IrProviderForCEnumAndCStructStubs(generatorContext, interopBuiltIns, symbols)
             val deserializer = KonanIrLinker(
                     moduleDescriptor,
                     functionIrClassFactory,
@@ -185,6 +184,7 @@ internal val psiToIrPhase = konanUnitPhase(
                     symbolTable,
                     forwardDeclarationsModuleDescriptor,
                     stubGenerator,
+                    irProviderForCEnumsAndCStructs,
                     exportedDependencies
             )
 
@@ -209,26 +209,24 @@ internal val psiToIrPhase = konanUnitPhase(
                 dependenciesCount = dependencies.size
             }
 
-            val symbols = KonanSymbols(this, symbolTable, symbolTable.lazyWrapper, functionIrClassFactory)
-
-            val irProviderForCEnumsAndCStructs = IrProviderForCEnumAndCStructStubs(
-                    generatorContext, interopBuiltIns, symbols, llvmModuleSpecification::containsModule
-            )
+//            val symbols = KonanSymbols(this, symbolTable, symbolTable.lazyWrapper, functionIrClassFactory)
+//
+//            val irProviderForCEnumsAndCStructs = IrProviderForCEnumAndCStructStubs(generatorContext, interopBuiltIns, symbols)
             // We need to run `buildAllEnumsAndStructsFrom` before `generateModuleFragment` because it adds references to symbolTable
             // that should be bound.
             modulesWithoutDCE
                     .filter(ModuleDescriptor::isFromInteropLibrary)
                     .forEach(irProviderForCEnumsAndCStructs::buildAllEnumsAndStructsFrom)
-            val irProviderForInteropStubs = IrProviderForInteropStubs(
-                    stubGenerator,
-                    irProviderForCEnumsAndCStructs::canHandleSymbol
-            )
+//            val irProviderForInteropStubs = IrProviderForInteropStubs(
+//                    stubGenerator,
+//                    irProviderForCEnumsAndCStructs::canHandleSymbol
+//            )
             val irProviders = listOf(
-                    irProviderForCEnumsAndCStructs,
-                    irProviderForInteropStubs,
+//                    irProviderForCEnumsAndCStructs,
+//                    irProviderForInteropStubs,
 //                    functionIrClassFactory,
-                    deserializer,
-                    stubGenerator
+                    deserializer
+//                    stubGenerator
             )
             stubGenerator.setIrProviders(irProviders)
 
@@ -252,6 +250,8 @@ internal val psiToIrPhase = konanUnitPhase(
             if (this.stdlibModule in modulesWithoutDCE) {
                 functionIrClassFactory.buildAllClasses()
             }
+
+            stubGenerator.unboundSymbolGeneration = true
 
             module.acceptVoid(ManglerChecker(KonanManglerIr, Ir2DescriptorManglerAdapter(KonanManglerDesc)))
 
