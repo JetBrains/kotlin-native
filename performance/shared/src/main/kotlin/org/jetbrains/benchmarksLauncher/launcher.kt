@@ -28,12 +28,24 @@ abstract class Launcher {
         benchmarks[name] = benchmark
     }
 
-    inline fun measureLambda(repeatNumber: Int, lambda: () -> Any?): Long {
+    fun runBenchmark(benchmarkInstance: Any?, benchmark: AbstractBenchmarkEntry, repeatNumber: Int): Long {
         var i = repeatNumber
-        cleanup()
-        return measureNanoTime {
-            while (i-- > 0) lambda()
+        return if (benchmark is BenchmarkEntryWithInit) {
             cleanup()
+            measureNanoTime {
+                while (i-- > 0) benchmark.lambda(benchmarkInstance!!)
+                cleanup()
+            }
+        } else if (benchmark is BenchmarkEntry) {
+            cleanup()
+            measureNanoTime {
+                while (i-- > 0) benchmark.lambda()
+                cleanup()
+            }
+        } else if (benchmark is BenchmarkEntryManual) {
+            error("runBenchmark cannot run manual benchmark")
+        } else {
+            error("Unknown benchmark type $benchmark")
         }
     }
 
@@ -51,18 +63,19 @@ abstract class Launcher {
         }
     }
 
-    inline fun runBenchmarkRepeatedly(logger: Logger,
+    fun runBenchmarkRepeatedly(logger: Logger,
                                numWarmIterations: Int,
                                numberOfAttempts: Int,
                                name: String,
                                recordMeasurement: RecordTimeMeasurement,
-                               lambda: () -> Any?) {
+                               benchmarkInstance: Any?,
+                               benchmark: AbstractBenchmarkEntry) {
         logger.log("Warm up iterations for benchmark $name\n")
-        measureLambda(numWarmIterations, lambda)
+        runBenchmark(benchmarkInstance, benchmark, numWarmIterations)
         var autoEvaluatedNumberOfMeasureIteration = 1
         while (true) {
             var j = autoEvaluatedNumberOfMeasureIteration
-            val time = measureLambda(j, lambda)
+            val time = runBenchmark(benchmarkInstance, benchmark, j)
             if (time >= 100L * 1_000_000) // 100ms
                 break
             autoEvaluatedNumberOfMeasureIteration *= 2
@@ -71,7 +84,7 @@ abstract class Launcher {
         for (k in 0..numberOfAttempts) {
             logger.log(".", usePrefix = false)
             var i = autoEvaluatedNumberOfMeasureIteration
-            val time = measureLambda(i, lambda)
+            val time = runBenchmark(benchmarkInstance, benchmark, i)
             val scaledTime = time * 1.0 / autoEvaluatedNumberOfMeasureIteration
             // Save benchmark object
             recordMeasurement(k, numWarmIterations, scaledTime)
@@ -92,9 +105,9 @@ abstract class Launcher {
                                        numWarmIterations,
                                        numberOfAttempts,
                                        name,
-                                       recordMeasurement) {
-                    benchmark.lambda(benchmarkInstance!!)
-                }
+                                       recordMeasurement,
+                                       benchmarkInstance,
+                                       benchmark)
             }
             is BenchmarkEntry -> {
                 runBenchmarkRepeatedly(logger,
@@ -102,7 +115,8 @@ abstract class Launcher {
                                        numberOfAttempts,
                                        name,
                                        recordMeasurement,
-                                       benchmark.lambda)
+                                       null,
+                                       benchmark)
             }
             is BenchmarkEntryManual -> {
                 logger.log("Running manual benchmark $name")
