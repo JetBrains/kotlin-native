@@ -138,7 +138,11 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
     }
 
     override fun visitConstructorCall(expression: IrConstructorCall): IrExpression {
-        if (!expression.symbol.owner.isPrimary) {
+        val owner = expression.symbol.owner
+        if (owner.constructedClass.isInner) {
+            handleInnerClassConstructor(expression)
+        }
+        if (!owner.isPrimary) {
             return super.visitConstructorCall(expression)
         }
         val primitiveTypeSubstitutionMap = expression.typeSubstitutionMap
@@ -146,7 +150,7 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         if (primitiveTypeSubstitutionMap.size != 1) {
             return super.visitConstructorCall(expression)
         }
-        val oldClass = expression.symbol.owner.constructedClass
+        val oldClass = owner.constructedClass
         val copier = TypeParameterEliminator(
                 this@SpecializationTransformer,
                 typeParametersMapping,
@@ -156,9 +160,21 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         )
         val newConstructor = oldClass.getSpecialization(primitiveTypeSubstitutionMap, copier).primaryConstructor!!
         IrOriginToSpec.newClass(expression.type, newConstructor.returnType)
-        IrOriginToSpec.newConstructor(expression.symbol.owner, newConstructor.returnType, newConstructor)
+        IrOriginToSpec.newConstructor(owner, newConstructor.returnType, newConstructor)
 
         return super.visitConstructorCall(expression)
+    }
+
+    private fun handleInnerClassConstructor(expression: IrConstructorCall) {
+        val origin = expression.symbol.owner
+        expression.dispatchReceiver?.let { receiver ->
+            IrOriginToSpec.forClass(receiver.type)?.let { receiverType ->
+                IrOriginToSpec.forConstructor(origin, receiverType)?.let {
+                    IrOriginToSpec.newClass(expression.type, it.returnType)
+                    IrOriginToSpec.newConstructor(origin, it.returnType, it)
+                }
+            }
+        }
     }
 
     private inline fun <reified T : IrTypeParametersContainer> T.getSpecialization(primitiveTypeSubstitutionMap: Map<IrTypeParameterSymbol, IrType>, copier: TypeParameterEliminator): T {

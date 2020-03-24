@@ -58,6 +58,24 @@ class BoxWithCustomSetters<T>(val value1: T, val value2: T) {
     }
 }
 
+class BoxWithNestedClass<T>(val outerValue: T) {
+    fun foo(f: Boolean) = if (f) outerValue else Nested(outerValue).foo()
+
+    class Nested<U>(val innerValue: U) {
+        fun foo() = innerValue
+    }
+
+    fun foo2(f: Boolean) = if (f) outerValue else Nested(outerValue).foo()
+}
+
+class BoxWithInnerClass<T>(val outerValue: T) {
+    fun foo(f: Boolean) = if (f) outerValue else Inner(outerValue).foo(f)
+
+    inner class Inner(val innerValue: T) {
+        fun foo(f: Boolean) = if (f) outerValue else innerValue
+    }
+}
+
 @CountBoxings
 fun runClasses() {
     for (i in 1..10) {
@@ -82,5 +100,17 @@ fun runClasses() {
         x13.bar(i + 42)
         val x14 = x13.x
         val x15 = x13.y
+
+        val x16 = BoxWithNestedClass(i)
+        val x17_1 = x16.foo(true) + x16.foo2(false) + x16.outerValue
+        val x17_2 = x16.foo(false) + x16.foo2(true) + x16.outerValue
+        val x18 = BoxWithNestedClass.Nested(i * 2)
+        val x19 = x18.foo() + x18.innerValue
+
+        val x20 = BoxWithInnerClass(i)
+        val x21_1 = x20.foo(true) + x20.outerValue
+        val x21_2 = x20.foo(false) + x20.outerValue
+        val x22 = x20.Inner(i * 2)
+        val x23 = x22.foo(true) + x22.foo(false)
     }
 }

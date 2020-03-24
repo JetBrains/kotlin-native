@@ -150,6 +150,7 @@ internal class TypeParameterEliminator(private val specializationTransformer: Sp
     ) {
         private val constructorsCopier = ConstructorsCopier()
         private val deferredMemberMappings = mutableListOf<Triple<IrDeclaration, IrType, IrDeclaration>>()
+        private val deferredInnerClassConstructorMappings = mutableListOf<Triple<IrConstructor, IrType, IrConstructor>>()
 
         override fun visitClass(declaration: IrClass): IrClass {
             constructorsCopier.prepare(declaration)
@@ -157,7 +158,13 @@ internal class TypeParameterEliminator(private val specializationTransformer: Sp
         }
 
         override fun visitConstructor(declaration: IrConstructor): IrConstructor {
-            return constructorsCopier.getCopied(declaration)
+            return constructorsCopier.visitConstructor(declaration).also {
+                if (declaration.classIfConstructor.let { it is IrClass && it.isInner }) {
+                    it.dispatchReceiverParameter?.let { dispatchSpec ->
+                        deferredInnerClassConstructorMappings += Triple(declaration, dispatchSpec.type, it)
+                    }
+                }
+            }
         }
 
         override fun visitSimpleFunction(declaration: IrSimpleFunction): IrSimpleFunction {
@@ -169,6 +176,7 @@ internal class TypeParameterEliminator(private val specializationTransformer: Sp
         }
 
         fun handleDeferredMembers() {
+            deferredInnerClassConstructorMappings.forEach { (origin, specType, spec) -> IrOriginToSpec.newConstructor(origin, specType, spec) }
             deferredMemberMappings.forEach { (origin, dispatchSpec, spec) -> IrOriginToSpec.newMember(origin, dispatchSpec, spec) }
         }
 
@@ -218,7 +226,7 @@ internal class TypeParameterEliminator(private val specializationTransformer: Sp
                 }
             }
 
-            fun getCopied(oldConstructor: IrConstructor): IrConstructor {
+            fun visitConstructor(oldConstructor: IrConstructor): IrConstructor {
                 if (copiedConstructors.isEmpty()) {
                     copiedConstructors.putAll(constructorsInDelegationOrder.map {
                         it to super@EliminatingCopier.visitConstructor(it).also { ctor ->
