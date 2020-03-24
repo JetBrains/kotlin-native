@@ -78,6 +78,21 @@ class BoxWithInnerClass<T>(val outerValue: T) {
 
 @CountBoxings
 fun runClasses() {
+
+    inline fun assert(value: Boolean, lazyMessage: () -> Any = { "Assertion error" }) {
+        if (!value) {
+            val message = lazyMessage()
+            throw AssertionError(message)
+        }
+    }
+
+    inline fun assertEquals(expectedValue: Any, actualValue: Any, lazyMessage: () -> Any = { "(expected) $expectedValue != $actualValue (actual)" }) {
+        if (expectedValue != actualValue) {
+            val message = lazyMessage()
+            throw AssertionError(message)
+        }
+    }
+
     for (i in 1..10) {
         val x1 = ThatSimpleBox<Int>()
         val x2 = SimpleBox(i)
@@ -88,16 +103,16 @@ fun runClasses() {
 
         val x7 = BoxWithEqls(i)
         val x8 = x7
-        x7.eqls(x8)
-        x8.eqls(x7)
+        val b1 = x7.eqls(x8)
+        val b2 = x8.eqls(x7)
 
         val x9 = BoxWithCustomGetters(i, i + (2 * (i % 2) - 1))
-        val x10 = x9.bar()
+        val b3 = x9.foo()
+        val b4 = x9.bar()
         val x11 = x9.value1
         val x12 = x9.value2
 
         val x13 = BoxWithCustomSetters(i, i + (2 * (i % 2) - 1))
-        x13.bar(i + 42)
         val x14 = x13.x
         val x15 = x13.y
 
@@ -111,6 +126,44 @@ fun runClasses() {
         val x21_1 = x20.foo(true) + x20.outerValue
         val x21_2 = x20.foo(false) + x20.outerValue
         val x22 = x20.Inner(i * 2)
-        val x23 = x22.foo(true) + x22.foo(false)
+        val x23 = x22.foo(true)
+        val x24 = x22.foo(false)
+
+        assertEquals(i, x2.value)
+        assertEquals(i, x3.value)
+        assertEquals(i, x4.value)
+        assertEquals(i, x5.value)
+        assertEquals(i, x6)
+
+        assertEquals(i, x7.value)
+        assertEquals(i, x8.value)
+        assert(b1)
+        assert(b2)
+
+        assert(!b3)
+        assert(b4)
+        assertEquals(i, x11)
+        assertEquals(i + (2 * (i % 2) - 1), x12)
+
+        assertEquals(i, x13.value1)
+        assertEquals(i + (2 * (i % 2) - 1), x13.value2)
+        assertEquals(i, x14)
+        assertEquals(i + (2 * (i % 2) - 1), x15)
+
+        x13.bar(i + 42)
+
+        assertEquals(i, x13.value1)
+        assertEquals(i + (2 * (i % 2) - 1), x13.value2)
+        assertEquals(i + (2 * (i % 2) - 1), x13.x)
+        assertEquals(i + 42, x13.y)
+
+        assertEquals(i * 3, x17_1)
+        assertEquals(i * 3, x17_2)
+        assertEquals(i * 4, x19)
+
+        assertEquals(i * 2, x21_1)
+        assertEquals(i * 2, x21_2)
+        assertEquals(i, x23)
+        assertEquals(i * 2, x24)
     }
 }
