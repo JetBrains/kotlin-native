@@ -3,7 +3,7 @@
  * that can be found in the LICENSE file.
  */
 
-package org.jetbrains.ring
+package org.jetbrains.startup
 
 import org.jetbrains.benchmarksLauncher.BenchmarkManualResult
 import org.jetbrains.benchmarksLauncher.cleanup
