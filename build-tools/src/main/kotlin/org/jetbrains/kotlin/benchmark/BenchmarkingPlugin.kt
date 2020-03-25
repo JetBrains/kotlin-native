@@ -183,11 +183,10 @@ abstract class BenchmarkingPlugin: Plugin<Project> {
             description = "Runs the benchmark for Kotlin/Native."
         }
         afterEvaluate {
-            (konanRun as RunKotlinNativeTask).args(
-                    "-w", nativeWarmup.toString(),
-                    "-r", attempts.toString(),
-                    "-p", "${benchmark.applicationName}::"
-            )
+            val task = konanRun as RunKotlinNativeTask
+            task.args("-p", "${benchmark.applicationName}::")
+            task.warmupCount = nativeWarmup
+            task.repeatCount = attempts
         }
         return konanRun
     }

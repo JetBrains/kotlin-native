@@ -28,6 +28,10 @@ open class RunKotlinNativeTask @Inject constructor(private val linkTask: Task,
     @Input
     @Option(option = "verbose", description = "Verbose mode of running benchmarks")
     var verbose: Boolean = false
+    @Input
+    var warmupCount: Int = 0
+    @Input
+    var repeatCount: Int = 0
 
     private val argumentsList = mutableListOf<String>()
 
@@ -69,6 +73,8 @@ open class RunKotlinNativeTask @Inject constructor(private val linkTask: Task,
                 if (verbose) {
                     it.args("-v")
                 }
+                it.args("-w", warmupCount.toString())
+                it.args("-r", repeatCount.toString())
                 it.standardOutput = output
             }
             output.toString().removePrefix("[").removeSuffix("]")
