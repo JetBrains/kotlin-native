@@ -259,7 +259,7 @@ class ConstructorDelegationPartialOrder(clazz: IrClass) {
         // Breadth-first traversal of dependency tree gives the right order of copying (delegate before)
         fun traverse(root: Node): List<IrConstructor> {
             val queue = LinkedList<Node>()
-            queue.add(root)
+            queue.addAll(root.dependentConstructors)
             val result = mutableListOf<IrConstructor>()
             while (queue.isNotEmpty()) {
                 val current = queue.pop()!!
@@ -270,12 +270,23 @@ class ConstructorDelegationPartialOrder(clazz: IrClass) {
         }
 
         val nodes = constructorsAndDelegates.keys.keysToMap { Node(it) }.toMutableMap()
+
+        // Main constructors are the ones that do not call another constructors
+        // defined in the same class. They can be either without delegates
+        // or with delegation to superclass constructor.
+        val mainConstructors = mutableListOf<IrConstructor>()
         constructorsAndDelegates.forEach { (constructor, delegate) ->
             if (constructor.classIfConstructor === delegate?.classIfConstructor) {
-                nodes[delegate]!!.dependentConstructors.add(nodes[constructor]!!)
+                nodes[delegate]?.dependentConstructors?.add(nodes[constructor]!!)
+            } else {
+                mainConstructors += constructor
             }
         }
-        val root = nodes[constructorsAndDelegates.keys.single { it.isPrimary }]!!
+
+        assert(mainConstructors.isNotEmpty()) { "There must be at least one main constructor" }
+
+        // Root is fake; first parameter is dummy and must not be used anywhere
+        val root = Node(mainConstructors.first(), mainConstructors.map { nodes[it]!! }.toMutableList())
         return traverse(root)
     }
 }
