@@ -7,7 +7,6 @@ package org.jetbrains.kotlin.backend.konan.ir.interop
 import org.jetbrains.kotlin.backend.konan.InteropBuiltIns
 import org.jetbrains.kotlin.backend.konan.descriptors.findPackage
 import org.jetbrains.kotlin.backend.konan.descriptors.getPackageFragments
-import org.jetbrains.kotlin.backend.konan.descriptors.isFromInteropLibrary
 import org.jetbrains.kotlin.backend.konan.ir.KonanSymbols
 import org.jetbrains.kotlin.backend.konan.ir.interop.cenum.CEnumByValueFunctionGenerator
 import org.jetbrains.kotlin.backend.konan.ir.interop.cenum.CEnumClassGenerator
@@ -38,34 +37,18 @@ import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
  *   compiler phases.
  * 2. It is an easier and more obvious approach. Since implementation of metadata-based
  *  libraries generation already took too much time we take an easier approach here.
+ *
+ *  [moduleFilter] -- We want to select modules that should be part of compiler's output.
+ *
+ *  For example, when we generate compiler cache,
+ *  declarations from dependencies should not be added to the current module.
  */
 internal class IrProviderForCEnumAndCStructStubs(
         context: GeneratorContext,
         private val interopBuiltIns: InteropBuiltIns,
         symbols: KonanSymbols,
-        private val generationMode: GenerationMode
+        private val moduleFilter: (ModuleDescriptor) -> Boolean
 ) : IrProvider {
-
-    /**
-     * We want to select modules that should be part of compiler's output.
-     *
-     * For example, when we generate compiler cache,
-     * declarations from dependencies should not be added to the current module.
-     */
-    sealed class GenerationMode {
-        abstract fun shouldGenerate(fragment: PackageFragmentDescriptor): Boolean
-
-        object WholeWorld : GenerationMode() {
-            override fun shouldGenerate(fragment: PackageFragmentDescriptor): Boolean =
-                    true
-        }
-        class SelectedModules(
-                private val modules: List<ModuleDescriptor>
-        ) : GenerationMode() {
-            override fun shouldGenerate(fragment: PackageFragmentDescriptor): Boolean =
-                    fragment.module in modules
-        }
-    }
 
     private val symbolTable: SymbolTable = context.symbolTable
 
@@ -89,12 +72,13 @@ internal class IrProviderForCEnumAndCStructStubs(
             if (field != null)
                 error("Module has already been set")
             field = value
-            value.files += filesMap.filterKeys(generationMode::shouldGenerate).values
+            value.files += filesMap.filterKeys { moduleFilter(it.module) }.values
         }
 
     fun canHandleSymbol(symbol: IrSymbol): Boolean {
         if (!symbol.isPublicApi) return false
         if (symbol.signature.run { !IdSignature.Flags.IS_NATIVE_INTEROP_LIBRARY.test() }) return false
+        if (!moduleFilter(symbol.descriptor.module)) return false
         return symbol.findCEnumDescriptor(interopBuiltIns) != null
                 || symbol.findCStructDescriptor(interopBuiltIns) != null
     }
@@ -139,7 +123,7 @@ internal class IrProviderForCEnumAndCStructStubs(
         val packageFragmentDescriptor = descriptor.findPackage()
         return filesMap.getOrPut(packageFragmentDescriptor) {
             IrFileImpl(NaiveSourceBasedFileEntryImpl(cTypeDefinitionsFileName), packageFragmentDescriptor).also {
-                if (generationMode.shouldGenerate(packageFragmentDescriptor)) {
+                if (moduleFilter(descriptor.module)) {
                     this@IrProviderForCEnumAndCStructStubs.module?.files?.add(it)
                 }
             }
