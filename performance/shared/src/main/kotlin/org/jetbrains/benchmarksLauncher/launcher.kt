@@ -19,7 +19,11 @@ package org.jetbrains.benchmarksLauncher
 import org.jetbrains.report.BenchmarkResult
 import kotlinx.cli.*
 
-typealias RecordTimeMeasurement = (Int, Int, Double) -> Unit
+data class RecordTimeMeasurement(
+    val status: BenchmarkResult.Status,
+    val iteration: Int,
+    val warmupCount: Int,
+    val durationNs: Double)
 
 abstract class Launcher {
     abstract val benchmarks: BenchmarksCollection
@@ -67,7 +71,7 @@ abstract class Launcher {
                                numWarmIterations: Int,
                                numberOfAttempts: Int,
                                name: String,
-                               recordMeasurement: RecordTimeMeasurement,
+                               recordMeasurement: (RecordTimeMeasurement) -> Unit,
                                benchmarkInstance: Any?,
                                benchmark: AbstractBenchmarkEntry) {
         logger.log("Warm up iterations for benchmark $name\n")
@@ -87,7 +91,7 @@ abstract class Launcher {
             val time = runBenchmark(benchmarkInstance, benchmark, i)
             val scaledTime = time * 1.0 / autoEvaluatedNumberOfMeasureIteration
             // Save benchmark object
-            recordMeasurement(k, numWarmIterations, scaledTime)
+            recordMeasurement(RecordTimeMeasurement(BenchmarkResult.Status.PASSED, k, numWarmIterations, scaledTime))
         }
         logger.log("\n", usePrefix = false)
     }
@@ -96,7 +100,7 @@ abstract class Launcher {
                      numWarmIterations: Int,
                      numberOfAttempts: Int,
                      name: String,
-                     recordMeasurement: RecordTimeMeasurement,
+                     recordMeasurement: (RecordTimeMeasurement) -> Unit,
                      benchmark: AbstractBenchmarkEntry) {
         when (benchmark) {
             is BenchmarkEntryWithInit -> {
@@ -122,7 +126,7 @@ abstract class Launcher {
                 logger.log("Running manual benchmark $name")
                 val result = benchmark.lambda()
                 for ((i, durationNs) in result.durationsNs.withIndex()) {
-                    recordMeasurement(i, result.warmupCount, durationNs / 1000)
+                    recordMeasurement(RecordTimeMeasurement(result.status, i, result.warmupCount, durationNs))
                 }
             }
             else -> error("unknown benchmark type $benchmark")
@@ -148,16 +152,21 @@ abstract class Launcher {
         }
         val benchmarkResults = mutableListOf<BenchmarkResult>()
         for ((name, benchmark) in runningBenchmarks) {
-            val recordMeasurement : RecordTimeMeasurement = { iteration: Int, warmupCount: Int, durationNs: Double ->
-                benchmarkResults.add(BenchmarkResult("$prefix$name", BenchmarkResult.Status.PASSED,
-                        durationNs / 1000, BenchmarkResult.Metric.EXECUTION_TIME, durationNs / 1000,
-                        iteration + 1, warmupCount))
+            val recordMeasurement : (RecordTimeMeasurement) -> Unit = {
+                benchmarkResults.add(BenchmarkResult(
+                    "$prefix$name",
+                    it.status,
+                    it.durationNs / 1000,
+                    BenchmarkResult.Metric.EXECUTION_TIME,
+                    it.durationNs / 1000,
+                    it.iteration + 1,
+                    it.warmupCount))
             }
             try {
                 runBenchmark(logger, numWarmIterations, numberOfAttempts, name, recordMeasurement, benchmark)
             } catch (e: Throwable) {
-                printStderr("Failed to run benchmark $name: $e\n")
-                error("Failed to run benchmark $name: $e")
+                printStderr("Failure while running benchmark $name: $e\n")
+                throw e
             }
         }
         return benchmarkResults

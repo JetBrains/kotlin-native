@@ -16,6 +16,8 @@
 
 package org.jetbrains.benchmarksLauncher
 
+import org.jetbrains.report.BenchmarkResult
+
 interface AbstractBenchmarkEntry
 
 class BenchmarkEntryWithInit(val ctor: ()->Any, val lambda: (Any) -> Any?): AbstractBenchmarkEntry {
@@ -27,7 +29,11 @@ class BenchmarkEntryWithInit(val ctor: ()->Any, val lambda: (Any) -> Any?): Abst
 class BenchmarkEntry(val lambda: () -> Any?) : AbstractBenchmarkEntry
 
 // Controls warmup and repeats manually.
-data class BenchmarkManualResult(val value: Any?, val warmupCount: Int, val durationsNs: List<Double>)
+data class BenchmarkManualResult(
+    val status: BenchmarkResult.Status,
+    val value: Any?,
+    val warmupCount: Int,
+    val durationsNs: List<Double>)
 class BenchmarkEntryManual(val lambda: () -> BenchmarkManualResult) : AbstractBenchmarkEntry
 
 class BenchmarksCollection(private val benchmarks: MutableMap<String, AbstractBenchmarkEntry> = mutableMapOf()) :

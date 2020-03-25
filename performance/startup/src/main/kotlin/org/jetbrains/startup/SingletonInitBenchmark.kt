@@ -8,6 +8,7 @@ package org.jetbrains.startup
 import org.jetbrains.benchmarksLauncher.BenchmarkManualResult
 import org.jetbrains.benchmarksLauncher.cleanup
 import org.jetbrains.benchmarksLauncher.measureNanoTime
+import org.jetbrains.report.BenchmarkResult
 
 private object AWarmup_0_0 { val a = Random.nextInt(100) }
 private object AWarmup_0_1 { val a = Random.nextInt(100) }
@@ -6014,7 +6015,7 @@ private var singletonInitializeRun = false
 // Benchmark
 fun singletonInitialize(): BenchmarkManualResult {
     if (singletonInitializeRun) {
-        error("singletonInitialize can only be run once")
+        return BenchmarkManualResult(BenchmarkResult.Status.FAILED, 0, 2, listOf<Double>(0.0))
     }
     singletonInitializeRun = true
 
@@ -12053,7 +12054,7 @@ fun singletonInitialize(): BenchmarkManualResult {
         total += A_9_499.a
         cleanup()
     }.toDouble() / 500)
-    return BenchmarkManualResult(total, 2, times)
+    return BenchmarkManualResult(BenchmarkResult.Status.PASSED, total, 2, times)
 }
 
 private object BWarmup_0_0 { val a = Random.nextInt(100) }
@@ -18061,7 +18062,7 @@ private var singletonInitializeNestedRun = false
 // Benchmark
 fun singletonInitializeNested(): BenchmarkManualResult {
     if (singletonInitializeNestedRun) {
-        error("singletonInitializeNested can only be run once")
+        return BenchmarkManualResult(BenchmarkResult.Status.FAILED, 0, 2, listOf<Double>(0.0))
     }
     singletonInitializeNestedRun = true
 
@@ -18113,5 +18114,5 @@ fun singletonInitializeNested(): BenchmarkManualResult {
         cleanup()
     }.toDouble() / 500)
 
-    return BenchmarkManualResult(total, 2, times)
+    return BenchmarkManualResult(BenchmarkResult.Status.PASSED, total, 2, times)
 }
