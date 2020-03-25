@@ -77,6 +77,7 @@ open class RunKotlinNativeTask @Inject constructor(private val linkTask: Task,
         }
         val result = mutableListOf<String>()
         for (i in 0..repeatCount) {
+            // TODO: Modify warmup and iteration in the resulting json.
             result.add(execBenchmarkOnce(benchmark, 0, 1))
         }
         return result
