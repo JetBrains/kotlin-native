@@ -209,14 +209,8 @@ internal val psiToIrPhase = konanUnitPhase(
                     moduleDescriptor, symbolTable,
                     config.configuration.languageVersionSettings
             )
-
-            val moduleFilter = if (llvmModuleSpecification.isFinal) {
-                llvmModuleSpecification::containsModule
-            } else {
-                modulesWithoutDCE::contains
-            }
             val irProviderForCEnumsAndCStructs = IrProviderForCEnumAndCStructStubs(
-                    generatorContext, interopBuiltIns, symbols, moduleFilter
+                    generatorContext, interopBuiltIns, symbols, llvmModuleSpecification::containsModule
             )
             // We need to run `buildAllEnumsAndStructsFrom` before `generateModuleFragment` because it adds references to symbolTable
             // that should be bound.
