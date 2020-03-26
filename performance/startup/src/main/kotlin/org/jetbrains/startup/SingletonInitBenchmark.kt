@@ -1021,7 +1021,7 @@ fun singletonInitialize(): BenchmarkManualResult {
         total += A497.a
         total += A498.a
         total += A499.a
-    }.toDouble() / 500)
+    }.toDouble() / 500
 
     return BenchmarkManualResult(BenchmarkResult.Status.PASSED, total, 0, listOf(time))
 }
@@ -1538,7 +1538,7 @@ fun singletonInitializeNested(): BenchmarkManualResult {
     var total = 0
     val time = measureNanoTime {
         total = B499.a
-    }.toDouble() / BENCHMARK_SIZE
+    }.toDouble() / 500
 
     return BenchmarkManualResult(BenchmarkResult.Status.PASSED, total, 0, listOf(time))
 }
