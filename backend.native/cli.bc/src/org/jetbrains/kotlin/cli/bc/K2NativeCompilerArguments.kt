@@ -237,6 +237,9 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     @Argument(value = "-Xextra-boxing-elimination", description = "Enable redundant boxing elimination")
     var extraBoxingElimination: Boolean = false
 
+    @Argument(value = "-Xopt-nullchecks", description = "Optimize null checks")
+    var optimizeNullChecks: Boolean = false
+
     override fun configureAnalysisFlags(collector: MessageCollector): MutableMap<AnalysisFlag<*>, Any> =
             super.configureAnalysisFlags(collector).also {
                 val useExperimental = it[AnalysisFlags.useExperimental] as List<*>

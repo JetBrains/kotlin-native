@@ -130,6 +130,8 @@ class KonanConfigKeys {
                 = CompilerConfigurationKey.create("print calls to box operations to console")
         val EXTRA_BOXING_ELIMINATION: CompilerConfigurationKey<Boolean>
                 = CompilerConfigurationKey.create("remove redundant boxings")
+        val OPT_NULLCHECK: CompilerConfigurationKey<Boolean>
+                = CompilerConfigurationKey.create("optimize nullchecks")
     }
 }
 

@@ -34,5 +34,6 @@ expect class Blackhole {
     companion object {
         var consumer: Int
         fun consume(value: Any)
+        fun consumeInt(value: Int)
     }
 }

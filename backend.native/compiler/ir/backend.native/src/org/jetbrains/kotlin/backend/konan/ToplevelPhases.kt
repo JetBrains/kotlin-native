@@ -465,5 +465,7 @@ internal fun PhaseConfig.konanPhasesConfig(config: KonanConfig) {
         disableUnless(countBoxingsPhase, getBoolean(KonanConfigKeys.COUNT_BOX_OPERATIONS))
         disableUnless(genericsSpecializationPhase, getBoolean(KonanConfigKeys.EXTRA_BOXING_ELIMINATION))
         disableUnless(replaceOriginsWithSpecializationsPhase, getBoolean(KonanConfigKeys.EXTRA_BOXING_ELIMINATION))
+
+        disableUnless(nullChecksPhase, getBoolean(KonanConfigKeys.OPT_NULLCHECK))
     }
 }

@@ -15,10 +15,8 @@
  */
 
 
-import org.jetbrains.ring.*
-import octoTest
 import org.jetbrains.benchmarksLauncher.*
-import kotlinx.cli.*
+import org.jetbrains.ring.*
 
 class RingLauncher : Launcher() {
 
@@ -76,7 +74,11 @@ class RingLauncher : Launcher() {
                     "DefaultArgument.testFourOfFour" to BenchmarkEntryWithInit.create(::DefaultArgumentBenchmark, { testFourOfFour() }),
                     "DefaultArgument.testOneOfEight" to BenchmarkEntryWithInit.create(::DefaultArgumentBenchmark, { testOneOfEight() }),
                     "DefaultArgument.testEightOfEight" to BenchmarkEntryWithInit.create(::DefaultArgumentBenchmark, { testEightOfEight() }),
-                    "Elvis.testElvis" to BenchmarkEntryWithInit.create(::ElvisBenchmark, { testElvis() }),
+                    "Elvis.testSingleCallChainOnLhs" to BenchmarkEntryWithInit.create(::ElvisBenchmark, { testElvis1() }),
+                    "Elvis.testDoubleCallChainOnLhs" to BenchmarkEntryWithInit.create(::ElvisBenchmark, { testElvis2() }),
+                    "Elvis.testTripleCallChainOnLhs" to BenchmarkEntryWithInit.create(::ElvisBenchmark, { testElvis3() }),
+                    "Elvis.testElvisWithNonNullLhs" to BenchmarkEntryWithInit.create(::ElvisBenchmark, { testUnnecessaryElvis1() }),
+                    "Elvis.testElvisWithNonNullLhsAfterInline" to BenchmarkEntryWithInit.create(::ElvisBenchmark, { testUnnecessaryElvis2() }),
                     "Euler.problem1bySequence" to BenchmarkEntryWithInit.create(::EulerBenchmark, { problem1bySequence() }),
                     "Euler.problem1" to BenchmarkEntryWithInit.create(::EulerBenchmark, { problem1() }),
                     "Euler.problem2" to BenchmarkEntryWithInit.create(::EulerBenchmark, { problem2() }),

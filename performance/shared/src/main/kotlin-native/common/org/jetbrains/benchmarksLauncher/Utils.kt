@@ -16,9 +16,9 @@
 
 package org.jetbrains.benchmarksLauncher
 
-import kotlin.native.internal.GC
-import platform.posix.*
 import kotlinx.cinterop.*
+import platform.posix.*
+import kotlin.native.internal.GC
 
 actual fun writeToFile(fileName: String, text: String) {
     val file = fopen(fileName, "wt") ?: error("Cannot write file '$fileName'")
@@ -57,6 +57,9 @@ actual class Blackhole {
         actual var consumer = 0
         actual fun consume(value: Any) {
             consumer += value.hashCode()
+        }
+        actual fun consumeInt(value: Int) {
+            consumer += value
         }
     }
 }

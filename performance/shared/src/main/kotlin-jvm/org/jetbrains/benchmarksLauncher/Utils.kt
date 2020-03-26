@@ -18,7 +18,7 @@ package org.jetbrains.benchmarksLauncher
 
 import java.io.File
 import java.text.SimpleDateFormat
-import java.util.Date
+import java.util.*
 
 actual fun writeToFile(fileName: String, text: String) {
     File(fileName).printWriter().use { out ->
@@ -52,6 +52,9 @@ actual class Blackhole {
         actual var consumer = 0
         actual fun consume(value: Any) {
             consumer += value.hashCode()
+        }
+        actual fun consumeInt(value: Int) {
+            consumer += value
         }
     }
 }
