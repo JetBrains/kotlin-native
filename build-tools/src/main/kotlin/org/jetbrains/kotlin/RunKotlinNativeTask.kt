@@ -8,6 +8,7 @@ package org.jetbrains.kotlin
 import org.gradle.api.DefaultTask
 import org.gradle.api.Task
 import org.jetbrains.kotlin.gradle.tasks.KotlinNativeLink
+import org.jetbrains.report.json.*
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.options.Option
 import org.gradle.api.tasks.Input
@@ -77,8 +78,12 @@ open class RunKotlinNativeTask @Inject constructor(private val linkTask: Task,
         }
         val result = mutableListOf<String>()
         for (i in 0..repeatCount) {
-            // TODO: Modify warmup and iteration in the resulting json.
-            result.add(execBenchmarkOnce(benchmark, 0, 1))
+            val benchmarkReport = JsonTreeParser.parse(execBenchmarkOnce(benchmark, 0, 1)).jsonObject
+            val modifiedBenchmarkReport = JsonObject(HashMap(benchmarkReport.content).apply {
+                put("repeat", JsonLiteral(i))
+                put("warmup", JsonLiteral(warmupCount))
+            })
+            result.add(modifiedBenchmarkReport.toString())
         }
         return result
     }
