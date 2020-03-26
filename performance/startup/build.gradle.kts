@@ -1,4 +1,5 @@
 import org.jetbrains.kotlin.gradle.plugin.mpp.NativeBuildType
+import org.jetbrains.kotlin.RunKotlinNativeTask
 
 /*
  * Copyright 2010-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
@@ -19,7 +20,7 @@ benchmark {
     mingwSrcDirs = listOf("src/main/kotlin-native", "../shared/src/main/kotlin-native/mingw")
     posixSrcDirs = listOf("src/main/kotlin-native", "../shared/src/main/kotlin-native/posix")
     buildType = (findProperty("nativeBuildType") as String?)?.let { NativeBuildType.valueOf(it) } ?: defaultBuildType
-    repeatExternally = true
+    repeatingType = RunKotlinNativeTask.RepeatingType.EXTERNAL
 
     dependencies.common(project(":endorsedLibraries:kotlinx.cli"))
 }
