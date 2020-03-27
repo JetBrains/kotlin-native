@@ -86,6 +86,9 @@ internal class EnumUsageLowering(val context: Context)
 
     override fun visitGetEnumValue(expression: IrGetEnumValue): IrExpression {
         val entry = expression.symbol.owner
+        if (!context.llvmModuleSpecification.containsDeclaration(entry)) {
+            return expression
+        }
         return loadEnumEntry(
                 expression.startOffset,
                 expression.endOffset,
@@ -111,6 +114,10 @@ internal class EnumUsageLowering(val context: Context)
         }
 
         val irClass = irClassSymbol.owner
+
+        if (!context.llvmModuleSpecification.containsDeclaration(irClass)) {
+            return expression
+        }
 
         assert (irClass.kind == ClassKind.ENUM_CLASS)
 

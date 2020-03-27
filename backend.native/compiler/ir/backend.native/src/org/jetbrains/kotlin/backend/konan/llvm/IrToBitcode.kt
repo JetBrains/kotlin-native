@@ -873,6 +873,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                                         return evaluateSuspendableExpression  (value)
             is IrSuspensionPoint     -> return evaluateSuspensionPoint        (value)
             is IrClassReference ->      return evaluateClassReference         (value)
+            is IrGetEnumValue ->        return evaluateGetEnumValue           (value)
             else                     -> {
                 TODO(ir2string(value))
             }
@@ -2124,6 +2125,10 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     private fun evaluateClassReference(classReference: IrClassReference): LLVMValueRef {
         val typeInfoPtr = codegen.typeInfoValue(classReference.symbol.owner as IrClass)
         return functionGenerationContext.bitcast(int8TypePtr, typeInfoPtr)
+    }
+
+    private fun evaluateGetEnumValue(getEnumValue: IrGetEnumValue): LLVMValueRef {
+        return functionGenerationContext.getEnumEntry(getEnumValue.symbol.owner, ExceptionHandler.Caller)
     }
 
     //-------------------------------------------------------------------------//

@@ -21,6 +21,7 @@ import org.jetbrains.kotlin.descriptors.konan.CompiledKlibModuleOrigin
 import org.jetbrains.kotlin.ir.expressions.IrDelegatingConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrGetObjectValue
 import org.jetbrains.kotlin.ir.expressions.IrReturn
+import org.jetbrains.kotlin.name.Name
 
 private fun IrConstructor.isAnyConstructorDelegation(context: Context): Boolean {
         val statements = this.body?.statements ?: return false
@@ -961,9 +962,20 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
      */
     fun getEnumEntry(enumEntry: IrEnumEntry, exceptionHandler: ExceptionHandler): LLVMValueRef {
         val enumClass = enumEntry.parentAsClass
+
+        if (!context.llvmModuleSpecification.containsDeclaration(enumClass)) {
+            val valueOf = enumClass.functions.first { it.name == Name.identifier("valueOf") }
+            return call(
+                    valueOf.llvmFunction,
+                    listOf(context.llvm.staticData.kotlinStringLiteral(enumEntry.name.asString()).llvm),
+                    Lifetime.GLOBAL,
+                    exceptionHandler
+            )
+        }
+
         val loweredEnum = context.specialDeclarationsFactory.getLoweredEnum(enumClass)
 
-        val ordinal = loweredEnum.entriesMap[enumEntry.name]!!
+        val ordinal = loweredEnum.entriesMap.getValue(enumEntry.name)
         val values = call(
                 loweredEnum.valuesGetter.llvmFunction,
                 emptyList(),

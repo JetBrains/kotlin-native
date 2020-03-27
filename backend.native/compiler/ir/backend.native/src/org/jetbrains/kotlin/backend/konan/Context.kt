@@ -101,6 +101,7 @@ internal class SpecialDeclarationsFactory(val context: Context) {
         }
 
     fun getLoweredEnum(enumClass: IrClass): LoweredEnum {
+        assert(context.llvmModuleSpecification.containsDeclaration(enumClass)) { "Tried to lower external enum: ${enumClass.descriptor}" }
         assert(enumClass.kind == ClassKind.ENUM_CLASS) { "Expected enum class but was: ${enumClass.descriptor}" }
         return loweredEnums.getOrPut(enumClass) {
             enumSpecialDeclarationsFactory.createLoweredEnum(enumClass)
