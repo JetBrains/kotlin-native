@@ -144,6 +144,9 @@ internal class KonanSymbols(
     val interopCOpaque = symbolTable.referenceClass(context.interopBuiltIns.cOpaque)
     val interopObjCObject = symbolTable.referenceClass(context.interopBuiltIns.objCObject)
     val interopObjCObjectBase = symbolTable.referenceClass(context.interopBuiltIns.objCObjectBase)
+    // Very nasty hack.
+    val interopCEnum = interopClass("CEnum")
+    val interopCStructVar = interopClass("CStructVar")
 
     val interopObjCRelease = interopFunction("objc_release")
 
