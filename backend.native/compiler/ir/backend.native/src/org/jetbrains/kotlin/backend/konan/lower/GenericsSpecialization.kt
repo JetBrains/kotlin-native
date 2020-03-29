@@ -14,7 +14,9 @@ import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
+import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.util.addChild
 import org.jetbrains.kotlin.ir.util.constructedClass
 import org.jetbrains.kotlin.ir.util.statements
@@ -114,13 +116,34 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         }
     }
 
+    override fun visitExpression(expression: IrExpression): IrExpression {
+        if (expression !is IrFunctionExpression) {
+            return super.visitExpression(expression)
+        }
+        val expressionType = expression.type
+        val target = expressionType.getClass()
+        val primitiveTypeSubstitutionMap = expressionType.calculatePrimitiveTypeSubstitutionMap(target)
+        if (primitiveTypeSubstitutionMap.isNotEmpty()) {
+            val copier = TypeParameterEliminator(
+                    this@SpecializationTransformer,
+                    typeParametersMapping,
+                    encoder,
+                    context,
+                    target!!.parent
+            )
+            val specialization = target.getSpecialization(primitiveTypeSubstitutionMap, copier)
+            IrOriginToSpec.newClass(expressionType, specialization.thisReceiver!!.type)
+        }
+        return super.visitExpression(expression)
+    }
+
     override fun visitCall(expression: IrCall): IrExpression {
         if (expression.typeArgumentsCount != 1 || expression.getTypeArgument(0) !in context.irBuiltIns.primitiveIrTypes) {
             return super.visitCall(expression)
         }
         val primitiveTypeArgument = expression.getTypeArgument(0)!!
         val owner: IrFunction = expression.symbol.owner
-        if (owner.isInline || owner.typeParameters.size != 1) {
+        if (owner.typeParameters.size != 1) {
             return super.visitCall(expression)
         }
         val typeParameter = owner.typeParameters.first()
@@ -136,6 +159,21 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
         )
         val newFunction = owner.getSpecialization(primitiveTypeArgument, copier)
         IrOriginToSpec.newFunction(owner, encoder.decode(newFunction.name.asString()), newFunction)
+
+        val returnType = expression.type
+        val target = returnType.getClass()
+        val primitiveTypeSubstitutionMap = returnType.calculatePrimitiveTypeSubstitutionMap(target)
+        if (primitiveTypeSubstitutionMap.isNotEmpty()) {
+            val copier1 = TypeParameterEliminator(
+                    this@SpecializationTransformer,
+                    typeParametersMapping,
+                    encoder,
+                    context,
+                    target!!.parent
+            )
+            val specialization = target.getSpecialization(primitiveTypeSubstitutionMap, copier1)
+            IrOriginToSpec.newClass(expression.type, specialization.thisReceiver!!.type)
+        }
 
         return super.visitCall(expression)
     }
@@ -250,5 +288,38 @@ internal class SpecializationTransformer(val context: Context): IrBuildingTransf
             }
         }
         newSpecializations[parent]?.clear()
+    }
+
+    private fun IrType.calculatePrimitiveTypeSubstitutionMap(target: IrTypeParametersContainer?): Map<IrTypeParameterSymbol, IrType> {
+        if (this !is IrSimpleType || target == null) {
+            return emptyMap()
+        }
+        val typeParameters = target.typeParameters
+        val typeArguments = (this as IrSimpleType).arguments
+
+        // Not fail here on typeArguments.size > typeParameters.size
+        // is intentional, because expression can have original type
+        // and target can be specialization with erased type parameters.
+        // This is possible since original types are replaced on the
+        // subsequent lowering (ReplaceOriginsWithSpecializationsLowering).
+        require(typeArguments.size >= typeParameters.size)
+
+        if (typeArguments.size != typeParameters.size) {
+            return emptyMap()
+        }
+
+        // TODO remove during support of >1 type arguments in specializing declarations
+        if (typeParameters.size != 1) {
+            return emptyMap()
+        }
+
+        return typeParameters.zip(typeArguments)
+                .filter { (_, argument) ->
+                    argument is IrType && argument in context.irBuiltIns.primitiveIrTypes
+                }
+                .map { (parameter, argument) ->
+                    parameter.symbol to argument as IrType
+                }
+                .toMap()
     }
 }

@@ -86,6 +86,12 @@ class BoxWithCompanion<T>(val value: T) {
     }
 }
 
+class BoxWithLambda<T>(val factory: () -> T) {
+    fun next(): T {
+        return factory()
+    }
+}
+
 @CountBoxings
 fun runClasses() {
 
@@ -147,6 +153,8 @@ fun runClasses() {
 
         val x30 = BoxWithCompanion(i)
 
+        val x31 = BoxWithLambda { i }
+
         assertEquals(i, x2.value)
         assertEquals(i, x3.value)
         assertEquals(i, x4.value)
@@ -193,5 +201,9 @@ fun runClasses() {
         assertEquals(i, x30.value)
         assertEquals(53, BoxWithCompanion.Companion.bar(x30))
         assertEquals(53, x30.foo())
+
+        assertEquals(i, x31.next())
+        assertEquals(i, x31.next())
+        assertEquals(i, x31.next())
     }
 }
