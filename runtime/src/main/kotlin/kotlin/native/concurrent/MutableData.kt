@@ -9,7 +9,7 @@ import kotlin.native.internal.*
 import kotlinx.cinterop.*
 
 @SymbolName("Kotlin_Any_share")
-internal external fun Any.share()
+external private fun Any.share()
 
 @SymbolName("Kotlin_CPointer_CopyMemory")
 external private fun CopyMemory(to: COpaquePointer?, from: COpaquePointer?, count: Int)
