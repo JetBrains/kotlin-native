@@ -50,6 +50,11 @@ internal class NewGenericsSpecialization(val context: Context) : FileLoweringPas
             }
         }
 
+        override fun visitClass(declaration: IrClass): IrStatement {
+            declaration.produceSpecializations()
+            return super.visitClass(declaration)
+        }
+
         override fun visitFunction(declaration: IrFunction): IrStatement {
             declaration.produceSpecializations()
             return super.visitFunction(declaration)
