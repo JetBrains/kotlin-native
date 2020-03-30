@@ -7,46 +7,26 @@ package org.jetbrains.kotlin
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.Task
+import org.jetbrains.kotlin.benchmark.Logger
+import org.jetbrains.kotlin.benchmark.LogLevel
 import org.jetbrains.report.json.*
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.options.Option
 import org.gradle.api.tasks.Input
 import java.io.ByteArrayOutputStream
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.*
 import javax.inject.Inject
 import kotlin.collections.HashMap
 
-enum class LogLevel { DEBUG, OFF }
-
-class Logger(val level: LogLevel = LogLevel.OFF) {
-    private fun printStderr(message: String) {
-        System.err.print(message)
-    }
-
-    private fun currentTime(): String =
-            SimpleDateFormat("HH:mm:ss").format(Date())
-
-    fun log(message: String, messageLevel: LogLevel = LogLevel.DEBUG, usePrefix: Boolean = true) {
-        if (messageLevel == level) {
-            if (usePrefix) {
-                printStderr("[$level][${currentTime()}] $message")
-            } else {
-                printStderr("$message")
-            }
-        }
-    }
+enum class BenchmarkRepeatingType {
+    INTERNAL,  // Let the benchmark perform warmups and repeats.
+    EXTERNAL,  // Repeat by relaunching benchmark
 }
 
 open class RunKotlinNativeTask @Inject constructor(private val linkTask: Task,
                                                    private val executable: String,
                                                    private val outputFileName: String
 ) : DefaultTask() {
-    enum class RepeatingType {
-        INTERNAL,  // Let the benchmark perform warmups and repeats.
-        EXTERNAL,  // Repeat by relaunching benchmark
-    }
 
     @Input
     @Option(option = "filter", description = "Benchmarks to run (comma-separated)")
@@ -62,7 +42,7 @@ open class RunKotlinNativeTask @Inject constructor(private val linkTask: Task,
     @Input
     var repeatCount: Int = 0
     @Input
-    var repeatingType = RepeatingType.INTERNAL
+    var repeatingType = BenchmarkRepeatingType.INTERNAL
 
     private val argumentsList = mutableListOf<String>()
 
@@ -85,7 +65,7 @@ open class RunKotlinNativeTask @Inject constructor(private val linkTask: Task,
             it.executable = executable
             it.args(argumentsList)
             it.args("-f", benchmark)
-            if (verbose && repeatingType == RepeatingType.INTERNAL) {
+            if (verbose && repeatingType == BenchmarkRepeatingType.INTERNAL) {
                 it.args("-v")
             }
             it.args("-w", warmupCount.toString())
@@ -103,7 +83,7 @@ open class RunKotlinNativeTask @Inject constructor(private val linkTask: Task,
         }
         val result = mutableListOf<String>()
         logger.log("Running benchmark $benchmark ")
-        for (i in 0..repeatCount) {
+        for (i in 0.until(repeatCount)) {
             logger.log(".", usePrefix = false)
             val benchmarkReport = JsonTreeParser.parse(execBenchmarkOnce(benchmark, 0, 1)).jsonObject
             val modifiedBenchmarkReport = JsonObject(HashMap(benchmarkReport.content).apply {
@@ -134,8 +114,8 @@ open class RunKotlinNativeTask @Inject constructor(private val linkTask: Task,
 
         val results = benchmarksToRun.flatMap { benchmark ->
             when (repeatingType) {
-                RepeatingType.INTERNAL -> listOf(execBenchmarkOnce(benchmark, warmupCount, repeatCount))
-                RepeatingType.EXTERNAL -> execBenchmarkRepeatedly(benchmark, warmupCount, repeatCount)
+                BenchmarkRepeatingType.INTERNAL -> listOf(execBenchmarkOnce(benchmark, warmupCount, repeatCount))
+                BenchmarkRepeatingType.EXTERNAL -> execBenchmarkRepeatedly(benchmark, warmupCount, repeatCount)
             }
         }
 
