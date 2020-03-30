@@ -1,73 +1,76 @@
 package samples
 
+import kotlin.native.Specialized
+import kotlin.native.SpecializedClass
 import org.jetbrains.ring.CountBoxings
 
-fun <U> id__(x: U) = x
+fun <@Specialized(forTypes = [Int::class]) U> id__(x: U) = x
 
 fun idLocal(x: Int): Int {
-    fun <T> localId__(t: T) = t
+    fun <@Specialized(forTypes = [Int::class]) T> localId__(t: T) = t
     return localId__(x)
 }
 
 interface Foo {
-    fun <T> anonId__(x: T): T
+    fun <@Specialized(forTypes = [Int::class]) T> anonId__(x: T): T
 }
 
 fun idAnonymous(x: Int): Int {
     val f = object : Foo {
-        override fun <T> anonId__(x: T): T = x
+        override fun <@Specialized(forTypes = [Int::class]) T> anonId__(x: T): T = x
     }
     return f.anonId__(x)
 }
 
-fun <T> idLocal2__(x: T): T {
-    fun <U> localId__(u: U) = x
+fun <@Specialized(forTypes = [Int::class]) T> idLocal2__(x: T): T {
+    fun <@Specialized(forTypes = [Int::class]) U> localId__(u: U) = x
     val f = 1
     return localId__(f)
 }
 
-fun <T> idLocal3__(x: T): T {
-    fun <U> localId1__(u: U) = u
-    fun <V> localId2__(v: V) = localId1__(v)
-    fun <W> localId3__(w: W) = localId2__(w)
+fun <@Specialized(forTypes = [Int::class]) T> idLocal3__(x: T): T {
+    fun <@Specialized(forTypes = [Int::class]) U> localId1__(u: U) = u
+    fun <@Specialized(forTypes = [Int::class]) V> localId2__(v: V) = localId1__(v)
+    fun <@Specialized(forTypes = [Int::class]) W> localId3__(w: W) = localId2__(w)
     return localId3__(x)
 }
 
-fun <T> idDelegate__(x: T) = idLocal2__(x)
-fun <T> idDelegate2__(x: T) = idDelegate__(x)
-fun <T> idDelegate3__(x: T) = idDelegate2__(x)
+fun <@Specialized(forTypes = [Int::class]) T> idDelegate__(x: T) = idLocal2__(x)
+fun <@Specialized(forTypes = [Int::class]) T> idDelegate2__(x: T) = idDelegate__(x)
+fun <@Specialized(forTypes = [Int::class]) T> idDelegate3__(x: T) = idDelegate2__(x)
 
-fun <T> idMixDelegate3__(x: T) = idMixDelegate2__(x)
-fun <T> idMixDelegate1__(x: T) = idDelegate__(x)
-fun <T> idMixDelegate2__(x: T) = idMixDelegate1__(x)
+fun <@Specialized(forTypes = [Int::class]) T> idMixDelegate3__(x: T) = idMixDelegate2__(x)
+fun <@Specialized(forTypes = [Int::class]) T> idMixDelegate1__(x: T) = idDelegate__(x)
+fun <@Specialized(forTypes = [Int::class]) T> idMixDelegate2__(x: T) = idMixDelegate1__(x)
 
-fun <R> idManyTypes1__(x: R): R {
+fun <@Specialized(forTypes = [Int::class, Byte::class, Short::class]) R> idManyTypes1__(x: R): R {
     return id__(x)
 }
 
-fun <R> idManyTypes2__(x: R): R {
+fun <@Specialized(forTypes = [Int::class, Byte::class, Short::class]) R> idManyTypes2__(x: R): R {
     return object : Foo {
-        override fun <T> anonId__(x: T): T = idManyTypes1__(x)
+        override fun <@Specialized(forTypes = [Int::class, Byte::class]) T> anonId__(x: T): T = idManyTypes1__(x)
     }.anonId__(x)
 }
 
-fun <R> idManyTypes3__(x: R): R {
+fun <@Specialized(forTypes = [Int::class, Byte::class, Short::class]) R> idManyTypes3__(x: R): R {
     return object : Foo {
-        override fun <T> anonId__(x: T): T = libid__(x)
+        override fun <@Specialized(forTypes = [Int::class, Byte::class, Short::class]) T> anonId__(x: T): T = libid__(x)
     }.anonId__(x)
 }
 
+@SpecializedClass(forTypes = [Int::class, Byte::class, Short::class])
 interface GenericFoo<T> {
     fun id__(x: T): T
 }
 
-fun <R> idManyTypes4__(x: R): R {
+fun <@Specialized(forTypes = [Int::class, Byte::class, Short::class]) R> idManyTypes4__(x: R): R {
     return object : GenericFoo<R> {
         override fun id__(x: R): R = idManyTypes1__(x)
     }.id__(x)
 }
 
-fun <R> idManyTypes5__(x: R): R {
+fun <@Specialized(forTypes = [Int::class, Byte::class, Short::class]) R> idManyTypes5__(x: R): R {
     return object : GenericFoo<R> {
         override fun id__(x: R): R = idManyTypes4__(x)
     }.id__(x)

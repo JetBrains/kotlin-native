@@ -137,11 +137,16 @@ internal class NewTypeParameterEliminator(private val specializationTransformer:
 
         override fun visitSimpleFunction(declaration: IrSimpleFunction): IrSimpleFunction {
             return super.visitSimpleFunction(declaration).withEliminatedTypeParameters(declaration).also {
-                val types = localTypeParameterMapping.values.toList()
+                val types = encoder.decode(it.name.asString())
                 IrOriginToSpec.newFunction(declaration, types, it)
-                it.overriddenSymbols.replaceAll {
-                    IrOriginToSpec.forFunction(it.owner, types)?.symbol as? IrSimpleFunctionSymbol
-                            ?: it
+                // Assumed that non-encoded function name can belong only to non-specialized variant,
+                // and hence it has correct overriding methods info.
+                // TODO consider this condition when errors with inconsistent methods table will occur.
+                if (types.isNotEmpty()) {
+                    it.overriddenSymbols.replaceAll {
+                        IrOriginToSpec.forFunction(it.owner, types)?.symbol as? IrSimpleFunctionSymbol
+                                ?: it
+                    }
                 }
             }
         }
