@@ -1,10 +1,11 @@
 package samples
 
+import kotlin.native.Specialized
 import org.jetbrains.ring.CountBoxings
 
-fun <U> libid__(x: U) = x
+fun <@Specialized(forTypes = [Int::class]) U> libid__(x: U) = x
 
-fun <T> libeqls__(x: T, y: T) = x == y
+fun <@Specialized(forTypes = [Int::class]) T> libeqls__(x: T, y: T) = x == y
 
 @CountBoxings
 fun runLib(): Int {
