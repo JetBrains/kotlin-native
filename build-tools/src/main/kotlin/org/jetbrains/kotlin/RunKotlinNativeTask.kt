@@ -7,14 +7,37 @@ package org.jetbrains.kotlin
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.Task
-import org.jetbrains.kotlin.gradle.tasks.KotlinNativeLink
 import org.jetbrains.report.json.*
 import org.gradle.api.tasks.TaskAction
 import org.gradle.api.tasks.options.Option
 import org.gradle.api.tasks.Input
 import java.io.ByteArrayOutputStream
 import java.io.File
+import java.text.SimpleDateFormat
+import java.util.*
 import javax.inject.Inject
+import kotlin.collections.HashMap
+
+enum class LogLevel { DEBUG, OFF }
+
+class Logger(val level: LogLevel = LogLevel.OFF) {
+    private fun printStderr(message: String) {
+        System.err.print(message)
+    }
+
+    private fun currentTime(): String =
+            SimpleDateFormat("HH:mm:ss").format(Date())
+
+    fun log(message: String, messageLevel: LogLevel = LogLevel.DEBUG, usePrefix: Boolean = true) {
+        if (messageLevel == level) {
+            if (usePrefix) {
+                printStderr("[$level][${currentTime()}] $message")
+            } else {
+                printStderr("$message")
+            }
+        }
+    }
+}
 
 open class RunKotlinNativeTask @Inject constructor(private val linkTask: Task,
                                                    private val executable: String,
@@ -62,7 +85,7 @@ open class RunKotlinNativeTask @Inject constructor(private val linkTask: Task,
             it.executable = executable
             it.args(argumentsList)
             it.args("-f", benchmark)
-            if (verbose) {
+            if (verbose && repeatingType == RepeatingType.INTERNAL) {
                 it.args("-v")
             }
             it.args("-w", warmupCount.toString())
@@ -73,11 +96,15 @@ open class RunKotlinNativeTask @Inject constructor(private val linkTask: Task,
     }
 
     private fun execBenchmarkRepeatedly(benchmark: String, warmupCount: Int, repeatCount: Int) : List<String> {
+        val logger = if (verbose) Logger(LogLevel.DEBUG) else Logger()
+        logger.log("Warm up iterations for benchmark $benchmark\n")
         for (i in 0..warmupCount) {
             execBenchmarkOnce(benchmark, 0, 1)
         }
         val result = mutableListOf<String>()
+        logger.log("Running benchmark $benchmark ")
         for (i in 0..repeatCount) {
+            logger.log(".", usePrefix = false)
             val benchmarkReport = JsonTreeParser.parse(execBenchmarkOnce(benchmark, 0, 1)).jsonObject
             val modifiedBenchmarkReport = JsonObject(HashMap(benchmarkReport.content).apply {
                 put("repeat", JsonLiteral(i))
@@ -85,6 +112,7 @@ open class RunKotlinNativeTask @Inject constructor(private val linkTask: Task,
             })
             result.add(modifiedBenchmarkReport.toString())
         }
+        logger.log("\n", usePrefix = false)
         return result
     }
 
