@@ -946,6 +946,12 @@ void runDeallocationHooks(ContainerHeader* container) {
 void freeContainer(ContainerHeader* container) {
   RuntimeAssert(container != nullptr, "this kind of container shalln't be freed");
 
+  // Run finalizer if any.
+  if (auto* func = container->finalizer_.func) {
+    (*func)(container->finalizer_.data);
+    container->finalizer_ = Finalizer{};
+  }
+
   if (isAggregatingFrozenContainer(container)) {
     freeAggregatingFrozenContainer(container);
     return;

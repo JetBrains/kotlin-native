@@ -8,6 +8,16 @@
 #include "MemorySharedRefs.hpp"
 #include "Runtime.h"
 
+namespace {
+
+void deinitSharedRef(void* data) {
+  KRefSharedHolder* holder = reinterpret_cast<KRefSharedHolder*>(data);
+  holder->dispose();
+  konanDestructInstance(holder);
+}
+
+}  // namespace
+
 void KRefSharedHolder::initLocal(ObjHeader* obj) {
   RuntimeAssert(obj != nullptr, "must not be null");
   context_ = InitLocalForeignRef(obj);
@@ -125,4 +135,22 @@ RUNTIME_NOTHROW void KRefSharedHolder_dispose(const KRefSharedHolder* holder) {
 ObjHeader* KRefSharedHolder_ref(const KRefSharedHolder* holder) {
   return holder->ref();
 }
+
+KNativePtr Kotlin_SharedRef_initSharedRef(KRef ref, KRef value) {
+  KRefSharedHolder* holder = konanConstructInstance<KRefSharedHolder>();
+  holder->init(value);
+  ref->container()->setFinalizer(Finalizer{&::deinitSharedRef, holder});
+  return holder;
+}
+
+void Kotlin_SharedRef_deinitSharedRef(KRef ref, KNativePtr pointer) {
+  ref->container()->setFinalizer(Finalizer{});
+  deinitSharedRef(pointer);
+}
+
+OBJ_GETTER(Kotlin_SharedRef_derefSharedRef, KNativePtr pointer) {
+  KRefSharedHolder* holder = reinterpret_cast<KRefSharedHolder*>(pointer);
+  RETURN_OBJ(holder->ref());
+}
+
 } // extern "C"
