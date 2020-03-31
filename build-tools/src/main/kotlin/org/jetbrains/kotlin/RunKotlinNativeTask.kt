@@ -18,11 +18,6 @@ import java.io.File
 import javax.inject.Inject
 import kotlin.collections.HashMap
 
-enum class BenchmarkRepeatingType {
-    INTERNAL,  // Let the benchmark perform warmups and repeats.
-    EXTERNAL,  // Repeat by relaunching benchmark
-}
-
 open class RunKotlinNativeTask @Inject constructor(private val linkTask: Task,
                                                    private val executable: String,
                                                    private val outputFileName: String
@@ -65,6 +60,8 @@ open class RunKotlinNativeTask @Inject constructor(private val linkTask: Task,
             it.executable = executable
             it.args(argumentsList)
             it.args("-f", benchmark)
+            // Logging with application should be done only in case it controls running benchmarks itself.
+            // Although it's a responsibility of gradle task.
             if (verbose && repeatingType == BenchmarkRepeatingType.INTERNAL) {
                 it.args("-v")
             }
@@ -78,7 +75,7 @@ open class RunKotlinNativeTask @Inject constructor(private val linkTask: Task,
     private fun execBenchmarkRepeatedly(benchmark: String, warmupCount: Int, repeatCount: Int) : List<String> {
         val logger = if (verbose) Logger(LogLevel.DEBUG) else Logger()
         logger.log("Warm up iterations for benchmark $benchmark\n")
-        for (i in 0..warmupCount) {
+        for (i in 0.until(warmupCount)) {
             execBenchmarkOnce(benchmark, 0, 1)
         }
         val result = mutableListOf<String>()

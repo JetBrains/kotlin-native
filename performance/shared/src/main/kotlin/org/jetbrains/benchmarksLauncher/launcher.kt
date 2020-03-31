@@ -85,7 +85,7 @@ abstract class Launcher {
             autoEvaluatedNumberOfMeasureIteration *= 2
         }
         logger.log("Running benchmark $name ")
-        for (k in 0..(numberOfAttempts - 1)) {
+        for (k in 0.until(numberOfAttempts)) {
             logger.log(".", usePrefix = false)
             var i = autoEvaluatedNumberOfMeasureIteration
             val time = runBenchmark(benchmarkInstance, benchmark, i)

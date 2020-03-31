@@ -15,6 +15,10 @@ import org.jetbrains.report.json.*
 import java.io.ByteArrayOutputStream
 import java.io.File
 
+data class ExecParameters(val warmupCount: Int, val repeatCount: Int,
+                          val filterArgs: List<String>, val filterRegexArgs: List<String>,
+                          val verbose: Boolean, val outputFileName: String?)
+
 open class RunJvmTask: JavaExec() {
     @Input
     @Option(option = "filter", description = "Benchmarks to run (comma-separated)")
@@ -36,26 +40,21 @@ open class RunJvmTask: JavaExec() {
 
     private var predefinedArgs: List<String> = emptyList()
 
-    private fun executeTask(warmupCount: Int, repeatCount: Int,
-                            filterArgs: List<String>, filterRegexArgs: List<String>): String {
+    private fun executeTask(execParameters: ExecParameters): String {
         // Firstly clean arguments.
         setArgs(emptyList())
         args(predefinedArgs)
-        args(filterArgs)
-        args(filterRegexArgs)
-        args("-w", warmupCount)
-        args("-r", repeatCount)
-        if (repeatingType == BenchmarkRepeatingType.INTERNAL) {
-            if (verbose) {
-                args("-v")
-            }
-            args("-o", outputFileName)
+        args(execParameters.filterArgs)
+        args(execParameters.filterRegexArgs)
+        args("-w", execParameters.warmupCount)
+        args("-r", execParameters.repeatCount)
+        if (execParameters.verbose) {
+            args("-v")
         }
+        execParameters.outputFileName?.let { args("-o", outputFileName) }
         standardOutput = ByteArrayOutputStream()
         super.exec()
-        return if (repeatingType == BenchmarkRepeatingType.EXTERNAL) {
-            standardOutput.toString().removePrefix("[").removeSuffix("]")
-        } else ""
+        return standardOutput.toString()
     }
 
     private fun getBenchmarksList(filterArgs: List<String>, filterRegexArgs: List<String>): List<String> {
@@ -72,17 +71,22 @@ open class RunJvmTask: JavaExec() {
     }
 
     private fun execSeparateBenchmarkRepeatedly(benchmark: String): List<String> {
+        // Logging with application should be done only in case it controls running benchmarks itself.
+        // Although it's a responsibility of gradle task.
         val logger = if (verbose) Logger(LogLevel.DEBUG) else Logger()
         logger.log("Warm up iterations for benchmark $benchmark\n")
-        for (i in 0..warmupCount) {
-            executeTask(0, 1, listOf("-f", benchmark), emptyList())
+        for (i in 0.until(warmupCount)) {
+            executeTask(ExecParameters(0, 1, listOf("-f", benchmark),
+                    emptyList(), false, null))
         }
         val result = mutableListOf<String>()
         logger.log("Running benchmark $benchmark ")
         for (i in 0.until(repeatCount)) {
             logger.log(".", usePrefix = false)
             val benchmarkReport = JsonTreeParser.parse(
-                    executeTask(0, 1, listOf("-f", benchmark), emptyList())
+                    executeTask(ExecParameters(0, 1, listOf("-f", benchmark),
+                            emptyList(), false, null)
+                    ).removePrefix("[").removeSuffix("]")
             ).jsonObject
             val modifiedBenchmarkReport = JsonObject(HashMap(benchmarkReport.content).apply {
                 put("repeat", JsonLiteral(i))
@@ -94,7 +98,7 @@ open class RunJvmTask: JavaExec() {
         return result
     }
 
-    private fun execBenchmarkRepeatedly(filterArgs: List<String>, filterRegexArgs: List<String>) {
+    private fun execBenchmarksRepeatedly(filterArgs: List<String>, filterRegexArgs: List<String>) {
         val benchmarksToRun = getBenchmarksList(filterArgs, filterRegexArgs)
         val results = benchmarksToRun.flatMap { benchmark ->
             execSeparateBenchmarkRepeatedly(benchmark)
@@ -111,8 +115,10 @@ open class RunJvmTask: JavaExec() {
         val filterArgs = filter.splitCommaSeparatedOption("-f")
         val filterRegexArgs = filterRegex.splitCommaSeparatedOption("-fr")
         when (repeatingType) {
-            BenchmarkRepeatingType.INTERNAL -> executeTask(warmupCount, repeatCount, filterArgs, filterRegexArgs)
-            BenchmarkRepeatingType.EXTERNAL -> execBenchmarkRepeatedly(filterArgs, filterRegexArgs)
+            BenchmarkRepeatingType.INTERNAL -> executeTask(
+                    ExecParameters(warmupCount, repeatCount, filterArgs, filterRegexArgs, verbose, outputFileName)
+            )
+            BenchmarkRepeatingType.EXTERNAL -> execBenchmarksRepeatedly(filterArgs, filterRegexArgs)
         }
 
     }
