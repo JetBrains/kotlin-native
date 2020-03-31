@@ -7,6 +7,7 @@ import org.jetbrains.kotlin.backend.common.lower.loops.ForLoopsLowering
 import org.jetbrains.kotlin.backend.common.phaser.*
 import org.jetbrains.kotlin.backend.common.runOnFilePostfix
 import org.jetbrains.kotlin.backend.konan.boxing.NewGenericsSpecialization
+import org.jetbrains.kotlin.backend.konan.boxing.NewReplaceOriginsWithSpecializationsLowering
 import org.jetbrains.kotlin.backend.konan.lower.*
 import org.jetbrains.kotlin.backend.konan.lower.FinallyBlocksLowering
 import org.jetbrains.kotlin.backend.konan.lower.InitializersLowering
@@ -83,7 +84,7 @@ internal val genericsSpecializationPhase = makeKonanModuleLoweringPhase(
 )
 
 internal val replaceOriginsWithSpecializationsPhase = makeKonanModuleLoweringPhase(
-        ::ReplaceOriginsWithSpecializationsLowering,
+        ::NewReplaceOriginsWithSpecializationsLowering,
         name = "ReplaceWithSpecialization",
         description = "Replaces functions, classes and its usages with related specializations"
 )

@@ -35,8 +35,7 @@ internal fun <T : IrElement> T.eliminateTypeParameters(transformer: NewTypeParam
  * Second, it handles constructors not in declaration order, but "more primary" first.
  * I.e. dependent constructor will be handled and copied after the constructor it depends.
  */
-internal class NewTypeParameterEliminator(private val specializationTransformer: NewGenericsSpecialization.NewSpecializationTransformer,
-                                          private val globalTypeParameterMapping: MutableMap<IrTypeParameterSymbol, IrType>,
+internal class NewTypeParameterEliminator(private val globalTypeParameterMapping: MutableMap<IrTypeParameterSymbol, IrType>,
                                           private val localTypeParameterMapping: Map<IrTypeParameterSymbol, IrType?>,
                                           private val encoder: SpecializationEncoder,
                                           context: Context,
@@ -55,6 +54,7 @@ internal class NewTypeParameterEliminator(private val specializationTransformer:
             }
         }
         val result = super.copy(irElement)
+        copier.evaluateDeferredMembers()
         localTypeParameterMapping.forEach { (symbol, type) ->
             if (type != null) {
                 globalTypeParameterMapping.remove(symbol)
@@ -125,6 +125,13 @@ internal class NewTypeParameterEliminator(private val specializationTransformer:
             TypeParameterEliminatorSymbolRenamer()
     ) {
         private val constructorsCopier = ConstructorsCopier()
+        private val deferredMembers = mutableListOf<Pair<IrDeclaration, Triple<List<IrType?>, () -> IrType?, IrDeclaration>>>()
+
+        fun evaluateDeferredMembers() {
+            deferredMembers.forEach { (origin, triple) ->
+                IrOriginToSpec.newSpec(origin, triple.first, triple.second(), triple.third)
+            }
+        }
 
         override fun visitClass(declaration: IrClass): IrClass {
             constructorsCopier.prepare(declaration)
@@ -137,16 +144,22 @@ internal class NewTypeParameterEliminator(private val specializationTransformer:
 
         override fun visitSimpleFunction(declaration: IrSimpleFunction): IrSimpleFunction {
             return super.visitSimpleFunction(declaration).withEliminatedTypeParameters(declaration).also {
-                val types = encoder.decode(it.name.asString())
-                IrOriginToSpec.newFunction(declaration, types, it)
-                // Assumed that non-encoded function name can belong only to non-specialized variant,
-                // and hence it has correct overriding methods info.
-                // TODO consider this condition when errors with inconsistent methods table will occur.
-                if (types.isNotEmpty()) {
-                    it.overriddenSymbols.replaceAll {
-                        IrOriginToSpec.forFunction(it.owner, types)?.symbol as? IrSimpleFunctionSymbol
-                                ?: it
-                    }
+                it.saveAsSpecialized(declaration)
+            }
+        }
+
+        private fun IrSimpleFunction.saveAsSpecialized(originalFunction: IrSimpleFunction) {
+            val types = encoder.decode(name.asString())
+            val specDispatchType = dispatchReceiverParameter?.type
+            deferredMembers += originalFunction to Triple(types, { specDispatchType }, this)
+
+            // Assumed that non-encoded function name can belong only to non-specialized variant,
+            // and hence it has correct overriding methods info.
+            // TODO consider this condition when errors with inconsistent methods table will occur.
+            if (types.isNotEmpty()) {
+                overriddenSymbols.replaceAll {
+                    IrOriginToSpec.forSpec(it.owner, types, it.owner.dispatchReceiverParameter?.type)?.symbol
+                            ?: it
                 }
             }
         }

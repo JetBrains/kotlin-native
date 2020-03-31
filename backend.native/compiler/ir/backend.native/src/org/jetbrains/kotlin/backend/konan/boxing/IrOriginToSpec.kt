@@ -23,6 +23,18 @@ object IrOriginToSpec {
     private val constructors = mutableMapOf<Pair<IrConstructor, IrType>, IrConstructor>()
     private val members = mutableMapOf<Pair<IrDeclaration, IrType>, IrDeclaration>()
 
+    // This structure helps answer the following requests:
+    //  - Find all specializations that were built for given declaration;
+    //  - Which is the specialization of given declaration for given types, declared in given receiver
+    //    (or which is effectively static).
+    // TODO consider custom types, currently it is just a mishmash of different containers
+    private val specializations = mutableMapOf<IrDeclaration, MutableMap<Pair<List<IrType?>, IrType?>, IrDeclaration>>()
+
+    fun <T : IrDeclaration> newSpec(origin: T, types: List<IrType?>, specDispatchType: IrType? = null, spec: T) {
+        specializations.putIfAbsent(origin, mutableMapOf())
+        specializations[origin]!![types to specDispatchType] = spec
+    }
+
     fun newClass(origin: IrType, spec: IrType) {
         classes[origin] = spec
     }
@@ -34,6 +46,12 @@ object IrOriginToSpec {
     }
     fun newMember(origin: IrDeclaration, dispatchSpec: IrType, spec: IrDeclaration) {
         members[origin to dispatchSpec] = spec
+    }
+
+    fun <T : IrDeclaration> getAllSpecsFor(origin: T) = specializations[origin]
+
+    inline fun <reified T : IrDeclaration> forSpec(origin: T, types: List<IrType?>, specDispatchType: IrType? = null): T? {
+        return getAllSpecsFor(origin)?.get(types to specDispatchType)?.let { it as T }
     }
 
     fun forClass(origin: IrType) = classes[origin]

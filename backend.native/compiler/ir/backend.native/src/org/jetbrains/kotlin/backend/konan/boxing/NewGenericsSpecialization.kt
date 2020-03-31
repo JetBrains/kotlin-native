@@ -70,7 +70,6 @@ internal class NewGenericsSpecialization(val context: Context) : FileLoweringPas
             for (type in requestedSpecializationTypes) {
                 val mapping = mapOf(typeParameters.first().symbol to type)
                 val copier = NewTypeParameterEliminator(
-                        this@NewSpecializationTransformer,
                         typeParametersMapping,
                         mapping,
                         encoder,

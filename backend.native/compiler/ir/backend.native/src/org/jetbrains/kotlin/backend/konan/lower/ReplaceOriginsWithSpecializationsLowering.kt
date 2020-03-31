@@ -23,7 +23,7 @@ import org.jetbrains.kotlin.ir.visitors.acceptVoid
 internal class ReplaceOriginsWithSpecializationsLowering(val context: Context) : FileLoweringPass {
 
     override fun lower(irFile: IrFile) {
-        irFile.transform(Replacer(), data = null)
+//        irFile.transform(Replacer(), data = null)
     }
 
     private inner class Replacer(
