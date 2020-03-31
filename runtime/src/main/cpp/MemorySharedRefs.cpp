@@ -10,7 +10,7 @@
 
 namespace {
 
-void deinitSharedRef(void* data) {
+void disposeSharedRef(void* data) {
   KRefSharedHolder* holder = reinterpret_cast<KRefSharedHolder*>(data);
   holder->dispose();
   konanDestructInstance(holder);
@@ -136,16 +136,16 @@ ObjHeader* KRefSharedHolder_ref(const KRefSharedHolder* holder) {
   return holder->ref();
 }
 
-KNativePtr Kotlin_SharedRef_initSharedRef(KRef ref, KRef value) {
+KNativePtr Kotlin_SharedRef_createSharedRef(KRef ref, KRef value) {
   KRefSharedHolder* holder = konanConstructInstance<KRefSharedHolder>();
   holder->init(value);
-  ref->meta_object()->finalizer_ = MetaObjHeader::Finalizer{&::deinitSharedRef, holder};
+  ref->meta_object()->finalizer_ = MetaObjHeader::Finalizer{&::disposeSharedRef, holder};
   return holder;
 }
 
-void Kotlin_SharedRef_deinitSharedRef(KRef ref, KNativePtr pointer) {
+void Kotlin_SharedRef_disposeSharedRef(KRef ref, KNativePtr pointer) {
   ref->meta_object()->finalizer_ = MetaObjHeader::Finalizer{};
-  deinitSharedRef(pointer);
+  disposeSharedRef(pointer);
 }
 
 OBJ_GETTER(Kotlin_SharedRef_derefSharedRef, KNativePtr pointer) {

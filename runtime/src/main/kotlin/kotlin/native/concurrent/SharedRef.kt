@@ -8,11 +8,11 @@ package kotlin.native.concurrent
 import kotlin.native.internal.Frozen
 import kotlinx.cinterop.COpaquePointer
 
-@SymbolName("Kotlin_SharedRef_initSharedRef")
-internal external fun initSharedRef(ref: SharedRef<*>, value: Any): COpaquePointer
+@SymbolName("Kotlin_SharedRef_createSharedRef")
+internal external fun createSharedRef(ref: SharedRef<*>, value: Any): COpaquePointer
 
-@SymbolName("Kotlin_SharedRef_deinitSharedRef")
-internal external fun deinitSharedRef(ref: SharedRef<*>, ptr: COpaquePointer)
+@SymbolName("Kotlin_SharedRef_disposeSharedRef")
+internal external fun disposeSharedRef(ref: SharedRef<*>, ptr: COpaquePointer)
 
 @SymbolName("Kotlin_SharedRef_derefSharedRef")
 internal external fun derefSharedRef(ptr: COpaquePointer): Any
@@ -25,13 +25,13 @@ public class SharedRef<out T : Any> private constructor() {
     companion object {
         fun <T : Any> create(value: T): SharedRef<T> {
             val ref = SharedRef<T>()
-            ref.ptr = initSharedRef(ref, value)
+            ref.ptr = createSharedRef(ref, value)
             return ref
         }
     }
 
     fun dispose() {
-        deinitSharedRef(this, ptr)
+        disposeSharedRef(this, ptr)
     }
 
     @Suppress("UNCHECKED_CAST")
