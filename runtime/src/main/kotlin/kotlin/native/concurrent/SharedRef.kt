@@ -6,21 +6,21 @@
 package kotlin.native.concurrent
 
 import kotlin.native.internal.Frozen
-import kotlinx.cinterop.COpaquePointer
+import kotlin.native.internal.NonNullNativePtr
 
 @SymbolName("Kotlin_SharedRef_createSharedRef")
-internal external fun createSharedRef(ref: SharedRef<*>, value: Any): COpaquePointer
+internal external fun createSharedRef(ref: SharedRef<*>, value: Any): NonNullNativePtr
 
 @SymbolName("Kotlin_SharedRef_disposeSharedRef")
-internal external fun disposeSharedRef(ref: SharedRef<*>, ptr: COpaquePointer)
+internal external fun disposeSharedRef(ref: SharedRef<*>, ptr: NonNullNativePtr)
 
 @SymbolName("Kotlin_SharedRef_derefSharedRef")
-internal external fun derefSharedRef(ptr: COpaquePointer): Any
+internal external fun derefSharedRef(ptr: NonNullNativePtr): Any
 
 @Frozen
 public class SharedRef<out T : Any> private constructor() {
 
-    private lateinit var ptr: COpaquePointer
+    private lateinit var ptr: NonNullNativePtr
 
     companion object {
         fun <T : Any> create(value: T): SharedRef<T> {
