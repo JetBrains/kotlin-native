@@ -3680,6 +3680,7 @@ if (PlatformInfo.isAppleTarget(project)) {
         }
 
         doBeforeBuild {
+            mkdir(buildDir)
             execKonanClang(project.target) {
                 args "$projectDir/interop/objc/smoke.m"
                 args "-lobjc", '-fobjc-arc'
@@ -3705,6 +3706,7 @@ if (PlatformInfo.isAppleTarget(project)) {
         flags = ['-g']
 
         doBeforeBuild {
+            mkdir(buildDir)
             execKonanClang(project.target) {
                 args "$projectDir/interop/objc_with_initializer/objc_misc.m"
                 args "-lobjc", '-fobjc-arc'
@@ -3721,6 +3723,7 @@ if (PlatformInfo.isAppleTarget(project)) {
         interop = 'objcMessaging'
 
         doBeforeBuild {
+            mkdir(buildDir)
             execKonanClang(project.target) {
                 args "$projectDir/interop/objc/msg_send/messaging.m"
                 args "-lobjc", '-fobjc-arc'
