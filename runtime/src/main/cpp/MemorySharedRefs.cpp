@@ -139,12 +139,12 @@ ObjHeader* KRefSharedHolder_ref(const KRefSharedHolder* holder) {
 KNativePtr Kotlin_SharedRef_initSharedRef(KRef ref, KRef value) {
   KRefSharedHolder* holder = konanConstructInstance<KRefSharedHolder>();
   holder->init(value);
-  ref->container()->setFinalizer(Finalizer{&::deinitSharedRef, holder});
+  ref->meta_object()->finalizer_ = MetaObjHeader::Finalizer{&::deinitSharedRef, holder};
   return holder;
 }
 
 void Kotlin_SharedRef_deinitSharedRef(KRef ref, KNativePtr pointer) {
-  ref->container()->setFinalizer(Finalizer{});
+  ref->meta_object()->finalizer_ = MetaObjHeader::Finalizer{};
   deinitSharedRef(pointer);
 }
 

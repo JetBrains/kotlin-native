@@ -81,11 +81,6 @@ typedef enum {
 
 typedef uint32_t container_size_t;
 
-struct Finalizer {
-  void (*func)(void*);
-  void* data;
-};
-
 // Header of all container objects. Contains reference counter.
 struct ContainerHeader {
   // Reference counter of container. Uses CONTAINER_TAG_SHIFT, lower bits of counter
@@ -93,7 +88,6 @@ struct ContainerHeader {
   uint32_t refCount_;
   // Number of objects in the container.
   uint32_t objectCount_;
-  Finalizer finalizer_;
 
   inline bool local() const {
       return (refCount_ & CONTAINER_TAG_MASK) == CONTAINER_TAG_LOCAL;
@@ -208,7 +202,6 @@ struct ContainerHeader {
     if (count == 1) {
       objectCount_ &= ~CONTAINER_TAG_GC_HAS_OBJECT_COUNT;
     } else {
-      RuntimeAssert(finalizer_.func == nullptr, "Must not have a finalizer");
       objectCount_ = (count << CONTAINER_TAG_GC_SHIFT) | CONTAINER_TAG_GC_HAS_OBJECT_COUNT;
     }
   }
@@ -284,11 +277,6 @@ struct ContainerHeader {
     objectCount_ &= ~CONTAINER_TAG_GC_SEEN;
   }
 
-  inline void setFinalizer(Finalizer finalizer) {
-    RuntimeAssert((objectCount_ & CONTAINER_TAG_GC_HAS_OBJECT_COUNT) == 0, "Must be single-object");
-    finalizer_ = finalizer;
-  }
-
   // Following operations only work on freed container which is in finalization queue.
   // We cannot use 'this' here, as it conflicts with aliasing analysis in clang.
   inline void setNextLink(ContainerHeader* next) {
@@ -341,6 +329,13 @@ struct MetaObjHeader {
     // Strong reference to the counter object.
     ObjHeader* counter_;
   } WeakReference;
+
+
+  struct Finalizer {
+    void (*func)(void*);
+    void* data;
+  };
+  Finalizer finalizer_;
 };
 
 // Header of every object.

@@ -937,6 +937,10 @@ void runDeallocationHooks(ContainerHeader* container) {
     }
 #endif  // USE_CYCLIC_GC
     if (obj->has_meta_object()) {
+      // Run finalizer if any.
+      if (auto* finalizer = obj->meta_object()->finalizer_.func) {
+        (*finalizer)(obj->meta_object()->finalizer_.data);
+      }
       ObjHeader::destroyMetaObject(&obj->typeInfoOrMeta_);
     }
     obj = reinterpret_cast<ObjHeader*>(reinterpret_cast<uintptr_t>(obj) + objectSize(obj));
@@ -945,12 +949,6 @@ void runDeallocationHooks(ContainerHeader* container) {
 
 void freeContainer(ContainerHeader* container) {
   RuntimeAssert(container != nullptr, "this kind of container shalln't be freed");
-
-  // Run finalizer if any.
-  if (auto* func = container->finalizer_.func) {
-    (*func)(container->finalizer_.data);
-    container->finalizer_ = Finalizer{};
-  }
 
   if (isAggregatingFrozenContainer(container)) {
     freeAggregatingFrozenContainer(container);

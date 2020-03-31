@@ -203,3 +203,4 @@ fun doNotCollectInWorker(worker: Worker, semaphore: AtomicInt): Future<SharedRef
     assertEquals(3, value.get().a)
     worker.requestTermination().result
 }
+
