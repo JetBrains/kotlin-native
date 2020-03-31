@@ -143,6 +143,7 @@ internal val psiToIrPhase = konanUnitPhase(
             val translator = Psi2IrTranslator(config.configuration.languageVersionSettings,
                     Psi2IrConfiguration(false), KonanIdSignaturer(KonanManglerDesc))
             val generatorContext = translator.createGeneratorContext(moduleDescriptor, bindingContext, symbolTable)
+            val moduleGenerator = translator.createModuleGenerator(generatorContext)
 
             translator.addPostprocessingStep { module ->
                 val extensions = IrGenerationExtension.getInstances(config.project)
@@ -209,30 +210,19 @@ internal val psiToIrPhase = konanUnitPhase(
                 dependenciesCount = dependencies.size
             }
 
-//            val symbols = KonanSymbols(this, symbolTable, symbolTable.lazyWrapper, functionIrClassFactory)
-//
-//            val irProviderForCEnumsAndCStructs = IrProviderForCEnumAndCStructStubs(generatorContext, interopBuiltIns, symbols)
             // We need to run `buildAllEnumsAndStructsFrom` before `generateModuleFragment` because it adds references to symbolTable
             // that should be bound.
             modulesWithoutDCE
                     .filter(ModuleDescriptor::isFromInteropLibrary)
                     .forEach(irProviderForCEnumsAndCStructs::buildAllEnumsAndStructsFrom)
-//            val irProviderForInteropStubs = IrProviderForInteropStubs(
-//                    stubGenerator,
-//                    irProviderForCEnumsAndCStructs::canHandleSymbol
-//            )
-            val irProviders = listOf(
-//                    irProviderForCEnumsAndCStructs,
-//                    irProviderForInteropStubs,
-//                    functionIrClassFactory,
-                    deserializer
-//                    stubGenerator
-            )
+
+            val irProviders = listOf(deserializer)
             stubGenerator.setIrProviders(irProviders)
+            deserializer.init(moduleGenerator.moduleFragment)
 
             expectDescriptorToSymbol = mutableMapOf<DeclarationDescriptor, IrSymbol>()
             val module = translator.generateModuleFragment(
-                generatorContext,
+                moduleGenerator,
                 environment.getSourceFiles(),
                 irProviders,
                 // TODO: This is a hack to allow platform libs to build in reasonable time.
@@ -240,10 +230,7 @@ internal val psiToIrPhase = konanUnitPhase(
                 // how ExpectedActualResolver is implemented.
                 // Need to fix ExpectActualResolver to either cache expects or somehow reduce the member scope searches.
                 if (expectActualLinker) expectDescriptorToSymbol else null
-            ) {
-//                functionIrClassFactory.module = modules.singleOrNull { it.descriptor.isKonanStdlib() } ?: it
-                deserializer.init(it)
-            }
+            )
 
             deserializer.postProcess()
 
