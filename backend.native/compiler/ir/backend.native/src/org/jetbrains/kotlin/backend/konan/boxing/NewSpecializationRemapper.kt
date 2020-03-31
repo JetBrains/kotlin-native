@@ -287,7 +287,7 @@ internal class NewSpecializationRemapper(
 
     override fun visitConstructorCall(expression: IrConstructorCall): IrConstructorCall {
         val classSpec = IrOriginToSpec.forClass(expression.type) ?: return super<NonCopyingTransformer>.visitConstructorCall(expression, data = null) as IrConstructorCall
-        return IrOriginToSpec.forConstructor(expression.symbol.owner, classSpec)?.let {
+        return IrOriginToSpec.forSpec(expression.symbol.owner, emptyList(), classSpec)?.let {
             context.createIrBuilder(expression.symbol).run {
                 irConstructorCall(super<DeepCopyIrTreeWithSymbols>.visitConstructorCall(expression), it)
             }

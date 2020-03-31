@@ -133,13 +133,20 @@ internal class NewTypeParameterEliminator(private val globalTypeParameterMapping
             }
         }
 
+        // Assumed that classes do not need specified dispatchers to store.
+        // TODO consider this in case if failures, maybe use parent instead of dispatcher
         override fun visitClass(declaration: IrClass): IrClass {
             constructorsCopier.prepare(declaration)
-            return super.visitClass(declaration).withEliminatedTypeParameters(declaration)
+            return super.visitClass(declaration).withEliminatedTypeParameters(declaration).also {
+                val types = encoder.decode(it.name.asString())
+                deferredMembers += declaration to Triple(types, { null }, it)
+            }
         }
 
         override fun visitConstructor(declaration: IrConstructor): IrConstructor {
-            return constructorsCopier.visitConstructor(declaration)
+            return constructorsCopier.visitConstructor(declaration).also {
+                deferredMembers += declaration to Triple(emptyList(), { it.constructedClassType }, it)
+            }
         }
 
         override fun visitSimpleFunction(declaration: IrSimpleFunction): IrSimpleFunction {

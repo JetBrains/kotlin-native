@@ -3,12 +3,15 @@ package org.jetbrains.kotlin.backend.konan.boxing
 import org.jetbrains.kotlin.ir.declarations.IrConstructor
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.classOrNull
 
 /**
  * Contains mappings from origins to related specializations,
  * like Box<Int> -> BoxInt.
  */
+// TODO remove useless functions later
 object IrOriginToSpec {
     // Mappings like Box<Int> -> BoxInt
     private val classes = mutableMapOf<IrType, IrType>()
@@ -54,10 +57,15 @@ object IrOriginToSpec {
         return getAllSpecsFor(origin)?.get(types to specDispatchType)?.let { it as T }
     }
 
-    fun forClass(origin: IrType) = classes[origin]
+    fun forClass(origin: IrType): IrType? {
+        val originClass = (origin as? IrSimpleType)?.classOrNull?.owner ?: return null
+        val types = origin.arguments.map { it as? IrSimpleType }
+        return forSpec(originClass, types, null)?.thisReceiver?.type
+    }
+
     fun forFunction(origin: IrFunction, types: List<IrType?>) = functions[origin to types]
     fun forConstructor(origin: IrConstructor, classSpec: IrType) = constructors[origin to classSpec]
     fun forMemberFunction(origin: IrFunction, dispatchSpec: IrType) = members[origin to dispatchSpec]?.let { it as IrFunction }
 
-    operator fun contains(type: IrType) = type in classes
+    operator fun contains(type: IrType) = type.classOrNull?.owner?.let { getAllSpecsFor(it)?.isNotEmpty() } == true
 }
