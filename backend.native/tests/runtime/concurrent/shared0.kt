@@ -76,6 +76,18 @@ val global4: SharedRef<A> = SharedRef.create(A(3))
     assertEquals(3, global4.get().a)
 
     global4.dispose()
+    global4.dispose()
+}
+
+val global5: SharedRef<A> = SharedRef.create(A(3))
+
+@Test fun testGlobalAccessAfterDispose() {
+    assertEquals(3, global5.get().a)
+
+    global5.dispose()
+    assertFailsWith<NullPointerException> {
+        global5.get().a
+    }
 }
 
 @Test fun testLocal() {
@@ -137,6 +149,17 @@ val global4: SharedRef<A> = SharedRef.create(A(3))
     assertEquals(3, local.get().a)
 
     local.dispose()
+    local.dispose()
+}
+
+@Test fun testLocalAccessAfterDispose() {
+    val local = SharedRef.create(A(3))
+    assertEquals(3, local.get().a)
+
+    local.dispose()
+    assertFailsWith<NullPointerException> {
+        local.get().a
+    }
 }
 
 fun getWeaksAndAtomicReference(initial: Int): Triple<AtomicReference<SharedRef<A>?>, WeakReference<SharedRef<A>>, WeakReference<A>> {
@@ -260,5 +283,101 @@ fun disposeInWorker(worker: Worker, semaphore: AtomicInt): Triple<WeakReference<
     GC.collect()
     assertNotNull(localWeak.get())
     assertNull(localValueWeak.get())
+    worker.requestTermination().result
+}
+
+@Test fun testDisposeOnMainThreadAndAccessInWorker() {
+    val local = SharedRef.create(A(3))
+    assertEquals(3, local.get().a)
+
+    local.dispose()
+
+    val worker = Worker.start()
+    val future = worker.execute(TransferMode.SAFE, { local }) { local ->
+        var result = 0
+        assertFailsWith<NullPointerException> {
+            result = local.get().a
+        }
+        result
+    }
+
+    val value = future.result
+    assertEquals(0, value)
+    worker.requestTermination().result
+}
+
+@Test fun testDisposeInWorkerAndAccessOnMainThread() {
+    val local = SharedRef.create(A(3))
+    assertEquals(3, local.get().a)
+
+    val worker = Worker.start()
+    val future = worker.execute(TransferMode.SAFE, { local }) { local ->
+        local.dispose()
+    }
+
+    future.result
+    assertFailsWith<NullPointerException> {
+        local.get().a
+    }
+    worker.requestTermination().result
+}
+
+@Test fun concurrentDispose() {
+    val workerCount = 10
+    val workerUnlocker = AtomicInt(0)
+
+    val local = SharedRef.create(A(3))
+    assertEquals(3, local.get().a)
+
+    val workers = Array(workerCount) {
+        Worker.start()
+    }
+    val futures = Array(workers.size) {
+        workers[it].execute(TransferMode.SAFE, { Pair(local, workerUnlocker) }) { (local, workerUnlocker) ->
+            while (workerUnlocker.value < 1) {}
+
+            local.dispose()
+        }
+    }
+    workerUnlocker.increment()
+
+    for (future in futures) {
+        future.result
+    }
+
+    assertFailsWith<NullPointerException> {
+        local.get().a
+    }
+
+    for (worker in workers) {
+        worker.requestTermination().result
+    }
+}
+
+@Test fun concurrentDisposeAndAccess() {
+    val workerUnlocker = AtomicInt(0)
+
+    val local = SharedRef.create(A(3))
+    assertEquals(3, local.get().a)
+
+    val worker = Worker.start()
+    val future = worker.execute(TransferMode.SAFE, { Pair(local, workerUnlocker) }) { (local, workerUnlocker) ->
+        while (workerUnlocker.value < 1) {}
+
+        local.dispose()
+    }
+    workerUnlocker.increment()
+
+    var result = 0
+    // This is a race, but it should either get value successfully or get NullPointerException.
+    // Any other kind of failure is unacceptable.
+    try {
+        result = local.get().a
+    } catch(e: NullPointerException) {
+        result = 3
+    }
+    assertEquals(3, result)
+
+    future.result
     worker.requestTermination().result
 }
