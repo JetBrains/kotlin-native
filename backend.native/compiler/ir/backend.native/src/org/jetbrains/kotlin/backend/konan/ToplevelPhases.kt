@@ -145,8 +145,9 @@ internal val psiToIrPhase = konanUnitPhase(
             val generatorContext = translator.createGeneratorContext(moduleDescriptor, bindingContext, symbolTable)
             val moduleGenerator = translator.createModuleGenerator(generatorContext)
 
+            val pluginExtensions = IrGenerationExtension.getInstances(config.project)
+
             translator.addPostprocessingStep { module ->
-                val extensions = IrGenerationExtension.getInstances(config.project)
                 val pluginContext = IrPluginContext(
                     generatorContext.moduleDescriptor,
                     generatorContext.bindingContext,
@@ -155,7 +156,7 @@ internal val psiToIrPhase = konanUnitPhase(
                     generatorContext.typeTranslator,
                     generatorContext.irBuiltIns
                 )
-                extensions.forEach { extension ->
+                pluginExtensions.forEach { extension ->
                     extension.generate(module, pluginContext)
                 }
             }
@@ -218,7 +219,7 @@ internal val psiToIrPhase = konanUnitPhase(
 
             val irProviders = listOf(deserializer)
             stubGenerator.setIrProviders(irProviders)
-            deserializer.init(moduleGenerator.moduleFragment)
+            deserializer.init(moduleGenerator.moduleFragment, pluginExtensions)
 
             expectDescriptorToSymbol = mutableMapOf<DeclarationDescriptor, IrSymbol>()
             val module = translator.generateModuleFragment(
