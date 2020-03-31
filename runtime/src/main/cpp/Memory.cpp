@@ -931,16 +931,15 @@ void freeAggregatingFrozenContainer(ContainerHeader* container) {
 void runDeallocationHooks(ContainerHeader* container) {
   ObjHeader* obj = reinterpret_cast<ObjHeader*>(container + 1);
   for (int index = 0; index < container->objectCount(); index++) {
+    if (obj->type_info() == theSharedRefTypeInfo) {
+      DisposeSharedRef(obj);
+    }
 #if USE_CYCLIC_GC
     if ((obj->type_info()->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0) {
       cyclicRemoveAtomicRoot(obj);
     }
 #endif  // USE_CYCLIC_GC
     if (obj->has_meta_object()) {
-      // Run finalizer if any.
-      if (auto* finalizer = obj->meta_object()->finalizer_.func) {
-        (*finalizer)(obj->meta_object()->finalizer_.data);
-      }
       ObjHeader::destroyMetaObject(&obj->typeInfoOrMeta_);
     }
     obj = reinterpret_cast<ObjHeader*>(reinterpret_cast<uintptr_t>(obj) + objectSize(obj));

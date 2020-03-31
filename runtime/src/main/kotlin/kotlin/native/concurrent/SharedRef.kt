@@ -5,35 +5,23 @@
 
 package kotlin.native.concurrent
 
-import kotlin.native.internal.Frozen
-import kotlin.native.internal.NonNullNativePtr
+import kotlin.native.internal.*
 
 @SymbolName("Kotlin_SharedRef_createSharedRef")
-internal external fun createSharedRef(ref: SharedRef<*>, value: Any): NonNullNativePtr
-
-@SymbolName("Kotlin_SharedRef_disposeSharedRef")
-internal external fun disposeSharedRef(ref: SharedRef<*>, ptr: NonNullNativePtr)
-
-@SymbolName("Kotlin_SharedRef_derefSharedRef")
-internal external fun derefSharedRef(ptr: NonNullNativePtr): Any
+external private fun createSharedRef(value: Any): NativePtr
 
 @Frozen
-public class SharedRef<out T : Any> private constructor() {
-
-    private lateinit var ptr: NonNullNativePtr
+@NoReorderFields
+@ExportTypeInfo("theSharedRefTypeInfo")
+public class SharedRef<out T : Any> private constructor(private var ptr: NativePtr) {
 
     companion object {
-        fun <T : Any> create(value: T): SharedRef<T> {
-            val ref = SharedRef<T>()
-            ref.ptr = createSharedRef(ref, value)
-            return ref
-        }
+        fun <T : Any> create(value: T) = SharedRef<T>(createSharedRef(value))
     }
 
-    fun dispose() {
-        disposeSharedRef(this, ptr)
-    }
+    @SymbolName("Kotlin_SharedRef_disposeSharedRef")
+    external fun dispose()
 
-    @Suppress("UNCHECKED_CAST")
-    fun get() = derefSharedRef(ptr) as T
+    @SymbolName("Kotlin_SharedRef_derefSharedRef")
+    external fun get(): T
 }

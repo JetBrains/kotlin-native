@@ -10,10 +10,23 @@
 
 namespace {
 
-void disposeSharedRef(void* data) {
-  KRefSharedHolder* holder = reinterpret_cast<KRefSharedHolder*>(data);
-  holder->dispose();
-  konanDestructInstance(holder);
+struct SharedRefLayout {
+  ObjHeader header;
+  KRefSharedHolder* holder;
+};
+
+SharedRefLayout* asSharedRef(KRef thiz) {
+  return reinterpret_cast<SharedRefLayout*>(thiz);
+}
+
+void disposeSharedRef(KRef thiz) {
+  // TODO: concurrent dispose.
+  auto* holder = asSharedRef(thiz)->holder;
+  asSharedRef(thiz)->holder = nullptr;
+  if (holder) {
+    holder->dispose();
+    konanDestructInstance(holder);
+  }
 }
 
 }  // namespace
@@ -119,6 +132,10 @@ void BackRefFromAssociatedObject::ensureRefAccessible() const {
   ensureForeignRefAccessible(obj_, context_);
 }
 
+void DisposeSharedRef(ObjHeader* obj) {
+  disposeSharedRef(obj);
+}
+
 extern "C" {
 RUNTIME_NOTHROW void KRefSharedHolder_initLocal(KRefSharedHolder* holder, ObjHeader* obj) {
   holder->initLocal(obj);
@@ -136,20 +153,23 @@ ObjHeader* KRefSharedHolder_ref(const KRefSharedHolder* holder) {
   return holder->ref();
 }
 
-KNativePtr Kotlin_SharedRef_createSharedRef(KRef ref, KRef value) {
-  KRefSharedHolder* holder = konanConstructInstance<KRefSharedHolder>();
+KNativePtr Kotlin_SharedRef_createSharedRef(KRef value) {
+  auto* holder = konanConstructInstance<KRefSharedHolder>();
   holder->init(value);
-  ref->meta_object()->finalizer_ = MetaObjHeader::Finalizer{&::disposeSharedRef, holder};
   return holder;
 }
 
-void Kotlin_SharedRef_disposeSharedRef(KRef ref, KNativePtr pointer) {
-  ref->meta_object()->finalizer_ = MetaObjHeader::Finalizer{};
-  disposeSharedRef(pointer);
+void Kotlin_SharedRef_disposeSharedRef(KRef thiz) {
+  disposeSharedRef(thiz);
 }
 
-OBJ_GETTER(Kotlin_SharedRef_derefSharedRef, KNativePtr pointer) {
-  KRefSharedHolder* holder = reinterpret_cast<KRefSharedHolder*>(pointer);
+OBJ_GETTER(Kotlin_SharedRef_derefSharedRef, KRef thiz) {
+  // TODO: concurrent dispose and deref.
+  auto* holder = asSharedRef(thiz)->holder;
+  if (!holder) {
+    // TODO: More specific exception?
+    ThrowNullPointerException();
+  }
   RETURN_OBJ(holder->ref());
 }
 

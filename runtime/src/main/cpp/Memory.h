@@ -329,13 +329,6 @@ struct MetaObjHeader {
     // Strong reference to the counter object.
     ObjHeader* counter_;
   } WeakReference;
-
-  // TODO: Store it somewhere, where it doesn't consume space of every object.
-  struct Finalizer {
-    void (*func)(void*);
-    void* data;
-  };
-  Finalizer finalizer_;
 };
 
 // Header of every object.
