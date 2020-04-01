@@ -317,17 +317,23 @@ internal val linkerPhase = konanUnitPhase(
         description = "Linker"
 )
 
-internal val allLoweringsPhase = namedIrModulePhase(
-        name = "IrLowering",
-        description = "IR Lowering",
+internal val preInlinePhase = namedIrModulePhase(
+        name = "IrPreInlineLowering",
+        description = "IR lowerings before inlining",
         lower = removeExpectDeclarationsPhase then
                 stripTypeAliasDeclarationsPhase then
                 lowerBeforeInlinePhase then
                 arrayConstructorPhase then
                 lateinitPhase then
                 sharedVariablesPhase then
-                extractLocalClassesFromInlineBodies then
-                inlinePhase then
+                extractLocalClassesFromInlineBodies,
+        actions = setOf(defaultDumper, ::moduleValidationCallback)
+)
+
+internal val allLoweringsPhase = namedIrModulePhase(
+        name = "IrLowering",
+        description = "IR Lowering",
+        lower = inlinePhase then
                 provisionalFunctionExpressionPhase then
                 lowerAfterInlinePhase then
                 performByIrFile(
@@ -398,6 +404,35 @@ internal val dependenciesLowerPhase = SameTypeNamedPhaseWrapper(
             }
         })
 
+internal val dependenciesPreInlinePhase = SameTypeNamedPhaseWrapper(
+        name = "PreInlineLibIR",
+        description = "Lower before inlining library's IR",
+        prerequisite = emptySet(),
+        lower = object : CompilerPhase<Context, IrModuleFragment, IrModuleFragment> {
+            override fun invoke(phaseConfig: PhaseConfig, phaserState: PhaserState<IrModuleFragment>, context: Context, input: IrModuleFragment): IrModuleFragment {
+                val files = mutableListOf<IrFile>()
+                files += input.files
+                input.files.clear()
+
+                // TODO: KonanLibraryResolver.TopologicalLibraryOrder actually returns libraries in the reverse topological order.
+                context.librariesWithDependencies
+                        .reversed()
+                        .forEach {
+                            val libModule = context.irModules[it.libraryName]
+                                    ?: return@forEach
+
+                            input.files += libModule.files
+                            preInlinePhase.invoke(phaseConfig, phaserState, context, input)
+
+                            input.files.clear()
+                        }
+
+                input.files += files
+
+                return input
+            }
+        })
+
 internal val entryPointPhase = SameTypeNamedPhaseWrapper(
         name = "addEntryPoint",
         description = "Add entry point for program",
@@ -450,6 +485,8 @@ private val backendCodegen = namedUnitPhase(
         name = "Backend codegen",
         description = "Backend code generation",
         lower = takeFromContext<Context, Unit, IrModuleFragment> { it.irModule!! } then
+                preInlinePhase then
+                dependenciesPreInlinePhase then
                 allLoweringsPhase then // Lower current module first.
                 dependenciesLowerPhase then // Then lower all libraries in topological order.
                                             // With that we guarantee that inline functions are unlowered while being inlined.
