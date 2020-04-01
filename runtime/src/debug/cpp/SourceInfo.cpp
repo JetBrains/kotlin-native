@@ -135,7 +135,7 @@ extern "C" struct SourceInfo Kotlin_getSourceInfo(void* addr) {
               result.column = CSSourceInfoGetColumn(ref);
             }
        }
-       return 1;
+       return 0;
    });
   }
   return result;
