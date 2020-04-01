@@ -127,7 +127,6 @@ extern "C" struct SourceInfo Kotlin_getSourceInfo(void* addr) {
           if (lineNumber != 0
               && address >= range.location
               && address < range.location + range.length) {
-            RuntimeAssert(result.fileName == nullptr, "shouldn't be more than one value per address");
             const char* fileName = CSSourceInfoGetPath(ref);
             if (fileName != nullptr) {
               result.fileName = fileName;
