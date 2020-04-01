@@ -138,14 +138,16 @@ internal class NewTypeParameterEliminator(private val globalTypeParameterMapping
         override fun visitClass(declaration: IrClass): IrClass {
             constructorsCopier.prepare(declaration)
             return super.visitClass(declaration).withEliminatedTypeParameters(declaration).also {
-                val types = encoder.decode(it.name.asString())
+                val types = localTypeParameterMapping.values.toList()
                 deferredMembers += declaration to Triple(types, { null }, it)
             }
         }
 
         override fun visitConstructor(declaration: IrConstructor): IrConstructor {
             return constructorsCopier.visitConstructor(declaration).also {
-                deferredMembers += declaration to Triple(emptyList(), { it.constructedClassType }, it)
+                val specDispatchType = it.dispatchReceiverParameter?.type
+                val types = localTypeParameterMapping.values.toList()
+                deferredMembers += declaration to Triple(types, { specDispatchType }, it)
             }
         }
 

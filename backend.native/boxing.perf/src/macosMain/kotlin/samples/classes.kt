@@ -2,33 +2,43 @@ package samples
 
 import org.jetbrains.ring.CountBoxings
 
+@SpecializedClass(forTypes = [Int::class])
 class ThatSimpleBox<T1>
+
+@SpecializedClass(forTypes = [Int::class])
 class SimpleBox<T2>(val value: T2)
+
+@SpecializedClass(forTypes = [Int::class])
 class NoThatSimpleBox<T3>(val value: T3) {
     override fun equals(other: Any?): Boolean {
         return super.equals(other) || (other as? NoThatSimpleBox<*>)?.value == value
     }
 }
 
+@SpecializedClass(forTypes = [Int::class, Long::class, Double::class])
 class ManyConstructorsBox<T>(val value: T) {
     constructor(v: T, w: T) : this(v, 42, true)
     constructor(v: T, w: T, z: Int) : this(w, v)
     constructor(v: T, w: Int, t: Boolean) : this(v)
 }
 
+@SpecializedClass(forTypes = [Int::class, Long::class, Double::class])
 class ClashingConstructorsBox<T>(val value: T) {
     constructor(v: T, w: Int) : this(v)
     constructor(v: Int, w: T) : this(w)
 }
 
+@SpecializedClass(forTypes = [Int::class])
 class BoxWithId<T>(val value: T) {
     fun id() = value
 }
 
+@SpecializedClass(forTypes = [Int::class])
 class BoxWithEqls<T>(val value: T) {
     fun eqls(other: BoxWithEqls<T>) = value == other.value
 }
 
+@SpecializedClass(forTypes = [Int::class])
 class BoxWithCustomGetters<T>(val value1: T, val value2: T) {
     private val x = value1
         get() = if (foo()) field else value2
@@ -39,6 +49,7 @@ class BoxWithCustomGetters<T>(val value1: T, val value2: T) {
     fun bar() = x == y
 }
 
+@SpecializedClass(forTypes = [Int::class])
 class BoxWithCustomSetters<T>(val value1: T, val value2: T) {
     var x = value1
         set(value) {
@@ -58,9 +69,11 @@ class BoxWithCustomSetters<T>(val value1: T, val value2: T) {
     }
 }
 
+@SpecializedClass(forTypes = [Int::class])
 class BoxWithNestedClass<T>(val outerValue: T) {
     fun foo(f: Boolean) = if (f) outerValue else Nested(outerValue).foo()
 
+    @SpecializedClass(forTypes = [Int::class, Char::class])
     class Nested<U>(val innerValue: U) {
         fun foo() = innerValue
     }
@@ -68,6 +81,7 @@ class BoxWithNestedClass<T>(val outerValue: T) {
     fun foo2(f: Boolean) = if (f) outerValue else Nested(outerValue).foo()
 }
 
+@SpecializedClass(forTypes = [Int::class, Double::class])
 class BoxWithInnerClass<T>(val outerValue: T) {
     fun foo(f: Boolean) = if (f) outerValue else Inner(outerValue).foo(f)
 
@@ -76,6 +90,7 @@ class BoxWithInnerClass<T>(val outerValue: T) {
     }
 }
 
+@SpecializedClass(forTypes = [Int::class])
 class BoxWithCompanion<T>(val value: T) {
     fun foo() = bar(this)
 
@@ -86,6 +101,7 @@ class BoxWithCompanion<T>(val value: T) {
     }
 }
 
+@SpecializedClass(forTypes = [Int::class])
 class BoxWithLambda<T>(val factory: () -> T) {
     fun next(): T {
         return factory()
@@ -145,6 +161,20 @@ fun runClasses() {
         val x23 = x22.foo(true)
         val x24 = x22.foo(false)
 
+        val d20 = BoxWithInnerClass(i.toDouble())
+        val d21_1 = d20.foo(true) + d20.outerValue
+        val d21_2 = d20.foo(false) + d20.outerValue
+        val d22 = d20.Inner(i * 2.0)
+        val d23 = d22.foo(true)
+        val d24 = d22.foo(false)
+
+        val s20 = BoxWithInnerClass("hello")
+        val s21_1 = s20.foo(true) + s20.outerValue
+        val s21_2 = s20.foo(false) + s20.outerValue
+        val s22 = s20.Inner("world")
+        val s23 = s22.foo(true)
+        val s24 = s22.foo(false)
+
         val x25 = ManyConstructorsBox(i, i * 2)
         val x26 = ManyConstructorsBox(i * 2.0, i * 3.0, i)
         val x27 = ManyConstructorsBox(i + 1L, i * 2, false)
@@ -191,6 +221,16 @@ fun runClasses() {
         assertEquals(i * 2, x21_2)
         assertEquals(i, x23)
         assertEquals(i * 2, x24)
+
+        assertEquals(i * 2.0, d21_1)
+        assertEquals(i * 2.0, d21_2)
+        assertEquals(i.toDouble(), d23)
+        assertEquals(i * 2.0, d24)
+
+        assertEquals("hellohello", s21_1)
+        assertEquals("hellohello", s21_2)
+        assertEquals("hello", s23)
+        assertEquals("world", s24)
 
         assertEquals(i, x25.value)
         assertEquals(i * 3.0, x26.value)

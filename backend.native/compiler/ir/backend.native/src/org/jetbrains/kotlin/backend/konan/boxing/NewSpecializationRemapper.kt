@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.symbols.impl.IrValueParameterSymbolImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrVariableSymbolImpl
+import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
@@ -286,8 +287,8 @@ internal class NewSpecializationRemapper(
     }
 
     override fun visitConstructorCall(expression: IrConstructorCall): IrConstructorCall {
-        val classSpec = IrOriginToSpec.forClass(expression.type) ?: return super<NonCopyingTransformer>.visitConstructorCall(expression, data = null) as IrConstructorCall
-        return IrOriginToSpec.forSpec(expression.symbol.owner, emptyList(), classSpec)?.let {
+        val types = (expression.type as IrSimpleType).arguments.map { it as? IrType }
+        return IrOriginToSpec.forSpec(expression.symbol.owner, types, expression.dispatchReceiver?.replaced()?.type)?.let {
             context.createIrBuilder(expression.symbol).run {
                 irConstructorCall(super<DeepCopyIrTreeWithSymbols>.visitConstructorCall(expression), it)
             }
