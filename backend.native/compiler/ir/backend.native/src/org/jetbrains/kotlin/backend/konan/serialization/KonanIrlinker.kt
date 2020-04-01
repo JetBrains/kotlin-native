@@ -35,6 +35,8 @@ import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.IrFileSymbolImpl
 import org.jetbrains.kotlin.ir.util.*
+import org.jetbrains.kotlin.library.IrLibrary
+import org.jetbrains.kotlin.library.KotlinLibrary
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
@@ -52,27 +54,6 @@ internal class KonanIrLinker(
         exportedDependencies: List<ModuleDescriptor>
 ) : KotlinIrLinker(logger, builtIns, symbolTable, exportedDependencies) {
 
-    override fun reader(moduleDescriptor: ModuleDescriptor, fileIndex: Int, idSigIndex: Int) =
-            moduleDescriptor.konanLibrary!!.irDeclaration(idSigIndex, fileIndex)
-
-    override fun readType(moduleDescriptor: ModuleDescriptor, fileIndex: Int, typeIndex: Int) =
-            moduleDescriptor.konanLibrary!!.type(typeIndex, fileIndex)
-
-    override fun readSignature(moduleDescriptor: ModuleDescriptor, fileIndex: Int, signatureIndex: Int) =
-            moduleDescriptor.konanLibrary!!.signature(signatureIndex, fileIndex)
-
-    override fun readString(moduleDescriptor: ModuleDescriptor, fileIndex: Int, stringIndex: Int) =
-            moduleDescriptor.konanLibrary!!.string(stringIndex, fileIndex)
-
-    override fun readBody(moduleDescriptor: ModuleDescriptor, fileIndex: Int, bodyIndex: Int) =
-            moduleDescriptor.konanLibrary!!.body(bodyIndex, fileIndex)
-
-    override fun readFile(moduleDescriptor: ModuleDescriptor, fileIndex: Int) =
-            moduleDescriptor.konanLibrary!!.file(fileIndex)
-
-    override fun readFileCount(moduleDescriptor: ModuleDescriptor) =
-            moduleDescriptor.run { if (this === forwardModuleDescriptor || moduleDescriptor.isFromInteropLibrary()) 0 else konanLibrary!!.fileCount() }
-
     companion object {
         private val C_NAMES_NAME = Name.identifier("cnames")
         private val OBJC_NAMES_NAME = Name.identifier("objcnames")
@@ -86,20 +67,20 @@ internal class KonanIrLinker(
 
     private val forwardDeclarationDeserializer = forwardModuleDescriptor?.let { KonanForwardDeclarationModuleDeserialier(it) }
 
-    override fun createModuleDeserializer(moduleDescriptor: ModuleDescriptor, strategy: DeserializationStrategy): IrModuleDeserializer {
+    override fun createModuleDeserializer(moduleDescriptor: ModuleDescriptor, klib: IrLibrary?, strategy: DeserializationStrategy): IrModuleDeserializer {
         if (moduleDescriptor === forwardModuleDescriptor) {
             return forwardDeclarationDeserializer ?: error("forward declaration deserializer expected")
         }
 
-        if (moduleDescriptor.kotlinLibrary.isInteropLibrary()) {
+        if (klib is KotlinLibrary && klib.isInteropLibrary()) {
             return KonanInteropModuleDeserializer(moduleDescriptor)
         }
 
-        return KonanModuleDeserializer(moduleDescriptor, strategy)
+        return KonanModuleDeserializer(moduleDescriptor, klib ?: error("Expecting kotlin library"), strategy)
     }
 
-    private inner class KonanModuleDeserializer(moduleDescriptor: ModuleDescriptor, strategy: DeserializationStrategy):
-        KotlinIrLinker.BasicIrModuleDeserializer(moduleDescriptor, strategy)
+    private inner class KonanModuleDeserializer(moduleDescriptor: ModuleDescriptor, klib: IrLibrary, strategy: DeserializationStrategy):
+        KotlinIrLinker.BasicIrModuleDeserializer(moduleDescriptor, klib, strategy)
 
     private inner class KonanInteropModuleDeserializer(moduleDescriptor: ModuleDescriptor) : IrModuleDeserializer(moduleDescriptor) {
         init {

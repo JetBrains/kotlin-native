@@ -21,6 +21,9 @@ import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.backend.konan.descriptors.isKonanStdlib
+import org.jetbrains.kotlin.descriptors.konan.DeserializedKlibModuleOrigin
+import org.jetbrains.kotlin.descriptors.konan.KlibModuleOrigin
 import org.jetbrains.kotlin.descriptors.konan.isNativeStdlib
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
@@ -205,7 +208,10 @@ internal val psiToIrPhase = konanUnitPhase(
                 }
 
                 for (dependency in sortDependencies(dependencies)) {
-                    modules.add(deserializer.deserializeIrModuleHeader(dependency))
+                    val kotlinLibrary = dependency.getCapability(KlibModuleOrigin.CAPABILITY)?.let {
+                        (it as? DeserializedKlibModuleOrigin)?.library
+                    }
+                    modules.add(deserializer.deserializeIrModuleHeader(dependency, kotlinLibrary))
                 }
                 if (dependencies.size == dependenciesCount) break
                 dependenciesCount = dependencies.size
