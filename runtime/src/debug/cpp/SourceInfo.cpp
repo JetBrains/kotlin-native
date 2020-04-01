@@ -64,10 +64,7 @@ uint32_t (*CSSourceInfoGetLineNumber)(CSSourceInfoRef info);
 
 uint32_t (*CSSourceInfoGetColumn)(CSSourceInfoRef info);
 
-void* (*CSSymbolOwnerGetBaseAddress)(CSSymbolOwnerRef info);
-
 bool (*CSIsNull)(CSTypeRef);
-void (*CSShow)(CSTypeRef);
 CSSymbolRef (*CSSourceInfoGetSymbol)(CSSourceInfoRef info);
 
 typedef int (^CSSourceInfoIterator)(CSSourceInfoRef);
@@ -90,9 +87,7 @@ bool TryInitializeCoreSymbolication() {
   KONAN_CS_LOOKUP(CSSourceInfoGetPath)
   KONAN_CS_LOOKUP(CSSourceInfoGetLineNumber)
   KONAN_CS_LOOKUP(CSSourceInfoGetColumn)
-  KONAN_CS_LOOKUP(CSSymbolOwnerGetBaseAddress)
   KONAN_CS_LOOKUP(CSIsNull)
-  KONAN_CS_LOOKUP(CSShow)
   KONAN_CS_LOOKUP(CSSourceInfoGetSymbol)
   KONAN_CS_LOOKUP(CSSymbolForeachSourceInfo)
   KONAN_CS_LOOKUP(CSSymbolOwnerGetSymbolWithAddress)
