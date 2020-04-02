@@ -25,12 +25,12 @@ public class SharedRef<out T : Any> private constructor(private var ptr: NativeP
 
 @Frozen
 public class DisposableSharedRef<out T : Any> private constructor(
-    private val ref: AtomicReference<SharedRef<T>?>
+        private val ref: AtomicReference<SharedRef<T>?>
 ) {
 
     companion object {
         fun <T : Any> create(value: T): DisposableSharedRef<T> =
-            DisposableSharedRef(AtomicReference(SharedRef.create(value)))
+                DisposableSharedRef(AtomicReference(SharedRef.create(value)))
     }
 
     fun dispose() {
