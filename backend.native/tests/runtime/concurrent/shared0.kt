@@ -322,6 +322,100 @@ fun disposeInWorker(worker: Worker, semaphore: AtomicInt): Triple<WeakReference<
     worker.requestTermination().result
 }
 
+class B1 {
+    lateinit var b2: SharedRef<B2>
+}
+
+data class B2(val b1: SharedRef<B1>)
+
+fun createCyclicGarbage(): Triple<AtomicReference<SharedRef<B1>?>, WeakReference<B1>, WeakReference<B2>> {
+    val b1 = SharedRef.create(B1())
+    val refB1: AtomicReference<SharedRef<B1>?> = AtomicReference(b1)
+    val weakB1 = WeakReference(b1.get())
+
+    val b2 = SharedRef.create(B2(b1))
+    val weakB2 = WeakReference(b2.get())
+
+    b1.get().b2 = b2
+
+    return Triple(refB1, weakB1, weakB2)
+}
+
+@Test fun doesNotCollectCyclicGarbage() {
+    val (refB1, weakB1, weakB2) = createCyclicGarbage()
+
+    refB1.value = null
+    GC.collect()
+
+    // If these asserts fail, that means SharedRef managed to clean up cyclic garbage all by itself.
+    assertNotNull(weakB1.get())
+    assertNotNull(weakB2.get())
+}
+
+fun callDispose(ref: AtomicReference<SharedRef<B1>?>) {
+    ref.value!!.dispose()
+    ref.value = null
+}
+
+@Test fun collectCyclicGarbageWithExplicitDispose() {
+    val (refB1, weakB1, weakB2) = createCyclicGarbage()
+
+    callDispose(refB1)
+    GC.collect()
+
+    assertNull(weakB1.get())
+    assertNull(weakB2.get())
+}
+
+fun createCrossThreadCyclicGarbage(
+    worker: Worker
+): Triple<AtomicReference<SharedRef<B1>?>, WeakReference<B1>, WeakReference<B2>> {
+    val b1 = SharedRef.create(B1())
+    val refB1: AtomicReference<SharedRef<B1>?> = AtomicReference(b1)
+    val weakB1 = WeakReference(b1.get())
+
+    val future = worker.execute(TransferMode.SAFE, { b1 }) { b1 ->
+        val b2 = SharedRef.create(B2(b1))
+        Pair(b2, WeakReference(b2.get()))
+    }
+    val (b2, weakB2) = future.result
+
+    b1.get().b2 = b2
+
+    return Triple(refB1, weakB1, weakB2)
+}
+
+@Test fun doesNotCollectCrossThreadCyclicGarbage() {
+    val worker = Worker.start()
+
+    val (refB1, weakB1, weakB2) = createCrossThreadCyclicGarbage(worker)
+
+    refB1.value = null
+    GC.collect()
+    worker.execute(TransferMode.SAFE, {}) { GC.collect() }.result
+
+    // If these asserts fail, that means SharedRef managed to clean up cyclic garbage all by itself.
+    assertNotNull(weakB1.get())
+    assertNotNull(weakB2.get())
+
+    worker.requestTermination().result
+}
+
+@Test fun collectCrossThreadCyclicGarbageWithExplicitDispose() {
+    val worker = Worker.start()
+
+    val (refB1, weakB1, weakB2) = createCrossThreadCyclicGarbage(worker)
+
+    callDispose(refB1)
+    GC.collect()
+    worker.execute(TransferMode.SAFE, {}) { GC.collect() }.result
+
+    assertNull(weakB1.get())
+    assertNull(weakB2.get())
+
+    worker.requestTermination().result
+}
+
 @Test fun concurrentDispose() {
     val workerCount = 10
     val workerUnlocker = AtomicInt(0)
