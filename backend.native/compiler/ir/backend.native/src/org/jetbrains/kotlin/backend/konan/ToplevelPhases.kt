@@ -225,7 +225,6 @@ internal val psiToIrPhase = konanUnitPhase(
 
             val irProviders = listOf(deserializer)
             stubGenerator.setIrProviders(irProviders)
-            deserializer.init(moduleGenerator.moduleFragment, pluginExtensions)
 
             expectDescriptorToSymbol = mutableMapOf<DeclarationDescriptor, IrSymbol>()
             val module = translator.generateModuleFragment(
