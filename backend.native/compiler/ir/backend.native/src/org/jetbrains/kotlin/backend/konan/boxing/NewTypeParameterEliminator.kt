@@ -104,7 +104,7 @@ internal class NewTypeParameterEliminator(private val globalTypeParameterMapping
                         newType.abbreviation
                 )
             }
-            return newType
+            return IrOriginToSpec.forClass(newType) ?: newType
         }
 
         private fun remapTypeArguments(arguments: List<IrTypeArgument>, types: List<IrType?>): List<IrTypeArgument> {
@@ -162,14 +162,16 @@ internal class NewTypeParameterEliminator(private val globalTypeParameterMapping
             val specDispatchType = dispatchReceiverParameter?.type
             deferredMembers += originalFunction to Triple(types, { specDispatchType }, this)
 
-            // Assumed that non-encoded function name can belong only to non-specialized variant,
-            // and hence it has correct overriding methods info.
-            // TODO consider this condition when errors with inconsistent methods table will occur.
-            if (types.isNotEmpty()) {
-                overriddenSymbols.replaceAll {
-                    IrOriginToSpec.forSpec(it.owner, types, it.owner.dispatchReceiverParameter?.type)?.symbol
-                            ?: it
-                }
+            // TODO less clumsy and untrustworthy
+            fun findCorrectOverriddenFunction(originalOverriddenSymbol: IrSimpleFunctionSymbol): IrSimpleFunctionSymbol? {
+                val originalClass = originalOverriddenSymbol.owner.dispatchReceiverParameter?.type?.getClass() ?: return null
+                val newClass = IrOriginToSpec.forSpec(originalClass, localTypeParameterMapping.values.toList(), null) ?: return null
+                return IrOriginToSpec.forSpec(originalOverriddenSymbol.owner, types, newClass.thisReceiver?.type)?.symbol
+            }
+            overriddenSymbols.replaceAll {
+                findCorrectOverriddenFunction(it)
+                        ?: IrOriginToSpec.forSpec(it.owner, types, dispatchReceiverParameter?.type)?.symbol
+                        ?: it
             }
         }
 
