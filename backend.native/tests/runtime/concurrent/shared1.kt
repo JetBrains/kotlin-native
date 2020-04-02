@@ -416,6 +416,37 @@ fun createCrossThreadCyclicGarbage(
     worker.requestTermination().result
 }
 
+@Test fun concurrentAccess() {
+    val workerCount = 10
+    val workerUnlocker = AtomicInt(0)
+
+    val local = DisposableSharedRef.create(A(3))
+    assertEquals(3, local.get().a)
+
+    val workers = Array(workerCount) {
+        Worker.start()
+    }
+    val futures = Array(workers.size) {
+        workers[it].execute(TransferMode.SAFE, { Pair(local, workerUnlocker) }) { (local, workerUnlocker) ->
+            while (workerUnlocker.value < 1) {}
+
+            assertFailsWith<IncorrectDereferenceException> {
+                local.get()
+            }
+            Unit
+        }
+    }
+    workerUnlocker.increment()
+
+    for (future in futures) {
+        future.result
+    }
+
+    for (worker in workers) {
+        worker.requestTermination().result
+    }
+}
+
 @Test fun concurrentDispose() {
     val workerCount = 10
     val workerUnlocker = AtomicInt(0)
