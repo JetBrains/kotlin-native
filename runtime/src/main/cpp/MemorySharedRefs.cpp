@@ -19,16 +19,6 @@ SharedRefLayout* asSharedRef(KRef thiz) {
   return reinterpret_cast<SharedRefLayout*>(thiz);
 }
 
-void disposeSharedRef(KRef thiz) {
-  // TODO: concurrent dispose.
-  auto* holder = asSharedRef(thiz)->holder;
-  asSharedRef(thiz)->holder = nullptr;
-  if (holder) {
-    holder->dispose();
-    konanDestructInstance(holder);
-  }
-}
-
 }  // namespace
 
 void KRefSharedHolder::initLocal(ObjHeader* obj) {
@@ -132,8 +122,11 @@ void BackRefFromAssociatedObject::ensureRefAccessible() const {
   ensureForeignRefAccessible(obj_, context_);
 }
 
-void DisposeSharedRef(ObjHeader* obj) {
-  disposeSharedRef(obj);
+void DisposeSharedRef(KRef thiz) {
+  // DisposeSharedRef is only called when all references to thiz are gone.
+  auto* holder = asSharedRef(thiz)->holder;
+  holder->dispose();
+  konanDestructInstance(holder);
 }
 
 extern "C" {
@@ -159,18 +152,10 @@ KNativePtr Kotlin_SharedRef_createSharedRef(KRef value) {
   return holder;
 }
 
-void Kotlin_SharedRef_disposeSharedRef(KRef thiz) {
-  disposeSharedRef(thiz);
-}
-
 OBJ_GETTER(Kotlin_SharedRef_derefSharedRef, KRef thiz) {
-  // TODO: concurrent dispose and deref.
-  auto* holder = asSharedRef(thiz)->holder;
-  if (!holder) {
-    // TODO: More specific exception?
-    ThrowNullPointerException();
-  }
-  RETURN_OBJ(holder->ref());
+  // If thiz exists, holder must also exist. Disposal only happens
+  // when all references to thiz are gone.
+  RETURN_OBJ(asSharedRef(thiz)->holder->ref());
 }
 
 } // extern "C"

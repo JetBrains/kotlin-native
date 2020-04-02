@@ -19,9 +19,25 @@ public class SharedRef<out T : Any> private constructor(private var ptr: NativeP
         fun <T : Any> create(value: T) = SharedRef<T>(createSharedRef(value))
     }
 
-    @SymbolName("Kotlin_SharedRef_disposeSharedRef")
-    external fun dispose()
-
     @SymbolName("Kotlin_SharedRef_derefSharedRef")
     external fun get(): T
+}
+
+@Frozen
+public class DisposableSharedRef<out T : Any> private constructor(
+    private val ref: AtomicReference<SharedRef<T>?>
+) {
+
+    companion object {
+        fun <T : Any> create(value: T): DisposableSharedRef<T> =
+            DisposableSharedRef(AtomicReference(SharedRef.create(value)))
+    }
+
+    fun dispose() {
+        ref.value = null
+    }
+
+    fun get(): T {
+        return ref.value?.get() ?: throw NullPointerException()
+    }
 }

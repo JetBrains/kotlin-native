@@ -877,6 +877,11 @@ task shared0(type: KonanLocalTest) {
     source = "runtime/concurrent/shared0.kt"
 }
 
+task shared1(type: KonanLocalTest) {
+    enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
+    source = "runtime/concurrent/shared1.kt"
+}
+
 task worker0(type: KonanLocalTest) {
     enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
     goldValue = "Got Input processed\nOK\n"

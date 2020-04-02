@@ -70,26 +70,6 @@ val global3: SharedRef<A> = SharedRef.create(A(3))
     worker.requestTermination().result
 }
 
-val global4: SharedRef<A> = SharedRef.create(A(3))
-
-@Test fun testGlobalDispose() {
-    assertEquals(3, global4.get().a)
-
-    global4.dispose()
-    global4.dispose()
-}
-
-val global5: SharedRef<A> = SharedRef.create(A(3))
-
-@Test fun testGlobalAccessAfterDispose() {
-    assertEquals(3, global5.get().a)
-
-    global5.dispose()
-    assertFailsWith<NullPointerException> {
-        global5.get().a
-    }
-}
-
 @Test fun testLocal() {
     val local = SharedRef.create(A(3))
     assertEquals(3, local.get().a)
@@ -144,24 +124,6 @@ val global5: SharedRef<A> = SharedRef.create(A(3))
     worker.requestTermination().result
 }
 
-@Test fun testLocalDispose() {
-    val local = SharedRef.create(A(3))
-    assertEquals(3, local.get().a)
-
-    local.dispose()
-    local.dispose()
-}
-
-@Test fun testLocalAccessAfterDispose() {
-    val local = SharedRef.create(A(3))
-    assertEquals(3, local.get().a)
-
-    local.dispose()
-    assertFailsWith<NullPointerException> {
-        local.get().a
-    }
-}
-
 fun getWeaksAndAtomicReference(initial: Int): Triple<AtomicReference<SharedRef<A>?>, WeakReference<SharedRef<A>>, WeakReference<A>> {
     val local = SharedRef.create(A(initial))
     val localRef: AtomicReference<SharedRef<A>?> = AtomicReference(local)
@@ -181,16 +143,6 @@ fun getWeaksAndAtomicReference(initial: Int): Triple<AtomicReference<SharedRef<A
     GC.collect()
 
     assertNull(localWeak.get())
-    assertNull(localValueWeak.get())
-}
-
-@Test fun testDisposeAndCollect() {
-    val (localRef, localWeak, localValueWeak) = getWeaksAndAtomicReference(3)
-
-    localRef.value!!.dispose()
-    GC.collect()
-
-    assertNotNull(localWeak.get())
     assertNull(localValueWeak.get())
 }
 
@@ -253,75 +205,6 @@ fun doNotCollectInWorker(worker: Worker, semaphore: AtomicInt): Future<SharedRef
     worker.requestTermination().result
 }
 
-fun disposeInWorker(worker: Worker, semaphore: AtomicInt): Triple<WeakReference<SharedRef<A>>, WeakReference<A>, Future<Unit>> {
-    val (localRef, localWeak, localValueWeak) = getWeaksAndAtomicReference(3)
-
-    val future = worker.execute(TransferMode.SAFE, { Pair(localRef, semaphore) }) { (localRef, semaphore) ->
-        semaphore.increment()
-        while (semaphore.value < 2) {}
-
-        localRef.value!!.dispose()
-        GC.collect()
-    }
-
-    while (semaphore.value < 1) {}
-    GC.collect()
-    assertNotNull(localValueWeak.get())
-
-    return Triple(localWeak, localValueWeak, future)
-}
-
-@Test fun testDisposeInWorker() {
-    val semaphore: AtomicInt = AtomicInt(0)
-
-    val worker = Worker.start()
-
-    val (localWeak, localValueWeak, future) = disposeInWorker(worker, semaphore)
-    semaphore.increment()
-
-    future.result
-    GC.collect()
-    assertNotNull(localWeak.get())
-    assertNull(localValueWeak.get())
-    worker.requestTermination().result
-}
-
-@Test fun testDisposeOnMainThreadAndAccessInWorker() {
-    val local = SharedRef.create(A(3))
-    assertEquals(3, local.get().a)
-
-    local.dispose()
-
-    val worker = Worker.start()
-    val future = worker.execute(TransferMode.SAFE, { local }) { local ->
-        var result = 0
-        assertFailsWith<NullPointerException> {
-            result = local.get().a
-        }
-        result
-    }
-
-    val value = future.result
-    assertEquals(0, value)
-    worker.requestTermination().result
-}
-
-@Test fun testDisposeInWorkerAndAccessOnMainThread() {
-    val local = SharedRef.create(A(3))
-    assertEquals(3, local.get().a)
-
-    val worker = Worker.start()
-    val future = worker.execute(TransferMode.SAFE, { local }) { local ->
-        local.dispose()
-    }
-
-    future.result
-    assertFailsWith<NullPointerException> {
-        local.get().a
-    }
-    worker.requestTermination().result
-}
-
 class B1 {
     lateinit var b2: SharedRef<B2>
 }
@@ -350,21 +233,6 @@ fun createCyclicGarbage(): Triple<AtomicReference<SharedRef<B1>?>, WeakReference
     // If these asserts fail, that means SharedRef managed to clean up cyclic garbage all by itself.
     assertNotNull(weakB1.get())
     assertNotNull(weakB2.get())
-}
-
-fun callDispose(ref: AtomicReference<SharedRef<B1>?>) {
-    ref.value!!.dispose()
-    ref.value = null
-}
-
-@Test fun collectCyclicGarbageWithExplicitDispose() {
-    val (refB1, weakB1, weakB2) = createCyclicGarbage()
-
-    callDispose(refB1)
-    GC.collect()
-
-    assertNull(weakB1.get())
-    assertNull(weakB2.get())
 }
 
 fun createCrossThreadCyclicGarbage(
@@ -398,80 +266,5 @@ fun createCrossThreadCyclicGarbage(
     assertNotNull(weakB1.get())
     assertNotNull(weakB2.get())
 
-    worker.requestTermination().result
-}
-
-@Test fun collectCrossThreadCyclicGarbageWithExplicitDispose() {
-    val worker = Worker.start()
-
-    val (refB1, weakB1, weakB2) = createCrossThreadCyclicGarbage(worker)
-
-    callDispose(refB1)
-    GC.collect()
-    worker.execute(TransferMode.SAFE, {}) { GC.collect() }.result
-
-    assertNull(weakB1.get())
-    assertNull(weakB2.get())
-
-    worker.requestTermination().result
-}
-
-@Test fun concurrentDispose() {
-    val workerCount = 10
-    val workerUnlocker = AtomicInt(0)
-
-    val local = SharedRef.create(A(3))
-    assertEquals(3, local.get().a)
-
-    val workers = Array(workerCount) {
-        Worker.start()
-    }
-    val futures = Array(workers.size) {
-        workers[it].execute(TransferMode.SAFE, { Pair(local, workerUnlocker) }) { (local, workerUnlocker) ->
-            while (workerUnlocker.value < 1) {}
-
-            local.dispose()
-        }
-    }
-    workerUnlocker.increment()
-
-    for (future in futures) {
-        future.result
-    }
-
-    assertFailsWith<NullPointerException> {
-        local.get().a
-    }
-
-    for (worker in workers) {
-        worker.requestTermination().result
-    }
-}
-
-@Test fun concurrentDisposeAndAccess() {
-    val workerUnlocker = AtomicInt(0)
-
-    val local = SharedRef.create(A(3))
-    assertEquals(3, local.get().a)
-
-    val worker = Worker.start()
-    val future = worker.execute(TransferMode.SAFE, { Pair(local, workerUnlocker) }) { (local, workerUnlocker) ->
-        while (workerUnlocker.value < 1) {}
-
-        local.dispose()
-    }
-    workerUnlocker.increment()
-
-    var result = 0
-    // This is a race, but it should either get value successfully or get NullPointerException.
-    // Any other kind of failure is unacceptable.
-    try {
-        result = local.get().a
-    } catch(e: NullPointerException) {
-        result = 3
-    }
-    assertEquals(3, result)
-
-    future.result
     worker.requestTermination().result
 }
