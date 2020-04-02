@@ -152,7 +152,15 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
                 put(LIST_TARGETS, arguments.listTargets)
                 put(OPTIMIZATION, arguments.optimization)
                 put(DEBUG, arguments.debug)
-                put(LIGHT_DEBUG, arguments.lightDebug)
+                putIfNotNull(LIGHT_DEBUG, when (val it = arguments.lightDebugString) {
+                    "enable" -> true
+                    "disable" -> false
+                    null -> null
+                    else -> {
+                        configuration.report(ERROR, "Unsupported -Xg0= value: $it. Possible values are 'enable'/'disable'")
+                        null
+                    }
+                })
                 put(STATIC_FRAMEWORK, selectFrameworkType(configuration, arguments, outputKind))
                 put(OVERRIDE_CLANG_OPTIONS, arguments.clangOptions.toNonNullList())
                 put(ALLOCATION_MODE, arguments.allocator)

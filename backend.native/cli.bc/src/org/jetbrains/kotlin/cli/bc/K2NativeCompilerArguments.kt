@@ -152,8 +152,13 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     )
     var frameworkImportHeaders: Array<String>? = null
 
-    @Argument(value = "-Xg0", description = "Add light debug information")
-    var lightDebug: Boolean = false
+    // FIXME: same name.
+    @Argument(
+            value = "-Xg0",
+            valueDescription = "{disable|enable}",
+            description = "Add light debug information"
+    )
+    var lightDebugString: String? = null
 
     @Argument(
             value = MAKE_CACHE,
