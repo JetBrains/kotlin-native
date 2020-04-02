@@ -16,15 +16,17 @@
 
 package org.jetbrains.ring
 
-const val BENCHMARK_SIZE = 10000
+const val BENCHMARK_SIZE = 1000000
+const val RANDOM_BOUNDARY_INT = 1_000_000_000
+const val RANDOM_BOUNDARY_DOUBLE = 1_000_000.0
 
 expect class Random() {
     companion object {
         var seedInt: Int
-        fun nextInt(boundary: Int = 100): Int
+        fun nextInt(boundary: Int = RANDOM_BOUNDARY_INT): Int
 
         var seedDouble: Double
-        fun nextDouble(boundary: Double = 100.0): Double
+        fun nextDouble(boundary: Double = RANDOM_BOUNDARY_DOUBLE): Double
     }
 }
 

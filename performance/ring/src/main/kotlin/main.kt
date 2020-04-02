@@ -17,6 +17,10 @@
 
 import org.jetbrains.benchmarksLauncher.*
 import org.jetbrains.ring.*
+import org.jetbrains.ring.mapper.mapper0
+import org.jetbrains.ring.mapper.mapper1
+import org.jetbrains.ring.mapper.mapper2
+import org.jetbrains.ring.mapper.mapper3
 
 class RingLauncher : Launcher() {
 
@@ -206,7 +210,11 @@ class RingLauncher : Launcher() {
                     "CoordinatesSolver.solve" to BenchmarkEntryWithInit.create(::CoordinatesSolverBenchmark, { solve() }),
                     "GraphSolver.solve" to BenchmarkEntryWithInit.create(::GraphSolverBenchmark, { solve() }),
                     "Casts.classCast" to BenchmarkEntryWithInit.create(::CastsBenchmark, { classCast() }),
-                    "Casts.interfaceCast" to BenchmarkEntryWithInit.create(::CastsBenchmark, { interfaceCast() })
+                    "Casts.interfaceCast" to BenchmarkEntryWithInit.create(::CastsBenchmark, { interfaceCast() }),
+                    "Mapper0" to BenchmarkEntry(::mapper0),
+                    "Mapper1" to BenchmarkEntry(::mapper1),
+                    "Mapper2" to BenchmarkEntry(::mapper2),
+                    "Mapper3" to BenchmarkEntry(::mapper3)
             )
     )
 }
