@@ -21,7 +21,6 @@ import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.descriptors.*
-import org.jetbrains.kotlin.backend.konan.descriptors.isKonanStdlib
 import org.jetbrains.kotlin.descriptors.konan.DeserializedKlibModuleOrigin
 import org.jetbrains.kotlin.descriptors.konan.KlibModuleOrigin
 import org.jetbrains.kotlin.descriptors.konan.isNativeStdlib
@@ -180,7 +179,8 @@ internal val psiToIrPhase = konanUnitPhase(
             )
             val symbols = KonanSymbols(this, symbolTable, symbolTable.lazyWrapper, functionIrClassFactory)
 
-            val irProviderForCEnumsAndCStructs = IrProviderForCEnumAndCStructStubs(generatorContext, interopBuiltIns, symbols)
+            val irProviderForCEnumsAndCStructs =
+                    IrProviderForCEnumAndCStructStubs(generatorContext, interopBuiltIns, symbols, llvmModuleSpecification::containsModule)
             val deserializer = KonanIrLinker(
                     moduleDescriptor,
                     functionIrClassFactory,
