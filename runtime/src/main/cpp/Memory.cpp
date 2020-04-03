@@ -35,6 +35,7 @@
 #include "Natives.h"
 #include "Porting.h"
 #include "Runtime.h"
+#include "SharedRef.h"
 
 // If garbage collection algorithm for cyclic garbage to be used.
 // We are using the Bacon's algorithm for GC, see
@@ -931,11 +932,12 @@ void freeAggregatingFrozenContainer(ContainerHeader* container) {
 void runDeallocationHooks(ContainerHeader* container) {
   ObjHeader* obj = reinterpret_cast<ObjHeader*>(container + 1);
   for (int index = 0; index < container->objectCount(); index++) {
-    if (obj->type_info() == theSharedRefTypeInfo) {
+    auto* type_info = obj->type_info();
+    if (type_info == theSharedRefTypeInfo) {
       DisposeSharedRef(obj);
     }
 #if USE_CYCLIC_GC
-    if ((obj->type_info()->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0) {
+    if ((type_info->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0) {
       cyclicRemoveAtomicRoot(obj);
     }
 #endif  // USE_CYCLIC_GC

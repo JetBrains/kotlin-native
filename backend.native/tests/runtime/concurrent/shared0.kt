@@ -13,7 +13,7 @@ import kotlin.native.ref.WeakReference
 
 class A(var a: Int)
 
-val global1: SharedRef<A> = SharedRef.create(A(3))
+val global1: SharedRef<A> = SharedRef(A(3))
 
 @Test fun testGlobal() {
     assertEquals(3, global1.get().a)
@@ -28,7 +28,7 @@ val global1: SharedRef<A> = SharedRef.create(A(3))
     worker.requestTermination().result
 }
 
-val global2: SharedRef<A> = SharedRef.create(A(3))
+val global2: SharedRef<A> = SharedRef(A(3))
 
 @Test fun testGlobalDenyAccessOnWorker() {
     assertEquals(3, global2.get().a)
@@ -47,7 +47,7 @@ val global2: SharedRef<A> = SharedRef.create(A(3))
     worker.requestTermination().result
 }
 
-val global3: SharedRef<A> = SharedRef.create(A(3))
+val global3: SharedRef<A> = SharedRef(A(3))
 
 @Test fun testGlobalModification() {
     val semaphore: AtomicInt = AtomicInt(0)
@@ -71,7 +71,7 @@ val global3: SharedRef<A> = SharedRef.create(A(3))
 }
 
 @Test fun testLocal() {
-    val local = SharedRef.create(A(3))
+    val local = SharedRef(A(3))
     assertEquals(3, local.get().a)
 
     val worker = Worker.start()
@@ -85,7 +85,7 @@ val global3: SharedRef<A> = SharedRef.create(A(3))
 }
 
 @Test fun testLocalDenyAccessOnWorker() {
-    val local = SharedRef.create(A(3))
+    val local = SharedRef(A(3))
     assertEquals(3, local.get().a)
 
     val worker = Worker.start()
@@ -105,7 +105,7 @@ val global3: SharedRef<A> = SharedRef.create(A(3))
 @Test fun testLocalModification() {
     val semaphore: AtomicInt = AtomicInt(0)
 
-    val local = SharedRef.create(A(3))
+    val local = SharedRef(A(3))
     assertEquals(3, local.get().a)
 
     val worker = Worker.start()
@@ -125,7 +125,7 @@ val global3: SharedRef<A> = SharedRef.create(A(3))
 }
 
 fun getWeaksAndAtomicReference(initial: Int): Triple<AtomicReference<SharedRef<A>?>, WeakReference<SharedRef<A>>, WeakReference<A>> {
-    val local = SharedRef.create(A(initial))
+    val local = SharedRef(A(initial))
     val localRef: AtomicReference<SharedRef<A>?> = AtomicReference(local)
     val localWeak = WeakReference(local)
     val localValueWeak = WeakReference(local.get())
@@ -179,7 +179,7 @@ fun collectInWorker(worker: Worker, semaphore: AtomicInt): Pair<WeakReference<A>
 }
 
 fun doNotCollectInWorker(worker: Worker, semaphore: AtomicInt): Future<SharedRef<A>> {
-    val local = SharedRef.create(A(3))
+    val local = SharedRef(A(3))
 
     return worker.execute(TransferMode.SAFE, { Pair(local, semaphore) }) { (local, semaphore) ->
         semaphore.increment()
@@ -212,11 +212,11 @@ class B1 {
 data class B2(val b1: SharedRef<B1>)
 
 fun createCyclicGarbage(): Triple<AtomicReference<SharedRef<B1>?>, WeakReference<B1>, WeakReference<B2>> {
-    val b1 = SharedRef.create(B1())
+    val b1 = SharedRef(B1())
     val refB1: AtomicReference<SharedRef<B1>?> = AtomicReference(b1)
     val weakB1 = WeakReference(b1.get())
 
-    val b2 = SharedRef.create(B2(b1))
+    val b2 = SharedRef(B2(b1))
     val weakB2 = WeakReference(b2.get())
 
     b1.get().b2 = b2
@@ -238,12 +238,12 @@ fun createCyclicGarbage(): Triple<AtomicReference<SharedRef<B1>?>, WeakReference
 fun createCrossThreadCyclicGarbage(
     worker: Worker
 ): Triple<AtomicReference<SharedRef<B1>?>, WeakReference<B1>, WeakReference<B2>> {
-    val b1 = SharedRef.create(B1())
+    val b1 = SharedRef(B1())
     val refB1: AtomicReference<SharedRef<B1>?> = AtomicReference(b1)
     val weakB1 = WeakReference(b1.get())
 
     val future = worker.execute(TransferMode.SAFE, { b1 }) { b1 ->
-        val b2 = SharedRef.create(B2(b1))
+        val b2 = SharedRef(B2(b1))
         Pair(b2, WeakReference(b2.get()))
     }
     val (b2, weakB2) = future.result
@@ -273,7 +273,7 @@ fun createCrossThreadCyclicGarbage(
     val workerCount = 10
     val workerUnlocker = AtomicInt(0)
 
-    val local = SharedRef.create(A(3))
+    val local = SharedRef(A(3))
     assertEquals(3, local.get().a)
 
     val workers = Array(workerCount) {

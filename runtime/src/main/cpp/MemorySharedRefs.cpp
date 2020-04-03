@@ -8,19 +8,6 @@
 #include "MemorySharedRefs.hpp"
 #include "Runtime.h"
 
-namespace {
-
-struct SharedRefLayout {
-  ObjHeader header;
-  KRefSharedHolder* holder;
-};
-
-SharedRefLayout* asSharedRef(KRef thiz) {
-  return reinterpret_cast<SharedRefLayout*>(thiz);
-}
-
-}  // namespace
-
 void KRefSharedHolder::initLocal(ObjHeader* obj) {
   RuntimeAssert(obj != nullptr, "must not be null");
   context_ = InitLocalForeignRef(obj);
@@ -122,13 +109,6 @@ void BackRefFromAssociatedObject::ensureRefAccessible() const {
   ensureForeignRefAccessible(obj_, context_);
 }
 
-void DisposeSharedRef(KRef thiz) {
-  // DisposeSharedRef is only called when all references to thiz are gone.
-  auto* holder = asSharedRef(thiz)->holder;
-  holder->dispose();
-  konanDestructInstance(holder);
-}
-
 extern "C" {
 RUNTIME_NOTHROW void KRefSharedHolder_initLocal(KRefSharedHolder* holder, ObjHeader* obj) {
   holder->initLocal(obj);
@@ -145,17 +125,4 @@ RUNTIME_NOTHROW void KRefSharedHolder_dispose(const KRefSharedHolder* holder) {
 ObjHeader* KRefSharedHolder_ref(const KRefSharedHolder* holder) {
   return holder->ref();
 }
-
-KNativePtr Kotlin_SharedRef_createSharedRef(KRef value) {
-  auto* holder = konanConstructInstance<KRefSharedHolder>();
-  holder->init(value);
-  return holder;
-}
-
-OBJ_GETTER(Kotlin_SharedRef_derefSharedRef, KRef thiz) {
-  // If thiz exists, holder must also exist. Disposal only happens
-  // when all references to thiz are gone.
-  RETURN_OBJ(asSharedRef(thiz)->holder->ref());
-}
-
 } // extern "C"

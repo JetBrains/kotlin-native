@@ -13,25 +13,22 @@ external private fun createSharedRef(value: Any): NativePtr
 /**
  * A frozen shared reference to a Kotlin object
  *
- * Can be safely passed between workers, but can only be accessed on the worker it was created on
+ * Can be safely passed between workers, but can only be accessed on the worker it was created on,
+ * unless the referred object is frozen too
  *
- * Note: Garbage collector currently cannot detect reference cycles between [SharedRef]s. Consider
- * using [DisposableSharedRef] to manually resolve cycles with explicit calls to [DisposableSharedRef.dispose]
+ * Note: Garbage collector currently cannot free any reference cycles with [SharedRef] or [DisposableSharedRef] in them.
+ * Consider using [DisposableSharedRef] to manually resolve cycles with explicit calls to [DisposableSharedRef.dispose]
  */
 @Frozen
 @NoReorderFields
 @ExportTypeInfo("theSharedRefTypeInfo")
-public class SharedRef<out T : Any> private constructor(private var ptr: NativePtr) {
+public class SharedRef<out T : Any>(value: T) {
 
-    companion object {
-        /**
-         * Creates shared reference to given object
-         */
-        fun <T : Any> create(value: T) = SharedRef<T>(createSharedRef(value))
-    }
+    private var ptr = createSharedRef(value)
 
     /**
-     * Returns the object this reference was [created][SharedRef.create] for.
+     * Returns the object this reference was created for.
+     * @throws IncorrectDereferenceException if referred object is not frozen and this is called from a different worker, than [SharedRef] was created on
      */
     @SymbolName("Kotlin_SharedRef_derefSharedRef")
     external fun get(): T
@@ -40,25 +37,18 @@ public class SharedRef<out T : Any> private constructor(private var ptr: NativeP
 /**
  * A frozen shared reference to a Kotlin object
  *
- * Can be safely passed between workers, but can only be accessed on the worker it was created on.
- * Garbage collector currently cannot detect reference cylces between [DisposableSharedRef]s.
+ * Can be safely passed between workers, but can only be accessed on the worker it was created on,
+ * unless the referred object is frozen too.
+ * Garbage collector currently cannot free any reference cycles with [SharedRef] or [DisposableSharedRef] in them.
  * Call [dispose] manually to resolve cycles
  *
  * Note: This class has more expensive [get] than [SharedRef.get]. If you don't have reference
- * cycles between [SharedRef]s, consider using [SharedRef]
+ * cycles with [SharedRef] or [DisposableSharedRef], consider using [SharedRef]
  */
 @Frozen
-public class DisposableSharedRef<out T : Any> private constructor(
-        private val ref: AtomicReference<SharedRef<T>?>
-) {
+public class DisposableSharedRef<out T : Any>(value: T) {
 
-    companion object {
-        /**
-         * Creates shared reference to given object
-         */
-        fun <T : Any> create(value: T): DisposableSharedRef<T> =
-                DisposableSharedRef(AtomicReference(SharedRef.create(value)))
-    }
+    private val ref: AtomicReference<SharedRef<T>?> = AtomicReference(SharedRef(value))
 
     /**
      * Free the reference. Any call to [DisposableSharedRef.get] after that will
@@ -69,10 +59,11 @@ public class DisposableSharedRef<out T : Any> private constructor(
     }
 
     /**
-     * Returns the object this reference was [created][DisposableSharedRef.create] for.
-     * @throws NullPointerException if [DisposableSharedRef.dispose] was called on this reference.
+     * Returns the object this reference was created for.
+     * @throws IncorrectDereferenceException if referred object is not frozen and this is called from a different worker, than [DisposableSharedRef] was created on
+     * @throws IllegalStateException if [DisposableSharedRef.dispose] was called on this reference.
      */
     fun get(): T {
-        return ref.value?.get() ?: throw NullPointerException()
+        return ref.value?.get() ?: throw IllegalStateException("illegal attempt to dereference disposed $this")
     }
 }

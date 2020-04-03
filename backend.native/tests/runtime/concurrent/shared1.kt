@@ -13,7 +13,7 @@ import kotlin.native.ref.WeakReference
 
 class A(var a: Int)
 
-val global1: DisposableSharedRef<A> = DisposableSharedRef.create(A(3))
+val global1: DisposableSharedRef<A> = DisposableSharedRef(A(3))
 
 @Test fun testGlobal() {
     assertEquals(3, global1.get().a)
@@ -28,7 +28,7 @@ val global1: DisposableSharedRef<A> = DisposableSharedRef.create(A(3))
     worker.requestTermination().result
 }
 
-val global2: DisposableSharedRef<A> = DisposableSharedRef.create(A(3))
+val global2: DisposableSharedRef<A> = DisposableSharedRef(A(3))
 
 @Test fun testGlobalDenyAccessOnWorker() {
     assertEquals(3, global2.get().a)
@@ -47,7 +47,7 @@ val global2: DisposableSharedRef<A> = DisposableSharedRef.create(A(3))
     worker.requestTermination().result
 }
 
-val global3: DisposableSharedRef<A> = DisposableSharedRef.create(A(3))
+val global3: DisposableSharedRef<A> = DisposableSharedRef(A(3))
 
 @Test fun testGlobalModification() {
     val semaphore: AtomicInt = AtomicInt(0)
@@ -70,7 +70,7 @@ val global3: DisposableSharedRef<A> = DisposableSharedRef.create(A(3))
     worker.requestTermination().result
 }
 
-val global4: DisposableSharedRef<A> = DisposableSharedRef.create(A(3))
+val global4: DisposableSharedRef<A> = DisposableSharedRef(A(3))
 
 @Test fun testGlobalDispose() {
     assertEquals(3, global4.get().a)
@@ -79,19 +79,19 @@ val global4: DisposableSharedRef<A> = DisposableSharedRef.create(A(3))
     global4.dispose()
 }
 
-val global5: DisposableSharedRef<A> = DisposableSharedRef.create(A(3))
+val global5: DisposableSharedRef<A> = DisposableSharedRef(A(3))
 
 @Test fun testGlobalAccessAfterDispose() {
     assertEquals(3, global5.get().a)
 
     global5.dispose()
-    assertFailsWith<NullPointerException> {
+    assertFailsWith<IllegalStateException> {
         global5.get().a
     }
 }
 
 @Test fun testLocal() {
-    val local = DisposableSharedRef.create(A(3))
+    val local = DisposableSharedRef(A(3))
     assertEquals(3, local.get().a)
 
     val worker = Worker.start()
@@ -105,7 +105,7 @@ val global5: DisposableSharedRef<A> = DisposableSharedRef.create(A(3))
 }
 
 @Test fun testLocalDenyAccessOnWorker() {
-    val local = DisposableSharedRef.create(A(3))
+    val local = DisposableSharedRef(A(3))
     assertEquals(3, local.get().a)
 
     val worker = Worker.start()
@@ -125,7 +125,7 @@ val global5: DisposableSharedRef<A> = DisposableSharedRef.create(A(3))
 @Test fun testLocalModification() {
     val semaphore: AtomicInt = AtomicInt(0)
 
-    val local = DisposableSharedRef.create(A(3))
+    val local = DisposableSharedRef(A(3))
     assertEquals(3, local.get().a)
 
     val worker = Worker.start()
@@ -145,7 +145,7 @@ val global5: DisposableSharedRef<A> = DisposableSharedRef.create(A(3))
 }
 
 @Test fun testLocalDispose() {
-    val local = DisposableSharedRef.create(A(3))
+    val local = DisposableSharedRef(A(3))
     assertEquals(3, local.get().a)
 
     local.dispose()
@@ -153,17 +153,17 @@ val global5: DisposableSharedRef<A> = DisposableSharedRef.create(A(3))
 }
 
 @Test fun testLocalAccessAfterDispose() {
-    val local = DisposableSharedRef.create(A(3))
+    val local = DisposableSharedRef(A(3))
     assertEquals(3, local.get().a)
 
     local.dispose()
-    assertFailsWith<NullPointerException> {
+    assertFailsWith<IllegalStateException> {
         local.get().a
     }
 }
 
 fun getWeaksAndAtomicReference(initial: Int): Triple<AtomicReference<DisposableSharedRef<A>?>, WeakReference<DisposableSharedRef<A>>, WeakReference<A>> {
-    val local = DisposableSharedRef.create(A(initial))
+    val local = DisposableSharedRef(A(initial))
     val localRef: AtomicReference<DisposableSharedRef<A>?> = AtomicReference(local)
     val localWeak = WeakReference(local)
     val localValueWeak = WeakReference(local.get())
@@ -227,7 +227,7 @@ fun collectInWorker(worker: Worker, semaphore: AtomicInt): Pair<WeakReference<A>
 }
 
 fun doNotCollectInWorker(worker: Worker, semaphore: AtomicInt): Future<DisposableSharedRef<A>> {
-    val local = DisposableSharedRef.create(A(3))
+    val local = DisposableSharedRef(A(3))
 
     return worker.execute(TransferMode.SAFE, { Pair(local, semaphore) }) { (local, semaphore) ->
         semaphore.increment()
@@ -287,7 +287,7 @@ fun disposeInWorker(worker: Worker, semaphore: AtomicInt): Triple<WeakReference<
 }
 
 @Test fun testDisposeOnMainThreadAndAccessInWorker() {
-    val local = DisposableSharedRef.create(A(3))
+    val local = DisposableSharedRef(A(3))
     assertEquals(3, local.get().a)
 
     local.dispose()
@@ -295,7 +295,7 @@ fun disposeInWorker(worker: Worker, semaphore: AtomicInt): Triple<WeakReference<
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, { local }) { local ->
         var result = 0
-        assertFailsWith<NullPointerException> {
+        assertFailsWith<IllegalStateException> {
             result = local.get().a
         }
         result
@@ -307,7 +307,7 @@ fun disposeInWorker(worker: Worker, semaphore: AtomicInt): Triple<WeakReference<
 }
 
 @Test fun testDisposeInWorkerAndAccessOnMainThread() {
-    val local = DisposableSharedRef.create(A(3))
+    val local = DisposableSharedRef(A(3))
     assertEquals(3, local.get().a)
 
     val worker = Worker.start()
@@ -316,7 +316,7 @@ fun disposeInWorker(worker: Worker, semaphore: AtomicInt): Triple<WeakReference<
     }
 
     future.result
-    assertFailsWith<NullPointerException> {
+    assertFailsWith<IllegalStateException> {
         local.get().a
     }
     worker.requestTermination().result
@@ -329,11 +329,11 @@ class B1 {
 data class B2(val b1: DisposableSharedRef<B1>)
 
 fun createCyclicGarbage(): Triple<AtomicReference<DisposableSharedRef<B1>?>, WeakReference<B1>, WeakReference<B2>> {
-    val b1 = DisposableSharedRef.create(B1())
+    val b1 = DisposableSharedRef(B1())
     val refB1: AtomicReference<DisposableSharedRef<B1>?> = AtomicReference(b1)
     val weakB1 = WeakReference(b1.get())
 
-    val b2 = DisposableSharedRef.create(B2(b1))
+    val b2 = DisposableSharedRef(B2(b1))
     val weakB2 = WeakReference(b2.get())
 
     b1.get().b2 = b2
@@ -370,12 +370,12 @@ fun callDispose(ref: AtomicReference<DisposableSharedRef<B1>?>) {
 fun createCrossThreadCyclicGarbage(
     worker: Worker
 ): Triple<AtomicReference<DisposableSharedRef<B1>?>, WeakReference<B1>, WeakReference<B2>> {
-    val b1 = DisposableSharedRef.create(B1())
+    val b1 = DisposableSharedRef(B1())
     val refB1: AtomicReference<DisposableSharedRef<B1>?> = AtomicReference(b1)
     val weakB1 = WeakReference(b1.get())
 
     val future = worker.execute(TransferMode.SAFE, { b1 }) { b1 ->
-        val b2 = DisposableSharedRef.create(B2(b1))
+        val b2 = DisposableSharedRef(B2(b1))
         Pair(b2, WeakReference(b2.get()))
     }
     val (b2, weakB2) = future.result
@@ -420,7 +420,7 @@ fun createCrossThreadCyclicGarbage(
     val workerCount = 10
     val workerUnlocker = AtomicInt(0)
 
-    val local = DisposableSharedRef.create(A(3))
+    val local = DisposableSharedRef(A(3))
     assertEquals(3, local.get().a)
 
     val workers = Array(workerCount) {
@@ -451,7 +451,7 @@ fun createCrossThreadCyclicGarbage(
     val workerCount = 10
     val workerUnlocker = AtomicInt(0)
 
-    val local = DisposableSharedRef.create(A(3))
+    val local = DisposableSharedRef(A(3))
     assertEquals(3, local.get().a)
 
     val workers = Array(workerCount) {
@@ -470,7 +470,7 @@ fun createCrossThreadCyclicGarbage(
         future.result
     }
 
-    assertFailsWith<NullPointerException> {
+    assertFailsWith<IllegalStateException> {
         local.get().a
     }
 
@@ -482,7 +482,7 @@ fun createCrossThreadCyclicGarbage(
 @Test fun concurrentDisposeAndAccess() {
     val workerUnlocker = AtomicInt(0)
 
-    val local = DisposableSharedRef.create(A(3))
+    val local = DisposableSharedRef(A(3))
     assertEquals(3, local.get().a)
 
     val worker = Worker.start()
@@ -494,11 +494,11 @@ fun createCrossThreadCyclicGarbage(
     workerUnlocker.increment()
 
     var result = 0
-    // This is a race, but it should either get value successfully or get NullPointerException.
+    // This is a race, but it should either get value successfully or get IllegalStateException.
     // Any other kind of failure is unacceptable.
     try {
         result = local.get().a
-    } catch(e: NullPointerException) {
+    } catch(e: IllegalStateException) {
         result = 3
     }
     assertEquals(3, result)
