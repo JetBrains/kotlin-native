@@ -87,7 +87,7 @@ internal class KonanIrLinker(
             assert(moduleDescriptor.kotlinLibrary.isInteropLibrary())
         }
 
-        private val descriptorByIdSignatureFinder = DescriptorByIdSignatureFinder(moduleDescriptor)
+        private val descriptorByIdSignatureFinder = DescriptorByIdSignatureFinder(moduleDescriptor, KonanManglerDesc)
         private fun IdSignature.isInteropSignature(): Boolean = IdSignature.Flags.IS_NATIVE_INTEROP_LIBRARY.test()
 
         override fun contains(idSig: IdSignature): Boolean {
