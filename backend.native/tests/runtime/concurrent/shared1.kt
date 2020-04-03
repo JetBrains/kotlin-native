@@ -47,22 +47,77 @@ val global2: DisposableSharedRef<A> = DisposableSharedRef(A(3))
     worker.requestTermination().result
 }
 
-val global3: DisposableSharedRef<A> = DisposableSharedRef(A(3))
+val global3: DisposableSharedRef<A> = DisposableSharedRef(A(3).apply { freeze() })
 
-@Test fun testGlobalModification() {
+@Test fun testGlobalAccessOnWorkerFrozenInitially() {
+    assertEquals(3, global3.get().a)
+
+    val worker = Worker.start()
+    val future = worker.execute(TransferMode.SAFE, {}) {
+        global3.get().a
+    }
+
+    val value = future.result
+    assertEquals(3, value)
+    worker.requestTermination().result
+}
+
+val global4: DisposableSharedRef<A> = DisposableSharedRef(A(3))
+
+@Test fun testGlobalAccessOnWorkerFrozenBeforePassing() {
+    assertEquals(3, global4.get().a)
+    global4.get().freeze()
+
+    val worker = Worker.start()
+    val future = worker.execute(TransferMode.SAFE, {}) {
+        global4.get().a
+    }
+
+    val value = future.result
+    assertEquals(3, value)
+    worker.requestTermination().result
+}
+
+val global5: DisposableSharedRef<A> = DisposableSharedRef(A(3))
+
+@Test fun testGlobalAccessOnWorkerFrozenBeforeAccess() {
     val semaphore: AtomicInt = AtomicInt(0)
 
-    assertEquals(3, global3.get().a)
+    assertEquals(3, global5.get().a)
 
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, { semaphore }) { semaphore ->
         semaphore.increment()
         while (semaphore.value < 2) {}
-        global3
+
+        global5.get().a
     }
 
     while (semaphore.value < 1) {}
-    global3.get().a = 4
+    global5.get().freeze()
+    semaphore.increment()
+
+    val value = future.result
+    assertEquals(3, value)
+    worker.requestTermination().result
+}
+
+val global6: DisposableSharedRef<A> = DisposableSharedRef(A(3))
+
+@Test fun testGlobalModification() {
+    val semaphore: AtomicInt = AtomicInt(0)
+
+    assertEquals(3, global6.get().a)
+
+    val worker = Worker.start()
+    val future = worker.execute(TransferMode.SAFE, { semaphore }) { semaphore ->
+        semaphore.increment()
+        while (semaphore.value < 2) {}
+        global6
+    }
+
+    while (semaphore.value < 1) {}
+    global6.get().a = 4
     semaphore.increment()
 
     val value = future.result
@@ -70,23 +125,23 @@ val global3: DisposableSharedRef<A> = DisposableSharedRef(A(3))
     worker.requestTermination().result
 }
 
-val global4: DisposableSharedRef<A> = DisposableSharedRef(A(3))
+val global7: DisposableSharedRef<A> = DisposableSharedRef(A(3))
 
 @Test fun testGlobalDispose() {
-    assertEquals(3, global4.get().a)
+    assertEquals(3, global7.get().a)
 
-    global4.dispose()
-    global4.dispose()
+    global7.dispose()
+    global7.dispose()
 }
 
-val global5: DisposableSharedRef<A> = DisposableSharedRef(A(3))
+val global8: DisposableSharedRef<A> = DisposableSharedRef(A(3))
 
 @Test fun testGlobalAccessAfterDispose() {
-    assertEquals(3, global5.get().a)
+    assertEquals(3, global8.get().a)
 
-    global5.dispose()
+    global8.dispose()
     assertFailsWith<IllegalStateException> {
-        global5.get().a
+        global8.get().a
     }
 }
 
@@ -119,6 +174,58 @@ val global5: DisposableSharedRef<A> = DisposableSharedRef(A(3))
 
     val value = future.result
     assertEquals(0, value)
+    worker.requestTermination().result
+}
+
+@Test fun testLocalAccessOnWorkerFrozenInitially() {
+    val local = DisposableSharedRef(A(3).apply { freeze() })
+    assertEquals(3, local.get().a)
+
+    val worker = Worker.start()
+    val future = worker.execute(TransferMode.SAFE, { local }) { local ->
+        local.get().a
+    }
+
+    val value = future.result
+    assertEquals(3, value)
+    worker.requestTermination().result
+}
+
+@Test fun testLocalAccessOnWorkerFrozenBeforePassing() {
+    val local = DisposableSharedRef(A(3))
+    assertEquals(3, local.get().a)
+    local.get().freeze()
+
+    val worker = Worker.start()
+    val future = worker.execute(TransferMode.SAFE, { local }) { local ->
+        local.get().a
+    }
+
+    val value = future.result
+    assertEquals(3, value)
+    worker.requestTermination().result
+}
+
+@Test fun testLocalAccessOnWorkerFrozenBeforeAccess() {
+    val semaphore: AtomicInt = AtomicInt(0)
+
+    val local = DisposableSharedRef(A(3))
+    assertEquals(3, local.get().a)
+
+    val worker = Worker.start()
+    val future = worker.execute(TransferMode.SAFE, { Pair(local, semaphore) }) { (local, semaphore) ->
+        semaphore.increment()
+        while (semaphore.value < 2) {}
+
+        local.get().a
+    }
+
+    while (semaphore.value < 1) {}
+    local.get().freeze()
+    semaphore.increment()
+
+    val value = future.result
+    assertEquals(3, value)
     worker.requestTermination().result
 }
 
