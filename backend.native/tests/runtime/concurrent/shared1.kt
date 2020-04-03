@@ -229,6 +229,20 @@ val global8: DisposableSharedRef<A> = DisposableSharedRef(A(3))
     worker.requestTermination().result
 }
 
+@Test fun testLocalDenyAccessOnMainThread() {
+    val worker = Worker.start()
+    val future = worker.execute(TransferMode.SAFE, {}) {
+        DisposableSharedRef(A(3))
+    }
+
+    val value = future.result
+    assertFailsWith<IncorrectDereferenceException> {
+        value.get()
+    }
+
+    worker.requestTermination().result
+}
+
 @Test fun testLocalModification() {
     val semaphore: AtomicInt = AtomicInt(0)
 
@@ -281,12 +295,17 @@ fun getWeaksAndAtomicReference(initial: Int): Triple<AtomicReference<DisposableS
     return Triple(localRef, localWeak, localValueWeak)
 }
 
+fun <T: Any> callDispose(ref: AtomicReference<DisposableSharedRef<T>?>) {
+    ref.value!!.dispose()
+}
+
 @Test fun testCollect() {
     val (localRef, localWeak, localValueWeak) = getWeaksAndAtomicReference(3)
 
     localRef.value = null
     GC.collect()
 
+    // Last reference to DisposableSharedRef is gone, so it and it's referent are destroyed.
     assertNull(localWeak.get())
     assertNull(localValueWeak.get())
 }
@@ -294,9 +313,11 @@ fun getWeaksAndAtomicReference(initial: Int): Triple<AtomicReference<DisposableS
 @Test fun testDisposeAndCollect() {
     val (localRef, localWeak, localValueWeak) = getWeaksAndAtomicReference(3)
 
-    localRef.value!!.dispose()
+    callDispose(localRef)
     GC.collect()
 
+    // localRef still contains a reference to DisposableSharedRef. But it's referent is
+    // destroyed because of explicit dispose call.
     assertNotNull(localWeak.get())
     assertNull(localValueWeak.get())
 }
@@ -313,6 +334,8 @@ fun collectInWorker(worker: Worker, semaphore: AtomicInt): Pair<WeakReference<A>
     }
 
     while (semaphore.value < 1) {}
+    // At this point worker is spinning on semaphore. localRef still contains reference to
+    // DisposableSharedRef, so referent is kept alive.
     GC.collect()
     assertNotNull(localValueWeak.get())
 
@@ -326,10 +349,13 @@ fun collectInWorker(worker: Worker, semaphore: AtomicInt): Pair<WeakReference<A>
 
     val (localValueWeak, future) = collectInWorker(worker, semaphore)
     semaphore.increment()
-
     future.result
+
+    // At this point DisposableSharedRef no longer has a reference, so it's referent is destroyed.
+    // DisposableSharedRef, so referent is kept alive.
     GC.collect()
     assertNull(localValueWeak.get())
+
     worker.requestTermination().result
 }
 
@@ -367,11 +393,13 @@ fun disposeInWorker(worker: Worker, semaphore: AtomicInt): Triple<WeakReference<
         semaphore.increment()
         while (semaphore.value < 2) {}
 
-        localRef.value!!.dispose()
+        callDispose(localRef)
         GC.collect()
     }
 
     while (semaphore.value < 1) {}
+    // At this point worker is spinning on semaphore. localRef still contains reference to
+    // DisposableSharedRef, so referent is kept alive.
     GC.collect()
     assertNotNull(localValueWeak.get())
 
@@ -385,11 +413,14 @@ fun disposeInWorker(worker: Worker, semaphore: AtomicInt): Triple<WeakReference<
 
     val (localWeak, localValueWeak, future) = disposeInWorker(worker, semaphore)
     semaphore.increment()
-
     future.result
+
+    // At this point DisposableSharedRef still has a reference, but it's explicitly disposed,
+    // so referent is destroyed.
     GC.collect()
     assertNotNull(localWeak.get())
     assertNull(localValueWeak.get())
+
     worker.requestTermination().result
 }
 
@@ -457,11 +488,6 @@ fun createCyclicGarbage(): Triple<AtomicReference<DisposableSharedRef<B1>?>, Wea
     // If these asserts fail, that means DisposableSharedRef managed to clean up cyclic garbage all by itself.
     assertNotNull(weakB1.get())
     assertNotNull(weakB2.get())
-}
-
-fun callDispose(ref: AtomicReference<DisposableSharedRef<B1>?>) {
-    ref.value!!.dispose()
-    ref.value = null
 }
 
 @Test fun collectCyclicGarbageWithExplicitDispose() {

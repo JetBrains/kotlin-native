@@ -209,6 +209,21 @@ val global6: SharedRef<A> = SharedRef(A(3))
     worker.requestTermination().result
 }
 
+
+@Test fun testLocalDenyAccessOnMainThread() {
+    val worker = Worker.start()
+    val future = worker.execute(TransferMode.SAFE, {}) {
+        SharedRef(A(3))
+    }
+
+    val value = future.result
+    assertFailsWith<IncorrectDereferenceException> {
+        value.get()
+    }
+
+    worker.requestTermination().result
+}
+
 @Test fun testLocalModification() {
     val semaphore: AtomicInt = AtomicInt(0)
 
@@ -249,6 +264,7 @@ fun getWeaksAndAtomicReference(initial: Int): Triple<AtomicReference<SharedRef<A
     localRef.value = null
     GC.collect()
 
+    // Last reference to SharedRef is gone, so it and it's referent are destroyed.
     assertNull(localWeak.get())
     assertNull(localValueWeak.get())
 }
@@ -265,6 +281,8 @@ fun collectInWorker(worker: Worker, semaphore: AtomicInt): Pair<WeakReference<A>
     }
 
     while (semaphore.value < 1) {}
+    // At this point worker is spinning on semaphore. localRef still contains reference to
+    // SharedRef, so referent is kept alive.
     GC.collect()
     assertNotNull(localValueWeak.get())
 
@@ -278,10 +296,13 @@ fun collectInWorker(worker: Worker, semaphore: AtomicInt): Pair<WeakReference<A>
 
     val (localValueWeak, future) = collectInWorker(worker, semaphore)
     semaphore.increment()
-
     future.result
+
+    // At this point SharedRef no longer has a reference, so it's referent is destroyed.
+    // SharedRef, so referent is kept alive.
     GC.collect()
     assertNull(localValueWeak.get())
+
     worker.requestTermination().result
 }
 
