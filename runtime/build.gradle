@@ -10,6 +10,7 @@ import org.jetbrains.kotlin.UtilsKt
 void includeRuntime(CompileToBitcode task) {
     task.compilerArgs.add('-I' + project.file('../common/src/hash/headers'))
     task.compilerArgs.add('-I' + project.file('src/main/cpp'))
+    task.compilerArgs.add("-I${llvmDir}/include")
 }
 
 targetList.each { targetName ->

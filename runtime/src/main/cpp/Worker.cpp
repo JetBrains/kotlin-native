@@ -34,6 +34,9 @@
 #include "Runtime.h"
 #include "Types.h"
 #include "Worker.h"
+#include <llvm/ADT/DenseMap.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/ADT/SparseSet.h>
 
 extern "C" {
 
@@ -461,7 +464,7 @@ class State {
   }
 
   void waitNativeWorkersTerminationUnlocked() {
-    std::vector<pthread_t> threadsToWait;
+    llvm::SmallVector<pthread_t, 128> threadsToWait;
     {
       Locker locker(&lock_);
 
@@ -500,9 +503,9 @@ class State {
  private:
   pthread_mutex_t lock_;
   pthread_cond_t cond_;
-  KStdUnorderedMap<KInt, Future*> futures_;
-  KStdUnorderedMap<KInt, Worker*> workers_;
-  KStdUnorderedMap<KInt, pthread_t> terminating_native_workers_;
+  llvm::DenseMap<KInt, Future*> futures_;
+  llvm::DenseMap<KInt, Worker*> workers_;
+  llvm::DenseMap<KInt, pthread_t> terminating_native_workers_;
   KInt currentWorkerId_;
   KInt currentFutureId_;
   KInt currentVersion_;

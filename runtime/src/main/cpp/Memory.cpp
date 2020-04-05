@@ -35,6 +35,9 @@
 #include "Natives.h"
 #include "Porting.h"
 #include "Runtime.h"
+#include <llvm/ADT/DenseMap.h>
+#include <llvm/ADT/SmallVector.h>
+#include <llvm/ADT/SmallPtrSet.h>
 
 // If garbage collection algorithm for cyclic garbage to be used.
 // We are using the Bacon's algorithm for GC, see
@@ -93,15 +96,8 @@ constexpr size_t kFinalizerQueueThreshold = 32;
 constexpr size_t kMaxGcAllocThreshold = 8 * 1024 * 1024;
 #endif  // USE_GC
 
-typedef KStdUnorderedSet<ContainerHeader*> ContainerHeaderSet;
-typedef KStdVector<ContainerHeader*> ContainerHeaderList;
+typedef llvm::SmallPtrSet<ContainerHeader*, 32> ContainerHeaderSet;
 typedef KStdDeque<ContainerHeader*> ContainerHeaderDeque;
-typedef KStdVector<KRef> KRefList;
-typedef KStdVector<KRef*> KRefPtrList;
-typedef KStdUnorderedSet<KRef> KRefSet;
-typedef KStdUnorderedMap<KRef, KInt> KRefIntMap;
-typedef KStdDeque<KRef> KRefDeque;
-typedef KStdDeque<KRefList> KRefListDeque;
 typedef KStdUnorderedMap<void**, std::pair<KRef*,int>> KThreadLocalStorageMap;
 
 // A little hack that allows to enable -O2 optimizations
@@ -130,7 +126,7 @@ public:
   // Free per container type counters.
   uint64_t objectAllocs[6];
   // Histogram of allocation size distribution.
-  KStdUnorderedMap<int, int>* allocationHistogram;
+  llvm::DenseMap<int, int>* allocationHistogram;
   // Number of allocation cache hits.
   int allocCacheHit;
   // Number of allocation cache misses.
@@ -154,7 +150,7 @@ public:
     memset(containerAllocs, 0, sizeof(containerAllocs));
     memset(objectAllocs, 0, sizeof(objectAllocs));
     memset(updateCounters, 0, sizeof(updateCounters));
-    allocationHistogram = konanConstructInstance<KStdUnorderedMap<int, int>>();
+    allocationHistogram = konanConstructInstance<llvm::DenseMap<int, int>>();
     allocCacheHit = 0;
     allocCacheMiss = 0;
   }
@@ -430,8 +426,8 @@ struct MemoryState {
    * and thus requiring only one list, but the downside is that both of the
    * next phases would iterate over the whole list of objects instead of only 10%.
    */
-  ContainerHeaderList* toFree; // List of all cycle candidates.
-  ContainerHeaderList* roots; // Real candidates excluding those with refcount = 0.
+  llvm::SmallVector<ContainerHeader*, kMaxToFreeSize>* toFree; // List of all cycle candidates.
+  llvm::SmallVector<ContainerHeader*, 6*1024>* roots; // Real candidates excluding those with refcount = 0.
   // How many GC suspend requests happened.
   int gcSuspendCount;
   // How many candidate elements in toRelease shall trigger collection.
@@ -439,7 +435,7 @@ struct MemoryState {
   // If collection is in progress.
   bool gcInProgress;
   // Objects to be released.
-  ContainerHeaderList* toRelease;
+  llvm::SmallVector<ContainerHeader*, kMaxToFreeSize>* toRelease;
 
   ForeignRefManager* foreignRefManager;
 
@@ -452,7 +448,7 @@ struct MemoryState {
 #endif // USE_GC
 
   // A stack of initializing singletons.
-  KStdVector<std::pair<ObjHeader**, ObjHeader*>> initializingSingletons;
+  llvm::SmallVector<std::pair<ObjHeader**, ObjHeader*>, 400> initializingSingletons;
 
 #if COLLECT_STATISTIC
   #define CONTAINER_ALLOC_STAT(state, size, container) state->statistic.incAlloc(size, container);
@@ -829,7 +825,7 @@ ContainerHeader* allocContainer(MemoryState* state, size_t size) {
   return result;
 }
 
-ContainerHeader* allocAggregatingFrozenContainer(KStdVector<ContainerHeader*>& containers) {
+ContainerHeader* allocAggregatingFrozenContainer(llvm::SmallVectorImpl<ContainerHeader*>& containers) {
   auto componentSize = containers.size();
   auto* superContainer = allocContainer(memoryState, sizeof(ContainerHeader) + sizeof(void*) * componentSize);
   auto* place = reinterpret_cast<ContainerHeader**>(superContainer + 1);
@@ -864,7 +860,7 @@ void processFinalizerQueue(MemoryState* state) {
   RuntimeAssert(state->finalizerQueueSize == 0, "Queue must be empty here");
 }
 
-bool hasExternalRefs(ContainerHeader* start, ContainerHeaderSet* visited) {
+bool hasExternalRefs(ContainerHeader* start, llvm::SmallPtrSetImpl<ContainerHeader*>* visited) {
   ContainerHeaderDeque toVisit;
   toVisit.push_back(start);
   while (!toVisit.empty()) {
@@ -974,7 +970,7 @@ void freeContainer(ContainerHeader* container) {
   * When we see GREY during DFS, it means we see cycle.
   */
 void depthFirstTraversal(ContainerHeader* start, bool* hasCycles,
-                         KRef* firstBlocker, KStdVector<ContainerHeader*>* order) {
+                         KRef* firstBlocker, llvm::SmallVectorImpl<ContainerHeader*>* order) {
   ContainerHeaderDeque toVisit;
   toVisit.push_back(start);
   start->setSeen();
@@ -991,7 +987,7 @@ void depthFirstTraversal(ContainerHeader* start, bool* hasCycles,
       continue;
     }
     toVisit.push_front(markAsRemoved(container));
-    traverseContainerReferredObjects(container, [container, hasCycles, firstBlocker, &order, &toVisit](ObjHeader* obj) {
+    traverseContainerReferredObjects(container, [container, hasCycles, firstBlocker, &toVisit](ObjHeader* obj) {
       if (*firstBlocker != nullptr)
         return;
       if (obj->has_meta_object() && ((obj->meta_object()->flags_ & MF_NEVER_FROZEN) != 0)) {
@@ -1023,8 +1019,8 @@ void depthFirstTraversal(ContainerHeader* start, bool* hasCycles,
 
 void traverseStronglyConnectedComponent(ContainerHeader* start,
                                         KStdUnorderedMap<ContainerHeader*,
-                                            KStdVector<ContainerHeader*>> const* reversedEdges,
-                                        KStdVector<ContainerHeader*>* component) {
+                                        llvm::SmallVector<ContainerHeader*, 0>> const* reversedEdges,
+                                        llvm::SmallVectorImpl<ContainerHeader*>* component) {
   ContainerHeaderDeque toVisit;
   toVisit.push_back(start);
   start->mark();
@@ -1210,7 +1206,7 @@ void dumpContainerContent(ContainerHeader* container) {
   }
 }
 
-void dumpWorker(const char* prefix, ContainerHeader* header, ContainerHeaderSet* seen) {
+void dumpWorker(const char* prefix, ContainerHeader* header, llvm::SmallPtrSetImpl<ContainerHeader*>* seen) {
   dumpContainerContent(header);
   seen->insert(header);
   if (!isAggregatingFrozenContainer(header)) {
@@ -1224,7 +1220,7 @@ void dumpWorker(const char* prefix, ContainerHeader* header, ContainerHeaderSet*
   }
 }
 
-void dumpReachable(const char* prefix, const ContainerHeaderSet* roots) {
+void dumpReachable(const char* prefix, const llvm::SmallPtrSetImpl<ContainerHeader*>* roots) {
   ContainerHeaderSet seen;
   for (auto* container : *roots) {
     dumpWorker(prefix, container, &seen);
@@ -1721,11 +1717,11 @@ MemoryState* initMemory() {
   memoryState = konanConstructInstance<MemoryState>();
   INIT_EVENT(memoryState)
 #if USE_GC
-  memoryState->toFree = konanConstructInstance<ContainerHeaderList>();
-  memoryState->roots = konanConstructInstance<ContainerHeaderList>();
+  memoryState->toFree = konanConstructInstance<llvm::SmallVector<ContainerHeader*, kMaxToFreeSize>>();
+  memoryState->roots = konanConstructInstance<llvm::SmallVector<ContainerHeader*, 6 * 1024>>();
   memoryState->gcInProgress = false;
   memoryState->gcSuspendCount = 0;
-  memoryState->toRelease = konanConstructInstance<ContainerHeaderList>();
+  memoryState->toRelease = konanConstructInstance<llvm::SmallVector<ContainerHeader*, kMaxToFreeSize>>();
   initGcThreshold(memoryState, kGcThreshold);
   memoryState->allocSinceLastGcThreshold = kMaxGcAllocThreshold;
   memoryState->gcErgonomics = true;
@@ -2225,9 +2221,9 @@ void stopGC() {
 void startGC() {
   GC_LOG("startGC\n")
   if (memoryState->toFree == nullptr) {
-    memoryState->toFree = konanConstructInstance<ContainerHeaderList>();
-    memoryState->toRelease = konanConstructInstance<ContainerHeaderList>();
-    memoryState->roots = konanConstructInstance<ContainerHeaderList>();
+    memoryState->toFree = konanConstructInstance<llvm::SmallVector<ContainerHeader*, kMaxToFreeSize>>();
+    memoryState->toRelease = konanConstructInstance<llvm::SmallVector<ContainerHeader*, kMaxToFreeSize>>();
+    memoryState->roots = konanConstructInstance<llvm::SmallVector<ContainerHeader*, 6 * 1024>>();
     memoryState->gcSuspendCount = 0;
   }
 }
@@ -2367,7 +2363,7 @@ bool clearSubgraphReferences(ObjHeader* root, bool checked) {
   return true;
 }
 
-void freezeAcyclic(ContainerHeader* rootContainer, ContainerHeaderSet* newlyFrozen) {
+void freezeAcyclic(ContainerHeader* rootContainer, llvm::SmallPtrSetImpl<ContainerHeader*>* newlyFrozen) {
   KStdDeque<ContainerHeader*> queue;
   queue.push_back(rootContainer);
   while (!queue.empty()) {
@@ -2393,9 +2389,9 @@ void freezeAcyclic(ContainerHeader* rootContainer, ContainerHeaderSet* newlyFroz
 }
 
 void freezeCyclic(ObjHeader* root,
-                  const KStdVector<ContainerHeader*>& order,
-                  ContainerHeaderSet* newlyFrozen) {
-  KStdUnorderedMap<ContainerHeader*, KStdVector<ContainerHeader*>> reversedEdges;
+                  const llvm::SmallVectorImpl<ContainerHeader*>& order,
+                  llvm::SmallPtrSetImpl<ContainerHeader*>* newlyFrozen) {
+  KStdUnorderedMap<ContainerHeader*, llvm::SmallVector<ContainerHeader*, 0>> reversedEdges;
   KStdDeque<ObjHeader*> queue;
   queue.push_back(root);
   while (!queue.empty()) {
@@ -2403,7 +2399,7 @@ void freezeCyclic(ObjHeader* root,
     queue.pop_front();
     ContainerHeader* currentContainer = current->container();
     currentContainer->unMark();
-    reversedEdges.emplace(currentContainer, KStdVector<ContainerHeader*>(0));
+    reversedEdges.emplace(currentContainer, llvm::SmallVector<ContainerHeader*, 0>(0));
     traverseContainerReferredObjects(currentContainer, [current, currentContainer, &queue, &reversedEdges](ObjHeader* obj) {
           ContainerHeader* objContainer = obj->container();
           if (canFreeze(objContainer)) {
@@ -2411,19 +2407,19 @@ void freezeCyclic(ObjHeader* root,
               queue.push_back(obj);
             // We ignore references from FreezableAtomicsReference during condensation, to avoid KT-33824.
             if (!isFreezableAtomic(current))
-              reversedEdges.emplace(objContainer, KStdVector<ContainerHeader*>(0)).
+              reversedEdges.emplace(objContainer, llvm::SmallVector<ContainerHeader*, 0>(0)).
                 first->second.push_back(currentContainer);
           }
       });
    }
 
-   KStdVector<KStdVector<ContainerHeader*>> components;
+   llvm::SmallVector<llvm::SmallVector<ContainerHeader*, 0>, 0> components;
    MEMORY_LOG("Condensation:\n");
    // Enumerate in the topological order.
    for (auto it = order.rbegin(); it != order.rend(); ++it) {
      auto* container = *it;
      if (container->marked()) continue;
-     KStdVector<ContainerHeader*> component;
+     llvm::SmallVector<ContainerHeader*, 0> component;
      traverseStronglyConnectedComponent(container, &reversedEdges, &component);
      MEMORY_LOG("SCC:\n");
   #if TRACE_MEMORY
@@ -2513,7 +2509,7 @@ void freezeSubgraph(ObjHeader* root) {
   bool hasCycles = false;
   KRef firstBlocker = root->has_meta_object() && ((root->meta_object()->flags_ & MF_NEVER_FROZEN) != 0) ?
     root : nullptr;
-  KStdVector<ContainerHeader*> order;
+  llvm::SmallVector<ContainerHeader*, 128> order;
   depthFirstTraversal(rootContainer, &hasCycles, &firstBlocker, &order);
   if (firstBlocker != nullptr) {
     MEMORY_LOG("See freeze blocker for %p: %p\n", root, firstBlocker)

@@ -15,6 +15,7 @@
  */
 
 #include <assert.h>
+#include <llvm/ADT/SmallVector.h>
 #include <llvm/IR/DebugInfo.h>
 #include <llvm/IR/Function.h>
 #include <llvm/IR/IRBuilder.h>
@@ -202,7 +203,7 @@ DIDerivedTypeRef DICreatePointerType(DIBuilderRef refBuilder, DITypeOpaqueRef re
 DISubroutineTypeRef DICreateSubroutineType(DIBuilderRef builder,
                                            DITypeOpaqueRef* types,
                                            unsigned typesCount) {
-  std::vector<llvm::Metadata *> parameterTypes;
+  llvm::SmallVector<llvm::Metadata *, 8> parameterTypes;
   for (int i = 0; i != typesCount; ++i) {
     parameterTypes.push_back(llvm::unwrap(types[i]));
   }
@@ -247,7 +248,7 @@ DIExpressionRef DICreateEmptyExpression(DIBuilderRef builder) {
 
 void DIInsertDeclaration(DIBuilderRef builder, LLVMValueRef value, DILocalVariableRef localVariable, DILocationRef location, LLVMBasicBlockRef bb, int64_t *expr, uint64_t exprCount) {
   auto di_builder = llvm::unwrap(builder);
-  std::vector<int64_t> expression;
+  llvm::SmallVector<int64_t, 128> expression;
   for (uint64_t i = 0; i < exprCount; ++i)
     expression.push_back(expr[i]);
   di_builder->insertDeclare(llvm::unwrap(value),

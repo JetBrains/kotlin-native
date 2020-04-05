@@ -216,6 +216,10 @@ open class MacOSBasedLinker(targetProperties: AppleConfigurables)
             if (needsProfileLibrary) +profileLibrary!!
             +libraries
             +linkerArgs
+            +"-L$absoluteLlvmHome/lib"
+            +"-lLLVMCore"
+            +"-lLLVMSupport"
+            +"-lcurses"
             +rpath(dynamic)
         }
 
@@ -226,7 +230,6 @@ open class MacOSBasedLinker(targetProperties: AppleConfigurables)
                 result += Command(strip, "-S", executable)
             }
         }
-
         return result
     }
 

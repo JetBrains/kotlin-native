@@ -23,6 +23,7 @@
 #include <dlfcn.h>
 #include <elf.h>
 #include <fcntl.h>
+#include <llvm/ADT/SmallVector.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/mman.h>
@@ -57,7 +58,7 @@ struct SymRecord {
   char* strtab;
 };
 
-typedef KStdVector<SymRecord> SymRecordList;
+typedef llvm::SmallVector<SymRecord, 256> SymRecordList;
 
 SymRecordList* symbols = nullptr;
 

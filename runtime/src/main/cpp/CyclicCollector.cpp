@@ -24,6 +24,8 @@
 #include "Natives.h"
 #include "Porting.h"
 #include "Types.h"
+#include <llvm/ADT/SmallPtrSet.h>
+#include <llvm/ADT/DenseMap.h>
 
 #if WITH_WORKERS
 #include <pthread.h>
@@ -123,8 +125,8 @@ class CyclicCollector {
   int32_t lastTick_;
   int64_t lastTimestampUs_;
   void* mainWorker_;
-  KStdUnorderedSet<ObjHeader*> rootset_;
-  KStdUnorderedSet<ObjHeader*> toRelease_;
+  llvm::SmallPtrSet<ObjHeader*, 32> rootset_;
+  llvm::SmallPtrSet<ObjHeader*, 32> toRelease_;
 
  public:
   CyclicCollector() {
@@ -168,8 +170,8 @@ class CyclicCollector {
      {
        Locker locker(&lock_);
        KStdDeque<ObjHeader*> toVisit;
-       KStdUnorderedSet<ObjHeader*> visited;
-       KStdUnorderedMap<ObjHeader*, int> sideRefCounts;
+       llvm::SmallPtrSet<ObjHeader*, 32> visited;
+       llvm::DenseMap<ObjHeader*, int> sideRefCounts;
        int restartCount = 0;
        while (!terminateCollector_) {
          CHECK_CALL(pthread_cond_wait(&cond_, &lock_), "Cannot wait collector condition")
