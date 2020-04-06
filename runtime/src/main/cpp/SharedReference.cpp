@@ -3,7 +3,7 @@
  * that can be found in the LICENSE file.
  */
 
-#include "SharedRef.h"
+#include "SharedReference.h"
 
 #include "Alloc.h"
 #include "Memory.h"
@@ -11,36 +11,36 @@
 
 namespace {
 
-struct SharedRefLayout {
+struct SharedReference {
   ObjHeader header;
   KRefSharedHolder* holder;
 };
 
-SharedRefLayout* asSharedRef(KRef thiz) {
-  return reinterpret_cast<SharedRefLayout*>(thiz);
+SharedReference* asSharedReference(KRef thiz) {
+  return reinterpret_cast<SharedReference*>(thiz);
 }
 
 }  // namespace
 
 RUNTIME_NOTHROW void DisposeSharedRef(KRef thiz) {
   // DisposeSharedRef is only called when all references to thiz are gone.
-  auto* holder = asSharedRef(thiz)->holder;
+  auto* holder = asSharedReference(thiz)->holder;
   holder->dispose();
   konanDestructInstance(holder);
 }
 
 extern "C" {
 
-KNativePtr Kotlin_SharedRef_createSharedRef(KRef value) {
+KNativePtr Kotlin_SharedReference_createSharedRef(KRef value) {
   auto* holder = konanConstructInstance<KRefSharedHolder>();
   holder->init(value);
   return holder;
 }
 
-OBJ_GETTER(Kotlin_SharedRef_derefSharedRef, KRef thiz) {
+OBJ_GETTER(Kotlin_SharedReference_derefSharedRef, KRef thiz) {
   // If thiz exists, holder must also exist. Disposal only happens
   // when all references to thiz are gone.
-  RETURN_OBJ(asSharedRef(thiz)->holder->ref());
+  RETURN_OBJ(asSharedReference(thiz)->holder->ref());
 }
 
 }
