@@ -43,6 +43,8 @@
 #import "Runtime.h"
 #import "Utils.h"
 #import "Exceptions.h"
+#import "llvm/ADT/SmallVector.h"
+#import "llvm/ADT/SmallSet.h"
 
 struct ObjCToKotlinMethodAdapter {
   const char* selector;
@@ -633,9 +635,9 @@ static void buildITable(TypeInfo* result, const KStdOrderedMap<ClassId, KStdVect
 
 static const TypeInfo* createTypeInfo(
   const TypeInfo* superType,
-  const KStdVector<const TypeInfo*>& superInterfaces,
-  const KStdVector<VTableElement>& vtable,
-  const KStdVector<MethodTableRecord>& methodTable,
+  const llvm::SmallVectorImpl<const TypeInfo*>& superInterfaces,
+  const llvm::SmallVectorImpl<VTableElement>& vtable,
+  const llvm::SmallVectorImpl<MethodTableRecord>& methodTable,
   const KStdOrderedMap<ClassId, KStdVector<VTableElement>>& interfaceVTables,
   const InterfaceTableRecord* superItable,
   int superItableSize,
@@ -663,10 +665,10 @@ static const TypeInfo* createTypeInfo(
 
   result->classId_ = superType->classId_;
 
-  KStdVector<const TypeInfo*> implementedInterfaces(
+  llvm::SmallVector<const TypeInfo*, 8> implementedInterfaces(
     superType->implementedInterfaces_, superType->implementedInterfaces_ + superType->implementedInterfacesCount_
   );
-  KStdUnorderedSet<const TypeInfo*> usedInterfaces(implementedInterfaces.begin(), implementedInterfaces.end());
+  llvm::SmallPtrSet<const TypeInfo*, 8> usedInterfaces(implementedInterfaces.begin(), implementedInterfaces.end());
 
   for (const TypeInfo* interface : superInterfaces) {
     if (usedInterfaces.insert(interface).second) {
@@ -705,7 +707,7 @@ static const TypeInfo* createTypeInfo(
   return result;
 }
 
-static void addDefinedSelectors(Class clazz, KStdUnorderedSet<SEL>& result) {
+static void addDefinedSelectors(Class clazz, llvm::SmallSet<SEL, 32>& result) {
   unsigned int objcMethodCount;
   Method* objcMethods = class_copyMethodList(clazz, &objcMethodCount);
 
@@ -716,10 +718,10 @@ static void addDefinedSelectors(Class clazz, KStdUnorderedSet<SEL>& result) {
   if (objcMethods != nullptr) free(objcMethods);
 }
 
-static KStdVector<const TypeInfo*> getProtocolsAsInterfaces(Class clazz) {
-  KStdVector<const TypeInfo*> result;
+static llvm::SmallVector<const TypeInfo*, 8> getProtocolsAsInterfaces(Class clazz) {
+  llvm::SmallVector<const TypeInfo*, 8> result;
   KStdUnorderedSet<Protocol*> handledProtocols;
-  KStdVector<Protocol*> protocolsToHandle;
+  llvm::SmallVector<Protocol*, 8> protocolsToHandle;
 
   {
     unsigned int protocolCount;
@@ -770,7 +772,7 @@ static int getVtableSize(const TypeInfo* typeInfo) {
   return -1;
 }
 
-static void insertOrReplace(KStdVector<MethodTableRecord>& methodTable, MethodNameHash nameSignature, void* entryPoint) {
+static void insertOrReplace(llvm::SmallVectorImpl<MethodTableRecord>& methodTable, MethodNameHash nameSignature, void* entryPoint) {
   MethodTableRecord record = {nameSignature, entryPoint};
 
   for (int i = methodTable.size() - 1; i >= 0; --i) {
@@ -803,7 +805,7 @@ static void throwIfCantBeOverridden(Class clazz, const KotlinToObjCMethodAdapter
 static const TypeInfo* createTypeInfo(Class clazz, const TypeInfo* superType, const TypeInfo* fieldsInfo) {
   Class superClass = class_getSuperclass(clazz);
 
-  KStdUnorderedSet<SEL> definedSelectors;
+  llvm::SmallSet<SEL, 32> definedSelectors;
   addDefinedSelectors(clazz, definedSelectors);
 
   const ObjCTypeAdapter* superTypeAdapter = getTypeAdapter(superType);
@@ -835,12 +837,12 @@ static const TypeInfo* createTypeInfo(Class clazz, const TypeInfo* superType, co
     superMethodTableSize = superType->openMethodsCount_;
   }
 
-  KStdVector<const void*> vtable(
+  llvm::SmallVector<const void*, 128> vtable(
         superVtable,
         superVtable + superVtableSize
   );
 
-  KStdVector<MethodTableRecord> methodTable(
+  llvm::SmallVector<MethodTableRecord, 128> methodTable(
         superMethodTable, superMethodTable + superMethodTableSize
   );
 
@@ -863,9 +865,9 @@ static const TypeInfo* createTypeInfo(Class clazz, const TypeInfo* superType, co
     }
   }
 
-  KStdVector<const TypeInfo*> addedInterfaces = getProtocolsAsInterfaces(clazz);
+  llvm::SmallVector<const TypeInfo*, 8> addedInterfaces = getProtocolsAsInterfaces(clazz);
 
-  KStdVector<const TypeInfo*> supers(
+  llvm::SmallVector<const TypeInfo*, 8> supers(
         superType->implementedInterfaces_,
         superType->implementedInterfaces_ + superType->implementedInterfacesCount_
   );
@@ -1016,7 +1018,7 @@ static Class createClass(const TypeInfo* typeInfo, Class superClass) {
     }
   }
 
-  KStdUnorderedSet<const TypeInfo*> superImplementedInterfaces(
+  llvm::SmallPtrSet<const TypeInfo*, 8> superImplementedInterfaces(
           typeInfo->superType_->implementedInterfaces_,
           typeInfo->superType_->implementedInterfaces_ + typeInfo->superType_->implementedInterfacesCount_
   );
