@@ -279,16 +279,13 @@ val global8: DisposableSharedRef<A> = DisposableSharedRef(A(3))
     }
 }
 
-fun getWeaksAndAtomicReference(initial: Int): Triple<AtomicReference<DisposableSharedRef<A>?>, WeakReference<DisposableSharedRef<A>>, WeakReference<A>> {
-    val local = DisposableSharedRef(A(initial))
-    val localRef: AtomicReference<DisposableSharedRef<A>?> = AtomicReference(local)
-    val localWeak = WeakReference(local)
-    val localValueWeak = WeakReference(local.get())
+fun getOwnerAndWeaks(initial: Int): Triple<AtomicReference<DisposableSharedRef<A>?>, WeakReference<DisposableSharedRef<A>>, WeakReference<A>> {
+    val sharedRef = DisposableSharedRef(A(initial))
+    val sharedRefOwner: AtomicReference<DisposableSharedRef<A>?> = AtomicReference(sharedRef)
+    val sharedRefWeak = WeakReference(sharedRef)
+    val sharedRefValueWeak = WeakReference(sharedRef.get())
 
-    assertNotNull(localWeak.get())
-    assertNotNull(localValueWeak.get())
-
-    return Triple(localRef, localWeak, localValueWeak)
+    return Triple(sharedRefOwner, sharedRefWeak, sharedRefValueWeak)
 }
 
 fun <T: Any> callDispose(ref: AtomicReference<DisposableSharedRef<T>?>) {
@@ -296,46 +293,46 @@ fun <T: Any> callDispose(ref: AtomicReference<DisposableSharedRef<T>?>) {
 }
 
 @Test fun testCollect() {
-    val (localRef, localWeak, localValueWeak) = getWeaksAndAtomicReference(3)
+    val (sharedRefOwner, sharedRefWeak, sharedRefValueWeak) = getOwnerAndWeaks(3)
 
-    localRef.value = null
+    sharedRefOwner.value = null
     GC.collect()
 
     // Last reference to DisposableSharedRef is gone, so it and it's referent are destroyed.
-    assertNull(localWeak.get())
-    assertNull(localValueWeak.get())
+    assertNull(sharedRefWeak.get())
+    assertNull(sharedRefValueWeak.get())
 }
 
 @Test fun testDisposeAndCollect() {
-    val (localRef, localWeak, localValueWeak) = getWeaksAndAtomicReference(3)
+    val (sharedRefOwner, sharedRefWeak, sharedRefValueWeak) = getOwnerAndWeaks(3)
 
-    callDispose(localRef)
+    callDispose(sharedRefOwner)
     GC.collect()
 
-    // localRef still contains a reference to DisposableSharedRef. But it's referent is
+    // sharedRefOwner still contains a reference to DisposableSharedRef. But it's referent is
     // destroyed because of explicit dispose call.
-    assertNotNull(localWeak.get())
-    assertNull(localValueWeak.get())
+    assertNotNull(sharedRefWeak.get())
+    assertNull(sharedRefValueWeak.get())
 }
 
 fun collectInWorker(worker: Worker, semaphore: AtomicInt): Pair<WeakReference<A>, Future<Unit>> {
-    val (localRef, _, localValueWeak) = getWeaksAndAtomicReference(3)
+    val (sharedRefOwner, _, sharedRefValueWeak) = getOwnerAndWeaks(3)
 
-    val future = worker.execute(TransferMode.SAFE, { Pair(localRef, semaphore) }) { (localRef, semaphore) ->
+    val future = worker.execute(TransferMode.SAFE, { Pair(sharedRefOwner, semaphore) }) { (sharedRefOwner, semaphore) ->
         semaphore.increment()
         while (semaphore.value < 2) {}
 
-        localRef.value = null
+        sharedRefOwner.value = null
         GC.collect()
     }
 
     while (semaphore.value < 1) {}
-    // At this point worker is spinning on semaphore. localRef still contains reference to
+    // At this point worker is spinning on semaphore. sharedRefOwner still contains reference to
     // DisposableSharedRef, so referent is kept alive.
     GC.collect()
-    assertNotNull(localValueWeak.get())
+    assertNotNull(sharedRefValueWeak.get())
 
-    return Pair(localValueWeak, future)
+    return Pair(sharedRefValueWeak, future)
 }
 
 @Test fun testCollectInWorker() {
@@ -343,27 +340,27 @@ fun collectInWorker(worker: Worker, semaphore: AtomicInt): Pair<WeakReference<A>
 
     val worker = Worker.start()
 
-    val (localValueWeak, future) = collectInWorker(worker, semaphore)
+    val (sharedRefValueWeak, future) = collectInWorker(worker, semaphore)
     semaphore.increment()
     future.result
 
     // At this point DisposableSharedRef no longer has a reference, so it's referent is destroyed.
     // DisposableSharedRef, so referent is kept alive.
     GC.collect()
-    assertNull(localValueWeak.get())
+    assertNull(sharedRefValueWeak.get())
 
     worker.requestTermination().result
 }
 
 fun doNotCollectInWorker(worker: Worker, semaphore: AtomicInt): Future<DisposableSharedRef<A>> {
-    val local = DisposableSharedRef(A(3))
+    val sharedRef = DisposableSharedRef(A(3))
 
-    return worker.execute(TransferMode.SAFE, { Pair(local, semaphore) }) { (local, semaphore) ->
+    return worker.execute(TransferMode.SAFE, { Pair(sharedRef, semaphore) }) { (sharedRef, semaphore) ->
         semaphore.increment()
         while (semaphore.value < 2) {}
 
         GC.collect()
-        local
+        sharedRef
     }
 }
 
@@ -383,24 +380,24 @@ fun doNotCollectInWorker(worker: Worker, semaphore: AtomicInt): Future<Disposabl
 }
 
 fun disposeInWorker(worker: Worker, semaphore: AtomicInt): Triple<WeakReference<DisposableSharedRef<A>>, WeakReference<A>, Future<AtomicReference<DisposableSharedRef<A>?>>> {
-    val (localRef, localWeak, localValueWeak) = getWeaksAndAtomicReference(3)
+    val (sharedRefOwner, sharedRefWeak, sharedRefValueWeak) = getOwnerAndWeaks(3)
 
-    val future = worker.execute(TransferMode.SAFE, { Pair(localRef, semaphore) }) { (localRef, semaphore) ->
+    val future = worker.execute(TransferMode.SAFE, { Pair(sharedRefOwner, semaphore) }) { (sharedRefOwner, semaphore) ->
         semaphore.increment()
         while (semaphore.value < 2) {}
 
-        callDispose(localRef)
+        callDispose(sharedRefOwner)
         GC.collect()
-        localRef
+        sharedRefOwner
     }
 
     while (semaphore.value < 1) {}
-    // At this point worker is spinning on semaphore. localRef still contains reference to
+    // At this point worker is spinning on semaphore. sharedRefOwner still contains reference to
     // DisposableSharedRef, so referent is kept alive.
     GC.collect()
-    assertNotNull(localValueWeak.get())
+    assertNotNull(sharedRefValueWeak.get())
 
-    return Triple(localWeak, localValueWeak, future)
+    return Triple(sharedRefWeak, sharedRefValueWeak, future)
 }
 
 @Test fun testDisposeInWorker() {
@@ -408,30 +405,30 @@ fun disposeInWorker(worker: Worker, semaphore: AtomicInt): Triple<WeakReference<
 
     val worker = Worker.start()
 
-    val (localWeak, localValueWeak, future) = disposeInWorker(worker, semaphore)
+    val (sharedRefWeak, sharedRefValueWeak, future) = disposeInWorker(worker, semaphore)
     semaphore.increment()
-    val localRef = future.result
+    val sharedRefOwner = future.result
 
-    // At this point localRef still has a reference, but it's explicitly disposed,
+    // At this point sharedRefOwner still has a reference, but it's explicitly disposed,
     // so referent is destroyed.
     GC.collect()
-    assertNotNull(localWeak.get())
-    assertNull(localValueWeak.get())
+    assertNotNull(sharedRefWeak.get())
+    assertNull(sharedRefValueWeak.get())
 
     worker.requestTermination().result
 }
 
 @Test fun testDisposeOnMainThreadAndAccessInWorker() {
-    val local = DisposableSharedRef(A(3))
-    assertEquals(3, local.get().a)
+    val sharedRef = DisposableSharedRef(A(3))
+    assertEquals(3, sharedRef.get().a)
 
-    local.dispose()
+    sharedRef.dispose()
 
     val worker = Worker.start()
-    val future = worker.execute(TransferMode.SAFE, { local }) { local ->
+    val future = worker.execute(TransferMode.SAFE, { sharedRef }) { sharedRef ->
         var result = 0
         assertFailsWith<IllegalStateException> {
-            result = local.get().a
+            result = sharedRef.get().a
         }
         result
     }
@@ -442,17 +439,17 @@ fun disposeInWorker(worker: Worker, semaphore: AtomicInt): Triple<WeakReference<
 }
 
 @Test fun testDisposeInWorkerAndAccessOnMainThread() {
-    val local = DisposableSharedRef(A(3))
-    assertEquals(3, local.get().a)
+    val sharedRef = DisposableSharedRef(A(3))
+    assertEquals(3, sharedRef.get().a)
 
     val worker = Worker.start()
-    val future = worker.execute(TransferMode.SAFE, { local }) { local ->
-        local.dispose()
+    val future = worker.execute(TransferMode.SAFE, { sharedRef }) { sharedRef ->
+        sharedRef.dispose()
     }
 
     future.result
     assertFailsWith<IllegalStateException> {
-        local.get().a
+        sharedRef.get().a
     }
     worker.requestTermination().result
 }
@@ -464,69 +461,69 @@ class B1 {
 data class B2(val b1: DisposableSharedRef<B1>)
 
 fun createCyclicGarbage(): Triple<AtomicReference<DisposableSharedRef<B1>?>, WeakReference<B1>, WeakReference<B2>> {
-    val b1 = DisposableSharedRef(B1())
-    val refB1: AtomicReference<DisposableSharedRef<B1>?> = AtomicReference(b1)
-    val weakB1 = WeakReference(b1.get())
+    val sharedRef1 = DisposableSharedRef(B1())
+    val sharedRef1Owner: AtomicReference<DisposableSharedRef<B1>?> = AtomicReference(sharedRef1)
+    val sharedRef1Weak = WeakReference(sharedRef1.get())
 
-    val b2 = DisposableSharedRef(B2(b1))
-    val weakB2 = WeakReference(b2.get())
+    val sharedRef2 = DisposableSharedRef(B2(sharedRef1))
+    val sharedRef2Weak = WeakReference(sharedRef2.get())
 
-    b1.get().b2 = b2
+    sharedRef1.get().b2 = sharedRef2
 
-    return Triple(refB1, weakB1, weakB2)
+    return Triple(sharedRef1Owner, sharedRef1Weak, sharedRef2Weak)
 }
 
 @Test fun doesNotCollectCyclicGarbage() {
-    val (refB1, weakB1, weakB2) = createCyclicGarbage()
+    val (sharedRef1Owner, sharedRef1Weak, sharedRef2Weak) = createCyclicGarbage()
 
-    refB1.value = null
+    sharedRef1Owner.value = null
     GC.collect()
 
     // If these asserts fail, that means DisposableSharedRef managed to clean up cyclic garbage all by itself.
-    assertNotNull(weakB1.get())
-    assertNotNull(weakB2.get())
+    assertNotNull(sharedRef1Weak.get())
+    assertNotNull(sharedRef2Weak.get())
 }
 
 @Test fun collectCyclicGarbageWithExplicitDispose() {
-    val (refB1, weakB1, weakB2) = createCyclicGarbage()
+    val (sharedRef1Owner, sharedRef1Weak, sharedRef2Weak) = createCyclicGarbage()
 
-    callDispose(refB1)
+    callDispose(sharedRef1Owner)
     GC.collect()
 
-    assertNull(weakB1.get())
-    assertNull(weakB2.get())
+    assertNull(sharedRef1Weak.get())
+    assertNull(sharedRef2Weak.get())
 }
 
 fun createCrossThreadCyclicGarbage(
     worker: Worker
 ): Triple<AtomicReference<DisposableSharedRef<B1>?>, WeakReference<B1>, WeakReference<B2>> {
-    val b1 = DisposableSharedRef(B1())
-    val refB1: AtomicReference<DisposableSharedRef<B1>?> = AtomicReference(b1)
-    val weakB1 = WeakReference(b1.get())
+    val sharedRef1 = DisposableSharedRef(B1())
+    val sharedRef1Owner: AtomicReference<DisposableSharedRef<B1>?> = AtomicReference(sharedRef1)
+    val sharedRef1Weak = WeakReference(sharedRef1.get())
 
-    val future = worker.execute(TransferMode.SAFE, { b1 }) { b1 ->
-        val b2 = DisposableSharedRef(B2(b1))
-        Pair(b2, WeakReference(b2.get()))
+    val future = worker.execute(TransferMode.SAFE, { sharedRef1 }) { sharedRef1 ->
+        val sharedRef2 = DisposableSharedRef(B2(sharedRef1))
+        Pair(sharedRef2, WeakReference(sharedRef2.get()))
     }
-    val (b2, weakB2) = future.result
+    val (sharedRef2, sharedRef2Weak) = future.result
 
-    b1.get().b2 = b2
+    sharedRef1.get().b2 = sharedRef2
 
-    return Triple(refB1, weakB1, weakB2)
+    return Triple(sharedRef1Owner, sharedRef1Weak, sharedRef2Weak)
 }
 
 @Test fun doesNotCollectCrossThreadCyclicGarbage() {
     val worker = Worker.start()
 
-    val (refB1, weakB1, weakB2) = createCrossThreadCyclicGarbage(worker)
+    val (sharedRef1Owner, sharedRef1Weak, sharedRef2Weak) = createCrossThreadCyclicGarbage(worker)
 
-    refB1.value = null
+    sharedRef1Owner.value = null
     GC.collect()
     worker.execute(TransferMode.SAFE, {}) { GC.collect() }.result
 
     // If these asserts fail, that means DisposableSharedRef managed to clean up cyclic garbage all by itself.
-    assertNotNull(weakB1.get())
-    assertNotNull(weakB2.get())
+    assertNotNull(sharedRef1Weak.get())
+    assertNotNull(sharedRef2Weak.get())
 
     worker.requestTermination().result
 }
@@ -534,14 +531,14 @@ fun createCrossThreadCyclicGarbage(
 @Test fun collectCrossThreadCyclicGarbageWithExplicitDispose() {
     val worker = Worker.start()
 
-    val (refB1, weakB1, weakB2) = createCrossThreadCyclicGarbage(worker)
+    val (sharedRef1Owner, sharedRef1Weak, sharedRef2Weak) = createCrossThreadCyclicGarbage(worker)
 
-    callDispose(refB1)
+    callDispose(sharedRef1Owner)
     GC.collect()
     worker.execute(TransferMode.SAFE, {}) { GC.collect() }.result
 
-    assertNull(weakB1.get())
-    assertNull(weakB2.get())
+    assertNull(sharedRef1Weak.get())
+    assertNull(sharedRef2Weak.get())
 
     worker.requestTermination().result
 }
@@ -550,18 +547,18 @@ fun createCrossThreadCyclicGarbage(
     val workerCount = 10
     val workerUnlocker = AtomicInt(0)
 
-    val local = DisposableSharedRef(A(3))
-    assertEquals(3, local.get().a)
+    val sharedRef = DisposableSharedRef(A(3))
+    assertEquals(3, sharedRef.get().a)
 
     val workers = Array(workerCount) {
         Worker.start()
     }
     val futures = Array(workers.size) {
-        workers[it].execute(TransferMode.SAFE, { Pair(local, workerUnlocker) }) { (local, workerUnlocker) ->
+        workers[it].execute(TransferMode.SAFE, { Pair(sharedRef, workerUnlocker) }) { (sharedRef, workerUnlocker) ->
             while (workerUnlocker.value < 1) {}
 
             assertFailsWith<IncorrectDereferenceException> {
-                local.get()
+                sharedRef.get()
             }
             Unit
         }
@@ -581,17 +578,17 @@ fun createCrossThreadCyclicGarbage(
     val workerCount = 10
     val workerUnlocker = AtomicInt(0)
 
-    val local = DisposableSharedRef(A(3))
-    assertEquals(3, local.get().a)
+    val sharedRef = DisposableSharedRef(A(3))
+    assertEquals(3, sharedRef.get().a)
 
     val workers = Array(workerCount) {
         Worker.start()
     }
     val futures = Array(workers.size) {
-        workers[it].execute(TransferMode.SAFE, { Pair(local, workerUnlocker) }) { (local, workerUnlocker) ->
+        workers[it].execute(TransferMode.SAFE, { Pair(sharedRef, workerUnlocker) }) { (sharedRef, workerUnlocker) ->
             while (workerUnlocker.value < 1) {}
 
-            local.dispose()
+            sharedRef.dispose()
         }
     }
     workerUnlocker.increment()
@@ -601,7 +598,7 @@ fun createCrossThreadCyclicGarbage(
     }
 
     assertFailsWith<IllegalStateException> {
-        local.get().a
+        sharedRef.get().a
     }
 
     for (worker in workers) {
@@ -612,14 +609,14 @@ fun createCrossThreadCyclicGarbage(
 @Test fun concurrentDisposeAndAccess() {
     val workerUnlocker = AtomicInt(0)
 
-    val local = DisposableSharedRef(A(3))
-    assertEquals(3, local.get().a)
+    val sharedRef = DisposableSharedRef(A(3))
+    assertEquals(3, sharedRef.get().a)
 
     val worker = Worker.start()
-    val future = worker.execute(TransferMode.SAFE, { Pair(local, workerUnlocker) }) { (local, workerUnlocker) ->
+    val future = worker.execute(TransferMode.SAFE, { Pair(sharedRef, workerUnlocker) }) { (sharedRef, workerUnlocker) ->
         while (workerUnlocker.value < 1) {}
 
-        local.dispose()
+        sharedRef.dispose()
     }
     workerUnlocker.increment()
 
@@ -627,7 +624,7 @@ fun createCrossThreadCyclicGarbage(
     // This is a race, but it should either get value successfully or get IllegalStateException.
     // Any other kind of failure is unacceptable.
     try {
-        result = local.get().a
+        result = sharedRef.get().a
     } catch(e: IllegalStateException) {
         result = 3
     }
