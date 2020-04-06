@@ -145,7 +145,6 @@ internal val psiToIrPhase = konanUnitPhase(
             val translator = Psi2IrTranslator(config.configuration.languageVersionSettings,
                     Psi2IrConfiguration(false), KonanIdSignaturer(KonanManglerDesc))
             val generatorContext = translator.createGeneratorContext(moduleDescriptor, bindingContext, symbolTable)
-            val moduleGenerator = translator.createModuleGenerator(generatorContext)
 
             val pluginExtensions = IrGenerationExtension.getInstances(config.project)
 
@@ -228,7 +227,7 @@ internal val psiToIrPhase = konanUnitPhase(
 
             expectDescriptorToSymbol = mutableMapOf<DeclarationDescriptor, IrSymbol>()
             val module = translator.generateModuleFragment(
-                moduleGenerator,
+                generatorContext,
                 environment.getSourceFiles(),
                 irProviders,
                 // TODO: This is a hack to allow platform libs to build in reasonable time.
