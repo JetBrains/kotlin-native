@@ -219,6 +219,7 @@ open class MacOSBasedLinker(targetProperties: AppleConfigurables)
             +"-L$absoluteLlvmHome/lib"
             +"-lLLVMCore"
             +"-lLLVMSupport"
+            +"-lLLVMDemangle"
             +"-lcurses"
             +rpath(dynamic)
         }
