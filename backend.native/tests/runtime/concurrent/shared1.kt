@@ -386,7 +386,7 @@ fun doNotCollectInWorker(worker: Worker, semaphore: AtomicInt): Future<Disposabl
     worker.requestTermination().result
 }
 
-fun disposeInWorker(worker: Worker, semaphore: AtomicInt): Triple<WeakReference<DisposableSharedRef<A>>, WeakReference<A>, Future<Unit>> {
+fun disposeInWorker(worker: Worker, semaphore: AtomicInt): Triple<WeakReference<DisposableSharedRef<A>>, WeakReference<A>, Future<AtomicReference<DisposableSharedRef<A>?>>> {
     val (localRef, localWeak, localValueWeak) = getWeaksAndAtomicReference(3)
 
     val future = worker.execute(TransferMode.SAFE, { Pair(localRef, semaphore) }) { (localRef, semaphore) ->
@@ -395,6 +395,7 @@ fun disposeInWorker(worker: Worker, semaphore: AtomicInt): Triple<WeakReference<
 
         callDispose(localRef)
         GC.collect()
+        localRef
     }
 
     while (semaphore.value < 1) {}
@@ -413,9 +414,9 @@ fun disposeInWorker(worker: Worker, semaphore: AtomicInt): Triple<WeakReference<
 
     val (localWeak, localValueWeak, future) = disposeInWorker(worker, semaphore)
     semaphore.increment()
-    future.result
+    val localRef = future.result
 
-    // At this point DisposableSharedRef still has a reference, but it's explicitly disposed,
+    // At this point localRef still has a reference, but it's explicitly disposed,
     // so referent is destroyed.
     GC.collect()
     assertNotNull(localWeak.get())
