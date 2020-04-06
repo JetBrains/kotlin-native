@@ -35,15 +35,13 @@ val global2: DisposableSharedRef<A> = DisposableSharedRef(A(3))
 
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, {}) {
-        var result = 0
         assertFailsWith<IncorrectDereferenceException> {
-            result = global2.get().a
+            global2.get()
         }
-        result
+        Unit
     }
 
-    val value = future.result
-    assertEquals(0, value)
+    future.result
     worker.requestTermination().result
 }
 
@@ -165,15 +163,13 @@ val global8: DisposableSharedRef<A> = DisposableSharedRef(A(3))
 
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, { local }) { local ->
-        var result = 0
         assertFailsWith<IncorrectDereferenceException> {
-            result = local.get().a
+            local.get()
         }
-        result
+        Unit
     }
 
-    val value = future.result
-    assertEquals(0, value)
+    future.result
     worker.requestTermination().result
 }
 
