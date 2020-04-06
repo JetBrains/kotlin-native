@@ -15,7 +15,8 @@ class A(var a: Int)
 
 val global1: SharedReference<A> = SharedReference(A(3))
 
-@Test fun testGlobal() {
+@Test
+fun testGlobal() {
     assertEquals(3, global1.value.a)
 
     val worker = Worker.start()
@@ -30,7 +31,8 @@ val global1: SharedReference<A> = SharedReference(A(3))
 
 val global2: SharedReference<A> = SharedReference(A(3))
 
-@Test fun testGlobalDenyAccessOnWorker() {
+@Test
+fun testGlobalDenyAccessOnWorker() {
     assertEquals(3, global2.value.a)
 
     val worker = Worker.start()
@@ -47,7 +49,8 @@ val global2: SharedReference<A> = SharedReference(A(3))
 
 val global3: SharedReference<A> = SharedReference(A(3).freeze())
 
-@Test fun testGlobalAccessOnWorkerFrozenInitially() {
+@Test
+fun testGlobalAccessOnWorkerFrozenInitially() {
     assertEquals(3, global3.value.a)
 
     val worker = Worker.start()
@@ -62,7 +65,8 @@ val global3: SharedReference<A> = SharedReference(A(3).freeze())
 
 val global4: SharedReference<A> = SharedReference(A(3))
 
-@Test fun testGlobalAccessOnWorkerFrozenBeforePassing() {
+@Test
+fun testGlobalAccessOnWorkerFrozenBeforePassing() {
     assertEquals(3, global4.value.a)
     global4.value.freeze()
 
@@ -78,7 +82,8 @@ val global4: SharedReference<A> = SharedReference(A(3))
 
 val global5: SharedReference<A> = SharedReference(A(3))
 
-@Test fun testGlobalAccessOnWorkerFrozenBeforeAccess() {
+@Test
+fun testGlobalAccessOnWorkerFrozenBeforeAccess() {
     val semaphore: AtomicInt = AtomicInt(0)
 
     assertEquals(3, global5.value.a)
@@ -86,12 +91,14 @@ val global5: SharedReference<A> = SharedReference(A(3))
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, { semaphore }) { semaphore ->
         semaphore.increment()
-        while (semaphore.value < 2) {}
+        while (semaphore.value < 2) {
+        }
 
         global5.value.a
     }
 
-    while (semaphore.value < 1) {}
+    while (semaphore.value < 1) {
+    }
     global5.value.freeze()
     semaphore.increment()
 
@@ -102,7 +109,8 @@ val global5: SharedReference<A> = SharedReference(A(3))
 
 val global6: SharedReference<A> = SharedReference(A(3))
 
-@Test fun testGlobalModification() {
+@Test
+fun testGlobalModification() {
     val semaphore: AtomicInt = AtomicInt(0)
 
     assertEquals(3, global6.value.a)
@@ -110,11 +118,13 @@ val global6: SharedReference<A> = SharedReference(A(3))
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, { semaphore }) { semaphore ->
         semaphore.increment()
-        while (semaphore.value < 2) {}
+        while (semaphore.value < 2) {
+        }
         global6
     }
 
-    while (semaphore.value < 1) {}
+    while (semaphore.value < 1) {
+    }
     global6.value.a = 4
     semaphore.increment()
 
@@ -123,7 +133,8 @@ val global6: SharedReference<A> = SharedReference(A(3))
     worker.requestTermination().result
 }
 
-@Test fun testLocal() {
+@Test
+fun testLocal() {
     val local = SharedReference(A(3))
     assertEquals(3, local.value.a)
 
@@ -137,7 +148,8 @@ val global6: SharedReference<A> = SharedReference(A(3))
     worker.requestTermination().result
 }
 
-@Test fun testLocalDenyAccessOnWorker() {
+@Test
+fun testLocalDenyAccessOnWorker() {
     val local = SharedReference(A(3))
     assertEquals(3, local.value.a)
 
@@ -153,7 +165,8 @@ val global6: SharedReference<A> = SharedReference(A(3))
     worker.requestTermination().result
 }
 
-@Test fun testLocalAccessOnWorkerFrozenInitially() {
+@Test
+fun testLocalAccessOnWorkerFrozenInitially() {
     val local = SharedReference(A(3).freeze())
     assertEquals(3, local.value.a)
 
@@ -167,7 +180,8 @@ val global6: SharedReference<A> = SharedReference(A(3))
     worker.requestTermination().result
 }
 
-@Test fun testLocalAccessOnWorkerFrozenBeforePassing() {
+@Test
+fun testLocalAccessOnWorkerFrozenBeforePassing() {
     val local = SharedReference(A(3))
     assertEquals(3, local.value.a)
     local.value.freeze()
@@ -182,7 +196,8 @@ val global6: SharedReference<A> = SharedReference(A(3))
     worker.requestTermination().result
 }
 
-@Test fun testLocalAccessOnWorkerFrozenBeforeAccess() {
+@Test
+fun testLocalAccessOnWorkerFrozenBeforeAccess() {
     val semaphore: AtomicInt = AtomicInt(0)
 
     val local = SharedReference(A(3))
@@ -191,12 +206,14 @@ val global6: SharedReference<A> = SharedReference(A(3))
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, { Pair(local, semaphore) }) { (local, semaphore) ->
         semaphore.increment()
-        while (semaphore.value < 2) {}
+        while (semaphore.value < 2) {
+        }
 
         local.value.a
     }
 
-    while (semaphore.value < 1) {}
+    while (semaphore.value < 1) {
+    }
     local.value.freeze()
     semaphore.increment()
 
@@ -206,7 +223,8 @@ val global6: SharedReference<A> = SharedReference(A(3))
 }
 
 
-@Test fun testLocalDenyAccessOnMainThread() {
+@Test
+fun testLocalDenyAccessOnMainThread() {
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, {}) {
         SharedReference(A(3))
@@ -220,7 +238,8 @@ val global6: SharedReference<A> = SharedReference(A(3))
     worker.requestTermination().result
 }
 
-@Test fun testLocalModification() {
+@Test
+fun testLocalModification() {
     val semaphore: AtomicInt = AtomicInt(0)
 
     val local = SharedReference(A(3))
@@ -229,11 +248,13 @@ val global6: SharedReference<A> = SharedReference(A(3))
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, { Pair(local, semaphore) }) { (local, semaphore) ->
         semaphore.increment()
-        while (semaphore.value < 2) {}
+        while (semaphore.value < 2) {
+        }
         local
     }
 
-    while (semaphore.value < 1) {}
+    while (semaphore.value < 1) {
+    }
     local.value.a = 4
     semaphore.increment()
 
@@ -251,7 +272,8 @@ fun getOwnerAndWeaks(initial: Int): Triple<AtomicReference<SharedReference<A>?>,
     return Triple(sharedRefOwner, sharedRefWeak, sharedRefValueWeak)
 }
 
-@Test fun testCollect() {
+@Test
+fun testCollect() {
     val (sharedRefOwner, sharedRefWeak, sharedRefValueWeak) = getOwnerAndWeaks(3)
 
     sharedRefOwner.value = null
@@ -267,13 +289,15 @@ fun collectInWorker(worker: Worker, semaphore: AtomicInt): Pair<WeakReference<A>
 
     val future = worker.execute(TransferMode.SAFE, { Pair(sharedRefOwner, semaphore) }) { (sharedRefOwner, semaphore) ->
         semaphore.increment()
-        while (semaphore.value < 2) {}
+        while (semaphore.value < 2) {
+        }
 
         sharedRefOwner.value = null
         GC.collect()
     }
 
-    while (semaphore.value < 1) {}
+    while (semaphore.value < 1) {
+    }
     // At this point worker is spinning on semaphore. sharedRefOwner still contains reference to
     // SharedReference, so referent is kept alive.
     GC.collect()
@@ -282,7 +306,8 @@ fun collectInWorker(worker: Worker, semaphore: AtomicInt): Pair<WeakReference<A>
     return Pair(sharedRefValueWeak, future)
 }
 
-@Test fun testCollectInWorker() {
+@Test
+fun testCollectInWorker() {
     val semaphore: AtomicInt = AtomicInt(0)
 
     val worker = Worker.start()
@@ -304,20 +329,23 @@ fun doNotCollectInWorker(worker: Worker, semaphore: AtomicInt): Future<SharedRef
 
     return worker.execute(TransferMode.SAFE, { Pair(sharedRef, semaphore) }) { (sharedRef, semaphore) ->
         semaphore.increment()
-        while (semaphore.value < 2) {}
+        while (semaphore.value < 2) {
+        }
 
         GC.collect()
         sharedRef
     }
 }
 
-@Test fun testDoNotCollectInWorker() {
+@Test
+fun testDoNotCollectInWorker() {
     val semaphore: AtomicInt = AtomicInt(0)
 
     val worker = Worker.start()
 
     val future = doNotCollectInWorker(worker, semaphore)
-    while (semaphore.value < 1) {}
+    while (semaphore.value < 1) {
+    }
     GC.collect()
     semaphore.increment()
 
@@ -345,7 +373,8 @@ fun createCyclicGarbage(): Triple<AtomicReference<SharedReference<B1>?>, WeakRef
     return Triple(sharedRef1Owner, sharedRef1Weak, sharedRef2Weak)
 }
 
-@Test fun doesNotCollectCyclicGarbage() {
+@Test
+fun doesNotCollectCyclicGarbage() {
     val (sharedRef1Owner, sharedRef1Weak, sharedRef2Weak) = createCyclicGarbage()
 
     sharedRef1Owner.value = null
@@ -357,7 +386,7 @@ fun createCyclicGarbage(): Triple<AtomicReference<SharedReference<B1>?>, WeakRef
 }
 
 fun createCrossThreadCyclicGarbage(
-    worker: Worker
+        worker: Worker
 ): Triple<AtomicReference<SharedReference<B1>?>, WeakReference<B1>, WeakReference<B2>> {
     val sharedRef1 = SharedReference(B1())
     val sharedRef1Owner: AtomicReference<SharedReference<B1>?> = AtomicReference(sharedRef1)
@@ -374,7 +403,8 @@ fun createCrossThreadCyclicGarbage(
     return Triple(sharedRef1Owner, sharedRef1Weak, sharedRef2Weak)
 }
 
-@Test fun doesNotCollectCrossThreadCyclicGarbage() {
+@Test
+fun doesNotCollectCrossThreadCyclicGarbage() {
     val worker = Worker.start()
 
     val (sharedRef1Owner, sharedRef1Weak, sharedRef2Weak) = createCrossThreadCyclicGarbage(worker)
@@ -390,7 +420,8 @@ fun createCrossThreadCyclicGarbage(
     worker.requestTermination().result
 }
 
-@Test fun concurrentAccess() {
+@Test
+fun concurrentAccess() {
     val workerCount = 10
     val workerUnlocker = AtomicInt(0)
 
@@ -402,7 +433,8 @@ fun createCrossThreadCyclicGarbage(
     }
     val futures = Array(workers.size) {
         workers[it].execute(TransferMode.SAFE, { Pair(sharedRef, workerUnlocker) }) { (sharedRef, workerUnlocker) ->
-            while (workerUnlocker.value < 1) {}
+            while (workerUnlocker.value < 1) {
+            }
 
             assertFailsWith<IncorrectDereferenceException> {
                 sharedRef.value

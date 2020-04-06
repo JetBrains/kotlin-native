@@ -34,7 +34,7 @@ public class SharedReference<out T : Any>(value: T) {
      * @throws IncorrectDereferenceException if referred object is not frozen and this is called from a different worker, than [SharedReference] was created on
      */
     val value: T
-        get() = @Suppress("UNCHECKED_CAST")(derefSharedRef(ptr) as T)
+        get() = @Suppress("UNCHECKED_CAST") (derefSharedRef(ptr) as T)
 }
 
 /**
