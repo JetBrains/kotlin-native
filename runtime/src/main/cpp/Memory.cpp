@@ -936,7 +936,7 @@ ALWAYS_INLINE void runDeallocationHooks(ContainerHeader* container) {
   for (int index = 0; index < container->objectCount(); index++) {
     auto* type_info = obj->type_info();
     if (type_info == theSharedReferenceTypeInfo) {
-      DisposeSharedRef(obj);
+      DisposeSharedReference(obj);
     }
 #if USE_CYCLIC_GC
     if ((type_info->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0) {

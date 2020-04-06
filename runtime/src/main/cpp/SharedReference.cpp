@@ -22,7 +22,7 @@ SharedReference* asSharedReference(KRef thiz) {
 
 }  // namespace
 
-RUNTIME_NOTHROW void DisposeSharedRef(KRef thiz) {
+RUNTIME_NOTHROW void DisposeSharedReference(KRef thiz) {
   // DisposeSharedRef is only called when all references to thiz are gone.
   auto* holder = asSharedReference(thiz)->holder;
   holder->dispose();
@@ -37,10 +37,8 @@ KNativePtr Kotlin_SharedReference_createSharedRef(KRef value) {
   return holder;
 }
 
-OBJ_GETTER(Kotlin_SharedReference_derefSharedRef, KRef thiz) {
-  // If thiz exists, holder must also exist. Disposal only happens
-  // when all references to thiz are gone.
-  RETURN_OBJ(asSharedReference(thiz)->holder->ref());
+OBJ_GETTER(Kotlin_SharedReference_derefSharedRef, KNativePtr holder) {
+  RETURN_OBJ(reinterpret_cast<KRefSharedHolder*>(holder)->ref());
 }
 
 }

@@ -11,6 +11,6 @@
 
 // Not inlining this call as it affects deallocation performance for
 // all types.
-RUNTIME_NOTHROW void DisposeSharedRef(KRef thiz) NO_INLINE;
+RUNTIME_NOTHROW void DisposeSharedReference(KRef thiz) NO_INLINE;
 
 #endif  // RUNTIME_SHAREDREF_H

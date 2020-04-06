@@ -10,6 +10,9 @@ import kotlin.native.internal.*
 @SymbolName("Kotlin_SharedReference_createSharedRef")
 external private fun createSharedRef(value: Any): NativePtr
 
+@SymbolName("Kotlin_SharedReference_derefSharedRef")
+external private fun derefSharedRef(ref: NativePtr): Any
+
 /**
  * A frozen shared reference to a Kotlin object
  *
@@ -27,11 +30,11 @@ public class SharedReference<out T : Any>(value: T) {
     private val ptr = createSharedRef(value)
 
     /**
-     * Returns the object this reference was created for.
+     * The referenced value.
      * @throws IncorrectDereferenceException if referred object is not frozen and this is called from a different worker, than [SharedReference] was created on
      */
-    @SymbolName("Kotlin_SharedReference_derefSharedRef")
-    external fun get(): T
+    val value: T
+        get() = @Suppress("UNCHECKED_CAST")(derefSharedRef(ptr) as T)
 }
 
 /**
@@ -42,7 +45,7 @@ public class SharedReference<out T : Any>(value: T) {
  * Garbage collector currently cannot free any reference cycles with [SharedReference] or [DisposableSharedReference] in them.
  * Call [dispose] manually to resolve cycles
  *
- * Note: This class has more expensive [get] than [SharedReference.get]. If you don't have reference
+ * Note: This class has more expensive [value] getter than [SharedReference]. If you don't have reference
  * cycles with [SharedReference] or [DisposableSharedReference], consider using [SharedReference]
  */
 @Frozen
@@ -51,7 +54,7 @@ public class DisposableSharedReference<out T : Any>(value: T) {
     private val ref: AtomicReference<SharedReference<T>?> = AtomicReference(SharedReference(value))
 
     /**
-     * Free the reference. Any call to [DisposableSharedReference.get] after that will
+     * Free the reference. Any call to [DisposableSharedReference.value] after that will
      * fail with [IllegalStateException]
      */
     fun dispose() {
@@ -59,11 +62,10 @@ public class DisposableSharedReference<out T : Any>(value: T) {
     }
 
     /**
-     * Returns the object this reference was created for.
+     * The referenced value.
      * @throws IncorrectDereferenceException if referred object is not frozen and this is called from a different worker, than [DisposableSharedReference] was created on
      * @throws IllegalStateException if [DisposableSharedReference.dispose] was called on this reference.
      */
-    fun get(): T {
-        return ref.value?.get() ?: throw IllegalStateException("illegal attempt to dereference disposed $this")
-    }
+    val value: T
+        get() = ref.value?.value ?: throw IllegalStateException("illegal attempt to dereference disposed $this")
 }
