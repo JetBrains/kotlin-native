@@ -47,7 +47,7 @@ val global2: SharedRef<A> = SharedRef(A(3))
     worker.requestTermination().result
 }
 
-val global3: SharedRef<A> = SharedRef(A(3).apply { freeze() })
+val global3: SharedRef<A> = SharedRef(A(3).freeze())
 
 @Test fun testGlobalAccessOnWorkerFrozenInitially() {
     assertEquals(3, global3.get().a)
@@ -158,7 +158,7 @@ val global6: SharedRef<A> = SharedRef(A(3))
 }
 
 @Test fun testLocalAccessOnWorkerFrozenInitially() {
-    val local = SharedRef(A(3).apply { freeze() })
+    val local = SharedRef(A(3).freeze())
     assertEquals(3, local.get().a)
 
     val worker = Worker.start()
