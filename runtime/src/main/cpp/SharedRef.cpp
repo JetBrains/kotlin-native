@@ -22,7 +22,7 @@ SharedRefLayout* asSharedRef(KRef thiz) {
 
 }  // namespace
 
-void DisposeSharedRef(KRef thiz) {
+RUNTIME_NOTHROW void DisposeSharedRef(KRef thiz) {
   // DisposeSharedRef is only called when all references to thiz are gone.
   auto* holder = asSharedRef(thiz)->holder;
   holder->dispose();

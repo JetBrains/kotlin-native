@@ -6,8 +6,11 @@
 #ifndef RUNTIME_SHAREDREF_H
 #define RUNTIME_SHAREDREF_H
 
+#include "Common.h"
 #include "Types.h"
 
-void DisposeSharedRef(KRef thiz);
+// Not inlining this call as it affects deallocation performance for
+// all types.
+RUNTIME_NOTHROW void DisposeSharedRef(KRef thiz) NO_INLINE;
 
 #endif  // RUNTIME_SHAREDREF_H

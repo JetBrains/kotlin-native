@@ -929,7 +929,9 @@ void freeAggregatingFrozenContainer(ContainerHeader* container) {
   MEMORY_LOG("Freeing subcontainers done\n");
 }
 
-void runDeallocationHooks(ContainerHeader* container) {
+// This is called from 2 places where it's unconditionally called,
+// so better be inlined.
+ALWAYS_INLINE void runDeallocationHooks(ContainerHeader* container) {
   ObjHeader* obj = reinterpret_cast<ObjHeader*>(container + 1);
   for (int index = 0; index < container->objectCount(); index++) {
     auto* type_info = obj->type_info();
