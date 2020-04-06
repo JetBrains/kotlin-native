@@ -24,7 +24,7 @@ external private fun createSharedRef(value: Any): NativePtr
 @ExportTypeInfo("theSharedRefTypeInfo")
 public class SharedRef<out T : Any>(value: T) {
 
-    private var ptr = createSharedRef(value)
+    private val ptr = createSharedRef(value)
 
     /**
      * Returns the object this reference was created for.
@@ -52,7 +52,7 @@ public class DisposableSharedRef<out T : Any>(value: T) {
 
     /**
      * Free the reference. Any call to [DisposableSharedRef.get] after that will
-     * fail with [NullPointerException]
+     * fail with [IllegalStateException]
      */
     fun dispose() {
         ref.value = null
