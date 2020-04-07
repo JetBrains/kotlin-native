@@ -648,8 +648,8 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
 
     override fun visitPackageFragmentDescriptor(descriptor: PackageFragmentDescriptor, ignored: Void?): Boolean {
         val fqName = descriptor.fqName
-        val name = if (fqName.isRoot) "root" else translateName(fqName.shortName().asString())
         val packageScope = packageScopes.getOrPut(fqName) {
+            val name = if (fqName.isRoot) "root" else translateName(fqName.shortName().asString())
             val scope = ExportedElementScope(ScopeKind.PACKAGE, name)
             scopes.last().scopes += scope
             scope
