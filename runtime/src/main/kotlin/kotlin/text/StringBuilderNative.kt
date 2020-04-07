@@ -5,14 +5,47 @@
 
 package kotlin.text
 
-fun StringBuilder.appendln(it: String) = append(it).appendln()
-fun StringBuilder.appendln(it: Boolean) = append(it).appendln()
-fun StringBuilder.appendln(it: Byte) = append(it).appendln()
-fun StringBuilder.appendln(it: Short) = append(it).appendln()
-fun StringBuilder.appendln(it: Int) = append(it).appendln()
-fun StringBuilder.appendln(it: Long) = append(it).appendln()
-fun StringBuilder.appendln(it: Float) = append(it).appendln()
-fun StringBuilder.appendln(it: Double) = append(it).appendln()
-fun StringBuilder.appendln(it: Any?) = append(it).appendln()
+@Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
+fun StringBuilder.appendln(it: String) = appendLine(it)
 
-fun StringBuilder.appendln() = append('\n')
+@Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
+fun StringBuilder.appendln(it: Boolean) = appendLine(it)
+
+@Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
+fun StringBuilder.appendln(it: Byte) = appendLine(it)
+
+/** Appends [value] to this [StringBuilder], followed by a linefeed character (`\n`). */
+fun StringBuilder.appendLine(value: Byte): StringBuilder = append(value).appendLine()
+
+@Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
+fun StringBuilder.appendln(it: Short) = appendLine(it)
+
+/** Appends [value] to this [StringBuilder], followed by a linefeed character (`\n`). */
+fun StringBuilder.appendLine(value: Short): StringBuilder = append(value).appendLine()
+
+@Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
+fun StringBuilder.appendln(it: Int) = appendLine(it)
+
+/** Appends [value] to this [StringBuilder], followed by a linefeed character (`\n`). */
+fun StringBuilder.appendLine(value: Int): StringBuilder = append(value).appendLine()
+
+@Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
+fun StringBuilder.appendln(it: Long) = appendLine(it)
+
+/** Appends [value] to this [StringBuilder], followed by a linefeed character (`\n`). */
+fun StringBuilder.appendLine(value: Long): StringBuilder = append(value).appendLine()
+
+@Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
+fun StringBuilder.appendln(it: Float) = appendLine(it)
+
+/** Appends [value] to this [StringBuilder], followed by a linefeed character (`\n`). */
+fun StringBuilder.appendLine(value: Float): StringBuilder = append(value).appendLine()
+
+@Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
+fun StringBuilder.appendln(it: Double) = appendLine(it)
+
+/** Appends [value] to this [StringBuilder], followed by a linefeed character (`\n`). */
+fun StringBuilder.appendLine(value: Double): StringBuilder = append(value).appendLine()
+
+@Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
+fun StringBuilder.appendln(it: Any?) = appendLine(it)
