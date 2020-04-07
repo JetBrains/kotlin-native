@@ -39,7 +39,7 @@ open class ClangFormatTask @Inject constructor(@Input val mode: ClangFormatMode)
         super.configure(closure)
         val root = project.file(".")
         for (file in files) {
-            val subTaskName = "clangFormat_${mode}_" + file.toRelativeString(root).replace('/', '_')
+            val subTaskName = "clangFormat_${mode}_" + file.toRelativeString(root).replace('/', '_').replace('\\', '_')
             project.tasks.create(subTaskName, ClangFormatSingleTask::class.java, mode, file)
             dependsOn(subTaskName)
         }
