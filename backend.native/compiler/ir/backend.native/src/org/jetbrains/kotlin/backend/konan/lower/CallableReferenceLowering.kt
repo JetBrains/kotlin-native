@@ -7,15 +7,21 @@ package org.jetbrains.kotlin.backend.konan.lower
 
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.common.IrElementTransformerVoidWithContext
-import org.jetbrains.kotlin.backend.common.descriptors.*
+import org.jetbrains.kotlin.backend.common.descriptors.WrappedClassConstructorDescriptor
+import org.jetbrains.kotlin.backend.common.descriptors.WrappedClassDescriptor
+import org.jetbrains.kotlin.backend.common.descriptors.WrappedSimpleFunctionDescriptor
 import org.jetbrains.kotlin.backend.common.ir.*
-import org.jetbrains.kotlin.backend.common.lower.*
-import org.jetbrains.kotlin.backend.konan.Context
-import org.jetbrains.kotlin.backend.konan.descriptors.synthesizedName
+import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.common.pop
 import org.jetbrains.kotlin.backend.common.push
+import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.boxing.IrOriginToSpec
+import org.jetbrains.kotlin.backend.konan.descriptors.synthesizedName
 import org.jetbrains.kotlin.backend.konan.llvm.functionName
-import org.jetbrains.kotlin.descriptors.*
+import org.jetbrains.kotlin.descriptors.ClassKind
+import org.jetbrains.kotlin.descriptors.Modality
+import org.jetbrains.kotlin.descriptors.ReceiverParameterDescriptor
+import org.jetbrains.kotlin.descriptors.Visibilities
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.*
@@ -213,7 +219,13 @@ internal class CallableReferenceLowering(val context: Context): FileLoweringPass
                     kFunctionImplSymbol.typeWith(referencedFunction.returnType)
                 else
                     irBuiltIns.anyType
-                functionClass = (if (isKFunction) symbols.kFunctionN(numberOfParameters) else symbols.functionN(numberOfParameters)).owner
+                functionClass = (if (isKFunction) {
+                    symbols.kFunctionN(numberOfParameters)
+                } else {
+                    symbols.functionN(numberOfParameters).let {
+                        IrOriginToSpec.forSpec(it.owner, referencedFunction.valueParameters.map { it.type } + referencedFunction.returnType)?.symbol ?: it
+                    }
+                }).owner
                 superTypes += functionClass.typeWith(functionParameterTypes + referencedFunction.returnType)
                 val lastParameterType = unboundFunctionParameters.lastOrNull()?.type
                 if (lastParameterType?.classifierOrNull != continuationClassSymbol)
