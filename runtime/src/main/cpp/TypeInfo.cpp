@@ -21,9 +21,9 @@
 // TODO: maybe select strategy basing on number of elements.
 #define USE_BINARY_SEARCH 1
 
-extern "C" {
 #if USE_BINARY_SEARCH
 
+// TODO: Consider std::binary_search.
 void* LookupOpenMethod(const TypeInfo* info, MethodNameHash nameSignature) {
   int bottom = 0;
   int top = info->openMethodsCount_ - 1;
@@ -74,6 +74,4 @@ InterfaceTableRecord const* LookupInterfaceTableRecord(InterfaceTableRecord cons
     else r = m;
   }
   return interfaceTable + l;
-}
-
 }

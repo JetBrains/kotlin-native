@@ -712,9 +712,9 @@ template <typename func>
 inline void traverseObjectFields(ObjHeader* obj, func process) {
   const TypeInfo* typeInfo = obj->type_info();
   if (typeInfo != theArrayTypeInfo) {
-    for (int index = 0; index < typeInfo->objOffsetsCount_; index++) {
+    for (auto offset : typeInfo->fieldOffsets()) {
       ObjHeader** location = reinterpret_cast<ObjHeader**>(
-          reinterpret_cast<uintptr_t>(obj) + typeInfo->objOffsets_[index]);
+          reinterpret_cast<uintptr_t>(obj) + offset);
       process(location);
     }
   } else {

@@ -88,9 +88,9 @@ inline void traverseObjectFields(ObjHeader* obj, func process) {
   RuntimeAssert(obj != nullptr, "Must be non null");
   const TypeInfo* typeInfo = obj->type_info();
   if (typeInfo != theArrayTypeInfo) {
-    for (int index = 0; index < typeInfo->objOffsetsCount_; index++) {
+    for (auto fieldOffset : typeInfo->fieldOffsets()) {
       ObjHeader** location = reinterpret_cast<ObjHeader**>(
-          reinterpret_cast<uintptr_t>(obj) + typeInfo->objOffsets_[index]);
+          reinterpret_cast<uintptr_t>(obj) + fieldOffset);
       process(location);
     }
   } else {

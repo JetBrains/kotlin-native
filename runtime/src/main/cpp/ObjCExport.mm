@@ -286,8 +286,8 @@ extern "C" void Kotlin_ObjCExport_initializeClass(Class clazz) {
 
   if (isClassForPackage) return;
 
-  for (int i = 0; i < typeInfo->implementedInterfacesCount_; ++i) {
-    addProtocolForInterface(clazz, typeInfo->implementedInterfaces_[i]);
+  for (auto interface : typeInfo->implementedInterfaces()) {
+    addProtocolForInterface(clazz, interface);
   }
 
 }
@@ -539,8 +539,8 @@ static id convertKotlinObject(ObjHeader* obj) {
 static convertReferenceToObjC findConverterFromInterfaces(const TypeInfo* typeInfo) {
   const TypeInfo* foundTypeInfo = nullptr;
 
-  for (int i = 0; i < typeInfo->implementedInterfacesCount_; ++i) {
-    const TypeInfo* interfaceTypeInfo = typeInfo->implementedInterfaces_[i];
+  for (auto interface : typeInfo->implementedInterfaces()) {
+    const TypeInfo* interfaceTypeInfo = interface;
     if (interfaceTypeInfo->writableInfo_->objCExport.convert != nullptr) {
       if (foundTypeInfo == nullptr || IsSubInterface(interfaceTypeInfo, foundTypeInfo)) {
         foundTypeInfo = interfaceTypeInfo;
@@ -1021,8 +1021,7 @@ static Class createClass(const TypeInfo* typeInfo, Class superClass) {
           typeInfo->superType_->implementedInterfaces_ + typeInfo->superType_->implementedInterfacesCount_
   );
 
-  for (int i = 0; i < typeInfo->implementedInterfacesCount_; ++i) {
-    const TypeInfo* interface = typeInfo->implementedInterfaces_[i];
+  for (auto interface : typeInfo->implementedInterfaces()) {
     if (superImplementedInterfaces.find(interface) == superImplementedInterfaces.end()) {
       const ObjCTypeAdapter* typeAdapter = getTypeAdapter(interface);
       if (typeAdapter != nullptr) {
