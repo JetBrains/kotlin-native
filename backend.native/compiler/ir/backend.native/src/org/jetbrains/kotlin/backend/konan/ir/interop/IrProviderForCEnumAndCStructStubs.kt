@@ -6,9 +6,7 @@ package org.jetbrains.kotlin.backend.konan.ir.interop
 
 import org.jetbrains.kotlin.backend.common.serialization.encodings.BinarySymbolData
 import org.jetbrains.kotlin.backend.konan.InteropBuiltIns
-import org.jetbrains.kotlin.backend.konan.descriptors.findPackage
 import org.jetbrains.kotlin.backend.konan.descriptors.getPackageFragments
-import org.jetbrains.kotlin.backend.konan.descriptors.isFromInteropLibrary
 import org.jetbrains.kotlin.backend.konan.ir.KonanSymbols
 import org.jetbrains.kotlin.backend.konan.ir.interop.cenum.CEnumByValueFunctionGenerator
 import org.jetbrains.kotlin.backend.konan.ir.interop.cenum.CEnumClassGenerator
@@ -17,11 +15,9 @@ import org.jetbrains.kotlin.backend.konan.ir.interop.cenum.CEnumVarClassGenerato
 import org.jetbrains.kotlin.backend.konan.ir.interop.cstruct.CStructVarClassGenerator
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.declarations.impl.IrFileImpl
 import org.jetbrains.kotlin.ir.symbols.*
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.psi2ir.generators.GeneratorContext
-import org.jetbrains.kotlin.resolve.descriptorUtil.module
 import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
 
 /**
@@ -34,22 +30,17 @@ import org.jetbrains.kotlin.resolve.scopes.DescriptorKindFilter
  *   compiler phases.
  * 2. It is an easier and more obvious approach. Since implementation of metadata-based
  *  libraries generation already took too much time we take an easier approach here.
- *
- *  [moduleFilter] -- We want to select modules that should be part of compiler's output.
- *
- *  For example, when we generate compiler cache,
- *  declarations from dependencies should not be added to the current module.
  */
 internal class IrProviderForCEnumAndCStructStubs(
         context: GeneratorContext,
         private val interopBuiltIns: InteropBuiltIns,
-        symbols: KonanSymbols,
-        private val moduleFilter: (ModuleDescriptor) -> Boolean
-) : IrProvider {
+        symbols: KonanSymbols
+) {
 
+    /**
+     *  TODO: integrate this provider into [KonanIrLinker.KonanInteropModuleDeserializer]
+     */
     private val symbolTable: SymbolTable = context.symbolTable
-
-    private val filesMap = mutableMapOf<PackageFragmentDescriptor, IrFile>()
 
     private val cEnumByValueFunctionGenerator =
             CEnumByValueFunctionGenerator(context, symbols)
@@ -62,43 +53,23 @@ internal class IrProviderForCEnumAndCStructStubs(
     private val cStructClassGenerator =
             CStructVarClassGenerator(context, interopBuiltIns)
 
-    /**
-     * The final output of this provider is a list of files which contain IR declarations
-     * of enums and structs that should be generated.
-     */
-    val outputFiles: List<IrFile>
-        get() = filesMap.filterKeys { moduleFilter(it.module) }.values.toList()
-
     fun isCEnumOrCStruct(declarationDescriptor: DeclarationDescriptor): Boolean =
             declarationDescriptor.run { findCEnumDescriptor(interopBuiltIns) ?: findCStructDescriptor(interopBuiltIns) } != null
 
-    fun canHandleSymbol(symbol: IrSymbol): Boolean {
-        if (!symbol.isPublicApi) return false
-        if (symbol.signature.run { !IdSignature.Flags.IS_NATIVE_INTEROP_LIBRARY.test() }) return false
-        return symbol.findCEnumDescriptor(interopBuiltIns) != null
-                || symbol.findCStructDescriptor(interopBuiltIns) != null
-    }
-
-    fun buildAllEnumsAndStructsFrom(interopModule: ModuleDescriptor) = interopModule.getPackageFragments()
+    fun referenceAllEnumsAndStructsFrom(interopModule: ModuleDescriptor) = interopModule.getPackageFragments()
             .flatMap { it.getMemberScope().getContributedDescriptors(DescriptorKindFilter.CLASSIFIERS) }
             .filterIsInstance<ClassDescriptor>()
-            .forEach {
-                when {
-                    it.implementsCEnum(interopBuiltIns) ->
-                        cEnumClassGenerator.findOrGenerateCEnum(it, irParentFor(it))
-                    it.inheritsFromCStructVar(interopBuiltIns) ->
-                        cStructClassGenerator.findOrGenerateCStruct(it, irParentFor(it))
-                }
-            }
+            .filter { it.implementsCEnum(interopBuiltIns) || it.inheritsFromCStructVar(interopBuiltIns) }
+            .forEach { symbolTable.referenceClass(it) }
 
-    private fun generateIrIfNeeded(symbol: IrSymbol, file: IrFile?) {
+    private fun generateIrIfNeeded(symbol: IrSymbol, file: IrFile) {
         // TODO: These `findOrGenerate` calls generate a whole subtree.
         //  This a simple but clearly suboptimal solution.
         symbol.findCEnumDescriptor(interopBuiltIns)?.let { enumDescriptor ->
-            cEnumClassGenerator.findOrGenerateCEnum(enumDescriptor, file ?: irParentFor(enumDescriptor))
+            cEnumClassGenerator.findOrGenerateCEnum(enumDescriptor, file)
         }
         symbol.findCStructDescriptor(interopBuiltIns)?.let { structDescriptor ->
-            cStructClassGenerator.findOrGenerateCStruct(structDescriptor, file ?: irParentFor(structDescriptor))
+            cStructClassGenerator.findOrGenerateCStruct(structDescriptor, file)
         }
     }
 
@@ -123,26 +94,6 @@ internal class IrProviderForCEnumAndCStructStubs(
                 }
                 else -> error("Unexpected symbol kind $symbolKind for sig $idSignature")
             }
-        }
-    }
-
-    override fun getDeclaration(symbol: IrSymbol): IrDeclaration? {
-        if (symbol.isBound) return symbol.owner as IrDeclaration
-        if (!canHandleSymbol(symbol)) return null
-        generateIrIfNeeded(symbol, null)
-        return when (symbol) {
-            is IrClassSymbol -> symbolTable.referenceClass(symbol.descriptor).owner
-            is IrEnumEntrySymbol -> symbolTable.referenceEnumEntry(symbol.descriptor).owner
-            is IrFunctionSymbol -> symbolTable.referenceFunction(symbol.descriptor).owner
-            is IrPropertySymbol -> symbolTable.referenceProperty(symbol.descriptor).owner
-            else -> error(symbol)
-        }
-    }
-
-    private fun irParentFor(descriptor: ClassDescriptor): IrDeclarationContainer {
-        val packageFragmentDescriptor = descriptor.findPackage()
-        return filesMap.getOrPut(packageFragmentDescriptor) {
-            IrFileImpl(NaiveSourceBasedFileEntryImpl(cTypeDefinitionsFileName), packageFragmentDescriptor)
         }
     }
 
