@@ -10,7 +10,6 @@ import org.jetbrains.kotlin.backend.common.serialization.metadata.KlibMetadataMo
 import org.jetbrains.kotlin.backend.konan.descriptors.isForwardDeclarationModule
 import org.jetbrains.kotlin.backend.konan.descriptors.isFromInteropLibrary
 import org.jetbrains.kotlin.backend.konan.descriptors.konanLibrary
-import org.jetbrains.kotlin.backend.konan.ir.interop.IrProviderForInteropStubs
 import org.jetbrains.kotlin.backend.konan.ir.KonanSymbols
 import org.jetbrains.kotlin.backend.konan.ir.interop.IrProviderForCEnumAndCStructStubs
 import org.jetbrains.kotlin.backend.konan.llvm.*
@@ -179,7 +178,7 @@ internal val psiToIrPhase = konanUnitPhase(
             val symbols = KonanSymbols(this, symbolTable, symbolTable.lazyWrapper, functionIrClassFactory)
 
             val irProviderForCEnumsAndCStructs =
-                    IrProviderForCEnumAndCStructStubs(generatorContext, interopBuiltIns, symbols, llvmModuleSpecification::containsModule)
+                    IrProviderForCEnumAndCStructStubs(generatorContext, interopBuiltIns, symbols)
             val deserializer = KonanIrLinker(
                     moduleDescriptor,
                     functionIrClassFactory,
@@ -220,7 +219,7 @@ internal val psiToIrPhase = konanUnitPhase(
             // that should be bound.
             modulesWithoutDCE
                     .filter(ModuleDescriptor::isFromInteropLibrary)
-                    .forEach(irProviderForCEnumsAndCStructs::buildAllEnumsAndStructsFrom)
+                    .forEach(irProviderForCEnumsAndCStructs::referenceAllEnumsAndStructsFrom)
 
             val irProviders = listOf(deserializer)
             stubGenerator.setIrProviders(irProviders)
@@ -243,11 +242,10 @@ internal val psiToIrPhase = konanUnitPhase(
                 functionIrClassFactory.buildAllClasses()
             }
 
+            // Enable lazy IR genration for newly-created symbols inside BE
             stubGenerator.unboundSymbolGeneration = true
 
             module.acceptVoid(ManglerChecker(KonanManglerIr, Ir2DescriptorManglerAdapter(KonanManglerDesc)))
-
-            module.files += irProviderForCEnumsAndCStructs.outputFiles
 
             irModule = module
             irModules = deserializer.modules.filterValues { llvmModuleSpecification.containsModule(it) }
@@ -265,7 +263,6 @@ internal val psiToIrPhase = konanUnitPhase(
 internal val destroySymbolTablePhase = konanUnitPhase(
         op = {
             this.symbolTable = null // TODO: invalidate symbolTable itself.
-//            ir.symbols.functionIrClassFactory.symbolTable = null
         },
         name = "DestroySymbolTable",
         description = "Destroy SymbolTable",
