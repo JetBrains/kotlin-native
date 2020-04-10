@@ -152,12 +152,18 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
                 put(LIST_TARGETS, arguments.listTargets)
                 put(OPTIMIZATION, arguments.optimization)
                 put(DEBUG, arguments.debug)
+                // TODO: remove after 1.4 release.
+                if (arguments.lightDebugDeprecated) {
+                    configuration.report(WARNING,
+                            "-Xg0 is now deprecated and skipped by compiler. Light debug information is enabled by default for Darwin platforms." +
+                                    " For other targets, please, use `-Xadd-light-debug=enable` instead.")
+                }
                 putIfNotNull(LIGHT_DEBUG, when (val it = arguments.lightDebugString) {
                     "enable" -> true
                     "disable" -> false
                     null -> null
                     else -> {
-                        configuration.report(ERROR, "Unsupported -Xg0= value: $it. Possible values are 'enable'/'disable'")
+                        configuration.report(ERROR, "Unsupported -Xadd-light-debug= value: $it. Possible values are 'enable'/'disable'")
                         null
                     }
                 })

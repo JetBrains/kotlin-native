@@ -155,12 +155,15 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     @Argument(
             value = "-Xadd-light-debug",
             valueDescription = "{disable|enable}",
-            deprecatedName = "-Xg0",
             description = "Add light debug information for optimized builds. This option is skipped in debug builds.\n" +
                     "It's enabled by default on Darwin platforms where collected debug information is stored in .dSYM file.\n" +
-                    "Current option is disabled by default on other platforms."
+                    "Currently option is disabled by default on other platforms."
     )
     var lightDebugString: String? = null
+
+    // TODO: remove after 1.4 release.
+    @Argument(value = "-Xg0", description = "Add light debug information")
+    var lightDebugDeprecated: Boolean = false
 
     @Argument(
             value = MAKE_CACHE,
