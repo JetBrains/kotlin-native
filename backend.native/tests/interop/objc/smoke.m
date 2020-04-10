@@ -1,6 +1,10 @@
 #import <stdio.h>
 #import <Foundation/NSString.h>
+
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wnullability-completeness"
 #import "smoke.h"
+#pragma clang diagnostic pop
 
 @interface CPrinter : NSObject <Printer>
 -(void)print:(const char*)string;

@@ -77,12 +77,12 @@ void BackRefFromAssociatedObject::addRef() {
 
 bool BackRefFromAssociatedObject::tryAddRef() {
   // Suboptimal but simple:
-  this->ensureRefAccessible();
-  ObjHeader* obj = this->obj_;
+  ensureRefAccessible();
 
-  if (!TryAddHeapRef(obj)) return false;
-  this->addRef();
-  ReleaseHeapRef(obj); // Balance TryAddHeapRef.
+  if (!TryAddHeapRef(obj_)) return false;
+
+  addRef();  // can throw, so let's use RAII for ReleaseHeapRef
+  ReleaseHeapRef(obj_); // Balance TryAddHeapRef.
   // TODO: consider optimizing for non-shared objects.
 
   return true;
