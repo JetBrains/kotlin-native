@@ -872,14 +872,14 @@ task empty_substring(type: KonanLocalTest) {
     source = "runtime/basic/empty_substring.kt"
 }
 
-task shared0(type: KonanLocalTest) {
+task worker_bound_reference0(type: KonanLocalTest) {
     enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
-    source = "runtime/concurrent/shared0.kt"
+    source = "runtime/concurrent/worker_bound_reference0.kt"
 }
 
-task shared1(type: KonanLocalTest) {
+task worker_bound_reference1(type: KonanLocalTest) {
     enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
-    source = "runtime/concurrent/shared1.kt"
+    source = "runtime/concurrent/worker_bound_reference1.kt"
 }
 
 task worker0(type: KonanLocalTest) {

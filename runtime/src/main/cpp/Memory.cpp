@@ -35,7 +35,7 @@
 #include "Natives.h"
 #include "Porting.h"
 #include "Runtime.h"
-#include "SharedReference.h"
+#include "WorkerBoundReference.h"
 
 // If garbage collection algorithm for cyclic garbage to be used.
 // We are using the Bacon's algorithm for GC, see
@@ -935,8 +935,8 @@ ALWAYS_INLINE void runDeallocationHooks(ContainerHeader* container) {
   ObjHeader* obj = reinterpret_cast<ObjHeader*>(container + 1);
   for (int index = 0; index < container->objectCount(); index++) {
     auto* type_info = obj->type_info();
-    if (type_info == theSharedReferenceTypeInfo) {
-      DisposeSharedReference(obj);
+    if (type_info == theWorkerBoundReferenceTypeInfo) {
+      DisposeWorkerBoundReference(obj);
     }
 #if USE_CYCLIC_GC
     if ((type_info->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0) {

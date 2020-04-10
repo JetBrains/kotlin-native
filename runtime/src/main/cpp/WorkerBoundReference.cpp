@@ -3,7 +3,7 @@
  * that can be found in the LICENSE file.
  */
 
-#include "SharedReference.h"
+#include "WorkerBoundReference.h"
 
 #include "Alloc.h"
 #include "Memory.h"
@@ -11,33 +11,33 @@
 
 namespace {
 
-struct SharedReference {
+struct WorkerBoundReference {
   ObjHeader header;
   KRefSharedHolder* holder;
 };
 
-SharedReference* asSharedReference(KRef thiz) {
-  return reinterpret_cast<SharedReference*>(thiz);
+WorkerBoundReference* asWorkerBoundReference(KRef thiz) {
+  return reinterpret_cast<WorkerBoundReference*>(thiz);
 }
 
 }  // namespace
 
-RUNTIME_NOTHROW void DisposeSharedReference(KRef thiz) {
+RUNTIME_NOTHROW void DisposeWorkerBoundReference(KRef thiz) {
   // DisposeSharedRef is only called when all references to thiz are gone.
-  auto* holder = asSharedReference(thiz)->holder;
+  auto* holder = asWorkerBoundReference(thiz)->holder;
   holder->dispose();
   konanDestructInstance(holder);
 }
 
 extern "C" {
 
-KNativePtr Kotlin_SharedReference_createSharedRef(KRef value) {
+KNativePtr Kotlin_WorkerBoundReference_create(KRef value) {
   auto* holder = konanConstructInstance<KRefSharedHolder>();
   holder->init(value);
   return holder;
 }
 
-OBJ_GETTER(Kotlin_SharedReference_derefSharedRef, KNativePtr holder) {
+OBJ_GETTER(Kotlin_WorkerBoundReference_deref, KNativePtr holder) {
   RETURN_OBJ(reinterpret_cast<KRefSharedHolder*>(holder)->ref());
 }
 
