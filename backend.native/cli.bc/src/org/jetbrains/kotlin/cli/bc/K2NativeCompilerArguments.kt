@@ -152,11 +152,13 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     )
     var frameworkImportHeaders: Array<String>? = null
 
-    // FIXME: same name.
     @Argument(
-            value = "-Xg0",
+            value = "-Xadd-light-debug",
             valueDescription = "{disable|enable}",
-            description = "Add light debug information"
+            deprecatedName = "-Xg0",
+            description = "Add light debug information for optimized builds. This option is skipped in debug builds.\n" +
+                    "It's enabled by default on Darwin platforms where collected debug information is stored in .dSYM file.\n" +
+                    "Current option is disabled by default on other platforms."
     )
     var lightDebugString: String? = null
 
