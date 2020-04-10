@@ -126,16 +126,6 @@ internal class KonanIrLinker(
             return symbolOwner.symbol
         }
 
-        override fun addModuleReachableTopLevel(idSig: IdSignature) {
-            error("Is not allowed for Interop library reader (idSig = $idSig)")
-        }
-
-        override fun deserializeReachableDeclarations() {
-            error("Is not allowed for Interop library reader")
-        }
-
-        override fun postProcess() {}
-
         override val moduleFragment: IrModuleFragment = IrModuleFragmentImpl(moduleDescriptor, builtIns)
         override val moduleDependencies: Collection<IrModuleDeserializer> = listOfNotNull(forwardDeclarationDeserializer)
     }
@@ -202,12 +192,6 @@ internal class KonanIrLinker(
 
             return declaredDeclaration.getOrPut(idSig) { buildForwardDeclarationStub(idSig, descriptor) }.symbol
         }
-
-        override fun addModuleReachableTopLevel(idSig: IdSignature) { error("Is not allowed for FWD reader (idSig = $idSig)") }
-
-        override fun deserializeReachableDeclarations() { error("Is not allowed for FWD reader") }
-
-        override fun postProcess() {}
 
         override val moduleFragment: IrModuleFragment = IrModuleFragmentImpl(moduleDescriptor, builtIns)
         override val moduleDependencies: Collection<IrModuleDeserializer> = emptyList()
