@@ -37,8 +37,9 @@ fun testGlobalDenyAccessOnWorker() {
 
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, {}) {
+        val local = global2
         assertFailsWith<IncorrectDereferenceException> {
-            global2.value
+            local.value
         }
         Unit
     }
