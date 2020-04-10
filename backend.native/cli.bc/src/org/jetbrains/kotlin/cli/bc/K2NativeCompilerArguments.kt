@@ -162,7 +162,7 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     var lightDebugString: String? = null
 
     // TODO: remove after 1.4 release.
-    @Argument(value = "-Xg0", description = "Add light debug information")
+    @Argument(value = "-Xg0", description = "Add light debug information. Deprecated option. Please use instead -Xadd-light-debug=enable")
     var lightDebugDeprecated: Boolean = false
 
     @Argument(
