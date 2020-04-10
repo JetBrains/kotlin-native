@@ -1,3 +1,5 @@
+// This file is part of an external library.
+// clang-format off
 // Copyright 2006 Nemanja Trifunovic
 
 /*

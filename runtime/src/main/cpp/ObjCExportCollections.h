@@ -1,3 +1,5 @@
+// TODO: Consider reformatting this file.
+// clang-format off
 /*
  * Copyright 2010-2019 JetBrains s.r.o.
  *

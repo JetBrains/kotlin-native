@@ -1,3 +1,5 @@
+// TODO: Consider reformatting this file.
+// clang-format off
 #include <cstring>
 #include "Types.h"
 #include "KString.h"

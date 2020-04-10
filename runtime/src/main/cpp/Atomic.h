@@ -1,3 +1,5 @@
+// TODO: Consider reformatting this file.
+// clang-format off
 #ifndef RUNTIME_ATOMIC_H
 #define RUNTIME_ATOMIC_H
 

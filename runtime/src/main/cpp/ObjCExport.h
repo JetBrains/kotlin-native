@@ -1,3 +1,5 @@
+// TODO: Consider reformatting this file.
+// clang-format off
 #ifndef RUNTIME_OBJCEXPORT_H
 #define RUNTIME_OBJCEXPORT_H
 
