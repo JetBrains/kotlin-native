@@ -68,7 +68,7 @@ open class CompileToBitcode @Inject constructor(@InputDirectory val srcRoot: Fil
                                     "-Werror", "-ftls-model=initial-exec", "-Wno-unused-function"),
                             listOf("**/*.c"))
                     Language.CPP -> Triple("clang++",
-                            commonFlags + listOfNotNull("-std=c++14", "-Werror", "-O2",
+                            commonFlags + listOfNotNull("-std=c++17", "-Werror", "-O2",
                                     "-fPIC".takeIf { !HostManager().targetByName(target).isMINGW }),
                             listOf("**/*.cpp", "**/*.mm"))
                 }
