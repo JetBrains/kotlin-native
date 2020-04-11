@@ -138,7 +138,7 @@ struct ContainerHeader {
   }
 
   template <bool Atomic>
-  inline bool tryIncRefCount() {
+  inline bool tryIncRefCount() noexcept {
     if (Atomic) {
       while (true) {
         uint32_t currentRefCount_ = refCount_;

@@ -360,6 +360,7 @@ class ForeignRefManager {
 
     ListNode* toProcess = nullptr;
 
+    // TODO: Consider toProcess = __atomic_exchange_n(&releaseList, nullptr) instead of CAS, or std::atomic
     while (true) {
       toProcess = releaseList;
       if (compareAndSet<ListNode*>(&this->releaseList, toProcess, nullptr)) break;
@@ -1045,7 +1046,7 @@ void traverseStronglyConnectedComponent(ContainerHeader* start,
 }
 
 template <bool Atomic>
-inline bool tryIncrementRC(ContainerHeader* container) {
+inline bool tryIncrementRC(ContainerHeader* container) noexcept {
   return container->tryIncRefCount<Atomic>();
 }
 
@@ -1437,7 +1438,8 @@ inline void addHeapRef(const ObjHeader* header) {
     addHeapRef(const_cast<ContainerHeader*>(container));
 }
 
-inline bool tryAddHeapRef(ContainerHeader* container) {
+//! TODO Consider gsl::not_null
+inline bool tryAddHeapRef(ContainerHeader* container) noexcept {
   switch (container->tag()) {
     case CONTAINER_TAG_STACK:
       break;
@@ -1455,7 +1457,7 @@ inline bool tryAddHeapRef(ContainerHeader* container) {
   return true;
 }
 
-inline bool tryAddHeapRef(const ObjHeader* header) {
+inline bool tryAddHeapRef(const ObjHeader* header) noexcept {
   auto* container = header->container();
   return (container != nullptr) ? tryAddHeapRef(container) : true;
 }
@@ -2726,7 +2728,7 @@ ArrayHeader* ArenaContainer::PlaceArray(const TypeInfo* type_info, uint32_t coun
 extern "C" {
 
 // Private memory interface.
-bool TryAddHeapRef(const ObjHeader* object) {
+bool TryAddHeapRef(const ObjHeader* object) noexcept {
   return tryAddHeapRef(object);
 }
 

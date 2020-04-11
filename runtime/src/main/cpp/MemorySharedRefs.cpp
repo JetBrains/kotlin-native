@@ -81,7 +81,8 @@ bool BackRefFromAssociatedObject::tryAddRef() {
 
   if (!TryAddHeapRef(obj_)) return false;
 
-  addRef();  // can throw, so let's use RAII for ReleaseHeapRef
+  // can throw, so use RAII: Scoped guard{ [&]() { ReleaseHeapRef(obj_); } };
+  addRef();  
   ReleaseHeapRef(obj_); // Balance TryAddHeapRef.
   // TODO: consider optimizing for non-shared objects.
 
