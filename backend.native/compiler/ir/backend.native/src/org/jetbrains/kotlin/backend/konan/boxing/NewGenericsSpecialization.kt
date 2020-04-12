@@ -77,6 +77,68 @@ internal class NewGenericsSpecialization(val context: Context) : FileLoweringPas
             return super.visitFunction(declaration)
         }
 
+        override fun visitFunctionExpression(expression: IrFunctionExpression): IrExpression {
+            if (expression.type.getClass()?.name?.asString() == "Function1") {
+                generateFunction1Spec(expression)
+            }
+            if (expression.type.getClass()?.name?.asString() == "Function2") {
+                generateFunction2Spec(expression)
+            }
+            return super.visitFunctionExpression(expression)
+        }
+
+        private fun generateFunction1Spec(expression: IrFunctionExpression) {
+            val declaration = expression.type.getClass()!!
+            val mapping1 = mapOf(
+                    declaration.typeParameters[0].symbol to context.irBuiltIns.intType,
+                    declaration.typeParameters[1].symbol to context.irBuiltIns.intType
+            )
+            val concreteTypes1 = listOf(
+                    context.irBuiltIns.intType, context.irBuiltIns.intType
+            )
+            val mapping2 = mapOf(
+                    declaration.typeParameters[0].symbol to context.irBuiltIns.intType,
+                    declaration.typeParameters[1].symbol to context.irBuiltIns.booleanType
+            )
+            val concreteTypes2 = listOf(
+                    context.irBuiltIns.intType, context.irBuiltIns.booleanType
+            )
+            if (!mappedDeclarations.containsKey(declaration to concreteTypes1)) {
+                // Function1 <: Function
+                generateFunctionSpec(declaration.superClasses[0].owner)
+                declaration.produceOneSpecialization(mapping1, concreteTypes1)
+                declaration.produceOneSpecialization(mapping2, concreteTypes2)
+            }
+        }
+
+        private fun generateFunction2Spec(expression: IrFunctionExpression) {
+            val declaration = expression.type.getClass()!!
+            val mapping = mapOf(
+                    declaration.typeParameters[0].symbol to context.irBuiltIns.intType,
+                    declaration.typeParameters[1].symbol to context.irBuiltIns.intType,
+                    declaration.typeParameters[2].symbol to context.irBuiltIns.intType
+            )
+            val concreteTypes = listOf(
+                    context.irBuiltIns.intType, context.irBuiltIns.intType, context.irBuiltIns.intType
+            )
+            if (!mappedDeclarations.containsKey(declaration to concreteTypes)) {
+                // Function1 <: Function
+                declaration.produceOneSpecialization(mapping, concreteTypes)
+            }
+        }
+
+        private fun generateFunctionSpec(declaration: IrClass) {
+            val mapping = mapOf(
+                    declaration.typeParameters[0].symbol to context.irBuiltIns.intType
+            )
+            val concreteTypes = listOf(
+                    context.irBuiltIns.intType
+            )
+            if (!mappedDeclarations.containsKey(declaration to concreteTypes)) {
+                declaration.produceOneSpecialization(mapping, concreteTypes)
+            }
+        }
+
         // TODO implement many-type-parameters support
         private fun IrTypeParametersContainer.produceSpecializations() {
             if (typeParameters.size != 1) return
