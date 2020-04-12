@@ -6,6 +6,7 @@ import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.classOrNull
+import org.jetbrains.kotlin.ir.util.typeOrNull
 
 /**
  * Contains mappings from origins to related specializations,
@@ -31,12 +32,17 @@ object IrOriginToSpec {
     //  - Which is the specialization of given declaration for given types, declared in given receiver
     //    (or which is effectively static).
     // TODO consider custom types, currently it is just a mishmash of different containers
-    private val specializations = mutableMapOf<IrDeclaration, MutableMap<Pair<List<IrType?>, IrType?>, IrDeclaration>>()
+    private val specializations = mutableMapOf<IrDeclaration, MutableMap<List<IrType?>, IrDeclaration>>()
 
-    fun <T : IrDeclaration> newSpec(origin: T, types: List<IrType?>, specDispatchType: IrType? = null, spec: T) {
+    private val remappedTypes = mutableMapOf<IrDeclaration, List<IrType?>>()
+
+    fun <T : IrDeclaration> newSpec(origin: T, types: List<IrType?>, spec: T) {
         specializations.putIfAbsent(origin, mutableMapOf())
-        specializations[origin]!![types to specDispatchType] = spec
+        specializations[origin]!![types] = spec
+        remappedTypes[spec] = types
     }
+
+    fun findTypes(declaration: IrDeclaration) = remappedTypes[declaration]
 
     fun newClass(origin: IrType, spec: IrType) {
         classes[origin] = spec
@@ -53,14 +59,14 @@ object IrOriginToSpec {
 
     fun <T : IrDeclaration> getAllSpecsFor(origin: T) = specializations[origin]
 
-    inline fun <reified T : IrDeclaration> forSpec(origin: T, types: List<IrType?>, specDispatchType: IrType? = null): T? {
-        return getAllSpecsFor(origin)?.get(types to specDispatchType)?.let { it as T }
+    inline fun <reified T : IrDeclaration> forSpec(origin: T, types: List<IrType?>): T? {
+        return getAllSpecsFor(origin)?.get(types)?.let { it as T }
     }
 
     fun forClass(origin: IrType): IrType? {
         val originClass = (origin as? IrSimpleType)?.classOrNull?.owner ?: return null
-        val types = origin.arguments.map { it as? IrSimpleType }
-        return forSpec(originClass, types, null)?.thisReceiver?.type
+        val types = origin.arguments.map { it.typeOrNull }
+        return forSpec(originClass, types)?.thisReceiver?.type
     }
 
     fun forFunction(origin: IrFunction, types: List<IrType?>) = functions[origin to types]

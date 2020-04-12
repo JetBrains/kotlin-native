@@ -6,14 +6,15 @@ import org.jetbrains.kotlin.backend.common.lower.IrBuildingTransformer
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irBlockBody
 import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.backend.konan.ir.superClasses
+import org.jetbrains.kotlin.builtins.PrimitiveType
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.expressions.IrClassReference
-import org.jetbrains.kotlin.ir.expressions.IrStatementContainer
-import org.jetbrains.kotlin.ir.expressions.IrVararg
+import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.util.addChild
 import org.jetbrains.kotlin.ir.util.nameForIrSerialization
 import org.jetbrains.kotlin.ir.util.statements
@@ -30,7 +31,7 @@ internal class NewGenericsSpecialization(val context: Context) : FileLoweringPas
         irFile.transform(transformer, null)
     }
 
-    class NewSpecializationTransformer(val context: Context): IrBuildingTransformer(context) {
+    class NewSpecializationTransformer(val context: Context) : IrBuildingTransformer(context) {
 
         companion object {
             // scope -> specialization -> origin
@@ -69,16 +70,20 @@ internal class NewGenericsSpecialization(val context: Context) : FileLoweringPas
             }
             for (type in requestedSpecializationTypes) {
                 val mapping = mapOf(typeParameters.first().symbol to type)
-                val copier = NewTypeParameterEliminator(
-                        typeParametersMapping,
-                        mapping,
-                        encoder,
-                        context,
-                        parent
-                )
-                val newDeclaration = getSpecialization(mapping, copier)
-                mappedDeclarations[this to listOf(type)] = newDeclaration
+                produceOneSpecialization(mapping, listOf(type))
             }
+        }
+
+        private fun IrTypeParametersContainer.produceOneSpecialization(mapping: Map<IrTypeParameterSymbol, IrType>, concreteTypes: List<IrType?>) {
+            val copier = NewTypeParameterEliminator(
+                    typeParametersMapping,
+                    mapping,
+                    encoder,
+                    context,
+                    parent
+            )
+            val newDeclaration = getSpecialization(mapping, copier)
+            mappedDeclarations[this to concreteTypes] = newDeclaration
         }
 
         // TODO implement many-type-parameters support

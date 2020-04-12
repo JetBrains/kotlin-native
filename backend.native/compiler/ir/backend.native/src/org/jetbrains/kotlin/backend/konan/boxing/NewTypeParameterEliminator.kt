@@ -54,7 +54,6 @@ internal class NewTypeParameterEliminator(private val globalTypeParameterMapping
             }
         }
         val result = super.copy(irElement)
-        copier.evaluateDeferredMembers()
         localTypeParameterMapping.forEach { (symbol, type) ->
             if (type != null) {
                 globalTypeParameterMapping.remove(symbol)
@@ -125,13 +124,6 @@ internal class NewTypeParameterEliminator(private val globalTypeParameterMapping
             TypeParameterEliminatorSymbolRenamer()
     ) {
         private val constructorsCopier = ConstructorsCopier()
-        private val deferredMembers = mutableListOf<Pair<IrDeclaration, Triple<List<IrType?>, () -> IrType?, IrDeclaration>>>()
-
-        fun evaluateDeferredMembers() {
-            deferredMembers.forEach { (origin, triple) ->
-                IrOriginToSpec.newSpec(origin, triple.first, triple.second(), triple.third)
-            }
-        }
 
         // Assumed that classes do not need specified dispatchers to store.
         // TODO consider this in case if failures, maybe use parent instead of dispatcher
@@ -139,7 +131,7 @@ internal class NewTypeParameterEliminator(private val globalTypeParameterMapping
             constructorsCopier.prepare(declaration)
             return super.visitClass(declaration).withEliminatedTypeParameters(declaration).also {
                 val types = localTypeParameterMapping.values.toList()
-                deferredMembers += declaration to Triple(types, { null }, it)
+                IrOriginToSpec.newSpec(declaration, types, it)
             }
         }
 
@@ -147,31 +139,14 @@ internal class NewTypeParameterEliminator(private val globalTypeParameterMapping
             return constructorsCopier.visitConstructor(declaration).also {
                 val specDispatchType = it.dispatchReceiverParameter?.type
                 val types = localTypeParameterMapping.values.toList()
-                deferredMembers += declaration to Triple(types, { specDispatchType }, it)
+                IrOriginToSpec.newSpec(declaration, types, it)
             }
         }
 
         override fun visitSimpleFunction(declaration: IrSimpleFunction): IrSimpleFunction {
             return super.visitSimpleFunction(declaration).withEliminatedTypeParameters(declaration).also {
-                it.saveAsSpecialized(declaration)
-            }
-        }
-
-        private fun IrSimpleFunction.saveAsSpecialized(originalFunction: IrSimpleFunction) {
-            val types = encoder.decode(name.asString())
-            val specDispatchType = dispatchReceiverParameter?.type
-            deferredMembers += originalFunction to Triple(types, { specDispatchType }, this)
-
-            // TODO less clumsy and untrustworthy
-            fun findCorrectOverriddenFunction(originalOverriddenSymbol: IrSimpleFunctionSymbol): IrSimpleFunctionSymbol? {
-                val originalClass = originalOverriddenSymbol.owner.dispatchReceiverParameter?.type?.getClass() ?: return null
-                val newClass = IrOriginToSpec.forSpec(originalClass, localTypeParameterMapping.values.toList(), null) ?: return null
-                return IrOriginToSpec.forSpec(originalOverriddenSymbol.owner, types, newClass.thisReceiver?.type)?.symbol
-            }
-            overriddenSymbols.replaceAll {
-                findCorrectOverriddenFunction(it)
-                        ?: IrOriginToSpec.forSpec(it.owner, types, dispatchReceiverParameter?.type)?.symbol
-                        ?: it
+                val types = localTypeParameterMapping.values.toList()
+                IrOriginToSpec.newSpec(declaration, types, it)
             }
         }
 

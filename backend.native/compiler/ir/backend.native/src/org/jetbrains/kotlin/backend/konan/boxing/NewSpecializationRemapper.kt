@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.ir.symbols.impl.IrValueParameterSymbolImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrVariableSymbolImpl
 import org.jetbrains.kotlin.ir.types.IrSimpleType
 import org.jetbrains.kotlin.ir.types.IrType
+import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformer
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
@@ -269,9 +270,14 @@ internal class NewSpecializationRemapper(
 
     override fun visitCall(expression: IrCall): IrCall {
         val origin = expression.symbol.owner
-        val encodedFunctionName = encoder.encode(origin, expression.typeSubstitutionMap) ?: return super<NonCopyingTransformer>.visitCall(expression, data = null) as IrCall
         val dispatchReceiver = expression.dispatchReceiver?.replaced()
-        val specialization = IrOriginToSpec.forSpec(origin, encoder.decode(encodedFunctionName), dispatchReceiver?.type)
+        val dispatchTypes = dispatchReceiver?.type?.getClass()?.let { IrOriginToSpec.findTypes(it) }
+        val types = expression.typeSubstitutionMap.values.toList()
+        val specialization = if (dispatchTypes != null) {
+            IrOriginToSpec.forSpec(origin, dispatchTypes + types)
+        } else {
+            IrOriginToSpec.forSpec(origin, types)
+        }
 
         return specialization?.let {
             context.createIrBuilder(expression.symbol).run {
@@ -288,7 +294,7 @@ internal class NewSpecializationRemapper(
 
     override fun visitConstructorCall(expression: IrConstructorCall): IrConstructorCall {
         val types = (expression.type as IrSimpleType).arguments.map { it as? IrType }
-        return IrOriginToSpec.forSpec(expression.symbol.owner, types, expression.dispatchReceiver?.replaced()?.type)?.let {
+        return IrOriginToSpec.forSpec(expression.symbol.owner, types)?.let {
             context.createIrBuilder(expression.symbol).run {
                 irConstructorCall(super<DeepCopyIrTreeWithSymbols>.visitConstructorCall(expression), it)
             }
@@ -304,18 +310,17 @@ internal class NewSpecializationRemapper(
         return IrOriginToSpec.forClass(declaration.type)?.let {
             super<DeepCopyIrTreeWithSymbols>.visitValueParameter(declaration).apply {
                 parent = declaration.parent
-//                    defaultValue = declaration.defaultValue?.replaced()
             }
         } ?: super<NonCopyingTransformer>.visitValueParameter(declaration, data = null) as IrValueParameter
     }
 
-    override fun visitVariable(declaration: IrVariable): IrVariable =
-            IrOriginToSpec.forClass(declaration.type)?.let {
-                super<DeepCopyIrTreeWithSymbols>.visitVariable(declaration).apply {
-                    parent = declaration.parent
-//                        initializer = declaration.initializer?.replaced()
-                }
-            } ?: super<NonCopyingTransformer>.visitVariable(declaration, data = null) as IrVariable
+    override fun visitVariable(declaration: IrVariable): IrVariable {
+        return IrOriginToSpec.forClass(declaration.type)?.let {
+            super<DeepCopyIrTreeWithSymbols>.visitVariable(declaration).apply {
+                parent = declaration.parent
+            }
+        } ?: super<NonCopyingTransformer>.visitVariable(declaration, data = null) as IrVariable
+    }
 
     private inline fun <reified T : IrElement> T.replaced(): T = accept(this@NewSpecializationRemapper, null) as T
 }
