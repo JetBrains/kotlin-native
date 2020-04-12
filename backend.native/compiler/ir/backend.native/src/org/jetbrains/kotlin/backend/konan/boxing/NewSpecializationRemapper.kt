@@ -2,6 +2,9 @@ package org.jetbrains.kotlin.backend.konan.boxing
 
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
+import org.jetbrains.kotlin.backend.common.peek
+import org.jetbrains.kotlin.backend.common.pop
+import org.jetbrains.kotlin.backend.common.push
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
@@ -34,13 +37,22 @@ internal class NewSpecializationRemapper(
         private val encoder: SpecializationEncoder = SpecializationEncoder(context)
 ) : DeepCopyIrTreeWithSymbols(symbolRemapper, typeRemapper), NonCopyingTransformer {
 
+    private val currentClasses = mutableListOf<IrClass>()
+    private val currentClass: IrClass?
+        get() = currentClasses.peek()
+
     override fun visitFile(declaration: IrFile): IrFile {
         declaration.acceptVoid(symbolRemapper)
         return super<NonCopyingTransformer>.visitFile(declaration, data = null)
     }
 
     override fun visitClass(declaration: IrClass): IrClass {
-        return super<NonCopyingTransformer>.visitClass(declaration, data = null) as IrClass
+        currentClasses.push(declaration)
+        declaration.superTypes.replaceAll { IrOriginToSpec.forClass(it) ?: it }
+        return (super<NonCopyingTransformer>.visitClass(declaration, data = null) as IrClass).apply {
+//            superTypes.replaceAll { IrOriginToSpec.forClass(it) ?: it }
+            currentClasses.pop()
+        }
     }
 
     override fun visitDeclaration(declaration: IrDeclaration): IrStatement {
@@ -51,9 +63,10 @@ internal class NewSpecializationRemapper(
         return super<NonCopyingTransformer>.visitAnonymousInitializer(declaration, data = null) as IrAnonymousInitializer
     }
 
-    override fun visitBlock(expression: IrBlock): IrBlock {
-        return super<NonCopyingTransformer>.visitBlock(expression, data = null) as IrBlock
-    }
+    override fun visitBlock(expression: IrBlock): IrBlock =
+        IrOriginToSpec.forClass(expression.type)?.let {
+            super<DeepCopyIrTreeWithSymbols>.visitBlock(expression)
+        } ?: super<NonCopyingTransformer>.visitBlock(expression, data = null) as IrBlock
 
     override fun visitBlockBody(body: IrBlockBody): IrBlockBody {
         return super<NonCopyingTransformer>.visitBlockBody(body, data = null) as IrBlockBody
@@ -157,7 +170,9 @@ internal class NewSpecializationRemapper(
     }
 
     override fun visitFunctionExpression(expression: IrFunctionExpression): IrFunctionExpression {
-        return super<NonCopyingTransformer>.visitFunctionExpression(expression, data = null) as IrFunctionExpression
+        return IrOriginToSpec.forClass(expression.type)?.let {
+            super<DeepCopyIrTreeWithSymbols>.visitFunctionExpression(expression)
+        } ?: super<NonCopyingTransformer>.visitFunctionExpression(expression, data = null) as IrFunctionExpression
     }
 
     override fun visitFunctionReference(expression: IrFunctionReference): IrFunctionReference {
@@ -216,12 +231,21 @@ internal class NewSpecializationRemapper(
         return super<NonCopyingTransformer>.visitSetField(expression, data = null) as IrSetField
     }
 
-    override fun visitSetVariable(expression: IrSetVariable): IrSetVariable {
-        return super<NonCopyingTransformer>.visitSetVariable(expression, data = null) as IrSetVariable
-    }
+    override fun visitSetVariable(expression: IrSetVariable): IrSetVariable =
+            IrOriginToSpec.forClass(expression.value.type)?.let {
+                super<DeepCopyIrTreeWithSymbols>.visitSetVariable(expression)
+            } ?: super<NonCopyingTransformer>.visitSetVariable(expression, data = null) as IrSetVariable
 
     override fun visitSimpleFunction(declaration: IrSimpleFunction): IrSimpleFunction {
-        return (super<NonCopyingTransformer>.visitSimpleFunction(declaration, data = null) as IrSimpleFunction)
+        return (super<NonCopyingTransformer>.visitSimpleFunction(declaration, data = null) as IrSimpleFunction).apply {
+            currentClass?.superTypes?.forEach { superType ->
+                superType.getClass()?.let { superClass ->
+                    IrOriginToSpec.findTypes(superClass)?.let { superClassConcreteTypes ->
+                        overriddenSymbols.replaceAll { IrOriginToSpec.forSpec(it.owner, superClassConcreteTypes)?.symbol ?: it }
+                    }
+                }
+            }
+        }
     }
 
     override fun visitSpreadElement(spread: IrSpreadElement): IrSpreadElement {
@@ -256,9 +280,10 @@ internal class NewSpecializationRemapper(
         return super<NonCopyingTransformer>.visitTypeParameter(declaration, data = null) as IrTypeParameter
     }
 
-    override fun visitVararg(expression: IrVararg): IrVararg {
-        return super<NonCopyingTransformer>.visitVararg(expression, data = null) as IrVararg
-    }
+    override fun visitVararg(expression: IrVararg): IrVararg =
+        IrOriginToSpec.forClass(expression.type)?.let {
+            super<DeepCopyIrTreeWithSymbols>.visitVararg(expression)
+        } ?: super<NonCopyingTransformer>.visitVararg(expression, data = null) as IrVararg
 
     override fun visitWhen(expression: IrWhen): IrWhen {
         return super<NonCopyingTransformer>.visitWhen(expression, data = null) as IrWhen
