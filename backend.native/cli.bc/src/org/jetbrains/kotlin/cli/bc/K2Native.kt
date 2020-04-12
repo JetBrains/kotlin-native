@@ -219,6 +219,7 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
                 put(COUNT_BOX_OPERATIONS, arguments.countBoxOperations)
                 put(EXTRA_BOXING_ELIMINATION, arguments.extraBoxingElimination)
                 put(OPT_NULLCHECK, arguments.optimizeNullChecks)
+                put(BOX_HOISTING, arguments.boxHoisting)
 
                 put(LIBRARIES_TO_CACHE, parseLibrariesToCache(arguments, configuration, outputKind))
                 put(CACHE_DIRECTORIES, arguments.cacheDirectories.toNonNullList())

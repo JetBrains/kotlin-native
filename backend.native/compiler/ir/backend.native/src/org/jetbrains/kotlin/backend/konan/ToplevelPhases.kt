@@ -313,6 +313,7 @@ internal val allLoweringsPhase = namedIrModulePhase(
                                 typeOperatorPhase then
                                 bridgesPhase then
                                 autoboxPhase then
+                                boxHoistingPhase then
                                 returnsInsertionPhase then
                                 countBoxingsPhase
                 ),
@@ -467,5 +468,6 @@ internal fun PhaseConfig.konanPhasesConfig(config: KonanConfig) {
         disableUnless(replaceOriginsWithSpecializationsPhase, getBoolean(KonanConfigKeys.EXTRA_BOXING_ELIMINATION))
 
         disableUnless(nullChecksPhase, getBoolean(KonanConfigKeys.OPT_NULLCHECK))
+        disableUnless(boxHoistingPhase, getBoolean(KonanConfigKeys.BOX_HOISTING))
     }
 }

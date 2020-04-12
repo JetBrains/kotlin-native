@@ -240,6 +240,9 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     @Argument(value = "-Xopt-nullchecks", description = "Optimize null checks")
     var optimizeNullChecks: Boolean = false
 
+    @Argument(value = "-Xbox-hoisting", description = "Hoisting boxings")
+    var boxHoisting: Boolean = false
+
     override fun configureAnalysisFlags(collector: MessageCollector): MutableMap<AnalysisFlag<*>, Any> =
             super.configureAnalysisFlags(collector).also {
                 val useExperimental = it[AnalysisFlags.useExperimental] as List<*>
