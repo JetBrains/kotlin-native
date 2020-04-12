@@ -27,6 +27,22 @@ internal class NewGenericsSpecialization(val context: Context) : FileLoweringPas
         private val mappedDeclarations = mutableMapOf<Pair<IrTypeParametersContainer, List<IrType?>>, IrTypeParametersContainer>()
     }
 
+    init {
+        with (context.ir.symbols) {
+            PrimitiveType.values().forEach { primitiveType ->
+                val irPrimitiveType = context.irBuiltIns.primitiveTypeToIrType[primitiveType] ?: error("No type defined for $primitiveType")
+                val irPrimitiveTypeArray = primitiveArrays[primitiveType] ?: error("No array defined for $primitiveType")
+                val irPrimitiveTypeArrayOf = primitiveArrayOfByType[primitiveType] ?: error("No arrayOf defined for $primitiveType")
+                IrOriginToSpec.newSpec(array.owner, listOf(irPrimitiveType), irPrimitiveTypeArray.owner)
+                // TODO supposed that arrays have the same order of members
+                array.owner.declarations.zip(irPrimitiveTypeArray.owner.declarations).forEach { (origin, spec) ->
+                    IrOriginToSpec.newSpec(origin, listOf(irPrimitiveType), spec)
+                }
+                IrOriginToSpec.newSpec(arrayOf.owner, listOf(irPrimitiveType), irPrimitiveTypeArrayOf.owner)
+            }
+        }
+    }
+
     override fun lower(irFile: IrFile) {
         irFile.transform(transformer, null)
     }
