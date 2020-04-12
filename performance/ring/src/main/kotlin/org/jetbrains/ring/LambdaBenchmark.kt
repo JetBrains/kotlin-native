@@ -101,6 +101,19 @@ open class LambdaBenchmark {
     }
 }
 
+val predicates = listOf<(Int) -> Boolean>({it % 2 == 0}, {it % 3 == 0}, {it % 5 == 0})
+
+//Benchmark
+fun satisfiesAll(): Int {
+    var x = 0
+    for (i in 0..BENCHMARK_SIZE) {
+        if (predicates.all { p -> p(Random.nextInt()) }) {
+            x++
+        }
+    }
+    return x
+}
+
 private fun referenced(): Int {
     return globalAddendum
 }

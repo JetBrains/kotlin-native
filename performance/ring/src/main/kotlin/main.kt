@@ -214,7 +214,13 @@ class RingLauncher : Launcher() {
                     "Mapper0" to BenchmarkEntry(::mapper0),
                     "Mapper1" to BenchmarkEntry(::mapper1),
                     "Mapper2" to BenchmarkEntry(::mapper2),
-                    "Mapper3" to BenchmarkEntry(::mapper3)
+                    "Mapper3" to BenchmarkEntry(::mapper3),
+                    "SpecMatrix2.create" to BenchmarkEntry(::testMatrix2),
+                    "SpecMatrix3.create" to BenchmarkEntry(::testMatrix3),
+                    "SpecList.transformReduce" to BenchmarkEntry(::testListReduce),
+                    "LambdaSatisfiesAll" to BenchmarkEntry(::satisfiesAll),
+                    "Repeated.putIfAbsent" to BenchmarkEntry(::testPutIfAbsent),
+                    "Repeated.consume" to BenchmarkEntry(::testConsume)
             )
     )
 }
