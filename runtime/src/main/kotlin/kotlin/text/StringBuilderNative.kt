@@ -25,28 +25,28 @@ fun StringBuilder.appendLine(value: Double): StringBuilder = append(value).appen
 
 
 @Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
-fun StringBuilder.appendln(it: String) = appendLine(it)
+fun StringBuilder.appendln(it: String): StringBuilder = appendLine(it)
 
 @Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
-fun StringBuilder.appendln(it: Boolean) = appendLine(it)
+fun StringBuilder.appendln(it: Boolean): StringBuilder = appendLine(it)
 
 @Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
-fun StringBuilder.appendln(it: Byte) = appendLine(it)
+fun StringBuilder.appendln(it: Byte): StringBuilder = appendLine(it)
 
 @Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
-fun StringBuilder.appendln(it: Short) = appendLine(it)
+fun StringBuilder.appendln(it: Short): StringBuilder = appendLine(it)
 
 @Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
-fun StringBuilder.appendln(it: Int) = appendLine(it)
+fun StringBuilder.appendln(it: Int): StringBuilder = appendLine(it)
 
 @Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
-fun StringBuilder.appendln(it: Long) = appendLine(it)
+fun StringBuilder.appendln(it: Long): StringBuilder = appendLine(it)
 
 @Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
-fun StringBuilder.appendln(it: Float) = appendLine(it)
+fun StringBuilder.appendln(it: Float): StringBuilder = appendLine(it)
 
 @Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
-fun StringBuilder.appendln(it: Double) = appendLine(it)
+fun StringBuilder.appendln(it: Double): StringBuilder = appendLine(it)
 
 @Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
-fun StringBuilder.appendln(it: Any?) = appendLine(it)
+fun StringBuilder.appendln(it: Any?): StringBuilder = appendLine(it)
