@@ -36,29 +36,32 @@ public inline fun StringBuilder.appendLine(value: Float): StringBuilder = append
 public inline fun StringBuilder.appendLine(value: Double): StringBuilder = append(value).appendLine()
 
 
-@Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
+@Deprecated("Use appendLine instead", ReplaceWith("appendLine(it)"), level = DeprecationLevel.WARNING)
 public fun StringBuilder.appendln(it: String): StringBuilder = appendLine(it)
 
-@Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
+@Deprecated("Use appendLine instead", ReplaceWith("appendLine(it)"), level = DeprecationLevel.WARNING)
 public fun StringBuilder.appendln(it: Boolean): StringBuilder = appendLine(it)
 
-@Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
+@Deprecated("Use appendLine instead", ReplaceWith("appendLine(it)"), level = DeprecationLevel.WARNING)
 public fun StringBuilder.appendln(it: Byte): StringBuilder = appendLine(it)
 
-@Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
+@Deprecated("Use appendLine instead", ReplaceWith("appendLine(it)"), level = DeprecationLevel.WARNING)
 public fun StringBuilder.appendln(it: Short): StringBuilder = appendLine(it)
 
-@Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
+@Deprecated("Use appendLine instead", ReplaceWith("appendLine(it)"), level = DeprecationLevel.WARNING)
 public fun StringBuilder.appendln(it: Int): StringBuilder = appendLine(it)
 
-@Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
+@Deprecated("Use appendLine instead", ReplaceWith("appendLine(it)"), level = DeprecationLevel.WARNING)
 public fun StringBuilder.appendln(it: Long): StringBuilder = appendLine(it)
 
-@Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
+@Deprecated("Use appendLine instead", ReplaceWith("appendLine(it)"), level = DeprecationLevel.WARNING)
 public fun StringBuilder.appendln(it: Float): StringBuilder = appendLine(it)
 
-@Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
+@Deprecated("Use appendLine instead", ReplaceWith("appendLine(it)"), level = DeprecationLevel.WARNING)
 public fun StringBuilder.appendln(it: Double): StringBuilder = appendLine(it)
 
-@Deprecated("Use appendLine instead", ReplaceWith("appendLine"), level = DeprecationLevel.WARNING)
+@Deprecated("Use appendLine instead", ReplaceWith("appendLine(it)"), level = DeprecationLevel.WARNING)
 public fun StringBuilder.appendln(it: Any?): StringBuilder = appendLine(it)
+
+@Deprecated("Use appendLine instead", ReplaceWith("appendLine()"), level = DeprecationLevel.WARNING)
+public fun StringBuilder.appendln(): StringBuilder = appendLine()
