@@ -30,14 +30,16 @@ class ExecClangFormat(private val project: Project) {
             it.args = listOf(target)
             it.standardOutput = outputStream
         }.assertNormalExitValue()
+        val diffOutputStream = ByteArrayOutputStream()
         val diffResult = project.exec {
             it.commandLine = listOf("diff", "-u", target, "-")
             it.standardInput = ByteArrayInputStream(outputStream.toByteArray())
+            it.standardOutput = diffOutputStream
             it.isIgnoreExitValue = true
         }
         if (diffResult.exitValue == 0) {
             return
         }
-        throw GradleException("$target is not formatted")
+        throw GradleException("$target is not formatted:\n$diffOutputStream")
     }
 }
