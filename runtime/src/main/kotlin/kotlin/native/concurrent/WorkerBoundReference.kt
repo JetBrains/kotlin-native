@@ -16,7 +16,7 @@ external private fun derefWorkerBoundReference(ref: NativePtr): Any
 /**
  * A frozen shared reference to a Kotlin object
  *
- * Can be safely passed between workers, but can only be accessed on the worker it was created on,
+ * Can be safely passed between workers, but [value] can only be accessed on the worker [WorkerBoundReference] was created on,
  * unless the referred object is frozen too
  *
  * Note: Garbage collector currently cannot free any reference cycles with [WorkerBoundReference] or [DisposableWorkerBoundReference] in them.
@@ -31,7 +31,7 @@ public class WorkerBoundReference<out T : Any>(value: T) {
 
     /**
      * The referenced value.
-     * @throws IncorrectDereferenceException if referred object is not frozen and this is called from a different worker, than [WorkerBoundReference] was created on
+     * @throws IncorrectDereferenceException if referred object is not frozen and current worker is different from the one created [this]
      */
     val value: T
         get() = @Suppress("UNCHECKED_CAST") (derefWorkerBoundReference(ptr) as T)
@@ -40,8 +40,8 @@ public class WorkerBoundReference<out T : Any>(value: T) {
 /**
  * A frozen shared reference to a Kotlin object
  *
- * Can be safely passed between workers, but can only be accessed on the worker it was created on,
- * unless the referred object is frozen too.
+ * Can be safely passed between workers, but [value] can only be accessed on the worker [DisposableWorkerBoundReference] was created on,
+ * unless the referred object is frozen too
  * Garbage collector currently cannot free any reference cycles with [WorkerBoundReference] or [DisposableWorkerBoundReference] in them.
  * Call [dispose] manually to resolve cycles
  *
@@ -63,7 +63,7 @@ public class DisposableWorkerBoundReference<out T : Any>(value: T) {
 
     /**
      * The referenced value.
-     * @throws IncorrectDereferenceException if referred object is not frozen and this is called from a different worker, than [DisposableWorkerBoundReference] was created on
+     * @throws IncorrectDereferenceException if referred object is not frozen and current worker is different from the one created [this]
      * @throws IllegalStateException if [DisposableWorkerBoundReference.dispose] was called on this reference.
      */
     val value: T
