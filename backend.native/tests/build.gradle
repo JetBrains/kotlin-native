@@ -3979,6 +3979,7 @@ if (isAppleTarget(project)) {
                     dependsOn ":${target.name}CrossDistRuntime", ':distCompiler'
                 }
 
+                dependsOn konanArtifacts[libraryName].getByTarget(target.name)
                 libraries {
                     file konanArtifacts[libraryName].getArtifactByTarget(target.name)
                 }
@@ -4028,6 +4029,7 @@ if (isAppleTarget(project)) {
                     dependsOn ":${target.name}CrossDistRuntime", ':distCompiler'
                 }
 
+                dependsOn konanArtifacts[libraryName].getByTarget(target.name)
                 libraries {
                     file konanArtifacts[libraryName].getArtifactByTarget(target.name)
                 }
