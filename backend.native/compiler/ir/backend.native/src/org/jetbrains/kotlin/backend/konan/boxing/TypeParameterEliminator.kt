@@ -246,7 +246,7 @@ internal class TypeParameterEliminator(private val specializationTransformer: Sp
     override val copier = EliminatingCopier()
 }
 
-class ConstructorDelegationPartialOrder(clazz: IrClass) {
+class ConstructorDelegationPartialOrder(val clazz: IrClass) {
     private val constructorsAndDelegates = clazz.constructors
             .map {
                 it to it.body?.statements?.filterIsInstance<IrDelegatingConstructorCall>()?.single()?.symbol?.owner
@@ -254,6 +254,10 @@ class ConstructorDelegationPartialOrder(clazz: IrClass) {
             .toMap()
 
     fun sort(): List<IrConstructor> {
+        if (constructorsAndDelegates.isEmpty()) {
+            return emptyList()
+        }
+
         class Node(val constructor: IrConstructor, val dependentConstructors: MutableList<Node> = mutableListOf())
 
         // Breadth-first traversal of dependency tree gives the right order of copying (delegate before)
@@ -283,7 +287,7 @@ class ConstructorDelegationPartialOrder(clazz: IrClass) {
             }
         }
 
-        assert(mainConstructors.isNotEmpty()) { "There must be at least one main constructor" }
+        assert(mainConstructors.isNotEmpty()) { "There must be at least one main constructor ${clazz.dump()}" }
 
         // Root is fake; first parameter is dummy and must not be used anywhere
         val root = Node(mainConstructors.first(), mainConstructors.map { nodes[it]!! }.toMutableList())
