@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.expressions.IrBlock
 import org.jetbrains.kotlin.ir.expressions.IrBlockBody
 import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrWhen
@@ -38,6 +39,12 @@ class CfgBuilder : IrElementVisitorVoid {
 
     override fun visitBlockBody(body: IrBlockBody) {
         body.statements.forEach {
+            it.acceptVoid(this)
+        }
+    }
+
+    override fun visitBlock(expression: IrBlock) {
+        expression.statements.forEach {
             it.acceptVoid(this)
         }
     }

@@ -38,9 +38,24 @@ fun simpleWhenElse() {
     val z = 2
 }
 
+fun nestedWhen() {
+    val x = 1
+    val y = 2
+    when {
+        x < 28 -> when (y) {
+            1 -> println("x")
+            2 -> println("y")
+            else -> println("z")
+        }
+        x < 50 -> println("t")
+    }
+    val z = 3
+}
+
 fun cfgWhen() {
     simpleIf()
     simpleIfElse()
     simpleWhen()
     simpleWhenElse()
+    nestedWhen()
 }
