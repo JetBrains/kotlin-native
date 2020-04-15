@@ -1,10 +1,14 @@
 package samples
 
+import samples.cfg.*
+
 val callees = mapOf(
         "classes" to { runClasses() },
         "lib" to { runLib() },
         "nested" to { runNested() },
-        "receiver" to { runReceiver() }
+        "receiver" to { runReceiver() },
+
+        "cfg_when" to { cfgWhen() }
 )
 
 fun main() {
