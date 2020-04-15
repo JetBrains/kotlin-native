@@ -52,10 +52,54 @@ fun nestedWhen() {
     val z = 3
 }
 
+fun whenInitializer() {
+    val x = 1
+    val y = when (x) {
+        1 -> 1
+        2 -> 1
+        3 -> 2
+        4 -> 3
+        5 -> 5
+        6 -> 8
+        7, 9 -> 13
+        else -> 9000
+    }
+    val z = 2
+}
+
+fun whenSetValue() {
+    val x = 1
+    var y = 0
+    y = when (x) {
+        1 -> 1
+        2 -> 1
+        3 -> 2
+        4 -> 3
+        5 -> 5
+        6 -> 8
+        7, 9 -> 13
+        else -> 9000
+    }
+    val z = 2
+}
+
+fun whenReturn(x: Int, y: Char) = when (x) {
+    1, 2, 3 -> 3
+    4, 5, 6 -> 6
+    7, 8, 9 -> when (y) {
+        '*', '0', '#' -> 0
+        else -> 9000
+    }
+    else -> 0
+}
+
 fun cfgWhen() {
     simpleIf()
     simpleIfElse()
     simpleWhen()
     simpleWhenElse()
     nestedWhen()
+    whenInitializer()
+    whenSetValue()
+    whenReturn(8, '*')
 }

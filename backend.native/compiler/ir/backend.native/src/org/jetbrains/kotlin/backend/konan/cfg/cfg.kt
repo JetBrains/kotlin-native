@@ -4,10 +4,8 @@ import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrFunction
-import org.jetbrains.kotlin.ir.expressions.IrBlock
-import org.jetbrains.kotlin.ir.expressions.IrBlockBody
-import org.jetbrains.kotlin.ir.expressions.IrExpression
-import org.jetbrains.kotlin.ir.expressions.IrWhen
+import org.jetbrains.kotlin.ir.declarations.IrVariable
+import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.util.dump
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
@@ -49,24 +47,39 @@ class CfgBuilder : IrElementVisitorVoid {
         }
     }
 
+    override fun visitVariable(declaration: IrVariable) {
+        declaration.initializer?.acceptVoid(this)
+        current.statements += declaration
+    }
+
+    override fun visitSetVariable(expression: IrSetVariable) {
+        expression.value.acceptVoid(this)
+        current.statements += expression
+    }
+
+    override fun visitReturn(expression: IrReturn) {
+        expression.value.acceptVoid(this)
+        current.statements += expression
+    }
+
     override fun visitExpression(expression: IrExpression) {
         when (expression) {
             is IrWhen -> {
-                val conditionBlocks = expression.branches.map { BasicBlock.of(it.condition) }
+                val conditionEntriesAndExits = expression.branches.map { it.condition.buildCfg() }
                 val resultEntriesAndExits = expression.branches.map { it.result.buildCfg() }
-                assert(conditionBlocks.isNotEmpty())
-                assert(conditionBlocks.size == resultEntriesAndExits.size)
-                val firstCondition = conditionBlocks.first()
+                assert(conditionEntriesAndExits.isNotEmpty())
+                assert(conditionEntriesAndExits.size == resultEntriesAndExits.size)
+                val firstCondition = conditionEntriesAndExits.first()
                 val firstBlockAfterWhen = BasicBlock()
-                current edgeTo firstCondition
-                current = firstCondition
-                (conditionBlocks.drop(1) + firstBlockAfterWhen).zip(resultEntriesAndExits).forEach { (conditionBlock, previousConditionResultEntryAndExit) ->
+                current edgeTo firstCondition.first
+                current = firstCondition.second
+                (conditionEntriesAndExits.drop(1) + (firstBlockAfterWhen to firstBlockAfterWhen)).zip(resultEntriesAndExits).forEach { (conditionEntryEndExit, previousConditionResultEntryAndExit) ->
                     val resultEntry = previousConditionResultEntryAndExit.first
                     val resultExit = previousConditionResultEntryAndExit.second
                     current edgeTo resultEntry
-                    current edgeTo conditionBlock
-                    resultExit edgeTo conditionBlock
-                    current = conditionBlock
+                    current edgeTo conditionEntryEndExit.first
+                    resultExit edgeTo conditionEntryEndExit.first
+                    current = conditionEntryEndExit.second
                 }
             }
             else -> current.statements += expression
