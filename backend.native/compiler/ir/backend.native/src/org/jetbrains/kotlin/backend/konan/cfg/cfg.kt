@@ -116,29 +116,42 @@ class BasicBlock(
 
 class Edge(val from: BasicBlock, val to: BasicBlock)
 
-fun BasicBlock.dumpCfg(): String {
-    var num = 1
-    fun BasicBlock.dump(): String =
-            buildString {
-                val n = num++
-                appendln("==== START BLOCK #$n ====")
-                statements.forEach { append(it.dump()) }
-                appendln("==== END BLOCK #$n ====")
-            }
+private fun <T> BasicBlock.traverseBfs(result: T, updateResult: (T, BasicBlock) -> Unit): T {
     val visited = mutableSetOf<BasicBlock>()
     val bfsOrder = ArrayDeque<BasicBlock>()
     bfsOrder.addLast(this)
     visited += this
-    return buildString {
-        while (bfsOrder.isNotEmpty()) {
-            val nextBlock = bfsOrder.pollFirst()!!
-            append(nextBlock.dump())
-            nextBlock.outgoingEdges.forEach {
-                if (it.to !in visited) {
-                    bfsOrder.addLast(it.to)
-                    visited += it.to
-                }
+    while (bfsOrder.isNotEmpty()) {
+        val nextBlock = bfsOrder.pollFirst()!!
+        updateResult(result, nextBlock)
+        nextBlock.outgoingEdges.forEach {
+            if (it.to !in visited) {
+                bfsOrder.addLast(it.to)
+                visited += it.to
             }
         }
     }
+    return result
+}
+
+private fun BasicBlock.enumerate(): Map<BasicBlock, Int> {
+    var num = 1
+    return traverseBfs(mutableMapOf(), { result, basicBlock ->
+        result[basicBlock] = num++
+    })
+}
+
+fun BasicBlock.dumpCfg(): String {
+    val enumeration = enumerate()
+    fun BasicBlock.dump(): String =
+            buildString {
+                val num = enumeration[this@dump]!!
+                appendln("==== ${this@dump.incomingEdges.joinToString { enumeration[it.from].toString() }} --> START BLOCK #$num ====")
+                statements.forEach { append(it.dump()) }
+                appendln("==== END BLOCK #$num --> ${this@dump.outgoingEdges.joinToString { enumeration[it.to].toString() }} ====")
+            }
+    val result = StringBuilder()
+    return traverseBfs(result, { res, basicBlock ->
+        res.append(basicBlock.dump())
+    }).toString()
 }
