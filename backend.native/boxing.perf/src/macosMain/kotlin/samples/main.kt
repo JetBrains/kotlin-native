@@ -9,7 +9,8 @@ val callees = mapOf(
         "receiver" to { runReceiver() },
 
         "cfg_when" to { cfgWhen() },
-        "cfg_return" to { cfgReturn() }
+        "cfg_return" to { cfgReturn() },
+        "cfg_loop" to { cfgLoop() }
 )
 
 fun main() {

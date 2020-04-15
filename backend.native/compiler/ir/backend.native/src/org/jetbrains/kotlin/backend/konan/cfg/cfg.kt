@@ -53,6 +53,12 @@ class CfgBuilder : IrElementVisitorVoid {
         }
     }
 
+    override fun visitComposite(expression: IrComposite) {
+        expression.statements.forEach {
+            it.acceptVoid(this)
+        }
+    }
+
     override fun visitVariable(declaration: IrVariable) {
         declaration.initializer?.acceptVoid(this)
         current.statements += declaration
@@ -90,6 +96,26 @@ class CfgBuilder : IrElementVisitorVoid {
                     }
                     current = conditionEntryEndExit.second
                 }
+            }
+            is IrDoWhileLoop -> {
+                val bodyEntryAndExit = expression.body?.buildCfg() ?: BasicBlock().let { it to it }
+                val conditionEntryAndExit = expression.condition.buildCfg()
+                val firstBlockAfterLoop = BasicBlock()
+                current edgeTo bodyEntryAndExit.first
+                bodyEntryAndExit.second edgeTo conditionEntryAndExit.first
+                conditionEntryAndExit.second edgeTo bodyEntryAndExit.first
+                conditionEntryAndExit.second edgeTo firstBlockAfterLoop
+                current = firstBlockAfterLoop
+            }
+            is IrWhileLoop -> {
+                val conditionEntryAndExit = expression.condition.buildCfg()
+                val bodyEntryAndExit = expression.body?.buildCfg() ?: BasicBlock().let { it to it }
+                val firstBlockAfterLoop = BasicBlock()
+                current edgeTo conditionEntryAndExit.first
+                conditionEntryAndExit.second edgeTo bodyEntryAndExit.first
+                conditionEntryAndExit.second edgeTo firstBlockAfterLoop
+                bodyEntryAndExit.second edgeTo conditionEntryAndExit.first
+                current = firstBlockAfterLoop
             }
             else -> current.statements += expression
         }
