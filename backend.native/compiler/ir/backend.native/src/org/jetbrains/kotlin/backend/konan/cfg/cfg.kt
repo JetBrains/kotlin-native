@@ -18,8 +18,8 @@ fun IrElement.buildCfg(): Pair<BasicBlock, BasicBlock> {
 }
 
 class CfgBuilder : IrElementVisitorVoid {
-    val entry = BasicBlock()
-    var current = entry
+    private val entry = BasicBlock()
+    private var current = entry
 
     fun getResult() = entry to current
 
@@ -32,7 +32,13 @@ class CfgBuilder : IrElementVisitorVoid {
     }
 
     override fun visitFunction(declaration: IrFunction) {
+        functionExitSink = BasicBlock()
         declaration.body?.acceptVoid(this)
+        // KNPE => local function exists
+        if (current.outgoingEdges.isEmpty()) {
+            current edgeTo functionExitSink!!
+        }
+        functionExitSink = null
     }
 
     override fun visitBlockBody(body: IrBlockBody) {
@@ -60,6 +66,7 @@ class CfgBuilder : IrElementVisitorVoid {
     override fun visitReturn(expression: IrReturn) {
         expression.value.acceptVoid(this)
         current.statements += expression
+        functionExitSink?.apply { current edgeTo this }
     }
 
     override fun visitExpression(expression: IrExpression) {
@@ -78,12 +85,19 @@ class CfgBuilder : IrElementVisitorVoid {
                     val resultExit = previousConditionResultEntryAndExit.second
                     current edgeTo resultEntry
                     current edgeTo conditionEntryEndExit.first
-                    resultExit edgeTo conditionEntryEndExit.first
+                    if (resultExit.outgoingEdges.isEmpty()) {
+                        resultExit edgeTo conditionEntryEndExit.first
+                    }
                     current = conditionEntryEndExit.second
                 }
             }
             else -> current.statements += expression
         }
+    }
+
+    companion object {
+        // Assumed there are no local functions at the moment of building CFG.
+        private var functionExitSink: BasicBlock? = null
     }
 }
 

@@ -8,7 +8,8 @@ val callees = mapOf(
         "nested" to { runNested() },
         "receiver" to { runReceiver() },
 
-        "cfg_when" to { cfgWhen() }
+        "cfg_when" to { cfgWhen() },
+        "cfg_return" to { cfgReturn() }
 )
 
 fun main() {
