@@ -6,6 +6,8 @@
 #ifndef RUNTIME_MEMORYSHAREDREFS_HPP
 #define RUNTIME_MEMORYSHAREDREFS_HPP
 
+#include <type_traits>
+
 #include "Memory.h"
 
 class KRefSharedHolder {
@@ -24,6 +26,9 @@ class KRefSharedHolder {
 
   void ensureRefAccessible() const;
 };
+
+static_assert(std::is_trivially_destructible<KRefSharedHolder>::value,
+    "KRefSharedHolder destructor is not guaranteed to be called.");
 
 class BackRefFromAssociatedObject {
  public:
@@ -48,5 +53,8 @@ class BackRefFromAssociatedObject {
 
   void ensureRefAccessible() const;
 };
+
+static_assert(std::is_trivially_destructible<BackRefFromAssociatedObject>::value,
+    "BackRefFromAssociatedObject destructor is not guaranteed to be called.");
 
 #endif // RUNTIME_MEMORYSHAREDREFS_HPP
