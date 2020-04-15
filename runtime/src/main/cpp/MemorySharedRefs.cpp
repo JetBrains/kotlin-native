@@ -8,6 +8,27 @@
 #include "MemorySharedRefs.hpp"
 #include "Runtime.h"
 
+namespace {
+
+inline bool isForeignRefAccessible(ObjHeader* object, ForeignRefContext context) {
+  if (!Kotlin_hasRuntime()) {
+    // So the object is either unowned or shared.
+    // In the former case initialized runtime is required to throw exceptions
+    // in the latter case -- to provide proper execution context for caller.
+    Kotlin_initRuntimeIfNeeded();
+  }
+
+  return IsForeignRefAccessible(object, context);
+}
+
+RUNTIME_NORETURN inline void throwIllegalSharingException(ObjHeader* object) {
+  // TODO: add some info about the context.
+  // Note: retrieving 'type_info()' is supposed to be correct even for unowned object.
+  ThrowIllegalObjectSharingException(object->type_info(), object);
+}
+
+}  // namespace
+
 void KRefSharedHolder::initLocal(ObjHeader* obj) {
   RuntimeAssert(obj != nullptr, "must not be null");
   context_ = InitLocalForeignRef(obj);
@@ -21,24 +42,18 @@ void KRefSharedHolder::init(ObjHeader* obj) {
 }
 
 ObjHeader* KRefSharedHolder::ref() const {
-  ensureRefAccessible();
-  AdoptReferenceFromSharedVariable(obj_);
-  return obj_;
+  if (auto* result = refOrNull())
+    return result;
+
+  throwIllegalSharingException(obj_);
 }
 
-static inline void ensureForeignRefAccessible(ObjHeader* object, ForeignRefContext context) {
-  if (!Kotlin_hasRuntime()) {
-    // So the object is either unowned or shared.
-    // In the former case initialized runtime is required to throw the exception below,
-    // in the latter case -- to provide proper execution context for caller.
-    Kotlin_initRuntimeIfNeeded();
+ObjHeader* KRefSharedHolder::refOrNull() const {
+  if (!isRefAccessible()) {
+    return nullptr;
   }
-
-  if (!IsForeignRefAccessible(object, context)) {
-    // TODO: add some info about the context.
-    // Note: retrieving 'type_info()' is supposed to be correct even for unowned object.
-    ThrowIllegalObjectSharingException(object->type_info(), object);
-  }
+  AdoptReferenceFromSharedVariable(obj_);
+  return obj_;
 }
 
 void KRefSharedHolder::dispose() const {
@@ -50,8 +65,8 @@ void KRefSharedHolder::dispose() const {
   DeinitForeignRef(obj_, context_);
 }
 
-void KRefSharedHolder::ensureRefAccessible() const {
-  ensureForeignRefAccessible(obj_, context_);
+bool KRefSharedHolder::isRefAccessible() const {
+  return isForeignRefAccessible(obj_, context_);
 }
 
 void BackRefFromAssociatedObject::initAndAddRef(ObjHeader* obj) {
@@ -106,7 +121,9 @@ ObjHeader* BackRefFromAssociatedObject::ref() const {
 }
 
 void BackRefFromAssociatedObject::ensureRefAccessible() const {
-  ensureForeignRefAccessible(obj_, context_);
+  if (!isForeignRefAccessible(obj_, context_)) {
+    throwIllegalSharingException(obj_);
+  }
 }
 
 extern "C" {

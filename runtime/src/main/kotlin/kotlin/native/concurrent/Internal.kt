@@ -97,7 +97,7 @@ internal fun ThrowIllegalObjectSharingException(typeInfo: NativePtr, address: Na
     throw IncorrectDereferenceException("illegal attempt to access non-shared $description from other thread")
 }
 
-private fun debugDescription(kClass: KClass<*>, identity: Int): String {
+internal fun debugDescription(kClass: KClass<*>, identity: Int): String {
     val className = kClass.qualifiedName ?: kClass.simpleName ?: "<object>"
     val unsignedIdentity = identity.toLong() and 0xffffffffL
     val identityStr = unsignedIdentity.toString(16)

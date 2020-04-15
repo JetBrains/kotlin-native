@@ -38,7 +38,7 @@ KNativePtr Kotlin_WorkerBoundReference_create(KRef value) {
 }
 
 OBJ_GETTER(Kotlin_WorkerBoundReference_deref, KNativePtr holder) {
-  RETURN_OBJ(reinterpret_cast<KRefSharedHolder*>(holder)->ref());
+  RETURN_OBJ(reinterpret_cast<KRefSharedHolder*>(holder)->refOrNull());
 }
 
 }

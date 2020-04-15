@@ -17,6 +17,7 @@ class KRefSharedHolder {
   void init(ObjHeader* obj);
 
   ObjHeader* ref() const;
+  ObjHeader* refOrNull() const;
 
   void dispose() const;
 
@@ -24,7 +25,7 @@ class KRefSharedHolder {
   ObjHeader* obj_;
   ForeignRefContext context_;
 
-  void ensureRefAccessible() const;
+  bool isRefAccessible() const;
 };
 
 static_assert(std::is_trivially_destructible<KRefSharedHolder>::value,

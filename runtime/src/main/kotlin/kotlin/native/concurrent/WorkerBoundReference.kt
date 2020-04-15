@@ -6,12 +6,13 @@
 package kotlin.native.concurrent
 
 import kotlin.native.internal.*
+import kotlin.native.identityHashCode
 
 @SymbolName("Kotlin_WorkerBoundReference_create")
 external private fun createWorkerBoundReference(value: Any): NativePtr
 
 @SymbolName("Kotlin_WorkerBoundReference_deref")
-external private fun derefWorkerBoundReference(ref: NativePtr): Any
+external private fun derefWorkerBoundReference(ref: NativePtr): Any?
 
 /**
  * A frozen shared reference to a Kotlin object
@@ -28,13 +29,21 @@ external private fun derefWorkerBoundReference(ref: NativePtr): Any
 public class WorkerBoundReference<out T : Any>(value: T) {
 
     private val ptr = createWorkerBoundReference(value)
+    private val valueDescription = debugDescription(value::class, value.identityHashCode())
+    private val ownerName = Worker.current.name
 
     /**
      * The referenced value.
      * @throws IncorrectDereferenceException if referred object is not frozen and current worker is different from the one created [this]
      */
     val value: T
-        get() = @Suppress("UNCHECKED_CAST") (derefWorkerBoundReference(ptr) as T)
+        get() = valueOrNull ?: throw IncorrectDereferenceException("illegal attempt to access non-shared $valueDescription bound to `$ownerName` from `${Worker.current.name}`")
+
+    /**
+     * The referenced value or null if referred object is not frozen and current worker is different from the one created [this]
+     */
+    val valueOrNull: T?
+        get() = @Suppress("UNCHECKED_CAST") (derefWorkerBoundReference(ptr) as T?)
 }
 
 /**
