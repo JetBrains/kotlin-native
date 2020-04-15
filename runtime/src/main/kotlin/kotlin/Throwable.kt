@@ -27,7 +27,7 @@ public open class Throwable(open val message: String?, open val cause: Throwable
     constructor() : this(null, null)
 
     @get:ExportForCppRuntime("Kotlin_Throwable_getStackTrace")
-    private val stackTrace: NativePtrArray = getCurrentStackTrace()
+    private val stackTrace = getCurrentStackTrace()
 
     private val stackTraceStrings: Array<String> by lazy {
         getStackTraceStrings(stackTrace).freeze()
@@ -45,83 +45,40 @@ public open class Throwable(open val message: String?, open val cause: Throwable
     /**
      * Prints the [detailed description][Throwable.stackTraceToString] of this throwable to the standard output.
      */
-    public fun printStackTrace(): Unit = ExceptionTraceBuilder(this).print()
+    public fun printStackTrace(): Unit = dumpStackTrace("", "", { println(it) }, mutableSetOf())
 
-    internal fun dumpStackTrace(): String = ExceptionTraceBuilder(this).build()
+    internal fun dumpStackTrace(): String = buildString {
+        dumpStackTrace("", "", { appendln(it) }, mutableSetOf())
+    }
 
-    private class ExceptionTraceBuilder(private val top: Throwable) {
-        private val target = StringBuilder()
-        private var printOut = false
-        private val visited = mutableSetOf<Throwable>()
+    private fun Throwable.dumpStackTrace(indent: String, qualifier: String, writeln: (String) -> Unit, visited: MutableSet<Throwable>) {
+        this.dumpSelfTrace(indent, qualifier, writeln, visited) || return
 
-        fun build(): String {
-            top.dumpFullTrace("", "")
-            return target.toString()
+        var cause = this.cause
+        while (cause != null) {
+            // TODO: should skip common stack frames
+            cause.dumpSelfTrace(indent, "Caused by: ", writeln, visited)
+            cause = cause.cause
         }
+    }
 
-        fun print() {
-            printOut = true
-            top.dumpFullTrace("", "")
+    private fun Throwable.dumpSelfTrace(indent: String, qualifier: String, writeln: (String) -> Unit, visited: MutableSet<Throwable>): Boolean {
+        if (!visited.add(this)) {
+            writeln(indent + qualifier + "[CIRCULAR REFERENCE, SEE ABOVE: $this]")
+            return false
         }
-
-        private fun StringBuilder.endln() {
-            if (printOut) {
-                println(this)
-                clear()
-            } else {
-                appendln()
-            }
+        writeln(indent + qualifier + this.toString())
+        for (element in stackTraceStrings) {
+            writeln("$indent\tat $element")
         }
-
-        private fun Throwable.dumpFullTrace(indent: String, qualifier: String) {
-            this.dumpSelfTrace(indent, qualifier) || return
-
-            var cause = this.cause
-            while (cause != null) {
-                cause.dumpSelfTrace(indent, "Caused by: ")
-                cause = cause.cause
+        val suppressed = suppressedExceptionsList
+        if (!suppressed.isNullOrEmpty()) {
+            val suppressedIndent = indent + '\t'
+            for (s in suppressed) {
+                s.dumpStackTrace(suppressedIndent, "Suppressed: ", writeln, visited)
             }
         }
-
-        private fun Throwable.dumpSelfTrace(indent: String, qualifier: String): Boolean {
-            if (!visited.add(this)) {
-                target.append(indent).append(qualifier).append("[CIRCULAR REFERENCE, SEE ABOVE: ").append(this).append("]").endln()
-                return false
-            }
-            target.append(indent).append(qualifier).append(this).endln()
-            // leave 1 common frame to ease matching with the top exception stack
-            val commonFrames = (commonStackFrames() - 1).coerceAtLeast(0)
-            for (frameIndex in 0 until stackTraceStrings.size - commonFrames) {
-                val element = stackTraceStrings[frameIndex]
-                target.append(indent).append("    at ").append(element).endln()
-            }
-            if (commonFrames > 0) {
-                target.append(indent).append("    ... and ").append(commonFrames).append(" more common stack frames skipped").endln()
-            }
-            val suppressed = suppressedExceptionsList
-            if (!suppressed.isNullOrEmpty()) {
-                val suppressedIndent = indent + "    "
-                for (s in suppressed) {
-                    s.dumpFullTrace(suppressedIndent, "Suppressed: ")
-                }
-            }
-            return true
-        }
-
-        private fun Throwable.commonStackFrames(): Int {
-            if (top === this) return 0
-            val topStack = top.stackTrace
-            val topSize = topStack.size
-            val thisStack = this.stackTrace
-            val thisSize = thisStack.size
-            val maxSize = minOf(topSize, thisSize)
-            var frame = 0
-            while (frame < maxSize) {
-                if (thisStack[thisSize - 1 - frame] != topStack[topSize - 1 - frame]) break
-                frame++
-            }
-            return frame
-        }
+        return true
     }
 
 
