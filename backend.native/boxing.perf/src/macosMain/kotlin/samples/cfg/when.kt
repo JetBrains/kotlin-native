@@ -93,6 +93,22 @@ fun whenReturn(x: Int, y: Char) = when (x) {
     else -> 0
 }
 
+fun emptyIf(x: Int) {
+    if (x < 5) {}
+}
+
+fun emptyIfElse(x: Int) {
+    if (x < 5) {} else {}
+}
+
+fun emptyIfOnly(x: Int) {
+    if (x < 5) {} else { println("x") }
+}
+
+fun emptyElseOnly(x: Int) {
+    if (x < 5) { println("x") } else {}
+}
+
 fun cfgWhen() {
     simpleIf()
     simpleIfElse()
@@ -102,4 +118,8 @@ fun cfgWhen() {
     whenInitializer()
     whenSetValue()
     whenReturn(8, '*')
+    emptyIf(42)
+    emptyIfElse(42)
+    emptyIfOnly(42)
+    emptyElseOnly(42)
 }
