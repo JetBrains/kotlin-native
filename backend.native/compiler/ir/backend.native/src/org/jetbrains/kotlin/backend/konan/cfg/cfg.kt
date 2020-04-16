@@ -143,6 +143,15 @@ class CfgBuilder : IrElementVisitorVoid {
             }
             else -> current.statements += expression
         }
+
+
+    }
+
+    override fun visitCall(expression: IrCall) {
+        for (i in 0 until expression.valueArgumentsCount) {
+            expression.getValueArgument(i)!!.acceptVoid(this)
+        }
+        current.statements += expression
     }
 
     companion object {
