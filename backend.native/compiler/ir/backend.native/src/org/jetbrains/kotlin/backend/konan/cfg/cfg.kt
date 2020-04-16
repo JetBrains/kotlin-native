@@ -72,7 +72,15 @@ class CfgBuilder : IrElementVisitorVoid {
     override fun visitReturn(expression: IrReturn) {
         expression.value.acceptVoid(this)
         current.statements += expression
-        functionExitSink?.apply { current edgeTo this }
+        functionExitSink?.apply { current returnEdgeTo this }
+    }
+
+    override fun visitBreak(jump: IrBreak) {
+        current breakEdgeTo labeledLoops[jump.label ?: ""]!!.second
+    }
+
+    override fun visitContinue(jump: IrContinue) {
+        current continueEdgeTo labeledLoops[jump.label ?: ""]!!.first
     }
 
     override fun visitExpression(expression: IrExpression) {
@@ -91,31 +99,47 @@ class CfgBuilder : IrElementVisitorVoid {
                     val resultExit = previousConditionResultEntryAndExit.second
                     current edgeTo resultEntry
                     current edgeTo conditionEntryEndExit.first
-                    if (resultExit.outgoingEdges.isEmpty()) {
+                    if (resultExit.kind == EdgeKind.NORMAL) {
                         resultExit edgeTo conditionEntryEndExit.first
                     }
                     current = conditionEntryEndExit.second
                 }
             }
             is IrDoWhileLoop -> {
+                val fakeLoopBodyStart = BasicBlock()
+                current edgeTo fakeLoopBodyStart
+                current = fakeLoopBodyStart
+                val firstBlockAfterLoop = BasicBlock()
+                val label = expression.label ?: ""
+                val outerLoopStartAndEnd = labeledLoops[label]
+                labeledLoops[label] = fakeLoopBodyStart to firstBlockAfterLoop
+
                 val bodyEntryAndExit = expression.body?.buildCfg() ?: BasicBlock().let { it to it }
                 val conditionEntryAndExit = expression.condition.buildCfg()
-                val firstBlockAfterLoop = BasicBlock()
                 current edgeTo bodyEntryAndExit.first
                 bodyEntryAndExit.second edgeTo conditionEntryAndExit.first
                 conditionEntryAndExit.second edgeTo bodyEntryAndExit.first
                 conditionEntryAndExit.second edgeTo firstBlockAfterLoop
                 current = firstBlockAfterLoop
+
+                outerLoopStartAndEnd?.let { labeledLoops[label] = it }
             }
+
             is IrWhileLoop -> {
                 val conditionEntryAndExit = expression.condition.buildCfg()
-                val bodyEntryAndExit = expression.body?.buildCfg() ?: BasicBlock().let { it to it }
                 val firstBlockAfterLoop = BasicBlock()
+                val label = expression.label ?: ""
+                val outerLoopStartAndEnd = labeledLoops[label]
+                labeledLoops[label] = conditionEntryAndExit.first to firstBlockAfterLoop
+
+                val bodyEntryAndExit = expression.body?.buildCfg() ?: BasicBlock().let { it to it }
                 current edgeTo conditionEntryAndExit.first
                 conditionEntryAndExit.second edgeTo bodyEntryAndExit.first
                 conditionEntryAndExit.second edgeTo firstBlockAfterLoop
                 bodyEntryAndExit.second edgeTo conditionEntryAndExit.first
                 current = firstBlockAfterLoop
+
+                outerLoopStartAndEnd?.let { labeledLoops[label] = it }
             }
             else -> current.statements += expression
         }
@@ -124,12 +148,30 @@ class CfgBuilder : IrElementVisitorVoid {
     companion object {
         // Assumed there are no local functions at the moment of building CFG.
         private var functionExitSink: BasicBlock? = null
+
+        private val labeledLoops = mutableMapOf<String, Pair<BasicBlock, BasicBlock>>()
     }
 }
 
 private infix fun BasicBlock.edgeTo(to: BasicBlock) {
-    addOutgoingTo(to)
-    to.addIncomingFrom(this)
+    edgeTo(this, to, EdgeKind.NORMAL)
+}
+
+private infix fun BasicBlock.returnEdgeTo(to: BasicBlock) {
+    edgeTo(this, to, EdgeKind.NORMAL_RETURN)
+}
+
+private infix fun BasicBlock.breakEdgeTo(to: BasicBlock) {
+    edgeTo(this, to, EdgeKind.BREAK)
+}
+
+private infix fun BasicBlock.continueEdgeTo(to: BasicBlock) {
+    edgeTo(this, to, EdgeKind.CONTINUE)
+}
+
+private fun edgeTo(from: BasicBlock, to: BasicBlock, kind: EdgeKind) {
+    from.addOutgoingTo(to, kind)
+    to.addIncomingFrom(from, kind)
 }
 
 class BasicBlock(
@@ -137,12 +179,19 @@ class BasicBlock(
         val incomingEdges: MutableList<Edge> = mutableListOf(),
         val outgoingEdges: MutableList<Edge> = mutableListOf()
 ) {
-    fun addOutgoingTo(nextBlock: BasicBlock) {
-        outgoingEdges += Edge(this, nextBlock)
+
+    val kind: EdgeKind
+        get() = when {
+            outgoingEdges.size == 1 -> outgoingEdges.single().kind
+            else -> EdgeKind.NORMAL
+        }
+
+    fun addOutgoingTo(nextBlock: BasicBlock, kind: EdgeKind = EdgeKind.NORMAL) {
+        outgoingEdges += Edge(this, nextBlock, kind)
     }
 
-    fun addIncomingFrom(previousBlock: BasicBlock) {
-        incomingEdges += Edge(previousBlock, this)
+    fun addIncomingFrom(previousBlock: BasicBlock, kind: EdgeKind = EdgeKind.NORMAL) {
+        incomingEdges += Edge(previousBlock, this, kind)
     }
 
     companion object {
@@ -154,7 +203,14 @@ class BasicBlock(
     }
 }
 
-class Edge(val from: BasicBlock, val to: BasicBlock)
+enum class EdgeKind {
+    NORMAL,
+    NORMAL_RETURN,
+    BREAK,
+    CONTINUE
+}
+
+class Edge(val from: BasicBlock, val to: BasicBlock, val kind: EdgeKind = EdgeKind.NORMAL)
 
 private fun <T> BasicBlock.traverseBfs(result: T, updateResult: (T, BasicBlock) -> Unit): T {
     val visited = mutableSetOf<BasicBlock>()
@@ -186,9 +242,9 @@ fun BasicBlock.dumpCfg(): String {
     fun BasicBlock.dump(): String =
             buildString {
                 val num = enumeration[this@dump]!!
-                appendln("==== ${this@dump.incomingEdges.joinToString { enumeration[it.from].toString() }} --> START BLOCK #$num ====")
+                appendln("==== ${this@dump.incomingEdges.joinToString { enumeration[it.from].toString() + "[${it.kind.name}]" }} --> START BLOCK #$num ====")
                 statements.forEach { append(it.dump()) }
-                appendln("==== END BLOCK #$num --> ${this@dump.outgoingEdges.joinToString { enumeration[it.to].toString() }} ====")
+                appendln("==== END BLOCK #$num --> ${this@dump.outgoingEdges.joinToString { enumeration[it.to].toString() + "[${it.kind.name}]" }} ====")
             }
     val result = StringBuilder()
     return traverseBfs(result, { res, basicBlock ->

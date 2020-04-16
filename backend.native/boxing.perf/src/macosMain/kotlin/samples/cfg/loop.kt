@@ -60,6 +60,60 @@ fun emptyLoop() {
     for (i in 1..10) {}
 }
 
+fun loopBreak(x: Int) {
+    for (i in 1..10) {
+        if (i + x == 15) {
+            break
+        }
+        println(x + i)
+    }
+}
+
+fun loopContinue(x: Int) {
+    for (i in 1..10) {
+        if (i + x == 15) {
+            continue
+        }
+        println(x + i)
+    }
+}
+
+fun nestedLoopBreak(x: Int) {
+    for (i in 1..10) {
+        for (j in 1..10) {
+            if (i * j > x) {
+                break
+            }
+            println(i * j)
+        }
+        println()
+    }
+}
+
+fun nestedLoopContinue(x: Int) {
+    for (i in 1..10) {
+        for (j in 1..10) {
+            if (i * j > x) {
+                continue
+            }
+            println(i * j)
+        }
+        println()
+    }
+}
+
+fun labeledLoopBreak(x: Int) {
+    loop@ for (i in 1..10) {
+        for (j in 1..10) {
+            if (i * j > x) {
+                break@loop
+            }
+            println(i * j)
+        }
+        println()
+    }
+}
+
 fun cfgLoop() {
     simpleForLoop()
     simpleDoWhileLoop()
@@ -67,4 +121,9 @@ fun cfgLoop() {
     whileLoopWithIf()
     whileLoopWithIfAndReturn()
     emptyLoop()
+    loopBreak(8)
+    loopContinue(8)
+    nestedLoopBreak(42)
+    nestedLoopContinue(42)
+    labeledLoopBreak(42)
 }
