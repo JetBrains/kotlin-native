@@ -8,7 +8,7 @@ import org.jetbrains.kotlin.ir.util.constructedClass
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 fun IrFunction.printDotGraph(): String {
-    return Dotifier(name.asString(), buildCfg().first).dotify()
+    return Dotifier(name.asString(), buildCfg().first.decomposed()).dotify()
 }
 
 class DotGraph(

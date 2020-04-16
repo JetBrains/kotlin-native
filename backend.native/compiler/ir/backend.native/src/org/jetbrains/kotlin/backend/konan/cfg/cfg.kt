@@ -260,3 +260,34 @@ fun BasicBlock.dumpCfg(): String {
         res.append(basicBlock.dump())
     }).toString()
 }
+
+// Mutates and returns itself.
+fun BasicBlock.decomposed(): BasicBlock {
+    // 1, 2 --> [a, b, c] --> 3, 4 ====> 1, 2 --> [a] -> [b] -> [c] -> 3, 4
+    fun BasicBlock.atomDecompose(): BasicBlock {
+        if (statements.size <= 1) {
+            return this
+        }
+        val oldOutgoingEdges = mutableListOf<Edge>()
+        oldOutgoingEdges += outgoingEdges
+        outgoingEdges.clear()
+        var lastBlock = this
+        for (i in 1 until statements.size) {
+            val newBlock = BasicBlock.of(statements[i])
+            lastBlock edgeTo newBlock
+            lastBlock = newBlock
+        }
+        statements.retainAll(statements.take(1))
+        val newOutgoingEdges = oldOutgoingEdges.map { Edge(lastBlock, it.to, it.kind) }
+        lastBlock.outgoingEdges += newOutgoingEdges
+        oldOutgoingEdges.forEachIndexed { index, oldOutgoingEdge ->
+            oldOutgoingEdge.to.apply {
+                incomingEdges.remove(oldOutgoingEdge)
+                incomingEdges += newOutgoingEdges[index]
+            }
+        }
+        return this
+    }
+    traverseBfs(this, { _, bb -> bb.atomDecompose() })
+    return this
+}
