@@ -221,7 +221,7 @@ enum class EdgeKind {
 
 class Edge(val from: BasicBlock, val to: BasicBlock, val kind: EdgeKind = EdgeKind.NORMAL)
 
-private fun <T> BasicBlock.traverseBfs(result: T, updateResult: (T, BasicBlock) -> Unit): T {
+fun <T> BasicBlock.traverseBfs(result: T, updateResult: (T, BasicBlock) -> Unit): T {
     val visited = mutableSetOf<BasicBlock>()
     val bfsOrder = ArrayDeque<BasicBlock>()
     bfsOrder.addLast(this)
@@ -239,7 +239,7 @@ private fun <T> BasicBlock.traverseBfs(result: T, updateResult: (T, BasicBlock) 
     return result
 }
 
-private fun BasicBlock.enumerate(): Map<BasicBlock, Int> {
+fun BasicBlock.enumerate(): Map<BasicBlock, Int> {
     var num = 1
     return traverseBfs(mutableMapOf(), { result, basicBlock ->
         result[basicBlock] = num++
