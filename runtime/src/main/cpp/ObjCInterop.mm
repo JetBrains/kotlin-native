@@ -16,6 +16,8 @@
 
 #if KONAN_OBJC_INTEROP
 
+#import <Foundation/NSException.h>
+
 #include <objc/objc.h>
 #include <objc/runtime.h>
 #include <objc/message.h>
@@ -28,6 +30,7 @@
 #include "Natives.h"
 #include "ObjCInterop.h"
 #include "ObjCExportPrivate.h"
+//#include "ObjCExportErrors.h"
 #include "Types.h"
 #include "Utils.h"
 
@@ -95,7 +98,15 @@ BOOL _tryRetainImp(id self, SEL _cmd) {
   // this is a regression for instances of Kotlin subclasses of Obj-C classes:
   // loading a reference to such an object from Obj-C weak reference now fails on "wrong" thread
   // unless the object is frozen.
-  return getBackRef(self)->tryAddRef();
+  try {
+    return getBackRef(self)->tryAddRef();
+  }
+  catch (ExceptionObjHolder& e) {
+    // TODO: check for IncorrectDereferenceException and possible weak property access
+    [NSException raise:NSGenericException
+          format:@"Possible illegal attempt to access weak property from non-owning thread"];
+    return false;  // unreachable, need to make compiler happy
+  }
 }
 
 void releaseImp(id self, SEL _cmd) {
