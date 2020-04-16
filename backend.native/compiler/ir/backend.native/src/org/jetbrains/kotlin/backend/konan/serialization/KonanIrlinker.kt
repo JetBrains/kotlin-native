@@ -69,16 +69,7 @@ class KonanIrLinker(
             moduleDescriptor.konanLibrary!!.file(fileIndex)
 
     override fun readFileCount(moduleDescriptor: ModuleDescriptor) =
-            moduleDescriptor.run {
-                if (this === forwardModuleDescriptor ||
-                        this == currentModule ||
-                        moduleDescriptor.isFromInteropLibrary()
-                ) {
-                    0
-                } else {
-                    konanLibrary!!.fileCount()
-                }
-            }
+            moduleDescriptor.run { if (this === forwardModuleDescriptor || moduleDescriptor.isFromInteropLibrary()) 0 else konanLibrary!!.fileCount() }
 
     override fun handleNoModuleDeserializerFound(idSignature: IdSignature): DeserializationState<*> {
         return globalDeserializationState
@@ -142,7 +133,7 @@ class KonanIrLinker(
     override fun IdSignature.shouldBeDeserialized(): Boolean = !isInteropSignature() && !isForwardDeclarationSignature()
 
     val modules: Map<String, IrModuleFragment> get() = mutableMapOf<String, IrModuleFragment>().apply {
-        deserializersForModules.filter { !it.key.isForwardDeclarationModule && it.key != currentModule }.forEach {
+        deserializersForModules.filter { !it.key.isForwardDeclarationModule }.forEach {
             this.put(it.key.konanLibrary!!.libraryName, it.value.module)
         }
     }

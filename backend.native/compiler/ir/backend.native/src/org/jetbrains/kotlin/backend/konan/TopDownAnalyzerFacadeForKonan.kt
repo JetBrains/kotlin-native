@@ -49,9 +49,7 @@ internal object TopDownAnalyzerFacadeForKonan {
                 projectContext.storageManager,
                 module.builtIns,
                 config.languageVersionSettings,
-                config.friendModuleFiles,
-                module
-        )
+                config.friendModuleFiles)
 
         val additionalPackages = mutableListOf<PackageFragmentProvider>()
         if (!module.isNativeStdlib()) {
@@ -108,8 +106,7 @@ private class ResolvedDependencies(
     storageManager: StorageManager,
     builtIns: KotlinBuiltIns,
     specifics: LanguageVersionSettings,
-    friendModuleFiles: Set<File>,
-    currentModuleDescriptor: ModuleDescriptorImpl
+    friendModuleFiles: Set<File>
 ) {
 
     val moduleDescriptors: KotlinResolvedModuleDescriptors
@@ -126,7 +123,7 @@ private class ResolvedDependencies(
         }
 
         this.moduleDescriptors = NativeFactories.DefaultResolvedDescriptorsFactory.createResolved(
-                resolvedLibraries, storageManager, builtIns, specifics, customAction, listOf(currentModuleDescriptor))
+                resolvedLibraries, storageManager, builtIns, specifics, customAction)
 
         this.friends = collectedFriends.toSet()
     }
