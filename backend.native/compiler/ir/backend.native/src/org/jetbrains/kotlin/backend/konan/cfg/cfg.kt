@@ -6,18 +6,19 @@ import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
+import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.util.dump
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import java.util.*
 
-fun IrElement.buildCfg(): Pair<BasicBlock, BasicBlock> {
-    val builder = CfgBuilder()
+fun IrElement.buildCfg(filter: CfgElementsFilter): Pair<BasicBlock, BasicBlock> {
+    val builder = CfgBuilder(filter)
     acceptVoid(builder)
     return builder.getResult()
 }
 
-class CfgBuilder : IrElementVisitorVoid {
+class CfgBuilder(private val filter: CfgElementsFilter) : IrElementVisitorVoid {
     private val entry = BasicBlock()
     private var current = entry
 
@@ -61,17 +62,23 @@ class CfgBuilder : IrElementVisitorVoid {
 
     override fun visitVariable(declaration: IrVariable) {
         declaration.initializer?.acceptVoid(this)
-        current.statements += declaration
+        if (!filter.filter(declaration)) {
+            current.statements += declaration
+        }
     }
 
     override fun visitSetVariable(expression: IrSetVariable) {
         expression.value.acceptVoid(this)
-        current.statements += expression
+        if (!filter.filter(expression)) {
+            current.statements += expression
+        }
     }
 
     override fun visitReturn(expression: IrReturn) {
         expression.value.acceptVoid(this)
-        current.statements += expression
+        if (!filter.filter(expression)) {
+            current.statements += expression
+        }
         functionExitSink?.apply { current returnEdgeTo this }
     }
 
@@ -86,8 +93,8 @@ class CfgBuilder : IrElementVisitorVoid {
     override fun visitExpression(expression: IrExpression) {
         when (expression) {
             is IrWhen -> {
-                val conditionEntriesAndExits = expression.branches.map { it.condition.buildCfg() }
-                val resultEntriesAndExits = expression.branches.map { it.result.buildCfg() }
+                val conditionEntriesAndExits = expression.branches.map { it.condition.buildCfg(filter) }
+                val resultEntriesAndExits = expression.branches.map { it.result.buildCfg(filter) }
                 assert(conditionEntriesAndExits.isNotEmpty())
                 assert(conditionEntriesAndExits.size == resultEntriesAndExits.size)
                 val firstCondition = conditionEntriesAndExits.first()
@@ -114,8 +121,8 @@ class CfgBuilder : IrElementVisitorVoid {
                 val outerLoopStartAndEnd = labeledLoops[label]
                 labeledLoops[label] = fakeLoopBodyStart to firstBlockAfterLoop
 
-                val bodyEntryAndExit = expression.body?.buildCfg() ?: BasicBlock().let { it to it }
-                val conditionEntryAndExit = expression.condition.buildCfg()
+                val bodyEntryAndExit = expression.body?.buildCfg(filter) ?: BasicBlock().let { it to it }
+                val conditionEntryAndExit = expression.condition.buildCfg(filter)
                 current edgeTo bodyEntryAndExit.first
                 bodyEntryAndExit.second edgeTo conditionEntryAndExit.first
                 conditionEntryAndExit.second edgeTo bodyEntryAndExit.first
@@ -126,13 +133,13 @@ class CfgBuilder : IrElementVisitorVoid {
             }
 
             is IrWhileLoop -> {
-                val conditionEntryAndExit = expression.condition.buildCfg()
+                val conditionEntryAndExit = expression.condition.buildCfg(filter)
                 val firstBlockAfterLoop = BasicBlock()
                 val label = expression.label ?: ""
                 val outerLoopStartAndEnd = labeledLoops[label]
                 labeledLoops[label] = conditionEntryAndExit.first to firstBlockAfterLoop
 
-                val bodyEntryAndExit = expression.body?.buildCfg() ?: BasicBlock().let { it to it }
+                val bodyEntryAndExit = expression.body?.buildCfg(filter) ?: BasicBlock().let { it to it }
                 current edgeTo conditionEntryAndExit.first
                 conditionEntryAndExit.second edgeTo bodyEntryAndExit.first
                 conditionEntryAndExit.second edgeTo firstBlockAfterLoop
@@ -141,7 +148,9 @@ class CfgBuilder : IrElementVisitorVoid {
 
                 outerLoopStartAndEnd?.let { labeledLoops[label] = it }
             }
-            else -> current.statements += expression
+            else -> if (!filter.filter(expression)) {
+                current.statements += expression
+            }
         }
 
 
@@ -151,7 +160,9 @@ class CfgBuilder : IrElementVisitorVoid {
         for (i in 0 until expression.valueArgumentsCount) {
             expression.getValueArgument(i)!!.acceptVoid(this)
         }
-        current.statements += expression
+        if (!filter.filter(expression)) {
+            current.statements += expression
+        }
     }
 
     companion object {
@@ -160,6 +171,14 @@ class CfgBuilder : IrElementVisitorVoid {
 
         private val labeledLoops = mutableMapOf<String, Pair<BasicBlock, BasicBlock>>()
     }
+}
+
+interface CfgElementsFilter {
+    fun filter(element: IrElement): Boolean
+}
+
+class CfgServiceFunctionsFilter(private val serviceFunctions: List<IrFunctionSymbol>) : CfgElementsFilter {
+    override fun filter(element: IrElement): Boolean = element is IrCall && element.symbol in serviceFunctions
 }
 
 private infix fun BasicBlock.edgeTo(to: BasicBlock) {
