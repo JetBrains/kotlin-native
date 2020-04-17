@@ -279,7 +279,13 @@ internal class EnumStubBuilder(
                 .mapIndexed { index, constant ->
                     val literal = context.tryCreateIntegralStub(enumDef.baseType, constant.value)
                             ?: error("Cannot create enum value ${constant.value} of type ${enumDef.baseType}")
-                    val entry = ClassStub.EnumEntry(mangleSimple(constant.name), literal, StubOrigin.EnumEntry(constant), index)
+                    val entry = ClassStub.EnumEntry(
+                            classifier = classifier.nested(mangleSimple(constant.name)),
+                            constant = literal,
+                            origin = StubOrigin.EnumEntry(constant),
+                            ordinal = index,
+                            enumType = ClassifierStubType(classifier)
+                    )
                     val aliases = aliasConstants
                             .filter { it.value == constant.value }
                             .map { constructAliasProperty(it, entry) }
@@ -321,7 +327,7 @@ internal class EnumStubBuilder(
                 properties = listOf(valueProperty),
                 origin = origin,
                 interfaces = listOf(context.platform.getRuntimeType("CEnum")),
-                childrenClasses = listOfNotNull(enumVarClass)
+                varClass = enumVarClass
         )
         context.bridgeComponentsBuilder.enumToTypeMirror[enum] = baseTypeMirror
         return listOf(enum)

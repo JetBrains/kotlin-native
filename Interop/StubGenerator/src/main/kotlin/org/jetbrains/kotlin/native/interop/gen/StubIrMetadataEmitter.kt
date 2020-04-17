@@ -125,7 +125,7 @@ internal class ModuleMetadataEmitter(
                     km.name = element.classifier.fqNameSerialized
                     element.superClassInit?.let { km.supertypes += it.type.map() }
                     element.interfaces.mapTo(km.supertypes) { it.map() }
-                    element.classes.mapTo(km.nestedClasses) { it.nestedName() }
+                    element.classes.filter { it !is ClassStub.EnumEntry }.mapTo(km.nestedClasses) { it.nestedName() }
                     km.typeAliases += elements.typeAliases.toList()
                     km.properties += elements.properties.toList()
                     km.functions += elements.functions.toList()
@@ -350,7 +350,8 @@ private class MappingExtensions(
                 Flag.Class.IS_INTERFACE.takeIf { this is ClassStub.Simple && modality == ClassStubModality.INTERFACE },
                 Flag.Class.IS_COMPANION_OBJECT.takeIf { this is ClassStub.Companion },
                 Flag.Class.IS_CLASS.takeIf { this is ClassStub.Simple && modality != ClassStubModality.INTERFACE },
-                Flag.Class.IS_ENUM_CLASS.takeIf { this is ClassStub.Enum }
+                Flag.Class.IS_ENUM_CLASS.takeIf { this is ClassStub.Enum },
+                Flag.Class.IS_ENUM_ENTRY.takeIf { this is ClassStub.EnumEntry }
         )
 
     // TODO: Looks like [Flag.Constructor.IS_PRIMARY] flag is incorrect.
@@ -443,6 +444,9 @@ private class MappingExtensions(
             is AnnotationStub.CStruct.VarType -> mapOfNotNull(
                     ("size" to KmAnnotationArgument.LongValue(size)),
                     ("align" to KmAnnotationArgument.IntValue(align))
+            )
+            is AnnotationStub.ConstantValue -> mapOfNotNull(
+                    "value" to constant.mapToAnnotationArgument()
             )
         }
         return KmAnnotation(classifier.fqNameSerialized, args)

@@ -75,6 +75,7 @@ internal class StubIrUniqIdProvider(private val context: ManglingContext) {
             is ClassStub.Simple,
             is ClassStub.Enum -> uniqSymbolNameForClass(classStub.origin)
             is ClassStub.Companion -> "${context.prefix}#Companion"
+            is ClassStub.EnumEntry -> "${context.prefix}#${classStub.name}"
         } ?: error("Unexpected origin ${classStub.origin} for class ${classStub.classifier.fqName}.")
     }.toUniqId()
 

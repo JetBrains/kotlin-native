@@ -149,6 +149,9 @@ class StubIrTextEmitter(
     private val printer = object : StubIrVisitor<StubContainer?, Unit> {
 
         override fun visitClass(element: ClassStub, owner: StubContainer?) {
+            // enum entries are handled separately by `renderEnumEntry`.
+            if (element is ClassStub.EnumEntry) return
+
             element.annotations.forEach {
                 out(renderAnnotation(it))
             }
@@ -372,11 +375,13 @@ class StubIrTextEmitter(
             is ClassStub.Simple -> renderClassStubModality(classStub.modality)
             is ClassStub.Companion -> ""
             is ClassStub.Enum -> "enum class "
+            is ClassStub.EnumEntry -> error("Enum entry should not be rendered as class!")
         }
         val className = when (classStub) {
             is ClassStub.Simple -> renderClassifierDeclaration(classStub.classifier)
             is ClassStub.Companion -> "companion object"
             is ClassStub.Enum -> renderClassifierDeclaration(classStub.classifier)
+            is ClassStub.EnumEntry -> error("Enum entry should not be rendered as class!")
         }
         val constructorParams = classStub.explicitPrimaryConstructor?.parameters?.let(this::renderConstructorParams) ?: ""
         val inheritance = mutableListOf<String>().apply {
@@ -497,7 +502,8 @@ class StubIrTextEmitter(
         is AnnotationStub.CStruct.MemberAt,
         is AnnotationStub.CStruct.ArrayMemberAt,
         is AnnotationStub.CStruct.BitField,
-        is AnnotationStub.CStruct.VarType ->
+        is AnnotationStub.CStruct.VarType,
+        is AnnotationStub.ConstantValue ->
             error("${annotationStub.classifier.fqName} annotation is unsupported in textual mode")
     }
 

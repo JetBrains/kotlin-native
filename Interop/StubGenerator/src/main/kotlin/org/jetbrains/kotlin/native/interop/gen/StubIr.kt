@@ -225,6 +225,9 @@ sealed class AnnotationStub(val classifier: Classifier) {
     class CEnumVarTypeSize(val size: Int) :
             AnnotationStub(Classifier.topLevel(cinteropInternalPackage, "CEnumVarTypeSize"))
 
+    class ConstantValue(val constant: ConstantStub) :
+            AnnotationStub(constant.determineConstantAnnotationClassifier())
+
     private companion object {
         val cCallClassifier = Classifier.topLevel(cinteropInternalPackage, "CCall")
 
@@ -337,19 +340,35 @@ sealed class ClassStub : StubContainer(), StubElementWithOrigin, AnnotationHolde
             override val properties: List<PropertyStub> = emptyList(),
             override val origin: StubOrigin,
             override val annotations: List<AnnotationStub> = emptyList(),
-            override val childrenClasses: List<ClassStub> = emptyList(),
+            varClass: ClassStub?,
             override val companion: Companion?= null,
             override val simpleContainers: List<SimpleStubContainer> = emptyList()
     ) : ClassStub() {
         override val functions: List<FunctionalStub> = constructors
+
+        override val childrenClasses: List<ClassStub> = entries + listOfNotNull(varClass)
     }
 
     class EnumEntry(
-            val name: String,
+            override val classifier: Classifier,
             val constant: IntegralConstantStub,
-            val origin: StubOrigin.EnumEntry,
-            val ordinal: Int
-    )
+            override val origin: StubOrigin.EnumEntry,
+            val ordinal: Int,
+            enumType: ClassifierStubType
+    ) : ClassStub() {
+        override val functions: List<FunctionalStub> = emptyList()
+        override val properties: List<PropertyStub> = emptyList()
+        override val simpleContainers: List<SimpleStubContainer> = emptyList()
+        override val annotations: List<AnnotationStub> = listOf(
+            AnnotationStub.ConstantValue(constant)
+        )
+        override val superClassInit: SuperClassInit = SuperClassInit(enumType)
+        override val interfaces: List<StubType> = emptyList()
+        override val childrenClasses: List<ClassStub> = emptyList()
+        override val companion: Companion? = null
+
+        val name = nestedName()
+    }
 
     override val meta: StubContainerMeta = StubContainerMeta()
 
