@@ -96,21 +96,22 @@ class CfgBuilder(private val filter: CfgElementsFilter) : IrElementVisitorVoid {
                 val conditionEntriesAndExits = expression.branches.map { it.condition.buildCfg(filter) }
                 val resultEntriesAndExits = expression.branches.map { it.result.buildCfg(filter) }
                 assert(conditionEntriesAndExits.isNotEmpty())
-                assert(conditionEntriesAndExits.size == resultEntriesAndExits.size)
-                val firstCondition = conditionEntriesAndExits.first()
-                val firstBlockAfterWhen = BasicBlock()
-                current edgeTo firstCondition.first
-                current = firstCondition.second
-                (conditionEntriesAndExits.drop(1) + (firstBlockAfterWhen to firstBlockAfterWhen)).zip(resultEntriesAndExits).forEach { (conditionEntryEndExit, previousConditionResultEntryAndExit) ->
-                    val resultEntry = previousConditionResultEntryAndExit.first
-                    val resultExit = previousConditionResultEntryAndExit.second
-                    current edgeTo resultEntry
-                    current edgeTo conditionEntryEndExit.first
+                val endOfWhen = BasicBlock()
+                conditionEntriesAndExits.zip(resultEntriesAndExits).forEach { (conditionEntryEndExit, previousConditionResultEntryAndExit) ->
+                    val (conditionEntry, conditionExit) = conditionEntryEndExit
+                    val (resultEntry, resultExit) = previousConditionResultEntryAndExit
+                    // --> conditionEntry --> ... --> conditionExit --> resultEntry --> ... --> resultExit --> <end of when>
+                    //                                              \
+                    //                                               nextConditionEntry --> ... --> nextConditionExit --> ...
+                    current edgeTo conditionEntry
+                    current = conditionExit
+                    conditionExit edgeTo resultEntry
                     if (resultExit.kind == EdgeKind.NORMAL) {
-                        resultExit edgeTo conditionEntryEndExit.first
+                        resultExit edgeTo endOfWhen
                     }
-                    current = conditionEntryEndExit.second
                 }
+                current edgeTo endOfWhen
+                current = endOfWhen
             }
             is IrDoWhileLoop -> {
                 val fakeLoopBodyStart = BasicBlock()
@@ -152,8 +153,6 @@ class CfgBuilder(private val filter: CfgElementsFilter) : IrElementVisitorVoid {
                 current.statements += expression
             }
         }
-
-
     }
 
     override fun visitCall(expression: IrCall) {
