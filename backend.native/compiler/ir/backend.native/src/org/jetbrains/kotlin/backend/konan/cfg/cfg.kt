@@ -8,6 +8,7 @@ import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.util.dump
+import org.jetbrains.kotlin.ir.util.isTrueConst
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import java.util.*
@@ -97,9 +98,19 @@ class CfgBuilder(private val filter: CfgElementsFilter) : IrElementVisitorVoid {
                 val resultEntriesAndExits = expression.branches.map { it.result.buildCfg(filter) }
                 assert(conditionEntriesAndExits.isNotEmpty())
                 val endOfWhen = BasicBlock()
-                conditionEntriesAndExits.zip(resultEntriesAndExits).forEach { (conditionEntryEndExit, previousConditionResultEntryAndExit) ->
+                var lastConditionIsElse = false
+                conditionEntriesAndExits.zip(resultEntriesAndExits).forEachIndexed { index, (conditionEntryEndExit, previousConditionResultEntryAndExit) ->
                     val (conditionEntry, conditionExit) = conditionEntryEndExit
                     val (resultEntry, resultExit) = previousConditionResultEntryAndExit
+                    // Check if current condition is a replacement for `else`
+                    if (index == conditionEntriesAndExits.lastIndex && conditionEntry === conditionExit && conditionEntry.isTrueConst()) {
+                        current edgeTo resultEntry
+                        if (resultExit.kind == EdgeKind.NORMAL) {
+                            resultExit edgeTo endOfWhen
+                        }
+                        lastConditionIsElse = true
+                        return@forEachIndexed
+                    }
                     // --> conditionEntry --> ... --> conditionExit --> resultEntry --> ... --> resultExit --> <end of when>
                     //                                              \
                     //                                               nextConditionEntry --> ... --> nextConditionExit --> ...
@@ -110,7 +121,9 @@ class CfgBuilder(private val filter: CfgElementsFilter) : IrElementVisitorVoid {
                         resultExit edgeTo endOfWhen
                     }
                 }
-                current edgeTo endOfWhen
+                if (!lastConditionIsElse) {
+                    current edgeTo endOfWhen
+                }
                 current = endOfWhen
             }
             is IrDoWhileLoop -> {
@@ -171,6 +184,10 @@ class CfgBuilder(private val filter: CfgElementsFilter) : IrElementVisitorVoid {
         private var functionExitSink: BasicBlock? = null
 
         private val labeledLoops = mutableMapOf<String, Pair<BasicBlock, BasicBlock>>()
+
+        private fun BasicBlock.isTrueConst(): Boolean {
+            return statements.size == 1 && statements.single().let { it is IrConst<*> && it.isTrueConst() }
+        }
     }
 }
 
