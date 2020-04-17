@@ -21,6 +21,8 @@ class KRefSharedHolder {
 
   void dispose() const;
 
+  OBJ_GETTER0(describe) const;
+
  private:
   ObjHeader* obj_;
   ForeignRefContext context_;

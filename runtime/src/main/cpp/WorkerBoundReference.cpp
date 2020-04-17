@@ -41,4 +41,8 @@ OBJ_GETTER(Kotlin_WorkerBoundReference_deref, KNativePtr holder) {
   RETURN_OBJ(reinterpret_cast<KRefSharedHolder*>(holder)->refOrNull());
 }
 
+OBJ_GETTER(Kotlin_WorkerBoundReference_describe, KNativePtr holder) {
+  RETURN_RESULT_OF0(reinterpret_cast<KRefSharedHolder*>(holder)->describe);
+}
+
 }

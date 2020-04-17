@@ -63,6 +63,8 @@ void RUNTIME_NORETURN ThrowFreezingException(KRef toFreeze, KRef blocker);
 // Prints out message of Throwable.
 void PrintThrowable(KRef);
 
+OBJ_GETTER(DescribeObjectForDebugging, KConstNativePtr typeInfo, KConstNativePtr address);
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

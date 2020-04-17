@@ -92,12 +92,17 @@ internal fun ThrowInvalidMutabilityException(where: Any): Nothing {
 
 @ExportForCppRuntime
 internal fun ThrowIllegalObjectSharingException(typeInfo: NativePtr, address: NativePtr) {
-    val kClass = kotlin.native.internal.KClassImpl<Any>(typeInfo)
-    val description = debugDescription(kClass, address.toLong().toInt())
+    val description = DescribeObjectForDebugging(typeInfo, address)
     throw IncorrectDereferenceException("illegal attempt to access non-shared $description from other thread")
 }
 
-internal fun debugDescription(kClass: KClass<*>, identity: Int): String {
+@ExportForCppRuntime
+internal fun DescribeObjectForDebugging(typeInfo: NativePtr, address: NativePtr): String {
+    val kClass = kotlin.native.internal.KClassImpl<Any>(typeInfo)
+    return debugDescription(kClass, address.toLong().toInt())
+}
+
+private fun debugDescription(kClass: KClass<*>, identity: Int): String {
     val className = kClass.qualifiedName ?: kClass.simpleName ?: "<object>"
     val unsignedIdentity = identity.toLong() and 0xffffffffL
     val identityStr = unsignedIdentity.toString(16)

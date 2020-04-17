@@ -14,6 +14,9 @@ external private fun createWorkerBoundReference(value: Any): NativePtr
 @SymbolName("Kotlin_WorkerBoundReference_deref")
 external private fun derefWorkerBoundReference(ref: NativePtr): Any?
 
+@SymbolName("Kotlin_WorkerBoundReference_describe")
+external private fun describeWorkerBoundReference(ref: NativePtr): String
+
 /**
  * A frozen shared reference to a Kotlin object
  *
@@ -29,8 +32,10 @@ external private fun derefWorkerBoundReference(ref: NativePtr): Any?
 public class WorkerBoundReference<out T : Any>(value: T) {
 
     private val ptr = createWorkerBoundReference(value)
-    private val valueDescription = debugDescription(value::class, value.identityHashCode())
     private val ownerName = Worker.current.name
+
+    private val valueDescription
+        get() = describeWorkerBoundReference(ptr)
 
     /**
      * The referenced value.

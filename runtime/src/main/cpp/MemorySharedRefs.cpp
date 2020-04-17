@@ -65,6 +65,11 @@ void KRefSharedHolder::dispose() const {
   DeinitForeignRef(obj_, context_);
 }
 
+OBJ_GETTER0(KRefSharedHolder::describe) const {
+  // Note: retrieving 'type_info()' is supposed to be correct even for unowned object.
+  RETURN_RESULT_OF(DescribeObjectForDebugging, obj_->type_info(), obj_);
+}
+
 bool KRefSharedHolder::isRefAccessible() const {
   return isForeignRefAccessible(obj_, context_);
 }
