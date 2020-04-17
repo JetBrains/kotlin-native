@@ -330,7 +330,7 @@ sealed class ClassStub : StubContainer(), StubElementWithOrigin, AnnotationHolde
 
     class Enum(
             override val classifier: Classifier,
-            val entries: List<EnumEntryStub>,
+            val entries: List<EnumEntry>,
             constructors: List<ConstructorStub>,
             override val superClassInit: SuperClassInit? = null,
             override val interfaces: List<StubType> = emptyList(),
@@ -343,6 +343,13 @@ sealed class ClassStub : StubContainer(), StubElementWithOrigin, AnnotationHolde
     ) : ClassStub() {
         override val functions: List<FunctionalStub> = constructors
     }
+
+    class EnumEntry(
+            val name: String,
+            val constant: IntegralConstantStub,
+            val origin: StubOrigin.EnumEntry,
+            val ordinal: Int
+    )
 
     override val meta: StubContainerMeta = StubContainerMeta()
 
@@ -425,7 +432,7 @@ sealed class PropertyAccessor : FunctionalStub {
         }
 
         class GetEnumEntry(
-                val enumEntryStub: EnumEntryStub,
+                val enumEntry: ClassStub.EnumEntry,
                 override val annotations: List<AnnotationStub> = emptyList()
         ) : Getter()
     }
@@ -489,13 +496,6 @@ class ConstructorStub(
     override fun <T, R> accept(visitor: StubIrVisitor<T, R>, data: T) =
         visitor.visitConstructor(this, data)
 }
-
-class EnumEntryStub(
-        val name: String,
-        val constant: IntegralConstantStub,
-        val origin: StubOrigin.EnumEntry,
-        val ordinal: Int
-)
 
 class TypealiasStub(
         val alias: Classifier,

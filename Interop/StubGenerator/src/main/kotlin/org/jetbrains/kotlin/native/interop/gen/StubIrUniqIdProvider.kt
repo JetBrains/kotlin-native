@@ -91,7 +91,7 @@ internal class StubIrUniqIdProvider(private val context: ManglingContext) {
                 ?: error("Unexpected origin ${constructorStub.origin} for constructor.")
     }.toUniqId()
 
-    fun uniqIdForEnumEntry(enumEntry: EnumEntryStub, enum: ClassStub.Enum): UniqId = with (mangler) {
+    fun uniqIdForEnumEntry(enumEntry: ClassStub.EnumEntry, enum: ClassStub.Enum): UniqId = with (mangler) {
         "${uniqSymbolNameForClass(enum.origin)}#${enumEntry.origin.constant.name}"
     }.toUniqId()
 

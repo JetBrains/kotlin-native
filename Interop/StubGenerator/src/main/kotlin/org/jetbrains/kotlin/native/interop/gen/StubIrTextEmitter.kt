@@ -501,8 +501,8 @@ class StubIrTextEmitter(
             error("${annotationStub.classifier.fqName} annotation is unsupported in textual mode")
     }
 
-    private fun renderEnumEntry(enumEntryStub: EnumEntryStub): String =
-            "${enumEntryStub.name.asSimpleName()}(${renderValueUsage(enumEntryStub.constant)})"
+    private fun renderEnumEntry(enumEntry: ClassStub.EnumEntry): String =
+            "${enumEntry.name.asSimpleName()}(${renderValueUsage(enumEntry.constant)})"
 
     private fun renderGetter(accessor: PropertyAccessor.Getter): String {
         val annotations = accessor.annotations.joinToString(separator = "") { renderAnnotation(it) + " " }
@@ -550,7 +550,7 @@ class StubIrTextEmitter(
             propertyAccessorBridgeBodies.getValue(accessor)
         }
 
-        is PropertyAccessor.Getter.GetEnumEntry -> accessor.enumEntryStub.name
+        is PropertyAccessor.Getter.GetEnumEntry -> accessor.enumEntry.name
 
         is PropertyAccessor.Setter.SimpleSetter -> when {
             accessor in propertyAccessorBridgeBodies -> propertyAccessorBridgeBodies.getValue(accessor)

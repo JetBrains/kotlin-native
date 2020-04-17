@@ -279,7 +279,7 @@ internal class EnumStubBuilder(
                 .mapIndexed { index, constant ->
                     val literal = context.tryCreateIntegralStub(enumDef.baseType, constant.value)
                             ?: error("Cannot create enum value ${constant.value} of type ${enumDef.baseType}")
-                    val entry = EnumEntryStub(mangleSimple(constant.name), literal, StubOrigin.EnumEntry(constant), index)
+                    val entry = ClassStub.EnumEntry(mangleSimple(constant.name), literal, StubOrigin.EnumEntry(constant), index)
                     val aliases = aliasConstants
                             .filter { it.value == constant.value }
                             .map { constructAliasProperty(it, entry) }
@@ -327,7 +327,7 @@ internal class EnumStubBuilder(
         return listOf(enum)
     }
 
-    private fun constructAliasProperty(enumConstant: EnumConstant, entry: EnumEntryStub): PropertyStub {
+    private fun constructAliasProperty(enumConstant: EnumConstant, entry: ClassStub.EnumEntry): PropertyStub {
         val aliasAnnotation = AnnotationStub.CEnumEntryAlias(entry.name)
                 .takeIf { context.generationMode == GenerationMode.METADATA }
         return PropertyStub(

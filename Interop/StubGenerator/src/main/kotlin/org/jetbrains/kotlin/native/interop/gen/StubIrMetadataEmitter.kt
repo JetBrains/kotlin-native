@@ -212,7 +212,7 @@ internal class ModuleMetadataEmitter(
                 simpleStubContainer.children.mapNotNull { it.accept(this, data) } +
                         simpleStubContainer.simpleContainers.flatMap { visitSimpleStubContainer(it, data) }
 
-        private fun mapEnumEntry(enumEntry: EnumEntryStub, data: VisitingContext): KlibEnumEntry =
+        private fun mapEnumEntry(enumEntry: ClassStub.EnumEntry, data: VisitingContext): KlibEnumEntry =
                 data.withMappingExtensions {
                     KlibEnumEntry(
                             name = enumEntry.name,
