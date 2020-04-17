@@ -82,4 +82,10 @@ public class DisposableWorkerBoundReference<out T : Any>(value: T) {
      */
     val value: T
         get() = ref.value?.value ?: throw IllegalStateException("illegal attempt to dereference disposed $this")
+
+    /**
+     * The referenced value or null if [this] is disposed, or if referred object is not frozen and current worker is different from the one created [this]
+     */
+    val valueOrNull: T?
+        get() = ref.value?.valueOrNull
 }
