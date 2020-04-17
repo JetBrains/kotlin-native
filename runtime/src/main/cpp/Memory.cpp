@@ -35,6 +35,7 @@
 #include "Natives.h"
 #include "Porting.h"
 #include "Runtime.h"
+#include "WorkerBoundReference.h"
 
 // If garbage collection algorithm for cyclic garbage to be used.
 // We are using the Bacon's algorithm for GC, see
@@ -928,11 +929,17 @@ void freeAggregatingFrozenContainer(ContainerHeader* container) {
   MEMORY_LOG("Freeing subcontainers done\n");
 }
 
-void runDeallocationHooks(ContainerHeader* container) {
+// This is called from 2 places where it's unconditionally called,
+// so better be inlined.
+ALWAYS_INLINE void runDeallocationHooks(ContainerHeader* container) {
   ObjHeader* obj = reinterpret_cast<ObjHeader*>(container + 1);
   for (int index = 0; index < container->objectCount(); index++) {
+    auto* type_info = obj->type_info();
+    if (type_info == theWorkerBoundReferenceTypeInfo) {
+      DisposeWorkerBoundReference(obj);
+    }
 #if USE_CYCLIC_GC
-    if ((obj->type_info()->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0) {
+    if ((type_info->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0) {
       cyclicRemoveAtomicRoot(obj);
     }
 #endif  // USE_CYCLIC_GC
@@ -1933,11 +1940,6 @@ OBJ_GETTER(allocInstance, const TypeInfo* type_info) {
 #endif  // USE_GC
   auto container = ObjectContainer(state, type_info);
   ObjHeader* obj = container.GetPlace();
-#if USE_CYCLIC_GC
-  if ((obj->type_info()->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0) {
-    cyclicAddAtomicRoot(obj);
-  }
-#endif  // USE_CYCLIC_GC
 #if USE_GC
   if (Strict) {
     rememberNewContainer(container.header());
@@ -1945,6 +1947,14 @@ OBJ_GETTER(allocInstance, const TypeInfo* type_info) {
     makeShareable(container.header());
   }
 #endif  // USE_GC
+#if USE_CYCLIC_GC
+  if ((obj->type_info()->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0) {
+    // Note: this should be performed after [rememberNewContainer] (above).
+    // Otherwise cyclic collector can observe this atomic root with RC = 0,
+    // thus consider it garbage and then zero it after initialization.
+    cyclicAddAtomicRoot(obj);
+  }
+#endif  // USE_CYCLIC_GC
   RETURN_OBJ(obj);
 }
 

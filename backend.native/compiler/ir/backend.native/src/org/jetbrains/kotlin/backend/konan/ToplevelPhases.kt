@@ -314,6 +314,7 @@ internal val linkerPhase = konanUnitPhase(
 internal val allLoweringsPhase = namedIrModulePhase(
         name = "IrLowering",
         description = "IR Lowering",
+        // TODO: The lowerings before inlinePhase should be aligned with [NativeInlineFunctionResolver.kt]
         lower = removeExpectDeclarationsPhase then
                 stripTypeAliasDeclarationsPhase then
                 lowerBeforeInlinePhase then
@@ -386,6 +387,7 @@ internal val dependenciesLowerPhase = SameTypeNamedPhaseWrapper(
                                     ?: return@forEach
                             input.files += libModule.files
                         }
+
                 input.files += files
 
                 return input

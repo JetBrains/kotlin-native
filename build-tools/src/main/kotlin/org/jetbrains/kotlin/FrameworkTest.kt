@@ -10,6 +10,7 @@ import org.gradle.api.tasks.TaskAction
 import org.jetbrains.kotlin.konan.target.*
 
 import java.io.FileWriter
+import java.nio.file.Files
 import java.nio.file.Path
 import java.nio.file.Paths
 
@@ -200,7 +201,7 @@ open class FrameworkTest : DefaultTask(), KonanTestExecutable {
         val testTarget = project.testTarget
         val configurables = project.platformManager.platform(testTarget).configurables as AppleConfigurables
 
-        val bitcodeBuildTool = Paths.get("${configurables.absoluteAdditionalToolsDir}/bin/bitcode-build-tool")
+        val bitcodeBuildTool = "${configurables.absoluteAdditionalToolsDir}/bin/bitcode-build-tool"
         val toolPath = "${configurables.absoluteTargetToolchain}/usr/bin/"
         val sdk = when (testTarget) {
             KonanTarget.IOS_X64,
@@ -216,7 +217,11 @@ open class FrameworkTest : DefaultTask(), KonanTestExecutable {
             else -> error("Cannot validate bitcode for test target $testTarget")
         }
 
-        runTest(executorService = localExecutorService(project),
-                testExecutable = bitcodeBuildTool, args = listOf("--sdk", sdk, "-v", "-t", toolPath, frameworkBinary))
+        val python3 = listOf("/usr/bin/python3", "/usr/local/bin/python3")
+                .map { Paths.get(it) }.firstOrNull { Files.exists(it) }
+                ?: error("Can't find python3")
+
+        runTest(executorService = localExecutorService(project), testExecutable = python3,
+                args = listOf("-B", bitcodeBuildTool, "--sdk", sdk, "-v", "-t", toolPath, frameworkBinary))
     }
 }

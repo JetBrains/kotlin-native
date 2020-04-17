@@ -242,6 +242,10 @@ task sanity {
         task.getDependsOn().every { !platformLibsTasks.contains(it) } &&
         task.name != "library_mismatch" // This test requires the wasm32 stdlib which is unavailable during a sanity run.
     })
+
+    dependsOn(tasksOf(FrameworkTest) { task ->
+        task.getDependsOn().every { !platformLibsTasks.contains(it) }
+    })
 }
 
 // Collect reports in one json.
@@ -873,6 +877,16 @@ task empty_substring(type: KonanLocalTest) {
     source = "runtime/basic/empty_substring.kt"
 }
 
+task worker_bound_reference0(type: KonanLocalTest) {
+    enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
+    source = "runtime/concurrent/worker_bound_reference0.kt"
+}
+
+task worker_bound_reference1(type: KonanLocalTest) {
+    enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
+    source = "runtime/concurrent/worker_bound_reference1.kt"
+}
+
 task worker0(type: KonanLocalTest) {
     enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
     goldValue = "Got Input processed\nOK\n"
@@ -1289,6 +1303,11 @@ linkTest("initializers_linkTest2") {
     goldValue = "2\n"
     source = "codegen/initializers/linkTest2_main.kt"
     lib = "codegen/initializers/linkTest2_lib.kt"
+}
+
+linkTest("initializers_sharedVarInInitBlock") {
+    source = "codegen/initializers/sharedVarInInitBlock_main.kt"
+    lib = "codegen/initializers/sharedVarInInitBlock_lib.kt"
 }
 
 task arithmetic_basic(type: KonanLocalTest) {
@@ -3302,6 +3321,19 @@ linkTest("inline_defaultArgs_linkTest") {
     lib = "codegen/inline/defaultArgs_linkTest_lib.kt"
 }
 
+linkTest("inline_sharedVar_linkTest") {
+    goldValue = "6\n"
+    source = "codegen/inline/sharedVar_linkTest_main.kt"
+    lib = "codegen/inline/sharedVar_linkTest_lib.kt"
+}
+
+linkTest("inline_lateinitProperty_linkTest") {
+    disabled = (project.testTarget == 'wasm32') // Uses exceptions.
+    goldValue = "OK\n"
+    source = "codegen/inline/lateinitProperty_linkTest_main.kt"
+    lib = "codegen/inline/lateinitProperty_linkTest_lib.kt"
+}
+
 def generateWithSpaceDefFile() {
     def mapOption = "--Map \"${buildDir}/cutom map.map\""
     if (isAppleTarget(project)) {
@@ -3423,6 +3455,11 @@ if (PlatformInfo.isAppleTarget(project)) {
         it.headers "$projectDir/interop/objc/smoke.h"
     }
 
+    createInterop("objcTests") {
+        it.defFile 'interop/objc/objcTests.def'
+        it.headers fileTree("$projectDir/interop/objc/tests") { include '**/*.h' }
+    }
+
     createInterop("objcMisc") {
         it.defFile 'interop/objc_with_initializer/objc_misc.def'
         it.headers "$projectDir/interop/objc_with_initializer/objc_misc.h"
@@ -3453,7 +3490,7 @@ createInterop("withSpaces") {
 /**
  * Creates a task for the interop test. Configures runner and adds library and test build tasks.
  */
-Task interopTest(String name, Closure<KonanInteropTest> configureClosure) {
+Task interopTestBase(String name, boolean multiFile, Closure<KonanInteropTest> configureClosure) {
     return KotlinNativeTestKt.createTest(project, name, KonanInteropTest) { task ->
         task.configure(configureClosure)
         if (task.enabled) {
@@ -3465,7 +3502,7 @@ Task interopTest(String name, Closure<KonanInteropTest> configureClosure) {
                     libraries {
                         artifact lib
                     }
-                    srcFiles task.getSources()
+                    srcFiles multiFile ? fileTree(task.source) { include '**/*.kt' } : task.getSources()
                     baseDir "$testOutputLocal/$name"
                     linkerOpts "-L$buildDir"
                     extraOpts task.flags
@@ -3476,6 +3513,13 @@ Task interopTest(String name, Closure<KonanInteropTest> configureClosure) {
     }
 }
 
+Task interopTest(String name, Closure<KonanInteropTest> configureClosure) {
+    return interopTestBase(name, false, configureClosure)
+}
+
+Task interopTestMultifile(String name, Closure<KonanInteropTest> configureClosure) {
+    return interopTestBase(name, true, configureClosure)
+}
 
 standaloneTest("interop_objc_allocException") {
     dependsOnPlatformLibs(it)
@@ -3680,6 +3724,7 @@ if (PlatformInfo.isAppleTarget(project)) {
         }
 
         doBeforeBuild {
+            mkdir(buildDir)
             execKonanClang(project.target) {
                 args "$projectDir/interop/objc/smoke.m"
                 args "-lobjc", '-fobjc-arc'
@@ -3698,6 +3743,26 @@ if (PlatformInfo.isAppleTarget(project)) {
         }
     }
 
+    interopTestMultifile("interop_objc_tests") {
+        source = "interop/objc/tests/"
+        interop = 'objcTests'
+        flags = ['-tr', '-e', 'main']
+
+        doBeforeBuild {
+            mkdir(buildDir)
+            execKonanClang(project.target) {
+                args fileTree("$projectDir/interop/objc/tests/") { include '**/*.m' }
+                args "-lobjc", '-fobjc-arc'
+                args '-fPIC', '-shared', '-o', "$buildDir/libobjctests.dylib"
+                // Enable ARC optimizations to prevent some objects from leaking in Obj-C code due to exceptions:
+                args '-O2'
+            }
+            if (project.target instanceof KonanTarget.IOS_X64) {
+                UtilsKt.codesign(project, "$buildDir/libobjctests.dylib")
+            }
+        }
+    }
+
     interopTest("interop_objc_global_initializer") {
         goldValue = "OK\n"
         source = "interop/objc_with_initializer/objc_test.kt"
@@ -3705,6 +3770,7 @@ if (PlatformInfo.isAppleTarget(project)) {
         flags = ['-g']
 
         doBeforeBuild {
+            mkdir(buildDir)
             execKonanClang(project.target) {
                 args "$projectDir/interop/objc_with_initializer/objc_misc.m"
                 args "-lobjc", '-fobjc-arc'
@@ -3721,6 +3787,7 @@ if (PlatformInfo.isAppleTarget(project)) {
         interop = 'objcMessaging'
 
         doBeforeBuild {
+            mkdir(buildDir)
             execKonanClang(project.target) {
                 args "$projectDir/interop/objc/msg_send/messaging.m"
                 args "-lobjc", '-fobjc-arc'
@@ -3899,6 +3966,10 @@ if (isAppleTarget(project)) {
                 srcDir "objcexport/library"
                 artifactName "test-library"
 
+                if (!useCustomDist) {
+                    dependsOn ":${target.name}CrossDistRuntime", ':distCompiler'
+                }
+
                 extraOpts "-Xshort-module-name=MyLibrary"
                 extraOpts "-module-name", "org.jetbrains.kotlin.native.test-library"
             }
@@ -3913,8 +3984,9 @@ if (isAppleTarget(project)) {
                     dependsOn ":${target.name}CrossDistRuntime", ':distCompiler'
                 }
 
+                dependsOn konanArtifacts[libraryName].getByTarget(target.name)
                 libraries {
-                    artifact libraryName
+                    file konanArtifacts[libraryName].getArtifactByTarget(target.name)
                 }
 
                 extraOpts "-Xembed-bitcode-marker"
@@ -3944,6 +4016,10 @@ if (isAppleTarget(project)) {
                 srcDir "objcexport/library"
                 artifactName "test-library"
 
+                if (!useCustomDist) {
+                    dependsOn ":${target.name}CrossDistRuntime", ':distCompiler'
+                }
+
                 extraOpts "-Xshort-module-name=MyLibrary"
                 extraOpts "-module-name", "org.jetbrains.kotlin.native.test-library"
             }
@@ -3958,8 +4034,9 @@ if (isAppleTarget(project)) {
                     dependsOn ":${target.name}CrossDistRuntime", ':distCompiler'
                 }
 
+                dependsOn konanArtifacts[libraryName].getByTarget(target.name)
                 libraries {
-                    artifact libraryName
+                    file konanArtifacts[libraryName].getArtifactByTarget(target.name)
                 }
 
                 extraOpts "-Xembed-bitcode-marker"

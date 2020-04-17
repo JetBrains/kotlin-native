@@ -91,8 +91,10 @@ internal val arrayConstructorPhase = makeKonanModuleLoweringPhase(
 
 internal val lateinitPhase = makeKonanModuleOpPhase(
         { context, irModule ->
-            NullableFieldsForLateinitCreationLowering(context).lower(irModule)
-            NullableFieldsDeclarationLowering(context).lower(irModule)
+            NullableFieldsForLateinitCreationLowering(context)
+                    .runPostfix(true).toFileLoweringPass().lower(irModule)
+            NullableFieldsDeclarationLowering(context)
+                    .runPostfix(true).toFileLoweringPass().lower(irModule)
             LateinitUsageLowering(context).lower(irModule)
         },
         name = "Lateinit",
@@ -131,7 +133,7 @@ internal val extractLocalClassesFromInlineBodies = namedIrModulePhase(
 internal val inlinePhase = namedIrModulePhase(
         lower = object : SameTypeCompilerPhase<Context, IrModuleFragment> {
             override fun invoke(phaseConfig: PhaseConfig, phaserState: PhaserState<IrModuleFragment>, context: Context, input: IrModuleFragment): IrModuleFragment {
-                FunctionInlining(context).run {
+                FunctionInlining(context, NativeInlineFunctionResolver(context)).run {
                     input.files.forEach { lower(it) }
                 }
                 return input
