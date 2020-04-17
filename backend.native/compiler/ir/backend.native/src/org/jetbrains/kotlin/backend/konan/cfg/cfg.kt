@@ -157,6 +157,8 @@ class CfgBuilder(private val filter: CfgElementsFilter) : IrElementVisitorVoid {
     }
 
     override fun visitCall(expression: IrCall) {
+        expression.dispatchReceiver?.acceptVoid(this)
+        expression.extensionReceiver?.acceptVoid(this)
         for (i in 0 until expression.valueArgumentsCount) {
             expression.getValueArgument(i)!!.acceptVoid(this)
         }
