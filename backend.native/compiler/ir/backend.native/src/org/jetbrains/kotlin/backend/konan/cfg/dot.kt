@@ -5,6 +5,7 @@ import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.util.constructedClass
+import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
 fun IrFunction.printDotGraph(cfgElementsFilter: CfgElementsFilter): String {
@@ -64,6 +65,10 @@ class DotRepresentationVisitor: IrElementVisitor<String, Nothing?> {
 
     override fun visitConstructorCall(expression: IrConstructorCall, data: Nothing?): String {
         return "call constructor ${expression.symbol.owner.constructedClass.name}"
+    }
+
+    override fun visitTypeOperator(expression: IrTypeOperatorCall, data: Nothing?): String {
+        return "${expression.operator.name} for type ${expression.typeOperand.render()}"
     }
 
     override fun visitVariable(declaration: IrVariable, data: Nothing?): String {

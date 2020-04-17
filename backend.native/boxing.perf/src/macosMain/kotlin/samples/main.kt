@@ -10,7 +10,8 @@ val callees = mapOf(
 
         "cfg_when" to { cfgWhen() },
         "cfg_return" to { cfgReturn() },
-        "cfg_loop" to { cfgLoop() }
+        "cfg_loop" to { cfgLoop() },
+        "cfg_classes" to { cfgClasses() }
 )
 
 fun main() {

@@ -61,6 +61,13 @@ class CfgBuilder(private val filter: CfgElementsFilter) : IrElementVisitorVoid {
         }
     }
 
+    override fun visitTypeOperator(expression: IrTypeOperatorCall) {
+        expression.argument.acceptVoid(this)
+        if (!filter.filter(expression)) {
+            current.statements += expression
+        }
+    }
+
     override fun visitVariable(declaration: IrVariable) {
         declaration.initializer?.acceptVoid(this)
         if (!filter.filter(declaration)) {
@@ -69,6 +76,13 @@ class CfgBuilder(private val filter: CfgElementsFilter) : IrElementVisitorVoid {
     }
 
     override fun visitSetVariable(expression: IrSetVariable) {
+        expression.value.acceptVoid(this)
+        if (!filter.filter(expression)) {
+            current.statements += expression
+        }
+    }
+
+    override fun visitSetField(expression: IrSetField) {
         expression.value.acceptVoid(this)
         if (!filter.filter(expression)) {
             current.statements += expression
@@ -168,7 +182,7 @@ class CfgBuilder(private val filter: CfgElementsFilter) : IrElementVisitorVoid {
         }
     }
 
-    override fun visitCall(expression: IrCall) {
+    override fun visitFunctionAccess(expression: IrFunctionAccessExpression) {
         expression.dispatchReceiver?.acceptVoid(this)
         expression.extensionReceiver?.acceptVoid(this)
         for (i in 0 until expression.valueArgumentsCount) {
