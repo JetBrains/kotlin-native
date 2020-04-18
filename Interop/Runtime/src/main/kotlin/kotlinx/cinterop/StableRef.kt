@@ -74,3 +74,8 @@ public inline class StableRef<out T : Any> @PublishedApi internal constructor(
  * Converts to [StableRef] this opaque pointer produced by [StableRef.asCPointer].
  */
 inline fun <reified T : Any> CPointer<*>.asStableRef(): StableRef<T> = StableRef<T>(this).also { it.get() }
+
+/**
+ * Acquires the object that this handle was [created][StableRef.create] for, disposes this handle, and returns the object.
+ */
+fun <T : Any> StableRef<T>.getAndDispose(): T = get().also { dispose() }
