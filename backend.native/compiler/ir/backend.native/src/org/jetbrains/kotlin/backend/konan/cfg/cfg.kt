@@ -231,7 +231,6 @@ private infix fun BasicBlock.continueEdgeTo(to: BasicBlock) {
 
 private fun edgeTo(from: BasicBlock, to: BasicBlock, kind: EdgeKind) {
     from.addOutgoingTo(to, kind)
-    to.addIncomingFrom(from, kind)
 }
 
 class BasicBlock(
@@ -247,11 +246,17 @@ class BasicBlock(
         }
 
     fun addOutgoingTo(nextBlock: BasicBlock, kind: EdgeKind = EdgeKind.NORMAL) {
-        outgoingEdges += Edge(this, nextBlock, kind)
+        Edge(this, nextBlock, kind).also {
+            outgoingEdges += it
+            nextBlock.incomingEdges += it
+        }
     }
 
     fun addIncomingFrom(previousBlock: BasicBlock, kind: EdgeKind = EdgeKind.NORMAL) {
-        incomingEdges += Edge(previousBlock, this, kind)
+        Edge(previousBlock, this, kind).also {
+            incomingEdges += it
+            previousBlock.outgoingEdges += it
+        }
     }
 
     companion object {
@@ -291,7 +296,7 @@ fun <T> BasicBlock.traverseBfs(result: T, updateResult: (T, BasicBlock) -> Unit)
 }
 
 fun BasicBlock.enumerate(): Map<BasicBlock, Int> {
-    var num = 1
+    var num = 0
     return traverseBfs(mutableMapOf(), { result, basicBlock ->
         result[basicBlock] = num++
     })
