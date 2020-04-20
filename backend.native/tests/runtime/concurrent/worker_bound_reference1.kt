@@ -18,6 +18,7 @@ val global1: DisposableWorkerBoundReference<A> = DisposableWorkerBoundReference(
 @Test
 fun testGlobal() {
     assertEquals(3, global1.value.a)
+    assertEquals(3, global1.valueOrNull?.a)
 
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, {}) {
@@ -26,6 +27,7 @@ fun testGlobal() {
 
     val value = future.result
     assertEquals(3, value.value.a)
+    assertEquals(3, value.valueOrNull?.a)
     worker.requestTermination().result
 }
 
@@ -41,6 +43,7 @@ fun testGlobalDenyAccessOnWorker() {
         assertFailsWith<IncorrectDereferenceException> {
             local.value
         }
+        assertEquals(null, local.valueOrNull)
         Unit
     }
 
@@ -53,6 +56,7 @@ val global3: DisposableWorkerBoundReference<A> = DisposableWorkerBoundReference(
 @Test
 fun testGlobalAccessOnWorkerFrozenInitially() {
     assertEquals(3, global3.value.a)
+    assertEquals(3, global3.valueOrNull?.a)
 
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, {}) {
@@ -131,6 +135,7 @@ fun testGlobalModification() {
 
     val value = future.result
     assertEquals(4, value.value.a)
+    assertEquals(4, value.valueOrNull?.a)
     worker.requestTermination().result
 }
 
@@ -152,14 +157,16 @@ fun testGlobalAccessAfterDispose() {
 
     global8.dispose()
     assertFailsWith<IllegalStateException> {
-        global8.value.a
+        global8.value
     }
+    assertEquals(null, global8.valueOrNull)
 }
 
 @Test
 fun testLocal() {
     val local = DisposableWorkerBoundReference(A(3))
     assertEquals(3, local.value.a)
+    assertEquals(3, local.valueOrNull?.a)
 
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, { local }) { local ->
@@ -168,6 +175,7 @@ fun testLocal() {
 
     val value = future.result
     assertEquals(3, value.value.a)
+    assertEquals(3, value.valueOrNull?.a)
     worker.requestTermination().result
 }
 
@@ -181,6 +189,7 @@ fun testLocalDenyAccessOnWorker() {
         assertFailsWith<IncorrectDereferenceException> {
             local.value
         }
+        assertEquals(null, local.valueOrNull)
         Unit
     }
 
@@ -192,6 +201,7 @@ fun testLocalDenyAccessOnWorker() {
 fun testLocalAccessOnWorkerFrozenInitially() {
     val local = DisposableWorkerBoundReference(A(3).freeze())
     assertEquals(3, local.value.a)
+    assertEquals(3, local.valueOrNull?.a)
 
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, { local }) { local ->
@@ -256,6 +266,7 @@ fun testLocalDenyAccessOnMainThread() {
     assertFailsWith<IncorrectDereferenceException> {
         value.value
     }
+    assertEquals(null, value.valueOrNull)
 
     worker.requestTermination().result
 }
@@ -282,6 +293,7 @@ fun testLocalModification() {
 
     val value = future.result
     assertEquals(4, value.value.a)
+    assertEquals(4, value.valueOrNull?.a)
     worker.requestTermination().result
 }
 
@@ -301,8 +313,9 @@ fun testLocalAccessAfterDispose() {
 
     local.dispose()
     assertFailsWith<IllegalStateException> {
-        local.value.a
+        local.value
     }
+    assertEquals(null, local.valueOrNull)
 }
 
 fun getOwnerAndWeaks(initial: Int): Triple<AtomicReference<DisposableWorkerBoundReference<A>?>, WeakReference<DisposableWorkerBoundReference<A>>, WeakReference<A>> {
@@ -464,15 +477,14 @@ fun testDisposeOnMainThreadAndAccessInWorker() {
 
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, { ref }) { ref ->
-        var result = 0
         assertFailsWith<IllegalStateException> {
-            result = ref.value.a
+            ref.value
         }
-        result
+        assertEquals(null, ref.valueOrNull)
+        Unit
     }
 
-    val value = future.result
-    assertEquals(0, value)
+    future.result
     worker.requestTermination().result
 }
 
@@ -488,8 +500,9 @@ fun testDisposeInWorkerAndAccessOnMainThread() {
 
     future.result
     assertFailsWith<IllegalStateException> {
-        ref.value.a
+        ref.value
     }
+    assertEquals(null, ref.valueOrNull)
     worker.requestTermination().result
 }
 

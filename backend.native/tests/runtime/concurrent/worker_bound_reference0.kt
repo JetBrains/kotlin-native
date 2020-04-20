@@ -18,6 +18,7 @@ val global1: WorkerBoundReference<A> = WorkerBoundReference(A(3))
 @Test
 fun testGlobal() {
     assertEquals(3, global1.value.a)
+    assertEquals(3, global1.valueOrNull?.a)
 
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, {}) {
@@ -26,6 +27,7 @@ fun testGlobal() {
 
     val value = future.result
     assertEquals(3, value.value.a)
+    assertEquals(3, value.valueOrNull?.a)
     worker.requestTermination().result
 }
 
@@ -41,6 +43,7 @@ fun testGlobalDenyAccessOnWorker() {
         assertFailsWith<IncorrectDereferenceException> {
             local.value
         }
+        assertEquals(null, local.valueOrNull)
         Unit
     }
 
@@ -53,6 +56,7 @@ val global3: WorkerBoundReference<A> = WorkerBoundReference(A(3).freeze())
 @Test
 fun testGlobalAccessOnWorkerFrozenInitially() {
     assertEquals(3, global3.value.a)
+    assertEquals(3, global3.valueOrNull?.a)
 
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, {}) {
@@ -131,6 +135,7 @@ fun testGlobalModification() {
 
     val value = future.result
     assertEquals(4, value.value.a)
+    assertEquals(4, value.valueOrNull?.a)
     worker.requestTermination().result
 }
 
@@ -138,6 +143,7 @@ fun testGlobalModification() {
 fun testLocal() {
     val local = WorkerBoundReference(A(3))
     assertEquals(3, local.value.a)
+    assertEquals(3, local.valueOrNull?.a)
 
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, { local }) { local ->
@@ -146,6 +152,7 @@ fun testLocal() {
 
     val value = future.result
     assertEquals(3, value.value.a)
+    assertEquals(3, value.valueOrNull?.a)
     worker.requestTermination().result
 }
 
@@ -159,6 +166,7 @@ fun testLocalDenyAccessOnWorker() {
         assertFailsWith<IncorrectDereferenceException> {
             local.value
         }
+        assertEquals(null, local.valueOrNull)
         Unit
     }
 
@@ -170,6 +178,7 @@ fun testLocalDenyAccessOnWorker() {
 fun testLocalAccessOnWorkerFrozenInitially() {
     val local = WorkerBoundReference(A(3).freeze())
     assertEquals(3, local.value.a)
+    assertEquals(3, local.valueOrNull?.a)
 
     val worker = Worker.start()
     val future = worker.execute(TransferMode.SAFE, { local }) { local ->
@@ -235,6 +244,7 @@ fun testLocalDenyAccessOnMainThread() {
     assertFailsWith<IncorrectDereferenceException> {
         value.value
     }
+    assertEquals(null, value.valueOrNull)
 
     worker.requestTermination().result
 }
@@ -261,6 +271,7 @@ fun testLocalModification() {
 
     val value = future.result
     assertEquals(4, value.value.a)
+    assertEquals(4, value.valueOrNull?.a)
     worker.requestTermination().result
 }
 
