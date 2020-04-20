@@ -40,7 +40,7 @@ fun convertToNewFormat(data: JsonObject): List<Any> {
 fun convert(json: String, buildNumber: String): BenchmarksReport {
     val data = JsonTreeParser.parse(json)
     val reports = if (data is JsonArray) {
-        data.map { convertToNewFormat(data as JsonObject) }
+        data.map { convertToNewFormat(it as JsonObject) }
     } else listOf(convertToNewFormat(data as JsonObject))
     val knownFlags = mapOf(
             "Cinterop" to listOf("-opt"),
@@ -49,6 +49,7 @@ fun convert(json: String, buildNumber: String): BenchmarksReport {
             "Numerical" to listOf("-opt"),
             "ObjCInterop" to listOf("-opt"),
             "Ring" to listOf("-opt"),
+            "Startup" to listOf("-opt"),
             "swiftInterop" to listOf("-opt"),
             "Videoplayer" to listOf("-g")
     )
@@ -57,11 +58,12 @@ fun convert(json: String, buildNumber: String): BenchmarksReport {
         val benchmarks = (elements[2] as List<BenchmarkResult>).groupBy { it.name.substringBefore('.').substringBefore(':') }
         val parsedFlags = elements[3] as List<String>
         val benchmarksSets = benchmarks.map { (setName, results) ->
-            val flags = if (parsedFlags[0] == "-opt") knownFlags[setName]!! else parsedFlags
+            val flags = if (parsedFlags.isNotEmpty() && parsedFlags[0] == "-opt") knownFlags[setName]!! else parsedFlags
             BenchmarksSet(BenchmarksSet.BenchmarksSetInfo(setName, flags), results)
         }
         BenchmarksReport(elements[0] as Environment, benchmarksSets, elements[1] as Compiler)
     }.reduce{ acc, it -> acc + it }
+
     fullReport.buildNumber = buildNumber
     return fullReport
 }
@@ -574,7 +576,6 @@ fun router() {
                 buildsDescription.forEach {
                     if (!it.isEmpty()) {
                         val currentBuildNumber = it.substringBefore(',')
-                        println(currentBuildNumber)
                         if (!"\\d+(\\.\\d+)+(-M\\d)?-\\w+-\\d+".toRegex().matches(currentBuildNumber)) {
                             error("Build number $currentBuildNumber differs from expected format. File with data for " +
                                     "target $target could be corrupted.")
@@ -584,17 +585,15 @@ fun router() {
                         }
                         if (shouldConvert) {
                             // Save data from Bintray into database.
-                            println("Should be converted")
                             val artifactoryUrl = "https://repo.labs.intellij.net/kotlin-native-benchmarks"
                             val fileName = "nativeReport.json"
                             val accessFileUrl = "$artifactoryUrl/$target/$currentBuildNumber/$fileName"
                             val infoParts = it.split(", ")
                             if (infoParts[3] == "master" || "eap" in currentBuildNumber || "release" in currentBuildNumber) {
                                 try {
-                                    println("Important run")
+                                    println("Important run $currentBuildNumber")
                                     val jsonReport = sendRequest(RequestMethod.GET, accessFileUrl).await()
                                     var report = convert(jsonReport, currentBuildNumber)
-                                    println(currentBuildNumber)
                                     val buildInfoRecord = BuildInfo(currentBuildNumber, infoParts[1], infoParts[2],
                                             CommitsList.parse(infoParts[4]), infoParts[3])
 
@@ -613,12 +612,11 @@ fun router() {
                                     summaryReport.buildNumber = currentBuildNumber
 
                                     //println(buildInfoRecord.toJson())
-                                    //println("AAAAAAAAAAA")
                                     //println(summaryJson)
                                     // Save results in database.
                                     benchmarksIndex.insert(summaryReport).then { _ ->
                                         buildInfoIndex.insert(buildInfoRecord).then { _ ->
-                                            println("Success insert")
+                                            println("Success insert ${buildInfoRecord.buildNumber}")
                                         }.catch { errorResponse ->
                                             println("Failed to insert data for build")
                                             println(errorResponse.message)
@@ -628,7 +626,7 @@ fun router() {
                                         println(errorResponse)
                                     }
                                 } catch (e: Exception) {
-                                    println(e.message)
+                                    println(e)
                                 }
                             }
                         }
