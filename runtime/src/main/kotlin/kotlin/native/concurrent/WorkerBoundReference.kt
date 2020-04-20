@@ -6,7 +6,6 @@
 package kotlin.native.concurrent
 
 import kotlin.native.internal.*
-import kotlin.native.identityHashCode
 
 @SymbolName("Kotlin_WorkerBoundReference_create")
 external private fun createWorkerBoundReference(value: Any): NativePtr
