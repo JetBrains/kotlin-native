@@ -8,8 +8,13 @@ import org.jetbrains.kotlin.ir.util.constructedClass
 import org.jetbrains.kotlin.ir.util.render
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 
-fun IrFunction.printDotGraph(cfgElementsFilter: CfgElementsFilter): String {
-    return Dotifier(name.asString(), buildCfg(cfgElementsFilter).first.decomposed()).dotify()
+fun BasicBlock.printDotGraph(name: String, edgeLabeling: (Edge) -> String? = { null }): String {
+    return Dotifier(name, this).dotify(edgeLabeling)
+}
+
+fun IrFunction.printDotGraph(cfgElementsFilter: CfgElementsFilter, edgeLabeling: (Edge) -> String? = { null }, decompose: Boolean = false): String {
+    val cfg = buildCfg(cfgElementsFilter).first.run { if (decompose) decomposed() else this }
+    return cfg.printDotGraph(name.asString(), edgeLabeling)
 }
 
 class DotGraph(
@@ -20,8 +25,9 @@ class DotGraph(
         buildString {
             appendln("digraph $name {")
             vertices.forEach { vertex ->
-                vertex.next.forEach { nextVertexName ->
-                    appendln("\t${vertex.symbolicName} -> $nextVertexName;")
+                vertex.next.forEach { (nextVertexName, nextVertexLabel) ->
+                    val label = nextVertexLabel?.let { " [label=\"$it\"]" } ?: ""
+                    appendln("\t${vertex.symbolicName} -> $nextVertexName" + label + ";")
                 }
             }
             vertices.forEach { vertex ->
@@ -34,20 +40,20 @@ class DotGraph(
 class DotVertexDescription(
         val symbolicName: String,
         val label: String,
-        val next: List<String>
+        val next: List<Pair<String, String?>>
 )
 
 class Dotifier(val name: String, val entryBlock: BasicBlock) {
     private val enumeration = entryBlock.enumerate().mapValues { "v${it.value}" }
     private val dotRepresentationVisitor = DotRepresentationVisitor()
 
-    fun dotify(): String {
+    fun dotify(edgeLabeling: (Edge) -> String?): String {
         val result = mutableListOf<DotVertexDescription>()
         entryBlock.traverseBfs(result, { vertices, block ->
             vertices += DotVertexDescription(
                     symbolicName = enumeration[block]!!,
-                    label = block.statements.joinToString("; ") { it.accept(dotRepresentationVisitor, data = null) },
-                    next = block.outgoingEdges.map { enumeration[it.to]!! }
+                    label = block.statements.joinToString("\n") { it.accept(dotRepresentationVisitor, data = null) },
+                    next = block.outgoingEdges.map { enumeration[it.to]!! to edgeLabeling(it) }
             )
         })
         return DotGraph(name, result).toString()
