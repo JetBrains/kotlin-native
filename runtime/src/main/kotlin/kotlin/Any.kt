@@ -7,6 +7,7 @@ package kotlin
 
 import kotlin.native.identityHashCode
 import kotlin.native.internal.ExportTypeInfo
+import kotlin.native.internal.debugDescription
 
 /**
  * The root of the Kotlin class hierarchy. Every Kotlin class has [Any] as a superclass.
@@ -41,10 +42,9 @@ public open class Any {
      */
     public open fun toString(): String {
         val kClass = this::class
-        val className = kClass.qualifiedName ?: kClass.simpleName ?: "<object>"
         // TODO: consider using [identityHashCode].
-        val unsignedHashCode = this.hashCode().toLong() and 0xffffffffL
-        val hashCodeStr = unsignedHashCode.toString(16)
-        return "$className@$hashCodeStr"
+        val identity = this.hashCode()
+        // Use debug description as the default string representation.
+        return debugDescription(kClass, identity)
     }
 }

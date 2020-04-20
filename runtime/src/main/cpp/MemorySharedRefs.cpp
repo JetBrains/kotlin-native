@@ -7,6 +7,7 @@
 #include "MemoryPrivate.hpp"
 #include "MemorySharedRefs.hpp"
 #include "Runtime.h"
+#include "Utils.h"
 
 namespace {
 

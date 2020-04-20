@@ -15,7 +15,9 @@
  */
 
 #include <cstdint>
+
 #include "KAssert.h"
+#include "Types.h"
 
 class SimpleMutex {
  private:
@@ -53,3 +55,14 @@ class LockGuard {
   LockGuard(const LockGuard&) = delete;
   LockGuard& operator=(const LockGuard&) = delete;
 };
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+// Returns a string describing object at `address` of type `typeInfo`.
+OBJ_GETTER(DescribeObjectForDebugging, KConstNativePtr typeInfo, KConstNativePtr address);
+
+#ifdef __cplusplus
+}  // extern "C"
+#endif
