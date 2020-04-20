@@ -347,3 +347,10 @@ fun BasicBlock.decomposed(): BasicBlock {
     traverseBfs(this, { _, bb -> bb.atomDecompose() })
     return this
 }
+
+inline fun <S, T : S> Collection<T>.reduceOrNull(
+        operation: (S, T) -> S
+): S? {
+    if (isEmpty()) return null
+    return reduce(operation)
+}
