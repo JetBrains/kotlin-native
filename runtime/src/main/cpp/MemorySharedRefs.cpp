@@ -7,7 +7,12 @@
 #include "MemoryPrivate.hpp"
 #include "MemorySharedRefs.hpp"
 #include "Runtime.h"
-#include "Utils.h"
+#include "Types.h"
+
+extern "C" {
+// Returns a string describing object at `address` of type `typeInfo`.
+OBJ_GETTER(DescribeObjectForDebugging, KConstNativePtr typeInfo, KConstNativePtr address);
+}  // extern "C"
 
 namespace {
 
