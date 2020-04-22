@@ -432,6 +432,106 @@ fun doesNotCollectCrossThreadCyclicGarbage() {
     worker.requestTermination().result
 }
 
+class C1 {
+    lateinit var c2: AtomicReference<WorkerBoundReference<C2>?>
+
+    fun dispose() {
+        c2.value = null
+    }
+}
+
+data class C2(val c1: AtomicReference<WorkerBoundReference<C1>>)
+
+fun createCyclicGarbageWithAtomics(): Triple<AtomicReference<WorkerBoundReference<C1>?>, WeakReference<C1>, WeakReference<C2>> {
+    val ref1 = WorkerBoundReference(C1())
+    val ref1Weak = WeakReference(ref1.value)
+
+    val ref2 = WorkerBoundReference(C2(AtomicReference(ref1)))
+    val ref2Weak = WeakReference(ref2.value)
+
+    ref1.value.c2 = AtomicReference(ref2)
+
+    return Triple(AtomicReference(ref1), ref1Weak, ref2Weak)
+}
+
+fun dispose(refOwner: AtomicReference<WorkerBoundReference<C1>?>) {
+    refOwner.value!!.value.dispose()
+    refOwner.value = null
+}
+
+@Test
+fun doesNotCollectCyclicGarbageWithAtomics() {
+    val (ref1Owner, ref1Weak, ref2Weak) = createCyclicGarbageWithAtomics()
+
+    ref1Owner.value = null
+    GC.collect()
+
+    // If these asserts fail, that means AtomicReference<WorkerBoundReference> managed to clean up cyclic garbage all by itself.
+    assertNotNull(ref1Weak.value)
+    assertNotNull(ref2Weak.value)
+}
+
+@Test
+fun collectCyclicGarbageWithAtomics() {
+    val (ref1Owner, ref1Weak, ref2Weak) = createCyclicGarbageWithAtomics()
+
+    dispose(ref1Owner)
+    GC.collect()
+
+    assertNull(ref1Weak.value)
+    assertNull(ref2Weak.value)
+}
+
+fun createCrossThreadCyclicGarbageWithAtomics(
+        worker: Worker
+): Triple<AtomicReference<WorkerBoundReference<C1>?>, WeakReference<C1>, WeakReference<C2>> {
+    val ref1 = WorkerBoundReference(C1())
+    val ref1Weak = WeakReference(ref1.value)
+
+    val future = worker.execute(TransferMode.SAFE, { ref1 }) { ref1 ->
+        val ref2 = WorkerBoundReference(C2(AtomicReference(ref1)))
+        Pair(ref2, WeakReference(ref2.value))
+    }
+    val (ref2, ref2Weak) = future.result
+
+    ref1.value.c2 = AtomicReference(ref2)
+
+    return Triple(AtomicReference(ref1), ref1Weak, ref2Weak)
+}
+
+@Test
+fun doesNotCollectCrossThreadCyclicGarbageWithAtomics() {
+    val worker = Worker.start()
+
+    val (ref1Owner, ref1Weak, ref2Weak) = createCrossThreadCyclicGarbageWithAtomics(worker)
+
+    ref1Owner.value = null
+    GC.collect()
+    worker.execute(TransferMode.SAFE, {}) { GC.collect() }.result
+
+    // If these asserts fail, that means AtomicReference<WorkerBoundReference> managed to clean up cyclic garbage all by itself.
+    assertNotNull(ref1Weak.value)
+    assertNotNull(ref2Weak.value)
+
+    worker.requestTermination().result
+}
+
+@Test
+fun collectCrossThreadCyclicGarbageWithAtomics() {
+    val worker = Worker.start()
+
+    val (ref1Owner, ref1Weak, ref2Weak) = createCrossThreadCyclicGarbageWithAtomics(worker)
+
+    dispose(ref1Owner)
+    GC.collect()
+    worker.execute(TransferMode.SAFE, {}) { GC.collect() }.result
+
+    assertNull(ref1Weak.value)
+    assertNull(ref2Weak.value)
+
+    worker.requestTermination().result
+}
+
 @Test
 fun concurrentAccess() {
     val workerCount = 10
