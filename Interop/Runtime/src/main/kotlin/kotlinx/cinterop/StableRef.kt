@@ -76,6 +76,6 @@ public inline class StableRef<out T : Any> @PublishedApi internal constructor(
 inline fun <reified T : Any> CPointer<*>.asStableRef(): StableRef<T> = StableRef<T>(this).also { it.get() }
 
 /**
- * Acquires the object that this handle was [created][StableRef.create] for, disposes this handle, and returns the object.
+ * Runs the given [block], passing the value of this reference as a parameter, then disposes this reference.
  */
-fun <T : Any> StableRef<T>.consume(): T = get().also { dispose() }
+inline fun <T : Any> StableRef<T>.use(block: (T) -> Unit) = also { block(it.get()) }.dispose()
