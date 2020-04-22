@@ -78,4 +78,4 @@ inline fun <reified T : Any> CPointer<*>.asStableRef(): StableRef<T> = StableRef
 /**
  * Acquires the object that this handle was [created][StableRef.create] for, disposes this handle, and returns the object.
  */
-fun <T : Any> StableRef<T>.getAndDispose(): T = get().also { dispose() }
+fun <T : Any> StableRef<T>.consume(): T = get().also { dispose() }
