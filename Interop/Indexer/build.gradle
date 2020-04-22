@@ -20,7 +20,6 @@ buildscript {
     apply from: "$rootBuildDirectory/gradle/kotlinGradlePlugin.gradle"
 
     dependencies {
-        classpath "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
         classpath "org.jetbrains.kotlin:kotlin-native-shared:$konanVersion"
     }
 }
