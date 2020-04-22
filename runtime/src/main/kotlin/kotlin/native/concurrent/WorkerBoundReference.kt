@@ -17,10 +17,10 @@ external private fun derefWorkerBoundReference(ref: NativePtr): Any?
 external private fun describeWorkerBoundReference(ref: NativePtr): String
 
 /**
- * A frozen shared reference to a Kotlin object
+ * A frozen shared reference to a Kotlin object.
  *
  * Can be safely passed between workers, but [value] can only be accessed on the worker [WorkerBoundReference] was created on,
- * unless the referred object is frozen too
+ * unless the referred object is frozen too.
  *
  * Note: Garbage collector currently cannot free any reference cycles with [WorkerBoundReference] in them.
  * To resolve such cycles consider using [AtomicReference<WorkerBoundReference?>] which can be explicitly
@@ -39,13 +39,13 @@ public class WorkerBoundReference<out T : Any>(value: T) {
 
     /**
      * The referenced value.
-     * @throws IncorrectDereferenceException if referred object is not frozen and current worker is different from the one created [this]
+     * @throws IncorrectDereferenceException if referred object is not frozen and current worker is different from the one created [this].
      */
     val value: T
         get() = valueOrNull ?: throw IncorrectDereferenceException("illegal attempt to access non-shared $valueDescription bound to `$ownerName` from `${Worker.current.name}`")
 
     /**
-     * The referenced value or null if referred object is not frozen and current worker is different from the one created [this]
+     * The referenced value or null if referred object is not frozen and current worker is different from the one created [this].
      */
     val valueOrNull: T?
         get() = @Suppress("UNCHECKED_CAST") (derefWorkerBoundReference(ptr) as T?)
