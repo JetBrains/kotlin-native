@@ -22,8 +22,9 @@ external private fun describeWorkerBoundReference(ref: NativePtr): String
  * Can be safely passed between workers, but [value] can only be accessed on the worker [WorkerBoundReference] was created on,
  * unless the referred object is frozen too
  *
- * Note: Garbage collector currently cannot free any reference cycles with [WorkerBoundReference] or [DisposableWorkerBoundReference] in them.
- * Consider using [DisposableWorkerBoundReference] to manually resolve cycles with explicit calls to [DisposableWorkerBoundReference.dispose]
+ * Note: Garbage collector currently cannot free any reference cycles with [WorkerBoundReference] in them.
+ * To resolve such cycles consider using [AtomicReference<WorkerBoundReference?>] which can be explicitly
+ * nulled out.
  */
 @Frozen
 @NoReorderFields
@@ -48,43 +49,4 @@ public class WorkerBoundReference<out T : Any>(value: T) {
      */
     val valueOrNull: T?
         get() = @Suppress("UNCHECKED_CAST") (derefWorkerBoundReference(ptr) as T?)
-}
-
-/**
- * A frozen shared reference to a Kotlin object
- *
- * Can be safely passed between workers, but [value] can only be accessed on the worker [DisposableWorkerBoundReference] was created on,
- * unless the referred object is frozen too
- * Garbage collector currently cannot free any reference cycles with [WorkerBoundReference] or [DisposableWorkerBoundReference] in them.
- * Call [dispose] manually to resolve cycles
- *
- * Note: This class has more expensive [value] getter than [WorkerBoundReference]. If you don't have reference
- * cycles with [WorkerBoundReference] or [DisposableWorkerBoundReference], consider using [WorkerBoundReference]
- */
-@Frozen
-public class DisposableWorkerBoundReference<out T : Any>(value: T) {
-
-    private val ref: AtomicReference<WorkerBoundReference<T>?> = AtomicReference(WorkerBoundReference(value))
-
-    /**
-     * Free the reference. Any call to [DisposableWorkerBoundReference.value] after that will
-     * fail with [IllegalStateException]
-     */
-    fun dispose() {
-        ref.value = null
-    }
-
-    /**
-     * The referenced value.
-     * @throws IncorrectDereferenceException if referred object is not frozen and current worker is different from the one created [this]
-     * @throws IllegalStateException if [DisposableWorkerBoundReference.dispose] was called on this reference.
-     */
-    val value: T
-        get() = ref.value?.value ?: throw IllegalStateException("illegal attempt to dereference disposed $this")
-
-    /**
-     * The referenced value or null if [this] is disposed, or if referred object is not frozen and current worker is different from the one created [this]
-     */
-    val valueOrNull: T?
-        get() = ref.value?.valueOrNull
 }
