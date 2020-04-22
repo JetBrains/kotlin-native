@@ -40,6 +40,7 @@ repositories {
     maven(buildKotlinCompilerRepo)
     maven("https://cache-redirector.jetbrains.com/maven-central")
     maven("https://kotlin.bintray.com/kotlinx")
+    maven("https://dl.bintray.com/kotlin/kotlin-dev")
 }
 
 dependencies {
@@ -60,6 +61,8 @@ dependencies {
     // Located in <repo root>/shared and always provided by the composite build.
     api("org.jetbrains.kotlin:kotlin-native-shared:$konanVersion")
     implementation("com.github.jengelman.gradle.plugins:shadow:5.1.0")
+
+    implementation("org.jetbrains.kotlinx:kotlinx-metadata-klib:0.0.1-dev-5")
 }
 
 sourceSets["main"].withConvention(KotlinSourceSet::class) {
@@ -85,6 +88,11 @@ gradlePlugin {
 
 val compileKotlin: KotlinCompile by tasks
 val compileGroovy: GroovyCompile by tasks
+
+// https://youtrack.jetbrains.com/issue/KT-37435
+compileKotlin.apply {
+    kotlinOptions.freeCompilerArgs += "-Xno-optimized-callable-references"
+}
 
 // Add Kotlin classes to a classpath for the Groovy compiler
 compileGroovy.apply {
