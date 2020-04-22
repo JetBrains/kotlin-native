@@ -19,8 +19,15 @@ project.buildscript.repositories {
 }
 
 project.buildscript.dependencies {
+    constraints {
+        classpath('org.jetbrains.kotlin:kotlin-reflect') { version { strictly kotlinVersion } }
+        classpath('org.jetbrains.kotlin:kotlin-stdlib-common') { version { strictly kotlinVersion } }
+        classpath('org.jetbrains.kotlin:kotlin-stdlib') { version { strictly kotlinVersion } }
+    }
+
     classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
 }
+
 configurations {
     kotlinCompilerClasspath
 }

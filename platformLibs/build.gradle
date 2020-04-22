@@ -22,6 +22,12 @@ buildscript {
     }
 
     dependencies {
+        constraints {
+            classpath('org.jetbrains.kotlin:kotlin-reflect') { version { strictly kotlinVersion } }
+            classpath('org.jetbrains.kotlin:kotlin-stdlib-common') { version { strictly kotlinVersion } }
+            classpath('org.jetbrains.kotlin:kotlin-stdlib') { version { strictly kotlinVersion } }
+        }
+
         classpath "org.jetbrains.kotlin:kotlin-native-gradle-plugin:$gradlePluginVersion"
         classpath "org.jetbrains.kotlin:kotlin-native-build-tools:$konanVersion"
     }

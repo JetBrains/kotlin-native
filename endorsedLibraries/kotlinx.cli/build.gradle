@@ -1,5 +1,4 @@
 import org.jetbrains.kotlin.konan.target.HostManager
-import org.jetbrains.kotlin.konan.util.PlatformLibsInfo
 
 buildscript {
     repositories {
@@ -12,6 +11,12 @@ buildscript {
     }
 
     dependencies {
+        constraints {
+            classpath('org.jetbrains.kotlin:kotlin-reflect') { version { strictly kotlinVersion } }
+            classpath('org.jetbrains.kotlin:kotlin-stdlib-common') { version { strictly kotlinVersion } }
+            classpath('org.jetbrains.kotlin:kotlin-stdlib') { version { strictly kotlinVersion } }
+        }
+
         classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
     }
 }
