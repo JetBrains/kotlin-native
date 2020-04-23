@@ -578,14 +578,13 @@ fun testExceptionMessage() {
     }
     val value = future.result
 
-    val valueDescription = A(3).toString()
     val ownerName = worker.name
-    val messagePattern = Regex("illegal attempt to access non-shared A@[a-f0-9]+ bound to `$ownerName` from `{$Worker.current.name}`")
+    val messagePattern = Regex("illegal attempt to access non-shared runtime\\.concurrent\\.worker_bound_reference0\\.A@[a-f0-9]+ bound to `$ownerName` from `${Worker.current.name}`")
 
     val exception = assertFailsWith<IncorrectDereferenceException> {
         value.value
     }
-    assertTrue(messagePattern matches exception.toString())
+    assertTrue(messagePattern matches exception.message!!)
 
     worker.requestTermination().result
 }
