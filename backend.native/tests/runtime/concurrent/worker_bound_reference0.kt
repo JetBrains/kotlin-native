@@ -10,6 +10,7 @@ import kotlin.test.*
 import kotlin.native.concurrent.*
 import kotlin.native.internal.GC
 import kotlin.native.ref.WeakReference
+import kotlin.text.Regex
 
 class A(var a: Int)
 
@@ -579,10 +580,12 @@ fun testExceptionMessage() {
 
     val valueDescription = A(3).toString()
     val ownerName = worker.name
+    val messagePattern = Regex("illegal attempt to access non-shared A@[a-f0-9]+ bound to `$ownerName` from `{$Worker.current.name}`")
 
-    assertFailsWith<IncorrectDereferenceException>("illegal attempt to access non-shared $valueDescription bound to `$ownerName` from `{$Worker.current.name}`") {
+    val exception = assertFailsWith<IncorrectDereferenceException> {
         value.value
     }
+    assertTrue(messagePattern matches exception.toString())
 
     worker.requestTermination().result
 }
