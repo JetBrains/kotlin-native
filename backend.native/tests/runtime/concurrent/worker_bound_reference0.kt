@@ -523,8 +523,12 @@ fun collectCrossThreadCyclicGarbageWithAtomics() {
     val (ref1Owner, ref1Weak, ref2Weak) = createCrossThreadCyclicGarbageWithAtomics(worker)
 
     dispose(ref1Owner)
+    // This marks C2 as gone on the main thread
     GC.collect()
+    // This cleans up all the references from the worker thread and destroys C2, but C1 is still alive.
     worker.execute(TransferMode.SAFE, {}) { GC.collect() }.result
+    // And this finally destroys C1
+    GC.collect()
 
     assertNull(ref1Weak.value)
     assertNull(ref2Weak.value)
