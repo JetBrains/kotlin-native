@@ -33,6 +33,7 @@
 #include "ObjCExportPrivate.h"
 #include "Types.h"
 #include "Utils.h"
+#include "gsl-lite.h"
 
 // Replaced in ObjCExportCodeGenerator.
 __attribute__((weak)) const char* Kotlin_ObjCInterop_uniquePrefix = nullptr;
@@ -177,13 +178,16 @@ struct KotlinObjCClassInfo {
   int exported;
 
   const char* superclassName;
-  const char** protocolNames;
+  const char** protocolNames;    /// TODO: Use span_p (missed in gsl-lite).
 
   const struct ObjCMethodDescription* instanceMethods;
   int32_t instanceMethodsNum;
+  auto instanceMethodsSpan() const { return gsl::make_span(instanceMethods, instanceMethodsNum); }
+  typedef decltype(gsl::make_span(instanceMethods, instanceMethodsNum)) Methods;
 
   const struct ObjCMethodDescription* classMethods;
   int32_t classMethodsNum;
+  auto classMethodsSpan() const { return gsl::make_span(classMethods, classMethodsNum); }
 
   int32_t* bodyOffset;
 
@@ -193,10 +197,9 @@ struct KotlinObjCClassInfo {
   void** createdClass;
 };
 
-static void AddMethods(Class clazz, const struct ObjCMethodDescription* methods, int32_t methodsNum) {
-  for (int32_t i = 0; i < methodsNum; ++i) {
-    const struct ObjCMethodDescription* method = &methods[i];
-    BOOL added = class_addMethod(clazz, sel_registerName(method->selector), (IMP)method->imp, method->encoding);
+static void AddMethods(Class clazz, const KotlinObjCClassInfo::Methods methods) {
+  for (auto& method : methods) {
+    BOOL added = class_addMethod(clazz, sel_registerName(method.selector), (IMP)method.imp, method.encoding);
     RuntimeAssert(added == YES, "Unable to add method to Objective-C class");
   }
 }
@@ -266,8 +269,8 @@ void* CreateKotlinObjCClass(const KotlinObjCClassInfo* info) {
   AddNSObjectOverride(false, newClass, Kotlin_ObjCExport_releaseAsAssociatedObjectSelector,
       (void*)&releaseAsAssociatedObjectImp);
 
-  AddMethods(newClass, info->instanceMethods, info->instanceMethodsNum);
-  AddMethods(newMetaclass, info->classMethods, info->classMethodsNum);
+  AddMethods(newClass, info->instanceMethodsSpan());
+  AddMethods(newMetaclass, info->classMethodsSpan());
 
   SetKotlinTypeInfo(newClass, Kotlin_ObjCExport_createTypeInfoWithKotlinFieldsFrom(newClass, info->typeInfo));
 
