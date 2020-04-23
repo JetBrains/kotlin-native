@@ -210,7 +210,18 @@ fun getGoldenResults(goldenResultsIndex: GoldenResultsIndex): Promise<Map<String
 }
 
 fun getGeometricMean(metricName: String, benchmarksIndex: ElasticSearchIndex, target: String? = null,
-                     buildNumbers: Iterable<String>? = null, normalize: Boolean = false): Promise<List<Pair<String, List<Double>>>> {
+                     buildNumbers: Iterable<String>? = null, normalize: Boolean = false,
+                     excludeNames: List<String> = emptyList()): Promise<List<Pair<String, List<Double>>>> {
+    val filterBenchmarks = if (excludeNames.isEmpty())
+        """
+            "match": { "benchmarksSets.benchmarks.metric": "$metricName" }
+        """
+        else """
+            "bool": { 
+                "must": { "match": { "benchmarksSets.benchmarks.metric": "$metricName" } },
+                "must_not": { "terms" : { "benchmarksSets.benchmarks.name" : [${excludeNames.map { "\"$it\"" }.joinToString()}] } }
+            }
+        """.trimIndent()
     val queryDescription = """
 {
     "_source": false,
@@ -255,14 +266,14 @@ fun getGeometricMean(metricName: String, benchmarksIndex: ElasticSearchIndex, ta
                             "aggs" : {
                                 "metric_samples": {
                                     "filters" : { 
-                                        "filters": { "samples": { "match": { "benchmarksSets.benchmarks.metric": "$metricName" } } }
+                                        "filters": { "samples": { $filterBenchmarks } }
                                     },
                                     "aggs" : {
                                         "sum_log_x": {
                                             "sum": {
                                                 "field" : "benchmarksSets.benchmarks.${if (normalize) "normalizedScore" else "score"}",
                                                 "script" : {
-                                                    "source": "Math.log(_value)"
+                                                    "source": "if (_value == 0) { 0.0 } else { Math.log(_value) }"
                                                 }
                                             }
                                         },
@@ -286,6 +297,7 @@ fun getGeometricMean(metricName: String, benchmarksIndex: ElasticSearchIndex, ta
     }
 }
 """
+println(queryDescription)
     return benchmarksIndex.search(queryDescription, listOf("aggregations")).then { responseString ->
         val dbResponse = JsonTreeParser.parse(responseString).jsonObject
         val aggregations = dbResponse.getObjectOrNull("aggregations") ?: error("Wrong response:\n$responseString")
@@ -309,6 +321,7 @@ fun getSamples(metricName: String, benchmarksIndex: ElasticSearchIndex, samples:
     val queryDescription = """
 {
   "_source": ["buildNumber"],
+  "size": 1000,
   "query": {
     "bool": {
       "must": [ 
@@ -493,6 +506,7 @@ fun router() {
         var normalize = false
         var branch: String? = null
         var type: String? = null
+        var excludeNames: List<String> = emptyList()
 
         // Parse parameters from request if it exists.
         if (request.query != undefined) {
@@ -511,29 +525,39 @@ fun router() {
             if (request.query.type != undefined) {
                 type = request.query.type
             }
+            if (request.query.exclude != undefined) {
+                excludeNames = request.query.exclude.toString().split(",").map { it.trim() }
+            }
         }
 
         getBaseBuildInfo(target, benchmarksIndex).then { idsMap ->
             getBuildsInfo(type, branch, idsMap.keys, buildInfoIndex).then { buildsInfo ->
                 val buildNumbers = buildsInfo.map { it.buildNumber }
+                println(aggregation)
                 if (aggregation == "geomean") {
                     // Get geometric mean for samples.
-                    getGeometricMean(metric, benchmarksIndex, target, buildNumbers, normalize).then { geoMeansValues ->
+                    getGeometricMean(metric, benchmarksIndex, target, buildNumbers, normalize,
+                            excludeNames).then { geoMeansValues ->
                         response.json(orderedValues(geoMeansValues))
-                    }.catch {
+                    }.catch { errorResponse ->
+                        println("Error during getting geometric mean")
+                        println(errorResponse)
                         response.sendStatus(400)
                     }
                 } else {
                     getSamples(metric, benchmarksIndex, samples, target, buildNumbers, normalize).then { geoMeansValues ->
                         response.json(orderedValues(geoMeansValues))
                     }.catch {
+                        println("Error during getting samples")
                         response.sendStatus(400)
                     }
                 }
             }.catch {
+                println("Error during getting builds information")
                 response.sendStatus(400)
             }
         }.catch {
+            println("Error during getting builds numbers")
             response.sendStatus(400)
         }
     })
@@ -573,6 +597,7 @@ fun router() {
                 var shouldConvert = buildNumber?.let { false } ?: true
                 val goldenResultPromise = getGoldenResults(goldenIndex)
                 val goldenResults = goldenResultPromise.await()
+                val buildsSet = mutableSetOf<String>()
                 buildsDescription.forEach {
                     if (!it.isEmpty()) {
                         val currentBuildNumber = it.substringBefore(',')
@@ -588,14 +613,23 @@ fun router() {
                             val artifactoryUrl = "https://repo.labs.intellij.net/kotlin-native-benchmarks"
                             val fileName = "nativeReport.json"
                             val accessFileUrl = "$artifactoryUrl/$target/$currentBuildNumber/$fileName"
+                            val extrenalFileName = if (target == "Linux") "externalReport.json" else "spaceFrameworkReport.json"
+                            val accessExternalFileUrl = "$artifactoryUrl/$target/$currentBuildNumber/$extrenalFileName"
                             val infoParts = it.split(", ")
-                            if (infoParts[3] == "master" || "eap" in currentBuildNumber || "release" in currentBuildNumber) {
+                            if ((infoParts[3] == "master" || "eap" in currentBuildNumber || "release" in currentBuildNumber) &&
+                                    currentBuildNumber !in buildsSet){
                                 try {
                                     println("Important run $currentBuildNumber")
+                                    buildsSet.add(currentBuildNumber)
                                     val jsonReport = sendRequest(RequestMethod.GET, accessFileUrl).await()
                                     var report = convert(jsonReport, currentBuildNumber)
                                     val buildInfoRecord = BuildInfo(currentBuildNumber, infoParts[1], infoParts[2],
                                             CommitsList.parse(infoParts[4]), infoParts[3])
+                                    val externalJsonReport = sendOptionalRequest(RequestMethod.GET, accessExternalFileUrl).await()
+                                    externalJsonReport?.let {
+                                        var externalReport = convert(externalJsonReport, currentBuildNumber)
+                                        report = report + externalReport
+                                    }
 
                                     val bundleSize = if (infoParts[10] != "-") infoParts[10] else null
                                     if (bundleSize != null) {

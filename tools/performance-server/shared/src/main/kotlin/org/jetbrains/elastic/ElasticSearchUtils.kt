@@ -21,8 +21,9 @@ enum class RequestMethod {
     POST, GET, PUT
 }
 
-fun sendRequest(method: RequestMethod, url: String, user: String? = null, password: String? = null,
-                acceptJsonContentType: Boolean = true, body: String? = null): Promise<String> {
+internal fun <T: String?> sendBaseRequest(method: RequestMethod, url: String, user: String? = null, password: String? = null,
+                             acceptJsonContentType: Boolean = true, body: String? = null,
+                             errorHandler:(url: String, response: dynamic) -> Nothing?): Promise<T> {
     val request = require("node-fetch")
     val headers = mutableListOf<Pair<String, String>>()
     if (user != null && password != null) {
@@ -39,10 +40,24 @@ fun sendRequest(method: RequestMethod, url: String, user: String? = null, passwo
                     "body" to body
             )
     ).then { response ->
-        if (!response.ok)
-            error("Error during getting response from $url\n" +
-                    "${response.text()}")
-        else
+        if (!response.ok) {
+            errorHandler(url, response)
+        } else {
             response.text()
+        }
     }
 }
+
+fun sendRequest(method: RequestMethod, url: String, user: String? = null, password: String? = null,
+                acceptJsonContentType: Boolean = true, body: String? = null): Promise<String> =
+    sendBaseRequest<String>(method, url, user, password, acceptJsonContentType, body) { url, response ->
+        error ("Error during getting response from $url\n${response.text()}")
+    }
+
+
+fun sendOptionalRequest(method: RequestMethod, url: String, user: String? = null, password: String? = null,
+                acceptJsonContentType: Boolean = true, body: String? = null): Promise<String?> =
+    sendBaseRequest<String?>(method, url, user, password, acceptJsonContentType, body) { url, response ->
+        println ("Error during getting response from $url\n${response.text()}")
+        null
+    }

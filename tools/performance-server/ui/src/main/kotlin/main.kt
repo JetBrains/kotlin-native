@@ -30,7 +30,7 @@ fun sendGetRequest(url: String) = window.fetch(url, RequestInit("GET")).then { r
                     "${response}")
         else
             response.text()
-    }
+    }.then { text -> text }
 
 // Get groups of builds for different zoom values.
 fun getBuildsGroup(builds: List<Build?>) = buildsNumberToShow?.let {
@@ -157,7 +157,7 @@ fun customizeChart(chart: dynamic, chartContainer: String, jquerySelector: dynam
                 val linkToDetailedInfo = "https://kotlin-native-performance.labs.jb.gg/?report=bintray:" +
                         "${currentBuild.buildNumber}:${parameters["target"]}:nativeReport.json" +
                         "${previousBuild?.let {
-                        "&compareTo=artifactory:${buildsGroup.get(data.index - 1).buildNumber}:${parameters["target"]}:nativeReport.json"
+                        "&compareTo=artifactory:${previousBuild.buildNumber}:${parameters["target"]}:nativeReport.json"
                         } ?: ""}"
                 val information = buildString {
                     append("<a href=\"$linkToDetailedInfo\">${currentBuild.buildNumber}</a><br>")
@@ -284,20 +284,31 @@ fun main(args: Array<String>) {
         }
     })
 
+    val platformSpecificBenchs = if (parameters["target"] == "Mac_OS_X") ",FrameworkBenchmarksAnalyzer,circlet_iosX64" else
+        if (parameters["target"] == "Linux") ",kotlinx.coroutines" else ""
+
     // Collect information for charts library.
-    val valuesToShow = mapOf("EXECUTION_TIME" to mapOf(
+    val valuesToShow = mapOf("EXECUTION_TIME" to arrayOf(mapOf(
                 "normalize" to "true"
-            ),
-            "COMPILE_TIME" to mapOf(
-                "samples" to "HelloWorld,Videoplayer${if (parameters["target"] == "Mac_OS_X") ",FrameworkBenchmarksAnalyzer" else ""}",
+            )),
+            "COMPILE_TIME" to arrayOf(mapOf(
+                "samples" to "HelloWorld,Videoplayer$platformSpecificBenchs",
                 "agr" to "samples"
-            ),
-            "CODE_SIZE" to mapOf(
+            )),
+            "CODE_SIZE" to arrayOf(mapOf(
                     "normalize" to "true",
-                    "samples" to "all${if (parameters["target"] == "Mac_OS_X") ",FrameworkBenchmarksAnalyzer" else ""}"
-            ),
-            "BUNDLE_SIZE" to mapOf("samples" to "Kotlin/Native",
-                                   "agr" to "samples")
+                    "exclude" to if (parameters["target"] == "Linux")
+                        "kotlinx.coroutines"
+                    else if (parameters["target"] == "Mac_OS_X")
+                        "circlet_iosX64"
+                    else ""
+            ), mapOf(
+                    "normalize" to "true",
+                    "agr" to "samples",
+                    "samples" to platformSpecificBenchs.removePrefix(",")
+            )),
+            "BUNDLE_SIZE" to arrayOf(mapOf("samples" to "Kotlin/Native",
+                                   "agr" to "samples"))
     )
 
     var execData = listOf<String>() to listOf<List<Double?>>()
@@ -313,60 +324,70 @@ fun main(args: Array<String>) {
             getChartOptions(arrayOf("Geometric Mean"), "Normalized time"))
     val compileChart = Chartist.Line("#compile_chart",
             getChartData(listOf(), listOf(), stageToShow, buildsNumberToShow),
-            getChartOptions(valuesToShow["COMPILE_TIME"]!!["samples"]!!.split(',').toTypedArray(),
+            getChartOptions(valuesToShow["COMPILE_TIME"]!![0]!!["samples"]!!.split(',').toTypedArray(),
                     "Time, milliseconds"))
     val codeSizeChart = Chartist.Line("#codesize_chart",
             getChartData(listOf(), listOf(), stageToShow, buildsNumberToShow, sizeClassNames),
-            getChartOptions(arrayOf("Geometric Mean") +
-                    if (parameters["target"] == "Mac_OS_X") arrayOf("FrameworkBenchmarksAnalyzer") else arrayOf(),
+            getChartOptions(arrayOf("Geometric Mean") + platformSpecificBenchs.split(',').filter{ it.isNotEmpty() },
                     "Normalized size",
                     arrayOf("ct-series-3", "ct-series-4")))
     val bundleSizeChart = Chartist.Line("#bundlesize_chart",
             getChartData(listOf(), listOf(), stageToShow, buildsNumberToShow, sizeClassNames),
             getChartOptions(arrayOf("Bundle size"), "Size, MB", arrayOf("ct-series-3")))
 
-    val descriptionUrl = "$serverUrl/buildsDesc/${parameters["target"]}/${parameters["type"]}" +
-            "${if (parameters["branch"] != "all") "?branch=${parameters["branch"]}" else ""}"
+    val descriptionUrl = "$serverUrl/buildsDesc/${parameters["target"]}?type=${parameters["type"]}" +
+            "${if (parameters["branch"] != "all") "&branch=${parameters["branch"]}" else ""}"
 
     val metricUrl = "$serverUrl/metricValue/${parameters["target"]}/"
 
-    valuesToShow.map { (metric, settings) ->
-        val getParameters = with(StringBuilder()) {
-            if (settings.isNotEmpty()) {
-                append("?")
+    valuesToShow.map { (metric, arrayOfSettings) ->
+        val resultValues = arrayOfSettings.map { settings ->
+            val getParameters = with(StringBuilder()) {
+                if (settings.isNotEmpty()) {
+                    append("?")
+                }
+                var prefix = ""
+                settings.forEach { (key, value) ->
+                    if (value.isNotEmpty()) {
+                        append("$prefix$key=$value")
+                        prefix = "&"
+                    }
+                }
+                toString()
             }
-            var prefix = ""
-            settings.forEach { (key, value) ->
-                append("$prefix$key=$value")
-                prefix = "&"
-            }
-            toString()
-        }
-        val branchParameter = if (parameters["branch"] != "all")
-            (if (getParameters.isEmpty()) "?" else "&") + "branch=${parameters["branch"]}"
+            val branchParameter = if (parameters["branch"] != "all")
+                (if (getParameters.isEmpty()) "?" else "&") + "branch=${parameters["branch"]}"
             else ""
 
-        val url = "$metricUrl$metric$getParameters${ 
-            if (parameters["type"] != "all") 
-                (if (getParameters.isEmpty()) "?" else "&") + "type=${parameters["type"]}"
-            else ""
-        }"
+            val url = "$metricUrl$metric$getParameters$branchParameter${
+                    if (parameters["type"] != "all")
+                        (if (getParameters.isEmpty() && branchParameter.isEmpty()) "?" else "&") + "type=${parameters["type"]}"
+                    else ""
+                }"
+            sendGetRequest(url)
+        }.toTypedArray()
 
         // Get metrics values for charts
-        sendGetRequest(url).then { response ->
-            val results = (JsonTreeParser.parse(response) as JsonArray).map {
-                (it as JsonObject).getPrimitive("first").content to
-                        it.getArray("second").map {(it as JsonPrimitive).double}
-            }
+        Promise.all(resultValues).then { responses ->
+            val valuesList = responses.map { response ->
+                val results = (JsonTreeParser.parse(response) as JsonArray).map {
+                    (it as JsonObject).getPrimitive("first").content to
+                            it.getArray("second").map { (it as JsonPrimitive).doubleOrNull }
+                }
 
-            /*val results = response.toString().split("],[").map {
+                /*val results = response.toString().split("],[").map {
                 it.replace("\\]|\\[".toRegex(), "").split(',')
             }*/
-            println(results)
-            val labels = results.map{ it.first }
-            println(labels)
-            val values = results[0]?.second?.size?.let{ (0..it-1).map{ i -> results.map{ it.second[i] }} } ?: emptyList()
-            println(values)
+                println(results)
+                val labels = results.map { it.first }
+                val values = results[0]?.second?.size?.let { (0..it - 1).map { i -> results.map { it.second[i] } } }
+                        ?: emptyList()
+                println("Inside $values")
+                labels to values
+            }
+            val labels = valuesList[0].first
+            val values = valuesList.map { it.second }.reduce { acc, valuesPart -> acc + valuesPart }
+            println("result $values")
 
             when (metric) {
                 // Update chart with gotten data.
