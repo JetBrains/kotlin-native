@@ -22,6 +22,8 @@
 #include "Common.h"
 #include "Names.h"
 
+#include "gsl-lite.h"
+
 #if KONAN_TYPE_INFO_HAS_WRITABLE_PART
 struct WritableTypeInfo;
 #endif
@@ -109,16 +111,23 @@ struct TypeInfo {
     int32_t instanceSize_;
     // Must be pointer to Any for array classes, and null for Any.
     const TypeInfo* superType_;
+
     // All object reference fields inside this object.
     const int32_t* objOffsets_;
     // Count of object reference fields inside this object.
     // 1 for kotlin.Array to mark it as non-leaf.
     int32_t objOffsetsCount_;
+	auto fieldOffsets() const { return gsl::span<const int32_t>(objOffsets_, (size_t)objOffsetsCount_); }
+
     const TypeInfo* const* implementedInterfaces_;
     int32_t implementedInterfacesCount_;
+	auto implementedInterfaces() const { return gsl::span<TypeInfo const* const>(implementedInterfaces_, implementedInterfacesCount_); }
+
     // Null for abstract classes and interfaces.
     const MethodTableRecord* openMethods_;
     uint32_t openMethodsCount_;
+    auto openMethods() const { return gsl::span<MethodTableRecord const>(openMethods_, openMethodsCount_); }
+
     int32_t interfaceTableSize_;
     InterfaceTableRecord const* interfaceTable_;
 
