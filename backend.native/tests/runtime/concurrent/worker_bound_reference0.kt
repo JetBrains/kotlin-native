@@ -568,3 +568,21 @@ fun concurrentAccess() {
         worker.requestTermination().result
     }
 }
+
+@Test
+fun testExceptionMessage() {
+    val worker = Worker.start()
+    val future = worker.execute(TransferMode.SAFE, {}) {
+        WorkerBoundReference(A(3))
+    }
+    val value = future.result
+
+    val valueDescription = A(3).toString()
+    val ownerName = worker.name
+
+    assertFailsWith<IncorrectDereferenceException>("illegal attempt to access non-shared $valueDescription bound to `$ownerName` from `{$Worker.current.name}`") {
+        value.value
+    }
+
+    worker.requestTermination().result
+}
