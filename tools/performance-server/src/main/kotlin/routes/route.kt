@@ -209,6 +209,87 @@ fun getGoldenResults(goldenResultsIndex: GoldenResultsIndex): Promise<Map<String
     }
 }
 
+fun getFailuresNumber(benchmarksIndex: ElasticSearchIndex, target: String? = null,
+                     buildNumbers: Iterable<String>? = null): Promise<Map<String, Int>> {
+    val queryDescription = """
+{
+    "_source": false,
+    ${target?.let {"""
+    "query": {
+        "bool": {
+            "must": [
+                {
+                    "nested": {
+                        "path" : "env",
+                        "query" : {
+                            "nested" : {
+                                "path" : "env.machine",
+                                "query" : {
+                                    "bool": {"must": [{"match": { "env.machine.os": "$target" }}]}
+                                }
+                            }
+                        }
+                    }
+                }
+            ]
+        }
+    }, """} ?: ""}
+    ${buildNumbers?.let{"""
+    "aggs" : {
+        "builds": {
+            "filters" : { 
+                "filters": { 
+                    ${buildNumbers.map {"\"$it\": { \"match\" : { \"buildNumber\" : \"$it\" }}"}.joinToString(",\n")}
+                }
+            },"""} ?: ""}
+            "aggs" : {
+                "benchs" : {
+                    "nested" : {
+                        "path" : "benchmarksSets"
+                    },
+                    "aggs" : {
+                        "metric_build" : {
+                            "nested" : {
+                                "path" : "benchmarksSets.benchmarks"
+                            },
+                            "aggs" : {
+                                "metric_samples": {
+                                    "filters" : { 
+                                        "filters": { "samples": { "match": { "benchmarksSets.benchmarks.status": "FAILED" } } }
+                                    },
+                                    "aggs" : {
+                                        "failed_count": {
+                                            "value_count": {
+                                                "field" : "benchmarksSets.benchmarks.score"
+                                            }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+               ${buildNumbers?.let{""" }
+            }"""} ?: ""}
+        }
+    }
+}
+"""
+    return benchmarksIndex.search(queryDescription, listOf("aggregations")).then { responseString ->
+        val dbResponse = JsonTreeParser.parse(responseString).jsonObject
+        val aggregations = dbResponse.getObjectOrNull("aggregations") ?: error("Wrong response:\n$responseString")
+        buildNumbers?.let {
+            val buckets = aggregations.getObjectOrNull("builds")?.getObjectOrNull("buckets")
+                    ?: error("Wrong response:\n$responseString")
+            buildNumbers.map {
+                it to buckets.getObject(it).getObject("benchs").getObject("metric_build").
+                getObject("metric_samples").getObject("buckets").getObject("samples").
+                getObject("failed_count").getPrimitive("value").int
+            }.toMap()
+        } ?: listOf("golden" to aggregations.getObject("benchs").getObject("metric_build").getObject("metric_samples").
+        getObject("buckets").getObject("samples").getObject("failed_count").getPrimitive("value").int).toMap()
+    }
+}
+
 fun getGeometricMean(metricName: String, benchmarksIndex: ElasticSearchIndex, target: String? = null,
                      buildNumbers: Iterable<String>? = null, normalize: Boolean = false,
                      excludeNames: List<String> = emptyList()): Promise<List<Pair<String, List<Double>>>> {
@@ -297,7 +378,7 @@ fun getGeometricMean(metricName: String, benchmarksIndex: ElasticSearchIndex, ta
     }
 }
 """
-println(queryDescription)
+
     return benchmarksIndex.search(queryDescription, listOf("aggregations")).then { responseString ->
         val dbResponse = JsonTreeParser.parse(responseString).jsonObject
         val aggregations = dbResponse.getObjectOrNull("aggregations") ?: error("Wrong response:\n$responseString")
@@ -488,7 +569,18 @@ fun router() {
 
         getBaseBuildInfo(target, benchmarksIndex).then { idsMap ->
             getBuildsInfo(type, branch, idsMap.keys, buildInfoIndex).then { buildsInfo ->
-                response.json(buildsInfo)
+                val buildNumbers = buildsInfo.map { it.buildNumber }
+                // Get number of failed benchmarks for each build.
+                getFailuresNumber(benchmarksIndex, target, buildNumbers).then { failures ->
+                    response.json(buildsInfo.map {
+                        Build(it.buildNumber, it.startTime, it.endTime, it.branch,
+                                it.commitsList.serializeFields(), failures[it.buildNumber] ?: 0)
+                    })
+                }.catch { errorResponse ->
+                    println("Error during getting failures numbers")
+                    println(errorResponse)
+                    response.sendStatus(400)
+                }
             }.catch {
                 response.sendStatus(400)
             }
@@ -533,7 +625,7 @@ fun router() {
         getBaseBuildInfo(target, benchmarksIndex).then { idsMap ->
             getBuildsInfo(type, branch, idsMap.keys, buildInfoIndex).then { buildsInfo ->
                 val buildNumbers = buildsInfo.map { it.buildNumber }
-                println(aggregation)
+
                 if (aggregation == "geomean") {
                     // Get geometric mean for samples.
                     getGeometricMean(metric, benchmarksIndex, target, buildNumbers, normalize,

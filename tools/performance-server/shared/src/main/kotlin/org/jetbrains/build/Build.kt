@@ -9,7 +9,7 @@ import org.jetbrains.report.*
 import org.jetbrains.report.json.*
 
 data class Build(val buildNumber: String, val startTime: String, val finishTime: String, val branch: String,
-                 val commits: String, val buildType: String, val failuresNumber: Int) {
+                 val commits: String, val failuresNumber: Int) {
 
      companion object: EntityFromJsonFactory<Build> {
          override fun create(data: JsonElement): Build {
@@ -19,9 +19,8 @@ data class Build(val buildNumber: String, val startTime: String, val finishTime:
                  val finishTime = elementToString(data.getRequiredField("finishTime"), "finishTime").replace("\"", "")
                  val branch = elementToString(data.getRequiredField("branch"), "branch").replace("\"", "")
                  val commits = elementToString(data.getRequiredField("commits"), "commits").replace("\"|\\[|\\]".toRegex(), "")
-                 val buildType = elementToString(data.getRequiredField("buildType"), "buildType")
                  val failuresNumber = elementToInt(data.getRequiredField("failuresNumber"), "failuresNumber")
-                 return Build(buildNumber, startTime, finishTime, branch, commits, buildType, failuresNumber)
+                 return Build(buildNumber, startTime, finishTime, branch, commits, failuresNumber)
              } else {
                  error("Top level entity is expected to be an object. Please, check origin files.")
              }
