@@ -46,8 +46,7 @@ dependencies {
     compileOnly(gradleApi())
 
     implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
-    implementation("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
+
     implementation("com.ullink.slack:simpleslackapi:1.2.0")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-runtime:0.20.0-1.4.0-dev-5730") {
         exclude("org.jetbrains.kotlin", "kotlin-stdlib")
@@ -63,6 +62,14 @@ dependencies {
     // Located in <repo root>/shared and always provided by the composite build.
     api("org.jetbrains.kotlin:kotlin-native-shared:$konanVersion")
     implementation("com.github.jengelman.gradle.plugins:shadow:5.1.0")
+
+    constraints {
+        configurations.forEach { conf ->
+            add(conf.name, "org.jetbrains.kotlin:kotlin-stdlib") { version { strictly(kotlinVersion) } }
+            add(conf.name, "org.jetbrains.kotlin:kotlin-reflect") { version { strictly(kotlinVersion) } }
+            add(conf.name, "org.jetbrains.kotlin:kotlin-stdlib-common") { version { strictly(kotlinVersion) } }
+        }
+    }
 }
 
 sourceSets["main"].withConvention(KotlinSourceSet::class) {
@@ -101,4 +108,9 @@ kotlinCompilerPluginClasspath.resolutionStrategy.eachDependency {
     if (requested.group == "org.jetbrains.kotlin" && requested.name == "kotlin-serialization") {
         useVersion(buildKotlinVersion)
     }
+}
+
+val kotlinCompilerClasspath by configurations.getting
+kotlinCompilerClasspath.resolutionStrategy {
+    failOnVersionConflict()
 }

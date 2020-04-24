@@ -8,7 +8,9 @@ buildscript {
     }
 
     dependencies {
-        classpath "org.jetbrains.kotlin:kotlin-native-gradle-plugin:$gradlePluginVersion"
+        classpath("org.jetbrains.kotlin:kotlin-native-gradle-plugin:$gradlePluginVersion") {
+            transitive = false
+        }
     }
 }
 

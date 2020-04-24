@@ -67,9 +67,21 @@ tasks.jar {
     archiveFileName.set("shared.jar")
 }
 
+configurations.all {
+    resolutionStrategy {
+        failOnVersionConflict()
+    }
+}
+
 dependencies {
-    implementation("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
-    implementation("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
-    api("org.jetbrains.kotlin:kotlin-native-utils:$kotlinVersion")
-    api("org.jetbrains.kotlin:kotlin-util-klib:$kotlinVersion")
+    implementation("org.jetbrains.kotlin:kotlin-native-utils:$kotlinVersion")
+    implementation("org.jetbrains.kotlin:kotlin-util-klib:$kotlinVersion")
+
+    constraints {
+        configurations.forEach { conf ->
+            add(conf.name, "org.jetbrains.kotlin:kotlin-stdlib") { version { strictly(kotlinVersion) } }
+            add(conf.name, "org.jetbrains.kotlin:kotlin-reflect") { version { strictly(kotlinVersion) } }
+            add(conf.name, "org.jetbrains.kotlin:kotlin-stdlib-common") { version { strictly(kotlinVersion) } }
+        }
+    }
 }
