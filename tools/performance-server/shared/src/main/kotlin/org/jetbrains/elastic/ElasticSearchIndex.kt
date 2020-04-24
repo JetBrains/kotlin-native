@@ -22,7 +22,7 @@ data class Commit(val revision: String, val developer: String): JsonSerializable
         fun parse(description: String) = if (description != "...") {
             description.split(" by ").let {
                 val (currentRevision, currentDeveloper) = it
-                Commit(currentRevision, currentRevision)
+                Commit(currentRevision, currentDeveloper)
             }
         } else {
             Commit("unknown", "unknown")

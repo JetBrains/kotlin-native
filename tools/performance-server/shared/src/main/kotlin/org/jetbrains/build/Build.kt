@@ -18,7 +18,7 @@ data class Build(val buildNumber: String, val startTime: String, val finishTime:
                  val startTime = elementToString(data.getRequiredField("startTime"), "startTime").replace("\"", "")
                  val finishTime = elementToString(data.getRequiredField("finishTime"), "finishTime").replace("\"", "")
                  val branch = elementToString(data.getRequiredField("branch"), "branch").replace("\"", "")
-                 val commits = elementToString(data.getRequiredField("commits"), "commits").replace("\"|\\[|\\]".toRegex(), "")
+                 val commits = elementToString(data.getRequiredField("commits"), "commits")
                  val failuresNumber = elementToInt(data.getRequiredField("failuresNumber"), "failuresNumber")
                  return Build(buildNumber, startTime, finishTime, branch, commits, failuresNumber)
              } else {

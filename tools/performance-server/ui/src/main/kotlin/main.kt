@@ -24,6 +24,8 @@ external object Chartist {
     fun Line(query: String, data: dynamic, options: dynamic): dynamic
 }
 
+data class Commit(val revision: String, val developer: String)
+
 fun sendGetRequest(url: String) = window.fetch(url, RequestInit("GET")).then { response ->
         if (!response.ok)
             error("Error during getting response from $url\n" +
@@ -169,12 +171,19 @@ fun customizeChart(chart: dynamic, chartContainer: String, jquerySelector: dynam
                     append("date: ${currentBuild.date}<br>")
                     append("time: ${currentBuild.formattedStartTime}-${currentBuild.formattedFinishTime}<br>")
                     append("Commits:<br>")
-                    val commitsList = currentBuild.commits.split(";")
-                    commitsList.forEach {
-                        if (it.isNotEmpty())
-                            append("${it.substringBefore("by").substring(0, 7)} by ${it.substringAfter("by ")}<br>")
+                    val commitsList = (JsonTreeParser.parse("{${currentBuild.commits}}") as JsonObject).getArray("commits").map {
+                        Commit(
+                                (it as JsonObject).getPrimitive("revision").content,
+                                (it as JsonObject).getPrimitive("developer").content
+                        )
                     }
-
+                    val commits = if (commitsList.size > 3) commitsList.slice(0..2) else commitsList
+                    commits.forEach {
+                        append("${it.revision.substring(0, 7)} by ${it.developer}<br>")
+                    }
+                    if (commitsList.size > 3) {
+                        append("...")
+                    }
                 }
                 element._node.setAttribute("title", information)
                 element._node.setAttribute("data-chart-tooltip", chartContainer)
