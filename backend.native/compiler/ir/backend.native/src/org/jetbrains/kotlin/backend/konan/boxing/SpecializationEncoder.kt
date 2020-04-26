@@ -1,7 +1,13 @@
 package org.jetbrains.kotlin.backend.konan.boxing
 
+import org.jetbrains.kotlin.backend.common.ir.classIfConstructor
 import org.jetbrains.kotlin.backend.konan.Context
+import org.jetbrains.kotlin.ir.declarations.IrClass
+import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.declarations.IrTypeParameter
 import org.jetbrains.kotlin.ir.declarations.IrTypeParametersContainer
+import org.jetbrains.kotlin.ir.expressions.IrClassReference
+import org.jetbrains.kotlin.ir.expressions.IrVararg
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.util.nameForIrSerialization
@@ -23,6 +29,19 @@ internal class SpecializationEncoder(val context: Context) {
 
     fun encode(declaration: IrTypeParametersContainer, mapping: Map<IrTypeParameterSymbol, IrType>): String? {
         return getCode(declaration, mapping)?.let { "${declaration.nameForIrSerialization}-$it" }
+    }
+
+    fun encode(declaration: IrTypeParametersContainer, types: List<IrType?>): String? {
+        var num = 0
+        types.forEach { type ->
+            num *= radix
+            num += if (type == null) {
+                1
+            } else {
+                primitiveTypeEncodings.getOrElse(type) { return null }
+            }
+        }
+        return "${declaration.nameForIrSerialization}-$num"
     }
 
     private fun getCode(declaration: IrTypeParametersContainer, mapping: Map<IrTypeParameterSymbol, IrType>): Int? {
@@ -51,6 +70,54 @@ internal class SpecializationEncoder(val context: Context) {
             num /= radix
         }
         require(result.all { it == null || it in primitiveTypes })
+        return result.reversed()
+    }
+}
+
+class RequestedSpecializationData(
+        val annotatedTypeParameters: List<IrTypeParameter>,
+        val possibleCombinations: List<List<IrType?>>
+)
+
+fun IrClass.extractSpecializationTypes(): RequestedSpecializationData {
+    val annotation = annotations.find { it.symbol.owner.classIfConstructor.nameForIrSerialization.asString() == "SpecializedClass" }
+            ?: return RequestedSpecializationData(emptyList(), emptyList())
+    val types = (annotation.getValueArgument(0) as IrVararg).elements.map { (it as IrClassReference).classType }
+    return RequestedSpecializationData(typeParameters, getAllPossibleTypeCombinations(List(typeParameters.size) { types }))
+}
+
+fun IrFunction.extractSpecializationTypes(): RequestedSpecializationData {
+    val annotatedTypeParameters = mutableListOf<IrTypeParameter>()
+    fun IrTypeParameter.getRequestedSpecializationTypes(): List<IrType?> {
+        val annotation = annotations.find { it.symbol.owner.classIfConstructor.nameForIrSerialization.asString() == "Specialized" }
+                ?: return emptyList()
+        annotatedTypeParameters += this
+        val types: List<IrType?> = (annotation.getValueArgument(0) as IrVararg).elements.map { (it as IrClassReference).classType }
+        return types.plus(null as IrType?)
+    }
+    return RequestedSpecializationData(annotatedTypeParameters, getAllPossibleTypeCombinations(List(typeParameters.size) { typeParameters[it].getRequestedSpecializationTypes() }.filter { it.isNotEmpty() }))
+}
+
+// Cross product of given lists:
+// [[A, null, B], [null, C]] --> [[A, null], [A, C], [null, null], [null, C], [B, null], [B, C]]
+private fun getAllPossibleTypeCombinations(lists: List<List<IrType?>>): List<List<IrType?>> {
+    fun getTypeCombinations(list1: List<List<IrType?>>, list2: List<IrType?>): List<List<IrType?>> {
+        val result = mutableListOf<List<IrType?>>()
+        for (types in list1) {
+            for (newType in list2) {
+                result += types + newType
+            }
+        }
         return result
+    }
+    return when (lists.size) {
+        0 -> emptyList()
+        else -> {
+            var result = lists.first().map { listOf(it) }
+            lists.drop(1).forEach {
+                result = getTypeCombinations(result, it)
+            }
+            result
+        }
     }
 }

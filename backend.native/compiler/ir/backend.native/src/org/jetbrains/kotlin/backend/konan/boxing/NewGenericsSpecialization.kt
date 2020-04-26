@@ -1,7 +1,6 @@
 package org.jetbrains.kotlin.backend.konan.boxing
 
 import org.jetbrains.kotlin.backend.common.FileLoweringPass
-import org.jetbrains.kotlin.backend.common.ir.classIfConstructor
 import org.jetbrains.kotlin.backend.common.lower.IrBuildingTransformer
 import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.common.lower.irBlockBody
@@ -11,13 +10,17 @@ import org.jetbrains.kotlin.builtins.PrimitiveType
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.irBlockBody
 import org.jetbrains.kotlin.ir.declarations.*
-import org.jetbrains.kotlin.ir.expressions.*
+import org.jetbrains.kotlin.ir.expressions.IrExpression
+import org.jetbrains.kotlin.ir.expressions.IrFunctionExpression
+import org.jetbrains.kotlin.ir.expressions.IrStatementContainer
 import org.jetbrains.kotlin.ir.symbols.IrTypeParameterSymbol
 import org.jetbrains.kotlin.ir.types.IrType
 import org.jetbrains.kotlin.ir.types.getClass
 import org.jetbrains.kotlin.ir.util.addChild
-import org.jetbrains.kotlin.ir.util.nameForIrSerialization
 import org.jetbrains.kotlin.ir.util.statements
+import kotlin.collections.component1
+import kotlin.collections.component2
+import kotlin.collections.set
 
 internal class NewGenericsSpecialization(val context: Context) : FileLoweringPass {
 
@@ -54,6 +57,8 @@ internal class NewGenericsSpecialization(val context: Context) : FileLoweringPas
             private val newSpecializations = mutableMapOf<IrDeclarationParent, MutableMap<IrTypeParametersContainer, IrTypeParametersContainer>>()
 
             private val typeParametersMapping = mutableMapOf<IrTypeParameterSymbol, IrType>()
+
+            private val localTypeParametersMapping = mutableMapOf<IrTypeParameterSymbol, IrType?>()
         }
 
         private val encoder = SpecializationEncoder(context)
@@ -141,18 +146,22 @@ internal class NewGenericsSpecialization(val context: Context) : FileLoweringPas
 
         // TODO implement many-type-parameters support
         private fun IrTypeParametersContainer.produceSpecializations() {
-            if (typeParameters.size != 1) return
-            val requestedSpecializationTypes = when (this) {
-                is IrClass -> getRequestedSpecializationTypes()
-                else -> typeParameters.first().getRequestedSpecializationTypes()
+            val requestedSpecializationData = when (this) {
+                is IrClass -> extractSpecializationTypes()
+                is IrFunction -> extractSpecializationTypes()
+                else -> throw AssertionError()
             }
-            for (type in requestedSpecializationTypes) {
-                val mapping = mapOf(typeParameters.first().symbol to type)
-                produceOneSpecialization(mapping, listOf(type))
+            val typeParametersToAnnotate = requestedSpecializationData.annotatedTypeParameters
+            // Filter purpose is: list with all nulls is equivalent to original function
+            for (nextCombination in requestedSpecializationData.possibleCombinations.filter { it.any { it != null } }) {
+                val mapping = typeParametersToAnnotate.zip(nextCombination)
+                mapping.forEach { (parameter, type) -> localTypeParametersMapping[parameter.symbol] = type }
+                produceOneSpecialization(localTypeParametersMapping, localTypeParametersMapping.values.toList())
+                mapping.forEach { (parameter, _) -> localTypeParametersMapping.remove(parameter.symbol) }
             }
         }
 
-        private fun IrTypeParametersContainer.produceOneSpecialization(mapping: Map<IrTypeParameterSymbol, IrType>, concreteTypes: List<IrType?>) {
+        private fun IrTypeParametersContainer.produceOneSpecialization(mapping: Map<IrTypeParameterSymbol, IrType?>, concreteTypes: List<IrType?>) {
             val copier = NewTypeParameterEliminator(
                     typeParametersMapping,
                     mapping,
@@ -165,28 +174,12 @@ internal class NewGenericsSpecialization(val context: Context) : FileLoweringPas
         }
 
         // TODO implement many-type-parameters support
-        private inline fun <reified T : IrTypeParametersContainer> T.getSpecialization(primitiveTypeSubstitutionMap: Map<IrTypeParameterSymbol, IrType>, copier: NewTypeParameterEliminator): T {
-            copier.addNewDeclarationName(this, encoder.encode(this, primitiveTypeSubstitutionMap)!!)
+        private inline fun <reified T : IrTypeParametersContainer> T.getSpecialization(primitiveTypeSubstitutionMap: Map<IrTypeParameterSymbol, IrType?>, copier: NewTypeParameterEliminator): T {
+            copier.addNewDeclarationName(this, encoder.encode(this, primitiveTypeSubstitutionMap.values.toList())!!)
 
             return (eliminateTypeParameters(copier).transform(this@NewSpecializationTransformer, data = null) as T).also {
                 newSpecializations.getOrPut(parent) { mutableMapOf() }[it] = this
             }
-        }
-
-        private fun IrClass.getRequestedSpecializationTypes(): List<IrType> {
-            if (typeParameters.size != 1) return emptyList()
-
-            val annotation = annotations.find { it.symbol.owner.classIfConstructor.nameForIrSerialization.asString() == "SpecializedClass" }
-                    ?: return emptyList()
-            val types = annotation.getValueArgument(0) as IrVararg
-            return types.elements.map { (it as IrClassReference).classType }
-        }
-
-        private fun IrTypeParameter.getRequestedSpecializationTypes(): List<IrType> {
-            val annotation = annotations.find { it.symbol.owner.classIfConstructor.nameForIrSerialization.asString() == "Specialized" }
-                    ?: return emptyList()
-            val types = annotation.getValueArgument(0) as IrVararg
-            return types.elements.map { (it as IrClassReference).classType }
         }
 
         /**

@@ -98,7 +98,7 @@ internal class NewTypeParameterEliminator(private val globalTypeParameterMapping
                 return IrSimpleTypeImpl(
                         newType.classifier,
                         newType.hasQuestionMark,
-                        remapTypeArguments(newType.arguments, types),
+                        remapTypeArguments(newType.arguments, types.takeLast(newType.arguments.size)),
                         newType.annotations,
                         newType.abbreviation
                 )
@@ -137,7 +137,6 @@ internal class NewTypeParameterEliminator(private val globalTypeParameterMapping
 
         override fun visitConstructor(declaration: IrConstructor): IrConstructor {
             return constructorsCopier.visitConstructor(declaration).also {
-                val specDispatchType = it.dispatchReceiverParameter?.type
                 val types = localTypeParameterMapping.values.toList()
                 IrOriginToSpec.newSpec(declaration, types, it)
             }

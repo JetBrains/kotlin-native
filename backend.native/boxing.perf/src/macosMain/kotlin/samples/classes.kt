@@ -1,5 +1,6 @@
 package samples
 
+import kotlin.native.*
 import org.jetbrains.ring.CountBoxings
 
 @SpecializedClass(forTypes = [Int::class])

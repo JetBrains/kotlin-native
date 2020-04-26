@@ -243,6 +243,12 @@ internal class NewSpecializationRemapper(
                     IrOriginToSpec.findTypes(superClass)?.let { superClassConcreteTypes ->
                         overriddenSymbols.replaceAll { IrOriginToSpec.forSpec(it.owner, superClassConcreteTypes)?.symbol ?: it }
                     }
+                    val dispatchTypes = IrOriginToSpec.findTypes(currentClass!!)
+                    val types = encoder.decode(declaration.name.asString())
+                    val functionTypesAsMember = dispatchTypes?.let { types.drop(it.size) } ?: types
+                    overriddenSymbols.replaceAll {
+                        IrOriginToSpec.forSpec(it.owner, functionTypesAsMember)?.symbol ?: it
+                    }
                 }
             }
         }
@@ -295,14 +301,19 @@ internal class NewSpecializationRemapper(
 
     override fun visitCall(expression: IrCall): IrCall {
         val origin = expression.symbol.owner
+        val contextTypes = IrOriginToSpec.findTypes(origin)
         val dispatchReceiver = expression.dispatchReceiver?.replaced()
         val dispatchTypes = dispatchReceiver?.type?.getClass()?.let { IrOriginToSpec.findTypes(it) }
         val types = expression.typeSubstitutionMap.values.toList()
-        val specialization = if (dispatchTypes != null) {
-            IrOriginToSpec.forSpec(origin, dispatchTypes + types)
-        } else {
-            IrOriginToSpec.forSpec(origin, types)
+        val allTypes = mutableListOf<IrType?>()
+        contextTypes?.let { allTypes += it }
+        dispatchTypes?.let {
+            if (contextTypes == null) {
+                allTypes += it
+            }
         }
+        allTypes += types
+        val specialization= IrOriginToSpec.forSpec(origin, allTypes)
 
         return specialization?.let {
             context.createIrBuilder(expression.symbol).run {

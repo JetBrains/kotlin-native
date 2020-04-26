@@ -103,15 +103,15 @@ fun runNested(): Int {
 
         idManyTypes1__(i.toByte())
         idManyTypes2__(i.toByte())
-        idManyTypes3__(i.toByte())
-        idManyTypes4__(i.toByte())   // causes boxing, because it calls libid__, which has specialization only for type Int
-        idManyTypes5__(i.toByte())   // causes boxing, because it calls libid__, which has specialization only for type Int
+        idManyTypes3__(i.toByte())   // causes boxing, because it calls libid__, which has specialization only for type Int
+        idManyTypes4__(i.toByte())
+        idManyTypes5__(i.toByte())
 
         idManyTypes1__(i.toShort())
         idManyTypes2__(i.toShort())
-        idManyTypes3__(i.toShort())
-        idManyTypes4__(i.toShort())  // causes boxing, because it calls libid__, which has specialization only for type Int
-        idManyTypes5__(i.toShort())  // causes boxing, because it calls libid__, which has specialization only for type Int
+        idManyTypes3__(i.toShort())  // causes boxing, because it calls libid__, which has specialization only for type Int
+        idManyTypes4__(i.toShort())
+        idManyTypes5__(i.toShort())
 
         idManyTypes1__(i)
         idManyTypes2__(i)
@@ -121,15 +121,15 @@ fun runNested(): Int {
 
         idManyTypes1__(i.toByte())
         idManyTypes2__(i.toByte())
-        idManyTypes3__(i.toByte())
-        idManyTypes4__(i.toByte())   // causes boxing, because it calls libid__, which has specialization only for type Int
-        idManyTypes5__(i.toByte())   // causes boxing, because it calls libid__, which has specialization only for type Int
+        idManyTypes3__(i.toByte())  // causes boxing, because it calls libid__, which has specialization only for type Int
+        idManyTypes4__(i.toByte())
+        idManyTypes5__(i.toByte())
 
         idManyTypes1__(i.toShort())
         idManyTypes2__(i.toShort())
-        idManyTypes3__(i.toShort())
-        idManyTypes4__(i.toShort())  // causes boxing, because it calls libid__, which has specialization only for type Int
-        idManyTypes5__(i.toShort())  // causes boxing, because it calls libid__, which has specialization only for type Int
+        idManyTypes3__(i.toShort())  // causes boxing, because it calls libid__, which has specialization only for type Int
+        idManyTypes4__(i.toShort())
+        idManyTypes5__(i.toShort())
     }
     return 0
 }
