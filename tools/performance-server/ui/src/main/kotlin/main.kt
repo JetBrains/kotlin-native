@@ -234,6 +234,7 @@ fun main(args: Array<String>) {
             val option = Option(it, it)
             js("$('#inputGroupBranch')").append(js("$(option)"))
         }
+        document.querySelector("#inputGroupBranch [value=\"${parameters["branch"]}\"]")?.setAttribute("selected", "true")
     }
 
 
@@ -264,10 +265,10 @@ fun main(args: Array<String>) {
     // Change inputs values connected with parameters and add events listeners.
     document.querySelector("#inputGroupTarget [value=\"${parameters["target"]}\"]")?.setAttribute("selected", "true")
     document.querySelector("#inputGroupBuildType [value=\"${parameters["type"]}\"]")?.setAttribute("selected", "true")
-    document.querySelector("#inputGroupBranch [value=\"${parameters["branch"]}\"]")?.setAttribute("selected", "true")
     (document.getElementById("highligted_build") as HTMLInputElement).value = parameters["build"]!!
 
     // Add onChange events for fields.
+    // Don't use AJAX to have opportunity to share results with simple links.
     js("$('#inputGroupTarget')").change({
         val newValue = js("$(this).val()")
         if (newValue != parameters["target"]) {
@@ -325,7 +326,7 @@ fun main(args: Array<String>) {
     var codeSizeData = listOf<String>() to listOf<List<Double?>>()
     var bundleSizeData = listOf<String>() to listOf<List<Int?>>()
 
-    val sizeClassNames = arrayOf("ct-series-d", "ct-series-e")
+    val sizeClassNames = arrayOf("ct-series-e", "ct-series-f", "ct-series-g")
 
     // Draw charts.
     val execChart = Chartist.Line("#exec_chart",
@@ -339,10 +340,10 @@ fun main(args: Array<String>) {
             getChartData(listOf(), listOf(), stageToShow, buildsNumberToShow, sizeClassNames),
             getChartOptions(arrayOf("Geometric Mean") + platformSpecificBenchs.split(',').filter{ it.isNotEmpty() },
                     "Normalized size",
-                    arrayOf("ct-series-3", "ct-series-4")))
+                    arrayOf("ct-series-4", "ct-series-5", "ct-series-6")))
     val bundleSizeChart = Chartist.Line("#bundlesize_chart",
             getChartData(listOf(), listOf(), stageToShow, buildsNumberToShow, sizeClassNames),
-            getChartOptions(arrayOf("Bundle size"), "Size, MB", arrayOf("ct-series-3")))
+            getChartOptions(arrayOf("Bundle size"), "Size, MB", arrayOf("ct-series-4")))
 
     val descriptionUrl = "$serverUrl/buildsDesc/${parameters["target"]}?type=${parameters["type"]}" +
             "${if (parameters["branch"] != "all") "&branch=${parameters["branch"]}" else ""}"
@@ -384,19 +385,14 @@ fun main(args: Array<String>) {
                             it.getArray("second").map { (it as JsonPrimitive).doubleOrNull }
                 }
 
-                /*val results = response.toString().split("],[").map {
-                it.replace("\\]|\\[".toRegex(), "").split(',')
-            }*/
-                println(results)
+
                 val labels = results.map { it.first }
                 val values = results[0]?.second?.size?.let { (0..it - 1).map { i -> results.map { it.second[i] } } }
                         ?: emptyList()
-                println("Inside $values")
                 labels to values
             }
             val labels = valuesList[0].first
             val values = valuesList.map { it.second }.reduce { acc, valuesPart -> acc + valuesPart }
-            println("result $values")
 
             when (metric) {
                 // Update chart with gotten data.
