@@ -99,6 +99,8 @@ constexpr size_t kMaxGcAllocThreshold = 8 * 1024 * 1024;
 // If GC base work to collection cycles time ratio is less this value,
 // increase GC threshold for cycles collection.
 constexpr double kGcCollectCyclesLoadRatio = 0.05;
+// Minimum time of cycles collection to change thresholds.
+constexpr size_t kGcCollectCyclesMinimumDuration = 300;
 
 #endif  // USE_GC
 
@@ -1674,9 +1676,10 @@ void garbageCollect(MemoryState* state, bool force) {
     }
   }
 
-  if (state->gcErgonomics && collectCyclesDuration > 0 &&
+  if (state->gcErgonomics && collectCyclesDuration > kGcCollectCyclesMinimumDuration &&
     double(processFinalizerQueueDuration) / collectCyclesDuration < kGcCollectCyclesLoadRatio) {
-     increaseGcCollectCyclesThreshold(state);
+    increaseGcCollectCyclesThreshold(state);
+    GC_LOG("Adjusting GC collecting cycles threshold to %lld\n", state->gcCollectCyclesThreshold);
   }
 
   state->gcInProgress = false;
