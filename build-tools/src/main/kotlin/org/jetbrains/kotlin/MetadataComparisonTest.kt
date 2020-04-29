@@ -104,10 +104,7 @@ open class MetadataKlibComparisonTest : DefaultTask() {
                     val message = StringBuilder().also {
                         expandFail(result, it::appendln)
                     }.toString()
-                    messages += """
-                        ${it.first.name}:
-                        $message
-                    """.trimIndent()
+                    messages += "${it.first.name}:\n$message"
                 }
             }
         }

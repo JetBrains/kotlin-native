@@ -163,13 +163,14 @@ internal class KmComparator(private val configuration: ComparisonConfig) {
             if (class1.name == class2.name) Ok else Fail("Different type aliases: ${class1.name}, ${class2.name}")
         }
         class1 is KmClassifier.Class && class2 is KmClassifier.Class -> {
-            when (class1.name) {
-                class2.name -> Ok
+            when (class1.name.substringAfterLast("/")) {
+                class2.name.substringAfterLast("/") -> Ok
                 else -> Fail("Different classes: ${class1.name}, ${class2.name}")
             }
         }
         class1 is KmClassifier.TypeParameter && class2 is KmClassifier.TypeParameter -> {
-            if (class1.id == class2.id) Ok else Fail("Different type params: ${class1.id}, ${class2.id}")
+            // TODO: Can we compare type ids?
+            Ok //if (class1.id == class2.id) Ok else Fail("Different type parameter ids: ${class1.id}, ${class2.id}")
         }
         else -> Fail("class1 is $class1 and class2 is $class2")
     }

@@ -4354,8 +4354,8 @@ task metadata_compare_typedefs(type: MetadataComparisonTest) {
 }
 
 task metadata_compare_dists(type: MetadataKlibComparisonTest) {
-    firstLibrary = "/Users/jetbrains/IdeaProjects/kotlin-native/dist/klib/platform/macos_x64"
-    secondLibrary = "/Users/jetbrains/IdeaProjects/kotlin-native/dist/klib/platform_meta/macos_x64"
+    firstLibrary = "/Users/jetbrains/IdeaProjects/kotlin-native/dist/klib/platform_source/macos_x64"
+    secondLibrary = "/Users/jetbrains/IdeaProjects/kotlin-native/dist/klib/platform/macos_x64"
 }
 
 /**
