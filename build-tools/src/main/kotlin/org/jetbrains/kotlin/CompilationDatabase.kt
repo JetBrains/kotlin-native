@@ -21,23 +21,23 @@ import java.io.FileReader
 import java.io.FileWriter
 
 internal data class Entry(
-    @Expose val directory: String,
-    @Expose val file: String,
-    @Expose val arguments: List<String>,
-    @Expose val output: String
+        @Expose val directory: String,
+        @Expose val file: String,
+        @Expose val arguments: List<String>,
+        @Expose val output: String
 ) {
     companion object {
         fun create(
-            directory: File,
-            file: File,
-            args: List<String>,
-            outputDir: File
+                directory: File,
+                file: File,
+                args: List<String>,
+                outputDir: File
         ): Entry {
             return Entry(
-                directory.absolutePath,
-                file.absolutePath,
-                args + listOf(file.absolutePath),
-                File(outputDir, file.name + ".o").absolutePath
+                    directory.absolutePath,
+                    file.absolutePath,
+                    args + listOf(file.absolutePath),
+                    File(outputDir, file.name + ".o").absolutePath
             )
         }
 
@@ -45,7 +45,7 @@ internal data class Entry(
             gson.toJson(entries, it)
         }
 
-        fun readListFrom(file: File): Array<Entry> = FileReader(file).use{
+        fun readListFrom(file: File): Array<Entry> = FileReader(file).use {
             gson.fromJson(it, Array<Entry>::class.java)
         }
     }
@@ -57,7 +57,7 @@ open class GenerateCompilationDatabase @Inject constructor(@Input val target: St
                                                            @Input val executable: String,
                                                            @Input val compilerFlags: List<String>,
                                                            @Input val outputDir: File
-): DefaultTask() {
+) : DefaultTask() {
     @OutputFile
     var outputFile = File(outputDir, "compile_commands.json")
 
@@ -71,7 +71,7 @@ open class GenerateCompilationDatabase @Inject constructor(@Input val target: St
     }
 }
 
-open class MergeCompilationDatabases @Inject constructor(): DefaultTask() {
+open class MergeCompilationDatabases @Inject constructor() : DefaultTask() {
     @InputFiles
     val inputFiles = mutableListOf<File>()
 
@@ -111,13 +111,13 @@ fun createCompilationDatabasesFromCompileToBitcodeTasks(project: Project, name: 
     val compileTasks = project.tasks.withType(CompileToBitcode::class.java).toList()
     val compdbTasks = compileTasks.groupBy({ task -> task.target }) { task ->
         project.tasks.create("${task.name}_CompilationDatabase",
-                 GenerateCompilationDatabase::class.java,
-                 task.target,
-                 task.srcRoot,
-                 task.inputFiles,
-                 task.executable,
-                 task.compilerFlags,
-                 task.objDir)
+                GenerateCompilationDatabase::class.java,
+                task.target,
+                task.srcRoot,
+                task.inputFiles,
+                task.executable,
+                task.compilerFlags,
+                task.objDir)
     }
     for ((target, tasks) in compdbTasks) {
         project.tasks.create("${target}${name}", MergeCompilationDatabases::class.java) { task ->
