@@ -4353,6 +4353,11 @@ task metadata_compare_typedefs(type: MetadataComparisonTest) {
     defFile = "interop/basics/typedefs.def"
 }
 
+task metadata_compare_dists(type: MetadataKlibComparisonTest) {
+    firstLibrary = "/Users/jetbrains/IdeaProjects/kotlin-native/dist/klib/platform/macos_x64"
+    secondLibrary = "/Users/jetbrains/IdeaProjects/kotlin-native/dist/klib/platform_meta/macos_x64"
+}
+
 /**
  * Creates tasks to build and execute stdlib tests.
  */

@@ -7,12 +7,14 @@ package org.jetbrains.kotlin
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
+import org.gradle.internal.file.impl.DefaultFileMetadata.file
 import org.jetbrains.kotlin.klib.metadata.CInteropComparisonConfig
 import org.jetbrains.kotlin.klib.metadata.MetadataCompareResult
 import org.jetbrains.kotlin.klib.metadata.compareKlibMetadata
 import org.jetbrains.kotlin.klib.metadata.expandFail
 import org.jetbrains.kotlin.konan.target.HostManager
 import java.io.File
+import java.nio.file.Files
 
 /**
  * Produces 2 interop libraries from the given [defFile].
@@ -83,5 +85,34 @@ open class MetadataComparisonTest : DefaultTask() {
             }
         }
         return File(output)
+    }
+}
+
+open class MetadataKlibComparisonTest : DefaultTask() {
+    @Input
+    lateinit var firstLibrary: String
+
+    @Input
+    lateinit var secondLibrary: String
+
+    @TaskAction
+    fun run() {
+        val messages = mutableListOf<String>()
+        project.file(firstLibrary).listFiles()!!.zip(project.file(secondLibrary).listFiles()!!).forEach {
+            compareKlibMetadata(CInteropComparisonConfig(), it.first.absolutePath, it.second.absolutePath).let { result ->
+                if (result is MetadataCompareResult.Fail) {
+                    val message = StringBuilder().also {
+                        expandFail(result, it::appendln)
+                    }.toString()
+                    messages += """
+                        ${it.first.name}:
+                        $message
+                    """.trimIndent()
+                }
+            }
+        }
+        if (messages.isNotEmpty()) {
+            throw TestFailedException(messages.joinToString(separator = "\n---\n"))
+        }
     }
 }

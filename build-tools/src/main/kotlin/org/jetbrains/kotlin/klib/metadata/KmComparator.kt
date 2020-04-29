@@ -38,7 +38,7 @@ internal class KmComparator(private val configuration: ComparisonConfig) {
             compare(KmProperty::returnType, ::compareTypes) to "Return type mismatch",
             ::comparePropertyFlags to "Flags mismatch",
             (compare(KmProperty::getterFlags, ::comparePropertyAccessorFlags) to "Getter flags mismatch")
-                    .takeIf { Flag.Property.HAS_CONSTANT(property1.flags) && Flag.Property.HAS_CONSTANT(property2.flags) },
+                    .takeIf { Flag.Property.HAS_GETTER(property1.flags) && Flag.Property.HAS_GETTER(property2.flags) },
             (compare(KmProperty::setterFlags, ::comparePropertyAccessorFlags) to "Setter flags mismatch")
                     .takeIf { Flag.Property.HAS_SETTER(property1.flags) && Flag.Property.HAS_SETTER(property2.flags) }
     )(property1, property2)
@@ -68,19 +68,19 @@ internal class KmComparator(private val configuration: ComparisonConfig) {
 
     private fun comparePropertyFlags(property1: KmProperty, property2: KmProperty): MetadataCompareResult =
             serialComparator(
-                    checkFlag(Flag.Property.IS_CONST, "IS_CONST"),
+//                    checkFlag(Flag.Property.IS_CONST, "IS_CONST"),
                     checkFlag(Flag.Property.HAS_SETTER, "HAS_SETTER"),
                     checkFlag(Flag.Property.HAS_GETTER, "HAS_GETTER"),
                     checkFlag(Flag.Property.IS_VAR, "IS_VAR"),
-                    checkFlag(Flag.Property.HAS_CONSTANT, "HAS_CONSTANT"),
+//                    checkFlag(Flag.Property.HAS_CONSTANT, "HAS_CONSTANT"),
                     checkFlag(Flag.Property.IS_DECLARATION, "IS_DECLARATION"),
                     checkFlag(Flag.Property.IS_EXTERNAL, "IS_EXTERNAL")
             )(property1.flags, property2.flags)
 
     private fun comparePropertyAccessorFlags(flags1: Flags, flags2: Flags): MetadataCompareResult = serialComparator(
-            checkFlag(Flag.PropertyAccessor.IS_NOT_DEFAULT, "IS_NOT_DEFAULT"),
+//            checkFlag(Flag.PropertyAccessor.IS_NOT_DEFAULT, "IS_NOT_DEFAULT"),
             checkFlag(Flag.PropertyAccessor.IS_INLINE, "IS_INLINE"),
-            checkFlag(Flag.PropertyAccessor.IS_EXTERNAL, "IS_EXTERNAL"),
+//            checkFlag(Flag.PropertyAccessor.IS_EXTERNAL, "IS_EXTERNAL"),
             ::compareVisibilityFlags,
             ::compareModalityFlags
     )(flags1, flags2)
@@ -94,7 +94,7 @@ internal class KmComparator(private val configuration: ComparisonConfig) {
             checkFlag(Flag.Class.IS_OBJECT, "IS_OBJECT"),
             checkFlag(Flag.IS_FINAL, "IS_FINAL"),
             checkFlag(Flag.IS_OPEN, "IS_OPEN"),
-            checkFlag(Flag.HAS_ANNOTATIONS, "HAS_ANNOTATIONS"),
+//            checkFlag(Flag.HAS_ANNOTATIONS, "HAS_ANNOTATIONS"),
             ::compareVisibilityFlags,
             ::compareModalityFlags
     )(class1.flags, class2.flags)
