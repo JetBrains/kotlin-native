@@ -102,25 +102,28 @@ fun mergeCompilationDatabases(project: Project, name: String, paths: List<String
     }
 }
 
-fun createCompilationDatabaseFromCompileToBitcodeTasks(project: Project, name: String): Task {
+/**
+ * Get all [CompileToBitcode] tasks in the project, group them by target, and generate
+ * compilation database for each target. Tasks will be named <target>[name]. Databases
+ * will be placed in a build dir in <target>/compile_commands.json
+ */
+fun createCompilationDatabasesFromCompileToBitcodeTasks(project: Project, name: String) {
     val compileTasks = project.tasks.withType(CompileToBitcode::class.java).toList()
-    val compdbTasks = compileTasks.mapNotNull { task ->
-        // TODO: consider generating databases for more than just current host target.
-        if (task.target != HostManager.hostName) {
-            null
-        } else {
-            project.tasks.create("${task.name}_CompilationDatabase",
-                         GenerateCompilationDatabase::class.java,
-                         task.target,
-                         task.srcRoot,
-                         task.inputFiles,
-                         task.executable,
-                         task.compilerFlags,
-                         task.objDir)
-        }
+    val compdbTasks = compileTasks.groupBy({ task -> task.target }) { task ->
+        project.tasks.create("${task.name}_CompilationDatabase",
+                 GenerateCompilationDatabase::class.java,
+                 task.target,
+                 task.srcRoot,
+                 task.inputFiles,
+                 task.executable,
+                 task.compilerFlags,
+                 task.objDir)
     }
-    return project.tasks.create(name, MergeCompilationDatabases::class.java) { task ->
-        task.dependsOn(compdbTasks)
-        task.inputFiles.addAll(compdbTasks.map { it.outputFile })
+    for ((target, tasks) in compdbTasks) {
+        project.tasks.create("${target}${name}", MergeCompilationDatabases::class.java) { task ->
+            task.dependsOn(tasks)
+            task.inputFiles.addAll(tasks.map { it.outputFile })
+            task.outputFile = File(File(project.buildDir, target), "compile_commands.json")
+        }
     }
 }
