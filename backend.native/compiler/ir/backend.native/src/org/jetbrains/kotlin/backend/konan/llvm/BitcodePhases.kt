@@ -137,11 +137,14 @@ internal val dcePhase = makeKonanModuleOpPhase(
             val callGraph = CallGraphBuilder(
                     context, context.moduleDFG!!,
                     externalModulesDFG,
-                    context.devirtualizationAnalysisResult!!,
-                    true
+                    context.devirtualizationAnalysisResult!!
             ).build()
 
             val referencedFunctions = mutableSetOf<IrFunction>()
+            callGraph.rootExternalFunctions.forEach {
+                if (!it.isGlobalInitializer)
+                    referencedFunctions.add(it.irFunction ?: error("No IR for: $it"))
+            }
             for (node in callGraph.directEdges.values) {
                 if (!node.symbol.isGlobalInitializer)
                     referencedFunctions.add(node.symbol.irFunction ?: error("No IR for: ${node.symbol}"))
@@ -218,8 +221,7 @@ internal val escapeAnalysisPhase = makeKonanModuleOpPhase(
                 val callGraph = CallGraphBuilder(
                         context, context.moduleDFG!!,
                         externalModulesDFG,
-                        context.devirtualizationAnalysisResult!!,
-                        false
+                        context.devirtualizationAnalysisResult!!
                 ).build()
                 EscapeAnalysis.computeLifetimes(
                         context, context.moduleDFG!!, externalModulesDFG, callGraph, context.lifetimes
