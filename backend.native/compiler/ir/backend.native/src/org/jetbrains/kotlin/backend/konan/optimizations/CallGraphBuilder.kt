@@ -5,6 +5,8 @@
 
 package org.jetbrains.kotlin.backend.konan.optimizations
 
+import org.jetbrains.kotlin.backend.common.pop
+import org.jetbrains.kotlin.backend.common.push
 import org.jetbrains.kotlin.backend.konan.DirectedGraph
 import org.jetbrains.kotlin.backend.konan.DirectedGraphNode
 import org.jetbrains.kotlin.backend.konan.Context
@@ -41,14 +43,11 @@ internal class CallGraph(val directEdges: Map<DataFlowIR.FunctionSymbol.Declared
 
     override fun get(key: DataFlowIR.FunctionSymbol.Declared) = directEdges[key]!!
 
-    fun addEdge(caller: DataFlowIR.FunctionSymbol.Declared, callSite: CallGraphNode.CallSite,
-                addReversedEdge: Boolean) {
+    fun addEdge(caller: DataFlowIR.FunctionSymbol.Declared, callSite: CallGraphNode.CallSite, addReversedEdge: Boolean) {
         directEdges[caller]!!.callSites += callSite
         if (addReversedEdge)
             reversedEdges[callSite.actualCallee as DataFlowIR.FunctionSymbol.Declared]!!.add(caller)
-        //reversedEdges[callSite.actualCallee]?.add(caller)
     }
-
 }
 
 internal class CallGraphBuilder(val context: Context,
@@ -74,35 +73,42 @@ internal class CallGraphBuilder(val context: Context,
     private val reversedEdges = mutableMapOf<DataFlowIR.FunctionSymbol.Declared, MutableList<DataFlowIR.FunctionSymbol.Declared>>()
     private val externalRootFunctions = mutableListOf<DataFlowIR.FunctionSymbol>()
     private val callGraph = CallGraph(directEdges, reversedEdges, externalRootFunctions)
+    private val stack = mutableListOf<Pair<DataFlowIR.FunctionSymbol.Declared, DataFlowIR.Function>>()
 
     fun build(): CallGraph {
         val rootSet = Devirtualization.computeRootSet(context, moduleDFG, externalModulesDFG)
-        @Suppress("LoopToCallChain")
         for (symbol in rootSet) {
             val function = moduleDFG.functions[symbol]
             if (function == null)
                 externalRootFunctions.add(symbol)
             else {
                 symbol as DataFlowIR.FunctionSymbol.Declared
-                if (!directEdges.containsKey(symbol)) {
-                    addNode(symbol)
-                    dfs(symbol, function)
-                }
+                addNode(symbol)
+                stack.push(Pair(symbol, function))
             }
         }
+        while (stack.isNotEmpty()) {
+            val (symbol, function) = stack.pop()
+            handleFunction(symbol, function)
+        }
+
+        DEBUG_OUTPUT(1) {
+            println("DirectEdges: ${directEdges.size}")
+            println("ReversedEdges: ${reversedEdges.size}")
+            println("Sum: ${directEdges.values.sumBy { it.callSites.size }}")
+        }
+
         return callGraph
     }
 
     private fun addNode(symbol: DataFlowIR.FunctionSymbol.Declared) {
         val node = CallGraphNode(callGraph, symbol)
-        directEdges.put(symbol, node)
+        directEdges[symbol] = node
         val list = mutableListOf<DataFlowIR.FunctionSymbol.Declared>()
-        reversedEdges.put(symbol, list)
+        reversedEdges[symbol] = list
     }
 
     private val symbols = context.ir.symbols
-//    private val arrayGet = symbols.arrayGet[symbols.array]!!.owner
-//    private val arraySet = symbols.arraySet[symbols.array]!!.owner
 
     private inline fun DataFlowIR.FunctionBody.forEachCallSite(block: (DataFlowIR.Node.Call) -> Unit): Unit =
             nodes.forEach { node ->
@@ -176,13 +182,14 @@ internal class CallGraphBuilder(val context: Context,
                 addNode(resolvedCallee)
             callGraph.addEdge(caller, callSite, /* addReversedEdge = */ true)
             if (goToCallee)
-                dfs(resolvedCallee, function)
+                stack.push(Pair(resolvedCallee, function))
         }
     }
 
-    private fun dfs(symbol: DataFlowIR.FunctionSymbol.Declared, function: DataFlowIR.Function) {
-        val body = function.body
-        body.forEachCallSite { call ->
+    private fun handleFunction(
+            symbol: DataFlowIR.FunctionSymbol.Declared,
+            function: DataFlowIR.Function
+    ) = function.body.forEachCallSite { call ->
             val devirtualizedCallSite = (call as? DataFlowIR.Node.VirtualCall)?.let { devirtualizedCallSites[it] }
             when {
                 call !is DataFlowIR.Node.VirtualCall -> staticCall(symbol, call, call.callee)
@@ -219,6 +226,5 @@ internal class CallGraphBuilder(val context: Context,
                     }
                 }
             }
-        }
     }
 }
