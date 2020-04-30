@@ -1,9 +1,9 @@
 #import <Foundation/NSObject.h>
 
-@protocol P1
+@protocol KT38234_P1
 -(int)foo;
 @end;
 
-@interface Base : NSObject <P1>
+@interface KT38234_Base : NSObject <KT38234_P1>
 -(int)callFoo;
 @end;

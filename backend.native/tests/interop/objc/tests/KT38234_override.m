@@ -1,6 +1,6 @@
 #include "KT38234_override.h"
 
-@implementation Base
+@implementation KT38234_Base
 -(int)foo {
     return 1;
 }
