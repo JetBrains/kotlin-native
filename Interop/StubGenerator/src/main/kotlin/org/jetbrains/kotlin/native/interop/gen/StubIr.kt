@@ -404,18 +404,22 @@ interface FunctionalStub : AnnotationHolder, StubIrElement, NativeBacked {
 
 sealed class PropertyAccessor : FunctionalStub {
 
+    open val modality: MemberStubModality = MemberStubModality.FINAL
+
     sealed class Getter : PropertyAccessor() {
 
         override val parameters: List<FunctionParameterStub> = emptyList()
 
         class SimpleGetter(
                 override val annotations: List<AnnotationStub> = emptyList(),
-                val constant: ConstantStub? = null
+                val constant: ConstantStub? = null,
+                override val modality: MemberStubModality = MemberStubModality.FINAL
         ) : Getter()
 
         class GetConstructorParameter(
                 val constructorParameter: FunctionParameterStub,
-                override val annotations: List<AnnotationStub> = emptyList()
+                override val annotations: List<AnnotationStub> = emptyList(),
+                override val modality: MemberStubModality
         ) : Getter()
 
         class ExternalGetter(

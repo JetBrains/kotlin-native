@@ -309,7 +309,7 @@ private class MappingExtensions(
                 Flag.IS_FINAL,
                 Flag.PropertyAccessor.IS_NOT_DEFAULT,
                 Flag.PropertyAccessor.IS_EXTERNAL.takeIf { this is PropertyAccessor.Getter.ExternalGetter }
-        )
+        ) or modality.flags
 
     val PropertyStub.Kind.setterFlags: Flags
         get() = if (this !is PropertyStub.Kind.Var) flagsOf()
@@ -322,7 +322,7 @@ private class MappingExtensions(
                 Flag.IS_FINAL,
                 Flag.PropertyAccessor.IS_NOT_DEFAULT,
                 Flag.PropertyAccessor.IS_EXTERNAL.takeIf { this is PropertyAccessor.Setter.ExternalSetter }
-        )
+        ) or modality.flags
 
     val StubType.flags: Flags
         get() = flagsOfNotNull(

@@ -255,11 +255,19 @@ internal class EnumStubBuilder(
             return generateEnumAsConstants(enumDef)
         }
         val constructorParameter = FunctionParameterStub("value", baseType)
+
+        val valuePropertyModality = MemberStubModality.OPEN
+        val valuePropertyKind = PropertyStub.Kind.Val(
+                PropertyAccessor.Getter.GetConstructorParameter(
+                        constructorParameter,
+                        modality = valuePropertyModality
+                )
+        )
         val valueProperty = PropertyStub(
                 name = "value",
                 type = baseType,
-                kind = PropertyStub.Kind.Val(PropertyAccessor.Getter.GetConstructorParameter(constructorParameter)),
-                modality = MemberStubModality.OPEN,
+                kind = valuePropertyKind,
+                modality = valuePropertyModality,
                 origin = StubOrigin.Synthetic.EnumValueField(enumDef),
                 isOverride = true)
 
