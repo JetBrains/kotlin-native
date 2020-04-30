@@ -27,9 +27,14 @@ internal fun KmFunction.mangle(): String {
     return "$receiver.${name}.$typeParameters.$valueParameters"
 }
 
+internal fun KmProperty.mangle(): String {
+    val receiver = receiverParameterType?.classifier
+    return "$receiver.$name"
+}
+
 private fun joinAndSortPackages(pkg1: KmPackage, pkg2: KmPackage) = KmPackage().apply {
     functions += (pkg1.functions + pkg2.functions).sortedBy(KmFunction::mangle)
-    properties += (pkg1.properties + pkg2.properties).sortedBy(KmProperty::name)
+    properties += (pkg1.properties + pkg2.properties).sortedBy(KmProperty::mangle)
     typeAliases += (pkg1.typeAliases + pkg2.typeAliases).sortedBy(KmTypeAlias::name)
 }
 

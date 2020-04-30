@@ -107,7 +107,7 @@ private fun compareMetadata(
             JoinedFragments(
                     buildJoined(classesA, classesB, KmClass::name),
                     buildJoined(functionsA, functionsB, KmFunction::mangle),
-                    buildJoined(propertiesA, propertiesB, KmProperty::name),
+                    buildJoined(propertiesA, propertiesB, KmProperty::mangle),
                     buildJoined(typeAliasesA, typeAliasesB, KmTypeAlias::name)
             )
         }

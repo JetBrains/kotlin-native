@@ -5,13 +5,16 @@
 package org.jetbrains.kotlin.klib.metadata
 
 import kotlinx.metadata.*
+import kotlinx.metadata.klib.KlibEnumEntry
 
 private fun render(element: Any?): String = when (element) {
     is KmTypeAlias -> "typealias ${element.name}"
     is KmFunction -> "function ${element.name}"
     is KmProperty -> "property ${element.name}"
     is KmClass -> "class ${element.name}"
-    is KmType -> "`type ${element.classifier}`"
+    is KmType -> "type ${element.classifier}"
+    is KlibEnumEntry -> "enum entry ${element.name}"
+    is KmValueParameter -> "parameter ${element.name}"
     else -> element.toString()
 }
 
@@ -20,7 +23,7 @@ internal fun <T> serialComparator(
 ): (T, T) -> MetadataCompareResult = { o1, o2 ->
     comparators.filterNotNull().map { (comparator, message) ->
         comparator(o1, o2).let { result ->
-            if (result is Fail) Fail(message, result) else result
+            if (result is Fail) Fail("${render(o1)}: $message", result) else result
         }
     }.wrap()
 }
@@ -51,12 +54,10 @@ internal fun <T> compareNullable(
     }
 }
 
-internal fun <T> compareLists(elementComparator: (T, T) -> MetadataCompareResult) =
-        { list1: List<T>, list2: List<T> -> compareLists(list1, list2, elementComparator) }
+internal fun <T> compareLists(elementComparator: (T, T) -> MetadataCompareResult, sortBy: T.() -> String? = { null }) =
+        { list1: List<T>, list2: List<T> -> compareLists(list1.sortedBy(sortBy), list2.sortedBy(sortBy), elementComparator) }
 
-private fun <T> compareLists(l1: List<T>, l2: List<T>, comparator: (T, T) -> MetadataCompareResult): MetadataCompareResult {
-    if (l1.size != l2.size) return Fail("${l1.size} != ${l2.size}")
-    return l1.zip(l2)
-            .map { comparator(it.first, it.second) }
-            .wrap()
+private fun <T> compareLists(l1: List<T>, l2: List<T>, comparator: (T, T) -> MetadataCompareResult) = when {
+    l1.size != l2.size -> Fail("${l1.size} != ${l2.size}")
+    else -> l1.zip(l2).map { comparator(it.first, it.second) }.wrap()
 }
