@@ -51,12 +51,10 @@ internal fun <T> compareNullable(
     }
 }
 
-internal fun <T> compareLists(elementComparator: (T, T) -> MetadataCompareResult) =
-        { list1: List<T>, list2: List<T> -> compareLists(list1, list2, elementComparator) }
+internal fun <T> compareLists(elementComparator: (T, T) -> MetadataCompareResult, sortBy: T.() -> String? = { null }) =
+        { list1: List<T>, list2: List<T> -> compareLists(list1.sortedBy(sortBy), list2.sortedBy(sortBy), elementComparator) }
 
-private fun <T> compareLists(l1: List<T>, l2: List<T>, comparator: (T, T) -> MetadataCompareResult): MetadataCompareResult {
-    if (l1.size != l2.size) return Fail("${l1.size} != ${l2.size}")
-    return l1.zip(l2)
-            .map { comparator(it.first, it.second) }
-            .wrap()
+private fun <T> compareLists(l1: List<T>, l2: List<T>, comparator: (T, T) -> MetadataCompareResult) = when {
+    l1.size != l2.size -> Fail("${l1.size} != ${l2.size}")
+    else -> l1.zip(l2).map { comparator(it.first, it.second) }.wrap()
 }

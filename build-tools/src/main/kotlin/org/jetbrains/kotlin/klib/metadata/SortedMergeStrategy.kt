@@ -20,8 +20,17 @@ internal class SortedMergeStrategy : KlibModuleFragmentReadStrategy {
 /**
  * We need a stable order for overloaded functions.
  */
-private fun KmFunction.mangle(): String =
-        "${name}${receiverParameterType?.classifier}${valueParameters.joinToString(transform = KmValueParameter::name)}"
+internal fun KmFunction.mangle(): String {
+    val typeParameters = typeParameters.joinToString(prefix = "<", postfix = ">", transform = KmTypeParameter::name)
+    val valueParameters = valueParameters.joinToString(prefix = "(", postfix = ")", transform = KmValueParameter::name)
+    val receiver = receiverParameterType?.classifier
+    return "$receiver.${name}.$typeParameters.$valueParameters"
+}
+
+internal fun KmProperty.mangle(): String {
+    val receiver = receiverParameterType?.classifier
+    return "$receiver.$name"
+}
 
 private fun joinAndSortPackages(pkg1: KmPackage, pkg2: KmPackage) = KmPackage().apply {
     functions += (pkg1.functions + pkg2.functions).sortedBy(KmFunction::mangle)

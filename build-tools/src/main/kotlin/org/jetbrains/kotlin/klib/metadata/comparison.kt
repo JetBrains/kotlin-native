@@ -64,19 +64,17 @@ private data class JoinResult<T>(
         val missingInSecond: List<String>
 )
 
-private fun <T> buildJoined(e1: List<T>, e2: List<T>, key: T.() -> String):
-        JoinResult<T> {
+private fun <T> buildJoined(e1: List<T>, e2: List<T>, key: T.() -> String): JoinResult<T> {
     val m1 = e1.associateBy { it.key() }
     val m2 = e2.associateBy { it.key() }
-    val joinedKeys = e1.filter { it.key() in m2 }.map(key)
-    val joined = e1.filter { it.key() in joinedKeys }
-            .zip(e2.filter { it.key() in joinedKeys })
-            .onEach { assert(it.first.key() == it.second.key()) }
-            .associateBy { it.first.key() }
+    val joinedKeys = e1.map(key).filter { it in m2 }.toSet()
+    val joined = m1
+            .filterKeys(joinedKeys::contains)
+            .mapValues { (key, value) -> value to m2.getValue(key) }
     return JoinResult(
             joined,
-            (m2 - m1.keys).keys.toList(),
-            (m1 - m2.keys).keys.toList()
+            (m1 - joinedKeys).keys.toList(),
+            (m2 - joinedKeys).keys.toList()
     )
 }
 
