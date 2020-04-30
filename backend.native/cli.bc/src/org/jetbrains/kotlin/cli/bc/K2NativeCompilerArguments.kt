@@ -265,6 +265,13 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     @Argument(value = "-Xmetadata-klib", description = "Produce a klib that only contains the declarations metadata")
     var metadataKlib: Boolean = false
 
+    @Argument(
+            value = "-Xmanifest-targets",
+            valueDescription = "<target1,target2,...>",
+            description = "Override list of targets which will be written in manifest"
+    )
+    var manifestTargets: Array<String>? = null
+
     override fun configureAnalysisFlags(collector: MessageCollector): MutableMap<AnalysisFlag<*>, Any> =
             super.configureAnalysisFlags(collector).also {
                 val useExperimental = it[AnalysisFlags.useExperimental] as List<*>

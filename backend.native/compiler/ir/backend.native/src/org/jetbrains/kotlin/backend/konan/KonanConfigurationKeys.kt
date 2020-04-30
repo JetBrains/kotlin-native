@@ -68,6 +68,8 @@ class KonanConfigKeys {
                 = CompilerConfigurationKey.create("generate metadata")
         val METADATA_KLIB: CompilerConfigurationKey<Boolean>
                 = CompilerConfigurationKey.create("metadata klib")
+        val MANIFEST_TARGETS: CompilerConfigurationKey<List<String>?>
+                = CompilerConfigurationKey.create("manifest targets")
         val MODULE_KIND: CompilerConfigurationKey<ModuleKind> 
                 = CompilerConfigurationKey.create("module kind")
         val MODULE_NAME: CompilerConfigurationKey<String?> 

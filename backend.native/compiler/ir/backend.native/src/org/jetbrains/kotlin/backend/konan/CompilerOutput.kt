@@ -146,6 +146,7 @@ internal fun produceOutput(context: Context) {
                 irVersion = irVersion
             )
             val target = context.config.target
+            val targetsNamesForManifest = context.config.manifestTargets ?: listOf(target.visibleName)
             val nopack = config.getBoolean(KonanConfigKeys.NOPACK)
             val manifestProperties = context.config.manifestProperties
 
@@ -157,6 +158,7 @@ internal fun produceOutput(context: Context) {
                     context.serializedIr,
                     versions,
                     target,
+                    targetsNamesForManifest,
                     output,
                     libraryName,
                     nopack,

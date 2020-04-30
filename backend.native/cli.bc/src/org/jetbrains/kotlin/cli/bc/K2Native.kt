@@ -141,6 +141,7 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
                     (arguments.produce ?: "program").toUpperCase())
                 put(PRODUCE, outputKind)
                 put(METADATA_KLIB, arguments.metadataKlib)
+                arguments.manifestTargets?.let { put(MANIFEST_TARGETS, it.asList()) }
 
                 arguments.libraryVersion ?. let { put(LIBRARY_VERSION, it) }
 
