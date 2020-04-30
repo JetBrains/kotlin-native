@@ -96,9 +96,9 @@ constexpr size_t kMaxErgonomicToFreeSizeThreshold = 8 * 1024 * 1024;
 constexpr size_t kFinalizerQueueThreshold = 32;
 // If allocated that much memory since last GC - force new GC.
 constexpr size_t kMaxGcAllocThreshold = 8 * 1024 * 1024;
-// If GC base work to collection cycles time ratio is less this value,
+// If GC base work to collection cycles time ratio is greater this value,
 // increase GC threshold for cycles collection.
-constexpr double kGcCollectCyclesLoadRatio = 0.05;
+constexpr double kGcCollectCyclesLoadRatio = 0.3;
 // Minimum time of cycles collection to change thresholds.
 constexpr size_t kGcCollectCyclesMinimumDuration = 200;
 
@@ -458,6 +458,7 @@ struct MemoryState {
 
   bool gcErgonomics;
   uint64_t lastGcTimestamp;
+  uint64_t lastCyclicGcTimestamp;
   uint32_t gcEpoque;
 
   uint64_t allocSinceLastGc;
@@ -1651,14 +1652,17 @@ void garbageCollect(MemoryState* state, bool force) {
   }
 
   GC_LOG("||| GC: toFree %d toRelease %d\n", state->toFree->size(), state->toRelease->size())
-  auto processFinalizerQueueStartTime = konan::getTimeMicros();
-  processFinalizerQueue(state);
-  auto processFinalizerQueueDuration = konan::getTimeMicros() - processFinalizerQueueStartTime;
 #if PROFILE_GC
+  auto processFinalizerQueueStartTime = konan::getTimeMicros();
+#endif
+  processFinalizerQueue(state);
+#if PROFILE_GC
+  auto processFinalizerQueueDuration = konan::getTimeMicros() - processFinalizerQueueStartTime;
   GC_LOG("||| GC: processFinalizerQueueDuration %lld\n", processFinalizerQueueDuration);
 #endif
 
   int64_t collectCyclesDuration = 0;
+  int64_t cyclicGcEndTime = 0;
   if (force || state->toFree->size() > state->gcCollectCyclesThreshold) {
     while (state->toFree->size() > 0) {
       auto collectCyclesStartTime = konan::getTimeMicros();
@@ -1666,24 +1670,24 @@ void garbageCollect(MemoryState* state, bool force) {
       collectCyclesDuration += konan::getTimeMicros() - collectCyclesStartTime;
       #if PROFILE_GC
         GC_LOG("||| GC: collectCyclesEndTime = %lld\n", collectCyclesDuration);
+        processFinalizerQueueStartTime = konan::getTimeMicros();
       #endif
-      processFinalizerQueueStartTime = konan::getTimeMicros();
       processFinalizerQueue(state);
-      processFinalizerQueueDuration += konan::getTimeMicros() - processFinalizerQueueStartTime;
       #if PROFILE_GC
+        processFinalizerQueueDuration += konan::getTimeMicros() - processFinalizerQueueStartTime;
         GC_LOG("||| GC: processFinalizerQueueDuration = %lld\n", processFinalizerQueueDuration);
       #endif
     }
-  }
-
-  if (state->gcErgonomics && collectCyclesDuration > kGcCollectCyclesMinimumDuration &&
-    double(processFinalizerQueueDuration) / collectCyclesDuration < kGcCollectCyclesLoadRatio) {
-    increaseGcCollectCyclesThreshold(state);
-    GC_LOG("Adjusting GC collecting cycles threshold to %lld\n", state->gcCollectCyclesThreshold);
+    cyclicGcEndTime = konan::getTimeMicros();
   }
 
   state->gcInProgress = false;
   auto gcEndTime = konan::getTimeMicros();
+  if (state->gcErgonomics && collectCyclesDuration > kGcCollectCyclesMinimumDuration &&
+      double(collectCyclesDuration) / (gcStartTime - state->lastCyclicGcTimestamp + 1) > kGcCollectCyclesLoadRatio) {
+    increaseGcCollectCyclesThreshold(state);
+    GC_LOG("Adjusting GC collecting cycles threshold to %lld\n", state->gcCollectCyclesThreshold);
+  }
   if (state->gcErgonomics) {
     auto gcToComputeRatio = double(gcEndTime - gcStartTime) / (gcStartTime - state->lastGcTimestamp + 1);
     if (gcToComputeRatio > kGcToComputeRatioThreshold) {
@@ -1693,6 +1697,9 @@ void garbageCollect(MemoryState* state, bool force) {
   }
   GC_LOG("GC: gcToComputeRatio=%f duration=%lld sinceLast=%lld\n", double(gcEndTime - gcStartTime) / (gcStartTime - state->lastGcTimestamp + 1), (gcEndTime - gcStartTime), gcStartTime - state->lastGcTimestamp);
   state->lastGcTimestamp = gcEndTime;
+  if (cyclicGcEndTime > 0) {
+    state->lastCyclicGcTimestamp = cyclicGcEndTime;
+  }
 
 #if TRACE_MEMORY
   for (auto* obj: *state->toRelease) {
