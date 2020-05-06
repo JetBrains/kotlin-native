@@ -8,7 +8,7 @@ buildscript {
         classpath "org.jetbrains.kotlin:kotlin-native-gradle-plugin:$gradlePluginVersion"
     }
 
-    ext.useCustomDist = project.hasProperty("org.jetbrains.kotlin.native.home")
+    ext.useCustomDist = project.hasProperty("org.jetbrains.kotlin.native.home") || project.hasProperty("konan.home")
     if (!useCustomDist) {
         ext.setProperty("org.jetbrains.kotlin.native.home", distDir.absolutePath)
     }
