@@ -100,7 +100,7 @@ constexpr size_t kMaxGcAllocThreshold = 8 * 1024 * 1024;
 // increase GC threshold for cycles collection.
 constexpr double kGcCollectCyclesLoadRatio = 0.05;
 // Minimum time of cycles collection to change thresholds.
-constexpr size_t kGcCollectCyclesMinimumDuration = 300;
+constexpr size_t kGcCollectCyclesMinimumDuration = 200;
 
 #endif  // USE_GC
 
@@ -2303,9 +2303,10 @@ void startGC() {
 
 void setGCThreshold(KInt value) {
   GC_LOG("setGCThreshold %d\n", value)
-  if (value > 0) {
-    initGcThreshold(memoryState, value);
+  if (value <= 0) {
+    ThrowIllegalArgumentException();
   }
+  initGcThreshold(memoryState, value);
 }
 
 KInt getGCThreshold() {
@@ -2315,9 +2316,10 @@ KInt getGCThreshold() {
 
 void setGCCollectCyclesThreshold(KInt value) {
   GC_LOG("setGCCollectCyclesThreshold %d\n", value)
-  if (value > 0) {
-    initGcCollectCyclesThreshold(memoryState, value);
+  if (value <= 0) {
+    ThrowIllegalArgumentException();
   }
+  initGcCollectCyclesThreshold(memoryState, value);
 }
 
 KInt getGCCollectCyclesThreshold() {
@@ -2327,9 +2329,11 @@ KInt getGCCollectCyclesThreshold() {
 
 void setGCThresholdAllocations(KLong value) {
   GC_LOG("setGCThresholdAllocations %lld\n", value)
-  if (value > 0) {
-    memoryState->allocSinceLastGcThreshold = value;
+  if (value <= 0) {
+    ThrowIllegalArgumentException();
   }
+
+  memoryState->allocSinceLastGcThreshold = value;
 }
 
 KLong getGCThresholdAllocations() {
