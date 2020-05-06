@@ -21,11 +21,25 @@ project.buildscript.repositories {
 project.buildscript.dependencies {
     classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
 }
+
+// TODO: Remove after the compiler update
+project.buildscript {
+    repositories.mavenLocal()
+    repositories.maven {
+        url "https://dl.bintray.com/kotlin/kotlin-dev"
+    }
+    configurations.classpath.resolutionStrategy.force("org.jetbrains.kotlin:kotlin-gradle-plugin:1.4-dev-000")
+}
+
 configurations {
     kotlinCompilerClasspath
 }
 project.repositories {
     maven { url buildKotlinCompilerRepo }
+    mavenLocal()
+    maven {
+        url "https://dl.bintray.com/kotlin/kotlin-dev"
+    }
     maven {
         url kotlinCompilerRepo
     }
