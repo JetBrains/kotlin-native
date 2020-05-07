@@ -1680,7 +1680,7 @@ void garbageCollect(MemoryState* state, bool force) {
     #endif
     auto cyclicGcDuration = cyclicGcEndTime - cyclicGcStartTime;
     if (state->gcErgonomics && cyclicGcDuration > kGcCollectCyclesMinimumDuration &&
-        double(cyclicGcDuration) / (gcStartTime - state->lastCyclicGcTimestamp + 1) > kGcCollectCyclesLoadRatio) {
+        double(cyclicGcDuration) / (cyclicGcStartTime - state->lastCyclicGcTimestamp + 1) > kGcCollectCyclesLoadRatio) {
       increaseGcCollectCyclesThreshold(state);
       GC_LOG("Adjusting GC collecting cycles threshold to %lld\n", state->gcCollectCyclesThreshold);
     }
