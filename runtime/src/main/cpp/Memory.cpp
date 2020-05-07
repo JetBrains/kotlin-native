@@ -96,7 +96,7 @@ constexpr size_t kMaxErgonomicToFreeSizeThreshold = 8 * 1024 * 1024;
 constexpr size_t kFinalizerQueueThreshold = 32;
 // If allocated that much memory since last GC - force new GC.
 constexpr size_t kMaxGcAllocThreshold = 8 * 1024 * 1024;
-// If GC base work to collection cycles time ratio is greater this value,
+// If the ratio of GC collection cycles time to program execution time is greater this value,
 // increase GC threshold for cycles collection.
 constexpr double kGcCollectCyclesLoadRatio = 0.3;
 // Minimum time of cycles collection to change thresholds.
@@ -1178,7 +1178,7 @@ inline void initGcThreshold(MemoryState* state, uint32_t gcThreshold) {
   state->toRelease->reserve(gcThreshold);
 }
 
-inline void initGcCollectCyclesThreshold(MemoryState* state, uint32_t gcCollectCyclesThreshold) {
+inline void initGcCollectCyclesThreshold(MemoryState* state, uint64_t gcCollectCyclesThreshold) {
   state->gcCollectCyclesThreshold = gcCollectCyclesThreshold;
   state->toFree->reserve(gcCollectCyclesThreshold);
 }
@@ -2321,7 +2321,7 @@ KInt getGCThreshold() {
   return memoryState->gcThreshold;
 }
 
-void setGCCollectCyclesThreshold(KInt value) {
+void setGCCollectCyclesThreshold(KLong value) {
   GC_LOG("setGCCollectCyclesThreshold %d\n", value)
   if (value <= 0) {
     ThrowIllegalArgumentException();
