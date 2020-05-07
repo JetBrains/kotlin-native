@@ -1661,15 +1661,11 @@ void garbageCollect(MemoryState* state, bool force) {
   GC_LOG("||| GC: processFinalizerQueueDuration %lld\n", processFinalizerQueueDuration);
 #endif
 
-  int64_t collectCyclesDuration = 0;
-  int64_t cyclicGcEndTime = 0;
   if (force || state->toFree->size() > state->gcCollectCyclesThreshold) {
+    auto cyclicGcStartTime = konan::getTimeMicros();
     while (state->toFree->size() > 0) {
-      auto collectCyclesStartTime = konan::getTimeMicros();
       collectCycles(state);
-      collectCyclesDuration += konan::getTimeMicros() - collectCyclesStartTime;
       #if PROFILE_GC
-        GC_LOG("||| GC: collectCyclesEndTime = %lld\n", collectCyclesDuration);
         processFinalizerQueueStartTime = konan::getTimeMicros();
       #endif
       processFinalizerQueue(state);
@@ -1678,16 +1674,22 @@ void garbageCollect(MemoryState* state, bool force) {
         GC_LOG("||| GC: processFinalizerQueueDuration = %lld\n", processFinalizerQueueDuration);
       #endif
     }
-    cyclicGcEndTime = konan::getTimeMicros();
+    auto cyclicGcEndTime = konan::getTimeMicros();
+    #if PROFILE_GC
+      GC_LOG("||| GC: collectCyclesDuration = %lld\n", cyclicGcEndTime - cyclicGcStartTime);
+    #endif
+    auto cyclicGcDuration = cyclicGcEndTime - cyclicGcStartTime;
+    if (state->gcErgonomics && cyclicGcDuration > kGcCollectCyclesMinimumDuration &&
+        double(cyclicGcDuration) / (gcStartTime - state->lastCyclicGcTimestamp + 1) > kGcCollectCyclesLoadRatio) {
+      increaseGcCollectCyclesThreshold(state);
+      GC_LOG("Adjusting GC collecting cycles threshold to %lld\n", state->gcCollectCyclesThreshold);
+    }
+    state->lastCyclicGcTimestamp = cyclicGcEndTime;
   }
 
   state->gcInProgress = false;
   auto gcEndTime = konan::getTimeMicros();
-  if (state->gcErgonomics && collectCyclesDuration > kGcCollectCyclesMinimumDuration &&
-      double(collectCyclesDuration) / (gcStartTime - state->lastCyclicGcTimestamp + 1) > kGcCollectCyclesLoadRatio) {
-    increaseGcCollectCyclesThreshold(state);
-    GC_LOG("Adjusting GC collecting cycles threshold to %lld\n", state->gcCollectCyclesThreshold);
-  }
+
   if (state->gcErgonomics) {
     auto gcToComputeRatio = double(gcEndTime - gcStartTime) / (gcStartTime - state->lastGcTimestamp + 1);
     if (gcToComputeRatio > kGcToComputeRatioThreshold) {
@@ -1697,9 +1699,6 @@ void garbageCollect(MemoryState* state, bool force) {
   }
   GC_LOG("GC: gcToComputeRatio=%f duration=%lld sinceLast=%lld\n", double(gcEndTime - gcStartTime) / (gcStartTime - state->lastGcTimestamp + 1), (gcEndTime - gcStartTime), gcStartTime - state->lastGcTimestamp);
   state->lastGcTimestamp = gcEndTime;
-  if (cyclicGcEndTime > 0) {
-    state->lastCyclicGcTimestamp = cyclicGcEndTime;
-  }
 
 #if TRACE_MEMORY
   for (auto* obj: *state->toRelease) {
