@@ -268,8 +268,13 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
 
         val storageKind = irClass.storageKind(context)
         val threadLocal = storageKind == ObjectStorageKind.THREAD_LOCAL
-        val symbolName = irClass.objectInstanceFieldSymbolName
-        val instanceAddress = addKotlinGlobal(symbolName, getLLVMType(irClass.defaultType), threadLocal = threadLocal, isInternal = false)
+        val isExported = irClass.isExported()
+        val symbolName = if (isExported) {
+            irClass.objectInstanceFieldSymbolName
+        } else {
+            "kobjref:" + qualifyInternalName(irClass)
+        }
+        val instanceAddress = addKotlinGlobal(symbolName, getLLVMType(irClass.defaultType), threadLocal = threadLocal, isInternal = !isExported)
 
         return SingletonLlvmDeclarations(instanceAddress)
     }
