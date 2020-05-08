@@ -23,6 +23,10 @@ fun main() {
         e = E.G
         assertEquals(e, E.G)
 
+        assertEquals(K, nonStrict)
+        nonStrict = S
+        assertEquals(S, nonStrict)
+
         assertEquals(arr[0], -51)
         assertEquals(arr[1], -19)
         arr[0] = 51
