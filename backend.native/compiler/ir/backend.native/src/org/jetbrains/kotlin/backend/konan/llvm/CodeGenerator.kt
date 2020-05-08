@@ -901,31 +901,43 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             }
         }
 
+        val storageKind = irClass.storageKind(context)
+
         // If object is imported - access it via getter function.
-        if (isExternal(irClass)) {
+        if (isExternal(irClass) && storageKind == ObjectStorageKind.THREAD_LOCAL) {
             val valueGetterName = irClass.objectInstanceGetterSymbolName
-            val valueGetterFunction = LLVMGetNamedFunction(context.llvmModule, valueGetterName) ?:
-                LLVMAddFunction(context.llvmModule, valueGetterName,
-                        functionType(kObjHeaderPtr, false, kObjHeaderPtrPtr))
+            val valueGetterFunction = LLVMGetNamedFunction(context.llvmModule, valueGetterName)
+                    ?: LLVMAddFunction(context.llvmModule, valueGetterName,
+                            functionType(kObjHeaderPtr, false, kObjHeaderPtrPtr))
             return call(valueGetterFunction!!,
-                        listOf(),
-                        resultLifetime = Lifetime.GLOBAL,
-                        exceptionHandler = exceptionHandler)
+                    listOf(),
+                    resultLifetime = Lifetime.GLOBAL,
+                    exceptionHandler = exceptionHandler)
         }
 
-        val storageKind = irClass.storageKind(context)
+        val objectPtr = if (isExternal(irClass)) {
+            val llvmType = getLLVMType(irClass.defaultType)
+            importGlobal(
+                    irClass.objectInstanceFieldSymbolName,
+                    llvmType,
+                    origin = irClass.llvmSymbolOrigin,
+                    threadLocal = storageKind == ObjectStorageKind.THREAD_LOCAL
+            )
+        } else {
+            val singleton = context.llvmDeclarations.forSingleton(irClass)
+            val instanceAddress = singleton.instanceStorage
+            instanceAddress.getAddress(this)
+        }
+
         when (storageKind) {
-            ObjectStorageKind.SHARED -> context.llvm.sharedObjects += irClass
+            ObjectStorageKind.SHARED -> context.llvm.sharedObjects += objectPtr
             ObjectStorageKind.THREAD_LOCAL -> context.llvm.objects += irClass
             ObjectStorageKind.PERMANENT -> { /* Do nothing, no need to free such an instance. */ }
         }
-        val singleton = context.llvmDeclarations.forSingleton(irClass)
-        val instanceAddress = singleton.instanceStorage
 
         if (storageKind == ObjectStorageKind.PERMANENT) {
-            return loadSlot(instanceAddress.getAddress(this), false)
+            return loadSlot(objectPtr, false)
         }
-        val objectPtr = instanceAddress.getAddress(this)
         val bbInit = basicBlock("label_init", startLocationInfo, endLocationInfo)
         val bbExit = basicBlock("label_continue", startLocationInfo, endLocationInfo)
         val objectVal = loadSlot(objectPtr, false)

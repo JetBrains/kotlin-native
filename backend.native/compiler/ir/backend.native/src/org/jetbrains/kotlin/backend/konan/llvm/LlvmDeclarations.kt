@@ -266,17 +266,10 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
             return null
         }
 
-        val isExported = irClass.isExported()
-        val valueGetterName = if (isExported) {
-            irClass.objectInstanceGetterSymbolName
-        } else {
-            null
-        }
-
         val storageKind = irClass.storageKind(context)
         val threadLocal = storageKind == ObjectStorageKind.THREAD_LOCAL
-        val symbolName = "kobjref:" + qualifyInternalName(irClass)
-        val instanceAddress = addKotlinGlobal(symbolName, getLLVMType(irClass.defaultType), threadLocal = threadLocal)
+        val symbolName = irClass.objectInstanceFieldSymbolName
+        val instanceAddress = addKotlinGlobal(symbolName, getLLVMType(irClass.defaultType), threadLocal = threadLocal, isInternal = false)
 
         return SingletonLlvmDeclarations(instanceAddress)
     }
@@ -320,7 +313,7 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
             // Fields are module-private, so we use internal name:
             val name = "kvar:" + qualifyInternalName(declaration)
             val storage = addKotlinGlobal(
-                    name, getLLVMType(declaration.type), threadLocal = declaration.storageKind == FieldStorageKind.THREAD_LOCAL)
+                    name, getLLVMType(declaration.type), threadLocal = declaration.storageKind == FieldStorageKind.THREAD_LOCAL, isInternal = true)
 
             this.staticFields[declaration] = StaticFieldLlvmDeclarations(storage)
         }

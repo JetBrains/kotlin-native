@@ -282,7 +282,7 @@ internal class TLSAddressAccess(
     }
 }
 
-internal fun ContextUtils.addKotlinGlobal(name: String, type: LLVMTypeRef, threadLocal: Boolean): AddressAccess {
+internal fun ContextUtils.addKotlinGlobal(name: String, type: LLVMTypeRef, threadLocal: Boolean, isInternal: Boolean): AddressAccess {
     if (threadLocal) {
         return if (isObjectType(type)) {
             val index = context.llvm.tlsCount++
@@ -295,7 +295,8 @@ internal fun ContextUtils.addKotlinGlobal(name: String, type: LLVMTypeRef, threa
         }
     }
     return GlobalAddressAccess(LLVMAddGlobal(context.llvmModule, type, name)!!.also {
-        LLVMSetLinkage(it, LLVMLinkage.LLVMInternalLinkage)
+        if (isInternal)
+            LLVMSetLinkage(it, LLVMLinkage.LLVMInternalLinkage)
     })
 }
 

@@ -455,10 +455,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                                     storeHeapRef(codegen.kNullObjHeaderPtr, address)
                                 }
                             }
-                    context.llvm.sharedObjects.forEach { irClass ->
-                        val address = context.llvmDeclarations.forSingleton(irClass).instanceStorage.getAddress(
-                                functionGenerationContext
-                        )
+                    context.llvm.sharedObjects.forEach { address ->
                         storeHeapRef(codegen.kNullObjHeaderPtr, address)
                     }
                     ret(null)
@@ -779,17 +776,18 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 LLVMSetInitializer(access.getAddress(null), if (declaration.storageKind(context) == ObjectStorageKind.PERMANENT)
                     context.llvm.staticData.createConstKotlinObject(declaration,
                             *computeFields(declaration)).llvm else codegen.kNullObjHeaderPtr)
-            }
-            val isObjCCompanion = declaration.isCompanion && declaration.parentAsClass.isObjCClass()
-            // If can be exported and can be instantiated.
-            if (declaration.isExported() && !isObjCCompanion &&
-                    declaration.constructors.singleOrNull() { it.valueParameters.size == 0 } != null) {
-                val valueGetterName = declaration.objectInstanceGetterSymbolName
-                generateFunction(codegen,
-                        LLVMFunctionType(codegen.kObjHeaderPtr, cValuesOf(codegen.kObjHeaderPtrPtr), 1, 0)!!,
-                        valueGetterName) {
-                    val value = getObjectValue(declaration, ExceptionHandler.Caller, null, null)
-                    ret(value)
+            } else {
+                val isObjCCompanion = declaration.isCompanion && declaration.parentAsClass.isObjCClass()
+                // If can be exported and can be instantiated.
+                if (declaration.isExported() && !isObjCCompanion &&
+                        declaration.constructors.singleOrNull() { it.valueParameters.size == 0 } != null) {
+                    val valueGetterName = declaration.objectInstanceGetterSymbolName
+                    generateFunction(codegen,
+                            LLVMFunctionType(codegen.kObjHeaderPtr, cValuesOf(codegen.kObjHeaderPtrPtr), 1, 0)!!,
+                            valueGetterName) {
+                        val value = getObjectValue(declaration, ExceptionHandler.Caller, null, null)
+                        ret(value)
+                    }
                 }
             }
         }
