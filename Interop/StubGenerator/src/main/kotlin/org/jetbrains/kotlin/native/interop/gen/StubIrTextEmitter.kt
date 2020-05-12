@@ -30,7 +30,7 @@ class StubIrTextEmitter(
         get() = context.configuration.pkgName
 
     private val StubContainer.isTopLevelContainer: Boolean
-        get() = this == builderResult.stubs
+        get() = this == builderResult.stubs || this in builderResult.stubs.simpleContainers
 
     /**
      * The output currently used by the generator.
@@ -286,7 +286,7 @@ class StubIrTextEmitter(
         val modality = "$override${renderMemberModality(element.modality, owner)}"
         val receiver = if (element.receiverType != null) "${renderStubType(element.receiverType)}." else ""
         val name = if (owner?.isTopLevelContainer == true) {
-            getTopLevelPropertyDeclarationName(kotlinFile, element.name)
+            getTopLevelPropertyDeclarationName(kotlinFile, element).asSimpleName()
         } else {
             element.name.asSimpleName()
         }
@@ -391,7 +391,7 @@ class StubIrTextEmitter(
     }
 
     private fun renderClassifierDeclaration(classifier: Classifier): String =
-            kotlinFile.declare(classifier)
+            kotlinFile.declare(classifier).asSimpleName()
 
     private fun renderClassStubModality(classStubModality: ClassStubModality): String = when (classStubModality) {
         ClassStubModality.INTERFACE -> "interface "

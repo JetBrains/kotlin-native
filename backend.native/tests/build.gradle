@@ -5,9 +5,12 @@
 
 import shadow.org.jetbrains.kotlin.gradle.plugin.tasks.KonanCompileNativeBinary
 import org.jetbrains.kotlin.*
+import org.jetbrains.kotlin.konan.target.Family
 import org.jetbrains.kotlin.konan.target.KonanTarget
 
 import java.nio.file.Paths
+
+import static org.jetbrains.kotlin.konan.target.Architecture.*
 
 buildscript {
     repositories {
@@ -277,13 +280,6 @@ task resultsTask() {
 boolean isExcluded(String dir) {
     // List of tests that fail due to unresolved compiler bugs
     def excluded = [ ]
-
-    if (project.twoStageEnabled) {
-        excluded += [
-                "codegen/box/closures/captureInSuperConstructorCall", "codegen/box/enum",  // KT-33207.
-                "codegen/box/objects" // KT-33267.
-        ]
-    }
 
     boolean result = false
     excluded.forEach {
@@ -877,14 +873,10 @@ task empty_substring(type: KonanLocalTest) {
     source = "runtime/basic/empty_substring.kt"
 }
 
-task worker_bound_reference0(type: KonanLocalTest) {
+standaloneTest("worker_bound_reference0") {
     enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
     source = "runtime/concurrent/worker_bound_reference0.kt"
-}
-
-task worker_bound_reference1(type: KonanLocalTest) {
-    enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
-    source = "runtime/concurrent/worker_bound_reference1.kt"
+    flags = ['-tr']
 }
 
 task worker0(type: KonanLocalTest) {
@@ -1020,7 +1012,7 @@ task atomic0(type: KonanLocalTest) {
 
 standaloneTest("atomic1") {
     // Note: This test reproduces a race, so it'll start flaking if problem is reintroduced.
-    enabled = (project.testTarget != 'wasm32') // Workers need pthreads.
+    enabled = false // Needs USE_CYCLIC_GC, which is disabled.
     source = "runtime/workers/atomic1.kt"
 }
 
@@ -2325,6 +2317,18 @@ standaloneTest("check_stacktrace_format") {
     source = "runtime/exceptions/check_stacktrace_format.kt"
 }
 
+standaloneTest("stack_trace_inline") {
+    disabled = !isAppleTarget(project) || project.globalTestArgs.contains('-opt') || (project.testTarget == 'ios_arm64')
+    flags = ['-g']
+    source = "runtime/exceptions/stack_trace_inline.kt"
+}
+
+standaloneTest("kt-37572") {
+    disabled = !isAppleTarget(project) || project.globalTestArgs.contains('-opt') || (project.testTarget == 'ios_arm64')
+    flags = ['-g']
+    source = "runtime/exceptions/kt-37572.kt"
+}
+
 standaloneTest("custom_hook") {
     enabled = (project.testTarget != 'wasm32') // Uses exceptions.
     goldValue = "value 42: Error\n"
@@ -2782,12 +2786,13 @@ task memory_stable_ref_cross_thread_check(type: KonanLocalTest) {
 }
 
 standaloneTest("cycle_collector") {
-    disabled = project.globalTestArgs.contains('-opt') || (project.testTarget == 'wasm32') // Needs debug build.
+    disabled = true // Needs USE_CYCLIC_GC, which is disabled.
     flags = ['-g']
     source = "runtime/memory/cycle_collector.kt"
 }
 
 standaloneTest("cycle_collector_deadlock1") {
+    disabled = true // Needs USE_CYCLIC_GC, which is disabled.
     source = "runtime/memory/cycle_collector_deadlock1.kt"
 }
 
@@ -3344,6 +3349,11 @@ linkTest("inline_lateinitProperty_linkTest") {
     lib = "codegen/inline/lateinitProperty_linkTest_lib.kt"
 }
 
+linkTest("inline_inlineCtor_linkTest") {
+    source = "codegen/inline/inlineCtor_linkTest_main.kt"
+    lib = "codegen/inline/inlineCtor_linkTest_lib.kt"
+}
+
 def generateWithSpaceDefFile() {
     def mapOption = "--Map \"${buildDir}/cutom map.map\""
     if (isAppleTarget(project)) {
@@ -3449,6 +3459,22 @@ createInterop("cmangling") {
 
 createInterop("cmangling2") {
     it.defFile 'interop/basics/mangling2.def'
+}
+
+createInterop("cmangling_keywords") {
+    it.defFile 'interop/basics/mangling_keywords.def'
+}
+
+createInterop("cmangling_keywords2") {
+    it.defFile 'interop/basics/mangling_keywords2.def'
+}
+
+createInterop("cunion") {
+    it.defFile 'interop/basics/cunion.def'
+}
+
+createInterop("carrayPointers") {
+    it.defFile 'interop/basics/carrayPointers.def'
 }
 
 createInterop("auxiliaryCppSources") {
@@ -3654,6 +3680,18 @@ interopTest("interop_mangling2") {
     interop = 'cmangling2'
 }
 
+interopTest("interop_mangling_keywords") {
+    disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
+    source = "interop/basics/mangling_keywords.kt"
+    interop = 'cmangling_keywords'
+}
+
+interopTest("interop_mangling_keywords2") {
+    disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
+    source = "interop/basics/mangling_keywords2.kt"
+    interop = 'cmangling_keywords2'
+}
+
 interopTest("interop_auxiliarySources") {
     disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
     source = "interop/auxiliary_sources/main.kt"
@@ -3686,6 +3724,18 @@ interopTest("interop_withSpaces") {
     doLast {
         assert file("${buildDir}/cutom map.map").exists()
     }
+}
+
+interopTest("interop_union") {
+    disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
+    interop = 'cunion'
+    source = "interop/basics/union.kt"
+}
+
+interopTest("interop_array_pointers") {
+    disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
+    interop = 'carrayPointers'
+    source = "interop/basics/arrayPointers.kt"
 }
 
 task interop_convert(type: KonanLocalTest) {
@@ -3726,12 +3776,6 @@ if (PlatformInfo.isAppleTarget(project)) {
 
         source = "interop/objc/smoke.kt"
         interop = 'objcSmoke'
-
-        if (twoStageEnabled) {
-            // Without this flag the test fails in the two-stage mode due to KT-33160.
-            // TODO: Remove this flag when the bug is fixed.
-            flags += "-nodefaultlibs"
-        }
 
         doBeforeBuild {
             mkdir(buildDir)
@@ -4425,8 +4469,8 @@ dependencies {
     nopPluginCompile kotlinCompilerModule
 }
 
-// Configure ios build
-if (PlatformInfo.getTarget(project) == KonanTarget.IOS_ARM64.INSTANCE) {
+// Configure build for iOS device targets.
+if (target.family == Family.IOS && (target.architecture == ARM32 || target.architecture == ARM64)) {
     project.tasks
             .matching { it instanceof KonanTestExecutable }
             .forEach {
