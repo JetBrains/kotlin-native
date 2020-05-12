@@ -313,7 +313,6 @@ internal val allLoweringsPhase = namedIrModulePhase(
                                 typeOperatorPhase then
                                 bridgesPhase then
                                 autoboxPhase then
-                                boxHoistingPhase then
                                 returnsInsertionPhase then
                                 countBoxingsPhase
                 ),
@@ -399,6 +398,7 @@ internal val bitcodePhase = namedIrModulePhase(
                 RTTIPhase then
                 generateDebugInfoHeaderPhase then
                 escapeAnalysisPhase then
+                boxHoistingPhase then
                 codegenPhase then
                 finalizeDebugInfoPhase then
                 cStubsPhase

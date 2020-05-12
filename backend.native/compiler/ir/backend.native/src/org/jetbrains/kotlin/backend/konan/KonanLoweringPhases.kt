@@ -6,7 +6,6 @@ import org.jetbrains.kotlin.backend.common.lower.inline.FunctionInlining
 import org.jetbrains.kotlin.backend.common.lower.loops.ForLoopsLowering
 import org.jetbrains.kotlin.backend.common.phaser.*
 import org.jetbrains.kotlin.backend.common.runOnFilePostfix
-import org.jetbrains.kotlin.backend.konan.boxing.BoxHoistingLowering
 import org.jetbrains.kotlin.backend.konan.boxing.NewGenericsSpecialization
 import org.jetbrains.kotlin.backend.konan.boxing.NewReplaceOriginsWithSpecializationsLowering
 import org.jetbrains.kotlin.backend.konan.lower.*
@@ -329,13 +328,6 @@ internal val autoboxPhase = makeKonanFileLoweringPhase(
         name = "Autobox",
         description = "Autoboxing of primitive types",
         prerequisite = setOf(bridgesPhase, coroutinesPhase)
-)
-
-internal val boxHoistingPhase = makeKonanFileLoweringPhase(
-        ::BoxHoistingLowering,
-        name = "Box hoisting",
-        description = "Hoisting of box operations to reduce repeated boxings",
-        prerequisite = setOf(autoboxPhase)
 )
 
 internal val returnsInsertionPhase = makeKonanFileLoweringPhase(

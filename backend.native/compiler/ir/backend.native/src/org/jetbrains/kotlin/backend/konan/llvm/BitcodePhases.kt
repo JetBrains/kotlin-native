@@ -5,10 +5,16 @@
 
 package org.jetbrains.kotlin.backend.konan.llvm
 
-import llvm.*
-import org.jetbrains.kotlin.backend.konan.*
+import llvm.DIFinalize
+import llvm.LLVMContextCreate
+import llvm.LLVMCreateDIBuilder
+import llvm.LLVMModuleCreateWithNameInContext
+import org.jetbrains.kotlin.backend.konan.InteropFqNames
 import org.jetbrains.kotlin.backend.konan.descriptors.GlobalHierarchyAnalysis
+import org.jetbrains.kotlin.backend.konan.makeKonanModuleOpPhase
 import org.jetbrains.kotlin.backend.konan.optimizations.*
+import org.jetbrains.kotlin.backend.konan.produceCStubs
+import org.jetbrains.kotlin.backend.konan.produceOutput
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
@@ -217,6 +223,22 @@ internal val serializeDFGPhase = makeKonanModuleOpPhase(
         prerequisite = setOf(buildDFGPhase), // TODO: Requires escape analysis.
         op = { context, _ ->
             DFGSerializer.serialize(context, context.moduleDFG!!)
+        }
+)
+
+internal val boxHoistingPhase = makeKonanModuleOpPhase(
+        name = "Box hoisting",
+        description = "Hoisting of box operations to reduce repeated boxings",
+        op = { context, irModuleFragment ->
+            irModuleFragment.acceptChildrenVoid(object : IrElementVisitorVoid {
+                override fun visitElement(element: IrElement) {
+                    element.acceptChildrenVoid(this)
+                }
+
+                override fun visitFunction(declaration: IrFunction) {
+                    BoxHoisting.run(context, declaration)
+                }
+            })
         }
 )
 
