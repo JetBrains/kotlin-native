@@ -61,7 +61,7 @@ kotlin {
     println(targets.windows)
     
     // You also can configure all native targets in a single block.
-    targets.withType(KotlinNativeTarget) {
+    targets.withType(KotlinNativeTarget::class.java) {
         // Native target configuration.
     }
 }
