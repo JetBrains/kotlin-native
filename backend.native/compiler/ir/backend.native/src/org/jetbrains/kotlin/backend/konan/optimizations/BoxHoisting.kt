@@ -5,7 +5,8 @@ import org.jetbrains.kotlin.backend.common.lower.createIrBuilder
 import org.jetbrains.kotlin.backend.konan.Context
 import org.jetbrains.kotlin.backend.konan.cfg.*
 import org.jetbrains.kotlin.backend.konan.cfg.analysis.AnalysisResult
-import org.jetbrains.kotlin.backend.konan.cfg.analysis.WorklistIntraproceduralCfgAnalyzer
+import org.jetbrains.kotlin.backend.konan.cfg.analysis.ReversePostorderWorkList
+import org.jetbrains.kotlin.backend.konan.cfg.analysis.WorkListIntraproceduralCfgAnalyzer
 import org.jetbrains.kotlin.backend.konan.getBoxFunction
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
@@ -40,7 +41,7 @@ internal object BoxHoisting {
         val (functionEntry, _) = function.buildCfg(CfgServiceFunctionsFilter(listOf(context.ir.symbols.reinterpret)))
         val allValues = collectValues(function)
 
-        val analysis = RepeatedBoxingsWorklistAnalysis(allValues, functionEntry)
+        val analysis = RepeatedBoxingsWorkListAnalysis(allValues, functionEntry)
         val analysisResult = analysis.analyze(functionEntry)
         val boxingVariables = analysisResult.values.flatMap { it.resultOut }.map { it.owner }
         val boxedVariables = boxingVariables.map { it.createBoxedVariable(context) }
@@ -123,7 +124,8 @@ internal object BoxHoisting {
         }
     }
 
-    class RepeatedBoxingsWorklistAnalysis(val valuesToAnalyze: Set<IrValueSymbol>, val entryBlock: BasicBlock) : WorklistIntraproceduralCfgAnalyzer<RepeatedBoxingsAnalysisResult> {
+    class RepeatedBoxingsWorkListAnalysis(val valuesToAnalyze: Set<IrValueSymbol>, val entryBlock: BasicBlock)
+        : WorkListIntraproceduralCfgAnalyzer<RepeatedBoxingsAnalysisResult>(ReversePostorderWorkList(entryBlock)) {
         override fun initialFor(basicBlock: BasicBlock): RepeatedBoxingsAnalysisResult {
             if (basicBlock === entryBlock) {
                 return RepeatedBoxingsAnalysisResult.empty()
