@@ -52,7 +52,7 @@ class Dotifier(val name: String, val entryBlock: BasicBlock) {
         entryBlock.traverseBfs(result, { vertices, block ->
             vertices += DotVertexDescription(
                     symbolicName = enumeration[block]!!,
-                    label = block.statements.joinToString("\n") { it.accept(dotRepresentationVisitor, data = null) },
+                    label = block.elements.joinToString("\n") { it.statement.accept(dotRepresentationVisitor, data = null) },
                     next = block.outgoingEdges.map { enumeration[it.to]!! to edgeLabeling(it) }
             )
         })

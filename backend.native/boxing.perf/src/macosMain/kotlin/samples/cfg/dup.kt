@@ -15,15 +15,24 @@ fun cfgDup(x: Int, y: Int) {
     }
 }
 
-fun cfgDup2(x: Int, z: Int) {
+fun cfgDup2(x: Int) {
     val y = 1
     box(x)
     if (x < y) {
         box(y)
     } else {
-        box(z)
+        box(x)
     }
-    box(y)
+}
+
+fun cfgDup3(x: Int) {
+    val y = 1
+    if (x < y) {
+        box(y)
+        box(y)
+    } else {
+        box(x)
+    }
 }
 
 fun box(a: Any?) {

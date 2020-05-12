@@ -1,5 +1,7 @@
 package org.jetbrains.kotlin.backend.konan.cfg
 
+import org.jetbrains.kotlin.backend.common.pop
+import org.jetbrains.kotlin.backend.common.push
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
@@ -30,7 +32,7 @@ class CfgBuilder(private val filter: CfgElementsFilter) : IrElementVisitorVoid {
     }
 
     override fun visitDeclaration(declaration: IrDeclaration) {
-        current.statements += declaration
+        current.elements += declaration.toBasicBlockElement()
     }
 
     override fun visitFunction(declaration: IrFunction) {
@@ -43,56 +45,61 @@ class CfgBuilder(private val filter: CfgElementsFilter) : IrElementVisitorVoid {
         functionExitSink = null
     }
 
-    override fun visitBlockBody(body: IrBlockBody) {
-        body.statements.forEach {
-            it.acceptVoid(this)
+    private fun visitStatementContainer(container: IrStatementContainer) {
+        statementContainersStack.push(container)
+        currentStatementIndicesInContainer.push(-1)
+        container.statements.forEachIndexed { index, statement ->
+            currentStatementIndicesInContainer[currentStatementIndicesInContainer.lastIndex]++
+            statement.acceptVoid(this)
         }
+        currentStatementIndicesInContainer.pop()
+        statementContainersStack.pop()
+    }
+
+    override fun visitBlockBody(body: IrBlockBody) {
+        visitStatementContainer(body)
     }
 
     override fun visitBlock(expression: IrBlock) {
-        expression.statements.forEach {
-            it.acceptVoid(this)
-        }
+        visitStatementContainer(expression)
     }
 
     override fun visitComposite(expression: IrComposite) {
-        expression.statements.forEach {
-            it.acceptVoid(this)
-        }
+        visitStatementContainer(expression)
     }
 
     override fun visitTypeOperator(expression: IrTypeOperatorCall) {
         expression.argument.acceptVoid(this)
         if (!filter.filter(expression)) {
-            current.statements += expression
+            current.elements += expression.toBasicBlockElement()
         }
     }
 
     override fun visitVariable(declaration: IrVariable) {
         declaration.initializer?.acceptVoid(this)
         if (!filter.filter(declaration)) {
-            current.statements += declaration
+            current.elements += declaration.toBasicBlockElement()
         }
     }
 
     override fun visitSetVariable(expression: IrSetVariable) {
         expression.value.acceptVoid(this)
         if (!filter.filter(expression)) {
-            current.statements += expression
+            current.elements += expression.toBasicBlockElement()
         }
     }
 
     override fun visitSetField(expression: IrSetField) {
         expression.value.acceptVoid(this)
         if (!filter.filter(expression)) {
-            current.statements += expression
+            current.elements += expression.toBasicBlockElement()
         }
     }
 
     override fun visitReturn(expression: IrReturn) {
         expression.value.acceptVoid(this)
         if (!filter.filter(expression)) {
-            current.statements += expression
+            current.elements += expression.toBasicBlockElement()
         }
         functionExitSink?.apply { current returnEdgeTo this }
     }
@@ -177,7 +184,7 @@ class CfgBuilder(private val filter: CfgElementsFilter) : IrElementVisitorVoid {
                 outerLoopStartAndEnd?.let { labeledLoops[label] = it }
             }
             else -> if (!filter.filter(expression)) {
-                current.statements += expression
+                current.elements += expression.toBasicBlockElement()
             }
         }
     }
@@ -189,7 +196,7 @@ class CfgBuilder(private val filter: CfgElementsFilter) : IrElementVisitorVoid {
             expression.getValueArgument(i)!!.acceptVoid(this)
         }
         if (!filter.filter(expression)) {
-            current.statements += expression
+            current.elements += expression.toBasicBlockElement()
         }
     }
 
@@ -200,8 +207,15 @@ class CfgBuilder(private val filter: CfgElementsFilter) : IrElementVisitorVoid {
         private val labeledLoops = mutableMapOf<String, Pair<BasicBlock, BasicBlock>>()
 
         private fun BasicBlock.isTrueConst(): Boolean {
-            return statements.size == 1 && statements.single().let { it is IrConst<*> && it.isTrueConst() }
+            return elements.size == 1 && elements.single().statement.let { it is IrConst<*> && it.isTrueConst() }
         }
+
+        private val statementContainersStack = mutableListOf<IrStatementContainer>()
+        private val currentContainer: IrStatementContainer
+            get() = statementContainersStack.last()
+        private val currentStatementIndicesInContainer = mutableListOf<Int>()
+
+        private fun IrStatement.toBasicBlockElement() = BasicBlock.Element(this, currentContainer, currentStatementIndicesInContainer.last())
     }
 }
 
@@ -234,11 +248,15 @@ private fun edgeTo(from: BasicBlock, to: BasicBlock, kind: EdgeKind) {
 }
 
 class BasicBlock(
-        val statements: MutableList<IrStatement> = mutableListOf(),
+        val elements: MutableList<Element> = mutableListOf(),
         val incomingEdges: MutableList<Edge> = mutableListOf(),
         val outgoingEdges: MutableList<Edge> = mutableListOf()
 ) {
-
+    class Element(
+            val statement: IrStatement,
+            val container: IrStatementContainer,
+            val index: Int
+    )
     val kind: EdgeKind
         get() = when {
             outgoingEdges.size == 1 -> outgoingEdges.single().kind
@@ -260,9 +278,9 @@ class BasicBlock(
     }
 
     companion object {
-        fun of(vararg statements: IrStatement): BasicBlock {
+        fun of(vararg statements: Element): BasicBlock {
             val result = BasicBlock()
-            statements.forEach { result.statements += it }
+            statements.forEach { result.elements += it }
             return result
         }
     }
@@ -308,7 +326,7 @@ fun BasicBlock.dumpCfg(): String {
             buildString {
                 val num = enumeration[this@dump]!!
                 appendln("==== ${this@dump.incomingEdges.joinToString { enumeration[it.from].toString() + "[${it.kind.name}]" }} --> START BLOCK #$num ====")
-                statements.forEach { append(it.dump()) }
+                elements.forEach { append(it.statement.dump()) }
                 appendln("==== END BLOCK #$num --> ${this@dump.outgoingEdges.joinToString { enumeration[it.to].toString() + "[${it.kind.name}]" }} ====")
             }
     val result = StringBuilder()
@@ -321,19 +339,19 @@ fun BasicBlock.dumpCfg(): String {
 fun BasicBlock.decomposed(): BasicBlock {
     // 1, 2 --> [a, b, c] --> 3, 4 ====> 1, 2 --> [a] -> [b] -> [c] -> 3, 4
     fun BasicBlock.atomDecompose(): BasicBlock {
-        if (statements.size <= 1) {
+        if (elements.size <= 1) {
             return this
         }
         val oldOutgoingEdges = mutableListOf<Edge>()
         oldOutgoingEdges += outgoingEdges
         outgoingEdges.clear()
         var lastBlock = this
-        for (i in 1 until statements.size) {
-            val newBlock = BasicBlock.of(statements[i])
+        for (i in 1 until elements.size) {
+            val newBlock = BasicBlock.of(elements[i])
             lastBlock edgeTo newBlock
             lastBlock = newBlock
         }
-        statements.retainAll(statements.take(1))
+        elements.retainAll(elements.take(1))
         val newOutgoingEdges = oldOutgoingEdges.map { Edge(lastBlock, it.to, it.kind) }
         lastBlock.outgoingEdges += newOutgoingEdges
         oldOutgoingEdges.forEachIndexed { index, oldOutgoingEdge ->
