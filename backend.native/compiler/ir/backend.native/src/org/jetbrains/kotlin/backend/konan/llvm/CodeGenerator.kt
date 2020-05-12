@@ -903,9 +903,9 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
 
         val storageKind = irClass.storageKind(context)
 
-        // If object is imported - access it via getter function.
+        // If thread local object is imported - access it via getter function.
         if (isExternal(irClass) && storageKind == ObjectStorageKind.THREAD_LOCAL) {
-            val valueGetterName = irClass.objectInstanceGetterSymbolName
+            val valueGetterName = irClass.threadLocalObjectInstanceGetterSymbolName
             val valueGetterFunction = LLVMGetNamedFunction(context.llvmModule, valueGetterName)
                     ?: LLVMAddFunction(context.llvmModule, valueGetterName,
                             functionType(kObjHeaderPtr, false, kObjHeaderPtrPtr))
@@ -916,14 +916,15 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         }
 
         val objectPtr = if (isExternal(irClass)) {
+            // If global object is imported - import it's storage directly.
             val llvmType = getLLVMType(irClass.defaultType)
             importGlobal(
-                    irClass.objectInstanceFieldSymbolName,
+                    irClass.globalObjectInstanceSymbolName,
                     llvmType,
-                    origin = irClass.llvmSymbolOrigin,
-                    threadLocal = storageKind == ObjectStorageKind.THREAD_LOCAL
+                    origin = irClass.llvmSymbolOrigin
             )
         } else {
+            // Local globals and thread locals storage info is stored in our map.
             val singleton = context.llvmDeclarations.forSingleton(irClass)
             val instanceAddress = singleton.instanceStorage
             instanceAddress.getAddress(this)

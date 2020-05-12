@@ -773,15 +773,19 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             val singleton = context.llvmDeclarations.forSingleton(declaration)
             val access = singleton.instanceStorage
             if (access is GlobalAddressAccess) {
+                // Global objects are kept in a data segment and can be accessed by any module (if exported) and also
+                // they need to be initialized statically.
                 LLVMSetInitializer(access.getAddress(null), if (declaration.storageKind(context) == ObjectStorageKind.PERMANENT)
                     context.llvm.staticData.createConstKotlinObject(declaration,
                             *computeFields(declaration)).llvm else codegen.kNullObjHeaderPtr)
             } else {
+                // Thread local objects are kept in a special map, so they need a getter function to be accessible
+                // by other modules.
                 val isObjCCompanion = declaration.isCompanion && declaration.parentAsClass.isObjCClass()
                 // If can be exported and can be instantiated.
                 if (declaration.isExported() && !isObjCCompanion &&
                         declaration.constructors.singleOrNull() { it.valueParameters.size == 0 } != null) {
-                    val valueGetterName = declaration.objectInstanceGetterSymbolName
+                    val valueGetterName = declaration.threadLocalObjectInstanceGetterSymbolName
                     generateFunction(codegen,
                             LLVMFunctionType(codegen.kObjHeaderPtr, cValuesOf(codegen.kObjHeaderPtrPtr), 1, 0)!!,
                             valueGetterName) {

@@ -85,7 +85,7 @@ internal val IrClass.writableTypeInfoSymbolName: String
         return "ktypew:" + this.fqNameForIrSerialization.toString()
     }
 
-internal val IrClass.objectInstanceFieldSymbolName: String
+internal val IrClass.globalObjectInstanceSymbolName: String
     get() {
         assert (this.isExported())
         assert (this.kind.isSingleton)
@@ -94,7 +94,7 @@ internal val IrClass.objectInstanceFieldSymbolName: String
         return "kobjref:$fqNameForIrSerialization"
     }
 
-internal val IrClass.objectInstanceGetterSymbolName: String
+internal val IrClass.threadLocalObjectInstanceGetterSymbolName: String
     get() {
         assert (this.isExported())
         assert (this.kind.isSingleton)
