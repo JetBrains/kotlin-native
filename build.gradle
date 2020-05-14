@@ -328,6 +328,7 @@ task shadowJar(type: ShadowJar) {
     mergeServiceFiles()
     destinationDirectory.set(file("$distDir/konan/lib"))
     archiveBaseName.set("kotlin-native")
+    exclude("META-INF/versions/9/module-info.class")
     configurations = [project.configurations.distPack]
     archiveClassifier.set(null)
     transform(CollisionTransformer.class) {
