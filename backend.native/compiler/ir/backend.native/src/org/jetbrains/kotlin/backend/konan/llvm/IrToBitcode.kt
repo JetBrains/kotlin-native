@@ -787,9 +787,9 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                         declaration.constructors.singleOrNull() { it.valueParameters.size == 0 } != null) {
                     val valueGetterName = declaration.threadLocalObjectInstanceGetterSymbolName
                     generateFunction(codegen,
-                            LLVMFunctionType(codegen.kObjHeaderPtr, cValuesOf(codegen.kObjHeaderPtrPtr), 1, 0)!!,
+                            functionType(codegen.kObjHeaderPtrPtr, false),
                             valueGetterName) {
-                        val value = getObjectValue(declaration, ExceptionHandler.Caller, null, null)
+                        val value = access.getAddress(this)
                         ret(value)
                     }
                 }
