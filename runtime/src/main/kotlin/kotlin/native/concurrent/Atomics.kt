@@ -216,7 +216,7 @@ private fun debugString(value: Any?): String {
 /**
  * An atomic reference to a frozen Kotlin object. Can be used in concurrent scenarious
  * but frequently shall be of nullable type and be zeroed out once no longer needed.
- * Otherwise memory leak could happen if atomic reference is a part of a reference cycle.
+ * Otherwise memory leak could happen if the atomic reference is a part of a reference cycle.
  */
 @Frozen
 @LeakDetectorCandidate
