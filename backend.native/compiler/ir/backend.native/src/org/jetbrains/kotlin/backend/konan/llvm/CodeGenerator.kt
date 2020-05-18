@@ -907,7 +907,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             when (storageKind) {
                 // If thread local object is imported - access it via getter function.
                 ObjectStorageKind.THREAD_LOCAL -> {
-                    val valueGetterName = irClass.threadLocalObjectInstanceGetterSymbolName
+                    val valueGetterName = irClass.threadLocalObjectStorageGetterSymbolName
                     val valueGetterFunction = LLVMGetNamedFunction(context.llvmModule, valueGetterName)
                             ?: LLVMAddFunction(context.llvmModule, valueGetterName,
                                     functionType(kObjHeaderPtrPtr, false))
@@ -921,7 +921,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                 ObjectStorageKind.PERMANENT, ObjectStorageKind.SHARED -> {
                     val llvmType = getLLVMType(irClass.defaultType)
                     importGlobal(
-                            irClass.globalObjectInstanceSymbolName,
+                            irClass.globalObjectStorageSymbolName,
                             llvmType,
                             origin = irClass.llvmSymbolOrigin
                     )

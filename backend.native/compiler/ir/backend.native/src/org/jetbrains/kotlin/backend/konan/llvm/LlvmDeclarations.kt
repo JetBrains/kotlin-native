@@ -270,7 +270,7 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
         val threadLocal = storageKind == ObjectStorageKind.THREAD_LOCAL
         val isExported = irClass.isExported()
         val symbolName = if (isExported) {
-            irClass.globalObjectInstanceSymbolName
+            irClass.globalObjectStorageSymbolName
         } else {
             "kobjref:" + qualifyInternalName(irClass)
         }

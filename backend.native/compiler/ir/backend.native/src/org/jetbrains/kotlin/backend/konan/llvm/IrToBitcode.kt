@@ -785,7 +785,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 // If can be exported and can be instantiated.
                 if (declaration.isExported() && !isObjCCompanion &&
                         declaration.constructors.singleOrNull() { it.valueParameters.size == 0 } != null) {
-                    val valueGetterName = declaration.threadLocalObjectInstanceGetterSymbolName
+                    val valueGetterName = declaration.threadLocalObjectStorageGetterSymbolName
                     generateFunction(codegen,
                             functionType(codegen.kObjHeaderPtrPtr, false),
                             valueGetterName) {
