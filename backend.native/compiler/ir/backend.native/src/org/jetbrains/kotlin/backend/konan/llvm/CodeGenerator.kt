@@ -935,8 +935,10 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         }
 
         when (storageKind) {
-            ObjectStorageKind.SHARED -> context.llvm.sharedObjects += objectPtr
-            ObjectStorageKind.THREAD_LOCAL -> context.llvm.objects += irClass
+            // If current file used a shared object, make file's (de)initializer function deinit it.
+            ObjectStorageKind.SHARED -> context.llvm.globalSharedObjects += objectPtr
+            // If current file used TLS objects, make file's (de)initializer function init and deinit TLS.
+            ObjectStorageKind.THREAD_LOCAL -> context.llvm.fileUsesThreadLocalObjects = true
             ObjectStorageKind.PERMANENT -> { /* Do nothing, no need to free such an instance. */ }
         }
 

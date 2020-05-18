@@ -455,7 +455,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                                     storeHeapRef(codegen.kNullObjHeaderPtr, address)
                                 }
                             }
-                    context.llvm.sharedObjects.forEach { address ->
+                    context.llvm.globalSharedObjects.forEach { address ->
                         storeHeapRef(codegen.kNullObjHeaderPtr, address)
                     }
                     ret(null)
@@ -495,14 +495,14 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     override fun visitFile(declaration: IrFile) {
         // TODO: collect those two in one place.
         context.llvm.fileInitializers.clear()
-        context.llvm.objects.clear()
-        context.llvm.sharedObjects.clear()
+        context.llvm.fileUsesThreadLocalObjects = false
+        context.llvm.globalSharedObjects.clear()
 
         @Suppress("UNCHECKED_CAST")
         using(FileScope(declaration)) {
             declaration.acceptChildrenVoid(this)
 
-            if (context.llvm.fileInitializers.isEmpty() && context.llvm.objects.isEmpty() && context.llvm.sharedObjects.isEmpty())
+            if (context.llvm.fileInitializers.isEmpty() && !context.llvm.fileUsesThreadLocalObjects && context.llvm.globalSharedObjects.isEmpty())
                 return
 
             // Create global initialization records.
