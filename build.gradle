@@ -57,7 +57,7 @@ buildscript {
             }
 
             configurations.classpath.resolutionStrategy.force(
-                    "org.jetbrains.kotlin:kotlin-gradle-plugin:1.4.0-dev-8476"
+                    "org.jetbrains.kotlin:kotlin-gradle-plugin:1.4.0-dev-8626"
             )
         }
     }

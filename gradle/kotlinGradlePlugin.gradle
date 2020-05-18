@@ -27,7 +27,7 @@ project.buildscript {
     repositories.maven {
         url "https://dl.bintray.com/kotlin/kotlin-dev"
     }
-    configurations.classpath.resolutionStrategy.force("org.jetbrains.kotlin:kotlin-gradle-plugin:1.4.0-dev-8476")
+    configurations.classpath.resolutionStrategy.force("org.jetbrains.kotlin:kotlin-gradle-plugin:1.4.0-dev-8626")
 }
 
 configurations {
