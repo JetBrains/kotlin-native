@@ -23,14 +23,12 @@ import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.konan.DeserializedKlibModuleOrigin
 import org.jetbrains.kotlin.descriptors.konan.KlibModuleOrigin
 import org.jetbrains.kotlin.descriptors.konan.isNativeStdlib
-import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
-import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.psi2ir.Psi2IrConfiguration
 import org.jetbrains.kotlin.psi2ir.Psi2IrTranslator
 import org.jetbrains.kotlin.utils.DFS
@@ -296,7 +294,9 @@ internal val serializerPhase = konanUnitPhase(
             val serializer = KlibMetadataMonolithicSerializer(
                 this.config.configuration.languageVersionSettings,
                 config.configuration.get(CommonConfigurationKeys.METADATA_VERSION)!!,
-                !expectActualLinker)
+                bindingContext,
+                !expectActualLinker
+            )
             serializedMetadata = serializer.serializeModule(moduleDescriptor)
         },
         name = "Serializer",
