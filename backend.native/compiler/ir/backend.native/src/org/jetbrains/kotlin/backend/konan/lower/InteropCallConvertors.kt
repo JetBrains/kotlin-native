@@ -105,9 +105,10 @@ private fun InteropCallContext.readValueFromMemory(
 
 private fun InteropCallContext.writeValueToMemory(
         nativePtr: IrExpression,
-        value: IrExpression
+        value: IrExpression,
+        targetType: IrType
 ): IrExpression {
-    val memoryValueType = determineInMemoryType(value.type)
+    val memoryValueType = determineInMemoryType(targetType)
     val memWriteFn = findMemoryAccessFunction(isRead = false, valueType = memoryValueType)
     val valueToWrite = castPrimitiveIfNeeded(value, memoryValueType)
     return with(builder) {
@@ -123,10 +124,12 @@ private fun InteropCallContext.writeValueToMemory(
 
 private fun InteropCallContext.determineInMemoryType(type: IrType): IrType {
     val classifier = type.classOrNull!!
-    return if (classifier in symbols.unsignedIntegerClasses) {
-        symbols.unsignedToSignedOfSameBitWidth.getValue(classifier).owner.defaultType
-    } else {
-        type
+    return when {
+        // enum may have an unsigned base type so we perform a recursive call.
+        type.isCEnumType() -> determineInMemoryType(type.getCEnumPrimitiveType())
+        classifier in symbols.unsignedIntegerClasses ->
+            symbols.unsignedToSignedOfSameBitWidth.getValue(classifier).owner.defaultType
+        else -> type
     }
 }
 
@@ -135,6 +138,7 @@ private fun InteropCallContext.castPrimitiveIfNeeded(
         targetType: IrType
 ): IrExpression {
     val valueClass = value.type.classOrNull!!
+    if (valueClass === symbols.nothing) return value
     val targetClass = targetType.classOrNull!!
     return if (valueClass != targetClass) {
         val conversion = symbols.integerConversions.getValue(valueClass to targetClass)
@@ -151,6 +155,7 @@ private fun InteropCallContext.castPrimitiveIfNeeded(
 }
 
 private fun InteropCallContext.convertEnumToIntegral(enumValue: IrExpression): IrExpression {
+    if (enumValue.type.classOrNull == symbols.nothing) return enumValue
     val enumClass = enumValue.type.getClass()!!
     val valueProperty = enumClass.properties.single { it.name.asString() == "value" }
     return builder.irCall(valueProperty.getter!!).also {
@@ -182,9 +187,13 @@ private fun InteropCallContext.readEnumValueFromMemory(nativePtr: IrExpression, 
     return convertIntegralToEnum(readMemory, enumType)
 }
 
-private fun InteropCallContext.writeEnumValueToMemory(nativePtr: IrExpression, value: IrExpression): IrExpression {
+private fun InteropCallContext.writeEnumValueToMemory(
+        nativePtr: IrExpression,
+        value: IrExpression,
+        targetEnumType: IrType,
+): IrExpression {
     val valueToWrite = convertEnumToIntegral(value)
-    return writeValueToMemory(nativePtr, valueToWrite)
+    return writeValueToMemory(nativePtr, valueToWrite, targetEnumType)
 }
 
 private fun InteropCallContext.convertCPointerToNativePtr(cPointer: IrExpression): IrExpression {
@@ -203,7 +212,7 @@ private fun InteropCallContext.writePointerToMemory(
         pointerType.isCPointer() -> convertCPointerToNativePtr(value)
         else -> error("Unsupported pointer type")
     }
-    return writeValueToMemory(nativePtr, valueToWrite)
+    return writeValueToMemory(nativePtr, valueToWrite, valueToWrite.type)
 }
 
 private fun InteropCallContext.calculateFieldPointer(receiver: IrExpression, offset: Long): IrExpression {
@@ -261,7 +270,10 @@ private fun InteropCallContext.generateEnumVarValueAccess(callSite: IrCall): IrE
     }
     return when {
         accessor.isGetter -> readEnumValueFromMemory(nativePtr, accessor.returnType)
-        accessor.isSetter -> writeEnumValueToMemory(nativePtr, callSite.getValueArgument(0)!!)
+        accessor.isSetter -> {
+            val type = accessor.valueParameters[0].type
+            writeEnumValueToMemory(nativePtr, callSite.getValueArgument(0)!!, type)
+        }
         else -> error("")
     }
 }
@@ -286,8 +298,8 @@ private fun InteropCallContext.generateMemberAtAccess(callSite: IrCall): IrExpre
             val value = callSite.getValueArgument(0)!!
             val type = accessor.valueParameters[0].type
             when {
-                type.isCEnumType() -> writeEnumValueToMemory(fieldPointer, value)
-                type.isStoredInMemoryDirectly() -> writeValueToMemory(fieldPointer, value)
+                type.isCEnumType() -> writeEnumValueToMemory(fieldPointer, value, type)
+                type.isStoredInMemoryDirectly() -> writeValueToMemory(fieldPointer, value, type)
                 type.isCPointer() -> writePointerToMemory(fieldPointer, value, type)
                 else -> error("Cannot set field of type ${type.getClass()?.name}")
             }

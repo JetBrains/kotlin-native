@@ -33,5 +33,26 @@ fun main() {
         arr[1] = 19
         assertEquals(arr[0], 51)
         assertEquals(arr[1], 19)
+
+        // Check that subtyping via Nothing-returning functions does not break compiler.
+        assertFailsWith<NotImplementedError> {
+            ui = TODO()
+            t.i = TODO()
+            next = TODO()
+            e = TODO()
+            nonStrict = TODO()
+        }
+    }
+    memScoped {
+        val packed = alloc<Packed>()
+        packed.i = -1
+        assertEquals(-1, packed.i)
+        packed.e = E.R
+        assertEquals(E.R, packed.e)
+        // Check that subtyping via Nothing-returning functions does not break compiler.
+        assertFailsWith<NotImplementedError> {
+            packed.i = TODO()
+            packed.e = TODO()
+        }
     }
 }

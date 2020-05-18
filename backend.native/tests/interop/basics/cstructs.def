@@ -21,6 +21,11 @@ struct Complex {
     int arr[2];
 };
 
+struct __attribute__((packed)) Packed {
+    int i : 1;
+    enum E e : 2;
+};
+
 struct Complex produceComplex() {
     struct Complex complex = {
     		.ui = 128,
