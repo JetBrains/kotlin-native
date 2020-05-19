@@ -26,7 +26,8 @@ import org.jetbrains.kotlin.ir.util.defaultOrNullableType
 import org.jetbrains.kotlin.ir.util.fqNameForIrSerialization
 import org.jetbrains.kotlin.ir.util.irCall
 import org.jetbrains.kotlin.ir.util.render
-import org.jetbrains.kotlin.ir.visitors.*
+import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
+import org.jetbrains.kotlin.ir.visitors.IrElementVisitor
 import org.jetbrains.kotlin.name.Name
 import java.io.File
 import kotlin.collections.set
@@ -34,14 +35,16 @@ import kotlin.collections.set
 internal object BoxHoisting {
 
     fun run(context: Context, function: IrFunction) {
-        if (!function.couldPossiblyHaveRepeatedBoxings()) {
+        val valuesBoxedInSeveralPlaces = function.extractValuesBoxedInSeveralPlaces()
+        if (valuesBoxedInSeveralPlaces.isEmpty()) {
             return
         }
         println("Analyzing ${function.fqNameForIrSerialization.asString()}")
-        val (functionEntry, _) = function.buildCfg(CfgServiceFunctionsFilter(listOf(context.ir.symbols.reinterpret)))
-        val allValues = collectValues(function)
+        println(valuesBoxedInSeveralPlaces.joinToString { it.owner.name.asString() })
 
-        val analysis = RepeatedBoxingsWorkListAnalysis(allValues, functionEntry)
+        val (functionEntry, _) = function.buildCfg(CfgServiceFunctionsFilter(listOf(context.ir.symbols.reinterpret)))
+
+        val analysis = RepeatedBoxingsWorkListAnalysis(valuesBoxedInSeveralPlaces, functionEntry)
         val analysisResult = analysis.analyze(functionEntry)
         val boxingVariables = analysisResult.values.flatMap { it.resultOut }.map { it.owner }
         val boxedVariables = boxingVariables.map { it.createBoxedVariable(context) }
@@ -57,14 +60,15 @@ internal object BoxHoisting {
         File("dot/${function.name}_after.dot").appendText(newFunctionEntry.printDotGraph(function.name.asString()))
     }
 
-    private fun IrFunction.couldPossiblyHaveRepeatedBoxings(): Boolean {
+    private fun IrFunction.extractValuesBoxedInSeveralPlaces(): Set<IrValueSymbol> {
         val overallBoxingsInfo = OverallBoxingsInfo()
         acceptChildren(OverallBoxingsCountVisitor(), overallBoxingsInfo)
-        return overallBoxingsInfo.maxBoxingsCount() > 1
+        return overallBoxingsInfo.getInfo().filterValues { it > 1 }.keys
     }
 
     private class OverallBoxingsInfo {
         private val overallBoxings: MutableMap<IrValueSymbol, Int> = mutableMapOf()
+
         fun newBoxing(symbol: IrValueSymbol) {
             if (symbol !in overallBoxings) {
                 overallBoxings[symbol] = 1
@@ -72,7 +76,8 @@ internal object BoxHoisting {
                 overallBoxings[symbol] = overallBoxings[symbol]!! + 1
             }
         }
-        fun maxBoxingsCount() = overallBoxings.maxBy { it.value }?.value ?: 0
+
+        fun getInfo() = overallBoxings
     }
 
     private class OverallBoxingsCountVisitor : IrElementVisitor<Unit, OverallBoxingsInfo> {
@@ -86,21 +91,6 @@ internal object BoxHoisting {
             }
             super.visitCall(expression, data)
         }
-    }
-
-    private fun collectValues(function: IrFunction): Set<IrValueSymbol> {
-        val result = mutableListOf<IrValueDeclaration>()
-        result += function.valueParameters
-        function.acceptVoid(object : IrElementVisitorVoid {
-            override fun visitElement(element: IrElement) {
-                element.acceptChildrenVoid(this)
-            }
-
-            override fun visitVariable(declaration: IrVariable) {
-                result += declaration
-            }
-        })
-        return result.mapTo(mutableSetOf(), IrValueDeclaration::symbol)
     }
 
     class RepeatedBoxingsAnalysisResult(val resultIn: Set<IrValueSymbol>, val resultOut: Set<IrValueSymbol>) : AnalysisResult<RepeatedBoxingsAnalysisResult> {
@@ -144,14 +134,15 @@ internal object BoxHoisting {
                 when (val statement = element.statement) {
                     is IrCall -> {
                         val argument = statement.getArgumentIfCallsBoxFunction()
-                        if (argument?.isPrimitive() == true) {
-                            gen += argument
+                        // values in valuesToAnalyze must already be primitive
+                        if (argument in valuesToAnalyze) {
+                            gen += argument as IrValueSymbol
                         }
                     }
 
                     is IrSetVariable -> {
                         val argument = statement.symbol
-                        if (argument.isPrimitive()) {
+                        if (argument in valuesToAnalyze) {
                             kill += argument
                         }
                     }
