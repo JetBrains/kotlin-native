@@ -792,6 +792,9 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                         val value = access.getAddress(this)
                         ret(value)
                     }
+                    // Getter uses TLS object, so need to ensure that this file's (de)initializer function
+                    // inits and deinits TLS.
+                    context.llvm.fileUsesThreadLocalObjects = true
                 }
             }
         }

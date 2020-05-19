@@ -935,10 +935,16 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         }
 
         when (storageKind) {
-            // If current file used a shared object, make file's (de)initializer function deinit it.
-            ObjectStorageKind.SHARED -> context.llvm.globalSharedObjects += objectPtr
-            // If current file used TLS objects, make file's (de)initializer function init and deinit TLS.
-            ObjectStorageKind.THREAD_LOCAL -> context.llvm.fileUsesThreadLocalObjects = true
+            ObjectStorageKind.SHARED ->
+                // If current file used a shared object, make file's (de)initializer function deinit it.
+                context.llvm.globalSharedObjects += objectPtr
+            ObjectStorageKind.THREAD_LOCAL ->
+                // If current file used locally defined TLS objects, make file's (de)initializer function
+                // init and deinit TLS.
+                // Note: for exported TLS objects a getter is generated in a file they're defined in. Which
+                // adds TLS init and deinit to that file's (de)initializer function.
+                if (!isExternal(irClass))
+                    context.llvm.fileUsesThreadLocalObjects = true
             ObjectStorageKind.PERMANENT -> { /* Do nothing, no need to free such an instance. */ }
         }
 
