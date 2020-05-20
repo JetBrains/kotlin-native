@@ -6,14 +6,12 @@
 package kotlin.coroutines.cancellation
 
 /**
- * Thrown by cancellable suspending functions if the [Job] of the coroutine is cancelled while it is suspending.
+ * Thrown by cancellable suspending functions if the coroutine is cancelled while it is suspending.
  * It indicates _normal_ cancellation of a coroutine.
- * **It is not printed to console/log by default uncaught exception handler**.
- * (see [CoroutineExceptionHandler]).
  */
-public actual open class CancellationException(
+public open class CancellationException(
         message: String?,
         cause: Throwable?
 ) : IllegalStateException(message, cause) {
-    public actual constructor(message: String?) : this(message, null)
+    public constructor(message: String?) : this(message, null)
 }
