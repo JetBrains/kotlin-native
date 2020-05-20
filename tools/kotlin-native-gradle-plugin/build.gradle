@@ -72,8 +72,7 @@ dependencies {
     // Bundle the serialization plugin into the final jar because we shade classes of the kotlin plugin
     // while the serialization one extends them.
     bundleDependencies "org.jetbrains.kotlin:kotlin-serialization:$kotlinVersion"
-    // TODO: Revert after the compiler update
-    bundleDependencies "org.jetbrains.kotlin:kotlin-gradle-plugin:1.4.0-dev-8626"
+    bundleDependencies "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
     bundleDependencies "org.jetbrains.kotlin:kotlin-gradle-plugin-api:$kotlinVersion"
     bundleDependencies "org.jetbrains.kotlin:kotlin-native-utils:$kotlinVersion"
     bundleDependencies "org.jetbrains.kotlin:kotlin-native-shared:$konanVersion"

@@ -44,23 +44,6 @@ buildscript {
         classpath "org.jetbrains.kotlin:kotlin-native-build-tools:$konanVersion"
         classpath 'com.github.jengelman.gradle.plugins:shadow:5.1.0'
     }
-
-    // TODO: Remove the next block after the compiler update
-    allprojects {
-        repositories {
-            maven { url "https://dl.bintray.com/kotlin/kotlin-dev" }
-        }
-
-        buildscript {
-            repositories {
-                maven { url "https://dl.bintray.com/kotlin/kotlin-dev" }
-            }
-
-            configurations.classpath.resolutionStrategy.force(
-                    "org.jetbrains.kotlin:kotlin-gradle-plugin:1.4.0-dev-8626"
-            )
-        }
-    }
 }
 import org.jetbrains.kotlin.konan.*
 
