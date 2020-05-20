@@ -1,6 +1,6 @@
 ---
 name: Please use YouTrack for bugs and feature requests
-about: "https://kotl.in/issue"
+about: "Proceed to get more details"
 title: Please read the text below
 labels: 'from-template'
 assignees: 'artdfel'
