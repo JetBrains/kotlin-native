@@ -336,3 +336,9 @@ internal val returnsInsertionPhase = makeKonanFileLoweringPhase(
         description = "Returns insertion for Unit functions",
         prerequisite = setOf(autoboxPhase, coroutinesPhase, enumClassPhase)
 )
+
+internal val ifNullExpressionsFusionPhase = makeKonanFileLoweringPhase(
+        ::IfNullExpressionsFusionLowering,
+        name = "IfNullExpressionsFusionLowering",
+        description = "Simplify '?.' and '?:' operator chains"
+)
