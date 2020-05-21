@@ -47,13 +47,6 @@ void KRefSharedHolder::init(ObjHeader* obj) {
   obj_ = obj;
 }
 
-ObjHeader* KRefSharedHolder::refOrThrow() const {
-  if (auto* result = refOrNull())
-    return result;
-
-  throwIllegalSharingException(obj_);
-}
-
 ObjHeader* KRefSharedHolder::refOrNull() const {
   if (!isRefAccessible()) {
     return nullptr;
@@ -63,12 +56,12 @@ ObjHeader* KRefSharedHolder::refOrNull() const {
 }
 
 ObjHeader* KRefSharedHolder::refOrTerminate() const {
-  // TODO: Check if this prints a stack trace.
-  try {
-    return refOrThrow();
-  } catch(...) {
+  auto* ref = refOrNull();
+  if (!ref) {
+    // TODO: Check if this prints a stack trace.
     std::terminate();
   }
+  return ref;
 }
 
 void KRefSharedHolder::dispose() const {

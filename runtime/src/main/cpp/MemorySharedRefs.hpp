@@ -16,7 +16,6 @@ class KRefSharedHolder {
 
   void init(ObjHeader* obj);
 
-  ObjHeader* refOrThrow() const;
   ObjHeader* refOrNull() const;
   ObjHeader* refOrTerminate() const;
 
