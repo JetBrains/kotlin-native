@@ -9,6 +9,7 @@ package kotlin.coroutines.cancellation
  * Thrown by cancellable suspending functions if the coroutine is cancelled while it is suspended.
  * It indicates _normal_ cancellation of a coroutine.
  */
+@SinceKotlin("1.4")
 public open class CancellationException : IllegalStateException {
     constructor() : super()
     constructor(message: String?) : super(message)
