@@ -16,8 +16,9 @@ class KRefSharedHolder {
 
   void init(ObjHeader* obj);
 
+  // Terminates if called from the wrong thread.
+  ObjHeader* ref() const;
   ObjHeader* refOrNull() const;
-  ObjHeader* refOrTerminate() const;
 
   void dispose() const;
 
@@ -37,14 +38,17 @@ class BackRefFromAssociatedObject {
  public:
   void initAndAddRef(ObjHeader* obj);
 
-  void addRefOrTerminate();
+  // Terminates if called from the wrong thread.
+  void addRef();
 
-  bool tryAddRefOrTerminate();
+  // Terminates if called from the wrong thread.
+  bool tryAddRef();
 
   void releaseRef();
 
+  // Terminates if called from the wrong thread.
+  ObjHeader* ref() const;
   ObjHeader* refOrNull() const;
-  ObjHeader* refOrTerminate() const;
 
   inline bool permanent() const {
     return obj_->permanent(); // Safe to query from any thread.

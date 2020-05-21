@@ -155,7 +155,7 @@ static inline KInt objCIndexToKotlinOrThrow(NSUInteger index) {
 }
 
 - (id)nextObject {
-  KRef iterator = iteratorHolder.refOrTerminate();
+  KRef iterator = iteratorHolder.ref();
   if (Kotlin_Iterator_hasNext(iterator)) {
     ObjHolder holder;
     return refToObjCOrNSNull(Kotlin_Iterator_next(iterator, holder.slot()));
@@ -184,17 +184,17 @@ static inline KInt objCIndexToKotlinOrThrow(NSUInteger index) {
 }
 
 -(KRef)toKotlin:(KRef*)OBJ_RESULT {
-  RETURN_OBJ(listHolder.refOrTerminate());
+  RETURN_OBJ(listHolder.ref());
 }
 
 -(id)objectAtIndex:(NSUInteger)index {
   ObjHolder kotlinValueHolder;
-  KRef kotlinValue = Kotlin_List_get(listHolder.refOrTerminate(), index, kotlinValueHolder.slot());
+  KRef kotlinValue = Kotlin_List_get(listHolder.ref(), index, kotlinValueHolder.slot());
   return refToObjCOrNSNull(kotlinValue);
 }
 
 -(NSUInteger)count {
-  return Kotlin_Collection_getSize(listHolder.refOrTerminate());
+  return Kotlin_Collection_getSize(listHolder.ref());
 }
 
 @end;
@@ -218,42 +218,42 @@ static inline KInt objCIndexToKotlinOrThrow(NSUInteger index) {
 }
 
 -(KRef)toKotlin:(KRef*)OBJ_RESULT {
-  RETURN_OBJ(listHolder.refOrTerminate());
+  RETURN_OBJ(listHolder.ref());
 }
 
 -(id)objectAtIndex:(NSUInteger)index {
   ObjHolder kotlinValueHolder;
-  KRef kotlinValue = Kotlin_List_get(listHolder.refOrTerminate(), index, kotlinValueHolder.slot());
+  KRef kotlinValue = Kotlin_List_get(listHolder.ref(), index, kotlinValueHolder.slot());
   return refToObjCOrNSNull(kotlinValue);
 }
 
 -(NSUInteger)count {
-  return Kotlin_Collection_getSize(listHolder.refOrTerminate());
+  return Kotlin_Collection_getSize(listHolder.ref());
 }
 
 - (void)insertObject:(id)anObject atIndex:(NSUInteger)index {
   ObjHolder holder;
   KRef kotlinObject = refFromObjCOrNSNull(anObject, holder.slot());
-  Kotlin_MutableList_addObjectAtIndex(listHolder.refOrTerminate(), objCIndexToKotlinOrThrow(index), kotlinObject);
+  Kotlin_MutableList_addObjectAtIndex(listHolder.ref(), objCIndexToKotlinOrThrow(index), kotlinObject);
 }
 
 - (void)removeObjectAtIndex:(NSUInteger)index {
-  Kotlin_MutableList_removeObjectAtIndex(listHolder.refOrTerminate(), objCIndexToKotlinOrThrow(index));
+  Kotlin_MutableList_removeObjectAtIndex(listHolder.ref(), objCIndexToKotlinOrThrow(index));
 }
 
 - (void)addObject:(id)anObject {
   ObjHolder holder;
-  Kotlin_MutableCollection_addObject(listHolder.refOrTerminate(), refFromObjCOrNSNull(anObject, holder.slot()));
+  Kotlin_MutableCollection_addObject(listHolder.ref(), refFromObjCOrNSNull(anObject, holder.slot()));
 }
 
 - (void)removeLastObject {
-  Kotlin_MutableList_removeLastObject(listHolder.refOrTerminate());
+  Kotlin_MutableList_removeLastObject(listHolder.ref());
 }
 
 - (void)replaceObjectAtIndex:(NSUInteger)index withObject:(id)anObject {
   ObjHolder holder;
   KRef kotlinObject = refFromObjCOrNSNull(anObject, holder.slot());
-  Kotlin_MutableList_setObject(listHolder.refOrTerminate(), objCIndexToKotlinOrThrow(index), kotlinObject);
+  Kotlin_MutableList_setObject(listHolder.ref(), objCIndexToKotlinOrThrow(index), kotlinObject);
 }
 
 @end;
@@ -291,26 +291,26 @@ static inline id KSet_getElement(KRef set, id object) {
 }
 
 -(KRef)toKotlin:(KRef*)OBJ_RESULT {
-  RETURN_OBJ(setHolder.refOrTerminate());
+  RETURN_OBJ(setHolder.ref());
 }
 
 -(NSUInteger) count {
-  return Kotlin_Collection_getSize(setHolder.refOrTerminate());
+  return Kotlin_Collection_getSize(setHolder.ref());
 }
 
 - (id)member:(id)object {
-  return KSet_getElement(setHolder.refOrTerminate(), object);
+  return KSet_getElement(setHolder.ref(), object);
 }
 
 // Not mandatory, just an optimization:
 - (BOOL)containsObject:(id)anObject {
   ObjHolder holder;
-  return Kotlin_Set_contains(setHolder.refOrTerminate(), refFromObjCOrNSNull(anObject, holder.slot()));
+  return Kotlin_Set_contains(setHolder.ref(), refFromObjCOrNSNull(anObject, holder.slot()));
 }
 
 - (NSEnumerator*)objectEnumerator {
   ObjHolder holder;
-  return [KIteratorAsNSEnumerator createWithKIterator:Kotlin_Set_iterator(setHolder.refOrTerminate(), holder.slot())];
+  return [KIteratorAsNSEnumerator createWithKIterator:Kotlin_Set_iterator(setHolder.ref(), holder.slot())];
 }
 @end;
 
@@ -375,36 +375,36 @@ static inline id KSet_getElement(KRef set, id object) {
 }
 
 -(KRef)toKotlin:(KRef*)OBJ_RESULT {
-  RETURN_OBJ(setHolder.refOrTerminate());
+  RETURN_OBJ(setHolder.ref());
 }
 
 -(NSUInteger) count {
-  return Kotlin_Collection_getSize(setHolder.refOrTerminate());
+  return Kotlin_Collection_getSize(setHolder.ref());
 }
 
 - (id)member:(id)object {
-  return KSet_getElement(setHolder.refOrTerminate(), object);
+  return KSet_getElement(setHolder.ref(), object);
 }
 
 // Not mandatory, just an optimization:
 - (BOOL)containsObject:(id)anObject {
   ObjHolder holder;
-  return Kotlin_Set_contains(setHolder.refOrTerminate(), refFromObjCOrNSNull(anObject, holder.slot()));
+  return Kotlin_Set_contains(setHolder.ref(), refFromObjCOrNSNull(anObject, holder.slot()));
 }
 
 - (NSEnumerator*)objectEnumerator {
   ObjHolder holder;
-  return [KIteratorAsNSEnumerator createWithKIterator:Kotlin_Set_iterator(setHolder.refOrTerminate(), holder.slot())];
+  return [KIteratorAsNSEnumerator createWithKIterator:Kotlin_Set_iterator(setHolder.ref(), holder.slot())];
 }
 
 - (void)addObject:(id)object {
   ObjHolder holder;
-  Kotlin_MutableCollection_addObject(setHolder.refOrTerminate(), refFromObjCOrNSNull(object, holder.slot()));
+  Kotlin_MutableCollection_addObject(setHolder.ref(), refFromObjCOrNSNull(object, holder.slot()));
 }
 
 - (void)removeObject:(id)object {
   ObjHolder holder;
-  Kotlin_MutableCollection_removeObject(setHolder.refOrTerminate(), refFromObjCOrNSNull(object, holder.slot()));
+  Kotlin_MutableCollection_removeObject(setHolder.ref(), refFromObjCOrNSNull(object, holder.slot()));
 }
 @end;
 
@@ -441,23 +441,23 @@ static inline id KMap_get(KRef map, id aKey) {
 }
 
 -(KRef)toKotlin:(KRef*)OBJ_RESULT {
-  RETURN_OBJ(mapHolder.refOrTerminate());
+  RETURN_OBJ(mapHolder.ref());
 }
 
 // According to documentation, initWithObjects:forKeys:count: is required to be overridden when subclassing.
 // But that doesn't make any sense, since this class can't be arbitrary initialized.
 
 -(NSUInteger) count {
-  return Kotlin_Map_getSize(mapHolder.refOrTerminate());
+  return Kotlin_Map_getSize(mapHolder.ref());
 }
 
 - (id)objectForKey:(id)aKey {
-  return KMap_get(mapHolder.refOrTerminate(), aKey);
+  return KMap_get(mapHolder.ref(), aKey);
 }
 
 - (NSEnumerator *)keyEnumerator {
   ObjHolder holder;
-  return [KIteratorAsNSEnumerator createWithKIterator:Kotlin_Map_keyIterator(mapHolder.refOrTerminate(), holder.slot())];
+  return [KIteratorAsNSEnumerator createWithKIterator:Kotlin_Map_keyIterator(mapHolder.ref(), holder.slot())];
 }
 
 @end;
@@ -512,20 +512,20 @@ static inline id KMap_get(KRef map, id aKey) {
 }
 
 -(KRef)toKotlin:(KRef*)OBJ_RESULT {
-  RETURN_OBJ(mapHolder.refOrTerminate());
+  RETURN_OBJ(mapHolder.ref());
 }
 
 -(NSUInteger) count {
-  return Kotlin_Map_getSize(mapHolder.refOrTerminate());
+  return Kotlin_Map_getSize(mapHolder.ref());
 }
 
 - (id)objectForKey:(id)aKey {
-  return KMap_get(mapHolder.refOrTerminate(), aKey);
+  return KMap_get(mapHolder.ref(), aKey);
 }
 
 - (NSEnumerator *)keyEnumerator {
   ObjHolder holder;
-  return [KIteratorAsNSEnumerator createWithKIterator:Kotlin_Map_keyIterator(mapHolder.refOrTerminate(), holder.slot())];
+  return [KIteratorAsNSEnumerator createWithKIterator:Kotlin_Map_keyIterator(mapHolder.ref(), holder.slot())];
 }
 
 - (void)setObject:(id)anObject forKey:(id<NSCopying>)aKey {
@@ -537,14 +537,14 @@ static inline id KMap_get(KRef map, id aKey) {
 
   KRef kotlinValue = refFromObjCOrNSNull(anObject, valueHolder.slot());
 
-  Kotlin_MutableMap_set(mapHolder.refOrTerminate(), kotlinKey, kotlinValue);
+  Kotlin_MutableMap_set(mapHolder.ref(), kotlinKey, kotlinValue);
 }
 
 - (void)removeObjectForKey:(id)aKey {
   ObjHolder holder;
   KRef kotlinKey = refFromObjCOrNSNull(aKey, holder.slot());
 
-  Kotlin_MutableMap_remove(mapHolder.refOrTerminate(), kotlinKey);
+  Kotlin_MutableMap_remove(mapHolder.ref(), kotlinKey);
 }
 
 @end;

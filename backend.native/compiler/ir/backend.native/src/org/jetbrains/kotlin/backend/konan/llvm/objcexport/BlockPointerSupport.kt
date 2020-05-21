@@ -180,7 +180,7 @@ internal class BlockGenerator(private val codegen: CodeGenerator) {
         // so it is technically not necessary to check owner.
         // However this is not guaranteed by Objective-C runtime, so keep it suboptimal but reliable:
         val ref = call(
-                context.llvm.kRefSharedHolderRefOrTerminate,
+                context.llvm.kRefSharedHolderRef,
                 listOf(srcRefHolder),
                 exceptionHandler = ExceptionHandler.Caller,
                 verbatim = true
@@ -233,7 +233,7 @@ internal class BlockGenerator(private val codegen: CodeGenerator) {
         val result = generateFunction(codegen, blockType.blockInvokeLlvmType, invokeName) {
             val blockPtr = bitcast(pointerType(blockLiteralType), param(0))
             val kotlinObject = call(
-                    context.llvm.kRefSharedHolderRefOrTerminate,
+                    context.llvm.kRefSharedHolderRef,
                     listOf(structGep(blockPtr, 1)),
                     exceptionHandler = ExceptionHandler.Caller,
                     verbatim = true

@@ -470,7 +470,7 @@ internal class Llvm(val context: Context, val llvmModule: LLVMModuleRef) {
     val kRefSharedHolderInitLocal = importRtFunction("KRefSharedHolder_initLocal")
     val kRefSharedHolderInit = importRtFunction("KRefSharedHolder_init")
     val kRefSharedHolderDispose = importRtFunction("KRefSharedHolder_dispose")
-    val kRefSharedHolderRefOrTerminate = importRtFunction("KRefSharedHolder_refOrTerminate")
+    val kRefSharedHolderRef = importRtFunction("KRefSharedHolder_ref")
 
     val createKotlinObjCClass by lazy { importRtFunction("CreateKotlinObjCClass") }
     val getObjCKotlinTypeInfo by lazy { importRtFunction("GetObjCKotlinTypeInfo") }

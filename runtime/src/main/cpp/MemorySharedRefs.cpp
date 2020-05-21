@@ -40,21 +40,21 @@ void KRefSharedHolder::init(ObjHeader* obj) {
   obj_ = obj;
 }
 
+ObjHeader* KRefSharedHolder::ref() const {
+  auto *result = refOrNull();
+  if (!result) {
+    // TODO: Check if this prints a stack trace.
+    std::terminate();
+  }
+  return result;
+}
+
 ObjHeader* KRefSharedHolder::refOrNull() const {
   if (!isRefAccessible()) {
     return nullptr;
   }
   AdoptReferenceFromSharedVariable(obj_);
   return obj_;
-}
-
-ObjHeader* KRefSharedHolder::refOrTerminate() const {
-  auto* ref = refOrNull();
-  if (!ref) {
-    // TODO: Check if this prints a stack trace.
-    std::terminate();
-  }
-  return ref;
 }
 
 void KRefSharedHolder::dispose() const {
@@ -79,12 +79,12 @@ void BackRefFromAssociatedObject::initAndAddRef(ObjHeader* obj) {
   RuntimeAssert(obj != nullptr, "must not be null");
   obj_ = obj;
 
-  // Generally a specialized addRefOrTerminate below:
+  // Generally a specialized addRef below:
   context_ = InitForeignRef(obj);
   refCount = 1;
 }
 
-void BackRefFromAssociatedObject::addRefOrTerminate() {
+void BackRefFromAssociatedObject::addRef() {
   if (atomicAdd(&refCount, 1) == 1) {
     // There are no references to the associated object itself, so Kotlin object is being passed from Kotlin,
     // and it is owned therefore.
@@ -96,13 +96,13 @@ void BackRefFromAssociatedObject::addRefOrTerminate() {
   }
 }
 
-bool BackRefFromAssociatedObject::tryAddRefOrTerminate() {
+bool BackRefFromAssociatedObject::tryAddRef() {
   // Suboptimal but simple:
   this->ensureRefAccessible();
   ObjHeader* obj = this->obj_;
 
   if (!TryAddHeapRef(obj)) return false;
-  this->addRefOrTerminate();
+  this->addRef();
   ReleaseHeapRef(obj); // Balance TryAddHeapRef.
   // TODO: consider optimizing for non-shared objects.
 
@@ -112,11 +112,11 @@ bool BackRefFromAssociatedObject::tryAddRefOrTerminate() {
 void BackRefFromAssociatedObject::releaseRef() {
   ForeignRefContext context = context_;
   if (atomicAdd(&refCount, -1) == 0) {
-    // Note: by this moment "subsequent" addRefOrTerminate may have already happened and patched context_.
+    // Note: by this moment "subsequent" addRef may have already happened and patched context_.
     // So use the value loaded before refCount update:
     DeinitForeignRef(obj_, context);
     // From this moment [context] is generally a dangling pointer.
-    // This is handled in [IsForeignRefAccessible] and [addRefOrTerminate].
+    // This is handled in [IsForeignRefAccessible] and [addRef].
   }
 }
 
@@ -128,13 +128,13 @@ ObjHeader* BackRefFromAssociatedObject::refOrNull() const {
   return obj_;
 }
 
-ObjHeader* BackRefFromAssociatedObject::refOrTerminate() const {
-  auto* ref = refOrNull();
-  if (!ref) {
+ObjHeader* BackRefFromAssociatedObject::ref() const {
+  auto *result = refOrNull();
+  if (!result) {
     // TODO: Check if this prints a stack trace.
     std::terminate();
   }
-  return ref;
+  return result;
 }
 
 bool BackRefFromAssociatedObject::isRefAccessible() const {
@@ -161,7 +161,7 @@ RUNTIME_NOTHROW void KRefSharedHolder_dispose(const KRefSharedHolder* holder) {
   holder->dispose();
 }
 
-RUNTIME_NOTHROW ObjHeader* KRefSharedHolder_refOrTerminate(const KRefSharedHolder* holder) {
-  return holder->refOrTerminate();
+RUNTIME_NOTHROW ObjHeader* KRefSharedHolder_ref(const KRefSharedHolder* holder) {
+  return holder->ref();
 }
 } // extern "C"
