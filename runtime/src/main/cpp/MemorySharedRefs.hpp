@@ -16,7 +16,9 @@ class KRefSharedHolder {
 
   void init(ObjHeader* obj);
 
+  // Terminates if called from the wrong worker with non-frozen obj_.
   ObjHeader* ref() const;
+  ObjHeader* refOrThrow() const;
   ObjHeader* refOrNull() const;
 
   void dispose() const;
@@ -37,13 +39,20 @@ class BackRefFromAssociatedObject {
  public:
   void initAndAddRef(ObjHeader* obj);
 
+  // Terminates if refCount is zero and it's called from the wrong worker with non-frozen obj_.
   void addRef();
+  void addRefOrThrow();
 
+  // Terminates if called from the wrong worker with non-frozen obj_.
   bool tryAddRef();
+  bool tryAddRefOrThrow();
 
   void releaseRef();
 
+  // Terminates if called from the wrong worker with non-frozen obj_.
   ObjHeader* ref() const;
+  ObjHeader* refOrThrow() const;
+  ObjHeader* refOrNull() const;
 
   inline bool permanent() const {
     return obj_->permanent(); // Safe to query from any thread.
@@ -54,7 +63,8 @@ class BackRefFromAssociatedObject {
   ForeignRefContext context_;
   volatile int refCount;
 
-  void ensureRefAccessible() const;
+  bool isRefAccessible() const;
+  void ensureRefAccessibleOrThrow() const;
 };
 
 static_assert(std::is_trivially_destructible<BackRefFromAssociatedObject>::value,

@@ -48,6 +48,10 @@ void KRefSharedHolder::init(ObjHeader* obj) {
 }
 
 ObjHeader* KRefSharedHolder::ref() const {
+  return konan::tryOrTerminate([this]() { return refOrThrow(); });
+}
+
+ObjHeader* KRefSharedHolder::refOrThrow() const {
   if (auto* result = refOrNull())
     return result;
 
@@ -90,10 +94,14 @@ void BackRefFromAssociatedObject::initAndAddRef(ObjHeader* obj) {
 }
 
 void BackRefFromAssociatedObject::addRef() {
+  konan::tryOrTerminate([this]() { addRefOrThrow(); });
+}
+
+void BackRefFromAssociatedObject::addRefOrThrow() {
   if (atomicAdd(&refCount, 1) == 1) {
     // There are no references to the associated object itself, so Kotlin object is being passed from Kotlin,
     // and it is owned therefore.
-    ensureRefAccessible(); // TODO: consider removing explicit verification.
+    ensureRefAccessibleOrThrow(); // TODO: consider removing explicit verification.
 
     // Foreign reference has already been deinitialized (see [releaseRef]).
     // Create a new one:
@@ -102,11 +110,16 @@ void BackRefFromAssociatedObject::addRef() {
 }
 
 bool BackRefFromAssociatedObject::tryAddRef() {
+  return konan::tryOrTerminate([this]() { return tryAddRefOrThrow(); });
+}
+
+bool BackRefFromAssociatedObject::tryAddRefOrThrow() {
   // Suboptimal but simple:
-  this->ensureRefAccessible();
+  this->ensureRefAccessibleOrThrow();
   ObjHeader* obj = this->obj_;
 
   if (!TryAddHeapRef(obj)) return false;
+  RuntimeAssert(this->isRefAccessible(), "Cannot be inaccessible because of the check above");
   this->addRef();
   ReleaseHeapRef(obj); // Balance TryAddHeapRef.
   // TODO: consider optimizing for non-shared objects.
@@ -126,15 +139,33 @@ void BackRefFromAssociatedObject::releaseRef() {
 }
 
 ObjHeader* BackRefFromAssociatedObject::ref() const {
-  ensureRefAccessible();
+  return konan::tryOrTerminate([this]() { return refOrThrow(); });
+}
+
+ObjHeader* BackRefFromAssociatedObject::refOrThrow() const {
+  if (auto* result = refOrNull())
+    return result;
+
+  throwIllegalSharingException(obj_);
+}
+
+ObjHeader* BackRefFromAssociatedObject::refOrNull() const {
+  if (!isRefAccessible()) {
+    return nullptr;
+  }
   AdoptReferenceFromSharedVariable(obj_);
   return obj_;
 }
 
-void BackRefFromAssociatedObject::ensureRefAccessible() const {
-  if (!isForeignRefAccessible(obj_, context_)) {
-    throwIllegalSharingException(obj_);
-  }
+bool BackRefFromAssociatedObject::isRefAccessible() const {
+  return isForeignRefAccessible(obj_, context_);
+}
+
+void BackRefFromAssociatedObject::ensureRefAccessibleOrThrow() const {
+  if (isRefAccessible())
+    return;
+
+  throwIllegalSharingException(obj_);
 }
 
 extern "C" {
@@ -150,7 +181,7 @@ RUNTIME_NOTHROW void KRefSharedHolder_dispose(const KRefSharedHolder* holder) {
   holder->dispose();
 }
 
-ObjHeader* KRefSharedHolder_ref(const KRefSharedHolder* holder) {
+RUNTIME_NOTHROW ObjHeader* KRefSharedHolder_ref(const KRefSharedHolder* holder) {
   return holder->ref();
 }
 } // extern "C"

@@ -36,6 +36,10 @@ extern "C" id objc_autoreleaseReturnValue(id self);
 
 static void injectToRuntime();
 
+// Note: `KotlinBase`'s `toKotlin` and `_tryRetain` methods will terminate if
+// called with non-frozen object on a wrong worker. `retain` will also terminate
+// in these conditions if backref's refCount is zero.
+
 @implementation KotlinBase {
   BackRefFromAssociatedObject refHolder;
 }
