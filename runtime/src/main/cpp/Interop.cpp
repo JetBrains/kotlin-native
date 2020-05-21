@@ -39,7 +39,12 @@ void Kotlin_Interop_disposeStablePointer(KNativePtr pointer) {
 
 OBJ_GETTER(Kotlin_Interop_derefStablePointer, KNativePtr pointer) {
   KRefSharedHolder* holder = reinterpret_cast<KRefSharedHolder*>(pointer);
-  RETURN_OBJ(holder->refOrThrow());
+  RETURN_OBJ(holder->refOrNull());
+}
+
+OBJ_GETTER(Kotlin_Interop_describeStablePointer, KNativePtr pointer) {
+  KRefSharedHolder* holder = reinterpret_cast<KRefSharedHolder*>(pointer);
+  RETURN_RESULT_OF0(holder->describe);
 }
 
 }
