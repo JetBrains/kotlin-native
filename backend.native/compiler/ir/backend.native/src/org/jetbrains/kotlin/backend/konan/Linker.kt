@@ -33,7 +33,7 @@ internal class Linker(val context: Context) {
     private val optimize = context.shouldOptimize()
     private val debug = context.config.debug || context.config.lightDebug
 
-    fun link(objectFiles: List<ObjectFile>) {
+    fun linkFinalOutput() {
         val nativeDependencies = context.llvm.nativeDependenciesToLink
 
         val includedBinariesLibraries = if (context.config.produce.isCache) {
@@ -45,8 +45,23 @@ internal class Linker(val context: Context) {
 
         val libraryProvidedLinkerFlags = context.llvm.allNativeDependencies.map { it.linkerOpts }.flatten()
 
-        runLinker(objectFiles, includedBinaries, libraryProvidedLinkerFlags)
+        runLinker(context.compilerOutput, includedBinaries, libraryProvidedLinkerFlags)
         renameOutput()
+    }
+
+    // TODO: What about -Xexport-library?
+    fun preLinkStaticCaches() {
+        val outputPath = context.config.tempFiles.create("master", ".o").absolutePath
+        val caches = determineCachesToLink(context)
+        linker.preLinkDependencies(
+                outputFile = outputPath,
+                objectFiles = context.compilerOutput + caches.static
+        ).forEach {
+            it.logWith(context::log)
+            it.execute()
+        }
+        // TODO: Fragile!
+        context.compilerOutput = listOf(outputPath)
     }
 
     private fun renameOutput() {
@@ -116,12 +131,14 @@ internal class Linker(val context: Context) {
         val needsProfileLibrary = context.coverage.enabled
 
         val caches = determineCachesToLink(context)
-
+        val staticCaches = caches.static.takeIf {
+            context.config.produce != CompilerOutputKind.STATIC_CACHE && preLinkPhase !in context.phaseConfig.enabled
+        }.orEmpty()
         try {
             File(executable).delete()
             linker.linkCommands(objectFiles = objectFiles, executable = executable,
                     libraries = linker.linkStaticLibraries(includedBinaries) + context.config.defaultSystemLibraries +
-                            caches.static.takeIf { context.config.produce != CompilerOutputKind.STATIC_CACHE }.orEmpty(),
+                            staticCaches,
                     linkerArgs = asLinkerArgs(config.getNotNull(KonanConfigKeys.LINKER_ARGS)) +
                             BitcodeEmbedding.getLinkerOptions(context.config) +
                             caches.dynamic +

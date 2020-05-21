@@ -309,8 +309,14 @@ internal val objectFilesPhase = konanUnitPhase(
         description = "Bitcode to object file"
 )
 
+internal val preLinkPhase = konanUnitPhase(
+        op = { Linker(this).preLinkStaticCaches() },
+        name = "PreLink",
+        description = "Prelink caches"
+)
+
 internal val linkerPhase = konanUnitPhase(
-        op = { Linker(this).link(compilerOutput) },
+        op = { Linker(this).linkFinalOutput() },
         name = "Linker",
         description = "Linker"
 )
@@ -483,6 +489,7 @@ val toplevelPhase: CompilerPhase<*, Unit, Unit> = namedUnitPhase(
                                 unitSink()
                 ) then
                 objectFilesPhase then
+                preLinkPhase then
                 linkerPhase
 )
 
@@ -509,6 +516,8 @@ internal fun PhaseConfig.konanPhasesConfig(config: KonanConfig) {
         disableUnless(bitcodeOptimizationPhase, config.produce.involvesLinkStage)
         disableUnless(linkBitcodeDependenciesPhase, config.produce.involvesLinkStage)
         disableUnless(objectFilesPhase, config.produce.involvesLinkStage)
+        // TODO: Do we need to do it for caches?
+        disableUnless(preLinkPhase, config.produce.involvesLinkStage)
         disableUnless(linkerPhase, config.produce.involvesLinkStage)
         disableIf(testProcessorPhase, getNotNull(KonanConfigKeys.GENERATE_TEST_RUNNER) == TestRunnerKind.NONE)
         disableUnless(buildDFGPhase, getBoolean(KonanConfigKeys.OPTIMIZATION))

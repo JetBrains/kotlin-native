@@ -76,6 +76,11 @@ abstract class LinkerFlags(val configurables: Configurables)
                               kind: LinkerOutputKind, outputDsymBundle: String,
                               needsProfileLibrary: Boolean): List<Command>
 
+    open fun preLinkDependencies(
+            outputFile: ObjectFile,
+            objectFiles: List<ObjectFile>
+    ): List<Command> = error("")
+
     abstract fun filterStaticLibraries(binaries: List<String>): List<String>
 
     open fun linkStaticLibraries(binaries: List<String>): List<String> {
@@ -229,6 +234,16 @@ open class MacOSBasedLinker(targetProperties: AppleConfigurables)
 
         return result
     }
+
+    override fun preLinkDependencies(
+            outputFile: ObjectFile,
+            objectFiles: List<ObjectFile>
+    ): List<Command> =
+        Command(linker).apply {
+            +"-r"
+            +objectFiles
+            +listOf("-o", outputFile)
+        }.let(::listOf)
 
     private val compilerRtLibrary: String? by lazy {
         provideCompilerRtLibrary("")
