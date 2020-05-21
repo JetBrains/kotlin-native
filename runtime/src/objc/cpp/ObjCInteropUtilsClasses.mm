@@ -30,7 +30,7 @@
 }
 
 -(KRef)ref {
-  return refHolder.ref();
+  return refHolder.refOrTerminate();
 }
 
 -(void)dealloc {

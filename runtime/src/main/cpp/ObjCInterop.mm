@@ -69,7 +69,7 @@ BackRefFromAssociatedObject* getBackRef(id obj) {
 }
 
 OBJ_GETTER(toKotlinImp, id self, SEL _cmd) {
-  RETURN_OBJ(getBackRef(self)->ref());
+  RETURN_OBJ(getBackRef(self)->refOrTerminate());
 }
 
 id allocWithZoneImp(Class self, SEL _cmd, void* zone) {

@@ -16,8 +16,9 @@ class KRefSharedHolder {
 
   void init(ObjHeader* obj);
 
-  ObjHeader* ref() const;
+  ObjHeader* refOrThrow() const;
   ObjHeader* refOrNull() const;
+  ObjHeader* refOrTerminate() const;
 
   void dispose() const;
 
@@ -43,7 +44,8 @@ class BackRefFromAssociatedObject {
 
   void releaseRef();
 
-  ObjHeader* ref() const;
+  ObjHeader* refOrThrow() const;
+  ObjHeader* refOrTerminate() const;
 
   inline bool permanent() const {
     return obj_->permanent(); // Safe to query from any thread.

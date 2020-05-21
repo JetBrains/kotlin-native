@@ -41,7 +41,7 @@ static void injectToRuntime();
 }
 
 -(KRef)toKotlin:(KRef*)OBJ_RESULT {
-  RETURN_OBJ(refHolder.ref());
+  RETURN_OBJ(refHolder.refOrTerminate());
 }
 
 +(void)load {

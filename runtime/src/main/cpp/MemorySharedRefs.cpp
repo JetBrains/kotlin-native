@@ -47,7 +47,7 @@ void KRefSharedHolder::init(ObjHeader* obj) {
   obj_ = obj;
 }
 
-ObjHeader* KRefSharedHolder::ref() const {
+ObjHeader* KRefSharedHolder::refOrThrow() const {
   if (auto* result = refOrNull())
     return result;
 
@@ -60,6 +60,15 @@ ObjHeader* KRefSharedHolder::refOrNull() const {
   }
   AdoptReferenceFromSharedVariable(obj_);
   return obj_;
+}
+
+ObjHeader* KRefSharedHolder::refOrTerminate() const {
+  // TODO: Check if this prints a stack trace.
+  try {
+    return refOrThrow();
+  } catch(...) {
+    std::terminate();
+  }
 }
 
 void KRefSharedHolder::dispose() const {
@@ -125,10 +134,19 @@ void BackRefFromAssociatedObject::releaseRef() {
   }
 }
 
-ObjHeader* BackRefFromAssociatedObject::ref() const {
+ObjHeader* BackRefFromAssociatedObject::refOrThrow() const {
   ensureRefAccessible();
   AdoptReferenceFromSharedVariable(obj_);
   return obj_;
+}
+
+ObjHeader* BackRefFromAssociatedObject::refOrTerminate() const {
+  // TODO: Check if this prints stack trace.
+  try {
+    return refOrThrow();
+  } catch (...) {
+    std::terminate();
+  }
 }
 
 void BackRefFromAssociatedObject::ensureRefAccessible() const {
@@ -150,7 +168,7 @@ RUNTIME_NOTHROW void KRefSharedHolder_dispose(const KRefSharedHolder* holder) {
   holder->dispose();
 }
 
-ObjHeader* KRefSharedHolder_ref(const KRefSharedHolder* holder) {
-  return holder->ref();
+RUNTIME_NOTHROW ObjHeader* KRefSharedHolder_refOrTerminate(const KRefSharedHolder* holder) {
+  return holder->refOrTerminate();
 }
 } // extern "C"
