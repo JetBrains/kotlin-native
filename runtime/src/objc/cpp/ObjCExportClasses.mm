@@ -103,7 +103,7 @@ static void injectToRuntime();
   if (refHolder.permanent()) { // TODO: consider storing `isPermanent` to self field.
     [super retain];
   } else {
-    refHolder.addRef();
+    refHolder.addRefOrThrow();
   }
   return self;
 }
@@ -112,7 +112,7 @@ static void injectToRuntime();
   if (refHolder.permanent()) {
     return [super _tryRetain];
   } else {
-    return refHolder.tryAddRef();
+    return refHolder.tryAddRefOrThrow();
   }
 }
 
