@@ -43,7 +43,7 @@ class BackRefFromAssociatedObject {
 
   void releaseRef();
 
-  ObjHeader* refOrThrow() const;
+  ObjHeader* refOrNull() const;
   ObjHeader* refOrTerminate() const;
 
   inline bool permanent() const {
@@ -55,6 +55,7 @@ class BackRefFromAssociatedObject {
   ForeignRefContext context_;
   volatile int refCount;
 
+  bool isRefAccessible() const;
   void ensureRefAccessible() const;
 };
 

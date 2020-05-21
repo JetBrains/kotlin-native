@@ -127,23 +127,30 @@ void BackRefFromAssociatedObject::releaseRef() {
   }
 }
 
-ObjHeader* BackRefFromAssociatedObject::refOrThrow() const {
-  ensureRefAccessible();
+ObjHeader* BackRefFromAssociatedObject::refOrNull() const {
+  if (!isRefAccessible()) {
+    return nullptr;
+  }
   AdoptReferenceFromSharedVariable(obj_);
   return obj_;
 }
 
 ObjHeader* BackRefFromAssociatedObject::refOrTerminate() const {
-  // TODO: Check if this prints stack trace.
-  try {
-    return refOrThrow();
-  } catch (...) {
+  auto* ref = refOrNull();
+  if (!ref) {
+    // TODO: Check if this prints a stack trace.
     std::terminate();
   }
+  return ref;
+}
+
+bool BackRefFromAssociatedObject::isRefAccessible() const {
+  return isForeignRefAccessible(obj_, context_);
 }
 
 void BackRefFromAssociatedObject::ensureRefAccessible() const {
-  if (!isForeignRefAccessible(obj_, context_)) {
+  // TODO: Also get rid of ensureRefAccessible
+  if (!isRefAccessible()) {
     throwIllegalSharingException(obj_);
   }
 }
