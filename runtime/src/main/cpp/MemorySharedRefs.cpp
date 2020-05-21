@@ -86,12 +86,12 @@ void BackRefFromAssociatedObject::initAndAddRef(ObjHeader* obj) {
   RuntimeAssert(obj != nullptr, "must not be null");
   obj_ = obj;
 
-  // Generally a specialized addRefOrThrow below:
+  // Generally a specialized addRefOrTerminate below:
   context_ = InitForeignRef(obj);
   refCount = 1;
 }
 
-void BackRefFromAssociatedObject::addRefOrThrow() {
+void BackRefFromAssociatedObject::addRefOrTerminate() {
   if (atomicAdd(&refCount, 1) == 1) {
     // There are no references to the associated object itself, so Kotlin object is being passed from Kotlin,
     // and it is owned therefore.
@@ -103,13 +103,13 @@ void BackRefFromAssociatedObject::addRefOrThrow() {
   }
 }
 
-bool BackRefFromAssociatedObject::tryAddRefOrThrow() {
+bool BackRefFromAssociatedObject::tryAddRefOrTerminate() {
   // Suboptimal but simple:
   this->ensureRefAccessible();
   ObjHeader* obj = this->obj_;
 
   if (!TryAddHeapRef(obj)) return false;
-  this->addRefOrThrow();
+  this->addRefOrTerminate();
   ReleaseHeapRef(obj); // Balance TryAddHeapRef.
   // TODO: consider optimizing for non-shared objects.
 
@@ -119,11 +119,11 @@ bool BackRefFromAssociatedObject::tryAddRefOrThrow() {
 void BackRefFromAssociatedObject::releaseRef() {
   ForeignRefContext context = context_;
   if (atomicAdd(&refCount, -1) == 0) {
-    // Note: by this moment "subsequent" addRefOrThrow may have already happened and patched context_.
+    // Note: by this moment "subsequent" addRefOrTerminate may have already happened and patched context_.
     // So use the value loaded before refCount update:
     DeinitForeignRef(obj_, context);
     // From this moment [context] is generally a dangling pointer.
-    // This is handled in [IsForeignRefAccessible] and [addRefOrThrow].
+    // This is handled in [IsForeignRefAccessible] and [addRefOrTerminate].
   }
 }
 
@@ -149,9 +149,9 @@ bool BackRefFromAssociatedObject::isRefAccessible() const {
 }
 
 void BackRefFromAssociatedObject::ensureRefAccessible() const {
-  // TODO: Also get rid of ensureRefAccessible
   if (!isRefAccessible()) {
-    throwIllegalSharingException(obj_);
+    // TODO: Check if this prints a stack trace.
+    std::terminate();
   }
 }
 

@@ -37,9 +37,9 @@ class BackRefFromAssociatedObject {
  public:
   void initAndAddRef(ObjHeader* obj);
 
-  void addRefOrThrow();
+  void addRefOrTerminate();
 
-  bool tryAddRefOrThrow();
+  bool tryAddRefOrTerminate();
 
   void releaseRef();
 
