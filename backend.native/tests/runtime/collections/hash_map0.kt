@@ -155,6 +155,7 @@ fun testEquals() {
     assertFalse(m == mapOf("a" to "1", "b" to "2", "c" to "5"))
     assertFalse(m == mapOf("a" to "1", "b" to "2"))
     assertEquals(m.keys, expected.keys)
+    assertEquals(m.values.toList(), expected.values.toList())
     assertEquals(m.entries, expected.entries)
 }
 
