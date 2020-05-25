@@ -103,6 +103,7 @@ project.convention.plugins.executor = ExecutorServiceKt.create(project)
 ext.konanNoRun = true
 
 final CacheTesting cacheTesting = CacheTestingKt.configureCacheTesting(project)
+ext.cacheTesting = cacheTesting
 if (cacheTesting != null) {
     // Note: can't do this in [CacheTesting.configure] since task classes aren't accessible there.
 
@@ -359,6 +360,11 @@ Task linkTest(String name, Closure<KonanLinkTest> configureClosure) {
                 }
                 UtilsKt.dependOnKonanBuildingTask(project, lib, target, task)
 
+                def libraryCacheTesting = null
+                if (project.cacheTesting != null) {
+                    libraryCacheTesting = CacheTestingKt.configureLibraryCacheTesting(project, lib, file("$testOutputLocal/$name/$targetName/${lib}.klib"), cacheTesting)
+                    task.dependsOn(libraryCacheTesting.buildCacheTask)
+                }
                 // Build an executable with library
                 program(name, targets: [targetName]) {
                     libraries {
@@ -368,6 +374,9 @@ Task linkTest(String name, Closure<KonanLinkTest> configureClosure) {
                     srcFiles  task.getSources()
                     extraOpts task.flags
                     extraOpts project.globalTestArgs
+                    if (libraryCacheTesting != null) {
+                        extraOpts libraryCacheTesting.compilerArgs
+                    }
                 }
             }
         }
@@ -3538,6 +3547,11 @@ Task interopTestBase(String name, boolean multiFile, Closure<KonanInteropTest> c
                 def lib = task.interop
                 UtilsKt.dependOnKonanBuildingTask(project, lib, target, task)
 
+                def libraryCacheTesting = null
+                if (project.cacheTesting != null) {
+                    libraryCacheTesting = CacheTestingKt.configureLibraryCacheTesting(project, lib, file("$testOutputLocal/$lib/${target.name}/${lib}.klib"), cacheTesting)
+                    task.dependsOn(libraryCacheTesting.buildCacheTask)
+                }
                 program(name, targets: [target.name]) {
                     libraries {
                         artifact lib
@@ -3547,6 +3561,9 @@ Task interopTestBase(String name, boolean multiFile, Closure<KonanInteropTest> c
                     linkerOpts "-L$buildDir"
                     extraOpts task.flags
                     extraOpts project.globalTestArgs
+                    if (libraryCacheTesting != null) {
+                        extraOpts libraryCacheTesting.compilerArgs
+                    }
                 }
             }
         }
