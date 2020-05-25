@@ -13,13 +13,11 @@ private class NSObjectImpl : NSObject() {
 
     assertFalse(obj.isFrozen)
 
-    /*
     runInWorker {
         assertFailsWith<IncorrectDereferenceException> {
             array.objectAtIndex(0)
         }
     }
-    */
 
     obj.x = 222
     obj.freeze()
