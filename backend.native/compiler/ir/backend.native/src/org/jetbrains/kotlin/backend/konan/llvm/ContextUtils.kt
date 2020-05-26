@@ -165,11 +165,7 @@ internal interface ContextUtils : RuntimeAware {
 
     val IrFunction.llvmFunctionOrNull: LLVMValueRef?
         get() {
-            assert(this.isReal) {
-                "${this.render()} in ${this.parent.render()}" +
-                "overriddenSymbols: ${(this as IrFunctionImpl).overriddenSymbols.map{ it.owner.render() }}"
-            }
-
+            assert(this.isReal)
             return if (isExternal(this)) {
                 runtime.addedLLVMExternalFunctions.getOrPut(this) { context.llvm.externalFunction(this.symbolName, getLlvmFunctionType(this),
                         origin = this.llvmSymbolOrigin) }
