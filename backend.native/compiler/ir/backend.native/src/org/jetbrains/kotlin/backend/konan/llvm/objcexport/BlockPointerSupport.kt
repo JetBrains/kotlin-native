@@ -232,6 +232,7 @@ internal class BlockGenerator(private val codegen: CodeGenerator) {
     ): ConstPointer {
         val result = generateFunction(codegen, blockType.blockInvokeLlvmType, invokeName) {
             val blockPtr = bitcast(pointerType(blockLiteralType), param(0))
+            // Note: if this is called from the wrong worker, the program will terminate.
             val kotlinObject = call(
                     context.llvm.kRefSharedHolderRef,
                     listOf(structGep(blockPtr, 1)),

@@ -29,6 +29,7 @@
   return self;
 }
 
+// Note: will terminate if `ref` is not frozen and this is called on a wrong worker.
 -(KRef)ref {
   return refHolder.ref();
 }

@@ -522,6 +522,7 @@ extern "C" OBJ_GETTER(Kotlin_Interop_CreateObjCObjectHolder, id obj) {
   RETURN_RESULT_OF(AllocInstanceWithAssociatedObject, typeInfo, objc_retain(obj));
 }
 
+// Note: if this is called for a non-frozen `obj` on the wrong worker, the program will terminate.
 extern "C" OBJ_GETTER(Kotlin_ObjCExport_refFromObjC, id obj) {
   if (obj == nullptr) RETURN_OBJ(nullptr);
   auto msgSend = reinterpret_cast<ObjHeader* (*)(id self, SEL cmd, ObjHeader** slot)>(&objc_msgSend);

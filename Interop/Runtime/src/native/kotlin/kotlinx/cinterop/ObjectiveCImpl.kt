@@ -62,6 +62,7 @@ private fun ObjCObjectBase.superInitCheck(superInitCallResult: ObjCObject?) {
 
 internal fun <T : Any?> Any?.uncheckedCast(): T = @Suppress("UNCHECKED_CAST") (this as T)
 
+// Note: if this is called for non-frozen object on a wrong worker, the program will terminate.
 @SymbolName("Kotlin_Interop_refFromObjC")
 external fun <T> interpretObjCPointerOrNull(objcPtr: NativePtr): T?
 
@@ -169,6 +170,7 @@ internal external fun getMessengerStret(superClass: NativePtr): COpaquePointer?
 
 
 internal class ObjCWeakReferenceImpl : kotlin.native.ref.WeakReferenceImpl() {
+    // Note: if this getter is called on a wrong worker, the program will terminate
     @SymbolName("Konan_ObjCInterop_getWeakReference")
     external override fun get(): Any?
 }
