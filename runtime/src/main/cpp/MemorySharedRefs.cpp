@@ -41,12 +41,11 @@ void KRefSharedHolder::init(ObjHeader* obj) {
 }
 
 ObjHeader* KRefSharedHolder::ref() const {
-  auto *result = refOrNull();
-  if (!result) {
-    // TODO: Generate stack trace.
-    konan::abort();
-  }
-  return result;
+  if (auto* result = refOrNull())
+    return result;
+
+  // TODO: Generate stack trace.
+  konan::abort();
 }
 
 ObjHeader* KRefSharedHolder::refOrNull() const {
@@ -129,12 +128,11 @@ ObjHeader* BackRefFromAssociatedObject::refOrNull() const {
 }
 
 ObjHeader* BackRefFromAssociatedObject::ref() const {
-  auto *result = refOrNull();
-  if (!result) {
-    // TODO: Generate stack trace.
-    konan::abort();
-  }
-  return result;
+  if (auto* result = refOrNull())
+    return result;
+
+  // TODO: Generate stack trace.
+  konan::abort();
 }
 
 bool BackRefFromAssociatedObject::isRefAccessible() const {

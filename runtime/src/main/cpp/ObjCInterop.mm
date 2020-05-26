@@ -243,8 +243,6 @@ void* CreateKotlinObjCClass(const KotlinObjCClassInfo* info) {
     }
   }
 
-  // Note: wrapped object's `retain`, `_tryRetain` and `toKotlin` methods will terminate the program if
-  // called on a wrong worker for non-frozen object.
   AddNSObjectOverride(false, newClass, Kotlin_ObjCExport_toKotlinSelector, (void*)&toKotlinImp);
   AddNSObjectOverride(true, newClass, @selector(allocWithZone:), (void*)&allocWithZoneImp);
   AddNSObjectOverride(false, newClass, @selector(retain), (void*)&retainImp);

@@ -79,6 +79,7 @@ inline fun <reified T : Any> unwrapKotlinObjectHolder(holder: Any?): T {
     return unwrapKotlinObjectHolderImpl(holder!!.objcPtr()) as T
 }
 
+// Note: if this is called for non-frozen underlying ref on a wrong worker, the program will terminate.
 @PublishedApi
 @SymbolName("Kotlin_Interop_unwrapKotlinObjectHolder")
 external internal fun unwrapKotlinObjectHolderImpl(ptr: NativePtr): Any

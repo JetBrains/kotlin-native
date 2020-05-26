@@ -16,7 +16,7 @@ class KRefSharedHolder {
 
   void init(ObjHeader* obj);
 
-  // Terminates if called from the wrong thread.
+  // Terminates if called from the wrong worker with non-frozen obj_.
   ObjHeader* ref() const;
   ObjHeader* refOrNull() const;
 
@@ -38,15 +38,15 @@ class BackRefFromAssociatedObject {
  public:
   void initAndAddRef(ObjHeader* obj);
 
-  // Terminates if called from the wrong thread.
+  // Terminates if called from the wrong worker with non-frozen obj_.
   void addRef();
 
-  // Terminates if called from the wrong thread.
+  // Terminates if called from the wrong worker with non-frozen obj_.
   bool tryAddRef();
 
   void releaseRef();
 
-  // Terminates if called from the wrong thread.
+  // Terminates if called from the wrong worker with non-frozen obj_.
   ObjHeader* ref() const;
   ObjHeader* refOrNull() const;
 

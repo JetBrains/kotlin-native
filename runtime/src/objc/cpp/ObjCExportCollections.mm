@@ -81,8 +81,8 @@ static inline KInt objCIndexToKotlinOrThrow(NSUInteger index) {
   return index;
 }
 
-// Note: collections can only be iterated on and converted to Kotlin
-// when they are either frozen or if they are called on the worker that created them. 
+// Note: collections can only be iterated on and converted to Kotlin representation
+// when they are either frozen or if they are called on the worker that created them.
 
 @interface NSArray (NSArrayToKotlin)
 @end;
