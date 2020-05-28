@@ -3919,6 +3919,17 @@ dynamicTest("produce_dynamic") {
                 "Error handler: kotlin.Error: Expected error\n"
 }
 
+dynamicTest("kt_36878") {
+    disabled = (project.testTarget != null && project.testTarget != project.hostName)
+    source = "produce_dynamic/kt_36878/kt_36878.kt"
+    cSource = "$projectDir/produce_dynamic/kt_36878/kt_36878.c"
+    goldValue = """de
+                   |ad
+                   |be
+                   |ef
+                   |""".stripMargin()
+}
+
 task library_mismatch(type: KonanDriverTest) {
     // Does not work for cross targets yet.
     enabled = !(project.testTarget != null && project.target.name != project.hostName)
