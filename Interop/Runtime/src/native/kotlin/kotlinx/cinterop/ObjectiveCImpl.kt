@@ -75,11 +75,11 @@ external fun Any?.objcPtr(): NativePtr
 @SymbolName("Kotlin_Interop_createKotlinObjectHolder")
 external fun createKotlinObjectHolder(any: Any?): NativePtr
 
+// Note: if this is called for non-frozen underlying ref on a wrong worker, the program will terminate.
 inline fun <reified T : Any> unwrapKotlinObjectHolder(holder: Any?): T {
     return unwrapKotlinObjectHolderImpl(holder!!.objcPtr()) as T
 }
 
-// Note: if this is called for non-frozen underlying ref on a wrong worker, the program will terminate.
 @PublishedApi
 @SymbolName("Kotlin_Interop_unwrapKotlinObjectHolder")
 external internal fun unwrapKotlinObjectHolderImpl(ptr: NativePtr): Any
@@ -171,7 +171,6 @@ internal external fun getMessengerStret(superClass: NativePtr): COpaquePointer?
 
 
 internal class ObjCWeakReferenceImpl : kotlin.native.ref.WeakReferenceImpl() {
-    // Note: if this getter is called on a wrong worker, the program will terminate
     @SymbolName("Konan_ObjCInterop_getWeakReference")
     external override fun get(): Any?
 }

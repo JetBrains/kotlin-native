@@ -38,6 +38,7 @@ static void injectToRuntime();
 
 // Note: `KotlinBase`'s `toKotlin`, `retain` and `_tryRetain` methods will terminate if
 // called with non-frozen object on a wrong worker.
+
 @implementation KotlinBase {
   BackRefFromAssociatedObject refHolder;
 }
