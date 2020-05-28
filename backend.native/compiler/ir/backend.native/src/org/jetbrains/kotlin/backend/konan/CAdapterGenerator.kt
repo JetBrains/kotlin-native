@@ -30,6 +30,7 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.resolve.annotations.*
 import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.resolve.descriptorUtil.*
+import org.jetbrains.kotlin.resolve.underlyingRepresentation
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.typeUtil.isNothing
@@ -797,20 +798,14 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
     private fun defineUsedTypes(scope: ExportedElementScope, indent: Int) {
         val set = mutableSetOf<ClassDescriptor>()
         defineUsedTypesImpl(scope, set)
-        // Add nullable primitives.
-        predefinedTypes.forEach {
-            val nullableIt = it.makeNullable()
+        val types = predefinedTypes + set
+                .map {  if (it.isInline) it.underlyingRepresentation()!!.type else it.defaultType }
+                .filter{isMappedToReference(it)}
+        val nullableTypes = types.map { it.makeNullable() }.toSet()
+        nullableTypes.forEach {
             output("typedef struct {", indent)
             output("${prefix}_KNativePtr pinned;", indent + 1)
-            output("} ${translateType(nullableIt)};", indent)
-        }
-        set.forEach {
-            val type = it.defaultType
-            if (isMappedToReference(type) && !it.isInlined()) {
-                output("typedef struct {", indent)
-                output("${prefix}_KNativePtr pinned;", indent + 1)
-                output("} ${translateType(type)};", indent)
-            }
+            output("} ${translateType(it)};", indent)
         }
     }
 
