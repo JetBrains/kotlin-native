@@ -220,7 +220,7 @@ private class ExportedElement(val kind: ElementKind,
                     generateFunction(owner.codegen, LLVMGetElementType(llvmFunction.type)!!, cname) {
                         val receiver = param(0)
                         val numParams = LLVMCountParams(llvmFunction)
-                        val args = (0 .. numParams - 1).map { index -> param(index) }
+                        val args = (0 until numParams).map { index -> param(index) }
                         val callee = lookupVirtualImpl(receiver, irFunction)
                         val result = call(callee, args, exceptionHandler = ExceptionHandler.Caller, verbatim = true)
                         ret(result)
