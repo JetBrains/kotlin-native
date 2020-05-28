@@ -58,8 +58,9 @@ internal class KonanIrLinker(
         private val forwardModuleDescriptor: ModuleDescriptor?,
         private val stubGenerator: DeclarationStubGenerator,
         private val cenumsProvider: IrProviderForCEnumAndCStructStubs,
-        exportedDependencies: List<ModuleDescriptor>
-) : KotlinIrLinker(currentModule, logger, builtIns, symbolTable, exportedDependencies) {
+        exportedDependencies: List<ModuleDescriptor>,
+        deserializeFakeOverrides: Boolean
+) : KotlinIrLinker(currentModule, logger, builtIns, symbolTable, exportedDependencies, deserializeFakeOverrides) {
 
     companion object {
         private val C_NAMES_NAME = Name.identifier("cnames")
