@@ -16,5 +16,6 @@
   </component>
   <component name="VcsDirectoryMappings">
     <mapping directory="" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/samples/torch/pytorch" vcs="Git" />
   </component>
 </project>
