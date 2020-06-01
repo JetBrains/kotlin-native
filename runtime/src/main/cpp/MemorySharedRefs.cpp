@@ -33,6 +33,16 @@ RUNTIME_NORETURN inline void throwIllegalSharingException(ObjHeader* object) {
   ThrowIllegalObjectSharingException(object->type_info(), object);
 }
 
+RUNTIME_NORETURN inline void terminateWithIllegalSharingException(ObjHeader* object) {
+  // A trick to terminate with unhandled exception. This will print a stack trace
+  // and write to iOS crash log.
+  try {
+    throwIllegalSharingException(object);
+  } catch (...) {
+    std::terminate();
+  }
+}
+
 }  // namespace
 
 void KRefSharedHolder::initLocal(ObjHeader* obj) {
@@ -51,8 +61,7 @@ ObjHeader* KRefSharedHolder::ref() const {
   if (auto* result = refOrNull())
     return result;
 
-  // TODO: Generate stack trace.
-  konan::abort();
+  terminateWithIllegalSharingException(obj_);
 }
 
 ObjHeader* KRefSharedHolder::refOrThrow() const {
@@ -145,8 +154,7 @@ ObjHeader* BackRefFromAssociatedObject::ref() const {
   if (auto* result = refOrNull())
     return result;
 
-  // TODO: Generate stack trace.
-  konan::abort();
+  terminateWithIllegalSharingException(obj_);
 }
 
 bool BackRefFromAssociatedObject::isRefAccessible() const {
@@ -154,10 +162,10 @@ bool BackRefFromAssociatedObject::isRefAccessible() const {
 }
 
 void BackRefFromAssociatedObject::ensureRefAccessible() const {
-  if (!isRefAccessible()) {
-    // TODO: Generate stack trace.
-    konan::abort();
-  }
+  if (isRefAccessible())
+    return;
+
+  terminateWithIllegalSharingException(obj_);
 }
 
 extern "C" {
