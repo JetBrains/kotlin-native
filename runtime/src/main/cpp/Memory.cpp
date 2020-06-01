@@ -970,19 +970,25 @@ void freeContainer(ContainerHeader* container) {
     freeAggregatingFrozenContainer(container);
     return;
   }
-
+  //auto beforeHooks = konan::getTimeMicros();
   runDeallocationHooks(container);
-
+  /*auto hooksDuration = konan::getTimeMicros() - beforeHooks;
+  GC_LOG("||| GC: hooksDuration = %lld\n", hooksDuration);*/
   // Now let's clean all object's fields in this container.
+  //auto beforeZeroHeapRef = konan::getTimeMicros();
   traverseContainerObjectFields(container, [container](ObjHeader** location) {
       ZeroHeapRef(location);
   });
-
+  /*auto zeroHeapDuration = konan::getTimeMicros() - beforeZeroHeapRef;
+  GC_LOG("||| GC: zeroHeapDuration = %lld\n", zeroHeapDuration);*/
   // And release underlying memory.
   if (isFreeable(container)) {
+    //auto beforeFreeable = konan::getTimeMicros();
     container->setColorEvenIfGreen(CONTAINER_TAG_GC_BLACK);
     if (!container->buffered())
       scheduleDestroyContainer(memoryState, container);
+    /*auto freeableDuration = konan::getTimeMicros() - beforeFreeable;
+    GC_LOG("||| GC: freeableDuration = %lld\n", freeableDuration);*/
   }
 }
 
