@@ -3897,8 +3897,10 @@ standaloneTest("interop_objc_illegal_sharing") {
     dependsOnPlatformLibs(it)
     disabled = !isAppleTarget(project)
     source = "interop/objc/illegal_sharing.kt"
-    goldValue = "Before\n"
     expectedExitStatusChecker = { it != 0 }
+    outputChecker = {
+      it.startsWith("Before") && !it.contains("After")
+    }
 }
 
 dynamicTest("produce_dynamic") {
