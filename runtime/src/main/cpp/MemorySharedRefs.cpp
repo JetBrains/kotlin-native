@@ -34,6 +34,10 @@ RUNTIME_NORETURN inline void throwIllegalSharingException(ObjHeader* object) {
 }
 
 RUNTIME_NORETURN inline void terminateWithIllegalSharingException(ObjHeader* object) {
+#if KONAN_NO_EXCEPTIONS
+  // This will terminate the program.
+  throwIllegalSharingException(object);
+#else
   // A trick to terminate with unhandled exception. This will print a stack trace
   // and write to iOS crash log.
   try {
@@ -41,6 +45,7 @@ RUNTIME_NORETURN inline void terminateWithIllegalSharingException(ObjHeader* obj
   } catch (...) {
     std::terminate();
   }
+#endif
 }
 
 }  // namespace
