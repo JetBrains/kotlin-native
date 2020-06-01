@@ -5,6 +5,7 @@
 
 package kotlin.native.concurrent
 
+import kotlin.native.internal.DescribeObjectForDebugging
 import kotlin.native.internal.ExportForCppRuntime
 import kotlin.native.internal.debugDescription
 import kotlin.native.identityHashCode
@@ -89,6 +90,12 @@ internal fun ThrowFreezingException(toFreeze: Any, blocker: Any): Nothing =
 internal fun ThrowInvalidMutabilityException(where: Any): Nothing {
     val description = debugDescription(where::class, where.identityHashCode())
     throw InvalidMutabilityException("mutation attempt of frozen $description")
+}
+
+@ExportForCppRuntime
+internal fun ThrowIllegalObjectSharingException(typeInfo: NativePtr, address: NativePtr) {
+    val description = DescribeObjectForDebugging(typeInfo, address)
+    throw IncorrectDereferenceException("illegal attempt to access non-shared $description from other thread")
 }
 
 @SymbolName("Kotlin_AtomicReference_checkIfFrozen")

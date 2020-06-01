@@ -3,6 +3,7 @@
  * that can be found in the LICENSE file.
  */
 
+#include "Exceptions.h"
 #include "MemoryPrivate.hpp"
 #include "MemorySharedRefs.hpp"
 #include "Runtime.h"
@@ -24,6 +25,12 @@ inline bool isForeignRefAccessible(ObjHeader* object, ForeignRefContext context)
   }
 
   return IsForeignRefAccessible(object, context);
+}
+
+RUNTIME_NORETURN inline void throwIllegalSharingException(ObjHeader* object) {
+  // TODO: add some info about the context.
+  // Note: retrieving 'type_info()' is supposed to be correct even for unowned object.
+  ThrowIllegalObjectSharingException(object->type_info(), object);
 }
 
 }  // namespace
