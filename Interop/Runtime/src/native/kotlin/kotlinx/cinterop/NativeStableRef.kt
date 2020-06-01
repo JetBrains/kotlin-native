@@ -23,12 +23,6 @@ internal external fun createStablePointer(any: Any): COpaquePointer
 @SymbolName("Kotlin_Interop_disposeStablePointer")
 internal external fun disposeStablePointer(pointer: COpaquePointer)
 
-@SymbolName("Kotlin_Interop_derefStablePointer")
-private external fun derefStablePointerOrNull(pointer: COpaquePointer): Any?
-
-@SymbolName("Kotlin_Interop_describeStablePointer")
-private external fun describeStablePointer(pointer: COpaquePointer): String
-
 @PublishedApi
-internal fun derefStablePointer(pointer: COpaquePointer): Any =
-    derefStablePointerOrNull(pointer) ?: throw IncorrectDereferenceException("illegal attempt to access non-shared ${describeStablePointer(pointer)} from other thread")
+@SymbolName("Kotlin_Interop_derefStablePointer")
+internal external fun derefStablePointer(pointer: COpaquePointer): Any
