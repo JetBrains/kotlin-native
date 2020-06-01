@@ -55,6 +55,13 @@ ObjHeader* KRefSharedHolder::ref() const {
   konan::abort();
 }
 
+ObjHeader* KRefSharedHolder::refOrThrow() const {
+  if (auto* result = refOrNull())
+    return result;
+
+  throwIllegalSharingException(obj_);
+}
+
 ObjHeader* KRefSharedHolder::refOrNull() const {
   if (!isRefAccessible()) {
     return nullptr;
