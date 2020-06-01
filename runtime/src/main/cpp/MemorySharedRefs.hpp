@@ -41,9 +41,11 @@ class BackRefFromAssociatedObject {
 
   // Terminates if called from the wrong worker with non-frozen obj_.
   void addRef();
+  void addRefOrThrow();
 
   // Terminates if called from the wrong worker with non-frozen obj_.
   bool tryAddRef();
+  bool tryAddRefOrThrow();
 
   void releaseRef();
 
@@ -62,6 +64,7 @@ class BackRefFromAssociatedObject {
 
   bool isRefAccessible() const;
   void ensureRefAccessible() const;
+  void ensureRefAccessibleOrThrow() const;
 };
 
 static_assert(std::is_trivially_destructible<BackRefFromAssociatedObject>::value,

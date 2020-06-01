@@ -123,6 +123,18 @@ void BackRefFromAssociatedObject::addRef() {
   }
 }
 
+void BackRefFromAssociatedObject::addRefOrThrow() {
+  if (atomicAdd(&refCount, 1) == 1) {
+    // There are no references to the associated object itself, so Kotlin object is being passed from Kotlin,
+    // and it is owned therefore.
+    ensureRefAccessibleOrThrow(); // TODO: consider removing explicit verification.
+
+    // Foreign reference has already been deinitialized (see [releaseRef]).
+    // Create a new one:
+    context_ = InitForeignRef(obj_);
+  }
+}
+
 bool BackRefFromAssociatedObject::tryAddRef() {
   // Suboptimal but simple:
   this->ensureRefAccessible();
@@ -130,6 +142,19 @@ bool BackRefFromAssociatedObject::tryAddRef() {
 
   if (!TryAddHeapRef(obj)) return false;
   this->addRef();
+  ReleaseHeapRef(obj); // Balance TryAddHeapRef.
+  // TODO: consider optimizing for non-shared objects.
+
+  return true;
+}
+
+bool BackRefFromAssociatedObject::tryAddRefOrThrow() {
+  // Suboptimal but simple:
+  this->ensureRefAccessibleOrThrow();
+  ObjHeader* obj = this->obj_;
+
+  if (!TryAddHeapRef(obj)) return false;
+  this->addRefOrThrow();
   ReleaseHeapRef(obj); // Balance TryAddHeapRef.
   // TODO: consider optimizing for non-shared objects.
 
@@ -171,6 +196,13 @@ void BackRefFromAssociatedObject::ensureRefAccessible() const {
     return;
 
   terminateWithIllegalSharingException(obj_);
+}
+
+void BackRefFromAssociatedObject::ensureRefAccessibleOrThrow() const {
+  if (isRefAccessible())
+    return;
+
+  throwIllegalSharingException(obj_);
 }
 
 extern "C" {

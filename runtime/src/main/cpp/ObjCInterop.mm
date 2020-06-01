@@ -94,11 +94,26 @@ id retainImp(id self, SEL _cmd) {
 }
 
 BOOL _tryRetainImp(id self, SEL _cmd) {
-  // TODO: [tryAddRef] currently works only on the owner thread for non-shared objects;
+  // TODO: [tryAddRefOrThrow] currently works only on the owner thread for non-shared objects;
   // this is a regression for instances of Kotlin subclasses of Obj-C classes:
   // loading a reference to such an object from Obj-C weak reference now fails on "wrong" thread
   // unless the object is frozen.
-  return getBackRef(self)->tryAddRef();
+  try {
+    return getBackRef(self)->tryAddRefOrThrow();
+  } catch (ExceptionObjHolder& e) {
+    // TODO: check for IncorrectDereferenceException and possible weak property access
+    @try {
+      // try and catch with objc_terminate: this is a workaround to terminate immediately
+      // with libc default_terminate_handler() to be called instead of custom `TerminateWithUnhandledException`.
+      // See `KonanTerminateHandler`.
+      // TerminateWithUnhandledException shall not be used here because in debug mode it uses
+      // CoreSymbolication framework (CSSymbolOwnerGetSymbolWithAddress) which fails at recursive retain lock.
+      [NSException raise:NSGenericException
+                  format:@"Possible illegal attempt to access weak property from non-owning thread"];
+    } @catch (...) {
+      objc_terminate();
+    }
+  }
 }
 
 void releaseImp(id self, SEL _cmd) {
