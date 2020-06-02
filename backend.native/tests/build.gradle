@@ -2296,7 +2296,7 @@ task utf8(type: KonanLocalTest) {
     // Cannot be executed in the two-stage mode due to KT-33175.
     // Uses exceptions so cannot run on wasm.
     enabled = !twoStageEnabled && (project.testTarget != 'wasm32')
-    goldValue = "Hello\nПривет\n\uD800\uDC00\n\n\uFFFD\uFFFD\n\uFFFD12\n\uFFFD12\n12\uFFFD\n\uD83D\uDE25\n\uD83D\uDE25\n\uD83D\uDE25\n"
+    goldValue = "Hello\nПривет\n\uD800\uDC00\n\n\uFFFD\uFFFD\n\uFFFD12\n\uFFFD12\n12\uFFFD\n\uD83D\uDE25\n\uD83D\uDE25\n"
     source = "runtime/text/utf8.kt"
 }
 
@@ -3485,6 +3485,10 @@ createInterop("cunion") {
     it.defFile 'interop/basics/cunion.def'
 }
 
+createInterop("cenums") {
+    it.defFile 'interop/basics/cenums.def'
+}
+
 createInterop("carrayPointers") {
     it.defFile 'interop/basics/carrayPointers.def'
 }
@@ -3742,6 +3746,12 @@ interopTest("interop_union") {
     disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
     interop = 'cunion'
     source = "interop/basics/union.kt"
+}
+
+interopTest("interop_enums") {
+    disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
+    interop = 'cenums'
+    source = "interop/basics/enums.kt"
 }
 
 interopTest("interop_array_pointers") {

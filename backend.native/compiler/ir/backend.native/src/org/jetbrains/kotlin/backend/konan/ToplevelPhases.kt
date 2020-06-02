@@ -356,6 +356,7 @@ internal val allLoweringsPhase = namedIrModulePhase(
                                 interopPhase then
                                 varargPhase then
                                 compileTimeEvaluatePhase then
+                                kotlinNothingValueExceptionPhase then
                                 coroutinesPhase then
                                 typeOperatorPhase then
                                 bridgesPhase then

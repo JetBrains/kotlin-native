@@ -260,6 +260,8 @@ internal class KonanSymbols(
 
     override val ThrowTypeCastException = internalFunction("ThrowTypeCastException")
 
+    override val ThrowKotlinNothingValueException  = internalFunction("ThrowKotlinNothingValueException")
+
     val throwClassCastException = internalFunction("ThrowClassCastException")
 
     val throwInvalidReceiverTypeException = internalFunction("ThrowInvalidReceiverTypeException")
@@ -406,6 +408,8 @@ internal class KonanSymbols(
                     .getContributedVariables(COROUTINE_SUSPENDED_NAME, NoLookupLocation.FROM_BACKEND)
                     .filterNot { it.isExpect }.single().getter!!
     )
+
+    val cancellationException = topLevelClass(KonanFqNames.cancellationException)
 
     val kotlinResult = topLevelClass("kotlin.Result")
 
