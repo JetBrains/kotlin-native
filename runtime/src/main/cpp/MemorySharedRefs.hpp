@@ -39,7 +39,7 @@ class BackRefFromAssociatedObject {
  public:
   void initAndAddRef(ObjHeader* obj);
 
-  // Terminates if called from the wrong worker with non-frozen obj_.
+  // Terminates if refCount is zero and it's called from the wrong worker with non-frozen obj_.
   void addRef();
   void addRefOrThrow();
 
