@@ -62,18 +62,22 @@ void KRefSharedHolder::init(ObjHeader* obj) {
   obj_ = obj;
 }
 
-ObjHeader* KRefSharedHolder::ref() const {
-  if (auto* result = refOrNull())
-    return result;
+namespace {
+template<ErrorHandlingPolicy> RUNTIME_NORETURN void error(KRef obj);
 
-  terminateWithIllegalSharingException(obj_);
+template<> RUNTIME_NORETURN void error<doTerminate>(KRef obj) {
+  terminateWithIllegalSharingException(obj);
 }
 
-ObjHeader* KRefSharedHolder::refOrThrow() const {
+template<> RUNTIME_NORETURN void error<doThrow>(KRef obj) {
+  throwIllegalSharingException(obj);
+}
+}
+
+template <ErrorHandlingPolicy eh> ObjHeader* KRefSharedHolder::ref() const {
   if (auto* result = refOrNull())
     return result;
-
-  throwIllegalSharingException(obj_);
+  error<eh>(obj_);
 }
 
 ObjHeader* KRefSharedHolder::refOrNull() const {
@@ -111,11 +115,13 @@ void BackRefFromAssociatedObject::initAndAddRef(ObjHeader* obj) {
   refCount = 1;
 }
 
+
+template <ErrorHandlingPolicy eh>
 void BackRefFromAssociatedObject::addRef() {
   if (atomicAdd(&refCount, 1) == 1) {
     // There are no references to the associated object itself, so Kotlin object is being passed from Kotlin,
     // and it is owned therefore.
-    ensureRefAccessible(); // TODO: consider removing explicit verification.
+    ensureRefAccessible<eh>(); // TODO: consider removing explicit verification.
 
     // Foreign reference has already been deinitialized (see [releaseRef]).
     // Create a new one:
@@ -123,38 +129,14 @@ void BackRefFromAssociatedObject::addRef() {
   }
 }
 
-void BackRefFromAssociatedObject::addRefOrThrow() {
-  if (atomicAdd(&refCount, 1) == 1) {
-    // There are no references to the associated object itself, so Kotlin object is being passed from Kotlin,
-    // and it is owned therefore.
-    ensureRefAccessibleOrThrow(); // TODO: consider removing explicit verification.
-
-    // Foreign reference has already been deinitialized (see [releaseRef]).
-    // Create a new one:
-    context_ = InitForeignRef(obj_);
-  }
-}
-
+template <ErrorHandlingPolicy eh>
 bool BackRefFromAssociatedObject::tryAddRef() {
   // Suboptimal but simple:
   this->ensureRefAccessible();
   ObjHeader* obj = this->obj_;
 
   if (!TryAddHeapRef(obj)) return false;
-  this->addRef();
-  ReleaseHeapRef(obj); // Balance TryAddHeapRef.
-  // TODO: consider optimizing for non-shared objects.
-
-  return true;
-}
-
-bool BackRefFromAssociatedObject::tryAddRefOrThrow() {
-  // Suboptimal but simple:
-  this->ensureRefAccessibleOrThrow();
-  ObjHeader* obj = this->obj_;
-
-  if (!TryAddHeapRef(obj)) return false;
-  this->addRefOrThrow();
+  this->addRef<eh>();
   ReleaseHeapRef(obj); // Balance TryAddHeapRef.
   // TODO: consider optimizing for non-shared objects.
 
@@ -191,18 +173,12 @@ bool BackRefFromAssociatedObject::isRefAccessible() const {
   return isForeignRefAccessible(obj_, context_);
 }
 
+template <ErrorHandlingPolicy eh>
 void BackRefFromAssociatedObject::ensureRefAccessible() const {
   if (isRefAccessible())
     return;
 
-  terminateWithIllegalSharingException(obj_);
-}
-
-void BackRefFromAssociatedObject::ensureRefAccessibleOrThrow() const {
-  if (isRefAccessible())
-    return;
-
-  throwIllegalSharingException(obj_);
+  error<eh>(obj_);
 }
 
 extern "C" {

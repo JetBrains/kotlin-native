@@ -10,6 +10,12 @@
 
 #include "Memory.h"
 
+//namespace ErrorHandlingPolicy {
+//    RUNTIME_NORETURN void doThrow(KRef obj);
+//    RUNTIME_NORETURN void doTerminate(KRef obj);
+//};
+enum ErrorHandlingPolicy {doTerminate, doThrow};
+
 class KRefSharedHolder {
  public:
   void initLocal(ObjHeader* obj);
@@ -17,8 +23,9 @@ class KRefSharedHolder {
   void init(ObjHeader* obj);
 
   // Terminates if called from the wrong worker with non-frozen obj_.
-  ObjHeader* ref() const;
-  ObjHeader* refOrThrow() const;
+  template <ErrorHandlingPolicy eh = doTerminate> ObjHeader* ref() const;
+//  ObjHeader* ref() const;
+  ObjHeader* refOrThrow() const { return ref<doThrow>(); }
   ObjHeader* refOrNull() const;
 
   void dispose() const;
@@ -40,12 +47,11 @@ class BackRefFromAssociatedObject {
   void initAndAddRef(ObjHeader* obj);
 
   // Terminates if refCount is zero and it's called from the wrong worker with non-frozen obj_.
-  void addRef();
-  void addRefOrThrow();
+  template <ErrorHandlingPolicy eh = doTerminate> void addRef();
 
   // Terminates if called from the wrong worker with non-frozen obj_.
-  bool tryAddRef();
-  bool tryAddRefOrThrow();
+  template <ErrorHandlingPolicy eh = doTerminate> bool tryAddRef();
+  bool tryAddRefOrThrow() { return tryAddRef<doThrow>(); }
 
   void releaseRef();
 
@@ -63,8 +69,7 @@ class BackRefFromAssociatedObject {
   volatile int refCount;
 
   bool isRefAccessible() const;
-  void ensureRefAccessible() const;
-  void ensureRefAccessibleOrThrow() const;
+  template <ErrorHandlingPolicy eh = doTerminate> void ensureRefAccessible() const;
 };
 
 static_assert(std::is_trivially_destructible<BackRefFromAssociatedObject>::value,
