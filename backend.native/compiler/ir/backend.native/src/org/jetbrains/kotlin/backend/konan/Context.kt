@@ -322,7 +322,8 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     val llvmImports: LlvmImports = Llvm.ImportsImpl(this)
     lateinit var llvmDeclarations: LlvmDeclarations
     lateinit var bitcodeFileName: String
-    lateinit var library: KonanLibraryLayout
+    // TODO: DO WE REALLY NEED THIS LIBRARY!?!?!?!?!??!?!?
+    //lateinit var library: KonanLibraryLayout
 
     private var llvmDisposed = false
 

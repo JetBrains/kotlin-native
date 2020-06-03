@@ -16,35 +16,39 @@
 
 package org.jetbrains.kotlin.konan.library
 
+import org.jetbrains.kotlin.konan.file.AbstractFile
 import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.library.IrKotlinLibraryLayout
 import org.jetbrains.kotlin.library.KotlinLibraryLayout
 import org.jetbrains.kotlin.library.MetadataKotlinLibraryLayout
 
-interface TargetedKotlinLibraryLayout : KotlinLibraryLayout {
+interface TargetedKotlinLibraryLayout<T: AbstractFile> : KotlinLibraryLayout<T> {
     val target: KonanTarget?
         // This is a default implementation. Can't make it an assignment.
         get() = null
-    val targetsDir
-        get() = File(componentDir, "targets")
-    val targetDir
-        get() = File(targetsDir, target!!.visibleName)
-    val includedDir
-        get() = File(targetDir, "included")
+    val targetsDir: T
+        get() = componentDir.child("targets") as T
+    val targetDir: T
+        get() = targetsDir.child(target!!.visibleName) as T
+    val includedDir: T
+        get() = targetDir.child("included") as T
 }
 
-interface BitcodeKotlinLibraryLayout : TargetedKotlinLibraryLayout, KotlinLibraryLayout {
-    val kotlinDir
-        get() = File(targetDir, "kotlin")
-    val nativeDir
-        get() = File(targetDir, "native")
+interface BitcodeKotlinLibraryLayout<T: AbstractFile> : TargetedKotlinLibraryLayout<T>, KotlinLibraryLayout<T> {
+    val kotlinDir: T
+        get() = targetDir.child("kotlin") as T
+    val nativeDir: T
+        get() = targetDir.child("native") as T
     // TODO: Experiment with separate bitcode files.
     // Per package or per class.
-    val mainBitcodeFile
-        get() = File(kotlinDir, "program.kt.bc")
-    val mainBitcodeFileName
+    val mainBitcodeFile: T
+        get() = kotlinDir.child("program.kt.bc") as T
+    val mainBitcodeFileName: String
         get() = mainBitcodeFile.path
 }
 
-interface KonanLibraryLayout : MetadataKotlinLibraryLayout, BitcodeKotlinLibraryLayout, IrKotlinLibraryLayout
+interface KonanLibraryLayout<T: AbstractFile> :
+        MetadataKotlinLibraryLayout<T>,
+        BitcodeKotlinLibraryLayout<T>,
+        IrKotlinLibraryLayout<T>

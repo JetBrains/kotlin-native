@@ -266,7 +266,7 @@ class DependencyProcessor(dependenciesRoot: File,
     }
 
     fun run() = lock.withLock {
-        RandomAccessFile(lockFile, "rw").channel.lock().use {
+       // RandomAccessFile(lockFile, "rw").channel.lock().use {
             resolvedDependencies.forEach { (dependency, candidate) ->
                 val baseUrl = when (candidate) {
                     is DependencySource.Local -> null
@@ -278,7 +278,7 @@ class DependencyProcessor(dependenciesRoot: File,
                     downloadDependency(dependency, baseUrl)
                 }
             }
-        }
+        //}
     }
 }
 

@@ -18,7 +18,7 @@ import org.jetbrains.kotlin.library.impl.*
 class KonanLibraryLayoutForWriter(
     override val libDir: File,
     override val target: KonanTarget
-) : KonanLibraryLayout, KotlinLibraryLayoutForWriter(libDir)
+) : KonanLibraryLayout<File>, KotlinLibraryLayoutForWriter(libDir)
 
 /**
  * Requires non-null [target].
@@ -55,7 +55,7 @@ fun buildLibrary(
     shortName: String?,
     manifestProperties: Properties?,
     dataFlowGraph: ByteArray?
-): KonanLibraryLayout {
+): KonanLibraryLayout<File> {
 
     val library = KonanLibraryWriterImpl(
             File(output),

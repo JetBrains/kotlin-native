@@ -10,7 +10,7 @@ import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.konan.library.BitcodeKotlinLibraryLayout
 import org.jetbrains.kotlin.konan.library.TargetedKotlinLibraryLayout
 
-open class TargetedWriterImpl(val targetLayout: TargetedKotlinLibraryLayout) {
+open class TargetedWriterImpl(val targetLayout: TargetedKotlinLibraryLayout<File>) {
     init {
         targetLayout.targetDir.mkdirs()
         targetLayout.includedDir.mkdirs()
@@ -23,7 +23,7 @@ open class TargetedWriterImpl(val targetLayout: TargetedKotlinLibraryLayout) {
 }
 
 class BitcodeWriterImpl(
-    libraryLayout: BitcodeKotlinLibraryLayout
+    libraryLayout: BitcodeKotlinLibraryLayout<File>
 ) : BitcodeWriter, TargetedWriterImpl(libraryLayout) {
 
     val bitcodeLayout = libraryLayout
