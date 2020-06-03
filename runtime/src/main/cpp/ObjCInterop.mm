@@ -94,6 +94,7 @@ id retainImp(id self, SEL _cmd) {
 }
 
 BOOL _tryRetainImp(id self, SEL _cmd) {
+/*
   // TODO: [tryAddRef] currently works only on the owner thread for non-shared objects;
   // this is a regression for instances of Kotlin subclasses of Obj-C classes:
   // loading a reference to such an object from Obj-C weak reference now fails on "wrong" thread
@@ -114,6 +115,8 @@ BOOL _tryRetainImp(id self, SEL _cmd) {
       objc_terminate();
     }
   }
+*/
+  return getBackRef(self)->tryAddRef();
 }
 
 void releaseImp(id self, SEL _cmd) {
