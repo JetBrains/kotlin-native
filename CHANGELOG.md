@@ -1,3 +1,9 @@
+# v1.4.0-M3 (Jun 2020)
+  * Tune GC to improve execution time performance ([`KT-19076`](https://youtrack.jetbrains.com/issue/KT-19076)).
+  * Support @Throws annotation ([`KT-34848`](https://youtrack.jetbrains.com/issue/KT-34848))
+  * Fix support of variadic block types in ObjC interop ([`KT-36766`](https://youtrack.jetbrains.com/issue/KT-36766))
+  * Support `suspend fun` in ObjC/Swift interop.
+
 # v1.3.72 (April 2020)
   * Fix ios_x64 platform libs cache for iOS 11 and 12 (GH-4071)
 
