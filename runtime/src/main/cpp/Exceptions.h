@@ -63,6 +63,9 @@ void RUNTIME_NORETURN ThrowFreezingException(KRef toFreeze, KRef blocker);
 // Prints out message of Throwable.
 void PrintThrowable(KRef);
 
+// Sometimes on macOS you cannot extract SourceInfo just before the program termination.
+void DisallowSourceInfoUsage();
+
 #ifdef __cplusplus
 } // extern "C"
 #endif

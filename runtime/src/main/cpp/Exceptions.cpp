@@ -103,6 +103,8 @@ _Unwind_Reason_Code unwindCallback(
 }
 #endif
 
+bool disallowSourceInfoUsage = false;
+
 }  // namespace
 
 extern "C" {
@@ -172,18 +174,22 @@ OBJ_GETTER(GetStackTraceStrings, KConstRef stackTrace) {
     RuntimeCheck(symbols != nullptr, "Not enough memory to retrieve the stacktrace");
 
     for (int index = 0; index < size; ++index) {
-      auto sourceInfo = Kotlin_getSourceInfo(*PrimitiveArrayAddressOfElementAt<KNativePtr>(stackTrace->array(), index));
       const char* symbol = symbols[index];
       const char* result;
-      char line[1024];
-      if (sourceInfo.fileName != nullptr) {
-        if (sourceInfo.lineNumber != -1) {
-          konan::snprintf(line, sizeof(line) - 1, "%s (%s:%d:%d)",
-                          symbol, sourceInfo.fileName, sourceInfo.lineNumber, sourceInfo.column);
+      if (!disallowSourceInfoUsage) {
+        auto sourceInfo = Kotlin_getSourceInfo(*PrimitiveArrayAddressOfElementAt<KNativePtr>(stackTrace->array(), index));
+        char line[1024];
+        if (sourceInfo.fileName != nullptr) {
+          if (sourceInfo.lineNumber != -1) {
+            konan::snprintf(line, sizeof(line) - 1, "%s (%s:%d:%d)",
+                            symbol, sourceInfo.fileName, sourceInfo.lineNumber, sourceInfo.column);
+          } else {
+            konan::snprintf(line, sizeof(line) - 1, "%s (%s:<unknown>)", symbol, sourceInfo.fileName);
+          }
+          result = line;
         } else {
-          konan::snprintf(line, sizeof(line) - 1, "%s (%s:<unknown>)", symbol, sourceInfo.fileName);
+          result = symbol;
         }
-        result = line;
       } else {
         result = symbol;
       }
@@ -294,9 +300,17 @@ void SetKonanTerminateHandler() {
   oldTerminateHandler = std::set_terminate(&KonanTerminateHandler);
 }
 
+void DisallowSourceInfoUsage() {
+  disallowSourceInfoUsage = true;
+}
+
 #else // KONAN_OBJC_INTEROP
 
 void SetKonanTerminateHandler() {
+  // Nothing to do.
+}
+
+void DisallowSourceInfoUsage() {
   // Nothing to do.
 }
 

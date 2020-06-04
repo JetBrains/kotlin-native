@@ -101,18 +101,11 @@ BOOL _tryRetainImp(id self, SEL _cmd) {
   try {
     return getBackRef(self)->tryAddRef();
   } catch (ExceptionObjHolder& e) {
-    // TODO: check for IncorrectDereferenceException and possible weak property access
-    @try {
-      // try and catch with objc_terminate: this is a workaround to terminate immediately
-      // with libc default_terminate_handler() to be called instead of custom `TerminateWithUnhandledException`.
-      // See `KonanTerminateHandler`.
-      // TerminateWithUnhandledException shall not be used here because in debug mode it uses
-      // CoreSymbolication framework (CSSymbolOwnerGetSymbolWithAddress) which fails at recursive retain lock.
-      [NSException raise:NSGenericException
-                  format:@"Possible illegal attempt to access weak property from non-owning thread"];
-    } @catch (...) {
-      objc_terminate();
-    }
+    // Cannot use SourceInfo here, because CoreSymbolication framework (CSSymbolOwnerGetSymbolWithAddress)
+    // fails at recursive retain lock. Similarly, cannot use objc exception here, because it's unhandled
+    // exception handler might fail at recursive retain lock too.
+    DisallowSourceInfoUsage();
+    std::terminate();
   }
 }
 
