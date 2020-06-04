@@ -848,7 +848,17 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         output("typedef unsigned long long ${prefix}_KULong;")
         output("typedef float              ${prefix}_KFloat;")
         output("typedef double             ${prefix}_KDouble;")
-        output("typedef float __attribute__ ((__vector_size__ (16))) ${prefix}_KVector128;")
+
+        if (context.config.target.family == Family.MINGW) {
+            output("#ifndef _MSC_VER")
+            output("typedef float __attribute__ ((__vector_size__ (16))) ${prefix}_KVector128;")
+            output("#else")
+            output("typedef __m128 ${prefix}_KVector128;")
+            output("#endif")
+        } else {
+            output("typedef float __attribute__ ((__vector_size__ (16))) ${prefix}_KVector128;")
+        }
+
         output("typedef void*              ${prefix}_KNativePtr;")
         output("struct ${prefix}_KType;")
         output("typedef struct ${prefix}_KType ${prefix}_KType;")
