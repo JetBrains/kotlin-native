@@ -263,7 +263,7 @@ class RunExternalTestGroup extends JavaExec {
         def classes = []
         TestModule mainModule = null
 
-        def testFiles = TestDirectivesKt.buildCompileList(project.file("build/$src").toPath(), "$outputDirectory/$src")
+        def testFiles = TestDirectivesKt.parseDirectives(project.file("build/$src").toPath(), "$outputDirectory/$src")
         for (TestFile testFile: testFiles) {
             def text = testFile.text
             def filePath = testFile.path
@@ -357,7 +357,7 @@ class RunExternalTestGroup extends JavaExec {
         }
         def launcherText = createLauncherFileText(src, imports)
         testFiles.add(new TestFile("_launcher.kt", "$outputDirectory/$src/_launcher.kt".toString(),
-                launcherText, mainModule != null ? mainModule : TestModule.default))
+                launcherText, mainModule != null ? mainModule : TestModule.default, Language.Kotlin))
         return testFiles
     }
 

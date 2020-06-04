@@ -6,7 +6,6 @@
 package org.jetbrains.kotlin
 
 import java.nio.file.Path
-import java.nio.file.Paths
 import java.util.regex.Pattern
 
 private const val MODULE_DELIMITER = ",\\s*"
@@ -20,7 +19,7 @@ private val FILE_OR_MODULE_PATTERN: Pattern = Pattern.compile("(?://\\s*MODULE:\
  *
  * @return list of test files [TestFile] to be compiled
  */
-fun buildCompileList(source: Path, outputDirectory: String): List<TestFile> {
+fun parseDirectives(source: Path, outputDirectory: String): List<TestFile> {
     val result = mutableListOf<TestFile>()
     val srcFile = source.toFile()
     // Remove diagnostic parameters in external tests.
@@ -28,13 +27,13 @@ fun buildCompileList(source: Path, outputDirectory: String): List<TestFile> {
 
     if (srcText.contains("// WITH_COROUTINES")) {
         result.add(TestFile("helpers.kt", "$outputDirectory/helpers.kt",
-                createTextForHelpers(true), TestModule.support))
+                createTextForHelpers(true), TestModule.support, Language.Kotlin))
     }
 
     val matcher = FILE_OR_MODULE_PATTERN.matcher(srcText)
     if (!matcher.find()) {
         // There is only one file in the input
-        result.add(TestFile(srcFile.name, "$outputDirectory/${srcFile.name}", srcText))
+        result.add(TestFile(srcFile.name, "$outputDirectory/${srcFile.name}", srcText, language = Language.Kotlin))
     } else {
         // There are several files
         var processedChars = 0
@@ -62,7 +61,7 @@ fun buildCompileList(source: Path, outputDirectory: String): List<TestFile> {
             val fileText = srcText.substring(start, end)
             processedChars = end
             if (fileName.endsWith(".kt")) {
-                result.add(TestFile(fileName, filePath, fileText, module))
+                result.add(TestFile(fileName, filePath, fileText, module, Language.Kotlin))
             }
         }
     }
@@ -94,26 +93,5 @@ data class TestModule(
     companion object {
         val default = TestModule("default", emptyList(), emptyList())
         val support = TestModule("support", emptyList(), emptyList())
-    }
-}
-
-/**
- * Represent a single test file that belongs to the [module].
- */
-data class TestFile(val name: String,
-                    val path: String,
-                    var text: String = "",
-                    val module: TestModule = TestModule.default
-) {
-    /**
-     * Writes [text] to the file created from the [path].
-     */
-    fun writeTextToFile() {
-        Paths.get(path).takeUnless { text.isEmpty() }?.run {
-            parent.toFile()
-                    .takeUnless { it.exists() }
-                    ?.mkdirs()
-            toFile().writeText(text)
-        }
     }
 }

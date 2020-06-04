@@ -3578,7 +3578,7 @@ createInterop("withSpaces") {
 /**
  * Creates a task for the interop test. Configures runner and adds library and test build tasks.
  */
-Task interopTestBase(String name, boolean multiFile, Closure<KonanInteropTest> configureClosure) {
+Task interopTest(String name, Closure<KonanInteropTest> configureClosure) {
     return KotlinNativeTestKt.createTest(project, name, KonanInteropTest) { task ->
         task.configure(configureClosure)
         if (task.enabled) {
@@ -3590,7 +3590,7 @@ Task interopTestBase(String name, boolean multiFile, Closure<KonanInteropTest> c
                     libraries {
                         artifact lib
                     }
-                    srcFiles multiFile ? fileTree(task.source) { include '**/*.kt' } : task.getSources()
+                    srcFiles task.getSources()
                     baseDir "$testOutputLocal/$name"
                     linkerOpts "-L$buildDir"
                     extraOpts task.flags
@@ -3599,14 +3599,6 @@ Task interopTestBase(String name, boolean multiFile, Closure<KonanInteropTest> c
             }
         }
     }
-}
-
-Task interopTest(String name, Closure<KonanInteropTest> configureClosure) {
-    return interopTestBase(name, false, configureClosure)
-}
-
-Task interopTestMultifile(String name, Closure<KonanInteropTest> configureClosure) {
-    return interopTestBase(name, true, configureClosure)
 }
 
 standaloneTest("interop_objc_allocException") {
@@ -3861,7 +3853,7 @@ if (PlatformInfo.isAppleTarget(project)) {
         }
     }
 
-    interopTestMultifile("interop_objc_tests") {
+    interopTest("interop_objc_tests") {
         source = "interop/objc/tests/"
         interop = 'objcTests'
         flags = ['-tr', '-e', 'main']

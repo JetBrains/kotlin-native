@@ -4,7 +4,6 @@ import groovy.lang.Closure
 import org.gradle.api.Action
 import org.gradle.api.DefaultTask
 import org.gradle.api.Task
-import org.gradle.api.file.FileTree
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
 import org.gradle.language.base.plugins.LifecycleBasePlugin
@@ -38,7 +37,7 @@ open class FrameworkTest : DefaultTask(), KonanTestExecutable {
     @Input
     var codesign: Boolean = true
 
-    val testOutput: String = project.testOutputFramework
+    val outputDirectory: String = project.testOutputFramework
 
     /**
      * Framework description.
@@ -78,21 +77,14 @@ open class FrameworkTest : DefaultTask(), KonanTestExecutable {
         return f
     }
 
-    enum class Language(val extension: String) {
-        Kotlin(".kt"), ObjC(".m"), Swift(".swift")
-    }
-
-    fun Language.filesFrom(dir: String): FileTree = project.fileTree(dir) {
-        // include only files with the language extension
-        it.include("*${this.extension}")
-    }
-
-    fun List<String>.toFiles(language: Language): List<File> =
-            this.map { language.filesFrom(it) }
-                    .flatMap { it.files }
+    private fun List<String>.toFiles(language: Language): List<File> =
+            this.flatMap { src ->
+                project.testSources(src, outputDirectory, language)
+                        .map { File(it) }
+            }
 
     override val executable: String
-        get() = Paths.get(testOutput, name, "swiftTestExecutable").toString()
+        get() = Paths.get(outputDirectory, name, "swiftTestExecutable").toString()
 
     override var doBeforeRun: Action<in Task>? = null
 
@@ -116,7 +108,7 @@ open class FrameworkTest : DefaultTask(), KonanTestExecutable {
     }
 
     private fun buildTestExecutable() {
-        val frameworkParentDirPath = "$testOutput/$name/${project.testTarget.name}"
+        val frameworkParentDirPath = "$outputDirectory/$name/${project.testTarget.name}"
         frameworks.forEach { framework ->
             val frameworkArtifact = framework.artifact
             val frameworkPath = "$frameworkParentDirPath/$frameworkArtifact.framework"
@@ -126,7 +118,7 @@ open class FrameworkTest : DefaultTask(), KonanTestExecutable {
         }
 
         // create a test provider and get main entry point
-        val provider = Paths.get(testOutput, name, "provider.swift")
+        val provider = Paths.get(outputDirectory, name, "provider.swift")
         FileWriter(provider.toFile()).use { writer ->
             val providers = swiftSources.toFiles(Language.Swift)
                     .map { it.name.toString().removeSuffix(".swift").capitalize() }
@@ -216,7 +208,7 @@ open class FrameworkTest : DefaultTask(), KonanTestExecutable {
         val (stdOut, stdErr, exitCode) = runProcess(
                 executor = { executorService.add(Action {
                     it.environment = buildEnvironment()
-                    it.workingDir = Paths.get(testOutput).toFile()
+                    it.workingDir = Paths.get(outputDirectory).toFile()
                 }).execute(it) },
                 executable = testExecutable.toString(),
                 args = args)

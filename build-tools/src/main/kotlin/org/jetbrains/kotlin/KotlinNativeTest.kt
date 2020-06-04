@@ -338,9 +338,7 @@ open class KonanStandaloneTest : KonanLocalTest() {
         get() = if (enableKonanAssertions) field + "-ea" else field
 
     fun getSources(): Provider<List<String>> = project.provider {
-        val sources = buildCompileList(project.file(source).toPath(), outputDirectory)
-        sources.forEach { it.writeTextToFile() }
-        sources.map { it.path }
+        project.testSources(source, outputDirectory, Language.Kotlin)
     }
 }
 

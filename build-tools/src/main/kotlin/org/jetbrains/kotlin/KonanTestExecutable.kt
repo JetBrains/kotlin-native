@@ -4,8 +4,9 @@ import org.gradle.api.Action
 import org.gradle.api.Task
 
 /**
- * An interface that any test that works with ExecutorService
+ * An interface that any test that works with executor service
  * should implement to be run on different platforms.
+ * @see ExecutorService
  */
 interface KonanTestExecutable : Task {
     /**
