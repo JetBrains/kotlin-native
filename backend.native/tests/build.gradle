@@ -3885,7 +3885,6 @@ if (PlatformInfo.isAppleTarget(project)) {
         goldValue = "OK\n42\n"
     }
 
-
     interopTest("interop_objc_illegal_sharing_with_weak") {
         source = "interop/objc/illegal_sharing_with_weak/main.kt"
         interop = 'objc_illegal_sharing_with_weak'
