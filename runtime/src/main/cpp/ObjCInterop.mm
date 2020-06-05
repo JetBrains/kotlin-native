@@ -103,10 +103,10 @@ BOOL _tryRetainImp(id self, SEL _cmd) {
   } catch (ExceptionObjHolder& e) {
     // TODO: check for IncorrectDereferenceException and possible weak property access
     // Cannot use SourceInfo here, because CoreSymbolication framework (CSSymbolOwnerGetSymbolWithAddress)
-    // fails at recursive retain lock. Similarly, cannot use objc exception here, because it's unhandled
+    // fails at recursive retain lock. Similarly, cannot use objc exception here, because its unhandled
     // exception handler might fail at recursive retain lock too.
-    // TODO: Refactor to be more explicit. Instead of relying on unhandled exception termination
-    // (and effectively setting a global to alter it's behavior), just call an appropriate termination
+    // TODO: Refactor to be more explicit. Instead of relying on an unhandled exception termination
+    // (and effectively setting a global to alter its behavior), just call an appropriate termination
     // function by hand.
     ScopedDisallowSourceInfo disallowSourceInfo;
     std::terminate();
