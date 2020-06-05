@@ -67,6 +67,7 @@ void PrintThrowable(KRef);
 } // extern "C"
 #endif
 
+#if KONAN_HAS_CXX11_EXCEPTION_FUNCTIONS
 // It's not always safe to extract SourceInfo during unhandled exception termination.
 class ScopedDisallowSourceInfo {
  public:
@@ -85,5 +86,17 @@ class ScopedDisallowSourceInfo {
   // Shouldn't have any significant performance penalty.
   static THREAD_LOCAL_VARIABLE int_fast8_t activeCount;
 };
+#else  // KONAN_HAS_CXX11_EXCEPTION_FUNCTIONS
+class ScopedDisallowSourceInfo {
+ public:
+  ScopedDisallowSourceInfo() = default;
+  ~ScopedDisallowSourceInfo() = default;
+
+  ScopedDisallowSourceInfo(const ScopedDisallowSourceInfo&) = delete;
+  ScopedDisallowSourceInfo(ScopedDisallowSourceInfo&&) = delete;
+  ScopedDisallowSourceInfo& operator=(const ScopedDisallowSourceInfo&) = delete;
+  ScopedDisallowSourceInfo& operator=(ScopedDisallowSourceInfo&&) = delete;
+};
+#endif  // KONAN_HAS_CXX11_EXCEPTION_FUNCTIONS
 
 #endif // RUNTIME_NAMES_H
