@@ -101,6 +101,7 @@ BOOL _tryRetainImp(id self, SEL _cmd) {
   try {
     return getBackRef(self)->tryAddRef();
   } catch (ExceptionObjHolder& e) {
+    // TODO: check for IncorrectDereferenceException and possible weak property access
     // Cannot use SourceInfo here, because CoreSymbolication framework (CSSymbolOwnerGetSymbolWithAddress)
     // fails at recursive retain lock. Similarly, cannot use objc exception here, because it's unhandled
     // exception handler might fail at recursive retain lock too.
