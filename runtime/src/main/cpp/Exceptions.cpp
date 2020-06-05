@@ -310,7 +310,6 @@ void SetKonanTerminateHandler() {
 
 } // extern "C"
 
-#if KONAN_HAS_CXX11_EXCEPTION_FUNCTIONS
 // static
 THREAD_LOCAL_VARIABLE int_fast8_t ScopedDisallowSourceInfo::activeCount = 0;
 
@@ -325,4 +324,3 @@ ScopedDisallowSourceInfo::~ScopedDisallowSourceInfo() {
 bool ScopedDisallowSourceInfo::IsActive() {
   return activeCount > 0;
 }
-#endif  // KONAN_HAS_CXX11_EXCEPTION_FUNCTIONS
