@@ -104,7 +104,10 @@ BOOL _tryRetainImp(id self, SEL _cmd) {
     // Cannot use SourceInfo here, because CoreSymbolication framework (CSSymbolOwnerGetSymbolWithAddress)
     // fails at recursive retain lock. Similarly, cannot use objc exception here, because it's unhandled
     // exception handler might fail at recursive retain lock too.
-    DisallowSourceInfoUsage();
+    // TODO: Refactor to be more explicit. Instead of relying on unhandled exception termination
+    // (and effectively setting a global to alter it's behavior), just call an appropriate termination
+    // function by hand.
+    ScopedDisallowSourceInfo disallowSourceInfo;
     std::terminate();
   }
 }

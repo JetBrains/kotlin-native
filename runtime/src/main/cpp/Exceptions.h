@@ -63,11 +63,27 @@ void RUNTIME_NORETURN ThrowFreezingException(KRef toFreeze, KRef blocker);
 // Prints out message of Throwable.
 void PrintThrowable(KRef);
 
-// Sometimes on macOS you cannot extract SourceInfo just before the program termination.
-void DisallowSourceInfoUsage();
-
 #ifdef __cplusplus
 } // extern "C"
 #endif
+
+// It's not always safe to extract SourceInfo during unhandled exception termination.
+class ScopedDisallowSourceInfo {
+ public:
+  ScopedDisallowSourceInfo();
+  ~ScopedDisallowSourceInfo();
+
+  ScopedDisallowSourceInfo(const ScopedDisallowSourceInfo&) = delete;
+  ScopedDisallowSourceInfo(ScopedDisallowSourceInfo&&) = delete;
+  ScopedDisallowSourceInfo& operator=(const ScopedDisallowSourceInfo&) = delete;
+  ScopedDisallowSourceInfo& operator=(ScopedDisallowSourceInfo&&) = delete;
+
+  static bool IsActive();
+
+ private:
+  // Making a counter instead of a boolean, if this lock ever gets nested.
+  // Shouldn't have any significant performance penalty.
+  static THREAD_LOCAL_VARIABLE int_fast8_t activeCount;
+};
 
 #endif // RUNTIME_NAMES_H

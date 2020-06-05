@@ -103,7 +103,11 @@ _Unwind_Reason_Code unwindCallback(
 }
 #endif
 
-bool disallowSourceInfoUsage = false;
+SourceInfo GetSourceInfo(KConstRef stackTrace, int index) {
+  return ScopedDisallowSourceInfo::IsActive()
+      ? SourceInfo { .fileName = nullptr, .lineNumber = -1, .column = -1 }
+      : Kotlin_getSourceInfo(*PrimitiveArrayAddressOfElementAt<KNativePtr>(stackTrace->array(), index));
+}
 
 }  // namespace
 
@@ -174,22 +178,18 @@ OBJ_GETTER(GetStackTraceStrings, KConstRef stackTrace) {
     RuntimeCheck(symbols != nullptr, "Not enough memory to retrieve the stacktrace");
 
     for (int index = 0; index < size; ++index) {
+      auto sourceInfo = GetSourceInfo(stackTrace, index);
       const char* symbol = symbols[index];
       const char* result;
-      if (!disallowSourceInfoUsage) {
-        auto sourceInfo = Kotlin_getSourceInfo(*PrimitiveArrayAddressOfElementAt<KNativePtr>(stackTrace->array(), index));
-        char line[1024];
-        if (sourceInfo.fileName != nullptr) {
-          if (sourceInfo.lineNumber != -1) {
-            konan::snprintf(line, sizeof(line) - 1, "%s (%s:%d:%d)",
-                            symbol, sourceInfo.fileName, sourceInfo.lineNumber, sourceInfo.column);
-          } else {
-            konan::snprintf(line, sizeof(line) - 1, "%s (%s:<unknown>)", symbol, sourceInfo.fileName);
-          }
-          result = line;
+      char line[1024];
+      if (sourceInfo.fileName != nullptr) {
+        if (sourceInfo.lineNumber != -1) {
+          konan::snprintf(line, sizeof(line) - 1, "%s (%s:%d:%d)",
+                          symbol, sourceInfo.fileName, sourceInfo.lineNumber, sourceInfo.column);
         } else {
-          result = symbol;
+          konan::snprintf(line, sizeof(line) - 1, "%s (%s:<unknown>)", symbol, sourceInfo.fileName);
         }
+        result = line;
       } else {
         result = symbol;
       }
@@ -300,20 +300,27 @@ void SetKonanTerminateHandler() {
   oldTerminateHandler = std::set_terminate(&KonanTerminateHandler);
 }
 
-void DisallowSourceInfoUsage() {
-  disallowSourceInfoUsage = true;
-}
-
 #else // KONAN_OBJC_INTEROP
 
 void SetKonanTerminateHandler() {
   // Nothing to do.
 }
 
-void DisallowSourceInfoUsage() {
-  // Nothing to do.
-}
-
 #endif // KONAN_OBJC_INTEROP
 
 } // extern "C"
+
+// static
+THREAD_LOCAL_VARIABLE int_fast8_t ScopedDisallowSourceInfo::activeCount = 0;
+
+ScopedDisallowSourceInfo::ScopedDisallowSourceInfo() {
+  ++activeCount;
+}
+
+ScopedDisallowSourceInfo::~ScopedDisallowSourceInfo() {
+  --activeCount;
+}
+
+bool ScopedDisallowSourceInfo::IsActive() {
+  return activeCount > 0;
+}
