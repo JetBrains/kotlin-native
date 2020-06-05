@@ -3895,25 +3895,6 @@ if (PlatformInfo.isAppleTarget(project)) {
                 !it.contains("After") &&                 // But before "After"
                 it.contains("isObjectAliveShouldCrash")  // And should contain stack trace.
         }
-
-        doBeforeBuild {
-            mkdir(buildDir)
-            execKonanClang(project.target) {
-                args "$projectDir/interop/objc/illegal_sharing_with_weak/objclib.m"
-                args "-lobjc", '-fobjc-arc'
-                args '-fPIC', '-shared', '-o', "$buildDir/libobjc_illegal_sharing_with_weak.dylib"
-                // Enable ARC optimizations to prevent some objects from leaking in Obj-C code due to exceptions:
-                args '-O2'
-            }
-            if (project.target instanceof KonanTarget.IOS_X64) {
-                UtilsKt.codesign(project, "$buildDir/libobjc_illegal_sharing_with_weak.dylib")
-            }
-
-            copy {
-                from("interop/objc/illegal_sharing_with_weak/Localizable.stringsdict")
-                into("$testOutputLocal/$name/$target/en.lproj/")
-            }
-        }
     }
 }
 

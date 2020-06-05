@@ -1,3 +1,2 @@
 language = Objective-C
 headerFilter = **/objclib.h
-linkerOpts = -lobjc_illegal_sharing_with_weak
