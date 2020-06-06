@@ -30,7 +30,7 @@ val IrField.fqNameForIrSerialization: FqName get() = this.parent.fqNameForIrSeri
 val IrFunction.allParameters: List<IrValueParameter>
     get() = if (this is IrConstructor) {
         listOf(this.constructedClass.thisReceiver
-                ?: error(this.descriptor)
+                ?: error(this.initialDescriptor)
         ) + explicitParameters
     } else {
         explicitParameters
@@ -49,8 +49,8 @@ fun IrClass.isNothing() = this.fqNameForIrSerialization == KotlinBuiltIns.FQ_NAM
 fun IrClass.getSuperInterfaces() = this.superClasses.map { it.owner }.filter { it.isInterface }
 
 // Note: psi2ir doesn't set `origin = FAKE_OVERRIDE` for fields and properties yet.
-val IrProperty.isReal: Boolean get() = this.descriptor.kind.isReal
-val IrField.isReal: Boolean get() = this.descriptor.kind.isReal
+val IrProperty.isReal: Boolean get() = this.initialDescriptor.kind.isReal
+val IrField.isReal: Boolean get() = this.initialDescriptor.kind.isReal
 
 val IrSimpleFunction.isOverridable: Boolean
     get() = visibility != Visibilities.PRIVATE

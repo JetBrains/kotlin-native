@@ -44,16 +44,16 @@ internal class LlvmDeclarations(
     fun forFunctionOrNull(function: IrFunction) = functions[function]
 
     fun forClass(irClass: IrClass) = classes[irClass] ?:
-            error(irClass.descriptor.toString())
+            error(irClass.initialDescriptor.toString())
 
     fun forField(field: IrField) = fields[field] ?:
-            error(field.descriptor.toString())
+            error(field.initialDescriptor.toString())
 
     fun forStaticField(field: IrField) = staticFields[field] ?:
-            error(field.descriptor.toString())
+            error(field.initialDescriptor.toString())
 
     fun forSingleton(irClass: IrClass) = forClass(irClass).singletonDeclarations ?:
-            error(irClass.descriptor.toString())
+            error(irClass.initialDescriptor.toString())
 
     fun forUnique(kind: UniqueKind) = unique[kind] ?: error("No unique $kind")
 
@@ -312,7 +312,7 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
         if (containingClass != null) {
             if (!containingClass.requiresRtti()) return
             val classDeclarations = this.classes[containingClass] ?:
-                error(containingClass.descriptor.toString())
+                error(containingClass.initialDescriptor.toString())
             val allFields = context.getLayoutBuilder(containingClass).fields
             this.fields[declaration] = FieldLlvmDeclarations(
                     allFields.indexOf(declaration) + 1, // First field is ObjHeader.

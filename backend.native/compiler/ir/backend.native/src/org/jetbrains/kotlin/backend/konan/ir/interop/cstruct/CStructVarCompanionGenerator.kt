@@ -35,11 +35,11 @@ internal class CStructVarCompanionGenerator(
 
     fun generate(structDescriptor: ClassDescriptor): IrClass =
             createClass(structDescriptor.companionObjectDescriptor!!) { companionIrClass ->
-                val annotation = companionIrClass.descriptor.annotations
+                val annotation = companionIrClass.initialDescriptor.annotations
                         .findAnnotation(varTypeAnnotationFqName)!!
                 val size = annotation.getArgumentValueOrNull<Long>("size")!!
                 val align = annotation.getArgumentValueOrNull<Int>("align")!!
-                companionIrClass.addMember(createCompanionConstructor(companionIrClass.descriptor, size, align))
+                companionIrClass.addMember(createCompanionConstructor(companionIrClass.initialDescriptor, size, align))
             }
 
     private fun createCompanionConstructor(companionObjectDescriptor: ClassDescriptor, size: Long, align: Int): IrConstructor {

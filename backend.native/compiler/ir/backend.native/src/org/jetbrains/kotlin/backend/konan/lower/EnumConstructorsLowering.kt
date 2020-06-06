@@ -110,8 +110,8 @@ internal class EnumConstructorsLowering(val context: Context) : ClassLoweringPas
             val startOffset = constructor.startOffset
             val endOffset = constructor.endOffset
             val loweredConstructor = WrappedClassConstructorDescriptor(
-                    constructor.descriptor.annotations,
-                    constructor.descriptor.source
+                    constructor.initialDescriptor.annotations,
+                    constructor.initialDescriptor.source
             ).let {
                 IrConstructorImpl(
                         startOffset, endOffset,

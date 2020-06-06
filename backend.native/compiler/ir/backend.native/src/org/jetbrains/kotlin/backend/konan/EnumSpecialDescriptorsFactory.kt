@@ -117,7 +117,7 @@ internal class EnumSpecialDeclarationsFactory(val context: Context) {
         implObject.superTypes += context.irBuiltIns.anyType
         implObject.addFakeOverrides()
 
-        val itemGetterSymbol = symbols.array.functions.single { it.descriptor.name == Name.identifier("get") }
+        val itemGetterSymbol = symbols.array.functions.single { it.initialDescriptor.name == Name.identifier("get") }
         val enumEntriesMap = enumClass.declarations
                 .filterIsInstance<IrEnumEntry>()
                 .sortedBy { it.name }

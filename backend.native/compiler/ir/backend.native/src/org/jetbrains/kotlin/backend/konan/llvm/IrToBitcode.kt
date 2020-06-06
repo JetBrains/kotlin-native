@@ -741,7 +741,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
         if (context.shouldVerifyBitCode())
             verifyModule(context.llvmModule!!,
-                "${declaration.descriptor.containingDeclaration}::${ir2string(declaration)}")
+                "${declaration.initialDescriptor.containingDeclaration}::${ir2string(declaration)}")
     }
 
     private fun IrFunction.location(start: Boolean) =
@@ -1354,7 +1354,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     private fun IrType.isUnsignedInteger(): Boolean =
             this is IrSimpleType && !this.hasQuestionMark &&
-                    UnsignedType.values().any { it.classId == this.getClass()?.descriptor?.classId }
+                    UnsignedType.values().any { it.classId == this.getClass()?.initialDescriptor?.classId }
 
     private fun evaluateIntegerCoercion(value: IrTypeOperatorCall): LLVMValueRef {
         context.log{"evaluateIntegerCoercion        : ${ir2string(value)}"}
@@ -2010,8 +2010,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     private fun evaluateFunctionReference(expression: IrFunctionReference): LLVMValueRef {
         // TODO: consider creating separate IR element for pointer to function.
-        assert (expression.type.getClass()?.descriptor == context.interopBuiltIns.cPointer) {
-            "assert: ${expression.type.getClass()?.descriptor} == ${context.interopBuiltIns.cPointer}"
+        assert (expression.type.getClass()?.initialDescriptor == context.interopBuiltIns.cPointer) {
+            "assert: ${expression.type.getClass()?.initialDescriptor} == ${context.interopBuiltIns.cPointer}"
         }
 
         assert (expression.getArguments().isEmpty())
@@ -2495,9 +2495,9 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     }
 }
 
-private fun IrValueParameter.debugNameConversion() = descriptor.name.debugNameConversion()
+private fun IrValueParameter.debugNameConversion() = initialDescriptor.name.debugNameConversion()
 
-private fun IrVariable.debugNameConversion() = descriptor.name.debugNameConversion()
+private fun IrVariable.debugNameConversion() = initialDescriptor.name.debugNameConversion()
 
 private val thisName = Name.special("<this>")
 private val underscoreThisName = Name.identifier("_this")

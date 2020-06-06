@@ -88,7 +88,7 @@ internal class CEnumClassGenerator(
      * Creates `value` property that stores integral value of the enum.
      */
     private fun createValueProperty(irClass: IrClass): IrProperty {
-        val propertyDescriptor = irClass.descriptor
+        val propertyDescriptor = irClass.initialDescriptor
                 .findDeclarationByName<PropertyDescriptor>("value")
                 ?: error("No `value` property in ${irClass.name}")
         val irProperty = createProperty(propertyDescriptor)

@@ -18,7 +18,7 @@ import org.jetbrains.kotlin.types.typeUtil.isSubtypeOf
 val IrClassifierSymbol.typeWithoutArguments: IrType
     get() = when (this) {
         is IrClassSymbol -> {
-            require(this.descriptor.declaredTypeParameters.isEmpty())
+            require(this.initialDescriptor.declaredTypeParameters.isEmpty())
             this.typeWith(arguments = emptyList())
         }
         is IrTypeParameterSymbol -> this.defaultType
@@ -29,7 +29,7 @@ val IrClassifierSymbol.typeWithStarProjections
     get() = when (this) {
         is IrClassSymbol -> createType(
                 hasQuestionMark = false,
-                arguments = this.descriptor.declaredTypeParameters.map { IrStarProjectionImpl }
+                arguments = this.initialDescriptor.declaredTypeParameters.map { IrStarProjectionImpl }
         )
         is IrTypeParameterSymbol -> this.defaultType
         else -> error(this)

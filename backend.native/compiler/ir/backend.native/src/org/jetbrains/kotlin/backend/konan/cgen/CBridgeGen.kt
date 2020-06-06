@@ -387,7 +387,7 @@ internal fun KotlinStubs.generateObjCCall(
 }
 
 private fun IrBuilderWithScope.getObjCClass(symbols: KonanSymbols, symbol: IrClassSymbol): IrExpression {
-    val classDescriptor = symbol.descriptor
+    val classDescriptor = symbol.initialDescriptor
     assert(!classDescriptor.isObjCMetaClass())
     return irCall(symbols.interopGetObjCClass, symbols.nativePtrType, listOf(symbol.typeWithStarProjections))
 }
@@ -616,7 +616,7 @@ internal fun IrType.isCEnumType(): Boolean {
 private fun IrDeclaration.hasCCallAnnotation(name: String): Boolean =
         this.annotations.hasAnnotation(cCall.child(Name.identifier(name)))
                 // LazyIr doesn't pass annotations from descriptor to IrValueParameter.
-                || this.descriptor.annotations.hasAnnotation(cCall.child(Name.identifier(name)))
+                || this.initialDescriptor.annotations.hasAnnotation(cCall.child(Name.identifier(name)))
 
 
 private fun IrValueParameter.isWCStringParameter() = hasCCallAnnotation("WCString")
@@ -842,7 +842,7 @@ private fun KotlinStubs.isObjCReferenceType(type: IrType): Boolean {
 
     if (type.isObjCObjectType()) return true
 
-    val descriptor = type.classifierOrNull?.descriptor ?: return false
+    val descriptor = type.classifierOrNull?.initialDescriptor ?: return false
     val builtIns = irBuiltIns.builtIns
 
     return when (descriptor) {

@@ -254,7 +254,7 @@ internal class EnumClassLowering(val context: Context) : ClassLoweringPass {
             createValuesPropertyInitializer(enumEntries)
 
             return IrPropertyImpl(startOffset, endOffset, DECLARATION_ORIGIN_ENUM,
-                    false, loweredEnum.valuesField.descriptor, irField, getter, null).apply {
+                    false, loweredEnum.valuesField.initialDescriptor, irField, getter, null).apply {
                 parent = implObject
             }
         }

@@ -1011,7 +1011,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             val llvmSymbolOrigin = irClass.llvmSymbolOrigin
 
             if (irClass.isObjCMetaClass()) {
-                val name = irClass.descriptor.getExternalObjCMetaClassBinaryName()
+                val name = irClass.initialDescriptor.getExternalObjCMetaClassBinaryName()
                 val objCClass = getObjCClass(name, llvmSymbolOrigin)
 
                 val getClass = context.llvm.externalFunction(
@@ -1022,7 +1022,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
 
                 call(getClass, listOf(objCClass), exceptionHandler = exceptionHandler)
             } else {
-                getObjCClass(irClass.descriptor.getExternalObjCClassBinaryName(), llvmSymbolOrigin)
+                getObjCClass(irClass.initialDescriptor.getExternalObjCClassBinaryName(), llvmSymbolOrigin)
             }
         } else {
             if (irClass.isObjCMetaClass()) {

@@ -34,7 +34,7 @@ import org.jetbrains.kotlin.resolve.multiplatform.ExpectedActualResolver
 internal class ExpectDeclarationsRemoving(val context: Context) : FileLoweringPass {
     override fun lower(irFile: IrFile) {
         // All declarations with `isExpect == true` are nested into a top-level declaration with `isExpect == true`.
-        irFile.declarations.removeAll { it.descriptor.isExpectMember }
+        irFile.declarations.removeAll { it.initialDescriptor.isExpectMember }
     }
 }
 
@@ -50,7 +50,7 @@ internal class ExpectToActualDefaultValueCopier(private val irModule: IrModuleFr
     private fun process(irFile: IrFile) {
         // All declarations with `isExpect == true` are nested into a top-level declaration with `isExpect == true`.
         irFile.declarations.forEach {
-            if (it.descriptor.isExpectMember) {
+            if (it.initialDescriptor.isExpectMember) {
                 copyDefaultArgumentsFromExpectToActual(it)
             }
         }
@@ -73,7 +73,7 @@ internal class ExpectToActualDefaultValueCopier(private val irModule: IrModuleFr
 
                 if (function is IrConstructor &&
                         ExpectedActualDeclarationChecker.isOptionalAnnotationClass(
-                                function.descriptor.constructedClass
+                                function.initialDescriptor.constructedClass
                         )
                 ) {
                     return
@@ -90,10 +90,10 @@ internal class ExpectToActualDefaultValueCopier(private val irModule: IrModuleFr
     }
 
     private inline fun <reified T: IrFunction> T.findActualForExpected(): T =
-            moduleIndex.functions[descriptor.findActualForExpect()] as T
+            moduleIndex.functions[initialDescriptor.findActualForExpect()] as T
 
     private fun IrClass.findActualForExpected(): IrClass =
-            moduleIndex.classes[descriptor.findActualForExpect()]!!
+            moduleIndex.classes[initialDescriptor.findActualForExpect()]!!
 
     private inline fun <reified T : MemberDescriptor> T.findActualForExpect() = with(ExpectedActualResolver) {
         val descriptor = this@findActualForExpect
@@ -106,7 +106,7 @@ internal class ExpectToActualDefaultValueCopier(private val irModule: IrModuleFr
     private fun IrExpression.remapExpectValueSymbols(): IrExpression {
         class SymbolRemapper : DeepCopySymbolRemapper() {
             override fun getReferencedClass(symbol: IrClassSymbol) =
-                    if (symbol.descriptor.isExpect)
+                    if (symbol.initialDescriptor.isExpect)
                         symbol.owner.findActualForExpected().symbol
                     else super.getReferencedClass(symbol)
 
@@ -116,30 +116,30 @@ internal class ExpectToActualDefaultValueCopier(private val irModule: IrModuleFr
             override fun getReferencedClassifier(symbol: IrClassifierSymbol): IrClassifierSymbol = when (symbol) {
                 is IrClassSymbol -> getReferencedClass(symbol)
                 is IrTypeParameterSymbol -> remapExpectTypeParameter(symbol).symbol
-                else -> error("Unexpected symbol $symbol ${symbol.descriptor}")
+                else -> error("Unexpected symbol $symbol ${symbol.initialDescriptor}")
             }
 
             override fun getReferencedConstructor(symbol: IrConstructorSymbol) =
-                    if (symbol.descriptor.isExpect)
+                    if (symbol.initialDescriptor.isExpect)
                         symbol.owner.findActualForExpected().symbol
                     else super.getReferencedConstructor(symbol)
 
             override fun getReferencedFunction(symbol: IrFunctionSymbol): IrFunctionSymbol = when (symbol) {
                 is IrSimpleFunctionSymbol -> getReferencedSimpleFunction(symbol)
                 is IrConstructorSymbol -> getReferencedConstructor(symbol)
-                else -> error("Unexpected symbol $symbol ${symbol.descriptor}")
+                else -> error("Unexpected symbol $symbol ${symbol.initialDescriptor}")
             }
 
             override fun getReferencedSimpleFunction(symbol: IrSimpleFunctionSymbol) = when {
-                symbol.descriptor.isExpect -> symbol.owner.findActualForExpected().symbol
+                symbol.initialDescriptor.isExpect -> symbol.owner.findActualForExpected().symbol
 
-                symbol.descriptor.propertyIfAccessor.isExpect -> {
+                symbol.initialDescriptor.propertyIfAccessor.isExpect -> {
                     val property = symbol.owner.correspondingPropertySymbol!!.owner
-                    val actualPropertyDescriptor = property.descriptor.findActualForExpect()
+                    val actualPropertyDescriptor = property.initialDescriptor.findActualForExpect()
                     val accessorDescriptor = when (symbol.owner) {
                         property.getter -> actualPropertyDescriptor.getter!!
                         property.setter -> actualPropertyDescriptor.setter!!
-                        else -> error("Unexpected accessor of $symbol ${symbol.descriptor}")
+                        else -> error("Unexpected accessor of $symbol ${symbol.initialDescriptor}")
                     }
                     moduleIndex.functions[accessorDescriptor]!!.symbol as IrSimpleFunctionSymbol
                 }
@@ -162,12 +162,12 @@ internal class ExpectToActualDefaultValueCopier(private val irModule: IrModuleFr
 
         return when (parent) {
             is IrClass ->
-                if (!parent.descriptor.isExpect)
+                if (!parent.initialDescriptor.isExpect)
                     parameter
                 else parent.findActualForExpected().typeParameters[parameter.index]
 
             is IrFunction ->
-                if (!parent.descriptor.isExpect)
+                if (!parent.initialDescriptor.isExpect)
                     parameter
                 else parent.findActualForExpected().typeParameters[parameter.index]
 
@@ -185,7 +185,7 @@ internal class ExpectToActualDefaultValueCopier(private val irModule: IrModuleFr
 
         return when (parent) {
             is IrClass ->
-                if (!parent.descriptor.isExpect)
+                if (!parent.initialDescriptor.isExpect)
                     null
                 else {
                     assert(parameter == parent.thisReceiver)
@@ -193,7 +193,7 @@ internal class ExpectToActualDefaultValueCopier(private val irModule: IrModuleFr
                 }
 
             is IrFunction ->
-                if (!parent.descriptor.isExpect)
+                if (!parent.initialDescriptor.isExpect)
                     null
                 else when (parameter) {
                     parent.dispatchReceiverParameter -> parent.findActualForExpected().dispatchReceiverParameter!!

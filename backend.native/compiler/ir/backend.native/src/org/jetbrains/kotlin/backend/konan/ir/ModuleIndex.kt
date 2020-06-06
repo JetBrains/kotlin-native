@@ -37,12 +37,12 @@ class ModuleIndex(val module: IrModuleFragment) {
             override fun visitClass(declaration: IrClass) {
                 super.visitClass(declaration)
 
-                classes[declaration.descriptor] = declaration
+                classes[declaration.initialDescriptor] = declaration
             }
 
             override fun visitFunction(declaration: IrFunction) {
                 super.visitFunction(declaration)
-                functions[declaration.descriptor] = declaration
+                functions[declaration.initialDescriptor] = declaration
             }
         })
     }

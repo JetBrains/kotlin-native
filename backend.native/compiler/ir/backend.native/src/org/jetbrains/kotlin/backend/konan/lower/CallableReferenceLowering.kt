@@ -282,12 +282,12 @@ internal class CallableReferenceLowering(val context: Context): FileLoweringPass
                     +irDelegatingConstructorCall(superConstructor).apply {
                         if (!isKFunction && !isKSuspendFunction) return@apply
                         // TODO: Remove as soon as IR declarations have their originalDescriptor.
-                        val name = (referencedFunction.descriptor as? WrappedSimpleFunctionDescriptor)?.originalDescriptor?.name
+                        val name = (referencedFunction.initialDescriptor as? WrappedSimpleFunctionDescriptor)?.originalDescriptor?.name
                                 ?: referencedFunction.name
                         putValueArgument(0, irString(name.asString()))
                         putValueArgument(1, irString((functionReference.symbol.owner).fullName))
                         putValueArgument(2, irBoolean(boundFunctionParameters.isNotEmpty()))
-                        val needReceiver = boundFunctionParameters.singleOrNull()?.descriptor is ReceiverParameterDescriptor
+                        val needReceiver = boundFunctionParameters.singleOrNull()?.initialDescriptor is ReceiverParameterDescriptor
                         val receiver = if (needReceiver) irGet(valueParameters.single()) else irNull()
                         putValueArgument(3, receiver)
                         putValueArgument(4, with(kTypeGenerator) { irKType(referencedFunction.returnType) })

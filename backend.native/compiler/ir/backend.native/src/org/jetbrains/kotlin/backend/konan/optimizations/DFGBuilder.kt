@@ -205,7 +205,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                     "Non-annotation class constructor has empty body"
                 }
                 DEBUG_OUTPUT(0) {
-                    println("Analysing function ${declaration.descriptor}")
+                    println("Analysing function ${declaration.initialDescriptor}")
                     println("IR: ${ir2stringWhole(declaration)}")
                 }
                 analyze(declaration, body)
@@ -218,7 +218,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                     symbolTable.mapFunction(declaration)
                 } else {
                     DEBUG_OUTPUT(0) {
-                        println("Analysing function ${declaration.descriptor}")
+                        println("Analysing function ${declaration.initialDescriptor}")
                         println("IR: ${ir2stringWhole(declaration)}")
                     }
                     analyze(declaration, body)
@@ -229,7 +229,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                 if (declaration.parent is IrFile)
                     declaration.initializer?.let {
                         DEBUG_OUTPUT(0) {
-                            println("Analysing global field ${declaration.descriptor}")
+                            println("Analysing global field ${declaration.initialDescriptor}")
                             println("IR: ${ir2stringWhole(declaration)}")
                         }
                         analyze(declaration, IrSetFieldImpl(it.startOffset, it.endOffset, declaration.symbol, null,
@@ -282,7 +282,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
         DEBUG_OUTPUT(1) {
             println("SYMBOL TABLE:")
             symbolTable.classMap.forEach { irClass, type ->
-                println("    DESCRIPTOR: ${irClass.descriptor}")
+                println("    DESCRIPTOR: ${irClass.initialDescriptor}")
                 println("    TYPE: $type")
                 if (type !is DataFlowIR.Type.Declared)
                     return@forEach
@@ -438,7 +438,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
             else -> null
         }
 
-        private fun getContinuation() = continuationParameter ?: error("Function ${declaration.descriptor} has no continuation parameter")
+        private fun getContinuation() = continuationParameter ?: error("Function ${declaration.initialDescriptor} has no continuation parameter")
 
         private val nodes = mutableMapOf<IrExpression, DataFlowIR.Node>()
         private val variables = variableValues.elementData.keys.associate {
@@ -494,7 +494,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                 is IrClassSymbol -> this
                 is IrTypeParameterSymbol -> {
                     val upperBound = classifier.owner.superTypes.singleOrNull() ?:
-                    TODO("${classifier.descriptor} : ${classifier.descriptor.upperBounds}")
+                    TODO("${classifier.initialDescriptor} : ${classifier.initialDescriptor.upperBounds}")
 
                     if (this.hasQuestionMark) {
                         // `T?`
@@ -679,11 +679,11 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                                         symbolTable.mapClassReferenceType(owner)
                                                     else {
                                                         val actualClassAtCallsite =
-                                                                (actualReceiverClassifier as IrClassSymbol).descriptor
+                                                                (actualReceiverClassifier as IrClassSymbol).initialDescriptor
 //                                                        assert (DescriptorUtils.isSubclass(actualClassAtCallsite, owner.descriptor)) {
 //                                                            "Expected an inheritor of ${owner.descriptor}, but was $actualClassAtCallsite"
 //                                                        }
-                                                        if (DescriptorUtils.isSubclass(actualClassAtCallsite, owner.descriptor)) {
+                                                        if (DescriptorUtils.isSubclass(actualClassAtCallsite, owner.initialDescriptor)) {
                                                             symbolTable.mapClassReferenceType(actualReceiverClassifier.owner) // Box if inline class.
                                                         } else {
                                                             symbolTable.mapClassReferenceType(owner)

@@ -35,14 +35,14 @@ internal class CEnumCompanionGenerator(
 
     // Depends on already generated `.values()` irFunction.
     fun generate(enumClass: IrClass): IrClass =
-            createClass(enumClass.descriptor.companionObjectDescriptor!!) { companionIrClass ->
+            createClass(enumClass.initialDescriptor.companionObjectDescriptor!!) { companionIrClass ->
                 companionIrClass.superTypes += irBuiltIns.anyType
-                companionIrClass.addMember(createCompanionConstructor(companionIrClass.descriptor))
+                companionIrClass.addMember(createCompanionConstructor(companionIrClass.initialDescriptor))
                 val valuesFunction = enumClass.functions.single { it.name.identifier == "values" }.symbol
                 val byValueIrFunction = cEnumByValueFunctionGenerator
                         .generateByValueFunction(companionIrClass, valuesFunction)
                 companionIrClass.addMember(byValueIrFunction)
-                findEntryAliases(companionIrClass.descriptor)
+                findEntryAliases(companionIrClass.initialDescriptor)
                         .map { declareEntryAliasProperty(it, enumClass) }
                         .forEach(companionIrClass::addMember)
             }

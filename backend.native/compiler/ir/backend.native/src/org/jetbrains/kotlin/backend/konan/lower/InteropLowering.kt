@@ -151,7 +151,7 @@ private class InteropLoweringPart1(val context: Context) : BaseInteropIrTransfor
             }
 
     private fun IrBuilderWithScope.getObjCClass(classSymbol: IrClassSymbol): IrExpression {
-        val classDescriptor = classSymbol.descriptor
+        val classDescriptor = classSymbol.initialDescriptor
         assert(!classDescriptor.isObjCMetaClass())
         return irCall(symbols.interopGetObjCClass, symbols.nativePtrType, listOf(classSymbol.typeWithStarProjections))
     }
@@ -288,9 +288,9 @@ private class InteropLoweringPart1(val context: Context) : BaseInteropIrTransfor
             IrDeclarationOriginImpl("OVERRIDING_INITIALIZER_BY_CONSTRUCTOR")
 
     private fun IrConstructor.overridesConstructor(other: IrConstructor): Boolean {
-        return this.descriptor.valueParameters.size == other.descriptor.valueParameters.size &&
-                this.descriptor.valueParameters.all {
-                    val otherParameter = other.descriptor.valueParameters[it.index]
+        return this.initialDescriptor.valueParameters.size == other.initialDescriptor.valueParameters.size &&
+                this.initialDescriptor.valueParameters.all {
+                    val otherParameter = other.initialDescriptor.valueParameters[it.index]
                     it.name == otherParameter.name && it.type == otherParameter.type
                 }
     }
@@ -304,7 +304,7 @@ private class InteropLoweringPart1(val context: Context) : BaseInteropIrTransfor
         }
 
         function.valueParameters.forEach {
-            val kotlinType = it.descriptor.type
+            val kotlinType = it.initialDescriptor.type
             if (!kotlinType.isObjCObjectType()) {
                 context.reportCompilationError("Unexpected $action method parameter type: $kotlinType\n" +
                         "Only Objective-C object types are supported here",
@@ -321,11 +321,11 @@ private class InteropLoweringPart1(val context: Context) : BaseInteropIrTransfor
             )
         }
 
-        return generateFunctionImp(inferObjCSelector(function.descriptor), function)
+        return generateFunctionImp(inferObjCSelector(function.initialDescriptor), function)
     }
 
     private fun generateOutletSetterImp(property: IrProperty): IrSimpleFunction {
-        val descriptor = property.descriptor
+        val descriptor = property.initialDescriptor
 
         val outlet = "@${context.interopBuiltIns.objCOutlet.name}"
 
@@ -382,7 +382,7 @@ private class InteropLoweringPart1(val context: Context) : BaseInteropIrTransfor
 
         function.valueParameters.mapTo(parameterTypes) {
             when {
-                it.descriptor.type.isObjCObjectType() -> nativePtrType
+                it.initialDescriptor.type.isObjCObjectType() -> nativePtrType
                 else -> TODO()
             }
         }
@@ -476,7 +476,7 @@ private class InteropLoweringPart1(val context: Context) : BaseInteropIrTransfor
             }
 
     private fun checkKotlinObjCClass(irClass: IrClass) {
-        val kind = irClass.descriptor.kind
+        val kind = irClass.initialDescriptor.kind
         if (kind != ClassKind.CLASS && kind != ClassKind.OBJECT) {
             context.reportCompilationError(
                     "Only classes are supported as subtypes of Objective-C types",
@@ -484,7 +484,7 @@ private class InteropLoweringPart1(val context: Context) : BaseInteropIrTransfor
             )
         }
 
-        if (!irClass.descriptor.isFinalClass) {
+        if (!irClass.initialDescriptor.isFinalClass) {
             context.reportCompilationError(
                     "Non-final Kotlin subclasses of Objective-C classes are not yet supported",
                     currentFile, irClass
@@ -502,7 +502,7 @@ private class InteropLoweringPart1(val context: Context) : BaseInteropIrTransfor
         }
 
         var hasObjCClassSupertype = false
-        irClass.descriptor.defaultType.constructor.supertypes.forEach {
+        irClass.initialDescriptor.defaultType.constructor.supertypes.forEach {
             val descriptor = it.constructor.declarationDescriptor as ClassDescriptor
             if (!descriptor.isObjCClass()) {
                 context.reportCompilationError(
@@ -764,7 +764,7 @@ private class InteropLoweringPart1(val context: Context) : BaseInteropIrTransfor
                     val irClass = classSymbol.owner
 
                     val companionObject = irClass.companionObject() ?:
-                            error("native variable class ${irClass.descriptor} must have the companion object")
+                            error("native variable class ${irClass.initialDescriptor} must have the companion object")
 
                     builder.at(expression).irGetObject(companionObject.symbol)
                 }
@@ -896,7 +896,7 @@ private class InteropTransformer(val context: Context, override val irFile: IrFi
 
         val function = expression.symbol.owner
         val inlinedClass = function.returnType.getInlinedClassNative()
-        if (inlinedClass?.descriptor == interop.cPointer || inlinedClass?.descriptor == interop.nativePointed) {
+        if (inlinedClass?.initialDescriptor == interop.cPointer || inlinedClass?.initialDescriptor == interop.nativePointed) {
             context.reportCompilationError("Native interop types constructors must not be called directly",
                 irFile, expression)
         }
@@ -911,7 +911,7 @@ private class InteropTransformer(val context: Context, override val irFile: IrFi
     private fun tryGenerateInteropConstantRead(expression: IrCall): IrExpression? {
         val function = expression.symbol.owner
 
-        if (!function.descriptor.module.isFromInteropLibrary()) return null
+        if (!function.initialDescriptor.module.isFromInteropLibrary()) return null
         if (!function.isGetter) return null
 
         val constantProperty = (function as? IrSimpleFunction)
@@ -1183,7 +1183,7 @@ private class InteropTransformer(val context: Context, override val irFile: IrFi
             return
         }
 
-        if (this.getClass()?.descriptor == interop.cPointer) {
+        if (this.getClass()?.initialDescriptor == interop.cPointer) {
             return
         }
 

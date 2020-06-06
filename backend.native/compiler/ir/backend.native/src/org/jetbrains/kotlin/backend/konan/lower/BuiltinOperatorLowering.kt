@@ -126,7 +126,7 @@ internal class BuiltinOperatorLowering(val context: Context) : FileLoweringPass,
     }
 
     private fun inlinedClassHasDefaultEquals(irClass: IrClass): Boolean {
-        if (!irClass.descriptor.isInline) {
+        if (!irClass.initialDescriptor.isInline) {
             // Implicitly-inlined class, e.g. primitive one.
             return true
         }

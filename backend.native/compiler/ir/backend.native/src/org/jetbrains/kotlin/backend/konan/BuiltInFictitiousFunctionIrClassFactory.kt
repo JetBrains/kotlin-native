@@ -42,7 +42,7 @@ internal class BuiltInFictitiousFunctionIrClassFactory(
 ) : IrAbstractFunctionFactory(), IrProvider {
 
     override fun getDeclaration(symbol: IrSymbol) =
-            (symbol.descriptor as? FunctionClassDescriptor)?.let { descriptor ->
+            (symbol.initialDescriptor as? FunctionClassDescriptor)?.let { descriptor ->
                 buildClass(descriptor) {
                     declareClass(descriptor) {
                         IrClassImpl(offset, offset, DECLARATION_ORIGIN_FUNCTION_CLASS, it, descriptor)
@@ -113,8 +113,8 @@ internal class BuiltInFictitiousFunctionIrClassFactory(
 
     val builtFunctionNClasses get() =
         builtClassesMap.values
-                .filter { (it.descriptor as FunctionClassDescriptor).functionKind == FunctionClassDescriptor.Kind.Function }
-                .map { FunctionalInterface(it, (it.descriptor as FunctionClassDescriptor).arity) }
+                .filter { (it.initialDescriptor as FunctionClassDescriptor).functionKind == FunctionClassDescriptor.Kind.Function }
+                .map { FunctionalInterface(it, (it.initialDescriptor as FunctionClassDescriptor).arity) }
 
     private fun createTypeParameter(descriptor: TypeParameterDescriptor) =
             symbolTable?.declareGlobalTypeParameter(
@@ -162,7 +162,7 @@ internal class BuiltInFictitiousFunctionIrClassFactory(
                         }
                     }
 
-                    val descriptorToIrParametersMap = typeParameters.map { it.descriptor to it }.toMap()
+                    val descriptorToIrParametersMap = typeParameters.map { it.initialDescriptor to it }.toMap()
                     superTypes += descriptor.typeConstructor.supertypes.map { superType ->
                         val arguments = superType.arguments.map { argument ->
                             val argumentClassifierDescriptor = argument.type.constructor.declarationDescriptor
@@ -176,8 +176,8 @@ internal class BuiltInFictitiousFunctionIrClassFactory(
                                     IrClassImpl(offset, offset, DECLARATION_ORIGIN_FUNCTION_CLASS, it, superTypeDescriptor)
                                 }
                             }.symbol
-                            functionSymbol.descriptor -> functionSymbol
-                            kFunctionSymbol.descriptor -> kFunctionSymbol
+                            functionSymbol.initialDescriptor -> functionSymbol
+                            kFunctionSymbol.initialDescriptor -> kFunctionSymbol
                             else -> error("Unexpected super type: $superTypeDescriptor")
                         }
                         IrSimpleTypeImpl(superTypeSymbol, superType.isMarkedNullable, arguments, emptyList())
@@ -213,7 +213,7 @@ internal class BuiltInFictitiousFunctionIrClassFactory(
                             else {
                                 val overriddenFunction = superTypes
                                         .mapNotNull { it.classOrNull?.owner }
-                                        .single { it.descriptor is FunctionClassDescriptor }
+                                        .single { it.initialDescriptor is FunctionClassDescriptor }
                                         .simpleFunctions()
                                         .single { it.name == OperatorNameConventions.INVOKE }
                                 overriddenSymbols += overriddenFunction.symbol
@@ -270,7 +270,7 @@ internal class BuiltInFictitiousFunctionIrClassFactory(
 
     private fun IrClass.addFakeOverrides() {
 
-        val fakeOverrideDescriptors = descriptor.unsubstitutedMemberScope.getContributedDescriptors(DescriptorKindFilter.CALLABLES)
+        val fakeOverrideDescriptors = initialDescriptor.unsubstitutedMemberScope.getContributedDescriptors(DescriptorKindFilter.CALLABLES)
                 .filterIsInstance<CallableMemberDescriptor>().filter { it.kind === CallableMemberDescriptor.Kind.FAKE_OVERRIDE }
 
         fun createFakeOverrideFunction(descriptor: FunctionDescriptor, property: IrPropertySymbol?): IrSimpleFunction {

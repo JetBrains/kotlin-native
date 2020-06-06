@@ -17,7 +17,7 @@ import org.jetbrains.kotlin.ir.util.file
 // TODO: port this code to IR.
 
 internal val IrDeclaration.llvmSymbolOrigin get() = when (this) {
-    is IrLazyDeclarationBase -> descriptor.llvmSymbolOrigin
+    is IrLazyDeclarationBase -> initialDescriptor.llvmSymbolOrigin
     else -> file.packageFragmentDescriptor.llvmSymbolOrigin
 }
 

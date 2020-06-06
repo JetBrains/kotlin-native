@@ -35,7 +35,7 @@ internal class CEnumByValueFunctionGenerator(
             companionIrClass: IrClass,
             valuesIrFunctionSymbol: IrSimpleFunctionSymbol
     ): IrFunction {
-        val byValueFunctionDescriptor = companionIrClass.descriptor.findDeclarationByName<FunctionDescriptor>("byValue")!!
+        val byValueFunctionDescriptor = companionIrClass.initialDescriptor.findDeclarationByName<FunctionDescriptor>("byValue")!!
         val byValueIrFunction = createFunction(byValueFunctionDescriptor)
         val irValueParameter = byValueIrFunction.valueParameters.first()
         // val values: Array<E> = values()

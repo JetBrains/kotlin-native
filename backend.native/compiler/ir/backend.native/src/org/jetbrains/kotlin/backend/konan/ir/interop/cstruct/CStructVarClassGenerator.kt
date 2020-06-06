@@ -60,7 +60,7 @@ internal class CStructVarClassGenerator(
         val enumVarConstructorSymbol = symbolTable.referenceConstructor(
                 interopBuiltIns.cStructVar.unsubstitutedPrimaryConstructor!!
         )
-        return createConstructor(irClass.descriptor.unsubstitutedPrimaryConstructor!!).also { irConstructor ->
+        return createConstructor(irClass.initialDescriptor.unsubstitutedPrimaryConstructor!!).also { irConstructor ->
             irConstructor.body = irBuilder(irBuiltIns, irConstructor.symbol, SYNTHETIC_OFFSET, SYNTHETIC_OFFSET).irBlockBody {
                 +IrDelegatingConstructorCallImpl(
                         startOffset, endOffset,
@@ -68,7 +68,7 @@ internal class CStructVarClassGenerator(
                 ).also {
                     it.putValueArgument(0, irGet(irConstructor.valueParameters[0]))
                 }
-                +irInstanceInitializer(symbolTable.referenceClass(irClass.descriptor))
+                +irInstanceInitializer(symbolTable.referenceClass(irClass.initialDescriptor))
             }
         }
     }

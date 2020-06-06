@@ -67,22 +67,22 @@ internal class SpecialDeclarationsFactory(val context: Context) {
             IrDeclarationOriginImpl("FIELD_FOR_OUTER_THIS")
 
     fun getOuterThisField(innerClass: IrClass): IrField =
-        if (!innerClass.descriptor.isInner) throw AssertionError("Class is not inner: ${innerClass.descriptor}")
-        else outerThisFields.getOrPut(innerClass.descriptor) {
+        if (!innerClass.initialDescriptor.isInner) throw AssertionError("Class is not inner: ${innerClass.initialDescriptor}")
+        else outerThisFields.getOrPut(innerClass.initialDescriptor) {
             val outerClass = innerClass.parent as? IrClass
-                    ?: throw AssertionError("No containing class for inner class ${innerClass.descriptor}")
+                    ?: throw AssertionError("No containing class for inner class ${innerClass.initialDescriptor}")
 
             val receiver = ReceiverParameterDescriptorImpl(
-                    innerClass.descriptor,
-                    ImplicitClassReceiver(innerClass.descriptor, null),
+                    innerClass.initialDescriptor,
+                    ImplicitClassReceiver(innerClass.initialDescriptor, null),
                     Annotations.EMPTY
             )
             val descriptor = PropertyDescriptorImpl.create(
-                    innerClass.descriptor, Annotations.EMPTY, Modality.FINAL,
+                    innerClass.initialDescriptor, Annotations.EMPTY, Modality.FINAL,
                     Visibilities.PRIVATE, false, "this$0".synthesizedName, CallableMemberDescriptor.Kind.SYNTHESIZED,
                     SourceElement.NO_SOURCE, false, false, false, false, false, false
             ).apply {
-                this.setType(outerClass.descriptor.defaultType, emptyList(), receiver, null)
+                this.setType(outerClass.initialDescriptor.defaultType, emptyList(), receiver, null)
                 initialize(null, null)
             }
 
@@ -98,7 +98,7 @@ internal class SpecialDeclarationsFactory(val context: Context) {
         }
 
     fun getLoweredEnum(enumClass: IrClass): LoweredEnum {
-        assert(enumClass.kind == ClassKind.ENUM_CLASS) { "Expected enum class but was: ${enumClass.descriptor}" }
+        assert(enumClass.kind == ClassKind.ENUM_CLASS) { "Expected enum class but was: ${enumClass.initialDescriptor}" }
         return loweredEnums.getOrPut(enumClass) {
             enumSpecialDeclarationsFactory.createLoweredEnum(enumClass)
         }
@@ -110,7 +110,7 @@ internal class SpecialDeclarationsFactory(val context: Context) {
     fun getBridge(overriddenFunction: OverriddenFunctionInfo): IrSimpleFunction {
         val irFunction = overriddenFunction.function
         assert(overriddenFunction.needBridge) {
-            "Function ${irFunction.descriptor} is not needed in a bridge to call overridden function ${overriddenFunction.overriddenFunction.descriptor}"
+            "Function ${irFunction.initialDescriptor} is not needed in a bridge to call overridden function ${overriddenFunction.overriddenFunction.initialDescriptor}"
         }
         val bridgeDirections = overriddenFunction.bridgeDirections
         return bridgesDescriptors.getOrPut(irFunction to bridgeDirections) {
@@ -274,7 +274,7 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     var coroutineCount = 0
 
     fun needGlobalInit(field: IrField): Boolean {
-        if (field.descriptor.containingDeclaration !is PackageFragmentDescriptor) return false
+        if (field.initialDescriptor.containingDeclaration !is PackageFragmentDescriptor) return false
         // TODO: add some smartness here. Maybe if package of the field is in never accessed
         // assume its global init can be actually omitted.
         return true

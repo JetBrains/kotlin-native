@@ -104,10 +104,10 @@ internal class KTypeGenerator(
 internal fun IrBuilderWithScope.irKClass(context: KonanBackendContext, symbol: IrClassSymbol): IrExpression {
     val symbols = context.ir.symbols
     return when {
-        symbol.descriptor.isObjCClass() ->
+        symbol.initialDescriptor.isObjCClass() ->
             irKClassUnsupported(context, "KClass for Objective-C classes is not supported yet")
 
-        symbol.descriptor.getAllSuperClassifiers().any {
+        symbol.initialDescriptor.getAllSuperClassifiers().any {
             it is ClassDescriptor && it.fqNameUnsafe == InteropFqNames.nativePointed
         } -> irKClassUnsupported(context, "KClass for interop types is not supported yet")
 

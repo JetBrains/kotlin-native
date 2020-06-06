@@ -350,7 +350,7 @@ internal class ObjCExportCodeGenerator(
             methods = listOf("equals", "hashCode", "toString").map { name ->
                 symbols.any.owner.simpleFunctions().single { it.name == Name.identifier(name) }
             }.map {
-                require(mapper.shouldBeExposed(it.descriptor))
+                require(mapper.shouldBeExposed(it.initialDescriptor))
                 ObjCMethodForKotlinMethod(it.symbol)
             },
             categoryMethods = emptyList(),
@@ -942,7 +942,7 @@ private fun ObjCExportCodeGenerator.generateKotlinToObjCBridge(
         irFunction: IrFunction,
         baseIrFunction: IrFunction
 ): ConstPointer {
-    val baseMethod = baseIrFunction.descriptor
+    val baseMethod = baseIrFunction.initialDescriptor
 
     val methodBridge = mapper.bridgeMethod(baseMethod)
 
@@ -1110,7 +1110,7 @@ private fun ObjCExportCodeGenerator.createReverseAdapter(
 ): ObjCExportCodeGenerator.KotlinToObjCMethodAdapter {
 
     val nameSignature = functionName.localHash.value
-    val selector = namer.getSelector(baseMethod.descriptor)
+    val selector = namer.getSelector(baseMethod.initialDescriptor)
 
     val kotlinToObjC = generateKotlinToObjCBridge(
             irFunction,
@@ -1126,11 +1126,11 @@ private fun ObjCExportCodeGenerator.createReverseAdapter(
 private fun ObjCExportCodeGenerator.createMethodVirtualAdapter(
         baseMethod: IrFunction
 ): ObjCExportCodeGenerator.ObjCToKotlinMethodAdapter {
-    assert(mapper.isBaseMethod(baseMethod.descriptor))
+    assert(mapper.isBaseMethod(baseMethod.initialDescriptor))
 
-    val selector = namer.getSelector(baseMethod.descriptor)
+    val selector = namer.getSelector(baseMethod.initialDescriptor)
 
-    val methodBridge = mapper.bridgeMethod(baseMethod.descriptor)
+    val methodBridge = mapper.bridgeMethod(baseMethod.initialDescriptor)
     val objCToKotlin = constPointer(generateObjCImp(baseMethod, baseMethod, methodBridge, isVirtual = true))
 
     selectorsToDefine[selector] = methodBridge
@@ -1154,8 +1154,8 @@ private fun ObjCExportCodeGenerator.createMethodAdapter(
         request: DirectAdapterRequest
 ): ObjCExportCodeGenerator.ObjCToKotlinMethodAdapter = this.directMethodAdapters.getOrPut(request) {
 
-    val selectorName = namer.getSelector(request.base.descriptor)
-    val methodBridge = mapper.bridgeMethod(request.base.descriptor)
+    val selectorName = namer.getSelector(request.base.initialDescriptor)
+    val methodBridge = mapper.bridgeMethod(request.base.initialDescriptor)
     val objCEncoding = getEncoding(methodBridge)
     val objCToKotlin = constPointer(generateObjCImp(request.implementation, request.base, methodBridge))
 
@@ -1171,8 +1171,8 @@ private fun ObjCExportCodeGenerator.createConstructorAdapter(
 private fun ObjCExportCodeGenerator.createArrayConstructorAdapter(
         irConstructor: IrConstructor
 ): ObjCExportCodeGenerator.ObjCToKotlinMethodAdapter {
-    val selectorName = namer.getSelector(irConstructor.descriptor)
-    val methodBridge = mapper.bridgeMethod(irConstructor.descriptor)
+    val selectorName = namer.getSelector(irConstructor.initialDescriptor)
+    val methodBridge = mapper.bridgeMethod(irConstructor.initialDescriptor)
     val objCEncoding = getEncoding(methodBridge)
     val objCToKotlin = constPointer(generateObjCImpForArrayConstructor(irConstructor, methodBridge))
 
@@ -1255,7 +1255,7 @@ private fun ObjCExportCodeGenerator.createTypeAdapter(
         type.categoryMethods.forEach {
             val irFunction = it.baseMethod.owner
             adapters += createFinalMethodAdapter(irFunction)
-            reverseAdapters += nonOverridableAdapter(irFunction.descriptor, hasSelectorAmbiguity = false)
+            reverseAdapters += nonOverridableAdapter(irFunction.initialDescriptor, hasSelectorAmbiguity = false)
         }
 
         adapters += createDirectAdapters(type, superClass)
@@ -1335,7 +1335,7 @@ private fun ObjCExportCodeGenerator.createReverseAdapters(
         val baseMethods = method.allOverriddenFunctions.filter { it in allBaseMethods }
         if (baseMethods.isEmpty()) continue
 
-        val hasSelectorAmbiguity = baseMethods.map { namer.getSelector(it.descriptor) }.distinct().size > 1
+        val hasSelectorAmbiguity = baseMethods.map { namer.getSelector(it.initialDescriptor) }.distinct().size > 1
 
         if (method.isOverridable && !hasSelectorAmbiguity) {
             val baseMethod = baseMethods.first()
@@ -1347,7 +1347,7 @@ private fun ObjCExportCodeGenerator.createReverseAdapters(
             val allOverriddenMethods = method.allOverriddenFunctions
 
             val (inherited, uninherited) = allOverriddenMethods.partition {
-                it != method && mapper.shouldBeExposed(it.descriptor)
+                it != method && mapper.shouldBeExposed(it.initialDescriptor)
             }
 
             inherited.forEach {
@@ -1372,8 +1372,8 @@ private fun ObjCExportCodeGenerator.createReverseAdapters(
 
         } else {
             // Mark it as non-overridable:
-            baseMethods.distinctBy { namer.getSelector(it.descriptor) }.forEach { baseMethod ->
-                result += nonOverridableAdapter(baseMethod.descriptor, hasSelectorAmbiguity)
+            baseMethods.distinctBy { namer.getSelector(it.initialDescriptor) }.forEach { baseMethod ->
+                result += nonOverridableAdapter(baseMethod.initialDescriptor, hasSelectorAmbiguity)
             }
         }
     }
@@ -1412,13 +1412,13 @@ private fun ObjCExportCodeGenerator.createDirectAdapters(
     val inheritedAdapters = superClass?.getAllRequiredDirectAdapters().orEmpty()
     val requiredAdapters = typeDeclaration.getAllRequiredDirectAdapters() - inheritedAdapters
 
-    return requiredAdapters.distinctBy { namer.getSelector(it.base.descriptor) }.map { createMethodAdapter(it) }
+    return requiredAdapters.distinctBy { namer.getSelector(it.base.initialDescriptor) }.map { createMethodAdapter(it) }
 }
 
 private fun findImplementation(irClass: IrClass, method: IrSimpleFunction, context: Context): IrSimpleFunction? {
     val override = irClass.simpleFunctions().singleOrNull {
         method in it.allOverriddenFunctions
-    } ?: error("no implementation for ${method.descriptor}\nin ${irClass.descriptor}")
+    } ?: error("no implementation for ${method.initialDescriptor}\nin ${irClass.initialDescriptor}")
     return OverriddenFunctionInfo(override, method).getImplementation(context)
 }
 
@@ -1459,7 +1459,7 @@ private fun ObjCExportCodeGenerator.createObjectInstanceAdapter(
     assert(irClass.kind == ClassKind.OBJECT)
     assert(!irClass.isUnit())
 
-    val selector = namer.getObjectInstanceSelector(irClass.descriptor)
+    val selector = namer.getObjectInstanceSelector(irClass.initialDescriptor)
 
     return generateObjCToKotlinSyntheticGetter(selector) {
         initRuntimeIfNeeded() // For instance methods it gets called when allocating.
@@ -1471,7 +1471,7 @@ private fun ObjCExportCodeGenerator.createObjectInstanceAdapter(
 private fun ObjCExportCodeGenerator.createEnumEntryAdapter(
         irEnumEntry: IrEnumEntry
 ): ObjCExportCodeGenerator.ObjCToKotlinMethodAdapter {
-    val selector = namer.getEnumEntrySelector(irEnumEntry.descriptor)
+    val selector = namer.getEnumEntrySelector(irEnumEntry.initialDescriptor)
 
     return generateObjCToKotlinSyntheticGetter(selector) {
         initRuntimeIfNeeded() // For instance methods it gets called when allocating.

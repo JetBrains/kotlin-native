@@ -42,17 +42,17 @@ internal class DeepCopyIrTreeWithSymbolsForInliner(val context: Context,
             }
 
             override fun visitClass(declaration: IrClass) {
-                (declaration.descriptor as WrappedClassDescriptor).bind(declaration)
+                (declaration.initialDescriptor as WrappedClassDescriptor).bind(declaration)
                 declaration.acceptChildrenVoid(this)
             }
 
             override fun visitConstructor(declaration: IrConstructor) {
-                (declaration.descriptor as WrappedClassConstructorDescriptor).bind(declaration)
+                (declaration.initialDescriptor as WrappedClassConstructorDescriptor).bind(declaration)
                 declaration.acceptChildrenVoid(this)
             }
 
             override fun visitEnumEntry(declaration: IrEnumEntry) {
-                (declaration.descriptor as WrappedClassDescriptor).bind(
+                (declaration.initialDescriptor as WrappedClassDescriptor).bind(
                         declaration.correspondingClass ?: declaration.parentAsClass)
                 declaration.acceptChildrenVoid(this)
             }
@@ -62,28 +62,28 @@ internal class DeepCopyIrTreeWithSymbolsForInliner(val context: Context,
                 // we get PropertyDescriptors from within that object here.
                 // That is a bug, most probably.
                 // We workaround the issue with question marks here.
-                (declaration.descriptor as? WrappedFieldDescriptor)?.bind(declaration)
+                (declaration.initialDescriptor as? WrappedFieldDescriptor)?.bind(declaration)
                 declaration.acceptChildrenVoid(this)
             }
 
             override fun visitFunction(declaration: IrFunction) {
-                (declaration.descriptor as WrappedSimpleFunctionDescriptor).bind(declaration as IrSimpleFunction)
+                (declaration.initialDescriptor as WrappedSimpleFunctionDescriptor).bind(declaration as IrSimpleFunction)
                 declaration.acceptChildrenVoid(this)
             }
 
             override fun visitValueParameter(declaration: IrValueParameter) {
-                (declaration.descriptor as? WrappedValueParameterDescriptor)?.bind(declaration)
-                (declaration.descriptor as? WrappedReceiverParameterDescriptor)?.bind(declaration)
+                (declaration.initialDescriptor as? WrappedValueParameterDescriptor)?.bind(declaration)
+                (declaration.initialDescriptor as? WrappedReceiverParameterDescriptor)?.bind(declaration)
                 declaration.acceptChildrenVoid(this)
             }
 
             override fun visitTypeParameter(declaration: IrTypeParameter) {
-                (declaration.descriptor as WrappedTypeParameterDescriptor).bind(declaration)
+                (declaration.initialDescriptor as WrappedTypeParameterDescriptor).bind(declaration)
                 declaration.acceptChildrenVoid(this)
             }
 
             override fun visitVariable(declaration: IrVariable) {
-                (declaration.descriptor as WrappedVariableDescriptor).bind(declaration)
+                (declaration.initialDescriptor as WrappedVariableDescriptor).bind(declaration)
                 declaration.acceptChildrenVoid(this)
             }
         })

@@ -144,7 +144,7 @@ internal interface DescriptorToIrTranslationMixin {
     }
 
     private fun IrDeclaration.generateAnnotations() {
-        annotations += descriptor.annotations.map {
+        annotations += initialDescriptor.annotations.map {
             typeTranslator.constantValueGenerator.generateAnnotationConstructorCall(it)!!
         }
     }
@@ -169,7 +169,7 @@ internal fun ClassDescriptor.inheritsFromCStructVar(interopBuiltIns: InteropBuil
  * CEnum inheritor.
  */
 internal fun IrSymbol.findCEnumDescriptor(interopBuiltIns: InteropBuiltIns): ClassDescriptor? =
-        descriptor.findCEnumDescriptor(interopBuiltIns)
+        initialDescriptor.findCEnumDescriptor(interopBuiltIns)
 
 internal fun DeclarationDescriptor.findCEnumDescriptor(interopBuiltIns: InteropBuiltIns): ClassDescriptor? =
         parentsWithSelf.filterIsInstance<ClassDescriptor>().firstOrNull { it.implementsCEnum(interopBuiltIns) }
@@ -180,7 +180,7 @@ internal fun DeclarationDescriptor.findCEnumDescriptor(interopBuiltIns: InteropB
  * CStructVar inheritor.
  */
 internal fun IrSymbol.findCStructDescriptor(interopBuiltIns: InteropBuiltIns): ClassDescriptor? =
-        descriptor.findCStructDescriptor(interopBuiltIns)
+        initialDescriptor.findCStructDescriptor(interopBuiltIns)
 
 internal fun DeclarationDescriptor.findCStructDescriptor(interopBuiltIns: InteropBuiltIns): ClassDescriptor? =
         parentsWithSelf.filterIsInstance<ClassDescriptor>().firstOrNull { it.inheritsFromCStructVar(interopBuiltIns) }

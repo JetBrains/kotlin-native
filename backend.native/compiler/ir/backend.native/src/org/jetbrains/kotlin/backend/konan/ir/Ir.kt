@@ -81,23 +81,23 @@ internal class KonanSymbols(
             uShort -> short
             uInt -> int
             uLong -> long
-            else -> error(it.descriptor)
+            else -> error(it.initialDescriptor)
         }
     }
 
     val integerConversions = allIntegerClasses.flatMap { fromClass ->
         allIntegerClasses.map { toClass ->
-            val name = Name.identifier("to${toClass.descriptor.name.asString().capitalize()}")
+            val name = Name.identifier("to${toClass.initialDescriptor.name.asString().capitalize()}")
             val descriptor = if (fromClass in signedIntegerClasses && toClass in unsignedIntegerClasses) {
                 builtInsPackage("kotlin")
                         .getContributedFunctions(name, NoLookupLocation.FROM_BACKEND)
                         .single {
                             it.dispatchReceiverParameter == null &&
-                                    it.extensionReceiverParameter?.type == fromClass.descriptor.defaultType &&
+                                    it.extensionReceiverParameter?.type == fromClass.initialDescriptor.defaultType &&
                                     it.valueParameters.isEmpty()
                         }
             } else {
-                fromClass.descriptor.unsubstitutedMemberScope
+                fromClass.initialDescriptor.unsubstitutedMemberScope
                         .getContributedFunctions(name, NoLookupLocation.FROM_BACKEND)
                         .single {
                             it.extensionReceiverParameter == null && it.valueParameters.isEmpty()
@@ -238,7 +238,7 @@ internal class KonanSymbols(
 
     val areEqualByValue = context.getKonanInternalFunctions("areEqualByValue").map {
         symbolTable.referenceSimpleFunction(it)
-    }.associateBy { it.descriptor.valueParameters[0].type.computePrimitiveBinaryTypeOrNull()!! }
+    }.associateBy { it.initialDescriptor.valueParameters[0].type.computePrimitiveBinaryTypeOrNull()!! }
 
     val reinterpret = internalFunction("reinterpret")
 
@@ -290,11 +290,11 @@ internal class KonanSymbols(
 
     val arrayContentToString = arrays.associateBy(
             { it },
-            { findArrayExtension(it.descriptor, "contentToString") }
+            { findArrayExtension(it.initialDescriptor, "contentToString") }
     )
     val arrayContentHashCode = arrays.associateBy(
             { it },
-            { findArrayExtension(it.descriptor, "contentHashCode") }
+            { findArrayExtension(it.initialDescriptor, "contentHashCode") }
     )
 
     private val kotlinCollectionsPackageScope: MemberScope
@@ -325,21 +325,21 @@ internal class KonanSymbols(
                 .getContributedFunctions(Name.identifier("copyInto"), NoLookupLocation.FROM_BACKEND)
                 .single {
                     !it.isExpect &&
-                            it.extensionReceiverParameter?.type?.constructor?.declarationDescriptor == symbol.descriptor
+                            it.extensionReceiverParameter?.type?.constructor?.declarationDescriptor == symbol.initialDescriptor
                 }
-        symbol.descriptor to symbolTable.referenceSimpleFunction(functionDescriptor)
+        symbol.initialDescriptor to symbolTable.referenceSimpleFunction(functionDescriptor)
     }.toMap()
 
-    val arrayGet = arrays.associateWith { it.descriptor.unsubstitutedMemberScope
+    val arrayGet = arrays.associateWith { it.initialDescriptor.unsubstitutedMemberScope
             .getContributedFunctions(Name.identifier("get"), NoLookupLocation.FROM_BACKEND)
             .single().let { symbolTable.referenceSimpleFunction(it) } }
 
-    val arraySet = arrays.associateWith { it.descriptor.unsubstitutedMemberScope
+    val arraySet = arrays.associateWith { it.initialDescriptor.unsubstitutedMemberScope
                     .getContributedFunctions(Name.identifier("set"), NoLookupLocation.FROM_BACKEND)
                     .single().let { symbolTable.referenceSimpleFunction(it) } }
 
 
-    val arraySize = arrays.associateWith { it.descriptor.unsubstitutedMemberScope
+    val arraySize = arrays.associateWith { it.initialDescriptor.unsubstitutedMemberScope
                     .getContributedVariables(Name.identifier("size"), NoLookupLocation.FROM_BACKEND)
                     .single().let { symbolTable.referenceSimpleFunction(it.getter!!) } }
 
@@ -398,7 +398,7 @@ internal class KonanSymbols(
 
     val invokeSuspendFunction =
             symbolTable.referenceSimpleFunction(
-                    baseContinuationImpl.descriptor.unsubstitutedMemberScope
+                    baseContinuationImpl.initialDescriptor.unsubstitutedMemberScope
                             .getContributedFunctions(Name.identifier("invokeSuspend"), NoLookupLocation.FROM_BACKEND)
                             .single()
             )
@@ -417,7 +417,7 @@ internal class KonanSymbols(
             builtInsPackage("kotlin")
                     .getContributedFunctions(Name.identifier("getOrThrow"), NoLookupLocation.FROM_BACKEND)
                     .single {
-                        it.extensionReceiverParameter?.type?.constructor?.declarationDescriptor == kotlinResult.descriptor
+                        it.extensionReceiverParameter?.type?.constructor?.declarationDescriptor == kotlinResult.initialDescriptor
                     }
     )
 
@@ -539,7 +539,7 @@ internal class KonanSymbols(
         val symbol = if (it.runtimeKindString.isEmpty())
             null
         else
-            symbolTable.referenceEnumEntry(testFunctionKind.descriptor.unsubstitutedMemberScope.getContributedClassifier(
+            symbolTable.referenceEnumEntry(testFunctionKind.initialDescriptor.unsubstitutedMemberScope.getContributedClassifier(
                     Name.identifier(it.runtimeKindString), NoLookupLocation.FROM_BACKEND
             ) as ClassDescriptor)
         it to symbol

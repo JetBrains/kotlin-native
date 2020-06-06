@@ -1342,7 +1342,7 @@ internal object Devirtualization {
                 if (coercion == null)
                     value
                 else irCall(coercion).apply {
-                    addArguments(listOf(coercion.descriptor.explicitParameters.single() to value))
+                    addArguments(listOf(coercion.initialDescriptor.explicitParameters.single() to value))
                 }
 
         fun IrBuilderWithScope.irCoerce(value: IrExpression, coercion: DataFlowIR.FunctionSymbol.Declared?) =
@@ -1677,7 +1677,7 @@ internal object Devirtualization {
                                     expression
                                 else {
                                     val oldSymbol = expression.symbol
-                                    val newSymbol = IrReturnableBlockSymbolImpl(expression.descriptor)
+                                    val newSymbol = IrReturnableBlockSymbolImpl(expression.symbol.initialDescriptor)
                                     val transformedReturnableBlock = with(expression) {
                                         IrReturnableBlockImpl(
                                                 startOffset          = startOffset,

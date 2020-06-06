@@ -159,7 +159,7 @@ internal fun KonanBackendContext.report(declaration: IrDeclaration, message: Str
                 message
             } else {
                 val renderer = org.jetbrains.kotlin.renderer.DescriptorRenderer.COMPACT_WITH_SHORT_TYPES
-                "$message\n${renderer.render(declaration.descriptor)}"
+                "$message\n${renderer.render(declaration.initialDescriptor)}"
             },
             isError
     )
@@ -397,7 +397,7 @@ fun IrClass.defaultOrNullableType(hasQuestionMark: Boolean) =
         if (hasQuestionMark) this.defaultType.makeNullable() else this.defaultType
 
 fun IrFunction.isRestrictedSuspendFunction(languageVersionSettings: LanguageVersionSettings): Boolean =
-        this.descriptor.extensionReceiverParameter?.type?.isRestrictsSuspensionReceiver(languageVersionSettings) == true
+        this.initialDescriptor.extensionReceiverParameter?.type?.isRestrictsSuspensionReceiver(languageVersionSettings) == true
 
 fun IrFunction.isTypeOfIntrinsic(): Boolean =
         this.name.asString() == "typeOf" &&

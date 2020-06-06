@@ -231,7 +231,7 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
 
         val objOffsetsPtr = staticData.placeGlobalConstArray("krefs:$className", int32Type, objOffsets)
 
-        val objOffsetsCount = if (irClass.descriptor == context.builtIns.array) {
+        val objOffsetsCount = if (irClass.initialDescriptor == context.builtIns.array) {
             1 // To mark it as non-leaf.
         } else {
             objOffsets.size

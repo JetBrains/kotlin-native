@@ -245,4 +245,4 @@ fun IrFunction.externalSymbolOrThrow(): String? {
 val IrFunction.isBuiltInOperator get() = origin == IrBuiltIns.BUILTIN_OPERATOR
 
 fun IrDeclaration.isFromMetadataInteropLibrary() =
-        descriptor.module.isFromInteropLibrary()
+        initialDescriptor.module.isFromInteropLibrary()

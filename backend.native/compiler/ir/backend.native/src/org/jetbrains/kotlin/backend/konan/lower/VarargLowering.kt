@@ -151,7 +151,7 @@ internal class VarargInjectionLowering constructor(val context: KonanBackendCont
 
     private fun arrayType(type: IrType): ArrayHandle {
         val arrayClass = type.classifierOrFail
-        return arrayToHandle[arrayClass] ?: error(arrayClass.descriptor)
+        return arrayToHandle[arrayClass] ?: error(arrayClass.initialDescriptor)
     }
 
     private fun IrBuilderWithScope.intPlus() = irCall(intPlusInt)
@@ -196,9 +196,9 @@ internal class VarargInjectionLowering constructor(val context: KonanBackendCont
     }
 
     abstract inner class ArrayHandle(val arraySymbol: IrClassSymbol) {
-        val setMethodSymbol = arraySymbol.functions.single { it.descriptor.name == OperatorNameConventions.SET }
+        val setMethodSymbol = arraySymbol.functions.single { it.initialDescriptor.name == OperatorNameConventions.SET }
         val sizeGetterSymbol = arraySymbol.getPropertyGetter("size")!!
-        val copyIntoSymbol = symbols.copyInto[arraySymbol.descriptor]!!
+        val copyIntoSymbol = symbols.copyInto[arraySymbol.initialDescriptor]!!
         protected val singleParameterConstructor =
             arraySymbol.owner.constructors.find { it.valueParameters.size == 1 }!!
 

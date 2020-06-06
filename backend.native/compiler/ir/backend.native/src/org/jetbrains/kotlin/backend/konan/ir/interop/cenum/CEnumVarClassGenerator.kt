@@ -36,7 +36,7 @@ internal class CEnumVarClassGenerator(
     override val typeTranslator: TypeTranslator = context.typeTranslator
 
     fun generate(enumIrClass: IrClass): IrClass {
-        val enumVarClassDescriptor = enumIrClass.descriptor.unsubstitutedMemberScope
+        val enumVarClassDescriptor = enumIrClass.initialDescriptor.unsubstitutedMemberScope
                 .getContributedClassifier(Name.identifier("Var"), NoLookupLocation.FROM_BACKEND)!! as ClassDescriptor
         return createClass(enumVarClassDescriptor) { enumVarClass ->
             enumVarClass.addMember(createPrimaryConstructor(enumVarClass))
@@ -46,13 +46,13 @@ internal class CEnumVarClassGenerator(
     }
 
     private fun createValueProperty(enumVarClass: IrClass): IrProperty {
-        val valuePropertyDescriptor = enumVarClass.descriptor.unsubstitutedMemberScope
+        val valuePropertyDescriptor = enumVarClass.initialDescriptor.unsubstitutedMemberScope
                 .getContributedVariables(Name.identifier("value"), NoLookupLocation.FROM_BACKEND).single()
         return createProperty(valuePropertyDescriptor)
     }
 
     private fun createPrimaryConstructor(enumVarClass: IrClass): IrConstructor {
-        val irConstructor = createConstructor(enumVarClass.descriptor.unsubstitutedPrimaryConstructor!!)
+        val irConstructor = createConstructor(enumVarClass.initialDescriptor.unsubstitutedPrimaryConstructor!!)
         val enumVarConstructorSymbol = symbolTable.referenceConstructor(
                 interopBuiltIns.cEnumVar.unsubstitutedPrimaryConstructor!!
         )
@@ -62,17 +62,17 @@ internal class CEnumVarClassGenerator(
             ).also {
                 it.putValueArgument(0, irGet(irConstructor.valueParameters[0]))
             }
-            +irInstanceInitializer(symbolTable.referenceClass(enumVarClass.descriptor))
+            +irInstanceInitializer(symbolTable.referenceClass(enumVarClass.initialDescriptor))
         }
         return irConstructor
     }
 
     private fun createCompanionObject(enumVarClass: IrClass): IrClass =
-            createClass(enumVarClass.descriptor.companionObjectDescriptor!!) { companionIrClass ->
-                val typeSize = companionIrClass.descriptor.annotations
+            createClass(enumVarClass.initialDescriptor.companionObjectDescriptor!!) { companionIrClass ->
+                val typeSize = companionIrClass.initialDescriptor.annotations
                         .findAnnotation(typeSizeAnnotation)!!
                         .getArgumentValueOrNull<Int>("size")!!
-                companionIrClass.addMember(createCompanionConstructor(companionIrClass.descriptor, typeSize))
+                companionIrClass.addMember(createCompanionConstructor(companionIrClass.initialDescriptor, typeSize))
             }
 
     private fun createCompanionConstructor(companionObjectDescriptor: ClassDescriptor, typeSize: Int): IrConstructor {

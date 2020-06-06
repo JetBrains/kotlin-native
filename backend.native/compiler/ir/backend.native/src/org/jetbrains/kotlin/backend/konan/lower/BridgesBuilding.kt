@@ -150,7 +150,7 @@ internal class BridgesBuilding(val context: Context) : ClassLoweringPass {
 
                 val body = declaration.body as? IrBlockBody
                         ?: return declaration
-                val descriptor = declaration.descriptor
+                val descriptor = declaration.initialDescriptor
                 val typeSafeBarrierDescription = BuiltinMethodsWithSpecialGenericSignature.getDefaultValueForOverriddenBuiltinFunction(descriptor)
                 if (typeSafeBarrierDescription == null || builtBridges.contains(declaration))
                     return declaration
@@ -178,7 +178,7 @@ internal class BridgesBuilding(val context: Context) : ClassLoweringPass {
 
 internal class DECLARATION_ORIGIN_BRIDGE_METHOD(val bridgeTarget: IrFunction) : IrDeclarationOrigin {
     override fun toString(): String {
-        return "BRIDGE_METHOD(target=${bridgeTarget.descriptor})"
+        return "BRIDGE_METHOD(target=${bridgeTarget.initialDescriptor})"
     }
 }
 
@@ -228,7 +228,7 @@ private fun Context.buildBridge(startOffset: Int, endOffset: Int,
 
     val irBuilder = createIrBuilder(bridge.symbol, startOffset, endOffset)
     bridge.body = irBuilder.irBlockBody(bridge) {
-        val typeSafeBarrierDescription = BuiltinMethodsWithSpecialGenericSignature.getDefaultValueForOverriddenBuiltinFunction(overriddenFunction.overriddenFunction.descriptor)
+        val typeSafeBarrierDescription = BuiltinMethodsWithSpecialGenericSignature.getDefaultValueForOverriddenBuiltinFunction(overriddenFunction.overriddenFunction.initialDescriptor)
         typeSafeBarrierDescription?.let { buildTypeSafeBarrier(bridge, overriddenFunction.function, it) }
 
         val delegatingCall = IrCallImpl(
