@@ -6,7 +6,7 @@
 import kotlin.browser.*
 import org.w3c.fetch.*
 import org.jetbrains.report.json.*
-import org.jetbrains.build.Build
+import org.jetbrains.buildInfo.Build
 import kotlin.js.*
 import kotlin.math.ceil
 import org.w3c.dom.*
@@ -125,6 +125,7 @@ fun customizeChart(chart: dynamic, chartContainer: String, jquerySelector: dynam
     chart.on("draw", { data ->
         var element = data.element
         if (data.type == "point") {
+            println(builds)
             val buildsGroup = getBuildsGroup(builds)
             val pointSize = 12
             val currentBuild = buildsGroup.get(data.index)
@@ -231,8 +232,10 @@ fun main(args: Array<String>) {
         val branches: Array<String> = JSON.parse(response)
         // Add release branches to selector.
         branches.filter{ it != "master" }.forEach {
-            val option = Option(it, it)
-            js("$('#inputGroupBranch')").append(js("$(option)"))
+            if ("v(\\d|\\.)+(-M\\d)?-fixes".toRegex().matches(it)) {
+                val option = Option(it, it)
+                js("$('#inputGroupBranch')").append(js("$(option)"))
+            }
         }
         document.querySelector("#inputGroupBranch [value=\"${parameters["branch"]}\"]")?.setAttribute("selected", "true")
     }
@@ -387,6 +390,7 @@ fun main(args: Array<String>) {
 
 
                 val labels = results.map { it.first }
+                println(labels)
                 val values = results[0]?.second?.size?.let { (0..it - 1).map { i -> results.map { it.second[i] } } }
                         ?: emptyList()
                 labels to values

@@ -7,15 +7,14 @@ package org.jetbrains.elastic
 
 import kotlin.js.Promise            // TODO - migrate to multiplatform.
 import org.jetbrains.report.json.*
+import org.jetbrains.network.*
 
 // Connector with InfluxDB.
-class ElasticSearchConnector(private val host: String, private val port: Int = 9200,
-                        private val user: String? = null, private val password: String? = null) {
-
-    val url = "$host:$port"
+class ElasticSearchConnector(private val connector: NetworkConnector,
+                             private val user: String? = null, private val password: String? = null) {
     // Execute ElasticSearch request.
-    fun request(method: RequestMethod, url: String, acceptJsonContentType: Boolean = true, body: String? = null): Promise<String> {
-        return sendRequest(method, url, user, password, acceptJsonContentType, body)
+    fun request(method: RequestMethod, path: String, acceptJsonContentType: Boolean = true, body: String? = null): Promise<String> {
+        return connector.sendRequest(method, path, user, password, acceptJsonContentType, body)
     }
 
     // Execute select query. Can be used to get full measurement or separate field.

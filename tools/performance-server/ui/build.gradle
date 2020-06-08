@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.targets.js.webpack.KotlinWebpackConfig
+
 buildscript {
     ext.rootBuildDirectory = file('../../..')
 
@@ -10,6 +12,12 @@ buildscript {
         }
         maven {
             url kotlinCompilerRepo
+        }
+        maven {
+            url "http://dl.bintray.com/kotlin/kotlin-eap"
+        }
+        maven {
+            url "http://dl.bintray.com/kotlin/kotlin-dev"
         }
     }
 
@@ -28,11 +36,26 @@ repositories {
     maven {
         url buildKotlinCompilerRepo
     }
+    maven {
+        url "http://dl.bintray.com/kotlin/kotlin-eap"
+    }
+    maven {
+        url "http://dl.bintray.com/kotlin/kotlin-dev"
+    }
 }
 
 apply plugin: 'kotlin-multiplatform'
 
 kotlin {
+    js {
+        browser {
+            binaries.executable()
+            distribution {
+                directory = new File("$projectDir/js/")
+            }
+        }
+    }
+
     sourceSets {
         commonMain {
             dependencies {
@@ -49,32 +72,4 @@ kotlin {
             kotlin.srcDir '../src/main/kotlin-js'
         }
     }
-
-    targets {
-        fromPreset(presets.js, 'js') {
-            compilations.main.kotlinOptions {
-                outputFile = "${projectDir}/js/main.js"
-                main = "call"
-            }
-        }
-    }
-}
-
-task assembleWeb(type: Sync) {
-    def runtimeDependencies = kotlin.targets.js.compilations.main.runtimeDependencyFiles
-    from(files {
-        runtimeDependencies.collect { File file ->
-            zipTree(file.absolutePath)
-        }
-    }.builtBy(runtimeDependencies)) {
-        includeEmptyDirs = false
-        include { fileTreeElement ->
-            def path = fileTreeElement.path
-            path.endsWith(".js") && (path.startsWith("META-INF/resources/") ||
-                    !path.startsWith("META-INF/"))
-        }
-    }
-
-    from compileKotlinJs.destinationDir
-    into "${buildDir}/js"
 }

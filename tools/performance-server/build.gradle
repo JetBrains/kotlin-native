@@ -43,6 +43,7 @@ kotlin {
         jsMain {
             dependencies {
                 implementation "org.jetbrains.kotlin:kotlin-stdlib-js:$kotlinVersion"
+                implementation(npm("aws-sdk", "~2.670.0"))
             }
             kotlin.srcDir 'src/main/kotlin'
             kotlin.srcDir 'src/main/kotlin-js'
@@ -52,6 +53,7 @@ kotlin {
 
     targets {
         fromPreset(presets.js, 'js') {
+            nodejs()
             compilations.main.kotlinOptions {
                 outputFile = "${projectDir}/server/app.js"
                 moduleKind = "commonjs"

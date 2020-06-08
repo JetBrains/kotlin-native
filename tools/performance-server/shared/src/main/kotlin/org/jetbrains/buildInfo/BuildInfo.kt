@@ -3,7 +3,7 @@
  * that can be found in the LICENSE file.
  */
 
-package org.jetbrains.build
+package org.jetbrains.buildInfo
 
 import org.jetbrains.report.*
 import org.jetbrains.report.json.*

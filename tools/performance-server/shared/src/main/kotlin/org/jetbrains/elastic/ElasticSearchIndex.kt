@@ -8,6 +8,7 @@ package org.jetbrains.elastic
 import org.jetbrains.report.*
 import org.jetbrains.report.json.*
 import org.jetbrains.analyzer.MeanVarianceBenchmark
+import org.jetbrains.network.*
 import kotlin.js.Promise     // TODO - migrate to multiplatform.
 
 data class Commit(val revision: String, val developer: String): JsonSerializable {
@@ -118,21 +119,21 @@ enum class ElasticSearchType {
 
 abstract class ElasticSearchIndex(val indexName: String, val connector: ElasticSearchConnector) {
     var nextId = 0L
-    val url = "${connector.url}/$indexName"
+
     // Insert data.
     fun insert(data: JsonSerializable): Promise<String> {
         val description = data.toJson()
-        val writeUrl = "$url/_doc/$nextId?pretty"
+        val writePath = "$indexName/_doc/$nextId?pretty"
         nextId++
-        return connector.request(RequestMethod.POST, writeUrl, body = description)
+        return connector.request(RequestMethod.POST, writePath, body = description)
     }
 
     // Make request.
     // TODO - replace to DSL
     fun search(requestJson: String, filterPathes: List<String> = emptyList()): Promise<String> {
-        val url = "${connector.url}/$indexName/_search?pretty${if (filterPathes.isNotEmpty()) 
+        val path = "$indexName/_search?pretty${if (filterPathes.isNotEmpty()) 
             "&filter_path=" + filterPathes.joinToString(",") else ""}"
-        return connector.request(RequestMethod.POST, url, body = requestJson)
+        return connector.request(RequestMethod.POST, path, body = requestJson)
     }
 
     init {
@@ -185,7 +186,7 @@ abstract class ElasticSearchIndex(val indexName: String, val connector: ElasticS
         """.trimIndent()
 
     fun createMapping() =
-        connector.request(RequestMethod.PUT, url, body = mappingDescription)
+        connector.request(RequestMethod.PUT, indexName, body = mappingDescription)
 }
 
 class BenchmarksIndex(connector: ElasticSearchConnector): ElasticSearchIndex("benchmarks", connector) {
