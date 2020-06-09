@@ -51,7 +51,7 @@ object KonanFakeOverrideClassFilter : PlatformFakeOverrideClassFilter {
 
 internal class KonanIrLinker(
         private val currentModule: ModuleDescriptor,
-        override val functionalInteraceFactory: IrAbstractFunctionFactory,
+        override val functionalInterfaceFactory: IrAbstractFunctionFactory,
         logger: LoggingContext,
         builtIns: IrBuiltIns,
         symbolTable: SymbolTable,
