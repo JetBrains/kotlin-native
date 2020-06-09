@@ -5,7 +5,7 @@
 
 package org.jetbrains.kotlin.backend.konan.lower
 
-import org.jetbrains.kotlin.backend.common.ir.addFakeOverrides
+import org.jetbrains.kotlin.backend.common.ir.addFakeOverridesViaIncorrectHeuristic
 import org.jetbrains.kotlin.backend.common.ir.createDispatchReceiverParameter
 import org.jetbrains.kotlin.backend.common.ir.createParameterDeclarations
 import org.jetbrains.kotlin.backend.common.ir.simpleFunctions
@@ -529,7 +529,7 @@ internal class TestProcessor (val context: Context) {
             companionGetter?.let { declarations += it }
 
             superTypes += symbols.baseClassSuite.typeWith(listOf(testClassType, testCompanionType))
-            addFakeOverrides()
+            addFakeOverridesViaIncorrectHeuristic()
         }
     }
     //endregion
