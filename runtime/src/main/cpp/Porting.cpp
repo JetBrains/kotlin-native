@@ -34,6 +34,7 @@
 
 #include "Common.h"
 #include "Porting.h"
+#include "KAssert.h"
 
 #if KONAN_WASM || KONAN_ZEPHYR
 extern "C" RUNTIME_NORETURN void Konan_abort(const char*);
@@ -53,6 +54,8 @@ void consoleInit() {
   // how we perform console IO, if it turns out, that UTF-16 is better output format.
   ::SetConsoleCP(CP_UTF8);
   ::SetConsoleOutputCP(CP_UTF8);
+  // FIXME: should set original CP back during the deinit of the program.
+  //  Otherwise, this codepage remains in the console.
 #endif
 }
 
@@ -74,11 +77,52 @@ void consoleErrorUtf8(const void* utf8, uint32_t sizeBytes) {
 #endif
 }
 
+#if KONAN_WINDOWS
+int getLastErrorMessage(char* message, uint32_t size) {
+  auto errCode = ::GetLastError();
+  if (errCode) {
+    auto flags = FORMAT_MESSAGE_FROM_SYSTEM;
+    auto errMsgBufSize = size / 4;
+    wchar_t errMsgBuffer[errMsgBufSize];
+    ::FormatMessageW(flags, NULL, errCode, 0, errMsgBuffer, errMsgBufSize, NULL);
+    auto errMsgLength = ::WideCharToMultiByte(CP_UTF8, 0, errMsgBuffer, -1, message, size, NULL, NULL);
+  }
+  return errCode;
+}
+#endif
+
 int32_t consoleReadUtf8(void* utf8, uint32_t maxSizeBytes) {
 #ifdef KONAN_ZEPHYR
   return 0;
+#elif KONAN_WINDOWS
+  auto length = 0;
+  void *stdInHandle = ::GetStdHandle(STD_INPUT_HANDLE);
+  if (::GetFileType(stdInHandle) == FILE_TYPE_CHAR) {
+    unsigned long bufferRead;
+    // In UTF-16 there are surrogate pairs that a 2 * 16-bit long (4 bytes).
+    auto bufferLength = maxSizeBytes / 4 - 1;
+    wchar_t buffer[bufferLength];
+    if (::ReadConsoleW(stdInHandle, buffer, bufferLength, &bufferRead, NULL)) {
+      length = ::WideCharToMultiByte(CP_UTF8, 0, buffer, bufferRead, (char*) utf8,
+                                     maxSizeBytes - 1, NULL, NULL);
+      if (!length && KonanNeedDebugInfo) {
+        char msg[512];
+        auto errCode = getLastErrorMessage(msg, sizeof(msg));
+        char buffer[1024];
+        consoleErrorf("UTF-16 to UTF-8 conversion error %d: %s", errCode, msg);
+      }
+      ((char*) utf8)[length] = 0;
+    } else if (KonanNeedDebugInfo) {
+      char msg[512];
+      auto errCode = getLastErrorMessage(msg, sizeof(msg));
+      consoleErrorf("Console read failure: %d %s", errCode, msg);
+    }
+  } else {
+    length = ::read(STDIN_FILENO, utf8, maxSizeBytes - 1);
+  }
 #else
   auto length = ::read(STDIN_FILENO, utf8, maxSizeBytes - 1);
+#endif
   if (length <= 0) return -1;
   char* start = reinterpret_cast<char*>(utf8);
   char* current = start + length - 1;
@@ -96,7 +140,6 @@ int32_t consoleReadUtf8(void* utf8, uint32_t maxSizeBytes) {
     current--;
   }
   return length;
-#endif
 }
 
 #if KONAN_INTERNAL_SNPRINTF

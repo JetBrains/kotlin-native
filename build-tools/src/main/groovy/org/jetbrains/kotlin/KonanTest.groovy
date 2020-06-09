@@ -491,8 +491,10 @@ fun runTest() {
                     def files = compileList.stream()
                             .map { it.path }
                             .collect(Collectors.toList())
-                    runCompiler(files, klibPath, flags + ["-p", "library"])
-                    runCompiler([], executablePath(), flags + ["-Xinclude=$klibPath"])
+                    if (!files.empty) {
+                        runCompiler(files, klibPath, flags + ["-p", "library"])
+                        runCompiler([], executablePath(), flags + ["-Xinclude=$klibPath"])
+                    }
                 } else {
                     // Regular compilation with modules.
                     Map<String, TestModule> modules = compileList.stream()
@@ -500,7 +502,7 @@ fun runTest() {
                             .distinct()
                             .collect(Collectors.toMap({ it.name }, UnaryOperator.identity() ))
 
-                    List<TestModule> orderedModules = DFS.topologicalOrder(modules.values()) { module ->
+                    List<TestModule> orderedModules = DFS.INSTANCE.topologicalOrder(modules.values()) { module ->
                         module.dependencies.collect { modules[it] }.findAll { it != null }
                     }
                     def libsFlags = []

@@ -269,6 +269,11 @@ internal val psiToIrPhase = konanUnitPhase(
         prerequisite = setOf(createSymbolTablePhase)
 )
 
+// Coupled with [psiToIrPhase] logic above.
+internal fun shouldLower(context: Context, declaration: IrDeclaration): Boolean {
+    return context.llvmModuleSpecification.containsDeclaration(declaration)
+}
+
 internal val destroySymbolTablePhase = konanUnitPhase(
         op = {
             this.symbolTable = null // TODO: invalidate symbolTable itself.
@@ -348,6 +353,7 @@ internal val allLoweringsPhase = namedIrModulePhase(
                                 innerClassPhase then
                                 dataClassesPhase then
                                 singleAbstractMethodPhase then
+                                ifNullExpressionsFusionPhase then
                                 builtinOperatorPhase then
                                 finallyBlocksPhase then
                                 testProcessorPhase then
