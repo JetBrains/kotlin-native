@@ -27,10 +27,9 @@ import org.jetbrains.kotlin.ir.util.referenceFunction
 import org.jetbrains.kotlin.konan.target.*
 import org.jetbrains.kotlin.name.isChildOf
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.resolve.*
 import org.jetbrains.kotlin.resolve.annotations.*
-import org.jetbrains.kotlin.resolve.DescriptorUtils
 import org.jetbrains.kotlin.resolve.descriptorUtil.*
-import org.jetbrains.kotlin.resolve.underlyingRepresentation
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.typeUtil.isNothing
@@ -297,12 +296,12 @@ private class ExportedElement(val kind: ElementKind,
             original is ConstructorDescriptor ->
                 SignatureElement(uniqueName(original, shortName), original.constructedClass.defaultType)
             else ->
-                SignatureElement(uniqueName(original, shortName), original.returnType!!)
+                SignatureElement(uniqueName(original, shortName), original.returnType!!.noInlineUnderlyingRepresentation() ?: original.returnType!!)
         }
         val uniqueNames = owner.paramsToUniqueNames(original.explicitParameters)
         val params = ArrayList(original.explicitParameters
                 .filter { it.type.includeToSignature() }
-                .map { SignatureElement(uniqueNames[it]!!, it.type) })
+                .map { SignatureElement(uniqueNames[it]!!, it.type.noInlineUnderlyingRepresentation() ?: it.type) })
         return listOf(returned) + params
     }
 
@@ -799,7 +798,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         val set = mutableSetOf<ClassDescriptor>()
         defineUsedTypesImpl(scope, set)
         val types = predefinedTypes + set
-                .map {  if (it.isInline) it.underlyingRepresentation()!!.type else it.defaultType }
+                .map {  if (it.isInline) it.noInlineUnderlyingRepresentation()!! else it.defaultType }
                 .filter{isMappedToReference(it)}
         val nullableTypes = types.map { it.makeNullable() }.toSet()
         nullableTypes.forEach {
@@ -1108,4 +1107,20 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
     // Abstraction leak for slot :(.
     internal val kGetObjectFuncType get() =
             LLVMFunctionType(codegen.kObjHeaderPtr, cValuesOf(codegen.kObjHeaderPtrPtr), 1, 0)!!
+}
+
+private fun KotlinType.noInlineUnderlyingRepresentation():KotlinType? {
+    if(isInlineClassType()) {
+        return unsubstitutedUnderlyingType()?.noInlineUnderlyingRepresentation() ?: return null
+    } else {
+        return this
+    }
+}
+
+private fun ClassDescriptor.noInlineUnderlyingRepresentation(): KotlinType? {
+    val underlyingType = underlyingRepresentation()?.type ?: return null
+    if (underlyingType.isInlineClassType())
+        return underlyingType.noInlineUnderlyingRepresentation()
+    else
+        return underlyingType
 }
