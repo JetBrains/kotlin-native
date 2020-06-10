@@ -68,22 +68,6 @@ void PrintThrowable(KRef);
 #endif
 
 // It's not always safe to extract SourceInfo during unhandled exception termination.
-class ScopedDisallowSourceInfo {
- public:
-  ScopedDisallowSourceInfo();
-  ~ScopedDisallowSourceInfo();
-
-  ScopedDisallowSourceInfo(const ScopedDisallowSourceInfo&) = delete;
-  ScopedDisallowSourceInfo(ScopedDisallowSourceInfo&&) = delete;
-  ScopedDisallowSourceInfo& operator=(const ScopedDisallowSourceInfo&) = delete;
-  ScopedDisallowSourceInfo& operator=(ScopedDisallowSourceInfo&&) = delete;
-
-  static bool IsActive();
-
- private:
-  // Making a counter instead of a boolean, if this lock ever gets nested.
-  // Shouldn't have any significant performance penalty.
-  static THREAD_LOCAL_VARIABLE int_fast8_t activeCount;
-};
+void DisallowSourceInfo();
 
 #endif // RUNTIME_NAMES_H

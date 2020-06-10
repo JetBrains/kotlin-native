@@ -103,8 +103,10 @@ _Unwind_Reason_Code unwindCallback(
 }
 #endif
 
-SourceInfo GetSourceInfo(KConstRef stackTrace, int index) {
-  return ScopedDisallowSourceInfo::IsActive()
+THREAD_LOCAL_VARIABLE bool disallowSourceInfo = false;
+
+SourceInfo getSourceInfo(KConstRef stackTrace, int index) {
+  return disallowSourceInfo
       ? SourceInfo { .fileName = nullptr, .lineNumber = -1, .column = -1 }
       : Kotlin_getSourceInfo(*PrimitiveArrayAddressOfElementAt<KNativePtr>(stackTrace->array(), index));
 }
@@ -178,7 +180,7 @@ OBJ_GETTER(GetStackTraceStrings, KConstRef stackTrace) {
     RuntimeCheck(symbols != nullptr, "Not enough memory to retrieve the stacktrace");
 
     for (int index = 0; index < size; ++index) {
-      auto sourceInfo = GetSourceInfo(stackTrace, index);
+      auto sourceInfo = getSourceInfo(stackTrace, index);
       const char* symbol = symbols[index];
       const char* result;
       char line[1024];
@@ -310,17 +312,6 @@ void SetKonanTerminateHandler() {
 
 } // extern "C"
 
-// static
-THREAD_LOCAL_VARIABLE int_fast8_t ScopedDisallowSourceInfo::activeCount = 0;
-
-ScopedDisallowSourceInfo::ScopedDisallowSourceInfo() {
-  ++activeCount;
-}
-
-ScopedDisallowSourceInfo::~ScopedDisallowSourceInfo() {
-  --activeCount;
-}
-
-bool ScopedDisallowSourceInfo::IsActive() {
-  return activeCount > 0;
+void DisallowSourceInfo() {
+  disallowSourceInfo = true;
 }

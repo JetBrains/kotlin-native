@@ -108,7 +108,7 @@ BOOL _tryRetainImp(id self, SEL _cmd) {
     // TODO: Refactor to be more explicit. Instead of relying on an unhandled exception termination
     // (and effectively setting a global to alter its behavior), just call an appropriate termination
     // function by hand.
-    ScopedDisallowSourceInfo disallowSourceInfo;
+    DisallowSourceInfo();
     std::terminate();
   }
 }
