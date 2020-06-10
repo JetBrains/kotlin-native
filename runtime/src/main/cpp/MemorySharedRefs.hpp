@@ -10,16 +10,32 @@
 
 #include "Memory.h"
 
+// TODO: Generalize for uses outside this file.
+enum class ErrorHandlingPolicy {
+  kIgnore,
+  kReturnDefault,
+  kThrowException,
+  kTerminate,
+};
+
 class KRefSharedHolder {
  public:
   void initLocal(ObjHeader* obj);
 
   void init(ObjHeader* obj);
 
-  // Terminates if called from the wrong worker with non-frozen obj_.
+  // Error if called from the wrong worker with non-frozen obj_.
+  template <ErrorHandlingPolicy errorHandlingPolicy>
   ObjHeader* ref() const;
-  ObjHeader* refOrThrow() const;
-  ObjHeader* refOrNull() const;
+  ObjHeader* refOrTerminate() const {
+    return ref<ErrorHandlingPolicy::kTerminate>();
+  }
+  ObjHeader* refOrThrow() const {
+    return ref<ErrorHandlingPolicy::kThrowException>();
+  }
+  ObjHeader* refOrNull() const {
+    return ref<ErrorHandlingPolicy::kReturnDefault>();
+  }
 
   void dispose() const;
 
@@ -28,8 +44,6 @@ class KRefSharedHolder {
  private:
   ObjHeader* obj_;
   ForeignRefContext context_;
-
-  bool isRefAccessible() const;
 };
 
 static_assert(std::is_trivially_destructible<KRefSharedHolder>::value,
@@ -39,20 +53,40 @@ class BackRefFromAssociatedObject {
  public:
   void initAndAddRef(ObjHeader* obj);
 
-  // Terminates if refCount is zero and it's called from the wrong worker with non-frozen obj_.
+  // Error if refCount is zero and it's called from the wrong worker with non-frozen obj_.
+  template <ErrorHandlingPolicy errorHandlingPolicy>
   void addRef();
-  void addRefOrThrow();
+  void addRefOrTerminate() {
+    addRef<ErrorHandlingPolicy::kTerminate>();
+  }
+  void addRefOrThrow() {
+    addRef<ErrorHandlingPolicy::kThrowException>();
+  }
 
-  // Terminates if called from the wrong worker with non-frozen obj_.
+  // Error if called from the wrong worker with non-frozen obj_.
+  template <ErrorHandlingPolicy errorHandlingPolicy>
   bool tryAddRef();
-  bool tryAddRefOrThrow();
+  bool tryAddRefOrTerminate() {
+    return tryAddRef<ErrorHandlingPolicy::kTerminate>();
+  }
+  bool tryAddRefOrThrow() {
+    return tryAddRef<ErrorHandlingPolicy::kThrowException>();
+  }
 
   void releaseRef();
 
-  // Terminates if called from the wrong worker with non-frozen obj_.
+  // Error if called from the wrong worker with non-frozen obj_.
+  template <ErrorHandlingPolicy errorHandlingPolicy>
   ObjHeader* ref() const;
-  ObjHeader* refOrThrow() const;
-  ObjHeader* refOrNull() const;
+  ObjHeader* refOrTerminate() const {
+    return ref<ErrorHandlingPolicy::kTerminate>();
+  }
+  ObjHeader* refOrThrow() const {
+    return ref<ErrorHandlingPolicy::kThrowException>();
+  }
+  ObjHeader* refOrNull() const {
+    return ref<ErrorHandlingPolicy::kReturnDefault>();
+  }
 
   inline bool permanent() const {
     return obj_->permanent(); // Safe to query from any thread.
@@ -62,9 +96,6 @@ class BackRefFromAssociatedObject {
   ObjHeader* obj_;
   ForeignRefContext context_;
   volatile int refCount;
-
-  bool isRefAccessible() const;
-  void ensureRefAccessibleOrThrow() const;
 };
 
 static_assert(std::is_trivially_destructible<BackRefFromAssociatedObject>::value,
