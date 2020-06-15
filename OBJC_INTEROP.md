@@ -143,7 +143,7 @@ which is an instance of one of the `@Throws`-specified classes or their subclass
 it is propagated as `NSError`. Other Kotlin exceptions reaching Swift/Objective-C
 are considered unhandled and cause program termination.
 
-In the absence of `@Throws`, `suspend` functions propagate only
+`suspend` functions without `@Throws` propagate only
 `CancellationException` as `NSError`. Non-`suspend` functions without `@Throws`
 don't propagate Kotlin exceptions at all.
 
