@@ -164,7 +164,7 @@ public annotation class PublishedApi
  * it is propagated as `NSError`. Other Kotlin exceptions reaching Swift/Objective-C
  * are considered unhandled and cause program termination.
  *
- * Note: in the absence of `@Throws`, `suspend` functions propagate only
+ * Note: `suspend` functions without `@Throws` propagate only
  * [kotlin.coroutines.cancellation.CancellationException] as `NSError`.
  * Non-`suspend` functions without `@Throws` don't propagate Kotlin exceptions at all.
  *
