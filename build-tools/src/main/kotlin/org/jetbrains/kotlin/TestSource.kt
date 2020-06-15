@@ -1,6 +1,7 @@
 package org.jetbrains.kotlin
 
 import org.gradle.api.Project
+import org.gradle.api.Task
 import java.nio.file.Paths
 
 /**
@@ -8,7 +9,7 @@ import java.nio.file.Paths
  * @param source a string that represents either a path to a test source or a directory with sources.
  * @param outputDirectory output directory
  */
-fun Project.testSources(source: String, outputDirectory: String, language: Language): List<String> =
+fun Task.testSources(source: String, outputDirectory: String, language: Language): List<String> =
         if (project.file(source).isFile) {
             parseDirectives(project.file(source).toPath(), outputDirectory)
                     .apply {

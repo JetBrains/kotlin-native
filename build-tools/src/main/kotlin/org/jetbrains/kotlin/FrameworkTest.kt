@@ -79,7 +79,7 @@ open class FrameworkTest : DefaultTask(), KonanTestExecutable {
 
     private fun List<String>.toFiles(language: Language): List<File> =
             this.flatMap { src ->
-                project.testSources(src, outputDirectory, language)
+                this@FrameworkTest.testSources(src, outputDirectory, language)
                         .map { File(it) }
             }
 
