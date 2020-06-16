@@ -19,11 +19,6 @@
 
 #include <stdint.h>
 #include <stddef.h>
-#include <type_traits>
-
-#if !KONAN_NO_EXCEPTIONS
-#include <exception>
-#endif
 
 #include "Common.h"
 
@@ -98,23 +93,6 @@ do {                          \
   catch(...) { catchAction; } \
 } while(0)
 #endif
-
-template <typename F>
-// TODO: Use invoke_result without && when compiled with C++17
-ALWAYS_INLINE typename std::result_of<F&&()>::type tryOrTerminate(F&& tryClause) {
-#if KONAN_NO_EXCEPTIONS
-  // This will terminate the program if exception is thrown.
-  return tryClause();
-#else
-  try {
-    return tryClause();
-  } catch (...) {
-    // A trick to terminate with unhandled exception. This will print a stack trace
-    // and write to iOS crash log.
-    std::terminate();
-  }
-#endif
-}
 
 }  // namespace konan
 
