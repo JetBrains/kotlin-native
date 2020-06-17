@@ -227,7 +227,7 @@ data class Parameter(val name: String?, val type: Type, val nsConsumed: Boolean)
 /**
  * C function declaration.
  */
-class FunctionDecl(val name: String, val parameters: List<Parameter>, val returnType: Type, val binaryName: String,
+class FunctionDecl(var name: String, val parameters: List<Parameter>, val returnType: Type, val binaryName: String,
                    val isDefined: Boolean, val isVararg: Boolean)
 
 /**

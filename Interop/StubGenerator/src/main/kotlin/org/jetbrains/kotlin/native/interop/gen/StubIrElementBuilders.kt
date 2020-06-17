@@ -471,6 +471,13 @@ internal class FunctionStubBuilder(
         val platform = context.platform
         val parameters = mutableListOf<FunctionParameterStub>()
 
+        if (func.name == "return100") {
+            println("name before")
+            println(func.name)
+            println("name after")
+            func.name = "FOO"
+            println(func.name)
+        }
         func.parameters.forEachIndexed { index, parameter ->
             val parameterName = parameter.name.let {
                 if (it == null || it.isEmpty()) {
