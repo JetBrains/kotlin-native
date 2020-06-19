@@ -27,15 +27,6 @@ class KRefSharedHolder {
   // Error if called from the wrong worker with non-frozen obj_.
   template <ErrorPolicy errorPolicy>
   ObjHeader* ref() const;
-  ObjHeader* refOrTerminate() const {
-    return ref<ErrorPolicy::kTerminate>();
-  }
-  ObjHeader* refOrThrow() const {
-    return ref<ErrorPolicy::kThrow>();
-  }
-  ObjHeader* refOrNull() const {
-    return ref<ErrorPolicy::kDefaultValue>();
-  }
 
   void dispose() const;
 
@@ -56,37 +47,16 @@ class BackRefFromAssociatedObject {
   // Error if refCount is zero and it's called from the wrong worker with non-frozen obj_.
   template <ErrorPolicy errorPolicy>
   void addRef();
-  void addRefOrTerminate() {
-    addRef<ErrorPolicy::kTerminate>();
-  }
-  void addRefOrThrow() {
-    addRef<ErrorPolicy::kThrow>();
-  }
 
   // Error if called from the wrong worker with non-frozen obj_.
   template <ErrorPolicy errorPolicy>
   bool tryAddRef();
-  bool tryAddRefOrTerminate() {
-    return tryAddRef<ErrorPolicy::kTerminate>();
-  }
-  bool tryAddRefOrThrow() {
-    return tryAddRef<ErrorPolicy::kThrow>();
-  }
 
   void releaseRef();
 
   // Error if called from the wrong worker with non-frozen obj_.
   template <ErrorPolicy errorPolicy>
   ObjHeader* ref() const;
-  ObjHeader* refOrTerminate() const {
-    return ref<ErrorPolicy::kTerminate>();
-  }
-  ObjHeader* refOrThrow() const {
-    return ref<ErrorPolicy::kThrow>();
-  }
-  ObjHeader* refOrNull() const {
-    return ref<ErrorPolicy::kDefaultValue>();
-  }
 
   inline bool permanent() const {
     return obj_->permanent(); // Safe to query from any thread.

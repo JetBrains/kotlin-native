@@ -198,6 +198,6 @@ RUNTIME_NOTHROW void KRefSharedHolder_dispose(const KRefSharedHolder* holder) {
 }
 
 RUNTIME_NOTHROW ObjHeader* KRefSharedHolder_ref(const KRefSharedHolder* holder) {
-  return holder->refOrTerminate();
+  return holder->ref<ErrorPolicy::kTerminate>();
 }
 } // extern "C"

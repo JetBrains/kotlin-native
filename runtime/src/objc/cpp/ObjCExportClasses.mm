@@ -45,7 +45,7 @@ static void injectToRuntime();
 }
 
 -(KRef)toKotlin:(KRef*)OBJ_RESULT {
-  RETURN_OBJ(refHolder.refOrTerminate());
+  RETURN_OBJ(refHolder.ref<ErrorPolicy::kTerminate>());
 }
 
 +(void)load {
@@ -107,7 +107,7 @@ static void injectToRuntime();
   if (refHolder.permanent()) { // TODO: consider storing `isPermanent` to self field.
     [super retain];
   } else {
-    refHolder.addRefOrTerminate();
+    refHolder.addRef<ErrorPolicy::kTerminate>();
   }
   return self;
 }
@@ -116,7 +116,7 @@ static void injectToRuntime();
   if (refHolder.permanent()) {
     return [super _tryRetain];
   } else {
-    return refHolder.tryAddRefOrTerminate();
+    return refHolder.tryAddRef<ErrorPolicy::kTerminate>();
   }
 }
 

@@ -69,7 +69,7 @@ BackRefFromAssociatedObject* getBackRef(id obj) {
 }
 
 OBJ_GETTER(toKotlinImp, id self, SEL _cmd) {
-  RETURN_OBJ(getBackRef(self)->refOrTerminate());
+  RETURN_OBJ(getBackRef(self)->ref<ErrorPolicy::kTerminate>());
 }
 
 id allocWithZoneImp(Class self, SEL _cmd, void* zone) {
@@ -89,17 +89,17 @@ id allocWithZoneImp(Class self, SEL _cmd, void* zone) {
 }
 
 id retainImp(id self, SEL _cmd) {
-  getBackRef(self)->addRefOrTerminate();
+  getBackRef(self)->addRef<ErrorPolicy::kTerminate>();
   return self;
 }
 
 BOOL _tryRetainImp(id self, SEL _cmd) {
-  // TODO: [tryAddRefOrThrow] currently works only on the owner thread for non-shared objects;
+  // TODO: [tryAddRef] currently works only on the owner thread for non-shared objects;
   // this is a regression for instances of Kotlin subclasses of Obj-C classes:
   // loading a reference to such an object from Obj-C weak reference now fails on "wrong" thread
   // unless the object is frozen.
   try {
-    return getBackRef(self)->tryAddRefOrThrow();
+    return getBackRef(self)->tryAddRef<ErrorPolicy::kThrow>();
   } catch (ExceptionObjHolder& e) {
     // TODO: check for IncorrectDereferenceException and possible weak property access
     // Cannot use SourceInfo here, because CoreSymbolication framework (CSSymbolOwnerGetSymbolWithAddress)
