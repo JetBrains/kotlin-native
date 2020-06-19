@@ -145,11 +145,11 @@ bool BackRefFromAssociatedObject::tryAddRef() {
   // Suboptimal but simple:
   ensureRefAccessible<errorPolicy>(obj_, context_);
 
-  ObjHeader* obj = this->obj_;
+  ObjHeader* obj = obj_;
 
   if (!TryAddHeapRef(obj)) return false;
   RuntimeAssert(ensureRefAccessible<ErrorPolicy::kDefaultValue>(obj_, context_), "Cannot be inaccessible because of the check above");
-  this->addRef<ErrorPolicy::kIgnore>();
+  addRef<ErrorPolicy::kIgnore>();
   ReleaseHeapRef(obj); // Balance TryAddHeapRef.
   // TODO: consider optimizing for non-shared objects.
 
