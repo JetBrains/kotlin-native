@@ -19,7 +19,7 @@ package org.jetbrains.kotlin.native.interop.indexer
 enum class Language(val sourceFileExtension: String) {
     C("c"),
     OBJECTIVE_C("m"),
-    J2OBJ_C("myfileformat")
+    J2ObjC("myfileformat")
 }
 
 interface HeaderInclusionPolicy {
@@ -108,29 +108,62 @@ abstract class NativeIndex {
     abstract val includedHeaders: Collection<HeaderId>
 }
 
-class j2objcNativeIndex() : NativeIndex() {
+class J2ObjCNativeIndex() : NativeIndex() {
+
+    val myMethod = ObjCMethod(
+        selector = "DoPureObjcFib",
+        encoding = "[encoding]",
+        parameters = listOf<Parameter>(
+          Parameter(
+            name = "x",
+            nsConsumed = false,
+            type = Typedef(TypedefDef(aliased = IntegerType(size=4, isSigned=true, spelling="int"), name = "int32_t", location = Location(headerId = HeaderId("location/headerid"))))
+            //type = IntegerType(size=4, isSigned=true, spelling="int")
+          )
+        ),
+        returnType = VoidType,
+        isVariadic = false,
+        isClass = true,
+        nsConsumesSelf = false,
+        nsReturnsRetained = false,
+        isOptional = false,
+        isInit = false,
+        isExplicitlyDesignatedInitializer = false
+    )
+
+    val myClass = ObjCClassImpl(
+      name = "ObjcFib",
+      isForwardDeclaration = false,
+      binaryName = null,
+      location = Location(HeaderId("locationHeaderId"))
+    )
+
+    init {
+        myClass.methods.add(myMethod)
+    }
+
     override val structs: Collection<StructDecl>
-        get() = emptyList<StructDecl>() //To change initializer of created properties use File | Settings | File Templates.
+        get() = emptyList<StructDecl>()
     override val enums: Collection<EnumDef>
-        get() = emptyList<EnumDef>() //To change initializer of created properties use File | Settings | File Templates.
+        get() = emptyList<EnumDef>()
     override val objCClasses: Collection<ObjCClass>
-        get() = emptyList<ObjCClass>() //To change initializer of created properties use File | Settings | File Templates.
+        get() = listOf<ObjCClass>(myClass)
     override val objCProtocols: Collection<ObjCProtocol>
-        get() = emptyList<ObjCProtocol>() //To change initializer of created properties use File | Settings | File Templates.
+        get() = emptyList<ObjCProtocol>()
     override val objCCategories: Collection<ObjCCategory>
-        get() = emptyList<ObjCCategory>() //To change initializer of created properties use File | Settings | File Templates.
+        get() = emptyList<ObjCCategory>()
     override val typedefs: Collection<TypedefDef>
-        get() = emptyList<TypedefDef>() //To change initializer of created properties use File | Settings | File Templates.
+        get() = emptyList<TypedefDef>()
     override val functions: Collection<FunctionDecl>
-        get() = listOf<FunctionDecl>(FunctionDecl(name="FOOBAR", parameters=listOf(),returnType = VoidType,binaryName = "FOOBARbinary", isDefined = false, isVararg = false)) //To change initializer of created properties use File | Settings | File Templates.
+        get() = listOf<FunctionDecl>(FunctionDecl(name="FOOBAR", parameters=listOf(),returnType = VoidType,binaryName = "FOOBARbinary", isDefined = false, isVararg = false))
     override val macroConstants: Collection<ConstantDef>
-        get() = emptyList<ConstantDef>() //To change initializer of created properties use File | Settings | File Templates.
+        get() = emptyList<ConstantDef>()
     override val wrappedMacros: Collection<WrappedMacroDef>
-        get() = emptyList<WrappedMacroDef>() //To change initializer of created properties use File | Settings | File Templates.
+        get() = emptyList<WrappedMacroDef>()
     override val globals: Collection<GlobalDecl>
-        get() = emptyList<GlobalDecl>() //To change initializer of created properties use File | Settings | File Templates.
+        get() = emptyList<GlobalDecl>()
     override val includedHeaders: Collection<HeaderId>
-        get() = emptyList<HeaderId>() //To change initializer of created properties use File | Settings | File Templates.
+        get() = emptyList<HeaderId>()
 
 }
 
