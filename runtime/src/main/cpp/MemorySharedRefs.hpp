@@ -11,11 +11,11 @@
 #include "Memory.h"
 
 // TODO: Generalize for uses outside this file.
-enum class ErrorHandlingPolicy {
-  kIgnore,
-  kReturnDefault,
-  kThrowException,
-  kTerminate,
+enum class ErrorPolicy {
+  kIgnore,  // Ignore any errors. (i.e. unsafe mode)
+  kDefaultValue,  // Return the default value from the function when an error happens.
+  kThrow,  // Throw a Kotlin exception when an error happens. The exact exception is chosen by the callee.
+  kTerminate,  // Terminate immediately when an error happens.
 };
 
 class KRefSharedHolder {
@@ -25,16 +25,16 @@ class KRefSharedHolder {
   void init(ObjHeader* obj);
 
   // Error if called from the wrong worker with non-frozen obj_.
-  template <ErrorHandlingPolicy errorHandlingPolicy>
+  template <ErrorPolicy errorPolicy>
   ObjHeader* ref() const;
   ObjHeader* refOrTerminate() const {
-    return ref<ErrorHandlingPolicy::kTerminate>();
+    return ref<ErrorPolicy::kTerminate>();
   }
   ObjHeader* refOrThrow() const {
-    return ref<ErrorHandlingPolicy::kThrowException>();
+    return ref<ErrorPolicy::kThrow>();
   }
   ObjHeader* refOrNull() const {
-    return ref<ErrorHandlingPolicy::kReturnDefault>();
+    return ref<ErrorPolicy::kDefaultValue>();
   }
 
   void dispose() const;
@@ -54,38 +54,38 @@ class BackRefFromAssociatedObject {
   void initAndAddRef(ObjHeader* obj);
 
   // Error if refCount is zero and it's called from the wrong worker with non-frozen obj_.
-  template <ErrorHandlingPolicy errorHandlingPolicy>
+  template <ErrorPolicy errorPolicy>
   void addRef();
   void addRefOrTerminate() {
-    addRef<ErrorHandlingPolicy::kTerminate>();
+    addRef<ErrorPolicy::kTerminate>();
   }
   void addRefOrThrow() {
-    addRef<ErrorHandlingPolicy::kThrowException>();
+    addRef<ErrorPolicy::kThrow>();
   }
 
   // Error if called from the wrong worker with non-frozen obj_.
-  template <ErrorHandlingPolicy errorHandlingPolicy>
+  template <ErrorPolicy errorPolicy>
   bool tryAddRef();
   bool tryAddRefOrTerminate() {
-    return tryAddRef<ErrorHandlingPolicy::kTerminate>();
+    return tryAddRef<ErrorPolicy::kTerminate>();
   }
   bool tryAddRefOrThrow() {
-    return tryAddRef<ErrorHandlingPolicy::kThrowException>();
+    return tryAddRef<ErrorPolicy::kThrow>();
   }
 
   void releaseRef();
 
   // Error if called from the wrong worker with non-frozen obj_.
-  template <ErrorHandlingPolicy errorHandlingPolicy>
+  template <ErrorPolicy errorPolicy>
   ObjHeader* ref() const;
   ObjHeader* refOrTerminate() const {
-    return ref<ErrorHandlingPolicy::kTerminate>();
+    return ref<ErrorPolicy::kTerminate>();
   }
   ObjHeader* refOrThrow() const {
-    return ref<ErrorHandlingPolicy::kThrowException>();
+    return ref<ErrorPolicy::kThrow>();
   }
   ObjHeader* refOrNull() const {
-    return ref<ErrorHandlingPolicy::kReturnDefault>();
+    return ref<ErrorPolicy::kDefaultValue>();
   }
 
   inline bool permanent() const {

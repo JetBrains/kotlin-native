@@ -48,23 +48,23 @@ RUNTIME_NORETURN inline void terminateWithIllegalSharingException(ObjHeader* obj
 #endif
 }
 
-template <ErrorHandlingPolicy errorHandlingPolicy>
+template <ErrorPolicy errorPolicy>
 bool ensureRefAccessible(ObjHeader* object, ForeignRefContext context) {
-  if (errorHandlingPolicy == ErrorHandlingPolicy::kIgnore)
+  if (errorPolicy == ErrorPolicy::kIgnore)
     return true;
 
   if (isForeignRefAccessible(object, context)) {
     return true;
   }
 
-  switch (errorHandlingPolicy) {
-    case ErrorHandlingPolicy::kIgnore:
+  switch (errorPolicy) {
+    case ErrorPolicy::kIgnore:
       return true;  // This case is already handled above and cannot be reached.
-    case ErrorHandlingPolicy::kReturnDefault:
+    case ErrorPolicy::kDefaultValue:
       return false;
-    case ErrorHandlingPolicy::kThrowException:
+    case ErrorPolicy::kThrow:
       throwIllegalSharingException(object);
-    case ErrorHandlingPolicy::kTerminate:
+    case ErrorPolicy::kTerminate:
       terminateWithIllegalSharingException(object);
   }
 }
@@ -83,9 +83,9 @@ void KRefSharedHolder::init(ObjHeader* obj) {
   obj_ = obj;
 }
 
-template <ErrorHandlingPolicy errorHandlingPolicy>
+template <ErrorPolicy errorPolicy>
 ObjHeader* KRefSharedHolder::ref() const {
-  if (!ensureRefAccessible<errorHandlingPolicy>(obj_, context_)) {
+  if (!ensureRefAccessible<errorPolicy>(obj_, context_)) {
     return nullptr;
   }
 
@@ -93,9 +93,9 @@ ObjHeader* KRefSharedHolder::ref() const {
   return obj_;
 }
 
-template ObjHeader* KRefSharedHolder::ref<ErrorHandlingPolicy::kReturnDefault>() const;
-template ObjHeader* KRefSharedHolder::ref<ErrorHandlingPolicy::kThrowException>() const;
-template ObjHeader* KRefSharedHolder::ref<ErrorHandlingPolicy::kTerminate>() const;
+template ObjHeader* KRefSharedHolder::ref<ErrorPolicy::kDefaultValue>() const;
+template ObjHeader* KRefSharedHolder::ref<ErrorPolicy::kThrow>() const;
+template ObjHeader* KRefSharedHolder::ref<ErrorPolicy::kTerminate>() const;
 
 void KRefSharedHolder::dispose() const {
   if (obj_ == nullptr) {
@@ -120,14 +120,14 @@ void BackRefFromAssociatedObject::initAndAddRef(ObjHeader* obj) {
   refCount = 1;
 }
 
-template <ErrorHandlingPolicy errorHandlingPolicy>
+template <ErrorPolicy errorPolicy>
 void BackRefFromAssociatedObject::addRef() {
-  static_assert(errorHandlingPolicy != ErrorHandlingPolicy::kReturnDefault, "Cannot use default return value here");
+  static_assert(errorPolicy != ErrorPolicy::kDefaultValue, "Cannot use default return value here");
 
   if (atomicAdd(&refCount, 1) == 1) {
     // There are no references to the associated object itself, so Kotlin object is being passed from Kotlin,
     // and it is owned therefore.
-    ensureRefAccessible<errorHandlingPolicy>(obj_, context_); // TODO: consider removing explicit verification.
+    ensureRefAccessible<errorPolicy>(obj_, context_); // TODO: consider removing explicit verification.
 
     // Foreign reference has already been deinitialized (see [releaseRef]).
     // Create a new one:
@@ -135,29 +135,29 @@ void BackRefFromAssociatedObject::addRef() {
   }
 }
 
-template void BackRefFromAssociatedObject::addRef<ErrorHandlingPolicy::kThrowException>();
-template void BackRefFromAssociatedObject::addRef<ErrorHandlingPolicy::kTerminate>();
+template void BackRefFromAssociatedObject::addRef<ErrorPolicy::kThrow>();
+template void BackRefFromAssociatedObject::addRef<ErrorPolicy::kTerminate>();
 
-template <ErrorHandlingPolicy errorHandlingPolicy>
+template <ErrorPolicy errorPolicy>
 bool BackRefFromAssociatedObject::tryAddRef() {
-  static_assert(errorHandlingPolicy != ErrorHandlingPolicy::kReturnDefault, "Cannot use default return value here");
+  static_assert(errorPolicy != ErrorPolicy::kDefaultValue, "Cannot use default return value here");
 
   // Suboptimal but simple:
-  ensureRefAccessible<errorHandlingPolicy>(obj_, context_);
+  ensureRefAccessible<errorPolicy>(obj_, context_);
 
   ObjHeader* obj = this->obj_;
 
   if (!TryAddHeapRef(obj)) return false;
-  RuntimeAssert(ensureRefAccessible<ErrorHandlingPolicy::kReturnDefault>(obj_, context_), "Cannot be inaccessible because of the check above");
-  this->addRef<ErrorHandlingPolicy::kIgnore>();
+  RuntimeAssert(ensureRefAccessible<ErrorPolicy::kDefaultValue>(obj_, context_), "Cannot be inaccessible because of the check above");
+  this->addRef<ErrorPolicy::kIgnore>();
   ReleaseHeapRef(obj); // Balance TryAddHeapRef.
   // TODO: consider optimizing for non-shared objects.
 
   return true;
 }
 
-template bool BackRefFromAssociatedObject::tryAddRef<ErrorHandlingPolicy::kThrowException>();
-template bool BackRefFromAssociatedObject::tryAddRef<ErrorHandlingPolicy::kTerminate>();
+template bool BackRefFromAssociatedObject::tryAddRef<ErrorPolicy::kThrow>();
+template bool BackRefFromAssociatedObject::tryAddRef<ErrorPolicy::kTerminate>();
 
 void BackRefFromAssociatedObject::releaseRef() {
   ForeignRefContext context = context_;
@@ -170,9 +170,9 @@ void BackRefFromAssociatedObject::releaseRef() {
   }
 }
 
-template <ErrorHandlingPolicy errorHandlingPolicy>
+template <ErrorPolicy errorPolicy>
 ObjHeader* BackRefFromAssociatedObject::ref() const {
-  if (!ensureRefAccessible<errorHandlingPolicy>(obj_, context_)) {
+  if (!ensureRefAccessible<errorPolicy>(obj_, context_)) {
     return nullptr;
   }
 
@@ -180,9 +180,9 @@ ObjHeader* BackRefFromAssociatedObject::ref() const {
   return obj_;
 }
 
-template ObjHeader* BackRefFromAssociatedObject::ref<ErrorHandlingPolicy::kReturnDefault>() const;
-template ObjHeader* BackRefFromAssociatedObject::ref<ErrorHandlingPolicy::kThrowException>() const;
-template ObjHeader* BackRefFromAssociatedObject::ref<ErrorHandlingPolicy::kTerminate>() const;
+template ObjHeader* BackRefFromAssociatedObject::ref<ErrorPolicy::kDefaultValue>() const;
+template ObjHeader* BackRefFromAssociatedObject::ref<ErrorPolicy::kThrow>() const;
+template ObjHeader* BackRefFromAssociatedObject::ref<ErrorPolicy::kTerminate>() const;
 
 extern "C" {
 RUNTIME_NOTHROW void KRefSharedHolder_initLocal(KRefSharedHolder* holder, ObjHeader* obj) {
