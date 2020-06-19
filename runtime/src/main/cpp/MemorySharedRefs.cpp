@@ -50,16 +50,13 @@ RUNTIME_NORETURN inline void terminateWithIllegalSharingException(ObjHeader* obj
 
 template <ErrorPolicy errorPolicy>
 bool ensureRefAccessible(ObjHeader* object, ForeignRefContext context) {
-  if (errorPolicy == ErrorPolicy::kIgnore)
-    return true;
+  static_assert(errorPolicy != ErrorPolicy::kIgnore, "Must've been handled by specialization");
 
   if (isForeignRefAccessible(object, context)) {
     return true;
   }
 
   switch (errorPolicy) {
-    case ErrorPolicy::kIgnore:
-      return true;  // This case is already handled above and cannot be reached.
     case ErrorPolicy::kDefaultValue:
       return false;
     case ErrorPolicy::kThrow:
@@ -67,6 +64,11 @@ bool ensureRefAccessible(ObjHeader* object, ForeignRefContext context) {
     case ErrorPolicy::kTerminate:
       terminateWithIllegalSharingException(object);
   }
+}
+
+template <>
+bool ensureRefAccessible<ErrorPolicy::kIgnore>(ObjHeader* object, ForeignRefContext context) {
+  return true;
 }
 
 }  // namespace
