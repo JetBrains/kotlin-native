@@ -120,7 +120,8 @@ private fun Properties.putAndRunOnReplace(key: Any, newValue: Any, beforeReplace
 private fun selectNativeLanguage(config: DefFile.DefFileConfig): Language {
     val languages = mapOf(
             "C" to Language.C,
-            "Objective-C" to Language.OBJECTIVE_C
+            "Objective-C" to Language.OBJECTIVE_C,
+            "j2objc" to Language.J2OBJ_C
     )
 
     val language = config.language ?: return Language.C
@@ -261,9 +262,12 @@ private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments
 
     val imports = parseImports(allLibraryDependencies)
 
-    val library = buildNativeLibrary(tool, def, cinteropArguments, imports)
+    val nativeIndex: NativeIndex = if (language == Language.J2OBJ_C) j2objcNativeIndex() else buildNativeIndex(buildNativeLibrary(tool,def,cinteropArguments,imports), verbose).index
+    val compilation: CompilationWithPCH = if (language == Language.J2OBJ_C) CompilationWithPCH(emptyList<String>(), Language.J2OBJ_C) else buildNativeIndex(buildNativeLibrary(tool,def,cinteropArguments,imports), verbose).compilation
 
-    val (nativeIndex, compilation) = buildNativeIndex(library, verbose)
+//    val library = buildNativeLibrary(tool, def, cinteropArguments, imports)
+//
+//    val (nativeIndex, compilation) = buildNativeIndex(library, verbose)
 
     // Our current approach to arm64_32 support is to compile armv7k version of bitcode
     // for arm64_32. That's the reason for this substitution.
@@ -468,6 +472,7 @@ internal fun buildNativeLibrary(
                 // 2. The generated Objective-C stubs are compiled with ARC enabled, so reference counting
                 // calls are inserted automatically.
             }
+            Language.J2OBJ_C -> emptyList()
         })
     }
 

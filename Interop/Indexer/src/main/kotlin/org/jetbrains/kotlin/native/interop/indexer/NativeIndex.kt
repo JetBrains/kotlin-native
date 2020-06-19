@@ -18,7 +18,8 @@ package org.jetbrains.kotlin.native.interop.indexer
 
 enum class Language(val sourceFileExtension: String) {
     C("c"),
-    OBJECTIVE_C("m")
+    OBJECTIVE_C("m"),
+    J2OBJ_C("myfileformat")
 }
 
 interface HeaderInclusionPolicy {
@@ -105,6 +106,32 @@ abstract class NativeIndex {
     abstract val wrappedMacros: Collection<WrappedMacroDef>
     abstract val globals: Collection<GlobalDecl>
     abstract val includedHeaders: Collection<HeaderId>
+}
+
+class j2objcNativeIndex() : NativeIndex() {
+    override val structs: Collection<StructDecl>
+        get() = emptyList<StructDecl>() //To change initializer of created properties use File | Settings | File Templates.
+    override val enums: Collection<EnumDef>
+        get() = emptyList<EnumDef>() //To change initializer of created properties use File | Settings | File Templates.
+    override val objCClasses: Collection<ObjCClass>
+        get() = emptyList<ObjCClass>() //To change initializer of created properties use File | Settings | File Templates.
+    override val objCProtocols: Collection<ObjCProtocol>
+        get() = emptyList<ObjCProtocol>() //To change initializer of created properties use File | Settings | File Templates.
+    override val objCCategories: Collection<ObjCCategory>
+        get() = emptyList<ObjCCategory>() //To change initializer of created properties use File | Settings | File Templates.
+    override val typedefs: Collection<TypedefDef>
+        get() = emptyList<TypedefDef>() //To change initializer of created properties use File | Settings | File Templates.
+    override val functions: Collection<FunctionDecl>
+        get() = listOf<FunctionDecl>(FunctionDecl(name="FOOBAR", parameters=listOf(),returnType = VoidType,binaryName = "FOOBARbinary", isDefined = false, isVararg = false)) //To change initializer of created properties use File | Settings | File Templates.
+    override val macroConstants: Collection<ConstantDef>
+        get() = emptyList<ConstantDef>() //To change initializer of created properties use File | Settings | File Templates.
+    override val wrappedMacros: Collection<WrappedMacroDef>
+        get() = emptyList<WrappedMacroDef>() //To change initializer of created properties use File | Settings | File Templates.
+    override val globals: Collection<GlobalDecl>
+        get() = emptyList<GlobalDecl>() //To change initializer of created properties use File | Settings | File Templates.
+    override val includedHeaders: Collection<HeaderId>
+        get() = emptyList<HeaderId>() //To change initializer of created properties use File | Settings | File Templates.
+
 }
 
 /**

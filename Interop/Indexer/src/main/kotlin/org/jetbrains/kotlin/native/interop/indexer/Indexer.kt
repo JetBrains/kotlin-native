@@ -467,6 +467,7 @@ internal class NativeIndexImpl(val library: NativeLibrary, val verbose: Boolean 
     private inline fun objCType(supplier: () -> ObjCPointer) = when (library.language) {
         Language.C -> UnsupportedType
         Language.OBJECTIVE_C -> supplier()
+        Language.J2OBJ_C -> UnsupportedType
     }
 
     // We omit `const` qualifier for IntegerType and FloatingType to make `CBridgeGen` simpler.
@@ -899,7 +900,7 @@ internal class NativeIndexImpl(val library: NativeLibrary, val verbose: Boolean 
         val parameters = getFunctionParameters(cursor)
 
         val binaryName = when (library.language) {
-            Language.C, Language.OBJECTIVE_C -> clang_Cursor_getMangling(cursor).convertAndDispose()
+            Language.C, Language.OBJECTIVE_C, Language.J2OBJ_C -> clang_Cursor_getMangling(cursor).convertAndDispose()
         }
 
         val definitionCursor = clang_getCursorDefinition(cursor)
