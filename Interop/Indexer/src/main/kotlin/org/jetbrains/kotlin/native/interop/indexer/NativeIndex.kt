@@ -109,19 +109,16 @@ abstract class NativeIndex {
 }
 
 class J2ObjCNativeIndex() : NativeIndex() {
-
-    val myMethod = ObjCMethod(
+    /*
+    For reference: ObjcFib.h
+    + (int)DoPureObjcFib:(int)x;
+    + (float)AddTwoDoubles:(float)x secondNum:(float)y;
+     */
+    val doPureObjcFib = ObjCMethod(
         selector = "DoPureObjcFib:",
         encoding = "[encoding]",
         parameters = listOf<Parameter>(
-          Parameter(
-            name = "x",
-            nsConsumed = false,
-            //type = Typedef(TypedefDef(aliased = IntegerType(size=4, isSigned = true, spelling = "int"), name="int32_t",location = Location(headerId=HeaderId("usr/include/sys/_types/_int32_t.h"))))
-            //type = Typedef(TypedefDef(aliased = Typedef(TypedefDef(aliased = IntegerType(size = 4, isSigned = true, spelling = "int"), name = "int32_t", location = Location(headerId = HeaderId("usr/include/sys/_types/_int32_t.h")))), name = "jint", location = Location(headerId = HeaderId("[]"))))
-            //type = Typedef(TypedefDef(aliased = IntegerType(size=4, isSigned=true, spelling="int"), name = "int32_t", location = Location(headerId = HeaderId("location/headerid"))))
-            type = IntegerType(size=4, isSigned=true, spelling="int")
-          )
+          Parameter(name = "x", nsConsumed = false, type = IntegerType(size=4, isSigned=true, spelling="int"))
         ),
         returnType = IntegerType(size = 4, isSigned = true, spelling = "int"),
         isVariadic = false,
@@ -133,11 +130,28 @@ class J2ObjCNativeIndex() : NativeIndex() {
         isExplicitlyDesignatedInitializer = false
     )
 
+    val addTwoFloats = ObjCMethod(
+      selector = "AddTwoFloats:secondNum:",
+      encoding = "[encoding]",
+      parameters = listOf<Parameter>(
+        Parameter( name = "x", nsConsumed = false, type = FloatingType(size=4, spelling="float")),
+        Parameter( name = "secondNum", nsConsumed = false, type = FloatingType(size=4, spelling="float"))
+      ),
+      returnType =  FloatingType(size=4, spelling="float"),
+      isVariadic = false,
+      isClass = true,
+      nsConsumesSelf = false,
+      nsReturnsRetained = false,
+      isOptional = false,
+      isInit = false,
+      isExplicitlyDesignatedInitializer = false
+    )
+
     val myClass = ObjCClassImpl(
       name = "ObjcFib",
       isForwardDeclaration = false,
       binaryName = null,
-      location = Location(HeaderId("locationHeaderId"))
+      location = Location(HeaderId("[locationHeaderId]"))
     )
 
     init {
@@ -147,7 +161,8 @@ class J2ObjCNativeIndex() : NativeIndex() {
           isForwardDeclaration = false,
           location = Location(headerId = HeaderId("usr/include/objc/NSObject.h"))
         )
-        myClass.methods.add(myMethod)
+        myClass.methods.add(doPureObjcFib)
+        myClass.methods.add(addTwoFloats)
     }
 
     override val structs: Collection<StructDecl>
@@ -163,7 +178,7 @@ class J2ObjCNativeIndex() : NativeIndex() {
     override val typedefs: Collection<TypedefDef>
         get() = emptyList<TypedefDef>()
     override val functions: Collection<FunctionDecl>
-        get() = listOf<FunctionDecl>(FunctionDecl(name="FOOBAR", parameters=listOf(),returnType = VoidType,binaryName = "FOOBARbinary", isDefined = false, isVararg = false))
+        get() = listOf<FunctionDecl>()
     override val macroConstants: Collection<ConstantDef>
         get() = emptyList<ConstantDef>()
     override val wrappedMacros: Collection<WrappedMacroDef>
