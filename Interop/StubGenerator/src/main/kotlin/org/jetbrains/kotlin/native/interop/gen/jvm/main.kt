@@ -262,12 +262,14 @@ private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments
 
     val imports = parseImports(allLibraryDependencies)
 
-    val nativeIndex: NativeIndex = if (language == Language.J2ObjC) J2ObjCNativeIndex() else buildNativeIndex(buildNativeLibrary(tool,def,cinteropArguments,imports), verbose).index
-    val compilation: CompilationWithPCH = if (language == Language.J2ObjC) CompilationWithPCH(emptyList<String>(), Language.J2ObjC) else buildNativeIndex(buildNativeLibrary(tool,def,cinteropArguments,imports), verbose).compilation
 
-//    val library = buildNativeLibrary(tool, def, cinteropArguments, imports)
-//
-//    val (nativeIndex, compilation) = buildNativeIndex(library, verbose)
+    val J2ObjCIndexerResult = IndexerResult(J2ObjCNativeIndex(), CompilationWithPCH(emptyList<String>(), Language.J2ObjC))
+
+    val index:IndexerResult = if (language == Language.J2ObjC) J2ObjCIndexerResult
+        else buildNativeIndex(buildNativeLibrary(tool,def,cinteropArguments,imports), verbose)
+
+    val nativeIndex: NativeIndex = index.index
+    val compilation: CompilationWithPCH = index.compilation
 
     // Our current approach to arm64_32 support is to compile armv7k version of bitcode
     // for arm64_32. That's the reason for this substitution.
