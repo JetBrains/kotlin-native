@@ -111,19 +111,19 @@ abstract class NativeIndex {
 class J2ObjCNativeIndex() : NativeIndex() {
 
     val myMethod = ObjCMethod(
-        selector = "DoPureObjcFib",
+        selector = "DoPureObjcFib:",
         encoding = "[encoding]",
         parameters = listOf<Parameter>(
           Parameter(
             name = "x",
             nsConsumed = false,
-            type = Typedef(TypedefDef(aliased = Typedef(TypedefDef(aliased = IntegerType(size = 4, isSigned = true, spelling = "int"), name = "int32_t", location = Location(headerId = HeaderId("usr/include/sys/_types/_int32_t.h")))), name = "jint", location = Location(headerId = HeaderId("[]"))))
+            //type = Typedef(TypedefDef(aliased = IntegerType(size=4, isSigned = true, spelling = "int"), name="int32_t",location = Location(headerId=HeaderId("usr/include/sys/_types/_int32_t.h"))))
+            //type = Typedef(TypedefDef(aliased = Typedef(TypedefDef(aliased = IntegerType(size = 4, isSigned = true, spelling = "int"), name = "int32_t", location = Location(headerId = HeaderId("usr/include/sys/_types/_int32_t.h")))), name = "jint", location = Location(headerId = HeaderId("[]"))))
             //type = Typedef(TypedefDef(aliased = IntegerType(size=4, isSigned=true, spelling="int"), name = "int32_t", location = Location(headerId = HeaderId("location/headerid"))))
-            //type = IntegerType(size=4, isSigned=true, spelling="int")
-            //Typedef(TypedefDef(aliased = TypeDef(TypedefDef(aliased = IntegerType(size = 4, isSigned = true, spelling = "int"), name = "int32_t", location = Location(headerId = HeaderId("usr/include/sys/_types/_int32_t.h")))), name = "jint", location = Location(headerId = HeaderId("[]"))))
+            type = IntegerType(size=4, isSigned=true, spelling="int")
           )
         ),
-        returnType = VoidType,
+        returnType = IntegerType(size = 4, isSigned = true, spelling = "int"),
         isVariadic = false,
         isClass = true,
         nsConsumesSelf = false,
@@ -141,6 +141,12 @@ class J2ObjCNativeIndex() : NativeIndex() {
     )
 
     init {
+        myClass.baseClass = ObjCClassImpl(
+          name = "NSObject",
+          binaryName = null,
+          isForwardDeclaration = false,
+          location = Location(headerId = HeaderId("usr/include/objc/NSObject.h"))
+        )
         myClass.methods.add(myMethod)
     }
 
