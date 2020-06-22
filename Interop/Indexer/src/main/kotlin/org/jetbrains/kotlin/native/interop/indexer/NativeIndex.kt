@@ -117,8 +117,10 @@ class J2ObjCNativeIndex() : NativeIndex() {
           Parameter(
             name = "x",
             nsConsumed = false,
-            type = Typedef(TypedefDef(aliased = IntegerType(size=4, isSigned=true, spelling="int"), name = "int32_t", location = Location(headerId = HeaderId("location/headerid"))))
+            type = Typedef(TypedefDef(aliased = Typedef(TypedefDef(aliased = IntegerType(size = 4, isSigned = true, spelling = "int"), name = "int32_t", location = Location(headerId = HeaderId("usr/include/sys/_types/_int32_t.h")))), name = "jint", location = Location(headerId = HeaderId("[]"))))
+            //type = Typedef(TypedefDef(aliased = IntegerType(size=4, isSigned=true, spelling="int"), name = "int32_t", location = Location(headerId = HeaderId("location/headerid"))))
             //type = IntegerType(size=4, isSigned=true, spelling="int")
+            //Typedef(TypedefDef(aliased = TypeDef(TypedefDef(aliased = IntegerType(size = 4, isSigned = true, spelling = "int"), name = "int32_t", location = Location(headerId = HeaderId("usr/include/sys/_types/_int32_t.h")))), name = "jint", location = Location(headerId = HeaderId("[]"))))
           )
         ),
         returnType = VoidType,

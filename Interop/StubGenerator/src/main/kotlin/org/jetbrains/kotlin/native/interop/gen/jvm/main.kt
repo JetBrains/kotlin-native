@@ -121,7 +121,7 @@ private fun selectNativeLanguage(config: DefFile.DefFileConfig): Language {
     val languages = mapOf(
             "C" to Language.C,
             "Objective-C" to Language.OBJECTIVE_C,
-            "j2objc" to Language.J2OBJ_C
+            "J2ObjC" to Language.J2ObjC
     )
 
     val language = config.language ?: return Language.C
@@ -262,8 +262,8 @@ private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments
 
     val imports = parseImports(allLibraryDependencies)
 
-    val nativeIndex: NativeIndex = if (language == Language.J2OBJ_C) j2objcNativeIndex() else buildNativeIndex(buildNativeLibrary(tool,def,cinteropArguments,imports), verbose).index
-    val compilation: CompilationWithPCH = if (language == Language.J2OBJ_C) CompilationWithPCH(emptyList<String>(), Language.J2OBJ_C) else buildNativeIndex(buildNativeLibrary(tool,def,cinteropArguments,imports), verbose).compilation
+    val nativeIndex: NativeIndex = if (language == Language.J2ObjC) J2ObjCNativeIndex() else buildNativeIndex(buildNativeLibrary(tool,def,cinteropArguments,imports), verbose).index
+    val compilation: CompilationWithPCH = if (language == Language.J2ObjC) CompilationWithPCH(emptyList<String>(), Language.J2ObjC) else buildNativeIndex(buildNativeLibrary(tool,def,cinteropArguments,imports), verbose).compilation
 
 //    val library = buildNativeLibrary(tool, def, cinteropArguments, imports)
 //
@@ -472,7 +472,7 @@ internal fun buildNativeLibrary(
                 // 2. The generated Objective-C stubs are compiled with ARC enabled, so reference counting
                 // calls are inserted automatically.
             }
-            Language.J2OBJ_C -> emptyList()
+            Language.J2ObjC -> emptyList()
         })
     }
 
