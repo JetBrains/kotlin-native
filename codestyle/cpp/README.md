@@ -2,6 +2,11 @@
 
 **TODO**: Expand beyond naming and formatting
 
+## Headers
+
+* Headers should live in the same folder with it's implementation counterpart (if there's one)
+* Headers should use header guards
+
 ## Naming
 
 * Types should use `PascalCase`
