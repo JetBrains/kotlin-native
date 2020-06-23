@@ -21,6 +21,6 @@ to follow stdlib naming conventions.
 
 ## Formatting
 
-For automated formatting you can use [config for CLion](codestyle/cpp/CLionFormat.xml) or `clang-format` (see [config](.clang-format) at the repo's root).
+For automated formatting you can use [config for CLion](codestyle/cpp/CLionFormat.xml) or `clang-format` (see [config](.clang-format) at the repo's root). Note, that CLion uses `clang-format` by default; this can be turned off if you prefer to use rules from `CLionFormat.xml`.
 
 Formatting rules are designed to closely mirror [Kotlin rules](https://kotlinlang.org/docs/reference/coding-conventions.html).
