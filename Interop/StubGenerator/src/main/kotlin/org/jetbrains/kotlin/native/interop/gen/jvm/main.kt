@@ -194,6 +194,8 @@ private fun findFilesByGlobs(roots: List<Path>, globs: List<String>): Map<Path, 
     return relativeToRoot
 }
 
+
+
 class ClassParser: ClassVisitor(262144) {
 
     var className:String = ""
@@ -226,17 +228,17 @@ class ClassParser: ClassVisitor(262144) {
                             descriptor: String?,
                             signature: String?,
                             value: Any?): FieldVisitor? {
-        System.out.println(" " + descriptor + " " + name);
+        println(" " + descriptor + " " + name);
         return null;
     }
     override fun visitMethod(access: Int, name: String,
                              desc: String, signature: String?, exceptions: Array<String>?): MethodVisitor? {
-        System.out.println(" " + name + desc);
+        println(" " + name + desc);
         classMethods.add(generateMethod(name, desc))
         return null
     }
     override fun visitEnd() {
-        System.out.println("}");
+        println("}");
     }
 
     fun buildClass(): ObjCClassImpl {
