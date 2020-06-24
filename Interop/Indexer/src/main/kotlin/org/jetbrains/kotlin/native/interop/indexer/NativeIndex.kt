@@ -108,69 +108,13 @@ abstract class NativeIndex {
     abstract val includedHeaders: Collection<HeaderId>
 }
 
-class J2ObjCNativeIndex() : NativeIndex() {
-    /*
-    For reference: ObjcFib.h
-    + (int)DoPureObjcFib:(int)x;
-    + (float)AddTwoDoubles:(float)x secondNum:(float)y;
-     */
-    val doPureObjcFib = ObjCMethod(
-        selector = "DoPureObjcFib:",
-        encoding = "[encoding]",
-        parameters = listOf<Parameter>(
-          Parameter(name = "x", nsConsumed = false, type = IntegerType(size=4, isSigned=true, spelling="int"))
-        ),
-        returnType = IntegerType(size = 4, isSigned = true, spelling = "int"),
-        isVariadic = false,
-        isClass = true,
-        nsConsumesSelf = false,
-        nsReturnsRetained = false,
-        isOptional = false,
-        isInit = false,
-        isExplicitlyDesignatedInitializer = false
-    )
-
-    val addTwoFloats = ObjCMethod(
-      selector = "AddTwoFloats:secondNum:",
-      encoding = "[encoding]",
-      parameters = listOf<Parameter>(
-        Parameter( name = "x", nsConsumed = false, type = FloatingType(size=4, spelling="float")),
-        Parameter( name = "secondNum", nsConsumed = false, type = FloatingType(size=4, spelling="float"))
-      ),
-      returnType =  FloatingType(size=4, spelling="float"),
-      isVariadic = false,
-      isClass = true,
-      nsConsumesSelf = false,
-      nsReturnsRetained = false,
-      isOptional = false,
-      isInit = false,
-      isExplicitlyDesignatedInitializer = false
-    )
-
-    val myClass = ObjCClassImpl(
-      name = "ObjcFib",
-      isForwardDeclaration = false,
-      binaryName = null,
-      location = Location(HeaderId("[locationHeaderId]"))
-    )
-
-    init {
-        myClass.baseClass = ObjCClassImpl(
-          name = "NSObject",
-          binaryName = null,
-          isForwardDeclaration = false,
-          location = Location(headerId = HeaderId("usr/include/objc/NSObject.h"))
-        )
-        myClass.methods.add(doPureObjcFib)
-        myClass.methods.add(addTwoFloats)
-    }
-
+class J2ObjCNativeIndex(val classes:Collection<ObjCClass>) : NativeIndex() {
     override val structs: Collection<StructDecl>
         get() = emptyList<StructDecl>()
     override val enums: Collection<EnumDef>
         get() = emptyList<EnumDef>()
     override val objCClasses: Collection<ObjCClass>
-        get() = listOf<ObjCClass>(myClass)
+        get() = classes
     override val objCProtocols: Collection<ObjCProtocol>
         get() = emptyList<ObjCProtocol>()
     override val objCCategories: Collection<ObjCCategory>
@@ -178,7 +122,7 @@ class J2ObjCNativeIndex() : NativeIndex() {
     override val typedefs: Collection<TypedefDef>
         get() = emptyList<TypedefDef>()
     override val functions: Collection<FunctionDecl>
-        get() = listOf<FunctionDecl>()
+        get() = emptyList<FunctionDecl>()
     override val macroConstants: Collection<ConstantDef>
         get() = emptyList<ConstantDef>()
     override val wrappedMacros: Collection<WrappedMacroDef>
@@ -187,7 +131,6 @@ class J2ObjCNativeIndex() : NativeIndex() {
         get() = emptyList<GlobalDecl>()
     override val includedHeaders: Collection<HeaderId>
         get() = emptyList<HeaderId>()
-
 }
 
 /**

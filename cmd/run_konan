@@ -78,5 +78,5 @@ TROVE_JAR="${KONAN_HOME}/konan/lib/trove4j.jar"
 KONAN_CLASSPATH="$KONAN_JAR:$TROVE_JAR"
 TOOL_CLASS=org.jetbrains.kotlin.cli.utilities.MainKt
 LIBCLANG_DISABLE_CRASH_RECOVERY=1 \
-$TIMECMD "$JAVACMD" "${java_opts[@]}" "${java_args[@]}" "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5006" -cp "$KONAN_CLASSPATH" "$TOOL_CLASS" "$TOOL_NAME" "${konan_args[@]}"
+$TIMECMD "$JAVACMD" "${java_opts[@]}" "${java_args[@]}" -cp "$KONAN_CLASSPATH" "$TOOL_CLASS" "$TOOL_NAME" "${konan_args[@]}"
 #"-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=5006" 

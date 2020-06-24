@@ -37,11 +37,13 @@ import org.jetbrains.kotlin.library.packageFqName
 import org.jetbrains.kotlin.library.resolver.impl.KotlinLibraryResolverImpl
 import org.jetbrains.kotlin.library.resolver.impl.libraryResolver
 import org.jetbrains.kotlin.library.toUnresolvedLibraries
+import org.jetbrains.kotlin.native.interop.indexer.Type
 import org.jetbrains.kotlin.util.removeSuffixIfPresent
 import java.io.File
 import java.lang.IllegalArgumentException
 import java.nio.file.*
 import java.util.*
+import org.jetbrains.org.objectweb.asm.*;
 
 data class InternalInteropOptions(val generated: String, val natives: String, val manifest: String? = null,
                                   val cstubsName: String? = null)
@@ -192,8 +194,137 @@ private fun findFilesByGlobs(roots: List<Path>, globs: List<String>): Map<Path, 
     return relativeToRoot
 }
 
+class ClassParser: ClassVisitor(262144) {
+
+    var className:String = ""
+    val classMethods = mutableListOf<ObjCMethod>()
+    override fun visit(version: Int,
+                       access: Int,
+                       name: String,
+                       signature: String?,
+                       superName: String?,
+                       interfaces: Array<out String>?) {
+        println(name + " extends " + superName + " {")
+        className = name
+    }
+    override fun visitSource(source: String?, debug: String?) {
+    }
+    override fun visitOuterClass(owner: String?, name: String?, descriptor: String?) {
+    }
+    override fun visitAnnotation(descriptor: String?, visible: Boolean): AnnotationVisitor? {
+        return null;
+    }
+    override fun visitAttribute(attribute: Attribute?) {
+    }
+    override fun visitInnerClass(name: String?,
+                                 outerName: String?,
+                                 innerName: String?,
+                                 access: Int) {
+    }
+    override fun visitField(access: Int,
+                            name: String?,
+                            descriptor: String?,
+                            signature: String?,
+                            value: Any?): FieldVisitor? {
+        System.out.println(" " + descriptor + " " + name);
+        return null;
+    }
+    override fun visitMethod(access: Int, name: String,
+                             desc: String, signature: String?, exceptions: Array<String>?): MethodVisitor? {
+        System.out.println(" " + name + desc);
+        classMethods.add(generateMethod(name, desc))
+        return null
+    }
+    override fun visitEnd() {
+        System.out.println("}");
+    }
+
+    fun buildClass(): ObjCClassImpl {
+        val generatedClass = ObjCClassImpl(
+          name = className,
+          isForwardDeclaration = false,
+          binaryName = null,
+          location = Location(HeaderId("[locationHeaderId]"))
+        )
+        generatedClass.methods.addAll(classMethods)
+        generatedClass.baseClass = ObjCClassImpl(
+          name = "NSObject",
+          binaryName = null,
+          isForwardDeclaration = false,
+          location = Location(headerId = HeaderId("usr/include/objc/NSObject.h"))
+        )
+        return generatedClass
+    }
+
+    fun parseMethodParameters(desc: String): List<Parameter>  {
+        val parameters = mutableListOf<Parameter>()
+        for (character in desc) {
+            if (character.equals('(')) {
+                continue
+            }
+            else if (character.equals('I')) {
+                parameters.add(Parameter(
+                  name = "x",
+                  nsConsumed = false,
+                  type = IntegerType(size = 4, spelling="int", isSigned = true)
+                ))
+            }
+            else if (character.equals('V')) {
+                parameters.add(Parameter(
+                  name = "x",
+                  nsConsumed = false,
+                  type = VoidType
+                ))
+            }
+            else if (character.equals(')')) {
+                break
+            }
+            else {
+                throw NotImplementedError("Haven't implemented this type yet")
+            }
+        }
+        return parameters
+    }
+
+    fun parseMethodReturnType(desc: String): Type  {
+        val typeChar = desc.takeLast(1)
+        if (typeChar.equals("I")) {
+            return IntegerType(size = 4, spelling = "int", isSigned = true)
+        }
+        else if (typeChar.equals("V")) {
+            return VoidType
+        }
+        else {
+            throw NotImplementedError("Haven't implemeneted this type yet")
+        }
+    }
+
+    fun generateMethod(name: String, desc: String): ObjCMethod {
+        return ObjCMethod(
+            selector = name + ":",
+            encoding = "[encoding]",
+            parameters = parseMethodParameters(desc),
+            returnType = parseMethodReturnType(desc),
+            isVariadic = false,
+            isClass = true,
+            nsConsumesSelf = false,
+            nsReturnsRetained = false,
+            isOptional = false,
+            isInit = false,
+            isExplicitlyDesignatedInitializer = false
+        )
+    }
+}
+
 private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments,
                         additionalArgs: InternalInteropOptions): Array<String>? {
+
+    val testfile = File("/Users/odowa/Code/example/Hello.class").readBytes()
+    val testReader = ClassReader(testfile)
+    val parser = ClassParser()
+    testReader.accept(parser, 0)
+
+
     val ktGenRoot = additionalArgs.generated
     val nativeLibsDir = additionalArgs.natives
     val flavor = KotlinPlatform.values().single { it.name.equals(flavorName, ignoreCase = true) }
@@ -262,8 +393,9 @@ private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments
 
     val imports = parseImports(allLibraryDependencies)
 
+    val myClass = parser.buildClass()
 
-    val J2ObjCIndexerResult = IndexerResult(J2ObjCNativeIndex(), CompilationWithPCH(emptyList<String>(), Language.J2ObjC))
+    val J2ObjCIndexerResult = IndexerResult(J2ObjCNativeIndex(listOf<ObjCClass>(myClass)), CompilationWithPCH(emptyList<String>(), Language.J2ObjC))
 
     val index:IndexerResult = if (language == Language.J2ObjC) J2ObjCIndexerResult
         else buildNativeIndex(buildNativeLibrary(tool,def,cinteropArguments,imports), verbose)
