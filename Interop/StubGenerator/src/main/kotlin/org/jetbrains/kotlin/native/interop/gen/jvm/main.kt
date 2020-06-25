@@ -194,8 +194,6 @@ private fun findFilesByGlobs(roots: List<Path>, globs: List<String>): Map<Path, 
     return relativeToRoot
 }
 
-
-
 class ClassParser: ClassVisitor(262144) {
 
     var className:String = ""
@@ -297,7 +295,7 @@ class ClassParser: ClassVisitor(262144) {
             return VoidType
         }
         else {
-            throw NotImplementedError("Haven't implemeneted this type yet")
+            throw NotImplementedError("Haven't implemented this type yet")
         }
     }
 
@@ -320,12 +318,10 @@ class ClassParser: ClassVisitor(262144) {
 
 private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments,
                         additionalArgs: InternalInteropOptions): Array<String>? {
-
     val testfile = File("/Users/odowa/Code/example/Hello.class").readBytes()
-    val testReader = ClassReader(testfile)
+    val classReader = ClassReader(testfile)
     val parser = ClassParser()
-    testReader.accept(parser, 0)
-
+    classReader.accept(parser, 0)
 
     val ktGenRoot = additionalArgs.generated
     val nativeLibsDir = additionalArgs.natives
@@ -395,11 +391,11 @@ private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments
 
     val imports = parseImports(allLibraryDependencies)
 
-    val myClass = parser.buildClass()
+    val j2objcClasses = parser.buildClass()
 
-    val J2ObjCIndexerResult = IndexerResult(J2ObjCNativeIndex(listOf<ObjCClass>(myClass)), CompilationWithPCH(emptyList<String>(), Language.J2ObjC))
+    val j2objcIndexerResult = IndexerResult(J2ObjCNativeIndex(listOf<ObjCClass>(j2objcClasses)), CompilationWithPCH(emptyList<String>(), Language.J2ObjC))
 
-    val index:IndexerResult = if (language == Language.J2ObjC) J2ObjCIndexerResult
+    val index:IndexerResult = if (language == Language.J2ObjC) j2objcIndexerResult
         else buildNativeIndex(buildNativeLibrary(tool,def,cinteropArguments,imports), verbose)
 
     val nativeIndex: NativeIndex = index.index
