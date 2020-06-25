@@ -34,6 +34,7 @@ Formatting rules are designed to closely mirror [Kotlin rules](https://kotlinlan
 * Do not indent namespaces
 * Visibility modifiers are placed without indentation
 * All operators should be wrapped with a space or a line break
-* In pointer and reference definitions `*` and `&` should be placed on a variable instead of a type
+* In pointer and reference definitions `*` and `&` should be placed on a type instead of a variable
+* In pointer to functions prefer not to use `*` at all.
 * Only 1 consecutive empty line is allowed and it shouldn't contain spaces
 * Add a space between `template` and `<`

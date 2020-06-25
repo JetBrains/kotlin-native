@@ -139,8 +139,8 @@ ObjCBlockIndentWidth: 4
 ObjCSpaceAfterProperty: false
 # Kt https://kotlinlang.org/docs/reference/coding-conventions.html#horizontal-whitespace
 ObjCSpaceBeforeProtocolList: false
-# Kt N/A. Unfortunately, Left is incompatible with CLion's idea of left when it concerns pointer to function types.
-PointerAlignment: Right
+# Kt N/A.
+PointerAlignment: Left
 # Kt U. Reflow comments to fit into line width
 ReflowComments: true
 # Kt U. IDEA does not sort by default, but allows this option. Do not touch.
