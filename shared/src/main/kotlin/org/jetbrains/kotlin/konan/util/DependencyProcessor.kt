@@ -266,7 +266,10 @@ class DependencyProcessor(dependenciesRoot: File,
     fun run() {
         // We need a lock that can be shared between different classloaders (KT-39781).
         // TODO: Rework dependencies downloading to avoid storing the lock in the system properties.
-        val lock = System.getProperties().computeIfAbsent("kotlin.native.dependencies.lock") { "lock" }
+        val lock = System.getProperties().computeIfAbsent("kotlin.native.dependencies.lock") {
+            // String literals are internalized so we create a new instance to avoid synchronization on a shared object.
+            java.lang.String("lock")
+        }
         synchronized(lock) {
             RandomAccessFile(lockFile, "rw").channel.lock().use {
                 resolvedDependencies.forEach { (dependency, candidate) ->
