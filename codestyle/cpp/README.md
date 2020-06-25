@@ -29,3 +29,11 @@ to follow stdlib naming conventions.
 For automated formatting you can use [config for CLion](codestyle/cpp/CLionFormat.xml) or `clang-format` (see [config](.clang-format) at the repo's root). Note, that CLion uses `clang-format` by default; this can be turned off if you prefer to use rules from `CLionFormat.xml`.
 
 Formatting rules are designed to closely mirror [Kotlin rules](https://kotlinlang.org/docs/reference/coding-conventions.html).
+
+* Use spaces instead of tabs. Indentation width is 4 spaces. Continuation width is 8 spaces
+* Do not indent namespaces
+* Visibility modifiers are placed without indentation
+* All operators should be wrapped with a space or a line break
+* In pointer and reference definitions `*` and `&` should be placed on a variable instead of a type
+* Only 1 consecutive empty line is allowed and it shouldn't contain spaces
+* Add a space between `template` and `<`

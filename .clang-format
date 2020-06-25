@@ -1,3 +1,4 @@
+# Also see codestyle/cpp/README.md
 # For documentation on options see: https://releases.llvm.org/8.0.0/tools/clang/docs/ClangFormatStyleOptions.html
 # "Kt N/A" means that this C/C++/ObjC construct have no corresponding Kotlin construct to refer to
 # "Kt U" means that formatting is unspecified in Kotlin formatting guide
