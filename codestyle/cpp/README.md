@@ -21,7 +21,7 @@
 * namespaces should use `snake_case`
 * `enum` and `enum class` members should use `kPascalCase`
 
-If API is designed to mimic C++ stdlib (e.g. stubbing `<atomic>` for platforms that do not support it), it's allowed
+If API is designed to mimic C++ stdlib (e.g. stubbing `<atomic>` for platforms that do not support it), its allowed
 to follow stdlib naming conventions.
 
 ## Formatting
