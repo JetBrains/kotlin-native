@@ -215,7 +215,7 @@ class J2ObjCParser(val classNode: ClassNode) {
           name = classNode.name,
           isForwardDeclaration = false,
           binaryName = null,
-          location = Location(HeaderId("[locationHeaderId]"))
+          location = Location(HeaderId("")) // Leaving headerId empty for now
         )
         generatedClass.methods.addAll(buildClassMethods())
         generatedClass.baseClass = ObjCClassImpl(
