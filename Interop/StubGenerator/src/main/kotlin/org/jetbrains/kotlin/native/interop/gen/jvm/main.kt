@@ -43,7 +43,11 @@ import java.io.File
 import java.lang.IllegalArgumentException
 import java.nio.file.*
 import java.util.*
-import org.jetbrains.org.objectweb.asm.*;
+import org.jetbrains.org.objectweb.asm.*
+import org.jetbrains.org.objectweb.asm.Type.getArgumentTypes
+import org.jetbrains.org.objectweb.asm.Type.getReturnType
+import org.jetbrains.org.objectweb.asm.tree.ClassNode
+import org.jetbrains.org.objectweb.asm.tree.MethodNode
 
 data class InternalInteropOptions(val generated: String, val natives: String, val manifest: String? = null,
                                   val cstubsName: String? = null)
@@ -194,59 +198,15 @@ private fun findFilesByGlobs(roots: List<Path>, globs: List<String>): Map<Path, 
     return relativeToRoot
 }
 
-class ClassParser: ClassVisitor(262144) {
-
-    var className:String = ""
-    val classMethods = mutableListOf<ObjCMethod>()
-    override fun visit(version: Int,
-                       access: Int,
-                       name: String,
-                       signature: String?,
-                       superName: String?,
-                       interfaces: Array<out String>?) {
-        println(name + " extends " + superName + " {")
-        className = name
-    }
-    override fun visitSource(source: String?, debug: String?) {
-    }
-    override fun visitOuterClass(owner: String?, name: String?, descriptor: String?) {
-    }
-    override fun visitAnnotation(descriptor: String?, visible: Boolean): AnnotationVisitor? {
-        return null;
-    }
-    override fun visitAttribute(attribute: Attribute?) {
-    }
-    override fun visitInnerClass(name: String?,
-                                 outerName: String?,
-                                 innerName: String?,
-                                 access: Int) {
-    }
-    override fun visitField(access: Int,
-                            name: String?,
-                            descriptor: String?,
-                            signature: String?,
-                            value: Any?): FieldVisitor? {
-        println(" " + descriptor + " " + name);
-        return null;
-    }
-    override fun visitMethod(access: Int, name: String,
-                             desc: String, signature: String?, exceptions: Array<String>?): MethodVisitor? {
-        println(" " + name + desc);
-        classMethods.add(generateMethod(name, desc))
-        return null
-    }
-    override fun visitEnd() {
-        println("}");
-    }
-
+class parser(val classNode: ClassNode) {
     fun buildClass(): ObjCClassImpl {
         val generatedClass = ObjCClassImpl(
-          name = className,
+          name = classNode.name,
           isForwardDeclaration = false,
           binaryName = null,
           location = Location(HeaderId("[locationHeaderId]"))
         )
-        generatedClass.methods.addAll(classMethods)
+        generatedClass.methods.addAll(buildClassMethods())
         generatedClass.baseClass = ObjCClassImpl(
           name = "NSObject",
           binaryName = null,
@@ -255,73 +215,62 @@ class ClassParser: ClassVisitor(262144) {
         )
         return generatedClass
     }
-
-    fun parseMethodParameters(desc: String): List<Parameter>  {
-        val parameters = mutableListOf<Parameter>()
-        for (character in desc) {
-            if (character.equals('(')) {
-                continue
-            }
-            else if (character.equals('I')) {
-                parameters.add(Parameter(
-                  name = "x",
-                  nsConsumed = false,
-                  type = IntegerType(size = 4, spelling="int", isSigned = true)
-                ))
-            }
-            else if (character.equals('V')) {
-                parameters.add(Parameter(
-                  name = "x",
-                  nsConsumed = false,
-                  type = VoidType
-                ))
-            }
-            else if (character.equals(')')) {
-                break
-            }
-            else {
-                throw NotImplementedError("Haven't implemented this type yet")
-            }
+    fun buildClassMethods(): MutableList<ObjCMethod> {
+        val methods = mutableListOf<ObjCMethod>()
+        for (method in classNode.methods) {
+            val generatedMethod = ObjCMethod(
+              selector = method.name + ":",
+              encoding = "", //TODO: Implement encoding properly
+              parameters = parseMethodParameters(method),
+              returnType = parseMethodReturnType(method),
+              isVariadic = false,
+              isClass = true,
+              nsConsumesSelf = false,
+              nsReturnsRetained = false,
+              isOptional = false,
+              isInit = false,
+              isExplicitlyDesignatedInitializer = false
+            )
+            methods.add(generatedMethod)
+            parseMethodParameters(method)
         }
-        return parameters
+        return methods
     }
+    fun parseMethodParameters(method: MethodNode): List<Parameter> {
+        val methodParameters = mutableListOf<Parameter>()
+        val parameterTypes = getArgumentTypes(method.desc)
 
-    fun parseMethodReturnType(desc: String): Type  {
-        val typeChar = desc.takeLast(1)
-        if (typeChar.equals("I")) {
-            return IntegerType(size = 4, spelling = "int", isSigned = true)
+        for (i in 0 until parameterTypes.size) {
+            when (parameterTypes.get(i).className) {
+                "int" -> methodParameters.add(Parameter(name = method.parameters.get(i).name, type = IntegerType(size = 4, spelling = "int", isSigned = true), nsConsumed = false))
+                else -> {
+                    throw NotImplementedError("Have not implemented this type yet: " + parameterTypes.get(i).className)
+                }
+            }
         }
-        else if (typeChar.equals("V")) {
-            return VoidType
-        }
-        else {
-            throw NotImplementedError("Haven't implemented this type yet")
-        }
+        return methodParameters
     }
+    fun parseMethodReturnType(method: MethodNode): Type {
+        val returnType = getReturnType(method.desc)
 
-    fun generateMethod(name: String, desc: String): ObjCMethod {
-        return ObjCMethod(
-            selector = name + ":",
-            encoding = "[encoding]",
-            parameters = parseMethodParameters(desc),
-            returnType = parseMethodReturnType(desc),
-            isVariadic = false,
-            isClass = true,
-            nsConsumesSelf = false,
-            nsReturnsRetained = false,
-            isOptional = false,
-            isInit = false,
-            isExplicitlyDesignatedInitializer = false
-        )
+        when (returnType.className) {
+            "int" -> return IntegerType(size = 4, spelling = "int", isSigned = true)
+            "void" -> return VoidType
+            else -> {
+                throw NotImplementedError("Have not implemented this type yet: " + returnType.className)
+            }
+        }
     }
 }
 
 private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments,
                         additionalArgs: InternalInteropOptions): Array<String>? {
+
     val testfile = File("/Users/odowa/Code/example/Hello.class").readBytes()
     val classReader = ClassReader(testfile)
-    val parser = ClassParser()
-    classReader.accept(parser, 0)
+    val classNode = ClassNode()
+    classReader.accept(classNode, 0)
+
 
     val ktGenRoot = additionalArgs.generated
     val nativeLibsDir = additionalArgs.natives
@@ -391,7 +340,8 @@ private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments
 
     val imports = parseImports(allLibraryDependencies)
 
-    val j2objcClasses = parser.buildClass()
+    val j2objcParser = parser(classNode)
+    val j2objcClasses = j2objcParser.buildClass()
 
     val j2objcIndexerResult = IndexerResult(J2ObjCNativeIndex(listOf<ObjCClass>(j2objcClasses)), CompilationWithPCH(emptyList<String>(), Language.J2ObjC))
 
