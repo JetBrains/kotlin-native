@@ -198,7 +198,18 @@ private fun findFilesByGlobs(roots: List<Path>, globs: List<String>): Map<Path, 
     return relativeToRoot
 }
 
-class parser(val classNode: ClassNode) {
+/**
+ *  Parses a ASM ClassNode and builds an ObjCClass
+ *
+ *  @param classNode A ASM classNode
+ */
+class J2ObjCParser(val classNode: ClassNode) {
+
+    /**
+     * Builds and returns an ObjCClass implementation with associated methods
+     *
+     * @return A generated ObjCClass implementation
+     */
     fun buildClass(): ObjCClassImpl {
         val generatedClass = ObjCClassImpl(
           name = classNode.name,
@@ -215,6 +226,12 @@ class parser(val classNode: ClassNode) {
         )
         return generatedClass
     }
+
+    /**
+     * Parses ASM methods and builds a list of ObjCMethods
+     *
+     * @return A list of ObjCMethods
+     */
     fun buildClassMethods(): MutableList<ObjCMethod> {
         val methods = mutableListOf<ObjCMethod>()
         for (method in classNode.methods) {
@@ -236,6 +253,14 @@ class parser(val classNode: ClassNode) {
         }
         return methods
     }
+
+    /**
+     * Parses an ASM method's parameters and returns a list of Kotlin parameters
+     *
+     * @param method ASM MethodNode
+     * @return A list of Kotlin parameters with associated types/names
+     */
+
     fun parseMethodParameters(method: MethodNode): List<Parameter> {
         val methodParameters = mutableListOf<Parameter>()
         val parameterTypes = getArgumentTypes(method.desc)
@@ -250,6 +275,13 @@ class parser(val classNode: ClassNode) {
         }
         return methodParameters
     }
+
+    /**
+     * Parses an ASM method's return type and returns a Kotlin type
+     *
+     * @param method ASM MethodNode
+     * @return Type corresponding to method's return type
+     */
     fun parseMethodReturnType(method: MethodNode): Type {
         val returnType = getReturnType(method.desc)
 
@@ -340,7 +372,7 @@ private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments
 
     val imports = parseImports(allLibraryDependencies)
 
-    val j2objcParser = parser(classNode)
+    val j2objcParser = J2ObjCParser(classNode)
     val j2objcClasses = j2objcParser.buildClass()
 
     val j2objcIndexerResult = IndexerResult(J2ObjCNativeIndex(listOf<ObjCClass>(j2objcClasses)), CompilationWithPCH(emptyList<String>(), Language.J2ObjC))
