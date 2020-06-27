@@ -33,6 +33,7 @@ class IntrinsicType {
         const val UNSIGNED_COMPARE_TO   = "UNSIGNED_COMPARE_TO"
         const val NOT                   = "NOT"
         const val REINTERPRET           = "REINTERPRET"
+        const val INSTANCE_OF           = "INSTANCE_OF"
         const val EXTRACT_ELEMENT       = "EXTRACT_ELEMENT"
         const val ARE_EQUAL_BY_VALUE    = "ARE_EQUAL_BY_VALUE"
         const val IEEE_754_EQUALS       = "IEEE_754_EQUALS"
@@ -43,6 +44,7 @@ class IntrinsicType {
         const val OBJC_GET_OBJC_CLASS           = "OBJC_GET_OBJC_CLASS"
         const val OBJC_CREATE_SUPER_STRUCT      = "OBJC_CREATE_SUPER_STRUCT"
         const val OBJC_INIT_BY                  = "OBJC_INIT_BY"
+        const val OBJC_INSTANCE_OF              = "OBJC_INSTANCE_OF"
         const val OBJC_GET_SELECTOR             = "OBJC_GET_SELECTOR"
 
         // Other

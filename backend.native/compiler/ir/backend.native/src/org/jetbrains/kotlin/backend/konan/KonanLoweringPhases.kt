@@ -311,13 +311,6 @@ internal val coroutinesPhase = makeKonanFileLoweringPhase(
         prerequisite = setOf(localFunctionsPhase, finallyBlocksPhase, kotlinNothingValueExceptionPhase)
 )
 
-internal val typeOperatorPhase = makeKonanFileLoweringPhase(
-        ::TypeOperatorLowering,
-        name = "TypeOperators",
-        description = "Type operators lowering",
-        prerequisite = setOf(coroutinesPhase)
-)
-
 internal val bridgesPhase = makeKonanFileOpPhase(
         { context, irFile ->
             BridgesBuilding(context).runOnFilePostfix(irFile)
@@ -326,6 +319,13 @@ internal val bridgesPhase = makeKonanFileOpPhase(
         name = "Bridges",
         description = "Bridges building",
         prerequisite = setOf(coroutinesPhase)
+)
+
+internal val typeOperatorPhase = makeKonanFileLoweringPhase(
+        ::TypeOperatorLowering,
+        name = "TypeOperators",
+        description = "Type operators lowering",
+        prerequisite = setOf(coroutinesPhase, bridgesPhase)
 )
 
 internal val autoboxPhase = makeKonanFileLoweringPhase(

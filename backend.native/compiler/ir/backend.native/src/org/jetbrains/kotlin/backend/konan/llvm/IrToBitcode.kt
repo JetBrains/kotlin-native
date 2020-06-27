@@ -1092,17 +1092,17 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 if (catch.parameter.type == context.builtIns.throwable.defaultType) {
                     genCatchBlock()
                     return      // Remaining catch clauses are unreachable.
-                } else {
+                } else with(functionGenerationContext) {
                     val isInstance = genInstanceOf(exception, catch.catchParameter.type.getClass()!!)
-                    val body = functionGenerationContext.basicBlock("catch", catch.startLocation)
-                    val nextCheck = functionGenerationContext.basicBlock("catchCheck", catch.endLocation)
-                    functionGenerationContext.condBr(isInstance, body, nextCheck)
+                    val body = basicBlock("catch", catch.startLocation)
+                    val nextCheck = basicBlock("catchCheck", catch.endLocation)
+                    condBr(isInstance, body, nextCheck)
 
-                    functionGenerationContext.appendingTo(body) {
+                    appendingTo(body) {
                         genCatchBlock()
                     }
 
-                    functionGenerationContext.positionAtEnd(nextCheck)
+                    positionAtEnd(nextCheck)
                 }
             }
             // rethrow the exception if no clause can handle it.
@@ -1322,23 +1322,25 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     //-------------------------------------------------------------------------//
 
-    private fun evaluateTypeOperator(value: IrTypeOperatorCall): LLVMValueRef {
-        return when (value.operator) {
-            IrTypeOperator.CAST                      -> evaluateCast(value)
-            IrTypeOperator.IMPLICIT_INTEGER_COERCION -> evaluateIntegerCoercion(value)
-            IrTypeOperator.IMPLICIT_CAST             -> evaluateExpression(value.argument)
-            IrTypeOperator.IMPLICIT_NOTNULL          -> TODO(ir2string(value))
-            IrTypeOperator.IMPLICIT_COERCION_TO_UNIT -> {
-                evaluateExpression(value.argument)
-                functionGenerationContext.theUnitInstanceRef.llvm
-            }
-            IrTypeOperator.SAFE_CAST                 -> throw IllegalStateException("safe cast wasn't lowered")
-            IrTypeOperator.INSTANCEOF                -> evaluateInstanceOf(value)
-            IrTypeOperator.NOT_INSTANCEOF            -> evaluateNotInstanceOf(value)
-            IrTypeOperator.SAM_CONVERSION            -> TODO(ir2string(value))
-            IrTypeOperator.IMPLICIT_DYNAMIC_CAST     -> TODO(ir2string(value))
-            IrTypeOperator.REINTERPRET_CAST          -> TODO(ir2string(value))
+    private fun evaluateTypeOperator(value: IrTypeOperatorCall) = when (value.operator) {
+        IrTypeOperator.IMPLICIT_INTEGER_COERCION -> evaluateIntegerCoercion(value)
+        IrTypeOperator.IMPLICIT_CAST             -> evaluateExpression(value.argument)
+        IrTypeOperator.IMPLICIT_COERCION_TO_UNIT -> {
+            evaluateExpression(value.argument)
+            functionGenerationContext.theUnitInstanceRef.llvm
         }
+
+        IrTypeOperator.CAST,
+        IrTypeOperator.SAFE_CAST,
+        IrTypeOperator.INSTANCEOF,
+        IrTypeOperator.NOT_INSTANCEOF ->
+            error("Should've been lowered: ${value.dump()} ${functionGenerationContext.irFunction?.render()}")
+
+        IrTypeOperator.IMPLICIT_NOTNULL,
+        IrTypeOperator.SAM_CONVERSION,
+        IrTypeOperator.IMPLICIT_DYNAMIC_CAST,
+        IrTypeOperator.REINTERPRET_CAST ->
+            TODO(ir2string(value))
     }
 
     //-------------------------------------------------------------------------//
@@ -1384,161 +1386,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     //    long    | trunc    trunc   trunc     x      sitofp    sitofp
     //    float   | fptosi   fptosi  fptosi  fptosi      x      fpext
     //    double  | fptosi   fptosi  fptosi  fptosi   fptrunc      x
-
-    private fun evaluateCast(value: IrTypeOperatorCall): LLVMValueRef {
-        context.log{"evaluateCast                   : ${ir2string(value)}"}
-        val dstClass = value.typeOperand.getClass()!!
-
-        val srcArg = evaluateExpression(value.argument)
-        assert(srcArg.type == codegen.kObjHeaderPtr)
-
-        with(functionGenerationContext) {
-            ifThen(not(genInstanceOf(srcArg, dstClass))) {
-                if (dstClass.defaultType.isObjCObjectType()) {
-                    callDirect(
-                            context.ir.symbols.ThrowTypeCastException.owner,
-                            emptyList(),
-                            Lifetime.GLOBAL
-                    )
-                } else {
-                    val dstTypeInfo = functionGenerationContext.bitcast(kInt8Ptr, codegen.typeInfoValue(dstClass))
-                    callDirect(
-                            context.ir.symbols.throwClassCastException.owner,
-                            listOf(srcArg, dstTypeInfo),
-                            Lifetime.GLOBAL
-                    )
-                }
-            }
-        }
-        return srcArg
-    }
-
-    //-------------------------------------------------------------------------//
-
-    private fun evaluateInstanceOf(value: IrTypeOperatorCall): LLVMValueRef {
-        context.log{"evaluateInstanceOf             : ${ir2string(value)}"}
-
-        val type     = value.typeOperand
-        val srcArg   = evaluateExpression(value.argument)     // Evaluate src expression.
-
-        val bbExit       = functionGenerationContext.basicBlock("instance_of_exit", value.startLocation)
-        val bbInstanceOf = functionGenerationContext.basicBlock("instance_of_notnull", value.startLocation)
-        val bbNull       = functionGenerationContext.basicBlock("instance_of_null", value.startLocation)
-
-        val condition = functionGenerationContext.icmpEq(srcArg, codegen.kNullObjHeaderPtr)
-        functionGenerationContext.condBr(condition, bbNull, bbInstanceOf)
-
-        functionGenerationContext.positionAtEnd(bbNull)
-        val resultNull = if (type.containsNull()) kTrue else kFalse
-        functionGenerationContext.br(bbExit)
-
-        functionGenerationContext.positionAtEnd(bbInstanceOf)
-        val typeOperandClass = value.typeOperand.getClass()
-        val resultInstanceOf = if (typeOperandClass != null) {
-            genInstanceOf(srcArg, typeOperandClass)
-        } else {
-            // E.g. when generating type operation with reified type parameter in the original body of inline function.
-            kTrue
-            // TODO: this code should be unreachable, however [BridgesBuilding] generates IR with such type checks.
-        }
-        functionGenerationContext.br(bbExit)
-        val bbInstanceOfResult = functionGenerationContext.currentBlock
-
-        functionGenerationContext.positionAtEnd(bbExit)
-        val result = functionGenerationContext.phi(kBoolean)
-        functionGenerationContext.addPhiIncoming(result, bbNull to resultNull, bbInstanceOfResult to resultInstanceOf)
-        return result
-    }
-
-    //-------------------------------------------------------------------------//
-
-    private fun genInstanceOf(obj: LLVMValueRef, dstClass: IrClass): LLVMValueRef {
-        if (dstClass.defaultType.isObjCObjectType()) {
-            return genInstanceOfObjC(obj, dstClass)
-        }
-
-        val srcObjInfoPtr = functionGenerationContext.bitcast(codegen.kObjHeaderPtr, obj)
-
-        return if (!context.ghaEnabled()) {
-            call(context.llvm.isInstanceFunction, listOf(srcObjInfoPtr, codegen.typeInfoValue(dstClass)))
-        } else {
-            val dstHierarchyInfo = context.getLayoutBuilder(dstClass).hierarchyInfo
-            if (!dstClass.isInterface) {
-                call(context.llvm.isInstanceOfClassFastFunction,
-                        listOf(srcObjInfoPtr, Int32(dstHierarchyInfo.classIdLo).llvm, Int32(dstHierarchyInfo.classIdHi).llvm))
-            } else {
-                // Essentially: typeInfo.itable[place(interfaceId)].id == interfaceId
-                val interfaceId = dstHierarchyInfo.interfaceId
-                val typeInfo = functionGenerationContext.loadTypeInfo(srcObjInfoPtr)
-                with(functionGenerationContext) {
-                    val interfaceTableRecord = lookupInterfaceTableRecord(typeInfo, interfaceId)
-                    icmpEq(load(structGep(interfaceTableRecord, 0 /* id */)), Int32(interfaceId).llvm)
-                }
-            }
-        }
-    }
-
-    private fun genInstanceOfObjC(obj: LLVMValueRef, dstClass: IrClass): LLVMValueRef {
-        val objCObject = callDirect(
-                context.ir.symbols.interopObjCObjectRawValueGetter.owner,
-                listOf(obj),
-                Lifetime.IRRELEVANT
-        )
-
-        return if (dstClass.isObjCClass()) {
-            if (dstClass.isInterface) {
-                val isMeta = if (dstClass.isObjCMetaClass()) kTrue else kFalse
-                call(
-                        context.llvm.Kotlin_Interop_DoesObjectConformToProtocol,
-                        listOf(
-                                objCObject,
-                                genGetObjCProtocol(dstClass),
-                                isMeta
-                        )
-                )
-            } else {
-                call(
-                        context.llvm.Kotlin_Interop_IsObjectKindOfClass,
-                        listOf(objCObject, genGetObjCClass(dstClass))
-                )
-            }.let {
-                functionGenerationContext.icmpNe(it, kFalse)
-            }
-
-
-        } else {
-            // e.g. ObjCObject, ObjCObjectBase etc.
-            if (dstClass.isObjCMetaClass()) {
-                val isClass = context.llvm.externalFunction(
-                        "object_isClass",
-                        functionType(int8Type, false, int8TypePtr),
-                        context.standardLlvmSymbolsOrigin
-                )
-
-                call(isClass, listOf(objCObject)).let {
-                    functionGenerationContext.icmpNe(it, Int8(0).llvm)
-                }
-            } else if (dstClass.isObjCProtocolClass()) {
-                // Note: it is not clear whether this class should be looked up this way.
-                // clang does the same, however swiftc uses dynamic lookup.
-                val protocolClass =
-                        functionGenerationContext.getObjCClass("Protocol", context.standardLlvmSymbolsOrigin)
-                call(
-                        context.llvm.Kotlin_Interop_IsObjectKindOfClass,
-                        listOf(objCObject, protocolClass)
-                )
-            } else {
-                kTrue
-            }
-        }
-    }
-
-    //-------------------------------------------------------------------------//
-
-    private fun evaluateNotInstanceOf(value: IrTypeOperatorCall): LLVMValueRef {
-        val instanceOfResult = evaluateInstanceOf(value)
-        return functionGenerationContext.not(instanceOfResult)
-    }
 
     //-------------------------------------------------------------------------//
 
@@ -2150,28 +1997,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                     listOf(thisValue) + args, Lifetime.IRRELEVANT /* constructor doesn't return anything */)
             thisValue
         }
-    }
-
-    private fun genGetObjCClass(irClass: IrClass): LLVMValueRef {
-        return functionGenerationContext.getObjCClass(irClass, currentCodeContext.exceptionHandler)
-    }
-
-    private fun genGetObjCProtocol(irClass: IrClass): LLVMValueRef {
-        // Note: this function will return the same result for Obj-C protocol and corresponding meta-class.
-
-        assert(irClass.isInterface)
-        assert(irClass.isExternalObjCClass())
-
-        val annotation = irClass.annotations.findAnnotation(externalObjCClassFqName)!!
-        val protocolGetterName = annotation.getAnnotationStringValue("protocolGetter")
-        val protocolGetter = context.llvm.externalFunction(
-                protocolGetterName,
-                functionType(int8TypePtr, false),
-                irClass.llvmSymbolOrigin,
-                independent = true // Protocol is header-only declaration.
-        )
-
-        return call(protocolGetter, emptyList())
     }
 
     //-------------------------------------------------------------------------//

@@ -115,6 +115,8 @@ internal class KonanSymbols(
     val filterExceptions = topLevelClass(RuntimeNames.filterExceptions)
     val exportForCppRuntime = topLevelClass(RuntimeNames.exportForCppRuntime)
 
+    val instanceOf = internalFunction("instanceOf")
+
     val objCMethodImp = symbolTable.referenceClass(context.interopBuiltIns.objCMethodImp)
 
     val onUnhandledException = internalFunction("OnUnhandledException")
@@ -169,6 +171,8 @@ internal class KonanSymbols(
             symbolTable.referenceSimpleFunction(context.interopBuiltIns.objCObjectSuperInitCheck)
 
     val interopObjCObjectInitBy = symbolTable.referenceSimpleFunction(context.interopBuiltIns.objCObjectInitBy)
+
+    val interopObjCInstanceOf = symbolTable.referenceSimpleFunction(context.interopBuiltIns.objCInstanceOf)
 
     val interopObjCObjectRawValueGetter =
             symbolTable.referenceSimpleFunction(context.interopBuiltIns.objCObjectRawPtr)

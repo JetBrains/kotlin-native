@@ -87,3 +87,6 @@ private external fun getRelativeName(typeInfo: NativePtr): String?
 
 @SymbolName("Kotlin_TypeInfo_isInstance")
 private external fun isInstance(obj: Any, typeInfo: NativePtr): Boolean
+
+@TypedIntrinsic(IntrinsicType.INSTANCE_OF)
+internal external inline fun <reified T : Any> instanceOf(obj: Any): Boolean

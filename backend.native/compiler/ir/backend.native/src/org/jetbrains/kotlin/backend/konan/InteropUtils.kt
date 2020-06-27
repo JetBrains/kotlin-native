@@ -99,6 +99,7 @@ internal class InteropBuiltIns(builtIns: KonanBuiltIns) {
 
     val objCObjectSuperInitCheck = packageScope.getContributedFunctions("superInitCheck").single()
     val objCObjectInitBy = packageScope.getContributedFunctions("initBy").single()
+    val objCInstanceOf = packageScope.getContributedFunctions("objCInstanceOf").single()
 
     val objCAction = packageScope.getContributedClass("ObjCAction")
 

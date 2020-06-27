@@ -2,9 +2,11 @@ package org.jetbrains.kotlin.backend.konan.llvm
 
 import kotlinx.cinterop.cValuesOf
 import llvm.*
-import org.jetbrains.kotlin.backend.konan.RuntimeNames
+import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.descriptors.getAnnotationStringValue
 import org.jetbrains.kotlin.backend.konan.descriptors.isTypedIntrinsic
+import org.jetbrains.kotlin.backend.konan.ir.isObjCObjectType
+import org.jetbrains.kotlin.backend.konan.ir.llvmSymbolOrigin
 import org.jetbrains.kotlin.backend.konan.llvm.objc.genObjCSelector
 import org.jetbrains.kotlin.backend.konan.reportCompilationError
 import org.jetbrains.kotlin.ir.IrElement
@@ -12,9 +14,7 @@ import org.jetbrains.kotlin.ir.declarations.IrClass
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.expressions.*
 import org.jetbrains.kotlin.ir.types.getClass
-import org.jetbrains.kotlin.ir.util.dump
-import org.jetbrains.kotlin.ir.util.findAnnotation
-import org.jetbrains.kotlin.ir.util.isSuspend
+import org.jetbrains.kotlin.ir.util.*
 
 internal enum class IntrinsicType {
     PLUS,
@@ -47,6 +47,7 @@ internal enum class IntrinsicType {
     UNSIGNED_COMPARE_TO,
     NOT,
     REINTERPRET,
+    INSTANCE_OF,
     EXTRACT_ELEMENT,
     ARE_EQUAL_BY_VALUE,
     IEEE_754_EQUALS,
@@ -57,6 +58,7 @@ internal enum class IntrinsicType {
     OBJC_CREATE_SUPER_STRUCT,
     OBJC_INIT_BY,
     OBJC_GET_SELECTOR,
+    OBJC_INSTANCE_OF,
     // Other
     GET_CLASS_TYPE_INFO,
     CREATE_UNINITIALIZED_INSTANCE,
@@ -207,6 +209,7 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
                 IntrinsicType.UNSIGNED_COMPARE_TO -> emitUnsignedCompareTo(args)
                 IntrinsicType.NOT -> emitNot(args)
                 IntrinsicType.REINTERPRET -> emitReinterpret(callSite, args)
+                IntrinsicType.INSTANCE_OF -> emitInstanceOf(callSite, args)
                 IntrinsicType.EXTRACT_ELEMENT -> emitExtractElement(callSite, args)
                 IntrinsicType.SIGN_EXTEND -> emitSignExtend(callSite, args)
                 IntrinsicType.ZERO_EXTEND -> emitZeroExtend(callSite, args)
@@ -221,6 +224,7 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
                 IntrinsicType.OBJC_GET_MESSENGER -> emitObjCGetMessenger(args, isStret = false)
                 IntrinsicType.OBJC_GET_MESSENGER_STRET -> emitObjCGetMessenger(args, isStret = true)
                 IntrinsicType.OBJC_GET_OBJC_CLASS -> emitGetObjCClass(callSite)
+                IntrinsicType.OBJC_INSTANCE_OF -> emitObjCInstanceOf(callSite, args)
                 IntrinsicType.OBJC_CREATE_SUPER_STRUCT -> emitObjCCreateSuperStruct(args)
                 IntrinsicType.GET_CLASS_TYPE_INFO -> emitGetClassTypeInfo(callSite)
                 IntrinsicType.INTEROP_READ_BITS -> emitReadBits(args)
@@ -469,6 +473,92 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
         return bitcast(int8TypePtr, messenger)
     }
 
+    private fun call(
+            function: LLVMValueRef, args: List<LLVMValueRef>,
+            resultLifetime: Lifetime = Lifetime.IRRELEVANT,
+            exceptionHandler: ExceptionHandler = environment.exceptionHandler
+    ) = environment.functionGenerationContext.call(function, args, resultLifetime, exceptionHandler)
+
+    private val kTrue    = Int1(1).llvm
+    private val kFalse   = Int1(0).llvm
+
+    private fun genGetObjCProtocol(irClass: IrClass): LLVMValueRef {
+        // Note: this function will return the same result for Obj-C protocol and corresponding meta-class.
+
+        assert(irClass.isInterface)
+        assert(irClass.isExternalObjCClass())
+
+        val annotation = irClass.annotations.findAnnotation(externalObjCClassFqName)!!
+        val protocolGetterName = annotation.getAnnotationStringValue("protocolGetter")
+        val protocolGetter = context.llvm.externalFunction(
+                protocolGetterName,
+                functionType(int8TypePtr, false),
+                irClass.llvmSymbolOrigin,
+                independent = true // Protocol is header-only declaration.
+        )
+
+        return call(protocolGetter, emptyList())
+    }
+
+    private fun emitObjCInstanceOf(callSite: IrCall, args: List<LLVMValueRef>): LLVMValueRef {
+        val dstClass = callSite.getTypeArgument(0)?.getClass()
+                ?: error("Expected type argument")
+        assert (dstClass.defaultType.isObjCObjectType()) { "Expected an ObjC class but was ${dstClass.render()}" }
+        val objCObject = call(
+                codegen.llvmFunction(context.ir.symbols.interopObjCObjectRawValueGetter.owner),
+                args
+        )
+
+        val codegen = environment.functionGenerationContext
+        return if (dstClass.isObjCClass()) {
+            if (dstClass.isInterface) {
+                val isMeta = if (dstClass.isObjCMetaClass()) kTrue else kFalse
+                call(
+                        context.llvm.Kotlin_Interop_DoesObjectConformToProtocol,
+                        listOf(
+                                objCObject,
+                                genGetObjCProtocol(dstClass),
+                                isMeta
+                        )
+                )
+            } else {
+                call(
+                        context.llvm.Kotlin_Interop_IsObjectKindOfClass,
+                        listOf(objCObject, codegen.getObjCClass(dstClass, environment.exceptionHandler))
+                )
+            }.let {
+                codegen.icmpNe(it, kFalse)
+            }
+        } else {
+            // e.g. ObjCObject, ObjCObjectBase etc.
+            when {
+                dstClass.isObjCMetaClass() -> {
+                    val isClass = context.llvm.externalFunction(
+                            "object_isClass",
+                            functionType(int8Type, false, int8TypePtr),
+                            context.standardLlvmSymbolsOrigin
+                    )
+
+                    call(isClass, listOf(objCObject)).let {
+                        codegen.icmpNe(it, Int8(0).llvm)
+                    }
+                }
+
+                dstClass.isObjCProtocolClass() -> {
+                    // Note: it is not clear whether this class should be looked up this way.
+                    // clang does the same, however swiftc uses dynamic lookup.
+                    val protocolClass = codegen.getObjCClass("Protocol", context.standardLlvmSymbolsOrigin)
+                    call(
+                            context.llvm.Kotlin_Interop_IsObjectKindOfClass,
+                            listOf(objCObject, protocolClass)
+                    )
+                }
+
+                else -> kTrue
+            }
+        }
+    }
+
     private fun FunctionGenerationContext.emitAreEqualByValue(args: List<LLVMValueRef>): LLVMValueRef {
         val (first, second) = args
         assert (first.type == second.type) { "Types are different: '${llvmtype2string(first.type)}' and '${llvmtype2string(second.type)}'" }
@@ -497,6 +587,13 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
 
     private fun FunctionGenerationContext.emitReinterpret(callSite: IrCall, args: List<LLVMValueRef>) =
             bitcast(callSite.llvmReturnType, args[0])
+
+    private fun FunctionGenerationContext.emitInstanceOf(callSite: IrCall, args: List<LLVMValueRef>): LLVMValueRef {
+        val dstClass = callSite.getTypeArgument(0)?.getClass()
+                ?: error("Expected type argument")
+        assert (!dstClass.defaultType.isObjCObjectType()) { "ObjC class is not valid here: ${dstClass.render()}" }
+        return genInstanceOf(args.single(), dstClass)
+    }
 
     private fun FunctionGenerationContext.emitExtractElement(callSite: IrCall, args: List<LLVMValueRef>): LLVMValueRef {
         val (vector, index) = args

@@ -1052,6 +1052,28 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         return load(codegen.objCDataGenerator!!.genClassRef(binaryName).llvm)
     }
 
+    fun genInstanceOf(obj: LLVMValueRef, dstClass: IrClass): LLVMValueRef {
+        assert (!dstClass.defaultType.isObjCObjectType()) { "InstanceOf for ObjC classes has a separate intrinsic" }
+
+        val srcObjInfoPtr = bitcast(codegen.kObjHeaderPtr, obj)
+
+        return if (!context.ghaEnabled()) {
+            call(context.llvm.isInstanceFunction, listOf(srcObjInfoPtr, codegen.typeInfoValue(dstClass)))
+        } else {
+            val dstHierarchyInfo = context.getLayoutBuilder(dstClass).hierarchyInfo
+            if (!dstClass.isInterface) {
+                call(context.llvm.isInstanceOfClassFastFunction,
+                        listOf(srcObjInfoPtr, Int32(dstHierarchyInfo.classIdLo).llvm, Int32(dstHierarchyInfo.classIdHi).llvm))
+            } else {
+                // Essentially: typeInfo.itable[place(interfaceId)].id == interfaceId
+                val interfaceId = dstHierarchyInfo.interfaceId
+                val typeInfo = loadTypeInfo(srcObjInfoPtr)
+                val interfaceTableRecord = lookupInterfaceTableRecord(typeInfo, interfaceId)
+                icmpEq(load(structGep(interfaceTableRecord, 0 /* id */)), Int32(interfaceId).llvm)
+            }
+        }
+    }
+
     fun resetDebugLocation() {
         if (!context.shouldContainLocationDebugInfo()) return
         currentPositionHolder.resetBuilderDebugLocation()

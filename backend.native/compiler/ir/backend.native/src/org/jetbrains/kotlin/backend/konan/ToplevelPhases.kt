@@ -376,8 +376,8 @@ internal val allLoweringsPhase = NamedCompilerPhase(
                             compileTimeEvaluatePhase,
                             kotlinNothingValueExceptionPhase,
                             coroutinesPhase,
-                            typeOperatorPhase,
                             bridgesPhase,
+                            typeOperatorPhase,
                             autoboxPhase,
                             returnsInsertionPhase,
                         )
