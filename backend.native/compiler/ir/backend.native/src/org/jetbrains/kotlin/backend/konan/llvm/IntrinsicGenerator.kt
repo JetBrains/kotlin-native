@@ -431,14 +431,10 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
 
         val structType = structType(kInt8Ptr, kInt8Ptr)
         val ptr = alloca(structType)
-        store(receiver, LLVMBuildGEP(builder, ptr, cValuesOf(kImmZero, kImmZero), 2, "")!!)
-        store(superClass, LLVMBuildGEP(builder, ptr, cValuesOf(kImmZero, kImmOne), 2, "")!!)
+        store(receiver, LLVMBuildGEP(builder, ptr, cValuesOf(kImmInt32Zero, kImmInt32Zero), 2, "")!!)
+        store(superClass, LLVMBuildGEP(builder, ptr, cValuesOf(kImmInt32Zero, kImmInt32One), 2, "")!!)
         return bitcast(int8TypePtr, ptr)
     }
-
-    // TODO: Find better place for these guys.
-    private val kImmZero     = LLVMConstInt(int32Type,  0, 1)!!
-    private val kImmOne      = LLVMConstInt(int32Type,  1, 1)!!
 
     private fun FunctionGenerationContext.emitGetObjCClass(callSite: IrCall): LLVMValueRef {
         val typeArgument = callSite.getTypeArgument(0)
@@ -479,9 +475,6 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
             exceptionHandler: ExceptionHandler = environment.exceptionHandler
     ) = environment.functionGenerationContext.call(function, args, resultLifetime, exceptionHandler)
 
-    private val kTrue    = Int1(1).llvm
-    private val kFalse   = Int1(0).llvm
-
     private fun genGetObjCProtocol(irClass: IrClass): LLVMValueRef {
         // Note: this function will return the same result for Obj-C protocol and corresponding meta-class.
 
@@ -512,7 +505,7 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
         val codegen = environment.functionGenerationContext
         return if (dstClass.isObjCClass()) {
             if (dstClass.isInterface) {
-                val isMeta = if (dstClass.isObjCMetaClass()) kTrue else kFalse
+                val isMeta = if (dstClass.isObjCMetaClass()) kImmTrue else kImmFalse
                 call(
                         context.llvm.Kotlin_Interop_DoesObjectConformToProtocol,
                         listOf(
@@ -527,7 +520,7 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
                         listOf(objCObject, codegen.getObjCClass(dstClass, environment.exceptionHandler))
                 )
             }.let {
-                codegen.icmpNe(it, kFalse)
+                codegen.icmpNe(it, kImmFalse)
             }
         } else {
             // e.g. ObjCObject, ObjCObjectBase etc.
@@ -554,7 +547,7 @@ internal class IntrinsicGenerator(private val environment: IntrinsicGeneratorEnv
                     )
                 }
 
-                else -> kTrue
+                else -> kImmTrue
             }
         }
     }

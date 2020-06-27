@@ -184,6 +184,8 @@ internal val kInt8PtrPtr   get() = pointerType(kInt8Ptr)
 internal val kNullInt8Ptr  get() = LLVMConstNull(kInt8Ptr)!!
 internal val kImmInt32Zero get() = Int32(0).llvm
 internal val kImmInt32One  get() = Int32(1).llvm
+internal val kImmTrue      get() = Int1(1).llvm
+internal val kImmFalse     get() = Int1(0).llvm
 internal val ContextUtils.kNullObjHeaderPtr: LLVMValueRef
     get() = LLVMConstNull(this.kObjHeaderPtr)!!
 internal val ContextUtils.kNullObjHeaderPtrPtr: LLVMValueRef
