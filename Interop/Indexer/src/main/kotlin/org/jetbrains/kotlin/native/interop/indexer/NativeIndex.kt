@@ -19,7 +19,7 @@ package org.jetbrains.kotlin.native.interop.indexer
 enum class Language(val sourceFileExtension: String) {
     C("c"),
     OBJECTIVE_C("m"),
-    J2ObjC("myfileformat")
+    J2ObjC("m")
 }
 
 interface HeaderInclusionPolicy {
