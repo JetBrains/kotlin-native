@@ -118,6 +118,7 @@ repositories {
 }
 
 dependencies {
+    api "org.jetbrains.kotlin:kotlin-compiler:$kotlinVersion"
     compile "org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion"
     compile project(':Interop:Runtime')
 }
