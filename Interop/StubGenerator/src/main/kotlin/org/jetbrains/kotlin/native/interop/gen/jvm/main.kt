@@ -234,12 +234,17 @@ class J2ObjCParser(val classNode: ClassNode) {
      */
     fun buildClassMethods(): MutableList<ObjCMethod> {
         val methods = mutableListOf<ObjCMethod>()
-        val selector: String = ""
+        var selector = ""
         for (method in classNode.methods) {
-            if (method.parameters?.size > 1)
-                method.parameters.forEach{ selector + it}
+            selector = method.name
+            if (!method.parameters.isNullOrEmpty() && method.parameters.size > 1) {
+                for (i in 1 until method.parameters.size) {
+                    selector += ":" + method.parameters.get(i).name
+                }
+                selector += ":"
+            }
             val generatedMethod = ObjCMethod(
-              selector = if (!method.parameters.isNullOrEmpty()) method.name + ":" else if (method.parameters.size > 1) selector  else method.name,
+              selector = if (!method.parameters.isNullOrEmpty() && method.parameters.size == 1) method.name + ":" else if (!method.parameters.isNullOrEmpty() && method.parameters.size > 1) selector  else method.name,
               encoding = "[]", //TODO: Implement encoding properly
               parameters = parseMethodParameters(method),
               returnType = parseMethodReturnType(method),
