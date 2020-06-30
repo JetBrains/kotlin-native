@@ -108,6 +108,14 @@ abstract class NativeIndex {
     abstract val includedHeaders: Collection<HeaderId>
 }
 
+/**
+ * Native Index for Java2ObjectiveC interop
+ * IR definitions are parsed from jar files and passed through to this index
+ * where it then proccesses it into the Objective-C target files
+ *
+ * @param classes List of ObjCClass parsed from a Java file
+ */
+
 class J2ObjCNativeIndex(val classes:Collection<ObjCClass>) : NativeIndex() {
     override val structs: Collection<StructDecl>
         get() = emptyList<StructDecl>()

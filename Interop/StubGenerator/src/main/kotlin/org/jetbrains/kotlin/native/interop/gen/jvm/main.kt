@@ -199,9 +199,9 @@ private fun findFilesByGlobs(roots: List<Path>, globs: List<String>): Map<Path, 
 }
 
 /**
- *  Parses a ASM ClassNode and builds an ObjCClass
+ *  Parses an ASM ClassNode and builds an ObjCClass
  *
- *  @param classNode A ASM classNode
+ *  @param classNode An ASM classNode
  */
 class J2ObjCParser(val classNode: ClassNode) {
 
@@ -234,9 +234,8 @@ class J2ObjCParser(val classNode: ClassNode) {
      */
     fun buildClassMethods(): MutableList<ObjCMethod> {
         val methods = mutableListOf<ObjCMethod>()
-        var selector = ""
         for (method in classNode.methods) {
-            selector = method.name
+            var selector = method.name
             if (!method.parameters.isNullOrEmpty() && method.parameters.size > 1) {
                 for (i in 1 until method.parameters.size) {
                     selector += ":" + method.parameters.get(i).name
@@ -274,10 +273,18 @@ class J2ObjCParser(val classNode: ClassNode) {
         val parameterTypes = getArgumentTypes(method.desc)
 
         for (i in 0 until parameterTypes.size) {
+            println(method.parameters.get(i).name + " Type: " + parameterTypes.get(i).className)
             when (parameterTypes.get(i).className) {
+                // Java byte type not implemented currently
+                "boolean" -> methodParameters.add(Parameter(name = method.parameters.get(i).name, type = ObjCBoolType, nsConsumed = false))
+                "char" ->  methodParameters.add(Parameter(name = method.parameters.get(i).name, type = CharType, nsConsumed = false))
+                "double" ->  methodParameters.add(Parameter(name = method.parameters.get(i).name, type = FloatingType(size = 8, spelling = "double"), nsConsumed = false))
+                "float" ->  methodParameters.add(Parameter(name = method.parameters.get(i).name, type = FloatingType(size = 4, spelling = "float"), nsConsumed = false))
                 "int" -> methodParameters.add(Parameter(name = method.parameters.get(i).name, type = IntegerType(size = 4, spelling = "int", isSigned = true), nsConsumed = false))
+                "long" ->  methodParameters.add(Parameter(name = method.parameters.get(i).name, type = IntegerType(size = 8, spelling = "long", isSigned = true), nsConsumed = false))
+                "short" ->  methodParameters.add(Parameter(name = method.parameters.get(i).name, type = IntegerType(size = 2, spelling = "short", isSigned = true), nsConsumed = false))
                 else -> {
-                    throw NotImplementedError("Have not implemented this type yet: " + parameterTypes.get(i).className)
+                   throw NotImplementedError("Have not implemented this type yet: " + parameterTypes.get(i).className)
                 }
             }
         }
@@ -294,10 +301,17 @@ class J2ObjCParser(val classNode: ClassNode) {
         val returnType = getReturnType(method.desc)
 
         when (returnType.className) {
+            // Java byte type not implemented currently
+            "boolean" -> return ObjCBoolType
+            "char" -> return CharType
+            "double" -> return FloatingType(size = 8, spelling = "double")
+            "float" -> return FloatingType(size = 4, spelling = "float")
             "int" -> return IntegerType(size = 4, spelling = "int", isSigned = true)
+            "long" -> return IntegerType(size = 8, spelling = "long", isSigned = true)
+            "short" -> return IntegerType(size = 2, spelling = "short", isSigned = true)
             "void" -> return VoidType
             else -> {
-                throw NotImplementedError("Have not implemented this type yet: " + returnType.className)
+                 throw NotImplementedError("Have not implemented this type yet: " + returnType.className)
             }
         }
     }
