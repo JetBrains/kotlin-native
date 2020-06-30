@@ -199,6 +199,7 @@ private fun findFilesByGlobs(roots: List<Path>, globs: List<String>): Map<Path, 
 private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments,
                         additionalArgs: InternalInteropOptions): Array<String>? {
 
+    // TODO: Replace this with commandline-supplied file
     val testfile = File("/Users/odowa/Code/example/Hello.class").readBytes()
     val classReader = ClassReader(testfile)
     val classNode = ClassNode()
