@@ -369,6 +369,7 @@ fun List<List<String>>.mapFragmentIsCompilable(originalLibrary: CompilationWithP
             clang_disposeTranslationUnit(translationUnit)
         }
     }
+    
     return this.indices.map { it !in indicesOfNonCompilable }
 }
 
