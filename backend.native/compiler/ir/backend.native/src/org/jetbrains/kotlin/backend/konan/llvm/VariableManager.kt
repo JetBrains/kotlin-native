@@ -13,6 +13,7 @@ import org.jetbrains.kotlin.ir.declarations.IrValueDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrVariable
 import org.jetbrains.kotlin.name.Name
 
+
 internal fun IrElement.needDebugInfo(context: Context) = context.shouldContainDebugInfo() || (this is IrVariable && this.isVar)
 
 internal class VariableManager(val functionGenerationContext: FunctionGenerationContext) {
@@ -20,15 +21,20 @@ internal class VariableManager(val functionGenerationContext: FunctionGeneration
         fun load() : LLVMValueRef
         fun store(value: LLVMValueRef)
         fun address() : LLVMValueRef
+        fun attachReturnValue(value: LLVMValueRef) { throw Error("writing to immutable: ") }
+        fun getAttachedReturnValue() : LLVMValueRef? { throw Error("no attached value: ") }
     }
 
     inner class SlotRecord(val address: LLVMValueRef, val refSlot: Boolean, val isVar: Boolean) : Record {
-        override fun load() : LLVMValueRef = functionGenerationContext.loadSlot(address, isVar)
+        var attachedRetValue: LLVMValueRef? = null
+        override fun load() : LLVMValueRef = functionGenerationContext.loadSlot(address, !functionGenerationContext.OPT_RELAXED && isVar)
         override fun store(value: LLVMValueRef) {
             functionGenerationContext.storeAny(value, address, true)
         }
         override fun address() : LLVMValueRef = this.address
         override fun toString() = (if (refSlot) "refslot" else "slot") + " for ${address}"
+        override fun attachReturnValue(value: LLVMValueRef) { attachedRetValue = value }
+        override fun getAttachedReturnValue() : LLVMValueRef? = attachedRetValue
     }
 
     inner class ParameterRecord(val address: LLVMValueRef, val refSlot: Boolean) : Record {
@@ -135,6 +141,14 @@ internal class VariableManager(val functionGenerationContext: FunctionGeneration
 
     fun store(value: LLVMValueRef, index: Int) {
         variables[index].store(value)
+    }
+
+    fun attachReturnValue(value: LLVMValueRef, index: Int) { 
+        variables[index].attachReturnValue(value) 
+    }
+
+    fun getAttachedReturnValue(index: Int) : LLVMValueRef? { 
+        return variables[index].getAttachedReturnValue() 
     }
 }
 

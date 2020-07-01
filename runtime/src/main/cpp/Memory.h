@@ -525,6 +525,9 @@ OBJ_GETTER(ReadHeapRefLocked, ObjHeader** location, int32_t* spinlock, int32_t* 
 MODEL_VARIANTS(void, EnterFrame, ObjHeader** start, int parameters, int count);
 // Called on frame leave, if it has object slots.
 MODEL_VARIANTS(void, LeaveFrame, ObjHeader** start, int parameters, int count);
+// Called on frame leave with return ref.
+MODEL_VARIANTS(const ObjHeader*, LeaveFrameAndReturnRef, ObjHeader** start, int param_count, ObjHeader** resultSlot, const ObjHeader* returnRef);
+
 // Clears object subgraph references from memory subsystem, and optionally
 // checks if subgraph referenced by given root is disjoint from the rest of
 // object graph, i.e. no external references exists.

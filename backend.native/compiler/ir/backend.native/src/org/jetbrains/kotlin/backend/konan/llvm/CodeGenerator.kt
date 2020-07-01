@@ -168,6 +168,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                                          internal val irFunction: IrFunction? = null): ContextUtils {
 
     override val context = codegen.context
+    val OPT_RELAXED:Boolean = context.memoryModel == MemoryModel.RELAXED;
     val vars = VariableManager(this)
     private val basicBlockToLastLocation = mutableMapOf<LLVMBasicBlockRef, LocationInfoRange>()
 
@@ -181,6 +182,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
     val constructedClass: IrClass?
         get() = (irFunction as? IrConstructor)?.constructedClass
     private var returnSlot: LLVMValueRef? = null
+    var anonymousRetSlot: Int = -1
     private var slotsPhi: LLVMValueRef? = null
     private val frameOverlaySlotCount =
             (LLVMStoreSizeOfType(llvmTargetData, runtime.frameOverlayType) / runtime.pointerSize).toInt()
@@ -341,6 +343,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
              resultLifetime: Lifetime = Lifetime.IRRELEVANT,
              exceptionHandler: ExceptionHandler = ExceptionHandler.None,
              verbatim: Boolean = false): LLVMValueRef {
+        var idxResVar: Int = -1;          
         val callArgs = if (verbatim || !isObjectReturn(llvmFunction.type)) {
             args
         } else {
@@ -361,13 +364,24 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
 
                 SlotType.RETURN -> returnSlot!!
 
-                SlotType.ANONYMOUS -> vars.createAnonymousSlot()
+                SlotType.ANONYMOUS -> if (OPT_RELAXED && anonymousRetSlot >= 0) {
+                    idxResVar = anonymousRetSlot
+                    anonymousRetSlot = -1;
+                    vars.addressOf(idxResVar)
+                }
+                else {
+                    vars.createAnonymousSlot()
+                }
 
                 else -> throw Error("Incorrect slot type: ${resultLifetime.slotType}")
             }
             args + resultSlot
         }
-        return callRaw(llvmFunction, callArgs, exceptionHandler)
+        val res = callRaw(llvmFunction, callArgs, exceptionHandler)
+        if (idxResVar >= 0) {
+            vars.attachReturnValue(res, idxResVar)
+        }
+        return res;
     }
 
     private fun callRaw(llvmFunction: LLVMValueRef, args: List<LLVMValueRef>,
@@ -1090,7 +1104,9 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                         listOf(slotsMem, Int8(0).llvm,
                                 Int32(slotCount * codegen.runtime.pointerSize).llvm,
                                 Int1(0).llvm))
-                call(context.llvm.enterFrameFunction, listOf(slots, Int32(vars.skipSlots).llvm, Int32(slotCount).llvm))
+                if (!OPT_RELAXED) {                
+                    call(context.llvm.enterFrameFunction, listOf(slots, Int32(vars.skipSlots).llvm, Int32(slotCount).llvm))
+                }
             }
             addPhiIncoming(slotsPhi!!, prologueBb to slots)
             memScoped {
@@ -1124,10 +1140,20 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                 returns.isNotEmpty() -> {
                     val returnPhi = phi(returnType!!)
                     addPhiIncoming(returnPhi, *returns.toList().toTypedArray())
-                    if (returnSlot != null) {
-                        updateReturnRef(returnPhi, returnSlot!!)
+                    if (OPT_RELAXED) {
+                        if (returnSlot != null) {
+                            releaseVars(returnPhi, returnSlot!!)
+                        }
+                        else {
+                            releaseVars()
+                        }
                     }
-                    releaseVars()
+                    else {
+                        if (returnSlot != null) {
+                            updateReturnRef(returnPhi, returnSlot!!)
+                        }
+                        releaseVars()
+                    }
                     LLVMBuildRet(builder, returnPhi)
                 }
                 // Do nothing, all paths throw.
@@ -1291,6 +1317,17 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         if (needSlots) {
             call(context.llvm.leaveFrameFunction,
                     listOf(slotsPhi!!, Int32(vars.skipSlots).llvm, Int32(slotCount).llvm))
+        }
+    }
+
+    private fun releaseVars(phi: LLVMValueRef, returnSlot: LLVMValueRef) {
+        if (needSlots) {
+            val param_count = (vars.skipSlots * 256 * 256) + slotCount;
+            callRaw(context.llvm.leaveFrameAndReturnRefFunction,
+            listOf(slotsPhi!!, Int32(param_count).llvm, returnSlot, phi), ExceptionHandler.None)
+        }
+        else {
+            updateReturnRef(phi, returnSlot)
         }
     }
 }

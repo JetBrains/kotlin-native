@@ -2246,6 +2246,49 @@ void enterFrame(ObjHeader** start, int parameters, int count) {
 }
 
 template <bool Strict>
+const ObjHeader* leaveFrameAndReturnRef(ObjHeader** start, int param_count, ObjHeader** resultSlot, const ObjHeader* returnRef) {
+  int parameters = param_count >> 16;
+  int count = (int16_t)param_count;
+  MEMORY_LOG("leaveFrameAndReturnRef %p: %d parameters %d locals\n", start, parameters, count)
+  const ObjHeader* res = *resultSlot;
+  if (res != returnRef) {
+    *resultSlot = (ObjHeader*)returnRef;
+    if (res != NULL) {
+      releaseHeapRef<Strict>(res);
+    }
+    res = returnRef;
+  }
+  else {
+    returnRef = NULL; 
+  }
+
+  FrameOverlay* frame = reinterpret_cast<FrameOverlay*>(start);
+  if (Strict) {
+    currentFrame = frame->previous;
+  } else {
+    ObjHeader** current = start + parameters + kFrameOverlaySlots;
+    count -= parameters;
+    while (count-- > kFrameOverlaySlots) {
+      ObjHeader* object = *current;
+      if (object != nullptr) {
+        if (object == returnRef) {
+          returnRef = NULL;
+        }
+        else {
+          releaseHeapRef<false>(object);
+        }
+      }
+      current++;
+    }
+    if (returnRef != NULL) {
+      addHeapRef(returnRef);
+      MEMORY_LOG("*** returns in leave %p\n", returnRef);
+    }
+  }
+  return res;
+}
+
+template <bool Strict>
 void leaveFrame(ObjHeader** start, int parameters, int count) {
   MEMORY_LOG("LeaveFrame %p: %d parameters %d locals\n", start, parameters, count)
   FrameOverlay* frame = reinterpret_cast<FrameOverlay*>(start);
@@ -2979,6 +3022,13 @@ void LeaveFrameStrict(ObjHeader** start, int parameters, int count) {
 }
 void LeaveFrameRelaxed(ObjHeader** start, int parameters, int count) {
   leaveFrame<false>(start, parameters, count);
+}
+
+const ObjHeader* LeaveFrameAndReturnRefStrict(ObjHeader** start, int param_count, ObjHeader** resultSlot, const ObjHeader* returnRef) {
+  return leaveFrameAndReturnRef<true>(start, param_count, resultSlot, returnRef);
+}
+const ObjHeader* LeaveFrameAndReturnRefRelaxed(ObjHeader** start, int param_count, ObjHeader** resultSlot, const ObjHeader* returnRef) {
+  return leaveFrameAndReturnRef<false>(start, param_count, resultSlot, returnRef);
 }
 
 void Kotlin_native_internal_GC_collect(KRef) {

@@ -1307,6 +1307,20 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     private fun generateVariable(variable: IrVariable) {
         context.log{"generateVariable               : ${ir2string(variable)}"}
+
+        var idxVar = -1;
+        val oldAnonymousVar = functionGenerationContext.anonymousRetSlot;
+        functionGenerationContext.anonymousRetSlot = -1;
+        if (functionGenerationContext.OPT_RELAXED) {
+            val type = functionGenerationContext.getLLVMType(variable.type)
+            if (functionGenerationContext.isObjectType(type)) {
+                idxVar = currentCodeContext.genDeclareVariable(
+                    variable, null, debugInfoIfNeeded(
+                    (currentCodeContext.functionScope() as FunctionScope).declaration, variable))
+                functionGenerationContext.anonymousRetSlot = idxVar;
+            }
+        }
+
         val value = variable.initializer?.let {
             val callSiteOrigin = (it as? IrBlock)?.origin as? InlinerExpressionLocationHint
             val inlineAtFunctionSymbol = callSiteOrigin?.inlineAtSymbol as? IrFunctionSymbol
@@ -1316,9 +1330,21 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 }
             } ?: evaluateExpression(it)
         }
-        currentCodeContext.genDeclareVariable(
+
+        if (idxVar < 0) {
+            currentCodeContext.genDeclareVariable(
                 variable, value, debugInfoIfNeeded(
                 (currentCodeContext.functionScope() as FunctionScope).declaration, variable))
+        }
+        else if (value != null) {
+            if (functionGenerationContext.anonymousRetSlot < 0 && value == functionGenerationContext.vars.getAttachedReturnValue(idxVar)) {
+                // returnSlot consumed
+            }
+            else {
+                functionGenerationContext.vars.store(value!!, idxVar)
+            }
+        }
+        functionGenerationContext.anonymousRetSlot = oldAnonymousVar;
     }
 
     //-------------------------------------------------------------------------//
