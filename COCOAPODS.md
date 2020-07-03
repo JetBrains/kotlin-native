@@ -2,16 +2,16 @@
 
 Kotlin/Native provides integration with the [CocoaPods dependency manager](https://cocoapods.org/). You can add
 dependencies on Pod libraries stored in the CocoaPods repository or locally as well as use a Kotlin/Native Gradle
-project as a CocoaPods dependency.
+project as a CocoaPods dependency (Kotlin Pod).
 
 You can manage Pod dependencies right in Intellij IDEA enjoying its benefits of working with code, such as code
  highlighting and completion. You can build the whole Kotlin project with Gradle as a whole not switching to Xcode. 
  Go to Xcode only when you need to write Swift/Objective-C code or run your application on a simulator or device.
  
 Depending on your purpose, you can add dependencies between:
-* [A Kotlin project and Pod libraries from the CocoaPods repository](#add-a-dependency-on-pod-libraries-from-the-cocoapods-repository)
-* [A Kotlin project and Objective-C Pod libraries stored locally](#add-a-dependency-on-objective-c-pod-libraries-stored-locally)
-* [A Kotlin Pod (Kotlin project used as a CocoaPods dependency) and an Xcode project with one target](#add-a-dependency-between-a-kotlin-pod-and-xcode-project-with-one-target) 
+* [A Kotlin project and a Pod library from the CocoaPods repository](#add-a-dependency-on-pod-libraries-from-the-cocoapods-repository)
+* [A Kotlin project and an Objective-C Pod library stored locally](#add-a-dependency-on-objective-c-pod-libraries-stored-locally)
+* [A Kotlin Pod and an Xcode project with one target](#add-a-dependency-between-a-kotlin-pod-and-xcode-project-with-one-target) 
 or [several targets](#add-a-dependency-between-a-kotlin-pod-with-an-xcode-project-with-several-targets)
 * [Several Kotlin Pods and an Xcode project](#add-dependencies-between-multiple-kotlin-pods-and-an-xcode-project)
 
