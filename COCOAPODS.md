@@ -95,9 +95,8 @@ kotlin {
 
 ## Add dependencies on Pod libraries
 
-You can add dependencies between a Kotlin project and Pod libraries [stored in the CocoaPods repository](#add-a
--dependency-between-a-kotlin-project-and-pod-libraries-from-the-cocoapods-repository) 
-and [stored locally](#add-a-dependency-between-a-kotlin-project-and-objective-c-pod-libraries-stored-locally).
+You can add dependencies between a Kotlin project and Pod libraries [stored in the CocoaPods repository](#add-a-dependency-on-pod-libraries-from-the-cocoapods-repository) 
+and [stored locally](#add-a-dependency-on-objective-c-pod-libraries-stored-locally).
 
 ### Add a dependency on Pod libraries from the CocoaPods repository
 
