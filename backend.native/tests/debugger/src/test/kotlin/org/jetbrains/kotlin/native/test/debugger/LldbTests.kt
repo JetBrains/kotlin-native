@@ -3,7 +3,7 @@
  * that can be found in the LICENSE file.
  */
 
-import org.jetbrains.kotlin.compiletest.lldbTest
+import org.jetbrains.kotlin.native.test.debugger.lldbTest
 import org.junit.Test
 
 class LldbTests {
@@ -22,22 +22,22 @@ class LldbTests {
         > r
         Process [..] stopped
         [..] stop reason = breakpoint 1.1
-        [..] at main.kt:2
+        [..] at main.kt:2[..]
 
         > n
         Process [..] stopped
         [..] stop reason = step over
-        [..] at main.kt:3
+        [..] at main.kt:3[..]
 
         > n
         Process [..] stopped
         [..] stop reason = step over
-        [..] at main.kt:4
+        [..] at main.kt:4[..]
 
         > n
         Process [..] stopped
         [..] stop reason = step over
-        [..] at main.kt:5
+        [..] at main.kt:5[..]
     """)
 
     @Test
@@ -57,7 +57,7 @@ class LldbTests {
             (char) a = '\x01'
             (int) b = 2
             (long) c = -3
-            (unsigned char) d = 'c'
+            (short) d = 99
             (bool) e = true
     """)
 
@@ -78,7 +78,7 @@ class LldbTests {
         > r
         > fr var
         (ObjHeader *) args = []
-        (ObjHeader *) point = {'y': 2, 'x': 1}
+        (ObjHeader *) point = {'x': 1, 'y': 2}
         (ObjHeader *) person = {}
     """)
 
@@ -101,7 +101,7 @@ class LldbTests {
         > fr var
         (ObjHeader *) args = []
         (ObjHeader *) xs = [1, 2, 3]
-        (ObjHeader *) ys = [{'y': 2, 'x': 1}, 'null']
+        (ObjHeader *) ys = [{'x': 1, 'y': 2}, 'null']
     """)
 
     @Test

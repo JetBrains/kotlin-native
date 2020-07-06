@@ -3,7 +3,7 @@
  * that can be found in the LICENSE file.
  */
 
-package org.jetbrains.kotlin.compiletest
+package org.jetbrains.kotlin.native.test.debugger
 
 import org.intellij.lang.annotations.Language
 import org.junit.Assert.fail
@@ -62,6 +62,15 @@ fun lldbTest(@Language("kotlin") programText: String, lldbSession: String) {
         return
     }
 
+    if (!isOsxDevToolsEnabled) {
+        println("""Development tools aren't available.
+                   |Please consider to execute:
+                   |  ${DistProperties.devToolsSecurity} -enable
+                   |or
+                   |  csrutil disable
+                   |to run lldb tests""".trimMargin())
+        return
+    }
     val lldbSessionSpec = LldbSessionSpecification.parse(lldbSession)
 
     val tmpdir = Files.createTempDirectory("debugger_test")
@@ -69,39 +78,57 @@ fun lldbTest(@Language("kotlin") programText: String, lldbSession: String) {
     val source = tmpdir.resolve("main.kt")
     val output = tmpdir.resolve("program.kexe")
 
-    val driver = ToolDriver(DistProperties.konanc, DistProperties.lldb, DistProperties.lldbPrettyPrinters)
+    val driver = ToolDriver()
     Files.write(source, programText.trimIndent().toByteArray())
     driver.compile(source, output, "-g")
     val result = driver.runLldb(output, lldbSessionSpec.commands)
     lldbSessionSpec.match(result)
 }
 
+private val isOsxDevToolsEnabled: Boolean by lazy {
+    //TODO: add OSX checks.
+    val rawStatus = subprocess(DistProperties.devToolsSecurity, "-status")
+    println("> status: $rawStatus")
 
-private fun findMismatch(patterns: List<String>, actualLines: List<String>): String? {
-    val indices = mutableListOf<Int>()
-    for (pattern in patterns) {
-        val idx = actualLines.indexOfFirst { match(pattern, it) }
-        if (idx == -1) {
-            return pattern
-        }
-        indices += idx
-    }
-    check(indices == indices.sorted())
-    return null
+    val r = Regex("^.*\\ (enabled|disabled).$")
+    r.find(rawStatus.stdout)?.destructured?.component1() == "enabled"
 }
 
-private fun match(pattern: String, line: String): Boolean {
-    val chunks = pattern.split("""\s*\[\.\.]\s*""".toRegex())
-            .filter { it.isNotBlank() }
-            .map { it.trim() }
-    check(chunks.isNotEmpty())
-    val trimmedLine = line.trim()
+fun dwarfDumpTest(@Language("kotlin") programText: String, flags: List<String>, test:List<DwarfTag>.()->Unit) {
+    if (!haveDwarfDump) {
+        println("Skipping test: no dwarfdump")
+        return
+    }
 
-    val indices = chunks.map { trimmedLine.indexOf(it) }
-    if (indices.any { it == -1 } || indices != indices.sorted()) return false
-    if (!(trimmedLine.startsWith(chunks.first()) || pattern.startsWith("[..]"))) return false
-    if (!(trimmedLine.endsWith(chunks.last()) || pattern.endsWith("[..]"))) return false
-    return true
+
+    with(Files.createTempDirectory("dwarfdump_test")) {
+        toFile().deleteOnExit()
+        val source = resolve("main.kt")
+        val output = resolve("program.kexe")
+
+        val driver = ToolDriver()
+        Files.write(source, programText.trimIndent().toByteArray())
+        driver.compile(source, output, "-g", *flags.toTypedArray())
+        driver.runDwarfDump(output, test)
+    }
+}
+
+private val haveDwarfDump: Boolean by lazy {
+    val version = try {
+        subprocess(DistProperties.dwarfDump, "--version")
+                .takeIf { it.process.exitValue() == 0 }
+                ?.stdout
+    } catch (e: IOException) {
+        null
+    }
+
+    if (version == null) {
+        println("No LLDB found")
+    } else {
+        println("Using $version")
+    }
+
+    version != null
 }
 
 private val haveLldb: Boolean by lazy {
@@ -128,9 +155,11 @@ private class LldbSessionSpecification private constructor(
 ) {
 
     fun match(output: String) {
-        val blocks = output.split("""(?=\(lldb\))""".toRegex())
-        check(blocks[0].startsWith("(lldb) target create"))
-        check(blocks[1].startsWith("(lldb) command script import"))
+        val blocks = output.split("""(?=\(lldb\))""".toRegex()).filterNot(String::isEmpty)
+        check(blocks[0].startsWith("(lldb) target create")) { "Missing block \"target create\". Got: ${blocks[0]}" }
+        check(blocks[1].startsWith("(lldb) command script import")) {
+            "Missing block \"command script import\". Got: ${blocks[0]}"
+        }
         val responses = blocks.drop(2)
         val executedCommands = responses.map { it.lines().first() }
         val bodies = responses.map { it.lines().drop(1) }
@@ -139,14 +168,14 @@ private class LldbSessionSpecification private constructor(
 
         if (!responsesMatch) {
             val message = """
-Responses do not match commands.
-
-COMMANDS: $commands
-RESPONSES: $executedCommands
-
-FULL SESSION:
-$output
-"""
+                |Responses do not match commands.
+                |
+                |COMMANDS: |$commands
+                |RESPONSES: |$executedCommands
+                |
+                |FULL SESSION:
+                |$output
+            """.trimMargin()
             fail(message)
         }
 
@@ -155,27 +184,55 @@ $output
             val mismatch = findMismatch(pattern, body)
             if (mismatch != null) {
                 val message = """
-Wrong LLDB output.
-
-COMMAND: $command
-PATTERN: $mismatch
-OUTPUT:
-${body.joinToString("\n")}
-
-FULL SESSION:
-$output
-""".trimStart()
-
+                    |Wrong LLDB output.
+                    |
+                    |COMMAND: $command
+                    |PATTERN: $mismatch
+                    |OUTPUT:
+                    |${body.joinToString("\n")}
+                    |
+                    |FULL SESSION:
+                    |$output
+                """.trimMargin()
                 fail(message)
             }
         }
     }
 
+    private fun findMismatch(patterns: List<String>, actualLines: List<String>): String? {
+        val indices = mutableListOf<Int>()
+        for (pattern in patterns) {
+            val idx = actualLines.indexOfFirst { match(pattern, it) }
+            if (idx == -1) {
+                return pattern
+            }
+            indices += idx
+        }
+        check(indices == indices.sorted())
+        return null
+    }
+
+    private fun match(pattern: String, line: String): Boolean {
+        val chunks = pattern.split("""\s*\[\.\.]\s*""".toRegex())
+                .filter { it.isNotBlank() }
+                .map { it.trim() }
+        check(chunks.isNotEmpty())
+        val trimmedLine = line.trim()
+
+        val indices = chunks.map { trimmedLine.indexOf(it) }
+        if (indices.any { it == -1 } || indices != indices.sorted()) return false
+        if (!(trimmedLine.startsWith(chunks.first()) || pattern.startsWith("[..]"))) return false
+        if (!(trimmedLine.endsWith(chunks.last()) || pattern.endsWith("[..]"))) return false
+        return true
+    }
+
     companion object {
         fun parse(spec: String): LldbSessionSpecification {
-            val blocks = spec.trimIndent().split("(?=^>)".toRegex(RegexOption.MULTILINE))
+            val blocks = spec.trimIndent()
+                    .split("(?=^>)".toRegex(RegexOption.MULTILINE))
+                    .filterNot(String::isEmpty)
             for (cmd in blocks) {
-                check(cmd.startsWith(">")) { "Invalid lldb session specification" }
+                check(cmd.startsWith(">")) { "Invalid lldb session specification: $cmd" }
             }
             val commands = blocks.map { it.lines().first().substring(1).trim() }
             val patterns = blocks.map { it.lines().drop(1).filter { it.isNotBlank() } }

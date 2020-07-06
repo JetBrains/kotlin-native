@@ -51,6 +51,7 @@ repositories {
 }
 
 dependencies {
+    compile 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.7'
     cli_bc project(path: ':backend.native', configuration: 'cli_bc')
     def updateTestData = true
     if (project.hasProperty("kotlinProjectPath")) {
@@ -240,6 +241,10 @@ run {
     dependsOn(tasksOf(KonanTest))
     // Add framework tests
     dependsOn(tasksOf(FrameworkTest))
+    dependsOn(tasksOf(MetadataComparisonTest))
+    // Add regular gradle test tasks
+    dependsOn(tasksOf(Test))
+    dependsOn(tasksOf(CoverageTest))
 }
 
 task sanity {
@@ -253,10 +258,13 @@ task sanity {
         task.getDependsOn().every { !platformLibsTasks.contains(it) } &&
         task.name != "library_mismatch" // This test requires the wasm32 stdlib which is unavailable during a sanity run.
     })
-
     dependsOn(tasksOf(FrameworkTest) { task ->
         task.getDependsOn().every { !platformLibsTasks.contains(it) }
     })
+    dependsOn(tasksOf(MetadataComparisonTest))
+    // Add regular gradle test tasks
+    dependsOn(tasksOf(Test))
+    dependsOn(tasksOf(CoverageTest))
 }
 
 // Collect reports in one json.
@@ -2201,6 +2209,10 @@ task ieee754(type: KonanLocalTest) {
     source = "runtime/basic/ieee754.kt"
 }
 
+standaloneTest("hypotenuse") {
+    source = "runtime/basic/hypot.kt"
+}
+
 task array_list1(type: KonanLocalTest) {
     goldValue = "OK\n"
     source = "runtime/collections/array_list1.kt"
@@ -2353,17 +2365,20 @@ standaloneTest("custom_hook") {
     source = "runtime/exceptions/custom_hook.kt"
 }
 
-task runtime_math_exceptions(type: KonanLocalTest) {
+standaloneTest("runtime_math_exceptions") {
     enabled = (project.testTarget != 'wasm32')
     source = "stdlib_external/numbers/MathExceptionTest.kt"
+    flags = ['-tr']
 }
 
-task runtime_math(type: KonanLocalTest) {
+standaloneTest("runtime_math") {
     source = "stdlib_external/numbers/MathTest.kt"
+    flags = ['-tr']
 }
 
-task runtime_math_harmony(type: KonanLocalTest) {
+standaloneTest("runtime_math_harmony") {
     source = "stdlib_external/numbers/HarmonyMathTests.kt"
+    flags = ['-tr']
 }
 
 task catch3(type: KonanLocalTest) {
@@ -3103,6 +3118,10 @@ task inlineClass_customEquals(type: KonanLocalTest) {
     source = "codegen/inlineClass/customEquals.kt"
 }
 
+task inlineClass_defaultEquals(type: KonanLocalTest) {
+    source = "codegen/inlineClass/defaultEquals.kt"
+}
+
 task deserialized_inline0(type: KonanLocalTest) {
     source = "serialization/deserialized_inline0.kt"
 }
@@ -3506,6 +3525,28 @@ createInterop("auxiliaryCppSources") {
     it.extraOpts "-Xsource-compiler-option", "-std=c++17"
 }
 
+createInterop("embedStaticLibraries") {
+    it.defFile 'interop/embedStaticLibraries/embedStaticLibraries.def'
+    it.headers "$projectDir/interop/embedStaticLibraries/embedStaticLibraries.h"
+
+    // Note: also hardcoded in def file.
+    final String libDir = "$buildDir/embedStaticLibraries/"
+
+    it.getByTarget(target.name).doFirst {
+        1.upto(4) {
+            UtilsKt.buildStaticLibrary(
+                    project,
+                    [file("$projectDir/interop/embedStaticLibraries/${it}.c")],
+                    file("$libDir/${it}.a"),
+                    file("$libDir/${it}.objs"),
+            )
+        }
+    }
+
+    it.extraOpts '-staticLibrary', "$libDir/1.a"
+    it.extraOpts '-staticLibrary', "$libDir/2.a"
+}
+
 if (PlatformInfo.isAppleTarget(project)) {
     createInterop("objcSmoke") {
         it.defFile 'interop/objc/objcSmoke.def'
@@ -3537,6 +3578,10 @@ if (PlatformInfo.isAppleTarget(project)) {
         it.defFile 'framework/gh3343/objclib.def'
         it.headers "$projectDir/framework/gh3343/objclib.h"
         it.linkerOpts "-lobjcgh3343"
+    }
+    createInterop("objc_illegal_sharing_with_weak") {
+      it.defFile 'interop/objc/illegal_sharing_with_weak/objclib.def'
+      it.headers "$projectDir/interop/objc/illegal_sharing_with_weak/objclib.h"
     }
 }
 
@@ -3719,6 +3764,12 @@ interopTest("interop_auxiliarySources") {
     interop = 'auxiliaryCppSources'
 }
 
+interopTest("interop_embedStaticLibraries") {
+    disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
+    source = "interop/embedStaticLibraries/main.kt"
+    interop = 'embedStaticLibraries'
+}
+
 interopTest("interop_values") {
     disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
     source = "interop/basics/values.kt"
@@ -3885,6 +3936,18 @@ if (PlatformInfo.isAppleTarget(project)) {
         interop = 'objcKt34467'
         goldValue = "OK\n42\n"
     }
+
+    interopTest("interop_objc_illegal_sharing_with_weak") {
+        source = "interop/objc/illegal_sharing_with_weak/main.kt"
+        interop = 'objc_illegal_sharing_with_weak'
+
+        expectedExitStatusChecker = { it != 0 }
+        outputChecker = {
+            it.startsWith("Before") &&                   // Should crash after "Before"
+                !it.contains("After") &&                 // But before "After"
+                it.contains("isObjectAliveShouldCrash")  // And should contain stack trace.
+        }
+    }
 }
 
 standaloneTest("jsinterop_math") {
@@ -3914,6 +3977,16 @@ standaloneTest("interop_zlib") {
     enabled = (project.testTarget == null)
     source = "interop/platform_zlib.kt"
     goldValue = "Hello!\nHello!\n"
+}
+
+standaloneTest("interop_objc_illegal_sharing") {
+    dependsOnPlatformLibs(it)
+    disabled = !isAppleTarget(project)
+    source = "interop/objc/illegal_sharing.kt"
+    expectedExitStatusChecker = { it != 0 }
+    outputChecker = {
+      it.startsWith("Before") && !it.contains("After")
+    }
 }
 
 dynamicTest("produce_dynamic") {
@@ -4047,6 +4120,7 @@ Task frameworkTest(String name, Closure<FrameworkTest> configurator) {
                         }
 
                         extraOpts fr.bitcode ? "-Xembed-bitcode" : "-Xembed-bitcode-marker"
+                        if (fr.isStatic) extraOpts "-Xstatic-framework"
                         extraOpts fr.opts
                         extraOpts project.globalTestArgs
 
@@ -4133,7 +4207,7 @@ if (isAppleTarget(project)) {
             bitcode = false
             artifact = frameworkArtifactName
             library = libraryName
-            opts = ['-Xstatic-framework', "-Xopt-in=kotlin.ExperimentalStdlibApi"]
+            isStatic = true
         }
         swiftSources = ['objcexport']
     }
@@ -4256,6 +4330,7 @@ if (UtilsKt.getTestTargetSupportsCodeCoverage(project)) {
         binaryName = "CoverageControlFlow"
         numberOfCoveredFunctions = 1
         numberOfCoveredLines = 102
+        enabled = !twoStageEnabled
 
         konanArtifacts {
             program(binaryName, targets: [ target ]) {
@@ -4301,6 +4376,7 @@ if (UtilsKt.getTestTargetSupportsCodeCoverage(project)) {
         binaryName = "CoverageSmoke1"
         numberOfCoveredFunctions = 9
         numberOfCoveredLines = 33
+        enabled = !twoStageEnabled
 
         konanArtifacts {
             program(binaryName, targets: [ target ]) {
@@ -4396,6 +4472,11 @@ sourceSets {
             srcDir 'extensions/nop/src/main/kotlin'
         }
     }
+    test {
+        kotlin {
+            srcDir 'debugger/src/test/kotlin'
+        }
+    }
 }
 
 Task pluginTest(String name, String pluginName, Closure configureClosure) {
@@ -4432,6 +4513,22 @@ pluginTest("runtime_basic_init", "nopPlugin") {
 
 dependencies {
     nopPluginCompile kotlinCompilerModule
+    compile kotlinCompilerModule
+    compile project(path: ':backend.native', configuration: 'cli_bc')
+    compile 'junit:junit:4.12'
+}
+
+project.tasks.named("test").configure {
+    // Don't run this task as it will try to execute debugger tests too
+    // that is not desired as they are platform-specific.
+    enabled = false
+}
+
+project.tasks.register("debugger_test", Test.class) {
+    enabled = (target.family == Family.OSX)  // KT-30366
+    testLogging { exceptionFormat = 'full' }
+    UtilsKt.dependsOnDist(it)
+    systemProperties = ['kotlin.native.home': dist]
 }
 
 // Configure build for iOS device targets.

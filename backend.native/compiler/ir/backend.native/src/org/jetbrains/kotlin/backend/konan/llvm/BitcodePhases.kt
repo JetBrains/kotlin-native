@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.*
 import org.jetbrains.kotlin.konan.file.File
 import org.jetbrains.kotlin.util.OperatorNameConventions
+import org.jetbrains.kotlin.utils.addToStdlib.cast
 
 internal val contextLLVMSetupPhase = makeKonanModuleOpPhase(
         name = "ContextLLVMSetup",
@@ -37,15 +38,17 @@ internal val contextLLVMSetupPhase = makeKonanModuleOpPhase(
 
             // we don't split path to filename and directory to provide enough level uniquely for dsymutil to avoid symbol
             // clashing, which happens on linking with libraries produced from intercepting sources.
+            val filePath = context.config.outputFile.toFileAndFolder(context).path()
+
             context.debugInfo.compilationUnit = if (context.shouldContainLocationDebugInfo()) DICreateCompilationUnit(
                     builder = context.debugInfo.builder,
                     lang = DWARF.language(context.config),
-                    File = File(context.config.outputFile).absolutePath,
-                    dir = "-",
+                    File = filePath,
+                    dir = "",
                     producer = DWARF.producer,
                     isOptimized = 0,
                     flags = "",
-                    rv = DWARF.runtimeVersion(context.config)) as DIScopeOpaqueRef?
+                    rv = DWARF.runtimeVersion(context.config)).cast()
             else null
         }
 )

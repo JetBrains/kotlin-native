@@ -59,7 +59,7 @@ val Project.globalTestArgs: List<String>
     }
 
 val Project.testTargetSupportsCodeCoverage: Boolean
-    get() = false // Disable until tests are fixed
+    get() = this.testTarget.supportsCodeCoverage()
 
 //endregion
 
@@ -319,4 +319,30 @@ fun Project.mergeManifestsByTargets(source: File, destination: File) {
     destinationProperties[KLIB_PROPERTY_NATIVE_TARGETS] = mergedNativeTargets.joinToString(" ")
 
     destinationFile.saveProperties(destinationProperties)
+}
+
+fun Project.buildStaticLibrary(cSources: Collection<File>, output: File, objDir: File) {
+    delete(objDir)
+    delete(output)
+
+    val platform = platformManager.platform(testTarget)
+
+    objDir.mkdirs()
+    exec {
+        it.commandLine(platform.clang.clangC(
+                "-c",
+                *cSources.map { it.absolutePath }.toTypedArray()
+        ))
+        it.workingDir(objDir)
+    }
+
+    output.parentFile.mkdirs()
+    exec {
+        it.commandLine(
+                "${platform.configurables.absoluteLlvmHome}/bin/llvm-ar",
+                "-rc",
+                output,
+                *fileTree(objDir).files.toTypedArray()
+        )
+    }
 }
