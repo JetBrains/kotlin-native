@@ -4123,6 +4123,7 @@ if (isAppleTarget(project)) {
                     file konanArtifacts[libraryName].getArtifactByTarget(target.name)
                 }
 
+                extraOpts "-Xopt-in=kotlin.ExperimentalStdlibApi"
                 extraOpts "-Xembed-bitcode-marker"
                 extraOpts "-Xemit-lazy-objc-header=$lazyHeader"
                 extraOpts project.globalTestArgs
@@ -4173,6 +4174,7 @@ if (isAppleTarget(project)) {
                     file konanArtifacts[libraryName].getArtifactByTarget(target.name)
                 }
 
+                extraOpts "-Xopt-in=kotlin.ExperimentalStdlibApi"
                 extraOpts "-Xembed-bitcode-marker"
                 extraOpts "-Xstatic-framework"
                 extraOpts project.globalTestArgs
