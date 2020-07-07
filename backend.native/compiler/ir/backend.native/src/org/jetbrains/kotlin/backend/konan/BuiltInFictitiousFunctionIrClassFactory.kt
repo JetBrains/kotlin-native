@@ -116,7 +116,7 @@ internal class BuiltInFictitiousFunctionIrClassFactory(
                 .filter { it ->  (it.descriptor as FunctionClassDescriptor).functionKind == FunctionClassDescriptor.Kind.Function }
                 .map { FunctionalInterface(it, (it.descriptor as FunctionClassDescriptor).arity) }
 
-    private fun createTypeParameter(descriptor: TypeParameterDescriptor) =
+    private fun createTypeParameter(descriptor: TypeParameterDescriptor): IrTypeParameter =
             symbolTable?.declareGlobalTypeParameter(
                     SYNTHETIC_OFFSET, SYNTHETIC_OFFSET, DECLARATION_ORIGIN_FUNCTION_CLASS,
                     descriptor
