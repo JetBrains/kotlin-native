@@ -124,7 +124,12 @@ class J2ObjCParser(val classNode: ClassNode) {
     }
   }
 }
-
+/**
+ * Creates a list of ByteArrays of each .class file in a .jar file
+ *
+ * @param jarFile JarFile of java library wanting to be converted to klib
+ * @return List of ByteArrays of each class file in the jar
+ */
 fun loadClassDataFromJar(jarFile: JarFile): Collection<ByteArray> {
   val classes = mutableListOf<ByteArray>()
   for (entry in jarFile.entries()) {
@@ -139,6 +144,13 @@ fun loadClassDataFromJar(jarFile: JarFile): Collection<ByteArray> {
   }
   return classes
 }
+
+/**
+ * Creates ObjC classes from Java .class file data
+ *
+ * @param classData List of Java class data in ByteArray format
+ * @return List of ObjCClass implementations from parsed class data
+ */
 
 fun generateClassNodes(classData: Collection<ByteArray>): Collection<ObjCClass> {
   val generatedClasses = mutableListOf<ObjCClass>()
