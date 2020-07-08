@@ -1,9 +1,11 @@
 package org.jetbrains.kotlin.native.interop.indexer
 
+import org.jetbrains.org.objectweb.asm.ClassReader
 import org.jetbrains.org.objectweb.asm.tree.ClassNode
 import org.jetbrains.org.objectweb.asm.tree.MethodNode
 import org.jetbrains.org.objectweb.asm.Type.getArgumentTypes
 import org.jetbrains.org.objectweb.asm.Type.getReturnType
+import java.util.jar.JarFile
 
 /**
  *  Parses an ASM ClassNode and builds an ObjCClass
@@ -121,4 +123,37 @@ class J2ObjCParser(val classNode: ClassNode) {
       }
     }
   }
+}
+
+fun loadClassDataFromJar(jarFile: JarFile): Collection<ByteArray> {
+  val classes = mutableListOf<ByteArray>()
+  for (entry in jarFile.entries()) {
+    try {
+      val inputStream = jarFile.getInputStream(entry)
+      if (entry.name.endsWith(".class")) {
+        classes.add(inputStream.readBytes())
+      }
+    } catch (e: Exception) {
+      e.printStackTrace()
+    }
+  }
+  return classes
+}
+
+fun generateClassNodes(classData: Collection<ByteArray>): Collection<ObjCClass> {
+  val generatedClasses = mutableListOf<ObjCClass>()
+  val classNodes = mutableListOf<ClassNode>()
+
+  for (cls in classData) {
+    val node = ClassNode()
+    val reader = ClassReader(cls)
+    reader.accept(node,0)
+    classNodes.add(node)
+  }
+
+  for (node in classNodes) {
+    generatedClasses.add(J2ObjCParser(node).buildClass())
+  }
+
+  return generatedClasses
 }

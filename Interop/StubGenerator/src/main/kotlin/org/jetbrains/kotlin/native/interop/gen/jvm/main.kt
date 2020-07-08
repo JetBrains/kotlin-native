@@ -197,42 +197,10 @@ private fun findFilesByGlobs(roots: List<Path>, globs: List<String>): Map<Path, 
 }
 
 
-fun loadClassDataFromJar(jarFile: JarFile): Collection<ByteArray> {
-    val classes = mutableListOf<ByteArray>()
-    for (entry in jarFile.entries()) {
-        try {
-            val inputStream = jarFile.getInputStream(entry)
-            if (entry.name.endsWith(".class")) {
-                classes.add(inputStream.readBytes())
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
-    }
-    return classes
-}
-
-fun generateClassNodes(classData: Collection<ByteArray>): Collection<ObjCClass> {
-    val generatedClasses = mutableListOf<ObjCClass>()
-    val classNodes = mutableListOf<ClassNode>()
-
-    for (cls in classData) {
-        val node = ClassNode()
-        val reader = ClassReader(cls)
-        reader.accept(node,0)
-        classNodes.add(node)
-    }
-
-    for (node in classNodes) {
-        generatedClasses.add(J2ObjCParser(node).buildClass())
-    }
-
-    return generatedClasses
-}
-
 
 private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments,
                         additionalArgs: InternalInteropOptions): Array<String>? {
+
     // TODO: Replace this with a commandline-supplied file through cinterop
     val jarfile = JarFile("/Users/odowa/Code/example/Test.jar")
     val jarClassData = loadClassDataFromJar(jarfile)
