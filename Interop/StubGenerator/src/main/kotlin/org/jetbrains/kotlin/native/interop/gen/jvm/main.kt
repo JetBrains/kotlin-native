@@ -42,9 +42,6 @@ import java.io.File
 import java.lang.IllegalArgumentException
 import java.nio.file.*
 import java.util.*
-import org.jetbrains.org.objectweb.asm.*
-import org.jetbrains.org.objectweb.asm.tree.ClassNode
-import org.jetbrains.kotlin.native.interop.indexer.J2ObjCParser
 import java.util.jar.JarFile
 
 data class InternalInteropOptions(val generated: String, val natives: String, val manifest: String? = null,
