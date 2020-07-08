@@ -45,6 +45,7 @@ import java.util.*
 import org.jetbrains.org.objectweb.asm.*
 import org.jetbrains.org.objectweb.asm.tree.ClassNode
 import org.jetbrains.kotlin.native.interop.indexer.J2ObjCParser
+import java.util.jar.JarFile
 
 data class InternalInteropOptions(val generated: String, val natives: String, val manifest: String? = null,
                                   val cstubsName: String? = null)
@@ -196,14 +197,46 @@ private fun findFilesByGlobs(roots: List<Path>, globs: List<String>): Map<Path, 
 }
 
 
+fun loadClassDataFromJar(jarFile: JarFile): Collection<ByteArray> {
+    val classes = mutableListOf<ByteArray>()
+    for (entry in jarFile.entries()) {
+        try {
+            val inputStream = jarFile.getInputStream(entry)
+            if (entry.name.endsWith(".class")) {
+                classes.add(inputStream.readBytes())
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
+        }
+    }
+    return classes
+}
+
+fun generateClassNodes(classData: Collection<ByteArray>): Collection<ObjCClass> {
+    val generatedClasses = mutableListOf<ObjCClass>()
+    val classNodes = mutableListOf<ClassNode>()
+
+    for (cls in classData) {
+        val node = ClassNode()
+        val reader = ClassReader(cls)
+        reader.accept(node,0)
+        classNodes.add(node)
+    }
+
+    for (node in classNodes) {
+        generatedClasses.add(J2ObjCParser(node).buildClass())
+    }
+
+    return generatedClasses
+}
+
+
 private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments,
                         additionalArgs: InternalInteropOptions): Array<String>? {
-
-    // TODO: Replace this with commandline-supplied file
-    val testfile = File("/Users/odowa/Code/example/Hello.class").readBytes()
-    val classReader = ClassReader(testfile)
-    val classNode = ClassNode()
-    classReader.accept(classNode, 0)
+    // TODO: Replace this with a commandline-supplied file through cinterop
+    val jarfile = JarFile("/Users/odowa/Code/example/Test.jar")
+    val jarClassData = loadClassDataFromJar(jarfile)
+    val jarClassNodes = generateClassNodes(jarClassData)
 
 
     val ktGenRoot = additionalArgs.generated
@@ -274,11 +307,7 @@ private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments
 
     val imports = parseImports(allLibraryDependencies)
 
-    val j2objcParser = J2ObjCParser(classNode)
-    val j2objcClasses = j2objcParser.buildClass()
-
-    val j2objcIndexerResult = IndexerResult(J2ObjCNativeIndex(listOf<ObjCClass>(j2objcClasses)), CompilationWithPCH(emptyList<String>(), Language.J2ObjC))
-
+    val j2objcIndexerResult = IndexerResult(J2ObjCNativeIndex(jarClassNodes), CompilationWithPCH(emptyList<String>(), Language.J2ObjC))
     val index:IndexerResult = if (language == Language.J2ObjC) j2objcIndexerResult
         else buildNativeIndex(buildNativeLibrary(tool,def,cinteropArguments,imports), verbose)
 

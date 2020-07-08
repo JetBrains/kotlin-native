@@ -5,7 +5,6 @@ import org.jetbrains.org.objectweb.asm.tree.MethodNode
 import org.jetbrains.org.objectweb.asm.Type.getArgumentTypes
 import org.jetbrains.org.objectweb.asm.Type.getReturnType
 
-// TODO: Move j2objcparser class here ;Change to org.jetbrains.org.objectweb.asm.*; Figure out gradle
 /**
  *  Parses an ASM ClassNode and builds an ObjCClass
  *
@@ -40,7 +39,7 @@ class J2ObjCParser(val classNode: ClassNode) {
    *
    * @return A list of ObjCMethods
    */
-  fun buildClassMethods(): MutableList<ObjCMethod> {
+   private fun buildClassMethods(): List<ObjCMethod> {
     val methods = mutableListOf<ObjCMethod>()
     for (method in classNode.methods) {
       var selector = method.name
@@ -76,12 +75,11 @@ class J2ObjCParser(val classNode: ClassNode) {
    * @return A list of Kotlin parameters with associated types/names
    */
 
-  fun parseMethodParameters(method: MethodNode): List<Parameter> {
+  private fun parseMethodParameters(method: MethodNode): List<Parameter> {
     val methodParameters = mutableListOf<Parameter>()
     val parameterTypes = getArgumentTypes(method.desc)
 
     for (i in 0 until parameterTypes.size) {
-      println(method.parameters.get(i).name + " Type: " + parameterTypes.get(i).className)
       when (parameterTypes.get(i).className) {
         // Java byte type not implemented currently
         "boolean" -> methodParameters.add(Parameter(name = method.parameters.get(i).name, type = ObjCBoolType, nsConsumed = false))
@@ -105,7 +103,7 @@ class J2ObjCParser(val classNode: ClassNode) {
    * @param method ASM MethodNode
    * @return Type corresponding to method's return type
    */
-  fun parseMethodReturnType(method: MethodNode): Type {
+  private fun parseMethodReturnType(method: MethodNode): Type {
     val returnType = getReturnType(method.desc)
 
     when (returnType.className) {
