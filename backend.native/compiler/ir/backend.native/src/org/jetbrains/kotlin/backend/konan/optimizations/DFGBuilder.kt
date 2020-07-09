@@ -718,7 +718,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                                 createUninitializedInstanceSymbol ->
                                     DataFlowIR.Node.AllocInstance(symbolTable.mapClassReferenceType(
                                             value.getTypeArgument(0)!!.getClass()!!
-                                    ))
+                                    ), value)
 
                                 reinterpret -> getNode(value.extensionReceiver!!).value
 
