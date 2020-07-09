@@ -1,11 +1,13 @@
 package org.jetbrains.kotlin.native.interop.indexer
 
 import org.jetbrains.org.objectweb.asm.ClassReader
+import org.jetbrains.org.objectweb.asm.Opcodes
 import org.jetbrains.org.objectweb.asm.tree.ClassNode
 import org.jetbrains.org.objectweb.asm.tree.MethodNode
 import org.jetbrains.org.objectweb.asm.Type.getArgumentTypes
 import org.jetbrains.org.objectweb.asm.Type.getReturnType
 import java.util.jar.JarFile
+
 
 /**
  *  Parses an ASM ClassNode and builds an ObjCClass
@@ -45,27 +47,45 @@ class J2ObjCParser(val classNode: ClassNode) {
     val methods = mutableListOf<ObjCMethod>()
     for (method in classNode.methods) {
       var selector = method.name
-      if (!method.parameters.isNullOrEmpty() && method.parameters.size > 1) {
-        for (i in 1 until method.parameters.size) {
-          selector += ":" + method.parameters.get(i).name
-        }
-        selector += ":"
+      if (selector == "<init>") {
+        val generatedConstructor= ObjCMethod(
+          selector = "init",
+          encoding = "[]",
+          parameters = listOf<Parameter>(),
+          returnType = ObjCInstanceType(nullability = ObjCPointer.Nullability.Unspecified),
+          isVariadic = false,
+          isClass = false,
+          nsConsumesSelf = true,
+          nsReturnsRetained = true,
+          isOptional = false,
+          isInit = true,
+          isExplicitlyDesignatedInitializer = false
+        )
+        methods.add(generatedConstructor)
       }
-      val generatedMethod = ObjCMethod(
-        selector = if (!method.parameters.isNullOrEmpty() && method.parameters.size == 1) method.name + ":" else if (!method.parameters.isNullOrEmpty() && method.parameters.size > 1) selector  else method.name,
-        encoding = "[]", //TODO: Implement encoding properly
-        parameters = parseMethodParameters(method),
-        returnType = parseMethodReturnType(method),
-        isVariadic = false,
-        isClass = true,
-        nsConsumesSelf = false,
-        nsReturnsRetained = false,
-        isOptional = false,
-        isInit = false,
-        isExplicitlyDesignatedInitializer = false
-      )
-      methods.add(generatedMethod)
-      parseMethodParameters(method)
+      else {
+        if (!method.parameters.isNullOrEmpty() && method.parameters.size > 1) {
+          for (i in 1 until method.parameters.size) {
+            selector += ":" + method.parameters.get(i).name
+          }
+          selector += ":"
+        }
+        val generatedMethod = ObjCMethod(
+          selector = if (!method.parameters.isNullOrEmpty() && method.parameters.size == 1) method.name + ":" else if (!method.parameters.isNullOrEmpty() && method.parameters.size > 1) selector  else method.name,
+          encoding = "[]", //TODO: Implement encoding properly
+          parameters = parseMethodParameters(method),
+          returnType = parseMethodReturnType(method),
+          isVariadic = false,
+          isClass = method.access == Opcodes.ACC_PUBLIC + Opcodes.ACC_STATIC, // TODO: Currently only handles Public instance and Public static methods, true when static, false when instance
+          nsConsumesSelf = false,
+          nsReturnsRetained = false,
+          isOptional = false,
+          isInit = false,
+          isExplicitlyDesignatedInitializer = false
+        )
+        methods.add(generatedMethod)
+        parseMethodParameters(method)
+      }
     }
     return methods
   }
