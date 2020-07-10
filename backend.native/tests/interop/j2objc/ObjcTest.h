@@ -8,4 +8,3 @@
 - (int)add2:(int)x secondparam:(int)y;
 + (int)return100Static;
 @end
-
