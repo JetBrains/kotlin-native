@@ -125,7 +125,6 @@ fun customizeChart(chart: dynamic, chartContainer: String, jquerySelector: dynam
     chart.on("draw", { data ->
         var element = data.element
         if (data.type == "point") {
-            println(builds)
             val buildsGroup = getBuildsGroup(builds)
             val pointSize = 12
             val currentBuild = buildsGroup.get(data.index)
@@ -157,7 +156,7 @@ fun customizeChart(chart: dynamic, chartContainer: String, jquerySelector: dynam
                     previousBuild = buildsGroup.get(data.index - shift)
                     shift++
                 }
-                val linkToDetailedInfo = "https://kotlin-native-performance.labs.jb.gg/?report=bintray:" +
+                val linkToDetailedInfo = "https://kotlin-native-performance.labs.jb.gg/?report=artifactory:" +
                         "${currentBuild.buildNumber}:${parameters["target"]}:nativeReport.json" +
                         "${previousBuild?.let {
                         "&compareTo=artifactory:${previousBuild.buildNumber}:${parameters["target"]}:nativeReport.json"
@@ -320,7 +319,7 @@ fun main(args: Array<String>) {
                     "agr" to "samples",
                     "samples" to platformSpecificBenchs.removePrefix(",")
             )),
-            "BUNDLE_SIZE" to arrayOf(mapOf("samples" to "Kotlin/Native",
+            "BUNDLE_SIZE" to arrayOf(mapOf("samples" to "KotlinNative",
                                    "agr" to "samples"))
     )
 
@@ -388,9 +387,7 @@ fun main(args: Array<String>) {
                             it.getArray("second").map { (it as JsonPrimitive).doubleOrNull }
                 }
 
-
                 val labels = results.map { it.first }
-                println(labels)
                 val values = results[0]?.second?.size?.let { (0..it - 1).map { i -> results.map { it.second[i] } } }
                         ?: emptyList()
                 labels to values

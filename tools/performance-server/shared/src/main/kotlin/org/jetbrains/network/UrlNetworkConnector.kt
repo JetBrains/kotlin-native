@@ -23,7 +23,7 @@ class UrlNetworkConnector(private val host: String, private val port: Int? = nul
             headers.add("Accept" to "*/*")
             headers.add("Content-Type" to "application/json")
         }
-        println("send request $fullUrl")
+
         return request(fullUrl,
                 json(
                         "method" to method.toString(),

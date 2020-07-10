@@ -83,13 +83,16 @@ class CommitsList: ConvertedFromJson, JsonSerializable {
 }
 
 data class BuildInfo(val buildNumber: String, val startTime: String, val endTime: String, val commitsList: CommitsList,
-                     val branch: String): JsonSerializable {
+                     val branch: String,
+                     // Important agent information often used in requests.
+                     val agentInfo: String): JsonSerializable {
     override fun serializeFields() = """
         "buildNumber": "$buildNumber",
         "startTime": "$startTime",
         "endTime": "$endTime",
         ${commitsList.serializeFields()},
-        "branch": "$branch"
+        "branch": "$branch",
+        "agentInfo": "$agentInfo"
     """
 
     companion object: EntityFromJsonFactory<BuildInfo> {
@@ -105,7 +108,11 @@ data class BuildInfo(val buildNumber: String, val startTime: String, val endTime
                 } else {
                     error("benchmarksSets field is expected to be an array. Please, check origin files.")
                 }
-                return BuildInfo(buildNumber, startTime, endTime, CommitsList(commits), branch)
+                val agentInfoElement = data.getOptionalField("agentInfo")
+                val agentInfo = agentInfoElement?.let {
+                    elementToString(agentInfoElement, "agentInfo")
+                } ?: ""
+                return BuildInfo(buildNumber, startTime, endTime, CommitsList(commits), branch, agentInfo)
             } else {
                 error("Top level entity is expected to be an object. Please, check origin files.")
             }
@@ -189,7 +196,7 @@ abstract class ElasticSearchIndex(val indexName: String, val connector: ElasticS
         connector.request(RequestMethod.PUT, indexName, body = mappingDescription)
 }
 
-class BenchmarksIndex(connector: ElasticSearchConnector): ElasticSearchIndex("benchmarks", connector) {
+class BenchmarksIndex(name:String, connector: ElasticSearchConnector): ElasticSearchIndex(name, connector) {
     override val mapping: Map<String, ElasticSearchType>
         get() = mapOf("buildNumber" to ElasticSearchType.KEYWORD,
                 "benchmarksSets" to ElasticSearchType.NESTED,

@@ -68,7 +68,6 @@ class AWSNetworkConnector : NetworkConnector() {
         }
 
         val credentials = AWSInstance.SharedIniFileCredentials(mapOf<String, String>())
-        println(credentials.accessKeyId)
         val signer = AWSInstance.Signers.V4(request, "es")
         signer.addAuthorization(credentials, Date())
 
@@ -81,11 +80,9 @@ class AWSNetworkConnector : NetworkConnector() {
                     chunk
                 }
                 response.on("end") { chunk ->
-                    println("End")
                     resolve(responseBody as T)
                 }
             }, { error ->
-                println(error)
                 errorHandler(path, error.stack)
                 reject(error)
             })
