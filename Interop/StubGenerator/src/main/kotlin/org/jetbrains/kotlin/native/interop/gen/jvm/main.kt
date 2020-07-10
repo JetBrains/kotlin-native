@@ -199,7 +199,7 @@ private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments
                         additionalArgs: InternalInteropOptions): Array<String>? {
 
     // TODO: Replace this with a commandline-supplied file through cinterop
-    val jarfile = JarFile("/Users/odowa/Code/example/Test.jar")
+    val jarfile = JarFile("/Users/odowa/Code/example/Foo.jar")
     val jarClassData = loadClassDataFromJar(jarfile)
     val jarClassNodes = generateClassNodes(jarClassData)
 
