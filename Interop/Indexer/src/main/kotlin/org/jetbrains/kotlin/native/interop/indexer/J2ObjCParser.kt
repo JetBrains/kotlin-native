@@ -1,11 +1,14 @@
 package org.jetbrains.kotlin.native.interop.indexer
 
+import org.jetbrains.org.objectweb.asm.ClassReader
+import org.jetbrains.org.objectweb.asm.Opcodes
 import org.jetbrains.org.objectweb.asm.tree.ClassNode
 import org.jetbrains.org.objectweb.asm.tree.MethodNode
 import org.jetbrains.org.objectweb.asm.Type.getArgumentTypes
 import org.jetbrains.org.objectweb.asm.Type.getReturnType
+import java.util.jar.JarFile
 
-// TODO: Move j2objcparser class here ;Change to org.jetbrains.org.objectweb.asm.*; Figure out gradle
+
 /**
  *  Parses an ASM ClassNode and builds an ObjCClass
  *
@@ -40,31 +43,49 @@ class J2ObjCParser(val classNode: ClassNode) {
    *
    * @return A list of ObjCMethods
    */
-  fun buildClassMethods(): MutableList<ObjCMethod> {
+   private fun buildClassMethods(): List<ObjCMethod> {
     val methods = mutableListOf<ObjCMethod>()
     for (method in classNode.methods) {
       var selector = method.name
-      if (!method.parameters.isNullOrEmpty() && method.parameters.size > 1) {
-        for (i in 1 until method.parameters.size) {
-          selector += ":" + method.parameters.get(i).name
-        }
-        selector += ":"
+      if (selector == "<init>") {
+        val generatedConstructor= ObjCMethod(
+          selector = "init",
+          encoding = "[]",
+          parameters = listOf<Parameter>(),
+          returnType = ObjCInstanceType(nullability = ObjCPointer.Nullability.Unspecified),
+          isVariadic = false,
+          isClass = false,
+          nsConsumesSelf = true,
+          nsReturnsRetained = true,
+          isOptional = false,
+          isInit = true,
+          isExplicitlyDesignatedInitializer = false
+        )
+        methods.add(generatedConstructor)
       }
-      val generatedMethod = ObjCMethod(
-        selector = if (!method.parameters.isNullOrEmpty() && method.parameters.size == 1) method.name + ":" else if (!method.parameters.isNullOrEmpty() && method.parameters.size > 1) selector  else method.name,
-        encoding = "[]", //TODO: Implement encoding properly
-        parameters = parseMethodParameters(method),
-        returnType = parseMethodReturnType(method),
-        isVariadic = false,
-        isClass = true,
-        nsConsumesSelf = false,
-        nsReturnsRetained = false,
-        isOptional = false,
-        isInit = false,
-        isExplicitlyDesignatedInitializer = false
-      )
-      methods.add(generatedMethod)
-      parseMethodParameters(method)
+      else {
+        if (!method.parameters.isNullOrEmpty() && method.parameters.size > 1) {
+          for (i in 1 until method.parameters.size) {
+            selector += ":" + method.parameters.get(i).name
+          }
+          selector += ":"
+        }
+        val generatedMethod = ObjCMethod(
+          selector = if (!method.parameters.isNullOrEmpty() && method.parameters.size == 1) method.name + ":" else if (!method.parameters.isNullOrEmpty() && method.parameters.size > 1) selector  else method.name,
+          encoding = "[]", //TODO: Implement encoding properly
+          parameters = parseMethodParameters(method),
+          returnType = parseMethodReturnType(method),
+          isVariadic = false,
+          isClass = method.access == Opcodes.ACC_PUBLIC + Opcodes.ACC_STATIC, // TODO: Currently only handles Public instance and Public static methods, true when static, false when instance
+          nsConsumesSelf = false,
+          nsReturnsRetained = false,
+          isOptional = false,
+          isInit = false,
+          isExplicitlyDesignatedInitializer = false
+        )
+        methods.add(generatedMethod)
+        parseMethodParameters(method)
+      }
     }
     return methods
   }
@@ -76,12 +97,11 @@ class J2ObjCParser(val classNode: ClassNode) {
    * @return A list of Kotlin parameters with associated types/names
    */
 
-  fun parseMethodParameters(method: MethodNode): List<Parameter> {
+  private fun parseMethodParameters(method: MethodNode): List<Parameter> {
     val methodParameters = mutableListOf<Parameter>()
     val parameterTypes = getArgumentTypes(method.desc)
 
     for (i in 0 until parameterTypes.size) {
-      println(method.parameters.get(i).name + " Type: " + parameterTypes.get(i).className)
       when (parameterTypes.get(i).className) {
         // Java byte type not implemented currently
         "boolean" -> methodParameters.add(Parameter(name = method.parameters.get(i).name, type = ObjCBoolType, nsConsumed = false))
@@ -105,7 +125,7 @@ class J2ObjCParser(val classNode: ClassNode) {
    * @param method ASM MethodNode
    * @return Type corresponding to method's return type
    */
-  fun parseMethodReturnType(method: MethodNode): Type {
+  private fun parseMethodReturnType(method: MethodNode): Type {
     val returnType = getReturnType(method.desc)
 
     when (returnType.className) {
@@ -123,4 +143,49 @@ class J2ObjCParser(val classNode: ClassNode) {
       }
     }
   }
+}
+/**
+ * Creates a list of ByteArrays of each .class file in a .jar file
+ *
+ * @param jarFile JarFile of java library wanting to be converted to klib
+ * @return List of ByteArrays of each class file in the jar
+ */
+fun loadClassDataFromJar(jarFile: JarFile): Collection<ByteArray> {
+  val classes = mutableListOf<ByteArray>()
+  for (entry in jarFile.entries()) {
+    try {
+      val inputStream = jarFile.getInputStream(entry)
+      if (entry.name.endsWith(".class")) {
+        classes.add(inputStream.readBytes())
+      }
+    } catch (e: Exception) {
+      e.printStackTrace()
+    }
+  }
+  return classes
+}
+
+/**
+ * Creates ObjC classes from Java .class file data
+ *
+ * @param classData List of Java class data in ByteArray format
+ * @return List of ObjCClass implementations from parsed class data
+ */
+
+fun generateClassNodes(classData: Collection<ByteArray>): Collection<ObjCClass> {
+  val generatedClasses = mutableListOf<ObjCClass>()
+  val classNodes = mutableListOf<ClassNode>()
+
+  for (cls in classData) {
+    val node = ClassNode()
+    val reader = ClassReader(cls)
+    reader.accept(node,0)
+    classNodes.add(node)
+  }
+
+  for (node in classNodes) {
+    generatedClasses.add(J2ObjCParser(node).buildClass())
+  }
+
+  return generatedClasses
 }
