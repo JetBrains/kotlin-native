@@ -1,0 +1,4 @@
+language = J2ObjC
+package = j2objctest
+
+linkerOpts = -lj2objctest
