@@ -31,7 +31,7 @@ or [several targets](#add-a-dependency-between-a-kotlin-pod-with-an-xcode-projec
     
     </div>
 
-2. Install the `cocoapods-generate` plugin.
+2. Install the [`cocoapods-generate`](https://github.com/square/cocoapods-generate) plugin.
 
     <div class="sample" markdown="1" theme="idea" mode="ruby" data-highlight-only>
     
