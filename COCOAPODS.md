@@ -105,6 +105,7 @@ steps are required.
 1. Add dependencies on a Pod library that you want to use from the CocoaPods repository with `pod()`  to `build.gradle.kts` 
 (`build.gradle`) of your project.
     >You can also add dependencies as subspecs.
+    {:.note}                                                                                                                                                              >
 
     <div class="sample" markdown="1" theme="idea" data-highlight-only>
     
