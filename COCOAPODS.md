@@ -104,6 +104,7 @@ steps are required.
 
 1. Add dependencies on a Pod library that you want to use from the CocoaPods repository with `pod()`  to `build.gradle.kts` 
 (`build.gradle`) of your project.
+    >You can also add dependencies as subspecs.
 
     <div class="sample" markdown="1" theme="idea" data-highlight-only>
     
@@ -115,6 +116,9 @@ steps are required.
             summary = "CocoaPods test library"
             homepage = "https://github.com/JetBrains/kotlin"
             pod("AFNetworking", "~> 3.2.1")
+            
+            //Remote Pod declared as a subspec
+            pod("SDWebImage/MapKit")
         }
     }
     ```
@@ -123,15 +127,23 @@ steps are required.
 
 2. Re-import the project.
 
-To use this dependency from Kotlin code, import a package `cocoapods.<library-name>`.
-In the example above, it's `cocoapods.AFNetworking`.
+To use these dependencies from Kotlin code, import packages `cocoapods.<library-name>`.
+
+<div class="sample" markdown="1" theme="idea" data-highlight-only>
+
+```kotlin
+import cocoapods.AFNetworking.*
+import cocoapods.SDWebImage.*
+```
+
+</div>
 
 ### Add a dependency on a Pod library stored locally
 
 1. Add a dependency on a Pod library stored locally with `pod()` to `build.gradle.kts` (`build.gradle`) of your
  project.  
 As the third argument, specify the path to `Podspec` of the local Pod using `projectDir.resolve("..")`.  
-    > You can also add dependencies as subspecs.  
+    > You can add local dependencies as subspecs as well.  
     > The `cocoapods` block can include dependencies to Pods stored locally and Pods from the CocoaPods repository at
     > the same time.
     {:.note}
@@ -147,7 +159,9 @@ As the third argument, specify the path to `Podspec` of the local Pod using `pro
             homepage = "https://github.com/JetBrains/kotlin"
             pod("pod_dependency", "1.0", projectDir.resolve("../pod_dependency/pod_dependency.podspec"))
             pod("subspec_dependency/Core", "1.0", projectDir.resolve("../subspec_dependency/subspec_dependency.podspec"))
+            
             pod("AFNetworking", "~> 3.2.1")
+            pod("SDWebImage/MapKit")
         }
     }
     ```
@@ -155,6 +169,17 @@ As the third argument, specify the path to `Podspec` of the local Pod using `pro
     </div>
 
 2. Re-import the project.
+
+If you want to use dependencies on local pods from Kotlin code, import the corresponding packages.
+
+<div class="sample" markdown="1" theme="idea" data-highlight-only>
+
+```kotlin
+import cocoapods.pod_dependency.*
+import cocoapods.subspec_dependency.*
+```
+
+</div>
 
 You can find a sample project [here](https://github.com/zoldater/KotlinWithLocalObjCPods). 
  
