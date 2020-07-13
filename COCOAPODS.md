@@ -211,6 +211,9 @@ directive.
 1. Create an Xcode project with `Podfile` if you haven’t done this yet.
 2. Add the path to your `Podfile` with `podfile = project.file(..)` to `build.gradle.kts` (`build.gradle`) 
 of your Kotlin project.
+3. Specify the minimum target version for the Pod library.
+    > If you don't specify the minimum target version and a dependency Pod requires a higher deployment target, you may get an error.
+    {:.note}
 
     <div class="sample" markdown="1" theme="idea" data-highlight-only>
         
@@ -221,6 +224,7 @@ of your Kotlin project.
         cocoapods {
             summary = "CocoaPods test library"
             homepage = "https://github.com/JetBrains/kotlin"
+            ios.deploymentTarget = "13.5"
             pod("AFNetworking", "~> 4.0.0")
             podfile = project.file("../ios-app/Podfile")
         }
