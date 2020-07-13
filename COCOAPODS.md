@@ -15,6 +15,10 @@ Depending on your purpose, you can add dependencies between:
 or [several targets](#add-a-dependency-between-a-kotlin-pod-with-an-xcode-project-with-several-targets)
 * [Several Kotlin Pods and an Xcode project](#add-dependencies-between-multiple-kotlin-pods-and-an-xcode-project)
 
+>You can also add dependencies between a Kotlin Pod and multiple Xcode projects. However, in this case you need to add a 
+>dependency by calling `pod install` manually for each Xcode project. In other cases, it's done automatically.
+{:.note}
+
 ## Install the CocoaPods dependency manager and plugin
 
 1. Install the [CocoaPods dependency manager](https://cocoapods.org/).
