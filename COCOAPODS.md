@@ -2,7 +2,7 @@
 
 Kotlin/Native provides integration with the [CocoaPods dependency manager](https://cocoapods.org/). You can add
 dependencies on Pod libraries stored in the CocoaPods repository or locally as well as use a multiplatform project with 
-native targets (Kotlin Pod) as a CocoaPods dependency.
+native targets as a CocoaPods dependency (Kotlin Pod).
 
 You can manage Pod dependencies right in Intellij IDEA enjoying its benefits of working with code, such as code
  highlighting and completion. You can build the whole Kotlin project with Gradle as a whole not switching to Xcode. 
@@ -190,7 +190,7 @@ You can find a sample project [here](https://github.com/zoldater/KotlinWithLocal
  
 ## Use a Kotlin Gradle project as a CocoaPods dependency
 
-You can use a multiplatform project with native targets (Kotlin Pod) as a CocoaPods dependency. Such a representation provides the
+You can use a multiplatform project with native targets as a CocoaPods dependency (Kotlin Pod). Such a representation provides the
  following advantages:
 
  * Such a dependency can be included in a `Podfile` of an Xcode project and automatically built (and rebuilt)
