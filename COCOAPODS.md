@@ -147,7 +147,7 @@ import cocoapods.SDWebImage.*
 
 1. Add a dependency on a Pod library stored locally with `pod()` to `build.gradle.kts` (`build.gradle`) of your
  project.  
-As the third argument, specify the path to `Podspec` of the local Pod using `project.file(..)`.  
+As the third parameter, specify the path to `Podspec` of the local Pod using `project.file(..)`.  
     > You can add local dependencies as subspecs as well.  
     > The `cocoapods` block can include dependencies to Pods stored locally and Pods from the CocoaPods repository at
     > the same time.
@@ -190,15 +190,10 @@ You can find a sample project [here](https://github.com/zoldater/KotlinWithLocal
  
 ## Use a Kotlin Gradle project as a CocoaPods dependency
 
-You can use a multiplatform project with native targets as a CocoaPods dependency (Kotlin Pod). Such a representation provides the
- following advantages:
-
- * Such a dependency can be included in a `Podfile` of an Xcode project and automatically built (and rebuilt)
- along with this project. It simplifies importing to Xcode by removing a need to write corresponding Gradle tasks and
-  Xcode build steps manually.
- * When building from Xcode, you can use CocoaPods libraries without writing
- `.def` files manually and setting `cinterop` tool parameters. In this case, all required parameters can be
- obtained from the Xcode project configured by CocoaPods.
+You can use a multiplatform project with native targets as a CocoaPods dependency (Kotlin Pod). You can include such a dependency
+  in a `Podfile` of an Xcode project  by its name and path to the project directory containing the generated `Podspec`. 
+This dependency will be automatically built (and rebuilt) along with this project. 
+Such approach simplifies importing to Xcode by removing a need to write corresponding Gradle tasks and Xcode build steps manually.
  
 You can add dependencies between:
 * [A Kotlin Pod and an Xcode project with one target](#add-a-dependency-between-a-kotlin-pod-and-xcode-project-with-one-target)
