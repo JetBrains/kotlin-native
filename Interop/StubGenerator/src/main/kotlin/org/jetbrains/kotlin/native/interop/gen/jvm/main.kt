@@ -198,12 +198,6 @@ private fun findFilesByGlobs(roots: List<Path>, globs: List<String>): Map<Path, 
 private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments,
                         additionalArgs: InternalInteropOptions): Array<String>? {
 
-    // TODO: Replace this with a commandline-supplied file through cinterop
-    val jarfile = JarFile("/Users/odowa/Code/example/Foo.jar")
-    val jarClassData = loadClassDataFromJar(jarfile)
-    val jarClassNodes = generateClassNodes(jarClassData)
-
-
     val ktGenRoot = additionalArgs.generated
     val nativeLibsDir = additionalArgs.natives
     val flavor = KotlinPlatform.values().single { it.name.equals(flavorName, ignoreCase = true) }
@@ -247,6 +241,19 @@ private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments
 
     val outKtPkg = fqParts.joinToString(".")
 
+    val jarDirectory = def.config.j2objcJar
+    val j2objcIndexerResult: IndexerResult
+
+    if (language == Language.J2ObjC) {
+        val jarClassData = loadClassDataFromJar(JarFile(jarDirectory[0]))
+        val jarClassNodes = generateClassNodes(jarClassData)
+        j2objcIndexerResult =
+          IndexerResult(J2ObjCNativeIndex(jarClassNodes), CompilationWithPCH(emptyList<String>(), Language.J2ObjC))
+    } else {
+        j2objcIndexerResult =
+          IndexerResult(J2ObjCNativeIndex(emptyList<ObjCClass>()), CompilationWithPCH(emptyList<String>(), Language.J2ObjC))
+    }
+
     val mode = run {
         val providedMode = parseGenerationMode(cinteropArguments.mode)
                 ?: error ("Unexpected interop generation mode: ${cinteropArguments.mode}")
@@ -272,7 +279,6 @@ private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments
 
     val imports = parseImports(allLibraryDependencies)
 
-    val j2objcIndexerResult = IndexerResult(J2ObjCNativeIndex(jarClassNodes), CompilationWithPCH(emptyList<String>(), Language.J2ObjC))
     val index:IndexerResult = if (language == Language.J2ObjC) j2objcIndexerResult
         else buildNativeIndex(buildNativeLibrary(tool,def,cinteropArguments,imports), verbose)
 

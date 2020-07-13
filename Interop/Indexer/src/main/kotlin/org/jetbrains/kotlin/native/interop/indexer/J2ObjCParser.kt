@@ -15,7 +15,6 @@ import java.util.jar.JarFile
  *  @param classNode An ASM classNode
  */
 class J2ObjCParser(val classNode: ClassNode) {
-
   /**
    * Builds and returns an ObjCClass implementation with associated methods
    *
