@@ -370,6 +370,10 @@ You can find a sample project [here](https://github.com/zoldater/severalXcodeTar
 
 7. Re-import the project.
 
+>If you get an error about a duplicate symbol when building your Xcode project, add `kotlin.native.cacheKind=none` to 
+>`gradle.properties` and re-import the project.
+{:.note}
+
 You can find a sample project [here](https://github.com/zoldater/cocoapodsMPPDemo).
 
 
