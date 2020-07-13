@@ -9,6 +9,7 @@ import org.jetbrains.report.json.*
 
 interface JsonSerializable {
     fun serializeFields(): String
+
     fun toJson(): String {
         return """
         {
@@ -20,7 +21,7 @@ interface JsonSerializable {
     // Convert iterable objects arrays, lists to json.
     fun <T> arrayToJson(data: Iterable<T>): String {
         return data.joinToString(prefix = "[", postfix = "]") {
-            if (it is JsonSerializable) it.toJson() else "\"$it\""
+            if (it is JsonSerializable) it.toJson() else it.toString()
         }
     }
 }
@@ -29,85 +30,21 @@ interface EntityFromJsonFactory<T>: ConvertedFromJson {
     fun create(data: JsonElement): T
 }
 
-// Class for benchmarks report with all information of run.
-class BenchmarksReport(val env: Environment, val benchmarksSets: List<BenchmarksSet>, val compiler: Compiler):
+// Class for benchcmarks report with all information of run.
+class BenchmarksReport(val env: Environment, benchmarksList: List<BenchmarkResult>, val compiler: Compiler):
         JsonSerializable {
 
     companion object: EntityFromJsonFactory<BenchmarksReport> {
         override fun create(data: JsonElement): BenchmarksReport {
             if (data is JsonObject) {
                 val env = Environment.create(data.getRequiredField("env"))
-                val benchmarksObj = data.getRequiredField("benchmarksSets")
+                val benchmarksObj = data.getRequiredField("benchmarks")
                 val compiler = Compiler.create(data.getRequiredField("kotlin"))
                 val buildNumberField = data.getOptionalField("buildNumber")
-                val benchmarksSetsList = parseBenchmarksSets(benchmarksObj)
-                val report = BenchmarksReport(env, benchmarksSetsList, compiler)
+                val benchmarksList = parseBenchmarksArray(benchmarksObj)
+                val report = BenchmarksReport(env, benchmarksList, compiler)
                 buildNumberField?.let { report.buildNumber = (it as JsonLiteral).unquoted() }
                 return report
-            } else {
-                error("Top level entity is expected to be an object. Please, check origin files.")
-            }
-        }
-
-        // Parse array with benchmarks sets to list.
-        fun parseBenchmarksSets(data: JsonElement): List<BenchmarksSet> {
-            if (data is JsonArray) {
-                return data.jsonArray.map { BenchmarksSet.create(it as JsonObject) }
-            } else {
-                error("benchmarksSets field is expected to be an array. Please, check origin files.")
-            }
-        }
-    }
-
-    val benchmarks = benchmarksSets.map { it.benchmarks }.reduce { acc, map -> acc + map }
-
-    var buildNumber: String? = null
-
-    override fun serializeFields(): String {
-        val buildNumberField = buildNumber?.let { """,
-            "buildNumber": "$buildNumber"
-        """} ?: ""
-        return """
-            "env": ${env.toJson()},
-            "kotlin": ${compiler.toJson()},
-            "benchmarksSets": ${arrayToJson(benchmarksSets)}$buildNumberField
-        """
-    }
-
-    // Concatenate benchmarks report if they have same environment and compiler.
-    operator fun plus(other: BenchmarksReport): BenchmarksReport {
-        if (compiler != other.compiler || env != other.env) {
-            error ("It's impossible to concat reports from different machines!")
-        }
-        val mergedBenchmarks = benchmarksSets.toMutableList()
-        other.benchmarksSets.forEach {addedSet ->
-            benchmarksSets.forEachIndexed { index, it ->
-                // Merge same benchmarks sets and add new ones.
-                if (addedSet.setInfo.hasSameOriginWith(it.setInfo)) {
-                    mergedBenchmarks[index] = it + addedSet
-                } else {
-                    mergedBenchmarks.add(addedSet)
-                }
-            }
-        }
-        return BenchmarksReport(env, mergedBenchmarks, compiler)
-    }
-}
-
-class BenchmarksSet(val setInfo: BenchmarksSetInfo, benchmarksList: List<BenchmarkResult>): JsonSerializable {
-
-    companion object: EntityFromJsonFactory<BenchmarksSet> {
-        override fun create(data: JsonElement): BenchmarksSet {
-            if (data is JsonObject) {
-                val name = BenchmarksSet.elementToString(data.getRequiredField("name"), "name")
-                val benchmarksObj = data.getRequiredField("benchmarks")
-                val flagsArray = data.getOptionalField("compilerFlags")
-                var flags: List<String> = emptyList()
-                if (flagsArray != null && flagsArray is JsonArray) {
-                    flags = flagsArray.jsonArray.map { (it as JsonLiteral).unquoted() }
-                }
-                val benchmarksList = parseBenchmarksArray(benchmarksObj)
-                return BenchmarksSet(BenchmarksSetInfo(name, flags), benchmarksList)
             } else {
                 error("Top level entity is expected to be an object. Please, check origin files.")
             }
@@ -127,39 +64,38 @@ class BenchmarksSet(val setInfo: BenchmarksSetInfo, benchmarksList: List<Benchma
                 benchmarksList.groupBy{ it.name }
     }
 
-    data class BenchmarksSetInfo(val name: String, val compilerFlags: List<String>) {
-        fun hasSameOriginWith(other: BenchmarksSetInfo) =
-                other.name == name && other.compilerFlags.size == compilerFlags.size &&
-                        (other.compilerFlags - compilerFlags).isEmpty()
-    }
-
     val benchmarks: Map<String, List<BenchmarkResult>> = structBenchmarks(benchmarksList)
 
+    var buildNumber: String? = null
+
     override fun serializeFields(): String {
-        val result = """
-            "name": "${setInfo.name}",
-            "benchmarks": ${arrayToJson(benchmarks.flatMap{it.value})}
+        val buildNumberField = buildNumber?.let { """,
+            "buildNumber": "$buildNumber"
+        """} ?: ""
+        return """
+            "env": ${env.toJson()},
+            "kotlin": ${compiler.toJson()},
+            "benchmarks": ${arrayToJson(benchmarks.flatMap{it.value})}$buildNumberField
         """
-        // Don't print flags field if there is no one.
-        if (setInfo.compilerFlags.isEmpty()) {
-            return result
-        }
-        else {
-            return """
-                    $result,
-                "compilerFlags": ${arrayToJson(setInfo.compilerFlags)}
-                """
-        }
     }
 
-    // Concatenate benchmarks sets if they have same name and flags.
-    operator fun plus(other: BenchmarksSet): BenchmarksSet {
-        if (!setInfo.hasSameOriginWith(other.setInfo)) {
-            error ("It's impossible to concat benchmarks sets with different names and compiler flags!")
+    fun merge(other: BenchmarksReport): BenchmarksReport {
+        val mergedBenchmarks = HashMap(benchmarks)
+        other.benchmarks.forEach {
+            if (it.key in mergedBenchmarks) {
+                error("${it.key} already exists in report!")
+            }
         }
-        val mergedBenchmarks = HashMap<String, List<BenchmarkResult>>(benchmarks)
         mergedBenchmarks.putAll(other.benchmarks)
-        return BenchmarksSet(setInfo, mergedBenchmarks.flatMap{it.value})
+        return BenchmarksReport(env, mergedBenchmarks.flatMap{it.value}, compiler)
+    }
+
+    // Concatenate benchmarks report if they have same environment and compiler.
+    operator fun plus(other: BenchmarksReport): BenchmarksReport {
+        if (compiler != other.compiler || env != other.env) {
+            error ("It's impossible to concat reports from different machines!")
+        }
+        return merge(other)
     }
 }
 
@@ -187,7 +123,7 @@ data class Compiler(val backend: Backend, val kotlinVersion: String): JsonSerial
     }
 
     // Class for compiler backend
-    data class Backend(val type: BackendType, val version: String): JsonSerializable {
+    data class Backend(val type: BackendType, val version: String, val flags: List<String>): JsonSerializable {
         companion object: EntityFromJsonFactory<Backend> {
             override fun create(data: JsonElement): Backend {
                 if (data is JsonObject) {
@@ -195,8 +131,12 @@ data class Compiler(val backend: Backend, val kotlinVersion: String): JsonSerial
                     if (typeElement is JsonLiteral) {
                         val type = backendTypeFromString(typeElement.unquoted()) ?: error("Backend type should be 'jvm' or 'native'")
                         val version = elementToString(data.getRequiredField("version"), "version")
-
-                        return Backend(type, version)
+                        val flagsArray = data.getOptionalField("flags")
+                        var flags: List<String> = emptyList()
+                        if (flagsArray != null && flagsArray is JsonArray) {
+                            flags = flagsArray.jsonArray.map { it.toString() }
+                        }
+                        return Backend(type, version, flags)
                     } else {
                         error("Backend type should be string literal.")
                     }
@@ -207,10 +147,20 @@ data class Compiler(val backend: Backend, val kotlinVersion: String): JsonSerial
         }
 
         override fun serializeFields(): String {
-            return """
+            val result = """
                 "type": "${type.type}",
-                "version": "${version}"
+                "version": "${version}""""
+            // Don't print flags field if there is no one.
+            if (flags.isEmpty()) {
+                return """$result
                 """
+            }
+            else {
+                return """
+                    $result,
+                "flags": ${arrayToJson(flags.map { if (it.startsWith("\"")) it else "\"$it\""} )}
+                """
+            }
         }
     }
 
@@ -312,8 +262,8 @@ open class BenchmarkResult(val name: String, val status: Status,
                 var name = elementToString(data.getRequiredField("name"), "name")
                 val metricElement = data.getOptionalField("metric")
                 val metric = if (metricElement != null && metricElement is JsonLiteral)
-                                metricFromString(metricElement.unquoted()) ?: Metric.EXECUTION_TIME
-                            else Metric.EXECUTION_TIME
+                    metricFromString(metricElement.unquoted()) ?: Metric.EXECUTION_TIME
+                else Metric.EXECUTION_TIME
                 name += metric.suffix
                 val statusElement = data.getRequiredField("status")
                 if (statusElement is JsonLiteral) {

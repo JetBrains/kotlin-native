@@ -10,7 +10,6 @@ import org.jetbrains.report.BenchmarkResult
 import org.jetbrains.report.Environment
 import org.jetbrains.report.Compiler
 import org.jetbrains.report.BenchmarksReport
-import org.jetbrains.report.BenchmarksSet
 
 typealias SummaryBenchmark = Pair<MeanVarianceBenchmark?, MeanVarianceBenchmark?>
 typealias BenchmarksTable = Map<String, MeanVarianceBenchmark>
@@ -42,9 +41,6 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
     // Environment and tools.
     val environments: Pair<Environment, Environment?>
     val compilers: Pair<Compiler, Compiler?>
-    val benchmarksSetsInfo: Pair<List<BenchmarksSet.BenchmarksSetInfo>, List<BenchmarksSet.BenchmarksSetInfo>?>
-    // BenchmarkSet name -> list of benchmark name.
-    val benchmarksParents: Pair<Map<String, List<String>>, Map<String, List<String>>>
 
     // Countable properties.
     val failedBenchmarks: List<String>
@@ -100,24 +96,9 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
                 mutableListOf<FieldChange<String>>().apply {
                     addFieldChange("Backend type", previousCompiler.backend.type.type, currentCompiler.backend.type.type)
                     addFieldChange("Backend version", previousCompiler.backend.version, currentCompiler.backend.version)
+                    addFieldChange("Backend flags", previousCompiler.backend.flags.toString(),
+                            currentCompiler.backend.flags.toString())
                     addFieldChange("Kotlin version", previousCompiler.kotlinVersion, currentCompiler.kotlinVersion)
-                }
-            } ?: listOf<FieldChange<String>>()
-        }
-
-    val benchmarksSetsChanges: List<FieldChange<String>>
-        get() {
-            val previousSets = benchmarksSetsInfo.second
-            val currentSets = benchmarksSetsInfo.first
-            return previousSets?.let {
-                val previousSetsMap = it.groupBy { it.name }
-                val currentSetsMap = currentSets.groupBy { it.name }
-                mutableListOf<FieldChange<String>>().apply {
-                    currentSetsMap.keys.intersect(previousSetsMap.keys).forEach { key ->
-                        addFieldChange("Benchmarks set $key compiler flags",
-                                previousSetsMap[key]!!.first().compilerFlags.toString(),
-                                currentSetsMap[key]!!.first().compilerFlags.toString())
-                    }
                 }
             } ?: listOf<FieldChange<String>>()
         }
@@ -133,10 +114,6 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
         geoMeanBenchmark = calculateGeoMeanBenchmark(currentBenchmarksTable, previousBenchmarksTable)
         environments = Pair(currentReport.env, previousReport?.env)
         compilers = Pair(currentReport.compiler, previousReport?.compiler)
-        benchmarksSetsInfo = Pair(currentReport.benchmarksSets.map { it.setInfo },
-                previousReport?.benchmarksSets?.map { it.setInfo })
-        benchmarksParents = Pair(getParentsMap(currentReport.benchmarksSets),
-                previousReport?.let{ getParentsMap(it.benchmarksSets) } ?: emptyMap())
 
         if (previousReport != null) {
             // Check changes in environment and tools.
@@ -145,17 +122,8 @@ class SummaryBenchmarksReport (val currentReport: BenchmarksReport,
     }
 
     fun toBenchmarksReport(): BenchmarksReport {
-        val setsInfo = benchmarksSetsInfo.first.groupBy { it.name }
-        val sets = benchmarksParents.first.map { (name, benchmarks) ->
-            BenchmarksSet(setsInfo[name]!!.first(),
-                    benchmarks.map { mergedReport[it]!!.first!! }) }
-        return BenchmarksReport(environments.first, sets, compilers.first)
+        return BenchmarksReport(environments.first, mergedReport.map { (_, value) -> value.first!! }, compilers.first)
     }
-
-    fun getParentsMap(benchmarksSet: List<BenchmarksSet>) =
-        benchmarksSet.map { currentSet ->
-            currentSet.setInfo.name to currentSet.benchmarks.keys.distinct()
-        }.toMap()
 
     fun getResultsByMetric(metric: BenchmarkResult.Metric, getGeoMean: Boolean = true, filter: List<String>? = null,
                            normalizeData: Map<String, Map<String, Double>>? = null): List<Double?>  {

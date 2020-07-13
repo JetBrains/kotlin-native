@@ -74,8 +74,14 @@ fun getFileContent(fileName: String, user: String? = null): String {
     }
 }
 
-fun getBenchmarkReport(fileName: String, user: String? = null) =
-        BenchmarksReport.create(JsonTreeParser.parse(getFileContent(fileName, user)))
+fun getBenchmarkReport(fileName: String, user: String? = null): List<BenchmarksReport> {
+    val jsonEntity = JsonTreeParser.parse(getFileContent(fileName, user))
+    return when (jsonEntity) {
+        is JsonObject -> listOf(BenchmarksReport.create(jsonEntity))
+        is JsonArray -> jsonEntity.map { BenchmarksReport.create(it) }
+        else -> error("Wrong format of report. Expected object or array of objects.")
+    }
+}
 
 fun parseNormalizeResults(results: String): Map<String, Map<String, Double>> {
     val parsedNormalizeResults = mutableMapOf<String, MutableMap<String, Double>>()
@@ -91,6 +97,26 @@ fun parseNormalizeResults(results: String): Map<String, Map<String, Double>> {
     }
     return parsedNormalizeResults
 }
+
+fun mergeCompilerFlags(reports: List<BenchmarksReport>) =
+    reports.map {
+        val benchmarks = it.benchmarks.values.flatten().asSequence().filter { it.metric == BenchmarkResult.Metric.COMPILE_TIME }
+                .map { it.shortName }.distinct().sorted().joinToString()
+        "${it.compiler.backend.flags.joinToString()} for [$benchmarks]"
+    }
+
+fun mergeReportsWithDetailedFlags(reports: List<BenchmarksReport>) =
+        if (reports.size > 1) {
+            // Merge reports.
+            val detailedFlags = mergeCompilerFlags(reports)
+            reports.map {
+                BenchmarksReport(it.env, it.benchmarks.values.flatten(),
+                        Compiler(Compiler.Backend(it.compiler.backend.type, it.compiler.backend.version, detailedFlags),
+                                it.compiler.kotlinVersion))
+            }.reduce { result, it -> result + it }
+        } else {
+            reports.first()
+        }
 
 fun main(args: Array<String>) {
     class Summary: Subcommand("summary", "Output summary information") {
@@ -118,7 +144,11 @@ fun main(args: Array<String>) {
         val mainReport by argument(ArgType.String, description = "Main report for analysis")
 
         override fun execute() {
-            val benchsReport = SummaryBenchmarksReport(getBenchmarkReport(mainReport, user))
+            val reportsList = getBenchmarkReport(mainReport, user)
+            val report = reportsList.reduce { result, it ->
+                result.merge(it)
+            }
+            val benchsReport = SummaryBenchmarksReport(report)
             val results = mutableListOf<String>()
             val executionNormalize = execNormalize?.let {
                 parseNormalizeResults(getFileContent(it))
@@ -166,16 +196,16 @@ fun main(args: Array<String>) {
             "Meaningful performance changes").default(1.0)
     val useShortForm by argParser.option(ArgType.Boolean, "short", "s",
             "Show short version of report").default(false)
-    val renders by argParser.option(ArgType.Choice(listOf("text", "html", "teamcity", "statistics", "json")),
+    val renders by argParser.option(ArgType.Choice(listOf("text", "html", "teamcity", "statistics", "metrics")),
         shortName = "r", description = "Renders for showing information").multiple().default(listOf("text"))
     val user by argParser.option(ArgType.String, shortName = "u", description = "User access information for authorization")
 
     if (argParser.parse(args).commandName == "benchmarksAnalyzer") {
         // Read contents of file.
-        val mainBenchsReport = getBenchmarkReport(mainReport, user)
+        val mainBenchsReport = mergeReportsWithDetailedFlags(getBenchmarkReport(mainReport, user))
 
         var compareToBenchsReport = compareToReport?.let {
-            getBenchmarkReport(it, user)
+            mergeReportsWithDetailedFlags(getBenchmarkReport(it, user))
         }
 
         // Generate comparasion report.

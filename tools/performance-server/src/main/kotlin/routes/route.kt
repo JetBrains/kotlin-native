@@ -34,12 +34,12 @@ fun convertToNewFormat(data: JsonObject): List<Any> {
     if (flagsArray != null && flagsArray is JsonArray) {
         flags = flagsArray.jsonArray.map { (it as JsonLiteral).unquoted() }
     }
-    val benchmarksList = BenchmarksSet.parseBenchmarksArray(benchmarksObj)
+    val benchmarksList = BenchmarksReport.parseBenchmarksArray(benchmarksObj)
 
     return listOf(env, compiler, benchmarksList, flags)
 }
 
-fun convert(json: String, buildNumber: String): BenchmarksReport {
+fun convert(json: String, buildNumber: String): List<BenchmarksReport> {
     val data = JsonTreeParser.parse(json)
     val reports = if (data is JsonArray) {
         data.map { convertToNewFormat(it as JsonObject) }
@@ -56,18 +56,19 @@ fun convert(json: String, buildNumber: String): BenchmarksReport {
             "Videoplayer" to listOf("-g")
     )
 
-    val fullReport = reports.map { elements ->
+    return reports.map { elements ->
         val benchmarks = (elements[2] as List<BenchmarkResult>).groupBy { it.name.substringBefore('.').substringBefore(':') }
         val parsedFlags = elements[3] as List<String>
-        val benchmarksSets = benchmarks.map { (setName, results) ->
+        benchmarks.map { (setName, results) ->
             val flags = if (parsedFlags.isNotEmpty() && parsedFlags[0] == "-opt") knownFlags[setName]!! else parsedFlags
-            BenchmarksSet(BenchmarksSet.BenchmarksSetInfo(setName, flags), results)
+            val savedCompiler = elements[1] as Compiler
+            val compiler = Compiler(Compiler.Backend(savedCompiler.backend.type, savedCompiler.backend.version, flags),
+                    savedCompiler.kotlinVersion)
+            val newReport = BenchmarksReport(elements[0] as Environment, results, compiler)
+            newReport.buildNumber = buildNumber
+            newReport
         }
-        BenchmarksReport(elements[0] as Environment, benchmarksSets, elements[1] as Compiler)
-    }.reduce{ acc, it -> acc + it }
-
-    fullReport.buildNumber = buildNumber
-    return fullReport
+    }.flatten()
 }
 
 // Local cache for saving information about builds got from Artifactory.
@@ -77,10 +78,10 @@ data class GoldenResultsInfo(val goldenResults: Array<GoldenResult>)
 fun GoldenResultsInfo.toBenchmarksReport(): BenchmarksReport {
     val benchmarksSamples = goldenResults.map{ BenchmarkResult (it.benchmarkName, BenchmarkResult.Status.PASSED,
             it.value, BenchmarkResult.metricFromString(it.metric)!!, it.value, 1, 0) }
-    val compiler = Compiler(Compiler.Backend(Compiler.BackendType.NATIVE, "golden"), "golden")
+    val compiler = Compiler(Compiler.Backend(Compiler.BackendType.NATIVE, "golden", emptyList()), "golden")
     val environment = Environment(Environment.Machine("golden", "golden"), Environment.JDKInstance("golden", "golden"))
     return BenchmarksReport(environment,
-            listOf(BenchmarksSet(BenchmarksSet.BenchmarksSetInfo("golden", listOf()), benchmarksSamples)), compiler)
+            benchmarksSamples, compiler)
 }
 
 // Build information provided from request.
@@ -154,7 +155,7 @@ fun <T> orderedValues(values: List<T>, buildElement: (T) -> String = { it -> it.
 fun getBuildsDescription(type: String?, branch: String?, agentInfo: String, buildInfoIndex: ElasticSearchIndex,
                          onlyNumbers: Boolean = false): Promise<JsonArray> {
     val queryDescription = """
-            {   "size": 100,
+            {   "size": 10000,
                 ${if (onlyNumbers) """"_source": ["buildNumber"],""" else ""}
                 "sort": {"_id": "desc" },
                 "query": {
@@ -193,7 +194,7 @@ fun getGoldenResults(goldenResultsIndex: GoldenResultsIndex): Promise<Map<String
         val dbResponse = JsonTreeParser.parse(responseString).jsonObject
         val reportDescription = dbResponse.getObjectOrNull("hits")?.getArrayOrNull("hits")?.getObject(0)?.getObject("_source") ?:
                 error("Wrong format of response:\n $responseString")
-        BenchmarksReport.create(reportDescription).benchmarksSets[0].benchmarks
+        BenchmarksReport.create(reportDescription).benchmarks
     }
 }
 
@@ -255,32 +256,27 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
         },"""}}
         ${ featureFilter?.let { "${it(featureValue)},"} ?: "" }
         {"nested" : {
-          "path" : "benchmarksSets",
+          "path" : "benchmarks",
           "query" : {
-            "nested": {
-              "path" : "benchmarksSets.benchmarks",
-              "query" : {
-                "bool": {
-                    "must": [
-                        {"match": { "benchmarksSets.benchmarks.metric": "$metricName" }},
-                        { "terms":  { "benchmarksSets.benchmarks.name": [${samples.map {"\"${it.toLowerCase()}\""}.joinToString()}] }}
-                    ]
-                }  
-              }, "inner_hits": {
-                "size": ${samples.size}, 
-                "_source": ["benchmarksSets.benchmarks.name", 
-                        "benchmarksSets.benchmarks.${if (normalize) "normalizedScore" else "score"}"]
-                }    
-            }
+            "bool": {
+                "must": [
+                    {"match": { "benchmarks.metric": "$metricName" }},
+                    { "terms":  { "benchmarks.name": [${samples.map {"\"${it.toLowerCase()}\""}.joinToString()}] }}
+                ]
+            }  
           }, "inner_hits": {
-            "_source": false, "size": 20
-          }
-        }}
+            "size": ${samples.size}, 
+            "_source": ["benchmarks.name", 
+                    "benchmarks.${if (normalize) "normalizedScore" else "score"}"]
+            }    
+        }
+      }
       ]
     }
   } 
 }
 """
+
         return getIndex(featureValue).search(queryDescription, listOf("hits.hits._source", "hits.hits.inner_hits")).then { responseString ->
             val dbResponse = JsonTreeParser.parse(responseString).jsonObject
             val results = dbResponse.getObjectOrNull("hits")?.getArrayOrNull("hits") ?: error("Wrong response:\n$responseString")
@@ -292,14 +288,13 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
                 val element = it as JsonObject
                 val build = element.getObject("_source").getPrimitive("buildNumber").content
                 buildNumbers?.let { valuesMap.getOrPut(build) { arrayOfNulls<Double?>(samples.size) } }
-                element.getObject("inner_hits").getObject("benchmarksSets").getObject("hits").getArray("hits").forEach {
-                    (it as JsonObject).getObject("inner_hits").getObject("benchmarksSets.benchmarks").getObject("hits")
+                element.getObject("inner_hits").getObject("benchmarks").getObject("hits")
                             .getArray("hits").forEach {
                                 val source = (it as JsonObject).getObject("_source")
                                 valuesMap[build]!![indexesMap[source.getPrimitive("name").content]!!] =
                                         source.getPrimitive(if (normalize) "normalizedScore" else "score").double
                             }
-                }
+
             }
             valuesMap.toList()
         }
@@ -328,32 +323,26 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
                     ${buildNumbers.map {"\"$it\": { \"match\" : { \"buildNumber\" : \"$it\" }}"}.joinToString(",\n")}
                 }
             },"""} ?: ""}
-            "aggs" : {
-                "benchs" : {
-                    "nested" : {
-                        "path" : "benchmarksSets"
-                    },
                     "aggs" : {
                         "metric_build" : {
                             "nested" : {
-                                "path" : "benchmarksSets.benchmarks"
+                                "path" : "benchmarks"
                             },
                             "aggs" : {
                                 "metric_samples": {
                                     "filters" : { 
-                                        "filters": { "samples": { "match": { "benchmarksSets.benchmarks.status": "FAILED" } } }
+                                        "filters": { "samples": { "match": { "benchmarks.status": "FAILED" } } }
                                     },
                                     "aggs" : {
                                         "failed_count": {
                                             "value_count": {
-                                                "field" : "benchmarksSets.benchmarks.score"
+                                                "field" : "benchmarks.score"
                                             }
                                         }
                                     }
                                 }
                             }
-                        }
-                    }
+
                ${buildNumbers?.let{""" }
             }"""} ?: ""}
         }
@@ -367,11 +356,11 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
                 val buckets = aggregations.getObjectOrNull("builds")?.getObjectOrNull("buckets")
                         ?: error("Wrong response:\n$responseString")
                 buildNumbers.map {
-                    it to buckets.getObject(it).getObject("benchs").getObject("metric_build").
+                    it to buckets.getObject(it).getObject("metric_build").
                     getObject("metric_samples").getObject("buckets").getObject("samples").
                     getObject("failed_count").getPrimitive("value").int
                 }.toMap()
-            } ?: listOf("golden" to aggregations.getObject("benchs").getObject("metric_build").getObject("metric_samples").
+            } ?: listOf("golden" to aggregations.getObject("metric_build").getObject("metric_samples").
             getObject("buckets").getObject("samples").getObject("failed_count").getPrimitive("value").int).toMap()
         }
     }
@@ -381,12 +370,12 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
                          excludeNames: List<String> = emptyList()): Promise<List<Pair<String, List<Double>>>> {
         val filterBenchmarks = if (excludeNames.isEmpty())
             """
-            "match": { "benchmarksSets.benchmarks.metric": "$metricName" }
+            "match": { "benchmarks.metric": "$metricName" }
         """
         else """
             "bool": { 
-                "must": { "match": { "benchmarksSets.benchmarks.metric": "$metricName" } },
-                "must_not": { "terms" : { "benchmarksSets.benchmarks.name" : [${excludeNames.map { "\"$it\"" }.joinToString()}] } }
+                "must": { "match": { "benchmarks.metric": "$metricName" } },
+                "must_not": { "terms" : { "benchmarks.name" : [${excludeNames.map { "\"$it\"" }.joinToString()}] } }
             }
         """.trimIndent()
         val queryDescription = """
@@ -408,15 +397,11 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
                     ${buildNumbers.map {"\"$it\": { \"match\" : { \"buildNumber\" : \"$it\" }}"}.joinToString(",\n")}
                 }
             },"""} ?: ""}
-            "aggs" : {
-                "benchs" : {
-                    "nested" : {
-                        "path" : "benchmarksSets"
-                    },
+            
                     "aggs" : {
                         "metric_build" : {
                             "nested" : {
-                                "path" : "benchmarksSets.benchmarks"
+                                "path" : "benchmarks"
                             },
                             "aggs" : {
                                 "metric_samples": {
@@ -426,7 +411,7 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
                                     "aggs" : {
                                         "sum_log_x": {
                                             "sum": {
-                                                "field" : "benchmarksSets.benchmarks.${if (normalize) "normalizedScore" else "score"}",
+                                                "field" : "benchmarks.${if (normalize) "normalizedScore" else "score"}",
                                                 "script" : {
                                                     "source": "if (_value == 0) { 0.0 } else { Math.log(_value) }"
                                                 }
@@ -444,27 +429,27 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
                                     }
                                 }
                             }
-                        }
-                    }
+                        
                ${buildNumbers?.let{""" }
             }"""} ?: ""}
         }
     }
 }
 """
-
+        //println(queryDescription)
         return getIndex(featureValue).search(queryDescription, listOf("aggregations")).then { responseString ->
+
             val dbResponse = JsonTreeParser.parse(responseString).jsonObject
             val aggregations = dbResponse.getObjectOrNull("aggregations") ?: error("Wrong response:\n$responseString")
             buildNumbers?.let {
                 val buckets = aggregations.getObjectOrNull("builds")?.getObjectOrNull("buckets")
                         ?: error("Wrong response:\n$responseString")
                 buildNumbers.map {
-                    it to listOf(buckets.getObject(it).getObject("benchs").getObject("metric_build").
+                    it to listOf(buckets.getObject(it).getObject("metric_build").
                     getObject("metric_samples").getObject("buckets").getObject("samples").
                     getObject("geom_mean").getPrimitive("value").double)
                 }
-            } ?: listOf("golden" to listOf(aggregations.getObject("benchs").getObject("metric_build").getObject("metric_samples").
+            } ?: listOf("golden" to listOf(aggregations.getObject("metric_build").getObject("metric_samples").
             getObject("buckets").getObject("samples").getObject("geom_mean").getPrimitive("value").double))
         }
     }
@@ -513,10 +498,8 @@ fun router() {
                         // Add bundle size.
                         val bundleSizeBenchmark = BenchmarkResult("KotlinNative", BenchmarkResult.Status.PASSED, register.bundleSize.toDouble(),
                                 BenchmarkResult.Metric.BUNDLE_SIZE, 0.0, 1, 0)
-                        val bundleSet = BenchmarksSet(BenchmarksSet.BenchmarksSetInfo("KotlinNative", listOf()),
-                                listOf(bundleSizeBenchmark))
                         benchmarksReport = BenchmarksReport(benchmarksReport.env,
-                                benchmarksReport.benchmarksSets + bundleSet, benchmarksReport.compiler)
+                                benchmarksReport.benchmarks.values.flatten() + bundleSizeBenchmark, benchmarksReport.compiler)
                     }
                     val summaryReport = SummaryBenchmarksReport(benchmarksReport)
                     val buildInfoInstance = BuildInfo(buildInfo.buildNumber, buildInfo.startTime, buildInfo.finishTime,
@@ -703,19 +686,23 @@ fun router() {
                                 try {
                                     buildsSet.add(currentBuildNumber)
                                     val jsonReport = artifactoryUrlConnector.sendRequest(RequestMethod.GET, accessFileUrl).await()
-                                    var report = convert(jsonReport, currentBuildNumber)
+                                    var reports = convert(jsonReport, currentBuildNumber)
                                     val buildInfoRecord = BuildInfo(currentBuildNumber, infoParts[1], infoParts[2],
                                             CommitsList.parse(infoParts[4]), infoParts[3], target)
+
                                     val externalJsonReport = artifactoryUrlConnector.sendOptionalRequest(RequestMethod.GET, accessExternalFileUrl).await()
+                                    buildInfoIndex.insert(buildInfoRecord).then { _ ->
                                     externalJsonReport?.let {
-                                        var externalReport = convert(externalJsonReport, currentBuildNumber)
-                                        val extrenalAdditionalReport = SummaryBenchmarksReport(externalReport).toBenchmarksReport().normalizeBenchmarksSet(goldenResults)
-                                        extrenalAdditionalReport.buildNumber = currentBuildNumber
-                                        benchmarksDispatcher.insert(extrenalAdditionalReport, target).then { _ ->
-                                            println("[External] Success insert ${buildInfoRecord.buildNumber}")
-                                        }.catch { errorResponse ->
-                                            println("Failed to insert data for build")
-                                            println(errorResponse)
+                                        var externalReports = convert(externalJsonReport, currentBuildNumber)
+                                        externalReports.forEach { externalReport ->
+                                            val extrenalAdditionalReport = SummaryBenchmarksReport(externalReport).toBenchmarksReport().normalizeBenchmarksSet(goldenResults)
+                                            extrenalAdditionalReport.buildNumber = currentBuildNumber
+                                            benchmarksDispatcher.insert(extrenalAdditionalReport, target).then { _ ->
+                                                println("[External] Success insert ${buildInfoRecord.buildNumber}")
+                                            }.catch { errorResponse ->
+                                                println("Failed to insert data for build")
+                                                println(errorResponse)
+                                            }
                                         }
                                     }
 
@@ -725,22 +712,31 @@ fun router() {
                                         val bundleSizeBenchmark = BenchmarkResult("KotlinNative",
                                                 BenchmarkResult.Status.PASSED, bundleSize.toDouble(),
                                                 BenchmarkResult.Metric.BUNDLE_SIZE, 0.0, 1, 0)
-                                        val bundleSet = BenchmarksSet(BenchmarksSet.BenchmarksSetInfo("KotlinNative", listOf()),
-                                                listOf(bundleSizeBenchmark))
-                                        report = BenchmarksReport(report.env,
-                                                report.benchmarksSets + bundleSet, report.compiler)
-                                    }
-                                    val summaryReport = SummaryBenchmarksReport(report).toBenchmarksReport().normalizeBenchmarksSet(goldenResults)
-                                    summaryReport.buildNumber = currentBuildNumber
-
-                                    // Save results in database.
-                                    benchmarksDispatcher.insert(summaryReport, target).then { _ ->
-                                        buildInfoIndex.insert(buildInfoRecord).then { _ ->
-                                            println("Success insert ${buildInfoRecord.buildNumber}")
+                                        val bundleSizeReport = BenchmarksReport(reports[0].env,
+                                               listOf(bundleSizeBenchmark), reports[0].compiler)
+                                        bundleSizeReport.buildNumber = currentBuildNumber
+                                        benchmarksDispatcher.insert(bundleSizeReport, target).then { _ ->
+                                            println("[BUNDLE] Success insert ${buildInfoRecord.buildNumber}")
                                         }.catch { errorResponse ->
                                             println("Failed to insert data for build")
-                                            println(errorResponse.message)
+                                            println(errorResponse)
                                         }
+                                    }
+
+                                        reports.forEach { report ->
+                                            val summaryReport = SummaryBenchmarksReport(report).toBenchmarksReport().normalizeBenchmarksSet(goldenResults)
+                                            summaryReport.buildNumber = currentBuildNumber
+                                            // Save results in database.
+                                            benchmarksDispatcher.insert(summaryReport, target).then { _ ->
+                                                println("Success insert ${buildInfoRecord.buildNumber}")
+                                            }.catch { errorResponse ->
+                                                println("Failed to insert data for build")
+                                                println(errorResponse.message)
+                                            }
+                                        }
+
+
+
                                     }.catch { errorResponse ->
                                         println("Failed to insert data for build")
                                         println(errorResponse)
@@ -789,13 +785,10 @@ fun launch(context: CoroutineContext = EmptyCoroutineContext, block: suspend () 
     })
 
 fun BenchmarksReport.normalizeBenchmarksSet(dataForNormalization: Map<String, List<BenchmarkResult>>): BenchmarksReport {
-    val resultSets = benchmarksSets.map {
-        val resultBenchmarksList = it.benchmarks.map { benchmarksList ->
-            benchmarksList.value.map { NormalizedMeanVarianceBenchmark(it.name, it.status, it.score, it.metric,
-                it.runtimeInUs, it.repeat, it.warmup, (it as MeanVarianceBenchmark).variance,
-                    dataForNormalization[benchmarksList.key]?.get(0)?.score?.let{ golden -> it.score / golden } ?: 0.0 )}
-        }.flatten()
-        BenchmarksSet(it.setInfo, resultBenchmarksList)
-    }
-    return BenchmarksReport(env, resultSets, compiler)
+    val resultBenchmarksList = benchmarks.map { benchmarksList ->
+        benchmarksList.value.map { NormalizedMeanVarianceBenchmark(it.name, it.status, it.score, it.metric,
+            it.runtimeInUs, it.repeat, it.warmup, (it as MeanVarianceBenchmark).variance,
+                dataForNormalization[benchmarksList.key]?.get(0)?.score?.let{ golden -> it.score / golden } ?: 0.0 )}
+    }.flatten()
+    return BenchmarksReport(env, resultBenchmarksList, compiler)
 }

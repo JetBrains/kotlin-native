@@ -229,8 +229,7 @@ abstract class BenchmarkingPlugin: Plugin<Project> {
                         "flags" to getCompilerFlags(project, nativeTarget).sorted(),
                         "benchmarks" to benchContents,
                         "compileTime" to listOf(nativeCompileTime),
-                        "codeSize" to collectCodeSize(applicationName),
-                        "benchmarksSet" to applicationName
+                        "codeSize" to collectCodeSize(applicationName)
                 )
 
                 val output = createJsonReport(properties)

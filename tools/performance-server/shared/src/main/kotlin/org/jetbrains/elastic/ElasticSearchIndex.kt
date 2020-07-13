@@ -132,7 +132,7 @@ abstract class ElasticSearchIndex(val indexName: String, val connector: ElasticS
         val description = data.toJson()
         val writePath = "$indexName/_doc/$nextId?pretty"
         nextId++
-        return connector.request(RequestMethod.POST, writePath, body = description)
+        return connector.request(RequestMethod.PUT, writePath, body = description)
     }
 
     // Make request.

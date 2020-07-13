@@ -98,8 +98,7 @@ open class CompileBenchmarkingPlugin : Plugin<Project> {
                     "benchmarks" to "[]",
                     "flags" to getCompilerFlags(benchmarkExtension).sorted(),
                     "compileTime" to nativeCompileTime,
-                    "codeSize" to getCodeSizeBenchmark(applicationName, nativeExecutable.absolutePath),
-                    "benchmarksSet" to applicationName
+                    "codeSize" to getCodeSizeBenchmark(applicationName, nativeExecutable.absolutePath)
                 )
                 val output = createJsonReport(properties)
                 buildDir.resolve(nativeJson).writeText(output)

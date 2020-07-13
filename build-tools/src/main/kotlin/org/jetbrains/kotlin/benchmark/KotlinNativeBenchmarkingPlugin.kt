@@ -51,8 +51,7 @@ open class KotlinNativeBenchmarkingPlugin: BenchmarkingPlugin() {
                         "compilerVersion" to kotlinVersion,
                         "benchmarks" to benchContents,
                         "compileTime" to listOf(jvmCompileTime),
-                        "codeSize" to getCodeSizeBenchmark(applicationName, jarPath.absolutePath),
-                        "benchmarksSet" to applicationName
+                        "codeSize" to getCodeSizeBenchmark(applicationName, jarPath.absolutePath)
                 )
 
                 val output = createJsonReport(properties)

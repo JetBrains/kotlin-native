@@ -20,7 +20,7 @@ data class MeanVariance(val mean: Double, val variance: Double) {
 }
 
 open class MeanVarianceBenchmark(name: String, status: BenchmarkResult.Status, score: Double, metric: BenchmarkResult.Metric,
-                            runtimeInUs: Double, repeat: Int, warmup: Int, val variance: Double) :
+                                 runtimeInUs: Double, repeat: Int, warmup: Int, val variance: Double) :
         BenchmarkResult(name, status, score, metric, runtimeInUs, repeat, warmup) {
 
     constructor(name: String, score: Double, variance: Double) : this(name, BenchmarkResult.Status.PASSED, score,
@@ -77,13 +77,13 @@ open class MeanVarianceBenchmark(name: String, status: BenchmarkResult.Status, s
 }
 
 fun geometricMean(values: Collection<Double>, totalNumber: Int = values.size) =
-    with(values.asSequence().filter { it != 0.0 }) {
-        if (count() == 0) {
-            0.0
-        } else {
-            map { it.pow(1.0 / totalNumber) }.reduce { a, b -> a * b }
+        with(values.asSequence().filter { it != 0.0 }) {
+            if (count() == 0) {
+                0.0
+            } else {
+                map { it.pow(1.0 / totalNumber) }.reduce { a, b -> a * b }
+            }
         }
-    }
 
 fun computeMeanVariance(samples: List<Double>): MeanVariance {
     val zStar = 1.67    // Critical point for 90% confidence of normal distribution.
