@@ -10,7 +10,7 @@ You can manage Pod dependencies right in Intellij IDEA enjoying its benefits of 
  
 Depending on your purpose, you can add dependencies between:
 * [A Kotlin project and a Pod library from the CocoaPods repository](#add-a-dependency-on-a-pod-library-from-the-cocoapods-repository)
-* [A Kotlin project and an Objective-C Pod library stored locally](#add-a-dependency-on-an-objective-c-pod-library-stored-locally)
+* [A Kotlin project and a Pod library stored locally](#add-a-dependency-on-a-pod-library-stored-locally)
 * [A Kotlin Pod and an Xcode project with one target](#add-a-dependency-between-a-kotlin-pod-and-xcode-project-with-one-target) 
 or [several targets](#add-a-dependency-between-a-kotlin-pod-with-an-xcode-project-with-several-targets)
 * [Several Kotlin Pods and an Xcode project](#add-dependencies-between-multiple-kotlin-pods-and-an-xcode-project)
@@ -94,7 +94,7 @@ this framework during a build process of an Xcode project.
 ## Add dependencies on Pod libraries
 
 You can add dependencies between a Kotlin project and Pod libraries [stored in the CocoaPods repository](#add-a-dependency-on-a-pod-library-from-the-cocoapods-repository) 
-and [stored locally](#add-a-dependency-on-an-objective-c-pod-library-stored-locally).
+and [stored locally](#add-a-dependency-on-a-pod-library-stored-locally).
 
 [Complete initial configuration](#install-the-cocoapods-dependency-manager-and-plugin), and when you add a new dependency, 
 just re-import the project in IntelliJ IDEA. The new dependency will be added automatically. No additional 
@@ -126,7 +126,7 @@ steps are required.
 To use this dependency from Kotlin code, import a package `cocoapods.<library-name>`.
 In the example above, it's `cocoapods.AFNetworking`.
 
-### Add a dependency on an Objective-C Pod library stored locally
+### Add a dependency on a Pod library stored locally
 
 1. Add a dependency on a Pod library stored locally with `pod()` to `build.gradle.kts` (`build.gradle`) of your
  project.  
