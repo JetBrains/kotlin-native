@@ -120,7 +120,7 @@ steps are required.
         cocoapods {
             summary = "CocoaPods test library"
             homepage = "https://github.com/JetBrains/kotlin"
-            pod("AFNetworking", "~> 3.2.1")
+            pod("AFNetworking", "~> 4.0.0")
             
             //Remote Pod declared as a subspec
             pod("SDWebImage/MapKit")
@@ -147,7 +147,7 @@ import cocoapods.SDWebImage.*
 
 1. Add a dependency on a Pod library stored locally with `pod()` to `build.gradle.kts` (`build.gradle`) of your
  project.  
-As the third argument, specify the path to `Podspec` of the local Pod using `projectDir.resolve("..")`.  
+As the third argument, specify the path to `Podspec` of the local Pod using `project.file()`.  
     > You can add local dependencies as subspecs as well.  
     > The `cocoapods` block can include dependencies to Pods stored locally and Pods from the CocoaPods repository at
     > the same time.
@@ -162,10 +162,10 @@ As the third argument, specify the path to `Podspec` of the local Pod using `pro
         cocoapods {
             summary = "CocoaPods test library"
             homepage = "https://github.com/JetBrains/kotlin"
-            pod("pod_dependency", "1.0", projectDir.resolve("../pod_dependency/pod_dependency.podspec"))
-            pod("subspec_dependency/Core", "1.0", projectDir.resolve("../subspec_dependency/subspec_dependency.podspec"))
+            pod("pod_dependency", "1.0", project.file("../pod_dependency/pod_dependency.podspec"))
+            pod("subspec_dependency/Core", "1.0", project.file("../subspec_dependency/subspec_dependency.podspec"))
             
-            pod("AFNetworking", "~> 3.2.1")
+            pod("AFNetworking", "~> 4.0.0")
             pod("SDWebImage/MapKit")
         }
     }
@@ -214,7 +214,7 @@ directive.
 ### Add a dependency between a Kotlin Pod and Xcode project with one target
 
 1. Create an Xcode project with `Podfile` if you haven’t done this yet.
-2. Add the path to your `Podfile` with `podfile = projectDir.resolve("..")` to `build.gradle.kts` (`build.gradle`) 
+2. Add the path to your `Podfile` with `podfile = project.file()` to `build.gradle.kts` (`build.gradle`) 
 of your Kotlin project.
 
     <div class="sample" markdown="1" theme="idea" data-highlight-only>
@@ -226,8 +226,8 @@ of your Kotlin project.
         cocoapods {
             summary = "CocoaPods test library"
             homepage = "https://github.com/JetBrains/kotlin"
-            pod("AFNetworking", "~> 3.2.1")
-            podfile = projectDir.resolve("../ios-app/Podfile")
+            pod("AFNetworking", "~> 4.0.0")
+            podfile = project.file("../ios-app/Podfile")
         }
     }
     ```
@@ -255,7 +255,7 @@ of your Kotlin project.
 ### Add a dependency between a Kotlin Pod with an Xcode project with several targets
 
 1. Create an Xcode project with `Podfile` if you haven’t done this yet.
-2. Add the path to your `Podfile` with `podfile = projectDir.resolve("..")` to `build.gradle.kts` (`build.gradle`) of
+2. Add the path to your `Podfile` with `podfile = project.file()` to `build.gradle.kts` (`build.gradle`) of
  your Kotlin project.
 3. Add dependencies to Pod libraries that you want to use in your project with `pod()`.
 4. For each target, specify the minimum target version for the Pod library.
@@ -274,7 +274,7 @@ of your Kotlin project.
             tvos.deploymentTarget = "13.4"
        
             pod("AFNetworking", "~> 4.0.0")
-            podfile = projectDir.resolve("../severalTargetsXcodeProject/Podfile") // specify the path to Podfile
+            podfile = project.file("../severalTargetsXcodeProject/Podfile") // specify the path to Podfile
         }
     }
     ```
@@ -312,7 +312,7 @@ You can find a sample project [here](https://github.com/zoldater/severalXcodeTar
 
 1. Create an Xcode project with `Podfile` if you haven’t done this yet.
 2. Create a hierarchical structure of your Kotlin projects - a root and child projects.
-3. Add the path to your `Podfile` with `podfile = projectDir.resolve("..")` to `build.gradle.kts` (`build.gradle`) of
+3. Add the path to your `Podfile` with `podfile = project.file()` to `build.gradle.kts` (`build.gradle`) of
  the root project.
 4. Specify that you don’t need a `Podspec` for this root project - `noPodspec()`.
 
@@ -323,7 +323,7 @@ You can find a sample project [here](https://github.com/zoldater/severalXcodeTar
         ios()
         cocoapods {
             noPodspec()
-            podfile = projectDir.resolve("ios-app/Podfile")
+            podfile = project.file("ios-app/Podfile")
         }
     }
     ```
@@ -342,7 +342,7 @@ You can find a sample project [here](https://github.com/zoldater/severalXcodeTar
         cocoapods {
             summary = "Working with external pods from Kotlin/Native using CocoaPods"
             homepage = "https://github.com/JetBrains/kotlin-native"
-            pod("AFNetworking", "~> 3.2.1")
+            pod("AFNetworking", "~> 4.0.0")
         }
     }
     ```
