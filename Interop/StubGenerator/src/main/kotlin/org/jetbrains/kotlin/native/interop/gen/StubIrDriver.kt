@@ -21,23 +21,27 @@ class StubIrContext(
         val generationMode: GenerationMode,
         val libName: String
 ) {
-    val libraryForCStubs = if (configuration.library.language == Language.J2ObjC) CompilationWithPCH(emptyList<String>(), Language.J2ObjC) else configuration.library.copy(
-            includes = mutableListOf<String>().apply {
-                add("stdint.h")
-                add("string.h")
-                if (platform == KotlinPlatform.JVM) {
-                    add("jni.h")
-                }
-                addAll(configuration.library.includes)
-            },
-            compilerArgs = configuration.library.compilerArgs,
-            additionalPreambleLines = configuration.library.additionalPreambleLines +
-                    when (configuration.library.language) {
-                        Language.C -> emptyList()
-                        Language.OBJECTIVE_C -> listOf("void objc_terminate();")
-                        Language.J2ObjC -> emptyList()
-                    }
-    ).precompileHeaders()
+    val libraryForCStubs =
+      when (configuration.library.language) {
+          Language.J2ObjC -> CompilationWithPCH(emptyList<String>(), Language.J2ObjC)
+          else -> configuration.library.copy(
+                    includes = mutableListOf<String>().apply {
+                        add("stdint.h")
+                        add("string.h")
+                        if (platform == KotlinPlatform.JVM) {
+                            add("jni.h")
+                        }
+                        addAll(configuration.library.includes)
+                    },
+                    compilerArgs = configuration.library.compilerArgs,
+                    additionalPreambleLines = configuration.library.additionalPreambleLines +
+                                              when (configuration.library.language) {
+                                                  Language.C -> emptyList()
+                                                  Language.OBJECTIVE_C -> listOf("void objc_terminate();")
+                                                  Language.J2ObjC -> throw Error("unreachable code")
+                                              }
+                  ).precompileHeaders()
+      }
 
     // TODO: Used only for JVM.
     val jvmFileClassName = if (configuration.pkgName.isEmpty()) {
