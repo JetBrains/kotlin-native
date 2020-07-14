@@ -113,6 +113,10 @@ class DefFile(val file:File?, val config:DefFileConfig, val manifestAddendProper
         val disableDesignatedInitializerChecks by lazy {
             properties.getProperty("disableDesignatedInitializerChecks")?.toBoolean() ?: false
         }
+
+        val j2objcJar by lazy {
+          properties.getSpaceSeparated("j2objcJar")
+        }
     }
 }
 

@@ -1,4 +1,4 @@
 language = J2ObjC
 package = j2objctest
-
 linkerOpts = -lj2objctest
+j2objcJar = interop/j2objc/Foo.jar

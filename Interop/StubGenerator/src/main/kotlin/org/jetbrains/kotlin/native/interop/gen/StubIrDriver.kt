@@ -35,7 +35,7 @@ class StubIrContext(
                     when (configuration.library.language) {
                         Language.C -> emptyList()
                         Language.OBJECTIVE_C -> listOf("void objc_terminate();")
-                        Language.J2ObjC -> emptyList()
+                        Language.J2ObjC -> throw Error("Unreachable code")
                     }
     ).precompileHeaders()
 
