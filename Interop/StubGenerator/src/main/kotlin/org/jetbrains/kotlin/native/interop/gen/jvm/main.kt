@@ -38,6 +38,7 @@ import org.jetbrains.kotlin.library.resolver.impl.KotlinLibraryResolverImpl
 import org.jetbrains.kotlin.library.resolver.impl.libraryResolver
 import org.jetbrains.kotlin.library.toUnresolvedLibraries
 import org.jetbrains.kotlin.util.removeSuffixIfPresent
+import org.jetbrains.org.objectweb.asm.ClassReader
 import java.io.File
 import java.lang.IllegalArgumentException
 import java.nio.file.*
@@ -241,19 +242,6 @@ private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments
 
     val outKtPkg = fqParts.joinToString(".")
 
-    val jarDirectory = def.config.j2objcJar
-    val j2objcIndexerResult: IndexerResult
-
-    if (language == Language.J2ObjC) {
-        val jarClassData = loadClassDataFromJar(JarFile(jarDirectory[0]))
-        val jarClassNodes = generateClassNodes(jarClassData)
-        j2objcIndexerResult =
-          IndexerResult(J2ObjCNativeIndex(jarClassNodes), CompilationWithPCH(emptyList<String>(), Language.J2ObjC))
-    } else {
-        j2objcIndexerResult =
-          IndexerResult(J2ObjCNativeIndex(emptyList<ObjCClass>()), CompilationWithPCH(emptyList<String>(), Language.J2ObjC))
-    }
-
     val mode = run {
         val providedMode = parseGenerationMode(cinteropArguments.mode)
                 ?: error ("Unexpected interop generation mode: ${cinteropArguments.mode}")
@@ -279,8 +267,10 @@ private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments
 
     val imports = parseImports(allLibraryDependencies)
 
-    val index:IndexerResult = if (language == Language.J2ObjC) j2objcIndexerResult
-        else buildNativeIndex(buildNativeLibrary(tool,def,cinteropArguments,imports), verbose)
+    val jarFiles = def.config.j2objcJar
+
+    val index = if (language == Language.J2ObjC) buildJ2ObjcNativeIndex(jarFiles) else
+        buildNativeIndex(buildNativeLibrary(tool,def,cinteropArguments,imports), verbose)
 
     val nativeIndex: NativeIndex = index.index
     val compilation: CompilationWithPCH = index.compilation
