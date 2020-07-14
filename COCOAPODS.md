@@ -88,7 +88,7 @@ or [several targets](#add-a-dependency-between-a-kotlin-pod-with-an-xcode-projec
 
 When applied, the CocoaPods plugin does the following:
 
-* Adds both `debug` and `release` frameworks as output binaries for all iOS and macOS targets.
+* Adds both `debug` and `release` frameworks as output binaries for all macOS, iOS, tvOS, and watchOS targets.
 * Creates a `podspec` task which generates a [Podspec](https://guides.cocoapods.org/syntax/podspec.html)
 file for the project.
 
@@ -108,7 +108,7 @@ steps are required.
 
 1. Add dependencies on a Pod library that you want to use from the CocoaPods repository with `pod()`  to `build.gradle.kts` 
 (`build.gradle`) of your project.  
-    > You can also add dependencies as subspecs.
+    > You can also add dependencies on subspecs.
     {:.note}                                                                                                                                                              >
 
     <div class="sample" markdown="1" theme="idea" data-highlight-only>
@@ -122,7 +122,6 @@ steps are required.
             homepage = "https://github.com/JetBrains/kotlin"
             pod("AFNetworking", "~> 4.0.0")
             
-            //Remote Pod declared as a subspec
             pod("SDWebImage/MapKit")
         }
     }
@@ -148,7 +147,7 @@ import cocoapods.SDWebImage.*
 1. Add a dependency on a Pod library stored locally with `pod()` to `build.gradle.kts` (`build.gradle`) of your
  project.  
 As the third parameter, specify the path to `Podspec` of the local Pod using `project.file(..)`.  
-    > You can add local dependencies as subspecs as well.  
+    > You can add local dependencies on subspecs as well.  
     > The `cocoapods` block can include dependencies to Pods stored locally and Pods from the CocoaPods repository at
     > the same time.
     {:.note}
@@ -211,7 +210,7 @@ directive.
 1. Create an Xcode project with `Podfile` if you haven’t done this yet.
 2. Add the path to your `Podfile` with `podfile = project.file(..)` to `build.gradle.kts` (`build.gradle`) 
 of your Kotlin project.  
-    This step helps synchronize an Xcode project and Kotlin Pod dependencies.
+    This step helps synchronize an Xcode project with Kotlin Pod dependencies by calling `pod install` for the Xcode project.
 3. Specify the minimum target version for the Pod library.
     > If you don't specify the minimum target version and a dependency Pod requires a higher deployment target, you may get an error.
     {:.note}
@@ -257,7 +256,7 @@ of your Kotlin project.
 1. Create an Xcode project with `Podfile` if you haven’t done this yet.
 2. Add the path to your `Podfile` with `podfile = project.file(..)` to `build.gradle.kts` (`build.gradle`) of
  your Kotlin project.  
-    This step helps synchronize an Xcode project and Kotlin Pod dependencies.
+    This step helps synchronize an Xcode project with Kotlin Pod dependencies by calling `pod install` for the Xcode project.
 3. Add dependencies to Pod libraries that you want to use in your project with `pod()`.
 4. For each target, specify the minimum target version for the Pod library.
 
@@ -315,7 +314,7 @@ You can find a sample project [here](https://github.com/zoldater/severalXcodeTar
 2. Create a hierarchical structure of your Kotlin projects - a root and child projects.
 3. Add the path to your `Podfile` with `podfile = project.file(..)` to `build.gradle.kts` (`build.gradle`) of
  the root project.  
-    This step helps synchronize an Xcode project and Kotlin Pod dependencies.
+    This step helps synchronize an Xcode project with Kotlin Pod dependencies by calling `pod install` for the Xcode project.
 4. If the root project doesn't represent a Kotlin Pod, specify that you don’t need a `Podspec` for this project - `noPodspec()`.
 
     <div class="sample" markdown="1" theme="idea" data-highlight-only>
