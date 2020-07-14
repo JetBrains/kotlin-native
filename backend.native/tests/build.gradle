@@ -3941,7 +3941,7 @@ if (PlatformInfo.isAppleTarget(project)) {
         doBeforeBuild {
             mkdir(buildDir)
             execKonanClang(project.target) {
-                args "/Users/odowa/Code/kotlin-native/backend.native/tests/interop/j2objc/ObjcTest.m"
+                args "interop/j2objc/ObjcTest.m"
                 args "-lobjc", '-fobjc-arc'
                 args '-fPIC', '-shared', '-o', "$buildDir/libj2objctest.dylib"
             }

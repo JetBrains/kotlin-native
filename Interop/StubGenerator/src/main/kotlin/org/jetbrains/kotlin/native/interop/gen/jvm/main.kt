@@ -38,6 +38,7 @@ import org.jetbrains.kotlin.library.resolver.impl.KotlinLibraryResolverImpl
 import org.jetbrains.kotlin.library.resolver.impl.libraryResolver
 import org.jetbrains.kotlin.library.toUnresolvedLibraries
 import org.jetbrains.kotlin.util.removeSuffixIfPresent
+import org.jetbrains.org.objectweb.asm.ClassReader
 import java.io.File
 import java.lang.IllegalArgumentException
 import java.nio.file.*
@@ -198,12 +199,6 @@ private fun findFilesByGlobs(roots: List<Path>, globs: List<String>): Map<Path, 
 private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments,
                         additionalArgs: InternalInteropOptions): Array<String>? {
 
-    // TODO: Replace this with a commandline-supplied file through cinterop
-    val jarfile = JarFile("/Users/odowa/Code/example/Foo.jar")
-    val jarClassData = loadClassDataFromJar(jarfile)
-    val jarClassNodes = generateClassNodes(jarClassData)
-
-
     val ktGenRoot = additionalArgs.generated
     val nativeLibsDir = additionalArgs.natives
     val flavor = KotlinPlatform.values().single { it.name.equals(flavorName, ignoreCase = true) }
@@ -272,9 +267,10 @@ private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments
 
     val imports = parseImports(allLibraryDependencies)
 
-    val j2objcIndexerResult = IndexerResult(J2ObjCNativeIndex(jarClassNodes), CompilationWithPCH(emptyList<String>(), Language.J2ObjC))
-    val index:IndexerResult = if (language == Language.J2ObjC) j2objcIndexerResult
-        else buildNativeIndex(buildNativeLibrary(tool,def,cinteropArguments,imports), verbose)
+    val jarFiles = def.config.j2objcJar
+
+    val index = if (language == Language.J2ObjC) buildJ2ObjcNativeIndex(jarFiles) else
+        buildNativeIndex(buildNativeLibrary(tool,def,cinteropArguments,imports), verbose)
 
     val nativeIndex: NativeIndex = index.index
     val compilation: CompilationWithPCH = index.compilation
