@@ -63,7 +63,7 @@ class J2ObjCParser: ClassVisitor(Opcodes.ASM5) {
   }
 
   /**
-   * Creates a ObjCMethod out of a
+   * Creates a ObjCMethod out of method data and parameter names
    *
    * @param methodName Name of method
    * @param methodDesc Descriptor of method
