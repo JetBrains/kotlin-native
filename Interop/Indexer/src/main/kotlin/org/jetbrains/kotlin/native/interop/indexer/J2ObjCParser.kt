@@ -88,7 +88,7 @@ class J2ObjCParser: ClassVisitor(Opcodes.ASM5) {
       val selector = StringBuilder(methodName)
       val methodParameters = parseMethodParameters(methodDesc, paramNames)
       val methodReturnType = parseMethodReturnType(methodDesc)
-      methodParameters.forEach { selector.append(":" + it.name) }
+      if (methodParameters.size >= 1) methodParameters.subList(1,methodParameters.size).forEach { selector.append(":" + it.name) }
       return ObjCMethod(
         selector = if (methodParameters.size > 1) "$selector:" else if (methodParameters.size == 1) "$methodName:" else methodName,
         encoding = "[]", //TODO: Implement encoding properly
