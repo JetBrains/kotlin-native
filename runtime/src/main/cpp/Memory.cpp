@@ -950,6 +950,8 @@ ALWAYS_INLINE void runDeallocationHooks(ContainerHeader* container) {
     auto* type_info = obj->type_info();
     if (type_info == theWorkerBoundReferenceTypeInfo) {
       DisposeWorkerBoundReference(obj);
+    } else if (type_info == theFreezableWorkerBoundReferenceTypeInfo) {
+      DisposeWorkerBoundReference(obj);
     }
 #if USE_CYCLIC_GC
     if ((type_info->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0) {
