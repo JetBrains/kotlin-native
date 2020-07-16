@@ -39,7 +39,7 @@ fun convertToNewFormat(data: JsonObject): List<Any> {
     return listOf(env, compiler, benchmarksList, flags)
 }
 
-fun convert(json: String, buildNumber: String): List<BenchmarksReport> {
+fun convert(json: String, buildNumber: String, target: String): List<BenchmarksReport> {
     val data = JsonTreeParser.parse(json)
     val reports = if (data is JsonArray) {
         data.map { convertToNewFormat(it as JsonObject) }
@@ -47,13 +47,17 @@ fun convert(json: String, buildNumber: String): List<BenchmarksReport> {
     val knownFlags = mapOf(
             "Cinterop" to listOf("-opt"),
             "FrameworkBenchmarksAnalyzer" to listOf("-g"),
-            "HelloWorld" to listOf("-g"),
+            "HelloWorld" to if (target == "Mac OS X")
+                listOf("-Xcache-directory=/Users/teamcity/buildAgent/work/c104dee5223a31c5/test_dist/klib/cache/macos_x64-gSTATIC", "-g")
+                    else listOf("-g"),
             "Numerical" to listOf("-opt"),
             "ObjCInterop" to listOf("-opt"),
             "Ring" to listOf("-opt"),
             "Startup" to listOf("-opt"),
             "swiftInterop" to listOf("-opt"),
-            "Videoplayer" to listOf("-g")
+            "Videoplayer" to if (target == "Mac OS X")
+                listOf("-Xcache-directory=/Users/teamcity/buildAgent/work/c104dee5223a31c5/test_dist/klib/cache/macos_x64-gSTATIC", "-g")
+            else listOf("-g")
     )
 
     return reports.map { elements ->
@@ -139,11 +143,13 @@ fun checkBuildType(currentType: String, targetType: String): Boolean {
 }
 
 // Get builds numbers in right order.
-fun <T> orderedValues(values: List<T>, buildElement: (T) -> String = { it -> it.toString() }) =
+fun <T> orderedValues(values: List<T>, buildElement: (T) -> String = { it -> it.toString() },
+                      skipMilestones: Boolean = false) =
     values.sortedWith(
             compareBy ( { buildElement(it).substringBefore(".").toInt() },
                     { buildElement(it).substringAfter(".").substringBefore("-").toDouble() },
-                    { if (buildElement(it).substringAfter("-").startsWith("M"))
+                    { if (skipMilestones) 0
+                      else if (buildElement(it).substringAfter("-").startsWith("M"))
                         buildElement(it).substringAfter("M").substringBefore("-").toInt()
                       else
                         Int.MAX_VALUE
@@ -179,6 +185,31 @@ fun getBuildsDescription(type: String?, branch: String?, agentInfo: String, buil
     }
 }
 
+fun buildExists(buildNumber: String, branch: String?, agentInfo: String, buildInfoIndex: ElasticSearchIndex): Promise<Boolean> {
+    val queryDescription = """
+            {   "size": 1,
+               "_source": ["buildNumber"]
+                "query": {
+                    "bool": {
+                        "must": [ 
+                            { "match": { "buildNumber": "$buildNumber" } },
+                            { "match": { "agentInfo": "$agentInfo" } }
+                            ${branch?.let{ """,
+                            {"match": { "branch": "$it" }}
+                            """}?:""}
+                        ]
+                    }
+                }
+            }
+        """.trimIndent()
+    return buildInfoIndex.search(queryDescription, listOf("hits.total.value")).then { responseString ->
+        val response = JsonTreeParser.parse(responseString).jsonObject
+        val value = response.getObjectOrNull("hits")?.getObjectOrNull("total")?.getPrimitiveOrNull("value")?.content
+                ?: error("Error response from ElasticSearch:\n$responseString")
+        value.toInt() > 0
+    }
+}
+
 fun getBuildsNumbers(type: String?, branch: String?, agentInfo: String, buildInfoIndex: ElasticSearchIndex) =
         getBuildsDescription(type, branch, agentInfo, buildInfoIndex, true).then { responseArray ->
             responseArray.map { (it as JsonObject).getObject("_source").getPrimitive("buildNumber").content }
@@ -192,9 +223,10 @@ fun getBuildsInfo(type: String?, branch: String?, agentInfo: String, buildInfoIn
 fun getGoldenResults(goldenResultsIndex: GoldenResultsIndex): Promise<Map<String, List<BenchmarkResult>>> {
     return goldenResultsIndex.search("", listOf("hits.hits._source")).then { responseString ->
         val dbResponse = JsonTreeParser.parse(responseString).jsonObject
-        val reportDescription = dbResponse.getObjectOrNull("hits")?.getArrayOrNull("hits")?.getObject(0)?.getObject("_source") ?:
-                error("Wrong format of response:\n $responseString")
-        BenchmarksReport.create(reportDescription).benchmarks
+        dbResponse.getObjectOrNull("hits")?.getArrayOrNull("hits")?.map {
+            val reportDescription = (it as JsonObject).getObject("_source")
+            BenchmarksReport.create(reportDescription).benchmarks
+        }?.reduce { acc, it -> acc + it } ?: error("Wrong format of response:\n $responseString")
     }
 }
 
@@ -438,7 +470,6 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
 """
         //println(queryDescription)
         return getIndex(featureValue).search(queryDescription, listOf("aggregations")).then { responseString ->
-
             val dbResponse = JsonTreeParser.parse(responseString).jsonObject
             val aggregations = dbResponse.getObjectOrNull("aggregations") ?: error("Wrong response:\n$responseString")
             buildNumbers?.let {
@@ -452,6 +483,33 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
             } ?: listOf("golden" to listOf(aggregations.getObject("metric_build").getObject("metric_samples").
             getObject("buckets").getObject("samples").getObject("geom_mean").getPrimitive("value").double))
         }
+    }
+}
+
+data class CachedResponse(val cachedResult: Any, val time: TimeMark)
+object CachableResponseDispatcher {
+    private val cachedResponses = mutableMapOf<String, CachedResponse>()
+
+    fun getResponse(request: dynamic, response: dynamic, action: (success: (result: Any) -> Unit, reject: () -> Unit) -> Unit) {
+        cachedResponses[request.url]?.let {
+            // Update cache value if needed. Update only if last result was get later than 2 minutes.
+            if (it.time.elapsedNow().inMinutes > 2.0) {
+                println("Cache update for ${request.url}...")
+                action({ result: Any ->
+                    cachedResponses[request.url] = CachedResponse(result, TimeSource.Monotonic.markNow())
+                }, { println("Cache update for ${request.url} failed!") })
+            }
+            response.json(it.cachedResult)
+        } ?: run {
+            action({ result: Any ->
+                cachedResponses[request.url] = CachedResponse(result, TimeSource.Monotonic.markNow())
+                response.json(result)
+            }, { response.sendStatus(400) })
+        }
+    }
+
+    fun clear(): Unit {
+        cachedResponses.clear()
     }
 }
 
@@ -491,26 +549,42 @@ fun router() {
                 val commitsList = CommitsList(JsonTreeParser.parse(changes))
                 // Get artifact.
                 register.sendTeamCityRequest(register.teamCityArtifactsUrl).then { resultsContent ->
+                    val reportData = JsonTreeParser.parse(resultsContent)
+                    val reports = if (reportData is JsonArray) {
+                        reportData.map { BenchmarksReport.create(it as JsonObject) }
+                    } else listOf(BenchmarksReport.create(reportData as JsonObject))
+                    // Register build information.
+                    val buildInfoInstance = BuildInfo(buildInfo.buildNumber, buildInfo.startTime, buildInfo.finishTime,
+                            commitsList, buildInfo.branch, reports[0].env.machine.os)
 
-                    var benchmarksReport = BenchmarksReport.create(JsonTreeParser.parse(resultsContent))
-                    benchmarksReport.buildNumber = buildInfo.buildNumber
                     if (register.bundleSize != null) {
                         // Add bundle size.
-                        val bundleSizeBenchmark = BenchmarkResult("KotlinNative", BenchmarkResult.Status.PASSED, register.bundleSize.toDouble(),
+                        val bundleSizeBenchmark = BenchmarkResult("KotlinNative",
+                                BenchmarkResult.Status.PASSED, register.bundleSize.toDouble(),
                                 BenchmarkResult.Metric.BUNDLE_SIZE, 0.0, 1, 0)
-                        benchmarksReport = BenchmarksReport(benchmarksReport.env,
-                                benchmarksReport.benchmarks.values.flatten() + bundleSizeBenchmark, benchmarksReport.compiler)
-                    }
-                    val summaryReport = SummaryBenchmarksReport(benchmarksReport)
-                    val buildInfoInstance = BuildInfo(buildInfo.buildNumber, buildInfo.startTime, buildInfo.finishTime,
-                            commitsList, buildInfo.branch, benchmarksReport.env.machine.os)
-                    // Save results in database.
-                    benchmarksDispatcher.insert(summaryReport.toBenchmarksReport(), benchmarksReport.env.machine.os).then { _ ->
-                        buildInfoIndex.insert(buildInfoInstance).then { _ ->
-                            response.sendStatus(200)
-                        }.catch {
-                            response.sendStatus(400)
+                        val bundleSizeReport = BenchmarksReport(reports[0].env,
+                                listOf(bundleSizeBenchmark), reports[0].compiler)
+                        bundleSizeReport.buildNumber = buildInfo.buildNumber
+                        benchmarksDispatcher.insert(bundleSizeReport, reports[0].env.machine.os).then { _ ->
+                            println("[BUNDLE] Success insert ${buildInfoInstance.buildNumber}")
+                        }.catch { errorResponse ->
+                            println("Failed to insert data for build")
+                            println(errorResponse)
                         }
+                    }
+                    val insertResults = reports.map { benchmarksReport ->
+                        benchmarksReport.buildNumber = buildInfo.buildNumber
+                        val summaryReport = SummaryBenchmarksReport(benchmarksReport)
+                        // Save results in database.
+                        benchmarksDispatcher.insert(summaryReport.toBenchmarksReport(), benchmarksReport.env.machine.os)
+                    }
+                    buildInfoIndex.insert(buildInfoInstance).then { _ ->
+                        println("Success insert build information for ${buildInfoInstance.buildNumber}")
+                    }.catch {
+                        response.sendStatus(400)
+                    }
+                    Promise.all(insertResults.toTypedArray()).then { _ ->
+                        response.sendStatus(200)
                     }.catch {
                         response.sendStatus(400)
                     }
@@ -532,131 +606,140 @@ fun router() {
 
     // Get builds description with additional information.
     router.get("/buildsDesc/:target", { request, response ->
-        val target = request.params.target.toString().replace('_', ' ')
+        CachableResponseDispatcher.getResponse(request, response) { success, reject ->
+            val target = request.params.target.toString().replace('_', ' ')
 
-        var branch: String? = null
-        var type: String? = null
-        if (request.query != undefined) {
-            if (request.query.branch != undefined) {
-                branch = request.query.branch
+            var branch: String? = null
+            var type: String? = null
+            if (request.query != undefined) {
+                if (request.query.branch != undefined) {
+                    branch = request.query.branch
+                }
+                if (request.query.type != undefined) {
+                    type = request.query.type
+                }
             }
-            if (request.query.type != undefined) {
-                type = request.query.type
-            }
-        }
 
-
-        getBuildsInfo(type, branch, target, buildInfoIndex).then { buildsInfo ->
-            val buildNumbers = buildsInfo.map { it.buildNumber }
-            // Get number of failed benchmarks for each build.
-            benchmarksDispatcher.getFailuresNumber(target, buildNumbers).then { failures ->
-                response.json(orderedValues(buildsInfo, { it -> it.buildNumber }).map {
-                    Build(it.buildNumber, it.startTime, it.endTime, it.branch,
-                            it.commitsList.serializeFields(), failures[it.buildNumber] ?: 0)
-                })
-            }.catch { errorResponse ->
-                println("Error during getting failures numbers")
-                println(errorResponse)
-                response.sendStatus(400)
+            getBuildsInfo(type, branch, target, buildInfoIndex).then { buildsInfo ->
+                val buildNumbers = buildsInfo.map { it.buildNumber }
+                // Get number of failed benchmarks for each build.
+                benchmarksDispatcher.getFailuresNumber(target, buildNumbers).then { failures ->
+                    success(orderedValues(buildsInfo, { it -> it.buildNumber }, branch == "master").map {
+                        Build(it.buildNumber, it.startTime, it.endTime, it.branch,
+                                it.commitsList.serializeFields(), failures[it.buildNumber] ?: 0)
+                    })
+                }.catch { errorResponse ->
+                    println("Error during getting failures numbers")
+                    println(errorResponse)
+                    reject()
+                }
+            }.catch {
+                reject()
             }
-        }.catch {
-            response.sendStatus(400)
         }
     })
 
     // Get values of current metric.
     router.get("/metricValue/:target/:metric", { request, response ->
-        val metric = request.params.metric
-        val target = request.params.target.toString().replace('_', ' ')
-        var samples: List<String> = emptyList()
-        var aggregation = "geomean"
-        var normalize = false
-        var branch: String? = null
-        var type: String? = null
-        var excludeNames: List<String> = emptyList()
+        CachableResponseDispatcher.getResponse(request, response) { success, reject ->
+            val metric = request.params.metric
+            val target = request.params.target.toString().replace('_', ' ')
+            var samples: List<String> = emptyList()
+            var aggregation = "geomean"
+            var normalize = false
+            var branch: String? = null
+            var type: String? = null
+            var excludeNames: List<String> = emptyList()
 
-        // Parse parameters from request if it exists.
-        if (request.query != undefined) {
-            if (request.query.samples != undefined) {
-                samples = request.query.samples.toString().split(",").map { it.trim() }
-            }
-            if (request.query.agr != undefined) {
-                aggregation = request.query.agr.toString()
-            }
-            if (request.query.normalize != undefined) {
-                normalize = true
-            }
-            if (request.query.branch != undefined) {
-                branch = request.query.branch
-            }
-            if (request.query.type != undefined) {
-                type = request.query.type
-            }
-            if (request.query.exclude != undefined) {
-                excludeNames = request.query.exclude.toString().split(",").map { it.trim() }
-            }
-        }
-
-        val timeStart = TimeSource.Monotonic.markNow()
-        getBuildsNumbers(type, branch, target, buildInfoIndex).then { buildNumbers ->
-            println("getBuildsInfo time $metric: ${timeStart.elapsedNow()}")
-
-            if (aggregation == "geomean") {
-                // Get geometric mean for samples.
-                benchmarksDispatcher.getGeometricMean(metric, target, buildNumbers, normalize,
-                        excludeNames).then { geoMeansValues ->
-                    println("getGeometricMean time $metric: ${timeStart.elapsedNow()}")
-                    response.json(orderedValues(geoMeansValues, { it -> it.first }))
-                }.catch { errorResponse ->
-                    println("Error during getting geometric mean")
-                    println(errorResponse)
-                    response.sendStatus(400)
+            // Parse parameters from request if it exists.
+            if (request.query != undefined) {
+                if (request.query.samples != undefined) {
+                    samples = request.query.samples.toString().split(",").map { it.trim() }
                 }
-            } else {
-                benchmarksDispatcher.getSamples(metric, target, samples, buildNumbers, normalize).then { geoMeansValues ->
-                    println("getSamples time $metric: ${timeStart.elapsedNow()}")
-                    response.json(orderedValues(geoMeansValues, { it -> it.first }))
-                }.catch {
-                    println("Error during getting samples")
-                    response.sendStatus(400)
+                if (request.query.agr != undefined) {
+                    aggregation = request.query.agr.toString()
+                }
+                if (request.query.normalize != undefined) {
+                    normalize = true
+                }
+                if (request.query.branch != undefined) {
+                    branch = request.query.branch
+                }
+                if (request.query.type != undefined) {
+                    type = request.query.type
+                }
+                if (request.query.exclude != undefined) {
+                    excludeNames = request.query.exclude.toString().split(",").map { it.trim() }
                 }
             }
-        }.catch {
-            println("Error during getting builds information")
-            response.sendStatus(400)
+
+            val timeStart = TimeSource.Monotonic.markNow()
+            getBuildsNumbers(type, branch, target, buildInfoIndex).then { buildNumbers ->
+                println("getBuildsInfo time $metric: ${timeStart.elapsedNow()}")
+
+                if (aggregation == "geomean") {
+                    // Get geometric mean for samples.
+                    benchmarksDispatcher.getGeometricMean(metric, target, buildNumbers, normalize,
+                            excludeNames).then { geoMeansValues ->
+                        println("getGeometricMean time $metric: ${timeStart.elapsedNow()}")
+                        success(orderedValues(geoMeansValues, { it -> it.first }, branch == "master"))
+                    }.catch { errorResponse ->
+                        println("Error during getting geometric mean")
+                        println(errorResponse)
+                        reject()
+                    }
+                } else {
+                    benchmarksDispatcher.getSamples(metric, target, samples, buildNumbers, normalize).then { geoMeansValues ->
+                        println("getSamples time $metric: ${timeStart.elapsedNow()}")
+                        success(orderedValues(geoMeansValues, { it -> it.first }, branch == "master"))
+                    }.catch {
+                        println("Error during getting samples")
+                        reject()
+                    }
+                }
+            }.catch {
+                println("Error during getting builds information")
+                reject()
+            }
         }
     })
 
     // Get branches for [target].
     router.get("/branches", { request, response ->
-        distinctValues("branch", buildInfoIndex).then { results ->
-            response.json(results)
-        }.catch { errorMessage ->
-            error(errorMessage.message ?: "Failed getting branches list.")
-            response.sendStatus(400)
+        CachableResponseDispatcher.getResponse(request, response) { success, reject ->
+            distinctValues("branch", buildInfoIndex).then { results ->
+                success(results)
+            }.catch { errorMessage ->
+                error(errorMessage.message ?: "Failed getting branches list.")
+                reject()
+            }
         }
     })
 
     // Get build numbers for [target].
     router.get("/buildsNumbers/:target", { request, response ->
-        distinctValues("buildNumber", buildInfoIndex).then { results ->
-            response.json(results)
-        }.catch { errorMessage ->
-            error(errorMessage.message ?: "Failed getting branches list.")
-            response.sendStatus(400)
+        CachableResponseDispatcher.getResponse(request, response) { success, reject ->
+            distinctValues("buildNumber", buildInfoIndex).then { results ->
+                success(results)
+            }.catch { errorMessage ->
+                println(errorMessage.message ?: "Failed getting branches list.")
+                reject()
+            }
         }
     })
 
     // Replace from Artifactory to DB.
     router.get("/convert/:target", { request, response ->
-        val target = request.params.target.toString()
+        println(request.params.target)
+        val target = request.params.target.toString().replace("_", " ")
+        val targetPathName = target.replace(" ", "")
         var buildNumber: String? = null
         if (request.query != undefined) {
             if (request.query.buildNumber != undefined) {
                 buildNumber = request.query.buildNumber
             }
         }
-        getBuildsInfoFromArtifactory(target).then { buildInfo ->
+        getBuildsInfoFromArtifactory(targetPathName).then { buildInfo ->
             launch {
                 val buildsDescription = buildInfo.lines().drop(1)
                 var shouldConvert = buildNumber?.let { false } ?: true
@@ -677,23 +760,23 @@ fun router() {
                             // Save data from Bintray into database.
                             val artifactoryUrlConnector = UrlNetworkConnector(artifactoryUrl)
                             val fileName = "nativeReport.json"
-                            val accessFileUrl = "$target/$currentBuildNumber/$fileName"
+                            val accessFileUrl = "$targetPathName/$currentBuildNumber/$fileName"
                             val extrenalFileName = if (target == "Linux") "externalReport.json" else "spaceFrameworkReport.json"
-                            val accessExternalFileUrl = "$target/$currentBuildNumber/$extrenalFileName"
+                            val accessExternalFileUrl = "$targetPathName/$currentBuildNumber/$extrenalFileName"
                             val infoParts = it.split(", ")
                             if ((infoParts[3] == "master" || "eap" in currentBuildNumber || "release" in currentBuildNumber) &&
                                     currentBuildNumber !in buildsSet){
                                 try {
                                     buildsSet.add(currentBuildNumber)
                                     val jsonReport = artifactoryUrlConnector.sendRequest(RequestMethod.GET, accessFileUrl).await()
-                                    var reports = convert(jsonReport, currentBuildNumber)
+                                    var reports = convert(jsonReport, currentBuildNumber, target)
                                     val buildInfoRecord = BuildInfo(currentBuildNumber, infoParts[1], infoParts[2],
                                             CommitsList.parse(infoParts[4]), infoParts[3], target)
 
                                     val externalJsonReport = artifactoryUrlConnector.sendOptionalRequest(RequestMethod.GET, accessExternalFileUrl).await()
                                     buildInfoIndex.insert(buildInfoRecord).then { _ ->
                                     externalJsonReport?.let {
-                                        var externalReports = convert(externalJsonReport, currentBuildNumber)
+                                        var externalReports = convert(externalJsonReport, currentBuildNumber, target)
                                         externalReports.forEach { externalReport ->
                                             val extrenalAdditionalReport = SummaryBenchmarksReport(externalReport).toBenchmarksReport().normalizeBenchmarksSet(goldenResults)
                                             extrenalAdditionalReport.buildNumber = currentBuildNumber
@@ -757,6 +840,11 @@ fun router() {
 
     router.get("/delete/:target", { request, response ->
         TODO()
+    })
+
+    router.get("/clear", { _, response ->
+        CachableResponseDispatcher.clear()
+        response.sendStatus(200)
     })
 
     // Main page.

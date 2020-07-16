@@ -41,9 +41,6 @@ open class BuildRegister : DefaultTask() {
     var fileWithResult: String = "nativeReport.json"
 
     val performanceServer = "http://localhost:3000"//"https://kotlin-native-perf-summary.labs.jb.gg"
-    val additionalInfoTokens: Int = 3
-    val compileTimeSamplesNumber: Int = 2
-    val buildNumberRegex: Regex = "\\d+(\\.\\d+)+(-M\\d)?-(\\w+)-\\d+".toRegex()
 
     private fun sendPostRequest(url: String, body: String) : String {
         val connection = URL(url).openConnection() as HttpURLConnection
@@ -71,30 +68,6 @@ open class BuildRegister : DefaultTask() {
         }
     }
 
-    fun getAdditionalInfo(analyzer: String, reportFile: String, alwaysExists: Boolean, benchmarkName: String,
-                          showedName: String = benchmarkName) :
-            performanceAdditionalResult? {
-        val output = arrayOf(analyzer, "summary", "--compile", "samples",
-                "--compile-samples", benchmarkName, "--codesize-samples", benchmarkName,
-                "--codesize-normalize", "artifactory:builds/goldenResults.csv", reportFile)
-                .runCommand()
-
-
-        val buildInfoParts = output.split(',')
-        if (buildInfoParts.size != additionalInfoTokens) {
-            val message = "Problems with getting summary information using $analyzer and $reportFile. $output"
-            if (!alwaysExists) {
-                println(message)
-                return null
-            }
-            error(message)
-        }
-        val (failures, compileTime, codeSize) = buildInfoParts.map { it.trim() }
-        val codeSizeInfo = "$showedName-$codeSize"
-        val compileTimeInfo = "$showedName-$compileTime"
-        return performanceAdditionalResult(failures, compileTimeInfo, codeSizeInfo)
-    }
-
     @TaskAction
     fun run() {
         // Get TeamCity properties.
@@ -106,8 +79,6 @@ open class BuildRegister : DefaultTask() {
         val buildId = buildProperties.getProperty("teamcity.build.id")
         val teamCityUser = buildProperties.getProperty("teamcity.auth.userId")
         val teamCityPassword = buildProperties.getProperty("teamcity.auth.password")
-        val buildNumber = buildProperties.getProperty("build.number")
-        val apiKey = buildProperties.getProperty("artifactory.apikey")
 
         // Get branch.
         val currentBuild = getBuild("id:$buildId", teamCityUser, teamCityPassword)
@@ -127,6 +98,5 @@ open class BuildRegister : DefaultTask() {
         } else {
             println("Skipping registration. Current branch $branch, need registration for $onlyBranch!")
         }
-
     }
 }

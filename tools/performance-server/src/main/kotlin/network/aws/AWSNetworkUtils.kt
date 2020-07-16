@@ -8,6 +8,7 @@ package org.jetbrains.network
 import kotlin.js.Promise            // TODO - migrate to multiplatform.
 import kotlin.js.json               // TODO - migrate to multiplatform.
 import kotlin.js.Date
+import org.jetbrains.report.json.*
 
 // Placeholder as analog for indexable type in TS.
 external interface `T$0` {
@@ -80,10 +81,16 @@ class AWSNetworkConnector : NetworkConnector() {
                     chunk
                 }
                 response.on("end") { chunk ->
+                    val dbResponse = JsonTreeParser.parse(responseBody).jsonObject
+                    // Response can fail and return 400 error for ES.
+                    if (dbResponse.getPrimitiveOrNull("status")?.let { it.content != "200" } ?: false)  {
+                        println(dbResponse)
+                        val errorMessage = dbResponse.getObject("error").toString()
+                        reject(Throwable(errorMessage))
+                    }
                     resolve(responseBody as T)
                 }
             }, { error ->
-                errorHandler(path, error.stack)
                 reject(error)
             })
         }

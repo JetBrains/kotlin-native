@@ -96,7 +96,8 @@ fun getChartOptions(samples: Array<String>, yTitle: String, classNames: Array<St
     chartOptions["axisY"] = axisYObject
     val legendObject: dynamic = object{}
     legendObject["legendNames"] = samples
-    classNames?.let { legendObject["classNames"] = classNames }
+    println(classNames)
+    classNames?.let { legendObject["classNames"] = classNames.sliceArray(0 until samples.size) }
     val titleObject: dynamic = object{}
     val axisYTitle: dynamic = object{}
     axisYTitle["axisTitle"] = yTitle
@@ -331,21 +332,10 @@ fun main(args: Array<String>) {
     val sizeClassNames = arrayOf("ct-series-e", "ct-series-f", "ct-series-g")
 
     // Draw charts.
-    val execChart = Chartist.Line("#exec_chart",
-            getChartData(listOf(), listOf(), stageToShow, buildsNumberToShow),
-            getChartOptions(arrayOf("Geometric Mean"), "Normalized time"))
-    val compileChart = Chartist.Line("#compile_chart",
-            getChartData(listOf(), listOf(), stageToShow, buildsNumberToShow),
-            getChartOptions(valuesToShow["COMPILE_TIME"]!![0]!!["samples"]!!.split(',').toTypedArray(),
-                    "Time, milliseconds"))
-    val codeSizeChart = Chartist.Line("#codesize_chart",
-            getChartData(listOf(), listOf(), stageToShow, buildsNumberToShow, sizeClassNames),
-            getChartOptions(arrayOf("Geometric Mean") + platformSpecificBenchs.split(',').filter{ it.isNotEmpty() },
-                    "Normalized size",
-                    arrayOf("ct-series-4", "ct-series-5", "ct-series-6")))
-    val bundleSizeChart = Chartist.Line("#bundlesize_chart",
-            getChartData(listOf(), listOf(), stageToShow, buildsNumberToShow, sizeClassNames),
-            getChartOptions(arrayOf("Bundle size"), "Size, MB", arrayOf("ct-series-4")))
+    var execChart: dynamic = null
+    var compileChart: dynamic = null
+    var codeSizeChart: dynamic = null
+    var bundleSizeChart: dynamic = null
 
     val descriptionUrl = "$serverUrl/buildsDesc/${parameters["target"]}?type=${parameters["type"]}" +
             "${if (parameters["branch"] != "all") "&branch=${parameters["branch"]}" else ""}"
@@ -399,22 +389,33 @@ fun main(args: Array<String>) {
                 // Update chart with gotten data.
                 "COMPILE_TIME" -> {
                     compileData = labels to values.map { it.map { it?.let { it / 1000 } } }
-                    compileChart.update(getChartData(labels, compileData.second, stageToShow, buildsNumberToShow))
+                    compileChart = Chartist.Line("#compile_chart",
+                            getChartData(labels, compileData.second, stageToShow, buildsNumberToShow),
+                            getChartOptions(valuesToShow["COMPILE_TIME"]!![0]!!["samples"]!!.split(',').toTypedArray(),
+                                    "Time, milliseconds"))
                 }
                 "EXECUTION_TIME" ->   {
                     execData = labels to values
-                    execChart.update(getChartData(labels, execData.second, stageToShow, buildsNumberToShow))
+                    execChart = Chartist.Line("#exec_chart",
+                            getChartData(labels, execData.second, stageToShow, buildsNumberToShow),
+                            getChartOptions(arrayOf("Geometric Mean"), "Normalized time"))
                 }
                 "CODE_SIZE" ->  {
                     codeSizeData = labels to values
-                    codeSizeChart.update(getChartData(labels, codeSizeData.second,
-                            stageToShow, buildsNumberToShow, sizeClassNames))
+                    codeSizeChart = Chartist.Line("#codesize_chart",
+                            getChartData(labels, codeSizeData.second,
+                                    stageToShow, buildsNumberToShow, sizeClassNames),
+                            getChartOptions(arrayOf("Geometric Mean") + platformSpecificBenchs.split(',').filter{ it.isNotEmpty() },
+                                    "Normalized size",
+                                    arrayOf("ct-series-4", "ct-series-5", "ct-series-6")))
                 }
                 "BUNDLE_SIZE" -> {
                     bundleSizeData = labels to values.map { it.map { it?.let { it.toInt() / 1024 / 1024 } } }
-                    bundleSizeChart.update(getChartData(labels,
-                            bundleSizeData.second, stageToShow,
-                            buildsNumberToShow, sizeClassNames))
+                    bundleSizeChart = Chartist.Line("#bundlesize_chart",
+                            getChartData(labels,
+                                    bundleSizeData.second, stageToShow,
+                                    buildsNumberToShow, sizeClassNames),
+                            getChartOptions(arrayOf("Bundle size"), "Size, MB", arrayOf("ct-series-4")))
                 }
                 else -> error("No chart for metric $metric")
             }
@@ -424,10 +425,17 @@ fun main(args: Array<String>) {
 
     // Update all charts with using same data.
     val updateAllCharts: () -> Unit = {
-        execChart.update(getChartData(execData.first, execData.second, stageToShow, buildsNumberToShow))
-        compileChart.update(getChartData(compileData.first, compileData.second, stageToShow, buildsNumberToShow))
-        codeSizeChart.update(getChartData(codeSizeData.first, codeSizeData.second, stageToShow, buildsNumberToShow, sizeClassNames))
-        bundleSizeChart.update(getChartData(bundleSizeData.first, bundleSizeData.second, stageToShow, buildsNumberToShow, sizeClassNames))
+        execChart.update(getChartData(execData.first, execData.second, stageToShow, buildsNumberToShow),
+                getChartOptions(arrayOf("Geometric Mean"), "Normalized time"))
+        compileChart.update(getChartData(compileData.first, compileData.second, stageToShow, buildsNumberToShow),
+                getChartOptions(valuesToShow["COMPILE_TIME"]!![0]!!["samples"]!!.split(',').toTypedArray(),
+                        "Time, milliseconds"))
+        codeSizeChart.update(getChartData(codeSizeData.first, codeSizeData.second, stageToShow, buildsNumberToShow, sizeClassNames),
+                getChartOptions(arrayOf("Geometric Mean") + platformSpecificBenchs.split(',').filter{ it.isNotEmpty() },
+                        "Normalized size",
+                        arrayOf("ct-series-4", "ct-series-5", "ct-series-6")))
+        bundleSizeChart.update(getChartData(bundleSizeData.first, bundleSizeData.second, stageToShow, buildsNumberToShow, sizeClassNames),
+                getChartOptions(arrayOf("Bundle size"), "Size, MB", arrayOf("ct-series-4")))
     }
 
     // Get builds description.
