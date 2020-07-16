@@ -142,6 +142,8 @@ import cocoapods.SDWebImage.*
 
 </div>
 
+You can find a sample project [here](https://github.com/Kotlin/kotlin-with-cocoapods-sample).
+
 ### Add a dependency on a Pod library stored locally
 
 1. Add a dependency on a Pod library stored locally with `pod()` to `build.gradle.kts` (`build.gradle`) of your
@@ -185,7 +187,7 @@ import cocoapods.subspec_dependency.*
 
 </div>
 
-You can find a sample project [here](https://github.com/zoldater/KotlinWithLocalObjCPods). 
+You can find a sample project [here](https://github.com/Kotlin/kotlin-with-cocoapods-sample).
  
 ## Use a Kotlin Gradle project as a CocoaPods dependency
 
@@ -306,7 +308,7 @@ of your Kotlin project.
     
 6. Re-import the project.
 
-You can find a sample project [here](https://github.com/zoldater/severalXcodeTargetsDemo).
+You can find a sample project [here](https://github.com/Kotlin/multitarget-xcode-with-kotlin-cocoapods-sample).
 
 ### Add dependencies between multiple Kotlin Pods and an Xcode project
 
@@ -332,8 +334,8 @@ You can find a sample project [here](https://github.com/zoldater/severalXcodeTar
     
     </div>
 
-5. Add dependencies to Pod libraries that you want to use with `pod()` to the build script of your child projects.  
-    > Do NOT add a path to `Podfile`.
+5. Add dependencies to Pod libraries that you want to use to the build script of your child projects using `pod()`.  
+    > Do NOT add a path to `Podfile` in your child projects.
     {:.note}
                                                                                       
     <div class="sample" markdown="1" theme="idea" data-highlight-only>
@@ -374,6 +376,6 @@ You can find a sample project [here](https://github.com/zoldater/severalXcodeTar
 >`gradle.properties` and re-import the project.
 {:.note}
 
-You can find a sample project [here](https://github.com/zoldater/cocoapodsMPPDemo).
+You can find a sample project [here](https://github.com/Kotlin/xcode-two-kotlin-pods-sample).
 
 
