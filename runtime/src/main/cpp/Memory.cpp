@@ -950,8 +950,6 @@ ALWAYS_INLINE void runDeallocationHooks(ContainerHeader* container) {
     auto* type_info = obj->type_info();
     if (type_info == theWorkerBoundReferenceTypeInfo) {
       DisposeWorkerBoundReference(obj);
-    } else if (type_info == theFreezableWorkerBoundReferenceTypeInfo) {
-      DisposeWorkerBoundReference(obj);
     }
 #if USE_CYCLIC_GC
     if ((type_info->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0) {
@@ -2602,8 +2600,8 @@ void freezeSubgraph(ObjHeader* root) {
 
   MEMORY_LOG("Freeze subgraph of %p\n", root)
 
-  if (root->type_info() == theFreezableWorkerBoundReferenceTypeInfo) {
-    FreezeFreezableWorkerBoundReference(root);
+  if (root->type_info() == theWorkerBoundReferenceTypeInfo) {
+    FreezeWorkerBoundReference(root);
   }
 
   // Do DFS cycle detection.
