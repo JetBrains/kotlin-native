@@ -70,8 +70,9 @@ public class WorkerBoundReference<out T : Any>(value: T) {
 @ExportTypeInfo("theFreezableWorkerBoundReferenceTypeInfo")
 public class FreezableWorkerBoundReference<out T : Any>(value: T) {
 
-    private val ptr = createWorkerBoundReference(value)
+    private var ptr = NativePtr.NULL
     private val ownerName = Worker.current.name
+    private var valueBeforeFreezing: T? = value
 
     private val valueDescription
         get() = describeWorkerBoundReference(ptr)
@@ -87,10 +88,16 @@ public class FreezableWorkerBoundReference<out T : Any>(value: T) {
      * The referenced value or null if referred object is not frozen and current worker is different from the one created [this].
      */
     val valueOrNull: T?
-        get() = @Suppress("UNCHECKED_CAST") (derefWorkerBoundReference(ptr) as T?)
+        get() = if (valueBeforeFreezing != null) valueBeforeFreezing else @Suppress("UNCHECKED_CAST") (derefWorkerBoundReference(ptr) as T?)
 
     /**
      * Worker that [value] is bound to.
      */
     val worker: Worker = Worker.current
+
+    @ExportForCppRuntime("Kotlin_FreezableWorkerBoundReference_doFreeze")
+    private fun doFreeze() {
+        ptr = createWorkerBoundReference(valueBeforeFreezing!!)
+        valueBeforeFreezing = null
+    }
 }

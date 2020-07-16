@@ -2602,6 +2602,10 @@ void freezeSubgraph(ObjHeader* root) {
 
   MEMORY_LOG("Freeze subgraph of %p\n", root)
 
+  if (root->type_info() == theFreezableWorkerBoundReferenceTypeInfo) {
+    FreezeFreezableWorkerBoundReference(root);
+  }
+
   // Do DFS cycle detection.
   bool hasCycles = false;
   KRef firstBlocker = root->has_meta_object() && ((root->meta_object()->flags_ & MF_NEVER_FROZEN) != 0) ?
