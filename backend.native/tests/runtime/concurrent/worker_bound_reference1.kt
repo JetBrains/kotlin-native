@@ -165,6 +165,13 @@ fun testGlobalGetWorker() {
 }
 
 @Test
+fun testLocal() {
+    val local = FreezableWorkerBoundReference(A(3))
+    assertEquals(3, local.value.a)
+    assertEquals(3, local.valueOrNull?.a)
+}
+
+@Test
 fun testLocalFrozen() {
     val local = FreezableWorkerBoundReference(A(3)).freeze()
     assertEquals(3, local.value.a)
@@ -257,6 +264,17 @@ fun testLocalAccessOnWorkerFrozenBeforeAccessFrozen() {
     worker.requestTermination().result
 }
 
+@Test
+fun testLocalAccessOnMainThread() {
+    val worker = Worker.start()
+    val future = worker.execute(TransferMode.SAFE, {}) {
+        FreezableWorkerBoundReference(A(3))
+    }
+
+    assertEquals(3, future.result.value.a)
+
+    worker.requestTermination().result
+}
 
 @Test
 fun testLocalDenyAccessOnMainThreadFrozen() {
@@ -318,6 +336,22 @@ fun testLocalGetWorkerFrozen() {
 }
 
 @Test
+fun testLocalForeignGetWorker() {
+    val worker = Worker.start()
+    val ownerId = worker.id
+    val future = worker.execute(TransferMode.SAFE, { ownerId }) { ownerId ->
+        val local = FreezableWorkerBoundReference(A(3))
+        assertEquals(ownerId, local.worker.id)
+        local
+    }
+
+    val value = future.result
+    assertEquals(ownerId, value.worker.id)
+
+    worker.requestTermination().result
+}
+
+@Test
 fun testLocalForeignGetWorkerFrozen() {
     val worker = Worker.start()
     val ownerId = worker.id
@@ -331,6 +365,27 @@ fun testLocalForeignGetWorkerFrozen() {
     assertEquals(ownerId, value.worker.id)
 
     worker.requestTermination().result
+}
+
+fun getOwnerAndWeaks(initial: Int): Triple<FreezableAtomicReference<FreezableWorkerBoundReference<A>?>, WeakReference<FreezableWorkerBoundReference<A>>, WeakReference<A>> {
+    val ref = FreezableWorkerBoundReference(A(initial))
+    val refOwner: FreezableAtomicReference<FreezableWorkerBoundReference<A>?> = FreezableAtomicReference(ref)
+    val refWeak = WeakReference(ref)
+    val refValueWeak = WeakReference(ref.value)
+
+    return Triple(refOwner, refWeak, refValueWeak)
+}
+
+@Test
+fun testCollect() {
+    val (refOwner, refWeak, refValueWeak) = getOwnerAndWeaks(3)
+
+    refOwner.value = null
+    GC.collect()
+
+    // Last reference to FreezableWorkerBoundReference is gone, so it and it's referent are destroyed.
+    assertNull(refWeak.value)
+    assertNull(refValueWeak.value)
 }
 
 fun getOwnerAndWeaksFrozen(initial: Int): Triple<AtomicReference<FreezableWorkerBoundReference<A>?>, WeakReference<FreezableWorkerBoundReference<A>>, WeakReference<A>> {
@@ -387,7 +442,6 @@ fun testCollectInWorkerFrozen() {
     future.result
 
     // At this point FreezableWorkerBoundReference no longer has a reference, so it's referent is destroyed.
-    // FreezableWorkerBoundReference, so referent is kept alive.
     GC.collect()
     assertNull(refValueWeak.value)
 
@@ -429,6 +483,30 @@ class B1 {
 }
 
 data class B2(val b1: FreezableWorkerBoundReference<B1>)
+
+fun createCyclicGarbage(): Triple<FreezableAtomicReference<FreezableWorkerBoundReference<B1>?>, WeakReference<B1>, WeakReference<B2>> {
+    val ref1 = FreezableWorkerBoundReference(B1())
+    val ref1Owner: FreezableAtomicReference<FreezableWorkerBoundReference<B1>?> = FreezableAtomicReference(ref1)
+    val ref1Weak = WeakReference(ref1.value)
+
+    val ref2 = FreezableWorkerBoundReference(B2(ref1))
+    val ref2Weak = WeakReference(ref2.value)
+
+    ref1.value.b2 = ref2
+
+    return Triple(ref1Owner, ref1Weak, ref2Weak)
+}
+
+@Test
+fun collectCyclicGarbage() {
+    val (ref1Owner, ref1Weak, ref2Weak) = createCyclicGarbage()
+
+    ref1Owner.value = null
+    GC.collect()
+
+    assertNull(ref1Weak.value)
+    assertNull(ref2Weak.value)
+}
 
 fun createCyclicGarbageFrozen(): Triple<AtomicReference<FreezableWorkerBoundReference<B1>?>, WeakReference<B1>, WeakReference<B2>> {
     val ref1 = FreezableWorkerBoundReference(B1()).freeze()
