@@ -32,9 +32,9 @@ internal fun ObjCMethod.getKotlinParameterNames(forConstructorOrFactory: Boolean
     }
 
     // The names of all parameters except first must depend only on the selector:
-    this.parameters.forEachIndexed { index, _ ->
+    this.parameters.forEachIndexed { index, parameter ->
         if (index > 0) {
-            val name = selectorParts[index].takeIf { it.isNotEmpty() } ?: "_$index"
+            val name = parameter.name ?: selectorParts[index].takeIf { it.isNotEmpty() } ?: "_$index"
             result.add(name.mangled())
         }
     }

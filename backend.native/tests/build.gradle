@@ -3411,6 +3411,17 @@ void createInterop(String name, Closure conf) {
     }
 }
 
+void createInteropWithDefaultLibs(String name, Closure conf) {
+    konanArtifacts {
+        interop(name, targets: [target.name]) {
+            conf(it)
+            noDefaultLibs(false)
+            noEndorsedLibs(true)
+            baseDir "$testOutputLocal/$name"
+        }
+    }
+}
+
 createInterop("sysstat") {
     // FIXME: creates empty file to workaround konan gradle plugin issue (should be able to have no def file)
     def f = File.createTempFile("sysstat.empty", ".def")
@@ -3554,6 +3565,10 @@ if (PlatformInfo.isAppleTarget(project)) {
     createInterop("objcMessaging") {
         it.defFile 'interop/objc/msg_send/messaging.def'
         it.headers "$projectDir/interop/objc/msg_send/messaging.h"
+    }
+
+    createInteropWithDefaultLibs("j2objc") {
+        it.defFile 'interop/j2objc/j2objcTest.def'
     }
 
     createInterop("objcKt34467") {
@@ -3916,6 +3931,21 @@ if (PlatformInfo.isAppleTarget(project)) {
             if (project.target instanceof KonanTarget.IOS_X64) {
                 UtilsKt.codesign(project, "$buildDir/libobjcmessaging.dylib")
             }
+        }
+    }
+
+    interopTest("interop_j2objc") {
+        source = "interop/j2objc/main.kt"
+        interop = 'j2objc'
+
+        doBeforeBuild {
+            mkdir(buildDir)
+            execKonanClang(project.target) {
+                args "interop/j2objc/ObjcTest.m"
+                args "-lobjc", '-fobjc-arc'
+                args '-fPIC', '-shared', '-o', "$buildDir/libj2objctest.dylib"
+            }
+
         }
     }
 

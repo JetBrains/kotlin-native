@@ -18,7 +18,8 @@ package org.jetbrains.kotlin.native.interop.indexer
 
 enum class Language(val sourceFileExtension: String) {
     C("c"),
-    OBJECTIVE_C("m")
+    OBJECTIVE_C("m"),
+    J2ObjC("m")
 }
 
 interface HeaderInclusionPolicy {
@@ -105,6 +106,39 @@ abstract class NativeIndex {
     abstract val wrappedMacros: Collection<WrappedMacroDef>
     abstract val globals: Collection<GlobalDecl>
     abstract val includedHeaders: Collection<HeaderId>
+}
+
+/**
+ * Native Index for Java2ObjectiveC interop
+ * IR definitions are parsed from jar files and passed through to this index
+ * where it then proccesses it into the Objective-C target files
+ *
+ * @param classes List of ObjCClass parsed from a Java file
+ */
+
+class J2ObjCNativeIndex(val classes:Collection<ObjCClass>) : NativeIndex() {
+    override val structs: Collection<StructDecl>
+        get() = emptyList<StructDecl>()
+    override val enums: Collection<EnumDef>
+        get() = emptyList<EnumDef>()
+    override val objCClasses: Collection<ObjCClass>
+        get() = classes
+    override val objCProtocols: Collection<ObjCProtocol>
+        get() = emptyList<ObjCProtocol>()
+    override val objCCategories: Collection<ObjCCategory>
+        get() = emptyList<ObjCCategory>()
+    override val typedefs: Collection<TypedefDef>
+        get() = emptyList<TypedefDef>()
+    override val functions: Collection<FunctionDecl>
+        get() = emptyList<FunctionDecl>()
+    override val macroConstants: Collection<ConstantDef>
+        get() = emptyList<ConstantDef>()
+    override val wrappedMacros: Collection<WrappedMacroDef>
+        get() = emptyList<WrappedMacroDef>()
+    override val globals: Collection<GlobalDecl>
+        get() = emptyList<GlobalDecl>()
+    override val includedHeaders: Collection<HeaderId>
+        get() = emptyList<HeaderId>()
 }
 
 /**

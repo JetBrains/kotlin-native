@@ -38,10 +38,12 @@ import org.jetbrains.kotlin.library.resolver.impl.KotlinLibraryResolverImpl
 import org.jetbrains.kotlin.library.resolver.impl.libraryResolver
 import org.jetbrains.kotlin.library.toUnresolvedLibraries
 import org.jetbrains.kotlin.util.removeSuffixIfPresent
+import org.jetbrains.org.objectweb.asm.ClassReader
 import java.io.File
 import java.lang.IllegalArgumentException
 import java.nio.file.*
 import java.util.*
+import java.util.jar.JarFile
 
 data class InternalInteropOptions(val generated: String, val natives: String, val manifest: String? = null,
                                   val cstubsName: String? = null)
@@ -120,7 +122,8 @@ private fun Properties.putAndRunOnReplace(key: Any, newValue: Any, beforeReplace
 private fun selectNativeLanguage(config: DefFile.DefFileConfig): Language {
     val languages = mapOf(
             "C" to Language.C,
-            "Objective-C" to Language.OBJECTIVE_C
+            "Objective-C" to Language.OBJECTIVE_C,
+            "J2ObjC" to Language.J2ObjC
     )
 
     val language = config.language ?: return Language.C
@@ -191,8 +194,11 @@ private fun findFilesByGlobs(roots: List<Path>, globs: List<String>): Map<Path, 
     return relativeToRoot
 }
 
+
+
 private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments,
                         additionalArgs: InternalInteropOptions): Array<String>? {
+
     val ktGenRoot = additionalArgs.generated
     val nativeLibsDir = additionalArgs.natives
     val flavor = KotlinPlatform.values().single { it.name.equals(flavorName, ignoreCase = true) }
@@ -261,9 +267,13 @@ private fun processCLib(flavorName: String, cinteropArguments: CInteropArguments
 
     val imports = parseImports(allLibraryDependencies)
 
-    val library = buildNativeLibrary(tool, def, cinteropArguments, imports)
+    val jarFiles = def.config.j2objcJar
 
-    val (nativeIndex, compilation) = buildNativeIndex(library, verbose)
+    val index = if (language == Language.J2ObjC) buildJ2ObjcNativeIndex(jarFiles) else
+        buildNativeIndex(buildNativeLibrary(tool,def,cinteropArguments,imports), verbose)
+
+    val nativeIndex: NativeIndex = index.index
+    val compilation: CompilationWithPCH = index.compilation
 
     // Our current approach to arm64_32 support is to compile armv7k version of bitcode
     // for arm64_32. That's the reason for this substitution.
@@ -468,6 +478,7 @@ internal fun buildNativeLibrary(
                 // 2. The generated Objective-C stubs are compiled with ARC enabled, so reference counting
                 // calls are inserted automatically.
             }
+            Language.J2ObjC -> emptyList()
         })
     }
 
