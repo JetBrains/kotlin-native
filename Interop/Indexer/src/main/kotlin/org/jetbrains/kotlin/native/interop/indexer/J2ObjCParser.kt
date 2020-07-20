@@ -61,7 +61,7 @@ class J2ObjCParser: ClassVisitor(Opcodes.ASM5) {
         name = "NSObject",
         binaryName = null,
         isForwardDeclaration = false,
-        location = Location(headerId = HeaderId("usr/include/objc/NSObject.h")) // TODO: When implementing inheritance check for proper base class.
+        location = Location(headerId = HeaderId("usr/include/objc/NSObject.h"))
       )
     } else {
       generatedClass.baseClass = ObjCClassImpl(
