@@ -367,6 +367,41 @@ fun testLocalForeignGetWorkerFrozen() {
     worker.requestTermination().result
 }
 
+class Wrapper(val ref: WorkerBoundReference<A>)
+
+@Test
+fun testLocalWithWrapperFrozen() {
+    val local = Wrapper(WorkerBoundReference(A(3))).freeze()
+    assertEquals(3, local.ref.value.a)
+
+    val worker = Worker.start()
+    val future = worker.execute(TransferMode.SAFE, { local }) { local ->
+        local
+    }
+
+    val value = future.result
+    assertEquals(3, value.ref.value.a)
+    worker.requestTermination().result
+}
+
+@Test
+fun testLocalDenyAccessWithWrapperFrozen() {
+    val local = Wrapper(WorkerBoundReference(A(3))).freeze()
+    assertEquals(3, local.ref.value.a)
+
+    val worker = Worker.start()
+    val future = worker.execute(TransferMode.SAFE, { local }) { local ->
+        assertFailsWith<IncorrectDereferenceException> {
+            local.ref.value
+        }
+        assertEquals(null, local.ref.valueOrNull)
+        Unit
+    }
+
+    future.result
+    worker.requestTermination().result
+}
+
 fun getOwnerAndWeaks(initial: Int): Triple<FreezableAtomicReference<WorkerBoundReference<A>?>, WeakReference<WorkerBoundReference<A>>, WeakReference<A>> {
     val ref = WorkerBoundReference(A(initial))
     val refOwner: FreezableAtomicReference<WorkerBoundReference<A>?> = FreezableAtomicReference(ref)
