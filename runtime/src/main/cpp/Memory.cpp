@@ -748,15 +748,21 @@ inline void traverseReferredObjects(ObjHeader* obj, func process) {
 }
 
 template <typename func>
-inline void traverseContainerObjectFields(ContainerHeader* container, func process) {
+inline void traverseContainerObjects(ContainerHeader* container, func process) {
   RuntimeAssert(!isAggregatingFrozenContainer(container), "Must not be called on such containers");
   ObjHeader* obj = reinterpret_cast<ObjHeader*>(container + 1);
-
-  for (int object = 0; object < container->objectCount(); object++) {
-    traverseObjectFields(obj, process);
+  for (int i = 0; i < container->objectCount(); ++i) {
+    process(obj);
     obj = reinterpret_cast<ObjHeader*>(
       reinterpret_cast<uintptr_t>(obj) + objectSize(obj));
   }
+}
+
+template <typename func>
+inline void traverseContainerObjectFields(ContainerHeader* container, func process) {
+  traverseContainerObjects(container, [process](ObjHeader* obj) {
+    traverseObjectFields(obj, process);
+  });
 }
 
 template <typename func>
@@ -2458,6 +2464,17 @@ bool clearSubgraphReferences(ObjHeader* root, bool checked) {
   return true;
 }
 
+inline void freezeContainer(ContainerHeader* container) {
+  // Run class-specific pre-freezing code.
+  traverseContainerObjects(container, [](ObjHeader* obj) {
+    if (obj->type_info() == theWorkerBoundReferenceTypeInfo) {
+      FreezeWorkerBoundReference(obj);
+    }
+  });
+  // And non-recursively freeze the container.
+  container->freeze();
+}
+
 void freezeAcyclic(ContainerHeader* rootContainer, ContainerHeaderSet* newlyFrozen) {
   KStdDeque<ContainerHeader*> queue;
   queue.push_back(rootContainer);
@@ -2471,8 +2488,8 @@ void freezeAcyclic(ContainerHeader* rootContainer, ContainerHeaderSet* newlyFroz
     // color and similar attributes shall not be used.
     if (!current->frozen())
       newlyFrozen->insert(current);
-    MEMORY_LOG("freezing %p\n", current)
-    current->freeze();
+    MEMORY_LOG("freezing %p\n", current);
+    freezeContainer(current); 
     traverseContainerReferredObjects(current, [current, &queue](ObjHeader* obj) {
         ContainerHeader* objContainer = obj->container();
         if (canFreeze(objContainer)) {
@@ -2551,8 +2568,8 @@ void freezeCyclic(ObjHeader* root,
         newlyFrozen->insert(container);
       // Note, that once object is frozen, it could be concurrently accessed, so
       // color and similar attributes shall not be used.
-      MEMORY_LOG("freezing %p\n", container)
-      container->freeze();
+      MEMORY_LOG("freezing %p\n", container);
+      freezeContainer(container); 
       // We set refcount of original container to zero, so that it is seen as such after removal
       // meta-object, where aggregating container is stored.
       container->setRefCount(0);
@@ -2599,10 +2616,6 @@ void freezeSubgraph(ObjHeader* root) {
   if (isPermanentOrFrozen(rootContainer)) return;
 
   MEMORY_LOG("Freeze subgraph of %p\n", root)
-
-  if (root->type_info() == theWorkerBoundReferenceTypeInfo) {
-    FreezeWorkerBoundReference(root);
-  }
 
   // Do DFS cycle detection.
   bool hasCycles = false;
