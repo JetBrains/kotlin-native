@@ -63,6 +63,7 @@ class RunExternalTestGroup extends JavaExec {
     RunExternalTestGroup() {
         // We don't build the compiler if a custom dist path is specified.
         UtilsKt.dependsOnDist(this)
+        main = 'org.jetbrains.kotlin.cli.bc.K2NativeKt'
     }
 
     @Override
@@ -75,7 +76,6 @@ class RunExternalTestGroup extends JavaExec {
     protected void runCompiler(List<String> filesToCompile, String output, List<String> moreArgs) {
         def log = new ByteArrayOutputStream()
         try {
-            main = 'org.jetbrains.kotlin.cli.bc.K2NativeKt'
             classpath = project.fileTree("$dist.canonicalPath/konan/lib/") {
                 include '*.jar'
             }
@@ -219,6 +219,10 @@ class RunExternalTestGroup extends JavaExec {
             experimentalSettings.forEach { line ->
                 line.split(" ").toList().forEach { flags.add("-Xopt-in=$it") }
             }
+        }
+        def expectActualLinker = findLinesWithPrefixesRemoved(text, "// EXPECT_ACTUAL_LINKER")
+        if (expectActualLinker.size() != 0) {
+            flags.add("-Xexpect-actual-linker")
         }
     }
 
@@ -505,13 +509,14 @@ fun runTest() {
                     List<TestModule> orderedModules = DFS.INSTANCE.topologicalOrder(modules.values()) { module ->
                         module.dependencies.collect { modules[it] }.findAll { it != null }
                     }
-                    def libsFlags = []
+                    Set<String> libs = new HashSet<String>()
                     orderedModules.reverse().each { module ->
                         if (!module.isDefaultModule()) {
                             def klibModulePath = "${executablePath()}.${module.name}.klib"
-                            libsFlags += module.linkDependencies(executablePath())
+                            libs.addAll(module.dependencies)
                             runCompiler(compileList.findAll { it.module == module }.collect { it.path },
-                                    klibModulePath, flags + ["-p", "library"] + libsFlags)
+                                    klibModulePath, flags + ["-p", "library"] +
+                                    libs.collectMany { ["-l", "${executablePath()}.${it}.klib"] }.toList())
                         }
                     }
 
@@ -519,9 +524,10 @@ fun runTest() {
                         it.module.isDefaultModule() || it.module == TestModule.support
                     }
                     compileMain.forEach { f ->
-                        libsFlags.addAll(f.module.linkDependencies(executablePath()))
+                        libs.addAll(f.module.dependencies)
                     }
-                    if (!compileMain.empty) runCompiler(compileMain.collect { it.path }, executablePath(), flags + libsFlags)
+                    if (!compileMain.empty) runCompiler(compileMain.collect { it.path }, executablePath(),
+                            flags + libs.collectMany { ["-l", "${executablePath()}.${it}.klib"] }.toList())
                 }
             } catch (Exception ex) {
                 project.logger.quiet("ERROR: Compilation failed for test suite: $name with exception", ex)

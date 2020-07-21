@@ -101,7 +101,7 @@ private fun KotlinToCCallBuilder.addArgument(
     if (!variadic) cFunctionBuilder.addParameter(cArgument.type)
 }
 
-private fun KotlinToCCallBuilder.buildKotlinBridgeCall(transformCall: (IrMemberAccessExpression) -> IrExpression = { it }): IrExpression =
+private fun KotlinToCCallBuilder.buildKotlinBridgeCall(transformCall: (IrMemberAccessExpression<*>) -> IrExpression = { it }): IrExpression =
         bridgeCallBuilder.build(
                 bridgeBuilder.buildKotlinBridge().also {
                     this.stubs.addKotlin(it)
@@ -576,7 +576,8 @@ private fun KotlinStubs.createFakeKotlinExternalFunction(
             isSuspend = false,
             isExpect = false,
             isFakeOverride = false,
-            isOperator = false
+            isOperator = false,
+            isInfix = false
     )
     bridgeDescriptor.bind(bridge)
 
@@ -1207,7 +1208,7 @@ private class ObjCBlockPointerValuePassing(
         }
     }
 
-    private fun IrBuilderWithScope.generateKotlinFunctionClass(): IrConstructorImpl {
+    private fun IrBuilderWithScope.generateKotlinFunctionClass(): IrConstructor {
         val symbols = stubs.symbols
 
         val classDescriptor = WrappedClassDescriptor()
@@ -1283,7 +1284,7 @@ private class ObjCBlockPointerValuePassing(
                 Visibilities.PUBLIC, Modality.FINAL,
                 returnType = functionType.arguments.last().typeOrNull!!,
                 isInline = false, isExternal = false, isTailrec = false, isSuspend = false, isExpect = false,
-                isFakeOverride = false, isOperator = false
+                isFakeOverride = false, isOperator = false, isInfix = false
         )
         invokeMethodDescriptor.bind(invokeMethod)
         invokeMethod.overriddenSymbols += overriddenInvokeMethod.symbol

@@ -335,7 +335,7 @@ internal class TestProcessor (val context: Context) {
      */
     private fun buildObjectGetter(objectSymbol: IrClassSymbol,
                                   owner: IrClass,
-                                  getterName: Name) = WrappedSimpleFunctionDescriptor().let { descriptor ->
+                                  getterName: Name): IrSimpleFunction = WrappedSimpleFunctionDescriptor().let { descriptor ->
         IrFunctionImpl(
                 owner.startOffset, owner.endOffset,
                 TEST_SUITE_GENERATED_MEMBER,
@@ -350,7 +350,8 @@ internal class TestProcessor (val context: Context) {
                 isSuspend = false,
                 isExpect = false,
                 isFakeOverride = false,
-                isOperator = false
+                isOperator = false,
+                isInfix = false
         ).apply {
             descriptor.bind(this)
             parent = owner
@@ -374,7 +375,7 @@ internal class TestProcessor (val context: Context) {
      */
     private fun buildInstanceGetter(classSymbol: IrClassSymbol,
                                     owner: IrClass,
-                                    getterName: Name) = WrappedSimpleFunctionDescriptor().let { descriptor ->
+                                    getterName: Name): IrSimpleFunction = WrappedSimpleFunctionDescriptor().let { descriptor ->
         IrFunctionImpl(
                 owner.startOffset, owner.endOffset,
                 TEST_SUITE_GENERATED_MEMBER,
@@ -389,7 +390,8 @@ internal class TestProcessor (val context: Context) {
                 isSuspend = false,
                 isExpect = false,
                 isFakeOverride = false,
-                isOperator = false
+                isOperator = false,
+                isInfix = false
         ).apply {
             descriptor.bind(this)
             parent = owner
@@ -424,7 +426,7 @@ internal class TestProcessor (val context: Context) {
                                            testSuite: IrClassSymbol,
                                            owner: IrClass,
                                            functions: Collection<TestFunction>,
-                                           ignored: Boolean) = WrappedClassConstructorDescriptor().let { descriptor ->
+                                           ignored: Boolean): IrConstructor = WrappedClassConstructorDescriptor().let { descriptor ->
         IrConstructorImpl(
                 testSuite.owner.startOffset, testSuite.owner.endOffset,
                 TEST_SUITE_GENERATED_MEMBER,
@@ -477,7 +479,7 @@ internal class TestProcessor (val context: Context) {
      */
     private fun buildClassSuite(testClass: IrClass,
                                 testCompanion: IrClass?,
-                                functions: Collection<TestFunction>) = WrappedClassDescriptor().let { descriptor ->
+                                functions: Collection<TestFunction>): IrClass = WrappedClassDescriptor().let { descriptor ->
         IrClassImpl(
                 testClass.startOffset, testClass.endOffset,
                 TEST_SUITE_CLASS,

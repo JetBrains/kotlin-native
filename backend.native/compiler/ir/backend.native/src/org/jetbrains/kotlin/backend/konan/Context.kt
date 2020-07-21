@@ -126,7 +126,7 @@ internal class SpecialDeclarationsFactory(val context: Context) {
     }
 
     private fun createBridge(function: IrSimpleFunction,
-                             bridgeDirections: BridgeDirections) = WrappedSimpleFunctionDescriptor().let { descriptor ->
+                             bridgeDirections: BridgeDirections): IrSimpleFunction = WrappedSimpleFunctionDescriptor().let { descriptor ->
         val startOffset = function.startOffset
         val endOffset = function.endOffset
         val returnType = when (bridgeDirections.array[0]) {
@@ -148,7 +148,8 @@ internal class SpecialDeclarationsFactory(val context: Context) {
                 returnType = returnType,
                 isExpect = false,
                 isFakeOverride = false,
-                isOperator = false
+                isOperator = false,
+                isInfix = false
         ).apply {
             val bridge = this
             descriptor.bind(bridge)
