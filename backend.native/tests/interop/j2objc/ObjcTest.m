@@ -25,10 +25,6 @@
 
 @implementation ExtendsFoo
 
-- (instancetype)init {
-  return self;
-}
-
 - (int)add3:(int)x secondparam:(int)y thirdparam:(int)z {
   return [self add2:x secondparam:[self add2:y secondparam:z]];
 }

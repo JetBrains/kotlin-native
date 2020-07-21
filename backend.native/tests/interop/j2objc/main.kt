@@ -17,6 +17,8 @@ private fun testMethods() {
 
   assertEquals(6, myExtensionObject.add3(1,2,3))
   assertEquals(-10, myExtensionObject.add3(-12,3,-1))
+  assertEquals(100, myExtensionObject.return100())
+  assertEquals(-19, myExtensionObject.add2(-9,-10))
 
   assertEquals(100, j2objctest.Foo.return100Static())
 }
