@@ -127,11 +127,7 @@ class J2ObjCParser: ClassVisitor(Opcodes.ASM5) {
     val parameterTypes = getArgumentTypes(methodDesc)
 
     return parameterTypes.mapIndexed { i, paramType ->
-      when (paramType.className) {
-        "boolean", "byte", "char", "double", "float", "int", "long", "short" ->
-         Parameter(name = paramNames.get(i), type = parseType(parameterTypes.get(i)), nsConsumed = false)
-        else -> TODO("Have not implemented this type yet: ${parameterTypes.get(i).className}")
-      }
+      Parameter(name = paramNames.get(i), type = parseType(parameterTypes.get(i)), nsConsumed = false)
     }
   }
 
@@ -162,7 +158,36 @@ class J2ObjCParser: ClassVisitor(Opcodes.ASM5) {
       "long" -> IntegerType(size = 8, spelling = "long", isSigned = true)
       "short" -> IntegerType(size = 2, spelling = "short", isSigned = true)
       "void" -> VoidType
-      else -> TODO("Have not implemented this type yet: ${type.className}")
+      "java.lang.String" -> ObjCObjectPointer(
+        ObjCClassImpl(
+          name = "NSString",
+          isForwardDeclaration = false,
+          binaryName = null,
+          location = Location(headerId = HeaderId("System/Library/Frameworks/Foundation.framework/Verisons/C/Headers/NSString.h"))
+        ),
+        ObjCPointer.Nullability.valueOf("Unspecified"),
+        listOf()
+      )
+      "java.lang.Number" -> ObjCObjectPointer(
+        ObjCClassImpl(
+          name = "NSNumber",
+          isForwardDeclaration = false,
+          binaryName = null,
+          location = Location(headerId = HeaderId("System/Library/Frameworks/Foundation.framework/Versions/C/Headers/NSValue.h"))
+        ),
+        ObjCPointer.Nullability.valueOf("Unspecified"),
+        listOf()
+      )
+      else -> ObjCObjectPointer(
+        ObjCClassImpl(
+          name = type.className,
+          isForwardDeclaration = false,
+          binaryName = null,
+          location = Location(headerId = HeaderId(""))
+        ),
+        ObjCPointer.Nullability.valueOf("Unspecified"),
+        listOf()
+      )
     }
   }
 
