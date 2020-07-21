@@ -45,6 +45,11 @@ fun ThrowInvalidReceiverTypeException(klass: KClass<*>): Nothing {
 }
 
 @ExportForCppRuntime
+fun CreateForeignException(payload: NativePtr): Throwable {
+    return ForeignException(payload)
+}
+
+@ExportForCppRuntime
 internal fun ThrowArithmeticException() : Nothing {
     throw ArithmeticException()
 }

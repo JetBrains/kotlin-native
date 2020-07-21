@@ -627,7 +627,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             LLVMAddClause(landingpad, kotlinExceptionRtti.llvm)
             LLVMAddClause(landingpad, LLVMConstNull(kInt8Ptr))
 
-            val fatalForeignExceptionBlock = basicBlock("fatalForeignException", position()?.start)
+            val forwardNativeExceptionBlock = basicBlock("forwardNativeException", position()?.start)
             val forwardKotlinExceptionBlock = basicBlock("forwardKotlinException", position()?.start)
 
             val isKotlinException = icmpEq(
@@ -635,17 +635,19 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                     call(context.llvm.llvmEhTypeidFor, listOf(kotlinExceptionRtti.llvm))
             )
 
-            condBr(isKotlinException, forwardKotlinExceptionBlock, fatalForeignExceptionBlock)
+            condBr(isKotlinException, forwardKotlinExceptionBlock, forwardNativeExceptionBlock)
 
             appendingTo(forwardKotlinExceptionBlock) {
                 // Rethrow Kotlin exception to real handler.
                 codeContext.genThrow(extractKotlinException(landingpad))
             }
 
-            appendingTo(fatalForeignExceptionBlock) {
-                val exceptionRecord = extractValue(landingpad, 0)
-                call(context.llvm.cxaBeginCatchFunction, listOf(exceptionRecord))
-                terminate()
+            appendingTo(forwardNativeExceptionBlock) {
+                val nativeException = extractForeignException(landingpad, codeContext.exceptionHandler)
+                val exception = call(context.ir.symbols.createForeignException.owner.llvmFunction, listOf(nativeException),
+                        Lifetime.LOCAL, codeContext.exceptionHandler)
+                codeContext.genThrow(exception)
+                unreachable()
             }
         }
 
@@ -686,7 +688,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
 
         LLVMAddClause(landingpadResult, LLVMConstNull(kInt8Ptr))
 
-        // FIXME: properly handle C++ exceptions: currently C++ exception can be thrown out from try-finally
+        // TODO: properly handle C++ exceptions: currently C++ exception can be thrown out from try-finally
         // bypassing the finally block.
 
         return extractKotlinException(landingpadResult)
@@ -711,6 +713,25 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         call(endCatch, listOf())
 
         return exceptionPtr
+    }
+
+    private fun extractForeignException(landingpadResult: LLVMValueRef, exceptionHandler: ExceptionHandler): LLVMValueRef {
+        val exceptionRecord = extractValue(landingpadResult, 0, "er")
+
+        // __cxa_begin_catch returns pointer to C++ exception object.
+        val beginCatch = context.llvm.cxaBeginCatchFunction
+        val exceptionRawPtr = call(beginCatch, listOf(exceptionRecord))
+
+        val id = LLVMBuildLoad(builder, bitcast(kInt8PtrPtr, exceptionRawPtr, ""), "")!!
+        // Do retain, as __cxa_end_catch releases the object
+        call(context.ir.symbols.interopObjCRetain.owner.llvmFunction, listOf(id), Lifetime.IRRELEVANT, exceptionHandler)
+
+        // Just cast to NativePtr
+        val payload = bitcast(kInt8Ptr, id, "")
+
+        call(context.llvm.cxaEndCatchFunction, listOf())
+
+        return payload
     }
 
     inline fun ifThenElse(
