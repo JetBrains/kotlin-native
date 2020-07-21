@@ -41,7 +41,7 @@ or [several targets](#add-a-dependency-between-a-kotlin-pod-with-an-xcode-projec
     </div>
     
 3. In `build.gradle.kts` (or `build.gradle`) of your IDEA project, apply the CocoaPods plugin as well as the Kotlin
- Multiplatform plugin it is based on.
+ Multiplatform plugin.
 
     <div class="sample" markdown="1" theme="idea" data-highlight-only>
     
