@@ -208,6 +208,12 @@ var stageToShow = 0
 
 var buildsNumberToShow: Int? = null
 
+fun waitForElements(elements: Iterable<Any?>, action: () -> Unit) {
+    if (elements.filterNotNull().size == elements.count())
+        action()
+    else window.setTimeout(waitForElements(elements, action), 500)
+}
+
 fun main(args: Array<String>) {
     val serverUrl = "http://localhost:3000"//"https://kotlin-native-perf-summary.labs.jb.gg"
     buildsNumberToShow = null
@@ -425,17 +431,10 @@ fun main(args: Array<String>) {
 
     // Update all charts with using same data.
     val updateAllCharts: () -> Unit = {
-        execChart.update(getChartData(execData.first, execData.second, stageToShow, buildsNumberToShow),
-                getChartOptions(arrayOf("Geometric Mean"), "Normalized time"))
-        compileChart.update(getChartData(compileData.first, compileData.second, stageToShow, buildsNumberToShow),
-                getChartOptions(valuesToShow["COMPILE_TIME"]!![0]!!["samples"]!!.split(',').toTypedArray(),
-                        "Time, milliseconds"))
-        codeSizeChart.update(getChartData(codeSizeData.first, codeSizeData.second, stageToShow, buildsNumberToShow, sizeClassNames),
-                getChartOptions(arrayOf("Geometric Mean") + platformSpecificBenchs.split(',').filter{ it.isNotEmpty() },
-                        "Normalized size",
-                        arrayOf("ct-series-4", "ct-series-5", "ct-series-6")))
-        bundleSizeChart.update(getChartData(bundleSizeData.first, bundleSizeData.second, stageToShow, buildsNumberToShow, sizeClassNames),
-                getChartOptions(arrayOf("Bundle size"), "Size, MB", arrayOf("ct-series-4")))
+        execChart.update(getChartData(execData.first, execData.second, stageToShow, buildsNumberToShow))
+        compileChart.update(getChartData(compileData.first, compileData.second, stageToShow, buildsNumberToShow))
+        codeSizeChart.update(getChartData(codeSizeData.first, codeSizeData.second, stageToShow, buildsNumberToShow, sizeClassNames))
+        bundleSizeChart.update(getChartData(bundleSizeData.first, bundleSizeData.second, stageToShow, buildsNumberToShow, sizeClassNames))
     }
 
     // Get builds description.
@@ -449,11 +448,13 @@ fun main(args: Array<String>) {
             val element = it as JsonElement
             if (element.isNull) null else Build.create(element as JsonObject)
         }
-        customizeChart(execChart, "exec_chart", js("$(\"#exec_chart\")"), builds, parameters)
-        customizeChart(compileChart, "compile_chart", js("$(\"#compile_chart\")"), builds, parameters)
-        customizeChart(codeSizeChart, "codesize_chart", js("$(\"#codesize_chart\")"), builds, parameters)
-        customizeChart(bundleSizeChart, "bundlesize_chart", js("$(\"#bundlesize_chart\")"), builds, parameters)
-        updateAllCharts()
+        waitForElements(listOf(execChart, compileChart, codeSizeChart, bundleSizeChart)) {
+            customizeChart(execChart, "exec_chart", js("$(\"#exec_chart\")"), builds, parameters)
+            customizeChart(compileChart, "compile_chart", js("$(\"#compile_chart\")"), builds, parameters)
+            customizeChart(codeSizeChart, "codesize_chart", js("$(\"#codesize_chart\")"), builds, parameters)
+            customizeChart(bundleSizeChart, "bundlesize_chart", js("$(\"#bundlesize_chart\")"), builds, parameters)
+            updateAllCharts()
+        }
     }
 
     js("$('#plusBtn')").click({

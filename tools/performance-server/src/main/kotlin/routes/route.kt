@@ -154,9 +154,27 @@ fun <T> orderedValues(values: List<T>, buildElement: (T) -> String = { it -> it.
                       else
                         Int.MAX_VALUE
                     },
-                    { buildElement(it).substringAfterLast("-").toInt() }
+                    { buildElement(it).substringAfterLast("-").toDouble() }
             )
     )
+
+fun deleteBuildInfo(agentInfo: String, buildInfoIndex: ElasticSearchIndex, buildNumber: String? = null): Promise<String> {
+        val queryDescription = """
+            {
+                "query": {
+                    "bool": {
+                        "must": [ 
+                            { "match": { "agentInfo": "$agentInfo" } }
+                            ${buildNumber?.let{ """,
+                            {"match": { "buildNumber": "$it" }}
+                            """}?:""}
+                        ]
+                    }
+                }
+            }
+        """.trimIndent()
+        return buildInfoIndex.delete(queryDescription)
+    }
 
 fun getBuildsDescription(type: String?, branch: String?, agentInfo: String, buildInfoIndex: ElasticSearchIndex,
                          onlyNumbers: Boolean = false): Promise<JsonArray> {
@@ -185,16 +203,16 @@ fun getBuildsDescription(type: String?, branch: String?, agentInfo: String, buil
     }
 }
 
-fun buildExists(buildNumber: String, branch: String?, agentInfo: String, buildInfoIndex: ElasticSearchIndex): Promise<Boolean> {
+suspend fun buildExists(buildInfo: BuildInfo, buildInfoIndex: ElasticSearchIndex): Boolean {
     val queryDescription = """
             {   "size": 1,
-               "_source": ["buildNumber"]
+               "_source": ["buildNumber"],
                 "query": {
                     "bool": {
                         "must": [ 
-                            { "match": { "buildNumber": "$buildNumber" } },
-                            { "match": { "agentInfo": "$agentInfo" } }
-                            ${branch?.let{ """,
+                            { "match": { "buildNumber": "${buildInfo.buildNumber}" } },
+                            { "match": { "agentInfo": "${buildInfo.agentInfo}" } }
+                            ${buildInfo.branch?.let{ """,
                             {"match": { "branch": "$it" }}
                             """}?:""}
                         ]
@@ -207,7 +225,7 @@ fun buildExists(buildNumber: String, branch: String?, agentInfo: String, buildIn
         val value = response.getObjectOrNull("hits")?.getObjectOrNull("total")?.getPrimitiveOrNull("value")?.content
                 ?: error("Error response from ElasticSearch:\n$responseString")
         value.toInt() > 0
-    }
+    }.await()
 }
 
 fun getBuildsNumbers(type: String?, branch: String?, agentInfo: String, buildInfoIndex: ElasticSearchIndex) =
@@ -270,6 +288,47 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
             error("Used wrong feature value $featureValue. Indexes are separated using next values: ${ benchmarksIndexes.keys }")
 
     var featureFilter: ((String) -> String)? = null
+
+    fun getBenchmarksList(buildNumber: String, featureValue: String): Promise<List<String>> {
+            val queryDescription = """
+{
+  "_source": ["buildNumber", "benchmarks"],
+  "size": 1000,
+  "query": {
+        "bool": {
+            "must": [ 
+                { "match": { "buildNumber": "$buildNumber" } }
+            ]
+        }
+    }
+}
+"""
+
+            return getIndex(featureValue).search(queryDescription, listOf("hits.hits._source")).then { responseString ->
+                val dbResponse = JsonTreeParser.parse(responseString).jsonObject
+                dbResponse.getObjectOrNull("hits")?.getArrayOrNull("hits")?.let { results ->
+                    results.map {
+                        val element = it as JsonObject
+                        BenchmarksReport.parseBenchmarksArray(element.getObject("_source").getArray("benchmarks"))
+                                .map { it.name }
+                    }.flatten()
+                }?: emptyList()
+            }
+        }
+
+    fun deleteBenchmarks(featureValue: String, buildNumber: String? = null): Promise<String> {
+        val matchQuery = buildNumber?.let {
+            """"match": { "buildNumber": "$it" }"""
+        } ?: """"match_all": {}"""
+        val queryDescription = """
+            {
+                "query": {
+                    $matchQuery
+                }
+            }
+        """.trimIndent()
+        return getIndex(featureValue).delete(queryDescription)
+    }
 
     fun getSamples(metricName: String, featureValue: String = "", samples: List<String>,
                    buildNumbers: Iterable<String>? = null,
@@ -334,6 +393,9 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
 
     fun insert(data: JsonSerializable, featureValue: String = "") =
             getIndex(featureValue).insert(data)
+
+    fun delete(data: String, featureValue: String = "") =
+            getIndex(featureValue).delete(data)
 
     fun getFailuresNumber(featureValue: String = "", buildNumbers: Iterable<String>? = null): Promise<Map<String, Int>> {
         val queryDescription = """
@@ -539,6 +601,26 @@ fun router() {
             response.sendStatus(400)
         }
     }*/
+
+    suspend fun getConsistentBuildInfo(buildInfoInstance: BuildInfo, reports: List<BenchmarksReport>,
+                                       rerunNumber: Int = 1): BuildInfo {
+        var currentBuildInfo = buildInfoInstance
+        if (buildExists(currentBuildInfo, buildInfoIndex)) {
+            // Check if benchmarks aren't repeated.
+            val existingBecnhmarks = benchmarksDispatcher.getBenchmarksList(currentBuildInfo.buildNumber,
+                    currentBuildInfo.agentInfo).await()
+            val benchmarksToRegister = reports.map { it.benchmarks.keys }.flatten()
+            if (existingBecnhmarks.toTypedArray().intersect(benchmarksToRegister).isNotEmpty()) {
+                // Build was rerun.
+                val buildNumber = "${currentBuildInfo.buildNumber}.$rerunNumber"
+                currentBuildInfo = BuildInfo(buildNumber, currentBuildInfo.startTime, currentBuildInfo.endTime,
+                        currentBuildInfo.commitsList, currentBuildInfo.branch, currentBuildInfo.agentInfo)
+                return getConsistentBuildInfo(currentBuildInfo, reports,rerunNumber+1)
+            }
+        }
+        return currentBuildInfo
+    }
+
     // Register build on Artifactory.
     router.post("/register") { request, response ->
         val register = BuildRegister.create(JSON.stringify(request.body))
@@ -549,44 +631,53 @@ fun router() {
                 val commitsList = CommitsList(JsonTreeParser.parse(changes))
                 // Get artifact.
                 register.sendTeamCityRequest(register.teamCityArtifactsUrl).then { resultsContent ->
-                    val reportData = JsonTreeParser.parse(resultsContent)
-                    val reports = if (reportData is JsonArray) {
-                        reportData.map { BenchmarksReport.create(it as JsonObject) }
-                    } else listOf(BenchmarksReport.create(reportData as JsonObject))
-                    // Register build information.
-                    val buildInfoInstance = BuildInfo(buildInfo.buildNumber, buildInfo.startTime, buildInfo.finishTime,
-                            commitsList, buildInfo.branch, reports[0].env.machine.os)
-
-                    if (register.bundleSize != null) {
-                        // Add bundle size.
-                        val bundleSizeBenchmark = BenchmarkResult("KotlinNative",
-                                BenchmarkResult.Status.PASSED, register.bundleSize.toDouble(),
-                                BenchmarkResult.Metric.BUNDLE_SIZE, 0.0, 1, 0)
-                        val bundleSizeReport = BenchmarksReport(reports[0].env,
-                                listOf(bundleSizeBenchmark), reports[0].compiler)
-                        bundleSizeReport.buildNumber = buildInfo.buildNumber
-                        benchmarksDispatcher.insert(bundleSizeReport, reports[0].env.machine.os).then { _ ->
-                            println("[BUNDLE] Success insert ${buildInfoInstance.buildNumber}")
-                        }.catch { errorResponse ->
-                            println("Failed to insert data for build")
-                            println(errorResponse)
+                    launch {
+                        val reportData = JsonTreeParser.parse(resultsContent)
+                        val reports = if (reportData is JsonArray) {
+                            reportData.map { BenchmarksReport.create(it as JsonObject) }
+                        } else listOf(BenchmarksReport.create(reportData as JsonObject))
+                        val goldenResultPromise = getGoldenResults(goldenIndex)
+                        val goldenResults = goldenResultPromise.await()
+                        // Register build information.
+                        var buildInfoInstance = getConsistentBuildInfo(
+                                BuildInfo(buildInfo.buildNumber, buildInfo.startTime, buildInfo.finishTime,
+                                        commitsList, buildInfo.branch, reports[0].env.machine.os),
+                                reports
+                        )
+                        if (register.bundleSize != null) {
+                            // Add bundle size.
+                            val bundleSizeBenchmark = BenchmarkResult("KotlinNative",
+                                    BenchmarkResult.Status.PASSED, register.bundleSize.toDouble(),
+                                    BenchmarkResult.Metric.BUNDLE_SIZE, 0.0, 1, 0)
+                            val bundleSizeReport = BenchmarksReport(reports[0].env,
+                                    listOf(bundleSizeBenchmark), reports[0].compiler)
+                            bundleSizeReport.buildNumber = buildInfoInstance.buildNumber
+                            benchmarksDispatcher.insert(bundleSizeReport, reports[0].env.machine.os).then { _ ->
+                                println("[BUNDLE] Success insert ${buildInfoInstance.buildNumber}")
+                            }.catch { errorResponse ->
+                                println("Failed to insert data for build")
+                                println(errorResponse)
+                            }
                         }
-                    }
-                    val insertResults = reports.map { benchmarksReport ->
-                        benchmarksReport.buildNumber = buildInfo.buildNumber
-                        val summaryReport = SummaryBenchmarksReport(benchmarksReport)
-                        // Save results in database.
-                        benchmarksDispatcher.insert(summaryReport.toBenchmarksReport(), benchmarksReport.env.machine.os)
-                    }
-                    buildInfoIndex.insert(buildInfoInstance).then { _ ->
-                        println("Success insert build information for ${buildInfoInstance.buildNumber}")
-                    }.catch {
-                        response.sendStatus(400)
-                    }
-                    Promise.all(insertResults.toTypedArray()).then { _ ->
-                        response.sendStatus(200)
-                    }.catch {
-                        response.sendStatus(400)
+                        val insertResults = reports.map {
+                            val benchmarksReport = SummaryBenchmarksReport(it).toBenchmarksReport()
+                                    .normalizeBenchmarksSet(goldenResults)
+                            benchmarksReport.buildNumber = buildInfoInstance.buildNumber
+                            // Save results in database.
+                            benchmarksDispatcher.insert(benchmarksReport, benchmarksReport.env.machine.os)
+                        }
+                        if (!buildExists(buildInfoInstance, buildInfoIndex)) {
+                            buildInfoIndex.insert(buildInfoInstance).then { _ ->
+                                println("Success insert build information for ${buildInfoInstance.buildNumber}")
+                            }.catch {
+                                response.sendStatus(400)
+                            }
+                        }
+                        Promise.all(insertResults.toTypedArray()).then { _ ->
+                            response.sendStatus(200)
+                        }.catch {
+                            response.sendStatus(400)
+                        }
                     }
                 }
             }
@@ -749,7 +840,7 @@ fun router() {
                 buildsDescription.forEach {
                     if (!it.isEmpty()) {
                         val currentBuildNumber = it.substringBefore(',')
-                        if (!"\\d+(\\.\\d+)+(-M\\d)?-\\w+-\\d+".toRegex().matches(currentBuildNumber)) {
+                        if (!"\\d+(\\.\\d+)+(-M\\d)?-\\w+-\\d+(\\.\\d+)?".toRegex().matches(currentBuildNumber)) {
                             error("Build number $currentBuildNumber differs from expected format. File with data for " +
                                     "target $target could be corrupted.")
                         }
@@ -839,7 +930,22 @@ fun router() {
     })
 
     router.get("/delete/:target", { request, response ->
-        TODO()
+        val target = request.params.target.toString().replace("_", " ")
+        var buildNumber: String? = null
+        if (request.query != undefined) {
+            if (request.query.buildNumber != undefined) {
+                buildNumber = request.query.buildNumber
+            }
+        }
+        benchmarksDispatcher.deleteBenchmarks(target, buildNumber).then {
+            deleteBuildInfo(target, buildInfoIndex, buildNumber).then {
+                response.sendStatus(200)
+            }.catch {
+                response.sendStatus(400)
+            }
+        }.catch {
+            response.sendStatus(400)
+        }
     })
 
     router.get("/clear", { _, response ->

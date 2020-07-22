@@ -20,7 +20,7 @@ class UrlNetworkConnector(private val host: String, private val port: Int? = nul
             headers.add("Authorization" to getAuth(user, password))
         }
         if (acceptJsonContentType) {
-            headers.add("Accept" to "*/*")
+            headers.add("Accept" to "application/json")
             headers.add("Content-Type" to "application/json")
         }
 

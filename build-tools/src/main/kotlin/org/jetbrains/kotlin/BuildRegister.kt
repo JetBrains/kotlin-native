@@ -6,10 +6,7 @@
 package org.jetbrains.kotlin
 
 import org.gradle.api.DefaultTask
-import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.TaskAction
-
-import org.jetbrains.report.json.*
 
 import java.io.FileInputStream
 import java.io.OutputStreamWriter
@@ -19,22 +16,13 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.util.Properties
 
-typealias performanceAdditionalResult = Triple<String, String, String>
 /**
- * Task to produce regressions report and send it to slack. Requires a report with current benchmarks result
- * and path to analyzer tool
+ * Task to save benchmarks results on server.
  *
- * @property currentBenchmarksReportFile  path to file with becnhmarks result
- * @property analyzer path to analyzer tool
  * @property bundleSize size of build
  * @property onlyBranch register only builds for branch
  */
 open class BuildRegister : DefaultTask() {
-    @Input
-    lateinit var currentBenchmarksReportFile: String
-    @Input
-    lateinit var analyzer: String
-
     var onlyBranch: String? = null
 
     var bundleSize: Int? = null

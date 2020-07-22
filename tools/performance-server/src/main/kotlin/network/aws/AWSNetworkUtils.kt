@@ -65,7 +65,7 @@ class AWSNetworkConnector : NetworkConnector() {
         if (acceptJsonContentType) {
             //headers.add("Accept" to "*/*")
             request.headers["Content-Type"] = "application/json"
-            //headers.add("Content-Length" to js("Buffer").byteLength(request.body))
+            request.headers["Content-Length"] = js("Buffer").byteLength(request.body)
         }
 
         val credentials = AWSInstance.SharedIniFileCredentials(mapOf<String, String>())

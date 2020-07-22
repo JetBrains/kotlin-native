@@ -135,6 +135,12 @@ abstract class ElasticSearchIndex(val indexName: String, val connector: ElasticS
         return connector.request(RequestMethod.PUT, writePath, body = description)
     }
 
+    // Delete data.
+    fun delete(data: String): Promise<String> {
+        val writePath = "$indexName/_delete_by_query"
+        return connector.request(RequestMethod.POST, writePath, body = data)
+    }
+
     // Make request.
     // TODO - replace to DSL
     fun search(requestJson: String, filterPathes: List<String> = emptyList()): Promise<String> {

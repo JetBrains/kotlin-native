@@ -160,24 +160,18 @@ task registerExternalBenchmarks {
 }
 
 task registerBuild(type: BuildRegister) {
-    def analyzerBinary = findAnalyzerBinary()
-    if (analyzerBinary != null) {
-        onlyBranch = project.findProperty('kotlin.register.branch')
-        // Get bundle size.
-        bundleSize = null
-        if (project.findProperty('kotlin.bundleBuild') != null) {
-            def dist = findProperty('kotlin.native.home') ?: 'dist'
-            dist = (new File(dist)).isAbsolute() ? dist : "${project.getProjectDir()}/$dist"
-            bundleSize = (new File(dist)).directorySize()
-        }
-        currentBenchmarksReportFile = "${buildDir.absolutePath}/${nativeJson}"
-        analyzer = analyzerBinary
+    onlyBranch = project.findProperty('kotlin.register.branch')
+    // Get bundle size.
+    bundleSize = null
+    if (project.findProperty('kotlin.bundleBuild') != null) {
+        def dist = findProperty('kotlin.native.home') ?: 'dist'
+        dist = (new File(dist)).isAbsolute() ? dist : "${project.getProjectDir()}/$dist"
+        bundleSize = (new File(dist)).directorySize()
     }
 }
 
 task registerExternalBuild(type: BuildRegister) {
     onlyBranch = project.findProperty('kotlin.register.branch')
-    fileWithResult = externalBenchmarksReport
 }
 
 registerExternalBenchmarks.finalizedBy registerExternalBuild
