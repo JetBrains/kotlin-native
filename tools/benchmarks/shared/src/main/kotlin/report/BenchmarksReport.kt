@@ -30,8 +30,21 @@ interface EntityFromJsonFactory<T>: ConvertedFromJson {
     fun create(data: JsonElement): T
 }
 
-// Class for benchcmarks report with all information of run.
-class BenchmarksReport(val env: Environment, benchmarksList: List<BenchmarkResult>, val compiler: Compiler):
+// Parse array with benchmarks to list
+fun parseBenchmarksArray(data: JsonElement): List<BenchmarkResult> {
+    if (data is JsonArray) {
+        return data.jsonArray.map {
+            if (MeanVarianceBenchmark.isMeanVarianceBenchmark(it))
+                MeanVarianceBenchmark.create(it as JsonObject)
+            else BenchmarkResult.create(it as JsonObject)
+        }
+    } else {
+        error("Benchmarks field is expected to be an array. Please, check origin files.")
+    }
+}
+
+// Class for benchmarks report with all information of run.
+open class BenchmarksReport(val env: Environment, benchmarksList: List<BenchmarkResult>, val compiler: Compiler):
         JsonSerializable {
 
     companion object: EntityFromJsonFactory<BenchmarksReport> {
@@ -50,21 +63,12 @@ class BenchmarksReport(val env: Environment, benchmarksList: List<BenchmarkResul
             }
         }
 
-        // Parse array with benchmarks to list
-        fun parseBenchmarksArray(data: JsonElement): List<BenchmarkResult> {
-            if (data is JsonArray) {
-                return data.jsonArray.map { BenchmarkResult.create(it as JsonObject) }
-            } else {
-                error("Benchmarks field is expected to be an array. Please, check origin files.")
-            }
-        }
-
         // Made a map of becnhmarks with name as key from list.
         private fun structBenchmarks(benchmarksList: List<BenchmarkResult>) =
                 benchmarksList.groupBy{ it.name }
     }
 
-    val benchmarks: Map<String, List<BenchmarkResult>> = structBenchmarks(benchmarksList)
+    val benchmarks = structBenchmarks(benchmarksList)
 
     var buildNumber: String? = null
 
@@ -307,4 +311,38 @@ open class BenchmarkResult(val name: String, val status: Status,
 
     val shortName: String
         get() = name.removeSuffix(metric.suffix)
+}
+
+// Entity to describe avarage values which conssists of mean and variance values.
+data class MeanVariance(val mean: Double, val variance: Double)
+
+open class MeanVarianceBenchmark(name: String, status: BenchmarkResult.Status, score: Double, metric: BenchmarkResult.Metric,
+                                 runtimeInUs: Double, repeat: Int, warmup: Int, val variance: Double) :
+        BenchmarkResult(name, status, score, metric, runtimeInUs, repeat, warmup) {
+
+    constructor(name: String, score: Double, variance: Double) : this(name, BenchmarkResult.Status.PASSED, score,
+            BenchmarkResult.Metric.EXECUTION_TIME, 0.0, 0, 0, variance)
+
+    companion object: EntityFromJsonFactory<MeanVarianceBenchmark> {
+
+        fun isMeanVarianceBenchmark(data: JsonElement) = data is JsonObject && data.getOptionalField("variance") != null
+
+        override fun create(data: JsonElement): MeanVarianceBenchmark {
+            if (data is JsonObject) {
+                val baseBenchmark = BenchmarkResult.create(data)
+                val variance = elementToDouble(data.getRequiredField("variance"), "variance")
+                return MeanVarianceBenchmark(baseBenchmark.name, baseBenchmark.status, baseBenchmark.score, baseBenchmark.metric,
+                        baseBenchmark.runtimeInUs, baseBenchmark.repeat, baseBenchmark.warmup, variance)
+            } else {
+                error("Benchmark entity is expected to be an object. Please, check origin files.")
+            }
+        }
+    }
+
+    override fun serializeFields(): String {
+        return """
+            ${super.serializeFields()},
+            "variance": ${variance.toString()}
+            """
+    }
 }

@@ -10,6 +10,8 @@ import org.jetbrains.report.BenchmarkResult
 import org.jetbrains.report.Environment
 import org.jetbrains.report.Compiler
 import org.jetbrains.report.BenchmarksReport
+import org.jetbrains.report.MeanVariance
+import org.jetbrains.report.MeanVarianceBenchmark
 
 typealias SummaryBenchmark = Pair<MeanVarianceBenchmark?, MeanVarianceBenchmark?>
 typealias BenchmarksTable = Map<String, MeanVarianceBenchmark>

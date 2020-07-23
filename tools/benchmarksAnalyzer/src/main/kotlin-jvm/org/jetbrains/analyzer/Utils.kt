@@ -18,7 +18,7 @@ actual fun readFile(fileName: String): String {
 }
 
 actual fun Double.format(decimalNumber: Int): String =
-    "%.${decimalNumber}f".format(this)
+        "%.${decimalNumber}f".format(this)
 
 actual fun writeToFile(fileName: String, text: String) {
     File(fileName).printWriter().use { out ->

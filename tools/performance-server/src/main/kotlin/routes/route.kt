@@ -34,7 +34,7 @@ fun convertToNewFormat(data: JsonObject): List<Any> {
     if (flagsArray != null && flagsArray is JsonArray) {
         flags = flagsArray.jsonArray.map { (it as JsonLiteral).unquoted() }
     }
-    val benchmarksList = BenchmarksReport.parseBenchmarksArray(benchmarksObj)
+    val benchmarksList = parseBenchmarksArray(benchmarksObj)
 
     return listOf(env, compiler, benchmarksList, flags)
 }
@@ -289,10 +289,9 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
 
     var featureFilter: ((String) -> String)? = null
 
-    fun getBenchmarksList(buildNumber: String, featureValue: String): Promise<List<String>> {
-            val queryDescription = """
+    fun getBenchmarksReports(buildNumber: String, featureValue: String): Promise<List<String>> {
+        val queryDescription = """
 {
-  "_source": ["buildNumber", "benchmarks"],
   "size": 1000,
   "query": {
         "bool": {
@@ -304,17 +303,26 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
 }
 """
 
-            return getIndex(featureValue).search(queryDescription, listOf("hits.hits._source")).then { responseString ->
-                val dbResponse = JsonTreeParser.parse(responseString).jsonObject
-                dbResponse.getObjectOrNull("hits")?.getArrayOrNull("hits")?.let { results ->
-                    results.map {
-                        val element = it as JsonObject
-                        BenchmarksReport.parseBenchmarksArray(element.getObject("_source").getArray("benchmarks"))
-                                .map { it.name }
-                    }.flatten()
-                }?: emptyList()
-            }
+        return getIndex(featureValue).search(queryDescription, listOf("hits.hits._source")).then { responseString ->
+            val dbResponse = JsonTreeParser.parse(responseString).jsonObject
+            dbResponse.getObjectOrNull("hits")?.getArrayOrNull("hits")?.let { results ->
+                results.map {
+                    val element = it as JsonObject
+                    element.getObject("_source").toString()
+                }
+            }?: emptyList()
         }
+    }
+
+    fun getBenchmarksList(buildNumber: String, featureValue: String): Promise<List<String>> {
+        return getBenchmarksReports(buildNumber, featureValue).then { reports ->
+            reports.map {
+                val dbResponse = JsonTreeParser.parse(it).jsonObject
+                parseBenchmarksArray(dbResponse.getArray("benchmarks"))
+                                .map { it.name }
+            }.flatten()
+        }
+    }
 
     fun deleteBenchmarks(featureValue: String, buildNumber: String? = null): Promise<String> {
         val matchQuery = buildNumber?.let {
@@ -943,6 +951,16 @@ fun router() {
             }.catch {
                 response.sendStatus(400)
             }
+        }.catch {
+            response.sendStatus(400)
+        }
+    })
+
+    router.get("/report/:target/:buildNumber", { request, response ->
+        val target = request.params.target.toString().replace("_", " ")
+        val buildNumber = request.params.buildNumber.toString()
+        benchmarksDispatcher.getBenchmarksReports(buildNumber, target).then { reports ->
+            response.send(reports.joinToString(", ", "[", "]"))
         }.catch {
             response.sendStatus(400)
         }

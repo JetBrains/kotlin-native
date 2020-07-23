@@ -8,6 +8,7 @@ package org.jetbrains.analyzer
 import kotlin.test.*
 import kotlin.math.abs
 import org.jetbrains.report.BenchmarkResult
+import org.jetbrains.report.MeanVarianceBenchmark
 
 class AnalyzerTests {
     private val eps = 0.000001

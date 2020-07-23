@@ -7,6 +7,7 @@ package org.jetbrains.renders
 
 import org.jetbrains.analyzer.*
 import org.jetbrains.report.BenchmarkResult
+import org.jetbrains.report.MeanVarianceBenchmark
 
 // Report render to text format.
 class TeamCityStatisticsRender: Render() {

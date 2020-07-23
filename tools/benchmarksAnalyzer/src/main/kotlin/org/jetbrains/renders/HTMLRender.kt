@@ -553,19 +553,19 @@ class HTMLRender: Render() {
                         attributes["style"] = rowStyle
                     }
                     th { +name }
-                    td { +"${fullSet.getValue(name).first}" }
-                    td { +"${fullSet.getValue(name).second}" }
+                    td { +"${fullSet.getValue(name).first?.description}" }
+                    td { +"${fullSet.getValue(name).second?.description}" }
                     td {
                         attributes["bgcolor"] = ColoredCell(if (bucket.values.first().first.mean == 0.0) null
                             else change.first.mean / abs(bucket.values.first().first.mean))
                                 .backgroundStyle
-                        +"${change.first.toString() + " %"}"
+                        +"${change.first.description + " %"}"
                     }
                     td {
                         val scaledRatio = if (maxRatio == 0.0) null else change.second.mean / maxRatio
                         attributes["bgcolor"] = ColoredCell(scaledRatio,
                                 borderPositive = { cellValue -> cellValue > 1.0 / maxRatio }).backgroundStyle
-                        +"${change.second}"
+                        +"${change.second.description}"
                     }
                 }
             }
@@ -575,8 +575,8 @@ class HTMLRender: Render() {
             for ((name, value) in fullSet) {
                 tr {
                     th { +name }
-                    td { +"${value.first?.toString() ?: placeholder}" }
-                    td { +"${value.second?.toString() ?: placeholder}" }
+                    td { +"${value.first?.description ?: placeholder}" }
+                    td { +"${value.second?.description ?: placeholder}" }
                     td { +placeholder }
                     td { +placeholder }
                 }

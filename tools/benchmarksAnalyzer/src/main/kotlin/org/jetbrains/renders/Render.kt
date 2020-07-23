@@ -6,7 +6,7 @@
 package org.jetbrains.renders
 
 import org.jetbrains.analyzer.*
-import org.jetbrains.report.BenchmarkResult
+import org.jetbrains.report.*
 
 import kotlin.math.abs
 
@@ -138,23 +138,23 @@ class TextRender: Render() {
 
     private fun printBenchmarksDetails(fullSet: Map<String, SummaryBenchmark>,
                                        bucket: Map<String, ScoreChange>? = null) {
+        val placeholder = "-"
         if (bucket != null) {
             // There are changes in performance.
             // Output changed benchmarks.
             for ((name, change) in bucket) {
                 append(formatColumn(name, true) +
-                        formatColumn(fullSet.getValue(name).first.toString()) +
-                        formatColumn(fullSet.getValue(name).second.toString()) +
-                        formatColumn(change.first.toString() + " %") +
-                        formatColumn(change.second.toString()))
+                        formatColumn(fullSet.getValue(name).first?.description ?: placeholder) +
+                        formatColumn(fullSet.getValue(name).second?.description ?: placeholder) +
+                        formatColumn(change.first.description + " %") +
+                        formatColumn(change.second.description))
             }
         } else {
             // Output all values without performance changes.
-            val placeholder = "-"
             for ((name, value) in fullSet) {
                 append(formatColumn(name, true) +
-                        formatColumn(value.first?.toString() ?: placeholder) +
-                        formatColumn(value.second?.toString() ?: placeholder) +
+                        formatColumn(value.first?.description ?: placeholder) +
+                        formatColumn(value.second?.description ?: placeholder) +
                         formatColumn(placeholder) +
                         formatColumn(placeholder))
             }

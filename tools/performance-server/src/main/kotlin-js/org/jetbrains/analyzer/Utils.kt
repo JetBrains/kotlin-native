@@ -13,12 +13,12 @@ actual fun readFile(fileName: String): String {
     error("Reading from local file for JS isn't supported")
 }
 
-actual fun Double.format(decimalNumber: Int): String =
-        this.asDynamic().toFixed(decimalNumber)
-
 actual fun writeToFile(fileName: String, text: String) {
     error("Writing to local file for JS isn't supported")
 }
+
+actual fun Double.format(decimalNumber: Int): String =
+        this.asDynamic().toFixed(decimalNumber)
 
 actual fun assert(value: Boolean, lazyMessage: () -> Any) {
     if (!value) error(lazyMessage)

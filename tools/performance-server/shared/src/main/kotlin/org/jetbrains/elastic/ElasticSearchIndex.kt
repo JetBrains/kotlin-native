@@ -7,7 +7,7 @@ package org.jetbrains.elastic
 
 import org.jetbrains.report.*
 import org.jetbrains.report.json.*
-import org.jetbrains.analyzer.MeanVarianceBenchmark
+import org.jetbrains.report.MeanVarianceBenchmark
 import org.jetbrains.network.*
 import kotlin.js.Promise     // TODO - migrate to multiplatform.
 
