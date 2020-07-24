@@ -3,7 +3,7 @@
 This document describes how to compile LLVM distribution and use it to build Kotlin/Native on macOS.  
 Usually, you don't need to compile LLVM by yourself:
 * If you use Kotlin/Native compiler it will download LLVM on the first run. 
-* If you work on Kotlin/Native source code then use `dependency:update` Gradle task.
+* If you contribute to kotlin-native repository then use `:dependencies:update` Gradle task.
 
 But if you don't want to download prebuilt LLVM or want to experiment with your own distribution, 
 you came to the right place.
