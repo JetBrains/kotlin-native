@@ -2582,15 +2582,17 @@ void runFreezeHooks(ObjHeader* obj) {
 }
 
 void runFreezeHooksRecursive(ObjHeader* root) {
-  KStdUnorderedSet<KRef> seen(1, root);
-  KStdVector<KRef> toVisit(1, root);
+  KStdUnorderedSet<KRef> seen;
+  KStdVector<KRef> toVisit;
+  seen.insert(root);
+  toVisit.push_back(root);
   while (!toVisit.empty()) {
     KRef obj = toVisit.back();
     toVisit.pop_back();
 
     runFreezeHooks(obj);
 
-    traverseReferredObjects(obj, [](ObjHeader* field) {
+    traverseReferredObjects(obj, [&seen, &toVisit](ObjHeader* field) {
       auto wasNotSeenYet = seen.insert(field).second;
       if (wasNotSeenYet) {
         toVisit.push_back(field);
@@ -2631,7 +2633,7 @@ void freezeSubgraph(ObjHeader* root) {
 
   MEMORY_LOG("Run freeze hooks on subgraph of %p\n", root);
 
-  runFreezeHooks(root);
+  runFreezeHooksRecursive(root);
 
   MEMORY_LOG("Freeze subgraph of %p\n", root)
 
