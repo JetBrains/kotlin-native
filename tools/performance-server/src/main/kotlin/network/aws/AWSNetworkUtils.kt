@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
+ * Copyright 2010-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
  * that can be found in the LICENSE file.
  */
 
@@ -14,6 +14,7 @@ import org.jetbrains.report.json.*
 external interface `T$0` {
     @nativeGetter
     operator fun get(key: String): String?
+
     @nativeSetter
     operator fun set(key: String, value: String)
 }
@@ -33,12 +34,15 @@ external object AWSInstance {
         open var method: String
         open var path: String
     }
+
     class HttpClient() {
         val handleRequest: dynamic
     }
+
     class SharedIniFileCredentials(options: Map<String, String>) {
         val accessKeyId: String
     }
+
     class Signers() {
         class V4(request: HttpRequest, subsystem: String) {
             fun addAuthorization(credentials: SharedIniFileCredentials, date: Date)
@@ -46,14 +50,14 @@ external object AWSInstance {
     }
 }
 
+// Network connector to work with AWS resources.
 class AWSNetworkConnector : NetworkConnector() {
-    // TODO: read from config file.
     val AWSDomain = "vpc-kotlin-perf-service-5e6ldakkdv526ii5hbclzcmpny.eu-west-1.es.amazonaws.com"
     val AWSRegion = "eu-west-1"
 
-    override fun <T: String?> sendBaseRequest(method: RequestMethod, path: String, user: String?, password: String?,
-                                              acceptJsonContentType: Boolean, body: String?,
-                                              errorHandler:(url: String, response: dynamic) -> Nothing?): Promise<T> {
+    override fun <T : String?> sendBaseRequest(method: RequestMethod, path: String, user: String?, password: String?,
+                                               acceptJsonContentType: Boolean, body: String?,
+                                               errorHandler: (url: String, response: dynamic) -> Nothing?): Promise<T> {
         val AWSEndpoint = AWSInstance.Endpoint(AWSDomain)
         var request = AWSInstance.HttpRequest(AWSEndpoint, AWSRegion)
         request.method = method.toString()
@@ -63,7 +67,6 @@ class AWSNetworkConnector : NetworkConnector() {
         request.headers["host"] = this.AWSDomain
 
         if (acceptJsonContentType) {
-            //headers.add("Accept" to "*/*")
             request.headers["Content-Type"] = "application/json"
             request.headers["Content-Length"] = js("Buffer").byteLength(request.body)
         }
@@ -80,10 +83,10 @@ class AWSNetworkConnector : NetworkConnector() {
                     responseBody += chunk
                     chunk
                 }
-                response.on("end") { chunk ->
+                response.on("end") { _ ->
                     val dbResponse = JsonTreeParser.parse(responseBody).jsonObject
                     // Response can fail and return 400 error for ES.
-                    if (dbResponse.getPrimitiveOrNull("status")?.let { it.content != "200" } ?: false)  {
+                    if (dbResponse.getPrimitiveOrNull("status")?.let { it.content != "200" } ?: false) {
                         println(dbResponse)
                         val errorMessage = dbResponse.getObject("error").toString()
                         reject(Throwable(errorMessage))

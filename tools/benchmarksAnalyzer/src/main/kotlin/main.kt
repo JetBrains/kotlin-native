@@ -1,13 +1,12 @@
 /*
- * Copyright 2010-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
+ * Copyright 2010-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
  * that can be found in the LICENSE file.
  */
 
-@file:UseExperimental(ExperimentalCli::class)
+import kotlinx.cli.*
 import org.jetbrains.analyzer.sendGetRequest
 import org.jetbrains.analyzer.readFile
 import org.jetbrains.analyzer.SummaryBenchmarksReport
-import kotlinx.cli.*
 import org.jetbrains.renders.*
 import org.jetbrains.report.*
 import org.jetbrains.report.json.*
@@ -46,7 +45,7 @@ object ArtifactoryConnector : Connector() {
     }
 }
 
-object TeamCityConnector: Connector() {
+object TeamCityConnector : Connector() {
     override val connectorPrefix = "teamcity:"
     val teamCityUrl = "http://buildserver.labs.intellij.net"
 
@@ -66,9 +65,9 @@ object TeamCityConnector: Connector() {
     }
 }
 
-object DBServerConnector: Connector() {
+object DBServerConnector : Connector() {
     override val connectorPrefix = ""
-    val serverUrl = "http://localhost:3000"
+    val serverUrl = "https://kotlin-native-perf-summary.labs.jb.gg"
 
     override fun getFileContent(fileLocation: String, user: String?): String {
         val buildNumber = fileLocation.substringBefore(':')
@@ -115,13 +114,6 @@ fun parseNormalizeResults(results: String): Map<String, Map<String, Double>> {
     return parsedNormalizeResults
 }
 
-/*fun mergeCompilerFlags(reports: List<BenchmarksReport>) =
-    reports.map {
-        val benchmarks = it.benchmarks.values.flatten().asSequence().filter { it.metric == BenchmarkResult.Metric.COMPILE_TIME }
-                .map { it.shortName }.distinct().sorted().joinToString()
-        "${it.compiler.backend.flags.joinToString()} for [$benchmarks]"
-    }*/
-
 fun mergeCompilerFlags(reports: List<BenchmarksReport>): List<String> {
     val flagsMap = mutableMapOf<String, MutableList<String>>()
     reports.forEach {
@@ -130,7 +122,7 @@ fun mergeCompilerFlags(reports: List<BenchmarksReport>): List<String> {
         if (benchmarks.isNotEmpty())
             (flagsMap.getOrPut("${it.compiler.backend.flags.joinToString()}") { mutableListOf<String>() }).addAll(benchmarks)
     }
-    return flagsMap.map { (flags, benchmarks) -> "$flags for [${benchmarks.distinct().sorted().joinToString()}]"}
+    return flagsMap.map { (flags, benchmarks) -> "$flags for [${benchmarks.distinct().sorted().joinToString()}]" }
 }
 
 fun mergeReportsWithDetailedFlags(reports: List<BenchmarksReport>) =
@@ -159,7 +151,7 @@ fun main(args: Array<String>) {
     val useShortForm by argParser.option(ArgType.Boolean, "short", "s",
             "Show short version of report").default(false)
     val renders by argParser.option(ArgType.Choice(listOf("text", "html", "teamcity", "statistics", "metrics")),
-        shortName = "r", description = "Renders for showing information").multiple().default(listOf("text"))
+            shortName = "r", description = "Renders for showing information").multiple().default(listOf("text"))
     val user by argParser.option(ArgType.String, shortName = "u", description = "User access information for authorization")
 
     argParser.parse(args)

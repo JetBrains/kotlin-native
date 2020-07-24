@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
+ * Copyright 2010-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
  * that can be found in the LICENSE file.
  */
 
@@ -544,7 +544,7 @@ class HTMLRender: Render() {
                                                    bucket: Map<String, ScoreChange>? = null, rowStyle: String? = null) {
         if (bucket != null && !bucket.isEmpty()) {
             // Find max ratio.
-            val maxRatio = bucket.values.map { it.second.mean }.max()!!
+            val maxRatio = bucket.values.map { it.second.mean }.maxOrNull()!!
             // There are changes in performance.
             // Output changed benchmarks.
             for ((name, change) in bucket) {

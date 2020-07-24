@@ -26,7 +26,7 @@ interface JsonSerializable {
     }
 }
 
-interface EntityFromJsonFactory<T>: ConvertedFromJson {
+interface EntityFromJsonFactory<T> : ConvertedFromJson {
     fun create(data: JsonElement): T
 }
 
@@ -44,10 +44,10 @@ fun parseBenchmarksArray(data: JsonElement): List<BenchmarkResult> {
 }
 
 // Class for benchmarks report with all information of run.
-open class BenchmarksReport(val env: Environment, benchmarksList: List<BenchmarkResult>, val compiler: Compiler):
+open class BenchmarksReport(val env: Environment, benchmarksList: List<BenchmarkResult>, val compiler: Compiler) :
         JsonSerializable {
 
-    companion object: EntityFromJsonFactory<BenchmarksReport> {
+    companion object : EntityFromJsonFactory<BenchmarksReport> {
         override fun create(data: JsonElement): BenchmarksReport {
             if (data is JsonObject) {
                 val env = Environment.create(data.getRequiredField("env"))
@@ -65,7 +65,7 @@ open class BenchmarksReport(val env: Environment, benchmarksList: List<Benchmark
 
         // Made a map of becnhmarks with name as key from list.
         private fun structBenchmarks(benchmarksList: List<BenchmarkResult>) =
-                benchmarksList.groupBy{ it.name }
+                benchmarksList.groupBy { it.name }
     }
 
     val benchmarks = structBenchmarks(benchmarksList)
@@ -73,13 +73,15 @@ open class BenchmarksReport(val env: Environment, benchmarksList: List<Benchmark
     var buildNumber: String? = null
 
     override fun serializeFields(): String {
-        val buildNumberField = buildNumber?.let { """,
+        val buildNumberField = buildNumber?.let {
+            """,
             "buildNumber": "$buildNumber"
-        """} ?: ""
+        """
+        } ?: ""
         return """
             "env": ${env.toJson()},
             "kotlin": ${compiler.toJson()},
-            "benchmarks": ${arrayToJson(benchmarks.flatMap{it.value})}$buildNumberField
+            "benchmarks": ${arrayToJson(benchmarks.flatMap { it.value })}$buildNumberField
         """
     }
 
@@ -91,27 +93,27 @@ open class BenchmarksReport(val env: Environment, benchmarksList: List<Benchmark
             }
         }
         mergedBenchmarks.putAll(other.benchmarks)
-        return BenchmarksReport(env, mergedBenchmarks.flatMap{it.value}, compiler)
+        return BenchmarksReport(env, mergedBenchmarks.flatMap { it.value }, compiler)
     }
 
     // Concatenate benchmarks report if they have same environment and compiler.
     operator fun plus(other: BenchmarksReport): BenchmarksReport {
         if (compiler != other.compiler || env != other.env) {
-            error ("It's impossible to concat reports from different machines!")
+            error("It's impossible to concat reports from different machines!")
         }
         return merge(other)
     }
 }
 
 // Class for kotlin compiler
-data class Compiler(val backend: Backend, val kotlinVersion: String): JsonSerializable {
+data class Compiler(val backend: Backend, val kotlinVersion: String) : JsonSerializable {
 
     enum class BackendType(val type: String) {
         JVM("jvm"),
         NATIVE("native")
     }
 
-    companion object: EntityFromJsonFactory<Compiler> {
+    companion object : EntityFromJsonFactory<Compiler> {
         override fun create(data: JsonElement): Compiler {
             if (data is JsonObject) {
                 val backend = Backend.create(data.getRequiredField("backend"))
@@ -127,13 +129,14 @@ data class Compiler(val backend: Backend, val kotlinVersion: String): JsonSerial
     }
 
     // Class for compiler backend
-    data class Backend(val type: BackendType, val version: String, val flags: List<String>): JsonSerializable {
-        companion object: EntityFromJsonFactory<Backend> {
+    data class Backend(val type: BackendType, val version: String, val flags: List<String>) : JsonSerializable {
+        companion object : EntityFromJsonFactory<Backend> {
             override fun create(data: JsonElement): Backend {
                 if (data is JsonObject) {
                     val typeElement = data.getRequiredField("type")
                     if (typeElement is JsonLiteral) {
-                        val type = backendTypeFromString(typeElement.unquoted()) ?: error("Backend type should be 'jvm' or 'native'")
+                        val type = backendTypeFromString(typeElement.unquoted())
+                                ?: error("Backend type should be 'jvm' or 'native'")
                         val version = elementToString(data.getRequiredField("version"), "version")
                         val flagsArray = data.getOptionalField("flags")
                         var flags: List<String> = emptyList()
@@ -158,11 +161,10 @@ data class Compiler(val backend: Backend, val kotlinVersion: String): JsonSerial
             if (flags.isEmpty()) {
                 return """$result
                 """
-            }
-            else {
+            } else {
                 return """
                     $result,
-                "flags": ${arrayToJson(flags.map { if (it.startsWith("\"")) it else "\"$it\""} )}
+                "flags": ${arrayToJson(flags.map { if (it.startsWith("\"")) it else "\"$it\"" })}
                 """
             }
         }
@@ -177,9 +179,9 @@ data class Compiler(val backend: Backend, val kotlinVersion: String): JsonSerial
 }
 
 // Class for description of environment of benchmarks run
-data class Environment(val machine: Machine, val jdk: JDKInstance): JsonSerializable {
+data class Environment(val machine: Machine, val jdk: JDKInstance) : JsonSerializable {
 
-    companion object: EntityFromJsonFactory<Environment> {
+    companion object : EntityFromJsonFactory<Environment> {
         override fun create(data: JsonElement): Environment {
             if (data is JsonObject) {
                 val machine = Machine.create(data.getRequiredField("machine"))
@@ -193,8 +195,8 @@ data class Environment(val machine: Machine, val jdk: JDKInstance): JsonSerializ
     }
 
     // Class for description of machine used for benchmarks run.
-    data class Machine(val cpu: String, val os: String): JsonSerializable {
-        companion object: EntityFromJsonFactory<Machine> {
+    data class Machine(val cpu: String, val os: String) : JsonSerializable {
+        companion object : EntityFromJsonFactory<Machine> {
             override fun create(data: JsonElement): Machine {
                 if (data is JsonObject) {
                     val cpu = elementToString(data.getRequiredField("cpu"), "cpu")
@@ -216,8 +218,8 @@ data class Environment(val machine: Machine, val jdk: JDKInstance): JsonSerializ
     }
 
     // Class for description of jdk used for benchmarks run.
-    data class JDKInstance(val version: String, val vendor: String): JsonSerializable {
-        companion object: EntityFromJsonFactory<JDKInstance> {
+    data class JDKInstance(val version: String, val vendor: String) : JsonSerializable {
+        companion object : EntityFromJsonFactory<JDKInstance> {
             override fun create(data: JsonElement): JDKInstance {
                 if (data is JsonObject) {
                     val version = elementToString(data.getRequiredField("version"), "version")
@@ -247,8 +249,8 @@ data class Environment(val machine: Machine, val jdk: JDKInstance): JsonSerializ
 }
 
 open class BenchmarkResult(val name: String, val status: Status,
-                      val score: Double, val metric: Metric, val runtimeInUs: Double,
-                      val repeat: Int, val warmup: Int): JsonSerializable {
+                           val score: Double, val metric: Metric, val runtimeInUs: Double,
+                           val repeat: Int, val warmup: Int) : JsonSerializable {
 
     enum class Metric(val suffix: String, val value: String) {
         EXECUTION_TIME("", "EXECUTION_TIME"),
@@ -259,7 +261,7 @@ open class BenchmarkResult(val name: String, val status: Status,
 
     constructor(name: String, score: Double) : this(name, Status.PASSED, score, Metric.EXECUTION_TIME, 0.0, 0, 0)
 
-    companion object: EntityFromJsonFactory<BenchmarkResult> {
+    companion object : EntityFromJsonFactory<BenchmarkResult> {
 
         override fun create(data: JsonElement): BenchmarkResult {
             if (data is JsonObject) {
@@ -316,6 +318,7 @@ open class BenchmarkResult(val name: String, val status: Status,
 // Entity to describe avarage values which conssists of mean and variance values.
 data class MeanVariance(val mean: Double, val variance: Double)
 
+// Processed benchmark result with calculated mean and variance value.
 open class MeanVarianceBenchmark(name: String, status: BenchmarkResult.Status, score: Double, metric: BenchmarkResult.Metric,
                                  runtimeInUs: Double, repeat: Int, warmup: Int, val variance: Double) :
         BenchmarkResult(name, status, score, metric, runtimeInUs, repeat, warmup) {
@@ -323,7 +326,7 @@ open class MeanVarianceBenchmark(name: String, status: BenchmarkResult.Status, s
     constructor(name: String, score: Double, variance: Double) : this(name, BenchmarkResult.Status.PASSED, score,
             BenchmarkResult.Metric.EXECUTION_TIME, 0.0, 0, 0, variance)
 
-    companion object: EntityFromJsonFactory<MeanVarianceBenchmark> {
+    companion object : EntityFromJsonFactory<MeanVarianceBenchmark> {
 
         fun isMeanVarianceBenchmark(data: JsonElement) = data is JsonObject && data.getOptionalField("variance") != null
 
@@ -342,7 +345,7 @@ open class MeanVarianceBenchmark(name: String, status: BenchmarkResult.Status, s
     override fun serializeFields(): String {
         return """
             ${super.serializeFields()},
-            "variance": ${variance.toString()}
+            "variance": $variance
             """
     }
 }

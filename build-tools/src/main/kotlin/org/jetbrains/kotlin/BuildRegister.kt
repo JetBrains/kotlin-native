@@ -7,20 +7,20 @@ package org.jetbrains.kotlin
 
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.TaskAction
-
-import java.io.FileInputStream
-import java.io.OutputStreamWriter
 import java.io.BufferedReader
+import java.io.FileInputStream
 import java.io.InputStreamReader
+import java.io.OutputStreamWriter
 import java.net.HttpURLConnection
 import java.net.URL
-import java.util.Properties
+import java.util.*
 
 /**
  * Task to save benchmarks results on server.
  *
  * @property bundleSize size of build
  * @property onlyBranch register only builds for branch
+ * @property fileWithResult json file with benchmarks run results
  */
 open class BuildRegister : DefaultTask() {
     var onlyBranch: String? = null
@@ -28,9 +28,9 @@ open class BuildRegister : DefaultTask() {
     var bundleSize: Int? = null
     var fileWithResult: String = "nativeReport.json"
 
-    val performanceServer = "http://localhost:3000"//"https://kotlin-native-perf-summary.labs.jb.gg"
+    val performanceServer = "https://kotlin-native-perf-summary.labs.jb.gg"
 
-    private fun sendPostRequest(url: String, body: String) : String {
+    private fun sendPostRequest(url: String, body: String): String {
         val connection = URL(url).openConnection() as HttpURLConnection
         return connection.apply {
             setRequestProperty("Content-Type", "application/json; charset=utf-8")
@@ -59,8 +59,7 @@ open class BuildRegister : DefaultTask() {
     @TaskAction
     fun run() {
         // Get TeamCity properties.
-        val teamcityConfig = System.getenv("TEAMCITY_BUILD_PROPERTIES_FILE") ?:
-            error("Can't load teamcity config!")
+        val teamcityConfig = System.getenv("TEAMCITY_BUILD_PROPERTIES_FILE") ?: error("Can't load teamcity config!")
 
         val buildProperties = Properties()
         buildProperties.load(FileInputStream(teamcityConfig))
@@ -70,7 +69,7 @@ open class BuildRegister : DefaultTask() {
 
         // Get branch.
         val currentBuild = getBuild("id:$buildId", teamCityUser, teamCityPassword)
-        val branch = getBuildProperty(currentBuild,"branchName")
+        val branch = getBuildProperty(currentBuild, "branchName")
 
         // Send post request to register build.
         val requestBody = buildString {
@@ -78,10 +77,9 @@ open class BuildRegister : DefaultTask() {
             append("\"teamCityUser\":\"$teamCityUser\",")
             append("\"teamCityPassword\":\"$teamCityPassword\",")
             append("\"fileWithResult\":\"$fileWithResult\",")
-            append("\"bundleSize\": ${bundleSize?.let {"\"$bundleSize\""} ?: bundleSize}}")
+            append("\"bundleSize\": ${bundleSize?.let { "\"$bundleSize\"" } ?: bundleSize}}")
         }
         if (onlyBranch == null || onlyBranch == branch) {
-            println("Sending $requestBody")
             println(sendPostRequest("$performanceServer/register", requestBody))
         } else {
             println("Skipping registration. Current branch $branch, need registration for $onlyBranch!")

@@ -1,9 +1,10 @@
 /*
- * Copyright 2010-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
+ * Copyright 2010-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
  * that can be found in the LICENSE file.
  */
 
 package org.jetbrains.analyzer
+
 import org.jetbrains.report.BenchmarkResult
 import org.jetbrains.report.MeanVariance
 import org.jetbrains.report.MeanVarianceBenchmark
@@ -14,13 +15,13 @@ import kotlin.math.pow
 import kotlin.math.sqrt
 
 val MeanVariance.description: String
-get() {
-    val format = { number: Double -> number.format(2)}
-    return "${format(mean)} ± ${format(variance)}"
-}
+    get() {
+        val format = { number: Double -> number.format(2) }
+        return "${format(mean)} ± ${format(variance)}"
+    }
 
 val MeanVarianceBenchmark.description: String
-get() = "${score.format()} ± ${variance.format()}"
+    get() = "${score.format()} ± ${variance.format()}"
 
 // Calculate difference in percentage compare to another.
 fun MeanVarianceBenchmark.calcPercentageDiff(other: MeanVarianceBenchmark): MeanVariance {
@@ -28,7 +29,6 @@ fun MeanVarianceBenchmark.calcPercentageDiff(other: MeanVarianceBenchmark): Mean
             other.variance >= 0 &&
             other.score - other.variance != 0.0,
             { "Mean and variance should be positive and not equal!" })
-    val exactMean = (score - other.score) / other.score
     // Analyze intervals. Calculate difference between border points.
     val (bigValue, smallValue) = if (score > other.score) Pair(this, other) else Pair(other, this)
     val bigValueIntervalStart = bigValue.score - bigValue.variance
@@ -43,7 +43,7 @@ fun MeanVarianceBenchmark.calcPercentageDiff(other: MeanVarianceBenchmark): Mean
             (if (score > other.score) -1 else 1)
 
     val maxValueChange = ((bigValueIntervalEnd - smallValueIntervalEnd) / bigValueIntervalEnd)
-    val minValueChange =  ((bigValueIntervalStart - smallValueIntervalStart) / bigValueIntervalStart)
+    val minValueChange = ((bigValueIntervalStart - smallValueIntervalStart) / bigValueIntervalStart)
     val variance = abs(abs(mean) - max(minValueChange, maxValueChange))
     return MeanVariance(mean * 100, variance * 100)
 }
@@ -80,7 +80,7 @@ fun computeMeanVariance(samples: List<Double>): MeanVariance {
 
 // Calculate average results for benchmarks (each benchmark can be run several times).
 fun collectMeanResults(benchmarks: Map<String, List<BenchmarkResult>>): BenchmarksTable {
-    return benchmarks.map {(name, resultsSet) ->
+    return benchmarks.map { (name, resultsSet) ->
         val repeatedSequence = IntArray(resultsSet.size)
         var metric = BenchmarkResult.Metric.EXECUTION_TIME
         var currentStatus = BenchmarkResult.Status.PASSED
@@ -91,7 +91,6 @@ fun collectMeanResults(benchmarks: Map<String, List<BenchmarkResult>>): Benchmar
             assert(resultsSet.size == 1) { "Several MeanVarianceBenchmark instances." }
             name to resultsSet[0] as MeanVarianceBenchmark
         } else {
-
             // Collect common benchmark values and check them.
             resultsSet.forEachIndexed { index, result ->
                 // If there was at least one failure, summary is marked as failure.

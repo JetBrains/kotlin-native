@@ -172,6 +172,7 @@ task registerBuild(type: BuildRegister) {
 
 task registerExternalBuild(type: BuildRegister) {
     onlyBranch = project.findProperty('kotlin.register.branch')
+    fileWithResult = externalBenchmarksReport
 }
 
 registerExternalBenchmarks.finalizedBy registerExternalBuild

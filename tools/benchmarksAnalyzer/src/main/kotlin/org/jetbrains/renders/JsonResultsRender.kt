@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
+ * Copyright 2010-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
  * that can be found in the LICENSE file.
  */
 
@@ -14,5 +14,5 @@ class JsonResultsRender: Render() {
         get() = "json"
 
     override fun render(report: SummaryBenchmarksReport, onlyChanges: Boolean) =
-            report.toBenchmarksReport().toJson()
+            report.getBenchmarksReport().toJson()
 }

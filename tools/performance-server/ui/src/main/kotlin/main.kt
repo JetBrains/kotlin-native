@@ -1,5 +1,5 @@
 /*
- * Copyright 2010-2019 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
+ * Copyright 2010-2020 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
  * that can be found in the LICENSE file.
  */
 
@@ -19,6 +19,7 @@ external class ChartistPlugins {
 
 external object Chartist {
     class Svg(form: String, parameters: dynamic, chartArea: String)
+
     val plugins: ChartistPlugins
     val Interpolation: dynamic
     fun Line(query: String, data: dynamic, options: dynamic): dynamic
@@ -27,29 +28,29 @@ external object Chartist {
 data class Commit(val revision: String, val developer: String)
 
 fun sendGetRequest(url: String) = window.fetch(url, RequestInit("GET")).then { response ->
-        if (!response.ok)
-            error("Error during getting response from $url\n" +
-                    "${response}")
-        else
-            response.text()
-    }.then { text -> text }
+    if (!response.ok)
+        error("Error during getting response from $url\n" +
+                "${response}")
+    else
+        response.text()
+}.then { text -> text }
 
 // Get groups of builds for different zoom values.
 fun getBuildsGroup(builds: List<Build?>) = buildsNumberToShow?.let {
-        val buildsGroups = builds.chunked(buildsNumberToShow!!)
-        val expectedGroup = buildsGroups.size - 1 + stageToShow
-        val index = when {
-            expectedGroup < 0 -> 0
-            expectedGroup >= buildsGroups.size -> buildsGroups.size - 1
-            else -> expectedGroup
-        }
-        buildsGroups[index]
-    } ?: builds
+    val buildsGroups = builds.chunked(buildsNumberToShow!!)
+    val expectedGroup = buildsGroups.size - 1 + stageToShow
+    val index = when {
+        expectedGroup < 0 -> 0
+        expectedGroup >= buildsGroups.size -> buildsGroups.size - 1
+        else -> expectedGroup
+    }
+    buildsGroups[index]
+} ?: builds
 
 // Get data for chart in needed format.
 fun getChartData(labels: List<String>, valuesList: Collection<List<*>>, stageToShow: Int = 0,
                  buildsNumber: Int? = null, classNames: Array<String>? = null): dynamic {
-    val chartData: dynamic = object{}
+    val chartData: dynamic = object {}
     // Show only some part of data.
     val (labelsData, valuesData) = buildsNumber?.let {
         val labelsGroups = labels.chunked(buildsNumber)
@@ -60,11 +61,11 @@ fun getChartData(labels: List<String>, valuesList: Collection<List<*>>, stageToS
             expectedGroup >= labelsGroups.size -> labelsGroups.size - 1
             else -> expectedGroup
         }
-        Pair(labelsGroups[index], valuesListGroups.map {it[index]})
+        Pair(labelsGroups[index], valuesListGroups.map { it[index] })
     } ?: Pair(labels, valuesList)
     chartData["labels"] = labelsData.toTypedArray()
     chartData["series"] = valuesData.mapIndexed { index, it ->
-        val series: dynamic = object{}
+        val series: dynamic = object {}
         series["data"] = it.toTypedArray()
         classNames?.let { series["className"] = classNames[index] }
         series
@@ -74,32 +75,31 @@ fun getChartData(labels: List<String>, valuesList: Collection<List<*>>, stageToS
 
 // Create object with options of chart.
 fun getChartOptions(samples: Array<String>, yTitle: String, classNames: Array<String>? = null): dynamic {
-    val chartOptions: dynamic = object{}
+    val chartOptions: dynamic = object {}
     chartOptions["fullWidth"] = true
-    val paddingObject: dynamic = object{}
+    val paddingObject: dynamic = object {}
     paddingObject["right"] = 40
     chartOptions["chartPadding"] = paddingObject
-    val axisXObject: dynamic = object{}
+    val axisXObject: dynamic = object {}
     axisXObject["offset"] = 40
     axisXObject["labelInterpolationFnc"] = { value, index, labels ->
         val labelsCount = 30
         val skipNumber = ceil((labels.length as Int).toDouble() / labelsCount).toInt()
         if (skipNumber > 1) {
-            if (index % skipNumber  == 0) value else null
+            if (index % skipNumber == 0) value else null
         } else {
             value
         }
     }
     chartOptions["axisX"] = axisXObject
-    val axisYObject: dynamic = object{}
+    val axisYObject: dynamic = object {}
     axisYObject["offset"] = 90
     chartOptions["axisY"] = axisYObject
-    val legendObject: dynamic = object{}
+    val legendObject: dynamic = object {}
     legendObject["legendNames"] = samples
-    println(classNames)
     classNames?.let { legendObject["classNames"] = classNames.sliceArray(0 until samples.size) }
-    val titleObject: dynamic = object{}
-    val axisYTitle: dynamic = object{}
+    val titleObject: dynamic = object {}
+    val axisYTitle: dynamic = object {}
     axisYTitle["axisTitle"] = yTitle
     axisYTitle["axisClass"] = "ct-axis-title"
     val titleOffset: dynamic = {}
@@ -160,7 +160,7 @@ fun customizeChart(chart: dynamic, chartContainer: String, jquerySelector: dynam
                 val linkToDetailedInfo = "https://kotlin-native-performance.labs.jb.gg/?report=" +
                         "${currentBuild.buildNumber}:${parameters["target"]}" +
                         "${previousBuild?.let {
-                        "&compareTo=${previousBuild.buildNumber}:${parameters["target"]}"
+                            "&compareTo=${previousBuild.buildNumber}:${parameters["target"]}"
                         } ?: ""}"
                 val information = buildString {
                     append("<a href=\"$linkToDetailedInfo\">${currentBuild.buildNumber}</a><br>")
@@ -196,7 +196,7 @@ fun customizeChart(chart: dynamic, chartContainer: String, jquerySelector: dynam
     })
     chart.on("created", {
         val currentChart = jquerySelector
-        val parameters: dynamic = object{}
+        val parameters: dynamic = object {}
         parameters["selector"] = "[data-chart-tooltip=\"$chartContainer\"]"
         parameters["container"] = "#$chartContainer"
         parameters["html"] = true
@@ -215,7 +215,7 @@ fun waitForElements(elements: Iterable<Any?>, action: () -> Unit) {
 }
 
 fun main(args: Array<String>) {
-    val serverUrl = "http://localhost:3000"//"https://kotlin-native-perf-summary.labs.jb.gg"
+    val serverUrl = "https://kotlin-native-perf-summary.labs.jb.gg"
     buildsNumberToShow = null
     stageToShow = 0
     val zoomRatio = 3
@@ -237,7 +237,7 @@ fun main(args: Array<String>) {
     sendGetRequest(branchesUrl).then { response ->
         val branches: Array<String> = JSON.parse(response)
         // Add release branches to selector.
-        branches.filter{ it != "master" }.forEach {
+        branches.filter { it != "master" }.forEach {
             if ("v(\\d|\\.)+(-M\\d)?-fixes".toRegex().matches(it)) {
                 val option = Option(it, it)
                 js("$('#inputGroupBranch')").append(js("$(option)"))
@@ -251,7 +251,7 @@ fun main(args: Array<String>) {
     val buildsNumbersUrl = "$serverUrl/buildsNumbers/${parameters["target"]}"
     sendGetRequest(buildsNumbersUrl).then { response ->
         val buildsNumbers: Array<String> = JSON.parse(response)
-        val autocompleteParameters: dynamic = object{}
+        val autocompleteParameters: dynamic = object {}
         autocompleteParameters["lookup"] = buildsNumbers
         autocompleteParameters["onSelect"] = { suggestion ->
             if (suggestion.value != parameters["build"]) {
@@ -281,7 +281,7 @@ fun main(args: Array<String>) {
     js("$('#inputGroupTarget')").change({
         val newValue = js("$(this).val()")
         if (newValue != parameters["target"]) {
-            val newLink = "http://${window.location.host}/?target=${newValue}&type=${parameters["type"]}&branch=${parameters["branch"]}" +
+            val newLink = "http://${window.location.host}/?target=$newValue&type=${parameters["type"]}&branch=${parameters["branch"]}" +
                     "${if (parameters["build"]!!.isEmpty()) "" else "&build=${parameters["build"]}"}"
             window.location.href = newLink
         }
@@ -308,11 +308,11 @@ fun main(args: Array<String>) {
 
     // Collect information for charts library.
     val valuesToShow = mapOf("EXECUTION_TIME" to arrayOf(mapOf(
-                "normalize" to "true"
+            "normalize" to "true"
             )),
             "COMPILE_TIME" to arrayOf(mapOf(
-                "samples" to "HelloWorld,Videoplayer$platformSpecificBenchs",
-                "agr" to "samples"
+                    "samples" to "HelloWorld,Videoplayer$platformSpecificBenchs",
+                    "agr" to "samples"
             )),
             "CODE_SIZE" to arrayOf(mapOf(
                     "normalize" to "true",
@@ -327,7 +327,7 @@ fun main(args: Array<String>) {
                     "samples" to platformSpecificBenchs.removePrefix(",")
             )),
             "BUNDLE_SIZE" to arrayOf(mapOf("samples" to "KotlinNative",
-                                   "agr" to "samples"))
+                    "agr" to "samples"))
     )
 
     var execData = listOf<String>() to listOf<List<Double?>>()
@@ -348,6 +348,7 @@ fun main(args: Array<String>) {
 
     val metricUrl = "$serverUrl/metricValue/${parameters["target"]}/"
 
+    // Send requests to get all needed metric values.
     valuesToShow.map { (metric, arrayOfSettings) ->
         val resultValues = arrayOfSettings.map { settings ->
             val getParameters = with(StringBuilder()) {
@@ -368,14 +369,14 @@ fun main(args: Array<String>) {
             else ""
 
             val url = "$metricUrl$metric$getParameters$branchParameter${
-                    if (parameters["type"] != "all")
-                        (if (getParameters.isEmpty() && branchParameter.isEmpty()) "?" else "&") + "type=${parameters["type"]}"
-                    else ""
-                }"
+            if (parameters["type"] != "all")
+                (if (getParameters.isEmpty() && branchParameter.isEmpty()) "?" else "&") + "type=${parameters["type"]}"
+            else ""
+            }"
             sendGetRequest(url)
         }.toTypedArray()
 
-        // Get metrics values for charts
+        // Get metrics values for charts.
         Promise.all(resultValues).then { responses ->
             val valuesList = responses.map { response ->
                 val results = (JsonTreeParser.parse(response) as JsonArray).map {
@@ -400,18 +401,19 @@ fun main(args: Array<String>) {
                             getChartOptions(valuesToShow["COMPILE_TIME"]!![0]!!["samples"]!!.split(',').toTypedArray(),
                                     "Time, milliseconds"))
                 }
-                "EXECUTION_TIME" ->   {
+                "EXECUTION_TIME" -> {
                     execData = labels to values
                     execChart = Chartist.Line("#exec_chart",
                             getChartData(labels, execData.second, stageToShow, buildsNumberToShow),
                             getChartOptions(arrayOf("Geometric Mean"), "Normalized time"))
                 }
-                "CODE_SIZE" ->  {
+                "CODE_SIZE" -> {
                     codeSizeData = labels to values
                     codeSizeChart = Chartist.Line("#codesize_chart",
                             getChartData(labels, codeSizeData.second,
                                     stageToShow, buildsNumberToShow, sizeClassNames),
-                            getChartOptions(arrayOf("Geometric Mean") + platformSpecificBenchs.split(',').filter{ it.isNotEmpty() },
+                            getChartOptions(arrayOf("Geometric Mean") + platformSpecificBenchs.split(',')
+                                    .filter { it.isNotEmpty() },
                                     "Normalized size",
                                     arrayOf("ct-series-4", "ct-series-5", "ct-series-6")))
                 }
@@ -485,7 +487,7 @@ fun main(args: Array<String>) {
             if (stageToShow - 1 > bottomBorder) {
                 stageToShow--
             }
-        } ?: run { stageToShow = 0}
+        } ?: run { stageToShow = 0 }
         updateAllCharts()
     })
 

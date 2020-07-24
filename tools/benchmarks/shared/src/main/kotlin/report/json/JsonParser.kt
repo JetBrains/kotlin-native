@@ -124,7 +124,7 @@ internal class Parser(val source: String) {
     fun takeStr(): String {
         if (tc != TC_OTHER && tc != TC_STRING) fail(tokenPos, "Expected string or non-null literal")
         val prevStr = if (offset < 0)
-            String(buf, 0, length) else
+            buf.concatToString(0, length) else
             source.substring(offset, offset + length)
         nextToken()
         return prevStr
