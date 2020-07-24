@@ -2464,17 +2464,6 @@ bool clearSubgraphReferences(ObjHeader* root, bool checked) {
   return true;
 }
 
-inline void freezeContainer(ContainerHeader* container) {
-  // Run class-specific pre-freezing code.
-  traverseContainerObjects(container, [](ObjHeader* obj) {
-    if (obj->type_info() == theWorkerBoundReferenceTypeInfo) {
-      FreezeWorkerBoundReference(obj);
-    }
-  });
-  // And non-recursively freeze the container.
-  container->freeze();
-}
-
 void freezeAcyclic(ContainerHeader* rootContainer, ContainerHeaderSet* newlyFrozen) {
   KStdDeque<ContainerHeader*> queue;
   queue.push_back(rootContainer);
@@ -2488,8 +2477,8 @@ void freezeAcyclic(ContainerHeader* rootContainer, ContainerHeaderSet* newlyFroz
     // color and similar attributes shall not be used.
     if (!current->frozen())
       newlyFrozen->insert(current);
-    MEMORY_LOG("freezing %p\n", current);
-    freezeContainer(current); 
+    MEMORY_LOG("freezing %p\n", current)
+    current->freeze();
     traverseContainerReferredObjects(current, [current, &queue](ObjHeader* obj) {
         ContainerHeader* objContainer = obj->container();
         if (canFreeze(objContainer)) {
@@ -2568,8 +2557,8 @@ void freezeCyclic(ObjHeader* root,
         newlyFrozen->insert(container);
       // Note, that once object is frozen, it could be concurrently accessed, so
       // color and similar attributes shall not be used.
-      MEMORY_LOG("freezing %p\n", container);
-      freezeContainer(container); 
+      MEMORY_LOG("freezing %p\n", container)
+      container->freeze();
       // We set refcount of original container to zero, so that it is seen as such after removal
       // meta-object, where aggregating container is stored.
       container->setRefCount(0);
@@ -2582,6 +2571,31 @@ void freezeCyclic(ObjHeader* root,
        superContainer, totalCount - internalRefsCount, totalCount, internalRefsCount)
     superContainer->setRefCount(totalCount - internalRefsCount);
     newlyFrozen->insert(superContainer);
+  }
+}
+
+// These hooks are only allowed to modify `obj` subgraph.
+void runFreezeHooks(ObjHeader* obj) {
+  if (obj->type_info() == theWorkerBoundReferenceTypeInfo) {
+    FreezeWorkerBoundReference(obj);
+  }
+}
+
+void runFreezeHooksRecursive(ObjHeader* root) {
+  KStdUnorderedSet<KRef> seen(1, root);
+  KStdVector<KRef> toVisit(1, root);
+  while (!toVisit.empty()) {
+    KRef obj = toVisit.back();
+    toVisit.pop_back();
+
+    runFreezeHooks(obj);
+
+    traverseReferredObjects(obj, [](ObjHeader* field) {
+      auto wasNotSeenYet = seen.insert(field).second;
+      if (wasNotSeenYet) {
+        toVisit.push_back(field);
+      }
+    });
   }
 }
 
@@ -2614,6 +2628,10 @@ void freezeSubgraph(ObjHeader* root) {
   // If there are cycles - run graph condensation on cyclic graphs using Kosoraju-Sharir.
   ContainerHeader* rootContainer = root->container();
   if (isPermanentOrFrozen(rootContainer)) return;
+
+  MEMORY_LOG("Run freeze hooks on subgraph of %p\n", root);
+
+  runFreezeHooks(root);
 
   MEMORY_LOG("Freeze subgraph of %p\n", root)
 
