@@ -40,7 +40,7 @@ So to avoid LLVM downloading, we should manually add a record to the `.extracted
 1. Create `$HOME/.konan/dependencies/.extracted` file if it is not created.
 2. Add `clang-llvm-apple-8.0.0-darwin-macos` line.
 
-and put `clang-llvm-apple-8.0.0-darwin-macos` directory from the Part 1 there.
+and put `clang-llvm-apple-8.0.0-darwin-macos` directory from the Part 1 to `$HOME/.konan/dependencies/`.
 
 Now we are ready to build Kotlin/Native itself. The process is described in [README.md](README.md).
 Please note that we still need to run `./gradlew dependencies:update` to download other dependencies (e.g. libffi).
