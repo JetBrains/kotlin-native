@@ -1334,7 +1334,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         IrTypeOperator.SAFE_CAST,
         IrTypeOperator.INSTANCEOF,
         IrTypeOperator.NOT_INSTANCEOF ->
-            error("Should've been lowered: ${value.dump()} ${functionGenerationContext.irFunction?.render()}")
+            error((currentCodeContext.fileScope() as FileScope).file, value,
+                    "Should've been lowered: ${value.dump()} ${functionGenerationContext.irFunction?.render()}")
 
         IrTypeOperator.IMPLICIT_NOTNULL,
         IrTypeOperator.SAM_CONVERSION,

@@ -30,3 +30,7 @@ import kotlin.native.internal.IntrinsicType
 
 // Reinterprets this value from T to R having the same binary representation (e.g. to unwrap inline class).
 @TypedIntrinsic(IntrinsicType.IDENTITY) @PublishedApi external internal fun <T, R> T.reinterpret(): R
+
+@PublishedApi
+@TypedIntrinsic(IntrinsicType.INSTANCE_OF)
+internal external inline fun <reified T : Any> instanceOf(obj: Any): Boolean

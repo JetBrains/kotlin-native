@@ -65,11 +65,19 @@ private class TypeOperatorTransformer(val context: Context) : IrBuildingTransfor
 
     fun IrBuilderWithScope.irCast(argument: IrExpression, type: IrType, argumentIsNotNull: Boolean = false) = irBlock {
         val value = irTemporary(argument)
+        val error = if (type.isObjCObjectType())
+            irCall(symbols.ThrowTypeCastException)
+        else {
+            irCall(symbols.throwClassCastException).apply {
+                putValueArgument(0, irGet(value))
+                putValueArgument(1, irCall(symbols.getClassTypeInfo, listOf(type)))
+            }
+        }
         +irIfThenElse(
                 type,
                 condition = irInstanceOf(value, type, argumentIsNotNull),
                 thenPart = irImplicitCast(irGet(value), type),
-                elsePart = irCall(symbols.ThrowTypeCastException)
+                elsePart = error
         )
     }
 

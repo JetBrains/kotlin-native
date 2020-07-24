@@ -134,7 +134,7 @@ internal external fun objCGetSelector(selector: String): COpaquePointer
 
 @PublishedApi
 @TypedIntrinsic(IntrinsicType.OBJC_INSTANCE_OF)
-internal external inline fun <reified T : ObjCObjectBase> objCInstanceOf(obj: Any): Boolean
+internal external inline fun <reified T : ObjCObject> objCInstanceOf(obj: Any): Boolean
 
 @kotlin.native.internal.ExportForCppRuntime("Kotlin_Interop_getObjCClass")
 private fun getObjCClassByName(name: NativePtr): NativePtr {

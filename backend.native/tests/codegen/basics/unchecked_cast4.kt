@@ -12,8 +12,14 @@ fun runTest() {
     CI1I2().uncheckedCast<CI1I2>()
     CI1I2().uncheckedCast<OtherCI1I2>()
 
-    assertFailsWith<ClassCastException> {
+    try {
         Any().uncheckedCast<CI1I2>()
+    }
+    catch (e: TypeCastException) {
+        throw AssertionError("TypeCastException is not valid here")
+    }
+    catch (e: ClassCastException) {
+        assertEquals("kotlin.Any cannot be cast to codegen.basics.unchecked_cast4.C", e.message)
     }
 
     println("Ok")
