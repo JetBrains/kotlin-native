@@ -14,6 +14,7 @@ import org.jetbrains.kotlin.backend.konan.descriptors.getStringValueOrNull
 import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor
+import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
 import org.jetbrains.kotlin.ir.types.classifierOrFail
@@ -40,17 +41,27 @@ private val objCFactoryFqName = interopPackageName.child(Name.identifier("ObjCFa
 private val objcnamesForwardDeclarationsPackageName = Name.identifier("objcnames")
 
 fun ClassDescriptor.isObjCClass(): Boolean =
-        this.getAllSuperClassifiers().any { it.fqNameSafe == objCObjectFqName } && // TODO: this is not cheap. Cache me!
-                this.containingDeclaration.fqNameSafe != interopPackageName
+                this.containingDeclaration.fqNameSafe != interopPackageName &&
+        this.getAllSuperClassifiers().any { it.fqNameSafe == objCObjectFqName } // TODO: this is not cheap. Cache me!
 
 fun KotlinType.isObjCObjectType(): Boolean =
         (this.supertypes() + this).any { TypeUtils.getClassDescriptor(it)?.fqNameSafe == objCObjectFqName }
 
-private fun IrClass.getAllSuperClassifiers(): List<IrClass> =
-        listOf(this) + this.superTypes.flatMap { (it.classifierOrFail.owner as IrClass).getAllSuperClassifiers() }
+// TODO: make visit-helper
 
-internal fun IrClass.isObjCClass() = this.getAllSuperClassifiers().any { it.fqNameForIrSerialization == objCObjectFqName } &&
-        this.parent.fqNameForIrSerialization != interopPackageName
+private fun IrClass.checkAny(pred: (IrClass) -> Boolean): Boolean {
+    if (pred(this)) return true
+
+    for (element in superTypes) {
+        val s = element.classifierOrFail.owner as IrClass
+        if (s.checkAny(pred)) return true
+    }
+
+    return false
+}
+
+internal fun IrClass.isObjCClass() = this.parent.fqNameForIrSerialization != interopPackageName &&
+        checkAny { it.fqNameForIrSerialization == objCObjectFqName }
 
 fun ClassDescriptor.isExternalObjCClass(): Boolean = this.isObjCClass() &&
         this.parentsWithSelf.filterIsInstance<ClassDescriptor>().any {
@@ -68,7 +79,7 @@ fun ClassDescriptor.isObjCMetaClass(): Boolean = this.getAllSuperClassifiers().a
     it.fqNameSafe == objCClassFqName
 }
 
-fun IrClass.isObjCMetaClass(): Boolean = this.getAllSuperClassifiers().any {
+fun IrClass.isObjCMetaClass(): Boolean = checkAny {
     it.fqNameForIrSerialization == objCClassFqName
 }
 
@@ -142,7 +153,12 @@ private fun FunctionDescriptor.getObjCMethodInfo(onlyExternal: Boolean): ObjCMet
         }
     }
 
-    return this.overriddenDescriptors.asSequence().mapNotNull { it.getObjCMethodInfo(onlyExternal) }.firstOrNull()
+    val symbols = overriddenDescriptors
+    for (element in symbols) {
+        element.getObjCMethodInfo(onlyExternal)?.let { return it }
+    }
+
+    return null
 }
 
 /**
@@ -157,7 +173,13 @@ private fun IrSimpleFunction.getObjCMethodInfo(onlyExternal: Boolean): ObjCMetho
         }
     }
 
-    return this.overriddenSymbols.mapNotNull { it.owner.getObjCMethodInfo(onlyExternal) }.firstOrNull()
+    val symbols = overriddenSymbols
+    for (element in symbols) {
+        val s = element.owner
+        s.getObjCMethodInfo(onlyExternal)?.let { return it }
+    }
+
+    return null
 }
 
 fun FunctionDescriptor.getExternalObjCMethodInfo(): ObjCMethodInfo? = this.getObjCMethodInfo(onlyExternal = true)
@@ -268,9 +290,16 @@ fun IrConstructor.getObjCInitMethod(): IrSimpleFunction? {
 fun ConstructorDescriptor.getObjCInitMethod(): FunctionDescriptor? {
     return this.annotations.findAnnotation(objCConstructorFqName)?.let {
         val initSelector = it.getAnnotationStringValue("initSelector")
-        this.constructedClass.unsubstitutedMemberScope.getContributedDescriptors().asSequence()
-                .filterIsInstance<FunctionDescriptor>()
-                .single { it.getExternalObjCMethodInfo()?.selector == initSelector }
+        val memberScope = constructedClass.unsubstitutedMemberScope
+        val functionNames = memberScope.getFunctionNames()
+        for (name in functionNames) {
+            val functions = memberScope.getContributedFunctions(name, NoLookupLocation.FROM_BACKEND)
+            for (function in functions) {
+                val objectInfo = function.getExternalObjCMethodInfo() ?: continue
+                if (objectInfo.selector == initSelector) return function
+            }
+        }
+        error("Cannot find ObjInitMethod for $this")
     }
 }
 
