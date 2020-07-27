@@ -157,7 +157,7 @@ Members of Objective-C categories and Swift extensions are imported to Kotlin
 as extensions. That's why these declarations can't be overridden in Kotlin.
 And the extension initializers aren't available as Kotlin constructors.
 
-Kotlin extensions to "regular" Kotlin classes are imported to Swift/Objective-C as extensions/category members.
+Kotlin extensions to "regular" Kotlin classes are imported to Swift and Objective-C as extensions and category members respectively.
 Kotlin extensions to other types are treated as [top-level declarations](#top-level-functions-and-properties)
 with an additional receiver parameter. These types include:
 
