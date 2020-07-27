@@ -159,7 +159,7 @@ And the extension initializers aren't available as Kotlin constructors.
 
 Kotlin extensions to "regular" Kotlin classes are imported to Swift/Objective-C as extensions/category members.
 Kotlin extensions to other types are treated as [top-level declarations](#top-level-functions-and-properties)
-with additional receiver parameter. These types include
+with an additional receiver parameter. These types include:
 
 * Kotlin `String` type
 * Kotlin collection types and subtypes
