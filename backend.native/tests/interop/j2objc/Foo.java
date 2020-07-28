@@ -8,6 +8,7 @@ public class Foo {
     public int return100() {
         return 100;
     }
+    public String returnString(String s) { return s; }
     static public int return100Static() {
         return 100;
     }
