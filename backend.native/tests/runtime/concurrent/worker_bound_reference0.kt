@@ -767,3 +767,14 @@ fun testDoubleFreeze() {
     ref.freeze()
     wrapper.freeze()
 }
+
+@Test
+fun testDoubleFreezeWithFreezeBlocker() {
+    val ref = WorkerBoundReference(A(3))
+    val wrapper = Wrapper(ref)
+    wrapper.ensureNeverFrozen()
+    assertFailsWith<FreezingException> {
+        wrapper.freeze()
+    }
+    ref.freeze()
+}

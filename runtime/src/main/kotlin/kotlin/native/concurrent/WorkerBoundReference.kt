@@ -57,6 +57,9 @@ public class WorkerBoundReference<out T : Any>(value: T) {
 
     @ExportForCppRuntime("Kotlin_WorkerBoundReference_freezeHook")
     private fun freezeHook() {
+        // If this hook was already run, do nothing.
+        if (valueBeforeFreezing == null)
+            return
         ptr = createWorkerBoundReference(valueBeforeFreezing!!)
         valueBeforeFreezing = null
     }
