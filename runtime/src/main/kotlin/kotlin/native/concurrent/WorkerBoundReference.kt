@@ -17,7 +17,7 @@ external private fun derefWorkerBoundReference(ref: NativePtr): Any?
 external private fun describeWorkerBoundReference(ref: NativePtr): String
 
 /**
- * A shared reference to a Kotlin object that doesn't freeze the referred object when it freezes itself.
+ * A shared reference to a Kotlin object that doesn't freeze the referred object when it gets frozen itself.
  *
  * After freezing can be safely passed between workers, but [value] can only be accessed on
  * the worker [WorkerBoundReference] was created on, unless the referred object is frozen too.
@@ -48,7 +48,7 @@ public class WorkerBoundReference<out T : Any>(value: T) {
      * The referenced value or null if referred object is not frozen and current worker is different from the one created [this].
      */
     val valueOrNull: T?
-        get() = if (valueBeforeFreezing != null) valueBeforeFreezing else @Suppress("UNCHECKED_CAST") (derefWorkerBoundReference(ptr) as T?)
+        get() = valueBeforeFreezing ?: @Suppress("UNCHECKED_CAST") (derefWorkerBoundReference(ptr) as T?)
 
     /**
      * Worker that [value] is bound to.

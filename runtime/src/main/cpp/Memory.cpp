@@ -2634,6 +2634,8 @@ void freezeSubgraph(ObjHeader* root) {
 
   MEMORY_LOG("Run freeze hooks on subgraph of %p\n", root);
 
+  // Note: Actual freezing can fail, but these hooks won't be undone, and moreover
+  // these hooks will run again on a repeated freezing attempt.
   runFreezeHooksRecursive(root);
 
   MEMORY_LOG("Freeze subgraph of %p\n", root)
