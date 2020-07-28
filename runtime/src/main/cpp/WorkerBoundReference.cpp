@@ -32,10 +32,10 @@ RUNTIME_NOTHROW void DisposeWorkerBoundReference(KRef thiz) {
 }
 
 // Defined in WorkerBoundReference.kt
-extern "C" void Kotlin_WorkerBoundReference_doFreeze(KRef thiz);
+extern "C" void Kotlin_WorkerBoundReference_freezeHook(KRef thiz);
 
-RUNTIME_NOTHROW void FreezeWorkerBoundReference(KRef thiz) {
-  Kotlin_WorkerBoundReference_doFreeze(thiz);
+RUNTIME_NOTHROW void WorkerBoundReferenceFreezeHook(KRef thiz) {
+  Kotlin_WorkerBoundReference_freezeHook(thiz);
 }
 
 extern "C" {

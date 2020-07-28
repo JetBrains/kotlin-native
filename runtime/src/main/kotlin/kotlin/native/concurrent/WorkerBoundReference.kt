@@ -55,8 +55,8 @@ public class WorkerBoundReference<out T : Any>(value: T) {
      */
     val worker: Worker = Worker.current
 
-    @ExportForCppRuntime("Kotlin_WorkerBoundReference_doFreeze")
-    private fun doFreeze() {
+    @ExportForCppRuntime("Kotlin_WorkerBoundReference_freezeHook")
+    private fun freezeHook() {
         ptr = createWorkerBoundReference(valueBeforeFreezing!!)
         valueBeforeFreezing = null
     }

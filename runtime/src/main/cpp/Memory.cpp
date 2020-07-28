@@ -2577,7 +2577,7 @@ void freezeCyclic(ObjHeader* root,
 // These hooks are only allowed to modify `obj` subgraph.
 void runFreezeHooks(ObjHeader* obj) {
   if (obj->type_info() == theWorkerBoundReferenceTypeInfo) {
-    FreezeWorkerBoundReference(obj);
+    WorkerBoundReferenceFreezeHook(obj);
   }
 }
 
@@ -2594,7 +2594,8 @@ void runFreezeHooksRecursive(ObjHeader* root) {
 
     traverseReferredObjects(obj, [&seen, &toVisit](ObjHeader* field) {
       auto wasNotSeenYet = seen.insert(field).second;
-      if (wasNotSeenYet) {
+      // Only iterating on unseen objects which containers will get frozen by freezeCyclic or freezeAcyclic.
+      if (wasNotSeenYet && canFreeze(field->container())) {
         toVisit.push_back(field);
       }
     });

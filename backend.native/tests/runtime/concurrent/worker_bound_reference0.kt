@@ -758,3 +758,12 @@ fun testExceptionMessageFrozen() {
 
     worker.requestTermination().result
 }
+
+@Test
+fun testDoubleFreeze() {
+    val ref = WorkerBoundReference(A(3))
+    val wrapper = Wrapper(ref)
+    ref.freeze()
+    ref.freeze()
+    wrapper.freeze()
+}
