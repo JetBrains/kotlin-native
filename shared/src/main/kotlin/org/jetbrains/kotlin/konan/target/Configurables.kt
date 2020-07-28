@@ -16,7 +16,16 @@
 
 package org.jetbrains.kotlin.konan.target
 
-import org.jetbrains.kotlin.konan.properties.*
+interface TargetableExternalStorage {
+    fun targetString(key: String): String?
+    fun targetList(key: String): List<String>
+    fun hostString(key: String): String?
+    fun hostList(key: String): List<String>
+    fun hostTargetString(key: String): String?
+    fun hostTargetList(key: String): List<String>
+    fun absolute(value: String?): String
+    fun downloadDependencies()
+}
 
 interface ClangFlags : TargetableExternalStorage {
     val clangFlags get()        = targetList("clangFlags")

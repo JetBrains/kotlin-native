@@ -27,8 +27,6 @@ import java.net.InetAddress
 import java.net.URL
 import java.net.UnknownHostException
 import java.nio.file.Paths
-import java.util.concurrent.locks.ReentrantLock
-import kotlin.concurrent.withLock
 
 private val Properties.dependenciesUrl : String
     get() = getProperty("dependenciesUrl")
@@ -249,7 +247,22 @@ class DependencyProcessor(dependenciesRoot: File,
         }
     }
 
-    fun resolveRelative(relative: String): File {
+    /**
+     * If given [path] is relative, resolves it relative to dependecies directory.
+     * In case of absolute path just wraps it into a [File].
+     *
+     * Support of both relative and absolute path kinds allows to substitute predefined
+     * dependencies with system ones.
+     *
+     * TODO: It looks like DependencyProcessor have two split responsibilities:
+     *  * Dependency resolving
+     *  * Dependency downloading
+     *  Also it is tightly tied to KonanProperties.
+     */
+    fun resolve(path: String): File =
+        if (Paths.get(path).isAbsolute) File(path) else resolveRelative(path)
+
+    private fun resolveRelative(relative: String): File {
         val path = Paths.get(relative)
         if (path.isAbsolute) error("not a relative path: $relative")
 

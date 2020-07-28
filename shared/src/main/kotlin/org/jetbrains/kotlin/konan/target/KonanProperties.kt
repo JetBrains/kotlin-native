@@ -23,43 +23,46 @@ import org.jetbrains.kotlin.konan.util.ArchiveType
 import org.jetbrains.kotlin.konan.util.DependencyProcessor
 import java.io.File
 
-interface TargetableExternalStorage {
-    fun targetString(key: String): String? 
-    fun targetList(key: String): List<String>
-    fun hostString(key: String): String? 
-    fun hostList(key: String): List<String> 
-    fun hostTargetString(key: String): String? 
-    fun hostTargetList(key: String): List<String> 
-    fun absolute(value: String?): String
-    fun downloadDependencies()
-}
-
 abstract class KonanPropertiesLoader(override val target: KonanTarget,
                                      val properties: Properties,
                                      private val baseDir: String? = null,
                                      private val host: KonanTarget = HostManager.host) : Configurables {
-    open val dependencies get() = hostTargetList("dependencies")
+
+    private val predefinedLlvmDistributions: Set<String> =
+            properties.propertyList("predefinedLlvmDistributions").toSet()
+
+    private fun llvmDependencies(): List<String> {
+        val llvmLocation = llvmHome
+                ?: error("Undefined LLVM home!")
+        return when (llvmLocation) {
+            in predefinedLlvmDistributions -> llvmLocation
+            else -> null
+        }.let(::listOfNotNull)
+    }
+
+    open val dependencies: List<String>
+        get() = hostTargetList("dependencies") + llvmDependencies()
 
     override fun downloadDependencies() {
         dependencyProcessor!!.run()
     }
 
-    override fun targetString(key: String): String? 
+    override fun targetString(key: String): String?
         = properties.targetString(key, target)
     override fun targetList(key: String): List<String>
         = properties.targetList(key, target)
-    override fun hostString(key: String): String? 
+    override fun hostString(key: String): String?
         = properties.hostString(key, host)
-    override fun hostList(key: String): List<String> 
+    override fun hostList(key: String): List<String>
         = properties.hostList(key, host)
-    override fun hostTargetString(key: String): String? 
+    override fun hostTargetString(key: String): String?
         = properties.hostTargetString(key, target, host)
-    override fun hostTargetList(key: String): List<String> 
+    override fun hostTargetList(key: String): List<String>
         = properties.hostTargetList(key, target, host)
 
     override fun absolute(value: String?): String =
-            dependencyProcessor!!.resolveRelative(value!!).absolutePath
-    private val dependencyProcessor  by lazy {
+            dependencyProcessor!!.resolve(value!!).absolutePath
+    private val dependencyProcessor by lazy {
         baseDir?.let {
             DependencyProcessor(
                     dependenciesRoot = File(baseDir),
