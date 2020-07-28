@@ -121,7 +121,6 @@ extern "C" OBJ_GETTER(Kotlin_ObjCExport_AllocInstanceWithAssociatedObject,
 }
 
 static Class getOrCreateClass(const TypeInfo* typeInfo);
-static void initializeClass(Class clazz);
 extern "C" ALWAYS_INLINE void Kotlin_ObjCExport_releaseAssociatedObject(void* associatedObject);
 
 extern "C" id objc_retainAutoreleaseReturnValue(id self);
@@ -748,16 +747,6 @@ static KStdVector<const TypeInfo*> getProtocolsAsInterfaces(Class clazz) {
   return result;
 }
 
-static const TypeInfo* getMostSpecificKotlinClass(const TypeInfo* typeInfo) {
-  const TypeInfo* result = typeInfo;
-  while (getTypeAdapter(result) == nullptr) {
-    result = result->superType_;
-    RuntimeAssert(result != nullptr, "");
-  }
-
-  return result;
-}
-
 static int getVtableSize(const TypeInfo* typeInfo) {
   for (const TypeInfo* current = typeInfo; current != nullptr; current = current->superType_) {
     auto typeAdapter = getTypeAdapter(current);
@@ -799,8 +788,6 @@ static void throwIfCantBeOverridden(Class clazz, const KotlinToObjCMethodAdapter
 }
 
 static const TypeInfo* createTypeInfo(Class clazz, const TypeInfo* superType, const TypeInfo* fieldsInfo) {
-  Class superClass = class_getSuperclass(clazz);
-
   KStdUnorderedSet<SEL> definedSelectors;
   addDefinedSelectors(clazz, definedSelectors);
 
@@ -913,7 +900,7 @@ static const TypeInfo* createTypeInfo(Class clazz, const TypeInfo* superType, co
       auto interfaceVTablesIt = interfaceVTables.find(interfaceId);
       if (interfaceVTablesIt == interfaceVTables.end()) {
         itableEqualsSuper = false;
-        interfaceVTables.emplace(interfaceId, std::move(KStdVector<VTableElement>(interfaceVTableSize)));
+        interfaceVTables.emplace(interfaceId, KStdVector<VTableElement>(interfaceVTableSize));
       } else {
         auto const& interfaceVTable = interfaceVTablesIt->second;
         RuntimeAssert(interfaceVTable.size() == interfaceVTableSize, "");

@@ -119,13 +119,18 @@ typedef KStdUnorderedMap<void**, std::pair<KRef*,int>> KThreadLocalStorageMap;
 // Prevents clang from replacing FrameOverlay struct
 // with single pointer.
 // Can be removed when FrameOverlay will become more complex.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wunused-variable"
 FrameOverlay exportFrameOverlay;
+#pragma clang diagnostic pop
 
 // Current number of allocated containers.
 volatile int allocCount = 0;
 volatile int aliveMemoryStatesCount = 0;
 
+#if USE_CYCLIC_GC
 KBoolean g_hasCyclicCollector = true;
+#endif  // USE_CYCLIC_GC
 
 // TODO: can we pass this variable as an explicit argument?
 THREAD_LOCAL_VARIABLE MemoryState* memoryState = nullptr;
@@ -558,7 +563,6 @@ namespace {
 void freeContainer(ContainerHeader* header) NO_INLINE;
 #if USE_GC
 void garbageCollect(MemoryState* state, bool force) NO_INLINE;
-void cyclicGarbageCollect() NO_INLINE;
 void rememberNewContainer(ContainerHeader* container);
 #endif  // USE_GC
 
@@ -767,14 +771,6 @@ inline void traverseContainerReferredObjects(ContainerHeader* container, func pr
   });
 }
 
-inline FrameOverlay* asFrameOverlay(ObjHeader** slot) {
-  return reinterpret_cast<FrameOverlay*>(slot);
-}
-
-inline bool isRefCounted(KConstRef object) {
-  return isFreeable(object->container());
-}
-
 inline void lock(KInt* spinlock) {
   while (compareAndSwap(spinlock, 0, 1) != 0) {}
 }
@@ -974,7 +970,7 @@ void freeContainer(ContainerHeader* container) {
   runDeallocationHooks(container);
 
   // Now let's clean all object's fields in this container.
-  traverseContainerObjectFields(container, [container](ObjHeader** location) {
+  traverseContainerObjectFields(container, [](ObjHeader** location) {
       ZeroHeapRef(location);
   });
 
@@ -1011,7 +1007,7 @@ void depthFirstTraversal(ContainerHeader* start, bool* hasCycles,
       continue;
     }
     toVisit.push_front(markAsRemoved(container));
-    traverseContainerReferredObjects(container, [container, hasCycles, firstBlocker, &order, &toVisit](ObjHeader* obj) {
+    traverseContainerReferredObjects(container, [container, hasCycles, firstBlocker, &toVisit](ObjHeader* obj) {
       if (*firstBlocker != nullptr)
         return;
       if (obj->has_meta_object() && ((obj->meta_object()->flags_ & MF_NEVER_FROZEN) != 0)) {
@@ -1420,7 +1416,7 @@ void collectWhite(MemoryState* state, ContainerHeader* start) {
      toVisit.pop_front();
      if (container->color() != CONTAINER_TAG_GC_WHITE || container->buffered()) continue;
      container->setColorAssertIfGreen(CONTAINER_TAG_GC_BLACK);
-     traverseContainerObjectFields(container, [state, &toVisit](ObjHeader** location) {
+     traverseContainerObjectFields(container, [&toVisit](ObjHeader** location) {
         auto* ref = *location;
         if (ref == nullptr) return;
         auto* childContainer = ref->container();
@@ -1437,6 +1433,7 @@ void collectWhite(MemoryState* state, ContainerHeader* start) {
 }
 #endif
 
+#if COLLECT_STATISTIC
 inline bool needAtomicAccess(ContainerHeader* container) {
   return container->shareable();
 }
@@ -1446,6 +1443,7 @@ inline bool canBeCyclic(ContainerHeader* container) {
   if (container->color() == CONTAINER_TAG_GC_GREEN) return false;
   return true;
 }
+#endif  // COLLECT_STATISTIC
 
 inline void addHeapRef(ContainerHeader* container) {
   MEMORY_LOG("AddHeapRef %p: rc=%d\n", container, container->refCount())
@@ -1509,32 +1507,6 @@ inline void releaseHeapRef(const ObjHeader* header) {
   auto* container = header->container();
   if (container != nullptr)
     releaseHeapRef<Strict>(const_cast<ContainerHeader*>(container));
-}
-
-// We use first slot as place to store frame-local arena container.
-// TODO: create ArenaContainer object on the stack, so that we don't
-// do two allocations per frame (ArenaContainer + actual container).
-inline ArenaContainer* initedArena(ObjHeader** auxSlot) {
-  auto frame = asFrameOverlay(auxSlot);
-  auto arena = reinterpret_cast<ArenaContainer*>(frame->arena);
-  if (!arena) {
-    arena = konanConstructInstance<ArenaContainer>();
-    MEMORY_LOG("Initializing arena in %p\n", frame)
-    arena->Init();
-    frame->arena = arena;
-  }
-  return arena;
-}
-
-inline size_t containerSize(const ContainerHeader* container) {
-  size_t result = 0;
-  const ObjHeader* obj = reinterpret_cast<const ObjHeader*>(container + 1);
-  for (int object = 0; object < container->objectCount(); object++) {
-    size_t size = objectSize(obj);
-    result += size;
-    obj = reinterpret_cast<ObjHeader*>(reinterpret_cast<uintptr_t>(obj) + size);
-  }
-  return result;
 }
 
 #if USE_GC
@@ -1604,7 +1576,9 @@ void decrementStack(MemoryState* state) {
 void garbageCollect(MemoryState* state, bool force) {
   RuntimeAssert(!state->gcInProgress, "Recursive GC is disallowed");
 
+#if TRACE_GC
   uint64_t allocSinceLastGc = state->allocSinceLastGc;
+#endif  // TRACE_GC
   state->allocSinceLastGc = 0;
 
   if (!IsStrictMemoryModel) {
@@ -2474,7 +2448,7 @@ void freezeAcyclic(ContainerHeader* rootContainer, ContainerHeaderSet* newlyFroz
       newlyFrozen->insert(current);
     MEMORY_LOG("freezing %p\n", current)
     current->freeze();
-    traverseContainerReferredObjects(current, [current, &queue](ObjHeader* obj) {
+    traverseContainerReferredObjects(current, [&queue](ObjHeader* obj) {
         ContainerHeader* objContainer = obj->container();
         if (canFreeze(objContainer)) {
           if (objContainer->marked())

@@ -105,11 +105,13 @@ _Unwind_Reason_Code unwindCallback(
 
 THREAD_LOCAL_VARIABLE bool disallowSourceInfo = false;
 
+#if !OMIT_BACKTRACE && !USE_GCC_UNWIND
 SourceInfo getSourceInfo(KConstRef stackTrace, int index) {
   return disallowSourceInfo
       ? SourceInfo { .fileName = nullptr, .lineNumber = -1, .column = -1 }
       : Kotlin_getSourceInfo(*PrimitiveArrayAddressOfElementAt<KNativePtr>(stackTrace->array(), index));
 }
+#endif  // !OMIT_BACKTRACE && !USE_GCC_UNWIND
 
 }  // namespace
 

@@ -26,10 +26,6 @@ static const uint64_t k0 = 0xc3a5c85c97cb3127ULL;
 static const uint64_t k1 = 0xb492b66fbe98f273ULL;
 static const uint64_t k2 = 0x9ae16a3b2f90404fULL;
 
-// Magic numbers for 32-bit hashing.  Copied from Murmur3.
-static const uint32_t c1 = 0xcc9e2d51;
-static const uint32_t c2 = 0x1b873593;
-
 uint64_t UNALIGNED_LOAD64(const char *p) {
   uint64_t result;
   memcpy(&result, p, sizeof(result));
@@ -59,11 +55,6 @@ uint64_t Fetch64(const char *p) {
 
 uint32_t Fetch32(const char *p) {
   return uint32_in_expected_order(UNALIGNED_LOAD32(p));
-}
-
-uint32_t Rotate32(uint32_t val, int shift) {
-  // Avoid shifting by 32: doing so yields an undefined result.
-  return shift == 0 ? val : ((val >> shift) | (val << (32 - shift)));
 }
 
 // Bitwise right rotate.  Normally this will compile to a single

@@ -136,7 +136,10 @@ int DecodeBase64(
   size_t buf = 0, len = 0;
 
   while (in < end) {
-    unsigned char c = kDecode[*in++];
+    // In base64 characters are guaranteed to be ASCII, and so are positive
+    // even if char is a signed type.
+    uint8_t index = *in++;
+    unsigned char c = kDecode[index];
 
     switch (c) {
       case WHITESPACE: continue;   /* skip whitespace */
