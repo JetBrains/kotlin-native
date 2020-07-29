@@ -28,7 +28,7 @@ fun testInner() {
         testInner()
     } catch (e: ForeignException) {
         myExcCaught(e)
-        val ret = logExc(interpretCPointer<COpaque>(e.payload))
+        val ret = logExc(e.objCException)
         assertEquals("Fire native exception!", ret)
     } finally {
         myFinally()

@@ -643,9 +643,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             }
 
             appendingTo(forwardNativeExceptionBlock) {
-                val nativeException = extractForeignException(landingpad, codeContext.exceptionHandler)
-                val exception = call(context.ir.symbols.createForeignException.owner.llvmFunction, listOf(nativeException),
-                        Lifetime.LOCAL, codeContext.exceptionHandler)
+                val exception = createForeignException(landingpad, codeContext.exceptionHandler)
                 codeContext.genThrow(exception)
                 unreachable()
             }
@@ -715,23 +713,22 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         return exceptionPtr
     }
 
-    private fun extractForeignException(landingpadResult: LLVMValueRef, exceptionHandler: ExceptionHandler): LLVMValueRef {
+    private fun createForeignException(landingpadResult: LLVMValueRef, exceptionHandler: ExceptionHandler): LLVMValueRef {
         val exceptionRecord = extractValue(landingpadResult, 0, "er")
 
         // __cxa_begin_catch returns pointer to C++ exception object.
-        val beginCatch = context.llvm.cxaBeginCatchFunction
-        val exceptionRawPtr = call(beginCatch, listOf(exceptionRecord))
+        val exceptionRawPtr = call(context.llvm.cxaBeginCatchFunction, listOf(exceptionRecord))
 
+        // ObjC expects NSException** here, so do dereference
         val id = LLVMBuildLoad(builder, bitcast(kInt8PtrPtr, exceptionRawPtr, ""), "")!!
-        // Do retain, as __cxa_end_catch releases the object
-        call(context.ir.symbols.interopObjCRetain.owner.llvmFunction, listOf(id), Lifetime.IRRELEVANT, exceptionHandler)
 
-        // Just cast to NativePtr
-        val payload = bitcast(kInt8Ptr, id, "")
+        // This will take care of ARC - need to be done in the catching scope, i.e. before __cxa_end_catch
+        val exception = call(context.ir.symbols.createForeignException.owner.llvmFunction,
+                listOf(bitcast(kInt8Ptr, id, "")),  // cast to NativePtr aka kInt8Ptr
+                Lifetime.LOCAL, exceptionHandler)
 
         call(context.llvm.cxaEndCatchFunction, listOf())
-
-        return payload
+        return exception
     }
 
     inline fun ifThenElse(

@@ -7,4 +7,4 @@ package kotlin.native
 import kotlin.RuntimeException
 import kotlin.native.internal.NativePtr
 
-public class ForeignException internal constructor(val payload: NativePtr)  : RuntimeException()
+public class ForeignException internal constructor(val objCException: Any?)  : RuntimeException()

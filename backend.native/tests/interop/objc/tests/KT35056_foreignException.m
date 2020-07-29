@@ -6,9 +6,9 @@ void raiseExc(id name) {
     [NSException raise:name format:@"Illegal value %d", 42];
 }
 
-id logExc(void* exc) {
+id logExc(id exc) {
     NSLog(@"logExc> handled");
-    NSException* e = (__bridge NSException*)exc;  // FixMe: bridged cast
-    return e.name;
+    assert([exc isKindOfClass:[NSException class]]);
+    return ((NSException*)exc).name;
 }
 
