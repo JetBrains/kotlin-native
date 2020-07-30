@@ -1998,7 +1998,7 @@ inline void checkIfGcNeeded(MemoryState* state) {
 }
 
 inline void checkIfForceCyclicGcNeeded(MemoryState* state) {
-  if (state != nullptr && state->toFree->size() > kMaxToFreeSizeThreshold) {
+  if (state != nullptr && state->toFree != nullptr && state->toFree->size() > kMaxToFreeSizeThreshold) {
     // To avoid GC trashing check that at least 10ms passed since last GC.
     if (konan::getTimeMicros() - state->lastGcTimestamp > 10 * 1000) {
       GC_LOG("Calling GC from checkIfForceCyclicGcNeeded: %d\n", state->toFree->size())
