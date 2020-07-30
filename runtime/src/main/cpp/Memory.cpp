@@ -1997,6 +1997,16 @@ inline void checkIfGcNeeded(MemoryState* state) {
   }
 }
 
+inline void checkIfForceCyclicGcNeeded(MemoryState* state) {
+  if (state != nullptr && state->toFree->size() > kMaxToFreeSizeThreshold) {
+    // To avoid GC trashing check that at least 10ms passed since last GC.
+    if (konan::getTimeMicros() - state->lastGcTimestamp > 10 * 1000) {
+      GC_LOG("Calling GC from checkIfForceCyclicGcNeeded: %d\n", state->toFree->size())
+      garbageCollect(state, true);
+    }
+  }
+}
+
 template <bool Strict>
 OBJ_GETTER(allocInstance, const TypeInfo* type_info) {
   RuntimeAssert(type_info->instanceSize_ >= 0, "must be an object");
@@ -2400,6 +2410,9 @@ bool clearSubgraphReferences(ObjHeader* root, bool checked) {
     // TODO: assert for that?
     return true;
 
+  // Free cyclic garbage to decrease number of analyzed objects.
+  checkIfForceCyclicGcNeeded(state);
+
   ContainerHeaderSet visited;
   if (!checked) {
     hasExternalRefs(container, &visited);
@@ -2601,6 +2614,12 @@ void freezeSubgraph(ObjHeader* root) {
 
   MEMORY_LOG("Freeze subgraph of %p\n", root)
 
+  #if USE_GC
+    auto state = memoryState;
+    // Free cyclic garbage to decrease number of analyzed objects.
+    checkIfForceCyclicGcNeeded(state);
+  #endif
+
   // Do DFS cycle detection.
   bool hasCycles = false;
   KRef firstBlocker = root->has_meta_object() && ((root->meta_object()->flags_ & MF_NEVER_FROZEN) != 0) ?
@@ -2624,7 +2643,6 @@ void freezeSubgraph(ObjHeader* root) {
   // Now remove frozen objects from the toFree list.
   // TODO: optimize it by keeping ignored (i.e. freshly frozen) objects in the set,
   // and use it when analyzing toFree during collection.
-  auto state = memoryState;
   for (auto& container : *(state->toFree)) {
     if (!isMarkedAsRemoved(container) && container->frozen()) {
       RuntimeAssert(newlyFrozen.count(container) != 0, "Must be newly frozen");
