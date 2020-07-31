@@ -76,13 +76,13 @@ open class BenchmarksReport(val env: Environment, benchmarksList: List<Benchmark
         val buildNumberField = buildNumber?.let {
             """,
             "buildNumber": "$buildNumber"
-        """
+            """
         } ?: ""
         return """
             "env": ${env.toJson()},
             "kotlin": ${compiler.toJson()},
             "benchmarks": ${arrayToJson(benchmarks.flatMap { it.value })}$buildNumberField
-        """
+        """.trimIndent()
     }
 
     fun merge(other: BenchmarksReport): BenchmarksReport {

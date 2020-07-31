@@ -14,6 +14,10 @@ import org.jetbrains.report.*
 fun <T> Iterable<T>.isEmpty() = count() == 0
 fun <T> Iterable<T>.isNotEmpty() = !isEmpty()
 
+inline fun <T: Any> T?.str(block: (T) -> String): String =
+        if (this != null) block(this)
+        else ""
+
 // Dispatcher to create and control benchmarks indexes separated by some feature.
 // Feature can be choosen as often used as filtering entity in case there is no need in separate indexes.
 // Default behaviour of dispatcher is working with one index (case when separating isn't needed).
@@ -103,11 +107,11 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
                 "query": {
                     "bool": {
                         "must": [ 
-                            ${buildNumbers?.let {
+                            ${buildNumbers.str { builds ->
             """
-                            { "terms" : { "buildNumber" : [${buildNumbers.map { "\"$it\"" }.joinToString()}] } },""" }
+                            { "terms" : { "buildNumber" : [${builds.map { "\"$it\"" }.joinToString()}] } },""" }
         }
-                            ${featureFilter?.let { "${it(featureValue)}," } ?: ""}
+                            ${featureFilter.str { "${it(featureValue)}," } }
                             {"nested" : {
                                 "path" : "benchmarks",
                                 "query" : {
@@ -144,7 +148,10 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
                         val element = it as JsonObject
                         val build = element.getObject("_source").getPrimitive("buildNumber").content
                         buildNumbers?.let { valuesMap.getOrPut(build) { arrayOfNulls<Double?>(samples.size) } }
-                        element.getObject("inner_hits").getObject("benchmarks").getObject("hits")
+                        element
+                                .getObject("inner_hits")
+                                .getObject("benchmarks")
+                                .getObject("hits")
                                 .getArray("hits").forEach {
                                     val source = (it as JsonObject).getObject("_source")
                                     valuesMap[build]!![indexesMap[source.getPrimitive("name").content]!!] =
@@ -167,25 +174,25 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
         val queryDescription = """ 
             {
                 "_source": false,
-                ${featureFilter?.let {
+                ${featureFilter.str {
             """
                 "query": {
                     "bool": {
                         "must": [ ${it(featureValue)} ]
                     }
                 }, """
-        } ?: ""}
-                ${buildNumbers?.let {
+        } }
+                ${buildNumbers.str { builds ->
             """
                 "aggs" : {
                     "builds": {
                         "filters" : { 
                             "filters": { 
-                                ${buildNumbers.map { "\"$it\": { \"match\" : { \"buildNumber\" : \"$it\" }}" }
+                                ${builds.map { "\"$it\": { \"match\" : { \"buildNumber\" : \"$it\" }}" }
                     .joinToString(",\n")}
                             }
                         },"""
-        } ?: ""}
+        } }
                     "aggs" : {
                         "metric_build" : {
                             "nested" : {
@@ -205,10 +212,10 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
                                     }
                                 }
                             }
-                    ${buildNumbers?.let {
+                    ${buildNumbers.str {
             """ }
                 }"""
-        } ?: ""}
+        } }
         }
     }
 }
@@ -218,14 +225,30 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
             val aggregations = dbResponse.getObjectOrNull("aggregations") ?: error("Wrong response:\n$responseString")
             buildNumbers?.let {
                 // Get failed number for each provided build.
-                val buckets = aggregations.getObjectOrNull("builds")?.getObjectOrNull("buckets")
+                val buckets = aggregations
+                        .getObjectOrNull("builds")
+                        ?.getObjectOrNull("buckets")
                         ?: error("Wrong response:\n$responseString")
                 buildNumbers.map {
-                    it to buckets.getObject(it).getObject("metric_build").getObject("metric_samples")
-                            .getObject("buckets").getObject("samples").getObject("failed_count").getPrimitive("value").int
+                    it to buckets
+                            .getObject(it)
+                            .getObject("metric_build")
+                            .getObject("metric_samples")
+                            .getObject("buckets")
+                            .getObject("samples")
+                            .getObject("failed_count")
+                            .getPrimitive("value")
+                            .int
                 }.toMap()
-            } ?: listOf("golden" to aggregations.getObject("metric_build").getObject("metric_samples")
-                    .getObject("buckets").getObject("samples").getObject("failed_count").getPrimitive("value").int).toMap()
+            } ?: listOf("golden" to aggregations
+                    .getObject("metric_build")
+                    .getObject("metric_samples")
+                    .getObject("buckets")
+                    .getObject("samples")
+                    .getObject("failed_count")
+                    .getPrimitive("value")
+                    .int
+            ).toMap()
         }
     }
 
@@ -247,25 +270,25 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
         val queryDescription = """
             {
                 "_source": false,
-                ${featureFilter?.let {
+                ${featureFilter.str {
             """
                 "query": {
                     "bool": {
                         "must": [ ${it(featureValue)} ]
                     }
                 }, """
-        } ?: ""}
-                ${buildNumbers?.let {
+        } }
+                ${buildNumbers.str { builds ->
             """
                 "aggs" : {
                     "builds": {
                         "filters" : { 
                             "filters": { 
-                                ${buildNumbers.map { "\"$it\": { \"match\" : { \"buildNumber\" : \"$it\" }}" }
+                                ${builds.map { "\"$it\": { \"match\" : { \"buildNumber\" : \"$it\" }}" }
                     .joinToString(",\n")}
                             }
                         },"""
-        } ?: ""}
+        } }
                     "aggs" : {
                         "metric_build" : {
                             "nested" : {
@@ -298,10 +321,10 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
                                 }
                             }
                         
-                           ${buildNumbers?.let {
+                           ${buildNumbers.str {
             """ }
                         }"""
-        } ?: ""}
+        } }
                     }
                 }
             }
@@ -311,13 +334,32 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
             val dbResponse = JsonTreeParser.parse(responseString).jsonObject
             val aggregations = dbResponse.getObjectOrNull("aggregations") ?: error("Wrong response:\n$responseString")
             buildNumbers?.let {
-                val buckets = aggregations.getObjectOrNull("builds")?.getObjectOrNull("buckets")
+                val buckets = aggregations
+                        .getObjectOrNull("builds")
+                        ?.getObjectOrNull("buckets")
                         ?: error("Wrong response:\n$responseString")
                 buildNumbers.map {
-                    it to listOf(buckets.getObject(it).getObject("metric_build").getObject("metric_samples").getObject("buckets").getObject("samples").getObject("geom_mean").getPrimitive("value").double)
+                    it to listOf(buckets
+                            .getObject(it)
+                            .getObject("metric_build")
+                            .getObject("metric_samples")
+                            .getObject("buckets")
+                            .getObject("samples")
+                            .getObject("geom_mean")
+                            .getPrimitive("value")
+                            .double
+                    )
                 }
-            } ?: listOf("golden" to listOf(aggregations.getObject("metric_build").getObject("metric_samples")
-                    .getObject("buckets").getObject("samples").getObject("geom_mean").getPrimitive("value").double))
+            } ?: listOf("golden" to listOf(aggregations
+                    .getObject("metric_build")
+                    .getObject("metric_samples")
+                    .getObject("buckets")
+                    .getObject("samples")
+                    .getObject("geom_mean")
+                    .getPrimitive("value")
+                    .double
+                )
+            )
         }
     }
 }
