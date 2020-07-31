@@ -106,7 +106,7 @@ private class ObjCMethodStubBuilder(
     private val kotlinMethodParameters: List<FunctionParameterStub>
     private val external: Boolean
     private val receiver: ReceiverParameterStub?
-    private val name: String = method.kotlinName
+    private val name: String = method.nameOverride ?: method.kotlinName
     private val origin = StubOrigin.ObjCMethod(method, container)
     private val modality: MemberStubModality
     private val isOverride: Boolean =

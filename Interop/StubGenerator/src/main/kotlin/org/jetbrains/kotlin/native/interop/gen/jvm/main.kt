@@ -38,12 +38,10 @@ import org.jetbrains.kotlin.library.resolver.impl.KotlinLibraryResolverImpl
 import org.jetbrains.kotlin.library.resolver.impl.libraryResolver
 import org.jetbrains.kotlin.library.toUnresolvedLibraries
 import org.jetbrains.kotlin.util.removeSuffixIfPresent
-import org.jetbrains.org.objectweb.asm.ClassReader
 import java.io.File
 import java.lang.IllegalArgumentException
 import java.nio.file.*
 import java.util.*
-import java.util.jar.JarFile
 
 data class InternalInteropOptions(val generated: String, val natives: String, val manifest: String? = null,
                                   val cstubsName: String? = null)

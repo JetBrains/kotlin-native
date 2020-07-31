@@ -47,10 +47,11 @@ class J2ObjCParser: ClassVisitor(Opcodes.ASM5) {
    * @return An ObjCClass that matches a Java class
    */
   fun buildClass(): ObjCClass {
-    val methods = (methodDescriptors zip parameterNames).map { buildClassMethod(it.first, it.second)}
+    val methods = (methodDescriptors zip parameterNames).map { buildClassMethod(it.first.first, it.first.second, it.first.third, it.second)}
+    val packageClassName = buildJ2objcClassName()
 
     val generatedClass = ObjCClassImpl(
-      name = className,
+      name = packageClassName,
       isForwardDeclaration = false,
       binaryName = null,
       location = Location(HeaderId("")) // Leaving headerId empty for now.
@@ -96,12 +97,11 @@ class J2ObjCParser: ClassVisitor(Opcodes.ASM5) {
         isInit = true,
         isExplicitlyDesignatedInitializer = false)
     } else {
-      val selector = StringBuilder(methodDescriptor.name)
-      val methodParameters = parseMethodParameters(methodDescriptor.descriptor, paramNames)
-      val methodReturnType = parseMethodReturnType(methodDescriptor.descriptor)
-      if (methodParameters.size >= 1) methodParameters.subList(1,methodParameters.size).forEach { selector.append(":" + it.name) }
+      val selector = buildJ2objcMethodName(methodName, methodDesc)
+      val methodParameters = parseMethodParameters(methodDesc, paramNames)
+      val methodReturnType = parseMethodReturnType(methodDesc)
       return ObjCMethod(
-        selector = if (methodParameters.size > 1) "$selector:" else if (methodParameters.size == 1) "${methodDescriptor.name}:" else methodDescriptor.name,
+        selector = selector,
         encoding = "[]", //TODO: Implement encoding properly
         parameters = methodParameters,
         returnType = methodReturnType,
@@ -111,8 +111,25 @@ class J2ObjCParser: ClassVisitor(Opcodes.ASM5) {
         nsReturnsRetained = false,
         isOptional = false,
         isInit = false,
-        isExplicitlyDesignatedInitializer = false)
+        isExplicitlyDesignatedInitializer = false,
+        nameOverride = selector.split("With").first())
     }
+  }
+
+  private fun buildJ2objcMethodName(methodName: String, methodDesc: String): String {
+    val outputMethodName = StringBuilder(methodName)
+    val types = getArgumentTypes(methodDesc)
+
+    if (types.size > 0) {
+      outputMethodName.append("With" + types.get(0).className.capitalize() + ":")
+    }
+    types.drop(1).forEach{outputMethodName.append("with" + it.className.capitalize() + ":")}
+
+    return outputMethodName.toString()
+  }
+
+  private fun buildJ2objcClassName(): String {
+    return className.split('/').reduce{ acc, string -> acc.capitalize() + string}
   }
 
   /**
