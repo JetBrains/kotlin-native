@@ -18,7 +18,6 @@ class ObjcExportHeaderGeneratorMobile internal constructor(
                 configuration: ObjCExportLazy.Configuration,
                 warningCollector: ObjCExportWarningCollector,
                 builtIns: KotlinBuiltIns,
-                objcGenerics: Boolean,
                 moduleDescriptors: List<ModuleDescriptor>,
                 deprecationResolver: DeprecationResolver? = null): ObjCExportHeaderGenerator {
 
@@ -31,7 +30,7 @@ class ObjcExportHeaderGeneratorMobile internal constructor(
                     mapper,
                     namer,
                     warningCollector,
-                    objcGenerics)
+                    configuration.objcGenerics)
         }
     }
 
