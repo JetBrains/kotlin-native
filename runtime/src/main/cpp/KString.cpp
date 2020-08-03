@@ -864,7 +864,7 @@ KInt Kotlin_String_compareToIgnoreCase(KString thiz, KConstRef other) {
 
 
 KChar Kotlin_String_get(KString thiz, KInt index) {
-  if (static_cast<uint32_t>(index) >= thiz->count_) {
+  if (index < 0 || index >= thiz->count_) {
     ThrowArrayIndexOutOfBoundsException();
   }
   return *CharArrayAddressOfElementAt(thiz, index);
@@ -920,7 +920,7 @@ KInt Kotlin_StringBuilder_insertInt(KRef builder, KInt position, KInt value) {
   char cstring[12];
   auto length = konan::snprintf(cstring, sizeof(cstring), "%d", value);
   RuntimeAssert(length >= 0, "This should never happen"); // may be overkill
-  RuntimeAssert(length < sizeof(cstring), "Unexpectedly large value"); // Can't be, but this is what sNprintf for
+  RuntimeAssert(static_cast<size_t>(length) < sizeof(cstring), "Unexpectedly large value"); // Can't be, but this is what sNprintf for
   auto* from = &cstring[0];
   auto* to = CharArrayAddressOfElementAt(toArray, position);
   while (*from) {

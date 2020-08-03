@@ -673,7 +673,7 @@ static const TypeInfo* createTypeInfo(
   }
 
   const TypeInfo** implementedInterfaces_ = konanAllocArray<const TypeInfo*>(implementedInterfaces.size());
-  for (int i = 0; i < implementedInterfaces.size(); ++i) {
+  for (size_t i = 0; i < implementedInterfaces.size(); ++i) {
     implementedInterfaces_[i] = implementedInterfaces[i];
   }
 
@@ -689,7 +689,7 @@ static const TypeInfo* createTypeInfo(
   }
 
   MethodTableRecord* openMethods_ = konanAllocArray<MethodTableRecord>(methodTable.size());
-  for (int i = 0; i < methodTable.size(); ++i) openMethods_[i] = methodTable[i];
+  for (size_t i = 0; i < methodTable.size(); ++i) openMethods_[i] = methodTable[i];
 
   result->openMethods_ = openMethods_;
   result->openMethodsCount_ = methodTable.size();
@@ -698,7 +698,7 @@ static const TypeInfo* createTypeInfo(
   result->relativeName_ = nullptr; // TODO: add some info.
   result->writableInfo_ = (WritableTypeInfo*)konanAllocMemory(sizeof(WritableTypeInfo));
 
-  for (int i = 0; i < vtable.size(); ++i) result->vtable()[i] = vtable[i];
+  for (size_t i = 0; i < vtable.size(); ++i) result->vtable()[i] = vtable[i];
 
   return result;
 }
@@ -707,7 +707,7 @@ static void addDefinedSelectors(Class clazz, KStdUnorderedSet<SEL>& result) {
   unsigned int objcMethodCount;
   Method* objcMethods = class_copyMethodList(clazz, &objcMethodCount);
 
-  for (int i = 0; i < objcMethodCount; ++i) {
+  for (unsigned int i = 0; i < objcMethodCount; ++i) {
     result.insert(method_getName(objcMethods[i]));
   }
 
@@ -875,7 +875,7 @@ static const TypeInfo* createTypeInfo(Class clazz, const TypeInfo* superType, co
     auto interfaceVTableIt = interfaceVTables.find(interfaceId);
     RuntimeAssert(interfaceVTableIt != interfaceVTables.end(), "");
     auto& interfaceVTable = interfaceVTableIt->second;
-    RuntimeAssert(methodIndex >= 0 && methodIndex < interfaceVTable.size(), "");
+    RuntimeAssert(methodIndex >= 0 && static_cast<size_t>(methodIndex) < interfaceVTable.size(), "");
     interfaceVTable[methodIndex] = entry;
   };
 
@@ -914,7 +914,7 @@ static const TypeInfo* createTypeInfo(Class clazz, const TypeInfo* superType, co
         interfaceVTables.emplace(interfaceId, KStdVector<VTableElement>(interfaceVTableSize));
       } else {
         auto const& interfaceVTable = interfaceVTablesIt->second;
-        RuntimeAssert(interfaceVTable.size() == interfaceVTableSize, "");
+        RuntimeAssert(interfaceVTable.size() == static_cast<size_t>(interfaceVTableSize), "");
       }
     }
 

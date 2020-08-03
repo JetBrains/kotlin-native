@@ -71,7 +71,7 @@ CSSourceInfoRef (*CSSymbolOwnerGetSourceInfoWithAddress)(
 
 const char* (*CSSourceInfoGetPath)(CSSourceInfoRef info);
 
-uint32_t (*CSSourceInfoGetLineNumber)(CSSourceInfoRef info);
+int32_t (*CSSourceInfoGetLineNumber)(CSSourceInfoRef info);
 
 uint32_t (*CSSourceInfoGetColumn)(CSSourceInfoRef info);
 
@@ -153,7 +153,7 @@ extern "C" struct SourceInfo Kotlin_getSourceInfo(void* addr) {
      */
     CSSymbolForeachSourceInfo(symbol,
       ^(CSSourceInfoRef ref) {
-        uint32_t lineNumber = CSSourceInfoGetLineNumber(ref);
+        int32_t lineNumber = CSSourceInfoGetLineNumber(ref);
         if (lineNumber == 0)
           return 0;
         if (limits.start == -1) {
@@ -170,7 +170,7 @@ extern "C" struct SourceInfo Kotlin_getSourceInfo(void* addr) {
 
     CSSymbolForeachSourceInfo(symbol,
       ^(CSSourceInfoRef ref) {
-          uint32_t lineNumber = CSSourceInfoGetLineNumber(ref);
+          int32_t lineNumber = CSSourceInfoGetLineNumber(ref);
           if (lineNumber == 0)
             return 0;
           SYM_DUMP(ref);

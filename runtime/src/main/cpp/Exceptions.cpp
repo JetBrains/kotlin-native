@@ -157,7 +157,7 @@ OBJ_GETTER(GetStackTraceStrings, KConstRef stackTrace) {
   UpdateHeapRef(ArrayAddressOfElementAt(result->array(), 0), holder.obj());
   return result;
 #else
-  uint32_t size = stackTrace->array()->count_;
+  int32_t size = stackTrace->array()->count_;
   ObjHolder resultHolder;
   ObjHeader* strings = AllocArrayInstance(theArrayTypeInfo, size, resultHolder.slot());
 #if USE_GCC_UNWIND
