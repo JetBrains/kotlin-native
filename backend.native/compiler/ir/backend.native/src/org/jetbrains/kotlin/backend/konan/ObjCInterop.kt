@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.descriptors.annotations.AnnotationDescriptor
 import org.jetbrains.kotlin.incremental.components.NoLookupLocation
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.expressions.IrConstructorCall
+import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.types.classifierOrFail
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.FqName
@@ -29,6 +30,7 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.parentsWithSelf
 import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeUtils
 import org.jetbrains.kotlin.types.typeUtil.supertypes
+import org.jetbrains.kotlin.utils.addToStdlib.firstNotNullResult
 
 internal val interopPackageName = InteropFqNames.packageName
 internal val objCObjectFqName = interopPackageName.child(Name.identifier("ObjCObject"))
@@ -49,19 +51,14 @@ fun KotlinType.isObjCObjectType(): Boolean =
 
 // TODO: make visit-helper
 
-private fun IrClass.checkAny(pred: (IrClass) -> Boolean): Boolean {
+private fun IrClass.selfOrAnySuperClass(pred: (IrClass) -> Boolean): Boolean {
     if (pred(this)) return true
 
-    for (element in superTypes) {
-        val s = element.classifierOrFail.owner as IrClass
-        if (s.checkAny(pred)) return true
-    }
-
-    return false
+    return superTypes.any { it.classOrNull!!.owner.selfOrAnySuperClass(pred) }
 }
 
 internal fun IrClass.isObjCClass() = this.parent.fqNameForIrSerialization != interopPackageName &&
-        checkAny { it.fqNameForIrSerialization == objCObjectFqName }
+        selfOrAnySuperClass { it.fqNameForIrSerialization == objCObjectFqName }
 
 fun ClassDescriptor.isExternalObjCClass(): Boolean = this.isObjCClass() &&
         this.parentsWithSelf.filterIsInstance<ClassDescriptor>().any {
@@ -79,7 +76,7 @@ fun ClassDescriptor.isObjCMetaClass(): Boolean = this.getAllSuperClassifiers().a
     it.fqNameSafe == objCClassFqName
 }
 
-fun IrClass.isObjCMetaClass(): Boolean = checkAny {
+fun IrClass.isObjCMetaClass(): Boolean = selfOrAnySuperClass {
     it.fqNameForIrSerialization == objCClassFqName
 }
 
@@ -153,12 +150,7 @@ private fun FunctionDescriptor.getObjCMethodInfo(onlyExternal: Boolean): ObjCMet
         }
     }
 
-    val symbols = overriddenDescriptors
-    for (element in symbols) {
-        element.getObjCMethodInfo(onlyExternal)?.let { return it }
-    }
-
-    return null
+    return overriddenDescriptors.firstNotNullResult { it.getObjCMethodInfo(onlyExternal) }
 }
 
 /**
@@ -173,13 +165,7 @@ private fun IrSimpleFunction.getObjCMethodInfo(onlyExternal: Boolean): ObjCMetho
         }
     }
 
-    val symbols = overriddenSymbols
-    for (element in symbols) {
-        val s = element.owner
-        s.getObjCMethodInfo(onlyExternal)?.let { return it }
-    }
-
-    return null
+    return overriddenSymbols.firstNotNullResult { it.owner.getObjCMethodInfo(onlyExternal) }
 }
 
 fun FunctionDescriptor.getExternalObjCMethodInfo(): ObjCMethodInfo? = this.getObjCMethodInfo(onlyExternal = true)
