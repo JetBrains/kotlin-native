@@ -136,8 +136,9 @@ int DecodeBase64(
   size_t buf = 0, len = 0;
 
   while (in < end) {
-    // In base64 characters are guaranteed to be ASCII, and so are positive
-    // even if char is a signed type.
+    // char may be a signed type. Explicitly convert it to an unsigned byte,
+    // so that indexing into kDecode array is safe. The latter has exactly
+    // 256 elements, so any unsigned byte value is valid.
     uint8_t index = *in++;
     unsigned char c = kDecode[index];
 
