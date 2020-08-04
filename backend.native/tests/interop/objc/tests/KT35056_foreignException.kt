@@ -30,7 +30,7 @@ fun testInner(): String {
         assertEquals("testInner> finally block is OK", ret)
     } catch (e: ForeignException) {
         println("ForeignException caught: $e")
-        val ret = logExc(e.nativeException)
+        val ret = logExc(e.objCException)
         assertEquals("Fire native exception!", ret)
     } finally {
         myFinally()

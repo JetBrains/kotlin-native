@@ -626,17 +626,28 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             val landingpad = gxxLandingpad(2)
             LLVMAddClause(landingpad, kotlinExceptionRtti.llvm)
             LLVMAddClause(landingpad, objcNSExceptionRtti.llvm)
-//            LLVMAddClause(landingpad, LLVMConstNull(kInt8Ptr))
+            LLVMAddClause(landingpad, LLVMConstNull(kInt8Ptr))
 
+            val foreignExceptionBlock = basicBlock("foreignException", position()?.start)
+            val fatalForeignExceptionBlock = basicBlock("fatalForeignException", position()?.start)
             val forwardNativeExceptionBlock = basicBlock("forwardNativeException", position()?.start)
             val forwardKotlinExceptionBlock = basicBlock("forwardKotlinException", position()?.start)
 
+            val typeId = extractValue(landingpad, 1)
             val isKotlinException = icmpEq(
-                    extractValue(landingpad, 1),
+                    typeId,
                     call(context.llvm.llvmEhTypeidFor, listOf(kotlinExceptionRtti.llvm))
             )
 
-            condBr(isKotlinException, forwardKotlinExceptionBlock, forwardNativeExceptionBlock)
+            condBr(isKotlinException, forwardKotlinExceptionBlock, foreignExceptionBlock)
+
+            appendingTo(foreignExceptionBlock) {
+                val isObjCException = icmpEq(
+                        typeId,
+                        call(context.llvm.llvmEhTypeidFor, listOf(objcNSExceptionRtti.llvm))
+                )
+                condBr(isObjCException, forwardNativeExceptionBlock, fatalForeignExceptionBlock)
+            }
 
             appendingTo(forwardKotlinExceptionBlock) {
                 // Rethrow Kotlin exception to real handler.
@@ -647,6 +658,13 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                 val exception = createForeignException(landingpad, codeContext.exceptionHandler)
                 codeContext.genThrow(exception)
             }
+
+            appendingTo(fatalForeignExceptionBlock) {
+                val exceptionRecord = extractValue(landingpad, 0)
+                call(context.llvm.cxaBeginCatchFunction, listOf(exceptionRecord))
+                terminate()
+            }
+
         }
 
         return object : ExceptionHandler.Local() {
@@ -721,7 +739,6 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
 
         // This will take care of ARC - need to be done in the catching scope, i.e. before __cxa_end_catch
         val exception = call(context.ir.symbols.createForeignException.owner.llvmFunction,
-//                listOf(bitcast(kInt8Ptr, id, "")),  // cast to NativePtr aka kInt8Ptr
                 listOf(exceptionRawPtr),
                 Lifetime.GLOBAL, exceptionHandler)
 
