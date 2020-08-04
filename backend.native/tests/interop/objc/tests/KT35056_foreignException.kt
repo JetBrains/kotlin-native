@@ -12,23 +12,25 @@ fun myFinally() {
     println("myFinally> finally block>")
 }
 
-fun testInner() {
+fun testInner(): String {
+    var ret = ""
     try {
         raiseExc("Fire native exception!")
     } catch (e: ArithmeticException) {
         println("testInner> $e") // shouldn't happen
     } finally {
-        println("testInner> finally block")
+        ret = "testInner> finally block is OK"
     }
-
+    return ret
 }
 
 @Test fun testKT35056() {
     try {
-        testInner()
+        val ret = testInner()
+        assertEquals("testInner> finally block is OK", ret)
     } catch (e: ForeignException) {
-        myExcCaught(e)
-        val ret = logExc(e.objCException)
+        println("ForeignException caught: $e")
+        val ret = logExc(e.nativeException)
         assertEquals("Fire native exception!", ret)
     } finally {
         myFinally()

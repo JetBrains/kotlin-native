@@ -646,7 +646,6 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             appendingTo(forwardNativeExceptionBlock) {
                 val exception = createForeignException(landingpad, codeContext.exceptionHandler)
                 codeContext.genThrow(exception)
-//                unreachable()
             }
         }
 
@@ -720,14 +719,11 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         // __cxa_begin_catch returns pointer to C++ exception object.
         val exceptionRawPtr = call(context.llvm.cxaBeginCatchFunction, listOf(exceptionRecord))
 
-        // ObjC expects NSException** here, so do dereference
-//        val id = LLVMBuildLoad(builder, bitcast(kInt8PtrPtr, exceptionRawPtr, ""), "")!!
-        val id = exceptionRawPtr
-
         // This will take care of ARC - need to be done in the catching scope, i.e. before __cxa_end_catch
         val exception = call(context.ir.symbols.createForeignException.owner.llvmFunction,
-                listOf(bitcast(kInt8Ptr, id, "")),  // cast to NativePtr aka kInt8Ptr
-                Lifetime.LOCAL, exceptionHandler)
+//                listOf(bitcast(kInt8Ptr, id, "")),  // cast to NativePtr aka kInt8Ptr
+                listOf(exceptionRawPtr),
+                Lifetime.GLOBAL, exceptionHandler)
 
         call(context.llvm.cxaEndCatchFunction, listOf())
         return exception
