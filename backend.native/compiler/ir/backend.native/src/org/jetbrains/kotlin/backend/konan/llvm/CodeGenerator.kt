@@ -625,7 +625,8 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         appendingTo(lpBlock) {
             val landingpad = gxxLandingpad(2)
             LLVMAddClause(landingpad, kotlinExceptionRtti.llvm)
-            LLVMAddClause(landingpad, LLVMConstNull(kInt8Ptr))
+            LLVMAddClause(landingpad, objcNSExceptionRtti.llvm)
+//            LLVMAddClause(landingpad, LLVMConstNull(kInt8Ptr))
 
             val forwardNativeExceptionBlock = basicBlock("forwardNativeException", position()?.start)
             val forwardKotlinExceptionBlock = basicBlock("forwardKotlinException", position()?.start)
@@ -645,7 +646,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             appendingTo(forwardNativeExceptionBlock) {
                 val exception = createForeignException(landingpad, codeContext.exceptionHandler)
                 codeContext.genThrow(exception)
-                unreachable()
+//                unreachable()
             }
         }
 
@@ -720,7 +721,8 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         val exceptionRawPtr = call(context.llvm.cxaBeginCatchFunction, listOf(exceptionRecord))
 
         // ObjC expects NSException** here, so do dereference
-        val id = LLVMBuildLoad(builder, bitcast(kInt8PtrPtr, exceptionRawPtr, ""), "")!!
+//        val id = LLVMBuildLoad(builder, bitcast(kInt8PtrPtr, exceptionRawPtr, ""), "")!!
+        val id = exceptionRawPtr
 
         // This will take care of ARC - need to be done in the catching scope, i.e. before __cxa_end_catch
         val exception = call(context.ir.symbols.createForeignException.owner.llvmFunction,
@@ -1199,6 +1201,13 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
     private val kotlinExceptionRtti: ConstPointer
         get() = constPointer(importGlobal(
                 "_ZTI18ExceptionObjHolder", // typeinfo for ObjHolder
+                int8TypePtr,
+                origin = context.stdlibModule.llvmSymbolOrigin
+        )).bitcast(int8TypePtr)
+
+    private val objcNSExceptionRtti: ConstPointer
+        get() = constPointer(importGlobal(
+                "OBJC_EHTYPE_\$_NSException", // typeinfo for NSException*
                 int8TypePtr,
                 origin = context.stdlibModule.llvmSymbolOrigin
         )).bitcast(int8TypePtr)
