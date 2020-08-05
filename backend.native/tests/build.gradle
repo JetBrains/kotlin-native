@@ -3941,8 +3941,8 @@ if (PlatformInfo.isAppleTarget(project)) {
         doBeforeBuild {
             mkdir(buildDir)
             execKonanClang(project.target) {
-                args "interop/j2objc/ObjcTest.m"
-                args "-lobjc", '-fobjc-arc'
+                args "interop/j2objc/com/test/Foo.m", "interop/j2objc/com/test/ExtendsFoo.m"
+                args '-Linterop/j2objc/lib/macosx', '-liconv', '-ljre_emul','-Iinterop/j2objc/include', "-lobjc", '-fobjc-arc'
                 args '-fPIC', '-shared', '-o', "$buildDir/libj2objctest.dylib"
             }
 

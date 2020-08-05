@@ -6,7 +6,6 @@ import org.jetbrains.org.objectweb.asm.MethodVisitor
 import org.jetbrains.org.objectweb.asm.Opcodes
 import org.jetbrains.org.objectweb.asm.Type.getArgumentTypes
 import org.jetbrains.org.objectweb.asm.Type.getReturnType
-import java.util.jar.JarEntry
 import java.util.jar.JarFile
 
 /**
@@ -47,11 +46,10 @@ class J2ObjCParser: ClassVisitor(Opcodes.ASM5) {
    * @return An ObjCClass that matches a Java class
    */
   fun buildClass(): ObjCClass {
-    val methods = (methodDescriptors zip parameterNames).map { buildClassMethod(it.first.first, it.first.second, it.first.third, it.second)}
-    val packageClassName = buildJ2objcClassName()
+    val methods = (methodDescriptors zip parameterNames).map { buildClassMethod(it.first, it.second)}
 
     val generatedClass = ObjCClassImpl(
-      name = packageClassName,
+      name = buildJ2objcClassName(className,'/'),
       isForwardDeclaration = false,
       binaryName = null,
       location = Location(HeaderId("")) // Leaving headerId empty for now.
@@ -66,7 +64,7 @@ class J2ObjCParser: ClassVisitor(Opcodes.ASM5) {
       )
     } else {
       generatedClass.baseClass = ObjCClassImpl(
-        name = superName,
+        name = buildJ2objcClassName(superName, '/'),
         binaryName = null,
         isForwardDeclaration = false,
         location = Location(headerId = HeaderId(""))
@@ -97,9 +95,9 @@ class J2ObjCParser: ClassVisitor(Opcodes.ASM5) {
         isInit = true,
         isExplicitlyDesignatedInitializer = false)
     } else {
-      val selector = buildJ2objcMethodName(methodName, methodDesc)
-      val methodParameters = parseMethodParameters(methodDesc, paramNames)
-      val methodReturnType = parseMethodReturnType(methodDesc)
+      val selector = buildJ2objcMethodName(methodDescriptor.name, methodDescriptor.descriptor)
+      val methodParameters = parseMethodParameters(methodDescriptor.descriptor, paramNames)
+      val methodReturnType = parseMethodReturnType(methodDescriptor.descriptor)
       return ObjCMethod(
         selector = selector,
         encoding = "[]", //TODO: Implement encoding properly
@@ -118,18 +116,20 @@ class J2ObjCParser: ClassVisitor(Opcodes.ASM5) {
 
   private fun buildJ2objcMethodName(methodName: String, methodDesc: String): String {
     val outputMethodName = StringBuilder(methodName)
-    val types = getArgumentTypes(methodDesc)
+    val typeNames = getArgumentTypes(methodDesc).map{
+      if(it.className == "java.lang.String") "NSString" else
+        if (it.className == "java.lang.Number") "NSNumber"  else
+          buildJ2objcClassName(it.className,'.').capitalize()}
 
-    if (types.size > 0) {
-      outputMethodName.append("With" + types.get(0).className.capitalize() + ":")
+    if (typeNames.size > 0) {
+      outputMethodName.append("With" + typeNames.get(0) + ":")
     }
-    types.drop(1).forEach{outputMethodName.append("with" + it.className.capitalize() + ":")}
-
+    typeNames.drop(1).forEach{outputMethodName.append("with" + it + ":")}
     return outputMethodName.toString()
   }
 
-  private fun buildJ2objcClassName(): String {
-    return className.split('/').reduce{ acc, string -> acc.capitalize() + string}
+  private fun buildJ2objcClassName(className: String, delimiter: Char): String {
+    return className.split(delimiter).reduce{ acc, string -> acc.capitalize() + string.capitalize()}
   }
 
   /**
@@ -144,7 +144,7 @@ class J2ObjCParser: ClassVisitor(Opcodes.ASM5) {
     val parameterTypes = getArgumentTypes(methodDesc)
 
     return parameterTypes.mapIndexed { i, paramType ->
-      Parameter(name = paramNames.get(i), type = parseType(parameterTypes.get(i)), nsConsumed = false)
+      Parameter(name = paramNames.get(i), type = parseType(paramType), nsConsumed = false)
     }
   }
 
@@ -197,7 +197,7 @@ class J2ObjCParser: ClassVisitor(Opcodes.ASM5) {
       )
       else -> ObjCObjectPointer(
         ObjCClassImpl(
-          name = type.className,
+          name = buildJ2objcClassName(type.className,'.'),
           isForwardDeclaration = false,
           binaryName = null,
           location = Location(headerId = HeaderId(""))
