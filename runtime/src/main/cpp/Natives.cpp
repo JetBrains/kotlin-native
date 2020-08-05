@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-#include <limits.h>
-#include <stdint.h>
-#include <stdlib.h>
-#include <stdio.h>
-#include <string.h>
+#include <cstdint>
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+#include <limits>
 
 #include "KAssert.h"
 #include "Exceptions.h"
