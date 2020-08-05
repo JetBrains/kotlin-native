@@ -28,7 +28,6 @@ private fun testMethods() {
 
   assertEquals(47, doAddTo(myObject, 16,31))
   assertEquals(-15, doAddTo(myExtensionObject, 16,31))
-  assertEquals(14,14)
   assertEquals(100, j2objctest.ComTestFoo.return100Static())
 }
 
