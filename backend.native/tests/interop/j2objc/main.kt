@@ -8,8 +8,8 @@ fun main(args: Array<String>) {
 }
 
 private fun testMethods() {
-  val myObject = j2objctest.ComTestFoo()
-  val myExtensionObject = j2objctest.ComTestExtendsFoo()
+  val myObject = j2objctest.Foo()
+  val myExtensionObject = j2objctest.ExtendsFoo()
 
   assertEquals(100, myObject.return100())
   assertEquals(43, myObject.returnNum(43))
@@ -28,9 +28,9 @@ private fun testMethods() {
 
   assertEquals(47, doAddTo(myObject, 16,31))
   assertEquals(-15, doAddTo(myExtensionObject, 16,31))
-  assertEquals(100, j2objctest.ComTestFoo.return100Static())
+  assertEquals(100, j2objctest.Foo.return100Static())
 }
 
-fun doAddTo(obj: j2objctest.ComTestFoo, a: Int, b: Int): Int {
+fun doAddTo(obj: j2objctest.Foo, a: Int, b: Int): Int {
   return obj.add2(a,b)
 }

@@ -49,9 +49,9 @@ class J2ObjCParser: ClassVisitor(Opcodes.ASM5) {
     val methods = (methodDescriptors zip parameterNames).map { buildClassMethod(it.first, it.second)}
 
     val generatedClass = ObjCClassImpl(
-      name = buildJ2objcClassName(className,'/'),
+      name = className.split('/').last(),
       isForwardDeclaration = false,
-      binaryName = null,
+      binaryName = buildJ2objcClassName(className,'/'),
       location = Location(HeaderId("")) // Leaving headerId empty for now.
     )
     generatedClass.methods.addAll(methods)
@@ -64,8 +64,8 @@ class J2ObjCParser: ClassVisitor(Opcodes.ASM5) {
       )
     } else {
       generatedClass.baseClass = ObjCClassImpl(
-        name = buildJ2objcClassName(superName, '/'),
-        binaryName = null,
+        name = superName.split('/').last(),
+        binaryName = buildJ2objcClassName(superName, '/'),
         isForwardDeclaration = false,
         location = Location(headerId = HeaderId(""))
       )
