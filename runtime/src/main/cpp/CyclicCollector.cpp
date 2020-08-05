@@ -96,7 +96,7 @@ inline void traverseObjectFields(ObjHeader* obj, func process) {
     }
   } else {
     ArrayHeader* array = obj->array();
-    for (int index = 0; index < array->count_; index++) {
+    for (uint32_t index = 0; index < array->count_; index++) {
       process(ArrayAddressOfElementAt(array, index));
     }
   }

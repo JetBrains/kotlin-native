@@ -394,8 +394,7 @@ struct ArrayHeader {
   const ObjHeader* obj() const { return reinterpret_cast<const ObjHeader*>(this); }
 
   // Elements count. Element size is stored in instanceSize_ field of TypeInfo, negated.
-  // Every accessor from Kotlin uses a signed index type, so this may as well be signed.
-  int32_t count_;
+  uint32_t count_;
 };
 
 inline bool isPermanentOrFrozen(ObjHeader* obj) {
