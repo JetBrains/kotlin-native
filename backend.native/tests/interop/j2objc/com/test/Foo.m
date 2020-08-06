@@ -4,7 +4,7 @@
 //
 
 #include "J2ObjC_source.h"
-#include "Foo.h"
+#include "com/test/Foo.h"
 
 @implementation ComTestFoo
 

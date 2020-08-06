@@ -18,7 +18,7 @@
 
 #define RESTRICT_ComTestFoo 1
 #define INCLUDE_ComTestFoo 1
-#include "Foo.h"
+#include "com/test/Foo.h"
 
 @interface ComTestExtendsFoo : ComTestFoo
 

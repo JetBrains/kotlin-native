@@ -18,8 +18,4 @@ public class ExtendsFoo extends Foo{
   public int testObjectParamNames(Foo a, Foo b) {
     return a.add2(10,20) + b.add2(-10,-20);
   }
-
-  public void TEST() {
-    System.out.println("A");
-  }
 }

@@ -3942,7 +3942,7 @@ if (PlatformInfo.isAppleTarget(project)) {
             mkdir(buildDir)
             execKonanClang(project.target) {
                 args fileTree("$projectDir/interop/j2objc/com/test/") { include '**/*.m' }
-                args '-Linterop/j2objc/lib/macosx', '-liconv', '-ljre_emul','-Iinterop/j2objc/include', "-lobjc", '-fobjc-arc'
+                args '-Linterop/j2objc/lib/macosx', '-liconv', '-ljre_emul','-Iinterop/j2objc/include', '-Iinterop/j2objc', "-lobjc", '-fobjc-arc'
                 args '-fPIC', '-shared', '-o', "$buildDir/libj2objctest.dylib"
             }
 
