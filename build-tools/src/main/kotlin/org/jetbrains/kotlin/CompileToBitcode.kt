@@ -67,9 +67,25 @@ open class CompileToBitcode @Inject constructor(@InputDirectory val srcRoot: Fil
                             "-Werror", "-ftls-model=initial-exec", "-Wno-unused-function")
                 Language.CPP ->
                     listOfNotNull("-std=c++14", "-Werror", "-O2",
+                            // Common:
                             "-Wall", "-Wextra",
+
+                            // Safety & correctness:
+                            // TODO: Consider https://clang.llvm.org/docs/ThreadSafetyAnalysis.html
+                            "-Warray-bounds-pointer-arithmetic",
+                            "-Wcast-qual",
+                            "-Wconversion",
+                            "-Wfloat-equal",
+                            "-Wimplicit-fallthrough",
+                            "-Wstatic-in-inline",
+                            "-Wswitch-enum",
+                            "-Wundefined-reinterpret-cast",
+                            "-Wvector-conversion",
+
+                            // Disabled:
                             "-Wno-unused-parameter",  // False positives with polymorphic functions.
                             "-Wno-unused-function",  // TODO: Enable this warning when we have C++ runtime tests.
+
                             "-fPIC".takeIf { !HostManager().targetByName(target).isMINGW })
             }
             return commonFlags + languageFlags + compilerArgs
