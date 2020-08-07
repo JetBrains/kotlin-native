@@ -165,3 +165,29 @@ fun threeSeparateCycles() {
         atomic3.value = null
     }
 }
+
+@Test
+fun noCyclesWithFreezableAtomicReference() {
+    val atomic = FreezableAtomicReference<Any?>(null)
+    try {
+        atomic.value = atomic
+        val cycles = GC.detectCycles()!!
+        assertEquals(0, cycles.size)
+    } finally {
+        atomic.value = null
+    }
+}
+
+@Test
+fun oneCycleWithFrozenFreezableAtomicReference() {
+    val atomic = FreezableAtomicReference<Any?>(null)
+    try {
+        atomic.value = atomic
+        atomic.freeze()
+        val cycles = GC.detectCycles()!!
+        assertEquals(1, cycles.size)
+        assertArrayEquals(arrayOf(atomic, atomic), GC.findCycle(cycles[0])!!)
+    } finally {
+        atomic.value = null
+    }
+}

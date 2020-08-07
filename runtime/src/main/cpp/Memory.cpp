@@ -2121,7 +2121,6 @@ OBJ_GETTER(allocInstance, const TypeInfo* type_info) {
 #endif  // USE_GC
   auto container = ObjectContainer(state, type_info);
   ObjHeader* obj = container.GetPlace();
-  CycleDetector::insertCandidateIfNeeded(obj);
 #if USE_GC
   if (Strict) {
     rememberNewContainer(container.header());
@@ -2129,6 +2128,7 @@ OBJ_GETTER(allocInstance, const TypeInfo* type_info) {
     makeShareable(container.header());
   }
 #endif  // USE_GC
+  CycleDetector::insertCandidateIfNeeded(obj);
 #if USE_CYCLIC_GC
   if ((obj->type_info()->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0) {
     // Note: this should be performed after [rememberNewContainer] (above).
@@ -2826,10 +2826,16 @@ CycleDetectorRootset CycleDetector::collectRootset() {
   CycleDetectorRootset rootset;
   LockGuard<SimpleMutex> guard(detector.lock_);
   for (auto* candidate: detector.candidateList_) {
+    // Only frozen candidates are to be analyzed.
+    if (!isPermanentOrFrozen(candidate))
+      continue;
     rootset.roots.push_back(candidate);
     rootset.heldRefs.emplace_back(candidate);
     traverseReferredObjects(candidate, [&rootset, candidate](KRef field) {
       rootset.rootToFields[candidate].push_back(field);
+      // TODO: There's currently a race here:
+      // some other thread might null this field and destroy it in GC before
+      // we put it in ScopedRefHolder.
       rootset.heldRefs.emplace_back(field);
     });
   }
@@ -2865,6 +2871,7 @@ KStdVector<KRef> findCycleWithDFS(KRef root, const CycleDetectorRootset& rootset
   appendFieldsToVisit(root, KRefList(1, root));
 
   KStdUnorderedSet<KRef> seen;
+  seen.insert(root);
   while (!toVisit.empty()) {
     KStdVector<KRef> currentPath = std::move(toVisit.back());
     toVisit.pop_back();
