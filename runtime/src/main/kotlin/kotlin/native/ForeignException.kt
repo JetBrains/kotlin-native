@@ -4,6 +4,15 @@
  */
 package kotlin.native
 
-import kotlin.RuntimeException
+//import kotlin.Exception
+//import kotlinx.cinterop.*
 
-public class ForeignException internal constructor(val objCException: Any?)  : RuntimeException()
+public class ForeignException internal constructor(val nativeException: Any?): Exception() {
+    override val message: String = nativeException?.let {
+        kotlin_ObjCExport_ExceptionDetails(nativeException)
+    }?: ""
+
+    // Current implementation expects NSException type only, which is ensured by CodeGenerator.
+    @SymbolName("Kotlin_ObjCExport_ExceptionDetails")
+    private external fun kotlin_ObjCExport_ExceptionDetails(nativeException: Any): String?
+}

@@ -2,13 +2,12 @@
 
 #import <Foundation/Foundation.h>
 
-void raiseExc(id name) {
-    [NSException raise:name format:@"Illegal value %d", 42];
+void raiseExc(id name, id reason) {
+    [NSException raise:name format:@"%@", reason];
 }
 
 id logExc(id exc) {
-    NSLog(@"logExc> handled");
+NSLog(@"logExc> handled");
     assert([exc isKindOfClass:[NSException class]]);
     return ((NSException*)exc).name;
 }
-

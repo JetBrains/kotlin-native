@@ -4,35 +4,35 @@ import kotlin.native.ForeignException
 import kotlinx.cinterop.*
 
 
-fun myExcCaught(e: Exception) {
-    println("myExcCaught> $e")
-}
-
-fun myFinally() {
-    println("myFinally> finally block>")
-}
-
-fun testInner(): String {
-    var ret = ""
+fun testInner(name: String, reason: String) {
+    var finallyBlockTest = "FAILED"
+    var catchBlockTest = "NOT EXPECTED"
     try {
-        raiseExc("Fire native exception!")
-    } catch (e: ArithmeticException) {
-        println("testInner> $e") // shouldn't happen
+        raiseExc(name, reason)
+    } catch (e: RuntimeException) {
+        catchBlockTest = "This shouldn't happen"
     } finally {
-        ret = "testInner> finally block is OK"
+        finallyBlockTest = "PASSED"
     }
-    return ret
+    assertEquals("NOT EXPECTED", catchBlockTest)
+    assertEquals("PASSED", finallyBlockTest)
 }
 
 @Test fun testKT35056() {
+    val name = "Some native exception"
+    val reason = "Illegal value"
+    var finallyBlockTest = "FAILED"
+    var catchBlockTest = "FAILED"
     try {
-        val ret = testInner()
-        assertEquals("testInner> finally block is OK", ret)
+        testInner(name, reason)
     } catch (e: ForeignException) {
-        println("ForeignException caught: $e")
-        val ret = logExc(e.objCException)
-        assertEquals("Fire native exception!", ret)
+        val ret = logExc(e.nativeException) // return NSException name
+        assertEquals(name, ret)
+        assertEquals("$name:: $reason", e.message)
+        catchBlockTest = "PASSED"
     } finally {
-        myFinally()
+        finallyBlockTest = "PASSED"
     }
+    assertEquals("PASSED", catchBlockTest)
+    assertEquals("PASSED", finallyBlockTest)
 }

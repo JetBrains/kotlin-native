@@ -1,2 +1,2 @@
-void raiseExc(id name);
+void raiseExc(id name, id reason);
 id logExc(id exception);
