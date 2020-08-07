@@ -17,5 +17,5 @@ public class ForeignException internal constructor(val nativeException: Any?): E
 }
 
 @ExportForCppRuntime
-fun CreateForeignException(payload: NativePtr): Throwable
+internal fun CreateForeignException(payload: NativePtr): Throwable
         = ForeignException(interpretObjCPointerOrNull<Any?>(payload))
