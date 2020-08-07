@@ -19,8 +19,8 @@
 #ifdef KONAN_CORE_SYMBOLICATION
 #include <KAssert.h>
 #include <dlfcn.h>
-#include <limits.h>
-#include <stdint.h>
+#include <limits>
+#include <cstdint>
 #include <unistd.h>
 #include <string.h>
 
@@ -51,7 +51,7 @@ typedef struct _CSRange {
 
 typedef unsigned long long CSArchitecture;
 
-#define kCSNow LLONG_MAX
+constexpr auto kCSNow = std::numeric_limits<long long>::max();
 
 namespace {
 
@@ -71,7 +71,7 @@ CSSourceInfoRef (*CSSymbolOwnerGetSourceInfoWithAddress)(
 
 const char* (*CSSourceInfoGetPath)(CSSourceInfoRef info);
 
-int32_t (*CSSourceInfoGetLineNumber)(CSSourceInfoRef info);
+uint32_t (*CSSourceInfoGetLineNumber)(CSSourceInfoRef info);
 
 uint32_t (*CSSourceInfoGetColumn)(CSSourceInfoRef info);
 
@@ -153,9 +153,10 @@ extern "C" struct SourceInfo Kotlin_getSourceInfo(void* addr) {
      */
     CSSymbolForeachSourceInfo(symbol,
       ^(CSSourceInfoRef ref) {
-        int32_t lineNumber = CSSourceInfoGetLineNumber(ref);
+        uint32_t lineNumber = CSSourceInfoGetLineNumber(ref);
         if (lineNumber == 0)
           return 0;
+        RuntimeAssert(lineNumber <= static_cast<uint32_t>(std::numeric_limits<int32_t>::max()), "Unexpectedly huge line number");
         if (limits.start == -1) {
           limits.start = lineNumber;
           limits.fileName = CSSourceInfoGetPath(ref);
@@ -170,9 +171,10 @@ extern "C" struct SourceInfo Kotlin_getSourceInfo(void* addr) {
 
     CSSymbolForeachSourceInfo(symbol,
       ^(CSSourceInfoRef ref) {
-          int32_t lineNumber = CSSourceInfoGetLineNumber(ref);
+          uint32_t lineNumber = CSSourceInfoGetLineNumber(ref);
           if (lineNumber == 0)
             return 0;
+          RuntimeAssert(lineNumber <= static_cast<uint32_t>(std::numeric_limits<int32_t>::max()), "Unexpectedly huge line number");
           SYM_DUMP(ref);
           CSRange range = CSSourceInfoGetRange(ref);
           const char* fileName = CSSourceInfoGetPath(ref);
@@ -183,8 +185,8 @@ extern "C" struct SourceInfo Kotlin_getSourceInfo(void* addr) {
            */
           if (continueUpdateResult
               && strcmp(limits.fileName, fileName) == 0
-              && lineNumber >= limits.start
-              && lineNumber <= limits.end) {
+              && static_cast<int32_t>(lineNumber) >= limits.start
+              && static_cast<int32_t>(lineNumber) <= limits.end) {
             result.lineNumber = lineNumber;
             result.column = CSSourceInfoGetColumn(ref);
           }
