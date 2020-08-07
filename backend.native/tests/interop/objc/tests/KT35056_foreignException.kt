@@ -1,6 +1,5 @@
 import kotlin.test.*
 import objcTests.*
-import kotlin.native.ForeignException
 import kotlinx.cinterop.*
 
 

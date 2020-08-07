@@ -8,6 +8,7 @@ package kotlin.native.internal
 import kotlin.internal.getProgressionLastElement
 import kotlin.reflect.KClass
 import kotlinx.cinterop.interpretObjCPointerOrNull
+import kotlinx.cinterop.ForeignException
 
 @ExportForCppRuntime
 fun ThrowNullPointerException(): Nothing {
@@ -44,10 +45,10 @@ fun ThrowKotlinNothingValueException(): Nothing {
 fun ThrowInvalidReceiverTypeException(klass: KClass<*>): Nothing {
     throw RuntimeException("Unexpected receiver type: " + (klass.qualifiedName ?: "noname"))
 }
-
-@ExportForCppRuntime
-fun CreateForeignException(payload: NativePtr): Throwable
-        = ForeignException(interpretObjCPointerOrNull<Any?>(payload))
+//
+//@ExportForCppRuntime
+//fun CreateForeignException(payload: NativePtr): Throwable
+//        = ForeignException(interpretObjCPointerOrNull<Any?>(payload))
 
 @ExportForCppRuntime
 internal fun ThrowArithmeticException() : Nothing {

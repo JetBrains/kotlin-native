@@ -194,6 +194,8 @@ internal class KonanSymbols(
     val interopCreateNSStringFromKString =
             symbolTable.referenceSimpleFunction(context.interopBuiltIns.CreateNSStringFromKString)
 
+    val createForeignException = interopFunction("CreateForeignException")
+
     val interopObjCGetSelector = interopFunction("objCGetSelector")
 
     val interopCEnumVar = interopClass("CEnumVar")
@@ -263,7 +265,6 @@ internal class KonanSymbols(
     override val ThrowKotlinNothingValueException  = internalFunction("ThrowKotlinNothingValueException")
 
     val throwClassCastException = internalFunction("ThrowClassCastException")
-    val createForeignException = internalFunction("CreateForeignException")
 
     val throwInvalidReceiverTypeException = internalFunction("ThrowInvalidReceiverTypeException")
     val throwIllegalStateException = internalFunction("ThrowIllegalStateException")

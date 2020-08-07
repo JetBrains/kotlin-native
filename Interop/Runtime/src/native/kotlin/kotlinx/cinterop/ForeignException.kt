@@ -2,10 +2,9 @@
  * Copyright 2010-2018 JetBrains s.r.o. Use of this source code is governed by the Apache 2.0 license
  * that can be found in the LICENSE file.
  */
-package kotlin.native
+package kotlinx.cinterop
 
-//import kotlin.Exception
-//import kotlinx.cinterop.*
+import kotlin.native.internal.ExportForCppRuntime
 
 public class ForeignException internal constructor(val nativeException: Any?): Exception() {
     override val message: String = nativeException?.let {
@@ -16,3 +15,7 @@ public class ForeignException internal constructor(val nativeException: Any?): E
     @SymbolName("Kotlin_ObjCExport_ExceptionDetails")
     private external fun kotlin_ObjCExport_ExceptionDetails(nativeException: Any): String?
 }
+
+@ExportForCppRuntime
+fun CreateForeignException(payload: NativePtr): Throwable
+        = ForeignException(interpretObjCPointerOrNull<Any?>(payload))

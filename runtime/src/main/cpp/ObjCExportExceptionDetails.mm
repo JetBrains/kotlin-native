@@ -14,11 +14,11 @@
  * limitations under the License.
  */
 
-#if KONAN_OBJC_INTEROP
-
+#import "Memory.h"
 #import "ObjCExportExceptionDetails.h"
 #import "ObjCExport.h"
-#import "Memory.h"
+
+#if KONAN_OBJC_INTEROP
 
 #import <Foundation/NSException.h>
 
@@ -30,6 +30,12 @@ OBJ_GETTER(Kotlin_ObjCExport_ExceptionDetails, KRef /*thiz*/, KRef exceptionHold
     RETURN_RESULT_OF(Kotlin_Interop_CreateKStringFromNSString, ret);
   }
 
+  RETURN_OBJ(nullptr);
+}
+
+#else // KONAN_OBJC_INTEROP
+
+OBJ_GETTER(Kotlin_ObjCExport_ExceptionDetails, KRef /*thiz*/, KRef /*exceptionHolder*/) {
   RETURN_OBJ(nullptr);
 }
 

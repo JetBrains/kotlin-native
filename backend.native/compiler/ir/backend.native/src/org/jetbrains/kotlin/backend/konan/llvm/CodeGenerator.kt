@@ -628,9 +628,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             LLVMAddClause(landingpad, objcNSExceptionRtti.llvm)
             LLVMAddClause(landingpad, LLVMConstNull(kInt8Ptr))
 
-            val foreignExceptionBlock = basicBlock("foreignException", position()?.start)
             val fatalForeignExceptionBlock = basicBlock("fatalForeignException", position()?.start)
-            val forwardNativeExceptionBlock = basicBlock("forwardNativeException", position()?.start)
             val forwardKotlinExceptionBlock = basicBlock("forwardKotlinException", position()?.start)
 
             val typeId = extractValue(landingpad, 1)
@@ -639,24 +637,30 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                     call(context.llvm.llvmEhTypeidFor, listOf(kotlinExceptionRtti.llvm))
             )
 
-            condBr(isKotlinException, forwardKotlinExceptionBlock, foreignExceptionBlock)
+            if (context.config.target.family.isAppleFamily) {
+                val foreignExceptionBlock = basicBlock("foreignException", position()?.start)
+                val forwardNativeExceptionBlock = basicBlock("forwardNativeException", position()?.start)
 
-            appendingTo(foreignExceptionBlock) {
-                val isObjCException = icmpEq(
-                        typeId,
-                        call(context.llvm.llvmEhTypeidFor, listOf(objcNSExceptionRtti.llvm))
-                )
-                condBr(isObjCException, forwardNativeExceptionBlock, fatalForeignExceptionBlock)
+                condBr(isKotlinException, forwardKotlinExceptionBlock, foreignExceptionBlock)
+                appendingTo(foreignExceptionBlock) {
+                    val isObjCException = icmpEq(
+                            typeId,
+                            call(context.llvm.llvmEhTypeidFor, listOf(objcNSExceptionRtti.llvm))
+                    )
+                    condBr(isObjCException, forwardNativeExceptionBlock, fatalForeignExceptionBlock)
+
+                    appendingTo(forwardNativeExceptionBlock) {
+                        val exception = createForeignException(landingpad, codeContext.exceptionHandler)
+                        codeContext.genThrow(exception)
+                    }
+                }
+            } else {
+                condBr(isKotlinException, forwardKotlinExceptionBlock, fatalForeignExceptionBlock)
             }
 
             appendingTo(forwardKotlinExceptionBlock) {
                 // Rethrow Kotlin exception to real handler.
                 codeContext.genThrow(extractKotlinException(landingpad))
-            }
-
-            appendingTo(forwardNativeExceptionBlock) {
-                val exception = createForeignException(landingpad, codeContext.exceptionHandler)
-                codeContext.genThrow(exception)
             }
 
             appendingTo(fatalForeignExceptionBlock) {
@@ -1218,12 +1222,13 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                 origin = context.stdlibModule.llvmSymbolOrigin
         )).bitcast(int8TypePtr)
 
-    private val objcNSExceptionRtti: ConstPointer
-        get() = constPointer(importGlobal(
+    private val objcNSExceptionRtti: ConstPointer by lazy {
+        constPointer(importGlobal(
                 "OBJC_EHTYPE_\$_NSException", // typeinfo for NSException*
                 int8TypePtr,
                 origin = context.stdlibModule.llvmSymbolOrigin
         )).bitcast(int8TypePtr)
+    }
 
     //-------------------------------------------------------------------------//
 
