@@ -754,9 +754,11 @@ OBJ_GETTER(Kotlin_String_plusImpl, KString thiz, KString other) {
   RuntimeAssert(other != nullptr, "other cannot be null");
   RuntimeAssert(thiz->type_info() == theStringTypeInfo, "Must be a string");
   RuntimeAssert(other->type_info() == theStringTypeInfo, "Must be a string");
+  RuntimeAssert(thiz->count_ <= static_cast<uint32_t>(std::numeric_limits<int32_t>::max()), "this cannot be this large");
+  RuntimeAssert(other->count_ <= static_cast<uint32_t>(std::numeric_limits<int32_t>::max()), "other cannot be this large");
+  // Since thiz and other sizes are bounded by int32_t max value, their sum cannot exceed uint32_t max value - 1.
   uint32_t result_length = thiz->count_ + other->count_;
-  if (result_length < thiz->count_ || result_length < other->count_ ||
-      result_length > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())) {
+  if (result_length > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())) {
     ThrowArrayIndexOutOfBoundsException();
   }
   ArrayHeader* result = AllocArrayInstance(theStringTypeInfo, result_length, OBJ_RESULT)->array();
