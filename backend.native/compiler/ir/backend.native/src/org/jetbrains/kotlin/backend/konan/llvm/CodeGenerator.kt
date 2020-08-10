@@ -625,7 +625,9 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         appendingTo(lpBlock) {
             val landingpad = gxxLandingpad(2)
             LLVMAddClause(landingpad, kotlinExceptionRtti.llvm)
-            LLVMAddClause(landingpad, objcNSExceptionRtti.llvm)
+            if (context.config.target.family.isAppleFamily) {
+                LLVMAddClause(landingpad, objcNSExceptionRtti.llvm)
+            }
             LLVMAddClause(landingpad, LLVMConstNull(kInt8Ptr))
 
             val fatalForeignExceptionBlock = basicBlock("fatalForeignException", position()?.start)
