@@ -256,7 +256,7 @@ internal class KonanSymbols(
 
     override val throwNullPointerException = internalFunction("ThrowNullPointerException")
 
-    val throwNoWhenBranchMatchedException = internalFunction("ThrowNoWhenBranchMatchedException")
+    override val throwNoWhenBranchMatchedException = internalFunction("ThrowNoWhenBranchMatchedException")
 
     override val throwTypeCastException = internalFunction("ThrowTypeCastException")
 
