@@ -18,11 +18,11 @@
 
 #ifdef KONAN_CORE_SYMBOLICATION
 #include <KAssert.h>
+#include <cstdint>
 #include <dlfcn.h>
 #include <limits>
-#include <cstdint>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
 
 #define TRACE_SYMBOLICATION 0
 #if TRACE_SYMBOLICATION
@@ -153,10 +153,10 @@ extern "C" struct SourceInfo Kotlin_getSourceInfo(void* addr) {
      */
     CSSymbolForeachSourceInfo(symbol,
       ^(CSSourceInfoRef ref) {
-        uint32_t lineNumber = CSSourceInfoGetLineNumber(ref);
+        // Expecting CSSourceInfoGetLineNumber not to overflow int32_t max value.
+        int32_t lineNumber = CSSourceInfoGetLineNumber(ref);
         if (lineNumber == 0)
           return 0;
-        RuntimeAssert(lineNumber <= static_cast<uint32_t>(std::numeric_limits<int32_t>::max()), "Unexpectedly huge line number");
         if (limits.start == -1) {
           limits.start = lineNumber;
           limits.fileName = CSSourceInfoGetPath(ref);
@@ -171,10 +171,10 @@ extern "C" struct SourceInfo Kotlin_getSourceInfo(void* addr) {
 
     CSSymbolForeachSourceInfo(symbol,
       ^(CSSourceInfoRef ref) {
-          uint32_t lineNumber = CSSourceInfoGetLineNumber(ref);
+          // Expecting CSSourceInfoGetLineNumber not to overflow int32_t max value.
+          int32_t lineNumber = CSSourceInfoGetLineNumber(ref);
           if (lineNumber == 0)
             return 0;
-          RuntimeAssert(lineNumber <= static_cast<uint32_t>(std::numeric_limits<int32_t>::max()), "Unexpectedly huge line number");
           SYM_DUMP(ref);
           CSRange range = CSSourceInfoGetRange(ref);
           const char* fileName = CSSourceInfoGetPath(ref);
@@ -185,8 +185,8 @@ extern "C" struct SourceInfo Kotlin_getSourceInfo(void* addr) {
            */
           if (continueUpdateResult
               && strcmp(limits.fileName, fileName) == 0
-              && static_cast<int32_t>(lineNumber) >= limits.start
-              && static_cast<int32_t>(lineNumber) <= limits.end) {
+              && lineNumber >= limits.start
+              && lineNumber <= limits.end) {
             result.lineNumber = lineNumber;
             result.column = CSSourceInfoGetColumn(ref);
           }
