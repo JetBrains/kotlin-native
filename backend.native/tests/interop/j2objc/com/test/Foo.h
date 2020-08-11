@@ -49,4 +49,62 @@ J2OBJC_TYPE_LITERAL_HEADER(ComTestFoo)
 
 #endif
 
+#if !defined (ComTestFoo_InnerClass_) && (INCLUDE_ALL_ComTestFoo || defined(INCLUDE_ComTestFoo_InnerClass))
+#define ComTestFoo_InnerClass_
+
+@class ComTestFoo;
+
+@interface ComTestFoo_InnerClass : NSObject
+
+#pragma mark Package-Private
+
+- (instancetype)initWithComTestFoo:(ComTestFoo *)outer$;
+
+- (jdouble)myInnerFuncWithDouble:(jdouble)a
+                      withDouble:(jdouble)b;
+
+// Disallowed inherited constructors, do not use.
+
+- (instancetype)init NS_UNAVAILABLE;
+
+@end
+
+J2OBJC_EMPTY_STATIC_INIT(ComTestFoo_InnerClass)
+
+FOUNDATION_EXPORT void ComTestFoo_InnerClass_initWithComTestFoo_(ComTestFoo_InnerClass *self, ComTestFoo *outer$);
+
+FOUNDATION_EXPORT ComTestFoo_InnerClass *new_ComTestFoo_InnerClass_initWithComTestFoo_(ComTestFoo *outer$) NS_RETURNS_RETAINED;
+
+FOUNDATION_EXPORT ComTestFoo_InnerClass *create_ComTestFoo_InnerClass_initWithComTestFoo_(ComTestFoo *outer$);
+
+J2OBJC_TYPE_LITERAL_HEADER(ComTestFoo_InnerClass)
+
+#endif
+
+#if !defined (ComTestFoo_NestedClass_) && (INCLUDE_ALL_ComTestFoo || defined(INCLUDE_ComTestFoo_NestedClass))
+#define ComTestFoo_NestedClass_
+
+@interface ComTestFoo_NestedClass : NSObject
+
+#pragma mark Package-Private
+
+- (instancetype)init;
+
+- (jdouble)myNestedFuncWithDouble:(jdouble)a
+                       withDouble:(jdouble)b;
+
+@end
+
+J2OBJC_EMPTY_STATIC_INIT(ComTestFoo_NestedClass)
+
+FOUNDATION_EXPORT void ComTestFoo_NestedClass_init(ComTestFoo_NestedClass *self);
+
+FOUNDATION_EXPORT ComTestFoo_NestedClass *new_ComTestFoo_NestedClass_init(void) NS_RETURNS_RETAINED;
+
+FOUNDATION_EXPORT ComTestFoo_NestedClass *create_ComTestFoo_NestedClass_init(void);
+
+J2OBJC_TYPE_LITERAL_HEADER(ComTestFoo_NestedClass)
+
+#endif
+
 #pragma pop_macro("INCLUDE_ALL_ComTestFoo")

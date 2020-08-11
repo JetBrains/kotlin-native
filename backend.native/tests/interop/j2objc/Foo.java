@@ -16,4 +16,17 @@ public class Foo {
     static public int return100Static() {
         return 100;
     }
+
+    // TODO: Add fields to this test after PR is merged
+    class InnerClass{
+        double myInnerFunc(double a, double b) {
+            return a * b;
+        }
+    }
+
+    static class NestedClass {
+        double myNestedFunc(double a, double b) {
+            return a * b;
+        }
+    }
 }

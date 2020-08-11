@@ -55,8 +55,8 @@ J2OBJC_IGNORE_DESIGNATED_END
   methods[4].selector = @selector(returnStringWithNSString:);
   methods[5].selector = @selector(return100Static);
   #pragma clang diagnostic pop
-  static const void *ptrTable[] = { "add2", "II", "returnNum", "I", "returnString", "LNSString;" };
-  static const J2ObjcClassInfo _ComTestFoo = { "Foo", "com.test", ptrTable, methods, NULL, 7, 0x1, 6, 0, -1, -1, -1, -1, -1 };
+  static const void *ptrTable[] = { "add2", "II", "returnNum", "I", "returnString", "LNSString;", "LComTestFoo_InnerClass;LComTestFoo_NestedClass;" };
+  static const J2ObjcClassInfo _ComTestFoo = { "Foo", "com.test", ptrTable, methods, NULL, 7, 0x1, 6, 0, -1, 6, -1, -1, -1 };
   return &_ComTestFoo;
 }
 
@@ -80,3 +80,93 @@ jint ComTestFoo_return100Static() {
 }
 
 J2OBJC_CLASS_TYPE_LITERAL_SOURCE(ComTestFoo)
+
+@implementation ComTestFoo_InnerClass
+
+- (instancetype)initWithComTestFoo:(ComTestFoo *)outer$ {
+  ComTestFoo_InnerClass_initWithComTestFoo_(self, outer$);
+  return self;
+}
+
+- (jdouble)myInnerFuncWithDouble:(jdouble)a
+                      withDouble:(jdouble)b {
+  return a * b;
+}
+
++ (const J2ObjcClassInfo *)__metadata {
+  static J2ObjcMethodInfo methods[] = {
+    { NULL, NULL, 0x0, -1, 0, -1, -1, -1, -1 },
+    { NULL, "D", 0x0, 1, 2, -1, -1, -1, -1 },
+  };
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wobjc-multiple-method-names"
+  #pragma clang diagnostic ignored "-Wundeclared-selector"
+  methods[0].selector = @selector(initWithComTestFoo:);
+  methods[1].selector = @selector(myInnerFuncWithDouble:withDouble:);
+  #pragma clang diagnostic pop
+  static const void *ptrTable[] = { "LComTestFoo;", "myInnerFunc", "DD" };
+  static const J2ObjcClassInfo _ComTestFoo_InnerClass = { "InnerClass", "com.test", ptrTable, methods, NULL, 7, 0x0, 2, 0, 0, -1, -1, -1, -1 };
+  return &_ComTestFoo_InnerClass;
+}
+
+@end
+
+void ComTestFoo_InnerClass_initWithComTestFoo_(ComTestFoo_InnerClass *self, ComTestFoo *outer$) {
+  NSObject_init(self);
+}
+
+ComTestFoo_InnerClass *new_ComTestFoo_InnerClass_initWithComTestFoo_(ComTestFoo *outer$) {
+  J2OBJC_NEW_IMPL(ComTestFoo_InnerClass, initWithComTestFoo_, outer$)
+}
+
+ComTestFoo_InnerClass *create_ComTestFoo_InnerClass_initWithComTestFoo_(ComTestFoo *outer$) {
+  J2OBJC_CREATE_IMPL(ComTestFoo_InnerClass, initWithComTestFoo_, outer$)
+}
+
+J2OBJC_CLASS_TYPE_LITERAL_SOURCE(ComTestFoo_InnerClass)
+
+@implementation ComTestFoo_NestedClass
+
+J2OBJC_IGNORE_DESIGNATED_BEGIN
+- (instancetype)init {
+  ComTestFoo_NestedClass_init(self);
+  return self;
+}
+J2OBJC_IGNORE_DESIGNATED_END
+
+- (jdouble)myNestedFuncWithDouble:(jdouble)a
+                       withDouble:(jdouble)b {
+  return a * b;
+}
+
++ (const J2ObjcClassInfo *)__metadata {
+  static J2ObjcMethodInfo methods[] = {
+    { NULL, NULL, 0x0, -1, -1, -1, -1, -1, -1 },
+    { NULL, "D", 0x0, 0, 1, -1, -1, -1, -1 },
+  };
+  #pragma clang diagnostic push
+  #pragma clang diagnostic ignored "-Wobjc-multiple-method-names"
+  #pragma clang diagnostic ignored "-Wundeclared-selector"
+  methods[0].selector = @selector(init);
+  methods[1].selector = @selector(myNestedFuncWithDouble:withDouble:);
+  #pragma clang diagnostic pop
+  static const void *ptrTable[] = { "myNestedFunc", "DD", "LComTestFoo;" };
+  static const J2ObjcClassInfo _ComTestFoo_NestedClass = { "NestedClass", "com.test", ptrTable, methods, NULL, 7, 0x8, 2, 0, 2, -1, -1, -1, -1 };
+  return &_ComTestFoo_NestedClass;
+}
+
+@end
+
+void ComTestFoo_NestedClass_init(ComTestFoo_NestedClass *self) {
+  NSObject_init(self);
+}
+
+ComTestFoo_NestedClass *new_ComTestFoo_NestedClass_init() {
+  J2OBJC_NEW_IMPL(ComTestFoo_NestedClass, init)
+}
+
+ComTestFoo_NestedClass *create_ComTestFoo_NestedClass_init() {
+  J2OBJC_CREATE_IMPL(ComTestFoo_NestedClass, init)
+}
+
+J2OBJC_CLASS_TYPE_LITERAL_SOURCE(ComTestFoo_NestedClass)
