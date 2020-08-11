@@ -682,6 +682,8 @@ KNativePtr Kotlin_Arrays_getByteArrayAddressOfElement(KRef thiz, KInt index) {
 
 KNativePtr Kotlin_Arrays_getCharArrayAddressOfElement (KRef thiz, KInt index) {
   ArrayHeader* array = thiz->array();
+  boundsCheck(array, index);
+
   return CharArrayAddressOfElementAt(array, index);
 }
 
