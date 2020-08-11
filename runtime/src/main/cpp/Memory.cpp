@@ -22,6 +22,14 @@
 // Allow concurrent global cycle collector.
 #define USE_CYCLIC_GC 0
 
+// CycleDetector internally uses static local with runtime initialization,
+// which requires atomics. Atomics are not available on WASM.
+#ifdef KONAN_WASM
+#define USE_CYCLE_DETECTOR 0
+#else
+#define USE_CYCLE_DETECTOR 1
+#endif
+
 #include "Alloc.h"
 #include "KAssert.h"
 #include "Atomic.h"
@@ -164,9 +172,7 @@ class ScopedRefHolder {
   KRef obj_ = nullptr;
 };
 
-// CycleDetector internally uses static local with runtime initialization,
-// which requires atomics. Atomics are not available on WASM.
-#ifndef KONAN_WASM
+#if USE_CYCLE_DETECTOR
 
 struct CycleDetectorRootset {
   // Orders roots.
@@ -234,7 +240,7 @@ class CycleDetector {
   KStdUnorderedMap<KRef, CandidateList::iterator> candidateInList_;
 };
 
-#endif  // KONAN_WASM
+#endif  // USE_CYCLE_DETECTOR
 
 // TODO: can we pass this variable as an explicit argument?
 THREAD_LOCAL_VARIABLE MemoryState* memoryState = nullptr;
@@ -1071,9 +1077,9 @@ ALWAYS_INLINE void runDeallocationHooks(ContainerHeader* container) {
       cyclicRemoveAtomicRoot(obj);
     }
 #endif  // USE_CYCLIC_GC
-#ifndef KONAN_WASM
+#if USE_CYCLE_DETECTOR
     CycleDetector::removeCandidateIfNeeded(obj);
-#endif  // KONAN_WASM
+#endif  // USE_CYCLE_DETECTOR
     if (obj->has_meta_object()) {
       ObjHeader::destroyMetaObject(&obj->typeInfoOrMeta_);
     }
@@ -2143,9 +2149,9 @@ OBJ_GETTER(allocInstance, const TypeInfo* type_info) {
     makeShareable(container.header());
   }
 #endif  // USE_GC
-#ifndef KONAN_WASM
+#if USE_CYCLE_DETECTOR
   CycleDetector::insertCandidateIfNeeded(obj);
-#endif  // KONAN_WASM
+#endif  // USE_CYCLE_DETECTOR
 #if USE_CYCLIC_GC
   if ((obj->type_info()->flags_ & TF_LEAK_DETECTOR_CANDIDATE) != 0) {
     // Note: this should be performed after [rememberNewContainer] (above).
@@ -2837,7 +2843,7 @@ ScopedRefHolder::~ScopedRefHolder() {
   }
 }
 
-#ifndef KONAN_WASM
+#if USE_CYCLE_DETECTOR
 
 // static
 CycleDetectorRootset CycleDetector::collectRootset() {
@@ -2946,7 +2952,7 @@ OBJ_GETTER(findCycle, KRef root) {
   RETURN_RESULT_OF(createAndFillArray, cycle);
 }
 
-#endif  // KONAN_WASM
+#endif  // USE_CYCLE_DETECTOR
 
 }  // namespace
 
@@ -3376,19 +3382,19 @@ KBoolean Kotlin_native_internal_GC_getTuneThreshold(KRef) {
 }
 
 OBJ_GETTER(Kotlin_native_internal_GC_detectCycles, KRef) {
-#ifdef KONAN_WASM
-  RETURN_OBJ(nullptr);
-#else
+#if USE_CYCLE_DETECTOR
   if (!KonanNeedDebugInfo || !Kotlin_memoryLeakCheckerEnabled()) RETURN_OBJ(nullptr);
   RETURN_RESULT_OF0(detectCyclicReferences);
+#else
+  RETURN_OBJ(nullptr);
 #endif
 }
 
 OBJ_GETTER(Kotlin_native_internal_GC_findCycle, KRef, KRef root) {
-#ifdef KONAN_WASM
-  RETURN_OBJ(nullptr);
-#else
+#if USE_CYCLE_DETECTOR
   RETURN_RESULT_OF(findCycle, root);
+#else
+  RETURN_OBJ(nullptr);
 #endif
 }
 
