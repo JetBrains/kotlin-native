@@ -1,3 +1,15 @@
+# v1.4.0 (Aug 2020)
+  * Objective-C/Swift interop:
+    * Reworked exception handling ([GH-4191](https://github.com/JetBrains/kotlin-native/pull/4191))
+    * Enabled support for Objective-C generics by default ([GH-3778](https://github.com/JetBrains/kotlin-native/pull/3778))
+    * Support for Kotlin’s suspending functions ([GH-3915](https://github.com/JetBrains/kotlin-native/pull/3915))
+    * .dSYMs for release binaries ([GH-4085](https://github.com/JetBrains/kotlin-native/pull/4085))
+  * Added native-specific frontend checkers (implemented in the main Kotlin repository: [GH-3293](https://github.com/JetBrains/kotlin/pull/3293), [GH-3091](https://github.com/JetBrains/kotlin/pull/3091), [GH-3172](https://github.com/JetBrains/kotlin/pull/3172))
+  * Reworked cinterop under the hood
+  * Experimental faster memory allocator (`-Xallocator=mimalloc`) ([Native-3704](https://github.com/JetBrains/kotlin-native/pull/3704))
+  * Optimized garbage collector
+  * Various fixes to compiler caches and Gradle daemon usage
+
 # v1.4.0-M3 (Jun 2020)
   * Tune GC to improve execution time performance ([`KT-19076`](https://youtrack.jetbrains.com/issue/KT-19076)).
   * Handle variadic block types in ObjC interop ([`KT-36766`](https://youtrack.jetbrains.com/issue/KT-36766))
