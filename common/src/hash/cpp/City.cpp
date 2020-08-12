@@ -115,11 +115,11 @@ uint64_t HashLen0to16(const char *s, size_t len) {
     return HashLen16(len + (a << 3), Fetch32(s + len - 4), mul);
   }
   if (len > 0) {
-    uint8_t a = s[0];
-    uint8_t b = s[len >> 1];
-    uint8_t c = s[len - 1];
+    char a = s[0];
+    char b = s[len >> 1];
+    char c = s[len - 1];
     uint32_t y = static_cast<uint32_t>(a) + (static_cast<uint32_t>(b) << 8);
-    uint32_t z = len + (static_cast<uint32_t>(c) << 2);
+    uint32_t z = static_cast<uint32_t>(len) + (static_cast<uint32_t>(c) << 2);
     return ShiftMix(y * k2 ^ z * k0) * k2;
   }
   return k2;
@@ -187,16 +187,16 @@ uint64_t HashLen33to64(const char *s, size_t len) {
 
 extern "C" {
 
-uint64_t CityHash64(const void* data, size_t len) {
+int64_t CityHash64(const void* data, size_t len) {
   const char* s = reinterpret_cast<const char*>(data);
   if (len <= 32) {
     if (len <= 16) {
-      return HashLen0to16(s, len);
+      return static_cast<int64_t>(HashLen0to16(s, len));
     } else {
-      return HashLen17to32(s, len);
+      return static_cast<int64_t>(HashLen17to32(s, len));
     }
   } else if (len <= 64) {
-    return HashLen33to64(s, len);
+    return static_cast<int64_t>(HashLen33to64(s, len));
   }
 
   // For strings over 64 bytes we hash the end first, and then as we
@@ -222,8 +222,9 @@ uint64_t CityHash64(const void* data, size_t len) {
     s += 64;
     len -= 64;
   } while (len != 0);
-  return HashLen16(HashLen16(v.first, w.first) + ShiftMix(y) * k1 + z,
-                   HashLen16(v.second, w.second) + x);
+  auto result = HashLen16(HashLen16(v.first, w.first) + ShiftMix(y) * k1 + z,
+                          HashLen16(v.second, w.second) + x);
+  return static_cast<int64_t>(result);
 }
 
 } // extern "C"

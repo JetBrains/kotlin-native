@@ -335,7 +335,7 @@ class State {
     return future;
   }
 
-  bool executeJobAfterInWorkerUnlocked(KInt id, KRef operation, KLong afterMicroseconds) {
+  bool executeJobAfterInWorkerUnlocked(KInt id, KRef operation, KULong afterMicroseconds) {
     Worker* worker = nullptr;
     Locker locker(&lock_);
 
@@ -425,7 +425,7 @@ class State {
       return true;
     }
 
-    uint64_t nsDelta = millis * 1000000LL;
+    int64_t nsDelta = millis * 1000000LL;
     WaitOnCondVar(&cond_, &lock_, nsDelta);
     return true;
   }
@@ -570,7 +570,7 @@ KInt execute(KInt id, KInt transferMode, KRef producer, KNativePtr jobFunction) 
   return future->id();
 }
 
-void executeAfter(KInt id, KRef job, KLong afterMicroseconds) {
+void executeAfter(KInt id, KRef job, KULong afterMicroseconds) {
   if (!theState()->executeJobAfterInWorkerUnlocked(id, job, afterMicroseconds))
     ThrowWorkerInvalidState();
 }
@@ -638,7 +638,7 @@ KInt execute(KInt id, KInt transferMode, KRef producer, KNativePtr jobFunction) 
   ThrowWorkerUnsupported();
 }
 
-void executeAfter(KInt id, KRef job, KLong afterMicroseconds) {
+void executeAfter(KInt id, KRef job, KULong afterMicroseconds) {
   ThrowWorkerUnsupported();
 }
 
@@ -848,7 +848,7 @@ KLong Worker::checkDelayedLocked() {
     queue_.push_back(job);
     return 0;
   } else {
-    return job.executeAfter.whenExecute - now;
+    return static_cast<KLong>(job.executeAfter.whenExecute - now);
   }
 }
 
@@ -869,8 +869,8 @@ bool Worker::waitForQueueLocked(KLong timeoutMicroseconds, KLong* remaining) {
       // Protect from potential overflow, cutting at 10_000_000 seconds, aka 115 days.
       if (closestToRunMicroseconds > 10LL * 1000 * 1000 * 1000 * 1000)
         closestToRunMicroseconds = 10LL * 1000 * 1000 * 1000 * 1000;
-      uint64_t nsDelta = closestToRunMicroseconds * 1000LL;
-      uint64_t microsecondsPassed = 0;
+      int64_t nsDelta = closestToRunMicroseconds * 1000LL;
+      int64_t microsecondsPassed = 0;
       WaitOnCondVar(&cond_, &lock_, nsDelta, remaining ? &microsecondsPassed : nullptr);
       if (remaining) {
         *remaining = timeoutMicroseconds - microsecondsPassed;
@@ -986,7 +986,7 @@ KInt Kotlin_Worker_executeInternal(KInt id, KInt transferMode, KRef producer, KN
 }
 
 void Kotlin_Worker_executeAfterInternal(KInt id, KRef job, KLong afterMicroseconds) {
-  executeAfter(id, job, afterMicroseconds);
+  executeAfter(id, job, static_cast<KULong>(afterMicroseconds));
 }
 
 KBoolean Kotlin_Worker_processQueueInternal(KInt id) {

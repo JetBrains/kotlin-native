@@ -28,11 +28,16 @@ DEALINGS IN THE SOFTWARE.
 #ifndef UTF8_FOR_CPP_2675DCD0_9480_4c0c_B92A_CC14C027B731
 #define UTF8_FOR_CPP_2675DCD0_9480_4c0c_B92A_CC14C027B731
 
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wconversion"
+
 #include "utf8/unchecked.h"
 #include "utf8/with_replacement.h"
 
 #if !KONAN_NO_EXCEPTIONS
 #include "utf8/checked.h"
 #endif
+
+#pragma clang diagnostic pop
 
 #endif // header guard

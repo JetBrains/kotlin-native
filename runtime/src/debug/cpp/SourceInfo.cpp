@@ -154,7 +154,7 @@ extern "C" struct SourceInfo Kotlin_getSourceInfo(void* addr) {
     CSSymbolForeachSourceInfo(symbol,
       ^(CSSourceInfoRef ref) {
         // Expecting CSSourceInfoGetLineNumber not to overflow int32_t max value.
-        int32_t lineNumber = CSSourceInfoGetLineNumber(ref);
+        auto lineNumber = static_cast<int32_t>(CSSourceInfoGetLineNumber(ref));
         if (lineNumber == 0)
           return 0;
         if (limits.start == -1) {
@@ -172,7 +172,7 @@ extern "C" struct SourceInfo Kotlin_getSourceInfo(void* addr) {
     CSSymbolForeachSourceInfo(symbol,
       ^(CSSourceInfoRef ref) {
           // Expecting CSSourceInfoGetLineNumber not to overflow int32_t max value.
-          int32_t lineNumber = CSSourceInfoGetLineNumber(ref);
+          auto lineNumber = static_cast<int32_t>(CSSourceInfoGetLineNumber(ref));
           if (lineNumber == 0)
             return 0;
           SYM_DUMP(ref);
@@ -188,7 +188,8 @@ extern "C" struct SourceInfo Kotlin_getSourceInfo(void* addr) {
               && lineNumber >= limits.start
               && lineNumber <= limits.end) {
             result.lineNumber = lineNumber;
-            result.column = CSSourceInfoGetColumn(ref);
+            // Expecting CSSourceInfoGetColumn not to overflow int32_t max value.
+            result.column = static_cast<int32_t>(CSSourceInfoGetColumn(ref));
           }
           /**
            * if found right inlined function don't bother with

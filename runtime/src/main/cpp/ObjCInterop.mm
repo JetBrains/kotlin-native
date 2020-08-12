@@ -58,7 +58,7 @@ static inline struct KotlinClassData* GetKotlinClassData(Class clazz) {
 namespace {
 
 BackRefFromAssociatedObject* getBackRef(id obj, KotlinClassData* classData) {
-  void* body = reinterpret_cast<void*>(reinterpret_cast<uintptr_t>(obj) + classData->bodyOffset);
+  void* body = reinterpret_cast<void*>(reinterpret_cast<intptr_t>(obj) + classData->bodyOffset);
   return reinterpret_cast<BackRefFromAssociatedObject*>(body);
 }
 
@@ -268,9 +268,9 @@ void* CreateKotlinObjCClass(const KotlinObjCClassInfo* info) {
 
   SetKotlinTypeInfo(newClass, Kotlin_ObjCExport_createTypeInfoWithKotlinFieldsFrom(newClass, info->typeInfo));
 
-  int bodySize = sizeof(BackRefFromAssociatedObject);
+  size_t bodySize = sizeof(BackRefFromAssociatedObject);
   char bodyTypeEncoding[16];
-  snprintf(bodyTypeEncoding, sizeof(bodyTypeEncoding), "[%dc]", bodySize);
+  snprintf(bodyTypeEncoding, sizeof(bodyTypeEncoding), "[%luc]", bodySize);
   BOOL added = class_addIvar(newClass, "kotlinBody", bodySize, /* log2(align) = */ 3, bodyTypeEncoding);
   RuntimeAssert(added == YES, "Unable to add ivar to Objective-C class");
 

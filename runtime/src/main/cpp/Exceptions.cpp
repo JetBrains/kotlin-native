@@ -57,7 +57,7 @@ int32_t currentUnhandledExceptionHookCookie = 0;
 #if USE_GCC_UNWIND
 struct Backtrace {
   Backtrace(int count, int skip) : index(0), skipCount(skip) {
-    uint32_t size = count - skipCount;
+    int size = count - skipCount;
     if (size < 0) {
       size = 0;
     }
@@ -157,11 +157,11 @@ OBJ_GETTER(GetStackTraceStrings, KConstRef stackTrace) {
   UpdateHeapRef(ArrayAddressOfElementAt(result->array(), 0), holder.obj());
   return result;
 #else
-  uint32_t size = stackTrace->array()->count_;
+  auto size = static_cast<int32_t>(stackTrace->array()->count_);
   ObjHolder resultHolder;
   ObjHeader* strings = AllocArrayInstance(theArrayTypeInfo, size, resultHolder.slot());
 #if USE_GCC_UNWIND
-  for (uint32_t index = 0; index < size; ++index) {
+  for (int32_t index = 0; index < size; ++index) {
     KNativePtr address = Kotlin_NativePtrArray_get(stackTrace, index);
     char symbol[512];
     if (!AddressToSymbol((const void*) address, symbol, sizeof(symbol))) {
@@ -179,7 +179,7 @@ OBJ_GETTER(GetStackTraceStrings, KConstRef stackTrace) {
     char **symbols = backtrace_symbols(PrimitiveArrayAddressOfElementAt<KNativePtr>(stackTrace->array(), 0), size);
     RuntimeCheck(symbols != nullptr, "Not enough memory to retrieve the stacktrace");
 
-    for (uint32_t index = 0; index < size; ++index) {
+    for (int32_t index = 0; index < size; ++index) {
       auto sourceInfo = getSourceInfo(stackTrace, index);
       const char* symbol = symbols[index];
       const char* result;

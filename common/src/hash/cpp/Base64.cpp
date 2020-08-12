@@ -133,13 +133,14 @@ int DecodeBase64(
   uint8_t* out = reinterpret_cast<uint8_t*>(outBuf);
   const char* end = in + inLen;
   char iter = 0;
-  size_t buf = 0, len = 0;
+  size_t buf = 0;
+  uint32_t len = 0;
 
   while (in < end) {
     // char may be a signed type. Explicitly convert it to an unsigned byte,
     // so that indexing into kDecode array is safe. The latter has exactly
     // 256 elements, so any unsigned byte value is valid.
-    uint8_t index = *in++;
+    auto index = static_cast<uint8_t>(*in++);
     unsigned char c = kDecode[index];
 
     switch (c) {

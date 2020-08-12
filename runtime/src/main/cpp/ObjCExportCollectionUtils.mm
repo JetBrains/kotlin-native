@@ -48,7 +48,7 @@ static inline KInt objCSizeToKotlinOrThrow(NSUInteger size) {
     Kotlin_ObjCExport_ThrowCollectionTooLarge();
   }
 
-  return size;
+  return static_cast<KInt>(size);
 }
 
 // Exported to ObjCExportUtils.kt:
@@ -60,20 +60,20 @@ extern "C" KInt Kotlin_NSArrayAsKList_getSize(KRef obj) {
 
 extern "C" OBJ_GETTER(Kotlin_NSArrayAsKList_get, KRef obj, KInt index) {
   NSArray* array = (NSArray*) GetAssociatedObject(obj);
-  id element = [array objectAtIndex:index];
+  id element = [array objectAtIndex:static_cast<NSUInteger>(index)];
   RETURN_RESULT_OF(refFromObjCOrNSNull, element);
 }
 
 extern "C" void Kotlin_NSMutableArrayAsKMutableList_add(KRef thiz, KInt index, KRef element) {
   NSMutableArray* mutableArray = (NSMutableArray*) GetAssociatedObject(thiz);
-  [mutableArray insertObject:refToObjCOrNSNull(element) atIndex:index];
+  [mutableArray insertObject:refToObjCOrNSNull(element) atIndex:static_cast<NSUInteger>(index)];
 }
 
 extern "C" OBJ_GETTER(Kotlin_NSMutableArrayAsKMutableList_removeAt, KRef thiz, KInt index) {
   NSMutableArray* mutableArray = (NSMutableArray*) GetAssociatedObject(thiz);
 
-  KRef res = refFromObjCOrNSNull([mutableArray objectAtIndex:index], OBJ_RESULT);
-  [mutableArray removeObjectAtIndex:index];
+  KRef res = refFromObjCOrNSNull([mutableArray objectAtIndex:static_cast<NSUInteger>(index)], OBJ_RESULT);
+  [mutableArray removeObjectAtIndex:static_cast<NSUInteger>(index)];
 
   return res;
 }
@@ -81,8 +81,8 @@ extern "C" OBJ_GETTER(Kotlin_NSMutableArrayAsKMutableList_removeAt, KRef thiz, K
 extern "C" OBJ_GETTER(Kotlin_NSMutableArrayAsKMutableList_set, KRef thiz, KInt index, KRef element) {
   NSMutableArray* mutableArray = (NSMutableArray*) GetAssociatedObject(thiz);
 
-  KRef res = refFromObjCOrNSNull([mutableArray objectAtIndex:index], OBJ_RESULT);
-  [mutableArray replaceObjectAtIndex:index withObject:refToObjCOrNSNull(element)];
+  KRef res = refFromObjCOrNSNull([mutableArray objectAtIndex:static_cast<NSUInteger>(index)], OBJ_RESULT);
+  [mutableArray replaceObjectAtIndex:static_cast<NSUInteger>(index) withObject:refToObjCOrNSNull(element)];
 
   return res;
 }

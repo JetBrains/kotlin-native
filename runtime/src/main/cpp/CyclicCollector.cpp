@@ -91,13 +91,13 @@ inline void traverseObjectFields(ObjHeader* obj, func process) {
   if (typeInfo != theArrayTypeInfo) {
     for (int index = 0; index < typeInfo->objOffsetsCount_; index++) {
       ObjHeader** location = reinterpret_cast<ObjHeader**>(
-          reinterpret_cast<uintptr_t>(obj) + typeInfo->objOffsets_[index]);
+          reinterpret_cast<intptr_t>(obj) + typeInfo->objOffsets_[index]);
       process(location);
     }
   } else {
     ArrayHeader* array = obj->array();
     for (uint32_t index = 0; index < array->count_; index++) {
-      process(ArrayAddressOfElementAt(array, index));
+      process(ArrayAddressOfElementAt(array, static_cast<KInt>(index)));
     }
   }
 }
@@ -181,7 +181,7 @@ class CyclicCollector {
          COLLECTOR_LOG("start cycle GC\n");
          if (restartCount > 10 && !terminateCollector_) {
            COLLECTOR_LOG("wait for some time to avoid GC thrashing\n");
-           uint64_t nsDelta = 1000LL * 1000LL * (restartCount - 10);
+           int64_t nsDelta = 1000LL * 1000LL * (restartCount - 10);
            WaitOnCondVar(&cond_, &lock_, nsDelta);
          }
          atomicSet(&mutatedAtomics_, 0);
@@ -362,7 +362,7 @@ class CyclicCollector {
     auto tick = atomicAdd(&currentTick_, 1);
     auto delta = tick - atomicGet(&lastTick_);
     if (delta > 10 || delta < 0) {
-      auto currentTimestampUs = konan::getTimeMicros();
+      auto currentTimestampUs = static_cast<int64_t>(konan::getTimeMicros());
 #if KONAN_NO_64BIT_ATOMIC
       if (currentTimestampUs - *(volatile int64_t*)&lastTimestampUs_ > 10000) {
 #else

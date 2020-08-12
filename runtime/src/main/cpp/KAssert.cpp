@@ -24,6 +24,6 @@ void RuntimeAssertFailed(const char* location, const char* message) {
       konan::snprintf(buf, sizeof(buf), "%s: runtime assert: %s\n", location, message);
   else
       konan::snprintf(buf, sizeof(buf), "runtime assert: %s\n", message);
-  konan::consoleErrorUtf8(buf, konan::strnlen(buf, sizeof(buf)));
+  konan::consoleErrorUtf8(buf, static_cast<uint32_t>(konan::strnlen(buf, sizeof(buf))));
   konan::abort();
 }

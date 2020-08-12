@@ -75,7 +75,6 @@ open class CompileToBitcode @Inject constructor(@InputDirectory val srcRoot: Fil
                             "-Warray-bounds-pointer-arithmetic",
                             "-Wcast-qual",
                             "-Wconversion",
-                            "-Wfloat-equal",
                             "-Wimplicit-fallthrough",
                             "-Wstatic-in-inline",
                             "-Wswitch-enum",

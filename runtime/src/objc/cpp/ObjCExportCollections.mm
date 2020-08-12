@@ -70,7 +70,7 @@ void Kotlin_MutableList_setObject(KRef list, KInt index, KRef obj);
 
 static inline KInt objCCapacityToKotlin(NSUInteger capacity) {
   NSUInteger max = std::numeric_limits<KInt>::max();
-  return capacity > max ? max : capacity;
+  return static_cast<KInt>(capacity > max ? max : capacity);
 }
 
 static inline KInt objCIndexToKotlinOrThrow(NSUInteger index) {
@@ -78,7 +78,7 @@ static inline KInt objCIndexToKotlinOrThrow(NSUInteger index) {
     ThrowArrayIndexOutOfBoundsException();
   }
 
-  return index;
+  return static_cast<KInt>(index);
 }
 
 // Note: collections can only be iterated on and converted to Kotlin representation
@@ -192,12 +192,12 @@ static inline KInt objCIndexToKotlinOrThrow(NSUInteger index) {
 
 -(id)objectAtIndex:(NSUInteger)index {
   ObjHolder kotlinValueHolder;
-  KRef kotlinValue = Kotlin_List_get(listHolder.ref<ErrorPolicy::kTerminate>(), index, kotlinValueHolder.slot());
+  KRef kotlinValue = Kotlin_List_get(listHolder.ref<ErrorPolicy::kTerminate>(), objCIndexToKotlinOrThrow(index), kotlinValueHolder.slot());
   return refToObjCOrNSNull(kotlinValue);
 }
 
 -(NSUInteger)count {
-  return Kotlin_Collection_getSize(listHolder.ref<ErrorPolicy::kTerminate>());
+  return static_cast<NSUInteger>(Kotlin_Collection_getSize(listHolder.ref<ErrorPolicy::kTerminate>()));
 }
 
 @end;
@@ -226,12 +226,12 @@ static inline KInt objCIndexToKotlinOrThrow(NSUInteger index) {
 
 -(id)objectAtIndex:(NSUInteger)index {
   ObjHolder kotlinValueHolder;
-  KRef kotlinValue = Kotlin_List_get(listHolder.ref<ErrorPolicy::kTerminate>(), index, kotlinValueHolder.slot());
+  KRef kotlinValue = Kotlin_List_get(listHolder.ref<ErrorPolicy::kTerminate>(), objCIndexToKotlinOrThrow(index), kotlinValueHolder.slot());
   return refToObjCOrNSNull(kotlinValue);
 }
 
 -(NSUInteger)count {
-  return Kotlin_Collection_getSize(listHolder.ref<ErrorPolicy::kTerminate>());
+  return static_cast<NSUInteger>(Kotlin_Collection_getSize(listHolder.ref<ErrorPolicy::kTerminate>()));
 }
 
 - (void)insertObject:(id)anObject atIndex:(NSUInteger)index {
@@ -298,7 +298,7 @@ static inline id KSet_getElement(KRef set, id object) {
 }
 
 -(NSUInteger) count {
-  return Kotlin_Collection_getSize(setHolder.ref<ErrorPolicy::kTerminate>());
+  return static_cast<NSUInteger>(Kotlin_Collection_getSize(setHolder.ref<ErrorPolicy::kTerminate>()));
 }
 
 - (id)member:(id)object {
@@ -382,7 +382,7 @@ static inline id KSet_getElement(KRef set, id object) {
 }
 
 -(NSUInteger) count {
-  return Kotlin_Collection_getSize(setHolder.ref<ErrorPolicy::kTerminate>());
+  return static_cast<NSUInteger>(Kotlin_Collection_getSize(setHolder.ref<ErrorPolicy::kTerminate>()));
 }
 
 - (id)member:(id)object {
@@ -451,7 +451,7 @@ static inline id KMap_get(KRef map, id aKey) {
 // But that doesn't make any sense, since this class can't be arbitrary initialized.
 
 -(NSUInteger) count {
-  return Kotlin_Map_getSize(mapHolder.ref<ErrorPolicy::kTerminate>());
+  return static_cast<NSUInteger>(Kotlin_Map_getSize(mapHolder.ref<ErrorPolicy::kTerminate>()));
 }
 
 - (id)objectForKey:(id)aKey {
@@ -519,7 +519,7 @@ static inline id KMap_get(KRef map, id aKey) {
 }
 
 -(NSUInteger) count {
-  return Kotlin_Map_getSize(mapHolder.ref<ErrorPolicy::kTerminate>());
+  return static_cast<NSUInteger>(Kotlin_Map_getSize(mapHolder.ref<ErrorPolicy::kTerminate>()));
 }
 
 - (id)objectForKey:(id)aKey {

@@ -231,7 +231,7 @@ constexpr KInt decompositionKeys[] = {
 
 struct Decomposition {
   const KInt array[4];
-  const KByte length;
+  const KUByte length;
 };
 
 constexpr Decomposition decompositionValues[] = {

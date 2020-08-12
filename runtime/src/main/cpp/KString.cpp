@@ -44,7 +44,7 @@ KStdStringInserter utf16toUtf8OrThrow(const KChar* start, const KChar* end, KStd
 template<utf8to16 conversion>
 OBJ_GETTER(utf8ToUtf16Impl, const char* rawString, const char* end, uint32_t charCount) {
   if (rawString == nullptr) RETURN_OBJ(nullptr);
-  ArrayHeader* result = AllocArrayInstance(theStringTypeInfo, charCount, OBJ_RESULT)->array();
+  ArrayHeader* result = AllocArrayInstance(theStringTypeInfo, static_cast<int32_t>(charCount), OBJ_RESULT)->array();
   KChar* rawResult = CharArrayAddressOfElementAt(result, 0);
   conversion(rawString, end, rawResult);
   RETURN_OBJ(result->obj());
@@ -55,9 +55,9 @@ OBJ_GETTER(unsafeUtf16ToUtf8Impl, KString thiz, KInt start, KInt size) {
   RuntimeAssert(thiz->type_info() == theStringTypeInfo, "Must use String");
   const KChar* utf16 = CharArrayAddressOfElementAt(thiz, start);
   KStdString utf8;
-  utf8.reserve(size);
+  utf8.reserve(static_cast<size_t>(size));
   conversion(utf16, utf16 + size, back_inserter(utf8));
-  ArrayHeader* result = AllocArrayInstance(theByteArrayTypeInfo, utf8.size(), OBJ_RESULT)->array();
+  ArrayHeader* result = AllocArrayInstance(theByteArrayTypeInfo, static_cast<int32_t>(utf8.size()), OBJ_RESULT)->array();
   ::memcpy(ByteArrayAddressOfElementAt(result, 0), utf8.c_str(), utf8.size());
   RETURN_OBJ(result->obj());
 }
@@ -269,7 +269,7 @@ constexpr KByte typeValuesCache[] = {
   1, 2, 1, 2, 1, 2, 1, 2
 };
 
-constexpr KShort uppercaseValuesCache[] = {
+constexpr KChar uppercaseValuesCache[] = {
   924, 182, 183, 184, 185, 186, 187, 188, 189, 190, 191, 192, 193, 194, 195, 196,
   197, 198, 199, 200, 201, 202, 203, 204, 205, 206, 207, 208, 209, 210, 211, 212,
   213, 214, 215, 216, 217, 218, 219, 220, 221, 222, 223, 192, 193, 194, 195, 196,
@@ -324,7 +324,7 @@ constexpr KShort uppercaseValuesCache[] = {
   996, 998, 998
 };
 
-constexpr KShort lowercaseValuesCache[] = {
+constexpr KChar lowercaseValuesCache[] = {
   224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239,
   240, 241, 242, 243, 244, 245, 246, 215, 248, 249, 250, 251, 252, 253, 254, 223,
   224, 225, 226, 227, 228, 229, 230, 231, 232, 233, 234, 235, 236, 237, 238, 239,
@@ -730,18 +730,18 @@ void DisposeCString(char* cstring) {
 
 // String.kt
 OBJ_GETTER(Kotlin_String_replace, KString thiz, KChar oldChar, KChar newChar, KBoolean ignoreCase) {
-  auto count = thiz->count_;
+  auto count = static_cast<int32_t>(thiz->count_);
   ArrayHeader* result = AllocArrayInstance(theStringTypeInfo, count, OBJ_RESULT)->array();
   const KChar* thizRaw = CharArrayAddressOfElementAt(thiz, 0);
   KChar* resultRaw = CharArrayAddressOfElementAt(result, 0);
   if (ignoreCase) {
     KChar oldCharLower = towlower_Konan(oldChar);
-    for (uint32_t index = 0; index < count; ++index) {
+    for (int32_t index = 0; index < count; ++index) {
       KChar thizChar = *thizRaw++;
       *resultRaw++ = towlower_Konan(thizChar) == oldCharLower ? newChar : thizChar;
     }
   } else {
-    for (uint32_t index = 0; index < count; ++index) {
+    for (int32_t index = 0; index < count; ++index) {
       KChar thizChar = *thizRaw++;
       *resultRaw++ = thizChar == oldChar ? newChar : thizChar;
     }
@@ -761,35 +761,35 @@ OBJ_GETTER(Kotlin_String_plusImpl, KString thiz, KString other) {
   if (result_length > static_cast<uint32_t>(std::numeric_limits<int32_t>::max())) {
     ThrowArrayIndexOutOfBoundsException();
   }
-  ArrayHeader* result = AllocArrayInstance(theStringTypeInfo, result_length, OBJ_RESULT)->array();
+  ArrayHeader* result = AllocArrayInstance(theStringTypeInfo, static_cast<int32_t>(result_length), OBJ_RESULT)->array();
   memcpy(
       CharArrayAddressOfElementAt(result, 0),
       CharArrayAddressOfElementAt(thiz, 0),
       thiz->count_ * sizeof(KChar));
   memcpy(
-      CharArrayAddressOfElementAt(result, thiz->count_),
+      CharArrayAddressOfElementAt(result, static_cast<int32_t>(thiz->count_)),
       CharArrayAddressOfElementAt(other, 0),
       other->count_ * sizeof(KChar));
   RETURN_OBJ(result->obj());
 }
 
 OBJ_GETTER(Kotlin_String_toUpperCase, KString thiz) {
-  auto count = thiz->count_;
+  auto count = static_cast<int32_t>(thiz->count_);
   ArrayHeader* result = AllocArrayInstance(theStringTypeInfo, count, OBJ_RESULT)->array();
   const KChar* thizRaw = CharArrayAddressOfElementAt(thiz, 0);
   KChar* resultRaw = CharArrayAddressOfElementAt(result, 0);
-  for (uint32_t index = 0; index < count; ++index) {
+  for (int32_t index = 0; index < count; ++index) {
     *resultRaw++ = towupper_Konan(*thizRaw++);
   }
   RETURN_OBJ(result->obj());
 }
 
 OBJ_GETTER(Kotlin_String_toLowerCase, KString thiz) {
-  auto count = thiz->count_;
+  auto count = static_cast<int32_t>(thiz->count_);
   ArrayHeader* result = AllocArrayInstance(theStringTypeInfo, count, OBJ_RESULT)->array();
   const KChar* thizRaw = CharArrayAddressOfElementAt(thiz, 0);
   KChar* resultRaw = CharArrayAddressOfElementAt(result, 0);
-  for (uint32_t index = 0; index < count; ++index) {
+  for (int32_t index = 0; index < count; ++index) {
     *resultRaw++ = towlower_Konan(*thizRaw++);
   }
   RETURN_OBJ(result->obj());
@@ -806,7 +806,7 @@ OBJ_GETTER(Kotlin_String_unsafeStringFromCharArray, KConstRef thiz, KInt start, 
   ArrayHeader* result = AllocArrayInstance(theStringTypeInfo, size, OBJ_RESULT)->array();
   memcpy(CharArrayAddressOfElementAt(result, 0),
          CharArrayAddressOfElementAt(array, start),
-         size * sizeof(KChar));
+         static_cast<size_t>(size) * sizeof(KChar));
   RETURN_OBJ(result->obj());
 }
 
@@ -814,7 +814,7 @@ OBJ_GETTER(Kotlin_String_toCharArray, KString string, KInt start, KInt size) {
   ArrayHeader* result = AllocArrayInstance(theCharArrayTypeInfo, size, OBJ_RESULT)->array();
   memcpy(CharArrayAddressOfElementAt(result, 0),
          CharArrayAddressOfElementAt(string, start),
-         size * sizeof(KChar));
+         static_cast<size_t>(size) * sizeof(KChar));
   RETURN_OBJ(result->obj());
 }
 
@@ -830,7 +830,7 @@ OBJ_GETTER(Kotlin_String_subSequence, KString thiz, KInt startIndex, KInt endInd
   ArrayHeader* result = AllocArrayInstance(theStringTypeInfo, length, OBJ_RESULT)->array();
   memcpy(CharArrayAddressOfElementAt(result, 0),
          CharArrayAddressOfElementAt(thiz, startIndex),
-         length * sizeof(KChar));
+         static_cast<size_t>(length) * sizeof(KChar));
   RETURN_OBJ(result->obj());
 }
 
@@ -840,7 +840,7 @@ KInt Kotlin_String_compareTo(KString thiz, KString other) {
     CharArrayAddressOfElementAt(other, 0),
     (thiz->count_ < other->count_ ? thiz->count_ : other->count_) * sizeof(KChar));
   if (result != 0) return result;
-  int diff = thiz->count_ - other->count_;
+  int diff = static_cast<int32_t>(thiz->count_) - static_cast<int32_t>(other->count_);
   if (diff == 0) return 0;
   return diff < 0 ? -1 : 1;
 }
@@ -879,7 +879,7 @@ KChar Kotlin_String_get(KString thiz, KInt index) {
 }
 
 KInt Kotlin_String_getStringLength(KString thiz) {
-  return thiz->count_;
+  return static_cast<KInt>(thiz->count_);
 }
 
 const char* unsafeByteArrayAsCString(KConstRef thiz, KInt start, KInt size) {
@@ -893,7 +893,7 @@ OBJ_GETTER(Kotlin_ByteArray_unsafeStringFromUtf8OrThrow, KConstRef thiz, KInt st
     RETURN_RESULT_OF0(TheEmptyString);
   }
   const char* rawString = unsafeByteArrayAsCString(thiz, start, size);
-  RETURN_RESULT_OF(utf8ToUtf16OrThrow, rawString, size);
+  RETURN_RESULT_OF(utf8ToUtf16OrThrow, rawString, static_cast<size_t>(size));
 }
 
 OBJ_GETTER(Kotlin_ByteArray_unsafeStringFromUtf8, KConstRef thiz, KInt start, KInt size) {
@@ -901,7 +901,7 @@ OBJ_GETTER(Kotlin_ByteArray_unsafeStringFromUtf8, KConstRef thiz, KInt start, KI
     RETURN_RESULT_OF0(TheEmptyString);
   }
   const char* rawString = unsafeByteArrayAsCString(thiz, start, size);
-  RETURN_RESULT_OF(utf8ToUtf16, rawString, size);
+  RETURN_RESULT_OF(utf8ToUtf16, rawString, static_cast<size_t>(size));
 }
 
 OBJ_GETTER(Kotlin_String_unsafeStringToUtf8, KString thiz, KInt start, KInt size) {
@@ -918,7 +918,7 @@ KInt Kotlin_StringBuilder_insertString(KRef builder, KInt distIndex, KString fro
   RuntimeAssert(distIndex >= 0 && static_cast<uint32_t>(distIndex + count) <= toArray->count_, "must be true");
   memcpy(CharArrayAddressOfElementAt(toArray, distIndex),
          CharArrayAddressOfElementAt(fromString, sourceIndex),
-         count * sizeof(KChar));
+         static_cast<size_t>(count) * sizeof(KChar));
   return count;
 }
 
@@ -932,9 +932,9 @@ KInt Kotlin_StringBuilder_insertInt(KRef builder, KInt position, KInt value) {
   auto* from = &cstring[0];
   auto* to = CharArrayAddressOfElementAt(toArray, position);
   while (*from) {
-    *to++ = *from++;
+    *to++ = static_cast<KChar>(*from++);
   }
-  return from - cstring;
+  return static_cast<KInt>(from - cstring);
 }
 
 
@@ -1083,7 +1083,7 @@ KInt Kotlin_String_indexOfChar(KString thiz, KChar ch, KInt fromIndex) {
   if (static_cast<uint32_t>(fromIndex) > thiz->count_) {
     return -1;
   }
-  KInt count = thiz->count_;
+  auto count = static_cast<KInt>(thiz->count_);
   const KChar* thizRaw = CharArrayAddressOfElementAt(thiz, fromIndex);
   while (fromIndex < count) {
     if (*thizRaw++ == ch) return fromIndex;
@@ -1096,8 +1096,9 @@ KInt Kotlin_String_lastIndexOfChar(KString thiz, KChar ch, KInt fromIndex) {
   if (fromIndex < 0 || thiz->count_ == 0) {
     return -1;
   }
-  if (static_cast<uint32_t>(fromIndex) >= thiz->count_) {
-    fromIndex = thiz->count_ - 1;
+  auto count = static_cast<KInt>(thiz->count_);
+  if (fromIndex >= count) {
+    fromIndex = count - 1;
   }
   KInt index = fromIndex;
   const KChar* thizRaw = CharArrayAddressOfElementAt(thiz, index);
@@ -1113,8 +1114,9 @@ KInt Kotlin_String_indexOfString(KString thiz, KString other, KInt fromIndex) {
   if (fromIndex < 0) {
     fromIndex = 0;
   }
-  if (static_cast<uint32_t>(fromIndex) >= thiz->count_) {
-    return (other->count_ == 0) ? thiz->count_ : -1;
+  auto count = static_cast<KInt>(thiz->count_);
+  if (fromIndex >= count) {
+    return (other->count_ == 0) ? count : -1;
   }
   if (static_cast<KInt>(other->count_) > static_cast<KInt>(thiz->count_) - fromIndex) {
     return -1;
@@ -1125,17 +1127,17 @@ KInt Kotlin_String_indexOfString(KString thiz, KString other, KInt fromIndex) {
   }
   const KChar* thizRaw = CharArrayAddressOfElementAt(thiz, fromIndex);
   const KChar* otherRaw = CharArrayAddressOfElementAt(other, 0);
-  void* result = konan::memmem(thizRaw, (thiz->count_ - fromIndex) * sizeof(KChar),
+  void* result = konan::memmem(thizRaw, (thiz->count_ - static_cast<size_t>(fromIndex)) * sizeof(KChar),
                                otherRaw, other->count_ * sizeof(KChar));
   if (result == nullptr) return -1;
 
-  return (reinterpret_cast<intptr_t>(result) - reinterpret_cast<intptr_t>(
-      CharArrayAddressOfElementAt(thiz, 0))) / sizeof(KChar);
+  return static_cast<KInt>(static_cast<uintptr_t>(reinterpret_cast<intptr_t>(result) - reinterpret_cast<intptr_t>(
+      CharArrayAddressOfElementAt(thiz, 0))) / sizeof(KChar));
 }
 
 KInt Kotlin_String_lastIndexOfString(KString thiz, KString other, KInt fromIndex) {
-  KInt count = thiz->count_;
-  KInt otherCount = other->count_;
+  KInt count = static_cast<KInt>(thiz->count_);
+  KInt otherCount = static_cast<KInt>(other->count_);
 
   if (fromIndex < 0 || otherCount > count) {
     return -1;
@@ -1167,8 +1169,8 @@ KInt Kotlin_String_hashCode(KString thiz) {
   // TODO: consider caching strings hashes.
   // TODO: maybe use some simpler hashing algorithm?
   // Note that we don't use Java's string hash.
-  return CityHash64(
-    CharArrayAddressOfElementAt(thiz, 0), thiz->count_ * sizeof(KChar));
+  return static_cast<KInt>(CityHash64(
+    CharArrayAddressOfElementAt(thiz, 0), thiz->count_ * sizeof(KChar)));
 }
 
 const KChar* Kotlin_String_utf16pointer(KString message) {
@@ -1179,7 +1181,7 @@ const KChar* Kotlin_String_utf16pointer(KString message) {
 
 KInt Kotlin_String_utf16length(KString message) {
   RuntimeAssert(message->type_info() == theStringTypeInfo, "Must use a string");
-  return message->count_ * sizeof(KChar);
+  return static_cast<KInt>(message->count_ * sizeof(KChar));
 }
 
 

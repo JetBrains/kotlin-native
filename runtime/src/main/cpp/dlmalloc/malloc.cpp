@@ -1,5 +1,6 @@
 // Uses GNU extension on null pointer arithmetic.
 #pragma clang diagnostic ignored "-Wnull-pointer-arithmetic"
+#pragma clang diagnostic ignored "-Wconversion"
 /*
   This is a version (aka dlmalloc) of malloc/free/realloc written by
   Doug Lea and released to the public domain, as explained at

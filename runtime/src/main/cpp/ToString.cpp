@@ -28,11 +28,11 @@
 
 namespace {
 
-char int_to_digit(uint32_t value) {
+char int_to_digit(int32_t value) {
   if (value < 10) {
-    return '0' + value;
+    return static_cast<char>('0' + value);
   } else {
-    return 'a' + (value - 10);
+    return static_cast<char>('a' + (value - 10));
   }
 }
 

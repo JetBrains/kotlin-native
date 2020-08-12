@@ -33,8 +33,8 @@ namespace {
 
 char debugBuffer[4096];
 
-constexpr int runtimeTypeSize[] = {
-    -1,                  // INVALID
+constexpr size_t runtimeTypeSize[] = {
+    0,                   // INVALID
     sizeof(ObjHeader*),  // OBJECT
     1,                   // INT8
     2,                   // INT16
@@ -47,8 +47,8 @@ constexpr int runtimeTypeSize[] = {
     16                   // VECTOR128
 };
 
-constexpr int runtimeTypeAlignment[] = {
-    -1,                  // INVALID
+constexpr size_t runtimeTypeAlignment[] = {
+    0,                   // INVALID
     alignof(ObjHeader*), // OBJECT
     alignof(int8_t),     // INT8
     alignof(int16_t),    // INT16
@@ -114,14 +114,14 @@ int32_t Konan_DebugObjectToUtf8ArrayImpl(KRef obj, char* buffer, int32_t bufferS
   auto data = KonanObjectToUtf8Array(obj, stringHolder.slot())->array();
   if (data == nullptr) return 0;
   if (bufferSize < 1) return 0;
-  KInt toCopy = data->count_ > static_cast<uint32_t>(bufferSize - 1) ? bufferSize - 1 : data->count_;
+  uint32_t toCopy = data->count_ > static_cast<uint32_t>(bufferSize - 1) ? static_cast<uint32_t>(bufferSize - 1) : data->count_;
   ::memcpy(buffer, ByteArrayAddressOfElementAt(data, 0), toCopy);
   buffer[toCopy] = '\0';
-  return toCopy + 1;
+  return static_cast<int32_t>(toCopy + 1);
 }
 
 int32_t Konan_DebugPrintImpl(KRef obj) {
-  int32_t size = Konan_DebugObjectToUtf8Array(obj, Konan_DebugBuffer(), Konan_DebugBufferSize());
+  auto size = static_cast<uint32_t>(Konan_DebugObjectToUtf8Array(obj, Konan_DebugBuffer(), Konan_DebugBufferSize()));
   if (size > 1)
     konan::consoleWriteUtf8(Konan_DebugBuffer(), size - 1);
   return 0;
@@ -142,7 +142,7 @@ int32_t Konan_DebugGetFieldCountImpl(KRef obj) {
     return 0;
 
   if (IsArray(obj))
-    return obj->array()->count_;
+    return static_cast<int32_t>(obj->array()->count_);
 
   return extendedTypeInfo->fieldsCount_;
 }
@@ -183,7 +183,7 @@ void* Konan_DebugGetFieldAddressImpl(KRef obj, int32_t index) {
       int32_t typeIndex = -extendedTypeInfo->fieldsCount_;
       return reinterpret_cast<uint8_t*>(obj->array())
           + alignUp(sizeof(struct ArrayHeader), runtimeTypeAlignment[typeIndex])
-          + index * runtimeTypeSize[typeIndex];
+          + static_cast<uint32_t>(index) * runtimeTypeSize[typeIndex];
    }
 
    if (index >= extendedTypeInfo->fieldsCount_)

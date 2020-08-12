@@ -68,7 +68,7 @@ Elf_Ehdr* findElfHeader() {
   if (fd < 0) return nullptr;
   struct stat fd_stat;
   if (fstat(fd, &fd_stat) < 0) return nullptr;
-  void* result = mmap(nullptr, fd_stat.st_size, PROT_READ, MAP_PRIVATE, fd, 0);
+  void* result = mmap(nullptr, static_cast<size_t>(fd_stat.st_size), PROT_READ, MAP_PRIVATE, fd, 0);
   if (result == MAP_FAILED) return nullptr;
   return (Elf_Ehdr*)result;
 }

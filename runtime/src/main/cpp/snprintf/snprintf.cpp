@@ -1,3 +1,5 @@
+#pragma clang diagnostic ignored "-Wconversion"
+#pragma clang diagnostic ignored "-Wimplicit-fallthrough"
 /*
  * Copyright (c) 1995 Patrick Powell.
  *

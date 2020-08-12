@@ -21,15 +21,15 @@
 extern "C" {
 
 KLong Kotlin_system_getTimeMillis() {
-  return konan::getTimeMillis();
+  return static_cast<KLong>(konan::getTimeMillis());
 }
 
 KLong Kotlin_system_getTimeNanos() {
-  return konan::getTimeNanos();
+  return static_cast<KLong>(konan::getTimeNanos());
 }
 
 KLong Kotlin_system_getTimeMicros() {
-  return konan::getTimeMicros();
+  return static_cast<KLong>(konan::getTimeMicros());
 }
 
 }  // extern "C"

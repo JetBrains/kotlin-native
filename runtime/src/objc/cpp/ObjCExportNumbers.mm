@@ -342,7 +342,7 @@ ${if (cType != "double") """
 // Required to convert Swift integer literals.
 - (instancetype)initWithInteger:(NSInteger)value {
   self = [super init];
-  value_ = value; // TODO: check fits.
+  value_ = static_cast<decltype(value_)>(value); // TODO: check fits.
   return self;
 }
 
@@ -386,7 +386,7 @@ ${if (cType != "double") """
 // Required to convert Swift integer literals.
 - (instancetype)initWithInteger:(NSInteger)value {
   self = [super init];
-  value_ = value; // TODO: check fits.
+  value_ = static_cast<decltype(value_)>(value); // TODO: check fits.
   return self;
 }
 
@@ -430,7 +430,7 @@ ${if (cType != "double") """
 // Required to convert Swift integer literals.
 - (instancetype)initWithInteger:(NSInteger)value {
   self = [super init];
-  value_ = value; // TODO: check fits.
+  value_ = static_cast<decltype(value_)>(value); // TODO: check fits.
   return self;
 }
 
@@ -518,7 +518,7 @@ ${if (cType != "double") """
 // Required to convert Swift integer literals.
 - (instancetype)initWithInteger:(NSInteger)value {
   self = [super init];
-  value_ = value; // TODO: check fits.
+  value_ = static_cast<decltype(value_)>(value); // TODO: check fits.
   return self;
 }
 
@@ -562,7 +562,7 @@ ${if (cType != "double") """
 // Required to convert Swift integer literals.
 - (instancetype)initWithInteger:(NSInteger)value {
   self = [super init];
-  value_ = value; // TODO: check fits.
+  value_ = static_cast<decltype(value_)>(value); // TODO: check fits.
   return self;
 }
 
@@ -606,7 +606,7 @@ ${if (cType != "double") """
 // Required to convert Swift integer literals.
 - (instancetype)initWithInteger:(NSInteger)value {
   self = [super init];
-  value_ = value; // TODO: check fits.
+  value_ = static_cast<decltype(value_)>(value); // TODO: check fits.
   return self;
 }
 
@@ -650,7 +650,7 @@ ${if (cType != "double") """
 // Required to convert Swift integer literals.
 - (instancetype)initWithInteger:(NSInteger)value {
   self = [super init];
-  value_ = value; // TODO: check fits.
+  value_ = static_cast<decltype(value_)>(value); // TODO: check fits.
   return self;
 }
 
@@ -694,14 +694,14 @@ ${if (cType != "double") """
 // Required to convert Swift integer literals.
 - (instancetype)initWithInteger:(NSInteger)value {
   self = [super init];
-  value_ = value; // TODO: check fits.
+  value_ = static_cast<decltype(value_)>(value); // TODO: check fits.
   return self;
 }
 
 // Required to convert Swift floating literals.
 - (instancetype)initWithDouble:(double)value {
   self = [super init];
-  value_ = value; // TODO: check fits.
+  value_ = static_cast<decltype(value_)>(value); // TODO: check fits.
   return self;
 }
 
@@ -745,7 +745,7 @@ ${if (cType != "double") """
 // Required to convert Swift integer literals.
 - (instancetype)initWithInteger:(NSInteger)value {
   self = [super init];
-  value_ = value; // TODO: check fits.
+  value_ = static_cast<decltype(value_)>(value); // TODO: check fits.
   return self;
 }
 

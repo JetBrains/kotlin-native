@@ -27,7 +27,10 @@ extern "C" {
 
 RUNTIME_USED
 KDouble ReturnSlot_getDouble() {
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wundefined-reinterpret-cast"
   return *reinterpret_cast<KDouble*>(&::storage);
+#pragma clang diagnostic pop
 }
 
 RUNTIME_USED

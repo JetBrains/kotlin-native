@@ -37,7 +37,7 @@ KBoolean Kotlin_Any_equals(KConstRef thiz, KConstRef other) {
 KInt Kotlin_Any_hashCode(KConstRef thiz) {
   // Here we will use different mechanism for stable hashcode, using meta-objects
   // if moving collector will be used.
-  return reinterpret_cast<uintptr_t>(thiz);
+  return static_cast<KInt>(reinterpret_cast<uintptr_t>(thiz));
 }
 
 OBJ_GETTER(Kotlin_getStackTraceStrings, KConstRef stackTrace) {
@@ -56,8 +56,8 @@ void* Kotlin_interop_malloc(KLong size, KInt align) {
   RuntimeAssert(align > 0, "Unsupported alignment");
   RuntimeAssert((align & (align - 1)) == 0, "Alignment must be power of two");
 
-  void* result = konan::calloc_aligned(1, size, align);
-  if ((reinterpret_cast<uintptr_t>(result) & (align - 1)) != 0) {
+  void* result = konan::calloc_aligned(1, static_cast<size_t>(size), static_cast<size_t>(align));
+  if ((reinterpret_cast<uintptr_t>(result) & static_cast<size_t>(align - 1)) != 0) {
     // Unaligned!
     RuntimeAssert(false, "unsupported alignment");
   }
@@ -78,7 +78,8 @@ const void* Kotlin_Any_getTypeInfo(KConstRef obj) {
 }
 
 void Kotlin_CPointer_CopyMemory(KNativePtr to, KNativePtr from, KInt count) {
-  memcpy(to, from, count);
+  RuntimeAssert(count >= 0, "Count must be >= 0");
+  memcpy(to, from, static_cast<size_t>(count));
 }
 
 }  // extern "C"

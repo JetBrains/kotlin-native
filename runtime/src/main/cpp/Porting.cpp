@@ -138,7 +138,7 @@ int32_t consoleReadUtf8(void* utf8, uint32_t maxSizeBytes) {
     }
     current--;
   }
-  return length;
+  return static_cast<int32_t>(length);
 }
 
 #if KONAN_INTERNAL_SNPRINTF
@@ -156,7 +156,7 @@ void consolePrintf(const char* format, ...) {
   if (rv < 0) return; // TODO: this may be too much exotic, but should i try to print itoa(error) and terminate?
   if (static_cast<size_t>(rv) >= sizeof(buffer)) rv = sizeof(buffer) - 1;  // TODO: Consider realloc or report truncating.
   va_end(args);
-  consoleWriteUtf8(buffer, rv);
+  consoleWriteUtf8(buffer, static_cast<uint32_t>(rv));
 }
 
 // TODO: Avoid code duplication.
@@ -168,7 +168,7 @@ void consoleErrorf(const char* format, ...) {
   if (rv < 0) return; // TODO: this may be too much exotic, but should i try to print itoa(error) and terminate?
   if (static_cast<size_t>(rv) >= sizeof(buffer)) rv = sizeof(buffer) - 1;  // TODO: Consider realloc or report truncating.
   va_end(args);
-  consoleErrorUtf8(buffer, rv);
+  consoleErrorUtf8(buffer, static_cast<uint32_t>(rv));
 }
 
 void consoleFlush() {
@@ -259,8 +259,9 @@ void exit(int32_t status) {
 void* memmem(const void *big, size_t bigLen, const void *little, size_t littleLen) {
 #if KONAN_NO_MEMMEM
   for (size_t i = 0; i + littleLen <= bigLen; ++i) {
-    void* pos = ((char*)big) + i;
-    if (::memcmp(little, pos, littleLen) == 0) return pos;
+    auto* pos = static_cast<const char*>(big) + i;
+    if (::memcmp(little, pos, littleLen) == 0)
+      return const_cast<void*>(static_cast<const void*>(pos));
   }
   return nullptr;
 #else
@@ -344,15 +345,15 @@ using namespace std::chrono;
 using steady_time_clock = std::conditional<high_resolution_clock::is_steady, high_resolution_clock, steady_clock>::type;
 
 uint64_t getTimeMillis() {
-  return duration_cast<milliseconds>(steady_time_clock::now().time_since_epoch()).count();
+  return static_cast<uint64_t>(duration_cast<milliseconds>(steady_time_clock::now().time_since_epoch()).count());
 }
 
 uint64_t getTimeNanos() {
-  return duration_cast<nanoseconds>(steady_time_clock::now().time_since_epoch()).count();
+  return static_cast<uint64_t>(duration_cast<nanoseconds>(steady_time_clock::now().time_since_epoch()).count());
 }
 
 uint64_t getTimeMicros() {
-  return duration_cast<microseconds>(steady_time_clock::now().time_since_epoch()).count();
+  return static_cast<uint64_t>(duration_cast<microseconds>(steady_time_clock::now().time_since_epoch()).count());
 }
 #endif
 
@@ -369,7 +370,7 @@ constexpr uint32_t WASM_PAGESIZE = 1u << WASM_PAGESIZE_EXPONENT;
 constexpr uint32_t WASM_PAGEMASK = WASM_PAGESIZE-1;
 
 uint32_t pageAlign(int32_t value) {
-  return (value + WASM_PAGEMASK) & ~ (WASM_PAGEMASK);
+  return (static_cast<uint32_t>(value) + WASM_PAGEMASK) & ~ (WASM_PAGEMASK);
 }
 
 uint32_t inBytes(uint32_t pageCount) {
@@ -387,9 +388,9 @@ uint32_t memorySize() {
 }
 
 int32_t growMemory(uint32_t delta) {
-  int32_t oldLength =  __builtin_wasm_memory_grow(0, delta);
+  uint32_t oldLength = __builtin_wasm_memory_grow(0, delta);
   Konan_notify_memory_grow();
-  return oldLength;
+  return static_cast<int32_t>(oldLength);
 }
 
 }
@@ -440,31 +441,31 @@ extern "C" {
         Konan_abort("TODO: throw_length_error not implemented.");
     }
     int _ZNSt3__212__next_primeEj(unsigned long n) {
-        static unsigned long primes[] = {
-                11UL,
-                101UL,
-                1009UL,
-                10007UL,
-                100003UL,
-                1000003UL,
-                10000019UL,
-                100000007UL,
-                1000000007UL
+        static int primes[] = {
+                11,
+                101,
+                1009,
+                10007,
+                100003,
+                1000003,
+                10000019,
+                100000007,
+                1000000007
         };
-        size_t table_length = sizeof(primes)/sizeof(unsigned long);
+        size_t table_length = sizeof(primes)/sizeof(int);
 
-        if (n > primes[table_length - 1]) konan::abort();
+        if (n > static_cast<unsigned long>(primes[table_length - 1])) konan::abort();
 
-        unsigned long prime = primes[0];
-        for (unsigned long i=0; i< table_length; i++) {
+        int prime = primes[0];
+        for (unsigned i = 0; i < table_length; i++) {
             prime = primes[i];
-            if (prime >= n) break;
+            if (static_cast<unsigned long>(prime) >= n) break;
         }
         return prime;
     }
 
     int _ZNSt3__212__next_primeEm(int n) {
-       return _ZNSt3__212__next_primeEj(n);
+       return _ZNSt3__212__next_primeEj(static_cast<unsigned long>(n));
     }
 
     int _ZNSt3__112__next_primeEj(unsigned long n) {
@@ -491,14 +492,14 @@ extern "C" {
     // Some string.h functions.
     void *memcpy(void *dst, const void *src, size_t n) {
         for (size_t i = 0; i != n; ++i)
-            *((char*)dst + i) = *((char*)src + i);
+            *((char*)dst + i) = *((const char*)src + i);
         return dst;
     }
 
     void *memmove(void *dst, const void *src, size_t len)  {
         if (src < dst) {
-            for (long i = len; i != 0; --i) {
-                *((char*)dst + i - 1) = *((char*)src + i - 1);
+            for (size_t i = len; i != 0; --i) {
+                *((char*)dst + i - 1) = *((const char*)src + i - 1);
             }
         } else {
             memcpy(dst, src, len);
@@ -508,8 +509,8 @@ extern "C" {
 
     int memcmp(const void *s1, const void *s2, size_t n) {
         for (size_t i = 0; i != n; ++i) {
-            if (*((char*)s1 + i) != *((char*)s2 + i)) {
-                return *((char*)s1 + i) - *((char*)s2 + i);
+            if (*((const char*)s1 + i) != *((const char*)s2 + i)) {
+                return *((const char*)s1 + i) - *((const char*)s2 + i);
             }
         }
         return 0;
@@ -517,13 +518,13 @@ extern "C" {
 
     void *memset(void *b, int c, size_t len) {
         for (size_t i = 0; i != len; ++i) {
-            *((char*)b + i) = c;
+            *((char*)b + i) = static_cast<char>(c);
         }
         return b;
     }
 
     size_t strlen(const char *s) {
-        for (long i = 0;; ++i) {
+        for (size_t i = 0;; ++i) {
             if (s[i] == 0) return i;
         }
     }

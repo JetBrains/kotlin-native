@@ -30,14 +30,14 @@ KInt    Kotlin_Float_toInt(KFloat a) {
   if (isnan(a)) return 0;
   if (a >= (KFloat) INT32_MAX) return INT32_MAX;
   if (a <= (KFloat) INT32_MIN) return INT32_MIN;
-  return a;
+  return static_cast<KInt>(a);
 }
 
 KLong   Kotlin_Float_toLong(KFloat a) {
   if (isnan(a)) return 0;
   if (a >= (KFloat) INT64_MAX) return INT64_MAX;
   if (a <= (KFloat) INT64_MIN) return INT64_MIN;
-  return a;
+  return static_cast<KLong>(a);
 }
 
 KByte   Kotlin_Float_toByte(KFloat a) { return (KByte)  Kotlin_Float_toInt(a); }
@@ -53,14 +53,14 @@ KInt Kotlin_Double_toInt(KDouble a) {
   if (isnan(a)) return 0;
   if (a >= (KDouble) INT32_MAX) return INT32_MAX;
   if (a <= (KDouble) INT32_MIN) return INT32_MIN;
-  return a;
+  return static_cast<KInt>(a);
 }
 
 KLong Kotlin_Double_toLong(KDouble a) {
   if (isnan(a)) return 0;
   if (a >= (KDouble) INT64_MAX) return INT64_MAX;
   if (a <= (KDouble) INT64_MIN) return INT64_MIN;
-  return a;
+  return static_cast<KLong>(a);
 }
 
 ALWAYS_INLINE KBoolean Kotlin_Double_isNaN(KDouble a)          { return isnan(a); }
@@ -69,13 +69,13 @@ ALWAYS_INLINE KBoolean Kotlin_Double_isFinite(KDouble a)          { return isfin
 
 //--- Bit operations ---------------------------------------------------------//
 
-ALWAYS_INLINE KInt Kotlin_Int_countOneBits(KInt value) { return __builtin_popcount(value); }
-ALWAYS_INLINE KInt Kotlin_Long_countOneBits(KLong value) { return __builtin_popcountll(value); }
+ALWAYS_INLINE KInt Kotlin_Int_countOneBits(KInt value) { return __builtin_popcount(static_cast<KUInt>(value)); }
+ALWAYS_INLINE KInt Kotlin_Long_countOneBits(KLong value) { return __builtin_popcountll(static_cast<KULong>(value)); }
 
-ALWAYS_INLINE KInt Kotlin_Int_countTrailingZeroBits(KInt value) { return __builtin_ctz(value); }
-ALWAYS_INLINE KInt Kotlin_Long_countTrailingZeroBits(KLong value) { return __builtin_ctzll(value); }
+ALWAYS_INLINE KInt Kotlin_Int_countTrailingZeroBits(KInt value) { return __builtin_ctz(static_cast<KUInt>(value)); }
+ALWAYS_INLINE KInt Kotlin_Long_countTrailingZeroBits(KLong value) { return __builtin_ctzll(static_cast<KULong>(value)); }
 
-ALWAYS_INLINE KInt Kotlin_Int_countLeadingZeroBits(KInt value) { return __builtin_clz(value); }
-ALWAYS_INLINE KInt Kotlin_Long_countLeadingZeroBits(KLong value) { return __builtin_clzll(value); }
+ALWAYS_INLINE KInt Kotlin_Int_countLeadingZeroBits(KInt value) { return __builtin_clz(static_cast<KUInt>(value)); }
+ALWAYS_INLINE KInt Kotlin_Long_countLeadingZeroBits(KLong value) { return __builtin_clzll(static_cast<KULong>(value)); }
 
 }  // extern "C"

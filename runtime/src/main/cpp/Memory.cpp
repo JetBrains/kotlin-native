@@ -563,7 +563,7 @@ struct MemoryState {
   // How many candidate elements in toRelease shall trigger collection.
   size_t gcThreshold;
   // How many candidate elements in toFree shall trigger cycle collection.
-  uint64_t gcCollectCyclesThreshold;
+  size_t gcCollectCyclesThreshold;
   // If collection is in progress.
   bool gcInProgress;
   // Objects to be released.
@@ -806,7 +806,7 @@ inline ContainerHeader* clearRemoved(ContainerHeader* container) {
     reinterpret_cast<uintptr_t>(container) & ~static_cast<uintptr_t>(1));
 }
 
-inline container_size_t alignUp(container_size_t size, int alignment) {
+inline container_size_t alignUp(container_size_t size, container_size_t alignment) {
   return (size + alignment - 1) & ~(alignment - 1);
 }
 
@@ -819,7 +819,7 @@ inline uint32_t arrayObjectSize(const TypeInfo* typeInfo, uint32_t count) {
   // Note: array body is aligned, but for size computation it is enough to align the sum.
   static_assert(kObjectAlignment % alignof(KLong) == 0, "");
   static_assert(kObjectAlignment % alignof(KDouble) == 0, "");
-  return alignUp(sizeof(ArrayHeader) - typeInfo->instanceSize_ * count, kObjectAlignment);
+  return alignUp(sizeof(ArrayHeader) - static_cast<container_size_t>(typeInfo->instanceSize_) * count, kObjectAlignment);
 }
 
 inline uint32_t arrayObjectSize(const ArrayHeader* obj) {
@@ -833,7 +833,7 @@ inline container_size_t objectSize(const ObjHeader* obj) {
       // An array.
       arrayObjectSize(obj->array())
       :
-      type_info->instanceSize_);
+      static_cast<container_size_t>(type_info->instanceSize_));
   return alignUp(size, kObjectAlignment);
 }
 
@@ -843,12 +843,12 @@ inline void traverseObjectFields(ObjHeader* obj, func process) {
   if (typeInfo != theArrayTypeInfo) {
     for (int index = 0; index < typeInfo->objOffsetsCount_; index++) {
       ObjHeader** location = reinterpret_cast<ObjHeader**>(
-          reinterpret_cast<uintptr_t>(obj) + typeInfo->objOffsets_[index]);
+          reinterpret_cast<intptr_t>(obj) + typeInfo->objOffsets_[index]);
       process(location);
     }
   } else {
     ArrayHeader* array = obj->array();
-    for (uint32_t index = 0; index < array->count_; index++) {
+    for (int32_t index = 0; index < static_cast<int32_t>(array->count_); index++) {
       process(ArrayAddressOfElementAt(array, index));
     }
   }
@@ -952,7 +952,7 @@ ContainerHeader* allocContainer(MemoryState* state, size_t size) {
     if (state != nullptr)
         state->allocSinceLastGc += size;
 #endif
-    result = konanConstructSizedInstance<ContainerHeader>(alignUp(size, kObjectAlignment));
+    result = konanConstructSizedInstance<ContainerHeader>(alignUp(static_cast<container_size_t>(size), kObjectAlignment));
     atomicAdd(&allocCount, 1);
   }
   if (state != nullptr) {
@@ -975,7 +975,7 @@ ContainerHeader* allocAggregatingFrozenContainer(KStdVector<ContainerHeader*>& c
     obj->setContainer(superContainer);
     MEMORY_LOG("Set fictitious frozen container for %p: %p\n", obj, superContainer);
   }
-  superContainer->setObjectCount(componentSize);
+  superContainer->setObjectCount(static_cast<uint32_t>(componentSize));
   superContainer->freeze();
   return superContainer;
 }
@@ -1239,7 +1239,7 @@ inline void decrementRC(ContainerHeader* container) {
     // We do not use cycle collector for frozen objects, as we already detected
     // possible cycles during freezing.
     // Also do not use cycle collector for provable acyclic objects.
-    int color = container->color();
+    unsigned color = container->color();
     if (color != CONTAINER_TAG_GC_PURPLE && color != CONTAINER_TAG_GC_GREEN) {
       container->setColorAssertIfGreen(CONTAINER_TAG_GC_PURPLE);
       if (!container->buffered()) {
@@ -1274,7 +1274,7 @@ inline void decrementRC(ContainerHeader* container) {
       // We do not use cycle collector for frozen objects, as we already detected
       // possible cycles during freezing.
       // Also do not use cycle collector for provable acyclic objects.
-      int color = container->color();
+      unsigned color = container->color();
       if (color != CONTAINER_TAG_GC_PURPLE && color != CONTAINER_TAG_GC_GREEN) {
         container->setColorAssertIfGreen(CONTAINER_TAG_GC_PURPLE);
         if (!container->buffered()) {
@@ -1302,7 +1302,7 @@ inline void initGcThreshold(MemoryState* state, uint32_t gcThreshold) {
   state->toRelease->reserve(gcThreshold);
 }
 
-inline void initGcCollectCyclesThreshold(MemoryState* state, uint64_t gcCollectCyclesThreshold) {
+inline void initGcCollectCyclesThreshold(MemoryState* state, size_t gcCollectCyclesThreshold) {
   state->gcCollectCyclesThreshold = gcCollectCyclesThreshold;
   state->toFree->reserve(gcCollectCyclesThreshold);
 }
@@ -1310,12 +1310,12 @@ inline void initGcCollectCyclesThreshold(MemoryState* state, uint64_t gcCollectC
 inline void increaseGcThreshold(MemoryState* state) {
   auto newThreshold = state->gcThreshold * 3 / 2 + 1;
   if (newThreshold <= kMaxErgonomicThreshold) {
-    initGcThreshold(state, newThreshold);
+    initGcThreshold(state, static_cast<uint32_t>(newThreshold));
   }
 }
 
 inline void increaseGcCollectCyclesThreshold(MemoryState* state) {
-  auto newThreshold = state->gcCollectCyclesThreshold * 2;
+  size_t newThreshold = state->gcCollectCyclesThreshold * 2;
   if (newThreshold <= kMaxErgonomicToFreeSizeThreshold) {
     initGcCollectCyclesThreshold(state, newThreshold);
   }
@@ -1406,7 +1406,7 @@ void markGray(ContainerHeader* start) {
     MEMORY_LOG("MarkGray visit %p [%s]\n", container, colorNames[container->color()]);
     toVisit.pop_front();
     if (useColor) {
-      int color = container->color();
+      unsigned color = container->color();
       if (color == CONTAINER_TAG_GC_GRAY) continue;
       // If see an acyclic object not being garbage - ignore it. We must properly traverse garbage, although.
       if (color == CONTAINER_TAG_GC_GREEN && container->refCount() != 0) {
@@ -1452,7 +1452,7 @@ void scanBlack(ContainerHeader* start) {
         if (!isShareable(childContainer)) {
           childContainer->incRefCount<false>();
           if (useColor) {
-            int color = childContainer->color();
+            unsigned color = childContainer->color();
             if (color != CONTAINER_TAG_GC_BLACK)
               toVisit.push_front(childContainer);
           } else {
@@ -1807,7 +1807,7 @@ void garbageCollect(MemoryState* state, bool force) {
     #endif
     auto cyclicGcDuration = cyclicGcEndTime - cyclicGcStartTime;
     if (!force && state->gcErgonomics && cyclicGcDuration > kGcCollectCyclesMinimumDuration &&
-        double(cyclicGcDuration) / (cyclicGcStartTime - state->lastCyclicGcTimestamp + 1) > kGcCollectCyclesLoadRatio) {
+        double(cyclicGcDuration) / double(cyclicGcStartTime - state->lastCyclicGcTimestamp + 1) > kGcCollectCyclesLoadRatio) {
       increaseGcCollectCyclesThreshold(state);
       GC_LOG("Adjusting GC collecting cycles threshold to %lld\n", state->gcCollectCyclesThreshold);
     }
@@ -1818,7 +1818,7 @@ void garbageCollect(MemoryState* state, bool force) {
   auto gcEndTime = konan::getTimeMicros();
 
   if (state->gcErgonomics) {
-    auto gcToComputeRatio = double(gcEndTime - gcStartTime) / (gcStartTime - state->lastGcTimestamp + 1);
+    auto gcToComputeRatio = double(gcEndTime - gcStartTime) / double(gcStartTime - state->lastGcTimestamp + 1);
     if (!force && gcToComputeRatio > kGcToComputeRatioThreshold) {
       increaseGcThreshold(state);
       GC_LOG("Adjusting GC threshold to %d\n", state->gcThreshold);
@@ -2172,7 +2172,7 @@ OBJ_GETTER(allocArrayInstance, const TypeInfo* type_info, int32_t elements) {
 #if USE_GC
   checkIfGcNeeded(state);
 #endif  // USE_GC
-  auto container = ArrayContainer(state, type_info, elements);
+  auto container = ArrayContainer(state, type_info, static_cast<uint32_t>(elements));
 #if USE_GC
   if (Strict) {
     rememberNewContainer(container.header());
@@ -2362,7 +2362,7 @@ OBJ_GETTER(readHeapRefLocked, ObjHeader** location, int32_t* spinlock, int32_t* 
 OBJ_GETTER(readHeapRefNoLock, ObjHeader* object, KInt index) {
   MEMORY_LOG("ReadHeapRefNoLock: %p index %d\n", object, index)
   ObjHeader** location = reinterpret_cast<ObjHeader**>(
-    reinterpret_cast<uintptr_t>(object) + object->type_info()->objOffsets_[index]);
+    reinterpret_cast<intptr_t>(object) + object->type_info()->objOffsets_[index]);
   ObjHeader* value = *location;
 #if USE_GC
   if (IsStrictMemoryModel && (value != nullptr)) {
@@ -2453,12 +2453,12 @@ void setGCThreshold(KInt value) {
   if (value <= 0) {
     ThrowIllegalArgumentException();
   }
-  initGcThreshold(memoryState, value);
+  initGcThreshold(memoryState, static_cast<KUInt>(value));
 }
 
 KInt getGCThreshold() {
   GC_LOG("getGCThreshold\n")
-  return memoryState->gcThreshold;
+  return static_cast<KInt>(memoryState->gcThreshold);
 }
 
 void setGCCollectCyclesThreshold(KLong value) {
@@ -2466,12 +2466,12 @@ void setGCCollectCyclesThreshold(KLong value) {
   if (value <= 0) {
     ThrowIllegalArgumentException();
   }
-  initGcCollectCyclesThreshold(memoryState, value);
+  initGcCollectCyclesThreshold(memoryState, static_cast<size_t>(value));
 }
 
 KInt getGCCollectCyclesThreshold() {
   GC_LOG("getGCCollectCyclesThreshold\n")
-  return memoryState->gcCollectCyclesThreshold;
+  return static_cast<KInt>(memoryState->gcCollectCyclesThreshold);
 }
 
 void setGCThresholdAllocations(KLong value) {
@@ -2480,12 +2480,12 @@ void setGCThresholdAllocations(KLong value) {
     ThrowIllegalArgumentException();
   }
 
-  memoryState->allocSinceLastGcThreshold = value;
+  memoryState->allocSinceLastGcThreshold = static_cast<KULong>(value);
 }
 
 KLong getGCThresholdAllocations() {
   GC_LOG("getGCThresholdAllocation\n")
-  return memoryState->allocSinceLastGcThreshold;
+  return static_cast<KLong>(memoryState->allocSinceLastGcThreshold);
 }
 
 void setTuneGCThreshold(KBoolean value) {
@@ -2707,7 +2707,7 @@ void freezeCyclic(ObjHeader* root,
     // Don't count internal references.
     MEMORY_LOG("Setting aggregating %p rc to %d (total %d inner %d)\n", \
        superContainer, totalCount - internalRefsCount, totalCount, internalRefsCount)
-    superContainer->setRefCount(totalCount - internalRefsCount);
+    superContainer->setRefCount(static_cast<unsigned>(totalCount - internalRefsCount));
     newlyFrozen->insert(superContainer);
   }
 }
@@ -2921,7 +2921,7 @@ KStdVector<KRef> findCycleWithDFS(KRef root, const CycleDetectorRootset& rootset
 
 template <typename C>
 OBJ_GETTER(createAndFillArray, const C& container) {
-  auto* result = AllocArrayInstance(theArrayTypeInfo, container.size(), OBJ_RESULT)->array();
+  auto* result = AllocArrayInstance(theArrayTypeInfo, static_cast<int32_t>(container.size()), OBJ_RESULT)->array();
   KRef* place = ArrayAddressOfElementAt(result, 0);
   for (KRef it: container) {
     UpdateHeapRef(place++, it);
@@ -3000,7 +3000,7 @@ void ObjHeader::destroyMetaObject(TypeInfo** location) {
 
 void ObjectContainer::Init(MemoryState* state, const TypeInfo* typeInfo) {
   RuntimeAssert(typeInfo->instanceSize_ >= 0, "Must be an object");
-  uint32_t allocSize = sizeof(ContainerHeader) + typeInfo->instanceSize_;
+  uint32_t allocSize = sizeof(ContainerHeader) + static_cast<uint32_t>(typeInfo->instanceSize_);
   header_ = allocContainer(state, allocSize);
   RuntimeCheck(header_ != nullptr, "Cannot alloc memory");
   // One object in this container, no need to set.
@@ -3050,7 +3050,7 @@ void ArenaContainer::Deinit() {
 }
 
 bool ArenaContainer::allocContainer(container_size_t minSize) {
-  auto size = minSize + sizeof(ContainerHeader) + sizeof(ContainerChunk);
+  container_size_t size = minSize + sizeof(ContainerHeader) + sizeof(ContainerChunk);
   size = alignUp(size, kContainerAlignment);
   // TODO: keep simple cache of container chunks.
   ContainerChunk* result = konanConstructSizedInstance<ContainerChunk>(size);
@@ -3089,12 +3089,12 @@ ObjHeader** ArenaContainer::getSlot() {
     slots_ = PlaceArray(theArrayTypeInfo, ARENA_SLOTS_CHUNK_SIZE);
     slotsCount_ = 0;
   }
-  return ArrayAddressOfElementAt(slots_, slotsCount_++);
+  return ArrayAddressOfElementAt(slots_, static_cast<KInt>(slotsCount_++));
 }
 
 ObjHeader* ArenaContainer::PlaceObject(const TypeInfo* type_info) {
   RuntimeAssert(type_info->instanceSize_ >= 0, "must be an object");
-  uint32_t size = type_info->instanceSize_;
+  auto size = static_cast<uint32_t>(type_info->instanceSize_);
   ObjHeader* result = reinterpret_cast<ObjHeader*>(place(size));
   if (!result) {
     return nullptr;
@@ -3446,7 +3446,7 @@ void AddTLSRecord(MemoryState* memory, void** key, int size) {
     RuntimeAssert(it->second.second == size, "Size must be consistent");
     return;
   }
-  KRef* start = reinterpret_cast<KRef*>(konanAllocMemory(size * sizeof(KRef)));
+  KRef* start = reinterpret_cast<KRef*>(konanAllocMemory(static_cast<unsigned>(size) * sizeof(KRef)));
   tlsMap->emplace(key, std::make_pair(start, size));
 }
 

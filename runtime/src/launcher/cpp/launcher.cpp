@@ -76,12 +76,12 @@ extern "C" int Konan_js_arg_size(int index);
 extern "C" int Konan_js_fetch_arg(int index, char* ptr);
 
 extern "C" RUNTIME_USED int Konan_js_main(int argc, int memoryDeInit) {
-    char** argv = (char**)konan::calloc(1, argc);
+    char** argv = (char**)konan::calloc(1, static_cast<size_t>(argc));
     for (int i = 0; i< argc; ++i) {
-        argv[i] = (char*)konan::calloc(1, Konan_js_arg_size(i));
+        argv[i] = (char*)konan::calloc(1, static_cast<size_t>(Konan_js_arg_size(i)));
         Konan_js_fetch_arg(i, argv[i]);
     }
-    return Init_and_run_start(argc, (const char**)argv, memoryDeInit);
+    return Init_and_run_start(argc, const_cast<const char**>(argv), memoryDeInit);
 }
 
 #endif 

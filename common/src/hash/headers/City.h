@@ -26,7 +26,7 @@ extern "C" {
 #endif
 
 // Hash function for a byte array.
-uint64_t CityHash64(const void* buf, size_t len);
+int64_t CityHash64(const void* buf, size_t len);
 
 #ifdef __cplusplus
 }

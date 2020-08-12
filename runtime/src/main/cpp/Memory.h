@@ -22,7 +22,7 @@
 #include "TypeInfo.h"
 #include "Atomic.h"
 
-typedef enum {
+enum ContainerTag: uint32_t {
   // Those bit masks are applied to refCount_ field.
   // Container is normal thread-local container.
   CONTAINER_TAG_LOCAL = 0,
@@ -69,7 +69,7 @@ typedef enum {
   CONTAINER_TAG_GC_SEEN     = 1 << (CONTAINER_TAG_COLOR_SHIFT + 2),
   // If indeed has more that one object.
   CONTAINER_TAG_GC_HAS_OBJECT_COUNT = 1 << (CONTAINER_TAG_COLOR_SHIFT + 3)
-} ContainerTag;
+};
 
 typedef enum {
   // Must match to permTag() in Kotlin.
@@ -166,9 +166,9 @@ struct ContainerHeader {
   template <bool Atomic>
   inline int decRefCount() {
 #ifdef KONAN_NO_THREADS
-    int value = refCount_ -= CONTAINER_TAG_INCREMENT;
+    auto value = refCount_ -= CONTAINER_TAG_INCREMENT;
 #else
-    int value = Atomic ?
+    auto value = Atomic ?
        __sync_sub_and_fetch(&refCount_, CONTAINER_TAG_INCREMENT) : refCount_ -= CONTAINER_TAG_INCREMENT;
 #endif
     return value >> CONTAINER_TAG_SHIFT;
@@ -176,9 +176,9 @@ struct ContainerHeader {
 
   inline int decRefCount() {
   #ifdef KONAN_NO_THREADS
-      int value = refCount_ -= CONTAINER_TAG_INCREMENT;
+      auto value = refCount_ -= CONTAINER_TAG_INCREMENT;
   #else
-      int value = shareable() ?
+      auto value = shareable() ?
          __sync_sub_and_fetch(&refCount_, CONTAINER_TAG_INCREMENT) : refCount_ -= CONTAINER_TAG_INCREMENT;
   #endif
       return value >> CONTAINER_TAG_SHIFT;
@@ -198,7 +198,7 @@ struct ContainerHeader {
     objectCount_ += CONTAINER_TAG_GC_INCREMENT;
   }
 
-  inline void setObjectCount(int count) {
+  inline void setObjectCount(uint32_t count) {
     if (count == 1) {
       objectCount_ &= ~CONTAINER_TAG_GC_HAS_OBJECT_COUNT;
     } else {
@@ -303,7 +303,7 @@ ALWAYS_INLINE T* clearPointerBits(T* ptr, unsigned bits) {
 
 template <typename T>
 ALWAYS_INLINE unsigned getPointerBits(T* ptr, unsigned bits) {
-  return reinterpret_cast<uintptr_t>(ptr) & static_cast<uintptr_t>(bits);
+  return static_cast<unsigned>(reinterpret_cast<uintptr_t>(ptr) & static_cast<uintptr_t>(bits));
 }
 
 template <typename T>

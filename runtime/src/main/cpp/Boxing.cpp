@@ -60,7 +60,7 @@ inline bool isInRange(T value, T from, T to) {
 
 template<class T>
 OBJ_GETTER(getCachedBox, T value, KBox<T> cache[], T from) {
-  uint64_t index = value - from;
+  auto index = value - from;
   RETURN_OBJ(&cache[index].header);
 }
 

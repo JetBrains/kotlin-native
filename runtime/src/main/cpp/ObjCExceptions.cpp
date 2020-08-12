@@ -23,7 +23,7 @@ static void writeStackTraceToBuffer(KRef throwable, char* buffer, unsigned long 
   --remainingBytes;
 
   for (uint32_t index = 0; index < stackTrace->count_; ++index) {
-    KNativePtr ptr = *PrimitiveArrayAddressOfElementAt<KNativePtr>(stackTrace, index);
+    KNativePtr ptr = *PrimitiveArrayAddressOfElementAt<KNativePtr>(stackTrace, static_cast<KInt>(index));
     int bytes = snprintf(bufferPointer, remainingBytes, "0x%" PRIxPTR " ", reinterpret_cast<uintptr_t>(ptr));
 
     if (bytes < 0 || static_cast<unsigned long>(bytes) >= remainingBytes) {
@@ -31,7 +31,7 @@ static void writeStackTraceToBuffer(KRef throwable, char* buffer, unsigned long 
     }
 
     bufferPointer += bytes;
-    remainingBytes -= bytes;
+    remainingBytes -= static_cast<unsigned>(bytes);
   }
 
   *(bufferPointer - 1) = ')'; // Replace last space.
