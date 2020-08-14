@@ -78,11 +78,11 @@ void consoleErrorUtf8(const void* utf8, uint32_t sizeBytes) {
 }
 
 #if KONAN_WINDOWS
-int getLastErrorMessage(char* message, uint32_t size) {
+DWORD getLastErrorMessage(char* message, int size) {
   auto errCode = ::GetLastError();
   if (errCode) {
-    auto flags = FORMAT_MESSAGE_FROM_SYSTEM;
-    auto errMsgBufSize = size / 4;
+    DWORD flags = FORMAT_MESSAGE_FROM_SYSTEM;
+    auto errMsgBufSize = static_cast<DWORD>(size) / 4;
     wchar_t errMsgBuffer[errMsgBufSize];
     ::FormatMessageW(flags, NULL, errCode, 0, errMsgBuffer, errMsgBufSize, NULL);
     ::WideCharToMultiByte(CP_UTF8, 0, errMsgBuffer, -1, message, size, NULL, NULL);
@@ -103,18 +103,18 @@ int32_t consoleReadUtf8(void* utf8, uint32_t maxSizeBytes) {
     auto bufferLength = maxSizeBytes / 4 - 1;
     wchar_t buffer[bufferLength];
     if (::ReadConsoleW(stdInHandle, buffer, bufferLength, &bufferRead, NULL)) {
-      length = ::WideCharToMultiByte(CP_UTF8, 0, buffer, bufferRead, (char*) utf8,
-                                     maxSizeBytes - 1, NULL, NULL);
+      length = ::WideCharToMultiByte(CP_UTF8, 0, buffer, static_cast<int>(bufferRead), (char*) utf8,
+                                     static_cast<int>(maxSizeBytes) - 1, NULL, NULL);
       if (!length && KonanNeedDebugInfo) {
         char msg[512];
         auto errCode = getLastErrorMessage(msg, sizeof(msg));
-        consoleErrorf("UTF-16 to UTF-8 conversion error %d: %s", errCode, msg);
+        consoleErrorf("UTF-16 to UTF-8 conversion error %lu: %s", errCode, msg);
       }
       ((char*) utf8)[length] = 0;
     } else if (KonanNeedDebugInfo) {
       char msg[512];
       auto errCode = getLastErrorMessage(msg, sizeof(msg));
-      consoleErrorf("Console read failure: %d %s", errCode, msg);
+      consoleErrorf("Console read failure: %lu %s", errCode, msg);
     }
   } else {
     length = ::read(STDIN_FILENO, utf8, maxSizeBytes - 1);
