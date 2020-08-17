@@ -25,11 +25,11 @@ extern "C" {
 #if USE_BINARY_SEARCH
 
 void* LookupOpenMethod(const TypeInfo* info, MethodNameHash nameSignature) {
-  uint32_t bottom = 0;
-  uint32_t top = info->openMethodsCount_ - 1;
+  int32_t bottom = 0;
+  int32_t top = static_cast<int32_t>(info->openMethodsCount_) - 1;
 
   while (bottom <= top) {
-    uint32_t middle = (bottom + top) / 2;
+    int32_t middle = (bottom + top) / 2;
     if (info->openMethods_[middle].nameSignature_ < nameSignature)
       bottom = middle + 1;
     else if (info->openMethods_[middle].nameSignature_ == nameSignature)

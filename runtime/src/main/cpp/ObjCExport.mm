@@ -450,10 +450,10 @@ static OBJ_GETTER(blockToKotlinImp, id block, SEL cmd) {
 
   // TODO: optimize:
   NSMethodSignature *signature = [NSMethodSignature signatureWithObjCTypes:encoding];
-  NSUInteger parameterCount = signature.numberOfArguments - 1; // 1 for the block itself.
+  int parameterCount = static_cast<int>(signature.numberOfArguments) - 1; // 1 for the block itself.
 
-  for (NSUInteger i = 1; i <= parameterCount; ++i) {
-    const char* argEncoding = [signature getArgumentTypeAtIndex:i];
+  for (int i = 1; i <= parameterCount; ++i) {
+    const char* argEncoding = [signature getArgumentTypeAtIndex:static_cast<NSUInteger>(i)];
     if (argEncoding[0] != '@') {
       [NSException raise:NSGenericException
             format:@"Blocks with non-reference-typed arguments aren't supported (%s)", argEncoding];
@@ -466,7 +466,7 @@ static OBJ_GETTER(blockToKotlinImp, id block, SEL cmd) {
           format:@"Blocks with non-reference-typed return value aren't supported (%s)", returnTypeEncoding];
   }
 
-  auto converter = parameterCount < static_cast<NSUInteger>(Kotlin_ObjCExport_blockToFunctionConverters_size)
+  auto converter = parameterCount < Kotlin_ObjCExport_blockToFunctionConverters_size
           ? Kotlin_ObjCExport_blockToFunctionConverters[parameterCount]
           : nullptr;
 
@@ -791,12 +791,12 @@ static int getVtableSize(const TypeInfo* typeInfo) {
 static void insertOrReplace(KStdVector<MethodTableRecord>& methodTable, MethodNameHash nameSignature, void* entryPoint) {
   MethodTableRecord record = {nameSignature, entryPoint};
 
-  for (auto i = methodTable.size() - 1; i >= 0; --i) {
-    if (methodTable[i].nameSignature_ == nameSignature) {
-      methodTable[i].methodEntryPoint_ = entryPoint;
+  for (int i = static_cast<int>(methodTable.size()) - 1; i >= 0; --i) {
+    if (methodTable[static_cast<size_t>(i)].nameSignature_ == nameSignature) {
+      methodTable[static_cast<size_t>(i)].methodEntryPoint_ = entryPoint;
       return;
-    } else if (methodTable[i].nameSignature_ < nameSignature) {
-      methodTable.insert(methodTable.begin() + static_cast<std::make_signed<decltype(i)>::type>(i + 1), record);
+    } else if (methodTable[static_cast<size_t>(i)].nameSignature_ < nameSignature) {
+      methodTable.insert(methodTable.begin() + (i + 1), record);
       return;
     }
   }
