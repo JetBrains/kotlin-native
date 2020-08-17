@@ -20,7 +20,6 @@
     <option name="SPACE_BEFORE_REFERENCE_IN_DECLARATION" value="false" />
     <option name="SPACE_AFTER_REFERENCE_IN_DECLARATION" value="true" />
     <option name="KEEP_BLANK_LINES_BEFORE_END" value="1" />
-    <option name="HEADER_GUARD_STYLE_PATTERN" value="${FILE_NAME}_${EXT}" />
   </Objective-C>
   <Objective-C-extensions>
     <extensions>
@@ -41,10 +40,9 @@
     </rules>
   </Objective-C-extensions>
   <codeStyleSettings language="ObjectiveC">
-    <option name="RIGHT_MARGIN" value="140" />
-    <option name="KEEP_BLANK_LINES_IN_DECLARATIONS" value="1" />
-    <option name="KEEP_BLANK_LINES_IN_CODE" value="1" />
-    <option name="KEEP_BLANK_LINES_BEFORE_RBRACE" value="1" />
+    <option name="KEEP_BLANK_LINES_IN_DECLARATIONS" value="10" />
+    <option name="KEEP_BLANK_LINES_IN_CODE" value="10" />
+    <option name="KEEP_BLANK_LINES_BEFORE_RBRACE" value="10" />
     <option name="BLANK_LINES_BEFORE_IMPORTS" value="0" />
     <option name="BLANK_LINES_AFTER_IMPORTS" value="0" />
     <option name="BLANK_LINES_AROUND_CLASS" value="0" />
