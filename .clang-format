@@ -135,10 +135,10 @@ NamespaceIndentation: None
 ObjCBinPackProtocolList: Never
 # Kt https://kotlinlang.org/docs/reference/coding-conventions.html#formatting
 ObjCBlockIndentWidth: 4
-# Kt https://kotlinlang.org/docs/reference/coding-conventions.html#annotation-formatting
+# Kt N/A. Following Google and LLVM styleguides.
 ObjCSpaceAfterProperty: false
-# Kt https://kotlinlang.org/docs/reference/coding-conventions.html#horizontal-whitespace
-ObjCSpaceBeforeProtocolList: false
+# Kt N/A. The closest is class inheritance list. Following Google and LLVM styleguides.
+ObjCSpaceBeforeProtocolList: true
 # Kt N/A.
 PointerAlignment: Left
 # Kt U. Reflow comments to fit into line width
