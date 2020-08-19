@@ -306,6 +306,50 @@ __attribute__((swift_name("CoroutinesKt")))
  Other uncaught Kotlin exceptions are fatal.
 */
 + (void)throwCancellationExceptionWithCompletionHandler:(void (^)(KtKotlinUnit * _Nullable, NSError * _Nullable))completionHandler __attribute__((swift_name("throwCancellationException(completionHandler:)")));
++ (id<KtKotlinSuspendFunction0>)getSuspendLambda0 __attribute__((swift_name("getSuspendLambda0()")));
++ (id<KtKotlinSuspendFunction0>)getSuspendCallableReference0 __attribute__((swift_name("getSuspendCallableReference0()")));
++ (id<KtKotlinSuspendFunction1>)getSuspendLambda1 __attribute__((swift_name("getSuspendLambda1()")));
++ (id<KtKotlinSuspendFunction1>)getSuspendCallableReference1 __attribute__((swift_name("getSuspendCallableReference1()")));
+
+/**
+ @note This method converts instances of CancellationException to errors.
+ Other uncaught Kotlin exceptions are fatal.
+*/
++ (void)invoke1Block:(id<KtKotlinSuspendFunction1>)block argument:(id _Nullable)argument completionHandler:(void (^)(id _Nullable, NSError * _Nullable))completionHandler __attribute__((swift_name("invoke1(block:argument:completionHandler:)")));
+@end;
+
+__attribute__((swift_name("FHolder")))
+@interface KtFHolder : KtBase
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@property (readonly) id _Nullable value __attribute__((swift_name("value")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("F2Holder")))
+@interface KtF2Holder : KtFHolder
+- (instancetype)initWithValue:(id _Nullable (^)(id _Nullable, id _Nullable))value __attribute__((swift_name("init(value:)"))) __attribute__((objc_designated_initializer));
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer)) __attribute__((unavailable));
++ (instancetype)new __attribute__((unavailable));
+@property (readonly) id _Nullable (^value)(id _Nullable, id _Nullable) __attribute__((swift_name("value")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("F32Holder")))
+@interface KtF32Holder : KtFHolder
+- (instancetype)initWithValue:(id _Nullable (^)(id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable))value __attribute__((swift_name("init(value:)"))) __attribute__((objc_designated_initializer));
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer)) __attribute__((unavailable));
++ (instancetype)new __attribute__((unavailable));
+@property (readonly) id _Nullable (^value)(id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable) __attribute__((swift_name("value")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("F33Holder")))
+@interface KtF33Holder : KtFHolder
+- (instancetype)initWithValue:(id _Nullable (^)(id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable))value __attribute__((swift_name("init(value:)"))) __attribute__((objc_designated_initializer));
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer)) __attribute__((unavailable));
++ (instancetype)new __attribute__((unavailable));
+@property (readonly) id<KtKotlinFunction33> value __attribute__((swift_name("value")));
 @end;
 
 __attribute__((objc_subclassing_restricted))
@@ -317,6 +361,16 @@ __attribute__((swift_name("FunctionalTypesKt")))
 + (void)callStaticType32Fct:(id _Nullable (^)(id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable))fct param:(id _Nullable)param __attribute__((swift_name("callStaticType32(fct:param:)")));
 + (void)callDynType33List:(NSArray<id<KtKotlinFunction33>> *)list param:(id _Nullable)param __attribute__((swift_name("callDynType33(list:param:)")));
 + (void)callStaticType33Fct:(id _Nullable (^)(id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable))fct param:(id _Nullable)param __attribute__((swift_name("callStaticType33(fct:param:)")));
++ (KtF2Holder *)getDynTypeLambda2 __attribute__((swift_name("getDynTypeLambda2()")));
++ (id _Nullable (^)(id _Nullable, id _Nullable))getStaticLambda2 __attribute__((swift_name("getStaticLambda2()")));
++ (KtF2Holder *)getDynTypeRef2 __attribute__((swift_name("getDynTypeRef2()")));
++ (id _Nullable (^)(id _Nullable, id _Nullable))getStaticRef2 __attribute__((swift_name("getStaticRef2()")));
++ (KtF32Holder *)getDynType32 __attribute__((swift_name("getDynType32()")));
++ (id _Nullable (^)(id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable))getStaticType32 __attribute__((swift_name("getStaticType32()")));
++ (KtF33Holder *)getDynTypeRef33 __attribute__((swift_name("getDynTypeRef33()")));
++ (id _Nullable (^)(id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable))getStaticTypeRef33 __attribute__((swift_name("getStaticTypeRef33()")));
++ (KtF33Holder *)getDynTypeLambda33 __attribute__((swift_name("getDynTypeLambda33()")));
++ (id _Nullable (^)(id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable, id _Nullable))getStaticTypeLambda33 __attribute__((swift_name("getStaticTypeLambda33()")));
 @end;
 
 __attribute__((swift_name("GH4002ArgumentBase")))
@@ -360,9 +414,115 @@ __attribute__((swift_name("TestIncompatiblePropertyTypeWarning.ClassOverridingIn
 @end;
 
 __attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("TestGH3992")))
+@interface KtTestGH3992 : KtBase
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@end;
+
+__attribute__((swift_name("TestGH3992.C")))
+@interface KtTestGH3992C : KtBase
+- (instancetype)initWithA:(KtTestGH3992A *)a __attribute__((swift_name("init(a:)"))) __attribute__((objc_designated_initializer));
+@property (readonly) KtTestGH3992A *a __attribute__((swift_name("a")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("TestGH3992.D")))
+@interface KtTestGH3992D : KtTestGH3992C
+- (instancetype)initWithA:(KtTestGH3992B *)a __attribute__((swift_name("init(a:)"))) __attribute__((objc_designated_initializer));
+@property (readonly) KtTestGH3992B *a __attribute__((swift_name("a")));
+@end;
+
+__attribute__((swift_name("TestGH3992.A")))
+@interface KtTestGH3992A : KtBase
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("TestGH3992.B")))
+@interface KtTestGH3992B : KtTestGH3992A
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
 __attribute__((swift_name("Kt35940Kt")))
 @interface KtKt35940Kt : KtBase
 + (NSString *)testKt35940 __attribute__((swift_name("testKt35940()")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("KT38641")))
+@interface KtKT38641 : KtBase
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("KT38641.IntType")))
+@interface KtKT38641IntType : KtBase
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@property (getter=description, setter=setDescription:) int32_t description_ __attribute__((swift_name("description_")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("KT38641.Val")))
+@interface KtKT38641Val : KtBase
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@property (readonly, getter=description) NSString *description_ __attribute__((swift_name("description_")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("KT38641.Var")))
+@interface KtKT38641Var : KtBase
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@property (getter=description, setter=setDescription:) NSString *description_ __attribute__((swift_name("description_")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("KT38641.TwoProperties")))
+@interface KtKT38641TwoProperties : KtBase
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@property (readonly, getter=description) NSString *description_ __attribute__((swift_name("description_")));
+@property (readonly) NSString *description_ __attribute__((swift_name("description_")));
+@end;
+
+__attribute__((swift_name("KT38641.OverrideVal")))
+@interface KtKT38641OverrideVal : KtBase
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@property (readonly, getter=description) NSString *description_ __attribute__((swift_name("description_")));
+@end;
+
+__attribute__((swift_name("KT38641OverrideVar")))
+@protocol KtKT38641OverrideVar
+@required
+@property (getter=description, setter=setDescription:) NSString *description_ __attribute__((swift_name("description_")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("Kt38641Kt")))
+@interface KtKt38641Kt : KtBase
++ (NSString *)getOverrideValDescriptionImpl:(KtKT38641OverrideVal *)impl __attribute__((swift_name("getOverrideValDescription(impl:)")));
++ (NSString *)getOverrideVarDescriptionImpl:(id<KtKT38641OverrideVar>)impl __attribute__((swift_name("getOverrideVarDescription(impl:)")));
++ (void)setOverrideVarDescriptionImpl:(id<KtKT38641OverrideVar>)impl newValue:(NSString *)newValue __attribute__((swift_name("setOverrideVarDescription(impl:newValue:)")));
+@end;
+
+__attribute__((swift_name("JsonConfiguration")))
+@interface KtJsonConfiguration : KtBase
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer)) __attribute__((unavailable("This class is deprecated for removal during serialization 1.0 API stabilization.\nFor configuring Json instances, the corresponding builder function can be used instead, e.g. instead of'Json(JsonConfiguration.Stable.copy(isLenient = true))' 'Json { isLenient = true }' should be used.\nInstead of storing JsonConfiguration instances of the code, Json instances can be used directly:'Json(MyJsonConfiguration.copy(prettyPrint = true))' can be replaced with 'Json(from = MyApplicationJson) { prettyPrint = true }'")));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("Kt39206Kt")))
+@interface KtKt39206Kt : KtBase
++ (int32_t)myFunc __attribute__((swift_name("myFunc()"))) __attribute__((deprecated("Don't call this\nPlease")));
 @end;
 
 __attribute__((objc_subclassing_restricted))
