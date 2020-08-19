@@ -75,4 +75,8 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
     api("org.jetbrains.kotlin:kotlin-native-utils:$kotlinVersion")
     api("org.jetbrains.kotlin:kotlin-util-klib:$kotlinVersion")
+
+    testImplementation("junit:junit:4.12")
+    testImplementation("org.jetbrains.kotlin:kotlin-test-junit:$buildKotlinVersion")
+    testImplementation("org.jetbrains.kotlin:kotlin-test:$buildKotlinVersion")
 }

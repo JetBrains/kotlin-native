@@ -227,6 +227,11 @@ task sharedJar {
     dependsOn gradle.includedBuild('shared').task(':jar')
 }
 
+task sharedTests {
+    description = "Execute tests from `shared` directory."
+    dependsOn gradle.includedBuild('shared').task(':test')
+}
+
 task gradlePluginJar {
     dependsOn gradle.includedBuild('kotlin-native-gradle-plugin').task(':shadowJar')
 }
