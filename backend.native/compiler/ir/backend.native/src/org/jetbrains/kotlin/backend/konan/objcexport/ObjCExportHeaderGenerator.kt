@@ -1237,6 +1237,7 @@ private fun Deprecation.toDeprecationAttribute(): String {
     // TODO: consider avoiding code generation for unavailable.
 
     val message = this.message.orEmpty()
+            .replace("\n", "\\n")
 
     return "$attribute(\"$message\")"
 }
