@@ -23,7 +23,7 @@ class KonanIrFileSerializer(
         val fqn = when (node) {
             is IrFunction -> RuntimeNames.exportForCppRuntime
             is IrClass -> RuntimeNames.exportTypeInfoAnnotation
-            else -> error("Unexpected container $node")
+            else -> return false
         }
 
         return node.annotations.hasAnnotation(fqn)
