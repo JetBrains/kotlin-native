@@ -5,8 +5,8 @@
 
 package org.jetbrains.kotlin.backend.konan.objcexport
 
-import org.jetbrains.kotlin.builtins.KotlinBuiltIns
-import org.jetbrains.kotlin.builtins.functions.FunctionClassDescriptor
+import org.jetbrains.kotlin.builtins.StandardNames
+import org.jetbrains.kotlin.builtins.functions.FunctionClassKind
 import org.jetbrains.kotlin.builtins.getFunctionalClassKind
 import org.jetbrains.kotlin.descriptors.ClassDescriptor
 import org.jetbrains.kotlin.name.ClassId
@@ -16,7 +16,7 @@ import org.jetbrains.kotlin.types.KotlinType
 import org.jetbrains.kotlin.types.TypeUtils
 
 internal fun ClassDescriptor.isMappedFunctionClass() =
-        this.getFunctionalClassKind() == FunctionClassDescriptor.Kind.Function &&
+        this.getFunctionalClassKind() == FunctionClassKind.Function &&
                 // Type parameters include return type.
                 declaredTypeParameters.size - 1 < CustomTypeMappers.functionTypeMappersArityLimit
 
@@ -31,7 +31,7 @@ internal object CustomTypeMappers {
      *
      * Don't forget to update [hiddenTypes] after adding new one.
      */
-    private val predefined: Map<ClassId, CustomTypeMapper> = with(KotlinBuiltIns.FQ_NAMES) {
+    private val predefined: Map<ClassId, CustomTypeMapper> = with(StandardNames.FqNames) {
         val result = mutableListOf<CustomTypeMapper>()
 
         result += Collection(list, "NSArray")
@@ -72,7 +72,7 @@ internal object CustomTypeMappers {
         if (descriptor.isMappedFunctionClass()) {
             // TODO: somewhat hacky, consider using FunctionClassDescriptor.arity later.
             val arity = descriptor.declaredTypeParameters.size - 1 // Type parameters include return type.
-            assert(classId == KotlinBuiltIns.getFunctionClassId(arity))
+            assert(classId == StandardNames.getFunctionClassId(arity))
             return Function(arity)
         }
 
@@ -140,7 +140,7 @@ internal object CustomTypeMappers {
 
     private class Function(private val parameterCount: Int) : CustomTypeMapper {
         override val mappedClassId: ClassId
-            get() = KotlinBuiltIns.getFunctionClassId(parameterCount)
+            get() = StandardNames.getFunctionClassId(parameterCount)
 
         override fun mapType(mappedSuperType: KotlinType, translator: ObjCExportTranslatorImpl, objCExportScope: ObjCExportScope): ObjCNonNullReferenceType {
             return translator.mapFunctionTypeIgnoringNullability(mappedSuperType, objCExportScope, returnsVoid = false)
