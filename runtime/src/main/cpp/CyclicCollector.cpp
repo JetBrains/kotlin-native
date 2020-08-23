@@ -89,10 +89,25 @@ inline void traverseObjectFields(ObjHeader* obj, func process) {
   RuntimeAssert(obj != nullptr, "Must be non null");
   const TypeInfo* typeInfo = obj->type_info();
   if (typeInfo != theArrayTypeInfo) {
-    for (int index = 0; index < typeInfo->objOffsetsCount_; index++) {
-      ObjHeader** location = reinterpret_cast<ObjHeader**>(
-          reinterpret_cast<uintptr_t>(obj) + typeInfo->objOffsets_[index]);
-      process(location);
+    int count = typeInfo->objOffsetsCount_;
+    if (count < 0) {
+        // Case of small object.
+        unsigned int ucount = -count;
+        auto mask = reinterpret_cast<uintptr_t>(typeInfo->objOffsets_);
+        for (unsigned int bit = 0; bit < ucount; bit++) {
+            if ((mask & (1u << bit)) != 0) {
+                uintptr_t fieldPtr = reinterpret_cast<uintptr_t>(obj) + bit * 8;
+                auto** location = reinterpret_cast<ObjHeader**>(fieldPtr);
+                process(location);
+            }
+        } 
+    } else if (count > 0) {
+        // Case of regular object.
+        for (int index = 0; index < count; index++) {
+            uintptr_t fieldPtr = reinterpret_cast<uintptr_t>(obj) + typeInfo->objOffsets_[index];
+            auto** location = reinterpret_cast<ObjHeader**>(fieldPtr);
+            process(location);
+        }
     }
   } else {
     ArrayHeader* array = obj->array();

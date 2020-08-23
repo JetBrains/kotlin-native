@@ -18,6 +18,7 @@ import org.jetbrains.kotlin.ir.util.isAnnotationClass
 import org.jetbrains.kotlin.ir.util.isInterface
 import org.jetbrains.kotlin.library.KotlinAbiVersion
 import org.jetbrains.kotlin.name.FqName
+import org.jetbrains.kotlin.utils.addToStdlib.ifNotEmpty
 
 internal class RTTIGenerator(override val context: Context) : ContextUtils {
 
@@ -232,14 +233,23 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
         val interfacesPtr = staticData.placeGlobalConstArray("kintf:$className",
                 pointerType(runtime.typeInfoType), interfaces)
 
-        val objOffsets = getObjOffsets(bodyType)
+        val fieldCount = irClass.fields.count()
 
-        val objOffsetsPtr = staticData.placeGlobalConstArray("krefs:$className", int32Type, objOffsets)
-
-        val objOffsetsCount = if (irClass.descriptor == context.builtIns.array) {
-            1 // To mark it as non-leaf.
+        val (objOffsetsPtr: ConstPointer, objOffsetsCount: Int) = if (fieldCount > 8) {
+            val objOffsets = getObjOffsets(bodyType)
+            val ptr = staticData.placeGlobalConstArray("krefs:$className", int32Type, objOffsets)
+            val count = when (irClass.descriptor) {
+                context.builtIns.array -> {
+                    1 // To mark it as non-leaf.
+                }
+                else -> {
+                    objOffsets.size
+                }
+            }
+            ptr to count
         } else {
-            objOffsets.size
+            val bitmaskLlvm = Int64(getObjOffsetsAsBitmask(bodyType)).llvm
+            constPointer(LLVMConstIntToPtr(bitmaskLlvm, pointerType(int32Type))!!) to -fieldCount
         }
 
         val methods = if (irClass.isAbstract()) {
@@ -300,6 +310,15 @@ internal class RTTIGenerator(override val context: Context) : ContextUtils {
                     null
                 }
             }.map { Int32(it.toInt()) }
+
+    private fun getObjOffsetsAsBitmask(bodyType: LLVMTypeRef): Long =
+            getStructElements(bodyType).mapIndexedNotNull { index, type ->
+                if (isObjectType(type)) {
+                    LLVMOffsetOfElement(llvmTargetData, bodyType, index)
+                } else {
+                    null
+                }
+            }.ifNotEmpty { reduce { acc, bit -> acc or bit } } ?: 0
 
     fun vtable(irClass: IrClass): ConstArray {
         // TODO: compile-time resolution limits binary compatibility.
