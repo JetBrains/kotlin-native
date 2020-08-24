@@ -26,6 +26,7 @@ import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
 import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
+import org.jetbrains.kotlin.konan.ForeignExceptionMode
 import org.jetbrains.kotlin.konan.target.CompilerOutputKind
 import org.jetbrains.kotlin.konan.target.Family
 import org.jetbrains.kotlin.name.FqName
@@ -2261,11 +2262,11 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     private fun call(function: IrFunction, llvmFunction: LLVMValueRef, args: List<LLVMValueRef>,
                      resultLifetime: Lifetime): LLVMValueRef {
-        val exceptionHandler = if (function.hasAnnotation(RuntimeNames.filterExceptions)) {
-            functionGenerationContext.filteringExceptionHandler(currentCodeContext)
-        } else {
-            currentCodeContext.exceptionHandler
-        }
+
+        val exceptionHandler = function.descriptor.annotations.findAnnotation(RuntimeNames.filterExceptions)?.let {
+            val foreignExceptionMode = ForeignExceptionMode.byValue(it.properValue("mode"))
+            functionGenerationContext.filteringExceptionHandler(currentCodeContext, foreignExceptionMode)
+        } ?: currentCodeContext.exceptionHandler
 
         val result = call(llvmFunction, args, resultLifetime, exceptionHandler)
         if (!function.isSuspend && function.returnType.isNothing()) {

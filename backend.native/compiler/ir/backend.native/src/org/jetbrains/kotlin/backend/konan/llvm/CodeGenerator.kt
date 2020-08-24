@@ -21,6 +21,7 @@ import org.jetbrains.kotlin.descriptors.konan.CompiledKlibModuleOrigin
 import org.jetbrains.kotlin.ir.expressions.IrDelegatingConstructorCall
 import org.jetbrains.kotlin.ir.expressions.IrGetObjectValue
 import org.jetbrains.kotlin.ir.expressions.IrReturn
+import org.jetbrains.kotlin.konan.ForeignExceptionMode
 
 private fun IrConstructor.isAnyConstructorDelegation(context: Context): Boolean {
         val statements = this.body?.statements ?: return false
@@ -619,13 +620,16 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
         return LLVMBuildExtractElement(builder, vector, index, name)!!
     }
 
-    fun filteringExceptionHandler(codeContext: CodeContext): ExceptionHandler {
+    fun filteringExceptionHandler(codeContext: CodeContext, foreignExceptionMode: ForeignExceptionMode.Mode): ExceptionHandler {
         val lpBlock = basicBlockInFunction("filteringExceptionHandler", position()?.start)
+
+        val wrapExceptionMode = context.config.target.family.isAppleFamily &&
+                foreignExceptionMode == ForeignExceptionMode.Mode.OBJC_WRAP
 
         appendingTo(lpBlock) {
             val landingpad = gxxLandingpad(2)
             LLVMAddClause(landingpad, kotlinExceptionRtti.llvm)
-            if (context.config.target.family.isAppleFamily) {
+            if (wrapExceptionMode) {
                 LLVMAddClause(landingpad, objcNSExceptionRtti.llvm)
             }
             LLVMAddClause(landingpad, LLVMConstNull(kInt8Ptr))
@@ -639,7 +643,7 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
                     call(context.llvm.llvmEhTypeidFor, listOf(kotlinExceptionRtti.llvm))
             )
 
-            if (context.config.target.family.isAppleFamily) {
+            if (wrapExceptionMode) {
                 val foreignExceptionBlock = basicBlock("foreignException", position()?.start)
                 val forwardNativeExceptionBlock = basicBlock("forwardNativeException", position()?.start)
 

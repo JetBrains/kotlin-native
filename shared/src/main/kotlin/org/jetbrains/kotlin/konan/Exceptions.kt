@@ -40,7 +40,7 @@ class ForeignExceptionMode {
     companion object {
         val manifestKey = "foreignExceptionMode"
         val default = Mode.TERMINATE
-        fun byValue(value: String?) = value?.let {
+        fun byValue(value: String?): Mode = value?.let {
             Mode.values().find { it.value == value }
                     ?: throw IllegalArgumentException("Illegal ForeignExceptionMode $value")
         } ?: default
