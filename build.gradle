@@ -278,13 +278,13 @@ task detectJarCollision(type: CollisionDetector) {
     configurations = [project.configurations.distPack]
     resolvingRules["META-INF/kotlin-util-klib.kotlin_module"] = "kotlin-compiler"
     resolvingRules["META-INF/kotlin-util-io.kotlin_module"] = "kotlin-compiler"
+    resolvingRules["META-INF/compiler.common.kotlin_module"] = "kotlin-compiler"
     resolvingRules["META-INF/descriptors.jvm.kotlin_module"] = "kotlin-compiler"
     resolvingRules["META-INF/descriptors.kotlin_module"] = "kotlin-compiler"
     resolvingRules["META-INF/descriptors.runtime.kotlin_module"] = "kotlin-compiler"
     resolvingRules["META-INF/deserialization.kotlin_module"] = "kotlin-compiler"
     resolvingRules["META-INF/metadata.jvm.kotlin_module"] = "kotlin-compiler"
     resolvingRules["META-INF/metadata.kotlin_module"] = "kotlin-compiler"
-    resolvingRules["META-INF/type-system.kotlin_module"] = "kotlin-compiler"
     resolvingRules["META-INF/util.runtime.kotlin_module"] = "kotlin-compiler"
     resolvingRules["META-INF/kotlin-native-utils.kotlin_module"] = "kotlin-compiler"
 
@@ -321,9 +321,9 @@ task detectJarCollision(type: CollisionDetector) {
                                                     "cli-js", "incremental-compilation-impl", "js.ast", "js.serializer",
                                                     "js.parser", "js.frontend", "js.translator", "js.dce", "metadata",
                                                     "metadata.jvm", "descriptors", "descriptors.jvm", "descriptors.runtime",
-                                                    "deserialization", "util.runtime", "type-system", "cones", "resolve",
+                                                    "deserialization", "util.runtime", "compiler.common", "cones", "resolve",
                                                     "tree", "psi2fir", "fir2ir", "java", "kotlin-build-common", "lightTree",
-                                                    "jvm", "checkers", "fir-common", "light-tree2fir", "fir-serialization"])
+                                                    "jvm", "checkers", "raw-fir.common", "light-tree2fir", "fir-serialization"])
     }
 }
 
