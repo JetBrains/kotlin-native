@@ -28,6 +28,7 @@ import org.jetbrains.kotlin.backend.konan.ir.interop.IrProviderForCEnumAndCStruc
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.konan.isNativeStdlib
 import org.jetbrains.kotlin.descriptors.konan.kotlinLibrary
+import org.jetbrains.kotlin.ir.builders.TranslationPluginContext
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.declarations.impl.IrFileImpl
 import org.jetbrains.kotlin.ir.declarations.impl.IrModuleFragmentImpl
@@ -65,6 +66,7 @@ object KonanFakeOverrideClassFilter : PlatformFakeOverrideClassFilter {
 internal class KonanIrLinker(
         private val currentModule: ModuleDescriptor,
         override val functionalInterfaceFactory: IrAbstractFunctionFactory,
+        override val translationPluginContext: TranslationPluginContext?,
         logger: LoggingContext,
         builtIns: IrBuiltIns,
         symbolTable: SymbolTable,
