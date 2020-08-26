@@ -21,15 +21,33 @@ import java.util.concurrent.TimeUnit
 class ToolDriver(
         private val useInProcessCompiler: Boolean = false
 ) {
-    fun compile(source: Path, output: Path, vararg args: String) {
+    fun compile(source: Path, output: Path, vararg args: String) = compile(output, *args) {
+        listOf("-output", output.toString(), source.toString(), *args).toTypedArray()
+    }
+
+    fun compile(output: Path, srcs:Array<Path>, vararg args: String) = compile(output, *args) {
+         listOf("-output", output.toString(), *srcs.map{it.toString()}.toTypedArray(), *args).toTypedArray()
+    }
+
+    private fun compile(output: Path, vararg args: String, argsCalculator:() -> Array<String>) {
         check(!Files.exists(output))
-        val allArgs = listOf("-output", output.toString(), source.toString(), *args).toTypedArray()
+        val allArgs = argsCalculator()
 
         if (useInProcessCompiler) {
             K2Native.main(allArgs)
         } else {
             subprocess(DistProperties.konanc, *allArgs).thrownIfFailed()
         }
+        check(Files.exists(output)) {
+            "Compiler has not produced an output at $output"
+        }
+    }
+
+    fun cinterop(defFile:Path, output: Path, pkg: String, vararg args: String) {
+        val allArgs = listOf("-o", output.toString(), "-def", defFile.toString(), "-pkg", pkg, *args).toTypedArray()
+
+        //TODO: do we need in process cinterop?
+        subprocess(DistProperties.cinterop, *allArgs).thrownIfFailed()
         check(Files.exists(output)) {
             "Compiler has not produced an output at $output"
         }
@@ -43,9 +61,15 @@ class ToolDriver(
                 .stdout
     }
 
-    fun runDwarfDump(program: Path, processor:List<DwarfTag>.()->Unit) {
-        val out = subprocess(DistProperties.dwarfDump, "${program}.dSYM/Contents/Resources/DWARF/${program.fileName}").takeIf { it.process.exitValue() == 0 }?.stdout ?: error("${program}.dSYM/Contents/Resources/DWARF/${program.fileName}")
+    fun runDwarfDump(program: Path, vararg args:String = emptyArray(), processor:List<DwarfTag>.()->Unit) {
+        val dwarfProcess = subprocess(DistProperties.dwarfDump, *args, "${program}.dSYM/Contents/Resources/DWARF/${program.fileName}")
+        val out = dwarfProcess.takeIf { it.process.exitValue() == 0 }?.stdout ?: error(dwarfProcess.stderr)
         DwarfUtilParser().parse(StringReader(out)).tags.toList().processor()
+    }
+
+    fun swiftc(output: Path, swiftSrc: Path, vararg args: String) {
+        val swiftProcess = subprocess(DistProperties.swiftc, "-o", output.toString(), swiftSrc.toString(), *args)
+        val out = swiftProcess.takeIf { it.process.exitValue() == 0 }?.stdout ?: error(swiftProcess.stderr)
     }
 }
 

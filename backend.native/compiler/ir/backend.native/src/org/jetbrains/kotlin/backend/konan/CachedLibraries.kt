@@ -21,6 +21,28 @@ class CachedLibraries(
 
     class Cache(val kind: Kind, val path: String) {
         enum class Kind { DYNAMIC, STATIC }
+
+        val bitcodeDependencies by lazy {
+            val directory = File(path).absoluteFile.parent
+            File(directory, BITCODE_DEPENDENCIES_FILE_NAME).readStrings()
+        }
+    }
+
+    private fun selectCache(library: KotlinLibrary, cacheDir: File): Cache? {
+        // See Linker.renameOutput why is it ok to have an empty cache directory.
+        if (cacheDir.listFilesOrEmpty.isEmpty()) return null
+        val baseName = getCachedLibraryName(library)
+        val dynamicFile = cacheDir.child(getArtifactName(baseName, CompilerOutputKind.DYNAMIC_CACHE))
+        val staticFile = cacheDir.child(getArtifactName(baseName, CompilerOutputKind.STATIC_CACHE))
+
+        if (dynamicFile.exists && staticFile.exists)
+            error("Both dynamic and static caches files cannot be in the same directory." +
+                    " Library: ${library.libraryName}, path to cache: ${cacheDir.absolutePath}")
+        return when {
+            dynamicFile.exists -> Cache(Cache.Kind.DYNAMIC, dynamicFile.absolutePath)
+            staticFile.exists -> Cache(Cache.Kind.STATIC, staticFile.absolutePath)
+            else -> error("No cache found for library ${library.libraryName} at ${cacheDir.absolutePath}")
+        }
     }
 
     private fun selectCache(library: KotlinLibrary, cacheDir: File): Cache? {
@@ -81,5 +103,6 @@ class CachedLibraries(
     companion object {
         fun getCachedLibraryName(library: KotlinLibrary): String = getCachedLibraryName(library.uniqueName)
         fun getCachedLibraryName(libraryName: String): String = "$libraryName-cache"
+        const val BITCODE_DEPENDENCIES_FILE_NAME = "bitcode_deps"
     }
 }

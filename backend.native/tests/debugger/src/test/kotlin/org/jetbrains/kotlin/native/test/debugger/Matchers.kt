@@ -9,6 +9,7 @@ import org.intellij.lang.annotations.Language
 import org.junit.Assert.fail
 import java.io.IOException
 import java.nio.file.Files
+import java.nio.file.Path
 
 /**
  * An integration test for debug info.
@@ -109,9 +110,76 @@ fun dwarfDumpTest(@Language("kotlin") programText: String, flags: List<String>, 
         val driver = ToolDriver()
         Files.write(source, programText.trimIndent().toByteArray())
         driver.compile(source, output, "-g", *flags.toTypedArray())
-        driver.runDwarfDump(output, test)
+        driver.runDwarfDump(output, processor = test)
     }
 }
+
+class ToolDriverHelper(private val driver: ToolDriver, val root:Path) {
+    fun String.cinterop(pkg:String, output: String):Path {
+        val def = feedOutput("$output.def")
+        val lib = root.resolve("$output.klib")
+        driver.cinterop(def, lib, pkg)
+        return lib
+    }
+
+
+    fun String.library(output: String, vararg flags:String) = feedOutput("$output.kt").compile(root.resolve("$output.klib"), "-p", "library", *flags)
+
+    fun String.binary(output: String, vararg flags:String)= feedOutput("$output.kt").compile(root.resolve("$output.kexe"), *flags)
+
+    private fun Path.compile(output: Path, vararg flags:String) = output.also{ driver.compile(source = this, it, *flags) }
+
+    fun Path.dwarfDumpLookup(address: Long, parser:List<DwarfTag>.() -> Unit) = driver.runDwarfDump(this, "-lookup", address.toString(), processor = parser)
+    fun Path.dwarfDumpLookup(name: String, parser:List<DwarfTag>.() -> Unit) = driver.runDwarfDump(this, "-find", name, processor = parser)
+
+
+    fun String.feedOutput(output: String) = root.resolve(output).also {
+            Files.write(it, this.trimIndent().toByteArray())
+        }
+
+    fun Array<Path>.framework(name:String, vararg args:String = emptyArray()):Path = root.resolve("$name.framework").also {
+
+        driver.compile(it, this, "-produce", "framework", *args)
+    }
+
+    fun swiftc(output: String, swiftSrc: Path, vararg args: String) = root.resolve(output).also {
+        driver.swiftc(it, swiftSrc, *args, "-Xlinker", "-rpath", "-Xlinker", "@executable_path")
+    }
+
+    fun String.lldb(program:Path) {
+        val lldbSessionSpec = LldbSessionSpecification.parse(this)
+        val result = driver.runLldb(program, lldbSessionSpec.commands)
+        lldbSessionSpec.match(result)
+    }
+
+}
+
+fun dwarfDumpComplexTest(test:ToolDriverHelper.()->Unit) {
+    if (!haveDwarfDump) {
+        println("Skipping test: no dwarfdump")
+        return
+    }
+
+
+    with(Files.createTempDirectory("dwarfdump_test_complex")) {
+        toFile().deleteOnExit()
+        val driver = ToolDriverHelper(ToolDriver(), this).test()
+    }
+}
+
+fun lldbComplexTest(test:ToolDriverHelper.()->Unit) {
+    if (!haveLldb) {
+        println("Skipping test: no lldb")
+        return
+    }
+
+
+    with(Files.createTempDirectory("lldb_test_complex")) {
+        toFile().deleteOnExit()
+        val driver = ToolDriverHelper(ToolDriver(), this).test()
+    }
+}
+
 
 private val haveDwarfDump: Boolean by lazy {
     val version = try {

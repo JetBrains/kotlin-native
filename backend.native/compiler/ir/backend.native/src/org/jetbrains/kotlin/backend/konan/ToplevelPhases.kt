@@ -36,7 +36,6 @@ import org.jetbrains.kotlin.ir.declarations.IrFactory
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.impl.IrFactoryImpl
-import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.ir.visitors.acceptVoid
@@ -374,11 +373,13 @@ internal val allLoweringsPhase = NamedCompilerPhase(
                         name = "IrLowerByFile",
                         description = "IR Lowering by file",
                         lower = listOf(
+                            rangeContainsLoweringPhase,
                             forLoopsPhase,
                             stringConcatenationPhase,
                             enumConstructorsPhase,
                             initializersPhase,
                             localFunctionsPhase,
+                            foldConstantLoweringPhase,
                             tailrecPhase,
                             defaultParameterExtentPhase,
                             innerClassPhase,

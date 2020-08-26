@@ -1459,6 +1459,10 @@ task bridges_special(type: KonanLocalTest) {
     source = "codegen/bridges/special.kt"
 }
 
+task bridges_nativePointed(type: KonanLocalTest) {
+    source = "codegen/bridges/nativePointed.kt"
+}
+
 task returnTypeSignature(type: KonanLocalTest) {
     source = "codegen/bridges/returnTypeSignature.kt"
 }
@@ -1878,6 +1882,11 @@ task array4(type: KonanLocalTest) {
     disabled = (project.testTarget == 'wasm32') // Uses exceptions.
     goldValue = "OK\n"
     source = "runtime/collections/array4.kt"
+}
+
+task array5(type: KonanLocalTest) {
+    disabled = (project.testTarget == 'wasm32') // Uses exceptions.
+    source = "runtime/collections/array5.kt"
 }
 
 task typed_array0(type: KonanLocalTest) {
@@ -2824,6 +2833,13 @@ task memory_stable_ref_cross_thread_check(type: KonanLocalTest) {
     source = "runtime/memory/stable_ref_cross_thread_check.kt"
 }
 
+standaloneTest("cycle_detector") {
+    disabled = project.globalTestArgs.contains('-opt') || // Needs debug build.
+               (project.testTarget == 'wasm32') // CycleDetector is disabled on WASM.
+    flags = ['-tr', '-g']
+    source = "runtime/memory/cycle_detector.kt"
+}
+
 standaloneTest("cycle_collector") {
     disabled = true // Needs USE_CYCLIC_GC, which is disabled.
     flags = ['-g']
@@ -3576,8 +3592,8 @@ createInterop("embedStaticLibraries") {
         }
     }
 
-    it.extraOpts '-staticLibrary', "$libDir/1.a"
-    it.extraOpts '-staticLibrary', "$libDir/2.a"
+    it.extraOpts '-staticLibrary', "1.a"
+    it.extraOpts '-staticLibrary', "2.a"
 }
 
 if (PlatformInfo.isAppleTarget(project)) {
@@ -3847,6 +3863,12 @@ interopTest("interop_array_pointers") {
     disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
     interop = 'carrayPointers'
     source = "interop/basics/arrayPointers.kt"
+}
+
+standaloneTest("interop_pinning") {
+    disabled = (project.testTarget == 'wasm32') // Uses exceptions.
+    source = "interop/basics/pinning.kt"
+    flags = [ "-tr" ]
 }
 
 task interop_convert(type: KonanLocalTest) {
@@ -4426,6 +4448,23 @@ if (UtilsKt.getTestTargetSupportsCodeCoverage(project)) {
 task metadata_compare_typedefs(type: MetadataComparisonTest) {
     enabled = (project.testTarget != 'wasm32')
     defFile = "interop/basics/typedefs.def"
+}
+
+task metadata_compare_unable_to_import(type: MetadataComparisonTest) {
+    enabled = (project.testTarget != 'wasm32')
+    defFile = "interop/basics/unable_to_import.def"
+}
+
+standaloneTest("local_ea_arraysfieldwrite") {
+    disabled = (cacheTesting != null) // Cache is not compatible with -opt.
+    goldValue = "Array (constructor init):\nSize: 2\nContents: [1, 2]\n" +
+            "Array (constructor init):\nSize: 2\nContents: [3, 4]\n" +
+            "Array (default value init):\nSize: 2\nContents: [1, 2]\n" +
+            "Array (default value init):\nSize: 2\nContents: [3, 4]\n" +
+            "Array (init block):\nSize: 2\nContents: [1, 2]\n" +
+            "Array (init block):\nSize: 2\nContents: [3, 4]\n"
+    flags = ["-opt"]
+    source = "codegen/localEscapeAnalysis/arraysFieldWrite.kt"
 }
 
 /**

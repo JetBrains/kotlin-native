@@ -706,27 +706,36 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 || declaration.isExternal
                 || body == null)
             return
-
-        generateFunction(codegen, declaration,
-                declaration.location(start = true),
-                declaration.location(start = false)) {
-            using(FunctionScope(declaration, it)) {
-                val parameterScope = ParameterScope(declaration, functionGenerationContext)
-                using(parameterScope) usingParameterScope@{
-                    using(VariableScope()) usingVariableScope@{
-                        recordCoverage(body)
-                        if (declaration.isReifiedInline) {
-                            callDirect(context.ir.symbols.throwIllegalStateExceptionWithMessage.owner,
-                                    listOf(context.llvm.staticData.kotlinStringLiteral(
-                                            "unsupported call of reified inlined function `${declaration.fqNameForIrSerialization}`").llvm),
-                                    Lifetime.IRRELEVANT)
-                            return@usingVariableScope
-                        }
-                        when (body) {
-                            is IrBlockBody -> body.statements.forEach { generateStatement(it) }
-                            is IrExpressionBody -> generateStatement(body.expression)
-                            is IrSyntheticBody -> throw AssertionError("Synthetic body ${body.kind} has not been lowered")
-                            else -> TODO(ir2string(body))
+        val isNotInlinedLambda = declaration.origin == IrDeclarationOrigin.LOCAL_FUNCTION_FOR_LAMBDA
+        val file = ((declaration as? IrSimpleFunction)?.attributeOwnerId as? IrSimpleFunction)?.file.takeIf {
+            it ?: return@takeIf false
+            (currentCodeContext.fileScope() as FileScope).file != it && isNotInlinedLambda
+        }
+        val scope = file?.let {
+            FileScope(it)
+        }
+        using(scope) {
+            generateFunction(codegen, declaration,
+                    declaration.location(start = true),
+                    declaration.location(start = false)) {
+                using(FunctionScope(declaration, it)) {
+                    val parameterScope = ParameterScope(declaration, functionGenerationContext)
+                    using(parameterScope) usingParameterScope@{
+                        using(VariableScope()) usingVariableScope@{
+                            recordCoverage(body)
+                            if (declaration.isReifiedInline) {
+                                callDirect(context.ir.symbols.throwIllegalStateExceptionWithMessage.owner,
+                                        listOf(context.llvm.staticData.kotlinStringLiteral(
+                                                "unsupported call of reified inlined function `${declaration.fqNameForIrSerialization}`").llvm),
+                                        Lifetime.IRRELEVANT)
+                                return@usingVariableScope
+                            }
+                            when (body) {
+                                is IrBlockBody -> body.statements.forEach { generateStatement(it) }
+                                is IrExpressionBody -> generateStatement(body.expression)
+                                is IrSyntheticBody -> throw AssertionError("Synthetic body ${body.kind} has not been lowered")
+                                else -> TODO(ir2string(body))
+                            }
                         }
                     }
                 }
@@ -1575,8 +1584,33 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         return !irClass.isFrozen
     }
 
+    private fun isZeroConstValue(value: IrExpression): Boolean {
+        if (value !is IrConst<*>) return false
+        return when (value.kind) {
+            IrConstKind.Null -> true
+            IrConstKind.Boolean -> (value.value as Boolean) == false
+            IrConstKind.Byte -> (value.value as Byte) == 0.toByte()
+            IrConstKind.Char -> (value.value as Char) == 0.toChar()
+            IrConstKind.Short -> (value.value as Short) == 0.toShort()
+            IrConstKind.Int -> (value.value as Int) == 0
+            IrConstKind.Long -> (value.value as Long) == 0L
+            IrConstKind.Float -> (value.value as Float).toRawBits() == 0
+            IrConstKind.Double -> (value.value as Double).toRawBits() == 0L
+            IrConstKind.String -> false
+        }
+    }
+
     private fun evaluateSetField(value: IrSetField): LLVMValueRef {
         context.log{"evaluateSetField               : ${ir2string(value)}"}
+        if (value.origin == IrStatementOrigin.INITIALIZE_FIELD
+                && isZeroConstValue(value.value)) {
+            check(value.receiver is IrGetValue) { "Only IrGetValue expected for receiver of a field initializer" }
+            // All newly allocated objects are zeroed out, so it is redundant to initialize their
+            // fields with the default values. This is also aligned with the Kotlin/JVM behavior.
+            // See https://youtrack.jetbrains.com/issue/KT-39100 for details.
+            return codegen.theUnitInstanceRef.llvm
+        }
+
         val valueToAssign = evaluateExpression(value.value)
         val store = if (!value.symbol.owner.isStatic) {
             val thisPtr = evaluateExpression(value.receiver!!)
@@ -2142,21 +2176,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                             lifetime = resultLifetime(callee), exceptionHandler = currentCodeContext.exceptionHandler)
                 }
 
-                // TODO: OBJC-CONSTRUCTOR-CALL. Move to InteropLowering.
-                constructedClass.isObjCClass() -> {
-                    assert(constructedClass.isKotlinObjCClass()) // Calls to other ObjC class constructors must be lowered.
-                    val symbols = context.ir.symbols
-                    val rawPtr = callDirect(
-                            symbols.interopAllocObjCObject.owner,
-                            listOf(genGetObjCClass(constructedClass)),
-                            Lifetime.IRRELEVANT
-                    )
-
-                    callDirect(symbols.interopInterpretObjCPointer.owner, listOf(rawPtr), resultLifetime(callee)).also {
-                        // Balance pointer retained by alloc:
-                        callDirect(symbols.interopObjCRelease.owner, listOf(rawPtr), Lifetime.IRRELEVANT)
-                    }
-                }
+                constructedClass.isObjCClass() -> error("Call should've been lowered: ${callee.dump()}")
 
                 else -> functionGenerationContext.allocInstance(constructedClass, resultLifetime(callee))
             }
@@ -2374,8 +2394,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     //-------------------------------------------------------------------------//
     fun appendStaticInitializers() {
-        // Null for "current" non-library module:
-        val libraries = (context.librariesWithDependencies + listOf(null))
+        // Note: the list of libraries is topologically sorted (in order for initializers to be called correctly).
+        val libraries = (context.llvm.allBitcodeDependencies + listOf(null)/* Null for "current" non-library module */)
 
         val libraryToInitializers = libraries.associateWith {
             mutableListOf<LLVMValueRef>()

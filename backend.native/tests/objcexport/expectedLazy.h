@@ -306,6 +306,16 @@ __attribute__((swift_name("CoroutinesKt")))
  Other uncaught Kotlin exceptions are fatal.
 */
 + (void)throwCancellationExceptionWithCompletionHandler:(void (^)(KtKotlinUnit * _Nullable, NSError * _Nullable))completionHandler __attribute__((swift_name("throwCancellationException(completionHandler:)")));
++ (id<KtKotlinSuspendFunction0>)getSuspendLambda0 __attribute__((swift_name("getSuspendLambda0()")));
++ (id<KtKotlinSuspendFunction0>)getSuspendCallableReference0 __attribute__((swift_name("getSuspendCallableReference0()")));
++ (id<KtKotlinSuspendFunction1>)getSuspendLambda1 __attribute__((swift_name("getSuspendLambda1()")));
++ (id<KtKotlinSuspendFunction1>)getSuspendCallableReference1 __attribute__((swift_name("getSuspendCallableReference1()")));
+
+/**
+ @note This method converts instances of CancellationException to errors.
+ Other uncaught Kotlin exceptions are fatal.
+*/
++ (void)invoke1Block:(id<KtKotlinSuspendFunction1>)block argument:(id _Nullable)argument completionHandler:(void (^)(id _Nullable, NSError * _Nullable))completionHandler __attribute__((swift_name("invoke1(block:argument:completionHandler:)")));
 @end;
 
 __attribute__((swift_name("FHolder")))
@@ -443,11 +453,96 @@ __attribute__((swift_name("Kt35940Kt")))
 @end;
 
 __attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("KT38641")))
+@interface KtKT38641 : KtBase
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("KT38641.IntType")))
+@interface KtKT38641IntType : KtBase
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@property (getter=description, setter=setDescription:) int32_t description_ __attribute__((swift_name("description_")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("KT38641.Val")))
+@interface KtKT38641Val : KtBase
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@property (readonly, getter=description) NSString *description_ __attribute__((swift_name("description_")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("KT38641.Var")))
+@interface KtKT38641Var : KtBase
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@property (getter=description, setter=setDescription:) NSString *description_ __attribute__((swift_name("description_")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("KT38641.TwoProperties")))
+@interface KtKT38641TwoProperties : KtBase
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@property (readonly, getter=description) NSString *description_ __attribute__((swift_name("description_")));
+@property (readonly) NSString *description_ __attribute__((swift_name("description_")));
+@end;
+
+__attribute__((swift_name("KT38641.OverrideVal")))
+@interface KtKT38641OverrideVal : KtBase
+- (instancetype)init __attribute__((swift_name("init()"))) __attribute__((objc_designated_initializer));
++ (instancetype)new __attribute__((availability(swift, unavailable, message="use object initializers instead")));
+@property (readonly, getter=description) NSString *description_ __attribute__((swift_name("description_")));
+@end;
+
+__attribute__((swift_name("KT38641OverrideVar")))
+@protocol KtKT38641OverrideVar
+@required
+@property (getter=description, setter=setDescription:) NSString *description_ __attribute__((swift_name("description_")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("Kt38641Kt")))
+@interface KtKt38641Kt : KtBase
++ (NSString *)getOverrideValDescriptionImpl:(KtKT38641OverrideVal *)impl __attribute__((swift_name("getOverrideValDescription(impl:)")));
++ (NSString *)getOverrideVarDescriptionImpl:(id<KtKT38641OverrideVar>)impl __attribute__((swift_name("getOverrideVarDescription(impl:)")));
++ (void)setOverrideVarDescriptionImpl:(id<KtKT38641OverrideVar>)impl newValue:(NSString *)newValue __attribute__((swift_name("setOverrideVarDescription(impl:newValue:)")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
 __attribute__((swift_name("LibraryKt")))
 @interface KtLibraryKt : KtBase
 + (NSString *)readDataFromLibraryClassInput:(KtA *)input __attribute__((swift_name("readDataFromLibraryClass(input:)")));
 + (NSString *)readDataFromLibraryInterfaceInput:(id<KtI>)input __attribute__((swift_name("readDataFromLibraryInterface(input:)")));
 + (NSString *)readDataFromLibraryEnumInput:(KtE *)input __attribute__((swift_name("readDataFromLibraryEnum(input:)")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("ArraysConstructor")))
+@interface KtArraysConstructor : KtBase
+- (instancetype)initWithInt1:(int32_t)int1 int2:(int32_t)int2 __attribute__((swift_name("init(int1:int2:)"))) __attribute__((objc_designated_initializer));
+- (void)setInt1:(int32_t)int1 int2:(int32_t)int2 __attribute__((swift_name("set(int1:int2:)")));
+- (NSString *)log __attribute__((swift_name("log()")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("ArraysDefault")))
+@interface KtArraysDefault : KtBase
+- (instancetype)initWithInt1:(int32_t)int1 int2:(int32_t)int2 __attribute__((swift_name("init(int1:int2:)"))) __attribute__((objc_designated_initializer));
+- (void)setInt1:(int32_t)int1 int2:(int32_t)int2 __attribute__((swift_name("set(int1:int2:)")));
+- (NSString *)log __attribute__((swift_name("log()")));
+@end;
+
+__attribute__((objc_subclassing_restricted))
+__attribute__((swift_name("ArraysInitBlock")))
+@interface KtArraysInitBlock : KtBase
+- (instancetype)initWithInt1:(int32_t)int1 int2:(int32_t)int2 __attribute__((swift_name("init(int1:int2:)"))) __attribute__((objc_designated_initializer));
+- (void)setInt1:(int32_t)int1 int2:(int32_t)int2 __attribute__((swift_name("set(int1:int2:)")));
+- (NSString *)log __attribute__((swift_name("log()")));
 @end;
 
 __attribute__((objc_subclassing_restricted))

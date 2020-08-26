@@ -85,7 +85,7 @@ int getLastErrorMessage(char* message, uint32_t size) {
     auto errMsgBufSize = size / 4;
     wchar_t errMsgBuffer[errMsgBufSize];
     ::FormatMessageW(flags, NULL, errCode, 0, errMsgBuffer, errMsgBufSize, NULL);
-    auto errMsgLength = ::WideCharToMultiByte(CP_UTF8, 0, errMsgBuffer, -1, message, size, NULL, NULL);
+    ::WideCharToMultiByte(CP_UTF8, 0, errMsgBuffer, -1, message, size, NULL, NULL);
   }
   return errCode;
 }
@@ -108,7 +108,6 @@ int32_t consoleReadUtf8(void* utf8, uint32_t maxSizeBytes) {
       if (!length && KonanNeedDebugInfo) {
         char msg[512];
         auto errCode = getLastErrorMessage(msg, sizeof(msg));
-        char buffer[1024];
         consoleErrorf("UTF-16 to UTF-8 conversion error %d: %s", errCode, msg);
       }
       ((char*) utf8)[length] = 0;
@@ -155,7 +154,7 @@ void consolePrintf(const char* format, ...) {
   va_start(args, format);
   int rv = vsnprintf_impl(buffer, sizeof(buffer), format, args);
   if (rv < 0) return; // TODO: this may be too much exotic, but should i try to print itoa(error) and terminate?
-  if (rv >= sizeof(buffer)) rv = sizeof(buffer) - 1;  // TODO: Consider realloc or report truncating.
+  if (static_cast<size_t>(rv) >= sizeof(buffer)) rv = sizeof(buffer) - 1;  // TODO: Consider realloc or report truncating.
   va_end(args);
   consoleWriteUtf8(buffer, rv);
 }
@@ -167,9 +166,14 @@ void consoleErrorf(const char* format, ...) {
   va_start(args, format);
   int rv = vsnprintf_impl(buffer, sizeof(buffer), format, args);
   if (rv < 0) return; // TODO: this may be too much exotic, but should i try to print itoa(error) and terminate?
-  if (rv >= sizeof(buffer)) rv = sizeof(buffer) - 1;  // TODO: Consider realloc or report truncating.
+  if (static_cast<size_t>(rv) >= sizeof(buffer)) rv = sizeof(buffer) - 1;  // TODO: Consider realloc or report truncating.
   va_end(args);
   consoleErrorUtf8(buffer, rv);
+}
+
+void consoleFlush() {
+  ::fflush(stdout);
+  ::fflush(stderr);
 }
 
 // Thread execution.
@@ -447,7 +451,7 @@ extern "C" {
                 100000007UL,
                 1000000007UL
         };
-        int table_length = sizeof(primes)/sizeof(unsigned long);
+        size_t table_length = sizeof(primes)/sizeof(unsigned long);
 
         if (n > primes[table_length - 1]) konan::abort();
 
@@ -486,7 +490,7 @@ extern "C" {
 #ifdef KONAN_WASM
     // Some string.h functions.
     void *memcpy(void *dst, const void *src, size_t n) {
-        for (long i = 0; i != n; ++i)
+        for (size_t i = 0; i != n; ++i)
             *((char*)dst + i) = *((char*)src + i);
         return dst;
     }
@@ -503,7 +507,7 @@ extern "C" {
     }
 
     int memcmp(const void *s1, const void *s2, size_t n) {
-        for (long i = 0; i != n; ++i) {
+        for (size_t i = 0; i != n; ++i) {
             if (*((char*)s1 + i) != *((char*)s2 + i)) {
                 return *((char*)s1 + i) - *((char*)s2 + i);
             }
@@ -512,7 +516,7 @@ extern "C" {
     }
 
     void *memset(void *b, int c, size_t len) {
-        for (long i = 0; i != len; ++i) {
+        for (size_t i = 0; i != len; ++i) {
             *((char*)b + i) = c;
         }
         return b;
@@ -525,7 +529,7 @@ extern "C" {
     }
 
     size_t strnlen(const char *s, size_t maxlen) {
-        for (long i = 0; i<=maxlen; ++i) {
+        for (size_t i = 0; i<=maxlen; ++i) {
             if (s[i] == 0) return i;
         }
         return maxlen;

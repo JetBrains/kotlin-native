@@ -93,7 +93,7 @@ struct Job {
 
     struct {
       KNativePtr operation;
-      KLong whenExecute;
+      uint64_t whenExecute;
     } executeAfter;
   };
 };
@@ -163,11 +163,6 @@ class Worker {
   bool errorReporting_;
   bool terminated_ = false;
   pthread_t thread_ = 0;
-};
-
-#else  // WITH_WORKERS
-class Worker {
-  KInt id;
 };
 
 #endif  // WITH_WORKERS
@@ -344,6 +339,8 @@ class State {
     Worker* worker = nullptr;
     Locker locker(&lock_);
 
+    RuntimeAssert(afterMicroseconds >= 0, "afterMicroseconds cannot be negative");
+
     auto it = workers_.find(id);
     if (it == workers_.end()) {
       return false;
@@ -407,7 +404,6 @@ class State {
   }
 
   OBJ_GETTER(getWorkerNameUnlocked, KInt id) {
-    Worker* worker = nullptr;
     ObjHolder nameHolder;
     {
       Locker locker(&lock_);
@@ -493,6 +489,7 @@ class State {
         "Unfinished workers detected, %lu workers leaked!\n"
         "Use `Platform.isMemoryLeakCheckerActive = false` to avoid this check.\n",
         remainingNativeWorkers);
+      konan::consoleFlush();
       konan::abort();
     }
   }
@@ -565,7 +562,6 @@ KInt currentWorker() {
 }
 
 KInt execute(KInt id, KInt transferMode, KRef producer, KNativePtr jobFunction) {
-  Job job;
   ObjHolder holder;
   WorkerLaunchpad(producer, holder.slot());
   KNativePtr jobArgument = transfer(&holder, transferMode);

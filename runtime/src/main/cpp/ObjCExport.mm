@@ -539,6 +539,26 @@ static convertReferenceToObjC findConverterFromInterfaces(const TypeInfo* typeIn
 
   for (int i = 0; i < typeInfo->implementedInterfacesCount_; ++i) {
     const TypeInfo* interfaceTypeInfo = typeInfo->implementedInterfaces_[i];
+    if ((interfaceTypeInfo->flags_ & TF_SUSPEND_FUNCTION) != 0) {
+      // interfaceTypeInfo is a SuspendFunction$N interface.
+      // So any instance of typeInfo is a suspend lambda or a suspend callable reference
+      // (user-defined Kotlin classes implementing SuspendFunction$N are prohibited by the compiler).
+      //
+      // Such types also actually implement Function${N+1} interface as an optimization
+      // (see e.g. [startCoroutineUninterceptedOrReturn implementation).
+      // This fact is not user-visible, so ignoring Function${N+1} interface here
+      // (and thus not converting such objects to Obj-C blocks) should be safe enough
+      // (because such objects aren't expected to be passed from Kotlin to Swift
+      // under formal Function${N+1} type).
+      //
+      // On the other hand, this fixes support for SuspendFunction$N type: it is mapped as
+      // regular Kotlin interface, so its instances should be converted on a general basis
+      // (i.e. to objects implementing Obj-C representation of SuspendFunction$N, not to Obj-C blocks).
+      //
+      // "If typeInfo is a suspend lambda or callable reference type, convert its instances on a regular basis":
+      return nullptr;
+    }
+
     if (interfaceTypeInfo->writableInfo_->objCExport.convert != nullptr) {
       if (foundTypeInfo == nullptr || IsSubInterface(interfaceTypeInfo, foundTypeInfo)) {
         foundTypeInfo = interfaceTypeInfo;
@@ -673,7 +693,7 @@ static const TypeInfo* createTypeInfo(
   }
 
   const TypeInfo** implementedInterfaces_ = konanAllocArray<const TypeInfo*>(implementedInterfaces.size());
-  for (int i = 0; i < implementedInterfaces.size(); ++i) {
+  for (size_t i = 0; i < implementedInterfaces.size(); ++i) {
     implementedInterfaces_[i] = implementedInterfaces[i];
   }
 
@@ -689,7 +709,7 @@ static const TypeInfo* createTypeInfo(
   }
 
   MethodTableRecord* openMethods_ = konanAllocArray<MethodTableRecord>(methodTable.size());
-  for (int i = 0; i < methodTable.size(); ++i) openMethods_[i] = methodTable[i];
+  for (size_t i = 0; i < methodTable.size(); ++i) openMethods_[i] = methodTable[i];
 
   result->openMethods_ = openMethods_;
   result->openMethodsCount_ = methodTable.size();
@@ -698,7 +718,7 @@ static const TypeInfo* createTypeInfo(
   result->relativeName_ = nullptr; // TODO: add some info.
   result->writableInfo_ = (WritableTypeInfo*)konanAllocMemory(sizeof(WritableTypeInfo));
 
-  for (int i = 0; i < vtable.size(); ++i) result->vtable()[i] = vtable[i];
+  for (size_t i = 0; i < vtable.size(); ++i) result->vtable()[i] = vtable[i];
 
   return result;
 }
@@ -707,7 +727,7 @@ static void addDefinedSelectors(Class clazz, KStdUnorderedSet<SEL>& result) {
   unsigned int objcMethodCount;
   Method* objcMethods = class_copyMethodList(clazz, &objcMethodCount);
 
-  for (int i = 0; i < objcMethodCount; ++i) {
+  for (unsigned int i = 0; i < objcMethodCount; ++i) {
     result.insert(method_getName(objcMethods[i]));
   }
 
@@ -799,8 +819,6 @@ static void throwIfCantBeOverridden(Class clazz, const KotlinToObjCMethodAdapter
 }
 
 static const TypeInfo* createTypeInfo(Class clazz, const TypeInfo* superType, const TypeInfo* fieldsInfo) {
-  Class superClass = class_getSuperclass(clazz);
-
   KStdUnorderedSet<SEL> definedSelectors;
   addDefinedSelectors(clazz, definedSelectors);
 
@@ -877,7 +895,7 @@ static const TypeInfo* createTypeInfo(Class clazz, const TypeInfo* superType, co
     auto interfaceVTableIt = interfaceVTables.find(interfaceId);
     RuntimeAssert(interfaceVTableIt != interfaceVTables.end(), "");
     auto& interfaceVTable = interfaceVTableIt->second;
-    RuntimeAssert(methodIndex >= 0 && methodIndex < interfaceVTable.size(), "");
+    RuntimeAssert(methodIndex >= 0 && static_cast<size_t>(methodIndex) < interfaceVTable.size(), "");
     interfaceVTable[methodIndex] = entry;
   };
 
@@ -913,10 +931,10 @@ static const TypeInfo* createTypeInfo(Class clazz, const TypeInfo* superType, co
       auto interfaceVTablesIt = interfaceVTables.find(interfaceId);
       if (interfaceVTablesIt == interfaceVTables.end()) {
         itableEqualsSuper = false;
-        interfaceVTables.emplace(interfaceId, std::move(KStdVector<VTableElement>(interfaceVTableSize)));
+        interfaceVTables.emplace(interfaceId, KStdVector<VTableElement>(interfaceVTableSize));
       } else {
         auto const& interfaceVTable = interfaceVTablesIt->second;
-        RuntimeAssert(interfaceVTable.size() == interfaceVTableSize, "");
+        RuntimeAssert(interfaceVTable.size() == static_cast<size_t>(interfaceVTableSize), "");
       }
     }
 
