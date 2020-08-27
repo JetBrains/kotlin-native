@@ -56,8 +56,6 @@ class OutputFiles(outputPath: String?, target: KonanTarget, val produce: Compile
                 tempCacheDirectory!!.child(CachedLibraries.BITCODE_DEPENDENCIES_FILE_NAME).absolutePath
             else null
 
-    val symbolicInfoFile = "$nativeBinaryFile.dSYM"
-
     private fun String.fullOutputName() = prefixBaseNameIfNeeded(prefix).suffixIfNeeded(suffix)
 
     private fun String.prefixBaseNameIfNeeded(prefix: String) =
