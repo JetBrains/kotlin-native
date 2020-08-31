@@ -324,7 +324,7 @@ task detectJarCollision(type: CollisionDetector) {
                                                     "deserialization", "util.runtime", "compiler.common", "cones", "resolve",
                                                     "tree", "psi2fir", "fir2ir", "java", "kotlin-build-common", "lightTree",
                                                     "jvm", "checkers", "raw-fir.common", "light-tree2fir", 
-                                                    "fir-serialization", "fir-serialization", "entrypoint"])
+                                                    "fir-serialization", "fir-deserialization", "entrypoint"])
     }
 }
 
