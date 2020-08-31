@@ -183,7 +183,7 @@ fun router() {
     val goldenIndex = GoldenResultsIndex(connector)
     val buildInfoIndex = BuildInfoIndex(connector)
 
-    router.get("/createMapping") { request, response ->
+    router.get("/createMapping") { _, response ->
         buildInfoIndex.createMapping().then { _ ->
             response.sendStatus(200)
         }.catch { _ ->
@@ -448,10 +448,13 @@ fun router() {
                                     val buildInfoRecord = BuildInfo(currentBuildNumber, infoParts[1], infoParts[2],
                                             CommitsList.parse(infoParts[4]), infoParts[3], target)
 
-                                    val externalJsonReport = artifactoryUrlConnector.sendOptionalRequest(RequestMethod.GET, accessExternalFileUrl).await()
+                                    val externalJsonReport = artifactoryUrlConnector.sendOptionalRequest(RequestMethod.GET, accessExternalFileUrl)
+                                            .await()
                                     buildInfoIndex.insert(buildInfoRecord).then { _ ->
+                                        println("[BUILD INFO] Success insert build number ${buildInfoRecord.buildNumber}")
                                         externalJsonReport?.let {
-                                            var externalReports = convert(externalJsonReport, currentBuildNumber, target)
+                                            var externalReports = convert(externalJsonReport.replace("circlet_iosX64", "SpaceFramework_iosX64"),
+                                                    currentBuildNumber, target)
                                             externalReports.forEach { externalReport ->
                                                 val extrenalAdditionalReport = SummaryBenchmarksReport(externalReport)
                                                         .getBenchmarksReport().normalizeBenchmarksSet(goldenResults)

@@ -61,6 +61,7 @@ internal fun getBuildsDescription(type: String?, branch: String?, agentInfo: Str
                 }
             }
         """.trimIndent()
+
     return buildInfoIndex.search(queryDescription, listOf("hits.hits._source")).then { responseString ->
         val dbResponse = JsonTreeParser.parse(responseString).jsonObject
         dbResponse.getObjectOrNull("hits")?.getArrayOrNull("hits") ?: error("Wrong response:\n$responseString")

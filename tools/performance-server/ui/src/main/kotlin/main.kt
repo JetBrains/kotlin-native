@@ -83,7 +83,7 @@ fun getChartOptions(samples: Array<String>, yTitle: String, classNames: Array<St
     val axisXObject: dynamic = object {}
     axisXObject["offset"] = 40
     axisXObject["labelInterpolationFnc"] = { value, index, labels ->
-        val labelsCount = 30
+        val labelsCount = 20
         val skipNumber = ceil((labels.length as Int).toDouble() / labelsCount).toInt()
         if (skipNumber > 1) {
             if (index % skipNumber == 0) value else null
@@ -208,12 +208,6 @@ var stageToShow = 0
 
 var buildsNumberToShow: Int? = null
 
-fun waitForElements(elements: Iterable<Any?>, action: () -> Unit) {
-    if (elements.filterNotNull().size == elements.count())
-        action()
-    else window.setTimeout(waitForElements(elements, action), 500)
-}
-
 fun main(args: Array<String>) {
     val serverUrl = "https://kotlin-native-perf-summary.labs.jb.gg"
     buildsNumberToShow = null
@@ -303,30 +297,30 @@ fun main(args: Array<String>) {
         }
     })
 
-    val platformSpecificBenchs = if (parameters["target"] == "Mac_OS_X") ",FrameworkBenchmarksAnalyzer,circlet_iosX64" else
+    val platformSpecificBenchs = if (parameters["target"] == "Mac_OS_X") ",FrameworkBenchmarksAnalyzer,SpaceFramework_iosX64" else
         if (parameters["target"] == "Linux") ",kotlinx.coroutines" else ""
 
     // Collect information for charts library.
-    val valuesToShow = mapOf("EXECUTION_TIME" to arrayOf(mapOf(
+    val valuesToShow = mapOf("EXECUTION_TIME" to listOf(mapOf(
             "normalize" to "true"
             )),
-            "COMPILE_TIME" to arrayOf(mapOf(
+            "COMPILE_TIME" to listOf(mapOf(
                     "samples" to "HelloWorld,Videoplayer$platformSpecificBenchs",
                     "agr" to "samples"
             )),
-            "CODE_SIZE" to arrayOf(mapOf(
+            "CODE_SIZE" to listOf(mapOf(
                     "normalize" to "true",
                     "exclude" to if (parameters["target"] == "Linux")
                         "kotlinx.coroutines"
                     else if (parameters["target"] == "Mac_OS_X")
-                        "circlet_iosX64"
+                        "SpaceFramework_iosX64"
                     else ""
-            ), mapOf(
+            ), if (platformSpecificBenchs.isNotEmpty()) mapOf(
                     "normalize" to "true",
                     "agr" to "samples",
                     "samples" to platformSpecificBenchs.removePrefix(",")
-            )),
-            "BUNDLE_SIZE" to arrayOf(mapOf("samples" to "KotlinNative",
+            ) else null).filterNotNull(),
+            "BUNDLE_SIZE" to listOf(mapOf("samples" to "KotlinNative",
                     "agr" to "samples"))
     )
 
@@ -348,9 +342,22 @@ fun main(args: Array<String>) {
 
     val metricUrl = "$serverUrl/metricValue/${parameters["target"]}/"
 
+    // Get builds description.
+    val buildsInfoPromise = sendGetRequest(descriptionUrl).then { response ->
+        val buildsInfo = response as String
+        val data = JsonTreeParser.parse(buildsInfo)
+        if (data !is JsonArray) {
+            error("Response is expected to be an array.")
+        }
+        data.jsonArray.map {
+            val element = it as JsonElement
+            if (element.isNull) null else Build.create(element as JsonObject)
+        }
+    }
+
     // Send requests to get all needed metric values.
-    valuesToShow.map { (metric, arrayOfSettings) ->
-        val resultValues = arrayOfSettings.map { settings ->
+    valuesToShow.map { (metric, listOfSettings) ->
+        val resultValues = listOfSettings.map { settings ->
             val getParameters = with(StringBuilder()) {
                 if (settings.isNotEmpty()) {
                     append("?")
@@ -400,12 +407,20 @@ fun main(args: Array<String>) {
                             getChartData(labels, compileData.second, stageToShow, buildsNumberToShow),
                             getChartOptions(valuesToShow["COMPILE_TIME"]!![0]!!["samples"]!!.split(',').toTypedArray(),
                                     "Time, milliseconds"))
+                    buildsInfoPromise.then { builds ->
+                        customizeChart(compileChart, "compile_chart", js("$(\"#compile_chart\")"), builds, parameters)
+                        compileChart.update(getChartData(compileData.first, compileData.second, stageToShow, buildsNumberToShow))
+                    }
                 }
                 "EXECUTION_TIME" -> {
                     execData = labels to values
                     execChart = Chartist.Line("#exec_chart",
                             getChartData(labels, execData.second, stageToShow, buildsNumberToShow),
                             getChartOptions(arrayOf("Geometric Mean"), "Normalized time"))
+                    buildsInfoPromise.then { builds ->
+                        customizeChart(execChart, "exec_chart", js("$(\"#exec_chart\")"), builds, parameters)
+                        execChart.update(getChartData(execData.first, execData.second, stageToShow, buildsNumberToShow))
+                    }
                 }
                 "CODE_SIZE" -> {
                     codeSizeData = labels to values
@@ -416,6 +431,10 @@ fun main(args: Array<String>) {
                                     .filter { it.isNotEmpty() },
                                     "Normalized size",
                                     arrayOf("ct-series-4", "ct-series-5", "ct-series-6")))
+                    buildsInfoPromise.then { builds ->
+                        customizeChart(codeSizeChart, "codesize_chart", js("$(\"#codesize_chart\")"), builds, parameters)
+                        codeSizeChart.update(getChartData(codeSizeData.first, codeSizeData.second, stageToShow, buildsNumberToShow, sizeClassNames))
+                    }
                 }
                 "BUNDLE_SIZE" -> {
                     bundleSizeData = labels to values.map { it.map { it?.let { it.toInt() / 1024 / 1024 } } }
@@ -424,6 +443,10 @@ fun main(args: Array<String>) {
                                     bundleSizeData.second, stageToShow,
                                     buildsNumberToShow, sizeClassNames),
                             getChartOptions(arrayOf("Bundle size"), "Size, MB", arrayOf("ct-series-4")))
+                    buildsInfoPromise.then { builds ->
+                        customizeChart(bundleSizeChart, "bundlesize_chart", js("$(\"#bundlesize_chart\")"), builds, parameters)
+                        bundleSizeChart.update(getChartData(bundleSizeData.first, bundleSizeData.second, stageToShow, buildsNumberToShow, sizeClassNames))
+                    }
                 }
                 else -> error("No chart for metric $metric")
             }
@@ -437,26 +460,6 @@ fun main(args: Array<String>) {
         compileChart.update(getChartData(compileData.first, compileData.second, stageToShow, buildsNumberToShow))
         codeSizeChart.update(getChartData(codeSizeData.first, codeSizeData.second, stageToShow, buildsNumberToShow, sizeClassNames))
         bundleSizeChart.update(getChartData(bundleSizeData.first, bundleSizeData.second, stageToShow, buildsNumberToShow, sizeClassNames))
-    }
-
-    // Get builds description.
-    sendGetRequest(descriptionUrl).then { response ->
-        val buildsInfo = response as String
-        val data = JsonTreeParser.parse(buildsInfo)
-        if (data !is JsonArray) {
-            error("Response is expected to be an array.")
-        }
-        val builds = data.jsonArray.map {
-            val element = it as JsonElement
-            if (element.isNull) null else Build.create(element as JsonObject)
-        }
-        waitForElements(listOf(execChart, compileChart, codeSizeChart, bundleSizeChart)) {
-            customizeChart(execChart, "exec_chart", js("$(\"#exec_chart\")"), builds, parameters)
-            customizeChart(compileChart, "compile_chart", js("$(\"#compile_chart\")"), builds, parameters)
-            customizeChart(codeSizeChart, "codesize_chart", js("$(\"#codesize_chart\")"), builds, parameters)
-            customizeChart(bundleSizeChart, "bundlesize_chart", js("$(\"#bundlesize_chart\")"), builds, parameters)
-            updateAllCharts()
-        }
     }
 
     js("$('#plusBtn')").click({
