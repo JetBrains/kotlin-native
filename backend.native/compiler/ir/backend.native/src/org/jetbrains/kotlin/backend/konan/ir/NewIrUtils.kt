@@ -8,7 +8,7 @@ package org.jetbrains.kotlin.backend.konan.ir
 import org.jetbrains.kotlin.backend.common.atMostOne
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.descriptors.Modality
-import org.jetbrains.kotlin.descriptors.Visibilities
+import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.ir.declarations.*
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
 import org.jetbrains.kotlin.ir.expressions.IrConst
@@ -54,7 +54,7 @@ val IrProperty.isReal: Boolean get() = this.descriptor.kind.isReal
 val IrField.isReal: Boolean get() = this.descriptor.kind.isReal
 
 val IrSimpleFunction.isOverridable: Boolean
-    get() = visibility != Visibilities.PRIVATE
+    get() = visibility != DescriptorVisibilities.PRIVATE
             && modality != Modality.FINAL
             && (parent as? IrClass)?.isFinalClass != true
 

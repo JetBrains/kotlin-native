@@ -14,7 +14,7 @@ import org.jetbrains.kotlin.backend.konan.isObjCMetaClass
 import org.jetbrains.kotlin.builtins.UnsignedType
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
-import org.jetbrains.kotlin.descriptors.Visibilities
+import org.jetbrains.kotlin.descriptors.DescriptorVisibilities
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
@@ -567,7 +567,7 @@ private fun KotlinStubs.createFakeKotlinExternalFunction(
             IrDeclarationOrigin.DEFINED,
             IrSimpleFunctionSymbolImpl(bridgeDescriptor),
             Name.identifier(cFunctionName),
-            Visibilities.PRIVATE,
+            DescriptorVisibilities.PRIVATE,
             Modality.FINAL,
             signature.returnType,
             isInline = false,
@@ -1216,7 +1216,7 @@ private class ObjCBlockPointerValuePassing(
                 startOffset, endOffset,
                 OBJC_BLOCK_FUNCTION_IMPL, IrClassSymbolImpl(classDescriptor),
                 Name.identifier(stubs.getUniqueKotlinFunctionReferenceClassName("BlockFunctionImpl")),
-                ClassKind.CLASS, Visibilities.PRIVATE, Modality.FINAL,
+                ClassKind.CLASS, DescriptorVisibilities.PRIVATE, Modality.FINAL,
                 isCompanion = false, isInner = false, isData = false, isExternal = false,
                 isInline = false, isExpect = false, isFun = false
         )
@@ -1240,7 +1240,7 @@ private class ObjCBlockPointerValuePassing(
                 OBJC_BLOCK_FUNCTION_IMPL,
                 IrConstructorSymbolImpl(constructorDescriptor),
                 Name.special("<init>"),
-                Visibilities.PUBLIC,
+                DescriptorVisibilities.PUBLIC,
                 irClass.defaultType,
                 isInline = false, isExternal = false, isPrimary = true, isExpect = false
         )
@@ -1281,7 +1281,7 @@ private class ObjCBlockPointerValuePassing(
                 OBJC_BLOCK_FUNCTION_IMPL,
                 IrSimpleFunctionSymbolImpl(invokeMethodDescriptor),
                 overriddenInvokeMethod.name,
-                Visibilities.PUBLIC, Modality.FINAL,
+                DescriptorVisibilities.PUBLIC, Modality.FINAL,
                 returnType = functionType.arguments.last().typeOrNull!!,
                 isInline = false, isExternal = false, isTailrec = false, isSuspend = false, isExpect = false,
                 isFakeOverride = false, isOperator = false, isInfix = false
