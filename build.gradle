@@ -501,6 +501,8 @@ targetList.each { target ->
         from(project(':runtime').file("build/$target")) {
             include("*.bc")
             exclude("runtime.bc")
+            exclude("test_support.bc")
+            exclude("runtimeTests.bc")
             into("konan/targets/$target/native")
         }
         if (target == 'wasm32') {
