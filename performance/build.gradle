@@ -97,6 +97,9 @@ private def uploadBenchmarkResultToArtifactory(String fileName) {
     def teamcityConfig = System.getenv("TEAMCITY_BUILD_PROPERTIES_FILE")
     if (teamcityConfig) {
         def uploadedFile = getUploadedFile(fileName)
+        def buildProperties = new Properties()
+        buildProperties.load(new FileInputStream(teamcityConfig))
+        def password = buildProperties.getProperty("artifactory.apikey")
         MPPTools.uploadFileToArtifactory("${artifactoryUrl}", "${artifactoryRepo}",
                 uploadedFile, "${buildDir.absolutePath}/${fileName}", password)
     }
