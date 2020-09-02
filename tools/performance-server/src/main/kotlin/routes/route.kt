@@ -220,7 +220,10 @@ fun router() {
             register.sendTeamCityRequest(register.changesListUrl, true).then { changes ->
                 val commitsList = CommitsList(JsonTreeParser.parse(changes))
                 // Get artifact.
-                register.sendTeamCityRequest(register.teamCityArtifactsUrl).then { resultsContent ->
+                val content  = if(register.fileWithResult.contains("/"))
+                    UrlNetworkConnector(artifactoryUrl).sendRequest(RequestMethod.GET, register.fileWithResult)
+                else register.sendTeamCityRequest(register.teamCityArtifactsUrl)
+                content.then { resultsContent ->
                     launch {
                         val reportData = JsonTreeParser.parse(resultsContent)
                         val reports = if (reportData is JsonArray) {
