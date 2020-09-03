@@ -52,7 +52,8 @@ fun createInteropLibrary(
 
             BuiltInsPlatform.NATIVE,
             nopack = nopack,
-            shortName = shortName
+            shortName = shortName,
+            privateMemberSignatures = true
     ).apply {
         val serializedMetadata = metadata.write(ChunkingWriteStrategy())
         addMetadata(SerializedMetadata(serializedMetadata.header, serializedMetadata.fragments, serializedMetadata.fragmentNames))
