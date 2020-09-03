@@ -43,9 +43,6 @@ import org.jetbrains.kotlin.backend.konan.llvm.coverage.CoverageManager
 import org.jetbrains.kotlin.ir.descriptors.WrappedSimpleFunctionDescriptor
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
 import org.jetbrains.kotlin.ir.symbols.impl.IrFieldSymbolImpl
-import org.jetbrains.kotlin.ir.types.IrType
-import org.jetbrains.kotlin.ir.types.defaultType
-import org.jetbrains.kotlin.ir.types.makeNullable
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.konan.library.KonanLibraryLayout
 import org.jetbrains.kotlin.library.SerializedIrModule
@@ -58,8 +55,8 @@ import org.jetbrains.kotlin.resolve.descriptorUtil.isEffectivelyExternal
 internal class SpecialDeclarationsFactory(val context: Context) {
     private val enumSpecialDeclarationsFactory by lazy { EnumSpecialDeclarationsFactory(context) }
     private val outerThisFields = mutableMapOf<IrClass, IrField>()
-    private val loweredEnums = mutableMapOf<IrClass, LoweredEnum>()
-    private val ordinals = mutableMapOf<ClassDescriptor, Map<ClassDescriptor, Int>>()
+    private val internalLoweredEnums = mutableMapOf<IrClass, InternalLoweredEnum>()
+    private val externalLoweredEnums = mutableMapOf<IrClass, ExternalLoweredEnum>()
 
     private data class BridgeKey(val target: IrSimpleFunction, val bridgeDirections: BridgeDirections)
 
@@ -106,10 +103,24 @@ internal class SpecialDeclarationsFactory(val context: Context) {
             }
         }
 
-    fun getLoweredEnum(enumClass: IrClass): LoweredEnum {
+    fun getLoweredEnum(enumClass: IrClass): LoweredEnumAccess {
         assert(enumClass.kind == ClassKind.ENUM_CLASS) { "Expected enum class but was: ${enumClass.descriptor}" }
-        return loweredEnums.getOrPut(enumClass) {
-            enumSpecialDeclarationsFactory.createLoweredEnum(enumClass)
+        return if (!context.llvmModuleSpecification.containsDeclaration(enumClass)) {
+            externalLoweredEnums.getOrPut(enumClass) {
+                enumSpecialDeclarationsFactory.createExternalLoweredEnum(enumClass)
+            }
+        } else {
+            internalLoweredEnums.getOrPut(enumClass) {
+                enumSpecialDeclarationsFactory.createInternalLoweredEnum(enumClass)
+            }
+        }
+    }
+
+    fun getInternalLoweredEnum(enumClass: IrClass): InternalLoweredEnum {
+        assert(enumClass.kind == ClassKind.ENUM_CLASS) { "Expected enum class but was: ${enumClass.descriptor}" }
+        assert(context.llvmModuleSpecification.containsDeclaration(enumClass)) { "Expected enum class from current module." }
+        return internalLoweredEnums.getOrPut(enumClass) {
+            enumSpecialDeclarationsFactory.createInternalLoweredEnum(enumClass)
         }
     }
 
@@ -281,7 +292,7 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
                 throw Error("Another IrModule in the context.")
             }
             field = module!!
-
+            internalAbi.init(module)
             ir = KonanIr(this, module)
         }
 
@@ -422,6 +433,11 @@ internal class Context(config: KonanConfig) : KonanBackendContext(config) {
     )
 
     val declaredLocalArrays: MutableMap<String, LLVMTypeRef> = HashMap()
+
+    /**
+     * Manages internal ABI references and declarations.
+     */
+    val internalAbi = InternalAbi(this)
 }
 
 private fun MemberScope.getContributedClassifier(name: String) =
