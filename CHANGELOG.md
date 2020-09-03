@@ -1,5 +1,5 @@
 # 1.4.10 (Sep 2020)
-  * Fixed a newline handing in @Deprecated annotation in ObjCExport ([KT-39206](https://youtrack.jetbrains.com/issue/KT-39206))
+  * Fixed a newline handling in @Deprecated annotation in ObjCExport ([KT-39206](https://youtrack.jetbrains.com/issue/KT-39206))
   * Fixed suspend function types in ObjCExport ([KT-40976](https://youtrack.jetbrains.com/issue/KT-40976))
   * Fixed support for unsupported C declarations in cinterop ([KT-39762](https://youtrack.jetbrains.com/issue/KT-39762))
   * Fixed a recursion in Python LLDB bindings ([KT-41291](https://youtrack.jetbrains.com/issue/KT-41291))
