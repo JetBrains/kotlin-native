@@ -255,7 +255,7 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
     // Get geometric mean for benchmarks values of needed metric.
     fun getGeometricMean(metricName: String, featureValue: String = "",
                          buildNumbers: Iterable<String>? = null, normalize: Boolean = false,
-                         excludeNames: List<String> = emptyList()): Promise<List<Pair<String, List<Double>>>> {
+                         excludeNames: List<String> = emptyList()): Promise<List<Pair<String, List<Double?>>>> {
         // Filter only with metric or also with names.
         val filterBenchmarks = if (excludeNames.isEmpty())
             """
@@ -345,9 +345,9 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
                             .getObject("metric_samples")
                             .getObject("buckets")
                             .getObject("samples")
-                            .getObject("geom_mean")
-                            .getPrimitive("value")
-                            .double
+                            .getObjectOrNull("geom_mean")
+                            ?.getPrimitive("value")
+                            ?.double
                     )
                 }
             } ?: listOf("golden" to listOf(aggregations
@@ -355,9 +355,9 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
                     .getObject("metric_samples")
                     .getObject("buckets")
                     .getObject("samples")
-                    .getObject("geom_mean")
-                    .getPrimitive("value")
-                    .double
+                    .getObjectOrNull("geom_mean")
+                    ?.getPrimitive("value")
+                    ?.double
                 )
             )
         }
