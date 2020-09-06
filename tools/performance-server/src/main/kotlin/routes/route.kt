@@ -25,6 +25,8 @@ operator fun <K, V> Map<K, V>?.get(key: K) = this?.get(key)
 
 fun getArtifactoryHeader(artifactoryApiKey: String) = Pair("X-JFrog-Art-Api", artifactoryApiKey)
 
+external fun decodeURIComponent(url: String): String
+
 // Convert saved old report to expected new format.
 internal fun convertToNewFormat(data: JsonObject): List<Any> {
     val env = Environment.create(data.getRequiredField("env"))
@@ -295,6 +297,9 @@ fun router() {
 
             var branch: String? = null
             var type: String? = null
+            var buildsCountToShow = 200
+            var beforeDate: String? = null
+            var afterDate: String? = null
             if (request.query != undefined) {
                 if (request.query.branch != undefined) {
                     branch = request.query.branch
@@ -302,9 +307,19 @@ fun router() {
                 if (request.query.type != undefined) {
                     type = request.query.type
                 }
+                if (request.query.count != undefined) {
+                    buildsCountToShow = request.query.count.toString().toInt()
+                }
+                if (request.query.before != undefined) {
+                    beforeDate = decodeURIComponent(request.query.before)
+                }
+                if (request.query.after != undefined) {
+                    afterDate = decodeURIComponent(request.query.after)
+                }
             }
 
-            getBuildsInfo(type, branch, target, buildInfoIndex).then { buildsInfo ->
+            getBuildsInfo(type, branch, target, buildsCountToShow, buildInfoIndex, beforeDate, afterDate)
+                    .then { buildsInfo ->
                 val buildNumbers = buildsInfo.map { it.buildNumber }
                 // Get number of failed benchmarks for each build.
                 benchmarksDispatcher.getFailuresNumber(target, buildNumbers).then { failures ->
@@ -334,6 +349,9 @@ fun router() {
             var branch: String? = null
             var type: String? = null
             var excludeNames: List<String> = emptyList()
+            var buildsCountToShow = 200
+            var beforeDate: String? = null
+            var afterDate: String? = null
 
             // Parse parameters from request if it exists.
             if (request.query != undefined) {
@@ -355,9 +373,18 @@ fun router() {
                 if (request.query.exclude != undefined) {
                     excludeNames = request.query.exclude.toString().split(",").map { it.trim() }
                 }
+                if (request.query.count != undefined) {
+                    buildsCountToShow = request.query.count.toString().toInt()
+                }
+                if (request.query.before != undefined) {
+                    beforeDate = decodeURIComponent(request.query.before)
+                }
+                if (request.query.after != undefined) {
+                    afterDate = decodeURIComponent(request.query.after)
+                }
             }
 
-            getBuildsNumbers(type, branch, target, buildInfoIndex).then { buildNumbers ->
+            getBuildsNumbers(type, branch, target, buildsCountToShow, buildInfoIndex, beforeDate, afterDate).then { buildNumbers ->
                 if (aggregation == "geomean") {
                     // Get geometric mean for samples.
                     benchmarksDispatcher.getGeometricMean(metric, target, buildNumbers, normalize,
@@ -369,7 +396,8 @@ fun router() {
                         reject()
                     }
                 } else {
-                    benchmarksDispatcher.getSamples(metric, target, samples, buildNumbers, normalize).then { geoMeansValues ->
+                    benchmarksDispatcher.getSamples(metric, target, samples, buildsCountToShow, buildNumbers, normalize)
+                            .then { geoMeansValues ->
                         success(orderedValues(geoMeansValues, { it -> it.first }, branch == "master"))
                     }.catch {
                         println("Error during getting samples")
@@ -414,6 +442,7 @@ fun router() {
         var buildNumber: String? = null
         if (request.query != undefined) {
             if (request.query.buildNumber != undefined) {
+                buildNumber = request.query.buildNumber
                 buildNumber = request.query.buildNumber
             }
         }

@@ -97,13 +97,13 @@ class BenchmarksIndexesDispatcher(connector: ElasticSearchConnector, val feature
     }
 
     // Get benchmarks values of needed metric for choosen build number.
-    fun getSamples(metricName: String, featureValue: String = "", samples: List<String>,
+    fun getSamples(metricName: String, featureValue: String = "", samples: List<String>, buildsCountToShow: Int,
                    buildNumbers: Iterable<String>? = null,
                    normalize: Boolean = false): Promise<List<Pair<String, Array<Double?>>>> {
         val queryDescription = """
             {
                 "_source": ["buildNumber"],
-                "size": 1000,
+                "size": ${samples.size * buildsCountToShow},
                 "query": {
                     "bool": {
                         "must": [ 
