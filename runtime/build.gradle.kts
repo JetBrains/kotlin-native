@@ -133,6 +133,14 @@ val hostRuntimeTests by tasks.registering {
     dependsOn("${hostName}RuntimeTests")
 }
 
+val hostStdAllocRuntimeTests by tasks.registering {
+    dependsOn("${hostName}StdAllocRuntimeTests")
+}
+
+val hostMimallocRuntimeTests by tasks.registering {
+    dependsOn("${hostName}MimallocRuntimeTests")
+}
+
 val clean by tasks.registering {
     doLast {
         delete(buildDir)
