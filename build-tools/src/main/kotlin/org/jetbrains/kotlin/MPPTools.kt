@@ -145,7 +145,7 @@ fun getCompileOnlyBenchmarksOpts(project: Project, defaultCompilerOpts: List<Str
 
 // Find file with set name in directory.
 fun findFile(fileName: String, directory: String): String? =
-    File(directory).walkBottomUp().find { it.name == fileName }?.getAbsolutePath()
+    File(directory).walkTopDown().maxDepth(3).find { it.name == fileName }?.getAbsolutePath()
 
 fun uploadFileToArtifactory(url: String, project: String, artifactoryFilePath: String,
                         filePath: String, password: String) {
