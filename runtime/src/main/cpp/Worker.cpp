@@ -68,7 +68,7 @@ enum JobKind {
   // Order is important in sense that all job kinds after this one is considered
   // processed for APIs returning request process status.
   JOB_REGULAR = 2,
-  JOB_EXECUTE_AFTER = 3
+  JOB_EXECUTE_AFTER = 3,
 };
 
 enum class WorkerKind {
@@ -737,6 +737,14 @@ Worker* WorkerSuspend() {
 void WorkerResume(Worker* worker) {
 #if WITH_WORKERS
   ::g_worker = worker;
+#endif  // WITH_WORKERS
+}
+
+void WorkerSchedule(KInt id, KRef job) {
+#if WITH_WORKERS
+    RuntimeAssert(job->container()->frozen(), "job must be frozen");
+
+    theState()->executeJobAfterInWorkerUnlocked(id, job, 0);
 #endif  // WITH_WORKERS
 }
 

@@ -81,5 +81,8 @@ class IntrinsicType {
 
         // Worker
         const val WORKER_EXECUTE                = "WORKER_EXECUTE"
+
+        // Cleaner
+        const val CREATE_CLEANER                = "CREATE_CLEANER"
     }
 }
