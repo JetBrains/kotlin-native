@@ -1,4 +1,4 @@
-#include "KT35056_foreignException.h"
+#include "objc_wrap.h"
 
 #import <Foundation/Foundation.h>
 

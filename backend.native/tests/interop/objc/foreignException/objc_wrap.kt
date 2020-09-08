@@ -1,5 +1,6 @@
 import kotlin.test.*
-import objcTests.*
+//import objcTests.*
+import objc_wrap.*
 import kotlinx.cinterop.*
 
 
@@ -34,4 +35,8 @@ fun testInner(name: String, reason: String) {
     }
     assertEquals("PASSED", catchBlockTest)
     assertEquals("PASSED", finallyBlockTest)
+}
+
+fun main() {
+    testKT35056()
 }
