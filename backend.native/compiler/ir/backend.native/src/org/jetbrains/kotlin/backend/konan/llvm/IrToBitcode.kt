@@ -2263,8 +2263,8 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     private fun call(function: IrFunction, llvmFunction: LLVMValueRef, args: List<LLVMValueRef>,
                      resultLifetime: Lifetime): LLVMValueRef {
 
-        val exceptionHandler = function.descriptor.annotations.findAnnotation(RuntimeNames.filterExceptions)?.let {
-            val foreignExceptionMode = ForeignExceptionMode.byValue(it.properValue("mode"))
+        val exceptionHandler = function.annotations.findAnnotation(RuntimeNames.filterExceptions)?.let {
+            val foreignExceptionMode = ForeignExceptionMode.byValue(it.getAnnotationValueOrNull<String>("mode"))
             functionGenerationContext.filteringExceptionHandler(currentCodeContext, foreignExceptionMode)
         } ?: currentCodeContext.exceptionHandler
 

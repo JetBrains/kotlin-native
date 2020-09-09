@@ -310,8 +310,10 @@ internal fun KotlinStubs.generateObjCCall(
         receiver: ObjCCallReceiver,
         arguments: List<IrExpression?>
 ) = builder.irBlock {
+    val resolved = method.resolveFakeOverride(allowAbstract = true)?: method
     val exceptionMode = ForeignExceptionMode.byValue(
-            method.module.konanLibrary?.manifestProperties?.getProperty(ForeignExceptionMode.manifestKey)
+            resolved.module.konanLibrary?.manifestProperties
+                    ?.getProperty(ForeignExceptionMode.manifestKey)
     )
 
     val callBuilder = KotlinToCCallBuilder(builder, this@generateObjCCall, isObjCMethod = true, exceptionMode)
