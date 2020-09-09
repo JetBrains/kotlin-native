@@ -3606,6 +3606,17 @@ if (PlatformInfo.isAppleTarget(project)) {
         it.headers "$projectDir/interop/objc/foreignException/objc_wrap.h"
     }
 
+    createInterop("foreignException_default") {
+        it.defFile 'interop/objc/foreignException_cli/objc_wrap.def'
+        it.headers "$projectDir/interop/objc/foreignException_cli/objc_wrap.h"
+    }
+
+    createInterop("foreignException_cli") {
+        it.defFile 'interop/objc/foreignException_cli/objc_wrap.def'
+        it.headers "$projectDir/interop/objc/foreignException_cli/objc_wrap.h"
+        it.extraOpts '-Xforeign-exception-mode', "objc-wrap"
+    }
+
     createInterop("objcKt34467") {
         it.defFile 'interop/objc/kt34467/module_library.def'
         def moduleMap = file("interop/objc/kt34467/module_library.modulemap").absolutePath
@@ -3977,6 +3988,42 @@ if (PlatformInfo.isAppleTarget(project)) {
             mkdir(buildDir)
             execKonanClang(project.target) {
                 args "$projectDir/interop/objc/foreignException/objc_wrap.m"
+                args "-lobjc", '-fobjc-arc'
+                args '-fPIC', '-shared', '-o', "$buildDir/libobjcexception.dylib"
+            }
+            if (project.target instanceof KonanTarget.IOS_X64) {
+                UtilsKt.codesign(project, "$buildDir/libobjcexception.dylib")
+            }
+        }
+    }
+
+    interopTest("interop_objc_foreignException_cli") {
+        source = "interop/objc/foreignException_cli/objc_wrap.kt"
+        interop = 'foreignException_cli'
+        goldValue = "OK: ForeignException\n"
+
+        doBeforeBuild {
+            mkdir(buildDir)
+            execKonanClang(project.target) {
+                args "$projectDir/interop/objc/foreignException_cli/objc_wrap.m"
+                args "-lobjc", '-fobjc-arc'
+                args '-fPIC', '-shared', '-o', "$buildDir/libobjcexception.dylib"
+            }
+            if (project.target instanceof KonanTarget.IOS_X64) {
+                UtilsKt.codesign(project, "$buildDir/libobjcexception.dylib")
+            }
+        }
+    }
+
+    interopTest("interop_objc_foreignException_default") {
+        source = "interop/objc/foreignException_cli/objc_wrap.kt"
+        interop = 'foreignException_default'
+        goldValue = "OK: Ends with uncaught exception handler\n"
+
+        doBeforeBuild {
+            mkdir(buildDir)
+            execKonanClang(project.target) {
+                args "$projectDir/interop/objc/foreignException_cli/objc_wrap.m"
                 args "-lobjc", '-fobjc-arc'
                 args '-fPIC', '-shared', '-o', "$buildDir/libobjcexception.dylib"
             }
