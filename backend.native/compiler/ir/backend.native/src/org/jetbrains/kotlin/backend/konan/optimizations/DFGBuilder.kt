@@ -55,16 +55,16 @@ private fun IrTypeOperator.callsInstanceOf() =
 private class VariableValues {
     data class Variable(val loop: IrLoop?, val values: MutableSet<IrExpression>)
 
-    val elementData = HashMap<IrVariable, Variable>()
+    val elementData = HashMap<IrValueDeclaration, Variable>()
 
-    fun addEmpty(variable: IrVariable, loop: IrLoop?) {
+    fun addEmpty(variable: IrValueDeclaration, loop: IrLoop?) {
         elementData[variable] = Variable(loop, mutableSetOf())
     }
 
-    fun add(variable: IrVariable, element: IrExpression) =
+    fun add(variable: IrValueDeclaration, element: IrExpression) =
             elementData[variable]?.values?.add(element)
 
-    private fun add(variable: IrVariable, elements: Set<IrExpression>) =
+    private fun add(variable: IrValueDeclaration, elements: Set<IrExpression>) =
             elementData[variable]?.values?.addAll(elements)
 
     fun computeClosure() {
@@ -74,14 +74,14 @@ private class VariableValues {
     }
 
     // Computes closure of all possible values for given variable.
-    private fun computeValueClosure(value: IrVariable): Set<IrExpression> {
+    private fun computeValueClosure(value: IrValueDeclaration): Set<IrExpression> {
         val result = mutableSetOf<IrExpression>()
-        val seen = mutableSetOf<IrVariable>()
+        val seen = mutableSetOf<IrValueDeclaration>()
         dfs(value, seen, result)
         return result
     }
 
-    private fun dfs(value: IrVariable, seen: MutableSet<IrVariable>, result: MutableSet<IrExpression>) {
+    private fun dfs(value: IrValueDeclaration, seen: MutableSet<IrValueDeclaration>, result: MutableSet<IrExpression>) {
         seen += value
         val elements = elementData[value]?.values ?: return
         for (element in elements) {
@@ -312,7 +312,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
             element.acceptChildrenVoid(this)
         }
 
-        private fun assignVariable(variable: IrVariable, value: IrExpression) {
+        private fun assignValue(variable: IrValueDeclaration, value: IrExpression) {
             expressionValuesExtractor.forEachValue(value) {
                 variableValues.add(variable, it)
             }
@@ -409,15 +409,15 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
             super.visitCatch(aCatch)
         }
 
-        override fun visitSetVariable(expression: IrSetVariable) {
-            super.visitSetVariable(expression)
-            assignVariable(expression.symbol.owner, expression.value)
+        override fun visitSetValue(expression: IrSetValue) {
+            super.visitSetValue(expression)
+            assignValue(expression.symbol.owner, expression.value)
         }
 
         override fun visitVariable(declaration: IrVariable) {
             variableValues.addEmpty(declaration, currentLoop)
             super.visitVariable(declaration)
-            declaration.initializer?.let { assignVariable(declaration, it) }
+            declaration.initializer?.let { assignValue(declaration, it) }
         }
     }
 
@@ -472,7 +472,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
                 ?: error("Function ${declaration.descriptor} has no continuation parameter")
 
         private val nodes = mutableMapOf<IrExpression, Scoped<DataFlowIR.Node>>()
-        private val variables = mutableMapOf<IrVariable, Scoped<DataFlowIR.Node.Variable>>()
+        private val variables = mutableMapOf<IrValueDeclaration, Scoped<DataFlowIR.Node.Variable>>()
         private val expressionsScopes = mutableMapOf<IrExpression, DataFlowIR.Node.Scope>()
 
         fun build(): DataFlowIR.Function {
