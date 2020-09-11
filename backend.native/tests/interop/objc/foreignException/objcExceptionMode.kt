@@ -1,30 +1,22 @@
+/*
+ *  Test different behavior depending on foreignExceptionMode option
+ */
+
 import kotlin.test.*
-import objc_wrap.*
+import objcExceptionMode.*
 import kotlinx.cinterop.*
 import platform.objc.*
 import kotlin.system.exitProcess
 
-fun testInner(name: String, reason: String) {
-    var finallyBlockTest = "FAILED"
-    var catchBlockTest = "NOT EXPECTED"
-    try {
-        raiseExc(name, reason)
-    } catch (e: RuntimeException) {
-        catchBlockTest = "This shouldn't happen"
-    } finally {
-        finallyBlockTest = "PASSED"
-    }
-    assertEquals("NOT EXPECTED", catchBlockTest)
-    assertEquals("PASSED", finallyBlockTest)
-}
-
+@Suppress("VARIABLE_WITH_REDUNDANT_INITIALIZER")
 @Test fun testKT35056() {
     val name = "Some native exception"
     val reason = "Illegal value"
     var finallyBlockTest = "FAILED"
     var catchBlockTest = "FAILED"
     try {
-        testInner(name, reason)
+        raiseExc(name, reason)
+        assertNotEquals("FAILED", catchBlockTest)  // shall not get here anyway
     } catch (e: ForeignException) {
         val ret = logExc(e.nativeException) // return NSException name
         assertEquals(name, ret)
@@ -38,6 +30,7 @@ fun testInner(name: String, reason: String) {
     assertEquals("PASSED", finallyBlockTest)
 }
 
+@Suppress("UNUSED_PARAMETER")
 fun abnormal_handler(x: Any?) : Unit {
     println("OK: Ends with uncaught exception handler")
     exitProcess(0)

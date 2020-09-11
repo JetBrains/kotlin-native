@@ -1,5 +1,4 @@
 language = Objective-C
 headerFilter = **/objc_wrap.h
-foreignExceptionMode = objc-wrap
-#foreignExceptionMode = terminate
 linkerOpts = -lobjcexception
+foreignExceptionMode = objc-wrap

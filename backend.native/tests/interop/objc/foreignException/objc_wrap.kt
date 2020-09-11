@@ -1,8 +1,11 @@
+/*
+ *  Test different types of callable with foreignExceptionMode=objc-wrap
+ */
+
 import kotlin.test.*
 //import objcTests.*
 import objc_wrap.*
 import kotlinx.cinterop.*
-
 
 fun testInner(name: String, reason: String) {
     var finallyBlockTest = "FAILED"
@@ -18,13 +21,15 @@ fun testInner(name: String, reason: String) {
     assertEquals("PASSED", finallyBlockTest)
 }
 
-@Test fun testKT35056() {
+typealias CallMe = (String, String) -> Unit
+
+@Test fun testExceptionWrap(raise: CallMe) {
     val name = "Some native exception"
     val reason = "Illegal value"
     var finallyBlockTest = "FAILED"
     var catchBlockTest = "FAILED"
     try {
-        testInner(name, reason)
+        raise(name, reason)
     } catch (e: ForeignException) {
         val ret = logExc(e.nativeException) // return NSException name
         assertEquals(name, ret)
@@ -37,6 +42,12 @@ fun testInner(name: String, reason: String) {
     assertEquals("PASSED", finallyBlockTest)
 }
 
+class Bar() : Foo()
+
 fun main() {
-    testKT35056()
+    testExceptionWrap(::raiseExc)   // simple
+    testExceptionWrap(::testInner)  // nested try block
+    testExceptionWrap(Foo::classMethodThrow)  // class method
+    testExceptionWrap(Foo()::instanceMethodThrow)    // instance method
+    testExceptionWrap(Bar()::instanceMethodThrow)    // fake override
 }
