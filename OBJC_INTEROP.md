@@ -36,7 +36,7 @@ The table below shows how Kotlin concepts are mapped to Swift/Objective-C and vi
 | `companion` member <- | Class method or property | Class method or property |  |
 | `null` | `nil` | `nil` | |
 | `Singleton` | `Singleton()`  | `[Singleton singleton]` | [note](#kotlin-singletons) |
-| Primitive type | Primitive type / `NSNumber` | | [note](#nsnumber) |
+| Primitive type | Primitive type | `NSNumber` | | [note](#nsnumber) |
 | `Unit` return type | `Void` | `void` | |
 | `String` | `String` | `NSString` | |
 | `String` | `NSMutableString` | `NSMutableString` | [note](#nsmutablestring) |
