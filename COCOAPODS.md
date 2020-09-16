@@ -94,6 +94,11 @@ file for the project.
 The `Podspec` file includes a path to an output framework and script phases that automate building this framework during 
 the build process of an Xcode project.
 
+6. Generate Gradle wrapper. In order to avoid compatibility issues during an Xcode build, the plugin requires using
+    a [Gradle wrapper](https://docs.gradle.org/current/userguide/gradle_wrapper.html). 
+
+
+
 ## Add dependencies on Pod libraries
 
 You can add dependencies between a Kotlin project and Pod libraries [stored in the CocoaPods repository](#add-a-dependency-on-a-pod-library-from-the-cocoapods-repository) 
