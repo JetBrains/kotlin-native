@@ -22,7 +22,6 @@ import org.jetbrains.kotlin.backend.common.overrides.PlatformFakeOverrideClassFi
 import org.jetbrains.kotlin.backend.common.serialization.*
 import org.jetbrains.kotlin.backend.common.serialization.encodings.BinarySymbolData
 import org.jetbrains.kotlin.backend.common.serialization.signature.IdSignatureSerializer
-import org.jetbrains.kotlin.backend.konan.CachedLibraries
 import org.jetbrains.kotlin.backend.konan.descriptors.isInteropLibrary
 import org.jetbrains.kotlin.backend.konan.descriptors.konanLibrary
 import org.jetbrains.kotlin.backend.konan.ir.interop.IrProviderForCEnumAndCStructStubs
@@ -36,7 +35,6 @@ import org.jetbrains.kotlin.ir.declarations.impl.IrModuleFragmentImpl
 import org.jetbrains.kotlin.ir.descriptors.IrAbstractFunctionFactory
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
-import org.jetbrains.kotlin.ir.symbols.impl.IrFileSymbolImpl
 import org.jetbrains.kotlin.ir.symbols.impl.IrPublicSymbolBase
 import org.jetbrains.kotlin.ir.types.classOrNull
 import org.jetbrains.kotlin.ir.util.*
@@ -74,8 +72,7 @@ internal class KonanIrLinker(
         private val stubGenerator: DeclarationStubGenerator,
         private val cenumsProvider: IrProviderForCEnumAndCStructStubs,
         exportedDependencies: List<ModuleDescriptor>,
-        deserializeFakeOverrides: Boolean,
-        private val cachedLibraries: CachedLibraries
+        deserializeFakeOverrides: Boolean
 ) : KotlinIrLinker(currentModule, logger, builtIns, symbolTable, exportedDependencies, deserializeFakeOverrides) {
 
     companion object {
@@ -101,8 +98,8 @@ internal class KonanIrLinker(
         }
 
         if (klib is KotlinLibrary && klib.isInteropLibrary()) {
-            val isCached = cachedLibraries.isLibraryCached(klib)
-            return KonanInteropModuleDeserializer(moduleDescriptor, isCached)
+            // Disable generation of lazy IR for enums and structs until proper fix.
+            return KonanInteropModuleDeserializer(moduleDescriptor, isLibraryCached = false)
         }
 
         return KonanModuleDeserializer(moduleDescriptor, klib ?: error("Expecting kotlin library"), strategy)

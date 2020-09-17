@@ -72,8 +72,7 @@ internal fun Context.psiToIr(symbolTable: SymbolTable) {
                     stubGenerator,
                     irProviderForCEnumsAndCStructs,
                     exportedDependencies,
-                    deserializeFakeOverrides,
-                    config.cachedLibraries
+                    deserializeFakeOverrides
             )
 
     translator.addPostprocessingStep { module ->
