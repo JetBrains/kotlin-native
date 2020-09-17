@@ -22,6 +22,7 @@ import org.jetbrains.kotlin.backend.common.overrides.PlatformFakeOverrideClassFi
 import org.jetbrains.kotlin.backend.common.serialization.*
 import org.jetbrains.kotlin.backend.common.serialization.encodings.BinarySymbolData
 import org.jetbrains.kotlin.backend.common.serialization.signature.IdSignatureSerializer
+import org.jetbrains.kotlin.backend.konan.CachedLibraries
 import org.jetbrains.kotlin.backend.konan.descriptors.isInteropLibrary
 import org.jetbrains.kotlin.backend.konan.descriptors.konanLibrary
 import org.jetbrains.kotlin.backend.konan.ir.interop.IrProviderForCEnumAndCStructStubs
@@ -74,7 +75,8 @@ internal class KonanIrLinker(
         private val stubGenerator: DeclarationStubGenerator,
         private val cenumsProvider: IrProviderForCEnumAndCStructStubs,
         exportedDependencies: List<ModuleDescriptor>,
-        deserializeFakeOverrides: Boolean
+        deserializeFakeOverrides: Boolean,
+        private val cachedLibraries: CachedLibraries
 ) : KotlinIrLinker(currentModule, logger, builtIns, symbolTable, exportedDependencies, deserializeFakeOverrides) {
 
     companion object {
@@ -89,8 +91,10 @@ internal class KonanIrLinker(
     override fun isBuiltInModule(moduleDescriptor: ModuleDescriptor): Boolean = moduleDescriptor.isNativeStdlib()
 
     override val fakeOverrideBuilder = FakeOverrideBuilder(symbolTable, IdSignatureSerializer(KonanManglerIr), builtIns, KonanFakeOverrideClassFilter)
+    override val translationPluginContext: TranslationPluginContext?
+        get() = TODO("Not yet implemented")
 
-    private val forwardDeclarationDeserializer = forwardModuleDescriptor?.let { KonanForwardDeclarationModuleDeserialier(it) }
+    private val forwardDeclarationDeserializer = forwardModuleDescriptor?.let { KonanForwardDeclarationModuleDeserializer(it) }
 
     override fun createModuleDeserializer(moduleDescriptor: ModuleDescriptor, klib: IrLibrary?, strategy: DeserializationStrategy): IrModuleDeserializer {
         if (moduleDescriptor === forwardModuleDescriptor) {
@@ -98,7 +102,8 @@ internal class KonanIrLinker(
         }
 
         if (klib is KotlinLibrary && klib.isInteropLibrary()) {
-            return KonanInteropModuleDeserializer(moduleDescriptor)
+            val isCached = cachedLibraries.isLibraryCached(klib)
+            return KonanInteropModuleDeserializer(moduleDescriptor, isCached)
         }
 
         return KonanModuleDeserializer(moduleDescriptor, klib ?: error("Expecting kotlin library"), strategy)
@@ -107,7 +112,10 @@ internal class KonanIrLinker(
     private inner class KonanModuleDeserializer(moduleDescriptor: ModuleDescriptor, klib: IrLibrary, strategy: DeserializationStrategy):
         KotlinIrLinker.BasicIrModuleDeserializer(moduleDescriptor, klib, strategy)
 
-    private inner class KonanInteropModuleDeserializer(moduleDescriptor: ModuleDescriptor) : IrModuleDeserializer(moduleDescriptor) {
+    private inner class KonanInteropModuleDeserializer(
+            moduleDescriptor: ModuleDescriptor,
+            private val isLibraryCached: Boolean
+    ) : IrModuleDeserializer(moduleDescriptor) {
         init {
             assert(moduleDescriptor.kotlinLibrary.isInteropLibrary())
         }
@@ -119,7 +127,6 @@ internal class KonanIrLinker(
         private fun IdSignature.isInteropSignature(): Boolean = IdSignature.Flags.IS_NATIVE_INTEROP_LIBRARY.test()
 
         override fun contains(idSig: IdSignature): Boolean {
-
             if (idSig.isPublic) {
                 if (idSig.isInteropSignature()) {
                     // TODO: add descriptor cache??
@@ -147,8 +154,8 @@ internal class KonanIrLinker(
 
         override fun deserializeIrSymbol(idSig: IdSignature, symbolKind: BinarySymbolData.SymbolKind): IrSymbol {
             val descriptor = descriptorByIdSignatureFinder.findDescriptorBySignature(idSig) ?: error("Expecting descriptor for $idSig")
-
-            if (descriptor.isCEnumsOrCStruct()) return resolveCEnumsOrStruct(descriptor, idSig, symbolKind)
+            // If library is cached we don't need to create an IrClass for struct or enum.
+            if (!isLibraryCached && descriptor.isCEnumsOrCStruct()) return resolveCEnumsOrStruct(descriptor, idSig, symbolKind)
 
             val symbolOwner = stubGenerator.generateMemberStub(descriptor) as IrSymbolOwner
 
@@ -159,13 +166,12 @@ internal class KonanIrLinker(
         override val moduleDependencies: Collection<IrModuleDeserializer> = listOfNotNull(forwardDeclarationDeserializer)
     }
 
-    private inner class KonanForwardDeclarationModuleDeserialier(moduleDescriptor: ModuleDescriptor) : IrModuleDeserializer(moduleDescriptor) {
+    private inner class KonanForwardDeclarationModuleDeserializer(moduleDescriptor: ModuleDescriptor) : IrModuleDeserializer(moduleDescriptor) {
         init {
             assert(moduleDescriptor.isForwardDeclarationModule)
         }
 
         private val declaredDeclaration = mutableMapOf<IdSignature, IrClass>()
-        private val packageToFileMap = mutableMapOf<FqName, IrFile>()
 
         private fun IdSignature.isForwardDeclarationSignature(): Boolean {
             if (isPublic) {
@@ -185,28 +191,10 @@ internal class KonanIrLinker(
                 moduleDescriptor.findClassAcrossModuleDependencies(classId) ?: error("No declaration found with $idSig")
             }
 
-        private fun getIrFile(packageFragment: PackageFragmentDescriptor): IrFile {
-            val fqn = packageFragment.fqName
-            return packageToFileMap.getOrPut(packageFragment.fqName) {
-                val fileSymbol = IrFileSymbolImpl(packageFragment)
-                IrFileImpl(NaiveSourceBasedFileEntryImpl("forward declarations for $fqn"), fileSymbol, packageFragment.fqName).also {
-                    moduleFragment.files.add(it)
-                }
+        private fun buildForwardDeclarationStub(descriptor: ClassDescriptor): IrClass {
+            return stubGenerator.generateClassStub(descriptor).also {
+                it.origin = FORWARD_DECLARATION_ORIGIN
             }
-        }
-
-        private fun buildForwardDeclarationStub(idSig: IdSignature, descriptor: ClassDescriptor): IrClass {
-            val packageDescriptor = descriptor.containingDeclaration as PackageFragmentDescriptor
-            val irFile = getIrFile(packageDescriptor)
-
-            val klass = symbolTable.declareClassFromLinker(descriptor, idSig) { symbol ->
-                symbolTable.irFactory.createIrClassFromDescriptor(offset, offset, FORWARD_DECLARATION_ORIGIN, symbol, descriptor)
-            }
-
-            klass.parent = irFile
-            irFile.declarations.add(klass)
-
-            return klass
         }
 
         override fun deserializeIrSymbol(idSig: IdSignature, symbolKind: BinarySymbolData.SymbolKind): IrSymbol {
@@ -219,7 +207,7 @@ internal class KonanIrLinker(
                 return symbolTable.referenceClassFromLinker(descriptor, idSig)
             }
 
-            return declaredDeclaration.getOrPut(idSig) { buildForwardDeclarationStub(idSig, descriptor) }.symbol
+            return declaredDeclaration.getOrPut(idSig) { buildForwardDeclarationStub(descriptor) }.symbol
         }
 
         override val moduleFragment: IrModuleFragment = IrModuleFragmentImpl(moduleDescriptor, builtIns)

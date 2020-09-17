@@ -61,20 +61,29 @@ private fun staticGnuArCommands(ar: String, executable: ExecutableFile,
 
 // Use "clang -v -save-temps" to write linkCommand() method 
 // for another implementation of this class.
-abstract class LinkerFlags(val configurables: Configurables)
-/* : Configurables by configurables */ {
+abstract class LinkerFlags(val configurables: Configurables) {
 
     protected val llvmBin = "${configurables.absoluteLlvmHome}/bin"
     protected val llvmLib = "${configurables.absoluteLlvmHome}/lib"
 
     open val useCompilerDriverAsLinker: Boolean get() = false // TODO: refactor.
 
+    /**
+     * Returns list of commands that produces final linker output.
+     */
     // TODO: Number of arguments is quite big. Better to pass args via object.
-    abstract fun linkCommands(objectFiles: List<ObjectFile>, executable: ExecutableFile,
-                              libraries: List<String>, linkerArgs: List<String>,
-                              optimize: Boolean, debug: Boolean,
-                              kind: LinkerOutputKind, outputDsymBundle: String,
-                              needsProfileLibrary: Boolean): List<Command>
+    abstract fun finalLinkCommands(objectFiles: List<ObjectFile>, executable: ExecutableFile,
+                                   libraries: List<String>, linkerArgs: List<String>,
+                                   optimize: Boolean, debug: Boolean,
+                                   kind: LinkerOutputKind, outputDsymBundle: String,
+                                   needsProfileLibrary: Boolean): List<Command>
+
+    /**
+     * Returns list of commands that link object files into a single one.
+     * Pre-linkage is useful for hiding dependency symbols.
+     */
+    open fun preLinkCommands(objectFiles: List<ObjectFile>, output: ObjectFile): List<Command> =
+            error("Pre-link is unsupported for ${configurables.target}.")
 
     abstract fun filterStaticLibraries(binaries: List<String>): List<String>
 
@@ -95,7 +104,7 @@ abstract class LinkerFlags(val configurables: Configurables)
     }
 }
 
-open class AndroidLinker(targetProperties: AndroidConfigurables)
+class AndroidLinker(targetProperties: AndroidConfigurables)
     : LinkerFlags(targetProperties), AndroidConfigurables by targetProperties {
 
     private val clangQuad = when (targetProperties.targetArg) {
@@ -110,11 +119,11 @@ open class AndroidLinker(targetProperties: AndroidConfigurables)
 
     override fun filterStaticLibraries(binaries: List<String>) = binaries.filter { it.isUnixStaticLib }
 
-    override fun linkCommands(objectFiles: List<ObjectFile>, executable: ExecutableFile,
-                              libraries: List<String>, linkerArgs: List<String>,
-                              optimize: Boolean, debug: Boolean,
-                              kind: LinkerOutputKind, outputDsymBundle: String,
-                              needsProfileLibrary: Boolean): List<Command> {
+    override fun finalLinkCommands(objectFiles: List<ObjectFile>, executable: ExecutableFile,
+                                   libraries: List<String>, linkerArgs: List<String>,
+                                   optimize: Boolean, debug: Boolean,
+                                   kind: LinkerOutputKind, outputDsymBundle: String,
+                                   needsProfileLibrary: Boolean): List<Command> {
         if (kind == LinkerOutputKind.STATIC_LIBRARY)
             return staticGnuArCommands(ar, executable, objectFiles, libraries)
 
@@ -148,7 +157,7 @@ open class AndroidLinker(targetProperties: AndroidConfigurables)
     }
 }
 
-open class MacOSBasedLinker(targetProperties: AppleConfigurables)
+class MacOSBasedLinker(targetProperties: AppleConfigurables)
     : LinkerFlags(targetProperties), AppleConfigurables by targetProperties {
 
     private val libtool = "$absoluteTargetToolchain/usr/bin/libtool"
@@ -186,11 +195,21 @@ open class MacOSBasedLinker(targetProperties: AppleConfigurables)
 
     override fun filterStaticLibraries(binaries: List<String>) = binaries.filter { it.isUnixStaticLib }
 
-    override fun linkCommands(objectFiles: List<ObjectFile>, executable: ExecutableFile,
-                              libraries: List<String>, linkerArgs: List<String>,
-                              optimize: Boolean, debug: Boolean, kind: LinkerOutputKind,
-                              outputDsymBundle: String,
-                              needsProfileLibrary: Boolean): List<Command> {
+    // Note that may break in case of 32-bit Mach-O. See KT-37368.
+    override fun preLinkCommands(objectFiles: List<ObjectFile>, output: ObjectFile): List<Command> =
+        Command(linker).apply {
+            +"-r"
+            +listOf("-arch", arch)
+            +listOf("-syslibroot", absoluteTargetSysRoot)
+            +objectFiles
+            +listOf("-o", output)
+        }.let(::listOf)
+
+    override fun finalLinkCommands(objectFiles: List<ObjectFile>, executable: ExecutableFile,
+                                   libraries: List<String>, linkerArgs: List<String>,
+                                   optimize: Boolean, debug: Boolean, kind: LinkerOutputKind,
+                                   outputDsymBundle: String,
+                                   needsProfileLibrary: Boolean): List<Command> {
         if (kind == LinkerOutputKind.STATIC_LIBRARY)
             return listOf(Command(libtool).apply {
                 +"-static"
@@ -282,14 +301,14 @@ open class MacOSBasedLinker(targetProperties: AppleConfigurables)
         return exitCode
     }
 
-    open fun dsymutilCommand(executable: ExecutableFile, outputDsymBundle: String): List<String> =
+    fun dsymutilCommand(executable: ExecutableFile, outputDsymBundle: String): List<String> =
             listOf(dsymutil, executable, "-o", outputDsymBundle)
 
-    open fun dsymutilDryRunVerboseCommand(executable: ExecutableFile): List<String> =
+    fun dsymutilDryRunVerboseCommand(executable: ExecutableFile): List<String> =
             listOf(dsymutil, "-dump-debug-map", executable)
 }
 
-open class GccBasedLinker(targetProperties: GccConfigurables)
+class GccBasedLinker(targetProperties: GccConfigurables)
     : LinkerFlags(targetProperties), GccConfigurables by targetProperties {
 
     private val ar = if (HostManager.hostIsMac) "$absoluteTargetToolchain/bin/llvm-ar"
@@ -309,11 +328,11 @@ open class GccBasedLinker(targetProperties: GccConfigurables)
 
     override fun filterStaticLibraries(binaries: List<String>) = binaries.filter { it.isUnixStaticLib }
 
-    override fun linkCommands(objectFiles: List<ObjectFile>, executable: ExecutableFile,
-                              libraries: List<String>, linkerArgs: List<String>,
-                              optimize: Boolean, debug: Boolean,
-                              kind: LinkerOutputKind, outputDsymBundle: String,
-                              needsProfileLibrary: Boolean): List<Command> {
+    override fun finalLinkCommands(objectFiles: List<ObjectFile>, executable: ExecutableFile,
+                                   libraries: List<String>, linkerArgs: List<String>,
+                                   optimize: Boolean, debug: Boolean,
+                                   kind: LinkerOutputKind, outputDsymBundle: String,
+                                   needsProfileLibrary: Boolean): List<Command> {
         if (kind == LinkerOutputKind.STATIC_LIBRARY)
             return staticGnuArCommands(ar, executable, objectFiles, libraries)
 
@@ -358,7 +377,7 @@ open class GccBasedLinker(targetProperties: GccConfigurables)
     }
 }
 
-open class MingwLinker(targetProperties: MingwConfigurables)
+class MingwLinker(targetProperties: MingwConfigurables)
     : LinkerFlags(targetProperties), MingwConfigurables by targetProperties {
 
     private val ar = "$absoluteTargetToolchain/bin/ar"
@@ -377,11 +396,11 @@ open class MingwLinker(targetProperties: MingwConfigurables)
         return if (dir != null) "$dir/lib/windows/libclang_rt.$libraryName-$targetSuffix.a" else null
     }
 
-    override fun linkCommands(objectFiles: List<ObjectFile>, executable: ExecutableFile,
-                              libraries: List<String>, linkerArgs: List<String>,
-                              optimize: Boolean, debug: Boolean,
-                              kind: LinkerOutputKind, outputDsymBundle: String,
-                              needsProfileLibrary: Boolean): List<Command> {
+    override fun finalLinkCommands(objectFiles: List<ObjectFile>, executable: ExecutableFile,
+                                   libraries: List<String>, linkerArgs: List<String>,
+                                   optimize: Boolean, debug: Boolean,
+                                   kind: LinkerOutputKind, outputDsymBundle: String,
+                                   needsProfileLibrary: Boolean): List<Command> {
         if (kind == LinkerOutputKind.STATIC_LIBRARY)
             return staticGnuArCommands(ar, executable, objectFiles, libraries)
 
@@ -406,18 +425,18 @@ open class MingwLinker(targetProperties: MingwConfigurables)
     }
 }
 
-open class WasmLinker(targetProperties: WasmConfigurables)
+class WasmLinker(targetProperties: WasmConfigurables)
     : LinkerFlags(targetProperties), WasmConfigurables by targetProperties {
 
     override val useCompilerDriverAsLinker: Boolean get() = false
 
     override fun filterStaticLibraries(binaries: List<String>) = binaries.filter { it.isJavaScript }
 
-    override fun linkCommands(objectFiles: List<ObjectFile>, executable: ExecutableFile,
-                              libraries: List<String>, linkerArgs: List<String>,
-                              optimize: Boolean, debug: Boolean,
-                              kind: LinkerOutputKind, outputDsymBundle: String,
-                              needsProfileLibrary: Boolean): List<Command> {
+    override fun finalLinkCommands(objectFiles: List<ObjectFile>, executable: ExecutableFile,
+                                   libraries: List<String>, linkerArgs: List<String>,
+                                   optimize: Boolean, debug: Boolean,
+                                   kind: LinkerOutputKind, outputDsymBundle: String,
+                                   needsProfileLibrary: Boolean): List<Command> {
         if (kind != LinkerOutputKind.EXECUTABLE) throw Error("Unsupported linker output kind")
 
         val linkage = Command("$llvmBin/wasm-ld").apply {
@@ -465,11 +484,11 @@ open class ZephyrLinker(targetProperties: ZephyrConfigurables)
 
     override fun filterStaticLibraries(binaries: List<String>) = emptyList<String>()
 
-    override fun linkCommands(objectFiles: List<ObjectFile>, executable: ExecutableFile,
-                              libraries: List<String>, linkerArgs: List<String>,
-                              optimize: Boolean, debug: Boolean,
-                              kind: LinkerOutputKind, outputDsymBundle: String,
-                              needsProfileLibrary: Boolean): List<Command> {
+    override fun finalLinkCommands(objectFiles: List<ObjectFile>, executable: ExecutableFile,
+                                   libraries: List<String>, linkerArgs: List<String>,
+                                   optimize: Boolean, debug: Boolean,
+                                   kind: LinkerOutputKind, outputDsymBundle: String,
+                                   needsProfileLibrary: Boolean): List<Command> {
         if (kind != LinkerOutputKind.EXECUTABLE) throw Error("Unsupported linker output kind: $kind")
         return listOf(Command(linker).apply {
             +listOf("-r", "--gc-sections", "--entry", "main")
@@ -482,30 +501,13 @@ open class ZephyrLinker(targetProperties: ZephyrConfigurables)
 }
 
 fun linker(configurables: Configurables): LinkerFlags =
-        when (configurables.target) {
-            KonanTarget.LINUX_X64,
-            KonanTarget.LINUX_ARM32_HFP,  KonanTarget.LINUX_ARM64,
-            KonanTarget.LINUX_MIPS32, KonanTarget.LINUX_MIPSEL32 ->
-                GccBasedLinker(configurables as GccConfigurables)
-
-            KonanTarget.MACOS_X64,
-            KonanTarget.TVOS_X64, KonanTarget.TVOS_ARM64,
-            KonanTarget.IOS_ARM32, KonanTarget.IOS_ARM64, KonanTarget.IOS_X64,
-            KonanTarget.WATCHOS_ARM64, KonanTarget.WATCHOS_ARM32,
-            KonanTarget.WATCHOS_X64, KonanTarget.WATCHOS_X86 ->
-                MacOSBasedLinker(configurables as AppleConfigurables)
-
-            KonanTarget.ANDROID_ARM32, KonanTarget.ANDROID_ARM64,
-            KonanTarget.ANDROID_X86, KonanTarget.ANDROID_X64 ->
-                AndroidLinker(configurables as AndroidConfigurables)
-
-            KonanTarget.MINGW_X64, KonanTarget.MINGW_X86 ->
-                MingwLinker(configurables as MingwConfigurables)
-
-            KonanTarget.WASM32 ->
-                WasmLinker(configurables as WasmConfigurables)
-
-            is KonanTarget.ZEPHYR ->
-                ZephyrLinker(configurables as ZephyrConfigurables)
+        when (configurables) {
+            is GccConfigurables -> GccBasedLinker(configurables)
+            is AppleConfigurables -> MacOSBasedLinker(configurables)
+            is AndroidConfigurables-> AndroidLinker(configurables)
+            is MingwConfigurables -> MingwLinker(configurables)
+            is WasmConfigurables -> WasmLinker(configurables)
+            is ZephyrConfigurables -> ZephyrLinker(configurables)
+            else -> error("Unexpected target: ${configurables.target}")
         }
 

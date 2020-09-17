@@ -54,12 +54,6 @@ inline fun BitSet.forEachBit(block: (Int) -> Unit) {
 // See http://web.cs.ucla.edu/~palsberg/tba/papers/sundaresan-et-al-oopsla00.pdf for details.
 internal object Devirtualization {
 
-    private val DEBUG = 0
-
-    private inline fun DEBUG_OUTPUT(severity: Int, block: () -> Unit) {
-        if (DEBUG > severity) block()
-    }
-
     private val TAKE_NAMES = false // Take fqNames for all functions and types (for debug purposes).
 
     private inline fun takeName(block: () -> String) = if (TAKE_NAMES) block() else null
@@ -276,7 +270,7 @@ internal object Devirtualization {
 
         fun BitSet.copy() = BitSet(this.size()).apply { this.or(this@copy) }
 
-        fun printPathToType(reversedEdges: IntArray, node: Node, type: Int) {
+        fun logPathToType(reversedEdges: IntArray, node: Node, type: Int) {
             val nodes = constraintGraph.nodes
             val visited = BitSet()
             val prev = mutableMapOf<Node, Node>()
@@ -319,11 +313,15 @@ internal object Devirtualization {
                         }
                 }
             }
-            var cur: Node = source
-            do {
-                println("    #${cur.id}")
-                cur = prev[cur]!!
-            } while (cur != node)
+            try {
+                var cur: Node = source
+                do {
+                    context.log { "    #${cur.id}" }
+                    cur = prev[cur]!!
+                } while (cur != node)
+            } catch (t: Throwable) {
+                context.log { "Unable to print path" }
+            }
         }
 
         private inner class Condensation(val multiNodes: IntArray, val topologicalOrder: IntArray) {
@@ -412,6 +410,9 @@ internal object Devirtualization {
             }
         }
 
+        private fun DataFlowIR.Node.VirtualCall.debugString() =
+                irCallSite?.let { ir2stringWhole(it).trimEnd() } ?: this.toString()
+
         fun analyze(): AnalysisResult {
             val functions = moduleDFG.functions + externalModulesDFG.functionDFGs
             assert(DataFlowIR.Type.Virtual !in symbolTable.classMap.values) {
@@ -431,21 +432,20 @@ internal object Devirtualization {
 
             val (instantiatingClasses, directEdges, reversedEdges) = buildConstraintGraph(nodesMap, functions, typeHierarchy, rootSet)
 
-            DEBUG_OUTPUT(0) {
-                println("FULL CONSTRAINT GRAPH")
+            context.logMultiple {
+                +"FULL CONSTRAINT GRAPH"
                 constraintGraph.nodes.forEach {
-                    println("    NODE #${it.id}")
-                    directEdges.forEachEdge(it.id) {
-                        println("        EDGE: #${it}z")
-                    }
+                    +"    NODE #${it.id}"
+                    directEdges.forEachEdge(it.id) { +"        EDGE: #${it}z" }
                     it.directCastEdges?.forEach {
-                        println("        CAST EDGE: #${it.node.id}z casted to ${it.suitableTypes.format(allTypes)}")
+                        +"        CAST EDGE: #${it.node.id}z casted to ${it.suitableTypes.format(allTypes)}"
                     }
                     allTypes.forEachIndexed { index, type ->
                         if (it.types[index])
-                            println("        TYPE: $type")
+                            +"        TYPE: $type"
                     }
                 }
+                +""
             }
 
             constraintGraph.nodes.forEach {
@@ -455,22 +455,24 @@ internal object Devirtualization {
                 }
             }
 
-            DEBUG_OUTPUT(0) {
-                println("CONSTRAINT GRAPH: ${constraintGraph.nodes.size} nodes, " +
-                    "${constraintGraph.nodes.sumBy { (directEdges[it.id + 1] - directEdges[it.id]) + (it.directCastEdges?.size ?: 0) } } edges")
+            context.logMultiple {
+                val edgesCount = constraintGraph.nodes.sumBy {
+                    (directEdges[it.id + 1] - directEdges[it.id]) + (it.directCastEdges?.size ?: 0)
+                }
+                +"CONSTRAINT GRAPH: ${constraintGraph.nodes.size} nodes, $edgesCount edges"
+                +""
             }
 
             val condensation = CondensationBuilder(directEdges, reversedEdges).build()
             val topologicalOrder = condensation.topologicalOrder.map { constraintGraph.nodes[it] }
 
-            DEBUG_OUTPUT(0) {
-                println("CONDENSATION")
+            context.logMultiple {
+                +"CONDENSATION"
                 topologicalOrder.forEachIndexed { index, multiNode ->
-                    println("    MULTI-NODE #$index")
-                    condensation.forEachNode(multiNode) {
-                        println("        #${it.id}: ${it.toString(allTypes)}")
-                    }
+                    +"    MULTI-NODE #$index"
+                    condensation.forEachNode(multiNode) { +"        #${it.id}: ${it.toString(allTypes)}" }
                 }
+                +""
             }
 
             topologicalOrder.forEachIndexed { index, multiNode ->
@@ -583,99 +585,90 @@ internal object Devirtualization {
                 }
             }
 
-            DEBUG_OUTPUT(0) {
+            context.logMultiple {
                 topologicalOrder.forEachIndexed { index, multiNode ->
-                    println("Types of multi-node #$index")
+                    +"Types of multi-node #$index"
                     condensation.forEachNode(multiNode) { node ->
-                        println("    Node #${node.id}")
+                        +"    Node #${node.id}"
                         allTypes.asSequence()
                                 .withIndex()
                                 .filter { node.types[it.index] }.toList()
-                                .forEach { println("        ${it.value}") }
+                                .forEach { +"        ${it.value}" }
                     }
                 }
+                +""
             }
 
             val result = mutableMapOf<DataFlowIR.Node.VirtualCall, Pair<DevirtualizedCallSite, DataFlowIR.FunctionSymbol>>()
             val nothing = symbolTable.classMap[context.ir.symbols.nothing.owner]
             for (function in functions.values) {
                 if (!constraintGraph.functions.containsKey(function.symbol)) continue
-                for (node in function.body.nodes) {
-                    val virtualCall = node as? DataFlowIR.Node.VirtualCall ?: continue
+                function.body.forEachNonScopeNode { node ->
+                    val virtualCall = node as? DataFlowIR.Node.VirtualCall ?: return@forEachNonScopeNode
                     assert(nodesMap[virtualCall] != null) { "Node for virtual call $virtualCall has not been built" }
                     val receiverNode = constraintGraph.virtualCallSiteReceivers[virtualCall]
                             ?: error("virtualCallSiteReceivers were not built for virtual call $virtualCall")
                     if (receiverNode.types[VIRTUAL_TYPE_ID]) {
-
-                        DEBUG_OUTPUT(0) {
-                            println("Unable to devirtualize callsite " +
-                                    (virtualCall.irCallSite?.let { ir2stringWhole(it) }
-                                            ?: virtualCall.callee.toString()))
-                            println("    receiver is Virtual")
-                            printPathToType(reversedEdges, receiverNode, VIRTUAL_TYPE_ID)
+                        context.logMultiple {
+                            +"Unable to devirtualize callsite ${virtualCall.debugString()}"
+                            +"    receiver is Virtual"
+                            logPathToType(reversedEdges, receiverNode, VIRTUAL_TYPE_ID)
+                            +""
                         }
-
-                        continue
+                        return@forEachNonScopeNode
                     }
 
-                    DEBUG_OUTPUT(0) {
-                        println("Devirtualized callsite " +
-                                (virtualCall.irCallSite?.let { ir2stringWhole(it) } ?: virtualCall.callee.toString()))
-                    }
-
+                    context.log { "Devirtualized callsite ${virtualCall.debugString()}" }
                     val receiverType = virtualCall.receiverType.resolved()
                     val possibleReceivers = mutableListOf<DataFlowIR.Type.Declared>()
                     forEachBitInBoth(receiverNode.types, typeHierarchy.inheritorsOf(receiverType)) {
                         val type = allTypes[it]
                         assert(instantiatingClasses[it]) { "Non-instantiating class $type" }
                         if (type != nothing) {
-
-                            DEBUG_OUTPUT(0) {
-                                println("Path to type $type")
-                                printPathToType(reversedEdges, receiverNode, it)
+                            context.logMultiple {
+                                +"Path to type $type"
+                                logPathToType(reversedEdges, receiverNode, it)
                             }
-
                             possibleReceivers.add(type)
                         }
                     }
+                    context.log { "" }
 
                     result[virtualCall] = DevirtualizedCallSite(virtualCall.callee.resolved(),
                             possibleReceivers.map { possibleReceiverType ->
                                 val callee = possibleReceiverType.calleeAt(virtualCall)
                                 if (callee is DataFlowIR.FunctionSymbol.Declared && callee.symbolTableIndex < 0)
                                     error("Function ${possibleReceiverType}.$callee cannot be called virtually," +
-                                            " but actually is at call site: " +
-                                            (virtualCall.irCallSite?.let { ir2stringWhole(it) }
-                                                    ?: virtualCall.toString()))
+                                            " but actually is at call site: ${virtualCall.debugString()}")
                                 DevirtualizedCallee(possibleReceiverType, callee)
                             }) to function.symbol
 
                 }
             }
 
-            DEBUG_OUTPUT(0) {
-                println("Devirtualized from current module:")
+            context.logMultiple {
+                +"Devirtualized from current module:"
                 result.forEach { virtualCall, devirtualizedCallSite ->
                     if (virtualCall.irCallSite != null) {
-                        println("DEVIRTUALIZED")
-                        println("FUNCTION: ${devirtualizedCallSite.second}")
-                        println("CALL SITE: ${virtualCall.irCallSite?.let { ir2stringWhole(it) } ?: virtualCall.toString()}")
-                        println("POSSIBLE RECEIVERS:")
-                        devirtualizedCallSite.first.possibleCallees.forEach { println("    TYPE: ${it.receiverType}") }
-                        devirtualizedCallSite.first.possibleCallees.forEach { println("    FUN: ${it.callee}") }
-                        println()
+                        +"DEVIRTUALIZED"
+                        +"FUNCTION: ${devirtualizedCallSite.second}"
+                        +"CALL SITE: ${virtualCall.debugString()}"
+                        +"POSSIBLE RECEIVERS:"
+                        devirtualizedCallSite.first.possibleCallees.forEach { +"    TYPE: ${it.receiverType}" }
+                        devirtualizedCallSite.first.possibleCallees.forEach { +"    FUN: ${it.callee}" }
+                        +""
                     }
                 }
-                println("Devirtualized from external modules:")
+                +"Devirtualized from external modules:"
                 result.forEach { virtualCall, devirtualizedCallSite ->
                     if (virtualCall.irCallSite == null) {
-                        println("DEVIRTUALIZED")
-                        println("FUNCTION: ${devirtualizedCallSite.second}")
-                        println("CALL SITE: ${virtualCall.irCallSite?.let { ir2stringWhole(it) } ?: virtualCall.toString()}")
-                        println("POSSIBLE RECEIVERS:")
-                        devirtualizedCallSite.first.possibleCallees.forEach { println("    TYPE: ${it.receiverType}") }
-                        devirtualizedCallSite.first.possibleCallees.forEach { println("    FUN: ${it.callee}") }
-                        println()
+                        +"DEVIRTUALIZED"
+                        +"FUNCTION: ${devirtualizedCallSite.second}"
+                        +"CALL SITE: ${virtualCall.debugString()}"
+                        +"POSSIBLE RECEIVERS:"
+                        devirtualizedCallSite.first.possibleCallees.forEach { +"    TYPE: ${it.receiverType}" }
+                        devirtualizedCallSite.first.possibleCallees.forEach { +"    FUN: ${it.callee}" }
+                        +""
                     }
                 }
             }
@@ -780,13 +773,17 @@ internal object Devirtualization {
             private val preliminaryNumberOfNodes =
                     allTypes.size + // A possible source node for each type.
                             functions.size * 2 + // <returns> and <throws> nodes for each function.
-                            functions.values.sumBy { it.body.nodes.size } + // A node for each DataFlowIR.Node.
+                            functions.values.sumBy {
+                                it.body.allScopes.sumBy { it.nodes.size } // A node for each DataFlowIR.Node.
+                            } +
                             functions.values
                                     .sumBy { function ->
-                                        function.body.nodes.count { node ->
-                                            // A cast if types are different.
-                                            node is DataFlowIR.Node.Call
-                                                    && node.returnType.resolved() != node.callee.returnParameter.type.resolved()
+                                        function.body.allScopes.sumBy {
+                                            it.nodes.count { node ->
+                                                // A cast if types are different.
+                                                node is DataFlowIR.Node.Call
+                                                        && node.returnType.resolved() != node.callee.returnParameter.type.resolved()
+                                            }
                                         }
                                     }
 
@@ -903,22 +900,21 @@ internal object Devirtualization {
                     val body = function.body
                     val functionConstraintGraph = constraintGraph.functions[symbol]!!
 
-                    body.nodes.forEach { dfgNodeToConstraintNode(functionConstraintGraph, it) }
+                    body.forEachNonScopeNode { dfgNodeToConstraintNode(functionConstraintGraph, it) }
                     addEdge(functionNodesMap[body.returns]!!, functionConstraintGraph.returns)
                     addEdge(functionNodesMap[body.throws]!!, functionConstraintGraph.throws)
 
-                    DEBUG_OUTPUT(0) {
-                        println("CONSTRAINT GRAPH FOR $symbol")
-                        val ids = function.body.nodes.asSequence().withIndex().associateBy({ it.value }, { it.index })
-                        for (node in function.body.nodes) {
-                            println("FT NODE #${ids[node]}")
-                            DataFlowIR.Function.printNode(node, ids)
-                            val constraintNode = functionNodesMap[node] ?: variables[node] ?: break
-                            println("       CG NODE #${constraintNode.id}: ${constraintNode.toString(allTypes)}")
-                            println()
+                    context.logMultiple {
+                        +"CONSTRAINT GRAPH FOR $symbol"
+                        val ids = function.body.allScopes.flatMap { it.nodes }.withIndex().associateBy({ it.value }, { it.index })
+                        function.body.forEachNonScopeNode { node ->
+                            +"FT NODE #${ids[node]}"
+                            +DataFlowIR.Function.nodeToString(node, ids)
+                            val constraintNode = functionNodesMap[node] ?: variables[node] ?: return@forEachNonScopeNode
+                            +"       CG NODE #${constraintNode.id}: ${constraintNode.toString(allTypes)}"
                         }
-                        println("Returns: #${ids[function.body.returns]}")
-                        println()
+                        +"Returns: #${ids[function.body.returns]}"
+                        +""
                     }
                 }
 
@@ -974,21 +970,17 @@ internal object Devirtualization {
             private fun addInstantiatingClass(type: DataFlowIR.Type.Declared) {
                 if (instantiatingClasses[type.index]) return
                 instantiatingClasses.set(type.index)
-
-                DEBUG_OUTPUT(1) { println("Adding instantiating class: $type") }
-
+                context.log { "Adding instantiating class: $type" }
                 checkSupertypes(type, type, BitSet())
             }
 
             private fun processVirtualCall(virtualCall: ConstraintGraphVirtualCall,
                                            receiverType: DataFlowIR.Type.Declared) {
-                DEBUG_OUTPUT(1) {
-                    println("Processing virtual call: ${virtualCall.virtualCall.callee}")
-                    println("Receiver type: $receiverType")
+                context.logMultiple {
+                    +"Processing virtual call: ${virtualCall.virtualCall.callee}"
+                    +"Receiver type: $receiverType"
                 }
-
                 val callee = receiverType.calleeAt(virtualCall.virtualCall)
-
                 addEdge(doCall(virtualCall.caller, callee, virtualCall.arguments,
                         callee.returnParameter.type.resolved()), virtualCall.returnsNode)
             }
@@ -998,18 +990,17 @@ internal object Devirtualization {
                                         seenTypes: BitSet) {
                 seenTypes.set(type.index)
 
-                DEBUG_OUTPUT(1) {
-                    println("Checking supertype $type of $inheritor")
+                context.logMultiple {
+                    +"Checking supertype $type of $inheritor"
                     typesVirtualCallSites[type.index].let {
                         if (it.isEmpty())
-                            println("None virtual call sites encountered yet")
+                            +"None virtual call sites encountered yet"
                         else {
-                            println("Virtual call sites:")
-                            it.forEach {
-                                println("    ${it.virtualCall.callee}")
-                            }
+                            +"Virtual call sites:"
+                            it.forEach { +"    ${it.virtualCall.callee}" }
                         }
                     }
+                    +""
                 }
 
                 typesVirtualCallSites[type.index].let { virtualCallSites ->
@@ -1167,19 +1158,17 @@ internal object Devirtualization {
                             val callee = node.callee
                             val receiverType = node.receiverType.resolved()
 
-                            DEBUG_OUTPUT(0) {
-                                println("Virtual call")
-                                println("Caller: ${function.symbol}")
-                                println("Callee: $callee")
-                                println("Receiver type: $receiverType")
-                            }
+                            context.logMultiple {
+                                +"Virtual call"
+                                +"Caller: ${function.symbol}"
+                                +"Callee: $callee"
+                                +"Receiver type: $receiverType"
 
-                            DEBUG_OUTPUT(0) {
-                                println("Possible callees:")
+                                +"Possible callees:"
                                 forEachBitInBoth(typeHierarchy.inheritorsOf(receiverType), instantiatingClasses) {
-                                    println(allTypes[it].calleeAt(node))
+                                    +allTypes[it].calleeAt(node).toString()
                                 }
-                                println()
+                                +""
                             }
 
                             val returnType = node.returnType.resolved()

@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.backend.konan.*
 import org.jetbrains.kotlin.backend.konan.cgen.*
 import org.jetbrains.kotlin.backend.konan.descriptors.allOverriddenFunctions
 import org.jetbrains.kotlin.backend.konan.descriptors.isFromInteropLibrary
+import org.jetbrains.kotlin.backend.konan.descriptors.konanLibrary
 import org.jetbrains.kotlin.backend.konan.descriptors.synthesizedName
 import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.backend.konan.ir.companionObject
@@ -50,6 +51,7 @@ import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.resolve.descriptorUtil.fqNameSafe
 import org.jetbrains.kotlin.resolve.descriptorUtil.module
+import org.jetbrains.kotlin.konan.ForeignExceptionMode
 
 internal class InteropLowering(context: Context) : FileLoweringPass {
     // TODO: merge these lowerings.
@@ -184,7 +186,7 @@ private class InteropLoweringPart1(val context: Context) : BaseInteropIrTransfor
                 it is IrProperty && it.annotations.hasAnnotation(interop.objCOutlet.fqNameSafe) ->
                         generateOutletSetterImp(it)
 
-                it is IrConstructor && it.annotations.hasAnnotation(interop.objCOverrideInit.fqNameSafe) ->
+                it is IrConstructor && it.isOverrideInit() ->
                         generateOverrideInit(irClass, it)
 
                 else -> null
@@ -195,6 +197,17 @@ private class InteropLoweringPart1(val context: Context) : BaseInteropIrTransfor
             val irBuilder = context.createIrBuilder(currentFile.symbol).at(irClass)
             topLevelInitializers.add(irBuilder.getObjCClass(irClass.symbol))
         }
+    }
+
+    private fun IrConstructor.isOverrideInit(): Boolean {
+        if (this.origin != IrDeclarationOrigin.DEFINED) {
+            // Make best efforts to skip generated stubs that might have got annotations
+            // copied from original declarations.
+            // For example, default argument stubs (https://youtrack.jetbrains.com/issue/KT-41910).
+            return false
+        }
+
+        return this.annotations.hasAnnotation(context.interopBuiltIns.objCOverrideInit.fqNameSafe)
     }
 
     private fun generateOverrideInit(irClass: IrClass, constructor: IrConstructor): IrSimpleFunction {
@@ -1006,7 +1019,10 @@ private class InteropTransformer(val context: Context, override val irFile: IrFi
 
         if (function.annotations.hasAnnotation(RuntimeNames.cCall)) {
             context.llvmImports.add(function.llvmSymbolOrigin)
-            return generateWithStubs { generateCCall(expression, builder, isInvoke = false) }
+            val exceptionMode = ForeignExceptionMode.byValue(
+                    function.module.konanLibrary?.manifestProperties?.getProperty(ForeignExceptionMode.manifestKey)
+            )
+            return generateWithStubs { generateCCall(expression, builder, isInvoke = false, exceptionMode) }
         }
 
         val failCompilation = { msg: String -> context.reportCompilationError(msg, irFile, expression) }

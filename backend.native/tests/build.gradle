@@ -1836,6 +1836,11 @@ task coroutines_functionReference_lambdaAsSuspendLambda(type: KonanLocalTest) {
     source = "codegen/coroutines/functionReference_lambdaAsSuspendLambda.kt"
 }
 
+task coroutines_kt41394(type: KonanLocalTest) {
+    goldValue = ""
+    source = "codegen/coroutines/kt41394.kt"
+}
+
 standaloneTest('coroutines_suspendConversion') {
     goldValue = ""
     source = "codegen/coroutines/suspendConversion.kt"
@@ -2765,6 +2770,10 @@ task expression_as_statement(type: KonanLocalTest) {
     source = "codegen/basics/expression_as_statement.kt"
 }
 
+task codegen_escapeAnalysis_zeroOutObjectOnAlloc(type: KonanLocalTest) {
+    source = "codegen/escapeAnalysis/zeroOutObjectOnAlloc.kt"
+}
+
 task memory_var1(type: KonanLocalTest) {
     source = "runtime/memory/var1.kt"
 }
@@ -3574,6 +3583,12 @@ createInterop("auxiliaryCppSources") {
     it.extraOpts "-Xsource-compiler-option", "-std=c++17"
 }
 
+createInterop("incomplete_types") {
+    it.defFile 'interop/incomplete_types/library.def'
+    it.headers "$projectDir/interop/incomplete_types/library.h"
+    it.extraOpts "-Xcompile-source", "$projectDir/interop/incomplete_types/library.cpp"
+}
+
 createInterop("embedStaticLibraries") {
     it.defFile 'interop/embedStaticLibraries/embedStaticLibraries.def'
     it.headers "$projectDir/interop/embedStaticLibraries/embedStaticLibraries.h"
@@ -3615,6 +3630,22 @@ if (PlatformInfo.isAppleTarget(project)) {
     createInterop("objcMessaging") {
         it.defFile 'interop/objc/msg_send/messaging.def'
         it.headers "$projectDir/interop/objc/msg_send/messaging.h"
+    }
+
+    createInterop("foreignException") {
+        it.defFile 'interop/objc/foreignException/objc_wrap.def'
+        it.headers "$projectDir/interop/objc/foreignException/objc_wrap.h"
+    }
+
+    createInterop("foreignExceptionMode_default") {
+        it.defFile 'interop/objc/foreignException/objcExceptionMode.def'
+        it.headers "$projectDir/interop/objc/foreignException/objc_wrap.h"
+    }
+
+    createInterop("foreignExceptionMode_wrap") {
+        it.defFile 'interop/objc/foreignException/objcExceptionMode.def'
+        it.headers "$projectDir/interop/objc/foreignException/objc_wrap.h"
+        it.extraOpts '-Xforeign-exception-mode', "objc-wrap"
     }
 
     createInterop("objcKt34467") {
@@ -3813,6 +3844,14 @@ interopTest("interop_auxiliarySources") {
     interop = 'auxiliaryCppSources'
 }
 
+interopTest("interop_incompleteTypes") {
+    disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
+    source = "interop/incomplete_types/main.kt"
+    interop = 'incomplete_types'
+}
+
+
+
 interopTest("interop_embedStaticLibraries") {
     disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
     source = "interop/embedStaticLibraries/main.kt"
@@ -3982,6 +4021,59 @@ if (PlatformInfo.isAppleTarget(project)) {
             }
             if (project.target instanceof KonanTarget.IOS_X64) {
                 UtilsKt.codesign(project, "$buildDir/libobjcmessaging.dylib")
+            }
+        }
+    }
+
+    interopTest("interop_objc_foreignException") {
+        source = "interop/objc/foreignException/objc_wrap.kt"
+        interop = 'foreignException'
+
+        doBeforeBuild {
+            mkdir(buildDir)
+            execKonanClang(project.target) {
+                args "$projectDir/interop/objc/foreignException/objc_wrap.m"
+                args "-lobjc", '-fobjc-arc'
+                args '-fPIC', '-shared', '-o', "$buildDir/libobjcexception.dylib"
+            }
+            if (project.target instanceof KonanTarget.IOS_X64) {
+                UtilsKt.codesign(project, "$buildDir/libobjcexception.dylib")
+            }
+        }
+    }
+
+    interopTest("interop_objc_foreignExceptionMode_wrap") {
+        source = "interop/objc/foreignException/objcExceptionMode.kt"
+        interop = 'foreignExceptionMode_wrap'
+        goldValue = "OK: ForeignException\n"
+
+        doBeforeBuild {
+            mkdir(buildDir)
+            execKonanClang(project.target) {
+                args "$projectDir/interop/objc/foreignException/objc_wrap.m"
+                args "-lobjc", '-fobjc-arc'
+                args '-fPIC', '-shared', '-o', "$buildDir/libobjcexception.dylib"
+            }
+            if (project.target instanceof KonanTarget.IOS_X64) {
+                UtilsKt.codesign(project, "$buildDir/libobjcexception.dylib")
+            }
+        }
+    }
+
+    interopTest("interop_objc_foreignExceptionMode_default") {
+        source = "interop/objc/foreignException/objcExceptionMode.kt"
+        interop = 'foreignExceptionMode_default'
+        goldValue = "OK: Ends with uncaught exception handler\n"
+
+        doBeforeBuild {
+            mkdir(buildDir)
+            execKonanClang(project.target) {
+                args "$projectDir/interop/objc/foreignException/objc_wrap.m"
+                args "-lobjc", '-fobjc-arc'
+                args '-fPIC', '-shared', '-o', "$buildDir/libobjcexception.dylib"
+            }
+            if (project.target instanceof KonanTarget.IOS_X64) {
+                UtilsKt.codesign(project, "$buildDir/libobjcexception.dylib")
             }
         }
     }
@@ -4386,7 +4478,6 @@ if (UtilsKt.getTestTargetSupportsCodeCoverage(project)) {
         binaryName = "CoverageControlFlow"
         numberOfCoveredFunctions = 1
         numberOfCoveredLines = 102
-        enabled = !twoStageEnabled
 
         konanArtifacts {
             program(binaryName, targets: [ target ]) {
@@ -4432,7 +4523,6 @@ if (UtilsKt.getTestTargetSupportsCodeCoverage(project)) {
         binaryName = "CoverageSmoke1"
         numberOfCoveredFunctions = 9
         numberOfCoveredLines = 33
-        enabled = !twoStageEnabled
 
         konanArtifacts {
             program(binaryName, targets: [ target ]) {

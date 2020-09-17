@@ -282,7 +282,7 @@ class RunExternalTestGroup extends JavaExec {
                 text = text.replaceFirst(packagePattern, "package $pkg")
             } else {
                 pkg = sourceName
-                text = insertInTextAfter(text, "\npackage $pkg\n", "@file:Suppress")
+                text = insertInTextAfter(text, "\npackage $pkg\n", "@file:")
             }
             if (text =~ boxPattern) {
                 imports.add("${pkg}.*")
@@ -331,7 +331,7 @@ class RunExternalTestGroup extends JavaExec {
                     pkg = 'package ' + (text =~ packagePattern)[0][1]
                     text = text.replaceFirst(packagePattern, '')
                 }
-                text = insertInTextAfter(text, (pkg ? "\n$pkg\n" : "") + "import $sourceName.*\n", "@file:Suppress")
+                text = insertInTextAfter(text, (pkg ? "\n$pkg\n" : "") + "import $sourceName.*\n", "@file:")
             }
             // now replace all package usages in full qualified names
             def res = ""                      // filesToCompile
@@ -407,7 +407,10 @@ fun runTest() {
 
     static def excludeList = [
             "external/compiler/codegen/boxInline/multiplatform/defaultArguments/receiversAndParametersInLambda.kt", // KT-36880
-            "external/compiler/compileKotlinAgainstKotlin/useDeserializedFunInterface.kt" // KT-37634
+            "external/compiler/compileKotlinAgainstKotlin/specialBridgesInDependencies.kt",         // FIXME: inherits final class
+            "external/compiler/codegen/box/multiplatform/multiModule/expectActualTypealiasLink.kt", // KT-40137
+            "external/compiler/codegen/box/multiplatform/multiModule/expectActualMemberLink.kt",    // KT-33091
+            "external/compiler/codegen/box/multiplatform/multiModule/expectActualLink.kt"           // KT-41901
     ]
 
     boolean isEnabledForNativeBackend(String fileName) {
@@ -514,9 +517,13 @@ fun runTest() {
                         if (!module.isDefaultModule()) {
                             def klibModulePath = "${executablePath()}.${module.name}.klib"
                             libs.addAll(module.dependencies)
+                            def klibs = libs.collectMany { ["-l", "${executablePath()}.${it}.klib"] }.toList()
+                            def friends = module.friends ?
+                                    module.friends.collectMany {
+                                        ["-friend-modules", "${executablePath()}.${it}.klib"]
+                                    }.toList() : []
                             runCompiler(compileList.findAll { it.module == module }.collect { it.path },
-                                    klibModulePath, flags + ["-p", "library"] +
-                                    libs.collectMany { ["-l", "${executablePath()}.${it}.klib"] }.toList())
+                                    klibModulePath, flags + ["-p", "library"] + klibs + friends)
                         }
                     }
 
@@ -526,8 +533,13 @@ fun runTest() {
                     compileMain.forEach { f ->
                         libs.addAll(f.module.dependencies)
                     }
-                    if (!compileMain.empty) runCompiler(compileMain.collect { it.path }, executablePath(),
-                            flags + libs.collectMany { ["-l", "${executablePath()}.${it}.klib"] }.toList())
+                    def friends = compileMain.collectMany {it.module.friends }.toSet()
+                    if (!compileMain.empty) {
+                        runCompiler(compileMain.collect { it.path }, executablePath(), flags +
+                                libs.collectMany { ["-l", "${executablePath()}.${it}.klib"] }.toList() +
+                                friends.collectMany {["-friend-modules", "${executablePath()}.${it}.klib"]}.toList()
+                        )
+                    }
                 }
             } catch (Exception ex) {
                 project.logger.quiet("ERROR: Compilation failed for test suite: $name with exception", ex)

@@ -9,8 +9,10 @@ import org.jetbrains.kotlin.backend.common.lower.irNot
 import org.jetbrains.kotlin.backend.konan.KonanFqNames
 import org.jetbrains.kotlin.backend.konan.PrimitiveBinaryType
 import org.jetbrains.kotlin.backend.konan.RuntimeNames
+import org.jetbrains.kotlin.backend.konan.descriptors.konanLibrary
 import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.backend.konan.isObjCMetaClass
+import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.builtins.UnsignedType
 import org.jetbrains.kotlin.descriptors.ClassKind
 import org.jetbrains.kotlin.descriptors.Modality
@@ -41,9 +43,10 @@ import org.jetbrains.kotlin.name.Name
 import org.jetbrains.kotlin.types.Variance
 import org.jetbrains.kotlin.util.OperatorNameConventions
 import org.jetbrains.kotlin.backend.konan.getObjCMethodInfo
-import org.jetbrains.kotlin.backend.konan.lower.CallableReferenceLowering
+import org.jetbrains.kotlin.backend.konan.lower.FunctionReferenceLowering
 import org.jetbrains.kotlin.builtins.StandardNames
 import org.jetbrains.kotlin.ir.descriptors.*
+import org.jetbrains.kotlin.konan.ForeignExceptionMode
 
 internal interface KotlinStubs {
     val irBuiltIns: IrBuiltIns
@@ -61,7 +64,8 @@ internal interface KotlinStubs {
 private class KotlinToCCallBuilder(
         val irBuilder: IrBuilderWithScope,
         val stubs: KotlinStubs,
-        val isObjCMethod: Boolean
+        val isObjCMethod: Boolean,
+        foreignExceptionMode: ForeignExceptionMode.Mode
 ) {
 
     val cBridgeName = stubs.getUniqueCName("knbridge")
@@ -69,7 +73,7 @@ private class KotlinToCCallBuilder(
     val symbols: KonanSymbols get() = stubs.symbols
 
     val bridgeCallBuilder = KotlinCallBuilder(irBuilder, symbols)
-    val bridgeBuilder = KotlinCBridgeBuilder(irBuilder.startOffset, irBuilder.endOffset, cBridgeName, stubs, isKotlinToC = true)
+    val bridgeBuilder = KotlinCBridgeBuilder(irBuilder.startOffset, irBuilder.endOffset, cBridgeName, stubs, isKotlinToC = true, foreignExceptionMode)
     val cBridgeBodyLines = mutableListOf<String>()
     val cCallBuilder = CCallBuilder()
     val cFunctionBuilder = CFunctionBuilder()
@@ -109,10 +113,11 @@ private fun KotlinToCCallBuilder.buildKotlinBridgeCall(transformCall: (IrMemberA
                 transformCall
         )
 
-internal fun KotlinStubs.generateCCall(expression: IrCall, builder: IrBuilderWithScope, isInvoke: Boolean): IrExpression {
+internal fun KotlinStubs.generateCCall(expression: IrCall, builder: IrBuilderWithScope, isInvoke: Boolean,
+                                       foreignExceptionMode: ForeignExceptionMode.Mode = ForeignExceptionMode.default): IrExpression {
     require(expression.dispatchReceiver == null)
 
-    val callBuilder = KotlinToCCallBuilder(builder, this, isObjCMethod = false)
+    val callBuilder = KotlinToCCallBuilder(builder, this, isObjCMethod = false, foreignExceptionMode)
 
     val callee = expression.symbol.owner
 
@@ -262,7 +267,7 @@ private fun <R> KotlinToCCallBuilder.handleArgumentForVarargParameter(
             } else {
                 stubs.throwCompilerError(initializer, "unexpected initializer")
             }
-        } else if (variable is IrValueParameter && CallableReferenceLowering.isLoweredCallableReference(variable)) {
+        } else if (variable is IrValueParameter && FunctionReferenceLowering.isLoweredFunctionReference(variable)) {
             val location = variable.parent // Parameter itself has incorrect location.
             val kind = if (this.isObjCMethod) "Objective-C methods" else "C functions"
             stubs.reportError(location, "callable references to variadic $kind are not supported")
@@ -306,7 +311,13 @@ internal fun KotlinStubs.generateObjCCall(
         receiver: ObjCCallReceiver,
         arguments: List<IrExpression?>
 ) = builder.irBlock {
-    val callBuilder = KotlinToCCallBuilder(builder, this@generateObjCCall, isObjCMethod = true)
+    val resolved = method.resolveFakeOverride(allowAbstract = true)?: method
+    val exceptionMode = ForeignExceptionMode.byValue(
+            resolved.module.konanLibrary?.manifestProperties
+                    ?.getProperty(ForeignExceptionMode.manifestKey)
+    )
+
+    val callBuilder = KotlinToCCallBuilder(builder, this@generateObjCCall, isObjCMethod = true, exceptionMode)
 
     val superClass = irTemporaryVar(
             superQualifier?.let { getObjCClass(symbols, it) } ?: irNullNativePtr(symbols)
@@ -1326,7 +1337,7 @@ private class ObjCBlockPointerValuePassing(
     }
 
     private fun IrBuilderWithScope.callBlock(blockPtr: IrExpression, arguments: List<IrExpression>): IrExpression {
-        val callBuilder = KotlinToCCallBuilder(this, stubs, isObjCMethod = false)
+        val callBuilder = KotlinToCCallBuilder(this, stubs, isObjCMethod = false, ForeignExceptionMode.default)
 
         val rawBlockPointerParameter =  callBuilder.passThroughBridge(blockPtr, blockPtr.type, CTypes.id)
         val blockVariableName = "block"

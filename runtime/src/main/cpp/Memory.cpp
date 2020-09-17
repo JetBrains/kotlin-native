@@ -3252,6 +3252,13 @@ void UpdateReturnRefRelaxed(ObjHeader** returnSlot, const ObjHeader* value) {
   updateReturnRef<false>(returnSlot, value);
 }
 
+void ZeroArrayRefs(ArrayHeader* array) {
+  for (uint32_t index = 0; index < array->count_; ++index) {
+    ObjHeader** location = ArrayAddressOfElementAt(array, index);
+    zeroHeapRef(location);
+  }
+}
+
 void UpdateHeapRefIfNull(ObjHeader** location, const ObjHeader* object) {
   updateHeapRefIfNull(location, object);
 }
@@ -3426,9 +3433,18 @@ void FreezeSubgraph(ObjHeader* root) {
 // This function is called from field mutators to check if object's header is frozen.
 // If object is frozen or permanent, an exception is thrown.
 void MutationCheck(ObjHeader* obj) {
+  if (obj->local()) return;
   auto* container = obj->container();
   if (container == nullptr || container->frozen())
     ThrowInvalidMutabilityException(obj);
+}
+
+void CheckLifetimesConstraint(ObjHeader* obj, ObjHeader* pointee) {
+  if (!obj->local() && pointee != nullptr && pointee->local()) {
+    konan::consolePrintf("Attempt to store a stack object %p into a heap object %p\n", pointee, obj);
+    konan::consolePrintf("This is a compiler bug, please report it to https://kotl.in/issue\n");
+    konan::abort();
+  }
 }
 
 void EnsureNeverFrozen(ObjHeader* object) {
