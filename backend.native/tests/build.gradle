@@ -300,19 +300,6 @@ task resultsTask() {
     }
 }
 
-boolean isExcluded(String dir) {
-    // List of tests that fail due to unresolved compiler bugs
-    def excluded = [ ]
-
-    boolean result = false
-    excluded.forEach {
-        if (dir.endsWith(it.replace("/", File.separator))) {
-            result = true
-        }
-    }
-    return result
-}
-
 def createTestTasks(File testRoot, Class<Task> taskType) {
     testRoot.eachDirRecurse {
         // Skip build directory and directories without *.kt files.
@@ -321,14 +308,10 @@ def createTestTasks(File testRoot, Class<Task> taskType) {
         }
 
         def taskDirectory = project.relativePath(it).substring("build/".length())
-        if (!isExcluded(taskDirectory)) {
-            def taskName = taskDirectory.replaceAll("[-/\\\\]", '_')
-            project.tasks.register(taskName, taskType) {
-                it.groupDirectory = taskDirectory
-                it.finalizedBy resultsTask
-            }
-        } else {
-            println("$taskDirectory is excluded")
+        def taskName = taskDirectory.replaceAll("[-/\\\\]", '_')
+        project.tasks.register(taskName, taskType) {
+            it.groupDirectory = taskDirectory
+            it.finalizedBy resultsTask
         }
     }
 }
