@@ -73,7 +73,11 @@ ext {
 
     cacheableTargets = [
             KonanTarget.MACOS_X64.INSTANCE,
-            KonanTarget.IOS_X64.INSTANCE
+            KonanTarget.IOS_X64.INSTANCE,
+            KonanTarget.LINUX_X64.INSTANCE,
+            KonanTarget.LINUX_ARM32_HFP.INSTANCE,
+            KonanTarget.LINUX_ARM64.INSTANCE,
+            KonanTarget.MINGW_X64.INSTANCE
     ]
     cacheableTargetNames = cacheableTargets.collect { it.visibleName }
 

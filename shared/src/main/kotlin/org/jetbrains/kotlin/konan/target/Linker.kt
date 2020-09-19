@@ -359,7 +359,7 @@ class GccBasedLinker(targetProperties: GccConfigurables)
             if (!isMips) +"--hash-style=gnu" // MIPS doesn't support hash-style=gnu
             +specificLibs
             +listOf("-L$absoluteTargetSysRoot/../lib", "-L$absoluteTargetSysRoot/lib", "-L$absoluteTargetSysRoot/usr/lib")
-            if (optimize) +linkerOptimizationFlags
+            +linkerOptimizationFlags
             if (!debug) +linkerNoDebugFlags
             if (dynamic) +linkerDynamicFlags
             +objectFiles
@@ -414,7 +414,7 @@ class MingwLinker(targetProperties: MingwConfigurables)
             // --gc-sections flag may affect profiling.
             // See https://clang.llvm.org/docs/SourceBasedCodeCoverage.html#drawbacks-and-limitations.
             // TODO: switching to lld may help.
-            if (optimize && !needsProfileLibrary) +linkerOptimizationFlags
+            if (!needsProfileLibrary) +linkerOptimizationFlags
             if (!debug) +linkerNoDebugFlags
             if (dynamic) +linkerDynamicFlags
             +libraries
