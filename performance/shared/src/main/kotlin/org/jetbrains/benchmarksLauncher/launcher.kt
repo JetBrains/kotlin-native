@@ -82,7 +82,8 @@ abstract class Launcher {
             val time = runBenchmark(benchmarkInstance, benchmark, 1)
             if (time < expectedDuration)
                 // Made auto evaluated number of measurements to be a multiple of 4.
-                // Loops which are a multiple of 4 execute optimally, because of different optimizations on processor (e.g. LSD)
+                // Loops which iteration number is a multiple of 4 execute optimally,
+                // because of different optimizations on processor (e.g. LSD)
                 autoEvaluatedNumberOfMeasureIteration = ((expectedDuration / time).toInt() / 4 + 1) * 4
         }
         logger.log("Running benchmark $name ")
