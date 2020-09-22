@@ -95,6 +95,8 @@ internal fun Context.psiToIr(symbolTable: SymbolTable) {
                     config.cachedLibraries
             )
 
+    val diagnosticReporter = MessageCollectorReporter(messageCollector)
+
     translator.addPostprocessingStep { module ->
         val pluginContext = IrPluginContextImpl(
                 generatorContext.moduleDescriptor,
@@ -103,7 +105,8 @@ internal fun Context.psiToIr(symbolTable: SymbolTable) {
                 generatorContext.symbolTable,
                 generatorContext.typeTranslator,
                 generatorContext.irBuiltIns,
-                linker = linker
+                linker = linker,
+                diagnosticReporter
         )
         pluginExtensions.forEach { extension ->
             extension.generate(module, pluginContext)
