@@ -40,7 +40,7 @@ internal fun Context.psiToIr(symbolTable: SymbolTable) {
     val messageCollector = configuration[CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY] ?: MessageCollector.NONE
 
     val translator = Psi2IrTranslator(config.configuration.languageVersionSettings, Psi2IrConfiguration(false))
-    val generatorContext = translator.createGeneratorContext(moduleDescriptor, bindingContext, symbolTable)
+    val generatorContext = translator.createGeneratorContext(moduleDescriptor, bindingContext, symbolTable, messageCollector)
 
     val pluginExtensions = IrGenerationExtension.getInstances(config.project)
 
