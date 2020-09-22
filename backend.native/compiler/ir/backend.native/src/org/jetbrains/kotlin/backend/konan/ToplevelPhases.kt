@@ -20,7 +20,9 @@ import org.jetbrains.kotlin.backend.konan.llvm.*
 import org.jetbrains.kotlin.backend.konan.lower.ExpectToActualDefaultValueCopier
 import org.jetbrains.kotlin.backend.konan.objcexport.ObjCExport
 import org.jetbrains.kotlin.backend.konan.serialization.*
+import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
 import org.jetbrains.kotlin.cli.common.messages.AnalyzerWithCompilerReport
+import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
@@ -177,10 +179,11 @@ internal val copyDefaultValuesToActualPhase = konanUnitPhase(
 internal val serializerPhase = konanUnitPhase(
         op = {
             val expectActualLinker = config.configuration.get(CommonConfigurationKeys.EXPECT_ACTUAL_LINKER)?:false
+            val messageCollector = config.configuration[CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY] ?: MessageCollector.NONE
 
             serializedIr = irModule?.let { ir ->
                 KonanIrModuleSerializer(
-                    this, ir.irBuiltins, expectDescriptorToSymbol, skipExpects = !expectActualLinker
+                    messageCollector, ir.irBuiltins, expectDescriptorToSymbol, skipExpects = !expectActualLinker
                 ).serializedIrModule(ir)
             }
 

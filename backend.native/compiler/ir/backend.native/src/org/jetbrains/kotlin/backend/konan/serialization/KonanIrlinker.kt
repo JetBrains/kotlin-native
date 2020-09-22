@@ -26,6 +26,7 @@ import org.jetbrains.kotlin.backend.konan.CachedLibraries
 import org.jetbrains.kotlin.backend.konan.descriptors.isInteropLibrary
 import org.jetbrains.kotlin.backend.konan.descriptors.konanLibrary
 import org.jetbrains.kotlin.backend.konan.ir.interop.IrProviderForCEnumAndCStructStubs
+import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.konan.isNativeStdlib
 import org.jetbrains.kotlin.descriptors.konan.kotlinLibrary
@@ -68,7 +69,7 @@ internal class KonanIrLinker(
         private val currentModule: ModuleDescriptor,
         override val functionalInterfaceFactory: IrAbstractFunctionFactory,
         override val translationPluginContext: TranslationPluginContext?,
-        logger: LoggingContext,
+        messageCollector: MessageCollector,
         builtIns: IrBuiltIns,
         symbolTable: SymbolTable,
         private val forwardModuleDescriptor: ModuleDescriptor?,
@@ -77,7 +78,7 @@ internal class KonanIrLinker(
         exportedDependencies: List<ModuleDescriptor>,
         deserializeFakeOverrides: Boolean,
         private val cachedLibraries: CachedLibraries
-) : KotlinIrLinker(currentModule, logger, builtIns, symbolTable, exportedDependencies, deserializeFakeOverrides) {
+) : KotlinIrLinker(currentModule, messageCollector, builtIns, symbolTable, exportedDependencies, deserializeFakeOverrides) {
 
     companion object {
         private val C_NAMES_NAME = Name.identifier("cnames")

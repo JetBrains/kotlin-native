@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.backend.common.LoggingContext
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContextImpl
 import org.jetbrains.kotlin.backend.common.overrides.FakeOverrideChecker
+import org.jetbrains.kotlin.backend.common.serialization.extensions.MessageCollectorReporter
 import org.jetbrains.kotlin.backend.common.serialization.mangle.ManglerChecker
 import org.jetbrains.kotlin.backend.common.serialization.mangle.descriptor.Ir2DescriptorManglerAdapter
 import org.jetbrains.kotlin.backend.konan.descriptors.isForwardDeclarationModule
@@ -14,6 +15,8 @@ import org.jetbrains.kotlin.backend.konan.ir.interop.IrProviderForCEnumAndCStruc
 import org.jetbrains.kotlin.backend.konan.serialization.KonanIrLinker
 import org.jetbrains.kotlin.backend.konan.serialization.KonanManglerDesc
 import org.jetbrains.kotlin.backend.konan.serialization.KonanManglerIr
+import org.jetbrains.kotlin.cli.common.CLIConfigurationKeys
+import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.config.CommonConfigurationKeys
 import org.jetbrains.kotlin.config.languageVersionSettings
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
@@ -34,6 +37,7 @@ import org.jetbrains.kotlin.utils.DFS
 internal fun Context.psiToIr(symbolTable: SymbolTable) {
     // Translate AST to high level IR.
     val expectActualLinker = config.configuration.get(CommonConfigurationKeys.EXPECT_ACTUAL_LINKER)?:false
+    val messageCollector = configuration[CLIConfigurationKeys.MESSAGE_COLLECTOR_KEY] ?: MessageCollector.NONE
 
     val translator = Psi2IrTranslator(config.configuration.languageVersionSettings, Psi2IrConfiguration(false))
     val generatorContext = translator.createGeneratorContext(moduleDescriptor, bindingContext, symbolTable)
@@ -80,7 +84,7 @@ internal fun Context.psiToIr(symbolTable: SymbolTable) {
                     moduleDescriptor,
                     functionIrClassFactory,
                     translationContext,
-                    this as LoggingContext,
+                    messageCollector,
                     generatorContext.irBuiltIns,
                     symbolTable,
                     forwardDeclarationsModuleDescriptor,

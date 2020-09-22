@@ -1,20 +1,20 @@
 package org.jetbrains.kotlin.backend.konan.serialization
 
-import org.jetbrains.kotlin.backend.common.LoggingContext
 import org.jetbrains.kotlin.backend.common.serialization.*
 import org.jetbrains.kotlin.backend.common.serialization.signature.IdSignatureSerializer
 import org.jetbrains.kotlin.backend.konan.ir.interop.IrProviderForCEnumAndCStructStubs
+import org.jetbrains.kotlin.cli.common.messages.MessageCollector
 import org.jetbrains.kotlin.descriptors.DeclarationDescriptor
 import org.jetbrains.kotlin.ir.declarations.IrFile
 import org.jetbrains.kotlin.ir.descriptors.IrBuiltIns
 import org.jetbrains.kotlin.ir.symbols.IrSymbol
 
 class KonanIrModuleSerializer(
-    logger: LoggingContext,
+    messageCollector: MessageCollector,
     irBuiltIns: IrBuiltIns,
     private val expectDescriptorToSymbol: MutableMap<DeclarationDescriptor, IrSymbol>,
     val skipExpects: Boolean
-) : IrModuleSerializer<KonanIrFileSerializer>(logger) {
+) : IrModuleSerializer<KonanIrFileSerializer>(messageCollector) {
 
     private val signaturer = IdSignatureSerializer(KonanManglerIr)
     private val globalDeclarationTable = KonanGlobalDeclarationTable(signaturer, irBuiltIns)
@@ -29,5 +29,5 @@ class KonanIrModuleSerializer(
             file.fileEntry.name != IrProviderForCEnumAndCStructStubs.cTypeDefinitionsFileName
 
     override fun createSerializerForFile(file: IrFile): KonanIrFileSerializer =
-            KonanIrFileSerializer(logger, KonanDeclarationTable(globalDeclarationTable), expectDescriptorToSymbol, skipExpects = skipExpects)
+            KonanIrFileSerializer(messageCollector, KonanDeclarationTable(globalDeclarationTable), expectDescriptorToSymbol, skipExpects = skipExpects)
 }
