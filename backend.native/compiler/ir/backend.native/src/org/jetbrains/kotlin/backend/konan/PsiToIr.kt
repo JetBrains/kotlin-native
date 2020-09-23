@@ -108,7 +108,11 @@ internal fun Context.psiToIr(symbolTable: SymbolTable) {
             val kotlinLibrary = dependency.getCapability(KlibModuleOrigin.CAPABILITY)?.let {
                 (it as? DeserializedKlibModuleOrigin)?.library
             }
-            linker.deserializeIrModuleHeader(dependency, kotlinLibrary)
+            if (kotlinLibrary != null && config.cachedLibraries.isLibraryCached(kotlinLibrary)) {
+                linker.deserializeHeadersWithInlineBodies(dependency, kotlinLibrary)
+            } else {
+                linker.deserializeIrModuleHeader(dependency, kotlinLibrary)
+            }
         }
         if (dependencies.size == dependenciesCount) break
         dependenciesCount = dependencies.size
