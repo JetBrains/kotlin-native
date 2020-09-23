@@ -4188,6 +4188,16 @@ dynamicTest("produce_dynamic") {
                 "Error handler: kotlin.Error: Expected error\n"
 }
 
+dynamicTest("concurrentRuntime") {
+    disabled = (project.testTarget != null && project.testTarget != project.hostName)
+    source = "interop/concurrentTerminate/reverseInterop.kt"
+    cSource = "$projectDir/interop/concurrentTerminate/main.cpp"
+    clangTool = "clang++"
+    goldValue = "Uncaught Kotlin exception: kotlin.RuntimeException: Example"
+    outputChecker = { str -> str.startsWith(goldValue) }
+    expectedExitStatus = 99
+}
+
 task library_mismatch(type: KonanDriverTest) {
     // Does not work for cross targets yet.
     enabled = !(project.testTarget != null && project.target.name != project.hostName)
