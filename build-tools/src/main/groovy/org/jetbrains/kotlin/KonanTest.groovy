@@ -226,174 +226,10 @@ class RunExternalTestGroup extends JavaExec {
         }
     }
 
-    static String markMutableObjects(String text) {
-        def lines = text.readLines()
-        def result = new ArrayList<String>(lines.size())
-        lines.forEach { line ->
-            // FIXME: find only those who has vars inside
-            // Find object declarations and companion objects
-            if (line.matches("\\s*(private|public|internal)?\\s*object [a-zA-Z_][a-zA-Z0-9_]*\\s*.*")
-                    || line.matches("\\s*(private|public|internal)?\\s*companion object.*")) {
-                result += "@kotlin.native.ThreadLocal"
-            }
-            result += line
-        }
-        return result.join(System.lineSeparator())
-    }
-
-    static String insertInTextAfter(String text, String insert, String after) {
-        def begin = text.indexOf(after)
-        if (begin != -1) {
-            def end = text.indexOf("\n", begin)
-            text = text.substring(0, end) + insert + text.substring(end)
-        } else {
-            text = insert + text
-        }
-        return text
-    }
-
-    List<TestFile> createTestFiles(String src) {
-        def identifier = /[a-zA-Z_][a-zA-Z0-9_]/
-        def fullQualified = /[a-zA-Z_][a-zA-Z0-9_.]/
-        def importRegex = /(?m)^\s*import\s+/
-
-        def packagePattern = ~/(?m)^\s*package\s+(${fullQualified}*)/
-        def boxPattern = ~/(?m)fun\s+box\s*\(\s*\)/
-        def classPattern = ~/.*(class|object|enum|interface)\s+(${identifier}*).*/
-
-        def sourceName = "_" + normalize(project.buildDir.toPath().resolve(src).toFile().name)
-        def packages = new LinkedHashSet<String>()
-        def imports = []
-        def classes = []
-        def vars = new HashSet<String>()  // variables that has the same name as a package
-        TestModule mainModule = null
-
-        def testFiles = TestDirectivesKt.buildCompileList(project.file("build/$src").toPath(), "$outputDirectory/$src")
-        for (TestFile testFile: testFiles) {
-            def text = testFile.text
-            def filePath = testFile.path
-            if (text.contains('COROUTINES_PACKAGE')) {
-                text = text.replace('COROUTINES_PACKAGE', 'kotlin.coroutines')
-            }
-            def pkg
-            if (text =~ packagePattern) {
-                pkg = (text =~ packagePattern)[0][1]
-                packages.add(pkg)
-                pkg = "$sourceName.$pkg"
-                text = text.replaceFirst(packagePattern, "package $pkg")
-            } else {
-                pkg = sourceName
-                text = insertInTextAfter(text, "\npackage $pkg\n", "@file:")
-            }
-            if (text =~ boxPattern) {
-                imports.add("${pkg}.*")
-                mainModule = testFile.module
-            }
-
-            // Find mutable objects that should be marked as ThreadLocal
-            if (filePath != "$outputDirectory/$src/helpers.kt") {
-                text = markMutableObjects(text)
-            }
-            testFile.text = text
-        }
-        for (TestFile testFile: testFiles) {
-            def text = testFile.text
-            // Find if there are any imports in the file
-            def matcher = (text =~ ~/${importRegex}(${fullQualified}*)/)
-            if (matcher) {
-                // Prepend package name to found imports
-                for (int i = 0; i < matcher.count; i++) {
-                    String importStatement = matcher[i][1]
-                    def subImport = importStatement.with {
-                        int dotIdx = indexOf('.')
-                        dotIdx > 0 ? substring(0, dotIdx) : it
-                    }
-                    if (packages.contains(subImport) || classes.contains(subImport)) {
-                        // add only to those who import packages or import classes from the test files
-                        text = text.replaceFirst(~/${importRegex}${Pattern.quote(importStatement)}/,
-                                "import $sourceName.$importStatement")
-                    } else if (text =~ classPattern) {
-                        // special case for import from the local class
-                        def clsMatcher = (text =~ classPattern)
-                        for (int j = 0; j < clsMatcher.count; j++) {
-                            def cl = (text =~ classPattern)[j][2]
-                            classes.add(cl)
-                            if (subImport == cl) {
-                                text = text.replaceFirst(~/${importRegex}${Pattern.quote(importStatement)}/,
-                                        "import $sourceName.$importStatement")
-                            }
-                        }
-                    }
-                }
-            } else if (packages.empty) {
-                // Add import statement after package
-                def pkg = null
-                if (text =~ packagePattern) {
-                    pkg = 'package ' + (text =~ packagePattern)[0][1]
-                    text = text.replaceFirst(packagePattern, '')
-                }
-                text = insertInTextAfter(text, (pkg ? "\n$pkg\n" : "") + "import $sourceName.*\n", "@file:")
-            }
-            // now replace all package usages in full qualified names
-            def res = ""                      // filesToCompile
-            text.eachLine { line ->
-                packages.each { pkg ->
-                    // line contains val or var declaration or function parameter declaration
-                    if ((line =~ ~/va(l|r) *$pkg*( *: *$fullQualified*)?( *get\(\))? *\=.*/) ||
-                            (line =~ ~/fun .*\(\n?\s*$pkg:.*/)) {
-                        vars.add(pkg)
-                    }
-                    if (line.contains("$pkg.") && !(line =~ packagePattern || line =~ importRegex)
-                            && !vars.contains(pkg)) {
-                        def idx = 0
-                        while ((idx = line.indexOf(pkg, idx)) >= 0) {
-                            if (!Character.isJavaIdentifierPart(line.charAt(idx - 1))) {
-                                line = line.substring(0, idx) + "$sourceName.$pkg" + line.substring(idx + pkg.length())
-                                idx += sourceName.length() + pkg.length() + 1
-                            } else {
-                                idx += pkg.length()
-                            }
-                        }
-                    }
-                }
-                res += "$line\n"
-            }
-            testFile.text = res
-        }
-        def launcherText = createLauncherFileText(src, imports)
-        testFiles.add(new TestFile("_launcher.kt", "$outputDirectory/$src/_launcher.kt".toString(),
-                launcherText, mainModule != null ? mainModule : TestModule.default))
-        return testFiles
-    }
-
     String normalize(String name) {
         name.replace('.kt', '')
                 .replace('-','_')
                 .replace('.', '_')
-    }
-
-    /**
-     * There are tests that require non-trivial 'package foo' in test launcher.
-     */
-    String createLauncherFileText(String src, List<String> imports) {
-        StringBuilder text = new StringBuilder()
-        def pack = normalize(project.file(src).name)
-        text.append("package _$pack\n")
-        for (v in imports) {
-            text.append("import $v\n")
-        }
-        text.append(
-"""
-import kotlin.test.Test
-
-@Test
-fun runTest() {
-    @Suppress("UNUSED_VARIABLE")
-    val result = box()
-    if (result != "OK") throw AssertionError("Test failed with: " + result)
-}
-"""     )
-        return text.toString()
     }
 
     List<String> findLinesWithPrefixesRemoved(String text, String prefix) {
@@ -487,7 +323,7 @@ fun runTest() {
                     // Create separate output directory for each test in the group.
                     project.file("$outputDirectory/${it.name}").mkdirs()
                     parseLanguageFlags(src)
-                    compileList.addAll(createTestFiles(src))
+                    compileList.addAll(ExternalTestFactoryKt.createTestFiles(project, src, outputDirectory))
                 }
             }
             compileList*.writeTextToFile()
