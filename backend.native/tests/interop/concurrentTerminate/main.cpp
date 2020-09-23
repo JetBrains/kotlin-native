@@ -7,7 +7,6 @@
 #include <vector>
 #include <csignal>  // signal.h
 
-using namespace std::chrono_literals; // since C++14
 using namespace std;
 
 static
@@ -18,10 +17,10 @@ int runConcurrent() {
     for (size_t i = 0; i < 100; ++i) {
         futures.emplace_back(std::async(std::launch::async,
                 [](auto delay) {
-                    std::this_thread::sleep_for(delay);
+                    std::this_thread::sleep_for(std::chrono::milliseconds(delay));
                     testlib_symbols()->kotlin.root.testTerminate();
                 },
-                100ms));
+                100));
     }
 
     for (auto &future : futures) future.get();
