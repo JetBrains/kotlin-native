@@ -1,10 +1,9 @@
 package org.jetbrains.kotlin
 
-import org.gradle.api.Project
 import java.io.File
 import java.util.regex.Pattern
 
-fun Project.createTestFiles(src: String, outputDirectory: String): List<TestFile> {
+fun createTestFiles(src: File, outputDirectory: String): List<TestFile> {
     val identifier = "[a-zA-Z_][a-zA-Z0-9_]"
     val fullQualified = "[a-zA-Z_][a-zA-Z0-9_.*]"
     val importRegex = "(?m)^ *import +"
@@ -14,14 +13,14 @@ fun Project.createTestFiles(src: String, outputDirectory: String): List<TestFile
     val boxPattern = Regex("(?m)fun +box *( *)/")
     val classPattern = Regex(".*(class|object|enum|interface) +(${identifier}*).")
 
-    val sourceName = "_" + normalize(project.buildDir.toPath().resolve(src).toFile().name)
+    val sourceName = "_" + normalize(src.nameWithoutExtension)
     val packages = linkedSetOf<String>()
     val imports = mutableListOf<String>()
     val classes = mutableListOf<String>()
     val vars = hashSetOf<String>()    // variables or function parameters that have the same name as the package
     var mainModule: TestModule? = null
 
-    val testFiles = buildCompileList(project.file("build/$src").toPath(), "$outputDirectory/$src")
+    val testFiles = buildCompileList(src.toPath(), "$outputDirectory/${src.name}")
     for (testFile in testFiles) {
         var text = testFile.text
         val filePath = testFile.path
@@ -44,7 +43,7 @@ fun Project.createTestFiles(src: String, outputDirectory: String): List<TestFile
         }
 
         // Find mutable objects that should be marked as ThreadLocal
-        if (filePath != "$outputDirectory/$src/helpers.kt") {
+        if (testFile.name != "helpers.kt") {
             text = markMutableObjects(text)
         }
         testFile.text = text
@@ -121,17 +120,14 @@ fun Project.createTestFiles(src: String, outputDirectory: String): List<TestFile
         addAll(testFiles)
         add(TestFile(
                 name = "_launcher.kt",
-                path = "$outputDirectory/$src/_launcher.kt",
-                text = createLauncherFileText(project.file(src), imports),
+                path = "$outputDirectory/${src.name}/_launcher.kt",
+                text = createLauncherFileText(src, imports),
                 module = mainModule ?: TestModule.default
         ))
     }
 }
 
-private fun normalize(name: String): String =
-        name.replace(".kt", "")
-                .replace('-', '_')
-                .replace('.', '_')
+private fun normalize(name: String): String = name.replace('-', '_').replace('.', '_')
 
 private fun markMutableObjects(text: String): String =
         mutableListOf<String>().apply {
@@ -150,7 +146,7 @@ private fun markMutableObjects(text: String): String =
  * There are tests that require non-trivial 'package foo' in test launcher.
  */
 private fun createLauncherFileText(src: File, imports: List<String>): String = StringBuilder().run {
-    val pack = normalize(src.name)
+    val pack = normalize(src.nameWithoutExtension)
     append("package _$pack\n")
     for (v in imports) {
         append("import $v\n")

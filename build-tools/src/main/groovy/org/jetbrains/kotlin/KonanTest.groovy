@@ -226,13 +226,13 @@ class RunExternalTestGroup extends JavaExec {
         }
     }
 
-    String normalize(String name) {
+    static String normalize(String name) {
         name.replace('.kt', '')
                 .replace('-','_')
                 .replace('.', '_')
     }
 
-    List<String> findLinesWithPrefixesRemoved(String text, String prefix) {
+    static List<String> findLinesWithPrefixesRemoved(String text, String prefix) {
         def result = []
         text.eachLine {
             if (it.startsWith(prefix)) {
@@ -320,10 +320,8 @@ class RunExternalTestGroup extends JavaExec {
             ktFiles.each {
                 def src = project.buildDir.relativePath(it)
                 if (isEnabledForNativeBackend(src)) {
-                    // Create separate output directory for each test in the group.
-                    project.file("$outputDirectory/${it.name}").mkdirs()
                     parseLanguageFlags(src)
-                    compileList.addAll(ExternalTestFactoryKt.createTestFiles(project, src, outputDirectory))
+                    compileList.addAll(ExternalTestFactoryKt.createTestFiles(it, outputDirectory))
                 }
             }
             compileList*.writeTextToFile()
