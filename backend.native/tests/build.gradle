@@ -3595,6 +3595,7 @@ createInterop("auxiliaryCppSources") {
     it.extraOpts "-Xcompile-source", "$projectDir/interop/auxiliary_sources/name.cpp"
     it.extraOpts "-Xsource-compiler-option", "-std=c++17"
 }
+
 createInterop("concurrentTerminate") {
     it.defFile 'interop/concurrentTerminate/concurrentTerminate.def'
     it.headers "$projectDir/interop/concurrentTerminate/async.h"
@@ -3868,8 +3869,9 @@ interopTest("interop_concurrentTerminate") {
     disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
     source = "interop/concurrentTerminate/main.kt"
     interop = 'concurrentTerminate'
-    goldValue = "uncaught exception of type std::runtime_error: Reporting error!\n"
+    goldValue = "Reporting error!\n"
     outputChecker = { str -> str.endsWith(goldValue) }
+    expectedExitStatus = 99
 }
 
 interopTest("interop_incompleteTypes") {
@@ -4188,7 +4190,7 @@ dynamicTest("produce_dynamic") {
                 "Error handler: kotlin.Error: Expected error\n"
 }
 
-dynamicTest("concurrentRuntime") {
+dynamicTest("interop_concurrentRuntime") {
     disabled = (project.testTarget != null && project.testTarget != project.hostName)
     source = "interop/concurrentTerminate/reverseInterop.kt"
     cSource = "$projectDir/interop/concurrentTerminate/main.cpp"
