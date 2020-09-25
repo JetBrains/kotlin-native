@@ -366,6 +366,23 @@ public actual fun String.compareTo(other: String, ignoreCase: Boolean): Int {
     else compareToIgnoreCase(this, other)
 }
 
+/**
+ * Returns `true` if contents of this char sequence is equal to the contents of the specified [other],
+ * i.e. both char sequences contain the same number of the same characters in the same order.
+ *
+ * @sample samples.text.Strings.contentEquals
+ */
+public actual infix fun CharSequence?.contentEquals(other: CharSequence?): Boolean = contentEqualsImpl(other, ignoreCase = false)
+
+/**
+ * Returns `true` if contents of this char sequence is equal to the contents of the specified [other], optionally ignoring case difference.
+ *
+ * @param ignoreCase `true` to ignore character case when comparing contents.
+ *
+ * @sample samples.text.Strings.contentEquals
+ */
+public actual fun CharSequence?.contentEquals(other: CharSequence?, ignoreCase: Boolean): Boolean = contentEqualsImpl(other, ignoreCase)
+
 @SharedImmutable
 private val STRING_CASE_INSENSITIVE_ORDER = Comparator<String> { a, b -> a.compareTo(b, ignoreCase = true) }
 
