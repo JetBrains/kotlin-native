@@ -148,8 +148,11 @@ private fun Diagnostic.isError() = (severity == CXDiagnosticSeverity.CXDiagnosti
 internal fun CXTranslationUnit.hasCompileErrors() = (this.getCompileErrors().firstOrNull() != null)
 
 internal fun CXTranslationUnit.ensureNoCompileErrors(): CXTranslationUnit {
-    val firstError = this.getCompileErrors().firstOrNull() ?: return this
-    throw Error(firstError)
+    val errors = this.getCompileErrors()
+    if (errors.isEmpty()) return this
+    
+    val errorDescription = errors.joinToString { it.toString() } 
+    throw Error(errorDescription)
 }
 
 internal typealias CursorVisitor = (cursor: CValue<CXCursor>, parent: CValue<CXCursor>) -> CXChildVisitResult
