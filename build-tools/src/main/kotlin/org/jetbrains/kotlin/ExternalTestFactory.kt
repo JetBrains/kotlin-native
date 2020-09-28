@@ -10,7 +10,7 @@ fun createTestFiles(src: File, outputDirectory: String): List<TestFile> {
 
     val packagePattern = Regex("(?m)^ *package +(${fullQualified}*)")
     val importPattern = Regex("${importRegex}(${fullQualified}*)")
-    val boxPattern = Regex("(?m)fun +box *( *)/")
+    val boxPattern = Regex("(?m)fun +box *( *)")
     val classPattern = Regex(".*(class|object|enum|interface) +(${identifier}*).")
 
     val sourceName = "_" + normalize(src.nameWithoutExtension)
