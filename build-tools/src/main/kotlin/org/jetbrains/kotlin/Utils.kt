@@ -266,7 +266,7 @@ fun compileSwift(project: Project, target: KonanTarget, sources: List<String>, o
 }
 
 @JvmOverloads
-fun Project.compileKotlinNative(arguments: List<String>, output: Path, target: KonanTarget = HostManager.host) {
+fun Project.compileKotlinNative(arguments: List<String>, output: Path, target: KonanTarget? = HostManager.host) {
     val dist = project.kotlinNativeDist
     val konancDriver = if (HostManager.hostIsMingw) "konanc.bat" else "konanc"
     val konanc = File("${dist.canonicalPath}/bin/$konancDriver").absolutePath
@@ -275,7 +275,7 @@ fun Project.compileKotlinNative(arguments: List<String>, output: Path, target: K
 
     val args = mutableListOf("-output", output.toString()).apply {
         add("-target")
-        add(target.name)
+        add(target?.name ?: HostManager.host.name)
         addAll(arguments)
         addAll(project.globalTestArgs)
     }
