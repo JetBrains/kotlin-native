@@ -23,7 +23,6 @@ fun createTestFiles(src: File, outputDirectory: String): List<TestFile> {
     val testFiles = buildCompileList(src.toPath(), "$outputDirectory/${src.name}")
     for (testFile in testFiles) {
         var text = testFile.text
-        val filePath = testFile.path
         if (text.contains("COROUTINES_PACKAGE")) {
             text = text.replace("COROUTINES_PACKAGE", "kotlin.coroutines")
         }

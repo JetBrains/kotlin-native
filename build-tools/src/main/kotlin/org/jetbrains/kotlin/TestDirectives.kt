@@ -5,6 +5,7 @@
 
 package org.jetbrains.kotlin
 
+import java.io.File
 import java.nio.file.Path
 import java.nio.file.Paths
 import java.util.regex.Pattern
@@ -113,4 +114,86 @@ data class TestFile(val name: String,
             toFile().writeText(text)
         }
     }
+}
+
+/**
+ * Exclude list format:
+ * `path/to/file.kt  // comment`
+ */
+fun isExcluded(source: File, excludes: File): Boolean =
+        excludes.readLines()
+                .map {
+                    // Remove comments section and drop all spaces in the end
+                    it.substringBeforeLast("//").trim()
+                }
+                .find {
+                    source.absolutePath.replace("\\", "/").contains(it)
+                } != null
+
+private fun findLinesWithPrefixesRemoved(text: String, prefix: String): List<String> =
+        text.lines()
+                .filter { it.startsWith(prefix) }
+                .map { it.removePrefix(prefix) }
+
+fun isEnabledForNativeBackend(source: File): Boolean {
+    val text = source.readText()
+
+    val languageSettings = findLinesWithPrefixesRemoved(text, "// !LANGUAGE: ")
+    if (languageSettings.isNotEmpty()) {
+        val settings = languageSettings.first()
+        if (settings.contains("-ProperIeee754Comparisons") ||  // K/N supports only proper IEEE754 comparisons
+                settings.contains("-ReleaseCoroutines")    ||  // only release coroutines
+                settings.contains("-DataClassInheritance") ||  // old behavior is not supported
+                settings.contains("-ProhibitAssigningSingleElementsToVarargsInNamedForm")) { // Prohibit such assignments
+            return false
+        }
+    }
+
+    val version = findLinesWithPrefixesRemoved(text, "// LANGUAGE_VERSION: ")
+    if (version.isNotEmpty() && (!version.contains("1.3") || !version.contains("1.4"))) {
+        // Support tests for 1.3 and exclude 1.2
+        return false
+    }
+
+    val apiVersion = findLinesWithPrefixesRemoved(text, "// !API_VERSION: ")
+    if (apiVersion.isNotEmpty() && !apiVersion.contains("1.4")) {
+        return false
+    }
+
+    val targetBackend = findLinesWithPrefixesRemoved(text, "// TARGET_BACKEND")
+    if (targetBackend.isNotEmpty()) {
+        // There is some target backend. Check if it is NATIVE or not.
+        return targetBackend.contains("NATIVE")
+    } else {
+        // No target backend. Check if NATIVE backend is ignored.
+        if (findLinesWithPrefixesRemoved(text, "// IGNORE_BACKEND: ").any { it.contains("NATIVE") }) return false
+        // No ignored backends. Check if test is targeted to FULL_JDK or has JVM_TARGET set
+        if (findLinesWithPrefixesRemoved(text, "// FULL_JDK").isNotEmpty()) return false
+        if (findLinesWithPrefixesRemoved(text, "// JVM_TARGET:").isNotEmpty()) return false
+        return true
+    }
+}
+
+fun parseLanguageFlags(source: File): List<String> {
+    val text = source.readText()
+    val flags = mutableListOf<String>()
+
+    val languageSettings = findLinesWithPrefixesRemoved(text, "// !LANGUAGE: ")
+    if (languageSettings.isNotEmpty()) {
+        languageSettings.forEach { line ->
+            line.split(" ").toList().forEach { flags.add("-XXLanguage:$it") }
+        }
+    }
+
+    val experimentalSettings = findLinesWithPrefixesRemoved(text, "// !USE_EXPERIMENTAL: ")
+    if (experimentalSettings.isNotEmpty()) {
+        experimentalSettings.forEach { line ->
+            line.split(" ").toList().forEach { flags.add("-Xopt-in=$it") }
+        }
+    }
+    val expectActualLinker = findLinesWithPrefixesRemoved(text, "// EXPECT_ACTUAL_LINKER")
+    if (expectActualLinker.isNotEmpty()) {
+        flags.add("-Xexpect-actual-linker")
+    }
+    return flags
 }

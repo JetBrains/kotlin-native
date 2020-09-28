@@ -25,7 +25,6 @@ import org.jetbrains.kotlin.utils.DFS
 import java.nio.file.Paths
 import java.util.function.Function
 import java.util.function.UnaryOperator
-import java.util.regex.Pattern
 import java.util.stream.Collectors
 
 class RunExternalTestGroup extends JavaExec {
@@ -205,97 +204,10 @@ class RunExternalTestGroup extends JavaExec {
 
     def testGroupReporter = new KonanTestGroupReportEnvironment(project)
 
-    void parseLanguageFlags(String src) {
-        def text = project.buildDir.toPath().resolve(src).text
-        def languageSettings = findLinesWithPrefixesRemoved(text, "// !LANGUAGE: ")
-        if (languageSettings.size() != 0) {
-            languageSettings.forEach { line ->
-                line.split(" ").toList().forEach { flags.add("-XXLanguage:$it") }
-            }
-        }
-
-        def experimentalSettings = findLinesWithPrefixesRemoved(text, "// !USE_EXPERIMENTAL: ")
-        if (experimentalSettings.size() != 0) {
-            experimentalSettings.forEach { line ->
-                line.split(" ").toList().forEach { flags.add("-Xopt-in=$it") }
-            }
-        }
-        def expectActualLinker = findLinesWithPrefixesRemoved(text, "// EXPECT_ACTUAL_LINKER")
-        if (expectActualLinker.size() != 0) {
-            flags.add("-Xexpect-actual-linker")
-        }
-    }
-
     static String normalize(String name) {
         name.replace('.kt', '')
                 .replace('-','_')
                 .replace('.', '_')
-    }
-
-    static List<String> findLinesWithPrefixesRemoved(String text, String prefix) {
-        def result = []
-        text.eachLine {
-            if (it.startsWith(prefix)) {
-                result.add(it - prefix)
-            }
-        }
-        return result
-    }
-
-    static def excludeList = [
-            "external/compiler/codegen/boxInline/multiplatform/defaultArguments/receiversAndParametersInLambda.kt", // KT-36880
-            "external/compiler/compileKotlinAgainstKotlin/specialBridgesInDependencies.kt",         // FIXME: inherits final class
-            "external/compiler/codegen/box/multiplatform/multiModule/expectActualTypealiasLink.kt", // KT-40137
-            "external/compiler/codegen/box/multiplatform/multiModule/expectActualMemberLink.kt",    // KT-33091
-            "external/compiler/codegen/box/multiplatform/multiModule/expectActualLink.kt",          // KT-41901
-            "external/compiler/codegen/box/coroutines/multiModule/"                                 // KT-40121
-    ]
-
-    boolean isEnabledForNativeBackend(String fileName) {
-        def text = project.buildDir.toPath().resolve(fileName).text
-
-        if (excludeList.any { fileName.replace(File.separator, "/").contains(it) }) return false
-
-        def languageSettings = findLinesWithPrefixesRemoved(text, '// !LANGUAGE: ')
-        if (!languageSettings.empty) {
-            def settings = languageSettings.first()
-            if (settings.contains('-ProperIeee754Comparisons') ||  // K/N supports only proper IEEE754 comparisons
-                    settings.contains('-ReleaseCoroutines') ||     // only release coroutines
-                    settings.contains('-DataClassInheritance') ||  // old behavior is not supported
-                    settings.contains('-ProhibitAssigningSingleElementsToVarargsInNamedForm')) { // Prohibit these assignments
-                return false
-            }
-        }
-
-        def version = findLinesWithPrefixesRemoved(text, '// LANGUAGE_VERSION: ')
-        if (version.size() != 0 && (!version.contains("1.3") || !version.contains("1.4"))) {
-            // Support tests for 1.3 and exclude 1.2
-            return false
-        }
-
-        def apiVersion = findLinesWithPrefixesRemoved(text, '// !API_VERSION: ')
-        if (apiVersion.size() != 0 && !apiVersion.contains("1.4")) {
-            return false
-        }
-
-        def targetBackend = findLinesWithPrefixesRemoved(text, "// TARGET_BACKEND")
-        if (targetBackend.size() != 0) {
-            // There is some target backend. Check if it is NATIVE or not.
-            for (String s : targetBackend) {
-                if (s.contains("NATIVE")){ return true }
-            }
-            return false
-        } else {
-            // No target backend. Check if NATIVE backend is ignored.
-            def ignoredBackends = findLinesWithPrefixesRemoved(text, "// IGNORE_BACKEND: ")
-            for (String s : ignoredBackends) {
-                if (s.contains("NATIVE")) { return false }
-            }
-            // No ignored backends. Check if test is targeted to FULL_JDK or has JVM_TARGET set
-            if (!findLinesWithPrefixesRemoved(text, "// FULL_JDK").isEmpty()) { return false }
-            if (!findLinesWithPrefixesRemoved(text, "// JVM_TARGET:").isEmpty()) { return false }
-            return true
-        }
     }
 
     @TaskAction
@@ -313,14 +225,16 @@ class RunExternalTestGroup extends JavaExec {
             }
         }
 
+        File excludes = project.file("excludelist")
+
         testGroupReporter.suite(name) { suite ->
             // Build tests in the group
             flags = (flags ?: []) + "-tr"
             List<TestFile> compileList = []
             ktFiles.each {
                 def src = project.buildDir.relativePath(it)
-                if (isEnabledForNativeBackend(src)) {
-                    parseLanguageFlags(src)
+                if (!TestDirectivesKt.isExcluded(it, excludes) && TestDirectivesKt.isEnabledForNativeBackend(it)) {
+                    flags.addAll(TestDirectivesKt.parseLanguageFlags(it))
                     compileList.addAll(ExternalTestFactoryKt.createTestFiles(it, outputDirectory))
                 }
             }
@@ -386,7 +300,6 @@ class RunExternalTestGroup extends JavaExec {
             // Run the tests.
             arguments = (arguments ?: []) + "--ktest_logger=SILENT"
             ktFiles.each { file ->
-                def src = project.buildDir.relativePath(file)
                 def savedArgs = arguments
                 arguments += "--ktest_filter=_${normalize(file.name)}.*"
                 use(KonanTestSuiteReportKt) {
@@ -395,9 +308,9 @@ class RunExternalTestGroup extends JavaExec {
                             "passed: $testGroupReporter.statistics.passed, " +
                             "skipped: $testGroupReporter.statistics.skipped)")
                 }
-                if (isEnabledForNativeBackend(src)) {
+                if (!TestDirectivesKt.isExcluded(file, excludes) && TestDirectivesKt.isEnabledForNativeBackend(file)) {
                     suite.executeTest(file.name) {
-                       project.logger.quiet(src)
+                       project.logger.quiet(project.buildDir.relativePath(file))
                        runExecutable()
                     }
                 } else {
