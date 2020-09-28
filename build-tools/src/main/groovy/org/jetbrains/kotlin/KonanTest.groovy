@@ -20,6 +20,7 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.TaskAction
 import org.gradle.process.ExecResult
+import org.jetbrains.kotlin.konan.target.KonanTarget
 import org.jetbrains.kotlin.utils.DFS
 
 import java.nio.file.Paths
@@ -73,44 +74,23 @@ class RunExternalTestGroup extends JavaExec {
     }
 
     protected void runCompiler(List<String> filesToCompile, String output, List<String> moreArgs) {
-        def log = new ByteArrayOutputStream()
-        try {
-            classpath = project.fileTree("$dist.canonicalPath/konan/lib/") {
-                include '*.jar'
-            }
-            jvmArgs "-Xmx4G"
-            enableAssertions = true
-            def sources = File.createTempFile(name,".lst")
-            sources.deleteOnExit()
-            def sourcesWriter = sources.newWriter()
-            filesToCompile.each { f ->
-                sourcesWriter.write(f.chars().any { Character.isWhitespace(it) }
-                        ? "\"${f.replace("\\", "\\\\")}\"\n" // escape file name
-                        : "$f\n")
-            }
-            sourcesWriter.close()
-            args = ["-output", output,
-                    "@${sources.absolutePath}",
-                    *moreArgs,
-                    *project.globalTestArgs]
-            if (project.testTarget) {
-                args "-target", target.visibleName
-            }
-            if (enableKonanAssertions) {
-                args "-ea"
-            }
-            if (project.hasProperty("test_verbose")) {
-                println("Files to compile: $filesToCompile")
-                println(args)
-            }
-            standardOutput = log
-            errorOutput = log
-            super.exec()
-        } finally {
-            def logString = log.toString("UTF-8")
-            project.file("${output}.compilation.log").write(logString)
-            println(logString)
+        def sources = UtilsKt.writeToArgFile(filesToCompile, name)
+        args = ["-output", output,
+                "@${sources.absolutePath}",
+                *moreArgs,
+                *project.globalTestArgs]
+        if (enableKonanAssertions) {
+            args "-ea"
         }
+        if (project.hasProperty("test_verbose")) {
+            println("Files to compile: $filesToCompile")
+            println(args)
+        }
+        UtilsKt.compileKotlinNative(
+                project,
+                args.toList() as List<String>,
+                Paths.get(output),
+                project.testTarget as KonanTarget)
     }
 
     // FIXME: output directory here changes and hence this is not a property
