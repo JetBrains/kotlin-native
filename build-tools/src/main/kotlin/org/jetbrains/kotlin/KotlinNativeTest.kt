@@ -103,18 +103,7 @@ abstract class KonanTest : DefaultTask(), KonanTestExecutable {
     open fun run() = project.executeAndCheck(project.file(executable).toPath(), arguments)
 
     // Converts to runner's pattern
-    private fun String.convertToPattern() = this.removeSuffix(".kt").replace("/", ".") + ".*"
-
-    internal fun ProcessOutput.print(prepend: String = "") {
-        if (project.verboseTest)
-            println(prepend + """
-                |stdout:
-                |$stdOut
-                |stderr:
-                |$stdErr
-                |exit code: $exitCode
-                """.trimMargin())
-    }
+    private fun String.convertToPattern() = this.replace('/', '.').replace(".kt", "") + (".*")
 }
 
 /**
@@ -263,7 +252,7 @@ open class KonanLocalTest : KonanTest() {
             output.stdOut = filteredCompilationLog + output.stdOut
         }
         output.check()
-        output.print()
+        if (project.verboseTest) output.print()
     }
 
     private operator fun ProcessOutput.plus(other: ProcessOutput) = ProcessOutput(
@@ -353,38 +342,17 @@ open class KonanStandaloneTest : KonanLocalTest() {
 open class KonanDriverTest : KonanStandaloneTest() {
     override fun configure(config: Closure<*>): Task {
         super.configure(config)
-        doFirst { konan() }
+        doFirst {
+            project.compileKotlinNative(
+                    arguments = getSources().get() + flags + project.globalTestArgs,
+                    output = project.file(executable).toPath(),
+                    target = project.testTarget
+            )
+        }
         doBeforeBuild?.let { doFirst(it) }
         return this
     }
 
-    private fun konan() {
-        val dist = project.kotlinNativeDist
-        val konancDriver = if (HostManager.hostIsMingw) "konanc.bat" else "konanc"
-        val konanc = File("${dist.canonicalPath}/bin/$konancDriver").absolutePath
-
-        File(executable).parentFile.mkdirs()
-
-        val args = mutableListOf("-output", executable).apply {
-            if (project.testTarget != HostManager.host) {
-                add("-target")
-                add(project.testTarget.visibleName)
-            }
-            addAll(getSources().get())
-            addAll(flags)
-            addAll(project.globalTestArgs)
-        }
-
-        // run konanc compiler locally
-        runProcess(localExecutor(project), konanc, args).let {
-            it.print("Konanc compiler execution:")
-            project.file("$executable.compilation.log").run {
-                writeText(it.stdOut)
-                writeText(it.stdErr)
-            }
-            check(it.exitCode == 0) { "Compiler failed with exit code ${it.exitCode}" }
-        }
-    }
 }
 
 open class KonanInteropTest : KonanStandaloneTest() {

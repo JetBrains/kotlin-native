@@ -265,6 +265,32 @@ fun compileSwift(project: Project, target: KonanTarget, sources: List<String>, o
     check(output.toFile().exists()) { "Compiler swiftc hasn't produced an output file: $output" }
 }
 
+@JvmOverloads
+fun Project.compileKotlinNative(arguments: List<String>, output: Path, target: KonanTarget = HostManager.host) {
+    val dist = project.kotlinNativeDist
+    val konancDriver = if (HostManager.hostIsMingw) "konanc.bat" else "konanc"
+    val konanc = File("${dist.canonicalPath}/bin/$konancDriver").absolutePath
+
+    output.toFile().parentFile.mkdirs()
+
+    val args = mutableListOf("-output", output.toString()).apply {
+        add("-target")
+        add(target.name)
+        addAll(arguments)
+        addAll(project.globalTestArgs)
+    }
+
+    // run konanc compiler locally
+    runProcess(localExecutor(project), konanc, args).let {
+        project.file("$output.compilation.log").run {
+            writeText(it.stdOut)
+            writeText(it.stdErr)
+        }
+        it.print("Kotlin/Native compiler: ")
+        check(it.exitCode == 0) { "Kotlin/Native compiler failed with exit code ${it.exitCode}" }
+    }
+}
+
 fun targetSupportsMimallocAllocator(targetName: String) =
         HostManager().targetByName(targetName).supportsMimallocAllocator()
 

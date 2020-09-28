@@ -164,6 +164,16 @@ fun runProcessWithInput(executor: (Action<in ExecSpec>) -> ExecResult?,
     return ProcessOutput(stdOut, stdErr, execResult.exitValue)
 }
 
+internal fun ProcessOutput.print(prepend: String = "") {
+        println(prepend + """
+                |stdout:
+                |$stdOut
+                |stderr:
+                |$stdErr
+                |exit code: $exitCode
+                """.trimMargin())
+}
+
 /**
  * The [ExecutorService] being set in the given project.
  * @throws IllegalStateException if there are no executor in the project.
