@@ -292,7 +292,7 @@ fun Project.compileKotlinNative(arguments: List<String>, output: Path, target: K
 }
 
 /**
- * Writes list of files to the temporary argument file to be compiled
+ * Writes the list of file paths to a temporary argument file to be compiled.
  */
 fun List<String>.writeToArgFile(name: String): File =
         File.createTempFile(name, ".lst").also {

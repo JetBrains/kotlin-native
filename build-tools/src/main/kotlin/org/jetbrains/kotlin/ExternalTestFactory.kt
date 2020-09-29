@@ -1,6 +1,9 @@
 package org.jetbrains.kotlin
 
+import org.gradle.api.Project
+import org.jetbrains.kotlin.utils.DFS
 import java.io.File
+import java.nio.file.Paths
 import java.util.regex.Pattern
 
 fun createTestFiles(src: File, outputDirectory: String): List<TestFile> {
@@ -168,5 +171,75 @@ private fun insertInTextAfter(text: String, insert: String, after: String): Stri
         text.substring(0, end) + insert + text.substring(end)
     } else {
         insert + text
+    }
+}
+
+class KonanExternalCompiler(private val project: Project,
+                            private val enableKonanAssertions: Boolean,
+                            private val twoStageCompilation: Boolean) {
+    private fun runCompiler(filesToCompile: List<String>, output: String, moreArgs: List<String>) {
+        val sources = filesToCompile.writeToArgFile("${output}_argfile")
+        val args = mutableListOf("-output", output,
+                "@${sources.absolutePath}")
+        args.addAll(moreArgs)
+        args.addAll(project.globalTestArgs)
+        if (enableKonanAssertions) {
+            args += "-ea"
+        }
+        project.compileKotlinNative(args.toList(), Paths.get(output), project.testTarget)
+    }
+
+    fun compileTestExecutable(sources: List<TestFile>,
+                              executablePath: String,
+                              flags: List<String>) {
+        if (twoStageCompilation) {
+            // Two-stage compilation.
+            val klibPath = "$executablePath.klib"
+            val files = sources.map { it.path }
+            if (files.isNotEmpty()) {
+                runCompiler(files, klibPath, flags + listOf("-p", "library"))
+                runCompiler(emptyList<String>(), executablePath, flags + "-Xinclude=$klibPath")
+            }
+        } else {
+            // Regular compilation with modules.
+            val modules: Map<String, TestModule> = sources
+                    .map { it.module }
+                    .distinct()
+                    .associateBy { it.name }
+
+            val neighbors = object : DFS.Neighbors<TestModule> {
+                override fun getNeighbors(current: TestModule): Iterable<TestModule> {
+                    return current.dependencies.mapNotNull { modules[it] }
+                }
+            }
+            val orderedModules: List<TestModule> = DFS.topologicalOrder(modules.values, neighbors)
+            val libs = hashSetOf<String>()
+            orderedModules.asReversed()
+                    .filter { !it.isDefaultModule() }
+                    .forEach { module ->
+                        val klibModulePath = "$executablePath.${module.name}.klib"
+                        libs.addAll(module.dependencies)
+                        val klibs = libs.flatMap { listOf("-l", "$executablePath.${it}.klib") }
+                        val friends = if (module.friends.isEmpty())
+                            module.friends.flatMap { listOf("-friend-modules", "$executablePath.${it}.klib") }
+                        else emptyList()
+                        runCompiler(sources.filter { it.module == module }.map { it.path },
+                                klibModulePath, flags + listOf("-p", "library") + klibs + friends)
+                    }
+
+            val compileMain = sources.filter {
+                it.module.isDefaultModule() || it.module == TestModule.support
+            }
+            compileMain.forEach { f ->
+                libs.addAll(f.module.dependencies)
+            }
+            val friends = compileMain.flatMap { it.module.friends }.toSet()
+            if (compileMain.isNotEmpty()) {
+                runCompiler(compileMain.map { it.path }, executablePath, flags +
+                        libs.flatMap { listOf("-l", "$executablePath.${it}.klib") } +
+                        friends.flatMap { listOf("-friend-modules", "$executablePath.${it}.klib") }
+                )
+            }
+        }
     }
 }

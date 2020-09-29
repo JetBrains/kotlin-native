@@ -20,13 +20,9 @@ import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.JavaExec
 import org.gradle.api.tasks.TaskAction
 import org.gradle.process.ExecResult
-import org.jetbrains.kotlin.konan.target.KonanTarget
-import org.jetbrains.kotlin.utils.DFS
 
 import java.nio.file.Paths
 import java.util.function.Function
-import java.util.function.UnaryOperator
-import java.util.stream.Collectors
 
 class RunExternalTestGroup extends JavaExec {
     def platformManager = project.rootProject.platformManager
@@ -71,26 +67,6 @@ class RunExternalTestGroup extends JavaExec {
         // Perhaps later we will return this exec() back but for now rest of infrastructure expects
         // compilation begins on runCompiler call, to emulate this behaviour we call super.exec() after
         // configuration part at runCompiler.
-    }
-
-    protected void runCompiler(List<String> filesToCompile, String output, List<String> moreArgs) {
-        def sources = UtilsKt.writeToArgFile(filesToCompile, name)
-        args = ["-output", output,
-                "@${sources.absolutePath}",
-                *moreArgs,
-                *project.globalTestArgs]
-        if (enableKonanAssertions) {
-            args "-ea"
-        }
-        if (project.hasProperty("test_verbose")) {
-            println("Files to compile: $filesToCompile")
-            println(args)
-        }
-        UtilsKt.compileKotlinNative(
-                project,
-                args.toList() as List<String>,
-                Paths.get(output),
-                project.testTarget as KonanTarget)
     }
 
     // FIXME: output directory here changes and hence this is not a property
@@ -175,7 +151,7 @@ class RunExternalTestGroup extends JavaExec {
      * 2. Build a final executable from this klibrary.
      */
     @Input
-    public def enableTwoStageCompilation = false
+    public Boolean enableTwoStageCompilation = false
 
     @Input
     def groupDirectory = "."
@@ -212,7 +188,6 @@ class RunExternalTestGroup extends JavaExec {
             flags = (flags ?: []) + "-tr"
             List<TestFile> compileList = []
             ktFiles.each {
-                def src = project.buildDir.relativePath(it)
                 if (!TestDirectivesKt.isExcluded(it, excludes) && TestDirectivesKt.isEnabledForNativeBackend(it)) {
                     flags.addAll(TestDirectivesKt.parseLanguageFlags(it))
                     compileList.addAll(ExternalTestFactoryKt.createTestFiles(it, outputDirectory))
@@ -220,55 +195,8 @@ class RunExternalTestGroup extends JavaExec {
             }
             compileList*.writeTextToFile()
             try {
-                if (enableTwoStageCompilation) {
-                    // Two-stage compilation.
-                    def klibPath = "${executablePath()}.klib"
-                    def files = compileList.stream()
-                            .map { it.path }
-                            .collect(Collectors.toList())
-                    if (!files.empty) {
-                        runCompiler(files, klibPath, flags + ["-p", "library"])
-                        runCompiler([], executablePath(), flags + ["-Xinclude=$klibPath"])
-                    }
-                } else {
-                    // Regular compilation with modules.
-                    Map<String, TestModule> modules = compileList.stream()
-                            .map { it.module }
-                            .distinct()
-                            .collect(Collectors.toMap({ it.name }, UnaryOperator.identity() ))
-
-                    List<TestModule> orderedModules = DFS.INSTANCE.topologicalOrder(modules.values()) { module ->
-                        module.dependencies.collect { modules[it] }.findAll { it != null }
-                    }
-                    Set<String> libs = new HashSet<String>()
-                    orderedModules.reverse().each { module ->
-                        if (!module.isDefaultModule()) {
-                            def klibModulePath = "${executablePath()}.${module.name}.klib"
-                            libs.addAll(module.dependencies)
-                            def klibs = libs.collectMany { ["-l", "${executablePath()}.${it}.klib"] }.toList()
-                            def friends = module.friends ?
-                                    module.friends.collectMany {
-                                        ["-friend-modules", "${executablePath()}.${it}.klib"]
-                                    }.toList() : []
-                            runCompiler(compileList.findAll { it.module == module }.collect { it.path },
-                                    klibModulePath, flags + ["-p", "library"] + klibs + friends)
-                        }
-                    }
-
-                    def compileMain = compileList.findAll {
-                        it.module.isDefaultModule() || it.module == TestModule.support
-                    }
-                    compileMain.forEach { f ->
-                        libs.addAll(f.module.dependencies)
-                    }
-                    def friends = compileMain.collectMany {it.module.friends }.toSet()
-                    if (!compileMain.empty) {
-                        runCompiler(compileMain.collect { it.path }, executablePath(), flags +
-                                libs.collectMany { ["-l", "${executablePath()}.${it}.klib"] }.toList() +
-                                friends.collectMany {["-friend-modules", "${executablePath()}.${it}.klib"]}.toList()
-                        )
-                    }
-                }
+                new KonanExternalCompiler(project, enableKonanAssertions, enableTwoStageCompilation)
+                        .compileTestExecutable(compileList, executablePath(), flags)
             } catch (Exception ex) {
                 project.logger.quiet("ERROR: Compilation failed for test suite: $name with exception", ex)
                 project.logger.quiet("The following files were unable to compile:")
