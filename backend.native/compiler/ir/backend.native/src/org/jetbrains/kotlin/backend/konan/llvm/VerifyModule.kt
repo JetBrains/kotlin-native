@@ -69,7 +69,7 @@ private fun StringBuilder.appendVerificationError(error: String?) {
     }
 
     if (lines.size > maxLines) {
-        appendLine("    ...")
+        appendLine("    ... (full error is available at the LLVM module dump file)")
     }
 }
 
