@@ -2115,9 +2115,9 @@ void updateHeapRefIfNull(ObjHeader** location, const ObjHeader* object) {
 }
 
 inline void checkIfGcNeeded(MemoryState* state) {
-  if (state != nullptr && state->allocSinceLastGc > state->allocSinceLastGcThreshold) {
+  if (state != nullptr && state->allocSinceLastGc > state->allocSinceLastGcThreshold && state->gcSuspendCount == 0) {
     // To avoid GC trashing check that at least 10ms passed since last GC.
-    if (konan::getTimeMicros() - state->lastGcTimestamp > 10 * 1000 && state->gcSuspendCount == 0) {
+    if (konan::getTimeMicros() - state->lastGcTimestamp > 10 * 1000) {
       GC_LOG("Calling GC from checkIfGcNeeded: %d\n", state->toRelease->size())
       garbageCollect(state, false);
     }
