@@ -461,7 +461,7 @@ internal class ModuleDFGBuilder(val context: Context, val irModule: IrModuleFrag
         private val continuationParameter = when {
             declaration !is IrSimpleFunction -> null
 
-            declaration.isSuspend -> Scoped(DataFlowIR.Node.Parameter(allParametersCount), rootScope)
+            declaration.isSuspend -> Scoped(DataFlowIR.Node.Parameter(allParameters.size), rootScope)
 
             declaration.overrides(invokeSuspendFunctionSymbol.owner) ->           // <this> is a ContinuationImpl inheritor.
                 templateParameters[declaration.dispatchReceiverParameter!!]       // It is its own continuation.
