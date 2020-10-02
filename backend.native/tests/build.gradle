@@ -4685,6 +4685,17 @@ sourceSets {
             srcDir 'debugger/src/test/kotlin'
         }
     }
+    external_test {
+        kotlin {
+            dependencies {
+                implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.7'
+                implementation "org.jetbrains.kotlin:kotlin-native-shared:$konanVersion"
+                implementation project(":utilities:basic-utils")
+                implementation kotlin('test-junit')
+            }
+            srcDir 'external/src/test/kotlin'
+        }
+    }
 }
 
 Task pluginTest(String name, String pluginName, Closure configureClosure) {
@@ -4723,7 +4734,9 @@ dependencies {
     nopPluginCompile kotlinCompilerModule
     compile kotlinCompilerModule
     compile project(path: ':backend.native', configuration: 'cli_bc')
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.3.7'
     compile 'junit:junit:4.12'
+    implementation 'junit:junit:4.12'
 }
 
 project.tasks.named("test").configure {
@@ -4738,6 +4751,25 @@ project.tasks.register("debugger_test", Test.class) {
     UtilsKt.dependsOnDist(it)
     systemProperties = ['kotlin.native.home': dist]
 }
+
+project.tasks.register("run_external_test", Test.class) {
+    doFirst {
+        if (!project.hasProperty("test.disable_update")) {
+            update_external_tests()
+        }
+    }
+    testLogging { exceptionFormat = 'full' }
+    UtilsKt.dependsOnDist(it)
+    systemProperties = [
+            'konan.home' : project.property("konan.home"),
+            'test.verbose' : project.hasProperty('test_verbose'),
+            'test.global_args' : project.findProperty('globalTestArgs'),
+            'test.two_stage_compilation' : project.hasProperty('test_two_stage'),
+            'test.target' : project.testTarget
+    ]
+    testClassesDirs = sourceSets.external_test.output.classesDirs
+    classpath = sourceSets.external_test.runtimeClasspath
+    }
 
 // Configure build for iOS device targets.
 if (target.family == Family.IOS && (target.architecture == ARM32 || target.architecture == ARM64)) {
