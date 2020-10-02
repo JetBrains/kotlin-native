@@ -4774,3 +4774,8 @@ if (target.family == Family.IOS && (target.architecture == ARM32 || target.archi
             }
             .forEach { it.enabled = false }
 }
+
+task testLlvmModuleDumpTC() {
+    def f = File.createTempFile("kotlin_native_llvm_module_dump", ".ll")
+    println("Temp file created ${f.absolutePath}")
+}
