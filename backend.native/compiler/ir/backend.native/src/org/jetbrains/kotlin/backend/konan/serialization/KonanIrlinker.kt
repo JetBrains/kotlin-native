@@ -91,14 +91,8 @@ internal class KonanIrLinker(
 
     override fun isBuiltInModule(moduleDescriptor: ModuleDescriptor): Boolean = moduleDescriptor.isNativeStdlib()
 
-    private val signaturer = IdSignatureSerializer(KonanManglerIr)
-    // TODO: cleaner separation of signaturer and declaration table is needed.
-    // The below declaration table use is only to work with private fake override signatures.
-    private val globalDeclarationTable = KonanGlobalDeclarationTable(signaturer, builtIns)
-    override val declarationTable = KonanDeclarationTable(globalDeclarationTable)
-
     private val forwardDeclarationDeserializer = forwardModuleDescriptor?.let { KonanForwardDeclarationModuleDeserializer(it) }
-    override val globalFakeOverrideBuilder = FakeOverrideBuilder(symbolTable, signaturer, builtIns, KonanFakeOverrideClassFilter)
+    override val globalFakeOverrideBuilder = FakeOverrideBuilder(symbolTable, IdSignatureSerializer(KonanManglerIr), builtIns, KonanFakeOverrideClassFilter)
 
     override fun createModuleDeserializer(moduleDescriptor: ModuleDescriptor, klib: IrLibrary?, strategy: DeserializationStrategy): IrModuleDeserializer {
         if (moduleDescriptor === forwardModuleDescriptor) {
