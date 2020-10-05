@@ -163,8 +163,7 @@ internal fun produceOutput(context: Context) {
                     nopack,
                     shortLibraryName,
                     manifestProperties,
-                    context.dataFlowGraph,
-                    FakeOverrideControl.privateMemberSignatures
+                    context.dataFlowGraph
                 )
 
             context.bitcodeFileName = library.mainBitcodeFileName

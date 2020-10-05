@@ -31,11 +31,10 @@ class KonanLibraryWriterImpl(
     builtInsPlatform: BuiltInsPlatform,
     nopack: Boolean = false,
     shortName: String? = null,
-    privateMemberSignatures: Boolean,
 
     val layout: KonanLibraryLayoutForWriter = KonanLibraryLayoutForWriter(libDir, target),
 
-    base: BaseWriter = BaseWriterImpl(layout, moduleName, versions, builtInsPlatform, listOf(target.visibleName), nopack, shortName, privateMemberSignatures),
+    base: BaseWriter = BaseWriterImpl(layout, moduleName, versions, builtInsPlatform, listOf(target.visibleName), nopack, shortName),
     bitcode: BitcodeWriter = BitcodeWriterImpl(layout),
     metadata: MetadataWriter = MetadataWriterImpl(layout),
     ir: IrWriter = IrMonoliticWriterImpl(layout)
@@ -55,8 +54,7 @@ fun buildLibrary(
     nopack: Boolean,
     shortName: String?,
     manifestProperties: Properties?,
-    dataFlowGraph: ByteArray?,
-    privateMemberSignatures: Boolean
+    dataFlowGraph: ByteArray?
 ): KonanLibraryLayout {
 
     val library = KonanLibraryWriterImpl(
@@ -66,8 +64,7 @@ fun buildLibrary(
             target,
             BuiltInsPlatform.NATIVE,
             nopack,
-            shortName,
-            privateMemberSignatures
+            shortName
     )
 
     library.addMetadata(metadata)
