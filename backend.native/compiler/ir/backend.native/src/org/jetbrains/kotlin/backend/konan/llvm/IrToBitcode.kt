@@ -782,9 +782,15 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             if (access is GlobalAddressAccess) {
                 // Global objects are kept in a data segment and can be accessed by any module (if exported) and also
                 // they need to be initialized statically.
-                LLVMSetInitializer(access.getAddress(null), if (declaration.storageKind(context) == ObjectStorageKind.PERMANENT)
+                val address = access.getAddress(null)
+                LLVMSetInitializer(address, if (declaration.storageKind(context) == ObjectStorageKind.PERMANENT)
                     context.llvm.staticData.createConstKotlinObject(declaration,
                             *computeFields(declaration)).llvm else codegen.kNullObjHeaderPtr)
+                if (declaration.storageKind(context) == ObjectStorageKind.SHARED &&
+                        context.isNativeLibrary &&
+                        declaration.isExported()) {
+                    context.llvm.globalSharedObjects.add(address)
+                }
             } else {
                 // Thread local objects are kept in a special map, so they need a getter function to be accessible
                 // by other modules.
