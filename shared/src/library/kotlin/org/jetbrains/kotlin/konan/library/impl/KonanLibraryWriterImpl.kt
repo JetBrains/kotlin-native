@@ -24,20 +24,20 @@ class KonanLibraryLayoutForWriter(
  * Requires non-null [target].
  */
 class KonanLibraryWriterImpl(
-    libDir: File,
-    moduleName: String,
-    versions: KotlinLibraryVersioning,
-    target: KonanTarget,
-    builtInsPlatform: BuiltInsPlatform,
-    nopack: Boolean = false,
-    shortName: String? = null,
+        libDir: File,
+        moduleName: String,
+        versions: KotlinLibraryVersioning,
+        target: KonanTarget,
+        builtInsPlatform: BuiltInsPlatform,
+        nopack: Boolean = false,
+        shortName: String? = null,
 
-    val layout: KonanLibraryLayoutForWriter = KonanLibraryLayoutForWriter(libDir, target),
+        val layout: KonanLibraryLayoutForWriter = KonanLibraryLayoutForWriter(libDir, target),
 
-    base: BaseWriter = BaseWriterImpl(layout, moduleName, versions, builtInsPlatform, listOf(target.visibleName), nopack, shortName),
-    bitcode: BitcodeWriter = BitcodeWriterImpl(layout),
-    metadata: MetadataWriter = MetadataWriterImpl(layout),
-    ir: IrWriter = IrMonoliticWriterImpl(layout)
+        base: BaseWriter = BaseWriterImpl(layout, moduleName, versions, builtInsPlatform, listOf(target.visibleName), nopack, shortName),
+        bitcode: BitcodeWriter = BitcodeWriterImpl(layout),
+        metadata: MetadataWriter = MetadataWriterImpl(layout),
+        ir: IrWriter = IrMonoliticWriterImpl(layout)
 
 ) : BaseWriter by base, BitcodeWriter by bitcode, MetadataWriter by metadata, IrWriter by ir, KonanLibraryWriter
 
