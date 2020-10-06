@@ -3,10 +3,18 @@
  * that can be found in the LICENSE file.
  */
 import org.jetbrains.kotlin.*
+import org.jetbrains.kotlin.testing.native.*
 import org.jetbrains.kotlin.bitcode.CompileToBitcode
 
 plugins {
     id("compile-to-bitcode")
+    id("runtime-testing")
+}
+
+googletest {
+    // GTest 1.10. https://github.com/google/googletest/commit/703bd9caab50b139428cea1aaff9974ebee5742e
+    revision = "703bd9caab50b139428cea1aaff9974ebee5742e"
+    refresh = project.hasProperty("refresh-gtest")
 }
 
 fun CompileToBitcode.includeRuntime() {
