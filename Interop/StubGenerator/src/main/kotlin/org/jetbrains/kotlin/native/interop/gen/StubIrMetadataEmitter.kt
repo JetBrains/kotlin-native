@@ -349,17 +349,9 @@ private class MappingExtensions(
                 Flag.Class.IS_ENUM_CLASS.takeIf { this is ClassStub.Enum }
         )
 
-    // TODO: Looks like [Flag.Constructor.IS_PRIMARY] flag is incorrect.
-    //  Upstream fix to kotlinx-metadata.
-    private val isSecondaryConstructorFlag = Flag(
-            org.jetbrains.kotlin.metadata.deserialization.Flags.IS_SECONDARY.offset,
-            org.jetbrains.kotlin.metadata.deserialization.Flags.IS_SECONDARY.bitWidth,
-            value = 1
-    )
-
     val ConstructorStub.flags: Flags
         get() = flagsOfNotNull(
-                isSecondaryConstructorFlag.takeIf { !isPrimary },
+                Flag.Constructor.IS_SECONDARY.takeIf { !isPrimary },
                 Flag.HAS_ANNOTATIONS.takeIf { annotations.isNotEmpty() }
         ) or visibility.flags
 
