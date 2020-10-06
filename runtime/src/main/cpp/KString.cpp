@@ -773,7 +773,7 @@ OBJ_GETTER(Kotlin_String_plusImpl, KString thiz, KString other) {
   RETURN_OBJ(result->obj());
 }
 
-OBJ_GETTER(Kotlin_String_toUpperCase, KString thiz) {
+OBJ_GETTER(Kotlin_String_uppercase, KString thiz) {
   auto count = thiz->count_;
   ArrayHeader* result = AllocArrayInstance(theStringTypeInfo, count, OBJ_RESULT)->array();
   const KChar* thizRaw = CharArrayAddressOfElementAt(thiz, 0);
@@ -784,7 +784,7 @@ OBJ_GETTER(Kotlin_String_toUpperCase, KString thiz) {
   RETURN_OBJ(result->obj());
 }
 
-OBJ_GETTER(Kotlin_String_toLowerCase, KString thiz) {
+OBJ_GETTER(Kotlin_String_lowercase, KString thiz) {
   auto count = thiz->count_;
   ArrayHeader* result = AllocArrayInstance(theStringTypeInfo, count, OBJ_RESULT)->array();
   const KChar* thizRaw = CharArrayAddressOfElementAt(thiz, 0);
@@ -1034,11 +1034,11 @@ KBoolean Kotlin_Char_isUpperCase(KChar ch) {
   return iswupper_Konan(ch) != 0;
 }
 
-KChar Kotlin_Char_toLowerCase(KChar ch) {
+KChar Kotlin_Char_lowercase(KChar ch) {
   return towlower_Konan(ch);
 }
 
-KChar Kotlin_Char_toUpperCase(KChar ch) {
+KChar Kotlin_Char_uppercase(KChar ch) {
   return towupper_Konan(ch);
 }
 

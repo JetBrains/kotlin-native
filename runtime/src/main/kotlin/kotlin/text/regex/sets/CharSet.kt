@@ -28,13 +28,15 @@ package kotlin.text.regex
 open internal class CharSet(char: Char, val ignoreCase: Boolean = false) : LeafSet() {
 
     // We use only low case characters when working in case insensitive mode.
-    val char: Char = if (ignoreCase) char.toLowerCase() else char
+    @OptIn(ExperimentalStdlibApi::class)
+    val char: Char = if (ignoreCase) char.lowercaseChar() else char
 
     // Overrides =======================================================================================================
 
+    @OptIn(ExperimentalStdlibApi::class)
     override fun accepts(startIndex: Int, testString: CharSequence): Int {
         if (ignoreCase) {
-            return if (this.char == testString[startIndex].toLowerCase()) 1 else -1
+            return if (this.char == testString[startIndex].lowercaseChar()) 1 else -1
         } else {
             return if (this.char == testString[startIndex]) 1 else -1
         }

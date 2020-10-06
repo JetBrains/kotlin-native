@@ -155,15 +155,40 @@ public external fun String.regionMatches(
 /**
  * Returns a copy of this string converted to upper case using the rules of the default locale.
  */
-@SymbolName("Kotlin_String_toUpperCase")
-public actual external fun String.toUpperCase(): String
+@OptIn(ExperimentalStdlibApi::class)
+public actual fun String.toUpperCase(): String = uppercase()
+
+/**
+ * Returns a copy of this string converted to upper case using Unicode mapping rules of the invariant locale.
+ *
+ * This function supports one-to-many and many-to-one character mapping,
+ * thus the length of the returned string can be different from the length of the original string.
+ *
+ * @sample samples.text.Strings.uppercase
+ */
+@SinceKotlin("1.4")
+@ExperimentalStdlibApi
+@SymbolName("Kotlin_String_uppercase")
+public actual external fun String.uppercase(): String
 
 /**
  * Returns a copy of this string converted to lower case using the rules of the default locale.
  */
-@SymbolName("Kotlin_String_toLowerCase")
-@Suppress("NOTHING_TO_INLINE")
-public actual external fun String.toLowerCase(): String
+@OptIn(ExperimentalStdlibApi::class)
+public actual fun String.toLowerCase(): String = lowercase()
+
+/**
+ * Returns a copy of this string converted to lower case using Unicode mapping rules of the invariant locale.
+ *
+ * This function supports one-to-many and many-to-one character mapping,
+ * thus the length of the returned string can be different from the length of the original string.
+ *
+ * @sample samples.text.Strings.lowercase
+ */
+@SinceKotlin("1.4")
+@ExperimentalStdlibApi
+@SymbolName("Kotlin_String_lowercase")
+public actual external fun String.lowercase(): String
 
 /**
  * Returns a [CharArray] containing characters of this string.
