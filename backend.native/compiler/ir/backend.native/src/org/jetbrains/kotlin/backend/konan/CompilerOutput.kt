@@ -5,7 +5,6 @@
 package org.jetbrains.kotlin.backend.konan
 
 import llvm.*
-import org.jetbrains.kotlin.backend.common.overrides.FakeOverrideControl
 import org.jetbrains.kotlin.backend.common.serialization.KlibIrVersion
 import org.jetbrains.kotlin.backend.common.serialization.metadata.KlibMetadataVersion
 import org.jetbrains.kotlin.backend.konan.llvm.*
@@ -163,8 +162,7 @@ internal fun produceOutput(context: Context) {
                     nopack,
                     shortLibraryName,
                     manifestProperties,
-                    context.dataFlowGraph
-                )
+                    context.dataFlowGraph)
 
             context.bitcodeFileName = library.mainBitcodeFileName
         }
