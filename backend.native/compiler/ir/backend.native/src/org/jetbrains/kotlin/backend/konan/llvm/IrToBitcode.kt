@@ -789,10 +789,9 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 // If this is not a permanent object (i.e. requires a deinitialization)
                 // and we're generating a native library (i.e. exporting this declaration to C),
                 // mark the singleton as accessed so that it's deinitializer will get generated in this file.
-                // TODO: Make sure to mark precisely those objects that CAdapterGenerator exports.
                 if (declaration.storageKind(context) == ObjectStorageKind.SHARED &&
                         context.isNativeLibrary &&
-                        declaration.isExported()) {
+                        context.cAdapterGenerator.accessedSingletons.contains(declaration.descriptor)) {
                     context.llvm.globalSharedObjects.add(address)
                 }
             } else {
