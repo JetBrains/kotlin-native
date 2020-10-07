@@ -523,9 +523,6 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
     private var symbolTableOrNull: SymbolTable? = null
     internal val symbolTable get() = symbolTableOrNull!!
 
-    private var accessedSingletonsMutable = mutableSetOf<ClassDescriptor>()
-    internal val accessedSingletons: Set<ClassDescriptor> get() = accessedSingletonsMutable
-
     private val predefinedTypes = listOf(
             context.builtIns.byteType, context.builtIns.shortType,
             context.builtIns.intType, context.builtIns.longType,
@@ -579,10 +576,7 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         scopes.last().scopes += classScope
         scopes.push(classScope)
         // Add type getter.
-        val element = ExportedElement(ElementKind.TYPE, scopes.last(), descriptor, this)
-        if (element.isSingletonObject) {
-            accessedSingletonsMutable.add(descriptor)
-        }
+        ExportedElement(ElementKind.TYPE, scopes.last(), descriptor, this)
         visitChildren(descriptor.getConstructors())
         visitChildren(DescriptorUtils.getAllDescriptors(descriptor.getDefaultType().memberScope))
         scopes.pop()
