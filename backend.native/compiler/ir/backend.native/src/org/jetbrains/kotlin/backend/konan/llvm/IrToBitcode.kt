@@ -786,10 +786,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 LLVMSetInitializer(address, if (declaration.storageKind(context) == ObjectStorageKind.PERMANENT)
                     context.llvm.staticData.createConstKotlinObject(declaration,
                             *computeFields(declaration)).llvm else codegen.kNullObjHeaderPtr)
-                // If this is not a permanent object (i.e. requires a deinitialization)
-                // and we're generating a native library (i.e. exporting this declaration to C),
-                // mark the singleton as accessed so that it's deinitializer will get generated in this file.
-                // TODO: Make sure to mark precisely those objects that CAdapterGenerator exports.
                 if (declaration.storageKind(context) == ObjectStorageKind.SHARED &&
                         context.isNativeLibrary &&
                         declaration.isExported()) {
