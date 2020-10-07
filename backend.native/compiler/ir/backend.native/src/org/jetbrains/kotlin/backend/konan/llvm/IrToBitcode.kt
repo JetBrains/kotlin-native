@@ -336,6 +336,11 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         initializeCachedBoxes(context)
         declaration.acceptChildrenVoid(this)
 
+        // TODO: collect those two in one place.
+        context.llvm.fileInitializers.clear()
+        context.llvm.fileUsesThreadLocalObjects = false
+        context.llvm.globalSharedObjects.clear()
+
         // Note: it is here because it also generates some bitcode.
         context.objCExport.generate(codegen)
 
@@ -343,12 +348,20 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
         context.coverage.writeRegionInfo()
         appendDebugSelector()
-        appendLlvmUsed("llvm.used", context.llvm.usedFunctions + context.llvm.usedGlobals)
-        appendLlvmUsed("llvm.compiler.used", context.llvm.compilerUsedGlobals)
-        appendStaticInitializers()
         if (context.isNativeLibrary) {
             appendCAdapters()
         }
+
+        if (context.llvm.fileInitializers.isNotEmpty() || context.llvm.fileUsesThreadLocalObjects || context.llvm.globalSharedObjects.isNotEmpty()) {
+            // Create global initialization records.
+            val initNode = createInitNode(createInitBody())
+            context.llvm.irStaticInitializers.add(IrStaticInitializer(declaration.descriptor, createInitCtor(initNode)))
+        }
+
+        appendStaticInitializers()
+
+        appendLlvmUsed("llvm.used", context.llvm.usedFunctions + context.llvm.usedGlobals)
+        appendLlvmUsed("llvm.compiler.used", context.llvm.compilerUsedGlobals)
     }
 
     //-------------------------------------------------------------------------//
@@ -500,7 +513,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
             // Create global initialization records.
             val initNode = createInitNode(createInitBody())
-            context.llvm.irStaticInitializers.add(IrStaticInitializer(declaration, createInitCtor(initNode)))
+            context.llvm.irStaticInitializers.add(IrStaticInitializer(declaration.packageFragmentDescriptor.module, createInitCtor(initNode)))
         }
     }
 
@@ -2405,7 +2418,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         }
 
         context.llvm.irStaticInitializers.forEach {
-            val library = it.file.packageFragmentDescriptor.module.konanLibrary
+            val library = it.module.konanLibrary
             val initializers = libraryToInitializers[library]
                     ?: error("initializer for not included library ${library?.libraryFile}")
 
