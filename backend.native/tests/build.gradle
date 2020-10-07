@@ -4468,6 +4468,15 @@ if (isAppleTarget(project)) {
         }
         swiftSources = ['framework/gh3343/']
     }
+
+    frameworkTest("testKt42397Framework") {
+        enabled = !project.globalTestArgs.contains('-opt')
+        framework("Kt42397") {
+            sources = ['framework/kt42397']
+            opts = ['-g']
+        }
+        swiftSources = ['framework/kt42397']
+    }
 }
 
 /**
