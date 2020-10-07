@@ -16,6 +16,7 @@ import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.backend.konan.llvm.coverage.LLVMCoverageInstrumentation
 import org.jetbrains.kotlin.builtins.UnsignedType
 import org.jetbrains.kotlin.descriptors.Modality
+import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
@@ -321,6 +322,23 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         context.cAdapterGenerator.generateBindings(codegen)
     }
 
+    private fun withStaticInitializer(module: ModuleDescriptor, f: () -> Unit) {
+        // TODO: collect those two in one place.
+        context.llvm.fileInitializers.clear()
+        context.llvm.fileUsesThreadLocalObjects = false
+        context.llvm.globalSharedObjects.clear()
+
+        f()
+
+        if (context.llvm.fileInitializers.isEmpty() && !context.llvm.fileUsesThreadLocalObjects && context.llvm.globalSharedObjects.isEmpty()) {
+            return
+        }
+
+        // Create global initialization records.
+        val initNode = createInitNode(createInitBody())
+        context.llvm.irStaticInitializers.add(IrStaticInitializer(module, createInitCtor(initNode)))
+    }
+
     //-------------------------------------------------------------------------//
 
     override fun visitElement(element: IrElement) {
@@ -336,26 +354,17 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         initializeCachedBoxes(context)
         declaration.acceptChildrenVoid(this)
 
-        // TODO: collect those two in one place.
-        context.llvm.fileInitializers.clear()
-        context.llvm.fileUsesThreadLocalObjects = false
-        context.llvm.globalSharedObjects.clear()
+        withStaticInitializer(declaration.descriptor) {
+            // Note: it is here because it also generates some bitcode.
+            context.objCExport.generate(codegen)
 
-        // Note: it is here because it also generates some bitcode.
-        context.objCExport.generate(codegen)
+            codegen.objCDataGenerator?.finishModule()
 
-        codegen.objCDataGenerator?.finishModule()
-
-        context.coverage.writeRegionInfo()
-        appendDebugSelector()
-        if (context.isNativeLibrary) {
-            appendCAdapters()
-        }
-
-        if (context.llvm.fileInitializers.isNotEmpty() || context.llvm.fileUsesThreadLocalObjects || context.llvm.globalSharedObjects.isNotEmpty()) {
-            // Create global initialization records.
-            val initNode = createInitNode(createInitBody())
-            context.llvm.irStaticInitializers.add(IrStaticInitializer(declaration.descriptor, createInitCtor(initNode)))
+            context.coverage.writeRegionInfo()
+            appendDebugSelector()
+            if (context.isNativeLibrary) {
+                appendCAdapters()
+            }
         }
 
         appendStaticInitializers()
@@ -499,21 +508,11 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     //-------------------------------------------------------------------------//
 
     override fun visitFile(declaration: IrFile) {
-        // TODO: collect those two in one place.
-        context.llvm.fileInitializers.clear()
-        context.llvm.fileUsesThreadLocalObjects = false
-        context.llvm.globalSharedObjects.clear()
-
         @Suppress("UNCHECKED_CAST")
         using(FileScope(declaration)) {
-            declaration.acceptChildrenVoid(this)
-
-            if (context.llvm.fileInitializers.isEmpty() && !context.llvm.fileUsesThreadLocalObjects && context.llvm.globalSharedObjects.isEmpty())
-                return
-
-            // Create global initialization records.
-            val initNode = createInitNode(createInitBody())
-            context.llvm.irStaticInitializers.add(IrStaticInitializer(declaration.packageFragmentDescriptor.module, createInitCtor(initNode)))
+            withStaticInitializer(declaration.packageFragmentDescriptor.module) {
+                declaration.acceptChildrenVoid(this)
+            }
         }
     }
 
