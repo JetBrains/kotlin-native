@@ -55,8 +55,8 @@ private fun IrClass.selfOrAnySuperClass(pred: (IrClass) -> Boolean): Boolean {
     return superTypes.any { it.classOrNull!!.owner.selfOrAnySuperClass(pred) }
 }
 
-internal fun IrClass.isObjCClass() = this.parent.fqNameForIrSerialization != interopPackageName &&
-        selfOrAnySuperClass { it.fqNameForIrSerialization == objCObjectFqName }
+internal fun IrClass.isObjCClass() = this.packageFqName != interopPackageName &&
+        selfOrAnySuperClass { it.hasEqualFqName(objCObjectFqName) }
 
 fun ClassDescriptor.isExternalObjCClass(): Boolean = this.isObjCClass() &&
         this.parentsWithSelf.filterIsInstance<ClassDescriptor>().any {
@@ -75,11 +75,11 @@ fun ClassDescriptor.isObjCMetaClass(): Boolean = this.getAllSuperClassifiers().a
 }
 
 fun IrClass.isObjCMetaClass(): Boolean = selfOrAnySuperClass {
-    it.fqNameForIrSerialization == objCClassFqName
+    it.hasEqualFqName(objCClassFqName)
 }
 
 fun IrClass.isObjCProtocolClass(): Boolean =
-        this.fqNameForIrSerialization == objCProtocolFqName
+        this.hasEqualFqName(objCProtocolFqName)
 
 fun ClassDescriptor.isObjCProtocolClass(): Boolean =
         this.fqNameSafe == objCProtocolFqName

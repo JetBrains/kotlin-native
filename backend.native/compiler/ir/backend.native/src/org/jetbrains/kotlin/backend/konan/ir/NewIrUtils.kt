@@ -22,21 +22,31 @@ import org.jetbrains.kotlin.ir.types.isMarkedNullable
 import org.jetbrains.kotlin.ir.util.*
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
+import org.jetbrains.kotlin.resolve.lazy.NoTopLevelDescriptorProvider.getPackageFragment
 import org.jetbrains.kotlin.utils.addToStdlib.safeAs
 
-val IrField.fqNameForIrSerialization: FqName get() = this.parent.fqNameForIrSerialization.child(this.name)
+fun IrClass.isUnit() = this.hasEqualFqName(StandardNames.FqNames.unit.toSafe())
 
-fun IrClass.isUnit() = this.fqNameForIrSerialization == StandardNames.FqNames.unit.toSafe()
-
-fun IrClass.isKotlinArray() = this.fqNameForIrSerialization == StandardNames.FqNames.array.toSafe()
+fun IrClass.isKotlinArray() = this.hasEqualFqName(StandardNames.FqNames.array.toSafe())
 
 val IrClass.superClasses get() = this.superTypes.map { it.classifierOrFail as IrClassSymbol }
 fun IrClass.getSuperClassNotAny() = this.superClasses.map { it.owner }.atMostOne { !it.isInterface && !it.isAny() }
 
-fun IrClass.isAny() = this.fqNameForIrSerialization == StandardNames.FqNames.any.toSafe()
-fun IrClass.isNothing() = this.fqNameForIrSerialization == StandardNames.FqNames.nothing.toSafe()
+fun IrClass.isAny() = this.hasEqualFqName(StandardNames.FqNames.any.toSafe())
+
+fun IrDeclarationWithName.hasEqualFqName(fqName: FqName): Boolean {
+    val comparisonResult = this.name == fqName.shortName()
+    if (!comparisonResult || (parent is IrPackageFragment && (parent as IrPackageFragment).fqName == fqName.parent()))
+        return comparisonResult
+    return (parent as? IrDeclarationWithName)?.hasEqualFqName(fqName.parent()) ?: false
+}
+
+fun IrClass.isNothing() = this.hasEqualFqName(StandardNames.FqNames.nothing.toSafe())
 
 fun IrClass.getSuperInterfaces() = this.superClasses.map { it.owner }.filter { it.isInterface }
+
+val IrClass.packageFqName
+    get() = parent.getPackageFragment()?.fqName
 
 // Note: psi2ir doesn't set `origin = FAKE_OVERRIDE` for fields and properties yet.
 val IrProperty.isReal: Boolean get() = this.descriptor.kind.isReal
