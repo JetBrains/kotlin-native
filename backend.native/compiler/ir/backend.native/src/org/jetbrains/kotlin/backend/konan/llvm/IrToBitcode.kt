@@ -322,7 +322,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         context.cAdapterGenerator.generateBindings(codegen)
     }
 
-    private fun withStaticInitializer(module: ModuleDescriptor, f: () -> Unit) {
+    private fun runAndProcessInitializers(module: ModuleDescriptor, f: () -> Unit) {
         // TODO: collect those two in one place.
         context.llvm.fileInitializers.clear()
         context.llvm.fileUsesThreadLocalObjects = false
@@ -354,7 +354,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         initializeCachedBoxes(context)
         declaration.acceptChildrenVoid(this)
 
-        withStaticInitializer(declaration.descriptor) {
+        runAndProcessInitializers(declaration.descriptor) {
             // Note: it is here because it also generates some bitcode.
             context.objCExport.generate(codegen)
 
@@ -510,7 +510,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     override fun visitFile(declaration: IrFile) {
         @Suppress("UNCHECKED_CAST")
         using(FileScope(declaration)) {
-            withStaticInitializer(declaration.packageFragmentDescriptor.module) {
+            runAndProcessInitializers(declaration.packageFragmentDescriptor.module) {
                 declaration.acceptChildrenVoid(this)
             }
         }
