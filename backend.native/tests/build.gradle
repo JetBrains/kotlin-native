@@ -4056,6 +4056,7 @@ if (PlatformInfo.isAppleTarget(project)) {
     interopTest("interop_objc_foreignException") {
         source = "interop/objc/foreignException/objc_wrap.kt"
         interop = 'foreignException'
+        dependsOnPlatformLibs(it)
 
         doBeforeBuild {
             mkdir(buildDir)
@@ -4074,6 +4075,7 @@ if (PlatformInfo.isAppleTarget(project)) {
         source = "interop/objc/foreignException/objcExceptionMode.kt"
         interop = 'foreignExceptionMode_wrap'
         goldValue = "OK: ForeignException\n"
+        dependsOnPlatformLibs(it)
 
         doBeforeBuild {
             mkdir(buildDir)
@@ -4092,6 +4094,7 @@ if (PlatformInfo.isAppleTarget(project)) {
         source = "interop/objc/foreignException/objcExceptionMode.kt"
         interop = 'foreignExceptionMode_default'
         goldValue = "OK: Ends with uncaught exception handler\n"
+        dependsOnPlatformLibs(it)
 
         doBeforeBuild {
             mkdir(buildDir)
