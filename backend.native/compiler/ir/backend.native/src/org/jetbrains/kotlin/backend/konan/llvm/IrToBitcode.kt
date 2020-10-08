@@ -362,15 +362,14 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
             context.coverage.writeRegionInfo()
             appendDebugSelector()
+            appendLlvmUsed("llvm.used", context.llvm.usedFunctions + context.llvm.usedGlobals)
+            appendLlvmUsed("llvm.compiler.used", context.llvm.compilerUsedGlobals)
             if (context.isNativeLibrary) {
                 appendCAdapters()
             }
         }
 
         appendStaticInitializers()
-
-        appendLlvmUsed("llvm.used", context.llvm.usedFunctions + context.llvm.usedGlobals)
-        appendLlvmUsed("llvm.compiler.used", context.llvm.compilerUsedGlobals)
     }
 
     //-------------------------------------------------------------------------//
