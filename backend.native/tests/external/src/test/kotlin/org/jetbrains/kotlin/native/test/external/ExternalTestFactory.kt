@@ -92,7 +92,7 @@ fun createTestFiles(src: File, outputDirectory: String): List<TestFile> {
             var line = it
             packages.forEach { pkg ->
                 // line contains val or var declaration or function parameter declaration
-                if (Regex(".*va[lr] *${pkg} *(get\\(\\))? *=.*").matches(line) ||
+                if (Regex(".*va[lr] *$pkg( *: *$fullQualified*)?( *get\\(\\))? *=.*").matches(line) ||
                         Regex(".*fun .*\\(\n?\\s*$pkg:.*/").matches(line)) {
                     vars.add(pkg)
                 }
