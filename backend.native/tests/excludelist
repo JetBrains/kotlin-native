@@ -3,3 +3,4 @@ external/compiler/compileKotlinAgainstKotlin/specialBridgesInDependencies.kt    
 external/compiler/codegen/box/multiplatform/multiModule/expectActualTypealiasLink.kt   // KT-40137
 external/compiler/codegen/box/multiplatform/multiModule/expectActualMemberLink.kt      // KT-33091
 external/compiler/codegen/box/multiplatform/multiModule/expectActualLink.kt            // KT-41901
+external/compiler/codegen/box/coroutines/multiModule/                                  // KT-40121
