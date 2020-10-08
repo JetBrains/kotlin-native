@@ -7,12 +7,12 @@ package org.jetbrains.kotlin.backend.konan.objcexport
 
 import com.intellij.psi.PsiElement
 import org.jetbrains.kotlin.analyzer.ModuleInfo
-import org.jetbrains.kotlin.descriptors.konan.isNativeStdlib
 import org.jetbrains.kotlin.builtins.KotlinBuiltIns
 import org.jetbrains.kotlin.descriptors.*
 import org.jetbrains.kotlin.descriptors.annotations.Annotations
 import org.jetbrains.kotlin.descriptors.impl.PropertyDescriptorImpl
 import org.jetbrains.kotlin.descriptors.impl.SimpleFunctionDescriptorImpl
+import org.jetbrains.kotlin.descriptors.konan.isNativeStdlib
 import org.jetbrains.kotlin.lexer.KtTokens
 import org.jetbrains.kotlin.name.ClassId
 import org.jetbrains.kotlin.name.FqName
@@ -41,6 +41,7 @@ interface ObjCExportLazy {
     interface Configuration {
         val frameworkName: String
         fun isIncluded(moduleInfo: ModuleInfo): Boolean
+        @Deprecated("to be removed - no longer called", replaceWith = ReplaceWith(""), level = DeprecationLevel.ERROR)
         fun getCompilerModuleName(moduleInfo: ModuleInfo): String
         val objcGenerics: Boolean
     }
@@ -430,13 +431,15 @@ internal fun createNamerConfiguration(configuration: ObjCExportLazy.Configuratio
     return object : ObjCExportNamer.Configuration {
         override val topLevelNamePrefix = abbreviate(configuration.frameworkName)
 
+        /** @see ObjCExportNamerImpl */
         override fun getAdditionalPrefix(module: ModuleDescriptor): String? {
             if (module.isStdlib()) return "Kotlin"
 
             // Note: incorrect for compiler since it doesn't store ModuleInfo to ModuleDescriptor.
             val moduleInfo = module.getCapability(ModuleInfo.Capability) ?: return null
             if (configuration.isIncluded(moduleInfo)) return null
-            return abbreviate(configuration.getCompilerModuleName(moduleInfo))
+
+            return module.namePrefix
         }
 
         override val objcGenerics = configuration.objcGenerics
