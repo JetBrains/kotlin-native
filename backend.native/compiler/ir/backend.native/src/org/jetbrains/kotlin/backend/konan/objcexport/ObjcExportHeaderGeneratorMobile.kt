@@ -21,9 +21,9 @@ class ObjcExportHeaderGeneratorMobile internal constructor(
                 moduleDescriptors: List<ModuleDescriptor>,
                 deprecationResolver: DeprecationResolver? = null): ObjCExportHeaderGenerator {
 
-            val mapper = ObjCExportMapper(deprecationResolver, local = true)
+            val mapper = ObjCExportMapper(deprecationResolver, local = false)
             val namerConfiguration = createNamerConfiguration(configuration)
-            val namer = ObjCExportNamerImpl(namerConfiguration, builtIns, mapper, local = true)
+            val namer = ObjCExportNamerImpl(namerConfiguration, builtIns, mapper, local = false)
 
             return ObjcExportHeaderGeneratorMobile(
                     moduleDescriptors,
