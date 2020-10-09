@@ -19,11 +19,12 @@ class ObjcExportHeaderGeneratorMobile internal constructor(
                 warningCollector: ObjCExportWarningCollector,
                 builtIns: KotlinBuiltIns,
                 moduleDescriptors: List<ModuleDescriptor>,
-                deprecationResolver: DeprecationResolver? = null): ObjCExportHeaderGenerator {
+                deprecationResolver: DeprecationResolver? = null,
+                local: Boolean = false): ObjCExportHeaderGenerator {
 
-            val mapper = ObjCExportMapper(deprecationResolver, local = false)
+            val mapper = ObjCExportMapper(deprecationResolver, local)
             val namerConfiguration = createNamerConfiguration(configuration)
-            val namer = ObjCExportNamerImpl(namerConfiguration, builtIns, mapper, local = false)
+            val namer = ObjCExportNamerImpl(namerConfiguration, builtIns, mapper, local)
 
             return ObjcExportHeaderGeneratorMobile(
                     moduleDescriptors,
