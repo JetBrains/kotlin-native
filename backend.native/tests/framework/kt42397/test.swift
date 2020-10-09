@@ -18,7 +18,7 @@ func runTestKt42397(pointer: UnsafeMutableRawPointer) -> UnsafeMutableRawPointer
 func testKt42397() throws {
     let results = Results()
     let resultsPtr = UnsafeMutablePointer<Results>.allocate(capacity: 1)
-    resultsPtr.pointee = results
+    resultsPtr.initialize(to: results)
     var thread: pthread_t? = nil
     let result = pthread_create(&thread, nil, runTestKt42397, resultsPtr)
     try assertEquals(actual: result, expected: 0)
