@@ -94,16 +94,25 @@ fun testKT41811WithGlobal() {
         {
             globalDeallocRetainRelease = object: DeallocRetainRelease() {}
         }()
-        // Clean up local DeallocRetainRelease on Kotlin side
-        kotlin.native.internal.GC.collect()
-        // And drop the last reference to DeallocRetainRelease from ObjC global scope.
-        globalDeallocRetainRelease = null
     }
 
     assertFalse(deallocRetainReleaseDeallocated)
 
-    // This will dispose DeallocRetainRelease on Kotlin side, which will cause dealloc
-    // on ObjC side, which will immediately schedule another disposal on the Kotlin side.
+    // Clean up local DeallocRetainRelease on Kotlin side
     kotlin.native.internal.GC.collect()
+
+    assertFalse(deallocRetainReleaseDeallocated)
+
+    // And drop the last reference to DeallocRetainRelease from ObjC global scope.
+    globalDeallocRetainRelease = null
+
+    assertFalse(deallocRetainReleaseDeallocated)
+
+    // This will dispose `DeallocRetainRelease` on Kotlin side, which will cause `dealloc`
+    // on ObjC side, which triggers `retain` and `release` of `self`. If these messages
+    // were to reach Kotlin side, the `release` would have immediately scheduled the
+    // second disposal of Kotlin object.
+    kotlin.native.internal.GC.collect()
+
     assertTrue(deallocRetainReleaseDeallocated)
 }
