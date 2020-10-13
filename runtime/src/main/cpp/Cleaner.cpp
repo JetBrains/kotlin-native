@@ -28,11 +28,9 @@ KInt globalCleanerWorker = kCleanerWorkerUninitialized;
 
 void disposeCleaner(CleanerImpl* thiz) {
     auto worker = atomicGet(&globalCleanerWorker);
-    RuntimeAssert(worker != kCleanerWorkerUninitialized, "Cleaner worker must've been initialized by now");
-    if (worker == kCleanerWorkerInitializing) {
-        while (atomicGet(&globalCleanerWorker) == kCleanerWorkerInitializing) {
-        }
-    }
+    RuntimeAssert(
+            worker != kCleanerWorkerUninitialized && worker != kCleanerWorkerInitializing,
+            "Cleaner worker must've been initialized by now");
     if (worker == kCleanerWorkerShutdown) {
         if (Kotlin_cleanersLeakCheckerEnabled()) {
             konan::consoleErrorf(
