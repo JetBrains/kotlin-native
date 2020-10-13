@@ -760,6 +760,8 @@ void WorkerResume(Worker* worker) {
 bool WorkerSchedule(KInt id, KNativePtr jobStablePtr) {
 #if WITH_WORKERS
     return theState()->scheduleJobInWorkerUnlocked(id, jobStablePtr);
+#else
+    return false;
 #endif // WITH_WORKERS
 }
 
