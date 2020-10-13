@@ -6,9 +6,7 @@
 package kotlin.native.internal
 
 import kotlin.native.concurrent.*
-import kotlinx.cinterop.COpaquePointer
-import kotlinx.cinterop.StableRef
-import kotlinx.cinterop.asStableRef
+import kotlinx.cinterop.NativePtr
 
 public interface Cleaner
 
@@ -104,21 +102,24 @@ private class CleanerImpl(
 @SymbolName("Kotlin_Any_isShareable")
 external private fun Any?.isShareable(): Boolean
 
+@SymbolName("CreateStablePointer")
+external private fun createStablePointer(obj: Any): NativePtr
+
+@SymbolName("AdoptStablePointer")
+external private fun adoptStablePointer(ptr: NativePtr): Any
+
 @ExportForCompiler
 private fun <T> createCleanerImpl(argument: T, block: (T) -> Unit): Cleaner {
     if (!argument.isShareable())
         throw IllegalArgumentException("$argument must be shareable")
 
-    val ref = StableRef.create(argument as Any)
+    val ref = createStablePointer(argument as Any)
 
     val clean = {
-        try {
-            // TODO: Maybe if this fails with exception, it should be (optionally) reported.
-            @Suppress("UNCHECKED_CAST")
-            block(ref.get() as T)
-        } finally {
-            ref.dispose()
-        }
+        @Suppress("UNCHECKED_CAST")
+        val arg = adoptStablePointer(ref) as T
+        // TODO: Maybe if this fails with exception, it should be (optionally) reported.
+        block(arg)
     }.freeze()
 
     return CleanerImpl(CleanerWorker.worker, clean)
