@@ -7,6 +7,9 @@
 
 #include "gtest/gtest.h"
 
+// TODO: Test concurrent creation of cleaner workers with possible shutdown.
+// TODO: Also test disposal. (This requires extracting Worker interface)
+
 TEST(CleanerTest, ExampleTest) {
   EXPECT_EQ(true, false);
 }

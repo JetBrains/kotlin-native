@@ -13,4 +13,6 @@ RUNTIME_NOTHROW void DisposeCleaner(KRef thiz);
 
 void ShutdownCleaners(bool executeScheduledCleaners);
 
+extern "C" KInt Kotlin_CleanerImpl_getCleanerWorker();
+
 #endif // RUNTIME_CLEANER_H
