@@ -15,9 +15,9 @@ extern "C" void Kotlin_CleanerImpl_shutdownCleanerWorker(bool);
 namespace {
 
 struct CleanerImpl {
-  ObjHeader header;
-  KInt worker;
-  KNativePtr cleanerStablePtr;
+    ObjHeader header;
+    KInt worker;
+    KNativePtr cleanerStablePtr;
 };
 
 bool cleanersDisabled = false;

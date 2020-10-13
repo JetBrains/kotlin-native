@@ -359,20 +359,20 @@ class State {
   }
 
   bool scheduleJobInWorkerUnlocked(KInt id, KNativePtr operationStablePtr) {
-    Worker* worker = nullptr;
-    Locker locker(&lock_);
+      Worker* worker = nullptr;
+      Locker locker(&lock_);
 
-    auto it = workers_.find(id);
-    if (it == workers_.end()) {
-      return false;
-    }
-    worker = it->second;
+      auto it = workers_.find(id);
+      if (it == workers_.end()) {
+          return false;
+      }
+      worker = it->second;
 
-    Job job;
-    job.kind = JOB_EXECUTE_AFTER;
-    job.executeAfter.operation = operationStablePtr;
-    worker->putJob(job, false);
-    return true;
+      Job job;
+      job.kind = JOB_EXECUTE_AFTER;
+      job.executeAfter.operation = operationStablePtr;
+      worker->putJob(job, false);
+      return true;
   }
 
   // Returns `true` if something was indeed processed.
@@ -760,7 +760,7 @@ void WorkerResume(Worker* worker) {
 bool WorkerSchedule(KInt id, KNativePtr jobStablePtr) {
 #if WITH_WORKERS
     return theState()->scheduleJobInWorkerUnlocked(id, jobStablePtr);
-#endif  // WITH_WORKERS
+#endif // WITH_WORKERS
 }
 
 #if WITH_WORKERS
