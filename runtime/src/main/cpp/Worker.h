@@ -14,8 +14,8 @@ void WorkerDeinit(Worker* worker);
 void WorkerDestroyThreadDataIfNeeded(KInt id);
 // Wait until all terminating native workers finish termination. Expected to be called once.
 void WaitNativeWorkersTermination();
-// Schedule the `job` without the result.
-void WorkerSchedule(KInt id, KRef job);
+// Schedule the job without the result.
+bool WorkerSchedule(KInt id, KNativePtr jobStablePtr);
 
 Worker* WorkerSuspend();
 void WorkerResume(Worker* worker);

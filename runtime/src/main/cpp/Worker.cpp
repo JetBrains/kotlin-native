@@ -358,6 +358,23 @@ class State {
     return true;
   }
 
+  bool scheduleJobInWorkerUnlocked(KInt id, KNativePtr operationStablePtr) {
+    Worker* worker = nullptr;
+    Locker locker(&lock_);
+
+    auto it = workers_.find(id);
+    if (it == workers_.end()) {
+      return false;
+    }
+    worker = it->second;
+
+    Job job;
+    job.kind = JOB_EXECUTE_AFTER;
+    job.executeAfter.operation = operationStablePtr;
+    worker->putJob(job, false);
+    return true;
+  }
+
   // Returns `true` if something was indeed processed.
   bool processQueueUnlocked(KInt id) {
     // Can only process queue of the current worker.
@@ -740,11 +757,9 @@ void WorkerResume(Worker* worker) {
 #endif  // WITH_WORKERS
 }
 
-void WorkerSchedule(KInt id, KRef job) {
+bool WorkerSchedule(KInt id, KNativePtr jobStablePtr) {
 #if WITH_WORKERS
-    RuntimeAssert(job->container()->frozen(), "job must be frozen");
-
-    theState()->executeJobAfterInWorkerUnlocked(id, job, 0);
+    return theState()->scheduleJobInWorkerUnlocked(id, jobStablePtr);
 #endif  // WITH_WORKERS
 }
 
