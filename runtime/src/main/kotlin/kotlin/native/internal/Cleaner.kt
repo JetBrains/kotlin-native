@@ -75,27 +75,27 @@ external fun <T> createCleaner(argument: T, block: (T) -> Unit): Cleaner
  */
 @ExperimentalStdlibApi
 fun performGCOnCleanerWorker() =
-    CleanerWorker.worker.execute(TransferMode.SAFE, {}) {
+    getCleanerWorker().execute(TransferMode.SAFE, {}) {
         GC.collect()
     }.result
 
-private object CleanerWorker {
-    // Worker is an int. Putting it inside an object to make sure it's initialized
-    // lazily.
-    val worker = Worker.start(errorReporting = false, name = "Cleaner worker")
-}
+@SymbolName("Kotlin_CleanerImpl_getCleanerWorker")
+external private fun getCleanerWorker(): Worker
 
 @ExportForCppRuntime("Kotlin_CleanerImpl_shutdownCleanerWorker")
-private fun shutdownCleanerWorker(executeScheduledCleaners: Boolean) {
-    // TODO: This starts the worker even if no cleaners were ever created.
-    CleanerWorker.worker.requestTermination(executeScheduledCleaners).result
+private fun shutdownCleanerWorker(worker: Worker, executeScheduledCleaners: Boolean) {
+    worker.requestTermination(executeScheduledCleaners).result
+}
+
+@ExportForCppRuntime("Kotlin_CleanerImpl_createCleanerWorker")
+private fun createCleanerWorker(): Worker {
+    return Worker.start(errorReporting = false, name = "Cleaner worker")
 }
 
 @NoReorderFields
 @ExportTypeInfo("theCleanerImplTypeInfo")
 @HasFinalizer
 private class CleanerImpl(
-    private val worker: Worker,
     private val cleanPtr: NativePtr,
 ): Cleaner {}
 
@@ -118,5 +118,8 @@ private fun <T> createCleanerImpl(argument: T, block: (T) -> Unit): Cleaner {
     // Make sure there's an extra reference to clean, so it's definitely alive when CleanerImpl is destroyed.
     val cleanPtr = createStablePointer(clean)
 
-    return CleanerImpl(CleanerWorker.worker, cleanPtr)
+    // Make sure cleaner worker is initialized.
+    getCleanerWorker()
+
+    return CleanerImpl(cleanPtr)
 }
