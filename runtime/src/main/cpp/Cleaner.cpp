@@ -17,7 +17,7 @@ namespace {
 struct CleanerImpl {
   ObjHeader header;
   KInt worker;
-  KRef clean;
+  KNativePtr cleanPtr;
 };
 
 bool cleanersDisabled = false;
@@ -34,7 +34,10 @@ void disposeCleaner(CleanerImpl* thiz) {
         return;
     }
 
-    WorkerSchedule(thiz->worker, thiz->clean);
+    ObjHolder cleanHolder;
+    KRef clean = AdoptStablePointer(thiz->cleanPtr, cleanHolder.slot());
+    WorkerSchedule(thiz->worker, clean);
+    cleanHolder.clear();
 }
 
 } // namespace

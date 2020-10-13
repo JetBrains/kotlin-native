@@ -96,7 +96,7 @@ private fun shutdownCleanerWorker(executeScheduledCleaners: Boolean) {
 @HasFinalizer
 private class CleanerImpl(
     private val worker: Worker,
-    private val clean: () -> Unit,
+    private val cleanPtr: NativePtr,
 ): Cleaner {}
 
 @SymbolName("Kotlin_Any_isShareable")
@@ -105,22 +105,18 @@ external private fun Any?.isShareable(): Boolean
 @SymbolName("CreateStablePointer")
 external private fun createStablePointer(obj: Any): NativePtr
 
-@SymbolName("AdoptStablePointer")
-external private fun adoptStablePointer(ptr: NativePtr): Any
-
 @ExportForCompiler
 private fun <T> createCleanerImpl(argument: T, block: (T) -> Unit): Cleaner {
     if (!argument.isShareable())
         throw IllegalArgumentException("$argument must be shareable")
 
-    val ref = createStablePointer(argument as Any)
-
     val clean = {
-        @Suppress("UNCHECKED_CAST")
-        val arg = adoptStablePointer(ref) as T
         // TODO: Maybe if this fails with exception, it should be (optionally) reported.
-        block(arg)
+        block(argument)
     }.freeze()
 
-    return CleanerImpl(CleanerWorker.worker, clean)
+    // Make sure there's an extra reference to clean, so it's definitely alive when CleanerImpl is destroyed.
+    val cleanPtr = createStablePointer(clean)
+
+    return CleanerImpl(CleanerWorker.worker, cleanPtr)
 }
