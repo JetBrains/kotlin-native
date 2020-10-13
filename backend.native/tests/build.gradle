@@ -899,13 +899,13 @@ task empty_substring(type: KonanLocalTest) {
 standaloneTest("cleaner_basic") {
     enabled = (project.testTarget != 'wasm32') // Cleaners need workers
     source = "runtime/basic/cleaner_basic.kt"
-    flags = ['-tr']
+    flags = ['-tr', '-Xopt-in=kotlin.native.internal.InternalForKotlinNative']
 }
 
 standaloneTest("cleaner_workers") {
     enabled = (project.testTarget != 'wasm32') // Cleaners need workers
     source = "runtime/basic/cleaner_workers.kt"
-    flags = ['-tr']
+    flags = ['-tr', '-Xopt-in=kotlin.native.internal.InternalForKotlinNative']
 }
 
 standaloneTest("cleaner_in_main_with_checker") {

@@ -73,7 +73,7 @@ external fun <T> createCleaner(argument: T, block: (T) -> Unit): Cleaner
 /**
  * Perform GC on a worker that executes Cleaner blocks.
  */
-@ExperimentalStdlibApi
+@InternalForKotlinNative
 fun performGCOnCleanerWorker() =
     getCleanerWorker().execute(TransferMode.SAFE, {}) {
         GC.collect()

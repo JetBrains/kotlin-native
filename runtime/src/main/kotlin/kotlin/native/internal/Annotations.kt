@@ -138,3 +138,10 @@ public annotation class CanBePrecreated
  */
 @Target(AnnotationTarget.CLASS)
 internal annotation class HasFinalizer
+
+/**
+ * Marks a declaration that is internal for Kotlin/Native and shouldn't be used externally.
+ */
+@RequiresOptIn(level = RequiresOptIn.Level.ERROR)
+@Retention(value = AnnotationRetention.BINARY)
+internal annotation class InternalForKotlinNative
