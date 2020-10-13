@@ -111,31 +111,6 @@ fun testCleanerFailWithNonShareableArgument() {
     }
 }
 
-@Test
-fun testCleanerFrozen() {
-    val called = AtomicBoolean(false);
-    var funBoxWeak: WeakReference<FunBox>? = null
-    var cleanerWeak: WeakReference<Cleaner>? = null
-    {
-        val cleaner = {
-            val funBox = FunBox { called.value = true }.freeze()
-            funBoxWeak = WeakReference(funBox)
-            createCleaner(funBox) { it.call() }
-        }()
-        GC.collect()  // Make sure local funBox reference is gone
-        cleanerWeak = WeakReference(cleaner)
-        cleaner.freeze()
-        assertFalse(called.value)
-    }()
-
-    GC.collect()
-    performGCOnCleanerWorker()
-
-    assertNull(cleanerWeak!!.value)
-    assertTrue(called.value)
-    assertNull(funBoxWeak!!.value)
-}
-
 inline fun tryWithTimeout(timeoutSeconds: Int, f: () -> Unit): Unit {
     val timeout = TimeSource.Monotonic.markNow() + timeoutSeconds.seconds
     while (true) {

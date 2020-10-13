@@ -121,5 +121,5 @@ private fun <T> createCleanerImpl(argument: T, block: (T) -> Unit): Cleaner {
     // Make sure cleaner worker is initialized.
     getCleanerWorker()
 
-    return CleanerImpl(cleanPtr)
+    return CleanerImpl(cleanPtr).freeze()
 }
