@@ -26,6 +26,7 @@ TypeInfo theStringTypeInfoImpl = {};
 TypeInfo theThrowableTypeInfoImpl = {};
 TypeInfo theUnitTypeInfoImpl = {};
 TypeInfo theWorkerBoundReferenceTypeInfoImpl = {};
+TypeInfo theCleanerImplTypeInfoImpl = {};
 
 ArrayHeader theEmptyStringImpl = { &theStringTypeInfoImpl, /* element count */ 0 };
 
@@ -61,6 +62,7 @@ extern const TypeInfo* theStringTypeInfo = &theStringTypeInfoImpl;
 extern const TypeInfo* theThrowableTypeInfo = &theThrowableTypeInfoImpl;
 extern const TypeInfo* theUnitTypeInfo = &theUnitTypeInfoImpl;
 extern const TypeInfo* theWorkerBoundReferenceTypeInfo = &theWorkerBoundReferenceTypeInfoImpl;
+extern const TypeInfo* theCleanerImplTypeInfo = &theCleanerImplTypeInfoImpl;
 
 extern const ArrayHeader theEmptyArray = { &theArrayTypeInfoImpl, /* element count */0 };
 
@@ -228,6 +230,14 @@ extern KBox<KLong> LONG_CACHE[] = {
 
 RUNTIME_NORETURN OBJ_GETTER(Kotlin_Throwable_getMessage, KRef throwable) {
     throw std::runtime_error("Not implemented for tests");
+}
+
+void Kotlin_CleanerImpl_shutdownCleanerWorker(KInt worker, bool executeScheduledCleaners) {
+  throw std::runtime_error("Not implemented for tests");
+}
+
+KInt Kotlin_CleanerImpl_createCleanerWorker() {
+  throw std::runtime_error("Not implemented for tests");
 }
 
 } // extern "C"
