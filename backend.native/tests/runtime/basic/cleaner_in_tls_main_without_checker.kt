@@ -14,6 +14,10 @@ import kotlin.native.Platform
 var tlsCleaner: Cleaner? = null
 
 fun main() {
+    // Cleaner holds onto a finalization lambda. If it doesn't get executed,
+    // the memory will leak. Suppress memory leak checker to check for cleaners
+    // leak only.
+    Platform.isMemoryLeakCheckerActive = false
     Platform.isCleanersLeakCheckerActive = false
     // This cleaner won't be run
     tlsCleaner = createCleaner(42) {

@@ -15,6 +15,10 @@ val globalCleaner = createCleaner(42) {
 }
 
 fun main() {
+    // Cleaner holds onto a finalization lambda. If it doesn't get executed,
+    // the memory will leak. Suppress memory leak checker to check for cleaners
+    // leak only.
+    Platform.isMemoryLeakCheckerActive = false
     // Make sure cleaner is initialized.
     assertNotNull(globalCleaner)
 }
