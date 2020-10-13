@@ -70,8 +70,8 @@ void ShutdownCleaners(bool executeScheduledCleaners) {
     KInt worker = 0;
     do {
         worker = atomicGet(&globalCleanerWorker);
-        RuntimeAssert(
-                worker != kCleanerWorkerShutdown, "Cleaner worker must not be shutdown twice") if (worker == kCleanerWorkerUninitialized) {
+        RuntimeAssert(worker != kCleanerWorkerShutdown, "Cleaner worker must not be shutdown twice");
+        if (worker == kCleanerWorkerUninitialized) {
             if (!compareAndSet(&globalCleanerWorker, kCleanerWorkerUninitialized, kCleanerWorkerShutdown)) {
                 // Someone is trying to initialize the worker. Try again.
                 continue;
@@ -99,8 +99,8 @@ extern "C" KInt Kotlin_CleanerImpl_getCleanerWorker() {
     KInt worker = 0;
     do {
         worker = atomicGet(&globalCleanerWorker);
-        RuntimeAssert(
-                worker != kCleanerWorkerShutdown, "Cleaner worker must not have been shutdown") if (worker == kCleanerWorkerUninitialized) {
+        RuntimeAssert(worker != kCleanerWorkerShutdown, "Cleaner worker must not have been shutdown");
+        if (worker == kCleanerWorkerUninitialized) {
             if (!compareAndSet(&globalCleanerWorker, kCleanerWorkerUninitialized, kCleanerWorkerInitializing)) {
                 // Someone else is trying to initialize the worker. Try again.
                 continue;
