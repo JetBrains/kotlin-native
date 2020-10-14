@@ -63,7 +63,7 @@ internal class KonanSharedVariablesManager(val context: KonanBackendContext) : S
         val initializer = originalDeclaration.initializer ?: return sharedVariableDeclaration
 
         val sharedVariableInitialization =
-                IrCallImpl(initializer.startOffset, initializer.endOffset,
+                IrCallImpl.fromSymbolDescriptor(initializer.startOffset, initializer.endOffset,
                         context.irBuiltIns.unitType, elementProperty.setter!!.symbol)
 
         sharedVariableInitialization.dispatchReceiver =
@@ -79,7 +79,7 @@ internal class KonanSharedVariablesManager(val context: KonanBackendContext) : S
     }
 
     override fun getSharedValue(sharedVariableSymbol: IrVariableSymbol, originalGet: IrGetValue) =
-            IrCallImpl(originalGet.startOffset, originalGet.endOffset,
+            IrCallImpl.fromSymbolDescriptor(originalGet.startOffset, originalGet.endOffset,
                     originalGet.type, elementProperty.getter!!.symbol).apply {
                 dispatchReceiver = IrGetValueImpl(
                         originalGet.startOffset, originalGet.endOffset,
@@ -88,7 +88,7 @@ internal class KonanSharedVariablesManager(val context: KonanBackendContext) : S
             }
 
     override fun setSharedValue(sharedVariableSymbol: IrVariableSymbol, originalSet: IrSetValue) =
-            IrCallImpl(originalSet.startOffset, originalSet.endOffset, context.irBuiltIns.unitType,
+            IrCallImpl.fromSymbolDescriptor(originalSet.startOffset, originalSet.endOffset, context.irBuiltIns.unitType,
                     elementProperty.setter!!.symbol).apply {
                 dispatchReceiver = IrGetValueImpl(
                         originalSet.startOffset, originalSet.endOffset,

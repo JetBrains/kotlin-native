@@ -93,7 +93,7 @@ private class AutoboxingTransformer(val context: Context) : AbstractValueUsageTr
     override fun IrExpression.useAs(type: IrType): IrExpression {
         if (this.isNullConst() && type.isNullablePointer()) {
             // TODO: consider using IrConst with proper type.
-            return IrCallImpl(
+            return IrCallImpl.fromSymbolDescriptor(
                     startOffset,
                     endOffset,
                     symbols.getNativeNullPtr.owner.returnType,
@@ -164,7 +164,7 @@ private class AutoboxingTransformer(val context: Context) : AbstractValueUsageTr
             val parameter = conversion.owner.explicitParameters.single()
             val argument = this.uncheckedCast(parameter.type)
 
-            IrCallImpl(startOffset, endOffset, conversion.owner.returnType, conversion).apply {
+            IrCallImpl.fromSymbolDescriptor(startOffset, endOffset, conversion.owner.returnType, conversion).apply {
                 addArguments(mapOf(parameter to argument))
             }.uncheckedCast(this.type) // Try not to bring new type incompatibilities.
         }
@@ -273,7 +273,9 @@ private class InlineClassTransformer(private val context: Context) : IrBuildingT
             IrBlockImpl(startOffset, endOffset, irBuiltIns.unitType).apply {
                 statements.addIfNotNull(expression.receiver)
                 statements += expression.value
-                statements += IrCallImpl(startOffset, endOffset, irBuiltIns.nothingType, symbols.throwNullPointerException)
+                statements += IrCallImpl.fromSymbolDescriptor(
+                        startOffset, endOffset, irBuiltIns.nothingType, symbols.throwNullPointerException
+                )
                 statements += IrGetObjectValueImpl(startOffset, endOffset, irBuiltIns.unitType, irBuiltIns.unitClass)
             }
         } else {
