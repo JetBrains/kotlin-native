@@ -265,6 +265,7 @@ class RunExternalTestGroup extends JavaExec {
         def packages = new LinkedHashSet<String>()
         def imports = []
         def classes = []
+        def vars = new HashSet<String>()  // variables that has the same name as a package
         TestModule mainModule = null
 
         def testFiles = TestDirectivesKt.buildCompileList(project.file("build/$src").toPath(), "$outputDirectory/$src")
@@ -335,11 +336,11 @@ class RunExternalTestGroup extends JavaExec {
             }
             // now replace all package usages in full qualified names
             def res = ""                      // filesToCompile
-            def vars = new HashSet<String>()  // variables that has the same name as a package
             text.eachLine { line ->
                 packages.each { pkg ->
                     // line contains val or var declaration or function parameter declaration
-                    if ((line =~ ~/va(l|r) *$pkg *\=/) || (line =~ ~/fun .*\(\n?\s*$pkg:.*/)) {
+                    if ((line =~ ~/va(l|r) *$pkg*( *: *$fullQualified*)?( *get\(\))? *\=.*/) ||
+                            (line =~ ~/fun .*\(\n?\s*$pkg:.*/)) {
                         vars.add(pkg)
                     }
                     if (line.contains("$pkg.") && !(line =~ packagePattern || line =~ importRegex)
@@ -410,15 +411,14 @@ fun runTest() {
             "external/compiler/compileKotlinAgainstKotlin/specialBridgesInDependencies.kt",         // FIXME: inherits final class
             "external/compiler/codegen/box/multiplatform/multiModule/expectActualTypealiasLink.kt", // KT-40137
             "external/compiler/codegen/box/multiplatform/multiModule/expectActualMemberLink.kt",    // KT-33091
-            "external/compiler/codegen/box/multiplatform/multiModule/expectActualLink.kt"           // KT-41901
+            "external/compiler/codegen/box/multiplatform/multiModule/expectActualLink.kt",          // KT-41901
+            "external/compiler/codegen/box/coroutines/multiModule/"                                 // KT-40121
     ]
 
     boolean isEnabledForNativeBackend(String fileName) {
         def text = project.buildDir.toPath().resolve(fileName).text
 
-        if (excludeList.contains(fileName.replace(File.separator, "/"))) return false
-
-        if (findLinesWithPrefixesRemoved(text, "// WITH_REFLECT").size() != 0) return false
+        if (excludeList.any { fileName.replace(File.separator, "/").contains(it) }) return false
 
         def languageSettings = findLinesWithPrefixesRemoved(text, '// !LANGUAGE: ')
         if (!languageSettings.empty) {

@@ -24,12 +24,13 @@
 import lldb
 import struct
 import re
+import sys
 
 NULL = 'null'
 
 def log(msg):
     if False:
-        print(msg())
+        print(msg(), file=sys.stderr)
 
 def exelog(stmt):
     if False:
@@ -79,7 +80,7 @@ def is_string_or_array(value):
 def type_info(value):
     """This method checks self-referencing of pointer of first member of TypeInfo including case when object has an
     meta-object pointed by TypeInfo. Two lower bits are reserved for memory management needs see runtime/src/main/cpp/Memory.h."""
-    if str(value.type) != "struct ObjHeader *":
+    if value.GetTypeName() != "ObjHeader *":
         return False
     expr = "*(void **)((uintptr_t)(*(void**){0:#x}) & ~0x3) == **(void***)((uintptr_t)(*(void**){0:#x}) & ~0x3) ? *(void **)((uintptr_t)(*(void**){0:#x}) & ~0x3) : (void *)0".format(value.unsigned)
     result = evaluate(expr)
@@ -96,14 +97,17 @@ ARRAY_TO_STRING_LIMIT = 10
 
 def kotlin_object_type_summary(lldb_val, internal_dict = {}):
     """Hook that is run by lldb to display a Kotlin object."""
-    log(lambda: "kotlin_object_type_summary({:#x})".format(lldb_val.unsigned))
+    log(lambda: "kotlin_object_type_summary({:#x}, {})".format(lldb_val.unsigned, internal_dict))
     fallback = lldb_val.GetValue()
     if str(lldb_val.type) != "struct ObjHeader *":
         if lldb_val.GetValue() is None:
             return NULL
         return lldb_val.GetValueAsSigned()
 
+    if lldb_val.unsigned == 0:
+            return NULL
     tip = internal_dict["type_info"] if "type_info" in internal_dict.keys() else type_info(lldb_val)
+
     if not tip:
         return fallback
 
@@ -111,8 +115,9 @@ def kotlin_object_type_summary(lldb_val, internal_dict = {}):
 
 
 def select_provider(lldb_val, tip, internal_dict):
+    log(lambda : "select_provider: name:{} : {}, {}".format(lldb_val.name, lldb_val, internal_dict))
     soa = is_string_or_array(lldb_val)
-    log(lambda : "select_provider: {} : {}".format(lldb_val, soa))
+    log(lambda : "select_provider: {} : soa: {}".format(lldb_val, soa))
     return __FACTORY['string'](lldb_val, tip, internal_dict) if soa == 1 else __FACTORY['array'](lldb_val, tip, internal_dict) if soa == 2 \
         else __FACTORY['object'](lldb_val, tip, internal_dict)
 
@@ -364,11 +369,12 @@ class KonanArraySyntheticProvider(KonanHelperProvider):
 
 class KonanProxyTypeProvider:
     def __init__(self, valobj, internal_dict):
-        log(lambda : "proxy: {:#x}".format(valobj.unsigned))
+        log(lambda : "KonanProxyTypeProvider: {:#x}".format(valobj.unsigned))
         tip = type_info(valobj)
-        log(lambda : "KonanProxyTypeProvider: tip: {:#x}".format(tip))
+
         if not tip:
             return
+        log(lambda : "KonanProxyTypeProvider: tip: {:#x}".format(tip))
         self._proxy = select_provider(valobj, tip, internal_dict)
         log(lambda: "KonanProxyTypeProvider: _proxy: {}".format(self._proxy.__class__.__name__))
         self.update()

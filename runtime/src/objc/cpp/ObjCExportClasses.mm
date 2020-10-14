@@ -42,6 +42,7 @@ static void injectToRuntime();
 
 @implementation KotlinBase {
   BackRefFromAssociatedObject refHolder;
+  bool permanent;
 }
 
 -(KRef)toKotlin:(KRef*)OBJ_RESULT {
@@ -79,6 +80,8 @@ static void injectToRuntime();
   ObjHolder holder;
   AllocInstanceWithAssociatedObject(typeInfo, result, holder.slot());
   result->refHolder.initAndAddRef(holder.obj());
+  RuntimeAssert(!holder.obj()->permanent(), "dynamically allocated object is permanent");
+  result->permanent = false;
   return result;
 }
 
@@ -86,6 +89,7 @@ static void injectToRuntime();
   KotlinBase* candidate = [super allocWithZone:nil];
   // TODO: should we call NSObject.init ?
   candidate->refHolder.initAndAddRef(obj);
+  candidate->permanent = obj->permanent();
 
   if (!obj->permanent()) { // TODO: permanent objects should probably be supported as custom types.
     if (!obj->container()->shareable()) {
@@ -104,7 +108,7 @@ static void injectToRuntime();
 }
 
 -(instancetype)retain {
-  if (refHolder.permanent()) { // TODO: consider storing `isPermanent` to self field.
+  if (permanent) {
     [super retain];
   } else {
     refHolder.addRef<ErrorPolicy::kTerminate>();
@@ -113,7 +117,7 @@ static void injectToRuntime();
 }
 
 -(BOOL)_tryRetain {
-  if (refHolder.permanent()) {
+  if (permanent) {
     return [super _tryRetain];
   } else {
     return refHolder.tryAddRef<ErrorPolicy::kTerminate>();
@@ -121,7 +125,7 @@ static void injectToRuntime();
 }
 
 -(oneway void)release {
-  if (refHolder.permanent()) {
+  if (permanent) {
     [super release];
   } else {
     refHolder.releaseRef();
@@ -129,6 +133,22 @@ static void injectToRuntime();
 }
 
 -(void)releaseAsAssociatedObject {
+  // This function is called by the GC. It made a decision to reclaim Kotlin object, and runs
+  // deallocation hooks at the moment, including deallocation of the "associated object" ([self])
+  // using the [super release] call below.
+
+  // The deallocation involves running [self dealloc] which can contain arbitrary code.
+  // In particular, this code can retain and release [self]. Obj-C and Swift runtimes handle this
+  // gracefully (unless the object gets accessed after the deallocation of course), but Kotlin doesn't.
+  // Generally retaining and releasing Kotlin object that is being deallocated would lead to
+  // use-after-dispose and double-dispose problems (with unpredictable consequences) or to an assertion failure.
+  // To workaround this, detach the back ref from the Kotlin object:
+  refHolder.detach();
+  // So retain/release/etc. on [self] won't affect the Kotlin object, and an attempt to get
+  // the reference to it (e.g. when calling Kotlin method on [self]) would crash.
+  // The latter is generally ok because can be triggered only by user-defined Swift/Obj-C
+  // subclasses of Kotlin classes.
+
   [super release];
 }
 

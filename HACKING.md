@@ -62,6 +62,8 @@ There are several gradle flags one can use for Konan build.
 
  ## Testing
 
+ ### Compiler integration tests
+
 To run blackbox compiler tests from JVM Kotlin use (takes time):
 
     ./gradlew run_external
@@ -99,6 +101,30 @@ and then a final native binary is produced from this klibrary using the -Xinclud
 
         ./gradlew -Ptest_two_stage backend.native:tests:array0
        
+ ### Runtime unit tests
+ 
+To run runtime unit tests on the host machine for both mimalloc and the standard allocator:
+
+    ./gradlew hostRuntimeTests
+       
+To run tests for only one of these two allocators, run `hostStdAllocRuntimeTests` or `hostMimallocRuntimeTests`.
+
+We use [Google Test](https://github.com/google/googletest) to execute the runtime unit tests. The build automatically fetches
+the specified Google Test revision to `runtime/googletest`. It is possible to manually modify the downloaded GTest sources for debug
+purposes; the build will not overwrite them by default.
+
+To forcibly redownload Google Test when running tests, use the corresponding project property:
+
+     ./gradlew hostRuntimeTests -Prefresh-gtest
+
+or run the `downloadGTest` task directly with the `--refresh` CLI key:
+
+    ./gradlew downloadGTest --refresh
+    
+To use a local GTest copy instead of the downloaded one, add the following line to `runtime/build.gradle.kts`:
+
+    googletest.useLocalSources("<path to local GTest sources>")
+
  ## Performance measurement
   
  Firstly, it's necessary to build analyzer tool to have opportunity to compare different performance results:
@@ -229,8 +255,18 @@ $ ./gradlew backend.native:tests:runExternal -Ptest_two_stage=true 2>&1 | tee lo
 
 ## LLVM
 
-See [BUILDING_LLVM.md](BUILDING_LLVM.md) if you want to use your own LLVM distribution
+See [BUILDING_LLVM.md](BUILDING_LLVM.md) if you want to build and use your own LLVM distribution
 instead of provided one.
+
+### Using different LLVM distributions as part of Kotlin/Native compilation pipeline.
+
+`llvmHome.<HOST_NAME>` variable in `<distribution_location>/konan/konan.properties` controls 
+which LLVM distribution Kotlin/Native will use in its compilation pipeline. 
+You can replace its value with either `$llvm.<HOST_NAME>.{dev, user}` to use one of predefined distributions
+or pass an absolute to your own distribution. 
+Don't forget to set `llvmVersion.<HOST_NAME>` to the version of your LLVM distribution.
+
+### Playing with compilation pipeline.
 
 Following compiler phases control different parts of LLVM pipeline:
 1. `LinkBitcodeDependencies`. Linkage of produced bitcode with runtime and some other dependencies.
@@ -267,3 +303,22 @@ konanc main.kt -Xtemporary-files-dir=<PATH> -o <OUTPUT_NAME>
 ```shell script
 konanc main.kt -Xdisable-phases=BitcodeOptimization -Xoverride-clang-options=-c,-O2
 ```
+
+## Running Clang the same way Kotlin/Native compiler does
+
+Kotlin/Native compiler (including `cinterop` tool) has machinery that manages LLVM, Clang and native SDKs for supported targets
+and runs bundled Clang with proper arguments.
+To utilize this machinery, use `$dist/bin/run_konan clang $tool $target $arguments`, e.g.
+```
+$dist/bin/run_konan clang clang ios_arm64 1.c
+```
+will print and run the following command:
+```
+~/.konan/dependencies/clang-llvm-apple-8.0.0-darwin-macos/bin/clang \
+    -B/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin \
+    -fno-stack-protector -stdlib=libc++ -arch arm64 \
+    -isysroot /Applications/Xcode.app/Contents/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS13.5.sdk \
+    -miphoneos-version-min=9.0 1.c
+```
+
+The similar helper is available for LLVM tools, `$dist/bin/run_konan llvm $tool $arguments`.

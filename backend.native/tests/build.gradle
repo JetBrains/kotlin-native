@@ -17,6 +17,7 @@ buildscript {
         maven {
             url 'https://cache-redirector.jetbrains.com/maven-central'
         }
+        mavenCentral()
         maven {
             url buildKotlinCompilerRepo
         }
@@ -1057,6 +1058,11 @@ standaloneTest("lazy2") {
 
 standaloneTest("lazy3") {
     source = "runtime/workers/lazy3.kt"
+}
+
+task mutableData1(type: KonanLocalTest) {
+    enabled = (project.testTarget != 'wasm32') // Workers need pthreads. Need exceptions
+    source = "runtime/workers/mutableData1.kt"
 }
 
 task enumIdentity(type: KonanLocalTest) {
@@ -2774,6 +2780,10 @@ task codegen_escapeAnalysis_zeroOutObjectOnAlloc(type: KonanLocalTest) {
     source = "codegen/escapeAnalysis/zeroOutObjectOnAlloc.kt"
 }
 
+task codegen_escapeAnalysis_recursion(type: KonanLocalTest) {
+    source = "codegen/escapeAnalysis/recursion.kt"
+}
+
 task memory_var1(type: KonanLocalTest) {
     source = "runtime/memory/var1.kt"
 }
@@ -2915,6 +2925,14 @@ task unit3(type: KonanLocalTest) {
 task unit4(type: KonanLocalTest) {
     goldValue = "Done\n"
     source = "codegen/basics/unit4.kt"
+}
+
+task kt42000_1(type: KonanLocalTest) {
+    source = "codegen/basics/k42000_1.kt"
+}
+
+task kt42000_2(type: KonanLocalTest) {
+    source = "codegen/basics/k42000_2.kt"
 }
 
 task inline0(type: KonanLocalTest) {
@@ -3583,6 +3601,14 @@ createInterop("auxiliaryCppSources") {
     it.extraOpts "-Xsource-compiler-option", "-std=c++17"
 }
 
+createInterop("concurrentTerminate") {
+    it.defFile 'interop/concurrentTerminate/concurrentTerminate.def'
+    it.headers "$projectDir/interop/concurrentTerminate/async.h"
+    // TODO: Using `-Xcompile-source` does not imply dependency on that source, so the task will no re-run when the source is updated.
+    it.extraOpts "-Xcompile-source", "$projectDir/interop/concurrentTerminate/async.cpp"
+    it.extraOpts "-Xsource-compiler-option", "-std=c++11"
+}
+
 createInterop("incomplete_types") {
     it.defFile 'interop/incomplete_types/library.def'
     it.headers "$projectDir/interop/incomplete_types/library.h"
@@ -3844,13 +3870,20 @@ interopTest("interop_auxiliarySources") {
     interop = 'auxiliaryCppSources'
 }
 
+interopTest("interop_concurrentTerminate") {
+    disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
+    source = "interop/concurrentTerminate/main.kt"
+    interop = 'concurrentTerminate'
+    goldValue = "Reporting error!\n"
+    outputChecker = { str -> str.endsWith(goldValue) }
+    expectedExitStatus = 99
+}
+
 interopTest("interop_incompleteTypes") {
     disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
     source = "interop/incomplete_types/main.kt"
     interop = 'incomplete_types'
 }
-
-
 
 interopTest("interop_embedStaticLibraries") {
     disabled = (project.testTarget == 'wasm32') // No interop for wasm yet.
@@ -4028,6 +4061,7 @@ if (PlatformInfo.isAppleTarget(project)) {
     interopTest("interop_objc_foreignException") {
         source = "interop/objc/foreignException/objc_wrap.kt"
         interop = 'foreignException'
+        dependsOnPlatformLibs(it)
 
         doBeforeBuild {
             mkdir(buildDir)
@@ -4046,6 +4080,7 @@ if (PlatformInfo.isAppleTarget(project)) {
         source = "interop/objc/foreignException/objcExceptionMode.kt"
         interop = 'foreignExceptionMode_wrap'
         goldValue = "OK: ForeignException\n"
+        dependsOnPlatformLibs(it)
 
         doBeforeBuild {
             mkdir(buildDir)
@@ -4064,6 +4099,7 @@ if (PlatformInfo.isAppleTarget(project)) {
         source = "interop/objc/foreignException/objcExceptionMode.kt"
         interop = 'foreignExceptionMode_default'
         goldValue = "OK: Ends with uncaught exception handler\n"
+        dependsOnPlatformLibs(it)
 
         doBeforeBuild {
             mkdir(buildDir)
@@ -4160,6 +4196,25 @@ dynamicTest("produce_dynamic") {
                 "IsInstance2 = PASS\n" +
                 "getVector128 = (1, 2, 3, 4)\n" +
                 "Error handler: kotlin.Error: Expected error\n"
+}
+
+dynamicTest("interop_concurrentRuntime") {
+    disabled = (project.testTarget != null && project.testTarget != project.hostName)
+    source = "interop/concurrentTerminate/reverseInterop.kt"
+    cSource = "$projectDir/interop/concurrentTerminate/main.cpp"
+    clangTool = "clang++"
+    goldValue = "Uncaught Kotlin exception: kotlin.RuntimeException: Example"
+    outputChecker = { str -> str.startsWith(goldValue) }
+    expectedExitStatus = 99
+}
+
+dynamicTest("interop_kt42397") {
+    disabled = (project.testTarget != null && project.testTarget != project.hostName) ||
+            project.globalTestArgs.contains('-opt')
+    source = "interop/kt42397/knlibrary.kt"
+    cSource = "$projectDir/interop/kt42397/test.cpp"
+    clangTool = "clang++"
+    flags = ['-g']
 }
 
 task library_mismatch(type: KonanDriverTest) {
@@ -4390,12 +4445,45 @@ if (isAppleTarget(project)) {
         swiftSources = ['framework/multiple']
     }
 
+    frameworkTest("testMultipleFrameworksStatic") {
+        if (cacheTesting != null) {
+            // See https://youtrack.jetbrains.com/issue/KT-34261.
+            expectedExitStatus = 134
+        }
+
+        framework('FirstStatic') {
+            artifact = 'First'
+            sources = ['framework/multiple/framework1', 'framework/multiple/shared']
+            bitcode = true
+            isStatic = true
+            opts = ['-Xstatic-framework', "-Xpre-link-caches=enable"]
+        }
+        framework('SecondStatic') {
+            artifact = 'Second'
+            sources = ['framework/multiple/framework2', 'framework/multiple/shared']
+            bitcode = true
+            isStatic = true
+            opts = ['-Xstatic-framework', "-Xpre-link-caches=enable"]
+        }
+        codesign = false
+        swiftSources = ['framework/multiple']
+    }
+
     frameworkTest("testGh3343Framework") {
         framework('Gh3343') {
             sources = ['framework/gh3343']
             library = 'objcGh3343'
         }
         swiftSources = ['framework/gh3343/']
+    }
+
+    frameworkTest("testKt42397Framework") {
+        enabled = !project.globalTestArgs.contains('-opt')
+        framework("Kt42397") {
+            sources = ['framework/kt42397']
+            opts = ['-g']
+        }
+        swiftSources = ['framework/kt42397']
     }
 }
 

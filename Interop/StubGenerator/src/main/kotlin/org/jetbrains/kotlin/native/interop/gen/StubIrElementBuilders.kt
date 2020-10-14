@@ -179,7 +179,11 @@ internal class StructStubBuilder(
         val annotation = AnnotationStub.CStruct.VarType(def.size, def.align).takeIf {
             context.generationMode == GenerationMode.METADATA
         }
-        val companion = ClassStub.Companion(companionClassifier,  superClassInit = companionSuperInit, annotations = listOfNotNull(annotation))
+        val companion = ClassStub.Companion(
+                companionClassifier,
+                superClassInit = companionSuperInit,
+                annotations = listOfNotNull(annotation, AnnotationStub.Deprecated.deprecatedCVariableCompanion)
+        )
 
         return listOf(ClassStub.Simple(
                 classifier,
@@ -301,7 +305,7 @@ internal class EnumStubBuilder(
                 origin = StubOrigin.Synthetic.EnumByValue(enumDef),
                 receiver = null,
                 modality = MemberStubModality.FINAL,
-                annotations = emptyList()
+                annotations = listOf(AnnotationStub.Deprecated.deprecatedCEnumByValue)
         )
 
         val companion = ClassStub.Companion(
@@ -366,7 +370,7 @@ internal class EnumStubBuilder(
         val companion = ClassStub.Companion(
                 classifier = enumVarClassifier.nested("Companion"),
                 superClassInit = SuperClassInit(companionSuper, listOf(typeSize)),
-                annotations = listOfNotNull(varSizeAnnotation)
+                annotations = listOfNotNull(varSizeAnnotation, AnnotationStub.Deprecated.deprecatedCVariableCompanion)
         )
         val valueProperty = PropertyStub(
                 name = "value",
@@ -471,9 +475,11 @@ internal class FunctionStubBuilder(
         val platform = context.platform
         val parameters = mutableListOf<FunctionParameterStub>()
 
+        var hasStableParameterNames = true
         func.parameters.forEachIndexed { index, parameter ->
             val parameterName = parameter.name.let {
                 if (it == null || it.isEmpty()) {
+                    hasStableParameterNames = false
                     "arg$index"
                 } else {
                     it
@@ -543,7 +549,8 @@ internal class FunctionStubBuilder(
                 annotations,
                 mustBeExternal,
                 null,
-                MemberStubModality.FINAL
+                MemberStubModality.FINAL,
+                hasStableParameterNames = hasStableParameterNames
         )
         return listOf(functionStub)
     }

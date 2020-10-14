@@ -30,6 +30,10 @@ val kotlinCompilerRepo: String by rootProperties
 val buildKotlinVersion: String by rootProperties
 val buildKotlinCompilerRepo: String by rootProperties
 val konanVersion: String by rootProperties
+val slackApiVersion: String by rootProperties
+val ktorVersion: String by rootProperties
+val shadowVersion: String by rootProperties
+val metadataVersion: String by rootProperties
 
 group = "org.jetbrains.kotlin"
 version = konanVersion
@@ -39,6 +43,7 @@ repositories {
     maven(kotlinCompilerRepo)
     maven(buildKotlinCompilerRepo)
     maven("https://cache-redirector.jetbrains.com/maven-central")
+    mavenCentral()
     maven("https://kotlin.bintray.com/kotlinx")
     maven("https://dl.bintray.com/kotlin/kotlin-dev")
 }
@@ -49,19 +54,19 @@ dependencies {
     implementation("org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion")
     implementation("org.jetbrains.kotlin:kotlin-stdlib:$kotlinVersion")
     implementation("org.jetbrains.kotlin:kotlin-reflect:$kotlinVersion")
-    implementation("com.ullink.slack:simpleslackapi:1.2.0")
+    implementation("com.ullink.slack:simpleslackapi:$slackApiVersion")
 
-    implementation("io.ktor:ktor-client-auth:1.2.1")
-    implementation("io.ktor:ktor-client-core:1.2.1")
-    implementation("io.ktor:ktor-client-cio:1.2.1")
+    implementation("io.ktor:ktor-client-auth:$ktorVersion")
+    implementation("io.ktor:ktor-client-core:$ktorVersion")
+    implementation("io.ktor:ktor-client-cio:$ktorVersion")
 
     api("org.jetbrains.kotlin:kotlin-native-utils:$kotlinVersion")
 
     // Located in <repo root>/shared and always provided by the composite build.
     api("org.jetbrains.kotlin:kotlin-native-shared:$konanVersion")
-    implementation("com.github.jengelman.gradle.plugins:shadow:5.1.0")
+    implementation("com.github.jengelman.gradle.plugins:shadow:$shadowVersion")
 
-    implementation("org.jetbrains.kotlinx:kotlinx-metadata-klib:0.0.1-dev-10")
+    implementation("org.jetbrains.kotlinx:kotlinx-metadata-klib:$metadataVersion")
 }
 
 sourceSets["main"].withConvention(KotlinSourceSet::class) {
@@ -82,6 +87,14 @@ gradlePlugin {
             id = "swift-benchmarking"
             implementationClass = "org.jetbrains.kotlin.benchmark.SwiftBenchmarkingPlugin"
         }
+        create("compileToBitcode") {
+            id = "compile-to-bitcode"
+            implementationClass = "org.jetbrains.kotlin.bitcode.CompileToBitcodePlugin"
+        }
+        create("runtimeTesting") {
+            id = "runtime-testing"
+            implementationClass = "org.jetbrains.kotlin.testing.native.RuntimeTestingPlugin"
+        }
     }
 }
 
@@ -90,6 +103,7 @@ val compileGroovy: GroovyCompile by tasks
 
 // https://youtrack.jetbrains.com/issue/KT-37435
 compileKotlin.apply {
+    kotlinOptions.jvmTarget = "1.8"
     kotlinOptions.freeCompilerArgs += listOf("-Xno-optimized-callable-references", "-Xskip-prerelease-check")
 }
 

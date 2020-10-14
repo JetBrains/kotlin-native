@@ -174,12 +174,12 @@ internal class ModuleMetadataEmitter(
                         element.kind -> element
                         else -> element.copy(kind = bridgeSupportedKind)
                     }
-                    val kind = property.kind
                     val name = getPropertyNameInScope(property, data.container)
-                    KmProperty(property.flags, name, kind.getterFlags, kind.setterFlags).also { km ->
+                    KmProperty(property.flags, name, property.getterFlags, property.setterFlags).also { km ->
                         property.annotations.mapTo(km.annotations) { it.map() }
                         km.receiverParameterType = property.receiverType?.map()
                         km.returnType = property.type.map()
+                        val kind = property.kind
                         if (kind is PropertyStub.Kind.Var) {
                             kind.setter.annotations.mapTo(km.setterAnnotations) { it.map() }
                             // TODO: Maybe it's better to explicitly add setter parameter in stub.
@@ -257,7 +257,8 @@ private class MappingExtensions(
         get() = flagsOfNotNull(
                 Flag.IS_PUBLIC,
                 Flag.Function.IS_EXTERNAL.takeIf { this.external },
-                Flag.HAS_ANNOTATIONS.takeIf { annotations.isNotEmpty() }
+                Flag.HAS_ANNOTATIONS.takeIf { annotations.isNotEmpty() },
+                Flag.Function.HAS_NON_STABLE_PARAMETER_NAMES.takeIf { !this.hasStableParameterNames }
         ) or modality.flags
 
     val Classifier.fqNameSerialized: String
@@ -285,11 +286,11 @@ private class MappingExtensions(
                 }
         ) or modality.flags
 
-    val PropertyStub.Kind.getterFlags: Flags
-        get() = when (this) {
-            is PropertyStub.Kind.Val -> getter.flags
-            is PropertyStub.Kind.Var -> getter.flags
-            is PropertyStub.Kind.Constant -> flags
+    val PropertyStub.getterFlags: Flags
+        get() = when (val kind = kind) {
+            is PropertyStub.Kind.Val -> kind.getter.flags(modality)
+            is PropertyStub.Kind.Var -> kind.getter.flags(modality)
+            is PropertyStub.Kind.Constant -> kind.flags
         }
 
     val PropertyStub.Kind.Constant.flags: Flags
@@ -298,27 +299,27 @@ private class MappingExtensions(
                 Flag.IS_FINAL
         )
 
-    private val PropertyAccessor.Getter.flags: Flags
-        get() = flagsOfNotNull(
+    private fun PropertyAccessor.Getter.flags(propertyModality: MemberStubModality): Flags =
+        flagsOfNotNull(
                 Flag.HAS_ANNOTATIONS.takeIf { annotations.isNotEmpty() },
                 Flag.IS_PUBLIC,
-                Flag.IS_FINAL,
                 Flag.PropertyAccessor.IS_NOT_DEFAULT,
                 Flag.PropertyAccessor.IS_EXTERNAL.takeIf { this is PropertyAccessor.Getter.ExternalGetter }
-        )
+        ) or propertyModality.flags
 
-    val PropertyStub.Kind.setterFlags: Flags
-        get() = if (this !is PropertyStub.Kind.Var) flagsOf()
-        else setter.flags
+    val PropertyStub.setterFlags: Flags
+        get() = when (val kind = kind) {
+            is PropertyStub.Kind.Var -> kind.setter.flags(modality)
+            else -> flagsOf()
+        }
 
-    val PropertyAccessor.Setter.flags: Flags
-        get() = flagsOfNotNull(
+    private fun PropertyAccessor.Setter.flags(propertyModality: MemberStubModality): Flags =
+        flagsOfNotNull(
                 Flag.HAS_ANNOTATIONS.takeIf { annotations.isNotEmpty() },
                 Flag.IS_PUBLIC,
-                Flag.IS_FINAL,
                 Flag.PropertyAccessor.IS_NOT_DEFAULT,
                 Flag.PropertyAccessor.IS_EXTERNAL.takeIf { this is PropertyAccessor.Setter.ExternalSetter }
-        )
+        ) or propertyModality.flags
 
     val StubType.flags: Flags
         get() = flagsOfNotNull(
@@ -348,6 +349,7 @@ private class MappingExtensions(
                 Flag.Class.IS_CLASS.takeIf { this is ClassStub.Simple && modality != ClassStubModality.INTERFACE },
                 Flag.Class.IS_ENUM_CLASS.takeIf { this is ClassStub.Enum }
         )
+
 
     val ConstructorStub.flags: Flags
         get() = flagsOfNotNull(
@@ -410,7 +412,7 @@ private class MappingExtensions(
             is AnnotationStub.Deprecated -> mapOfNotNull(
                     ("message" to message).asAnnotationArgument(),
                     ("replaceWith" to replaceWith(replaceWith)),
-                    ("level" to deprecationLevel(DeprecationLevel.ERROR))
+                    ("level" to deprecationLevel(level))
             )
             is AnnotationStub.CEnumEntryAlias -> mapOfNotNull(
                     ("entryName" to entryName).asAnnotationArgument()

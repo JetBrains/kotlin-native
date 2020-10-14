@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.backend.konan.ir.*
 import org.jetbrains.kotlin.backend.konan.llvm.coverage.LLVMCoverageInstrumentation
 import org.jetbrains.kotlin.builtins.UnsignedType
 import org.jetbrains.kotlin.descriptors.Modality
+import org.jetbrains.kotlin.descriptors.ModuleDescriptor
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.UNDEFINED_OFFSET
@@ -74,21 +75,6 @@ val IrField.isMainOnlyNonPrimitive get() = when  {
         type.computePrimitiveBinaryTypeOrNull() != null -> false
         else -> storageKind == FieldStorageKind.MAIN_THREAD
     }
-
-internal fun verifyModule(llvmModule: LLVMModuleRef, current: String = "") {
-    memScoped {
-        val errorRef = allocPointerTo<ByteVar>()
-        val verificationResult = LLVMVerifyModule(
-                llvmModule, LLVMVerifierFailureAction.LLVMPrintMessageAction, errorRef.ptr)
-        LLVMDisposeMessage(errorRef.value)
-        if (verificationResult == 1) {
-            if (current.isNotEmpty())
-                println("Error in $current")
-            LLVMDumpModule(llvmModule)
-            throw Error("Invalid module")
-        }
-    }
-}
 
 internal class RTTIGeneratorVisitor(context: Context) : IrElementVisitorVoid {
     val generator = RTTIGenerator(context)
@@ -337,6 +323,23 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         context.cAdapterGenerator.generateBindings(codegen)
     }
 
+    private fun runAndProcessInitializers(module: ModuleDescriptor, f: () -> Unit) {
+        // TODO: collect those two in one place.
+        context.llvm.fileInitializers.clear()
+        context.llvm.fileUsesThreadLocalObjects = false
+        context.llvm.globalSharedObjects.clear()
+
+        f()
+
+        if (context.llvm.fileInitializers.isEmpty() && !context.llvm.fileUsesThreadLocalObjects && context.llvm.globalSharedObjects.isEmpty()) {
+            return
+        }
+
+        // Create global initialization records.
+        val initNode = createInitNode(createInitBody())
+        context.llvm.irStaticInitializers.add(IrStaticInitializer(module, createInitCtor(initNode)))
+    }
+
     //-------------------------------------------------------------------------//
 
     override fun visitElement(element: IrElement) {
@@ -352,19 +355,22 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         initializeCachedBoxes(context)
         declaration.acceptChildrenVoid(this)
 
-        // Note: it is here because it also generates some bitcode.
-        context.objCExport.generate(codegen)
+        runAndProcessInitializers(declaration.descriptor) {
+            // Note: it is here because it also generates some bitcode.
+            context.objCExport.generate(codegen)
 
-        codegen.objCDataGenerator?.finishModule()
+            codegen.objCDataGenerator?.finishModule()
 
-        context.coverage.writeRegionInfo()
-        appendDebugSelector()
-        appendLlvmUsed("llvm.used", context.llvm.usedFunctions + context.llvm.usedGlobals)
-        appendLlvmUsed("llvm.compiler.used", context.llvm.compilerUsedGlobals)
-        appendStaticInitializers()
-        if (context.isNativeLibrary) {
-            appendCAdapters()
+            context.coverage.writeRegionInfo()
+            appendDebugSelector()
+            appendLlvmUsed("llvm.used", context.llvm.usedFunctions + context.llvm.usedGlobals)
+            appendLlvmUsed("llvm.compiler.used", context.llvm.compilerUsedGlobals)
+            if (context.isNativeLibrary) {
+                appendCAdapters()
+            }
         }
+
+        appendStaticInitializers()
     }
 
     //-------------------------------------------------------------------------//
@@ -502,21 +508,11 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     //-------------------------------------------------------------------------//
 
     override fun visitFile(declaration: IrFile) {
-        // TODO: collect those two in one place.
-        context.llvm.fileInitializers.clear()
-        context.llvm.fileUsesThreadLocalObjects = false
-        context.llvm.globalSharedObjects.clear()
-
         @Suppress("UNCHECKED_CAST")
         using(FileScope(declaration)) {
-            declaration.acceptChildrenVoid(this)
-
-            if (context.llvm.fileInitializers.isEmpty() && !context.llvm.fileUsesThreadLocalObjects && context.llvm.globalSharedObjects.isEmpty())
-                return
-
-            // Create global initialization records.
-            val initNode = createInitNode(createInitBody())
-            context.llvm.irStaticInitializers.add(IrStaticInitializer(declaration, createInitCtor(initNode)))
+            runAndProcessInitializers(declaration.packageFragmentDescriptor.module) {
+                declaration.acceptChildrenVoid(this)
+            }
         }
     }
 
@@ -1956,8 +1952,15 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
     //-------------------------------------------------------------------------//
 
-    private fun IrFunction.scope(): DIScopeOpaqueRef? = if (startOffset != UNDEFINED_OFFSET)
-        this.scope(startLine()) else null
+    // Saved calculated IrFunction scope which is used several time for getting locations and generating debug info.
+    private var irFunctionSavedScope: Pair<IrFunction, DIScopeOpaqueRef?>? = null
+
+    private fun IrFunction.scope(): DIScopeOpaqueRef? = if (startOffset != UNDEFINED_OFFSET) (
+            if (irFunctionSavedScope != null && this == irFunctionSavedScope!!.first)
+                irFunctionSavedScope!!.second
+            else
+                this.scope(startLine()).also { irFunctionSavedScope = Pair(this, it) }
+            ) else null
 
     private val IrFunction.isReifiedInline:Boolean
         get() = isInline && typeParameters.any { it.isReified }
@@ -2421,7 +2424,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         }
 
         context.llvm.irStaticInitializers.forEach {
-            val library = it.file.packageFragmentDescriptor.module.konanLibrary
+            val library = it.module.konanLibrary
             val initializers = libraryToInitializers[library]
                     ?: error("initializer for not included library ${library?.libraryFile}")
 

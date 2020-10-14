@@ -1578,10 +1578,12 @@ inline void addHeapRef(ContainerHeader* container) {
     case CONTAINER_TAG_STACK:
       break;
     case CONTAINER_TAG_LOCAL:
+      RuntimeAssert(container->refCount() > 0, "add ref for reclaimed object");
       incrementRC</* Atomic = */ false>(container);
       break;
     /* case CONTAINER_TAG_FROZEN: case CONTAINER_TAG_SHARED: */
     default:
+      RuntimeAssert(container->refCount() > 0, "add ref for reclaimed object");
       incrementRC</* Atomic = */ true>(container);
       break;
   }
@@ -1616,23 +1618,23 @@ inline bool tryAddHeapRef(const ObjHeader* header) {
   return (container != nullptr) ? tryAddHeapRef(container) : true;
 }
 
-template <bool Strict>
+template <bool Strict, bool CanCollect>
 inline void releaseHeapRef(ContainerHeader* container) {
   MEMORY_LOG("ReleaseHeapRef %p: rc=%d\n", container, container->refCount())
   UPDATE_RELEASEREF_STAT(memoryState, container, needAtomicAccess(container), canBeCyclic(container), 0)
   if (container->tag() != CONTAINER_TAG_STACK) {
     if (Strict)
-      enqueueDecrementRC</* CanCollect = */ true>(container);
+      enqueueDecrementRC</* CanCollect = */ CanCollect>(container);
     else
       decrementRC(container);
   }
 }
 
-template <bool Strict>
+template <bool Strict, bool CanCollect = true>
 inline void releaseHeapRef(const ObjHeader* header) {
   auto* container = header->container();
   if (container != nullptr)
-    releaseHeapRef<Strict>(const_cast<ContainerHeader*>(container));
+    releaseHeapRef<Strict, CanCollect>(const_cast<ContainerHeader*>(container));
 }
 
 // We use first slot as place to store frame-local arena container.
@@ -2115,7 +2117,7 @@ void updateHeapRefIfNull(ObjHeader** location, const ObjHeader* object) {
 }
 
 inline void checkIfGcNeeded(MemoryState* state) {
-  if (state != nullptr && state->allocSinceLastGc > state->allocSinceLastGcThreshold) {
+  if (state != nullptr && state->allocSinceLastGc > state->allocSinceLastGcThreshold && state->gcSuspendCount == 0) {
     // To avoid GC trashing check that at least 10ms passed since last GC.
     if (konan::getTimeMicros() - state->lastGcTimestamp > 10 * 1000) {
       GC_LOG("Calling GC from checkIfGcNeeded: %d\n", state->toRelease->size())
@@ -2125,7 +2127,8 @@ inline void checkIfGcNeeded(MemoryState* state) {
 }
 
 inline void checkIfForceCyclicGcNeeded(MemoryState* state) {
-  if (state != nullptr && state->toFree != nullptr && state->toFree->size() > kMaxToFreeSizeThreshold) {
+  if (state != nullptr && state->toFree != nullptr && state->toFree->size() > kMaxToFreeSizeThreshold
+      && state->gcSuspendCount == 0) {
     // To avoid GC trashing check that at least 10ms passed since last GC.
     if (konan::getTimeMicros() - state->lastGcTimestamp > 10 * 1000) {
       GC_LOG("Calling GC from checkIfForceCyclicGcNeeded: %d\n", state->toFree->size())
@@ -3132,6 +3135,13 @@ void ReleaseHeapRefStrict(const ObjHeader* object) {
 }
 void ReleaseHeapRefRelaxed(const ObjHeader* object) {
   releaseHeapRef<false>(const_cast<ObjHeader*>(object));
+}
+
+void ReleaseHeapRefNoCollectStrict(const ObjHeader* object) {
+  releaseHeapRef<true, /* CanCollect = */ false>(const_cast<ObjHeader*>(object));
+}
+void ReleaseHeapRefNoCollectRelaxed(const ObjHeader* object) {
+  releaseHeapRef<false, /* CanCollect = */ false>(const_cast<ObjHeader*>(object));
 }
 
 ForeignRefContext InitLocalForeignRef(ObjHeader* object) {
