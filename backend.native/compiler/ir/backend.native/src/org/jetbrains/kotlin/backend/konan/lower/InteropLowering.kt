@@ -1209,12 +1209,11 @@ private class InteropTransformer(val context: Context, override val irFile: IrFi
                     }
 
                     val targetSymbol = irCallableReference.symbol
-                    val jobPointer = IrFunctionReferenceImpl(
+                    val jobPointer = IrFunctionReferenceImpl.fromSymbolDescriptor(
                             builder.startOffset, builder.endOffset,
                             symbols.executeImpl.owner.valueParameters[3].type,
                             targetSymbol,
                             typeArgumentsCount = 0,
-                            targetSymbol.owner.valueParameters.size,
                             reflectionTarget = null)
 
                     builder.irCall(symbols.executeImpl).apply {
