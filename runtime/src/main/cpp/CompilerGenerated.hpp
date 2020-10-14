@@ -62,3 +62,4 @@ private:
 };
 
 ScopedStrictMockFunction<KInt()> ScopedCreateCleanerWorkerMock();
+ScopedStrictMockFunction<void(KInt, bool)> ScopedShutdownCleanerWorkerMock();

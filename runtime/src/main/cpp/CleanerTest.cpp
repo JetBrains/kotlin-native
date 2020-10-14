@@ -14,7 +14,8 @@
 #include "Atomic.h"
 #include "CompilerGenerated.hpp"
 
-// TODO: Test concurrent creation of cleaner workers with possible shutdown.
+using testing::_;
+
 // TODO: Also test disposal. (This requires extracting Worker interface)
 
 TEST(CleanerTest, ConcurrentCreation) {
@@ -47,4 +48,25 @@ TEST(CleanerTest, ConcurrentCreation) {
 
     ASSERT_THAT(values.size(), threadCount);
     EXPECT_THAT(values, testing::Each(workerId));
+}
+
+TEST(CleanerTest, ShutdownWithoutCreation) {
+    auto shutdownCleanerWorkerMock = ScopedShutdownCleanerWorkerMock();
+
+    EXPECT_CALL(shutdownCleanerWorkerMock, Call(_, _)).Times(0);
+    ShutdownCleaners(true);
+}
+
+TEST(CleanerTest, ShutdownWithCreation) {
+    constexpr KInt workerId = 42;
+    constexpr bool executeScheduledCleaners = true;
+
+    auto createCleanerWorkerMock = ScopedCreateCleanerWorkerMock();
+    auto shutdownCleanerWorkerMock = ScopedShutdownCleanerWorkerMock();
+
+    EXPECT_CALL(createCleanerWorkerMock, Call()).WillOnce(testing::Return(workerId));
+    Kotlin_CleanerImpl_getCleanerWorker();
+
+    EXPECT_CALL(shutdownCleanerWorkerMock, Call(workerId, executeScheduledCleaners));
+    ShutdownCleaners(executeScheduledCleaners);
 }

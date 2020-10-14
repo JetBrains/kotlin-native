@@ -39,6 +39,7 @@ struct KBox {
 };
 
 testing::StrictMock<testing::MockFunction<KInt()>>* createCleanerWorkerMock = nullptr;
+testing::StrictMock<testing::MockFunction<void(KInt, bool)>>* shutdownCleanerWorkerMock = nullptr;
 
 } // namespace
 
@@ -237,7 +238,9 @@ RUNTIME_NORETURN OBJ_GETTER(Kotlin_Throwable_getMessage, KRef throwable) {
 }
 
 void Kotlin_CleanerImpl_shutdownCleanerWorker(KInt worker, bool executeScheduledCleaners) {
-    throw std::runtime_error("Not implemented for tests");
+    if (!shutdownCleanerWorkerMock) throw std::runtime_error("Not implemented for tests");
+
+    return shutdownCleanerWorkerMock->Call(worker, executeScheduledCleaners);
 }
 
 KInt Kotlin_CleanerImpl_createCleanerWorker() {
@@ -250,4 +253,8 @@ KInt Kotlin_CleanerImpl_createCleanerWorker() {
 
 ScopedStrictMockFunction<KInt()> ScopedCreateCleanerWorkerMock() {
     return ScopedStrictMockFunction<KInt()>(&createCleanerWorkerMock);
+}
+
+ScopedStrictMockFunction<void(KInt, bool)> ScopedShutdownCleanerWorkerMock() {
+    return ScopedStrictMockFunction<void(KInt, bool)>(&shutdownCleanerWorkerMock);
 }
