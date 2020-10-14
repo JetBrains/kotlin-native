@@ -6,6 +6,6 @@
 #include "testlib_api.h"
 
 int main() {
-  testlib_symbols()->kotlin.root.initializeGlobalCleaner();
-  return 0;
+    testlib_symbols()->kotlin.root.initializeGlobalCleaner();
+    return 0;
 }

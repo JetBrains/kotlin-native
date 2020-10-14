@@ -6,7 +6,7 @@
 #include "testlib_api.h"
 
 int main() {
-  testlib_symbols()->kotlin.root.createCleaner();
-  testlib_symbols()->kotlin.root.performGC();
-  return 0;
+    testlib_symbols()->kotlin.root.createCleaner();
+    testlib_symbols()->kotlin.root.performGC();
+    return 0;
 }

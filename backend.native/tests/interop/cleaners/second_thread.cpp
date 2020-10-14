@@ -8,10 +8,8 @@
 #include <thread>
 
 int main() {
-  std::thread t([]() {
-    testlib_symbols()->kotlin.root.createCleaner();
-  });
-  t.join();
-  testlib_symbols()->kotlin.root.performGC();
-  return 0;
+    std::thread t([]() { testlib_symbols()->kotlin.root.createCleaner(); });
+    t.join();
+    testlib_symbols()->kotlin.root.performGC();
+    return 0;
 }
