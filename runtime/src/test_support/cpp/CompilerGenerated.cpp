@@ -3,6 +3,8 @@
  * that can be found in the LICENSE file.
  */
 
+#include "CompilerGenerated.hpp"
+
 #include "Types.h"
 
 namespace {
@@ -35,6 +37,8 @@ struct KBox {
     ObjHeader header;
     const T value;
 };
+
+testing::StrictMock<testing::MockFunction<KInt()>>* createCleanerWorkerMock = nullptr;
 
 } // namespace
 
@@ -233,11 +237,17 @@ RUNTIME_NORETURN OBJ_GETTER(Kotlin_Throwable_getMessage, KRef throwable) {
 }
 
 void Kotlin_CleanerImpl_shutdownCleanerWorker(KInt worker, bool executeScheduledCleaners) {
-  throw std::runtime_error("Not implemented for tests");
+    throw std::runtime_error("Not implemented for tests");
 }
 
 KInt Kotlin_CleanerImpl_createCleanerWorker() {
-  throw std::runtime_error("Not implemented for tests");
+    if (!createCleanerWorkerMock) throw std::runtime_error("Not implemented for tests");
+
+    return createCleanerWorkerMock->Call();
 }
 
 } // extern "C"
+
+ScopedStrictMockFunction<KInt()> ScopedCreateCleanerWorkerMock() {
+    return ScopedStrictMockFunction<KInt()>(&createCleanerWorkerMock);
+}
