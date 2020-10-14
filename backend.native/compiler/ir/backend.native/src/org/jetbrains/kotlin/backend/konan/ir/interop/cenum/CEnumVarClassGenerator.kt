@@ -57,7 +57,7 @@ internal class CEnumVarClassGenerator(
                 interopBuiltIns.cEnumVar.unsubstitutedPrimaryConstructor!!
         )
         irConstructor.body = irBuilder(irBuiltIns, irConstructor.symbol, SYNTHETIC_OFFSET, SYNTHETIC_OFFSET).irBlockBody {
-            +IrDelegatingConstructorCallImpl(
+            +IrDelegatingConstructorCallImpl.fromSymbolDescriptor(
                     startOffset, endOffset, context.irBuiltIns.unitType, enumVarConstructorSymbol
             ).also {
                 it.putValueArgument(0, irGet(irConstructor.valueParameters[0]))
@@ -79,7 +79,7 @@ internal class CEnumVarClassGenerator(
         val superConstructorSymbol = symbolTable.referenceConstructor(interopBuiltIns.cPrimitiveVarType.unsubstitutedPrimaryConstructor!!)
         return createConstructor(companionObjectDescriptor.unsubstitutedPrimaryConstructor!!).also {
             it.body = irBuilder(irBuiltIns, it.symbol, SYNTHETIC_OFFSET, SYNTHETIC_OFFSET).irBlockBody {
-                +IrDelegatingConstructorCallImpl(
+                +IrDelegatingConstructorCallImpl.fromSymbolDescriptor(
                         startOffset, endOffset, context.irBuiltIns.unitType,
                         superConstructorSymbol
                 ).also {
