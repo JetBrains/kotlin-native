@@ -239,9 +239,9 @@ internal class KonanSymbols(
                     .single()
     )
 
-    val createCleanerImpl = symbolTable.referenceSimpleFunction(
+    val createCleaner = symbolTable.referenceSimpleFunction(
             builtIns.builtInsModule.getPackage(FqName("kotlin.native.internal")).memberScope
-                    .getContributedFunctions(Name.identifier("createCleanerImpl"), NoLookupLocation.FROM_BACKEND)
+                    .getContributedFunctions(Name.identifier("createCleaner"), NoLookupLocation.FROM_BACKEND)
                     .single()
     )
 

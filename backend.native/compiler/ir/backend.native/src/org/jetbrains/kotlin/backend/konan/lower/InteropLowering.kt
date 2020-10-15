@@ -1221,21 +1221,6 @@ private class InteropTransformer(val context: Context, override val irFile: IrFi
                         putValueArgument(3, jobPointer)
                     }
                 }
-                IntrinsicType.CREATE_CLEANER -> {
-                    val irCallableReference = expression.getValueArgument(1)
-                    if (irCallableReference == null || !irCallableReference.isNonCapturingFunction()) {
-                        context.reportCompilationError(
-                                "${function.fqNameForIrSerialization} must take an unbound, non-capturing function or lambda",
-                                irFile, expression
-                        )
-                    }
-
-                    builder.irCall(symbols.createCleanerImpl).apply {
-                        putTypeArgument(0, expression.getTypeArgument(0))
-                        putValueArgument(0, expression.getValueArgument(0))
-                        putValueArgument(1, expression.getValueArgument(1))
-                    }
-                }
                 else -> expression
             }
         }
@@ -1245,6 +1230,17 @@ private class InteropTransformer(val context: Context, override val irFile: IrFi
                 builder.irCall(symbols.interopCPointerGetRawValue).apply {
                     extensionReceiver = expression.dispatchReceiver
                 }
+            // TODO: Move this check out of InteropLowering.
+            symbols.createCleaner.owner -> {
+                val irCallableReference = expression.getValueArgument(1)
+                if (irCallableReference == null || !irCallableReference.isNonCapturingFunction()) {
+                    context.reportCompilationError(
+                            "${function.fqNameForIrSerialization} must take an unbound, non-capturing function or lambda",
+                            irFile, expression
+                    )
+                }
+                expression
+            }
             else -> expression
         }
     }

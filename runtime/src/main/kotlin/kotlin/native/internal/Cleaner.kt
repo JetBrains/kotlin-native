@@ -65,10 +65,27 @@ public interface Cleaner
  * @param argument must be shareable
  * @param block must not capture anything
  */
-// TODO: Consider just annotating the lambda argument rather than using intrinsic.
+// TODO: Consider just annotating the lambda argument rather than hardcoding checking
+// by function name in the compiler.
 @ExperimentalStdlibApi
-@TypedIntrinsic(IntrinsicType.CREATE_CLEANER)
-external fun <T> createCleaner(argument: T, block: (T) -> Unit): Cleaner
+@ExportForCompiler
+fun <T> createCleaner(argument: T, block: (T) -> Unit): Cleaner {
+    if (!argument.isShareable())
+        throw IllegalArgumentException("$argument must be shareable")
+
+    val clean = {
+        // TODO: Maybe if this fails with exception, it should be (optionally) reported.
+        block(argument)
+    }.freeze()
+
+    // Make sure there's an extra reference to clean, so it's definitely alive when CleanerImpl is destroyed.
+    val cleanPtr = createStablePointer(clean)
+
+    // Make sure cleaner worker is initialized.
+    getCleanerWorker()
+
+    return CleanerImpl(cleanPtr).freeze()
+}
 
 /**
  * Perform GC on a worker that executes Cleaner blocks.
@@ -104,22 +121,3 @@ external private fun Any?.isShareable(): Boolean
 
 @SymbolName("CreateStablePointer")
 external private fun createStablePointer(obj: Any): NativePtr
-
-@ExportForCompiler
-private fun <T> createCleanerImpl(argument: T, block: (T) -> Unit): Cleaner {
-    if (!argument.isShareable())
-        throw IllegalArgumentException("$argument must be shareable")
-
-    val clean = {
-        // TODO: Maybe if this fails with exception, it should be (optionally) reported.
-        block(argument)
-    }.freeze()
-
-    // Make sure there's an extra reference to clean, so it's definitely alive when CleanerImpl is destroyed.
-    val cleanPtr = createStablePointer(clean)
-
-    // Make sure cleaner worker is initialized.
-    getCleanerWorker()
-
-    return CleanerImpl(cleanPtr).freeze()
-}
