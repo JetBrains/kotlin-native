@@ -3,7 +3,7 @@
  * that can be found in the LICENSE file.
  */
 
-#include "CompilerGenerated.hpp"
+#include "TestSupportCompilerGenerated.hpp"
 
 #include "Types.h"
 

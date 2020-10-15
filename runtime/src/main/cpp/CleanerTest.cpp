@@ -12,7 +12,7 @@
 #include "gtest/gtest.h"
 
 #include "Atomic.h"
-#include "CompilerGenerated.hpp"
+#include "TestSupportCompilerGenerated.hpp"
 
 using testing::_;
 
