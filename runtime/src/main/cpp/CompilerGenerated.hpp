@@ -44,7 +44,7 @@ public:
         testing::Mock::VerifyAndClear(mock_.get());
         mock_.reset();
 
-        globalMockLocation_ = nullptr;
+        *globalMockLocation_ = nullptr;
     }
 
     void swap(ScopedStrictMockFunction& other) {

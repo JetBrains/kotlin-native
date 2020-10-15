@@ -15,4 +15,6 @@ void ShutdownCleaners(bool executeScheduledCleaners);
 
 extern "C" KInt Kotlin_CleanerImpl_getCleanerWorker();
 
+void ResetCleanerWorkerForTests();
+
 #endif // RUNTIME_CLEANER_H

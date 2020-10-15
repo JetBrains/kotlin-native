@@ -123,3 +123,7 @@ extern "C" KInt Kotlin_CleanerImpl_getCleanerWorker() {
 
     return worker;
 }
+
+void ResetCleanerWorkerForTests() {
+    atomicSet(&globalCleanerWorker, kCleanerWorkerUninitialized);
+}
