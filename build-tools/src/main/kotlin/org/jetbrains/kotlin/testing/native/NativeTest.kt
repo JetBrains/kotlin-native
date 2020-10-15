@@ -260,6 +260,11 @@ open class MergeTestReports @Inject constructor(
         val workingDir = project.buildDir.resolve("testReports/$testTaskName")
         workingDir.mkdirs()
         workingDir.resolve("report.xml").writeText(combinedXmlReport.toString())
+
+        // TODO: REMOVE THIS
+        for (testTask in testTasks) {
+            project.buildDir.resolve("testReports/$testTask/report.xml").writeText(combinedXmlReport.toString())
+        }
     }
 }
 
