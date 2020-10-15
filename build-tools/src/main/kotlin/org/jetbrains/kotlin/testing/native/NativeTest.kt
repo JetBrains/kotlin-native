@@ -240,3 +240,31 @@ fun createTestTask(
         }
     }
 }
+
+open class MergeTestReports @Inject constructor(
+    @Input private val testTaskName: String,
+    @Input private val testTasks: List<String>
+): DefaultTask() {
+
+    @TaskAction
+    fun run() {
+        val combinedXmlReport = StringBuilder()
+        val header = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+        combinedXmlReport.append(header)
+
+        for (testTask in testTasks) {
+            val xmlReport = project.buildDir.resolve("testReports/$testTask/report.xml").readText()
+            combinedXmlReport.append(xmlReport.replace(header, "").replace("name=\"AllTests\"", "name=\"${testTask}\""))
+        }
+
+        val workingDir = project.buildDir.resolve("testReports/$testTaskName")
+        workingDir.mkdirs()
+        workingDir.resolve("report.xml").writeText(combinedXmlReport.toString())
+    }
+}
+
+fun mergeTestTasks(project: Project, testTaskName: String, testTasks: List<String>): Task {
+    return project.tasks.create(testTaskName, MergeTestReports::class.java, testTaskName, testTasks).apply {
+        dependsOn(testTasks)
+    }
+}

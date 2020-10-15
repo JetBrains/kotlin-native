@@ -118,10 +118,14 @@ targetList.forEach { targetName ->
             )
     )
 
-    tasks.register("${targetName}RuntimeTests") {
-        dependsOn("${targetName}StdAllocRuntimeTests")
-        dependsOn("${targetName}MimallocRuntimeTests")
-    }
+    mergeTestTasks(
+            project,
+            "${targetName}RuntimeTests",
+            listOf(
+                "${targetName}StdAllocRuntimeTests",
+                "${targetName}MimallocRuntimeTests"
+            )
+    )
 }
 
 val hostRuntime by tasks.registering {
