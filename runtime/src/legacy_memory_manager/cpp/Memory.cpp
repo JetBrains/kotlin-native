@@ -46,6 +46,11 @@
 #include "Runtime.h"
 #include "Utils.h"
 #include "WorkerBoundReference.h"
+#include "Weak.h"
+
+#ifdef KONAN_OBJC_INTEROP
+#include "ObjCExport.h"
+#endif
 
 // If garbage collection algorithm for cyclic garbage to be used.
 // We are using the Bacon's algorithm for GC, see
@@ -65,6 +70,8 @@
 #endif
 
 namespace {
+
+typedef uint32_t container_size_t;
 
 // Granularity of arena container chunks.
 constexpr container_size_t kContainerAlignment = 1024;
@@ -322,7 +329,7 @@ public:
 
   static int toIndex(const ObjHeader* obj, int stack) {
     if (reinterpret_cast<uintptr_t>(obj) > 1)
-        return toIndex(obj->container(), stack);
+        return toIndex(containerFor(obj), stack);
     else
         return 4 + stack * 6;
   }
@@ -430,7 +437,69 @@ inline bool isShareable(ContainerHeader* container) {
     return container == nullptr || container->shareable();
 }
 
+MetaObjHeader* createMetaObject(TypeInfo** location);
+
+void destroyMetaObject(TypeInfo** location);
+
+bool has_meta_object(const ObjHeader* obj) {
+  auto* typeInfoOrMeta = clearPointerBits(obj->typeInfoOrMeta_, OBJECT_TAG_MASK);
+  return (typeInfoOrMeta != typeInfoOrMeta->typeInfo_);
+}
+
+MetaObjHeader* meta_object_for(ObjHeader* obj) {
+   return has_meta_object(obj) ?
+      reinterpret_cast<MetaObjHeader*>(clearPointerBits(obj->typeInfoOrMeta_, OBJECT_TAG_MASK)) :
+      createMetaObject(&obj->typeInfoOrMeta_);
+}
+
+void setContainerFor(ObjHeader* obj, ContainerHeader* container) {
+  meta_object_for(obj)->container_ = container;
+  obj->typeInfoOrMeta_ = setPointerBits(obj->typeInfoOrMeta_, OBJECT_TAG_NONTRIVIAL_CONTAINER);
+}
+
 }  // namespace
+
+ContainerHeader* containerFor(const ObjHeader* obj) {
+  unsigned bits = getPointerBits(obj->typeInfoOrMeta_, OBJECT_TAG_MASK);
+  if ((bits & (OBJECT_TAG_PERMANENT_CONTAINER | OBJECT_TAG_NONTRIVIAL_CONTAINER)) == 0)
+    return reinterpret_cast<ContainerHeader*>(const_cast<ObjHeader*>(obj)) - 1;
+  if ((bits & OBJECT_TAG_PERMANENT_CONTAINER) != 0)
+    return nullptr;
+  return (reinterpret_cast<MetaObjHeader*>(clearPointerBits(obj->typeInfoOrMeta_, OBJECT_TAG_MASK)))->container_;
+}
+
+ALWAYS_INLINE bool isPermanentOrFrozen(const ObjHeader* obj) {
+    auto* container = containerFor(obj);
+    return container == nullptr || container->frozen();
+}
+
+ALWAYS_INLINE bool isShareable(const ObjHeader* obj) {
+    auto* container = containerFor(obj);
+    return container == nullptr || container->shareable();
+}
+
+ObjHeader** ObjHeader::GetWeakCounterLocation() {
+    return &meta_object_for(this)->WeakReference.counter_;
+}
+
+#if KONAN_OBJC_INTEROP
+
+void* ObjHeader::GetAssociatedObject() {
+    if (!has_meta_object(this)) {
+      return nullptr;
+    }
+    return meta_object_for(this)->associatedObject_;
+}
+
+void** ObjHeader::GetAssociatedObjectLocation() {
+    return &meta_object_for(this)->associatedObject_;
+}
+
+void ObjHeader::SetAssociatedObject(void* obj) {
+    meta_object_for(this)->associatedObject_ = obj;
+}
+
+#endif // KONAN_OBJC_INTEROP
 
 class ForeignRefManager {
  public:
@@ -590,7 +659,7 @@ struct MemoryState {
     state->statistic.incFree(container);
   #define OBJECT_ALLOC_STAT(state, size, object) \
     state->statistic.incAlloc(size, object); \
-    state->statistic.incAddRef(object->container(), 0, 0);
+    state->statistic.incAddRef(containerFor(object), 0, 0);
   #define UPDATE_REF_STAT(state, oldRef, newRef, slot, stack) \
     state->statistic.incUpdateRef(oldRef, newRef, stack);
   #define UPDATE_ADDREF_STAT(state, obj, atomic, stack) \
@@ -769,7 +838,7 @@ class ArenaContainer {
 
   void setHeader(ObjHeader* obj, const TypeInfo* typeInfo) {
     obj->typeInfoOrMeta_ = const_cast<TypeInfo*>(typeInfo);
-    obj->setContainer(currentChunk_->asHeader());
+    setContainerFor(obj, currentChunk_->asHeader());
     // Here we do not take into account typeInfo's immutability for ARC strategy, as there's no ARC.
   }
 
@@ -813,7 +882,7 @@ inline container_size_t alignUp(container_size_t size, int alignment) {
 
 inline ContainerHeader* realShareableContainer(ContainerHeader* container) {
   RuntimeAssert(container->shareable(), "Only makes sense on shareable objects");
-  return reinterpret_cast<ObjHeader*>(container + 1)->container();
+  return containerFor(reinterpret_cast<ObjHeader*>(container + 1));
 }
 
 inline uint32_t arrayObjectSize(const TypeInfo* typeInfo, uint32_t count) {
@@ -894,7 +963,7 @@ inline FrameOverlay* asFrameOverlay(ObjHeader** slot) {
 }
 
 inline bool isRefCounted(KConstRef object) {
-  return isFreeable(object->container());
+  return isFreeable(containerFor(object));
 }
 
 inline void lock(KInt* spinlock) {
@@ -973,7 +1042,7 @@ ContainerHeader* allocAggregatingFrozenContainer(KStdVector<ContainerHeader*>& c
     *place++ = container;
     // Set link to the new container.
     auto* obj = reinterpret_cast<ObjHeader*>(container + 1);
-    obj->setContainer(superContainer);
+    setContainerFor(obj, superContainer);
     MEMORY_LOG("Set fictitious frozen container for %p: %p\n", obj, superContainer);
   }
   superContainer->setObjectCount(componentSize);
@@ -1012,7 +1081,7 @@ bool hasExternalRefs(ContainerHeader* start, ContainerHeaderSet* visited) {
       return true;
     }
     traverseContainerReferredObjects(container, [&toVisit, visited](ObjHeader* ref) {
-        auto* child = ref->container();
+        auto* child = containerFor(ref);
         if (!isShareable(child) && (visited->count(child) == 0)) {
            toVisit.push_front(child);
         }
@@ -1093,8 +1162,8 @@ ALWAYS_INLINE void runDeallocationHooks(ContainerHeader* container) {
 #if USE_CYCLE_DETECTOR
     CycleDetector::removeCandidateIfNeeded(obj);
 #endif  // USE_CYCLE_DETECTOR
-    if (obj->has_meta_object()) {
-      ObjHeader::destroyMetaObject(&obj->typeInfoOrMeta_);
+    if (has_meta_object(obj)) {
+      destroyMetaObject(&obj->typeInfoOrMeta_);
     }
     obj = reinterpret_cast<ObjHeader*>(reinterpret_cast<uintptr_t>(obj) + objectSize(obj));
   }
@@ -1151,11 +1220,11 @@ void depthFirstTraversal(ContainerHeader* start, bool* hasCycles,
     traverseContainerReferredObjects(container, [container, hasCycles, firstBlocker, &toVisit](ObjHeader* obj) {
       if (*firstBlocker != nullptr)
         return;
-      if (obj->has_meta_object() && ((obj->meta_object()->flags_ & MF_NEVER_FROZEN) != 0)) {
+      if (has_meta_object(obj) && ((meta_object_for(obj)->flags_ & MF_NEVER_FROZEN) != 0)) {
           *firstBlocker = obj;
           return;
       }
-      ContainerHeader* objContainer = obj->container();
+      ContainerHeader* objContainer = containerFor(obj);
       if (canFreeze(objContainer)) {
         // Marked GREY, there's cycle.
         if (objContainer->seen()) *hasCycles = true;
@@ -1384,7 +1453,7 @@ void dumpWorker(const char* prefix, ContainerHeader* header, ContainerHeaderSet*
   seen->insert(header);
   if (!isAggregatingFrozenContainer(header)) {
     traverseContainerReferredObjects(header, [prefix, seen](ObjHeader* ref) {
-      auto* child = ref->container();
+      auto* child = containerFor(ref);
       RuntimeAssert(!isArena(child), "A reference to local object is encountered");
       if (child != nullptr && (seen->count(child) == 0)) {
         dumpWorker(prefix, child, seen);
@@ -1433,7 +1502,7 @@ void markGray(ContainerHeader* start) {
     }
 
     traverseContainerReferredObjects(container, [&toVisit](ObjHeader* ref) {
-      auto* childContainer = ref->container();
+      auto* childContainer = containerFor(ref);
       RuntimeAssert(!isArena(childContainer), "A reference to local object is encountered");
       if (!isShareable(childContainer)) {
         childContainer->decRefCount<false>();
@@ -1460,7 +1529,7 @@ void scanBlack(ContainerHeader* start) {
       container->unMark();
     }
     traverseContainerReferredObjects(container, [&toVisit](ObjHeader* ref) {
-        auto childContainer = ref->container();
+        auto childContainer = containerFor(ref);
         RuntimeAssert(!isArena(childContainer), "A reference to local object is encountered");
         if (!isShareable(childContainer)) {
           childContainer->incRefCount<false>();
@@ -1539,7 +1608,7 @@ void scan(ContainerHeader* start) {
      }
      container->setColorAssertIfGreen(CONTAINER_TAG_GC_WHITE);
      traverseContainerReferredObjects(container, [&toVisit](ObjHeader* ref) {
-       auto* childContainer = ref->container();
+       auto* childContainer = containerFor(ref);
        RuntimeAssert(!isArena(childContainer), "A reference to local object is encountered");
        if (!isShareable(childContainer)) {
          toVisit.push_front(childContainer);
@@ -1560,7 +1629,7 @@ void collectWhite(MemoryState* state, ContainerHeader* start) {
      traverseContainerObjectFields(container, [&toVisit](ObjHeader** location) {
         auto* ref = *location;
         if (ref == nullptr) return;
-        auto* childContainer = ref->container();
+        auto* childContainer = containerFor(ref);
         RuntimeAssert(!isArena(childContainer), "A reference to local object is encountered");
         if (isShareable(childContainer)) {
           ZeroHeapRef(location);
@@ -1603,7 +1672,7 @@ inline void addHeapRef(ContainerHeader* container) {
 }
 
 inline void addHeapRef(const ObjHeader* header) {
-  auto* container = header->container();
+  auto* container = containerFor(header);
   if (container != nullptr)
     addHeapRef(const_cast<ContainerHeader*>(container));
 }
@@ -1627,7 +1696,7 @@ inline bool tryAddHeapRef(ContainerHeader* container) {
 }
 
 inline bool tryAddHeapRef(const ObjHeader* header) {
-  auto* container = header->container();
+  auto* container = containerFor(header);
   return (container != nullptr) ? tryAddHeapRef(container) : true;
 }
 
@@ -1645,7 +1714,7 @@ inline void releaseHeapRef(ContainerHeader* container) {
 
 template <bool Strict, bool CanCollect = true>
 inline void releaseHeapRef(const ObjHeader* header) {
-  auto* container = header->container();
+  auto* container = containerFor(header);
   if (container != nullptr)
     releaseHeapRef<Strict, CanCollect>(const_cast<ContainerHeader*>(container));
 }
@@ -1685,7 +1754,7 @@ void incrementStack(MemoryState* state) {
     while (current < end) {
       ObjHeader* obj = *current++;
       if (obj != nullptr) {
-        auto* container = obj->container();
+        auto* container = containerFor(obj);
         if (container == nullptr) continue;
         if (container->shareable()) {
           incrementRC<true>(container);
@@ -1713,7 +1782,7 @@ void processDecrements(MemoryState* state) {
   }
 
   state->foreignRefManager->processEnqueuedReleaseRefsWith([](ObjHeader* obj) {
-    ContainerHeader* container = obj->container();
+    ContainerHeader* container = containerFor(obj);
     if (container != nullptr) decrementRC(container);
   });
   state->gcSuspendCount--;
@@ -1730,7 +1799,7 @@ void decrementStack(MemoryState* state) {
       ObjHeader* obj = *current++;
       if (obj != nullptr) {
         MEMORY_LOG("decrement stack %p\n", obj)
-        auto* container = obj->container();
+        auto* container = containerFor(obj);
         if (container != nullptr)
           enqueueDecrementRC</* CanCollect = */ false>(container);
       }
@@ -1897,7 +1966,7 @@ bool isForeignRefAccessible(ObjHeader* object, ForeignRefManager* manager) {
   }
 
   // Note: getting container and checking it with 'isShareable()' is supposed to be correct even for unowned object.
-  return isShareable(object->container());
+  return isShareable(containerFor(object));
 }
 
 void deinitForeignRef(ObjHeader* object, ForeignRefManager* manager) {
@@ -2322,7 +2391,7 @@ OBJ_GETTER(swapHeapRefLocked,
 
   if (IsStrictMemoryModel && shallRemember && oldValue != nullptr && oldValue != expectedValue) {
     // Only remember container if it is not known to this thread (i.e. != expectedValue).
-    rememberNewContainer(oldValue->container());
+    rememberNewContainer(containerFor(oldValue));
   }
   unlock(spinlock);
 
@@ -2357,7 +2426,7 @@ OBJ_GETTER(readHeapRefLocked, ObjHeader** location, int32_t* spinlock, int32_t* 
   UpdateReturnRef(OBJ_RESULT, value);
 #if USE_GC
   if (IsStrictMemoryModel && shallRemember && value != nullptr) {
-    auto* container = value->container();
+    auto* container = containerFor(value);
     rememberNewContainer(container);
   }
 #endif  // USE_GC
@@ -2373,7 +2442,7 @@ OBJ_GETTER(readHeapRefNoLock, ObjHeader* object, KInt index) {
 #if USE_GC
   if (IsStrictMemoryModel && (value != nullptr)) {
     // Maybe not so good to do that under lock.
-    rememberNewContainer(value->container());
+    rememberNewContainer(containerFor(value));
   }
 #endif  // USE_GC
   RETURN_OBJ(value);
@@ -2506,7 +2575,7 @@ KBoolean getTuneGCThreshold() {
 
 KNativePtr createStablePointer(KRef any) {
   if (any == nullptr) return nullptr;
-  MEMORY_LOG("CreateStablePointer for %p rc=%d\n", any, any->container() ? any->container()->refCount() : 0)
+  MEMORY_LOG("CreateStablePointer for %p rc=%d\n", any, containerFor(any) ? containerFor(any)->refCount() : 0)
   addHeapRef(any);
   return reinterpret_cast<KNativePtr>(any);
 }
@@ -2527,7 +2596,7 @@ OBJ_GETTER(adoptStablePointer, KNativePtr pointer) {
   synchronize();
   KRef ref = reinterpret_cast<KRef>(pointer);
   MEMORY_LOG("adopting stable pointer %p, rc=%d\n", \
-     ref, (ref && ref->container()) ? ref->container()->refCount() : -1)
+     ref, (ref && containerFor(ref)) ? containerFor(ref)->refCount() : -1)
   UpdateReturnRef(OBJ_RESULT, ref);
   DisposeStablePointer(pointer);
   return ref;
@@ -2538,7 +2607,7 @@ bool clearSubgraphReferences(ObjHeader* root, bool checked) {
   MEMORY_LOG("ClearSubgraphReferences %p\n", root)
   if (root == nullptr) return true;
   auto state = memoryState;
-  auto* container = root->container();
+  auto* container = containerFor(root);
 
   if (isShareable(container))
     // We assume, that frozen/shareable objects can be safely passed and not present
@@ -2624,7 +2693,7 @@ void freezeAcyclic(ContainerHeader* rootContainer, ContainerHeaderSet* newlyFroz
     MEMORY_LOG("freezing %p\n", current)
     current->freeze();
     traverseContainerReferredObjects(current, [&queue](ObjHeader* obj) {
-        ContainerHeader* objContainer = obj->container();
+        ContainerHeader* objContainer = containerFor(obj);
         if (canFreeze(objContainer)) {
           if (objContainer->marked())
             queue.push_back(objContainer);
@@ -2642,11 +2711,11 @@ void freezeCyclic(ObjHeader* root,
   while (!queue.empty()) {
     ObjHeader* current = queue.front();
     queue.pop_front();
-    ContainerHeader* currentContainer = current->container();
+    ContainerHeader* currentContainer = containerFor(current);
     currentContainer->unMark();
     reversedEdges.emplace(currentContainer, KStdVector<ContainerHeader*>(0));
     traverseContainerReferredObjects(currentContainer, [current, currentContainer, &queue, &reversedEdges](ObjHeader* obj) {
-          ContainerHeader* objContainer = obj->container();
+          ContainerHeader* objContainer = containerFor(obj);
           if (canFreeze(objContainer)) {
             if (objContainer->marked())
               queue.push_back(obj);
@@ -2687,7 +2756,7 @@ void freezeCyclic(ObjHeader* root,
         continue;
       }
       traverseContainerReferredObjects(container, [&internalRefsCount](ObjHeader* obj) {
-          auto* container = obj->container();
+          auto* container = containerFor(obj);
           if (canFreeze(container))
             ++internalRefsCount;
         });
@@ -2739,7 +2808,7 @@ void runFreezeHooksRecursive(ObjHeader* root) {
     traverseReferredObjects(obj, [&seen, &toVisit](ObjHeader* field) {
       auto wasNotSeenYet = seen.insert(field).second;
       // Only iterating on unseen objects which containers will get frozen by freezeCyclic or freezeAcyclic.
-      if (wasNotSeenYet && canFreeze(field->container())) {
+      if (wasNotSeenYet && canFreeze(containerFor(field))) {
         toVisit.push_back(field);
       }
     });
@@ -2773,7 +2842,7 @@ void freezeSubgraph(ObjHeader* root) {
   if (root == nullptr) return;
   // First check that passed object graph has no cycles.
   // If there are cycles - run graph condensation on cyclic graphs using Kosoraju-Sharir.
-  ContainerHeader* rootContainer = root->container();
+  ContainerHeader* rootContainer = containerFor(root);
   if (isPermanentOrFrozen(rootContainer)) return;
 
   MEMORY_LOG("Run freeze hooks on subgraph of %p\n", root);
@@ -2792,7 +2861,7 @@ void freezeSubgraph(ObjHeader* root) {
 
   // Do DFS cycle detection.
   bool hasCycles = false;
-  KRef firstBlocker = root->has_meta_object() && ((root->meta_object()->flags_ & MF_NEVER_FROZEN) != 0) ?
+  KRef firstBlocker = has_meta_object(root) && ((meta_object_for(root)->flags_ & MF_NEVER_FROZEN) != 0) ?
     root : nullptr;
   KStdVector<ContainerHeader*> order;
   depthFirstTraversal(rootContainer, &hasCycles, &firstBlocker, &order);
@@ -2823,16 +2892,16 @@ void freezeSubgraph(ObjHeader* root) {
 }
 
 void ensureNeverFrozen(ObjHeader* object) {
-   auto* container = object->container();
+   auto* container = containerFor(object);
    if (container == nullptr || container->frozen())
       ThrowFreezingException(object, object);
    // TODO: note, that this API could not not be called on frozen objects, so no need to care much about concurrency,
    // although there's subtle race with case, where other thread freezes the same object after check.
-   object->meta_object()->flags_ |= MF_NEVER_FROZEN;
+   meta_object_for(object)->flags_ |= MF_NEVER_FROZEN;
 }
 
 void shareAny(ObjHeader* obj) {
-  auto* container = obj->container();
+  auto* container = containerFor(obj);
   if (isShareable(container)) return;
   RuntimeCheck(container->objectCount() == 1, "Must be a single object container");
   container->makeShared();
@@ -2961,9 +3030,7 @@ OBJ_GETTER(findCycle, KRef root) {
 
 #endif  // USE_CYCLE_DETECTOR
 
-}  // namespace
-
-MetaObjHeader* ObjHeader::createMetaObject(TypeInfo** location) {
+MetaObjHeader* createMetaObject(TypeInfo** location) {
   TypeInfo* typeInfo = *location;
   RuntimeCheck(!hasPointerBits(typeInfo, OBJECT_TAG_MASK), "Object must not be tagged");
 
@@ -2989,7 +3056,7 @@ MetaObjHeader* ObjHeader::createMetaObject(TypeInfo** location) {
   return meta;
 }
 
-void ObjHeader::destroyMetaObject(TypeInfo** location) {
+void destroyMetaObject(TypeInfo** location) {
   MetaObjHeader* meta = clearPointerBits(*(reinterpret_cast<MetaObjHeader**>(location)), OBJECT_TAG_MASK);
   *const_cast<const TypeInfo**>(location) = meta->typeInfo_;
   if (meta->WeakReference.counter_ != nullptr) {
@@ -3003,6 +3070,8 @@ void ObjHeader::destroyMetaObject(TypeInfo** location) {
 
   konanFreeMemory(meta);
 }
+
+}  // namespace
 
 void ObjectContainer::Init(MemoryState* state, const TypeInfo* typeInfo) {
   RuntimeAssert(typeInfo->instanceSize_ >= 0, "Must be an object");
@@ -3165,8 +3234,8 @@ bool IsForeignRefAccessible(ObjHeader* object, ForeignRefContext context) {
 
 void AdoptReferenceFromSharedVariable(ObjHeader* object) {
 #if USE_GC
-  if (IsStrictMemoryModel && object != nullptr && isShareable(object->container()))
-    rememberNewContainer(object->container());
+  if (IsStrictMemoryModel && object != nullptr && isShareable(containerFor(object)))
+    rememberNewContainer(containerFor(object));
 #endif  // USE_GC
 }
 
@@ -3444,7 +3513,7 @@ void FreezeSubgraph(ObjHeader* root) {
 // If object is frozen or permanent, an exception is thrown.
 void MutationCheck(ObjHeader* obj) {
   if (obj->local()) return;
-  auto* container = obj->container();
+  auto* container = containerFor(obj);
   if (container == nullptr || container->frozen())
     ThrowInvalidMutabilityException(obj);
 }
@@ -3544,7 +3613,7 @@ void Kotlin_native_internal_GC_setCyclicCollector(KRef gc, KBoolean value) {
 }
 
 bool Kotlin_Any_isShareable(KRef thiz) {
-    return thiz == nullptr || isShareable(thiz->container());
+    return thiz == nullptr || isShareable(thiz);
 }
 
 void PerformFullGC() {

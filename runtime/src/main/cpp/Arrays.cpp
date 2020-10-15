@@ -29,8 +29,8 @@ namespace {
 
 ALWAYS_INLINE inline void mutabilityCheck(KConstRef thiz) {
   // TODO: optimize it!
-  if (!thiz->local() && thiz->container()->frozen()) {
-    ThrowInvalidMutabilityException(thiz);
+  if (!thiz->local() && isPermanentOrFrozen(thiz)) {
+      ThrowInvalidMutabilityException(thiz);
   }
 }
 
