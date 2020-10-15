@@ -19,7 +19,8 @@ public:
     explicit ScopedStrictMockFunction(Mock** globalMockLocation) : globalMockLocation_(globalMockLocation) {
         RuntimeCheck(globalMockLocation != nullptr, "ScopedStrictMockFunction needs non-null global mock location");
         RuntimeCheck(*globalMockLocation == nullptr, "ScopedStrictMockFunction needs null global mock");
-        mock_ = std::make_unique<Mock>();
+        // TODO: Use make_unique when sysroots on Linux get updated.
+        mock_ = std::unique_ptr<Mock>(new Mock());
         *globalMockLocation_ = mock_.get();
     }
 
