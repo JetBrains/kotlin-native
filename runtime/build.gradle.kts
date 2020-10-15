@@ -137,7 +137,7 @@ val hostStdAllocRuntimeTests by tasks.registering {
 }
 
 val hostMimallocRuntimeTests by tasks.registering {
-    dependsOn("${hostName}MimallocRuntimeTests")
+    dependsOn("${hostName}RuntimeTests")
 }
 
 val assemble by tasks.registering {
