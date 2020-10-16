@@ -473,41 +473,27 @@ class State {
     terminating_native_workers_.erase(it);
   }
 
-  void waitNativeWorkersTerminationUnlocked() {
-    std::vector<pthread_t> threadsToWait;
-    {
-      Locker locker(&lock_);
-
-      checkNativeWorkersLeakLocked();
-
-      for (auto& kvp : terminating_native_workers_) {
-        RuntimeAssert(!pthread_equal(kvp.second, pthread_self()), "Native worker is joining with itself");
-        threadsToWait.push_back(kvp.second);
-      }
-      terminating_native_workers_.clear();
-    }
-
-    for (auto thread : threadsToWait) {
-      pthread_join(thread, nullptr);
-    }
-  }
-
-  void waitNativeWorkerTerminationUnlocked(KInt id) {
-      pthread_t threadToWait = 0;
+  template <typename F>
+  void waitNativeWorkersTerminationUnlocked(F waitForWorker) {
+      std::vector<std::pair<KInt, pthread_t>> workersToWait;
       {
           Locker locker(&lock_);
 
+          checkNativeWorkersLeakLocked();
+
           for (auto& kvp : terminating_native_workers_) {
               RuntimeAssert(!pthread_equal(kvp.second, pthread_self()), "Native worker is joining with itself");
-              if (kvp.first == id) {
-                  threadToWait = kvp.second;
-                  break;
+              if (waitForWorker(kvp.first)) {
+                  workersToWait.push_back(kvp);
               }
+          }
+          for (auto worker : workersToWait) {
+              terminating_native_workers_.erase(worker.first);
           }
       }
 
-      if (threadToWait != 0) {
-          pthread_join(threadToWait, nullptr);
+      for (auto worker : workersToWait) {
+          pthread_join(worker.second, nullptr);
       }
   }
 
@@ -756,13 +742,13 @@ void WorkerDestroyThreadDataIfNeeded(KInt id) {
 
 void WaitNativeWorkersTermination() {
 #if WITH_WORKERS
-  theState()->waitNativeWorkersTerminationUnlocked();
+  theState()->waitNativeWorkersTerminationUnlocked([](KInt worker) { return true; });
 #endif
 }
 
 void WaitNativeWorkerTermination(KInt id) {
 #if WITH_WORKERS
-    theState()->waitNativeWorkerTerminationUnlocked(id);
+    theState()->waitNativeWorkersTerminationUnlocked([id](KInt worker) { return worker == id; });
 #endif
 }
 
