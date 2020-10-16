@@ -492,6 +492,25 @@ class State {
     }
   }
 
+  void waitNativeWorkerTerminationUnlocked(KInt id) {
+      pthread_t threadToWait = 0;
+      {
+          Locker locker(&lock_);
+
+          for (auto& kvp : terminating_native_workers_) {
+              RuntimeAssert(!pthread_equal(kvp.second, pthread_self()), "Native worker is joining with itself");
+              if (kvp.first == id) {
+                  threadToWait = kvp.second;
+                  break;
+              }
+          }
+      }
+
+      if (threadToWait != 0) {
+          pthread_join(threadToWait, nullptr);
+      }
+  }
+
   void checkNativeWorkersLeakLocked() {
     size_t remainingNativeWorkers = 0;
     for (const auto& kvp : workers_) {
@@ -738,6 +757,12 @@ void WorkerDestroyThreadDataIfNeeded(KInt id) {
 void WaitNativeWorkersTermination() {
 #if WITH_WORKERS
   theState()->waitNativeWorkersTerminationUnlocked();
+#endif
+}
+
+void WaitNativeWorkerTermination(KInt id) {
+#if WITH_WORKERS
+    theState()->waitNativeWorkerTerminationUnlocked(id);
 #endif
 }
 

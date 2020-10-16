@@ -91,6 +91,7 @@ void ShutdownCleaners(bool executeScheduledCleaners) {
 
     atomicSet(&globalCleanerWorker, kCleanerWorkerShutdown);
     Kotlin_CleanerImpl_shutdownCleanerWorker(worker, executeScheduledCleaners);
+    WaitNativeWorkerTermination(worker);
 }
 
 extern "C" KInt Kotlin_CleanerImpl_getCleanerWorker() {
