@@ -104,6 +104,8 @@ RuntimeState* initRuntime() {
 void deinitRuntime(RuntimeState* state) {
   RuntimeAssert(state->status == RuntimeStatus::kRunning, "Runtime must be in the running state");
   state->status = RuntimeStatus::kDestroying;
+  // This may be called after TLS is zeroed out, so ::memoryState in Memory cannot be trusted.
+  RestoreMemory(state->memoryState);
   bool lastRuntime = atomicAdd(&aliveRuntimesCount, -1) == 0;
   InitOrDeinitGlobalVariables(DEINIT_THREAD_LOCAL_GLOBALS, state->memoryState);
   if (lastRuntime)

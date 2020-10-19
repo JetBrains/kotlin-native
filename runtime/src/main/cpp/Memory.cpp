@@ -3179,6 +3179,11 @@ void DeinitMemory(MemoryState* memoryState) {
   deinitMemory(memoryState);
 }
 
+void RestoreMemory(MemoryState* memoryState) {
+    RuntimeAssert((::memoryState == nullptr) || (::memoryState == memoryState), "Must not replace with unrelated memory state");
+    ::memoryState = memoryState;
+}
+
 OBJ_GETTER(AllocInstanceStrict, const TypeInfo* type_info) {
   RETURN_RESULT_OF(allocInstance<true>, type_info);
 }

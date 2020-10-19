@@ -429,6 +429,7 @@ struct MemoryState;
 
 MemoryState* InitMemory();
 void DeinitMemory(MemoryState*);
+void RestoreMemory(MemoryState*);
 
 //
 // Object allocation.
