@@ -36,16 +36,16 @@ namespace {
 InitNode* initHeadNode = nullptr;
 InitNode* initTailNode = nullptr;
 
-enum RuntimeStatus {
-    RUNTIME_UNINITIALIZED = 0,
-    RUNTIME_RUNNING = 1,
-    RUNTIME_DESTROYING = 2,
+enum class RuntimeStatus {
+    kUninitialized,
+    kRunning,
+    kDestroying,
 };
 
 struct RuntimeState {
     MemoryState* memoryState;
     Worker* worker;
-    RuntimeStatus status = RUNTIME_UNINITIALIZED;
+    RuntimeStatus status = RuntimeStatus::kUninitialized;
 };
 
 enum {
@@ -96,12 +96,14 @@ RuntimeState* initRuntime() {
     InitOrDeinitGlobalVariables(INIT_GLOBALS, result->memoryState);
   }
   InitOrDeinitGlobalVariables(INIT_THREAD_LOCAL_GLOBALS, result->memoryState);
-  RuntimeCheck(compareAndSet(&result->status, RUNTIME_UNINITIALIZED, RUNTIME_RUNNING), "Cannot transition runtime state to running");
+  RuntimeAssert(result->status == RuntimeStatus::kUninitialized, "Runtime must still be in the uninitialized state");
+  result->status = RuntimeStatus::kRunning;
   return result;
 }
 
 void deinitRuntime(RuntimeState* state) {
-  RuntimeCheck(compareAndSet(&state->status, RUNTIME_RUNNING, RUNTIME_DESTROYING), "Cannot transition runtime state to destroying");
+  RuntimeAssert(state->status == RuntimeStatus::kRunning, "Runtime must be in the running state");
+  state->status = RuntimeStatus::kDestroying;
   bool lastRuntime = atomicAdd(&aliveRuntimesCount, -1) == 0;
   InitOrDeinitGlobalVariables(DEINIT_THREAD_LOCAL_GLOBALS, state->memoryState);
   if (lastRuntime)
