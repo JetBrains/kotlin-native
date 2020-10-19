@@ -2014,16 +2014,6 @@ void deinitMemory(MemoryState* memoryState) {
   ::memoryState = nullptr;
 }
 
-MemoryState* suspendMemory() {
-    auto result = ::memoryState;
-    ::memoryState = nullptr;
-    return result;
-}
-
-void resumeMemory(MemoryState* state) {
-    ::memoryState = state;
-}
-
 void makeShareable(ContainerHeader* container) {
   if (!container->frozen())
     container->makeShared();
@@ -3187,14 +3177,6 @@ MemoryState* InitMemory() {
 
 void DeinitMemory(MemoryState* memoryState) {
   deinitMemory(memoryState);
-}
-
-MemoryState* SuspendMemory() {
-  return suspendMemory();
-}
-
-void ResumeMemory(MemoryState* state) {
-  resumeMemory(state);
 }
 
 OBJ_GETTER(AllocInstanceStrict, const TypeInfo* type_info) {
