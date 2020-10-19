@@ -17,7 +17,7 @@ OBJ_GETTER(DescribeObjectForDebugging, KConstNativePtr typeInfo, KConstNativePtr
 namespace {
 
 inline bool isForeignRefAccessible(ObjHeader* object, ForeignRefContext context) {
-    // So the object is either unowned or shared.
+    // If runtime has not been initialized on this thread, then the object is either unowned or shared.
     // In the former case initialized runtime is required to throw exceptions
     // in the latter case -- to provide proper execution context for caller.
     Kotlin_initRuntimeIfNeeded();
