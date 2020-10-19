@@ -46,7 +46,7 @@ bitcode {
     create("mimalloc") {
         language = CompileToBitcode.Language.C
         includeFiles = listOf("**/*.c")
-        excludeFiles += listOf("**/alloc-override*.c", "**/page-queue.c", "**/static.c")
+        excludeFiles += listOf("**/alloc-override*.c", "**/page-queue.c", "**/static.c", "**/bitmap.inc.c")
         srcDirs = files("$srcRoot/c")
         compilerArgs.add("-DKONAN_MI_MALLOC=1")
         headersDirs = files("$srcRoot/c/include")
