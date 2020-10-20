@@ -62,7 +62,7 @@ private fun IrClass.selfOrAnySuperClass(pred: (IrClass) -> Boolean): Boolean {
 }
 
 internal fun IrClass.isObjCClass() = this.packageFqName != interopPackageName &&
-        selfOrAnySuperClass { it.symbol.isPublicApi && objCObjectIdSignature == it.symbol.signature }
+        selfOrAnySuperClass { objCObjectIdSignature == it.symbol.signature }
 
 fun ClassDescriptor.isExternalObjCClass(): Boolean = this.isObjCClass() &&
         this.parentsWithSelf.filterIsInstance<ClassDescriptor>().any {
@@ -81,11 +81,11 @@ fun ClassDescriptor.isObjCMetaClass(): Boolean = this.getAllSuperClassifiers().a
 }
 
 fun IrClass.isObjCMetaClass(): Boolean = selfOrAnySuperClass {
-    it.symbol.isPublicApi && objCClassIdSignature == it.symbol.signature
+    objCClassIdSignature == it.symbol.signature
 }
 
 fun IrClass.isObjCProtocolClass(): Boolean =
-        symbol.isPublicApi && objCProtocolIdSignature == symbol.signature
+        objCProtocolIdSignature == symbol.signature
 
 fun ClassDescriptor.isObjCProtocolClass(): Boolean =
         this.fqNameSafe == objCProtocolFqName
