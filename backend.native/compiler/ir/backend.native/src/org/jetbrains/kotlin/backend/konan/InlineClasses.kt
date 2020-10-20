@@ -298,7 +298,7 @@ private object IrTypeInlineClassesSupport : InlineClassesSupport<IrClass, IrType
 
     override fun getNativePointedSuperclass(clazz: IrClass): IrClass? {
         var superClass: IrClass? = clazz
-        while (superClass != null && (!superClass.symbol.isPublicApi || InteropIdSignatures.nativePointed != superClass.symbol.signature))
+        while (superClass != null && (InteropIdSignatures.nativePointed != superClass.symbol.signature))
             superClass = superClass.getSuperClassNotAny()
         return superClass
     }
