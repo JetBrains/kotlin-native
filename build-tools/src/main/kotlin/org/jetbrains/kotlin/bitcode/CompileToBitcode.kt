@@ -70,7 +70,8 @@ open class CompileToBitcode @Inject constructor(
                 Language.C ->
                     // Used flags provided by original build of allocator C code.
                     listOf("-std=gnu11", "-O3", "-Wall", "-Wextra", "-Wno-unknown-pragmas",
-                            "-Werror", "-ftls-model=initial-exec", "-Wno-unused-function", "-Wno-error=atomic-alignment")
+                            "-Werror", "-ftls-model=initial-exec", "-Wno-unused-function",
+                            "-Wno-error=atomic-alignment", "-Wno-unused-parameter" /* for windows 32*/)
                 Language.CPP ->
                     listOfNotNull("-std=c++14", "-Werror", "-O2",
                             "-Wall", "-Wextra",
