@@ -11,7 +11,6 @@ import kotlin.test.*
 import kotlin.native.internal.*
 import kotlin.native.concurrent.*
 import kotlin.native.ref.WeakReference
-import kotlin.time.*
 
 class AtomicBoolean(initialValue: Boolean) {
     private val impl = AtomicInt(if (initialValue) 1 else 0)
