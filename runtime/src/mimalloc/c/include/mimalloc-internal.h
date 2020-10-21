@@ -693,6 +693,11 @@ static inline uintptr_t _mi_thread_id(void) mi_attr_noexcept {
 #elif defined(__GNUC__) && \
       (defined(__x86_64__) || defined(__i386__) || defined(__arm__) || defined(__aarch64__))
 
+#if KONAN_MI_MALLOC
+  #include <pthread.h>
+  pthread_t pthread_self(void);
+#endif
+
 // TLS register on x86 is in the FS or GS register, see: https://akkadia.org/drepper/tls.pdf
 static inline void* mi_tls_slot(size_t slot) mi_attr_noexcept {
   void* res;
@@ -736,8 +741,18 @@ static inline void mi_tls_slot_set(size_t slot, void* value) mi_attr_noexcept {
 }
 
 static inline uintptr_t _mi_thread_id(void) mi_attr_noexcept {
-  // in all our targets, slot 0 is the pointer to the thread control block
-  return (uintptr_t)mi_tls_slot(0);
+  #if defined(__MACH__) && KONAN_MI_MALLOC
+    #include <TargetConditionals.h>
+    #if TARGET_OS_EMBEDDED // iOS/tvOS/watchOS devices.
+      return pthread_mach_thread_np(pthread_self());
+    #else
+      // in all our targets, slot 0 is the pointer to the thread control block
+      return (uintptr_t)mi_tls_slot(0);
+    #endif
+  #else
+    // in all our targets, slot 0 is the pointer to the thread control block
+    return (uintptr_t)mi_tls_slot(0);
+  #endif
 }
 #else
 // otherwise use standard C
