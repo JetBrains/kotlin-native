@@ -275,7 +275,7 @@ struct ContainerHeader {
   }
 };
 
-ContainerHeader* containerFor(const ObjHeader* obj);
+ALWAYS_INLINE ContainerHeader* containerFor(const ObjHeader* obj);
 
 // Header for the meta-object.
 struct MetaObjHeader {

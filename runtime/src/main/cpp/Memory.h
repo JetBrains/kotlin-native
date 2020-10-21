@@ -41,12 +41,12 @@ struct ObjHeader {
     return clearPointerBits(typeInfoOrMeta_, OBJECT_TAG_MASK)->typeInfo_;
   }
 
-  ObjHeader** GetWeakCounterLocation();
+  ALWAYS_INLINE ObjHeader** GetWeakCounterLocation();
 
 #ifdef KONAN_OBJC_INTEROP
-  void* GetAssociatedObject();
-  void** GetAssociatedObjectLocation();
-  void SetAssociatedObject(void* obj);
+  ALWAYS_INLINE void* GetAssociatedObject();
+  ALWAYS_INLINE void** GetAssociatedObjectLocation();
+  ALWAYS_INLINE void SetAssociatedObject(void* obj);
 #endif
 
   inline bool local() const {
