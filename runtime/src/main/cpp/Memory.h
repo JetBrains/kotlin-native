@@ -429,9 +429,7 @@ struct MemoryState;
 
 MemoryState* InitMemory();
 void DeinitMemory(MemoryState*);
-
-MemoryState* SuspendMemory();
-void ResumeMemory(MemoryState* state);
+void RestoreMemory(MemoryState*);
 
 //
 // Object allocation.
@@ -557,6 +555,9 @@ ObjHeader** LookupTLS(void** key, int index) RUNTIME_NOTHROW;
 void GC_RegisterWorker(void* worker) RUNTIME_NOTHROW;
 void GC_UnregisterWorker(void* worker) RUNTIME_NOTHROW;
 void GC_CollectorCallback(void* worker) RUNTIME_NOTHROW;
+
+bool Kotlin_Any_isShareable(ObjHeader* thiz);
+void PerformFullGC() RUNTIME_NOTHROW;
 
 #ifdef __cplusplus
 }

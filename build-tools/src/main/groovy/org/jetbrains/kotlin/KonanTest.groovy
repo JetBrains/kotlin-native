@@ -408,11 +408,14 @@ fun runTest() {
 
     static def excludeList = [
             "external/compiler/codegen/boxInline/multiplatform/defaultArguments/receiversAndParametersInLambda.kt", // KT-36880
-            "external/compiler/compileKotlinAgainstKotlin/specialBridgesInDependencies.kt",         // FIXME: inherits final class
+            "external/compiler/compileKotlinAgainstKotlin/specialBridgesInDependencies.kt",         // KT-42723
+            "external/compiler/codegen/box/collections/kt41123.kt",                                 // KT-42723
             "external/compiler/codegen/box/multiplatform/multiModule/expectActualTypealiasLink.kt", // KT-40137
             "external/compiler/codegen/box/multiplatform/multiModule/expectActualMemberLink.kt",    // KT-33091
             "external/compiler/codegen/box/multiplatform/multiModule/expectActualLink.kt",          // KT-41901
-            "external/compiler/codegen/box/coroutines/multiModule/"                                 // KT-40121
+            "external/compiler/codegen/box/coroutines/multiModule/",                                // KT-40121
+            "external/compiler/codegen/box/callableReference/genericConstructorReference.kt",       // KT-42631
+            "external/compiler/codegen/box/defaultArguments/recursiveDefaultArguments.kt"           // KT-42684
     ]
 
     boolean isEnabledForNativeBackend(String fileName) {
