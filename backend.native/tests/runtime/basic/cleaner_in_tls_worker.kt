@@ -25,6 +25,7 @@ fun main() {
 
     worker.requestTermination().result
     waitWorkerTermination(worker)
+    waitCleanerWorker()
 
     assertEquals(42, value.value)
 }
