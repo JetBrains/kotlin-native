@@ -77,7 +77,7 @@ fun testCleanerDestroyWithChild() {
 
     GC.collect()
     worker.requestTermination().result
-    waitTermination(worker)
+    waitWorkerTermination(worker)
 
     performGCOnCleanerWorker()  // Collect cleaners stack
 

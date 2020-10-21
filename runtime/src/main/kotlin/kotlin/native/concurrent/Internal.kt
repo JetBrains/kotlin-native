@@ -104,4 +104,4 @@ external internal fun checkIfFrozen(ref: Any?)
 
 @InternalForKotlinNative
 @SymbolName("Kotlin_Worker_waitTermination")
-external public fun waitTermination(worker: Worker)
+external public fun waitWorkerTermination(worker: Worker)
