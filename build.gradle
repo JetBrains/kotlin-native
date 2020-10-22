@@ -433,7 +433,29 @@ task listDist(type: Exec) {
     commandLine 'find', distDir
 }
 
+task gitCheck {
+    doFirst {
+        println("== GIT CONFIGS ==")
+        println("GLOBAL:")
+        exec {
+            commandLine 'git', 'config', '--global', '-l'
+            ignoreExitValue = true
+        }
+        println("SYSTEM:")
+        exec {
+            commandLine 'git', 'config', '--system', '-l'
+            ignoreExitValue = true
+        }
+        println("LOCAL:")
+        exec {
+            commandLine 'git', 'config', '--local', '-l'
+            ignoreExitValue = true
+        }
+    }
+}
+
 task distRuntime(type: Copy) {
+    dependsOn "gitCheck"
     dependsOn "${hostName}CrossDistRuntime"
 }
 
