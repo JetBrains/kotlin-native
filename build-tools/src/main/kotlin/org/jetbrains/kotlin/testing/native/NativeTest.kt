@@ -243,8 +243,10 @@ fun createTestTask(
         }
 
         doLast {
+            // TODO: Better to use proper XML parsing.
             var contents = xmlReport.readText()
             contents = contents.replace("<testsuite name=\"", "<testsuite name=\"${testName}.")
+            contents = contents.replace("classname=\"", "classname=\"${testName}.")
             xmlReport.writeText(contents)
         }
     }
