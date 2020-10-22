@@ -4490,7 +4490,7 @@ if (isAppleTarget(project)) {
         framework(frameworkName) {
             sources = ['objcexport']
             library = libraryName
-            opts = ["-Xemit-lazy-objc-header=$lazyHeader", "-Xopt-in=kotlin.ExperimentalStdlibApi"]
+            opts = ["-Xemit-lazy-objc-header=$lazyHeader"]
         }
         swiftSources = ['objcexport']
     }
@@ -4521,7 +4521,6 @@ if (isAppleTarget(project)) {
             artifact = frameworkArtifactName
             library = libraryName
             isStatic = true
-            opts = ['-Xstatic-framework', "-Xopt-in=kotlin.ExperimentalStdlibApi"]
         }
         swiftSources = ['objcexport']
     }
