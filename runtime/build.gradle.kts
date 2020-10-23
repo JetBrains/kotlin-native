@@ -138,6 +138,7 @@ targetList.forEach { targetName ->
 
     createTestTask(
             project,
+            "ExperimentalMM",
             "${targetName}ExperimentalMMRuntimeTests",
             listOf(
                 "${targetName}Runtime",
