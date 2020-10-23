@@ -215,4 +215,4 @@ void* aligned_alloc(size_t alignment, size_t size)   { return mi_aligned_alloc(a
 
 #endif // MI_MALLOC_OVERRIDE && !_WIN32
 
-#endif
+#endif // KONAN_MI_MALLOC

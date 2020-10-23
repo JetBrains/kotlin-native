@@ -48,7 +48,9 @@ bitcode {
         includeFiles = listOf("**/*.c")
         excludeFiles += listOf("**/alloc-override*.c", "**/page-queue.c", "**/static.c", "**/bitmap.inc.c")
         srcDirs = files("$srcRoot/c")
-        compilerArgs.add("-DKONAN_MI_MALLOC=1")
+        compilerArgs.addAll(listOf("-DKONAN_MI_MALLOC=1", "-Wno-unknown-pragmas", "-ftls-model=initial-exec",
+                "-Wno-unused-function", "-Wno-error=atomic-alignment",
+                "-Wno-unused-parameter" /* for windows 32*/))
         headersDirs = files("$srcRoot/c/include")
 
         onlyIf { targetSupportsMimallocAllocator(target) }

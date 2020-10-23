@@ -245,14 +245,26 @@ static inline bool mi_malloc_satisfies_alignment(size_t alignment, size_t size) 
 #if defined(_CLOCK_T)    // for Illumos
 #undef _CLOCK_T
 #endif
+
 static inline bool mi_mul_overflow(size_t count, size_t size, size_t* total) {
+// Changed order for armv7 (ULONG_MAX == UINT_MAX, but size_t = unsigned long)
+#if defined(__MACH__) && KONAN_MI_MALLOC
+  #if (SIZE_MAX == ULONG_MAX)
+    return __builtin_umull_overflow(count, size, total);
+  #elif (SIZE_MAX == UINT_MAX)
+    return __builtin_umul_overflow(count, size, total);
+  #else
+    return __builtin_umulll_overflow(count, size, total);
+  #endif
+#else // KONAN_MI_MALLOC
   #if (SIZE_MAX == UINT_MAX)
-    return __builtin_umul_overflow(count, size, (unsigned int *)total);
+    return __builtin_umul_overflow(count, size, total);
   #elif (SIZE_MAX == ULONG_MAX)
     return __builtin_umull_overflow(count, size, total);
   #else
     return __builtin_umulll_overflow(count, size, total);
   #endif
+#endif // KONAN_MI_MALLOC
 }
 #else /* __builtin_umul_overflow is unavailable */
 static inline bool mi_mul_overflow(size_t count, size_t size, size_t* total) {
@@ -696,7 +708,7 @@ static inline uintptr_t _mi_thread_id(void) mi_attr_noexcept {
 #if KONAN_MI_MALLOC
   #include <pthread.h>
   pthread_t pthread_self(void);
-#endif
+#endif // KONAN_MI_MALLOC
 
 // TLS register on x86 is in the FS or GS register, see: https://akkadia.org/drepper/tls.pdf
 static inline void* mi_tls_slot(size_t slot) mi_attr_noexcept {
@@ -749,10 +761,10 @@ static inline uintptr_t _mi_thread_id(void) mi_attr_noexcept {
       // in all our targets, slot 0 is the pointer to the thread control block
       return (uintptr_t)mi_tls_slot(0);
     #endif
-  #else
+  #else // KONAN_MI_MALLOC
     // in all our targets, slot 0 is the pointer to the thread control block
     return (uintptr_t)mi_tls_slot(0);
-  #endif
+  #endif // KONAN_MI_MALLOC
 }
 #else
 // otherwise use standard C

@@ -301,11 +301,11 @@ static inline void mi_atomic_yield(void) {
         asm volatile("yield");
       }
     #endif
-  #else
+  #else // KONAN_MI_MALLOC
   static inline void mi_atomic_yield(void) {
     asm volatile("yield");
   }
-  #endif
+  #endif // KONAN_MI_MALLOC
 #endif
 #elif defined(__wasi__)
   #include <sched.h>

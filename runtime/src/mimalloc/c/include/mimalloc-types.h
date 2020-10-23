@@ -31,7 +31,7 @@ terms of the MIT license. A copy of the license can be found in the file
 // Define NDEBUG in the release version to disable assertions.
 #if KONAN_MI_MALLOC
   #define NDEBUG
-#endif
+#endif // KONAN_MI_MALLOC
 
 // Define MI_STAT as 1 to maintain statistics; set it to 2 to have detailed statistics (but costs some performance).
 // #define MI_STAT 1
