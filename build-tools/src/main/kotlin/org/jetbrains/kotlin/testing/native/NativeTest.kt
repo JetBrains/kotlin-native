@@ -247,7 +247,8 @@ fun createTestTask(
             var contents = xmlReport.readText()
             contents = contents.replace("<testsuite name=\"", "<testsuite name=\"${testName}.")
             contents = contents.replace("classname=\"", "classname=\"${testName}.")
-            xmlReport.writeText(contents)
+            val rewrittenReport = workingDir.resolve("report-with-prefixes.xml")
+            rewrittenReport.writeText(contents)
         }
     }
 }
