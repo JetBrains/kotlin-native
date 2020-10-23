@@ -117,10 +117,10 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
         add(if (debug) "debug.bc" else "release.bc")
         val useMimalloc = if (configuration.get(KonanConfigKeys.ALLOCATION_MODE) == "mimalloc") {
             if (target.supportsMimallocAllocator()) {
-                configuration.report(CompilerMessageSeverity.STRONG_WARNING,
-                        "Mimalloc allocator isn't supported on target ${target.name}. Used standard mode.")
                 true
             } else {
+                configuration.report(CompilerMessageSeverity.STRONG_WARNING,
+                        "Mimalloc allocator isn't supported on target ${target.name}. Used standard mode.")
                 false
             }
         } else {

@@ -27,5 +27,6 @@ fun KonanTarget.supportsMimallocAllocator(): Boolean =
 fun KonanTarget.supportsThreads(): Boolean =
      when(this) {
         is KonanTarget.WASM32 -> false
+        is KonanTarget.ZEPHYR -> false
         else -> true
      }
