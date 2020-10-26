@@ -115,22 +115,11 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
 
     internal val runtimeNativeLibraries: List<String> = mutableListOf<String>().apply {
         add(if (debug) "debug.bc" else "release.bc")
-        val useMimalloc = if (configuration.get(KonanConfigKeys.ALLOCATION_MODE) == "mimalloc") {
-            if (target.supportsMimallocAllocator()) {
-                true
-            } else {
-                configuration.report(CompilerMessageSeverity.STRONG_WARNING,
-                        "Mimalloc allocator isn't supported on target ${target.name}. Used standard mode.")
-                false
-            }
-        } else {
-            false
-        }
         val effectiveMemoryModel = when (memoryModel) {
             MemoryModel.STRICT -> MemoryModel.STRICT
             MemoryModel.RELAXED -> MemoryModel.RELAXED
             MemoryModel.EXPERIMENTAL -> {
-                if (!useMimalloc) {
+                if (!target.supportsMimallocAllocator()) {
                     configuration.report(CompilerMessageSeverity.STRONG_WARNING,
                             "Experimental memory model requires mimalloc allocator. Used strict memory model.")
                     MemoryModel.STRICT
@@ -142,6 +131,19 @@ class KonanConfig(val project: Project, val configuration: CompilerConfiguration
                     MemoryModel.EXPERIMENTAL
                 }
             }
+        }
+        val useMimalloc = if (effectiveMemoryModel == MemoryModel.EXPERIMENTAL) {
+            true // we already checked that target supports mimalloc.
+        } else if (configuration.get(KonanConfigKeys.ALLOCATION_MODE) == "mimalloc") {
+            if (target.supportsMimallocAllocator()) {
+                true
+            } else {
+                configuration.report(CompilerMessageSeverity.STRONG_WARNING,
+                        "Mimalloc allocator isn't supported on target ${target.name}. Used standard mode.")
+                false
+            }
+        } else {
+            false
         }
         when (effectiveMemoryModel) {
             MemoryModel.STRICT -> {
