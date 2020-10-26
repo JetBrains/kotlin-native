@@ -463,8 +463,7 @@ ALWAYS_INLINE bool isPermanentOrFrozen(const ObjHeader* obj) {
 }
 
 ALWAYS_INLINE bool isShareable(const ObjHeader* obj) {
-    auto* container = containerFor(obj);
-    return container == nullptr || container->shareable();
+    return containerFor(obj)->shareable();
 }
 
 ObjHeader** ObjHeader::GetWeakCounterLocation() {
@@ -3602,7 +3601,7 @@ void Kotlin_native_internal_GC_setCyclicCollector(KRef gc, KBoolean value) {
 }
 
 bool Kotlin_Any_isShareable(KRef thiz) {
-    return thiz == nullptr || isShareable(thiz);
+    return thiz == nullptr || isShareable(thiz->container());
 }
 
 void PerformFullGC() {
