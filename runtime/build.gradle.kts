@@ -99,7 +99,7 @@ bitcode {
         includeRuntime()
     }
 
-    create("experimental_memory_manager", file("src/expmm")) {
+    create("experimental_memory_manager", file("src/mm")) {
         includeRuntime()
     }
 }
