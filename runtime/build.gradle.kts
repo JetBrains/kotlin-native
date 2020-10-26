@@ -95,11 +95,11 @@ bitcode {
         headersDirs += googletest.headersDirs
     }
 
-    create("legacy_memory_manager") {
+    create("legacy_memory_manager", file("src/legacymm")) {
         includeRuntime()
     }
 
-    create("experimental_memory_manager") {
+    create("experimental_memory_manager", file("src/expmm")) {
         includeRuntime()
     }
 }

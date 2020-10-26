@@ -3,7 +3,7 @@
  * that can be found in the LICENSE file.
  */
 #include "Memory.h"
-#include "../../legacy_memory_manager/cpp/MemoryPrivate.hpp" // Fine, because this module is a part of legacy MM.
+#include "../../legacymm/cpp/MemoryPrivate.hpp" // Fine, because this module is a part of legacy MM.
 
 // Note that only C++ part of the runtime goes via those functions, Kotlin uses specialized versions.
 
