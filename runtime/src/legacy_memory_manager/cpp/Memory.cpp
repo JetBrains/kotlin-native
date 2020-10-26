@@ -437,8 +437,6 @@ inline bool isShareable(ContainerHeader* container) {
     return container == nullptr || container->shareable();
 }
 
-void destroyMetaObject(TypeInfo** location);
-
 void setContainerFor(ObjHeader* obj, ContainerHeader* container) {
   obj->meta_object()->container_ = container;
   obj->typeInfoOrMeta_ = setPointerBits(obj->typeInfoOrMeta_, OBJECT_TAG_NONTRIVIAL_CONTAINER);
@@ -1154,7 +1152,7 @@ ALWAYS_INLINE void runDeallocationHooks(ContainerHeader* container) {
     CycleDetector::removeCandidateIfNeeded(obj);
 #endif  // USE_CYCLE_DETECTOR
     if (obj->has_meta_object()) {
-      destroyMetaObject(&obj->typeInfoOrMeta_);
+      ObjHeader::destroyMetaObject(&obj->typeInfoOrMeta_);
     }
     obj = reinterpret_cast<ObjHeader*>(reinterpret_cast<uintptr_t>(obj) + objectSize(obj));
   }
