@@ -5,6 +5,10 @@
 
 #include "Memory.h"
 
+ALWAYS_INLINE bool isFrozen(const ObjHeader* obj) {
+    RuntimeCheck(false, "Unimplemented");
+}
+
 ALWAYS_INLINE bool isPermanentOrFrozen(const ObjHeader* obj) {
     RuntimeCheck(false, "Unimplemented");
 }

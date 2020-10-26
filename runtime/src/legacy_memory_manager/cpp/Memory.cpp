@@ -455,6 +455,10 @@ ContainerHeader* containerFor(const ObjHeader* obj) {
   return (reinterpret_cast<MetaObjHeader*>(clearPointerBits(obj->typeInfoOrMeta_, OBJECT_TAG_MASK)))->container_;
 }
 
+ALWAYS_INLINE bool isFrozen(const ObjHeader* obj) {
+    return containerFor(obj)->frozen();
+}
+
 ALWAYS_INLINE bool isPermanentOrFrozen(const ObjHeader* obj) {
     auto* container = containerFor(obj);
     return container == nullptr || container->frozen();
