@@ -3601,7 +3601,7 @@ void Kotlin_native_internal_GC_setCyclicCollector(KRef gc, KBoolean value) {
 }
 
 bool Kotlin_Any_isShareable(KRef thiz) {
-    return thiz == nullptr || isShareable(thiz->container());
+    return thiz == nullptr || isShareable(containerFor(thiz));
 }
 
 void PerformFullGC() {
