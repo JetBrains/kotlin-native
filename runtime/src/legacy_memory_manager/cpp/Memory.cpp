@@ -49,7 +49,7 @@
 #include "Weak.h"
 
 #ifdef KONAN_OBJC_INTEROP
-#include "ObjCExport.h"
+#include "ObjCMMAPI.h"
 #endif
 
 // If garbage collection algorithm for cyclic garbage to be used.

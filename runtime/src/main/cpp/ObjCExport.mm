@@ -37,6 +37,7 @@
 #import "ObjCExport.h"
 #import "ObjCExportInit.h"
 #import "ObjCExportPrivate.h"
+#import "ObjCMMAPI.h"
 #import "Runtime.h"
 #import "Utils.h"
 #import "Exceptions.h"
