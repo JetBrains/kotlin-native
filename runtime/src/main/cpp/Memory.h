@@ -32,6 +32,7 @@ typedef enum {
 } ObjectTag;
 
 struct ArrayHeader;
+struct MetaObjHeader;
 
 // Header of every object.
 struct ObjHeader {
@@ -39,6 +40,17 @@ struct ObjHeader {
 
   const TypeInfo* type_info() const {
     return clearPointerBits(typeInfoOrMeta_, OBJECT_TAG_MASK)->typeInfo_;
+  }
+
+  bool has_meta_object() const {
+    auto* typeInfoOrMeta = clearPointerBits(typeInfoOrMeta_, OBJECT_TAG_MASK);
+    return (typeInfoOrMeta != typeInfoOrMeta->typeInfo_);
+  }
+
+  MetaObjHeader* meta_object() {
+     return has_meta_object() ?
+        reinterpret_cast<MetaObjHeader*>(clearPointerBits(typeInfoOrMeta_, OBJECT_TAG_MASK)) :
+        createMetaObject(&typeInfoOrMeta_);
   }
 
   ALWAYS_INLINE ObjHeader** GetWeakCounterLocation();
@@ -62,6 +74,9 @@ struct ObjHeader {
   inline bool permanent() const {
     return hasPointerBits(typeInfoOrMeta_, OBJECT_TAG_PERMANENT_CONTAINER);
   }
+
+  static MetaObjHeader* createMetaObject(TypeInfo** location);
+  static void destroyMetaObject(TypeInfo** location);
 };
 
 // Header of value type array objects. Keep layout in sync with that of object header.

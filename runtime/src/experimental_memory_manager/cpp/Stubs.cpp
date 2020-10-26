@@ -33,6 +33,14 @@ void ObjHeader::SetAssociatedObject(void* obj) {
 
 #endif // KONAN_OBJC_INTEROP
 
+static MetaObjHeader* createMetaObject(TypeInfo** location) {
+    RuntimeCheck(false, "Unimplemented");
+}
+
+static void destroyMetaObject(TypeInfo** location) {
+    RuntimeCheck(false, "Unimplemented");
+}
+
 extern "C" {
 
 MemoryState* InitMemory() {

@@ -437,23 +437,10 @@ inline bool isShareable(ContainerHeader* container) {
     return container == nullptr || container->shareable();
 }
 
-MetaObjHeader* createMetaObject(TypeInfo** location);
-
 void destroyMetaObject(TypeInfo** location);
 
-bool has_meta_object(const ObjHeader* obj) {
-  auto* typeInfoOrMeta = clearPointerBits(obj->typeInfoOrMeta_, OBJECT_TAG_MASK);
-  return (typeInfoOrMeta != typeInfoOrMeta->typeInfo_);
-}
-
-MetaObjHeader* meta_object_for(ObjHeader* obj) {
-   return has_meta_object(obj) ?
-      reinterpret_cast<MetaObjHeader*>(clearPointerBits(obj->typeInfoOrMeta_, OBJECT_TAG_MASK)) :
-      createMetaObject(&obj->typeInfoOrMeta_);
-}
-
 void setContainerFor(ObjHeader* obj, ContainerHeader* container) {
-  meta_object_for(obj)->container_ = container;
+  obj->meta_object()->container_ = container;
   obj->typeInfoOrMeta_ = setPointerBits(obj->typeInfoOrMeta_, OBJECT_TAG_NONTRIVIAL_CONTAINER);
 }
 
@@ -479,24 +466,24 @@ ALWAYS_INLINE bool isShareable(const ObjHeader* obj) {
 }
 
 ObjHeader** ObjHeader::GetWeakCounterLocation() {
-    return &meta_object_for(this)->WeakReference.counter_;
+    return &this->meta_object()->WeakReference.counter_;
 }
 
 #if KONAN_OBJC_INTEROP
 
 void* ObjHeader::GetAssociatedObject() {
-    if (!has_meta_object(this)) {
+    if (!has_meta_object()) {
       return nullptr;
     }
-    return meta_object_for(this)->associatedObject_;
+    return this->meta_object()->associatedObject_;
 }
 
 void** ObjHeader::GetAssociatedObjectLocation() {
-    return &meta_object_for(this)->associatedObject_;
+    return &this->meta_object()->associatedObject_;
 }
 
 void ObjHeader::SetAssociatedObject(void* obj) {
-    meta_object_for(this)->associatedObject_ = obj;
+    this->meta_object()->associatedObject_ = obj;
 }
 
 #endif // KONAN_OBJC_INTEROP
@@ -1162,7 +1149,7 @@ ALWAYS_INLINE void runDeallocationHooks(ContainerHeader* container) {
 #if USE_CYCLE_DETECTOR
     CycleDetector::removeCandidateIfNeeded(obj);
 #endif  // USE_CYCLE_DETECTOR
-    if (has_meta_object(obj)) {
+    if (obj->has_meta_object()) {
       destroyMetaObject(&obj->typeInfoOrMeta_);
     }
     obj = reinterpret_cast<ObjHeader*>(reinterpret_cast<uintptr_t>(obj) + objectSize(obj));
@@ -1220,7 +1207,7 @@ void depthFirstTraversal(ContainerHeader* start, bool* hasCycles,
     traverseContainerReferredObjects(container, [container, hasCycles, firstBlocker, &toVisit](ObjHeader* obj) {
       if (*firstBlocker != nullptr)
         return;
-      if (has_meta_object(obj) && ((meta_object_for(obj)->flags_ & MF_NEVER_FROZEN) != 0)) {
+      if (obj->has_meta_object() && ((obj->meta_object()->flags_ & MF_NEVER_FROZEN) != 0)) {
           *firstBlocker = obj;
           return;
       }
@@ -2861,7 +2848,7 @@ void freezeSubgraph(ObjHeader* root) {
 
   // Do DFS cycle detection.
   bool hasCycles = false;
-  KRef firstBlocker = has_meta_object(root) && ((meta_object_for(root)->flags_ & MF_NEVER_FROZEN) != 0) ?
+  KRef firstBlocker = root->has_meta_object() && ((root->meta_object()->flags_ & MF_NEVER_FROZEN) != 0) ?
     root : nullptr;
   KStdVector<ContainerHeader*> order;
   depthFirstTraversal(rootContainer, &hasCycles, &firstBlocker, &order);
@@ -2897,7 +2884,7 @@ void ensureNeverFrozen(ObjHeader* object) {
       ThrowFreezingException(object, object);
    // TODO: note, that this API could not not be called on frozen objects, so no need to care much about concurrency,
    // although there's subtle race with case, where other thread freezes the same object after check.
-   meta_object_for(object)->flags_ |= MF_NEVER_FROZEN;
+   object->meta_object()->flags_ |= MF_NEVER_FROZEN;
 }
 
 void shareAny(ObjHeader* obj) {
@@ -3030,7 +3017,9 @@ OBJ_GETTER(findCycle, KRef root) {
 
 #endif  // USE_CYCLE_DETECTOR
 
-MetaObjHeader* createMetaObject(TypeInfo** location) {
+}  // namespace
+
+MetaObjHeader* ObjHeader::createMetaObject(TypeInfo** location) {
   TypeInfo* typeInfo = *location;
   RuntimeCheck(!hasPointerBits(typeInfo, OBJECT_TAG_MASK), "Object must not be tagged");
 
@@ -3056,7 +3045,7 @@ MetaObjHeader* createMetaObject(TypeInfo** location) {
   return meta;
 }
 
-void destroyMetaObject(TypeInfo** location) {
+void ObjHeader::destroyMetaObject(TypeInfo** location) {
   MetaObjHeader* meta = clearPointerBits(*(reinterpret_cast<MetaObjHeader**>(location)), OBJECT_TAG_MASK);
   *const_cast<const TypeInfo**>(location) = meta->typeInfo_;
   if (meta->WeakReference.counter_ != nullptr) {
@@ -3070,8 +3059,6 @@ void destroyMetaObject(TypeInfo** location) {
 
   konanFreeMemory(meta);
 }
-
-}  // namespace
 
 void ObjectContainer::Init(MemoryState* state, const TypeInfo* typeInfo) {
   RuntimeAssert(typeInfo->instanceSize_ >= 0, "Must be an object");
