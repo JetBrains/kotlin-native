@@ -962,6 +962,7 @@ standaloneTest("cleaner_in_tls_main_with_checker") {
 standaloneTest("cleaner_in_tls_worker") {
     enabled = (project.testTarget != 'wasm32') // Cleaners need workers
     source = "runtime/basic/cleaner_in_tls_worker.kt"
+    flags = ['-Xopt-in=kotlin.native.internal.InternalForKotlinNative']
 }
 
 standaloneTest("worker_bound_reference0") {
@@ -1729,6 +1730,10 @@ task kclassEnumArgument(type: KonanLocalTest) {
 
 task ktype1(type: KonanLocalTest) {
     source = "codegen/ktype/ktype1.kt"
+}
+
+task ktype_nonReified(type: KonanLocalTest) {
+    source = "codegen/ktype/nonReified.kt"
 }
 
 task associatedObjects1(type: KonanLocalTest) {

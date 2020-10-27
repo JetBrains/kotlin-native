@@ -64,8 +64,8 @@ internal class KonanSharedVariablesManager(val context: KonanBackendContext) : S
 
         val sharedVariableInitialization =
                 IrCallImpl.fromSymbolDescriptor(initializer.startOffset, initializer.endOffset,
-                        context.irBuiltIns.unitType, elementProperty.setter!!.symbol)
-
+                        context.irBuiltIns.unitType, elementProperty.setter!!.symbol,
+                        elementProperty.setter!!.typeParameters.size, elementProperty.setter!!.valueParameters.size)
         sharedVariableInitialization.dispatchReceiver =
                 IrGetValueImpl(initializer.startOffset, initializer.endOffset,
                         sharedVariableDeclaration.type, sharedVariableDeclaration.symbol)
@@ -80,7 +80,8 @@ internal class KonanSharedVariablesManager(val context: KonanBackendContext) : S
 
     override fun getSharedValue(sharedVariableSymbol: IrVariableSymbol, originalGet: IrGetValue) =
             IrCallImpl.fromSymbolDescriptor(originalGet.startOffset, originalGet.endOffset,
-                    originalGet.type, elementProperty.getter!!.symbol).apply {
+                    originalGet.type, elementProperty.getter!!.symbol,
+                    elementProperty.getter!!.typeParameters.size, elementProperty.getter!!.valueParameters.size).apply {
                 dispatchReceiver = IrGetValueImpl(
                         originalGet.startOffset, originalGet.endOffset,
                         sharedVariableSymbol.owner.type, sharedVariableSymbol
@@ -89,7 +90,8 @@ internal class KonanSharedVariablesManager(val context: KonanBackendContext) : S
 
     override fun setSharedValue(sharedVariableSymbol: IrVariableSymbol, originalSet: IrSetValue) =
             IrCallImpl.fromSymbolDescriptor(originalSet.startOffset, originalSet.endOffset, context.irBuiltIns.unitType,
-                    elementProperty.setter!!.symbol).apply {
+                    elementProperty.setter!!.symbol, elementProperty.setter!!.typeParameters.size,
+                    elementProperty.setter!!.valueParameters.size).apply {
                 dispatchReceiver = IrGetValueImpl(
                         originalSet.startOffset, originalSet.endOffset,
                         sharedVariableSymbol.owner.type, sharedVariableSymbol

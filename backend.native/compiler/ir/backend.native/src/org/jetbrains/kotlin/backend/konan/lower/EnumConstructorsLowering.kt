@@ -179,7 +179,9 @@ internal class EnumConstructorsLowering(val context: Context) : ClassLoweringPas
                 val result = IrDelegatingConstructorCallImpl.fromSymbolDescriptor(
                         startOffset, endOffset,
                         context.irBuiltIns.unitType,
-                        enumConstructorCall.symbol)
+                        enumConstructorCall.symbol,
+                        enumConstructorCall.symbol.owner.typeParameters.size,
+                        enumConstructorCall.symbol.owner.valueParameters.size)
 
                 assert(result.symbol.owner.valueParameters.size == 2) {
                     "Enum(String, Int) constructor call expected:\n${result.dump()}"
@@ -214,7 +216,9 @@ internal class EnumConstructorsLowering(val context: Context) : ClassLoweringPas
                 val result = IrDelegatingConstructorCallImpl.fromSymbolDescriptor(
                         startOffset, endOffset,
                         context.irBuiltIns.unitType,
-                        loweredDelegatingConstructor.symbol)
+                        loweredDelegatingConstructor.symbol,
+                        loweredDelegatingConstructor.symbol.owner.typeParameters.size,
+                        loweredDelegatingConstructor.symbol.owner.valueParameters.size)
 
                 val firstParameter = enumClassConstructor.valueParameters[0]
                 result.putValueArgument(0,
@@ -270,7 +274,8 @@ internal class EnumConstructorsLowering(val context: Context) : ClassLoweringPas
             override fun createConstructorCall(startOffset: Int, endOffset: Int, loweredConstructor: IrConstructorSymbol) =
                     IrDelegatingConstructorCallImpl.fromSymbolDescriptor(
                             startOffset, endOffset, context.irBuiltIns.unitType, loweredConstructor
-                    )
+                    ,
+                    loweredConstructor.owner.typeParameters.size, loweredConstructor.owner.valueParameters.size)
         }
 
         private inner class InEnumEntryInitializer(enumEntry: IrEnumEntry) : InEnumEntry(enumEntry) {

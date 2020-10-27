@@ -84,7 +84,8 @@ open class LinkNativeTest @Inject constructor(
         @OutputFile val outputFile: File,
         @Internal val target: String,
         @Internal val linkerArgs: List<String>,
-        private val  platformManager: PlatformManager
+        private val  platformManager: PlatformManager,
+        private val mimallocEnabled: Boolean
 ) : DefaultTask () {
     companion object {
         fun create(
@@ -94,7 +95,8 @@ open class LinkNativeTest @Inject constructor(
                 inputFiles: List<File>,
                 target: String,
                 outputFile: File,
-                linkerArgs: List<String>
+                linkerArgs: List<String>,
+                mimallocEnabled: Boolean
         ): LinkNativeTest = project.tasks.create(
                 taskName,
                 LinkNativeTest::class.java,
@@ -102,7 +104,8 @@ open class LinkNativeTest @Inject constructor(
                 outputFile,
                 target,
                 linkerArgs,
-                platformManager)
+                platformManager,
+                mimallocEnabled)
 
         fun create(
                 project: Project,
@@ -111,6 +114,7 @@ open class LinkNativeTest @Inject constructor(
                 inputFiles: List<File>,
                 target: String,
                 executableName: String,
+                mimallocEnabled: Boolean,
                 linkerArgs: List<String> = listOf()
         ): LinkNativeTest = create(
                 project,
@@ -119,7 +123,7 @@ open class LinkNativeTest @Inject constructor(
                 inputFiles,
                 target,
                 project.buildDir.resolve("bin/test/$target/$executableName"),
-                linkerArgs)
+                linkerArgs, mimallocEnabled)
     }
 
     @get:Input
@@ -137,7 +141,8 @@ open class LinkNativeTest @Inject constructor(
                     debug = false,
                     kind = LinkerOutputKind.EXECUTABLE,
                     outputDsymBundle = "",
-                    needsProfileLibrary = false
+                    needsProfileLibrary = false,
+                    mimallocEnabled = mimallocEnabled
             ).map { it.argsWithExecutable }
         }
 
@@ -153,6 +158,7 @@ open class LinkNativeTest @Inject constructor(
 
 fun createTestTask(
         project: Project,
+        testName: String,
         testTaskName: String,
         testedTaskNames: List<String>,
         configureCompileToBitcode: CompileToBitcode.() -> Unit = {},
@@ -218,13 +224,15 @@ fun createTestTask(
         clangArgs.addAll(clangFlags.clangNooptFlags)
     }
 
+    val mimallocEnabled = testedTaskNames.any { it.contains("mimalloc", ignoreCase = true) }
     val linkTask = LinkNativeTest.create(
             project,
             platformManager,
             "${testTaskName}Link",
             listOf(compileTask.outputFile),
             target,
-            testTaskName
+            testTaskName,
+            mimallocEnabled
     ).apply {
         dependsOn(compileTask)
     }
@@ -239,6 +247,15 @@ fun createTestTask(
 
         doFirst {
             workingDir.mkdirs()
+        }
+
+        doLast {
+            // TODO: Better to use proper XML parsing.
+            var contents = xmlReport.readText()
+            contents = contents.replace("<testsuite name=\"", "<testsuite name=\"${testName}.")
+            contents = contents.replace("classname=\"", "classname=\"${testName}.")
+            val rewrittenReport = workingDir.resolve("report-with-prefixes.xml")
+            rewrittenReport.writeText(contents)
         }
     }
 }

@@ -238,6 +238,8 @@ private fun Context.buildBridge(startOffset: Int, endOffset: Int,
                 endOffset,
                 targetSymbol.owner.returnType,
                 targetSymbol,
+                typeArgumentsCount = targetSymbol.owner.typeParameters.size,
+                valueArgumentsCount = targetSymbol.owner.valueParameters.size,
                 superQualifierSymbol = superQualifierSymbol /* Call non-virtually */
         ).apply {
             bridge.dispatchReceiverParameter?.let {

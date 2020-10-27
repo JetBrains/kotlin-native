@@ -42,7 +42,7 @@ internal class RedundantCoercionsCleaner(val context: Context) : FileLoweringPas
                     }
             with (coercion) {
                 return IrCallImpl.fromSymbolDescriptor(
-                        startOffset, endOffset, type, symbol, typeArgumentsCount, origin = origin
+                        startOffset, endOffset, type, symbol, typeArgumentsCount, symbol.owner.valueParameters.size, origin = origin
                 ).apply {
                     putValueArgument(0, castedExpression)
                 }

@@ -113,11 +113,13 @@ internal class EnumUsageLowering(val context: Context)
         return IrCallImpl.fromSymbolDescriptor(
                 startOffset, endOffset, enumClass.defaultType,
                 loweredEnum.itemGetterSymbol.owner.symbol,
-                typeArgumentsCount = 0
+                typeArgumentsCount = 0,
+                loweredEnum.itemGetterSymbol.owner.valueParameters.size
         ).apply {
             dispatchReceiver = IrCallImpl.fromSymbolDescriptor(
                     startOffset, endOffset, loweredEnum.valuesGetter.returnType, loweredEnum.valuesGetter.symbol
-            )
+            , loweredEnum.valuesGetter.typeParameters.size,
+                    loweredEnum.valuesGetter.valueParameters.size)
             putValueArgument(0, IrConstImpl.int(startOffset, endOffset, context.irBuiltIns.intType, ordinal))
         }
     }

@@ -131,7 +131,11 @@ internal val buildCExportsPhase = konanUnitPhase(
 )
 
 internal val psiToIrPhase = konanUnitPhase(
-        op = { this.psiToIr(symbolTable!!) },
+        op = {
+            this.psiToIr(symbolTable!!,
+                    isProducingLibrary = config.produce == CompilerOutputKind.LIBRARY,
+                    useLinkerWhenProducingLibrary = false)
+        },
         name = "Psi2Ir",
         description = "Psi to IR conversion and klib linkage",
         prerequisite = setOf(createSymbolTablePhase)
@@ -370,7 +374,7 @@ internal val useInternalAbiPhase = makeKonanModuleOpPhase(
                     }
                     return IrCallImpl.fromSymbolDescriptor(
                             expression.startOffset, expression.endOffset, expression.type, accessor.symbol
-                    )
+                    , accessor.typeParameters.size, accessor.valueParameters.size)
                 }
             }
             module.transformChildrenVoid(transformer)
@@ -426,6 +430,7 @@ val toplevelPhase: CompilerPhase<*, Unit, Unit> = namedUnitPhase(
                 destroySymbolTablePhase then
                 copyDefaultValuesToActualPhase then
                 serializerPhase then
+                specialBackendChecksPhase then
                 namedUnitPhase(
                         name = "Backend",
                         description = "All backend",
@@ -453,10 +458,9 @@ internal fun PhaseConfig.konanPhasesConfig(config: KonanConfig) {
 
         // Don't serialize anything to a final executable.
         disableUnless(serializerPhase, config.produce == CompilerOutputKind.LIBRARY)
-        disableIf(dependenciesLowerPhase, config.produce == CompilerOutputKind.LIBRARY)
         disableUnless(entryPointPhase, config.produce == CompilerOutputKind.PROGRAM)
         disableUnless(exportInternalAbiPhase, config.produce.isCache)
-        disableIf(bitcodePhase, config.produce == CompilerOutputKind.LIBRARY)
+        disableIf(backendCodegen, config.produce == CompilerOutputKind.LIBRARY)
         disableUnless(bitcodeOptimizationPhase, config.produce.involvesLinkStage)
         disableUnless(linkBitcodeDependenciesPhase, config.produce.involvesLinkStage)
         disableUnless(objectFilesPhase, config.produce.involvesLinkStage)
@@ -473,6 +477,5 @@ internal fun PhaseConfig.konanPhasesConfig(config: KonanConfig) {
         disableIf(psiToIrPhase, isDescriptorsOnlyLibrary)
         disableIf(destroySymbolTablePhase, isDescriptorsOnlyLibrary)
         disableIf(copyDefaultValuesToActualPhase, isDescriptorsOnlyLibrary)
-        disableIf(backendCodegen, isDescriptorsOnlyLibrary)
     }
 }

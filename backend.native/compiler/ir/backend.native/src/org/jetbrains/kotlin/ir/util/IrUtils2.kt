@@ -241,7 +241,7 @@ fun IrBuilderWithScope.irCall(irFunction: IrFunction, typeArguments: List<IrType
 internal fun irCall(startOffset: Int, endOffset: Int, irFunction: IrSimpleFunction, typeArguments: List<IrType>): IrCall =
         IrCallImpl.fromSymbolDescriptor(
                 startOffset, endOffset, irFunction.substitutedReturnType(typeArguments),
-                irFunction.symbol, typeArguments.size
+                irFunction.symbol, typeArguments.size, irFunction.valueParameters.size
         ).apply {
             typeArguments.forEachIndexed { index, irType ->
                 this.putTypeArgument(index, irType)
@@ -386,11 +386,6 @@ fun IrClass.defaultOrNullableType(hasQuestionMark: Boolean) =
 
 fun IrFunction.isRestrictedSuspendFunction(languageVersionSettings: LanguageVersionSettings): Boolean =
         this.descriptor.extensionReceiverParameter?.type?.isRestrictsSuspensionReceiver(languageVersionSettings) == true
-
-fun IrFunction.isTypeOfIntrinsic(): Boolean =
-        this.name.asString() == "typeOf" &&
-                this.valueParameters.isEmpty() &&
-                (this.parent as? IrPackageFragment)?.fqName == StandardNames.KOTLIN_REFLECT_FQ_NAME
 
 fun IrBuilderWithScope.irByte(value: Byte) =
         IrConstImpl.byte(startOffset, endOffset, context.irBuiltIns.byteType, value)

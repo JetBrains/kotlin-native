@@ -37,7 +37,9 @@ bitcode {
             "${target}Relaxed",
             "${target}ProfileRuntime",
             "${target}Objc",
-            "${target}ExceptionsSupport"
+            "${target}ExceptionsSupport",
+            "${target}LegacyMemoryManager",
+            "${target}ExperimentalMemoryManager"
         )
         includeRuntime()
         linkerArgs.add(project.file("../common/build/bitcode/main/$target/hash.bc").path)
@@ -46,9 +48,11 @@ bitcode {
     create("mimalloc") {
         language = CompileToBitcode.Language.C
         includeFiles = listOf("**/*.c")
-        excludeFiles += listOf("**/alloc-override*.c", "**/page-queue.c", "**/static.c")
+        excludeFiles += listOf("**/alloc-override*.c", "**/page-queue.c", "**/static.c", "**/bitmap.inc.c")
         srcDirs = files("$srcRoot/c")
-        compilerArgs.add("-DKONAN_MI_MALLOC=1")
+        compilerArgs.addAll(listOf("-DKONAN_MI_MALLOC=1", "-Wno-unknown-pragmas", "-ftls-model=initial-exec",
+                "-Wno-unused-function", "-Wno-error=atomic-alignment",
+                "-Wno-unused-parameter" /* for windows 32*/))
         headersDirs = files("$srcRoot/c/include")
 
         onlyIf { targetSupportsMimallocAllocator(target) }
@@ -92,14 +96,24 @@ bitcode {
         dependsOn("downloadGoogleTest")
         headersDirs += googletest.headersDirs
     }
+
+    create("legacy_memory_manager", file("src/legacymm")) {
+        includeRuntime()
+    }
+
+    create("experimental_memory_manager", file("src/mm")) {
+        includeRuntime()
+    }
 }
 
 targetList.forEach { targetName ->
     createTestTask(
             project,
+            "StdAlloc",
             "${targetName}StdAllocRuntimeTests",
             listOf(
                 "${targetName}Runtime",
+                "${targetName}LegacyMemoryManager",
                 "${targetName}Strict",
                 "${targetName}Release",
                 "${targetName}StdAlloc"
@@ -110,9 +124,11 @@ targetList.forEach { targetName ->
 
     createTestTask(
             project,
+            "Mimalloc",
             "${targetName}MimallocRuntimeTests",
             listOf(
                 "${targetName}Runtime",
+                "${targetName}LegacyMemoryManager",
                 "${targetName}Strict",
                 "${targetName}Release",
                 "${targetName}Mimalloc",
@@ -122,9 +138,23 @@ targetList.forEach { targetName ->
         includeRuntime()
     }
 
+    createTestTask(
+            project,
+            "ExperimentalMM",
+            "${targetName}ExperimentalMMRuntimeTests",
+            listOf(
+                "${targetName}Runtime",
+                "${targetName}ExperimentalMemoryManager",
+                "${targetName}Release",
+                "${targetName}Mimalloc",
+                "${targetName}OptAlloc"
+            )
+    )
+
     tasks.register("${targetName}RuntimeTests") {
         dependsOn("${targetName}StdAllocRuntimeTests")
         dependsOn("${targetName}MimallocRuntimeTests")
+        dependsOn("${targetName}ExperimentalMMRuntimeTests")
     }
 }
 
@@ -142,6 +172,10 @@ val hostStdAllocRuntimeTests by tasks.registering {
 
 val hostMimallocRuntimeTests by tasks.registering {
     dependsOn("${hostName}MimallocRuntimeTests")
+}
+
+val hostExperimentalMMRuntimeTests by tasks.registering {
+    dependsOn("${hostName}ExperimentalMMRuntimeTests")
 }
 
 val assemble by tasks.registering {
