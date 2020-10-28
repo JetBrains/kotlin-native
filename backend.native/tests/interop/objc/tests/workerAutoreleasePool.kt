@@ -4,43 +4,43 @@ import kotlin.test.*
 import objcTests.*
 
 @Test
-fun testExecute1() =
+fun testExecuteInMainPark() =
         test(Execute, InMain, Park)
 
 @Test
-fun testExecute2() =
+fun testExecuteInMainProcessQueue() =
         test(Execute, InMain, ProcessQueue)
 
 @Test
-fun testExecute3() =
+fun testExecuteInWorkerPark() =
         test(Execute, InWorker, Park)
 
 @Test
-fun testExecute4() =
+fun testExecuteInWorkerProcessQueue() =
         test(Execute, InWorker, ProcessQueue)
 
 @Test
-fun testExecute5() =
+fun testExecuteInMainToWorkerNoYield() =
         test(Execute, InMainToWorker, NoYield)
 
 @Test
-fun testExecuteAfter1() =
+fun testExecuteAfterInMainPark() =
         test(ExecuteAfter, InMain, Park)
 
 @Test
-fun testExecuteAfter2() =
+fun testExecuteAfterInMainProcessQueue() =
         test(ExecuteAfter, InMain, ProcessQueue)
 
 @Test
-fun testExecuteAfter3() =
+fun testExecuteAfterInWorkerPark() =
         test(ExecuteAfter, InWorker, Park)
 
 @Test
-fun testExecuteAfter4() =
+fun testExecuteAfterInWorkerProcessQueue() =
         test(ExecuteAfter, InWorker, ProcessQueue)
 
 @Test
-fun testExecuteAfter5() =
+fun testExecuteAfterInMainToWorkerNoYield() =
         test(ExecuteAfter, InMainToWorker, NoYield)
 
 private fun <Job> test(method: ExecuteMethod<Job>, context: Context, yieldMethod: Yield) {
