@@ -24,24 +24,24 @@ fun testExecuteInMainToWorkerNoYield() =
         test(Execute, InMainToWorker, NoYield)
 
 @Test
-fun testExecuteAfterInMainPark() =
-        test(ExecuteAfter, InMain, Park)
+fun testExecuteAfter0InMainPark() =
+        test(ExecuteAfter0, InMain, Park)
 
 @Test
-fun testExecuteAfterInMainProcessQueue() =
-        test(ExecuteAfter, InMain, ProcessQueue)
+fun testExecuteAfter0InMainProcessQueue() =
+        test(ExecuteAfter0, InMain, ProcessQueue)
 
 @Test
-fun testExecuteAfterInWorkerPark() =
-        test(ExecuteAfter, InWorker, Park)
+fun testExecuteAfter0InWorkerPark() =
+        test(ExecuteAfter0, InWorker, Park)
 
 @Test
-fun testExecuteAfterInWorkerProcessQueue() =
-        test(ExecuteAfter, InWorker, ProcessQueue)
+fun testExecuteAfter0InWorkerProcessQueue() =
+        test(ExecuteAfter0, InWorker, ProcessQueue)
 
 @Test
-fun testExecuteAfterInMainToWorkerNoYield() =
-        test(ExecuteAfter, InMainToWorker, NoYield)
+fun testExecuteAfter0InMainToWorkerNoYield() =
+        test(ExecuteAfter0, InMainToWorker, NoYield)
 
 private fun <Job> test(method: ExecuteMethod<Job>, context: Context, yieldMethod: Yield) {
     context.withWorker { worker ->
@@ -82,7 +82,7 @@ object Execute : ExecuteMethod<Future<Unit>> {
     }
 }
 
-object ExecuteAfter : ExecuteMethod<AtomicReference<Any?>> {
+object ExecuteAfter0 : ExecuteMethod<AtomicReference<Any?>> {
     override fun submit(worker: Worker, block: () -> Unit): AtomicReference<Any?> {
         val result = AtomicReference<Any?>(null)
 
