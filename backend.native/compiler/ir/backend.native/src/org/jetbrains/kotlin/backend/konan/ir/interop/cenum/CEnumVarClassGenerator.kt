@@ -60,7 +60,7 @@ internal class CEnumVarClassGenerator(
             +IrDelegatingConstructorCallImpl(
                     startOffset, endOffset, context.irBuiltIns.unitType, enumVarConstructorSymbol,
                     enumVarConstructorSymbol.owner.typeParameters.size,
-                    enumVarConstructorSymbol.owner.valueParameters.size
+                    1
             ).also {
                 it.putValueArgument(0, irGet(irConstructor.valueParameters[0]))
             }
