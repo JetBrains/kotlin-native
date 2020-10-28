@@ -43,12 +43,12 @@ fun testExecuteAfter0InWorkerProcessQueue() =
 fun testExecuteAfter0InMainToWorkerNoYield() =
         test(ExecuteAfter0, InMainToWorker, NoYield)
 
-private fun <Job> test(method: ExecuteMethod<Job>, context: Context, yieldMethod: Yield) {
+private fun <F> test(method: ExecuteMethod<F>, context: Context, yieldMethod: Yield) {
     context.withWorker { worker ->
         fun execute(block: () -> Unit) {
-            val job = method.submit(worker, block)
+            val future = method.submit(worker, block)
             yieldMethod.yield()
-            method.wait(job)
+            method.wait(future)
         }
 
         val deallocated = CreateAutoreleaseDeallocated()
@@ -67,9 +67,9 @@ private fun <Job> test(method: ExecuteMethod<Job>, context: Context, yieldMethod
     }
 }
 
-interface ExecuteMethod<Job> {
-    fun submit(worker: Worker, block: () -> Unit): Job
-    fun wait(job: Job)
+interface ExecuteMethod<F> {
+    fun submit(worker: Worker, block: () -> Unit): F
+    fun wait(future: F)
 }
 
 object Execute : ExecuteMethod<Future<Unit>> {
@@ -77,8 +77,8 @@ object Execute : ExecuteMethod<Future<Unit>> {
         it()
     }
 
-    override fun wait(job: Future<Unit>) {
-        job.result // Throws on failure.
+    override fun wait(future: Future<Unit>) {
+        future.result // Throws on failure.
     }
 }
 
@@ -98,9 +98,9 @@ object ExecuteAfter0 : ExecuteMethod<AtomicReference<Any?>> {
         return result
     }
 
-    override fun wait(job: AtomicReference<Any?>) {
+    override fun wait(future: AtomicReference<Any?>) {
         while (true) {
-            when (val it = job.value) {
+            when (val it = future.value) {
                 null -> continue
                 true -> return
                 else -> throw it as Throwable
