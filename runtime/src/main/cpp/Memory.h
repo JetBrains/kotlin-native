@@ -254,6 +254,8 @@ bool IsForeignRefAccessible(ObjHeader* object, ForeignRefContext context);
 // and there's nothing else keeping the object alive.
 void AdoptReferenceFromSharedVariable(ObjHeader* object);
 
+void CheckGlobalAccessible();
+
 #ifdef __cplusplus
 }
 #endif

@@ -145,6 +145,8 @@ FrameOverlay exportFrameOverlay;
 volatile int allocCount = 0;
 volatile int aliveMemoryStatesCount = 0;
 
+THREAD_LOCAL_VARIABLE int isMainThread = 0;
+
 #if USE_CYCLIC_GC
 KBoolean g_hasCyclicCollector = true;
 #endif  // USE_CYCLIC_GC
@@ -2007,6 +2009,7 @@ MemoryState* initMemory() {
 #if USE_CYCLIC_GC
     cyclicInit();
 #endif  // USE_CYCLIC_GC
+    isMainThread = 1;
   }
   return memoryState;
 }
@@ -3606,6 +3609,11 @@ bool Kotlin_Any_isShareable(KRef thiz) {
 
 void PerformFullGC() {
     garbageCollect(::memoryState, true);
+}
+
+void CheckGlobalAccessible() {
+    if (!isMainThread)
+        ThrowIncorrectDereferenceException();
 }
 
 } // extern "C"

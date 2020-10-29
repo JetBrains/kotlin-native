@@ -452,9 +452,9 @@ internal class FunctionGenerationContext(val function: LLVMValueRef,
             call(context.llvm.freezeSubgraph, listOf(value), Lifetime.IRRELEVANT, exceptionHandler)
     }
 
-    fun checkMainThread(exceptionHandler: ExceptionHandler) {
+    fun checkGlobalAccessible(exceptionHandler: ExceptionHandler) {
         if (context.memoryModel == MemoryModel.STRICT)
-            call(context.llvm.checkMainThread, emptyList(), Lifetime.IRRELEVANT, exceptionHandler)
+            call(context.llvm.checkGlobalAccessible, emptyList(), Lifetime.IRRELEVANT, exceptionHandler)
     }
 
     private fun updateReturnRef(value: LLVMValueRef, address: LLVMValueRef) {
