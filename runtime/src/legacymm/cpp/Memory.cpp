@@ -642,6 +642,8 @@ struct MemoryState {
 
   bool isMainThread = false;
 
+  FrameOverlay* currentFrame = nullptr;
+
 #if COLLECT_STATISTIC
   #define CONTAINER_ALLOC_STAT(state, size, container) state->statistic.incAlloc(size, container);
   #define CONTAINER_DESTROY_STAT(state, container) \
@@ -673,8 +675,6 @@ struct MemoryState {
   #define DEINIT_STAT(state)
   #define PRINT_STAT(state)
 #endif // COLLECT_STATISTIC
-
-  FrameOverlay* currentFrame = nullptr;
 };
 
 namespace {
