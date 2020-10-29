@@ -26,7 +26,10 @@ extern "C" {
 #endif
 
 void Kotlin_initRuntimeIfNeeded();
-void Kotlin_deinitRuntimeIfNeeded();
+
+// Kotlin runtime cannot be created in this process after this call.
+// This does not give any guarantees as to what will be destroyed.
+void Kotlin_destroyRuntime();
 
 // Appends given node to an initializer list.
 void AppendToInitializersTail(struct InitNode*);

@@ -81,7 +81,7 @@ void launchMain() {
     Konan_start(args.obj());
   }
 
-  Kotlin_deinitRuntimeIfNeeded();
+  Kotlin_destroyRuntime();
 }
 
 void* entry(void* param) {

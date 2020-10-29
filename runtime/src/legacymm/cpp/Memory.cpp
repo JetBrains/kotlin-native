@@ -586,7 +586,7 @@ private:
 
       if (hadNoStateInitialized) {
         // Discard the memory state.
-        DeinitMemory(memoryState);
+        DeinitMemory(memoryState, false);
       }
     }
   }
@@ -2015,21 +2015,12 @@ MemoryState* initMemory() {
   return memoryState;
 }
 
-void deinitMemory(MemoryState* memoryState) {
-  static int pendingDeinit = 0;
-  atomicAdd(&pendingDeinit, 1);
+void deinitMemory(MemoryState* memoryState, bool destroyRuntime) {
 #if USE_GC
-  bool lastMemoryState = atomicAdd(&aliveMemoryStatesCount, -1) == 0;
-  bool checkLeaks = Kotlin_memoryLeakCheckerEnabled() && lastMemoryState;
-  if (lastMemoryState) {
+  atomicAdd(&aliveMemoryStatesCount, -1);
+  if (destroyRuntime) {
    garbageCollect(memoryState, true);
 #if USE_CYCLIC_GC
-   // If there are other pending deinits (rare situation) - just skip the leak checker.
-   // This may happen when there're several threads with Kotlin runtimes created
-   // by foreign code, and that code stops those threads simultaneously.
-   if (atomicGet(&pendingDeinit) > 1) {
-     checkLeaks = false;
-   }
    cyclicDeinit(g_hasCyclicCollector);
 #endif  // USE_CYCLIC_GC
   }
@@ -2049,8 +2040,6 @@ void deinitMemory(MemoryState* memoryState) {
   RuntimeAssert(memoryState->finalizerQueueSize == 0, "Finalizer queue must be empty");
 #endif // USE_GC
 
-  atomicAdd(&pendingDeinit, -1);
-
 #if TRACE_MEMORY
   if (IsStrictMemoryModel && lastMemoryState && allocCount > 0) {
     MEMORY_LOG("*** Memory leaks, leaked %d containers ***\n", allocCount);
@@ -2058,7 +2047,7 @@ void deinitMemory(MemoryState* memoryState) {
   }
 #else
 #if USE_GC
-  if (IsStrictMemoryModel && allocCount > 0 && checkLeaks) {
+  if (IsStrictMemoryModel && allocCount > 0 && destroyRuntime && Kotlin_memoryLeakCheckerEnabled()) {
     konan::consoleErrorf(
         "Memory leaks detected, %d objects leaked!\n"
         "Use `Platform.isMemoryLeakCheckerActive = false` to avoid this check.\n", allocCount);
@@ -3236,8 +3225,8 @@ MemoryState* InitMemory() {
   return initMemory();
 }
 
-void DeinitMemory(MemoryState* memoryState) {
-  deinitMemory(memoryState);
+void DeinitMemory(MemoryState* memoryState, bool destroyRuntime) {
+  deinitMemory(memoryState, destroyRuntime);
 }
 
 void RestoreMemory(MemoryState* memoryState) {

@@ -123,7 +123,7 @@ extern "C" {
 struct MemoryState;
 
 MemoryState* InitMemory();
-void DeinitMemory(MemoryState*);
+void DeinitMemory(MemoryState*, bool destroyRuntime);
 void RestoreMemory(MemoryState*);
 
 //

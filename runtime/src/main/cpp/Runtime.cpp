@@ -75,6 +75,7 @@ inline bool isValidRuntime() {
 }
 
 volatile int aliveRuntimesCount = 0;
+volatile bool runtimeDestroyed = false;
 
 RuntimeState* initRuntime() {
   SetKonanTerminateHandler();
@@ -99,25 +100,25 @@ RuntimeState* initRuntime() {
   return result;
 }
 
-void deinitRuntime(RuntimeState* state) {
+void deinitRuntime(RuntimeState* state, bool destroyRuntime) {
   RuntimeAssert(state->status == RuntimeStatus::kRunning, "Runtime must be in the running state");
   state->status = RuntimeStatus::kDestroying;
   // This may be called after TLS is zeroed out, so ::memoryState in Memory cannot be trusted.
   RestoreMemory(state->memoryState);
-  bool lastRuntime = atomicAdd(&aliveRuntimesCount, -1) == 0;
+  atomicAdd(&aliveRuntimesCount, -1);
   InitOrDeinitGlobalVariables(DEINIT_THREAD_LOCAL_GLOBALS, state->memoryState);
-  if (lastRuntime)
+  if (destroyRuntime)
     InitOrDeinitGlobalVariables(DEINIT_GLOBALS, state->memoryState);
   auto workerId = GetWorkerId(state->worker);
   WorkerDeinit(state->worker);
-  DeinitMemory(state->memoryState);
+  DeinitMemory(state->memoryState, destroyRuntime);
   konanDestructInstance(state);
   WorkerDestroyThreadDataIfNeeded(workerId);
 }
 
 void Kotlin_deinitRuntimeCallback(void* argument) {
   auto* state = reinterpret_cast<RuntimeState*>(argument);
-  deinitRuntime(state);
+  deinitRuntime(state, false);
 }
 
 }  // namespace
@@ -136,6 +137,10 @@ void AppendToInitializersTail(InitNode *next) {
 
 void Kotlin_initRuntimeIfNeeded() {
   if (!isValidRuntime()) {
+    if (!atomicGet(&runtimeDestroyed)) {
+      konan::consoleErrorf("Kotlin runtime was previously destroyed. Cannot create new runtime.\n");
+      konan::abort();
+    }
     initRuntime();
     // Register runtime deinit function at thread cleanup.
     konan::onThreadExit(Kotlin_deinitRuntimeCallback, runtimeState);
@@ -144,9 +149,36 @@ void Kotlin_initRuntimeIfNeeded() {
 
 void Kotlin_deinitRuntimeIfNeeded() {
   if (isValidRuntime()) {
-    deinitRuntime(::runtimeState);
+    deinitRuntime(::runtimeState, false);
     ::runtimeState = kInvalidRuntime;
   }
+}
+
+void Kotlin_destroyRuntime() {
+    RuntimeAssert(isValidRuntime(), "Current thread must have Kotlin runtime on it.");
+
+    atomicSet(&runtimeDestroyed, true);
+
+    if (Kotlin_cleanersLeakCheckerEnabled()) {
+        // Make sure to collect any lingering cleaners.
+        PerformFullGC();
+        // Execute all the cleaner blocks and stop the Cleaner worker.
+        ShutdownCleaners(true);
+    } else {
+        // Stop the cleaner worker without executing remaining cleaner blocks.
+        ShutdownCleaners(false);
+    }
+    if (Kotlin_memoryLeakCheckerEnabled()) WaitNativeWorkersTermination();
+
+    auto otherRuntimesCount = atomicGet(&aliveRuntimesCount) - 1;
+    RuntimeAssert(otherRuntimesCount >= 0, "Cannot be negative.");
+    if (otherRuntimesCount > 0) {
+        konan::consoleErrorf("Cannot destroy runtime while there're %d alive threads with Kotlin runtime on them.\n", otherRuntimesCount);
+        konan::abort();
+    }
+
+    deinitRuntime(::runtimeState, true);
+    ::runtimeState = kInvalidRuntime;
 }
 
 KInt Konan_Platform_canAccessUnaligned() {

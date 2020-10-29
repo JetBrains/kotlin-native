@@ -51,7 +51,7 @@ MemoryState* InitMemory() {
     RuntimeCheck(false, "Unimplemented");
 }
 
-void DeinitMemory(MemoryState*) {
+void DeinitMemory(MemoryState*, bool destroyRuntime) {
     RuntimeCheck(false, "Unimplemented");
 }
 
