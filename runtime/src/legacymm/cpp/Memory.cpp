@@ -145,8 +145,6 @@ FrameOverlay exportFrameOverlay;
 volatile int allocCount = 0;
 volatile int aliveMemoryStatesCount = 0;
 
-THREAD_LOCAL_VARIABLE int isMainThread = 0;
-
 #if USE_CYCLIC_GC
 KBoolean g_hasCyclicCollector = true;
 #endif  // USE_CYCLIC_GC
@@ -642,6 +640,8 @@ struct MemoryState {
 
   // A stack of initializing singletons.
   KStdVector<std::pair<ObjHeader**, ObjHeader*>> initializingSingletons;
+
+  bool isMainThread = false;
 
 #if COLLECT_STATISTIC
   #define CONTAINER_ALLOC_STAT(state, size, container) state->statistic.incAlloc(size, container);
@@ -2009,7 +2009,7 @@ MemoryState* initMemory() {
 #if USE_CYCLIC_GC
     cyclicInit();
 #endif  // USE_CYCLIC_GC
-    isMainThread = 1;
+    memoryState->isMainThread = true;
   }
   return memoryState;
 }
@@ -3612,7 +3612,7 @@ void PerformFullGC() {
 }
 
 void CheckGlobalsAccessible() {
-    if (!isMainThread)
+    if (!::memoryState->isMainThread)
         ThrowIncorrectDereferenceException();
 }
 
