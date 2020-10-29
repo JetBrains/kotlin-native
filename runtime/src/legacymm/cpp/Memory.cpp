@@ -3611,7 +3611,7 @@ void PerformFullGC() {
     garbageCollect(::memoryState, true);
 }
 
-void CheckGlobalAccessible() {
+void CheckGlobalsAccessible() {
     if (!isMainThread)
         ThrowIncorrectDereferenceException();
 }

@@ -1574,7 +1574,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                 evaluateConst(value.symbol.owner.initializer?.expression as IrConst<*>)
             } else {
                 if (context.config.threadsAreAllowed && value.symbol.owner.isGlobalNonPrimitive) {
-                    functionGenerationContext.checkGlobalAccessible(currentCodeContext.exceptionHandler)
+                    functionGenerationContext.checkGlobalsAccessible(currentCodeContext.exceptionHandler)
                 }
                 val ptr = context.llvmDeclarations.forStaticField(value.symbol.owner).storageAddressAccess.getAddress(
                         functionGenerationContext
@@ -1643,7 +1643,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
                     functionGenerationContext
             )
             if (context.config.threadsAreAllowed && value.symbol.owner.storageKind == FieldStorageKind.GLOBAL)
-                functionGenerationContext.checkGlobalAccessible(currentCodeContext.exceptionHandler)
+                functionGenerationContext.checkGlobalsAccessible(currentCodeContext.exceptionHandler)
             if (value.symbol.owner.storageKind == FieldStorageKind.SHARED_FROZEN)
                 functionGenerationContext.freeze(valueToAssign, currentCodeContext.exceptionHandler)
             functionGenerationContext.storeAny(valueToAssign, globalAddress, false)

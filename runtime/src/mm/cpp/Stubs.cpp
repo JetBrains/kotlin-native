@@ -234,7 +234,7 @@ void AdoptReferenceFromSharedVariable(ObjHeader* object) {
     RuntimeCheck(false, "Unimplemented");
 }
 
-void CheckGlobalAccessible() {
+void CheckGlobalsAccessible() {
     // Globals are always accessible.
 }
 
