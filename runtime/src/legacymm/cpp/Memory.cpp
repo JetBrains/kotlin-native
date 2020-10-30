@@ -2443,10 +2443,11 @@ OBJ_GETTER(readHeapRefNoLock, ObjHeader* object, KInt index) {
 template <bool Strict>
 void enterFrame(ObjHeader** start, int parameters, int count) {
   MEMORY_LOG("EnterFrame %p: %d parameters %d locals\n", start, parameters, count)
+  auto& currentFrame = ::memoryState->currentFrame;
   FrameOverlay* frame = reinterpret_cast<FrameOverlay*>(start);
   if (Strict) {
-    frame->previous = ::memoryState->currentFrame;
-    ::memoryState->currentFrame = frame;
+    frame->previous = currentFrame;
+    currentFrame = frame;
     // TODO: maybe compress in single value somehow.
     frame->parameters = parameters;
     frame->count = count;
@@ -2456,9 +2457,10 @@ void enterFrame(ObjHeader** start, int parameters, int count) {
 template <bool Strict>
 void leaveFrame(ObjHeader** start, int parameters, int count) {
   MEMORY_LOG("LeaveFrame %p: %d parameters %d locals\n", start, parameters, count)
+  auto& currentFrame = ::memoryState->currentFrame;
   FrameOverlay* frame = reinterpret_cast<FrameOverlay*>(start);
   if (Strict) {
-    ::memoryState->currentFrame = frame->previous;
+    currentFrame = frame->previous;
   } else {
     ObjHeader** current = start + parameters + kFrameOverlaySlots;
     count -= parameters;
