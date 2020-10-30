@@ -21,11 +21,7 @@ import org.jetbrains.kotlin.name.Name
 internal fun createLlvmDeclarations(context: Context): LlvmDeclarations {
     val generator = DeclarationsGeneratorVisitor(context)
     context.ir.irModule.acceptChildrenVoid(generator)
-    return with(generator) {
-        LlvmDeclarations(
-                functions, classes, fields, staticFields, uniques
-        )
-    }
+    return LlvmDeclarations(generator.uniques)
 }
 
 // Please note, that llvmName is part of the ABI, and cannot be liberally changed.
@@ -34,22 +30,17 @@ enum class UniqueKind(val llvmName: String) {
     EMPTY_ARRAY("theEmptyArray")
 }
 
-internal class LlvmDeclarations(
-    private val functions: Map<IrFunction, FunctionLlvmDeclarations>,
-    private val classes: Map<IrClass, ClassLlvmDeclarations>,
-    private val fields: Map<IrField, FieldLlvmDeclarations>,
-    private val staticFields: Map<IrField, StaticFieldLlvmDeclarations>,
-    private val unique: Map<UniqueKind, UniqueLlvmDeclarations>) {
+internal class LlvmDeclarations(private val unique: Map<UniqueKind, UniqueLlvmDeclarations>) {
     fun forFunction(function: IrFunction) = forFunctionOrNull(function) ?: with(function){error("$name in $file/${parent.fqNameForIrSerialization}")}
-    fun forFunctionOrNull(function: IrFunction) = functions[function]
+    fun forFunctionOrNull(function: IrFunction) = (function.metadata as? CodegenFunctionMetadata)?.llvm
 
-    fun forClass(irClass: IrClass) = classes[irClass] ?:
+    fun forClass(irClass: IrClass) = (irClass.metadata as? CodegenClassMetadata)?.llvm ?:
             error(irClass.descriptor.toString())
 
-    fun forField(field: IrField) = fields[field] ?:
+    fun forField(field: IrField) = (field.metadata as? CodegenInstanceFieldMetadata)?.llvm ?:
             error(field.descriptor.toString())
 
-    fun forStaticField(field: IrField) = staticFields[field] ?:
+    fun forStaticField(field: IrField) = (field.metadata as? CodegenStaticFieldMetadata)?.llvm ?:
             error(field.descriptor.toString())
 
     fun forSingleton(irClass: IrClass) = forClass(irClass).singletonDeclarations ?:
@@ -100,10 +91,6 @@ private fun ContextUtils.createClassBodyType(name: String, fields: List<IrField>
 private class DeclarationsGeneratorVisitor(override val context: Context) :
         IrElementVisitorVoid, ContextUtils {
 
-    val functions = mutableMapOf<IrFunction, FunctionLlvmDeclarations>()
-    val classes = mutableMapOf<IrClass, ClassLlvmDeclarations>()
-    val fields = mutableMapOf<IrField, FieldLlvmDeclarations>()
-    val staticFields = mutableMapOf<IrField, StaticFieldLlvmDeclarations>()
     val uniques = mutableMapOf<UniqueKind, UniqueLlvmDeclarations>()
 
     private class Namer(val prefix: String) {
@@ -157,7 +144,8 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
 
     override fun visitClass(declaration: IrClass) {
         if (declaration.requiresRtti()) {
-            this.classes[declaration] = createClassDeclarations(declaration)
+            declaration.metadata = CodegenClassMetadata(
+                    declaration.metadata?.name, createClassDeclarations(declaration))
         }
         super.visitClass(declaration)
     }
@@ -311,12 +299,15 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
         val containingClass = declaration.parent as? IrClass
         if (containingClass != null) {
             if (!containingClass.requiresRtti()) return
-            val classDeclarations = this.classes[containingClass] ?:
-                error(containingClass.descriptor.toString())
+            val classDeclarations = (containingClass.metadata as? CodegenClassMetadata)?.llvm
+                    ?: error(containingClass.descriptor.toString())
             val allFields = context.getLayoutBuilder(containingClass).fields
-            this.fields[declaration] = FieldLlvmDeclarations(
-                    allFields.indexOf(declaration) + 1, // First field is ObjHeader.
-                    classDeclarations.bodyType
+            declaration.metadata = CodegenInstanceFieldMetadata(
+                    declaration.metadata?.name,
+                    FieldLlvmDeclarations(
+                            allFields.indexOf(declaration) + 1, // First field is ObjHeader.
+                            classDeclarations.bodyType
+                    )
             )
         } else {
             // Fields are module-private, so we use internal name:
@@ -327,7 +318,8 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
                 addKotlinGlobal(name, getLLVMType(declaration.type), isExported = false)
             }
 
-            this.staticFields[declaration] = StaticFieldLlvmDeclarations(storage)
+            declaration.metadata = CodegenStaticFieldMetadata(
+                    declaration.metadata?.name, StaticFieldLlvmDeclarations(storage))
         }
     }
 
@@ -374,6 +366,12 @@ private class DeclarationsGeneratorVisitor(override val context: Context) :
             function
         }
 
-        this.functions[declaration] = FunctionLlvmDeclarations(llvmFunction)
+        declaration.metadata = CodegenFunctionMetadata(
+                declaration.metadata?.name, FunctionLlvmDeclarations(llvmFunction))
     }
 }
+
+internal class CodegenClassMetadata(override val name: Name?, val llvm: ClassLlvmDeclarations) : MetadataSource.Class
+internal class CodegenFunctionMetadata(override val name: Name?, val llvm: FunctionLlvmDeclarations) : MetadataSource.Function
+internal class CodegenInstanceFieldMetadata(override val name: Name?, val llvm: FieldLlvmDeclarations) : MetadataSource.Property
+internal class CodegenStaticFieldMetadata(override val name: Name?, val llvm: StaticFieldLlvmDeclarations) : MetadataSource.Property
