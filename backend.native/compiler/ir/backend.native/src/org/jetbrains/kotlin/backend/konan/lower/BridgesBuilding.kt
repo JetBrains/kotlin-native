@@ -133,19 +133,18 @@ internal class BridgesBuilding(val context: Context) : ClassLoweringPass {
     override fun lower(irClass: IrClass) {
         val builtBridges = mutableSetOf<IrSimpleFunction>()
 
-        irClass.simpleFunctions()
-                .forEach { function ->
-                    function.allOverriddenFunctions
-                            .map { OverriddenFunctionInfo(function, it) }
-                            .filter { !it.bridgeDirections.allNotNeeded() }
-                            .filter { it.canBeCalledVirtually }
-                            .filter { !it.inheritsBridge }
-                            .distinctBy { it.bridgeDirections }
-                            .forEach {
-                                buildBridge(it, irClass)
-                                builtBridges += it.function
-                            }
+        for (function in irClass.simpleFunctions()) {
+            val set = mutableSetOf<BridgeDirections>()
+            for (overriddenFunction in function.allOverriddenFunctions) {
+                val overriddenFunctionInfo = OverriddenFunctionInfo(function, overriddenFunction)
+                val bridgeDirections = overriddenFunctionInfo.bridgeDirections
+                if (!bridgeDirections.allNotNeeded() && overriddenFunctionInfo.canBeCalledVirtually
+                        && !overriddenFunctionInfo.inheritsBridge && set.add(bridgeDirections)) {
+                    buildBridge(overriddenFunctionInfo, irClass)
+                    builtBridges += function
                 }
+            }
+        }
         irClass.transformChildrenVoid(object: IrElementTransformerVoid() {
             override fun visitFunction(declaration: IrFunction): IrStatement {
                 declaration.transformChildrenVoid(this)
