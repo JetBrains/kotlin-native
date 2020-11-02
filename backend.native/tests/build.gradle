@@ -4327,6 +4327,13 @@ dynamicTest("interop_cleaners_leak") {
     flags = ['-Xopt-in=kotlin.native.internal.InternalForKotlinNative']
 }
 
+dynamicTest("interop_migrating_main_thread") {
+    disabled = (project.target.name != project.hostName)
+    source = "interop/migrating_main_thread/lib.kt"
+    cSource = "$projectDir/interop/migrating_main_thread/main.cpp"
+    clangTool = "clang++"
+}
+
 task library_mismatch(type: KonanDriverTest) {
     // Does not work for cross targets yet.
     enabled = !(project.testTarget != null && project.target.name != project.hostName)
