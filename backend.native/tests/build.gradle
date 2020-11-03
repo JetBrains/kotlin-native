@@ -4381,6 +4381,15 @@ dynamicTest("interop_runtime_shutdown_uninitialized") {
     outputChecker = { s -> s.contains("Current thread must have Kotlin runtime initialized on it") }
 }
 
+dynamicTest("interop_runtime_shutdown_uninitialized_main_thread") {
+    disabled = (project.target.name != project.hostName)
+    source = "interop/runtime_shutdown/lib.kt"
+    cSource = "$projectDir/interop/runtime_shutdown/uninitialized_main_thread.cpp"
+    clangTool = "clang++"
+    expectedExitStatusChecker = { it != 0 }
+    outputChecker = { s -> s.contains("Current thread must have Kotlin runtime initialized on it") }
+}
+
 dynamicTest("interop_runtime_shutdown_twice") {
     disabled = (project.target.name != project.hostName)
     source = "interop/runtime_shutdown/lib.kt"
