@@ -4669,6 +4669,13 @@ if (isAppleTarget(project)) {
         }
         swiftSources = ['framework/kt42397']
     }
+
+    frameworkTest("testShutdownRuntimeFramework") {
+        framework("ShutdownRuntime") {
+            sources = ['framework/shutdownRuntime']
+        }
+        swiftSources = ['framework/shutdownRuntime']
+    }
 }
 
 /**
