@@ -79,6 +79,7 @@ volatile int aliveRuntimesCount = 0;
 enum GlobalRuntimeStatus {
     kGlobalRuntimeUninitialized = 0,
     kGlobalRuntimeRunning,
+    kGlobalRuntimeShuttingDown,
     kGlobalRuntimeShutdown,
 };
 
@@ -164,6 +165,19 @@ void Kotlin_deinitRuntimeIfNeeded() {
 }
 
 RUNTIME_USED void Kotlin_shutdownRuntime() {
+    auto lastStatus = compareAndSwap(&globalRuntimeStatus, kGlobalRuntimeRunning, kGlobalRuntimeShuttingDown);
+    switch (lastStatus) {
+        case kGlobalRuntimeRunning:
+            break;
+        case kGlobalRuntimeShuttingDown:
+        case kGlobalRuntimeShutdown:
+            konan::consoleErrorf("Cannot shutdown Kotlin runtime twice\n");
+            konan::abort();
+        case kGlobalRuntimeUninitialized:
+            konan::consoleErrorf("Kotlin runtime must have been initialized\n");
+            konan::abort();
+    }
+
     auto* runtime = ::runtimeState;
     if (runtime == kInvalidRuntime) {
         konan::consoleErrorf("Current thread must have Kotlin runtime initialized on it\n");
@@ -179,17 +193,8 @@ RUNTIME_USED void Kotlin_shutdownRuntime() {
     ShutdownCleaners(Kotlin_cleanersLeakCheckerEnabled());
 
     // Cleaners are now done, disallow new runtimes.
-    auto lastStatus = compareAndSwap(&globalRuntimeStatus, kGlobalRuntimeRunning, kGlobalRuntimeShutdown);
-    switch (lastStatus) {
-        case kGlobalRuntimeRunning:
-            break;
-        case kGlobalRuntimeShutdown:
-            konan::consoleErrorf("Cannot shutdown Kotlin runtime twice\n");
-            konan::abort();
-        case kGlobalRuntimeUninitialized:
-            konan::consoleErrorf("Kotlin runtime must have been initialized\n");
-            konan::abort();
-    }
+    lastStatus = compareAndSwap(&globalRuntimeStatus, kGlobalRuntimeShuttingDown, kGlobalRuntimeShutdown);
+    RuntimeAssert(lastStatus == kGlobalRuntimeShuttingDown, "Must be in ShuttingDown state");
 
     if (Kotlin_memoryLeakCheckerEnabled()) WaitNativeWorkersTermination();
 
