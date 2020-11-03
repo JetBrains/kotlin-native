@@ -4,8 +4,7 @@ import ShutdownRuntime
 func Kotlin_shutdownRuntime()
 
 func testShutdownRuntime() {
-    KnlibraryKt.ensureInitialized()
-    Kotlin_shutdownRuntime()
+    KnlibraryKt.leakMemory()
     Kotlin_shutdownRuntime()
 }
 

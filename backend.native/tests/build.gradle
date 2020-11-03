@@ -4671,10 +4671,14 @@ if (isAppleTarget(project)) {
     }
 
     frameworkTest("testShutdownRuntimeFramework") {
+        enabled = !project.globalTestArgs.contains('-opt')
         framework("ShutdownRuntime") {
             sources = ['framework/shutdownRuntime']
+            opts = ['-g']
         }
         swiftSources = ['framework/shutdownRuntime']
+        expectedExitStatusChecker = { it != 0 }
+        outputChecker = { s -> s.contains("Memory leaks detected, 1 objects leaked!") }
     }
 }
 
