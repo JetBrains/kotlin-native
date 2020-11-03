@@ -119,8 +119,10 @@ additional steps required.
         cocoapods {
             summary = "CocoaPods test library"
             homepage = "https://github.com/JetBrains/kotlin"
-            pod("AFNetworking", "~> 4.0.0")
-            
+            pod("AFNetworking") {
+                 version = "~> 4.0.1"
+            }
+
             pod("SDWebImage/MapKit")
         }
     }
@@ -162,10 +164,17 @@ As the third parameter, specify the path to `Podspec` of the local Pod using `pr
         cocoapods {
             summary = "CocoaPods test library"
             homepage = "https://github.com/JetBrains/kotlin"
-            pod("pod_dependency", "1.0", project.file("../pod_dependency/pod_dependency.podspec"))
-            pod("subspec_dependency/Core", "1.0", project.file("../subspec_dependency/subspec_dependency.podspec"))
-            
-            pod("AFNetworking", "~> 4.0.0")
+            pod("pod_dependency") {
+                version = "1.0"
+                source = path(project.file("../pod_dependency/pod_dependency.podspec"))
+            }
+            pod("subspec_dependency/Core") {
+                version = "1.0"
+                source = path(project.file("../subspec_dependency/subspec_dependency.podspec"))
+            }
+            pod("AFNetworking") {
+                version = "~> 4.0.1"
+            }
             pod("SDWebImage/MapKit")
         }
     }
@@ -226,7 +235,9 @@ of your Kotlin project.
             summary = "CocoaPods test library"
             homepage = "https://github.com/JetBrains/kotlin"
             ios.deploymentTarget = "13.5"
-            pod("AFNetworking", "~> 4.0.0")
+            pod("AFNetworking") {
+                version = "~> 4.0.0"
+            }
             podfile = project.file("../ios-app/Podfile")
         }
     }
@@ -274,7 +285,9 @@ of your Kotlin project.
             ios.deploymentTarget = "13.5"
             tvos.deploymentTarget = "13.4"
        
-            pod("AFNetworking", "~> 4.0.0")
+            pod("AFNetworking") {
+                version = "~> 4.0.0"
+            }
             podfile = project.file("../severalTargetsXcodeProject/Podfile") // specify the path to Podfile
         }
     }
