@@ -1,12 +1,12 @@
 import ShutdownRuntime
 
-@_silgen_name("Kotlin_ShutdownRuntime")
-func Kotlin_ShutdownRuntime()
+@_silgen_name("Kotlin_shutdownRuntime")
+func Kotlin_shutdownRuntime()
 
 func testShutdownRuntime() {
     KnlibraryKt.ensureInitialized()
-    Kotlin_ShutdownRuntime()
-    Kotlin_ShutdownRuntime()
+    Kotlin_shutdownRuntime()
+    Kotlin_shutdownRuntime()
 }
 
 // -------- Execution of the test --------

@@ -5,9 +5,9 @@
 
 #include "testlib_api.h"
 
-extern "C" void Kotlin_ShutdownRuntime();
+extern "C" void Kotlin_shutdownRuntime();
 
 int main() {
-    Kotlin_ShutdownRuntime();
+    Kotlin_shutdownRuntime();
     return 0;
 }

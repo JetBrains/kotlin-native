@@ -5,11 +5,11 @@
 
 #include "testlib_api.h"
 
-extern "C" void Kotlin_ShutdownRuntime();
+extern "C" void Kotlin_shutdownRuntime();
 
 int main() {
     testlib_symbols()->kotlin.root.ensureInitialized();
-    Kotlin_ShutdownRuntime();
-    Kotlin_ShutdownRuntime();
+    Kotlin_shutdownRuntime();
+    Kotlin_shutdownRuntime();
     return 0;
 }

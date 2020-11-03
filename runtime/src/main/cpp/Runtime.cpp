@@ -163,7 +163,7 @@ void Kotlin_deinitRuntimeIfNeeded() {
   }
 }
 
-void Kotlin_shutdownRuntime() {
+RUNTIME_USED void Kotlin_shutdownRuntime() {
     auto* runtime = ::runtimeState;
     if (runtime == kInvalidRuntime) {
         konan::consoleErrorf("Current thread must have Kotlin runtime initialized on it\n");

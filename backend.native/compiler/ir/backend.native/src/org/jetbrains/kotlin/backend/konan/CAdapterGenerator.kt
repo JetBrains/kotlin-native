@@ -928,7 +928,6 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         |void EnterFrame(KObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
         |void LeaveFrame(KObjHeader** start, int parameters, int count) RUNTIME_NOTHROW;
         |void Kotlin_initRuntimeIfNeeded();
-        |void Kotlin_shutdownRuntime();
         |void TerminateWithUnhandledException(KObjHeader*) RUNTIME_NORETURN;
         |
         |KObjHeader* CreateStringFromCString(const char*, KObjHeader**);
@@ -1015,7 +1014,6 @@ internal class CAdapterGenerator(val context: Context) : DeclarationDescriptorVi
         makeScopeDefinitions(top, DefinitionKind.C_SOURCE_STRUCT, 1)
         output("};")
         output("RUNTIME_USED ${prefix}_ExportedSymbols* $exportedSymbol(void) { return &__konan_symbols;}")
-        output("extern \"C\" RUNTIME_USED void Kotlin_ShutdownRuntime() { Kotlin_shutdownRuntime(); }")
         outputStreamWriter.close()
 
         if (context.config.target.family == Family.MINGW) {
