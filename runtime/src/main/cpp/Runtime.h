@@ -28,6 +28,11 @@ extern "C" {
 void Kotlin_initRuntimeIfNeeded();
 void Kotlin_deinitRuntimeIfNeeded();
 
+// Can only be called once.
+// No new runtimes can be initialized on any thread after this.
+// Must be called on a thread with active runtime.
+void Kotlin_shutdownRuntime();
+
 // Appends given node to an initializer list.
 void AppendToInitializersTail(struct InitNode*);
 
