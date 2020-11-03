@@ -164,7 +164,7 @@ void Kotlin_deinitRuntimeIfNeeded() {
   }
 }
 
-RUNTIME_USED void Kotlin_shutdownRuntime() {
+RUNTIME_USED RUNTIME_WEAK void Kotlin_shutdownRuntime() {
     auto lastStatus = compareAndSwap(&globalRuntimeStatus, kGlobalRuntimeRunning, kGlobalRuntimeShuttingDown);
     switch (lastStatus) {
         case kGlobalRuntimeRunning:

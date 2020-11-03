@@ -4378,7 +4378,7 @@ dynamicTest("interop_runtime_shutdown_uninitialized") {
     cSource = "$projectDir/interop/runtime_shutdown/uninitialized.cpp"
     clangTool = "clang++"
     expectedExitStatusChecker = { it != 0 }
-    outputChecker = { s -> s.contains("Current thread must have Kotlin runtime initialized on it") }
+    outputChecker = { s -> s.contains("Kotlin runtime must have been initialized") }
 }
 
 dynamicTest("interop_runtime_shutdown_uninitialized_main_thread") {
@@ -4396,7 +4396,7 @@ dynamicTest("interop_runtime_shutdown_twice") {
     cSource = "$projectDir/interop/runtime_shutdown/twice.cpp"
     clangTool = "clang++"
     expectedExitStatusChecker = { it != 0 }
-    outputChecker = { s -> s.contains("Current thread must have Kotlin runtime initialized on it") }
+    outputChecker = { s -> s.contains("Cannot shutdown Kotlin runtime twice") }
 }
 
 task library_mismatch(type: KonanDriverTest) {
