@@ -4351,15 +4351,43 @@ dynamicTest("interop_migrating_main_thread") {
     clangTool = "clang++"
 }
 
-dynamicTest("interop_memory_leaks") {
+dynamicTest("interop_memory_leaks_thread_join") {
     // TODO: Fix it.
     disabled = (project.testTarget != null && project.testTarget != project.hostName) || project.globalTestArgs.contains('-opt') || (project.testTarget == 'wasm32') // Needs debug build.
     source = "interop/memory_leaks/lib.kt"
-    cSource = "$projectDir/interop/memory_leaks/main.cpp"
+    cSource = "$projectDir/interop/memory_leaks/thread_join.cpp"
     clangTool = "clang++"
     flags = ['-g']
     expectedExitStatusChecker = { it != 0 }
     outputChecker = { s -> s.contains("Memory leaks detected, 1 objects leaked!") }
+}
+
+dynamicTest("interop_memory_leaks_runtime_shutdown") {
+    disabled = (project.target.name != project.hostName) || project.globalTestArgs.contains('-opt') || (project.testTarget == 'wasm32') // Needs debug build.
+    source = "interop/memory_leaks/lib.kt"
+    cSource = "$projectDir/interop/memory_leaks/runtime_shutdown.cpp"
+    clangTool = "clang++"
+    flags = ['-g']
+    expectedExitStatusChecker = { it != 0 }
+    outputChecker = { s -> s.contains("Memory leaks detected, 1 objects leaked!") }
+}
+
+dynamicTest("interop_runtime_shutdown_uninitialized") {
+    disabled = (project.target.name != project.hostName)
+    source = "interop/runtime_shutdown/lib.kt"
+    cSource = "$projectDir/interop/runtime_shutdown/uninitialized.cpp"
+    clangTool = "clang++"
+    expectedExitStatusChecker = { it != 0 }
+    outputChecker = { s -> s.contains("Current thread must have Kotlin runtime initialized on it") }
+}
+
+dynamicTest("interop_runtime_shutdown_twice") {
+    disabled = (project.target.name != project.hostName)
+    source = "interop/runtime_shutdown/lib.kt"
+    cSource = "$projectDir/interop/runtime_shutdown/twice.cpp"
+    clangTool = "clang++"
+    expectedExitStatusChecker = { it != 0 }
+    outputChecker = { s -> s.contains("Current thread must have Kotlin runtime initialized on it") }
 }
 
 task library_mismatch(type: KonanDriverTest) {
