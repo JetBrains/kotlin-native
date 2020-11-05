@@ -59,8 +59,8 @@ internal class CEnumVarClassGenerator(
         irConstructor.body = irBuilder(irBuiltIns, irConstructor.symbol, SYNTHETIC_OFFSET, SYNTHETIC_OFFSET).irBlockBody {
             +IrDelegatingConstructorCallImpl.fromSymbolDescriptor(
                     startOffset, endOffset, context.irBuiltIns.unitType, enumVarConstructorSymbol,
-                    enumVarConstructorSymbol.owner.typeParameters.size,
-                    enumVarConstructorSymbol.owner.valueParameters.size
+                    enumVarConstructorSymbol.descriptor.typeParameters.size,
+                    enumVarConstructorSymbol.descriptor.valueParameters.size
             ).also {
                 it.putValueArgument(0, irGet(irConstructor.valueParameters[0]))
             }
@@ -84,8 +84,8 @@ internal class CEnumVarClassGenerator(
                 +IrDelegatingConstructorCallImpl.fromSymbolDescriptor(
                         startOffset, endOffset, context.irBuiltIns.unitType,
                         superConstructorSymbol,
-                        superConstructorSymbol.owner.typeParameters.size,
-                        superConstructorSymbol.owner.valueParameters.size
+                        superConstructorSymbol.descriptor.typeParameters.size,
+                        superConstructorSymbol.descriptor.valueParameters.size
                 ).also {
                     it.putValueArgument(0, irInt(typeSize))
                 }
