@@ -86,25 +86,19 @@ enum GlobalRuntimeStatus {
 volatile GlobalRuntimeStatus globalRuntimeStatus = kGlobalRuntimeUninitialized;
 
 class ScopedInitializingRuntime {
- public:
-  ScopedInitializingRuntime() {
-    atomicAdd(&initializingRuntimesCount, 1);
-  }
+public:
+    ScopedInitializingRuntime() { atomicAdd(&initializingRuntimesCount, 1); }
 
-  ~ScopedInitializingRuntime() {
-    atomicAdd(&initializingRuntimesCount, -1);
-  }
+    ~ScopedInitializingRuntime() { atomicAdd(&initializingRuntimesCount, -1); }
 
-  static bool IsInitializing() {
-    return atomicGet(&initializingRuntimesCount) > 0;
-  }
+    static bool IsInitializing() { return atomicGet(&initializingRuntimesCount) > 0; }
 
-  ScopedInitializingRuntime(const ScopedInitializingRuntime&) = delete;
-  ScopedInitializingRuntime(ScopedInitializingRuntime&&) = delete;
-  ScopedInitializingRuntime& operator=(const ScopedInitializingRuntime&) = delete;
-  ScopedInitializingRuntime& operator=(ScopedInitializingRuntime&&) = delete;
+    ScopedInitializingRuntime(const ScopedInitializingRuntime&) = delete;
+    ScopedInitializingRuntime(ScopedInitializingRuntime&&) = delete;
+    ScopedInitializingRuntime& operator=(const ScopedInitializingRuntime&) = delete;
+    ScopedInitializingRuntime& operator=(ScopedInitializingRuntime&&) = delete;
 
-  private:
+private:
     static int initializingRuntimesCount;
 };
 
@@ -227,7 +221,8 @@ void Kotlin_shutdownRuntime() {
     RuntimeAssert(lastStatus == kGlobalRuntimeShuttingDown, "Must be in ShuttingDown state");
 
     // Spin until all runtimes have fully initialized.
-    while (ScopedInitializingRuntime::IsInitializing()) {}
+    while (ScopedInitializingRuntime::IsInitializing()) {
+    }
 
     // TODO: If we add early return at the top, this if would be unneeded.
     if (Kotlin_memoryLeakCheckerEnabled() || Kotlin_memoryLeakCheckerEnabled()) {
