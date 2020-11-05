@@ -194,6 +194,7 @@ void Kotlin_deinitRuntimeIfNeeded() {
 
 // TODO: Consider exporting it to interop API.
 void Kotlin_shutdownRuntime() {
+    // TODO: If checkers are disabled, we can set status to "shutdown" here, and return.
     auto lastStatus = compareAndSwap(&globalRuntimeStatus, kGlobalRuntimeRunning, kGlobalRuntimeShuttingDown);
     switch (lastStatus) {
         case kGlobalRuntimeRunning:
