@@ -44,15 +44,6 @@ open class FrameworkTest : DefaultTask(), KonanTestExecutable {
     @Input @Optional
     var expectedExitStatus: Int? = null
 
-    @Input @Optional
-    var expectedExitStatusChecker: (Int) -> Boolean = { it == (expectedExitStatus ?: 0) }
-
-    @Input @Optional
-    var goldValue: String? = null
-
-    @Input @Optional
-    var outputChecker: (String) -> Boolean = { str -> goldValue == null || goldValue == str }
-
     /**
      * Framework description.
      *
@@ -228,7 +219,7 @@ open class FrameworkTest : DefaultTask(), KonanTestExecutable {
     }
 
     private fun runTest(executorService: ExecutorService, testExecutable: Path, args: List<String> = emptyList()) {
-        val output = runProcess(
+        val (stdOut, stdErr, exitCode) = runProcess(
                 executor = { executorService.add(Action {
                     it.environment = buildEnvironment()
                     it.workingDir = Paths.get(testOutput).toFile()
@@ -239,32 +230,10 @@ open class FrameworkTest : DefaultTask(), KonanTestExecutable {
         val testExecName = testExecutable.fileName
         println("""
             |$testExecName
-            |stdout: ${output.stdOut}
-            |stderr: ${output.stdErr}
+            |stdout: $stdOut
+            |stderr: $stdErr
             """.trimMargin())
-        output.check()
-    }
-
-    private fun ProcessOutput.check() {
-        val exitCodeMismatch = !expectedExitStatusChecker(exitCode)
-        if (exitCodeMismatch) {
-            val message = if (expectedExitStatus != null)
-                "Expected exit status: $expectedExitStatus, actual: $exitCode"
-            else
-                "Actual exit status doesn't match with exit status checker: $exitCode"
-            check(false) { "Test failed. $message" }
-        }
-
-        val result = stdOut + stdErr
-        val goldValueMismatch = !outputChecker(result.replace(System.lineSeparator(), "\n"))
-        if (goldValueMismatch) {
-            val message = if (goldValue != null)
-                "Expected output: $goldValue, actual output: $result"
-            else
-                "Actual output doesn't match with output checker: $result"
-
-            check(false) { "Test failed. $message" }
-        }
+        check(exitCode == expectedExitStatus ?: 0) { "Execution of $testExecName failed with exit code: $exitCode " }
     }
 
     private fun validateBitcodeEmbedding(frameworkBinary: String) {

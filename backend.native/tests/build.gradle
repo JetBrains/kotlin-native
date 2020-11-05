@@ -4351,61 +4351,15 @@ dynamicTest("interop_migrating_main_thread") {
     clangTool = "clang++"
 }
 
-dynamicTest("interop_memory_leaks_thread_join") {
+dynamicTest("interop_memory_leaks") {
     // TODO: Fix it.
     disabled = (project.testTarget != null && project.testTarget != project.hostName) || project.globalTestArgs.contains('-opt') || (project.testTarget == 'wasm32') // Needs debug build.
     source = "interop/memory_leaks/lib.kt"
-    cSource = "$projectDir/interop/memory_leaks/thread_join.cpp"
+    cSource = "$projectDir/interop/memory_leaks/main.cpp"
     clangTool = "clang++"
     flags = ['-g']
     expectedExitStatusChecker = { it != 0 }
     outputChecker = { s -> s.contains("Memory leaks detected, 1 objects leaked!") }
-}
-
-dynamicTest("interop_memory_leaks_runtime_shutdown") {
-    disabled = (project.target.name != project.hostName) || project.globalTestArgs.contains('-opt') || (project.testTarget == 'wasm32') // Needs debug build.
-    source = "interop/memory_leaks/lib.kt"
-    cSource = "$projectDir/interop/memory_leaks/runtime_shutdown.cpp"
-    clangTool = "clang++"
-    flags = ['-g']
-    expectedExitStatusChecker = { it != 0 }
-    outputChecker = { s -> s.contains("Memory leaks detected, 1 objects leaked!") }
-}
-
-dynamicTest("interop_runtime_shutdown_uninitialized") {
-    disabled = (project.target.name != project.hostName)
-    source = "interop/runtime_shutdown/lib.kt"
-    cSource = "$projectDir/interop/runtime_shutdown/uninitialized.cpp"
-    clangTool = "clang++"
-    expectedExitStatusChecker = { it != 0 }
-    outputChecker = { s -> s.contains("Kotlin runtime must have been initialized") }
-}
-
-dynamicTest("interop_runtime_shutdown_uninitialized_main_thread") {
-    disabled = (project.target.name != project.hostName)
-    source = "interop/runtime_shutdown/lib.kt"
-    cSource = "$projectDir/interop/runtime_shutdown/uninitialized_main_thread.cpp"
-    clangTool = "clang++"
-    expectedExitStatusChecker = { it != 0 }
-    outputChecker = { s -> s.contains("Current thread must have Kotlin runtime initialized on it") }
-}
-
-dynamicTest("interop_runtime_shutdown_twice") {
-    disabled = (project.target.name != project.hostName)
-    source = "interop/runtime_shutdown/lib.kt"
-    cSource = "$projectDir/interop/runtime_shutdown/twice.cpp"
-    clangTool = "clang++"
-    expectedExitStatusChecker = { it != 0 }
-    outputChecker = { s -> s.contains("Cannot shutdown Kotlin runtime twice") }
-}
-
-dynamicTest("interop_runtime_shutdown_initialize") {
-    disabled = (project.target.name != project.hostName)
-    source = "interop/runtime_shutdown/lib.kt"
-    cSource = "$projectDir/interop/runtime_shutdown/initialize.cpp"
-    clangTool = "clang++"
-    expectedExitStatusChecker = { it != 0 }
-    outputChecker = { s -> s.contains("Kotlin runtime was shut down. Cannot create new runtimes") }
 }
 
 task library_mismatch(type: KonanDriverTest) {
@@ -4686,17 +4640,6 @@ if (isAppleTarget(project)) {
             opts = ['-g']
         }
         swiftSources = ['framework/kt42397']
-    }
-
-    frameworkTest("testShutdownRuntimeFramework") {
-        enabled = !project.globalTestArgs.contains('-opt')
-        framework("ShutdownRuntime") {
-            sources = ['framework/shutdownRuntime']
-            opts = ['-g']
-        }
-        swiftSources = ['framework/shutdownRuntime']
-        expectedExitStatusChecker = { it != 0 }
-        outputChecker = { s -> s.contains("Memory leaks detected, 1 objects leaked!") }
     }
 }
 

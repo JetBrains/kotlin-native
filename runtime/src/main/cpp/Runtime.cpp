@@ -192,7 +192,8 @@ void Kotlin_deinitRuntimeIfNeeded() {
   }
 }
 
-RUNTIME_USED RUNTIME_WEAK void Kotlin_shutdownRuntime() {
+// TODO: Consider exporting it to interop API.
+void Kotlin_shutdownRuntime() {
     auto lastStatus = compareAndSwap(&globalRuntimeStatus, kGlobalRuntimeRunning, kGlobalRuntimeShuttingDown);
     switch (lastStatus) {
         case kGlobalRuntimeRunning:
