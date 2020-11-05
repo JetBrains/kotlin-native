@@ -229,7 +229,20 @@ void Kotlin_shutdownRuntime() {
     // Spin until all runtimes have fully initialized.
     while (ScopedInitializingRuntime::IsInitializing()) {}
 
-    if (Kotlin_memoryLeakCheckerEnabled()) WaitNativeWorkersTermination();
+    // TODO: If we add early return at the top, this if would be unneeded.
+    if (Kotlin_memoryLeakCheckerEnabled() || Kotlin_memoryLeakCheckerEnabled()) {
+        // First make sure workers are gone.
+        WaitNativeWorkersTermination();
+
+        // Now check for existence of any other runtimes.
+        // `aliveRuntimesCount` can only go down, because we forbade new runtimes initialization.
+        auto otherRuntimesCount = atomicGet(&aliveRuntimesCount) - 1;
+        RuntimeAssert(otherRuntimesCount >= 0, "Cannot be negative");
+        if (otherRuntimesCount > 0) {
+            konan::consoleErrorf("Cannot run checkers when there are %d alive runtimes at the shutdown", otherRuntimesCount);
+            konan::abort();
+        }
+    }
 
     deinitRuntime(runtime);
     ::runtimeState = kInvalidRuntime;
