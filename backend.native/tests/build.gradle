@@ -4399,6 +4399,15 @@ dynamicTest("interop_runtime_shutdown_twice") {
     outputChecker = { s -> s.contains("Cannot shutdown Kotlin runtime twice") }
 }
 
+dynamicTest("interop_runtime_shutdown_initialize") {
+    disabled = (project.target.name != project.hostName)
+    source = "interop/runtime_shutdown/lib.kt"
+    cSource = "$projectDir/interop/runtime_shutdown/initialize.cpp"
+    clangTool = "clang++"
+    expectedExitStatusChecker = { it != 0 }
+    outputChecker = { s -> s.contains("Kotlin runtime was shut down. Cannot create new runtimes") }
+}
+
 task library_mismatch(type: KonanDriverTest) {
     // Does not work for cross targets yet.
     enabled = !(project.testTarget != null && project.target.name != project.hostName)
