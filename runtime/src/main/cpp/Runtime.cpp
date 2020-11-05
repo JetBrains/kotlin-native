@@ -96,7 +96,7 @@ class ScopedInitializingRuntime {
   }
 
   static bool IsInitializing() {
-    return atomicGet(&initializingRuntimesCount);
+    return atomicGet(&initializingRuntimesCount) > 0;
   }
 
   ScopedInitializingRuntime(const ScopedInitializingRuntime&) = delete;
