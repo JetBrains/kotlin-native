@@ -79,35 +79,18 @@ volatile int aliveRuntimesCount = 0;
 enum GlobalRuntimeStatus {
     kGlobalRuntimeUninitialized = 0,
     kGlobalRuntimeRunning,
-    kGlobalRuntimeShuttingDown,
     kGlobalRuntimeShutdown,
 };
 
 volatile GlobalRuntimeStatus globalRuntimeStatus = kGlobalRuntimeUninitialized;
 
-class ScopedInitializingRuntime {
-public:
-    ScopedInitializingRuntime() { atomicAdd(&initializingRuntimesCount, 1); }
-
-    ~ScopedInitializingRuntime() { atomicAdd(&initializingRuntimesCount, -1); }
-
-    static bool IsInitializing() { return atomicGet(&initializingRuntimesCount) > 0; }
-
-    ScopedInitializingRuntime(const ScopedInitializingRuntime&) = delete;
-    ScopedInitializingRuntime(ScopedInitializingRuntime&&) = delete;
-    ScopedInitializingRuntime& operator=(const ScopedInitializingRuntime&) = delete;
-    ScopedInitializingRuntime& operator=(ScopedInitializingRuntime&&) = delete;
-
-private:
-    static int initializingRuntimesCount;
-};
-
-// static
-int ScopedInitializingRuntime::initializingRuntimesCount = 0;
-
 RuntimeState* initRuntime() {
-  ScopedInitializingRuntime guard;
+  RuntimeState* result = konanConstructInstance<RuntimeState>();
+  if (!result) return kInvalidRuntime;
+  RuntimeCheck(!isValidRuntime(), "No active runtimes allowed");
+  ::runtimeState = result;
 
+  bool firstRuntime = atomicAdd(&aliveRuntimesCount, 1) == 1;
   auto lastStatus = compareAndSwap(&globalRuntimeStatus, kGlobalRuntimeUninitialized, kGlobalRuntimeRunning);
   if (lastStatus == kGlobalRuntimeShutdown) {
       konan::consoleErrorf("Kotlin runtime was shut down. Cannot create new runtimes\n");
@@ -115,13 +98,8 @@ RuntimeState* initRuntime() {
   }
 
   SetKonanTerminateHandler();
-  RuntimeState* result = konanConstructInstance<RuntimeState>();
-  if (!result) return kInvalidRuntime;
-  RuntimeCheck(!isValidRuntime(), "No active runtimes allowed");
-  ::runtimeState = result;
   result->memoryState = InitMemory();
   result->worker = WorkerInit(true);
-  bool firstRuntime = atomicAdd(&aliveRuntimesCount, 1) == 1;
   // Keep global variables in state as well.
   if (firstRuntime) {
     konan::consoleInit();
@@ -189,24 +167,8 @@ void Kotlin_deinitRuntimeIfNeeded() {
 // TODO: Consider exporting it to interop API.
 void Kotlin_shutdownRuntime() {
     // TODO: If checkers are disabled, we can set status to "shutdown" here, and return.
-    auto lastStatus = compareAndSwap(&globalRuntimeStatus, kGlobalRuntimeRunning, kGlobalRuntimeShuttingDown);
-    switch (lastStatus) {
-        case kGlobalRuntimeRunning:
-            break;
-        case kGlobalRuntimeShuttingDown:
-        case kGlobalRuntimeShutdown:
-            konan::consoleErrorf("Cannot shutdown Kotlin runtime twice\n");
-            konan::abort();
-        case kGlobalRuntimeUninitialized:
-            konan::consoleErrorf("Kotlin runtime must have been initialized\n");
-            konan::abort();
-    }
-
     auto* runtime = ::runtimeState;
-    if (runtime == kInvalidRuntime) {
-        konan::consoleErrorf("Current thread must have Kotlin runtime initialized on it\n");
-        konan::abort();
-    }
+    RuntimeAssert(runtime != kInvalidRuntime, "Current thread must have Kotlin runtime initialized on it");
 
     if (Kotlin_cleanersLeakCheckerEnabled()) {
         // Make sure to collect any lingering cleaners.
@@ -217,25 +179,20 @@ void Kotlin_shutdownRuntime() {
     ShutdownCleaners(Kotlin_cleanersLeakCheckerEnabled());
 
     // Cleaners are now done, disallow new runtimes.
-    lastStatus = compareAndSwap(&globalRuntimeStatus, kGlobalRuntimeShuttingDown, kGlobalRuntimeShutdown);
-    RuntimeAssert(lastStatus == kGlobalRuntimeShuttingDown, "Must be in ShuttingDown state");
-
-    // Spin until all runtimes have fully initialized.
-    while (ScopedInitializingRuntime::IsInitializing()) {
-    }
+    auto lastStatus = compareAndSwap(&globalRuntimeStatus, kGlobalRuntimeRunning, kGlobalRuntimeShutdown);
+    RuntimeAssert(lastStatus == kGlobalRuntimeRunning, "Invalid runtime status for shutdown");
 
     // TODO: If we add early return at the top, this if would be unneeded.
-    if (Kotlin_memoryLeakCheckerEnabled() || Kotlin_memoryLeakCheckerEnabled()) {
+    if (Kotlin_memoryLeakCheckerEnabled() || Kotlin_cleanersLeakCheckerEnabled()) {
         // First make sure workers are gone.
         WaitNativeWorkersTermination();
 
         // Now check for existence of any other runtimes.
-        // `aliveRuntimesCount` can only go down, because we forbade new runtimes initialization.
         auto otherRuntimesCount = atomicGet(&aliveRuntimesCount) - 1;
         RuntimeAssert(otherRuntimesCount >= 0, "Cannot be negative");
         if (otherRuntimesCount > 0) {
             konan::consoleErrorf("Cannot run checkers when there are %d alive runtimes at the shutdown", otherRuntimesCount);
-            konan::abort();
+            // TODO: With new runtime destruction maybe konan::abort here.
         }
     }
 
