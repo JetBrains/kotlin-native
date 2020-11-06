@@ -1128,7 +1128,9 @@ abstract class ObjCExportHeaderGenerator internal constructor(
 
     private fun translateExtraClasses() {
         while (extraClassesToTranslate.isNotEmpty()) {
-            val descriptor = extraClassesToTranslate.iterator().run { next().also { remove() } }
+            val descriptor = extraClassesToTranslate.first()
+            extraClassesToTranslate -= descriptor
+
             assert(shouldTranslateExtraClass(descriptor)) { "Shouldn't be queued for translation: $descriptor" }
             if (descriptor.isInterface) {
                 generateInterface(descriptor)
