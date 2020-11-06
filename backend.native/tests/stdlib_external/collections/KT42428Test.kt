@@ -10,14 +10,24 @@ import kotlin.test.*
 // TODO: consider moving to common stdlib tests.
 class KT42428Test {
 
+    private val listOfLetterIndexPairs = ('a'..'z').withIndex().map { (i, c) -> "$c" to i }
+
+    private val mapOfLetterToIndex = listOfLetterIndexPairs.toMap()
+
     @Test fun testListOfPairsToMapEntriesContainsMapEntry() {
-        val map = ('a'..'z').withIndex().map { (i, c) -> "$c" to i }.toMap()
-        testMapEntriesContainsMapEntry(map, "h", 7)
+        testMapEntriesContainsMapEntry(listOfLetterIndexPairs.toMap(), "h", 7)
     }
 
-    @Test fun testMutableMapAsMapEntriesContainsMapEntry() {
-        val mutableMap = ('a'..'z').withIndex().map { (i, c) -> "$c" to i }.toMap().toMutableMap()
-        testMapEntriesContainsMapEntry(mutableMap, "h", 7)
+    @Test fun testMapToMutableMapEntriesContainsMapEntry() {
+        testMapEntriesContainsMapEntry(mapOfLetterToIndex.toMutableMap(), "h", 7)
+    }
+
+    @Test fun testHashMapEntriesContainsMapEntry() {
+        testMapEntriesContainsMapEntry(HashMap(mapOfLetterToIndex), "h", 7)
+    }
+
+    @Test fun testLinkedHashMapEntriesContainsMapEntry() {
+        testMapEntriesContainsMapEntry(LinkedHashMap(mapOfLetterToIndex), "h", 7)
     }
 
     // Based on https://youtrack.jetbrains.com/issue/KT-42428.
