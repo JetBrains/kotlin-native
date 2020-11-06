@@ -15,7 +15,6 @@ buildscript {
         maven { url buildKotlinCompilerRepo }
         maven { url kotlinCompilerRepo }
         jcenter()
-        maven { url "https://kotlin.bintray.com/kotlinx" }
         maven { url "https://dl.bintray.com/kotlin/kotlin-dev" }
     }
 

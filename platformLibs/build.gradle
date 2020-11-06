@@ -17,9 +17,6 @@ buildscript {
         maven {
             url kotlinCompilerRepo
         }
-        maven {
-            url "https://kotlin.bintray.com/kotlinx"
-        }
     }
 
     dependencies {
