@@ -1,1 +1,11 @@
 blank_issues_enabled: false
+contact_links:
+  - name: Report a bug or request a feature
+    url: https://kotl.in/issue
+    about: Use YouTrack for new issues.
+  - name: Ask a question
+    url: https://stackoverflow.com/questions/ask?tags=kotlin-native
+    about: Use StackOverflow with `kotlin-native` tag.
+  - name: Discuss
+    url: https://slack.kotl.in
+    about: Feel free to discuss anything on `#kotlin-native` and `#multiplatform` channels in Slack.
