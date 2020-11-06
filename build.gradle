@@ -45,7 +45,7 @@ buildscript {
         classpath "org.jetbrains.kotlin:kotlin-native-utils:$kotlinVersion"
         classpath "org.jetbrains.kotlin:kotlin-native-shared:$konanVersion"
         classpath "org.jetbrains.kotlin:kotlin-native-build-tools:$konanVersion"
-        classpath 'com.github.jengelman.gradle.plugins:shadow:5.1.0'
+        classpath "com.github.jengelman.gradle.plugins:shadow:$shadowVersion"
     }
 }
 import org.jetbrains.kotlin.konan.*
