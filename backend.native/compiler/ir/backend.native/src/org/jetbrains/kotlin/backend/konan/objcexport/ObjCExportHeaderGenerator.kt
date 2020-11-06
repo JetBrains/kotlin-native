@@ -1126,6 +1126,17 @@ abstract class ObjCExportHeaderGenerator internal constructor(
         }
     }
 
+    /**
+     * Translates additional classes referenced from the module's declarations, such as parameter types, return types,
+     * thrown exception types, and underlying enum types.
+     *
+     * This is required for classes from dependencies to be exported correctly. However, we also currently rely on this
+     * for a few edge cases, such as some inner classes. Sub classes may reject certain descriptors to be translated.
+     * Some referenced descriptors may be translated early for ordering reasons.
+     * @see shouldTranslateExtraClass
+     * @see generateExtraClassEarly
+     * @see generateExtraInterfaceEarly
+     */
     private fun translateExtraClasses() {
         while (extraClassesToTranslate.isNotEmpty()) {
             val descriptor = extraClassesToTranslate.first()
