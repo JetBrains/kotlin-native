@@ -1059,23 +1059,19 @@ abstract class ObjCExportHeaderGenerator internal constructor(
         // TODO: make the translation order stable
         // to stabilize name mangling.
         translateBaseDeclarations()
+        translateModuleDeclarations()
+    }
+
+    fun translateBaseDeclarations() {
+        stubs += translator.generateBaseDeclarations()
+    }
+
+    fun translateModuleDeclarations() {
         translatePackageFragments()
         translateExtraClasses()
     }
 
-    fun translateExtraClasses() {
-        while (extraClassesToTranslate.isNotEmpty()) {
-            val descriptor = extraClassesToTranslate.iterator().run { next().also { remove() } }
-            assert(shouldTranslateExtraClass(descriptor)) { "Shouldn't be queued for translation: $descriptor" }
-            if (descriptor.isInterface) {
-                generateInterface(descriptor)
-            } else {
-                generateClass(descriptor)
-            }
-        }
-    }
-
-    fun translatePackageFragments() {
+    private fun translatePackageFragments() {
         val packageFragments = moduleDescriptors.flatMap { it.getPackageFragments() }
 
         packageFragments.forEach { packageFragment ->
@@ -1130,8 +1126,16 @@ abstract class ObjCExportHeaderGenerator internal constructor(
         }
     }
 
-    fun translateBaseDeclarations() {
-        stubs += translator.generateBaseDeclarations()
+    private fun translateExtraClasses() {
+        while (extraClassesToTranslate.isNotEmpty()) {
+            val descriptor = extraClassesToTranslate.iterator().run { next().also { remove() } }
+            assert(shouldTranslateExtraClass(descriptor)) { "Shouldn't be queued for translation: $descriptor" }
+            if (descriptor.isInterface) {
+                generateInterface(descriptor)
+            } else {
+                generateClass(descriptor)
+            }
+        }
     }
 
     private fun generateFile(sourceFile: SourceFile, declarations: List<CallableMemberDescriptor>) {
