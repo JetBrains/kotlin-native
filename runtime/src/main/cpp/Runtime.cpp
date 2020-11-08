@@ -85,17 +85,17 @@ enum GlobalRuntimeStatus {
 volatile GlobalRuntimeStatus globalRuntimeStatus = kGlobalRuntimeUninitialized;
 
 RuntimeState* initRuntime() {
+  SetKonanTerminateHandler();
   RuntimeState* result = konanConstructInstance<RuntimeState>();
   if (!result) return kInvalidRuntime;
   RuntimeCheck(!isValidRuntime(), "No active runtimes allowed");
   ::runtimeState = result;
 
-  bool firstRuntime = atomicAdd(&aliveRuntimesCount, 1) == 1;
   compareAndSwap(&globalRuntimeStatus, kGlobalRuntimeUninitialized, kGlobalRuntimeRunning);
 
-  SetKonanTerminateHandler();
   result->memoryState = InitMemory();
   result->worker = WorkerInit(true);
+  bool firstRuntime = atomicAdd(&aliveRuntimesCount, 1) == 1;
   // Keep global variables in state as well.
   if (firstRuntime) {
     konan::consoleInit();
