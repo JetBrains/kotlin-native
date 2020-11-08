@@ -91,11 +91,7 @@ RuntimeState* initRuntime() {
   ::runtimeState = result;
 
   bool firstRuntime = atomicAdd(&aliveRuntimesCount, 1) == 1;
-  auto lastStatus = compareAndSwap(&globalRuntimeStatus, kGlobalRuntimeUninitialized, kGlobalRuntimeRunning);
-  if (lastStatus == kGlobalRuntimeShutdown) {
-      konan::consoleErrorf("Kotlin runtime was shut down. Cannot create new runtimes\n");
-      konan::abort();
-  }
+  compareAndSwap(&globalRuntimeStatus, kGlobalRuntimeUninitialized, kGlobalRuntimeRunning);
 
   SetKonanTerminateHandler();
   result->memoryState = InitMemory();
@@ -186,14 +182,6 @@ void Kotlin_shutdownRuntime() {
     if (Kotlin_memoryLeakCheckerEnabled() || Kotlin_cleanersLeakCheckerEnabled()) {
         // First make sure workers are gone.
         WaitNativeWorkersTermination();
-
-        // Now check for existence of any other runtimes.
-        auto otherRuntimesCount = atomicGet(&aliveRuntimesCount) - 1;
-        RuntimeAssert(otherRuntimesCount >= 0, "Cannot be negative");
-        if (otherRuntimesCount > 0) {
-            konan::consoleErrorf("Cannot run checkers when there are %d alive runtimes at the shutdown", otherRuntimesCount);
-            // TODO: With new runtime destruction maybe konan::abort here.
-        }
     }
 
     deinitRuntime(runtime);
