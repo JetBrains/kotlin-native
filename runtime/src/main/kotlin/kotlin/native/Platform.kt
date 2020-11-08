@@ -96,6 +96,10 @@ public object Platform {
     public var isCleanersLeakCheckerActive: Boolean
         get() = Platform_getCleanersLeakChecker()
         set(value) = Platform_setCleanersLeakChecker(value)
+
+    public var forceCheckedShutdown: Boolean
+        get() = Platform_getForceCheckedShutdown()
+        set(value) = Platform_setForceCheckedShutdown(value)
 }
 
 @SymbolName("Konan_Platform_canAccessUnaligned")
@@ -127,3 +131,9 @@ private external fun Platform_getCleanersLeakChecker(): Boolean
 
 @SymbolName("Konan_Platform_setCleanersLeakChecker")
 private external fun Platform_setCleanersLeakChecker(value: Boolean): Unit
+
+@SymbolName("Konan_Platform_getForceCheckedShutdown")
+private external fun Platform_getForceCheckedShutdown(): Boolean
+
+@SymbolName("Konan_Platform_setForceCheckedShutdown")
+private external fun Platform_setForceCheckedShutdown(value: Boolean): Unit

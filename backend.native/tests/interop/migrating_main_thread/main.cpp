@@ -8,17 +8,27 @@
 #include <cassert>
 #include <thread>
 
+constexpr int kInitialValue = 0;
+constexpr int kNewValue = 0;
+
+#if defined(IS_LEGACY)
+// Globals were reinitialized.
+constexpr int kResultValue = kInitialValue;
+#else
+// Globals were kept.
+constexpr int kResultValue = kNewValue;
+#endif
+
 int main() {
     std::thread main1([]() {
-        assert(testlib_symbols()->kotlin.root.readFromA() == 0);
-        testlib_symbols()->kotlin.root.writeToA(1);
-        assert(testlib_symbols()->kotlin.root.readFromA() == 1);
+        assert(testlib_symbols()->kotlin.root.readFromA() == kInitialValue);
+        testlib_symbols()->kotlin.root.writeToA(kNewValue);
+        assert(testlib_symbols()->kotlin.root.readFromA() == kNewValue);
     });
     main1.join();
 
     std::thread main2([]() {
-        // Globals were reinitialized.
-        assert(testlib_symbols()->kotlin.root.readFromA() == 0);
+        assert(testlib_symbols()->kotlin.root.readFromA() == kResultValue);
     });
     main2.join();
 

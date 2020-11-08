@@ -576,7 +576,7 @@ private:
         if (atomicGet(&aliveMemoryStatesCount) == 0)
           return;
 
-        memoryState = InitMemory(); // Required by ReleaseHeapRef.
+        memoryState = InitMemory(false); // Required by ReleaseHeapRef.
       }
 
       processEnqueuedReleaseRefsWith([](ObjHeader* obj) {
@@ -585,7 +585,7 @@ private:
 
       if (hadNoStateInitialized) {
         // Discard the memory state.
-        DeinitMemory(memoryState);
+        DeinitMemory(memoryState, false);
       }
     }
   }
@@ -1978,7 +1978,7 @@ void deinitForeignRef(ObjHeader* object, ForeignRefManager* manager) {
   }
 }
 
-MemoryState* initMemory() {
+MemoryState* initMemory(bool firstRuntime) {
   RuntimeAssert(offsetof(ArrayHeader, typeInfoOrMeta_)
                 ==
                 offsetof(ObjHeader,   typeInfoOrMeta_),
@@ -2005,22 +2005,46 @@ MemoryState* initMemory() {
   memoryState->tlsMap = konanConstructInstance<KThreadLocalStorageMap>();
   memoryState->foreignRefManager = ForeignRefManager::create();
   bool firstMemoryState = atomicAdd(&aliveMemoryStatesCount, 1) == 1;
-  if (firstMemoryState) {
+  switch (Kotlin_destroyRuntimeMode) {
+    case DESTROY_RUNTIME_LEGACY:
+      firstRuntime = firstMemoryState;
+      break;
+    case DESTROY_RUNTIME_ON_SHUTDOWN:
+    case DESTROY_RUNTIME_ON_SHUTDOWN_CHECKED:
+      // Nothing to do.
+      break;
+  }
+  if (firstRuntime) {
 #if USE_CYCLIC_GC
     cyclicInit();
 #endif  // USE_CYCLIC_GC
     memoryState->isMainThread = true;
   }
+  if (!firstRuntime && firstMemoryState) {
+    memoryState->isMainThread = true;
+    // This thread is now the main thread. And there was a previous main thread, because this is not the first runtime.
+    // Make sure this thread sees all the updates to Kotlin globals from the previous main thread.
+    synchronize();
+  }
   return memoryState;
 }
 
-void deinitMemory(MemoryState* memoryState) {
+void deinitMemory(MemoryState* memoryState, bool destroyRuntime) {
   static int pendingDeinit = 0;
   atomicAdd(&pendingDeinit, 1);
 #if USE_GC
   bool lastMemoryState = atomicAdd(&aliveMemoryStatesCount, -1) == 0;
-  bool checkLeaks = Kotlin_memoryLeakCheckerEnabled() && lastMemoryState;
-  if (lastMemoryState) {
+  switch (Kotlin_destroyRuntimeMode) {
+    case DESTROY_RUNTIME_LEGACY:
+      destroyRuntime = lastMemoryState;
+      break;
+    case DESTROY_RUNTIME_ON_SHUTDOWN:
+    case DESTROY_RUNTIME_ON_SHUTDOWN_CHECKED:
+      // Nothing to do.
+      break;
+  }
+  bool checkLeaks = Kotlin_memoryLeakCheckerEnabled() && destroyRuntime;
+  if (destroyRuntime) {
    garbageCollect(memoryState, true);
 #if USE_CYCLIC_GC
    // If there are other pending deinits (rare situation) - just skip the leak checker.
@@ -2031,6 +2055,10 @@ void deinitMemory(MemoryState* memoryState) {
    }
    cyclicDeinit(g_hasCyclicCollector);
 #endif  // USE_CYCLIC_GC
+  }
+  if (!destroyRuntime && memoryState->isMainThread) {
+    // If we are not destroying the runtime but we were the main thread, publish all changes to Kotlin globals.
+    synchronize();
   }
   // Actual GC only implemented in strict memory model at the moment.
   do {
@@ -3231,12 +3259,12 @@ void AdoptReferenceFromSharedVariable(ObjHeader* object) {
 }
 
 // Public memory interface.
-MemoryState* InitMemory() {
-  return initMemory();
+MemoryState* InitMemory(bool firstRuntime) {
+    return initMemory(firstRuntime);
 }
 
-void DeinitMemory(MemoryState* memoryState) {
-  deinitMemory(memoryState);
+void DeinitMemory(MemoryState* memoryState, bool destroyRuntime) {
+    deinitMemory(memoryState, destroyRuntime);
 }
 
 void RestoreMemory(MemoryState* memoryState) {
