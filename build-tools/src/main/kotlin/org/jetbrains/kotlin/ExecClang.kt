@@ -96,7 +96,7 @@ class ExecClang(private val project: Project) {
                 val hostPlatform = project.findProperty("hostPlatform") as Platform
                 environment["PATH"] = project.files(hostPlatform.clang.clangPaths).asPath +
                         java.io.File.pathSeparator + environment["PATH"]
-                args = defaultArgs + args
+                args = args + defaultArgs
             }
         }
         return project.exec(extendedAction)
