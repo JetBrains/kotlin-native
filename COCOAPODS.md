@@ -80,7 +80,7 @@ Depending on your project and purposes, you can add dependencies between [a Kotl
     ```
     
     </div>
-    
+
 5. Re-import the project.
 
 When applied, the CocoaPods plugin does the following:
@@ -119,28 +119,28 @@ You can add dependencies on a Pod library from the CocoaPods repository with `po
  
 1. Specify the name of a Pod library in the `pod()` function. In the configuration block you can specify the version of the library using `version` parameter. To use the latest version of the library, omit the `version` parameter.
 
-    > You can add dependencies on subspecs.
-    {:.note}
+   > You can add dependencies on subspecs.
+   {:.note}
 
-    <div class="sample" markdown="1" theme="idea" data-highlight-only>
-    
-    ```kotlin
-    kotlin {
-        ios()
-    
-        cocoapods {
-            
-            summary = "CocoaPods test library"
-            homepage = "https://github.com/JetBrains/kotlin"
+   <div class="sample" markdown="1" theme="idea" data-highlight-only>
+   
+   ```kotlin
+   kotlin {
+       ios()
+   
+       cocoapods {
+           
+           summary = "CocoaPods test library"
+           homepage = "https://github.com/JetBrains/kotlin"
 
-            pod("AFNetworking") {
-                 version = "~> 4.0.1"
-            }
-        }
-    }
-    ```
-    
-    </div>
+           pod("AFNetworking") {
+                version = "~> 4.0.1"
+           }
+       }
+   }
+   ```
+   
+   </div>
 
 2. Re-import the project.
 
@@ -162,44 +162,44 @@ You can find a sample project [here](https://github.com/Kotlin/kotlin-with-cocoa
 You can add a dependency on a Pod library stored locally with `pod()` to `build.gradle.kts` (`build.gradle`) of your project:
 
 1. Specify the name of a Pod library in the `pod()` function. In the configuration block specify the path to the local Pod library: use the `path()` function in the `source` parameter value.
- 
-    > You can add local dependencies on subspecs as well.
-    > The `cocoapods` block can include dependencies to Pods stored locally and Pods from the CocoaPods repository at
-    > the same time.
-    {:.note}
 
-    <div class="sample" markdown="1" theme="idea" data-highlight-only>
-    
-    ```kotlin
-    kotlin {
-        ios()
-    
-        cocoapods {
-            summary = "CocoaPods test library"
-            homepage = "https://github.com/JetBrains/kotlin"
+   > You can add local dependencies on subspecs as well.
+   > The `cocoapods` block can include dependencies to Pods stored locally and Pods from the CocoaPods repository at
+   > the same time.
+   {:.note}
+
+   <div class="sample" markdown="1" theme="idea" data-highlight-only>
    
-            pod("pod_dependency") {
-                version = "1.0"
-                source = path(project.file("../pod_dependency/pod_dependency.podspec"))
-            }
-            pod("subspec_dependency/Core") {
-                version = "1.0"
-                source = path(project.file("../subspec_dependency/subspec_dependency.podspec"))
-            }
-            pod("AFNetworking") {
-                version = "~> 4.0.1"
-            }
-            pod("SDWebImage/MapKit")
-        }
-    }
-    ```
-    
-    </div>
-    
-    > You can also specify the version of the library using `version` parameter in the configuration block.
-    > To use the latest version of the library, omit the parameter.
-    {:.note}
-    
+   ```kotlin
+   kotlin {
+       ios()
+   
+       cocoapods {
+           summary = "CocoaPods test library"
+           homepage = "https://github.com/JetBrains/kotlin"
+
+           pod("pod_dependency") {
+               version = "1.0"
+               source = path(project.file("../pod_dependency/pod_dependency.podspec"))
+           }
+           pod("subspec_dependency/Core") {
+               version = "1.0"
+               source = path(project.file("../subspec_dependency/subspec_dependency.podspec"))
+           }
+           pod("AFNetworking") {
+               version = "~> 4.0.1"
+           }
+           pod("SDWebImage/MapKit")
+       }
+   }
+   ```
+   
+   </div>
+   
+   > You can also specify the version of the library using `version` parameter in the configuration block.
+   > To use the latest version of the library, omit the parameter.
+   {:.note}
+
 2. Re-import the project.
 
 To use these dependencies from the Kotlin code, import the packages `cocoapods.<library-name>`.
@@ -228,41 +228,41 @@ In the configuration block specify the path to the git repository: use the `git(
     * `tag` – to use a specific tag of the repository
     * `commit` – to use a specific commit of the repository
 
-    <div class="sample" markdown="1" theme="idea" data-highlight-only>
+   <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
-    ```kotlin
-    kotlin {
-        ios()
-    
-        cocoapods {
-            summary = "CocoaPods test library"
-            homepage = "https://github.com/JetBrains/kotlin"
+   ```kotlin
+   kotlin {
+       ios()
+   
+       cocoapods {
+           summary = "CocoaPods test library"
+           homepage = "https://github.com/JetBrains/kotlin"
 
-            pod("AFNetworking") {
-                source = git("https://github.com/AFNetworking/AFNetworking") {
-                    tag = "4.0.0"
+           pod("AFNetworking") {
+               source = git("https://github.com/AFNetworking/AFNetworking") {
+                   tag = "4.0.0"
+              }
+           }
+
+           pod("JSONModel") {
+               source = git("https://github.com/jsonmodel/jsonmodel.git") {
+                   branch = "key-mapper-class"
                }
-            }
+           }
 
-            pod("JSONModel") {
-                source = git("https://github.com/jsonmodel/jsonmodel.git") {
-                    branch = "key-mapper-class"
-                }
-            }
+           pod("CocoaLumberjack") {
+               source = git("https://github.com/CocoaLumberjack/CocoaLumberjack.git") {
+                   commit = "3e7f595e3a459c39b917aacf9856cd2a48c4dbf3"
+               }
+           }
+       }
+   }
+   ```
+   
+   </div>
 
-            pod("CocoaLumberjack") {
-                source = git("https://github.com/CocoaLumberjack/CocoaLumberjack.git") {
-                    commit = "3e7f595e3a459c39b917aacf9856cd2a48c4dbf3"
-                }
-            }
-        }
-    }
-    ```
-    
-    </div>
-
-    > You can combine `branch`, `commit`, and `tag` parameters to get the specific version of a Pod.
-    {:.note}
+   > You can combine `branch`, `commit`, and `tag` parameters to get the specific version of a Pod.
+   {:.note}
 
 
 2. Re-import the project.
@@ -289,29 +289,29 @@ You can add dependencies on a Pod library from `zip`, `tar`, or `jar` archive wi
 In the configuration block specify the path to the archive with one of the following functions in the `source` parameter value:
     * `path()` – for an archive that stored locally. See [Add a dependency on a Pod library stored locally](#add-a-dependency-on-a-pod-library-stored-locally) for more details.
     * `url()` – for an archive that available by arbitrary HTTP address.
-    
+
     Use the Boolean `flatten` parameter, if the Pod library files are in the root directory of the archive:
     * `flatten` – indicates that all Pod files located in the root directory.
 
-    <div class="sample" markdown="1" theme="idea" data-highlight-only>
+   <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
-    ```kotlin
-    kotlin {
-        ios()
-    
-        cocoapods {
-            summary = "CocoaPods test library"
-            homepage = "https://github.com/JetBrains/kotlin"
+   ```kotlin
+   kotlin {
+       ios()
+   
+       cocoapods {
+           summary = "CocoaPods test library"
+           homepage = "https://github.com/JetBrains/kotlin"
 
-            pod("pod_dependency") {
-               source = url("https://github.com/Kotlin/kotlin-with-cocoapods-sample/raw/cocoapods-zip/cocoapodSourcesZip.zip", flatten = true)
-            }
+           pod("pod_dependency") {
+              source = url("https://github.com/Kotlin/kotlin-with-cocoapods-sample/raw/cocoapods-zip/cocoapodSourcesZip.zip", flatten = true)
+           }
 
-        }
-    }
-    ```
-    
-    </div>
+       }
+   }
+   ```
+   
+   </div>
 
 2. Re-import the project.
 
@@ -353,26 +353,26 @@ You can add dependencies on a Pod library from a custom Spec repository with `po
 
 2. Specify the name of a Pod library in the `pod()` function:
 
-    <div class="sample" markdown="1" theme="idea" data-highlight-only>
+   <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
-    ```kotlin
-    kotlin {
-        ios()
+   ```kotlin
+   kotlin {
+       ios()
 
-        cocoapods {
-            summary = "CocoaPods test library"
-            homepage = "https://github.com/JetBrains/kotlin"
+       cocoapods {
+           summary = "CocoaPods test library"
+           homepage = "https://github.com/JetBrains/kotlin"
 
-            specRepos {
-               url("https://github.com/Kotlin/kotlin-cocoapods-spec.git")
-            }
-            pod("example")
+           specRepos {
+              url("https://github.com/Kotlin/kotlin-cocoapods-spec.git")
+           }
+           pod("example")
 
-        }
-    }
-    ```
+       }
+   }
+   ```
 
-    </div>
+   </div>
 
 23. Re-import the project.
 
@@ -404,26 +404,26 @@ In the configuration block specify the C interoperability options:
     * `extraOpts` – to specify the list of options to a Pod library. For example, specific flags
     * `packageName` – to specify the package name. If you specify it, you can import the library using the package name: `import cocoapods.<packageName>`
 
-    <div class="sample" markdown="1" theme="idea" data-highlight-only>
+   <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
-    ```kotlin
-    kotlin {
-        ios()
-    
-        cocoapods {
-            summary = "CocoaPods test library"
-            homepage = "https://github.com/JetBrains/kotlin"
+   ```kotlin
+   kotlin {
+       ios()
+   
+       cocoapods {
+           summary = "CocoaPods test library"
+           homepage = "https://github.com/JetBrains/kotlin"
 
-            pod("new_pod") {
-                extraOpts = listOf("-compiler-option")
-                packageName = "package"
-            }
+           pod("new_pod") {
+               extraOpts = listOf("-compiler-option")
+               packageName = "package"
+           }
 
-        }
-    }
-    ```
+       }
+   }
+   ```
 
-    </div>
+   </div>
 
 2. Re-import the project.
 
@@ -457,29 +457,29 @@ You can add dependencies on a static Pod library with `pod()` and `useLibraries(
 
 2. Call the `useLibraries()` function: it enables a special flag for static libraries. 
 
-    > You can add a dependency on a static library from a repository or stored locally.
-    {:.note}
+   > You can add a dependency on a static library from a repository or stored locally.
+   {:.note}
 
-    <div class="sample" markdown="1" theme="idea" data-highlight-only>
+   <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
-    ```kotlin
-    kotlin {
-        ios()
+   ```kotlin
+   kotlin {
+       ios()
 
-        cocoapods {
-            summary = "CocoaPods test library"
-            homepage = "https://github.com/JetBrains/kotlin"
+       cocoapods {
+           summary = "CocoaPods test library"
+           homepage = "https://github.com/JetBrains/kotlin"
 
-            pod("YandexMapKit") {
-                version = "~> 3.2"
-            }
-            useLibraries()
+           pod("YandexMapKit") {
+               version = "~> 3.2"
+           }
+           useLibraries()
 
-        }
-    }
-    ```
+       }
+   }
+   ```
 
-    </div>
+   </div>
 
 
 2. Re-import the project.
@@ -501,33 +501,33 @@ Kotlin requires Podfile changes to work correctly with Xcode:
 
 * If your project has any Git, HTTP, custom Spec repository dependency, you should also specify the path to the Podspec in the Podfile.
 
-    For example, if you add the dependency on `podspecWithFilesExample`, declare the path to the Podspec in the Podfile:
+   For example, if you add the dependency on `podspecWithFilesExample`, declare the path to the Podspec in the Podfile:
 
-    <div class="sample" markdown="1" theme="idea" data-highlight-only>
+   <div class="sample" markdown="1" theme="idea" data-highlight-only>
    
-    ```ruby
-    target 'ios-app' do
-        # ... other depedencies ...
-        pod 'podspecWithFilesExample', :path => '../kotlin-libr/build/cocoapods/externalSources/url/podspecWithFilesExample'
-    end
-    ```
+   ```ruby
+   target 'ios-app' do
+       # ... other depedencies ...
+       pod 'podspecWithFilesExample', :path => '../kotlin-libr/build/cocoapods/externalSources/url/podspecWithFilesExample'
+   end
+   ```
 
-    </div>
+   </div>
 
 * When you add a library from the custom Spec repository, you should also specify the [location](https://guides.cocoapods.org/syntax/podfile.html#source) of specs at the beginning of your Podfile:
 
-    <div class="sample" markdown="1" theme="idea" data-highlight-only>
+   <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
-    ```ruby
-    source 'https://github.com/Kotlin/kotlin-cocoapods-spec.git'
+   ```ruby
+   source 'https://github.com/Kotlin/kotlin-cocoapods-spec.git'
 
-    target 'kotlin-cocoapods-xcproj' do
-        # ... other depedencies ...
-        pod 'example'
-    end
-    ```
+   target 'kotlin-cocoapods-xcproj' do
+       # ... other depedencies ...
+       pod 'example'
+   end
+   ```
 
-    </div>
+   </div>
 
 > Re-import the project after making changes in Podfile.
 {:.note}
