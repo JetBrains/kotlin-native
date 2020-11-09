@@ -2005,7 +2005,7 @@ MemoryState* initMemory(bool firstRuntime) {
   memoryState->tlsMap = konanConstructInstance<KThreadLocalStorageMap>();
   memoryState->foreignRefManager = ForeignRefManager::create();
   bool firstMemoryState = atomicAdd(&aliveMemoryStatesCount, 1) == 1;
-  switch (Kotlin_destroyRuntimeMode) {
+  switch (Kotlin_getDestroyRuntimeMode()) {
     case DESTROY_RUNTIME_LEGACY:
       firstRuntime = firstMemoryState;
       break;
@@ -2034,7 +2034,7 @@ void deinitMemory(MemoryState* memoryState, bool destroyRuntime) {
   atomicAdd(&pendingDeinit, 1);
 #if USE_GC
   bool lastMemoryState = atomicAdd(&aliveMemoryStatesCount, -1) == 0;
-  switch (Kotlin_destroyRuntimeMode) {
+  switch (Kotlin_getDestroyRuntimeMode()) {
     case DESTROY_RUNTIME_LEGACY:
       destroyRuntime = lastMemoryState;
       break;

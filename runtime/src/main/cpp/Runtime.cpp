@@ -31,6 +31,12 @@ struct InitNode {
   InitNode* next;
 };
 
+RUNTIME_WEAK DestroyRuntimeMode Kotlin_destroyRuntimeMode = DESTROY_RUNTIME_ON_SHUTDOWN;
+
+DestroyRuntimeMode Kotlin_getDestroyRuntimeMode() {
+    return Kotlin_destroyRuntimeMode;
+}
+
 namespace {
 
 InitNode* initHeadNode = nullptr;
@@ -65,7 +71,7 @@ void InitOrDeinitGlobalVariables(int initialize, MemoryState* memory) {
 
 KBoolean g_checkLeaks = KonanNeedDebugInfo;
 KBoolean g_checkLeakedCleaners = KonanNeedDebugInfo;
-KBoolean g_forceCheckedShutdown = Kotlin_destroyRuntimeMode == DESTROY_RUNTIME_ON_SHUTDOWN_CHECKED;
+KBoolean g_forceCheckedShutdown = Kotlin_getDestroyRuntimeMode() == DESTROY_RUNTIME_ON_SHUTDOWN_CHECKED;
 
 constexpr RuntimeState* kInvalidRuntime = nullptr;
 
@@ -93,7 +99,7 @@ RuntimeState* initRuntime() {
   ::runtimeState = result;
 
   bool firstRuntime = false;
-  switch (Kotlin_destroyRuntimeMode) {
+  switch (Kotlin_getDestroyRuntimeMode()) {
       case DESTROY_RUNTIME_LEGACY:
           compareAndSwap(&globalRuntimeStatus, kGlobalRuntimeUninitialized, kGlobalRuntimeRunning);
           result->memoryState = InitMemory(false); // The argument will be ignored for legacy DestroyRuntimeMode
@@ -135,7 +141,7 @@ void deinitRuntime(RuntimeState* state, bool destroyRuntime) {
   // This may be called after TLS is zeroed out, so ::memoryState in Memory cannot be trusted.
   RestoreMemory(state->memoryState);
   bool lastRuntime = atomicAdd(&aliveRuntimesCount, -1) == 0;
-  switch (Kotlin_destroyRuntimeMode) {
+  switch (Kotlin_getDestroyRuntimeMode()) {
     case DESTROY_RUNTIME_LEGACY:
       destroyRuntime = lastRuntime;
       break;
@@ -194,7 +200,7 @@ void Kotlin_shutdownRuntime() {
     RuntimeAssert(runtime != kInvalidRuntime, "Current thread must have Kotlin runtime initialized on it");
 
     bool needsFullShutdown = false;
-    switch (Kotlin_destroyRuntimeMode) {
+    switch (Kotlin_getDestroyRuntimeMode()) {
         case DESTROY_RUNTIME_LEGACY:
             needsFullShutdown = true;
             break;
@@ -341,7 +347,7 @@ KBoolean Konan_Platform_getForceCheckedShutdown() {
 }
 
 void Konan_Platform_setForceCheckedShutdown(KBoolean value) {
-    switch (Kotlin_destroyRuntimeMode) {
+    switch (Kotlin_getDestroyRuntimeMode()) {
         case DESTROY_RUNTIME_LEGACY:
             // Only applicable to ON_SHUTDOWN modes.
             return;
@@ -353,7 +359,7 @@ void Konan_Platform_setForceCheckedShutdown(KBoolean value) {
 }
 
 KInt Konan_getThingy() {
-  return Kotlin_destroyRuntimeMode;
+  return Kotlin_getDestroyRuntimeMode();
 }
 
 }  // extern "C"

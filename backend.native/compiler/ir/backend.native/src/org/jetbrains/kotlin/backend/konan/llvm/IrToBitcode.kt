@@ -364,6 +364,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
             codegen.objCDataGenerator?.finishModule()
 
             context.coverage.writeRegionInfo()
+            appendDebugSelector()
             appendCompilerGlobals()
             appendLlvmUsed("llvm.used", context.llvm.usedFunctions + context.llvm.usedGlobals)
             appendLlvmUsed("llvm.compiler.used", context.llvm.compilerUsedGlobals)
@@ -2380,20 +2381,42 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         LLVMSetSection(llvmUsedGlobal.llvmGlobal, "llvm.metadata")
     }
 
-    private fun appendGlobal(name: String, value: ConstValue, isStrongSymbol: Boolean) {
-        val constant = context.llvm.staticData.placeGlobal(name, value)
-        constant.setConstant(true)
-        constant.setLinkage(if (isStrongSymbol) LLVMLinkage.LLVMExternalLinkage else LLVMLinkage.LLVMExternalWeakLinkage)
+    private fun appendDebugSelector() {
+        if (!context.producedLlvmModuleContainsStdlib) return
+        val llvmDebugSelector =
+                context.llvm.staticData.placeGlobal("KonanNeedDebugInfo",
+                        Int32(if (context.shouldContainDebugInfo()) 1 else 0))
+        llvmDebugSelector.setConstant(true)
+        llvmDebugSelector.setLinkage(LLVMLinkage.LLVMExternalLinkage)
+    }
+
+    private fun appendGlobal(name: String, value: ConstValue) {
+        if (context.llvmModuleSpecification.importsKotlinDeclarationsFromOtherSharedLibraries()) {
+            val global = codegen.importGlobal(name, value.llvmType, context.standardLlvmSymbolsOrigin)
+            val initializer = generateFunction(codegen, functionType(voidType, false), "init${name}") {
+                store(value.llvm, global)
+                ret(null)
+            }
+
+            LLVMSetLinkage(initializer, LLVMLinkage.LLVMInternalLinkage)
+
+            context.llvm.otherStaticInitializers += initializer
+        } else {
+            context.llvmImports.add(context.standardLlvmSymbolsOrigin)
+            val global = context.llvm.staticData.placeGlobal(name, value, true)
+
+            if (context.llvmModuleSpecification.importsKotlinDeclarationsFromOtherObjectFiles()) {
+                context.llvm.usedGlobals += global.llvmGlobal
+                LLVMSetVisibility(global.llvmGlobal, LLVMVisibility.LLVMHiddenVisibility)
+            }
+        }
     }
 
     private fun appendCompilerGlobals() {
-        if (context.producedLlvmModuleContainsStdlib) {
-            appendGlobal("KonanNeedDebugInfo", Int32(if (context.shouldContainDebugInfo()) 1 else 0), true)
-        }
-        if (context.config.produce.isFinalBinary) {
-            println("Setting Kotlin_destroyRuntimeMode value=${context.config.destroyRuntimeMode.value}")
-            appendGlobal("Kotlin_destroyRuntimeMode", Int32(context.config.destroyRuntimeMode.value), true)
-        }
+        if (!context.config.produce.isFinalBinary)
+            return
+        println("Setting Kotlin_destroyRuntimeMode value=${context.config.destroyRuntimeMode.value}")
+        appendGlobal("Kotlin_destroyRuntimeMode", Int32(context.config.destroyRuntimeMode.value))
     }
 
     //-------------------------------------------------------------------------//

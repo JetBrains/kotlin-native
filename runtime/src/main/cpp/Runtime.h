@@ -32,7 +32,7 @@ enum DestroyRuntimeMode {
     DESTROY_RUNTIME_ON_SHUTDOWN_CHECKED = 2,
 };
 
-RUNTIME_WEAK extern const DestroyRuntimeMode Kotlin_destroyRuntimeMode;
+DestroyRuntimeMode Kotlin_getDestroyRuntimeMode();
 
 void Kotlin_initRuntimeIfNeeded();
 void Kotlin_deinitRuntimeIfNeeded();
