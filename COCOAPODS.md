@@ -5,20 +5,12 @@ You can add dependencies on Pod libraries as well as use a multiplatform project
 native targets as a CocoaPods dependency (Kotlin Pod).
 
 You can manage Pod dependencies directly in IntelliJ IDEA and enjoy all the additional features such as code highlighting 
-and completion. You can build the whole Kotlin project with Gradle and not ever have to switch to Xcode.
-
-TODO: write smth on Xcode. 
-
-To work correctly with Xcode ...
+and completion. You can build the whole Kotlin project with Gradle and not ever have to switch to Xcode. 
 
 Use Xcode only when you need to write Swift/Objective-C code or run your application on a simulator or device.
+To work correctly with Xcode, you should [update you Podfile](#update-podfile-for-xcode). 
  
-Depending on your project and purposes, you can add dependencies between:
-* [A Kotlin project and a Pod library from the CocoaPods repository](#add-a-dependency-on-a-pod-library-from-the-cocoapods-repository)
-* [A Kotlin project and a Pod library stored locally](#add-a-dependency-on-a-pod-library-stored-locally)
-* TODO: add other
-* [A Kotlin Pod and an Xcode project with one target](#add-a-dependency-between-a-kotlin-pod-and-xcode-project-with-one-target) 
-or [several targets](#add-a-dependency-between-a-kotlin-pod-with-an-xcode-project-with-several-targets)
+Depending on your project and purposes, you can add dependencies between [a Koltin project and a Pod library](#Add dependencies on Pod libraries), or [a Kotlin Pod and an Xcode project](#use-a-kotlin-gradle-project-as-a-cocoapods-dependency). 
 
 >You can also add dependencies between a Kotlin Pod and multiple Xcode projects. However, in this case you need to add a 
 >dependency by calling `pod install` manually for each Xcode project. In other cases, it's done automatically.
@@ -502,36 +494,42 @@ import cocoapods.SDWebImage.*
 
 </div>
 
-### Change Podfile for Xcode
+### Update Podfile for Xcode
 
-If you want to work with Xcode, 
+Kotlin requires some Podfile changes to work correctly with Xcode:
 
-To work correctly with Xcode, Kotlin requires some Podfile changes:
+* If your project has any Git, HTTP, custom Spec repository dependency, you should also specify the path to the Podspec in the Podfile.
 
-* If your Kotlin Pod has any Git, HTTP, or specRepo pod dependency, you should also specify it in the Podfile. For example, if you add the dependency on `AFNetworking` from the CocoaPods repository, declare it in the Podfile:
+    For example, if you add the dependency on `podspecWithFilesExample`, declare the path to the Podspec in the Podfile:
 
     <div class="sample" markdown="1" theme="idea" data-highlight-only>
    
-    ```
-    pod 'AFNetworking'
+    ```ruby
+    target 'ios-app' do
+        # ... other depedencies ...
+        pod 'podspecWithFilesExample', :path => '../kotlin-libr/build/cocoapods/externalSources/url/podspecWithFilesExample'
+    end
     ```
 
     </div>
 
-* When you add a library from the custom spec, you also should specify the [location](https://guides.cocoapods.org/syntax/podfile.html#source) of specs at the beginning of your Podfile:
-    ```
+* When you add a library from the custom Spec repository, you should also specify the [location](https://guides.cocoapods.org/syntax/podfile.html#source) of specs at the beginning of your Podfile:
+
+    <div class="sample" markdown="1" theme="idea" data-highlight-only>
+
+    ```ruby
     source 'https://github.com/Kotlin/kotlin-cocoapods-spec.git'
 
     target 'kotlin-cocoapods-xcproj' do
-       # Comment the next line if you don't want to use dynamic frameworks
-      use_frameworks!
-
-      // ... other Pods ...
-      pod 'example'
+        # ... other depedencies ...
+        pod 'example'
     end
     ```
 
-Now integration errors have a detailed description in IDEA. So if you have problems with your Podfile, you will immediately know about it.
+    </div>
+
+> Re-import the project after making changes in Podfile.
+{.note} 
 
 ## Use a Kotlin Gradle project as a CocoaPods dependency
 
