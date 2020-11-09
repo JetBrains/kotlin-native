@@ -95,7 +95,7 @@ the build process of an Xcode project.
 ## Add dependencies on Pod libraries
 
 To add dependencies between a Kotlin project and a Pod library, you should [complete the initial configuration](#install-the-cocoapods-dependency-manager-and-plugin).
-It allows you to add dependencies on the following types of Pods libraries: 
+This allows you to add dependencies on the following types of Pods libraries: 
  * [A Pod library from a CocoaPods repository](#add-a-dependency-on-a-pod-library-from-the-cocoapods-repository) 
  * [A Pod library stored locally](#add-a-dependency-on-a-pod-library-stored-locally)
  * [A Pod library from a Git repository](#add-a-dependency-on-a-pod-library-from-the-git-repository)
@@ -104,16 +104,13 @@ It allows you to add dependencies on the following types of Pods libraries:
  * [A Pod library with custom C Interop options](#add-a-dependency-on-a-pod-library-with-custom-c-interoperability-options)
  * [A static Pod library](#add-a-dependency-on-a-static-pod-library)
 
-To add a Pod dependency, Kotlin requires the `pod()` function in your `build.gradle.kts` (`build.gradle`) file. 
-This function has a configuration block where you could specify the parameters for the Pod dependency. 
-
-> All parameters are in their articles.
-{:.note}
+A Kotlin project requires the `pod()` function call in `build.gradle.kts` (`build.gradle`) for adding a Pod dependency. Each dependency requires a separate function call.
+The function has a configuration block where you could specify the parameters for the dependency.
 
 When you add a new dependency and re-import the project in IntelliJ IDEA the new dependency will be added automatically.
 There are no additional steps required. 
 
-To use Xcode along with IntelliJ IDEA, you should [make changes in your project Podfile](#change-Podfile-for-xcode).
+To use Xcode, you should [make changes in your project Podfile](#change-Podfile-for-xcode).
 
 ### Add a dependency on a Pod library from the CocoaPods repository
 
