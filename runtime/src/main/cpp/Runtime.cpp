@@ -352,4 +352,8 @@ void Konan_Platform_setForceCheckedShutdown(KBoolean value) {
     g_forceCheckedShutdown = value;
 }
 
+KInt Konan_getThingy() {
+  return Kotlin_destroyRuntimeMode;
+}
+
 }  // extern "C"
