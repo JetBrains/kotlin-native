@@ -4362,8 +4362,7 @@ dynamicTest("interop_cleaners_leak") {
 }
 
 dynamicTest("interop_migrating_main_thread_legacy") {
-    // TODO: Fix it.
-    disabled = (project.testTarget != null && project.testTarget != project.hostName)
+    disabled = (project.target.name != project.hostName)
     source = "interop/migrating_main_thread/lib.kt"
     flags = ['-Xdestroy-runtime-mode=legacy']
     clangFlags = ['-DIS_LEGACY']
