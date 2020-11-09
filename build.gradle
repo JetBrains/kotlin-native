@@ -24,6 +24,7 @@ import org.jetbrains.kotlin.KotlinBuildPusher
 import org.jetbrains.kotlin.CollisionDetector
 import org.jetbrains.kotlin.CollisionTransformer
 import org.jetbrains.kotlin.CompilationDatabaseKt
+import org.jetbrains.kotlin.CompareDistributionSignatures
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 import org.apache.tools.ant.filters.ReplaceTokens
 import org.jetbrains.kotlin.UtilsKt
@@ -37,6 +38,7 @@ buildscript {
         maven { url "https://cache-redirector.jetbrains.com/maven-central" }
         mavenCentral()
         maven { url "https://dl.bintray.com/kotlin/kotlin-dev" }
+        maven { url "https://cache-redirector.jetbrains.com/jcenter" }
         jcenter()
     }
 
@@ -668,12 +670,6 @@ task samples {
     dependsOn 'samplesZip', 'samplesTar'
 }
 
-task performance {
-    dependsOn 'dist'
-    dependsOn ':performance:clean'
-    dependsOn ':performance:konanRun'
-}
-
 task samplesZip(type: Zip)
 task samplesTar(type: Tar) {
     extension = 'tar.gz'
@@ -783,4 +779,16 @@ task compdb(type: Copy) {
     dependsOn "${hostName}CompilationDatabase"
     from "$buildDir/${hostName}/compile_commands.json"
     into "$projectDir"
+}
+
+if (project.hasProperty("anotherDistro")) {
+    targetList.each { targetName ->
+        task "${targetName}CheckAbiCompatibility"(type: CompareDistributionSignatures) {
+            dependsOn "${targetName}PlatformLibs"
+
+            target = targetName
+            oldDistribution = project.findProperty("anotherDistro")
+            onMismatchMode = CompareDistributionSignatures.OnMismatchMode.FAIL
+        }
+    }
 }

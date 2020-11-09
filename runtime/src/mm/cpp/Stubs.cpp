@@ -198,7 +198,7 @@ bool Kotlin_Any_isShareable(ObjHeader* thiz) {
     RuntimeCheck(false, "Unimplemented");
 }
 
-RUNTIME_NOTHROW void PerformFullGC() {
+RUNTIME_NOTHROW void PerformFullGC(MemoryState* memory) {
     RuntimeCheck(false, "Unimplemented");
 }
 
@@ -232,6 +232,10 @@ bool IsForeignRefAccessible(ObjHeader* object, ForeignRefContext context) {
 
 void AdoptReferenceFromSharedVariable(ObjHeader* object) {
     RuntimeCheck(false, "Unimplemented");
+}
+
+void CheckGlobalsAccessible() {
+    // Globals are always accessible.
 }
 
 } // extern "C"
