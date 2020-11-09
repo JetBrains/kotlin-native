@@ -110,7 +110,7 @@ The function has a configuration block where you could specify the parameters fo
 When you add a new dependency and re-import the project in IntelliJ IDEA the new dependency will be added automatically.
 There are no additional steps required. 
 
-To use Xcode, you should [make changes in your project Podfile](#change-Podfile-for-xcode).
+To use Xcode, you should [make changes in your project Podfile](#change-podfile-for-xcode).
 
 ### Add a dependency on a Pod library from the CocoaPods repository
 
@@ -531,7 +531,9 @@ Kotlin requires some Podfile changes to work correctly with Xcode:
     </div>
 
 > Re-import the project after making changes in Podfile.
-{:.note} 
+{:.note}
+
+See the `withXcproject` branch of the [sample project](https://github.com/Kotlin/kotlin-with-cocoapods-sample) that contains an example of Xcode integration with the existing Xcode project named `kotlin-cocoapods-xcproj`.
 
 ## Use a Kotlin Gradle project as a CocoaPods dependency
 
