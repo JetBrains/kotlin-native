@@ -287,7 +287,7 @@ You can add dependencies on a Pod library from `zip`, `tar`, or `jar` archive wi
 
 1. Specify the name of a Pod library in the `pod()` function.
 In the configuration block specify the path to the archive with one of the following functions in the `source` parameter value:
-    * `path()` – for an archive that stored locally. See [Add a dependency on a Pod library stored locally](add-a-dependency-on-a-pod-library-stored-locally) for more details.
+    * `path()` – for an archive that stored locally. See [Add a dependency on a Pod library stored locally](#add-a-dependency-on-a-pod-library-stored-locally) for more details.
     * `url()` – for an archive that available by arbitrary HTTP address.
     
     Use the Boolean `flatten` parameter, if the Pod library files are in the root directory of the archive:
