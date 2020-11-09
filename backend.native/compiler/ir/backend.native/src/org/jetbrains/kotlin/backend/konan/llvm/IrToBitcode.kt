@@ -2390,9 +2390,10 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         if (context.producedLlvmModuleContainsStdlib) {
             appendGlobal("KonanNeedDebugInfo", Int32(if (context.shouldContainDebugInfo()) 1 else 0), true)
         }
-        val isStrongSymbol = context.config.produce.isFinalBinary
-        println("Setting Kotlin_destroyRuntimeMode strong=$isStrongSymbol value=${context.config.destroyRuntimeMode.value}")
-        appendGlobal("Kotlin_destroyRuntimeMode", Int32(context.config.destroyRuntimeMode.value), isStrongSymbol)
+        if (context.config.produce.isFinalBinary) {
+            println("Setting Kotlin_destroyRuntimeMode value=${context.config.destroyRuntimeMode.value}")
+            appendGlobal("Kotlin_destroyRuntimeMode", Int32(context.config.destroyRuntimeMode.value), true)
+        }
     }
 
     //-------------------------------------------------------------------------//
