@@ -10,7 +10,7 @@ and completion. You can build the whole Kotlin project with Gradle and not ever 
 Use Xcode only when you need to write Swift/Objective-C code or run your application on a simulator or device.
 To work correctly with Xcode, you should [update you Podfile](#update-podfile-for-xcode). 
  
-Depending on your project and purposes, you can add dependencies between [a Koltin project and a Pod library](#add-dependencies-on-pod-libraries), or [a Kotlin Pod and an Xcode project](#use-a-kotlin-gradle-project-as-a-cocoapods-dependency). 
+Depending on your project and purposes, you can add dependencies between [a Kotlin project and a Pod library](#add-dependencies-on-pod-libraries), or [a Kotlin Pod and an Xcode project](#use-a-kotlin-gradle-project-as-a-cocoapods-dependency). 
 
 >You can also add dependencies between a Kotlin Pod and multiple Xcode projects. However, in this case you need to add a 
 >dependency by calling `pod install` manually for each Xcode project. In other cases, it's done automatically.
@@ -110,7 +110,7 @@ The function has a configuration block where you could specify the parameters fo
 When you add a new dependency and re-import the project in IntelliJ IDEA the new dependency will be added automatically.
 There are no additional steps required. 
 
-To use Xcode, you should [make changes in your project Podfile](#change-podfile-for-xcode).
+To use Xcode, you should [make changes in your project Podfile](#update-podfile-for-xcode).
 
 ### Add a dependency on a Pod library from the CocoaPods repository
 
