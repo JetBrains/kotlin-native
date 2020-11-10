@@ -2381,6 +2381,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         LLVMSetSection(llvmUsedGlobal.llvmGlobal, "llvm.metadata")
     }
 
+    // TODO: Consider migrating `KonanNeedDebugInfo` to the `appendGlobal` mechanism from below.
     private fun appendDebugSelector() {
         if (!context.producedLlvmModuleContainsStdlib) return
         val llvmDebugSelector =
@@ -2391,18 +2392,22 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     }
 
     private fun appendGlobal(name: String, value: ConstValue) {
+        // TODO: A similar mechanism is used in ObjCExportCodeGenerator. Consider merging them.
         if (context.llvmModuleSpecification.importsKotlinDeclarationsFromOtherSharedLibraries()) {
+            // When some dynamic caches are used, we consider that stdlib is in the dynamic cache as well.
+            // Runtime is linked into stdlib module only, so import runtime global from it.
             val global = codegen.importGlobal(name, value.llvmType, context.standardLlvmSymbolsOrigin)
-            val initializer = generateFunction(codegen, functionType(voidType, false), "init${name}") {
+            val initializer = generateFunction(codegen, functionType(voidType, false), "") {
                 store(value.llvm, global)
                 ret(null)
             }
 
-            LLVMSetLinkage(initializer, LLVMLinkage.LLVMInternalLinkage)
+            LLVMSetLinkage(initializer, LLVMLinkage.LLVMPrivateLinkage)
 
             context.llvm.otherStaticInitializers += initializer
         } else {
             context.llvmImports.add(context.standardLlvmSymbolsOrigin)
+            // Define a strong runtime global. It'll overrule a weak global defined in a statically linked runtime.
             val global = context.llvm.staticData.placeGlobal(name, value, true)
 
             if (context.llvmModuleSpecification.importsKotlinDeclarationsFromOtherObjectFiles()) {
@@ -2415,7 +2420,6 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     private fun appendCompilerGlobals() {
         if (!context.config.produce.isFinalBinary)
             return
-        println("Setting Kotlin_destroyRuntimeMode value=${context.config.destroyRuntimeMode.value}")
         appendGlobal("Kotlin_destroyRuntimeMode", Int32(context.config.destroyRuntimeMode.value))
     }
 
