@@ -100,13 +100,7 @@ public object Platform {
     public var forceCheckedShutdown: Boolean
         get() = Platform_getForceCheckedShutdown()
         set(value) = Platform_setForceCheckedShutdown(value)
-
-    public val thingy: Int
-        get() = getThingy()
 }
-
-@SymbolName("Konan_getThingy")
-private external fun getThingy(): Int
 
 @SymbolName("Konan_Platform_canAccessUnaligned")
 private external fun Platform_canAccessUnaligned(): Int
