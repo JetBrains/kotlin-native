@@ -122,14 +122,21 @@ You can add dependencies on a Pod library from the CocoaPods repository with `po
    > You can add dependencies on subspecs.
    {:.note}
 
+2. Specify the minimum target version for the Pod library.
+
+   > If you don't specify the minimum target version and a dependency Pod requires a higher deployment target, you may get an error.
+   {:.note}
+
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
    
    ```kotlin
    kotlin {
        ios()
-   
+
        cocoapods {
-           
+
+           ios.deploymentTarget = "13.5"
+
            summary = "CocoaPods test library"
            homepage = "https://github.com/JetBrains/kotlin"
 
@@ -142,7 +149,7 @@ You can add dependencies on a Pod library from the CocoaPods repository with `po
    
    </div>
 
-2. Re-import the project.
+3. Re-import the project.
 
 To use these dependencies from the Kotlin code, import the packages `cocoapods.<library-name>`.
 
@@ -168,15 +175,22 @@ You can add a dependency on a Pod library stored locally with `pod()` to `build.
    > the same time.
    {:.note}
 
+2. Specify the minimum target version for the Pod library.
+
+   > If you don't specify the minimum target version and a dependency Pod requires a higher deployment target, you may get an error.
+   {:.note}
+
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
    
    ```kotlin
    kotlin {
        ios()
-   
+
        cocoapods {
            summary = "CocoaPods test library"
            homepage = "https://github.com/JetBrains/kotlin"
+
+           ios.deploymentTarget = "13.5"
 
            pod("pod_dependency") {
                version = "1.0"
@@ -200,7 +214,7 @@ You can add a dependency on a Pod library stored locally with `pod()` to `build.
    > To use the latest version of the library, omit the parameter.
    {:.note}
 
-2. Re-import the project.
+3. Re-import the project.
 
 To use these dependencies from the Kotlin code, import the packages `cocoapods.<library-name>`.
 
@@ -228,15 +242,22 @@ In the configuration block specify the path to the git repository: use the `git(
     * `tag` – to use a specific tag of the repository
     * `commit` – to use a specific commit of the repository
 
+2. Specify the minimum target version for the Pod library.
+
+   > If you don't specify the minimum target version and a dependency Pod requires a higher deployment target, you may get an error.
+   {:.note}
+
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
    ```kotlin
    kotlin {
        ios()
-   
+
        cocoapods {
            summary = "CocoaPods test library"
            homepage = "https://github.com/JetBrains/kotlin"
+
+           ios.deploymentTarget = "13.5"
 
            pod("AFNetworking") {
                source = git("https://github.com/AFNetworking/AFNetworking") {
@@ -264,8 +285,7 @@ In the configuration block specify the path to the git repository: use the `git(
    > You can combine `branch`, `commit`, and `tag` parameters to get the specific version of a Pod.
    {:.note}
 
-
-2. Re-import the project.
+3. Re-import the project.
 
 To use these dependencies from the Kotlin code, import the packages `cocoapods.<library-name>`.
 
@@ -286,22 +306,27 @@ You can add dependencies on a Pod library from `zip`, `tar`, or `jar` archive wi
 (`build.gradle`) of your project:
 
 1. Specify the name of a Pod library in the `pod()` function.
-In the configuration block specify the path to the archive with one of the following functions in the `source` parameter value:
-    * `path()` – for an archive that stored locally. See [Add a dependency on a Pod library stored locally](#add-a-dependency-on-a-pod-library-stored-locally) for more details.
-    * `url()` – for an archive that available by arbitrary HTTP address.
+In the configuration block specify the path to the archive: use the `url()` function with an arbitrary HTTP address in the `source` parameter value. 
 
-    Use the Boolean `flatten` parameter, if the Pod library files are in the root directory of the archive:
-    * `flatten` – indicates that all Pod files located in the root directory.
+    Additionally, you can specify the Boolean `flatten` parameter as a second argument for the `url()` function.
+    It indicates that all Pod files located in the root directory.
+
+2. Specify the minimum target version for the Pod library.
+
+   > If you don't specify the minimum target version and a dependency Pod requires a higher deployment target, you may get an error.
+   {:.note}
 
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
    ```kotlin
    kotlin {
        ios()
-   
+
        cocoapods {
            summary = "CocoaPods test library"
            homepage = "https://github.com/JetBrains/kotlin"
+
+           ios.deploymentTarget = "13.5"
 
            pod("pod_dependency") {
               source = url("https://github.com/Kotlin/kotlin-with-cocoapods-sample/raw/cocoapods-zip/cocoapodSourcesZip.zip", flatten = true)
@@ -313,7 +338,7 @@ In the configuration block specify the path to the archive with one of the follo
    
    </div>
 
-2. Re-import the project.
+3. Re-import the project.
 
 > To work correctly with Xcode, you should specify the path to the Podspec in your Podfile.
 > For example:
@@ -351,7 +376,12 @@ You can add dependencies on a Pod library from a custom Spec repository with `po
 
 1. Specify the HTTP address to the custom Spec repository using the `url()` inside the `specRepos` block.
 
-2. Specify the name of a Pod library in the `pod()` function:
+2. Specify the name of a Pod library in the `pod()` function.
+
+3. Specify the minimum target version for the Pod library.
+
+   > If you don't specify the minimum target version and a dependency Pod requires a higher deployment target, you may get an error.
+   {:.note}
 
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
@@ -362,6 +392,8 @@ You can add dependencies on a Pod library from a custom Spec repository with `po
        cocoapods {
            summary = "CocoaPods test library"
            homepage = "https://github.com/JetBrains/kotlin"
+
+           ios.deploymentTarget = "13.5"
 
            specRepos {
               url("https://github.com/Kotlin/kotlin-cocoapods-spec.git")
@@ -374,7 +406,7 @@ You can add dependencies on a Pod library from a custom Spec repository with `po
 
    </div>
 
-23. Re-import the project.
+4. Re-import the project.
 
 > To work correctly with Xcode, you should specify the location of specs at the beginning of your Podfile.
 > For example, `source 'https://github.com/Kotlin/kotlin-cocoapods-spec.git'`
@@ -404,6 +436,11 @@ In the configuration block specify the C interoperability options:
     * `extraOpts` – to specify the list of options to a Pod library. For example, specific flags
     * `packageName` – to specify the package name. If you specify it, you can import the library using the package name: `import cocoapods.<packageName>`
 
+2. Specify the minimum target version for the Pod library.
+
+   > If you don't specify the minimum target version and a dependency Pod requires a higher deployment target, you may get an error.
+   {:.note}
+
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
    ```kotlin
@@ -413,6 +450,8 @@ In the configuration block specify the C interoperability options:
        cocoapods {
            summary = "CocoaPods test library"
            homepage = "https://github.com/JetBrains/kotlin"
+
+           ios.deploymentTarget = "13.5"
 
            pod("new_pod") {
                extraOpts = listOf("-compiler-option")
@@ -425,7 +464,7 @@ In the configuration block specify the C interoperability options:
 
    </div>
 
-2. Re-import the project.
+3. Re-import the project.
 
 To use these dependencies from the Kotlin code, import the packages `cocoapods.<library-name>`.
 
@@ -460,6 +499,11 @@ You can add dependencies on a static Pod library with `pod()` and `useLibraries(
    > You can add a dependency on a static library from a repository or stored locally.
    {:.note}
 
+3. Specify the minimum target version for the Pod library.
+
+   > If you don't specify the minimum target version and a dependency Pod requires a higher deployment target, you may get an error.
+   {:.note}
+
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
    ```kotlin
@@ -469,6 +513,8 @@ You can add dependencies on a static Pod library with `pod()` and `useLibraries(
        cocoapods {
            summary = "CocoaPods test library"
            homepage = "https://github.com/JetBrains/kotlin"
+
+           ios.deploymentTarget = "13.5"
 
            pod("YandexMapKit") {
                version = "~> 3.2"
@@ -482,7 +528,7 @@ You can add dependencies on a static Pod library with `pod()` and `useLibraries(
    </div>
 
 
-2. Re-import the project.
+4. Re-import the project.
 
 To use these dependencies from the Kotlin code, import the packages `cocoapods.<library-name>`.
 
