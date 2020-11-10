@@ -38,7 +38,7 @@ gradle-app.setting
 
 # local project files
 lib/
-.idea/
+.idea/*
 proto/compiler/protoc-artifacts
 proto/compiler/tests
 
@@ -72,3 +72,5 @@ compile_commands.json
 
 # googletest framework used by runtime tests
 runtime/googletest/
+
+!.idea/codeStyles/
