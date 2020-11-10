@@ -41,7 +41,7 @@ open class KonanCacheTask: DefaultTask() {
         }
 
     @Input
-    var cacheKind: KonanCacheKind = KonanCacheKind.STATIC
+    var cacheKind: KonanCacheKind = KonanCacheKind.DYNAMIC
 
     @Input
     /** Path to a compiler distribution that is used to build this cache. */
