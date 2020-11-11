@@ -11,7 +11,7 @@ import kotlin.test.*
 
 fun main(args: Array<String>) {
     // Test relies on full deinitialization at shutdown.
-    kotlin.native.Platform.forceCheckedShutdown = true
+    kotlin.native.internal.Debugging.forceCheckedShutdown = true
     autoreleasepool {
         run()
     }

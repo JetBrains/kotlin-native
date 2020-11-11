@@ -111,9 +111,8 @@ RuntimeState* initRuntime() {
           // runtime shutdown, which does it the other way around.
           atomicAdd(&aliveRuntimesCount, 1);
           auto lastStatus = compareAndSwap(&globalRuntimeStatus, kGlobalRuntimeUninitialized, kGlobalRuntimeRunning);
-          if (lastStatus == kGlobalRuntimeShutdown && Kotlin_forceCheckedShutdown()) {
-              konan::consoleErrorf("Kotlin runtime was shut down. Cannot create new runtimes\n");
-              konan::abort();
+          if (Kotlin_forceCheckedShutdown()) {
+              RuntimeAssert(lastStatus != kGlobalRuntimeShutdown, "Kotlin runtime was shut down. Cannot create new runtimes.");
           }
           firstRuntime = lastStatus == kGlobalRuntimeUninitialized;
           result->memoryState = InitMemory(firstRuntime);
@@ -224,6 +223,7 @@ void Kotlin_shutdownRuntime() {
     auto lastStatus = compareAndSwap(&globalRuntimeStatus, kGlobalRuntimeRunning, kGlobalRuntimeShutdown);
     RuntimeAssert(lastStatus == kGlobalRuntimeRunning, "Invalid runtime status for shutdown");
 
+    // TODO: When legacy mode is gone, this `if` will become unnecessary.
     if (Kotlin_forceCheckedShutdown() || Kotlin_memoryLeakCheckerEnabled() || Kotlin_cleanersLeakCheckerEnabled()) {
         // First make sure workers are gone.
         WaitNativeWorkersTermination();
@@ -339,11 +339,11 @@ bool Kotlin_forceCheckedShutdown() {
     return g_forceCheckedShutdown;
 }
 
-KBoolean Konan_Platform_getForceCheckedShutdown() {
+KBoolean Kotlin_Debugging_getForceCheckedShutdown() {
     return g_forceCheckedShutdown;
 }
 
-void Konan_Platform_setForceCheckedShutdown(KBoolean value) {
+void Kotlin_Debugging_setForceCheckedShutdown(KBoolean value) {
     switch (Kotlin_getDestroyRuntimeMode()) {
         case DESTROY_RUNTIME_LEGACY:
             // Only applicable to ON_SHUTDOWN modes.

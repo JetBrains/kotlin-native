@@ -27,9 +27,7 @@ int main() {
     });
     main1.join();
 
-    std::thread main2([]() {
-        assert(testlib_symbols()->kotlin.root.readFromA() == kResultValue);
-    });
+    std::thread main2([]() { assert(testlib_symbols()->kotlin.root.readFromA() == kResultValue); });
     main2.join();
 
     return 0;
