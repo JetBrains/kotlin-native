@@ -2010,7 +2010,6 @@ MemoryState* initMemory(bool firstRuntime) {
       firstRuntime = firstMemoryState;
       break;
     case DESTROY_RUNTIME_ON_SHUTDOWN:
-    case DESTROY_RUNTIME_ON_SHUTDOWN_CHECKED:
       // Nothing to do.
       break;
   }
@@ -2039,7 +2038,6 @@ void deinitMemory(MemoryState* memoryState, bool destroyRuntime) {
       destroyRuntime = lastMemoryState;
       break;
     case DESTROY_RUNTIME_ON_SHUTDOWN:
-    case DESTROY_RUNTIME_ON_SHUTDOWN_CHECKED:
       // Nothing to do.
       break;
   }

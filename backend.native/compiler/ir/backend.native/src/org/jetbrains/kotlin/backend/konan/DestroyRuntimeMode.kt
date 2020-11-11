@@ -8,5 +8,4 @@ package org.jetbrains.kotlin.backend.konan
 enum class DestroyRuntimeMode(val value: Int) {
     LEGACY(0),
     ON_SHUTDOWN(1),
-    ON_SHUTDOWN_CHECKED(2)
 }

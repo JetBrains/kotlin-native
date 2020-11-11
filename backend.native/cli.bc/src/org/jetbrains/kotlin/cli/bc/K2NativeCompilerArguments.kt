@@ -285,7 +285,7 @@ class K2NativeCompilerArguments : CommonCompilerArguments() {
     )
     var overrideKonanProperties: Array<String>? = null
 
-    @Argument(value="-Xdestroy-runtime-mode", valueDescription = "<mode>", description = "When to destroy runtime. 'legacy', 'on-shutdown' and 'on-shutdown-checked' are currently supported. NOTE: 'legacy' mode is deprecated and will be removed.")
+    @Argument(value="-Xdestroy-runtime-mode", valueDescription = "<mode>", description = "When to destroy runtime. 'legacy' and 'on-shutdown' are currently supported. NOTE: 'legacy' mode is deprecated and will be removed.")
     var destroyRuntimeMode: String? = "on-shutdown"
 
     override fun configureAnalysisFlags(collector: MessageCollector): MutableMap<AnalysisFlag<*>, Any> =

@@ -29,7 +29,6 @@ extern "C" {
 enum DestroyRuntimeMode {
     DESTROY_RUNTIME_LEGACY = 0,
     DESTROY_RUNTIME_ON_SHUTDOWN = 1,
-    DESTROY_RUNTIME_ON_SHUTDOWN_CHECKED = 2,
 };
 
 DestroyRuntimeMode Kotlin_getDestroyRuntimeMode();

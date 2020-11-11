@@ -71,7 +71,7 @@ void InitOrDeinitGlobalVariables(int initialize, MemoryState* memory) {
 
 KBoolean g_checkLeaks = KonanNeedDebugInfo;
 KBoolean g_checkLeakedCleaners = KonanNeedDebugInfo;
-KBoolean g_forceCheckedShutdown = Kotlin_getDestroyRuntimeMode() == DESTROY_RUNTIME_ON_SHUTDOWN_CHECKED;
+KBoolean g_forceCheckedShutdown = false;
 
 constexpr RuntimeState* kInvalidRuntime = nullptr;
 
@@ -107,7 +107,6 @@ RuntimeState* initRuntime() {
           firstRuntime = atomicAdd(&aliveRuntimesCount, 1) == 1;
           break;
       case DESTROY_RUNTIME_ON_SHUTDOWN:
-      case DESTROY_RUNTIME_ON_SHUTDOWN_CHECKED:
           // First update `aliveRuntimesCount` and then update `globalRuntimeStatus`, for synchronization with
           // runtime shutdown, which does it the other way around.
           atomicAdd(&aliveRuntimesCount, 1);
@@ -146,7 +145,6 @@ void deinitRuntime(RuntimeState* state, bool destroyRuntime) {
       destroyRuntime = lastRuntime;
       break;
     case DESTROY_RUNTIME_ON_SHUTDOWN:
-    case DESTROY_RUNTIME_ON_SHUTDOWN_CHECKED:
       // Nothing to do.
       break;
   }
@@ -205,7 +203,6 @@ void Kotlin_shutdownRuntime() {
             needsFullShutdown = true;
             break;
         case DESTROY_RUNTIME_ON_SHUTDOWN:
-        case DESTROY_RUNTIME_ON_SHUTDOWN_CHECKED:
             needsFullShutdown = Kotlin_forceCheckedShutdown() || Kotlin_memoryLeakCheckerEnabled() || Kotlin_cleanersLeakCheckerEnabled();
             break;
     }
@@ -352,7 +349,6 @@ void Konan_Platform_setForceCheckedShutdown(KBoolean value) {
             // Only applicable to ON_SHUTDOWN modes.
             return;
         case DESTROY_RUNTIME_ON_SHUTDOWN:
-        case DESTROY_RUNTIME_ON_SHUTDOWN_CHECKED:
             break;
     }
     g_forceCheckedShutdown = value;

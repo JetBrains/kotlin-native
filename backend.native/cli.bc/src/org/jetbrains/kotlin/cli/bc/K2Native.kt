@@ -253,7 +253,6 @@ class K2Native : CLICompiler<K2NativeCompilerArguments>() {
                 put(DESTROY_RUNTIME_MODE, when (arguments.destroyRuntimeMode) {
                     "legacy" -> DestroyRuntimeMode.LEGACY
                     "on-shutdown" -> DestroyRuntimeMode.ON_SHUTDOWN
-                    "on-shutdown-checked" -> DestroyRuntimeMode.ON_SHUTDOWN_CHECKED
                     else -> {
                         configuration.report(ERROR, "Unsupported destroy runtime mode ${arguments.destroyRuntimeMode}")
                         DestroyRuntimeMode.ON_SHUTDOWN
