@@ -116,7 +116,7 @@ RuntimeState* initRuntime() {
               konan::abort();
           }
           firstRuntime = lastStatus == kGlobalRuntimeUninitialized;
-          result->memoryState = InitMemory(firstRuntime); // The argument will be ignored for legacy DestroyRuntimeMode
+          result->memoryState = InitMemory(firstRuntime);
           result->worker = WorkerInit(true);
   }
 
