@@ -2032,13 +2032,18 @@ void deinitMemory(MemoryState* memoryState, bool destroyRuntime) {
   static int pendingDeinit = 0;
   atomicAdd(&pendingDeinit, 1);
 #if USE_GC
-  bool lastMemoryState = atomicAdd(&aliveMemoryStatesCount, -1) == 0;
   switch (Kotlin_getDestroyRuntimeMode()) {
     case DESTROY_RUNTIME_LEGACY:
-      destroyRuntime = lastMemoryState;
+      destroyRuntime = atomicAdd(&aliveMemoryStatesCount, -1) == 0;
       break;
     case DESTROY_RUNTIME_ON_SHUTDOWN:
-      // Nothing to do.
+      if (!destroyRuntime && memoryState->isMainThread) {
+        // If we are not destroying the runtime but we were the main thread, publish all changes to Kotlin globals.
+        // This `synchronize` should be before `aliveMemoryStatesCount` decrement to synchronize with
+        // `initMemory` which does this in the reverse order.
+        synchronize();
+      }
+      atomicAdd(&aliveMemoryStatesCount, -1);
       break;
   }
   bool checkLeaks = Kotlin_memoryLeakCheckerEnabled() && destroyRuntime;
@@ -2053,10 +2058,6 @@ void deinitMemory(MemoryState* memoryState, bool destroyRuntime) {
    }
    cyclicDeinit(g_hasCyclicCollector);
 #endif  // USE_CYCLIC_GC
-  }
-  if (!destroyRuntime && memoryState->isMainThread) {
-    // If we are not destroying the runtime but we were the main thread, publish all changes to Kotlin globals.
-    synchronize();
   }
   // Actual GC only implemented in strict memory model at the moment.
   do {
@@ -2077,7 +2078,7 @@ void deinitMemory(MemoryState* memoryState, bool destroyRuntime) {
   atomicAdd(&pendingDeinit, -1);
 
 #if TRACE_MEMORY
-  if (IsStrictMemoryModel && lastMemoryState && allocCount > 0) {
+  if (IsStrictMemoryModel && destroyRuntime && allocCount > 0) {
     MEMORY_LOG("*** Memory leaks, leaked %d containers ***\n", allocCount);
     dumpReachable("", memoryState->containers);
   }

@@ -5,7 +5,7 @@
 package kotlin.native.internal
 
 /*
- * Internal utilities for debugging K/N compiler and runtime itself.
+ * Internal utilities for debugging K/N compiler and runtime.
  */
 public object Debugging {
     public var forceCheckedShutdown: Boolean

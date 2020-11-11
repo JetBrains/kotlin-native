@@ -2392,7 +2392,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
     }
 
     private fun appendGlobal(name: String, value: ConstValue) {
-        // TODO: A similar mechanism is used in ObjCExportCodeGenerator. Consider merging them.
+        // TODO: A similar mechanism is used in `ObjCExportCodeGenerator`. Consider merging them.
         if (context.llvmModuleSpecification.importsKotlinDeclarationsFromOtherSharedLibraries()) {
             // When some dynamic caches are used, we consider that stdlib is in the dynamic cache as well.
             // Runtime is linked into stdlib module only, so import runtime global from it.
