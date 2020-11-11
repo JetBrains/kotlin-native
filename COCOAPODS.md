@@ -9,8 +9,8 @@ and completion. You can build the whole Kotlin project with Gradle and not ever 
 
 Use Xcode only when you need to write Swift/Objective-C code or run your application on a simulator or device.
 To work correctly with Xcode, you should [update you Podfile](#update-podfile-for-xcode). 
- 
-Depending on your project and purposes, you can add dependencies between [a Kotlin project and a Pod library](#add-dependencies-on-pod-libraries), or [a Kotlin Pod and an Xcode project](#use-a-kotlin-gradle-project-as-a-cocoapods-dependency). 
+
+Depending on your project and purposes, you can add dependencies between [a Kotlin project and a Pod library](#add-dependencies-on-pod-libraries) as well as [a Kotlin Pod and an Xcode project](#use-a-kotlin-gradle-project-as-a-cocoapods-dependency). 
 
 >You can also add dependencies between a Kotlin Pod and multiple Xcode projects. However, in this case you need to add a 
 >dependency by calling `pod install` manually for each Xcode project. In other cases, it's done automatically.
@@ -122,9 +122,9 @@ You can add dependencies on a Pod library from the CocoaPods repository with `po
    > You can add dependencies on subspecs.
    {:.note}
 
-2. Specify the minimum target version for the Pod library.
+2. Specify the minimum deployment target version for the Pod library.
 
-   > If you don't specify the minimum target version and a dependency Pod requires a higher deployment target, you may get an error.
+   > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you may get an error.
    {:.note}
 
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
@@ -175,9 +175,9 @@ You can add a dependency on a Pod library stored locally with `pod()` to `build.
    > the same time.
    {:.note}
 
-2. Specify the minimum target version for the Pod library.
+2. Specify the minimum deployment target version for the Pod library.
 
-   > If you don't specify the minimum target version and a dependency Pod requires a higher deployment target, you may get an error.
+   > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you may get an error.
    {:.note}
 
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
@@ -242,9 +242,9 @@ In the configuration block specify the path to the git repository: use the `git(
     * `tag` – to use a specific tag of the repository
     * `commit` – to use a specific commit of the repository
 
-2. Specify the minimum target version for the Pod library.
+2. Specify the minimum deployment target version for the Pod library.
 
-   > If you don't specify the minimum target version and a dependency Pod requires a higher deployment target, you may get an error.
+   > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you may get an error.
    {:.note}
 
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
@@ -309,11 +309,11 @@ You can add dependencies on a Pod library from `zip`, `tar`, or `jar` archive wi
 In the configuration block specify the path to the archive: use the `url()` function with an arbitrary HTTP address in the `source` parameter value. 
 
     Additionally, you can specify the Boolean `flatten` parameter as a second argument for the `url()` function.
-    It indicates that all Pod files located in the root directory.
+    It indicates that all Pod files located in the root directory of the archive.
 
-2. Specify the minimum target version for the Pod library.
+2. Specify the minimum deployment target version for the Pod library.
 
-   > If you don't specify the minimum target version and a dependency Pod requires a higher deployment target, you may get an error.
+   > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you may get an error.
    {:.note}
 
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
@@ -378,9 +378,9 @@ You can add dependencies on a Pod library from a custom Spec repository with `po
 
 2. Specify the name of a Pod library in the `pod()` function.
 
-3. Specify the minimum target version for the Pod library.
+3. Specify the minimum deployment target version for the Pod library.
 
-   > If you don't specify the minimum target version and a dependency Pod requires a higher deployment target, you may get an error.
+   > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you may get an error.
    {:.note}
 
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
@@ -436,9 +436,9 @@ In the configuration block specify the C interoperability options:
     * `extraOpts` – to specify the list of options to a Pod library. For example, specific flags
     * `packageName` – to specify the package name. If you specify it, you can import the library using the package name: `import cocoapods.<packageName>`
 
-2. Specify the minimum target version for the Pod library.
+2. Specify the minimum deployment target version for the Pod library.
 
-   > If you don't specify the minimum target version and a dependency Pod requires a higher deployment target, you may get an error.
+   > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you may get an error.
    {:.note}
 
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
@@ -499,9 +499,9 @@ You can add dependencies on a static Pod library with `pod()` and `useLibraries(
    > You can add a dependency on a static library from a repository or stored locally.
    {:.note}
 
-3. Specify the minimum target version for the Pod library.
+3. Specify the minimum deployment target version for the Pod library.
 
-   > If you don't specify the minimum target version and a dependency Pod requires a higher deployment target, you may get an error.
+   > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you may get an error.
    {:.note}
 
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
@@ -603,8 +603,8 @@ directive.
 2. Add the path to your Xcode project `Podfile` with `podfile = project.file(..)` to `build.gradle.kts` (`build.gradle`) 
 of your Kotlin project.  
     This step helps synchronize your Xcode project with Kotlin Pod dependencies by calling `pod install` for your `Podfile`.
-3. Specify the minimum target version for the Pod library.
-    > If you don't specify the minimum target version and a dependency Pod requires a higher deployment target, you may get an error.
+3. Specify the minimum deployment target version for the Pod library.
+    > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you may get an error.
     {:.note}
 
     <div class="sample" markdown="1" theme="idea" data-highlight-only>
@@ -652,7 +652,9 @@ of your Kotlin project.
  your Kotlin project.  
     This step helps synchronize your Xcode project with Kotlin Pod dependencies by calling `pod install` for your `Podfile`.
 3. Add dependencies to the Pod libraries that you want to use in your project with `pod()`.
-4. For each target, specify the minimum target version for the Pod library.
+4. For each target, specify the minimum deployment target version for the Pod library.
+    > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you may get an error.
+    {:.note}
 
     <div class="sample" markdown="1" theme="idea" data-highlight-only>
     
