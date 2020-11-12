@@ -238,9 +238,12 @@ You can add dependencies on a Pod library from a custom Git repository with `pod
 In the configuration block specify the path to the git repository: use the `git()` function in the `source` parameter value.
 
     Additionally, you can specify the following parameters in the block after `git()`:
-    * `branch` – to use a different branch of the repository
-    * `tag` – to use a specific tag of the repository
     * `commit` – to use a specific commit of the repository
+    * `tag` – to use a specific tag of the repository
+    * `branch` – to use a specific branch of the repository
+
+    The `git()` function prioritizes passed parameters in the following order (from highest to lowest): `commit`, `tag`, `branch`.
+    If you don't specify any parameter, Kotlin plugin uses `HEAD` of the `master` branch.
 
 2. Specify the minimum deployment target version for the Pod library.
 
@@ -434,7 +437,7 @@ You can add dependencies on a Pod library with custom C interoperability options
 In the configuration block specify the C interoperability options:
 
     * `extraOpts` – to specify the list of options to a Pod library. For example, specific flags
-    * `packageName` – to specify the package name. If you specify it, you can import the library using the package name: `import cocoapods.<packageName>`
+    * `packageName` – to specify the package name. If you specify it, you can import the library using the package name: `import <packageName>`
 
 2. Specify the minimum deployment target version for the Pod library.
 
@@ -482,7 +485,7 @@ If you use the `packageName` parameter, you can import the library using the pac
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
 ```kotlin
-import cocoapods.packageName
+import packageName
 ```
 
 </div>
@@ -494,10 +497,7 @@ You can add dependencies on a static Pod library with `pod()` and `useLibraries(
 
 1. Specify the name of the library using the `pod()` function.
 
-2. Call the `useLibraries()` function: it enables a special flag for static libraries. 
-
-   > You can add a dependency on a static library from a repository or stored locally.
-   {:.note}
+2. Call the `useLibraries()` function: it enables a special flag for static libraries.
 
 3. Specify the minimum deployment target version for the Pod library.
 
@@ -543,7 +543,7 @@ import cocoapods.SDWebImage.*
 
 ### Update Podfile for Xcode
 
-Kotlin requires Podfile changes to work correctly with Xcode:
+If you already have the Xcode project, CocoaPods plugin requires Podfile changes to work correctly:
 
 * If your project has any Git, HTTP, custom Spec repository dependency, you should also specify the path to the Podspec in the Podfile.
 
@@ -577,6 +577,8 @@ Kotlin requires Podfile changes to work correctly with Xcode:
 
 > Re-import the project after making changes in Podfile.
 {:.note}
+
+If you don't make the changes of the Podfile, the `podInstall` task will fails and CocoaPods plugin shows the error message in the log.
 
 See the `withXcproject` branch of the [sample project](https://github.com/Kotlin/kotlin-with-cocoapods-sample) that contains an example of Xcode integration with the existing Xcode project named `kotlin-cocoapods-xcproj`.
 
