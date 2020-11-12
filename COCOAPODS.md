@@ -480,7 +480,7 @@ import cocoapods.SDWebImage.*
 
 </div>
 
-If you use the `packageName` parameter, you can import the library using the package name: `import cocoapods.<packageName>`:
+If you use the `packageName` parameter, you can import the library using the package name: `import <packageName>`:
 
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
