@@ -147,10 +147,9 @@ internal fun Context.psiToIr(symbolTable: SymbolTable) {
     symbolTable.noUnboundLeft("Unbound symbols left after linker")
 
     module.acceptVoid(ManglerChecker(KonanManglerIr, Ir2DescriptorManglerAdapter(KonanManglerDesc)))
-    if (!config.configuration.getBoolean(KonanConfigKeys.DISABLE_FAKE_OVERRIDE_VALIDATOR)) {
-        val fakeOverrideChecker = FakeOverrideChecker(KonanManglerIr, KonanManglerDesc)
-        linker.modules.values.forEach { fakeOverrideChecker.check(it) }
-    }
+
+    // val fakeOverrideChecker = FakeOverrideChecker(KonanManglerIr, KonanManglerDesc)
+    // linker.modules.values.forEach { fakeOverrideChecker.check(it) }
 
     irModule = module
 
