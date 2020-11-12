@@ -2381,7 +2381,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         LLVMSetSection(llvmUsedGlobal.llvmGlobal, "llvm.metadata")
     }
 
-    // TODO: Consider migrating `KonanNeedDebugInfo` to the `appendGlobal` mechanism from below.
+    // TODO: Consider migrating `KonanNeedDebugInfo` to the `overrideRuntimeGlobal` mechanism from below.
     private fun appendDebugSelector() {
         if (!context.producedLlvmModuleContainsStdlib) return
         val llvmDebugSelector =
