@@ -365,7 +365,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
 
             context.coverage.writeRegionInfo()
             appendDebugSelector()
-            appendCompilerGlobals()
+            overrideRuntimeGlobals()
             appendLlvmUsed("llvm.used", context.llvm.usedFunctions + context.llvm.usedGlobals)
             appendLlvmUsed("llvm.compiler.used", context.llvm.compilerUsedGlobals)
             if (context.isNativeLibrary) {
@@ -2391,7 +2391,7 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         llvmDebugSelector.setLinkage(LLVMLinkage.LLVMExternalLinkage)
     }
 
-    private fun appendGlobal(name: String, value: ConstValue) {
+    private fun overrideRuntimeGlobal(name: String, value: ConstValue) {
         // TODO: A similar mechanism is used in `ObjCExportCodeGenerator`. Consider merging them.
         if (context.llvmModuleSpecification.importsKotlinDeclarationsFromOtherSharedLibraries()) {
             // When some dynamic caches are used, we consider that stdlib is in the dynamic cache as well.
@@ -2417,10 +2417,11 @@ internal class CodeGeneratorVisitor(val context: Context, val lifetimes: Map<IrE
         }
     }
 
-    private fun appendCompilerGlobals() {
+    private fun overrideRuntimeGlobals() {
         if (!context.config.produce.isFinalBinary)
             return
-        appendGlobal("Kotlin_destroyRuntimeMode", Int32(context.config.destroyRuntimeMode.value))
+
+        overrideRuntimeGlobal("Kotlin_destroyRuntimeMode", Int32(context.config.destroyRuntimeMode.value))
     }
 
     //-------------------------------------------------------------------------//

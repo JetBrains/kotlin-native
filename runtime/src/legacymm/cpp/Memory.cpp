@@ -2019,12 +2019,6 @@ MemoryState* initMemory(bool firstRuntime) {
 #endif  // USE_CYCLIC_GC
     memoryState->isMainThread = true;
   }
-  if (!firstRuntime && firstMemoryState) {
-    memoryState->isMainThread = true;
-    // This thread is now the main thread. And there was a previous main thread, because this is not the first runtime.
-    // Make sure this thread sees all the updates to Kotlin globals from the previous main thread.
-    synchronize();
-  }
   return memoryState;
 }
 
@@ -2032,18 +2026,13 @@ void deinitMemory(MemoryState* memoryState, bool destroyRuntime) {
   static int pendingDeinit = 0;
   atomicAdd(&pendingDeinit, 1);
 #if USE_GC
+  bool lastMemoryState = atomicAdd(&aliveMemoryStatesCount, -1) == 0;
   switch (Kotlin_getDestroyRuntimeMode()) {
     case DESTROY_RUNTIME_LEGACY:
-      destroyRuntime = atomicAdd(&aliveMemoryStatesCount, -1) == 0;
+      destroyRuntime = lastMemoryState;
       break;
     case DESTROY_RUNTIME_ON_SHUTDOWN:
-      if (!destroyRuntime && memoryState->isMainThread) {
-        // If we are not destroying the runtime but we were the main thread, publish all changes to Kotlin globals.
-        // This `synchronize` should be before `aliveMemoryStatesCount` decrement to synchronize with
-        // `initMemory` which does this in the reverse order.
-        synchronize();
-      }
-      atomicAdd(&aliveMemoryStatesCount, -1);
+      // Nothing to do
       break;
   }
   bool checkLeaks = Kotlin_memoryLeakCheckerEnabled() && destroyRuntime;
