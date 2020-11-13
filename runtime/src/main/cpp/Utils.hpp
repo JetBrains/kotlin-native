@@ -10,46 +10,46 @@ namespace kotlin {
 
 // A helper for implementing classes with disabled copy constructor and copy assignment.
 // Usage:
-// class A: private NoCopy {
+// class A: private MoveOnly {
 //     ...
 // };
 // Prefer private inheritance to discourage casting instances of `A` to instances
-// of `NoCopy`.
-class NoCopy {
-    // Hide constructors, assignments and destructor, to discourage operating on an instance of `NoCopy`.
+// of `MoveOnly`.
+class MoveOnly {
+    // Hide constructors, assignments and destructor, to discourage operating on an instance of `MoveOnly`.
 protected:
-    NoCopy() noexcept = default;
-    NoCopy(const NoCopy&) = delete;
-    NoCopy(NoCopy&&) noexcept = default;
+    MoveOnly() noexcept = default;
+    MoveOnly(const MoveOnly&) = delete;
+    MoveOnly(MoveOnly&&) noexcept = default;
 
-    NoCopy& operator=(const NoCopy&) = delete;
-    NoCopy& operator=(NoCopy&&) noexcept = default;
+    MoveOnly& operator=(const MoveOnly&) = delete;
+    MoveOnly& operator=(MoveOnly&&) noexcept = default;
 
     // Not virtual by design. Since this class hides this destructor, no one can destroy an
-    // instance of `NoCopy` directly, so this destructor is never called in a virtual manner.
-    ~NoCopy() = default;
+    // instance of `MoveOnly` directly, so this destructor is never called in a virtual manner.
+    ~MoveOnly() = default;
 };
 
 // A helper for implementing classes with disabled copy and move constructors, and copy and move assignments.
 // Usage:
-// class A: private NoCopyOrMove {
+// class A: private Pinned {
 //     ...
 // };
 // Prefer private inheritance to discourage casting instances of `A` to instances
-// of `NoCopyOrMove`.
-class NoCopyOrMove {
-    // Hide constructors, assignments and destructor, to discourage operating on an instance of `NoCopyOrMove`.
+// of `Pinned`.
+class Pinned {
+    // Hide constructors, assignments and destructor, to discourage operating on an instance of `Pinned`.
 protected:
-    NoCopyOrMove() noexcept = default;
-    NoCopyOrMove(const NoCopyOrMove&) = delete;
-    NoCopyOrMove(NoCopyOrMove&&) = delete;
+    Pinned() noexcept = default;
+    Pinned(const Pinned&) = delete;
+    Pinned(Pinned&&) = delete;
 
-    NoCopyOrMove& operator=(const NoCopyOrMove&) = delete;
-    NoCopyOrMove& operator=(NoCopyOrMove&&) = delete;
+    Pinned& operator=(const Pinned&) = delete;
+    Pinned& operator=(Pinned&&) = delete;
 
     // Not virtual by design. Since this class hides this destructor, no one can destroy an
-    // instance of `NoCopyOrMove` directly, so this destructor is never called in a virtual manner.
-    ~NoCopyOrMove() = default;
+    // instance of `Pinned` directly, so this destructor is never called in a virtual manner.
+    ~Pinned() = default;
 };
 
 } // namespace kotlin

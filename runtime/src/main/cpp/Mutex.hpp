@@ -41,7 +41,7 @@ class SimpleMutex {
 
 // TODO: use std::lock_guard instead?
 template <class Mutex>
-class LockGuard : private kotlin::NoCopyOrMove {
+class LockGuard : private kotlin::Pinned {
  public:
   explicit LockGuard(Mutex& mutex_) : mutex(mutex_) {
     mutex.lock();

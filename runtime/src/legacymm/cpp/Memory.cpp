@@ -150,7 +150,7 @@ KBoolean g_hasCyclicCollector = true;
 #endif  // USE_CYCLIC_GC
 
 // TODO: Consider using ObjHolder.
-class ScopedRefHolder : private kotlin::NoCopy {
+class ScopedRefHolder : private kotlin::MoveOnly {
  public:
   ScopedRefHolder() = default;
 
@@ -187,7 +187,7 @@ struct CycleDetectorRootset {
   KStdVector<ScopedRefHolder> heldRefs;
 };
 
-class CycleDetector : private kotlin::NoCopyOrMove {
+class CycleDetector : private kotlin::Pinned {
  public:
   static void insertCandidateIfNeeded(KRef object) {
     if (canBeACandidate(object))

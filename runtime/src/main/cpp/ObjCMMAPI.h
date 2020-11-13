@@ -14,7 +14,7 @@
 extern "C" ALWAYS_INLINE void Kotlin_ObjCExport_releaseAssociatedObject(void* associatedObject);
 
 namespace konan {
-class AutoreleasePool : private kotlin::NoCopyOrMove {
+class AutoreleasePool : private kotlin::Pinned {
  public:
   AutoreleasePool();
   ~AutoreleasePool();

@@ -13,7 +13,7 @@
 #include "Utils.hpp"
 
 template <class F>
-class ScopedStrictMockFunction : private kotlin::NoCopy {
+class ScopedStrictMockFunction : private kotlin::MoveOnly {
 public:
     using Mock = testing::StrictMock<testing::MockFunction<F>>;
 

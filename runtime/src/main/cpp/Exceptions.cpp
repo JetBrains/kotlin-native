@@ -280,7 +280,7 @@ RUNTIME_NORETURN void TerminateWithUnhandledException(KRef throwable) {
 
 namespace {
 // Copy, move and assign would be safe, but not much useful, so let's delete all (rule of 5)
-class TerminateHandler : private kotlin::NoCopyOrMove {
+class TerminateHandler : private kotlin::Pinned {
 
   // In fact, it's safe to call my_handler directly from outside: it will do the job and then invoke original handler,
   // even if it has not been initialized yet. So one may want to make it public and/or not the class member
