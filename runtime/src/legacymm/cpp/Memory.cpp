@@ -45,6 +45,7 @@
 #include "Natives.h"
 #include "Porting.h"
 #include "Runtime.h"
+#include "Utils.hpp"
 #include "WorkerBoundReference.h"
 #include "Weak.h"
 

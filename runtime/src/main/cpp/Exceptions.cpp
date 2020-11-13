@@ -43,6 +43,7 @@
 #include "KString.h"
 #include "SourceInfo.h"
 #include "Types.h"
+#include "Utils.hpp"
 #include "ObjCExceptions.h"
 
 namespace {
