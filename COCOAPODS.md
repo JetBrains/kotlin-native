@@ -466,7 +466,7 @@ You can add dependencies on a Pod library with custom cinterop options with `pod
 1. Specify the name of a Pod library in the `pod()` function.
 In the configuration block specify the cinterop options:
 
-    * `extraOpts` – to specify the list of options to a Pod library. For example, specific flags
+    * `extraOpts` – to specify the list of options to a Pod library. For example, specific flags: `extraOpts = listOf("-compiler-option")`
     * `packageName` – to specify the package name. If you specify it, you can import the library using the package name: `import <packageName>`
 
 2. Specify the minimum deployment target version for the Pod library.
@@ -486,9 +486,10 @@ In the configuration block specify the cinterop options:
 
            ios.deploymentTarget = "13.5"
 
-           pod("new_pod") {
-               extraOpts = listOf("-compiler-option")
-               packageName = "package"
+           useLibraries()
+   
+           pod("YandexMapKit") {
+               packageName = "YandexMK"
            }
 
        }
@@ -504,7 +505,7 @@ To use these dependencies from the Kotlin code, import the packages `cocoapods.<
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
 ```kotlin
-import cocoapods.new_pod
+import cocoapods.YandexMapKit.*
 ```
 
 </div>
@@ -514,7 +515,8 @@ If you use the `packageName` parameter, you can import the library using the pac
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
 ```kotlin
-import package
+import YandexMK.YMKPoint
+import YandexMK.YMKDistance
 ```
 
 </div>
