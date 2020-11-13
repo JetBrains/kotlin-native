@@ -100,8 +100,8 @@ This allows you to add dependencies on the following types of Pod libraries:
  * [A Pod library stored locally](#add-a-dependency-on-a-pod-library-stored-locally)
  * [A Pod library from a Git repository](#add-a-dependency-on-a-pod-library-from-the-git-repository)
  * [A Pod library from an archive](#add-a-dependency-on-a-pod-library-from-an-archive)
- * [A Pod library from a custom Spec repository](#add-a-dependency-on-a-pod-library-from-a-custom-spec-repository)
- * [A Pod library with custom C Interop options](#add-a-dependency-on-a-pod-library-with-custom-c-interoperability-options)
+ * [A Pod library from a custom Podspec repository](#add-a-dependency-on-a-pod-library-from-a-custom-podspec-repository)
+ * [A Pod library with custom cinterop options](#add-a-dependency-on-a-pod-library-with-custom-cinterop-options)
  * [A static Pod library](#add-a-dependency-on-a-static-pod-library)
 
 A Kotlin project requires the `pod()` function call in `build.gradle.kts` (`build.gradle`) for adding a Pod dependency. Each dependency requires a separate function call.
@@ -117,14 +117,14 @@ To use your Kotlin project with Xcode, you should [make changes in your project 
 You can add dependencies on a Pod library from the CocoaPods repository with `pod()` to `build.gradle.kts` 
 (`build.gradle`) of your project:
  
-1. Specify the name of a Pod library in the `pod()` function. In the configuration block you can specify the version of the library using `version` parameter. To use the latest version of the library, omit the `version` parameter.
+1. Specify the name of a Pod library in the `pod()` function. In the configuration block you can specify the version of the library using the `version` parameter. To use the latest version of the library, omit the `version` parameter.
 
    > You can add dependencies on subspecs.
    {:.note}
 
 2. Specify the minimum deployment target version for the Pod library.
 
-   > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you may get an error.
+   > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you will get an error.
    {:.note}
 
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
@@ -157,7 +157,6 @@ To use these dependencies from the Kotlin code, import the packages `cocoapods.<
 
 ```kotlin
 import cocoapods.AFNetworking.*
-import cocoapods.SDWebImage.*
 ```
 
 </div>
@@ -177,7 +176,7 @@ You can add a dependency on a Pod library stored locally with `pod()` to `build.
 
 2. Specify the minimum deployment target version for the Pod library.
 
-   > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you may get an error.
+   > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you will get an error.
    {:.note}
 
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
@@ -203,7 +202,6 @@ You can add a dependency on a Pod library stored locally with `pod()` to `build.
            pod("AFNetworking") {
                version = "~> 4.0.1"
            }
-           pod("SDWebImage/MapKit")
        }
    }
    ```
@@ -223,6 +221,7 @@ To use these dependencies from the Kotlin code, import the packages `cocoapods.<
 ```kotlin
 import cocoapods.pod_dependency.*
 import cocoapods.subspec_dependency.*
+import cocoapods.AFNetworking.*
 ```
 
 </div>
@@ -245,9 +244,12 @@ In the configuration block specify the path to the git repository: use the `git(
     The `git()` function prioritizes passed parameters in the following order (from highest to lowest): `commit`, `tag`, `branch`.
     If you don't specify any parameter, Kotlin plugin uses `HEAD` of the `master` branch.
 
+    > You can combine `branch`, `commit`, and `tag` parameters to get the specific version of a Pod.
+    {:.note}
+
 2. Specify the minimum deployment target version for the Pod library.
 
-   > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you may get an error.
+   > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you will get an error.
    {:.note}
 
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
@@ -285,10 +287,24 @@ In the configuration block specify the path to the git repository: use the `git(
    
    </div>
 
-   > You can combine `branch`, `commit`, and `tag` parameters to get the specific version of a Pod.
-   {:.note}
 
 3. Re-import the project.
+
+> To work correctly with Xcode, you should specify the path to the Podspec in your Podfile.
+> For example:
+>
+> <div class="sample" markdown="1" theme="idea" data-highlight-only>
+>
+> ```ruby
+> target 'ios-app' do
+>     # ... other pod depedencies ...
+>    pod 'JSONModel', :path => '../cocoapods/kotlin-with-cocoapods-sample/kotlin-library/build/cocoapods/externalSources/git/JSONModel'
+> end
+> ```
+> 
+> </div>
+>
+{:.note} 
 
 To use these dependencies from the Kotlin code, import the packages `cocoapods.<library-name>`.
 
@@ -297,6 +313,7 @@ To use these dependencies from the Kotlin code, import the packages `cocoapods.<
 ```kotlin
 import cocoapods.AFNetworking.*
 import cocoapods.JSONModel.*
+import cocoapods.CocoaLumberjack.*
 ```
 
 </div>
@@ -311,12 +328,12 @@ You can add dependencies on a Pod library from `zip`, `tar`, or `jar` archive wi
 1. Specify the name of a Pod library in the `pod()` function.
 In the configuration block specify the path to the archive: use the `url()` function with an arbitrary HTTP address in the `source` parameter value. 
 
-    Additionally, you can specify the Boolean `flatten` parameter as a second argument for the `url()` function.
+    Additionally, you can specify the boolean `flatten` parameter as a second argument for the `url()` function.
     It indicates that all Pod files are located in the root directory of the archive.
 
 2. Specify the minimum deployment target version for the Pod library.
 
-   > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you may get an error.
+   > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you will get an error.
    {:.note}
 
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
@@ -351,7 +368,7 @@ In the configuration block specify the path to the archive: use the `url()` func
 > ```ruby
 > target 'ios-app' do
 >     # ... other pod depedencies ...
->    pod 'podspecWithFilesExample', :path => '../kotlin-libr/build/cocoapods/externalSources/url/podspecWithFilesExample'
+>    pod 'podspecWithFilesExample', :path => '../cocoapods/kotlin-with-cocoapods-sample/pod_dependency'
 > end
 > ```
 > 
@@ -371,18 +388,18 @@ import cocoapods.pod_dependency.*
 
 You can find a sample project [here](https://github.com/Kotlin/kotlin-with-cocoapods-sample).
 
-### Add a dependency on a Pod library from a custom Spec repository
+### Add a dependency on a Pod library from a custom Podspec repository
 
-You can add dependencies on a Pod library from a custom Spec repository with `pod()` and `specRepos` to `build.gradle.kts` 
+You can add dependencies on a Pod library from a custom Podspec repository with `pod()` and `specRepos` to `build.gradle.kts` 
 (`build.gradle`) of your project:
 
-1. Specify the HTTP address to the custom Spec repository using the `url()` inside the `specRepos` block.
+1. Specify the HTTP address to the custom Podspec repository using the `url()` inside the `specRepos` block.
 
 2. Specify the name of a Pod library in the `pod()` function.
 
 3. Specify the minimum deployment target version for the Pod library.
 
-   > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you may get an error.
+   > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you will get an error.
    {:.note}
 
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
@@ -412,6 +429,21 @@ You can add dependencies on a Pod library from a custom Spec repository with `po
 
 > To work correctly with Xcode, you should specify the location of specs at the beginning of your Podfile.
 > For example, `source 'https://github.com/Kotlin/kotlin-cocoapods-spec.git'`
+>
+> You should also specify the path to the Podspec in your Podfile.
+> For example:
+>
+> <div class="sample" markdown="1" theme="idea" data-highlight-only>
+>
+> ```ruby
+> target 'ios-app' do
+>     # ... other pod depedencies ...
+>    pod 'podspecWithFilesExample', :path => '../cocoapods/kotlin-with-cocoapods-sample/pod_dependency'
+> end
+> ```
+> 
+> </div>
+>
 {:.note} 
 
 To use these dependencies from the Kotlin code, import the packages `cocoapods.<library-name>`.
@@ -426,20 +458,20 @@ import cocoapods.example.*
 
 You can find a sample project [here](https://github.com/Kotlin/kotlin-with-cocoapods-sample).
 
-### Add a dependency on a Pod library with custom C interoperability options
+### Add a dependency on a Pod library with custom cinterop options
 
-You can add dependencies on a Pod library with custom C interoperability options with `pod()` to `build.gradle.kts` 
+You can add dependencies on a Pod library with custom cinterop options with `pod()` to `build.gradle.kts` 
 (`build.gradle`) of your project:
 
 1. Specify the name of a Pod library in the `pod()` function.
-In the configuration block specify the C interoperability options:
+In the configuration block specify the cinterop options:
 
     * `extraOpts` – to specify the list of options to a Pod library. For example, specific flags
     * `packageName` – to specify the package name. If you specify it, you can import the library using the package name: `import <packageName>`
 
 2. Specify the minimum deployment target version for the Pod library.
 
-   > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you may get an error.
+   > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you will get an error.
    {:.note}
 
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
@@ -472,8 +504,7 @@ To use these dependencies from the Kotlin code, import the packages `cocoapods.<
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
 ```kotlin
-import cocoapods.AFNetworking.*
-import cocoapods.SDWebImage.*
+import cocoapods.new_pod
 ```
 
 </div>
@@ -483,7 +514,7 @@ If you use the `packageName` parameter, you can import the library using the pac
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
 ```kotlin
-import packageName
+import package
 ```
 
 </div>
@@ -499,7 +530,7 @@ You can add dependencies on a static Pod library with `pod()` and `useLibraries(
 
 3. Specify the minimum deployment target version for the Pod library.
 
-   > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you may get an error.
+   > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you will get an error.
    {:.note}
 
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
@@ -533,17 +564,16 @@ To use these dependencies from the Kotlin code, import the packages `cocoapods.<
 <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
 ```kotlin
-import cocoapods.AFNetworking.*
-import cocoapods.SDWebImage.*
+import cocoapods.YandexMapKit.*
 ```
 
 </div>
 
 ### Update Podfile for Xcode
 
-If you already have the Xcode project, CocoaPods plugin requires Podfile changes to work correctly:
+If you want to import your Kotlin project to an Xcode project, you should make changes to your Podfile to work correctly:
 
-* If your project has any Git, HTTP, custom Spec repository dependency, you should also specify the path to the Podspec in the Podfile.
+* If your project has any Git, HTTP, custom Podspec repository dependency, you should also specify the path to the Podspec in the Podfile.
 
    For example, if you add the dependency on `podspecWithFilesExample`, declare the path to the Podspec in the Podfile:
 
@@ -552,13 +582,15 @@ If you already have the Xcode project, CocoaPods plugin requires Podfile changes
    ```ruby
    target 'ios-app' do
        # ... other depedencies ...
-       pod 'podspecWithFilesExample', :path => '../kotlin-libr/build/cocoapods/externalSources/url/podspecWithFilesExample'
+       pod 'podspecWithFilesExample', :path => 'cocoapods/externalSources/url/podspecWithFilesExample'
    end
    ```
 
    </div>
 
-* When you add a library from the custom Spec repository, you should also specify the [location](https://guides.cocoapods.org/syntax/podfile.html#source) of specs at the beginning of your Podfile:
+   The `:path` should contain the filepath to the Pod.
+
+* When you add a library from the custom Podspec repository, you should also specify the [location](https://guides.cocoapods.org/syntax/podfile.html#source) of specs at the beginning of your Podfile:
 
    <div class="sample" markdown="1" theme="idea" data-highlight-only>
 
@@ -604,7 +636,7 @@ directive.
 of your Kotlin project.  
     This step helps synchronize your Xcode project with Kotlin Pod dependencies by calling `pod install` for your `Podfile`.
 3. Specify the minimum deployment target version for the Pod library.
-    > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you may get an error.
+    > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you will get an error.
     {:.note}
 
     <div class="sample" markdown="1" theme="idea" data-highlight-only>
@@ -653,7 +685,7 @@ of your Kotlin project.
     This step helps synchronize your Xcode project with Kotlin Pod dependencies by calling `pod install` for your `Podfile`.
 3. Add dependencies to the Pod libraries that you want to use in your project with `pod()`.
 4. For each target, specify the minimum deployment target version for the Pod library.
-    > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you may get an error.
+    > If you don't specify the minimum deployment target version and a dependency Pod requires a higher deployment target, you will get an error.
     {:.note}
 
     <div class="sample" markdown="1" theme="idea" data-highlight-only>
