@@ -14,6 +14,9 @@
  * limitations under the License.
  */
 
+#ifndef RUNTIME_MUTEX_H
+#define RUNTIME_MUTEX_H
+
 #include <cstdint>
 #include "KAssert.h"
 
@@ -53,3 +56,5 @@ class LockGuard {
   LockGuard(const LockGuard&) = delete;
   LockGuard& operator=(const LockGuard&) = delete;
 };
+
+#endif // RUNTIME_MUTEX_H

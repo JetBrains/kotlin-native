@@ -41,10 +41,10 @@
 #include "KString.h"
 #include "Memory.h"
 #include "MemoryPrivate.hpp"
+#include "Mutex.hpp"
 #include "Natives.h"
 #include "Porting.h"
 #include "Runtime.h"
-#include "Utils.h"
 #include "WorkerBoundReference.h"
 #include "Weak.h"
 

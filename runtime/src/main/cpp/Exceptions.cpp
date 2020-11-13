@@ -38,11 +38,11 @@
 #include "Exceptions.h"
 #include "ExecFormat.h"
 #include "Memory.h"
+#include "Mutex.hpp"
 #include "Natives.h"
 #include "KString.h"
 #include "SourceInfo.h"
 #include "Types.h"
-#include "Utils.h"
 #include "ObjCExceptions.h"
 
 namespace {
