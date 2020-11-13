@@ -608,7 +608,7 @@ If you want to import your Kotlin project to an Xcode project, you should make c
 > Re-import the project after making changes in Podfile.
 {:.note}
 
-If you don't make the changes of the Podfile, the `podInstall` task will fails and CocoaPods plugin shows the error message in the log.
+If you don't make the changes of the Podfile, the `podInstall` task will fail and the CocoaPods plugin will show the error message in the log.
 
 See the `withXcproject` branch of the [sample project](https://github.com/Kotlin/kotlin-with-cocoapods-sample) that contains an example of Xcode integration with the existing Xcode project named `kotlin-cocoapods-xcproj`.
 
