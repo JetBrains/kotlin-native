@@ -18,12 +18,12 @@ namespace kotlin {
 class NoCopy {
     // Hide constructors, assignments and destructor, to discourage operating on an instance of `NoCopy`.
 protected:
-    NoCopy() = default;
+    NoCopy() noexcept = default;
     NoCopy(const NoCopy&) = delete;
-    NoCopy(NoCopy&&) = default;
+    NoCopy(NoCopy&&) noexcept = default;
 
     NoCopy& operator=(const NoCopy&) = delete;
-    NoCopy& operator=(NoCopy&&) = default;
+    NoCopy& operator=(NoCopy&&) noexcept = default;
 
     // Not virtual by design. Since this class hides this destructor, no one can destroy an
     // instance of `NoCopy` directly, so this destructor is never called in a virtual manner.
@@ -40,7 +40,7 @@ protected:
 class NoCopyOrMove {
     // Hide constructors, assignments and destructor, to discourage operating on an instance of `NoCopyOrMove`.
 protected:
-    NoCopyOrMove() = default;
+    NoCopyOrMove() noexcept = default;
     NoCopyOrMove(const NoCopyOrMove&) = delete;
     NoCopyOrMove(NoCopyOrMove&&) = delete;
 
